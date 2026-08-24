@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Prepara a chamada da RPC fn_upsert_pedido. O payload vai CRU — o mapeamento é no SQL.\n// NÃO renomear o node 'Normalizar evento' — a referência abaixo é pelo nome.\nconst ev = $('Normalizar evento').first().json;\nconst p = $input.first().json?.retorno?.pedido;\nif (!p || !p.numero) return [];\nreturn [{ json: {\n  p,\n  p_tipo: ev.tipo || 'webhook',\n  p_tiny_id: Number(ev.id) || Number(p.id) || null,\n  p_origem: 'webhook',\n}}];"
+      },
+      "id": "b2000000-0000-0000-0000-000000000001",
+      "name": "Montar payload Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/fn_upsert_pedido",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_FABRICA_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.p, p_tipo: $json.p_tipo, p_tiny_id: $json.p_tiny_id, p_origem: $json.p_origem }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "b2000000-0000-0000-0000-000000000002",
+      "name": "Supabase · upsert pedido",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 260],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Montar payload Supabase": {
+      "main": [[{ "node": "Supabase · upsert pedido", "type": "main", "index": 0 }]]
+    }
+  },
+  "pins": {}
+}

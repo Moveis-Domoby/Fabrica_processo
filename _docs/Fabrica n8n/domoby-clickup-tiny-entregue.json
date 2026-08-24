@@ -1,0 +1,182 @@
+{
+  "name": "Domoby · ClickUp ROTAS → Tiny (entregue)",
+  "nodes": [
+    {
+      "parameters": {
+        "team": "9007001597",
+        "events": ["taskStatusUpdated"],
+        "filters": {
+          "listId": "901327395162"
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000001",
+      "name": "ClickUp Trigger · status",
+      "type": "n8n-nodes-base.clickUpTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Deixa passar SOMENTE o evento de status que virou \"entregue\".\n// O before/after pode chegar como string ou como objeto {status: ...} — trata os dois.\nconst STATUS_ALVO = 'entregue'; // <-- ajustar aqui se o nome exato do status na lista ROTAS for outro\n\nconst out = [];\nfor (const item of $input.all()) {\n  const b = item.json.body ?? item.json;\n  if ((b.event ?? '') !== 'taskStatusUpdated') continue;\n  const h = (b.history_items ?? [])[0] ?? {};\n  const raw = h.after;\n  const after = (raw && typeof raw === 'object' ? raw.status : raw) ?? '';\n  if (String(after).trim().toLowerCase() !== STATUS_ALVO) continue;\n  out.push({ json: { taskId: b.task_id, statusNovo: String(after) } });\n}\nreturn out;"
+      },
+      "id": "a1000000-0000-0000-0000-000000000002",
+      "name": "Filtrar status entregue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "resource": "task",
+        "operation": "get",
+        "id": "={{ $json.taskId }}"
+      },
+      "id": "a1000000-0000-0000-0000-000000000003",
+      "name": "ClickUp · Obter tarefa",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [440, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Confirma que a tarefa é da lista ROTAS e extrai o número do pedido do nome.\n// Nome padrão dos cards: \"13046 - Alecrim - 13/08/2026\" → pedido = 13046.\nconst LISTA_ALVO = 'ROTAS'; // nome da lista no ClickUp\n\nconst out = [];\nfor (const item of $input.all()) {\n  const t = item.json;\n  const lista = String(t.list?.name ?? '').trim().toUpperCase();\n  if (lista !== LISTA_ALVO) continue; // card de outra lista: ignora em silêncio\n  const m = String(t.name ?? '').match(/^\\s*(\\d+)/);\n  if (!m) continue; // nome sem número na frente: não dá para casar com pedido\n  out.push({ json: {\n    numero: m[1],\n    taskId: t.id,\n    nomeTarefa: t.name,\n  }});\n}\nreturn out;"
+      },
+      "id": "a1000000-0000-0000-0000-000000000004",
+      "name": "Validar ROTAS e extrair pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedidos.pesquisa.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "token", "value": "COLOQUE_O_TOKEN_V2_AQUI" },
+            { "name": "numero", "value": "={{ $json.numero }}" },
+            { "name": "formato", "value": "JSON" }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": { "response": { "neverError": true, "responseFormat": "json" } }
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000005",
+      "name": "Tiny · pedidos.pesquisa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Traduz numero -> id interno do Tiny e decide se deve alterar a situação.\n// NÃO renomear o node 'Validar ROTAS e extrair pedido' — a referência abaixo é pelo nome.\nconst alvo = $('Validar ROTAS e extrair pedido').first().json;\nconst numero = String(alvo.numero);\n\nconst ret = $input.first().json?.retorno ?? {};\nif (ret.status !== 'OK') {\n  // codigo_erro 20 = consulta sem registros -> pedido não existe no Tiny\n  throw new Error('pedidos.pesquisa falhou para o numero ' + numero + ': ' + JSON.stringify(ret.erros ?? ret.codigo_erro ?? ret));\n}\n\nconst lista = Array.isArray(ret.pedidos) ? ret.pedidos : (ret.pedidos ? [ret.pedidos] : []);\nconst pedidos = lista.map((x) => x.pedido || x);\nconst p = pedidos.find((x) => String(x.numero) === numero);\nif (!p) throw new Error('Pedido numero ' + numero + ' nao encontrado no retorno do Tiny (card: ' + alvo.nomeTarefa + ')');\n\nconst sit = String(p.situacao ?? '').toLowerCase();\nconst jaEntregue = sit.includes('entreg') && !sit.includes('nao') && !sit.includes('n\\u00e3o');\nconst cancelado = sit.includes('cancel');\n\nif (jaEntregue) return []; // idempotência: mover o card de novo não repete a chamada\nif (cancelado) return [];  // pedido cancelado nunca vira entregue por automação\n\nreturn [{ json: {\n  id: String(p.id),\n  numero,\n  situacaoAnterior: String(p.situacao ?? ''),\n  taskId: alvo.taskId,\n  nomeTarefa: alvo.nomeTarefa,\n}}];"
+      },
+      "id": "a1000000-0000-0000-0000-000000000006",
+      "name": "Escolher pedido no Tiny",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedido.alterar.situacao",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "token", "value": "COLOQUE_O_TOKEN_V2_AQUI" },
+            { "name": "id", "value": "={{ $json.id }}" },
+            { "name": "situacao", "value": "entregue" },
+            { "name": "formato", "value": "JSON" }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": { "response": { "neverError": true, "responseFormat": "json" } }
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000007",
+      "name": "Tiny · pedido.alterar.situacao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.retorno.status }}",
+              "rightValue": "OK",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000008",
+      "name": "Retorno OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 0]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Tiny recusou alterar a situacao do pedido {{ $('Escolher pedido no Tiny').first().json.numero }} (id {{ $('Escolher pedido no Tiny').first().json.id }}): {{ JSON.stringify($json.retorno) }}"
+      },
+      "id": "a1000000-0000-0000-0000-000000000009",
+      "name": "Erro · Tiny recusou",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [1760, 160]
+    }
+  ],
+  "connections": {
+    "ClickUp Trigger · status": {
+      "main": [[{ "node": "Filtrar status entregue", "type": "main", "index": 0 }]]
+    },
+    "Filtrar status entregue": {
+      "main": [[{ "node": "ClickUp · Obter tarefa", "type": "main", "index": 0 }]]
+    },
+    "ClickUp · Obter tarefa": {
+      "main": [[{ "node": "Validar ROTAS e extrair pedido", "type": "main", "index": 0 }]]
+    },
+    "Validar ROTAS e extrair pedido": {
+      "main": [[{ "node": "Tiny · pedidos.pesquisa", "type": "main", "index": 0 }]]
+    },
+    "Tiny · pedidos.pesquisa": {
+      "main": [[{ "node": "Escolher pedido no Tiny", "type": "main", "index": 0 }]]
+    },
+    "Escolher pedido no Tiny": {
+      "main": [[{ "node": "Tiny · pedido.alterar.situacao", "type": "main", "index": 0 }]]
+    },
+    "Tiny · pedido.alterar.situacao": {
+      "main": [[{ "node": "Retorno OK?", "type": "main", "index": 0 }]]
+    },
+    "Retorno OK?": {
+      "main": [
+        [],
+        [{ "node": "Erro · Tiny recusou", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

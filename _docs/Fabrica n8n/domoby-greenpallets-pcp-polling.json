@@ -1,0 +1,226 @@
+{
+  "name": "Domoby · GreenPallets (polling) → PCP ClickUp",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "d4000000-0000-0000-0000-000000000001",
+      "name": "A cada hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "GreenPallets faz 3–4 pedidos/mês — 1 consulta/hora é sobra. O plano Crescer não tem webhook (extensão bloqueada, confirmado por print em 17/08), por isso polling."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedidos.pesquisa.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "token", "value": "={{ $env.TINY2_TOKEN }}" },
+            { "name": "dataInicial", "value": "={{ $now.minus({ days: 21 }).toFormat('dd/LL/yyyy') }}" },
+            { "name": "formato", "value": "JSON" }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": { "response": { "neverError": true, "responseFormat": "json" } }
+        }
+      },
+      "id": "d4000000-0000-0000-0000-000000000002",
+      "name": "Tiny GP · pedidos.pesquisa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Janela de 21 dias — folga para cobrir qualquer parada do n8n. A sobreposição entre ciclos é inofensiva: a trava do Supabase impede duplicar."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Lista os pedidos do período. 'Consulta sem registros' (codigo 20) é fim\n// normal de ciclo, não erro — período sem pedidos novos.\nconst ret = $input.first().json?.retorno ?? {};\nif (ret.status !== 'OK') {\n  const cod = Number(ret.codigo_erro ?? 0);\n  if (cod === 20) return []; // nenhum pedido no período\n  throw new Error('pedidos.pesquisa (GreenPallets) falhou: ' + JSON.stringify(ret.erros ?? ret));\n}\nconst lista = Array.isArray(ret.pedidos) ? ret.pedidos : (ret.pedidos ? [ret.pedidos] : []);\nconst saida = [];\nfor (const x of lista) {\n  const p = x.pedido || x;\n  const sit = String(p.situacao ?? '').toLowerCase();\n  if (sit.includes('cancel')) continue; // cancelado antes do poll não vira card\n  const tiny_id = Number(p.id);\n  const numero = Number(p.numero);\n  if (!tiny_id || !numero) continue;\n  saida.push({ json: { tiny_id, numero } });\n}\nreturn saida;"
+      },
+      "id": "d4000000-0000-0000-0000-000000000003",
+      "name": "Listar pedidos do período",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/gp_pcp_processados",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_FABRICA_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}" },
+            { "name": "Prefer", "value": "resolution=ignore-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify([{ tiny_id: $json.tiny_id, numero: $json.numero }]) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "d4000000-0000-0000-0000-000000000004",
+      "name": "Supabase · trava anti-duplicação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Claim-first: tenta inserir o pedido em gp_pcp_processados. Pedido NOVO → o insert retorna a linha e o fluxo segue. Pedido JÁ processado → resposta vazia (ignore-duplicates) e nada acontece — é assim que ciclos sobrepostos não duplicam card. Para reprocessar um pedido: apagar a linha dele na tabela."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedido.obter.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "token", "value": "={{ $env.TINY2_TOKEN }}" },
+            { "name": "id", "value": "={{ $json.tiny_id }}" },
+            { "name": "formato", "value": "JSON" }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": { "response": { "neverError": true, "responseFormat": "json" } }
+        }
+      },
+      "id": "d4000000-0000-0000-0000-000000000005",
+      "name": "Tiny GP · pedido.obter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "gp1",
+              "leftValue": "={{ $json.retorno.status }}",
+              "rightValue": "OK",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "d4000000-0000-0000-0000-000000000006",
+      "name": "Retorno OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Gera uma linha por UNIDADE a produzir — mesmo algoritmo verificado contra\n// as 758 linhas da PCP, adaptado para processar VÁRIOS pedidos por ciclo\n// (o polling pode trazer mais de um pedido novo de uma vez).\n\n// Prefixo de origem: distingue os cards da GreenPallets dos da Domoby na\n// mesma coluna 'pedido'. Para remover no futuro, troque por ''.\nconst PREFIXO = 'GP-';\n\nconst norm = (v) => String(v ?? '').replace(/\\s+/g, ' ').trim();\nconst lista = (v) => (Array.isArray(v) ? v : v ? [v] : []);\n\nconst saida = [];\nfor (const entrada of $input.all()) {\n  const p = entrada.json?.retorno?.pedido ?? {};\n  const pedido = norm(p.numero);\n  if (!pedido) continue;\n\n  // data de entrega: dd/mm/yyyy -> ISO, meio-dia em Fortaleza\n  const prev = norm(p.data_prevista);\n  let dueISO = '';\n  if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(prev)) {\n    const [d, m, y] = prev.split('/').map(Number);\n    dueISO = new Date(Date.UTC(y, m - 1, d, 15, 0, 0)).toISOString();\n  }\n\n  // expande cada item pela quantidade -> uma entrada por unidade\n  const unidades = [];\n  for (const raw of lista(p.itens)) {\n    const i = raw.item || raw;\n    const qtd = Math.round(parseFloat(String(i.quantidade ?? '0').replace(',', '.')) || 0);\n    if (qtd < 1) continue; // item com quantidade 0 não vira card\n    const base = `${PREFIXO}${pedido} - ${norm(i.descricao)}`;\n    for (let k = 0; k < qtd; k++) unidades.push(base);\n  }\n\n  // marcador (k/n) calculado DENTRO de cada pedido\n  const total = {};\n  for (const u of unidades) total[u] = (total[u] || 0) + 1;\n  const visto = {};\n  for (const u of unidades) {\n    visto[u] = (visto[u] || 0) + 1;\n    saida.push({ json: {\n      nomeCard: `${u} (${visto[u]}/${total[u]})`,\n      dueDate: dueISO,\n      pedido,\n    }});\n  }\n}\nreturn saida;"
+      },
+      "id": "d4000000-0000-0000-0000-000000000007",
+      "name": "Montar cards PCP (GP)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "team": "9007001597",
+        "space": "901313810100",
+        "folder": "901318340006",
+        "list": "901327386463",
+        "name": "={{ $json.nomeCard }}",
+        "additionalFields": {
+          "dueDate": "={{ $json.dueDate }}",
+          "dueDateTime": false,
+          "status": "pedido"
+        }
+      },
+      "id": "d4000000-0000-0000-0000-000000000008",
+      "name": "Criar card PCP - clickup",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1540, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "clickUpApi": {
+          "id": "3NcZ4CEju3Cvr3hg",
+          "name": "Clickup Domoby"
+        }
+      },
+      "notes": "Mesmo destino da PCP principal: DOMOBY → DPTO PRODUÇÃO → DPTO PRODUÇÃO → PCP, status 'pedido'."
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Tiny GP recusou pedido.obter: {{ JSON.stringify($json.retorno) }} — o pedido JA foi marcado como processado em gp_pcp_processados; apagar a linha dele la para reprocessar no proximo ciclo."
+      },
+      "id": "d4000000-0000-0000-0000-000000000009",
+      "name": "Erro · obter falhou",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [1320, 180]
+    }
+  ],
+  "connections": {
+    "A cada hora": {
+      "main": [[{ "node": "Tiny GP · pedidos.pesquisa", "type": "main", "index": 0 }]]
+    },
+    "Tiny GP · pedidos.pesquisa": {
+      "main": [[{ "node": "Listar pedidos do período", "type": "main", "index": 0 }]]
+    },
+    "Listar pedidos do período": {
+      "main": [[{ "node": "Supabase · trava anti-duplicação", "type": "main", "index": 0 }]]
+    },
+    "Supabase · trava anti-duplicação": {
+      "main": [[{ "node": "Tiny GP · pedido.obter", "type": "main", "index": 0 }]]
+    },
+    "Tiny GP · pedido.obter": {
+      "main": [[{ "node": "Retorno OK?", "type": "main", "index": 0 }]]
+    },
+    "Retorno OK?": {
+      "main": [
+        [{ "node": "Montar cards PCP (GP)", "type": "main", "index": 0 }],
+        [{ "node": "Erro · obter falhou", "type": "main", "index": 0 }]
+      ]
+    },
+    "Montar cards PCP (GP)": {
+      "main": [[{ "node": "Criar card PCP - clickup", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

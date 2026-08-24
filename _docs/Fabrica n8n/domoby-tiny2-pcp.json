@@ -1,0 +1,208 @@
+{
+  "name": "Domoby · Tiny GreenPallets → PCP ClickUp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "7c31a9e4-52bd-4f0e-9a3d-8e6f24c1b7d9",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "c3000000-0000-0000-0000-000000000001",
+      "name": "Webhook Tiny 2",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "7c31a9e4-52bd-4f0e-9a3d-8e6f24c1b7d9",
+      "notes": "Path NOVO, exclusivo da conta 2 do Tiny. Cadastrar em: Tiny (conta 2) → Configurações → Outras configurações → Webhooks → 'Receber notificações de vendas' → https://n8n.srv1877515.hstgr.cloud/webhook/7c31a9e4-52bd-4f0e-9a3d-8e6f24c1b7d9"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Normaliza o evento do Tiny (mesmo código do workflow principal).\n// O webhook pode chegar como JSON puro no body ou como form-urlencoded\n// com o JSON dentro de um campo. Aqui os dois casos viram o mesmo formato.\nconst saida = [];\nfor (const item of $input.all()) {\n  let b = item.json.body ?? item.json;\n  if (typeof b === \"string\") { try { b = JSON.parse(b); } catch (e) {} }\n  if (b && typeof b.dados === \"string\") { try { b = JSON.parse(b.dados); } catch (e) {} }\n  if (b && b.payload) b = b.payload;\n  const d = b?.dados ?? {};\n  saida.push({ json: {\n    tipo: b?.tipo ?? \"\",\n    id: d.id ?? \"\",\n    numero: d.numero ?? \"\",\n    situacao: d.codigoSituacao ?? \"\",\n    cnpj: b?.cnpj ?? \"\",\n  }});\n}\nreturn saida;"
+      },
+      "id": "c3000000-0000-0000-0000-000000000002",
+      "name": "Normalizar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "t1",
+              "leftValue": "={{ $json.tipo }}",
+              "rightValue": "inclusao_pedido",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "t2",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "c3000000-0000-0000-0000-000000000003",
+      "name": "Só inclusão de pedido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0],
+      "notes": "Só PCP e só pedido NOVO — atualização nem chama a API (economiza o pedido.obter). Escopo decidido em 17/08: conta 2 não alimenta planilha, Supabase nem ROTAS."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedido.obter.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY2_TOKEN }}"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "c3000000-0000-0000-0000-000000000004",
+      "name": "Tiny · pedido.obter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Token da CONTA 2 via $env.TINY2_TOKEN (adicionar no docker-compose). O aviso vermelho '[ERROR: not accessible via UI]' no editor é cosmético."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "r1",
+              "leftValue": "={{ $json.retorno.status }}",
+              "rightValue": "OK",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "c3000000-0000-0000-0000-000000000005",
+      "name": "Retorno OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Gera uma linha por UNIDADE a produzir, no formato exato da aba PCP.\n// Nome do card = \"{pedido} - {descrição} (k/n)\"\n// MESMO código verificado contra as 758 linhas da PCP no workflow principal.\n\nconst tipo = $('Normalizar evento').first().json.tipo;\nif (tipo !== 'inclusao_pedido') return [];\n\nlet p = {};\ntry {\n  p = $('Tiny · pedido.obter').first().json?.retorno?.pedido ?? {};\n} catch (e) {\n  p = $('Tiny - pedido.obter').first().json?.retorno?.pedido ?? {};\n}\n\n// ARRUMAR do Sheets colapsa espaços internos, não só as pontas.\nconst norm = (v) => String(v ?? '').replace(/\\s+/g, ' ').trim();\n\nconst pedido = norm(p.numero);\nif (!pedido) return [];\n\n// Prefixo de origem: distingue os cards da GreenPallets dos da Domoby na\n// mesma coluna 'pedido' (as numerações das duas contas colidem).\n// Para remover o prefixo no futuro, troque por ''.\nconst PREFIXO = 'GP-';\n\n// data de entrega: dd/mm/yyyy -> ISO, meio-dia em Fortaleza\nconst prev = norm(p.data_prevista);\nlet dueISO = '';\nif (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(prev)) {\n  const [d, m, y] = prev.split('/').map(Number);\n  dueISO = new Date(Date.UTC(y, m - 1, d, 15, 0, 0)).toISOString();\n}\n\n// expande cada item pela quantidade -> uma entrada por unidade\nconst lista = (v) => (Array.isArray(v) ? v : v ? [v] : []);\nconst unidades = [];\nfor (const raw of lista(p.itens)) {\n  const i = raw.item || raw;\n  const qtd = Math.round(parseFloat(String(i.quantidade ?? '0').replace(',', '.')) || 0);\n  if (qtd < 1) continue;                        // item com quantidade 0 não vira card\n  const base = `${PREFIXO}${pedido} - ${norm(i.descricao)}`;\n  for (let k = 0; k < qtd; k++) unidades.push(base);\n}\n\n// marcador (k/n): n = quantas vezes aquele texto aparece dentro do pedido\nconst total = {};\nfor (const u of unidades) total[u] = (total[u] || 0) + 1;\n\nconst visto = {};\nreturn unidades.map((u) => {\n  visto[u] = (visto[u] || 0) + 1;\n  return { json: {\n    nomeCard: `${u} (${visto[u]}/${total[u]})`,\n    dueDate: dueISO,\n    pedido,\n  }};\n});"
+      },
+      "id": "c3000000-0000-0000-0000-000000000006",
+      "name": "Montar cards PCP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "team": "9007001597",
+        "space": "901313810100",
+        "folder": "901318340006",
+        "list": "901327386463",
+        "name": "={{ $json.nomeCard }}",
+        "additionalFields": {
+          "dueDate": "={{ $json.dueDate }}",
+          "dueDateTime": false,
+          "status": "pedido"
+        }
+      },
+      "id": "c3000000-0000-0000-0000-000000000007",
+      "name": "Criar card PCP - clickup",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1320, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "clickUpApi": {
+          "id": "3NcZ4CEju3Cvr3hg",
+          "name": "Clickup Domoby"
+        }
+      },
+      "notes": "MESMO destino da integração principal: DOMOBY → DPTO PRODUÇÃO → DPTO PRODUÇÃO → PCP, status 'pedido'."
+    }
+  ],
+  "connections": {
+    "Webhook Tiny 2": {
+      "main": [[{ "node": "Normalizar evento", "type": "main", "index": 0 }]]
+    },
+    "Normalizar evento": {
+      "main": [[{ "node": "Só inclusão de pedido", "type": "main", "index": 0 }]]
+    },
+    "Só inclusão de pedido": {
+      "main": [[{ "node": "Tiny · pedido.obter", "type": "main", "index": 0 }]]
+    },
+    "Tiny · pedido.obter": {
+      "main": [[{ "node": "Retorno OK?", "type": "main", "index": 0 }]]
+    },
+    "Retorno OK?": {
+      "main": [[{ "node": "Montar cards PCP", "type": "main", "index": 0 }]]
+    },
+    "Montar cards PCP": {
+      "main": [[{ "node": "Criar card PCP - clickup", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}
