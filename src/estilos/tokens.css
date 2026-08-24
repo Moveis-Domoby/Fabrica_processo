@@ -1,0 +1,135 @@
+/* ==========================================================================
+   DESIGN SYSTEM DOMOBY — CAMADA 1: PALETA BRUTA
+   Fonte: logo da Móveis Domoby (amarelo sobre grafite).
+   Nunca use estas variáveis direto num componente — use a camada semântica
+   abaixo, ou as utilidades do Tailwind geradas a partir delas.
+   ========================================================================== */
+
+:root {
+  /* --- Amarelo Domoby (marca) --------------------------------------------
+     500 = o amarelo da logo. É COR DE MARCA E DE AÇÃO, nunca cor de estado. */
+  --dm-marca-50: #fef9ea;
+  --dm-marca-100: #fdf0c7;
+  --dm-marca-200: #fbe28e;
+  --dm-marca-300: #f8d264;
+  --dm-marca-400: #f4c64f;
+  --dm-marca-500: #f1c24b;
+  --dm-marca-600: #dda82c;
+  --dm-marca-700: #b8851e;
+  --dm-marca-800: #94691c;
+  --dm-marca-900: #7a561c;
+  --dm-marca-950: #462e0a;
+
+  /* --- Grafite (o cinza da logo) ---------------------------------------- */
+  --dm-grafite-50: #f7f7f8;
+  --dm-grafite-100: #efeff0;
+  --dm-grafite-200: #e0dfe1;
+  --dm-grafite-300: #c8c7ca;
+  --dm-grafite-400: #a3a1a5;
+  --dm-grafite-500: #858388;
+  --dm-grafite-600: #6b686e;
+  --dm-grafite-700: #5a585c; /* fundo da logo */
+  --dm-grafite-800: #454347;
+  --dm-grafite-900: #2e2c30;
+  --dm-grafite-950: #1c1b1e;
+
+  /* --- Estados de qualidade (D-09) ---------------------------------------
+     🟢 perfeito · 🟡 atenção · 🔴 danificado.
+     O "amarelo" da atenção é ÂMBAR-LARANJA de propósito: o amarelo da marca
+     já significa "ação" na interface, e no chão de fábrica dois amarelos
+     com significados diferentes é erro esperando acontecer.
+     Regra: estado NUNCA é comunicado só por cor — ícone + rótulo sempre. */
+  --dm-perfeito-fundo: #dcfce7;
+  --dm-perfeito-borda: #86efac;
+  --dm-perfeito-forte: #16a34a;
+  --dm-perfeito-texto: #14532d;
+
+  --dm-atencao-fundo: #ffedd5;
+  --dm-atencao-borda: #fdba74;
+  --dm-atencao-forte: #ea580c;
+  --dm-atencao-texto: #7c2d12;
+
+  --dm-danificado-fundo: #fee2e2;
+  --dm-danificado-borda: #fca5a5;
+  --dm-danificado-forte: #dc2626;
+  --dm-danificado-texto: #7f1d1d;
+
+  /* --- Informativo (neutro de sistema, não é estado de qualidade) -------- */
+  --dm-info-fundo: #dbeafe;
+  --dm-info-borda: #93c5fd;
+  --dm-info-forte: #2563eb;
+  --dm-info-texto: #1e3a8a;
+}
+
+/* ==========================================================================
+   CAMADA 2: SEMÂNTICA — é isto que os componentes consomem.
+   Trocar de tema = trocar esta camada, sem tocar em componente nenhum.
+   ========================================================================== */
+
+:root,
+[data-tema='claro'] {
+  --dm-fundo: var(--dm-grafite-50);
+  --dm-superficie: #ffffff;
+  --dm-superficie-sutil: var(--dm-grafite-100);
+  --dm-superficie-inversa: var(--dm-grafite-700);
+
+  --dm-texto: var(--dm-grafite-900);
+  --dm-texto-suave: var(--dm-grafite-600);
+  --dm-texto-fraco: var(--dm-grafite-500);
+  --dm-texto-inverso: #ffffff;
+
+  --dm-borda: var(--dm-grafite-200);
+  --dm-borda-forte: var(--dm-grafite-300);
+
+  /* Ação primária = amarelo da marca com texto grafite (contraste ~10:1).
+     Amarelo com texto branco é ilegível — proibido no design system. */
+  --dm-acao: var(--dm-marca-500);
+  --dm-acao-hover: var(--dm-marca-400);
+  --dm-acao-ativa: var(--dm-marca-600);
+  --dm-acao-texto: var(--dm-grafite-950);
+
+  --dm-foco: var(--dm-grafite-900);
+  --dm-perigo: var(--dm-danificado-forte);
+}
+
+/* Tema escuro: preparado, ainda NÃO habilitado na interface.
+   Q-30 (modo escuro) segue em aberto no cofre — quando o dono decidir,
+   basta ligar o alternador; nenhum componente muda. */
+[data-tema='escuro'] {
+  --dm-fundo: var(--dm-grafite-950);
+  --dm-superficie: var(--dm-grafite-900);
+  --dm-superficie-sutil: var(--dm-grafite-800);
+  --dm-superficie-inversa: var(--dm-grafite-100);
+
+  --dm-texto: var(--dm-grafite-50);
+  --dm-texto-suave: var(--dm-grafite-300);
+  --dm-texto-fraco: var(--dm-grafite-400);
+  --dm-texto-inverso: var(--dm-grafite-950);
+
+  --dm-borda: var(--dm-grafite-800);
+  --dm-borda-forte: var(--dm-grafite-700);
+
+  --dm-acao: var(--dm-marca-500);
+  --dm-acao-hover: var(--dm-marca-400);
+  --dm-acao-ativa: var(--dm-marca-600);
+  --dm-acao-texto: var(--dm-grafite-950);
+
+  --dm-foco: var(--dm-marca-300);
+  --dm-perigo: #f87171;
+
+  --dm-perfeito-fundo: #052e16;
+  --dm-perfeito-borda: #166534;
+  --dm-perfeito-texto: #bbf7d0;
+
+  --dm-atencao-fundo: #431407;
+  --dm-atencao-borda: #9a3412;
+  --dm-atencao-texto: #fed7aa;
+
+  --dm-danificado-fundo: #450a0a;
+  --dm-danificado-borda: #991b1b;
+  --dm-danificado-texto: #fecaca;
+
+  --dm-info-fundo: #172554;
+  --dm-info-borda: #1e40af;
+  --dm-info-texto: #bfdbfe;
+}
