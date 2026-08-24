@@ -12,7 +12,7 @@ tags: [plataforma, prompt, claude-code, bloco1]
 > Prompt do Claude Code é **mínimo**: só o caminho. Tudo o que ele precisa saber já está escrito no cofre — repetir no prompt cria uma segunda fonte de verdade que envelhece sozinha. O Cowork entrega o texto **no chat**, pronto para colar.
 
 ```
-Leia e siga: C:\Users\wccau\Domoby - fabrica\_docs\Plataforma\CLAUDE - Regras do Claude Code (repo).md
+Leia e siga: C:\Users\wccau\Domoby\Domoby - fabrica\_docs\Plataforma\CLAUDE - Regras do Claude Code (repo).md
 
 Bloco 1 = D-16 (Sessões 01→05), uma sessão por vez, checkpoint comigo ao fim de cada.
 Comece pela SESSAO-01. Antes de codar, traga entendimento + dúvidas + stack escolhida.

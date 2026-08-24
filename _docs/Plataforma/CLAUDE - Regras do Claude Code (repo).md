@@ -2,7 +2,7 @@
 titulo: CLAUDE.md — Regras do Claude Code (repositório da plataforma)
 tipo: regras
 data: 2026-08-19
-atualizado: 2026-08-19
+atualizado: 2026-08-24
 tags: [plataforma, claude-code, regras, conduta]
 ---
 
@@ -15,7 +15,7 @@ tags: [plataforma, claude-code, regras, conduta]
 
 ## ⛳ Ao iniciar qualquer sessão — leia nesta ordem, antes de qualquer código
 
-Cofre: `C:\Users\wccau\Domoby - fabrica\_docs\`
+Cofre: `C:\Users\wccau\Domoby\Domoby - fabrica\_docs\`
 
 1. **Este arquivo** (regras de conduta).
 2. `Plataforma\PLT - Memoria de Aprendizado.md` — obrigatório; e você **escreve** nele durante todo o trabalho.
