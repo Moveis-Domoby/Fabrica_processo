@@ -118,3 +118,9 @@ Executado antes de declarar concluído:
 - **Screenshots da página `/design`**: o painel de navegador desta sessão não estava sendo exibido, então a captura de imagem falhou. A verificação foi feita medindo o DOM real nos dois viewports (tabela acima). As imagens saem em 1 minuto com `npm run dev` aberto no tablet e no celular.
 - Projeto Supabase **de desenvolvimento** (D-15) precisa existir antes da SESSAO-02.
 - Q-28 (ROTAS é setor terminal na plataforma?) precisa de resposta antes da SESSAO-04.
+
+### 2026-08-24 — Entrega
+
+- 7 commits pequenos na branch `sessao-01-fundacao`, árvore limpa.
+- **README validado de verdade:** clone limpo da branch → `npm ci` → `npm run build` → `npm run test` (8 passando). O critério de aceite "clone → instalar → rodar seguindo só o README" está conferido, não presumido.
+- **`git push` bloqueado:** `remote: Repository not found` em `https://github.com/contatodomoby/Fabrica_processo.git`. A branch `main` local também não tem tracking, o que indica repositório criado localmente com o remoto adicionado à mão — falta o repositório existir no GitHub com esse nome, ou falta a credencial da conta `contatodomoby` no Git Credential Manager desta máquina. **Nada foi forçado**; os commits estão íntegros e o push é um comando só quando o acesso existir.
