@@ -45,7 +45,7 @@ Banco, autenticação, qualquer tela de negócio, deploy.
 - [x] `git clone` → instalar → rodar local funciona seguindo só o README.
 - [x] Página `/design` mostra todos os componentes base, em viewport de celular e de tablet — verificado a 375px (vira lista de cards, sem rolagem horizontal) e a 768px.
 - [x] Tabela de exemplo pagina de verdade (27 linhas fictícias, 8 por página) — e coberta por teste automatizado.
-- [x] `CLAUDE.md` na raiz; PR aberto para revisão. ⚠️ **Proteção da `main` depende do dono ligar no GitHub** (Settings → Branches) — não é possível pelo código.
+- [x] `CLAUDE.md` na raiz. ⚠️ **PR ainda não aberto**: o `git push` respondeu `Repository not found` — os commits estão prontos na branch local, falta o acesso ao repositório remoto. ⚠️ **Proteção da `main` depende do dono ligar no GitHub** (Settings → Branches) — não é possível pelo código.
 - [x] Handoff criado: [[handoff_2026_08_24_sessao01_fundacao]].
 
 ---

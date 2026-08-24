@@ -100,6 +100,7 @@ Nenhum. Não há dashboard nem dado real nesta entrega — os dados da tabela de
 
 - **Screenshots da `/design`.** O painel de navegador da sessão não estava sendo exibido e a captura falhou. A verificação foi feita medindo o DOM real nos dois viewports (tabela na seção 9). Vale tirar as fotos com o tablet e o celular de verdade — que é o teste que interessa mesmo.
 - **Logo oficial em arquivo.** Hoje `<Marca />` reconstrói a assinatura com tipografia (Poppins). Quando o PNG/SVG entrar em `public/`, o componente passa a usá-lo sem mudar a API.
+- **Push e PR bloqueados.** `git push` respondeu `Repository not found` para `https://github.com/contatodomoby/Fabrica_processo.git` — e a `main` local não tem branch de rastreamento, o que indica repositório criado localmente com o remoto adicionado à mão. Os 8 commits estão íntegros na branch `sessao-01-fundacao`; assim que o repositório existir no GitHub (ou a credencial da conta `contatodomoby` estiver no Git Credential Manager), `git push -u origin sessao-01-fundacao` resolve.
 - **Proteção da branch `main`** precisa ser ligada no GitHub pelo dono (Settings → Branches → Add rule): não dá para fazer isso pelo código, e é a regra crítica 1 do `CLAUDE.md`.
 
 ### Aguardando decisão de negócio

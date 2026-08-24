@@ -34,7 +34,7 @@ data: 2026-08-24
 - [x] Verificação em viewport de celular (375px) e tablet (768px)
 - [x] Handoff em `_docs/Handoffs/` + links no mapa e no índice de sessões
 - [x] `PLT - Memoria de Aprendizado` atualizada
-- [x] PR aberto para revisão do dono
+- [ ] PR aberto para revisão do dono — **bloqueado**: `git push` respondeu `Repository not found`. Commits prontos na branch local.
 
 ## Decisões técnicas tomadas nesta sessão
 
