@@ -15,7 +15,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 
 | Ordem | Sessão | Entrega em uma frase | Depende de | Status |
 |---|---|---|---|---|
-| 1º | [[SESSAO-01 - Fundacao do Repo e Design System]] | Repo + app React rodando + design system documentado | — | ✅ entregue — [[handoff_2026_08_24_sessao01_fundacao]] (PR em revisão) |
+| 1º | [[SESSAO-01 - Fundacao do Repo e Design System]] | Repo + app React rodando + design system documentado | — | ✅ entregue — [[handoff_2026_08_24_sessao01_fundacao]] (mesclada na `main`) |
 | 2º | [[SESSAO-02 - Banco e Dominio no Supabase]] | Schema completo da plataforma em migrations (sem aplicar em prod) | 01 | 🔶 rascunho |
 | 3º | [[SESSAO-03 - Autenticacao Perfis e Permissoes]] | Login, convites, papéis operador/líder/admin | 02 | 🔶 rascunho |
 | 4º | [[SESSAO-04 - Kanban Nucleo]] | Quadros, etapas, cards híbridos (pedido→unidades), drag-and-drop | 03 | 🔶 rascunho |

@@ -28,6 +28,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - [2026-08-13] **E-07** · Dois renovadores do token v3 do Tiny se derrubam mutuamente → **correção:** regra do dono único por credencial/recurso. → promovida
 - [2026-08-24] **E-09** (Claude Code) · `sed`/`perl` no Git Bash do Windows não casaram padrão contendo a barra invertida de caminho Windows (mangling de argumento do MSYS) e a substituição falhou calada três vezes → **correção:** edição de string com caminho feita via `node -e` usando `String.fromCharCode(92)`; e **sempre conferir o resultado da substituição**, nunca assumir que rodou.
 
+- [2026-08-24] **E-10** (Claude Code) · `git push` respondeu `Repository not found` e a leitura óbvia — "o repositório não existe" — estava errada: era a **credencial pessoal do GitHub tentando alcançar um repositório privado de outra conta** (o GitHub responde 404 em vez de 403 de propósito, para não revelar a existência do repo) → **correção:** usuário na URL do remoto (`https://conta@github.com/...`) para o Credential Manager guardar uma credencial por conta, ou convidar a conta pessoal como colaboradora. **Lição geral: 404 de serviço autenticado quase sempre é permissão, não ausência.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

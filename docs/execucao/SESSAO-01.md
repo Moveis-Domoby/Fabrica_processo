@@ -34,7 +34,7 @@ data: 2026-08-24
 - [x] Verificação em viewport de celular (375px) e tablet (768px)
 - [x] Handoff em `_docs/Handoffs/` + links no mapa e no índice de sessões
 - [x] `PLT - Memoria de Aprendizado` atualizada
-- [ ] PR aberto para revisão do dono — **bloqueado**: `git push` respondeu `Repository not found`. Commits prontos na branch local.
+- [x] Revisão do dono → **merge na `main`** (o dono aprovou no checkpoint e pediu o merge direto, dispensando o PR nesta sessão) + push da `main` e da branch da sessão.
 
 ## Decisões técnicas tomadas nesta sessão
 
@@ -124,3 +124,10 @@ Executado antes de declarar concluído:
 - 7 commits pequenos na branch `sessao-01-fundacao`, árvore limpa.
 - **README validado de verdade:** clone limpo da branch → `npm ci` → `npm run build` → `npm run test` (8 passando). O critério de aceite "clone → instalar → rodar seguindo só o README" está conferido, não presumido.
 - **`git push` bloqueado:** `remote: Repository not found` em `https://github.com/contatodomoby/Fabrica_processo.git`. A branch `main` local também não tem tracking, o que indica repositório criado localmente com o remoto adicionado à mão — falta o repositório existir no GitHub com esse nome, ou falta a credencial da conta `contatodomoby` no Git Credential Manager desta máquina. **Nada foi forçado**; os commits estão íntegros e o push é um comando só quando o acesso existir.
+
+### 2026-08-24 — Fechamento
+
+- **Credencial resolvida pelo dono.** O `Repository not found` era a credencial pessoal do GitHub tentando acessar um repositório privado da conta `contatodomoby` — o GitHub responde 404 em vez de 403 de propósito, para não revelar que o repositório existe. Registrado como E-10 na memória de aprendizado.
+- **Merge na `main` feito a pedido explícito do dono**, com `--no-ff` (commit `e977aa4`), após `tsc` + `lint` + 8 testes + build verdes na branch e novamente na `main` depois do merge.
+- ⚠️ **Desvio consciente da regra crítica 1** do `CLAUDE.md` ("toda sessão termina em PR"): não houve PR, houve revisão e aprovação do dono no chat seguida de merge. Fica registrado para não virar precedente silencioso — a regra continua valendo nas próximas sessões, salvo pedido explícito igual a este.
+- `main` e `sessao-01-fundacao` publicadas em `contatodomoby/Fabrica_processo`.
