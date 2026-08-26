@@ -2,7 +2,7 @@
 titulo: Plataforma — Memória de Aprendizado (Claude Code + Cowork)
 tipo: memoria-aprendizado
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-08-26
 tags: [plataforma, memoria, aprendizado, erros, acertos]
 ---
 
@@ -30,6 +30,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-08-24] **E-10** (Claude Code) · `git push` respondeu `Repository not found` e a leitura óbvia — "o repositório não existe" — estava errada: era a **credencial pessoal do GitHub tentando alcançar um repositório privado de outra conta** (o GitHub responde 404 em vez de 403 de propósito, para não revelar a existência do repo) → **correção:** usuário na URL do remoto (`https://conta@github.com/...`) para o Credential Manager guardar uma credencial por conta, ou convidar a conta pessoal como colaboradora. **Lição geral: 404 de serviço autenticado quase sempre é permissão, não ausência.**
 
+- [2026-08-26] **E-11** (Claude Code) · Criei as funções de apoio da plataforma em `public` — e o Supabase **publica o schema `public` inteiro como API REST**, então cada função virou endpoint `/rest/v1/rpc/...` sem ninguém pedir (apontado pelos advisors do próprio Supabase) → **correção:** schema `plt_privado`, fora da API, com `grant execute` só para `authenticated`; e `set search_path` em toda função. **Rodar `get_advisors` depois de todo DDL virou parte do ciclo.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.
@@ -40,6 +42,9 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - [2026-08-19] **A-06** (Cowork) · Demanda com "Fora do escopo" explícito evita o "aproveitar para fazer" — manter em toda SESSAO-NN.
 - [2026-08-24] **A-07** (Claude Code) · **Classe do Tailwind nunca se monta por interpolação** (`bg-marca-${n}`): o gerador varre texto LITERAL no código — classe montada em tempo de execução não existe no CSS final e o elemento sai transparente. Escrever por extenso. Vale para qualquer ferramenta que gere CSS varrendo o fonte.
 - [2026-08-24] **A-08** (Claude Code) · **Cor de marca e cor de estado não podem ser da mesma família**: o amarelo Domoby virou cor de AÇÃO, e o 🟡 de qualidade (D-09) foi renderizado em âmbar-laranja. Dois amarelos com sentidos diferentes na mesma tela, sob luz ruim, é erro esperando acontecer.
+- [2026-08-26] **A-09** (Claude Code) · **Ler o código da integração antes de modelar, não só o esquema.** `fn_upsert_pedido` faz `delete from pedido_itens` e regrava a cada atualização do Tiny: uma foreign key do card para o item — o caminho "óbvio" — faria **toda atualização de pedido falhar em produção**, e só apareceria dias depois, num pedido editado. Descoberto lendo a função, não a tabela.
+- [2026-08-26] **A-10** (Claude Code) · **Testar migration contra o esquema REAL de produção antes de aplicar**: carregar o `.sql` da integração num Postgres descartável, rodar as migrations DUAS vezes e comparar uma impressão digital (md5 da estrutura) das tabelas existentes antes/depois. Foi isso que deu confiança para aplicar num banco com integração viva.
+- [2026-08-26] **A-11** (Claude Code) · **Testar em produção sem sujar produção**: bloco `do $ ... $` que monta o cenário, mede, e termina com `raise exception` PROPOSITAL — a mensagem carrega o resultado e a exceção desfaz tudo. Zero linha gravada, comportamento provado no banco de verdade. Vale muito quando a tabela é append-only e um registro de teste seria impossível de apagar.
 
 ## 🧠 Modelos mentais (M-NN)
 
@@ -55,6 +60,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - **M-10** · [2026-08-24] **Configurável > adivinhado** — onde o dono conhece o detalhe e o sistema não (etapas internas de cada setor), entregar o CADASTRO e semear vazio. Chutar estrutura operacional gera trabalho de desfazer e dado errado. (Origem: D-14.)
 - **M-11** · [2026-08-24] **Timer é propriedade da etapa, não feature avulsa** — toda etapa cadastrada já nasce contando tempo para quem chega nela; assim medir não depende de ninguém "ligar" nada.
 - **M-12** · [2026-08-24] **Estado nunca se comunica só por cor** — ícone e texto sempre juntos. Daltonismo é comum e a iluminação do galpão é ruim; cor sozinha é informação que parte da equipe não recebe.
+- **M-13** · [2026-08-26] **Estado guardado é projeção; evento é a verdade.** A posição do card fica gravada para a tela ser rápida, mas é escrita SÓ por trigger a partir do evento. Onde houver as duas coisas, a que se edita à mão tem que ser nenhuma.
+- **M-14** · [2026-08-26] **Trava que precisa valer para todos não pode morar no RLS** — a `service_role` ignora RLS por natureza do Postgres. Regra que vale até para a chave mais poderosa vira TRIGGER.
 
 ## 🧪 Fórmulas e receitas (F-NN)
 
@@ -66,6 +73,7 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - **F-06** · [2026-08-24] **Prompt do Claude Code é mínimo: só o caminho.** Se está no cofre, não se repete no prompt — texto duplicado vira segunda fonte de verdade que envelhece sozinha (viola M-04). O Cowork entrega o prompt **no chat**, pronto para colar. (Erro do Cowork corrigido: primeiro prompt do Bloco 1 nasceu com ~200 linhas replicando as decisões → reescrito para 3 linhas.)
 
 - **F-07** · [2026-08-24] **Ciclo de verificação de tela:** `tsc` → `lint` → testes → abrir em viewport de CELULAR **e** de TABLET e medir o DOM (altura de alvo de toque, rolagem horizontal) ANTES de declarar pronto. Foi assim que apareceram o dado repetido no card do celular e o hook com nome fora da convenção.
+- **F-08** · [2026-08-26] **Ciclo de banco, versão completa:** ler [[SUPA - Esquema do Banco]] → ler o CÓDIGO das funções que já escrevem nas tabelas → escrever migrations idempotentes → testar contra o esquema real duas vezes → aprovação do dono → aplicar conferindo impressão digital antes/depois → `get_advisors` → atualizar `supabase-fabrica-schema.sql` + a nota do esquema.
 
 ## 💡 Possibilidades a explorar (X-NN)
 

@@ -315,3 +315,66 @@ alter table public.gp_pcp_processados enable row level security;
 --     from pedidos p left join clientes c on c.id = p.cliente_id
 --     left join pedido_itens i on i.pedido_id = p.id
 --    where p.numero = 13093 order by i.seq;
+
+
+-- ============================================================================
+-- 8 · PLATAFORMA DE PRODUÇÃO (prefixo plt_) — aplicada em 2026-08-26
+-- ============================================================================
+--
+-- O DDL executável da plataforma NÃO é duplicado aqui. Ele vive, versionado e
+-- testado, no repositório:
+--
+--     supabase/migrations/*.sql        (10 migrations, ordem alfabética)
+--     supabase/testes/testar-migrations.mjs   (npm run test:banco)
+--     docs/modelo-de-dados.md          (o modelo explicado em português)
+--
+-- Duplicar o mesmo SQL em dois lugares cria uma segunda fonte de verdade que
+-- envelhece sozinha — é exatamente o M-04 ("um dono por dado") da memória de
+-- aprendizado. Este bloco existe para o INVENTÁRIO: quem lê este arquivo
+-- precisa saber o que mais existe no banco e onde achar a definição.
+--
+-- Aplicado no projeto axnzldwgwsmepukdiljx (org Tech) em 2026-08-26, com as
+-- tabelas da integração conferidas antes e depois: impressão digital de
+-- estrutura idêntica (9a61b60d8f5b306ea40acc1704234ea0) e contagens intactas
+-- (clientes 119 · pedidos 118 · pedido_itens 191 · eventos 448 · gp 1).
+--
+-- TABELAS (9)
+--   plt_usuarios            pessoas; auth_user_id opcional (operador de tablet
+--                           pode não ter login) · pin_hash guarda HASH
+--   plt_usuario_setores     vínculo pessoa ↔ setor, com lider_do_setor
+--   plt_setores             setores; papel_no_fluxo = entrada|producao|terminal
+--                           (índice único garante UMA entrada — D-13)
+--   plt_etapas              etapas internas de cada setor; SEM SEED (D-14)
+--                           eh_fila marca onde o card espera sem dono
+--   plt_cards               cards pedido/unidade (D-01). FK para pedidos(id).
+--                           ⚠️ SEM FK para pedido_itens — ver aviso abaixo
+--   plt_eventos             APPEND-ONLY (RNF-05). Tabela-mãe do tempo
+--   plt_notificacoes        avisos a líder/admin (D-09 / Q-18)
+--   plt_tarefas             afazeres e delegação (RF-40 a RF-43)
+--   plt_visualizacoes       painéis salvos (RF-33)
+--
+-- VISÕES (3) — tudo derivado de evento, nada guardado
+--   plt_vw_permanencias         tempo por etapa; eh_fila separa o que é do SETOR
+--   plt_vw_execucoes            do iniciar ao finalizar; o tempo que tem dono
+--   plt_vw_qualidade_transicoes dupla atestação da D-09, divergência calculada
+--   (as três com security_invoker = on, para respeitarem o RLS de quem lê)
+--
+-- SCHEMA plt_privado — 7 funções, FORA da API REST de propósito
+--   fn_marcar_atualizacao · fn_evento_imutavel · fn_projetar_posicao
+--   fn_usuario_atual · fn_eh_admin · fn_setores_do_usuario · fn_eh_lider_de
+--   Motivo: o Supabase publica o schema public inteiro como API; função criada
+--   lá vira endpoint /rest/v1/rpc sem ninguém pedir (apontado pelos advisors).
+--
+-- 21 POLÍTICAS DE RLS — operador vê os setores dele, líder vê o setor completo,
+-- admin vê tudo. plt_eventos NÃO tem política de UPDATE nem de DELETE.
+--
+-- ⚠️⚠️ AVISO QUE VALE OURO ⚠️⚠️
+-- plt_cards NÃO tem foreign key para pedido_itens, e isso é decisão, não
+-- esquecimento: fn_upsert_pedido faz "delete from pedido_itens where
+-- pedido_id = ..." e regrava tudo a CADA atualização de pedido vinda do Tiny.
+-- Uma FK apontando para lá faria toda atualização de pedido FALHAR em
+-- produção. O item é guardado como snapshot (item_seq, item_codigo,
+-- item_descricao). NÃO "conserte" isso.
+--
+-- ⚠️ O append-only de plt_eventos é garantido por TRIGGER, não por RLS —
+-- porque a service_role (a chave que o n8n usa) ignora RLS.

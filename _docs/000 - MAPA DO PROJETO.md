@@ -76,6 +76,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 📜 Histórico de sessões
 
+- [[handoff_2026_08_26_sessao02_banco]] — **SESSAO-02 da Plataforma**: modelo de domínio em 10 migrations, aplicado no Supabase da fábrica (9 tabelas plt_*, eventos append-only, RLS por papel)
 - [[handoff_2026_08_24_sessao01_fundacao]] — **SESSAO-01 da Plataforma**: repositório, app React e design system Domoby (amarelo sobre grafite) na branch `sessao-01-fundacao`
 - [[handoff_2026_08_17_automacao_entregue]] — pesquisa completa das integrações do Tiny + projeto da automação ROTAS "entregue" → Tiny
 - [[handoff_2026_08_13_migracao_n8n]] — migrações 2–4 no ar, incidente Google, início da 5

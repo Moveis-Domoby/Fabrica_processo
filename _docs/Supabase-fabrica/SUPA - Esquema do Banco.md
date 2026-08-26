@@ -1,7 +1,7 @@
 ---
 titulo: Supabase Fábrica — Esquema do Banco (FONTE DA VERDADE)
 tipo: esquema
-atualizado: 2026-08-17
+atualizado: 2026-08-26
 tags: [supabase, fabrica, banco-de-dados, esquema]
 ---
 
@@ -74,7 +74,7 @@ Uma linha por item. **PK composta (`pedido_id`, `seq`)** · FK `pedido_id` → `
 
 Na atualização de um pedido, os itens são **apagados e regravados** (o payload da API sempre traz todos).
 
-## Tabela `gp_pcp_processados` — ⚠️ pendente de rodar o SQL (§7 do .sql)
+## Tabela `gp_pcp_processados` — ✅ aplicada (conferida no banco em 26/08/2026, 1 linha)
 
 Controle do **polling da GreenPallets** (conta Tiny parceira, plano Crescer, sem webhook). O workflow agendado tenta inserir cada pedido aqui ANTES de criar os cards ("claim-first" com `Prefer: resolution=ignore-duplicates`): inseriu → pedido novo, cria cards; resposta vazia → já processado, ignora. **Para reprocessar um pedido de propósito: apagar a linha dele.**
 
@@ -106,9 +106,39 @@ O que faz, em uma transação: resolve/atualiza o cliente (por `cpf_cnpj`, fallb
 
 Chamada: `POST {URL}/rest/v1/rpc/fn_upsert_pedido` com body `{"p": <retorno.pedido cru>, "p_tipo": "...", "p_tiny_id": 123, "p_origem": "webhook"}`.
 
+## Tabelas da Plataforma de Produção (prefixo `plt_`) — aplicadas em 26/08/2026
+
+> [!info] Onde está o DDL
+> O SQL executável **não é duplicado aqui**: vive versionado e testado no repositório, em `supabase/migrations/*.sql` (10 migrations). O modelo explicado em português está em `docs/modelo-de-dados.md`. Duplicar criaria uma segunda fonte de verdade que envelhece sozinha (M-04). Esta seção é o **inventário**: o que existe e onde achar.
+
+Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois — **estrutura com impressão digital idêntica e contagens intactas** (clientes 119 · pedidos 118 · pedido_itens 191 · eventos 448 · gp 1).
+
+| Tabela | O que guarda |
+|---|---|
+| `plt_usuarios` | pessoas; `auth_user_id` **opcional** (operador de tablet pode não ter login — D-06); `pin_hash` guarda HASH |
+| `plt_usuario_setores` | vínculo pessoa ↔ setor, com `lider_do_setor` |
+| `plt_setores` | setores; `papel_no_fluxo` = `entrada`/`producao`/`terminal` — índice único garante **uma só entrada** (D-13) |
+| `plt_etapas` | etapas internas de cada setor. **SEM SEED** (D-14). `eh_fila` marca onde o card espera sem dono |
+| `plt_cards` | cards `pedido`/`unidade` (D-01). FK para `pedidos(id)`. ⚠️ **sem FK para `pedido_itens`** — ver aviso |
+| `plt_eventos` | **APPEND-ONLY** (RNF-05). A tabela-mãe: tempo, fila e qualidade derivam daqui |
+| `plt_notificacoes` | avisos a líder/admin (D-09 / Q-18) |
+| `plt_tarefas` | afazeres e delegação (RF-40 a RF-43) |
+| `plt_visualizacoes` | painéis salvos (RF-33) |
+
+**Visões** (derivadas de evento, nada guardado — todas com `security_invoker = on`):
+`plt_vw_permanencias` (tempo por etapa; `eh_fila` separa o que é do SETOR) · `plt_vw_execucoes` (o tempo que tem dono) · `plt_vw_qualidade_transicoes` (dupla atestação da D-09 com divergência calculada).
+
+**Schema `plt_privado`** — 7 funções, **fora da API REST de propósito**: `fn_marcar_atualizacao`, `fn_evento_imutavel`, `fn_projetar_posicao`, `fn_usuario_atual`, `fn_eh_admin`, `fn_setores_do_usuario`, `fn_eh_lider_de`. O Supabase publica o schema `public` inteiro como API; função criada lá vira endpoint `/rest/v1/rpc` sem ninguém pedir.
+
+**21 políticas de RLS**: operador vê os setores dele, líder vê o setor completo, admin vê tudo. `plt_eventos` **não tem política de UPDATE nem de DELETE**.
+
+> [!danger] Dois avisos que valem ouro
+> **1.** `plt_cards` **não** tem foreign key para `pedido_itens`, e isso é decisão, não esquecimento: `fn_upsert_pedido` faz `delete from pedido_itens` e regrava tudo a **cada** atualização de pedido vinda do Tiny. Uma FK apontando para lá faria **toda atualização de pedido falhar em produção**. O item é guardado como snapshot. **Não "conserte" isso.**
+> **2.** O append-only de `plt_eventos` é garantido por **trigger**, não por RLS — porque a `service_role` (a chave que o n8n usa) **ignora RLS**. Testado no banco real: `UPDATE` e `DELETE` recusados.
+
 ## O que NÃO existe (para ninguém inventar)
 
-Não existem: views, triggers, outros schemas, outras funções além da `fn_upsert_pedido`, policies de RLS, buckets de storage, edge functions. Não existe tabela de usuários — este projeto não tem app com login. Os pedidos da **GreenPallets NÃO entram em `pedidos`/`clientes`** — só o controle de dedup em `gp_pcp_processados` (escopo decidido em 17/08: conta GP alimenta apenas cards da PCP). Se algo disso mudar, registrar AQUI.
+↩️ **Revisado em 26/08/2026:** com a SESSAO-02 aplicada, agora existem sim views, triggers, um schema a mais (`plt_privado`), funções e policies — **todos da plataforma, com prefixo `plt_`**, listados na seção acima. O que continua valendo: **nada disso toca as tabelas da integração**, e do lado da integração continua não havendo view, trigger, policy, bucket de storage nem edge function. A tabela de usuários agora existe (`plt_usuarios`), da plataforma. Os pedidos da **GreenPallets NÃO entram em `pedidos`/`clientes`** — só o controle de dedup em `gp_pcp_processados` (escopo decidido em 17/08: conta GP alimenta apenas cards da PCP). Se algo disso mudar, registrar AQUI.
 
 ## Ver também
 
