@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-02 — Banco e Domínio no Supabase"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
-atualizado: 2026-08-19
+atualizado: 2026-08-26
 tags: [plataforma, demanda, sessao]
 ---
 
@@ -40,8 +40,16 @@ Qualquer tela; aplicar em produção; importar dados do ClickUp/Trello (Q-25 em 
 
 ## Critérios de aceite
 
-- [ ] Migrations rodam do zero num ambiente de teste sem erro, duas vezes seguidas (idempotência do processo).
-- [ ] Nenhuma tabela/coluna existente da integração alterada.
-- [ ] Evento não pode ser alterado nem apagado (testado: UPDATE/DELETE falham por política).
-- [ ] `docs/modelo-de-dados.md` legível para não-dev.
-- [ ] PR + handoff com o passo a passo de aplicação para quando for aprovada.
+- [x] Migrations rodam do zero num ambiente de teste sem erro, duas vezes seguidas — `npm run test:banco`, contra o esquema REAL da integração.
+- [x] Nenhuma tabela/coluna existente da integração alterada — conferido por impressão digital de estrutura e por contagem de linhas, antes e depois de aplicar.
+- [x] Evento não pode ser alterado nem apagado — testado **no banco real**; a trava é TRIGGER e não política, porque a service_role ignora RLS.
+- [x] `docs/modelo-de-dados.md` legível para não-dev.
+- [x] Handoff com o passo a passo de validação: [[handoff_2026_08_26_sessao02_banco]]. ↩️ A aplicação deixou de ser "para quando for aprovada": o dono autorizou e ela **foi feita** nesta sessão (D-19).
+
+---
+
+## Registro de entrega (26/08/2026)
+
+Executada na branch `sessao-02-banco-dominio`. Duas perguntas foram ao dono e viraram decisão: **D-18** (ESTOQUE e ROTAS nascem juntos no seed — responde Q-28) e **D-19** (o Supabase da org Tech, o mesmo da integração do Tiny, é o banco da plataforma e por ora pode receber migrations direto).
+
+**Fora do escopo original que acabou entrando, com autorização:** a aplicação das migrations no banco.

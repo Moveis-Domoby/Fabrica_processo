@@ -9,7 +9,7 @@
  *   1. rodam do zero sem erro, duas vezes seguidas (idempotência);
  *   2. nenhuma tabela/coluna existente da integração foi alterada;
  *   3. plt_eventos é append-only — UPDATE e DELETE são recusados;
- *   4. o seed cria 7 setores e ZERO etapas (D-12 e D-14);
+ *   4. o seed cria os 9 setores (7 de produção + ESTOQUE e ROTAS) e ZERO etapas;
  *   5. a posição do card é projetada pelo evento, sem escrita manual;
  *   6. os itens de um pedido continuam podendo ser apagados e regravados com
  *      card vivo apontando para o pedido — ou seja, fn_upsert_pedido não quebra.
@@ -24,10 +24,7 @@ import path from 'node:path'
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const MIGRATIONS = path.join(RAIZ, 'supabase/migrations')
-const ESQUEMA_INTEGRACAO = path.join(
-  RAIZ,
-  '_docs/Supabase-fabrica/supabase-fabrica-schema.sql',
-)
+const ESQUEMA_INTEGRACAO = path.join(RAIZ, '_docs/Supabase-fabrica/supabase-fabrica-schema.sql')
 
 const verde = (t) => `\x1b[32m${t}\x1b[0m`
 const vermelho = (t) => `\x1b[31m${t}\x1b[0m`
@@ -98,7 +95,9 @@ conferir(falhas === 0, 'migrations aplicadas duas vezes seguidas sem erro')
 
 titulo('A integração continua intacta?')
 const depois = (await bd.query(RETRATO)).rows.map((r) => r.linha)
-const mudou = antes.filter((l) => !depois.includes(l)).concat(depois.filter((l) => !antes.includes(l)))
+const mudou = antes
+  .filter((l) => !depois.includes(l))
+  .concat(depois.filter((l) => !antes.includes(l)))
 conferir(
   mudou.length === 0,
   'nenhuma tabela/coluna existente da integração foi alterada',
@@ -110,15 +109,23 @@ const setores = (
   await bd.query(`select codigo, nome, papel_no_fluxo from public.plt_setores order by ordem`)
 ).rows
 console.log('  ' + setores.map((s) => `${s.nome} (${s.papel_no_fluxo})`).join(' · '))
-conferir(setores.length === 7, '7 setores semeados, sem duplicar na segunda rodada', `vieram ${setores.length}`)
+conferir(
+  setores.length === 9,
+  '9 setores semeados, sem duplicar na segunda rodada',
+  `vieram ${setores.length}`,
+)
+conferir(
+  setores
+    .filter((s) => s.papel_no_fluxo === 'terminal')
+    .map((s) => s.codigo)
+    .join(',') === 'estoque,rotas',
+  'ESTOQUE e ROTAS são os dois fins de linha (D-13 / Q-28)',
+)
 conferir(
   setores.filter((s) => s.papel_no_fluxo === 'entrada').length === 1,
   'existe exatamente uma entrada no fluxo (D-13)',
 )
-conferir(
-  !setores.some((s) => s.codigo === 'metalurgica'),
-  'METALURGICA não foi semeada (D-12)',
-)
+conferir(!setores.some((s) => s.codigo === 'metalurgica'), 'METALURGICA não foi semeada (D-12)')
 
 const etapas = (await bd.query(`select count(*)::int as total from public.plt_etapas`)).rows[0]
 conferir(etapas.total === 0, 'nenhuma etapa interna semeada (D-14)', `vieram ${etapas.total}`)
@@ -149,7 +156,10 @@ async function deveFalhar(sql, descricao) {
     conferir(/append-only/i.test(erro.message), descricao, erro.message)
   }
 }
-await deveFalhar(`update public.plt_eventos set observacao = 'adulterado'`, 'UPDATE em evento é recusado')
+await deveFalhar(
+  `update public.plt_eventos set observacao = 'adulterado'`,
+  'UPDATE em evento é recusado',
+)
 await deveFalhar(`delete from public.plt_eventos`, 'DELETE em evento é recusado')
 
 titulo('A posição do card é projetada pelo evento?')
@@ -160,7 +170,11 @@ const posicao = (
       left join public.plt_setores s on s.id = c.setor_atual_id
      order by c.id desc limit 1`)
 ).rows[0]
-conferir(posicao.setor === 'pcp', 'o evento posicionou o card no PCP sem escrita manual', posicao.setor)
+conferir(
+  posicao.setor === 'pcp',
+  'o evento posicionou o card no PCP sem escrita manual',
+  posicao.setor,
+)
 conferir(posicao.tem_desde, 'o relógio da permanência começou a contar sozinho (D-14 / M-11)')
 
 titulo('A integração do Tiny continua funcionando com card vivo?')
@@ -173,7 +187,10 @@ try {
       values ((select id from public.pedidos where numero = 999999), 1, '061', 'Item de teste', 2);
     delete from public.pedido_itens where pedido_id = (select id from public.pedidos where numero = 999999);
   `)
-  conferir(true, 'itens do pedido podem ser apagados e regravados com card vivo apontando para o pedido')
+  conferir(
+    true,
+    'itens do pedido podem ser apagados e regravados com card vivo apontando para o pedido',
+  )
 } catch (erro) {
   conferir(false, 'itens do pedido podem ser apagados e regravados', erro.message)
 }

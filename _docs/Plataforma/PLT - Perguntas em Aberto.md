@@ -2,7 +2,7 @@
 titulo: Plataforma — Perguntas em Aberto (entrevista de descoberta)
 tipo: descoberta
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-08-26
 tags: [plataforma, descoberta, perguntas]
 ---
 
@@ -42,7 +42,7 @@ tags: [plataforma, descoberta, perguntas]
 
 ## 🟠 Fluxo e modelo
 
-- **Q-28 · ROTAS na plataforma:** na fase 1 a ROTAS vive no ClickUp (D-05). O card termina na plataforma em ROTAS como **setor terminal de handoff** (chegou → ponte n8n cria o card no ClickUp), ou o fim de linha na plataforma é só ESTOQUE? (Decidir antes da SESSAO-04.)
+- ✅ **Q-28 · ROTAS na plataforma?** → respondida em 26/08, nas palavras do dono: *"coloque o setor de rotas nos primórdios de criação"*. **ESTOQUE e ROTAS nascem como setores terminais desde o seed**; a ROTAS é terminal de *handoff* enquanto a logística viver no ClickUp (D-05) → [[PLT - Decisoes de Produto#D-18]]. Desbloqueou a SESSAO-04.
 - **Q-21 · Card de unidade que se divide:** e quando UMA unidade gera trabalho paralelo (base de metalon na METALURGICA enquanto a madeira corre na SECC)? O card se divide em sub-cards que se juntam na montagem?
 - **Q-22 · Terceirizados (corte/fita para SF Madeiras etc., 350+ cards hoje):** entram na plataforma desde o dia 1 como fluxo próprio, ou ficam fora do escopo inicial?
 - **Q-23 · Produção para estoque** (best-sellers sem pedido): o card nasce de onde, já que não há pedido no Tiny? Botão "produzir para estoque" no PCP?

@@ -89,4 +89,4 @@ create unique index if not exists plt_cards_pedido_uq
 drop trigger if exists plt_cards_atualizacao on public.plt_cards;
 create trigger plt_cards_atualizacao
   before update on public.plt_cards
-  for each row execute function public.plt_fn_marcar_atualizacao();
+  for each row execute function plt_privado.fn_marcar_atualizacao();

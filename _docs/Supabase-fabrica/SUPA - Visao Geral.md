@@ -1,7 +1,7 @@
 ---
 titulo: Supabase Fábrica — Visão Geral (projeto, endpoints, chaves, convenções)
 tipo: infraestrutura
-atualizado: 2026-08-17
+atualizado: 2026-08-26
 tags: [supabase, fabrica, infraestrutura, endpoints]
 ---
 
@@ -17,9 +17,9 @@ tags: [supabase, fabrica, infraestrutura, endpoints]
 
 | Item | Valor |
 |---|---|
-| Nome do projeto | `domoby-fabrica` *(preencher se diferente)* |
+| Nome do projeto | `contatodomoby@gmail.com's Project` · ref `axnzldwgwsmepukdiljx` · org **Tech** |
 | URL do projeto | `https://________.supabase.co` ← **preencher com o ref real** |
-| Região | `sa-east-1` (São Paulo) |
+| Região | `ca-central-1` (conferido no painel em 26/08/2026 — a nota antes dizia `sa-east-1`, estava errada) |
 | Schema usado | `public` |
 | Chave usada pelo n8n | **service_role** (Settings → API). A anon key não serve para nada aqui (RLS travado) |
 
@@ -56,6 +56,7 @@ Convenções PostgREST: filtro `coluna=eq.valor` · `select=` escolhe colunas ·
 | n8n · workflow Tiny → Planilha (ramo dupla escrita) | escreve via `fn_upsert_pedido` |
 | n8n · backfill (futuro, fase 2) | escreve via `fn_upsert_pedido` com `p_origem='backfill'` |
 | n8n · ClickUp ROTAS → Tiny (fase 4, futuro) | lerá `pedidos` (numero → tiny_id, situacao) |
+| **Plataforma de Produção** | tabelas `plt_*` no mesmo banco (D-08), com RLS por papel. Aplicada em 26/08/2026 na SESSAO-02 |
 | Plataformas futuras (rotas, estoque…) | leitura via policies próprias, a criar quando existirem |
 
 🚨 **Este projeto NÃO tem nada a ver com o OAuth v3 do Tiny** — o cron de renovação de token vive no Supabase da **loja** (painel de recompra). Não misturar. A regra do dono único do token ([[N8N - API Tiny v2 vs v3]]) continua valendo lá.

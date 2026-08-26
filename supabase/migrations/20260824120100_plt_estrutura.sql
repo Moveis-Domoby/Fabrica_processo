@@ -49,7 +49,7 @@ create index if not exists plt_setores_ordem_idx
 drop trigger if exists plt_setores_atualizacao on public.plt_setores;
 create trigger plt_setores_atualizacao
   before update on public.plt_setores
-  for each row execute function public.plt_fn_marcar_atualizacao();
+  for each row execute function plt_privado.fn_marcar_atualizacao();
 
 -- Fecha o vínculo pessoa ↔ setor criado na migration 01.
 do $$
@@ -99,7 +99,7 @@ create index if not exists plt_etapas_setor_idx
 drop trigger if exists plt_etapas_atualizacao on public.plt_etapas;
 create trigger plt_etapas_atualizacao
   before update on public.plt_etapas
-  for each row execute function public.plt_fn_marcar_atualizacao();
+  for each row execute function plt_privado.fn_marcar_atualizacao();
 
 -- Uma etapa de fila por setor, no máximo: se houvesse duas, o tempo de fila do
 -- setor ficaria ambíguo e a métrica de gargalo (D-02) perderia sentido.

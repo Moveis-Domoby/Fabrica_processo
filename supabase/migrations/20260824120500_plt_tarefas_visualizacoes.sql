@@ -44,7 +44,7 @@ create index if not exists plt_tarefas_setor_idx
 drop trigger if exists plt_tarefas_atualizacao on public.plt_tarefas;
 create trigger plt_tarefas_atualizacao
   before update on public.plt_tarefas
-  for each row execute function public.plt_fn_marcar_atualizacao();
+  for each row execute function plt_privado.fn_marcar_atualizacao();
 
 -- ----------------------------------------------------------------------------
 -- 2 · plt_visualizacoes — painéis personalizados salvos (RF-32, RF-33)
@@ -85,4 +85,4 @@ create unique index if not exists plt_visualizacoes_padrao_uq
 drop trigger if exists plt_visualizacoes_atualizacao on public.plt_visualizacoes;
 create trigger plt_visualizacoes_atualizacao
   before update on public.plt_visualizacoes
-  for each row execute function public.plt_fn_marcar_atualizacao();
+  for each row execute function plt_privado.fn_marcar_atualizacao();

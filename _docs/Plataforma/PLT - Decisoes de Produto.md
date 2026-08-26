@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-08-26
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -81,6 +81,30 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 ## D-11 · API antecipada: entrada de pedidos via n8n logo após o kanban (24/08/2026)
 
 **Decidido:** o dono quer a API **já no início** — mas no formato mais simples: **a plataforma recebendo dados do n8n** (n8n chama a API; a plataforma não busca nada no Tiny). Para isso a antiga SESSAO-10 foi dividida: a **[[SESSAO-13 - Entrada de Pedidos via n8n]]** (só o caminho de entrada Tiny → n8n → card no PCP) é executada logo após o kanban, e a SESSAO-10 (API completa: CRUD, webhooks de saída, ponte ROTAS) fica mais tarde. A partir daí, todos os testes das sessões seguintes rodam com **pedido real fluindo sozinho**. Ordem oficial em [[000 - ORDEM DAS SESSOES]] — **o número da sessão é ID, não ordem**.
+
+## D-18 · Fins de linha: ESTOQUE e ROTAS nascem juntos (26/08/2026)
+
+**Contexto — contradição encontrada ao codar a SESSAO-02:** a D-13 diz que o card termina em ESTOQUE ou ROTAS, mas a lista de setores do dia 1 da D-12 (copiada do ClickUp) não tem nenhum dos dois, e a D-05 mantém a ROTAS no ClickUp na fase 1. O Claude Code parou e perguntou em vez de escolher.
+
+**Decidido (palavras do dono):** *"coloque o setor de rotas nos primórdios de criação então"*.
+
+- O seed nasce com **9 setores**: PCP (entrada) · SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM (produção) · **ESTOQUE** e **ROTAS** (terminais).
+- A ROTAS existe na plataforma como **setor terminal de handoff**: o card chega nela e a ponte do n8n cria o card na ROTAS do ClickUp enquanto a logística viver lá (D-05). Quando a logística migrar, **nada na estrutura muda**.
+- Isso **responde a Q-28** e desbloqueia a SESSAO-04.
+
+**Descartada:** deixar só ESTOQUE como terminal na plataforma, com a ROTAS inteiramente fora — o dono preferiu já ter o fim de linha completo desenhado desde o começo.
+
+## D-19 · Banco: o projeto da org Tech é o de produção, e por ora é onde se trabalha (26/08/2026)
+
+**Decidido:** o Supabase da organization **Tech** (ref `axnzldwgwsmepukdiljx`) — **o mesmo que já recebe os pedidos do Tiny** — é o banco da plataforma, confirmando a D-08. Nas palavras do dono: *"esse será o banco de produção, mas por enquanto podemos mexer nele à vontade"*.
+
+**↩️ Isto revisa a parte de "banco de desenvolvimento" da D-15**, que previa um projeto Supabase novo e exclusivo de dev: por ora **não existe** projeto de dev, e as migrations da plataforma são aplicadas direto nesse banco, com autorização explícita do dono.
+
+**O que continua valendo, sem exceção:**
+
+- Nenhuma migration toca as tabelas da integração (`clientes`, `pedidos`, `pedido_itens`, `eventos`, `gp_pcp_processados`). Toda aplicação confere a estrutura e as contagens **antes e depois**.
+- Migrations são testadas fora antes de entrar (`npm run test:banco`, contra o esquema real da integração).
+- **Quando a plataforma tiver gente usando de verdade, esta permissão acaba** e volta a regra crítica 2 na íntegra: aplicar em produção só com aprovação explícita naquela conversa.
 
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 

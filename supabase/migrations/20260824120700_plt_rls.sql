@@ -15,12 +15,19 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
+-- 1 · Funções de apoio — em schema PRIVADO, fora da API REST
+--
+-- O Supabase publica `public` inteiro como API. Estas funções são maquinaria
+-- de política de acesso, não endpoint: por isso vivem em `plt_privado`, que
+-- não é publicado. `authenticated` recebe permissão de execução porque as
+-- políticas rodam com os privilégios de quem consulta.
+-- ----------------------------------------------------------------------------
 -- 1 · Funções de apoio
 -- `security definer` para conseguirem ler plt_usuarios sem cair na própria
 -- política — senão a política que pergunta "quem é você?" precisaria de outra
 -- política para responder, e isso não termina.
 -- ----------------------------------------------------------------------------
-create or replace function public.plt_fn_usuario_atual()
+create or replace function plt_privado.fn_usuario_atual()
 returns uuid
 language sql
 stable
@@ -34,10 +41,10 @@ as $$
    limit 1;
 $$;
 
-comment on function public.plt_fn_usuario_atual() is
+comment on function plt_privado.fn_usuario_atual() is
   'Traduz o usuário do Supabase Auth para a pessoa da plataforma. NULL para quem não tem login próprio.';
 
-create or replace function public.plt_fn_eh_admin()
+create or replace function plt_privado.fn_eh_admin()
 returns boolean
 language sql
 stable
@@ -51,7 +58,7 @@ as $$
   );
 $$;
 
-create or replace function public.plt_fn_setores_do_usuario()
+create or replace function plt_privado.fn_setores_do_usuario()
 returns setof bigint
 language sql
 stable
@@ -65,10 +72,10 @@ as $$
      and u.ativo;
 $$;
 
-comment on function public.plt_fn_setores_do_usuario() is
+comment on function plt_privado.fn_setores_do_usuario() is
   'Setores em que a pessoa trabalha. Base do "operador vê a fila do seu setor" (RF-22).';
 
-create or replace function public.plt_fn_eh_lider_de(p_setor_id bigint)
+create or replace function plt_privado.fn_eh_lider_de(p_setor_id bigint)
 returns boolean
 language sql
 stable
@@ -116,14 +123,14 @@ create policy plt_usuarios_leitura on public.plt_usuarios
 drop policy if exists plt_usuarios_admin_escreve on public.plt_usuarios;
 create policy plt_usuarios_admin_escreve on public.plt_usuarios
   for all to authenticated
-  using (public.plt_fn_eh_admin())
-  with check (public.plt_fn_eh_admin());
+  using (plt_privado.fn_eh_admin())
+  with check (plt_privado.fn_eh_admin());
 
 drop policy if exists plt_usuarios_edita_a_si on public.plt_usuarios;
 create policy plt_usuarios_edita_a_si on public.plt_usuarios
   for update to authenticated
-  using (id = public.plt_fn_usuario_atual())
-  with check (id = public.plt_fn_usuario_atual());
+  using (id = plt_privado.fn_usuario_atual())
+  with check (id = plt_privado.fn_usuario_atual());
 
 drop policy if exists plt_usuario_setores_leitura on public.plt_usuario_setores;
 create policy plt_usuario_setores_leitura on public.plt_usuario_setores
@@ -133,8 +140,8 @@ create policy plt_usuario_setores_leitura on public.plt_usuario_setores
 drop policy if exists plt_usuario_setores_gestao on public.plt_usuario_setores;
 create policy plt_usuario_setores_gestao on public.plt_usuario_setores
   for all to authenticated
-  using (public.plt_fn_eh_admin() or public.plt_fn_eh_lider_de(setor_id))
-  with check (public.plt_fn_eh_admin() or public.plt_fn_eh_lider_de(setor_id));
+  using (plt_privado.fn_eh_admin() or plt_privado.fn_eh_lider_de(setor_id))
+  with check (plt_privado.fn_eh_admin() or plt_privado.fn_eh_lider_de(setor_id));
 
 -- ----------------------------------------------------------------------------
 -- 4 · Estrutura — todo mundo lê, só o admin cadastra (RF-07)
@@ -147,8 +154,8 @@ create policy plt_setores_leitura on public.plt_setores
 drop policy if exists plt_setores_admin on public.plt_setores;
 create policy plt_setores_admin on public.plt_setores
   for all to authenticated
-  using (public.plt_fn_eh_admin())
-  with check (public.plt_fn_eh_admin());
+  using (plt_privado.fn_eh_admin())
+  with check (plt_privado.fn_eh_admin());
 
 drop policy if exists plt_etapas_leitura on public.plt_etapas;
 create policy plt_etapas_leitura on public.plt_etapas
@@ -159,8 +166,8 @@ create policy plt_etapas_leitura on public.plt_etapas
 drop policy if exists plt_etapas_gestao on public.plt_etapas;
 create policy plt_etapas_gestao on public.plt_etapas
   for all to authenticated
-  using (public.plt_fn_eh_admin() or public.plt_fn_eh_lider_de(setor_id))
-  with check (public.plt_fn_eh_admin() or public.plt_fn_eh_lider_de(setor_id));
+  using (plt_privado.fn_eh_admin() or plt_privado.fn_eh_lider_de(setor_id))
+  with check (plt_privado.fn_eh_admin() or plt_privado.fn_eh_lider_de(setor_id));
 
 -- ----------------------------------------------------------------------------
 -- 5 · Cards
@@ -171,24 +178,24 @@ drop policy if exists plt_cards_leitura on public.plt_cards;
 create policy plt_cards_leitura on public.plt_cards
   for select to authenticated
   using (
-    public.plt_fn_eh_admin()
-    or setor_atual_id in (select public.plt_fn_setores_do_usuario())
-    or executor_atual_id = public.plt_fn_usuario_atual()
+    plt_privado.fn_eh_admin()
+    or setor_atual_id in (select plt_privado.fn_setores_do_usuario())
+    or executor_atual_id = plt_privado.fn_usuario_atual()
   );
 
 drop policy if exists plt_cards_criacao on public.plt_cards;
 create policy plt_cards_criacao on public.plt_cards
   for insert to authenticated
   with check (
-    public.plt_fn_eh_admin()
-    or setor_atual_id in (select public.plt_fn_setores_do_usuario())
+    plt_privado.fn_eh_admin()
+    or setor_atual_id in (select plt_privado.fn_setores_do_usuario())
   );
 
 drop policy if exists plt_cards_admin_ajusta on public.plt_cards;
 create policy plt_cards_admin_ajusta on public.plt_cards
   for update to authenticated
-  using (public.plt_fn_eh_admin())
-  with check (public.plt_fn_eh_admin());
+  using (plt_privado.fn_eh_admin())
+  with check (plt_privado.fn_eh_admin());
 
 -- ----------------------------------------------------------------------------
 -- 6 · Eventos — lê quem vê o card; escreve quem trabalha nele.
@@ -198,26 +205,26 @@ drop policy if exists plt_eventos_leitura on public.plt_eventos;
 create policy plt_eventos_leitura on public.plt_eventos
   for select to authenticated
   using (
-    public.plt_fn_eh_admin()
+    plt_privado.fn_eh_admin()
     or exists (
       select 1 from public.plt_cards c
        where c.id = plt_eventos.card_id
-         and (c.setor_atual_id in (select public.plt_fn_setores_do_usuario())
-              or c.executor_atual_id = public.plt_fn_usuario_atual())
+         and (c.setor_atual_id in (select plt_privado.fn_setores_do_usuario())
+              or c.executor_atual_id = plt_privado.fn_usuario_atual())
     )
-    or setor_origem_id in (select public.plt_fn_setores_do_usuario())
-    or setor_destino_id in (select public.plt_fn_setores_do_usuario())
+    or setor_origem_id in (select plt_privado.fn_setores_do_usuario())
+    or setor_destino_id in (select plt_privado.fn_setores_do_usuario())
   );
 
 drop policy if exists plt_eventos_registro on public.plt_eventos;
 create policy plt_eventos_registro on public.plt_eventos
   for insert to authenticated
   with check (
-    public.plt_fn_usuario_atual() is not null
+    plt_privado.fn_usuario_atual() is not null
     and (
-      public.plt_fn_eh_admin()
-      or setor_origem_id in (select public.plt_fn_setores_do_usuario())
-      or setor_destino_id in (select public.plt_fn_setores_do_usuario())
+      plt_privado.fn_eh_admin()
+      or setor_origem_id in (select plt_privado.fn_setores_do_usuario())
+      or setor_destino_id in (select plt_privado.fn_setores_do_usuario())
     )
   );
 
@@ -227,13 +234,13 @@ create policy plt_eventos_registro on public.plt_eventos
 drop policy if exists plt_notificacoes_proprias on public.plt_notificacoes;
 create policy plt_notificacoes_proprias on public.plt_notificacoes
   for select to authenticated
-  using (destinatario_id = public.plt_fn_usuario_atual() or public.plt_fn_eh_admin());
+  using (destinatario_id = plt_privado.fn_usuario_atual() or plt_privado.fn_eh_admin());
 
 drop policy if exists plt_notificacoes_marcar_lida on public.plt_notificacoes;
 create policy plt_notificacoes_marcar_lida on public.plt_notificacoes
   for update to authenticated
-  using (destinatario_id = public.plt_fn_usuario_atual())
-  with check (destinatario_id = public.plt_fn_usuario_atual());
+  using (destinatario_id = plt_privado.fn_usuario_atual())
+  with check (destinatario_id = plt_privado.fn_usuario_atual());
 
 -- ----------------------------------------------------------------------------
 -- 8 · Tarefas — vê o que é seu, o do seu setor, ou tudo se for admin.
@@ -242,33 +249,33 @@ drop policy if exists plt_tarefas_leitura on public.plt_tarefas;
 create policy plt_tarefas_leitura on public.plt_tarefas
   for select to authenticated
   using (
-    public.plt_fn_eh_admin()
-    or responsavel_id = public.plt_fn_usuario_atual()
-    or criada_por_id = public.plt_fn_usuario_atual()
-    or setor_id in (select public.plt_fn_setores_do_usuario())
+    plt_privado.fn_eh_admin()
+    or responsavel_id = plt_privado.fn_usuario_atual()
+    or criada_por_id = plt_privado.fn_usuario_atual()
+    or setor_id in (select plt_privado.fn_setores_do_usuario())
   );
 
 drop policy if exists plt_tarefas_criacao on public.plt_tarefas;
 create policy plt_tarefas_criacao on public.plt_tarefas
   for insert to authenticated
   with check (
-    public.plt_fn_eh_admin()
-    or public.plt_fn_eh_lider_de(setor_id)
-    or criada_por_id = public.plt_fn_usuario_atual()
+    plt_privado.fn_eh_admin()
+    or plt_privado.fn_eh_lider_de(setor_id)
+    or criada_por_id = plt_privado.fn_usuario_atual()
   );
 
 drop policy if exists plt_tarefas_atualizacao on public.plt_tarefas;
 create policy plt_tarefas_atualizacao on public.plt_tarefas
   for update to authenticated
   using (
-    public.plt_fn_eh_admin()
-    or responsavel_id = public.plt_fn_usuario_atual()
-    or public.plt_fn_eh_lider_de(setor_id)
+    plt_privado.fn_eh_admin()
+    or responsavel_id = plt_privado.fn_usuario_atual()
+    or plt_privado.fn_eh_lider_de(setor_id)
   )
   with check (
-    public.plt_fn_eh_admin()
-    or responsavel_id = public.plt_fn_usuario_atual()
-    or public.plt_fn_eh_lider_de(setor_id)
+    plt_privado.fn_eh_admin()
+    or responsavel_id = plt_privado.fn_usuario_atual()
+    or plt_privado.fn_eh_lider_de(setor_id)
   );
 
 -- ----------------------------------------------------------------------------
@@ -278,14 +285,36 @@ drop policy if exists plt_visualizacoes_leitura on public.plt_visualizacoes;
 create policy plt_visualizacoes_leitura on public.plt_visualizacoes
   for select to authenticated
   using (
-    public.plt_fn_eh_admin()
-    or usuario_id = public.plt_fn_usuario_atual()
+    plt_privado.fn_eh_admin()
+    or usuario_id = plt_privado.fn_usuario_atual()
     or escopo = 'global'
-    or (escopo = 'setor' and setor_id in (select public.plt_fn_setores_do_usuario()))
+    or (escopo = 'setor' and setor_id in (select plt_privado.fn_setores_do_usuario()))
   );
 
 drop policy if exists plt_visualizacoes_proprias on public.plt_visualizacoes;
 create policy plt_visualizacoes_proprias on public.plt_visualizacoes
   for all to authenticated
-  using (public.plt_fn_eh_admin() or usuario_id = public.plt_fn_usuario_atual())
-  with check (public.plt_fn_eh_admin() or usuario_id = public.plt_fn_usuario_atual());
+  using (plt_privado.fn_eh_admin() or usuario_id = plt_privado.fn_usuario_atual())
+  with check (plt_privado.fn_eh_admin() or usuario_id = plt_privado.fn_usuario_atual());
+
+-- ----------------------------------------------------------------------------
+-- 10 · Quem pode executar a maquinaria
+--
+-- `authenticated` precisa executar as funções de apoio (as políticas rodam com
+-- os privilégios de quem consulta). `anon` e o público geral, não.
+-- As funções de trigger não precisam de permissão nenhuma em tempo de execução
+-- — o Postgres só confere isso na criação da trigger.
+-- ----------------------------------------------------------------------------
+revoke all on function plt_privado.fn_usuario_atual()        from public, anon;
+revoke all on function plt_privado.fn_eh_admin()             from public, anon;
+revoke all on function plt_privado.fn_setores_do_usuario()   from public, anon;
+revoke all on function plt_privado.fn_eh_lider_de(bigint)    from public, anon;
+
+grant execute on function plt_privado.fn_usuario_atual()      to authenticated;
+grant execute on function plt_privado.fn_eh_admin()           to authenticated;
+grant execute on function plt_privado.fn_setores_do_usuario() to authenticated;
+grant execute on function plt_privado.fn_eh_lider_de(bigint)  to authenticated;
+
+revoke all on function plt_privado.fn_marcar_atualizacao() from public, anon, authenticated;
+revoke all on function plt_privado.fn_evento_imutavel()    from public, anon, authenticated;
+revoke all on function plt_privado.fn_projetar_posicao()   from public, anon, authenticated;

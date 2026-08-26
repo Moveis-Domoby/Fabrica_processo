@@ -86,9 +86,10 @@ create index if not exists plt_eventos_referencia_idx
 -- que estar no banco, valendo para todo mundo — inclusive para quem tem a
 -- chave mais poderosa. Por isso a guarda é uma trigger.
 -- ----------------------------------------------------------------------------
-create or replace function public.plt_fn_evento_imutavel()
+create or replace function plt_privado.fn_evento_imutavel()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   raise exception
@@ -98,18 +99,18 @@ begin
 end;
 $$;
 
-comment on function public.plt_fn_evento_imutavel() is
+comment on function plt_privado.fn_evento_imutavel() is
   'Guarda de append-only. Vale até para service_role, que ignora RLS.';
 
 drop trigger if exists plt_eventos_sem_update on public.plt_eventos;
 create trigger plt_eventos_sem_update
   before update on public.plt_eventos
-  for each row execute function public.plt_fn_evento_imutavel();
+  for each row execute function plt_privado.fn_evento_imutavel();
 
 drop trigger if exists plt_eventos_sem_delete on public.plt_eventos;
 create trigger plt_eventos_sem_delete
   before delete on public.plt_eventos
-  for each row execute function public.plt_fn_evento_imutavel();
+  for each row execute function plt_privado.fn_evento_imutavel();
 
 revoke update, delete, truncate on public.plt_eventos from anon, authenticated;
 
@@ -119,7 +120,7 @@ revoke update, delete, truncate on public.plt_eventos from anon, authenticated;
 -- O card guarda onde está para a tela ser rápida, mas quem manda é o evento.
 -- Esta trigger é o único lugar do sistema que escreve a posição.
 -- ----------------------------------------------------------------------------
-create or replace function public.plt_fn_projetar_posicao()
+create or replace function plt_privado.fn_projetar_posicao()
 returns trigger
 language plpgsql
 security definer
@@ -164,10 +165,10 @@ begin
 end;
 $$;
 
-comment on function public.plt_fn_projetar_posicao() is
+comment on function plt_privado.fn_projetar_posicao() is
   'Único lugar que escreve a posição do card. Reage a evento inserido; nunca o contrário.';
 
 drop trigger if exists plt_eventos_projetar on public.plt_eventos;
 create trigger plt_eventos_projetar
   after insert on public.plt_eventos
-  for each row execute function public.plt_fn_projetar_posicao();
+  for each row execute function plt_privado.fn_projetar_posicao();

@@ -9,6 +9,21 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
+-- 0 · Schema privado
+--
+-- Tudo que é maquinaria interna (funções de trigger e as funções que as
+-- políticas de acesso consultam) mora AQUI, e não em `public`. Motivo: o
+-- Supabase publica o schema `public` inteiro como API REST — função em
+-- `public` vira endpoint `/rest/v1/rpc/nome` sem ninguém pedir. Os advisors
+-- do próprio Supabase apontam isso, e a correção certa é não expor.
+-- ----------------------------------------------------------------------------
+create schema if not exists plt_privado;
+comment on schema plt_privado is
+  'Maquinaria interna da plataforma. Fora da API REST de propósito — nada aqui é endpoint.';
+
+grant usage on schema plt_privado to authenticated;
+
+-- ----------------------------------------------------------------------------
 -- 1 · plt_usuarios — as pessoas da fábrica
 --
 -- O vínculo com o Supabase Auth é OPCIONAL de propósito (D-06): o operador que
@@ -69,9 +84,10 @@ create index if not exists plt_usuario_setores_setor_idx
 -- 3 · Manutenção de `atualizado_em`
 -- Uma função só, reaproveitada por todas as tabelas da plataforma.
 -- ----------------------------------------------------------------------------
-create or replace function public.plt_fn_marcar_atualizacao()
+create or replace function plt_privado.fn_marcar_atualizacao()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.atualizado_em := now();
@@ -79,10 +95,10 @@ begin
 end;
 $$;
 
-comment on function public.plt_fn_marcar_atualizacao() is
+comment on function plt_privado.fn_marcar_atualizacao() is
   'Trigger genérica: mantém atualizado_em em dia nas tabelas plt_*.';
 
 drop trigger if exists plt_usuarios_atualizacao on public.plt_usuarios;
 create trigger plt_usuarios_atualizacao
   before update on public.plt_usuarios
-  for each row execute function public.plt_fn_marcar_atualizacao();
+  for each row execute function plt_privado.fn_marcar_atualizacao();
