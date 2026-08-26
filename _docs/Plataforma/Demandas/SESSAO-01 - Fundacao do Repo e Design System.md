@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-01 — Fundação do Repo e Design System"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
-atualizado: 2026-08-19
+atualizado: 2026-08-24
 tags: [plataforma, demanda, sessao]
 ---
 
@@ -42,8 +42,16 @@ Banco, autenticação, qualquer tela de negócio, deploy.
 
 ## Critérios de aceite
 
-- [ ] `git clone` → instalar → rodar local funciona seguindo só o README.
-- [ ] Página `/design` mostra todos os componentes base, em viewport de celular e de tablet.
-- [ ] Tabela de exemplo pagina de verdade (dados fake).
-- [ ] `CLAUDE.md` na raiz; main protegida; PR aberto para revisão.
-- [ ] Handoff criado em `_docs/Handoffs/` explicando o que existe e como rodar.
+- [x] `git clone` → instalar → rodar local funciona seguindo só o README.
+- [x] Página `/design` mostra todos os componentes base, em viewport de celular e de tablet — verificado a 375px (vira lista de cards, sem rolagem horizontal) e a 768px.
+- [x] Tabela de exemplo pagina de verdade (27 linhas fictícias, 8 por página) — e coberta por teste automatizado.
+- [x] `CLAUDE.md` na raiz. ⚠️ **PR ainda não aberto**: o `git push` respondeu `Repository not found` — os commits estão prontos na branch local, falta o acesso ao repositório remoto. ⚠️ **Proteção da `main` depende do dono ligar no GitHub** (Settings → Branches) — não é possível pelo código.
+- [x] Handoff criado: [[handoff_2026_08_24_sessao01_fundacao]].
+
+---
+
+## Registro de entrega (24/08/2026)
+
+Executada na branch `sessao-01-fundacao`. Stack escolhida e justificada conforme D-15 (confirmação registrada em [[PLT - Decisoes de Produto]]). Memória de execução em `docs/execucao/SESSAO-01.md`; handoff em [[handoff_2026_08_24_sessao01_fundacao]].
+
+**Ficou pendente de propósito:** screenshots da `/design` (o painel de navegador da sessão não estava sendo exibido — a verificação foi feita medindo o DOM real nos dois viewports) e a proteção da branch `main`, que só o dono pode ligar no GitHub.

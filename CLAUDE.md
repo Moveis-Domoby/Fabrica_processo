@@ -1,15 +1,8 @@
----
-titulo: CLAUDE.md — Regras do Claude Code (repositório da plataforma)
-tipo: regras
-data: 2026-08-19
-atualizado: 2026-08-24
-tags: [plataforma, claude-code, regras, conduta]
----
-
-> [!warning] O que é este arquivo
-> Este é o **conteúdo do `CLAUDE.md` que deve ser copiado para a RAIZ do repositório da plataforma** na Sessão 01 (e mantido em sincronia: mudou aqui → mudou lá). Ele define a persona e os limites de TODA sessão do Claude Code que trabalhar no código.
-
----
+<!--
+FONTE DA VERDADE: _docs/Plataforma/CLAUDE - Regras do Claude Code (repo).md
+Este arquivo e' uma copia fiel dessa nota (D-10). Mudou la' -> muda aqui, e vice-versa.
+Copiado em 2026-08-24 na SESSAO-01.
+-->
 
 # CLAUDE.md — Plataforma de Produção Domoby
 

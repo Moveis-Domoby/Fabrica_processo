@@ -1,0 +1,30 @@
+# dependências
+node_modules/
+
+# build
+dist/
+dist-ssr/
+*.local
+
+# ambiente (regra crítica 4 — nenhuma credencial versionada)
+.env
+.env.*
+!.env.example
+
+# editores / SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# testes / cache
+coverage/
+.vite/
+*.tsbuildinfo
+
+# capturas geradas durante a verificação
+/docs/capturas/*.tmp.png
+
+# ferramentas locais do agente
+.claude/
