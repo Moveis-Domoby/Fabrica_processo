@@ -35,6 +35,16 @@ D-06 (tablet compartilhado + celular pessoal) · D-10.
 - Login por e-mail/senha serve para todos? Operadores têm e-mail? (Se não: usuário+PIN criado pelo líder.)
 - Quantos usuários na largada (Q-61)?
 
+## ↪️ Revisões de 26/08/2026 (respostas do dono no início da sessão → D-21)
+
+- **Sem autocadastro** — usuário só nasce pela mão de admin/líder; a tela pública é só o login. (Revisa o item "Autocadastro NÃO dá acesso" acima: a tela de autocadastro deixou de existir.)
+- **Login por e-mail OU nome de usuário** + senha; e-mail é obrigatório no cadastro de todos.
+- **Senha padrão de criação** (segredo de ambiente) com **troca obrigatória no primeiro login**.
+- **Convite = link por WhatsApp**, sem e-mail automático.
+- **Uma tabela só** (`plt_usuarios`) — sem tabela separada de dados internos; campos novos entram nela.
+- **Matrícula automática `MDM-XXX-NNN`** (XXX = 3 primeiros dígitos do CPF, NNN = ordem de cadastro); **CPF obrigatório**.
+- **Admin principal:** wallacecaun03@gmail.com · **~30 usuários** (Q-61 ✅).
+
 ## Fora do escopo
 
 Telas de kanban; dashboards; painel admin completo (SESSAO-12 consolida — aqui só a gestão mínima de usuários/convites).
