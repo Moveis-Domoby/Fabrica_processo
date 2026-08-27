@@ -1,37 +1,57 @@
 import { Link } from 'react-router'
-import { ArrowRight, Palette } from 'lucide-react'
+import { ArrowRight, Palette, TabletSmartphone, UsersRound } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
+import { useSessao } from '@/autenticacao/sessao-contexto'
+import { ROTULO_PAPEL } from '@/autenticacao/tipos'
 
+/** A casa de cada papel (RF-24): operador vê o mínimo; líder e admin veem mais. */
 export function Inicio() {
+  const { perfil, vinculos, ehLider } = useSessao()
+  if (!perfil) return null // a guarda já cuidou; isto só acalma o TypeScript
+
+  const nomeCurto = perfil.nome.split(' ')[0]
+  const meusSetores = vinculos.map((v) => v.setor.nome).join(' · ')
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl sm:text-3xl">Plataforma de Produção</h1>
-        <p className="max-w-2xl text-texto-suave">
-          Esta é a <strong className="text-texto">fundação</strong> do repositório, entregue na
-          SESSAO-01: nenhuma tela de negócio ainda — só a base de estilização que todas as sessões
-          seguintes vão seguir.
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl sm:text-3xl">Olá, {nomeCurto}!</h1>
+        <p className="text-texto-suave">
+          {ROTULO_PAPEL[perfil.papel]} · matrícula{' '}
+          <span className="tabular-nums">{perfil.matricula}</span>
+          {meusSetores && <> · {meusSetores}</>}
         </p>
       </div>
 
       <div className="rounded-dm-lg border border-borda bg-superficie p-5">
-        <h2 className="text-lg">O que já existe</h2>
-        <ul className="mt-3 flex list-disc flex-col gap-1.5 pl-5 text-texto-suave">
-          <li>Tokens da marca Domoby (amarelo sobre grafite) e dos 3 estados de qualidade</li>
-          <li>Componentes base: botão, campo, seleção, modal, notificação, selo de estado</li>
-          <li>Tabela com paginação embutida por padrão</li>
-          <li>
-            Documento de estilização em <code className="text-texto">docs/design-system.md</code>
-          </li>
-        </ul>
-        <div className="mt-5">
+        <h2 className="text-lg">Sua fila de trabalho</h2>
+        <p className="mt-2 text-texto-suave">
+          O kanban dos setores chega na próxima sessão (SESSAO-04). Aqui vai aparecer a fila do
+          seu setor, com os cards e os botões de iniciar e finalizar.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Link to="/tablet">
+          <Botao variante="secundaria" icone={<TabletSmartphone />}>
+            Modo tablet (PIN)
+          </Botao>
+        </Link>
+        {ehLider && (
+          <Link to="/equipe">
+            <Botao variante="secundaria" icone={<UsersRound />}>
+              Equipe
+            </Botao>
+          </Link>
+        )}
+        {perfil.papel === 'admin' && (
           <Link to="/design">
-            <Botao icone={<Palette />}>
-              Ver o design system
+            <Botao variante="fantasma" icone={<Palette />}>
+              Design system
               <ArrowRight aria-hidden className="size-[1.15em]" />
             </Botao>
           </Link>
-        </div>
+        )}
       </div>
     </div>
   )
