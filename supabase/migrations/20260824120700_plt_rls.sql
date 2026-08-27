@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 08 — RLS E PERMISSÕES
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- Três níveis de navegação (RF-24 / D-06):
 --   operador → o simples: os cards dos setores dele
@@ -21,11 +21,10 @@
 -- de política de acesso, não endpoint: por isso vivem em `plt_privado`, que
 -- não é publicado. `authenticated` recebe permissão de execução porque as
 -- políticas rodam com os privilégios de quem consulta.
--- ----------------------------------------------------------------------------
--- 1 · Funções de apoio
--- `security definer` para conseguirem ler plt_usuarios sem cair na própria
+--
+-- São `security definer` para conseguirem ler plt_usuarios sem cair na própria
 -- política — senão a política que pergunta "quem é você?" precisaria de outra
--- política para responder, e isso não termina.
+-- política para responder, e isso não terminaria nunca.
 -- ----------------------------------------------------------------------------
 create or replace function plt_privado.fn_usuario_atual()
 returns uuid

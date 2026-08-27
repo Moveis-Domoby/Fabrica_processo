@@ -1,7 +1,9 @@
 # Modelo de dados — Plataforma de Produção Domoby
 
 > Este documento explica **o que o banco guarda e por quê**, em português de gente.
-> O SQL executável está em `supabase/migrations/`. Nada disso foi aplicado em banco nenhum ainda — aplicar é um passo separado, com aprovação (regra crítica 2).
+> O SQL executável está em `supabase/migrations/`.
+>
+> **Estado: aplicado em 26/08/2026** no Supabase da fábrica (projeto `axnzldwgwsmepukdiljx`, org Tech) — o mesmo que recebe os pedidos do Tiny —, com autorização explícita do dono (D-19). As tabelas da integração foram conferidas antes e depois: estrutura idêntica e contagens intactas.
 
 ---
 
@@ -35,7 +37,7 @@ O login é **opcional de propósito**: quem só usa o tablet compartilhado do se
 
 ### 🏭 Setores — `plt_setores`
 
-Os 7 setores do dia 1, exatamente os do ClickUp (D-12): **PCP · SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM**. Os nomes ficam como a equipe fala, sem tradução.
+Nove setores. Os 7 de produção são exatamente os do ClickUp (D-12): **PCP · SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM** — nomes como a equipe fala, sem tradução. Mais os dois fins de linha da D-13, que o dono pediu para já nascerem junto (D-18): **ESTOQUE** e **ROTAS**.
 
 Cada setor tem um **papel no fluxo**, que é como a D-13 vira regra de banco:
 
@@ -46,6 +48,8 @@ Cada setor tem um **papel no fluxo**, que é como a D-13 vira regra de banco:
 | `terminal` | fim de linha: o card fica parado ou é entregue |
 
 O banco **garante que só existe uma entrada**. Não depende de ninguém lembrar.
+
+A **ROTAS** existe aqui como *terminal de handoff*: enquanto a logística viver no ClickUp (D-05), o card chega nesse setor e a ponte do n8n cria o card na ROTAS de lá. Quando a logística migrar para a plataforma, **nada na estrutura muda**.
 
 **METALURGICA não foi cadastrada** — o dono confirmou que ainda não é um setor usado. Quando for, cadastra pela tela de admin.
 
@@ -136,21 +140,41 @@ Duas ressalvas honestas:
 
 ## O que está pendente neste modelo
 
-- **Setores terminais (Q-28).** A D-13 diz que o fim de linha é ESTOQUE ou ROTAS, mas a lista de setores do dia 1 (D-12, tirada do ClickUp) não tem nenhum dos dois — e a D-05 mantém a ROTAS no ClickUp na fase 1. As duas leituras possíveis estão escritas na migration do seed, prontas para descomentar. **Precisa da decisão do dono antes da SESSAO-04.**
 - **Cancelamento de pedido (Q-24), produção para estoque (Q-23), terceirizados (Q-22), unidade que se divide em trabalhos paralelos (Q-21), migração dos cards vivos (Q-25)** — todos em aberto. Nada foi inventado para nenhum deles: quando forem decididos, entram como acréscimo.
+- **Nenhuma etapa interna cadastrada** — de propósito (D-14). O cadastro está vazio esperando o dono.
 - **Automações internas (SESSAO-11)** e **chaves de API (SESSAO-10)** ainda não têm tabela — cada uma vem na sua sessão.
 
 ---
 
 ## Como isto foi testado
 
-`supabase/testes/testar-migrations.sh` sobe um Postgres descartável em Docker, carrega **o esquema real da integração** (o mesmo arquivo que roda em produção), aplica as migrations **duas vezes** e verifica:
+### Fora do banco, antes de aplicar
+
+```bash
+npm run test:banco
+```
+
+Sobe um Postgres de verdade dentro do Node, carrega **o esquema real da integração** (o mesmo arquivo que roda em produção), aplica as migrations **duas vezes** e verifica:
 
 1. rodam do zero sem erro, duas vezes seguidas;
 2. nenhuma tabela ou coluna da integração mudou;
 3. `UPDATE` e `DELETE` em evento são recusados;
-4. o seed cria 7 setores e **zero** etapas;
+4. o seed cria os 9 setores e **zero** etapas, sem METALURGICA;
 5. a posição do card é projetada pelo evento, sem ninguém escrevê-la;
 6. **os itens de um pedido podem ser apagados e regravados com card vivo apontando para o pedido** — ou seja, a integração do Tiny continua funcionando.
 
-Nenhum Supabase é tocado nesse teste.
+Nenhum Supabase é tocado nesse teste. (O mesmo roteiro em Docker está em `supabase/testes/testar-migrations.sh`.)
+
+### No banco de verdade, ao aplicar
+
+```bash
+npm run banco:aplicar
+```
+
+Mostra o plano e **não aplica** — só com `-- --confirmar` ele escreve. Antes e depois, tira uma impressão digital da estrutura das tabelas da integração e compara as contagens de linha; se qualquer coisa tiver mudado, ele grita e sai com erro.
+
+Na aplicação de 26/08 a impressão digital ficou idêntica e as contagens intactas. Melhor ainda: **a integração do Tiny continuou recebendo pedidos durante e depois da aplicação** — os pedidos foram de 118 para 133 sem nenhum problema.
+
+### Provando o append-only no banco real, sem sujar o banco
+
+Como evento não se apaga, um registro de teste ficaria lá para sempre. A saída foi um bloco que monta o cenário, mede, e termina com um erro **proposital** que desfaz tudo — o resultado vem na mensagem do erro. Está escrito no handoff da sessão, pronto para colar no SQL Editor.

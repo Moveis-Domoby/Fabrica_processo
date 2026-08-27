@@ -82,8 +82,34 @@ const confirmado = process.argv.includes('--confirmar')
 const soConferir = process.argv.includes('--conferir')
 const ambiente = carregarAmbiente()
 
+/**
+ * Quebra a string de conexão à mão, em vez de entregá-la ao parser de URL.
+ *
+ * Motivo real, descoberto na prática: a senha do Postgres do Supabase pode
+ * conter caracteres que têm significado em URL — um `#`, por exemplo, começa o
+ * fragmento e faz o resto da string sumir. Percent-encodar a senha na mão
+ * daria certo, mas obrigaria o dono a editar a senha que ele copiou do painel,
+ * e senha editada à mão é senha digitada errado. Aqui a string é fatiada na
+ * ÚLTIMA arroba (o host nunca tem uma) e a senha vai crua para o driver.
+ */
+function partirConexao(url) {
+  const semEsquema = url.slice(url.indexOf('://') + 3)
+  const corte = semEsquema.lastIndexOf('@')
+  const credenciais = semEsquema.slice(0, corte)
+  const destino = semEsquema.slice(corte + 1)
+
+  const divisor = credenciais.indexOf(':')
+  const user = decodeURIComponent(credenciais.slice(0, divisor))
+  const password = credenciais.slice(divisor + 1)
+
+  const [hostPorta, database = 'postgres'] = destino.split('/')
+  const [host, porta = '5432'] = hostPorta.split(':')
+
+  return { user, password, host, port: Number(porta), database: database.split('?')[0] }
+}
+
 const cliente = new pg.Client({
-  connectionString: ambiente.SUPABASE_DB_URL,
+  ...partirConexao(ambiente.SUPABASE_DB_URL),
   ssl: { rejectUnauthorized: false },
 })
 await cliente.connect()

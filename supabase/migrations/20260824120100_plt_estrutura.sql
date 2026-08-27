@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 02 — ESTRUTURA (setores e etapas)
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- Estrutura em 2 níveis como no ClickUp (D-12): SETORES contêm ETAPAS internas.
 -- Os dois são cadastráveis pelo admin — nada de estrutura fixa no código (RF-07).

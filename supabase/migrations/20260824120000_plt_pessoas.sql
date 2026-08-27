@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 01 — PESSOAS
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- Prefixo `plt_` em tudo. NENHUMA tabela existente da integração (clientes,
 -- pedidos, pedido_itens, eventos, gp_pcp_processados) é alterada aqui.

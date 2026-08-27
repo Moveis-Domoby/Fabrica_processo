@@ -3,7 +3,7 @@
 Kanban por setor com **controle de tempo e produtividade** — a plataforma própria que substitui o ClickUp da produção.
 Este repositório guarda **o código** e, em `_docs/`, **o cofre Obsidian** com toda a memória do projeto.
 
-> **Estado atual:** SESSAO-01 entregue — fundação e design system. Ainda **não há tela de negócio**, banco nem autenticação.
+> **Estado atual:** SESSAO-01 e SESSAO-02 entregues — fundação, design system e **o modelo de dados aplicado no Supabase da fábrica**. Ainda **não há tela de negócio nem autenticação**.
 
 ---
 
@@ -32,6 +32,9 @@ O servidor sobe com `host: true`, então dá para abrir do tablet ou do celular 
 | `npm run preview` | serve o build de produção |
 | `npm run test` | testes (Vitest) |
 | `npm run test:watch` | testes em modo observador |
+| `npm run test:banco` | aplica as migrations num Postgres descartável (dentro do Node) e confere 15 pontos — **não toca em Supabase nenhum** |
+| `npm run banco:conferir` | mostra o que está no banco real, **sem escrever nada** |
+| `npm run banco:aplicar` | mostra o plano de migrations; só aplica com `-- --confirmar` |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
 
@@ -56,16 +59,32 @@ CLAUDE.md              regras de conduta de toda sessão de Claude Code (cópia 
 README.md              este arquivo
 docs/
   design-system.md     documento de estilização — leitura obrigatória antes de criar tela
+  modelo-de-dados.md   o que o banco guarda e por quê, em português de gente
   execucao/            memória de execução de cada sessão (SESSAO-NN.md)
 src/                   o app
+supabase/
+  migrations/          o schema da plataforma, versionado
+  testes/              teste das migrations contra o esquema real da integração
+  aplicar-migrations.mjs
 _docs/                 cofre Obsidian: decisões, requisitos, demandas, handoffs
 ```
+
+## Banco
+
+A plataforma vive no **mesmo Supabase que já recebe os pedidos do Tiny** (D-08) — as tabelas novas usam prefixo `plt_` e **nenhuma tabela da integração é alterada**.
+
+Para rodar qualquer coisa contra o banco real, copie `.env.example` para `.env.local` e preencha com os valores do painel. **`.env.local` nunca é versionado, e credencial nunca vai para chat, print ou nota.**
+
+> [!warning]
+> Duas coisas que não se "consertam" nesse schema, e o porquê está escrito dentro das migrations:
+> **1.** `plt_cards` **não** tem foreign key para `pedido_itens` — a função de upsert do Tiny apaga e regrava os itens a cada atualização, e a FK derrubaria isso em produção.
+> **2.** O append-only dos eventos é garantido por **trigger**, não por RLS — porque a chave de serviço ignora RLS.
 
 ## Como se trabalha aqui
 
 Leia **`CLAUDE.md`** antes de qualquer coisa. Em resumo:
 
-- **Nunca se commita na `main`** — uma branch por sessão (`sessao-NN-descricao`), terminando em PR.
+- **Uma branch por sessão** (`sessao-NN-descricao`), com revisão do dono antes de ir para a `main` (D-20).
 - **Nunca se toca no banco de produção** sem aprovação explícita do dono.
 - **Nunca se cola credencial** em código, chat ou print.
 - **Eventos são append-only** — correção é evento novo, nunca edição.

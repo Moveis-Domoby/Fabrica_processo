@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 06 — TAREFAS E VISUALIZAÇÕES
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- Aqui existe só o LUGAR de guardar. O comportamento de tarefas e delegação é
 -- a SESSAO-09; o de dashboards é a SESSAO-08. Nada de regra de negócio agora.

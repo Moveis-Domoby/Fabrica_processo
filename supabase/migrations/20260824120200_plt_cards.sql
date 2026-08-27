@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 03 — CARDS
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- D-01, card híbrido: o PCP enxerga o PEDIDO inteiro para decidir; ao liberar,
 -- cada móvel vira UM CARD POR UNIDADE (o (k/n) de hoje) que percorre os setores

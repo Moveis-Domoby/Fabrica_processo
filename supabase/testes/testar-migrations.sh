@@ -115,13 +115,21 @@ else
   exit 1
 fi
 
-titulo "Conferindo o seed dos setores (D-12)"
+titulo "Conferindo o seed dos setores (D-12 e D-18)"
 psql_ -At -c "select codigo || ' · ' || nome || ' · ' || papel_no_fluxo from public.plt_setores order by ordem;"
 QTD_SETORES=$(psql_ -At -c "select count(*) from public.plt_setores;")
-if [ "$QTD_SETORES" = "7" ]; then
-  verde "✔ 7 setores semeados, sem duplicar na segunda rodada"
+if [ "$QTD_SETORES" = "9" ]; then
+  verde "✔ 9 setores semeados, sem duplicar na segunda rodada"
 else
-  vermelho "✘ esperava 7 setores, encontrei $QTD_SETORES"
+  vermelho "✘ esperava 9 setores, encontrei $QTD_SETORES"
+  exit 1
+fi
+
+TERMINAIS=$(psql_ -At -c "select string_agg(codigo, ',' order by ordem) from public.plt_setores where papel_no_fluxo = 'terminal';")
+if [ "$TERMINAIS" = "estoque,rotas" ]; then
+  verde "✔ ESTOQUE e ROTAS são os dois fins de linha (D-13 / Q-28)"
+else
+  vermelho "✘ terminais inesperados: $TERMINAIS"
   exit 1
 fi
 
