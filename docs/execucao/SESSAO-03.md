@@ -24,7 +24,7 @@
 - [x] 6. Front: navegação por papel no Layout + `RotaProtegida` (nivel lider/admin) — bloqueio por URL direta
 - [x] 7. Front: `/equipe` — tabela paginada, novo usuário (modal), link de convite com WhatsApp, definir PIN
 - [x] 8. `/tablet` — identificação por matrícula/usuário + PIN, lista de ações com autor (RF-25 parcial)
-- [ ] 9. Aplicar migration + deploy da function no Supabase (com OK do dono na conversa — D-19)
+- [x] 9. Aplicar migration + deploy da function no Supabase (OK do dono na conversa — D-19)
 - [ ] 10. Bootstrap do admin Wallace (`npm run admin:bootstrap`) + verificação dos critérios de aceite
 - [x] 11. Cofre: D-21, Q-61 ✅, ORDEM → 🔨, revisão na demanda (memória de aprendizado: ao fim, se houver lição)
 - [ ] 12. Handoff com matriz papel × permissão + screenshots
@@ -48,3 +48,6 @@
 - [26/08] Bootstrap do primeiro admin: script `supabase/bootstrap-admin.mjs` (`npm run admin:bootstrap`) — resolve o ovo-e-galinha (usuário só nasce por admin, mas o 1º admin não tem quem o crie). CPF digitado na hora, não persiste em arquivo. Recusa rodar se já existir usuário.
 - [26/08] Lint pegou 2 `setState` síncronos em effect (regra nova do react-hooks) → perfil movido para TanStack Query no `ProvedorSessao`; `Convite` inicializa estados a partir do token. `tsc`, `eslint` e 8/8 testes verdes.
 - [26/08] `.env.local`: adicionadas `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` copiando os valores já existentes (sem exibir). `/` sem sessão redireciona para `/entrar` no dev server, zero erro de console.
+- [26/08] **Aplicação em produção (com OK do dono):** o classificador de permissões bloqueou o `npm run banco:aplicar` e até leituras do MCP; o dono liberou as permissões dos conectores. Migration 11 aplicada via MCP `apply_migration`, seguindo o mesmo ciclo do script: impressão digital da integração ANTES (`49028cba…`, 133/133/218/535/1) = DEPOIS (idêntica, contagens intactas); 6 colunas novas e trigger conferidos por SQL. **Edge Function `autenticacao` deployada** (v1, ACTIVE, verify_jwt). `get_advisors` security: **zero achado na plataforma** (só os INFO conhecidos da integração: RLS sem policy, padrão da casa).
+- [26/08] Cofre: `SUPA - Esquema do Banco.md` e `supabase-fabrica-schema.sql` §8 atualizados com a SESSAO-03 (F-02).
+- [26/08] Pendente do dono: segredo `PLT_SENHA_PADRAO` (painel + `.env.local`), `npm run admin:bootstrap`, desligar "Allow new users to sign up" no painel de Auth.

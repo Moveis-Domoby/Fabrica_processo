@@ -115,7 +115,7 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 
 | Tabela | O que guarda |
 |---|---|
-| `plt_usuarios` | pessoas; `auth_user_id` **opcional** (operador de tablet pode não ter login — D-06); `pin_hash` guarda HASH |
+| `plt_usuarios` | pessoas; `auth_user_id` **opcional** (operador de tablet pode não ter login — D-06); `pin_hash` guarda HASH. **↪️ SESSAO-03 (26/08, D-21):** ganhou `cpf` (obrigatório, **SELECT revogado da API**), `usuario` (login por usuário OU e-mail), `matricula` (`MDM-XXX-NNN`, gerada por trigger `fn_gerar_matricula`), `senha_padrao` (troca obrigatória no 1º login), `convite_token` (**SELECT revogado**) e `convite_usado_em`. Escrita pelo navegador: **só `update(nome, telefone)`** — o resto passa pela Edge Function |
 | `plt_usuario_setores` | vínculo pessoa ↔ setor, com `lider_do_setor` |
 | `plt_setores` | setores; `papel_no_fluxo` = `entrada`/`producao`/`terminal` — índice único garante **uma só entrada** (D-13) |
 | `plt_etapas` | etapas internas de cada setor. **SEM SEED** (D-14). `eh_fila` marca onde o card espera sem dono |
@@ -128,7 +128,9 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 **Visões** (derivadas de evento, nada guardado — todas com `security_invoker = on`):
 `plt_vw_permanencias` (tempo por etapa; `eh_fila` separa o que é do SETOR) · `plt_vw_execucoes` (o tempo que tem dono) · `plt_vw_qualidade_transicoes` (dupla atestação da D-09 com divergência calculada).
 
-**Schema `plt_privado`** — 7 funções, **fora da API REST de propósito**: `fn_marcar_atualizacao`, `fn_evento_imutavel`, `fn_projetar_posicao`, `fn_usuario_atual`, `fn_eh_admin`, `fn_setores_do_usuario`, `fn_eh_lider_de`. O Supabase publica o schema `public` inteiro como API; função criada lá vira endpoint `/rest/v1/rpc` sem ninguém pedir.
+**Schema `plt_privado`** — 8 funções, **fora da API REST de propósito**: `fn_marcar_atualizacao`, `fn_evento_imutavel`, `fn_projetar_posicao`, `fn_usuario_atual`, `fn_eh_admin`, `fn_setores_do_usuario`, `fn_eh_lider_de` e (SESSAO-03) `fn_gerar_matricula` + sequence `matricula_seq`. O Supabase publica o schema `public` inteiro como API; função criada lá vira endpoint `/rest/v1/rpc` sem ninguém pedir.
+
+**Edge Function `autenticacao`** (SESSAO-03 — a primeira do projeto): `entrar` (usuário OU e-mail) · `criar-usuario` (admin/líder; senha padrão via segredo `PLT_SENHA_PADRAO`) · `convite-info` · `trocar-senha` (obrigatória no 1º login) · `pin-definir` · `pin-verificar` (PBKDF2). Código versionado em `supabase/functions/autenticacao/index.ts` no repo.
 
 **21 políticas de RLS**: operador vê os setores dele, líder vê o setor completo, admin vê tudo. `plt_eventos` **não tem política de UPDATE nem de DELETE**.
 
