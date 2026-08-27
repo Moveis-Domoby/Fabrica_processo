@@ -262,6 +262,152 @@ for (const visao of ['plt_vw_permanencias', 'plt_vw_execucoes', 'plt_vw_qualidad
   }
 }
 
+titulo('Leitura de pedidos para o kanban (SESSAO-04 / migration 13)')
+// As quatro funções são a porta de leitura do kanban. Regra de ouro: sem
+// usuário ativo da plataforma no contexto, elas devolvem VAZIO — o gate vive
+// dentro da função, não na boa vontade de quem chama.
+// (Lembrete E-14: o PGlite roda como superusuário e NÃO prova permissão de
+// papel — grants/revokes só se provam no banco real, com get_advisors depois.)
+await bd.exec(`
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 999999), 1, '061', 'Guarda-roupa Master', 2),
+    ((select id from public.pedidos where numero = 999999), 2, '099', 'Brinde quantidade zero', 0.4),
+    ((select id from public.pedidos where numero = 999999), 3, '073', 'Cômoda Slim', 1);
+`)
+
+const semUsuario = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_pedidos_kanban()`)
+).rows[0]
+conferir(
+  semUsuario.total === 0,
+  'sem usuário da plataforma no contexto, plt_fn_pedidos_kanban devolve vazio (gate)',
+  `vieram ${semUsuario.total}`,
+)
+
+// Entra em cena a Segunda Pessoa (operador, ainda sem setor nenhum).
+await bd.exec(`
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000002'
+   where usuario = 'segunda.pessoa';
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', false);
+`)
+
+const resumo = (
+  await bd.query(
+    `select numero, cliente_nome, total_itens, total_unidades, tem_card
+       from public.plt_fn_pedidos_kanban(p_ids => array[(select id from public.pedidos where numero = 999999)])`,
+  )
+).rows[0]
+conferir(
+  resumo?.numero === 999999 && resumo?.tem_card === true,
+  'plt_fn_pedidos_kanban devolve o pedido com tem_card calculado',
+  JSON.stringify(resumo ?? null),
+)
+conferir(
+  resumo?.total_itens === 3 && resumo?.total_unidades === 3,
+  'unidades seguem a regra real do n8n: 2 + 1, e quantidade 0.4 não vira card',
+  `itens=${resumo?.total_itens} unidades=${resumo?.total_unidades}`,
+)
+
+const colunasResumo = Object.keys(resumo ?? {})
+conferir(
+  !colunasResumo.some((c) => /endereco|cpf|fone|email|valor|total_pedido|raw/.test(c)),
+  'nenhum dado pessoal/financeiro do cliente sai pela função',
+  colunasResumo.join(','),
+)
+
+const itens = (
+  await bd.query(
+    `select seq, unidades from public.plt_fn_pedido_itens_kanban((select id from public.pedidos where numero = 999999))`,
+  )
+).rows
+conferir(
+  itens.length === 2 && itens[0]?.unidades === 2 && itens[1]?.unidades === 1,
+  'plt_fn_pedido_itens_kanban lista só o que vira card (k/n por item)',
+  JSON.stringify(itens),
+)
+
+titulo('Liberação em unidades + reagrupamento (D-01 / D-13)')
+// Simula a SESSAO-04 inteira no banco: 2 unidades liberadas do pedido, uma
+// movida até o terminal ESTOQUE. A expedição precisa contar 1 de 3.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, c.id, 1, '061', 'Guarda-roupa Master', k, 2
+      from public.pedidos p
+      join public.plt_cards c on c.pedido_id = p.id and c.tipo = 'pedido'
+      cross join generate_series(1, 2) as k
+     where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    select cu.id, 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface'
+      from public.plt_cards cu where cu.tipo = 'unidade';
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    select cu.id, 'movimentacao_setor',
+           (select id from public.plt_setores where codigo = 'pcp'),
+           (select id from public.plt_setores where codigo = 'estoque'),
+           'interface'
+      from public.plt_cards cu where cu.tipo = 'unidade' and cu.indice_unidade = 1;
+`)
+
+const duplicada = await (async () => {
+  try {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, 1, '061', 'Guarda-roupa Master', 1, 2
+          from public.pedidos p where p.numero = 999999;
+    `)
+    return false
+  } catch {
+    return true
+  }
+})()
+conferir(duplicada, 'a mesma unidade (pedido, item, k) não nasce duas vezes')
+
+const semAcessoExpedicao = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_expedicao_kanban()`)
+).rows[0]
+conferir(
+  semAcessoExpedicao.total === 0,
+  'operador sem setor de entrada/terminal NÃO vê a expedição (gate)',
+  `vieram ${semAcessoExpedicao.total}`,
+)
+
+await bd.exec(`
+  insert into public.plt_usuario_setores (usuario_id, setor_id)
+    values ((select id from public.plt_usuarios where usuario = 'segunda.pessoa'),
+            (select id from public.plt_setores where codigo = 'pcp'));
+`)
+const expedicao = (
+  await bd.query(
+    `select total_unidades, unidades_liberadas, unidades_no_terminal from public.plt_fn_expedicao_kanban()`,
+  )
+).rows[0]
+conferir(
+  expedicao?.total_unidades === 3 &&
+    expedicao?.unidades_liberadas === 2 &&
+    expedicao?.unidades_no_terminal === 1,
+  'reagrupamento: 3 unidades no pedido, 2 liberadas, 1 no fim de linha → incompleto',
+  JSON.stringify(expedicao ?? null),
+)
+
+const unidades = (
+  await bd.query(
+    `select indice_unidade, setor_nome, setor_terminal, concluido_em is not null as concluida
+       from public.plt_fn_pedido_unidades((select id from public.pedidos where numero = 999999))`,
+  )
+).rows
+conferir(
+  unidades.length === 2 &&
+    unidades[0]?.setor_nome === 'ESTOQUE' &&
+    unidades[0]?.setor_terminal === true &&
+    unidades[0]?.concluida === true &&
+    unidades[1]?.setor_nome === 'PCP' &&
+    unidades[1]?.concluida === false,
+  'o detalhe mostra onde está cada unidade; chegar ao terminal conclui a unidade',
+  JSON.stringify(unidades),
+)
+
+// Limpa o contexto para não influenciar nada que venha depois.
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
