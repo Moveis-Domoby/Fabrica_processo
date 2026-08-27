@@ -11,6 +11,10 @@ import { TrocarSenha } from '@/paginas/TrocarSenha'
 import { Equipe } from '@/paginas/Equipe'
 import { ModoTablet } from '@/paginas/ModoTablet'
 import { Administracao } from '@/paginas/Administracao'
+import { PCP } from '@/paginas/PCP'
+import { QuadroSetor } from '@/paginas/QuadroSetor'
+import { Expedicao } from '@/paginas/Expedicao'
+import { Estrutura } from '@/paginas/Estrutura'
 
 export function App() {
   return (
@@ -28,11 +32,16 @@ export function App() {
               <Route path="/" element={<Inicio />} />
               <Route path="/trocar-senha" element={<TrocarSenha />} />
               <Route path="/tablet" element={<ModoTablet />} />
+              {/* kanban (SESSAO-04): as páginas conferem o acesso por setor */}
+              <Route path="/pcp" element={<PCP />} />
+              <Route path="/setores/:id" element={<QuadroSetor />} />
+              <Route path="/expedicao" element={<Expedicao />} />
             </Route>
 
             {/* líder (de algum setor) ou admin */}
             <Route element={<RotaProtegida nivel="lider" />}>
               <Route path="/equipe" element={<Equipe />} />
+              <Route path="/estrutura" element={<Estrutura />} />
             </Route>
 
             {/* só admin */}

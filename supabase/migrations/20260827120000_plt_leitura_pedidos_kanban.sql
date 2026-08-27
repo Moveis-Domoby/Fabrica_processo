@@ -52,6 +52,7 @@ returns table (
   total_itens     integer,
   total_unidades  integer,
   tem_card        boolean,
+  unidades_liberadas integer,
   contagem_total  bigint
 )
 language sql
@@ -68,6 +69,7 @@ as $$
          coalesce(i.total_itens, 0)          as total_itens,
          coalesce(i.total_unidades, 0)       as total_unidades,
          (pc.id is not null)                 as tem_card,
+         coalesce(u.liberadas, 0)            as unidades_liberadas,
          count(*) over ()                    as contagem_total
     from public.pedidos p
     left join public.clientes c on c.id = p.cliente_id
@@ -79,6 +81,13 @@ as $$
         from public.pedido_itens pi
        where pi.pedido_id = p.id
     ) i on true
+    left join lateral (
+      -- O RLS esconde do PCP as unidades que já viajaram para outros setores;
+      -- a contagem sai daqui para o quadro saber o que ainda falta liberar.
+      select count(*)::int as liberadas
+        from public.plt_cards cu
+       where cu.pedido_id = p.id and cu.tipo = 'unidade'
+    ) u on true
     left join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido'
    where plt_privado.fn_usuario_atual() is not null
      and (p_ids is null or p.id = any (p_ids))

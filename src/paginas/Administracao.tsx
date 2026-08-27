@@ -23,9 +23,11 @@ export function Administracao() {
             Gestão da equipe
           </Botao>
         </Link>
-        <Botao variante="secundaria" icone={<Settings2 />} disabled>
-          Setores e etapas (SESSAO-12)
-        </Botao>
+        <Link to="/estrutura">
+          <Botao variante="secundaria" icone={<Settings2 />}>
+            Setores e etapas
+          </Botao>
+        </Link>
       </div>
     </div>
   )

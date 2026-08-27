@@ -388,6 +388,17 @@ conferir(
   JSON.stringify(expedicao ?? null),
 )
 
+const resumoDepois = (
+  await bd.query(
+    `select unidades_liberadas from public.plt_fn_pedidos_kanban(p_ids => array[(select id from public.pedidos where numero = 999999)])`,
+  )
+).rows[0]
+conferir(
+  resumoDepois?.unidades_liberadas === 2,
+  'o resumo conta as unidades já liberadas (o quadro PCP sabe o que falta)',
+  JSON.stringify(resumoDepois ?? null),
+)
+
 const unidades = (
   await bd.query(
     `select indice_unidade, setor_nome, setor_terminal, concluido_em is not null as concluida
