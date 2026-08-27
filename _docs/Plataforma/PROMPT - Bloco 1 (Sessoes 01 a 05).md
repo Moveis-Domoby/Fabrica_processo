@@ -36,4 +36,6 @@ Ordem restante do bloco, conforme [[000 - ORDEM DAS SESSOES]]: **SESSAO-03 → S
 
 ## Blocos seguintes
 
-Mesmo formato — muda só a linha do bloco. Ex.: `Bloco 2 = SESSAO-13 → SESSAO-06 → SESSAO-07 (ver 000 - ORDEM DAS SESSOES)`.
+Mesmo formato — muda só a linha do bloco.
+
+**↪️ 27/08/2026 (entrega da SESSAO-04):** o dono encerrou o Bloco 1 aqui e abriu a jornada seguinte — as duas sessões restantes deste bloco (SESSAO-13 e SESSAO-05) passaram a abrir o **Bloco 2**, que segue a ordem oficial até a API completa. Prompt e escopo em [[PROMPT - Bloco 2 (Jornada ate a SESSAO-10)]].

@@ -32,7 +32,8 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[CLAUDE - Regras do Claude Code (repo)]] — persona + limites críticos/moderados/básicos; **copiar como `CLAUDE.md` para a raiz do repo na Sessão 01**
 - [[PLT - Memoria de Aprendizado]] — 🧠 **leitura obrigatória em TODA construção** (Claude Code e Cowork): erros+correções, acertos, modelos mentais, fórmulas, possibilidades — alimentada na hora, em 1 linha por entrada
 - [[000 - ORDEM DAS SESSOES]] — **o plano de construção**: 13 sessões de Claude Code, em ordem de dependência
-- [[PROMPT - Bloco 1 (Sessoes 01 a 05)]] — 🚀 **o prompt pronto para colar no Claude Code** (formato mínimo, D-17: só o caminho — o cofre carrega o resto)
+- [[PROMPT - Bloco 1 (Sessoes 01 a 05)]] — o prompt do Bloco 1 (✅ concluído até a SESSAO-04; o restante — 13 e 05 — passou para o Bloco 2)
+- [[PROMPT - Bloco 2 (Jornada ate a SESSAO-10)]] — 🚀 **o prompt da vez**: SESSAO-13 → 05 → 06 → 07 → 08 → 09 → 10 (formato mínimo, D-17: só o caminho — o cofre carrega o resto)
 - Demandas de implementação vivem em `Plataforma/Demandas/` (`SESSAO-NN - *.md`; template para novas: [[TEMPLATE - Demanda]])
 
 ## 🔌 Automações e migração n8n
@@ -102,4 +103,4 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## Estado atual em uma linha
 
-**4 de 7 automações migradas e em produção** no n8n, mais a **ROTAS "entregue" → Tiny desde 17/08** (P14 ✅); a 5ª migração aguarda o CSV; **não existe alerta de erro** (P1 — a pendência mais crítica); a **migração da planilha para o Supabase é projeto ativo** (P15); e a **Plataforma de Produção entrou em idealização em 19/08** — 10 decisões (D-01–D-10, com D-04 revisada para alavancagem operacional), sistema de qualidade em 3 estados definido (D-09), regras do Claude Code prontas e **12 sessões de construção propostas** em [[000 - ORDEM DAS SESSOES]], aguardando aprovação da ordem.
+**4 de 7 automações migradas e em produção** no n8n, mais a **ROTAS "entregue" → Tiny desde 17/08** (P14 ✅); a 5ª migração aguarda o CSV; **não existe alerta de erro** (P1 — a pendência mais crítica); a **migração da planilha para o Supabase é projeto ativo** (P15); e a **Plataforma de Produção está em construção sobre o Supabase da fábrica** — **4 sessões entregues** (fundação, banco, autenticação e o **kanban núcleo no ar** desde 27/08: PCP libera pedidos reais do Tiny em unidades, quadros por setor, expedição, eventos append-only com autor), 22 decisões registradas (D-01–D-22); **próximas na ordem oficial** ([[000 - ORDEM DAS SESSOES]]): SESSAO-13 (entrada automática via n8n) e SESSAO-05 (timers fila/execução).
