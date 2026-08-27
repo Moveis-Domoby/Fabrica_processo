@@ -144,6 +144,32 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 - **Cadastro de etapas:** admin em qualquer setor E **líder no próprio setor** — como o RLS da SESSAO-02 já previa.
 - **Q-21 (sub-cards de trabalho paralelo): fica para depois**, fora do escopo do kanban núcleo.
 
+## D-23 · Replanejamento da jornada a partir da 5ª posição (27/08/2026) — ↩️ revisa a D-11
+
+**Contexto:** na entrega da SESSAO-04 o dono pediu o replanejamento (palavras dele): *"não faz sentido a 13 ter que vir antes das outras, ajuste isso... refaça o planejamento ordenado das sessões para o plano mais lógico possível a partir da 5, concatene ou crie mais se necessário"*.
+
+**Decidido:**
+
+- **↩️ A antecipação da SESSAO-13 (D-11) cai.** A entrada automática de pedidos deixa de vir logo após o kanban: enquanto a plataforma não está no ar, a criação manual de card no PCP atende. A SESSAO-13 continua existindo como está escrita — muda só a posição.
+- **Nasce a SESSAO-14 — Publicação no Ar**, a lacuna real do plano: nenhuma sessão cobria hospedar a plataforma, e sem isso nada chega ao tablet do galpão. Entra logo depois da tela do setor (07), respondendo Q-62 (hospedagem) e enfrentando Q-60 (internet do galpão) na prática.
+- **Nova ordem oficial a partir da 5ª posição** (a lógica: primeiro o núcleo de medição completo, depois ir ao ar, depois os pedidos fluírem sozinhos, depois medir sobre dados reais, depois integrar/automatizar/consolidar):
+
+1. **SESSAO-05** (timers — a razão de existir; destrava 06, 07, 08 e 10)
+2. **SESSAO-06** (qualidade nas transições — pluga na movimentação já entregue; assim a tela do tablet já nasce com a qualidade embutida)
+3. **SESSAO-07** (tela do setor tablet — o gesto do chão de fábrica)
+4. **SESSAO-14** (publicação no ar — a partir daqui a plataforma tem gente usando: **encerra a permissão da D-19** e a regra crítica 2 volta na íntegra)
+5. **SESSAO-13** (entrada via n8n — no ar, criar card na mão para ~10 pedidos/dia vira fardo; pedido passa a fluir sozinho)
+6. **SESSAO-08** (dashboards — sobre dados REAIS acumulados pelo uso)
+7. **SESSAO-10** (API completa + ponte ROTAS)
+8. **SESSAO-09** (tarefas e delegação)
+9. **SESSAO-11** (automações internas)
+10. **SESSAO-12** (painel admin completo)
+
+- **Blocos:** Bloco 2 = 05 → 06 → 07 → 14 → 13 (termina com a plataforma no ar e pedido fluindo sozinho). Bloco 3 = 08 → 10 → 09 → 11 → 12.
+- **Nada foi concatenado:** a divisão 13/10 da D-11 continua valendo (evita sessão gigante — regra 13); o que mudou é que as duas agora vivem cada uma no seu bloco.
+
+**Descartadas:** pular direto para as SESSAO-06→10 ignorando 05 e 13 (quebraria as dependências — quase tudo precisa dos timers); concatenar 13 dentro da 10 (sessão grande demais).
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

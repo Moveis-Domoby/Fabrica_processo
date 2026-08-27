@@ -10,7 +10,9 @@ tags: [plataforma, demanda, sessao, api, n8n]
 # 🎯 SESSAO-13 — Entrada de Pedidos via n8n (API mínima)
 
 > [!info] Por que esta sessão existe (D-11)
-> O dono quer dado real fluindo desde cedo: **pedido novo no Tiny vira card no PCP sozinho**, com o n8n empurrando para a plataforma (a plataforma NÃO busca nada no Tiny — só recebe). É a antiga primeira metade da SESSAO-10, antecipada. **Executa logo após a SESSAO-04 (Kanban).** A API completa (CRUD, webhooks de saída, ponte ROTAS) continua na SESSAO-10, mais tarde.
+> O dono quer dado real fluindo desde cedo: **pedido novo no Tiny vira card no PCP sozinho**, com o n8n empurrando para a plataforma (a plataforma NÃO busca nada no Tiny — só recebe). É a antiga primeira metade da SESSAO-10, antecipada. ~~Executa logo após a SESSAO-04 (Kanban).~~ A API completa (CRUD, webhooks de saída, ponte ROTAS) continua na SESSAO-10, mais tarde.
+>
+> **↩️ Reposicionada em 27/08/2026 (D-23):** a antecipação caiu — enquanto a plataforma não está no ar, a criação manual de card no PCP (entregue na SESSAO-04) atende. Esta sessão agora **executa logo após a SESSAO-14 (Publicação no Ar)**, quando criar card na mão para ~10 pedidos/dia viraria fardo de verdade. O conteúdo abaixo continua valendo como está.
 
 ## O que é
 

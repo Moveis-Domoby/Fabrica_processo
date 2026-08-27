@@ -38,4 +38,4 @@ Ordem restante do bloco, conforme [[000 - ORDEM DAS SESSOES]]: **SESSAO-03 → S
 
 Mesmo formato — muda só a linha do bloco.
 
-**↪️ 27/08/2026 (entrega da SESSAO-04):** o dono encerrou o Bloco 1 aqui e abriu a jornada seguinte — as duas sessões restantes deste bloco (SESSAO-13 e SESSAO-05) passaram a abrir o **Bloco 2**, que segue a ordem oficial até a API completa. Prompt e escopo em [[PROMPT - Bloco 2 (Jornada ate a SESSAO-10)]].
+**↪️ 27/08/2026 (entrega da SESSAO-04):** o dono encerrou o Bloco 1 aqui e mandou replanejar a jornada (D-23) — o **Bloco 2** abre com a SESSAO-05 (timers) e a SESSAO-13 foi reposicionada para depois da publicação. Prompt e escopo em [[PROMPT - Bloco 2 (Sessoes 05 a 13)]].

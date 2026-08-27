@@ -70,9 +70,9 @@ tags: [plataforma, descoberta, perguntas]
 
 ## ⚪ Operação e infraestrutura
 
-- **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco?
+- **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **será enfrentada na prática na [[SESSAO-14 - Publicacao no Ar]] (D-23)**
 - ✅ **Q-61 · Quantos usuários** → respondida em 26/08 (SESSAO-03): **~30 usuários** na largada → [[PLT - Decisoes de Produto#D-21]]
-- **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code?
+- **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **será decidida na [[SESSAO-14 - Publicacao no Ar]] (D-23): o Claude Code traz a comparação, o dono bate o martelo**
 
 ## Ver também
 
