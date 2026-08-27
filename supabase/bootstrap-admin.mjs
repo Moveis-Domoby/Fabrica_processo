@@ -67,7 +67,7 @@ if (count && count > 0) {
 }
 
 const nome = await perguntar('Nome completo', 'Wallace')
-const email = (await perguntar('E-mail', 'wallacecaun03@gmail.com')).toLowerCase()
+const email = (await perguntar('E-mail', 'wallacecauan03@gmail.com')).toLowerCase()
 const usuario = (await perguntar('Nome de usuário', 'wallace')).toLowerCase()
 const cpf = (await perguntar('CPF (11 dígitos — vira a matrícula MDM)')).replace(/\D/g, '')
 terminal.close()

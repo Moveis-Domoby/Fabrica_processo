@@ -125,7 +125,7 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 - **Sem autocadastro:** usuário só nasce pela mão de admin/líder. A tela pública é só o login.
 - **Senha padrão de criação** para todos, definida pelo dono (o valor vive como **segredo de ambiente**, nunca em nota ou código — regra crítica 4), com **troca obrigatória no primeiro login** — sem a troca, nenhuma tela é liberada.
 - **Convite por link** enviado por **WhatsApp** — sem e-mail automático por ora.
-- **Admin principal:** `wallacecaun03@gmail.com` (Wallace). O `contatodomoby@gmail.com` foi descartado de propósito: muita gente tem acesso a ele.
+- **Admin principal:** `wallacecauan03@gmail.com` (Wallace; grafia corrigida pelo dono em 27/08). O `contatodomoby@gmail.com` foi descartado de propósito: muita gente tem acesso a ele.
 - **Uma tabela só de usuário** (palavras do dono: *"não crie tables para separar dados de usuários internos"*): os campos novos entram na própria `plt_usuarios`, que futuramente guardará também os dados principais de gestão.
 - **Matrícula automática** como identificador interno, no padrão **`MDM-XXX-NNN`** — XXX = 3 primeiros dígitos do CPF, NNN = ordem de cadastro (001, 002…). Por consequência, **CPF é obrigatório** em todo usuário interno.
 - **Escala:** ~30 usuários na largada (responde Q-61).

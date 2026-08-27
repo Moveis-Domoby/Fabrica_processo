@@ -43,7 +43,7 @@ D-06 (tablet compartilhado + celular pessoal) · D-10.
 - **Convite = link por WhatsApp**, sem e-mail automático.
 - **Uma tabela só** (`plt_usuarios`) — sem tabela separada de dados internos; campos novos entram nela.
 - **Matrícula automática `MDM-XXX-NNN`** (XXX = 3 primeiros dígitos do CPF, NNN = ordem de cadastro); **CPF obrigatório**.
-- **Admin principal:** wallacecaun03@gmail.com · **~30 usuários** (Q-61 ✅).
+- **Admin principal:** wallacecauan03@gmail.com · **~30 usuários** (Q-61 ✅).
 
 ## Fora do escopo
 

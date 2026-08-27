@@ -8,7 +8,7 @@
 1. **Login:** todos informam e-mail no cadastro, mas podem entrar com **nome de usuário** OU e-mail + senha.
 2. **~30 usuários** na largada (Q-61 respondida).
 3. **Convite por link**, enviado por WhatsApp — sem e-mail automático por ora.
-4. **Admin principal:** wallacecaun03@gmail.com (Wallace, o dev). contatodomoby@gmail.com NÃO — muita gente tem acesso.
+4. **Admin principal:** wallacecauan03@gmail.com (Wallace, o dev; grafia corrigida pelo dono em 27/08). contatodomoby@gmail.com NÃO — muita gente tem acesso.
 5. **Senha padrão de criação** para todos (valor definido pelo dono na conversa; vive como segredo de ambiente, NUNCA em código/nota — regra crítica 4). **Troca obrigatória no primeiro login.**
 6. **Uma tabela só de usuários:** nada de tabela separada para dados internos — `plt_usuarios` cresce com os campos novos e futuramente com dados de gestão.
 7. **Matrícula automática** `MDM-XXX-NNN`: XXX = 3 primeiros dígitos do CPF, NNN = ordem de cadastro (001, 002…). **CPF obrigatório** em todo usuário interno.
