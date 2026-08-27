@@ -130,6 +130,63 @@ conferir(!setores.some((s) => s.codigo === 'metalurgica'), 'METALURGICA não foi
 const etapas = (await bd.query(`select count(*)::int as total from public.plt_etapas`)).rows[0]
 conferir(etapas.total === 0, 'nenhuma etapa interna semeada (D-14)', `vieram ${etapas.total}`)
 
+titulo('Identidade e acesso (SESSAO-03 / D-21)')
+// Matrícula MDM-XXX-NNN gerada pelo banco: XXX = 3 primeiros dígitos do CPF,
+// NNN = ordem de cadastro. E as normalizações: CPF com máscara vira só dígitos,
+// usuário/e-mail viram minúsculos.
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+    values ('Primeira Pessoa', 'Primeira@Teste.com', '061.234.567-89', 'Primeira.Pessoa', 'admin');
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+    values ('Segunda Pessoa', 'segunda@teste.com', '98765432100', 'segunda.pessoa', 'operador');
+`)
+const pessoas = (
+  await bd.query(
+    `select matricula, cpf, usuario, email, senha_padrao, convite_token is not null as tem_convite
+       from public.plt_usuarios order by matricula`,
+  )
+).rows
+conferir(
+  pessoas[0]?.matricula === 'MDM-061-001' && pessoas[1]?.matricula === 'MDM-987-002',
+  'matrícula MDM-XXX-NNN gerada na ordem de cadastro',
+  pessoas.map((p) => p.matricula).join(' · '),
+)
+conferir(
+  pessoas[0]?.cpf === '06123456789' && pessoas[0]?.usuario === 'primeira.pessoa' && pessoas[0]?.email === 'primeira@teste.com',
+  'CPF com máscara vira só dígitos; usuário e e-mail viram minúsculos',
+)
+conferir(
+  pessoas.every((p) => p.senha_padrao === true && p.tem_convite === true),
+  'todo cadastro nasce com senha padrão pendente de troca e com token de convite',
+)
+
+async function deveRecusar(sql, descricao, padraoErro) {
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padraoErro.test(erro.message), descricao, erro.message)
+  }
+}
+await deveRecusar(
+  `insert into public.plt_usuarios (nome, email, usuario, papel)
+     values ('Sem CPF', 'sem.cpf@teste.com', 'sem.cpf', 'operador')`,
+  'cadastro sem CPF é recusado (matrícula exige CPF)',
+  /CPF/i,
+)
+await deveRecusar(
+  `insert into public.plt_usuarios (nome, email, cpf, usuario)
+     values ('Repetido', 'outro@teste.com', '11122233344', 'PRIMEIRA.pessoa')`,
+  'nome de usuário repetido é recusado (mesmo mudando maiúsculas)',
+  /plt_usuarios_usuario_uq|duplicate/i,
+)
+await deveRecusar(
+  `insert into public.plt_usuarios (nome, email, cpf, usuario)
+     values ('CPF Repetido', 'cpfrep@teste.com', '061.234.567-89', 'cpf.repetido')`,
+  'CPF repetido é recusado',
+  /plt_usuarios_cpf_uq|duplicate/i,
+)
+
 titulo('Cenário mínimo: um pedido, um card, um evento')
 await bd.exec(`
   insert into public.clientes (nome) values ('Cliente de teste');
