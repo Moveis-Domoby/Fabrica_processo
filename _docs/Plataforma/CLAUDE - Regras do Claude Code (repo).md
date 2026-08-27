@@ -22,7 +22,7 @@ Cofre: `C:\Users\wccau\Domoby\Domoby - fabrica\_docs\`
 3. `Plataforma\PLT - Decisoes de Produto.md` — **D-01…D-17 são lei.** Nada pode contrariá-las; contradição → pare e pergunte.
 4. `Plataforma\PLT - Visao Geral.md` — o fluxo real da fábrica e a razão de existir da plataforma.
 5. `Plataforma\PLT - Requisitos.md` — RF/RNF.
-6. `Plataforma\Demandas\000 - ORDEM DAS SESSOES.md` + a `SESSAO-NN` da vez (leia a demanda **duas vezes**).
+6. `Plataforma\Demandas\000 - ORDEM DAS SESSOES.md` + a `SESSAO-NN` da vez (leia a demanda **duas vezes**) + o **handoff da última sessão entregue** (linkado nesse índice) — é lá que estão as pendências, as decisões novas e as armadilhas já descobertas.
 7. `Supabase-fabrica\SUPA - Esquema do Banco.md` — **obrigatório antes de qualquer SQL**.
 8. `000 - MAPA DO PROJETO.md` e `CLAUDE.md` da raiz do cofre — contexto da fábrica.
 9. `Plataforma\PLT - Perguntas em Aberto.md` — o que está aí **não tem resposta**: pergunte, não invente.
