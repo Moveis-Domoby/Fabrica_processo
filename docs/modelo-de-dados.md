@@ -142,7 +142,7 @@ Duas ressalvas honestas:
 
 - **Cancelamento de pedido (Q-24), produção para estoque (Q-23), terceirizados (Q-22), unidade que se divide em trabalhos paralelos (Q-21), migração dos cards vivos (Q-25)** — todos em aberto. Nada foi inventado para nenhum deles: quando forem decididos, entram como acréscimo.
 - **Nenhuma etapa interna cadastrada** — de propósito (D-14). O cadastro está vazio esperando o dono.
-- **Automações internas (SESSAO-11)** e **chaves de API (SESSAO-10)** ainda não têm tabela — cada uma vem na sua sessão.
+- **Automações internas (SESSAO-13)** e **chaves de API (SESSAO-11)** ainda não têm tabela — cada uma vem na sua sessão.
 
 ---
 

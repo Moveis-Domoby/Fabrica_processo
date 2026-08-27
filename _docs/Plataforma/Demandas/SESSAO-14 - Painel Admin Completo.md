@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-12 — Painel Admin Completo"
+titulo: "SESSAO-14 — Painel Admin Completo"
 tipo: demanda
 status: rascunho
 data: 2026-08-19
@@ -7,7 +7,7 @@ atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, admin]
 ---
 
-# 🎯 SESSAO-12 — Painel Admin Completo
+# 🎯 SESSAO-14 — Painel Admin Completo
 
 ## O que é
 

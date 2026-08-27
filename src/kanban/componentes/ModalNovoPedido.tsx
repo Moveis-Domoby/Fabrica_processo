@@ -22,7 +22,7 @@ function formatarData(iso: string | null): string {
 /**
  * Cria o card de PEDIDO no PCP a partir de um pedido REAL do Tiny já gravado
  * no banco pela integração (D-22: não existe pedido avulso). Lista só o que
- * ainda não tem card; a entrada automática via n8n é a SESSAO-13.
+ * ainda não tem card; a entrada automática via n8n é a SESSAO-09.
  */
 export function ModalNovoPedido({ aberto, setorPcp, aoFechar }: ModalNovoPedidoProps) {
   const { perfil } = useSessao()
@@ -84,7 +84,7 @@ export function ModalNovoPedido({ aberto, setorPcp, aoFechar }: ModalNovoPedidoP
         if (!estaAberto) aoFechar()
       }}
       titulo="Novo card de pedido"
-      descricao="Todo card nasce de um pedido real do Tiny (a entrada automática chega na SESSAO-13). A lista mostra só pedidos que ainda não viraram card."
+      descricao="Todo card nasce de um pedido real do Tiny (a entrada automática chega na SESSAO-09). A lista mostra só pedidos que ainda não viraram card."
       tamanho="galpao"
       rodape={
         <>

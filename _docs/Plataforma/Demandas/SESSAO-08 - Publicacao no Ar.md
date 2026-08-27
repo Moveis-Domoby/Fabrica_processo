@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-14 — Publicação no Ar"
+titulo: "SESSAO-08 — Publicação no Ar"
 tipo: demanda
 status: rascunho
 data: 2026-08-27
@@ -7,7 +7,7 @@ atualizado: 2026-08-27
 tags: [plataforma, demanda, sessao, deploy, infraestrutura]
 ---
 
-# 🎯 SESSAO-14 — Publicação no Ar
+# 🎯 SESSAO-08 — Publicação no Ar
 
 > [!info] Por que esta sessão existe (D-23)
 > Criada no replanejamento de 27/08: **nenhuma sessão cobria hospedar a plataforma**, e sem isso nada chega ao tablet do galpão — a tela do setor (SESSAO-07) ficaria linda no localhost de uma máquina só. É a ponte entre "funciona na máquina do dono" e "a fábrica usa".

@@ -29,7 +29,7 @@ D-02 (fila vs execução, dash compara e soma) · D-04 (alavancagem operacional;
 - **Contabilização por movimentação (RF-11):** usuário moveu o card para a etapa → +1 movimentação para ele; iniciar/finalizar contam para quem clicou.
 - **Linha do tempo do card:** histórico completo e legível — cada etapa com fila, execução, total e autores.
 - Tudo é evento append-only; correção de erro operacional (ex.: finalizou sem querer) é **novo evento de estorno** visível, nunca edição — e só líder pode estornar.
-- Card sem "iniciar" por muito tempo é visível na etapa (ordenação/indicador de espera — o alerta automático é automação da SESSAO-11).
+- Card sem "iniciar" por muito tempo é visível na etapa (ordenação/indicador de espera — o alerta automático é automação da SESSAO-13).
 
 ## Perguntar ao dono no início da sessão
 

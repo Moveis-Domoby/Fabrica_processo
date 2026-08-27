@@ -11,7 +11,7 @@
 -- = sinal de contratação. O TEMPO DE EXECUÇÃO pertence a quem iniciou/finalizou.
 --
 -- São VISÕES, não tabelas: tempo é derivado de evento (M-02). A dashboard de
--- verdade é a SESSAO-08 e o refinamento dos timers é a SESSAO-05 — aqui fica a
+-- verdade é a SESSAO-10 e o refinamento dos timers é a SESSAO-05 — aqui fica a
 -- definição do cálculo, no lugar onde ela não se perde.
 -- ============================================================================
 

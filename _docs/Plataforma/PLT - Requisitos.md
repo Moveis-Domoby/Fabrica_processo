@@ -100,7 +100,7 @@ tags: [plataforma, requisitos, backlog]
 | RNF-03 | Banco: mesmo Supabase da fábrica (D-08) | 💡 registrado |
 | RNF-04 | Quem coda: exclusivamente o Claude Code, em sessões ordenadas (D-10), sob as regras de [[CLAUDE - Regras do Claude Code (repo)]] | 💡 registrado |
 | RNF-05 | Eventos append-only: movimentação nunca é sobrescrita, só acrescentada (D-04) | 💡 registrado |
-| RNF-06 | Plataforma publicada numa URL estável, acessível dos tablets/celulares do galpão, com deploy repetível (D-23 — SESSAO-14) | 💡 registrado |
+| RNF-06 | Plataforma publicada numa URL estável, acessível dos tablets/celulares do galpão, com deploy repetível (D-23 — SESSAO-08) | 💡 registrado |
 
 ## Ver também
 

@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-11 — Automações Internas"
+titulo: "SESSAO-13 — Automações Internas"
 tipo: demanda
 status: rascunho
 data: 2026-08-19
@@ -7,7 +7,7 @@ atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, automacao]
 ---
 
-# 🎯 SESSAO-11 — Automações Internas ("quando X, faça Y")
+# 🎯 SESSAO-13 — Automações Internas ("quando X, faça Y")
 
 ## O que é
 

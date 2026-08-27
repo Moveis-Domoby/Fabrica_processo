@@ -110,7 +110,7 @@ As tabelas novas estão **vazias** (0 cards, 0 eventos), tirando os 9 setores do
 
 ## 8. Ficou pendente
 
-- **Nenhuma etapa interna cadastrada.** É de propósito (D-14): o sistema entrega o cadastro vazio e você cadastra as etapas de cada setor. Sem tela de admin ainda (SESSAO-12), então ou esperamos, ou eu te ajudo a cadastrar por SQL quando quiser.
+- **Nenhuma etapa interna cadastrada.** É de propósito (D-14): o sistema entrega o cadastro vazio e você cadastra as etapas de cada setor. Sem tela de admin ainda (SESSAO-14), então ou esperamos, ou eu te ajudo a cadastrar por SQL quando quiser.
 - ~~**`SUPABASE_DB_URL` com marcador de senha.**~~ ✅ **Resolvido em 26/08:** o dono preencheu a senha. Ela contém um `#`, que em URL começa o fragmento e fazia o resto da string sumir em silêncio — o aplicador passou a fatiar a string à mão em vez de entregá-la a um parser de URL, então **a senha pode ser colada exatamente como vem do painel**. `npm run banco:conferir` conectando e lendo o banco. Registrado como E-12.
 - ~~**Proteção da branch `main`.**~~ ✅ **Encerrado em 26/08:** o dono é o único que trabalha no repositório e dispensou PR e proteção (**D-20**). A revisão acontece na conversa; o merge é direto. Os dois `CLAUDE.md` foram ajustados.
 

@@ -15,7 +15,7 @@ O sistema de dupla atestação de qualidade pedido pela equipe: o estado físico
 
 ## Requisitos cobertos
 
-RF-80 · RF-81 · RF-82 · RF-83 · RF-84 · RF-85 (a parte de dashboard entra na SESSAO-08; aqui os dados nascem certos).
+RF-80 · RF-81 · RF-82 · RF-83 · RF-84 · RF-85 (a parte de dashboard entra na SESSAO-10; aqui os dados nascem certos).
 
 ## Decisões que regem
 

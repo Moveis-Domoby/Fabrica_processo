@@ -80,7 +80,7 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 ## D-11 · API antecipada: entrada de pedidos via n8n logo após o kanban (24/08/2026)
 
-**Decidido:** o dono quer a API **já no início** — mas no formato mais simples: **a plataforma recebendo dados do n8n** (n8n chama a API; a plataforma não busca nada no Tiny). Para isso a antiga SESSAO-10 foi dividida: a **[[SESSAO-13 - Entrada de Pedidos via n8n]]** (só o caminho de entrada Tiny → n8n → card no PCP) é executada logo após o kanban, e a SESSAO-10 (API completa: CRUD, webhooks de saída, ponte ROTAS) fica mais tarde. A partir daí, todos os testes das sessões seguintes rodam com **pedido real fluindo sozinho**. Ordem oficial em [[000 - ORDEM DAS SESSOES]] — **o número da sessão é ID, não ordem**.
+**Decidido:** o dono quer a API **já no início** — mas no formato mais simples: **a plataforma recebendo dados do n8n** (n8n chama a API; a plataforma não busca nada no Tiny). Para isso a antiga SESSAO-11 foi dividida: a **[[SESSAO-09 - Entrada de Pedidos via n8n]]** (só o caminho de entrada Tiny → n8n → card no PCP) é executada logo após o kanban, e a SESSAO-11 (API completa: CRUD, webhooks de saída, ponte ROTAS) fica mais tarde. A partir daí, todos os testes das sessões seguintes rodam com **pedido real fluindo sozinho**. Ordem oficial em [[000 - ORDEM DAS SESSOES]] — **o número da sessão é ID, não ordem**.
 
 ## D-18 · Fins de linha: ESTOQUE e ROTAS nascem juntos (26/08/2026)
 
@@ -150,25 +150,27 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 **Decidido:**
 
-- **↩️ A antecipação da SESSAO-13 (D-11) cai.** A entrada automática de pedidos deixa de vir logo após o kanban: enquanto a plataforma não está no ar, a criação manual de card no PCP atende. A SESSAO-13 continua existindo como está escrita — muda só a posição.
-- **Nasce a SESSAO-14 — Publicação no Ar**, a lacuna real do plano: nenhuma sessão cobria hospedar a plataforma, e sem isso nada chega ao tablet do galpão. Entra logo depois da tela do setor (07), respondendo Q-62 (hospedagem) e enfrentando Q-60 (internet do galpão) na prática.
+- **↩️ A antecipação da SESSAO-09 (D-11) cai.** A entrada automática de pedidos deixa de vir logo após o kanban: enquanto a plataforma não está no ar, a criação manual de card no PCP atende. A SESSAO-09 continua existindo como está escrita — muda só a posição.
+- **Nasce a SESSAO-08 — Publicação no Ar**, a lacuna real do plano: nenhuma sessão cobria hospedar a plataforma, e sem isso nada chega ao tablet do galpão. Entra logo depois da tela do setor (07), respondendo Q-62 (hospedagem) e enfrentando Q-60 (internet do galpão) na prática.
 - **Nova ordem oficial a partir da 5ª posição** (a lógica: primeiro o núcleo de medição completo, depois ir ao ar, depois os pedidos fluírem sozinhos, depois medir sobre dados reais, depois integrar/automatizar/consolidar):
 
-1. **SESSAO-05** (timers — a razão de existir; destrava 06, 07, 08 e 10)
+1. **SESSAO-05** (timers — a razão de existir; destrava 06, 07, 10 e 11)
 2. **SESSAO-06** (qualidade nas transições — pluga na movimentação já entregue; assim a tela do tablet já nasce com a qualidade embutida)
 3. **SESSAO-07** (tela do setor tablet — o gesto do chão de fábrica)
-4. **SESSAO-14** (publicação no ar — a partir daqui a plataforma tem gente usando: **encerra a permissão da D-19** e a regra crítica 2 volta na íntegra)
-5. **SESSAO-13** (entrada via n8n — no ar, criar card na mão para ~10 pedidos/dia vira fardo; pedido passa a fluir sozinho)
-6. **SESSAO-08** (dashboards — sobre dados REAIS acumulados pelo uso)
-7. **SESSAO-10** (API completa + ponte ROTAS)
-8. **SESSAO-09** (tarefas e delegação)
-9. **SESSAO-11** (automações internas)
-10. **SESSAO-12** (painel admin completo)
+4. **SESSAO-08** (publicação no ar — a partir daqui a plataforma tem gente usando: **encerra a permissão da D-19** e a regra crítica 2 volta na íntegra)
+5. **SESSAO-09** (entrada via n8n — no ar, criar card na mão para ~10 pedidos/dia vira fardo; pedido passa a fluir sozinho)
+6. **SESSAO-10** (dashboards — sobre dados REAIS acumulados pelo uso)
+7. **SESSAO-11** (API completa + ponte ROTAS)
+8. **SESSAO-12** (tarefas e delegação)
+9. **SESSAO-13** (automações internas)
+10. **SESSAO-14** (painel admin completo)
 
-- **Blocos:** Bloco 2 = 05 → 06 → 07 → 14 → 13 (termina com a plataforma no ar e pedido fluindo sozinho). Bloco 3 = 08 → 10 → 09 → 11 → 12.
-- **Nada foi concatenado:** a divisão 13/10 da D-11 continua valendo (evita sessão gigante — regra 13); o que mudou é que as duas agora vivem cada uma no seu bloco.
+- **Blocos:** Bloco 2 = 05 → 06 → 07 → 08 → 09 (termina com a plataforma no ar e pedido fluindo sozinho). Bloco 3 = 10 → 11 → 12 → 13 → 14.
+- **Nada foi concatenado:** a divisão entrada × API completa da D-11 (hoje sessões 09 e 11) continua valendo (evita sessão gigante — regra 13); o que mudou é que as duas agora vivem cada uma no seu bloco.
 
-**Descartadas:** pular direto para as SESSAO-06→10 ignorando 05 e 13 (quebraria as dependências — quase tudo precisa dos timers); concatenar 13 dentro da 10 (sessão grande demais).
+**Descartadas:** pular direto para as sessões finais ignorando timers e entrada (quebraria as dependências — quase tudo precisa dos timers); concatenar a entrada dentro da API completa (sessão grande demais).
+
+**↪️ Complemento (mesma data) — renumeração: número passa a ser ordem.** Nas palavras do dono: *"não existe 05→06→07→14→13... pelo menos muda o nome pra deixar na ordem numérica certa"*. As demandas a partir da 5ª posição foram **renumeradas para os números espelharem a ordem de execução** (isto revisa o modelo mental M-09). De-para, para ler notas antigas: Dashboards 08→**10** · Tarefas 09→**12** · API completa 10→**11** · Automações 11→**13** · Admin 12→**14** · Entrada n8n 13→**09** · Publicação 14→**08**. Arquivos renomeados e todas as referências do cofre e do repositório atualizadas na mesma data; a lista numerada acima já usa os números novos.
 
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 

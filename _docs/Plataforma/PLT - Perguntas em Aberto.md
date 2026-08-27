@@ -27,7 +27,7 @@ tags: [plataforma, descoberta, perguntas]
 
 - ✅ **Q-15 · Foto obrigatória?** → NÃO — nem na saída nem na entrada → D-09 revisada
 - ✅ **Q-17 · Pausa por disputa conta no tempo de quem?** → **Não existe disputa/pausa por enquanto**; divergência é só registro para a dash. E ficou definido: **tempo de fila pertence ao setor/etapa, nunca a uma pessoa** (card na fila não está direcionado a ninguém); fila longa = gargalo = sinal de contratação → D-02 detalhada, D-09 revisada
-- ✅ **Q (ordem) · API antes das telas?** → SIM, no formato simples: plataforma **recebendo do n8n** → D-11, nova [[SESSAO-13 - Entrada de Pedidos via n8n]] executada logo após o kanban
+- ✅ **Q (ordem) · API antes das telas?** → SIM, no formato simples: plataforma **recebendo do n8n** → D-11, nova [[SESSAO-09 - Entrada de Pedidos via n8n]] executada logo após o kanban
 - ✅ **Q-16 · Critério do 🟡?** → "levemente danificado, porém ainda dá pra seguir e tentar consertar" — escrito na interface → D-09 complemento
 - ✅ **Q-18 · Notificação de qualidade?** → Divergência OU 🟡 OU 🔴 → líder/admin notificado automaticamente **com exatamente o que aconteceu** → D-09 complemento
 - ✅ **Q-19 · API exige estado de qualidade?** → NÃO — qualidade é gesto exclusivamente humano; API move sem estado → D-09 complemento
@@ -70,9 +70,9 @@ tags: [plataforma, descoberta, perguntas]
 
 ## ⚪ Operação e infraestrutura
 
-- **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **será enfrentada na prática na [[SESSAO-14 - Publicacao no Ar]] (D-23)**
+- **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **será enfrentada na prática na [[SESSAO-08 - Publicacao no Ar]] (D-23)**
 - ✅ **Q-61 · Quantos usuários** → respondida em 26/08 (SESSAO-03): **~30 usuários** na largada → [[PLT - Decisoes de Produto#D-21]]
-- **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **será decidida na [[SESSAO-14 - Publicacao no Ar]] (D-23): o Claude Code traz a comparação, o dono bate o martelo**
+- **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **será decidida na [[SESSAO-08 - Publicacao no Ar]] (D-23): o Claude Code traz a comparação, o dono bate o martelo**
 
 ## Ver também
 
