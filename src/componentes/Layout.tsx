@@ -1,14 +1,30 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
+import { LogOut } from 'lucide-react'
 import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
+import { useSessao } from '@/autenticacao/sessao-contexto'
 
-const LINKS = [
-  { para: '/', rotulo: 'Início' },
-  { para: '/design', rotulo: 'Design system' },
-]
-
+/** Navegação por papel (RF-24): o menu do operador é mínimo; o do líder tem a
+ *  Equipe; o do admin tem tudo. As rotas continuam protegidas pelas guardas —
+ *  esconder o link é UX, a barreira é a guarda + RLS. */
 export function Layout({ children }: { children: ReactNode }) {
+  const { perfil, ehLider, sair } = useSessao()
+
+  const links = perfil
+    ? [
+        { para: '/', rotulo: 'Início' },
+        { para: '/tablet', rotulo: 'Modo tablet' },
+        ...(ehLider ? [{ para: '/equipe', rotulo: 'Equipe' }] : []),
+        ...(perfil.papel === 'admin'
+          ? [
+              { para: '/administracao', rotulo: 'Administração' },
+              { para: '/design', rotulo: 'Design system' },
+            ]
+          : []),
+      ]
+    : []
+
   return (
     <div className="flex min-h-dvh flex-col bg-fundo">
       <header className="bg-grafite-700">
@@ -19,8 +35,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
           <span className="hidden text-sm text-grafite-300 sm:inline">Plataforma de Produção</span>
 
-          <nav className="ml-auto flex items-center gap-1" aria-label="Navegação principal">
-            {LINKS.map((link) => (
+          <nav className="ml-auto flex flex-wrap items-center gap-1" aria-label="Navegação principal">
+            {links.map((link) => (
               <NavLink
                 key={link.para}
                 to={link.para}
@@ -37,6 +53,24 @@ export function Layout({ children }: { children: ReactNode }) {
                 {link.rotulo}
               </NavLink>
             ))}
+
+            {perfil && (
+              <div className="ml-2 flex items-center gap-2 border-l border-grafite-600 pl-3">
+                <span className="hidden flex-col text-right sm:flex">
+                  <span className="text-sm font-medium text-grafite-100">{perfil.nome}</span>
+                  <span className="text-xs text-grafite-300 tabular-nums">{perfil.matricula}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void sair()}
+                  aria-label="Sair da conta"
+                  className="toque-seguro inline-flex h-toque-md items-center gap-1.5 rounded-dm px-3 text-sm font-medium text-grafite-100 transition-colors hover:bg-grafite-600"
+                >
+                  <LogOut aria-hidden className="size-4" />
+                  Sair
+                </button>
+              </div>
+            )}
           </nav>
         </div>
       </header>
@@ -44,7 +78,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
 
       <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
-        Móveis Domoby · Plataforma de Produção · fundação da SESSAO-01
+        Móveis Domoby · Plataforma de Produção
       </footer>
     </div>
   )

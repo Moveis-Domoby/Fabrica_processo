@@ -1,19 +1,49 @@
-import { Route, Routes } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router'
 import { Layout } from '@/componentes/Layout'
 import { ProvedorNotificacao } from '@/componentes/ui'
+import { ProvedorSessao } from '@/autenticacao/ProvedorSessao'
+import { RotaProtegida } from '@/autenticacao/guardas'
 import { Inicio } from '@/paginas/Inicio'
 import { DesignSystem } from '@/paginas/DesignSystem'
+import { Entrar } from '@/paginas/Entrar'
+import { Convite } from '@/paginas/Convite'
+import { TrocarSenha } from '@/paginas/TrocarSenha'
+import { Equipe } from '@/paginas/Equipe'
+import { ModoTablet } from '@/paginas/ModoTablet'
+import { Administracao } from '@/paginas/Administracao'
 
 export function App() {
   return (
-    <ProvedorNotificacao>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Inicio />} />
-          <Route path="/design" element={<DesignSystem />} />
-          <Route path="*" element={<Inicio />} />
-        </Routes>
-      </Layout>
-    </ProvedorNotificacao>
+    <ProvedorSessao>
+      <ProvedorNotificacao>
+        <Layout>
+          <Routes>
+            {/* públicas: login e convite — sem autocadastro (D-21) */}
+            <Route path="/entrar" element={<Entrar />} />
+            <Route path="/convite/:token" element={<Convite />} />
+            <Route path="/design" element={<DesignSystem />} />
+
+            {/* qualquer papel logado e aprovado */}
+            <Route element={<RotaProtegida />}>
+              <Route path="/" element={<Inicio />} />
+              <Route path="/trocar-senha" element={<TrocarSenha />} />
+              <Route path="/tablet" element={<ModoTablet />} />
+            </Route>
+
+            {/* líder (de algum setor) ou admin */}
+            <Route element={<RotaProtegida nivel="lider" />}>
+              <Route path="/equipe" element={<Equipe />} />
+            </Route>
+
+            {/* só admin */}
+            <Route element={<RotaProtegida nivel="admin" />}>
+              <Route path="/administracao" element={<Administracao />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </ProvedorNotificacao>
+    </ProvedorSessao>
   )
 }

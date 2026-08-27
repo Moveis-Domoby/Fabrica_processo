@@ -378,3 +378,30 @@ alter table public.gp_pcp_processados enable row level security;
 --
 -- ⚠️ O append-only de plt_eventos é garantido por TRIGGER, não por RLS —
 -- porque a service_role (a chave que o n8n usa) ignora RLS.
+--
+-- ---------------------------------------------------------------------------
+-- ↪️ SESSAO-03 (aplicada em 2026-08-26) — IDENTIDADE E ACESSO (D-21)
+--
+-- Migration 11: supabase/migrations/20260826140000_plt_identidade.sql
+-- Integração conferida antes e depois: impressão digital idêntica
+-- (49028cbaab8330fe2d0678d97fe19599) e contagens intactas
+-- (clientes 133 · pedidos 133 · pedido_itens 218 · eventos 535 · gp 1).
+--
+-- plt_usuarios GANHOU (tudo na mesma tabela, pedido do dono):
+--   cpf              obrigatório, só dígitos; SELECT REVOGADO da API (dado pessoal)
+--   usuario          nome de usuário de login (entra com ele OU com o e-mail)
+--   matricula        MDM-XXX-NNN, gerada por trigger (fn_gerar_matricula +
+--                    sequence plt_privado.matricula_seq) — nunca digitada
+--   senha_padrao     true até a pessoa trocar a senha de criação (troca
+--                    obrigatória no 1º login)
+--   convite_token    token do link de convite (WhatsApp); SELECT REVOGADO
+--   convite_usado_em quando o 1º acesso se completou
+--
+-- Escrita de plt_usuarios pelo navegador: SÓ update(nome, telefone).
+-- Criar/excluir usuário, papel, PIN, senha → Edge Function `autenticacao`
+-- (service_role), a única porta do servidor para identidade.
+--
+-- EDGE FUNCTION `autenticacao` (a 1ª do projeto): entrar · criar-usuario ·
+-- convite-info · trocar-senha · pin-definir · pin-verificar. Código em
+-- supabase/functions/autenticacao/index.ts. Segredo PLT_SENHA_PADRAO
+-- obrigatório (Edge Functions → Secrets). PIN: PBKDF2-SHA256 em pin_hash.

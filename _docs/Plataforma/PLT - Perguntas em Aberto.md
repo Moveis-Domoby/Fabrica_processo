@@ -71,7 +71,7 @@ tags: [plataforma, descoberta, perguntas]
 ## ⚪ Operação e infraestrutura
 
 - **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco?
-- **Q-61 · Quantos usuários** no total (operadores + líderes + admins)? Ordem de grandeza define escolhas de plano do Supabase e de auth.
+- ✅ **Q-61 · Quantos usuários** → respondida em 26/08 (SESSAO-03): **~30 usuários** na largada → [[PLT - Decisoes de Produto#D-21]]
 - **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code?
 
 ## Ver também
