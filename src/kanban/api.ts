@@ -247,7 +247,8 @@ export async function liberarUnidades(parametros: {
       usuario_id: parametros.usuarioId,
       setor_origem_id: parametros.setorPcpId,
       setor_destino_id: unidade.destinoSetorId,
-      etapa_destino_id: unidade.destinoEtapaId,
+      // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
+      etapa_destino_id: unidade.destinoEtapaId || null,
     })
     liberadas += 1
   }
@@ -275,7 +276,8 @@ export async function moverCard(parametros: {
     setor_origem_id: card.setor_atual_id,
     etapa_origem_id: card.etapa_atual_id,
     setor_destino_id: destinoSetorId,
-    etapa_destino_id: destinoEtapaId,
+    // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
+    etapa_destino_id: destinoEtapaId || null,
   })
 }
 

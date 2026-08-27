@@ -39,6 +39,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-08-27] **E-15** (Claude Code) · Primo do E-09: escrever `\u0300` num arquivo via ferramenta de edição gravou o CARACTERE decodificado (o encaminhamento JSON desfaz o escape em silêncio) e a regex de tirar acento ficou com combining chars literais → **correção:** escape gravado via `node` com `String.fromCharCode(92)` e resultado conferido com grep. **Lição: sequência de escape que precisa chegar literal ao arquivo não passa por camada que interprete JSON/string — e toda substituição se confere depois.**
 
+- [2026-08-27] **E-16** (Claude Code) · Mover card para setor sem etapa quebrou com FK violada: um handler antigo resetava o select de etapa para `''` e **`Number('') === 0` em JS** — o evento saiu com `etapa_destino_id: 0` → **correção:** sentinela `'chegada'` em TODOS os pontos que resetam o select + `|| null` na camada de API (id 0/NaN nunca é id válido). Achado interceptando o `fetch` no navegador — o corpo real da requisição vale mais que reler o código. **Lição: conversão string→id numérico sempre com guarda contra vazio; e o teste de UI de verdade pega o que o tsc não pega.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

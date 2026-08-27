@@ -240,7 +240,7 @@ export function ModalLiberarPedido({
               rotulo="Mesmo destino para todas as selecionadas"
               placeholder="Escolher um setor para todas…"
               opcoes={destinos.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
-              valor={destinoParaTodas || undefined}
+              valor={destinoParaTodas}
               aoMudar={aplicarATodas}
               ajuda="Depois dá para ajustar unidade por unidade."
             />
@@ -284,7 +284,7 @@ export function ModalLiberarPedido({
                       rotulo="Setor de destino"
                       placeholder="Escolher setor…"
                       opcoes={destinos.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
-                      valor={linha.setorId || undefined}
+                      valor={linha.setorId}
                       aoMudar={(v) => mudarLinha(linha.chave, { setorId: v, etapaId: CHEGADA })}
                     />
                     {etapasDoDestino.length > 0 && (

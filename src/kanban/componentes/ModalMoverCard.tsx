@@ -120,10 +120,10 @@ export function ModalMoverCard({ card, pedido, setores, aoFechar }: ModalMoverCa
             valor: String(s.id),
             rotulo: s.id === card?.setor_atual_id ? `${s.nome} (setor atual)` : s.nome,
           }))}
-          valor={setorDestinoId || undefined}
+          valor={setorDestinoId}
           aoMudar={(v) => {
             setSetorDestinoId(v)
-            setEtapaDestinoId('')
+            setEtapaDestinoId(CHEGADA)
           }}
         />
 
