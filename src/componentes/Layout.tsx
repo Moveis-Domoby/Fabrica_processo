@@ -9,14 +9,32 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
  *  Equipe; o do admin tem tudo. As rotas continuam protegidas pelas guardas —
  *  esconder o link é UX, a barreira é a guarda + RLS. */
 export function Layout({ children }: { children: ReactNode }) {
-  const { perfil, ehLider, sair } = useSessao()
+  const { perfil, vinculos, ehLider, sair } = useSessao()
+
+  const souAdmin = perfil?.papel === 'admin'
+  const ehDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
+  // Heurística de menu (a barreira real é a página + RLS): terminal conhecido.
+  const ehDeTerminal = vinculos.some((v) => v.setor.codigo === 'estoque' || v.setor.codigo === 'rotas')
+  const meusQuadros = vinculos
+    .filter((v) => v.setor.codigo !== 'pcp')
+    .map((v) => ({ para: `/setores/${v.setor_id}`, rotulo: v.setor.nome }))
 
   const links = perfil
     ? [
         { para: '/', rotulo: 'Início' },
+        ...(souAdmin || ehDoPcp ? [{ para: '/pcp', rotulo: 'PCP' }] : []),
+        ...meusQuadros,
+        ...(souAdmin || ehDoPcp || ehDeTerminal
+          ? [{ para: '/expedicao', rotulo: 'Expedição' }]
+          : []),
         { para: '/tablet', rotulo: 'Modo tablet' },
-        ...(ehLider ? [{ para: '/equipe', rotulo: 'Equipe' }] : []),
-        ...(perfil.papel === 'admin'
+        ...(ehLider
+          ? [
+              { para: '/equipe', rotulo: 'Equipe' },
+              { para: '/estrutura', rotulo: 'Estrutura' },
+            ]
+          : []),
+        ...(souAdmin
           ? [
               { para: '/administracao', rotulo: 'Administração' },
               { para: '/design', rotulo: 'Design system' },

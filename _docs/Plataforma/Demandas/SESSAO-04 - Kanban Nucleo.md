@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-04 — Kanban Núcleo"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
-atualizado: 2026-08-19
+atualizado: 2026-08-27
 tags: [plataforma, demanda, sessao]
 ---
 
@@ -35,9 +35,11 @@ D-01 (híbrido) · D-03 (movimentação manual) · D-05 (só produção) · D-09
 
 ## Perguntar ao dono no início da sessão
 
-- Q-26: etapas internas padrão de todo setor ("na fila → em execução → finalizado" + as que o admin criar)?
-- Q-27: onde acontece o reagrupamento do pedido no dia 1 (setor ESTOQUE/EXPEDIÇÃO a cadastrar, ou só a visão de pedido completo)?
-- Unidade que gera trabalho paralelo (metalurgia + madeira): sub-cards agora ou depois? (Q-21)
+- Q-26: etapas internas padrão de todo setor ("na fila → em execução → finalizado" + as que o admin criar)? — **↩️ já respondida antes da sessão: D-14 (sem trio padrão, cadastro livre, zero seed).**
+- Q-27: onde acontece o reagrupamento do pedido no dia 1 (setor ESTOQUE/EXPEDIÇÃO a cadastrar, ou só a visão de pedido completo)? — **↩️ já respondida: D-13 + D-18 (reagrupamento no fim de linha; ESTOQUE e ROTAS semeados como terminais).**
+- Unidade que gera trabalho paralelo (metalurgia + madeira): sub-cards agora ou depois? (Q-21) — **✅ respondida em 27/08: fica para depois (D-22).**
+
+**↪️ Respostas do dono em 27/08/2026 (viraram D-22):** liberação parcial OU completa · card de pedido sai do quadro PCP quando 100% liberado (acompanha-se na expedição) · destino livre (qualquer setor move para qualquer setor; qualidade na entrada é SESSAO-06) · card de pedido nasce SEMPRE de pedido real do Tiny (sem pedido avulso) · etapas: admin + líder do próprio setor · tela do PCP pode ser mais completa (eles usam computador e também são a logística).
 
 ## Fora do escopo
 

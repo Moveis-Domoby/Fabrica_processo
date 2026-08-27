@@ -405,3 +405,31 @@ alter table public.gp_pcp_processados enable row level security;
 -- convite-info · trocar-senha · pin-definir · pin-verificar. Código em
 -- supabase/functions/autenticacao/index.ts. Segredo PLT_SENHA_PADRAO
 -- obrigatório (Edge Functions → Secrets). PIN: PBKDF2-SHA256 em pin_hash.
+--
+-- ---------------------------------------------------------------------------
+-- ↪️ SESSAO-04 (aplicada em 2026-08-27) — LEITURA DE PEDIDOS PARA O KANBAN
+--
+-- Migration 13: supabase/migrations/20260827120000_plt_leitura_pedidos_kanban.sql
+-- Integração conferida antes e depois: impressão digital idêntica
+-- (9a61b60d8f5b306ea40acc1704234ea0) e contagens intactas
+-- (clientes 133 · pedidos 133 · pedido_itens 218 · eventos 535 · gp 1).
+--
+-- FUNÇÕES em public — endpoints /rest/v1/rpc DE PROPÓSITO (a porta de leitura
+-- do kanban; os advisors emitem WARN de "security definer executável por
+-- authenticated" para as quatro, e isso é o desenho intencional):
+--   plt_fn_pedidos_kanban        resumo de pedidos (número, cliente_nome, datas,
+--                                situação, itens/unidades, tem_card,
+--                                unidades_liberadas) — paginado, máx. 100
+--   plt_fn_pedido_itens_kanban   itens de UM pedido em unidades (k/n POR ITEM,
+--                                como o n8n: quantidade arredondada, <1 não vira card)
+--   plt_fn_expedicao_kanban      reagrupamento por pedido (D-01/D-13)
+--   plt_fn_pedido_unidades       onde está cada unidade de um pedido
+--
+-- Salvaguardas (lição E-11): security definer + set search_path fixo · execute
+-- REVOGADO de public/anon, grant só authenticated · gate DENTRO da função
+-- (fn_usuario_atual() para as duas primeiras; fn_pode_ver_expedicao() — admin,
+-- entrada ou terminal — para as duas últimas) · NENHUM dado pessoal/financeiro
+-- do cliente sai por elas (sem endereço, CPF/CNPJ, fone, e-mail, valores, raw).
+--
+-- SCHEMA plt_privado ganhou: fn_pode_ver_expedicao() (maquinaria, fora da API).
+-- As tabelas da integração continuam SEM policy — o navegador não as lê direto.

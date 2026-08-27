@@ -109,7 +109,7 @@ Chamada: `POST {URL}/rest/v1/rpc/fn_upsert_pedido` com body `{"p": <retorno.pedi
 ## Tabelas da Plataforma de Produção (prefixo `plt_`) — aplicadas em 26/08/2026
 
 > [!info] Onde está o DDL
-> O SQL executável **não é duplicado aqui**: vive versionado e testado no repositório, em `supabase/migrations/*.sql` (10 migrations). O modelo explicado em português está em `docs/modelo-de-dados.md`. Duplicar criaria uma segunda fonte de verdade que envelhece sozinha (M-04). Esta seção é o **inventário**: o que existe e onde achar.
+> O SQL executável **não é duplicado aqui**: vive versionado e testado no repositório, em `supabase/migrations/*.sql` (13 migrations). O modelo explicado em português está em `docs/modelo-de-dados.md`. Duplicar criaria uma segunda fonte de verdade que envelhece sozinha (M-04). Esta seção é o **inventário**: o que existe e onde achar.
 
 Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois — **estrutura com impressão digital idêntica e contagens intactas** (clientes 119 · pedidos 118 · pedido_itens 191 · eventos 448 · gp 1).
 
@@ -128,7 +128,9 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 **Visões** (derivadas de evento, nada guardado — todas com `security_invoker = on`):
 `plt_vw_permanencias` (tempo por etapa; `eh_fila` separa o que é do SETOR) · `plt_vw_execucoes` (o tempo que tem dono) · `plt_vw_qualidade_transicoes` (dupla atestação da D-09 com divergência calculada).
 
-**Schema `plt_privado`** — 8 funções, **fora da API REST de propósito**: `fn_marcar_atualizacao`, `fn_evento_imutavel`, `fn_projetar_posicao`, `fn_usuario_atual`, `fn_eh_admin`, `fn_setores_do_usuario`, `fn_eh_lider_de` e (SESSAO-03) `fn_gerar_matricula` + sequence `matricula_seq`. O Supabase publica o schema `public` inteiro como API; função criada lá vira endpoint `/rest/v1/rpc` sem ninguém pedir.
+**Schema `plt_privado`** — 9 funções, **fora da API REST de propósito**: `fn_marcar_atualizacao`, `fn_evento_imutavel`, `fn_projetar_posicao`, `fn_usuario_atual`, `fn_eh_admin`, `fn_setores_do_usuario`, `fn_eh_lider_de`, (SESSAO-03) `fn_gerar_matricula` + sequence `matricula_seq` e (SESSAO-04) `fn_pode_ver_expedicao`. O Supabase publica o schema `public` inteiro como API; função criada lá vira endpoint `/rest/v1/rpc` sem ninguém pedir.
+
+**Funções `plt_fn_*` em `public` (SESSAO-04, migration 13 — aplicada em 27/08/2026):** a **porta de leitura do kanban**, endpoints REST **de propósito** (o WARN dos advisors sobre "security definer executável por authenticated" nessas quatro é o desenho intencional): `plt_fn_pedidos_kanban` (resumo paginado com `unidades_liberadas`) · `plt_fn_pedido_itens_kanban` (itens em unidades k/n **por item**, regra do n8n) · `plt_fn_expedicao_kanban` (reagrupamento D-01/D-13) · `plt_fn_pedido_unidades` (onde está cada unidade). Salvaguardas E-11: `search_path` fixo, execute revogado de public/anon, gate por usuário ativo DENTRO da função (expedição: admin/entrada/terminal), zero dado pessoal/financeiro do cliente. **As tabelas da integração continuam sem policy — o navegador nunca as lê direto.**
 
 **Edge Function `autenticacao`** (SESSAO-03 — a primeira do projeto): `entrar` (usuário OU e-mail) · `criar-usuario` (admin/líder; senha padrão via segredo `PLT_SENHA_PADRAO`) · `convite-info` · `trocar-senha` (obrigatória no 1º login) · `pin-definir` · `pin-verificar` (PBKDF2). Código versionado em `supabase/functions/autenticacao/index.ts` no repo.
 

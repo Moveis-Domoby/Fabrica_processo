@@ -1,0 +1,350 @@
+import { supabase } from '@/lib/supabase'
+import { COLUNAS_CARD } from './tipos'
+import type {
+  Card,
+  Etapa,
+  ExpedicaoLinha,
+  ItemKanban,
+  PedidoResumo,
+  Setor,
+  UnidadePedido,
+  UnidadeParaLiberar,
+} from './tipos'
+
+/**
+ * Camada de dados do kanban (SESSAO-04).
+ *
+ * Duas portas, de propósito:
+ * - tabelas plt_* direto (setores, etapas, cards, eventos) — o RLS da
+ *   SESSAO-02 decide o que cada um enxerga e escreve;
+ * - funções plt_fn_*_kanban (migration 13) para o que vem da integração do
+ *   Tiny (pedidos/itens) e para o reagrupamento — nunca as tabelas da
+ *   integração direto.
+ *
+ * MOVIMENTAR CARD = INSERIR EVENTO (M-02/M-13). A posição em plt_cards é
+ * projeção mantida por trigger no banco; nenhuma função aqui faz UPDATE de
+ * posição — se você está pensando em fazer, pare.
+ */
+
+function garantir<T>(dados: T | null, erro: { message: string } | null, contexto: string): T {
+  if (erro) throw new Error(`${contexto}: ${erro.message}`)
+  if (dados === null) throw new Error(`${contexto}: o servidor não devolveu dados.`)
+  return dados
+}
+
+// ---------------------------------------------------------------------------
+// Estrutura: setores e etapas
+// ---------------------------------------------------------------------------
+
+export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
+  let consulta = supabase
+    .from('plt_setores')
+    .select('id, codigo, nome, papel_no_fluxo, ordem, ativo')
+    .order('ordem')
+    .order('id')
+  if (!incluirInativos) consulta = consulta.eq('ativo', true)
+  const { data, error } = await consulta
+  return garantir(data as Setor[] | null, error, 'Não deu para carregar os setores')
+}
+
+export async function buscarEtapasDoSetor(
+  setorId: number,
+  incluirInativas = false,
+): Promise<Etapa[]> {
+  let consulta = supabase
+    .from('plt_etapas')
+    .select('id, setor_id, nome, ordem, eh_fila, ativa')
+    .eq('setor_id', setorId)
+    .order('ordem')
+    .order('id')
+  if (!incluirInativas) consulta = consulta.eq('ativa', true)
+  const { data, error } = await consulta
+  return garantir(data as Etapa[] | null, error, 'Não deu para carregar as etapas')
+}
+
+/** Todas as etapas ativas de todos os setores — para os seletores de destino. */
+export async function buscarEtapasAtivas(): Promise<Etapa[]> {
+  const { data, error } = await supabase
+    .from('plt_etapas')
+    .select('id, setor_id, nome, ordem, eh_fila, ativa')
+    .eq('ativa', true)
+    .order('setor_id')
+    .order('ordem')
+  return garantir(data as Etapa[] | null, error, 'Não deu para carregar as etapas')
+}
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
+export async function buscarCardsDoSetor(
+  setorId: number,
+  tipo?: 'pedido' | 'unidade',
+): Promise<Card[]> {
+  let consulta = supabase
+    .from('plt_cards')
+    .select(COLUNAS_CARD)
+    .eq('setor_atual_id', setorId)
+    .order('desde', { ascending: true, nullsFirst: false })
+  if (tipo) consulta = consulta.eq('tipo', tipo)
+  const { data, error } = await consulta
+  return garantir(data as unknown as Card[] | null, error, 'Não deu para carregar os cards')
+}
+
+// ---------------------------------------------------------------------------
+// Pedidos da integração (migration 13 — nunca as tabelas direto)
+// ---------------------------------------------------------------------------
+
+export interface FiltroPedidos {
+  busca?: string
+  somenteSemCard?: boolean
+  ids?: number[]
+  limite?: number
+  deslocamento?: number
+}
+
+export async function pedidosResumo(filtro: FiltroPedidos = {}): Promise<PedidoResumo[]> {
+  const { data, error } = await supabase.rpc('plt_fn_pedidos_kanban', {
+    p_busca: filtro.busca ?? null,
+    p_somente_sem_card: filtro.somenteSemCard ?? false,
+    p_ids: filtro.ids ?? null,
+    p_limite: filtro.limite ?? 20,
+    p_deslocamento: filtro.deslocamento ?? 0,
+  })
+  return garantir(data as PedidoResumo[] | null, error, 'Não deu para carregar os pedidos')
+}
+
+export async function itensDoPedido(pedidoId: number): Promise<ItemKanban[]> {
+  const { data, error } = await supabase.rpc('plt_fn_pedido_itens_kanban', {
+    p_pedido_id: pedidoId,
+  })
+  return garantir(data as ItemKanban[] | null, error, 'Não deu para carregar os itens do pedido')
+}
+
+export interface FiltroExpedicao {
+  busca?: string
+  limite?: number
+  deslocamento?: number
+}
+
+export async function expedicaoResumo(filtro: FiltroExpedicao = {}): Promise<ExpedicaoLinha[]> {
+  const { data, error } = await supabase.rpc('plt_fn_expedicao_kanban', {
+    p_busca: filtro.busca ?? null,
+    p_limite: filtro.limite ?? 20,
+    p_deslocamento: filtro.deslocamento ?? 0,
+  })
+  return garantir(data as ExpedicaoLinha[] | null, error, 'Não deu para carregar a expedição')
+}
+
+export async function unidadesDoPedido(pedidoId: number): Promise<UnidadePedido[]> {
+  const { data, error } = await supabase.rpc('plt_fn_pedido_unidades', {
+    p_pedido_id: pedidoId,
+  })
+  return garantir(
+    data as UnidadePedido[] | null,
+    error,
+    'Não deu para carregar as unidades do pedido',
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Gestos que geram evento (append-only — RNF-05)
+// ---------------------------------------------------------------------------
+
+interface NovoEvento {
+  card_id: number
+  tipo: 'card_criado' | 'movimentacao_setor' | 'movimentacao_etapa'
+  usuario_id: string
+  setor_origem_id?: number | null
+  etapa_origem_id?: number | null
+  setor_destino_id?: number | null
+  etapa_destino_id?: number | null
+}
+
+async function registrarEvento(evento: NovoEvento): Promise<void> {
+  const { error } = await supabase.from('plt_eventos').insert({ ...evento, origem: 'interface' })
+  if (error) throw new Error(`Não deu para registrar a movimentação: ${error.message}`)
+}
+
+/** Cria o card de PEDIDO no PCP (D-01) a partir de um pedido real do Tiny (D-22). */
+export async function criarCardPedido(parametros: {
+  pedidoId: number
+  setorPcpId: number
+  usuarioId: string
+}): Promise<number> {
+  const { data, error } = await supabase
+    .from('plt_cards')
+    .insert({
+      tipo: 'pedido',
+      pedido_id: parametros.pedidoId,
+      setor_atual_id: parametros.setorPcpId,
+    })
+    .select('id')
+    .single()
+  const card = garantir(data as { id: number } | null, error, 'Não deu para criar o card')
+  await registrarEvento({
+    card_id: card.id,
+    tipo: 'card_criado',
+    usuario_id: parametros.usuarioId,
+    setor_destino_id: parametros.setorPcpId,
+  })
+  return card.id
+}
+
+export interface LiberacaoUnidade extends UnidadeParaLiberar {
+  destinoSetorId: number
+  destinoEtapaId: number | null
+}
+
+/**
+ * Libera unidades do pedido (D-01/D-22): cada uma nasce como card no PCP
+ * (evento card_criado) e é movida ao setor escolhido (evento
+ * movimentacao_setor). A liberação pode ser parcial — o que não foi liberado
+ * continua no card de pedido.
+ */
+export async function liberarUnidades(parametros: {
+  cardPaiId: number
+  pedidoId: number
+  setorPcpId: number
+  usuarioId: string
+  unidades: LiberacaoUnidade[]
+}): Promise<number> {
+  let liberadas = 0
+  for (const unidade of parametros.unidades) {
+    const { data, error } = await supabase
+      .from('plt_cards')
+      .insert({
+        tipo: 'unidade',
+        pedido_id: parametros.pedidoId,
+        card_pai_id: parametros.cardPaiId,
+        item_seq: unidade.item_seq,
+        item_codigo: unidade.item_codigo,
+        item_descricao: unidade.item_descricao,
+        indice_unidade: unidade.indice_unidade,
+        total_unidades: unidade.total_unidades,
+        setor_atual_id: parametros.setorPcpId,
+      })
+      .select('id')
+      .single()
+    if (error || !data) {
+      const detalhe = error?.message ?? 'sem resposta do servidor'
+      throw new Error(
+        liberadas === 0
+          ? `Não deu para liberar: ${detalhe}`
+          : `Liberei ${liberadas} unidade(s), mas parei em ${unidade.item_descricao ?? 'item'} (${unidade.indice_unidade}/${unidade.total_unidades}): ${detalhe}`,
+      )
+    }
+    const cardId = (data as { id: number }).id
+    await registrarEvento({
+      card_id: cardId,
+      tipo: 'card_criado',
+      usuario_id: parametros.usuarioId,
+      setor_destino_id: parametros.setorPcpId,
+    })
+    await registrarEvento({
+      card_id: cardId,
+      tipo: 'movimentacao_setor',
+      usuario_id: parametros.usuarioId,
+      setor_origem_id: parametros.setorPcpId,
+      setor_destino_id: unidade.destinoSetorId,
+      // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
+      etapa_destino_id: unidade.destinoEtapaId || null,
+    })
+    liberadas += 1
+  }
+  return liberadas
+}
+
+/**
+ * Move um card. Mesmo setor → movimentação de etapa; setor diferente →
+ * movimentação de setor (com etapa de chegada opcional). Sempre um evento
+ * novo com autor, origem, destino e timestamp — nunca um UPDATE.
+ */
+export async function moverCard(parametros: {
+  card: Card
+  destinoSetorId: number
+  destinoEtapaId: number | null
+  usuarioId: string
+}): Promise<void> {
+  const { card, destinoSetorId, destinoEtapaId, usuarioId } = parametros
+  const mesmoSetor = card.setor_atual_id === destinoSetorId
+  if (mesmoSetor && card.etapa_atual_id === destinoEtapaId) return
+  await registrarEvento({
+    card_id: card.id,
+    tipo: mesmoSetor ? 'movimentacao_etapa' : 'movimentacao_setor',
+    usuario_id: usuarioId,
+    setor_origem_id: card.setor_atual_id,
+    etapa_origem_id: card.etapa_atual_id,
+    setor_destino_id: destinoSetorId,
+    // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
+    etapa_destino_id: destinoEtapaId || null,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Gestão de estrutura (admin + líder do próprio setor — D-22, RLS por baixo)
+// ---------------------------------------------------------------------------
+
+/** Slug estável a partir do nome: "LIMPEZA E EMBALAGEM" → "limpeza-e-embalagem". */
+export function codigoDeSetor(nome: string): string {
+  return nome
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+export async function criarSetor(nome: string, ordem: number): Promise<void> {
+  const { error } = await supabase.from('plt_setores').insert({
+    nome: nome.trim().toUpperCase(),
+    codigo: codigoDeSetor(nome),
+    papel_no_fluxo: 'producao',
+    ordem,
+  })
+  if (error) throw new Error(`Não deu para criar o setor: ${error.message}`)
+}
+
+export async function atualizarSetor(
+  id: number,
+  mudancas: Partial<Pick<Setor, 'nome' | 'ordem' | 'ativo'>>,
+): Promise<void> {
+  const dados = { ...mudancas }
+  if (dados.nome) dados.nome = dados.nome.trim().toUpperCase()
+  const { error } = await supabase.from('plt_setores').update(dados).eq('id', id)
+  if (error) throw new Error(`Não deu para atualizar o setor: ${error.message}`)
+}
+
+export async function criarEtapa(setorId: number, nome: string, ehFila: boolean): Promise<void> {
+  const { data: existentes, error: erroOrdem } = await supabase
+    .from('plt_etapas')
+    .select('ordem')
+    .eq('setor_id', setorId)
+    .order('ordem', { ascending: false })
+    .limit(1)
+  if (erroOrdem) throw new Error(`Não deu para criar a etapa: ${erroOrdem.message}`)
+  const ordem = ((existentes?.[0] as { ordem: number } | undefined)?.ordem ?? 0) + 1
+  const { error } = await supabase
+    .from('plt_etapas')
+    .insert({ setor_id: setorId, nome: nome.trim(), ordem, eh_fila: ehFila })
+  if (error) {
+    if (/plt_etapas_fila_unica_por_setor/.test(error.message))
+      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma (D-02).')
+    throw new Error(`Não deu para criar a etapa: ${error.message}`)
+  }
+}
+
+export async function atualizarEtapa(
+  id: number,
+  mudancas: Partial<Pick<Etapa, 'nome' | 'ordem' | 'eh_fila' | 'ativa'>>,
+): Promise<void> {
+  const dados = { ...mudancas }
+  if (dados.nome) dados.nome = dados.nome.trim()
+  const { error } = await supabase.from('plt_etapas').update(dados).eq('id', id)
+  if (error) {
+    if (/plt_etapas_fila_unica_por_setor/.test(error.message))
+      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma (D-02).')
+    throw new Error(`Não deu para atualizar a etapa: ${error.message}`)
+  }
+}

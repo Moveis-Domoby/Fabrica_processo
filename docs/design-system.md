@@ -170,6 +170,25 @@ notificar({ titulo: 'Card movido', tom: 'perfeito' })
 
 ---
 
+### Componentes do kanban (SESSAO-04) — `src/kanban/componentes/`
+
+Componentes de DOMÍNIO (não são primitivos de `ui/`, mas seguem as mesmas regras):
+
+- **`<CartaoUnidade>`** — o card (k/n) que percorre os setores. Mostra pedido, produto, (k/n),
+  tempo na etapa (`tabular-nums`, atualizado por minuto) e o botão **Mover** (alvo ≥ 44px).
+  Estado de qualidade, quando existir, entra via `<BadgeEstado>` — nunca só cor.
+- **`<QuadroKanban>`** — colunas por etapa + a coluna fixa **Chegada** (etapa nula). Colunas
+  rolam na horizontal com `snap` no celular (85vw por coluna) e largura fixa no desktop.
+  **Dois gestos sempre:** drag-and-drop (`@dnd-kit/core`, desktop) E botão "Mover" (tablet) —
+  nenhuma movimentação pode existir só no arrasto.
+- **Modais do PCP** (`ModalNovoPedido`, `ModalLiberarPedido`) e **`ModalMoverCard`** — decisão
+  curta em modal (`tamanho="galpao"` quando tem lista); seleção de destino com `<Selecao>`
+  `tamanho="galpao"` no fluxo de tablet.
+
+Regra que nasceu aqui: **contador de tempo usa o `desde` projetado do evento** — o front nunca
+calcula posição/tempo a partir de estado editável (M-13); o modelo fila/execução completo é da
+SESSAO-05.
+
 ## 5. Regras de escrita da interface
 
 - **UI 100% em português.**
