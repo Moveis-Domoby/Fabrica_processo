@@ -37,6 +37,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - [2026-08-26] **E-13** (Claude Code) · Primo do E-12: valor com `#` em arquivo `.env` é cortado em silêncio por leitores dotenv (o `#` vira comentário) → **correção:** valor com `#`/espaço sempre **entre aspas duplas** no `.env`; em campo de formulário (painel), sempre cru e sem aspas. Documentado no próprio `.env.example`.
 - [2026-08-27] **E-14** (Claude Code) · Bootstrap do 1º admin falhou em produção com `permission denied for schema plt_privado`: trigger que NÃO é security definer roda com o privilégio de **quem insere** (a service_role, sem USAGE no schema privado) → **correção:** migration 12 — `fn_gerar_matricula` virou security definer + grants explícitos. **Lição: o PGlite dos testes roda como superusuário e NÃO pega erro de permissão — permissão só se prova no banco real; função de plt_privado usada por trigger nasce security definer.**
 
+- [2026-08-27] **E-15** (Claude Code) · Primo do E-09: escrever `̀` num arquivo via ferramenta de edição gravou o CARACTERE decodificado (o encaminhamento JSON desfaz o escape em silêncio) e a regex de tirar acento ficou com combining chars literais → **correção:** escape gravado via `node` com `String.fromCharCode(92)` e resultado conferido com grep. **Lição: sequência de escape que precisa chegar literal ao arquivo não passa por camada que interprete JSON/string — e toda substituição se confere depois.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

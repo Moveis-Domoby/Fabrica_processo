@@ -45,3 +45,31 @@ Decisões técnicas validadas no checkpoint (sem objeção do dono):
 ## Diário de execução
 
 - [27/08] Branch criada. Task list montada.
+- [27/08] Cofre atualizado: D-22 registrada, ORDEM → 🔨, demanda anotada com as respostas, Q-21 ⏸️ (T2 ✔).
+- [27/08] Migration 13 (`20260827120000_plt_leitura_pedidos_kanban.sql`): 4 funções RPC em `public`
+  (`plt_fn_pedidos_kanban`, `plt_fn_pedido_itens_kanban`, `plt_fn_expedicao_kanban`, `plt_fn_pedido_unidades`)
+  + helper `plt_privado.fn_pode_ver_expedicao`. E-11 aplicada: security definer + search_path fixo,
+  revoke de public/anon, grant só authenticated, gate por usuário ativo DENTRO da função.
+  Sem dado pessoal/financeiro do cliente. `unidades_liberadas` no resumo porque o RLS esconde do PCP
+  as unidades que já viajaram. **Semântica (k/n) confirmada no código real do n8n (A-01): POR ITEM —
+  n = quantidade arredondada do item, k = 1..n; quantidade < 1 não vira card.** Testes: 10 verificações
+  novas no `testar-migrations.mjs`, tudo verde (13 migrations × 2 rodadas). ⚠️ NÃO aplicada no banco — aguarda aprovação (T3 ✔ no código).
+- [27/08] Front (T4–T10): módulo `src/kanban/` (tipos, tempo, api) + componentes
+  (`CartaoUnidade`, `QuadroKanban` com @dnd-kit/core, `ModalMoverCard`, `ModalNovoPedido`,
+  `ModalLiberarPedido`, `usePedidosDosCards`) + páginas `/pcp`, `/setores/:id`, `/expedicao`,
+  `/estrutura` + navegação por papel no Layout/Início + link na Administração.
+  Decisões técnicas dentro do código:
+  · mover card = INSERT em `plt_eventos`; posição vem da trigger — nenhum UPDATE de posição no front;
+  · liberação = card unidade nasce no PCP (card_criado) + movimentacao_setor PCP→destino, na mesma ação
+    — assim o RLS aceita (quem insere card precisa do setor DELE) e o evento conta a história verdadeira;
+  · pedido 100% liberado é filtrado do quadro PCP (D-22);
+  · coluna fixa "Chegada" para etapa nula (D-14: setores nascem sem etapas);
+  · Radix Select não aceita valor vazio → sentinela 'chegada';
+  · lint react-hooks/set-state-in-effect: reset de modal = ajuste de estado DURANTE o render
+    (padrão da doc do React), e linhas da liberação = derivadas com useMemo + mapa de ajustes do usuário.
+- [27/08] E-15 anotado na memória de aprendizado (escape \uXXXX decodificado pelo harness ao gravar arquivo).
+- [27/08] Verificação: `tsc` limpo · `lint` limpo · `npm test` 8/8 · `test:banco` verde ·
+  `npm run build` ok (chunk 740kB — aviso de tamanho, candidato a code-split futuro) ·
+  dev server em :5181 (5180 ocupado por outra sessão — config `plataforma-dev-b` adicionada ao launch.json) ·
+  `/entrar` renderiza sem erro de console. Fluxos logados dependem da migration aplicada + senha (gesto do dono).
+- [27/08] ⏸️ CHECKPOINT: pedida aprovação para aplicar a migration 13 no banco (F-08).
