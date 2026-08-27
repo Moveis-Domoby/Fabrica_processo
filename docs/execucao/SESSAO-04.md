@@ -21,26 +21,26 @@ Decisões técnicas validadas no checkpoint (sem objeção do dono):
 
 ## Task list (espelho da demanda)
 
-- [ ] T1 · Branch `sessao-04-kanban-nucleo` criada
-- [ ] T2 · Cofre atualizado: D-22 (respostas de hoje), ORDEM → 🔨, demanda anotada, Q-21 adiada
-- [ ] T3 · Migration 13: leitura de pedidos/itens para o kanban (funções security definer, fora do alcance de anon) + testes `test:banco`
-- [ ] T4 · Quadro PCP: card por pedido (criado manualmente a partir de pedido do Tiny sem card), com itens
-- [ ] T5 · Liberação: pedido → cards de unidade (k/n), parcial ou completa, destino por unidade, unidades do mesmo pedido podem ir para setores diferentes
-- [ ] T6 · Quadros de setor: etapas internas como colunas + coluna "Chegada", cards de unidade
-- [ ] T7 · Movimentação: drag-and-drop (desktop) E botão "Mover para…" (tablet) — grava evento append-only com autor, origem, destino, timestamp
-- [ ] T8 · Card de unidade mostra: pedido de origem, produto, (k/n), etapa atual, tempo na etapa (contador simples)
-- [ ] T9 · Visão de expedição: por pedido, unidades chegadas vs total — pedido completo/incompleto evidente
-- [ ] T10 · Gestão de setores e etapas em /administracao: criar/renomear/ordenar/desativar (nunca apagar); admin + líder do setor
-- [ ] T11 · Verificação: critérios de aceite um a um + F-07 (tsc, lint, testes, viewport celular E tablet) + screenshots
-- [ ] T12 · Handoff em `_docs/Handoffs/` + memória de aprendizado + revisão do dono
+- [x] T1 · Branch `sessao-04-kanban-nucleo` criada
+- [x] T2 · Cofre atualizado: D-22 (respostas de hoje), ORDEM → 🔨, demanda anotada, Q-21 adiada
+- [x] T3 · Migration 13: leitura de pedidos/itens para o kanban (funções security definer, fora do alcance de anon) + testes `test:banco`
+- [x] T4 · Quadro PCP: card por pedido (criado manualmente a partir de pedido do Tiny sem card), com itens
+- [x] T5 · Liberação: pedido → cards de unidade (k/n), parcial ou completa, destino por unidade, unidades do mesmo pedido podem ir para setores diferentes
+- [x] T6 · Quadros de setor: etapas internas como colunas + coluna "Chegada", cards de unidade
+- [x] T7 · Movimentação: drag-and-drop (desktop) E botão "Mover para…" (tablet) — grava evento append-only com autor, origem, destino, timestamp
+- [x] T8 · Card de unidade mostra: pedido de origem, produto, (k/n), etapa atual, tempo na etapa (contador simples)
+- [x] T9 · Visão de expedição: por pedido, unidades chegadas vs total — pedido completo/incompleto evidente
+- [x] T10 · Gestão de setores e etapas (/estrutura): criar/renomear/ordenar/desativar (nunca apagar); admin + líder do setor
+- [x] T11 · Verificação: critérios de aceite um a um + F-07 (tsc, lint, testes, viewport celular E tablet) + screenshots
+- [x] T12 · Handoff em `_docs/Handoffs/` + memória de aprendizado (aguardando só o OK final do dono para o merge)
 
 ## Critérios de aceite (da demanda)
 
-- [ ] Pedido com 3 itens liberado no PCP gera 3 cards de unidade nas etapas escolhidas.
-- [ ] Mover card grava evento com autor, origem, destino e timestamp.
-- [ ] Visão de expedição mostra 2 de 3 unidades chegadas → pedido incompleto.
-- [ ] Funciona em tablet (botão "mover para…") e desktop (drag-and-drop).
-- [ ] Revisão do dono (PR dispensado — D-20) + handoff.
+- [x] Pedido com 3 itens liberado no PCP gera 3 cards de unidade nas etapas escolhidas. (13192 → SECC, CNC, FITAMENTO)
+- [x] Mover card grava evento com autor, origem, destino e timestamp. (11 eventos conferidos por SQL)
+- [x] Visão de expedição mostra 2 de 3 unidades chegadas → pedido incompleto. (exatamente "2 de 3 no fim de linha")
+- [x] Funciona em tablet (botão "mover para…") e desktop (drag-and-drop). (testado nos dois + viewports F-07)
+- [ ] Revisão do dono (PR dispensado — D-20) + handoff. (handoff pronto; merge aguarda OK)
 
 ## Diário de execução
 
@@ -73,3 +73,27 @@ Decisões técnicas validadas no checkpoint (sem objeção do dono):
   dev server em :5181 (5180 ocupado por outra sessão — config `plataforma-dev-b` adicionada ao launch.json) ·
   `/entrar` renderiza sem erro de console. Fluxos logados dependem da migration aplicada + senha (gesto do dono).
 - [27/08] ⏸️ CHECKPOINT: pedida aprovação para aplicar a migration 13 no banco (F-08).
+- [27/08] ✅ Dono aprovou. Migration 13 APLICADA em produção (`banco:aplicar -- --confirmar`):
+  impressão digital idêntica (9a61b60d...) e contagens intactas (133/133/218/535/1).
+  `get_advisors`: 4 WARN nas plt_fn_* = desenho intencional (endpoints de propósito, gate interno);
+  5 INFO das tabelas da integração = padrão da casa pré-existente; 1 WARN de leaked password
+  protection (auth) pré-existente, anotado como pendência. `.sql` espelho + nota SUPA atualizados.
+- [27/08] TESTES NO NAVEGADOR (dono logado como Wallace/admin, dev :5181):
+  · card do pedido 13192 (3 itens/3 unidades reais do Tiny) criado no PCP — busca + lista paginada ok;
+  · etapa "EM CORTE (TESTE)" criada na SECC via /estrutura (notificação da D-14 correta);
+  · liberação: 3 unidades → SECC/EM CORTE (TESTE), CNC, FITAMENTO — pedido saiu do quadro (D-22);
+  · eventos conferidos por SQL: autor MDM-084-001, origem/destino/etapa/timestamp, via 'interface';
+  · drag-and-drop desktop nos dois sentidos ✔; botão "Mover": CNC→ESTOQUE ✔, FITAMENTO→ROTAS ✔;
+  · 🐞 E-16 achado e corrigido no meio do teste (etapa_destino_id: 0 — ver memória de aprendizado);
+  · Expedição: "2 de 3 no fim de linha" + detalhe por unidade — critério de aceite exato;
+  · banco final: 11 eventos, 2 unidades com concluido_em pela trigger do terminal;
+  · F-07: mobile 375px e tablet 768px sem rolagem horizontal e sem alvo <44px; desktop restaurado;
+  · tsc/lint/test 8-8/test:banco verdes após a correção.
+- [27/08] Estado que ficou no banco (permanente por desenho): card 13192 + 3 unidades
+  (SECC em produção, ESTOQUE e ROTAS concluídas), etapa "EM CORTE (TESTE)" na SECC (desativável),
+  11 eventos append-only.
+- [27/08] ⚠️ Quase-E: editar este arquivo com `Get-Content`/`Set-Content` do PowerShell dobrou o
+  encoding (UTF-8 lido como ANSI) — restaurado do git e reeditado com a ferramenta de edição.
+  Regra prática: arquivo com acento não passa por pipeline de texto do PowerShell.
+- [27/08] Handoff escrito ([[handoff_2026_08_27_sessao04_kanban]]), ORDEM → ✅ entregue,
+  mapa do cofre atualizado. Aguardando OK do dono para o merge na main (D-20).

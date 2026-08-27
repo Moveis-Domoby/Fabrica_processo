@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-04 — Kanban Núcleo"
 tipo: demanda
-status: em execução
+status: entregue
 data: 2026-08-19
 atualizado: 2026-08-27
 tags: [plataforma, demanda, sessao]
