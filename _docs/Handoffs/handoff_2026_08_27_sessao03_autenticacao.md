@@ -76,7 +76,12 @@ Mais: troca de senha obrigatória comprovada nos dois primeiros acessos (`senha_
 ## 6. Estado que ficou no banco
 
 - **MDM-084-001 · wallace · admin** (o dono, ativo, senha própria).
-- **MDM-111-002 · operador.teste.um · operador · SECC · PIN 1234** (ativo, senha descartável) e **MDM-555-003 · operadora.teste.dois · operador · SECC · PIN 4321** (aguardando 1º acesso) — **usuários de TESTE**, criados para provar os critérios. Podem ficar para testar o kanban da SESSAO-04 ou ser desativados (`ativo=false`); decisão do dono no checkpoint.
+- **Dois usuários de TESTE, que o dono decidiu (27/08) manter ATIVOS para testar o kanban da SESSAO-04.** Quando não servirem mais: desativar (`ativo=false`), nunca apagar.
+
+| Matrícula | Nome | Usuário | Papel · Setor | PIN | Situação |
+|---|---|---|---|---|---|
+| MDM-111-002 | Operador Teste Um | `operador.teste.um` | operador · SECC | 1234 | ativo (1º acesso feito, senha descartável) |
+| MDM-555-003 | Operadora Teste Dois | `operadora.teste.dois` | operador · SECC | 4321 | aguardando 1º acesso (ainda na senha padrão) |
 
 ## 7. Arquivos principais
 
