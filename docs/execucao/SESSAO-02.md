@@ -93,6 +93,6 @@ Integração do Tiny: **intacta**, conferida por impressão digital de estrutura
 
 ## Pendente
 
-- **Nenhuma etapa interna cadastrada** — de propósito (D-14). O dono cadastra as dele quando a tela de admin existir (SESSAO-12) ou por SQL, se quiser antecipar.
+- **Nenhuma etapa interna cadastrada** — de propósito (D-14). O dono cadastra as dele quando a tela de admin existir (SESSAO-14) ou por SQL, se quiser antecipar.
 - `SUPABASE_DB_URL` no `.env.local` ainda está com o marcador de senha entre colchetes; por isso o `npm run banco:aplicar` não foi usado nesta sessão (a aplicação foi pela conexão autenticada do Supabase). Basta trocar o marcador pela senha do Postgres para o script funcionar.
 - Proteção da branch `main` no GitHub continua pendente do dono.

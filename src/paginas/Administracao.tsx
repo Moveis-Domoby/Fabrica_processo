@@ -5,7 +5,7 @@ import { Botao } from '@/componentes/ui'
 /**
  * Rota exclusiva de ADMIN (RF-24) — hoje serve de prova da navegação por papel
  * (operador e líder são barrados aqui, inclusive por URL direta).
- * O painel admin completo é a SESSAO-12.
+ * O painel admin completo é a SESSAO-14.
  */
 export function Administracao() {
   return (
@@ -14,7 +14,7 @@ export function Administracao() {
         <h1 className="text-2xl sm:text-3xl">Administração</h1>
         <p className="mt-1 max-w-2xl text-texto-suave">
           Área exclusiva do admin. A consolidação completa (setores, etapas, automações, chaves
-          de API) chega na SESSAO-12 — por enquanto, a gestão de pessoas vive na Equipe.
+          de API) chega na SESSAO-14 — por enquanto, a gestão de pessoas vive na Equipe.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">

@@ -113,7 +113,7 @@ export function PCP() {
         {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
           <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
             Nenhum pedido aguardando. Crie um card a partir de um pedido do Tiny — a entrada
-            automática chega na SESSAO-13.
+            automática chega na SESSAO-09.
           </p>
         )}
 

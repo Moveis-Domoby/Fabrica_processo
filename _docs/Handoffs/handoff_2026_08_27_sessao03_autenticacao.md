@@ -103,10 +103,10 @@ src/componentes/Layout.tsx · src/App.tsx · src/paginas/Inicio.tsx
 
 ## 9. Ficou pendente / limitações conhecidas
 
-- **"Esqueci a senha" não existe** — quem esquecer depende do admin redefinir pelo painel do Supabase por ora. Candidata à SESSAO-12.
+- **"Esqueci a senha" não existe** — quem esquecer depende do admin redefinir pelo painel do Supabase por ora. Candidata à SESSAO-14.
 - **PIN sem limite de tentativas** — com ~30 pessoas de confiança é aceitável; quando os eventos chegarem (SESSAO-05), as tentativas podem virar registro.
 - **Janela da senha padrão**: entre o cadastro e o 1º acesso, quem souber a senha padrão pode entrar na conta nova. Mitigação operacional: **mandar o convite na hora do cadastro** e o 1º acesso ser imediato.
-- Sem tela de editar/desativar usuário (só criar + PIN) — SESSAO-12 consolida.
+- Sem tela de editar/desativar usuário (só criar + PIN) — SESSAO-14 consolida.
 - Q-30 (modo escuro) e Q-42 (canal de notificações) continuam em aberto.
 
 ## 10. Como validar de novo (do zero)

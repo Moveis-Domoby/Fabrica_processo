@@ -57,7 +57,7 @@ const FORMULARIO_VAZIO = {
   pin: '',
 }
 
-/** Gestão mínima de usuários e convites (RF-20/RF-21) — o painel completo é a SESSAO-12. */
+/** Gestão mínima de usuários e convites (RF-20/RF-21) — o painel completo é a SESSAO-14. */
 export function Equipe() {
   const { perfil, vinculos } = useSessao()
   const notificar = useNotificacao()

@@ -47,7 +47,7 @@ D-06 (tablet compartilhado + celular pessoal) · D-10.
 
 ## Fora do escopo
 
-Telas de kanban; dashboards; painel admin completo (SESSAO-12 consolida — aqui só a gestão mínima de usuários/convites).
+Telas de kanban; dashboards; painel admin completo (SESSAO-14 consolida — aqui só a gestão mínima de usuários/convites).
 
 ## Critérios de aceite
 

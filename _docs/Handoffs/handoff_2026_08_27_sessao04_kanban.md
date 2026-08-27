@@ -71,7 +71,7 @@ Mais: `tsc` limpo · lint limpo · testes unitários 8/8 · `test:banco` verde (
 ## 7. Ficou pendente / limitações conhecidas
 
 - **Ordem dentro da coluna não é persistida** — os cards ordenam por chegada (`desde`). Ordenação manual dentro da etapa, se fizer falta, é decisão futura.
-- **Sem tempo fila/execução** (SESSAO-05), **sem qualidade nas transições** (SESSAO-06 — hoje mover entre setores não pergunta estado), **sem entrada automática de pedido** (SESSAO-13).
+- **Sem tempo fila/execução** (SESSAO-05), **sem qualidade nas transições** (SESSAO-06 — hoje mover entre setores não pergunta estado), **sem entrada automática de pedido** (SESSAO-09).
 - **Chunk do build com 740 kB** — funciona, mas é candidato a code-split quando a plataforma crescer.
 - **WARN do Supabase Auth "leaked password protection disabled"** (pré-existente, painel do Auth) — decidir se liga; não bloqueia nada.
 - Telas atualizam por polling (20–30 s + ao focar); realtime fica para quando a tela do setor (SESSAO-07) pedir.

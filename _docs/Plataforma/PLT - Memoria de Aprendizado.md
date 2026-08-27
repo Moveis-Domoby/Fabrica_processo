@@ -65,7 +65,7 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - **M-06** · **Dupla atestação onde há conflito de interesse** — quem entrega marca, quem recebe confirma (D-09); vale para qualquer handoff entre partes com incentivos diferentes.
 - **M-07** · **O que não está escrito na demanda não existe** — presumir requisito é a origem da alucinação; dúvida de negócio → perguntar, nunca preencher.
 - **M-08** · [2026-08-24] **Fila é do setor, execução é da pessoa** — tempo sem dono individual atribui-se ao coletivo (fila longa = gargalo = contratar), tempo com gesto individual atribui-se a quem clicou. Nunca inverter.
-- **M-09** · [2026-08-24] **Número de sessão é ID, não ordem** — a ordem de execução vive só no índice [[000 - ORDEM DAS SESSOES]]; renumerar arquivos para reordenar cria lixo e quebra links.
+- **M-09** · [2026-08-24] **Número de sessão é ID, não ordem** — a ordem de execução vive só no índice [[000 - ORDEM DAS SESSOES]]; renumerar arquivos para reordenar cria lixo e quebra links. **↩️ Revisado em 27/08/2026 (D-23 complemento):** o dono preferiu **número = ordem** — a renumeração foi feita UMA vez, por script no repositório inteiro (76 referências + 8 arquivos renomeados), com de-para registrado no índice. O aviso original continua valendo como custo: renumerar de novo paga esse preço de novo.
 - **M-10** · [2026-08-24] **Configurável > adivinhado** — onde o dono conhece o detalhe e o sistema não (etapas internas de cada setor), entregar o CADASTRO e semear vazio. Chutar estrutura operacional gera trabalho de desfazer e dado errado. (Origem: D-14.)
 - **M-11** · [2026-08-24] **Timer é propriedade da etapa, não feature avulsa** — toda etapa cadastrada já nasce contando tempo para quem chega nela; assim medir não depende de ninguém "ligar" nada.
 - **M-12** · [2026-08-24] **Estado nunca se comunica só por cor** — ícone e texto sempre juntos. Daltonismo é comum e a iluminação do galpão é ruim; cor sozinha é informação que parte da equipe não recebe.
@@ -88,7 +88,7 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - **X-01** · Automação de destino via API quando os padrões de roteiro emergirem dos dados reais (D-03) — os eventos acumulados vão REVELAR o roteiro típico por produto.
 - **X-02** · QR/bipe por unidade como gesto físico de chão de fábrica (ideia C do handoff) — candidato natural a substituir/complementar o toque no tablet nas etapas.
-- **X-03** · Tiny→PCP: decidir na SESSAO-10 entre trigger no banco vs chamada do n8n à API — registrar prós/contras medidos, não teóricos.
+- **X-03** · Tiny→PCP: decidir na SESSAO-09 (entrada via n8n) entre trigger no banco vs chamada do n8n à API — registrar prós/contras medidos, não teóricos.
 - **X-04** · Tempo acumulado por produto pode gerar "tempo-padrão" automático por item — insumo futuro para peso de produtividade (⏸️ D-04) e para custo real (ideia I).
 
 ## Ver também

@@ -15,7 +15,7 @@ O coração visível: quadros, etapas e cards com movimentação manual — repl
 
 ## Requisitos cobertos
 
-RF-01 · RF-02 · RF-04 · início de RF-03 (criação manual de card; a automática via API vem na SESSAO-10).
+RF-01 · RF-02 · RF-04 · início de RF-03 (criação manual de card; a automática via API vem na SESSAO-11).
 
 ## Decisões que regem
 

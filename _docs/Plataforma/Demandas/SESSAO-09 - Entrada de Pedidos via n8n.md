@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-13 — Entrada de Pedidos via n8n (API mínima)"
+titulo: "SESSAO-09 — Entrada de Pedidos via n8n (API mínima)"
 tipo: demanda
 status: rascunho
 data: 2026-08-24
@@ -7,12 +7,12 @@ atualizado: 2026-08-24
 tags: [plataforma, demanda, sessao, api, n8n]
 ---
 
-# 🎯 SESSAO-13 — Entrada de Pedidos via n8n (API mínima)
+# 🎯 SESSAO-09 — Entrada de Pedidos via n8n (API mínima)
 
 > [!info] Por que esta sessão existe (D-11)
-> O dono quer dado real fluindo desde cedo: **pedido novo no Tiny vira card no PCP sozinho**, com o n8n empurrando para a plataforma (a plataforma NÃO busca nada no Tiny — só recebe). É a antiga primeira metade da SESSAO-10, antecipada. ~~Executa logo após a SESSAO-04 (Kanban).~~ A API completa (CRUD, webhooks de saída, ponte ROTAS) continua na SESSAO-10, mais tarde.
+> O dono quer dado real fluindo desde cedo: **pedido novo no Tiny vira card no PCP sozinho**, com o n8n empurrando para a plataforma (a plataforma NÃO busca nada no Tiny — só recebe). É a antiga primeira metade da SESSAO-11, antecipada. ~~Executa logo após a SESSAO-04 (Kanban).~~ A API completa (CRUD, webhooks de saída, ponte ROTAS) continua na SESSAO-11, mais tarde.
 >
-> **↩️ Reposicionada em 27/08/2026 (D-23):** a antecipação caiu — enquanto a plataforma não está no ar, a criação manual de card no PCP (entregue na SESSAO-04) atende. Esta sessão agora **executa logo após a SESSAO-14 (Publicação no Ar)**, quando criar card na mão para ~10 pedidos/dia viraria fardo de verdade. O conteúdo abaixo continua valendo como está.
+> **↩️ Reposicionada em 27/08/2026 (D-23):** a antecipação caiu — enquanto a plataforma não está no ar, a criação manual de card no PCP (entregue na SESSAO-04) atende. Esta sessão agora **executa logo após a SESSAO-08 (Publicação no Ar)**, quando criar card na mão para ~10 pedidos/dia viraria fardo de verdade. O conteúdo abaixo continua valendo como está.
 
 ## O que é
 
@@ -28,7 +28,7 @@ D-11 (n8n empurra; plataforma recebe) · D-08 (o pedido já chega ao Supabase vi
 
 ## Comportamento esperado
 
-- **Endpoint de entrada** com chave de API simples (gerada manualmente nesta fase; a gestão completa de chaves fica para a SESSAO-10/12): criar card de pedido no PCP com os dados que o n8n já tem (número, cliente, itens, previsão, observações).
+- **Endpoint de entrada** com chave de API simples (gerada manualmente nesta fase; a gestão completa de chaves fica para a SESSAO-11/12): criar card de pedido no PCP com os dados que o n8n já tem (número, cliente, itens, previsão, observações).
 - **Idempotente:** o mesmo pedido chegando duas vezes (reenvio do Tiny/n8n) NÃO duplica card — atualiza o existente. (Lição E-01/A-03 do cofre: o Tiny reenvia webhooks.)
 - **Atualização de pedido** (cliente editou no Tiny): card do PCP reflete; se as unidades já foram liberadas, registrar o conflito de forma visível no card (não sobrescrever silenciosamente o que já está em produção — foi exatamente o bug do pedido 13026 no Plugga).
 - **Cancelamento:** comportamento mínimo a confirmar com o dono na sessão (Q-24) — sugestão: card marcado "cancelado", sem sumir.
@@ -43,7 +43,7 @@ D-11 (n8n empurra; plataforma recebe) · D-08 (o pedido já chega ao Supabase vi
 
 ## Fora do escopo
 
-Webhooks de saída · CRUD completo via API · ponte ROTAS · gestão de chaves no admin (tudo isso é SESSAO-10) · mover cards via API entre setores (depende da Q-19 de qualidade).
+Webhooks de saída · CRUD completo via API · ponte ROTAS · gestão de chaves no admin (tudo isso é SESSAO-11) · mover cards via API entre setores (depende da Q-19 de qualidade).
 
 ## Critérios de aceite
 

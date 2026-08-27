@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-09 — Tarefas e Delegação"
+titulo: "SESSAO-12 — Tarefas e Delegação"
 tipo: demanda
 status: rascunho
 data: 2026-08-19
@@ -7,7 +7,7 @@ atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao]
 ---
 
-# 🎯 SESSAO-09 — Tarefas e Delegação
+# 🎯 SESSAO-12 — Tarefas e Delegação
 
 ## O que é
 

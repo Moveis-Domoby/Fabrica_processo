@@ -15,7 +15,7 @@
 --   terminal  → fim de linha: o card fica parado ou é entregue
 --
 -- `modo_delegacao` atende a RF-43 (modo personalizável por setor). O
--- comportamento é a SESSAO-09; aqui existe só o lugar de configurar.
+-- comportamento é a SESSAO-12; aqui existe só o lugar de configurar.
 -- ----------------------------------------------------------------------------
 create table if not exists public.plt_setores (
   id              bigint generated always as identity primary key,

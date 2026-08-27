@@ -32,10 +32,10 @@ SESSAO-01 e SESSAO-02 já entregues — comece pela SESSAO-03.
 Antes de codar, traga entendimento + dúvidas.
 ```
 
-Ordem restante do bloco, conforme [[000 - ORDEM DAS SESSOES]]: **SESSAO-03 → SESSAO-04 → SESSAO-13 → SESSAO-05**.
+Ordem restante do bloco, conforme [[000 - ORDEM DAS SESSOES]]: **SESSAO-03 → SESSAO-04 → SESSAO-09 → SESSAO-05**.
 
 ## Blocos seguintes
 
 Mesmo formato — muda só a linha do bloco.
 
-**↪️ 27/08/2026 (entrega da SESSAO-04):** o dono encerrou o Bloco 1 aqui e mandou replanejar a jornada (D-23) — o **Bloco 2** abre com a SESSAO-05 (timers) e a SESSAO-13 foi reposicionada para depois da publicação. Prompt e escopo em [[PROMPT - Bloco 2 (Sessoes 05 a 13)]].
+**↪️ 27/08/2026 (entrega da SESSAO-04):** o dono encerrou o Bloco 1 aqui e mandou replanejar a jornada (D-23) — o **Bloco 2** abre com a SESSAO-05 (timers) e a entrada via n8n foi reposicionada para depois da publicação (hoje é a SESSAO-09 — as sessões foram renumeradas na mesma data para número = ordem). Prompt e escopo em [[PROMPT - Bloco 2 (Sessoes 05 a 09)]].

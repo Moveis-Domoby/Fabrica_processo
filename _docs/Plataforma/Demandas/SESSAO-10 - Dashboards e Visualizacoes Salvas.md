@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-08 — Dashboards e Visualizações Salvas"
+titulo: "SESSAO-10 — Dashboards e Visualizações Salvas"
 tipo: demanda
 status: rascunho
 data: 2026-08-19
@@ -7,7 +7,7 @@ atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, dashboard]
 ---
 
-# 🎯 SESSAO-08 — Dashboards e Visualizações Salvas
+# 🎯 SESSAO-10 — Dashboards e Visualizações Salvas
 
 ## O que é
 
