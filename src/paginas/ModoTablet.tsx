@@ -65,10 +65,16 @@ export function ModoTablet() {
         className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-5"
         noValidate
       >
+        {/* autocomplete desligado de propósito: o navegador do tablet NUNCA pode
+            preencher aqui a credencial salva da sessão do setor — a identificação
+            é sempre um gesto da pessoa. one-time-code impede o gerenciador de
+            senhas de tratar o PIN como senha de login. */}
         <Campo
           rotulo="Matrícula ou usuário"
           prefixo={<Fingerprint />}
           autoCapitalize="none"
+          autoComplete="off"
+          name="identificacao-operador"
           placeholder="MDM-000-000"
           value={identificador}
           onChange={(e) => setIdentificador(e.target.value)}
@@ -77,6 +83,8 @@ export function ModoTablet() {
           rotulo="PIN"
           type="password"
           inputMode="numeric"
+          autoComplete="one-time-code"
+          name="pin-operador"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           erro={erro || undefined}
