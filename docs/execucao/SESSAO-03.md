@@ -25,9 +25,9 @@
 - [x] 7. Front: `/equipe` — tabela paginada, novo usuário (modal), link de convite com WhatsApp, definir PIN
 - [x] 8. `/tablet` — identificação por matrícula/usuário + PIN, lista de ações com autor (RF-25 parcial)
 - [x] 9. Aplicar migration + deploy da function no Supabase (OK do dono na conversa — D-19)
-- [ ] 10. Bootstrap do admin Wallace (`npm run admin:bootstrap`) + verificação dos critérios de aceite
-- [x] 11. Cofre: D-21, Q-61 ✅, ORDEM → 🔨, revisão na demanda (memória de aprendizado: ao fim, se houver lição)
-- [ ] 12. Handoff com matriz papel × permissão + screenshots
+- [x] 10. Bootstrap do admin Wallace (`npm run admin:bootstrap`) + verificação dos critérios de aceite (todos ✅ — ver handoff §5)
+- [x] 11. Cofre: D-21, Q-61 ✅, ORDEM, revisão na demanda, memória de aprendizado (E-13, E-14)
+- [x] 12. Handoff com matriz papel × permissão + evidências ([[handoff_2026_08_27_sessao03_autenticacao]])
 
 ## Critérios de aceite (da demanda, para conferir no fim)
 
@@ -53,3 +53,7 @@
 - [26/08] Pendente do dono: segredo `PLT_SENHA_PADRAO` (painel + `.env.local`), `npm run admin:bootstrap`, desligar "Allow new users to sign up" no painel de Auth.
 - [27/08] Dono configurou o segredo (painel + .env.local) e desligou o sign-up. **Bootstrap falhou**: `permission denied for schema plt_privado` — a trigger da matrícula não era security definer e a service_role não tinha USAGE no schema (E-14; o PGlite não pega erro de permissão porque roda como superusuário). **Migration 12** (`plt_identidade_permissoes`) aplicada em produção: security definer + grants. `npm run test:banco` verde com as 12 migrations. A conta de auth criada na tentativa falhada é reaproveitada pelo próprio script no rerun.
 - [27/08] E-mail do admin corrigido pelo dono: wallacecauan03 (não "caun"). Corrigido no script, D-21, demanda e nesta memória antes de existir qualquer usuário no banco.
+- [27/08] Bootstrap rerun OK: **MDM-084-001 · wallace · admin**. Dono fez o 1º acesso (troca de senha obrigatória confirmada no banco).
+- [27/08] Verificação completa no navegador (Chrome do dono para a sessão admin; painel do app para a sessão de operador): 2 operadores de teste criados pela tela Equipe (MDM-111-002 PIN 1234 · MDM-555-003 PIN 4321, ambos SECC), convite aberto e usado, modo tablet com **dois autores diferentes** em ações seguidas, PIN errado recusado, senha errada com erro genérico, URL direta de operador para /equipe e /administracao redirecionada, mobile 375px sem rolagem horizontal e alvos ≥56px.
+- [27/08] **Bug real pego no teste:** autofill do Chrome preenchia a credencial salva nos campos do modo tablet → `autocomplete off`/`one-time-code` (commit fix(tablet)). Num tablet de setor isso exporia a credencial do dispositivo — teste com navegador de verdade valeu a sessão.
+- [27/08] Handoff escrito e linkado no mapa e na ordem das sessões. Critérios de aceite todos verificados. Aguardando revisão do dono para merge na main (D-20).

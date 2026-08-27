@@ -76,6 +76,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 📜 Histórico de sessões
 
+- [[handoff_2026_08_27_sessao03_autenticacao]] — **SESSAO-03 da Plataforma**: login por usuário/e-mail, convites por WhatsApp, matrícula MDM automática, troca de senha obrigatória, papéis operador/líder/admin com bloqueio por URL, PIN de tablet (D-21)
 - [[handoff_2026_08_26_sessao02_banco]] — **SESSAO-02 da Plataforma**: modelo de domínio em 10 migrations, aplicado no Supabase da fábrica (9 tabelas plt_*, eventos append-only, RLS por papel)
 - [[handoff_2026_08_24_sessao01_fundacao]] — **SESSAO-01 da Plataforma**: repositório, app React e design system Domoby (amarelo sobre grafite) na branch `sessao-01-fundacao`
 - [[handoff_2026_08_17_automacao_entregue]] — pesquisa completa das integrações do Tiny + projeto da automação ROTAS "entregue" → Tiny
