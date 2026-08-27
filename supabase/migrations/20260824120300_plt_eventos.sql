@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 04 — EVENTOS (append-only)
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- RNF-05 / M-02: o evento é a TABELA-MÃE. Timers, filas, dashboards e
 -- produtividade são TODOS derivados daqui. Nada de estado editável.

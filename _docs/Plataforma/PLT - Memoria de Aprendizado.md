@@ -32,6 +32,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-08-26] **E-11** (Claude Code) · Criei as funções de apoio da plataforma em `public` — e o Supabase **publica o schema `public` inteiro como API REST**, então cada função virou endpoint `/rest/v1/rpc/...` sem ninguém pedir (apontado pelos advisors do próprio Supabase) → **correção:** schema `plt_privado`, fora da API, com `grant execute` só para `authenticated`; e `set search_path` em toda função. **Rodar `get_advisors` depois de todo DDL virou parte do ciclo.**
 
+- [2026-08-26] **E-12** (Claude Code) · A string de conexão do Postgres não era aceita pelo driver e o erro dizia só `Invalid URL` — a senha continha **`#`**, que em URL começa o fragmento e faz o resto da string sumir **em silêncio** → **correção:** o aplicador de migrations passou a fatiar a string à mão (corte na ÚLTIMA arroba) e entregar a senha crua ao driver, em vez de mandar o dono editar/escapar a própria senha. **Lição geral: credencial não passa por parser de URL; e diagnosticar segredo é conferir FORMA (tem `#`? tem espaço? quantas arrobas?), nunca imprimir conteúdo.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 07 — VISÕES DE TEMPO
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- D-02, palavras do dono: "tempo total por etapa, independente se está na fila
 -- ou não; conta o tempo parado na fila entre cada etapa e outro tempo na etapa

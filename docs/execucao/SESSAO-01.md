@@ -8,6 +8,8 @@ data: 2026-08-24
 # 🧾 Memória de execução — SESSAO-01
 
 > Regra 8 do `CLAUDE.md`: este arquivo é escrito **enquanto** a sessão acontece, não no fim.
+>
+> **Nota de data:** as entradas abaixo estão marcadas como 2026-08-24 porque seguiram a data das decisões do cofre. A execução em si aconteceu em **25 e 26/08/2026**. O nome do handoff foi mantido como está para não quebrar os links já criados.
 > Demanda: `_docs/Plataforma/Demandas/SESSAO-01 - Fundacao do Repo e Design System.md`
 
 ## Contexto de entrada
@@ -129,5 +131,5 @@ Executado antes de declarar concluído:
 
 - **Credencial resolvida pelo dono.** O `Repository not found` era a credencial pessoal do GitHub tentando acessar um repositório privado da conta `contatodomoby` — o GitHub responde 404 em vez de 403 de propósito, para não revelar que o repositório existe. Registrado como E-10 na memória de aprendizado.
 - **Merge na `main` feito a pedido explícito do dono**, com `--no-ff` (commit `e977aa4`), após `tsc` + `lint` + 8 testes + build verdes na branch e novamente na `main` depois do merge.
-- ⚠️ **Desvio consciente da regra crítica 1** do `CLAUDE.md` ("toda sessão termina em PR"): não houve PR, houve revisão e aprovação do dono no chat seguida de merge. Fica registrado para não virar precedente silencioso — a regra continua valendo nas próximas sessões, salvo pedido explícito igual a este.
+- ⚠️ **Desvio consciente da regra crítica 1** (↩️ em 26/08 deixou de ser desvio: o dono dispensou PR e proteção de branch enquanto for o único no repositório — **D-20** — e os dois `CLAUDE.md` foram ajustados) do `CLAUDE.md` ("toda sessão termina em PR"): não houve PR, houve revisão e aprovação do dono no chat seguida de merge. Fica registrado para não virar precedente silencioso — a regra continua valendo nas próximas sessões, salvo pedido explícito igual a este.
 - `main` e `sessao-01-fundacao` publicadas em `contatodomoby/Fabrica_processo`.

@@ -23,7 +23,7 @@ D-06 (mobile-first para o chão de fábrica: tablet + celular) · D-09 (as 3 cor
 
 ## Comportamento esperado
 
-- Repositório novo, com branch main protegida (trabalho sempre em branch + PR).
+- Repositório novo, com trabalho sempre em branch própria. ↩️ *A proteção de `main` e o PR foram dispensados em 26/08 — o dono é o único a trabalhar no repo (D-20); a revisão acontece na conversa.*
 - App React inicializado e rodando localmente, com estrutura de pastas documentada.
 - **Design system:** tokens (cores — incluindo as 3 de qualidade —, tipografia, espaçamento, tamanhos de toque para tablet), componentes base (botão, input, select, modal, toast/notificação, badge de estado, tabela **com paginação embutida como padrão**), e uma página interna `/design` que exibe todos os componentes vivos.
 - **Doc de estilização** no repo (`docs/design-system.md`): quando usar cada componente, regra de paginação, densidade, acessibilidade de chão de fábrica (botão grande, contraste).
@@ -45,7 +45,7 @@ Banco, autenticação, qualquer tela de negócio, deploy.
 - [x] `git clone` → instalar → rodar local funciona seguindo só o README.
 - [x] Página `/design` mostra todos os componentes base, em viewport de celular e de tablet — verificado a 375px (vira lista de cards, sem rolagem horizontal) e a 768px.
 - [x] Tabela de exemplo pagina de verdade (27 linhas fictícias, 8 por página) — e coberta por teste automatizado.
-- [x] `CLAUDE.md` na raiz; branch revisada e **mesclada na `main`** a pedido do dono (sem PR, desvio consciente registrado). ⚠️ **Proteção da `main` depende do dono ligar no GitHub** (Settings → Branches) — não é possível pelo código.
+- [x] `CLAUDE.md` na raiz; branch revisada e **mesclada na `main`** a pedido do dono. ✅ *Em 26/08 isso deixou de ser desvio e virou regra: PR e proteção de branch dispensados enquanto o dono for o único no repositório (**D-20**).*
 - [x] Handoff criado: [[handoff_2026_08_24_sessao01_fundacao]].
 
 ---

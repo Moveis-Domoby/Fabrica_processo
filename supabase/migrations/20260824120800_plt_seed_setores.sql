@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 09 — SEED DOS SETORES
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- D-12: os setores de produção do dia 1 são EXATAMENTE os que existem hoje no
 -- espaço DPTO PRODUÇÃO do ClickUp — PCP · SECC · CNC · FITAMENTO · FURAÇÃO ·

@@ -111,8 +111,8 @@ As tabelas novas estão **vazias** (0 cards, 0 eventos), tirando os 9 setores do
 ## 8. Ficou pendente
 
 - **Nenhuma etapa interna cadastrada.** É de propósito (D-14): o sistema entrega o cadastro vazio e você cadastra as etapas de cada setor. Sem tela de admin ainda (SESSAO-12), então ou esperamos, ou eu te ajudo a cadastrar por SQL quando quiser.
-- **`SUPABASE_DB_URL` no `.env.local`** ainda está com o marcador de senha entre colchetes (`[...]`). Troque pelo valor real (Supabase → Settings → Database → Database password) e o `npm run banco:aplicar` passa a funcionar. Nesta sessão a aplicação foi pela conexão autenticada do Supabase, que não precisa dessa senha.
-- **Proteção da branch `main`** no GitHub (Settings → Branches) continua pendente.
+- ~~**`SUPABASE_DB_URL` com marcador de senha.**~~ ✅ **Resolvido em 26/08:** o dono preencheu a senha. Ela contém um `#`, que em URL começa o fragmento e fazia o resto da string sumir em silêncio — o aplicador passou a fatiar a string à mão em vez de entregá-la a um parser de URL, então **a senha pode ser colada exatamente como vem do painel**. `npm run banco:conferir` conectando e lendo o banco. Registrado como E-12.
+- ~~**Proteção da branch `main`.**~~ ✅ **Encerrado em 26/08:** o dono é o único que trabalha no repositório e dispensou PR e proteção (**D-20**). A revisão acontece na conversa; o merge é direto. Os dois `CLAUDE.md` foram ajustados.
 
 ### Aguardando decisão de negócio
 
@@ -177,6 +177,7 @@ Esperado: um erro dizendo **`update em evento: BLOQUEADO`**. O erro é o resulta
 | Setor terminal marca o card como concluído | ✅ |
 | Itens de pedido apagados e regravados com card vivo | ✅ integração do Tiny não quebra |
 | Advisors de segurança do Supabase | ✅ zero achado na plataforma |
+| Integração do Tiny **depois** da aplicação | ✅ continuou recebendo pedidos normalmente: 118 → 133 pedidos, 448 → 535 eventos |
 | Seed | ✅ 9 setores, **0 etapas**, sem METALURGICA |
 
 ## Ver também

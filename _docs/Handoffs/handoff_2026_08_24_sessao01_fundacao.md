@@ -9,6 +9,7 @@ tags: [handoff, sessao, plataforma, design-system]
 # 📋 Handoff — SESSAO-01 · Fundação do Repo e Design System
 
 **Branch:** `sessao-01-fundacao` · **Repositório:** `contatodomoby/Fabrica_processo`
+**Nota de data:** o nome do arquivo e as datas internas seguem as decisões do cofre (24/08); a execução aconteceu em **25 e 26/08/2026**. Mantido assim para não quebrar os links.
 **Demanda:** [[SESSAO-01 - Fundacao do Repo e Design System]] · **Memória de execução:** `docs/execucao/SESSAO-01.md`
 
 ## 1. Objetivo da sessão
@@ -100,8 +101,8 @@ Nenhum. Não há dashboard nem dado real nesta entrega — os dados da tabela de
 
 - **Screenshots da `/design`.** O painel de navegador da sessão não estava sendo exibido e a captura falhou. A verificação foi feita medindo o DOM real nos dois viewports (tabela na seção 9). Vale tirar as fotos com o tablet e o celular de verdade — que é o teste que interessa mesmo.
 - **Logo oficial em arquivo.** Hoje `<Marca />` reconstrói a assinatura com tipografia (Poppins). Quando o PNG/SVG entrar em `public/`, o componente passa a usá-lo sem mudar a API.
-- ~~**Push e PR bloqueados.**~~ ✅ **Resolvido em 24/08:** era a credencial pessoal do GitHub tentando alcançar um repositório privado da conta `contatodomoby`. O dono ajustou o acesso, a branch e a `main` foram publicadas, e **o dono pediu o merge direto na `main`** em vez de PR (desvio consciente da regra crítica 1, registrado na memória de execução). Merge `e977aa4`. Texto original do bloqueio, para histórico: `git push` respondeu `Repository not found` para `https://github.com/contatodomoby/Fabrica_processo.git` — e a `main` local não tem branch de rastreamento, o que indica repositório criado localmente com o remoto adicionado à mão. Os 8 commits estão íntegros na branch `sessao-01-fundacao`; assim que o repositório existir no GitHub (ou a credencial da conta `contatodomoby` estiver no Git Credential Manager), `git push -u origin sessao-01-fundacao` resolve.
-- **Proteção da branch `main`** precisa ser ligada no GitHub pelo dono (Settings → Branches → Add rule): não dá para fazer isso pelo código, e é a regra crítica 1 do `CLAUDE.md`.
+- ~~**Push e PR bloqueados.**~~ ✅ **Resolvido em 24/08:** era a credencial pessoal do GitHub tentando alcançar um repositório privado da conta `contatodomoby`. O dono ajustou o acesso, a branch e a `main` foram publicadas, e **o dono pediu o merge direto na `main`** em vez de PR (na época um desvio consciente da regra crítica 1; em 26/08 virou a regra — D-20). Merge `e977aa4`. Texto original do bloqueio, para histórico: `git push` respondeu `Repository not found` para `https://github.com/contatodomoby/Fabrica_processo.git` — e a `main` local não tem branch de rastreamento, o que indica repositório criado localmente com o remoto adicionado à mão. Os 8 commits estão íntegros na branch `sessao-01-fundacao`; assim que o repositório existir no GitHub (ou a credencial da conta `contatodomoby` estiver no Git Credential Manager), `git push -u origin sessao-01-fundacao` resolve.
+- ~~**Proteção da branch `main`.**~~ ✅ **Encerrado em 26/08:** o dono é o único que trabalha no repositório e dispensou a proteção e o PR — a revisão acontece na conversa e o merge é direto. Registrado como **D-20**, e a regra crítica 1 do `CLAUDE.md` foi ajustada para refletir isso.
 
 ### Aguardando decisão de negócio
 
@@ -111,7 +112,7 @@ Nenhum. Não há dashboard nem dado real nesta entrega — os dados da tabela de
 
 ### Próximo passo sugerido
 
-Revisar e aprovar o PR desta branch, ligar a proteção da `main`, criar o projeto Supabase de dev — e então abrir a sessão da [[SESSAO-02 - Banco e Dominio no Supabase]].
+↩️ **Atualizado em 26/08:** a branch foi revisada e mesclada na `main` (sem PR — D-20), a proteção de branch foi dispensada, e o projeto Supabase de dev acabou não existindo: o dono conectou o Supabase da fábrica e autorizou trabalhar nele (D-19). A [[SESSAO-02 - Banco e Dominio no Supabase]] já está entregue — ver [[handoff_2026_08_26_sessao02_banco]].
 
 ## 9. Como validar
 

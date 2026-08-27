@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 05 — QUALIDADE E NOTIFICAÇÕES
--- Sessão: SESSAO-02 · Data: 2026-08-24
+-- Sessão: SESSAO-02 · Data: 2026-08-26
 --
 -- D-09 (revisada em 24/08): dupla atestação — quem ENTREGA marca, quem RECEBE
 -- registra o próprio parecer. SEM foto obrigatória. SEM disputa e SEM pausa:
