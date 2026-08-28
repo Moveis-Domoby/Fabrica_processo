@@ -51,7 +51,9 @@ begin
       'estorno',
       'pedido_atualizado',   -- SESSAO-09: o Tiny mudou o pedido com produção em andamento
       'pedido_cancelado'     -- SESSAO-09: o pedido foi cancelado no Tiny
-    ));
+    )) not valid;
+    -- NOT VALID: reaplicação idempotente num banco que já viveu migrations
+    -- futuras (tipos novos) — a última migration do check valida tudo.
 end;
 $$;
 

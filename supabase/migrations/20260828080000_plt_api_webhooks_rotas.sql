@@ -54,7 +54,9 @@ begin
       'pedido_cancelado',
       'card_arquivado',      -- SESSAO-11: o "excluir" da API/admin, sem apagar nada
       'pedido_entregue'      -- SESSAO-11: o gesto da logística no módulo de ROTAS
-    ));
+    )) not valid;
+    -- NOT VALID: reaplicação idempotente num banco que já viveu migrations
+    -- futuras — a migration mais nova do check é quem valida tudo.
 end;
 $$;
 

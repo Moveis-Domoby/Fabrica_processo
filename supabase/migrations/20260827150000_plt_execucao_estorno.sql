@@ -64,7 +64,10 @@ begin
       'notificacao_enviada',
       'delegacao',
       'estorno'
-    ));
+    )) not valid;
+    -- NOT VALID de propósito: na reaplicação idempotente, o banco real já
+    -- viveu migrations FUTURAS que criaram tipos novos — validar as linhas
+    -- existentes aqui quebraria. A última migration do check valida tudo.
 end;
 $$;
 
