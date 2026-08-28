@@ -19,6 +19,8 @@ export interface ModalParecerProps {
   card: Card | null
   pedido?: PedidoResumo
   pendente: ParecerPendente | null
+  /** Tablet compartilhado (SESSAO-07): o parecer sai em nome do operador do PIN. */
+  operadorId?: string
   aoFechar: () => void
   /** Chamado depois do parecer registrado, com o estado escolhido — o quadro
    *  decide se segue direto para o Iniciar (🟢/🟡) ou não (🔴 → DANIFICADO). */
@@ -31,7 +33,14 @@ export interface ModalParecerProps {
  * concorda?". Divergência NÃO trava nada — vira registro e aviso automático à
  * liderança; 🔴 leva o card à etapa DANIFICADO sozinho (regras do banco).
  */
-export function ModalParecer({ card, pedido, pendente, aoFechar, aoRegistrado }: ModalParecerProps) {
+export function ModalParecer({
+  card,
+  pedido,
+  pendente,
+  operadorId,
+  aoFechar,
+  aoRegistrado,
+}: ModalParecerProps) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
 
@@ -92,6 +101,7 @@ export function ModalParecer({ card, pedido, pendente, aoFechar, aoRegistrado }:
       marcacaoEventoId: pendente.marcacaoEventoId,
       estado,
       observacao: observacao || undefined,
+      operadorId,
     })
   }
 
@@ -167,7 +177,7 @@ export function ModalParecer({ card, pedido, pendente, aoFechar, aoRegistrado }:
             <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto">
               Você vê diferente do que {pendente.setorOrigemNome} marcou (
               {ROTULO_ESTADO[pendente.estado].toLowerCase()}). A divergência fica registrada e a
-              liderança é avisada — o card segue o fluxo normal (D-09).
+              liderança é avisada — o card segue o fluxo normal.
             </p>
           )}
 

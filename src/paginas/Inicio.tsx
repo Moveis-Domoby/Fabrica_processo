@@ -81,7 +81,7 @@ export function Inicio() {
       <div className="flex flex-wrap gap-3">
         <Link to="/tablet">
           <Botao variante="secundaria" icone={<TabletSmartphone />}>
-            Modo tablet (PIN)
+            Tela do setor
           </Botao>
         </Link>
         {ehLider && (

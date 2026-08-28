@@ -22,6 +22,8 @@ export interface ModalMoverCardProps {
   setores: Setor[]
   /** Nome de quem está executando o card agora (para o aviso da D-24). */
   executorNome?: string
+  /** Tablet compartilhado (SESSAO-07): o gesto sai em nome do operador do PIN. */
+  operadorId?: string
   aoFechar: () => void
 }
 
@@ -40,6 +42,7 @@ export function ModalMoverCard({
   pedido,
   setores,
   executorNome,
+  operadorId,
   aoFechar,
 }: ModalMoverCardProps) {
   const { perfil } = useSessao()
@@ -127,6 +130,7 @@ export function ModalMoverCard({
       destinoSetorId: setorEscolhido.id,
       destinoEtapaId: etapaEscolhida,
       estadoQualidade: exigeQualidade ? estadoQualidade : null,
+      operadorId,
     })
   }
 

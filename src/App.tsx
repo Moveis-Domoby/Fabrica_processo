@@ -8,8 +8,9 @@ import { Entrar } from '@/paginas/Entrar'
 import { Convite } from '@/paginas/Convite'
 import { TrocarSenha } from '@/paginas/TrocarSenha'
 import { Equipe } from '@/paginas/Equipe'
-import { ModoTablet } from '@/paginas/ModoTablet'
+import { TelaSetor } from '@/paginas/TelaSetor'
 import { Administracao } from '@/paginas/Administracao'
+import { ControleTempo } from '@/paginas/ControleTempo'
 import { PCP } from '@/paginas/PCP'
 import { QuadroSetor } from '@/paginas/QuadroSetor'
 import { Expedicao } from '@/paginas/Expedicao'
@@ -30,7 +31,8 @@ export function App() {
             <Route element={<RotaProtegida />}>
               <Route path="/" element={<Inicio />} />
               <Route path="/trocar-senha" element={<TrocarSenha />} />
-              <Route path="/tablet" element={<ModoTablet />} />
+              {/* A tela do chão de fábrica (SESSAO-07): fila do setor + PIN. */}
+              <Route path="/tablet" element={<TelaSetor />} />
               {/* kanban (SESSAO-04): as páginas conferem o acesso por setor */}
               <Route path="/pcp" element={<PCP />} />
               <Route path="/setores/:id" element={<QuadroSetor />} />
@@ -46,6 +48,8 @@ export function App() {
             {/* só admin */}
             <Route element={<RotaProtegida nivel="admin" />}>
               <Route path="/administracao" element={<Administracao />} />
+              {/* Controle de tempo do admin (SESSAO-07/D-29). */}
+              <Route path="/administracao/tempo" element={<ControleTempo />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
