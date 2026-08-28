@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Eye, Search } from 'lucide-react'
+import { AlertTriangle, Ban, CheckCircle2, Eye, Search } from 'lucide-react'
 import { BadgeEstado, Botao, Campo, Modal, Paginacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -115,6 +115,19 @@ export function Expedicao() {
                   ) : (
                     <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave tabular-nums">
                       {linha.unidades_no_terminal} de {linha.total_unidades} no fim de linha
+                    </span>
+                  )}
+                  {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
+                  {linha.situacao === 'cancelado' && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+                      <Ban aria-hidden className="size-3.5" />
+                      Cancelado no Tiny
+                    </span>
+                  )}
+                  {linha.alterado_apos_liberacao && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
+                      <AlertTriangle aria-hidden className="size-3.5" />
+                      Alterado no Tiny após a liberação
                     </span>
                   )}
                 </div>

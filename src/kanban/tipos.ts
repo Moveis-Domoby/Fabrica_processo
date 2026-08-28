@@ -62,6 +62,8 @@ export interface PedidoResumo {
   total_unidades: number
   tem_card: boolean
   unidades_liberadas: number
+  /** SESSAO-09: o Tiny mudou o pedido DEPOIS de unidades irem à produção. */
+  alterado_apos_liberacao: boolean
   contagem_total: number
 }
 
@@ -79,9 +81,13 @@ export interface ExpedicaoLinha {
   numero: number
   cliente_nome: string
   data_prevista: string | null
+  /** Situação do Tiny — 'cancelado' vira selo (SESSAO-09/D-31). */
+  situacao: string | null
   total_unidades: number
   unidades_liberadas: number
   unidades_no_terminal: number
+  /** SESSAO-09: o Tiny mudou o pedido DEPOIS de unidades irem à produção. */
+  alterado_apos_liberacao: boolean
   contagem_total: number
 }
 
@@ -156,6 +162,8 @@ export interface EventoLinhaTempo {
     | 'notificacao_enviada'
     | 'delegacao'
     | 'estorno'
+    | 'pedido_atualizado'
+    | 'pedido_cancelado'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

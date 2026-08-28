@@ -25,7 +25,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 6º | [[SESSAO-06 - Qualidade nas Transicoes]] | 3 estados + dupla marcação, sem disputa (D-09 revisada) | 05 | ✅ entregue — [[handoff_2026_08_27_sessao06_qualidade]] (dúvidas viraram a D-25) |
 | 7º | [[SESSAO-07 - Tela do Setor Tablet]] | A tela do chão de fábrica: fila do setor, PIN na tela, tempo real + som — e o prelúdio D-27 (sidebar, modelo de sistema, controle de tempo D-29) | 05, 06 | ✅ entregue — [[handoff_2026_08_28_sessao07_tela_setor]] (bloco noturno D-26) |
 | 8º | [[SESSAO-08 - Publicacao no Ar]] | **A plataforma hospedada e acessível dos tablets do galpão** (Q-62/Q-60); encerra a permissão da D-19 | 07 | ⏸️ adiada (D-30 — o dono avisa quando for lançar; saiu do bloco noturno) |
-| 9º | [[SESSAO-09 - Entrada de Pedidos via n8n]] | **Pedido do Tiny vira card no PCP sozinho** — ↩️ por trigger no banco (D-31), sem tocar o n8n | 04 | 🔶 rascunho (no bloco noturno) |
+| 9º | [[SESSAO-09 - Entrada de Pedidos via n8n]] | **Pedido do Tiny vira card no PCP sozinho** — por trigger no banco (D-31), à prova de falha, sem tocar o n8n | 04 | ✅ entregue — [[handoff_2026_08_28_sessao09_entrada_pedidos]] (bloco noturno D-26) |
 | 10º | [[SESSAO-10 - Dashboards e Visualizacoes Salvas]] | Produtividade + qualidade sobre dados REAIS, foco pesado em tempo (D-32), views salvas | 06, 07 | 🔶 rascunho (no bloco noturno) |
 | 11º | [[SESSAO-11 - API Aberta e Integracao n8n]] | API completa: CRUD/mover, gestão de chaves, webhooks + **módulo básico de ROTAS na plataforma (D-33 — ponte ClickUp morta)** | 05, 09 | 🔶 rascunho (no bloco noturno) |
 | 12º | [[SESSAO-12 - Tarefas e Delegacao]] | Meus afazeres/time, delegação em 3 modos, sorteio entre logados (D-34) | 04 | 🔶 rascunho (no bloco noturno) |

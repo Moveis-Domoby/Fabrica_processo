@@ -26,6 +26,9 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   divergencia_registrada: 'Divergência registrada',
   notificacao_enviada: 'Liderança avisada',
   estorno: 'Estorno',
+  // SESSAO-09 (D-31): o que o Tiny fez com o pedido também é história do card.
+  pedido_atualizado: 'Pedido alterado no Tiny',
+  pedido_cancelado: 'Pedido cancelado no Tiny',
 }
 
 function hora(iso: string): string {
