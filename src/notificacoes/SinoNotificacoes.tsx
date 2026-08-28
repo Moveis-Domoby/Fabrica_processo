@@ -72,7 +72,10 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId: string }) {
           <div
             role="region"
             aria-label="Notificações"
-            className="absolute right-0 top-full z-50 mt-2 flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg"
+            // O menu quebra em mais de uma linha e o sino pode ficar perto da
+            // borda esquerda — painel ancorado nele estouraria a tela. Por
+            // isso ele é fixo, ancorado à borda direita da PÁGINA.
+            className="fixed right-3 top-24 z-50 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg"
           >
             <header className="flex items-center justify-between gap-2 border-b border-borda px-3 py-2">
               <span className="text-sm font-semibold text-texto">Notificações</span>

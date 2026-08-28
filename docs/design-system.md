@@ -207,6 +207,24 @@ SESSAO-05.
 - A montagem dos segmentos é lógica pura em `src/kanban/linha-tempo.ts` — testada em Vitest,
   espelhando as views do banco.
 
+### Qualidade nas transições (SESSAO-06 / D-09 / D-25)
+
+- **Marcação de estado** (no `ModalMoverCard`, ao sair de setor de produção) e **parecer de
+  recebimento** (`<ModalParecer>`) usam o mesmo padrão: **3 botões-rádio empilhados** com
+  `<BadgeEstado>` (ícone + texto, nunca só cor — M-12) + a descrição de cada estado, alvo
+  `min-h-toque-lg` (56px). O texto do 🟡 é o do dono (Q-16) e **não se reescreve**.
+- No parecer, a opção que repete a marcação de quem entregou ganha o rótulo **"Concordo com
+  {SETOR}"**; escolher diferente mostra o aviso de divergência ANTES de confirmar (âmbar, sem
+  tom de bronca — divergir é gesto legítimo).
+- **`<CartaoUnidade>` com parecer pendente** mostra a faixa "{SETOR} entregou como {estado} —
+  confirme ao iniciar" e o Iniciar abre a confirmação primeiro (o banco também trava).
+- **Coluna DANIFICADO** (`eh_danificado`) ganha selo vermelho `danificado-fundo/texto` no
+  cabeçalho, como a fila ganha o selo `info`.
+- **`<SinoNotificacoes>`** (`src/notificacoes/`): sino no topo com contador de não lidas;
+  painel **fixo, ancorado à borda direita da PÁGINA** (nunca no próprio sino — o menu quebra de
+  linha e o sino pode estar à esquerda; ancorar nele estoura a tela no celular). Aviso não lido
+  tem fundo `superficie-sutil` + "Toque para marcar como lida".
+
 ## 5. Regras de escrita da interface
 
 - **UI 100% em português.**

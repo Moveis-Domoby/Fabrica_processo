@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-06 — Qualidade nas Transições"
 tipo: demanda
-status: em execucao
+status: entregue
 data: 2026-08-19
 atualizado: 2026-08-27
 tags: [plataforma, demanda, sessao, qualidade]
