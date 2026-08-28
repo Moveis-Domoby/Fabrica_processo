@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-11 — API Aberta e Integração n8n"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
 atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, api, n8n]
 ---
 
 # 🎯 SESSAO-11 — API Aberta e Integração n8n
+
+> [!success] ✅ Entregue em 28/08/2026 (bloco noturno D-26) — [[handoff_2026_08_28_sessao11_api_rotas]]
+> API testada com curl contra a produção (ciclo completo + revogação instantânea); webhook entregue num endpoint de eco com assinatura HMAC; ROTAS por pedido completo no ar. "Revisar a entrada da SESSAO-09" ficou N/A (a entrada é trigger — não houve chave manual a migrar).
 
 > [!warning] ↩️ Revisada em 28/08/2026 (D-33 — respostas do dono no aval do bloco noturno)
 > **A ponte ROTAS → ClickUp caiu**: nada mais se cria no ClickUp, e o n8n não empurra nada novo por ora. No lugar dela, esta sessão entrega o **módulo básico de ROTAS dentro da plataforma** (opção B do dono), com agrupamento **por pedido completo**, seguindo a documentação de rotas dos `_docs` ([[N8N - ROTAS ClickUp]] descreve o card real de entrega). A automação em produção ROTAS "entregue" → Tiny não se toca. O restante (chaves, escopos, CRUD, webhooks de saída genéricos) segue como abaixo.

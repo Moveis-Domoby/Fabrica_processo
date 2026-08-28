@@ -1350,6 +1350,170 @@ conferir(
 )
 
 // ============================================================================
+// SESSAO-11 — API, webhooks e ROTAS (migration 19 / D-33)
+// ============================================================================
+titulo('API e webhooks (SESSAO-11): chaves, arquivamento lógico e fila de saída')
+
+// Chave de API: a tabela guarda só hash + prefixo; RLS de admin (provado pelo desenho — PGlite roda como superusuário).
+await bd.exec(`
+  insert into public.plt_chaves_api (nome, hash, prefixo, escopo)
+    values ('n8n de teste', 'hash-de-teste-nao-e-o-valor', 'pltk_abc', 'escrita');
+`)
+conferir(true, 'chave de API cadastrada com hash e prefixo (o valor em claro nunca fica)')
+
+// Webhook assinando card_criado: o próximo evento entra na fila com payload completo.
+await bd.exec(`
+  insert into public.plt_webhooks (nome, url, eventos, ativo)
+    values ('eco de teste', 'https://exemplo.invalido/webhook', '{card_criado}', true);
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 5, '077', 'Aparador Retro', 1, 1
+      from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'secc'), 'interface');
+`)
+const cardArquivavel = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+const filaWebhook = (
+  await bd.query(`
+    select count(*)::int as total,
+           bool_and(payload ? 'tipo' and payload ? 'card') as payload_completo
+      from public.plt_webhook_entregas`)
+).rows[0]
+conferir(
+  filaWebhook.total >= 1 && filaWebhook.payload_completo === true,
+  'evento assinado entrou na fila de webhooks com payload completo (RF-52)',
+  JSON.stringify(filaWebhook),
+)
+const despacho = (
+  await bd.query(`select plt_privado.fn_despachar_webhooks()::int as enviados`)
+).rows[0]
+conferir(
+  despacho.enviados === 0,
+  'despacho sem pg_net não quebra — devolve 0 e espera a produção (guarda de ambiente)',
+  `enviados: ${despacho.enviados}`,
+)
+
+// Arquivamento lógico: operador não pode; admin pode; card some das leituras.
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardArquivavel}, 'card_arquivado',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'operador não arquiva card — gesto de admin ou da integração',
+  /gesto de admin ou da integração/i,
+)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, origem)
+    values (${cardArquivavel}, 'card_arquivado', 'api');
+`)
+const arquivado = (
+  await bd.query(`
+    select (select arquivado_em is not null from public.plt_cards where id = ${cardArquivavel}) as marcado,
+           (select count(*)::int from public.plt_cards
+             where id = ${cardArquivavel}) as linha_continua`)
+).rows[0]
+conferir(
+  arquivado?.marcado === true && arquivado?.linha_continua === 1,
+  'card_arquivado projeta arquivado_em sem apagar nada (o "excluir" da API)',
+  JSON.stringify(arquivado ?? null),
+)
+
+titulo('ROTAS na plataforma (SESSAO-11/D-33): entrega por pedido completo')
+
+// Pedido novo isolado com 2 unidades a produzir.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999995, (select id from public.clientes order by id desc limit 1), 'aprovado');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 999995), 1, '055', 'Rack Duo', 2);
+`)
+const cardRotas = (
+  await bd.query(`
+    select id::int as id from public.plt_cards
+     where tipo = 'pedido' and pedido_id = (select id from public.pedidos where numero = 999995)`)
+).rows[0].id
+
+// Duas unidades liberadas; uma chega na ROTAS.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '055', 'Rack Duo', n, 2
+      from public.pedidos p, generate_series(1, 2) n where p.numero = 999995;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    select c.id, 'card_criado', (select id from public.plt_setores where codigo = 'secc'), 'interface'
+      from public.plt_cards c
+     where c.pedido_id = (select id from public.pedidos where numero = 999995) and c.tipo = 'unidade';
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    select min(c.id), 'movimentacao_setor',
+           (select id from public.plt_setores where codigo = 'secc'),
+           (select id from public.plt_setores where codigo = 'rotas'), 'api'
+      from public.plt_cards c
+     where c.pedido_id = (select id from public.pedidos where numero = 999995) and c.tipo = 'unidade';
+`)
+
+// O admin de teste ganha auth aqui (o bloco da SESSAO-10, mais abaixo, repete
+// o update — idempotente).
+await bd.exec(`
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000001'
+   where usuario = 'primeira.pessoa';
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+`)
+const rotasParcial = (
+  await bd.query(`
+    select situacao_entrega, unidades_em_rotas, total_unidades, endereco is not null as tem_endereco
+      from public.plt_fn_rotas() where numero = 999995`)
+).rows[0]
+conferir(
+  rotasParcial?.situacao_entrega === 'aguardando' && rotasParcial?.unidades_em_rotas === 1,
+  'pedido incompleto na ROTAS aparece como "aguardando" (D-33)',
+  JSON.stringify(rotasParcial ?? null),
+)
+
+await deveRecusarExec(
+  `select public.plt_fn_registrar_entrega(${cardRotas})`,
+  'entrega recusada com o pedido incompleto — "não vamos entregar 10 se ele pediu 30"',
+  /pedido completo/i,
+)
+
+// A segunda unidade chega; a entrega passa a ser possível — e registrada uma vez só.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    select max(c.id), 'movimentacao_setor',
+           (select id from public.plt_setores where codigo = 'secc'),
+           (select id from public.plt_setores where codigo = 'rotas'), 'api'
+      from public.plt_cards c
+     where c.pedido_id = (select id from public.pedidos where numero = 999995) and c.tipo = 'unidade';
+`)
+const pronta = (
+  await bd.query(`select situacao_entrega from public.plt_fn_rotas() where numero = 999995`)
+).rows[0]
+conferir(pronta?.situacao_entrega === 'pronta', 'pedido completo na ROTAS fica "pronta"', JSON.stringify(pronta ?? null))
+
+await bd.exec(`select public.plt_fn_registrar_entrega(${cardRotas}, 'entregue no teste')`)
+const entregue = (
+  await bd.query(`
+    select (select situacao_entrega from public.plt_fn_rotas() where numero = 999995) as situacao,
+           (select count(*)::int from public.plt_eventos
+             where card_id = ${cardRotas} and tipo = 'pedido_entregue') as eventos`)
+).rows[0]
+conferir(
+  entregue?.situacao === 'entregue' && entregue?.eventos === 1,
+  'registrar entrega grava o evento append-only e o pedido vira "entregue"',
+  JSON.stringify(entregue ?? null),
+)
+await deveRecusarExec(
+  `select public.plt_fn_registrar_entrega(${cardRotas})`,
+  'entregar duas vezes é recusado',
+  /já foi registrado/i,
+)
+
+// Gate: operador de produção não vê rotas nem registra entrega.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const rotasOperador = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_rotas()`)
+).rows[0]
+conferir(rotasOperador.total === 0, 'operador de produção não enxerga as rotas (gate da logística)')
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+// ============================================================================
 // SESSAO-10 — Dashboards (migration 18 / D-32)
 // ============================================================================
 titulo('Dashboards (SESSAO-10/D-32): números batem, gate por papel')

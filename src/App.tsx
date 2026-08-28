@@ -15,6 +15,8 @@ import { Dashboards } from '@/paginas/Dashboards'
 import { PCP } from '@/paginas/PCP'
 import { QuadroSetor } from '@/paginas/QuadroSetor'
 import { Expedicao } from '@/paginas/Expedicao'
+import { Rotas } from '@/paginas/Rotas'
+import { AdminApi } from '@/paginas/AdminApi'
 import { Estrutura } from '@/paginas/Estrutura'
 
 export function App() {
@@ -38,6 +40,8 @@ export function App() {
               <Route path="/pcp" element={<PCP />} />
               <Route path="/setores/:id" element={<QuadroSetor />} />
               <Route path="/expedicao" element={<Expedicao />} />
+              {/* ROTAS dentro da plataforma (SESSAO-11/D-33): a página confere o acesso. */}
+              <Route path="/rotas" element={<Rotas />} />
             </Route>
 
             {/* líder (de algum setor) ou admin */}
@@ -53,6 +57,8 @@ export function App() {
               <Route path="/administracao" element={<Administracao />} />
               {/* Controle de tempo do admin (SESSAO-07/D-29). */}
               <Route path="/administracao/tempo" element={<ControleTempo />} />
+              {/* Chaves de API e webhooks (SESSAO-11). */}
+              <Route path="/administracao/api" element={<AdminApi />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

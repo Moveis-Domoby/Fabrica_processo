@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { CalendarClock, Settings2, UsersRound } from 'lucide-react'
+import { CalendarClock, KeyRound, Settings2, UsersRound } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 
 /**
@@ -33,6 +33,12 @@ export function Administracao() {
         <Link to="/administracao/tempo">
           <Botao variante="secundaria" icone={<CalendarClock />}>
             Controle de tempo
+          </Botao>
+        </Link>
+        {/* SESSAO-11: chaves de API e webhooks de saída. */}
+        <Link to="/administracao/api">
+          <Botao variante="secundaria" icone={<KeyRound />}>
+            API e integrações
           </Botao>
         </Link>
       </div>

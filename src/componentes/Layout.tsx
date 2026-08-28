@@ -12,6 +12,7 @@ import {
   Package,
   Settings,
   TabletSmartphone,
+  Truck,
   UsersRound,
   X,
 } from 'lucide-react'
@@ -65,7 +66,11 @@ export function Layout({ children }: { children: ReactNode }) {
           : []),
         ...meusQuadros,
         ...(souAdmin || ehDoPcp || ehDeTerminal
-          ? [{ para: '/expedicao', rotulo: 'Expedição', icone: <Package aria-hidden /> }]
+          ? [
+              { para: '/expedicao', rotulo: 'Expedição', icone: <Package aria-hidden /> },
+              // ROTAS na plataforma (SESSAO-11/D-33): a logística vê as entregas.
+              { para: '/rotas', rotulo: 'ROTAS', icone: <Truck aria-hidden /> },
+            ]
           : []),
         { para: '/tablet', rotulo: 'Tela do setor', icone: <TabletSmartphone aria-hidden /> },
         ...(ehLider

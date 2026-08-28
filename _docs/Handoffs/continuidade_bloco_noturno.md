@@ -13,8 +13,8 @@ tags: [plataforma, bloco-noturno, continuidade]
 
 ## Estado atual
 
-- **Sessões terminadas:** SESSAO-07 ✅ · SESSAO-09 ✅ · SESSAO-10 ✅ (handoffs + merges na main).
-- **Próxima sessão da fila:** **SESSAO-11 — API completa + módulo básico de ROTAS na plataforma** (D-33: ponte ClickUp morta, agrupamento por pedido completo; chaves com hash e escopos; webhooks de saída genéricos), depois a 12.
+- **Sessões terminadas:** SESSAO-07 ✅ · SESSAO-09 ✅ · SESSAO-10 ✅ · SESSAO-11 ✅ (handoffs + merges na main).
+- **Próxima sessão da fila:** **SESSAO-12 — Tarefas e Delegação** (D-34: 3 modos por setor, sorteio entre logados, tarefa avulsa sem timer obrigatório; delegação organiza, não trava) — a ÚLTIMA do bloco; termina com verificação de tela (é uma das sessões marcadas para conferência visual).
 - **Encadeamento:** o ambiente desta execução mantém a conversa viva com contexto resumido automaticamente — o bloco segue NA MESMA conversa, uma sessão por vez, com branch/handoff/merge próprios (decisão provisória logada; o espírito da D-26 — contexto não estourar — está preservado).
 
 ## Decisões provisórias tomadas até aqui (rever de manhã)
