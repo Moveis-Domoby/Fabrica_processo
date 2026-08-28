@@ -1,8 +1,18 @@
-import { Clock, Flag, History, Hourglass, MoveRight, Play, Square, UserRound } from 'lucide-react'
+import {
+  Clock,
+  ClipboardCheck,
+  Flag,
+  History,
+  Hourglass,
+  MoveRight,
+  Play,
+  Square,
+  UserRound,
+} from 'lucide-react'
 import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { formatarDuracao } from '../tempo'
-import type { Card, PedidoResumo } from '../tipos'
+import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
 
 export interface CartaoUnidadeProps {
   card: Card
@@ -28,6 +38,9 @@ export interface CartaoUnidadeProps {
   gestoPendente?: boolean
   /** true quando o card está num setor terminal (D-13): mostra a chegada. */
   terminal?: boolean
+  /** Marcação de quem entregou ainda sem parecer (SESSAO-06/D-09): o Iniciar
+   *  passa primeiro pela confirmação de recebimento. */
+  parecerPendente?: ParecerPendente
   arrastando?: boolean
 }
 
@@ -51,6 +64,7 @@ export function CartaoUnidade({
   esperandoHaMaisTempo = false,
   gestoPendente = false,
   terminal = false,
+  parecerPendente,
   arrastando = false,
 }: CartaoUnidadeProps) {
   const kn =
@@ -125,6 +139,16 @@ export function CartaoUnidade({
           )}
           {formatarDuracao(card.desde, agora)} na fila
           {esperandoHaMaisTempo && <span> · há mais tempo esperando</span>}
+        </p>
+      )}
+
+      {/* SESSAO-06 (D-09): a entrega marcada esperando a confirmação de quem recebe. */}
+      {!terminal && parecerPendente && (
+        <p className="flex flex-wrap items-center gap-1.5 rounded-dm bg-superficie-sutil px-2 py-1.5 text-xs text-texto">
+          <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
+          {parecerPendente.setorOrigemNome} entregou como
+          <BadgeEstado estado={parecerPendente.estado} tamanho="sm" />
+          <span className="text-texto-suave">— confirme ao iniciar.</span>
         </p>
       )}
 

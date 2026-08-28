@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Hourglass, Play, RotateCcw, Undo2 } from 'lucide-react'
-import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
+import { ArrowRight, ClipboardCheck, Hourglass, Play, RotateCcw, Undo2 } from 'lucide-react'
+import { BadgeEstado, Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { estornarEvento, linhaTempoCard } from '../api'
@@ -23,6 +23,8 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   execucao_finalizada: 'Execução finalizada',
   qualidade_marcada: 'Qualidade marcada',
   qualidade_parecer: 'Parecer de qualidade',
+  divergencia_registrada: 'Divergência registrada',
+  notificacao_enviada: 'Liderança avisada',
   estorno: 'Estorno',
 }
 
@@ -147,6 +149,39 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
                 </span>
               </header>
 
+              {/* SESSAO-06 (D-09): a dupla atestação desta chegada. */}
+              {s.qualidade && (
+                <div className="mt-2 flex flex-col gap-1 rounded-dm bg-superficie px-2 py-1.5 text-xs">
+                  <span className="flex flex-wrap items-center gap-1.5 text-texto">
+                    <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
+                    Entrega de {s.qualidade.setorRemetenteNome ?? 'setor anterior'}
+                    {s.qualidade.remetenteNome ? ` (${s.qualidade.remetenteNome})` : ''}:
+                    <BadgeEstado estado={s.qualidade.estadoRemetente} tamanho="sm" />
+                  </span>
+                  {s.qualidade.estadoRecebedor ? (
+                    <span className="flex flex-wrap items-center gap-1.5 text-texto">
+                      <span className="w-4 shrink-0" aria-hidden />
+                      Recebimento{s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
+                      <BadgeEstado estado={s.qualidade.estadoRecebedor} tamanho="sm" />
+                      {s.qualidade.divergente && (
+                        <span className="rounded-full bg-atencao-fundo px-2 py-0.5 font-medium text-atencao-texto">
+                          divergência — liderança avisada
+                        </span>
+                      )}
+                      {s.qualidade.observacaoRecebedor && (
+                        <span className="italic text-texto-suave">
+                          “{s.qualidade.observacaoRecebedor}”
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="pl-5 text-texto-fraco">
+                      Recebimento ainda sem parecer — exigido antes do primeiro Iniciar.
+                    </span>
+                  )}
+                </div>
+              )}
+
               <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
                 <div className="flex items-center gap-2">
                   <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
@@ -265,6 +300,7 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
                     <span className="tabular-nums">{hora(e.ocorrido_em)}</span>
                     <span className="font-medium">{ROTULO_TIPO[e.tipo] ?? e.tipo}</span>
                     {e.usuario_nome && <span>· {e.usuario_nome}</span>}
+                    {e.estado_qualidade && <BadgeEstado estado={e.estado_qualidade} tamanho="sm" />}
                     {e.tipo.startsWith('movimentacao') && (
                       <span className="inline-flex items-center gap-1">
                         {e.setor_origem_nome}

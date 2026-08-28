@@ -31,6 +31,17 @@ export interface ExecucaoSegmento {
   transferidoDe: string | null
 }
 
+/** A dupla atestação de uma chegada (SESSAO-06/D-09), quando houve marcação. */
+export interface QualidadeSegmento {
+  estadoRemetente: NonNullable<EventoLinhaTempo['estado_qualidade']>
+  remetenteNome: string | null
+  setorRemetenteNome: string | null
+  estadoRecebedor: NonNullable<EventoLinhaTempo['estado_qualidade']> | null
+  recebedorNome: string | null
+  divergente: boolean
+  observacaoRecebedor: string | null
+}
+
 export interface PermanenciaSegmento {
   eventoEntradaId: number
   setorNome: string
@@ -41,6 +52,8 @@ export interface PermanenciaSegmento {
   totalMs: number
   filaMs: number
   execucoes: ExecucaoSegmento[]
+  /** null quando a chegada não teve marcação (saída do PCP, API — D-25). */
+  qualidade: QualidadeSegmento | null
 }
 
 const TIPOS_POSICAO = new Set(['card_criado', 'movimentacao_setor', 'movimentacao_etapa'])
@@ -121,6 +134,31 @@ export function montarSegmentos(
     const primeiroInicio = execucoes[0]?.iniciouEm ?? null
     const filaMs = (primeiroInicio ?? fim) - entrouEm
 
+    // SESSAO-06 (D-09): a chegada entre setores pode carregar a marcação de
+    // quem entregou (evento_referencia_id) e o parecer de quem recebeu.
+    let qualidade: QualidadeSegmento | null = null
+    if (entrada.tipo === 'movimentacao_setor' && entrada.evento_referencia_id !== null) {
+      const marcacao = ordenados.find(
+        (e) => e.evento_id === entrada.evento_referencia_id && e.tipo === 'qualidade_marcada',
+      )
+      if (marcacao?.estado_qualidade) {
+        const parecer = ordenados.find(
+          (e) => e.tipo === 'qualidade_parecer' && e.evento_referencia_id === marcacao.evento_id,
+        )
+        qualidade = {
+          estadoRemetente: marcacao.estado_qualidade,
+          remetenteNome: marcacao.usuario_nome,
+          setorRemetenteNome: marcacao.setor_origem_nome,
+          estadoRecebedor: parecer?.estado_qualidade ?? null,
+          recebedorNome: parecer?.usuario_nome ?? null,
+          divergente:
+            parecer?.estado_qualidade != null &&
+            parecer.estado_qualidade !== marcacao.estado_qualidade,
+          observacaoRecebedor: parecer?.observacao ?? null,
+        }
+      }
+    }
+
     return {
       eventoEntradaId: entrada.evento_id,
       setorNome: entrada.setor_destino_nome ?? '—',
@@ -131,6 +169,7 @@ export function montarSegmentos(
       totalMs: fim - entrouEm,
       filaMs,
       execucoes,
+      qualidade,
     }
   })
 }

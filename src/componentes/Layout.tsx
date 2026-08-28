@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react'
 import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 
 /** Navegação por papel (RF-24): o menu do operador é mínimo; o do líder tem a
  *  Equipe; o do admin tem tudo. As rotas continuam protegidas pelas guardas —
@@ -71,6 +72,9 @@ export function Layout({ children }: { children: ReactNode }) {
                 {link.rotulo}
               </NavLink>
             ))}
+
+            {/* SESSAO-06 (Q-18): os avisos automáticos de qualidade chegam aqui. */}
+            {perfil && <SinoNotificacoes usuarioId={perfil.id} />}
 
             {perfil && (
               <div className="ml-2 flex items-center gap-2 border-l border-grafite-600 pl-3">
