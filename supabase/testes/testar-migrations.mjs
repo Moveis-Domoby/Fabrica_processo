@@ -1056,6 +1056,149 @@ conferir(
   JSON.stringify(chegadaEstoque ?? null),
 )
 
+// ============================================================================
+// SESSAO-07 — Gesto por PIN, mensagens sem código e controle de tempo
+// (migration 16 / D-27, D-28, D-29)
+// ============================================================================
+titulo('Tablet (SESSAO-07): autor por PIN nas RPCs e mensagens sem código interno')
+
+// Card novo na SECC para o cenário do tablet.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 4, '081', 'Mesa Lateral', 1, 1
+      from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const cardTablet = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+
+// A sessão é do "dispositivo" (exec.um, da SECC); o AUTOR é exec.dois,
+// identificado por PIN — e exec.dois nem tem login (o cenário real do tablet).
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+
+// Mensagem de recusa sem código interno (D-27): mover de produção sem estado.
+{
+  let mensagem = ''
+  try {
+    await bd.query(`
+      select public.plt_fn_mover_card(
+        ${cardTablet}, (select id from public.plt_setores where codigo = 'cnc'))`)
+  } catch (erro) {
+    mensagem = erro.message
+  }
+  conferir(
+    /marcar o estado da peça/i.test(mensagem) && !/[DQM]-\d|RF-\d|RNF-\d/.test(mensagem),
+    'a recusa fala língua de gente — sem D-NN/RF-NN/Q-NN na mensagem (varredura D-27)',
+    mensagem,
+  )
+}
+
+const movidoPorPin = (
+  await bd.query(`
+    select public.plt_fn_mover_card(
+      ${cardTablet},
+      (select id from public.plt_setores where codigo = 'cnc'),
+      null, 'perfeito', null,
+      (select id from public.plt_usuarios where usuario = 'exec.dois')
+    )::int as id`)
+).rows[0]
+const autores = (
+  await bd.query(`
+    select (select u.usuario from public.plt_usuarios u where u.id = m.usuario_id) as autor_marcacao,
+           (select u.usuario from public.plt_usuarios u where u.id = e.usuario_id) as autor_movimentacao
+      from public.plt_eventos e
+      left join public.plt_eventos m on m.id = e.evento_referencia_id
+     where e.id = ${movidoPorPin?.id ?? 0}`)
+).rows[0]
+conferir(
+  autores?.autor_marcacao === 'exec.dois' && autores?.autor_movimentacao === 'exec.dois',
+  'RPC com p_operador_id: a marcação e a movimentação saem em nome do OPERADOR do PIN (D-28)',
+  JSON.stringify(autores ?? null),
+)
+
+// Operador que não trabalha nos setores envolvidos é recusado.
+await deveRecusarExec(
+  `select public.plt_fn_mover_card(
+     ${cardTablet},
+     (select id from public.plt_setores where codigo = 'secc'),
+     null, 'perfeito', null,
+     (select id from public.plt_usuarios where usuario = 'segunda.pessoa'))`,
+  'operador de fora dos setores envolvidos não passa pelo gate do PIN',
+  /operador identificado não trabalha/i,
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+titulo('Controle de tempo do admin (SESSAO-07/D-29): horários, pausas e tempo útil')
+
+// 2026-08-24 foi segunda-feira (dow = 1) em America/Fortaleza.
+const tempoUtil = async (expr) =>
+  (await bd.query(`select extract(epoch from ${expr})::int as s`)).rows[0].s
+
+const cheio = await tempoUtil(`plt_privado.fn_tempo_util(
+  '2026-08-24 10:00:00-03', '2026-08-24 14:00:00-03',
+  (select id from public.plt_setores where codigo = 'secc'), null)`)
+conferir(cheio === 4 * 3600, 'sem horário e sem pausa, o tempo conta inteiro', `veio ${cheio}s`)
+
+await bd.exec(`
+  insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
+    values ('setor', (select id from public.plt_setores where codigo = 'secc'), 1, '08:00', '12:00');
+`)
+const soManha = await tempoUtil(`plt_privado.fn_tempo_util(
+  '2026-08-24 10:00:00-03', '2026-08-24 14:00:00-03',
+  (select id from public.plt_setores where codigo = 'secc'), null)`)
+conferir(
+  soManha === 2 * 3600,
+  'horário do setor (seg 08–12): das 10h às 14h contam só 2h',
+  `veio ${soManha}s`,
+)
+
+await bd.exec(`
+  insert into public.plt_pausas_tempo (escopo, setor_id, inicio, fim, retroativa, motivo, criado_por)
+    values ('setor', (select id from public.plt_setores where codigo = 'secc'),
+            '2026-08-24 10:30:00-03', '2026-08-24 11:00:00-03', true,
+            'setor não funcionou (correção retroativa)',
+            (select id from public.plt_usuarios where usuario = 'exec.um'));
+`)
+const comPausa = await tempoUtil(`plt_privado.fn_tempo_util(
+  '2026-08-24 10:00:00-03', '2026-08-24 14:00:00-03',
+  (select id from public.plt_setores where codigo = 'secc'), null)`)
+conferir(
+  comPausa === Math.round(1.5 * 3600),
+  'pausa retroativa do setor (10:30–11:00) desconta sem tocar nos eventos',
+  `veio ${comPausa}s`,
+)
+
+await bd.exec(`
+  insert into public.plt_horarios_funcionamento (escopo, usuario_id, dia_semana, hora_inicio, hora_fim)
+    values ('usuario', (select id from public.plt_usuarios where usuario = 'exec.dois'), 1, '09:00', '11:00');
+`)
+const intersecao = await tempoUtil(`plt_privado.fn_tempo_util(
+  '2026-08-24 10:00:00-03', '2026-08-24 14:00:00-03',
+  (select id from public.plt_setores where codigo = 'secc'),
+  (select id from public.plt_usuarios where usuario = 'exec.dois'))`)
+conferir(
+  intersecao === Math.round(0.5 * 3600),
+  'horário do setor ∩ horário da pessoa ∩ pausa: sobra exatamente a meia hora certa',
+  `veio ${intersecao}s`,
+)
+
+const eventosIntactos = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_eventos
+     where card_id = ${cardTablet}`)
+).rows[0]
+conferir(
+  eventosIntactos.total >= 3,
+  'nada do controle de tempo tocou nos eventos registrados (dado fixo — D-29)',
+  `eventos do card: ${eventosIntactos.total}`,
+)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
