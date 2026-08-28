@@ -31,3 +31,10 @@
 
 - [28/08] Branch criada. Relidas a demanda (2ª vez do bloco) e [[N8N - PCP Trello e ClickUp]] — o modelo real do card (`{pedido} - {descrição} (k/n)`, quantidade <1 não vira card) JÁ é o que `plt_fn_pedido_itens_kanban` replica; o formato do card do PCP da plataforma segue igual (resposta 9 do dono atendida pelo desenho existente).
 - plt_notificacoes.tipo é texto livre — 'pedido_cancelado' entra sem migração extra.
+- [28/08] **Migration 17 escrita, testada e APLICADA**: tipos `pedido_atualizado`/`pedido_cancelado` no vocabulário; índice único `plt_cards_pedido_unico` (conferido antes: zero duplicata em produção); `fn_reagir_pedido` (trigger AFTER INSERT OR UPDATE em `pedidos`, corpo inteiro sob `exception when others → warning`); funções kanban recriadas com `alterado_apos_liberacao` (+`situacao` na expedição).
+- **Erros pegos pelo test:banco (2 rodadas) antes de doer:** (1) idempotência quebrou — a migration 13 fazia `create or replace` de função cujo RETORNO a 17 muda → E-17 vale para FUNÇÃO também: `drop function if exists` adicionado na 13; (2) as funções kanban devolviam NULL no teste — gate por usuário ativo, o bloco de teste precisava do `set_config` do sub.
+- **Testes antigos adaptados:** o "cenário mínimo" agora PROVA a auto-criação (o insert manual de card de pedido violaria o índice único); pedido histórico simulado com `session_replication_role = replica`.
+- **Prova em produção sem sujar (A-11):** do-block com insert do pedido 999996 + `raise exception` proposital → `TESTE_OK cards=1 origem=automacao`, transação desfeita. Advisors: mesmos 8 WARN esperados + leaked-password (pré-existente).
+- Front: selos "Cancelado no Tiny" (vermelho) e "Alterado no Tiny após a liberação" (âmbar) no PCP e na Expedição; linha do tempo rotula os 2 tipos novos; textos "em breve entram sozinhos" atualizados; `docs/entrada-de-pedidos.md` criado. tsc · lint · vitest 17/17 · build ok.
+
+## Task list — conferida ao final: 1✔ 2✔ 3✔ 4✔ 5✔ 6✔ 7✔ 8✔ 9✔ 10✔ 11✔ 12✔

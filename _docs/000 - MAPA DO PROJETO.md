@@ -78,6 +78,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 📜 Histórico de sessões
 
+- [[handoff_2026_08_28_sessao09_entrada_pedidos]] — **SESSAO-09 da Plataforma (bloco noturno D-26)**: pedido novo do Tiny vira card no PCP sozinho — trigger à prova de falha no próprio banco (D-31), idempotente; edição pós-liberação e cancelamento viram eventos e selos visíveis, admins avisados quando cancela com produção em andamento
 - [[handoff_2026_08_28_sessao07_tela_setor]] — **SESSAO-07 da Plataforma (bloco noturno D-26)**: a tela do chão de fábrica — fila do setor em tela cheia com PIN por teclado na tela (autor do gesto = operador identificado), tempo real + som discreto, imagens por produto; e o prelúdio D-27 (menu lateral, modelo de sistema no cofre, microinteração, UI e banco sem códigos internos) + controle de tempo do admin (D-29)
 - [[handoff_2026_08_27_sessao06_qualidade]] — **SESSAO-06 da Plataforma**: a dupla atestação da D-09 virando regra de banco — marcação 🟢🟡🔴 obrigatória ao sair de produção, parecer de recebimento antes do Iniciar, 🔴 vai sozinho para a etapa DANIFICADO (criada pelo sistema), notificações automáticas a líderes dos dois setores + admins com o relato exato, e o sino no topo (D-25)
 - [[handoff_2026_08_27_sessao05_timers]] — **SESSAO-05 da Plataforma**: o tempo medido de verdade — Iniciar/Finalizar/Assumir no card, fila do setor vs execução da pessoa, linha do tempo por etapa com autores, estorno visível (líder/admin) e limite configurável de execuções por pessoa/setor (D-24)

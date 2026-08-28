@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-09 — Entrada de Pedidos via n8n (API mínima)"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-24
 atualizado: 2026-08-24
 tags: [plataforma, demanda, sessao, api, n8n]
 ---
 
 # 🎯 SESSAO-09 — Entrada de Pedidos via n8n (API mínima)
+
+> [!success] ✅ Entregue em 28/08/2026 (bloco noturno D-26) — [[handoff_2026_08_28_sessao09_entrada_pedidos]]
+> **↩️ Executada no desenho da D-31** (resposta do dono no aval do bloco): em vez de endpoint chamado pelo n8n, a plataforma **lê o próprio banco** — trigger à prova de falha em `pedidos` cria/reage instantaneamente. O critério "chave inválida recusada" ficou N/A (não existe porta HTTP nesta fase; documentado em `docs/entrada-de-pedidos.md`).
 
 > [!info] Por que esta sessão existe (D-11)
 > O dono quer dado real fluindo desde cedo: **pedido novo no Tiny vira card no PCP sozinho**, com o n8n empurrando para a plataforma (a plataforma NÃO busca nada no Tiny — só recebe). É a antiga primeira metade da SESSAO-11, antecipada. ~~Executa logo após a SESSAO-04 (Kanban).~~ A API completa (CRUD, webhooks de saída, ponte ROTAS) continua na SESSAO-11, mais tarde.

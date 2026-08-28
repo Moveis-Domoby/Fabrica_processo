@@ -13,9 +13,8 @@ tags: [plataforma, bloco-noturno, continuidade]
 
 ## Estado atual
 
-- **Sessão atual:** SESSAO-07 — ✅ TERMINADA (handoff + merge na main).
-- **Branch:** `sessao-07-tela-setor`, mesclada; último commit antes do merge: docs de fechamento.
-- **Próxima sessão da fila:** **SESSAO-09 — Entrada de Pedidos via n8n** (por trigger no banco — D-31), depois 10 → 11 → 12.
+- **Sessões terminadas:** SESSAO-07 ✅ · SESSAO-09 ✅ (handoffs + merges na main).
+- **Próxima sessão da fila:** **SESSAO-10 — Dashboards e Visualizações Salvas** (foco pesado em tempo — D-32; usar `fn_tempo_util` do D-29), depois 11 → 12.
 - **Encadeamento:** o ambiente desta execução mantém a conversa viva com contexto resumido automaticamente — o bloco segue NA MESMA conversa, uma sessão por vez, com branch/handoff/merge próprios (decisão provisória logada; o espírito da D-26 — contexto não estourar — está preservado).
 
 ## Decisões provisórias tomadas até aqui (rever de manhã)
@@ -24,6 +23,7 @@ tags: [plataforma, bloco-noturno, continuidade]
 2. Bucket `plt-imagens` é **público para leitura** (escrita admin/líder).
 3. "Espera há X" da tela do setor é tempo corrido; o desconto D-29 vale para as métricas (SESSAO-10).
 4. Continuar o bloco na mesma conversa (acima).
+5. (S09) Evento de conflito só com unidade liberada; mudança só nos itens não gera evento; trigger vive em `pedidos` (não altera nada e é à prova de falha) — detalhes no handoff da 09.
 
 ## Bloqueios documentados
 
