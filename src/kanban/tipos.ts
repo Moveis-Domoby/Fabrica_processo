@@ -10,6 +10,8 @@ export interface Setor {
   ativo: boolean
   /** D-24: máximo de cards em execução pela MESMA pessoa aqui. null = sem limite. */
   limite_execucoes_por_pessoa: number | null
+  /** D-34: como o card que chega ganha dono — desativada · direta · aleatoria. */
+  modo_delegacao: 'desativada' | 'direta' | 'aleatoria'
 }
 
 /** Etapa interna de um setor (D-14): cadastro livre, toda etapa conta tempo. */
@@ -40,6 +42,8 @@ export interface Card {
   desde: string | null
   /** Quem está executando AGORA (projeção de evento — SESSAO-05). */
   executor_atual_id: string | null
+  /** D-34: a quem o afazer foi delegado (projeção do evento de delegação). */
+  responsavel_id: string | null
   qualidade_atual: Estado | null
   concluido_em: string | null
 }
@@ -48,7 +52,7 @@ export interface Card {
 export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
-  'executor_atual_id, qualidade_atual, concluido_em'
+  'executor_atual_id, responsavel_id, qualidade_atual, concluido_em'
 
 /** Linha de plt_fn_pedidos_kanban — resumo sem dado pessoal do cliente. */
 export interface PedidoResumo {

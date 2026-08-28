@@ -16,6 +16,7 @@ import { PCP } from '@/paginas/PCP'
 import { QuadroSetor } from '@/paginas/QuadroSetor'
 import { Expedicao } from '@/paginas/Expedicao'
 import { Rotas } from '@/paginas/Rotas'
+import { Afazeres } from '@/paginas/Afazeres'
 import { AdminApi } from '@/paginas/AdminApi'
 import { Estrutura } from '@/paginas/Estrutura'
 
@@ -34,6 +35,8 @@ export function App() {
             <Route element={<RotaProtegida />}>
               <Route path="/" element={<Inicio />} />
               <Route path="/trocar-senha" element={<TrocarSenha />} />
+              {/* Afazeres (SESSAO-12/D-34): meus afazeres + afazeres do time. */}
+              <Route path="/afazeres" element={<Afazeres />} />
               {/* A tela do chão de fábrica (SESSAO-07): fila do setor + PIN. */}
               <Route path="/tablet" element={<TelaSetor />} />
               {/* kanban (SESSAO-04): as páginas conferem o acesso por setor */}
