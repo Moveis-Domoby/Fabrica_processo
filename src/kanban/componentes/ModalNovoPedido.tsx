@@ -84,8 +84,8 @@ export function ModalNovoPedido({ aberto, setorPcp, aoFechar }: ModalNovoPedidoP
         if (!estaAberto) aoFechar()
       }}
       titulo="Novo card de pedido"
-      // D-22: card só nasce de pedido real; a entrada automática é a SESSAO-09.
-      descricao="Todo card nasce de um pedido real do Tiny — em breve eles vão entrar sozinhos. A lista mostra só pedidos que ainda não viraram card."
+      // D-22/D-31: card só nasce de pedido real; o novo entra sozinho pelo banco.
+      descricao="Pedido novo do Tiny entra sozinho. Esta lista serve para trazer pedidos antigos que ficaram de fora do kanban."
       tamanho="galpao"
       rodape={
         <>

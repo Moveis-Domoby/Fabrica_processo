@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock, PackageOpen, Plus } from 'lucide-react'
+import { AlertTriangle, Ban, Clock, PackageOpen, Plus } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
@@ -113,8 +113,8 @@ export function PCP() {
         {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
         {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
           <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-            Nenhum pedido aguardando. Crie um card a partir de um pedido do Tiny — em breve
-            eles vão entrar sozinhos.
+            Nenhum pedido aguardando. Pedido novo do Tiny entra aqui sozinho — o botão serve
+            para trazer algum antigo que ficou de fora.
           </p>
         )}
 
@@ -148,6 +148,24 @@ export function PCP() {
                 <p className="line-clamp-1 text-sm text-texto-suave">
                   {resumo?.cliente_nome || '…'}
                 </p>
+
+                {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
+                {(resumo?.situacao === 'cancelado' || resumo?.alterado_apos_liberacao) && (
+                  <p className="flex flex-wrap gap-1.5">
+                    {resumo?.situacao === 'cancelado' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+                        <Ban aria-hidden className="size-3.5" />
+                        Cancelado no Tiny
+                      </span>
+                    )}
+                    {resumo?.alterado_apos_liberacao && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
+                        <AlertTriangle aria-hidden className="size-3.5" />
+                        Alterado no Tiny após a liberação — confira
+                      </span>
+                    )}
+                  </p>
+                )}
                 <p className="text-sm text-texto tabular-nums">
                   {total > 0 ? (
                     <>
