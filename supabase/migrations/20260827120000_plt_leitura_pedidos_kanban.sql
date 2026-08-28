@@ -35,6 +35,10 @@
 -- A conta de unidades replica o comportamento REAL da automação do PCP no n8n
 -- (A-01 / F-05): quantidade arredondada; item com quantidade < 1 não vira card.
 -- ----------------------------------------------------------------------------
+-- E-17 aplicado a função: a migration 17 muda a FORMA do retorno — sem o drop,
+-- a segunda rodada quebraria em "cannot change return type".
+drop function if exists public.plt_fn_pedidos_kanban(text, boolean, bigint[], integer, integer);
+
 create or replace function public.plt_fn_pedidos_kanban(
   p_busca            text     default null,
   p_somente_sem_card boolean  default false,
@@ -173,6 +177,9 @@ comment on function plt_privado.fn_pode_ver_expedicao() is
 -- "Pedido completo = todas as unidades prontas": compara as unidades do pedido
 -- (dos itens) com o que já chegou aos setores terminais.
 -- ----------------------------------------------------------------------------
+-- E-17 aplicado a função (ver acima): a migration 17 muda a forma do retorno.
+drop function if exists public.plt_fn_expedicao_kanban(text, integer, integer);
+
 create or replace function public.plt_fn_expedicao_kanban(
   p_busca         text    default null,
   p_limite        integer default 20,

@@ -187,22 +187,27 @@ await deveRecusar(
   /plt_usuarios_cpf_uq|duplicate/i,
 )
 
-titulo('Cenário mínimo: um pedido, um card, um evento')
+titulo('Cenário mínimo: pedido novo vira card no PCP SOZINHO (SESSAO-09/D-31)')
 await bd.exec(`
   insert into public.clientes (nome) values ('Cliente de teste');
   insert into public.pedidos (numero, cliente_id, situacao)
     values (999999, (select id from public.clientes order by id desc limit 1), 'aprovado');
-  insert into public.plt_cards (tipo, pedido_id)
-    values ('pedido', (select id from public.pedidos where numero = 999999));
-  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
-    values (
-      (select id from public.plt_cards order by id desc limit 1),
-      'card_criado',
-      (select id from public.plt_setores where codigo = 'pcp'),
-      'api'
-    );
 `)
-console.log('  criado')
+const autoCard = (
+  await bd.query(`
+    select c.id,
+           (select s.codigo from public.plt_setores s where s.id = c.setor_atual_id) as setor,
+           (select e.origem from public.plt_eventos e
+             where e.card_id = c.id and e.tipo = 'card_criado' limit 1) as origem_evento
+      from public.plt_cards c
+     where c.tipo = 'pedido'
+       and c.pedido_id = (select id from public.pedidos where numero = 999999)`)
+).rows[0]
+conferir(
+  autoCard !== undefined && autoCard.origem_evento === 'automacao',
+  'o INSERT em pedidos criou o card no PCP sem toque humano (trigger da migration 17)',
+  JSON.stringify(autoCard ?? null),
+)
 
 titulo('plt_eventos é append-only? (RNF-05)')
 async function deveFalhar(sql, descricao) {
@@ -1132,6 +1137,151 @@ await deveRecusarExec(
   'operador de fora dos setores envolvidos não passa pelo gate do PIN',
   /operador identificado não trabalha/i,
 )
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+// ============================================================================
+// SESSAO-09 — Entrada automática de pedidos (migration 17 / D-31)
+// ============================================================================
+titulo('Entrada automática (SESSAO-09/D-31): pedido novo, reenvio, conflito e cancelamento')
+
+// As funções kanban têm gate por usuário ativo — o bloco roda como exec.um.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+
+// Pedido novo, isolado (999998) — o INSERT dispara a reação da plataforma.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_prevista, total_pedido)
+    values (999998, (select id from public.clientes order by id desc limit 1), 'aprovado',
+            '2026-09-10', 1000.00);
+`)
+const cardAuto = (
+  await bd.query(`
+    select c.id::int as id,
+           (select s.codigo from public.plt_setores s where s.id = c.setor_atual_id) as setor
+      from public.plt_cards c
+     where c.tipo = 'pedido'
+       and c.pedido_id = (select id from public.pedidos where numero = 999998)`)
+).rows
+conferir(
+  cardAuto.length === 1 && cardAuto[0].setor === 'pcp',
+  'pedido novo em `pedidos` vira card no PCP instantaneamente (critério 1)',
+  JSON.stringify(cardAuto),
+)
+const cardNovePedido = cardAuto[0]?.id
+
+// Reenvio: a integração regrava o pedido inteiro sem mudança real, 3 vezes.
+await bd.exec(`
+  update public.pedidos set situacao = 'aprovado' where numero = 999998;
+  update public.pedidos set situacao = 'aprovado' where numero = 999998;
+  update public.pedidos set situacao = 'aprovado' where numero = 999998;
+`)
+const aposReenvio = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_cards c
+             where c.tipo = 'pedido'
+               and c.pedido_id = (select id from public.pedidos where numero = 999998)) as cards,
+           (select count(*)::int from public.plt_eventos e
+             where e.card_id = ${cardNovePedido ?? 0}
+               and e.tipo in ('pedido_atualizado', 'pedido_cancelado')) as eventos_de_mudanca`)
+).rows[0]
+conferir(
+  aposReenvio?.cards === 1 && aposReenvio?.eventos_de_mudanca === 0,
+  'o mesmo evento reenviado 3x resulta em 1 card só, sem ruído de eventos (critério 2)',
+  JSON.stringify(aposReenvio ?? null),
+)
+
+// Mudança real SEM unidade liberada: o card reflete sozinho, nada é registrado.
+await bd.exec(`update public.pedidos set data_prevista = '2026-09-15' where numero = 999998;`)
+const semLiberacao = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_eventos
+     where card_id = ${cardNovePedido ?? 0} and tipo = 'pedido_atualizado'`)
+).rows[0]
+conferir(
+  semLiberacao?.total === 0,
+  'edição antes de liberar unidades não gera evento — o card lê direto do pedido',
+  `eventos: ${semLiberacao?.total}`,
+)
+
+// Libera uma unidade e edita de novo: agora o conflito fica VISÍVEL.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '090', 'Painel Ripado', 1, 1
+      from public.pedidos p where p.numero = 999998;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'secc'), 'interface');
+  update public.pedidos set data_prevista = '2026-09-20', obs = 'cliente mudou a cor'
+   where numero = 999998;
+`)
+const conflito = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_eventos
+             where card_id = ${cardNovePedido ?? 0} and tipo = 'pedido_atualizado') as eventos,
+           (select alterado_apos_liberacao from public.plt_fn_pedidos_kanban(
+              p_ids => array[(select id from public.pedidos where numero = 999998)])) as na_funcao`)
+).rows[0]
+conferir(
+  (conflito?.eventos ?? 0) >= 1 && conflito?.na_funcao === true,
+  'edição com unidade liberada registra o conflito e a função kanban o expõe (critério 3)',
+  JSON.stringify(conflito ?? null),
+)
+
+// Cancelamento com produção em andamento: evento + aviso aos admins (Q-24/D-31).
+await bd.exec(`update public.pedidos set situacao = 'cancelado' where numero = 999998;`)
+const cancelamento = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_eventos
+             where card_id = ${cardNovePedido ?? 0} and tipo = 'pedido_cancelado') as evento,
+           (select count(*)::int from public.plt_notificacoes n
+             join public.plt_usuarios u on u.id = n.destinatario_id
+            where n.card_id = ${cardNovePedido ?? 0} and n.tipo = 'pedido_cancelado'
+              and u.papel = 'admin') as avisos,
+           (select count(*)::int from public.plt_cards c
+             where c.pedido_id = (select id from public.pedidos where numero = 999998)
+               and c.tipo = 'pedido') as card_continua,
+           (select situacao from public.plt_fn_pedidos_kanban(
+              p_ids => array[(select id from public.pedidos where numero = 999998)])) as situacao_na_funcao`)
+).rows[0]
+conferir(
+  cancelamento?.evento === 1 &&
+    (cancelamento?.avisos ?? 0) >= 1 &&
+    cancelamento?.card_continua === 1 &&
+    cancelamento?.situacao_na_funcao === 'cancelado',
+  'cancelamento no Tiny: card marcado (não some), evento na história e admins avisados',
+  JSON.stringify(cancelamento ?? null),
+)
+
+// Pedido HISTÓRICO (existia antes da migration, sem card): atualização não
+// cria nada. Simulado inserindo com triggers desligados (superusuário do
+// PGlite), como um pedido que já estava lá.
+await bd.exec(`
+  set session_replication_role = replica;
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999997, (select id from public.clientes order by id desc limit 1), 'entregue');
+  set session_replication_role = origin;
+  update public.pedidos set obs = 'toque em pedido histórico' where numero = 999997;
+`)
+const historico = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_cards
+     where tipo = 'pedido'
+       and pedido_id = (select id from public.pedidos where numero = 999997)`)
+).rows[0]
+conferir(
+  historico.total === 0,
+  'pedido histórico atualizado NÃO ganha card — só a chegada nova cria (D-31)',
+  `cards: ${historico.total}`,
+)
+
+// A regra de ouro: o trigger jamais derruba a integração. Simula falha interna
+// forçando um estado impossível? Não dá para quebrar de fora — o que se prova
+// aqui é que o caminho da integração (upsert-like: update + delete/insert de
+// itens) continua passando com o trigger ligado.
+await bd.exec(`
+  update public.pedidos set total_pedido = 1200.00 where numero = 999998;
+  delete from public.pedido_itens where pedido_id = (select id from public.pedidos where numero = 999998);
+`)
+conferir(true, 'caminho da integração (update + regravação de itens) segue passando com o trigger ligado')
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
 titulo('Controle de tempo do admin (SESSAO-07/D-29): horários, pausas e tempo útil')
