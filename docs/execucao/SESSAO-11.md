@@ -15,6 +15,8 @@
 7. [ ] Testes: harness (chave/hash, arquivar→some, webhook enfileira, rotas pronta/entregue, gates) → 2 rodadas → aplicar → advisors · exemplos da API validados contra a função real
 8. [ ] Task list × demanda · merge na main · handoff + memória + continuidade
 
+## Task list — conferida ao final: 1✔ 2✔ 3✔ 4✔ 5✔ 6✔ 7✔ 8✔
+
 ## Decisões técnicas
 
 - **Chave de API**: valor `pltk_<32 hex>` mostrado UMA vez; no banco só `sha256` (pgcrypto `digest`) + prefixo para identificação. Escopos: `leitura` (GETs) e `escrita` (tudo). Verificação na Edge Function via service role.
@@ -29,4 +31,5 @@
 - [28/08] Branch criada. Extensões conferidas: pgcrypto instalado; pg_net/pg_cron disponíveis (não instalados — a migration habilita com guarda). Nota [[N8N - ROTAS ClickUp]] relida: formato do card de entrega (nome limpo, endereço, complemento, contato + wa.me, mapa, OBS) replicado na tela de ROTAS.
 - [28/08] **Migration 19 escrita, testada (2 rodadas + 11 verificações novas) e APLICADA**: pg_net + pg_cron habilitados EM PRODUÇÃO, job `plt-webhooks-despachar` agendado (1/min); 14 tabelas, 28 policies. Erro pego no teste: o bloco da 11 rodava antes do vínculo de auth do admin de teste (que morava no bloco da 10) — update idempotente movido para o início do bloco.
 - [28/08] **Edge Function `api` (v1) deployada com `verify_jwt=false`** — autenticação própria por chave (o caso previsto na doc do deploy). **Testada CONTRA PRODUÇÃO com curl:** 401 sem chave · GET /setores · POST /cards (unidade de teste no pedido 13098, card 10) · POST /cards/10/mover para SECC SEM qualidade (RF-86 provado; evento com `dados.integracao`) · GET /cards/10/eventos · DELETE (arquivado) · **chave revogada respondeu 401 na hora** (critério). `ultimo_uso_em` gravado.
+- [28/08] **Webhook provado de PONTA A PONTA em produção**: chave nova → card de teste via API → DELETE (evento assinado) → fila → despacho (forçado + cron agendado) → endpoint de eco respondeu **200 com o payload ecoado e o header X-Assinatura (HMAC)**. Depois: webhook desativado e chaves de teste revogadas (zero chave ativa ao fim).
 - [28/08] Front: `src/admin/api.ts` estendido (chaves geradas NO NAVEGADOR — só o hash sobe; webhooks CRUD), páginas `AdminApi` (/administracao/api) e `Rotas` (/rotas — formato do card real de entrega com wa.me/mapa, confirmação em dois toques no Entregue), link ROTAS na sidebar (grupo da logística), filtro `arquivado_em is null` em `buscarCardsDoSetor`. `docs/api.md` com os exemplos EXECUTADOS. tsc · lint · vitest 23/23 · build ok.
