@@ -190,7 +190,6 @@ export function PCP() {
                 card,
                 destinoSetorId: setorPcp.id,
                 destinoEtapaId: etapaId,
-                usuarioId: perfil.id,
               })
             }
             aoAbrirMover={setCardParaMover}

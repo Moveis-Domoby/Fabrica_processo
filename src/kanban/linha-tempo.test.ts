@@ -113,6 +113,80 @@ describe('montarSegmentos', () => {
     expect(segmentos[0].totalMs).toBe(40 * minuto)
   })
 
+  it('a chegada com marcação carrega a dupla atestação — e a divergência (SESSAO-06/D-09)', () => {
+    const eventos: EventoLinhaTempo[] = [
+      evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: em(0), setor_destino_id: 1, setor_destino_nome: 'PCP' }),
+      evento({
+        evento_id: 2,
+        tipo: 'qualidade_marcada',
+        ocorrido_em: em(10),
+        usuario_nome: 'Ana',
+        setor_origem_id: 1,
+        setor_origem_nome: 'SECC',
+        setor_destino_id: 2,
+        estado_qualidade: 'atencao',
+      }),
+      evento({
+        evento_id: 3,
+        tipo: 'movimentacao_setor',
+        ocorrido_em: em(10),
+        setor_destino_id: 2,
+        setor_destino_nome: 'FITAMENTO',
+        evento_referencia_id: 2,
+      }),
+      evento({
+        evento_id: 4,
+        tipo: 'qualidade_parecer',
+        ocorrido_em: em(20),
+        usuario_nome: 'Beto',
+        estado_qualidade: 'danificado',
+        evento_referencia_id: 2,
+        observacao: 'quina lascada',
+      }),
+    ]
+    const segmentos = montarSegmentos(eventos, T0 + 30 * minuto)
+
+    // A criação no PCP não tem marcação (D-25) — qualidade nula.
+    expect(segmentos[0].qualidade).toBeNull()
+    // A chegada na FITAMENTO conta a história inteira, com divergência.
+    expect(segmentos[1].qualidade).toMatchObject({
+      estadoRemetente: 'atencao',
+      remetenteNome: 'Ana',
+      setorRemetenteNome: 'SECC',
+      estadoRecebedor: 'danificado',
+      recebedorNome: 'Beto',
+      divergente: true,
+      observacaoRecebedor: 'quina lascada',
+    })
+  })
+
+  it('chegada marcada e ainda sem parecer aparece como pendente (SESSAO-06)', () => {
+    const eventos: EventoLinhaTempo[] = [
+      evento({
+        evento_id: 2,
+        tipo: 'qualidade_marcada',
+        ocorrido_em: em(10),
+        usuario_nome: 'Ana',
+        setor_origem_nome: 'SECC',
+        estado_qualidade: 'perfeito',
+      }),
+      evento({
+        evento_id: 3,
+        tipo: 'movimentacao_setor',
+        ocorrido_em: em(10),
+        setor_destino_id: 2,
+        setor_destino_nome: 'FITAMENTO',
+        evento_referencia_id: 2,
+      }),
+    ]
+    const [segmento] = montarSegmentos(eventos, T0 + 30 * minuto)
+    expect(segmento.qualidade).toMatchObject({
+      estadoRemetente: 'perfeito',
+      estadoRecebedor: null,
+      divergente: false,
+    })
+  })
+
   it('evento estornado não conta tempo, mas a lista original continua intacta', () => {
     const eventos: EventoLinhaTempo[] = [
       evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: em(0), setor_destino_id: 2, setor_destino_nome: 'SECC' }),

@@ -9,6 +9,7 @@ import {
   buscarEtapasDoSetor,
   buscarExecucoesAbertas,
   buscarNomesUsuarios,
+  buscarPareceresPendentes,
   buscarSetores,
   finalizarExecucao,
   iniciarExecucao,
@@ -19,7 +20,8 @@ import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
-import type { Card, ExecucaoAberta } from '@/kanban/tipos'
+import { ModalParecer } from '@/kanban/componentes/ModalParecer'
+import type { Card, ExecucaoAberta, ParecerPendente, QualidadePendente } from '@/kanban/tipos'
 
 const ATUALIZA_A_CADA = 20_000
 
@@ -77,14 +79,38 @@ export function QuadroSetor() {
     execucoes.map((e) => [e.card_id, e]),
   )
 
+  // SESSAO-06 (D-09): entregas marcadas esperando a confirmação deste setor.
+  const { data: pendencias = new Map<number, QualidadePendente>() } = useQuery({
+    queryKey: ['qualidade-pendente', setorId, idsDosCards.join(',')],
+    queryFn: () => buscarPareceresPendentes(cards),
+    enabled: idsDosCards.length > 0,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
+  const pareceresPorCard = new Map<number, ParecerPendente>(
+    [...pendencias.values()].map((p) => [
+      p.card_id,
+      {
+        marcacaoEventoId: p.evento_marcacao_id,
+        estado: p.estado_remetente,
+        setorOrigemNome:
+          setores.find((s) => s.id === p.setor_origem_id)?.nome ?? 'Setor anterior',
+        remetenteNome: p.usuario_remetente_id
+          ? (nomesUsuarios.get(p.usuario_remetente_id) ?? null)
+          : null,
+      },
+    ]),
+  )
+
   const [cardParaMover, setCardParaMover] = useState<Card | null>(null)
   const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
+  const [cardParecer, setCardParecer] = useState<Card | null>(null)
 
   async function invalidarQuadro() {
     await Promise.all([
       clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
       clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
       clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
     ])
   }
 
@@ -164,7 +190,6 @@ export function QuadroSetor() {
             card,
             destinoSetorId: setor.id,
             destinoEtapaId: etapaId,
-            usuarioId: perfil.id,
           })
         }
         aoAbrirMover={setCardParaMover}
@@ -173,9 +198,15 @@ export function QuadroSetor() {
           nomesUsuarios,
           meuUsuarioId: perfil.id,
           gestoPendente,
+          pareceresPorCard,
           aoIniciar: terminal
             ? undefined
-            : (card) => mutacaoIniciar.mutate({ card, usuarioId: perfil.id }),
+            : (card) => {
+                // D-09: com entrega marcada e sem parecer, o Iniciar passa
+                // primeiro pela confirmação de recebimento (o banco também trava).
+                if (pareceresPorCard.has(card.id)) setCardParecer(card)
+                else mutacaoIniciar.mutate({ card, usuarioId: perfil.id })
+              },
           aoFinalizar: terminal
             ? undefined
             : (card) => mutacaoFinalizar.mutate({ card, usuarioId: perfil.id }),
@@ -199,6 +230,18 @@ export function QuadroSetor() {
         card={cardLinhaTempo}
         pedido={cardLinhaTempo ? pedidosPorId.get(cardLinhaTempo.pedido_id) : undefined}
         aoFechar={() => setCardLinhaTempo(null)}
+      />
+
+      <ModalParecer
+        card={cardParecer}
+        pedido={cardParecer ? pedidosPorId.get(cardParecer.pedido_id) : undefined}
+        pendente={cardParecer ? (pareceresPorCard.get(cardParecer.id) ?? null) : null}
+        aoFechar={() => setCardParecer(null)}
+        aoRegistrado={(card, estado) => {
+          // 🟢/🟡 seguem o fluxo: o Iniciar que motivou o parecer acontece na
+          // sequência. 🔴 não — o card acabou de ir para DANIFICADO (D-09).
+          if (estado !== 'danificado') mutacaoIniciar.mutate({ card, usuarioId: perfil.id })
+        }}
       />
     </div>
   )

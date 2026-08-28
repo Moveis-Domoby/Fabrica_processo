@@ -10,7 +10,14 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { Inbox } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { CartaoUnidade } from './CartaoUnidade'
-import type { Card, Etapa, ExecucaoAberta, PedidoResumo, Setor } from '../tipos'
+import type {
+  Card,
+  Etapa,
+  ExecucaoAberta,
+  ParecerPendente,
+  PedidoResumo,
+  Setor,
+} from '../tipos'
 
 /** Id de coluna no drag-and-drop: etapa real ou a "Chegada" (etapa nula). */
 const CHEGADA = 'chegada'
@@ -24,6 +31,8 @@ export interface ContextoExecucao {
   /** Quem está olhando a tela (para "você" e para o Assumir). */
   meuUsuarioId: string
   gestoPendente: boolean
+  /** Marcações da SESSAO-06 esperando o parecer do recebedor, por card. */
+  pareceresPorCard?: Map<number, ParecerPendente>
   aoIniciar?: (card: Card) => void
   aoFinalizar?: (card: Card) => void
   aoLinhaTempo?: (card: Card) => void
@@ -33,6 +42,7 @@ interface ColunaProps {
   id: string
   titulo: string
   ehFila?: boolean
+  ehDanificado?: boolean
   cards: Card[]
   pedidosPorId: Map<number, PedidoResumo>
   agora: number
@@ -46,6 +56,7 @@ function Coluna({
   id,
   titulo,
   ehFila = false,
+  ehDanificado = false,
   cards,
   pedidosPorId,
   agora,
@@ -81,6 +92,11 @@ function Coluna({
               fila
             </span>
           )}
+          {ehDanificado && (
+            <span className="rounded-full bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto">
+              🔴 dano
+            </span>
+          )}
           <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-medium text-texto-suave tabular-nums">
             {cards.length}
           </span>
@@ -111,6 +127,7 @@ function Coluna({
             souExecutor: card.executor_atual_id === execucao.meuUsuarioId,
             esperandoHaMaisTempo: card.id === maisAntigoEsperandoId,
             gestoPendente: execucao.gestoPendente,
+            parecerPendente: execucao.pareceresPorCard?.get(card.id),
           }
           return arrastavel ? (
             <CardArrastavel key={card.id} {...comuns} />
@@ -216,6 +233,7 @@ export function QuadroKanban({
             id={String(etapa.id)}
             titulo={etapa.nome}
             ehFila={etapa.eh_fila}
+            ehDanificado={etapa.eh_danificado}
             cards={cardsDaEtapa(etapa.id)}
             pedidosPorId={pedidosPorId}
             agora={agora}

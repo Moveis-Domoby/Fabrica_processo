@@ -2,7 +2,7 @@
 titulo: Ordem das Sessões de Construção
 tipo: indice
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-08-27
 tags: [plataforma, demandas, sessoes, roadmap]
 ---
 
@@ -22,7 +22,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 3º | [[SESSAO-03 - Autenticacao Perfis e Permissoes]] | Login, convites, papéis operador/líder/admin | 02 | ✅ entregue — [[handoff_2026_08_27_sessao03_autenticacao]] (mesclada na `main` em 27/08) |
 | 4º | [[SESSAO-04 - Kanban Nucleo]] | Quadros, etapas, cards híbridos (pedido→unidades), drag-and-drop | 03 | ✅ entregue — [[handoff_2026_08_27_sessao04_kanban]] |
 | 5º | [[SESSAO-05 - Timers e Eventos de Tempo]] | Fila (do setor) vs execução (da pessoa), eventos imutáveis — **a razão de existir** | 04 | ✅ entregue — [[handoff_2026_08_27_sessao05_timers]] (mesclada na `main` em 27/08) |
-| 6º | [[SESSAO-06 - Qualidade nas Transicoes]] | 3 estados + dupla marcação, sem disputa (D-09 revisada) | 05 | 🔶 rascunho |
+| 6º | [[SESSAO-06 - Qualidade nas Transicoes]] | 3 estados + dupla marcação, sem disputa (D-09 revisada) | 05 | ✅ entregue — [[handoff_2026_08_27_sessao06_qualidade]] (dúvidas viraram a D-25) |
 | 7º | [[SESSAO-07 - Tela do Setor Tablet]] | A tela do chão de fábrica: fila do setor, PIN, botões grandes — nasce com a qualidade embutida | 05, 06 | 🔶 rascunho |
 | 8º | [[SESSAO-08 - Publicacao no Ar]] | **A plataforma hospedada e acessível dos tablets do galpão** (Q-62/Q-60); encerra a permissão da D-19 | 07 | 🔶 rascunho |
 | 9º | [[SESSAO-09 - Entrada de Pedidos via n8n]] | **Pedido do Tiny vira card no PCP sozinho** (n8n empurra) — ↩️ reposicionada pela D-23 | 04 | 🔶 rascunho |

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Estado } from '@/componentes/ui'
 import { COLUNAS_CARD } from './tipos'
 import type {
   Card,
@@ -8,6 +9,7 @@ import type {
   ExpedicaoLinha,
   ItemKanban,
   PedidoResumo,
+  QualidadePendente,
   Setor,
   UnidadePedido,
   UnidadeParaLiberar,
@@ -55,7 +57,7 @@ export async function buscarEtapasDoSetor(
 ): Promise<Etapa[]> {
   let consulta = supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, ativa')
+    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa')
     .eq('setor_id', setorId)
     .order('ordem')
     .order('id')
@@ -68,7 +70,7 @@ export async function buscarEtapasDoSetor(
 export async function buscarEtapasAtivas(): Promise<Etapa[]> {
   const { data, error } = await supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, ativa')
+    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa')
     .eq('ativa', true)
     .order('setor_id')
     .order('ordem')
@@ -258,29 +260,89 @@ export async function liberarUnidades(parametros: {
 }
 
 /**
- * Move um card. Mesmo setor → movimentação de etapa; setor diferente →
- * movimentação de setor (com etapa de chegada opcional). Sempre um evento
- * novo com autor, origem, destino e timestamp — nunca um UPDATE.
+ * Move um card pela RPC da SESSAO-06 (plt_fn_mover_card): mesmo setor →
+ * movimentação de etapa; setor diferente → marcação de qualidade + movimentação
+ * NUMA transação (D-09). Saindo de setor de produção, o estado é obrigatório —
+ * o banco recusa sem ele, com a mensagem já em português.
  */
 export async function moverCard(parametros: {
   card: Card
   destinoSetorId: number
   destinoEtapaId: number | null
-  usuarioId: string
+  /** 🟢🟡🔴 de quem entrega (D-09) — obrigatório ao sair de setor de produção. */
+  estadoQualidade?: Estado | null
 }): Promise<void> {
-  const { card, destinoSetorId, destinoEtapaId, usuarioId } = parametros
+  const { card, destinoSetorId, destinoEtapaId, estadoQualidade } = parametros
   const mesmoSetor = card.setor_atual_id === destinoSetorId
   if (mesmoSetor && card.etapa_atual_id === destinoEtapaId) return
-  await registrarEvento({
-    card_id: card.id,
-    tipo: mesmoSetor ? 'movimentacao_etapa' : 'movimentacao_setor',
-    usuario_id: usuarioId,
-    setor_origem_id: card.setor_atual_id,
-    etapa_origem_id: card.etapa_atual_id,
-    setor_destino_id: destinoSetorId,
+  const { error } = await supabase.rpc('plt_fn_mover_card', {
+    p_card_id: card.id,
+    p_setor_destino_id: destinoSetorId,
     // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
-    etapa_destino_id: destinoEtapaId || null,
+    p_etapa_destino_id: destinoEtapaId || null,
+    p_estado_qualidade: estadoQualidade ?? null,
   })
+  if (error) throw new Error(`Não deu para mover: ${error.message}`)
+}
+
+// ---------------------------------------------------------------------------
+// Qualidade nas transições (SESSAO-06 / D-09 / D-25)
+// ---------------------------------------------------------------------------
+
+/**
+ * Marcações sem parecer dos cards informados — o que cada setor recebedor
+ * ainda precisa responder. Fica só a da CHEGADA ATUAL de cada card (marcação
+ * de chegada antiga é registro unilateral; o banco recusaria o parecer dela).
+ */
+export async function buscarPareceresPendentes(
+  cards: Card[],
+): Promise<Map<number, QualidadePendente>> {
+  if (cards.length === 0) return new Map()
+  const { data, error } = await supabase
+    .from('plt_vw_qualidade_transicoes')
+    .select(
+      'evento_marcacao_id, card_id, setor_origem_id, setor_destino_id, usuario_remetente_id, estado_remetente, marcado_em',
+    )
+    .in(
+      'card_id',
+      cards.map((c) => c.id),
+    )
+    .is('evento_parecer_id', null)
+    .order('marcado_em', { ascending: false })
+  const linhas = garantir(
+    data as QualidadePendente[] | null,
+    error,
+    'Não deu para carregar as pendências de qualidade',
+  )
+  const cardsPorId = new Map(cards.map((c) => [c.id, c]))
+  const pendentes = new Map<number, QualidadePendente>()
+  for (const linha of linhas) {
+    const card = cardsPorId.get(linha.card_id)
+    if (!card || pendentes.has(linha.card_id)) continue
+    if (linha.setor_destino_id !== card.setor_atual_id) continue
+    if (card.desde && new Date(linha.marcado_em).getTime() < new Date(card.desde).getTime())
+      continue
+    pendentes.set(linha.card_id, linha)
+  }
+  return pendentes
+}
+
+/**
+ * O parecer de quem recebe (D-09): concorda ou registra o estado que enxerga.
+ * Divergência não trava nada — vira registro e aviso automático à liderança;
+ * 🔴 leva o card à etapa DANIFICADO sozinho. Tudo regra do banco.
+ */
+export async function registrarParecer(parametros: {
+  marcacaoEventoId: number
+  estado: Estado
+  observacao?: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_registrar_parecer', {
+    p_marcacao_id: parametros.marcacaoEventoId,
+    p_estado_qualidade: parametros.estado,
+    p_observacao: parametros.observacao?.trim() || null,
+  })
+  if (error) throw new Error(`Não deu para registrar o parecer: ${error.message}`)
 }
 
 // ---------------------------------------------------------------------------

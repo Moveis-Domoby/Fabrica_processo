@@ -590,12 +590,20 @@ await bd.exec(`
 conferir(true, 'sem limite (padrão), a mesma pessoa executa mais de um card')
 
 // Mover com execução aberta encerra sozinho (D-24).
+// Desde a SESSAO-06 (D-09): sair de setor de PRODUÇÃO pela interface exige a
+// marcação de qualidade vinculada — o mover abaixo já nasce no formato novo.
 await bd.exec(`
-  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardComoda}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface', 'perfeito');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
     values (${cardComoda}, 'movimentacao_setor',
             (select id from public.plt_setores where codigo = 'secc'),
             (select id from public.plt_setores where codigo = 'fitamento'),
-            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardComoda} and tipo = 'qualidade_marcada'));
 `)
 const aposMover = (
   await bd.query(`
@@ -624,6 +632,23 @@ conferir(
 )
 
 titulo('Estorno (SESSAO-05): evento novo, original visível, só líder/admin')
+
+// A chegada na FITAMENTO teve marcação — o iniciar exige o parecer antes
+// (SESSAO-06/D-09). O líder do setor confirma o recebimento e o fluxo segue.
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardComoda}, 'execucao_iniciada',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'iniciar antes do parecer de recebimento é recusado (D-09 — SESSAO-06)',
+  /confirme o recebimento/i,
+)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+    values (${cardComoda}, 'qualidade_parecer',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardComoda} and tipo = 'qualidade_marcada'),
+            'perfeito');
+`)
 
 // FITAMENTO: exec.um não é do setor, mas quem valida papel é o trigger — o
 // cenário: iniciar e finalizar lá, e desfazer os gestos um a um.
@@ -796,6 +821,240 @@ try {
 }
 
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+// ============================================================================
+// SESSAO-06 — Qualidade nas transições (migration 15 / D-09 / D-25)
+// A dupla atestação virando regra de banco: marcação obrigatória ao sair de
+// produção, parecer antes do iniciar, 🔴 vai para DANIFICADO, notificações
+// automáticas. Lembrete E-14: RLS/grants não se provam no PGlite.
+// ============================================================================
+titulo('Qualidade (SESSAO-06): marcação obrigatória ao sair de produção')
+
+// O card do cenário: item 2 (1/1) nasce no PCP e vai para a SECC — a saída do
+// PCP NÃO exige marcação (D-25: a peça ainda nem foi produzida).
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 2, '099', 'Peça Teste Qualidade', 1, 1
+      from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+conferir(true, 'saída do PCP (entrada) não exige marcação de qualidade (D-25)')
+const cardQ = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+     values (${cardQ}, 'movimentacao_setor',
+             (select id from public.plt_setores where codigo = 'secc'),
+             (select id from public.plt_setores where codigo = 'furacao'),
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'mover entre setores sem marcar o estado é impossível (D-09 — critério 1)',
+  /marcar o estado da peça/i,
+)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardQ}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface', 'perfeito');
+`)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+     values (${cardQ}, 'movimentacao_setor',
+             (select id from public.plt_setores where codigo = 'secc'),
+             (select id from public.plt_setores where codigo = 'furacao'),
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+             (select max(id) from public.plt_eventos where card_id = ${cardQ} and tipo = 'qualidade_marcada'))`,
+  'marcação de OUTRA transição não serve — origem e destino precisam bater',
+  /desta transição/i,
+)
+
+titulo('Qualidade (SESSAO-06): a RPC de mover, o parecer e o DANIFICADO')
+
+// exec.um move SECC → FURAÇÃO pela RPC, marcando 🟡 — tudo numa transação.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const movidoRpc = (
+  await bd.query(`
+    select public.plt_fn_mover_card(
+      ${cardQ},
+      (select id from public.plt_setores where codigo = 'furacao'),
+      null, 'atencao', 'lasca na quina'
+    )::int as id`)
+).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+const aposRpc = (
+  await bd.query(`
+    select (select codigo from public.plt_setores where id = c.setor_atual_id) as setor,
+           c.qualidade_atual,
+           (select count(*)::int from public.plt_eventos m
+             where m.card_id = ${cardQ} and m.tipo = 'movimentacao_setor'
+               and m.evento_referencia_id is not null) as moves_com_marcacao
+      from public.plt_cards c where c.id = ${cardQ}`)
+).rows[0]
+conferir(
+  Number.isInteger(movidoRpc?.id) &&
+    aposRpc?.setor === 'furacao' &&
+    aposRpc?.qualidade_atual === 'atencao' &&
+    aposRpc?.moves_com_marcacao === 1,
+  'plt_fn_mover_card grava marcação 🟡 + movimentação vinculadas numa transação',
+  JSON.stringify(aposRpc ?? null),
+)
+const notifAtencao = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_notificacoes n
+      join public.plt_usuarios u on u.id = n.destinatario_id
+     where n.card_id = ${cardQ} and n.tipo = 'qualidade_atencao' and u.papel = 'admin'`)
+).rows[0]
+conferir(
+  notifAtencao.total >= 1,
+  'marcação 🟡 notificou o admin automaticamente, com o relato (Q-18 — critério 4)',
+  `vieram ${notifAtencao.total}`,
+)
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardQ}, 'execucao_iniciada',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface')`,
+  'iniciar sem responder o recebimento é impossível (D-09 — critério 2)',
+  /confirme o recebimento/i,
+)
+
+// O recebedor discorda: entrega dizia 🟡, ele enxerga 🔴 → divergência
+// registrada (sem travar), card vai para a etapa DANIFICADO automaticamente.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+    values (${cardQ}, 'qualidade_parecer',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            (select m.evento_referencia_id from public.plt_eventos m
+              where m.card_id = ${cardQ} and m.tipo = 'movimentacao_setor'
+              order by m.ocorrido_em desc, m.id desc limit 1),
+            'danificado');
+`)
+const aposParecer = (
+  await bd.query(`
+    select (select e.eh_danificado from public.plt_etapas e where e.id = c.etapa_atual_id) as na_danificado,
+           (select count(*)::int from public.plt_eventos a
+             where a.card_id = ${cardQ} and a.tipo = 'movimentacao_etapa' and a.origem = 'automacao') as move_automatico,
+           (select v.divergente from public.plt_vw_qualidade_transicoes v
+             where v.card_id = ${cardQ} and v.evento_parecer_id is not null) as divergente,
+           (select count(*)::int from public.plt_notificacoes n
+             where n.card_id = ${cardQ} and n.tipo = 'qualidade_divergencia') as avisos_divergencia,
+           (select count(*)::int from public.plt_eventos ne
+             where ne.card_id = ${cardQ} and ne.tipo = 'notificacao_enviada') as eventos_de_aviso
+      from public.plt_cards c where c.id = ${cardQ}`)
+).rows[0]
+conferir(
+  aposParecer?.na_danificado === true && aposParecer?.move_automatico === 1,
+  '🔴 registrado pelo recebedor levou o card à etapa DANIFICADO, criada sozinha (D-25 — critério 5)',
+  JSON.stringify(aposParecer ?? null),
+)
+conferir(
+  aposParecer?.divergente === true,
+  'a view registra os DOIS pareceres com divergência calculada, sem travar o card (critério 3)',
+)
+conferir(
+  (aposParecer?.avisos_divergencia ?? 0) >= 1 && (aposParecer?.eventos_de_aviso ?? 0) >= 2,
+  'divergência notificou líder/admin e cada aviso virou evento append-only',
+  JSON.stringify(aposParecer ?? null),
+)
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+     values (${cardQ}, 'qualidade_parecer',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+             (select m.evento_referencia_id from public.plt_eventos m
+               where m.card_id = ${cardQ} and m.tipo = 'movimentacao_setor'
+               order by m.ocorrido_em desc, m.id desc limit 1),
+             'perfeito')`,
+  'o parecer se registra uma vez só por chegada',
+  /uma vez só/i,
+)
+
+titulo('Qualidade (SESSAO-06): líder notificado, parecer antigo, API livre')
+
+// FURAÇÃO → FITAMENTO com 🟡: o líder da FITAMENTO (setor que recebe) é
+// notificado junto com os admins (D-25).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardQ}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'furacao'),
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface', 'atencao');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+    values (${cardQ}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'furacao'),
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardQ} and tipo = 'qualidade_marcada'));
+`)
+const notifLider = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_notificacoes n
+     where n.card_id = ${cardQ} and n.tipo = 'qualidade_atencao'
+       and n.destinatario_id = (select id from public.plt_usuarios where usuario = 'lider.fita')`)
+).rows[0]
+conferir(
+  notifLider.total === 1,
+  'o líder do setor que recebe foi notificado no 🟡 (D-25 — líderes dos dois setores + admins)',
+  `vieram ${notifLider.total}`,
+)
+
+// Mover de novo SEM ninguém ter respondido o parecer: permitido — a divergência
+// não trava e o parecer só bloqueia o INICIAR (D-09 revisada).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardQ}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface', 'perfeito');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+    values (${cardQ}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardQ} and tipo = 'qualidade_marcada'));
+`)
+conferir(true, 'mover sem parecer respondido não trava — só o iniciar exige (D-09 revisada)')
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+     values (${cardQ}, 'qualidade_parecer',
+             (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface',
+             (select m.id from public.plt_eventos m
+               where m.card_id = ${cardQ} and m.tipo = 'qualidade_marcada' and m.estado_qualidade = 'atencao'
+                 and m.setor_destino_id = (select id from public.plt_setores where codigo = 'fitamento')
+               order by m.id desc limit 1),
+             'perfeito')`,
+  'parecer de chegada antiga é recusado — responde-se só à chegada atual',
+  /chegada atual/i,
+)
+
+// API move sem estado nenhum (RF-86) — e a chegada em ESTOQUE avisa os admins (D-25).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${cardQ}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'estoque'), 'api');
+`)
+const chegadaEstoque = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_notificacoes n
+             join public.plt_usuarios u on u.id = n.destinatario_id
+             where n.card_id = ${cardQ} and n.tipo = 'chegada_estoque' and u.papel = 'admin') as avisos,
+           (select codigo from public.plt_setores s
+             join public.plt_cards c on c.setor_atual_id = s.id where c.id = ${cardQ}) as setor`)
+).rows[0]
+conferir(
+  chegadaEstoque?.setor === 'estoque' && chegadaEstoque?.avisos >= 1,
+  'API move sem exigir estado (critério 5) e a chegada em ESTOQUE notificou os admins (D-25)',
+  JSON.stringify(chegadaEstoque ?? null),
+)
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

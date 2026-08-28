@@ -19,6 +19,8 @@ export interface Etapa {
   nome: string
   ordem: number
   eh_fila: boolean
+  /** D-09/D-25: etapa especial para onde vai o 🔴 confirmado — o sistema garante uma por setor. */
+  eh_danificado: boolean
   ativa: boolean
 }
 
@@ -107,6 +109,28 @@ export interface UnidadeParaLiberar {
   item_descricao: string | null
   indice_unidade: number
   total_unidades: number
+}
+
+/**
+ * Marcação de qualidade sem parecer, como sai de plt_vw_qualidade_transicoes
+ * (SESSAO-06/D-09) — o que o setor recebedor ainda precisa responder.
+ */
+export interface QualidadePendente {
+  evento_marcacao_id: number
+  card_id: number
+  setor_origem_id: number | null
+  setor_destino_id: number | null
+  usuario_remetente_id: string | null
+  estado_remetente: Extract<Estado, 'perfeito' | 'atencao' | 'danificado'>
+  marcado_em: string
+}
+
+/** A pendência já enriquecida com nomes — o que o card e o modal mostram. */
+export interface ParecerPendente {
+  marcacaoEventoId: number
+  estado: Extract<Estado, 'perfeito' | 'atencao' | 'danificado'>
+  setorOrigemNome: string
+  remetenteNome: string | null
 }
 
 /** Execução em andamento, como sai de plt_vw_execucoes (SESSAO-05/D-02). */
