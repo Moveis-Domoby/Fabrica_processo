@@ -194,6 +194,14 @@ export function PCP() {
               })
             }
             aoAbrirMover={setCardParaMover}
+            // No PCP não há gesto de execução: a unidade só está de passagem
+            // entre nascer e ser liberada (D-22). O tempo dela aqui é fila.
+            execucao={{
+              execucoesPorCard: new Map(),
+              nomesUsuarios: new Map(),
+              meuUsuarioId: perfil.id,
+              gestoPendente: false,
+            }}
           />
         )}
         {unidadesNoPcp.length === 0 && (
