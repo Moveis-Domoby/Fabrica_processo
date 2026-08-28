@@ -29,3 +29,8 @@
 ## Registro contínuo
 
 - [28/08] Branch criada. Views relidas (permanencias/execucoes/qualidade), plt_visualizacoes e RLS conferidos (leitura própria/global/setor; escrita própria/admin).
+- [28/08] Migration 18 escrita, testada (bloco novo no harness com 6 verificações: soma bate com a manual, lista detalhada, qualidade, estoque, gate do líder, operador zero) e APLICADA; advisors: 14 WARN esperados. Vazamento evitado no desenho: a subquery do "pedido mais antigo" do estoque ganhou o mesmo gate do agregado.
+- [28/08] Front: `src/dashboards/` (parser de interval TESTADO — 6 casos no Vitest; api tipada; página com widgets/visualizações). Rota `/dashboards` no guard de líder + link na sidebar. tsc · lint · Vitest 23/23 · build ok.
+- [28/08] Conferência de navegador (a 10 é sessão de verificação visual): página inteira com DADOS REAIS — SECC 4min de execução, execuções nomeadas, qualidade (SECC 🟡1/🔴1, divergência contra 1), estoque 1 peça/1d2h; **D-29 provado de ponta a ponta** (35s brutos → 30s úteis pela pausa de teste da SESSAO-07); visualização "So tempo por setor" salva → reload → alternada com config restaurada; console limpo.
+
+## Task list — conferida ao final: 1✔ 2✔ 3✔ 4✔ 5✔ 6✔ 7✔ 8✔ 9✔ 10✔ 11✔

@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-10 — Dashboards e Visualizações Salvas"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
 atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, dashboard]
 ---
 
 # 🎯 SESSAO-10 — Dashboards e Visualizações Salvas
+
+> [!success] ✅ Entregue em 28/08/2026 (bloco noturno D-26) — [[handoff_2026_08_28_sessao10_dashboards]]
+> Executada com o foco da **D-32** (tempo em primeiro lugar, respostas do dono no aval do bloco): lista detalhada de execuções + duração útil (D-29). Operador não vê nada; líder só o próprio setor — gate no banco.
 
 ## O que é
 
