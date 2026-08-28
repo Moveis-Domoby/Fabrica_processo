@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-05 — Timers e Eventos de Tempo"
 tipo: demanda
-status: rascunho
+status: em execucao
 data: 2026-08-19
-atualizado: 2026-08-19
+atualizado: 2026-08-27
 tags: [plataforma, demanda, sessao]
 ---
 
@@ -35,6 +35,8 @@ D-02 (fila vs execução, dash compara e soma) · D-04 (alavancagem operacional;
 
 - Pode existir mais de um card "em execução" por operador ao mesmo tempo? (Provavelmente sim, mas confirmar.)
 - "Iniciar" é obrigatório antes de "finalizar", ou o setor pode finalizar direto (tempo de execução zero)?
+
+> ✅ **Respondidas em 27/08/2026 (viraram a [[PLT - Decisoes de Produto#D-24]]):** vários cards por pessoa PODE, com **limite configurável por setor** (padrão sem limite); **iniciar é obrigatório**; mover com execução aberta **encerra a execução automaticamente**; **admin pode tudo** (estorno em qualquer setor, líder no próprio); **transferência entre pessoas** finaliza para um e inicia para o outro, o tempo do produto segue contando.
 
 ## Fora do escopo
 

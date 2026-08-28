@@ -8,6 +8,8 @@ export interface Setor {
   papel_no_fluxo: 'entrada' | 'producao' | 'terminal'
   ordem: number
   ativo: boolean
+  /** D-24: máximo de cards em execução pela MESMA pessoa aqui. null = sem limite. */
+  limite_execucoes_por_pessoa: number | null
 }
 
 /** Etapa interna de um setor (D-14): cadastro livre, toda etapa conta tempo. */
@@ -34,6 +36,8 @@ export interface Card {
   setor_atual_id: number | null
   etapa_atual_id: number | null
   desde: string | null
+  /** Quem está executando AGORA (projeção de evento — SESSAO-05). */
+  executor_atual_id: string | null
   qualidade_atual: Estado | null
   concluido_em: string | null
 }
@@ -42,7 +46,7 @@ export interface Card {
 export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
-  'qualidade_atual, concluido_em'
+  'executor_atual_id, qualidade_atual, concluido_em'
 
 /** Linha de plt_fn_pedidos_kanban — resumo sem dado pessoal do cliente. */
 export interface PedidoResumo {
@@ -103,4 +107,45 @@ export interface UnidadeParaLiberar {
   item_descricao: string | null
   indice_unidade: number
   total_unidades: number
+}
+
+/** Execução em andamento, como sai de plt_vw_execucoes (SESSAO-05/D-02). */
+export interface ExecucaoAberta {
+  evento_inicio_id: number
+  card_id: number
+  usuario_inicio_id: string
+  iniciou_em: string
+}
+
+/** Uma linha de plt_fn_linha_tempo_card — evento enriquecido com nomes. */
+export interface EventoLinhaTempo {
+  evento_id: number
+  tipo:
+    | 'card_criado'
+    | 'movimentacao_setor'
+    | 'movimentacao_etapa'
+    | 'execucao_iniciada'
+    | 'execucao_finalizada'
+    | 'qualidade_marcada'
+    | 'qualidade_parecer'
+    | 'divergencia_registrada'
+    | 'notificacao_enviada'
+    | 'delegacao'
+    | 'estorno'
+  ocorrido_em: string
+  usuario_id: string | null
+  usuario_nome: string | null
+  setor_origem_id: number | null
+  setor_origem_nome: string | null
+  etapa_origem_nome: string | null
+  setor_destino_id: number | null
+  setor_destino_nome: string | null
+  etapa_destino_nome: string | null
+  etapa_destino_eh_fila: boolean
+  estado_qualidade: Estado | null
+  observacao: string | null
+  origem: 'interface' | 'api' | 'automacao'
+  evento_referencia_id: number | null
+  estornado: boolean
+  dados: Record<string, unknown>
 }

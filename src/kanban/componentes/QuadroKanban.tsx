@@ -10,10 +10,24 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { Inbox } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { CartaoUnidade } from './CartaoUnidade'
-import type { Card, Etapa, PedidoResumo, Setor } from '../tipos'
+import type { Card, Etapa, ExecucaoAberta, PedidoResumo, Setor } from '../tipos'
 
 /** Id de coluna no drag-and-drop: etapa real ou a "Chegada" (etapa nula). */
 const CHEGADA = 'chegada'
+
+/** O que os cards precisam saber além de si mesmos (SESSAO-05). */
+export interface ContextoExecucao {
+  /** Execução aberta por card (de plt_vw_execucoes). */
+  execucoesPorCard: Map<number, ExecucaoAberta>
+  /** id → nome, para dizer QUEM executa. */
+  nomesUsuarios: Map<string, string>
+  /** Quem está olhando a tela (para "você" e para o Assumir). */
+  meuUsuarioId: string
+  gestoPendente: boolean
+  aoIniciar?: (card: Card) => void
+  aoFinalizar?: (card: Card) => void
+  aoLinhaTempo?: (card: Card) => void
+}
 
 interface ColunaProps {
   id: string
@@ -25,6 +39,7 @@ interface ColunaProps {
   terminal: boolean
   aoMover: (card: Card) => void
   arrastavel: boolean
+  execucao: ContextoExecucao
 }
 
 function Coluna({
@@ -37,8 +52,17 @@ function Coluna({
   terminal,
   aoMover,
   arrastavel,
+  execucao,
 }: ColunaProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
+
+  // Indicador de espera da demanda: com 2+ cards sem ninguém, o que espera há
+  // mais tempo ganha destaque (a ordenação por chegada já o põe no topo).
+  const esperando = cards.filter((c) => c.executor_atual_id === null)
+  const maisAntigoEsperandoId =
+    !terminal && esperando.length >= 2
+      ? esperando.reduce((a, b) => ((a.desde ?? '') <= (b.desde ?? '') ? a : b)).id
+      : null
 
   return (
     <section
@@ -69,39 +93,39 @@ function Coluna({
             Vazio
           </p>
         )}
-        {cards.map((card) =>
-          arrastavel ? (
-            <CardArrastavel
-              key={card.id}
-              card={card}
-              pedido={pedidosPorId.get(card.pedido_id)}
-              agora={agora}
-              terminal={terminal}
-              aoMover={aoMover}
-            />
+        {cards.map((card) => {
+          const execucaoAberta = execucao.execucoesPorCard.get(card.id)
+          const comuns = {
+            card,
+            pedido: pedidosPorId.get(card.pedido_id),
+            agora,
+            terminal,
+            aoMover,
+            aoIniciar: execucao.aoIniciar,
+            aoFinalizar: execucao.aoFinalizar,
+            aoLinhaTempo: execucao.aoLinhaTempo,
+            execucaoDesde: execucaoAberta?.iniciou_em,
+            executorNome: card.executor_atual_id
+              ? execucao.nomesUsuarios.get(card.executor_atual_id)
+              : undefined,
+            souExecutor: card.executor_atual_id === execucao.meuUsuarioId,
+            esperandoHaMaisTempo: card.id === maisAntigoEsperandoId,
+            gestoPendente: execucao.gestoPendente,
+          }
+          return arrastavel ? (
+            <CardArrastavel key={card.id} {...comuns} />
           ) : (
-            <CartaoUnidade
-              key={card.id}
-              card={card}
-              pedido={pedidosPorId.get(card.pedido_id)}
-              agora={agora}
-              terminal={terminal}
-              aoMover={aoMover}
-            />
-          ),
-        )}
+            <CartaoUnidade key={card.id} {...comuns} />
+          )
+        })}
       </div>
     </section>
   )
 }
 
-function CardArrastavel(props: {
-  card: Card
-  pedido?: PedidoResumo
-  agora: number
-  terminal: boolean
-  aoMover: (card: Card) => void
-}) {
+type CardArrastavelProps = Parameters<typeof CartaoUnidade>[0]
+
+function CardArrastavel(props: CardArrastavelProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: props.card.id,
   })
@@ -118,14 +142,7 @@ function CardArrastavel(props: {
           : undefined
       }
     >
-      <CartaoUnidade
-        card={props.card}
-        pedido={props.pedido}
-        agora={props.agora}
-        terminal={props.terminal}
-        aoMover={props.aoMover}
-        arrastando={isDragging}
-      />
+      <CartaoUnidade {...props} arrastando={isDragging} />
     </div>
   )
 }
@@ -140,6 +157,8 @@ export interface QuadroKanbanProps {
   aoMoverParaEtapa: (card: Card, etapaId: number | null) => void
   /** Abre o modal "Mover para…" (o gesto do tablet). */
   aoAbrirMover: (card: Card) => void
+  /** Os gestos e dados de execução da SESSAO-05. */
+  execucao: ContextoExecucao
 }
 
 /**
@@ -147,7 +166,8 @@ export interface QuadroKanbanProps {
  * fixa "Chegada" (cards recém-chegados, antes de qualquer etapa — D-14 diz que
  * as etapas nascem vazias, então todo setor tem pelo menos esta coluna).
  * Dois gestos de movimentação, como manda a demanda: arrastar (desktop) e o
- * botão "Mover" de cada card (tablet).
+ * botão "Mover" de cada card (tablet). Desde a SESSAO-05, os cards carregam
+ * também Iniciar/Finalizar/Assumir — o clique que vira medição (D-02).
  */
 export function QuadroKanban({
   setor,
@@ -157,6 +177,7 @@ export function QuadroKanban({
   agora,
   aoMoverParaEtapa,
   aoAbrirMover,
+  execucao,
 }: QuadroKanbanProps) {
   const sensores = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const terminal = setor.papel_no_fluxo === 'terminal'
@@ -187,6 +208,7 @@ export function QuadroKanban({
           terminal={terminal}
           aoMover={aoAbrirMover}
           arrastavel={etapas.length > 0}
+          execucao={execucao}
         />
         {etapas.map((etapa) => (
           <Coluna
@@ -200,6 +222,7 @@ export function QuadroKanban({
             terminal={terminal}
             aoMover={aoAbrirMover}
             arrastavel
+            execucao={execucao}
           />
         ))}
       </div>

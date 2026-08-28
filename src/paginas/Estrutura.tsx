@@ -361,14 +361,90 @@ function SecaoSetor(props: {
       </header>
 
       {expandido && (
-        <ListaEtapas
-          setor={setor}
-          podeGerir={podeGerirEtapas}
-          aoErro={props.aoErro}
-          aoMudar={props.aoMudar}
-        />
+        <>
+          {props.podeGerirSetor && (
+            <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+          )}
+          <ListaEtapas
+            setor={setor}
+            podeGerir={podeGerirEtapas}
+            aoErro={props.aoErro}
+            aoMudar={props.aoMudar}
+          />
+        </>
       )}
     </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * D-24: limite de cards em execução pela MESMA pessoa neste setor, por vez.
+ * Nasce sem limite; o admin configura aqui. O banco recusa o gesto de iniciar
+ * de quem estiver no teto — vale para interface e API igualmente.
+ */
+function LimiteExecucoes(props: {
+  setor: Setor
+  aoErro: (excecao: unknown) => void
+  aoMudar: () => Promise<void>
+}) {
+  const { setor } = props
+  const notificar = useNotificacao()
+  const [valor, setValor] = useState(
+    setor.limite_execucoes_por_pessoa === null ? '' : String(setor.limite_execucoes_por_pessoa),
+  )
+
+  const salvarMutacao = useMutation({
+    mutationFn: (limite: number | null) =>
+      atualizarSetor(setor.id, { limite_execucoes_por_pessoa: limite }),
+    onSuccess: async (_dados, limite) => {
+      notificar({
+        titulo:
+          limite === null
+            ? `${setor.nome} sem limite de execuções`
+            : `${setor.nome}: até ${limite} card(s) em execução por pessoa`,
+        tom: 'perfeito',
+      })
+      await props.aoMudar()
+    },
+    onError: props.aoErro,
+  })
+
+  function aoSalvar() {
+    const texto = valor.trim()
+    // `|| null`: vazio/0 nunca é limite válido — vira "sem limite" (D-24).
+    const limite = Number(texto) || null
+    if (limite !== null && (!Number.isInteger(limite) || limite < 1)) {
+      props.aoErro(new Error('O limite precisa ser um número inteiro maior que zero — ou vazio para sem limite.'))
+      return
+    }
+    salvarMutacao.mutate(limite)
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-borda px-3 py-3 sm:flex-row sm:items-end sm:px-4">
+      <div className="max-w-xs flex-1">
+        <Campo
+          rotulo="Limite de cards em execução por pessoa"
+          ajuda="Vazio = sem limite (padrão). O banco recusa o Iniciar de quem estiver no teto (D-24)."
+          type="number"
+          min={1}
+          inputMode="numeric"
+          placeholder="sem limite"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+        />
+      </div>
+      <Botao
+        variante="secundaria"
+        carregando={salvarMutacao.isPending}
+        onClick={aoSalvar}
+        className="min-h-toque-md"
+      >
+        Salvar limite
+      </Botao>
+    </div>
   )
 }
 

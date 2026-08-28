@@ -9,6 +9,8 @@ export interface ModalMoverCardProps {
   card: Card | null
   pedido?: PedidoResumo
   setores: Setor[]
+  /** Nome de quem está executando o card agora (para o aviso da D-24). */
+  executorNome?: string
   aoFechar: () => void
 }
 
@@ -18,7 +20,13 @@ export interface ModalMoverCardProps {
  * setor ativo, inclusive mudar de etapa dentro do setor atual. A atestação de
  * qualidade da transição (D-09) pluga aqui na SESSAO-06.
  */
-export function ModalMoverCard({ card, pedido, setores, aoFechar }: ModalMoverCardProps) {
+export function ModalMoverCard({
+  card,
+  pedido,
+  setores,
+  executorNome,
+  aoFechar,
+}: ModalMoverCardProps) {
   const { perfil } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -113,6 +121,12 @@ export function ModalMoverCard({ card, pedido, setores, aoFechar }: ModalMoverCa
       }
     >
       <div className="flex flex-col gap-4">
+        {card?.executor_atual_id && (
+          <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
+            Este card está <strong>em execução{executorNome ? ` por ${executorNome}` : ''}</strong>.
+            Mover encerra a execução agora — o tempo conta até este momento (D-24).
+          </p>
+        )}
         <Selecao
           rotulo="Setor de destino"
           tamanho="galpao"

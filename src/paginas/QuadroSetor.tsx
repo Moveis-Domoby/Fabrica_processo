@@ -4,12 +4,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flag, ListChecks } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { buscarCardsDoSetor, buscarEtapasDoSetor, buscarSetores, moverCard } from '@/kanban/api'
+import {
+  buscarCardsDoSetor,
+  buscarEtapasDoSetor,
+  buscarExecucoesAbertas,
+  buscarNomesUsuarios,
+  buscarSetores,
+  finalizarExecucao,
+  iniciarExecucao,
+  moverCard,
+} from '@/kanban/api'
 import { useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
-import type { Card } from '@/kanban/tipos'
+import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
+import type { Card, ExecucaoAberta } from '@/kanban/tipos'
 
 const ATUALIZA_A_CADA = 20_000
 
@@ -17,6 +27,8 @@ const ATUALIZA_A_CADA = 20_000
  * O quadro de um setor (RF-01): etapas internas como colunas, cards de
  * unidade, drag-and-drop (desktop) e botão "Mover" (tablet). Quem vê: gente
  * do setor e admin — o RLS garante por baixo, a tela só evita a página vazia.
+ * Desde a SESSAO-05 os cards carregam Iniciar/Finalizar/Assumir (D-02/D-24) e
+ * a linha do tempo — o clique do galpão virando medição.
  */
 export function QuadroSetor() {
   const { id } = useParams()
@@ -48,18 +60,60 @@ export function QuadroSetor() {
   })
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(cards)
 
+  // SESSAO-05: quem executa o quê, desde quando — e os nomes das pessoas.
+  const idsDosCards = cards.map((c) => c.id)
+  const { data: execucoes = [] } = useQuery({
+    queryKey: ['execucoes', 'setor', setorId, idsDosCards.join(',')],
+    queryFn: () => buscarExecucoesAbertas(idsDosCards),
+    enabled: idsDosCards.length > 0,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
+  const { data: nomesUsuarios = new Map<string, string>() } = useQuery({
+    queryKey: ['usuarios', 'nomes'],
+    queryFn: buscarNomesUsuarios,
+    staleTime: 5 * 60_000,
+  })
+  const execucoesPorCard = new Map<number, ExecucaoAberta>(
+    execucoes.map((e) => [e.card_id, e]),
+  )
+
   const [cardParaMover, setCardParaMover] = useState<Card | null>(null)
+  const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
+
+  async function invalidarQuadro() {
+    await Promise.all([
+      clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
+    ])
+  }
+
+  function aoErroGesto(titulo: string) {
+    return (excecao: unknown) =>
+      notificar({
+        titulo,
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+  }
 
   const mutacaoEtapa = useMutation({
     mutationFn: moverCard,
-    onSuccess: () => clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
-    onError: (excecao) =>
-      notificar({
-        titulo: 'Não deu para mover o card',
-        descricao: excecao instanceof Error ? excecao.message : undefined,
-        tom: 'danificado',
-      }),
+    onSuccess: invalidarQuadro,
+    onError: aoErroGesto('Não deu para mover o card'),
   })
+  const mutacaoIniciar = useMutation({
+    mutationFn: iniciarExecucao,
+    onSuccess: invalidarQuadro,
+    onError: aoErroGesto('Não deu para iniciar'),
+  })
+  const mutacaoFinalizar = useMutation({
+    mutationFn: finalizarExecucao,
+    onSuccess: invalidarQuadro,
+    onError: aoErroGesto('Não deu para finalizar'),
+  })
+  const gestoPendente =
+    mutacaoIniciar.isPending || mutacaoFinalizar.isPending || mutacaoEtapa.isPending
 
   if (!carregando && !souAdmin && !vinculoAqui) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -87,7 +141,7 @@ export function QuadroSetor() {
           <p className="mt-1 text-texto-suave">
             {terminal
               ? 'Unidade que chega aqui está concluída (D-13) — o pedido reagrupa na Expedição.'
-              : `${cards.length} card${cards.length === 1 ? '' : 's'} no setor. Arraste entre as etapas ou use o botão Mover.`}
+              : `${cards.length} card${cards.length === 1 ? '' : 's'} no setor. Iniciar e Finalizar contam o tempo de quem executa; a fila conta sozinha (D-02).`}
           </p>
         </div>
         {podeGerirEtapas && (
@@ -114,13 +168,37 @@ export function QuadroSetor() {
           })
         }
         aoAbrirMover={setCardParaMover}
+        execucao={{
+          execucoesPorCard,
+          nomesUsuarios,
+          meuUsuarioId: perfil.id,
+          gestoPendente,
+          aoIniciar: terminal
+            ? undefined
+            : (card) => mutacaoIniciar.mutate({ card, usuarioId: perfil.id }),
+          aoFinalizar: terminal
+            ? undefined
+            : (card) => mutacaoFinalizar.mutate({ card, usuarioId: perfil.id }),
+          aoLinhaTempo: setCardLinhaTempo,
+        }}
       />
 
       <ModalMoverCard
         card={cardParaMover}
         pedido={cardParaMover ? pedidosPorId.get(cardParaMover.pedido_id) : undefined}
         setores={setores}
+        executorNome={
+          cardParaMover?.executor_atual_id
+            ? nomesUsuarios.get(cardParaMover.executor_atual_id)
+            : undefined
+        }
         aoFechar={() => setCardParaMover(null)}
+      />
+
+      <ModalLinhaTempo
+        card={cardLinhaTempo}
+        pedido={cardLinhaTempo ? pedidosPorId.get(cardLinhaTempo.pedido_id) : undefined}
+        aoFechar={() => setCardLinhaTempo(null)}
       />
     </div>
   )

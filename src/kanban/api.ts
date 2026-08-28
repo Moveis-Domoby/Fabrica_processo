@@ -3,6 +3,8 @@ import { COLUNAS_CARD } from './tipos'
 import type {
   Card,
   Etapa,
+  EventoLinhaTempo,
+  ExecucaoAberta,
   ExpedicaoLinha,
   ItemKanban,
   PedidoResumo,
@@ -39,7 +41,7 @@ function garantir<T>(dados: T | null, erro: { message: string } | null, contexto
 export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
   let consulta = supabase
     .from('plt_setores')
-    .select('id, codigo, nome, papel_no_fluxo, ordem, ativo')
+    .select('id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa')
     .order('ordem')
     .order('id')
   if (!incluirInativos) consulta = consulta.eq('ativo', true)
@@ -282,6 +284,107 @@ export async function moverCard(parametros: {
 }
 
 // ---------------------------------------------------------------------------
+// Execução e linha do tempo (SESSAO-05 / D-02 / D-24)
+//
+// Iniciar/finalizar são INSERTs de evento como qualquer gesto — as regras
+// (iniciar obrigatório, limite por setor, transferência) vivem em trigger no
+// banco e valem para todo escritor. O front só dá o clique e mostra o erro
+// que o banco devolver, já em português.
+// ---------------------------------------------------------------------------
+
+/** Nomes de todo mundo (id → nome) — para o card dizer QUEM está executando. */
+export async function buscarNomesUsuarios(): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from('plt_usuarios').select('id, nome')
+  const linhas = garantir(
+    data as { id: string; nome: string }[] | null,
+    error,
+    'Não deu para carregar os nomes',
+  )
+  return new Map(linhas.map((u) => [u.id, u.nome]))
+}
+
+/** Execuções em andamento nos cards informados — dá o "executando há X" do card. */
+export async function buscarExecucoesAbertas(cardIds: number[]): Promise<ExecucaoAberta[]> {
+  if (cardIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('plt_vw_execucoes')
+    .select('evento_inicio_id, card_id, usuario_inicio_id, iniciou_em')
+    .in('card_id', cardIds)
+    .eq('em_andamento', true)
+  return garantir(
+    data as ExecucaoAberta[] | null,
+    error,
+    'Não deu para carregar as execuções',
+  )
+}
+
+/**
+ * Iniciar (D-24): fecha a fila, abre a execução de quem clicou. Num card já em
+ * execução por OUTRA pessoa, é a transferência — fecha para um, abre para o
+ * outro; `transferido_de` fica gravado para a linha do tempo contar a história.
+ */
+export async function iniciarExecucao(parametros: {
+  card: Card
+  usuarioId: string
+}): Promise<void> {
+  const { card, usuarioId } = parametros
+  const { error } = await supabase.from('plt_eventos').insert({
+    card_id: card.id,
+    tipo: 'execucao_iniciada',
+    usuario_id: usuarioId,
+    origem: 'interface',
+    setor_origem_id: card.setor_atual_id,
+    etapa_origem_id: card.etapa_atual_id,
+    dados: card.executor_atual_id ? { transferido_de: card.executor_atual_id } : {},
+  })
+  if (error) throw new Error(`Não deu para iniciar: ${error.message}`)
+}
+
+/** Finalizar (D-24): fecha a execução — o card fica pronto para ser movido. */
+export async function finalizarExecucao(parametros: {
+  card: Card
+  usuarioId: string
+}): Promise<void> {
+  const { card, usuarioId } = parametros
+  const { error } = await supabase.from('plt_eventos').insert({
+    card_id: card.id,
+    tipo: 'execucao_finalizada',
+    usuario_id: usuarioId,
+    origem: 'interface',
+    setor_origem_id: card.setor_atual_id,
+    etapa_origem_id: card.etapa_atual_id,
+  })
+  if (error) throw new Error(`Não deu para finalizar: ${error.message}`)
+}
+
+/** A história completa do card, com nomes — a linha do tempo (SESSAO-05). */
+export async function linhaTempoCard(cardId: number): Promise<EventoLinhaTempo[]> {
+  const { data, error } = await supabase.rpc('plt_fn_linha_tempo_card', {
+    p_card_id: cardId,
+  })
+  return garantir(
+    data as EventoLinhaTempo[] | null,
+    error,
+    'Não deu para carregar a linha do tempo',
+  )
+}
+
+/**
+ * Estorno (líder do setor do card ou admin — D-24): evento novo que anula o
+ * gesto errado sem apagar nada (RNF-05). O banco valida quem pode e o quê.
+ */
+export async function estornarEvento(parametros: {
+  eventoId: number
+  observacao?: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estornar_evento', {
+    p_evento_id: parametros.eventoId,
+    p_observacao: parametros.observacao ?? null,
+  })
+  if (error) throw new Error(`Não deu para estornar: ${error.message}`)
+}
+
+// ---------------------------------------------------------------------------
 // Gestão de estrutura (admin + líder do próprio setor — D-22, RLS por baixo)
 // ---------------------------------------------------------------------------
 
@@ -308,7 +411,7 @@ export async function criarSetor(nome: string, ordem: number): Promise<void> {
 
 export async function atualizarSetor(
   id: number,
-  mudancas: Partial<Pick<Setor, 'nome' | 'ordem' | 'ativo'>>,
+  mudancas: Partial<Pick<Setor, 'nome' | 'ordem' | 'ativo' | 'limite_execucoes_por_pessoa'>>,
 ): Promise<void> {
   const dados = { ...mudancas }
   if (dados.nome) dados.nome = dados.nome.trim().toUpperCase()
