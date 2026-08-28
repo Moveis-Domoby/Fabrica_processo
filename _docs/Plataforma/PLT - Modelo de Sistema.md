@@ -233,6 +233,37 @@ SESSAO-05.
   linha e o sino pode estar à esquerda; ancorar nele estoura a tela no celular). Aviso não lido
   tem fundo `superficie-sutil` + "Toque para marcar como lida".
 
+### Menu lateral e tela do setor (SESSAO-07 / D-27 / D-28)
+
+- **`Layout` virou MENU LATERAL:** coluna fixa grafite à esquerda no computador (`lg:`);
+  gaveta com overlay atrás do hambúrguer no celular. Sino, usuário e sair vivem no rodapé
+  da sidebar (e o sino também na barra fina do celular). A rota `/tablet` renderiza **sem
+  navegação nenhuma** — o operador não navega, ele age.
+- **`<CartaoTablet>`** (`src/tablet/`) — o card da tela do setor: dados do PRODUTO e nunca
+  do cliente (D-28), tempo em fonte grande, etiqueta da etapa, ações em botões `galpao`
+  (Iniciar/Finalizar/Receber com 64px; Mover/Fotos/Histórico com 56px). O card há mais
+  tempo esperando ganha borda âmbar + ampulheta + texto (nunca só cor — M-12).
+- **`<ModalPinOperador>`** — o "quem é você?" de toda ação no tablet: o operador toca no
+  PRÓPRIO NOME (lista dos membros do setor) e digita o PIN num **teclado na tela** — o
+  ciclo inteiro sem teclado do sistema. A conferência é da Edge Function; o resultado vira
+  o AUTOR do gesto (`p_operador_id` nas RPCs; `usuario_id` nos inserts).
+- **Som de chegada** (`src/tablet/som.ts`): dois toques curtos de senoide em volume baixo
+  ("mínimo e um pouco opaco" — palavras do dono), gerados por WebAudio, sem arquivo e sem
+  rede. O primeiro toque na tela libera o áudio do navegador.
+- **`<ModalImagensProduto>`** — o espaço de imagens da peça (D-28): galeria por SKU
+  (bucket `plt-imagens`, caminho `produtos/{codigo}/…`); admin/líder anexa e remove,
+  operador vê. É onde a futura biblioteca de peças pluga.
+- **Tempo real:** mudanças em `plt_cards` chegam por Supabase Realtime e invalidam as
+  queries; o polling de 20s continua como rede de segurança.
+
+### Controle de tempo do admin (SESSAO-07 / D-29)
+
+- Página `/administracao/tempo` (só admin): horário de funcionamento por setor/pessoa
+  (chips de dia da semana + hora início/fim), desligar/religar o tempo agora (pausa
+  aberta em faixa âmbar), e a **correção retroativa** em seção emoldurada de vermelho —
+  é o "botão de risco", com motivo registrado. Texto da tela repete a regra de ouro:
+  nada altera o que já foi registrado; o desconto é só no cálculo.
+
 ## 5. Regras de escrita da interface
 
 - **UI 100% em português.**

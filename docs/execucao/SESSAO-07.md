@@ -4,22 +4,22 @@
 **Demanda:** `_docs/Plataforma/Demandas/SESSAO-07 - Tela do Setor Tablet.md`
 **Decisões novas que regem o bloco:** D-28 (card do operador: dados do produto + imagens + som discreto + modo setor), D-29 (controle de tempo do admin), D-30 (deploy adiado), D-27 (prelúdio de padrões).
 
-## Task list (espelho da demanda + D-27 + D-28 + D-29)
+## Task list (espelho da demanda + D-27 + D-28 + D-29) — CONFERIDA ao final
 
-1. [ ] Prelúdio D-27a — menu lateral (sidebar) no lugar da barra superior; recolhível no celular
-2. [ ] Prelúdio D-27b — remover rota/aba "Design system"; migrar `docs/design-system.md` → `_docs/Plataforma/PLT - Modelo de Sistema.md`; atualizar os DOIS `CLAUDE.md`
-3. [ ] Prelúdio D-27c — microinteração do `Botao`: elevação leve (1–2px) + sombra suave
-4. [ ] Prelúdio D-27d — varredura de códigos internos (D-NN/RF-NN/Q-NN) em texto de UI: front E mensagens de erro do banco (migration)
-5. [ ] Banco (migration 16): `p_operador_id` nas RPCs mover/parecer (gesto por PIN no tablet) · mensagens sem códigos · realtime em `plt_cards` · bucket `plt-imagens` + policies · tabelas D-29 (`plt_horarios_funcionamento`, `plt_pausas_tempo`) + helper de tempo útil + RLS
-6. [ ] Tela do setor (modo tablet real): fila em tela cheia ordenada por chegada, destaque para os mais antigos, tempo real (Realtime + fallback polling), som discreto na chegada (D-28)
-7. [ ] Ações no card com PIN: receber (parecer) · iniciar · finalizar · mover (com marcação) — autores distintos no mesmo tablet
-8. [ ] Card do operador: todos os dados do produto, zero dados de cliente, espaço de imagens (D-28)
-9. [ ] Upload/galeria de imagens por produto (admin/líder anexa; operador vê)
-10. [ ] Admin — controle de tempo (D-29): horário de funcionamento por setor/usuário, desligar/religar agora, correção retroativa
-11. [ ] A mesma experiência no celular pessoal logado (setor do usuário)
-12. [ ] Verificação: tsc · lint · vitest · `test:banco` (2 rodadas) → aplicar migration → `get_advisors` → conferência de tela enxuta (é a sessão de UI)
-13. [ ] Conferir task list contra a demanda · commit/merge na main (autorizado D-26)
-14. [ ] Handoff em `_docs/Handoffs/` + memória de aprendizado + arquivo de continuidade do bloco
+1. [x] Prelúdio D-27a — menu lateral (sidebar) no lugar da barra superior; recolhível no celular
+2. [x] Prelúdio D-27b — remover rota/aba "Design system"; migrar `docs/design-system.md` → `_docs/Plataforma/PLT - Modelo de Sistema.md`; atualizar os DOIS `CLAUDE.md`
+3. [x] Prelúdio D-27c — microinteração do `Botao`: elevação leve (2px) + sombra suave
+4. [x] Prelúdio D-27d — varredura de códigos internos: front E mensagens de erro do banco (migration 16)
+5. [x] Banco (migration 16): `p_operador_id` nas RPCs · mensagens sem códigos · realtime em `plt_cards` · bucket `plt-imagens` + policies · tabelas D-29 + `fn_tempo_util` + RLS — **aplicada, advisors ok**
+6. [x] Tela do setor: fila em tela cheia por chegada, destaque no mais antigo, Realtime + polling, som discreto
+7. [x] Ações com PIN (receber/iniciar/finalizar/mover) — autor = operador do PIN; provado no navegador (iniciar/finalizar) e no test:banco (mover/gate)
+8. [x] Card do operador: dados do produto, zero cliente, espaço de imagens
+9. [x] Upload/galeria por produto (admin/líder anexa; operador vê)
+10. [x] Admin — controle de tempo (D-29): horários, desligar/religar (testado no navegador), retroativa
+11. [x] Celular pessoal: 1 vínculo abre direto no setor; layout 375px sem rolagem horizontal (verificado por JS)
+12. [x] Verificação: tsc · lint · vitest 17/17 · test:banco 2 rodadas (+8 checks) · migration aplicada · advisors (8 WARN esperados) · conferência de tela enxuta por DOM/JS (screenshots pendentes — A-13)
+13. [x] Task list conferida contra a demanda · merge na main (D-26)
+14. [x] Handoff `handoff_2026_08_28_sessao07_tela_setor` + memória de aprendizado (A-12, A-13) + continuidade do bloco
 
 ## Decisões técnicas tomadas
 
