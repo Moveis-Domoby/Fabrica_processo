@@ -66,6 +66,23 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
     await consultaPerfil.refetch()
   }, [consultaPerfil])
 
+  // Heartbeat de presença (SESSAO-12/D-34): "logado agora" é quem foi visto
+  // nos últimos minutos — é a base do sorteio de delegação. Grava no perfil
+  // carregado e a cada 5 min; falha em silêncio (presença é conveniência).
+  const perfilId = consultaPerfil.data?.perfil?.id ?? null
+  useEffect(() => {
+    if (!perfilId) return
+    const marcar = () => {
+      void supabase
+        .from('plt_presencas')
+        .upsert({ usuario_id: perfilId, visto_em: new Date().toISOString() })
+        .then(() => {})
+    }
+    marcar()
+    const timer = setInterval(marcar, 5 * 60_000)
+    return () => clearInterval(timer)
+  }, [perfilId])
+
   const sair = useCallback(async () => {
     await supabase.auth.signOut()
   }, [])

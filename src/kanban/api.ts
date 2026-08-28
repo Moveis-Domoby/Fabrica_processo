@@ -43,7 +43,7 @@ function garantir<T>(dados: T | null, erro: { message: string } | null, contexto
 export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
   let consulta = supabase
     .from('plt_setores')
-    .select('id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa')
+    .select('id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa, modo_delegacao')
     .order('ordem')
     .order('id')
   if (!incluirInativos) consulta = consulta.eq('ativo', true)
@@ -427,6 +427,27 @@ export async function finalizarExecucao(parametros: {
   if (error) throw new Error(`Não deu para finalizar: ${error.message}`)
 }
 
+/**
+ * Delegar/reatribuir um card (SESSAO-12/D-34): evento append-only com quem
+ * delegou, para quem e o modo. O banco valida (líder do setor do card ou
+ * admin); a delegação ORGANIZA — não trava gesto nenhum.
+ */
+export async function delegarCard(parametros: {
+  card: Card
+  responsavelId: string | null
+  usuarioId: string
+}): Promise<void> {
+  const { error } = await supabase.from('plt_eventos').insert({
+    card_id: parametros.card.id,
+    tipo: 'delegacao',
+    usuario_id: parametros.usuarioId,
+    origem: 'interface',
+    setor_origem_id: parametros.card.setor_atual_id,
+    dados: { responsavel_id: parametros.responsavelId, modo: 'direta' },
+  })
+  if (error) throw new Error(`Não deu para delegar: ${error.message}`)
+}
+
 /** A história completa do card, com nomes — a linha do tempo (SESSAO-05). */
 export async function linhaTempoCard(cardId: number): Promise<EventoLinhaTempo[]> {
   const { data, error } = await supabase.rpc('plt_fn_linha_tempo_card', {
@@ -481,7 +502,9 @@ export async function criarSetor(nome: string, ordem: number): Promise<void> {
 
 export async function atualizarSetor(
   id: number,
-  mudancas: Partial<Pick<Setor, 'nome' | 'ordem' | 'ativo' | 'limite_execucoes_por_pessoa'>>,
+  mudancas: Partial<
+    Pick<Setor, 'nome' | 'ordem' | 'ativo' | 'limite_execucoes_por_pessoa' | 'modo_delegacao'>
+  >,
 ): Promise<void> {
   const dados = { ...mudancas }
   if (dados.nome) dados.nome = dados.nome.trim().toUpperCase()

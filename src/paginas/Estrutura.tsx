@@ -10,7 +10,7 @@ import {
   Plus,
   RotateCcw,
 } from 'lucide-react'
-import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
+import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
@@ -364,7 +364,10 @@ function SecaoSetor(props: {
       {expandido && (
         <>
           {props.podeGerirSetor && (
-            <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+            <>
+              <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+              <ModoDelegacao setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+            </>
           )}
           <ListaEtapas
             setor={setor}
@@ -379,6 +382,56 @@ function SecaoSetor(props: {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * D-34: como o card que chega neste setor ganha dono. O sorteio só considera
+ * quem está com a plataforma aberta agora, balanceando por carga.
+ */
+function ModoDelegacao(props: {
+  setor: Setor
+  aoErro: (excecao: unknown) => void
+  aoMudar: () => Promise<void>
+}) {
+  const { setor } = props
+  const notificar = useNotificacao()
+
+  const salvarMutacao = useMutation({
+    mutationFn: (modo: Setor['modo_delegacao']) =>
+      atualizarSetor(setor.id, { modo_delegacao: modo }),
+    onSuccess: async (_dados, modo) => {
+      notificar({
+        titulo: `${setor.nome}: delegação ${
+          modo === 'aleatoria'
+            ? 'por sorteio entre quem está logado'
+            : modo === 'direta'
+              ? 'direta (líder atribui)'
+              : 'desativada — card fica sem dono na fila'
+        }`,
+        tom: 'perfeito',
+      })
+      await props.aoMudar()
+    },
+    onError: props.aoErro,
+  })
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-borda px-3 py-3 sm:px-4">
+      <div className="max-w-sm">
+        <Selecao
+          rotulo="Delegação dos cards que chegam"
+          ajuda="Sorteio só entre quem está com a plataforma aberta, balanceando por carga. Delegar organiza — não trava gesto nenhum."
+          opcoes={[
+            { valor: 'desativada', rotulo: 'Desativada — card sem dono na fila' },
+            { valor: 'direta', rotulo: 'Direta — líder/admin atribui' },
+            { valor: 'aleatoria', rotulo: 'Aleatória — sorteia entre os logados' },
+          ]}
+          valor={setor.modo_delegacao}
+          aoMudar={(v) => salvarMutacao.mutate(v as Setor['modo_delegacao'])}
+        />
+      </div>
+    </div>
+  )
+}
 
 /**
  * D-24: limite de cards em execução pela MESMA pessoa neste setor, por vez.

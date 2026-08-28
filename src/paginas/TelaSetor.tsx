@@ -341,6 +341,11 @@ export function TelaSetor() {
                       ? (nomesUsuarios.get(card.executor_atual_id) ?? undefined)
                       : undefined
                   }
+                  responsavelNome={
+                    card.responsavel_id
+                      ? (nomesUsuarios.get(card.responsavel_id) ?? undefined)
+                      : undefined
+                  }
                   parecerPendente={pareceresPorCard.get(card.id)}
                   gestoPendente={gestoPendente}
                   terminal={terminal}

@@ -6,6 +6,7 @@ import {
   ClipboardList,
   House,
   Layers,
+  ListTodo,
   ListTree,
   LogOut,
   Menu,
@@ -61,6 +62,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const itens: ItemMenu[] = perfil
     ? [
         { para: '/', rotulo: 'Início', icone: <House aria-hidden /> },
+        // SESSAO-12 (D-34): a tarefa aparece onde o operador está (D-06).
+        { para: '/afazeres', rotulo: 'Afazeres', icone: <ListTodo aria-hidden /> },
         ...(souAdmin || ehDoPcp
           ? [{ para: '/pcp', rotulo: 'PCP', icone: <ClipboardList aria-hidden /> }]
           : []),

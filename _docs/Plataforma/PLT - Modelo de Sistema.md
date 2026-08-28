@@ -264,6 +264,26 @@ SESSAO-05.
   é o "botão de risco", com motivo registrado. Texto da tela repete a regra de ouro:
   nada altera o que já foi registrado; o desconto é só no cálculo.
 
+### Telas do bloco noturno (SESSÕES 09–12)
+
+- **Selos de pedido** (SESSAO-09): "Cancelado no Tiny" em `danificado-fundo/texto` e
+  "Alterado no Tiny após a liberação" em `atencao-fundo/texto` — pílula com ícone + texto
+  (nunca só cor), no PCP e na Expedição.
+- **Dashboards** (SESSAO-10): tabelas com o componente `Tabela` (paginação padrão);
+  durações sempre `tabular-nums`, a ÚTIL em destaque e a bruta no `title` (passar o
+  mouse); barras de proporção fila/execução em CSS puro (âmbar = fila/gargalo, verde =
+  execução) — nenhuma biblioteca de gráfico nova. Chips de widgets e de dias seguem o
+  padrão de checkbox-botão (borda `acao-ativa` + `bg-acao` quando ligado).
+- **ROTAS** (SESSAO-11): o card de entrega replica o formato do card real do ClickUp
+  (cliente, endereço em linha, complemento, OBS, botões WhatsApp/Mapa); "pronta para
+  entrega" ganha borda `acao-ativa` e selo amarelo; confirmação de entrega em DOIS
+  toques inline (sem modal).
+- **Chave de API** (SESSAO-11): o valor aparece UMA vez num painel de borda `acao-ativa`
+  com botão Copiar — nunca mais é exibido.
+- **Afazeres** (SESSAO-12): "carga por pessoa" em pílulas com contagem `tabular-nums`;
+  reatribuição por `Selecao` inline na linha do card; tarefa em andamento com borda
+  `acao-ativa`; card delegado no tablet mostra "para {nome}" (ícone + texto).
+
 ## 5. Regras de escrita da interface
 
 - **UI 100% em português.**

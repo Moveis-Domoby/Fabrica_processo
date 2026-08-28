@@ -13,6 +13,8 @@ export interface CartaoTabletProps {
   esperandoHaMaisTempo?: boolean
   execucaoDesde?: string
   executorNome?: string
+  /** D-34: a quem o afazer foi delegado (organiza, não trava). */
+  responsavelNome?: string
   parecerPendente?: ParecerPendente
   gestoPendente?: boolean
   terminal?: boolean
@@ -37,6 +39,7 @@ export function CartaoTablet({
   esperandoHaMaisTempo = false,
   execucaoDesde,
   executorNome,
+  responsavelNome,
   parecerPendente,
   gestoPendente = false,
   terminal = false,
@@ -132,6 +135,13 @@ export function CartaoTablet({
           )}
           {formatarDuracao(card.desde, agora)} esperando
           {esperandoHaMaisTempo && <span>· há mais tempo</span>}
+        </p>
+      )}
+
+      {responsavelNome && !emExecucao && (
+        <p className="inline-flex items-center gap-1.5 text-sm text-texto-suave">
+          <UserRound aria-hidden className="size-4" />
+          para {responsavelNome}
         </p>
       )}
 
