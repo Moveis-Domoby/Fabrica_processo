@@ -1514,6 +1514,141 @@ conferir(rotasOperador.total === 0, 'operador de produção não enxerga as rota
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
 // ============================================================================
+// SESSAO-12 — Tarefas e delegação (migration 20 / D-34)
+// ============================================================================
+titulo('Delegação (SESSAO-12/D-34): sorteio entre logados, balanceado e auditável')
+
+// SECC entra em modo aleatório; exec.um e exec.dois estão "logados" (heartbeat).
+await bd.exec(`
+  update public.plt_setores set modo_delegacao = 'aleatoria'
+   where codigo = 'secc';
+  insert into public.plt_presencas (usuario_id, visto_em) values
+    ((select id from public.plt_usuarios where usuario = 'exec.um'),  now() - interval '2 minutes'),
+    ((select id from public.plt_usuarios where usuario = 'exec.dois'), now() - interval '1 minute')
+  on conflict (usuario_id) do update set visto_em = excluded.visto_em;
+`)
+
+// 5 cards chegam no SECC — o sorteio distribui na chegada.
+await bd.exec(`
+  do $$
+  declare
+    i int;
+    v_card bigint;
+  begin
+    for i in 1..5 loop
+      insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, 50 + i, 'SORT', 'Peça do sorteio ' || i, 1, 1
+          from public.pedidos p where p.numero = 999999
+        returning id into v_card;
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values (v_card, 'card_criado', (select id from public.plt_setores where codigo = 'secc'), 'api');
+    end loop;
+  end;
+  $$;
+`)
+const sorteio = (
+  await bd.query(`
+    select u.usuario, count(*)::int as cards
+      from public.plt_cards c
+      join public.plt_usuarios u on u.id = c.responsavel_id
+     where c.item_codigo = 'SORT'
+     group by u.usuario order by u.usuario`)
+).rows
+const totalSorteado = sorteio.reduce((soma, l) => soma + l.cards, 0)
+const diferenca =
+  sorteio.length === 2 ? Math.abs(sorteio[0].cards - sorteio[1].cards) : 99
+conferir(
+  totalSorteado === 5 && sorteio.length === 2 && diferenca <= 1,
+  '5 cards chegando são distribuídos balanceadamente entre os 2 logados (critério 1)',
+  JSON.stringify(sorteio),
+)
+const naoLogado = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_cards c
+      join public.plt_usuarios u on u.id = c.responsavel_id
+     where c.item_codigo = 'SORT' and u.usuario not in ('exec.um', 'exec.dois')`)
+).rows[0]
+conferir(naoLogado.total === 0, 'quem não está logado nunca é sorteado (D-34)')
+
+// Reatribuição direta pelo admin: o histórico guarda as DUAS delegações.
+const cardSorteado = (
+  await bd.query(`select min(id)::int as id from public.plt_cards where item_codigo = 'SORT'`)
+).rows[0].id
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+    values (${cardSorteado}, 'delegacao',
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'), 'interface',
+            jsonb_build_object('responsavel_id',
+              (select id from public.plt_usuarios where usuario = 'lider.fita'), 'modo', 'direta'));
+`)
+const reatribuicao = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_eventos
+             where card_id = ${cardSorteado} and tipo = 'delegacao') as delegacoes,
+           (select u.usuario from public.plt_cards c
+             join public.plt_usuarios u on u.id = c.responsavel_id
+            where c.id = ${cardSorteado}) as responsavel_atual`)
+).rows[0]
+conferir(
+  reatribuicao?.delegacoes === 2 && reatribuicao?.responsavel_atual === 'lider.fita',
+  'reatribuição registra as duas delegações e projeta a última (critério 2)',
+  JSON.stringify(reatribuicao ?? null),
+)
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+     values (${cardSorteado}, 'delegacao',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+             jsonb_build_object('responsavel_id',
+               (select id from public.plt_usuarios where usuario = 'exec.um')))`,
+  'operador comum não delega — gesto do líder do setor ou de admin',
+  /gesto do líder do setor ou de admin/i,
+)
+
+// Modo por setor é independente: CNC continua desativado → chegada sem dono.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${cardSorteado}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'cnc'), 'api');
+`)
+const noCnc = (
+  await bd.query(`select responsavel_id from public.plt_cards where id = ${cardSorteado}`)
+).rows[0]
+conferir(
+  noCnc?.responsavel_id === null,
+  'setor em modo desativado: chegada fica sem dono (e mudar de setor zera a delegação anterior) — critério 4',
+)
+
+// O sorteado é avisado no sino.
+const avisoDelegacao = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_notificacoes
+     where tipo = 'delegacao'`)
+).rows[0]
+conferir(avisoDelegacao.total >= 2, 'delegação (sorteio e direta) avisa o novo responsável no sino')
+
+// Tarefa avulsa: timer OPCIONAL (D-34) — concluir sem iniciar é normal.
+await bd.exec(`
+  insert into public.plt_tarefas (titulo, setor_id, responsavel_id, criada_por_id, delegacao)
+    values ('Engraxar caixas de cola',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'),
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'), 'direta');
+  update public.plt_tarefas set situacao = 'concluida', concluida_em = now()
+   where titulo = 'Engraxar caixas de cola';
+`)
+const tarefa = (
+  await bd.query(`
+    select situacao, iniciada_em from public.plt_tarefas
+     where titulo = 'Engraxar caixas de cola'`)
+).rows[0]
+conferir(
+  tarefa?.situacao === 'concluida' && tarefa?.iniciada_em === null,
+  'tarefa avulsa concluída SEM iniciar tempo — o timer é opcional (D-34)',
+)
+
+// ============================================================================
 // SESSAO-10 — Dashboards (migration 18 / D-32)
 // ============================================================================
 titulo('Dashboards (SESSAO-10/D-32): números batem, gate por papel')
