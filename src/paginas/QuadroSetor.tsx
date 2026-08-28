@@ -165,9 +165,10 @@ export function QuadroSetor() {
             )}
           </h1>
           <p className="mt-1 text-texto-suave">
+            {/* D-13 (terminais) e D-02 (fila × execução) — código fora da tela (D-27). */}
             {terminal
-              ? 'Unidade que chega aqui está concluída (D-13) — o pedido reagrupa na Expedição.'
-              : `${cards.length} card${cards.length === 1 ? '' : 's'} no setor. Iniciar e Finalizar contam o tempo de quem executa; a fila conta sozinha (D-02).`}
+              ? 'Unidade que chega aqui está concluída — o pedido reagrupa na Expedição.'
+              : `${cards.length} card${cards.length === 1 ? '' : 's'} no setor. Iniciar e Finalizar contam o tempo de quem executa; a fila conta sozinha.`}
           </p>
         </div>
         {podeGerirEtapas && (

@@ -9,6 +9,9 @@ tags: [plataforma, demanda, sessao, api, n8n]
 
 # 🎯 SESSAO-11 — API Aberta e Integração n8n
 
+> [!warning] ↩️ Revisada em 28/08/2026 (D-33 — respostas do dono no aval do bloco noturno)
+> **A ponte ROTAS → ClickUp caiu**: nada mais se cria no ClickUp, e o n8n não empurra nada novo por ora. No lugar dela, esta sessão entrega o **módulo básico de ROTAS dentro da plataforma** (opção B do dono), com agrupamento **por pedido completo**, seguindo a documentação de rotas dos `_docs` ([[N8N - ROTAS ClickUp]] descreve o card real de entrega). A automação em produção ROTAS "entregue" → Tiny não se toca. O restante (chaves, escopos, CRUD, webhooks de saída genéricos) segue como abaixo.
+
 ## O que é
 
 A porta de integrações completa: API aberta para criar, editar, mover e excluir cards (D-03), webhooks de saída e a ponte com o ClickUp ROTAS. **A entrada de pedidos Tiny → PCP já existe desde a [[SESSAO-09 - Entrada de Pedidos via n8n]]** (D-11) — esta sessão completa o resto e formaliza a gestão de chaves.

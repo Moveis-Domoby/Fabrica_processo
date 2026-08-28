@@ -94,7 +94,8 @@ export function PCP() {
         <div>
           <h1 className="text-2xl sm:text-3xl">PCP</h1>
           <p className="mt-1 max-w-2xl text-texto-suave">
-            Todo pedido entra por aqui (D-13). Libere as unidades para os setores — dá para
+            {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
+            Todo pedido entra por aqui. Libere as unidades para os setores — dá para
             liberar parcial e terminar depois.
           </p>
         </div>
@@ -112,8 +113,8 @@ export function PCP() {
         {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
         {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
           <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-            Nenhum pedido aguardando. Crie um card a partir de um pedido do Tiny — a entrada
-            automática chega na SESSAO-09.
+            Nenhum pedido aguardando. Crie um card a partir de um pedido do Tiny — em breve
+            eles vão entrar sozinhos.
           </p>
         )}
 

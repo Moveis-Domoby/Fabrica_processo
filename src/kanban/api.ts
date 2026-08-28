@@ -495,7 +495,8 @@ export async function criarEtapa(setorId: number, nome: string, ehFila: boolean)
     .insert({ setor_id: setorId, nome: nome.trim(), ordem, eh_fila: ehFila })
   if (error) {
     if (/plt_etapas_fila_unica_por_setor/.test(error.message))
-      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma (D-02).')
+      // D-02: uma etapa de fila por setor — o código fica aqui, não na tela (D-27).
+      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma.')
     throw new Error(`Não deu para criar a etapa: ${error.message}`)
   }
 }
@@ -509,7 +510,8 @@ export async function atualizarEtapa(
   const { error } = await supabase.from('plt_etapas').update(dados).eq('id', id)
   if (error) {
     if (/plt_etapas_fila_unica_por_setor/.test(error.message))
-      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma (D-02).')
+      // D-02: uma etapa de fila por setor — o código fica aqui, não na tela (D-27).
+      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma.')
     throw new Error(`Não deu para atualizar a etapa: ${error.message}`)
   }
 }

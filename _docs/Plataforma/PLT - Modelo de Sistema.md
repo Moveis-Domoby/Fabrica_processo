@@ -1,8 +1,15 @@
-# Design System — Plataforma de Produção Domoby
+---
+titulo: PLT — Modelo de Sistema (o design system da plataforma)
+tipo: modelo-de-sistema
+data: 2026-08-24
+atualizado: 2026-08-28
+tags: [plataforma, design-system, modelo-de-sistema, ui]
+---
 
-> Documento de estilização do repositório (RNF-01). **Toda tela nova segue este documento.**
-> Componente novo só quando não existir equivalente aqui — e componente novo entra nesta página junto com a regra de uso.
-> A versão viva e clicável está em **`/design`** (`npm run dev` → http://localhost:5173/design).
+# 🧩 PLT — Modelo de Sistema — Plataforma de Produção Domoby
+
+> [!danger] Fonte única do padrão visual (D-27)
+> Este documento morava no repositório como `docs/design-system.md` e **migrou para o cofre na SESSAO-07** (D-27): aqui é a fonte única. **Nada se constrói fora do modelo de sistema.** Toda tela nova segue este documento; componente novo só quando não existir equivalente — e entra nesta nota junto com a regra de uso. A antiga rota `/design` do aplicativo foi removida na mesma sessão.
 
 ---
 
@@ -112,6 +119,7 @@ Todos em `src/componentes/ui/`, exportados por `@/componentes/ui`.
 - `perigo` é para **destruir** (excluir, cancelar). **Mover card não é perigo** — mover é fluxo normal.
 - `carregando` desabilita e marca `aria-busy`. Nunca deixe um botão de ação sem estado de carregamento em operação que toca a rede.
 - No celular, ação principal usa `larguraTotal`.
+- **Microinteração padrão (SESSAO-07, pedido do dono):** ao interagir (hover/foco de teclado), o botão sobe ~2px com sombra suave; o clique/toque o "assenta" de volta. É herdada por TODO botão via componente — sutil de propósito, nada além disso. Botão desabilitado não se move.
 
 ### `<Campo>`
 
@@ -252,8 +260,8 @@ SESSAO-05.
 ```
 src/
   componentes/
-    ui/            componentes base do design system (o que /design mostra)
-    Layout.tsx     casca da aplicação (topo grafite + navegação)
+    ui/            componentes base do design system
+    Layout.tsx     casca da aplicação (menu lateral + conteúdo — D-27)
     Marca.tsx      assinatura da marca
   estilos/
     tokens.css     camada 1 (paleta) + camada 2 (semântica)
@@ -262,8 +270,9 @@ src/
   paginas/         uma pasta/arquivo por tela
   teste/           setup do Vitest
 docs/
-  design-system.md este documento
   execucao/        memória de execução de cada sessão (regra 8)
+_docs/Plataforma/
+  PLT - Modelo de Sistema.md   ESTE documento (fonte única — D-27)
 ```
 
 ## 9. O que ainda está em aberto

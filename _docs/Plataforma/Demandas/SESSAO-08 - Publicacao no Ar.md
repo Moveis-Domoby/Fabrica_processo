@@ -9,6 +9,9 @@ tags: [plataforma, demanda, sessao, deploy, infraestrutura]
 
 # 🎯 SESSAO-08 — Publicação no Ar
 
+> [!warning] ⏸️ ADIADA em 28/08/2026 (D-30 — palavras do dono no aval do bloco noturno)
+> *"Tudo que envolver deploy, hospedagem ou coisa do tipo pode jogar para sessões futuras, não iremos lançar ela agora e quando eu for fazer o deploy eu falo."* Esta sessão saiu do bloco noturno (que virou 07 → 09 → 10 → 11 → 12) e será executada quando o dono pedir o lançamento. O conteúdo abaixo continua valendo para essa hora.
+
 > [!info] Por que esta sessão existe (D-23)
 > Criada no replanejamento de 27/08: **nenhuma sessão cobria hospedar a plataforma**, e sem isso nada chega ao tablet do galpão — a tela do setor (SESSAO-07) ficaria linda no localhost de uma máquina só. É a ponte entre "funciona na máquina do dono" e "a fábrica usa".
 

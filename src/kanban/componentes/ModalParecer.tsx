@@ -61,9 +61,9 @@ export function ModalParecer({ card, pedido, pendente, aoFechar, aoRegistrado }:
             : 'Recebimento confirmado',
         descricao:
           escolhido === 'danificado'
-            ? 'A liderança foi avisada automaticamente (D-09).'
+            ? 'A liderança foi avisada automaticamente.'
             : divergente
-              ? 'Divergência registrada e liderança avisada — o card segue normal (D-09).'
+              ? 'Divergência registrada e liderança avisada — o card segue normal.'
               : undefined,
         tom: escolhido === 'danificado' ? 'atencao' : 'perfeito',
       })

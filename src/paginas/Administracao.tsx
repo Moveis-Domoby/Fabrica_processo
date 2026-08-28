@@ -13,8 +13,9 @@ export function Administracao() {
       <div>
         <h1 className="text-2xl sm:text-3xl">Administração</h1>
         <p className="mt-1 max-w-2xl text-texto-suave">
+          {/* O painel completo é a SESSAO-14 — código fora da tela (D-27). */}
           Área exclusiva do admin. A consolidação completa (setores, etapas, automações, chaves
-          de API) chega na SESSAO-14 — por enquanto, a gestão de pessoas vive na Equipe.
+          de API) chega em breve — por enquanto, a gestão de pessoas vive na Equipe.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">

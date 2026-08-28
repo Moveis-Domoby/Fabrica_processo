@@ -4,7 +4,6 @@ import { ProvedorNotificacao } from '@/componentes/ui'
 import { ProvedorSessao } from '@/autenticacao/ProvedorSessao'
 import { RotaProtegida } from '@/autenticacao/guardas'
 import { Inicio } from '@/paginas/Inicio'
-import { DesignSystem } from '@/paginas/DesignSystem'
 import { Entrar } from '@/paginas/Entrar'
 import { Convite } from '@/paginas/Convite'
 import { TrocarSenha } from '@/paginas/TrocarSenha'
@@ -25,7 +24,7 @@ export function App() {
             {/* públicas: login e convite — sem autocadastro (D-21) */}
             <Route path="/entrar" element={<Entrar />} />
             <Route path="/convite/:token" element={<Convite />} />
-            <Route path="/design" element={<DesignSystem />} />
+            {/* A rota /design saiu: o modelo de sistema vive no cofre (D-27). */}
 
             {/* qualquer papel logado e aprovado */}
             <Route element={<RotaProtegida />}>

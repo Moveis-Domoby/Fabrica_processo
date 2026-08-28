@@ -19,7 +19,7 @@ npm install
 npm run dev
 ```
 
-Abra **http://localhost:5173** — e o design system em **http://localhost:5173/design**.
+Abra **http://localhost:5173**. O padrão visual (modelo de sistema) está documentado em `_docs/Plataforma/PLT - Modelo de Sistema.md` — leitura obrigatória antes de criar tela.
 
 O servidor sobe com `host: true`, então dá para abrir do tablet ou do celular na mesma rede pelo IP da máquina (ex.: `http://192.168.0.10:5173`) — é assim que se testa o que o operador vai ver.
 
@@ -58,7 +58,6 @@ Trocar qualquer item acima exige uma decisão nova em `_docs/Plataforma/PLT - De
 CLAUDE.md              regras de conduta de toda sessão de Claude Code (cópia da nota do cofre)
 README.md              este arquivo
 docs/
-  design-system.md     documento de estilização — leitura obrigatória antes de criar tela
   modelo-de-dados.md   o que o banco guarda e por quê, em português de gente
   execucao/            memória de execução de cada sessão (SESSAO-NN.md)
 src/                   o app
@@ -99,3 +98,4 @@ Leia **`CLAUDE.md`** antes de qualquer coisa. Em resumo:
 | Ordem das sessões | `_docs/Plataforma/Demandas/000 - ORDEM DAS SESSOES.md` |
 | Esquema do banco | `_docs/Supabase-fabrica/SUPA - Esquema do Banco.md` |
 | Aprendizado acumulado | `_docs/Plataforma/PLT - Memoria de Aprendizado.md` |
+| Modelo de sistema (design system) | `_docs/Plataforma/PLT - Modelo de Sistema.md` |

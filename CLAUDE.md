@@ -36,7 +36,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 
 ## 🟠 Regras MODERADAS (o método anti-alucinação)
 
-6. **Antes de escrever qualquer código:** ler a demanda principal (`SESSAO-NN`) **pelo menos duas vezes**, ler as decisões (`PLT - Decisoes de Produto.md`), o design system e a **memória de aprendizado** (`PLT - Memoria de Aprendizado.md`) — leitura obrigatória em TODA sessão, sem exceção. Listar dúvidas de negócio ANTES de começar — **o que não está escrito na demanda não existe**; não presuma.
+6. **Antes de escrever qualquer código:** ler a demanda principal (`SESSAO-NN`) **pelo menos duas vezes**, ler as decisões (`PLT - Decisoes de Produto.md`), o **modelo de sistema** (`_docs/Plataforma/PLT - Modelo de Sistema.md` — D-27) e a **memória de aprendizado** (`PLT - Memoria de Aprendizado.md`) — leitura obrigatória em TODA sessão, sem exceção. Listar dúvidas de negócio ANTES de começar — **o que não está escrito na demanda não existe**; não presuma.
 6b. **Alimentar a memória de aprendizado NA HORA:** errou → registrar `E-NN` em `PLT - Memoria de Aprendizado.md` em 1 linha; corrigiu → completar a mesma linha com a correção; acerto que deve virar padrão, fórmula, modelo mental ou possibilidade → registrar também. Nunca apagar entrada. Lição que virou lei → promover para este CLAUDE.md.
 7. **Task list obrigatória no início da sessão**, espelhando item a item a demanda principal (usar a ferramenta de tasks da sessão E registrar no arquivo de memória). Ao final, conferir a lista contra a demanda antes de declarar concluído.
 8. **Memória de execução contínua:** computar TUDO o que foi feito, sem perder detalhe, ENQUANTO executa — em `docs/execucao/SESSAO-NN.md` no repo: decisões técnicas, arquivos criados/alterados, comandos rodados, erros e como foram resolvidos. Reler essa memória periodicamente durante a sessão para não repetir nem contradizer o já feito.
@@ -45,7 +45,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 
 ## 🟢 Regras BÁSICAS (qualidade do dia a dia)
 
-11. **Seguir o design system** e o doc de estilização do repo em toda tela nova; componente novo só se não existir equivalente. Tela com muitos dados → **paginação obrigatória** (RNF-02).
+11. **Seguir o modelo de sistema** (`_docs/Plataforma/PLT - Modelo de Sistema.md` — desde a SESSAO-07/D-27, o antigo `docs/design-system.md` vive lá, fonte única) em toda tela nova; componente novo só se não existir equivalente. Tela com muitos dados → **paginação obrigatória** (RNF-02).
 12. **Termos da equipe sem tradução:** SECC, FITAMENTO, FURAÇÃO, PCP, "rota" — a interface fala a língua do galpão. UI em português.
 12b. **Códigos internos NUNCA em texto de interface** (D-27): "D-09", "RF-80", "Q-16" etc. não aparecem para o usuário — ele não entende. Na UI, escrever em língua de gente; o código vai para comentário no código-fonte, como entendimento do Claude.
 13. **Commits pequenos e descritivos; uma branch por demanda.** Nada de entrega gigante misturando assuntos.
@@ -55,7 +55,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 ## O ciclo de toda sessão
 
 ```
-ler SESSAO-NN (2x) → ler decisões + design system + MEMÓRIA DE APRENDIZADO
+ler SESSAO-NN (2x) → ler decisões + modelo de sistema + MEMÓRIA DE APRENDIZADO
 → listar dúvidas → task list → branch
 → codar computando tudo em docs/execucao/SESSAO-NN.md
    (errou/acertou/aprendeu → anotar em PLT - Memoria de Aprendizado NA HORA)
