@@ -89,6 +89,8 @@ export async function buscarCardsDoSetor(
     .from('plt_cards')
     .select(COLUNAS_CARD)
     .eq('setor_atual_id', setorId)
+    // SESSAO-11: card arquivado (o "excluir" lógico da API) some das telas.
+    .is('arquivado_em', null)
     .order('desde', { ascending: true, nullsFirst: false })
   if (tipo) consulta = consulta.eq('tipo', tipo)
   const { data, error } = await consulta

@@ -114,3 +114,133 @@ export async function religarPausa(id: number): Promise<void> {
     .is('fim', null)
   if (error) throw new Error(`Não deu para religar: ${error.message}`)
 }
+
+// ---------------------------------------------------------------------------
+// Chaves de API e webhooks (SESSAO-11 / Q-50 / RF-52 — RLS: só admin)
+// ---------------------------------------------------------------------------
+
+export interface ChaveApi {
+  id: number
+  nome: string
+  prefixo: string
+  escopo: 'leitura' | 'escrita'
+  criada_em: string
+  revogada_em: string | null
+  ultimo_uso_em: string | null
+}
+
+export async function listarChavesApi(): Promise<ChaveApi[]> {
+  const { data, error } = await supabase
+    .from('plt_chaves_api')
+    .select('id, nome, prefixo, escopo, criada_em, revogada_em, ultimo_uso_em')
+    .order('criada_em', { ascending: false })
+  if (error) throw new Error(`Não deu para carregar as chaves: ${error.message}`)
+  return (data ?? []) as ChaveApi[]
+}
+
+/**
+ * Gera a chave NO NAVEGADOR e guarda só o hash (Q-50): o valor `pltk_…` é
+ * devolvido UMA vez para o admin copiar — nunca mais aparece.
+ */
+export async function criarChaveApi(parametros: {
+  nome: string
+  escopo: 'leitura' | 'escrita'
+  criadaPor: string
+}): Promise<string> {
+  const bytes = crypto.getRandomValues(new Uint8Array(24))
+  const valor = `pltk_${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
+  const hashBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(valor))
+  const hash = Array.from(new Uint8Array(hashBytes), (b) => b.toString(16).padStart(2, '0')).join('')
+  const { error } = await supabase.from('plt_chaves_api').insert({
+    nome: parametros.nome.trim(),
+    hash,
+    prefixo: valor.slice(0, 9),
+    escopo: parametros.escopo,
+    criada_por: parametros.criadaPor,
+  })
+  if (error) throw new Error(`Não deu para criar a chave: ${error.message}`)
+  return valor
+}
+
+/** Revogar corta o acesso NA HORA — a Edge Function só aceita revogada_em null. */
+export async function revogarChaveApi(id: number): Promise<void> {
+  const { error } = await supabase
+    .from('plt_chaves_api')
+    .update({ revogada_em: new Date().toISOString() })
+    .eq('id', id)
+    .is('revogada_em', null)
+  if (error) throw new Error(`Não deu para revogar: ${error.message}`)
+}
+
+export const EVENTOS_WEBHOOK = [
+  'card_criado',
+  'movimentacao_setor',
+  'movimentacao_etapa',
+  'execucao_iniciada',
+  'execucao_finalizada',
+  'qualidade_marcada',
+  'qualidade_parecer',
+  'pedido_atualizado',
+  'pedido_cancelado',
+  'pedido_entregue',
+  'card_arquivado',
+] as const
+
+export interface Webhook {
+  id: number
+  nome: string
+  url: string
+  eventos: string[]
+  ativo: boolean
+  criado_em: string
+}
+
+export interface EntregaWebhook {
+  id: number
+  webhook_id: number
+  situacao: 'pendente' | 'enviada' | 'falha'
+  tentativas: number
+  ultimo_erro: string | null
+  criada_em: string
+}
+
+export async function listarWebhooks(): Promise<Webhook[]> {
+  const { data, error } = await supabase
+    .from('plt_webhooks')
+    .select('id, nome, url, eventos, ativo, criado_em')
+    .order('criado_em', { ascending: false })
+  if (error) throw new Error(`Não deu para carregar os webhooks: ${error.message}`)
+  return (data ?? []) as Webhook[]
+}
+
+export async function criarWebhook(parametros: {
+  nome: string
+  url: string
+  eventos: string[]
+  segredo?: string
+  criadoPor: string
+}): Promise<void> {
+  const { error } = await supabase.from('plt_webhooks').insert({
+    nome: parametros.nome.trim(),
+    url: parametros.url.trim(),
+    eventos: parametros.eventos,
+    segredo: parametros.segredo?.trim() || null,
+    criado_por: parametros.criadoPor,
+  })
+  if (error) throw new Error(`Não deu para criar o webhook: ${error.message}`)
+}
+
+export async function alternarWebhook(id: number, ativo: boolean): Promise<void> {
+  const { error } = await supabase.from('plt_webhooks').update({ ativo }).eq('id', id)
+  if (error) throw new Error(`Não deu para atualizar o webhook: ${error.message}`)
+}
+
+export async function entregasRecentes(): Promise<EntregaWebhook[]> {
+  const { data, error } = await supabase
+    .from('plt_webhook_entregas')
+    .select('id, webhook_id, situacao, tentativas, ultimo_erro, criada_em')
+    .order('criada_em', { ascending: false })
+    .limit(20)
+  if (error) throw new Error(`Não deu para carregar as entregas: ${error.message}`)
+  return (data ?? []) as EntregaWebhook[]
+}
