@@ -39,6 +39,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-08-27] **E-15** (Claude Code) · Primo do E-09: escrever `\u0300` num arquivo via ferramenta de edição gravou o CARACTERE decodificado (o encaminhamento JSON desfaz o escape em silêncio) e a regex de tirar acento ficou com combining chars literais → **correção:** escape gravado via `node` com `String.fromCharCode(92)` e resultado conferido com grep. **Lição: sequência de escape que precisa chegar literal ao arquivo não passa por camada que interprete JSON/string — e toda substituição se confere depois.**
 
+- [2026-08-27] **E-17** (Claude Code) · `create or replace view` não muda a FORMA da view (coluna nova/renomeada → "cannot change name of view column") e o teste de idempotência quebrou nas duas pontas → **correção:** view que muda de forma se recria com `drop view if exists` + `create view` — inclusive na migration ANTIGA que a criava, senão a segunda rodada do teste quebra. Pego na hora pelo `test:banco` de duas rodadas (A-10 pagando de novo).
+
 - [2026-08-27] **E-16** (Claude Code) · Mover card para setor sem etapa quebrou com FK violada: um handler antigo resetava o select de etapa para `''` e **`Number('') === 0` em JS** — o evento saiu com `etapa_destino_id: 0` → **correção:** sentinela `'chegada'` em TODOS os pontos que resetam o select + `|| null` na camada de API (id 0/NaN nunca é id válido). Achado interceptando o `fetch` no navegador — o corpo real da requisição vale mais que reler o código. **Lição: conversão string→id numérico sempre com guarda contra vazio; e o teste de UI de verdade pega o que o tsc não pega.**
 
 ## 🟢 Acertos que viraram padrão (A-NN)

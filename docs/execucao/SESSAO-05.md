@@ -1,9 +1,9 @@
 # Memória de execução — SESSAO-05 · Timers e Eventos de Tempo
 
-**Branch:** `sessao-05-timers-eventos` · **Início:** 2026-08-27
+**Branch:** `sessao-05-timers-eventos` · **Início/entrega:** 2026-08-27
 **Demanda:** `_docs/Plataforma/Demandas/SESSAO-05 - Timers e Eventos de Tempo.md` (lida 2x)
 
-## Respostas do dono no início da sessão (viram a D-24)
+## Respostas do dono no início da sessão (viraram a D-24)
 
 1. **Vários cards em execução pela mesma pessoa: PODE**, contanto que o tempo conte.
    Mas nasce uma **configuração no painel de admin: limite de cards em execução por
@@ -20,60 +20,80 @@
 subir no GitHub, testar com o acesso do dono (credencial NÃO registrada em lugar nenhum
 — regra crítica 4; o dono troca a senha antes de produção).
 
-## Task list (espelho da demanda)
+## Task list (espelho da demanda) — conferida contra a demanda ao final
 
 - [x] Ler demanda 2x + decisões + design system + memória de aprendizado
-- [x] Dúvidas de negócio respondidas → registrar **D-24** no cofre + atualizar a demanda
+- [x] Dúvidas de negócio respondidas → **D-24** registrada no cofre + demanda atualizada
 - [x] Branch `sessao-05-timers-eventos`
-- [ ] **Migration 14** — regras de execução e estorno:
-  - [ ] tipo de evento `estorno` (referencia o evento anulado; append-only preservado)
-  - [ ] validações por trigger (valem até para service_role): iniciar obrigatório antes
-        de finalizar; sem dupla execução do mesmo usuário no mesmo card; limite por
-        pessoa/setor (D-24); estorno só líder do setor do card ou admin; estorno só de
-        execucao_iniciada/execucao_finalizada não estornados do mesmo card
-  - [ ] coluna `plt_setores.limite_execucoes_por_pessoa` (null = sem limite)
-  - [ ] projeção: `execucao_iniciada` por outra pessoa transfere o executor;
-        `estorno` recomputa o executor do card
-  - [ ] `plt_vw_execucoes` reescrita: fecha em finalizada OU transferência OU
-        movimentação; ignora estornados; setor/etapa da ÉPOCA da execução
-  - [ ] RPC `plt_fn_linha_tempo_card` (gate = quem vê o card; padrão E-11)
-- [ ] Testes de banco (testar-migrations.mjs): cenários das regras acima ×2 rodadas
-- [ ] Front:
-  - [ ] api.ts: iniciar/finalizar/assumir execução, estornar, linha do tempo
-  - [ ] CartaoUnidade: contador fila vs execução, executor, botões Iniciar/Finalizar/
-        Assumir (≥44px), indicador de espera (mais antigo sem iniciar)
-  - [ ] ModalMoverCard: aviso quando mover encerra execução aberta (D-24)
-  - [ ] Modal linha do tempo: por etapa — fila, execução, total, autores; estorno
-        visível (evento anulado riscado, nunca some); botão estornar p/ líder-admin
-  - [ ] Estrutura: campo limite de execuções por pessoa (admin)
-- [ ] Verificação F-07: tsc, lint, testes, 375px e 768px
-- [ ] Aplicar migration no banco real (autorizado) + get_advisors + conferir integração
-- [ ] Teste real no navegador (critérios de aceite da demanda)
-- [ ] Atualizar cofre: SUPA - Esquema do Banco, memória de aprendizado, demanda,
-      ORDEM DAS SESSOES, MAPA + handoff em _docs/Handoffs/
-- [ ] Conferir task list contra a demanda → checkpoint com o dono
+- [x] **Migration 14** (`20260827150000_plt_execucao_estorno.sql`):
+  - [x] tipo de evento `estorno` (CHECK recriado por nome dinâmico, idempotente)
+  - [x] trigger `fn_validar_execucao` (BEFORE INSERT): iniciar obrigatório; execução
+        exige pessoa; sem dupla execução do mesmo usuário; limite por pessoa/setor;
+        card concluído não executa; estorno só do último gesto, por líder/admin;
+        preenche setor/etapa de origem dos gestos (linha do tempo sabe ONDE)
+  - [x] `plt_setores.limite_execucoes_por_pessoa` (null = sem limite, check > 0)
+  - [x] projeção: transferência troca executor; estorno reprojeta via `fn_executor_pelo_log`
+  - [x] `plt_vw_execucoes` recriada (drop+create): fecha em finalizada/transferência/
+        movimentação (coluna `encerramento`), ignora estornados, setor/etapa da época
+  - [x] RPCs `plt_fn_linha_tempo_card` e `plt_fn_estornar_evento` (padrão E-11)
+- [x] Testes de banco: 22 verificações novas → **TUDO VERDE**, 2 rodadas, integração intacta
+- [x] Front: api (iniciar/finalizar/assumir/estornar/linha do tempo/execuções abertas/nomes),
+      CartaoUnidade (fila vs execução, executor, botões ≥44px, indicador de espera),
+      QuadroKanban (contexto de execução), QuadroSetor (mutations + modais),
+      ModalLinhaTempo (segmentos + eventos crus + estorno), ModalMoverCard (aviso D-24),
+      Estrutura (campo limite, admin), linha-tempo.ts (montagem pura + 7 testes)
+- [x] `tsc` limpo · lint limpo · Vitest 15/15 · build de produção ok
+- [x] Migration aplicada no banco real — impressão digital idêntica, contagens intactas
+- [x] `get_advisors`: 6 WARN esperados (4 da migration 13 + 2 RPCs novas, endpoints de
+      propósito) + INFO pré-existentes da integração + WARN do Auth pré-existente
+- [x] Teste real no navegador (admin Wallace): criar card 13207 → liberar p/ SECC →
+      Iniciar → limite 1 recusa 2º card (mensagem do banco em pt no toast) → sem limite
+      2 execuções simultâneas → mover com execução aberta avisa e encerra → Finalizar →
+      linha do tempo com fila/execução/total/autores → estorno da finalização reabre a
+      execução, evento original riscado, observação gravada → F-07: 375px e 768px sem
+      rolagem horizontal, alvos 44px
+- [x] Cofre atualizado: D-24, demanda, SUPA - Esquema, memória de aprendizado (E-17),
+      design-system.md, ORDEM DAS SESSOES, MAPA + handoff
 
 ## Decisões técnicas tomadas
 
-- **Gestos gravam evento por INSERT direto** em `plt_eventos` (RLS já cobre), como a
-  SESSAO-04; **as REGRAS vivem em trigger** no banco — porque a API/n8n (service_role)
-  ignora RLS (M-14) e as regras da D-24 têm que valer para todo mundo.
-- **Estorno via RPC** `plt_fn_estornar_evento` (security definer, gate interno líder/
-  admin) — o RLS de INSERT em eventos exige vínculo com setor; o estorno de líder/admin
-  precisa de gate próprio, e o padrão da casa para isso é RPC com gate dentro (E-11).
-- **Transferência = novo `execucao_iniciada` por outra pessoa** — sem tipo de evento
-  novo; a view fecha a execução anterior no instante da nova. `dados.transferido_de`
-  registra de quem veio, para a linha do tempo contar a história.
-- **Sem FK/coluna nova em plt_eventos** — `estorno` usa o `evento_referencia_id` que
-  já existe (mesmo mecanismo do parecer de qualidade).
-- **Linha do tempo montada no front** a partir dos eventos enriquecidos da RPC (nomes
-  de pessoas/setores/etapas); segmentos fila/execução calculados em TS puro e testados
-  em Vitest. As views continuam sendo a verdade para dashboards (SESSAO-10).
+- **Gestos gravam evento por INSERT direto** em `plt_eventos` (RLS já cobre); **as REGRAS
+  vivem em trigger** — a API/n8n (service_role) ignora RLS (M-14) e a D-24 vale para todos.
+- **Trigger de validação é security definer** (lição E-14: trigger comum roda com o
+  privilégio de quem insere e não enxergaria `plt_privado`/tabelas sob RLS).
+- **Estorno via RPC** `plt_fn_estornar_evento` — o RLS de INSERT exige vínculo com setor
+  e o admin estorna onde não trabalha; o gate de verdade fica no trigger (vale p/ todos).
+- **Estorno só do ÚLTIMO gesto de execução válido** (desfaz-se do mais novo para trás) —
+  mantém a história sempre coerente sem cascatas; a UI mostra o botão só nele.
+- **Transferência = novo `execucao_iniciada` por outra pessoa** — sem tipo novo de evento;
+  a view fecha a anterior no instante da nova; `dados.transferido_de` conta a história.
+- **Execução exige pessoa e card não concluído** (derivação de D-02 "execução é da pessoa"
+  e D-13 "terminal = fim de linha") — anotado aqui por ser derivação, não texto literal.
+- **Linha do tempo montada no front** (`linha-tempo.ts`, lógica pura testada) a partir da
+  RPC enriquecida; as views continuam sendo a verdade para dashboards (SESSAO-10).
+- **Card recém-finalizado volta a mostrar "na fila"** no quadro (contador simples do
+  `desde`); o tempo REAL pós-finalização fica correto na linha do tempo e nas views —
+  refinamento de rótulo fica para quando incomodar.
 
-## Erros encontrados
+## Erros encontrados e corrigidos
 
-(nenhum ainda)
+- **E-17** (registrado na memória de aprendizado): `create or replace view` não muda a
+  forma da view → `drop view if exists` + `create view`, inclusive na migration 07 antiga
+  (senão a 2ª rodada do teste quebra). Pego na hora pelo `test:banco`.
+
+## Estado que ficou no banco (teste real, permanente por desenho)
+
+- Card do **pedido 13207** (Cadeira Tiffany, 1/1) na Chegada da SECC — passou por:
+  iniciar → finalizar → **estorno** (obs.: "finalizei sem querer (teste da SESSAO-05)")
+  → finalizar de novo. 13 eventos novos ao todo na sessão, todos append-only.
+- Card do **13192** em EM CORTE (TESTE) com execução encerrada por movimentação (35s).
+- `limite_execucoes_por_pessoa` da SECC: setado 1 no teste e **removido** (null) ao final.
 
 ## Comandos rodados
 
 - `git checkout -b sessao-05-timers-eventos`
+- `npm run test:banco` (3×: 1 falha de forma de view → E-17 → verde nas 2 rodadas)
+- `npx vitest run src/kanban/linha-tempo.test.ts` · `npx tsc -b` · `npm run lint` · `npm test`
+- `npm run banco:aplicar -- --confirmar` (autorizado na conversa; digital idêntica)
+- `get_advisors` (security) · SQL de conferência dos eventos gravados
+- `npm run build`

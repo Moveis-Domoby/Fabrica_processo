@@ -189,6 +189,24 @@ Regra que nasceu aqui: **contador de tempo usa o `desde` projetado do evento** �
 calcula posição/tempo a partir de estado editável (M-13); o modelo fila/execução completo é da
 SESSAO-05.
 
+### Execução e linha do tempo (SESSAO-05)
+
+- **`<CartaoUnidade>` ganhou os gestos do tempo (D-02/D-24):** na fila mostra `Xmin na fila`
+  (ícone de relógio; o card há mais tempo esperando na coluna ganha ampulheta + texto em
+  `atencao-texto` — nunca só cor, M-12); em execução mostra `Play` + tempo + **quem** executa
+  ("você" para o próprio). Botões **Iniciar / Finalizar / Assumir** com `min-h-toque-md` (44px);
+  card em execução tem borda `acao-ativa`.
+- **`<ModalLinhaTempo>`** — o histórico legível: um bloco por permanência (setor · etapa) com
+  **Fila (do setor)**, **Execução de {pessoa}** e **Total na etapa**; durações via
+  `formatarDuracaoMs` (precisão de segundos abaixo de 1min). A lista crua de eventos fica
+  colapsada; **evento estornado aparece riscado (`line-through`), nunca some** (RNF-05); o
+  painel de estorno só aparece para líder do setor/admin e sempre nomeia o gesto que vai anular.
+- **Erro de regra vem do banco e é mostrado como veio** (já em português): limite atingido,
+  finalizar sem iniciar etc. — o front não duplica a validação, só exibe (M-04: a regra tem um
+  dono, o trigger).
+- A montagem dos segmentos é lógica pura em `src/kanban/linha-tempo.ts` — testada em Vitest,
+  espelhando as views do banco.
+
 ## 5. Regras de escrita da interface
 
 - **UI 100% em português.**
