@@ -57,7 +57,11 @@ comment on view public.plt_vw_permanencias is
 -- quem finalizou porque nem sempre é a mesma pessoa — e inventar uma regra de
 -- atribuição aqui seria decidir produto sem o dono (D-04 segue adiada).
 -- ----------------------------------------------------------------------------
-create or replace view public.plt_vw_execucoes as
+-- ↪️ SESSAO-05: a migration 14 recria esta view com colunas novas. O drop aqui
+-- é o que mantém a sequência idempotente (create or replace não muda a forma).
+drop view if exists public.plt_vw_execucoes;
+
+create view public.plt_vw_execucoes as
 with marcos as (
   select
     e.id,

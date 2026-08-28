@@ -419,6 +419,384 @@ conferir(
 // Limpa o contexto para não influenciar nada que venha depois.
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+// ============================================================================
+// SESSAO-05 — Timers, execução e estorno (migration 14 / D-24)
+// Lembrete E-14: o PGlite roda como superusuário — RLS/grants não se provam
+// aqui. O que se prova: as REGRAS de trigger (valem para todo mundo) e as views.
+// ============================================================================
+titulo('Execução (SESSAO-05/D-24): iniciar obrigatório, transferência, limite')
+
+// Pessoas do cenário: dois operadores da SECC, um líder da FITAMENTO.
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel) values
+    ('Operador Um',  'exec1@teste.com', '11111111101', 'exec.um',   'operador'),
+    ('Operador Dois','exec2@teste.com', '11111111102', 'exec.dois', 'operador'),
+    ('Lider Fita',   'lider@teste.com', '11111111103', 'lider.fita','lider');
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'exec.um'),
+     (select id from public.plt_setores where codigo = 'secc')),
+    ((select id from public.plt_usuarios where usuario = 'exec.dois'),
+     (select id from public.plt_setores where codigo = 'secc'));
+  insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+    ((select id from public.plt_usuarios where usuario = 'lider.fita'),
+     (select id from public.plt_setores where codigo = 'fitamento'), true);
+`)
+
+// O card do cenário: a Cômoda Slim (item 3, 1/1) nasce no PCP e vai para a SECC.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 3, '073', 'Cômoda Slim', 1, 1
+      from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const cardComoda = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+
+async function deveRecusarExec(sql, descricao, padrao) {
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  }
+}
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardComoda}, 'execucao_finalizada',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'finalizar sem iniciar é recusado (iniciar é obrigatório — D-24)',
+  /Iniciar é obrigatório/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, origem)
+     values (${cardComoda}, 'execucao_iniciada', 'api')`,
+  'iniciar sem pessoa é recusado (execução é gesto de pessoa — D-02)',
+  /gestos de pessoa/i,
+)
+
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const executor1 = (
+  await bd.query(`
+    select u.usuario, e.setor_origem_id is not null as tem_setor
+      from public.plt_cards c
+      join public.plt_usuarios u on u.id = c.executor_atual_id
+      join public.plt_eventos e on e.card_id = c.id and e.tipo = 'execucao_iniciada'
+     where c.id = ${cardComoda}`)
+).rows[0]
+conferir(
+  executor1?.usuario === 'exec.um',
+  'iniciar projeta o executor no card',
+  JSON.stringify(executor1 ?? null),
+)
+conferir(
+  executor1?.tem_setor === true,
+  'o trigger preencheu o setor da época no evento de iniciar (linha do tempo sabe ONDE)',
+)
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardComoda}, 'execucao_iniciada',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'a mesma pessoa não inicia o mesmo card duas vezes',
+  /já está executando/i,
+)
+
+// Transferência (D-24): exec.dois assume → fecha para um, abre para o outro.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface');
+`)
+const transfer = (
+  await bd.query(`
+    select ui.usuario as iniciou, v.encerramento, v.em_andamento
+      from public.plt_vw_execucoes v
+      join public.plt_usuarios ui on ui.id = v.usuario_inicio_id
+     where v.card_id = ${cardComoda}
+     order by v.iniciou_em, v.evento_inicio_id`)
+).rows
+conferir(
+  transfer.length === 2 &&
+    transfer[0]?.iniciou === 'exec.um' &&
+    transfer[0]?.encerramento === 'transferencia' &&
+    transfer[1]?.iniciou === 'exec.dois' &&
+    transfer[1]?.em_andamento === true,
+  'transferência fecha a execução de um e abre a do outro (D-24)',
+  JSON.stringify(transfer),
+)
+
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_finalizada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface');
+`)
+const finalizada = (
+  await bd.query(`
+    select v.encerramento, uf.usuario as finalizou, c.executor_atual_id is null as executor_zerado
+      from public.plt_vw_execucoes v
+      join public.plt_usuarios uf on uf.id = v.usuario_fim_id
+      join public.plt_cards c on c.id = v.card_id
+     where v.card_id = ${cardComoda} and v.encerramento = 'finalizada'`)
+).rows[0]
+conferir(
+  finalizada?.finalizou === 'exec.dois' && finalizada?.executor_zerado === true,
+  'finalizar fecha a execução com autor e zera o executor do card',
+  JSON.stringify(finalizada ?? null),
+)
+
+// Limite por pessoa/setor (D-24): SECC com limite 1 → segundo card é recusado.
+await bd.exec(`
+  update public.plt_setores set limite_execucoes_por_pessoa = 1 where codigo = 'secc';
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    select cu.id, 'movimentacao_setor',
+           (select id from public.plt_setores where codigo = 'pcp'),
+           (select id from public.plt_setores where codigo = 'secc'),
+           (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface'
+      from public.plt_cards cu
+     where cu.tipo = 'unidade' and cu.indice_unidade = 2;
+`)
+const cardSegundo = (
+  await bd.query(
+    `select id from public.plt_cards where tipo = 'unidade' and indice_unidade = 2`,
+  )
+).rows[0].id
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardSegundo}, 'execucao_iniciada',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'limite do setor (1 por pessoa) recusa o segundo card em execução',
+  /Limite do setor/i,
+)
+await bd.exec(`update public.plt_setores set limite_execucoes_por_pessoa = null where codigo = 'secc'`)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardSegundo}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+conferir(true, 'sem limite (padrão), a mesma pessoa executa mais de um card')
+
+// Mover com execução aberta encerra sozinho (D-24).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values (${cardComoda}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const aposMover = (
+  await bd.query(`
+    select (select executor_atual_id from public.plt_cards where id = ${cardComoda}) is null as executor_zerado,
+           (select count(*)::int from public.plt_vw_execucoes
+             where card_id = ${cardComoda} and encerramento = 'movimentacao') as fechadas_por_mover`)
+).rows[0]
+conferir(
+  aposMover?.executor_zerado === true && aposMover?.fechadas_por_mover === 1,
+  'mover com execução aberta encerra a execução naquele instante (D-24)',
+  JSON.stringify(aposMover ?? null),
+)
+
+// Critério da demanda: mover sem iniciar → tempo todo é fila (zero execuções).
+const soFila = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_vw_permanencias where card_id = ${cardSegundo}) as permanencias,
+           (select count(*)::int from public.plt_vw_execucoes
+             where card_id = ${cardSegundo} and encerramento is distinct from null
+               and iniciou_em < (select min(entrou_em) from public.plt_vw_permanencias where card_id = ${cardSegundo})) as execucoes_antes`)
+).rows[0]
+conferir(
+  (soFila?.permanencias ?? 0) >= 2,
+  'card com 2+ etapas tem uma permanência por etapa (linha do tempo completa)',
+  JSON.stringify(soFila ?? null),
+)
+
+titulo('Estorno (SESSAO-05): evento novo, original visível, só líder/admin')
+
+// FITAMENTO: exec.um não é do setor, mas quem valida papel é o trigger — o
+// cenário: iniciar e finalizar lá, e desfazer os gestos um a um.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_finalizada',
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const eventoFinalizada = (
+  await bd.query(`
+    select max(id)::int as id from public.plt_eventos
+     where card_id = ${cardComoda} and tipo = 'execucao_finalizada'`)
+).rows[0].id
+const eventoIniciada = (
+  await bd.query(`
+    select max(id)::int as id from public.plt_eventos
+     where card_id = ${cardComoda} and tipo = 'execucao_iniciada'`)
+).rows[0].id
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, evento_referencia_id, origem)
+     values (${cardComoda}, 'estorno',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), ${eventoFinalizada}, 'interface')`,
+  'operador comum não estorna (gesto de líder/admin)',
+  /gesto de líder/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, evento_referencia_id, origem)
+     values (${cardComoda}, 'estorno',
+             (select id from public.plt_usuarios where usuario = 'primeira.pessoa'), ${eventoIniciada}, 'interface')`,
+  'estornar um gesto que não é o último é recusado (desfaz-se do mais novo para trás)',
+  /último gesto/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, evento_referencia_id, origem)
+     values (${cardComoda}, 'estorno',
+             (select id from public.plt_usuarios where usuario = 'primeira.pessoa'),
+             (select min(id) from public.plt_eventos where card_id = ${cardComoda} and tipo = 'movimentacao_setor'), 'interface')`,
+  'movimentação não se estorna (corrige-se movendo de novo)',
+  /Movimentação errada/i,
+)
+
+// Admin estorna a finalização ("finalizou sem querer") → execução reabre.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, evento_referencia_id, origem)
+    values (${cardComoda}, 'estorno',
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'), ${eventoFinalizada}, 'interface');
+`)
+const aposEstorno1 = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_eventos where id = ${eventoFinalizada}) as original_existe,
+           (select u.usuario from public.plt_cards c join public.plt_usuarios u on u.id = c.executor_atual_id
+             where c.id = ${cardComoda}) as executor,
+           (select em_andamento from public.plt_vw_execucoes
+             where card_id = ${cardComoda} and evento_inicio_id = ${eventoIniciada}) as reaberta`)
+).rows[0]
+conferir(
+  aposEstorno1?.original_existe === 1 &&
+    aposEstorno1?.executor === 'exec.um' &&
+    aposEstorno1?.reaberta === true,
+  'estorno da finalização: original permanece, execução reabre, executor volta (M-13)',
+  JSON.stringify(aposEstorno1 ?? null),
+)
+
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, evento_referencia_id, origem)
+     values (${cardComoda}, 'estorno',
+             (select id from public.plt_usuarios where usuario = 'primeira.pessoa'), ${eventoFinalizada}, 'interface')`,
+  'estornar duas vezes o mesmo evento é recusado',
+  /já foi estornado/i,
+)
+
+// Líder do setor ATUAL (FITAMENTO) estorna o iniciar → executor zera.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, evento_referencia_id, origem)
+    values (${cardComoda}, 'estorno',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), ${eventoIniciada}, 'interface');
+`)
+const aposEstorno2 = (
+  await bd.query(`
+    select (select executor_atual_id from public.plt_cards where id = ${cardComoda}) is null as executor_zerado,
+           (select count(*)::int from public.plt_vw_execucoes
+             where card_id = ${cardComoda} and evento_inicio_id = ${eventoIniciada}) as sumiu_da_view,
+           (select count(*)::int from public.plt_eventos
+             where card_id = ${cardComoda} and tipo = 'estorno') as estornos`)
+).rows[0]
+conferir(
+  aposEstorno2?.executor_zerado === true &&
+    aposEstorno2?.sumiu_da_view === 0 &&
+    aposEstorno2?.estornos === 2,
+  'estorno do iniciar (pelo líder do setor): view ignora a execução, eventos todos preservados',
+  JSON.stringify(aposEstorno2 ?? null),
+)
+
+titulo('Linha do tempo e RPC de estorno (gates)')
+const semUsuarioLinha = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_linha_tempo_card(${cardComoda})`)
+).rows[0]
+conferir(
+  semUsuarioLinha.total === 0,
+  'sem usuário no contexto, a linha do tempo devolve vazio (gate)',
+  `vieram ${semUsuarioLinha.total}`,
+)
+
+// exec.um (da SECC) NÃO vê o card que está na FITAMENTO — a linha do tempo
+// respeita a mesma regra de visibilidade do card.
+await bd.exec(`
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000011'
+   where usuario = 'exec.um';
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000012'
+   where usuario = 'lider.fita';
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false);
+`)
+const linhaForaDoSetor = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_linha_tempo_card(${cardComoda})`)
+).rows[0]
+conferir(
+  linhaForaDoSetor.total === 0,
+  'quem não vê o card não vê a linha do tempo dele',
+  `vieram ${linhaForaDoSetor.total}`,
+)
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false)`)
+const linha = (
+  await bd.query(`
+    select tipo, usuario_nome, setor_destino_nome, estornado
+      from public.plt_fn_linha_tempo_card(${cardComoda}) order by ocorrido_em, evento_id`)
+).rows
+conferir(
+  linha.length >= 8 &&
+    linha.some((l) => l.tipo === 'execucao_iniciada' && l.estornado === true) &&
+    linha.some((l) => l.tipo === 'estorno') &&
+    linha.every((l) => l.tipo !== 'movimentacao_setor' || l.setor_destino_nome),
+  'linha do tempo completa: nomes de pessoas/setores e estornados marcados',
+  JSON.stringify(linha.map((l) => `${l.tipo}${l.estornado ? '(estornado)' : ''}`)),
+)
+
+// A RPC de estorno com o gate de verdade: o líder da FITAMENTO desfaz um
+// gesto novo pelo caminho que a interface usa.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardComoda}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface');
+`)
+const eventoNovo = (
+  await bd.query(`select max(id)::int as id from public.plt_eventos where card_id = ${cardComoda} and tipo = 'execucao_iniciada'`)
+).rows[0].id
+const estornoRpc = (
+  await bd.query(`select public.plt_fn_estornar_evento(${eventoNovo}, 'iniciado sem querer')::int as id`)
+).rows[0]
+conferir(
+  Number.isInteger(estornoRpc?.id),
+  'plt_fn_estornar_evento registra o estorno pelo caminho da interface',
+  JSON.stringify(estornoRpc ?? null),
+)
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+try {
+  await bd.query(`select public.plt_fn_estornar_evento(${eventoFinalizada}, 'tentativa indevida')`)
+  conferir(false, 'operador comum não estorna pela RPC', 'a chamada passou, e não devia')
+} catch (erro) {
+  conferir(
+    /gesto de líder|já foi estornado/i.test(erro.message),
+    'operador comum não estorna pela RPC',
+    erro.message,
+  )
+}
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
