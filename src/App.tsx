@@ -11,6 +11,7 @@ import { Equipe } from '@/paginas/Equipe'
 import { TelaSetor } from '@/paginas/TelaSetor'
 import { Administracao } from '@/paginas/Administracao'
 import { ControleTempo } from '@/paginas/ControleTempo'
+import { Dashboards } from '@/paginas/Dashboards'
 import { PCP } from '@/paginas/PCP'
 import { QuadroSetor } from '@/paginas/QuadroSetor'
 import { Expedicao } from '@/paginas/Expedicao'
@@ -43,6 +44,8 @@ export function App() {
             <Route element={<RotaProtegida nivel="lider" />}>
               <Route path="/equipe" element={<Equipe />} />
               <Route path="/estrutura" element={<Estrutura />} />
+              {/* Dashboards (SESSAO-10/D-32): líder vê o próprio setor; admin, tudo. */}
+              <Route path="/dashboards" element={<Dashboards />} />
             </Route>
 
             {/* só admin */}

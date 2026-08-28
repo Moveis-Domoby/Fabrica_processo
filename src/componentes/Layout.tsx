@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import {
+  ChartColumn,
   ClipboardList,
   House,
   Layers,
@@ -69,6 +70,7 @@ export function Layout({ children }: { children: ReactNode }) {
         { para: '/tablet', rotulo: 'Tela do setor', icone: <TabletSmartphone aria-hidden /> },
         ...(ehLider
           ? [
+              { para: '/dashboards', rotulo: 'Dashboards', icone: <ChartColumn aria-hidden /> },
               { para: '/equipe', rotulo: 'Equipe', icone: <UsersRound aria-hidden /> },
               { para: '/estrutura', rotulo: 'Estrutura', icone: <ListTree aria-hidden /> },
             ]
