@@ -1349,6 +1349,93 @@ conferir(
   `eventos do card: ${eventosIntactos.total}`,
 )
 
+// ============================================================================
+// SESSAO-10 — Dashboards (migration 18 / D-32)
+// ============================================================================
+titulo('Dashboards (SESSAO-10/D-32): números batem, gate por papel')
+
+await bd.exec(`
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000001'
+   where usuario = 'primeira.pessoa';
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+`)
+const PERIODO = `'2020-01-01'::timestamptz, '2030-01-01'::timestamptz`
+
+// O critério de aceite: o número da dash bate com a soma manual dos eventos.
+const somaManual = (
+  await bd.query(`
+    select coalesce(extract(epoch from sum(v.duracao)), 0)::int as s
+      from public.plt_vw_execucoes v
+     where v.setor_id = (select id from public.plt_setores where codigo = 'secc')`)
+).rows[0].s
+const somaDash = (
+  await bd.query(`
+    select coalesce(extract(epoch from execucao_bruta), 0)::int as s
+      from public.plt_fn_dash_tempos_setor(${PERIODO})
+     where setor_nome = 'SECC'`)
+).rows[0]?.s
+conferir(
+  somaDash !== undefined && Math.abs(somaDash - somaManual) <= 1,
+  'execução por setor na dash BATE com a soma manual dos eventos (critério 1)',
+  `dash=${somaDash}s manual=${somaManual}s`,
+)
+
+const detalhe = (
+  await bd.query(`
+    select count(*)::int as total,
+           count(*) filter (where executor_nome is not null)::int as com_nome,
+           count(*) filter (where duracao_util is not null)::int as com_util
+      from public.plt_fn_dash_execucoes(${PERIODO})`)
+).rows[0]
+conferir(
+  detalhe.total >= 3 && detalhe.com_nome === detalhe.total && detalhe.com_util === detalhe.total,
+  'a lista detalhada de execuções sai com nomes e duração útil (D-29/D-32)',
+  JSON.stringify(detalhe),
+)
+
+const qualidadeDash = (
+  await bd.query(`
+    select entregues_atencao, divergencias_contra
+      from public.plt_fn_dash_qualidade(${PERIODO})
+     where setor_nome = 'SECC'`)
+).rows[0]
+conferir(
+  (qualidadeDash?.entregues_atencao ?? 0) >= 1 && (qualidadeDash?.divergencias_contra ?? 0) >= 1,
+  'qualidade por setor: SECC mostra o 🟡 entregue e a divergência contra (RF-85)',
+  JSON.stringify(qualidadeDash ?? null),
+)
+
+const estoqueDash = (
+  await bd.query(`select cards_parados from public.plt_fn_dash_estoque()`)
+).rows[0]
+conferir(
+  (estoqueDash?.cards_parados ?? 0) >= 1,
+  'tempo parado no estoque aparece para o admin (RF-14)',
+  JSON.stringify(estoqueDash ?? null),
+)
+
+// Gate D-32: o líder da FITAMENTO vê só a FITAMENTO; operador não vê nada.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false)`)
+const setoresDoLider = (
+  await bd.query(`select setor_nome from public.plt_fn_dash_tempos_setor(${PERIODO})`)
+).rows.map((r) => r.setor_nome)
+conferir(
+  setoresDoLider.length === 1 && setoresDoLider[0] === 'FITAMENTO',
+  'líder enxerga SÓ o próprio setor na dash (critério 4)',
+  setoresDoLider.join(' · ') || 'vazio',
+)
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const dashOperador = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_dash_execucoes(${PERIODO})`)
+).rows[0]
+conferir(
+  dashOperador.total === 0,
+  'operador não enxerga dashboard nenhum (D-32)',
+  `linhas: ${dashOperador.total}`,
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
