@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-12 — Tarefas e Delegação"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
 atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao]
 ---
 
 # 🎯 SESSAO-12 — Tarefas e Delegação
+
+> [!success] ✅ Entregue em 28/08/2026 — [[handoff_2026_08_28_sessao12_tarefas]] (fecha o bloco noturno D-26)
+> Executada no desenho da **D-34** (respostas do dono no aval do bloco): 3 modos por setor com padrão "desativada", sorteio balanceado SÓ entre quem está logado (heartbeat de presença), tarefa avulsa com timer opcional, delegação que organiza sem travar. As duas perguntas da demanda foram respondidas no aval (sem check-in formal; timer só se o atarefado quiser).
 
 ## O que é
 

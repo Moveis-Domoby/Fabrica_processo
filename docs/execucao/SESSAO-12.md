@@ -24,3 +24,9 @@
 ## Registro contínuo
 
 - [28/08] Branch criada. RLS de `plt_tarefas` conferido (criar: admin/líder/próprio; atualizar: admin/responsável/líder — já serve). Tipo de evento `delegacao` existe desde a SESSAO-02.
+- [28/08] **Migration 20** escrita e testada; a PRIMEIRA aplicação em produção quebrou na migration 14 → **E-19**: check de tipos recriado por migration antiga viola linhas dos tipos FUTUROS que o banco já tem — checks antigos viraram `not valid`, o mais novo valida. Reaplicado: ok (15 tabelas, 30 policies).
+- [28/08] Front: heartbeat no ProvedorSessao; página Afazeres; ModoDelegacao na Estrutura; responsável no CartaoTablet; delegarCard na camada kanban; rota+menu. tsc · lint · vitest 23/23 · build ok.
+- [28/08] **Verificação de tela contra o banco real**: delegação direta pela tela (card 13192 → Operador Teste Um; carga "1 aberto(s)"); tarefa avulsa criada → iniciar tempo → concluída; modo do setor salvo pela tela. Console limpo.
+- [28/08] **E-20 descoberto na verificação**: `modo_delegacao` JÁ existia no banco, criado por OUTRA sessão (check sem 'desativada', default 'direta'; `atualizado_em` intacto provou que ninguém escolheu) — o `if not exists` pulou calado. **Migration 21** alinhou ao desenho D-34 (3 modos, padrão 'desativada') e foi aplicada; SECC revertido ao padrão após o teste.
+
+## Task list — conferida ao final: 1✔ 2✔ 3✔ 3b✔ 4✔ 5✔ 6✔
