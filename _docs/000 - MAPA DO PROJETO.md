@@ -33,7 +33,8 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[PLT - Memoria de Aprendizado]] — 🧠 **leitura obrigatória em TODA construção** (Claude Code e Cowork): erros+correções, acertos, modelos mentais, fórmulas, possibilidades — alimentada na hora, em 1 linha por entrada
 - [[000 - ORDEM DAS SESSOES]] — **o plano de construção**: 13 sessões de Claude Code, em ordem de dependência
 - [[PROMPT - Bloco 1 (Sessoes 01 a 05)]] — o prompt do Bloco 1 (✅ encerrado na SESSAO-04; o restante foi replanejado pela D-23)
-- [[PROMPT - Bloco 2 (Sessoes 05 a 09)]] — 🚀 **o prompt da vez**: SESSAO-05 → 06 → 07 → 08 → 09 (medir → qualidade → chão de fábrica → no ar → pedidos sozinhos; desde a D-23, **número = ordem**)
+- [[PROMPT - Bloco 2 (Sessoes 05 a 09)]] — prompt do Bloco 2 (05 e 06 ✅ entregues)
+- [[PLT - Plano Noturno Sessoes 07-12]] — 🌙 **o plano da vez (D-26/D-27)**: sessões 07→12 em execução autônoma encadeada — dúvidas todas no início, zero perguntas durante, decisões provisórias logadas, encadeamento automático de conversas
 - Demandas de implementação vivem em `Plataforma/Demandas/` (`SESSAO-NN - *.md`; template para novas: [[TEMPLATE - Demanda]])
 
 ## 🔌 Automações e migração n8n

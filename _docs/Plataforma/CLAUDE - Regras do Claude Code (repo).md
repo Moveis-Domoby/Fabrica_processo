@@ -54,6 +54,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 
 11. **Seguir o design system** e o doc de estilização do repo em toda tela nova; componente novo só se não existir equivalente. Tela com muitos dados → **paginação obrigatória** (RNF-02).
 12. **Termos da equipe sem tradução:** SECC, FITAMENTO, FURAÇÃO, PCP, "rota" — a interface fala a língua do galpão. UI em português.
+12b. **Códigos internos NUNCA em texto de interface** (D-27): "D-09", "RF-80", "Q-16" etc. não aparecem para o usuário — ele não entende. Na UI, escrever em língua de gente; o código vai para comentário no código-fonte, como entendimento do Claude.
 13. **Commits pequenos e descritivos; uma branch por demanda.** Nada de entrega gigante misturando assuntos.
 14. **Verificação conforme os critérios de aceite da demanda** — cada critério testado e reportado no handoff; UI nova acompanha screenshot.
 15. **Mobile-first para o chão de fábrica** (D-06): tudo que o operador toca funciona em tablet com botão grande e em celular.
