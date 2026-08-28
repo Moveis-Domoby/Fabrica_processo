@@ -114,8 +114,9 @@ export function Estrutura() {
         <div>
           <h1 className="text-2xl sm:text-3xl">Estrutura</h1>
           <p className="mt-1 max-w-2xl text-texto-suave">
+            {/* D-14: toda etapa nasce com timer — código fora da tela (D-27). */}
             Setores e as etapas internas de cada um. Toda etapa cadastrada já nasce contando
-            tempo (D-14) — não existe timer para ligar. Nada aqui se apaga: desativar preserva o
+            tempo — não existe timer para ligar. Nada aqui se apaga: desativar preserva o
             histórico.
           </p>
         </div>
@@ -427,7 +428,8 @@ function LimiteExecucoes(props: {
       <div className="max-w-xs flex-1">
         <Campo
           rotulo="Limite de cards em execução por pessoa"
-          ajuda="Vazio = sem limite (padrão). O banco recusa o Iniciar de quem estiver no teto (D-24)."
+          // D-24: limite configurável por setor — código fora da tela (D-27).
+          ajuda="Vazio = sem limite (padrão). O banco recusa o Iniciar de quem estiver no teto."
           type="number"
           min={1}
           inputMode="numeric"
@@ -475,7 +477,8 @@ function ListaEtapas(props: {
     onSuccess: async () => {
       notificar({
         titulo: `Etapa "${nomeNova.trim()}" criada`,
-        descricao: 'Ela já nasce contando tempo para todo card que chegar (D-14).',
+        // D-14: timer é propriedade da etapa — código fora da tela (D-27).
+        descricao: 'Ela já nasce contando tempo para todo card que chegar.',
         tom: 'perfeito',
       })
       setNomeNova('')

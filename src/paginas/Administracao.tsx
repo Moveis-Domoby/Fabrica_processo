@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { Settings2, UsersRound } from 'lucide-react'
+import { CalendarClock, Settings2, UsersRound } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 
 /**
@@ -13,8 +13,9 @@ export function Administracao() {
       <div>
         <h1 className="text-2xl sm:text-3xl">Administração</h1>
         <p className="mt-1 max-w-2xl text-texto-suave">
+          {/* O painel completo é a SESSAO-14 — código fora da tela (D-27). */}
           Área exclusiva do admin. A consolidação completa (setores, etapas, automações, chaves
-          de API) chega na SESSAO-14 — por enquanto, a gestão de pessoas vive na Equipe.
+          de API) chega em breve — por enquanto, a gestão de pessoas vive na Equipe.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -26,6 +27,12 @@ export function Administracao() {
         <Link to="/estrutura">
           <Botao variante="secundaria" icone={<Settings2 />}>
             Setores e etapas
+          </Botao>
+        </Link>
+        {/* SESSAO-07/D-29: horários de funcionamento, pausas e correção retroativa. */}
+        <Link to="/administracao/tempo">
+          <Botao variante="secundaria" icone={<CalendarClock />}>
+            Controle de tempo
           </Botao>
         </Link>
       </div>

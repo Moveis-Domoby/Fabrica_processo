@@ -46,14 +46,14 @@ tags: [plataforma, descoberta, perguntas]
 - ⏸️ **Q-21 · Card de unidade que se divide:** e quando UMA unidade gera trabalho paralelo (base de metalon na METALURGICA enquanto a madeira corre na SECC)? O card se divide em sub-cards que se juntam na montagem? → **adiada de propósito em 27/08 (SESSAO-04): "fica para depois" (D-22). Nada no modelo depende disso; quando decidido, entra como acréscimo.**
 - **Q-22 · Terceirizados (corte/fita para SF Madeiras etc., 350+ cards hoje):** entram na plataforma desde o dia 1 como fluxo próprio, ou ficam fora do escopo inicial?
 - **Q-23 · Produção para estoque** (best-sellers sem pedido): o card nasce de onde, já que não há pedido no Tiny? Botão "produzir para estoque" no PCP?
-- **Q-24 · Cancelamento:** pedido cancelado no Tiny no meio da produção — o card some, congela ou vai para uma etapa "cancelado" com decisão humana do que fazer com as peças?
+- ✅ **Q-24 · Cancelamento** → respondida em 28/08 (bloco noturno): card marcado "cancelado", visível, não some; com unidades liberadas, notifica admins → D-31
 - **Q-25 · Migração:** os cards vivos do ClickUp/Trello entram na plataforma no corte (importação), ou só pedidos novos nascem nela e o legado morre onde está?
 
 ## 🟡 UX e visual
 
 - **Q-30 · Referência visual:** o "réplica do ClickUp" vale também para o visual (sidebar, densidade, cores por etapa), ou é só o funcionamento? Existe identidade Domoby (cores/logo) que a plataforma deve vestir? Modo escuro?
-- **Q-31 · A tela do setor (tablet):** o operador precisa ver o quê além da fila? (imagem 3D do móvel — hoje existe nos cards —, medidas, observação do pedido?) O que é ruído?
-- **Q-32 · Som/alerta físico no setor** quando chega card novo na fila, ou o tablet é consultado passivamente?
+- ✅ **Q-31 · A tela do setor (tablet)** → respondida em 28/08: todos os dados do produto, nenhum dado de cliente, espaço funcional de imagens (futura biblioteca de peças) → D-28
+- ✅ **Q-32 · Som/alerta físico no setor** → respondida em 28/08: som mínimo e discreto na chegada de card → D-28
 - **Q-33 · Idioma dos termos:** manter os nomes que a equipe já usa (SECC, FITAMENTO, "rota") — sugestão: sim, sempre.
 
 ## 🟢 Automações internas e alertas
@@ -64,15 +64,15 @@ tags: [plataforma, descoberta, perguntas]
 
 ## 🔵 API e integrações
 
-- **Q-50 · Autenticação da API:** chave por integração (estilo Tiny v2) é suficiente? Quem gera/revoga no painel admin?
-- **Q-51 · O que o n8n faz no dia 1?** Confirmar: (a) pedido novo no Tiny → card no PCP; (b) unidade chega em EXPEDIÇÃO → card na ROTAS do ClickUp; (c) mais alguma?
-- **Q-52 · A plataforma também precisa LER do Tiny** (situação, cancelamento, edição de pedido) ou o n8n empurra tudo?
+- ✅ **Q-50 · Autenticação da API** → respondida em 28/08: chave opaca gerada no admin (hash no banco), escopos leitura/escrita, revogável na hora → SESSAO-11
+- ✅ **Q-51 · O que o n8n faz no dia 1?** → respondida em 28/08: **nada novo** — a entrada é trigger no próprio banco (D-31) e nada mais se cria no ClickUp (D-33)
+- ✅ **Q-52 · A plataforma lê do Tiny?** → NÃO — o n8n empurra tudo; a plataforma só lê o próprio banco → D-31/D-33
 
 ## ⚪ Operação e infraestrutura
 
-- **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **será enfrentada na prática na [[SESSAO-08 - Publicacao no Ar]] (D-23)**
+- ⏸️ **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar**
 - ✅ **Q-61 · Quantos usuários** → respondida em 26/08 (SESSAO-03): **~30 usuários** na largada → [[PLT - Decisoes de Produto#D-21]]
-- **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **será decidida na [[SESSAO-08 - Publicacao no Ar]] (D-23): o Claude Code traz a comparação, o dono bate o martelo**
+- ⏸️ **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar**
 
 ## Ver também
 

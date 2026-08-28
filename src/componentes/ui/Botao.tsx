@@ -32,10 +32,12 @@ export interface BotaoProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 /**
  * Botão base do design system.
  *
- * Regras (docs/design-system.md):
+ * Regras (modelo de sistema — `_docs/Plataforma/PLT - Modelo de Sistema.md`):
  * - `primaria` é a AÇÃO da tela — no máximo uma por bloco de decisão.
  * - `galpao` é o tamanho das ações do operador em tablet (64px de altura).
  * - Nunca use `perigo` para movimentar card: mover não é destruir.
+ * - Microinteração padrão: elevação leve (2px) + sombra suave ao interagir,
+ *   e o toque "assenta" o botão de volta — sutil de propósito.
  */
 export const Botao = forwardRef<HTMLButtonElement, BotaoProps>(function Botao(
   {
@@ -58,7 +60,11 @@ export const Botao = forwardRef<HTMLButtonElement, BotaoProps>(function Botao(
       aria-busy={carregando || undefined}
       className={cn(
         'inline-flex items-center justify-center rounded-dm border font-medium',
-        'transition-colors select-none',
+        'transition-[color,background-color,border-color,box-shadow,translate] duration-150 select-none',
+        // Elevação leve ao interagir + assentar no toque — só em botão habilitado.
+        'enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:shadow-grafite-950/20',
+        'enabled:focus-visible:-translate-y-0.5 enabled:focus-visible:shadow-md enabled:focus-visible:shadow-grafite-950/20',
+        'enabled:active:translate-y-0 enabled:active:shadow-none',
         'disabled:cursor-not-allowed disabled:opacity-50',
         VARIANTES[variante],
         TAMANHOS[tamanho],

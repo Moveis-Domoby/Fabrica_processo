@@ -210,6 +210,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 **Descartadas:** rodar tudo numa conversa só (estoura contexto e viola D-10); parar e esperar resposta a cada dúvida (o dono estará dormindo).
 
+**↪️ Complementos (28/08, aval do dono ao iniciar o bloco):** (1) **verificação de tela (F-07/navegador) apenas a cada 2–3 sessões** para economizar tokens — nas demais, conferência por `tsc`/`lint`/testes/`test:banco` direto nos arquivos; (2) as dúvidas do bloco foram respondidas e viraram **D-28 a D-34**; (3) a SESSAO-08 saiu do bloco (D-30).
+
 ## D-27 · Padrões de interface: menu lateral, modelo de sistema no cofre, microinterações, sem códigos internos (28/08/2026)
 
 **Decidido (pedidos do dono em 28/08; entram no escopo da SESSAO-07):**
@@ -221,6 +223,62 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 - **Textos explicativos longos na UI: temporários.** Ficam por ora (o dono quer entender as telas ao revisar), mas **não devem ser mantidos** — enxugar em sessão futura, quando o dono mandar.
 
 **Descartadas:** criar sessão nova só para UI (os ajustes cabem como prelúdio da 07, que já é a sessão de interface); remover os textos explicativos já (o dono pediu para manter por enquanto).
+
+## D-28 · Card do operador: dados do produto, espaço de imagens, som discreto (28/08/2026)
+
+**Decidido (respostas do dono no início do bloco noturno — SESSAO-07):**
+
+- O card da fila do setor mostra **todos os dados do produto** e **nenhum dado do cliente** (Q-31 ✅).
+- O card ganha um **espaço funcional de imagens** (upload por admin/líder, operador vê) — preparado para a futura **biblioteca de peças** que o dono vai importar.
+- **Som mínimo e discreto** ("um pouco opaco, para não irritar") na chegada de card novo na fila (Q-32 ✅).
+- **Modo setor:** conta de dispositivo por tablet abre a fila do setor em tela cheia; toda ação pede o PIN do operador; celular pessoal logado cai no setor do próprio usuário.
+
+## D-29 · Controle de tempo pelo admin: horário de funcionamento, pausas manuais e correção retroativa (28/08/2026)
+
+**Decidido (pedido novo do dono no início do bloco — "4 extra"):**
+
+- Admin configura **horário de funcionamento por setor E por usuário** nas configurações de admin → fora do horário, os timers não contam.
+- **Botões de controle direto:** desligar o tempo de um setor ou de uma pessoa AGORA, até religar manualmente.
+- **Botão de correção retroativa** ("esqueci de desligar, mas ontem tal setor não funcionou"): admin marca um período passado de setor/pessoa como não contado.
+- **Nada disso altera o dado registrado** — o tempo executado até então é fixo; eventos continuam append-only e o desconto acontece só no cálculo derivado (M-13).
+
+## D-30 · Publicação adiada: nenhum deploy no bloco noturno (28/08/2026) — ↩️ revisa a posição da SESSAO-08 na D-23
+
+**Decidido (palavras do dono):** *"tudo que envolver deploy, hospedagem ou coisa do tipo pode jogar para sessões futuras, não iremos lançar ela agora e quando eu for fazer o deploy eu falo"*.
+
+- A **SESSAO-08 sai do bloco noturno** e fica ⏸️ até o dono pedir o lançamento. O bloco vira **07 → 09 → 10 → 11 → 12**.
+- Q-60 (wi-fi) e Q-62 (hospedagem) ficam ⏸️ junto com ela.
+- Consequência: a permissão da D-19 (banco direto) segue valendo durante o bloco e até a revisão do dono (D-26).
+
+## D-31 · Entrada de pedidos: a plataforma lê o próprio banco, sem tocar o n8n (28/08/2026)
+
+**Decidido (palavras do dono):** *"não precisa conectar no n8n, ele já lança no banco, então leia o banco e crie o card quando chegar lá, instantaneamente"*.
+
+- Card do PCP nasce/atualiza por **trigger no banco** a partir de `pedidos` (que o n8n já alimenta via P15). Nenhum workflow novo no n8n; endpoint HTTP fica apenas documentado como alternativa futura.
+- **Cancelamento (Q-24 ✅):** card marcado "cancelado", visível, não some; com unidades já liberadas, notifica admins.
+- **Modelo do card do PCP** = o modelo real do PCP atual (ClickUp), documentado no cofre — seguir esse modelo.
+
+## D-32 · Dashboards: foco pesado em tempo; só líder e admin (28/08/2026)
+
+**Decidido:** o foco principal é **tempo de produção bem detalhado** — "tempo entre cada execução, tempo para cada funcionário e tudo mais que envolver tempo; queremos uma lista muito bem detalhada" — além das métricas propostas (finalizados por setor, fila vs execução, tempo por item, qualidade, tempo em estoque). **Operador não vê dashboard nenhum** — apenas líder (próprio setor) e admin (tudo).
+
+## D-33 · ROTAS dentro da plataforma; ClickUp não recebe mais nada (28/08/2026) — ↩️ revisa a D-05
+
+**Decidido (palavras do dono):** *"rotas será criado aqui dentro também, então nada deve ser pensado mais em criar coisa no ClickUp; n8n também não vai jogar nada aqui por enquanto, já temos todos os dados que precisamos para as rotas da forma que o n8n joga pra gente"*.
+
+- A **ponte ROTAS → ClickUp morre antes de nascer**: nenhuma integração nova cria nada no ClickUp.
+- **Módulo básico de rotas nasce na SESSAO-11** (opção B confirmada pelo dono), seguindo a documentação de rotas existente nos `_docs`; onde não houver documentação, seguir o padrão do sistema.
+- **Agrupamento por pedido completo:** a entrega sai por pedido inteiro ("mesmo que tenha 30 unidades, não vamos entregar 10 móveis se ele pediu 30").
+- A plataforma **nunca lê do Tiny** (Q-52 ✅); a automação ROTAS "entregue" → Tiny **em produção não se toca**.
+
+## D-34 · Delegação: 3 modos por setor, sorteio entre logados, tarefa avulsa sem timer obrigatório (28/08/2026)
+
+**Decidido (respostas do dono — SESSAO-12):**
+
+- **Modos por setor, configuráveis no admin:** delegação **desativada** (card fica sem dono na fila) · **direta** (líder/admin atribui) · **aleatória**.
+- **Sorteio aleatório só entre quem está logado na plataforma no momento**, balanceado por carga aberta.
+- **Só cards de produção contam tempo.** Tarefa avulsa não conta tempo por padrão — só se o próprio atarefado quiser acionar.
+- **Delegação organiza, não trava:** card delegado aparece em "meus afazeres", mas qualquer pessoa do setor pode agir (coerente com D-22/D-24).
 
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 

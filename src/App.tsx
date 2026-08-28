@@ -4,13 +4,13 @@ import { ProvedorNotificacao } from '@/componentes/ui'
 import { ProvedorSessao } from '@/autenticacao/ProvedorSessao'
 import { RotaProtegida } from '@/autenticacao/guardas'
 import { Inicio } from '@/paginas/Inicio'
-import { DesignSystem } from '@/paginas/DesignSystem'
 import { Entrar } from '@/paginas/Entrar'
 import { Convite } from '@/paginas/Convite'
 import { TrocarSenha } from '@/paginas/TrocarSenha'
 import { Equipe } from '@/paginas/Equipe'
-import { ModoTablet } from '@/paginas/ModoTablet'
+import { TelaSetor } from '@/paginas/TelaSetor'
 import { Administracao } from '@/paginas/Administracao'
+import { ControleTempo } from '@/paginas/ControleTempo'
 import { PCP } from '@/paginas/PCP'
 import { QuadroSetor } from '@/paginas/QuadroSetor'
 import { Expedicao } from '@/paginas/Expedicao'
@@ -25,13 +25,14 @@ export function App() {
             {/* públicas: login e convite — sem autocadastro (D-21) */}
             <Route path="/entrar" element={<Entrar />} />
             <Route path="/convite/:token" element={<Convite />} />
-            <Route path="/design" element={<DesignSystem />} />
+            {/* A rota /design saiu: o modelo de sistema vive no cofre (D-27). */}
 
             {/* qualquer papel logado e aprovado */}
             <Route element={<RotaProtegida />}>
               <Route path="/" element={<Inicio />} />
               <Route path="/trocar-senha" element={<TrocarSenha />} />
-              <Route path="/tablet" element={<ModoTablet />} />
+              {/* A tela do chão de fábrica (SESSAO-07): fila do setor + PIN. */}
+              <Route path="/tablet" element={<TelaSetor />} />
               {/* kanban (SESSAO-04): as páginas conferem o acesso por setor */}
               <Route path="/pcp" element={<PCP />} />
               <Route path="/setores/:id" element={<QuadroSetor />} />
@@ -47,6 +48,8 @@ export function App() {
             {/* só admin */}
             <Route element={<RotaProtegida nivel="admin" />}>
               <Route path="/administracao" element={<Administracao />} />
+              {/* Controle de tempo do admin (SESSAO-07/D-29). */}
+              <Route path="/administracao/tempo" element={<ControleTempo />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

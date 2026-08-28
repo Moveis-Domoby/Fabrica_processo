@@ -81,7 +81,8 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
     onSuccess: async () => {
       notificar({
         titulo: 'Gesto estornado',
-        descricao: 'O evento original continua na história, riscado — nada se apaga (RNF-05).',
+        // RNF-05 (append-only) — código fora da tela (D-27).
+        descricao: 'O evento original continua na história, riscado — nada se apaga.',
         tom: 'perfeito',
       })
       setEstornando(false)

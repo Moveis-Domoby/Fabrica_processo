@@ -22,6 +22,8 @@ export interface ModalMoverCardProps {
   setores: Setor[]
   /** Nome de quem está executando o card agora (para o aviso da D-24). */
   executorNome?: string
+  /** Tablet compartilhado (SESSAO-07): o gesto sai em nome do operador do PIN. */
+  operadorId?: string
   aoFechar: () => void
 }
 
@@ -40,6 +42,7 @@ export function ModalMoverCard({
   pedido,
   setores,
   executorNome,
+  operadorId,
   aoFechar,
 }: ModalMoverCardProps) {
   const { perfil } = useSessao()
@@ -87,7 +90,7 @@ export function ModalMoverCard({
       notificar({
         titulo: `Card movido para ${destino?.nome ?? 'o destino'}`,
         descricao: variaveis.estadoQualidade
-          ? `Peça entregue como ${ROTULO_ESTADO[variaveis.estadoQualidade].toLowerCase()} — o setor que recebe confirma (D-09).`
+          ? `Peça entregue como ${ROTULO_ESTADO[variaveis.estadoQualidade].toLowerCase()} — o setor que recebe confirma.`
           : undefined,
         tom: 'perfeito',
       })
@@ -117,7 +120,8 @@ export function ModalMoverCard({
       return
     }
     if (exigeQualidade && estadoQualidade === null) {
-      setErro('Marque o estado da peça para mover (D-09).')
+      // D-09: marcação obrigatória ao sair de produção — código fora da tela (D-27).
+      setErro('Marque o estado da peça para mover.')
       return
     }
     setErro('')
@@ -126,6 +130,7 @@ export function ModalMoverCard({
       destinoSetorId: setorEscolhido.id,
       destinoEtapaId: etapaEscolhida,
       estadoQualidade: exigeQualidade ? estadoQualidade : null,
+      operadorId,
     })
   }
 
@@ -159,7 +164,8 @@ export function ModalMoverCard({
         {card?.executor_atual_id && (
           <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
             Este card está <strong>em execução{executorNome ? ` por ${executorNome}` : ''}</strong>.
-            Mover encerra a execução agora — o tempo conta até este momento (D-24).
+            {/* D-24: mover nunca bloqueia; encerra a execução aberta. */}
+            Mover encerra a execução agora — o tempo conta até este momento.
           </p>
         )}
         <Selecao
@@ -199,7 +205,7 @@ export function ModalMoverCard({
               Em que estado a peça está saindo? <span aria-hidden>*</span>
             </legend>
             <p className="text-xs text-texto-suave">
-              Obrigatório para mover (D-09). O setor que recebe vai confirmar.
+              Obrigatório para mover. O setor que recebe vai confirmar.
             </p>
             {ESTADOS_QUALIDADE.map((estado) => (
               <button

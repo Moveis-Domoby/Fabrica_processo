@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ClipboardList, Package, Palette, TabletSmartphone, UsersRound } from 'lucide-react'
+import { ClipboardList, Package, TabletSmartphone, UsersRound } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
@@ -81,21 +81,13 @@ export function Inicio() {
       <div className="flex flex-wrap gap-3">
         <Link to="/tablet">
           <Botao variante="secundaria" icone={<TabletSmartphone />}>
-            Modo tablet (PIN)
+            Tela do setor
           </Botao>
         </Link>
         {ehLider && (
           <Link to="/equipe">
             <Botao variante="secundaria" icone={<UsersRound />}>
               Equipe
-            </Botao>
-          </Link>
-        )}
-        {perfil.papel === 'admin' && (
-          <Link to="/design">
-            <Botao variante="fantasma" icone={<Palette />}>
-              Design system
-              <ArrowRight aria-hidden className="size-[1.15em]" />
             </Botao>
           </Link>
         )}

@@ -84,7 +84,8 @@ export function ModalNovoPedido({ aberto, setorPcp, aoFechar }: ModalNovoPedidoP
         if (!estaAberto) aoFechar()
       }}
       titulo="Novo card de pedido"
-      descricao="Todo card nasce de um pedido real do Tiny (a entrada automática chega na SESSAO-09). A lista mostra só pedidos que ainda não viraram card."
+      // D-22: card só nasce de pedido real; a entrada automática é a SESSAO-09.
+      descricao="Todo card nasce de um pedido real do Tiny — em breve eles vão entrar sozinhos. A lista mostra só pedidos que ainda não viraram card."
       tamanho="galpao"
       rodape={
         <>

@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-07 — Tela do Setor (Tablet)"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-19
 atualizado: 2026-08-28
 tags: [plataforma, demanda, sessao, ux]
 ---
 
 # 🎯 SESSAO-07 — Tela do Setor (Tablet)
+
+> [!success] ✅ Entregue em 28/08/2026 (bloco noturno D-26) — [[handoff_2026_08_28_sessao07_tela_setor]]
+> As respostas do dono no aval do bloco viraram **D-28** (card: dados do produto + espaço de imagens + som discreto) e **D-29** (controle de tempo do admin, executado nesta sessão). Screenshots ficaram como pendência da revisão da manhã (painel sem exibição de madrugada — A-13).
 
 ## O que é
 

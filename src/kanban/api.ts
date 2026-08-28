@@ -271,8 +271,10 @@ export async function moverCard(parametros: {
   destinoEtapaId: number | null
   /** 🟢🟡🔴 de quem entrega (D-09) — obrigatório ao sair de setor de produção. */
   estadoQualidade?: Estado | null
+  /** Tablet compartilhado (SESSAO-07/D-06): o AUTOR é o operador do PIN, não a sessão. */
+  operadorId?: string | null
 }): Promise<void> {
-  const { card, destinoSetorId, destinoEtapaId, estadoQualidade } = parametros
+  const { card, destinoSetorId, destinoEtapaId, estadoQualidade, operadorId } = parametros
   const mesmoSetor = card.setor_atual_id === destinoSetorId
   if (mesmoSetor && card.etapa_atual_id === destinoEtapaId) return
   const { error } = await supabase.rpc('plt_fn_mover_card', {
@@ -281,6 +283,7 @@ export async function moverCard(parametros: {
     // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
     p_etapa_destino_id: destinoEtapaId || null,
     p_estado_qualidade: estadoQualidade ?? null,
+    p_operador_id: operadorId ?? null,
   })
   if (error) throw new Error(`Não deu para mover: ${error.message}`)
 }
@@ -336,11 +339,14 @@ export async function registrarParecer(parametros: {
   marcacaoEventoId: number
   estado: Estado
   observacao?: string
+  /** Tablet compartilhado (SESSAO-07/D-06): o AUTOR é o operador do PIN, não a sessão. */
+  operadorId?: string | null
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_registrar_parecer', {
     p_marcacao_id: parametros.marcacaoEventoId,
     p_estado_qualidade: parametros.estado,
     p_observacao: parametros.observacao?.trim() || null,
+    p_operador_id: parametros.operadorId ?? null,
   })
   if (error) throw new Error(`Não deu para registrar o parecer: ${error.message}`)
 }
@@ -495,7 +501,8 @@ export async function criarEtapa(setorId: number, nome: string, ehFila: boolean)
     .insert({ setor_id: setorId, nome: nome.trim(), ordem, eh_fila: ehFila })
   if (error) {
     if (/plt_etapas_fila_unica_por_setor/.test(error.message))
-      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma (D-02).')
+      // D-02: uma etapa de fila por setor — o código fica aqui, não na tela (D-27).
+      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma.')
     throw new Error(`Não deu para criar a etapa: ${error.message}`)
   }
 }
@@ -509,7 +516,8 @@ export async function atualizarEtapa(
   const { error } = await supabase.from('plt_etapas').update(dados).eq('id', id)
   if (error) {
     if (/plt_etapas_fila_unica_por_setor/.test(error.message))
-      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma (D-02).')
+      // D-02: uma etapa de fila por setor — o código fica aqui, não na tela (D-27).
+      throw new Error('Este setor já tem uma etapa de fila — só pode existir uma.')
     throw new Error(`Não deu para atualizar a etapa: ${error.message}`)
   }
 }
