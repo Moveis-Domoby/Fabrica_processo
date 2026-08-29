@@ -21,6 +21,10 @@ export interface Perfil {
   papel: Papel
   senha_padrao: boolean
   ativo: boolean
+  /** Tema visual escolhido no Meu Perfil (SESSAO-13): um dos 8 temas Domoby. */
+  tema: string
+  /** Caminho da foto de perfil no bucket plt-imagens, quando existir. */
+  foto_caminho: string | null
 }
 
 export interface VinculoSetor {
@@ -32,4 +36,4 @@ export interface VinculoSetor {
 /** Colunas de plt_usuarios que o front pode ler. NUNCA usar select('*') aqui:
  *  cpf/convite_token/pin_hash são revogados e derrubariam a consulta inteira. */
 export const COLUNAS_PERFIL =
-  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo'
+  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, tema, foto_caminho'
