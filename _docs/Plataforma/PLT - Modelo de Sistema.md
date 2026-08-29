@@ -256,6 +256,38 @@ SESSAO-05.
 - **Tempo real:** mudanças em `plt_cards` chegam por Supabase Realtime e invalidam as
   queries; o polling de 20s continua como rede de segurança.
 
+### Navegação em duas barras, temas e Meu Perfil (SESSAO-13 / D-36 / D-41)
+
+- **A sidebar virou DUAS barras lado a lado** (pedido do dono na revisão da SESSAO-13,
+  substituindo o dropdown em cascata): a **barra 1** lista os PAIS (Início · Controle de
+  Produção · Logística · ROTAS · Dashboards · Administração) — clicar num pai **nunca
+  navega**, apenas mostra os filhos dele na **barra 2**, um menu ao lado do menu. Cada
+  barra tem o próprio botão de recolher e os dois estados ficam lembrados
+  (`localStorage`). Barra 1 recolhida vira trilho de ícones; clicar num ícone abre a
+  barra 2 com os filhos. No celular, a gaveta carrega as duas barras.
+- **Sino no topo** da barra 1, junto à logo; painel de avisos **ancorado à borda
+  ESQUERDA da página** (prop `painelLado` do `<SinoNotificacoes>`), com `max-h` da
+  viewport — nunca cortado. No rodapé: **Modo tablet** (botão fixo), bloco do usuário
+  (abre o Meu Perfil), **Configurações** (também abre o Meu Perfil — as configurações
+  pessoais vivem lá) e Sair.
+- **Botão Voltar em toda tela** (`<BotaoVoltar>` na casca): volta no histórico; sem
+  histórico, vai para `/inicio/meu-painel`.
+- **Rotas sempre `/pai/filho`** (lei D-36): o `codigo` de `plt_setores` é o slug de
+  `/producao/{codigo}`; terminais moram em `/logistica/estoque` e `/rotas/entregas` —
+  helper único em `src/navegacao/rotas.ts` (`rotaDoSetor`). Rotas antigas redirecionam.
+- **8 temas Domoby** (claro · gelo · areia · dourado · ardósia · grafite · escuro ·
+  meia-noite) na camada semântica de `tokens.css`, aplicados por `data-tema`; catálogo e
+  aplicação em `src/perfil/tema.ts` (anti-flash via localStorage; o perfil confirma). A
+  família escura compartilha os estados de qualidade escuros e `color-scheme: dark`.
+  **Regra de sempre:** amarelo é marca/ação em TODOS os temas; estados nunca só por cor.
+- **Meu Perfil** (`/inicio/meu-perfil`): foto (bucket `plt-imagens`, pasta
+  `perfis/{id}/`), dados cadastrais (login/e-mail via Edge Function), senha (exige a
+  atual) e o seletor de temas com amostras. **Login** em tela dividida: logo metálica
+  (`<Marca sobre="metalico">`, gradiente dourado) sobre grafite à esquerda, formulário à
+  direita; empilha no celular.
+- **Regra nova de front (E-22):** queryKey compartilhada usa SEMPRE o mesmo fetcher da
+  API — fetcher local com a mesma chave envenena o cache dos outros consumidores.
+
 ### Controle de tempo do admin (SESSAO-07 / D-29)
 
 - Página `/administracao/tempo` (só admin): horário de funcionamento por setor/pessoa

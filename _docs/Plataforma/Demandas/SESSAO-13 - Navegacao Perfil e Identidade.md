@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-13 — Navegação, Perfil e Identidade (a reforma da casca)"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-08-28
 atualizado: 2026-08-28
 tags: [plataforma, demanda, bloco-3]
@@ -100,4 +100,11 @@ tabelas nem quebrar as telas existentes.
 
 ## Resultado (preencher ao entregar)
 
-—
+Entregue em 28/08/2026 — [[handoff_2026_08_28_sessao13_navegacao]]. A sidebar saiu do
+dropdown em cascata e virou **duas barras lado a lado** (ajuste pedido pelo dono durante
+a sessão): pais na primeira, filhos na segunda, cada uma recolhível com estado lembrado.
+Rotas todas em `/pai/filho` com redirecionamentos; Meu Perfil com 8 temas (D-43: login
+editável e exibido, e-mail editável, foto própria); login com logo metálica; trilha de
+atividade append-only registrando tudo (migration 22 aplicada; Edge Function v3).
+Critérios de aceite todos verificados (tabela no handoff). Pendências: confirmar as
+decisões provisórias do §5 do handoff; merge na `main` após a revisão.

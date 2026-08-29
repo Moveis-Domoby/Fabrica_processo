@@ -47,6 +47,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-08-28] **E-21** (Claude Code) · Em PL/pgSQL, `v_array || 'texto'` com `v_array text[]` NÃO acrescenta o texto: o Postgres tenta interpretar `'texto'` como LITERAL DE ARRAY e quebra com "malformed array literal" — só em tempo de execução → **correção:** `array_append(v_array, 'texto')` sempre. Pego pelo `test:banco` de duas rodadas antes de chegar perto do banco real (A-10 pagando de novo).
 
+- [2026-08-28] **E-22** (Claude Code) · Página com fetcher LOCAL usando a MESMA queryKey `['setores']` mas select menor (`id, nome`) envenenou o cache compartilhado do TanStack Query: a sidebar nova leu `codigo` undefined e gerou rotas `/producao/undefined` duplicadas — só ao visitar a página da Equipe → **correção:** um dado, um fetcher — a queryKey compartilhada usa SEMPRE a mesma função da API (`kanban/api.buscarSetores`); fetcher local para a mesma chave é proibido (M-04 no front). Achado no console do navegador durante a F-07.
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

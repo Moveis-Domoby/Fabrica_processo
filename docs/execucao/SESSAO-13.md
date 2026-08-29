@@ -6,19 +6,19 @@ Decisões que regem: D-35, D-36, D-40, D-41, D-43 (respostas do dono nesta sess�
 
 ## Task list (espelho da demanda)
 
-- [ ] 1. Sidebar dois níveis (D-36): pai expande, nunca navega; estrutura Início / Controle de Produção (dinâmico) / Logística / ROTAS / Dashboards / Administração
-- [ ] 2. Sidebar em TODAS as telas, recolhível, estado lembrado; some só no Modo tablet
-- [ ] 3. Modo tablet vira botão fixo acima do bloco do usuário
-- [ ] 4. Botão de voltar em toda tela
-- [ ] 5. Sino no topo junto à logo; Configurações no rodapé; popover nunca cortado
-- [ ] 6. Rotas /pai/filho; / e pós-login → /inicio/meu-painel; rotas antigas redirecionam
-- [ ] 7. Meu Perfil: nome de login (D-43), senha, foto, dados cadastrais, tema
-- [ ] 8. 8 temas Domoby claro→escuro (data-tema), persistem por usuário, aplicam na hora
-- [ ] 9. Login novo: logo metálica à esquerda, formulário à direita; empilha no celular
-- [ ] 10. Auditoria D-40: tabela append-only + gravação (navegação + mutações) + consulta simples
-- [ ] 11. Placeholders na rota certa (Pedidos em aguardo, Danificados, Caminhões, Meu painel)
-- [ ] 12. Verificação: tsc, lint, vitest, test:banco 2 rodadas, tela (F-07 celular+tablet)
-- [ ] 13. Handoff + notas do cofre atualizadas
+- [x] 1. Sidebar dois níveis (D-36): pai expande, nunca navega; estrutura Início / Controle de Produção (dinâmico) / Logística / ROTAS / Dashboards / Administração
+- [x] 2. Sidebar em TODAS as telas, recolhível, estado lembrado; some só no Modo tablet
+- [x] 3. Modo tablet vira botão fixo acima do bloco do usuário
+- [x] 4. Botão de voltar em toda tela
+- [x] 5. Sino no topo junto à logo; Configurações no rodapé; popover nunca cortado
+- [x] 6. Rotas /pai/filho; / e pós-login → /inicio/meu-painel; rotas antigas redirecionam
+- [x] 7. Meu Perfil: nome de login (D-43), senha, foto, dados cadastrais, tema
+- [x] 8. 8 temas Domoby claro→escuro (data-tema), persistem por usuário, aplicam na hora
+- [x] 9. Login novo: logo metálica à esquerda, formulário à direita; empilha no celular
+- [x] 10. Auditoria D-40: tabela append-only + gravação (navegação + mutações) + consulta simples
+- [x] 11. Placeholders na rota certa (Pedidos em aguardo, Danificados, Caminhões, Meu painel)
+- [x] 12. Verificação: tsc, lint, vitest, test:banco 2 rodadas, tela (F-07 celular+tablet)
+- [x] 13. Handoff + notas do cofre atualizadas
 
 ## Respostas do dono (viraram D-43)
 
@@ -50,3 +50,8 @@ Decisões que regem: D-35, D-36, D-40, D-41, D-43 (respostas do dono nesta sess�
 - [28/08] Edge Function `autenticacao`: + `atualizar-perfil` (com rollback do e-mail no auth se a gravação falhar) e `alterar-senha` (confere a atual por login real); `entrar` grava log `entrou`. **Deploy pendente de aprovação.**
 - [28/08] Verificação estática: tsc ✓ · lint ✓ · vitest 23/23 ✓ · build ✓ · test:banco 2 rodadas TUDO VERDE (+7 verificações novas da SESSAO-13).
 - [28/08] ⚠️ Verificação de TELA pendente: o front lê as colunas novas (tema/foto) — só funciona depois de aplicar a migration 22 no banco (aprovação do dono; regra crítica 2).
+- [28/08 noite] **Aprovação do dono recebida** (acesso admin fornecido para teste — senha ficou no chat, avisar troca). Migration 22 aplicada (`banco:aplicar --confirmar`): integração intacta, estrutura/linhas idênticas; conferência E-20 no banco real: default `'claro'`, not null, check dos 8 temas, 4 triggers, 3 policies de foto. Advisors: 16 WARN esperados + 1 novo esperado (`plt_fn_registrar_log`). Edge Function `autenticacao` **v3 deployada** (verify_jwt mantido true). ⚠️ Advisors acusam tabelas de OUTRA frente no banco (`contas_receber`, `notas_fiscais`, `tiny_fila` — RLS sem policy): não são desta sessão, ficam anotadas no handoff.
+- [28/08 noite] **Pedido do dono no meio da verificação:** dropdown em cascata rejeitado → sidebar refeita em **DUAS BARRAS lado a lado** (pais na 1ª, filhos na 2ª — "um menu ao lado do menu"), cada uma com botão de recolher próprio e estado lembrado; clicar no MESMO pai recolhe o painel. Modelo de sistema atualizado.
+- [28/08 noite] **E-22 achado e corrigido na F-07:** `Equipe.tsx` tinha fetcher local (`id, nome`) na MESMA queryKey `['setores']` → cache envenenado → filhos `/producao/undefined` duplicados na sidebar. Corrigido para usar `kanban/api.buscarSetores`; registrado na memória de aprendizado.
+- [28/08 noite] Verificação de tela executada (admin real, banco real): login → `/inicio/meu-painel` ✓ · pai expande sem navegar ✓ · redirects `/pcp`, `/administracao`, `/expedicao`, `/rotas`, `/setores/2` ✓ · sino/popover inteiro ancorado à borda ✓ · duas barras recolhíveis + estados lembrados no reload ✓ · tema escuro aplicou na hora, persistiu no banco e seguiu o usuário no reload ✓ (devolvido a claro ao final) · mobile: barra superior + gaveta com as duas barras (provado por DOM — screenshot sob emulação mobile trava o compositor, A-13/E-18) · trilha D-40 real: 28+ logs (navegacao/entrou/tema_alterado) ✓ · zero link `undefined` no DOM ✓ · console sem erro novo após o conserto.
+- [28/08 noite] NÃO testados ao vivo (de propósito): alterar dados/login/e-mail e alterar senha pela tela (mexeriam na credencial real do dono) e upload de foto — roteiro de teste no handoff.
