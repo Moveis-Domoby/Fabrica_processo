@@ -9,11 +9,7 @@ import { criarUsuario, pinDefinir } from '@/autenticacao/api'
 import type { UsuarioCriado } from '@/autenticacao/api'
 import { COLUNAS_PERFIL, ROTULO_PAPEL } from '@/autenticacao/tipos'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
-
-interface Setor {
-  id: number
-  nome: string
-}
+import { buscarSetores } from '@/kanban/api'
 
 interface LinhaEquipe extends Perfil {
   setores: string
@@ -42,11 +38,6 @@ async function buscarEquipe(): Promise<LinhaEquipe[]> {
   }))
 }
 
-async function buscarSetores(): Promise<Setor[]> {
-  const { data } = await supabase.from('plt_setores').select('id, nome').order('ordem')
-  return (data ?? []) as Setor[]
-}
-
 const FORMULARIO_VAZIO = {
   nome: '',
   email: '',
@@ -73,7 +64,7 @@ export function Equipe() {
     queryKey: ['equipe'],
     queryFn: buscarEquipe,
   })
-  const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: buscarSetores })
+  const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
 
   // Líder só cadastra nos setores em que é líder (a Edge Function confere de novo).
   const setoresDisponiveis = souAdmin

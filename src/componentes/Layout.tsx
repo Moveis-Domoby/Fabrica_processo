@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   ChartColumn,
-  ChevronDown,
+  ChevronsLeft,
   Factory,
   House,
   LogOut,
@@ -40,30 +40,21 @@ interface GrupoMenu {
 }
 
 const CHAVE_RECOLHIDA = 'dm-sidebar-recolhida'
-const CHAVE_GRUPOS = 'dm-sidebar-grupos'
+const CHAVE_PAINEL = 'dm-sidebar-painel-recolhido'
 
-function lerRecolhida(): boolean {
+function lerGuardado(chave: string): boolean {
   try {
-    return localStorage.getItem(CHAVE_RECOLHIDA) === '1'
+    return localStorage.getItem(chave) === '1'
   } catch {
     return false
   }
 }
 
-function lerAjustesGrupos(): Record<string, boolean> {
+function guardar(chave: string, valor: boolean) {
   try {
-    const bruto = localStorage.getItem(CHAVE_GRUPOS)
-    const valor = bruto ? (JSON.parse(bruto) as unknown) : null
-    if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
-      return Object.fromEntries(
-        Object.entries(valor as Record<string, unknown>).filter(
-          ([, v]) => typeof v === 'boolean',
-        ),
-      ) as Record<string, boolean>
-    }
-    return {}
+    localStorage.setItem(chave, valor ? '1' : '0')
   } catch {
-    return {}
+    // sem localStorage: só não fica lembrado
   }
 }
 
@@ -87,21 +78,20 @@ function BotaoVoltar() {
 }
 
 /**
- * A casca da aplicação (SESSAO-13 — lei de navegação):
- * sidebar em DOIS NÍVEIS — o pai só expande os filhos em cascata, nunca navega.
- * Presente em toda tela, recolhível (estado lembrado), com o sino no topo
- * junto à logo, o Modo tablet fixo acima do bloco do usuário e Configurações
- * no rodapé. A rota /tablet continua sem navegação nenhuma: lá o operador não
- * navega, ele age.
+ * A casca da aplicação (SESSAO-13 — lei de navegação, no desenho pedido pelo
+ * dono): DUAS barras laterais lado a lado. A primeira lista os PAIS (grupos);
+ * clicar num pai nunca navega — apenas mostra os filhos dele na SEGUNDA barra,
+ * um "menu ao lado do menu". Cada barra tem o próprio botão de recolher, e os
+ * dois estados ficam lembrados. A rota /tablet continua sem navegação nenhuma.
  */
 export function Layout({ children }: { children: ReactNode }) {
   const { perfil, vinculos, ehLider, sair } = useSessao()
   const location = useLocation()
   const [gavetaAberta, setGavetaAberta] = useState(false)
-  const [recolhida, setRecolhida] = useState(lerRecolhida)
-  // O que a pessoa abriu/fechou de propósito; sem ajuste, o grupo da tela
-  // atual vem aberto sozinho (cascata sem gesto extra).
-  const [ajustesGrupos, setAjustesGrupos] = useState<Record<string, boolean>>(lerAjustesGrupos)
+  const [recolhida, setRecolhida] = useState(() => lerGuardado(CHAVE_RECOLHIDA))
+  const [painelRecolhido, setPainelRecolhido] = useState(() => lerGuardado(CHAVE_PAINEL))
+  // O grupo cujos filhos aparecem na segunda barra; null = seguir a rota atual.
+  const [grupoEscolhido, setGrupoEscolhido] = useState<string | null>(null)
 
   const telaCheia = perfil !== null && location.pathname.startsWith('/tablet')
   const souAdmin = perfil?.papel === 'admin'
@@ -211,32 +201,33 @@ export function Layout({ children }: { children: ReactNode }) {
   const grupoAtivo = grupos.find((g) =>
     g.filhos.some((f) => location.pathname.startsWith(f.para)),
   )?.id
+  const grupoDoPainel =
+    grupos.find((g) => g.id === (grupoEscolhido ?? grupoAtivo)) ??
+    (grupos.length > 0 ? grupos[0] : undefined)
 
-  function grupoAberto(id: string): boolean {
-    return ajustesGrupos[id] ?? id === grupoAtivo
-  }
-
-  function alternarGrupo(id: string) {
-    setAjustesGrupos((atuais) => {
-      const novos = { ...atuais, [id]: !grupoAberto(id) }
-      try {
-        localStorage.setItem(CHAVE_GRUPOS, JSON.stringify(novos))
-      } catch {
-        // sem localStorage: só não fica lembrado
-      }
-      return novos
-    })
+  function escolherGrupo(id: string) {
+    // Clicar no MESMO pai com o painel aberto recolhe; nos demais casos, abre.
+    if (!painelRecolhido && grupoDoPainel?.id === id) {
+      setPainelRecolhido(true)
+      guardar(CHAVE_PAINEL, true)
+      return
+    }
+    setGrupoEscolhido(id)
+    setPainelRecolhido(false)
+    guardar(CHAVE_PAINEL, false)
   }
 
   function alternarRecolhida() {
     setRecolhida((atual) => {
-      const nova = !atual
-      try {
-        localStorage.setItem(CHAVE_RECOLHIDA, nova ? '1' : '0')
-      } catch {
-        // idem
-      }
-      return nova
+      guardar(CHAVE_RECOLHIDA, !atual)
+      return !atual
+    })
+  }
+
+  function alternarPainel() {
+    setPainelRecolhido((atual) => {
+      guardar(CHAVE_PAINEL, !atual)
+      return !atual
     })
   }
 
@@ -281,142 +272,194 @@ export function Layout({ children }: { children: ReactNode }) {
     .map((parte) => parte[0]?.toUpperCase())
     .join('')
 
-  // No modo recolhido (só no computador), clicar num grupo reabre a sidebar.
-  const navegacao = (
-    <nav
-      aria-label="Navegação principal"
-      className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
+  const painelAberto = !painelRecolhido && grupoDoPainel !== undefined
+
+  // BARRA 1 — os pais. Clicar seleciona/abre o painel de filhos; nunca navega.
+  const barraPais = (
+    <div
+      className={cn(
+        'flex h-full flex-col bg-grafite-700',
+        recolhida ? 'w-[4.5rem]' : 'w-60',
+      )}
     >
-      {grupos.map((grupo) => {
-        const aberto = grupoAberto(grupo.id)
-        const temAtivo = grupo.id === grupoAtivo
-        return (
-          <div key={grupo.id} className="flex flex-col">
-            {/* O PAI: só expande/recolhe os filhos — nunca navega (D-36). */}
+      <div className={cn('flex items-center gap-1 p-3 pb-2', recolhida && 'flex-col')}>
+        {!recolhida && (
+          <NavLink
+            to={ROTA_INICIAL}
+            className="min-w-0 flex-1 rounded-dm px-1"
+            aria-label="Domoby — início"
+            onClick={() => setGavetaAberta(false)}
+          >
+            <Marca tamanho="sm" />
+          </NavLink>
+        )}
+        {/* O sino no topo, junto à logo (D-36). */}
+        <SinoNotificacoes usuarioId={perfil.id} painelLado="esquerda" />
+        <button
+          type="button"
+          onClick={alternarRecolhida}
+          aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
+          className="toque-seguro hidden h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:inline-flex"
+        >
+          {recolhida ? (
+            <PanelLeftOpen aria-hidden className="size-5" />
+          ) : (
+            <PanelLeftClose aria-hidden className="size-5" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setGavetaAberta(false)}
+          aria-label="Fechar o menu"
+          className="ml-auto inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:hidden"
+        >
+          <X aria-hidden className="size-5" />
+        </button>
+      </div>
+      {!recolhida && (
+        <span className="px-4 pb-2 text-xs text-grafite-300">Plataforma de Produção</span>
+      )}
+
+      <nav
+        aria-label="Navegação principal"
+        className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
+      >
+        {grupos.map((grupo) => {
+          const ativo = grupo.id === grupoAtivo
+          const mostrando = painelAberto && grupoDoPainel?.id === grupo.id
+          return (
+            // O PAI: mostra os filhos na barra ao lado — nunca navega (D-36).
             <button
+              key={grupo.id}
               type="button"
-              onClick={() => {
-                if (recolhida) {
-                  alternarRecolhida()
-                  if (!aberto) alternarGrupo(grupo.id)
-                } else {
-                  alternarGrupo(grupo.id)
-                }
-              }}
-              aria-expanded={aberto}
+              onClick={() => escolherGrupo(grupo.id)}
+              aria-expanded={mostrando}
               title={recolhida ? grupo.rotulo : undefined}
               className={cn(
                 'inline-flex min-h-toque-md items-center gap-3 rounded-dm px-3 text-sm font-semibold transition-colors [&>svg]:size-5 [&>svg]:shrink-0',
-                temAtivo ? 'text-marca-300' : 'text-grafite-100',
+                ativo ? 'text-marca-300' : 'text-grafite-100',
+                mostrando && 'bg-grafite-600',
                 'hover:bg-grafite-600',
                 recolhida && 'justify-center px-0',
               )}
             >
               {grupo.icone}
               {!recolhida && <span className="flex-1 text-left">{grupo.rotulo}</span>}
-              {!recolhida && (
-                <ChevronDown
-                  aria-hidden
-                  className={cn('size-4 transition-transform', aberto && 'rotate-180')}
-                />
-              )}
             </button>
+          )
+        })}
+      </nav>
 
-            {/* OS FILHOS, em cascata. */}
-            {!recolhida && aberto && (
-              <div className="mb-1 ml-4 flex flex-col gap-0.5 border-l border-grafite-600 pl-2">
-                {grupo.filhos.map((filho) => (
-                  <NavLink
-                    key={filho.para}
-                    to={filho.para}
-                    onClick={() => setGavetaAberta(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-marca-500 text-grafite-950'
-                          : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
-                      )
-                    }
-                  >
-                    {filho.rotulo}
-                  </NavLink>
-                ))}
-              </div>
+      <div className="flex flex-col border-t border-grafite-600">
+        {/* Modo tablet: fixo, logo acima do bloco do usuário (D-36). */}
+        <NavLink
+          to="/tablet"
+          onClick={() => setGavetaAberta(false)}
+          title={recolhida ? 'Modo tablet' : undefined}
+          className={cn(
+            'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
+            recolhida && 'justify-center px-0',
+          )}
+        >
+          <TabletSmartphone aria-hidden />
+          {!recolhida && 'Modo tablet'}
+        </NavLink>
+
+        <div className={cn('flex items-center gap-1 p-3', recolhida && 'flex-col')}>
+          {/* O bloco do usuário abre o Meu Perfil (D-41). */}
+          <NavLink
+            to="/inicio/meu-perfil"
+            onClick={() => setGavetaAberta(false)}
+            aria-label="Meu perfil"
+            className={cn(
+              'flex min-w-0 flex-1 items-center gap-2 rounded-dm px-2 py-1.5 transition-colors hover:bg-grafite-600',
+              recolhida && 'flex-none px-1',
             )}
-          </div>
-        )
-      })}
-    </nav>
+          >
+            {fotoUrl ? (
+              <img
+                src={fotoUrl}
+                alt=""
+                className="size-9 shrink-0 rounded-full border border-grafite-500 object-cover"
+              />
+            ) : (
+              <span
+                aria-hidden
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-grafite-600 text-sm font-semibold text-grafite-100"
+              >
+                {iniciais}
+              </span>
+            )}
+            {!recolhida && (
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-medium text-grafite-100">
+                  {perfil.nome}
+                </span>
+                <span className="text-xs text-grafite-300 tabular-nums">{perfil.matricula}</span>
+              </span>
+            )}
+          </NavLink>
+
+          {/* Configurações no lugar do sino (D-36): as pessoais vivem no perfil. */}
+          <NavLink
+            to="/inicio/meu-perfil"
+            onClick={() => setGavetaAberta(false)}
+            aria-label="Configurações"
+            className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
+          >
+            <Settings aria-hidden className="size-5" />
+          </NavLink>
+          <button
+            type="button"
+            onClick={() => void sair()}
+            aria-label="Sair da conta"
+            className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
+          >
+            <LogOut aria-hidden className="size-5" />
+          </button>
+        </div>
+      </div>
+    </div>
   )
 
-  const rodape = (
-    <div className="flex flex-col border-t border-grafite-600">
-      {/* Modo tablet: fixo, logo acima do bloco do usuário (D-36). */}
-      <NavLink
-        to="/tablet"
-        onClick={() => setGavetaAberta(false)}
-        title={recolhida ? 'Modo tablet' : undefined}
-        className={cn(
-          'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
-          recolhida && 'justify-center px-0',
-        )}
-      >
-        <TabletSmartphone aria-hidden />
-        {!recolhida && 'Modo tablet'}
-      </NavLink>
-
-      <div className={cn('flex items-center gap-1 p-3', recolhida && 'flex-col')}>
-        {/* O bloco do usuário abre o Meu Perfil (D-41). */}
-        <NavLink
-          to="/inicio/meu-perfil"
-          onClick={() => setGavetaAberta(false)}
-          aria-label="Meu perfil"
-          className={cn(
-            'flex min-w-0 flex-1 items-center gap-2 rounded-dm px-2 py-1.5 transition-colors hover:bg-grafite-600',
-            recolhida && 'flex-none px-1',
-          )}
-        >
-          {fotoUrl ? (
-            <img
-              src={fotoUrl}
-              alt=""
-              className="size-9 shrink-0 rounded-full border border-grafite-500 object-cover"
-            />
-          ) : (
-            <span
-              aria-hidden
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-grafite-600 text-sm font-semibold text-grafite-100"
-            >
-              {iniciais}
-            </span>
-          )}
-          {!recolhida && (
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-medium text-grafite-100">{perfil.nome}</span>
-              <span className="text-xs text-grafite-300 tabular-nums">{perfil.matricula}</span>
-            </span>
-          )}
-        </NavLink>
-
-        {/* Configurações no lugar do sino (D-36): as pessoais vivem no perfil. */}
-        <NavLink
-          to="/inicio/meu-perfil"
-          onClick={() => setGavetaAberta(false)}
-          aria-label="Configurações"
-          className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
-        >
-          <Settings aria-hidden className="size-5" />
-        </NavLink>
+  // BARRA 2 — os filhos do grupo escolhido: um menu ao lado do menu.
+  const barraFilhos = painelAberto && grupoDoPainel && (
+    <div className="flex h-full w-52 flex-col border-l border-grafite-600 bg-grafite-800">
+      <div className="flex min-h-toque-md items-center gap-2 px-3 pt-3">
+        <span className="flex-1 truncate text-sm font-semibold text-grafite-100">
+          {grupoDoPainel.rotulo}
+        </span>
         <button
           type="button"
-          onClick={() => void sair()}
-          aria-label="Sair da conta"
+          onClick={alternarPainel}
+          aria-label="Recolher o painel de itens"
           className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
         >
-          <LogOut aria-hidden className="size-5" />
+          <ChevronsLeft aria-hidden className="size-5" />
         </button>
       </div>
+      <nav
+        aria-label={`Itens de ${grupoDoPainel.rotulo}`}
+        className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
+      >
+        {grupoDoPainel.filhos.map((filho) => (
+          <NavLink
+            key={filho.para}
+            to={filho.para}
+            onClick={() => setGavetaAberta(false)}
+            className={({ isActive }) =>
+              cn(
+                'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-marca-500 text-grafite-950'
+                  : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
+              )
+            }
+          >
+            {filho.rotulo}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 
@@ -453,56 +496,17 @@ export function Layout({ children }: { children: ReactNode }) {
         />
       )}
 
-      {/* O menu lateral: gaveta no celular, coluna fixa no computador. */}
+      {/* As duas barras, lado a lado: gaveta no celular, coluna fixa no computador. */}
       <aside
         aria-label="Menu lateral"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-grafite-700 transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-50 flex max-w-[92vw] transition-transform duration-200',
           gavetaAberta ? 'translate-x-0' : '-translate-x-full',
           'lg:sticky lg:top-0 lg:h-dvh lg:shrink-0 lg:translate-x-0',
-          recolhida ? 'lg:w-[4.5rem]' : 'lg:w-64',
         )}
       >
-        {/* Topo: logo + SINO (D-36) + recolher/expandir. */}
-        <div className={cn('flex items-center gap-1 p-3 pb-2', recolhida && 'flex-col')}>
-          {!recolhida && (
-            <NavLink
-              to={ROTA_INICIAL}
-              className="min-w-0 flex-1 rounded-dm px-1"
-              aria-label="Domoby — início"
-            >
-              <Marca tamanho="sm" />
-            </NavLink>
-          )}
-          <span className="hidden lg:inline-flex">
-            <SinoNotificacoes usuarioId={perfil.id} painelLado="esquerda" />
-          </span>
-          <button
-            type="button"
-            onClick={alternarRecolhida}
-            aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
-            className="toque-seguro hidden h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:inline-flex"
-          >
-            {recolhida ? (
-              <PanelLeftOpen aria-hidden className="size-5" />
-            ) : (
-              <PanelLeftClose aria-hidden className="size-5" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setGavetaAberta(false)}
-            aria-label="Fechar o menu"
-            className="ml-auto inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:hidden"
-          >
-            <X aria-hidden className="size-5" />
-          </button>
-        </div>
-        {!recolhida && (
-          <span className="px-4 pb-2 text-xs text-grafite-300">Plataforma de Produção</span>
-        )}
-        {navegacao}
-        {rodape}
+        {barraPais}
+        {barraFilhos}
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
