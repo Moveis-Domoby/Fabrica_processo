@@ -1735,6 +1735,87 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+titulo('Registro de atividade (SESSAO-13/D-40): tudo vira log, e log não se apaga')
+
+// 1 · O que já aconteceu no cenário inteiro deixou trilha sozinho (triggers).
+const logsDeEvento = (
+  await bd.query(`
+    select
+      (select count(*)::int from public.plt_logs_atividade where acao = 'card_criado') as cards,
+      (select count(*)::int from public.plt_logs_atividade where acao like 'tarefa%') as tarefas,
+      (select count(*)::int from public.plt_logs_atividade where acao = 'movimentacao_setor') as movimentacoes`)
+).rows[0]
+conferir(
+  logsDeEvento.cards >= 1 && logsDeEvento.tarefas >= 1 && logsDeEvento.movimentacoes >= 1,
+  'as mutações do cenário viraram log sozinhas (eventos e tarefas → trilha)',
+  JSON.stringify(logsDeEvento),
+)
+
+// 2 · Append-only de verdade: nem UPDATE nem DELETE, nem para o superusuário.
+async function deveRecusarLog(sql, descricao) {
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(/trilha de auditoria/i.test(erro.message), descricao, erro.message)
+  }
+}
+await deveRecusarLog(
+  `update public.plt_logs_atividade set acao = 'adulterado'`,
+  'UPDATE em log de atividade é recusado',
+)
+await deveRecusarLog(
+  `delete from public.plt_logs_atividade`,
+  'DELETE em log de atividade é recusado',
+)
+
+// 3 · A porta do navegador: navegação registrada em nome de quem navegou.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false)`)
+await bd.exec(`select public.plt_fn_registrar_log('navegacao', '/inicio/meu-painel')`)
+const logNavegacao = (
+  await bd.query(`
+    select l.rota, u.usuario
+      from public.plt_logs_atividade l
+      join public.plt_usuarios u on u.id = l.usuario_id
+     where l.acao = 'navegacao'
+     order by l.id desc limit 1`)
+).rows[0]
+conferir(
+  logNavegacao?.rota === '/inicio/meu-painel' && logNavegacao?.usuario != null,
+  'navegação do navegador entra na trilha com o autor (plt_fn_registrar_log)',
+  JSON.stringify(logNavegacao ?? null),
+)
+
+// 4 · Sem sessão, a porta recusa — ninguém registra em nome de ninguém.
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await deveRecusar(
+  `select public.plt_fn_registrar_log('navegacao', '/qualquer')`,
+  'registrar atividade sem sessão é recusado',
+  /sem cadastro ativo/i,
+)
+
+titulo('Meu Perfil (SESSAO-13/D-41/D-43): tema com 8 opções e trilha da troca')
+await deveRecusar(
+  `update public.plt_usuarios set tema = 'roxo-fora-da-paleta'
+    where auth_user_id = '00000000-0000-0000-0000-000000000012'`,
+  'tema fora dos 8 esquemas Domoby é recusado',
+  /plt_usuarios_tema_ck/i,
+)
+await bd.exec(`
+  update public.plt_usuarios set tema = 'meia-noite'
+   where auth_user_id = '00000000-0000-0000-0000-000000000012'
+`)
+const logTema = (
+  await bd.query(`
+    select contexto->'campos' as campos from public.plt_logs_atividade
+     where acao = 'tema_alterado' order by id desc limit 1`)
+).rows[0]
+conferir(
+  logTema !== undefined,
+  'trocar o tema grava o log tema_alterado (só o campo, nunca o valor sensível)',
+  JSON.stringify(logTema ?? null),
+)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
