@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-13 — Automações Internas"
+titulo: "SESSAO-17 — Automações Internas"
 tipo: demanda
 status: rascunho
 data: 2026-08-19
@@ -7,7 +7,9 @@ atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, automacao]
 ---
 
-# 🎯 SESSAO-13 — Automações Internas ("quando X, faça Y")
+# 🎯 SESSAO-17 — Automações Internas ("quando X, faça Y")
+
+> ↪️ **Renumerada em 28/08/2026 (D-35):** era a SESSAO-13; ficou em standby atrás do bloco 3 (a reforma, Sessões 13→16).
 
 ## O que é
 

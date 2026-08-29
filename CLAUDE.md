@@ -51,6 +51,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 13. **Commits pequenos e descritivos; uma branch por demanda.** Nada de entrega gigante misturando assuntos.
 14. **Verificação conforme os critérios de aceite da demanda** — cada critério testado e reportado no handoff; UI nova acompanha screenshot.
 15. **Mobile-first para o chão de fábrica** (D-06): tudo que o operador toca funciona em tablet com botão grande e em celular.
+16. **Lei de layout e navegação (D-36):** layout nunca nasce fora do padrão **pai→filho** — um filho é sempre herdeiro de um pai. **Pai nunca é rota navegável**: só direciona aos filhos, no padrão `/pai/filho` (ex.: `/logistica/estoque`). **Nenhuma rota solta na raiz**: toda entrada redireciona para a rota herdeira — `/entrar` → `/inicio/meu-painel`, `/` → `/inicio/meu-painel`. Sidebar presente e recolhível em **toda** tela; **botão de voltar em toda tela**; sino de notificações no topo; e **toda atividade de usuário gera log no banco** (D-40).
 
 ## O ciclo de toda sessão
 

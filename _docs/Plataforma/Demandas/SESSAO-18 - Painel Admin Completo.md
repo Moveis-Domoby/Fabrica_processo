@@ -1,5 +1,5 @@
 ---
-titulo: "SESSAO-14 — Painel Admin Completo"
+titulo: "SESSAO-18 — Painel Admin Completo"
 tipo: demanda
 status: rascunho
 data: 2026-08-19
@@ -7,7 +7,9 @@ atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao, admin]
 ---
 
-# 🎯 SESSAO-14 — Painel Admin Completo
+# 🎯 SESSAO-18 — Painel Admin Completo
+
+> ↪️ **Renumerada em 28/08/2026 (D-35):** era a SESSAO-14; ficou em standby atrás do bloco 3 (a reforma, Sessões 13→16).
 
 ## O que é
 

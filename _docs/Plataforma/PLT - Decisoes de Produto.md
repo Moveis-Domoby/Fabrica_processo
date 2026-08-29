@@ -280,6 +280,59 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 - **Só cards de produção contam tempo.** Tarefa avulsa não conta tempo por padrão — só se o próprio atarefado quiser acionar.
 - **Delegação organiza, não trava:** card delegado aparece em "meus afazeres", mas qualquer pessoa do setor pode agir (coerente com D-22/D-24).
 
+## D-35 · Plataforma funcional primeiro: externo em standby; Bloco 3 = Sessões 13→16 com checkpoint (28/08/2026)
+
+**Decidido (pedido do dono, na revisão do bloco noturno):** entregar uma **plataforma funcional** vem antes de qualquer integração externa nova. Ficam em **standby**: publicação (D-30 segue — o dono avisa), usos novos de API/webhooks/n8n (o que já está no ar continua), automações internas (antiga SESSAO-13 → **17**) e a consolidação do admin (antiga 14 → **18**).
+
+- **Bloco 3 = a reforma: Sessões 13→16**, uma conversa por sessão, **checkpoint do dono ao fim de cada** — a regra crítica 2 vale na íntegra (banco/deploy só com aprovação naquela conversa).
+- Renumeração (número = ordem, complemento da D-23): **Automações 13→17 · Painel Admin 14→18**; as novas 13–16 são a reforma (D-36…D-42).
+
+## D-36 · Lei de navegação: hierarquia pai→filho, pai nunca navega, rota sempre /pai/filho (28/08/2026)
+
+**Decidido (palavras do dono):** *"layout nunca é colocado e pensado fora do padrão, um filho sempre será herdeiro do pai; o pai nunca é uma rota navegável, ela apenas direciona para os filhos no padrão /pai/filho; nenhuma rota acessa direto a raiz — /entrar → /inicio/meu-painel."*
+
+- Sidebar em **dois níveis**: o grupo pai expande os filhos em cascata; clicar no pai NUNCA abre página própria.
+- Estrutura: **Início** (Meu painel · Afazeres) · **Controle de Produção** (um filho por setor cadastrado, dinâmico — substitui a aba "PCP") · **Logística** (Expedição · Estoque · Pedidos em aguardo · Danificados) · **ROTAS** · **Dashboards** · **Administração** (dropdown: Gestão da equipe · Setores e etapas · Controle de tempo · API e integrações · Caminhões). **Equipe e Estrutura deixam de ser abas de 1º nível** — viram filhos de Administração.
+- A sidebar **persiste em todas as telas** (inclusive quadros de setor), com botão de **recolher/expandir**; estado lembrado.
+- **Toda tela tem botão de voltar** (à aba anterior).
+- **"Modo tablet"** (a antiga aba "Tela do setor") vira botão fixo na sidebar, logo acima do bloco do usuário.
+- **Sino de notificações no topo** (junto à logo); no rodapé, **Configurações** no lugar do sino; o popover de notificações **nunca é cortado pela tela**.
+- Login desemboca sempre em `/inicio/meu-painel`.
+- Lei promovida aos dois `CLAUDE.md` (regra 16).
+
+## D-37 · Tela inicial = Meu Painel, com cockpit de metas configuráveis (28/08/2026)
+
+- `Início → Meu painel` mostra: **pendências** do usuário (qualidade a atestar, delegações, tarefas), **notificações** e o **cockpit de metas** com índice de conclusão **em tempo real**.
+- Meta tem **indicador configurável** — quem cria escolhe: unidades concluídas, tarefas concluídas ou tempo útil — alvo por período **diário/semanal/mensal**, e dona (pessoa ou setor).
+- Criam metas: **admin** (todas), **líder** (do próprio setor) e **a própria pessoa** (metas pessoais).
+- `Início → Afazeres` = a tela da SESSAO-12: o que eu cadastrei para mim + o que líderes/admins me delegaram.
+
+## D-38 · Logística: Estoque com ID digitável, sala de Pedidos em aguardo, Danificados com destino (28/08/2026)
+
+- **Estoque:** produtos parados, cada um com **ID de produção digitável de formato livre** (o formato definitivo é decisão futura — Q-63).
+- **Pedidos em aguardo:** onde unidades prontas esperam o pedido ficar **completo**; completo → **lançar para ROTAS**. Absorve como tela o reagrupamento da expedição.
+- **Danificados:** tela própria com tudo que está em DANIFICADO; ações **arquivar** ou **resolvido → escolher destino** (Estoque, ROTAS ou qualquer setor). Tudo evento append-only.
+
+## D-39 · ROTAS: programação de caminhão com mapa e sugestão; caminhões cadastráveis (28/08/2026)
+
+- ROTAS lista **apenas pedidos prontos** lançados pelos Pedidos em aguardo.
+- **Programar caminhão:** escolhe o dia → pedidos sem programação → a seleção abre **mapa lateral** (Leaflet + OpenStreetMap, grátis e sem chave; geocodificação aberta com cache no banco) mostrando a rota selecionada e **sugerindo** pedidos que fazem sentido nela (proximidade). **É só sugestão — a decisão é humana** (princípio de sempre). Confirma com **data + caminhão**.
+- **Caminhões:** cadastro em Administração — visualizar, editar, excluir, com foto.
+
+## D-40 · Auditoria total: toda atividade de usuário gera log persistido (28/08/2026)
+
+Toda ação de usuário registra **log no banco** (quem, quando, o quê, onde), **append-only**, sem exceção. O registro nasce na SESSAO-13; a consulta admin completa pode vir depois.
+
+## D-41 · Identidade: Meu Perfil com 8 temas Domoby; login com logo metálica (28/08/2026)
+
+- Clicar no bloco do usuário (rodapé da sidebar) abre **Meu Perfil**: alterar nome de usuário, senha, **foto**, dados cadastrais e **tema da plataforma**.
+- **8 esquemas de cor, do claro ao escuro, todos no DNA Domoby** (amarelo × grafite) — ativa a infraestrutura `data-tema` preparada desde a SESSAO-01 (**responde o modo escuro da Q-30**). Escolha persiste por usuário.
+- **Login novo:** logo Domoby **grande, em tom metálico, à esquerda**; formulário à direita.
+
+## D-42 · Dashboards guiados por imagem: docs/inspiracao/dashboards/ é a régua (28/08/2026)
+
+O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowork gerou **4 mockups-alvo no design system Domoby + regras de construção** em `docs/inspiracao/dashboards/` (no repo). A SESSAO-16 reconstrói os dashboards **nesses moldes** — o Claude Code **abre as imagens antes de codar**. Os dados e gates da S10 (migration 18, D-32) seguem sendo a fonte.
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

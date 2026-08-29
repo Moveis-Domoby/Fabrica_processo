@@ -51,7 +51,7 @@ tags: [plataforma, descoberta, perguntas]
 
 ## 🟡 UX e visual
 
-- **Q-30 · Referência visual:** o "réplica do ClickUp" vale também para o visual (sidebar, densidade, cores por etapa), ou é só o funcionamento? Existe identidade Domoby (cores/logo) que a plataforma deve vestir? Modo escuro?
+- **Q-30 · Referência visual:** *(modo escuro ✅ respondido em 28/08: 8 temas claro→escuro no Meu Perfil — D-41)* o "réplica do ClickUp" vale também para o visual (sidebar, densidade, cores por etapa), ou é só o funcionamento? Existe identidade Domoby (cores/logo) que a plataforma deve vestir? Modo escuro?
 - ✅ **Q-31 · A tela do setor (tablet)** → respondida em 28/08: todos os dados do produto, nenhum dado de cliente, espaço funcional de imagens (futura biblioteca de peças) → D-28
 - ✅ **Q-32 · Som/alerta físico no setor** → respondida em 28/08: som mínimo e discreto na chegada de card → D-28
 - **Q-33 · Idioma dos termos:** manter os nomes que a equipe já usa (SECC, FITAMENTO, "rota") — sugestão: sim, sempre.
@@ -73,6 +73,12 @@ tags: [plataforma, descoberta, perguntas]
 - ⏸️ **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar**
 - ✅ **Q-61 · Quantos usuários** → respondida em 26/08 (SESSAO-03): **~30 usuários** na largada → [[PLT - Decisoes de Produto#D-21]]
 - ⏸️ **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar**
+
+## 🟤 Reforma (bloco 3 — 28/08/2026)
+
+- **Q-63 · Formato definitivo do ID de produção do Estoque** (por ora campo digitável livre — D-38): número do pedido do Tiny? sequencial próprio? etiqueta impressa?
+- **Q-64 · Os 8 temas (D-41):** o Claude Code propõe as 8 variações claro→escuro no DNA Domoby e o dono ajusta ao ver. Alguma cor proibida/obrigatória?
+- **Q-65 · Endereço para o mapa das ROTAS (D-39):** o endereço de entrega vindo do Tiny é completo/padronizado o bastante para geocodificar? Pedido sem endereço válido aparece como na programação?
 
 ## Ver também
 
