@@ -118,7 +118,7 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 | `plt_usuarios` | pessoas; `auth_user_id` **opcional** (operador de tablet pode não ter login — D-06); `pin_hash` guarda HASH. **↪️ SESSAO-03 (26/08, D-21):** ganhou `cpf` (obrigatório, **SELECT revogado da API**), `usuario` (login por usuário OU e-mail), `matricula` (`MDM-XXX-NNN`, gerada por trigger `fn_gerar_matricula`), `senha_padrao` (troca obrigatória no 1º login), `convite_token` (**SELECT revogado**) e `convite_usado_em`. Escrita pelo navegador: **só `update(nome, telefone)`** — o resto passa pela Edge Function |
 | `plt_usuario_setores` | vínculo pessoa ↔ setor, com `lider_do_setor` |
 | `plt_setores` | setores; `papel_no_fluxo` = `entrada`/`producao`/`terminal` — índice único garante **uma só entrada** (D-13) |
-| `plt_etapas` | etapas internas de cada setor. **SEM SEED** (D-14). `eh_fila` marca onde o card espera sem dono |
+| `plt_etapas` | etapas internas de cada setor. **SEM SEED** (D-14). `eh_fila` marca onde o card espera sem dono. **↪️ 28/08/2026: o DONO cadastrou as etapas oficiais dos 7 setores de produção** (lista do ClickUp, via SQL aprovado na conversa — as etapas "A …" são a fila de cada setor); ESTOQUE/ROTAS seguem sem etapas |
 | `plt_cards` | cards `pedido`/`unidade` (D-01). FK para `pedidos(id)`. ⚠️ **sem FK para `pedido_itens`** — ver aviso |
 | `plt_eventos` | **APPEND-ONLY** (RNF-05). A tabela-mãe: tempo, fila e qualidade derivam daqui |
 | `plt_notificacoes` | avisos a líder/admin (D-09 / Q-18) |
