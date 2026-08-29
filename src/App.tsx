@@ -9,17 +9,28 @@ import { Convite } from '@/paginas/Convite'
 import { TrocarSenha } from '@/paginas/TrocarSenha'
 import { Equipe } from '@/paginas/Equipe'
 import { TelaSetor } from '@/paginas/TelaSetor'
-import { Administracao } from '@/paginas/Administracao'
 import { ControleTempo } from '@/paginas/ControleTempo'
 import { Dashboards } from '@/paginas/Dashboards'
-import { PCP } from '@/paginas/PCP'
-import { QuadroSetor } from '@/paginas/QuadroSetor'
 import { Expedicao } from '@/paginas/Expedicao'
 import { Rotas } from '@/paginas/Rotas'
 import { Afazeres } from '@/paginas/Afazeres'
 import { AdminApi } from '@/paginas/AdminApi'
 import { Estrutura } from '@/paginas/Estrutura'
+import { MeuPerfil } from '@/paginas/MeuPerfil'
+import { EmConstrucao } from '@/paginas/EmConstrucao'
+import {
+  LogisticaEstoque,
+  ProducaoSetor,
+  RedirecionarSetorAntigo,
+} from '@/navegacao/ProducaoSetor'
 
+/**
+ * Lei de navegação (SESSAO-13): toda rota é /pai/filho — pai nunca é rota
+ * navegável, só direciona ao primeiro filho. Fora da lei ficam apenas as
+ * rotas de casca, sem navegação por natureza: /entrar, /convite, /trocar-senha
+ * e /tablet (o modo do galpão). Toda rota antiga redireciona para a nova —
+ * nenhum bookmark de tablet pode quebrar.
+ */
 export function App() {
   return (
     <ProvedorSessao>
@@ -29,42 +40,95 @@ export function App() {
             {/* públicas: login e convite — sem autocadastro (D-21) */}
             <Route path="/entrar" element={<Entrar />} />
             <Route path="/convite/:token" element={<Convite />} />
-            {/* A rota /design saiu: o modelo de sistema vive no cofre (D-27). */}
 
             {/* qualquer papel logado e aprovado */}
             <Route element={<RotaProtegida />}>
-              <Route path="/" element={<Inicio />} />
               <Route path="/trocar-senha" element={<TrocarSenha />} />
-              {/* Afazeres (SESSAO-12/D-34): meus afazeres + afazeres do time. */}
-              <Route path="/afazeres" element={<Afazeres />} />
-              {/* A tela do chão de fábrica (SESSAO-07): fila do setor + PIN. */}
+
+              {/* Início — a casa (o Meu painel de verdade chega na sessão 14) */}
+              <Route path="/inicio/meu-painel" element={<Inicio />} />
+              <Route path="/inicio/afazeres" element={<Afazeres />} />
+              {/* filho sem item de menu: abre pelo bloco do usuário no rodapé */}
+              <Route path="/inicio/meu-perfil" element={<MeuPerfil />} />
+
+              {/* Controle de Produção — um filho por setor cadastrado */}
+              <Route path="/producao/:codigo" element={<ProducaoSetor />} />
+
+              {/* Logística */}
+              <Route path="/logistica/expedicao" element={<Expedicao />} />
+              <Route path="/logistica/estoque" element={<LogisticaEstoque />} />
+              <Route
+                path="/logistica/pedidos-em-aguardo"
+                element={
+                  <EmConstrucao
+                    titulo="Pedidos em aguardo"
+                    descricao="Aqui as unidades prontas vão esperar o pedido ficar completo para seguir para a ROTAS."
+                  />
+                }
+              />
+              <Route
+                path="/logistica/danificados"
+                element={
+                  <EmConstrucao
+                    titulo="Danificados"
+                    descricao="Aqui vai morar tudo que está em DANIFICADO, com as ações de arquivar ou resolver."
+                  />
+                }
+              />
+
+              {/* ROTAS */}
+              <Route path="/rotas/entregas" element={<Rotas />} />
+
+              {/* o modo do galpão: sem navegação nenhuma (D-06/D-28) */}
               <Route path="/tablet" element={<TelaSetor />} />
-              {/* kanban (SESSAO-04): as páginas conferem o acesso por setor */}
-              <Route path="/pcp" element={<PCP />} />
-              <Route path="/setores/:id" element={<QuadroSetor />} />
-              <Route path="/expedicao" element={<Expedicao />} />
-              {/* ROTAS dentro da plataforma (SESSAO-11/D-33): a página confere o acesso. */}
-              <Route path="/rotas" element={<Rotas />} />
             </Route>
 
             {/* líder (de algum setor) ou admin */}
             <Route element={<RotaProtegida nivel="lider" />}>
-              <Route path="/equipe" element={<Equipe />} />
-              <Route path="/estrutura" element={<Estrutura />} />
-              {/* Dashboards (SESSAO-10/D-32): líder vê o próprio setor; admin, tudo. */}
-              <Route path="/dashboards" element={<Dashboards />} />
+              <Route path="/dashboards/geral" element={<Dashboards />} />
+              <Route path="/admin/equipe" element={<Equipe />} />
+              <Route path="/admin/setores-e-etapas" element={<Estrutura />} />
             </Route>
 
             {/* só admin */}
             <Route element={<RotaProtegida nivel="admin" />}>
-              <Route path="/administracao" element={<Administracao />} />
-              {/* Controle de tempo do admin (SESSAO-07/D-29). */}
-              <Route path="/administracao/tempo" element={<ControleTempo />} />
-              {/* Chaves de API e webhooks (SESSAO-11). */}
-              <Route path="/administracao/api" element={<AdminApi />} />
+              <Route path="/admin/tempo" element={<ControleTempo />} />
+              <Route path="/admin/api" element={<AdminApi />} />
+              <Route
+                path="/admin/caminhoes"
+                element={
+                  <EmConstrucao
+                    titulo="Caminhões"
+                    descricao="O cadastro dos caminhões da logística chega junto com a programação de rotas."
+                  />
+                }
+              />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* pais nunca navegam: cada um direciona ao primeiro filho */}
+            <Route path="/inicio" element={<Navigate to="/inicio/meu-painel" replace />} />
+            <Route path="/producao" element={<Navigate to="/producao/pcp" replace />} />
+            <Route path="/logistica" element={<Navigate to="/logistica/expedicao" replace />} />
+            <Route path="/rotas" element={<Navigate to="/rotas/entregas" replace />} />
+            <Route path="/dashboards" element={<Navigate to="/dashboards/geral" replace />} />
+            <Route path="/admin" element={<Navigate to="/admin/equipe" replace />} />
+
+            {/* rotas antigas → novas (bookmarks dos tablets não quebram) */}
+            <Route path="/afazeres" element={<Navigate to="/inicio/afazeres" replace />} />
+            <Route path="/pcp" element={<Navigate to="/producao/pcp" replace />} />
+            <Route element={<RotaProtegida />}>
+              <Route path="/setores/:id" element={<RedirecionarSetorAntigo />} />
+            </Route>
+            <Route path="/expedicao" element={<Navigate to="/logistica/expedicao" replace />} />
+            <Route path="/equipe" element={<Navigate to="/admin/equipe" replace />} />
+            <Route path="/estrutura" element={<Navigate to="/admin/setores-e-etapas" replace />} />
+            <Route path="/administracao" element={<Navigate to="/admin/equipe" replace />} />
+            <Route path="/administracao/tempo" element={<Navigate to="/admin/tempo" replace />} />
+            <Route path="/administracao/api" element={<Navigate to="/admin/api" replace />} />
+
+            {/* nenhuma rota solta na raiz: tudo desemboca no Meu painel */}
+            <Route path="/" element={<Navigate to="/inicio/meu-painel" replace />} />
+            <Route path="*" element={<Navigate to="/inicio/meu-painel" replace />} />
           </Routes>
         </Layout>
       </ProvedorNotificacao>
