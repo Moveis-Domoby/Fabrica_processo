@@ -1816,6 +1816,248 @@ conferir(
   JSON.stringify(logTema ?? null),
 )
 
+// ============================================================================
+// SESSAO-14 — Meu Painel e Metas (migrations 23 e 24 / D-37)
+// Lembrete E-14: RLS/grants não se provam no PGlite — aqui se provam os
+// triggers (valem para todos), o cálculo de progresso e os gates das funções.
+// ============================================================================
+titulo('Metas (SESSAO-14/D-37): cadastro, história e regras de trigger')
+
+// Gente e card frescos para o cenário ter contagem determinística.
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel) values
+    ('Meta Um',   'meta1@teste.com', '22222222201', 'meta.um',   'operador'),
+    ('Meta Dois', 'meta2@teste.com', '22222222202', 'meta.dois', 'operador');
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'meta.um'),
+     (select id from public.plt_setores where codigo = 'cnc')),
+    ((select id from public.plt_usuarios where usuario = 'meta.dois'),
+     (select id from public.plt_setores where codigo = 'cnc'));
+`)
+
+await deveRecusar(
+  `insert into public.plt_metas (indicador, periodo, alvo, usuario_id, setor_id)
+     values ('unidades', 'diaria', 5,
+             (select id from public.plt_usuarios where usuario = 'meta.um'),
+             (select id from public.plt_setores where codigo = 'cnc'))`,
+  'meta com DOIS donos (pessoa E setor) é recusada',
+  /plt_metas_dono_ck/i,
+)
+await deveRecusar(
+  `insert into public.plt_metas (indicador, periodo, alvo)
+     values ('unidades', 'diaria', 5)`,
+  'meta sem dono nenhum é recusada',
+  /plt_metas_dono_ck/i,
+)
+await deveRecusar(
+  `insert into public.plt_metas (indicador, periodo, alvo, usuario_id)
+     values ('unidades', 'diaria', 0,
+             (select id from public.plt_usuarios where usuario = 'meta.um'))`,
+  'meta com alvo zero é recusada',
+  /alvo/i,
+)
+
+await bd.exec(`
+  insert into public.plt_metas (titulo, indicador, periodo, alvo, usuario_id, criada_por_id)
+    values ('Unidades do dia', 'unidades', 'diaria', 5,
+            (select id from public.plt_usuarios where usuario = 'meta.um'),
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'));
+  insert into public.plt_metas (titulo, indicador, periodo, alvo, setor_id, criada_por_id)
+    values ('CNC da semana', 'unidades', 'semanal', 40,
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'));
+  insert into public.plt_metas (titulo, indicador, periodo, alvo, usuario_id, criada_por_id)
+    values ('Tarefas do mês', 'tarefas', 'mensal', 10,
+            (select id from public.plt_usuarios where usuario = 'meta.um'),
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'));
+  insert into public.plt_metas (titulo, indicador, periodo, alvo, usuario_id, criada_por_id)
+    values ('Horas úteis', 'tempo_util', 'semanal', 40,
+            (select id from public.plt_usuarios where usuario = 'meta.um'),
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'));
+`)
+const historiaCriacao = (
+  await bd.query(`
+    select
+      (select count(*)::int from public.plt_metas_eventos where tipo = 'meta_criada') as eventos,
+      (select count(*)::int from public.plt_logs_atividade where acao = 'meta_criada') as logs`)
+).rows[0]
+conferir(
+  historiaCriacao.eventos === 4 && historiaCriacao.logs === 4,
+  'toda meta criada vira história (plt_metas_eventos) E trilha de atividade (D-40)',
+  JSON.stringify(historiaCriacao),
+)
+
+titulo('Metas: progresso calculado dos eventos, nunca digitado (critério 2)')
+
+// O cenário: card no CNC; meta.um inicia, meta.dois assume (fecha a de um —
+// transferência CONTA, resposta do dono 01/09), meta.dois finaliza.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 3, '073', 'Cômoda Slim', 2, 2
+      from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'cnc'), 'interface');
+`)
+const cardMeta = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardMeta}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'meta.um'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardMeta}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'meta.dois'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardMeta}, 'execucao_finalizada',
+            (select id from public.plt_usuarios where usuario = 'meta.dois'), 'interface');
+`)
+// Tarefa concluída do meta.um alimenta a meta de tarefas.
+await bd.exec(`
+  insert into public.plt_tarefas (titulo, setor_id, responsavel_id, criada_por_id, delegacao)
+    values ('Afiar fresas', (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'meta.um'),
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'), 'direta');
+  update public.plt_tarefas set situacao = 'concluida', concluida_em = now()
+   where titulo = 'Afiar fresas';
+`)
+
+// O painel com os olhos do meta.um (a porta tem gate interno).
+await bd.exec(`
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000021'
+   where usuario = 'meta.um';
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000021', false);
+`)
+const painel = (
+  await bd.query(`
+    select titulo, indicador, periodo, progresso::float as progresso,
+           janela_inicio is not null as tem_janela
+      from public.plt_fn_metas_painel() order by titulo`)
+).rows
+const porTitulo = Object.fromEntries(painel.map((m) => [m.titulo, m]))
+conferir(
+  painel.length === 4 && painel.every((m) => m.tem_janela),
+  'meta.um vê as 4 metas (3 pessoais + a do setor dele — membro vê, dono 01/09), todas com janela',
+  JSON.stringify(painel.map((m) => m.titulo)),
+)
+conferir(
+  porTitulo['Unidades do dia']?.progresso === 1,
+  'transferência CONTA como unidade concluída de quem entregou o card (dono 01/09)',
+  `progresso=${porTitulo['Unidades do dia']?.progresso}`,
+)
+conferir(
+  porTitulo['CNC da semana']?.progresso === 2,
+  'meta do SETOR soma as execuções encerradas de todo mundo no setor (1+1)',
+  `progresso=${porTitulo['CNC da semana']?.progresso}`,
+)
+conferir(
+  porTitulo['Tarefas do mês']?.progresso === 1,
+  'concluir tarefa move a meta de tarefas sozinha',
+  `progresso=${porTitulo['Tarefas do mês']?.progresso}`,
+)
+conferir(
+  typeof porTitulo['Horas úteis']?.progresso === 'number',
+  'meta de tempo útil responde em horas (D-29 — execuções de instantes ≈ 0h)',
+  `progresso=${porTitulo['Horas úteis']?.progresso}`,
+)
+
+// Quem não tem relação com as metas não vê nada; sem sessão, idem.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const painelDeFora = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_metas_painel()`)
+).rows[0]
+conferir(
+  painelDeFora.total === 0,
+  'operador de outro setor não vê metas alheias (gate da porta)',
+  `vieram ${painelDeFora.total}`,
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+const painelSemSessao = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_metas_painel()`)
+).rows[0]
+conferir(
+  painelSemSessao.total === 0,
+  'sem usuário no contexto, o cockpit devolve vazio (gate)',
+  `vieram ${painelSemSessao.total}`,
+)
+
+titulo('Metas: encerrar é definitivo, dono não muda, história não se apaga')
+await bd.exec(`
+  update public.plt_metas set encerrada_em = now()
+   where titulo = 'Tarefas do mês';
+`)
+const encerrada = (
+  await bd.query(`
+    select count(*)::int as eventos
+      from public.plt_metas_eventos where tipo = 'meta_encerrada'`)
+).rows[0]
+conferir(encerrada.eventos === 1, 'encerrar meta grava meta_encerrada na história', JSON.stringify(encerrada))
+await deveRecusar(
+  `update public.plt_metas set alvo = 99 where titulo = 'Tarefas do mês'`,
+  'meta encerrada não se edita — cria-se outra',
+  /já foi encerrada/i,
+)
+await deveRecusar(
+  `update public.plt_metas set usuario_id = (select id from public.plt_usuarios where usuario = 'meta.dois')
+    where titulo = 'Unidades do dia'`,
+  'o dono da meta não muda depois de criada',
+  /dono da meta/i,
+)
+await bd.exec(`update public.plt_metas set alvo = 6 where titulo = 'Unidades do dia'`)
+const alterada = (
+  await bd.query(`
+    select dados->>'alvo_antes' as antes, dados->>'alvo_depois' as depois
+      from public.plt_metas_eventos where tipo = 'meta_alterada' order by id desc limit 1`)
+).rows[0]
+conferir(
+  alterada?.antes === '5.00' && alterada?.depois === '6.00',
+  'alterar o alvo grava antes/depois na história',
+  JSON.stringify(alterada ?? null),
+)
+await deveRecusar(
+  `update public.plt_metas_eventos set dados = '{}'::jsonb`,
+  'UPDATE na história de metas é recusado',
+  /histórico de metas/i,
+)
+await deveRecusar(
+  `delete from public.plt_metas_eventos`,
+  'DELETE na história de metas é recusado',
+  /histórico de metas/i,
+)
+
+titulo('Espelho da blindagem do backfill (migration 24 / nota do esquema)')
+const gatilhosPedidos = (
+  await bd.query(`
+    select tgname from pg_trigger
+     where tgrelid = 'public.pedidos'::regclass and tgname like 'plt_pedidos%'
+     order by tgname`)
+).rows.map((r) => r.tgname)
+conferir(
+  gatilhosPedidos.join(',') === 'plt_pedidos_reagir_atualizacao,plt_pedidos_reagir_insercao',
+  'os DOIS gatilhos com guarda existem e o antigo gatilho único morreu',
+  gatilhosPedidos.join(' · '),
+)
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem)
+    values (999899, (select id from public.clientes order by id limit 1), 'aprovado', 'backfill');
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999898, (select id from public.clientes order by id limit 1), 'entregue');
+`)
+const blindagem = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_cards c
+     where c.tipo = 'pedido'
+       and c.pedido_id in (select id from public.pedidos where numero in (999899, 999898))`)
+).rows[0]
+conferir(
+  blindagem.total === 0,
+  'pedido de backfill e pedido já encerrado NÃO viram card no PCP (blindagem espelhada)',
+  `cards criados: ${blindagem.total}`,
+)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
