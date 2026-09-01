@@ -333,6 +333,15 @@ Toda ação de usuário registra **log no banco** (quem, quando, o quê, onde), 
 
 O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowork gerou **4 mockups-alvo no design system Domoby + regras de construção** em `docs/inspiracao/dashboards/` (no repo). A SESSAO-16 reconstrói os dashboards **nesses moldes** — o Claude Code **abre as imagens antes de codar**. Os dados e gates da S10 (migration 18, D-32) seguem sendo a fonte.
 
+## D-43 · Meu Perfil: nome de login editável pelo próprio, e-mail também, foto própria, log de tudo (28/08/2026)
+
+**Decidido (respostas do dono no início da SESSAO-13):**
+
+- **"Nome de usuário" no Meu Perfil é o nome de LOGIN mesmo** — o próprio usuário pode trocá-lo (mantendo unicidade), e esse nome é também o exibido para todos os outros.
+- **Dados cadastrais editáveis pelo próprio usuário:** nome, telefone e **e-mail** (que também serve de login). CPF e matrícula ficam travados — só admin.
+- **Foto de perfil:** o operador comum pode subir a **própria** foto (pasta própria no bucket; admin pode trocar a de qualquer um).
+- **Log de atividade (D-40): registrar tudo** — nenhum tipo de atividade excluído do registro.
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

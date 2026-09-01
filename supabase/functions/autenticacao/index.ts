@@ -3,12 +3,14 @@
 //
 // A ÚNICA porta do servidor para tudo que mexe com identidade (D-21):
 //
-//   entrar         → login com nome de usuário OU e-mail + senha
-//   criar-usuario  → admin/líder cadastra alguém (senha padrão + convite)
-//   convite-info   → resolve o token do link de convite (nome + usuário)
-//   trocar-senha   → troca obrigatória da senha padrão no primeiro login
-//   pin-definir    → admin/líder define o PIN de tablet de alguém
-//   pin-verificar  → o tablet identifica o operador pela matrícula/usuário + PIN
+//   entrar           → login com nome de usuário OU e-mail + senha
+//   criar-usuario    → admin/líder cadastra alguém (senha padrão + convite)
+//   convite-info     → resolve o token do link de convite (nome + usuário)
+//   trocar-senha     → troca obrigatória da senha padrão no primeiro login
+//   atualizar-perfil → (SESSAO-13) a própria pessoa troca nome, login, e-mail, fone
+//   alterar-senha    → (SESSAO-13) troca de senha do Meu Perfil, com a senha atual
+//   pin-definir      → admin/líder define o PIN de tablet de alguém
+//   pin-verificar    → o tablet identifica o operador pela matrícula/usuário + PIN
 //
 // Por que Edge Function e não RPC em `public`: função em `public` vira
 // endpoint sem ninguém pedir (E-11), e resolver "usuário → e-mail" no
@@ -141,7 +143,7 @@ async function entrar(corpo: Json): Promise<Response> {
   const coluna = identificador.includes('@') ? 'email' : 'usuario'
   const { data: linha } = await servidor
     .from('plt_usuarios')
-    .select('email, ativo')
+    .select('id, email, ativo')
     .eq(coluna, identificador)
     .maybeSingle()
 
@@ -156,7 +158,119 @@ async function entrar(corpo: Json): Promise<Response> {
   })
   if (!tentativa.ok) return erro(401, NEGADO)
   const sessao = await tentativa.json()
+
+  // Toda atividade gera registro (SESSAO-13): o login entra na trilha.
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: linha.id, acao: 'entrou' })
+    .then(() => {})
+
   return resposta(200, { access_token: sessao.access_token, refresh_token: sessao.refresh_token })
+}
+
+// ----------------------------------------------------------------------------
+// atualizar-perfil — o Meu Perfil (SESSAO-13): a própria pessoa troca nome,
+// nome de usuário (o de login, que é também o exibido), e-mail e telefone.
+// Usuário/e-mail passam por aqui porque mexem também na conta de auth.
+// ----------------------------------------------------------------------------
+async function atualizarPerfil(req: Request, corpo: Json): Promise<Response> {
+  const quem = await pessoaDoToken(req)
+  if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
+
+  const nome = String(corpo.nome ?? '').trim()
+  const usuario = String(corpo.usuario ?? '').trim().toLowerCase()
+  const email = String(corpo.email ?? '').trim().toLowerCase()
+  const telefone = String(corpo.telefone ?? '').trim() || null
+
+  if (!nome) return erro(400, 'Informe o nome.')
+  if (!/^[a-z0-9._-]{3,32}$/.test(usuario))
+    return erro(400, 'Nome de usuário: 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen ou underline.')
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro(400, 'Informe um e-mail válido.')
+
+  const { data: atual } = await servidor
+    .from('plt_usuarios')
+    .select('email')
+    .eq('id', quem.id)
+    .single()
+  const emailMudou = atual !== null && atual.email !== email
+
+  // O e-mail também é o login da conta de auth: muda lá primeiro. Confirmado
+  // direto — o convite continua sendo por WhatsApp, sem e-mail automático.
+  if (emailMudou) {
+    const alterada = await servidor.auth.admin.updateUserById(quem.auth_user_id, {
+      email,
+      email_confirm: true,
+    })
+    if (alterada.error) {
+      const ja = /already|registered|exists/i.test(alterada.error.message)
+      return erro(ja ? 409 : 500, ja ? 'Este e-mail já tem conta.' : 'Não consegui trocar o e-mail. Tente de novo.')
+    }
+  }
+
+  const { error: erroGravar } = await servidor
+    .from('plt_usuarios')
+    .update({ nome, usuario, email, telefone })
+    .eq('id', quem.id)
+
+  if (erroGravar) {
+    // Desfaz a troca de e-mail no auth para não deixar as duas pontas tortas.
+    if (emailMudou && atual) {
+      await servidor.auth.admin.updateUserById(quem.auth_user_id, {
+        email: atual.email,
+        email_confirm: true,
+      })
+    }
+    const m = erroGravar.message
+    if (/usuario_uq/.test(m)) return erro(409, 'Este nome de usuário já existe.')
+    if (/email_uq/.test(m)) return erro(409, 'Este e-mail já está cadastrado.')
+    return erro(500, 'Não consegui gravar as alterações. Tente de novo.')
+  }
+
+  return resposta(200, { ok: true })
+}
+
+// ----------------------------------------------------------------------------
+// alterar-senha — a troca do Meu Perfil: exige a senha ATUAL (diferente da
+// troca obrigatória do 1º login). A conferência é um login de verdade.
+// ----------------------------------------------------------------------------
+async function alterarSenha(req: Request, corpo: Json): Promise<Response> {
+  const quem = await pessoaDoToken(req)
+  if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
+
+  const senhaAtual = String(corpo.senha_atual ?? '')
+  const senhaNova = String(corpo.senha_nova ?? '')
+  if (!senhaAtual) return erro(400, 'Informe a senha atual.')
+  if (senhaNova.length < 8) return erro(400, 'A senha nova precisa de pelo menos 8 caracteres.')
+  const senhaPadrao = Deno.env.get('PLT_SENHA_PADRAO')
+  if (senhaPadrao && senhaNova === senhaPadrao)
+    return erro(400, 'A senha nova não pode ser a senha padrão.')
+
+  const { data: linha } = await servidor
+    .from('plt_usuarios')
+    .select('email')
+    .eq('id', quem.id)
+    .single()
+  if (!linha) return erro(401, 'Sessão inválida. Entre de novo.')
+
+  const conferencia = await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: CHAVE_ANON },
+    body: JSON.stringify({ email: linha.email, password: senhaAtual }),
+  })
+  if (!conferencia.ok) return erro(401, 'A senha atual não confere.')
+
+  const alterada = await servidor.auth.admin.updateUserById(quem.auth_user_id, {
+    password: senhaNova,
+  })
+  if (alterada.error) return erro(500, 'Não consegui trocar a senha. Tente de novo.')
+
+  // A senha em si nunca vai para log — só o fato de ter sido trocada.
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: quem.id, acao: 'senha_alterada' })
+    .then(() => {})
+
+  return resposta(200, { ok: true })
 }
 
 // ----------------------------------------------------------------------------
@@ -393,6 +507,10 @@ Deno.serve(async (req) => {
         return await conviteInfo(corpo)
       case 'trocar-senha':
         return await trocarSenha(req, corpo)
+      case 'atualizar-perfil':
+        return await atualizarPerfil(req, corpo)
+      case 'alterar-senha':
+        return await alterarSenha(req, corpo)
       case 'pin-definir':
         return await pinDefinir(req, corpo)
       case 'pin-verificar':

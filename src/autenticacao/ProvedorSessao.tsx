@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { aplicarTema, ehTema } from '@/perfil/tema'
 import { ContextoSessao } from './sessao-contexto'
 import { COLUNAS_PERFIL } from './tipos'
 import type { Perfil, VinculoSetor } from './tipos'
@@ -82,6 +83,13 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
     const timer = setInterval(marcar, 5 * 60_000)
     return () => clearInterval(timer)
   }, [perfilId])
+
+  // O tema escolhido no Meu Perfil (SESSAO-13) segue a pessoa: quando o perfil
+  // chega, ele manda — inclusive num navegador que nunca a viu.
+  const temaPerfil = consultaPerfil.data?.perfil?.tema ?? null
+  useEffect(() => {
+    if (temaPerfil && ehTema(temaPerfil)) aplicarTema(temaPerfil)
+  }, [temaPerfil])
 
   const sair = useCallback(async () => {
     await supabase.auth.signOut()

@@ -6,6 +6,7 @@ import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores, delegarCard } from '@/kanban/api'
+import { rotaDoSetor } from '@/navegacao/rotas'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { membrosDoSetor } from '@/tablet/api'
@@ -209,7 +210,7 @@ export function Afazeres() {
                     {setor?.nome ?? '—'}
                   </span>
                   {setor && (
-                    <Link to={setor.codigo === 'pcp' ? '/pcp' : `/setores/${setor.id}`}>
+                    <Link to={rotaDoSetor(setor.codigo)}>
                       <Botao variante="secundaria" tamanho="sm" icone={<ClipboardList />}>
                         Abrir quadro
                       </Botao>

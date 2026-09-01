@@ -5,6 +5,7 @@ import { Botao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
+import { rotaDoSetor } from '@/navegacao/rotas'
 
 /** A casa de cada papel (RF-24): operador vê o mínimo; líder e admin veem mais. */
 export function Inicio() {
@@ -50,7 +51,7 @@ export function Inicio() {
             return (
               <Link
                 key={setor.id}
-                to={ehPcp ? '/pcp' : `/setores/${setor.id}`}
+                to={rotaDoSetor(setor.codigo)}
                 className="flex min-h-toque-galpao items-center gap-3 rounded-dm-lg border border-borda bg-superficie p-4 font-marca text-lg font-semibold text-texto transition-colors hover:border-acao-ativa hover:bg-superficie-sutil"
               >
                 <ClipboardList aria-hidden className="size-6 shrink-0 text-texto-suave" />

@@ -79,6 +79,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 📜 Histórico de sessões
 
+- [[handoff_2026_08_28_sessao13_navegacao]] — **SESSAO-13 da Plataforma (abre o Bloco 3 — a reforma)**: navegação em duas barras laterais (pais → filhos, cada uma recolhível), rotas todas em `/pai/filho` com redirecionamentos, Meu Perfil com 8 temas Domoby e foto, login com logo metálica, e a trilha de atividade append-only registrando tudo (D-40); migration 22 aplicada e Edge Function v3 no ar com autorização do dono
 - [[handoff_2026_08_28_sessao12_tarefas]] — **SESSAO-12 da Plataforma (fecha o bloco noturno D-26)**: afazeres meus/do time, delegação em 3 modos por setor com sorteio balanceado só entre quem está logado, tarefa avulsa com timer opcional, aviso ao delegado no sino — e o incidente E-20 (coluna criada por outra sessão com desenho divergente, alinhada pela migration 21)
 - [[handoff_2026_08_28_sessao11_api_rotas]] — **SESSAO-11 da Plataforma (bloco noturno D-26)**: a API aberta no ar (Edge Function com chave própria, escopos, revogação instantânea; exclusão = arquivamento lógico), webhooks de saída com fila + pg_net/pg_cron testados de ponta a ponta, e as ROTAS dentro da plataforma (D-33) — entrega por pedido completo com o formato do card real, sem tocar ClickUp nem Tiny
 - [[handoff_2026_08_28_sessao10_dashboards]] — **SESSAO-10 da Plataforma (bloco noturno D-26)**: dashboards com o tempo em primeiro lugar (D-32) — lista detalhada de execuções com duração bruta e útil (D-29 descontando horário/pausas), fila vs execução por setor somadas (D-02), pessoa, item, qualidade por setor e estoque; visualizações salvas por usuário; gate no banco (líder só vê o próprio setor)
@@ -112,7 +113,11 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## Estado atual em uma linha
 
-**↪️ Atualizado em 28/08/2026 (noite — revisão do dono + bloco 3 definido):** o dono usou a plataforma, rejeitou a navegação e os dashboards, e nasceu o **Bloco 3 — a reforma (D-35…D-42)**: SESSAO-13 (sidebar pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade) → 14 (Meu Painel + cockpit de metas) → 15 (Logística: Estoque/Aguardo/Danificados + ROTAS com caminhões e mapa) → 16 (dashboards refeitos sobre os mockups de `docs/inspiracao/dashboards/`), **com checkpoint por sessão** (D-26 encerrada — regra crítica 2 na íntegra). **Tudo externo em standby** (automações→17, admin→18, publicação segue D-30). Demandas 13–16 `📐 prontas`; prompt entregue no chat (D-17). Pendências do checklist da manhã que continuam com o dono: trocar a senha do admin, contas dos tablets, modo de delegação por setor.
+**↪️ Atualizado em 28/08/2026 (madrugada — SESSAO-13 entregue):** a reforma começou — a **SESSAO-13** trocou a casca inteira (navegação em duas barras pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade — D-36/D-40/D-41/D-43), com migration 22 aplicada e Edge Function v3 no ar; branch `sessao-13-navegacao` **aguarda revisão e merge do dono**. Próxima: SESSAO-14 (Meu Painel + metas). Pendências do dono: trocar a senha do admin (ficou no chat!), confirmar decisões provisórias do handoff da 13.
+
+## Estado anterior em uma linha (28/08, noite)
+
+**↪️ 28/08/2026 (noite — revisão do dono + bloco 3 definido):** o dono usou a plataforma, rejeitou a navegação e os dashboards, e nasceu o **Bloco 3 — a reforma (D-35…D-42)**: SESSAO-13 (sidebar pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade) → 14 (Meu Painel + cockpit de metas) → 15 (Logística: Estoque/Aguardo/Danificados + ROTAS com caminhões e mapa) → 16 (dashboards refeitos sobre os mockups de `docs/inspiracao/dashboards/`), **com checkpoint por sessão** (D-26 encerrada — regra crítica 2 na íntegra). **Tudo externo em standby** (automações→17, admin→18, publicação segue D-30). Demandas 13–16 `📐 prontas`; prompt entregue no chat (D-17). Pendências do checklist da manhã que continuam com o dono: trocar a senha do admin, contas dos tablets, modo de delegação por setor.
 
 ## Estado anterior em uma linha
 

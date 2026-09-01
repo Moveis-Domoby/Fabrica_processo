@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flag, ListChecks } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
@@ -32,9 +32,7 @@ const ATUALIZA_A_CADA = 20_000
  * Desde a SESSAO-05 os cards carregam Iniciar/Finalizar/Assumir (D-02/D-24) e
  * a linha do tempo — o clique do galpão virando medição.
  */
-export function QuadroSetor() {
-  const { id } = useParams()
-  const setorId = Number(id)
+export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -145,7 +143,7 @@ export function QuadroSetor() {
   if (!perfil) return null
   if (!carregandoSetores && setores.length > 0 && !setor) return <Navigate to="/" replace />
   // O PCP tem quadro próprio, com a liberação de pedidos.
-  if (setor?.codigo === 'pcp') return <Navigate to="/pcp" replace />
+  if (setor?.codigo === 'pcp') return <Navigate to="/producao/pcp" replace />
   if (!setor) return null
 
   const terminal = setor.papel_no_fluxo === 'terminal'

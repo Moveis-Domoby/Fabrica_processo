@@ -21,7 +21,15 @@ function quando(iso: string): string {
  * em ESTOQUE. Quem não recebe aviso nenhum vê a caixa vazia; o RLS garante que
  * cada um só enxerga os seus.
  */
-export function SinoNotificacoes({ usuarioId }: { usuarioId: string }) {
+export function SinoNotificacoes({
+  usuarioId,
+  painelLado = 'direita',
+}: {
+  usuarioId: string
+  /** De que borda da PÁGINA o painel abre — nunca ancorado no próprio sino (o
+   *  sino agora vive no topo da sidebar; ancorar nele estouraria a tela). */
+  painelLado?: 'esquerda' | 'direita'
+}) {
   const clienteQuery = useQueryClient()
   const [aberto, setAberto] = useState(false)
 
@@ -72,10 +80,13 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId: string }) {
           <div
             role="region"
             aria-label="Notificações"
-            // O menu quebra em mais de uma linha e o sino pode ficar perto da
-            // borda esquerda — painel ancorado nele estouraria a tela. Por
-            // isso ele é fixo, ancorado à borda direita da PÁGINA.
-            className="fixed right-3 top-24 z-50 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg"
+            // Painel fixo, ancorado à borda da PÁGINA (nunca no sino) e com
+            // altura limitada pela própria tela: não é cortado em viewport
+            // nenhum, com a sidebar aberta ou recolhida.
+            className={cn(
+              'fixed top-16 z-50 flex max-h-[calc(100dvh-5rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg',
+              painelLado === 'direita' ? 'right-3' : 'left-3',
+            )}
           >
             <header className="flex items-center justify-between gap-2 border-b border-borda px-3 py-2">
               <span className="text-sm font-semibold text-texto">Notificações</span>
@@ -92,7 +103,7 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId: string }) {
               )}
             </header>
 
-            <ul className="max-h-96 overflow-y-auto">
+            <ul className="min-h-0 flex-1 overflow-y-auto">
               {avisos.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-texto-fraco">
                   Nenhum aviso por aqui.

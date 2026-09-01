@@ -11,6 +11,11 @@ import '@fontsource/poppins/latin-700.css'
 import './estilos/global.css'
 
 import { App } from './App'
+import { aplicarTema, temaGuardado } from './perfil/tema'
+
+// O último tema usado neste navegador entra ANTES do primeiro quadro pintado —
+// sem isso a tela pisca clara até o perfil chegar. O perfil confirma depois.
+aplicarTema(temaGuardado())
 
 const clienteQuery = new QueryClient({
   defaultOptions: {

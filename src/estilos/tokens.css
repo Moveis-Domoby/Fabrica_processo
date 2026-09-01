@@ -92,9 +92,138 @@
   --dm-perigo: var(--dm-danificado-forte);
 }
 
-/* Tema escuro: preparado, ainda NÃO habilitado na interface.
-   Q-30 (modo escuro) segue em aberto no cofre — quando o dono decidir,
-   basta ligar o alternador; nenhum componente muda. */
+/* ==========================================================================
+   OS 8 TEMAS DOMOBY (SESSAO-13, D-41 / Q-30 respondida) — do claro ao escuro,
+   todos no DNA amarelo × grafite. A escolha vive em plt_usuarios.tema e é
+   aplicada em <html data-tema="...">. Ordem: claro · gelo · areia · dourado ·
+   ardosia · grafite · escuro · meia-noite.
+   O tema `claro` é o bloco acima (:root). Os demais só trocam a camada
+   semântica — nenhum componente muda.
+   ========================================================================== */
+
+/* gelo — o mais branco e frio dos claros. */
+[data-tema='gelo'] {
+  --dm-fundo: #f3f5f7;
+  --dm-superficie: #ffffff;
+  --dm-superficie-sutil: #e9edf1;
+  --dm-borda: #dde2e8;
+  --dm-borda-forte: #c3cad3;
+  --dm-texto: #24252b;
+  --dm-texto-suave: #5d626c;
+  --dm-texto-fraco: #83878f;
+}
+
+/* areia — claro morno, o galpão de manhã. */
+[data-tema='areia'] {
+  --dm-fundo: #f6f2e7;
+  --dm-superficie: #fffdf6;
+  --dm-superficie-sutil: #efe8d5;
+  --dm-borda: #e3dbc4;
+  --dm-borda-forte: #cfc5a8;
+  --dm-texto: #322e26;
+  --dm-texto-suave: #6b6558;
+  --dm-texto-fraco: #8f887a;
+}
+
+/* dourado — o claro com a marca mais presente: fundos no amarelo bem diluído. */
+[data-tema='dourado'] {
+  --dm-fundo: var(--dm-marca-50);
+  --dm-superficie: #ffffff;
+  --dm-superficie-sutil: var(--dm-marca-100);
+  --dm-borda: #f0e2b4;
+  --dm-borda-forte: #ddc98a;
+  --dm-texto: var(--dm-grafite-900);
+  --dm-texto-suave: #6d6250;
+  --dm-texto-fraco: #93876f;
+}
+
+/* ardosia — o primeiro dos escuros: o grafite da logo como superfície. */
+[data-tema='ardosia'] {
+  --dm-fundo: var(--dm-grafite-800);
+  --dm-superficie: var(--dm-grafite-700);
+  --dm-superficie-sutil: var(--dm-grafite-600);
+  --dm-superficie-inversa: var(--dm-grafite-100);
+
+  --dm-texto: var(--dm-grafite-50);
+  --dm-texto-suave: var(--dm-grafite-200);
+  --dm-texto-fraco: var(--dm-grafite-400);
+  --dm-texto-inverso: var(--dm-grafite-950);
+
+  --dm-borda: var(--dm-grafite-600);
+  --dm-borda-forte: var(--dm-grafite-500);
+
+  --dm-foco: var(--dm-marca-300);
+  --dm-perigo: #f87171;
+}
+
+/* grafite — escuro médio. */
+[data-tema='grafite'] {
+  --dm-fundo: var(--dm-grafite-900);
+  --dm-superficie: var(--dm-grafite-800);
+  --dm-superficie-sutil: var(--dm-grafite-700);
+  --dm-superficie-inversa: var(--dm-grafite-100);
+
+  --dm-texto: var(--dm-grafite-50);
+  --dm-texto-suave: var(--dm-grafite-300);
+  --dm-texto-fraco: var(--dm-grafite-400);
+  --dm-texto-inverso: var(--dm-grafite-950);
+
+  --dm-borda: var(--dm-grafite-700);
+  --dm-borda-forte: var(--dm-grafite-600);
+
+  --dm-foco: var(--dm-marca-300);
+  --dm-perigo: #f87171;
+}
+
+/* meia-noite — o mais escuro, com o amarelo um tom mais vivo para a ação. */
+[data-tema='meia-noite'] {
+  --dm-fundo: #101014;
+  --dm-superficie: #1a1a1f;
+  --dm-superficie-sutil: #26262c;
+  --dm-superficie-inversa: var(--dm-grafite-100);
+
+  --dm-texto: var(--dm-grafite-50);
+  --dm-texto-suave: var(--dm-grafite-300);
+  --dm-texto-fraco: var(--dm-grafite-500);
+  --dm-texto-inverso: var(--dm-grafite-950);
+
+  --dm-borda: #2b2b31;
+  --dm-borda-forte: #3d3d44;
+
+  --dm-acao: var(--dm-marca-400);
+  --dm-acao-hover: var(--dm-marca-300);
+  --dm-acao-ativa: var(--dm-marca-500);
+
+  --dm-foco: var(--dm-marca-300);
+  --dm-perigo: #f87171;
+}
+
+/* A família escura inteira compartilha os estados de qualidade em versão
+   escura e avisa o navegador (inputs/rolagem nativos) com color-scheme. */
+[data-tema='ardosia'],
+[data-tema='grafite'],
+[data-tema='escuro'],
+[data-tema='meia-noite'] {
+  color-scheme: dark;
+
+  --dm-perfeito-fundo: #052e16;
+  --dm-perfeito-borda: #166534;
+  --dm-perfeito-texto: #bbf7d0;
+
+  --dm-atencao-fundo: #431407;
+  --dm-atencao-borda: #9a3412;
+  --dm-atencao-texto: #fed7aa;
+
+  --dm-danificado-fundo: #450a0a;
+  --dm-danificado-borda: #991b1b;
+  --dm-danificado-texto: #fecaca;
+
+  --dm-info-fundo: #172554;
+  --dm-info-borda: #1e40af;
+  --dm-info-texto: #bfdbfe;
+}
+
+/* escuro — o tema escuro "clássico" (era o preparado desde a SESSAO-01). */
 [data-tema='escuro'] {
   --dm-fundo: var(--dm-grafite-950);
   --dm-superficie: var(--dm-grafite-900);
