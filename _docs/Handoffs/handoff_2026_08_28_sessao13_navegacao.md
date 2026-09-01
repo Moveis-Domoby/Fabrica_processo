@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, navegacao, perfil, temas, auditoria]
 
 # 📋 Handoff — SESSAO-13 · Navegação, Perfil e Identidade — a 1ª do Bloco 3 (a reforma)
 
-**Branch:** `sessao-13-navegacao` (aguardando seu OK para o merge — D-20/D-35)
+**Branch:** `sessao-13-navegacao` (mesclada na main em 28/08, aprovada na conversa — D-20/D-35)
 **Banco:** migration **22** aplicada em 28/08 com sua autorização (integração intacta, estrutura e linhas conferidas antes/depois) · **Edge Function `autenticacao` v3** deployada
 **Demanda:** [[SESSAO-13 - Navegacao Perfil e Identidade]] · **Memória:** `docs/execucao/SESSAO-13.md`
 **Decisões que regem:** D-36 (lei de navegação) · D-40 (log de tudo) · D-41 (perfil e temas) · **D-43** (suas respostas desta sessão: nome de login editável e exibido, e-mail editável, foto própria, registrar tudo)
