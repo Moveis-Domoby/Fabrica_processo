@@ -34,12 +34,32 @@
 
 ## Decisões técnicas tomadas
 
-- (registrar aqui conforme a execução)
+- **Metas fora de `plt_eventos`:** o histórico vive em `plt_metas_eventos` própria (append-only por trigger) — plugar tipos de meta no check de `plt_eventos` mexeria nos triggers do kanban sem necessidade; meta não é card. A trilha D-40 recebe o mesmo gesto no mesmo trigger.
+- **Encerrar é definitivo** (trigger recusa editar meta encerrada) e **o dono da meta não muda** — quer medir outro alvo, cria meta nova; a história de cada período fica limpa. A pessoa edita/encerra a própria meta pessoal mesmo criada por líder (letra da D-37: "segue a mesma regra").
+- **"Unidades concluídas" = linhas de `plt_vw_execucoes` com fim na janela** (qualquer `encerramento` — resposta do dono). "Tempo útil" = execuções clipadas à janela via `fn_tempo_util`, em HORAS. "Tarefas" = `concluida_em` na janela.
+- **Janela no banco** (`date_trunc` em America/Fortaleza; semana = segunda via `date_trunc('week')` — mudar o começo da semana é mudar SÓ na função). O front só calcula apresentação (`src/metas/progresso.ts`, com testes).
+- **Porta única `plt_fn_metas_painel`** no padrão da migration 18 (security definer + gate interno espelhando o RLS; +1 WARN esperado nos advisors → total 18).
+- **Migration 24 espelha os 2 gatilhos** `plt_pedidos_reagir_insercao/_atualizacao` da blindagem do backfill (ordem alfabética garante que roda depois da 17; corpo de `fn_reagir_pedido` intocado).
+- **Tempo real no painel:** canal `postgres_changes` em `plt_cards` (publicação já existente) invalida pendências e metas; polling de 15s como rede de segurança. `plt_metas` NÃO entrou na publicação (CRUD de meta alheia chega pelo polling).
+- **Teste `999998` colidiu** com a seção da SESSAO-09 → números da blindagem viraram 999899/999898.
+- **Lint `react-hooks/set-state-in-effect`** no ModalMeta → refatorado: modal monta só quando aberto (`key` por meta), estado inicial vem da prop, sem effect.
 
 ## Arquivos criados/alterados
 
+- `supabase/migrations/20260901120000_plt_metas.sql` (migration 23 — plt_metas, plt_metas_eventos, triggers, RLS, plt_fn_metas_painel)
+- `supabase/migrations/20260901121000_plt_gatilhos_pedidos_espelho.sql` (migration 24 — espelho da blindagem)
+- `supabase/testes/testar-migrations.mjs` (+21 verificações da SESSAO-14; 2 rodadas TUDO VERDE)
+- `src/metas/api.ts` · `src/metas/progresso.ts` (+`progresso.test.ts`, 5 testes) · `src/metas/ModalMeta.tsx`
+- `src/paginas/MeuPainel.tsx` (nova casa do `/inicio/meu-painel`)
+- `src/App.tsx` (rota) · `src/paginas/Inicio.tsx` REMOVIDA (boas-vindas antiga)
 - `docs/execucao/SESSAO-14.md` (este)
+
+## Verificações rodadas
+
+- `npm run test:banco` — 2 rodadas, TUDO VERDE (inclui as 21 novas)
+- `npx tsc -b` limpo · `npm run lint` limpo · `npm test` 28/28 · `npm run build` ok
+- Pendente: F-07 no navegador + critérios ao vivo — depende de aplicar as migrations no banco real (checkpoint com o dono)
 
 ## Erros e correções
 
-- (registrar na hora; espelhar E-NN no cofre quando for lição)
+- (nenhum erro digno de E-NN até aqui; colisão de número de pedido no teste e lint do effect corrigidos na hora, registrados acima)
