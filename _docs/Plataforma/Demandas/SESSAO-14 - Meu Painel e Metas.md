@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-14 — Meu Painel e Metas (cockpit)"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-08-28
 atualizado: 2026-08-28
 tags: [plataforma, demanda, bloco-3]
@@ -68,4 +68,4 @@ migration 18). Paginação nas listas (RNF-02). Tudo loga (D-40).
 
 ## Resultado (preencher ao entregar)
 
-—
+✅ **Entregue em 01/09/2026** — [[handoff_2026_09_01_sessao14_meu_painel]]. Meu Painel no ar (pendências + avisos + cockpit de metas no molde do mockup 03), metas com progresso calculado no banco (`plt_fn_metas_painel`, migrations 23/24 aplicadas com autorização do dono), RLS por papel, história append-only, trilha D-40, Afazeres intacto. Critérios todos verificados (test:banco 2 rodadas + teste ao vivo com a conta do dono). Respostas do dono viraram regra: membros veem meta do setor; transferência/mover contam unidade; semana começa na segunda.

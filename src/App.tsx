@@ -3,7 +3,7 @@ import { Layout } from '@/componentes/Layout'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { ProvedorSessao } from '@/autenticacao/ProvedorSessao'
 import { RotaProtegida } from '@/autenticacao/guardas'
-import { Inicio } from '@/paginas/Inicio'
+import { MeuPainel } from '@/paginas/MeuPainel'
 import { Entrar } from '@/paginas/Entrar'
 import { Convite } from '@/paginas/Convite'
 import { TrocarSenha } from '@/paginas/TrocarSenha'
@@ -45,8 +45,8 @@ export function App() {
             <Route element={<RotaProtegida />}>
               <Route path="/trocar-senha" element={<TrocarSenha />} />
 
-              {/* Início — a casa (o Meu painel de verdade chega na sessão 14) */}
-              <Route path="/inicio/meu-painel" element={<Inicio />} />
+              {/* Início — a casa: pendências, avisos e o cockpit de metas */}
+              <Route path="/inicio/meu-painel" element={<MeuPainel />} />
               <Route path="/inicio/afazeres" element={<Afazeres />} />
               {/* filho sem item de menu: abre pelo bloco do usuário no rodapé */}
               <Route path="/inicio/meu-perfil" element={<MeuPerfil />} />

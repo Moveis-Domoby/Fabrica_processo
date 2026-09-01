@@ -51,6 +51,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[N8N - Cadastro de Cliente (em andamento)]] — migração 5, bloqueada aguardando o CSV
 - [[N8N - ROTAS Entregue para Tiny]] — **em produção desde 17/08**: card movido para "entregue" na ROTAS marca o pedido como Entregue no Tiny — a primeira no sentido ClickUp → Tiny
 - [[N8N - Migracao Supabase]] — **P15 em execução**: dupla escrita → backfill → paridade → corte da planilha
+- [[N8N - Backfill Historico do Tiny]] — **em execução desde 28/08 à noite**: todo o histórico desde 12/03/2025 (pedidos, contatos, NF e contas a receber) puxado da API v2 para o Supabase por uma fila auto-expansível — **substitui a FASE 2 da migração** (que seria por CSV) e trouxe a blindagem D-43 do gatilho do PCP
 
 ## 🗄️ Supabase — banco da fábrica (pasta `Supabase-fabrica/`)
 
@@ -79,6 +80,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 📜 Histórico de sessões
 
+- [[handoff_2026_09_01_sessao14_meu_painel]] — **SESSAO-14 da Plataforma (2ª do Bloco 3)**: o Meu Painel de verdade em `/inicio/meu-painel` (pendências, avisos do sino, cockpit de metas com progresso calculado dos eventos em tempo real — D-37); migrations 23 (metas) e 24 (espelho da blindagem do backfill) aplicadas em 01/09 com autorização do dono; achado E-24: a reaplicação da S13 tinha desfeito a blindagem e ~163 cards históricos entraram no PCP (limpeza pendente de decisão)
 - [[handoff_2026_08_28_sessao13_navegacao]] — **SESSAO-13 da Plataforma (abre o Bloco 3 — a reforma)**: navegação em duas barras laterais (pais → filhos, cada uma recolhível), rotas todas em `/pai/filho` com redirecionamentos, Meu Perfil com 8 temas Domoby e foto, login com logo metálica, e a trilha de atividade append-only registrando tudo (D-40); migration 22 aplicada e Edge Function v3 no ar com autorização do dono
 - [[handoff_2026_08_28_sessao12_tarefas]] — **SESSAO-12 da Plataforma (fecha o bloco noturno D-26)**: afazeres meus/do time, delegação em 3 modos por setor com sorteio balanceado só entre quem está logado, tarefa avulsa com timer opcional, aviso ao delegado no sino — e o incidente E-20 (coluna criada por outra sessão com desenho divergente, alinhada pela migration 21)
 - [[handoff_2026_08_28_sessao11_api_rotas]] — **SESSAO-11 da Plataforma (bloco noturno D-26)**: a API aberta no ar (Edge Function com chave própria, escopos, revogação instantânea; exclusão = arquivamento lógico), webhooks de saída com fila + pg_net/pg_cron testados de ponta a ponta, e as ROTAS dentro da plataforma (D-33) — entrega por pedido completo com o formato do card real, sem tocar ClickUp nem Tiny
@@ -113,7 +115,11 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## Estado atual em uma linha
 
-**↪️ Atualizado em 28/08/2026 (madrugada — SESSAO-13 entregue):** a reforma começou — a **SESSAO-13** trocou a casca inteira (navegação em duas barras pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade — D-36/D-40/D-41/D-43), com migration 22 aplicada e Edge Function v3 no ar; branch `sessao-13-navegacao` **aguarda revisão e merge do dono**. Próxima: SESSAO-14 (Meu Painel + metas). Pendências do dono: trocar a senha do admin (ficou no chat!), confirmar decisões provisórias do handoff da 13.
+**↪️ Atualizado em 01/09/2026 (SESSAO-14 entregue):** o Meu Painel está no ar — pendências, avisos e o **cockpit de metas** (D-37) com progresso calculado dos eventos, tudo mesclado na `main` e migrations 23/24 aplicadas com autorização do dono; a migration 24 devolveu a blindagem do backfill que uma reaplicação tinha desfeito (E-24). Próxima: **SESSAO-15** (Logística e ROTAS com caminhões). Pendências do dono: **trocar a senha do admin (vazou no chat DE NOVO)**, decidir a limpeza dos ~163 cards históricos no PCP, confirmar as decisões provisórias do handoff da 14.
+
+## Estado anterior em uma linha
+
+**↪️ 28/08/2026 (madrugada — SESSAO-13 entregue):** a reforma começou — a **SESSAO-13** trocou a casca inteira (navegação em duas barras pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade — D-36/D-40/D-41/D-43), com migration 22 aplicada e Edge Function v3 no ar; branch `sessao-13-navegacao` **aguarda revisão e merge do dono**. Próxima: SESSAO-14 (Meu Painel + metas). Pendências do dono: trocar a senha do admin (ficou no chat!), confirmar decisões provisórias do handoff da 13.
 
 ## Estado anterior em uma linha (28/08, noite)
 

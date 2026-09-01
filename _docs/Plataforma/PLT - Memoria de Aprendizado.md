@@ -49,6 +49,10 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-08-28] **E-22** (Claude Code) · Página com fetcher LOCAL usando a MESMA queryKey `['setores']` mas select menor (`id, nome`) envenenou o cache compartilhado do TanStack Query: a sidebar nova leu `codigo` undefined e gerou rotas `/producao/undefined` duplicadas — só ao visitar a página da Equipe → **correção:** um dado, um fetcher — a queryKey compartilhada usa SEMPRE a mesma função da API (`kanban/api.buscarSetores`); fetcher local para a mesma chave é proibido (M-04 no front). Achado no console do navegador durante a F-07.
 
+- [2026-09-01] **E-23** (Claude Code) · `git add -A` num repositório onde OUTRA frente deixou arquivos soltos no working tree (docs do backfill) varreu trabalho alheio para dentro do commit da sessão → **correção:** `reset --soft` + recommit só com os caminhos da sessão. **Lição: em repo compartilhado entre frentes, commit é sempre por caminho explícito — `add -A` só depois de conferir o `git status`.**
+
+- [2026-09-01] **E-24** (Claude Code) · A reaplicação completa das migrations (S13) **ressuscitou em silêncio** o gatilho antigo de `pedidos` e desfez a blindagem que a frente do backfill tinha aplicado DIRETO no banco — resultado: ~163 cards de pedidos históricos no PCP → **correção:** migration 24 espelha os 2 gatilhos blindados no repo (SESSAO-14). **Lição: ajuste aplicado direto no banco, fora do repo, morre na próxima reaplicação — todo ajuste de produção ganha espelho em migration NO MESMO DIA.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

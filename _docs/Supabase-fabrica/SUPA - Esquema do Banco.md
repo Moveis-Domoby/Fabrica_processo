@@ -146,6 +146,8 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 
 **Navegação, perfil e trilha de atividade (SESSAO-13, migration 22 — aplicada em 28/08/2026, D-40/D-41/D-43):** `plt_usuarios` ganhou **`tema`** (not null, default `claro`, check nos 8 temas: claro/gelo/areia/dourado/ardosia/grafite/escuro/meia-noite) e **`foto_caminho`** (bucket `plt-imagens`, pasta `perfis/{id}/…`) — as duas entraram no `grant update` do authenticated (a policy `edita_a_si` limita à própria linha). Tabela nova **`plt_logs_atividade`** (quem, quando, ação, rota, contexto) — **APPEND-ONLY por trigger** (`fn_log_imutavel`, vale até para a service_role); RLS: cada um lê os próprios, admin lê tudo, insert só em nome próprio. A trilha se alimenta sozinha: trigger em `plt_eventos` (toda mutação do kanban), em `plt_tarefas` (criada/iniciada/concluída/reatribuída) e em `plt_usuarios` (nomes dos campos alterados, nunca valores); RPC **`plt_fn_registrar_log`** (endpoint de propósito — +1 WARN esperado, total **17**) para navegação do navegador; a Edge Function grava `entrou` e `senha_alterada`. Policies de storage `plt_imagens_perfil_proprio*`: cada um escreve só na própria pasta de foto. **Edge Function `autenticacao` v3**: ações novas `atualizar-perfil` (nome/login/e-mail/fone do próprio — e-mail atualiza também o auth, com rollback) e `alterar-senha` (exige a senha atual). ⚠️ E-21: em PL/pgSQL, acrescentar a text[] é `array_append`, nunca `|| 'texto'`.
 
+**Metas do Meu Painel (SESSAO-14, migrations 23 e 24 — aplicadas em 01/09/2026, D-37):** tabelas novas **`plt_metas`** (indicador `unidades`/`tarefas`/`tempo_util` · período `diaria`/`semanal`/`mensal` · `alvo` numeric — horas quando tempo_util · dono = `usuario_id` XOR `setor_id` por check · `encerrada_em` definitivo) e **`plt_metas_eventos`** (história criada/alterada/encerrada, **append-only por trigger** `fn_meta_evento_imutavel`). Triggers em `plt_privado`: `fn_preparar_meta` (autor da sessão; meta encerrada não se edita; dono não muda) e `fn_registrar_meta_evento` (história + trilha `plt_logs_atividade` no mesmo gesto — D-40). RLS (4 policies): admin tudo · pessoa a própria · **membros leem a meta do setor** · líder cria/edita no território dele · sem DELETE. Porta **`plt_fn_metas_painel`** (endpoint de propósito — +1 WARN, total **18**): metas visíveis com janela corrente em **America/Fortaleza** (semana começa na SEGUNDA — mudar é mexer só nela) e progresso calculado: unidades = execuções ENCERRADAS na janela (qualquer encerramento — decisão do dono 01/09), tarefas = `concluida_em` na janela, tempo_util = horas úteis via `fn_tempo_util`. **A migration 24 espelha no repo os 2 gatilhos blindados de `pedidos`** (ver ⭐ abaixo) — em 01/09 o banco foi encontrado com o gatilho antigo SEM guarda ressuscitado por reaplicação (E-24) e ~163 cards históricos no PCP (limpeza pendente de decisão do dono).
+
 **Funções `plt_fn_*` em `public` (SESSAO-04, migration 13 — aplicada em 27/08/2026):** a **porta de leitura do kanban**, endpoints REST **de propósito** (o WARN dos advisors sobre "security definer executável por authenticated" nessas é o desenho intencional): `plt_fn_pedidos_kanban` (resumo paginado com `unidades_liberadas`) · `plt_fn_pedido_itens_kanban` (itens em unidades k/n **por item**, regra do n8n) · `plt_fn_expedicao_kanban` (reagrupamento D-01/D-13) · `plt_fn_pedido_unidades` (onde está cada unidade). **↪️ SESSAO-05 (migration 14) somou duas:** `plt_fn_linha_tempo_card` (história completa do card com nomes — gate: quem vê o card/expedição) e `plt_fn_estornar_evento` (estorno pela interface; o gate de verdade vive no trigger). Total após a SESSAO-05: 6 WARN (**↪️ 8 desde a SESSAO-06**, com as 2 RPCs de qualidade). Salvaguardas E-11: `search_path` fixo, execute revogado de public/anon, gate por usuário ativo DENTRO da função (expedição: admin/entrada/terminal), zero dado pessoal/financeiro do cliente. **As tabelas da integração continuam sem policy — o navegador nunca as lê direto.**
 
 **Edge Function `autenticacao`** (SESSAO-03 — a primeira do projeto): `entrar` (usuário OU e-mail) · `criar-usuario` (admin/líder; senha padrão via segredo `PLT_SENHA_PADRAO`) · `convite-info` · `trocar-senha` (obrigatória no 1º login) · `pin-definir` · `pin-verificar` (PBKDF2). Código versionado em `supabase/functions/autenticacao/index.ts` no repo.
@@ -163,3 +165,93 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 ## Ver também
 
 [[SUPA - Visao Geral]] · `supabase-fabrica-schema.sql` (o DDL executável, nesta pasta) · [[N8N - Migracao Supabase]]
+
+---
+
+## ⭐ Migration 22 — Backfill histórico do Tiny (28/08/2026)
+
+Arquivo executável: `22_backfill_tiny.sql` (nesta pasta).
+Detalhe completo: [[N8N - Backfill Historico do Tiny]].
+
+### ⚠️ Os gatilhos sobre `pedidos` mudaram (D-43)
+
+O gatilho único `plt_pedidos_reagir` **não existe mais**. Agora são dois:
+
+| Gatilho | Quando | Guarda |
+|---|---|---|
+| `plt_pedidos_reagir_insercao` | AFTER INSERT | `WHEN origem = 'webhook' AND situacao NOT IN ('entregue','nao_entregue','cancelado')` |
+| `plt_pedidos_reagir_atualizacao` | AFTER UPDATE | sem guarda (UPDATE nunca cria card) |
+
+Ambos executam `plt_privado.fn_reagir_pedido()`, **cujo corpo NÃO foi alterado**
+— ele pertence às migrations 18/21 do repo. São dois porque `tg_op` não pode ser
+usado dentro de um `WHEN`.
+
+🚨 **Claude Code:** a migration 22 do repo tem que espelhar esses dois gatilhos.
+Se alguma migration futura recriar `plt_pedidos_reagir` do jeito antigo, a
+blindagem some em silêncio e o próximo backfill enche o PCP.
+
+> ↪️ **01/09/2026 (SESSAO-14):** aconteceu exatamente isso — a reaplicação da
+> S13 tinha ressuscitado o gatilho antigo e ~163 cards históricos entraram no
+> PCP (E-24). O espelho agora existe: **migration 24 do repo**
+> (`20260901121000_plt_gatilhos_pedidos_espelho.sql`), aplicada em 01/09 —
+> reaplicar o repo inteiro passou a terminar com os 2 gatilhos certos.
+> A limpeza dos 163 cards aguarda decisão do dono.
+
+### Tabela `tiny_fila`
+
+Uma linha = uma chamada a fazer na API v2 do Tiny. Auto-expansível: um item
+`*_pesquisa` enfileira os detalhes que achou **e** a página seguinte.
+
+| Coluna | Tipo | Observação |
+|---|---|---|
+| `id` | bigint identity **PK** | |
+| `recurso` | text | `pedidos_pesquisa` · `pedido` · `contatos_pesquisa` · `contato` · `nf_pesquisa` · `nota_fiscal` · `cr_pesquisa` · `conta_receber` (check) |
+| `chave` | text | id interno do Tiny, ou rótulo da janela (`2025-03:p2`) |
+| `referencia` | text | nº do pedido/NF/nome — só leitura humana |
+| `params` | jsonb default '{}' | `{dataInicial, dataFinal, pagina, janela}` |
+| `prioridade` | smallint default 5 | 1→8, define a ordem de trabalho |
+| `status` | text | `pendente` · `processando` · `ok` · `erro` · `vazio` (check) |
+| `tentativas` | smallint | encerra em `erro` na 4ª |
+| `erro` | text | |
+| `criado_em` / `reservado_em` / `processado_em` | timestamptz | |
+
+Único em `(recurso, chave)` — reenfileirar o mesmo id nunca duplica.
+Índices: `tiny_fila_trabalho_idx` (parcial, `status='pendente'`), `tiny_fila_status_idx`.
+
+### Tabela `notas_fiscais`
+
+`id` PK · `tiny_id` **unique** · `tipo_nota` · `serie` · `numero` ·
+`chave_acesso` · `data_emissao` · `data_saida` · `situacao` ·
+`descricao_situacao` · `valor_nota` · `valor_frete` · `valor_desconto` ·
+`numero_pedido` (indexado) · `pedido_id` FK → `pedidos.id` · `cliente_id` FK →
+`clientes.id` · `raw` jsonb · `criado_em` / `atualizado_em`.
+
+### Tabela `contas_receber`
+
+`id` PK · `tiny_id` **unique** · `numero_documento` · `numero_pedido`
+(indexado) · `pedido_id` FK · `cliente_id` FK · `historico` · `categoria` ·
+`data_emissao` · `data_vencimento` (indexado) · `data_liquidacao` · `valor` ·
+`saldo` · `situacao` (indexado) · `forma_recebimento` · `meio_recebimento` ·
+`raw` jsonb · `criado_em` / `atualizado_em`.
+
+### Colunas novas em `clientes`
+
+`raw` jsonb (o `retorno.contato` inteiro) · `tipo_pessoa` · `inscricao_estadual`
+· `fantasia`.
+
+### Funções novas
+
+| Função | Faz |
+|---|---|
+| `fn_fila_proximos(p_limite integer)` | reserva o próximo lote (`FOR UPDATE SKIP LOCKED`); devolve para a fila o que ficou `processando` há mais de 15 min |
+| `fn_backfill_aplicar(p_fila_id bigint, p_recurso text, p_payload jsonb)` | busca → enfileira o achado; detalhe → grava na tabela certa; fecha a linha da fila **na mesma transação** |
+| `fn_backfill_falha(p_fila_id bigint, p_erro text, p_terminal boolean)` | devolve pra fila (até 4 tentativas) ou encerra como `vazio` |
+
+Todas `security definer`, execute revogado de anon/authenticated, concedido só a
+`service_role`. **O n8n não conhece nenhuma tabela** — chama essas três mais a
+`fn_upsert_pedido`.
+
+> [!note] `origem` decide se vira card
+> No `on conflict` de `fn_upsert_pedido` a coluna `origem` **não é atualizada**.
+> Pedido que nasceu `webhook` continua `webhook` para sempre, mesmo relido pelo
+> backfill. É isso que faz a blindagem D-43 ser estável.
