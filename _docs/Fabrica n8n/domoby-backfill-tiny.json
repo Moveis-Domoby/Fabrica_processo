@@ -1,0 +1,293 @@
+{
+  "name": "Domoby · Backfill Tiny (histórico completo)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "b4000000-0000-0000-0000-000000000001",
+      "name": "Cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -180,
+        300
+      ],
+      "notes": "Desativar o workflow É o botão de pausa. O lote reservado volta pra fila sozinho em 15 min."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "limite",
+              "value": 30,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b4000000-0000-0000-0000-000000000002",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        40,
+        300
+      ],
+      "notes": "Único botão de ajuste de volume. limite x (1000/batchInterval) = req/min. Nunca passar de ~55/min (plano Impulsione = 60)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/fn_fila_proximos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limite: $json.limite }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "b4000000-0000-0000-0000-000000000003",
+      "name": "Fila · reservar lote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        300
+      ],
+      "notes": "claim-first com FOR UPDATE SKIP LOCKED: execuções sobrepostas nunca pegam a mesma linha. O aviso vermelho '[ERROR: not accessible via UI]' nos campos $env é cosmético.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// A RPC devolve um array de linhas reservadas. Dependendo da versão, o node HTTP\n// entrega isso como 1 item com array, como array solto, ou já dividido em itens.\n// Aqui os três casos viram a mesma coisa: 1 item por linha da fila.\n// Fila vazia -> retorna [] e o resto do workflow simplesmente não roda.\nconst linhas = [];\nfor (const it of $input.all()) {\n  const j = it.json;\n  if (Array.isArray(j))            linhas.push(...j);\n  else if (Array.isArray(j.data))  linhas.push(...j.data);\n  else if (j && j.id && j.recurso) linhas.push(j);\n}\nreturn linhas.map((l) => ({ json: l }));"
+      },
+      "id": "b4000000-0000-0000-0000-000000000004",
+      "name": "Normalizar lote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Monta a chamada da API v2 do Tiny para cada item reservado da fila.\n// ATENÇÃO: o token NÃO entra aqui de propósito (P4). Este node monta o corpo\n// sem ele; quem prefixa `token=` é a expressão do node HTTP, resolvida só na\n// hora do request. Assim o segredo não aparece nem no dado de execução.\nconst BASE = 'https://api.tiny.com.br/api2/';\n\nconst enc = (o) => Object.entries(o)\n  .filter(([, v]) => v !== undefined && v !== null && String(v) !== '')\n  .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v)))\n  .join('&');\n\nconst saida = [];\n\nfor (const it of $input.all()) {\n  const j = it.json;\n  const p = j.params || {};\n  const f = { formato: 'JSON' };\n  let url;\n\n  switch (j.recurso) {\n    case 'pedidos_pesquisa':\n      url = BASE + 'pedidos.pesquisa.php';\n      f.dataInicial = p.dataInicial; f.dataFinal = p.dataFinal; f.pagina = p.pagina;\n      break;\n    case 'contatos_pesquisa':\n      url = BASE + 'contatos.pesquisa.php';\n      f.pagina = p.pagina;\n      break;\n    case 'nf_pesquisa':\n      url = BASE + 'notas.fiscais.pesquisa.php';\n      f.dataInicial = p.dataInicial; f.dataFinal = p.dataFinal; f.pagina = p.pagina;\n      break;\n    case 'cr_pesquisa':\n      url = BASE + 'contas.receber.pesquisa.php';\n      f.dataInicial = p.dataInicial; f.dataFinal = p.dataFinal; f.pagina = p.pagina;\n      break;\n    case 'pedido':        url = BASE + 'pedido.obter.php';        f.id = j.chave; break;\n    case 'contato':       url = BASE + 'contato.obter.php';       f.id = j.chave; break;\n    case 'nota_fiscal':   url = BASE + 'nota.fiscal.obter.php';   f.id = j.chave; break;\n    case 'conta_receber': url = BASE + 'conta.receber.obter.php'; f.id = j.chave; break;\n    default: continue;\n  }\n\n  saida.push({ json: {\n    fila_id: j.id, recurso: j.recurso, chave: j.chave,\n    params: p, url, corpo: enc(f),\n  }});\n}\n\nreturn saida;"
+      },
+      "id": "b4000000-0000-0000-0000-000000000005",
+      "name": "Montar requisicao Tiny",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "notes": "NÃO renomear: o node 'Interpretar resposta' referencia este pelo nome."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "string",
+        "body": "=token={{ $env.TINY_TOKEN }}&{{ $json.corpo }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1800
+            }
+          }
+        }
+      },
+      "id": "b4000000-0000-0000-0000-000000000006",
+      "name": "Tiny · API v2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        300
+      ],
+      "notes": "Form Urlencoded + Specify Body 'Using Single Field': os campos mudam a cada recurso, então o corpo vem pronto como string. NÃO usar 'raw' — no HttpRequestV3 raw liga useStream e o node devolve o stream cru em vez do JSON. O token vem de $env.TINY_TOKEN (P4) e é prefixado AQUI — nunca passa pelo Code node. batchSize 1 + batchInterval 1800 = ~33 req/min.",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Traduz a resposta do Tiny numa única chamada de RPC no Supabase.\n// Busca   -> fn_backfill_aplicar com a lista do que enfileirar (+ próxima página)\n// Detalhe -> fn_backfill_aplicar com o objeto cru\n// Falha   -> fn_backfill_falha (volta pra fila até 4 tentativas)\n// NÃO renomear o node 'Montar requisicao Tiny' — a referência abaixo é pelo nome.\n\nconst PRIO = { pedidos_pesquisa: 1, pedido: 2, contatos_pesquisa: 3, contato: 4,\n               nf_pesquisa: 5, nota_fiscal: 6, cr_pesquisa: 7, conta_receber: 8 };\nconst DETALHE = { pedidos_pesquisa: 'pedido', contatos_pesquisa: 'contato',\n                  nf_pesquisa: 'nota_fiscal', cr_pesquisa: 'conta_receber' };\nconst META = new Set(['status', 'status_processamento', 'codigo_erro', 'erros',\n                      'pagina', 'numero_paginas', 'registros']);\n\nconst reqs  = $('Montar requisicao Tiny').all();\nconst itens = $input.all();\nconst saida = [];\n\nconst falhar = (fila_id, msg, terminal) => saida.push({ json: {\n  rpc: 'fn_backfill_falha',\n  body: { p_fila_id: fila_id, p_erro: String(msg).slice(0, 480),\n          p_terminal: !!terminal },\n}});\n\nfor (let i = 0; i < itens.length; i++) {\n  const req  = (reqs[i] || {}).json || {};\n  const resp = itens[i].json || {};\n  const ret  = resp.retorno || (resp.body && resp.body.retorno) || null;\n\n  if (!ret) {\n    falhar(req.fila_id, 'sem envelope retorno: ' + JSON.stringify(resp).slice(0, 300));\n    continue;\n  }\n\n  const cod = String(ret.codigo_erro == null ? '' : ret.codigo_erro);\n\n  // Na v2 o HTTP é 200 mesmo em erro — o IF de verdade é este (modelo mental 8).\n  if (String(ret.status || '').toUpperCase() !== 'OK') {\n    // 20 = consulta sem registros. Não é erro: a janela simplesmente está vazia.\n    if (cod === '20' && String(req.recurso).endsWith('_pesquisa')) {\n      saida.push({ json: { rpc: 'fn_backfill_aplicar',\n        body: { p_fila_id: req.fila_id, p_recurso: req.recurso, p_payload: [] } } });\n      continue;\n    }\n    // 32 = registro não localizado. Não adianta repetir: encerra a linha.\n    const erros = (ret.erros || []).map((e) => (e && e.erro) || e).join(' | ');\n    falhar(req.fila_id, 'codigo ' + cod + ': ' + (erros || ret.status), cod === '32');\n    continue;\n  }\n\n  // ---------- resultado de busca ----------\n  if (String(req.recurso).endsWith('_pesquisa')) {\n    const chaveLista = Object.keys(ret).find((k) => Array.isArray(ret[k]));\n    const brutos = chaveLista ? ret[chaveLista] : [];\n    // o Tiny embrulha cada registro: [{pedido:{...}}, ...] -> desembrulha\n    const registros = brutos.map((x) => (x && typeof x === 'object' && !Array.isArray(x))\n      ? (x[Object.keys(x)[0]] && typeof x[Object.keys(x)[0]] === 'object'\n          ? x[Object.keys(x)[0]] : x)\n      : x);\n\n    const alvo = DETALHE[req.recurso];\n    const novos = registros\n      .map((r) => ({\n        recurso: alvo,\n        chave: String((r && r.id) == null ? '' : r.id),\n        referencia: String((r && (r.numero || r.numero_documento || r.nome)) || ''),\n        prioridade: PRIO[alvo],\n      }))\n      .filter((r) => r.chave && r.chave !== 'undefined' && r.chave !== 'null');\n\n    const pag   = Number(ret.pagina || (req.params && req.params.pagina) || 1);\n    const total = Number(ret.numero_paginas || 1);\n    if (pag < total) {\n      const prox = Object.assign({}, req.params || {}, { pagina: pag + 1 });\n      const rotulo = (req.params && req.params.janela)\n        ? req.params.janela + ':p' + (pag + 1)\n        : 'p' + (pag + 1);\n      novos.push({ recurso: req.recurso, chave: rotulo,\n                   prioridade: PRIO[req.recurso], params: prox });\n    }\n\n    saida.push({ json: { rpc: 'fn_backfill_aplicar',\n      body: { p_fila_id: req.fila_id, p_recurso: req.recurso, p_payload: novos } } });\n    continue;\n  }\n\n  // ---------- detalhe ----------\n  const chaveObj = Object.keys(ret).find(\n    (k) => !META.has(k) && ret[k] && typeof ret[k] === 'object');\n  const payload = chaveObj ? ret[chaveObj] : null;\n  if (!payload) { falhar(req.fila_id, 'retorno OK sem objeto de detalhe'); continue; }\n\n  saida.push({ json: { rpc: 'fn_backfill_aplicar',\n    body: { p_fila_id: req.fila_id, p_recurso: req.recurso, p_payload: payload } } });\n}\n\nreturn saida;"
+      },
+      "id": "b4000000-0000-0000-0000-000000000007",
+      "name": "Interpretar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        300
+      ],
+      "notes": "Na v2 sucesso HTTP != sucesso da operação. O IF obrigatório do retorno.status vive aqui dentro."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/{{ $json.rpc }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "b4000000-0000-0000-0000-000000000008",
+      "name": "Supabase · gravar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        300
+      ],
+      "notes": "fn_backfill_aplicar grava o dado E fecha a linha da fila na mesma transação; fn_backfill_falha devolve pra fila.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Fila · reservar lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fila · reservar lote": {
+      "main": [
+        [
+          {
+            "node": "Normalizar lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar lote": {
+      "main": [
+        [
+          {
+            "node": "Montar requisicao Tiny",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar requisicao Tiny": {
+      "main": [
+        [
+          {
+            "node": "Tiny · API v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · API v2": {
+      "main": [
+        [
+          {
+            "node": "Interpretar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar resposta": {
+      "main": [
+        [
+          {
+            "node": "Supabase · gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": false,
+    "executionTimeout": 900
+  },
+  "pinData": {}
+}
