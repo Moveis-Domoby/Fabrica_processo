@@ -18,19 +18,25 @@
 - [x] Ler cofre na ordem obrigatória + demanda 2× + mockup 03
 - [x] Dúvidas de negócio respondidas pelo dono
 - [x] Branch `sessao-14-meu-painel` + esta memória
-- [ ] Migration `plt_metas`: tabela + RLS (admin qualquer · líder do próprio setor · pessoa a própria; membros do setor LEEM a meta do setor) + eventos de meta (criação/alteração/encerramento — histórico preservado) + porta de leitura com progresso calculado (padrão migration 18) no fuso America/Fortaleza
-- [ ] Migration de espelhamento dos gatilhos `plt_pedidos_reagir_insercao/_atualizacao` (repo = produção)
-- [ ] `test:banco` 2 rodadas verde
-- [ ] Front — Meu Painel `/inicio/meu-painel`: seção Pendências (qualidade a atestar, delegações, tarefas em aberto, execuções em andamento), Notificações recentes (as do sino), Cockpit de metas (barra + % em tempo real + traço "alvo até agora" — mockup 03)
-- [ ] Front — metas: criar/editar/encerrar com indicador (unidades · tarefas · tempo útil), período (diária/semanal/mensal), alvo, dono (pessoa/setor); permissões por papel
-- [ ] Visibilidade: operador vê as próprias + as do(s) setor(es) dele; líder vê as do setor; admin tudo
-- [ ] Tempo real: progresso atualiza sem recarregar (realtime existente + polling curto)
-- [ ] `/inicio/afazeres` conferido igual à S12
-- [ ] D-40: ações de meta geram log
-- [ ] Paginação nas listas (RNF-02)
-- [ ] tsc · lint · vitest · build · verificação F-07 no navegador
-- [ ] Checkpoint: aprovação do dono → aplicar migrations no banco real (conferência E-20 depois) → advisors
-- [ ] Task list × demanda conferida · handoff em `_docs/Handoffs/` · cofre atualizado (esquema, índice, mapa, memória de aprendizado)
+- [x] Migration `plt_metas`: tabela + RLS (admin qualquer · líder do próprio setor · pessoa a própria; membros do setor LEEM a meta do setor) + eventos de meta (criação/alteração/encerramento — histórico preservado) + porta de leitura com progresso calculado (padrão migration 18) no fuso America/Fortaleza
+- [x] Migration de espelhamento dos gatilhos `plt_pedidos_reagir_insercao/_atualizacao` (repo = produção)
+- [x] `test:banco` 2 rodadas verde (+21 verificações)
+- [x] Front — Meu Painel `/inicio/meu-painel`: Pendências (4 blocos), Avisos recentes, Cockpit (barra + % + traço "alvo até agora")
+- [x] Front — metas: criar/editar/encerrar; indicador/período/alvo/dono; permissões por papel
+- [x] Visibilidade: própria + setor (membro) + território do líder + admin tudo (RLS + gate da porta)
+- [x] Tempo real: realtime `plt_cards` + polling 15s
+- [x] `/inicio/afazeres` conferido ao vivo (tarefa criada e concluída lá)
+- [x] D-40: meta_criada/alterada/encerrada na trilha (provado no banco real)
+- [x] Paginação: porta com limite/deslocamento + `Paginacao` no cockpit; listas de pendência limitadas com contagem
+- [x] tsc · lint · vitest 28/28 · build · F-07 ao vivo com a conta do dono (screenshots na conversa)
+- [x] Checkpoint: dono autorizou na conversa → migrations 23/24 aplicadas 01/09 VIA API do Supabase (host direto do Postgres só IPv6, rede sem alcance — `banco:aplicar` falhou com ENOTFOUND); impressão digital `4050f691…` e contagens idênticas antes/depois; conferência E-20 ok; advisors 18 WARN esperados
+- [x] Task list × demanda conferida · handoff `handoff_2026_09_01_sessao14_meu_painel` · cofre atualizado (esquema +23/24 e aviso do gatilho, índice, mapa, demanda, E-23/E-24)
+
+## Registro da aplicação e do achado E-24 (01/09)
+
+- Produção tinha **3 gatilhos** em `pedidos` (o antigo sem guarda ressuscitado pela reaplicação da S13) → **~163 cards de pedidos históricos/encerrados no PCP** (contados no banco). Migration 24 normalizou para os 2 blindados; limpeza dos 163 aguarda decisão do dono (oferecida no handoff §5).
+- Teste ao vivo (conta do dono, autorizada na conversa; senha vazou no chat → aviso de troca no handoff): login → painel com pendências reais → meta diária de tarefas criada → tarefa criada (pendência subiu para 1) → concluída → **meta 100% "meta batida"** → meta encerrada. Trilha: `entrou → meta_criada → tarefa_criada → tarefa_concluida → meta_encerrada`.
+- Cliques de automação falharam em acertar botões com o painel de preview deslocado (parente do E-18) → gestos disparados por JS no handler real, resultado conferido no banco.
 
 ## Decisões técnicas tomadas
 
