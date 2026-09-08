@@ -22,22 +22,23 @@
 8. **Danificados:** resolver EXIGE marcação de estado (pode sair 🟡 ou 🔴 mesmo); líder também arquiva; botão "visualizar arquivados" com carregamento lazy (só ao clicar).
 9. **Programação:** reprogramável a qualquer instante (até no dia), **nunca depois de entregue**; admin controle total; quem opera é a logística.
 
-## Task list (espelho da demanda)
+## Task list (espelho da demanda) — conferida contra a demanda em 08/09
 
-- [ ] T1 · Registrar D-44 em `PLT - Decisoes de Produto.md`
-- [ ] T2 · Banco — migration 25: `plt_caminhoes` + `plt_programacoes` + `plt_geocache` + `plt_cards.id_producao` + evento `pedido_lancado_rotas` (validação/projeção) + RPCs (`plt_fn_estoque`, `plt_fn_definir_id_producao`, `plt_fn_pedidos_aguardo`, `plt_fn_lancar_rotas`, `plt_fn_danificados`, resolver danificado, programação, caminhões via RLS) + `plt_fn_rotas` só lançados (E-17: drop na migration 19) + arquivar por líder em danificado + metas: trava de criador + etapa opcional
-- [ ] T3 · Edge Function `geocodificar` (Nominatim, User-Agent identificado, 1 req/s, cache em `plt_geocache`) — deploy só com aprovação
-- [ ] T4 · Front — Logística → Estoque: lista com ID digitável (busca/edição), produto, origem, desde quando; paginada
-- [ ] T5 · Front — Logística → Pedidos em aguardo: agrupado por pedido, (k/n), destaque completo + "Lançar para ROTAS"
-- [ ] T6 · Front — Logística → Danificados: origem, relato, tempo parado; Arquivar / Resolvido→destino; arquivados lazy
-- [ ] T7 · Front — ROTAS pai com filhos Entregas + Programação na sidebar; Entregas só lançados, card mostra dia+caminhão
-- [ ] T8 · Front — Programação: dia → sem programação → seleção → mapa Leaflet + sugestão por proximidade → confirmar data+caminhão; reprogramar
-- [ ] T9 · Front — Admin → Caminhões: CRUD com foto (bucket `plt-imagens`); em uso não exclui — arquiva
-- [ ] T10 · Dependência nova: leaflet + react-leaflet (avisada e aprovada na conversa)
-- [ ] T11 · Testes: `test:banco` 2 rodadas, tsc, lint, vitest, build; F-07 nas telas novas
-- [ ] T12 · Aplicar no banco COM APROVAÇÃO (migrations + arquivo dos 163 + deploy edge) + conferências E-20/advisors + atualizar `supabase-fabrica-schema.sql` + nota do esquema
-- [ ] T13 · Teste ao vivo com o dono (login digitado por ele)
-- [ ] T14 · Handoff + memória de aprendizado + índice/mapa atualizados + conferir task list contra a demanda
+- [x] T1 · Registrar as respostas do dono em `PLT - Decisoes de Produto.md` → **D-45** (a D-44 era da frente do backfill)
+- [x] T2 · Banco — migration 25 (tudo o que está listado abaixo + situação normalizada + espelho do gatilho)
+- [x] T3 · Edge Function `geocodificar` — publicada em 08/09 com aprovação (v1, `verify_jwt` ligado)
+- [x] T4 · Estoque em lista com ID digitável (busca/edição inline), produto, origem, desde quando; paginação no servidor
+- [x] T5 · Pedidos em aguardo: (k/n), destaque completo + "Lançar para ROTAS" (2 toques)
+- [x] T6 · Danificados: origem + relato D-09 + tempo parado; Resolvido→destino (estado obrigatório para outro setor) e Arquivar; arquivados carregados só ao clicar
+- [x] T7 · ROTAS pai com Entregas + Programação; Entregas só lançados; card com dia + caminhão + foto
+- [x] T8 · Programação: dia → seleção → mapa Leaflet/OSM → sugestão por proximidade → confirmar data+caminhão; reprogramar/tirar; **+ ordem de parada sugerida, paradas numeradas, distância e Expandir** (revisão ao vivo)
+- [x] T9 · Caminhões: CRUD com foto; excluir em uso bloqueado → oferece arquivar
+- [x] T10 · leaflet + react-leaflet + @types/leaflet
+- [x] T11 · `test:banco` 2 rodadas verde (+32) · tsc · lint · Vitest 40/40 · build · F-07 ao vivo nas 5 telas + quadro (screenshots na conversa; algumas capturas falharam pelo painel — F-09)
+- [x] T12 · Migration 25 aplicada com OK do dono; conferências antes/depois idênticas; advisors 28 WARN esperados; 233 cards arquivados; nota do esquema atualizada (o `supabase-fabrica-schema.sql` da integração não muda — nada da integração foi tocado)
+- [x] T13 · Teste ao vivo na conta do dono (login digitado por ele): todos os critérios de aceite passaram (tabela no handoff)
+- [x] T14 · Handoff `handoff_2026_09_08_sessao15_logistica_rotas` + memória (E-25, E-26, F-09) + índice/mapa/demanda/modelo de sistema atualizados
+- **Extra (pedidos do dono na revisão ao vivo):** botão **Concluir** no card (quadro + tablet, destino fixo ESTOQUE), rota sugerida ordenada (vizinho mais perto) com números e distância, mapa expansível, card em duas linhas (estourava a borda com o selo de estado).
 
 ## Respostas do dono (08/09) — complementam a D-45
 
@@ -96,4 +97,7 @@
 - [01/09] Sessão iniciada. Leituras obrigatórias feitas; dúvidas respondidas pelo dono; branch criada. Working tree com arquivos de outra frente identificados (não tocar).
 - [08/09] **Checkpoint aprovado pelo dono ("OK")** → migration 25 aplicada pela API do Supabase (`apply_migration plt_logistica_rotas_caminhoes`). Conferências: impressão digital `15152f89852c7e23c762ab6fdddaad02` antes = depois; contagens da integração só cresceram (backfill vivo: pedidos 3.659→3.857); tabelas plt 18→21; policies 36→42; gatilhos `plt_pedidos_reagir_insercao/_atualizacao` (produção JÁ tinha o `translate` — E-25); check validado; 12 funções sem sobrecarga; policy de metas = criador/admin. Advisors: 28 WARN esperados + 3 antigos alheios à sessão (`fn_vig_touch` sem search_path e `vig_conhecimento_vendas` sem policy — frente do Vigia; `pg_net` em public; proteção de senha vazada desligada no Auth).
 - [08/09] Arquivo em massa: 1ª tentativa com origem `automacao` **recusada pelo trigger** (E-26); com origem `api` → **233 eventos `card_arquivado`** gravados. Edge Function `geocodificar` publicada (v1, `verify_jwt` ligado).
+- [08/09] **Teste ao vivo** (dono logado; screenshots quando o painel compôs frames, senão F-09): Concluir 13176 (MONTAGEM→ESTOQUE 🟢, eventos 688/689) · Estoque: ID `SAP-ALICE-001` + busca · Pedidos em aguardo: 13176 completo → lançado (o dono já tinha lançado 13108/13114/13156 explorando a tela); 13146 "1 de 2 prontas" após Concluir da 2ª unidade · Danificados (cenário montado por SQL em nome do dono: 13107 e 13183 marcadas 🔴 + parecer 🔴 → DANIFICADO automático na MONTAGEM, etapa criada preguiçosamente): 13107 resolvido → FURAÇÃO 🟡; 13183 arquivada; arquivados lazy · Caminhões: 2 cadastrados; "Baú branco" excluído (sem uso) — e "Baú cinza" (em uso) bloqueado → arquivado → reativado; foto via `DataTransfer` no `input[type=file]` → `caminhoes/2/…` e aparece no card das ROTAS · Programação: 13114/13176/13156 geocodificados (Nominatim real; 13108 ficou "sem ponto"), rota 6,5 km paradas 1-3-2, programados hoje no Baú branco; tirar 13114/13156; 13156 sugerido a 2,9 km de 13114; 13176 reprogramado 09/09 Baú cinza · Expandir: `fixed` 1103×698, ESC recolhe.
+- [08/09] **Ajustes pedidos pelo dono na revisão**: Concluir no card (quadro + tablet via PIN, `ModalMoverCard modo="concluir"`), `ordenarRota` (vizinho mais perto, testes), marcadores numerados (`.plt-parada`), Expandir/ESC + `invalidateSize`, card em duas linhas. tsc/lint/Vitest 40/build verdes de novo.
+- [08/09] Achado na revisão: o clique de automação por ref/coordenada não abre nada quando o painel não compõe frames; gestos provados por JS no handler real + conferência no banco (F-09). Radix Select só respondeu a `keydown Enter` no item focado.
 - [08/09] Retomada. Conferido o cofre (sem entradas novas em decisões/memória; nota do esquema com a correção da situação). D-45 registrada. Migration 25 escrita e `test:banco` 2 rodadas TUDO VERDE (+32 verificações). Edge Function `geocodificar` escrita. Commit por caminho explícito.

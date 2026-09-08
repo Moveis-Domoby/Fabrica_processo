@@ -2,7 +2,7 @@
 titulo: PLT — Modelo de Sistema (o design system da plataforma)
 tipo: modelo-de-sistema
 data: 2026-08-24
-atualizado: 2026-08-28
+atualizado: 2026-09-08
 tags: [plataforma, design-system, modelo-de-sistema, ui]
 ---
 
@@ -287,6 +287,40 @@ SESSAO-05.
   direita; empilha no celular.
 - **Regra nova de front (E-22):** queryKey compartilhada usa SEMPRE o mesmo fetcher da
   API — fetcher local com a mesma chave envenena o cache dos outros consumidores.
+
+### Logística, ROTAS e caminhões (SESSAO-15 / D-38 / D-39 / D-45)
+
+- **Telas de lista da logística** (`Estoque`, `Pedidos em aguardo`, `Danificados`, `ROTAS → Entregas`):
+  o mesmo esqueleto — título com ícone, texto curto explicando a regra, `Campo` de busca,
+  lista de cartões (`rounded-dm-lg border bg-superficie p-4`) paginada no SERVIDOR com
+  `Paginacao` solta (a `Tabela` pagina no cliente — não serve para porta paginada). Gesto
+  irreversível em **dois toques inline** ("Lançar para ROTAS" → "Sim, lançar"; "Arquivar" →
+  "Sim, arquivar"), nunca modal. Gate da logística vive no banco; o hook
+  `useAcessoLogistica` só evita tela vazia.
+- **Edição inline do ID de produção** (Estoque): o valor vira `Campo` no lugar, com Gravar/
+  Cancelar (ESC cancela, Enter grava) — sem modal para um campo só.
+- **Relato da D-09 no Danificados**: bloco `bg-superficie-sutil` com "X entregou como
+  {badge} por {pessoa} · data", a observação entre aspas e, se houve, "Y recebeu como
+  {badge}". Resolver reusa o padrão dos **3 botões-rádio empilhados** com `BadgeEstado` +
+  `DESCRICAO_ESTADO` (M-12), só quando o destino é outro setor.
+- **Botão "Concluir"** (`CartaoUnidade` e `CartaoTablet`): atalho da peça pronta — abre o
+  `ModalMoverCard` em `modo="concluir"` (destino fixo ESTOQUE, só a marcação do estado).
+  O rodapé do card de unidade ficou em **duas linhas**: gestos de tempo (Iniciar/Finalizar/
+  Assumir) em cima; estado, histórico, Concluir e Mover embaixo — nada estoura a borda.
+- **Mapa de programação** (`MapaProgramacao`, Leaflet + tiles OSM com atribuição): marcadores
+  são `CircleMarker` desenhados (sem asset de imagem) — amarelo-marca com o **número da
+  parada** dentro (tooltip permanente `.plt-parada`) para os selecionados, âmbar para as
+  sugestões; a rota sugerida é uma `Polyline` grafite ligando as paradas na ordem do vizinho
+  mais perto (linha reta — nunca chamar de rota "calculada"). Botão **Expandir** vira o
+  contêiner em `fixed inset-0` (ESC recolhe) e o mapa recebe `invalidateSize()`. A lógica de
+  distância/ordem/sugestão é pura em `src/rotas/proximidade.ts`, testada no Vitest.
+- **Seleção da programação**: `label` inteira clicável com `checkbox` (`accent-marca-500`),
+  borda `acao-ativa` quando marcado e `atencao-borda` quando é sugestão; barra fixa no rodapé
+  da lista (`sticky bottom-2`) com a contagem, a distância da rota e o botão Programar.
+- **Caminhões**: grade de cartões com foto (`h-40 object-cover`, ou o ícone de caminhão em
+  `superficie-sutil`); exclusão em modal `perigo`; quando o banco recusa (em uso), um segundo
+  modal explica e oferece **Arquivar** como primária — o "não" do sistema sempre vem com a
+  saída certa.
 
 ### Controle de tempo do admin (SESSAO-07 / D-29)
 
