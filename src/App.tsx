@@ -17,12 +17,12 @@ import { Afazeres } from '@/paginas/Afazeres'
 import { AdminApi } from '@/paginas/AdminApi'
 import { Estrutura } from '@/paginas/Estrutura'
 import { MeuPerfil } from '@/paginas/MeuPerfil'
-import { EmConstrucao } from '@/paginas/EmConstrucao'
-import {
-  LogisticaEstoque,
-  ProducaoSetor,
-  RedirecionarSetorAntigo,
-} from '@/navegacao/ProducaoSetor'
+import { Estoque } from '@/paginas/Estoque'
+import { PedidosAguardo } from '@/paginas/PedidosAguardo'
+import { Danificados } from '@/paginas/Danificados'
+import { Programacao } from '@/paginas/Programacao'
+import { Caminhoes } from '@/paginas/Caminhoes'
+import { ProducaoSetor, RedirecionarSetorAntigo } from '@/navegacao/ProducaoSetor'
 
 /**
  * Lei de navegação (SESSAO-13): toda rota é /pai/filho — pai nunca é rota
@@ -54,30 +54,15 @@ export function App() {
               {/* Controle de Produção — um filho por setor cadastrado */}
               <Route path="/producao/:codigo" element={<ProducaoSetor />} />
 
-              {/* Logística */}
+              {/* Logística (SESSAO-15 / D-38) */}
               <Route path="/logistica/expedicao" element={<Expedicao />} />
-              <Route path="/logistica/estoque" element={<LogisticaEstoque />} />
-              <Route
-                path="/logistica/pedidos-em-aguardo"
-                element={
-                  <EmConstrucao
-                    titulo="Pedidos em aguardo"
-                    descricao="Aqui as unidades prontas vão esperar o pedido ficar completo para seguir para a ROTAS."
-                  />
-                }
-              />
-              <Route
-                path="/logistica/danificados"
-                element={
-                  <EmConstrucao
-                    titulo="Danificados"
-                    descricao="Aqui vai morar tudo que está em DANIFICADO, com as ações de arquivar ou resolver."
-                  />
-                }
-              />
+              <Route path="/logistica/estoque" element={<Estoque />} />
+              <Route path="/logistica/pedidos-em-aguardo" element={<PedidosAguardo />} />
+              <Route path="/logistica/danificados" element={<Danificados />} />
 
-              {/* ROTAS */}
+              {/* ROTAS (D-39): Entregas e Programação */}
               <Route path="/rotas/entregas" element={<Rotas />} />
+              <Route path="/rotas/programacao" element={<Programacao />} />
 
               {/* o modo do galpão: sem navegação nenhuma (D-06/D-28) */}
               <Route path="/tablet" element={<TelaSetor />} />
@@ -94,15 +79,7 @@ export function App() {
             <Route element={<RotaProtegida nivel="admin" />}>
               <Route path="/admin/tempo" element={<ControleTempo />} />
               <Route path="/admin/api" element={<AdminApi />} />
-              <Route
-                path="/admin/caminhoes"
-                element={
-                  <EmConstrucao
-                    titulo="Caminhões"
-                    descricao="O cadastro dos caminhões da logística chega junto com a programação de rotas."
-                  />
-                }
-              />
+              <Route path="/admin/caminhoes" element={<Caminhoes />} />
             </Route>
 
             {/* pais nunca navegam: cada um direciona ao primeiro filho */}

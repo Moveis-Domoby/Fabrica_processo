@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, MapPin, MessageCircle, Search, Truck } from 'lucide-react'
 import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
+import { urlFotoCaminhao } from '@/admin/caminhoes'
 import {
   enderecoLegivel,
   linkMapa,
@@ -17,9 +18,10 @@ import type { Entrega } from '@/rotas/api'
 
 const POR_PAGINA = 20
 
+// D-45: só o pedido LANÇADO pelos Pedidos em aguardo chega aqui — não existe
+// mais "aguardando completar" nas ROTAS.
 const SITUACOES = [
   { valor: 'todas', rotulo: 'Todas' },
-  { valor: 'aguardando', rotulo: 'Aguardando completar' },
   { valor: 'pronta', rotulo: 'Prontas para entrega' },
   { valor: 'entregue', rotulo: 'Entregues' },
 ]
@@ -29,10 +31,12 @@ function dataLegivel(iso: string | null): string {
 }
 
 /**
- * ROTAS dentro da plataforma (SESSAO-11 / D-33): as entregas nascem AQUI —
- * nada mais se cria no ClickUp. A entrega é por PEDIDO COMPLETO ("não vamos
- * entregar 10 móveis se ele pediu 30"). Quem vê: a logística — admin, PCP
- * (que É a logística) e terminais.
+ * ROTAS → Entregas (SESSAO-11 / D-33; revista na SESSAO-15 / D-45): as
+ * entregas nascem AQUI — nada mais se cria no ClickUp. A entrega é por PEDIDO
+ * COMPLETO ("não vamos entregar 10 móveis se ele pediu 30"), e SÓ o pedido
+ * lançado pelos Pedidos em aguardo aparece. O card mostra o dia e o caminhão
+ * programados (D-39). Quem vê: a logística — admin, PCP (que É a logística)
+ * e terminais.
  *
  * ⚠️ Marcar "Entregue" aqui NÃO atualiza o Tiny — a automação do ClickUp que
  * faz isso continua viva e intocada; ligar os dois é decisão futura do dono.
@@ -98,8 +102,12 @@ export function Rotas() {
           ROTAS
         </h1>
         <p className="mt-1 max-w-2xl text-texto-suave">
-          As entregas da fábrica, por pedido completo — o pedido fica pronto quando TODAS as
-          unidades chegam na ROTAS. Registrar a entrega aqui não mexe no Tiny.
+          As entregas da fábrica, por pedido completo — só o que foi lançado pelos Pedidos em
+          aguardo chega aqui. Programe o dia e o caminhão em{' '}
+          <Link to="/rotas/programacao" className="font-medium text-texto underline">
+            Programação
+          </Link>
+          . Registrar a entrega aqui não mexe no Tiny.
         </p>
       </div>
 
@@ -129,7 +137,7 @@ export function Rotas() {
       {!isPending && entregas.length === 0 && (
         <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
           Nenhuma entrega por aqui{busca ? ' para esta busca' : ' ainda'} — o pedido aparece
-          quando a primeira unidade chega na ROTAS.
+          quando é lançado pelos Pedidos em aguardo.
         </p>
       )}
 
@@ -154,19 +162,46 @@ export function Rotas() {
                     <CheckCircle2 aria-hidden className="size-4" />
                     entregue
                   </span>
-                ) : entrega.situacao_entrega === 'pronta' ? (
+                ) : (
                   <span className="rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto">
                     pronta para entrega
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave tabular-nums">
-                    {entrega.unidades_em_rotas} de {entrega.total_unidades} na ROTAS
                   </span>
                 )}
                 <span className="ml-auto text-sm text-texto-suave tabular-nums">
                   previsão {dataLegivel(entrega.data_prevista)}
                 </span>
               </div>
+
+              {/* D-39: o dia e o caminhão programados, no card. */}
+              {entrega.programacao_data ? (
+                <p className="flex flex-wrap items-center gap-2 text-sm text-texto">
+                  {entrega.caminhao_foto ? (
+                    <img
+                      src={urlFotoCaminhao(entrega.caminhao_foto) ?? undefined}
+                      alt=""
+                      className="size-8 rounded-dm object-cover"
+                    />
+                  ) : (
+                    <Truck aria-hidden className="size-5 text-texto-suave" />
+                  )}
+                  <span className="font-medium tabular-nums">
+                    {dataLegivel(entrega.programacao_data)}
+                  </span>
+                  <span className="text-texto-suave">
+                    · {entrega.caminhao_nome}
+                    {entrega.caminhao_placa ? ` (${entrega.caminhao_placa})` : ''}
+                  </span>
+                </p>
+              ) : (
+                entrega.situacao_entrega === 'pronta' && (
+                  <p className="text-sm text-texto-suave">
+                    Sem programação —{' '}
+                    <Link to="/rotas/programacao" className="font-medium text-texto underline">
+                      programar caminhão
+                    </Link>
+                  </p>
+                )
+              )}
 
               {/* O card de entrega, no formato que o entregador já conhece. */}
               <div className="flex flex-col gap-1 text-sm">

@@ -2,17 +2,19 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { buscarSetores } from '@/kanban/api'
+import { buscarEtapasAtivas, buscarSetores } from '@/kanban/api'
 import { membrosDoSetor } from '@/tablet/api'
 import { atualizarMeta, criarMeta, usuariosAtivos } from './api'
 import type { IndicadorMeta, MetaPainel, PeriodoMeta } from './api'
 import { ROTULO_INDICADOR } from './progresso'
 
 /**
- * Criar/editar meta (SESSAO-14 / D-37). Quem pode criar o quê é regra de RLS
- * no banco; aqui as opções só refletem o papel: admin escolhe qualquer pessoa
- * ou setor, líder escolhe o território dele, operador cria para si. O dono da
- * meta não muda depois de criada (regra do banco) — na edição fica travado.
+ * Criar/editar meta (SESSAO-14 / D-37; SESSAO-15 / D-45). Quem pode criar o
+ * quê é regra de RLS no banco; aqui as opções só refletem o papel: admin
+ * escolhe qualquer pessoa ou setor, líder escolhe o território dele, operador
+ * cria para si. O dono da meta não muda depois de criada (regra do banco) —
+ * na edição fica travado. A meta de UNIDADES pode mirar uma etapa ("concluir
+ * X cards na etapa Y") — o liderado só executa e a meta contabiliza sozinha.
  */
 
 const OPCOES_INDICADOR = (Object.keys(ROTULO_INDICADOR) as IndicadorMeta[]).map((i) => ({
@@ -25,6 +27,8 @@ const OPCOES_PERIODO: { valor: PeriodoMeta; rotulo: string }[] = [
   { valor: 'semanal', rotulo: 'Semanal (segunda a domingo)' },
   { valor: 'mensal', rotulo: 'Mensal' },
 ]
+
+const QUALQUER_ETAPA = 'qualquer'
 
 export function ModalMeta({
   aberta,
@@ -51,8 +55,15 @@ export function ModalMeta({
   const [dono, setDono] = useState(
     meta ? (meta.setor_id ? `s:${meta.setor_id}` : `u:${meta.usuario_id}`) : 'eu',
   )
+  const [etapa, setEtapa] = useState(meta?.etapa_id ? String(meta.etapa_id) : QUALQUER_ETAPA)
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
+  const { data: etapas = [] } = useQuery({
+    queryKey: ['etapas-ativas'],
+    queryFn: buscarEtapasAtivas,
+    enabled: aberta,
+    staleTime: 5 * 60_000,
+  })
   const { data: pessoas = [] } = useQuery({
     queryKey: ['usuarios-ativos'],
     queryFn: usuariosAtivos,
@@ -90,14 +101,34 @@ export function ModalMeta({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil?.id, souAdmin, pessoas, membrosLiderados, setores])
 
+  // A etapa mirada (D-45): meta de setor → etapas daquele setor; meta de
+  // pessoa → qualquer etapa, com o nome do setor na frente.
+  const setorDaMeta = dono.startsWith('s:') ? Number(dono.slice(2)) : null
+  const opcoesEtapa = useMemo(() => {
+    const nomeDoSetor = new Map(setores.map((s) => [s.id, s.nome]))
+    const candidatas = etapas.filter(
+      (e) => !e.eh_danificado && (setorDaMeta === null || e.setor_id === setorDaMeta),
+    )
+    return [
+      { valor: QUALQUER_ETAPA, rotulo: 'Qualquer etapa' },
+      ...candidatas.map((e) => ({
+        valor: String(e.id),
+        rotulo:
+          setorDaMeta === null ? `${nomeDoSetor.get(e.setor_id) ?? ''} · ${e.nome}` : e.nome,
+      })),
+    ]
+  }, [etapas, setores, setorDaMeta])
+  const etapaValida = opcoesEtapa.some((o) => o.valor === etapa) ? etapa : QUALQUER_ETAPA
+
   const salvarMutacao = useMutation({
     mutationFn: async () => {
       const alvoNumero = Number(alvo.replace(',', '.'))
       if (!Number.isFinite(alvoNumero) || alvoNumero <= 0) {
         throw new Error('Informe um alvo maior que zero.')
       }
+      const etapaId = etapaValida === QUALQUER_ETAPA ? null : Number(etapaValida)
       if (meta) {
-        await atualizarMeta(meta.meta_id, { titulo, indicador, periodo, alvo: alvoNumero })
+        await atualizarMeta(meta.meta_id, { titulo, indicador, periodo, alvo: alvoNumero, etapaId })
         return
       }
       await criarMeta({
@@ -106,7 +137,8 @@ export function ModalMeta({
         periodo,
         alvo: alvoNumero,
         usuarioId: dono === 'eu' ? perfil!.id : dono.startsWith('u:') ? dono.slice(2) : null,
-        setorId: dono.startsWith('s:') ? Number(dono.slice(2)) : null,
+        setorId: setorDaMeta,
+        etapaId,
         criadaPor: perfil!.id,
       })
     },
@@ -164,6 +196,15 @@ export function ModalMeta({
           valor={indicador}
           aoMudar={(v) => setIndicador(v as IndicadorMeta)}
         />
+        {indicador === 'unidades' && (
+          <Selecao
+            rotulo="Em qual etapa?"
+            opcoes={opcoesEtapa}
+            valor={etapaValida}
+            aoMudar={setEtapa}
+            ajuda="Ex.: concluir X cards na etapa Y — só as execuções encerradas nessa etapa contam."
+          />
+        )}
         <Selecao
           rotulo="Período"
           opcoes={OPCOES_PERIODO}

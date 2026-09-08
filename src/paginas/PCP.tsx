@@ -11,6 +11,7 @@ import {
   moverCard,
 } from '@/kanban/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
+import { pedidoCancelado } from '@/kanban/situacao'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
@@ -150,9 +151,9 @@ export function PCP() {
                 </p>
 
                 {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
-                {(resumo?.situacao === 'cancelado' || resumo?.alterado_apos_liberacao) && (
+                {(pedidoCancelado(resumo?.situacao) || resumo?.alterado_apos_liberacao) && (
                   <p className="flex flex-wrap gap-1.5">
-                    {resumo?.situacao === 'cancelado' && (
+                    {pedidoCancelado(resumo?.situacao) && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
                         <Ban aria-hidden className="size-3.5" />
                         Cancelado no Tiny
