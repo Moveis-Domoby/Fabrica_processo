@@ -48,6 +48,7 @@ interface ColunaProps {
   agora: number
   terminal: boolean
   aoMover: (card: Card) => void
+  aoConcluir?: (card: Card) => void
   arrastavel: boolean
   execucao: ContextoExecucao
 }
@@ -62,6 +63,7 @@ function Coluna({
   agora,
   terminal,
   aoMover,
+  aoConcluir,
   arrastavel,
   execucao,
 }: ColunaProps) {
@@ -117,6 +119,7 @@ function Coluna({
             agora,
             terminal,
             aoMover,
+            aoConcluir,
             aoIniciar: execucao.aoIniciar,
             aoFinalizar: execucao.aoFinalizar,
             aoLinhaTempo: execucao.aoLinhaTempo,
@@ -174,6 +177,8 @@ export interface QuadroKanbanProps {
   aoMoverParaEtapa: (card: Card, etapaId: number | null) => void
   /** Abre o modal "Mover para…" (o gesto do tablet). */
   aoAbrirMover: (card: Card) => void
+  /** SESSAO-15: "Concluir" — a peça pronta vai para o fim de linha (ESTOQUE). */
+  aoAbrirConcluir?: (card: Card) => void
   /** Os gestos e dados de execução da SESSAO-05. */
   execucao: ContextoExecucao
 }
@@ -194,6 +199,7 @@ export function QuadroKanban({
   agora,
   aoMoverParaEtapa,
   aoAbrirMover,
+  aoAbrirConcluir,
   execucao,
 }: QuadroKanbanProps) {
   const sensores = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
@@ -224,6 +230,7 @@ export function QuadroKanban({
           agora={agora}
           terminal={terminal}
           aoMover={aoAbrirMover}
+          aoConcluir={aoAbrirConcluir}
           arrastavel={etapas.length > 0}
           execucao={execucao}
         />
@@ -239,6 +246,7 @@ export function QuadroKanban({
             agora={agora}
             terminal={terminal}
             aoMover={aoAbrirMover}
+            aoConcluir={aoAbrirConcluir}
             arrastavel
             execucao={execucao}
           />

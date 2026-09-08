@@ -1,4 +1,16 @@
-import { Camera, ClipboardCheck, Clock, Flag, History, Hourglass, MoveRight, Play, Square, UserRound } from 'lucide-react'
+import {
+  Camera,
+  CircleCheckBig,
+  ClipboardCheck,
+  Clock,
+  Flag,
+  History,
+  Hourglass,
+  MoveRight,
+  Play,
+  Square,
+  UserRound,
+} from 'lucide-react'
 import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { formatarDuracao } from '@/kanban/tempo'
@@ -22,6 +34,8 @@ export interface CartaoTabletProps {
   aoIniciar: (card: Card) => void
   aoFinalizar: (card: Card) => void
   aoMover: (card: Card) => void
+  /** SESSAO-15: "Concluir" — a peça pronta vai para o fim de linha (ESTOQUE). */
+  aoConcluir?: (card: Card) => void
   aoFotos: (card: Card) => void
   aoHistorico: (card: Card) => void
 }
@@ -47,6 +61,7 @@ export function CartaoTablet({
   aoIniciar,
   aoFinalizar,
   aoMover,
+  aoConcluir,
   aoFotos,
   aoHistorico,
 }: CartaoTabletProps) {
@@ -199,7 +214,19 @@ export function CartaoTablet({
             </Botao>
           ))}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {!terminal && aoConcluir && (
+            <Botao
+              variante="secundaria"
+              tamanho="lg"
+              icone={<CircleCheckBig />}
+              className="flex-1"
+              disabled={gestoPendente}
+              onClick={() => aoConcluir(card)}
+            >
+              Concluir
+            </Botao>
+          )}
           <Botao
             variante="secundaria"
             tamanho="lg"

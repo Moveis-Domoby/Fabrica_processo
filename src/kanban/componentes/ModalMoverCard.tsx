@@ -24,6 +24,12 @@ export interface ModalMoverCardProps {
   executorNome?: string
   /** Tablet compartilhado (SESSAO-07): o gesto sai em nome do operador do PIN. */
   operadorId?: string
+  /**
+   * SESSAO-15 (pedido do dono): 'concluir' é o atalho "a peça está pronta" —
+   * o destino é fixo no ESTOQUE (fim de linha), a unidade entra nos Pedidos
+   * em aguardo e só a marcação do estado é pedida.
+   */
+  modo?: 'mover' | 'concluir'
   aoFechar: () => void
 }
 
@@ -43,8 +49,11 @@ export function ModalMoverCard({
   setores,
   executorNome,
   operadorId,
+  modo = 'mover',
   aoFechar,
 }: ModalMoverCardProps) {
+  const concluir = modo === 'concluir'
+  const estoque = setores.find((s) => s.codigo === 'estoque')
   const { perfil } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -59,10 +68,11 @@ export function ModalMoverCard({
 
   // Reinicia a escolha a cada card novo (ajuste de estado durante o render,
   // como recomenda a doc do React — nada de effect para isso).
-  const [cardAnterior, setCardAnterior] = useState<number | null>(null)
-  if ((card?.id ?? null) !== cardAnterior) {
-    setCardAnterior(card?.id ?? null)
-    setSetorDestinoId('')
+  const [cardAnterior, setCardAnterior] = useState<string | null>(null)
+  const chaveAtual = card ? `${card.id}:${modo}` : null
+  if (chaveAtual !== cardAnterior) {
+    setCardAnterior(chaveAtual)
+    setSetorDestinoId(concluir && estoque ? String(estoque.id) : '')
     setEtapaDestinoId(CHEGADA)
     setEstadoQualidade(null)
     setErro('')
@@ -88,7 +98,9 @@ export function ModalMoverCard({
     onSuccess: async (_dados, variaveis) => {
       const destino = setores.find((s) => s.id === variaveis.destinoSetorId)
       notificar({
-        titulo: `Card movido para ${destino?.nome ?? 'o destino'}`,
+        titulo: concluir
+          ? 'Peça concluída — foi para o ESTOQUE e entrou nos Pedidos em aguardo'
+          : `Card movido para ${destino?.nome ?? 'o destino'}`,
         descricao: variaveis.estadoQualidade
           ? `Peça entregue como ${ROTULO_ESTADO[variaveis.estadoQualidade].toLowerCase()} — o setor que recebe confirma.`
           : undefined,
@@ -98,6 +110,8 @@ export function ModalMoverCard({
       await Promise.all([
         clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
         clienteQuery.invalidateQueries({ queryKey: ['expedicao'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
         clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
         clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
       ])
@@ -143,7 +157,7 @@ export function ModalMoverCard({
       aoFechar={(aberto) => {
         if (!aberto) aoFechar()
       }}
-      titulo="Mover para…"
+      titulo={concluir ? 'Concluir a peça' : 'Mover para…'}
       descricao={
         card
           ? `${card.item_descricao ?? 'Card'}${kn} · Pedido ${pedido?.numero ?? card.pedido_id}`
@@ -155,12 +169,20 @@ export function ModalMoverCard({
             Cancelar
           </Botao>
           <Botao tamanho="lg" carregando={mutacao.isPending} onClick={aoConfirmar}>
-            Mover
+            {concluir ? 'Concluir' : 'Mover'}
           </Botao>
         </>
       }
     >
       <div className="flex flex-col gap-4">
+        {concluir && (
+          <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto">
+            A peça está pronta: vai para o <strong>ESTOQUE</strong> (fim de linha) e entra nos{' '}
+            <strong>Pedidos em aguardo</strong>. Quando todas as unidades do pedido estiverem
+            prontas, a logística lança o pedido para as ROTAS.
+            {!estoque && ' ⚠️ O setor ESTOQUE não está cadastrado.'}
+          </p>
+        )}
         {card?.executor_atual_id && (
           <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
             Este card está <strong>em execução{executorNome ? ` por ${executorNome}` : ''}</strong>.
@@ -168,21 +190,23 @@ export function ModalMoverCard({
             Mover encerra a execução agora — o tempo conta até este momento.
           </p>
         )}
-        <Selecao
-          rotulo="Setor de destino"
-          tamanho="galpao"
-          opcoes={setores.map((s) => ({
-            valor: String(s.id),
-            rotulo: s.id === card?.setor_atual_id ? `${s.nome} (setor atual)` : s.nome,
-          }))}
-          valor={setorDestinoId}
-          aoMudar={(v) => {
-            setSetorDestinoId(v)
-            setEtapaDestinoId(CHEGADA)
-          }}
-        />
+        {!concluir && (
+          <Selecao
+            rotulo="Setor de destino"
+            tamanho="galpao"
+            opcoes={setores.map((s) => ({
+              valor: String(s.id),
+              rotulo: s.id === card?.setor_atual_id ? `${s.nome} (setor atual)` : s.nome,
+            }))}
+            valor={setorDestinoId}
+            aoMudar={(v) => {
+              setSetorDestinoId(v)
+              setEtapaDestinoId(CHEGADA)
+            }}
+          />
+        )}
 
-        {setorEscolhido && etapasDestino.length > 0 && (
+        {!concluir && setorEscolhido && etapasDestino.length > 0 && (
           <Selecao
             rotulo="Etapa"
             tamanho="galpao"

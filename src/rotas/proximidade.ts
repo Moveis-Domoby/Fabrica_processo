@@ -60,6 +60,41 @@ export function sugerirProximos<T extends ComPonto>(
   return sugestoes.sort((a, b) => a.distanciaKm - b.distanciaKm).slice(0, maximo)
 }
 
+export interface RotaSugerida<T> {
+  /** As paradas na ordem sugerida (só quem tem ponto). */
+  paradas: (T & Ponto)[]
+  /** Soma das pernas em linha reta, em km. */
+  distanciaKm: number
+}
+
+/**
+ * Ordem de parada sugerida (pedido do dono na revisão da SESSAO-15): a
+ * partir do primeiro selecionado, sempre o vizinho mais perto ainda não
+ * visitado. É uma sugestão em linha reta, sem trânsito — roteirização de
+ * verdade está fora do escopo; quem decide a ordem final é o motorista.
+ */
+export function ordenarRota<T extends ComPonto>(selecionados: T[]): RotaSugerida<T> {
+  const restantes = selecionados.filter(temPonto)
+  if (restantes.length === 0) return { paradas: [], distanciaKm: 0 }
+  const paradas: (T & Ponto)[] = [restantes.shift()!]
+  let distancia = 0
+  while (restantes.length > 0) {
+    const atual = paradas[paradas.length - 1]
+    let indiceMaisPerto = 0
+    let menor = Number.POSITIVE_INFINITY
+    restantes.forEach((candidato, i) => {
+      const d = distanciaKm(atual, candidato)
+      if (d < menor) {
+        menor = d
+        indiceMaisPerto = i
+      }
+    })
+    distancia += menor
+    paradas.push(restantes.splice(indiceMaisPerto, 1)[0])
+  }
+  return { paradas, distanciaKm: distancia }
+}
+
 /** Formata a distância para a lista: "850 m" / "2,3 km". */
 export function formatarDistancia(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m`

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { distanciaKm, formatarDistancia, sugerirProximos } from './proximidade'
+import { distanciaKm, formatarDistancia, ordenarRota, sugerirProximos } from './proximidade'
 import type { ComPonto } from './proximidade'
 
 // Pontos reais de Natal-RN (Centro, Ponta Negra, Parnamirim) para o teste ter chão.
@@ -58,6 +58,20 @@ describe('sugestão por proximidade (só sugestão — a decisão é humana)', (
       longitude: -35.209,
     }))
     expect(sugerirProximos([centro], muitos, 50, 10)).toHaveLength(10)
+  })
+})
+
+describe('ordem de parada sugerida (vizinho mais perto, em linha reta)', () => {
+  it('parte do primeiro selecionado e vai sempre ao mais perto ainda não visitado', () => {
+    const rota = ordenarRota([centro, parnamirim, petropolis, pontaNegra])
+    expect(rota.paradas.map((p) => p.card_id)).toEqual([1, 2, 3, 4])
+    expect(rota.distanciaKm).toBeGreaterThan(20)
+    expect(rota.distanciaKm).toBeLessThan(30)
+  })
+
+  it('ignora quem não tem ponto e devolve vazio sem seleção', () => {
+    expect(ordenarRota([semPonto, centro]).paradas.map((p) => p.card_id)).toEqual([1])
+    expect(ordenarRota([])).toEqual({ paradas: [], distanciaKm: 0 })
   })
 })
 

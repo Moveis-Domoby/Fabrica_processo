@@ -16,7 +16,7 @@ import {
 } from '@/rotas/api'
 import type { PedidoProgramacao } from '@/rotas/api'
 import { MapaProgramacao } from '@/rotas/MapaProgramacao'
-import { formatarDistancia, sugerirProximos, temPonto } from '@/rotas/proximidade'
+import { formatarDistancia, ordenarRota, sugerirProximos, temPonto } from '@/rotas/proximidade'
 
 const ATUALIZA_A_CADA = 30_000
 const RAIO_SUGESTAO_KM = 5
@@ -75,6 +75,13 @@ export function Programacao() {
   const sugestoes = useMemo(
     () => sugerirProximos(listaSelecionados, semProgramacao, RAIO_SUGESTAO_KM),
     [listaSelecionados, semProgramacao],
+  )
+  // A ordem de parada sugerida (vizinho mais perto, linha reta) e o número de
+  // cada selecionado nela — para a lista e o mapa falarem a mesma língua.
+  const rota = useMemo(() => ordenarRota(listaSelecionados), [listaSelecionados])
+  const ordemNaRota = useMemo(
+    () => new Map(rota.paradas.map((p, i) => [p.card_id, i + 1])),
+    [rota],
   )
 
   // Geocodificação preguiçosa: quem ainda não tem ponto vai à Edge Function
@@ -229,6 +236,14 @@ export function Programacao() {
                     />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex flex-wrap items-center gap-2">
+                        {marcado && ordemNaRota.has(p.card_id) && (
+                          <span
+                            className="inline-flex size-6 items-center justify-center rounded-full bg-acao text-xs font-bold text-acao-texto tabular-nums"
+                            aria-label={`${ordemNaRota.get(p.card_id)}ª parada`}
+                          >
+                            {ordemNaRota.get(p.card_id)}
+                          </span>
+                        )}
                         <span className="font-semibold text-texto tabular-nums">Pedido {p.numero}</span>
                         <span className="text-sm text-texto-suave tabular-nums">
                           {p.total_unidades} unidade(s) · previsão {dataLegivel(p.data_prevista)}
@@ -267,6 +282,12 @@ export function Programacao() {
             <div className="sticky bottom-2 flex flex-wrap items-center gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3 shadow-lg">
               <span className="text-sm text-texto tabular-nums">
                 {listaSelecionados.length} pedido(s) selecionado(s)
+                {rota.paradas.length > 1 && (
+                  <span className="text-texto-suave">
+                    {' '}
+                    · rota sugerida de {formatarDistancia(rota.distanciaKm)} em linha reta
+                  </span>
+                )}
                 {semPonto > 0 && (
                   <span className="text-texto-suave"> · {semPonto} sem ponto no mapa</span>
                 )}
@@ -288,11 +309,12 @@ export function Programacao() {
           <h2 className="text-lg">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">
-              amarelo = selecionados · âmbar = sugestões próximas (até {RAIO_SUGESTAO_KM} km)
+              amarelo numerado = ordem de parada sugerida · âmbar = pedidos próximos (até{' '}
+              {RAIO_SUGESTAO_KM} km)
             </span>
           </h2>
           <MapaProgramacao
-            selecionados={listaSelecionados}
+            rota={rota}
             sugestoes={sugestoes}
             aoEscolherSugestao={(p) => alternar(p.card_id)}
           />
