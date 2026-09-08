@@ -290,6 +290,10 @@ create policy plt_metas_eventos_leitura on public.plt_metas_eventos
 -- corrente (fuso America/Fortaleza) e o progresso calculado no banco.
 -- Endpoint de propósito: +1 WARN esperado nos advisors (total 18).
 -- ----------------------------------------------------------------------------
+-- E-17: a migration 25 (SESSAO-15) acrescenta a etapa opcional ao retorno —
+-- drop + create aqui também, para a segunda rodada do test:banco passar.
+drop function if exists public.plt_fn_metas_painel(boolean, integer, integer);
+
 create or replace function public.plt_fn_metas_painel(
   p_incluir_encerradas boolean default false,
   p_limite             integer default 20,
