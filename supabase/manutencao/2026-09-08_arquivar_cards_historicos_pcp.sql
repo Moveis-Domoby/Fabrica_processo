@@ -13,7 +13,8 @@
 --     (situação NORMALIZADA — o Tiny grava a descrição)
 -- Pedido histórico ainda "Em aberto"/"Preparando envio" FICA — pode ser venda viva.
 --
--- É exclusão LÓGICA (evento card_arquivado, origem automacao, sem pessoa):
+-- É exclusão LÓGICA (evento card_arquivado, origem api, sem pessoa — o trigger
+-- fn_validar_api só aceita arquivar sem pessoa com origem api; automacao é recusada):
 -- nada some da história (RNF-05). Passo 1 conta; passo 2 executa.
 -- ============================================================================
 
@@ -31,7 +32,7 @@ select count(*) as cards_a_arquivar
 
 -- PASSO 2 · arquivar (só depois do OK)
 insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, observacao, dados)
-select c.id, 'card_arquivado', 'automacao', c.setor_atual_id,
+select c.id, 'card_arquivado', 'api', c.setor_atual_id,
        'Arquivado em massa: pedido histórico já encerrado no Tiny (limpeza do E-24, aprovada na SESSAO-15).',
        jsonb_build_object('motivo', 'limpeza_historico_e24', 'situacao_tiny', p.situacao, 'numero', p.numero)
   from public.plt_cards c

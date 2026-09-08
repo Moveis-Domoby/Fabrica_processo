@@ -2,7 +2,7 @@
 titulo: Plataforma — Memória de Aprendizado (Claude Code + Cowork)
 tipo: memoria-aprendizado
 data: 2026-08-19
-atualizado: 2026-08-27
+atualizado: 2026-09-08
 tags: [plataforma, memoria, aprendizado, erros, acertos]
 ---
 
@@ -52,6 +52,10 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - [2026-09-01] **E-23** (Claude Code) · `git add -A` num repositório onde OUTRA frente deixou arquivos soltos no working tree (docs do backfill) varreu trabalho alheio para dentro do commit da sessão → **correção:** `reset --soft` + recommit só com os caminhos da sessão. **Lição: em repo compartilhado entre frentes, commit é sempre por caminho explícito — `add -A` só depois de conferir o `git status`.**
 
 - [2026-09-01] **E-24** (Claude Code) · A reaplicação completa das migrations (S13) **ressuscitou em silêncio** o gatilho antigo de `pedidos` e desfez a blindagem que a frente do backfill tinha aplicado DIRETO no banco — resultado: ~163 cards de pedidos históricos no PCP → **correção:** migration 24 espelha os 2 gatilhos blindados no repo (SESSAO-14). **Lição: ajuste aplicado direto no banco, fora do repo, morre na próxima reaplicação — todo ajuste de produção ganha espelho em migration NO MESMO DIA.**
+
+- [2026-09-08] **E-25** (Claude Code) · Migration 24 espelhava a guarda do gatilho de `pedidos` com `lower()` só, enquanto produção já tinha `translate(...)` (corrigida pela frente do backfill em 28/08) e a nota do esquema afirmava código v2 onde o Tiny grava a DESCRIÇÃO — a detecção de cancelamento da S09 (`= 'cancelado'`) nunca disparou → **correção:** migration 25 normaliza situação no banco (`fn_situacao_normalizada`) e no front (`situacao.ts`), e espelha a guarda de produção. **Lição: toda comparação com dado que vem de integração passa por normalização declarada num lugar só; e "espelho de produção" se confere lendo `pg_get_triggerdef` no banco real, não a nota.**
+
+- [2026-09-08] **E-26** (Claude Code) · SQL de manutenção arquivou em massa com `origem = 'automacao'` sem pessoa e o trigger `fn_validar_api` recusou (arquivar sem pessoa só com origem `api`) → **correção:** origem `api` — o gesto "da integração" é o caminho sancionado para lote sem autor. **Lição: antes de rodar SQL de lote em produção, passar o mesmo SQL no `test:banco` — os triggers valem para o superusuário também (M-14) e teriam pego na hora.**
 
 ## 🟢 Acertos que viraram padrão (A-NN)
 
