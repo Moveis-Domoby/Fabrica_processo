@@ -2,7 +2,7 @@
 titulo: Plataforma — Memória de Aprendizado (Claude Code + Cowork)
 tipo: memoria-aprendizado
 data: 2026-08-19
-atualizado: 2026-09-08
+atualizado: 2026-09-15
 tags: [plataforma, memoria, aprendizado, erros, acertos]
 ---
 
@@ -57,6 +57,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-08] **E-26** (Claude Code) · SQL de manutenção arquivou em massa com `origem = 'automacao'` sem pessoa e o trigger `fn_validar_api` recusou (arquivar sem pessoa só com origem `api`) → **correção:** origem `api` — o gesto "da integração" é o caminho sancionado para lote sem autor. **Lição: antes de rodar SQL de lote em produção, passar o mesmo SQL no `test:banco` — os triggers valem para o superusuário também (M-14) e teriam pego na hora.**
 
+- [2026-09-15] **E-27** (Claude Code) · O harness quebrou com "column c.raw does not exist": o `supabase-fabrica-schema.sql` do cofre NÃO tinha as colunas que o backfill criou em `clientes` direto no banco (primo do E-24: ajuste sem espelho morre — ou, aqui, nunca chega ao teste) → **correção:** colunas espelhadas no `.sql`; pendência registrada de espelhar também `tiny_fila`/`notas_fiscais`/`contas_receber`. **Lição: o retrato que o harness carrega é parte do contrato — atualizar o espelho É parte de aplicar no banco.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.
@@ -73,6 +75,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - [2026-08-28] **E-20** (Claude Code) · No banco compartilhado, `add column if not exists` PULOU em silêncio uma coluna que outra sessão de trabalho já tinha criado com desenho DIFERENTE (check sem um dos valores, default divergente) — o front quebraria só em produção → **correção:** migration de alinhamento (drop/recreate do check + default). **Lição: depois de aplicar, conferir `column_default` e `pg_get_constraintdef` de todo objeto que "já existia" — `if not exists` cala colisão entre sessões paralelas.**
 - [2026-08-28] **A-12** (Claude Code) · **Mudar assinatura de função Postgres é DROP + CREATE**: adicionar parâmetro com default a uma função existente via `create or replace` cria uma SOBRECARGA (as duas convivem e o PostgREST se confunde) — dropar a assinatura antiga e refazer os grants. Pego no desenho da migration 16, antes de doer.
 - [2026-08-28] **A-13** (Claude Code) · **Verificação de tela sem painel visível**: no bloco noturno o painel de preview não compõe frames (screenshot impossível) — `read_page`/`get_page_text`/JS provam estrutura e comportamento (fluxo do PIN rodou fim a fim assim); screenshot fica documentado como pendência para o dono. Bônus: `execute` do plpgsql roda UM comando por vez — policies em executes separados.
+- [2026-09-15] **A-14** (Claude Code) · **Comparar dois bancos VIVOS por hash em fatias**: para provar fidelidade byte a byte entre bancos que não se enxergam (recompra × fábrica), md5 agregado por fatia (`numero % 256`, ou 1º hex do md5) nos dois lados → só as fatias divergentes são abertas → os registros exatos aparecem sem despejar dado pessoal no chat. Foi assim que a deriva da união ficou em "10 pedidos, nomeados" em vez de "os hashes não batem". Cuidado embutido: `::text` de jsonb RE-ESCAPA caracteres (um TAB real vira `\t` literal) — artefato da query de comparação, não do dado; comparar sempre a MESMA extração dos dois lados.
+- [2026-09-15] **A-15** (Claude Code) · **Sem rota IPv6, o host direto do Postgres do Supabase (`db.<ref>.supabase.co`) não resolve** — foi por isso que a S15 e a S19 aplicaram pela API. Alternativa de máquina: o session pooler IPv4 (`aws-N-<região>.pooler.supabase.com`, usuário `postgres.<ref>`) — o script de carga da S19 deriva sozinho. Credencial continua fatiada à mão (E-12) e jamais impressa.
 - [2026-08-26] **A-11** (Claude Code) · **Testar em produção sem sujar produção**: bloco `do $ ... $` que monta o cenário, mede, e termina com `raise exception` PROPOSITAL — a mensagem carrega o resultado e a exceção desfaz tudo. Zero linha gravada, comportamento provado no banco de verdade. Vale muito quando a tabela é append-only e um registro de teste seria impossível de apagar.
 
 ## 🧠 Modelos mentais (M-NN)

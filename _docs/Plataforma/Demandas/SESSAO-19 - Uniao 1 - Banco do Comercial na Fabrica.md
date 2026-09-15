@@ -44,4 +44,9 @@ Ler [[PLT - Plano Uniao das Plataformas]] inteiro antes de codar. DDL e corpo da
 
 ## Resultado (preencher ao entregar)
 
-*—*
+**Entregue em 15/09/2026** — [[handoff_2026_09_15_sessao19_banco_comercial]] · memória de execução em `docs/execucao/SESSAO-19.md`.
+
+- Migration 26 (`20260915120000_plt_comercial_banco.sql`) aplicada com autorização do dono: 6 tabelas em DDL idêntico, view `vendas_marketing` sobre `pedidos`+`clientes` (D-47), `vw_clientes_consolidados` + `vw_scorecards_lista`, 10 RPCs copiadas, `plt_usuarios.modulos` com seed, `fn_tem_modulo`, RLS por módulo (`tiny_auth` sem policy de propósito — token é segredo de máquina). Impressão digital da integração intacta.
+- 6 Edge Functions deployadas, **nenhum cron agendado**; `tiny-auth-refresh` com verify_jwt ligado até o cutover (risco 1).
+- Carga das 6 tabelas servidor→servidor com **checksum idêntico 6/6** (o token do Tiny nunca passou por chat — script `supabase/manutencao/2026-09-15_carga_comercial.mjs`, reutilizável no delta da S21).
+- Validação: `revenue_chart`/`items`/`top_items` **byte a byte idênticos** ao projeto antigo (com corte do delta do dia); `scorecards` com receita e pedidos idênticos ao centavo e diferença de exatamente 2 clientes = deriva histórica documentada (10 pedidos, 0,19%); `vw_scorecards_lista` idêntica; anon key recusada em tudo.
