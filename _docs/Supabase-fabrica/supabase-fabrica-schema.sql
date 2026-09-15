@@ -33,6 +33,16 @@ create unique index if not exists clientes_cpf_cnpj_uq
 create index if not exists clientes_fone_idx on public.clientes (fone);
 create index if not exists clientes_nome_idx on public.clientes (nome);
 
+-- ↪ Backfill histórico do Tiny (28/08/2026 — DDL completo em 22_backfill_tiny.sql,
+--   nesta pasta): clientes ganhou o retorno.contato inteiro em `raw` (o celular
+--   vive lá dentro — a view vendas_marketing do módulo Comercial depende dele).
+--   Espelhado aqui em 15/09/2026 (SESSAO-19) porque este arquivo é o retrato da
+--   integração que o harness de testes carrega.
+alter table public.clientes add column if not exists raw jsonb;
+alter table public.clientes add column if not exists tipo_pessoa text;
+alter table public.clientes add column if not exists inscricao_estadual text;
+alter table public.clientes add column if not exists fantasia text;
+
 -- ----------------------------------------------------------------------------
 -- 2 · PEDIDOS
 -- Chave natural: numero (único por conta no Tiny). tiny_id fica NULL no

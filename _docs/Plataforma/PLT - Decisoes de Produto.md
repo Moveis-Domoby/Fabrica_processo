@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-09-08
+atualizado: 2026-09-15
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -356,6 +356,29 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - **Horas úteis:** cada etapa conta o próprio tempo; a pessoa conta do iniciar ao finalizar; cada card carrega o tempo total de produção (PCP → fim de linha); a dashboard mostra a **média por etapa** — insumo registrado para a SESSAO-16. A meta de setor em horas úteis segue contando só execução.
 
 **Descartadas:** só "marcar" o pedido como lançado sem mover as unidades (deixaria o Estoque sujo e a ROTAS inconsistente); manter o quadro kanban do ESTOQUE ao lado da lista.
+
+## D-46 · União das Plataformas: o Painel de Recompra vira o módulo Comercial (15/09/2026)
+
+**Decidido (conversa de planejamento no Cowork, 15/09):** as duas plataformas viram uma. O plano completo vive em [[PLT - Plano Uniao das Plataformas]]; execução nas SESSÕES 19–21.
+
+**↩️ Revisada em 15/09 (mesma conversa, depois de conferir o escopo da SESSAO-16):** a ordem de execução passa a ser **16 → 19 (em paralelo, se o dono quiser) → 20 → 21**. A versão anterior desta decisão mandava as 19–21 rodarem antes das 16–18; caiu porque a SESSAO-16 e a SESSAO-20 disputam os mesmos arquivos de casca (`App.tsx`, `Layout.tsx`, `estilos/tokens.css`) e porque é a 16 quem fixa a biblioteca de gráfico (Recharts) que o módulo Comercial herda. A SESSAO-19 é imune: não encosta no front, e as tabelas/RPCs que ela cria (`fn_dashboard_*`) não colidem com as da fábrica (`plt_fn_dash_*`). Os números 19–21 seguem fora da regra "número = ordem" (D-23) só para não renumerar demandas já escritas.
+
+**A SESSAO-16 não muda por causa da união** (decisão do dono, 15/09): os dashboards da produção continuam como quatro telas-filhas do pai **Dashboards**, com os nomes atuais. O dashboard do Comercial nasce dentro do próprio módulo, em `/comercial/dashboard`; se um dia os filhos do pai Dashboards forem renomeados por domínio ("Dash Produção", "Dash Comercial", …), isso é assunto de outra sessão → **Q-66**.
+
+- **Banco mantido: o da fábrica** (`axnzldwgwsmepukdiljx`). O projeto do recompra (`kfkcumjepnxnnzyvmxfo`) entra em quarentena após o cutover e é **excluído** ao final dela.
+- **O painel de recompra NÃO é desligado** — é recriado **idêntico** dentro da plataforma como o módulo **Comercial** (dashboards, filtros, listas de disparo, renovador do token do Tiny, tudo). Nenhum dado alterado, nenhum comportamento perdido. O antigo só sai do ar depois da validação do dono e da quarentena.
+- **Navegação:** "Administração" passa a se chamar **"Painel admin"**; Controle de Produção, Logística e ROTAS viram filhos do novo pai **"Fábrica"**; o Comercial é outro pai. Acesso a Fábrica e Comercial é **permissão ativável por usuário** (coluna `plt_usuarios.modulos`; todos começam com `fabrica`; `comercial` começa **só no admin** e vai sendo liberado com o tempo).
+- **Paleta:** o módulo Comercial respeita a arquitetura do design system da casa, e o design system **ganha a paleta verde-esmeralda do recompra** como temas novos.
+- **Congelamento:** nenhum disparo de WhatsApp em nenhum dos dois painéis até a união concluir. Crons de disparo e o renovador do token rodam em **exatamente um** projeto por vez (o refresh do Tiny rotaciona o token — dois renovadores se matam).
+
+**Descartadas:** migrar a fábrica para o banco do recompra (30 tabelas + auth + RLS vs 8 tabelas); manter dois bancos permanentemente (dois pontos de falha, dois syncs do Tiny gastando o mesmo rate limit); desligar o painel antigo direto no cutover (sem rede de segurança).
+
+## D-47 · Regra permanente: nenhuma tabela nova se uma existente pode ser reutilizada (15/09/2026)
+
+**Decidido (palavras do dono):** *"nenhuma nova tabela é criada se alguma existente pode ser reutilizada em um módulo similar"* — ex.: não criar tabela de pedidos sendo que todos os pedidos já estão em `pedidos`.
+
+- Primeira aplicação (na própria união): `vendas_marketing` **não** vira tabela na fábrica — vira **view de compatibilidade** sobre `pedidos` + `clientes` + `pedido_itens` (verificado em 15/09: mesmo dataset, 5.302 = 5.302 pedidos, 19/19 meses batendo ao centavo, telefone no mesmo formato). `tiny_sync_state`, as 3 functions de sync do Tiny e seus ticks/crons também **não** migram — o webhook n8n da fábrica já cobre criação e edição de pedidos.
+- A regra vale daqui em diante para toda demanda: antes de propor tabela nova, provar que nenhuma existente serve.
 
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 

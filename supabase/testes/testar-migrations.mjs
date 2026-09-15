@@ -2555,6 +2555,235 @@ conferir(
   politicaEdicao?.qual,
 )
 
+titulo('Comercial (SESSAO-19/D-46/D-47): view de compatibilidade, gate de módulo e RPCs do recompra')
+
+// Pedidos "Entregue" não viram card (a guarda da entrada ignora encerrados) —
+// o cenário testa só o domínio Comercial, sem sujar o kanban.
+await bd.exec(`
+  insert into public.clientes (nome, fone, raw) values
+    ('Cliente Recompra Um', '(84) 90000-0001', '{"celular": ""}'::jsonb),
+    ('Cliente Recompra Dois', null, '{"celular": "(84) 90000-0002"}'::jsonb);
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido, total_pedido, total_produtos, raw) values
+    (999801, (select id from public.clientes where nome = 'Cliente Recompra Um'), 'Entregue', '2031-01-10', 1500.00, 1600.00,
+     '{"cliente": {"nome": "Cliente Recompra Um ", "fone": "(84) 90000-0001"},
+       "itens": [{"item": {"descricao": "Estante de Teste S19", "quantidade": "2.00", "valor_unitario": "500.00"}},
+                 {"item": {"descricao": "Mesa de Teste S19", "quantidade": "1.00", "valor_unitario": "500.00"}}]}'::jsonb),
+    (999802, (select id from public.clientes where nome = 'Cliente Recompra Um'), 'Entregue', '2031-02-20', 800.00, 800.00,
+     '{"cliente": {"nome": "Cliente Recompra Um", "fone": "(84) 90000-0001"},
+       "itens": [{"item": {"descricao": "Estante de Teste S19", "quantidade": "1.00", "valor_unitario": "800.00"}}]}'::jsonb),
+    (999803, (select id from public.clientes where nome = 'Cliente Recompra Dois'), 'Entregue', '2031-01-15', 300.00, 300.00,
+     '{"cliente": {"nome": "Cliente Recompra Dois", "fone": ""},
+       "itens": [{"item": {"descricao": "Nicho de Teste S19", "quantidade": "1.00", "valor_unitario": "300.00"}}]}'::jsonb);
+`)
+
+const shapeVm = (
+  await bd.query(`
+    select string_agg(column_name || ':' || data_type, ',' order by ordinal_position) as shape
+      from information_schema.columns where table_schema = 'public' and table_name = 'vendas_marketing'`)
+).rows[0].shape
+conferir(
+  shapeVm ===
+    'id:uuid,numero_pedido:character varying,nome_cliente:character varying,telefone_cliente:character varying,'
+    + 'data_compra:timestamp with time zone,valor_pedido:numeric,numero_itens:integer,itens_comprados:jsonb,'
+    + 'created_at:timestamp with time zone',
+  'vendas_marketing reproduz o shape EXATO da tabela do recompra (colunas, ordem e tipos — varchar incluso)',
+  shapeVm,
+)
+
+const vmLinha = (
+  await bd.query(`
+    select nome_cliente, telefone_cliente,
+           to_char(data_compra at time zone 'America/Sao_Paulo', 'YYYY-MM-DD HH24:MI') as data_sp,
+           valor_pedido::text as valor, numero_itens,
+           itens_comprados->0->'produto'->>'descricao' as item1,
+           (id = md5('vendas_marketing:999801')::uuid) as id_deterministico
+      from public.vendas_marketing where numero_pedido = '999801'`)
+).rows[0]
+conferir(
+  vmLinha?.nome_cliente === 'Cliente Recompra Um '
+    && vmLinha?.telefone_cliente === '(84) 90000-0001'
+    && vmLinha?.data_sp === '2031-01-10 00:00'
+    && vmLinha?.valor === '1500.00'
+    && vmLinha?.numero_itens === 2
+    && vmLinha?.item1 === 'Estante de Teste S19'
+    && vmLinha?.id_deterministico === true,
+  'a view lê o pedido real: valor líquido, meia-noite de São Paulo, nº de linhas de itens, nome do snapshot SEM trim e id determinístico',
+  JSON.stringify(vmLinha),
+)
+
+const vmCelular = (
+  await bd.query(`select telefone_cliente from public.vendas_marketing where numero_pedido = '999803'`)
+).rows[0]
+conferir(
+  vmCelular?.telefone_cliente === '(84) 90000-0002',
+  'cliente sem fone cai no CELULAR do cadastro (o fallback que o pipeline v3 do recompra tinha)',
+  JSON.stringify(vmCelular),
+)
+
+// O gate de módulo se prova pela VIEW (o WHERE roda até para superusuário —
+// diferente das policies, que o PGlite não exercita: E-14).
+const genteS19 = (
+  await bd.query(`
+    select (select auth_user_id::text from public.plt_usuarios where papel = 'admin'  and auth_user_id is not null limit 1) as admin,
+           (select auth_user_id::text from public.plt_usuarios where papel <> 'admin' and auth_user_id is not null limit 1) as comum`)
+).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '${genteS19.comum}', false)`)
+const semModulo = (
+  await bd.query(`select count(*)::int as total from public.vendas_marketing`)
+).rows[0]
+conferir(semModulo.total === 0, 'usuário SEM o módulo comercial não lê nada da view (gate D-46)')
+await bd.exec(`
+  update public.plt_usuarios set modulos = array['fabrica','comercial']
+   where auth_user_id = '${genteS19.comum}'::uuid;
+`)
+const comModulo = (
+  await bd.query(`select count(*)::int as total from public.vendas_marketing`)
+).rows[0]
+await bd.exec(`
+  update public.plt_usuarios set modulos = '{}'
+   where auth_user_id = '${genteS19.comum}'::uuid;
+  select set_config('request.jwt.claim.sub', '${genteS19.admin}', false);
+`)
+const adminLe = (
+  await bd.query(`select count(*)::int as total from public.vendas_marketing`)
+).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+conferir(
+  comModulo.total > 0 && adminLe.total > 0,
+  'com o módulo liberado a pessoa lê; admin lê sempre, sem depender da lista (D-46)',
+  JSON.stringify({ comModulo: comModulo.total, admin: adminLe.total }),
+)
+
+const politicaComercial = (
+  await bd.query(`select qual from pg_policies where tablename = 'listas_disparo' limit 1`)
+).rows[0]
+conferir(
+  typeof politicaComercial?.qual === 'string'
+    && /fn_tem_modulo/.test(politicaComercial.qual)
+    && politicaComercial.qual !== 'true',
+  'RLS das tabelas do Comercial usa o gate de módulo — nada de USING (true) (definição conferida, E-14)',
+  politicaComercial?.qual,
+)
+const tinyAuthFechada = (
+  await bd.query(`
+    select (select relrowsecurity from pg_class where relname = 'tiny_auth') as rls,
+           (select count(*)::int from pg_policies where tablename = 'tiny_auth') as policies`)
+).rows[0]
+conferir(
+  tinyAuthFechada.rls === true && tinyAuthFechada.policies === 0,
+  'tiny_auth: RLS ligado e NENHUMA policy — o token OAuth é segredo de máquina (regra crítica 4)',
+  JSON.stringify(tinyAuthFechada),
+)
+const modulosDefault = (
+  await bd.query(`
+    select column_default from information_schema.columns
+     where table_schema = 'public' and table_name = 'plt_usuarios' and column_name = 'modulos'`)
+).rows[0]
+conferir(
+  typeof modulosDefault?.column_default === 'string' && modulosDefault.column_default.includes('{}'),
+  'plt_usuarios.modulos existe com default vazio — usuário novo nasce sem módulos, quem cria concede',
+  modulosDefault?.column_default,
+)
+
+// As RPCs copiadas, respondendo sobre a view com os números do cenário
+// (período 2031 isola os 3 pedidos do teste).
+const score = (
+  await bd.query(`
+    select total_revenue::text as receita, total_orders, total_clients, recurrents
+      from public.fn_dashboard_scorecards(
+        '{"dateFilter":"custom","customDateStart":"2031-01-01","customDateEnd":"2031-12-31"}'::jsonb)`)
+).rows[0]
+conferir(
+  score?.receita === '2600.00' && score?.total_orders === 3 && score?.total_clients === 2 && score?.recurrents === 1,
+  'fn_dashboard_scorecards: 3 pedidos, 2 clientes (identidade por telefone), 1 recompra — números certos',
+  JSON.stringify(score),
+)
+const filtro = (
+  await bd.query(`
+    select nome_cliente, quantidade_pedidos, pedidos_vida, is_recorrente, total_count::int as total_count
+      from public.fn_filter_customers(
+        '{"dateFilter":"custom","customDateStart":"2031-01-01","customDateEnd":"2031-12-31"}'::jsonb, 10, 0)
+      order by nome_cliente`)
+).rows
+conferir(
+  filtro.length === 2
+    && filtro[0]?.total_count === 2
+    && filtro.some((c) => c.quantidade_pedidos === 2 && c.is_recorrente === true)
+    && filtro.some((c) => c.quantidade_pedidos === 1 && c.is_recorrente === false),
+  'fn_filter_customers pagina os 2 clientes do período com vida e recorrência calculadas',
+  JSON.stringify(filtro),
+)
+const graficoMes = (
+  await bd.query(`
+    select month_str, revenue::text as revenue, orders
+      from public.fn_dashboard_revenue_chart('2031-01-01', '2031-12-31') order by month_str`)
+).rows
+conferir(
+  graficoMes.length === 2
+    && graficoMes[0]?.month_str === '2031-01' && graficoMes[0]?.revenue === '1800.00' && graficoMes[0]?.orders === 2
+    && graficoMes[1]?.month_str === '2031-02' && graficoMes[1]?.revenue === '800.00' && graficoMes[1]?.orders === 1,
+  'fn_dashboard_revenue_chart agrupa por mês com os valores certos',
+  JSON.stringify(graficoMes),
+)
+const topItens = (
+  await bd.query(`
+    select item_name, quantidade from public.fn_dashboard_top_items_overall('2031-01-01', '2031-12-31')
+     order by quantidade desc, item_name`)
+).rows
+conferir(
+  topItens.length === 3 && topItens[0]?.item_name === 'Estante de Teste S19' && topItens[0]?.quantidade === 2,
+  'fn_dashboard_top_items_overall extrai o NOME do item de dentro do jsonb da view (cascata $.produto.descricao)',
+  JSON.stringify(topItens),
+)
+const vendasFone = (
+  await bd.query(`
+    select numero_pedido from public.fn_vendas_disparo_por_telefone('84900000002', '2031-01-01', '2031-12-31')`)
+).rows
+conferir(
+  vendasFone.length === 1 && vendasFone[0]?.numero_pedido === '999803',
+  'fn_vendas_disparo_por_telefone acha a venda pelo telefone normalizado (atribuição do disparo)',
+  JSON.stringify(vendasFone),
+)
+
+// O ciclo de vida de uma campanha grava nas tabelas novas sem erro.
+await bd.exec(`
+  insert into public.listas_disparo (nome, criado_por, tarifa_aplicada) values ('Campanha de Teste S19', 'harness', 0.35);
+  insert into public.listas_disparo_membros (lista_id, telefone, nome_cliente, snapshot_total_gasto, snapshot_qtd_compras)
+    values ((select id from public.listas_disparo where nome = 'Campanha de Teste S19'), '(84) 90000-0002', 'Cliente Recompra Dois', 300.00, 1);
+  insert into public.listas_disparo_eventos (lista_id, tipo_evento, descricao)
+    values ((select id from public.listas_disparo where nome = 'Campanha de Teste S19'), 'lista_criada', 'teste do harness');
+  update public.listas_disparo_membros set status = 'ganho', valor_ganho = 300.00, data_envio = now()
+    where telefone = '(84) 90000-0002';
+`)
+const scorecardLista = (
+  await bd.query(`
+    select total_membros::int as membros, total_enviados::int as enviados, total_ganhos::int as ganhos,
+           receita_gerada::text as receita, custo_total_real::text as custo
+      from public.vw_scorecards_lista where nome = 'Campanha de Teste S19'`)
+).rows[0]
+conferir(
+  scorecardLista?.membros === 1 && scorecardLista?.enviados === 1 && scorecardLista?.ganhos === 1
+    && scorecardLista?.receita === '300.00' && scorecardLista?.custo === '0.3500',
+  'campanha, membro e evento gravam nas tabelas novas; vw_scorecards_lista calcula receita e custo real',
+  JSON.stringify(scorecardLista),
+)
+await deveRecusarExec(
+  `insert into public.listas_disparo_membros (lista_id, telefone)
+     values ((select id from public.listas_disparo where nome = 'Campanha de Teste S19'), '(84) 90000-0002')`,
+  'o mesmo telefone não entra duas vezes na mesma campanha (UNIQUE lista_id+telefone do recompra)',
+  /duplicate key|unique/i,
+)
+const consolidado = (
+  await bd.query(`
+    select total_pedidos::int as pedidos, faturamento_total::text as faturamento
+      from public.vw_clientes_consolidados where telefone_cliente = '(84) 90000-0001'`)
+).rows[0]
+conferir(
+  consolidado?.pedidos === 2 && consolidado?.faturamento === '2300.00',
+  'vw_clientes_consolidados agrupa o cliente pelas 2 compras somadas (herda o gate da vendas_marketing)',
+  JSON.stringify(consolidado),
+)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
