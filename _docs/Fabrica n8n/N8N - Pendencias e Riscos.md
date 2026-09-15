@@ -17,13 +17,33 @@ Nenhum workflow tem Error Workflow configurado. O incidente de 11/08 ([[N8N - In
 **Fazer:** workflow `ALERTA - Erro n8n` com node **Error Trigger** → notificação (Telegram sugerido; e-mail exige SMTP). Depois, em cada workflow: ⋯ → Settings → Error Workflow. *Adiado a pedido do usuário em 12/08.*
 
 ### P2 · Migração 5 — cadastro de cliente
-Em andamento, bloqueada aguardando o CSV das respostas. Plugga segue ativo nela. Ver [[N8N - Cadastro de Cliente (em andamento)]].
+**↪️ 03/09: desbloqueada e construída.** O CSV foi lido direto do Drive (806 respostas). Workflow em `domoby-formulario-cliente-tiny.json` (15 nodes), planilha preparada, **primeiro cadastro real gravado no Tiny em 03/09**. Falta o teste do CPF inválido e publicar. ⚠️ **O Pluga não existe mais há mais de um mês** — então o cadastro de cliente está simplesmente parado desde então, não há automação antiga rodando em paralelo. Ver [[N8N - Cadastro de Cliente]].
 
-### P3 · Automações 6 e 7 do Plugga — não levantadas
-Se alguma tiver gatilho em DADOS/OPERADORA/PCP, **está duplicando agora** (ver [[N8N - PCP Trello e ClickUp#Por que os cards duplicavam]]). Levantar nome + gatilho de cada uma.
+### P3 · Automações 6 e 7 do Plugga — não levantadas, e agora PARADAS
+**↪️ 03/09 — encerrado por decisão do dono, com base em evidência.**
+O Pluga foi desligado há mais de um mês. Nesse período **ninguém sentiu falta de nada**, e o dono não lembra o que as duas faziam. Um mês de silêncio operacional é o melhor teste disponível: se fossem críticas, já teria doído.
+
+**Decisão:** não levantar. O P3 sai da lista de pendências.
+
+> [!warning] A única ressalva: ciclo longo
+> Um mês cobre bem o que era diário e semanal, e cobre mal o que era **mensal ou trimestral** — um relatório de fechamento, uma consolidação, algo que só aparece na virada. Se em outubro ou novembro alguém disser "aquilo não chega mais", é aqui que a resposta está. Reabrir este item nesse caso.
 
 ### P4 · Token do Tiny v2 em texto puro no workflow — ⚠️ AGRAVADO em 17/08
 Está no body dos nodes HTTP — aparece em prints e exports. Já vazou duas vezes: num print (trocado em 11/08) e **de novo em 17/08, num export de workflow colado em chat**. Agora são **3 nós** com o token literal (pedido.obter + os 2 do workflow ClickUp→Tiny). **Fazer, nesta ordem:** (1) `TINY_TOKEN` no docker-compose com o token atual + restart; (2) trocar os 3 nós para `{{ $env.TINY_TOKEN }}` e validar com evento real; (3) **gerar token novo no Tiny** e atualizar só o compose. Regra reforçada: antes de exportar/colar workflow em qualquer lugar, conferir se há segredo no JSON.
+
+**↪️ 03/09 — passo 1 concluído.**
+`printenv` no container confirmou **`TINY_TOKEN` definida** e **`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`** ✅.
+
+Na conferência, a saída do `printenv` foi fotografada com o valor do token à mostra. **Exposição avaliada como contida pelo dono** (print só numa sessão do Claude, que ele apagou) → **rotação não feita agora**, segue como o passo 3 do P4. Terceira vez que o token aparece num print — a causa raiz é o comando, não a pessoa, e está corrigida abaixo.
+
+> [!danger] Comando seguro para conferir variável daqui em diante
+> Nunca rodar `printenv | grep TOKEN` cru. Use a versão que mostra só a presença:
+> ```bash
+> docker exec n8n-n8n-1 printenv | grep -E "TINY_TOKEN|N8N_BLOCK_ENV_ACCESS_IN_NODE" | sed -E 's/=.+/=<definida>/'
+> ```
+> Vale para qualquer segredo: `SUPABASE_FABRICA_KEY`, tokens do ClickUp e do Trello.
+
+**Estado dos nós com token literal (03/09):** 3 — `pedido.obter` (workflow Tiny→Planilha) e os 2 do ClickUp→Tiny. Os workflows do backfill, Tiny 2 → PCP e cadastro de cliente já nascem com `$env`.
 
 **↪️ 28/08, 23h:** o workflow do backfill usa `{{ $env.TINY_TOKEN }}` desde o nascimento — então o passo 1 do P4 (criar a variável no compose) virou **pré-requisito para rodar a carga**, e a janela sem venda é a hora de fazer os três passos de uma vez. Conferir com `docker exec n8n-n8n-1 printenv | grep -E "TINY_TOKEN|SUPABASE_FABRICA"`.
 

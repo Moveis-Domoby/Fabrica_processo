@@ -1,0 +1,735 @@
+{
+  "name": "Domoby · Formulário → Cadastro de cliente no Tiny",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1Lcnfpp4czFSpo7xtLjKlHqKo5Dpiv3nwwLixzkmWScg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Respostas ao formulário 1",
+          "mode": "name"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "id": "c1000000-0000-0000-0000-000000000001",
+      "name": "Gatilho · nova resposta no formulário",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "cXBBv3ExwbK3uj4c",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// DOMOBY - Formulario \"Dados do pedido\" -> Tiny (contato)\n// Node \"Normalizar e validar\". Mode: Run Once for All Items.\n//\n// Entrada : linhas novas da aba \"Respostas ao formulario 1\"\n// Saida   : 1 item por resposta, com o payload do Tiny ja montado e o veredito\n//           do documento.\n//\n// REGRA CENTRAL (decidida em 13/08, confirmada em 01/09):\n//   documento que NAO passa no digito verificador nao vai para o Tiny.\n//   O cliente e cadastrado sem documento, o valor digitado fica em obs e a\n//   linha vai para a aba PENDENCIAS. Melhor cliente sem CPF que CPF errado.\n//   E isso que resolve a queixa \"o Tiny nao deixa cadastrar com CPF errado\":\n//   nada com digito invalido chega la.\n//\n// CABECALHOS DA PLANILHA - tres terminam com espaco: 'Rua ', 'CPF ',\n// 'End. Numero '. Nao \"arrumar\" esses nomes, sao literais da aba.\n// ============================================================================\n\n// --- helpers -----------------------------------------------------------------\nconst txt = (v) => (v === null || v === undefined ? '' : String(v));\nconst limpa = (v) => txt(v).replace(/\\s+/g, ' ').trim();\nconst digitos = (v) => txt(v).replace(/\\D/g, '');\n\n// primeiro valor nao vazio (usado onde a planilha tem cabecalho duplicado)\nconst oPrimeiro = (...vs) => {\n  for (const v of vs) if (limpa(v) !== '') return limpa(v);\n  return '';\n};\n\nconst UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',\n             'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];\n\n// --- validacao real de CPF (digito verificador) ------------------------------\nfunction cpfValido(d) {\n  if (!/^\\d{11}$/.test(d)) return false;\n  if (/^(\\d)\\1{10}$/.test(d)) return false; // 000.000.000-00, 111... sao recusados\n  let s = 0;\n  for (let i = 0; i < 9; i++) s += Number(d[i]) * (10 - i);\n  let r = (s * 10) % 11;\n  if (r === 10) r = 0;\n  if (r !== Number(d[9])) return false;\n  s = 0;\n  for (let i = 0; i < 10; i++) s += Number(d[i]) * (11 - i);\n  r = (s * 10) % 11;\n  if (r === 10) r = 0;\n  return r === Number(d[10]);\n}\n\n// --- validacao real de CNPJ (digito verificador) ------------------------------\nfunction cnpjValido(d) {\n  if (!/^\\d{14}$/.test(d)) return false;\n  if (/^(\\d)\\1{13}$/.test(d)) return false;\n  const calc = (base) => {\n    let peso = base.length === 12 ? 5 : 6;\n    let s = 0;\n    for (let i = 0; i < base.length; i++) {\n      s += Number(base[i]) * peso;\n      peso = peso === 2 ? 9 : peso - 1;\n    }\n    const r = s % 11;\n    return r < 2 ? 0 : 11 - r;\n  };\n  if (calc(d.slice(0, 12)) !== Number(d[12])) return false;\n  return calc(d.slice(0, 13)) === Number(d[13]);\n}\n\nconst mascaraCPF = (d) =>\n  `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;\nconst mascaraCNPJ = (d) =>\n  `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;\n\n// O Google Sheets come o zero a esquerda quando trata a celula como NUMERO -\n// \"08735920777\" vira 8735920777. Acontece em edicao manual da planilha e em\n// qualquer importacao que nao force texto.\n// Recuperamos devolvendo o zero, mas SO aceitamos se o resultado passar no\n// digito verificador (chance de acertar por acaso: 1 em 100).\nfunction reporZeroAEsquerda(d) {\n  if (d.length === 10) { const t = '0' + d; if (cpfValido(t)) return t; }\n  if (d.length === 9)  { const t = '00' + d; if (cpfValido(t)) return t; }\n  if (d.length === 13) { const t = '0' + d; if (cnpjValido(t)) return t; }\n  return d;\n}\n\n// Cliente digita letra no lugar de numero (O->0, I/l->1, S->5, B->8).\n// So aceitamos a correcao se o resultado passar no digito verificador:\n// a chance de um numero errado passar por acaso e de 1 em 100.\nfunction corrigirConfusaoDeTeclado(bruto) {\n  const t = txt(bruto).replace(/[Oo]/g, '0').replace(/[Il|]/g, '1')\n                      .replace(/[Ss]/g, '5').replace(/[Bb]/g, '8');\n  return digitos(t);\n}\n\n// --- data/hora ---------------------------------------------------------------\n// O Google Sheets pode entregar o carimbo de duas formas, conforme a opcao\n// \"Value Render\" do node: como texto (\"02/09/2026 11:42:17\") ou como NUMERO\n// de serie do Sheets (dias desde 30/12/1899). Aqui os dois viram texto.\nfunction dataHora(v) {\n  if (v === null || v === undefined || v === '') return '';\n  const n = typeof v === 'number' ? v : (/^\\d+([.,]\\d+)?$/.test(String(v).trim())\n    ? parseFloat(String(v).replace(',', '.')) : NaN);\n  if (!Number.isFinite(n) || n < 20000 || n > 80000) return limpa(v); // ja e texto\n  const ms = Math.round((n - 25569) * 86400000); // 25569 = 01/01/1970 no Sheets\n  const d = new Date(ms);\n  if (isNaN(d.getTime())) return limpa(v);\n  const p = (x) => String(x).padStart(2, '0');\n  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ` +\n         `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;\n}\n\n// --- CEP ---------------------------------------------------------------------\nfunction formataCEP(v) {\n  const d = digitos(v);\n  if (d.length !== 8) return '';\n  return `${d.slice(0, 5)}-${d.slice(5)}`;\n}\n\n// --- telefone ----------------------------------------------------------------\n// A planilha traz \"84988929748\", \"84 99173-7018 \", \"(067)981235476\", \"996466798\".\nfunction formataFone(v) {\n  let d = digitos(v);\n  if (d.startsWith('55') && (d.length === 12 || d.length === 13)) d = d.slice(2); // +55\n  if (d.startsWith('0') && (d.length === 11 || d.length === 12)) d = d.slice(1);  // \"(067)\"\n  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;\n  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;\n  return d; // 8/9 digitos sem DDD, ou lixo: manda cru, o Tiny aceita texto\n}\n\n// --- cidade / UF -------------------------------------------------------------\n// A planilha traz \"Natal/RN\", \"Natal RN \", \"Natal - RN\", \"PARNAMIRIM\".\n// Devolve { cidade, ufDaCidade } com a UF arrancada do fim quando existir.\nfunction separaCidadeUF(v) {\n  const c = limpa(v);\n  if (!c) return { cidade: '', ufDaCidade: '' };\n  // O separador e OBRIGATORIO. Sem ele, \"Natal\" viraria cidade \"Nat\" + UF \"AL\".\n  const m = c.match(/^(.+?)\\s*[\\/,\\-]\\s*([A-Za-z]{2})\\.?$/) // Natal/RN, Natal - RN, Natal, RN\n         || c.match(/^(.+?)\\s+([A-Za-z]{2})\\.?$/);           // Natal RN\n  if (m) {\n    const uf = m[2].toUpperCase();\n    const resto = limpa(m[1]).replace(/[\\/\\-,]+$/, '').trim();\n    if (UFS.includes(uf) && resto.length >= 3) return { cidade: resto, ufDaCidade: uf };\n  }\n  return { cidade: c, ufDaCidade: '' };\n}\n\n// Title Case. `sempre=false` so age quando o cliente escreveu TUDO EM MAIUSCULA\n// (respeita \"Elisiane Aires da Silva\"); `sempre=true` normaliza sempre (cidade).\nconst MINUSCULAS = new Set(['de','da','do','das','dos','e','du','del','di','na','no']);\nfunction arrumaCaixa(s, sempre = false) {\n  const v = limpa(s);\n  if (!v) return '';\n  if (!sempre && (v !== v.toUpperCase() || v.length < 4)) return v;\n  return v\n    .toLowerCase()\n    .split(' ')\n    .map((p, i) => (i > 0 && MINUSCULAS.has(p) ? p\n      : p.replace(/^([a-zà-ÿ])/, (c) => c.toUpperCase())))\n    .join(' ');\n}\n\n// --- numero do endereco ------------------------------------------------------\n// Respostas antigas nao tinham \"End. Numero\": o numero vinha colado na rua\n// (\"Rua Esplendor 55\"). So extraimos quando a coluna propria esta vazia.\nfunction separaRuaNumero(rua, numeroInformado) {\n  const num = limpa(numeroInformado);\n  let r = limpa(rua).replace(/[,\\s]+$/, '');\n  if (num) return { endereco: r, numero: num.slice(0, 10) };\n  const m = r.match(/^(.*?)[,\\s]+(\\d{1,6}[A-Za-z]?)$/);\n  if (m && limpa(m[1]).length >= 3) {\n    return { endereco: limpa(m[1]).replace(/[,\\s]+$/, ''), numero: m[2] };\n  }\n  return { endereco: r, numero: '' };\n}\n\n\n// ============================================================================\n// >>> TRAVA DE HISTORICO — AJUSTE ANTES DE PUBLICAR <<<\n// So processa respostas a partir desta data/hora.\n//\n// POR QUE ISSO EXISTE (incidente de 03/09):\n// Um \"Execute step\" no node do Tiny mostrou 806 items na entrada — o Google\n// Sheets Trigger, quando roda a mao, entrega a ABA INTEIRA, nao so as linhas\n// novas. Sem esta trava, um clique errado cadastraria 4 anos de respostas no\n// Tiny de uma vez. A trava torna isso impossivel por construcao, seja em teste,\n// seja se o trigger reprocessar tudo na primeira ativacao.\n//\n// Formato: 'AAAA-MM-DDTHH:MM'. Ponha o momento em que for publicar.\n// ============================================================================\nconst PROCESSAR_A_PARTIR_DE = '2026-09-03T00:00';\n\n// Converte 'dd/mm/aaaa hh:mm:ss' para 'aaaa-mm-ddThh:mm' (comparavel como texto)\nfunction chaveDoCarimbo(c) {\n  const m = String(c).match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})[ T](\\d{2}):(\\d{2})/);\n  return m ? `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}` : null;\n}\n\n// --- corpo -------------------------------------------------------------------\nfunction normalizarLinha(r) {\n  // Cabecalhos LITERAIS da aba (tres deles terminam com espaco - nao remover!)\n  const carimbo   = dataHora(r['Carimbo de data/hora']);\n  const nome      = arrumaCaixa(r['Nome completo']);\n  const foneBruto = r['Número de telefone'];\n  const ruaBruta  = r['Rua '] ?? r['Rua'];\n  const bairro    = arrumaCaixa(r['Bairro']);\n  const cidadeCol = r['Cidade'];\n  const cepBruto  = r['CEP'];\n  const docBruto  = limpa(r['CPF '] ?? r['CPF']);\n  const email     = limpa(r['E-mail']).toLowerCase();\n  const origem    = limpa(r['Como nos conheceu?']);\n  const obsCli    = limpa(r['Alguma observação sobre seu pedido?']);\n  const numBruto  = r['End. Número '] ?? r['End. Número'];\n  const estadoCol = limpa(r['Estado']).toUpperCase();\n  // cabecalho \"Complemento\" aparece duas vezes na planilha (colunas O e Q).\n  // A coluna viva e a O; a Q ficou morta. Lemos as duas grafias possiveis.\n  const complemento = oPrimeiro(\n    r['Complemento'], r['Complemento_1'], r['Complemento 1'], r['Complemento (2)']\n  );\n\n  // ---- CEP x CPF: o cliente confunde os dois campos ----\n  // Achado nos 805 registros reais: 8 respostas trazem um CPF VALIDO no campo CEP.\n  // Em 7 delas o CPF tambem esta no campo certo (so o CEP se perdeu);\n  // em 1 os dois campos estao trocados de lugar.\n  let cepUsar = cepBruto;\n  let docUsar = docBruto;\n  let camposTrocados = false;\n  let cpfNoCampoCep = false;\n  const dCep = digitos(cepBruto);\n  const dDoc = digitos(docBruto);\n  if (dCep.length === 11 && cpfValido(dCep)) {\n    if (dDoc.length === 8 && !(dDoc.length === 11 && cpfValido(dDoc))) {\n      cepUsar = dDoc;  // o CEP estava no campo do CPF\n      docUsar = dCep;  // e o CPF no campo do CEP\n      camposTrocados = true;\n    } else {\n      cepUsar = '';    // o campo CEP na verdade tem o CPF: nao ha CEP nesta resposta\n      cpfNoCampoCep = true;\n    }\n  }\n\n  // ---- documento ----\n  let tipo_pessoa = 'F';\n  let cpf_cnpj = '';\n  let docStatus = 'vazio';\n  let docCorrigido = false;\n  let zeroReposto = false;\n\n  if (docUsar !== '') {\n    let d = digitos(docUsar);\n    const antesDoZero = d;\n    d = reporZeroAEsquerda(d);\n    zeroReposto = d !== antesDoZero;\n    if (d.length !== 11 && d.length !== 14) {\n      const tentativa = corrigirConfusaoDeTeclado(docUsar);\n      if ((tentativa.length === 11 && cpfValido(tentativa)) ||\n          (tentativa.length === 14 && cnpjValido(tentativa))) {\n        d = tentativa;\n        docCorrigido = true;\n      }\n    } else if ((d.length === 11 && !cpfValido(d)) || (d.length === 14 && !cnpjValido(d))) {\n      const tentativa = corrigirConfusaoDeTeclado(docUsar);\n      if ((tentativa.length === 11 && cpfValido(tentativa)) ||\n          (tentativa.length === 14 && cnpjValido(tentativa))) {\n        d = tentativa;\n        docCorrigido = true;\n      }\n    }\n\n    if (d.length === 11 && cpfValido(d)) {\n      tipo_pessoa = 'F'; cpf_cnpj = mascaraCPF(d); docStatus = 'cpf';\n    } else if (d.length === 14 && cnpjValido(d)) {\n      tipo_pessoa = 'J'; cpf_cnpj = mascaraCNPJ(d); docStatus = 'cnpj';\n    } else {\n      docStatus = 'invalido';\n    }\n  }\n\n  // ---- endereco ----\n  const { endereco, numero } = separaRuaNumero(ruaBruta, numBruto);\n  const sep = separaCidadeUF(cidadeCol);\n  const cidade = arrumaCaixa(sep.cidade, true); // o Tiny casa a cidade pela tabela dele\n  const ufDaCidade = sep.ufDaCidade;\n  let uf = UFS.includes(estadoCol) ? estadoCol : '';\n  if (!uf && ufDaCidade) uf = ufDaCidade;\n\n  // ---- observacoes (limite de 200 caracteres no Tiny) ----\n  const partes = [];\n  if (docStatus === 'invalido') {\n    partes.push(`⚠️ CPF/CNPJ informado nao passou na validacao: ${docBruto}`);\n  }\n  if (obsCli) partes.push(obsCli);\n  if (origem) partes.push(`Origem: ${origem}`);\n  const obs = partes.join(' | ').slice(0, 200);\n\n  // ---- payload do Tiny ----\n  const contato = {\n    sequencia: 1,\n    nome: nome.slice(0, 50),\n    tipo_pessoa,\n    situacao: 'A',\n    tipos_contato: [{ tipo: 'Cliente' }],\n  };\n  const opcional = {\n    cpf_cnpj,\n    endereco: endereco.slice(0, 50),\n    numero: numero.slice(0, 10),\n    complemento: complemento.slice(0, 50),\n    bairro: bairro.slice(0, 30),\n    cep: formataCEP(cepUsar),\n    cidade: cidade.slice(0, 30),\n    uf,\n    fone: formataFone(foneBruto).slice(0, 40),\n    email: email.slice(0, 50),\n    email_nfe: email.slice(0, 50),\n    obs,\n  };\n  // campo vazio NAO e enviado (evita apagar dado bom no contato.alterar)\n  for (const [k, v] of Object.entries(opcional)) if (v !== '') contato[k] = v;\n\n  // ---- alertas para a aba PENDENCIAS ----\n  // \"bloqueio\" = nada vai para o Tiny. \"atencao\" = cadastra e avisa.\n  const alertas = [];\n  let bloqueia = false;\n  if (!nome) { alertas.push('Nome em branco'); bloqueia = true; }\n  if (docStatus === 'invalido') alertas.push(`CPF/CNPJ invalido (\"${docBruto}\") - cadastrado SEM documento`);\n  if (docStatus === 'vazio') alertas.push('Sem CPF/CNPJ - nao da para checar duplicidade nem emitir nota');\n  if (docCorrigido) alertas.push('Documento tinha letra no lugar de numero - corrigido e validado');\n  if (zeroReposto) alertas.push('Documento estava sem o zero a esquerda (a planilha comeu) - reposto e validado');\n  if (camposTrocados) alertas.push('Cliente trocou os campos CEP e CPF de lugar - desinvertido automaticamente');\n  if (cpfNoCampoCep) alertas.push(`Cliente digitou o CPF no campo CEP (\"${limpa(cepBruto)}\") - resposta ficou SEM CEP`);\n  if (!contato.cep && !cpfNoCampoCep) alertas.push(`CEP nao reconhecido (\"${limpa(cepBruto)}\")`);\n  if (!contato.uf) alertas.push('UF em branco');\n  if (contato.fone && !/^\\(\\d{2}\\)/.test(contato.fone)) alertas.push(`Telefone sem DDD (\"${limpa(foneBruto)}\")`);\n  if (!contato.email) alertas.push('E-mail em branco');\n\n  return {\n    carimbo,\n    // 8 digitos limpos para a consulta no ViaCEP; vazio quando nao ha CEP util\n    cepDigitos: digitos(cepUsar).length === 8 ? digitos(cepUsar) : '',\n    docBruto,\n    docDigitos: cpf_cnpj ? digitos(cpf_cnpj) : '',\n    docStatus,\n    docCorrigido,\n    zeroReposto,\n    camposTrocados,\n    tipo_pessoa,\n    contato,\n    bloqueia,\n    alerta: alertas.join(' | '),\n    // usado pelo node de pesquisa; sem documento nao ha como deduplicar\n    podeDeduplicar: docStatus === 'cpf' || docStatus === 'cnpj',\n  };\n}\n// --- saida do node -----------------------------------------------------------\nconst saida = [];\nlet ignoradasPorData = 0;\n\nfor (const entrada of $input.all()) {\n  const r = entrada.json ?? {};\n  // linha em branco (acontece quando alguem mexe na planilha): ignora\n  if (!limpa(r['Carimbo de data/hora']) && !limpa(r['Nome completo'])) continue;\n\n  const n = normalizarLinha(r);\n\n  // TRAVA DE HISTORICO: resposta anterior ao corte nao entra no Tiny.\n  // Carimbo ilegivel tambem nao passa — sem data nao da para saber se e antiga.\n  const chave = chaveDoCarimbo(n.carimbo);\n  if (chave === null || chave < PROCESSAR_A_PARTIR_DE) { ignoradasPorData++; continue; }\n\n  saida.push({ json: n });\n}\n\n// Aparece no painel do node em \"Logs\" — util no primeiro teste.\nconsole.log(`recebidas ${$input.all().length} | processadas ${saida.length} | ` +\n            `ignoradas por serem anteriores a ${PROCESSAR_A_PARTIR_DE}: ${ignoradasPorData}`);\n\nreturn saida;\n"
+      },
+      "id": "c1000000-0000-0000-0000-000000000002",
+      "name": "Normalizar e validar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-bloqueia",
+              "leftValue": "={{ $json.bloqueia }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c1000000-0000-0000-0000-000000000003",
+      "name": "Dá para cadastrar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://viacep.com.br/ws/{{ $json.cepDigitos || '00000000' }}/json/",
+        "options": {
+          "timeout": 10000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 400
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c1000000-0000-0000-0000-000000000014",
+      "name": "ViaCEP · cidade oficial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "notes": "Servico publico e gratuito, sem cadastro. Se cair ou nao reconhecer o CEP, o node seguinte mantem a cidade digitada pelo cliente e registra o aviso na PENDENCIAS - a automacao nao para por causa dele."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ============================================================================\n// Node \"Aplicar cidade do CEP\". Mode: Run Once for EACH Item.\n//\n// POR QUE EXISTE (incidente de 03/09):\n// O Tiny recusou um cadastro com codigo_erro 31 - \"O nome municipio nao foi\n// localizado na lista de cidade\". Medindo as 77 respostas dos ultimos 12 meses,\n// ~5% seriam recusadas, e TRES EM CADA QUATRO so por acento faltando\n// (\"Macaiba\", \"Cerro Cora\", \"Sao Jose de Mipibu\"). O CEP e o campo que o\n// cliente acerta mais, entao ele vira a fonte da verdade para cidade e UF.\n//\n// REGRA: a cidade do ViaCEP substitui a digitada. Quando a diferenca e so de\n// acento ou caixa, a troca e silenciosa. Quando a cidade muda de verdade\n// (ou a UF), vira alerta na PENDENCIAS para alguem conferir - pode ser CEP\n// digitado errado.\n// ============================================================================\n\nfunction itemDoNode(nomeBase, idx) {\n  for (const nome of [nomeBase, nomeBase + '1', nomeBase + '2']) {\n    try {\n      const it = $(nome).itemMatching(idx);\n      if (it) return it.json;\n    } catch (e) { /* node com esse nome nao existe: tenta o proximo */ }\n  }\n  throw new Error(\n    `Nao encontrei o node \"${nomeBase}\". Se voce renomeou os nodes, ` +\n    `importe o workflow num fluxo NOVO e vazio para os nomes voltarem ao original.`\n  );\n}\n\n// compara ignorando acento e caixa: \"Macaiba\" e \"Macaíba\" sao a mesma coisa\nconst chave = (s) => String(s ?? '')\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .toLowerCase().replace(/\\s+/g, ' ').trim();\n\nconst n = itemDoNode('Normalizar e validar', $itemIndex);\nconst v = $json ?? {};\n\nconst contato = { ...n.contato };\nconst alertas = n.alerta ? n.alerta.split(' | ') : [];\n\nconst localidade = typeof v.localidade === 'string' ? v.localidade.trim() : '';\nconst ufDoCep = typeof v.uf === 'string' ? v.uf.trim().toUpperCase() : '';\n// o ViaCEP devolve {\"erro\": true} quando o CEP nao existe\nconst achou = !v.erro && localidade !== '' && /^[A-Z]{2}$/.test(ufDoCep);\n\nlet cidadeAjustada = false;\n\nif (achou) {\n  const cidadeAntes = contato.cidade ?? '';\n  const ufAntes = contato.uf ?? '';\n  const mesmaCidade = chave(cidadeAntes) === chave(localidade);\n  const mesmaUF = ufAntes === '' || ufAntes === ufDoCep;\n\n  contato.cidade = localidade.slice(0, 30);\n  contato.uf = ufDoCep;\n  cidadeAjustada = true;\n\n  // bairro do ViaCEP so preenche quando o cliente deixou em branco\n  if (!contato.bairro && typeof v.bairro === 'string' && v.bairro.trim()) {\n    contato.bairro = v.bairro.trim().slice(0, 30);\n  }\n\n  // troca substantiva (nao e so acento/caixa) merece olho humano\n  if (!(mesmaCidade && mesmaUF)) {\n    alertas.push(\n      `Cidade/UF trocadas pelo CEP ${contato.cep || n.cepDigitos}: ` +\n      `\"${cidadeAntes || '(vazio)'}/${ufAntes || '--'}\" -> \"${localidade}/${ufDoCep}\" ` +\n      `- conferir se o CEP esta certo`\n    );\n  }\n} else if (n.cepDigitos) {\n  alertas.push(`CEP ${contato.cep || n.cepDigitos} nao foi reconhecido pelo ViaCEP - ` +\n               `cidade e UF ficaram como o cliente digitou`);\n}\n// sem CEP nenhum: o alerta \"CEP nao reconhecido\" ja veio de Normalizar e validar\n\n// a UF em branco deixa de ser alerta quando o CEP resolveu\nconst alertasFinais = alertas.filter((a) => !(cidadeAjustada && a === 'UF em branco'));\n\nreturn { json: { ...n, contato, cidadeAjustada, alerta: alertasFinais.join(' | ') } };\n"
+      },
+      "id": "c1000000-0000-0000-0000-000000000015",
+      "name": "Aplicar cidade do CEP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/contatos.pesquisa.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY_TOKEN }}"
+            },
+            {
+              "name": "cpf_cnpj",
+              "value": "={{ $json.docDigitos || '00000000000' }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c1000000-0000-0000-0000-000000000004",
+      "name": "Tiny · contatos.pesquisa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Token via $env.TINY_TOKEN (P4) - nunca literal no JSON. Exige TINY_TOKEN no bloco environment: do /docker/n8n/docker-compose.yml (variavel solta no .env e IGNORADA neste template) e N8N_BLOCK_ENV_ACCESS_IN_NODE=false. O aviso vermelho \"[ERROR: not accessible via UI]\" no editor e cosmetico. Sem documento valido mandamos 00000000000, que nao existe e cai no codigo_erro 20 = cliente novo."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ============================================================================\n// Node \"Decidir incluir ou alterar\". Mode: Run Once for EACH Item.\n// (precisa ser \"each item\" para o itemMatching casar a resposta da pesquisa\n//  com a resposta do formulario que a originou)\n//\n// Le o retorno de contatos.pesquisa.php e decide:\n//   - achou o MESMO documento -> contato.alterar (com o id do Tiny)\n//   - nao achou               -> contato.incluir\n//   - a pesquisa falhou       -> nao mexe no Tiny, vai para PENDENCIAS\n//\n// TRAVA IMPORTANTE: so tratamos como \"ja existe\" quando os digitos do\n// cpf_cnpj devolvido sao EXATAMENTE os nossos. Se um dia o Tiny ignorar o\n// filtro e devolver uma lista larga, a automacao inclui um contato novo em\n// vez de sobrescrever o cadastro de outra pessoa.\n// ============================================================================\n\n// Busca o item correspondente no node de origem, tolerando o sufixo que o n8n\n// acrescenta ao nome quando o workflow e importado por cima de outro (\"...1\").\n// Sem isso, um import duplicado quebra a referencia em tempo de execucao.\nfunction itemDoNode(nomeBase, idx) {\n  for (const nome of [nomeBase, nomeBase + '1', nomeBase + '2']) {\n    try {\n      const it = $(nome).itemMatching(idx);\n      if (it) return it.json;\n    } catch (e) { /* node com esse nome nao existe: tenta o proximo */ }\n  }\n  throw new Error(\n    `Nao encontrei o node \"${nomeBase}\". Se voce renomeou os nodes, ` +\n    `importe o workflow num fluxo NOVO e vazio para os nomes voltarem ao original.`\n  );\n}\n\n// le o item JA corrigido pelo ViaCEP - nao trocar por 'Normalizar e validar',\n// senao a cidade oficial se perde e o Tiny volta a recusar com codigo 31.\nconst n = itemDoNode('Aplicar cidade do CEP', $itemIndex);\nconst ret = $json?.retorno ?? {};\nconst dig = (v) => String(v ?? '').replace(/\\D/g, '');\n\nlet acao = 'incluir';\nlet idTiny = '';\nlet erroPesquisa = '';\n\n// SEM DOCUMENTO: nao ha o que deduplicar, entao a resposta da pesquisa e\n// IRRELEVANTE - inclusive quando ela vem como erro.\n// Achado em 03/09: mandamos '00000000000' como sentinela e o Tiny responde\n// \"O CPF/CNPJ informado e invalido\" em vez do codigo 20 (\"sem registros\").\n// Sem esta saida antecipada, o cliente sem CPF valido nunca era cadastrado -\n// o oposto da regra aprovada em 13/08 (cadastrar sem documento + avisar).\nif (!n.podeDeduplicar) {\n  acao = 'incluir';\n} else if (ret.status === 'OK') {\n  const bruta = Array.isArray(ret.contatos) ? ret.contatos : (ret.contatos ? [ret.contatos] : []);\n  const achados = bruta.map((x) => x.contato || x);\n  if (n.podeDeduplicar) {\n    const igual = achados.find((c) => dig(c.cpf_cnpj) === n.docDigitos);\n    if (igual && igual.id) { acao = 'alterar'; idTiny = String(igual.id); }\n  }\n  // sem documento nunca vira \"alterar\": casar por nome sobrescreveria o\n  // cadastro de outro cliente homonimo. Inclui e avisa na PENDENCIAS.\n} else {\n  const codigo = Number(ret.codigo_erro ?? 0);\n  // 20 = \"a consulta nao retornou registros\" -> e o caso normal de cliente novo\n  if (codigo !== 20) {\n    erroPesquisa = JSON.stringify(ret.erros ?? ret).slice(0, 300);\n  }\n}\n\n// monta o payload no formato que a API v2 espera\nconst contato = { ...n.contato };\nif (acao === 'alterar') { contato.id = idTiny; delete contato.sequencia; }\nconst payload = JSON.stringify({ contatos: [{ contato }] });\n\nreturn {\n  json: {\n    ...n,\n    acao,\n    idTiny,\n    erroPesquisa,\n    payload,\n    // quando a pesquisa falhou de verdade nao arriscamos escrever no Tiny\n    seguirParaTiny: erroPesquisa === '',\n  },\n};\n"
+      },
+      "id": "c1000000-0000-0000-0000-000000000005",
+      "name": "Decidir incluir ou alterar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-seguirParaTiny",
+              "leftValue": "={{ $json.seguirParaTiny }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c1000000-0000-0000-0000-000000000006",
+      "name": "Pesquisa respondeu?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.tiny.com.br/api2/contato.{{ $json.acao }}.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY_TOKEN }}"
+            },
+            {
+              "name": "contato",
+              "value": "={{ $json.payload }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c1000000-0000-0000-0000-000000000007",
+      "name": "Tiny · contato.incluir ou alterar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        -160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Token via $env.TINY_TOKEN (P4). A URL alterna sozinha entre contato.incluir.php e contato.alterar.php pelo campo acao vindo do Code. O payload ja vem pronto em $json.payload - o Code node NUNCA enxerga o token."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ============================================================================\n// Node \"Conferir resposta do Tiny\". Mode: Run Once for EACH Item.\n//\n// O Tiny mente duas vezes seguidas: pode devolver retorno.status = \"OK\" e,\n// dentro de registros[], um registro com status \"Erro\". Por isso conferimos\n// os dois niveis antes de dar a resposta por boa.\n// ============================================================================\n\n// Busca o item correspondente no node de origem, tolerando o sufixo que o n8n\n// acrescenta ao nome quando o workflow e importado por cima de outro (\"...1\").\n// Sem isso, um import duplicado quebra a referencia em tempo de execucao.\nfunction itemDoNode(nomeBase, idx) {\n  for (const nome of [nomeBase, nomeBase + '1', nomeBase + '2']) {\n    try {\n      const it = $(nome).itemMatching(idx);\n      if (it) return it.json;\n    } catch (e) { /* node com esse nome nao existe: tenta o proximo */ }\n  }\n  throw new Error(\n    `Nao encontrei o node \"${nomeBase}\". Se voce renomeou os nodes, ` +\n    `importe o workflow num fluxo NOVO e vazio para os nomes voltarem ao original.`\n  );\n}\n\nconst d = itemDoNode('Decidir incluir ou alterar', $itemIndex);\n\n// MODO DE TESTE: com o node \"Tiny · contato.incluir ou alterar\" DESATIVADO, o\n// item chega aqui sem 'retorno' (o n8n so repassa a entrada). Nesse caso nao ha\n// nada para conferir nem para registrar - o teste era so a pesquisa.\nif ($json?.retorno === undefined && $json?.acao !== undefined) {\n  return { json: {\n    carimbo: d.carimbo, nome: d.contato?.nome ?? '',\n    acao: d.acao, idTiny: d.idTiny,\n    resultado: 'MODO DE TESTE - node de escrita no Tiny desativado, nada foi gravado',\n    tinyOk: null, erroDoTiny: false, pendencia: false,\n  }};\n}\n\nconst ret = $json?.retorno ?? {};\n\nconst regs = Array.isArray(ret.registros) ? ret.registros : (ret.registros ? [ret.registros] : []);\nconst reg = (regs[0] || {}).registro || regs[0] || {};\n\nconst juntaErros = (e) => {\n  const lista = Array.isArray(e) ? e : (e ? [e] : []);\n  return lista.map((x) => (typeof x === 'string' ? x : (x.erro ?? JSON.stringify(x)))).join(' / ');\n};\n\nconst erroTopo = juntaErros(ret.erros);\nconst erroReg = juntaErros(reg.erros);\nconst okTopo = String(ret.status ?? '').toUpperCase() === 'OK';\nconst okReg = reg.status === undefined || String(reg.status).toUpperCase() === 'OK';\nconst ok = okTopo && okReg;\n\nconst motivoTiny = ok ? '' : (erroReg || erroTopo ||\n  `Tiny recusou (codigo ${ret.codigo_erro ?? reg.codigo_erro ?? '?'})`).slice(0, 300);\n\n// idTiny: no incluir vem no registro; no alterar ja tinhamos\nconst idTiny = String(reg.id ?? d.idTiny ?? '');\n\n// A linha vai para PENDENCIAS se o Tiny recusou OU se a resposta do cliente\n// tinha algum problema que um humano precisa olhar.\nconst motivo = [motivoTiny ? `Tiny: ${motivoTiny}` : '', d.alerta || '']\n  .filter(Boolean).join(' | ');\n\nreturn {\n  json: {\n    carimbo: d.carimbo,\n    nome: d.contato?.nome ?? '',\n    telefone: d.contato?.fone ?? '',\n    email: d.contato?.email ?? '',\n    documentoInformado: d.docBruto,\n    documentoGravado: d.contato?.cpf_cnpj ?? '',\n    tipoPessoa: d.tipo_pessoa,\n    acao: d.acao,\n    idTiny,\n    tinyOk: ok,\n    resultado: ok\n      ? (d.acao === 'alterar' ? `Contato ATUALIZADO no Tiny (id ${idTiny})`\n                              : `Contato CRIADO no Tiny (id ${idTiny})`)\n      : 'NAO foi gravado no Tiny',\n    motivo,\n    erroDoTiny: !ok,\n    pendencia: motivo !== '',\n  },\n};\n"
+      },
+      "id": "c1000000-0000-0000-0000-000000000008",
+      "name": "Conferir resposta do Tiny",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-pendencia",
+              "leftValue": "={{ $json.pendencia }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c1000000-0000-0000-0000-000000000009",
+      "name": "Precisa de pendência?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// Node \"Montar linha de pendencia\". Mode: Run Once for All Items.\n//\n// Recebe itens de tres lugares com formatos diferentes:\n//   a) \"Da para cadastrar?\" (falso)  -> resposta impossivel de cadastrar\n//   b) \"Pesquisa respondeu?\" (falso) -> contatos.pesquisa falhou\n//   c) \"Precisa de pendencia?\" (sim) -> passou pelo Tiny mas tem o que olhar\n// Aqui os tres viram a MESMA linha da aba PENDENCIAS.\n// ============================================================================\n\nconst agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' });\nconst txt = (v) => (v === null || v === undefined ? '' : String(v));\n\n// Blindagem contra o auto-parse do Google Sheets — mesma tecnica do workflow\n// Tiny -> Planilha. Com cellFormat = USER_ENTERED, o apostrofo inicial forca\n// texto literal e NAO e gravado na celula.\n// Motivo (achado em 03/09): o CPF \"08735920777\" foi gravado como o NUMERO\n// 8735920777 e perdeu o zero a esquerda — exatamente o bug de SKU do Plugga.\nconst texto = (v) => { const x = txt(v); return x === '' ? '' : \"'\" + x; };\n\nconst saida = [];\nfor (const item of $input.all()) {\n  const j = item.json ?? {};\n  const c = j.contato ?? {};\n\n  const motivo = txt(j.motivo) || txt(j.erroPesquisa && `contatos.pesquisa falhou: ${j.erroPesquisa}`) ||\n                 txt(j.alerta) || 'Sem motivo registrado';\n\n  const resultado = txt(j.resultado) ||\n    (j.erroPesquisa ? 'NAO foi gravado no Tiny (a pesquisa falhou)' : 'NAO foi gravado no Tiny');\n\n  saida.push({ json: {\n    'Registrado em': agora,\n    'Carimbo da resposta': txt(j.carimbo),\n    'Nome': txt(j.nome) || txt(c.nome),\n    'Telefone': texto(txt(j.telefone) || txt(c.fone)),\n    'E-mail': txt(j.email) || txt(c.email),\n    'Documento informado': texto(txt(j.documentoInformado) || txt(j.docBruto)),\n    'Documento gravado': texto(txt(j.documentoGravado) || txt(c.cpf_cnpj)),\n    'Motivo': motivo.slice(0, 500),\n    'O que a automação fez': resultado,\n    'Erro do Tiny': j.erroDoTiny || j.erroPesquisa ? 'sim' : 'nao',\n    'ID no Tiny': texto(txt(j.idTiny)),\n    'Resolvido?': '',\n  }});\n}\nreturn saida;\n"
+      },
+      "id": "c1000000-0000-0000-0000-000000000010",
+      "name": "Montar linha de pendência",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Lcnfpp4czFSpo7xtLjKlHqKo5Dpiv3nwwLixzkmWScg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PENDÊNCIAS",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Registrado em",
+              "displayName": "Registrado em",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Carimbo da resposta",
+              "displayName": "Carimbo da resposta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Nome",
+              "displayName": "Nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "E-mail",
+              "displayName": "E-mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Documento informado",
+              "displayName": "Documento informado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Documento gravado",
+              "displayName": "Documento gravado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Motivo",
+              "displayName": "Motivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "O que a automação fez",
+              "displayName": "O que a automação fez",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Erro do Tiny",
+              "displayName": "Erro do Tiny",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ID no Tiny",
+              "displayName": "ID no Tiny",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resolvido?",
+              "displayName": "Resolvido?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "c1000000-0000-0000-0000-000000000011",
+      "name": "Pendências · registrar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2400,
+        120
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "cXBBv3ExwbK3uj4c",
+          "name": "Google Service Account account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-erro-tiny",
+              "leftValue": "={{ $json['Erro do Tiny'] }}",
+              "rightValue": "sim",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c1000000-0000-0000-0000-000000000012",
+      "name": "Foi erro do Tiny?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Cadastro de cliente NAO foi gravado no Tiny — {{ $json.Nome }} ({{ $json[\"Carimbo da resposta\"] }}): {{ $json.Motivo }}"
+      },
+      "id": "c1000000-0000-0000-0000-000000000013",
+      "name": "Erro · Tiny recusou",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        40
+      ]
+    }
+  ],
+  "connections": {
+    "Gatilho · nova resposta no formulário": {
+      "main": [
+        [
+          {
+            "node": "Normalizar e validar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar e validar": {
+      "main": [
+        [
+          {
+            "node": "Dá para cadastrar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dá para cadastrar?": {
+      "main": [
+        [
+          {
+            "node": "ViaCEP · cidade oficial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar linha de pendência",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ViaCEP · cidade oficial": {
+      "main": [
+        [
+          {
+            "node": "Aplicar cidade do CEP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar cidade do CEP": {
+      "main": [
+        [
+          {
+            "node": "Tiny · contatos.pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · contatos.pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Decidir incluir ou alterar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir incluir ou alterar": {
+      "main": [
+        [
+          {
+            "node": "Pesquisa respondeu?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pesquisa respondeu?": {
+      "main": [
+        [
+          {
+            "node": "Tiny · contato.incluir ou alterar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar linha de pendência",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · contato.incluir ou alterar": {
+      "main": [
+        [
+          {
+            "node": "Conferir resposta do Tiny",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir resposta do Tiny": {
+      "main": [
+        [
+          {
+            "node": "Precisa de pendência?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa de pendência?": {
+      "main": [
+        [
+          {
+            "node": "Montar linha de pendência",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Montar linha de pendência": {
+      "main": [
+        [
+          {
+            "node": "Pendências · registrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendências · registrar": {
+      "main": [
+        [
+          {
+            "node": "Foi erro do Tiny?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foi erro do Tiny?": {
+      "main": [
+        [
+          {
+            "node": "Erro · Tiny recusou",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

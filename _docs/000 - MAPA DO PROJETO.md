@@ -48,7 +48,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[N8N - PCP Trello e ClickUp]] — migrações 3 e 4, o (k/n) e a causa da duplicação
 - [[N8N - Incidente Credencial Google]] — a queda de 11/08 e a lição sobre OAuth
 - [[N8N - API Tiny v2 vs v3]] — a decisão de ficar na v2 e a **regra do dono único** do token v3
-- [[N8N - Cadastro de Cliente (em andamento)]] — migração 5, bloqueada aguardando o CSV
+- [[N8N - Cadastro de Cliente]] — migração 5, **construída em 01/09**: formulário do Google → contato no Tiny, com validação real de CPF **e CNPJ** e aba PENDÊNCIAS; aguarda publicação
 - [[N8N - ROTAS Entregue para Tiny]] — **em produção desde 17/08**: card movido para "entregue" na ROTAS marca o pedido como Entregue no Tiny — a primeira no sentido ClickUp → Tiny
 - [[N8N - Migracao Supabase]] — **P15 em execução**: dupla escrita → backfill → paridade → corte da planilha
 - [[N8N - Backfill Historico do Tiny]] — **em execução desde 28/08 à noite**: todo o histórico desde 12/03/2025 (pedidos, contatos, NF e contas a receber) puxado da API v2 para o Supabase por uma fila auto-expansível — **substitui a FASE 2 da migração** (que seria por CSV) e trouxe a blindagem D-43 do gatilho do PCP

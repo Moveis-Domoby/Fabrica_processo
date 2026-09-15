@@ -257,3 +257,22 @@ Todas `security definer`, execute revogado de anon/authenticated, concedido só 
 > No `on conflict` de `fn_upsert_pedido` a coluna `origem` **não é atualizada**.
 > Pedido que nasceu `webhook` continua `webhook` para sempre, mesmo relido pelo
 > backfill. É isso que faz a blindagem D-43 ser estável.
+
+
+---
+
+## ⚠️ Correção de 08/09/2026 — a coluna `pedidos.situacao`
+
+Esta nota afirmava que `situacao` guarda o **código v2** (`aberto`, `entregue`,
+`preparando_envio`). **Está errado.** `pedido.obter` devolve a **DESCRIÇÃO**, e
+`fn_upsert_pedido` grava sem transformar. Os valores reais no banco são:
+
+`Entregue` · `Preparando envio` · `Cancelado` · `Em aberto` ·
+`Pronto para envio` · `Faturado` · `Não entregue`
+
+Vale para as duas origens (`webhook` e `backfill`) — as duas passam pelo mesmo
+`pedido.obter`. O código v2 minúsculo só existe em `codigoSituacao`, no payload
+do webhook, que não é o que a função grava.
+
+**Todo filtro por situação neste banco usa a descrição.** Quem comparar com
+`'entregue'` minúsculo não acha nada.

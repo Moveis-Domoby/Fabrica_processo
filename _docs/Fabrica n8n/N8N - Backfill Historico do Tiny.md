@@ -389,3 +389,55 @@ Decodificando o buffer do stream: `codigo_erro 20, "A consulta não retornou
 registros"` para a janela de janeiro/2025 — exatamente o esperado, já que o
 histórico começa em 12/03/2025. O token e os parâmetros estavam corretos desde
 o primeiro disparo.
+
+**3. `pedido.obter` devolve `situacao` como DESCRIÇÃO, não o código v2.**
+Descoberto com 823 pedidos carregados: o campo vem `"Entregue"`, `"Não
+entregue"`, `"Preparando envio"` — e não `entregue`, `nao_entregue`,
+`preparando_envio`. A nota do esquema afirmava o contrário desde o começo.
+
+Passou despercebido por um ano porque o Code node da planilha faz
+`SITUACOES[p.situacao.toLowerCase()] ?? p.situacao` — o fallback devolvia a
+descrição intacta, então a coluna sempre saiu certa **por acidente**.
+
+Onde mordeu: a guarda D-43 comparava só com os códigos, e
+`lower('Não entregue')` = `'não entregue'` não casa com `'nao_entregue'`. Um
+pedido chegando pelo webhook já como "Não entregue" viraria card no PCP.
+Corrigido normalizando acento e espaço, o que faz a guarda aceitar os **dois**
+vocabulários:
+
+```sql
+translate(lower(coalesce(new.situacao,'')),
+          'áàâãéêíìóôõúùüç ', 'aaaaeeiiooouuuc_')
+    not in ('entregue','nao_entregue','cancelado')
+```
+
+Testado com `Não entregue`, `Entregue`, `Cancelado`, `nao_entregue` e
+`Preparando envio`: zero cards nos cinco.
+
+⚠️ **Qualquer filtro por `situacao` neste banco tem que usar a descrição** —
+inclusive a query do cofre de Pedidos entregues (D-44).
+
+## 10 · Q-66 respondida — o cofre filtra por `situacao`
+
+O medo era que a automação ROTAS → `entregue` só existir desde 17/08/2026
+deixasse milhares de pedidos entregues fisicamente parados como "Em aberto" no
+ERP. **Não é o caso** — a equipe sempre marcou à mão. Distribuição real com
+1.114 pedidos carregados:
+
+| Situação | n | Período |
+|---|---|---|
+| Entregue | 1.042 | 12/03/2025 → 04/09/2026 |
+| Preparando envio | 33 | 02/05/2026 → 05/09/2026 |
+| Cancelado | 22 | 17/03/2025 → 31/08/2026 |
+| Em aberto | 10 | 05/09/2026 → 08/09/2026 |
+| Pronto para envio | 5 | 28/08/2026 → 04/09/2026 |
+| Faturado | 1 | 31/08/2026 |
+| Não entregue | 1 | 07/07/2026 |
+
+**94% Entregue, e todo "Em aberto" é dos últimos 3 dias.** O histórico está
+limpo. **Decisão: o cofre filtra `situacao = 'Entregue'`** (com E maiúsculo — ver
+lição 3). Nada de "todo pedido histórico".
+
+Bônus: `data_pedido` mínimo é **12/03/2025** e `numero` mínimo é **8091** — exato
+o começo que o dono informou. As janelas de janeiro e fevereiro/2025 voltaram
+vazias (código 20), provando que não existe nada antes disso.
