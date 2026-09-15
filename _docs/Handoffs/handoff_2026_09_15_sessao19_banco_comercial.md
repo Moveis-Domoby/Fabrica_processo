@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, uniao, comercial, banco]
 
 # 📋 Handoff — SESSAO-19 · União 1: Banco do Comercial na fábrica — a 1ª do bloco União (D-46)
 
-**Branch:** `sessao-19-uniao-banco-comercial` (aguardando sua revisão para merge — D-20)
+**Branch:** `sessao-19-uniao-banco-comercial` (**revisada na conversa e mesclada na `main` pelo PR #3 em 15/09** — D-20)
 **Banco:** migration **26** (`20260915120000_plt_comercial_banco.sql`) aplicada em 15/09 com sua autorização na conversa, pela API do Supabase (o host direto do Postgres não resolve da sua rede — sem rota IPv6; mesmo caminho da S15). Impressão digital da integração antes = depois (`82df8df9…`). **6 Edge Functions do recompra deployadas — NENHUM cron agendado.** Carga das 6 tabelas concluída com **checksum idêntico 6/6**.
 **Demanda:** [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] · **Memória:** `docs/execucao/SESSAO-19.md`
 **Decisões que regem:** **D-46** (a união) · **D-47** (reutilizar antes de criar) · D-19/regra 2 · regra 4 · RNF-05
@@ -57,7 +57,7 @@ tags: [handoff, sessao, plataforma, uniao, comercial, banco]
 
 - **Confirmar o desvio do `tiny_auth`** (fechada até para admin) — ou mando abrir para admin.
 - **Secrets** (§3) quando quiser.
-- **Merge na `main`** após sua revisão (D-20).
+- ✅ Merge na `main` feito pelo PR #3 em 15/09, com sua aprovação na conversa.
 - Próxima: **SESSAO-20 — Módulo Comercial no Front** (a demanda vira "pronta para code" com esta entregue).
 
 ## 6. Notas do cofre atualizadas
