@@ -43,7 +43,8 @@ tags: [plataforma, uniao, comercial, banco, migracao]
 ### Edge Functions (6 de 9) e crons (4 de 6) na fábrica
 
 - Functions: `enviar-proximo-disparo`, `processar-timers-disparo`, `verificar-vendas-disparo`, `disparar-membro-individual`, `webhook-datacrazy-resposta`, `tiny-auth-refresh` (o renovador vai junto — decisão do dono).
-- Secrets (o dono configura no dashboard; **nunca em chat/nota/código** — regra 4): `TINY_CLIENT_ID`, `TINY_CLIENT_SECRET`, `DATACRAZY_WEBHOOK_TRIGGER_URL`, `DATACRAZY_WEBHOOK_SECRET`.
+- Secrets: ✅ **configurados pelo dono na fábrica em 15/09** — `TINY_CLIENT_ID`, `TINY_CLIENT_SECRET`, `DATACRAZY_WEBHOOK_TRIGGER_URL`, `DATACRAZY_WEBHOOK_SECRET` (valores nunca em chat/nota/código — regra 4). ⚠️ Consequência: as functions de disparo da fábrica estão **funcionais desde já**; sem cron elas não partem sozinhas, mas um clique dispara de verdade. Daí a trava de disparo obrigatória na SESSAO-20, destravada só no cutover.
+- `tiny_auth`: fechada no navegador para **todos**, admin inclusive (RLS ligada, nenhuma policy) — só a `service_role` das Edge Functions lê. Confirmado pelo dono em 15/09.
 - Crons (agendados **somente no cutover**, ver riscos): `enviar-proximo-disparo-cron` (`* * * * *`), `processar-timers-disparo-cron` (`0 * * * *`), `verificar-vendas-disparo-cron` (`30 * * * *`), `tiny-auth-refresh-cron` (`0 */3 * * *`) — modelo em `supabase/cron_agendamentos.sql` do repo do recompra, trocando URL e anon key pelas da fábrica.
 
 ### Reapontamento externo
@@ -55,7 +56,7 @@ tags: [plataforma, uniao, comercial, banco, migracao]
 
 1. **Token do Tiny morre se dois projetos renovarem**: o refresh **rotaciona** o refresh_token (validade 24h). `tiny-auth-refresh` roda em **exatamente um** projeto por vez. Antes do cutover: só no antigo. Depois: só na fábrica.
 2. **Disparo duplicado**: `enviar-proximo-disparo` ativo nos dois projetos = cliente recebe WhatsApp 2×. Os crons de disparo vivem em exatamente um projeto por vez.
-3. **Congelamento combinado (D-46)**: nenhum disparo é realizado em nenhum dos dois painéis até a união concluir. No módulo novo, nada de criar/disparar lista antes do cutover.
+3. **Congelamento combinado (D-46)**: nenhum disparo é realizado em nenhum dos dois painéis até a união concluir. No módulo novo, nada de disparar antes do cutover — e, desde que os secrets entraram (15/09), isso deixou de depender de disciplina: a SESSAO-20 entrega os botões de disparo atrás de uma **trava explícita** (`DISPARO_LIBERADO = false`), que a SESSAO-21 vira no cutover.
 4. **Números idênticos**: qualquer correção que mude número visível de dashboard é avisada antes (regra do recompra que passa a valer no módulo).
 
 ## Front (SESSAO-20) — resumo
