@@ -329,7 +329,9 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
   }
   const authId = criada.data.user.id
 
-  // 2 · a pessoa na plataforma (a matrícula nasce no banco, pela trigger)
+  // 2 · a pessoa na plataforma (a matrícula nasce no banco, pela trigger).
+  //     Módulos (SESSAO-20/D-46): todo usuário novo nasce com `fabrica` —
+  //     o `comercial` é concedido depois, à mão, por quem administra.
   const { data: pessoa, error: erroPessoa } = await servidor
     .from('plt_usuarios')
     .insert({
@@ -341,6 +343,7 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
       telefone,
       papel,
       pin_hash: pin ? await gerarHashPin(pin) : null,
+      modulos: ['fabrica'],
     })
     .select('id, matricula, convite_token')
     .single()

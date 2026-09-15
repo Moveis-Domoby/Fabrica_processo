@@ -23,4 +23,21 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  // Módulo Comercial (SESSAO-20, D-46): código PORTADO 1:1 do Painel de
+  // Recompra, que lintava com oxlint (permissivo). A demanda proíbe refatorar
+  // o porte ("aproveitar para fazer" não existe), então as regras que o código
+  // de lá nunca seguiu ficam desligadas SÓ aqui — adaptação de build, como o
+  // Tailwind v3→v4. Código NOVO da casa continua sob as regras cheias; os
+  // achados por trás disso já estão catalogados no cofre do recompra (DT-*).
+  {
+    files: ['src/comercial/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-empty': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/static-components': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )

@@ -12,15 +12,15 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Package,
   Settings,
+  Store,
   TabletSmartphone,
-  Truck,
   X,
 } from 'lucide-react'
 import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { temModulo } from '@/autenticacao/tipos'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
@@ -32,11 +32,23 @@ interface FilhoMenu {
   rotulo: string
 }
 
+/** Uma seção da barra 2: título opcional + itens (SESSAO-20 — o pai Fábrica
+ *  agrupa Controle de Produção, Logística e ROTAS em seções, D-46). */
+interface SecaoMenu {
+  titulo?: string
+  filhos: FilhoMenu[]
+}
+
 interface GrupoMenu {
   id: string
   rotulo: string
   icone: ReactNode
-  filhos: FilhoMenu[]
+  secoes: SecaoMenu[]
+}
+
+/** Todos os itens navegáveis de um grupo, seção a seção. */
+function filhosDoGrupo(grupo: GrupoMenu): FilhoMenu[] {
+  return grupo.secoes.flatMap((s) => s.filhos)
 }
 
 const CHAVE_RECOLHIDA = 'dm-sidebar-recolhida'
@@ -112,6 +124,12 @@ export function Layout({ children }: { children: ReactNode }) {
     if (perfil) registrarAtividade('navegacao', location.pathname)
   }, [perfil, location.pathname])
 
+  // Módulos por pessoa (SESSAO-20/D-46): sem `fabrica`, somem Fábrica,
+  // Dashboards e o botão Modo tablet; sem `comercial`, some o Comercial.
+  // Admin vê tudo. O front só esconde — quem nega o dado é o banco.
+  const veFabrica = temModulo(perfil, 'fabrica')
+  const veComercial = temModulo(perfil, 'comercial')
+
   const grupos: GrupoMenu[] = useMemo(() => {
     if (!perfil) return []
 
@@ -128,81 +146,117 @@ export function Layout({ children }: { children: ReactNode }) {
 
     const veLogistica = souAdmin || ehDoPcp || ehDeTerminal
 
+    // O pai Fábrica (D-46): Controle de Produção, Logística e ROTAS viraram
+    // seções da barra 2 — os dashboards da produção ficam onde estão (Q-66).
+    const secoesFabrica: SecaoMenu[] = [
+      ...(filhosProducao.length > 0
+        ? [{ titulo: 'Controle de Produção', filhos: filhosProducao }]
+        : []),
+      ...(veLogistica
+        ? [
+            {
+              titulo: 'Logística',
+              filhos: [
+                { para: '/fabrica/logistica/expedicao', rotulo: 'Expedição' },
+                { para: '/fabrica/logistica/estoque', rotulo: 'Estoque' },
+                { para: '/fabrica/logistica/pedidos-em-aguardo', rotulo: 'Pedidos em aguardo' },
+                { para: '/fabrica/logistica/danificados', rotulo: 'Danificados' },
+              ],
+            },
+            {
+              titulo: 'ROTAS',
+              filhos: [
+                { para: '/fabrica/rotas/entregas', rotulo: 'Entregas' },
+                { para: '/fabrica/rotas/programacao', rotulo: 'Programação' },
+              ],
+            },
+          ]
+        : []),
+    ]
+
     return [
       {
         id: 'inicio',
         rotulo: 'Início',
         icone: <House aria-hidden />,
-        filhos: [
-          { para: '/inicio/meu-painel', rotulo: 'Meu painel' },
-          { para: '/inicio/afazeres', rotulo: 'Afazeres' },
+        secoes: [
+          {
+            filhos: [
+              { para: '/inicio/meu-painel', rotulo: 'Meu painel' },
+              { para: '/inicio/afazeres', rotulo: 'Afazeres' },
+            ],
+          },
         ],
       },
-      ...(filhosProducao.length > 0
+      ...(veFabrica && secoesFabrica.length > 0
         ? [
             {
-              id: 'producao',
-              rotulo: 'Controle de Produção',
+              id: 'fabrica',
+              rotulo: 'Fábrica',
               icone: <Factory aria-hidden />,
-              filhos: filhosProducao,
+              secoes: secoesFabrica,
             },
           ]
         : []),
-      ...(veLogistica
+      ...(veComercial
         ? [
             {
-              id: 'logistica',
-              rotulo: 'Logística',
-              icone: <Package aria-hidden />,
-              filhos: [
-                { para: '/logistica/expedicao', rotulo: 'Expedição' },
-                { para: '/logistica/estoque', rotulo: 'Estoque' },
-                { para: '/logistica/pedidos-em-aguardo', rotulo: 'Pedidos em aguardo' },
-                { para: '/logistica/danificados', rotulo: 'Danificados' },
+              id: 'comercial',
+              rotulo: 'Comercial',
+              icone: <Store aria-hidden />,
+              secoes: [
+                {
+                  filhos: [
+                    { para: '/comercial/recompra', rotulo: 'Painel de Recompra' },
+                    { para: '/comercial/dashboard', rotulo: 'Dashboard' },
+                    { para: '/comercial/listas', rotulo: 'Listas de Disparo' },
+                  ],
+                },
               ],
             },
+          ]
+        : []),
+      ...(ehLider && veFabrica
+        ? [
             {
-              id: 'rotas',
-              rotulo: 'ROTAS',
-              icone: <Truck aria-hidden />,
-              filhos: [
-                { para: '/rotas/entregas', rotulo: 'Entregas' },
-                { para: '/rotas/programacao', rotulo: 'Programação' },
-              ],
+              id: 'dashboards',
+              rotulo: 'Dashboards',
+              icone: <ChartColumn aria-hidden />,
+              secoes: [{ filhos: [{ para: '/dashboards/geral', rotulo: 'Visão geral' }] }],
             },
           ]
         : []),
       ...(ehLider
         ? [
             {
-              id: 'dashboards',
-              rotulo: 'Dashboards',
-              icone: <ChartColumn aria-hidden />,
-              filhos: [{ para: '/dashboards/geral', rotulo: 'Visão geral' }],
-            },
-            {
+              // Só o rótulo mudou: "Administração" → "Painel admin" (D-46);
+              // as rotas /admin/* seguem intactas.
               id: 'admin',
-              rotulo: 'Administração',
+              rotulo: 'Painel admin',
               icone: <Settings aria-hidden />,
-              filhos: [
-                { para: '/admin/equipe', rotulo: 'Gestão da equipe' },
-                { para: '/admin/setores-e-etapas', rotulo: 'Setores e etapas' },
-                ...(souAdmin
-                  ? [
-                      { para: '/admin/tempo', rotulo: 'Controle de tempo' },
-                      { para: '/admin/api', rotulo: 'API e integrações' },
-                      { para: '/admin/caminhoes', rotulo: 'Caminhões' },
-                    ]
-                  : []),
+              secoes: [
+                {
+                  filhos: [
+                    { para: '/admin/equipe', rotulo: 'Gestão da equipe' },
+                    { para: '/admin/setores-e-etapas', rotulo: 'Setores e etapas' },
+                    ...(souAdmin
+                      ? [
+                          { para: '/admin/tempo', rotulo: 'Controle de tempo' },
+                          { para: '/admin/api', rotulo: 'API e integrações' },
+                          { para: '/admin/caminhoes', rotulo: 'Caminhões' },
+                        ]
+                      : []),
+                  ],
+                },
               ],
             },
           ]
         : []),
     ]
-  }, [perfil, vinculos, setores, souAdmin, ehDoPcp, ehDeTerminal, ehLider])
+  }, [perfil, vinculos, setores, souAdmin, ehDoPcp, ehDeTerminal, ehLider, veFabrica, veComercial])
 
   const grupoAtivo = grupos.find((g) =>
-    g.filhos.some((f) => location.pathname.startsWith(f.para)),
+    filhosDoGrupo(g).some((f) => location.pathname.startsWith(f.para)),
   )?.id
   const grupoDoPainel =
     grupos.find((g) => g.id === (grupoEscolhido ?? grupoAtivo)) ??
@@ -354,19 +408,22 @@ export function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       <div className="flex flex-col border-t border-grafite-600">
-        {/* Modo tablet: fixo, logo acima do bloco do usuário (D-36). */}
-        <NavLink
-          to="/tablet"
-          onClick={() => setGavetaAberta(false)}
-          title={recolhida ? 'Modo tablet' : undefined}
-          className={cn(
-            'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
-            recolhida && 'justify-center px-0',
-          )}
-        >
-          <TabletSmartphone aria-hidden />
-          {!recolhida && 'Modo tablet'}
-        </NavLink>
+        {/* Modo tablet: fixo, logo acima do bloco do usuário (D-36).
+            Sem o módulo fabrica, o botão some junto com o grupo (D-46). */}
+        {veFabrica && (
+          <NavLink
+            to="/tablet"
+            onClick={() => setGavetaAberta(false)}
+            title={recolhida ? 'Modo tablet' : undefined}
+            className={cn(
+              'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
+              recolhida && 'justify-center px-0',
+            )}
+          >
+            <TabletSmartphone aria-hidden />
+            {!recolhida && 'Modo tablet'}
+          </NavLink>
+        )}
 
         <div className={cn('flex items-center gap-1 p-3', recolhida && 'flex-col')}>
           {/* O bloco do usuário abre o Meu Perfil (D-41). */}
@@ -445,22 +502,33 @@ export function Layout({ children }: { children: ReactNode }) {
         aria-label={`Itens de ${grupoDoPainel.rotulo}`}
         className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
       >
-        {grupoDoPainel.filhos.map((filho) => (
-          <NavLink
-            key={filho.para}
-            to={filho.para}
-            onClick={() => setGavetaAberta(false)}
-            className={({ isActive }) =>
-              cn(
-                'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-marca-500 text-grafite-950'
-                  : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
-              )
-            }
-          >
-            {filho.rotulo}
-          </NavLink>
+        {grupoDoPainel.secoes.map((secao, indice) => (
+          <div key={secao.titulo ?? indice} className={cn(indice > 0 && 'mt-3')}>
+            {secao.titulo && (
+              <span className="block px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-grafite-400">
+                {secao.titulo}
+              </span>
+            )}
+            <div className="flex flex-col gap-0.5">
+              {secao.filhos.map((filho) => (
+                <NavLink
+                  key={filho.para}
+                  to={filho.para}
+                  onClick={() => setGavetaAberta(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-marca-500 text-grafite-950'
+                        : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
+                    )
+                  }
+                >
+                  {filho.rotulo}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
     </div>

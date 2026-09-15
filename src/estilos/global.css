@@ -82,6 +82,34 @@
   /* --- Raio ------------------------------------------------------------- */
   --radius-dm: 0.625rem;
   --radius-dm-lg: 0.875rem;
+
+  /* --- Vocabulário do módulo Comercial (SESSAO-20, D-46) -----------------
+     O Painel de Recompra foi portado 1:1 e o código dele fala o vocabulário
+     shadcn (bg-background, text-primary, border-border…). Em vez de reescrever
+     cada className do porte, o vocabulário vira ALIAS da camada semântica da
+     casa: primary é a ação, card é a superfície, muted é a superfície sutil.
+     Assim o módulo obedece aos 10 temas como qualquer tela — e nos temas
+     esmeralda fica idêntico ao painel de origem. Telas NOVAS da casa seguem
+     usando os nomes Domoby (fundo, superficie, acao…), nunca estes. */
+  --color-background: var(--dm-fundo);
+  --color-foreground: var(--dm-texto);
+  --color-card: var(--dm-superficie);
+  --color-card-foreground: var(--dm-texto);
+  --color-popover: var(--dm-superficie);
+  --color-popover-foreground: var(--dm-texto);
+  --color-primary: var(--dm-acao);
+  --color-primary-foreground: var(--dm-acao-texto);
+  --color-secondary: var(--dm-superficie-sutil);
+  --color-secondary-foreground: var(--dm-texto);
+  --color-muted: var(--dm-superficie-sutil);
+  --color-muted-foreground: var(--dm-texto-suave);
+  --color-accent: var(--dm-acao);
+  --color-accent-foreground: var(--dm-acao-texto);
+  --color-destructive: var(--dm-perigo);
+  --color-destructive-foreground: #fafafa;
+  --color-border: var(--dm-borda);
+  --color-input: var(--dm-borda-forte);
+  --color-ring: var(--dm-foco);
 }
 
 @layer base {
@@ -141,6 +169,48 @@
     min-width: 2.75rem;
     min-height: 2.75rem;
     translate: -50% -50%;
+  }
+}
+
+/* ==========================================================================
+   Módulo Comercial (SESSAO-20, D-46) — o CSS próprio que o index.css do
+   recompra tinha, ESCOPADO ao contêiner .comercial para não vazar para a
+   casa: transição de cor em tudo (o painel antigo anima a troca de tema),
+   barra de rolagem fina e a animação dos dropdowns.
+   ========================================================================== */
+.comercial *,
+.comercial *::before,
+.comercial *::after {
+  border-color: var(--dm-borda);
+  transition-property: color, background-color, border-color;
+  transition-duration: 300ms;
+  transition-timing-function: ease-in-out;
+}
+
+.comercial ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.comercial ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.comercial ::-webkit-scrollbar-thumb {
+  background: var(--dm-borda);
+  border-radius: 999px;
+}
+.comercial * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dm-borda) transparent;
+}
+
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

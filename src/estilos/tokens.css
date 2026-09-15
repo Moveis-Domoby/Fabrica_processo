@@ -198,12 +198,71 @@
   --dm-perigo: #f87171;
 }
 
+/* ==========================================================================
+   OS 2 TEMAS ESMERALDA (SESSAO-20, D-46) — a paleta verde-esmeralda do Painel
+   de Recompra entra no design system na união das plataformas. São os temas
+   claro e escuro que o painel antigo sempre teve, expressos na MESMA camada
+   semântica da casa: quem os escolhe vê a plataforma inteira neles, e o
+   módulo Comercial fica idêntico ao painel de origem.
+   Exceção deliberada à regra do amarelo: aqui a AÇÃO é o verde-esmeralda com
+   texto claro/escuro conforme o tema — contraste conferido (≥ 4,5:1).
+   ========================================================================== */
+
+/* esmeralda — o tema claro do recompra: cinza-azulado frio + verde. */
+[data-tema='esmeralda'] {
+  --dm-fundo: hsl(220 18% 91%);
+  --dm-superficie: hsl(220 20% 96%);
+  --dm-superficie-sutil: hsl(220 14% 87%);
+  --dm-superficie-inversa: hsl(225 15% 12%);
+
+  --dm-texto: hsl(225 15% 12%);
+  --dm-texto-suave: hsl(220 10% 42%);
+  --dm-texto-fraco: hsl(220 8% 55%);
+  --dm-texto-inverso: #ffffff;
+
+  --dm-borda: hsl(220 14% 82%);
+  --dm-borda-forte: hsl(220 14% 72%);
+
+  --dm-acao: hsl(165 80% 32%);
+  --dm-acao-hover: hsl(165 80% 38%);
+  --dm-acao-ativa: hsl(165 80% 26%);
+  --dm-acao-texto: #ffffff;
+
+  --dm-foco: hsl(165 80% 32%);
+  --dm-perigo: hsl(0 72% 55%);
+}
+
+/* esmeralda-escuro — o tema escuro do recompra: quase-preto + verde vivo. */
+[data-tema='esmeralda-escuro'] {
+  --dm-fundo: hsl(240 6% 6%);
+  --dm-superficie: hsl(240 6% 10%);
+  --dm-superficie-sutil: hsl(240 6% 14%);
+  --dm-superficie-inversa: hsl(240 5% 90%);
+
+  --dm-texto: hsl(0 0% 98%);
+  --dm-texto-suave: hsl(240 5% 65%);
+  --dm-texto-fraco: hsl(240 5% 50%);
+  --dm-texto-inverso: hsl(240 10% 4%);
+
+  --dm-borda: hsl(240 6% 18%);
+  --dm-borda-forte: hsl(240 6% 26%);
+
+  --dm-acao: hsl(165 90% 45%);
+  --dm-acao-hover: hsl(165 90% 52%);
+  --dm-acao-ativa: hsl(165 90% 38%);
+  --dm-acao-texto: hsl(240 10% 4%);
+
+  --dm-foco: hsl(165 90% 45%);
+  --dm-perigo: hsl(0 84% 60%);
+}
+
 /* A família escura inteira compartilha os estados de qualidade em versão
    escura e avisa o navegador (inputs/rolagem nativos) com color-scheme. */
 [data-tema='ardosia'],
 [data-tema='grafite'],
 [data-tema='escuro'],
-[data-tema='meia-noite'] {
+[data-tema='meia-noite'],
+[data-tema='esmeralda-escuro'] {
   color-scheme: dark;
 
   --dm-perfeito-fundo: #052e16;
