@@ -2,7 +2,7 @@
 titulo: Plataforma — Memória de Aprendizado (Claude Code + Cowork)
 tipo: memoria-aprendizado
 data: 2026-08-19
-atualizado: 2026-08-27
+atualizado: 2026-09-08
 tags: [plataforma, memoria, aprendizado, erros, acertos]
 ---
 
@@ -53,6 +53,10 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-01] **E-24** (Claude Code) · A reaplicação completa das migrations (S13) **ressuscitou em silêncio** o gatilho antigo de `pedidos` e desfez a blindagem que a frente do backfill tinha aplicado DIRETO no banco — resultado: ~163 cards de pedidos históricos no PCP → **correção:** migration 24 espelha os 2 gatilhos blindados no repo (SESSAO-14). **Lição: ajuste aplicado direto no banco, fora do repo, morre na próxima reaplicação — todo ajuste de produção ganha espelho em migration NO MESMO DIA.**
 
+- [2026-09-08] **E-25** (Claude Code) · Migration 24 espelhava a guarda do gatilho de `pedidos` com `lower()` só, enquanto produção já tinha `translate(...)` (corrigida pela frente do backfill em 28/08) e a nota do esquema afirmava código v2 onde o Tiny grava a DESCRIÇÃO — a detecção de cancelamento da S09 (`= 'cancelado'`) nunca disparou → **correção:** migration 25 normaliza situação no banco (`fn_situacao_normalizada`) e no front (`situacao.ts`), e espelha a guarda de produção. **Lição: toda comparação com dado que vem de integração passa por normalização declarada num lugar só; e "espelho de produção" se confere lendo `pg_get_triggerdef` no banco real, não a nota.**
+
+- [2026-09-08] **E-26** (Claude Code) · SQL de manutenção arquivou em massa com `origem = 'automacao'` sem pessoa e o trigger `fn_validar_api` recusou (arquivar sem pessoa só com origem `api`) → **correção:** origem `api` — o gesto "da integração" é o caminho sancionado para lote sem autor. **Lição: antes de rodar SQL de lote em produção, passar o mesmo SQL no `test:banco` — os triggers valem para o superusuário também (M-14) e teriam pego na hora.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.
@@ -98,6 +102,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - **F-06** · [2026-08-24] **Prompt do Claude Code é mínimo: só o caminho.** Se está no cofre, não se repete no prompt — texto duplicado vira segunda fonte de verdade que envelhece sozinha (viola M-04). O Cowork entrega o prompt **no chat**, pronto para colar. (Erro do Cowork corrigido: primeiro prompt do Bloco 1 nasceu com ~200 linhas replicando as decisões → reescrito para 3 linhas.)
 
 - **F-07** · [2026-08-24] **Ciclo de verificação de tela:** `tsc` → `lint` → testes → abrir em viewport de CELULAR **e** de TABLET e medir o DOM (altura de alvo de toque, rolagem horizontal) ANTES de declarar pronto. Foi assim que apareceram o dado repetido no card do celular e o hook com nome fora da convenção.
+- **F-09** · [2026-09-08] **Verificação ao vivo sem painel que compõe frames (A-13, 2ª geração):** clique de automação por coordenada/ref falha calado quando o painel de preview não renderiza; o que prova o gesto é (1) disparar o handler REAL via JS (`botao.click()`, `input.form.requestSubmit()`, valor via setter nativo + `input` event), (2) para o `Selecao` (Radix Select): `pointerdown` sintético no gatilho abre a lista e **`keydown Enter` no `[role=option]` focado seleciona** (pointerup/click sintéticos não), (3) upload de arquivo via `DataTransfer` + `change`, e (4) conferir o resultado no BANCO (evento/log com o autor), nunca só no DOM. Screenshot volta a funcionar de vez em quando — tentar de novo para o handoff.
+
 - **F-08** · [2026-08-26] **Ciclo de banco, versão completa:** ler [[SUPA - Esquema do Banco]] → ler o CÓDIGO das funções que já escrevem nas tabelas → escrever migrations idempotentes → testar contra o esquema real duas vezes → aprovação do dono → aplicar conferindo impressão digital antes/depois → `get_advisors` → atualizar `supabase-fabrica-schema.sql` + a nota do esquema.
 
 ## 💡 Possibilidades a explorar (X-NN)

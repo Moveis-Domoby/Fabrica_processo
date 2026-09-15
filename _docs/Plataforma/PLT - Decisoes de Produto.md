@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-08-27
+atualizado: 2026-09-08
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -341,6 +341,21 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - **Dados cadastrais editáveis pelo próprio usuário:** nome, telefone e **e-mail** (que também serve de login). CPF e matrícula ficam travados — só admin.
 - **Foto de perfil:** o operador comum pode subir a **própria** foto (pasta própria no bucket; admin pode trocar a de qualquer um).
 - **Log de atividade (D-40): registrar tudo** — nenhum tipo de atividade excluído do registro.
+
+## D-45 · Logística e ROTAS: unidade pronta, lançamento, ID de produção, danificados, programação e metas completas (01/09/2026, registrada em 08/09)
+
+**Decidido (respostas do dono no início da SESSAO-15, em 01/09; a D-44 pertence à frente do backfill — cofre de Pedidos entregues):**
+
+- **"Unidade pronta" = chegou em setor terminal** (ESTOQUE ou ROTAS). Uma tela de "concluídos" fica para o futuro.
+- **Lançar para ROTAS move de verdade:** ao lançar o pedido completo, as unidades que estão no ESTOQUE são movidas para o setor ROTAS por evento normal de movimentação — saem da lista do Estoque e a contagem das ROTAS fecha. **Só o lançado aparece nas ROTAS** (a regra da S11 — "bastava estar no setor ROTAS" — cai).
+- **Estoque é lista, não quadro:** a lista da D-38 SUBSTITUI o quadro kanban do setor ESTOQUE (palavras do dono: *"esse quadro primeiramente que não deveria nem existir"*). **Quem vê e edita o ID de produção:** logística (PCP/terminais) e admin.
+- **Danificados:** resolver para outro setor **exige marcar o estado** (a peça pode sair 🟡 ou 🔴 mesmo); as ações ficam com **logística e admin** (líder fora — resposta de 08/09); o botão **"visualizar arquivados" só carrega ao ser clicado**.
+- **Programação de caminhão:** reprogramável a qualquer instante, inclusive no dia — **nunca depois de o pedido ser registrado como entregue**; admin tem controle total; quem opera é a logística.
+- **Os ~163 cards históricos do PCP** (E-24): aprovado arquivar em massa (evento `card_arquivado`, exclusão lógica; o histórico fica).
+- **Metas (pendência da S14):** a meta que o líder define para o liderado é **completa** — *"Lucas → concluir X cards na etapa Y em x tempo (opcional)"* — o liderado só pega, executa e finaliza o card, e a meta contabiliza sozinha. Consequências: **edição/encerramento travados para quem criou** (admin mantém tudo; a pessoa manda só nas metas que ela mesma criou) e a meta de unidades ganha **etapa opcional**.
+- **Horas úteis:** cada etapa conta o próprio tempo; a pessoa conta do iniciar ao finalizar; cada card carrega o tempo total de produção (PCP → fim de linha); a dashboard mostra a **média por etapa** — insumo registrado para a SESSAO-16. A meta de setor em horas úteis segue contando só execução.
+
+**Descartadas:** só "marcar" o pedido como lançado sem mover as unidades (deixaria o Estoque sujo e a ROTAS inconsistente); manter o quadro kanban do ESTOQUE ao lado da lista.
 
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 

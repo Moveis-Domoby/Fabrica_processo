@@ -10,6 +10,10 @@ tags: [moc, n8n, fabrica, migracao]
 > [!abstract] O que é isto
 > A Domoby usava o **Plugga** para 7 automações ligando o ERP **Tiny (Olist)**, a planilha **Integração Domoby - Tinny**, o **Trello** e o **ClickUp**. Elas estão sendo migradas uma a uma para um **n8n self-hosted** (VPS Hostinger). Este conjunto de notas é a memória completa dessa migração — o que existe, por que cada decisão foi tomada, e o que ainda falta.
 
+> [!info] Atualização 03/09/2026 — **o Pluga não existe mais**
+> A conta foi encerrada há mais de um mês. Não há mais nada para "desativar lá" em nenhum roteiro, e não existe rede de segurança para voltar atrás: o que não estiver no n8n, não está rodando. As automações 6 e 7, que nunca foram levantadas, **estão paradas desde então** — levantar o que faziam virou prioridade.
+> Pluga desligado.
+
 ## Estado das 7 automações (13/08/2026)
 
 | # | Automação | Origem → Destino | Status |
@@ -18,11 +22,14 @@ tags: [moc, n8n, fabrica, migracao]
 | 2 | ROTAS ClickUp | pedido → tarefa em DPTO LOGÍSTICA/ROTAS | ✅ **em produção** 12/08 |
 | 3 | PCP Trello (`PCP - DOMMOBY 02`) | pedido → cards no quadro 1-PCP | ✅ **em produção** 12/08 |
 | 4 | PCP ClickUp | pedido → tarefas em DPTO PRODUÇÃO/PCP | ✅ **em produção** 12/08 |
-| 5 | Cadastro de cliente | formulário Google → contato no Tiny | 🔨 **em andamento** — ver [[N8N - Cadastro de Cliente (em andamento)]] |
-| 6 | ? | não levantada | ⬜ |
-| 7 | ? | não levantada | ⬜ |
+| 5 | Cadastro de cliente | formulário Google → contato no Tiny | ✅ **em produção** 03/09 — ver [[N8N - Cadastro de Cliente]] |
+| 6 | ? | não levantada | ⛔ **encerrada sem migrar** (03/09) — um mês desligada sem ninguém notar |
+| 7 | ? | não levantada | ⛔ **encerrada sem migrar** (03/09) — mesma razão |
 
-> [!warning] As não levantadas podem estar duplicando
+> [!success] Migração encerrada em 03/09
+> Cinco das sete automações foram migradas para o n8n. As duas restantes nunca foram levantadas e ficaram um mês paradas sem que ninguém notasse — decisão do dono: não migrar. **A migração Plugga → n8n está concluída.**
+
+> [!warning] Aviso histórico (superado) — As não levantadas podem estar duplicando
 > Qualquer automação do Plugga ainda ligada com gatilho nas abas **DADOS, OPERADORA ou PCP** duplica registros hoje — a causa está em [[N8N - PCP Trello e ClickUp#Por que os cards duplicavam]].
 
 ## A arquitetura que substituiu o Plugga
@@ -48,7 +55,7 @@ Um workflow único, publicado, com ramos paralelos e independentes. A planilha c
 - [[N8N - PCP Trello e ClickUp]] — as migrações 3 e 4, o (k/n) e a duplicação
 - [[N8N - Incidente Credencial Google]] — a queda de 11/08 e a correção definitiva
 - [[N8N - API Tiny v2 vs v3]] — por que ficamos na v2, e o ativo do Supabase
-- [[N8N - Cadastro de Cliente (em andamento)]] — a migração 5, parada aguardando o CSV
+- [[N8N - Cadastro de Cliente]] — a migração 5, construída: validação real de CPF/CNPJ antes de escrever no Tiny
 - [[N8N - Pendencias e Riscos]] — tudo que está em aberto, priorizado
 - [[FAB - Estrutura de Producao (Trello e ClickUp)]] — como a fábrica se organiza nas ferramentas
 

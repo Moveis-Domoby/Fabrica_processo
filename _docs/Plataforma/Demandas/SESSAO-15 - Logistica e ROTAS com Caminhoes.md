@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-15 — Logística e ROTAS com Caminhões"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-08-28
-atualizado: 2026-08-28
+atualizado: 2026-09-08
 tags: [plataforma, demanda, bloco-3]
 ---
 
@@ -87,4 +87,4 @@ Fotos no bucket existente. Paginação (RNF-02). Tudo loga (D-40).
 
 ## Resultado (preencher ao entregar)
 
-—
+**Entregue em 08/09/2026** — [[handoff_2026_09_08_sessao15_logistica_rotas]]. As 5 telas (Estoque em lista com ID de produção, Pedidos em aguardo com Lançar para ROTAS, Danificados com resolver/arquivar, ROTAS → Programação com mapa Leaflet/OSM + ordem de parada sugerida + sugestões por proximidade + data e caminhão, Administração → Caminhões com foto) e o botão **Concluir** no card (pedido do dono na revisão ao vivo). Migration 25 aplicada, Edge Function `geocodificar` publicada, 233 cards históricos arquivados, situação do Tiny normalizada (correção da S09). Todos os critérios de aceite passaram ao vivo na conta do dono; decisões viraram a **D-45**.

@@ -143,3 +143,19 @@
     translate: -50% -50%;
   }
 }
+
+/* Número da parada dentro do marcador do mapa de programação (SESSAO-15):
+   o tooltip do Leaflet vira só o algarismo, sem caixa nem seta. */
+.leaflet-tooltip.plt-parada {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--dm-grafite-950, #1f1e21);
+  pointer-events: none;
+}
+.leaflet-tooltip.plt-parada::before {
+  display: none;
+}

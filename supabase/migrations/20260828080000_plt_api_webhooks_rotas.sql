@@ -588,6 +588,11 @@ $$;
 -- contato (é o que o card do ClickUp já mostra hoje ao entregador). O gate é
 -- o da logística: admin, entrada (o PCP É a logística — D-22) e terminais.
 -- ----------------------------------------------------------------------------
+-- E-17: a migration 25 (SESSAO-15) muda a FORMA do retorno (programação e
+-- lançamento) — a função nasce de drop + create aqui também, senão a segunda
+-- rodada do test:banco quebra com "cannot change return type".
+drop function if exists public.plt_fn_rotas(text, text, integer, integer);
+
 create or replace function public.plt_fn_rotas(
   p_situacao      text default null, -- 'aguardando' | 'pronta' | 'entregue'
   p_busca         text default null,

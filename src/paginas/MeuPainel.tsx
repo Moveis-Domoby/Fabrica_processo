@@ -47,7 +47,7 @@ const METAS_POR_PAGINA = 20
  * banco; aqui nada se digita.
  */
 export function MeuPainel() {
-  const { perfil, vinculos, ehLider } = useSessao()
+  const { perfil, vinculos } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora()
@@ -343,7 +343,8 @@ export function MeuPainel() {
                 key={m.meta_id}
                 meta={m}
                 agora={agora}
-                podeMexer={souAdmin || ehLider || m.usuario_id === perfil.id}
+                // D-45: quem criou edita/encerra (o liderado só executa); admin tudo.
+                podeMexer={souAdmin || m.criada_por_id === perfil.id}
                 aoEditar={() => {
                   setMetaEmEdicao(m)
                   setModalAberta(true)
@@ -415,7 +416,8 @@ function CartaoMeta({
 
       <p className="text-sm text-texto-suave">
         {ROTULO_PERIODO[meta.periodo]}: {formatarValorMeta(meta.alvo, meta.indicador)}{' '}
-        {ROTULO_INDICADOR[meta.indicador]} · feito:{' '}
+        {ROTULO_INDICADOR[meta.indicador]}
+        {meta.etapa_nome ? ` na etapa ${meta.etapa_nome}` : ''} · feito:{' '}
         <span className="font-medium text-texto tabular-nums">
           {formatarValorMeta(meta.progresso, meta.indicador)}
         </span>

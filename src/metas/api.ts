@@ -22,6 +22,11 @@ export interface MetaPainel {
   usuario_nome: string | null
   setor_id: number | null
   setor_nome: string | null
+  /** D-45: meta de unidades pode mirar uma etapa ("concluir X cards na etapa Y"). */
+  etapa_id: number | null
+  etapa_nome: string | null
+  /** D-45: quem criou é quem edita/encerra (admin também). */
+  criada_por_id: string | null
   criada_por_nome: string | null
   encerrada_em: string | null
   janela_inicio: string
@@ -59,6 +64,8 @@ export async function criarMeta(parametros: {
   /** O dono é UMA pessoa OU UM setor — exatamente um dos dois. */
   usuarioId?: string | null
   setorId?: number | null
+  /** Só para indicador 'unidades' (o banco recusa nos outros). */
+  etapaId?: number | null
   criadaPor: string
 }): Promise<void> {
   const { error } = await supabase.from('plt_metas').insert({
@@ -68,6 +75,7 @@ export async function criarMeta(parametros: {
     alvo: parametros.alvo,
     usuario_id: parametros.usuarioId ?? null,
     setor_id: parametros.setorId ?? null,
+    etapa_id: parametros.indicador === 'unidades' ? (parametros.etapaId ?? null) : null,
     criada_por_id: parametros.criadaPor,
   })
   if (error) throw new Error(`Não deu para criar a meta: ${error.message}`)
@@ -75,7 +83,13 @@ export async function criarMeta(parametros: {
 
 export async function atualizarMeta(
   id: number,
-  mudancas: { titulo?: string | null; indicador?: IndicadorMeta; periodo?: PeriodoMeta; alvo?: number },
+  mudancas: {
+    titulo?: string | null
+    indicador?: IndicadorMeta
+    periodo?: PeriodoMeta
+    alvo?: number
+    etapaId?: number | null
+  },
 ): Promise<void> {
   const { error } = await supabase
     .from('plt_metas')
@@ -84,6 +98,9 @@ export async function atualizarMeta(
       ...(mudancas.indicador ? { indicador: mudancas.indicador } : {}),
       ...(mudancas.periodo ? { periodo: mudancas.periodo } : {}),
       ...(mudancas.alvo !== undefined ? { alvo: mudancas.alvo } : {}),
+      ...(mudancas.etapaId !== undefined
+        ? { etapa_id: mudancas.indicador === 'unidades' ? mudancas.etapaId : null }
+        : {}),
     })
     .eq('id', id)
   if (error) throw new Error(`Não deu para salvar a meta: ${error.message}`)

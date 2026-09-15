@@ -38,26 +38,8 @@ export function ProducaoSetor() {
   return <QuadroSetor setorId={setor.id} />
 }
 
-/** O quadro do setor ESTOQUE morando em /logistica/estoque (D-36/D-38). */
-export function LogisticaEstoque() {
-  const { data: setores = [], isPending } = useQuery({
-    queryKey: ['setores'],
-    queryFn: () => buscarSetores(),
-  })
-
-  if (isPending) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center" role="status">
-        <Loader2 aria-hidden className="size-8 animate-spin text-texto-fraco" />
-        <span className="sr-only">Carregando…</span>
-      </div>
-    )
-  }
-
-  const estoque = setores.find((s) => s.codigo === 'estoque')
-  if (!estoque) return <Navigate to="/inicio/meu-painel" replace />
-  return <QuadroSetor setorId={estoque.id} />
-}
+// O quadro kanban do ESTOQUE morreu na SESSAO-15 (D-45): /logistica/estoque
+// é a LISTA consultável (paginas/Estoque.tsx).
 
 /**
  * Redirecionamento dos bookmarks antigos: /setores/{id} → a rota nova do

@@ -165,7 +165,10 @@ export function Layout({ children }: { children: ReactNode }) {
               id: 'rotas',
               rotulo: 'ROTAS',
               icone: <Truck aria-hidden />,
-              filhos: [{ para: '/rotas/entregas', rotulo: 'Entregas' }],
+              filhos: [
+                { para: '/rotas/entregas', rotulo: 'Entregas' },
+                { para: '/rotas/programacao', rotulo: 'Programação' },
+              ],
             },
           ]
         : []),

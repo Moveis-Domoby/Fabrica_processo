@@ -100,6 +100,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   )
 
   const [cardParaMover, setCardParaMover] = useState<Card | null>(null)
+  // SESSAO-15: o mesmo modal serve para "Mover para…" e para "Concluir" (destino fixo: ESTOQUE).
+  const [modoMover, setModoMover] = useState<'mover' | 'concluir'>('mover')
   const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
   const [cardParecer, setCardParecer] = useState<Card | null>(null)
 
@@ -191,7 +193,18 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             destinoEtapaId: etapaId,
           })
         }
-        aoAbrirMover={setCardParaMover}
+        aoAbrirMover={(card) => {
+          setModoMover('mover')
+          setCardParaMover(card)
+        }}
+        aoAbrirConcluir={
+          terminal
+            ? undefined
+            : (card) => {
+                setModoMover('concluir')
+                setCardParaMover(card)
+              }
+        }
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
@@ -222,6 +235,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             ? nomesUsuarios.get(cardParaMover.executor_atual_id)
             : undefined
         }
+        modo={modoMover}
         aoFechar={() => setCardParaMover(null)}
       />
 

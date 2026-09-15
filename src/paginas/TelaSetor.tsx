@@ -35,6 +35,7 @@ const ROTULO_ACAO = {
   iniciar: 'Iniciar',
   finalizar: 'Finalizar',
   mover: 'Mover',
+  concluir: 'Concluir',
 } as const
 
 interface AcaoComPin {
@@ -178,6 +179,7 @@ export function TelaSetor() {
   const [contextoMover, setContextoMover] = useState<{
     card: Card
     operador: OperadorIdentificado
+    modo: 'mover' | 'concluir'
   } | null>(null)
   const [contextoParecer, setContextoParecer] = useState<{
     card: Card
@@ -221,8 +223,8 @@ export function TelaSetor() {
     const { tipo, card } = acaoComPin
     setAcaoComPin(null)
     notificar({ titulo: `${operador.nome} identificado`, tom: 'perfeito' })
-    if (tipo === 'mover') {
-      setContextoMover({ card, operador })
+    if (tipo === 'mover' || tipo === 'concluir') {
+      setContextoMover({ card, operador, modo: tipo })
     } else if (tipo === 'finalizar') {
       mutacaoFinalizar.mutate({ card, usuarioId: operador.usuario_id })
     } else if (pareceresPorCard.has(card.id)) {
@@ -353,6 +355,7 @@ export function TelaSetor() {
                   aoIniciar={(c) => setAcaoComPin({ tipo: 'iniciar', card: c })}
                   aoFinalizar={(c) => setAcaoComPin({ tipo: 'finalizar', card: c })}
                   aoMover={(c) => setAcaoComPin({ tipo: 'mover', card: c })}
+                  aoConcluir={(c) => setAcaoComPin({ tipo: 'concluir', card: c })}
                   aoFotos={setCardFotos}
                   aoHistorico={setCardHistorico}
                 />
@@ -380,6 +383,7 @@ export function TelaSetor() {
             : undefined
         }
         operadorId={contextoMover?.operador.usuario_id}
+        modo={contextoMover?.modo ?? 'mover'}
         aoFechar={() => setContextoMover(null)}
       />
 

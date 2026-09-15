@@ -1456,24 +1456,40 @@ await bd.exec(`
    where usuario = 'primeira.pessoa';
   select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
 `)
+// SESSAO-15 (D-45) revisou a regra da S11: só o LANÇADO pelos Pedidos em
+// aguardo aparece nas ROTAS — estar no setor ROTAS não basta mais.
 const rotasParcial = (
-  await bd.query(`
-    select situacao_entrega, unidades_em_rotas, total_unidades, endereco is not null as tem_endereco
-      from public.plt_fn_rotas() where numero = 999995`)
+  await bd.query(`select situacao_entrega from public.plt_fn_rotas() where numero = 999995`)
 ).rows[0]
 conferir(
-  rotasParcial?.situacao_entrega === 'aguardando' && rotasParcial?.unidades_em_rotas === 1,
-  'pedido incompleto na ROTAS aparece como "aguardando" (D-33)',
+  rotasParcial === undefined,
+  'pedido com unidade na ROTAS mas NÃO lançado não aparece nas ROTAS (D-45)',
   JSON.stringify(rotasParcial ?? null),
+)
+const aguardoParcial = (
+  await bd.query(`
+    select unidades_prontas, total_unidades, completo
+      from public.plt_fn_pedidos_aguardo() where numero = 999995`)
+).rows[0]
+conferir(
+  aguardoParcial?.unidades_prontas === 1 && aguardoParcial?.total_unidades === 2 && aguardoParcial?.completo === false,
+  'pedido incompleto aparece nos Pedidos em aguardo com (1/2) e sem a marca de completo (D-38)',
+  JSON.stringify(aguardoParcial ?? null),
 )
 
 await deveRecusarExec(
   `select public.plt_fn_registrar_entrega(${cardRotas})`,
-  'entrega recusada com o pedido incompleto — "não vamos entregar 10 se ele pediu 30"',
+  'entrega recusada sem lançamento — "lance pelos Pedidos em aguardo"',
+  /ainda não foi lançado/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_lancar_rotas(${cardRotas})`,
+  'lançar pedido incompleto é recusado — "não vamos entregar 10 se ele pediu 30"',
   /pedido completo/i,
 )
 
-// A segunda unidade chega; a entrega passa a ser possível — e registrada uma vez só.
+// A segunda unidade chega; o pedido completa, é lançado e a entrega passa a
+// ser possível — registrada uma vez só.
 await bd.exec(`
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
     select max(c.id), 'movimentacao_setor',
@@ -1482,10 +1498,30 @@ await bd.exec(`
       from public.plt_cards c
      where c.pedido_id = (select id from public.pedidos where numero = 999995) and c.tipo = 'unidade';
 `)
-const pronta = (
-  await bd.query(`select situacao_entrega from public.plt_fn_rotas() where numero = 999995`)
+const aguardoCompleto = (
+  await bd.query(`select completo from public.plt_fn_pedidos_aguardo() where numero = 999995`)
 ).rows[0]
-conferir(pronta?.situacao_entrega === 'pronta', 'pedido completo na ROTAS fica "pronta"', JSON.stringify(pronta ?? null))
+conferir(aguardoCompleto?.completo === true, 'com todas as unidades prontas o pedido ganha a marca de completo')
+await bd.exec(`select public.plt_fn_lancar_rotas(${cardRotas})`)
+const pronta = (
+  await bd.query(`
+    select situacao_entrega, unidades_em_rotas, lancado_em is not null as lancado
+      from public.plt_fn_rotas() where numero = 999995`)
+).rows[0]
+conferir(
+  pronta?.situacao_entrega === 'pronta' && pronta?.unidades_em_rotas === 2 && pronta?.lancado === true,
+  'pedido lançado aparece nas ROTAS como "pronta" com as 2 unidades no setor',
+  JSON.stringify(pronta ?? null),
+)
+const aguardoDepois = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_pedidos_aguardo() where numero = 999995`)
+).rows[0]
+conferir(aguardoDepois.total === 0, 'depois de lançado, o pedido sai dos Pedidos em aguardo')
+await deveRecusarExec(
+  `select public.plt_fn_lancar_rotas(${cardRotas})`,
+  'lançar duas vezes é recusado',
+  /já foi lançado/i,
+)
 
 await bd.exec(`select public.plt_fn_registrar_entrega(${cardRotas}, 'entregue no teste')`)
 const entregue = (
@@ -2056,6 +2092,467 @@ conferir(
   blindagem.total === 0,
   'pedido de backfill e pedido já encerrado NÃO viram card no PCP (blindagem espelhada)',
   `cards criados: ${blindagem.total}`,
+)
+
+// ============================================================================
+// SESSAO-15 — Logística, ROTAS e caminhões (migration 25 / D-38 / D-39 / D-45)
+// ============================================================================
+titulo('Logística (SESSAO-15): estoque com ID de produção, pedidos em aguardo e lançamento')
+
+// Gente da logística: log.um trabalha no ESTOQUE (auth …31).
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id)
+    values ('Logística Um', 'log1@teste.com', '33333333301', 'log.um', 'operador',
+            '00000000-0000-0000-0000-000000000031');
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'log.um'),
+     (select id from public.plt_setores where codigo = 'estoque'));
+`)
+// Pedido novo (chega pelo caminho real — situação como o Tiny grava) com 2
+// unidades: a primeira chega no ESTOQUE, a segunda fica no CNC.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999994, (select id from public.clientes order by id desc limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 999994), 1, '088', 'Mesa Lisboa 120cm', 2);
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Mesa Lisboa 120cm', n, 2
+      from public.pedidos p, generate_series(1, 2) n where p.numero = 999994;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    select c.id, 'card_criado', (select id from public.plt_setores where codigo = 'cnc'), 'api'
+      from public.plt_cards c
+     where c.pedido_id = (select id from public.pedidos where numero = 999994) and c.tipo = 'unidade';
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    select min(c.id), 'movimentacao_setor',
+           (select id from public.plt_setores where codigo = 'cnc'),
+           (select id from public.plt_setores where codigo = 'estoque'), 'api'
+      from public.plt_cards c
+     where c.pedido_id = (select id from public.pedidos where numero = 999994) and c.tipo = 'unidade';
+`)
+const cardPedido994 = (
+  await bd.query(`
+    select id::int as id from public.plt_cards
+     where tipo = 'pedido' and pedido_id = (select id from public.pedidos where numero = 999994)`)
+).rows[0].id
+conferir(cardPedido994 > 0, 'pedido "Em aberto" (descrição do Tiny) vira card no PCP pela guarda normalizada')
+const unidades994 = (
+  await bd.query(`
+    select id::int as id from public.plt_cards
+     where tipo = 'unidade' and pedido_id = (select id from public.pedidos where numero = 999994)
+     order by id`)
+).rows.map((r) => r.id)
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+const estoque = (
+  await bd.query(`select card_id::int as card_id, id_producao, origem from public.plt_fn_estoque() where numero = 999994`)
+).rows
+conferir(
+  estoque.length === 1 && estoque[0].card_id === unidades994[0] && estoque[0].id_producao === null,
+  'a unidade que chegou no ESTOQUE aparece na lista do Estoque, ainda sem ID de produção',
+  JSON.stringify(estoque),
+)
+await bd.exec(`select public.plt_fn_definir_id_producao(${unidades994[0]}, ' MESA-001 ')`)
+const comId = (
+  await bd.query(`
+    select (select id_producao from public.plt_cards where id = ${unidades994[0]}) as id_producao,
+           (select count(*)::int from public.plt_fn_estoque('mesa-0')) as achados,
+           (select count(*)::int from public.plt_logs_atividade where acao = 'id_producao_definido') as logs`)
+).rows[0]
+conferir(
+  comId.id_producao === 'MESA-001' && comId.achados === 1 && comId.logs === 1,
+  'ID de produção digitado (aparado), buscável sem diferenciar caixa e registrado na trilha (D-38/D-40)',
+  JSON.stringify(comId),
+)
+await deveRecusarExec(
+  `select public.plt_fn_definir_id_producao(${unidades994[1]}, 'mesa-001')`,
+  'dois cards vivos com o mesmo ID de produção é recusado',
+  /já existe outra unidade/i,
+)
+
+const aguardo994 = (
+  await bd.query(`
+    select unidades_prontas, total_unidades, completo from public.plt_fn_pedidos_aguardo() where numero = 999994`)
+).rows[0]
+conferir(
+  aguardo994?.unidades_prontas === 1 && aguardo994?.completo === false,
+  'Pedidos em aguardo: 1 de 2 prontas (pronta = está em terminal — D-45)',
+  JSON.stringify(aguardo994 ?? null),
+)
+// A segunda unidade chega no ESTOQUE; o pedido completa e é lançado — as
+// unidades SAEM do Estoque para o setor ROTAS (D-45).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${unidades994[1]}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_setores where codigo = 'estoque'), 'api');
+  select public.plt_fn_lancar_rotas(${cardPedido994});
+`)
+const lancado = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_eventos
+             where card_id = ${cardPedido994} and tipo = 'pedido_lancado_rotas') as eventos,
+           (select lancado_rotas_em is not null from public.plt_cards where id = ${cardPedido994}) as projetado,
+           (select count(*)::int from public.plt_cards c
+              join public.plt_setores s on s.id = c.setor_atual_id
+             where c.pedido_id = (select id from public.pedidos where numero = 999994)
+               and c.tipo = 'unidade' and s.codigo = 'rotas') as na_rotas,
+           (select count(*)::int from public.plt_fn_estoque() where numero = 999994) as no_estoque,
+           (select count(*)::int from public.plt_logs_atividade where acao = 'pedido_lancado_rotas') as logs`)
+).rows[0]
+conferir(
+  lancado.eventos === 1 && lancado.projetado === true && lancado.na_rotas === 2
+    && lancado.no_estoque === 0 && lancado.logs >= 1,
+  'lançar grava o evento, projeta o lançamento, move as 2 unidades do ESTOQUE para a ROTAS e entra na trilha',
+  JSON.stringify(lancado),
+)
+// Operador de produção não lança nem vê o Estoque.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+await deveRecusarExec(
+  `select public.plt_fn_lancar_rotas(${cardPedido994})`,
+  'operador de produção não lança para ROTAS (gate da logística)',
+  /gesto da logística/i,
+)
+const estoqueOperador = (await bd.query(`select count(*)::int as total from public.plt_fn_estoque()`)).rows[0]
+conferir(estoqueOperador.total === 0, 'operador de produção não enxerga a lista do Estoque (gate da logística)')
+
+titulo('Danificados (SESSAO-15/D-38): relato, resolver com estado e arquivar pela logística')
+
+// SECC ganha a etapa DANIFICADO (se o fluxo de qualidade ainda não a criou) e
+// duas peças caem nela; a primeira com a marcação de quem entregou.
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_danificado)
+  select s.id, 'DANIFICADO', 99, true from public.plt_setores s
+   where s.codigo = 'secc'
+     and not exists (select 1 from public.plt_etapas e where e.setor_id = s.id and e.eh_danificado);
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 60 + n, 'DAN', 'Peça danificada ' || n, 1, 1
+      from public.pedidos p, generate_series(1, 2) n where p.numero = 999999;
+`)
+const danificados = (
+  await bd.query(`select id::int as id from public.plt_cards where item_codigo = 'DAN' order by id`)
+).rows.map((r) => r.id)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    select c.id, 'card_criado', (select id from public.plt_setores where codigo = 'secc'), 'api'
+      from public.plt_cards c where c.item_codigo = 'DAN';
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, etapa_destino_id, origem)
+    select c.id, 'movimentacao_etapa',
+           (select id from public.plt_setores where codigo = 'secc'),
+           (select id from public.plt_setores where codigo = 'secc'),
+           (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+             where s.codigo = 'secc' and e.eh_danificado), 'api'
+      from public.plt_cards c where c.item_codigo = 'DAN';
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_origem_id, setor_destino_id, estado_qualidade, observacao)
+    values (${danificados[0]}, 'qualidade_marcada',
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'cnc'),
+            'danificado', 'quebrou a quina no corte');
+`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+const listaDanificados = (
+  await bd.query(`
+    select card_id::int as card_id, setor_nome, marcacao_estado, marcacao_por, marcacao_obs
+      from public.plt_fn_danificados() where card_id in (${danificados.join(',')}) order by card_id`)
+).rows
+conferir(
+  listaDanificados.length === 2 && listaDanificados[0].setor_nome === 'SECC'
+    && listaDanificados[0].marcacao_estado === 'danificado'
+    && listaDanificados[0].marcacao_obs === 'quebrou a quina no corte'
+    && listaDanificados[0].marcacao_por !== null,
+  'a lista traz as peças em DANIFICADO com o setor, o estado, quem marcou e o relato (D-09)',
+  JSON.stringify(listaDanificados),
+)
+await deveRecusarExec(
+  `select public.plt_fn_resolver_danificado(${danificados[0]}, (select id from public.plt_setores where codigo = 'cnc'))`,
+  'resolver para outro setor sem marcar o estado é recusado (D-45)',
+  /marcar o estado/i,
+)
+await bd.exec(`
+  select public.plt_fn_resolver_danificado(${danificados[0]},
+           (select id from public.plt_setores where codigo = 'cnc'), null, 'atencao', 'consertada, segue com atenção');
+`)
+const resolvido = (
+  await bd.query(`
+    select (select s.codigo from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+             where c.id = ${danificados[0]}) as setor,
+           (select qualidade_atual from public.plt_cards where id = ${danificados[0]}) as estado,
+           (select count(*)::int from public.plt_fn_danificados() where card_id = ${danificados[0]}) as ainda_na_lista`)
+).rows[0]
+conferir(
+  resolvido.setor === 'cnc' && resolvido.estado === 'atencao' && resolvido.ainda_na_lista === 0,
+  'resolvido → CNC com estado 🟡: a peça volta à produção e sai da lista',
+  JSON.stringify(resolvido),
+)
+await bd.exec(`select public.plt_fn_arquivar_card(${danificados[1]}, 'sem conserto')`)
+const arquivadoDan = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_fn_danificados() where card_id = ${danificados[1]}) as na_lista,
+           (select count(*)::int from public.plt_fn_danificados(true) where card_id = ${danificados[1]}) as nos_arquivados,
+           (select arquivado_em is not null from public.plt_cards where id = ${danificados[1]}) as projetado`)
+).rows[0]
+conferir(
+  arquivadoDan.na_lista === 0 && arquivadoDan.nos_arquivados === 1 && arquivadoDan.projetado === true,
+  'a logística arquiva peça DANIFICADA: some da lista, aparece nos arquivados, fica na história',
+  JSON.stringify(arquivadoDan),
+)
+await deveRecusarExec(
+  `select public.plt_fn_arquivar_card(${cardMeta})`,
+  'a logística NÃO arquiva card que não está em DANIFICADO',
+  /só peças em DANIFICADO/i,
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+await deveRecusarExec(
+  `select public.plt_fn_arquivar_card(${danificados[0]})`,
+  'operador de produção não arquiva nem peça danificada (gate)',
+  /gesto de admin ou da integração/i,
+)
+
+titulo('Programação de caminhão (SESSAO-15/D-39/D-45): caminhões, reprogramar até entregar, mapa')
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+await bd.exec(`
+  insert into public.plt_caminhoes (nome, placa, capacidade) values ('Baú 1', 'abc1d23', '12 m³');
+  insert into public.plt_caminhoes (nome, placa, capacidade) values ('Baú 2', 'DEF4E56', '8 m³');
+`)
+const caminhoes = (
+  await bd.query(`select id::int as id from public.plt_caminhoes order by id`)
+).rows.map((r) => r.id)
+await deveRecusarExec(
+  `insert into public.plt_caminhoes (nome, placa) values ('Repetido', 'ABC1D23')`,
+  'placa repetida (sem diferenciar caixa) é recusada',
+  /plt_caminhoes_placa_uq/i,
+)
+// O endereço do cliente do pedido 999994 vira ponto no cache (o que a Edge
+// Function faria) — a porta do mapa devolve latitude/longitude.
+await bd.exec(`
+  update public.clientes
+     set endereco = 'Rua das Flores', numero = '10', bairro = 'Centro', cidade = 'Natal', uf = 'RN', cep = '59000-000'
+   where id = (select cliente_id from public.pedidos where numero = 999994);
+`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+const semPonto = (
+  await bd.query(`
+    select endereco_geocodificavel, geo_chave, latitude, geo_resolvido, programacao_data
+      from public.plt_fn_programacao() where numero = 999994`)
+).rows[0]
+conferir(
+  semPonto?.endereco_geocodificavel === 'Rua das Flores 10, Centro, Natal, RN, 59000-000, Brasil'
+    && typeof semPonto?.geo_chave === 'string' && semPonto?.latitude === null
+    && semPonto?.geo_resolvido === null && semPonto?.programacao_data === null,
+  'a porta do mapa monta o endereço geocodificável, a chave do cache e mostra "sem ponto" enquanto não consultado',
+  JSON.stringify(semPonto ?? null),
+)
+await bd.exec(`
+  insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido)
+    values ('${semPonto.geo_chave}', '${semPonto.endereco_geocodificavel}', -5.79, -35.21, true);
+`)
+const comPonto = (
+  await bd.query(`select latitude, longitude, geo_resolvido from public.plt_fn_programacao() where numero = 999994`)
+).rows[0]
+conferir(
+  comPonto?.latitude === -5.79 && comPonto?.longitude === -35.21 && comPonto?.geo_resolvido === true,
+  'com o cache preenchido, o pedido vem com o ponto do mapa (Q-65)',
+  JSON.stringify(comPonto ?? null),
+)
+
+await bd.exec(`select public.plt_fn_programar_entrega(${cardPedido994}, '2026-09-10', ${caminhoes[0]})`)
+const programado = (
+  await bd.query(`
+    select (select programacao_data::text from public.plt_fn_rotas() where numero = 999994) as data,
+           (select caminhao_nome from public.plt_fn_rotas() where numero = 999994) as caminhao,
+           (select count(*)::int from public.plt_fn_programacao('2026-09-10') where numero = 999994) as no_dia,
+           (select count(*)::int from public.plt_fn_programacao('2026-09-11') where numero = 999994) as noutro_dia`)
+).rows[0]
+conferir(
+  programado.data === '2026-09-10' && programado.caminhao === 'Baú 1'
+    && programado.no_dia === 1 && programado.noutro_dia === 0,
+  'programar grava dia + caminhão: o card das ROTAS mostra os dois e a porta do mapa filtra pelo dia',
+  JSON.stringify(programado),
+)
+await bd.exec(`select public.plt_fn_programar_entrega(${cardPedido994}, '2026-09-11', ${caminhoes[1]})`)
+const reprogramado = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_programacoes where card_id = ${cardPedido994}) as linhas,
+           (select caminhao_nome from public.plt_fn_rotas() where numero = 999994) as caminhao,
+           (select count(*)::int from public.plt_logs_atividade where acao = 'entrega_programada') as criadas,
+           (select count(*)::int from public.plt_logs_atividade where acao = 'entrega_reprogramada') as mudadas`)
+).rows[0]
+conferir(
+  reprogramado.linhas === 1 && reprogramado.caminhao === 'Baú 2'
+    && reprogramado.criadas === 1 && reprogramado.mudadas === 1,
+  'reprogramar troca dia/caminhão na MESMA linha e cada mudança vai para a trilha (D-40/D-45)',
+  JSON.stringify(reprogramado),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+await deveRecusarExec(
+  `delete from public.plt_caminhoes where id = ${caminhoes[1]}`,
+  'excluir caminhão em uso é bloqueado — "arquive em vez de excluir"',
+  /arquive em vez de excluir/i,
+)
+await bd.exec(`
+  update public.plt_caminhoes set arquivado_em = now() where id = ${caminhoes[0]};
+  delete from public.plt_caminhoes where id = ${caminhoes[0]};
+`)
+const caminhaoLimpo = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_caminhoes where id = ${caminhoes[0]}) as existe,
+           (select count(*)::int from public.plt_logs_atividade
+             where acao in ('caminhao_criado', 'caminhao_arquivado', 'caminhao_excluido')) as logs`)
+).rows[0]
+conferir(
+  caminhaoLimpo.existe === 0 && caminhaoLimpo.logs === 4,
+  'caminhão nunca usado pode ser excluído; criar/arquivar/excluir entram na trilha',
+  JSON.stringify(caminhaoLimpo),
+)
+await bd.exec(`update public.plt_caminhoes set arquivado_em = now() where id = ${caminhoes[1]}`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+await deveRecusarExec(
+  `select public.plt_fn_programar_entrega(${cardPedido994}, '2026-09-12', ${caminhoes[1]})`,
+  'programar com caminhão arquivado é recusado',
+  /arquivado/i,
+)
+await bd.exec(`update public.plt_caminhoes set arquivado_em = null where id = ${caminhoes[1]}`)
+await bd.exec(`select public.plt_fn_registrar_entrega(${cardPedido994}, 'entregue no teste da S15')`)
+await deveRecusarExec(
+  `select public.plt_fn_programar_entrega(${cardPedido994}, '2026-09-12', ${caminhoes[1]})`,
+  'depois de entregue, a programação não muda mais (D-45)',
+  /já foi entregue/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_desprogramar_entrega(${cardPedido994})`,
+  'depois de entregue, também não se tira da programação',
+  /já foi entregue/i,
+)
+const foraDoMapa = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_programacao() where numero = 999994`)
+).rows[0]
+conferir(foraDoMapa.total === 0, 'pedido entregue sai da tela de programação')
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+titulo('Situação do Tiny é DESCRIÇÃO (SESSAO-15): cancelamento e guarda normalizados')
+
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 999994`)
+const cancelouDescricao = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_eventos
+     where card_id = ${cardPedido994} and tipo = 'pedido_cancelado'`)
+).rows[0]
+conferir(
+  cancelouDescricao.total === 1,
+  '"Cancelado" (como o Tiny grava) dispara o evento de cancelamento — a S09 comparava com o código e nunca via',
+  `eventos: ${cancelouDescricao.total}`,
+)
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999893, (select id from public.clientes order by id limit 1), 'Não entregue');
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999892, (select id from public.clientes order by id limit 1), 'Preparando envio');
+`)
+const guarda = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_cards c where c.tipo = 'pedido'
+             and c.pedido_id = (select id from public.pedidos where numero = 999893)) as nao_entregue,
+           (select count(*)::int from public.plt_cards c where c.tipo = 'pedido'
+             and c.pedido_id = (select id from public.pedidos where numero = 999892)) as preparando`)
+).rows[0]
+conferir(
+  guarda.nao_entregue === 0 && guarda.preparando === 1,
+  'guarda do gatilho normaliza acento/espaço: "Não entregue" não vira card, "Preparando envio" vira (espelho de produção)',
+  JSON.stringify(guarda),
+)
+
+titulo('Projeção de concluído (SESSAO-15): terminal AGORA, não "já passou por um"')
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 70, 'VOLTA', 'Peça que volta', 1, 1 from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'estoque'), 'api');
+`)
+const cardVolta = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+const concluidoAntes = (
+  await bd.query(`select concluido_em is not null as concluido from public.plt_cards where id = ${cardVolta}`)
+).rows[0]
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${cardVolta}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'estoque'),
+            (select id from public.plt_setores where codigo = 'cnc'), 'api');
+`)
+const concluidoDepois = (
+  await bd.query(`select concluido_em is not null as concluido from public.plt_cards where id = ${cardVolta}`)
+).rows[0]
+conferir(
+  concluidoAntes.concluido === true && concluidoDepois.concluido === false,
+  'unidade que sai do terminal de volta à produção deixa de estar concluída (D-13)',
+  JSON.stringify({ antes: concluidoAntes, depois: concluidoDepois }),
+)
+
+titulo('Metas (SESSAO-15/D-45): etapa opcional e edição só de quem criou')
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem)
+    values ((select id from public.plt_setores where codigo = 'cnc'), 'Usinagem de teste', 50);
+`)
+const etapaUsinagem = (
+  await bd.query(`select id::int as id from public.plt_etapas where nome = 'Usinagem de teste'`)
+).rows[0].id
+await deveRecusar(
+  `insert into public.plt_metas (indicador, periodo, alvo, setor_id, etapa_id, criada_por_id)
+     values ('unidades', 'semanal', 5, (select id from public.plt_setores where codigo = 'secc'), ${etapaUsinagem},
+             (select id from public.plt_usuarios where usuario = 'primeira.pessoa'))`,
+  'meta de setor com etapa de OUTRO setor é recusada',
+  /não pertence ao setor/i,
+)
+await deveRecusar(
+  `insert into public.plt_metas (indicador, periodo, alvo, setor_id, etapa_id, criada_por_id)
+     values ('tarefas', 'semanal', 5, (select id from public.plt_setores where codigo = 'cnc'), ${etapaUsinagem},
+             (select id from public.plt_usuarios where usuario = 'primeira.pessoa'))`,
+  'etapa só faz sentido em meta de UNIDADES (check)',
+  /plt_metas_etapa_ck/i,
+)
+await bd.exec(`
+  insert into public.plt_metas (titulo, indicador, periodo, alvo, setor_id, etapa_id, criada_por_id)
+    values ('Usinagem da semana', 'unidades', 'semanal', 10,
+            (select id from public.plt_setores where codigo = 'cnc'), ${etapaUsinagem},
+            (select id from public.plt_usuarios where usuario = 'primeira.pessoa'));
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 71, 'USIN', 'Peça usinada', 1, 1 from public.pedidos p where p.numero = 999999;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'cnc'), ${etapaUsinagem}, 'api');
+`)
+const cardUsinagem = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardUsinagem}, 'execucao_iniciada', (select id from public.plt_usuarios where usuario = 'meta.um'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardUsinagem}, 'execucao_finalizada', (select id from public.plt_usuarios where usuario = 'meta.um'), 'interface');
+`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000021', false)`)
+const metasEtapa = (
+  await bd.query(`
+    select titulo, etapa_nome, progresso::float as progresso, criada_por_id is not null as tem_criador
+      from public.plt_fn_metas_painel() where titulo in ('Usinagem da semana', 'CNC da semana') order by titulo`)
+).rows
+const porTituloS15 = Object.fromEntries(metasEtapa.map((m) => [m.titulo, m]))
+conferir(
+  porTituloS15['Usinagem da semana']?.progresso === 1
+    && porTituloS15['Usinagem da semana']?.etapa_nome === 'Usinagem de teste'
+    && porTituloS15['CNC da semana']?.progresso === 3
+    && metasEtapa.every((m) => m.tem_criador),
+  'meta com etapa conta só as execuções encerradas NAQUELA etapa (1); a do setor inteiro conta todas (3); a porta diz quem criou',
+  JSON.stringify(metasEtapa),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+const politicaEdicao = (
+  await bd.query(`
+    select qual from pg_policies where tablename = 'plt_metas' and policyname = 'plt_metas_edicao'`)
+).rows[0]
+conferir(
+  typeof politicaEdicao?.qual === 'string' && /criada_por_id/.test(politicaEdicao.qual) && !/fn_eh_lider_de/.test(politicaEdicao.qual),
+  'policy de edição de metas passou a ser "quem criou ou admin" (D-45) — RLS não se prova no PGlite (E-14), conferida pela definição',
+  politicaEdicao?.qual,
 )
 
 titulo('Resumo')

@@ -1,4 +1,5 @@
 import {
+  CircleCheckBig,
   Clock,
   ClipboardCheck,
   Flag,
@@ -20,6 +21,8 @@ export interface CartaoUnidadeProps {
   agora: number
   /** Abre o modal "Mover para…" — o gesto de tablet (D-06). */
   aoMover?: (card: Card) => void
+  /** SESSAO-15: "Concluir" — a peça está pronta e vai para o fim de linha (ESTOQUE). */
+  aoConcluir?: (card: Card) => void
   /** Iniciar / assumir a execução (SESSAO-05, D-24). */
   aoIniciar?: (card: Card) => void
   /** Finalizar a execução (SESSAO-05). */
@@ -55,6 +58,7 @@ export function CartaoUnidade({
   pedido,
   agora,
   aoMover,
+  aoConcluir,
   aoIniciar,
   aoFinalizar,
   aoLinhaTempo,
@@ -152,72 +156,95 @@ export function CartaoUnidade({
         </p>
       )}
 
-      <footer className="mt-1 flex flex-wrap items-center gap-2">
-        {comGestos &&
-          (emExecucao ? (
-            <>
-              {aoFinalizar && (
+      {/* Duas linhas de propósito (SESSAO-15): os gestos de tempo em cima; estado,
+          histórico e destinos embaixo — nada estoura a borda do card. */}
+      <footer className="mt-1 flex flex-col gap-2">
+        {comGestos && (
+          <div className="flex flex-wrap items-center gap-2">
+            {emExecucao ? (
+              <>
+                {aoFinalizar && (
+                  <Botao
+                    tamanho="sm"
+                    icone={<Square />}
+                    className="min-h-toque-md flex-1"
+                    disabled={gestoPendente}
+                    onClick={() => aoFinalizar(card)}
+                  >
+                    Finalizar
+                  </Botao>
+                )}
+                {!souExecutor && aoIniciar && (
+                  <Botao
+                    variante="secundaria"
+                    tamanho="sm"
+                    icone={<Play />}
+                    className="min-h-toque-md"
+                    disabled={gestoPendente}
+                    onClick={() => aoIniciar(card)}
+                  >
+                    Assumir
+                  </Botao>
+                )}
+              </>
+            ) : (
+              aoIniciar && (
                 <Botao
-                  tamanho="sm"
-                  icone={<Square />}
-                  className="min-h-toque-md flex-1"
-                  disabled={gestoPendente}
-                  onClick={() => aoFinalizar(card)}
-                >
-                  Finalizar
-                </Botao>
-              )}
-              {!souExecutor && aoIniciar && (
-                <Botao
-                  variante="secundaria"
                   tamanho="sm"
                   icone={<Play />}
-                  className="min-h-toque-md"
+                  className="min-h-toque-md flex-1"
                   disabled={gestoPendente}
                   onClick={() => aoIniciar(card)}
                 >
-                  Assumir
+                  Iniciar
                 </Botao>
-              )}
-            </>
-          ) : (
-            aoIniciar && (
-              <Botao
-                tamanho="sm"
-                icone={<Play />}
-                className="min-h-toque-md flex-1"
-                disabled={gestoPendente}
-                onClick={() => aoIniciar(card)}
-              >
-                Iniciar
-              </Botao>
-            )
-          ))}
+              )
+            )}
+          </div>
+        )}
 
-        <span className="ml-auto flex items-center gap-2">
-          {card.qualidade_atual && <BadgeEstado estado={card.qualidade_atual} tamanho="sm" />}
-          {aoLinhaTempo && (
-            <Botao
-              variante="fantasma"
-              tamanho="sm"
-              icone={<History />}
-              className="min-h-toque-md"
-              aria-label="Linha do tempo do card"
-              onClick={() => aoLinhaTempo(card)}
-            />
-          )}
-          {aoMover && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<MoveRight />}
-              className="min-h-toque-md"
-              onClick={() => aoMover(card)}
-            >
-              Mover
-            </Botao>
-          )}
-        </span>
+        {card.qualidade_atual && (
+          <div>
+            <BadgeEstado estado={card.qualidade_atual} tamanho="sm" />
+          </div>
+        )}
+        {(aoLinhaTempo || aoMover || (!terminal && aoConcluir)) && (
+          <div className="flex items-center gap-2">
+            {aoLinhaTempo && (
+              <Botao
+                variante="fantasma"
+                tamanho="sm"
+                icone={<History />}
+                className="min-h-toque-md shrink-0 px-2"
+                aria-label="Linha do tempo do card"
+                onClick={() => aoLinhaTempo(card)}
+              />
+            )}
+            {!terminal && aoConcluir && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<CircleCheckBig />}
+                className="min-h-toque-md min-w-0 flex-1 px-2"
+                disabled={gestoPendente}
+                onClick={() => aoConcluir(card)}
+              >
+                Concluir
+              </Botao>
+            )}
+            {aoMover && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<MoveRight />}
+                className="min-h-toque-md min-w-0 flex-1 px-2"
+                onClick={() => aoMover(card)}
+              >
+                Mover
+              </Botao>
+            )}
+          </div>
+        )}
       </footer>
     </article>
   )
