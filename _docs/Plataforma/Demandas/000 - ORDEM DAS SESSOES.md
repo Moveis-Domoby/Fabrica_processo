@@ -2,7 +2,7 @@
 titulo: Ordem das Sessões de Construção
 tipo: indice
 data: 2026-08-19
-atualizado: 2026-09-08
+atualizado: 2026-09-15
 tags: [plataforma, demandas, sessoes, roadmap]
 ---
 
@@ -16,6 +16,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 > **De-para das renumerações** (para ler handoffs e decisões antigas):
 > - 27/08 (D-23): Dashboards 08→**10** · Tarefas 09→**12** · API completa 10→**11** · Automações 11→13 · Admin 12→14 · Entrada n8n 13→**09** · Publicação 14→**08**.
 > - 28/08 (D-35 — bloco 3, a reforma): **Automações 13→17 · Painel Admin 14→18**; as novas **13–16 são a reforma** (D-36…D-42), com checkpoint por sessão.
+> - 15/09 (D-46 — bloco União): entram as **SESSÕES 19–21 (União das Plataformas)**. Ordem real de execução: **16 → 19 (pode correr em paralelo com a 16) → 20 → 21**; 17 e 18 seguem em standby. A 20 só começa com a 16 entregue — as duas mexem em `App.tsx`, `Layout.tsx` e `tokens.css`. ↩️ Revisa a nota de 15/09 que dizia "19–21 antes das 16–18" (ver D-46).
 
 | Ordem | Sessão | Entrega em uma frase | Depende de | Status |
 |---|---|---|---|---|
@@ -34,9 +35,12 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 13º | [[SESSAO-13 - Navegacao Perfil e Identidade]] | **A reforma da casca (D-36):** navegação em 2 barras (pai→filho) recolhíveis, rotas `/pai/filho`, voltar em toda tela, sino no topo + popover corrigido, Meu Perfil com 8 temas (D-41), login novo, log de tudo (D-40) | 07, 12 | ✅ entregue — [[handoff_2026_08_28_sessao13_navegacao]] (mesclada na main em 28/08) |
 | 14º | [[SESSAO-14 - Meu Painel e Metas]] | Início vira **Meu Painel**: pendências, notificações e cockpit de metas configuráveis em tempo real (D-37) | 13 | ✅ entregue — [[handoff_2026_09_01_sessao14_meu_painel]] (mesclada na main em 01/09) |
 | 15º | [[SESSAO-15 - Logistica e ROTAS com Caminhoes]] | Estoque digitável, **Pedidos em aguardo**, Danificados com destino (D-38) e ROTAS com programação de caminhão + mapa (D-39) | 13 | ✅ entregue — [[handoff_2026_09_08_sessao15_logistica_rotas]] (migration 25 aplicada em 08/09; mesclada na main e publicada em 15/09) |
-| 16º | [[SESSAO-16 - Dashboards de Verdade]] | Reconstruir os dashboards nos moldes de `docs/inspiracao/dashboards/` (D-42) | 13, 14 | 📐 pronta para code |
+| 16º | [[SESSAO-16 - Dashboards de Verdade]] | Reconstruir os dashboards nos moldes de `docs/inspiracao/dashboards/` (D-42) | 13, 14 | ▶️ **próxima a executar** — vai antes da 20 (colidem em `App.tsx`, `Layout.tsx`, `tokens.css`); fixa o Recharts que a 20 herda |
 | 17º | [[SESSAO-17 - Automacoes Internas]] | Builder "quando X, faça Y" + central de notificações | 11 | ⏸️ standby (D-35) |
 | 18º | [[SESSAO-18 - Painel Admin Completo]] | Consolidação do admin (revisar escopo: Equipe/Estrutura/Caminhões já entram no dropdown nas 13/15) | 17 | ⏸️ standby (D-35) |
+| 19º ⏫ | [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] | Domínio do Painel de Recompra no Supabase da fábrica: 6 tabelas + view `vendas_marketing` sobre `pedidos` (D-47) + RPCs + RLS + carga de dados validada | 15 | 📐 pronta para code — **pode correr em paralelo com a 16** (não se cruzam: a 16 não mexe no banco e a 19 não mexe no front) |
+| 20º ⏫ | [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] | Painel de Recompra recriado idêntico como módulo **Comercial**; "Fábrica" vira pai de Produção/Logística/ROTAS; "Administração" → "Painel admin"; permissões por módulo | 16, 19 | 🔶 rascunho (vira pronta com a 16 e a 19 entregues) |
+| 21º ⏫ | [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] | Cutover dos crons e do webhook DataCrazy, quarentena e exclusão do projeto Supabase antigo | 19, 20 | 🔶 rascunho |
 
 **Depois:** módulo de estoque completo (fase 2 — D-07), migração dos cards vivos (Q-25), app/fluxo do motorista.
 
@@ -49,4 +53,4 @@ tags: [plataforma, demandas, sessoes, roadmap]
 
 ## Ver também
 
-[[PLT - Visao Geral]] · [[PLT - Decisoes de Produto]] · [[PLT - Requisitos]] · [[PLT - Memoria de Aprendizado]] · [[TEMPLATE - Demanda]]
+[[PLT - Visao Geral]] · [[PLT - Decisoes de Produto]] · [[PLT - Requisitos]] · [[PLT - Memoria de Aprendizado]] · [[TEMPLATE - Demanda]] · [[PLT - Plano Uniao das Plataformas]]
