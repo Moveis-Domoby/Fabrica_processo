@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, logistica, rotas, caminhoes]
 
 # 📋 Handoff — SESSAO-15 · Logística e ROTAS com Caminhões — a 3ª do Bloco 3 (a reforma)
 
-**Branch:** `sessao-15-logistica-rotas` (4 commits; aguarda seu OK para o merge na `main` — D-20)
+**Branch:** `sessao-15-logistica-rotas` (**mesclada na `main` e publicada no GitHub em 15/09**, a seu pedido na conversa — D-20; reteste de 15/09 todo verde)
 **Banco:** migration **25** (`20260908120000_plt_logistica_rotas_caminhoes.sql`) aplicada em 08/09 com sua autorização na conversa, pela API do Supabase. Impressão digital da integração antes = depois (`15152f89…`); contagens só cresceram (o backfill estava rodando). **233 cards históricos arquivados** (aprovado por você). **Edge Function `geocodificar` v1** publicada.
 **Demanda:** [[SESSAO-15 - Logistica e ROTAS com Caminhoes]] · **Memória:** `docs/execucao/SESSAO-15.md`
 **Decisões que regem:** D-38 · D-39 · D-13 · D-33 · D-01 · D-40 · **D-45** (suas respostas de 01/09 e 08/09, registradas nesta sessão)
@@ -64,7 +64,7 @@ Mais: `test:banco` 2 rodadas **TUDO VERDE** (+32 verificações da S15; a seçã
 - **Bundle do front cresceu ~150 kB com o Leaflet** (aviso de chunk >500 kB já existia) — carregar o mapa só na tela de Programação (`React.lazy`) é uma melhoria simples para a próxima sessão.
 - **Metas com etapa:** o cartão do Meu Painel mostra "na etapa X" e o modal tem o seletor — vale você olhar se o texto ficou do seu gosto.
 - **`22_backfill_tiny.sql` do cofre** ainda tem a guarda antiga (`lower` só); a verdade agora está na migration 25 do repo e no banco — a nota do backfill pode apontar para lá.
-- Merge na `main`: aguarda seu OK nesta conversa (D-20).
+- ✅ Merge na `main` feito e publicado em 15/09.
 
 ## 6. Notas do cofre atualizadas
 
