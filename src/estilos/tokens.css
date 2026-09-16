@@ -90,6 +90,15 @@
 
   --dm-foco: var(--dm-grafite-900);
   --dm-perigo: var(--dm-danificado-forte);
+
+  /* Destaque do MENU LATERAL (SESSAO-20). A casca é sempre escura — em
+     qualquer tema — então o destaque do item ativo precisa de um tom que
+     contraste sobre escuro. Por padrão é a própria cor de AÇÃO do tema
+     (amarelo da marca); os temas esmeralda sobrescrevem com o verde vivo,
+     porque o verde-escuro da ação deles sumiria no menu. */
+  --dm-menu-ativo: var(--dm-acao);
+  --dm-menu-ativo-texto: var(--dm-acao-texto);
+  --dm-menu-destaque: var(--dm-acao);
 }
 
 /* ==========================================================================
@@ -210,6 +219,10 @@
 
 /* esmeralda — o tema claro do recompra: cinza-azulado frio + verde. */
 [data-tema='esmeralda'] {
+  /* no menu (escuro) o verde da ação seria apagado: usa o tom vivo */
+  --dm-menu-ativo: hsl(165 90% 45%);
+  --dm-menu-ativo-texto: hsl(240 10% 4%);
+  --dm-menu-destaque: hsl(165 85% 58%);
   --dm-fundo: hsl(220 18% 91%);
   --dm-superficie: hsl(220 20% 96%);
   --dm-superficie-sutil: hsl(220 14% 87%);
@@ -234,6 +247,7 @@
 
 /* esmeralda-escuro — o tema escuro do recompra: quase-preto + verde vivo. */
 [data-tema='esmeralda-escuro'] {
+  --dm-menu-destaque: hsl(165 85% 58%);
   --dm-fundo: hsl(240 6% 6%);
   --dm-superficie: hsl(240 6% 10%);
   --dm-superficie-sutil: hsl(240 6% 14%);
@@ -347,6 +361,13 @@
   --dm-grafite-600: #262a2c;
   --dm-grafite-500: #363b3d;
   --dm-grafite-950: #08090a;
+}
+[data-tema='esmeralda'] .menu-superficie {
+  --dm-grafite-700: #1b2024;
+  --dm-grafite-800: #141819;
+  --dm-grafite-600: #2c3338;
+  --dm-grafite-500: #3d454b;
+  --dm-grafite-950: #0b0e0f;
 }
 [data-tema='grafite'] .menu-superficie {
   --dm-grafite-700: #262428;

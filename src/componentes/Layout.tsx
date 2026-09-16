@@ -329,14 +329,14 @@ export function Layout({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-dvh flex-col bg-fundo">
         <header className="bg-grafite-700">
-          <div className="mx-auto flex max-w-[min(100%,110rem)] items-center gap-4 px-4 py-3 sm:px-6">
+          <div className="flex w-full items-center gap-4 px-4 py-3 sm:px-6">
             <Marca tamanho="sm" />
             <span className="hidden text-sm text-grafite-300 sm:inline">
               Plataforma de Produção
             </span>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[min(100%,110rem)] flex-1 px-4 py-6 sm:px-6 sm:py-8">
+        <main className="w-full flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </main>
         <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
@@ -421,7 +421,7 @@ export function Layout({ children }: { children: ReactNode }) {
               title={recolhida ? grupo.rotulo : undefined}
               className={cn(
                 'inline-flex min-h-toque-md items-center gap-3 rounded-dm px-3 text-sm font-semibold transition-colors [&>svg]:size-5 [&>svg]:shrink-0',
-                ativo ? 'text-marca-300' : 'text-grafite-100',
+                ativo ? 'text-menu-destaque' : 'text-grafite-100',
                 mostrando && 'bg-grafite-600',
                 'hover:bg-grafite-600',
                 recolhida && 'justify-center px-0',
@@ -563,7 +563,7 @@ export function Layout({ children }: { children: ReactNode }) {
                         cn(
                           'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
                           isActive
-                            ? 'bg-marca-500 text-grafite-950'
+                            ? 'bg-menu-ativo text-menu-ativo-texto'
                             : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
                         )
                       }
@@ -628,10 +628,10 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         {/* Toda tela tem botão de voltar (D-36). */}
-        <div className="mx-auto w-full max-w-[min(100%,110rem)] px-4 pt-3 sm:px-6">
+        <div className="w-full px-4 pt-3 sm:px-6">
           <BotaoVoltar />
         </div>
-        <main className="mx-auto w-full max-w-[min(100%,110rem)] flex-1 px-4 py-3 sm:px-6 sm:pb-8">
+        <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">
           {children}
         </main>
         <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">

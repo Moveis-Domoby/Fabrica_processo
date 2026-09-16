@@ -67,6 +67,11 @@
   --color-info-forte: var(--dm-info-forte);
   --color-info-texto: var(--dm-info-texto);
 
+  /* --- Destaque do menu lateral (SESSAO-20) ----------------------------- */
+  --color-menu-ativo: var(--dm-menu-ativo);
+  --color-menu-ativo-texto: var(--dm-menu-ativo-texto);
+  --color-menu-destaque: var(--dm-menu-destaque);
+
   /* --- Cores de série dos gráficos (SESSAO-20; a SESSAO-16 herda) --------
      Uma cor por série/KPI, na ordem de uso. A série 1 é a cor de AÇÃO do
      tema — o número principal acompanha a identidade escolhida. */
@@ -195,22 +200,14 @@
     container-type: inline-size;
     min-width: 0;
   }
-  /* número curto (contagens, porcentagem): ~4-6 caracteres */
-  .num-curto {
-    font-size: clamp(1.125rem, 20cqi, 1.875rem);
-    line-height: 1.15;
-  }
-  /* número longo (moeda com centavos): ~12-16 caracteres.
-     O piso combina com o minmax do grid (ver KPICards/ScorecardsRow): juntos
-     garantem que o valor INTEIRO cabe — largura mínima do card compatível com
-     o dado é parte da correção, não só encolher a fonte. */
-  .num-moeda {
-    font-size: clamp(0.8125rem, 9cqi, 1.375rem);
-    line-height: 1.15;
-  }
-  /* par "novos / recorrentes": ~10 caracteres */
-  .num-par {
-    font-size: clamp(1rem, 14cqi, 1.5rem);
+  /* UM tamanho só para a linha inteira de indicadores. Como todas as colunas
+     do grid têm a mesma largura (1fr), a mesma fórmula dá o MESMO tamanho em
+     todos os cartões — tipografia consistente. A fórmula é calibrada pelo
+     PIOR caso do conjunto (o valor em reais com centavos): é o conteúdo mais
+     largo que dita o tamanho de todos, nunca cada cartão por si.
+     Vem em par com o `minmax` do grid, que garante largura suficiente. */
+  .num-kpi {
+    font-size: clamp(0.95rem, 11cqi, 1.5rem);
     line-height: 1.15;
   }
 }

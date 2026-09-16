@@ -33,11 +33,11 @@ export function KPICards({ filters }: KPICardsProps) {
   const textoBase = "num-bloco flex flex-1 flex-col";
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3 sm:gap-4 mb-6 sm:mb-8 items-stretch">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-3 sm:gap-4 mb-6 sm:mb-8 items-stretch">
       <div className={cardBase}>
         <div className={textoBase}>
           <p className="text-xs font-medium text-muted-foreground leading-tight">Total Clientes</p>
-          <h3 className="num-curto font-bold mt-auto tabular-nums">{totalClientes}</h3>
+          <h3 className="num-kpi font-bold mt-auto tabular-nums">{totalClientes}</h3>
         </div>
         <div className={`${iconBase} bg-primary/10 text-primary`}>
           <Users size={20} />
@@ -47,7 +47,7 @@ export function KPICards({ filters }: KPICardsProps) {
       <div className={cardBase}>
         <div className={textoBase}>
           <p className="text-xs font-medium text-muted-foreground leading-tight">Total Pedidos</p>
-          <h3 className="num-curto font-bold mt-auto tabular-nums">{totalPedidos}</h3>
+          <h3 className="num-kpi font-bold mt-auto tabular-nums">{totalPedidos}</h3>
         </div>
         <div className={`${iconBase} bg-serie-2/10 text-serie-2`}>
           <ShoppingCart size={20} />
@@ -57,7 +57,7 @@ export function KPICards({ filters }: KPICardsProps) {
       <div className={cardBase}>
         <div className={textoBase}>
           <p className="text-xs font-medium text-muted-foreground leading-tight">Faturamento</p>
-          <h3 className="num-moeda font-bold mt-auto tabular-nums whitespace-nowrap">
+          <h3 className="num-kpi font-bold mt-auto tabular-nums whitespace-nowrap">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(faturamentoTotal)}
           </h3>
         </div>
@@ -69,7 +69,7 @@ export function KPICards({ filters }: KPICardsProps) {
       <div className={cardBase}>
         <div className={textoBase}>
           <p className="text-xs font-medium text-muted-foreground leading-tight">Novos / Rec.</p>
-          <div className="num-par mt-auto flex items-baseline gap-1 whitespace-nowrap">
+          <div className="num-kpi mt-auto flex items-baseline gap-1 whitespace-nowrap">
             <h3 className="font-bold text-foreground tabular-nums">{novos}</h3>
             <span className="text-[0.7em] font-medium text-muted-foreground tabular-nums">/ {recorrentes}</span>
           </div>
@@ -82,7 +82,7 @@ export function KPICards({ filters }: KPICardsProps) {
       <div className={cardBase}>
         <div className={textoBase}>
           <p className="text-xs font-medium text-muted-foreground leading-tight">Taxa de Recompra</p>
-          <h3 className="num-curto font-bold mt-auto tabular-nums">{taxaRecompra}%</h3>
+          <h3 className="num-kpi font-bold mt-auto tabular-nums">{taxaRecompra}%</h3>
         </div>
         <div className={`${iconBase} bg-serie-5/10 text-serie-5`}>
           <Repeat size={20} />

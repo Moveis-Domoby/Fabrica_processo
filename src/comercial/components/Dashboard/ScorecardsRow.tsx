@@ -111,13 +111,13 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3 mb-8 items-stretch">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3 mb-8 items-stretch">
         {/* ── Faturamento ── */}
         <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(40)}>
           <div className="flex flex-1 items-start justify-between gap-2">
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">{faturamentoLabel}</p>
-              <h3 className="num-moeda mt-auto font-bold text-serie-1">
+              <h3 className="num-kpi mt-auto font-bold text-serie-1">
                 <AnimatedNumber value={scorecards?.total_revenue || 0} formatter={v => formatCurrencyNoDecimals(v)} />
               </h3>
             </div>
@@ -132,7 +132,7 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
           <div className="flex flex-1 items-start justify-between gap-2">
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Total Pedidos</p>
-              <h3 className="num-curto mt-auto font-bold text-serie-2">
+              <h3 className="num-kpi mt-auto font-bold text-serie-2">
                 <AnimatedNumber value={scorecards?.total_orders || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
             </div>
@@ -147,7 +147,7 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
           <div className="flex flex-1 items-start justify-between gap-2">
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Clientes Únicos</p>
-              <h3 className="num-curto mt-auto font-bold text-serie-3">
+              <h3 className="num-kpi mt-auto font-bold text-serie-3">
                 <AnimatedNumber value={scorecards?.total_clients || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
             </div>
@@ -162,7 +162,7 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
           <div className="flex flex-1 items-start justify-between gap-2">
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Recompradores</p>
-              <h3 className="num-curto mt-auto font-bold text-serie-4">
+              <h3 className="num-kpi mt-auto font-bold text-serie-4">
                 <AnimatedNumber value={scorecards?.recurrents || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
             </div>
@@ -177,7 +177,7 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
           <div className="flex flex-1 items-start justify-between gap-2">
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Taxa Recompra</p>
-              <h3 className="num-curto mt-auto font-bold text-serie-5">
+              <h3 className="num-kpi mt-auto font-bold text-serie-5">
                 <AnimatedNumber value={scorecards?.recurrence_rate || 0} formatter={v => v.toFixed(1)} />%
               </h3>
             </div>
@@ -192,7 +192,7 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
           <div className="flex flex-1 items-start justify-between gap-2">
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Ticket Médio</p>
-              <h3 className="num-curto mt-auto font-bold text-serie-6">
+              <h3 className="num-kpi mt-auto font-bold text-serie-6">
                 <AnimatedNumber value={scorecards?.avg_ticket || 0} formatter={v => formatCurrencyNoDecimals(v)} />
               </h3>
             </div>

@@ -154,3 +154,40 @@ O que o dono viu no zoom-out era o `max-w-6xl`, corrigido. **Pedir confirmação
 no uso real.**
 
 `tsc` ✅ · `lint` ✅ · `vitest` 47/47 ✅ · `build` ✅
+
+### Segunda rodada da revisão (16/09) — 3 defeitos apontados pelo dono
+
+**a) Menu lateral com amarelo cravado.** O destaque do item ativo era
+`bg-marca-500 text-grafite-950` e o do pai `text-marca-300` — amarelo FIXO,
+então no tema esmeralda o menu ficava amarelo no meio do verde. *Correção:*
+nasceram `--dm-menu-ativo`, `--dm-menu-ativo-texto` e `--dm-menu-destaque` na
+camada semântica. Padrão = a cor de AÇÃO do tema; os temas esmeralda
+sobrescrevem com o verde vivo, porque o verde-escuro da ação sumiria sobre a
+casca escura. A casca permanece **sempre escura** (pedido do dono), agora com
+tom próprio também no esmeralda claro (`#1b2024`, frio — não grafite amarelado).
+Medido nos 4 temas: claro `#f1c24b` · meia-noite `#f4c64f` · esmeralda e
+esmeralda-escuro `#0bdaa6`.
+
+**b) Tipografia destoante nos KPIs** (erro meu na 1ª rodada): eu havia dado
+fórmulas DIFERENTES por cartão (`num-curto` × `num-moeda`), então o card de
+faturamento encolhia e os vizinhos não. *Correção:* uma classe só — `.num-kpi`
+— para a linha inteira, calibrada pelo **pior caso do conjunto** (o valor em
+reais com centavos). Como todas as colunas do grid têm a mesma largura, a mesma
+fórmula dá o mesmo tamanho em todos. `minmax` subiu (KPIs 18rem, scorecards
+14rem) para o número não ficar miúdo. Medido: os 6 números com fonte idêntica.
+**Regra:** o conteúdo mais largo dita o tamanho de TODOS; nunca cada cartão por si.
+
+**c) "A plataforma não se recentraliza".** O teto `max-w-[min(100%,110rem)]`
+(1760px) deixava faixa vazia grande em tela larga/zoom-out. *Correção:* teto
+removido — painel operacional ocupa a tela; quem garante legibilidade é o grid
+`auto-fit`, que distribui os cartões, não estrangular o conteúdo. Medido em
+2400px: conteúdo passou de 1760 → **1937px (99% do espaço)**, 7 colunas, zero
+vazamento, sem rolagem horizontal.
+
+⚠️ **Armadilha de diagnóstico registrada:** a sidebar chegou a aparecer
+"escondida" (`translate: -100%` com a media query `lg` ATIVA) — não era bug do
+código, era **CSS inconsistente do HMR** depois de várias edições seguidas em
+`tokens.css`/`global.css`. Um reload da página resolveu. Conferir sempre com
+página recarregada antes de acusar bug de layout.
+
+`tsc` ✅ · `lint` ✅ · `vitest` 47/47 ✅ · `build` ✅
