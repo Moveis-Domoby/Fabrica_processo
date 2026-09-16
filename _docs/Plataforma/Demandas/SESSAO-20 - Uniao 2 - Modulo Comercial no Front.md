@@ -51,4 +51,10 @@ Ler [[PLT - Plano Uniao das Plataformas]] (em especial a seção *Convivência c
 
 ## Resultado (preencher ao entregar)
 
-*—*
+✅ **Entregue em 16/09/2026** — [[handoff_2026_09_16_sessao20_modulo_comercial]] · branch `sessao-20-uniao-modulo-comercial` (aguardando merge).
+
+- **Item 0 — correção do diagnóstico:** a `vendas_marketing` **já tinha gate** (`WHERE fn_tem_modulo('comercial')`, migration 26) — não havia vazamento interno aberto. Verificado no banco vivo antes de codar. O que faltava era **negar em vez de devolver vazio**: migration 27 (opção A, aprovada pelo dono) com as 10 RPCs em SECURITY DEFINER + gate que recusa, ACL enxuta e 2 portas novas (`fn_clientes_consolidados`, `fn_vendas_cliente`) para as leituras diretas de view.
+- **Recharts fixado em `3.9.2` (exato)** e **tokens de cor de série `--dm-serie-1..6`** criados — a SESSAO-16 herda os dois.
+- Números conferidos contra o painel antigo: receita e pedidos **ao centavo**; divergências só a deriva de identidade da S19 + delta do dia.
+- **Zero disparo** na sessão: 128 membros com checksum de status idêntico ao da carga da S19.
+- Revisão de UI/UX do dono em 3 rodadas gerou correções estruturais (tema único, container query nos números, hierarquia do menu, preview de tema, layout das configurações) — detalhe no handoff §3 e lições E-29..E-32.
