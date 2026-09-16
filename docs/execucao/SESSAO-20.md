@@ -11,7 +11,7 @@
   - [x] 0.2 Conferir leituras diretas do front do recompra (4 arquivos vivos leem view direto)
   - [x] 0.3 Migration 27: revoke select de `vendas_marketing`/`vw_clientes_consolidados` p/ authenticated; 10 RPCs → SECURITY DEFINER com gate que NEGA (raise); RPCs novas p/ as leituras diretas; grants das 3 views só leitura
   - [x] 0.4 Harness `test:banco` 2 rodadas com verificações novas da S20 (12 verificações novas — TUDO VERDE 2x)
-  - [ ] 0.5 Aplicar SÓ com OK explícito do dono nesta conversa → depois advisors + espelho `.sql` + nota
+  - [x] 0.5 Aplicada em 15/09 com OK do dono ("voce tem meu ok para tudo") → advisors ok, nota do esquema atualizada (`.sql` espelho não muda: a 27 não toca a integração)
 - [ ] **1. Navegação**
   - [ ] 1.1 Pai "Fábrica" com Controle de Produção, Logística, ROTAS (`/fabrica/producao/:setor`, `/fabrica/logistica/*`, `/fabrica/rotas/*`)
   - [ ] 1.2 Redirects de TODAS as rotas atuais (bookmark de tablet não quebra; `/tablet` intocada)
@@ -84,3 +84,7 @@ Desenho das RPCs novas (SECURITY DEFINER, gate negando, execute revogado de publ
 - 15/09 · Deps EXATAS no package.json: recharts 3.9.2 · date-fns 4.4.0 · papaparse 5.5.4 · @tanstack/react-virtual 3.14.9 · react-hot-toast 2.6.0 (+@types/papaparse 5.5.2). `npm install` ok.
 - 15/09 · Edge Function `autenticacao`: criar-usuario grava `modulos: ['fabrica']` (item 2 do dono) — código versionado; **deploy aguarda OK** (regra 2).
 - 15/09 · ESLint: override documentado p/ `src/comercial/**` (código portado, oxlint na origem; refatorar é proibido — os achados já são DT-* no cofre de lá). `tsc` ✅ · `lint` ✅ · `vitest` 47/47 ✅ (novos: trava fechada + iniciarFila recusa; temModulo; rotaDoSetor) · `build` ✅ (bundle ~1,68 MB — DT-ARQ9 do recompra, catalogado; sem refatorar).
+- 15/09 · **OK do dono ("voce tem meu ok para tudo")** → **migration 27 APLICADA** pela API (`apply_migration`, nome `plt_comercial_gate_negacao_temas`). Impressão digital da integração antes = depois: `7bd6bac6bd896c121995d18676ff82f2` (114 colunas, 8 tabelas). Smoke no banco real (bloco A-11, nada gravado): operador sem módulo → RPC nega com "Você não tem acesso ao módulo Comercial…" e view → permission denied; admin → scorecards R$ 4.386.602,88 · 5.304 pedidos · 4.090 clientes · 808 recorrentes (o delta do dia sobre a S19), portas novas respondem; máquina (sem JWT) passa. Advisors: **o ERROR `security_definer_view` da vendas_marketing SUMIU**; WARNs novos = as 12 RPCs DEFINER (endpoints de propósito, padrão da casa). Pré-existentes de outra frente (não tocar, anotar no handoff): `fn_pedido_por_numero_nf` executável por anon, `fn_backfill_conta_mapear`/`fn_vig_touch` sem search_path, `vig_conhecimento_vendas`.
+- 15/09 · **Edge Function `autenticacao` v8 deployada** (verify_jwt ligado, como estava) — criar-usuario grava `modulos: ['fabrica']`.
+- 15/09 · Conferência anti-disparo pós-aplicação: `listas_disparo_membros` = 128 (checksum de id+status `6e4460f5…`), `listas_disparo_eventos` = 288 (o total da carga da S19; último evento de 12/09, anterior à carga). NENHUM evento novo. Reconferir no fim da sessão.
+- 15/09 · Nota do esquema atualizada (bloco migration 27). Preview local no ar (`localhost:5173` via `.claude/dev-plataforma.cmd` — caminho com espaço quebra o runner; anotado). Aguardando o dono logar no preview p/ validação visual + screenshots.
