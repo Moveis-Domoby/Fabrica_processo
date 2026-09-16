@@ -256,6 +256,101 @@
   --dm-perigo: hsl(0 84% 60%);
 }
 
+/* ==========================================================================
+   MÓDULO COMERCIAL (SESSAO-20, D-46) — a paleta PRÓPRIA do Painel de Recompra.
+   O módulo foi portado 1:1 e seu código (Tailwind + Recharts inline) lê as
+   variáveis cruas HSL do shadcn (`--primary`, `--card`, `--border`…). Elas
+   NÃO existiam na casa — por isso os gráficos sumiam (`hsl(var(--primary))`
+   ficava inválido) e as cores bugavam. Aqui elas voltam, escopadas ao
+   contêiner `.comercial`, com a MESMA paleta verde-esmeralda do painel de
+   origem: claro por padrão, escuro quando o tema da casa é escuro. Assim o
+   módulo fica idêntico ao painel antigo e a casca (sidebar) segue o tema. */
+.comercial {
+  --background: 220 18% 91%;
+  --foreground: 225 15% 12%;
+  --card: 220 20% 96%;
+  --card-foreground: 225 15% 12%;
+  --popover: 220 20% 96%;
+  --popover-foreground: 225 15% 12%;
+  --primary: 165 80% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 85%;
+  --secondary-foreground: 225 15% 12%;
+  --muted: 220 14% 87%;
+  --muted-foreground: 220 10% 42%;
+  --accent: 165 80% 32%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 14% 82%;
+  --input: 220 14% 82%;
+  --ring: 165 80% 32%;
+}
+
+/* O tema escuro do recompra, quando a casa está num tema escuro. */
+[data-tema='ardosia'] .comercial,
+[data-tema='grafite'] .comercial,
+[data-tema='escuro'] .comercial,
+[data-tema='meia-noite'] .comercial,
+[data-tema='esmeralda-escuro'] .comercial {
+  --background: 240 6% 6%;
+  --foreground: 0 0% 98%;
+  --card: 240 6% 10%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 6% 10%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 165 90% 45%;
+  --primary-foreground: 240 10% 4%;
+  --secondary: 240 6% 14%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 6% 14%;
+  --muted-foreground: 240 5% 65%;
+  --accent: 165 90% 45%;
+  --accent-foreground: 240 10% 4%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 6% 18%;
+  --input: 240 6% 18%;
+  --ring: 165 90% 45%;
+}
+
+/* ==========================================================================
+   TOM DO MENU LATERAL POR TEMA (SESSAO-20) — a casca é grafite por padrão
+   (o design da SESSAO-13, mantido em todos os temas claros). Nos temas
+   ESCUROS o grafite-700 fica mais claro que o conteúdo e a sidebar destoa;
+   aqui o menu é retintado escopado a `.menu-superficie` para casar com o
+   tom do tema. Só as variáveis `--dm-grafite-*` usadas pela casca mudam;
+   o resto da paleta bruta fica intacto. */
+[data-tema='meia-noite'] .menu-superficie {
+  --dm-grafite-700: #16161b;
+  --dm-grafite-800: #101014;
+  --dm-grafite-600: #2a2a31;
+  --dm-grafite-500: #3a3a42;
+  --dm-grafite-950: #070709;
+}
+[data-tema='escuro'] .menu-superficie {
+  --dm-grafite-700: #201f22;
+  --dm-grafite-800: #191819;
+  --dm-grafite-600: #35343a;
+  --dm-grafite-500: #454349;
+  --dm-grafite-950: #0e0d0f;
+}
+[data-tema='esmeralda-escuro'] .menu-superficie {
+  --dm-grafite-700: #131417;
+  --dm-grafite-800: #0e0f11;
+  --dm-grafite-600: #262a2c;
+  --dm-grafite-500: #363b3d;
+  --dm-grafite-950: #08090a;
+}
+[data-tema='grafite'] .menu-superficie {
+  --dm-grafite-700: #262428;
+  --dm-grafite-800: #1f1e21;
+}
+[data-tema='ardosia'] .menu-superficie {
+  --dm-grafite-700: #3a383c;
+  --dm-grafite-800: #2e2c30;
+}
+
 /* A família escura inteira compartilha os estados de qualidade em versão
    escura e avisa o navegador (inputs/rolagem nativos) com color-scheme. */
 [data-tema='ardosia'],

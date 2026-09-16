@@ -85,31 +85,31 @@
 
   /* --- Vocabulário do módulo Comercial (SESSAO-20, D-46) -----------------
      O Painel de Recompra foi portado 1:1 e o código dele fala o vocabulário
-     shadcn (bg-background, text-primary, border-border…). Em vez de reescrever
-     cada className do porte, o vocabulário vira ALIAS da camada semântica da
-     casa: primary é a ação, card é a superfície, muted é a superfície sutil.
-     Assim o módulo obedece aos 10 temas como qualquer tela — e nos temas
-     esmeralda fica idêntico ao painel de origem. Telas NOVAS da casa seguem
-     usando os nomes Domoby (fundo, superficie, acao…), nunca estes. */
-  --color-background: var(--dm-fundo);
-  --color-foreground: var(--dm-texto);
-  --color-card: var(--dm-superficie);
-  --color-card-foreground: var(--dm-texto);
-  --color-popover: var(--dm-superficie);
-  --color-popover-foreground: var(--dm-texto);
-  --color-primary: var(--dm-acao);
-  --color-primary-foreground: var(--dm-acao-texto);
-  --color-secondary: var(--dm-superficie-sutil);
-  --color-secondary-foreground: var(--dm-texto);
-  --color-muted: var(--dm-superficie-sutil);
-  --color-muted-foreground: var(--dm-texto-suave);
-  --color-accent: var(--dm-acao);
-  --color-accent-foreground: var(--dm-acao-texto);
-  --color-destructive: var(--dm-perigo);
-  --color-destructive-foreground: #fafafa;
-  --color-border: var(--dm-borda);
-  --color-input: var(--dm-borda-forte);
-  --color-ring: var(--dm-foco);
+     shadcn (bg-background, text-primary, border-border…) — inclusive INLINE
+     nos gráficos Recharts (`stroke="hsl(var(--primary))"`). Por isso o alias
+     aponta para as MESMAS variáveis cruas HSL que o `index.css` do recompra
+     definia (o triplo `165 80% 32%`), não para os tokens da casa: assim
+     Tailwind e Recharts leem a mesma cor. As variáveis cruas vivem escopadas
+     em `.comercial` (tokens.css); fora dele nenhum destes nomes é usado. */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 }
 
 @layer base {
@@ -154,6 +154,21 @@
   textarea {
     font-size: 1rem;
     font-family: inherit;
+  }
+
+  /* Sensação tátil (SESSAO-20): o Tailwind v4 NÃO coloca `cursor: pointer`
+     em <button> no preflight — sem isto o cursor não muda ao passar por cima
+     de nada clicável. Vale para o app inteiro (o <Botao> da casa e os botões
+     crus do módulo Comercial portado). */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 

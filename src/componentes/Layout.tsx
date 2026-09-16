@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   ChartColumn,
+  ChevronDown,
   ChevronsLeft,
   Factory,
   House,
@@ -53,6 +54,16 @@ function filhosDoGrupo(grupo: GrupoMenu): FilhoMenu[] {
 
 const CHAVE_RECOLHIDA = 'dm-sidebar-recolhida'
 const CHAVE_PAINEL = 'dm-sidebar-painel-recolhido'
+const CHAVE_SECOES = 'dm-sidebar-secoes-recolhidas'
+
+function lerSecoesRecolhidas(): Set<string> {
+  try {
+    const bruto = localStorage.getItem(CHAVE_SECOES)
+    return new Set(bruto ? (JSON.parse(bruto) as string[]) : [])
+  } catch {
+    return new Set()
+  }
+}
 
 function lerGuardado(chave: string): boolean {
   try {
@@ -104,6 +115,22 @@ export function Layout({ children }: { children: ReactNode }) {
   const [painelRecolhido, setPainelRecolhido] = useState(() => lerGuardado(CHAVE_PAINEL))
   // O grupo cujos filhos aparecem na segunda barra; null = seguir a rota atual.
   const [grupoEscolhido, setGrupoEscolhido] = useState<string | null>(null)
+  // Seções recolhidas da barra 2 (Controle de Produção, Logística, ROTAS…).
+  const [secoesRecolhidas, setSecoesRecolhidas] = useState<Set<string>>(lerSecoesRecolhidas)
+
+  function alternarSecao(titulo: string) {
+    setSecoesRecolhidas((atual) => {
+      const proximo = new Set(atual)
+      if (proximo.has(titulo)) proximo.delete(titulo)
+      else proximo.add(titulo)
+      try {
+        localStorage.setItem(CHAVE_SECOES, JSON.stringify([...proximo]))
+      } catch {
+        // sem localStorage: só não fica lembrado
+      }
+      return proximo
+    })
+  }
 
   const telaCheia = perfil !== null && location.pathname.startsWith('/tablet')
   const souAdmin = perfil?.papel === 'admin'
@@ -335,7 +362,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const barraPais = (
     <div
       className={cn(
-        'flex h-full flex-col bg-grafite-700',
+        'menu-superficie flex h-full flex-col bg-grafite-700',
         recolhida ? 'w-[4.5rem]' : 'w-60',
       )}
     >
@@ -484,7 +511,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   // BARRA 2 — os filhos do grupo escolhido: um menu ao lado do menu.
   const barraFilhos = painelAberto && grupoDoPainel && (
-    <div className="flex h-full w-52 flex-col border-l border-grafite-600 bg-grafite-800">
+    <div className="menu-superficie flex h-full w-52 flex-col border-l border-grafite-600 bg-grafite-800">
       <div className="flex min-h-toque-md items-center gap-2 px-3 pt-3">
         <span className="flex-1 truncate text-sm font-semibold text-grafite-100">
           {grupoDoPainel.rotulo}
@@ -502,34 +529,53 @@ export function Layout({ children }: { children: ReactNode }) {
         aria-label={`Itens de ${grupoDoPainel.rotulo}`}
         className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
       >
-        {grupoDoPainel.secoes.map((secao, indice) => (
-          <div key={secao.titulo ?? indice} className={cn(indice > 0 && 'mt-3')}>
-            {secao.titulo && (
-              <span className="block px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-grafite-400">
-                {secao.titulo}
-              </span>
-            )}
-            <div className="flex flex-col gap-0.5">
-              {secao.filhos.map((filho) => (
-                <NavLink
-                  key={filho.para}
-                  to={filho.para}
-                  onClick={() => setGavetaAberta(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-marca-500 text-grafite-950'
-                        : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
-                    )
-                  }
+        {grupoDoPainel.secoes.map((secao, indice) => {
+          const recolhida = secao.titulo ? secoesRecolhidas.has(secao.titulo) : false
+          return (
+            <div key={secao.titulo ?? indice} className={cn(indice > 0 && 'mt-3')}>
+              {secao.titulo && (
+                // O "pai" de seção (Controle de Produção, Logística, ROTAS):
+                // recolhe/expande os filhos, com a setinha de dropdown (D-36).
+                <button
+                  type="button"
+                  onClick={() => alternarSecao(secao.titulo!)}
+                  aria-expanded={!recolhida}
+                  className="flex w-full items-center gap-1 rounded-dm px-3 py-1 text-xs font-semibold uppercase tracking-wide text-grafite-400 transition-colors hover:text-grafite-200"
                 >
-                  {filho.rotulo}
-                </NavLink>
-              ))}
+                  <span className="flex-1 text-left">{secao.titulo}</span>
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      'size-4 shrink-0 transition-transform',
+                      recolhida && '-rotate-90',
+                    )}
+                  />
+                </button>
+              )}
+              {!recolhida && (
+                <div className="flex flex-col gap-0.5">
+                  {secao.filhos.map((filho) => (
+                    <NavLink
+                      key={filho.para}
+                      to={filho.para}
+                      onClick={() => setGavetaAberta(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-marca-500 text-grafite-950'
+                            : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
+                        )
+                      }
+                    >
+                      {filho.rotulo}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
     </div>
   )
@@ -537,7 +583,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-fundo lg:flex">
       {/* Barra do celular: menu + marca + sino (a gaveta traz o resto). */}
-      <header className="sticky top-0 z-30 bg-grafite-700 lg:hidden">
+      <header className="menu-superficie sticky top-0 z-30 bg-grafite-700 lg:hidden">
         <div className="flex items-center gap-2 px-3 py-2">
           <button
             type="button"

@@ -111,12 +111,12 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-3 mb-8 items-stretch">
         {/* ── Faturamento ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between" style={cardVisible(40)}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{faturamentoLabel}</p>
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(40)}>
+          <div className="flex items-start justify-between mb-2 gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">{faturamentoLabel}</p>
               <h3 className="text-2xl font-bold text-emerald-500">
                 <AnimatedNumber value={scorecards?.total_revenue || 0} formatter={v => formatCurrencyNoDecimals(v)} />
               </h3>
@@ -128,10 +128,10 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
 
         {/* ── Total Pedidos ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between" style={cardVisible(80)}>
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(80)}>
           <div className="flex items-start justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Pedidos</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Total Pedidos</p>
               <h3 className="text-2xl font-bold text-orange-400">
                 <AnimatedNumber value={scorecards?.total_orders || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
@@ -143,10 +143,10 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
 
         {/* ── Total Clientes ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between" style={cardVisible(120)}>
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(120)}>
           <div className="flex items-start justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Clientes Únicos</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Clientes Únicos</p>
               <h3 className="text-2xl font-bold text-blue-400">
                 <AnimatedNumber value={scorecards?.total_clients || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
@@ -158,10 +158,10 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
 
         {/* ── Recompradores ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between" style={cardVisible(160)}>
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(160)}>
           <div className="flex items-start justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Recompradores</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Recompradores</p>
               <h3 className="text-2xl font-bold text-purple-300">
                 <AnimatedNumber value={scorecards?.recurrents || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
@@ -173,10 +173,10 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
 
         {/* ── Taxa de Recompra ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between" style={cardVisible(200)}>
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(200)}>
           <div className="flex items-start justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Taxa Recompra</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Taxa Recompra</p>
               <h3 className="text-2xl font-bold text-emerald-500">
                 <AnimatedNumber value={scorecards?.recurrence_rate || 0} formatter={v => v.toFixed(1)} />%
               </h3>
@@ -188,10 +188,10 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
 
         {/* ── Ticket Médio ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between" style={cardVisible(240)}>
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(240)}>
           <div className="flex items-start justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ticket Médio</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Ticket Médio</p>
               <h3 className="text-2xl font-bold text-yellow-500">
                 <AnimatedNumber value={scorecards?.avg_ticket || 0} formatter={v => formatCurrencyNoDecimals(v)} />
               </h3>
