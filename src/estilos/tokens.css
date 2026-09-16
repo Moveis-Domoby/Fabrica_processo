@@ -257,61 +257,67 @@
 }
 
 /* ==========================================================================
-   MÓDULO COMERCIAL (SESSAO-20, D-46) — a paleta PRÓPRIA do Painel de Recompra.
-   O módulo foi portado 1:1 e seu código (Tailwind + Recharts inline) lê as
-   variáveis cruas HSL do shadcn (`--primary`, `--card`, `--border`…). Elas
-   NÃO existiam na casa — por isso os gráficos sumiam (`hsl(var(--primary))`
-   ficava inválido) e as cores bugavam. Aqui elas voltam, escopadas ao
-   contêiner `.comercial`, com a MESMA paleta verde-esmeralda do painel de
-   origem: claro por padrão, escuro quando o tema da casa é escuro. Assim o
-   módulo fica idêntico ao painel antigo e a casca (sidebar) segue o tema. */
-.comercial {
-  --background: 220 18% 91%;
-  --foreground: 225 15% 12%;
-  --card: 220 20% 96%;
-  --card-foreground: 225 15% 12%;
-  --popover: 220 20% 96%;
-  --popover-foreground: 225 15% 12%;
-  --primary: 165 80% 32%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 220 14% 85%;
-  --secondary-foreground: 225 15% 12%;
-  --muted: 220 14% 87%;
-  --muted-foreground: 220 10% 42%;
-  --accent: 165 80% 32%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 72% 55%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 220 14% 82%;
-  --input: 220 14% 82%;
-  --ring: 165 80% 32%;
+   VOCABULÁRIO DO MÓDULO COMERCIAL (SESSAO-20, D-46)
+   O Painel de Recompra foi portado 1:1 e seu código fala o vocabulário
+   shadcn (`--primary`, `--card`, `--border`…), tanto em classe Tailwind
+   quanto INLINE nos gráficos. Aqui esses nomes são apenas APELIDOS dos
+   tokens semânticos da casa — não uma paleta paralela. Consequência: o
+   módulo obedece ao tema escolhido em Meu Perfil como qualquer outra tela
+   (amarelo × grafite no padrão, esmeralda nos temas esmeralda).
+   Ficam em :root (e não em `.comercial`) para valerem também em portal/
+   overlay que o React monta fora da árvore do módulo.
+   ========================================================================== */
+:root {
+  --background: var(--dm-fundo);
+  --foreground: var(--dm-texto);
+  --card: var(--dm-superficie);
+  --card-foreground: var(--dm-texto);
+  --popover: var(--dm-superficie);
+  --popover-foreground: var(--dm-texto);
+  --primary: var(--dm-acao);
+  --primary-foreground: var(--dm-acao-texto);
+  --secondary: var(--dm-superficie-sutil);
+  --secondary-foreground: var(--dm-texto);
+  --muted: var(--dm-superficie-sutil);
+  --muted-foreground: var(--dm-texto-suave);
+  --accent: var(--dm-acao);
+  --accent-foreground: var(--dm-acao-texto);
+  --destructive: var(--dm-perigo);
+  --destructive-foreground: #ffffff;
+  --border: var(--dm-borda);
+  --input: var(--dm-borda-forte);
+  --ring: var(--dm-foco);
 }
 
-/* O tema escuro do recompra, quando a casa está num tema escuro. */
-[data-tema='ardosia'] .comercial,
-[data-tema='grafite'] .comercial,
-[data-tema='escuro'] .comercial,
-[data-tema='meia-noite'] .comercial,
-[data-tema='esmeralda-escuro'] .comercial {
-  --background: 240 6% 6%;
-  --foreground: 0 0% 98%;
-  --card: 240 6% 10%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 6% 10%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 165 90% 45%;
-  --primary-foreground: 240 10% 4%;
-  --secondary: 240 6% 14%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 6% 14%;
-  --muted-foreground: 240 5% 65%;
-  --accent: 165 90% 45%;
-  --accent-foreground: 240 10% 4%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 6% 18%;
-  --input: 240 6% 18%;
-  --ring: 165 90% 45%;
+/* ==========================================================================
+   CORES DE SÉRIE DOS GRÁFICOS (SESSAO-20 — a demanda manda esta sessão fixá-las
+   para a SESSAO-16 herdar). Uma cor por série/KPI, na ORDEM em que são usadas.
+   Regras da casa que valem aqui: a série 1 é sempre a cor de AÇÃO do tema
+   (o número principal acompanha a identidade), e nenhuma série usa o
+   âmbar-laranja dos estados de qualidade (D-09) para não competir com 🟡.
+   Estado (ganho/perdido/atenção) NUNCA vira série: usa os tokens de
+   qualidade (perfeito/atencao/danificado).
+   ========================================================================== */
+:root {
+  --dm-serie-1: var(--dm-acao);
+  --dm-serie-2: #2563eb;
+  --dm-serie-3: #7c3aed;
+  --dm-serie-4: #0891b2;
+  --dm-serie-5: #db2777;
+  --dm-serie-6: #65a30d;
+}
+
+/* Nos temas escuros as séries clareiam para manter contraste sobre fundo escuro. */
+[data-tema='ardosia'],
+[data-tema='grafite'],
+[data-tema='escuro'],
+[data-tema='meia-noite'],
+[data-tema='esmeralda-escuro'] {
+  --dm-serie-2: #60a5fa;
+  --dm-serie-3: #c4b5fd;
+  --dm-serie-4: #22d3ee;
+  --dm-serie-5: #f472b6;
+  --dm-serie-6: #a3e635;
 }
 
 /* ==========================================================================

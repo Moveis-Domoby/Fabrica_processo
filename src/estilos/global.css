@@ -67,6 +67,16 @@
   --color-info-forte: var(--dm-info-forte);
   --color-info-texto: var(--dm-info-texto);
 
+  /* --- Cores de série dos gráficos (SESSAO-20; a SESSAO-16 herda) --------
+     Uma cor por série/KPI, na ordem de uso. A série 1 é a cor de AÇÃO do
+     tema — o número principal acompanha a identidade escolhida. */
+  --color-serie-1: var(--dm-serie-1);
+  --color-serie-2: var(--dm-serie-2);
+  --color-serie-3: var(--dm-serie-3);
+  --color-serie-4: var(--dm-serie-4);
+  --color-serie-5: var(--dm-serie-5);
+  --color-serie-6: var(--dm-serie-6);
+
   /* --- Tipografia ------------------------------------------------------- */
   --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-marca: 'Poppins', 'Inter Variable', system-ui, sans-serif;
@@ -86,30 +96,29 @@
   /* --- Vocabulário do módulo Comercial (SESSAO-20, D-46) -----------------
      O Painel de Recompra foi portado 1:1 e o código dele fala o vocabulário
      shadcn (bg-background, text-primary, border-border…) — inclusive INLINE
-     nos gráficos Recharts (`stroke="hsl(var(--primary))"`). Por isso o alias
-     aponta para as MESMAS variáveis cruas HSL que o `index.css` do recompra
-     definia (o triplo `165 80% 32%`), não para os tokens da casa: assim
-     Tailwind e Recharts leem a mesma cor. As variáveis cruas vivem escopadas
-     em `.comercial` (tokens.css); fora dele nenhum destes nomes é usado. */
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+     nos gráficos Recharts (`stroke="var(--primary)"`). Esses nomes são
+     APELIDOS dos tokens semânticos da casa (definidos em tokens.css): assim
+     o módulo obedece ao tema escolhido em Meu Perfil como qualquer outra
+     tela, e Tailwind e Recharts leem exatamente a mesma cor. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 @layer base {
@@ -169,6 +178,40 @@
   button:disabled,
   [aria-disabled='true'] {
     cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* ==========================================================================
+     CARTÃO DE INDICADOR (SESSAO-20) — por que container query e não breakpoint.
+     O tamanho do número NÃO pode depender do breakpoint do viewport: a sidebar
+     come ~450px e o mesmo viewport "xl" pode dar um card de 150px ou de 300px.
+     Era essa a causa do número vazar/sobrepor o card — e cortar, truncar ou
+     esconder o ícone seria remendo. Aqui o bloco de texto vira um CONTAINER e
+     a fonte escala com a largura REAL dele (cqi), com piso e teto. Vale para
+     qualquer largura, qualquer número de colunas e qualquer nível de zoom.
+     ========================================================================== */
+  .num-bloco {
+    container-type: inline-size;
+    min-width: 0;
+  }
+  /* número curto (contagens, porcentagem): ~4-6 caracteres */
+  .num-curto {
+    font-size: clamp(1.125rem, 20cqi, 1.875rem);
+    line-height: 1.15;
+  }
+  /* número longo (moeda com centavos): ~12-16 caracteres.
+     O piso combina com o minmax do grid (ver KPICards/ScorecardsRow): juntos
+     garantem que o valor INTEIRO cabe — largura mínima do card compatível com
+     o dado é parte da correção, não só encolher a fonte. */
+  .num-moeda {
+    font-size: clamp(0.8125rem, 9cqi, 1.375rem);
+    line-height: 1.15;
+  }
+  /* par "novos / recorrentes": ~10 caracteres */
+  .num-par {
+    font-size: clamp(1rem, 14cqi, 1.5rem);
+    line-height: 1.15;
   }
 }
 

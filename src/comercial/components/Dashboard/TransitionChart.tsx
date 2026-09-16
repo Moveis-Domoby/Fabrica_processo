@@ -122,14 +122,14 @@ export function TransitionChart({ mounted }: TransitionChartProps) {
         {transitionData.chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhuma etapa selecionada ou sem dados para o período.</p>
         ) : (
-          <div className="h-[340px] w-full">
+          <div className="h-[clamp(16rem,36vh,26rem)] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={transitionData.chartData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => `${v}d`} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={50} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => `${v}d`} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={50} />
                 <Tooltip
-                  cursor={{ fill: 'hsl(var(--muted) / 0.4)' }}
+                  cursor={{ fill: 'color-mix(in oklab, var(--muted) 40%, transparent)' }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const data = payload[0].payload;
@@ -145,7 +145,7 @@ export function TransitionChart({ mounted }: TransitionChartProps) {
                 />
                 <Bar 
                   dataKey="mediaDias" 
-                  fill="hsl(var(--primary))" 
+                  fill="var(--primary)" 
                   radius={[6, 6, 0, 0]} 
                   maxBarSize={80}
                   onClick={(data: any) => setTransitionModalData({ label: data.label, purchaseNumber: data.transitionNumber })}

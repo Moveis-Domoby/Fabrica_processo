@@ -135,21 +135,21 @@ export function RevenueChart({ mounted }: RevenueChartProps) {
           <PeriodPills value={period} onChange={v => setPeriod(v as PeriodKey)} options={PERIOD_OPTIONS} />
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={260}>
+      <div className="h-[clamp(14rem,30vh,22rem)]"><ResponsiveContainer width="100%" height="100%">
         <LineChart data={revenueData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={yAxisFormatter} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={60} />
-          <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }} />
-          {bestMonth && <ReferenceLine x={bestMonth.month} stroke="hsl(var(--primary))" strokeDasharray="4 3" strokeOpacity={0.6} />}
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={yAxisFormatter} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={60} />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--primary)', strokeWidth: 1, strokeDasharray: '4 4' }} />
+          {bestMonth && <ReferenceLine x={bestMonth.month} stroke="var(--primary)" strokeDasharray="4 3" strokeOpacity={0.6} />}
           <Line
-            type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2.5}
-            dot={{ fill: 'hsl(var(--primary))', r: 3, strokeWidth: 0 }}
-            activeDot={{ r: 6, fill: 'hsl(var(--primary))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+            type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2.5}
+            dot={{ fill: 'var(--primary)', r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 6, fill: 'var(--primary)', stroke: 'var(--card)', strokeWidth: 2 }}
             isAnimationActive animationBegin={200} animationDuration={1200} animationEasing="ease-out"
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></div>
     </div>
   );
 }

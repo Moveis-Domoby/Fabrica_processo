@@ -85,7 +85,7 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
             ))}
           </select>
         </div>
-        <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-[clamp(18rem,42vh,32rem)] overflow-y-auto pr-1">
           {topItems.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Sem itens registrados.</p>
           ) : topItems.map(([name, count]: [string, number], idx: number) => (
@@ -129,7 +129,7 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
             </button>
           )}
         </div>
-        <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1 scrollbar-thin">
+        <div className="space-y-2 max-h-[clamp(18rem,42vh,32rem)] overflow-y-auto pr-1 scrollbar-thin">
           {bottomItems.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Sem itens registrados.</p>
           ) : bottomItems.map(([name, count]: [string, number], idx: number) => (

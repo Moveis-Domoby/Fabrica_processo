@@ -103,7 +103,7 @@ export function AnalyticsDashboard({ onBack }: AnalyticsDashboardProps) {
               </div>
             )}
 
-            <div className="overflow-auto flex-1 min-h-0 max-h-[520px]">
+            <div className="overflow-auto flex-1 min-h-0 max-h-[clamp(18rem,45vh,34rem)]">
               <table className="w-full text-sm text-left">
                 <thead className="sticky top-0 bg-card z-10">
                   <tr className="text-[11px] text-muted-foreground uppercase border-b border-border">
@@ -171,7 +171,7 @@ export function AnalyticsDashboard({ onBack }: AnalyticsDashboardProps) {
               </div>
             )}
 
-            <div className="overflow-auto flex-1 min-h-0 max-h-[520px]">
+            <div className="overflow-auto flex-1 min-h-0 max-h-[clamp(18rem,45vh,34rem)]">
               <table className="w-full text-sm text-left">
                 <thead className="text-[11px] text-muted-foreground uppercase border-b border-border">
                   <tr>

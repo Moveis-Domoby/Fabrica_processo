@@ -97,33 +97,33 @@ export function PurchaseFrequencyChart({ mounted }: PurchaseFrequencyChartProps)
           {/* Faturamento por segmento */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Faturamento Total por Segmento</p>
-            <ResponsiveContainer width="100%" height={280}>
+            <div className="h-[clamp(15rem,32vh,24rem)]"><ResponsiveContainer width="100%" height="100%">
               <BarChart data={purchaseFrequencyData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={56} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={56} />
                 <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12 }}
-                  labelStyle={{ color: 'hsl(var(--foreground))', fontSize: 11 }}
+                  contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12 }}
+                  labelStyle={{ color: 'var(--foreground)', fontSize: 11 }}
                   formatter={(v: any) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v), 'Faturamento']}
                 />
-                <Bar dataKey="faturamento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="faturamento" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer></div>
           </div>
 
           {/* Ticket médio por segmento + clientes */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Ticket Médio & Clientes por Segmento</p>
-            <ResponsiveContainer width="100%" height={280}>
+            <div className="h-[clamp(15rem,32vh,24rem)]"><ResponsiveContainer width="100%" height="100%">
               <BarChart data={purchaseFrequencyData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" tickFormatter={v => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={56} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={36} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="left" tickFormatter={v => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={56} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={36} />
                 <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12 }}
-                  labelStyle={{ color: 'hsl(var(--foreground))', fontSize: 11 }}
+                  contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12 }}
+                  labelStyle={{ color: 'var(--foreground)', fontSize: 11 }}
                   formatter={(v: any, name: any) => [
                     name === 'ticketMedio' 
                       ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
@@ -138,9 +138,9 @@ export function PurchaseFrequencyChart({ mounted }: PurchaseFrequencyChartProps)
                   wrapperStyle={{ fontSize: 11 }}
                 />
                 <Bar yAxisId="left" dataKey="ticketMedio" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                <Bar yAxisId="right" dataKey="clientes" fill="hsl(var(--primary) / 0.4)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar yAxisId="right" dataKey="clientes" fill="color-mix(in oklab, var(--primary) 40%, transparent)" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer></div>
           </div>
 
           {/* Summary table */}

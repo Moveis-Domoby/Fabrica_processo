@@ -80,6 +80,46 @@ O texto do 🟡 são **as palavras do dono** (D-09 / Q-16) e está em `src/compo
 
 > **Estado nunca é comunicado só por cor.** `<BadgeEstado>` sempre desenha ícone + texto. Daltonismo é comum e o galpão tem iluminação ruim.
 
+### Cores de série dos gráficos (SESSAO-20 — a SESSAO-16 herda)
+
+Gráfico e indicador **nunca** usam cor fixa de paleta (`text-emerald-500`): usam
+os tokens de série, que acompanham o tema escolhido no Meu Perfil.
+
+| Token | Papel |
+|---|---|
+| `serie-1` | **é a cor de AÇÃO do tema** — o número principal acompanha a identidade (amarelo no padrão, esmeralda nos temas esmeralda) |
+| `serie-2` … `serie-6` | as demais séries, na ordem de uso; clareiam automaticamente nos temas escuros |
+
+Duas regras que vêm de A-08 e M-12:
+
+- **Nenhuma série usa o âmbar-laranja** dos estados de qualidade — 🟡 não pode
+  competir com "a segunda barra do gráfico".
+- **Estado NUNCA vira série:** ganho/perdido/atenção usam os tokens de qualidade
+  (`perfeito-*`, `atencao-*`, `danificado-*`), com ícone + texto.
+
+### Número dentro de cartão: container query, nunca breakpoint (SESSAO-20)
+
+O tamanho do número de um indicador **não pode** depender do breakpoint do
+viewport. A sidebar ocupa ~450px: o mesmo viewport "xl" produz cartão de 150px
+ou de 300px, e foi assim que o valor vazou/sobrepôs o cartão. O padrão da casa:
+
+- o bloco do número é um **container** (`.num-bloco`) e a fonte escala com a
+  largura REAL dele — `.num-curto`, `.num-moeda`, `.num-par` (`clamp(...cqi...)`);
+- a grade usa `repeat(auto-fit, minmax(X, 1fr))`, com **X calibrado pelo dado
+  mais largo** (o valor em reais com centavos) — largura mínima compatível com o
+  conteúdo faz parte da correção;
+- o número ancora no rodapé do cartão (`mt-auto`), o que alinha a linha de base
+  entre cartões de rótulo curto e longo.
+
+**Proibido** resolver estouro de valor com `truncate`, `overflow-hidden`,
+esconder o ícone ou `min-h` fixo: cortar número é perder informação.
+
+### Ajuste a zoom e a tela grande (SESSAO-20)
+
+Largura e altura de painel acompanham a tela: o conteúdo usa
+`max-w-[min(100%,110rem)]` (não `max-w-6xl`, que deixava faixa vazia em telas
+largas) e altura de gráfico/lista rolável é `clamp(rem, vh, rem)` — nunca px fixo.
+
 ### Tipografia
 
 - **Poppins** (500/600/700) — marca e títulos (`font-marca`, aplicada automaticamente em `h1/h2/h3`).

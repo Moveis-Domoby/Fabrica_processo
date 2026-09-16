@@ -96,3 +96,61 @@ Desenho das RPCs novas (SECURITY DEFINER, gate negando, execute revogado de publ
   - **Tom do menu por tema:** a sidebar era grafite fixo (S13) e destoava nos temas escuros; retint escopado a `.menu-superficie` p/ meia-noite/escuro/esmeralda-escuro/grafite/ardósia (só as `--dm-grafite-*` da casca). Temas CLAROS intactos (zero regressão).
   - **Setinha de dropdown nas seções da barra 2** (Controle de Produção/Logística/ROTAS): viraram recolhíveis com `ChevronDown` (estado lembrado em localStorage). Conferido abrindo/recolhendo.
   - tsc/lint/vitest 47/47/build verdes de novo. **Validação visual OK** no meia-noite: menu escuro casando, chips e gráficos esmeralda, linha do gráfico renderizando, KPIs alinhados.
+
+## Revisão de UI/UX do dono (16/09) — correção estrutural, sem paliativo
+
+O dono recusou (com razão) a primeira rodada de ajustes: eu tinha tratado
+sintoma (truncate, `overflow-hidden`, esconder ícone, `min-h` fixo). Pedido
+textual: *"faça uma análise de fato e perceba que há erros de UI/UX, ajuste
+isso da forma correta, sem paliativos"*. Análise levantou **4 causas raiz**:
+
+**1. O módulo tinha paleta PARALELA, não o tema da casa.**
+Eu havia escopado a paleta esmeralda do recompra em `.comercial`. Resultado:
+no tema meia-noite (amarelo × grafite) o Comercial aparecia todo verde — o
+tema escolhido em Meu Perfil era ignorado. *Correção:* o vocabulário shadcn
+(`--primary`, `--card`, `--border`…) virou **apelido dos tokens semânticos da
+casa** em `:root`; os 29 usos inline `hsl(var(--x))` dos gráficos viraram
+`var(--x)` e os 2 com alpha viraram `color-mix(in oklab, …)`. Provado no
+navegador: `--dm-acao` e `bg-card` mudam nos 4 temas testados (claro #ffffff,
+meia-noite #1a1a1f, esmeralda #f3f4f7).
+
+**2. Cores de KPI hardcoded (emerald/orange/blue/purple/yellow).**
+20 ocorrências que não obedeciam tema nenhum. *Correção:* nasceram os
+**tokens de série** `--dm-serie-1..6` (a demanda manda ESTA sessão fixá-los
+para a SESSAO-16 herdar). Série 1 = a cor de AÇÃO do tema; as demais clareiam
+nos temas escuros; nenhuma usa o âmbar dos estados de qualidade (D-09).
+
+**3. Vazamento do valor: tamanho por breakpoint de VIEWPORT.**
+`text-2xl sm:text-3xl` não sabe a largura do card — a sidebar come ~450px, e o
+mesmo viewport "xl" dá card de 150px ou de 300px. *Correção:* o bloco do número
+virou **container query** (`.num-bloco` + `clamp(...cqi...)`) e o grid virou
+`repeat(auto-fit, minmax(…,1fr))` — colunas pela largura REAL do container, não
+pelo breakpoint. O `minmax` é calibrado pelo dado mais largo (R$ com centavos):
+largura mínima compatível com o conteúdo é parte da correção, não só encolher
+fonte. Paliativos REMOVIDOS: truncate, overflow-hidden, `hidden 2xl` do ícone,
+`min-h` fixo. Alinhamento dos números agora é estrutural (`mt-auto` ancorando
+no rodapé do card), não `min-h` no rótulo.
+
+**4. Nada acompanhava zoom/tela grande.**
+`max-w-6xl` (1152px) estrangulava: em 1920 sobrava faixa vazia. Alturas de
+gráfico e listas em px fixos. *Correção:* Layout com `max-w-[min(100%,110rem)]`
+(em 1920 o conteúdo passou de 1152 → 1457px) e alturas em `clamp(rem, vh, rem)`
+nos 4 gráficos e 5 listas roláveis.
+
+**Verificação objetiva** (script mede `scrollWidth > clientWidth` de cada
+número + rolagem horizontal do documento), nas duas telas:
+| largura | vazando | rolagem horizontal |
+|---|---|---|
+| 700px | nenhum | não |
+| 900px | nenhum | não |
+| 1280px | nenhum | não |
+| 1920px | nenhum | não (7 colunas por auto-fit) |
+
+⚠️ **Não consegui provar o redimensionamento do gráfico neste ambiente**: a
+janela do preview fica atrás e a página não pinta — provado que o
+`ResizeObserver` não dispara NENHUMA vez, nem um observer próprio de teste
+(mesma causa dos screenshots que falham e das transições CSS congeladas).
+O que o dono viu no zoom-out era o `max-w-6xl`, corrigido. **Pedir confirmação
+no uso real.**
+
+`tsc` ✅ · `lint` ✅ · `vitest` 47/47 ✅ · `build` ✅

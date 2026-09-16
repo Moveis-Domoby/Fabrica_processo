@@ -23,20 +23,21 @@ export function KPICards({ filters }: KPICardsProps) {
   const novos = totalClientes - recorrentes;
   const taxaRecompra = scorecards.recurrence_rate.toFixed(1);
 
-  // min-h iguala a altura dos cards (nada de "fora de esquadro"); o ícone é
-  // decorativo e só aparece em telas largas (2xl) — com a sidebar ocupando
-  // largura, mostrá-lo em 5 colunas espremia o número (virava "409"). O texto
-  // fica com min-w-0 e o card com overflow-hidden como cinto de segurança.
-  const cardBase = "bg-card text-card-foreground p-4 sm:p-5 rounded-xl shadow-sm border border-border border-t-[3px] border-t-primary flex items-center justify-between gap-2 min-h-[6rem] overflow-hidden";
-  const iconBase = "h-11 w-11 rounded-full hidden 2xl:flex shrink-0 items-center justify-center";
-  const textoBase = "min-w-0 flex-1";
+  // O número usa container query (.num-*): escala com a largura REAL do card,
+  // então nunca vaza nem precisa ser cortado/escondido — em qualquer largura,
+  // número de colunas ou nível de zoom. O grid usa auto-fit: a quantidade de
+  // colunas segue o espaço disponível, não o breakpoint do viewport (que não
+  // enxerga a sidebar). h-full + items-stretch deixam todos da mesma altura.
+  const cardBase = "bg-card text-card-foreground h-full p-4 rounded-xl shadow-sm border border-border border-t-[3px] border-t-primary flex items-stretch justify-between gap-3";
+  const iconBase = "size-10 rounded-full flex shrink-0 items-center justify-center self-center";
+  const textoBase = "num-bloco flex flex-1 flex-col";
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8 items-stretch">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3 sm:gap-4 mb-6 sm:mb-8 items-stretch">
       <div className={cardBase}>
         <div className={textoBase}>
-          <p className="text-xs font-medium text-muted-foreground truncate">Total Clientes</p>
-          <h3 className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2 tabular-nums">{totalClientes}</h3>
+          <p className="text-xs font-medium text-muted-foreground leading-tight">Total Clientes</p>
+          <h3 className="num-curto font-bold mt-auto tabular-nums">{totalClientes}</h3>
         </div>
         <div className={`${iconBase} bg-primary/10 text-primary`}>
           <Users size={20} />
@@ -45,45 +46,45 @@ export function KPICards({ filters }: KPICardsProps) {
 
       <div className={cardBase}>
         <div className={textoBase}>
-          <p className="text-xs font-medium text-muted-foreground truncate">Total Pedidos</p>
-          <h3 className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2 tabular-nums">{totalPedidos}</h3>
+          <p className="text-xs font-medium text-muted-foreground leading-tight">Total Pedidos</p>
+          <h3 className="num-curto font-bold mt-auto tabular-nums">{totalPedidos}</h3>
         </div>
-        <div className={`${iconBase} bg-orange-500/10 text-orange-600`}>
+        <div className={`${iconBase} bg-serie-2/10 text-serie-2`}>
           <ShoppingCart size={20} />
         </div>
       </div>
 
       <div className={cardBase}>
         <div className={textoBase}>
-          <p className="text-xs font-medium text-muted-foreground truncate">Faturamento</p>
-          <h3 className="text-sm sm:text-base lg:text-lg font-bold mt-1 sm:mt-2 tabular-nums whitespace-nowrap">
+          <p className="text-xs font-medium text-muted-foreground leading-tight">Faturamento</p>
+          <h3 className="num-moeda font-bold mt-auto tabular-nums whitespace-nowrap">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(faturamentoTotal)}
           </h3>
         </div>
-        <div className={`${iconBase} bg-green-500/10 text-green-600`}>
+        <div className={`${iconBase} bg-serie-3/10 text-serie-3`}>
           <DollarSign size={20} />
         </div>
       </div>
 
       <div className={cardBase}>
         <div className={textoBase}>
-          <p className="text-xs font-medium text-muted-foreground truncate">Novos / Rec.</p>
-          <div className="flex items-baseline gap-1 mt-1 sm:mt-2 whitespace-nowrap">
-            <h3 className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{novos}</h3>
-            <span className="text-sm sm:text-base font-medium text-muted-foreground tabular-nums">/ {recorrentes}</span>
+          <p className="text-xs font-medium text-muted-foreground leading-tight">Novos / Rec.</p>
+          <div className="num-par mt-auto flex items-baseline gap-1 whitespace-nowrap">
+            <h3 className="font-bold text-foreground tabular-nums">{novos}</h3>
+            <span className="text-[0.7em] font-medium text-muted-foreground tabular-nums">/ {recorrentes}</span>
           </div>
         </div>
-        <div className={`${iconBase} bg-purple-500/10 text-purple-600`}>
+        <div className={`${iconBase} bg-serie-4/10 text-serie-4`}>
           <UserPlus size={20} />
         </div>
       </div>
 
-      <div className={`${cardBase} col-span-2 lg:col-span-1`}>
+      <div className={cardBase}>
         <div className={textoBase}>
-          <p className="text-xs font-medium text-muted-foreground truncate">Taxa de Recompra</p>
-          <h3 className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2 tabular-nums">{taxaRecompra}%</h3>
+          <p className="text-xs font-medium text-muted-foreground leading-tight">Taxa de Recompra</p>
+          <h3 className="num-curto font-bold mt-auto tabular-nums">{taxaRecompra}%</h3>
         </div>
-        <div className={`${iconBase} bg-blue-500/10 text-blue-600`}>
+        <div className={`${iconBase} bg-serie-5/10 text-serie-5`}>
           <Repeat size={20} />
         </div>
       </div>

@@ -111,92 +111,92 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-3 mb-8 items-stretch">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3 mb-8 items-stretch">
         {/* ── Faturamento ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(40)}>
-          <div className="flex items-start justify-between mb-2 gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">{faturamentoLabel}</p>
-              <h3 className="text-2xl font-bold text-emerald-500">
+        <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(40)}>
+          <div className="flex flex-1 items-start justify-between gap-2">
+            <div className="num-bloco flex flex-1 flex-col">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">{faturamentoLabel}</p>
+              <h3 className="num-moeda mt-auto font-bold text-serie-1">
                 <AnimatedNumber value={scorecards?.total_revenue || 0} formatter={v => formatCurrencyNoDecimals(v)} />
               </h3>
             </div>
-            <div className="text-emerald-500/50">
+            <div className="text-serie-1/50">
               <DollarSign size={16} />
             </div>
           </div>
         </div>
 
         {/* ── Total Pedidos ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(80)}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Total Pedidos</p>
-              <h3 className="text-2xl font-bold text-orange-400">
+        <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(80)}>
+          <div className="flex flex-1 items-start justify-between gap-2">
+            <div className="num-bloco flex flex-1 flex-col">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Total Pedidos</p>
+              <h3 className="num-curto mt-auto font-bold text-serie-2">
                 <AnimatedNumber value={scorecards?.total_orders || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
             </div>
-            <div className="text-orange-400/50">
+            <div className="text-serie-2/50">
               <ShoppingBag size={16} />
             </div>
           </div>
         </div>
 
         {/* ── Total Clientes ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(120)}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Clientes Únicos</p>
-              <h3 className="text-2xl font-bold text-blue-400">
+        <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(120)}>
+          <div className="flex flex-1 items-start justify-between gap-2">
+            <div className="num-bloco flex flex-1 flex-col">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Clientes Únicos</p>
+              <h3 className="num-curto mt-auto font-bold text-serie-3">
                 <AnimatedNumber value={scorecards?.total_clients || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
             </div>
-            <div className="text-blue-400/50">
+            <div className="text-serie-3/50">
               <Users size={16} />
             </div>
           </div>
         </div>
 
         {/* ── Recompradores ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(160)}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Recompradores</p>
-              <h3 className="text-2xl font-bold text-purple-300">
+        <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(160)}>
+          <div className="flex flex-1 items-start justify-between gap-2">
+            <div className="num-bloco flex flex-1 flex-col">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Recompradores</p>
+              <h3 className="num-curto mt-auto font-bold text-serie-4">
                 <AnimatedNumber value={scorecards?.recurrents || 0} formatter={v => Math.round(v).toLocaleString('pt-BR')} />
               </h3>
             </div>
-            <div className="text-purple-300/50">
+            <div className="text-serie-4/50">
               <Repeat size={16} />
             </div>
           </div>
         </div>
 
         {/* ── Taxa de Recompra ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(200)}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Taxa Recompra</p>
-              <h3 className="text-2xl font-bold text-emerald-500">
+        <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(200)}>
+          <div className="flex flex-1 items-start justify-between gap-2">
+            <div className="num-bloco flex flex-1 flex-col">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Taxa Recompra</p>
+              <h3 className="num-curto mt-auto font-bold text-serie-5">
                 <AnimatedNumber value={scorecards?.recurrence_rate || 0} formatter={v => v.toFixed(1)} />%
               </h3>
             </div>
-            <div className="text-emerald-500/50">
+            <div className="text-serie-5/50">
               <Repeat size={16} />
             </div>
           </div>
         </div>
 
         {/* ── Ticket Médio ── */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between min-h-[6rem]" style={cardVisible(240)}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 min-h-[2rem] leading-tight">Ticket Médio</p>
-              <h3 className="text-2xl font-bold text-yellow-500">
+        <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-between" style={cardVisible(240)}>
+          <div className="flex flex-1 items-start justify-between gap-2">
+            <div className="num-bloco flex flex-1 flex-col">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Ticket Médio</p>
+              <h3 className="num-curto mt-auto font-bold text-serie-6">
                 <AnimatedNumber value={scorecards?.avg_ticket || 0} formatter={v => formatCurrencyNoDecimals(v)} />
               </h3>
             </div>
-            <div className="text-yellow-500/50">
+            <div className="text-serie-6/50">
               <DollarSign size={16} />
             </div>
           </div>

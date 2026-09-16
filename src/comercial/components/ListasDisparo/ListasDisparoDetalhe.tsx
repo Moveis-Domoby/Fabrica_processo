@@ -373,7 +373,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
                 )}
               </div>
             </div>
-            <div className="overflow-x-auto max-h-[1000px]">
+            <div className="overflow-x-auto max-h-[clamp(24rem,70vh,62rem)]">
               <table className="w-full text-left text-sm">
                 <thead className="bg-muted/50 text-muted-foreground sticky top-0">
                   <tr>
