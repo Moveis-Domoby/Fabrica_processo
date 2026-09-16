@@ -2,6 +2,8 @@ import { Navigate, Outlet, useLocation } from 'react-router'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import { useSessao } from './sessao-contexto'
+import { temModulo } from './tipos'
+import type { Modulo } from './tipos'
 
 function TelaCarregando() {
   return (
@@ -49,5 +51,17 @@ export function RotaProtegida({ nivel }: { nivel?: 'lider' | 'admin' }) {
   if (nivel === 'admin' && perfil.papel !== 'admin') return <Navigate to="/" replace />
   if (nivel === 'lider' && !ehLider) return <Navigate to="/" replace />
 
+  return <Outlet />
+}
+
+/**
+ * Guarda de módulo (SESSAO-20/D-46): quem não tem o módulo não vê o grupo no
+ * menu E recebe redirect ao tentar a URL direta. O front só esconde — quem
+ * nega o dado de verdade é o banco (RPCs com gate).
+ */
+export function RotaModulo({ modulo }: { modulo: Modulo }) {
+  const { carregando, perfil } = useSessao()
+  if (carregando) return <TelaCarregando />
+  if (!temModulo(perfil, modulo)) return <Navigate to="/inicio/meu-painel" replace />
   return <Outlet />
 }

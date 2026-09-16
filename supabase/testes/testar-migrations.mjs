@@ -2784,6 +2784,145 @@ conferir(
   JSON.stringify(consolidado),
 )
 
+titulo('Comercial no front (SESSAO-20): negação explícita, portas novas e temas esmeralda')
+
+// 1 · As 10 RPCs do recompra + as 2 portas novas são SECURITY DEFINER — é o
+// que as deixa ler a view depois da revogação (catálogo, não permissão: E-14).
+const definersS20 = (
+  await bd.query(`
+    select count(*)::int as total from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prosecdef
+       and p.proname in ('fn_dashboard_revenue_chart','fn_dashboard_purchase_frequency',
+                         'fn_dashboard_transitions','fn_dashboard_transitions_summary',
+                         'fn_dashboard_transition_clients','fn_dashboard_items',
+                         'fn_dashboard_top_items_overall','fn_dashboard_scorecards',
+                         'fn_filter_customers','fn_vendas_disparo_por_telefone',
+                         'fn_clientes_consolidados','fn_vendas_cliente')`)
+).rows[0]
+conferir(
+  definersS20.total === 12,
+  'as 10 RPCs do recompra + fn_clientes_consolidados + fn_vendas_cliente são SECURITY DEFINER com gate (item 0/A)',
+  `definers: ${definersS20.total}`,
+)
+
+// 2 · ACL enxuta: authenticated perdeu o SELECT das views gateadas;
+// vw_scorecards_lista segue legível (o RLS de módulo das tabelas cobre) e só-leitura.
+const aclS20 = (
+  await bd.query(`
+    select has_table_privilege('authenticated', 'public.vendas_marketing', 'select') as vm,
+           has_table_privilege('authenticated', 'public.vw_clientes_consolidados', 'select') as cc,
+           has_table_privilege('authenticated', 'public.vw_scorecards_lista', 'select') as sl,
+           has_table_privilege('authenticated', 'public.vw_scorecards_lista', 'insert') as sl_escrita`)
+).rows[0]
+conferir(
+  aclS20.vm === false && aclS20.cc === false && aclS20.sl === true && aclS20.sl_escrita === false,
+  'authenticated não lê mais vendas_marketing nem vw_clientes_consolidados direto; vw_scorecards_lista ficou só-leitura',
+  JSON.stringify(aclS20),
+)
+
+// 3 · Sem o módulo, a RPC NEGA com erro claro — o critério da demanda pede
+// negação, não lista vazia/zerada.
+await bd.exec(`select set_config('request.jwt.claim.sub', '${genteS19.comum}', false)`)
+await deveRecusarExec(
+  `select * from public.fn_dashboard_scorecards('{}'::jsonb)`,
+  'fn_dashboard_scorecards NEGA quem não tem o módulo (erro, não zero)',
+  /não tem acesso ao módulo Comercial/i,
+)
+await deveRecusarExec(
+  `select * from public.fn_clientes_consolidados()`,
+  'fn_clientes_consolidados (porta nova) NEGA sem o módulo',
+  /não tem acesso ao módulo Comercial/i,
+)
+await deveRecusarExec(
+  `select * from public.fn_vendas_cliente(array['(84) 90000-0001'])`,
+  'fn_vendas_cliente (porta nova) NEGA sem o módulo',
+  /não tem acesso ao módulo Comercial/i,
+)
+
+// 4 · Com o módulo, tudo responde com os MESMOS números da S19 — o gate não
+// muda número nenhum.
+await bd.exec(`update public.plt_usuarios set modulos = array['fabrica','comercial'] where auth_user_id = '${genteS19.comum}'::uuid`)
+const scoreS20 = (
+  await bd.query(`
+    select total_revenue::text as receita, total_orders
+      from public.fn_dashboard_scorecards(
+        '{"dateFilter":"custom","customDateStart":"2031-01-01","customDateEnd":"2031-12-31"}'::jsonb)`)
+).rows[0]
+conferir(
+  scoreS20?.receita === '2600.00' && scoreS20?.total_orders === 3,
+  'com o módulo, os números continuam os da S19 (ao centavo)',
+  JSON.stringify(scoreS20),
+)
+// A view consolidada enxerga TODOS os pedidos do harness (o cenário do kanban
+// também cria) — o que se afere é o recorte (vida >= 2), a ordem (pedidos
+// desc) e o cliente da S19 com os números certos.
+const recompradoresS20 = (
+  await bd.query(`
+    select telefone_cliente, total_pedidos::int as pedidos, faturamento_total::text as fat
+      from public.fn_clientes_consolidados(2, 'pedidos', 50)`)
+).rows
+const s19NoTop = recompradoresS20.find((c) => c.telefone_cliente === '(84) 90000-0001')
+conferir(
+  recompradoresS20.length > 0
+    && recompradoresS20.every((c) => c.pedidos >= 2)
+    && recompradoresS20.every((c, i) => i === 0 || recompradoresS20[i - 1].pedidos >= c.pedidos)
+    && s19NoTop?.pedidos === 2 && s19NoTop?.fat === '2300.00',
+  'fn_clientes_consolidados(2, pedidos): recorte vida >= 2, ordem por pedidos desc e o cliente da S19 com os números certos',
+  JSON.stringify(recompradoresS20),
+)
+const recordesS20 = (
+  await bd.query(`select telefone_cliente from public.fn_clientes_consolidados(null, 'faturamento', 1)`)
+).rows
+conferir(
+  recordesS20.length === 1 && recordesS20[0]?.telefone_cliente === '(84) 90000-0001',
+  'fn_clientes_consolidados(faturamento, 1): o maior cliente vem primeiro',
+  JSON.stringify(recordesS20),
+)
+const vidaFoneS20 = (
+  await bd.query(`select numero_pedido from public.fn_vendas_cliente(array['(84) 90000-0002'])`)
+).rows
+const vidaNomeS20 = (
+  await bd.query(`select numero_pedido from public.fn_vendas_cliente(null, null, 'Recompra Um')`)
+).rows
+const vidaVaziaS20 = (await bd.query(`select numero_pedido from public.fn_vendas_cliente()`)).rows
+conferir(
+  vidaFoneS20.length === 1 && vidaFoneS20[0]?.numero_pedido === '999803'
+    && vidaNomeS20.length === 2 && vidaVaziaS20.length === 0,
+  'fn_vendas_cliente: acha por telefone e por nome parcial; SEM critério devolve vazio (não despeja a base)',
+  JSON.stringify({ fone: vidaFoneS20.length, nome: vidaNomeS20.length, vazio: vidaVaziaS20.length }),
+)
+
+// 5 · Contexto de máquina segue passando no gate (a Edge Function
+// verificar-vendas-disparo chama pela service_role, sem JWT).
+await bd.exec(`
+  update public.plt_usuarios set modulos = '{}' where auth_user_id = '${genteS19.comum}'::uuid;
+  select set_config('request.jwt.claim.sub', '', false);
+`)
+const maquinaS20 = (
+  await bd.query(`
+    select count(*)::int as total
+      from public.fn_vendas_disparo_por_telefone('84900000002', '2031-01-01', '2031-12-31')`)
+).rows[0]
+conferir(
+  maquinaS20.total === 1,
+  'contexto de máquina (sem JWT) segue passando no gate — verificar-vendas-disparo não quebra',
+  `linhas: ${maquinaS20.total}`,
+)
+
+// 6 · Temas esmeralda da união no check (D-46 / D-41).
+await bd.exec(`update public.plt_usuarios set tema = 'esmeralda-escuro' where auth_user_id = '${genteS19.comum}'::uuid`)
+const temaNovoS20 = (
+  await bd.query(`select tema from public.plt_usuarios where auth_user_id = '${genteS19.comum}'::uuid`)
+).rows[0]
+conferir(temaNovoS20?.tema === 'esmeralda-escuro', 'tema esmeralda-escuro aceito pelo check novo (união D-46)')
+await deveRecusarExec(
+  `update public.plt_usuarios set tema = 'rosa-choque' where auth_user_id = '${genteS19.comum}'::uuid`,
+  'tema fora do catálogo continua recusado',
+  /plt_usuarios_tema_ck|check/i,
+)
+await bd.exec(`update public.plt_usuarios set tema = 'claro' where auth_user_id = '${genteS19.comum}'::uuid`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

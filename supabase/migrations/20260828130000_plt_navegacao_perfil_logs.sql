@@ -24,9 +24,12 @@ update public.plt_usuarios set tema = 'claro' where tema is null;
 alter table public.plt_usuarios alter column tema set not null;
 
 alter table public.plt_usuarios drop constraint if exists plt_usuarios_tema_ck;
+-- `not valid` de propósito (E-19): numa reaplicação, o banco pode já ter temas
+-- criados por migrations FUTURAS (a 27 soma os esmeralda da união — D-46).
+-- A migration mais nova do check é quem valida tudo.
 alter table public.plt_usuarios add constraint plt_usuarios_tema_ck check (
   tema in ('claro', 'gelo', 'areia', 'dourado', 'ardosia', 'grafite', 'escuro', 'meia-noite')
-);
+) not valid;
 
 comment on column public.plt_usuarios.tema is
   'Tema visual escolhido no Meu Perfil: 8 esquemas do claro ao escuro, todos amarelo × grafite. Aplica na hora e persiste por usuário.';

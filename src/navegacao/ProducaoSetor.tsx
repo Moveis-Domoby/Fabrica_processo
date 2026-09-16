@@ -2,13 +2,15 @@ import { Navigate, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { buscarSetores } from '@/kanban/api'
+import { rotaDoSetor } from '@/navegacao/rotas'
 import { PCP } from '@/paginas/PCP'
 import { QuadroSetor } from '@/paginas/QuadroSetor'
 
 /**
- * Lei de navegação (SESSAO-13): /producao/{codigo} é o filho de Controle de
- * Produção — um por setor cadastrado, dinâmico. O codigo de plt_setores é o
- * slug da rota; o quadro do PCP é a tela própria da entrada.
+ * Lei de navegação (SESSAO-13): /fabrica/producao/{codigo} é o filho de
+ * Controle de Produção (sob o pai Fábrica desde a SESSAO-20/D-46) — um por
+ * setor cadastrado, dinâmico. O codigo de plt_setores é o slug da rota;
+ * o quadro do PCP é a tela própria da entrada.
  */
 export function ProducaoSetor() {
   const { codigo } = useParams()
@@ -32,8 +34,8 @@ export function ProducaoSetor() {
   if (!setor) return <Navigate to="/inicio/meu-painel" replace />
 
   // Os terminais têm casa própria: Estoque na Logística, ROTAS nas entregas.
-  if (setor.codigo === 'estoque') return <Navigate to="/logistica/estoque" replace />
-  if (setor.codigo === 'rotas') return <Navigate to="/rotas/entregas" replace />
+  if (setor.codigo === 'estoque' || setor.codigo === 'rotas')
+    return <Navigate to={rotaDoSetor(setor.codigo)} replace />
 
   return <QuadroSetor setorId={setor.id} />
 }
@@ -56,7 +58,5 @@ export function RedirecionarSetorAntigo() {
   if (isPending) return null
   const setor = setores.find((s) => s.id === setorId)
   if (!setor) return <Navigate to="/inicio/meu-painel" replace />
-  if (setor.codigo === 'estoque') return <Navigate to="/logistica/estoque" replace />
-  if (setor.codigo === 'rotas') return <Navigate to="/rotas/entregas" replace />
-  return <Navigate to={`/producao/${setor.codigo}`} replace />
+  return <Navigate to={rotaDoSetor(setor.codigo)} replace />
 }

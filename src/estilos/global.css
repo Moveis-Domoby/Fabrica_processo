@@ -67,6 +67,21 @@
   --color-info-forte: var(--dm-info-forte);
   --color-info-texto: var(--dm-info-texto);
 
+  /* --- Destaque do menu lateral (SESSAO-20) ----------------------------- */
+  --color-menu-ativo: var(--dm-menu-ativo);
+  --color-menu-ativo-texto: var(--dm-menu-ativo-texto);
+  --color-menu-destaque: var(--dm-menu-destaque);
+
+  /* --- Cores de série dos gráficos (SESSAO-20; a SESSAO-16 herda) --------
+     Uma cor por série/KPI, na ordem de uso. A série 1 é a cor de AÇÃO do
+     tema — o número principal acompanha a identidade escolhida. */
+  --color-serie-1: var(--dm-serie-1);
+  --color-serie-2: var(--dm-serie-2);
+  --color-serie-3: var(--dm-serie-3);
+  --color-serie-4: var(--dm-serie-4);
+  --color-serie-5: var(--dm-serie-5);
+  --color-serie-6: var(--dm-serie-6);
+
   /* --- Tipografia ------------------------------------------------------- */
   --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-marca: 'Poppins', 'Inter Variable', system-ui, sans-serif;
@@ -82,6 +97,33 @@
   /* --- Raio ------------------------------------------------------------- */
   --radius-dm: 0.625rem;
   --radius-dm-lg: 0.875rem;
+
+  /* --- Vocabulário do módulo Comercial (SESSAO-20, D-46) -----------------
+     O Painel de Recompra foi portado 1:1 e o código dele fala o vocabulário
+     shadcn (bg-background, text-primary, border-border…) — inclusive INLINE
+     nos gráficos Recharts (`stroke="var(--primary)"`). Esses nomes são
+     APELIDOS dos tokens semânticos da casa (definidos em tokens.css): assim
+     o módulo obedece ao tema escolhido em Meu Perfil como qualquer outra
+     tela, e Tailwind e Recharts leem exatamente a mesma cor. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 @layer base {
@@ -127,6 +169,47 @@
     font-size: 1rem;
     font-family: inherit;
   }
+
+  /* Sensação tátil (SESSAO-20): o Tailwind v4 NÃO coloca `cursor: pointer`
+     em <button> no preflight — sem isto o cursor não muda ao passar por cima
+     de nada clicável. Vale para o app inteiro (o <Botao> da casa e os botões
+     crus do módulo Comercial portado). */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* ==========================================================================
+     CARTÃO DE INDICADOR (SESSAO-20) — por que container query e não breakpoint.
+     O tamanho do número NÃO pode depender do breakpoint do viewport: a sidebar
+     come ~450px e o mesmo viewport "xl" pode dar um card de 150px ou de 300px.
+     Era essa a causa do número vazar/sobrepor o card — e cortar, truncar ou
+     esconder o ícone seria remendo. Aqui o bloco de texto vira um CONTAINER e
+     a fonte escala com a largura REAL dele (cqi), com piso e teto. Vale para
+     qualquer largura, qualquer número de colunas e qualquer nível de zoom.
+     ========================================================================== */
+  .num-bloco {
+    container-type: inline-size;
+    min-width: 0;
+  }
+  /* UM tamanho só para a linha inteira de indicadores. Como todas as colunas
+     do grid têm a mesma largura (1fr), a mesma fórmula dá o MESMO tamanho em
+     todos os cartões — tipografia consistente. A fórmula é calibrada pelo
+     PIOR caso do conjunto (o valor em reais com centavos): é o conteúdo mais
+     largo que dita o tamanho de todos, nunca cada cartão por si.
+     Vem em par com o `minmax` do grid, que garante largura suficiente. */
+  .num-kpi {
+    font-size: clamp(0.95rem, 11cqi, 1.5rem);
+    line-height: 1.15;
+  }
 }
 
 @layer utilities {
@@ -141,6 +224,48 @@
     min-width: 2.75rem;
     min-height: 2.75rem;
     translate: -50% -50%;
+  }
+}
+
+/* ==========================================================================
+   Módulo Comercial (SESSAO-20, D-46) — o CSS próprio que o index.css do
+   recompra tinha, ESCOPADO ao contêiner .comercial para não vazar para a
+   casa: transição de cor em tudo (o painel antigo anima a troca de tema),
+   barra de rolagem fina e a animação dos dropdowns.
+   ========================================================================== */
+.comercial *,
+.comercial *::before,
+.comercial *::after {
+  border-color: var(--dm-borda);
+  transition-property: color, background-color, border-color;
+  transition-duration: 300ms;
+  transition-timing-function: ease-in-out;
+}
+
+.comercial ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.comercial ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.comercial ::-webkit-scrollbar-thumb {
+  background: var(--dm-borda);
+  border-radius: 999px;
+}
+.comercial * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dm-borda) transparent;
+}
+
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

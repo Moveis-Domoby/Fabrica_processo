@@ -97,6 +97,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[handoff_2026_08_24_sessao01_fundacao]] — **SESSAO-01 da Plataforma**: repositório, app React e design system Domoby (amarelo sobre grafite) na branch `sessao-01-fundacao`
 - [[handoff_2026_08_17_automacao_entregue]] — pesquisa completa das integrações do Tiny + projeto da automação ROTAS "entregue" → Tiny
 - [[handoff_2026_08_13_migracao_n8n]] — migrações 2–4 no ar, incidente Google, início da 5
+- [[handoff_2026_09_16_sessao20_modulo_comercial]] — **SESSAO-20 da Plataforma (2ª do bloco União — D-46)**: o Painel de Recompra recriado como módulo **Comercial** dentro da plataforma (40 arquivos portados 1:1, rotas `/comercial/*`), com **trava de disparo** em três camadas até o cutover; navegação reorganizada (pai **Fábrica**, pai **Comercial**, "Painel admin") com redirect de todas as rotas antigas e `/tablet` intocada; permissão por módulo valendo no menu e na URL; migration 27 trocando "devolve vazio" por **negação explícita** nas 10 RPCs; temas **esmeralda** no design system (8→10) e os **tokens de cor de série** que a SESSAO-16 herda junto com **Recharts 3.9.2**
 - *Novos handoffs vão para `Handoffs/` e devem ser linkados aqui — inclusive os de cada SESSAO-NN da Plataforma*
 
 ## 🧩 Templates

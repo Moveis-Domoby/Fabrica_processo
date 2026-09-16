@@ -139,7 +139,7 @@ export function MeuPerfil() {
   }
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex items-center gap-4">
         {fotoUrl ? (
           <img
@@ -170,6 +170,7 @@ export function MeuPerfil() {
       </div>
 
       {/* Foto */}
+      <div className="[column-gap:1.5rem] xl:columns-2 2xl:columns-3 [&>section]:mb-6 [&>section]:break-inside-avoid">
       <section
         aria-label="Foto de perfil"
         className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-5"
@@ -321,7 +322,7 @@ export function MeuPerfil() {
         <div>
           <h2 className="text-lg">Tema da plataforma</h2>
           <p className="mt-1 text-sm text-texto-suave">
-            8 esquemas, do claro ao escuro — todos com a cara da Domoby. A escolha aplica na
+            10 esquemas, do claro ao escuro — todos com a cara da Domoby. A escolha aplica na
             hora e fica guardada para você em qualquer dispositivo.
           </p>
         </div>
@@ -354,7 +355,10 @@ export function MeuPerfil() {
                     className="inline-block h-2 w-8 rounded-full"
                     style={{ backgroundColor: amostra.texto }}
                   />
-                  <span className="ml-auto inline-block h-4 w-4 rounded-full bg-marca-500" />
+                  <span
+                    className="ml-auto inline-block h-4 w-4 rounded-full"
+                    style={{ backgroundColor: amostra.acao }}
+                  />
                 </span>
                 <span className="flex items-center gap-1.5 text-sm font-medium text-texto">
                   {escolhido && <Check aria-hidden className="size-4 text-acao-ativa" />}
@@ -365,6 +369,7 @@ export function MeuPerfil() {
           })}
         </div>
       </section>
+      </div>
     </div>
   )
 }
