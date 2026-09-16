@@ -145,7 +145,7 @@ export function TransitionChart({ mounted }: TransitionChartProps) {
                 />
                 <Bar 
                   dataKey="mediaDias" 
-                  fill="var(--primary)" 
+                  fill="var(--dm-serie-1)" 
                   radius={[6, 6, 0, 0]} 
                   maxBarSize={80}
                   onClick={(data: any) => setTransitionModalData({ label: data.label, purchaseNumber: data.transitionNumber })}

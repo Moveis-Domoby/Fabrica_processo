@@ -107,7 +107,7 @@ export function PurchaseFrequencyChart({ mounted }: PurchaseFrequencyChartProps)
                   labelStyle={{ color: 'var(--foreground)', fontSize: 11 }}
                   formatter={(v: any) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v), 'Faturamento']}
                 />
-                <Bar dataKey="faturamento" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="faturamento" fill="var(--dm-serie-1)" activeBar={{ fill: "var(--dm-serie-1)", fillOpacity: 0.75 }} radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer></div>
           </div>
@@ -137,8 +137,8 @@ export function PurchaseFrequencyChart({ mounted }: PurchaseFrequencyChartProps)
                   formatter={(value) => value === 'ticketMedio' ? 'Ticket Médio' : 'Clientes'}
                   wrapperStyle={{ fontSize: 11 }}
                 />
-                <Bar yAxisId="left" dataKey="ticketMedio" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                <Bar yAxisId="right" dataKey="clientes" fill="color-mix(in oklab, var(--primary) 40%, transparent)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar yAxisId="left" dataKey="ticketMedio" fill="var(--dm-serie-1)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar yAxisId="right" dataKey="clientes" fill="var(--dm-serie-2)" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer></div>
           </div>

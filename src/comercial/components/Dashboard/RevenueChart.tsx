@@ -143,9 +143,9 @@ export function RevenueChart({ mounted }: RevenueChartProps) {
           <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--primary)', strokeWidth: 1, strokeDasharray: '4 4' }} />
           {bestMonth && <ReferenceLine x={bestMonth.month} stroke="var(--primary)" strokeDasharray="4 3" strokeOpacity={0.6} />}
           <Line
-            type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2.5}
-            dot={{ fill: 'var(--primary)', r: 3, strokeWidth: 0 }}
-            activeDot={{ r: 6, fill: 'var(--primary)', stroke: 'var(--card)', strokeWidth: 2 }}
+            type="monotone" dataKey="revenue" stroke="var(--dm-serie-1)" strokeWidth={2.5}
+            dot={{ fill: 'var(--dm-serie-1)', r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 6, fill: 'var(--dm-serie-1)', stroke: 'var(--card)', strokeWidth: 2 }}
             isAnimationActive animationBegin={200} animationDuration={1200} animationEasing="ease-out"
           />
         </LineChart>

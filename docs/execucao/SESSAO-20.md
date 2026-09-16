@@ -191,3 +191,41 @@ código, era **CSS inconsistente do HMR** depois de várias edições seguidas e
 página recarregada antes de acusar bug de layout.
 
 `tsc` ✅ · `lint` ✅ · `vitest` 47/47 ✅ · `build` ✅
+
+### Terceira rodada da revisão (16/09) — os últimos 4 pontos
+
+**d) "Um amarelo mais escuro que o outro" nos gráficos.** Duas causas no
+`PurchaseFrequencyChart`: a série "Ticket Médio" tinha **verde cravado**
+(`hsl(142,71%,45%)` — não seguia tema nenhum) e a série "Clientes" usava
+`color-mix(var(--primary) 40%)` — **opacidade sobre a cor de ação muda o TOM**
+(amarelo a 40% sobre fundo escuro vira mostarda e parece outro amarelo).
+*Correção:* as séries passam a usar tokens **sólidos** `--dm-serie-1` e
+`--dm-serie-2`; `RevenueChart` e `TransitionChart` idem. **Regra:** série de
+gráfico nunca usa cor fixa nem opacidade da cor de ação — usa token de série.
+(O único `color-mix` que fica é o `cursor` de hover do TransitionChart, que é
+fundo translúcido sobre `--muted`, não série.)
+
+**e) Hierarquia confusa no menu.** Os nomes de setor vêm em CAIXA ALTA do banco
+(regra da casa), e o título de seção também era caixa alta no mesmo tamanho —
+"MONTAGEM" (item) e "LOGÍSTICA" (seção) liam-se como irmãos. *Correção:* três
+níveis distintos por **tamanho, peso, cor e indentação** (não por caixa, que
+não está disponível): barra `text-sm font-bold` claro → seção
+`text-[0.6875rem] tracking-[0.14em]` apagada → item `text-sm font-medium`
+**indentado** (`pl-6`) quando pertence a uma seção com título.
+
+**f) Preview de tema mostrava bolinha amarela em TODOS os temas.** A bolinha
+era `bg-marca-500` fixa e o `AMOSTRA_TEMA` sequer declarava a cor de ação.
+*Correção:* `AMOSTRA_TEMA` ganhou o campo `acao` por tema e o preview usa ele.
+Medido nos 10: esmeralda `#0f8a6a`, esmeralda-escuro `#0bdaa6`, amarelo nos
+demais. De quebra, o texto dizia "8 esquemas" — passou a 10.
+
+**g) Configurações sem recentralização + buraco.** O Meu Perfil tinha
+`max-w-3xl` **sem `mx-auto`**: colava à esquerda com metade da tela vazia. A
+primeira tentativa (grid 2 colunas) criou **buraco** sob o cartão "Foto",
+porque grid alinha alturas desiguais. *Correção definitiva:* fluxo em **colunas
+CSS** (`xl:columns-2 2xl:columns-3` + `break-inside-avoid`), que preenche sem
+buraco, ocupa a largura e aumenta o número de colunas com a tela — sem esticar
+campo de formulário (campo largo demais é ruim de ler e preencher). Medido em
+2400px: 3 colunas, sem buraco, sem faixa vazia.
+
+`tsc` ✅ · `lint` ✅ · `vitest` 47/47 ✅ · `build` ✅

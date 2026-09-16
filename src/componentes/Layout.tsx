@@ -513,7 +513,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const barraFilhos = painelAberto && grupoDoPainel && (
     <div className="menu-superficie flex h-full w-52 flex-col border-l border-grafite-600 bg-grafite-800">
       <div className="flex min-h-toque-md items-center gap-2 px-3 pt-3">
-        <span className="flex-1 truncate text-sm font-semibold text-grafite-100">
+        <span className="flex-1 truncate text-sm font-bold tracking-tight text-grafite-50">
           {grupoDoPainel.rotulo}
         </span>
         <button
@@ -540,7 +540,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={() => alternarSecao(secao.titulo!)}
                   aria-expanded={!recolhida}
-                  className="flex w-full items-center gap-1 rounded-dm px-3 py-1 text-xs font-semibold uppercase tracking-wide text-grafite-400 transition-colors hover:text-grafite-200"
+                  className="mb-0.5 flex w-full items-center gap-1 rounded-dm px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-grafite-400 transition-colors hover:text-grafite-200"
                 >
                   <span className="flex-1 text-left">{secao.titulo}</span>
                   <ChevronDown
@@ -561,10 +561,13 @@ export function Layout({ children }: { children: ReactNode }) {
                       onClick={() => setGavetaAberta(false)}
                       className={({ isActive }) =>
                         cn(
-                          'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm font-medium transition-colors',
+                          'inline-flex min-h-toque-md items-center rounded-dm pr-3 text-sm font-medium transition-colors',
+                          // indentado quando a seção tem título: é o que mostra
+                          // a olho que o item é filho daquele agrupamento
+                          secao.titulo ? 'pl-6' : 'pl-3',
                           isActive
                             ? 'bg-menu-ativo text-menu-ativo-texto'
-                            : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
+                            : 'text-grafite-100 hover:bg-grafite-600 hover:text-grafite-50',
                         )
                       }
                     >

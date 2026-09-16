@@ -32,17 +32,20 @@ export const ROTULO_TEMA: Record<Tema, string> = {
 }
 
 /** Amostras para o seletor do Meu Perfil: fundo, superfície e texto de cada tema. */
-export const AMOSTRA_TEMA: Record<Tema, { fundo: string; superficie: string; texto: string }> = {
-  claro: { fundo: '#f7f7f8', superficie: '#ffffff', texto: '#2e2c30' },
-  gelo: { fundo: '#f3f5f7', superficie: '#ffffff', texto: '#24252b' },
-  areia: { fundo: '#f6f2e7', superficie: '#fffdf6', texto: '#322e26' },
-  dourado: { fundo: '#fef9ea', superficie: '#ffffff', texto: '#2e2c30' },
-  esmeralda: { fundo: '#e4e7ec', superficie: '#f3f4f7', texto: '#1a1c23' },
-  ardosia: { fundo: '#454347', superficie: '#5a585c', texto: '#f7f7f8' },
-  grafite: { fundo: '#2e2c30', superficie: '#454347', texto: '#f7f7f8' },
-  escuro: { fundo: '#1c1b1e', superficie: '#2e2c30', texto: '#f7f7f8' },
-  'meia-noite': { fundo: '#101014', superficie: '#1a1a1f', texto: '#f7f7f8' },
-  'esmeralda-escuro': { fundo: '#0e0e10', superficie: '#18181b', texto: '#fafafa' },
+export const AMOSTRA_TEMA: Record<
+  Tema,
+  { fundo: string; superficie: string; texto: string; acao: string }
+> = {
+  claro: { fundo: '#f7f7f8', superficie: '#ffffff', texto: '#2e2c30', acao: '#f1c24b' },
+  gelo: { fundo: '#f3f5f7', superficie: '#ffffff', texto: '#24252b', acao: '#f1c24b' },
+  areia: { fundo: '#f6f2e7', superficie: '#fffdf6', texto: '#322e26', acao: '#f1c24b' },
+  dourado: { fundo: '#fef9ea', superficie: '#ffffff', texto: '#2e2c30', acao: '#f1c24b' },
+  esmeralda: { fundo: '#e4e7ec', superficie: '#f3f4f7', texto: '#1a1c23', acao: '#0f8a6a' },
+  ardosia: { fundo: '#454347', superficie: '#5a585c', texto: '#f7f7f8', acao: '#f1c24b' },
+  grafite: { fundo: '#2e2c30', superficie: '#454347', texto: '#f7f7f8', acao: '#f1c24b' },
+  escuro: { fundo: '#1c1b1e', superficie: '#2e2c30', texto: '#f7f7f8', acao: '#f1c24b' },
+  'meia-noite': { fundo: '#101014', superficie: '#1a1a1f', texto: '#f7f7f8', acao: '#f4c64f' },
+  'esmeralda-escuro': { fundo: '#0e0e10', superficie: '#18181b', texto: '#fafafa', acao: '#0bdaa6' },
 }
 
 const CHAVE_GUARDADA = 'dm-tema'
