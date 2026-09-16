@@ -40,6 +40,26 @@ Qualquer feature nova. Consolidação `vendas_marketing`×`pedidos` além da vie
 - [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir.
 - [ ] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi).
 
+## Herdado da SESSAO-20 — 3 apontamentos de segurança do banco (não são do Comercial)
+
+Os advisors do Supabase, conferidos depois de aplicar a migration 27 em 15/09,
+mostraram **3 apontamentos que já existiam e vêm de outra frente** (o backfill
+histórico do Tiny e a tabela do "vigia"). A SESSAO-20 **não os tocou**, porque
+estavam fora do escopo dela — e mexer em objeto de outra frente sem o dono pedir
+é exatamente o que a regra 3 proíbe. Ficam aqui para serem decididos:
+
+| O que o Supabase aponta | Em bom português | Risco hoje |
+|---|---|---|
+| `fn_pedido_por_numero_nf` é SECURITY DEFINER e **executável pelo papel `anon`** | qualquer visitante **sem login** pode chamar essa função pela API e receber o pedido de uma nota fiscal | 🟠 o mais sério dos três: é a única coisa aqui que responde a quem não tem login |
+| `fn_backfill_conta_mapear` e `fn_vig_touch` **sem `search_path` fixo** | a função não trava em quais schemas procura o que usa — o caminho pode ser manipulado por quem consiga criar objeto | 🟡 é a mesma classe do E-11, já corrigida em todo o resto da casa |
+| `vig_conhecimento_vendas` com **RLS ligado e nenhuma policy** | ninguém lê pelo navegador (nem admin); só a chave de serviço | ⚪ inofensivo — pode até ser intencional, como a `tiny_auth` |
+
+**O que fazer:** perguntar ao dono se essas funções ainda são usadas (o backfill
+já terminou) e então **revogar o execute do `anon`** na primeira, **fixar o
+`search_path`** nas duas, ou **dropar** o que estiver morto. Nada disso é do
+domínio Comercial — mas é o tipo de coisa que, com ~30 logins entrando, não deve
+ficar esquecida.
+
 ## Notas para o Claude Code
 
 Ler [[PLT - Plano Uniao das Plataformas]]. Depende das SESSÕES 19 e 20 entregues e validadas. Cada passo do cutover é irreversível ou sensível — **executar um por vez, com confirmação do dono na conversa**.
