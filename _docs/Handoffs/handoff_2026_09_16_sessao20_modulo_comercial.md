@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, uniao, comercial, front]
 
 # 📋 Handoff — SESSAO-20 · União 2: Módulo Comercial no front — a 2ª do bloco União (D-46)
 
-**Branch:** `sessao-20-uniao-modulo-comercial` (**aguardando sua revisão para o merge** — D-20)
+**Branch:** `sessao-20-uniao-modulo-comercial` — **revisada na conversa e mesclada na `main` em 16/09, já publicada no remoto** (D-20)
 **Banco:** migration **27** (`20260915180000_plt_comercial_gate_negacao_temas.sql`) aplicada em 15/09 com seu OK na conversa, pela API (mesmo caminho da S15/S19 — A-15). Impressão digital da integração antes = depois (`7bd6bac6…`). **Edge Function `autenticacao` v8** no ar.
 **Demanda:** [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] · **Memória:** `docs/execucao/SESSAO-20.md`
 **Decisões que regem:** **D-46** (a união) · D-36 (lei de navegação) · D-27 (modelo de sistema) · D-41 (temas) · D-47 · regra crítica 2
@@ -68,11 +68,11 @@ Medição objetiva de vazamento (script comparando `scrollWidth` × `clientWidth
 
 ## 5. Pendente / decisões para você
 
-- **Merge na `main`** — a branch está pronta e aguarda sua aprovação (D-20).
-- 🟠 **Screenshots completos das telas:** capturei as telas durante a revisão, mas o painel de preview **parou de pintar** no fim da sessão (a janela fica atrás e o `ResizeObserver` não dispara) — **não anexei o conjunto formal**. Capturo numa próxima janela, com a tela à frente, se você quiser o anexo.
-- 🟠 **Confirmar no seu uso real:** (a) o **zoom** ajustando gráficos e telas — aqui não consegui provar por causa do congelamento do preview; (b) o tema **esmeralda** de ponta a ponta.
-- 🟠 **Corrigir o texto do item 0 na demanda** (o diagnóstico do vazamento que não existia) — faço no seu OK.
-- ⚪ **Advisors pré-existentes de OUTRA frente** (não toquei): `fn_pedido_por_numero_nf` executável por anon, `fn_backfill_conta_mapear`/`fn_vig_touch` sem `search_path`, `vig_conhecimento_vendas` sem policy.
+- ✅ **Merge na `main` feito em 16/09** com sua aprovação na conversa, e enviado ao GitHub (`fe203b7`).
+- ✅ **Screenshots:** dispensados por você — a validação foi feita ao vivo na sua tela.
+- ✅ **Confirmado por você em 16/09:** o uso está bom e os gráficos se adaptaram ao zoom.
+- ✅ **Texto do item 0 da demanda corrigido** em 16/09: o diagnóstico errado ficou registrado como tal, junto com o que de fato foi entregue.
+- ✅ **Advisors pré-existentes de outra frente** (backfill/vigia): passados para a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]], explicados em bom português e com o risco de cada um — o mais sério é a `fn_pedido_por_numero_nf`, que responde a quem **não tem login**.
 - ⚪ **Bundle em ~1,7 MB** (o Recharts entrou) — é o DT-ARQ9 já catalogado no cofre do recompra; não refatorei porque está fora do escopo.
 - **Para a SESSAO-16:** herda **Recharts 3.9.2 (exato)** e os **tokens de série** `--dm-serie-1..6`, e parte da `main` com esta dentro.
 - **Para a SESSAO-21:** a trava é **uma linha** (`DISPARO_LIBERADO` em `src/comercial/travas.ts`).
