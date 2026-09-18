@@ -10,7 +10,10 @@ import { TrocarSenha } from '@/paginas/TrocarSenha'
 import { Equipe } from '@/paginas/Equipe'
 import { TelaSetor } from '@/paginas/TelaSetor'
 import { ControleTempo } from '@/paginas/ControleTempo'
-import { Dashboards } from '@/paginas/Dashboards'
+import { VisaoDoDia } from '@/paginas/dashboards/VisaoDoDia'
+import { TempoPorSetor } from '@/paginas/dashboards/TempoPorSetor'
+import { Pessoas } from '@/paginas/dashboards/Pessoas'
+import { Qualidade } from '@/paginas/dashboards/Qualidade'
 import { Expedicao } from '@/paginas/Expedicao'
 import { Rotas } from '@/paginas/Rotas'
 import { Afazeres } from '@/paginas/Afazeres'
@@ -98,8 +101,13 @@ export function App() {
 
             {/* líder (de algum setor) ou admin */}
             <Route element={<RotaProtegida nivel="lider" />}>
+              {/* Dashboards (SESSAO-16/D-42): 4 telas-filhas; o pai continua
+                  em /dashboards (Q-66) e o gate de dados vive no banco (D-32) */}
               <Route element={<RotaModulo modulo="fabrica" />}>
-                <Route path="/dashboards/geral" element={<Dashboards />} />
+                <Route path="/dashboards/visao-do-dia" element={<VisaoDoDia />} />
+                <Route path="/dashboards/tempo-por-setor" element={<TempoPorSetor />} />
+                <Route path="/dashboards/pessoas" element={<Pessoas />} />
+                <Route path="/dashboards/qualidade" element={<Qualidade />} />
               </Route>
               <Route path="/admin/equipe" element={<Equipe />} />
               <Route path="/admin/setores-e-etapas" element={<Estrutura />} />
@@ -119,7 +127,9 @@ export function App() {
             <Route path="/fabrica/logistica" element={<Navigate to="/fabrica/logistica/expedicao" replace />} />
             <Route path="/fabrica/rotas" element={<Navigate to="/fabrica/rotas/entregas" replace />} />
             <Route path="/comercial" element={<Navigate to="/comercial/recompra" replace />} />
-            <Route path="/dashboards" element={<Navigate to="/dashboards/geral" replace />} />
+            <Route path="/dashboards" element={<Navigate to="/dashboards/visao-do-dia" replace />} />
+            {/* a tela única da S10 virou as 4 filhas — bookmark antigo não quebra */}
+            <Route path="/dashboards/geral" element={<Navigate to="/dashboards/visao-do-dia" replace />} />
             <Route path="/admin" element={<Navigate to="/admin/equipe" replace />} />
 
             {/* rotas antigas → novas (bookmarks dos tablets não quebram) */}

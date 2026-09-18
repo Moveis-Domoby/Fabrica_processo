@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell,
-  CheckCircle2,
   ClipboardCheck,
   ListTodo,
   Play,
@@ -29,20 +28,14 @@ import {
 } from '@/metas/api'
 import type { MetaPainel } from '@/metas/api'
 import { ModalMeta } from '@/metas/ModalMeta'
-import {
-  ROTULO_INDICADOR,
-  ROTULO_PERIODO,
-  formatarValorMeta,
-  fracaoDecorrida,
-  percentualConcluido,
-} from '@/metas/progresso'
+import { CartaoMeta } from '@/metas/CartaoMeta'
 
 const ATUALIZA_A_CADA = 15_000
 const METAS_POR_PAGINA = 20
 
 /**
- * Meu Painel (SESSAO-14 / D-37) — a tela em que todo mundo cai ao entrar:
- * o que me espera (pendências), o que me avisaram (as mesmas do sino) e o
+ * Meu Painel (SESSAO-14 / D-37) â€” a tela em que todo mundo cai ao entrar:
+ * o que me espera (pendÃªncias), o que me avisaram (as mesmas do sino) e o
  * cockpit de metas com andamento em tempo real. O progresso vem calculado do
  * banco; aqui nada se digita.
  */
@@ -57,7 +50,7 @@ export function MeuPainel() {
   const setorPorId = useMemo(() => new Map(setores.map((s) => [s.id, s])), [setores])
   const meusSetorIds = useMemo(() => vinculos.map((v) => v.setor_id), [vinculos])
 
-  // ----- pendências -----
+  // ----- pendÃªncias -----
   const { data: cardsDelegados = [] } = useQuery({
     queryKey: ['meu-painel', 'delegados', perfil?.id],
     queryFn: () => meusCards(perfil!.id),
@@ -76,7 +69,7 @@ export function MeuPainel() {
     enabled: perfil !== null,
     refetchInterval: ATUALIZA_A_CADA,
   })
-  // Qualidade a atestar: chegadas com marcação ainda sem parecer nos MEUS setores.
+  // Qualidade a atestar: chegadas com marcaÃ§Ã£o ainda sem parecer nos MEUS setores.
   const { data: cardsDosMeusSetores = [] } = useQuery({
     queryKey: ['meu-painel', 'cards-setores', meusSetorIds.join(',')],
     queryFn: () => cardsDosSetores(meusSetorIds),
@@ -98,7 +91,7 @@ export function MeuPainel() {
     [cardsDosMeusSetores, cardsDelegados],
   )
 
-  // ----- notificações (as mesmas do sino) -----
+  // ----- notificaÃ§Ãµes (as mesmas do sino) -----
   const { data: avisos = [] } = useQuery({
     queryKey: ['avisos', perfil?.id],
     queryFn: () => buscarAvisos(perfil!.id, 5),
@@ -130,19 +123,19 @@ export function MeuPainel() {
   const encerrarMutacao = useMutation({
     mutationFn: encerrarMeta,
     onSuccess: async () => {
-      notificar({ titulo: 'Meta encerrada', descricao: 'A história dela fica guardada.', tom: 'perfeito' })
+      notificar({ titulo: 'Meta encerrada', descricao: 'A histÃ³ria dela fica guardada.', tom: 'perfeito' })
       await clienteQuery.invalidateQueries({ queryKey: ['metas'] })
     },
     onError: (excecao: unknown) =>
       notificar({
-        titulo: 'Não deu para encerrar',
+        titulo: 'NÃ£o deu para encerrar',
         descricao: excecao instanceof Error ? excecao.message : undefined,
         tom: 'danificado',
       }),
   })
 
-  // Tempo real: mudança em card (mover/iniciar/finalizar) mexe em pendências e
-  // metas — invalida na hora; o polling de 15s segue como rede de segurança.
+  // Tempo real: mudanÃ§a em card (mover/iniciar/finalizar) mexe em pendÃªncias e
+  // metas â€” invalida na hora; o polling de 15s segue como rede de seguranÃ§a.
   useEffect(() => {
     const canal = supabase
       .channel('meu-painel')
@@ -156,10 +149,10 @@ export function MeuPainel() {
     }
   }, [clienteQuery])
 
-  if (!perfil) return null // a guarda já cuidou; isto só acalma o TypeScript
+  if (!perfil) return null // a guarda jÃ¡ cuidou; isto sÃ³ acalma o TypeScript
 
   const nomeCurto = perfil.nome.split(' ')[0]
-  const meusSetores = vinculos.map((v) => v.setor.nome).join(' · ')
+  const meusSetores = vinculos.map((v) => v.setor.nome).join(' Â· ')
 
   const pendencias = [
     {
@@ -201,15 +194,15 @@ export function MeuPainel() {
     {
       chave: 'execucoes',
       icone: Play,
-      titulo: 'Em execução agora',
+      titulo: 'Em execuÃ§Ã£o agora',
       total: execucoes.length,
-      descricao: 'o tempo está contando para você',
+      descricao: 'o tempo estÃ¡ contando para vocÃª',
       itens: execucoes.slice(0, 3).map((e) => {
         const card = cardPorId.get(e.card_id)
         const setor = card?.setor_atual_id ? setorPorId.get(card.setor_atual_id) : undefined
         return {
           id: `e-${e.evento_inicio_id}`,
-          texto: `${card?.item_descricao ?? `Card ${e.card_id}`} · ${formatarDuracao(e.iniciou_em, agora)}`,
+          texto: `${card?.item_descricao ?? `Card ${e.card_id}`} Â· ${formatarDuracao(e.iniciou_em, agora)}`,
           para: setor ? rotaDoSetor(setor.codigo) : '/inicio/afazeres',
         }
       }),
@@ -219,16 +212,16 @@ export function MeuPainel() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl sm:text-3xl">Olá, {nomeCurto}!</h1>
+        <h1 className="text-2xl sm:text-3xl">OlÃ¡, {nomeCurto}!</h1>
         <p className="text-texto-suave">
-          {ROTULO_PAPEL[perfil.papel]} · matrícula{' '}
+          {ROTULO_PAPEL[perfil.papel]} Â· matrÃ­cula{' '}
           <span className="tabular-nums">{perfil.matricula}</span>
-          {meusSetores && <> · {meusSetores}</>}
+          {meusSetores && <> Â· {meusSetores}</>}
         </p>
       </div>
 
-      {/* ----- Pendências ----- */}
-      <section aria-label="Pendências" className="flex flex-col gap-3">
+      {/* ----- PendÃªncias ----- */}
+      <section aria-label="PendÃªncias" className="flex flex-col gap-3">
         <h2 className="text-lg">O que me espera</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {pendencias.map((p) => (
@@ -268,15 +261,15 @@ export function MeuPainel() {
         </div>
       </section>
 
-      {/* ----- Notificações recentes ----- */}
-      <section aria-label="Notificações recentes" className="flex flex-col gap-3">
+      {/* ----- NotificaÃ§Ãµes recentes ----- */}
+      <section aria-label="NotificaÃ§Ãµes recentes" className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <h2 className="text-lg">Avisos recentes</h2>
           <span className="text-sm text-texto-fraco">os mesmos do sino</span>
         </div>
         {avisos.length === 0 ? (
           <p className="rounded-dm-lg border border-borda bg-superficie p-4 text-sm text-texto-suave">
-            Nenhum aviso por aqui — quando algo pedir sua atenção, aparece primeiro nesta lista.
+            Nenhum aviso por aqui â€” quando algo pedir sua atenÃ§Ã£o, aparece primeiro nesta lista.
           </p>
         ) : (
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
@@ -315,7 +308,7 @@ export function MeuPainel() {
           <Target aria-hidden className="size-5 text-texto-suave" />
           <h2 className="text-lg">Minhas metas</h2>
           <span className="text-sm text-texto-fraco">
-            barra = feito · traço = onde o período já deveria estar
+            barra = feito Â· traÃ§o = onde o perÃ­odo jÃ¡ deveria estar
           </span>
           <Botao
             variante="primaria"
@@ -333,7 +326,7 @@ export function MeuPainel() {
 
         {metas.length === 0 ? (
           <p className="rounded-dm-lg border border-borda bg-superficie p-5 text-sm text-texto-suave">
-            Nenhuma meta ainda. Crie a primeira — o andamento conta sozinho, do trabalho já
+            Nenhuma meta ainda. Crie a primeira â€” o andamento conta sozinho, do trabalho jÃ¡
             registrado.
           </p>
         ) : (
@@ -343,7 +336,7 @@ export function MeuPainel() {
                 key={m.meta_id}
                 meta={m}
                 agora={agora}
-                // D-45: quem criou edita/encerra (o liderado só executa); admin tudo.
+                // D-45: quem criou edita/encerra (o liderado sÃ³ executa); admin tudo.
                 podeMexer={souAdmin || m.criada_por_id === perfil.id}
                 aoEditar={() => {
                   setMetaEmEdicao(m)
@@ -373,91 +366,6 @@ export function MeuPainel() {
           aoFechar={() => setModalAberta(false)}
           meta={metaEmEdicao}
         />
-      )}
-    </div>
-  )
-}
-
-/** Um cartão do cockpit: dono, rótulo legível, barra com o traço do "alvo até agora". */
-function CartaoMeta({
-  meta,
-  agora,
-  podeMexer,
-  aoEditar,
-  aoEncerrar,
-}: {
-  meta: MetaPainel
-  agora: number
-  podeMexer: boolean
-  aoEditar: () => void
-  aoEncerrar: () => void
-}) {
-  const percentual = percentualConcluido(meta.progresso, meta.alvo)
-  const bateu = percentual >= 100
-  const fracaoEsperada = fracaoDecorrida(meta.janela_inicio, meta.janela_fim, new Date(agora))
-  const dono = meta.setor_nome ? `Setor ${meta.setor_nome}` : meta.usuario_nome
-
-  return (
-    <div className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4">
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h3 className="font-marca text-base font-semibold">
-          {meta.titulo || `${dono} · ${ROTULO_INDICADOR[meta.indicador]}`}
-        </h3>
-        <span className="text-sm text-texto-fraco">{dono}</span>
-        <span
-          className={cn(
-            'ml-auto text-lg font-semibold tabular-nums',
-            bateu ? 'text-perfeito-texto' : 'text-texto',
-          )}
-        >
-          {percentual}%
-        </span>
-      </div>
-
-      <p className="text-sm text-texto-suave">
-        {ROTULO_PERIODO[meta.periodo]}: {formatarValorMeta(meta.alvo, meta.indicador)}{' '}
-        {ROTULO_INDICADOR[meta.indicador]}
-        {meta.etapa_nome ? ` na etapa ${meta.etapa_nome}` : ''} · feito:{' '}
-        <span className="font-medium text-texto tabular-nums">
-          {formatarValorMeta(meta.progresso, meta.indicador)}
-        </span>
-        {bateu && (
-          <span className="ml-2 inline-flex items-center gap-1 text-perfeito-texto">
-            <CheckCircle2 aria-hidden className="size-4" /> meta batida
-          </span>
-        )}
-      </p>
-
-      {/* A barra: andamento real; o traço vertical é o "alvo até agora". */}
-      <div
-        role="progressbar"
-        aria-valuenow={Math.min(percentual, 100)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Andamento: ${percentual}% da meta`}
-        className="relative h-3 overflow-hidden rounded-full bg-superficie-sutil"
-      >
-        <div
-          className={cn('h-full rounded-full', bateu ? 'bg-perfeito-forte' : 'bg-acao')}
-          style={{ width: `${Math.min(percentual, 100)}%` }}
-        />
-        <div
-          aria-hidden
-          className="absolute top-0 h-full w-0.5 bg-texto-suave"
-          style={{ left: `${Math.round(fracaoEsperada * 100)}%` }}
-          title="Onde o período já deveria estar"
-        />
-      </div>
-
-      {podeMexer && (
-        <div className="flex gap-2 pt-1">
-          <Botao variante="fantasma" tamanho="sm" onClick={aoEditar}>
-            Editar
-          </Botao>
-          <Botao variante="fantasma" tamanho="sm" onClick={aoEncerrar}>
-            Encerrar
-          </Botao>
-        </div>
       )}
     </div>
   )

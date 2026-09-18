@@ -321,7 +321,7 @@
   --dm-serie-6: #65a30d;
 
   /* FILA × EXECUÇÃO (SESSAO-16) — o par validado do LEIA-ME dos dashboards
-     (docs/inspiracao/dashboards): fila = azul info, execução = âmbar da marca
+     (_docs/Plataforma/Inspiracao/dashboards): fila = azul info, execução = âmbar da marca
      no passo 700 (o 500 não tem contraste em fundo claro). São tokens PRÓPRIOS,
      fixos em todos os temas, de propósito: a serie-1 segue a cor de ação do
      tema e no esmeralda ficaria VERDE — e verde é exclusivo da qualidade.

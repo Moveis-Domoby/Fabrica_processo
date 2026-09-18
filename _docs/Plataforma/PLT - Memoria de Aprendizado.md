@@ -71,6 +71,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-16] **E-33** (Claude Code) · A SESSAO-20 inteira foi mesclada e enviada ao GitHub, mas **o Vercel não publicou**: os commits saíram com a identidade global do Git da máquina (`Wallace <wccauan@gmail.com>`), e o Vercel só publica commit cujo autor é a conta dona do projeto — o último deploy que funcionou foi o merge da S19, feito pelo GitHub com autor `contatodomoby` → **correção:** commit no topo da `main` com autor **e** committer `contatodomoby <contatodomoby@gmail.com>`, sem reescrever o histórico já publicado. **Lição: neste repositório, o que vai para a `main` precisa sair como `contatodomoby` — conferir `git log --format='%an <%ae>'` antes do push; "subiu no GitHub" não é "publicou no Vercel".**
 
+- [2026-09-17] **E-34** (Claude Code) · Primo do E-09/E-15: `Get-Content -Raw | Set-Content -Encoding utf8` no PowerShell 5.1 para trocar um import releu arquivo UTF-8 como ANSI e gravou mojibake ("Ã§", "â€”") em 3 telas — o lint acusou por "irregular whitespace" → **correção:** arquivos regravados inteiros pela ferramenta de edição. **Lição: edição de texto em arquivo UTF-8 não passa pelo pipeline de string do PowerShell — usa-se a ferramenta de edição, que preserva a codificação; e o resultado de toda substituição se confere (o aviso de sempre).**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.
