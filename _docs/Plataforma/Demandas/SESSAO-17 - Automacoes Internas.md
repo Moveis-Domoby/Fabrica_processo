@@ -1,13 +1,15 @@
 ---
 titulo: "SESSAO-17 — Automações Internas"
 tipo: demanda
-status: rascunho
+status: absorvida
 data: 2026-08-19
-atualizado: 2026-08-19
+atualizado: 2026-09-18
 tags: [plataforma, demanda, sessao, automacao]
 ---
 
 # 🎯 SESSAO-17 — Automações Internas ("quando X, faça Y")
+
+> 🔁 **Absorvida em 18/09/2026 pela [[SESSAO-27 - Automacoes em Canvas]]** (Bloco 5): o builder virou uma tela de **canvas**, com gatilho "pedido iniciado na etapa X do setor Y" e ações mover card (revisa D-03), arquivar e etiqueta. A **central de notificações com preferências** que vivia aqui NÃO entrou na 27 — segue como demanda futura ("Depois" da [[000 - ORDEM DAS SESSOES]]). Este arquivo fica como registro histórico do escopo original.
 
 > ↪️ **Renumerada em 28/08/2026 (D-35):** era a SESSAO-13; ficou em standby atrás do bloco 3 (a reforma, Sessões 13→16).
 
@@ -21,7 +23,7 @@ RF-06 · complementa RF-82/83/84 (notificações) e a visão de alertas de card 
 
 ## Decisões que regem
 
-D-03 (automação de DESTINO continua fora — mover card automaticamente por roteiro não entra sem decisão nova; automação aqui é de consequências: notificar, delegar, marcar) · D-10.
+D-03 (automação de DESTINO continua fora — mover card automaticamente por roteiro não entra sem decisão nova; automação aqui é de consequências: notificar, delegar, marcar) · D-10. *(Nota de 18/09: a SESSAO-27 vai revisar a D-03 com o dono.)*
 
 ## Comportamento esperado
 

@@ -10,7 +10,7 @@ tags: [handoff, sessao, plataforma, uniao, comercial, banco]
 
 **Branch:** `sessao-19-uniao-banco-comercial` (**revisada na conversa e mesclada na `main` pelo PR #3 em 15/09** — D-20)
 **Banco:** migration **26** (`20260915120000_plt_comercial_banco.sql`) aplicada em 15/09 com sua autorização na conversa, pela API do Supabase (o host direto do Postgres não resolve da sua rede — sem rota IPv6; mesmo caminho da S15). Impressão digital da integração antes = depois (`82df8df9…`). **6 Edge Functions do recompra deployadas — NENHUM cron agendado.** Carga das 6 tabelas concluída com **checksum idêntico 6/6**.
-**Demanda:** [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] · **Memória:** `docs/execucao/SESSAO-19.md`
+**Demanda:** [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] · **Memória:** `_docs/Plataforma/Execucao/SESSAO-19.md`
 **Decisões que regem:** **D-46** (a união) · **D-47** (reutilizar antes de criar) · D-19/regra 2 · regra 4 · RNF-05
 
 ## 1. O que foi feito
@@ -62,7 +62,7 @@ tags: [handoff, sessao, plataforma, uniao, comercial, banco]
 
 ## 6. Notas do cofre atualizadas
 
-[[SUPA - Esquema do Banco]] (migration 26) · `supabase-fabrica-schema.sql` (colunas do backfill) · [[PLT - Memoria de Aprendizado]] (**E-27, A-14, A-15**) · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] (resultado) · memória de execução `docs/execucao/SESSAO-19.md`
+[[SUPA - Esquema do Banco]] (migration 26) · `supabase-fabrica-schema.sql` (colunas do backfill) · [[PLT - Memoria de Aprendizado]] (**E-27, A-14, A-15**) · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] (resultado) · memória de execução `_docs/Plataforma/Execucao/SESSAO-19.md`
 
 ## Ver também
 

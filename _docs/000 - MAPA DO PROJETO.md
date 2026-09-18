@@ -1,44 +1,78 @@
 ---
-titulo: Mapa do Cofre — Fábrica Domoby
+titulo: Mapa do Cofre — Domoby (Fábrica + Comercial)
 tipo: MOC
-atualizado: 2026-08-19
-tags: [moc, indice, fabrica]
+atualizado: 2026-09-18
+tags: [moc, indice, fabrica, comercial]
 ---
 
-# 🗺️ Mapa do Cofre — Fábrica Domoby
+# 🗺️ Mapa do Cofre — Domoby
 
 > [!abstract] O que é este cofre
-> A **memória de longo prazo dos processos fabris da Móveis Domoby**. Cada nota é um modelo mental de uma parte da operação: um workflow, um setor, uma integração, uma decisão. Antes de mexer em qualquer coisa, o agente lê a nota correspondente. Depois de mexer, atualiza a nota.
+> A **memória de longo prazo da Móveis Domoby** — agora unificada. Cada nota é um modelo mental de uma parte da operação: um workflow, um setor, uma integração, uma tela, uma decisão. Antes de mexer em qualquer coisa, o agente lê a nota correspondente. Depois de mexer, atualiza a nota.
 >
-> **Escopo:** exclusivamente a fábrica — automações, processos entre setores (corte, furo, fitagem, montagem, embalagem, estoque…), e as plataformas a construir (controle de estoque, acompanhamento do caminhão, controle de rotas, calculadora de cargas, mapeamento de processos).
-> O **painel de recompra** pertence ao cofre da loja — o que era dele aqui está em `_MOVER PARA COFRE DA LOJA/`, aguardando o usuário transferir.
+> **Escopo: a empresa inteira.** A fábrica (automações, processos entre setores, a Plataforma de Produção) **e o comercial** — desde 15–16/09/2026 o Painel de Recompra da loja é o módulo **Comercial** da plataforma (SESSÕES 19–20), e em **17/09/2026 o cofre da loja foi fundido neste** (não existe mais cofre separado; o que sobrou lá é material morto do repo antigo, que morre no cutover).
 
-## A fábrica em uma frase
+## A empresa em uma frase
 
-Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** em Natal-RN que vende ~10 pedidos/dia majoritariamente pelo Instagram, produz sob encomenda com previsão de entrega, e entrega com frete próprio na região metropolitana — cujo fluxo pedido → produção → entrega roda sobre Tiny ERP + n8n + planilha + ClickUp/Trello.
+Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** em Natal-RN que vende ~10 pedidos/dia majoritariamente pelo Instagram, produz sob encomenda e entrega com frete próprio — cujo fluxo pedido → produção → entrega roda sobre Tiny ERP + n8n + Supabase + a plataforma própria, e cujo pós-venda (recompra, campanhas WhatsApp via DataCrazy) roda no módulo Comercial da mesma plataforma.
 
-## 🚀 Visão e roadmap
+## 🧱 Como o cofre está organizado
 
-- [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]] — **a pesquisa sobre a empresa + o banco de ideias generosas** para os próximos sistemas (estoque, rotas, cargas, tempos, custo real, portal do cliente…)
+| Pasta | O que vive lá | Prefixo |
+|---|---|---|
+| `Planejamento/` | **os próximos passos e o roadmap** — comece por [[000 - PROXIMOS PASSOS]] | — |
+| `Plataforma/` | a Plataforma de Produção: visão, decisões, requisitos, modelo de sistema, memória de aprendizado — e o módulo **Comercial** | `PLT -` |
+| `Plataforma/Demandas/` | as demandas de implementação, uma por sessão | `SESSAO-NN` |
+| `Plataforma/Execucao/` | a memória de execução técnica de cada sessão do Claude Code (regra 8) | `SESSAO-NN` |
+| `Plataforma/Inspiracao/` | mockups-alvo (dashboards da SESSAO-16) | — |
+| `Fabrica n8n/` | automações n8n e referências do Tiny ERP | `N8N -` |
+| `Supabase-fabrica/` | o banco único da empresa: esquema (fonte da verdade), domínio comercial, Edge Functions, crons | `SUPA -` |
+| `Atendimento/` | memória do atendimento humano e fluxos de follow-up no DataCrazy (negócio, não código) | `ATD -` |
+| `Handoffs/` | resumo de cada sessão de trabalho para o dono revisar | `handoff_` |
+| `Templates/` | modelos para handoff e demanda nova | `TEMPLATE -` |
 
-## 🏗️ Plataforma de Produção — em idealização (pasta `Plataforma/`)
+## 🎯 Planejamento e roadmap (pasta `Planejamento/`)
 
-> O projeto principal a partir de 19/08/2026: substituir o ClickUp da produção por uma plataforma própria em React cuja razão de existir é o **controle de tempo e produtividade** (por ora como alavancagem operacional — D-04 revisada). Quem coda é **exclusivamente o Claude Code**, em sessões ordenadas (D-10); o Cowork idealiza e mantém esta memória.
+- [[000 - PROXIMOS PASSOS]] — **a leitura única**: onde estamos, o próximo passo, o que vem depois, o que está com o dono
+- [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]] — a pesquisa sobre a empresa + o banco de ideias para os próximos sistemas (estoque, rotas, cargas, custo real, portal do cliente…)
+- [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]] — a orquestração do pacote de 18/09: sessões 22–28 (produção infalível, estoque + Tiny da fábrica, Meu Painel 2.0, chat interno, automações em canvas, rota calculada), com ordem de execução e de-para demanda→sessão
 
-- [[PLT - Visao Geral]] — **comece por aqui**: o fluxo real da fábrica (19/08), a dor do tempo, a qualidade em 3 estados e a revisão da visão "um clique um evento"
-- [[PLT - Decisoes de Produto]] — D-01 a D-17: card híbrido, timer fila (do setor) + execução (da pessoa), movimentação manual, medição como alavancagem (↩️), escopo, dispositivos, estoque fase 2, Supabase, qualidade 3 estados sem disputa (↩️), método de sessões, API de entrada antecipada, setores do ClickUp em 2 níveis, entrada/saídas do fluxo, etapas com timer próprio sem seed, stack, bloco 1
+## 🏗️ Plataforma de Produção (pasta `Plataforma/`)
+
+> O projeto principal desde 19/08/2026: substituir o ClickUp da produção por plataforma própria em React, cuja razão de existir é o **controle de tempo e produtividade**. Quem coda é **exclusivamente o Claude Code**, em sessões ordenadas (D-10); o Cowork idealiza e mantém esta memória.
+
+- [[PLT - Visao Geral]] — **comece por aqui**: o fluxo real da fábrica, a dor do tempo, a qualidade em 3 estados
+- [[PLT - Decisoes de Produto]] — D-01 em diante: as decisões são lei; contradição → parar e perguntar
 - [[PLT - Requisitos]] — catálogo vivo de requisitos (RF/RNF) com status
-- [[PLT - Perguntas em Aberto]] — a entrevista de descoberta: respondidas viram decisões, abertas guiam a próxima conversa
-- [[CLAUDE - Regras do Claude Code (repo)]] — persona + limites críticos/moderados/básicos; **copiar como `CLAUDE.md` para a raiz do repo na Sessão 01**
-- [[PLT - Memoria de Aprendizado]] — 🧠 **leitura obrigatória em TODA construção** (Claude Code e Cowork): erros+correções, acertos, modelos mentais, fórmulas, possibilidades — alimentada na hora, em 1 linha por entrada
-- [[000 - ORDEM DAS SESSOES]] — **o plano de construção**: 13 sessões de Claude Code, em ordem de dependência
-- [[PROMPT - Bloco 1 (Sessoes 01 a 05)]] — o prompt do Bloco 1 (✅ encerrado na SESSAO-04; o restante foi replanejado pela D-23)
-- [[PROMPT - Bloco 2 (Sessoes 05 a 09)]] — prompt do Bloco 2 (05 e 06 ✅ entregues)
-- [[PLT - Plano Noturno Sessoes 07-12]] — 🌙 **o plano da vez (D-26/D-27)**: sessões 07→12 em execução autônoma encadeada — dúvidas todas no início, zero perguntas durante, decisões provisórias logadas, encadeamento automático de conversas
-- **Bloco 3 — a reforma (D-35):** Sessões **13→16** com checkpoint por sessão — navegação pai→filho (D-36), Meu Painel + metas (D-37), Logística/ROTAS com caminhões (D-38/D-39), dashboards guiados pelos mockups de `docs/inspiracao/dashboards/` no repo (D-42); automações e admin renumeradas **17/18 (standby)**
-- Demandas de implementação vivem em `Plataforma/Demandas/` (`SESSAO-NN - *.md`; template para novas: [[TEMPLATE - Demanda]])
+- [[PLT - Modelo de Sistema]] — o design system e os padrões de UI (fonte única desde a SESSAO-07/D-27)
+- [[PLT - Memoria de Aprendizado]] — 🧠 **leitura obrigatória em TODA construção**: erros+correções, acertos, modelos mentais
+- [[PLT - Perguntas em Aberto]] — o que está aí **não tem resposta**: pergunte, não invente
+- [[PLT - Plano Uniao das Plataformas]] — o plano D-46/D-47 que uniu loja e fábrica (sessões 19–21)
+- [[PLT - Modelo de Dados (conceito)]] — o desenho do banco da plataforma explicado em língua de gente (estado da SESSAO-02; verdade técnica em [[SUPA - Esquema do Banco]])
+- [[PLT - API Aberta]] — a porta de integrações da plataforma (chave `X-Chave-API`, endpoints, webhooks de saída)
+- [[PLT - Entrada Automatica de Pedidos]] — pedido do Tiny vira card no PCP por trigger no banco (D-31)
+- [[CLAUDE - Regras do Claude Code (repo)]] — persona + limites; cópia fiel vive como `CLAUDE.md` na raiz do repo (D-10)
+- Demandas: [[000 - ORDEM DAS SESSOES]] — **o plano de construção** (status de cada sessão; novas pelo [[TEMPLATE - Demanda]])
+- Execução: [[000 - EXECUCAO (indice)]] — as memórias técnicas `SESSAO-NN` do Claude Code (**novas sessões escrevem aqui**, não mais em `docs/` do repo)
+- Inspiração: `Plataforma/Inspiracao/dashboards/` — os 4 mockups + regras da SESSAO-16 (`000-LEIA-ME.md`)
 
-## 🔌 Automações e migração n8n
+## 🛒 Módulo Comercial (ex–Painel de Recompra)
+
+> O pós-venda da loja dentro da plataforma: espelho das vendas do Tiny, taxa de recompra/LTV/sazonalidade, campanhas de reativação por WhatsApp (DataCrazy) com ROI. Banco na fábrica desde a SESSAO-19; front em `/comercial/*` desde a SESSAO-20; **disparo TRAVADO até o cutover** (SESSAO-21).
+
+Modelos mentais (leia primeiro):
+- [[PLT - Comercial - Fluxo do Dado]] — do pedido no Tiny até o pixel na tela (estado pós-união)
+- [[PLT - Comercial - Identidade do Cliente]] — **a decisão mais consequente do módulo inteiro**
+- [[PLT - Comercial - Dicionario de Metricas]] — o que cada número significa ("recorrente" = vida ≥ 2)
+- [[PLT - Comercial - Maquina de Estados do Disparo]] — o ciclo de vida de uma campanha + a trava de 3 camadas
+
+Telas, integração e dívidas:
+- [[PLT - Comercial - Telas]] — as telas de `/comercial/*`: hooks, RPCs, pegadinhas
+- [[PLT - Comercial - Integracao DataCrazy]] — o CRM de disparo: gatilho de ida, webhook de volta, o que muda no cutover
+- [[PLT - Comercial - Debito Tecnico]] — índice VIVO de problemas conhecidos (IDs DT-* originais; nunca apagar item)
+- [[PLT - Comercial - Legado e Cutover]] — ⚠️ **o guia da SESSAO-21**: o que ainda roda no repo/Supabase antigos e o destino de cada coisa
+
+## 🔌 Automações e migração n8n (pasta `Fabrica n8n/`)
 
 - [[N8N - Visao Geral da Migracao]] — **comece por aqui**: as 7 automações, a arquitetura, o método
 - [[N8N - Infraestrutura VPS]] — servidor, Docker, credenciais, webhooks do Tiny
@@ -47,58 +81,66 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[N8N - ROTAS ClickUp]] — migração 2, o card de entrega
 - [[N8N - PCP Trello e ClickUp]] — migrações 3 e 4, o (k/n) e a causa da duplicação
 - [[N8N - Incidente Credencial Google]] — a queda de 11/08 e a lição sobre OAuth
-- [[N8N - API Tiny v2 vs v3]] — a decisão de ficar na v2 e a **regra do dono único** do token v3
-- [[N8N - Cadastro de Cliente]] — migração 5, **construída em 01/09**: formulário do Google → contato no Tiny, com validação real de CPF **e CNPJ** e aba PENDÊNCIAS; aguarda publicação
-- [[N8N - ROTAS Entregue para Tiny]] — **em produção desde 17/08**: card movido para "entregue" na ROTAS marca o pedido como Entregue no Tiny — a primeira no sentido ClickUp → Tiny
-- [[N8N - Migracao Supabase]] — **P15 em execução**: dupla escrita → backfill → paridade → corte da planilha
-- [[N8N - Backfill Historico do Tiny]] — **em execução desde 28/08 à noite**: todo o histórico desde 12/03/2025 (pedidos, contatos, NF e contas a receber) puxado da API v2 para o Supabase por uma fila auto-expansível — **substitui a FASE 2 da migração** (que seria por CSV) e trouxe a blindagem D-43 do gatilho do PCP
+- [[N8N - Cadastro de Cliente]] — migração 5: formulário do Google → contato no Tiny (aguarda publicação)
+- [[N8N - ROTAS Entregue para Tiny]] — **em produção desde 17/08**: "entregue" na ROTAS marca o pedido no Tiny
+- [[N8N - Migracao Supabase]] — P15: dupla escrita → backfill → paridade → corte da planilha
+- [[N8N - Backfill Historico do Tiny]] — todo o histórico desde 12/03/2025 puxado da API v2 para o Supabase
+- [[N8N - Pendencias e Riscos]] — **P1–P15 priorizados** + regras operacionais permanentes
 
-## 🗄️ Supabase — banco da fábrica (pasta `Supabase-fabrica/`)
+## 📚 Referências do Tiny ERP
+
+- [[N8N - Tiny Modelos Mentais]] — **comece por aqui**: as 4 portas de integração, id vs numero, cadeado vs catraca
+- [[N8N - Tiny Integracoes Referencia]] — catálogo completo: endpoints v2, **OAuth v3 e endpoints do domínio comercial (fundidos do cofre da loja em 17/09)**, webhooks, limites, erros
+- [[N8N - API Tiny v2 vs v3]] — a decisão de ficar na v2 no n8n e a **regra do dono único** do token v3 (renovador SÓ no projeto antigo da loja até o cutover)
+
+## 🗄️ Supabase — o banco único (pasta `Supabase-fabrica/`)
 
 > [!danger] Regra obrigatória para mexer no banco
-> **Antes de escrever qualquer SQL, query ou node que toque o Supabase da fábrica, a PRIMEIRA coisa a fazer é ler [[SUPA - Esquema do Banco]]** — a fonte da verdade do que existe (tabelas, colunas, função, RLS). Nomes saem de lá, nunca de memória ou suposição: **nada de inventar tabela, coluna ou função "que provavelmente existe"**. Alterou o banco? O ciclo é: SQL rodado → `supabase-fabrica-schema.sql` atualizado → nota do esquema atualizada.
+> **Antes de escrever qualquer SQL, query ou node que toque o Supabase, a PRIMEIRA coisa a fazer é ler [[SUPA - Esquema do Banco]]** — a fonte da verdade do que existe. Nomes saem de lá, nunca de memória. Alterou o banco? O ciclo é: SQL rodado → `supabase-fabrica-schema.sql` atualizado → nota do esquema atualizada.
 
-- [[SUPA - Visao Geral]] — projeto, endpoints, onde vivem as chaves, quem escreve/lê, convenções PostgREST
-- [[SUPA - Esquema do Banco]] — **fonte da verdade**: clientes, pedidos, pedido_itens, eventos, `fn_upsert_pedido` (aplicado em 17/08)
-- Tudo que for relacionado a este Supabase — endpoints novos, tabelas novas, rotas, decisões — entra na pasta `Supabase-fabrica/`, prefixo `SUPA -`
-- ⚠️ Este banco é também o escolhido para a **Plataforma de Produção** (decisão D-08 em [[PLT - Decisoes de Produto]])
+- [[SUPA - Visao Geral]] — projeto, endpoints, onde vivem as chaves, quem escreve/lê
+- [[SUPA - Esquema do Banco]] — **fonte da verdade**: integração Tiny, tabelas `plt_*` da plataforma e o domínio comercial (migrations 26/27)
+- [[SUPA - Comercial - Dominio de Dados]] — o domínio comercial em detalhe: view `vendas_marketing` (D-47), tabelas de disparo, as RPCs com assinaturas, RLS
+- [[SUPA - Comercial - Edge Functions]] — as functions do comercial na fábrica, gatilhos e secrets (só nomes)
+- [[SUPA - Comercial - Cron e Rotinas]] — ⏰ o que roda sozinho e onde; **a lista exata do cutover** (jobs a criar na fábrica, jobs a desligar no projeto antigo)
 
-## 📚 Referências do Tiny (pesquisa 14/08/2026)
+## 🗣️ Atendimento — memória de negócio (pasta `Atendimento/`)
 
-- [[N8N - Tiny Modelos Mentais]] — **comece por aqui**: as 4 portas de integração, id vs numero, strings v2 vs números v3, cadeado vs catraca
-- [[N8N - Tiny Integracoes Referencia]] — catálogo completo: todos os endpoints v2, OAuth da v3, webhooks, limites do plano Impulsione, códigos de erro
+> Não descreve código: é a memória do atendimento humano (WhatsApp/Instagram) e a especificação dos fluxos de follow-up no CRM. Veio do cofre da loja em 17/09/2026.
+
+- [[000 - ATENDIMENTO (indice)]] — **comece por aqui**: o que existe e em que ordem ler
+- [[ATD - Por que Convertemos Pouco]] · [[ATD - Recepcao e Follow-up]] · [[ATD - FAQ e Respostas Padrao]]
+- Equipe: [[ATD - Equipe - Felipe Padrao Ouro]] · [[ATD - Equipe - Gabriel]] · [[ATD - Equipe - Gessica]]
+- Follow-up DataCrazy: [[ATD - Follow-up DataCrazy - Anatomia]] · [[ATD - Follow-up DataCrazy - Defeitos]] · [[ATD - Follow-up DataCrazy - Fluxo v2]] · [[ATD - Follow-up DataCrazy - Especificacao Importavel]]
 
 ## 🏭 Processos fabris
 
-- [[FAB - Processo Alvo - Um Clique Um Evento]] — a visão-alvo de 13/08 (⚠️ **parcialmente revisada em 19/08** — a decisão de destino é humana; ver [[PLT - Visao Geral]])
-- [[FAB - Estrutura de Producao (Trello e ClickUp)]] — a linha real mapeada dos quadros (⚠️ estrutura confiável, números não)
+- [[FAB - Processo Alvo - Um Clique Um Evento]] — a visão-alvo de 13/08 (⚠️ parcialmente revisada em 19/08 — ver [[PLT - Visao Geral]])
+- [[FAB - Estrutura de Producao (Trello e ClickUp)]] — a linha real mapeada dos quadros (estrutura confiável, números não)
 - *Notas futuras por setor (corte/SECC, CNC, furação, fitamento, metalurgia, montagem, embalagem, estoque) entram aqui conforme o mapeamento avançar*
 
-## 🔧 Pendências e riscos
+## 📜 Histórico de sessões (pasta `Handoffs/`)
 
-- [[N8N - Pendencias e Riscos]] — **P1–P13 priorizados** + regras operacionais permanentes
-
-## 📜 Histórico de sessões
-
-- [[handoff_2026_09_15_sessao19_banco_comercial]] — **SESSAO-19 da Plataforma (abre o bloco União — D-46/D-47)**: o domínio do Painel de Recompra passou a viver no Supabase da fábrica — 6 tabelas em DDL idêntico + carga com checksum idêntico (token do Tiny sem nunca passar por chat), `vendas_marketing` virou VIEW sobre `pedidos`+`clientes` (D-47), 10 RPCs copiadas com dashboards batendo ao centavo com o painel antigo, permissão por módulo (`plt_usuarios.modulos` + `fn_tem_modulo`), 6 Edge Functions no ar SEM cron (o renovador do token segue só no projeto antigo até o cutover)
-- [[handoff_2026_09_08_sessao15_logistica_rotas]] — **SESSAO-15 da Plataforma (3ª do Bloco 3)**: o fim de linha virou módulo — Estoque em lista com ID de produção, Pedidos em aguardo com "Lançar para ROTAS", Danificados com resolver/arquivar, ROTAS → Programação com mapa (Leaflet/OSM), ordem de parada sugerida e sugestões por proximidade, Caminhões com foto (D-38/D-39/D-45); botão **Concluir** no card; migration 25 aplicada e Edge Function `geocodificar` publicada em 08/09 com autorização do dono; 233 cards históricos arquivados; correção: `pedidos.situacao` é DESCRIÇÃO e o cancelamento da S09 nunca disparava
-- [[handoff_2026_09_01_sessao14_meu_painel]] — **SESSAO-14 da Plataforma (2ª do Bloco 3)**: o Meu Painel de verdade em `/inicio/meu-painel` (pendências, avisos do sino, cockpit de metas com progresso calculado dos eventos em tempo real — D-37); migrations 23 (metas) e 24 (espelho da blindagem do backfill) aplicadas em 01/09 com autorização do dono; achado E-24: a reaplicação da S13 tinha desfeito a blindagem e ~163 cards históricos entraram no PCP (limpeza pendente de decisão)
-- [[handoff_2026_08_28_sessao13_navegacao]] — **SESSAO-13 da Plataforma (abre o Bloco 3 — a reforma)**: navegação em duas barras laterais (pais → filhos, cada uma recolhível), rotas todas em `/pai/filho` com redirecionamentos, Meu Perfil com 8 temas Domoby e foto, login com logo metálica, e a trilha de atividade append-only registrando tudo (D-40); migration 22 aplicada e Edge Function v3 no ar com autorização do dono
-- [[handoff_2026_08_28_sessao12_tarefas]] — **SESSAO-12 da Plataforma (fecha o bloco noturno D-26)**: afazeres meus/do time, delegação em 3 modos por setor com sorteio balanceado só entre quem está logado, tarefa avulsa com timer opcional, aviso ao delegado no sino — e o incidente E-20 (coluna criada por outra sessão com desenho divergente, alinhada pela migration 21)
-- [[handoff_2026_08_28_sessao11_api_rotas]] — **SESSAO-11 da Plataforma (bloco noturno D-26)**: a API aberta no ar (Edge Function com chave própria, escopos, revogação instantânea; exclusão = arquivamento lógico), webhooks de saída com fila + pg_net/pg_cron testados de ponta a ponta, e as ROTAS dentro da plataforma (D-33) — entrega por pedido completo com o formato do card real, sem tocar ClickUp nem Tiny
-- [[handoff_2026_08_28_sessao10_dashboards]] — **SESSAO-10 da Plataforma (bloco noturno D-26)**: dashboards com o tempo em primeiro lugar (D-32) — lista detalhada de execuções com duração bruta e útil (D-29 descontando horário/pausas), fila vs execução por setor somadas (D-02), pessoa, item, qualidade por setor e estoque; visualizações salvas por usuário; gate no banco (líder só vê o próprio setor)
-- [[handoff_2026_08_28_sessao09_entrada_pedidos]] — **SESSAO-09 da Plataforma (bloco noturno D-26)**: pedido novo do Tiny vira card no PCP sozinho — trigger à prova de falha no próprio banco (D-31), idempotente; edição pós-liberação e cancelamento viram eventos e selos visíveis, admins avisados quando cancela com produção em andamento
-- [[handoff_2026_08_28_sessao07_tela_setor]] — **SESSAO-07 da Plataforma (bloco noturno D-26)**: a tela do chão de fábrica — fila do setor em tela cheia com PIN por teclado na tela (autor do gesto = operador identificado), tempo real + som discreto, imagens por produto; e o prelúdio D-27 (menu lateral, modelo de sistema no cofre, microinteração, UI e banco sem códigos internos) + controle de tempo do admin (D-29)
-- [[handoff_2026_08_27_sessao06_qualidade]] — **SESSAO-06 da Plataforma**: a dupla atestação da D-09 virando regra de banco — marcação 🟢🟡🔴 obrigatória ao sair de produção, parecer de recebimento antes do Iniciar, 🔴 vai sozinho para a etapa DANIFICADO (criada pelo sistema), notificações automáticas a líderes dos dois setores + admins com o relato exato, e o sino no topo (D-25)
-- [[handoff_2026_08_27_sessao05_timers]] — **SESSAO-05 da Plataforma**: o tempo medido de verdade — Iniciar/Finalizar/Assumir no card, fila do setor vs execução da pessoa, linha do tempo por etapa com autores, estorno visível (líder/admin) e limite configurável de execuções por pessoa/setor (D-24)
-- [[handoff_2026_08_27_sessao04_kanban]] — **SESSAO-04 da Plataforma**: o kanban núcleo — PCP libera pedidos reais do Tiny em unidades (k/n), quadros de setor com drag-and-drop + botão Mover, expedição/reagrupamento, cadastro de setores e etapas; toda movimentação é evento append-only com autor (D-22)
-- [[handoff_2026_08_27_sessao03_autenticacao]] — **SESSAO-03 da Plataforma**: login por usuário/e-mail, convites por WhatsApp, matrícula MDM automática, troca de senha obrigatória, papéis operador/líder/admin com bloqueio por URL, PIN de tablet (D-21)
-- [[handoff_2026_08_26_sessao02_banco]] — **SESSAO-02 da Plataforma**: modelo de domínio em 10 migrations, aplicado no Supabase da fábrica (9 tabelas plt_*, eventos append-only, RLS por papel)
-- [[handoff_2026_08_24_sessao01_fundacao]] — **SESSAO-01 da Plataforma**: repositório, app React e design system Domoby (amarelo sobre grafite) na branch `sessao-01-fundacao`
-- [[handoff_2026_08_17_automacao_entregue]] — pesquisa completa das integrações do Tiny + projeto da automação ROTAS "entregue" → Tiny
+- [[handoff_2026_09_16_sessao20_modulo_comercial]] — **SESSAO-20 (União 2)**: o Painel de Recompra recriado como módulo Comercial (rotas `/comercial/*`, trava de disparo em 3 camadas, permissão por módulo, Recharts 3.9.2 fixado)
+- [[handoff_2026_09_15_sessao19_banco_comercial]] — **SESSAO-19 (União 1)**: o domínio do recompra no Supabase da fábrica (6 tabelas, `vendas_marketing` como VIEW — D-47, 10 RPCs, dashboards batendo ao centavo)
+- [[handoff_2026_09_08_sessao15_logistica_rotas]] — **SESSAO-15**: Logística e ROTAS como módulo (Estoque, Aguardo, Danificados, Programação com mapa, Caminhões)
+- [[handoff_2026_09_01_sessao14_meu_painel]] — **SESSAO-14**: Meu Painel com pendências, avisos e cockpit de metas (D-37)
+- [[handoff_2026_08_28_sessao13_navegacao]] — **SESSAO-13**: navegação pai→filho, temas, login novo, trilha de atividade (D-40)
+- [[handoff_2026_08_28_sessao12_tarefas]] — **SESSAO-12**: afazeres e delegação em 3 modos (fecha o bloco noturno D-26)
+- [[handoff_2026_08_28_sessao11_api_rotas]] — **SESSAO-11**: API aberta + webhooks de saída + ROTAS na plataforma (D-33)
+- [[handoff_2026_08_28_sessao10_dashboards]] — **SESSAO-10**: dashboards com o tempo em 1º lugar (visual refeito na 16)
+- [[handoff_2026_08_28_sessao09_entrada_pedidos]] — **SESSAO-09**: entrada automática de pedidos por trigger (D-31)
+- [[handoff_2026_08_28_sessao07_tela_setor]] — **SESSAO-07**: a tela do chão de fábrica (PIN, tempo real, som)
+- [[handoff_2026_08_27_sessao06_qualidade]] — **SESSAO-06**: dupla atestação como regra de banco + sino (D-25)
+- [[handoff_2026_08_27_sessao05_timers]] — **SESSAO-05**: o tempo medido de verdade (fila vs execução)
+- [[handoff_2026_08_27_sessao04_kanban]] — **SESSAO-04**: o kanban núcleo (eventos append-only — D-22)
+- [[handoff_2026_08_27_sessao03_autenticacao]] — **SESSAO-03**: login, convites, papéis, PIN de tablet (D-21)
+- [[handoff_2026_08_26_sessao02_banco]] — **SESSAO-02**: modelo de domínio em 10 migrations
+- [[handoff_2026_08_24_sessao01_fundacao]] — **SESSAO-01**: repositório, app React e design system Domoby
+- [[handoff_2026_08_17_automacao_entregue]] — integrações do Tiny + automação ROTAS "entregue" → Tiny
 - [[handoff_2026_08_13_migracao_n8n]] — migrações 2–4 no ar, incidente Google, início da 5
-- [[handoff_2026_09_16_sessao20_modulo_comercial]] — **SESSAO-20 da Plataforma (2ª do bloco União — D-46)**: o Painel de Recompra recriado como módulo **Comercial** dentro da plataforma (40 arquivos portados 1:1, rotas `/comercial/*`), com **trava de disparo** em três camadas até o cutover; navegação reorganizada (pai **Fábrica**, pai **Comercial**, "Painel admin") com redirect de todas as rotas antigas e `/tablet` intocada; permissão por módulo valendo no menu e na URL; migration 27 trocando "devolve vazio" por **negação explícita** nas 10 RPCs; temas **esmeralda** no design system (8→10) e os **tokens de cor de série** que a SESSAO-16 herda junto com **Recharts 3.9.2**
-- *Novos handoffs vão para `Handoffs/` e devem ser linkados aqui — inclusive os de cada SESSAO-NN da Plataforma*
+- Planos históricos do método: [[PLT - Plano Noturno Sessoes 07-12]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]] · [[PROMPT - Bloco 2 (Sessoes 05 a 09)]] · `Handoffs/continuidade_bloco_noturno.md`
+- *Novos handoffs vão para `Handoffs/` e devem ser linkados aqui — inclusive os de cada SESSAO-NN*
 
 ## 🧩 Templates
 
@@ -108,28 +150,28 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 ## Como usar este cofre
 
 > [!tip] O ciclo, em quatro passos
-> **1.** Antes de alterar algo → ler a nota da área (mexer num workflow → nota `N8N -`; num setor → nota `FAB -`; na plataforma → notas `PLT -` e a `SESSAO-NN` correspondente).
+> **1.** Antes de alterar algo → ler a nota da área (workflow → `N8N -`; setor → `FAB -`; plataforma → `PLT -` e a `SESSAO-NN`; módulo Comercial → `PLT - Comercial -`; banco → `SUPA -`; atendimento → `ATD -`).
 > **2.** Toda decisão de negócio ou de processo vai para a nota da área, não só para a ferramenta. Decisões da plataforma → [[PLT - Decisoes de Produto]] com ID `D-NN`.
-> **3.** Todo problema descoberto vai para [[N8N - Pendencias e Riscos]] com um ID (P14, P15…). Ao corrigir, marcar `✅ resolvido em AAAA-MM-DD` — **sem apagar o item**.
-> **4.** Ao fim da sessão, preencher o [[TEMPLATE - Handoff de Sessao]] em `Handoffs/` e linkar aqui.
+> **3.** Todo problema descoberto vai para [[N8N - Pendencias e Riscos]] (automações) ou [[PLT - Comercial - Debito Tecnico]] (comercial) com um ID. Ao corrigir, marcar `✅ resolvido em AAAA-MM-DD` — **sem apagar o item**.
+> **4.** Ao fim da sessão: memória técnica em `Plataforma/Execucao/SESSAO-NN.md`, handoff pelo [[TEMPLATE - Handoff de Sessao]] em `Handoffs/`, link aqui no mapa — e [[000 - PROXIMOS PASSOS]] atualizado.
 
 > [!info] O que a IA escreve vs o que o dono escreve
 > A IA registra o técnico (o que mudou, por quê, o que quebrou). **O dono registra o de negócio** — o que a equipe reclamou, o que mudou de prioridade, como o processo físico funciona de verdade. Isso a IA não tem como saber, e é o que mais falta neste cofre hoje: o detalhe real de cada setor.
 
 ## Estado atual em uma linha
 
-**↪️ Atualizado em 08/09/2026 (SESSAO-15 entregue):** Logística e ROTAS viraram módulo de verdade (Estoque com ID, Pedidos em aguardo → Lançar para ROTAS, Danificados, Programação de caminhão com mapa e caminhões cadastráveis — D-38/D-39/D-45) e o card ganhou o botão **Concluir**; migration 25 aplicada, Edge `geocodificar` no ar, 233 cards históricos arquivados; branch `sessao-15-logistica-rotas` **mesclada na main e publicada em 15/09**. Próxima: **SESSAO-16** (dashboards de verdade). Pendências do dono: definir o contato do Nominatim no segredo `PLT_GEOCODIFICACAO_CONTATO` (opcional), formato do ID de produção (Q-63).
+**↪️ Atualizado em 18/09/2026 (nasce o Bloco 5):** o dono trouxe o maior pacote de demandas desde a fundação, orquestrado em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]: **SESSÕES 22–28** (filas reais + tempo de PCP + paginação · Meu Painel 2.0 com subtarefas · estoque núcleo com Pedidos em aguardo e cancelamentos · integração NOVA com o Tiny da fábrica · chat interno · automações em canvas, que absorve a 17 · rota calculada OSRM). Ordem decidida: **16 → 22…28**, com a 21 (cutover) na janela do dono. Todas as demandas `📐 prontas para code`, com as perguntas ao dono embutidas.
 
-**↪️ Atualizado em 01/09/2026 (SESSAO-14 entregue):** o Meu Painel está no ar — pendências, avisos e o **cockpit de metas** (D-37) com progresso calculado dos eventos, tudo mesclado na `main` e migrations 23/24 aplicadas com autorização do dono; a migration 24 devolveu a blindagem do backfill que uma reaplicação tinha desfeito (E-24). Próxima: **SESSAO-15** (Logística e ROTAS com caminhões). Pendências do dono: **trocar a senha do admin (vazou no chat DE NOVO)**, decidir a limpeza dos ~163 cards históricos no PCP, confirmar as decisões provisórias do handoff da 14.
+**↪️ 17/09/2026 (reorganização do cofre):** os dois cofres viraram UM — o `_Docs` da loja foi destrinchado e fundido aqui (domínio de dados → `SUPA - Comercial -*`, Tiny v3 → referência do Tiny, módulo → `PLT - Comercial -*`, atendimento → `Atendimento/`), a pasta `docs/` do repo foi absorvida (`execucao/` → `Plataforma/Execucao/`, mockups → `Plataforma/Inspiracao/`, notas soltas → `PLT -`), e nasceu `Planejamento/` com [[000 - PROXIMOS PASSOS]]. Estado do produto: SESSÕES 19–20 entregues (módulo Comercial no ar com disparo travado). **Próxima: SESSAO-16 (dashboards), depois SESSAO-21 (cutover).**
 
-## Estado anterior em uma linha
+**↪️ 16/09/2026 (SESSAO-20 entregue):** o Painel de Recompra virou o módulo Comercial dentro da plataforma (40 arquivos portados, rotas `/comercial/*`, trava de disparo em 3 camadas até o cutover), navegação reorganizada com permissão por módulo, migration 27 aplicada, temas esmeralda e tokens de série que a SESSAO-16 herda com Recharts 3.9.2.
 
-**↪️ 28/08/2026 (madrugada — SESSAO-13 entregue):** a reforma começou — a **SESSAO-13** trocou a casca inteira (navegação em duas barras pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade — D-36/D-40/D-41/D-43), com migration 22 aplicada e Edge Function v3 no ar; branch `sessao-13-navegacao` **aguarda revisão e merge do dono**. Próxima: SESSAO-14 (Meu Painel + metas). Pendências do dono: trocar a senha do admin (ficou no chat!), confirmar decisões provisórias do handoff da 13.
+## Estados anteriores em uma linha
 
-## Estado anterior em uma linha (28/08, noite)
+**↪️ 15/09/2026 (SESSAO-19 entregue — abre o bloco União D-46/D-47):** o domínio do Painel de Recompra passou a viver no Supabase da fábrica — 6 tabelas + `vendas_marketing` como VIEW, 10 RPCs com dashboards batendo ao centavo, permissão por módulo, 6 Edge Functions no ar SEM cron (o renovador do token segue só no projeto antigo até o cutover).
 
-**↪️ 28/08/2026 (noite — revisão do dono + bloco 3 definido):** o dono usou a plataforma, rejeitou a navegação e os dashboards, e nasceu o **Bloco 3 — a reforma (D-35…D-42)**: SESSAO-13 (sidebar pai→filho, rotas `/pai/filho`, Meu Perfil com 8 temas, login novo, log de toda atividade) → 14 (Meu Painel + cockpit de metas) → 15 (Logística: Estoque/Aguardo/Danificados + ROTAS com caminhões e mapa) → 16 (dashboards refeitos sobre os mockups de `docs/inspiracao/dashboards/`), **com checkpoint por sessão** (D-26 encerrada — regra crítica 2 na íntegra). **Tudo externo em standby** (automações→17, admin→18, publicação segue D-30). Demandas 13–16 `📐 prontas`; prompt entregue no chat (D-17). Pendências do checklist da manhã que continuam com o dono: trocar a senha do admin, contas dos tablets, modo de delegação por setor.
+**↪️ 08/09/2026 (SESSAO-15 entregue):** Logística e ROTAS viraram módulo de verdade (Estoque com ID, Pedidos em aguardo, Danificados, Programação de caminhão com mapa — D-38/D-39/D-45); migration 25 aplicada, Edge `geocodificar` no ar; branch mesclada na main e publicada em 15/09.
 
-## Estado anterior em uma linha
+**↪️ 01/09/2026 (SESSAO-14 entregue):** o Meu Painel no ar (pendências, avisos, cockpit de metas — D-37); migrations 23/24 aplicadas; achado E-24 (blindagem do backfill desfeita e devolvida; ~163 cards históricos aguardam decisão de limpeza).
 
-**↪️ Atualizado em 28/08/2026 (bloco noturno D-26 encerrado):** a Plataforma de Produção tem **11 sessões entregues** — o bloco noturno somou a tela do setor em tablet (PIN na tela, tempo real + som), a entrada automática de pedidos por trigger, os dashboards de tempo (com descontos de horário/pausa — D-29), a API aberta com webhooks, as ROTAS dentro da plataforma (D-33) e os afazeres com delegação (D-34); decisões D-28…D-34 registradas; **revisão da manhã pendente** — checklist em `Handoffs/continuidade_bloco_noturno.md`. Ficam: publicação no ar (D-30 — o dono avisa), automações internas (13) e painel admin (14). A linha antiga abaixo descreve o estado até a SESSAO-06.
+**↪️ 28/08/2026 (SESSAO-13 + bloco 3 definido):** a reforma da casca (navegação pai→filho, 8 temas, login novo, log de tudo — D-36/D-40/D-41); o bloco noturno D-26 tinha somado as sessões 07/09→12; nasceram as demandas 13–16 da reforma, com automações→17 e admin→18 em standby.

@@ -249,7 +249,18 @@ export function Layout({ children }: { children: ReactNode }) {
               id: 'dashboards',
               rotulo: 'Dashboards',
               icone: <ChartColumn aria-hidden />,
-              secoes: [{ filhos: [{ para: '/dashboards/geral', rotulo: 'Visão geral' }] }],
+              // SESSAO-16 (D-42): as 4 telas-filhas dos mockups; o pai fica
+              // onde está (Q-66) e o gate de dados vive no banco (D-32)
+              secoes: [
+                {
+                  filhos: [
+                    { para: '/dashboards/visao-do-dia', rotulo: 'Visão do dia' },
+                    { para: '/dashboards/tempo-por-setor', rotulo: 'Tempo por setor' },
+                    { para: '/dashboards/pessoas', rotulo: 'Pessoas' },
+                    { para: '/dashboards/qualidade', rotulo: 'Qualidade' },
+                  ],
+                },
+              ],
             },
           ]
         : []),

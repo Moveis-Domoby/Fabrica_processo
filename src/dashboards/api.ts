@@ -153,30 +153,186 @@ export async function dashEstoque(): Promise<ResumoEstoque | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Visualizações salvas (RF-32/RF-33 — plt_visualizacoes, RLS por dono)
+// Portas novas da SESSAO-16 (migration 28) — o retrato de agora e os números
+// do dia da Visão do dia, danificados e a tendência semanal. Todas gateadas
+// no banco por fn_setores_dashboard (D-32): quem não mede, recebe vazio.
 // ---------------------------------------------------------------------------
 
-export const WIDGETS_DISPONIVEIS = [
-  { chave: 'tempos_setor', rotulo: 'Fila vs execução por setor' },
-  { chave: 'execucoes', rotulo: 'Execuções detalhadas' },
-  { chave: 'pessoas', rotulo: 'Tempo por pessoa' },
-  { chave: 'itens', rotulo: 'Tempo por item' },
-  { chave: 'qualidade', rotulo: 'Qualidade por setor' },
-  { chave: 'estoque', rotulo: 'Tempo parado no estoque' },
+export interface SetorAgora {
+  /** null = a linha do TOTAL (pessoas contadas sem repetir entre setores). */
+  setor_id: number | null
+  setor_nome: string | null
+  setor_codigo: string | null
+  na_fila: number
+  em_execucao: number
+  pessoas_executando: number
+  espera_mais_antiga: string | null
+}
+
+export async function dashAgora(): Promise<SetorAgora[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_agora')
+  return garantir(data as SetorAgora[] | null, error, 'Não deu para carregar o retrato de agora')
+}
+
+export interface PcpDia {
+  pedidos_a_liberar: number
+  unidades_liberadas_dia: number
+  espera_mais_antiga: string | null
+}
+
+export async function dashPcpDia(): Promise<PcpDia | null> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_pcp_dia')
+  if (error) throw new Error(`Não deu para carregar o PCP do dia: ${error.message}`)
+  return ((data ?? []) as PcpDia[])[0] ?? null
+}
+
+export interface NumerosDia {
+  concluidas_dia: number
+  media_concluidas_4sem: number | null
+  danificados_dia: number
+  aguardando_lancamento: number
+}
+
+export async function dashDia(): Promise<NumerosDia | null> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_dia')
+  if (error) throw new Error(`Não deu para carregar os números do dia: ${error.message}`)
+  const linha = ((data ?? []) as NumerosDia[])[0] ?? null
+  return linha
+    ? { ...linha, media_concluidas_4sem: linha.media_concluidas_4sem === null ? null : Number(linha.media_concluidas_4sem) }
+    : null
+}
+
+export interface ProducaoHora {
+  hora: number
+  concluidas: number
+  media_4sem: number
+}
+
+export async function dashProducaoHora(): Promise<ProducaoHora[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_producao_hora')
+  const linhas = garantir(
+    data as ProducaoHora[] | null,
+    error,
+    'Não deu para carregar a produção por hora',
+  )
+  return linhas.map((l) => ({ ...l, media_4sem: Number(l.media_4sem) }))
+}
+
+export interface DestinoFimDeLinha {
+  destino: string
+  quantidade: number
+}
+
+export async function dashFimDeLinha(): Promise<DestinoFimDeLinha[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_fim_de_linha')
+  return garantir(data as DestinoFimDeLinha[] | null, error, 'Não deu para carregar o fim de linha')
+}
+
+export interface DanificadoDia {
+  setor_origem_nome: string
+  setor_destino_nome: string
+  quantidade: number
+}
+
+export async function dashDanificadosDia(): Promise<DanificadoDia[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_danificados_dia')
+  return garantir(data as DanificadoDia[] | null, error, 'Não deu para carregar os danificados do dia')
+}
+
+export interface DanificadoAberto {
+  setor_id: number
+  setor_nome: string
+  item_descricao: string
+  quantidade: number
+  mais_antigo: string | null
+}
+
+export async function dashDanificadosAbertos(): Promise<DanificadoAberto[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_danificados_abertos')
+  return garantir(
+    data as DanificadoAberto[] | null,
+    error,
+    'Não deu para carregar os danificados em aberto',
+  )
+}
+
+export interface SemanaTendencia {
+  semana_inicio: string
+  unidades: number
+  media_total: string | null
+}
+
+export async function dashTendenciaSemanas(semanas = 6): Promise<SemanaTendencia[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_tendencia_semanas', {
+    p_semanas: semanas,
+  })
+  return garantir(data as SemanaTendencia[] | null, error, 'Não deu para carregar a tendência')
+}
+
+// ---------------------------------------------------------------------------
+// Visualizações salvas (RF-32/RF-33 — plt_visualizacoes, RLS por dono)
+//
+// SESSAO-16: a configuração passou a guardar TELA + filtros (as 4 telas-filhas
+// da D-42 substituíram o painel único de widgets). As visualizações antigas
+// (formato da S10, com `widgets`) continuam funcionando: são traduzidas POR
+// LEITURA para a tela equivalente — nenhum dado é migrado no banco.
+// ---------------------------------------------------------------------------
+
+export const TELAS_DASH = [
+  { chave: 'visao-do-dia', rotulo: 'Visão do dia' },
+  { chave: 'tempo-por-setor', rotulo: 'Tempo por setor' },
+  { chave: 'pessoas', rotulo: 'Pessoas' },
+  { chave: 'qualidade', rotulo: 'Qualidade' },
 ] as const
 
-export type ChaveWidget = (typeof WIDGETS_DISPONIVEIS)[number]['chave']
+export type TelaDash = (typeof TELAS_DASH)[number]['chave']
 
 export interface ConfiguracaoPainel {
-  widgets: ChaveWidget[]
+  tela: TelaDash
   periodoDias: number
   setorId: number | null
+  /** Qual duração mostrar em destaque: útil (desconta pausas — D-29) ou bruta. */
+  tempo: 'util' | 'bruto'
 }
 
 export const PAINEL_PADRAO: ConfiguracaoPainel = {
-  widgets: ['tempos_setor', 'execucoes', 'pessoas', 'itens', 'qualidade', 'estoque'],
+  tela: 'tempo-por-setor',
   periodoDias: 7,
   setorId: null,
+  tempo: 'util',
+}
+
+/** Formato salvo pela S10 — só existe para a tradução de leitura abaixo. */
+interface ConfiguracaoAntiga {
+  widgets?: string[]
+  periodoDias?: number
+  setorId?: number | null
+}
+
+/**
+ * Traduz qualquer configuração salva (nova ou da S10) para o formato atual.
+ * Regra da tradução: a visualização antiga era um painel de widgets — ela vira
+ * a tela que melhor cobre o que estava ligado (qualidade só → Qualidade;
+ * pessoas/execuções sem tempos de setor → Pessoas; resto → Tempo por setor).
+ */
+export function normalizarConfiguracao(bruta: unknown): ConfiguracaoPainel {
+  const cfg = (bruta ?? {}) as Partial<ConfiguracaoPainel> & ConfiguracaoAntiga
+  const periodoDias = typeof cfg.periodoDias === 'number' ? cfg.periodoDias : 7
+  const setorId = typeof cfg.setorId === 'number' ? cfg.setorId : null
+  const tempo = cfg.tempo === 'bruto' ? 'bruto' : 'util'
+  if (cfg.tela && TELAS_DASH.some((t) => t.chave === cfg.tela)) {
+    return { tela: cfg.tela, periodoDias, setorId, tempo }
+  }
+  const widgets = Array.isArray(cfg.widgets) ? cfg.widgets : []
+  const soQualidade = widgets.length > 0 && widgets.every((w) => w === 'qualidade')
+  const soPessoas =
+    widgets.length > 0 && widgets.every((w) => w === 'pessoas' || w === 'execucoes')
+  return {
+    tela: soQualidade ? 'qualidade' : soPessoas ? 'pessoas' : 'tempo-por-setor',
+    periodoDias,
+    setorId,
+    tempo,
+  }
 }
 
 export interface VisualizacaoSalva {

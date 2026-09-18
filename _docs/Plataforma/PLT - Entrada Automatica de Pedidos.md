@@ -1,3 +1,13 @@
+---
+titulo: PLT - Entrada Automatica de Pedidos
+tipo: nota
+atualizado: 2026-09-17
+tags: [plataforma, integracao, n8n]
+---
+
+> [!info] Origem
+> Nota absorvida de `docs/entrada-de-pedidos.md` do repo em 17/09/2026 (unificação dos docs no cofre). Escrita na SESSAO-09 (D-31); continua válida. Handoff: [[handoff_2026_08_28_sessao09_entrada_pedidos]] · Memória de execução: [[SESSAO-09]].
+
 # Entrada automática de pedidos (SESSAO-09 · D-31)
 
 ## Como funciona

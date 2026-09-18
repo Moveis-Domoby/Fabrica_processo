@@ -89,6 +89,7 @@ os tokens de série, que acompanham o tema escolhido no Meu Perfil.
 |---|---|
 | `serie-1` | **é a cor de AÇÃO do tema** — o número principal acompanha a identidade (amarelo no padrão, esmeralda nos temas esmeralda) |
 | `serie-2` … `serie-6` | as demais séries, na ordem de uso; clareiam automaticamente nos temas escuros |
+| `serie-fila` / `serie-execucao` | **(SESSAO-16)** o par fila × execução dos dashboards de produção — azul `#2563eb` e âmbar `#b8851e` do LEIA-ME de `docs/inspiracao/dashboards/`, **fixos em todos os temas** (a `serie-1` no esmeralda vira verde, que é exclusivo da qualidade); clareiam nos temas escuros sem mudar de identidade |
 
 Duas regras que vêm de A-08 e M-12:
 

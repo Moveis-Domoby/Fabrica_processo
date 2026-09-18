@@ -1,3 +1,13 @@
+---
+titulo: PLT - API Aberta
+tipo: nota
+atualizado: 2026-09-17
+tags: [plataforma, api, integracao]
+---
+
+> [!info] Origem
+> Nota absorvida de `docs/api.md` do repo em 17/09/2026 (unificação dos docs no cofre). Escrita na SESSAO-11; continua válida. Handoff: [[handoff_2026_08_28_sessao11_api_rotas]] · Memória de execução: [[SESSAO-11]].
+
 # API aberta da Plataforma de Produção (SESSAO-11)
 
 A porta de integrações da plataforma. O n8n — ou qualquer sistema — chama a

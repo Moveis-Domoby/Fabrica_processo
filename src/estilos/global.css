@@ -210,6 +210,20 @@
     font-size: clamp(0.95rem, 11cqi, 1.5rem);
     line-height: 1.15;
   }
+  /* Números-herói dos dashboards (SESSAO-16): a tela de andon é candidata a
+     TV do galpão — o número precisa ser lido a metros. Mesma regra da linha
+     de KPIs: UMA fórmula para a linha inteira de heróis, calibrada pelo pior
+     caso (número de 3 dígitos + a seta de comparação). */
+  .num-heroi {
+    font-size: clamp(1.75rem, 26cqi, 4.5rem);
+    line-height: 1.05;
+  }
+  /* O número dos tiles por setor do andon (fila/execução) — menor que o herói,
+     maior que um KPI comum, uma fórmula só para todos os tiles. */
+  .num-tile {
+    font-size: clamp(1.1rem, 16cqi, 2rem);
+    line-height: 1.1;
+  }
 }
 
 @layer utilities {

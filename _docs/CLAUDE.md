@@ -1,22 +1,23 @@
-# Instruções permanentes — Cofre da Fábrica Domoby
+# Instruções permanentes — Cofre Domoby (Fábrica + Comercial)
 
-Este diretório (`_docs/`) é um cofre Obsidian: a **memória de longo prazo dos processos fabris da Móveis Domoby**. Toda conversa nova começa do zero — este arquivo existe para que ela já comece sabendo disso.
+Este diretório (`_docs/`) é um cofre Obsidian: a **memória de longo prazo da Móveis Domoby**. Toda conversa nova começa do zero — este arquivo existe para que ela já comece sabendo disso.
 
-**Escopo deste cofre: só a fábrica.** Automações (n8n), processos entre setores, e as plataformas a construir (estoque, rotas, cargas, tempos, custo). O painel de recompra é da **loja** e mora no cofre da loja — o material antigo dele está em `_MOVER PARA COFRE DA LOJA/` aguardando transferência; não criar conteúdo novo ali.
+**Escopo deste cofre: a empresa inteira.** A fábrica (automações n8n, processos entre setores, a Plataforma de Produção) **e o comercial** — desde 15–16/09/2026 o Painel de Recompra da loja é o módulo Comercial da plataforma, e em 17/09/2026 o cofre da loja foi fundido neste. **Não existe mais cofre separado da loja**: o que restou em `Planilha de recompra/_Docs` é material morto do repo antigo, que morre no cutover (SESSAO-21). Não criar conteúdo novo lá.
 
 ## Regras para qualquer agente (IA) trabalhando aqui
 
-1. **Comece por [[000 - MAPA DO PROJETO]].** Ideias e roadmap de plataformas: [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]].
-2. **Antes de mexer em qualquer área, leia a nota correspondente.** Workflows → `N8N -`. Processos/setores → `FAB -`.
-3. **Depois de mexer, atualizar a nota faz parte da tarefa.** Problema novo vai para [[N8N - Pendencias e Riscos]] com ID; resolvido é marcado `✅ resolvido em AAAA-MM-DD` sem apagar.
-4. **Ao fim de cada sessão**, criar um handoff em `Handoffs/` a partir de [[TEMPLATE - Handoff de Sessao]] e linká-lo no mapa.
+1. **Comece por [[000 - MAPA DO PROJETO]].** Próximos passos e roadmap: [[000 - PROXIMOS PASSOS]] (pasta `Planejamento/`).
+2. **Antes de mexer em qualquer área, leia a nota correspondente.** Workflows → `N8N -`. Processos/setores → `FAB -`. Plataforma → `PLT -`. Módulo Comercial → `PLT - Comercial -`. Banco → `SUPA -` (SEMPRE [[SUPA - Esquema do Banco]] antes de qualquer SQL). Atendimento humano → `ATD -`.
+3. **Depois de mexer, atualizar a nota faz parte da tarefa.** Problema novo vai para [[N8N - Pendencias e Riscos]] (automações) ou [[PLT - Comercial - Debito Tecnico]] (comercial) com ID; resolvido é marcado `✅ resolvido em AAAA-MM-DD` sem apagar. Passo dado ou plano mudado → [[000 - PROXIMOS PASSOS]] atualizado.
+4. **Ao fim de cada sessão**: memória técnica em `Plataforma/Execucao/SESSAO-NN.md` (não existe mais `docs/` no repo — foi unificado aqui em 17/09/2026), handoff em `Handoffs/` a partir de [[TEMPLATE - Handoff de Sessao]], e link no mapa.
 5. **Não inventar fatos sobre o processo físico da fábrica.** O que não estiver registrado como certo, marcar como incerto ou perguntar. Os setores conhecidos: SECC (corte), CNC, FURAÇÃO, FITAMENTO, METALURGICA, MONTAGEM, LIMPEZA E EMBALAGEM, ESTOQUE, logística própria — o detalhe interno de cada um **ainda não foi mapeado**.
 
 ## Regras críticas que já custaram caro (não repetir)
 
 - **Nunca renomear** os nodes `Normalizar evento` e `Tiny · pedido.obter` do workflow principal do n8n, nem os **cabeçalhos da aba COMPLETO** da planilha.
-- **Nunca colar token/credencial em chat, print ou nota.** Um token do Tiny já vazou assim.
-- **Só o cron do Supabase (projeto da loja) renova o token da API v3 do Tiny** — qualquer outro renovador derruba as duas integrações ([[N8N - API Tiny v2 vs v3]]).
+- **Nunca colar token/credencial em chat, print ou nota.** Um token do Tiny já vazou assim (duas vezes).
+- **Só o cron do projeto Supabase antigo da loja renova o token da API v3 do Tiny** até o cutover — qualquer outro renovador derruba as duas integrações ([[N8N - API Tiny v2 vs v3]]). No cutover, o renovador muda de casa UMA vez, seguindo [[SUPA - Comercial - Cron e Rotinas]].
+- **O disparo de campanhas do módulo Comercial está TRAVADO em 3 camadas até o cutover** ([[PLT - Comercial - Maquina de Estados do Disparo]]) — não liberar sem a SESSAO-21.
 - OAuth de usuário em fluxo servidor-a-servidor expira e derruba produção — usar Service Account ([[N8N - Incidente Credencial Google]]).
 - No n8n, destinos de um mesmo evento ficam em **ramos paralelos**, nunca em série.
 - Gatilho de automação **nunca** em aba de fórmula posicional (DADOS/OPERADORA/PCP) — foi a causa da duplicação de cards.
@@ -24,7 +25,10 @@ Este diretório (`_docs/`) é um cofre Obsidian: a **memória de longo prazo dos
 ## Onde as coisas rodam
 
 - **n8n:** `https://n8n.srv1877515.hstgr.cloud` (VPS Hostinger, container `n8n-n8n-1`) — [[N8N - Infraestrutura VPS]]
+- **Supabase da fábrica:** o banco único da empresa (integração Tiny + plataforma `plt_*` + domínio comercial) — [[SUPA - Visao Geral]] e [[SUPA - Esquema do Banco]]
+- **Supabase antigo da loja** ("Painel de recompra"): ainda roda crons, renovador do token v3 e webhook DataCrazy — **até o cutover** ([[PLT - Comercial - Legado e Cutover]])
 - **Planilha de integração:** *Integração Domoby - Tinny* (aba COMPLETO é a única escrita por automação)
-- **Produção:** Trello (quadros `0-ESTOQUE` … `6-METALURGICA`, em desativação futura) e ClickUp (Team DOMOBY → DPTO PRODUÇÃO) — [[FAB - Estrutura de Producao (Trello e ClickUp)]]
-- **Logística:** ClickUp → DPTO LOGÍSTICA → ROTAS
-- **ERP:** Tiny (Olist), API v2 por token — [[N8N - API Tiny v2 vs v3]]
+- **Produção:** a Plataforma de Produção (kanban, timers, qualidade); Trello/ClickUp em desativação — [[FAB - Estrutura de Producao (Trello e ClickUp)]]
+- **Logística:** módulo Logística/ROTAS da plataforma (desde a SESSAO-15)
+- **Comercial/pós-venda:** módulo Comercial da plataforma (`/comercial/*`) + CRM DataCrazy — [[PLT - Comercial - Integracao DataCrazy]]
+- **ERP:** Tiny (Olist), API v2 por token no n8n; API v3 OAuth no comercial — [[N8N - API Tiny v2 vs v3]]
