@@ -10,7 +10,7 @@ tags: [handoff, sessao, plataforma, uniao, comercial, front]
 
 **Branch:** `sessao-20-uniao-modulo-comercial` — **revisada na conversa e mesclada na `main` em 16/09, já publicada no remoto** (D-20)
 **Banco:** migration **27** (`20260915180000_plt_comercial_gate_negacao_temas.sql`) aplicada em 15/09 com seu OK na conversa, pela API (mesmo caminho da S15/S19 — A-15). Impressão digital da integração antes = depois (`7bd6bac6…`). **Edge Function `autenticacao` v8** no ar.
-**Demanda:** [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] · **Memória:** `docs/execucao/SESSAO-20.md`
+**Demanda:** [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] · **Memória:** `_docs/Plataforma/Execucao/SESSAO-20.md`
 **Decisões que regem:** **D-46** (a união) · D-36 (lei de navegação) · D-27 (modelo de sistema) · D-41 (temas) · D-47 · regra crítica 2
 
 ## 1. O que foi feito
@@ -79,7 +79,7 @@ Medição objetiva de vazamento (script comparando `scrollWidth` × `clientWidth
 
 ## 6. Notas do cofre atualizadas
 
-[[SUPA - Esquema do Banco]] (migration 27) · [[PLT - Modelo de Sistema]] (tokens de série, número por container query, ajuste a zoom) · [[PLT - Memoria de Aprendizado]] · [[000 - ORDEM DAS SESSOES]] · [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] (resultado) · memória de execução `docs/execucao/SESSAO-20.md`
+[[SUPA - Esquema do Banco]] (migration 27) · [[PLT - Modelo de Sistema]] (tokens de série, número por container query, ajuste a zoom) · [[PLT - Memoria de Aprendizado]] · [[000 - ORDEM DAS SESSOES]] · [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] (resultado) · memória de execução `_docs/Plataforma/Execucao/SESSAO-20.md`
 
 ## Ver também
 

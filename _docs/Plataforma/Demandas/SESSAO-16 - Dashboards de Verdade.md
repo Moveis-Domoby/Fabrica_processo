@@ -15,7 +15,7 @@ tags: [plataforma, demanda, bloco-3]
 
 ## O que é
 
-Reconstruir `/dashboards/...` nos moldes de `docs/inspiracao/dashboards/` (4 mockups
+Reconstruir `/dashboards/...` nos moldes de `_docs/Plataforma/Inspiracao/dashboards/` (4 mockups
 PNG + `000-LEIA-ME.md` com as regras de construção).
 
 ## Decisões que regem esta demanda
@@ -25,7 +25,7 @@ PNG + `000-LEIA-ME.md` com as regras de construção).
 
 ## Comportamento esperado
 
-1. **ANTES DE CODAR: abrir e olhar as 4 imagens** de `docs/inspiracao/dashboards/` e
+1. **ANTES DE CODAR: abrir e olhar as 4 imagens** de `_docs/Plataforma/Inspiracao/dashboards/` e
    ler o `000-LEIA-ME.md`. Elas são a régua de qualidade — não são pixel-perfect
    obrigatórias, mas o resultado precisa jogar no mesmo campeonato.
 2. Quatro telas-filhas (pai **Dashboards**): **Visão do dia** (andon: heróis, tiles por

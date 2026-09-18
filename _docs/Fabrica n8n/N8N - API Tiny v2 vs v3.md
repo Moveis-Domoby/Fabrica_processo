@@ -1,7 +1,7 @@
 ---
 titulo: n8n — API Tiny v2 vs v3 (decisão)
 tipo: decisao
-atualizado: 2026-08-13
+atualizado: 2026-09-17
 tags: [tiny, api, v2, v3, oauth, decisao]
 ---
 
@@ -9,6 +9,9 @@ tags: [tiny, api, v2, v3, oauth, decisao]
 
 > [!abstract] Decisão (12/08/2026)
 > **Os workflows do n8n permanecem na API v2.** Reavaliar se a Olist publicar data de descontinuação ou se aparecerem 401/403 em massa nas Executions.
+
+> [!info] Atualização 17/09/2026 — a união mudou ONDE a v3 vive, não a decisão
+> O painel de recompra virou o **módulo Comercial da plataforma da fábrica** (banco movido ao Supabase da fábrica na SESSAO-19; front na SESSAO-20 — [[handoff_2026_09_16_sessao20_modulo_comercial]]). **O cron renovador do token v3, porém, continua rodando SOMENTE no projeto Supabase antigo da loja** até o cutover da [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]]. A regra do dono único (abaixo) permanece intacta e vale para o n8n, para o projeto da fábrica e para qualquer script. Os detalhes operacionais do OAuth v3 que estavam na nota `INT - Tiny ERP Olist` da loja foram fundidos em [[N8N - Tiny Integracoes Referencia]] (§3.5–3.9).
 
 ## A posição oficial da Olist
 
@@ -34,10 +37,12 @@ Toda a arquitetura depende do webhook **"Notificações de vendas"**, documentad
 
 ## 🧰 Ativo já existente — o refresh loop do Supabase
 
-O projeto do painel de recompra da loja (documentado no cofre Obsidian da loja, nota `INT - Tiny ERP Olist`) **já roda a v3 em produção**: um banco Supabase com **cron de 3 em 3 horas renovando o refresh token**. Se um dia o n8n precisar da v3, a parte cara já está pronta — o n8n só precisaria **ler** o access token vigente do Supabase antes de cada chamada.
+O projeto do painel de recompra da loja (hoje o **módulo Comercial** da plataforma — ver atualização no topo) **já roda a v3 em produção**: um **cron de 3 em 3 horas renovando o refresh token**, que segue no projeto Supabase antigo da loja até a SESSAO-21. Se um dia o n8n precisar da v3, a parte cara já está pronta — o n8n só precisaria **ler** o access token vigente do Supabase antes de cada chamada.
 
 > [!danger] Regra do dono único (obrigatória)
 > O refresh token da v3 **rotaciona** — cada renovação invalida a anterior. **Só o cron do Supabase renova.** O n8n (e qualquer outra aplicação) apenas **lê**. Dois renovadores independentes se derrubam mutuamente e quebram as duas aplicações ao mesmo tempo.
+>
+> 🆕 17/09/2026: com a união em andamento, isso vale explicitamente também para o **projeto Supabase da fábrica** — até a SESSAO-21 mover o renovador oficialmente, nada fora do cron antigo da loja toca o endpoint de token. Ver [[SUPA - Comercial - Cron e Rotinas]].
 
 A verificar quando for o momento: se o app v3 do painel tem escopo para ler pedidos, ou se precisa de app separado (limite de 5 apps por conta).
 

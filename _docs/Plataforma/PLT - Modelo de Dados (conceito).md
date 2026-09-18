@@ -1,3 +1,13 @@
+---
+titulo: PLT - Modelo de Dados (conceito)
+tipo: nota
+atualizado: 2026-09-17
+tags: [plataforma, banco, conceito]
+---
+
+> [!info] Origem
+> Nota absorvida de `docs/modelo-de-dados.md` do repo em 17/09/2026 (unificação dos docs no cofre). Explica o DESENHO do banco em linguagem de gente, no estado da SESSAO-02 (26/08) — números de sessão citados adiante seguem a numeração antiga. A fonte da verdade técnica e atualizada é [[SUPA - Esquema do Banco]].
+
 # Modelo de dados — Plataforma de Produção Domoby
 
 > Este documento explica **o que o banco guarda e por quê**, em português de gente.

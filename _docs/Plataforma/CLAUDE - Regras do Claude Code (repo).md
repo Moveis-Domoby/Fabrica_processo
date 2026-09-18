@@ -46,7 +46,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 6. **Antes de escrever qualquer código:** ler a demanda principal (`SESSAO-NN`) **pelo menos duas vezes**, ler as decisões (`PLT - Decisoes de Produto.md`), o **modelo de sistema** (`_docs/Plataforma/PLT - Modelo de Sistema.md` — D-27) e a **memória de aprendizado** (`PLT - Memoria de Aprendizado.md`) — leitura obrigatória em TODA sessão, sem exceção. Listar dúvidas de negócio ANTES de começar — **o que não está escrito na demanda não existe**; não presuma.
 6b. **Alimentar a memória de aprendizado NA HORA:** errou → registrar `E-NN` em `PLT - Memoria de Aprendizado.md` em 1 linha; corrigiu → completar a mesma linha com a correção; acerto que deve virar padrão, fórmula, modelo mental ou possibilidade → registrar também. Nunca apagar entrada. Lição que virou lei → promover para este CLAUDE.md.
 7. **Task list obrigatória no início da sessão**, espelhando item a item a demanda principal (usar a ferramenta de tasks da sessão E registrar no arquivo de memória). Ao final, conferir a lista contra a demanda antes de declarar concluído.
-8. **Memória de execução contínua:** computar TUDO o que foi feito, sem perder detalhe, ENQUANTO executa — em `docs/execucao/SESSAO-NN.md` no repo: decisões técnicas, arquivos criados/alterados, comandos rodados, erros e como foram resolvidos. Reler essa memória periodicamente durante a sessão para não repetir nem contradizer o já feito.
+8. **Memória de execução contínua:** computar TUDO o que foi feito, sem perder detalhe, ENQUANTO executa — em `_docs/Plataforma/Execucao/SESSAO-NN.md` no repo: decisões técnicas, arquivos criados/alterados, comandos rodados, erros e como foram resolvidos. Reler essa memória periodicamente durante a sessão para não repetir nem contradizer o já feito.
 9. **Handoff obrigatório ao fim da demanda**, para revisão do dono: o que foi adicionado, **como testar passo a passo**, o que ficou pendente, o que precisa de decisão. Vai para `_docs/Handoffs/` (template do cofre) e é linkado no `000 - MAPA DO PROJETO.md`. Sem handoff, a demanda não está entregue.
 10. **Banco:** antes de qualquer SQL, ler `SUPA - Esquema do Banco.md` — nomes de tabela/coluna saem de lá, nunca de memória. Alterou o banco (com aprovação): SQL rodado → `supabase-fabrica-schema.sql` atualizado → nota atualizada. Tabelas da plataforma usam prefixo próprio e **não alteram** as tabelas existentes da integração.
 
@@ -65,7 +65,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 ```
 ler SESSAO-NN (2x) → ler decisões + modelo de sistema + MEMÓRIA DE APRENDIZADO
 → listar dúvidas → task list → branch
-→ codar computando tudo em docs/execucao/SESSAO-NN.md
+→ codar computando tudo em _docs/Plataforma/Execucao/SESSAO-NN.md
    (errou/acertou/aprendeu → anotar em PLT - Memoria de Aprendizado NA HORA)
 → conferir task list contra a demanda → revisão do dono → merge na main
 → handoff em _docs/Handoffs/ + memória de aprendizado atualizada

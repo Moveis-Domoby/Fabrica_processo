@@ -1,0 +1,4058 @@
+{
+ "data": {
+  "tags": [
+   {
+    "id": "8156a247-e62f-4e90-9bde-acfea77572c7",
+    "name": "Cliente ativo",
+    "description": "",
+    "color": "#10B981"
+   },
+   {
+    "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+    "name": "Em follow up 1",
+    "description": "",
+    "color": "#3B82F6"
+   },
+   {
+    "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+    "name": "Em follow up 2",
+    "description": "",
+    "color": "#22D3EE"
+   },
+   {
+    "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+    "name": "Em follow up 3",
+    "description": "",
+    "color": "#7DD3FC"
+   },
+   {
+    "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+    "name": "Em follow up 4",
+    "description": "",
+    "color": "#6B7280"
+   },
+   {
+    "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+    "name": "Em follow up 5",
+    "description": "",
+    "color": "#22D3EE"
+   },
+   {
+    "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+    "name": "Em follow up 6",
+    "description": "",
+    "color": "#F472B6"
+   },
+   {
+    "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+    "name": "Em follow up 7",
+    "description": "",
+    "color": "#6366F1"
+   },
+   {
+    "id": "099d4233-7b4e-44f4-9e53-54a2c7e97d30",
+    "name": "Interno",
+    "description": "",
+    "color": "#000000"
+   },
+   {
+    "id": "dcf43399-d9de-4c8d-894c-28321ce7927b",
+    "name": "Não receber follow-up",
+    "description": "",
+    "color": "#FCA5A1"
+   },
+   {
+    "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+    "name": "FU - Respondeu",
+    "description": "",
+    "color": "#16A34A"
+   },
+   {
+    "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+    "name": "FU - Esgotado",
+    "description": "",
+    "color": "#6B7280"
+   },
+   {
+    "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+    "name": "FU - Sem janela",
+    "description": "",
+    "color": "#F59E0B"
+   }
+  ],
+  "additionalFields": [
+   {
+    "id": "af95f8d4-6b15-4b9f-8399-9f6066a4d68d",
+    "name": "Follow up 1",
+    "description": "Atribui ao lead o valor do primeiro envio de mensagem de follow up",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 1,
+    "groupOrder": 3,
+    "alwaysVisible": true,
+    "createdAt": "2026-05-25T14:23:25.320Z"
+   },
+   {
+    "id": "c47851c4-d89d-47b4-b7e5-f7d90a6518db",
+    "name": "follow up 2",
+    "description": "Atribui ao lead o valor do segundo envio de mensagem de follow up",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 2,
+    "groupOrder": 3,
+    "alwaysVisible": true,
+    "createdAt": "2026-05-26T12:12:14.877Z"
+   },
+   {
+    "id": "39103217-0d90-4166-9d1f-30e3f888bc6b",
+    "name": "Follow up 3",
+    "description": "Atribui ao lead o valor do terceiro envio de mensagem de follow up",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 3,
+    "groupOrder": 3,
+    "alwaysVisible": true,
+    "createdAt": "2026-05-26T12:58:45.360Z"
+   },
+   {
+    "id": "1de33d20-ad51-4862-87ad-cbccd6cc84e7",
+    "name": "Follow up 4",
+    "description": "",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 4,
+    "groupOrder": 3,
+    "alwaysVisible": false,
+    "createdAt": "2026-07-27T19:48:23.335Z"
+   },
+   {
+    "id": "ba3ef2e1-b6f9-491d-8dd3-3409a89b7c1d",
+    "name": "Follow up 5",
+    "description": "",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 5,
+    "groupOrder": 3,
+    "alwaysVisible": false,
+    "createdAt": "2026-07-27T20:42:11.021Z"
+   },
+   {
+    "id": "45fa2a57-cb36-4f2e-bad8-d23b0e2910a6",
+    "name": "Follow up 6",
+    "description": "",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 6,
+    "groupOrder": 3,
+    "alwaysVisible": false,
+    "createdAt": "2026-07-27T20:47:28.896Z"
+   },
+   {
+    "id": "41002532-a9c7-40d7-9c2c-fb1bf6616db0",
+    "name": "Follow up 7",
+    "description": "",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 7,
+    "groupOrder": 3,
+    "alwaysVisible": false,
+    "createdAt": "2026-07-27T20:47:39.628Z"
+   },
+   {
+    "id": "2a5e03d7-62e0-4e7b-bf0b-1b34170bf790",
+    "name": "Lead finalizado?",
+    "description": "",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "mapeamento interno",
+    "order": 1,
+    "groupOrder": 4,
+    "alwaysVisible": false,
+    "createdAt": "2026-06-26T03:32:40.260Z"
+   },
+   {
+    "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4bb01",
+    "name": "FU etapa",
+    "description": "Follow-up v2: em que passo da regua o lead esta (1 a 5), ou 'esgotado' / 'sem_janela'.",
+    "type": "string",
+    "entity": "lead",
+    "isPublic": true,
+    "options": [],
+    "group": "Follow up",
+    "order": 8,
+    "groupOrder": 3,
+    "alwaysVisible": true,
+    "createdAt": "2026-09-03T00:00:00.000Z"
+   }
+  ],
+  "businessLossReasons": [
+   {
+    "id": "884a309f-602c-41bb-92b3-63b3c23640b0",
+    "name": "Não respondeu follow-up",
+    "requiredJustification": false,
+    "createdAt": "2026-04-14T21:02:05.173Z"
+   }
+  ],
+  "activityTypes": [],
+  "pipelines": [
+   {
+    "id": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+    "createdAt": "2026-05-22T14:22:46.625Z",
+    "updatedAt": "2026-07-27T19:26:12.730Z",
+    "name": "Follow up",
+    "description": "",
+    "image": "",
+    "group": "Gestão",
+    "stagesCount": 15,
+    "permissions": {
+     "id": "d4ba31be-da0a-42e1-ae2e-5cbcd2833522",
+     "createdAt": "2026-09-03T03:24:43.115Z",
+     "disableAttendantChange": false,
+     "disableDelete": false,
+     "showOnlyMine": false,
+     "disableCreate": false
+    },
+    "stages": [
+     {
+      "id": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+      "createdAt": "2026-05-22T14:22:49.439Z",
+      "updatedAt": null,
+      "name": "Follow-up 1 ",
+      "color": "#6B7280",
+      "index": 0,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "1c24a3b9-0806-4805-a630-b9a7a4a4ddcf",
+      "createdAt": "2026-05-22T14:22:50.918Z",
+      "updatedAt": null,
+      "name": "Follow-up 2",
+      "color": "#818CF8",
+      "index": 1,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "eb4ec26c-3d6c-46f2-8f2f-c958e94374ef",
+      "createdAt": "2026-05-22T14:22:51.534Z",
+      "updatedAt": null,
+      "name": "Follow-up 3",
+      "color": "#7DD3FC",
+      "index": 2,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "97027288-8c67-4cf9-bcc9-2f30256b0bd8",
+      "createdAt": "2026-07-27T19:22:50.702Z",
+      "updatedAt": null,
+      "name": "Follow Up 4",
+      "color": "#3B82F6",
+      "index": 3,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "d3787e51-d371-41f9-bceb-efe64e8d58bf",
+      "createdAt": "2026-07-27T19:23:07.034Z",
+      "updatedAt": null,
+      "name": "Follow Up 5",
+      "color": "#3B82F6",
+      "index": 4,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "f721e4be-e9ca-443d-8e6e-649445baf26f",
+      "createdAt": "2026-07-27T19:23:12.277Z",
+      "updatedAt": null,
+      "name": "Follow Up 6",
+      "color": "#3B82F6",
+      "index": 5,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "36aa0d55-051e-4c71-b6ee-84420475df34",
+      "createdAt": "2026-07-27T19:23:18.024Z",
+      "updatedAt": null,
+      "name": "Follow Up 7",
+      "color": "#3B82F6",
+      "index": 6,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "91165598-bf89-459f-9448-7ab00891d70a",
+      "createdAt": "2026-05-22T14:24:57.607Z",
+      "updatedAt": null,
+      "name": "Lead não respondeu",
+      "color": "#FCA5A1",
+      "index": 7,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "64800daf-af2c-436a-8179-a2f5c71fa4b8",
+      "createdAt": "2026-05-22T14:22:52.158Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 1",
+      "color": "#3B82F6",
+      "index": 8,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "d029d5a7-91cd-4166-ac4d-32b673ff7b49",
+      "createdAt": "2026-05-22T14:24:08.731Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 2",
+      "color": "#EA580C",
+      "index": 9,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "9e34b56a-b8eb-4a53-a89f-e5034bae4ae8",
+      "createdAt": "2026-05-22T14:24:10.322Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 3",
+      "color": "#FCA5A1",
+      "index": 10,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "1ffdf289-bf40-4e37-85c6-afd94fcfec4c",
+      "createdAt": "2026-07-27T19:23:43.247Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 4",
+      "color": "#3B82F6",
+      "index": 11,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "c5f694f1-c0cd-47f3-b51e-629282cc0f0a",
+      "createdAt": "2026-07-27T19:23:49.312Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 5",
+      "color": "#3B82F6",
+      "index": 12,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "494f0924-8628-44df-97a4-60b3d61c231b",
+      "createdAt": "2026-07-27T19:23:53.224Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 6",
+      "color": "#3B82F6",
+      "index": 13,
+      "activitiesCount": 0,
+      "activities": []
+     },
+     {
+      "id": "feacf478-2764-4e22-adc2-cbf359035707",
+      "createdAt": "2026-07-27T19:23:57.608Z",
+      "updatedAt": null,
+      "name": "Resposta Follow-up 7",
+      "color": "#3B82F6",
+      "index": 14,
+      "activitiesCount": 0,
+      "activities": []
+     }
+    ]
+   }
+  ],
+  "departments": [],
+  "workingHours": [],
+  "automations": [
+   {
+    "id": "f2000000-aaaa-4000-8000-000000000001",
+    "name": "Follow up v2 — 24h (proposta)",
+    "description": "Régua de 5 mensagens dentro da janela de 24h, sem template pago e sem depender do vendedor. Toda ação é automática: tag, movimentação de card, nota interna na conversa, perda registrada e atendimento finalizado.",
+    "group": "Mensageiros",
+    "active": false,
+    "imageUrl": "",
+    "loopLevel": 1,
+    "versionId": "f2000000-aaaa-4000-8000-000000000002",
+    "versionName": "Follow up v2 — 24h (proposta)",
+    "version": 1,
+    "tenantId": "42929e81-3624-4232-8665-2ff1b86f0b2d",
+    "notes": [
+     {
+      "options": {
+       "text": "GATILHO — mensagem enviada pela empresa (as duas instâncias).\n\ninitializeSession = only-if-finished: enquanto uma sessão de follow-up estiver rodando, uma nova NÃO começa. É isso que impede a automação de atropelar o vendedor a cada mensagem que ele manda.",
+       "color": "#fde68a",
+       "width": 340,
+       "height": 240
+      },
+      "presentation": {
+       "x": -40.0,
+       "y": -260.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000117"
+     },
+     {
+      "options": {
+       "text": "TRAVA DE ENTRADA\n\nSai do fluxo se o lead tiver: Interno, Não receber follow-up ou Cliente ativo.\nA saída é explícita (para as automações da conversa) — nenhum ramo termina em vazio neste fluxo.",
+       "color": "#fecaca",
+       "width": 340,
+       "height": 220
+      },
+      "presentation": {
+       "x": 340.0,
+       "y": -260.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000118"
+     },
+     {
+      "options": {
+       "text": "ESPERA INICIAL: 45 min\n\nRespira antes de falar. Se o cliente responder nesses 45 min é conversa normal — a automação só se cala e sai, sem tag e sem mover card.",
+       "color": "#bfdbfe",
+       "width": 340,
+       "height": 200
+      },
+      "presentation": {
+       "x": 720.0,
+       "y": -260.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000119"
+     },
+     {
+      "options": {
+       "text": "TUDO ISTO ACONTECE SOZINHO QUANDO O CLIENTE RESPONDE:\n\n1) para as automações da conversa\n2) tira as tags de follow-up e põe \"FU - Respondeu\" (aparece na lista de conversas)\n3) move o card para \"Resposta Follow-up N\" (aparece no kanban)\n4) escreve uma NOTA INTERNA dentro da própria conversa\n\nNenhuma notificação é enviada — de propósito.",
+       "color": "#bbf7d0",
+       "width": 420,
+       "height": 300
+      },
+      "presentation": {
+       "x": 1480.0,
+       "y": -1150.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000120"
+     },
+     {
+      "options": {
+       "text": "HORÁRIO DE ATENDIMENTO — Seg a Sex 08:00–18:00 · Sáb 08:00–16:00 · fuso America/Fortaleza.\n\nFora do horário: espera 1h e testa de novo (laço). Não existe tratamento especial de fim de semana: quem ficar parado até a janela de 24h fechar cai no encerramento \"sem janela\", que é o desfecho correto.",
+       "color": "#e9d5ff",
+       "width": 400,
+       "height": 260
+      },
+      "presentation": {
+       "x": 1480.0,
+       "y": 780.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000121"
+     },
+     {
+      "options": {
+       "text": "JANELA DE 24h — testada ANTES de cada envio.\n\nNo passo 1 a janela fechada só encerra a sessão em silêncio (pode ser o vendedor falando com um lead antigo).\nDo passo 2 em diante ela vai para o encerramento \"FU - Sem janela\", com nota interna e card movido.",
+       "color": "#fed7aa",
+       "width": 400,
+       "height": 260
+      },
+      "presentation": {
+       "x": 2620.0,
+       "y": 780.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000122"
+     },
+     {
+      "options": {
+       "text": "RÉGUA — 5 mensagens dentro da janela de 24h, sem template pago:\n\nM1  +45min   valor + fábrica própria + pergunta de medida\nM2  +2h      pronta entrega / prazo (informação nova)\nM3  +3h      quebra de objeção de preço (maior causa de perda)\nM4  +4h      prova social / garantia\nM5  +5h      última chamada, 1️⃣2️⃣3️⃣\nfim +3h      encerra e registra a perda\n\nTotal: 17h45 — cabe na janela com folga para o laço de horário.",
+       "color": "#fde68a",
+       "width": 460,
+       "height": 340
+      },
+      "presentation": {
+       "x": 1480.0,
+       "y": 1180.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000123"
+     },
+     {
+      "options": {
+       "text": "⚠️ CONFERIR ANTES DE ATIVAR\n\nA mensagem 3 fala em \"parcelado sem juros\" e \"desconto no Pix\" SEM número, de propósito: hoje circulam 3x, 5x e 7x sem juros na mesma semana e o desconto do Pix aparece em um atendimento só.\n\nPadronize a política e escreva o número aqui antes de ligar.",
+       "color": "#fecaca",
+       "width": 420,
+       "height": 280
+      },
+      "presentation": {
+       "x": 2620.0,
+       "y": 1180.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000124"
+     },
+     {
+      "options": {
+       "text": "POR QUE 5 MENSAGENS E NÃO 7\n\nNo fluxo antigo as mensagens 1, 2 e 3 eram a mesma pergunta em 1h15, e a 7ª nunca chegou a sair (0 execuções em 296 leads que chegaram lá — a janela de 24h já tinha fechado). Aqui cada mensagem tem um trabalho diferente e a última sai com folga dentro da janela.",
+       "color": "#e5e7eb",
+       "width": 420,
+       "height": 280
+      },
+      "presentation": {
+       "x": -40.0,
+       "y": 1180.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000125"
+     },
+     {
+      "options": {
+       "text": "ENCERRAMENTO ÚNICO — ESGOTADO\n\nTodos os caminhos que acabam sem resposta passam por aqui. É a correção do defeito mais caro do fluxo antigo: lá o lose-business ficava depois de uma etapa que nunca rodava, então NENHUM lead jamais foi marcado como perdido e o funil ficava cego.",
+       "color": "#fecaca",
+       "width": 420,
+       "height": 260
+      },
+      "presentation": {
+       "x": 9000.0,
+       "y": -320.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000126"
+     },
+     {
+      "options": {
+       "text": "ENCERRAMENTO — SEM JANELA\n\nSeparado de propósito do \"esgotado\": aqui o lead não recebeu a régua inteira, então marcar como perdido sujaria o dado. Fica com tag própria para ser filtrado.",
+       "color": "#fed7aa",
+       "width": 420,
+       "height": 220
+      },
+      "presentation": {
+       "x": 9000.0,
+       "y": 1180.0
+      },
+      "id": "f2000000-0000-4000-8000-000000000127"
+     }
+    ],
+    "blocks": [
+     {
+      "id": "f2000000-0000-4000-8000-000000000067",
+      "type": "trigger",
+      "sourceBlockId": null,
+      "options": {
+       "triggers": [
+        {
+         "name": "message-sended-trigger",
+         "group": "messages",
+         "options": {
+          "type": "contains",
+          "keywords": [],
+          "instanceId": "6994840c514e31418c446776",
+          "listenGroup": false,
+          "receiveJson": true,
+          "datasourceName": "Message-1",
+          "datasourceColor": "#3b82f6",
+          "initializeSession": "only-if-finished",
+          "includeScheduledMessages": true
+         }
+        },
+        {
+         "name": "message-sended-trigger",
+         "group": "messages",
+         "options": {
+          "type": "contains",
+          "keywords": [],
+          "instanceId": "6988930df408d466301b3e7e",
+          "listenGroup": false,
+          "receiveJson": true,
+          "datasourceName": "Message-2",
+          "datasourceColor": "#6366f1",
+          "initializeSession": "only-if-finished",
+          "includeScheduledMessages": true
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000001"
+      },
+      "presentation": {
+       "x": 0.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000001",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000068",
+         "name": "lead-has-tag-condition",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "099d4233-7b4e-44f4-9e53-54a2c7e97d30"
+          ],
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "099d4233-7b4e-44f4-9e53-54a2c7e97d30",
+             "name": "Interno",
+             "description": "",
+             "color": "#000000"
+            }
+           ]
+          }
+         },
+         "nextBlockId": null
+        },
+        {
+         "id": "f2000000-0000-4000-8000-000000000069",
+         "name": "lead-has-tag-condition",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dcf43399-d9de-4c8d-894c-28321ce7927b"
+          ],
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dcf43399-d9de-4c8d-894c-28321ce7927b",
+             "name": "Não receber follow-up",
+             "description": "",
+             "color": "#FCA5A1"
+            }
+           ]
+          }
+         },
+         "nextBlockId": null
+        },
+        {
+         "id": "f2000000-0000-4000-8000-000000000070",
+         "name": "lead-has-tag-condition",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "8156a247-e62f-4e90-9bde-acfea77572c7"
+          ],
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "8156a247-e62f-4e90-9bde-acfea77572c7",
+             "name": "Cliente ativo",
+             "description": "",
+             "color": "#10B981"
+            }
+           ]
+          }
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000002",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000003"
+      },
+      "presentation": {
+       "x": 380.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000002",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        }
+       ],
+       "nextBlockId": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 380.0,
+       "y": -380.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000003",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000071",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "minutes",
+          "timeoutInSeconds": 2700,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000006",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000004",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 760.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000004",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        }
+       ],
+       "nextBlockId": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 760.0,
+       "y": -380.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000005",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        }
+       ],
+       "nextBlockId": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 1140.0,
+       "y": 380.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000006",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000072",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T21:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000009",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000007"
+      },
+      "presentation": {
+       "x": 1520.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000007",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000073",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T19:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           6
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000009",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000008"
+      },
+      "presentation": {
+       "x": 1520.0,
+       "y": 300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000008",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000074",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "minutes",
+          "timeoutInSeconds": 3600,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000006",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000004",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 1700.0,
+       "y": 600.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000009",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000075",
+         "name": "conversation-window-is-open-condition",
+         "group": "messages",
+         "options": {
+          "hours": 24
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000056",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000005"
+      },
+      "presentation": {
+       "x": 1900.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000056",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000076",
+         "name": "lead-has-business-on-stage-condition",
+         "group": "lead",
+         "options": {
+          "stageId": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+             "name": "Follow-up 1 ",
+             "color": "#6B7280",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000057",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000010"
+      },
+      "presentation": {
+       "x": 2280.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000057",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+             "name": "Follow-up 1 ",
+             "color": "#6B7280",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000011",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 2280.0,
+       "y": -300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000010",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "create-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "49cf1b11-48ad-459e-aa51-05bd4db8be86",
+             "name": "Follow-up 1 ",
+             "color": "#6B7280",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000011",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 2280.0,
+       "y": 300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000011",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000077",
+         "options": {
+          "text": "{Primeiro nome do lead|leadFirstName}, tudo bem? 😊\n\nEnquanto isso já adianto o que costuma pesar na decisão:\n\n🏭 Somos fábrica própria aqui em Natal — por isso o preço fica bem abaixo de um móvel planejado\n🚚 Dependendo do seu bairro eu consigo frete grátis e o móvel já montado\n💳 E você só paga quando receber\n\nPra eu te indicar o modelo certo: você já sabe a medida do espaço onde o móvel vai ficar?",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000012",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 2660.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000012",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000013",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000078",
+         "options": {
+          "value": "1",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 3040.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000013",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000079",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "hours",
+          "timeoutInSeconds": 7200,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000016",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000014",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 3420.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000014",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        },
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "64800daf-af2c-436a-8179-a2f5c71fa4b8",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "64800daf-af2c-436a-8179-a2f5c71fa4b8",
+             "name": "Resposta Follow-up 1",
+             "color": "#3B82F6",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000015",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 3420.0,
+       "y": -420.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000015",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000080",
+         "options": {
+          "text": "🔔 O CLIENTE RESPONDEU AO FOLLOW-UP 1 (0h45 depois da última mensagem da loja).\n\nA automática parou sozinha. O card foi para \"Resposta Follow-up 1\" e o lead recebeu a tag \"FU - Respondeu\".\n\nÚltima mensagem automática enviada:\n{Primeiro nome do lead|leadFirstName}, tudo bem? 😊  Enquanto isso já adianto o que costuma pesar na decisão:  🏭 Somos fá...",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 3600.0,
+       "y": -760.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000016",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000081",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T21:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000019",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000017"
+      },
+      "presentation": {
+       "x": 3800.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000017",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000082",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T19:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           6
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000019",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000018"
+      },
+      "presentation": {
+       "x": 3800.0,
+       "y": 300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000018",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000083",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "minutes",
+          "timeoutInSeconds": 3600,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000016",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000014",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 3980.0,
+       "y": 600.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000019",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000084",
+         "name": "conversation-window-is-open-condition",
+         "group": "messages",
+         "options": {
+          "hours": 24
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000020",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000063"
+      },
+      "presentation": {
+       "x": 4180.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000020",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "1be789ad-3581-4110-8aa7-01e7313edefb"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "1c24a3b9-0806-4805-a630-b9a7a4a4ddcf",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "1c24a3b9-0806-4805-a630-b9a7a4a4ddcf",
+             "name": "Follow-up 2",
+             "color": "#818CF8",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000021",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 4560.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000021",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000085",
+         "options": {
+          "text": "Uma informação que costuma ajudar na decisão: a maior parte dos nossos móveis é *pronta entrega* — sai em poucos dias, montado, sem a espera de semanas de um planejado.\n\nQuer que eu confirme o prazo de entrega para o seu bairro?",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000022",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 4940.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000022",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000023",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000086",
+         "options": {
+          "value": "2",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 5320.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000023",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000087",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "hours",
+          "timeoutInSeconds": 10800,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000026",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000024",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 5700.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000024",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        },
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "d029d5a7-91cd-4166-ac4d-32b673ff7b49",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "d029d5a7-91cd-4166-ac4d-32b673ff7b49",
+             "name": "Resposta Follow-up 2",
+             "color": "#EA580C",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000025",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 5700.0,
+       "y": -420.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000025",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000088",
+         "options": {
+          "text": "🔔 O CLIENTE RESPONDEU AO FOLLOW-UP 2 (2h45 depois da última mensagem da loja).\n\nA automática parou sozinha. O card foi para \"Resposta Follow-up 2\" e o lead recebeu a tag \"FU - Respondeu\".\n\nÚltima mensagem automática enviada:\nUma informação que costuma ajudar na decisão: a maior parte dos nossos móveis é *pronta entrega* — sai em poucos dias, m...",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 5880.0,
+       "y": -760.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000026",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000089",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T21:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000029",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000027"
+      },
+      "presentation": {
+       "x": 6080.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000027",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000090",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T19:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           6
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000029",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000028"
+      },
+      "presentation": {
+       "x": 6080.0,
+       "y": 300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000028",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000091",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "minutes",
+          "timeoutInSeconds": 3600,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000026",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000024",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 6260.0,
+       "y": 600.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000029",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000092",
+         "name": "conversation-window-is-open-condition",
+         "group": "messages",
+         "options": {
+          "hours": 24
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000030",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000063"
+      },
+      "presentation": {
+       "x": 6460.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000030",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "eb4ec26c-3d6c-46f2-8f2f-c958e94374ef",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "eb4ec26c-3d6c-46f2-8f2f-c958e94374ef",
+             "name": "Follow-up 3",
+             "color": "#7DD3FC",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000031",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 6840.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000031",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000093",
+         "options": {
+          "text": "{Primeiro nome do lead|leadFirstName}, se o que te fez pensar foi o valor, eu tenho dois caminhos:\n\n💳 Parcelado sem juros no cartão\n💰 Ou desconto à vista no Pix\n\nE em qualquer um dos dois você só paga quando o móvel chegar montado na sua casa.\n\nQual dos dois encaixa melhor pra você?",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000032",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 7220.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000032",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000033",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000094",
+         "options": {
+          "value": "3",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 7600.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000033",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000095",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "hours",
+          "timeoutInSeconds": 14400,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000036",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000034",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 7980.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000034",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        },
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "9e34b56a-b8eb-4a53-a89f-e5034bae4ae8",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "9e34b56a-b8eb-4a53-a89f-e5034bae4ae8",
+             "name": "Resposta Follow-up 3",
+             "color": "#FCA5A1",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000035",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 7980.0,
+       "y": -420.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000035",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000096",
+         "options": {
+          "text": "🔔 O CLIENTE RESPONDEU AO FOLLOW-UP 3 (5h45 depois da última mensagem da loja).\n\nA automática parou sozinha. O card foi para \"Resposta Follow-up 3\" e o lead recebeu a tag \"FU - Respondeu\".\n\nÚltima mensagem automática enviada:\n{Primeiro nome do lead|leadFirstName}, se o que te fez pensar foi o valor, eu tenho dois caminhos:  💳 Parcelado sem juro...",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 8160.0,
+       "y": -760.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000036",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000097",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T21:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000039",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000037"
+      },
+      "presentation": {
+       "x": 8360.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000037",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000098",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T19:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           6
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000039",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000038"
+      },
+      "presentation": {
+       "x": 8360.0,
+       "y": 300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000038",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000099",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "minutes",
+          "timeoutInSeconds": 3600,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000036",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000034",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 8540.0,
+       "y": 600.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000039",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000100",
+         "name": "conversation-window-is-open-condition",
+         "group": "messages",
+         "options": {
+          "hours": 24
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000040",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000063"
+      },
+      "presentation": {
+       "x": 8740.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000040",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "97027288-8c67-4cf9-bcc9-2f30256b0bd8",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "97027288-8c67-4cf9-bcc9-2f30256b0bd8",
+             "name": "Follow Up 4",
+             "color": "#3B82F6",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000041",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 9120.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000041",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000101",
+         "options": {
+          "text": "Só pra te deixar tranquilo(a): a Domoby tem fábrica e loja física aqui em Natal. O móvel sai da nossa produção, chega montado na sua casa e, se houver qualquer problema, a gente resolve — você sabe onde nos encontrar.\n\nQuer que eu te mande o vídeo desse móvel montado?",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000042",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 9500.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000042",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000043",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000102",
+         "options": {
+          "value": "4",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 9880.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000043",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000103",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "hours",
+          "timeoutInSeconds": 18000,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000046",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000044",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 10260.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000044",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        },
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "1ffdf289-bf40-4e37-85c6-afd94fcfec4c",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "1ffdf289-bf40-4e37-85c6-afd94fcfec4c",
+             "name": "Resposta Follow-up 4",
+             "color": "#3B82F6",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000045",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 10260.0,
+       "y": -420.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000045",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000104",
+         "options": {
+          "text": "🔔 O CLIENTE RESPONDEU AO FOLLOW-UP 4 (9h45 depois da última mensagem da loja).\n\nA automática parou sozinha. O card foi para \"Resposta Follow-up 4\" e o lead recebeu a tag \"FU - Respondeu\".\n\nÚltima mensagem automática enviada:\nSó pra te deixar tranquilo(a): a Domoby tem fábrica e loja física aqui em Natal. O móvel sai da nossa produção, chega mo...",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 10440.0,
+       "y": -760.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000046",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000105",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T21:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000049",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000047"
+      },
+      "presentation": {
+       "x": 10640.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000047",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000106",
+         "name": "current-time-interval-condition",
+         "group": "time",
+         "options": {
+          "endTime": "1970-01-01T19:00:00.000Z",
+          "timezone": "America/Fortaleza",
+          "startTime": "1970-01-01T11:00:00.000Z",
+          "daysOfWeek": [
+           6
+          ]
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000049",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000048"
+      },
+      "presentation": {
+       "x": 10640.0,
+       "y": 300.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000048",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000107",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "minutes",
+          "timeoutInSeconds": 3600,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000046",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000044",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 10820.0,
+       "y": 600.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000049",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+       "conditions": [
+        {
+         "id": "f2000000-0000-4000-8000-000000000108",
+         "name": "conversation-window-is-open-condition",
+         "group": "messages",
+         "options": {
+          "hours": 24
+         },
+         "nextBlockId": null
+        }
+       ],
+       "trueNextBlockId": "f2000000-0000-4000-8000-000000000050",
+       "falseNextBlockId": "f2000000-0000-4000-8000-000000000063"
+      },
+      "presentation": {
+       "x": 11020.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000050",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "7882d481-d52d-4a48-8be2-b347134cdda8"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "d3787e51-d371-41f9-bceb-efe64e8d58bf",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "d3787e51-d371-41f9-bceb-efe64e8d58bf",
+             "name": "Follow Up 5",
+             "color": "#3B82F6",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000051",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 11400.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000051",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000109",
+         "options": {
+          "text": "{Primeiro nome do lead|leadFirstName}, essa é minha última mensagem para não ficar te incomodando 🙂\n\nSe ainda fizer sentido, eu deixo o seu móvel *reservado* com frete grátis e montagem inclusos.\n\nMe responde só com um número:\n1️⃣ Quero reservar\n2️⃣ Ainda estou decidindo\n3️⃣ Pode encerrar\n\nSe não responder, eu encerro por aqui — e é só me chamar quando quiser voltar. 👋",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000052",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 11780.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000052",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000053",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000110",
+         "options": {
+          "value": "5",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 12160.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000053",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "text-input-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000111",
+         "options": {
+          "text": "",
+          "parameter": "",
+          "acceptMediaUrl": true,
+          "timeoutWaitType": "hours",
+          "timeoutInSeconds": 10800,
+          "timeoutNextBlockId": "f2000000-0000-4000-8000-000000000058",
+          "invalidResponseMessage": ""
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000054",
+       "isAnnotation": false,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 12540.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000054",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "stop-chat-automations-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        },
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "c5f694f1-c0cd-47f3-b51e-629282cc0f0a",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "c5f694f1-c0cd-47f3-b51e-629282cc0f0a",
+             "name": "Resposta Follow-up 5",
+             "color": "#3B82F6",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000055",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 12540.0,
+       "y": -420.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000055",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000112",
+         "options": {
+          "text": "🔔 O CLIENTE RESPONDEU AO FOLLOW-UP 5 (14h45 depois da última mensagem da loja).\n\nA automática parou sozinha. O card foi para \"Resposta Follow-up 5\" e o lead recebeu a tag \"FU - Respondeu\".\n\nÚltima mensagem automática enviada:\n{Primeiro nome do lead|leadFirstName}, essa é minha última mensagem para não ficar te incomodando 🙂  Se ainda fizer sent...",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 12720.0,
+       "y": -760.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000058",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000113",
+         "options": {
+          "text": "⛔ FOLLOW-UP ESGOTADO — 5 mensagens enviadas em ~17h45 e o cliente não respondeu nenhuma.\n\nO que a automação já fez sozinha:\n• card movido para \"Lead não respondeu\"\n• negócio marcado como PERDIDO (motivo: Não respondeu follow-up)\n• tag \"FU - Esgotado\" aplicada\n• atendimento finalizado\n\nNada a fazer aqui. Se o cliente voltar a escrever, a conversa reabre normalmente.",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000059",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 12920.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000059",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "91165598-bf89-459f-9448-7ab00891d70a",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "91165598-bf89-459f-9448-7ab00891d70a",
+             "name": "Lead não respondeu",
+             "color": "#FCA5A1",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000060",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 13300.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000060",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "lose-business-action",
+         "group": "business",
+         "options": {
+          "lossReasonId": "884a309f-602c-41bb-92b3-63b3c23640b0",
+          "justification": "",
+          "resolvedReferences": {
+           "businessLossReasons": [
+            {
+             "id": "884a309f-602c-41bb-92b3-63b3c23640b0",
+             "name": "Não respondeu follow-up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000061",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 13680.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000061",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000062",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000114",
+         "options": {
+          "value": "esgotado",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 14060.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000062",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "finish-conversation-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        }
+       ],
+       "nextBlockId": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 14440.0,
+       "y": 0.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000063",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+       "messages": [
+        {
+         "name": "send-text-message",
+         "group": "messages",
+         "stepId": "f2000000-0000-4000-8000-000000000115",
+         "options": {
+          "text": "⚠️ FOLLOW-UP INTERROMPIDO — a janela de 24h do WhatsApp fechou antes de terminar a régua.\n\nO cliente parou de responder e não é mais possível enviar mensagem livre para ele.\n\nO que a automação já fez sozinha:\n• card movido para \"Lead não respondeu\"\n• tag \"FU - Sem janela\" aplicada\n• atendimento finalizado\n\nO negócio NÃO foi marcado como perdido de propósito: o lead não recebeu a régua inteira. Para recuperar seria preciso template aprovado (HSM) ou contato por outro canal.",
+          "buttons": [],
+          "breakMessages": false,
+          "breakMessagesIntervalInSeconds": 2
+         }
+        }
+       ],
+       "platform": "",
+       "provider": "",
+       "timezone": "",
+       "contactId": "",
+       "instanceId": "",
+       "nextBlockId": "f2000000-0000-4000-8000-000000000064",
+       "isAnnotation": true,
+       "scheduledDate": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 13300.0,
+       "y": 900.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000064",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "remove-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+           "1be789ad-3581-4110-8aa7-01e7313edefb",
+           "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+           "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+           "7882d481-d52d-4a48-8be2-b347134cdda8",
+           "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+           "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "dc1245e6-5ca7-4ce4-9e5a-2097ecf01ba6",
+             "name": "Em follow up 1",
+             "description": "",
+             "color": "#3B82F6"
+            },
+            {
+             "id": "1be789ad-3581-4110-8aa7-01e7313edefb",
+             "name": "Em follow up 2",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "c08f4ba5-cd31-4ce4-9d99-faeed3ced97a",
+             "name": "Em follow up 3",
+             "description": "",
+             "color": "#7DD3FC"
+            },
+            {
+             "id": "d6014d3e-e89e-4474-8ee0-5277c86ce536",
+             "name": "Em follow up 4",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "7882d481-d52d-4a48-8be2-b347134cdda8",
+             "name": "Em follow up 5",
+             "description": "",
+             "color": "#22D3EE"
+            },
+            {
+             "id": "ac81aa20-cca2-4f10-9992-94abcb1575c5",
+             "name": "Em follow up 6",
+             "description": "",
+             "color": "#F472B6"
+            },
+            {
+             "id": "1fb20a69-56c6-49be-8c42-6dc3695a0080",
+             "name": "Em follow up 7",
+             "description": "",
+             "color": "#6366F1"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa01",
+             "name": "FU - Respondeu",
+             "description": "",
+             "color": "#16A34A"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa02",
+             "name": "FU - Esgotado",
+             "description": "",
+             "color": "#6B7280"
+            },
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "add-tag-action",
+         "group": "lead",
+         "options": {
+          "tagIds": [
+           "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03"
+          ],
+          "tagName": "",
+          "resolvedReferences": {
+           "tags": [
+            {
+             "id": "b1f0a7c2-9d34-4e51-8a76-5c2e10d4aa03",
+             "name": "FU - Sem janela",
+             "description": "",
+             "color": "#F59E0B"
+            }
+           ]
+          }
+         }
+        },
+        {
+         "name": "move-business-action",
+         "group": "business",
+         "options": {
+          "stageId": "91165598-bf89-459f-9448-7ab00891d70a",
+          "resolvedReferences": {
+           "stages": [
+            {
+             "id": "91165598-bf89-459f-9448-7ab00891d70a",
+             "name": "Lead não respondeu",
+             "color": "#FCA5A1",
+             "pipelineId": "aa2daae5-1637-49af-977d-b7db75bd42cb",
+             "pipelineName": "Follow up"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "nextBlockId": "f2000000-0000-4000-8000-000000000065",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 13680.0,
+       "y": 900.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000065",
+      "type": "field-operation",
+      "sourceBlockId": null,
+      "options": {
+       "nextBlockId": "f2000000-0000-4000-8000-000000000066",
+       "errorNextBlockId": "",
+       "fieldOperations": [
+        {
+         "name": "set-field-operation",
+         "group": "field",
+         "stepId": "f2000000-0000-4000-8000-000000000116",
+         "options": {
+          "value": "sem_janela",
+          "parameter": "additional-field[FU etapa]"
+         }
+        }
+       ]
+      },
+      "presentation": {
+       "x": 14060.0,
+       "y": 900.0
+      }
+     },
+     {
+      "id": "f2000000-0000-4000-8000-000000000066",
+      "type": "action",
+      "sourceBlockId": null,
+      "options": {
+       "actions": [
+        {
+         "name": "finish-conversation-action",
+         "group": "messages",
+         "options": {
+          "type": "current-conversation",
+          "instanceId": ""
+         }
+        }
+       ],
+       "nextBlockId": "",
+       "errorNextBlockId": ""
+      },
+      "presentation": {
+       "x": 14440.0,
+       "y": 900.0
+      }
+     }
+    ]
+   }
+  ]
+ }
+}
