@@ -2923,6 +2923,163 @@ await deveRecusarExec(
 )
 await bd.exec(`update public.plt_usuarios set tema = 'claro' where auth_user_id = '${genteS19.comum}'::uuid`)
 
+titulo('Dashboards de verdade (SESSAO-16/D-42): retrato de agora, dia e gates')
+
+// Admin de novo: as portas novas medem a fábrica inteira para ele.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+
+// 1 · O retrato de agora fecha com a conta manual sobre os cards projetados.
+const agoraManual = (
+  await bd.query(`
+    select count(*) filter (where c.executor_atual_id is null)::int     as fila,
+           count(*) filter (where c.executor_atual_id is not null)::int as exec
+      from public.plt_cards c
+      join public.plt_setores s on s.id = c.setor_atual_id
+     where c.tipo = 'unidade' and c.arquivado_em is null and c.concluido_em is null
+       and s.ativo and s.papel_no_fluxo = 'producao'`)
+).rows[0]
+const agoraPorta = (
+  await bd.query(`select na_fila, em_execucao from public.plt_fn_dash_agora() where setor_id is null`)
+).rows[0]
+conferir(
+  agoraPorta !== undefined
+    && agoraPorta.na_fila === agoraManual.fila
+    && agoraPorta.em_execucao === agoraManual.exec,
+  'o retrato de agora (linha total) BATE com a conta manual dos cards vivos',
+  `porta=${JSON.stringify(agoraPorta)} manual=${JSON.stringify(agoraManual)}`,
+)
+const agoraSetores = (
+  await bd.query(`
+    select count(*)::int as linhas,
+           count(*) filter (where setor_codigo in ('estoque','rotas','pcp'))::int as fora
+      from public.plt_fn_dash_agora() where setor_id is not null`)
+).rows[0]
+conferir(
+  agoraSetores.linhas === 6 && agoraSetores.fora === 0,
+  'os tiles do andon são só os 6 setores de produção — PCP (entrada) e terminais têm leitura própria',
+  JSON.stringify(agoraSetores),
+)
+
+// 2 · "Concluída = chegou ao terminal final" (resposta do dono, 17/09): o herói
+// do dia, a soma por hora e o fim de linha contam A MESMA coisa.
+const concluidasManual = (
+  await bd.query(`
+    select count(distinct e.card_id)::int as total
+      from public.plt_eventos e
+      join public.plt_cards c on c.id = e.card_id and c.tipo = 'unidade'
+      join public.plt_setores s on s.id = e.setor_destino_id and s.papel_no_fluxo = 'terminal'
+     where e.tipo = 'movimentacao_setor'
+       and (e.ocorrido_em at time zone 'America/Fortaleza')::date
+           = (now() at time zone 'America/Fortaleza')::date`)
+).rows[0].total
+const diaPorta = (
+  await bd.query(`select concluidas_dia, aguardando_lancamento from public.plt_fn_dash_dia()`)
+).rows[0]
+const somaHoras = (
+  await bd.query(`select coalesce(sum(concluidas), 0)::int as total from public.plt_fn_dash_producao_hora()`)
+).rows[0].total
+conferir(
+  diaPorta !== undefined
+    && diaPorta.concluidas_dia === concluidasManual
+    && somaHoras === concluidasManual
+    && concluidasManual >= 1,
+  'concluídas do dia = chegadas ao terminal: herói, soma por hora e conta manual idênticos',
+  `dia=${diaPorta?.concluidas_dia} horas=${somaHoras} manual=${concluidasManual}`,
+)
+const fimDeLinha = (
+  await bd.query(`select destino, quantidade from public.plt_fn_dash_fim_de_linha()`)
+).rows
+const somaDestinos = fimDeLinha
+  .filter((d) => d.destino !== 'danificado')
+  .reduce((s, d) => s + d.quantidade, 0)
+conferir(
+  somaDestinos === concluidasManual,
+  'o fim de linha do dia distribui exatamente as concluídas entre os terminais',
+  JSON.stringify(fimDeLinha),
+)
+
+// 3 · O tile do PCP fecha com a conta manual de pedidos com unidade por liberar.
+const pcpManual = (
+  await bd.query(`
+    select count(*)::int as total
+      from public.plt_cards pc
+      join public.pedidos p on p.id = pc.pedido_id
+     where pc.tipo = 'pedido' and pc.arquivado_em is null
+       and plt_privado.fn_situacao_normalizada(p.situacao) is distinct from 'cancelado'
+       and (select count(*) from public.plt_cards cu
+             where cu.pedido_id = p.id and cu.tipo = 'unidade' and cu.arquivado_em is null)
+           < (select coalesce(sum(case when round(pi.quantidade) >= 1
+                                       then round(pi.quantidade)::int else 0 end), 0)
+                from public.pedido_itens pi where pi.pedido_id = p.id)`)
+).rows[0].total
+const pcpPorta = (
+  await bd.query(`select pedidos_a_liberar, unidades_liberadas_dia from public.plt_fn_dash_pcp_dia()`)
+).rows[0]
+conferir(
+  pcpPorta !== undefined
+    && pcpPorta.pedidos_a_liberar === pcpManual
+    && pcpPorta.unidades_liberadas_dia >= 1,
+  'tile do PCP: pedidos a liberar bate com a conta manual e as liberações do dia aparecem',
+  `porta=${JSON.stringify(pcpPorta)} manual=${pcpManual}`,
+)
+
+// 4 · Danificados em aberto = os cards na etapa DANIFICADO agora, nem mais nem menos.
+const danifManual = (
+  await bd.query(`
+    select count(*)::int as total
+      from public.plt_cards c
+      join public.plt_etapas et on et.id = c.etapa_atual_id and et.eh_danificado
+     where c.tipo = 'unidade' and c.arquivado_em is null`)
+).rows[0].total
+const danifPorta = (
+  await bd.query(`
+    select coalesce(sum(quantidade), 0)::int as total from public.plt_fn_dash_danificados_abertos()`)
+).rows[0].total
+conferir(
+  danifPorta === danifManual,
+  'danificados em aberto: a porta espelha exatamente a etapa DANIFICADO',
+  `porta=${danifPorta} manual=${danifManual}`,
+)
+
+// 5 · Tendência semanal: para o admin, a semana corrente traz as unidades
+// concluídas com média de tempo total calculada (fila + execução útil).
+const tendencia = (
+  await bd.query(`
+    select semana_inicio, unidades, media_total
+      from public.plt_fn_dash_tendencia_semanas(6)
+     order by semana_inicio desc limit 1`)
+).rows[0]
+conferir(
+  tendencia !== undefined && tendencia.unidades >= 1 && tendencia.media_total !== null,
+  'tendência semanal (admin): a semana corrente tem unidades e média de tempo total',
+  JSON.stringify(tendencia ?? null),
+)
+
+// 6 · Gate D-32 nas portas novas: líder de produção NÃO recebe número de fim de
+// linha nem a tendência (a jornada cruza setores que ele não mede); o andon
+// dele mostra só o setor dele. Operador não recebe nada.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false)`)
+const liderDia = (await bd.query(`select * from public.plt_fn_dash_dia()`)).rows
+const liderTendencia = (await bd.query(`select * from public.plt_fn_dash_tendencia_semanas()`)).rows
+const liderAgora = (
+  await bd.query(`select setor_nome from public.plt_fn_dash_agora() where setor_id is not null`)
+).rows.map((r) => r.setor_nome)
+conferir(
+  liderDia.length === 0 && liderTendencia.length === 0
+    && liderAgora.length === 1 && liderAgora[0] === 'FITAMENTO',
+  'líder de produção: sem números de fim de linha/tendência; andon só do setor dele (D-32)',
+  JSON.stringify({ dia: liderDia.length, tendencia: liderTendencia.length, agora: liderAgora }),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const operadorAgora = (await bd.query(`select * from public.plt_fn_dash_agora()`)).rows
+const operadorPcp = (await bd.query(`select * from public.plt_fn_dash_pcp_dia()`)).rows
+conferir(
+  operadorAgora.length === 0 && operadorPcp.length === 0,
+  'operador não recebe nada das portas novas (D-32)',
+  JSON.stringify({ agora: operadorAgora.length, pcp: operadorPcp.length }),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
