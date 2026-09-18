@@ -20,21 +20,21 @@ Decisões técnicas anunciadas no checkpoint (sem objeção do dono):
 
 ## Task list (espelho da demanda)
 
-- [ ] 1. Abrir e estudar os 4 mockups + 000-LEIA-ME (régua de qualidade) — FEITO na leitura inicial, reconferir ao montar cada tela
-- [ ] 2. Tokens `--dm-serie-fila`/`--dm-serie-execucao` em `tokens.css` (+ variante escura) e nota no LEIA-ME
-- [ ] 3. Migration 28 (portas de leitura novas) escrita + `test:banco` 2 rodadas verdes
-- [ ] 4. Tela **Visão do dia** (andon: 4 heróis, tiles por setor, gargalo, produção por hora, fim de linha) — legível de longe, atualiza sozinha
-- [ ] 5. Tela **Tempo por setor** (empilhado fila×execução ordenado do pior, herói "a fila é X%", callout gargalo, tendência 6 semanas, tabela tempo por item)
-- [ ] 6. Tela **Pessoas** (ranking + tempo médio/unidade, cockpit de metas reusando S14, lista detalhada de execuções no fim)
-- [ ] 7. Tela **Qualidade** (100% empilhado 3 estados com vão 2px, herói % 🟢, danificados em aberto)
-- [ ] 8. Filtros pill (período, setor, bruto/útil) combinados e persistidos na visualização salva
-- [ ] 9. Visualizações salvas da S10 continuam funcionando (adaptadas + migração de formato por leitura)
-- [ ] 10. Gate D-32 intacto (líder só o próprio setor; operador sem acesso) — provado no test:banco/navegador
-- [ ] 11. Tooltip em toda marca; sem dois eixos; sem pizza; número-herói antes de gráfico
-- [ ] 12. Navegação: 4 filhos no pai Dashboards (D-36), redirects das rotas antigas
-- [ ] 13. Temas: testar claro + escuro + esmeralda; nenhum hex cravado em componente
-- [ ] 14. Medição objetiva de vazamento (scrollWidth×clientWidth em 700/900/1280/1920/2400) + screenshots lado a lado dos mockups
-- [ ] 15. tsc · lint · vitest · build · test:banco (2 rodadas) verdes
+- [x] 1. Abrir e estudar os 4 mockups + 000-LEIA-ME (régua de qualidade)
+- [x] 2. Tokens `--dm-serie-fila`/`--dm-serie-execucao` em `tokens.css` (+ variante escura) e nota no LEIA-ME (dos DOIS locais — reorganização do cofre em andamento)
+- [x] 3. Migration 28 (portas de leitura novas) escrita + `test:banco` 2 rodadas verdes — **aplicar depende de aprovação do dono**
+- [x] 4. Tela **Visão do dia** codada (andon: 4 heróis, tiles, gargalo, produção por hora, fim de linha; Realtime + polling) — 🟠 validação visual com login pendente
+- [x] 5. Tela **Tempo por setor** codada — 🟠 validação visual pendente
+- [x] 6. Tela **Pessoas** codada (ranking, cockpit S14, lista detalhada) — 🟠 validação visual pendente
+- [x] 7. Tela **Qualidade** codada (100% empilhado, herói, danificados em aberto, divergências) — 🟠 validação visual pendente
+- [x] 8. Filtros pill combinados, na URL e persistidos na visualização salva
+- [x] 9. Visualizações salvas: formato novo tela+filtros; o antigo (widgets) traduzido por leitura — 🟠 conferir no banco real com as visualizações existentes
+- [x] 10. Gate D-32: provado no test:banco (líder só FITAMENTO; operador zero) — 🟠 conferir no navegador com usuário real
+- [x] 11. Tooltip em toda marca; sem dois eixos; sem pizza; número-herói antes de gráfico
+- [x] 12. Navegação: 4 filhos no pai Dashboards (D-36); `/dashboards` e `/dashboards/geral` redirecionam (rota sem login cai no /entrar — conferido no navegador)
+- [ ] 13. Temas claro + escuro + esmeralda — precisa de login (tema é do perfil)
+- [ ] 14. Medição objetiva de vazamento (700–2400px) + screenshots lado a lado — precisa de login
+- [x] 15. tsc ✅ · lint ✅ · vitest 47/47 ✅ · build ✅ · test:banco TUDO VERDE (2 rodadas)
 - [ ] 16. Conferir task list contra a demanda → revisão do dono → handoff em `_docs/Handoffs/` + memória de aprendizado + índice
 
 ## Registro contínuo
