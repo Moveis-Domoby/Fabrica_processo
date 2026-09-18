@@ -296,8 +296,8 @@ export function TempoPorSetor() {
                       tickLine={false}
                     />
                     <YAxis
-                      width={40}
-                      tickFormatter={(v: number) => `${v.toFixed(1)}h`}
+                      width={56}
+                      tickFormatter={(v: number) => (v >= 10 ? `${Math.round(v)}h` : `${v.toFixed(1)}h`)}
                       tick={{ fontSize: 11, fill: 'var(--dm-texto-suave)' }}
                       axisLine={false}
                       tickLine={false}
