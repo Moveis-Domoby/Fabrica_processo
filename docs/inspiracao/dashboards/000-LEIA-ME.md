@@ -21,6 +21,11 @@
 2. **Cores por função, validadas.** Séries categóricas: **execução = `#b8851e`**
    (âmbar da marca, passo 700 — o 500 não tem contraste em fundo branco) e
    **fila = `#2563eb`** (azul info). Par validado (CVD ΔE 32,6 · contraste ≥ 3:1).
+   ↪️ **SESSAO-16:** esses dois valores viraram os tokens `--dm-serie-fila` e
+   `--dm-serie-execucao` em `src/estilos/tokens.css` (com variante clara nos
+   temas escuros) — componente usa o TOKEN, nunca o hex. São tokens próprios,
+   fixos em todos os temas, porque `--dm-serie-1` segue a cor de ação do tema
+   (no esmeralda ficaria verde, e verde é exclusivo da qualidade).
    Verde/laranja/vermelho são EXCLUSIVOS dos estados de qualidade (D-09) — nunca
    viram "série 4". Sequencial = um matiz só, claro→escuro. Nunca arco-íris.
 3. **Marcas finas, ponta arredondada (4px) só no lado do dado**, base reta; vão de

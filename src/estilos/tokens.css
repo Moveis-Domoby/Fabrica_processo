@@ -319,6 +319,15 @@
   --dm-serie-4: #0891b2;
   --dm-serie-5: #db2777;
   --dm-serie-6: #65a30d;
+
+  /* FILA × EXECUÇÃO (SESSAO-16) — o par validado do LEIA-ME dos dashboards
+     (docs/inspiracao/dashboards): fila = azul info, execução = âmbar da marca
+     no passo 700 (o 500 não tem contraste em fundo claro). São tokens PRÓPRIOS,
+     fixos em todos os temas, de propósito: a serie-1 segue a cor de ação do
+     tema e no esmeralda ficaria VERDE — e verde é exclusivo da qualidade.
+     CVD ΔE 32,6 · contraste ≥ 3:1 (validação do LEIA-ME). */
+  --dm-serie-fila: #2563eb;
+  --dm-serie-execucao: #b8851e;
 }
 
 /* Nos temas escuros as séries clareiam para manter contraste sobre fundo escuro. */
@@ -332,6 +341,11 @@
   --dm-serie-4: #22d3ee;
   --dm-serie-5: #f472b6;
   --dm-serie-6: #a3e635;
+
+  /* fila/execução clareiam junto para manter contraste sobre fundo escuro,
+     sem mudar de identidade (continuam azul e âmbar). */
+  --dm-serie-fila: #60a5fa;
+  --dm-serie-execucao: #d9a23a;
 }
 
 /* ==========================================================================
