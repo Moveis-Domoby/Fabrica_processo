@@ -19,23 +19,26 @@ tags: [plataforma, execucao, sessao-22, bloco-5]
 4. **Limite 1 em todos os setores**, editável nas configurações do setor — permissão de **líderes e admins**.
 5. **Retomar com a urgência ainda aberta é recusado** — tem que concluir a urgência antes de pegar outro (a trava do limite vale para retomar).
 
-## Task list (espelho da demanda — conferir item a item no fim)
+## Task list (espelho da demanda — conferida item a item em 21/09)
 
-- [ ] 1a. Banco: evento de chegada em setor de produção sem etapa → resolve para a **etapa fila** (trigger BEFORE preenche `etapa_destino_id`)
-- [ ] 1b. Front: coluna "Chegada" some dos setores de **produção** (fica em terminais); aviso quando setor de produção não tem fila; seletores de destino param de oferecer "Chegada" para produção
-- [ ] 1c. Migração dos cards vivos com etapa nula → evento `movimentacao_etapa` em lote, origem `api` (SQL de manutenção; contagem antes/depois AQUI)
-- [ ] 2a. Banco: tempo em PCP verdadeiro — projeção `liberado_completo_em` no card de pedido + derivação (view/portas) do intervalo entrada→liberação completa; DROP+CREATE onde a forma muda (E-17), inclusive migration antiga
-- [ ] 2b. Front: card de unidade/linha do tempo mostram o tempo em PCP verdadeiro; histórico passa a mostrar dias, não "0:11"
-- [ ] 2c. Pedidos em aguardo: tempo de aguardo do pedido visível (resposta 2 do dono)
-- [ ] 3a. Paginação no servidor por etapa: 10 cards + "Ver mais" (limite/deslocamento); contagem por agregado barato
-- [ ] 3b. PCP paginado (pedidos abertos filtrados no servidor via `liberado_completo_em`)
-- [ ] 3c. Regra nova "cada tela requisita só o que mostra" promovida: CLAUDE do repo + cópia do cofre + Modelo de Sistema
-- [ ] 4a. Limite padrão 1 (default da coluna + manutenção nos setores existentes); edição por líder/admin nas configurações do setor
-- [ ] 4b. Eventos `execucao_pausada`/`execucao_retomada` (check novo valida tudo — E-19); validação em `fn_validar_execucao` (M-14); projeção `plt_cards.pausado_em`
-- [ ] 4c. Pausado não conta tempo nem ocupa o limite; retomar passa pela trava do limite (resposta 5)
-- [ ] 4d. UI: pausar (líder/admin) e retomar; card pausado com ícone + texto (M-12); linha do tempo mostra pausa/retomada
-- [ ] 5. Registrar D-48 (revisão D-24/Q-17 + modelo do tempo PCP/aguardo) em PLT - Decisoes de Produto; atualizar item 2 da demanda (resposta do dono difere das 2 alternativas do texto)
-- [ ] 6. Checklist final: test:banco 2×, tsc, lint, vitest, build, F-07 (375/768px), ⏸️ F-08 antes de aplicar migration, advisors, requisitos novos em PLT - Requisitos, handoff + notas do cofre
+- [x] 1a. Banco: evento de chegada em setor de produção sem etapa → resolve para a **etapa fila** (trigger BEFORE `fn_resolver_etapa_fila` preenche `etapa_destino_id` — o evento nasce completo)
+- [x] 1b. Front: coluna "Chegada" some dos setores de **produção** com fila (fica em PCP/terminais; produção sem fila ou com card órfão → coluna + aviso); ModalMoverCard/ModalLiberarPedido/Danificados defaultam para a fila e escondem "Chegada" nesses destinos
+- [x] 1c. Migração dos cards vivos → `supabase/manutencao/2026-09-21_migrar_cards_chegada_para_fila.sql` (evento em lote origem `api`; passos contar/executar/conferir; **testado no test:banco** — contagem real de produção sai na aplicação, F-08)
+- [x] 2a. Banco: `plt_cards.liberado_completo_em` (projeção por `fn_recalcular_liberacao`, regra k/n idêntica ao kanban; recompute retroativo na migration); `plt_vw_permanencias` fecha o PCP do pedido nesse instante; `plt_fn_pedidos_kanban` expõe `entrou_pcp_em`/`liberado_completo_em` (DROP+CREATE, E-17)
+- [x] 2b. Front: card de unidade mostra "Pedido ficou X em PCP" (com "ainda contando" no parcial); ModalLinhaTempo tem o bloco "Pedido no PCP: X"
+- [x] 2c. Pedidos em aguardo: "Completo há X aguardando o lançamento" / "1ª unidade pronta há X" (`primeira_pronta_em`/`completo_em` na RPC — drop na migration 25 espelhado, E-17)
+- [x] 3a. Paginação no servidor por coluna: `useColunasPaginadas` (useQueries por página, `count: 'exact'` + `range`, 10/página, "Ver mais" por coluna, contador = total real)
+- [x] 3b. PCP paginado: pedidos abertos filtrados no SERVIDOR (`liberado_completo_em is null` + índice parcial) + "Ver mais"; quadro de unidades do PCP nas mesmas colunas paginadas
+- [x] 3c. Regra promovida: regra 17 no CLAUDE do repo E na cópia do cofre; seção "Lei de requisição" no Modelo de Sistema; RNF-07 nos Requisitos
+- [x] 4a. Default 1 na migration + `manutencao/2026-09-21_limite_execucoes_padrao_1.sql` (existentes); RPC `plt_fn_definir_limite_execucoes` (líder do setor/admin, trilha D-40); Estrutura abre a seção ao líder
+- [x] 4b. `execucao_pausada`/`execucao_retomada` no check (valida tudo no fim; `validate` da migration 25 removido — E-19); `fn_validar_execucao` (pausa só líder/admin em execução aberta; referências preenchidas); projeção `pausado_em`
+- [x] 4c. Limite ignora pausados (iniciar E retomar); retomar recusado com urgência aberta ("Finalize a urgência antes…" — resposta 5); `plt_vw_execucoes` + 6 portas de dashboard descontam pausas
+- [x] 4d. UI: Pausar/Retomar no quadro; Retomar com PIN no tablet; pausado = `Pause` + "Pausado há X" (M-12); linha do tempo mostra pausa/retomada com autor e "Xmin de pausa descontados"
+- [x] 5. D-48 registrada; item 2 da demanda atualizado com a resposta do dono; Q-17 revisada via D-48
+- [x] 6a. test:banco 2× TUDO VERDE (re-rodado após o espelho ganhar `produtos` de outra frente) · tsc · lint · vitest **49/49** (2 testes novos de pausa) · build ✅ · mojibake zero (E-34)
+- [ ] 6b. ⏸️ **F-08**: aplicar migration 29 + 2 manutenções SÓ com aprovação do dono nesta conversa (md5 antes/depois + advisors depois)
+- [ ] 6c. F-07 completo (375/768px nas telas de dados) — **depende da migration aplicada**: o front novo lê colunas que ainda não existem em produção; login verificado (console limpo). Alvos ≥44px garantidos por construção (`min-h-toque-md`/`galpao`)
+- [x] 6d. Handoff + notas do cofre (Requisitos RF-15/16 + RNF-07; Memória A-16/A-17 + E-19↪️; Modelo de Sistema; índice/mapa/próximos passos)
 
 ## Decisões técnicas tomadas
 
@@ -54,3 +57,7 @@ tags: [plataforma, execucao, sessao-22, bloco-5]
 - 21/09 · **Edições-espelho na migration 25** (E-17/E-19): `drop function` antes do create de `plt_fn_pedidos_aguardo` e o `validate constraint` final REMOVIDO (mudou de casa para a 29 — reaplicar a 25 num banco com eventos de pausa quebraria).
 - 21/09 · **Manutenção** (2 arquivos, padrão S15): `2026-09-21_migrar_cards_chegada_para_fila.sql` (evento em lote origem `api`, só produção COM fila; passos contar/executar/conferir) e `2026-09-21_limite_execucoes_padrao_1.sql` (null→1 nos existentes; fora da migration de propósito — reaplicação não pode sobrescrever escolha do admin).
 - 21/09 · **test:banco**: bloco S22 novo no harness (limite padrão + manutenção rodada de verdade; resolver de fila com evento completo; PCP parcial vs completo + retroativo; lote chegada→fila com setor sem fila; pausa com prova aritmética 90−70=20min na view E na porta de dashboard; RPC do limite com gate e log; aguardo). 1º erro meu: usei pedido 999998, que o harness já ocupava → troquei para 999990. **TUDO VERDE em 2 rodadas.**
+- 21/09 · **Front** (commit `6de4518`): `useColunasPaginadas` novo (useQueries por página + keepPreviousData); `QuadroKanban` refeito para colunas paginadas (prop `colunas: Map<chave, ColunaPaginada>`; chegada condicional + 2 avisos); `QuadroSetor`/`PCP` migrados (PCP filtra abertos no servidor); pausar/retomar em `api.ts` + `CartaoUnidade` + `CartaoTablet`/`TelaSetor` (PIN, ação `retomar`); tempo em PCP no card e na linha do tempo (`linha-tempo.ts` ganha `pausaMs`/`pausada` com desconto); `Estrutura` usa a RPC do limite e abre a seção ao líder; `PedidosAguardo` mostra o relógio do aguardo; `Danificados`/modais defaultam fila. Chaves de cache: quadro paginado usa `['cards','etapa',setor,tipo,coluna,pagina]` — a `TelaSetor` mantém `['cards','setor',id]` com o MESMO fetcher de sempre (E-22 respeitado; invalidação por prefixo `['cards']` cobre os dois).
+- 21/09 · Verificações: tsc ✅ · lint ✅ · vitest 49/49 ✅ (2 testes novos de pausa espelhando o banco) · build ✅ (bundle 1,73MB, DT-ARQ9 sem mudança) · `grep` de mojibake zero (E-34) · test:banco re-rodado ✅ depois de outra frente acrescentar `produtos` ao espelho do schema (estudo da S25 — não conflita).
+- 21/09 · **Trabalho paralelo no working tree** (não tocado, E-23): `_docs/CLAUDE.md`, notas N8N do Tiny fábrica, demanda da S21, `SUPA - Esquema do Banco` + `.sql` (tabela `produtos`), `000 - PROXIMOS PASSOS`, pasta `Claude outputs/`. Os commits desta sessão foram sempre por caminho explícito.
+- 21/09 · **Pendências para o F-08 (aprovação do dono):** aplicar migration 29 (md5 antes/depois + advisors) → rodar `manutencao/2026-09-21_limite_execucoes_padrao_1.sql` → rodar `manutencao/2026-09-21_migrar_cards_chegada_para_fila.sql` (registrar contagens do passo 1/3 AQUI) → F-07 completo nas telas com dado real.

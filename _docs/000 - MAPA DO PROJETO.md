@@ -121,6 +121,7 @@ Telas, integração e dívidas:
 
 ## 📜 Histórico de sessões (pasta `Handoffs/`)
 
+- [[handoff_2026_09_21_sessao22_filas_tempo_pausa]] — **SESSAO-22** (abre o Bloco 5): filas reais (fim da coluna "Chegada" na produção), tempo de PCP do PEDIDO (D-48), quadros paginados 10+"Ver mais" com a lei nova "cada tela requisita só o que mostra" (regra 17/RNF-07), limite 1 por pessoa + pausa por líder com desconto de tempo — migration 29 escrita e testada, **aguardando o F-08 (aplicação) e o merge**
 - [[handoff_2026_09_18_sessao16_dashboards]] — **SESSAO-16**: os dashboards de verdade (D-42) — 4 telas-filhas nos moldes dos mockups (Visão do dia estilo andon com atualização sozinha, Tempo por setor fila×execução, Pessoas com cockpit de metas e a lista detalhada, Qualidade 100% empilhado), migration 28 com 8 portas gateadas, tokens fixos fila/execução, vazamento zero em 700–2400px
 - [[handoff_2026_09_16_sessao20_modulo_comercial]] — **SESSAO-20 (União 2)**: o Painel de Recompra recriado como módulo Comercial (rotas `/comercial/*`, trava de disparo em 3 camadas, permissão por módulo, Recharts 3.9.2 fixado)
 - [[handoff_2026_09_15_sessao19_banco_comercial]] — **SESSAO-19 (União 1)**: o domínio do recompra no Supabase da fábrica (6 tabelas, `vendas_marketing` como VIEW — D-47, 10 RPCs, dashboards batendo ao centavo)
