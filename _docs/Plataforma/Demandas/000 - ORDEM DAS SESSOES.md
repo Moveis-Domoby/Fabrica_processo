@@ -2,7 +2,7 @@
 titulo: Ordem das Sessões de Construção
 tipo: indice
 data: 2026-08-19
-atualizado: 2026-09-18
+atualizado: 2026-09-21
 tags: [plataforma, demandas, sessoes, roadmap]
 ---
 
@@ -41,8 +41,8 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 18º | [[SESSAO-18 - Painel Admin Completo]] | Consolidação do admin (revisar escopo: Equipe/Estrutura/Caminhões já entram no dropdown nas 13/15) | — | ⏸️ standby (D-35) |
 | 19º ⏫ | [[SESSAO-19 - Uniao 1 - Banco do Comercial na Fabrica]] | Domínio do Painel de Recompra no Supabase da fábrica: 6 tabelas + view `vendas_marketing` sobre `pedidos` (D-47) + RPCs + RLS + carga de dados validada | 15 | ✅ entregue — [[handoff_2026_09_15_sessao19_banco_comercial]] (migration 26 aplicada e carga com checksum idêntico em 15/09; revisada na conversa e mesclada na `main` pelo PR #3 — D-20) |
 | 20º ⏫ | [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] | Painel de Recompra recriado idêntico como módulo **Comercial**; "Fábrica" vira pai de Produção/Logística/ROTAS; "Administração" → "Painel admin"; permissões por módulo | 19 | ✅ entregue — [[handoff_2026_09_16_sessao20_modulo_comercial]] (migration 27 aplicada em 15/09; revisada na conversa e **mesclada na `main` em 16/09**). Fixou **Recharts 3.9.2** e os tokens de série que a 16 herda |
-| 21º ⏫ | [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] | Cutover dos crons e do webhook DataCrazy, quarentena e exclusão do projeto Supabase antigo | 19, 20 | 🔶 rascunho — **roda na janela que o dono definir** (não bloqueia o Bloco 5) |
-| 22º 🆕 | [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] | Fim da coluna "Chegada", tempo de PCP verdadeiro no card, 10 cards por etapa + "Ver mais", regra "cada tela requisita só o que mostra", 1 pedido por vez + pausa por líder | 16 | 📐 pronta para code |
+| 21º ⏫ | [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] | Cutover dos crons e do webhook DataCrazy, quarentena e exclusão do projeto Supabase antigo | 19, 20 | 📐 pronta para code (promovida 21/09 — F5 validada pelo dono no Cowork) — **janela decidida: logo após o handoff da SESSAO-22**, em conversa própria, com o dono presente confirmando passo a passo |
+| 22º 🆕 | [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] | Fim da coluna "Chegada", tempo de PCP verdadeiro no card, 10 cards por etapa + "Ver mais", regra "cada tela requisita só o que mostra", 1 pedido por vez + pausa por líder | 16 | 🔨 em execução (21/09 — D-48 registrada) |
 | 23º 🆕 | [[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]] | Meu Painel com "Delegados a mim / Meus afazeres / Fila de prioridade" reordenável, subtarefas, tempos com visibilidade certa; qualidade a atestar vira tarefa do "Sistema"; avisos saem do painel | 22 | 📐 pronta para code |
 | 24º 🆕 | [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] | "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), 3 fluxos de cancelamento (aba Cancelados no PCP, tag em produção, estoque sem dono), sugestão de alocação no PCP, lançamento manual | 22 | 📐 pronta para code |
 | 25º 🆕 | [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] | Integração NOVA com o Tiny da fábrica: lançamento de estoque alimenta o app, venda da loja debita, mínimo/saldo/necessidade de produção + sugestão de mínimo pelo trimestre | 24 | 📐 pronta para code (depende do dono: conta/plano/token) |

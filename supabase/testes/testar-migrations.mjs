@@ -3080,6 +3080,468 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+// ============================================================================
+// SESSAO-22 — Filas reais, tempo de PCP e pausa (migration 29 / D-48)
+// Lembrete E-14: o PGlite roda como superusuário — RLS/grants não se provam
+// aqui. O que se prova: triggers (valem para todo escritor), views e os SQLs
+// de manutenção do lote (E-26: lote passa aqui ANTES do banco real).
+// ============================================================================
+titulo('SESSAO-22 · manutenção: limite padrão 1 aplicado aos setores existentes')
+
+// Roda o SQL de manutenção real (o mesmo arquivo que irá ao banco).
+const MANUTENCAO = path.join(RAIZ, 'supabase/manutencao')
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-21_limite_execucoes_padrao_1.sql'), 'utf8'))
+const limitesDepois = (
+  await bd.query(`select count(*) filter (where limite_execucoes_por_pessoa is null)::int as sem_limite
+                    from public.plt_setores`)
+).rows[0]
+conferir(
+  limitesDepois.sem_limite === 0,
+  'manutenção do limite: nenhum setor fica "sem limite" depois do lote (D-48)',
+  `sem limite: ${limitesDepois.sem_limite}`,
+)
+const setorNovoLimite = (
+  await bd.query(`
+    insert into public.plt_setores (nome, codigo, papel_no_fluxo, ordem, ativo)
+      values ('TESTE LIMITE', 'teste-limite-s22', 'producao', 99, false)
+    returning limite_execucoes_por_pessoa`)
+).rows[0]
+conferir(
+  setorNovoLimite.limite_execucoes_por_pessoa === 1,
+  'setor novo nasce com limite 1 (default da migration 29 — D-48)',
+  JSON.stringify(setorNovoLimite),
+)
+
+titulo('SESSAO-22 · filas reais: chegada em produção cai na etapa fila')
+
+// MONTAGEM ganha a etapa fila (cadastro do dono — aqui simulado).
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+    values ((select id from public.plt_setores where codigo = 'montagem'), 'A MONTAR', 1, true);
+`)
+
+// Pedido novo de verdade (o trigger da S09 cria o card no PCP sozinho).
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999990, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 999990), 1, '088', 'Estante Dupla', 2);
+`)
+
+// Libera a 1ª unidade para a MONTAGEM SEM etapa — o banco resolve para a fila.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Estante Dupla', 1, 2
+      from public.pedidos p where p.numero = 999990;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'montagem'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const chegouNaFila = (
+  await bd.query(`
+    select e.nome as etapa, e.eh_fila,
+           (select ev.etapa_destino_id is not null from public.plt_eventos ev
+             where ev.card_id = c.id and ev.tipo = 'movimentacao_setor'
+             order by ev.ocorrido_em desc, ev.id desc limit 1) as evento_completo
+      from public.plt_cards c
+      join public.plt_etapas e on e.id = c.etapa_atual_id
+     where c.id = (select max(id) from public.plt_cards)`)
+).rows[0]
+conferir(
+  chegouNaFila?.etapa === 'A MONTAR' && chegouNaFila?.eh_fila === true
+    && chegouNaFila?.evento_completo === true,
+  'mover para setor de produção SEM etapa cai na etapa FILA — e o EVENTO nasce completo',
+  JSON.stringify(chegouNaFila ?? null),
+)
+
+titulo('SESSAO-22 · tempo em PCP é do PEDIDO (D-48): liberação completa fecha o relógio')
+
+const pedido998 = async () =>
+  (
+    await bd.query(`
+      select pc.liberado_completo_em,
+             (select pm.saiu_em from public.plt_vw_permanencias pm
+               where pm.card_id = pc.id order by pm.entrou_em limit 1) as pcp_fechou_em
+        from public.plt_cards pc
+       where pc.tipo = 'pedido'
+         and pc.pedido_id = (select id from public.pedidos where numero = 999990)`)
+  ).rows[0]
+
+const parcial = await pedido998()
+conferir(
+  parcial?.liberado_completo_em === null && parcial?.pcp_fechou_em === null,
+  'com liberação PARCIAL (1 de 2), o pedido segue contando tempo em PCP',
+  JSON.stringify(parcial ?? null),
+)
+
+// Libera a 2ª (última) unidade → o relógio do PCP fecha NESSE instante.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Estante Dupla', 2, 2
+      from public.pedidos p where p.numero = 999990;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards),
+            'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+`)
+const completo = await pedido998()
+conferir(
+  completo?.liberado_completo_em !== null
+    && completo?.pcp_fechou_em !== null
+    && new Date(completo.pcp_fechou_em).getTime() === new Date(completo.liberado_completo_em).getTime(),
+  'liberação COMPLETA fecha a permanência do pedido no PCP em liberado_completo_em',
+  JSON.stringify(completo ?? null),
+)
+
+// A porta do kanban carrega o intervalo para o card e a linha do tempo.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const resumo998 = (
+  await bd.query(`
+    select entrou_pcp_em is not null as tem_entrada,
+           liberado_completo_em is not null as tem_liberacao,
+           unidades_liberadas, total_unidades
+      from public.plt_fn_pedidos_kanban(p_ids => array[(select id from public.pedidos where numero = 999990)])`)
+).rows[0]
+conferir(
+  resumo998?.tem_entrada === true && resumo998?.tem_liberacao === true
+    && resumo998?.unidades_liberadas === 2 && resumo998?.total_unidades === 2,
+  'plt_fn_pedidos_kanban expõe entrou_pcp_em e liberado_completo_em (o rótulo do card)',
+  JSON.stringify(resumo998 ?? null),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+// O histórico também: o pedido 999999 (liberado por completo nos cenários
+// anteriores) ganhou o fechamento RETROATIVO na reaplicação da migration 29.
+const retroativo = (
+  await bd.query(`
+    select liberado_completo_em is not null as fechado
+      from public.plt_cards
+     where tipo = 'pedido'
+       and pedido_id = (select id from public.pedidos where numero = 999999)`)
+).rows[0]
+conferir(
+  retroativo?.fechado === true,
+  'pedido antigo já 100% liberado ganhou liberado_completo_em retroativo (vale para o histórico)',
+  JSON.stringify(retroativo ?? null),
+)
+
+titulo('SESSAO-22 · manutenção: cards vivos da "Chegada" migram para a fila por evento')
+
+// Cenário legado: card com etapa NULA num setor de produção SEM fila (CNC).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values ((select max(id) from public.plt_cards where tipo = 'unidade' and pedido_id = (select id from public.pedidos where numero = 999990) and indice_unidade = 1),
+            'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'montagem'),
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface', 'perfeito');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+    values ((select max(id) from public.plt_cards where tipo = 'unidade' and pedido_id = (select id from public.pedidos where numero = 999990) and indice_unidade = 1),
+            'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'montagem'),
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+            (select max(id) from public.plt_eventos where tipo = 'qualidade_marcada'));
+`)
+const semFila = (
+  await bd.query(`
+    select c.etapa_atual_id
+      from public.plt_cards c
+     where c.tipo = 'unidade'
+       and c.pedido_id = (select id from public.pedidos where numero = 999990)
+       and c.indice_unidade = 1`)
+).rows[0]
+conferir(
+  semFila?.etapa_atual_id === null,
+  'setor de produção SEM fila cadastrada: a etapa fica nula (nada se inventa — D-14; o quadro avisa)',
+  JSON.stringify(semFila ?? null),
+)
+
+// O dono cadastra a fila da CNC → o lote de manutenção migra o card vivo.
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+    values ((select id from public.plt_setores where codigo = 'cnc'), 'A USINAR', 1, true);
+`)
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-21_migrar_cards_chegada_para_fila.sql'), 'utf8'))
+const aposLote = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_cards c
+              join public.plt_setores s on s.id = c.setor_atual_id
+             where c.etapa_atual_id is null and c.arquivado_em is null
+               and s.papel_no_fluxo = 'producao'
+               and exists (select 1 from public.plt_etapas e
+                            where e.setor_id = s.id and e.eh_fila and e.ativa)) as restantes,
+           (select e.nome from public.plt_cards c
+              join public.plt_etapas e on e.id = c.etapa_atual_id
+             where c.tipo = 'unidade'
+               and c.pedido_id = (select id from public.pedidos where numero = 999990)
+               and c.indice_unidade = 1) as etapa_do_migrado,
+           (select count(*)::int from public.plt_eventos ev
+             where ev.tipo = 'movimentacao_etapa' and ev.origem = 'api'
+               and ev.observacao ilike '%Migração da coluna Chegada%') as eventos_do_lote`)
+).rows[0]
+conferir(
+  aposLote?.restantes === 0 && aposLote?.etapa_do_migrado === 'A USINAR'
+    && (aposLote?.eventos_do_lote ?? 0) >= 1,
+  'o lote de manutenção migrou o card vivo por EVENTO (origem api) e zerou a "chegada" onde há fila',
+  JSON.stringify(aposLote ?? null),
+)
+
+titulo('SESSAO-22 · pausa por líder (D-48): urgência entra, retomar respeita o limite')
+
+// Gente do cenário: um líder para a SECC (que agora está com limite 1).
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+    values ('Lider Secc', 'lider.secc@teste.com', '11111111104', 'lider.secc', 'lider');
+  insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+    values ((select id from public.plt_usuarios where usuario = 'lider.secc'),
+            (select id from public.plt_setores where codigo = 'secc'), true);
+`)
+// exec.um ainda executa um card antigo na SECC — encerra para o cenário começar limpo.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    select c.id, 'execucao_finalizada', c.executor_atual_id, 'interface'
+      from public.plt_cards c
+     where c.setor_atual_id = (select id from public.plt_setores where codigo = 'secc')
+       and c.executor_atual_id is not null;
+`)
+
+// Dois cards na SECC: B (o de sempre) e A (a urgência). Tempos EXPLÍCITOS para
+// a prova aritmética do desconto: B inicia -100min, pausa -90, A -60→-30,
+// B retoma -20 e finaliza -10 → execução de B = 90min − 70min de pausa = 20min.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Estante Dupla B', 3, 4
+      from public.pedidos p where p.numero = 999990;
+  -- Criação/chegada retrodatadas: os gestos abaixo também são, e a ordem dos
+  -- eventos (ocorrido_em, id) precisa contar a história na sequência real.
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, ocorrido_em)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'pcp'), 'interface',
+            now() - interval '3 hours');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, ocorrido_em)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '2 hours');
+`)
+const cardB = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Estante Dupla A', 4, 4
+      from public.pedidos p where p.numero = 999990;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, ocorrido_em)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'pcp'), 'interface',
+            now() - interval '3 hours');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, ocorrido_em)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '2 hours');
+`)
+const cardA = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+
+// B em execução por exec.dois.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+    values (${cardB}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '100 minutes');
+`)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardA}, 'execucao_iniciada',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface')`,
+  'com limite 1, a urgência é recusada enquanto B está em execução (a mensagem diz o que fazer)',
+  /Limite do setor atingido/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardB}, 'execucao_pausada',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'operador comum não pausa (gesto de líder do setor ou admin — D-48)',
+  /gesto de líder/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardA}, 'execucao_pausada',
+             (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface')`,
+  'pausar card que não está em execução é recusado',
+  /não está em execução/i,
+)
+
+// O líder pausa B → a pausa aponta a execução aberta sozinha (referência).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+    values (${cardB}, 'execucao_pausada',
+            (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface',
+            now() - interval '90 minutes');
+`)
+const pausado = (
+  await bd.query(`
+    select c.pausado_em is not null as pausado,
+           (select e.evento_referencia_id is not null from public.plt_eventos e
+             where e.card_id = ${cardB} and e.tipo = 'execucao_pausada') as referencia_preenchida
+      from public.plt_cards c where c.id = ${cardB}`)
+).rows[0]
+conferir(
+  pausado?.pausado === true && pausado?.referencia_preenchida === true,
+  'pausa do líder projeta pausado_em e aponta a execução aberta (append-only, com referência)',
+  JSON.stringify(pausado ?? null),
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardB}, 'execucao_pausada',
+             (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface')`,
+  'pausar duas vezes é recusado',
+  /já está pausada/i,
+)
+
+// Pausado não ocupa o limite: a urgência A agora ENTRA (D-48 — o porquê da pausa).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+    values (${cardA}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '60 minutes');
+`)
+conferir(true, 'com B pausado, a urgência A inicia normalmente (pausado não conta no limite)')
+
+// Retomar com a urgência aberta é recusado (resposta 5 do dono).
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardB}, 'execucao_retomada',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface')`,
+  'retomar com a urgência ainda aberta é recusado ("finalize a urgência antes")',
+  /Finalize a urgência/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardB}, 'execucao_retomada',
+             (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
+  'quem não executa o card (nem lidera o setor) não retoma',
+  /gesto de quem executa/i,
+)
+
+// Urgência finalizada → a própria pessoa retoma (resposta 3) e depois finaliza B.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+    values (${cardA}, 'execucao_finalizada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '30 minutes');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+    values (${cardB}, 'execucao_retomada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '20 minutes');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+    values (${cardB}, 'execucao_finalizada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            now() - interval '10 minutes');
+`)
+const execB = (
+  await bd.query(`
+    select round(extract(epoch from v.duracao) / 60)::int      as duracao_min,
+           round(extract(epoch from v.pausa_total) / 60)::int  as pausa_min,
+           v.encerramento,
+           (select c.pausado_em from public.plt_cards c where c.id = ${cardB}) as pausado_em
+      from public.plt_vw_execucoes v
+     where v.card_id = ${cardB} and v.encerramento = 'finalizada'`)
+).rows[0]
+conferir(
+  execB?.duracao_min === 20 && execB?.pausa_min === 70 && execB?.pausado_em === null,
+  'a execução de B descontou a pausa: 90min de relógio − 70min pausados = 20min contados',
+  JSON.stringify(execB ?? null),
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardB}, 'execucao_retomada',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface')`,
+  'retomar card que não está pausado é recusado',
+  /não está pausado/i,
+)
+
+// A linha do tempo carrega pausa e retomada com autor (critério da demanda).
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+const linhaPausa = (
+  await bd.query(`
+    select tipo, usuario_nome from public.plt_fn_linha_tempo_card(${cardB})
+     where tipo in ('execucao_pausada', 'execucao_retomada') order by ocorrido_em`)
+).rows
+conferir(
+  linhaPausa.length === 2
+    && linhaPausa[0]?.tipo === 'execucao_pausada' && linhaPausa[0]?.usuario_nome === 'Lider Secc'
+    && linhaPausa[1]?.tipo === 'execucao_retomada' && linhaPausa[1]?.usuario_nome === 'Operador Dois',
+  'pausa e retomada aparecem na linha do tempo do card, com autor',
+  JSON.stringify(linhaPausa),
+)
+
+// As portas de dashboard também descontam (D-48): a lista detalhada mostra 20min.
+const dashB = (
+  await bd.query(`
+    select round(extract(epoch from duracao_bruta) / 60)::int as bruta_min
+      from public.plt_fn_dash_execucoes(now() - interval '1 day', now(),
+             (select id from public.plt_setores where codigo = 'secc'))
+     where card_id = ${cardB} and encerramento = 'finalizada'`)
+).rows[0]
+conferir(
+  dashB?.bruta_min === 20,
+  'plt_fn_dash_execucoes desconta a pausa da duração (20min, não 90min)',
+  JSON.stringify(dashB ?? null),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+titulo('SESSAO-22 · limite editável por líder (RPC) e aguardo do pedido')
+
+// O líder da FITAMENTO ajusta o limite do PRÓPRIO setor pela RPC (D-48).
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false)`)
+await bd.exec(`
+  select public.plt_fn_definir_limite_execucoes(
+    (select id from public.plt_setores where codigo = 'fitamento'), 3)`)
+const limiteFita = (
+  await bd.query(`
+    select s.limite_execucoes_por_pessoa as limite,
+           (select count(*)::int from public.plt_logs_atividade l
+             where l.acao = 'limite_execucoes_alterado') as logs
+      from public.plt_setores s where s.codigo = 'fitamento'`)
+).rows[0]
+conferir(
+  limiteFita?.limite === 3 && (limiteFita?.logs ?? 0) >= 1,
+  'líder define o limite do próprio setor pela RPC — com trilha de atividade (D-40)',
+  JSON.stringify(limiteFita ?? null),
+)
+try {
+  await bd.query(`
+    select public.plt_fn_definir_limite_execucoes(
+      (select id from public.plt_setores where codigo = 'secc'), 5)`)
+  conferir(false, 'líder NÃO ajusta limite de setor que não lidera', 'a chamada passou, e não devia')
+} catch (erro) {
+  conferir(/gesto do líder do setor/i.test(erro.message), 'líder NÃO ajusta limite de setor que não lidera', erro.message)
+}
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+// Aguardo (D-48): o pedido 999999 tem 1 unidade pronta de 3 → incompleto, com
+// "primeira pronta" marcada e sem "completo_em".
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+const aguardo = (
+  await bd.query(`
+    select completo, primeira_pronta_em is not null as tem_primeira, completo_em
+      from public.plt_fn_pedidos_aguardo()
+     where numero = 999999`)
+).rows[0]
+conferir(
+  aguardo !== undefined && aguardo.tem_primeira === true
+    && aguardo.completo === (aguardo.completo_em !== null),
+  'Pedidos em aguardo expõe o relógio do aguardo: primeira pronta marcada, completo_em só quando completar',
+  JSON.stringify(aguardo ?? null),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

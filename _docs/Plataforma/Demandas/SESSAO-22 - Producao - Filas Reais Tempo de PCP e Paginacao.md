@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-22 — Produção: filas reais, tempo de PCP e paginação"
 tipo: demanda
-status: pronta para code
+status: em execução
 data: 2026-09-18
-atualizado: 2026-09-18
+atualizado: 2026-09-21
 tags: [plataforma, demanda, bloco-5, kanban, tempo, paginacao]
 ---
 
@@ -33,7 +33,7 @@ D-14 (etapas por cadastro livre — o dono já cadastrou as etapas oficiais dos 
 
 2. **Tempo em PCP verdadeiro no card.**
    - Causa raiz (diagnosticada no cofre): na liberação, o card de **unidade** nasce com `card_criado` + `movimentacao_setor` PCP→destino **no mesmo instante** — a permanência da unidade no PCP é ~0 por construção. O tempo real de espera vive no card de **pedido** (`card_criado` origem `automacao` → liberação).
-   - Correção **por derivação, não por reescrita**: o "tempo em PCP" exibido no card de unidade e nas views/portas de tempo passa a ser o intervalo entre a **entrada do pedido no PCP** (card de pedido) e a **liberação daquela unidade**. Nenhum evento é alterado (RNF-05); muda o cálculo em `plt_vw_permanencias`/portas de dashboard e no rótulo do card (view/função que muda de forma: `drop` + `create` — E-17, A-12).
+   - Correção **por derivação, não por reescrita**: o "tempo em PCP" exibido no card de unidade e nas views/portas de tempo passa a ser o intervalo entre a **entrada do pedido no PCP** (card de pedido) e a **liberação COMPLETA do pedido** (todas as unidades) — ↪️ **resposta do dono em 21/09 (D-48)**, substituindo as duas alternativas cogitadas aqui. Com tudo produzido, o pedido conta **tempo de aguardo** em Pedidos em aguardo (insumo futuro do cálculo de tempo de entrega). Nenhum evento é alterado (RNF-05); muda o cálculo em `plt_vw_permanencias`/portas de dashboard e no rótulo do card (view/função que muda de forma: `drop` + `create` — E-17, A-12).
    - Vale para o histórico: pedidos que passaram dias no PCP passam a mostrar dias, não "0:11".
 
 3. **Paginação nos quadros (PCP e produção) + regra nova de sistema.**
