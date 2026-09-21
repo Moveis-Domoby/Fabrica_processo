@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-16 — Dashboards de Verdade"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-08-28
-atualizado: 2026-09-16
+atualizado: 2026-09-21
 tags: [plataforma, demanda, bloco-3]
 ---
 
@@ -94,4 +94,10 @@ handoff junto com os screenshots lado a lado dos mockups.
 
 ## Resultado (preencher ao entregar)
 
-—
+✅ **Entregue em 18/09/2026** — [[handoff_2026_09_18_sessao16_dashboards]], mesclada na `main` pelo PR #4 (D-20).
+
+- As **4 telas-filhas** em `/dashboards/visao-do-dia|tempo-por-setor|pessoas|qualidade` (Q-66), nos moldes dos mockups; a tela única da S10 saiu e `/dashboards/geral` redireciona.
+- **Migration 28** (8 portas de leitura gateadas por `fn_setores_dashboard`; nenhuma tabela nova — D-47) aplicada em 18/09 com aprovação do dono; impressão digital da integração intacta.
+- Item 3 resolvido como a demanda pedia: nasceram os tokens **`--dm-serie-fila`/`--dm-serie-execucao`** (fixos nos valores do LEIA-ME em todos os temas, com variante clara nos escuros) — o LEIA-ME ganhou a nota. Motivo: `--dm-serie-1` segue a ação do tema e no esmeralda viraria verde, exclusivo da qualidade.
+- Decisões do dono no checkpoint (17/09): **concluída = chegou ao terminal final**; a **lista detalhada de execuções** mora na tela Pessoas (opção b); tempo por item na Tempo por setor; retrato do estoque no Fim de linha.
+- Critérios provados: vazamento **zero** em 700–2400px nas 4 telas; temas claro/esmeralda/esmeralda-escuro; visualização salva com tela+filtros aplicável de qualquer tela (formato S10 traduzido por leitura); gate D-32 no `test:banco` e ao vivo.

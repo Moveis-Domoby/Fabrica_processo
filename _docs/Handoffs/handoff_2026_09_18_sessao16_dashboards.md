@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, dashboards, d-42]
 
 # 📋 Handoff — SESSAO-16 · Dashboards de Verdade (D-42)
 
-**Branch:** `sessao-16-dashboards-de-verdade` — **aguardando sua revisão nesta conversa para o merge** (D-20)
+**Branch:** `sessao-16-dashboards-de-verdade` — **aprovada pelo dono e mesclada na `main` pelo PR #4 em 18/09** (junto com a reorganização do cofre, no commit do próprio dono); pós-merge registrado em 21/09 (D-20)
 **Banco:** migration **28** (`20260917120000_plt_dashboards_verdade.sql`) **aplicada em 18/09 com seu OK na conversa**, pela API (caminho da S15/S19/S20 — A-15). Impressão digital da integração antes = depois (`15152f89…`, 114 colunas). Advisors: só os **+8 WARN esperados** (endpoints de propósito).
 **Demanda:** [[SESSAO-16 - Dashboards de Verdade]] · **Memória:** [[SESSAO-16|Execucao/SESSAO-16]]
 **Decisões que regem:** **D-42** (mockups são a régua) · D-32 (tempo em 1º; só líder/admin) · D-02 (fila × execução) · D-29 (tempo útil) · D-27 · D-36 · D-40 · D-47

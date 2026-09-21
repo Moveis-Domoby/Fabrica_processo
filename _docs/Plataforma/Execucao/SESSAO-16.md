@@ -35,7 +35,7 @@ Decisões técnicas anunciadas no checkpoint (sem objeção do dono):
 - [x] 13. Temas: claro ✅ (ativa amarela, pílulas brancas) · esmeralda ✅ (ação verde, séries seguem azul/âmbar fixos) · esmeralda-escuro ✅ (tema do dono, telas inteiras) — troca via `data-tema` no DOM, sem tocar o perfil
 - [x] 14. Vazamento **ZERO** nas 4 telas: Visão do dia (23 números × 700/900/1280/1920/2400px), Tempo por setor (39–43 × 5 larguras), Pessoas (64 × 700/1280/2400), Qualidade (46 × 700/1280/2400) — sem rolagem horizontal em nenhuma medição
 - [x] 15. tsc ✅ · lint ✅ · vitest 47/47 ✅ · build ✅ · test:banco TUDO VERDE (2 rodadas)
-- [ ] 16. Conferir task list contra a demanda ✅ → **revisão do dono (aguardando)** → merge → handoff linkado no índice
+- [x] 16. Task list conferida contra a demanda ✅ → aprovada pelo dono em 21/09 → **mesclada na `main` pelo PR #4 (18/09, commit do dono com a reorg do cofre junto)** → handoff linkado no índice, no mapa e resultado preenchido na demanda (21/09)
 
 ## Registro contínuo
 

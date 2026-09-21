@@ -121,6 +121,7 @@ Telas, integração e dívidas:
 
 ## 📜 Histórico de sessões (pasta `Handoffs/`)
 
+- [[handoff_2026_09_18_sessao16_dashboards]] — **SESSAO-16**: os dashboards de verdade (D-42) — 4 telas-filhas nos moldes dos mockups (Visão do dia estilo andon com atualização sozinha, Tempo por setor fila×execução, Pessoas com cockpit de metas e a lista detalhada, Qualidade 100% empilhado), migration 28 com 8 portas gateadas, tokens fixos fila/execução, vazamento zero em 700–2400px
 - [[handoff_2026_09_16_sessao20_modulo_comercial]] — **SESSAO-20 (União 2)**: o Painel de Recompra recriado como módulo Comercial (rotas `/comercial/*`, trava de disparo em 3 camadas, permissão por módulo, Recharts 3.9.2 fixado)
 - [[handoff_2026_09_15_sessao19_banco_comercial]] — **SESSAO-19 (União 1)**: o domínio do recompra no Supabase da fábrica (6 tabelas, `vendas_marketing` como VIEW — D-47, 10 RPCs, dashboards batendo ao centavo)
 - [[handoff_2026_09_08_sessao15_logistica_rotas]] — **SESSAO-15**: Logística e ROTAS como módulo (Estoque, Aguardo, Danificados, Programação com mapa, Caminhões)
@@ -160,7 +161,9 @@ Telas, integração e dívidas:
 
 ## Estado atual em uma linha
 
-**↪️ Atualizado em 18/09/2026 (nasce o Bloco 5):** o dono trouxe o maior pacote de demandas desde a fundação, orquestrado em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]: **SESSÕES 22–28** (filas reais + tempo de PCP + paginação · Meu Painel 2.0 com subtarefas · estoque núcleo com Pedidos em aguardo e cancelamentos · integração NOVA com o Tiny da fábrica · chat interno · automações em canvas, que absorve a 17 · rota calculada OSRM). Ordem decidida: **16 → 22…28**, com a 21 (cutover) na janela do dono. Todas as demandas `📐 prontas para code`, com as perguntas ao dono embutidas.
+**↪️ Atualizado em 21/09/2026 (SESSAO-16 entregue):** os dashboards de verdade estão no ar — as 4 telas-filhas do pai Dashboards (Visão do dia/andon, Tempo por setor, Pessoas, Qualidade) nos moldes dos mockups da D-42, com a migration 28 aplicada (8 portas de leitura gateadas — D-32), os tokens fixos de fila/execução, visualizações salvas por tela+filtros e vazamento zero medido em 700–2400px; validada ao vivo com o dono e **mesclada na `main` pelo PR #4 em 18/09**. **Próxima: SESSAO-22 (Bloco 5)**, com a 21 (cutover) na janela do dono.
+
+**↪️ 18/09/2026 (nasce o Bloco 5):** o dono trouxe o maior pacote de demandas desde a fundação, orquestrado em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]: **SESSÕES 22–28** (filas reais + tempo de PCP + paginação · Meu Painel 2.0 com subtarefas · estoque núcleo com Pedidos em aguardo e cancelamentos · integração NOVA com o Tiny da fábrica · chat interno · automações em canvas, que absorve a 17 · rota calculada OSRM). Ordem decidida: **16 → 22…28**, com a 21 (cutover) na janela do dono. Todas as demandas `📐 prontas para code`, com as perguntas ao dono embutidas.
 
 **↪️ 17/09/2026 (reorganização do cofre):** os dois cofres viraram UM — o `_Docs` da loja foi destrinchado e fundido aqui (domínio de dados → `SUPA - Comercial -*`, Tiny v3 → referência do Tiny, módulo → `PLT - Comercial -*`, atendimento → `Atendimento/`), a pasta `docs/` do repo foi absorvida (`execucao/` → `Plataforma/Execucao/`, mockups → `Plataforma/Inspiracao/`, notas soltas → `PLT -`), e nasceu `Planejamento/` com [[000 - PROXIMOS PASSOS]]. Estado do produto: SESSÕES 19–20 entregues (módulo Comercial no ar com disparo travado). **Próxima: SESSAO-16 (dashboards), depois SESSAO-21 (cutover).**
 
