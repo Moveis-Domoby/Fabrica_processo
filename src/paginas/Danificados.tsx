@@ -358,9 +358,20 @@ function ModalResolver({
   const etapasDoDestino = etapas.filter(
     (e) => e.setor_id === setorEscolhido && !e.eh_danificado,
   )
+  // SESSAO-22 (D-48): destino de produção com fila não tem mais "Chegada" —
+  // a fila é o padrão (o banco resolve igual se a etapa vier vazia).
+  const setorDestinoInfo = setores.find((s) => s.id === setorEscolhido)
+  const filaDoDestino = etapasDoDestino.find((e) => e.eh_fila)
+  const producaoComFila =
+    setorDestinoInfo?.papel_no_fluxo === 'producao' && filaDoDestino !== undefined
+  const etapaExibida =
+    producaoComFila && etapaId === 'chegada' ? String(filaDoDestino!.id) : etapaId
   const opcoesEtapa = [
-    { valor: 'chegada', rotulo: 'Chegada (sem etapa)' },
-    ...etapasDoDestino.map((e) => ({ valor: String(e.id), rotulo: e.nome })),
+    ...(producaoComFila ? [] : [{ valor: 'chegada', rotulo: 'Chegada (sem etapa)' }]),
+    ...etapasDoDestino.map((e) => ({
+      valor: String(e.id),
+      rotulo: e.eh_fila ? `${e.nome} (fila)` : e.nome,
+    })),
   ]
 
   const resolver = useMutation({
@@ -424,7 +435,7 @@ function ModalResolver({
           tamanho="galpao"
         />
         {setorEscolhido !== null && etapasDoDestino.length > 0 && (
-          <Selecao rotulo="Etapa" opcoes={opcoesEtapa} valor={etapaId} aoMudar={setEtapaId} />
+          <Selecao rotulo="Etapa" opcoes={opcoesEtapa} valor={etapaExibida} aoMudar={setEtapaId} />
         )}
 
         {setorEscolhido !== null && !mesmoSetor && (

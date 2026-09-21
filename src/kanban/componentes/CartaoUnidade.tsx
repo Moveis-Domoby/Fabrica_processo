@@ -6,13 +6,14 @@ import {
   History,
   Hourglass,
   MoveRight,
+  Pause,
   Play,
   Square,
   UserRound,
 } from 'lucide-react'
 import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { formatarDuracao } from '../tempo'
+import { formatarDuracao, formatarDuracaoMs } from '../tempo'
 import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
 
 export interface CartaoUnidadeProps {
@@ -27,6 +28,10 @@ export interface CartaoUnidadeProps {
   aoIniciar?: (card: Card) => void
   /** Finalizar a execução (SESSAO-05). */
   aoFinalizar?: (card: Card) => void
+  /** SESSAO-22 (D-48): pausar a execução — gesto de líder do setor ou admin. */
+  aoPausar?: (card: Card) => void
+  /** SESSAO-22 (D-48): retomar — quem executa (ao finalizar a urgência), líder ou admin. */
+  aoRetomar?: (card: Card) => void
   /** Abre a linha do tempo do card (SESSAO-05). */
   aoLinhaTempo?: (card: Card) => void
   /** Desde quando a execução aberta corre (vem de plt_vw_execucoes). */
@@ -61,6 +66,8 @@ export function CartaoUnidade({
   aoConcluir,
   aoIniciar,
   aoFinalizar,
+  aoPausar,
+  aoRetomar,
   aoLinhaTempo,
   execucaoDesde,
   executorNome,
@@ -76,7 +83,15 @@ export function CartaoUnidade({
       ? `(${card.indice_unidade}/${card.total_unidades})`
       : ''
   const emExecucao = card.executor_atual_id !== null
+  // SESSAO-22 (D-48): pausado não conta tempo nem ocupa o limite.
+  const pausado = emExecucao && card.pausado_em !== null
   const comGestos = !terminal && (aoIniciar !== undefined || aoFinalizar !== undefined)
+  // D-48: o tempo em PCP é do PEDIDO — da entrada até a liberação completa.
+  const pcpMs = pedido?.entrou_pcp_em
+    ? (pedido.liberado_completo_em
+        ? new Date(pedido.liberado_completo_em).getTime()
+        : agora) - new Date(pedido.entrou_pcp_em).getTime()
+    : null
 
   return (
     <article
@@ -98,6 +113,20 @@ export function CartaoUnidade({
       {pedido?.cliente_nome && (
         <p className="line-clamp-1 text-xs text-texto-fraco">{pedido.cliente_nome}</p>
       )}
+      {/* D-48: o tempo em PCP verdadeiro — do pedido, entrada → liberação completa. */}
+      {pcpMs !== null && (
+        <p
+          className="text-xs text-texto-fraco tabular-nums"
+          title={
+            pedido?.liberado_completo_em
+              ? 'Tempo que o pedido esperou no PCP, da entrada até a liberação da última unidade.'
+              : 'O pedido ainda tem unidade por liberar — o tempo em PCP segue contando.'
+          }
+        >
+          Pedido ficou {formatarDuracaoMs(pcpMs)} em PCP
+          {!pedido?.liberado_completo_em && ' (ainda contando)'}
+        </p>
+      )}
 
       {/* O tempo, como a D-02 manda: fila é do setor, execução é da pessoa. */}
       {terminal ? (
@@ -105,6 +134,23 @@ export function CartaoUnidade({
           <Flag aria-hidden className="size-4 text-perfeito-forte" />
           {formatarDuracao(card.desde, agora)}
           <span className="sr-only">desde a chegada ao fim de linha</span>
+        </p>
+      ) : pausado ? (
+        // SESSAO-22 (D-48): pausado é estado com ícone + texto, nunca só cor (M-12).
+        <p
+          className="inline-flex flex-wrap items-center gap-1.5 text-sm font-medium text-atencao-texto tabular-nums"
+          title={
+            card.pausado_em
+              ? `Pausado pelo líder em ${new Date(card.pausado_em).toLocaleString('pt-BR')} — o tempo não conta enquanto pausado.`
+              : undefined
+          }
+        >
+          <Pause aria-hidden className="size-4" />
+          Pausado há {formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
+          <span className="inline-flex items-center gap-1 font-normal text-texto-suave">
+            <UserRound aria-hidden className="size-4" />
+            {souExecutor ? 'você' : (executorNome ?? '…')}
+          </span>
         </p>
       ) : emExecucao ? (
         <p
@@ -161,7 +207,21 @@ export function CartaoUnidade({
       <footer className="mt-1 flex flex-col gap-2">
         {comGestos && (
           <div className="flex flex-wrap items-center gap-2">
-            {emExecucao ? (
+            {pausado ? (
+              // D-48: retomar volta a contar o tempo — quem executa (ao finalizar
+              // a urgência), líder ou admin. O banco valida de verdade.
+              aoRetomar && (
+                <Botao
+                  tamanho="sm"
+                  icone={<Play />}
+                  className="min-h-toque-md flex-1"
+                  disabled={gestoPendente}
+                  onClick={() => aoRetomar(card)}
+                >
+                  Retomar
+                </Botao>
+              )
+            ) : emExecucao ? (
               <>
                 {aoFinalizar && (
                   <Botao
@@ -172,6 +232,18 @@ export function CartaoUnidade({
                     onClick={() => aoFinalizar(card)}
                   >
                     Finalizar
+                  </Botao>
+                )}
+                {aoPausar && (
+                  <Botao
+                    variante="secundaria"
+                    tamanho="sm"
+                    icone={<Pause />}
+                    className="min-h-toque-md"
+                    disabled={gestoPendente}
+                    onClick={() => aoPausar(card)}
+                  >
+                    Pausar
                   </Botao>
                 )}
                 {!souExecutor && aoIniciar && (

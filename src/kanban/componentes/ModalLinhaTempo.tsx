@@ -21,6 +21,9 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   movimentacao_etapa: 'Movido de etapa',
   execucao_iniciada: 'Execução iniciada',
   execucao_finalizada: 'Execução finalizada',
+  // SESSAO-22 (D-48): a pausa do líder e a retomada também são história.
+  execucao_pausada: 'Execução pausada',
+  execucao_retomada: 'Execução retomada',
   qualidade_marcada: 'Qualidade marcada',
   qualidade_parecer: 'Parecer de qualidade',
   divergencia_registrada: 'Divergência registrada',
@@ -124,6 +127,27 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
       <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
         {isPending && <p className="text-sm text-texto-fraco">Carregando a história do card…</p>}
 
+        {/* D-48 (SESSAO-22): o tempo em PCP é do PEDIDO — da entrada até a
+            liberação da última unidade. É o número verdadeiro, não o instante
+            em que ESTA unidade nasceu e saiu. */}
+        {card?.tipo === 'unidade' && pedido?.entrou_pcp_em && (
+          <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto tabular-nums">
+            Pedido no PCP:{' '}
+            <strong>
+              {formatarDuracaoMs(
+                (pedido.liberado_completo_em
+                  ? new Date(pedido.liberado_completo_em).getTime()
+                  : agora) - new Date(pedido.entrou_pcp_em).getTime(),
+              )}
+            </strong>{' '}
+            <span className="text-texto-suave">
+              {pedido.liberado_completo_em
+                ? '— da entrada à liberação da última unidade.'
+                : '— ainda contando: o pedido tem unidade por liberar.'}
+            </span>
+          </p>
+        )}
+
         {!isPending && segmentos.length === 0 && (
           <p className="text-sm text-texto-suave">Este card ainda não tem movimentação.</p>
         )}
@@ -199,13 +223,16 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
                     <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
                     <dd className="font-medium text-texto">{formatarDuracaoMs(e.duracaoMs)}</dd>
                     <dd className="text-xs text-texto-fraco">
-                      {e.encerramento === null && '· em andamento'}
+                      {e.encerramento === null && !e.pausada && '· em andamento'}
+                      {/* D-48: pausado não conta — o desconto já está na duração. */}
+                      {e.pausada && '· pausada agora (o tempo não conta)'}
                       {e.encerramento === 'finalizada' &&
                         (e.autorFim && e.autorFim !== e.autorInicio
                           ? `· finalizada por ${e.autorFim}`
                           : '· finalizada')}
                       {e.encerramento === 'transferencia' && '· transferida (assumida por outra pessoa)'}
                       {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
+                      {e.pausaMs > 0 && ` · ${formatarDuracaoMs(e.pausaMs)} de pausa descontados`}
                     </dd>
                   </div>
                 ))}

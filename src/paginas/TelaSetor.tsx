@@ -15,6 +15,7 @@ import {
   buscarSetores,
   finalizarExecucao,
   iniciarExecucao,
+  retomarExecucao,
 } from '@/kanban/api'
 import { useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
@@ -34,6 +35,8 @@ const ROTULO_ACAO = {
   receber: 'Receber',
   iniciar: 'Iniciar',
   finalizar: 'Finalizar',
+  // SESSAO-22 (D-48): retomar a execução pausada pelo líder.
+  retomar: 'Retomar',
   mover: 'Mover',
   concluir: 'Concluir',
 } as const
@@ -216,7 +219,15 @@ export function TelaSetor() {
     onSuccess: invalidarFila,
     onError: aoErroGesto('Não deu para finalizar'),
   })
-  const gestoPendente = mutacaoIniciar.isPending || mutacaoFinalizar.isPending
+  // SESSAO-22 (D-48): retomar com o PIN — o banco valida quem pode e a trava
+  // do limite ("finalize a urgência antes").
+  const mutacaoRetomar = useMutation({
+    mutationFn: retomarExecucao,
+    onSuccess: invalidarFila,
+    onError: aoErroGesto('Não deu para retomar'),
+  })
+  const gestoPendente =
+    mutacaoIniciar.isPending || mutacaoFinalizar.isPending || mutacaoRetomar.isPending
 
   function aoOperadorIdentificado(operador: OperadorIdentificado) {
     if (!acaoComPin) return
@@ -227,6 +238,8 @@ export function TelaSetor() {
       setContextoMover({ card, operador, modo: tipo })
     } else if (tipo === 'finalizar') {
       mutacaoFinalizar.mutate({ card, usuarioId: operador.usuario_id })
+    } else if (tipo === 'retomar') {
+      mutacaoRetomar.mutate({ card, usuarioId: operador.usuario_id })
     } else if (pareceresPorCard.has(card.id)) {
       // Receber (ou iniciar com entrega marcada): o parecer vem antes (D-09).
       setContextoParecer({ card, operador })
@@ -354,6 +367,7 @@ export function TelaSetor() {
                   aoReceber={(c) => setAcaoComPin({ tipo: 'receber', card: c })}
                   aoIniciar={(c) => setAcaoComPin({ tipo: 'iniciar', card: c })}
                   aoFinalizar={(c) => setAcaoComPin({ tipo: 'finalizar', card: c })}
+                  aoRetomar={(c) => setAcaoComPin({ tipo: 'retomar', card: c })}
                   aoMover={(c) => setAcaoComPin({ tipo: 'mover', card: c })}
                   aoConcluir={(c) => setAcaoComPin({ tipo: 'concluir', card: c })}
                   aoFotos={setCardFotos}

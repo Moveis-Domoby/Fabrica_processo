@@ -59,6 +59,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 14. **Verificação conforme os critérios de aceite da demanda** — cada critério testado e reportado no handoff; UI nova acompanha screenshot.
 15. **Mobile-first para o chão de fábrica** (D-06): tudo que o operador toca funciona em tablet com botão grande e em celular.
 16. **Lei de layout e navegação (D-36):** layout nunca nasce fora do padrão **pai→filho** — um filho é sempre herdeiro de um pai. **Pai nunca é rota navegável**: só direciona aos filhos, no padrão `/pai/filho` (ex.: `/logistica/estoque`). **Nenhuma rota solta na raiz**: toda entrada redireciona para a rota herdeira — `/entrar` → `/inicio/meu-painel`, `/` → `/inicio/meu-painel`. Sidebar presente e recolhível em **toda** tela; **botão de voltar em toda tela**; sino de notificações no topo; e **toda atividade de usuário gera log no banco** (D-40).
+17. **Lei de requisição (SESSAO-22, pedido do dono): cada tela requisita apenas o que ela mostra — se a tela não mostra, ela não requisita.** Lista/coluna pagina **no servidor** (`limite/deslocamento` ou `range`), o total vem de agregado barato (contagem na mesma consulta paginada), e "Ver mais" busca só a próxima página. Baixar o conjunto inteiro para filtrar/desenhar um pedaço no cliente é proibido — vale para toda tela nova e para toda tela que for tocada.
 
 ## O ciclo de toda sessão
 

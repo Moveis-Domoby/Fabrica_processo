@@ -46,13 +46,27 @@ export interface Card {
   responsavel_id: string | null
   qualidade_atual: Estado | null
   concluido_em: string | null
+  /** SESSAO-22 (D-48): quando a execução aberta foi pausada pelo líder. null = não pausado. */
+  pausado_em: string | null
+  /** SESSAO-22 (D-48): quando a ÚLTIMA unidade foi liberada (só card de pedido) — fim do tempo em PCP. */
+  liberado_completo_em: string | null
 }
 
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
 export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
-  'executor_atual_id, responsavel_id, qualidade_atual, concluido_em'
+  'executor_atual_id, responsavel_id, qualidade_atual, concluido_em, ' +
+  'pausado_em, liberado_completo_em'
+
+/**
+ * Uma página de cards de uma coluna do quadro (SESSAO-22): a regra "cada tela
+ * requisita só o que mostra" — 10 por vez, com o total real vindo do servidor.
+ */
+export interface PaginaDeCards {
+  cards: Card[]
+  total: number
+}
 
 /** Linha de plt_fn_pedidos_kanban — resumo sem dado pessoal do cliente. */
 export interface PedidoResumo {
@@ -68,6 +82,10 @@ export interface PedidoResumo {
   unidades_liberadas: number
   /** SESSAO-09: o Tiny mudou o pedido DEPOIS de unidades irem à produção. */
   alterado_apos_liberacao: boolean
+  /** SESSAO-22 (D-48): quando o pedido entrou no PCP — o começo do tempo em PCP. */
+  entrou_pcp_em: string | null
+  /** SESSAO-22 (D-48): quando a última unidade foi liberada — o fim do tempo em PCP. */
+  liberado_completo_em: string | null
   contagem_total: number
 }
 
@@ -160,6 +178,8 @@ export interface EventoLinhaTempo {
     | 'movimentacao_etapa'
     | 'execucao_iniciada'
     | 'execucao_finalizada'
+    | 'execucao_pausada'
+    | 'execucao_retomada'
     | 'qualidade_marcada'
     | 'qualidade_parecer'
     | 'divergencia_registrada'

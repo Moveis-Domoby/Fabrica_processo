@@ -72,6 +72,11 @@ export interface PedidoAguardo {
   unidades_prontas: number
   completo: boolean
   alterado_apos_liberacao: boolean
+  /** SESSAO-22 (D-48): quando a PRIMEIRA unidade ficou pronta (chegou em terminal). */
+  primeira_pronta_em: string | null
+  /** SESSAO-22 (D-48): quando o pedido ficou COMPLETO — é daqui que o tempo de
+   *  aguardo total conta (insumo futuro do cálculo de tempo de entrega). */
+  completo_em: string | null
   contagem_total: number
 }
 

@@ -154,6 +154,21 @@ export function PedidosAguardo() {
                     <> · {linha.total_unidades - linha.unidades_liberadas} ainda no PCP</>
                   )}
                 </p>
+                {/* D-48: o relógio do aguardo — completo conta para o futuro
+                    cálculo de tempo de entrega. */}
+                <p className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums">
+                  <Hourglass aria-hidden className="size-4" />
+                  {linha.completo && linha.completo_em ? (
+                    <>
+                      Completo há <strong className="text-texto">{formatarDuracao(linha.completo_em, agora)}</strong>
+                      {' '}aguardando o lançamento
+                    </>
+                  ) : linha.primeira_pronta_em ? (
+                    <>1ª unidade pronta há {formatarDuracao(linha.primeira_pronta_em, agora)}</>
+                  ) : (
+                    <>aguardando a primeira unidade pronta</>
+                  )}
+                </p>
                 <div
                   className="mt-1 h-2 w-full overflow-hidden rounded-full bg-superficie-sutil"
                   role="progressbar"

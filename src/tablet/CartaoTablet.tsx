@@ -7,13 +7,14 @@ import {
   History,
   Hourglass,
   MoveRight,
+  Pause,
   Play,
   Square,
   UserRound,
 } from 'lucide-react'
 import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { formatarDuracao } from '@/kanban/tempo'
+import { formatarDuracao, formatarDuracaoMs } from '@/kanban/tempo'
 import type { Card, Etapa, ParecerPendente, PedidoResumo } from '@/kanban/tipos'
 
 export interface CartaoTabletProps {
@@ -33,6 +34,8 @@ export interface CartaoTabletProps {
   aoReceber: (card: Card) => void
   aoIniciar: (card: Card) => void
   aoFinalizar: (card: Card) => void
+  /** SESSAO-22 (D-48): retomar a execução pausada — o PIN diz quem retomou. */
+  aoRetomar?: (card: Card) => void
   aoMover: (card: Card) => void
   /** SESSAO-15: "Concluir" — a peça pronta vai para o fim de linha (ESTOQUE). */
   aoConcluir?: (card: Card) => void
@@ -60,6 +63,7 @@ export function CartaoTablet({
   aoReceber,
   aoIniciar,
   aoFinalizar,
+  aoRetomar,
   aoMover,
   aoConcluir,
   aoFotos,
@@ -70,6 +74,8 @@ export function CartaoTablet({
       ? `${card.indice_unidade}/${card.total_unidades}`
       : null
   const emExecucao = card.executor_atual_id !== null
+  // SESSAO-22 (D-48): pausado pelo líder — não conta tempo nem ocupa o limite.
+  const pausado = emExecucao && card.pausado_em !== null
 
   return (
     <article
@@ -127,6 +133,16 @@ export function CartaoTablet({
           <Flag aria-hidden className="size-5 text-perfeito-forte" />
           {formatarDuracao(card.desde, agora)} desde a chegada
         </p>
+      ) : pausado ? (
+        // D-48: estado com ícone + texto, nunca só cor (M-12).
+        <p className="inline-flex flex-wrap items-center gap-2 text-base font-semibold text-atencao-texto tabular-nums">
+          <Pause aria-hidden className="size-5" />
+          Pausado há {formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
+          <span className="inline-flex items-center gap-1.5 font-normal text-texto-suave">
+            <UserRound aria-hidden className="size-5" />
+            {executorNome ?? '…'}
+          </span>
+        </p>
       ) : emExecucao ? (
         <p className="inline-flex flex-wrap items-center gap-2 text-base text-texto tabular-nums">
           <Play aria-hidden className="size-5 text-perfeito-forte" />
@@ -171,7 +187,21 @@ export function CartaoTablet({
 
       <footer className="mt-auto flex flex-col gap-2">
         {!terminal &&
-          (parecerPendente ? (
+          (pausado ? (
+            // D-48: retomar volta a contar o tempo — o banco recusa enquanto a
+            // urgência de quem executa estiver aberta ("finalize antes").
+            aoRetomar && (
+              <Botao
+                tamanho="galpao"
+                larguraTotal
+                icone={<Play />}
+                disabled={gestoPendente}
+                onClick={() => aoRetomar(card)}
+              >
+                Retomar
+              </Botao>
+            )
+          ) : parecerPendente ? (
             <Botao
               tamanho="galpao"
               larguraTotal
