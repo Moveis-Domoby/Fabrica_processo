@@ -3496,6 +3496,113 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+titulo('SESSAO-22 ↪️ · iniciar na fila avança para a próxima etapa (migration 30)')
+
+// A CNC ganha a etapa de trabalho depois da fila (o dono cadastra — simulado).
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+    values ((select id from public.plt_setores where codigo = 'cnc'), 'USINANDO', 2, false);
+`)
+const cardMigrado = (
+  await bd.query(`
+    select c.id from public.plt_cards c
+     where c.tipo = 'unidade'
+       and c.pedido_id = (select id from public.pedidos where numero = 999990)
+       and c.indice_unidade = 1`)
+).rows[0].id
+
+// A chegada na CNC veio com marcação sem parecer: o iniciar é recusado E o
+// avanço automático NÃO acontece (a transação volta inteira).
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+     values (${cardMigrado}, 'execucao_iniciada',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface')`,
+  'iniciar sem o parecer é recusado — e o avanço automático volta junto (transação única)',
+  /confirme o recebimento/i,
+)
+const aindaNaFila = (
+  await bd.query(`
+    select e.nome as etapa from public.plt_cards c
+      join public.plt_etapas e on e.id = c.etapa_atual_id
+     where c.id = ${cardMigrado}`)
+).rows[0]
+conferir(
+  aindaNaFila?.etapa === 'A USINAR',
+  'com o iniciar recusado, o card continua na fila (nada avançou)',
+  JSON.stringify(aindaNaFila ?? null),
+)
+
+// Parecer registrado → iniciar → o card SAI da fila para a próxima etapa com a
+// execução ABERTA lá (o mover automático nasce antes do iniciar e não a encerra).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+    values (${cardMigrado}, 'qualidade_parecer',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface',
+            (select max(id) from public.plt_eventos
+              where card_id = ${cardMigrado} and tipo = 'qualidade_marcada'),
+            'perfeito');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values (${cardMigrado}, 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'exec.dois'), 'interface');
+`)
+const avancou = (
+  await bd.query(`
+    select e.nome as etapa,
+           (select u.usuario from public.plt_usuarios u where u.id = c.executor_atual_id) as executor,
+           (select count(*)::int from public.plt_eventos me
+             where me.card_id = c.id and me.tipo = 'movimentacao_etapa' and me.origem = 'automacao'
+               and me.etapa_destino_id = c.etapa_atual_id) as mover_automatico,
+           (select v.em_andamento from public.plt_vw_execucoes v
+             where v.card_id = c.id and v.em_andamento) as execucao_aberta,
+           (select en.nome from public.plt_vw_execucoes v
+             join public.plt_etapas en on en.id = v.etapa_id
+             where v.card_id = c.id and v.em_andamento) as etapa_da_execucao
+      from public.plt_cards c
+      join public.plt_etapas e on e.id = c.etapa_atual_id
+     where c.id = ${cardMigrado}`)
+).rows[0]
+conferir(
+  avancou?.etapa === 'USINANDO' && avancou?.executor === 'exec.dois'
+    && avancou?.mover_automatico === 1 && avancou?.execucao_aberta === true
+    && avancou?.etapa_da_execucao === 'USINANDO',
+  'iniciar na FILA avançou o card para a próxima etapa com a execução ABERTA lá (D-48 ↪️)',
+  JSON.stringify(avancou ?? null),
+)
+
+// Setor cuja fila é a única etapa: nada se inventa (D-14) — executa na própria fila.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    select c.id, 'movimentacao_setor',
+           (select id from public.plt_setores where codigo = 'pcp'),
+           (select id from public.plt_setores where codigo = 'montagem'),
+           (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface'
+      from public.plt_cards c
+     where c.tipo = 'unidade'
+       and c.pedido_id = (select id from public.pedidos where numero = 999990)
+       and c.indice_unidade = 2;
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    select c.id, 'execucao_iniciada',
+           (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface'
+      from public.plt_cards c
+     where c.tipo = 'unidade'
+       and c.pedido_id = (select id from public.pedidos where numero = 999990)
+       and c.indice_unidade = 2;
+`)
+const soFilaMontagem = (
+  await bd.query(`
+    select e.nome as etapa, c.executor_atual_id is not null as executando
+      from public.plt_cards c
+      join public.plt_etapas e on e.id = c.etapa_atual_id
+     where c.tipo = 'unidade'
+       and c.pedido_id = (select id from public.pedidos where numero = 999990)
+       and c.indice_unidade = 2`)
+).rows[0]
+conferir(
+  soFilaMontagem?.etapa === 'A MONTAR' && soFilaMontagem?.executando === true,
+  'setor sem próxima etapa cadastrada: a execução corre na própria fila (nada se inventa — D-14)',
+  JSON.stringify(soFilaMontagem ?? null),
+)
+
 titulo('SESSAO-22 · limite editável por líder (RPC) e aguardo do pedido')
 
 // O líder da FITAMENTO ajusta o limite do PRÓPRIO setor pela RPC (D-48).

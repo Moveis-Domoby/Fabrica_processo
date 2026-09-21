@@ -365,35 +365,57 @@ export async function moverCard(parametros: {
  * Marcações sem parecer dos cards informados — o que cada setor recebedor
  * ainda precisa responder. Fica só a da CHEGADA ATUAL de cada card (marcação
  * de chegada antiga é registro unilateral; o banco recusaria o parecer dela).
+ *
+ * SESSAO-22: a comparação é com a última chegada de SETOR do card, nunca com
+ * `desde` — mover entre ETAPAS atualiza o `desde` e fazia a pendência sumir da
+ * tela enquanto o banco (certo) seguia exigindo o parecer.
  */
 export async function buscarPareceresPendentes(
   cards: Card[],
 ): Promise<Map<number, QualidadePendente>> {
   if (cards.length === 0) return new Map()
-  const { data, error } = await supabase
-    .from('plt_vw_qualidade_transicoes')
-    .select(
-      'evento_marcacao_id, card_id, setor_origem_id, setor_destino_id, usuario_remetente_id, estado_remetente, marcado_em',
-    )
-    .in(
-      'card_id',
-      cards.map((c) => c.id),
-    )
-    .is('evento_parecer_id', null)
-    .order('marcado_em', { ascending: false })
+  const ids = cards.map((c) => c.id)
+  const [pendencias, chegadas] = await Promise.all([
+    supabase
+      .from('plt_vw_qualidade_transicoes')
+      .select(
+        'evento_marcacao_id, card_id, setor_origem_id, setor_destino_id, usuario_remetente_id, estado_remetente, marcado_em',
+      )
+      .in('card_id', ids)
+      .is('evento_parecer_id', null)
+      .order('marcado_em', { ascending: false }),
+    supabase
+      .from('plt_eventos')
+      .select('card_id, ocorrido_em')
+      .in('card_id', ids)
+      .eq('tipo', 'movimentacao_setor')
+      .order('ocorrido_em', { ascending: false }),
+  ])
   const linhas = garantir(
-    data as QualidadePendente[] | null,
-    error,
+    pendencias.data as QualidadePendente[] | null,
+    pendencias.error,
     'Não deu para carregar as pendências de qualidade',
   )
+  const eventosChegada = garantir(
+    chegadas.data as { card_id: number; ocorrido_em: string }[] | null,
+    chegadas.error,
+    'Não deu para carregar as chegadas',
+  )
+  // A última chegada de setor de cada card (a lista já vem do mais novo para o mais velho).
+  const chegadaPorCard = new Map<number, number>()
+  for (const e of eventosChegada) {
+    if (!chegadaPorCard.has(e.card_id))
+      chegadaPorCard.set(e.card_id, new Date(e.ocorrido_em).getTime())
+  }
   const cardsPorId = new Map(cards.map((c) => [c.id, c]))
   const pendentes = new Map<number, QualidadePendente>()
   for (const linha of linhas) {
     const card = cardsPorId.get(linha.card_id)
     if (!card || pendentes.has(linha.card_id)) continue
     if (linha.setor_destino_id !== card.setor_atual_id) continue
-    if (card.desde && new Date(linha.marcado_em).getTime() < new Date(card.desde).getTime())
-      continue
+    // Marcação de uma passagem ANTERIOR pelo mesmo setor não vale para agora.
+    const chegouEm = chegadaPorCard.get(linha.card_id)
+    if (chegouEm !== undefined && new Date(linha.marcado_em).getTime() < chegouEm) continue
     pendentes.set(linha.card_id, linha)
   }
   return pendentes

@@ -392,6 +392,11 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 
 **Descartadas:** tempo de PCP por unidade (até a liberação dela ou da primeira); retomada só pelo líder; limite padrão diferente por setor.
 
+**↪️ Complemento (21/09/2026, revisão ao vivo da SESSAO-22 — palavras do dono):** *"quando eu iniciar qualquer card que estiver na fila, ele deve ser automaticamente movido para a próxima etapa; uma etapa pode sim ter mais de 1 execução ao mesmo tempo, um usuário que não pode."*
+
+- **Iniciar na FILA avança sozinho** para a próxima etapa do setor (ordem seguinte, ativa, não-DANIFICADO), com a execução aberta já na etapa nova — M-01: o humano decide (iniciar), o sistema executa a consequência (sair da fila). Setor cuja fila é a única etapa: executa na própria fila (D-14 — etapa não se inventa). Migration 30.
+- **O limite de execuções é da PESSOA, nunca da etapa** — confirma o desenho: várias execuções na mesma etapa são normais; a mesma pessoa é que respeita o teto do setor.
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

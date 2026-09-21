@@ -49,6 +49,11 @@ tags: [handoff, sessao, plataforma, bloco-5, kanban, tempo, paginacao, d-48]
 5. **Logística → Pedidos em aguardo:** pedido completo mostra "Completo há X aguardando o lançamento".
 6. **Painel admin → Setores e etapas:** como líder, o campo "Limite de cards em execução por pessoa" do seu setor salva (e aparece na trilha).
 
+## 4b. Ajustes da sua revisão ao vivo (21/09, mesma conversa)
+
+- **Parecer que não aparecia:** o banco exigia o parecer, mas a faixa sumia da tela quando o card tinha sido movido entre etapas depois da chegada (o filtro comparava com o `desde`, que muda a cada movimento de etapa). Corrigido: a pendência agora se ancora na **última chegada de setor** — recarregue e a faixa/modal volta.
+- **Iniciar na fila avança sozinho (D-48 ↪️, migration 30 — aplicada):** iniciar um card na fila de um setor de produção move-o automaticamente para a próxima etapa, com a execução aberta lá; se a fila for a única etapa do setor, executa nela mesma. Confirmado: **etapa não limita execuções simultâneas — o limite é da pessoa** (como já era).
+
 ## 5. Pendente / decisões para você
 
 - 🔶 **Merge na `main`** com o seu OK nesta conversa (D-20) — depois dele: índice, mapa e status da demanda fechados.
