@@ -8,8 +8,8 @@ tags: [handoff, sessao, plataforma, bloco-5, kanban, tempo, paginacao, d-48]
 
 # 📋 Handoff — SESSAO-22 · Produção: filas reais, tempo de PCP e paginação (D-48)
 
-**Branch:** `sessao-22-filas-tempo-paginacao` (2 commits: banco `2f8be0b` + front `6de4518`) — **aguardando sua revisão nesta conversa (D-20)**
-**Banco:** migration **29** (`20260921120000_plt_filas_tempo_pausa_paginacao.sql`) **escrita e testada, NÃO aplicada** — aplicar é o checkpoint F-08 desta conversa, junto com 2 SQLs de manutenção (limite 1 nos setores existentes; migração dos cards da "Chegada").
+**Branch:** `sessao-22-filas-tempo-paginacao` — **aguardando sua revisão final e o merge (D-20)**
+**Banco:** migration **29 APLICADA em 21/09 com sua aprovação explícita na conversa** (F-08), pelo session pooler IPv4 (A-15 — o aplicador agora deriva o pooler sozinho). Impressão digital da integração **idêntica** antes/depois (`e2109f3a…`, 65 colunas) e contagens intactas. Manutenções aplicadas no mesmo passo: **9 setores → limite 1**; **1 card vivo** da "Chegada" (FURAÇÃO) migrado por evento, zero restantes. Advisors: única entrada nova é a RPC do limite (endpoint de propósito, esperado).
 **Demanda:** [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] · **Memória:** [[SESSAO-22|Execucao/SESSAO-22]]
 **Decisões:** **D-48** (nova — revisa D-24 e Q-17; suas 5 respostas de 21/09) · D-02/M-08 · D-14 · D-22/D-31 · RNF-05/M-02 · D-27
 
@@ -29,18 +29,18 @@ tags: [handoff, sessao, plataforma, bloco-5, kanban, tempo, paginacao, d-48]
 | `npm run test:banco` (2 rodadas + cenários novos da S22) | ✅ TUDO VERDE — inclusive os 2 SQLs de manutenção rodados de verdade no harness, a prova aritmética da pausa (90min de relógio − 70 pausados = 20 contados, na view E na porta de dashboard) e o tempo de PCP parcial/completo/retroativo. Re-rodado depois de outra frente acrescentar `produtos` ao espelho do schema — segue verde |
 | `npx tsc -b` · `npm run lint` · `npm test` · `npm run build` | ✅ · ✅ · ✅ **49/47→49** (2 testes novos de pausa) · ✅ (bundle sem mudança relevante) |
 | Mojibake (E-34) | ✅ grep zero no `src/` |
-| Console do navegador (login) | ✅ limpo |
-| **F-07 completo (375/768px nas telas de dados)** | ⏸️ **depende da migration**: o front novo lê colunas que ainda não existem no banco de produção. Alvos ≥44px garantidos por construção (`min-h-toque-md`/`galpao`). Faço a medição logo após a aplicação, nesta conversa |
+| **Ao vivo, no banco real (21/09, você logado)** | ✅ PCP com **161 pedidos abertos** (total do servidor), 10 por página; "Ver mais (151)"→"(141)" **sem recarregar o quadro**; console sem erro novo. **FURAÇÃO sem coluna "Chegada"** e o card migrado (pedido 13107) na fila **A FURAR**, com o tempo de PCP no rótulo |
+| **F-07 (375px e 768px)** | ✅ Sem rolagem horizontal nos dois; botões do quadro todos ≥44px; os únicos alvos <44px são os grupos da sidebar (pré-existentes da navegação — S13/S20, fora do escopo) |
 
-## 3. O checkpoint desta conversa (F-08) — precisa do seu OK
+## 3. F-08 — executado com sua aprovação (21/09)
 
-1. **Aplicar a migration 29** (md5 da integração antes/depois + `get_advisors` depois — +2 WARN esperados: RPC do limite e as portas recriadas seguem o padrão de sempre).
-2. **Rodar `manutencao/2026-09-21_limite_execucoes_padrao_1.sql`** — todos os setores com limite 1 (sua resposta 4).
-3. **Rodar `manutencao/2026-09-21_migrar_cards_chegada_para_fila.sql`** — contagens antes/depois registradas na memória de execução.
-4. F-07 nas telas com dado real + sua validação ao vivo.
-5. Merge na `main` com seu OK (D-20).
+1. ✅ Migration 29 aplicada (aplicador com fallback de pooler novo — o `aws-1` da região resolve DNS mas recusa o tenant; o certo é o `aws-0-ca-central-1`, agora descoberto testando a conexão).
+2. ✅ Manutenção do limite: 9 setores "sem limite" → **1**.
+3. ✅ Manutenção da Chegada: 1 card (FURAÇÃO) migrado por evento origem `api`; conferência zero restantes.
+4. ✅ Advisors: só a RPC nova do limite entrou na lista (padrão de sempre).
+5. 🔶 **Falta só o merge na `main` com o seu OK (D-20).**
 
-## 4. Como validar depois da aplicação (10 minutos)
+## 4. Como validar (10 minutos)
 
 1. `npm run dev`, entre e abra **Fábrica → um setor de produção** (ex.: FITAMENTO): sem coluna "Chegada"; cada coluna com contador real e "Ver mais" quando passar de 10; na aba Network, a carga inicial só traz os cards exibidos.
 2. Mova um card para outro setor SEM escolher etapa → ele aparece na **fila** do destino ("A …").
@@ -51,7 +51,7 @@ tags: [handoff, sessao, plataforma, bloco-5, kanban, tempo, paginacao, d-48]
 
 ## 5. Pendente / decisões para você
 
-- 🔶 **F-08**: os passos do item 3 acima — nada tocou o banco de produção ainda.
+- 🔶 **Merge na `main`** com o seu OK nesta conversa (D-20) — depois dele: índice, mapa e status da demanda fechados.
 - ⚪ **Trabalho paralelo no working tree** (estudo do Tiny fábrica/S25 e demanda da S21): não foi tocado nem commitado por esta sessão (E-23).
 - ⚪ **Dashboards "Tempo por setor" e o PCP:** o tempo de PCP do pedido agora existe na view, mas a tela de tempos por setor segue somando só fila (`eh_fila`) × execução — expor o tempo de PCP como métrica própria de dashboard ficou de fora do escopo (posso anotar como melhoria para a S23/S16 se você quiser).
 - ⚪ **SESSAO-21 (cutover)** foi promovida a "pronta para code" no índice e roda logo após este handoff, em conversa própria — nada desta sessão a bloqueia.
