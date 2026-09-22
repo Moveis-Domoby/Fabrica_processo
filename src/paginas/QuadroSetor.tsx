@@ -5,7 +5,6 @@ import { Flag, ListChecks } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
-  buscarCardsDoSetor,
   buscarEtapasDoSetor,
   buscarExecucoesAbertas,
   buscarNomesUsuarios,
@@ -14,9 +13,12 @@ import {
   finalizarExecucao,
   iniciarExecucao,
   moverCard,
+  pausarExecucao,
+  retomarExecucao,
 } from '@/kanban/api'
 import { useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
+import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
@@ -30,7 +32,8 @@ const ATUALIZA_A_CADA = 20_000
  * unidade, drag-and-drop (desktop) e botão "Mover" (tablet). Quem vê: gente
  * do setor e admin — o RLS garante por baixo, a tela só evita a página vazia.
  * Desde a SESSAO-05 os cards carregam Iniciar/Finalizar/Assumir (D-02/D-24) e
- * a linha do tempo — o clique do galpão virando medição.
+ * a linha do tempo. Desde a SESSAO-22, cada coluna pagina no servidor (a tela
+ * só requisita o que mostra) e o líder pode pausar uma execução (D-48).
  */
 export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
@@ -52,12 +55,15 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     queryFn: () => buscarEtapasDoSetor(setorId),
     enabled: Number.isFinite(setorId),
   })
-  const { data: cards = [] } = useQuery({
-    queryKey: ['cards', 'setor', setorId],
-    queryFn: () => buscarCardsDoSetor(setorId, 'unidade'),
-    enabled: Number.isFinite(setorId),
-    refetchInterval: ATUALIZA_A_CADA,
+
+  // SESSAO-22: cada coluna carrega só a própria página (10 por vez + "Ver mais").
+  const { colunas, cards } = useColunasPaginadas({
+    setorId: Number.isFinite(setorId) ? setorId : undefined,
+    etapas,
+    tipo: 'unidade',
+    atualizaACada: ATUALIZA_A_CADA,
   })
+  const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(cards)
 
   // SESSAO-05: quem executa o quê, desde quando — e os nomes das pessoas.
@@ -138,8 +144,23 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     onSuccess: invalidarQuadro,
     onError: aoErroGesto('Não deu para finalizar'),
   })
+  // SESSAO-22 (D-48): pausar é gesto de líder/admin; retomar, de quem executa.
+  const mutacaoPausar = useMutation({
+    mutationFn: pausarExecucao,
+    onSuccess: invalidarQuadro,
+    onError: aoErroGesto('Não deu para pausar'),
+  })
+  const mutacaoRetomar = useMutation({
+    mutationFn: retomarExecucao,
+    onSuccess: invalidarQuadro,
+    onError: aoErroGesto('Não deu para retomar'),
+  })
   const gestoPendente =
-    mutacaoIniciar.isPending || mutacaoFinalizar.isPending || mutacaoEtapa.isPending
+    mutacaoIniciar.isPending ||
+    mutacaoFinalizar.isPending ||
+    mutacaoEtapa.isPending ||
+    mutacaoPausar.isPending ||
+    mutacaoRetomar.isPending
 
   if (!carregando && !souAdmin && !vinculoAqui) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -150,6 +171,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
 
   const terminal = setor.papel_no_fluxo === 'terminal'
   const podeGerirEtapas = souAdmin || vinculoAqui?.lider_do_setor === true
+  const podePausar = souAdmin || vinculoAqui?.lider_do_setor === true
 
   return (
     <div className="flex flex-col gap-5">
@@ -168,7 +190,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             {/* D-13 (terminais) e D-02 (fila × execução) — código fora da tela (D-27). */}
             {terminal
               ? 'Unidade que chega aqui está concluída — o pedido reagrupa na Expedição.'
-              : `${cards.length} card${cards.length === 1 ? '' : 's'} no setor. Iniciar e Finalizar contam o tempo de quem executa; a fila conta sozinha.`}
+              : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Iniciar e Finalizar contam o tempo de quem executa; a fila conta sozinha.`}
           </p>
         </div>
         {podeGerirEtapas && (
@@ -183,7 +205,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       <QuadroKanban
         setor={setor}
         etapas={etapas}
-        cards={cards}
+        colunas={colunas}
         pedidosPorId={pedidosPorId}
         agora={agora}
         aoMoverParaEtapa={(card, etapaId) =>
@@ -222,6 +244,18 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
           aoFinalizar: terminal
             ? undefined
             : (card) => mutacaoFinalizar.mutate({ card, usuarioId: perfil.id }),
+          aoPausar:
+            terminal || !podePausar
+              ? undefined
+              : (card) => mutacaoPausar.mutate({ card, usuarioId: perfil.id }),
+          aoRetomar: terminal
+            ? undefined
+            : (card) => {
+                // Retomar: quem executa (ao finalizar a urgência), líder ou admin —
+                // o banco valida de verdade.
+                if (card.executor_atual_id === perfil.id || podePausar)
+                  mutacaoRetomar.mutate({ card, usuarioId: perfil.id })
+              },
           aoLinhaTempo: setCardLinhaTempo,
         }}
       />

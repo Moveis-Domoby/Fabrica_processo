@@ -16,6 +16,7 @@
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync, readFileSync } from 'node:fs'
+import { lookup } from 'node:dns/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import pg from 'pg'
@@ -108,11 +109,57 @@ function partirConexao(url) {
   return { user, password, host, port: Number(porta), database: database.split('?')[0] }
 }
 
-const cliente = new pg.Client({
-  ...partirConexao(ambiente.SUPABASE_DB_URL),
-  ssl: { rejectUnauthorized: false },
-})
-await cliente.connect()
+/**
+ * A-15: sem rota IPv6, o host direto (db.<ref>.supabase.co) não resolve daqui.
+ * Mesmo remédio do script de carga da S19: derivar o session pooler IPv4
+ * (aws-N-<região>.pooler.supabase.com, usuário postgres.<ref>).
+ */
+const REGIOES = { axnzldwgwsmepukdiljx: 'ca-central-1' }
+async function conectarComFallback(cfg) {
+  const candidatos = []
+  try {
+    await lookup(cfg.host)
+    candidatos.push(cfg)
+  } catch {
+    // host direto sem rota — só os poolers entram na lista
+  }
+  const ref = (cfg.host.match(/^db\.([a-z]+)\.supabase\.co$/) || [])[1]
+    || (cfg.user.match(/^postgres\.([a-z]+)$/) || [])[1]
+  const regiao = REGIOES[ref]
+  if (regiao) {
+    // DNS resolver não basta: o pooler certo é o que CONHECE o tenant —
+    // testa-se conectando (o aws-1 da região resolve mas recusa o projeto).
+    for (const n of [0, 1]) {
+      candidatos.push({
+        ...cfg,
+        host: `aws-${n}-${regiao}.pooler.supabase.com`,
+        port: 5432,
+        user: `postgres.${ref}`,
+      })
+    }
+  }
+  if (candidatos.length === 0) {
+    console.error(vermelho(`Host "${cfg.host}" não resolve e não sei derivar o pooler dele.`))
+    process.exit(1)
+  }
+  let ultimoErro
+  for (const candidato of candidatos) {
+    const tentativa = new pg.Client({ ...candidato, ssl: { rejectUnauthorized: false } })
+    try {
+      await tentativa.connect()
+      if (candidato.host !== cfg.host)
+        console.log(`  · sem rota até ${cfg.host} — usando o session pooler ${candidato.host}`)
+      return tentativa
+    } catch (erro) {
+      ultimoErro = erro
+      try { await tentativa.end() } catch { /* já caiu */ }
+    }
+  }
+  console.error(vermelho(`Nenhum caminho até o banco funcionou: ${ultimoErro?.message}`))
+  process.exit(1)
+}
+
+const cliente = await conectarComFallback(partirConexao(ambiente.SUPABASE_DB_URL))
 
 try {
   const { rows: identidade } = await cliente.query(

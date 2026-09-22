@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Ban, Clock, PackageOpen, Plus } from 'lucide-react'
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { AlertTriangle, Ban, ChevronDown, Clock, PackageOpen, Plus } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
-  buscarCardsDoSetor,
+  buscarCardsPedidoPcp,
   buscarEtapasDoSetor,
   buscarSetores,
   moverCard,
@@ -13,6 +19,7 @@ import {
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
+import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
@@ -40,36 +47,51 @@ export function PCP() {
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPcp = setores.find((s) => s.codigo === 'pcp')
 
-  const { data: cardsPedido = [], isPending: carregandoPedidos } = useQuery({
-    queryKey: ['cards', 'pcp-pedidos', setorPcp?.id],
-    queryFn: () => buscarCardsDoSetor(setorPcp!.id, 'pedido'),
-    enabled: setorPcp !== undefined,
-    refetchInterval: ATUALIZA_A_CADA,
+  // SESSAO-22: pedidos ABERTOS filtrados e paginados no SERVIDOR — pedido 100%
+  // liberado sai do quadro lá (projeção liberado_completo_em, D-22/D-48), e a
+  // tela só requisita as páginas que mostra (10 + "Ver mais").
+  const [paginasPedidos, setPaginasPedidos] = useState(1)
+  const consultasPedidos = useQueries({
+    queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
+      queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, pagina],
+      queryFn: () => buscarCardsPedidoPcp({ setorPcpId: setorPcp!.id, pagina }),
+      enabled: setorPcp !== undefined,
+      refetchInterval: ATUALIZA_A_CADA,
+      placeholderData: keepPreviousData,
+    })),
   })
-  const { data: unidadesNoPcp = [] } = useQuery({
-    queryKey: ['cards', 'pcp-unidades', setorPcp?.id],
-    queryFn: () => buscarCardsDoSetor(setorPcp!.id, 'unidade'),
-    enabled: setorPcp !== undefined,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
+  const cardsPedidoAbertos = useMemo(
+    () => consultasPedidos.flatMap((c) => c.data?.cards ?? []),
+    [consultasPedidos],
+  )
+  const totalPedidosAbertos =
+    consultasPedidos[consultasPedidos.length - 1]?.data?.total ??
+    consultasPedidos[0]?.data?.total ??
+    0
+  const carregandoPedidos = consultasPedidos.some((c) => c.isPending)
+  const carregandoMaisPedidos = consultasPedidos[consultasPedidos.length - 1]?.isFetching ?? false
+
   const { data: etapasPcp = [] } = useQuery({
     queryKey: ['etapas', setorPcp?.id ?? 0],
     queryFn: () => buscarEtapasDoSetor(setorPcp!.id),
     enabled: setorPcp !== undefined,
   })
 
+  // Unidades de passagem pelo PCP: colunas paginadas (a estrutura do PCP não
+  // muda nesta sessão — a "Chegada" continua aqui).
+  const { colunas: colunasUnidades, cards: unidadesNoPcp } = useColunasPaginadas({
+    setorId: setorPcp?.id,
+    etapas: etapasPcp,
+    tipo: 'unidade',
+    atualizaACada: ATUALIZA_A_CADA,
+  })
+  const totalUnidadesNoPcp = [...colunasUnidades.values()].reduce((s, c) => s + c.total, 0)
+
   const todosOsCards = useMemo(
-    () => [...cardsPedido, ...unidadesNoPcp],
-    [cardsPedido, unidadesNoPcp],
+    () => [...cardsPedidoAbertos, ...unidadesNoPcp],
+    [cardsPedidoAbertos, unidadesNoPcp],
   )
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
-
-  // Pedido com todas as unidades liberadas sai do quadro (D-22).
-  const cardsPedidoAbertos = cardsPedido.filter((card) => {
-    const resumo = pedidosPorId.get(card.pedido_id)
-    if (!resumo) return true
-    return resumo.total_unidades === 0 || resumo.unidades_liberadas < resumo.total_unidades
-  })
 
   const [modalNovo, setModalNovo] = useState(false)
   const [cardParaLiberar, setCardParaLiberar] = useState<Card | null>(null)
@@ -108,7 +130,7 @@ export function PCP() {
       <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
         <h2 className="text-lg">
           Pedidos no PCP{' '}
-          <span className="text-texto-suave tabular-nums">({cardsPedidoAbertos.length})</span>
+          <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
         </h2>
 
         {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
@@ -191,18 +213,30 @@ export function PCP() {
             )
           })}
         </ul>
+
+        {cardsPedidoAbertos.length < totalPedidosAbertos && (
+          <Botao
+            variante="secundaria"
+            icone={<ChevronDown />}
+            className="self-start"
+            carregando={carregandoMaisPedidos}
+            onClick={() => setPaginasPedidos((p) => p + 1)}
+          >
+            Ver mais ({totalPedidosAbertos - cardsPedidoAbertos.length})
+          </Botao>
+        )}
       </section>
 
       <section aria-label="Unidades no PCP" className="flex flex-col gap-3">
         <h2 className="text-lg">
           Unidades no PCP{' '}
-          <span className="text-texto-suave tabular-nums">({unidadesNoPcp.length})</span>
+          <span className="text-texto-suave tabular-nums">({totalUnidadesNoPcp})</span>
         </h2>
-        {setorPcp && unidadesNoPcp.length > 0 && (
+        {setorPcp && totalUnidadesNoPcp > 0 && (
           <QuadroKanban
             setor={setorPcp}
             etapas={etapasPcp}
-            cards={unidadesNoPcp}
+            colunas={colunasUnidades}
             pedidosPorId={pedidosPorId}
             agora={agora}
             aoMoverParaEtapa={(card, etapaId) =>
@@ -223,7 +257,7 @@ export function PCP() {
             }}
           />
         )}
-        {unidadesNoPcp.length === 0 && (
+        {totalUnidadesNoPcp === 0 && (
           <p className="text-sm text-texto-fraco">
             Nenhuma unidade parada no PCP — o normal: elas nascem aqui e já seguem para os
             setores na liberação.

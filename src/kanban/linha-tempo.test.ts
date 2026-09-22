@@ -98,6 +98,43 @@ describe('montarSegmentos', () => {
     expect(segmento.filaMs).toBe(5 * minuto)
   })
 
+  it('pausa do líder desconta da execução (SESSAO-22/D-48): 90min − 70min pausados = 20min', () => {
+    // Espelho da prova do test:banco: inicia em 0, pausa em 10, retoma em 80,
+    // finaliza em 90 → 20min contados, 70min pausados.
+    const eventos: EventoLinhaTempo[] = [
+      evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: em(-5), setor_destino_id: 2, setor_destino_nome: 'SECC' }),
+      evento({ evento_id: 2, tipo: 'execucao_iniciada', ocorrido_em: em(0), usuario_nome: 'Ana' }),
+      evento({ evento_id: 3, tipo: 'execucao_pausada', ocorrido_em: em(10), usuario_nome: 'Líder', evento_referencia_id: 2 }),
+      evento({ evento_id: 4, tipo: 'execucao_retomada', ocorrido_em: em(80), usuario_nome: 'Ana', evento_referencia_id: 3 }),
+      evento({ evento_id: 5, tipo: 'execucao_finalizada', ocorrido_em: em(90), usuario_nome: 'Ana' }),
+    ]
+    const [segmento] = montarSegmentos(eventos, T0 + 120 * minuto)
+
+    expect(segmento.execucoes[0]).toMatchObject({
+      encerramento: 'finalizada',
+      duracaoMs: 20 * minuto,
+      pausaMs: 70 * minuto,
+      pausada: false,
+    })
+  })
+
+  it('pausa sem retomada em execução aberta: pausada agora, e o relógio dela não anda', () => {
+    const eventos: EventoLinhaTempo[] = [
+      evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: em(0), setor_destino_id: 2, setor_destino_nome: 'SECC' }),
+      evento({ evento_id: 2, tipo: 'execucao_iniciada', ocorrido_em: em(10), usuario_nome: 'Ana' }),
+      evento({ evento_id: 3, tipo: 'execucao_pausada', ocorrido_em: em(30), usuario_nome: 'Líder', evento_referencia_id: 2 }),
+    ]
+    const [segmento] = montarSegmentos(eventos, T0 + 60 * minuto)
+
+    // 50min de relógio desde o iniciar, mas só os 20min antes da pausa contam.
+    expect(segmento.execucoes[0]).toMatchObject({
+      encerramento: null,
+      duracaoMs: 20 * minuto,
+      pausaMs: 30 * minuto,
+      pausada: true,
+    })
+  })
+
   it('mover com execução aberta encerra a execução naquele instante (D-24)', () => {
     const eventos: EventoLinhaTempo[] = [
       evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: em(0), setor_destino_id: 2, setor_destino_nome: 'SECC' }),

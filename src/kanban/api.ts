@@ -8,12 +8,16 @@ import type {
   ExecucaoAberta,
   ExpedicaoLinha,
   ItemKanban,
+  PaginaDeCards,
   PedidoResumo,
   QualidadePendente,
   Setor,
   UnidadePedido,
   UnidadeParaLiberar,
 } from './tipos'
+
+/** SESSAO-22: 10 cards por página em cada coluna do quadro ("Ver mais" traz os próximos). */
+export const CARDS_POR_PAGINA = 10
 
 /**
  * Camada de dados do kanban (SESSAO-04).
@@ -97,6 +101,64 @@ export async function buscarCardsDoSetor(
   return garantir(data as unknown as Card[] | null, error, 'Não deu para carregar os cards')
 }
 
+/**
+ * UMA página de UMA coluna do quadro (SESSAO-22): a regra "cada tela requisita
+ * só o que mostra" — o quadro nunca baixa o setor inteiro. A paginação e o
+ * total (contagem exata, sem trazer linhas a mais) acontecem no servidor;
+ * `etapaId` nulo lê os cards ainda sem etapa (a antiga "Chegada").
+ */
+export async function buscarCardsDaEtapa(parametros: {
+  setorId: number
+  etapaId: number | null
+  tipo: 'pedido' | 'unidade'
+  pagina: number
+  porPagina?: number
+}): Promise<PaginaDeCards> {
+  const { setorId, etapaId, tipo, pagina } = parametros
+  const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
+  const inicio = pagina * porPagina
+  let consulta = supabase
+    .from('plt_cards')
+    .select(COLUNAS_CARD, { count: 'exact' })
+    .eq('setor_atual_id', setorId)
+    .eq('tipo', tipo)
+    .is('arquivado_em', null)
+    .order('desde', { ascending: true, nullsFirst: false })
+    .order('id')
+    .range(inicio, inicio + porPagina - 1)
+  consulta = etapaId === null ? consulta.is('etapa_atual_id', null) : consulta.eq('etapa_atual_id', etapaId)
+  const { data, error, count } = await consulta
+  if (error) throw new Error(`Não deu para carregar os cards: ${error.message}`)
+  return { cards: (data as unknown as Card[]) ?? [], total: count ?? 0 }
+}
+
+/**
+ * Os pedidos ABERTOS do quadro do PCP (SESSAO-22), paginados no servidor:
+ * aberto = ainda tem unidade por liberar (`liberado_completo_em` nulo — a
+ * projeção da D-48). Pedido 100% liberado sai do quadro (D-22) sem o front
+ * precisar baixar tudo para filtrar.
+ */
+export async function buscarCardsPedidoPcp(parametros: {
+  setorPcpId: number
+  pagina: number
+  porPagina?: number
+}): Promise<PaginaDeCards> {
+  const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
+  const inicio = parametros.pagina * porPagina
+  const { data, error, count } = await supabase
+    .from('plt_cards')
+    .select(COLUNAS_CARD, { count: 'exact' })
+    .eq('setor_atual_id', parametros.setorPcpId)
+    .eq('tipo', 'pedido')
+    .is('arquivado_em', null)
+    .is('liberado_completo_em', null)
+    .order('desde', { ascending: true, nullsFirst: false })
+    .order('id')
+    .range(inicio, inicio + porPagina - 1)
+  if (error) throw new Error(`Não deu para carregar os pedidos do PCP: ${error.message}`)
+  return { cards: (data as unknown as Card[]) ?? [], total: count ?? 0 }
+}
+
 // ---------------------------------------------------------------------------
 // Pedidos da integração (migration 13 — nunca as tabelas direto)
 // ---------------------------------------------------------------------------
@@ -159,7 +221,12 @@ export async function unidadesDoPedido(pedidoId: number): Promise<UnidadePedido[
 
 interface NovoEvento {
   card_id: number
-  tipo: 'card_criado' | 'movimentacao_setor' | 'movimentacao_etapa'
+  tipo:
+    | 'card_criado'
+    | 'movimentacao_setor'
+    | 'movimentacao_etapa'
+    | 'execucao_pausada'
+    | 'execucao_retomada'
   usuario_id: string
   setor_origem_id?: number | null
   etapa_origem_id?: number | null
@@ -298,35 +365,57 @@ export async function moverCard(parametros: {
  * Marcações sem parecer dos cards informados — o que cada setor recebedor
  * ainda precisa responder. Fica só a da CHEGADA ATUAL de cada card (marcação
  * de chegada antiga é registro unilateral; o banco recusaria o parecer dela).
+ *
+ * SESSAO-22: a comparação é com a última chegada de SETOR do card, nunca com
+ * `desde` — mover entre ETAPAS atualiza o `desde` e fazia a pendência sumir da
+ * tela enquanto o banco (certo) seguia exigindo o parecer.
  */
 export async function buscarPareceresPendentes(
   cards: Card[],
 ): Promise<Map<number, QualidadePendente>> {
   if (cards.length === 0) return new Map()
-  const { data, error } = await supabase
-    .from('plt_vw_qualidade_transicoes')
-    .select(
-      'evento_marcacao_id, card_id, setor_origem_id, setor_destino_id, usuario_remetente_id, estado_remetente, marcado_em',
-    )
-    .in(
-      'card_id',
-      cards.map((c) => c.id),
-    )
-    .is('evento_parecer_id', null)
-    .order('marcado_em', { ascending: false })
+  const ids = cards.map((c) => c.id)
+  const [pendencias, chegadas] = await Promise.all([
+    supabase
+      .from('plt_vw_qualidade_transicoes')
+      .select(
+        'evento_marcacao_id, card_id, setor_origem_id, setor_destino_id, usuario_remetente_id, estado_remetente, marcado_em',
+      )
+      .in('card_id', ids)
+      .is('evento_parecer_id', null)
+      .order('marcado_em', { ascending: false }),
+    supabase
+      .from('plt_eventos')
+      .select('card_id, ocorrido_em')
+      .in('card_id', ids)
+      .eq('tipo', 'movimentacao_setor')
+      .order('ocorrido_em', { ascending: false }),
+  ])
   const linhas = garantir(
-    data as QualidadePendente[] | null,
-    error,
+    pendencias.data as QualidadePendente[] | null,
+    pendencias.error,
     'Não deu para carregar as pendências de qualidade',
   )
+  const eventosChegada = garantir(
+    chegadas.data as { card_id: number; ocorrido_em: string }[] | null,
+    chegadas.error,
+    'Não deu para carregar as chegadas',
+  )
+  // A última chegada de setor de cada card (a lista já vem do mais novo para o mais velho).
+  const chegadaPorCard = new Map<number, number>()
+  for (const e of eventosChegada) {
+    if (!chegadaPorCard.has(e.card_id))
+      chegadaPorCard.set(e.card_id, new Date(e.ocorrido_em).getTime())
+  }
   const cardsPorId = new Map(cards.map((c) => [c.id, c]))
   const pendentes = new Map<number, QualidadePendente>()
   for (const linha of linhas) {
     const card = cardsPorId.get(linha.card_id)
     if (!card || pendentes.has(linha.card_id)) continue
     if (linha.setor_destino_id !== card.setor_atual_id) continue
-    if (card.desde && new Date(linha.marcado_em).getTime() < new Date(card.desde).getTime())
-      continue
+    // Marcação de uma passagem ANTERIOR pelo mesmo setor não vale para agora.
+    const chegouEm = chegadaPorCard.get(linha.card_id)
+    if (chegouEm !== undefined && new Date(linha.marcado_em).getTime() < chegouEm) continue
     pendentes.set(linha.card_id, linha)
   }
   return pendentes
@@ -408,6 +497,49 @@ export async function iniciarExecucao(parametros: {
     dados: card.executor_atual_id ? { transferido_de: card.executor_atual_id } : {},
   })
   if (error) throw new Error(`Não deu para iniciar: ${error.message}`)
+}
+
+/**
+ * Pausar a execução de alguém (SESSAO-22/D-48): gesto de líder do setor do
+ * card ou admin — a urgência do dia entra porque o pausado sai do limite.
+ * A validação (quem pode, execução aberta, referência) vive no trigger do
+ * banco e a mensagem volta já em português.
+ */
+export async function pausarExecucao(parametros: {
+  card: Card
+  usuarioId: string
+}): Promise<void> {
+  const { card, usuarioId } = parametros
+  const { error } = await supabase.from('plt_eventos').insert({
+    card_id: card.id,
+    tipo: 'execucao_pausada',
+    usuario_id: usuarioId,
+    origem: 'interface',
+    setor_origem_id: card.setor_atual_id,
+    etapa_origem_id: card.etapa_atual_id,
+  })
+  if (error) throw new Error(`Não deu para pausar: ${error.message}`)
+}
+
+/**
+ * Retomar a execução pausada (SESSAO-22/D-48): a própria pessoa retoma ao
+ * finalizar a urgência (o banco recusa enquanto ela tiver outra execução
+ * aberta no teto do setor); líder/admin também podem.
+ */
+export async function retomarExecucao(parametros: {
+  card: Card
+  usuarioId: string
+}): Promise<void> {
+  const { card, usuarioId } = parametros
+  const { error } = await supabase.from('plt_eventos').insert({
+    card_id: card.id,
+    tipo: 'execucao_retomada',
+    usuario_id: usuarioId,
+    origem: 'interface',
+    setor_origem_id: card.setor_atual_id,
+    etapa_origem_id: card.etapa_atual_id,
+  })
+  if (error) throw new Error(`Não deu para retomar: ${error.message}`)
 }
 
 /** Finalizar (D-24): fecha a execução — o card fica pronto para ser movido. */
@@ -498,6 +630,19 @@ export async function criarSetor(nome: string, ordem: number): Promise<void> {
     ordem,
   })
   if (error) throw new Error(`Não deu para criar o setor: ${error.message}`)
+}
+
+/**
+ * Limite de execuções por pessoa do setor (D-24/D-48): RPC com gate no banco —
+ * líder ajusta o PRÓPRIO setor, admin qualquer um; null = sem limite. A troca
+ * fica na trilha de atividade.
+ */
+export async function definirLimiteExecucoes(setorId: number, limite: number | null): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_definir_limite_execucoes', {
+    p_setor_id: setorId,
+    p_limite: limite,
+  })
+  if (error) throw new Error(`Não deu para salvar o limite: ${error.message}`)
 }
 
 export async function atualizarSetor(

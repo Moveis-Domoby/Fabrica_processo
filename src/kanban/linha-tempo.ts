@@ -13,6 +13,8 @@ import type { EventoLinhaTempo } from './tipos'
  * - uma EXECUÇÃO vai do "iniciar" ao próximo marco válido: finalizar (fecha),
  *   outro iniciar (transferência — D-24) ou a saída da etapa (movimentação
  *   encerra sozinha — D-24);
+ * - SESSAO-22 (D-48): o intervalo entre `execucao_pausada` e a retomada (ou o
+ *   fim da execução) NÃO conta como tempo da pessoa — a duração desconta;
  * - evento estornado não conta para tempo nenhum — mas continua na lista,
  *   riscado, porque histórico não se apaga (RNF-05).
  */
@@ -26,7 +28,12 @@ export interface ExecucaoSegmento {
   iniciouEm: number
   finalizouEm: number | null
   encerramento: EncerramentoExecucao
+  /** Tempo QUE CONTA: do iniciar ao encerramento, menos as pausas (D-48). */
   duracaoMs: number
+  /** SESSAO-22 (D-48): total pausado dentro desta execução (já descontado). */
+  pausaMs: number
+  /** SESSAO-22: pausada AGORA (execução aberta com pausa sem retomada). */
+  pausada: boolean
   /** De quem a execução foi assumida, quando foi transferência (D-24). */
   transferidoDe: string | null
 }
@@ -117,6 +124,27 @@ export function montarSegmentos(
         finalizouEm = new Date(proximoGesto.ocorrido_em).getTime()
         encerramento = 'transferencia'
       }
+      // SESSAO-22 (D-48): as pausas desta execução — a pausa aponta o iniciar
+      // (evento_referencia_id) e a retomada aponta a pausa. Pausa sem retomada
+      // termina no fim da execução (ou agora, se ainda aberta).
+      const fimExecucao = finalizouEm ?? agora
+      let pausaMs = 0
+      let pausada = false
+      for (const pausa of ordenados) {
+        if (pausa.tipo !== 'execucao_pausada') continue
+        if (pausa.evento_referencia_id !== gesto.evento_id) continue
+        const pausouEm = new Date(pausa.ocorrido_em).getTime()
+        if (pausouEm >= fimExecucao) continue
+        const retomada = ordenados.find(
+          (r) => r.tipo === 'execucao_retomada' && r.evento_referencia_id === pausa.evento_id,
+        )
+        const voltouEm = retomada
+          ? Math.min(new Date(retomada.ocorrido_em).getTime(), fimExecucao)
+          : fimExecucao
+        pausaMs += Math.max(voltouEm - pausouEm, 0)
+        if (!retomada && finalizouEm === null) pausada = true
+      }
+
       execucoes.push({
         inicioEventoId: gesto.evento_id,
         autorInicio: gesto.usuario_nome ?? '—',
@@ -124,7 +152,9 @@ export function montarSegmentos(
         iniciouEm,
         finalizouEm,
         encerramento,
-        duracaoMs: (finalizouEm ?? agora) - iniciouEm,
+        duracaoMs: (finalizouEm ?? agora) - iniciouEm - pausaMs,
+        pausaMs,
+        pausada,
         transferidoDe:
           typeof gesto.dados?.transferido_de === 'string' ? gesto.dados.transferido_de : null,
       })

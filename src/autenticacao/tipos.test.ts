@@ -13,6 +13,7 @@ function perfilDeTeste(sobrescrever: Partial<Perfil>): Perfil {
     papel: 'operador',
     senha_padrao: false,
     ativo: true,
+    arquivado_em: null,
     tema: 'claro',
     foto_caminho: null,
     modulos: [],

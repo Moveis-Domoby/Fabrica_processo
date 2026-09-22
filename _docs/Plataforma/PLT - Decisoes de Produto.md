@@ -380,6 +380,33 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - Primeira aplicação (na própria união): `vendas_marketing` **não** vira tabela na fábrica — vira **view de compatibilidade** sobre `pedidos` + `clientes` + `pedido_itens` (verificado em 15/09: mesmo dataset, 5.302 = 5.302 pedidos, 19/19 meses batendo ao centavo, telefone no mesmo formato). `tiny_sync_state`, as 3 functions de sync do Tiny e seus ticks/crons também **não** migram — o webhook n8n da fábrica já cobre criação e edição de pedidos.
 - A regra vale daqui em diante para toda demanda: antes de propor tabela nova, provar que nenhuma existente serve.
 
+## D-48 · Execução um por vez com pausa por líder; tempo de PCP e de aguardo são do pedido (21/09/2026) — ↩️ revisa a D-24 e a Q-17
+
+**Decidido (respostas do dono no início da SESSAO-22):**
+
+- **Limite de execuções por pessoa: o padrão vira 1** em todos os setores (↩️ revisa a D-24, que nascia "sem limite"). Segue **configurável por setor** — e a edição passa a ser permitida a **líderes (do próprio setor) e admins**, nas configurações do setor.
+- **Líder pode pausar a execução de alguém** (urgência do dia a dia). ↩️ Isto revisa a Q-17 ("não existe pausa"): a pausa volta, mas como **gesto de gestão do líder/admin**, não como disputa de qualidade. `execucao_pausada`/`execucao_retomada` são eventos append-only; execução pausada **não conta tempo** para a pessoa **nem ocupa o limite** — é o que deixa a urgência entrar.
+- **Retomar:** a própria pessoa retoma sozinha, **mas só depois de finalizar a urgência** — retomar com outra execução aberta é recusado pela mesma trava do limite (palavras do dono: *"se a urgência tá aberta pra ele então tá errado, ele tem que concluir a urgência antes de pegar outro"*).
+- **Tempo em PCP é do PEDIDO:** o pedido entra no PCP e **só para de contar quando for liberado por completo** (todas as unidades). Cada produto tem o próprio tempo de produção (da liberação em diante). Isto substitui as duas alternativas cogitadas na demanda (até a liberação daquela unidade / da primeira unidade).
+- **Tempo de aguardo é do PEDIDO:** com tudo produzido, o pedido conta **tempo de aguardo total** em Pedidos em aguardo — insumo futuro do **cálculo de tempo de entrega**. Todos esses tempos ficam salvos no banco (derivados dos eventos — M-02; nada se grava à mão).
+
+**Descartadas:** tempo de PCP por unidade (até a liberação dela ou da primeira); retomada só pelo líder; limite padrão diferente por setor.
+
+**↪️ Complemento (21/09/2026, revisão ao vivo da SESSAO-22 — palavras do dono):** *"quando eu iniciar qualquer card que estiver na fila, ele deve ser automaticamente movido para a próxima etapa; uma etapa pode sim ter mais de 1 execução ao mesmo tempo, um usuário que não pode."*
+
+- **Iniciar na FILA avança sozinho** para a próxima etapa do setor (ordem seguinte, ativa, não-DANIFICADO), com a execução aberta já na etapa nova — M-01: o humano decide (iniciar), o sistema executa a consequência (sair da fila). Setor cuja fila é a única etapa: executa na própria fila (D-14 — etapa não se inventa). Migration 30.
+- **O limite de execuções é da PESSOA, nunca da etapa** — confirma o desenho: várias execuções na mesma etapa são normais; a mesma pessoa é que respeita o teto do setor.
+
+## D-49 · Saída de usuário: excluir de fato só sem história; arquivar realoca as pendências ao líder (22/09/2026)
+
+**Decidido (pedido do dono no fechamento da SESSAO-22):** *"adiciona a possibilidade de excluir e de arquivar um usuário: se excluir, tudo o que estava no nome dele é de fato excluído; arquivar, tudo ainda fica no nome dele, porém as pendências dele são transferidas ao líder direto dele, para que o líder possa realocar"* — com modais próprios da casa, nada de caixa do navegador.
+
+- **ARQUIVAR** (qualquer usuário): perde o acesso (`ativo=false` + `arquivado_em`), **tudo fica registrado no nome dele**; no ato, a **execução aberta é encerrada** (o tempo até ali é dele — evento, nunca edição), e **cards delegados + tarefas abertas passam ao líder direto** do setor de cada pendência (setor sem líder, ou o arquivado É o líder → vão para o admin que arquivou). Reversível (**reativar**); as pendências realocadas não voltam.
+- **EXCLUIR** (só cadastro **sem história** — nunca gerou evento/log/meta): some **de verdade** — linha, vínculos, notificações, tarefas dele, visualizações, presenças, horários, foto e a **conta de login**. Quem já tem história **não pode ser excluído** (eventos e trilha são append-only — regra crítica 5/D-40, a história não se apaga): o sistema recusa explicando e **oferece o arquivar na hora** (mesmo padrão do caminhão em uso). Card delegado ao excluído volta a ficar sem dono **por evento**.
+- **Quem pode: só admin.** Ninguém arquiva/exclui a si mesmo; o último admin ativo não se arquiva.
+
+**Descartadas:** apagar história de produção junto com o usuário (revogaria a regra crítica 5 e furaria a medição — se um dia for desejado, é decisão nova aqui); abrir o gesto a líderes.
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

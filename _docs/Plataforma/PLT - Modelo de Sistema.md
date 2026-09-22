@@ -198,6 +198,19 @@ notificar({ titulo: 'Card movido', tom: 'perfeito' })
 - **No celular as notificações aparecem no topo** — o rodapé é a zona do polegar e some atrás do teclado. No tablet/desktop, canto inferior direito.
 - Notificação é para confirmação passageira. Informação que precisa de ação vai para a tela, não para o toast.
 
+### Lei de requisição (SESSAO-22, pedido do dono) — cada tela requisita só o que mostra
+
+> **"Cada tela deve requisitar apenas o que ela mostra — se a tela não mostra, ela não requisita."**
+
+- Lista, coluna de quadro ou grade pagina **no servidor** (`limite/deslocamento` nas RPCs,
+  `range` no PostgREST) — nunca baixa o conjunto inteiro para filtrar/fatiar no cliente.
+- O **total** de uma coluna/lista vem de agregado barato: contagem exata na MESMA
+  requisição paginada (`count: 'exact'` + `range`), sem trazer linhas a mais.
+- **"Ver mais"** busca só a página seguinte daquela coluna, sem recarregar o resto
+  (padrão da casa: `useColunasPaginadas`, 10 cards por página nos quadros).
+- Filtro que decide o que aparece (ex.: "pedidos abertos" no PCP) vive **no servidor**,
+  como coluna projetada ou parâmetro — nunca como filter em cima de um download completo.
+
 ### `<Tabela>` — **paginação é padrão, não opção** (RNF-02)
 
 ```tsx
@@ -226,10 +239,14 @@ Componentes de DOMÍNIO (não são primitivos de `ui/`, mas seguem as mesmas reg
 - **`<CartaoUnidade>`** — o card (k/n) que percorre os setores. Mostra pedido, produto, (k/n),
   tempo na etapa (`tabular-nums`, atualizado por minuto) e o botão **Mover** (alvo ≥ 44px).
   Estado de qualidade, quando existir, entra via `<BadgeEstado>` — nunca só cor.
-- **`<QuadroKanban>`** — colunas por etapa + a coluna fixa **Chegada** (etapa nula). Colunas
-  rolam na horizontal com `snap` no celular (85vw por coluna) e largura fixa no desktop.
-  **Dois gestos sempre:** drag-and-drop (`@dnd-kit/core`, desktop) E botão "Mover" (tablet) —
-  nenhuma movimentação pode existir só no arrasto.
+- **`<QuadroKanban>`** — colunas por etapa, cada uma **paginada no servidor** (SESSAO-22:
+  10 cards + "Ver mais"; o contador da coluna é o total real). A coluna **Chegada**
+  (etapa nula) **acabou nos setores de produção** (D-48): card que chega cai na etapa
+  fila do setor, resolvida pelo banco — ela só existe no PCP/terminais, em setor de
+  produção ainda sem fila cadastrada, ou transitoriamente (com aviso) se sobrou card
+  sem etapa. Colunas rolam na horizontal com `snap` no celular (85vw por coluna) e
+  largura fixa no desktop. **Dois gestos sempre:** drag-and-drop (`@dnd-kit/core`,
+  desktop) E botão "Mover" (tablet) — nenhuma movimentação pode existir só no arrasto.
 - **Modais do PCP** (`ModalNovoPedido`, `ModalLiberarPedido`) e **`ModalMoverCard`** — decisão
   curta em modal (`tamanho="galpao"` quando tem lista); seleção de destino com `<Selecao>`
   `tamanho="galpao"` no fluxo de tablet.
@@ -255,6 +272,17 @@ SESSAO-05.
   dono, o trigger).
 - A montagem dos segmentos é lógica pura em `src/kanban/linha-tempo.ts` — testada em Vitest,
   espelhando as views do banco.
+
+### Pausa por líder e tempo em PCP no card (SESSAO-22 / D-48)
+
+- **Card pausado é estado com ícone + texto, nunca só cor (M-12):** `Pause` + "Pausado há X"
+  em `atencao-texto`, com quem executa ao lado. Pausar (líder/admin) aparece ao lado do
+  Finalizar; pausado troca os gestos por **Retomar** (no tablet, `galpao` com PIN). O banco
+  valida tudo — o front só mostra a mensagem que voltar ("finalize a urgência antes…").
+- **Tempo em PCP no card de unidade é do PEDIDO:** linha discreta "Pedido ficou X em PCP"
+  (entrada → liberação completa; "ainda contando" enquanto houver unidade por liberar).
+  A linha do tempo repete o número num bloco próprio e desconta as pausas de cada execução
+  ("Xmin de pausa descontados").
 
 ### Qualidade nas transições (SESSAO-06 / D-09 / D-25)
 

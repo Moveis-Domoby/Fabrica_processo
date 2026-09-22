@@ -84,3 +84,59 @@ export interface OperadorIdentificado {
 export function pinVerificar(identificador: string, pin: string): Promise<OperadorIdentificado> {
   return chamar<OperadorIdentificado>('pin-verificar', { identificador, pin })
 }
+
+// ---------------------------------------------------------------------------
+// Arquivar e excluir usuário (SESSAO-22 / D-49) — RPCs com o gate no banco
+// (só admin). As regras de verdade vivem lá; o front só mostra a mensagem.
+// ---------------------------------------------------------------------------
+
+export interface ResumoArquivamento {
+  execucoes_encerradas: number
+  cards_realocados: number
+  tarefas_realocadas: number
+}
+
+/**
+ * Arquiva: tudo fica no nome da pessoa; execução aberta encerra e as
+ * pendências (cards delegados, tarefas abertas) passam ao líder direto.
+ */
+export async function arquivarUsuario(usuarioId: string): Promise<ResumoArquivamento> {
+  const { data, error } = await supabase.rpc('plt_fn_arquivar_usuario', {
+    p_usuario_id: usuarioId,
+  })
+  if (error) throw new Error(`Não deu para arquivar: ${error.message}`)
+  return data as ResumoArquivamento
+}
+
+/** Reativa um usuário arquivado (as pendências realocadas não voltam). */
+export async function desarquivarUsuario(usuarioId: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_desarquivar_usuario', {
+    p_usuario_id: usuarioId,
+  })
+  if (error) throw new Error(`Não deu para reativar: ${error.message}`)
+}
+
+/**
+ * Exclui DE FATO um usuário sem história (linha, vínculos, tarefas dele, foto
+ * e conta de login). Com história, o banco recusa e aponta o arquivar.
+ *
+ * A foto sai daqui pelo Storage API (o banco não deixa apagar storage por SQL)
+ * — melhor esforço: foto órfã não pode impedir a exclusão do cadastro.
+ */
+export async function excluirUsuario(usuarioId: string): Promise<void> {
+  try {
+    const pasta = `perfis/${usuarioId}`
+    const { data: arquivos } = await supabase.storage.from('plt-imagens').list(pasta)
+    if (arquivos && arquivos.length > 0) {
+      await supabase.storage
+        .from('plt-imagens')
+        .remove(arquivos.map((a) => `${pasta}/${a.name}`))
+    }
+  } catch {
+    // sem foto, ou sem permissão de storage — a exclusão do cadastro segue
+  }
+  const { error } = await supabase.rpc('plt_fn_excluir_usuario', {
+    p_usuario_id: usuarioId,
+  })
+  if (error) throw new Error(error.message)
+}

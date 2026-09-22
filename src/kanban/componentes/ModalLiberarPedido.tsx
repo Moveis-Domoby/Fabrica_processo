@@ -251,6 +251,16 @@ export function ModalLiberarPedido({
           {linhas.map((linha) => {
             const etapasDoDestino =
               linha.setorId === '' ? [] : (etapasPorSetor.get(Number(linha.setorId)) ?? [])
+            // SESSAO-22 (D-48): destino de produção com fila não tem mais
+            // "Chegada" — a fila é o padrão (o banco resolve igual sem etapa).
+            const setorDestino = destinos.find((s) => String(s.id) === linha.setorId)
+            const filaDoDestino = etapasDoDestino.find((e) => e.eh_fila)
+            const producaoComFila =
+              setorDestino?.papel_no_fluxo === 'producao' && filaDoDestino !== undefined
+            const etapaExibida =
+              producaoComFila && linha.etapaId === CHEGADA
+                ? String(filaDoDestino!.id)
+                : linha.etapaId
             return (
               <li key={linha.chave} className="flex flex-col gap-2 px-3 py-3">
                 <div className="flex items-center justify-between gap-3">
@@ -291,13 +301,15 @@ export function ModalLiberarPedido({
                       <Selecao
                         rotulo="Etapa"
                         opcoes={[
-                          { valor: CHEGADA, rotulo: 'Chegada (sem etapa)' },
+                          ...(producaoComFila
+                            ? []
+                            : [{ valor: CHEGADA, rotulo: 'Chegada (sem etapa)' }]),
                           ...etapasDoDestino.map((e) => ({
                             valor: String(e.id),
                             rotulo: e.eh_fila ? `${e.nome} (fila)` : e.nome,
                           })),
                         ]}
-                        valor={linha.etapaId}
+                        valor={etapaExibida}
                         aoMudar={(v) => mudarLinha(linha.chave, { etapaId: v })}
                       />
                     )}

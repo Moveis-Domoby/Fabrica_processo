@@ -21,6 +21,8 @@ export interface Perfil {
   papel: Papel
   senha_padrao: boolean
   ativo: boolean
+  /** SESSAO-22 (D-49): quando foi arquivado — tudo fica no nome dele; pendências foram ao líder. */
+  arquivado_em: string | null
   /** Tema visual escolhido no Meu Perfil (SESSAO-13): um dos 10 temas Domoby. */
   tema: string
   /** Caminho da foto de perfil no bucket plt-imagens, quando existir. */
@@ -50,4 +52,4 @@ export interface VinculoSetor {
 /** Colunas de plt_usuarios que o front pode ler. NUNCA usar select('*') aqui:
  *  cpf/convite_token/pin_hash são revogados e derrubariam a consulta inteira. */
 export const COLUNAS_PERFIL =
-  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, tema, foto_caminho, modulos'
+  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, arquivado_em, tema, foto_caminho, modulos'

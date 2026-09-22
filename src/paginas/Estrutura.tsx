@@ -20,6 +20,7 @@ import {
   buscarSetores,
   criarEtapa,
   criarSetor,
+  definirLimiteExecucoes,
 } from '@/kanban/api'
 import type { Etapa, Setor } from '@/kanban/tipos'
 
@@ -363,11 +364,13 @@ function SecaoSetor(props: {
 
       {expandido && (
         <>
+          {/* D-48 (SESSAO-22): o limite é configuração do setor que o LÍDER
+              também ajusta (a RPC valida no banco); a delegação segue do admin. */}
+          {(props.podeGerirSetor || podeGerirEtapas) && (
+            <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+          )}
           {props.podeGerirSetor && (
-            <>
-              <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
-              <ModoDelegacao setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
-            </>
+            <ModoDelegacao setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
           )}
           <ListaEtapas
             setor={setor}
@@ -434,9 +437,11 @@ function ModoDelegacao(props: {
 }
 
 /**
- * D-24: limite de cards em execução pela MESMA pessoa neste setor, por vez.
- * Nasce sem limite; o admin configura aqui. O banco recusa o gesto de iniciar
- * de quem estiver no teto — vale para interface e API igualmente.
+ * D-24/D-48: limite de cards em execução pela MESMA pessoa neste setor, por
+ * vez. O padrão da casa é 1 ("uma pessoa, um pedido por vez"); líder do setor
+ * e admin ajustam aqui — a RPC valida no banco e registra na trilha. O banco
+ * recusa o Iniciar (e o Retomar) de quem estiver no teto, para interface e
+ * API igualmente; execução pausada não conta.
  */
 function LimiteExecucoes(props: {
   setor: Setor
@@ -450,8 +455,7 @@ function LimiteExecucoes(props: {
   )
 
   const salvarMutacao = useMutation({
-    mutationFn: (limite: number | null) =>
-      atualizarSetor(setor.id, { limite_execucoes_por_pessoa: limite }),
+    mutationFn: (limite: number | null) => definirLimiteExecucoes(setor.id, limite),
     onSuccess: async (_dados, limite) => {
       notificar({
         titulo:
@@ -481,8 +485,8 @@ function LimiteExecucoes(props: {
       <div className="max-w-xs flex-1">
         <Campo
           rotulo="Limite de cards em execução por pessoa"
-          // D-24: limite configurável por setor — código fora da tela (D-27).
-          ajuda="Vazio = sem limite (padrão). O banco recusa o Iniciar de quem estiver no teto."
+          // D-24/D-48: limite configurável por setor — código fora da tela (D-27).
+          ajuda="Padrão da casa: 1 — uma pessoa, um pedido por vez. Vazio = sem limite. Execução pausada pelo líder não conta no teto."
           type="number"
           min={1}
           inputMode="numeric"

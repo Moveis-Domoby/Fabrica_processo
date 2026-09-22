@@ -93,6 +93,21 @@ export function ModalMoverCard({
     enabled: setorEscolhido !== undefined,
   })
 
+  // SESSAO-22 (D-48): em setor de produção com fila cadastrada, a "Chegada"
+  // acabou — o padrão É a fila (o banco resolve igual se a etapa vier vazia).
+  const filaDestino = etapasDestino.find((e) => e.eh_fila)
+  const destinoProducaoComFila =
+    setorEscolhido?.papel_no_fluxo === 'producao' && filaDestino !== undefined
+  if (
+    destinoProducaoComFila &&
+    etapaDestinoId === CHEGADA &&
+    filaDestino !== undefined
+  ) {
+    // Ajuste de estado durante o render (padrão da casa): a fila vira o padrão
+    // assim que as etapas do destino chegam.
+    setEtapaDestinoId(String(filaDestino.id))
+  }
+
   const mutacao = useMutation({
     mutationFn: moverCard,
     onSuccess: async (_dados, variaveis) => {
@@ -210,9 +225,14 @@ export function ModalMoverCard({
           <Selecao
             rotulo="Etapa"
             tamanho="galpao"
-            ajuda="Sem escolher, o card entra na Chegada do setor."
+            ajuda={
+              destinoProducaoComFila
+                ? 'O card entra na fila do setor — mude só se for direto para outra etapa.'
+                : 'Sem escolher, o card entra na Chegada do setor.'
+            }
             opcoes={[
-              { valor: CHEGADA, rotulo: 'Chegada (sem etapa)' },
+              // D-48: produção com fila não tem mais "Chegada" — a fila é o padrão.
+              ...(destinoProducaoComFila ? [] : [{ valor: CHEGADA, rotulo: 'Chegada (sem etapa)' }]),
               ...etapasDestino.map((e) => ({
                 valor: String(e.id),
                 rotulo: e.eh_fila ? `${e.nome} (fila)` : e.nome,

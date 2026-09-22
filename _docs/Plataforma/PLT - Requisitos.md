@@ -34,6 +34,8 @@ tags: [plataforma, requisitos, backlog]
 | RF-12 | Histórico de eventos imutável e auditável (mantido mesmo com bonificação adiada — D-04) | 💡 registrado |
 | RF-13 | Regras anti-manipulação, pesos por produto, contestação e ranking de bonificação | ⏸️ adiado (D-04 revisada) |
 | RF-14 | Tempo parado no estoque como métrica de primeira classe | 💡 registrado |
+| RF-15 | Execução um por vez: limite padrão de 1 card em execução por pessoa por setor, configurável por líder do setor/admin; líder pode **pausar** uma execução (urgência) — pausado não conta tempo nem ocupa o limite, e retomar passa pela mesma trava (D-48) | ✅ entregue (SESSAO-22) |
+| RF-16 | Tempo em PCP é do PEDIDO: da entrada no PCP até a liberação completa; tempo de aguardo do pedido completo até o lançamento — ambos derivados de eventos, insumo futuro do cálculo de tempo de entrega (D-48) | ✅ entregue (SESSAO-22) |
 
 ## Qualidade nas transições (D-09)
 
@@ -53,6 +55,7 @@ tags: [plataforma, requisitos, backlog]
 |---|---|---|
 | RF-20 | Login por cadastro de usuário; configurações internas só por admin/líder | 💡 registrado |
 | RF-21 | Convite para setor e gerenciamento de permissões pelo admin/líder | 💡 registrado |
+| RF-26 | Arquivar usuário (tudo fica no nome dele; pendências realocadas ao líder direto; reversível) e excluir de fato (só cadastro sem história — a história não se apaga); só admin (D-49) | ✅ entregue (SESSAO-22) |
 | RF-22 | Visualização por setor — perfil configurável (operador vê a fila do seu setor) | 💡 registrado |
 | RF-23 | Visualização por usuário — perfil configurável | 💡 registrado |
 | RF-24 | Três níveis de navegação: simples (setor) · completa (líder) · total (admin geral) | 💡 registrado |
@@ -101,6 +104,7 @@ tags: [plataforma, requisitos, backlog]
 | RNF-04 | Quem coda: exclusivamente o Claude Code, em sessões ordenadas (D-10), sob as regras de [[CLAUDE - Regras do Claude Code (repo)]] | 💡 registrado |
 | RNF-05 | Eventos append-only: movimentação nunca é sobrescrita, só acrescentada (D-04) | 💡 registrado |
 | RNF-06 | Plataforma publicada numa URL estável, acessível dos tablets/celulares do galpão, com deploy repetível (D-23 — SESSAO-08) | 💡 registrado |
+| RNF-07 | **Lei de requisição (pedido do dono, SESSAO-22): cada tela requisita apenas o que mostra** — paginação no servidor, total por agregado barato, "Ver mais" busca só a próxima página; baixar o conjunto inteiro para filtrar no cliente é proibido (regra 17 do CLAUDE + Modelo de Sistema) | ✅ entregue (SESSAO-22) |
 
 ## Ver também
 

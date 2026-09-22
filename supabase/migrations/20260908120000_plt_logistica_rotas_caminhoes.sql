@@ -792,6 +792,10 @@ comment on function public.plt_fn_definir_id_producao(bigint, text) is
 -- 10 · PEDIDOS EM AGUARDO (D-38/D-45): unidades prontas esperando o pedido
 --      completar; completo → lançar para ROTAS
 -- ----------------------------------------------------------------------------
+-- E-17 aplicado por antecipação: a migration 29 (SESSAO-22) muda a FORMA do
+-- retorno — sem este drop, a segunda rodada quebraria em "cannot change return type".
+drop function if exists public.plt_fn_pedidos_aguardo(text, integer, integer);
+
 create or replace function public.plt_fn_pedidos_aguardo(
   p_busca        text    default null,
   p_limite       integer default 20,
@@ -1846,5 +1850,7 @@ grant execute on function public.plt_fn_programar_entrega(bigint, date, bigint) 
 grant execute on function public.plt_fn_desprogramar_entrega(bigint)                           to authenticated;
 grant execute on function public.plt_fn_metas_painel(boolean, integer, integer)                to authenticated;
 
--- O check de tipos mais novo valida a tabela inteira (E-19).
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- E-19: o `validate` que vivia aqui MUDOU DE CASA — o banco real já viveu a
+-- migration 29 (tipos de pausa da SESSAO-22), e validar a lista desta época
+-- quebraria a reaplicação. Quem valida a tabela inteira é sempre a migration
+-- mais nova do check (hoje: a 29).
