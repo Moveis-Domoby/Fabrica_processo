@@ -1,7 +1,7 @@
 ---
 titulo: n8n — Tiny: referência completa de integrações (v2, v3, webhooks, apps)
 tipo: referencia
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [n8n, tiny, api, webhooks, oauth, referencia, comercial]
 ---
 
@@ -369,7 +369,7 @@ O produto migra de "Tiny" para "**Olist Tiny**":
 ### Estado pós-união (a informação que importa em 09/2026)
 
 - O banco do domínio comercial foi movido para o Supabase da fábrica na SESSAO-19, e o front na SESSAO-20 ([[handoff_2026_09_16_sessao20_modulo_comercial]]).
-- **O cron renovador continua rodando SOMENTE no projeto Supabase antigo da loja** até o cutover da SESSAO-21. A **regra do dono único** segue absoluta: nenhum workflow do n8n, nenhuma function do projeto da fábrica e nenhum script avulso renova token — **só lê**. Ver [[N8N - API Tiny v2 vs v3]] e [[SUPA - Comercial - Cron e Rotinas]].
+- ✅ **Desde o cutover de 22/09/2026 (SESSAO-21) o cron renovador roda SOMENTE no Supabase da FÁBRICA** (`tiny-auth-refresh-cron`, a cada 3h). A **regra do dono único** segue absoluta: nenhum workflow do n8n, nenhuma outra function e nenhum script avulso renova token — **só lê** (e função que renova ao receber 401 também conta como renovador — A-18). Ver [[N8N - API Tiny v2 vs v3]] e [[SUPA - Comercial - Cron e Rotinas]].
 
 ## 3.7 🆕 Endpoints v3 usados pelo domínio comercial (fusão 17/09/2026)
 

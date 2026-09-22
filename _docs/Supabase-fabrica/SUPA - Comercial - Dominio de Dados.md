@@ -1,7 +1,7 @@
 ---
 titulo: SUPA — Comercial — Domínio de Dados
 tipo: nota
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [comercial, supabase, banco-de-dados, rls, rpc]
 ---
 
@@ -129,6 +129,7 @@ Constraint chave: **`UNIQUE (lista_id, telefone)`**. (O bug do insert em lote qu
 Linha **única** (singleton com `CHECK (id = 1)`), guarda o par `access_token`/`refresh_token` em texto puro. Na fábrica: **RLS ligado SEM nenhuma policy, de propósito** — segredo de máquina, **nem admin lê pelo navegador** (regra crítica 4; desvio deliberado do "admin lê tudo", registrado no [[handoff_2026_09_15_sessao19_banco_comercial]]).
 
 > [!warning] O token copiado na carga de 15/09 já pode estar defasado — o renovador do projeto antigo rotaciona a cada ~3h. É esperado e inofensivo: o delta final da SESSAO-21 recopia na janela do cutover. Ver [[SUPA - Comercial - Cron e Rotinas]].
+> ✅ **22/09/2026:** recopiado fresco no delta do cutover e renovado **pela fábrica** às 21:20 UTC — desde então `tiny_auth` da fábrica é o único cofre vivo do token (o do projeto antigo morreu na rotação). As 6 tabelas batem byte a byte com o antigo no fim do delta (398 linhas: 4 listas · 128 membros · 298 eventos · 134 webhooks · 2 tarifas · 1 token).
 
 ### O que NÃO foi copiado
 

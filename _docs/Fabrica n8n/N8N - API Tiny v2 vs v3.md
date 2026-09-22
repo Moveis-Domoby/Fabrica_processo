@@ -1,7 +1,7 @@
 ---
 titulo: n8n — API Tiny v2 vs v3 (decisão)
 tipo: decisao
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [tiny, api, v2, v3, oauth, decisao]
 ---
 
@@ -9,6 +9,9 @@ tags: [tiny, api, v2, v3, oauth, decisao]
 
 > [!abstract] Decisão (12/08/2026)
 > **Os workflows do n8n permanecem na API v2.** Reavaliar se a Olist publicar data de descontinuação ou se aparecerem 401/403 em massa nas Executions.
+
+> [!success] Atualização 22/09/2026 — o renovador mudou de casa (SESSAO-21)
+> O `tiny-auth-refresh-cron` agora roda **só no Supabase da fábrica** (1ª renovação 22/09 21:20 UTC; o do projeto antigo foi desligado às 20:28 UTC e o refresh de lá morreu na rotação). A regra do dono único continua absoluta — só mudou o dono. Atenção descoberta no cutover (A-18): **função que renova ao receber 401 também é renovador** — os syncs do projeto antigo faziam isso.
 
 > [!info] Atualização 17/09/2026 — a união mudou ONDE a v3 vive, não a decisão
 > O painel de recompra virou o **módulo Comercial da plataforma da fábrica** (banco movido ao Supabase da fábrica na SESSAO-19; front na SESSAO-20 — [[handoff_2026_09_16_sessao20_modulo_comercial]]). **O cron renovador do token v3, porém, continua rodando SOMENTE no projeto Supabase antigo da loja** até o cutover da [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]]. A regra do dono único (abaixo) permanece intacta e vale para o n8n, para o projeto da fábrica e para qualquer script. Os detalhes operacionais do OAuth v3 que estavam na nota `INT - Tiny ERP Olist` da loja foram fundidos em [[N8N - Tiny Integracoes Referencia]] (§3.5–3.9).
