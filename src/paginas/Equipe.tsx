@@ -79,6 +79,10 @@ export function Equipe() {
     queryKey: ['equipe'],
     queryFn: buscarEquipe,
   })
+  // D-49: arquivado sai da lista do dia a dia — vive atrás do botão "Arquivados".
+  const [verArquivados, setVerArquivados] = useState(false)
+  const ativos = useMemo(() => equipe.filter((p) => !p.arquivado_em), [equipe])
+  const arquivados = useMemo(() => equipe.filter((p) => p.arquivado_em), [equipe])
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
 
   // Líder só cadastra nos setores em que é líder (a Edge Function confere de novo).
@@ -290,18 +294,20 @@ export function Equipe() {
       cabecalho: 'Ações',
       celula: (p) => (
         <span className="flex flex-wrap items-center gap-1.5">
-          <Botao
-            variante="secundaria"
-            tamanho="sm"
-            icone={<KeyRound />}
-            onClick={() => {
-              setAlvoPin(p)
-              setPinNovo('')
-              setErroPin('')
-            }}
-          >
-            PIN
-          </Botao>
+          {!p.arquivado_em && (
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<KeyRound />}
+              onClick={() => {
+                setAlvoPin(p)
+                setPinNovo('')
+                setErroPin('')
+              }}
+            >
+              PIN
+            </Botao>
+          )}
           {/* Arquivar/excluir é gesto de admin (o banco confere de novo — D-49). */}
           {souAdmin && p.id !== perfil?.id && (
             p.arquivado_em ? (
@@ -356,18 +362,36 @@ export function Equipe() {
               : 'Cadastro e convites dos setores em que você é líder.'}
           </p>
         </div>
-        <Botao icone={<UserRoundPlus />} onClick={() => setModalNovo(true)}>
-          Novo usuário
-        </Botao>
+        <span className="flex flex-wrap items-center gap-2">
+          {/* D-49: os arquivados moram aqui — fora da lista do dia a dia. */}
+          <Botao
+            variante="secundaria"
+            icone={<Archive />}
+            aria-pressed={verArquivados}
+            className={verArquivados ? 'border-acao-ativa' : undefined}
+            onClick={() => setVerArquivados((v) => !v)}
+          >
+            {verArquivados ? 'Voltar aos ativos' : `Arquivados (${arquivados.length})`}
+          </Botao>
+          <Botao icone={<UserRoundPlus />} onClick={() => setModalNovo(true)}>
+            Novo usuário
+          </Botao>
+        </span>
       </div>
 
       <Tabela
-        legenda="Usuários da plataforma"
+        legenda={verArquivados ? 'Usuários arquivados' : 'Usuários da plataforma'}
         colunas={colunas}
-        dados={equipe}
+        dados={verArquivados ? arquivados : ativos}
         chaveDe={(p) => p.id}
         tituloCelular={(p) => p.nome}
-        vazio={carregandoEquipe ? 'Carregando…' : 'Ninguém cadastrado ainda.'}
+        vazio={
+          carregandoEquipe
+            ? 'Carregando…'
+            : verArquivados
+              ? 'Ninguém arquivado.'
+              : 'Ninguém cadastrado ainda.'
+        }
       />
 
       {/* ---------- Novo usuário ---------- */}

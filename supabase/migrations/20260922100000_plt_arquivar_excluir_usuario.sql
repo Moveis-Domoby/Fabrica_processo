@@ -287,12 +287,9 @@ begin
   delete from public.plt_horarios_funcionamento h where h.usuario_id = v_alvo.id;
   delete from public.plt_pausas_tempo p where p.usuario_id = v_alvo.id;
 
-  -- A foto de perfil no bucket (quando o ambiente tem storage).
-  if to_regclass('storage.objects') is not null then
-    execute format(
-      'delete from storage.objects where bucket_id = %L and name like %L',
-      'plt-imagens', 'perfis/' || v_alvo.id || '/%');
-  end if;
+  -- A foto de perfil NÃO se apaga por SQL: o Supabase bloqueia DELETE direto
+  -- em storage.objects ("Use the Storage API instead" — descoberto no teste ao
+  -- vivo). Quem apaga é o front, pelo Storage API, antes de chamar esta RPC.
 
   v_auth := v_alvo.auth_user_id;
 

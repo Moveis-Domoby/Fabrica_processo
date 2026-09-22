@@ -73,6 +73,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-17] **E-34** (Claude Code) · Primo do E-09/E-15: `Get-Content | Set-Content -Encoding utf8` no PowerShell 5.1 releu arquivo UTF-8 como ANSI e gravou mojibake ("Ã§", "â€”") em 3 telas novas E no MeuPainel — este último passou por tsc/lint/build sem acusar e **o dono viu "OlÃ¡, Wallace!" na tela** (18/09) → **correção:** telas novas regravadas pela ferramenta de edição; MeuPainel restaurado do commit íntegro via `git show` no Bash (redirecionamento byte-fiel) + edições reaplicadas; `grep 'Ã'` no src virou conferência do incidente. **Lição: edição de texto em arquivo UTF-8 não passa pelo pipeline de string do PowerShell — e mojibake compila: a conferência é grep no fonte, não o build.**
 
+- [2026-09-22] **E-35** (Claude Code) · `delete from storage.objects` numa função do banco falhou em produção com "Direct deletion from storage tables is not allowed. Use the Storage API instead" — o Supabase bloqueia escrita direta nas tabelas do storage, e o `has_table_privilege` diz TRUE mesmo assim (o bloqueio é guard, não privilégio) → **correção:** arquivo de storage se apaga pelo Storage API no cliente (melhor esforço antes da RPC); a função do banco não toca storage. **Lição: pego pelo teste E2E de verdade que o dono exigiu — o PGlite não tem storage e nunca pegaria; e "tenho privilégio" não é "posso": plataforma gerenciada guarda as próprias tabelas.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

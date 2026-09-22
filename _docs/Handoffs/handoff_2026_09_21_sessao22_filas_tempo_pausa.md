@@ -59,7 +59,8 @@ tags: [handoff, sessao, plataforma, bloco-5, kanban, tempo, paginacao, d-48]
 - **Painel admin → Gestão da equipe** (só admin): cada pessoa ganhou **Arquivar** e **Excluir**; arquivado vira **Reativar**. Tudo em modais da casa — nada do navegador.
 - **Arquivar:** a pessoa perde o acesso, tudo fica no nome dela; execução aberta encerra no ato (o tempo até ali é dela) e **cards delegados + tarefas abertas passam ao líder direto** de cada setor (sem líder → vêm para você). A notificação mostra o resumo do que foi realocado. Reversível.
 - **Excluir:** apaga **de verdade** (cadastro, vínculos, tarefas dela, foto e a conta de login) — serve para cadastro errado/nunca usado. Quem tem história não se exclui (a história não se apaga): a recusa explica e oferece **"Arquivar em vez disso"** no próprio modal.
-- Provado no test:banco (gates, realocações, recusas); migration 31 aplicada com integração intacta.
+- **Arquivados fora da lista do dia a dia** (seu ajuste): botão **"Arquivados (N)"** ao lado de "Novo usuário" abre a lista deles, com Reativar; "Voltar aos ativos" retorna.
+- Provado no test:banco (gates, realocações, recusas) **e num E2E real na tela** (você logado): usuário descartável criado → arquivado → reativado → excluído — conferido no banco que `plt_usuarios` E `auth.users` zeraram. O E2E ainda pegou um bug real (storage não se apaga por SQL no Supabase — E-35), corrigido e reaplicado na hora. Migration 31 aplicada com integração intacta.
 
 ## 5. Pendente / decisões para você
 

@@ -119,8 +119,22 @@ export async function desarquivarUsuario(usuarioId: string): Promise<void> {
 /**
  * Exclui DE FATO um usuário sem história (linha, vínculos, tarefas dele, foto
  * e conta de login). Com história, o banco recusa e aponta o arquivar.
+ *
+ * A foto sai daqui pelo Storage API (o banco não deixa apagar storage por SQL)
+ * — melhor esforço: foto órfã não pode impedir a exclusão do cadastro.
  */
 export async function excluirUsuario(usuarioId: string): Promise<void> {
+  try {
+    const pasta = `perfis/${usuarioId}`
+    const { data: arquivos } = await supabase.storage.from('plt-imagens').list(pasta)
+    if (arquivos && arquivos.length > 0) {
+      await supabase.storage
+        .from('plt-imagens')
+        .remove(arquivos.map((a) => `${pasta}/${a.name}`))
+    }
+  } catch {
+    // sem foto, ou sem permissão de storage — a exclusão do cadastro segue
+  }
   const { error } = await supabase.rpc('plt_fn_excluir_usuario', {
     p_usuario_id: usuarioId,
   })

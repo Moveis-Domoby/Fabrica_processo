@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-22 — Produção: filas reais, tempo de PCP e paginação"
 tipo: demanda
-status: em execução
+status: entregue
 data: 2026-09-18
-atualizado: 2026-09-21
+atualizado: 2026-09-22
 tags: [plataforma, demanda, bloco-5, kanban, tempo, paginacao]
 ---
 
@@ -76,7 +76,7 @@ Armadilhas conhecidas deste terreno: sentinela `'chegada'` e `Number('') === 0` 
 
 ## Resultado (preencher ao entregar)
 
-*—*
+✅ **Entregue em 22/09/2026** — [[handoff_2026_09_21_sessao22_filas_tempo_pausa]] · memória em [[SESSAO-22|Execucao/SESSAO-22]] · decisões **D-48** (+complemento: iniciar na fila avança a etapa) e **D-49** (arquivar/excluir usuário — extra pedido na revisão). Migrations **29, 30 e 31** aplicadas com aprovação do dono (integração intacta nas três); manutenções: limite 1 nos 9 setores e 1 card migrado da "Chegada". Critérios de aceite todos verificados (test:banco 2×, tsc, lint, vitest 49/49, build, F-07 em 375/768px, advisors) e validação ao vivo com o dono — incluindo um E2E real de arquivar/reativar/excluir que pegou e corrigiu o E-35 (storage não se apaga por SQL). Regra nova promovida: **regra 17 / RNF-07** ("cada tela requisita só o que mostra").
 
 ## Ver também
 
