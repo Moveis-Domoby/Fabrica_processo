@@ -3649,6 +3649,183 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+// ============================================================================
+// SESSAO-22 — Arquivar e excluir usuário (migration 31 / D-49)
+// ============================================================================
+titulo('SESSAO-22 · arquivar usuário: tudo fica no nome; pendências vão ao líder (D-49)')
+
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+    values ('Arquivo Alvo', 'arq@teste.com', '55544433301', 'arq.alvo', 'operador');
+  insert into public.plt_usuario_setores (usuario_id, setor_id)
+    values ((select id from public.plt_usuarios where usuario = 'arq.alvo'),
+            (select id from public.plt_setores where codigo = 'secc'));
+`)
+
+// As pendências do cenário: execução aberta, card delegado e tarefa aberta.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Peça do Arquivado', 5, 6
+      from public.pedidos p where p.numero = 999990;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'arq.alvo'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'execucao_iniciada',
+            (select id from public.plt_usuarios where usuario = 'arq.alvo'), 'interface');
+`)
+const cardDoArquivado = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '088', 'Peça Delegada', 6, 6
+      from public.pedidos p where p.numero = 999990;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_origem_id, dados)
+    values ((select max(id) from public.plt_cards), 'delegacao',
+            (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface',
+            (select id from public.plt_setores where codigo = 'secc'),
+            jsonb_build_object('responsavel_id',
+              (select id from public.plt_usuarios where usuario = 'arq.alvo'), 'modo', 'direta'));
+  insert into public.plt_tarefas (titulo, setor_id, responsavel_id, criada_por_id, delegacao, situacao)
+    values ('Tarefa do arquivado',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'arq.alvo'),
+            (select id from public.plt_usuarios where usuario = 'lider.secc'),
+            'direta', 'aberta');
+`)
+const cardDelegado = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+
+// Gate: operador comum não arquiva.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+try {
+  await bd.query(`select public.plt_fn_arquivar_usuario(
+    (select id from public.plt_usuarios where usuario = 'arq.alvo'))`)
+  conferir(false, 'operador comum não arquiva usuário (gesto de admin)', 'a chamada passou, e não devia')
+} catch (erro) {
+  conferir(/gesto de admin/i.test(erro.message), 'operador comum não arquiva usuário (gesto de admin)', erro.message)
+}
+
+// O admin arquiva — e o resumo conta o que foi realocado.
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+const resumoArq = (
+  await bd.query(`select public.plt_fn_arquivar_usuario(
+    (select id from public.plt_usuarios where usuario = 'arq.alvo')) as r`)
+).rows[0].r
+const aposArquivar = (
+  await bd.query(`
+    select (select not u.ativo and u.arquivado_em is not null
+              from public.plt_usuarios u where u.usuario = 'arq.alvo') as arquivado,
+           (select c.executor_atual_id is null from public.plt_cards c where c.id = ${cardDoArquivado}) as execucao_livre,
+           (select v.encerramento from public.plt_vw_execucoes v
+             where v.card_id = ${cardDoArquivado}
+             order by v.iniciou_em desc limit 1) as encerramento,
+           (select u2.usuario from public.plt_cards c2
+              join public.plt_usuarios u2 on u2.id = c2.responsavel_id
+             where c2.id = ${cardDelegado}) as delegado_para,
+           (select u3.usuario from public.plt_tarefas t
+              join public.plt_usuarios u3 on u3.id = t.responsavel_id
+             where t.titulo = 'Tarefa do arquivado') as tarefa_para,
+           (select count(*)::int from public.plt_logs_atividade l
+             where l.acao = 'usuario_arquivado') as logs`)
+).rows[0]
+conferir(
+  resumoArq?.execucoes_encerradas === 1 && resumoArq?.cards_realocados === 1
+    && resumoArq?.tarefas_realocadas === 1
+    && aposArquivar?.arquivado === true && aposArquivar?.execucao_livre === true
+    && aposArquivar?.encerramento === 'finalizada'
+    && aposArquivar?.delegado_para === 'lider.secc'
+    && aposArquivar?.tarefa_para === 'lider.secc'
+    && (aposArquivar?.logs ?? 0) >= 1,
+  'arquivar: execução encerrada no nome dele, card delegado e tarefa foram ao LÍDER, log gravado',
+  JSON.stringify({ resumo: resumoArq, depois: aposArquivar }),
+)
+
+// Reativar: a pessoa volta; as pendências não.
+await bd.exec(`select public.plt_fn_desarquivar_usuario(
+  (select id from public.plt_usuarios where usuario = 'arq.alvo'))`)
+const reativado = (
+  await bd.query(`select ativo, arquivado_em from public.plt_usuarios where usuario = 'arq.alvo'`)
+).rows[0]
+conferir(
+  reativado?.ativo === true && reativado?.arquivado_em === null,
+  'desarquivar reativa a pessoa (as pendências realocadas ficam onde estão)',
+  JSON.stringify(reativado ?? null),
+)
+
+titulo('SESSAO-22 · excluir usuário: de fato, e só sem história (D-49)')
+
+// Quem tem história não se exclui — a recusa aponta o arquivar.
+try {
+  await bd.query(`select public.plt_fn_excluir_usuario(
+    (select id from public.plt_usuarios where usuario = 'arq.alvo'))`)
+  conferir(false, 'usuário com história não pode ser excluído (a história não se apaga)', 'a chamada passou, e não devia')
+} catch (erro) {
+  conferir(
+    /história/i.test(erro.message) && /Arquive/i.test(erro.message),
+    'usuário com história não pode ser excluído (a história não se apaga; a recusa aponta o arquivar)',
+    erro.message,
+  )
+}
+
+// Nem a si mesmo.
+try {
+  await bd.query(`select public.plt_fn_excluir_usuario(
+    (select id from public.plt_usuarios where usuario = 'primeira.pessoa'))`)
+  conferir(false, 'admin não exclui a si mesmo', 'a chamada passou, e não devia')
+} catch (erro) {
+  conferir(/a si mesmo/i.test(erro.message), 'admin não exclui a si mesmo', erro.message)
+}
+
+// Cadastro nunca usado: some DE FATO — linha, vínculo, tarefa dele; card
+// delegado a ele volta a ficar sem dono (por evento, nunca UPDATE).
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+    values ('Cadastro Errado', 'del@teste.com', '55544433302', 'del.alvo', 'operador');
+  insert into public.plt_usuario_setores (usuario_id, setor_id)
+    values ((select id from public.plt_usuarios where usuario = 'del.alvo'),
+            (select id from public.plt_setores where codigo = 'secc'));
+  insert into public.plt_tarefas (titulo, setor_id, responsavel_id, criada_por_id, delegacao, situacao)
+    values ('Tarefa do excluído',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'del.alvo'),
+            (select id from public.plt_usuarios where usuario = 'lider.secc'),
+            'direta', 'aberta');
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_origem_id, dados)
+    values (${cardDelegado}, 'delegacao',
+            (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface',
+            (select id from public.plt_setores where codigo = 'secc'),
+            jsonb_build_object('responsavel_id',
+              (select id from public.plt_usuarios where usuario = 'del.alvo'), 'modo', 'direta'));
+`)
+await bd.exec(`select public.plt_fn_excluir_usuario(
+  (select id from public.plt_usuarios where usuario = 'del.alvo'))`)
+const aposExcluir = (
+  await bd.query(`
+    select (select count(*)::int from public.plt_usuarios where usuario = 'del.alvo') as linhas,
+           (select count(*)::int from public.plt_tarefas where titulo = 'Tarefa do excluído') as tarefas,
+           (select c.responsavel_id is null from public.plt_cards c where c.id = ${cardDelegado}) as sem_dono,
+           (select count(*)::int from public.plt_logs_atividade where acao = 'usuario_excluido') as logs`)
+).rows[0]
+conferir(
+  aposExcluir?.linhas === 0 && aposExcluir?.tarefas === 0
+    && aposExcluir?.sem_dono === true && (aposExcluir?.logs ?? 0) >= 1,
+  'excluir de fato: linha, vínculo e tarefas dele sumiram; card delegado ficou sem dono por evento; log gravado',
+  JSON.stringify(aposExcluir ?? null),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

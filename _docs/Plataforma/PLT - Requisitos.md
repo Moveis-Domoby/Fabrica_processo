@@ -55,6 +55,7 @@ tags: [plataforma, requisitos, backlog]
 |---|---|---|
 | RF-20 | Login por cadastro de usuário; configurações internas só por admin/líder | 💡 registrado |
 | RF-21 | Convite para setor e gerenciamento de permissões pelo admin/líder | 💡 registrado |
+| RF-26 | Arquivar usuário (tudo fica no nome dele; pendências realocadas ao líder direto; reversível) e excluir de fato (só cadastro sem história — a história não se apaga); só admin (D-49) | ✅ entregue (SESSAO-22) |
 | RF-22 | Visualização por setor — perfil configurável (operador vê a fila do seu setor) | 💡 registrado |
 | RF-23 | Visualização por usuário — perfil configurável | 💡 registrado |
 | RF-24 | Três níveis de navegação: simples (setor) · completa (líder) · total (admin geral) | 💡 registrado |

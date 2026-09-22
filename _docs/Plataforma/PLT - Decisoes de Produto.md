@@ -397,6 +397,16 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - **Iniciar na FILA avança sozinho** para a próxima etapa do setor (ordem seguinte, ativa, não-DANIFICADO), com a execução aberta já na etapa nova — M-01: o humano decide (iniciar), o sistema executa a consequência (sair da fila). Setor cuja fila é a única etapa: executa na própria fila (D-14 — etapa não se inventa). Migration 30.
 - **O limite de execuções é da PESSOA, nunca da etapa** — confirma o desenho: várias execuções na mesma etapa são normais; a mesma pessoa é que respeita o teto do setor.
 
+## D-49 · Saída de usuário: excluir de fato só sem história; arquivar realoca as pendências ao líder (22/09/2026)
+
+**Decidido (pedido do dono no fechamento da SESSAO-22):** *"adiciona a possibilidade de excluir e de arquivar um usuário: se excluir, tudo o que estava no nome dele é de fato excluído; arquivar, tudo ainda fica no nome dele, porém as pendências dele são transferidas ao líder direto dele, para que o líder possa realocar"* — com modais próprios da casa, nada de caixa do navegador.
+
+- **ARQUIVAR** (qualquer usuário): perde o acesso (`ativo=false` + `arquivado_em`), **tudo fica registrado no nome dele**; no ato, a **execução aberta é encerrada** (o tempo até ali é dele — evento, nunca edição), e **cards delegados + tarefas abertas passam ao líder direto** do setor de cada pendência (setor sem líder, ou o arquivado É o líder → vão para o admin que arquivou). Reversível (**reativar**); as pendências realocadas não voltam.
+- **EXCLUIR** (só cadastro **sem história** — nunca gerou evento/log/meta): some **de verdade** — linha, vínculos, notificações, tarefas dele, visualizações, presenças, horários, foto e a **conta de login**. Quem já tem história **não pode ser excluído** (eventos e trilha são append-only — regra crítica 5/D-40, a história não se apaga): o sistema recusa explicando e **oferece o arquivar na hora** (mesmo padrão do caminhão em uso). Card delegado ao excluído volta a ficar sem dono **por evento**.
+- **Quem pode: só admin.** Ninguém arquiva/exclui a si mesmo; o último admin ativo não se arquiva.
+
+**Descartadas:** apagar história de produção junto com o usuário (revogaria a regra crítica 5 e furaria a medição — se um dia for desejado, é decisão nova aqui); abrir o gesto a líderes.
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

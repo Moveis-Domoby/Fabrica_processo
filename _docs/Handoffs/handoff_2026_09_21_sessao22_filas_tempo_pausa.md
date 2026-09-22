@@ -54,6 +54,13 @@ tags: [handoff, sessao, plataforma, bloco-5, kanban, tempo, paginacao, d-48]
 - **Parecer que não aparecia:** o banco exigia o parecer, mas a faixa sumia da tela quando o card tinha sido movido entre etapas depois da chegada (o filtro comparava com o `desde`, que muda a cada movimento de etapa). Corrigido: a pendência agora se ancora na **última chegada de setor** — recarregue e a faixa/modal volta.
 - **Iniciar na fila avança sozinho (D-48 ↪️, migration 30 — aplicada):** iniciar um card na fila de um setor de produção move-o automaticamente para a próxima etapa, com a execução aberta lá; se a fila for a única etapa do setor, executa nela mesma. Confirmado: **etapa não limita execuções simultâneas — o limite é da pessoa** (como já era).
 
+## 4c. Arquivar e excluir usuário (22/09, seu pedido no fechamento — D-49, migration 31 aplicada)
+
+- **Painel admin → Gestão da equipe** (só admin): cada pessoa ganhou **Arquivar** e **Excluir**; arquivado vira **Reativar**. Tudo em modais da casa — nada do navegador.
+- **Arquivar:** a pessoa perde o acesso, tudo fica no nome dela; execução aberta encerra no ato (o tempo até ali é dela) e **cards delegados + tarefas abertas passam ao líder direto** de cada setor (sem líder → vêm para você). A notificação mostra o resumo do que foi realocado. Reversível.
+- **Excluir:** apaga **de verdade** (cadastro, vínculos, tarefas dela, foto e a conta de login) — serve para cadastro errado/nunca usado. Quem tem história não se exclui (a história não se apaga): a recusa explica e oferece **"Arquivar em vez disso"** no próprio modal.
+- Provado no test:banco (gates, realocações, recusas); migration 31 aplicada com integração intacta.
+
 ## 5. Pendente / decisões para você
 
 - 🔶 **Merge na `main`** com o seu OK nesta conversa (D-20) — depois dele: índice, mapa e status da demanda fechados.

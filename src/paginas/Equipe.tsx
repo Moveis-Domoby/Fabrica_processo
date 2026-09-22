@@ -1,11 +1,26 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, KeyRound, MessageCircle, UserRoundPlus } from 'lucide-react'
+import {
+  Archive,
+  Check,
+  Copy,
+  KeyRound,
+  MessageCircle,
+  RotateCcw,
+  Trash2,
+  UserRoundPlus,
+} from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
 import type { ColunaTabela } from '@/componentes/ui'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { criarUsuario, pinDefinir } from '@/autenticacao/api'
+import {
+  arquivarUsuario,
+  criarUsuario,
+  desarquivarUsuario,
+  excluirUsuario,
+  pinDefinir,
+} from '@/autenticacao/api'
 import type { UsuarioCriado } from '@/autenticacao/api'
 import { COLUNAS_PERFIL, ROTULO_PAPEL } from '@/autenticacao/tipos'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
@@ -83,6 +98,75 @@ export function Equipe() {
   const [pinNovo, setPinNovo] = useState('')
   const [erroPin, setErroPin] = useState('')
   const [salvandoPin, setSalvandoPin] = useState(false)
+
+  // Arquivar / excluir (SESSAO-22 / D-49) — modais da casa, nada do navegador.
+  const [alvoArquivar, setAlvoArquivar] = useState<LinhaEquipe | null>(null)
+  const [alvoExcluir, setAlvoExcluir] = useState<LinhaEquipe | null>(null)
+  const [erroDestino, setErroDestino] = useState('')
+  const [processando, setProcessando] = useState(false)
+
+  async function aoArquivar() {
+    if (!alvoArquivar) return
+    setProcessando(true)
+    setErroDestino('')
+    try {
+      const resumo = await arquivarUsuario(alvoArquivar.id)
+      notificar({
+        titulo: `${alvoArquivar.nome} arquivado(a)`,
+        descricao:
+          `Tudo segue registrado no nome dele(a). Realocado ao líder: ` +
+          `${resumo.cards_realocados} card(s) delegado(s) e ${resumo.tarefas_realocadas} tarefa(s)` +
+          (resumo.execucoes_encerradas > 0
+            ? `; ${resumo.execucoes_encerradas} execução(ões) encerrada(s) no ato.`
+            : '.'),
+        tom: 'perfeito',
+      })
+      setAlvoArquivar(null)
+      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
+    } catch (excecao) {
+      setErroDestino(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
+    } finally {
+      setProcessando(false)
+    }
+  }
+
+  async function aoReativar(pessoa: LinhaEquipe) {
+    try {
+      await desarquivarUsuario(pessoa.id)
+      notificar({
+        titulo: `${pessoa.nome} reativado(a)`,
+        descricao: 'As pendências realocadas no arquivamento não voltam — realoque à mão se precisar.',
+        tom: 'perfeito',
+      })
+      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
+    } catch (excecao) {
+      notificar({
+        titulo: 'Não deu para reativar',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    }
+  }
+
+  async function aoExcluir() {
+    if (!alvoExcluir) return
+    setProcessando(true)
+    setErroDestino('')
+    try {
+      await excluirUsuario(alvoExcluir.id)
+      notificar({
+        titulo: `${alvoExcluir.nome} excluído(a)`,
+        descricao: 'Cadastro, vínculos, tarefas e a conta de acesso foram apagados de verdade.',
+        tom: 'perfeito',
+      })
+      setAlvoExcluir(null)
+      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
+    } catch (excecao) {
+      setErroDestino(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
+    } finally {
+      setProcessando(false)
+    }
+  }
 
   function alternarSetor(id: number) {
     setSetoresEscolhidos((atual) => {
@@ -190,7 +274,12 @@ export function Equipe() {
       chave: 'situacao',
       cabecalho: 'Situação',
       celula: (p) =>
-        p.senha_padrao ? (
+        p.arquivado_em ? (
+          <span className="inline-flex items-center gap-1 text-texto-fraco">
+            <Archive aria-hidden className="size-3.5" />
+            arquivado
+          </span>
+        ) : p.senha_padrao ? (
           <span className="text-atencao-forte">aguardando 1º acesso</span>
         ) : (
           <span className="text-perfeito-forte">ativo</span>
@@ -200,18 +289,58 @@ export function Equipe() {
       chave: 'acoes',
       cabecalho: 'Ações',
       celula: (p) => (
-        <Botao
-          variante="secundaria"
-          tamanho="sm"
-          icone={<KeyRound />}
-          onClick={() => {
-            setAlvoPin(p)
-            setPinNovo('')
-            setErroPin('')
-          }}
-        >
-          PIN
-        </Botao>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Botao
+            variante="secundaria"
+            tamanho="sm"
+            icone={<KeyRound />}
+            onClick={() => {
+              setAlvoPin(p)
+              setPinNovo('')
+              setErroPin('')
+            }}
+          >
+            PIN
+          </Botao>
+          {/* Arquivar/excluir é gesto de admin (o banco confere de novo — D-49). */}
+          {souAdmin && p.id !== perfil?.id && (
+            p.arquivado_em ? (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<RotateCcw />}
+                onClick={() => void aoReativar(p)}
+              >
+                Reativar
+              </Botao>
+            ) : (
+              <>
+                <Botao
+                  variante="secundaria"
+                  tamanho="sm"
+                  icone={<Archive />}
+                  aria-label={`Arquivar ${p.nome}`}
+                  className="toque-seguro px-2"
+                  onClick={() => {
+                    setErroDestino('')
+                    setAlvoArquivar(p)
+                  }}
+                />
+                <Botao
+                  variante="perigo"
+                  tamanho="sm"
+                  icone={<Trash2 />}
+                  aria-label={`Excluir ${p.nome}`}
+                  className="toque-seguro px-2"
+                  onClick={() => {
+                    setErroDestino('')
+                    setAlvoExcluir(p)
+                  }}
+                />
+              </>
+            )
+          )}
+        </span>
       ),
     },
   ]
@@ -426,6 +555,102 @@ export function Equipe() {
           onChange={(e) => setPinNovo(e.target.value)}
           erro={erroPin || undefined}
         />
+      </Modal>
+
+      {/* ---------- Arquivar usuário (D-49) ---------- */}
+      <Modal
+        aberto={alvoArquivar !== null}
+        aoFechar={(aberto) => {
+          if (!aberto) setAlvoArquivar(null)
+        }}
+        titulo={alvoArquivar ? `Arquivar ${alvoArquivar.nome}` : 'Arquivar'}
+        descricao="A pessoa perde o acesso, mas tudo o que ela fez continua registrado no nome dela."
+        rodape={
+          <>
+            <Botao variante="secundaria" onClick={() => setAlvoArquivar(null)}>
+              Cancelar
+            </Botao>
+            <Botao icone={<Archive />} carregando={processando} onClick={() => void aoArquivar()}>
+              Arquivar agora
+            </Botao>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2 text-sm text-texto">
+          <p>No ato do arquivamento:</p>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-texto-suave">
+            <li>
+              <strong className="text-texto">Execução aberta é encerrada</strong> — o tempo até
+              aqui fica no nome dela.
+            </li>
+            <li>
+              <strong className="text-texto">Cards delegados e tarefas abertas passam ao líder
+              direto</strong> do setor de cada um, para realocar (sem líder, vêm para você).
+            </li>
+            <li>Dá para reativar depois — as pendências realocadas não voltam.</li>
+          </ul>
+          {erroDestino && (
+            <p className="text-danificado-forte" role="alert">
+              {erroDestino}
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* ---------- Excluir usuário (D-49) ---------- */}
+      <Modal
+        aberto={alvoExcluir !== null}
+        aoFechar={(aberto) => {
+          if (!aberto) setAlvoExcluir(null)
+        }}
+        titulo={alvoExcluir ? `Excluir ${alvoExcluir.nome}` : 'Excluir'}
+        descricao="Excluir apaga de verdade — não tem volta."
+        rodape={
+          <>
+            <Botao variante="secundaria" onClick={() => setAlvoExcluir(null)}>
+              Cancelar
+            </Botao>
+            <Botao
+              variante="perigo"
+              icone={<Trash2 />}
+              carregando={processando}
+              onClick={() => void aoExcluir()}
+            >
+              Excluir de vez
+            </Botao>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3 text-sm text-texto">
+          <p>
+            Somem de verdade: o cadastro, os vínculos com setores, as tarefas dela, a foto e a
+            conta de acesso. Serve para <strong>cadastro errado ou nunca usado</strong> — quem já
+            tem história na plataforma não pode ser excluído (a história não se apaga); para
+            esses, o caminho é arquivar.
+          </p>
+          {erroDestino && (
+            <div className="flex flex-col gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3">
+              <p className="text-atencao-texto" role="alert">
+                {erroDestino}
+              </p>
+              {/* O "não" do sistema vem com a saída certa (padrão da casa). */}
+              {alvoExcluir && /história/i.test(erroDestino) && (
+                <Botao
+                  icone={<Archive />}
+                  className="self-start"
+                  onClick={() => {
+                    const pessoa = alvoExcluir
+                    setAlvoExcluir(null)
+                    setErroDestino('')
+                    setAlvoArquivar(pessoa)
+                  }}
+                >
+                  Arquivar em vez disso
+                </Botao>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   )
