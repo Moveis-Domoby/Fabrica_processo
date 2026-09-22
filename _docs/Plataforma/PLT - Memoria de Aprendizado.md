@@ -77,6 +77,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-22] **E-36** (Claude Code) · Na conferência Tiny×plataforma da S21 escrevi DUAS vezes nome de coluna de memória em consulta ao banco de produção (`eventos.numero_pedido`, `plt_eventos.criado_em`) — as duas quebraram com "column does not exist" (só leitura, sem dano) → **correção:** nome tirado da nota do esquema / da migration antes de reescrever (`eventos.numero`, `plt_eventos.registrado_em`). **Lição: a regra 10 vale também para consulta "rápida" de leitura — pressa de conferência é exatamente quando o nome inventado escapa.**
 
+- [2026-09-22] **E-37** (Claude Code) · Com o dono fora, `git push` do repo da fábrica ficou 2+ min parado — o Git Credential Manager abriu a janela de escolher conta/login e ninguém respondeu (primo do E-10: credencial por conta) → **correção:** push só daquele comando com a credencial do `gh` já logado (conta com WRITE no repo): `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push …`, com `GIT_TERMINAL_PROMPT=0`. **Lição: em sessão sem o dono presente, nada que possa abrir janela de login — conferir `gh repo view … --json viewerPermission` e usar o `gh` como credencial.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.

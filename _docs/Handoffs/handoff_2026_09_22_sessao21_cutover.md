@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, uniao, cutover, comercial, tiny, datacrazy]
 
 # 📋 Handoff — SESSAO-21 · Cutover (União 3)
 
-**Branch:** `sessao-21-cutover` — **entregue por PR** (o dono saiu com permissão completa: "não quebre o banco de produção e não suba nada na main — pode abrir PR, eu aprovo quando chegar").
+**Branch:** `sessao-21-cutover` — **entregue pelo [PR #5](https://github.com/Moveis-Domoby/Fabrica_processo/pull/5)** (o dono saiu com permissão completa: "não quebre o banco de produção e não suba nada na main — pode abrir PR, eu aprovo quando chegar").
 **Demanda:** [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] · **Memória de execução:** `_docs/Plataforma/Execucao/SESSAO-21.md` (tudo, com horários)
 **Decisões:** D-46 (união; um projeto por vez para token e disparo) · riscos 1 e 2 do [[PLT - Plano Uniao das Plataformas]]
 
