@@ -17,7 +17,7 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 
 ## ▶️ Agora: fechar o cutover (gestos seus) e seguir para a SESSAO-23
 
-- **Cutover (SESSAO-21):** ✅ DataCrazy repontado e ✅ trava do disparo aberta em 23/09 (PR #6). Falta seu: a **data da F7** (pausar → excluir o projeto antigo; backup dispensado) e decidir se apaga já os 6 jobs desativados do antigo. Detalhe: [[handoff_2026_09_22_sessao21_cutover]].
+- **Cutover (SESSAO-21):** ✅ DataCrazy repontado e ✅ trava do disparo aberta em 23/09 (PR #6). **Exclusão do projeto antigo: 06/10/2026** (backup dispensado; os 6 jobs desativados somem junto). Detalhe: [[handoff_2026_09_22_sessao21_cutover]].
 - **Próxima de construção:** [[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]].
 - **Nova (🔶 rascunho, 4 perguntas suas):** [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — a correção de raiz da deriva Tiny × banco achada na conferência de 22/09 (P17). Recomendo encaixar cedo: sem ela, a deriva volta.
 
@@ -53,8 +53,9 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 5. Conferir as **decisões provisórias** dos handoffs 13–15 e 19–20.
 6. `PLT_GEOCODIFICACAO_CONTATO` (contato do Nominatim, opcional).
 7. Avisar quando quiser a **publicação no ar** (SESSAO-08 / D-30).
-9. **Cutover (SESSAO-21):** data da F7 · 6 jobs desativados do antigo (manter até a F7 ou apagar já) · 3 apontamentos de segurança herdados — tudo no [[handoff_2026_09_22_sessao21_cutover]].
-10. Responder as 4 perguntas da [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (janela, horário, regra "o último pacote vence", combinado do nome do contato com a equipe).
+9. **Cutover (SESSAO-21):** excluir o projeto antigo em **06/10** · (se souber) o vendedor antigo dos pedidos 13183 e 13421 — tudo no [[handoff_2026_09_22_sessao21_cutover]].
+10. ✅ SESSAO-29 respondida por inteiro (D-50) — **📐 pronta para code**; só falta você dizer quando ela entra na fila.
+11. ~~Trocar o token da API v2 do Tiny~~ — o dono decidiu **não** trocar (23/09).
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)

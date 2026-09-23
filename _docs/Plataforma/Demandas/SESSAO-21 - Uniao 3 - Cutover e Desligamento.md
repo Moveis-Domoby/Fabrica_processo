@@ -40,7 +40,7 @@ Qualquer feature nova. Consolidação `vendas_marketing`×`pedidos` além da vie
 - [x] Nenhuma janela em que crons de disparo ou o renovador do token estejam ativos nos dois projetos ao mesmo tempo. *(22/09: antigo desativado 20:28 UTC; o primeiro job na fábrica nasceu 21:19 UTC — 51 min sem NENHUM ativo, dentro da validade do refresh.)*
 - [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(23/09: o dono trocou a URL no DataCrazy e a trava foi aberta — PR #6; a 1ª lista real ele roda quando for usar, e **pediu para não ficar como pendência**: "vou lembrar disso se der erro")*
 - [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; 1ª automática 23/09 00:00:01 UTC ✅; conferir as seguintes até 21:20 UTC de 23/09)*
-- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(**dispensado pelo dono em 23/09**: os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica, idênticas byte a byte — nada exclusivo ficou no projeto antigo; falta só a data de pausar/excluir)*
+- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(**dispensado pelo dono em 23/09**: os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica, idênticas byte a byte — nada exclusivo ficou no projeto antigo; exclusão marcada pelo dono para **06/10/2026**)*
 - [x] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi). *(22/09)*
 
 ## Herdado da SESSAO-20 — 3 apontamentos de segurança do banco (não são do Comercial)
@@ -57,7 +57,10 @@ estavam fora do escopo dela — e mexer em objeto de outra frente sem o dono ped
 | `fn_backfill_conta_mapear` e `fn_vig_touch` **sem `search_path` fixo** | a função não trava em quais schemas procura o que usa — o caminho pode ser manipulado por quem consiga criar objeto | 🟡 é a mesma classe do E-11, já corrigida em todo o resto da casa |
 | `vig_conhecimento_vendas` com **RLS ligado e nenhuma policy** | ninguém lê pelo navegador (nem admin); só a chave de serviço | ⚪ inofensivo — pode até ser intencional, como a `tiny_auth` |
 
-**O que fazer:** perguntar ao dono se essas funções ainda são usadas (o backfill
+> [!success] ✅ Resolvido em 23/09/2026 — migration 32 (`20260923120000_plt_seguranca_herdada.sql`)
+> Dono: *"analise as principais [automações]; se nenhuma tiver, pode realizar os ajustes"*. Nenhum dos 4 workflows principais do n8n chama a função; o único uso é interno (`plt_privado.fn_vincular_conta_receber`, SECURITY DEFINER); 0 chamadas pela API em 24h (consulta de controle viu 66 da `fn_upsert_pedido`). Aplicado: EXECUTE revogado de `public`/`anon`/`authenticated` na `fn_pedido_por_numero_nf` (sonda anônima → 401) e `search_path` fixo nas duas. `vig_conhecimento_vendas`: mantida como está (intencional). Test:banco 2 rodadas ✔, impressão digital idêntica, advisors limpos desses 3.
+
+**O que fazer (original):** perguntar ao dono se essas funções ainda são usadas (o backfill
 já terminou) e então **revogar o execute do `anon`** na primeira, **fixar o
 `search_path`** nas duas, ou **dropar** o que estiver morto. Nada disso é do
 domínio Comercial — mas é o tipo de coisa que, com ~30 logins entrando, não deve
