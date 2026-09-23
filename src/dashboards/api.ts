@@ -270,6 +270,76 @@ export async function dashTendenciaSemanas(semanas = 6): Promise<SemanaTendencia
 }
 
 // ---------------------------------------------------------------------------
+// Portas PESSOAIS da SESSAO-23 (migration 33): tempo em afazeres e KPIs só do
+// próprio usuário. O gate é absoluto no banco — cada chamada devolve apenas o
+// dado de quem chama; o tempo de afazeres pessoais não sai para mais ninguém.
+// ---------------------------------------------------------------------------
+
+export interface MeuTempoDia {
+  dia: string
+  tarefas: number
+  tempo_pessoal: string
+  tempo_delegado: string
+}
+
+export async function meuTempoDias(periodo: PeriodoDash): Promise<MeuTempoDia[]> {
+  const { data, error } = await supabase.rpc('plt_fn_meu_tempo_dias', {
+    p_de: periodo.de,
+    p_ate: periodo.ate,
+  })
+  return garantir(data as MeuTempoDia[] | null, error, 'Não deu para carregar o seu tempo por dia')
+}
+
+export interface MeuTempoTarefa {
+  tarefa_id: number
+  titulo: string
+  pessoal: boolean
+  situacao: string
+  iniciada_em: string
+  concluida_em: string | null
+  duracao: string
+  contagem_total: number
+}
+
+export async function meuTempoTarefas(parametros: {
+  periodo: PeriodoDash
+  limite?: number
+  deslocamento?: number
+}): Promise<MeuTempoTarefa[]> {
+  const { data, error } = await supabase.rpc('plt_fn_meu_tempo_tarefas', {
+    p_de: parametros.periodo.de,
+    p_ate: parametros.periodo.ate,
+    p_limite: parametros.limite ?? 20,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  return garantir(
+    data as MeuTempoTarefa[] | null,
+    error,
+    'Não deu para carregar o seu tempo por tarefa',
+  )
+}
+
+export interface MeuDesempenho {
+  execucoes: number
+  execucoes_finalizadas: number
+  tempo_execucao: string
+  media_execucao: string | null
+  cards_distintos: number
+  tarefas_concluidas: number
+  tempo_afazeres: string
+  pareceres_dados: number
+}
+
+export async function meuDesempenho(periodo: PeriodoDash): Promise<MeuDesempenho | null> {
+  const { data, error } = await supabase.rpc('plt_fn_meu_desempenho', {
+    p_de: periodo.de,
+    p_ate: periodo.ate,
+  })
+  if (error) throw new Error(`Não deu para carregar o seu desempenho: ${error.message}`)
+  return ((data ?? []) as MeuDesempenho[])[0] ?? null
+}
+
+// ---------------------------------------------------------------------------
 // Visualizações salvas (RF-32/RF-33 — plt_visualizacoes, RLS por dono)
 //
 // SESSAO-16: a configuração passou a guardar TELA + filtros (as 4 telas-filhas

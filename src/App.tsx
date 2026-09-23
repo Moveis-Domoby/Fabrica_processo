@@ -11,6 +11,8 @@ import { Equipe } from '@/paginas/Equipe'
 import { TelaSetor } from '@/paginas/TelaSetor'
 import { ControleTempo } from '@/paginas/ControleTempo'
 import { VisaoDoDia } from '@/paginas/dashboards/VisaoDoDia'
+import { MeuDesempenho } from '@/paginas/dashboards/MeuDesempenho'
+import { Avisos } from '@/paginas/Avisos'
 import { TempoPorSetor } from '@/paginas/dashboards/TempoPorSetor'
 import { Pessoas } from '@/paginas/dashboards/Pessoas'
 import { Qualidade } from '@/paginas/dashboards/Qualidade'
@@ -75,6 +77,8 @@ export function App() {
               <Route path="/inicio/afazeres" element={<Afazeres />} />
               {/* filho sem item de menu: abre pelo bloco do usuário no rodapé */}
               <Route path="/inicio/meu-perfil" element={<MeuPerfil />} />
+              {/* filho sem item de menu: o "Ver todos" do sino (SESSAO-23) */}
+              <Route path="/inicio/avisos" element={<Avisos />} />
 
               {/* o modo do galpão: sem navegação nenhuma (D-06/D-28) */}
               <Route path="/tablet" element={<TelaSetor />} />
@@ -88,6 +92,12 @@ export function App() {
                 <Route path="/fabrica/logistica/danificados" element={<Danificados />} />
                 <Route path="/fabrica/rotas/entregas" element={<Rotas />} />
                 <Route path="/fabrica/rotas/programacao" element={<Programacao />} />
+              </Route>
+
+              {/* Dashboards → Meu desempenho (SESSAO-23): o painel PRIVADO de
+                  cada um — qualquer papel logado; o banco só devolve o próprio */}
+              <Route element={<RotaModulo modulo="fabrica" />}>
+                <Route path="/dashboards/meu-desempenho" element={<MeuDesempenho />} />
               </Route>
 
               {/* Comercial (D-46) — o Painel de Recompra dentro da plataforma */}
@@ -127,7 +137,8 @@ export function App() {
             <Route path="/fabrica/logistica" element={<Navigate to="/fabrica/logistica/expedicao" replace />} />
             <Route path="/fabrica/rotas" element={<Navigate to="/fabrica/rotas/entregas" replace />} />
             <Route path="/comercial" element={<Navigate to="/comercial/recompra" replace />} />
-            <Route path="/dashboards" element={<Navigate to="/dashboards/visao-do-dia" replace />} />
+            {/* o 1º filho que TODO papel pode abrir (SESSAO-23) */}
+            <Route path="/dashboards" element={<Navigate to="/dashboards/meu-desempenho" replace />} />
             {/* a tela única da S10 virou as 4 filhas — bookmark antigo não quebra */}
             <Route path="/dashboards/geral" element={<Navigate to="/dashboards/visao-do-dia" replace />} />
             <Route path="/admin" element={<Navigate to="/admin/equipe" replace />} />

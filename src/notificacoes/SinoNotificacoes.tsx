@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -144,6 +145,16 @@ export function SinoNotificacoes({
                 </li>
               ))}
             </ul>
+
+            {/* SESSAO-23: o histórico completo mora numa tela própria, paginada
+                no servidor — aqui só os mais recentes. */}
+            <Link
+              to="/inicio/avisos"
+              onClick={() => setAberto(false)}
+              className="flex min-h-toque-md items-center justify-center border-t border-borda text-sm font-medium text-texto hover:bg-superficie-sutil"
+            >
+              Ver todos
+            </Link>
           </div>
         </>
       )}

@@ -44,6 +44,8 @@ export interface Card {
   executor_atual_id: string | null
   /** D-34: a quem o afazer foi delegado (projeção do evento de delegação). */
   responsavel_id: string | null
+  /** SESSAO-23: quando a delegação atual aconteceu — a ordem de cadastro na Fila de prioridade. */
+  delegado_em: string | null
   qualidade_atual: Estado | null
   concluido_em: string | null
   /** SESSAO-22 (D-48): quando a execução aberta foi pausada pelo líder. null = não pausado. */
@@ -56,7 +58,7 @@ export interface Card {
 export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
-  'executor_atual_id, responsavel_id, qualidade_atual, concluido_em, ' +
+  'executor_atual_id, responsavel_id, delegado_em, qualidade_atual, concluido_em, ' +
   'pausado_em, liberado_completo_em'
 
 /**

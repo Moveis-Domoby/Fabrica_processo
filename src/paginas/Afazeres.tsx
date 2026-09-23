@@ -1,7 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, ClipboardList, ListTodo, Play, Plus, Timer } from 'lucide-react'
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  ClipboardList,
+  Eye,
+  EyeOff,
+  ListTodo,
+  Play,
+  Plus,
+  Timer,
+} from 'lucide-react'
 import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -13,20 +25,115 @@ import { membrosDoSetor } from '@/tablet/api'
 import {
   afazeresDoSetor,
   concluirTarefa,
+  criarSubtarefa,
   criarTarefa,
+  definirPrivacidade,
+  ehTarefaPessoal,
   iniciarTarefa,
   meusCards,
   minhasTarefas,
+  reabrirTarefa,
+  subtarefasDe,
 } from '@/afazeres/api'
+import type { Tarefa } from '@/afazeres/api'
 
 const ATUALIZA_A_CADA = 15_000
 const SEM_DONO = 'sem-dono'
 
 /**
- * Afazeres (SESSAO-12 / D-34 / RF-40…43): "meus afazeres" para todo mundo
- * (cards delegados a mim + tarefas avulsas), "afazeres do time" para o líder
- * (carga por pessoa e reatribuição — registrada em evento append-only).
- * A delegação ORGANIZA o trabalho; ela não trava gesto nenhum.
+ * O checklist de uma tarefa (SESSAO-23): subtarefas na MESMA tabela, até dois
+ * níveis (tarefa → subtarefa → subtarefa da subtarefa — regra do banco).
+ * Concluir/reabrir é um toque; o contador da mãe conta as filhas diretas.
+ */
+function Checklist({
+  maeId,
+  nivel,
+  subtarefasPorMae,
+  aoConcluir,
+  aoReabrir,
+  aoCriar,
+  ocupado,
+}: {
+  maeId: number
+  nivel: 1 | 2
+  subtarefasPorMae: Map<number, Tarefa[]>
+  aoConcluir: (id: number) => void
+  aoReabrir: (id: number) => void
+  aoCriar: (maeId: number, titulo: string) => void
+  ocupado: boolean
+}) {
+  const [novo, setNovo] = useState('')
+  const filhas = subtarefasPorMae.get(maeId) ?? []
+
+  return (
+    <div className={cn('flex flex-col gap-1', nivel === 2 && 'ml-6 border-l border-borda pl-3')}>
+      {filhas.map((s) => {
+        const feita = s.situacao === 'concluida'
+        return (
+          <div key={s.id} className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label={feita ? `Reabrir "${s.titulo}"` : `Concluir "${s.titulo}"`}
+                disabled={ocupado}
+                onClick={() => (feita ? aoReabrir(s.id) : aoConcluir(s.id))}
+                className="toque-seguro inline-flex h-toque-md items-center gap-2 rounded-dm px-1 text-left text-sm hover:bg-superficie-sutil"
+              >
+                {feita ? (
+                  <CheckCircle2 aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+                ) : (
+                  <Circle aria-hidden className="size-4 shrink-0 text-texto-fraco" />
+                )}
+                <span className={cn('text-texto', feita && 'text-texto-fraco line-through')}>
+                  {s.titulo}
+                </span>
+              </button>
+            </div>
+            {/* o segundo (e último) nível do checklist */}
+            {nivel === 1 && (subtarefasPorMae.get(s.id)?.length ?? 0) > 0 && (
+              <Checklist
+                maeId={s.id}
+                nivel={2}
+                subtarefasPorMae={subtarefasPorMae}
+                aoConcluir={aoConcluir}
+                aoReabrir={aoReabrir}
+                aoCriar={aoCriar}
+                ocupado={ocupado}
+              />
+            )}
+          </div>
+        )
+      })}
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!novo.trim()) return
+          aoCriar(maeId, novo)
+          setNovo('')
+        }}
+      >
+        <Campo
+          rotulo={nivel === 1 ? 'Nova subtarefa' : 'Nova subtarefa deste item'}
+          rotuloOculto
+          placeholder={nivel === 1 ? 'nova subtarefa…' : 'subtarefa deste item…'}
+          value={novo}
+          onChange={(e) => setNovo(e.target.value)}
+          className="flex-1"
+        />
+        <Botao type="submit" variante="fantasma" tamanho="sm" icone={<Plus />} disabled={!novo.trim() || ocupado}>
+          Incluir
+        </Botao>
+      </form>
+    </div>
+  )
+}
+
+/**
+ * Afazeres (SESSAO-12/D-34 · SESSAO-23): "meus afazeres" para todo mundo
+ * (cards delegados + tarefas), agora com subtarefas em checklist e a tarefa
+ * pessoal privada — visível só para o dono até ele torná-la pública. O RLS
+ * garante a privacidade; a tela só reflete.
  */
 export function Afazeres() {
   const { perfil, vinculos, ehLider } = useSessao()
@@ -51,6 +158,42 @@ export function Afazeres() {
     refetchInterval: ATUALIZA_A_CADA,
   })
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(cards)
+
+  // As subtarefas das minhas tarefas — e as delas (dois níveis, de uma vez).
+  const idsTarefas = useMemo(() => tarefas.map((t) => t.id), [tarefas])
+  const { data: filhas = [] } = useQuery({
+    queryKey: ['afazeres', 'subtarefas', idsTarefas.join(',')],
+    queryFn: () => subtarefasDe(idsTarefas),
+    enabled: idsTarefas.length > 0,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
+  const idsFilhas = useMemo(() => filhas.map((f) => f.id), [filhas])
+  const { data: netas = [] } = useQuery({
+    queryKey: ['afazeres', 'subtarefas-2', idsFilhas.join(',')],
+    queryFn: () => subtarefasDe(idsFilhas),
+    enabled: idsFilhas.length > 0,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
+  const subtarefasPorMae = useMemo(() => {
+    const mapa = new Map<number, Tarefa[]>()
+    for (const s of [...filhas, ...netas]) {
+      if (s.tarefa_mae_id === null) continue
+      const lista = mapa.get(s.tarefa_mae_id) ?? []
+      lista.push(s)
+      mapa.set(s.tarefa_mae_id, lista)
+    }
+    return mapa
+  }, [filhas, netas])
+
+  const [abertas, setAbertas] = useState<Set<number>>(new Set())
+  function alternarChecklist(id: number) {
+    setAbertas((atual) => {
+      const proximo = new Set(atual)
+      if (proximo.has(id)) proximo.delete(id)
+      else proximo.add(id)
+      return proximo
+    })
+  }
 
   async function invalidar() {
     await clienteQuery.invalidateQueries({ queryKey: ['afazeres'] })
@@ -78,11 +221,39 @@ export function Afazeres() {
     },
     onError: aoErro('Não deu para concluir'),
   })
+  const concluirSubMutacao = useMutation({
+    mutationFn: concluirTarefa,
+    onSuccess: invalidar,
+    onError: aoErro('Não deu para concluir a subtarefa'),
+  })
+  const reabrirSubMutacao = useMutation({
+    mutationFn: reabrirTarefa,
+    onSuccess: invalidar,
+    onError: aoErro('Não deu para reabrir a subtarefa'),
+  })
+  const criarSubMutacao = useMutation({
+    mutationFn: (p: { maeId: number; titulo: string }) =>
+      criarSubtarefa({ ...p, criadaPor: perfil!.id }),
+    onSuccess: invalidar,
+    onError: aoErro('Não deu para criar a subtarefa'),
+  })
+  const privacidadeMutacao = useMutation({
+    mutationFn: (p: { id: number; privada: boolean }) => definirPrivacidade(p.id, p.privada),
+    onSuccess: async (_dados, p) => {
+      notificar({
+        titulo: p.privada ? 'Tarefa agora é privada' : 'Tarefa visível para a liderança',
+        tom: 'perfeito',
+      })
+      await invalidar()
+    },
+    onError: aoErro('Não deu para mudar a visibilidade'),
+  })
 
   // ----- criar tarefa avulsa -----
   const [novoTitulo, setNovoTitulo] = useState('')
   const [novoSetor, setNovoSetor] = useState('')
   const [novoResponsavel, setNovoResponsavel] = useState('')
+  const [novaVisivel, setNovaVisivel] = useState(false)
   const setoresOndeCrio = souAdmin
     ? setores
     : setores.filter((s) => vinculos.some((v) => v.setor_id === s.id))
@@ -95,6 +266,7 @@ export function Afazeres() {
   })
   const possoDelegarNoNovoSetor =
     souAdmin || vinculos.some((v) => v.setor_id === setorNovoId && v.lider_do_setor)
+  const novaEhParaMim = !(possoDelegarNoNovoSetor && novoResponsavel)
 
   const criarMutacao = useMutation({
     mutationFn: () =>
@@ -102,13 +274,17 @@ export function Afazeres() {
         titulo: novoTitulo,
         setorId: setorNovoId,
         // Operador cria para si; líder/admin escolhe (D-34 — delegação direta).
-        responsavelId: possoDelegarNoNovoSetor && novoResponsavel ? novoResponsavel : perfil!.id,
+        responsavelId: novaEhParaMim ? perfil!.id : novoResponsavel,
         criadaPor: perfil!.id,
+        // Resposta do dono (SESSAO-23): a pessoal nasce privada, a menos que o
+        // dono a torne visível já na criação. Delegada é sempre visível.
+        privada: novaEhParaMim && !novaVisivel,
       }),
     onSuccess: async () => {
       notificar({ titulo: 'Tarefa criada', tom: 'perfeito' })
       setNovoTitulo('')
       setNovoResponsavel('')
+      setNovaVisivel(false)
       await invalidar()
     },
     onError: aoErro('Não deu para criar a tarefa'),
@@ -159,6 +335,8 @@ export function Afazeres() {
   if (!perfil) return null
 
   const totalMeus = cards.length + tarefas.length
+  const checklistOcupado =
+    concluirSubMutacao.isPending || reabrirSubMutacao.isPending || criarSubMutacao.isPending
 
   return (
     <div className="flex flex-col gap-8">
@@ -221,52 +399,122 @@ export function Afazeres() {
             )
           })}
 
-          {tarefas.map((tarefa) => (
-            <li
-              key={`tarefa-${tarefa.id}`}
-              className={cn(
-                'flex flex-col gap-2 rounded-dm-lg border bg-superficie p-4',
-                tarefa.situacao === 'em_andamento' ? 'border-acao-ativa' : 'border-borda',
-              )}
-            >
-              <p className="font-medium text-texto">{tarefa.titulo}</p>
-              {tarefa.descricao && (
-                <p className="line-clamp-2 text-sm text-texto-suave">{tarefa.descricao}</p>
-              )}
-              <p className="text-xs text-texto-fraco tabular-nums">
-                {tarefa.iniciada_em ? (
-                  <span className="inline-flex items-center gap-1 text-texto-suave">
-                    <Timer aria-hidden className="size-3.5" />
-                    contando há {formatarDuracao(tarefa.iniciada_em, agora)}
-                  </span>
-                ) : (
-                  'tarefa avulsa — o tempo só conta se você quiser'
+          {tarefas.map((tarefa) => {
+            const minhaPessoal = ehTarefaPessoal(tarefa) && tarefa.responsavel_id === perfil.id
+            const doChecklist = subtarefasPorMae.get(tarefa.id) ?? []
+            const feitas = doChecklist.filter((s) => s.situacao === 'concluida').length
+            const aberta = abertas.has(tarefa.id)
+            return (
+              <li
+                key={`tarefa-${tarefa.id}`}
+                className={cn(
+                  'flex flex-col gap-2 rounded-dm-lg border bg-superficie p-4',
+                  tarefa.situacao === 'em_andamento' ? 'border-acao-ativa' : 'border-borda',
                 )}
-              </p>
-              <div className="mt-auto flex flex-wrap gap-2">
-                {!tarefa.iniciada_em && (
-                  <Botao
-                    variante="secundaria"
-                    tamanho="sm"
-                    icone={<Play />}
-                    carregando={iniciarMutacao.isPending}
-                    onClick={() => iniciarMutacao.mutate(tarefa.id)}
-                  >
-                    Iniciar tempo
-                  </Botao>
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-texto">{tarefa.titulo}</p>
+                  {minhaPessoal && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        privacidadeMutacao.mutate({ id: tarefa.id, privada: !tarefa.privada })
+                      }
+                      disabled={privacidadeMutacao.isPending}
+                      className="toque-seguro inline-flex shrink-0 items-center gap-1 rounded-full bg-superficie-sutil px-2.5 py-1 text-xs font-medium text-texto-suave hover:bg-borda"
+                      title={
+                        tarefa.privada
+                          ? 'Só você vê esta tarefa. Toque para torná-la visível à liderança.'
+                          : 'Líderes e admins veem esta tarefa. Toque para torná-la privada.'
+                      }
+                    >
+                      {tarefa.privada ? (
+                        <>
+                          <EyeOff aria-hidden className="size-3.5" /> privada
+                        </>
+                      ) : (
+                        <>
+                          <Eye aria-hidden className="size-3.5" /> visível
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {tarefa.descricao && (
+                  <p className="line-clamp-2 text-sm text-texto-suave">{tarefa.descricao}</p>
                 )}
-                <Botao
-                  tamanho="sm"
-                  icone={<CheckCircle2 />}
-                  className="flex-1"
-                  carregando={concluirMutacao.isPending}
-                  onClick={() => concluirMutacao.mutate(tarefa.id)}
+                <p className="text-xs text-texto-fraco tabular-nums">
+                  {tarefa.iniciada_em ? (
+                    <span className="inline-flex items-center gap-1 text-texto-suave">
+                      <Timer aria-hidden className="size-3.5" />
+                      contando há {formatarDuracao(tarefa.iniciada_em, agora)}
+                    </span>
+                  ) : (
+                    'tarefa avulsa — o tempo só conta se você quiser'
+                  )}
+                </p>
+
+                {/* ---- checklist de subtarefas (SESSAO-23) ---- */}
+                <button
+                  type="button"
+                  onClick={() => alternarChecklist(tarefa.id)}
+                  aria-expanded={aberta}
+                  className="toque-seguro -mx-1 inline-flex min-h-toque-md items-center gap-1.5 rounded-dm px-1 text-left text-sm text-texto-suave hover:bg-superficie-sutil"
                 >
-                  Concluir
-                </Botao>
-              </div>
-            </li>
-          ))}
+                  {aberta ? (
+                    <ChevronDown aria-hidden className="size-4 shrink-0" />
+                  ) : (
+                    <ChevronRight aria-hidden className="size-4 shrink-0" />
+                  )}
+                  Subtarefas
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                      doChecklist.length > 0 && feitas === doChecklist.length
+                        ? 'bg-perfeito-fundo text-perfeito-texto'
+                        : 'bg-superficie-sutil text-texto-suave',
+                    )}
+                  >
+                    {feitas}/{doChecklist.length}
+                  </span>
+                </button>
+                {aberta && (
+                  <Checklist
+                    maeId={tarefa.id}
+                    nivel={1}
+                    subtarefasPorMae={subtarefasPorMae}
+                    aoConcluir={(id) => concluirSubMutacao.mutate(id)}
+                    aoReabrir={(id) => reabrirSubMutacao.mutate(id)}
+                    aoCriar={(maeId, titulo) => criarSubMutacao.mutate({ maeId, titulo })}
+                    ocupado={checklistOcupado}
+                  />
+                )}
+
+                <div className="mt-auto flex flex-wrap gap-2">
+                  {!tarefa.iniciada_em && (
+                    <Botao
+                      variante="secundaria"
+                      tamanho="sm"
+                      icone={<Play />}
+                      carregando={iniciarMutacao.isPending}
+                      onClick={() => iniciarMutacao.mutate(tarefa.id)}
+                    >
+                      Iniciar tempo
+                    </Botao>
+                  )}
+                  <Botao
+                    tamanho="sm"
+                    icone={<CheckCircle2 />}
+                    className="flex-1"
+                    carregando={concluirMutacao.isPending}
+                    onClick={() => concluirMutacao.mutate(tarefa.id)}
+                  >
+                    Concluir
+                  </Botao>
+                </div>
+              </li>
+            )
+          })}
         </ul>
       </section>
 
@@ -305,6 +553,22 @@ export function Afazeres() {
               aoMudar={(v) => setNovoResponsavel(v === 'eu' ? '' : v)}
             />
           </div>
+        )}
+        {novaEhParaMim && (
+          /* Resposta do dono (SESSAO-23): tarefa minha nasce privada; este é o
+             gesto de já criá-la visível para líderes e admins. */
+          <label className="flex min-h-toque-md w-fit cursor-pointer items-center gap-2 text-sm text-texto">
+            <input
+              type="checkbox"
+              checked={novaVisivel}
+              onChange={(e) => setNovaVisivel(e.target.checked)}
+              className="size-4 accent-marca-500"
+            />
+            Visível para a liderança
+            <span className="text-xs text-texto-fraco">
+              (desmarcado, só você vê esta tarefa)
+            </span>
+          </label>
         )}
         <div>
           <Botao

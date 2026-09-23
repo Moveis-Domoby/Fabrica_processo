@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Bell,
-  ClipboardCheck,
+  ChevronDown,
+  ChevronUp,
+  ListChecks,
   ListTodo,
   Play,
   Plus,
@@ -15,14 +16,19 @@ import { cn } from '@/lib/cn'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
-import { buscarPareceresPendentes, buscarSetores } from '@/kanban/api'
+import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor } from '@/navegacao/rotas'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
-import { meusCards, minhasTarefas } from '@/afazeres/api'
-import { buscarAvisos, marcarAvisoLido } from '@/notificacoes/api'
+import {
+  buscarFilaPrioridade,
+  ehTarefaPessoal,
+  meusCards,
+  minhasTarefas,
+  salvarFilaPrioridade,
+  tarefasDoSistema,
+} from '@/afazeres/api'
 import {
   buscarMetasPainel,
-  cardsDosSetores,
   encerrarMeta,
   minhasExecucoesAbertas,
 } from '@/metas/api'
@@ -33,11 +39,22 @@ import { CartaoMeta } from '@/metas/CartaoMeta'
 const ATUALIZA_A_CADA = 15_000
 const METAS_POR_PAGINA = 20
 
+interface ItemFila {
+  /** "t:{id}" para tarefa · "c:{id}" para card delegado — a chave guardada. */
+  chave: string
+  texto: string
+  origem: 'delegada' | 'minha' | 'card'
+  para: string
+  /** Ordem de cadastro (ms) — o desempate de quem não está na ordem salva. */
+  cadastro: number
+}
+
 /**
- * Meu Painel (SESSAO-14 / D-37) — a tela em que todo mundo cai ao entrar:
- * o que me espera (pendências), o que me avisaram (as mesmas do sino) e o
- * cockpit de metas com andamento em tempo real. O progresso vem calculado do
- * banco; aqui nada se digita.
+ * Meu Painel 2.0 (SESSAO-23, revisão da D-37): as três filas pessoais —
+ * "Delegados a mim", "Meus afazeres" e a "Fila de prioridade" reordenável.
+ * "Qualidade a atestar" virou tarefa do Sistema (aparece em Delegados a mim);
+ * "Avisos recentes" saiu — o sino tem o "Ver todos". A ordem da fila é
+ * preferência de EXIBIÇÃO do usuário: reordenar não muda dado de tarefa.
  */
 export function MeuPainel() {
   const { perfil, vinculos } = useSessao()
@@ -50,7 +67,7 @@ export function MeuPainel() {
   const setorPorId = useMemo(() => new Map(setores.map((s) => [s.id, s])), [setores])
   const meusSetorIds = useMemo(() => vinculos.map((v) => v.setor_id), [vinculos])
 
-  // ----- pendências -----
+  // ----- as três filas -----
   const { data: cardsDelegados = [] } = useQuery({
     queryKey: ['meu-painel', 'delegados', perfil?.id],
     queryFn: () => meusCards(perfil!.id),
@@ -63,47 +80,97 @@ export function MeuPainel() {
     enabled: perfil !== null,
     refetchInterval: ATUALIZA_A_CADA,
   })
+  const { data: tarefasSistema = [] } = useQuery({
+    queryKey: ['meu-painel', 'tarefas-sistema', meusSetorIds.join(',')],
+    queryFn: () => tarefasDoSistema(meusSetorIds),
+    enabled: meusSetorIds.length > 0,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
   const { data: execucoes = [] } = useQuery({
     queryKey: ['meu-painel', 'execucoes', perfil?.id],
     queryFn: () => minhasExecucoesAbertas(perfil!.id),
     enabled: perfil !== null,
     refetchInterval: ATUALIZA_A_CADA,
   })
-  // Qualidade a atestar: chegadas com marcação ainda sem parecer nos MEUS setores.
-  const { data: cardsDosMeusSetores = [] } = useQuery({
-    queryKey: ['meu-painel', 'cards-setores', meusSetorIds.join(',')],
-    queryFn: () => cardsDosSetores(meusSetorIds),
-    enabled: meusSetorIds.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
+  const { data: ordemSalva = [] } = useQuery({
+    queryKey: ['fila-prioridade', perfil?.id],
+    queryFn: () => buscarFilaPrioridade(perfil!.id),
+    enabled: perfil !== null,
   })
-  const { data: pareceresPendentes = new Map() } = useQuery({
-    queryKey: [
-      'meu-painel',
-      'pareceres',
-      cardsDosMeusSetores.map((c) => `${c.id}:${c.desde}`).join(','),
-    ],
-    queryFn: () => buscarPareceresPendentes(cardsDosMeusSetores),
-    enabled: cardsDosMeusSetores.length > 0,
-  })
-  const cardsComParecer = cardsDosMeusSetores.filter((c) => pareceresPendentes.has(c.id))
+
+  const tarefasDelegadas = useMemo(
+    () => tarefas.filter((t) => !ehTarefaPessoal(t)),
+    [tarefas],
+  )
+  const tarefasProprias = useMemo(() => tarefas.filter((t) => ehTarefaPessoal(t)), [tarefas])
   const cardPorId = useMemo(
-    () => new Map([...cardsDosMeusSetores, ...cardsDelegados].map((c) => [c.id, c])),
-    [cardsDosMeusSetores, cardsDelegados],
+    () => new Map(cardsDelegados.map((c) => [c.id, c])),
+    [cardsDelegados],
   )
 
-  // ----- notificações (as mesmas do sino) -----
-  const { data: avisos = [] } = useQuery({
-    queryKey: ['avisos', perfil?.id],
-    queryFn: () => buscarAvisos(perfil!.id, 5),
-    enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const lerAviso = useMutation({
-    mutationFn: marcarAvisoLido,
-    onSuccess: () => clienteQuery.invalidateQueries({ queryKey: ['avisos'] }),
+  // A Fila de prioridade: delegadas + minhas + cards delegados, na ordem salva;
+  // quem não está na ordem entra no fim, por ordem de cadastro. Tarefa do
+  // Sistema fica FORA da fila (resposta 3 do dono) — ela vive em Delegados.
+  const fila: ItemFila[] = useMemo(() => {
+    const itens: ItemFila[] = [
+      ...tarefasDelegadas.map((t) => ({
+        chave: `t:${t.id}`,
+        texto: t.titulo,
+        origem: 'delegada' as const,
+        para: '/inicio/afazeres',
+        cadastro: new Date(t.criada_em).getTime(),
+      })),
+      ...tarefasProprias.map((t) => ({
+        chave: `t:${t.id}`,
+        texto: t.titulo,
+        origem: 'minha' as const,
+        para: '/inicio/afazeres',
+        cadastro: new Date(t.criada_em).getTime(),
+      })),
+      ...cardsDelegados.map((c) => {
+        const setor = c.setor_atual_id ? setorPorId.get(c.setor_atual_id) : undefined
+        return {
+          chave: `c:${c.id}`,
+          texto:
+            (c.item_descricao ?? `Unidade ${c.indice_unidade}/${c.total_unidades}`) +
+            (setor ? ` · ${setor.nome}` : ''),
+          origem: 'card' as const,
+          para: setor ? rotaDoSetor(setor.codigo) : '/inicio/afazeres',
+          cadastro: new Date(c.delegado_em ?? c.desde ?? 0).getTime(),
+        }
+      }),
+    ]
+    const posicao = new Map(ordemSalva.map((chave, i) => [chave, i]))
+    return itens.sort((a, b) => {
+      const pa = posicao.get(a.chave)
+      const pb = posicao.get(b.chave)
+      if (pa !== undefined && pb !== undefined) return pa - pb
+      if (pa !== undefined) return -1
+      if (pb !== undefined) return 1
+      return a.cadastro - b.cadastro
+    })
+  }, [tarefasDelegadas, tarefasProprias, cardsDelegados, ordemSalva, setorPorId])
+
+  const reordenar = useMutation({
+    mutationFn: (chaves: string[]) => salvarFilaPrioridade(perfil!.id, chaves),
+    onSuccess: () => clienteQuery.invalidateQueries({ queryKey: ['fila-prioridade'] }),
+    onError: (excecao: unknown) =>
+      notificar({
+        titulo: 'Não deu para guardar a ordem',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
   })
 
-  // ----- cockpit de metas -----
+  function mover(indice: number, direcao: -1 | 1) {
+    const destino = indice + direcao
+    if (destino < 0 || destino >= fila.length) return
+    const chaves = fila.map((i) => i.chave)
+    ;[chaves[indice], chaves[destino]] = [chaves[destino], chaves[indice]]
+    reordenar.mutate(chaves)
+  }
+
+  // ----- cockpit de metas (como a S14 entregou) -----
   const [paginaMetas, setPaginaMetas] = useState(1)
   const { data: metas = [] } = useQuery({
     queryKey: ['metas', 'painel', paginaMetas],
@@ -134,7 +201,7 @@ export function MeuPainel() {
       }),
   })
 
-  // Tempo real: mudança em card (mover/iniciar/finalizar) mexe em pendências e
+  // Tempo real: mudança em card (mover/iniciar/finalizar) mexe em filas e
   // metas — invalida na hora; o polling de 15s segue como rede de segurança.
   useEffect(() => {
     const canal = supabase
@@ -154,39 +221,41 @@ export function MeuPainel() {
   const nomeCurto = perfil.nome.split(' ')[0]
   const meusSetores = vinculos.map((v) => v.setor.nome).join(' · ')
 
-  const pendencias = [
-    {
-      chave: 'qualidade',
-      icone: ClipboardCheck,
-      titulo: 'Qualidade a atestar',
-      total: cardsComParecer.length,
-      descricao: 'chegadas esperando o seu parecer',
-      itens: cardsComParecer.slice(0, 3).map((c) => ({
-        id: `q-${c.id}`,
-        texto: c.item_descricao ?? `Unidade ${c.indice_unidade}/${c.total_unidades}`,
-        para: c.setor_atual_id ? rotaDoSetor(setorPorId.get(c.setor_atual_id)?.codigo ?? '') : '#',
-      })),
-    },
+  const separadores = [
     {
       chave: 'delegados',
       icone: UserRound,
       titulo: 'Delegados a mim',
-      total: cardsDelegados.length,
-      descricao: 'cards sob sua responsabilidade',
-      itens: cardsDelegados.slice(0, 3).map((c) => ({
-        id: `d-${c.id}`,
-        texto: c.item_descricao ?? `Unidade ${c.indice_unidade}/${c.total_unidades}`,
-        para: '/inicio/afazeres',
-      })),
+      total: tarefasDelegadas.length + tarefasSistema.length + cardsDelegados.length,
+      descricao: 'o que outros — ou o Sistema — colocaram com você',
+      itens: [
+        ...tarefasSistema.map((t) => ({
+          id: `ts-${t.id}`,
+          texto: `Sistema · ${t.titulo}`,
+          para: t.setor_id ? rotaDoSetor(setorPorId.get(t.setor_id)?.codigo ?? '') : '/inicio/afazeres',
+        })),
+        ...tarefasDelegadas.map((t) => ({
+          id: `td-${t.id}`,
+          texto: t.titulo,
+          para: '/inicio/afazeres',
+        })),
+        ...cardsDelegados.map((c) => ({
+          id: `cd-${c.id}`,
+          texto: c.item_descricao ?? `Unidade ${c.indice_unidade}/${c.total_unidades}`,
+          para: c.setor_atual_id
+            ? rotaDoSetor(setorPorId.get(c.setor_atual_id)?.codigo ?? '')
+            : '/inicio/afazeres',
+        })),
+      ].slice(0, 3),
     },
     {
-      chave: 'tarefas',
+      chave: 'meus',
       icone: ListTodo,
-      titulo: 'Tarefas em aberto',
-      total: tarefas.length,
-      descricao: 'avulsas, minhas ou delegadas',
-      itens: tarefas.slice(0, 3).map((t) => ({
-        id: `t-${t.id}`,
+      titulo: 'Meus afazeres',
+      total: tarefasProprias.length,
+      descricao: 'as tarefas que você criou para você',
+      itens: tarefasProprias.slice(0, 3).map((t) => ({
+        id: `m-${t.id}`,
         texto: t.titulo,
         para: '/inicio/afazeres',
       })),
@@ -220,11 +289,11 @@ export function MeuPainel() {
         </p>
       </div>
 
-      {/* ----- Pendências ----- */}
-      <section aria-label="Pendências" className="flex flex-col gap-3">
+      {/* ----- Os separadores: delegados · meus · em execução ----- */}
+      <section aria-label="O que me espera" className="flex flex-col gap-3">
         <h2 className="text-lg">O que me espera</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {pendencias.map((p) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {separadores.map((p) => (
             <div
               key={p.chave}
               className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4"
@@ -261,44 +330,68 @@ export function MeuPainel() {
         </div>
       </section>
 
-      {/* ----- Notificações recentes ----- */}
-      <section aria-label="Notificações recentes" className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg">Avisos recentes</h2>
-          <span className="text-sm text-texto-fraco">os mesmos do sino</span>
+      {/* ----- Fila de prioridade ----- */}
+      <section aria-label="Fila de prioridade" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListChecks aria-hidden className="size-5 text-texto-suave" />
+          <h2 className="text-lg">Fila de prioridade</h2>
+          <span className="text-sm text-texto-fraco">
+            a sua ordem, só sua — as setas mudam só a exibição
+          </span>
         </div>
-        {avisos.length === 0 ? (
+        {fila.length === 0 ? (
           <p className="rounded-dm-lg border border-borda bg-superficie p-4 text-sm text-texto-suave">
-            Nenhum aviso por aqui — quando algo pedir sua atenção, aparece primeiro nesta lista.
+            Nada na fila — tarefas e cards delegados aparecem aqui na ordem em que chegam.
           </p>
         ) : (
-          <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
-            {avisos.map((a) => (
-              <li key={a.id} className="border-b border-borda last:border-b-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!a.lida_em) lerAviso.mutate(a.id)
-                  }}
+          <ol className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
+            {fila.map((item, indice) => (
+              <li
+                key={item.chave}
+                className="flex items-center gap-2 border-b border-borda px-3 py-1.5 last:border-b-0"
+              >
+                <span className="w-6 shrink-0 text-center text-sm font-semibold text-texto-fraco tabular-nums">
+                  {indice + 1}
+                </span>
+                <Link
+                  to={item.para}
+                  className="min-w-0 flex-1 truncate rounded-dm py-2 text-sm text-texto hover:bg-superficie-sutil"
+                >
+                  {item.texto}
+                </Link>
+                <span
                   className={cn(
-                    'flex w-full min-h-toque-md flex-col gap-0.5 px-4 py-2.5 text-left',
-                    !a.lida_em && 'bg-superficie-sutil',
+                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                    item.origem === 'card'
+                      ? 'bg-acao text-acao-texto'
+                      : 'bg-superficie-sutil text-texto-suave',
                   )}
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium text-texto">
-                    <Bell aria-hidden className="size-4 shrink-0 text-texto-fraco" />
-                    {a.titulo}
-                    {!a.lida_em && (
-                      <span className="ml-auto shrink-0 text-xs font-normal text-texto-fraco">
-                        toque para marcar como lida
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-sm text-texto-suave">{a.corpo}</span>
-                </button>
+                  {item.origem === 'card' ? 'produção' : item.origem === 'minha' ? 'meu' : 'delegado'}
+                </span>
+                <span className="flex shrink-0">
+                  <button
+                    type="button"
+                    aria-label={`Subir "${item.texto}" na fila`}
+                    disabled={indice === 0 || reordenar.isPending}
+                    onClick={() => mover(indice, -1)}
+                    className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-texto-suave hover:bg-superficie-sutil disabled:opacity-30"
+                  >
+                    <ChevronUp aria-hidden className="size-5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Descer "${item.texto}" na fila`}
+                    disabled={indice === fila.length - 1 || reordenar.isPending}
+                    onClick={() => mover(indice, 1)}
+                    className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-texto-suave hover:bg-superficie-sutil disabled:opacity-30"
+                  >
+                    <ChevronDown aria-hidden className="size-5" />
+                  </button>
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
         )}
       </section>
 

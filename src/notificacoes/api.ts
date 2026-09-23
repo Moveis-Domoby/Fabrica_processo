@@ -28,6 +28,28 @@ export async function buscarAvisos(usuarioId: string, limite = 20): Promise<Avis
   return (data ?? []) as Aviso[]
 }
 
+/**
+ * Histórico completo de avisos, paginado NO SERVIDOR (SESSAO-23 — "Ver todos"
+ * do sino; regra 17: a tela só requisita a página que mostra, e o total vem da
+ * mesma consulta).
+ */
+export async function buscarAvisosPagina(parametros: {
+  usuarioId: string
+  pagina: number
+  porPagina: number
+}): Promise<{ avisos: Aviso[]; total: number }> {
+  const { usuarioId, pagina, porPagina } = parametros
+  const de = (pagina - 1) * porPagina
+  const { data, error, count } = await supabase
+    .from('plt_notificacoes')
+    .select('id, tipo, titulo, corpo, card_id, lida_em, criada_em', { count: 'exact' })
+    .eq('destinatario_id', usuarioId)
+    .order('criada_em', { ascending: false })
+    .range(de, de + porPagina - 1)
+  if (error) throw new Error(`Não deu para carregar os avisos: ${error.message}`)
+  return { avisos: (data ?? []) as Aviso[], total: count ?? 0 }
+}
+
 export async function marcarAvisoLido(id: number): Promise<void> {
   const { error } = await supabase
     .from('plt_notificacoes')

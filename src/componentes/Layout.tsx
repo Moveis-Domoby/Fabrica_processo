@@ -243,21 +243,27 @@ export function Layout({ children }: { children: ReactNode }) {
             },
           ]
         : []),
-      ...(ehLider && veFabrica
+      ...(veFabrica
         ? [
             {
               id: 'dashboards',
               rotulo: 'Dashboards',
               icone: <ChartColumn aria-hidden />,
-              // SESSAO-16 (D-42): as 4 telas-filhas dos mockups; o pai fica
-              // onde está (Q-66) e o gate de dados vive no banco (D-32)
+              // SESSAO-16 (D-42): as 4 telas-filhas dos mockups, para a
+              // liderança (D-32). SESSAO-23: "Meu desempenho" é o painel
+              // PRIVADO de cada um — todo papel logado vê o próprio.
               secoes: [
                 {
                   filhos: [
-                    { para: '/dashboards/visao-do-dia', rotulo: 'Visão do dia' },
-                    { para: '/dashboards/tempo-por-setor', rotulo: 'Tempo por setor' },
-                    { para: '/dashboards/pessoas', rotulo: 'Pessoas' },
-                    { para: '/dashboards/qualidade', rotulo: 'Qualidade' },
+                    { para: '/dashboards/meu-desempenho', rotulo: 'Meu desempenho' },
+                    ...(ehLider
+                      ? [
+                          { para: '/dashboards/visao-do-dia', rotulo: 'Visão do dia' },
+                          { para: '/dashboards/tempo-por-setor', rotulo: 'Tempo por setor' },
+                          { para: '/dashboards/pessoas', rotulo: 'Pessoas' },
+                          { para: '/dashboards/qualidade', rotulo: 'Qualidade' },
+                        ]
+                      : []),
                   ],
                 },
               ],
