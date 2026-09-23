@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-21 — União 3: Cutover e desligamento do projeto antigo"
 tipo: demanda
-status: rascunho
+status: entregue — aceite em curso
 data: 2026-09-15
-atualizado: 2026-09-15
+atualizado: 2026-09-22
 tags: [plataforma, demanda, uniao, cutover]
 ---
 
 # 🎯 SESSAO-21 — União 3: Cutover e desligamento do projeto antigo
+
+> ✅ **Promovida a 📐 em 21/09/2026 (Cowork):** o dono confirmou a **validação F5** — vem usando o módulo Comercial novo lado a lado com o painel antigo e os números batem. A sessão ainda abre com uma reconferência rápida de paridade (a F5 é assinada NA CONVERSA antes de qualquer desligamento), mas a validação de uso já aconteceu.
+> **Janela decidida pelo dono: logo após o handoff da SESSAO-22** (🔨 em execução em 21/09) — nunca em paralelo com outra sessão mexendo no mesmo banco (lição E-20). O dono precisa estar presente durante a janela: cada passo do cutover é confirmado um a um, e o passo 4 (trocar a URL do webhook no DataCrazy) é dele.
 
 ## O que é
 
@@ -34,11 +37,11 @@ Qualquer feature nova. Consolidação `vendas_marketing`×`pedidos` além da vie
 
 ## Critérios de aceite
 
-- [ ] Nenhuma janela em que crons de disparo ou o renovador do token estejam ativos nos dois projetos ao mesmo tempo.
-- [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica.
-- [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha.
-- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir.
-- [ ] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi).
+- [x] Nenhuma janela em que crons de disparo ou o renovador do token estejam ativos nos dois projetos ao mesmo tempo. *(22/09: antigo desativado 20:28 UTC; o primeiro job na fábrica nasceu 21:19 UTC — 51 min sem NENHUM ativo, dentro da validade do refresh.)*
+- [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(depende do dono: repontar a URL no DataCrazy + virar a trava + rodar a lista)*
+- [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; 1ª automática 23/09 00:00:01 UTC ✅; conferir as seguintes até 21:20 UTC de 23/09)*
+- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(F7 — na data que o dono escolher; recomendação no handoff: dump fora do git)*
+- [x] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi). *(22/09)*
 
 ## Herdado da SESSAO-20 — 3 apontamentos de segurança do banco (não são do Comercial)
 
@@ -66,4 +69,9 @@ Ler [[PLT - Plano Uniao das Plataformas]]. Depende das SESSÕES 19 e 20 entregue
 
 ## Resultado (preencher ao entregar)
 
-*—*
+**Entregue em 22/09/2026** — [[handoff_2026_09_22_sessao21_cutover]] · memória: `_docs/Plataforma/Execucao/SESSAO-21.md` · branch `sessao-21-cutover` (PR para revisão do dono).
+
+- **F5:** reconferida (junho–setembro ao centavo; 6 tabelas com delta explicado) e assinada na conversa.
+- **F6:** executada com uma mudança de ordem pedida pelo dono ("comece pelo renovador"): desativar os 6 do antigo → delta → **renovador na fábrica + renovação manual** (o passo 5 veio antes do 3b) → 3 crons de disparo → lado da fábrica do webhook DataCrazy validado. Achado que ditou a ordem fina: os syncs do antigo **renovavam o token sozinhos em 401** (A-18) — por isso saíram junto com o renovador.
+- **Pendências do dono:** repontar a URL no DataCrazy; virar `DISPARO_LIBERADO` (barrado pela permissão automática); `unschedule` definitivo no antigo (barrado idem); data da F7; decisão sobre os 3 apontamentos de segurança herdados (levantamento feito — recomendação no handoff).
+- **Extra pedido pelo dono na janela:** conferência Tiny × plataforma pedido a pedido — setembro (206) e histórico (5.360): 15 pedidos + 2 cadastros corrigidos com ensaio e guarda; causa-raiz registrada (P17) e virou a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (🔶).

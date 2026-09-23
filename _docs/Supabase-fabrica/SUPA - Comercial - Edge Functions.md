@@ -1,13 +1,17 @@
 ---
 titulo: SUPA — Comercial — Edge Functions
 tipo: nota
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [comercial, supabase, edge-function, integracao]
 ---
 
 # ⚡ SUPA — Comercial — Edge Functions
 
-> [!info] Origem e estado
+> [!success] ✅ Pós-cutover (22/09/2026, SESSAO-21) — o que vale hoje
+> As 6 functions da fábrica **estão vivas**: os 4 crons as chamam com a anon key (`verify_jwt` segue **ligado** nas 4 — decidido manter; o cron manda o header). **`tiny-auth-refresh` da fábrica é o ÚNICO renovador do token** (1ª renovação: 22/09 21:20 UTC, HTTP 200). `enviar-proximo`/`processar-timers`/`verificar-vendas` provadas com HTTP 200 (nada a processar). `webhook-datacrazy-resposta`: `verify_jwt` desligado, sonda sem chave → 401; falta o dono repontar a URL no DataCrazy. As 9 do projeto antigo seguem deployadas lá, mas **nenhum cron as chama** (projeto em quarentena). Código: `tiny-auth-refresh` idêntico nos dois projetos (o `deno.json` da fábrica tem um import a mais, sem uso).
+> O texto abaixo descreve o estado até o cutover.
+
+> [!info] Origem e estado (até 22/09/2026)
 > Migrada do cofre da loja (`INT - Edge Functions`) em **17/09/2026**. O que vale hoje: **6 das 9 functions do recompra estão deployadas na fábrica** desde a SESSAO-19 (15/09 — [[handoff_2026_09_15_sessao19_banco_comercial]]), cópia **sem fork** do código vivo, **sem NENHUM cron agendado** e sem secrets configurados — na prática, dormentes até o cutover (SESSAO-21). As 3 functions de **sync com o Tiny** rodam **só no projeto antigo** (`kfkcumjepnxnnzyvmxfo`) e **morrem no cutover** — a fábrica tem pipeline próprio de pedidos. Agendamentos: [[SUPA - Comercial - Cron e Rotinas]]. Dados: [[SUPA - Comercial - Dominio de Dados]].
 
 ## 1. As 6 functions no projeto da fábrica

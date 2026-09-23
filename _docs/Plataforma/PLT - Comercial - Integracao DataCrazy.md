@@ -1,7 +1,7 @@
 ---
 titulo: PLT — Comercial: integração DataCrazy (CRM de disparo WhatsApp)
 tipo: nota
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [plataforma, comercial, datacrazy, crm, whatsapp, webhook, disparo]
 ---
 
@@ -99,9 +99,16 @@ Destravar na SESSAO-21 é **uma linha** (a constante da camada 1). As tabelas `l
 
 ---
 
-## 🔁 O que muda no cutover (SESSAO-21, pendente)
+## 🔁 O que muda no cutover (SESSAO-21)
 
-A [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] fará a virada. Pelo que está registrado até aqui, o cutover envolve, no que toca ao DataCrazy:
+> [!success] Estado em 22/09/2026 (SESSAO-21)
+> - ✅ **Lado da fábrica pronto:** `webhook-datacrazy-resposta` deployada com `verify_jwt` **desligado** (conferido) e autenticação por `x-api-key` **antes** de qualquer gravação (código lido). Sonda sem chave: POST → **401**, GET → **405**. Secrets configurados pelo dono em 15/09.
+> - ✅ **Incertezas abaixo respondidas:** as 6 functions estão deployadas na fábrica desde a S19; os 4 crons (incluindo o `enviar-proximo-disparo`) rodam **só na fábrica** desde 22/09 ~21:30 UTC.
+> - ✅ **Ordem decidida:** repontar o webhook **antes** de destravar o disparo — assim nenhuma resposta de lista nova cai no projeto antigo.
+> - 🔶 **Pendente (gesto do dono):** trocar a URL nas automações do DataCrazy para `https://axnzldwgwsmepukdiljx.supabase.co/functions/v1/webhook-datacrazy-resposta`, mantendo o header `x-api-key` com o MESMO valor do secret `DATACRAZY_WEBHOOK_SECRET` da fábrica. Validar: o primeiro evento aparece em `webhook_eventos_crm` da fábrica. Depois: virar `DISPARO_LIBERADO`.
+> - Enquanto a URL não é trocada, uma resposta do DataCrazy ainda cai na function do projeto antigo (que segue no ar) — não se perde, mas fica fora da fábrica. Hoje não há membro aguardando resposta (os 128 estão em estado final), então essa janela não tem efeito.
+
+A [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] fez a virada. O plano original, no que toca ao DataCrazy:
 
 1. **Repontar o webhook de resposta** no DataCrazy: a URL configurada na automação deixa de ser a function do projeto Supabase antigo da loja e passa a ser a `webhook-datacrazy-resposta` do projeto da fábrica. É reconfiguração **manual** na automação do DataCrazy.
 2. Garantir no projeto da fábrica: function deployada com `verify_jwt = false` e secrets **`DATACRAZY_WEBHOOK_SECRET`** e **`DATACRAZY_WEBHOOK_TRIGGER_URL`** configurados (só os nomes aqui; valores no gerenciador de secrets).

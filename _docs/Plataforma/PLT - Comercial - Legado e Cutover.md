@@ -2,11 +2,15 @@
 titulo: Comercial — Legado e Cutover
 tipo: nota
 prioridade: alta
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [comercial, plataforma, uniao, cutover, legado]
 ---
 
 # 🔌 PLT — Comercial — Legado e Cutover
+
+> [!success] ✅ Cutover executado em 22/09/2026 — [[handoff_2026_09_22_sessao21_cutover]]
+> **F5** reconferida e assinada na conversa (jun–set ao centavo) · **F6**: 6 crons do antigo desativados (20:28 UTC) → delta das 6 tabelas idêntico byte a byte (inclui o `tiny_auth` fresco) → renovador ligado na fábrica e provado (21:19–21:20 UTC, só a fábrica avançou) → 3 crons de disparo ligados e provados (~21:30 UTC) → lado da fábrica do webhook DataCrazy validado (401 sem chave). **Pendente com o dono:** repontar a URL no DataCrazy, virar `DISPARO_LIBERADO`, `unschedule` definitivo dos 6 jobs do antigo, e decidir a data da **F7** (quarentena 2–4 semanas → dump final guardado fora do git → pausar → excluir). Na mesma janela: conferência Tiny × plataforma pedido a pedido (5.360) com 15 pedidos + 2 cadastros corrigidos e a causa-raiz registrada ([[N8N - Pendencias e Riscos]] P17 → [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]).
+> O quadro abaixo é o plano do cutover, mantido como estava.
 
 > [!info] Origem e estado
 > Compilada do cofre da loja (Painel de Recompra) em 17/09/2026, para servir à [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]]. Vale para o módulo Comercial na plataforma da fábrica. Plano-mãe: [[PLT - Plano Uniao das Plataformas]].

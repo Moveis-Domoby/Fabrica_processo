@@ -1,7 +1,7 @@
 ---
 titulo: Supabase Fábrica — Esquema do Banco (FONTE DA VERDADE)
 tipo: esquema
-atualizado: 2026-09-21
+atualizado: 2026-09-22
 tags: [supabase, fabrica, banco-de-dados, esquema]
 ---
 
@@ -192,6 +192,8 @@ Aplicado na SESSAO-02, com as tabelas da integração conferidas antes e depois 
 > [!danger] Dois avisos que valem ouro
 > **1.** `plt_cards` **não** tem foreign key para `pedido_itens`, e isso é decisão, não esquecimento: `fn_upsert_pedido` faz `delete from pedido_itens` e regrava tudo a **cada** atualização de pedido vinda do Tiny. Uma FK apontando para lá faria **toda atualização de pedido falhar em produção**. O item é guardado como snapshot. **Não "conserte" isso.**
 > **2.** O append-only de `plt_eventos` é garantido por **trigger**, não por RLS — porque a `service_role` (a chave que o n8n usa) **ignora RLS**. Testado no banco real: `UPDATE` e `DELETE` recusados.
+
+**Cutover do Comercial (SESSAO-21 — 22/09/2026, sem mudança de estrutura):** os **4 crons comerciais** passaram a rodar NESTE banco (`tiny-auth-refresh-cron` `0 */3 * * *` — **o único renovador do token Tiny v3 da casa**; `enviar-proximo-disparo-cron` `* * * * *`; `processar-timers-disparo-cron` `0 * * * *`; `verificar-vendas-disparo-cron` `30 * * * *`), ao lado do `plt-webhooks-despachar` — modelo versionado em `supabase/cron/cron_comercial.sql`, agendador com guardas em `supabase/manutencao/2026-09-22_agendar_crons_comercial.mjs`. As 6 tabelas do disparo receberam o delta final do projeto antigo (idênticas byte a byte; `tiny_auth` renovado aqui às 21:20 UTC). **Correções de DADO** (não de esquema) na conferência Tiny × banco dos 5.360 pedidos: 15 pedidos + 2 `clientes` (marcador "Devolvido" ausente, campo limpo no Tiny preso pelo `coalesce` do `fn_upsert_pedido`, contato renomeado) — SQL em `supabase/manutencao/2026-09-22_correcoes_*.sql`; causa-raiz em [[N8N - Pendencias e Riscos]] P17. **Atenção para quem mexer no `fn_upsert_pedido`:** campo vazio no Tiny pode chegar como chave AUSENTE no payload (ex.: `nome_vendedor`).
 
 ## O que NÃO existe (para ninguém inventar)
 

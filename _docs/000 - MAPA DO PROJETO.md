@@ -1,7 +1,7 @@
 ---
 titulo: Mapa do Cofre — Domoby (Fábrica + Comercial)
 tipo: MOC
-atualizado: 2026-09-18
+atualizado: 2026-09-22
 tags: [moc, indice, fabrica, comercial]
 ---
 
@@ -58,7 +58,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 🛒 Módulo Comercial (ex–Painel de Recompra)
 
-> O pós-venda da loja dentro da plataforma: espelho das vendas do Tiny, taxa de recompra/LTV/sazonalidade, campanhas de reativação por WhatsApp (DataCrazy) com ROI. Banco na fábrica desde a SESSAO-19; front em `/comercial/*` desde a SESSAO-20; **disparo TRAVADO até o cutover** (SESSAO-21).
+> O pós-venda da loja dentro da plataforma: espelho das vendas do Tiny, taxa de recompra/LTV/sazonalidade, campanhas de reativação por WhatsApp (DataCrazy) com ROI. Banco na fábrica desde a SESSAO-19; front em `/comercial/*` desde a SESSAO-20; **cutover feito em 22/09 (SESSAO-21)**: crons e renovador do token só na fábrica, projeto antigo em quarentena — a trava do disparo no front o dono vira depois de repontar o DataCrazy.
 
 Modelos mentais (leia primeiro):
 - [[PLT - Comercial - Fluxo do Dado]] — do pedido no Tiny até o pixel na tela (estado pós-união)
@@ -70,7 +70,10 @@ Telas, integração e dívidas:
 - [[PLT - Comercial - Telas]] — as telas de `/comercial/*`: hooks, RPCs, pegadinhas
 - [[PLT - Comercial - Integracao DataCrazy]] — o CRM de disparo: gatilho de ida, webhook de volta, o que muda no cutover
 - [[PLT - Comercial - Debito Tecnico]] — índice VIVO de problemas conhecidos (IDs DT-* originais; nunca apagar item)
-- [[PLT - Comercial - Legado e Cutover]] — ⚠️ **o guia da SESSAO-21**: o que ainda roda no repo/Supabase antigos e o destino de cada coisa
+- [[PLT - Comercial - Legado e Cutover]] — o guia (e o registro) da SESSAO-21: o que rodava no repo/Supabase antigos e para onde cada coisa foi
+
+> [!note] 🏁 Nota de encerramento do Painel de Recompra — para onde tudo foi (22/09/2026)
+> **Banco:** as 6 tabelas do disparo e o cofre do token (`tiny_auth`) vivem no Supabase da fábrica (`axnzldwgwsmepukdiljx`); `vendas_marketing` é VIEW sobre `pedidos` ([[SUPA - Comercial - Dominio de Dados]]). **Rotinas:** os 4 crons (renovador do token + 3 do disparo) rodam na fábrica ([[SUPA - Comercial - Cron e Rotinas]]); os 2 syncs do Tiny morreram (a fábrica recebe pedidos pelo webhook do n8n). **Functions:** as 6 úteis na fábrica ([[SUPA - Comercial - Edge Functions]]). **Front:** `/comercial/*` na plataforma. **Conhecimento:** as notas `PLT - Comercial -*` e `SUPA - Comercial -*` deste cofre (o `_Docs` da loja foi fundido aqui em 17/09). **O que sobrou lá:** projeto Supabase `kfkcumjepnxnnzyvmxfo` e o front antigo em **quarentena** (espelho congelado desde 22/09 20:28 UTC) até o dono marcar a data de backup final → pausar → excluir. Handoff: [[handoff_2026_09_22_sessao21_cutover]].
 
 ## 🔌 Automações e migração n8n (pasta `Fabrica n8n/`)
 
@@ -121,6 +124,7 @@ Telas, integração e dívidas:
 
 ## 📜 Histórico de sessões (pasta `Handoffs/`)
 
+- [[handoff_2026_09_22_sessao21_cutover]] — **SESSAO-21 (União 3 — o cutover)**: o renovador do token do Tiny e os 3 crons de disparo mudaram para a fábrica (renovação provada só lá), o projeto antigo entrou em quarentena, e a conferência Tiny × plataforma pedido a pedido (5.360) corrigiu 15 pedidos + 2 cadastros e expôs a causa-raiz (P17 → SESSAO-29). Pendências do dono: DataCrazy, trava do disparo, `unschedule` no antigo, data da F7 — entregue por PR
 - [[handoff_2026_09_21_sessao22_filas_tempo_pausa]] — **SESSAO-22** (abre o Bloco 5): filas reais (fim da coluna "Chegada" na produção; iniciar na fila avança a etapa — D-48↪️), tempo de PCP do PEDIDO (D-48), quadros paginados 10+"Ver mais" com a lei nova "cada tela requisita só o que mostra" (regra 17/RNF-07), limite 1 por pessoa + pausa por líder com desconto de tempo, e arquivar/excluir usuário com pendências realocadas ao líder (D-49) — migrations 29–31 aplicadas, validada ao vivo e mesclada na `main` em 22/09
 - [[handoff_2026_09_18_sessao16_dashboards]] — **SESSAO-16**: os dashboards de verdade (D-42) — 4 telas-filhas nos moldes dos mockups (Visão do dia estilo andon com atualização sozinha, Tempo por setor fila×execução, Pessoas com cockpit de metas e a lista detalhada, Qualidade 100% empilhado), migration 28 com 8 portas gateadas, tokens fixos fila/execução, vazamento zero em 700–2400px
 - [[handoff_2026_09_16_sessao20_modulo_comercial]] — **SESSAO-20 (União 2)**: o Painel de Recompra recriado como módulo Comercial (rotas `/comercial/*`, trava de disparo em 3 camadas, permissão por módulo, Recharts 3.9.2 fixado)
@@ -161,6 +165,8 @@ Telas, integração e dívidas:
 > A IA registra o técnico (o que mudou, por quê, o que quebrou). **O dono registra o de negócio** — o que a equipe reclamou, o que mudou de prioridade, como o processo físico funciona de verdade. Isso a IA não tem como saber, e é o que mais falta neste cofre hoje: o detalhe real de cada setor.
 
 ## Estado atual em uma linha
+
+**↪️ 22/09/2026 (SESSAO-21 entregue — fecha a União D-46):** o cutover aconteceu — o **renovador do token do Tiny** e os **3 crons de disparo** rodam **só na fábrica** (renovação provada às 21:20 UTC, antigo parado), as 6 tabelas do disparo batem byte a byte, e o projeto Supabase antigo da loja está em **quarentena**. Na mesma janela, a conferência Tiny × plataforma (206 pedidos de setembro + os 5.360 do histórico) corrigiu 15 pedidos e 2 cadastros e mostrou que o webhook não cobre tudo — causa-raiz em P17, correção de raiz na [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (🔶). **Com o dono:** repontar o DataCrazy, virar a trava do disparo, `unschedule` no antigo, data da F7. **Próxima de construção: SESSAO-23 (Bloco 5).**
 
 **↪️ Atualizado em 21/09/2026 (SESSAO-16 entregue):** os dashboards de verdade estão no ar — as 4 telas-filhas do pai Dashboards (Visão do dia/andon, Tempo por setor, Pessoas, Qualidade) nos moldes dos mockups da D-42, com a migration 28 aplicada (8 portas de leitura gateadas — D-32), os tokens fixos de fila/execução, visualizações salvas por tela+filtros e vazamento zero medido em 700–2400px; validada ao vivo com o dono e **mesclada na `main` pelo PR #4 em 18/09**. **Próxima: SESSAO-22 (Bloco 5)**, com a 21 (cutover) na janela do dono.
 

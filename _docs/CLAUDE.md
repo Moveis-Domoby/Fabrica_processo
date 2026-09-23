@@ -16,8 +16,9 @@ Este diretório (`_docs/`) é um cofre Obsidian: a **memória de longo prazo da 
 
 - **Nunca renomear** os nodes `Normalizar evento` e `Tiny · pedido.obter` do workflow principal do n8n, nem os **cabeçalhos da aba COMPLETO** da planilha.
 - **Nunca colar token/credencial em chat, print ou nota.** Um token do Tiny já vazou assim (duas vezes).
-- **Só o cron do projeto Supabase antigo da loja renova o token da API v3 do Tiny** até o cutover — qualquer outro renovador derruba as duas integrações ([[N8N - API Tiny v2 vs v3]]). No cutover, o renovador muda de casa UMA vez, seguindo [[SUPA - Comercial - Cron e Rotinas]].
-- **O disparo de campanhas do módulo Comercial está TRAVADO em 3 camadas até o cutover** ([[PLT - Comercial - Maquina de Estados do Disparo]]) — não liberar sem a SESSAO-21.
+- **Só o cron `tiny-auth-refresh-cron` do Supabase DA FÁBRICA renova o token da API v3 do Tiny** — desde o cutover de 22/09/2026 (SESSAO-21), quando o renovador mudou de casa UMA vez. Qualquer outro renovador derruba a integração ([[N8N - API Tiny v2 vs v3]]). **Nunca reativar os jobs do projeto antigo** (o refresh de lá morreu) e **toda função que renova ao receber 401 também é renovador** (A-18). Detalhe: [[SUPA - Comercial - Cron e Rotinas]].
+- **Banco enxuto (regra do dono, 21/09/2026):** antes de criar uma tabela nova, verificar se uma existente pode ser **remodelada** para receber os mesmos dados. Só colunas que alguém vai filtrar ou mostrar; o resto do payload vai em `raw`. Nada de "encher linguiça".
+- **O disparo de campanhas do módulo Comercial**: desde o cutover (22/09/2026) os crons de disparo rodam **só na fábrica**; a trava do front (`DISPARO_LIBERADO`) é virada **pelo dono**, depois de repontar o webhook do DataCrazy ([[PLT - Comercial - Maquina de Estados do Disparo]]). Crons de disparo **nunca** em dois projetos (disparo duplicado).
 - OAuth de usuário em fluxo servidor-a-servidor expira e derruba produção — usar Service Account ([[N8N - Incidente Credencial Google]]).
 - No n8n, destinos de um mesmo evento ficam em **ramos paralelos**, nunca em série.
 - Gatilho de automação **nunca** em aba de fórmula posicional (DADOS/OPERADORA/PCP) — foi a causa da duplicação de cards.
@@ -26,7 +27,7 @@ Este diretório (`_docs/`) é um cofre Obsidian: a **memória de longo prazo da 
 
 - **n8n:** `https://n8n.srv1877515.hstgr.cloud` (VPS Hostinger, container `n8n-n8n-1`) — [[N8N - Infraestrutura VPS]]
 - **Supabase da fábrica:** o banco único da empresa (integração Tiny + plataforma `plt_*` + domínio comercial) — [[SUPA - Visao Geral]] e [[SUPA - Esquema do Banco]]
-- **Supabase antigo da loja** ("Painel de recompra"): ainda roda crons, renovador do token v3 e webhook DataCrazy — **até o cutover** ([[PLT - Comercial - Legado e Cutover]])
+- **Supabase antigo da loja** ("Painel de recompra", `kfkcumjepnxnnzyvmxfo`): **em quarentena desde 22/09/2026** — nenhum cron ativo, dados congelados, painel antigo no ar só como espelho; será pausado e excluído na data que o dono definir, depois do backup final ([[PLT - Comercial - Legado e Cutover]])
 - **Planilha de integração:** *Integração Domoby - Tinny* (aba COMPLETO é a única escrita por automação)
 - **Produção:** a Plataforma de Produção (kanban, timers, qualidade); Trello/ClickUp em desativação — [[FAB - Estrutura de Producao (Trello e ClickUp)]]
 - **Logística:** módulo Logística/ROTAS da plataforma (desde a SESSAO-15)

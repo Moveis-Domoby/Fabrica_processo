@@ -1,14 +1,20 @@
 ---
 titulo: SUPA — Comercial — Cron e Rotinas
 tipo: nota
-atualizado: 2026-09-17
+atualizado: 2026-09-22
 tags: [comercial, supabase, cron, pg_net, automacao, cutover]
 ---
 
 # ⏰ SUPA — Comercial — Cron e Rotinas
 
-> [!info] Origem e estado
-> Migrada do cofre da loja (`BD - Cron e pg net`) em **17/09/2026**. O que vale hoje: **NENHUM cron comercial existe na fábrica** — decisão deliberada da SESSAO-19 ([[handoff_2026_09_15_sessao19_banco_comercial]]); tudo que roda sozinho no domínio comercial roda **no projeto antigo** (`kfkcumjepnxnnzyvmxfo`, "Painel de recompra"), inclusive o **renovador do token Tiny v3 — o ÚNICO renovador, regra da casa**. No cutover (SESSAO-21) os agendamentos migram conforme a lista exata do §4 e o projeto antigo é desligado.
+> [!success] ✅ Cutover feito em 22/09/2026 (SESSAO-21) — o que vale HOJE
+> **Os 4 crons comerciais rodam NA FÁBRICA** e **nenhum** roda no projeto antigo. Ordem real da janela (UTC): 20:28 os 6 jobs do antigo **desativados** (`cron.alter_job(active:=false)` — o comando ficou guardado) → ~20:40 delta das 6 tabelas (inclui `tiny_auth` fresco) → **21:19 `tiny-auth-refresh-cron` agendado na fábrica** → **21:20 renovação manual: HTTP 200, `tiny_auth.updated_at` avançou SÓ na fábrica** (a partir daqui o refresh do antigo morreu — o renovador é da fábrica, e só dela) → ~21:30 os 3 de disparo agendados e provados (HTTP 200, nada a processar). Modelo versionado: **`supabase/cron/cron_comercial.sql`** (placeholders; fecha o DT-ARQ5); agendador com guardas: `supabase/manutencao/2026-09-22_agendar_crons_comercial.mjs`. Detalhe em `_docs/Plataforma/Execucao/SESSAO-21.md`.
+> ⚠️ **Nunca reativar os jobs do antigo** — o renovador e os 2 syncs de lá tentariam um refresh já rotacionado (os 6 estão desativados; o `unschedule` definitivo ficou com o dono, porque o comando foi barrado pela permissão automática da sessão).
+>
+> O texto abaixo é o histórico do plano, mantido como estava.
+
+> [!info] Origem e estado (até 22/09/2026 — histórico)
+> Migrada do cofre da loja (`BD - Cron e pg net`) em **17/09/2026**. O que valia até o cutover: **NENHUM cron comercial existia na fábrica** — decisão deliberada da SESSAO-19 ([[handoff_2026_09_15_sessao19_banco_comercial]]); tudo que rodava sozinho no domínio comercial rodava **no projeto antigo** (`kfkcumjepnxnnzyvmxfo`, "Painel de recompra"), inclusive o **renovador do token Tiny v3 — o ÚNICO renovador, regra da casa**. No cutover (SESSAO-21) os agendamentos migraram conforme a lista exata do §4.
 
 ## 1. O mecanismo
 
@@ -23,13 +29,17 @@ pg_cron (agendamento)
 
 Na fábrica, `pg_cron` e `pg_net` já estão habilitadas desde a SESSAO-11 (o despacho de webhooks da plataforma usa exatamente esse mecanismo).
 
-## 2. O que já roda na fábrica
+## 2. O que roda na fábrica (conferido em 22/09/2026, depois do cutover)
 
 | Job | Cron | Domínio |
 |---|---|---|
 | `plt-webhooks-despachar` | a cada minuto | **plataforma** (não é do comercial) — despacho da fila `plt_webhook_entregas` via `plt_privado.fn_despachar_webhooks` |
+| `tiny-auth-refresh-cron` | `0 */3 * * *` | 🔴 comercial — **o único renovador do token Tiny v3 da casa** |
+| `enviar-proximo-disparo-cron` | `* * * * *` | comercial — motor da fila de disparo |
+| `processar-timers-disparo-cron` | `0 * * * *` | comercial — expira `aguardando_resposta` |
+| `verificar-vendas-disparo-cron` | `30 * * * *` | comercial — atribuição de venda |
 
-E **só**. `cron.job` conferido na S19: nenhum job comercial. As 6 Edge Functions do comercial estão deployadas e dormentes — ver [[SUPA - Comercial - Edge Functions]].
+**5 jobs = 1 da plataforma + os 4 do §4**, nomes e horários idênticos aos do antigo (conferência de nome e contagem feita contra a origem — lição do §3). Os 4 mandam a **anon key** da fábrica no header (o `verify_jwt` segue ligado nas 4 functions).
 
 ## 3. O que roda no projeto antigo — estado no projeto antigo (válido até o cutover)
 
