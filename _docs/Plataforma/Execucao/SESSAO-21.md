@@ -176,6 +176,15 @@ Dono logou no Tiny no navegador do painel e autorizou corrigir o que divergir (*
 - Dono sobre os jobs desativados do antigo: perguntou se há problema em deixá-los → explicado (aceitável até a F7; risco = reativação manual). 1ª lista real: não é pendência (dono). Backup final: dispensado (dono) — nada exclusivo ficou no antigo.
 - Em aberto com o dono: data da F7; 3 apontamentos de segurança (explicados em linguagem simples); 4 perguntas da SESSAO-29.
 
+### 23/09 — segurança herdada (migration 32) e alerta de token
+
+- Dono colou os 4 workflows principais do n8n (produtos do Tiny fábrica, backfill, vendas, formulário→Tiny) e autorizou os ajustes se nenhum usasse a função. Nenhum chama `fn_pedido_por_numero_nf` (backfill chama só `fn_fila_proximos`/`fn_backfill_aplicar`/`fn_backfill_falha`; vendas só `fn_upsert_pedido`; produtos `fn_upsert_produto` + REST de `eventos`/`produtos`; formulário não fala com o Supabase).
+- Banco: único uso interno = `plt_privado.fn_vincular_conta_receber` (DEFINER); `fn_backfill_conta_mapear` usada por ela e por `fn_backfill_aplicar`; `fn_vig_touch` = gatilho `vig_touch` de `vig_conhecimento_vendas`. Logs da API (24h): 0 chamadas da função × 66 da `fn_upsert_pedido` (controle) — A-20.
+- Migration 32 `20260923120000_plt_seguranca_herdada.sql` (idempotente, só toca o que existe): test:banco 2 rodadas ✔ → impressão digital antes `e2109f3a…`/65 → aplicada pela API (`apply_migration`, só ela — o aplicador da casa reaplicaria todas) → depois: EXECUTE só `postgres`+`service_role`; `search_path=public, pg_temp` nas duas; digital idêntica; `fn_backfill_conta_mapear` e `fn_pedido_por_numero_nf` rodando para o dono; sonda anônima pela API → **401**; advisors: `anon_security_definer…` e `function_search_path_mutable` **sumiram** (authenticated definer 53→52).
+- Nenhum dos 3 objetos tinha espelho no repo (criados direto no banco por outras frentes — classe E-27); registrado na nota do esquema.
+- ⚠️ O JSON de vendas colado pelo dono tem o **token v2 do Tiny em texto puro** (P4) — não repetido em lugar nenhum; recomendado ao dono gerar token novo e usar `$env.TINY_TOKEN` (E-03).
+- Organização: a migration e as notas foram para a branch do PR #6 (a branch nova a partir da `main` não tinha as anotações de 23/09 — evitar dois PRs editando os mesmos documentos).
+
 **Achado sistêmico (para decisão do dono — não é da S21):** três buracos da integração webhook→banco que vão continuar gerando deriva: (1) marcador alterado sozinho no Tiny não notifica; (2) contato renomeado não notifica; (3) campo limpo no Tiny nunca limpa no banco (coalesce). Candidato a pendência nova em [[N8N - Pendencias e Riscos]] (P17) — perguntar antes de registrar/mexer (arquivo com alteração pendente do Cowork, E-23).
 
 ### Outros

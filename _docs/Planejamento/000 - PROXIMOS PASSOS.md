@@ -53,8 +53,9 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 5. Conferir as **decisões provisórias** dos handoffs 13–15 e 19–20.
 6. `PLT_GEOCODIFICACAO_CONTATO` (contato do Nominatim, opcional).
 7. Avisar quando quiser a **publicação no ar** (SESSAO-08 / D-30).
-9. **Cutover (SESSAO-21):** data da F7 · 6 jobs desativados do antigo (manter até a F7 ou apagar já) · 3 apontamentos de segurança herdados — tudo no [[handoff_2026_09_22_sessao21_cutover]].
+9. **Cutover (SESSAO-21):** data da F7 · 6 jobs desativados do antigo (manter até a F7 ou apagar já) — os 3 apontamentos de segurança foram resolvidos em 23/09 (migration 32) — tudo no [[handoff_2026_09_22_sessao21_cutover]].
 10. Responder as 4 perguntas da [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (janela, horário, regra "o último pacote vence", combinado do nome do contato com a equipe).
+11. **Trocar o token da API v2 do Tiny** — ele está em texto puro no workflow de vendas do n8n (P4) e passou pelo chat em 23/09: gerar token novo no Tiny e usar `{{ $env.TINY_TOKEN }}` no node `Tiny · pedido.obter`.
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
