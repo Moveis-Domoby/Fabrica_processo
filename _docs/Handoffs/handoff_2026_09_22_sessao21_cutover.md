@@ -37,6 +37,7 @@ Mudanças de rumo durante a conversa (todas do dono):
 | 21:20 | **Renovação manual na fábrica** | HTTP 200; `updated_at` fábrica 18:00 → **21:20**; antigo **parado** em 18:00 |
 | ~21:30 | 3 crons de disparo agendados + 1 disparo manual de cada | HTTP 200 nos 3 (nada a processar); 1ª execução automática 21:32 ✔ |
 | 21:53 | Conferência | 5 jobs ativos na fábrica; `enviar-proximo` 22 execuções ok; 0 falha; 26/26 respostas HTTP 200 |
+| **00:00 (23/09)** | **1ª renovação AUTOMÁTICA na fábrica** (vigia só de leitura) | `tiny-auth-refresh-cron` succeeded; `tiny_auth.updated_at` fábrica → **00:00:01 UTC**; antigo **parado** em 18:00 de 22/09, 0 jobs ativos, 0 execuções |
 
 - **Achado que ditou a ordem fina (A-18):** as functions de sync do antigo (`tiny-auditoria-sync`, a cada 5 min) **renovavam o token sozinhas ao receber 401** — eram renovadores escondidos. Por isso saíram junto com o renovador, antes de copiar o token.
 - **Webhook DataCrazy — lado da fábrica:** `webhook-datacrazy-resposta` com `verify_jwt` desligado, autenticação por `x-api-key` antes de gravar (código lido); sonda sem chave → **401** (POST) / **405** (GET).

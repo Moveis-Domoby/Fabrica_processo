@@ -39,7 +39,7 @@ Qualquer feature nova. Consolidação `vendas_marketing`×`pedidos` além da vie
 
 - [x] Nenhuma janela em que crons de disparo ou o renovador do token estejam ativos nos dois projetos ao mesmo tempo. *(22/09: antigo desativado 20:28 UTC; o primeiro job na fábrica nasceu 21:19 UTC — 51 min sem NENHUM ativo, dentro da validade do refresh.)*
 - [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(depende do dono: repontar a URL no DataCrazy + virar a trava + rodar a lista)*
-- [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; automáticas a cada 3h desde 00:00 UTC de 23/09 — conferir até 21:20 UTC de 23/09)*
+- [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; 1ª automática 23/09 00:00:01 UTC ✅; conferir as seguintes até 21:20 UTC de 23/09)*
 - [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(F7 — na data que o dono escolher; recomendação no handoff: dump fora do git)*
 - [x] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi). *(22/09)*
 

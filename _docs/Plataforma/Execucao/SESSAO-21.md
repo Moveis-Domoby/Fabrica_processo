@@ -21,7 +21,7 @@ tags: [plataforma, execucao, sessao-21, cutover, uniao]
 - [ ] T5 · F6.4 — dono troca a URL do webhook no DataCrazy (gesto do dono) + 1º evento em `webhook_eventos_crm` — 🔶 **com o dono** (lado da fábrica validado: 401 sem chave)
 - [x] T6 · F6.5 — disparo manual do `tiny-auth-refresh` na fábrica; `tiny_auth.updated_at` avança SÓ lá (21:20 UTC, antecipado a pedido do dono)
 - [ ] T7 · Destravar o disparo no front (`DISPARO_LIBERADO`) — 🔶 **com o dono** (barrado pela permissão automática; edição desfeita)
-- [ ] T8 · Aceite: 24h de renovação só na fábrica sem falha (8 execuções do cron de 3h) — ⏳ em curso (manual 21:20 ✔; automáticas a partir de 00:00 UTC)
+- [ ] T8 · Aceite: 24h de renovação só na fábrica sem falha (8 execuções do cron de 3h) — ⏳ em curso (manual 21:20 ✔; **1ª automática 23/09 00:00:01 UTC ✔** — vigia só de leitura; antigo parado em 18:00 de 22/09)
 - [ ] T9 · Aceite: 1ª lista real pós-cutover ponta a ponta (envio → resposta via webhook → verificação de venda) — 🔶 depende de T5 + T7
 - [ ] T10 · F7 — quarentena 2–4 semanas (data do dono) → dump final no cofre → pausar → excluir — 🔶 data do dono; quarentena começou 22/09 20:28 UTC
 - [x] T11 · Nota de encerramento no `000 - MAPA DO PROJETO` e no cofre da loja (a da loja fica sem commit — outro repositório)
