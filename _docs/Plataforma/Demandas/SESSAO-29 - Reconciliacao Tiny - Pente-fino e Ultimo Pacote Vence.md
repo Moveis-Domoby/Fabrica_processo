@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-29 — Reconciliação com o Tiny: pente-fino diário e 'o último pacote vence'"
 tipo: demanda
-status: rascunho
+status: pronta para code
 data: 2026-09-22
 atualizado: 2026-09-23
 tags: [plataforma, demanda, integracao, tiny, n8n, reconciliacao]
@@ -9,7 +9,7 @@ tags: [plataforma, demanda, integracao, tiny, n8n, reconciliacao]
 
 # 🎯 SESSAO-29 — Reconciliação com o Tiny: pente-fino diário e "o último pacote vence"
 
-> ✅ **23/09/2026 — o dono respondeu as perguntas 1–3 → [[PLT - Decisoes de Produto]] D-50:** janela de 60 dias, às 3h; e a regra de gravação: *edição no Tiny edita aqui, apagar no Tiny NÃO apaga aqui — só as observações acompanham o apagar*. O item **B** abaixo foi reescrito por isso (encolheu). Faltam: a pergunta 4 (reexplicada) e a dos marcadores removidos.
+> ✅ **23/09/2026 — o dono respondeu as perguntas 1–3 → [[PLT - Decisoes de Produto]] D-50:** janela de 60 dias, às 3h; e a regra de gravação: *edição no Tiny edita aqui, apagar no Tiny NÃO apaga aqui — só as observações acompanham o apagar*. O item **B** abaixo foi reescrito por isso (encolheu). E também as perguntas 4 e 5 (mesmo dia): **nenhuma dependência de combinado com a equipe de vendas** (o item D saiu) e **marcadores ficam como estão** (acompanham o Tiny). → **📐 pronta para code desde 23/09** — a ordem de execução no bloco é decisão do dono.
 >
 > 🔶 **Rascunho** nascido na SESSAO-21 (22/09/2026), a pedido do dono: *"entenda o porquê deram errado e além de corrigir e me apresentar, me informe também como arrumar na raiz do problema para não acontecer mais"*. O diagnóstico completo, com provas, está em [[N8N - Pendencias e Riscos]] (P17) e em `_docs/Plataforma/Execucao/SESSAO-21.md`. Vira 📐 depois que o dono responder as perguntas do fim.
 
@@ -30,7 +30,7 @@ A registrar em [[PLT - Requisitos]]: integridade Tiny × banco (RNF novo — "o 
 1. **A — Pente-fino diário.** Às **3h** (D-50), a integração relê do Tiny os pedidos dos **últimos 60 dias** (hoje ~600) **e** todos os não finalizados, e regrava pelo caminho de sempre (`fn_upsert_pedido`). Reusa a fila `tiny_fila` + o workflow de backfill do n8n (API v2, ritmo 1 req/1,8 s ≈ 18 min/dia). Uma linha por rodada num log (quantos relidos, quantos mudaram) — a deriva vira número visível. Resolve marcador e (a validar) contato renomeado.
 2. **B — Observações acompanham o Tiny, o resto não se apaga (D-50).** ~~"O último pacote do Tiny vence" para todo campo~~ — **descartado pelo dono**. Regra: valor novo do Tiny sobrescreve (já é assim); campo **esvaziado ou ausente** no Tiny **não apaga** o banco (já é assim, pelo `coalesce`) — **exceto `obs` e `obs_interna`**, que passam a ser limpas quando o Tiny as limpa. Mudança pequena e localizada no `fn_upsert_pedido`.
 3. **C — Cliente pelo id do contato no Tiny.** A resolução de cliente passa a tentar `tiny_id_contato` antes de CPF e de nome+fone (99% dos cadastros já têm o id). Renomear contato deixa de criar cliente duplicado.
-4. **D — Combinado de processo (sem código).** Nome do contato no Tiny só com o nome; bairro e origem nos campos/marcadores próprios (~4% dos pedidos ainda vêm com "nome / bairro / origem", em queda).
+4. ~~**D — Combinado de processo.**~~ **Descartado pelo dono (23/09):** a plataforma não depende de disciplina da equipe de vendas — tem que se virar com o que vier do Tiny. Por isso o item **C** (cliente pelo id do contato) é o que resolve o contato renomeado de verdade, junto com o pente-fino.
 
 ## Fora do escopo
 
@@ -57,8 +57,8 @@ Migrar o n8n para a API v3 · webhook de contatos (o Tiny não oferece para cont
 1. ✅ Janela: **60 dias** (dono, 23/09 — D-50).
 2. ✅ Horário: **3h** (dono, 23/09 — D-50).
 3. ✅ Regra de gravação: **edição edita, apagar não apaga — só observações acompanham** (dono, 23/09 — D-50).
-4. 🔶 D (processo) — o dono não entendeu a pergunta; reexplicada na conversa em 23/09: no Tiny, alguns clientes são cadastrados com o bairro e a origem no campo do nome ("Maria Silva / Cidade Alta / Instagram"); quando alguém limpa isso depois, a plataforma não fica sabendo. A proposta é a equipe digitar só o nome no campo nome. Pergunta: vale combinar isso com a equipe?
-5. 🔶 Novo (da D-50): marcador **removido** no Tiny — hoje sai do banco também (a lista é trocada inteira). É edição (acompanha) ou apagar (mantém)?
+4. ✅ **Sem combinado com a equipe de vendas** (dono, 23/09) — a plataforma se vira sozinha; item D descartado. *(Pergunta original, reexplicada:)* no Tiny, alguns clientes são cadastrados com o bairro e a origem no campo do nome ("Maria Silva / Cidade Alta / Instagram"); quando alguém limpa isso depois, a plataforma não fica sabendo. A proposta é a equipe digitar só o nome no campo nome. Pergunta: vale combinar isso com a equipe?
+5. ✅ Marcador removido no Tiny: **fica como está** — sai do banco também (dono, 23/09).
 
 ## Resultado (preencher ao entregar)
 

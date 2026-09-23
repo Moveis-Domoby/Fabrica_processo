@@ -417,7 +417,8 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 
 **Descartada:** "o último pacote do Tiny vence" também para campo apagado (a proposta B original da SESSAO-29).
 
-**Em aberto:** marcador **removido** no Tiny — hoje o banco troca a lista inteira de marcadores a cada atualização (sai daqui também). É "edição" (acompanha) ou "apagar" (mantém)? Perguntar antes da SESSAO-29.
+- **Marcadores:** ficam como estão hoje — a lista do banco acompanha a do Tiny a cada atualização (marcador removido lá sai daqui também). Resposta do dono, 23/09: *"pode deixar do jeito que está atualmente"*.
+- **Nada de depender de combinado com a equipe de vendas:** a plataforma tem que se virar sozinha com o que vier do Tiny (resposta do dono à pergunta 4 da SESSAO-29) — a proposta D ("nome do contato só com o nome") foi **descartada**; o que resolve contato renomeado é o pente-fino + a identidade do cliente pelo id do contato no Tiny (itens A e C da SESSAO-29).
 
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 

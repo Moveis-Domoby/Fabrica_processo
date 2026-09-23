@@ -54,7 +54,7 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 6. `PLT_GEOCODIFICACAO_CONTATO` (contato do Nominatim, opcional).
 7. Avisar quando quiser a **publicação no ar** (SESSAO-08 / D-30).
 9. **Cutover (SESSAO-21):** excluir o projeto antigo em **06/10** · (se souber) o vendedor antigo dos pedidos 13183 e 13421 — tudo no [[handoff_2026_09_22_sessao21_cutover]].
-10. SESSAO-29: 3 de 4 respondidas (D-50). Faltam: combinar com a equipe o nome do contato só com o nome (pergunta 4) e marcador removido no Tiny — sai daqui também? (pergunta 5).
+10. ✅ SESSAO-29 respondida por inteiro (D-50) — **📐 pronta para code**; só falta você dizer quando ela entra na fila.
 11. ~~Trocar o token da API v2 do Tiny~~ — o dono decidiu **não** trocar (23/09).
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
 

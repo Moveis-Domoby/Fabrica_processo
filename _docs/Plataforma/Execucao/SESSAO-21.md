@@ -191,6 +191,27 @@ Dono logou no Tiny no navegador do painel e autorizou corrigir o que divergir (*
 - **Retroativo da D-50:** a previsão do 13276 apagada em 22/09 voltou a 11/09 (ensaio A-11: 1 linha, 0 evento → aplicado com guarda). Obs. internas de 13180/13410 ficam limpas (permitido). Vendedor de 13183/13421: valor antigo não existe na plataforma → com o dono.
 - **E-38:** o PR #6 foi mesclado às 01:31 UTC, antes do push dos 2 commits da migration 32 (01:38) — cherry-pick para a branch `sessao-21-regra-apagar-tiny` (PR #7) e aviso no PR #6.
 
+### 🏁 Fechamento (23/09, a pedido do dono) — task list × demanda
+
+| Item da demanda | Estado |
+|---|---|
+| F5 — paridade assinada | ✅ 22/09 |
+| F6.1 — crons do antigo | ✅ desativados 20:28 UTC; somem na exclusão do projeto (06/10) |
+| F6.2 — delta das 6 tabelas | ✅ idênticas byte a byte |
+| F6.3 — 4 crons na fábrica | ✅ renovador + 3 de disparo, SQL versionado |
+| F6.4 — URL do DataCrazy | ✅ trocada pelo dono (23/09); 1º evento real valida |
+| F6.5 — renovação só na fábrica | ✅ manual 21:20 UTC + automática 00:00 UTC; 0 falha |
+| F7 — quarentena/backup/exclusão | ✅ decidido: backup dispensado, **exclusão em 06/10** (gesto do dono) |
+| Aceite: nunca dois ativos | ✅ |
+| Aceite: 1ª lista real | ⚪ o dono roda quando usar — pediu para não ser pendência |
+| Aceite: 24h de token | ⏳ em curso (00:00 ✔; fecha ~21:20 UTC de 23/09) |
+| Aceite: backup antes de excluir | ⚪ dispensado pelo dono |
+| Aceite: nota de encerramento | ✅ mapa + cofre da loja |
+| Herdado: 3 apontamentos de segurança | ✅ migration 32 |
+| Extras do dono | ✅ trava aberta (PR #6) · conferência Tiny (15 pedidos + 2 cadastros) · P17 → SESSAO-29 📐 · D-50 |
+
+Respostas finais do dono (23/09): pergunta 4 da SESSAO-29 — nenhuma dependência de combinado com a equipe de vendas (item D descartado); pergunta 5 — marcadores ficam como estão. SESSAO-29 promovida a 📐.
+
 **Achado sistêmico (para decisão do dono — não é da S21):** três buracos da integração webhook→banco que vão continuar gerando deriva: (1) marcador alterado sozinho no Tiny não notifica; (2) contato renomeado não notifica; (3) campo limpo no Tiny nunca limpa no banco (coalesce). Candidato a pendência nova em [[N8N - Pendencias e Riscos]] (P17) — perguntar antes de registrar/mexer (arquivo com alteração pendente do Cowork, E-23).
 
 ### Outros

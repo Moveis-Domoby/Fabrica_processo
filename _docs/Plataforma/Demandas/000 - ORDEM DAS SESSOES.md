@@ -49,7 +49,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 26º 🆕 | [[SESSAO-26 - Chat Interno]] | Chat autenticado e enxuto em requisições: `/inicio/chat` + balão arrastável com badge; canais, particulares, avisos gerais, aniversários automáticos (campo novo: data de nascimento) | 22 | 📐 pronta para code |
 | 27º 🆕 | [[SESSAO-27 - Automacoes em Canvas]] | Automações em canvas (absorve a 17): gatilho "pedido iniciado na etapa X do setor Y"; ações mover card (revisa D-03), arquivar, etiqueta (etiquetas em Configurações) | 22, 24 | 📐 pronta para code |
 | 28º 🆕 | [[SESSAO-28 - Rota Calculada no Mapa]] | Linha da Programação vira rota calculada nas ruas (OSRM, grátis), partindo da fábrica; interdições/trânsito = evolução paga futura | 15 | 📐 pronta para code |
-| 29º 🆕 | [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] | O banco nunca mais diverge do Tiny em silêncio: pente-fino diário, "o último pacote do Tiny vence", cliente pelo id do contato (P17) | 21 | 🔶 rascunho (4 perguntas ao dono) — nasceu da conferência da S21 |
+| 29º 🆕 | [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] | O banco nunca mais diverge do Tiny em silêncio: pente-fino diário, "o último pacote do Tiny vence", cliente pelo id do contato (P17) | 21 | 📐 pronta para code (23/09 — perguntas respondidas, D-50) — nasceu da conferência da S21; posição no bloco a decidir pelo dono |
 
 **Depois:** BOM/insumos (chapas MDF) e custo por móvel · migração dos cards vivos (Q-25) · app/fluxo do motorista · central de notificações com preferências (o resto da antiga 17).
 
