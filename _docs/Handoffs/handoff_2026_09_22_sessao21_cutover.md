@@ -121,6 +121,18 @@ Não entram no PR (trabalho do Cowork de 21/09, intocado — E-23): `supabase-fa
 
 ## 8. Ficou pendente — o que é SEU, na ordem
 
+> [!success] Atualização 23/09/2026 — respostas do dono
+> 1. ✅ **PR #5 aprovado e mesclado** (00:30 UTC).
+> 2. ✅ **URL do DataCrazy trocada** pelo dono. Validação no 1º evento real em `webhook_eventos_crm` (nenhum ainda — nenhuma lista enviando).
+> 3. ✅ **Trava aberta** a pedido do dono ("só cuidado pra não disparar pra ninguém") — [PR #6](https://github.com/Moveis-Domoby/Fabrica_processo/pull/6). Conferido antes: 4 listas `em_andamento`, 128 membros em estado final; envio só por clique; o cron só envia para lista `disparando`.
+> 4. **6 jobs desativados no antigo:** o dono perguntou se pode deixá-los assim. Resposta: pode, até a F7 — o risco é só alguém reativar à mão no painel (o renovador de lá tentaria um token morto). Somem sozinhos quando o projeto for excluído.
+> 5. **1ª lista real:** o dono roda quando for usar — **não é pendência** ("vou lembrar disso se der erro").
+> 6. **Backup final: dispensado** — os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica byte a byte; nada exclusivo ficou no projeto antigo.
+> 7. Os 3 apontamentos de segurança e 8. as 4 perguntas da SESSAO-29: explicados ao dono em linguagem simples na conversa — aguardam a resposta dele.
+> **Continua em aberto:** a data da F7 (pausar → excluir o projeto antigo), itens 7 e 8.
+>
+> A lista abaixo é a de 22/09, mantida como estava.
+
 1. **Revisar e aprovar o PR** da branch `sessao-21-cutover` (só docs + scripts + SQL de manutenção — nenhuma tela muda).
 2. **DataCrazy — trocar a URL do webhook de resposta** em cada automação que devolve evento (`resposta_recebida` / `sem_resposta` / `erro_envio`) para:
    `https://axnzldwgwsmepukdiljx.supabase.co/functions/v1/webhook-datacrazy-resposta`

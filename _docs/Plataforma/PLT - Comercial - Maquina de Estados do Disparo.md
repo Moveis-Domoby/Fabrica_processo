@@ -25,6 +25,9 @@ Os secrets do DataCrazy/Tiny já estão configurados na fábrica desde 15/09, en
 
 Verificado na S20: nenhuma chamada saiu; `listas_disparo_*` intactas (128 membros, checksum de status idêntico ao da carga da S19). **A SESSAO-21 destrava com uma linha** (virar a flag) — e só então agenda os crons na fábrica.
 
+> [!success] ✅ 23/09/2026 — trava ABERTA (camada 1 = `true`), a pedido do dono ([PR #6](https://github.com/Moveis-Domoby/Fabrica_processo/pull/6))
+> Depois de o dono trocar a URL do webhook no DataCrazy. Abrir a chave **não envia nada sozinho**: envio só por clique ("Enviar" no membro ou "Iniciar fila", com confirmação), e o cron só envia para lista `disparando` — no momento, nenhuma. Emergência: voltar a `false` trava tudo de novo. O texto abaixo é o estado de 22/09.
+
 > [!warning] Estado em 22/09/2026 (SESSAO-21)
 > Os **crons de disparo já rodam na fábrica** (e só nela) desde ~21:30 UTC — sem efeito hoje, porque nenhuma lista está `disparando` e os 128 membros estão em estado final. **A camada 1 (`DISPARO_LIBERADO`) continua `false`:** virar a flag foi barrado pela permissão automática da sessão (mudança que liga envio real de WhatsApp) e ficou com o **dono**, na ordem: repontar o webhook do DataCrazy → virar a flag (+ o teste da trava) → PR → publicar. Passo a passo no [[handoff_2026_09_22_sessao21_cutover]]. Além disso, os **crons de disparo não estão agendados** no banco da fábrica (camada extra de segurança até o cutover), e o webhook do DataCrazy ainda aponta para o projeto antigo.
 

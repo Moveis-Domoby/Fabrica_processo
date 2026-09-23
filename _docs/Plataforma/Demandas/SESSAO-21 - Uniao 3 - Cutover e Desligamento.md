@@ -38,9 +38,9 @@ Qualquer feature nova. Consolidação `vendas_marketing`×`pedidos` além da vie
 ## Critérios de aceite
 
 - [x] Nenhuma janela em que crons de disparo ou o renovador do token estejam ativos nos dois projetos ao mesmo tempo. *(22/09: antigo desativado 20:28 UTC; o primeiro job na fábrica nasceu 21:19 UTC — 51 min sem NENHUM ativo, dentro da validade do refresh.)*
-- [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(depende do dono: repontar a URL no DataCrazy + virar a trava + rodar a lista)*
+- [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(23/09: o dono trocou a URL no DataCrazy e a trava foi aberta — PR #6; a 1ª lista real ele roda quando for usar, e **pediu para não ficar como pendência**: "vou lembrar disso se der erro")*
 - [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; 1ª automática 23/09 00:00:01 UTC ✅; conferir as seguintes até 21:20 UTC de 23/09)*
-- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(F7 — na data que o dono escolher; recomendação no handoff: dump fora do git)*
+- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(**dispensado pelo dono em 23/09**: os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica, idênticas byte a byte — nada exclusivo ficou no projeto antigo; falta só a data de pausar/excluir)*
 - [x] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi). *(22/09)*
 
 ## Herdado da SESSAO-20 — 3 apontamentos de segurança do banco (não são do Comercial)
@@ -73,5 +73,5 @@ Ler [[PLT - Plano Uniao das Plataformas]]. Depende das SESSÕES 19 e 20 entregue
 
 - **F5:** reconferida (junho–setembro ao centavo; 6 tabelas com delta explicado) e assinada na conversa.
 - **F6:** executada com uma mudança de ordem pedida pelo dono ("comece pelo renovador"): desativar os 6 do antigo → delta → **renovador na fábrica + renovação manual** (o passo 5 veio antes do 3b) → 3 crons de disparo → lado da fábrica do webhook DataCrazy validado. Achado que ditou a ordem fina: os syncs do antigo **renovavam o token sozinhos em 401** (A-18) — por isso saíram junto com o renovador.
-- **Pendências do dono:** repontar a URL no DataCrazy; virar `DISPARO_LIBERADO` (barrado pela permissão automática); `unschedule` definitivo no antigo (barrado idem); data da F7; decisão sobre os 3 apontamentos de segurança herdados (levantamento feito — recomendação no handoff).
+- **Pendências do dono (atualizadas em 23/09):** ✅ PR #5 mesclado · ✅ URL do DataCrazy trocada · ✅ trava aberta ([PR #6](https://github.com/Moveis-Domoby/Fabrica_processo/pull/6), a pedido do dono) · 1ª lista real: o dono roda quando for usar (não é pendência) · backup final dispensado pelo dono · **em aberto:** manter ou apagar os 6 jobs desativados do antigo (explicado ao dono), data da F7, os 3 apontamentos de segurança e as 4 perguntas da SESSAO-29.
 - **Extra pedido pelo dono na janela:** conferência Tiny × plataforma pedido a pedido — setembro (206) e histórico (5.360): 15 pedidos + 2 cadastros corrigidos com ensaio e guarda; causa-raiz registrada (P17) e virou a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (🔶).
