@@ -131,7 +131,13 @@ Não entram no PR (trabalho do Cowork de 21/09, intocado — E-23): `supabase-fa
 > 7. ✅ **3 apontamentos de segurança — resolvidos** (migration 32, aplicada em 23/09 com aprovação do dono depois de conferir os 4 workflows principais do n8n, o uso interno e os logs da API): função fechada para quem não tem login (sonda → 401) e `search_path` fixo nas duas; a tabela do Atendimento segue fechada de propósito.
 > 8. As 4 perguntas da SESSAO-29: explicadas ao dono em linguagem simples — aguardam a resposta dele.
 > ⚠️ **Novo (23/09):** o JSON do workflow de vendas que o dono colou na conversa traz o **token da API v2 do Tiny em texto puro** (node `Tiny · pedido.obter` — é a P4). Como passou pelo chat: gerar token novo no Tiny e trocar o valor fixo por `{{ $env.TINY_TOKEN }}` (E-03). Gesto do dono.
-> **Continua em aberto:** a data da F7 (pausar → excluir o projeto antigo), o item 8 e a troca do token v2.
+> **Atualização da mesma noite (23/09, respostas do dono):**
+> - **F7: exclusão do projeto antigo em 06/10/2026** (backup dispensado).
+> - **Token v2 do Tiny: o dono decidiu NÃO trocar** ("é de uma conta que não tem problema vazar só pra você, ninguém mais sabe") — decisão dele, registrada.
+> - **SESSAO-29:** 60 dias ✅ · 3h ✅ · regra de gravação ✅ → **D-50**: edição no Tiny edita aqui, apagar no Tiny **não** apaga aqui (só observações acompanham). Pergunta 4 reexplicada; pergunta nova sobre marcador removido.
+> - **Retroativo da D-50:** a previsão do 13276 apagada em 22/09 foi **devolvida** (11/09) — `supabase/manutencao/2026-09-23_restaurar_previsao_13276.sql`, ensaio + guarda, 0 eventos. Observações internas limpas (13180, 13410) ficam limpas (permitido). **Vendedor de 13183 e 13421:** o nome antigo não está guardado em lugar nenhum da plataforma — se o dono souber, devolvemos; senão fica vazio (como no Tiny).
+> - ⚠️ **O PR #6 foi mesclado (01:31 UTC) antes de os commits da migration 32 chegarem à branch (01:38)** — a migration já estava aplicada em produção, mas o arquivo ficou fora da `main`. Os 2 commits foram trazidos para o PR #7 (E-38).
+> **Continua em aberto:** excluir o projeto antigo em 06/10 · perguntas 4 e 5 da SESSAO-29 · vendedor de 13183/13421.
 >
 > A lista abaixo é a de 22/09, mantida como estava.
 

@@ -407,6 +407,18 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 
 **Descartadas:** apagar história de produção junto com o usuário (revogaria a regra crítica 5 e furaria a medição — se um dia for desejado, é decisão nova aqui); abrir o gesto a líderes.
 
+## D-50 · Integração Tiny → banco: edição no Tiny edita aqui, apagar no Tiny NÃO apaga aqui (só observações); conferência diária de 60 dias às 3h (23/09/2026)
+
+**Decidido (respostas do dono às perguntas da [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]], conversa da SESSAO-21):**
+
+- **Regra de gravação** — palavras do dono: *"observação tudo bem, mas o resto deve manter mesmo que apague lá; a única coisa realmente que pode acontecer pra alterar aqui é editar pelo Tiny — edição lá deve editar aqui também, mas não apagar"*. Tradução: valor **novo** vindo do Tiny **sobrescreve** o do banco; campo **esvaziado** no Tiny **não apaga** o do banco — **exceto `obs` e `obs_interna`**, que acompanham o Tiny inclusive quando apagadas. (O `coalesce` do `fn_upsert_pedido` já faz "edição sim, apagar não" para todos os campos; a SESSAO-29 muda **só** as observações.)
+- **Conferência diária (pente-fino):** relê os pedidos dos **últimos 60 dias**, às **3h da manhã**.
+- **Retroativo (23/09):** a correção de 22/09 que apagou a previsão do 13276 foi **desfeita** (`supabase/manutencao/2026-09-23_restaurar_previsao_13276.sql`); as observações internas limpas (13180, 13410) seguem limpas; o vendedor apagado em 13183 e 13421 não tem o valor antigo guardado na plataforma — com o dono.
+
+**Descartada:** "o último pacote do Tiny vence" também para campo apagado (a proposta B original da SESSAO-29).
+
+**Em aberto:** marcador **removido** no Tiny — hoje o banco troca a lista inteira de marcadores a cada atualização (sai daqui também). É "edição" (acompanha) ou "apagar" (mantém)? Perguntar antes da SESSAO-29.
+
 ## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
 
 **Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.

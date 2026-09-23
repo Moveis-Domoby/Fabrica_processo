@@ -185,6 +185,12 @@ Dono logou no Tiny no navegador do painel e autorizou corrigir o que divergir (*
 - ⚠️ O JSON de vendas colado pelo dono tem o **token v2 do Tiny em texto puro** (P4) — não repetido em lugar nenhum; recomendado ao dono gerar token novo e usar `$env.TINY_TOKEN` (E-03).
 - Organização: a migration e as notas foram para a branch do PR #6 (a branch nova a partir da `main` não tinha as anotações de 23/09 — evitar dois PRs editando os mesmos documentos).
 
+### 23/09 (noite) — respostas do dono: F7, token, SESSAO-29 → D-50
+
+- **F7:** exclusão do projeto antigo em **06/10/2026** (backup dispensado). **Token v2:** o dono decidiu não trocar. **SESSAO-29:** 60 dias ✅, 3h ✅, regra de gravação ✅ — *"observação tudo bem, mas o resto deve manter mesmo que apague lá; … edição lá deve editar aqui também, mas não apagar"* → registrada como **D-50**; pergunta 4 reexplicada; pergunta nova (marcador removido).
+- **Retroativo da D-50:** a previsão do 13276 apagada em 22/09 voltou a 11/09 (ensaio A-11: 1 linha, 0 evento → aplicado com guarda). Obs. internas de 13180/13410 ficam limpas (permitido). Vendedor de 13183/13421: valor antigo não existe na plataforma → com o dono.
+- **E-38:** o PR #6 foi mesclado às 01:31 UTC, antes do push dos 2 commits da migration 32 (01:38) — cherry-pick para a branch `sessao-21-regra-apagar-tiny` (PR #7) e aviso no PR #6.
+
 **Achado sistêmico (para decisão do dono — não é da S21):** três buracos da integração webhook→banco que vão continuar gerando deriva: (1) marcador alterado sozinho no Tiny não notifica; (2) contato renomeado não notifica; (3) campo limpo no Tiny nunca limpa no banco (coalesce). Candidato a pendência nova em [[N8N - Pendencias e Riscos]] (P17) — perguntar antes de registrar/mexer (arquivo com alteração pendente do Cowork, E-23).
 
 ### Outros
