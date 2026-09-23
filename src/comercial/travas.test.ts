@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { DISPARO_LIBERADO, MOTIVO_DISPARO_TRAVADO } from './travas'
-import { iniciarFila } from './lib/disparo/api'
 
-// A trava da união (D-46, risco 3): enquanto o cutover não acontece, NENHUM
-// caminho do módulo pode disparar WhatsApp. Estes testes quebram se alguém
-// virar a chave sem ser a SESSAO-21 — ao virar de propósito no cutover,
-// o primeiro teste é atualizado junto (é a única linha).
-describe('trava de disparo da união (SESSAO-20/D-46)', () => {
-  it('a chave está FECHADA até o cutover (SESSAO-21)', () => {
-    expect(DISPARO_LIBERADO).toBe(false)
+// A trava da união (D-46, risco 3) nasceu fechada na SESSAO-20 e foi ABERTA
+// no fim do cutover da SESSAO-21 (23/09/2026), a pedido do dono, com o disparo
+// rodando só na fábrica. O teste "iniciarFila recusa antes de tocar a rede"
+// saiu junto: ele provava o estado fechado. Se a chave voltar a `false` numa
+// emergência, este teste quebra de propósito — atualize-o junto.
+describe('trava de disparo da união (SESSAO-20 → SESSAO-21)', () => {
+  it('a chave está ABERTA desde o cutover (SESSAO-21)', () => {
+    expect(DISPARO_LIBERADO).toBe(true)
   })
 
-  it('iniciarFila recusa com a explicação antes de tocar a rede', async () => {
-    await expect(iniciarFila('lista-qualquer', 60)).rejects.toThrow(MOTIVO_DISPARO_TRAVADO)
+  it('a explicação da trava continua disponível para um fechamento de emergência', () => {
+    expect(MOTIVO_DISPARO_TRAVADO.length).toBeGreaterThan(0)
   })
 })

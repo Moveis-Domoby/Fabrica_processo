@@ -9,8 +9,15 @@
  *
  * A SESSAO-21 vira esta chave no cutover — é UMA linha. Não remover nem
  * contornar para "testar": teste de disparo só existe no painel antigo.
+ *
+ * ✅ ABERTA em 23/09/2026 (SESSAO-21, a pedido do dono): os crons do disparo
+ * e o renovador do token rodam só na fábrica e o webhook do DataCrazy já
+ * aponta para cá. Abrir a chave não envia nada sozinho — envio só com clique
+ * ("Enviar" no membro ou "Iniciar fila", com confirmação). A trava fica no
+ * código de propósito: numa emergência, voltar a `false` trava de novo todos
+ * os caminhos de disparo com uma linha.
  */
-export const DISPARO_LIBERADO = false
+export const DISPARO_LIBERADO = true
 
 /** O texto que explica o botão desabilitado, onde quer que ele apareça. */
 export const MOTIVO_DISPARO_TRAVADO =
