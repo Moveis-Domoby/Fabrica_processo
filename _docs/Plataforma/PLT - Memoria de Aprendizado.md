@@ -81,7 +81,11 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-23] **E-38** (Claude Code) · Empurrei 2 commits (migration 32 + docs) para a branch do PR #6 depois de o dono já ter mesclado o PR — o GitHub aceitou o push na branch, mas os commits ficaram FORA da `main`, com a migration já aplicada em produção (risco E-24: produção sem espelho no repo) → **correção:** cherry-pick dos 2 commits para a branch nova (PR #7) e aviso na descrição do PR #6. **Lição: antes de empurrar mais commits para um PR aberto, conferir `gh pr view N --json state` — o dono pode ter mesclado no meio do caminho.**
 
+- [2026-09-23] **E-39** (Claude Code) · `update … from lateral (…)` referenciando a tabela-ALVO dentro do lateral quebra ("invalid reference to FROM-clause entry") — o alvo do UPDATE não faz parte do FROM → **correção:** subconsulta `distinct on (card_id)` no FROM e junção pelo id. Pego na hora pelo `test:banco` (A-10 pagando de novo), antes de chegar perto do banco real.
+
 ## 🟢 Acertos que viraram padrão (A-NN)
+
+- [2026-09-23] **A-21** (Claude Code) · **RLS se prova no PGlite com `set role authenticated`:** o harness roda como superusuário (que ignora RLS — E-14), mas basta conceder os grants que o Supabase dá por padrão (`grant select… to authenticated`) e trocar de papel (`set role authenticated` + `request.jwt.claim.sub`) para as policies valerem de verdade — foi assim que a S23 provou que admin não lê tarefa privada alheia, ANTES do banco real. No banco real, o mesmo teste vira ensaio A-11 (`set_config('role','authenticated',true)` dentro de um `do $$` que termina em `raise exception`): zero linha gravada. Grants/`search_path` continuam se provando só no banco real (E-14 segue valendo para permissão de objeto).
 
 - [2026-09-23] **A-20** (Claude Code) · **Provar que ninguém usa um endpoint antes de fechá-lo — com consulta de CONTROLE.** Para revogar a `fn_pedido_por_numero_nf` do `anon` (S21): (1) grep no repo e nos workflows do n8n, (2) `pg_proc.prosrc` para achar quem a chama por dentro (era uma função DEFINER — o revoke não a afeta), (3) logs da API do Supabase com a MESMA consulta contando uma RPC sabidamente usada (66 × `fn_upsert_pedido`) ao lado da suspeita (0) — sem o controle, "0 chamadas" podia ser consulta errada. Depois: sonda anônima → 401 e advisors.
 

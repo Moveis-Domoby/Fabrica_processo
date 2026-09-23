@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-23 — Meu Painel 2.0: filas pessoais, subtarefas e tempos"
 tipo: demanda
-status: pronta para code
+status: entregue (aguardando validação do dono e merge)
 data: 2026-09-18
-atualizado: 2026-09-18
+atualizado: 2026-09-23
 tags: [plataforma, demanda, bloco-5, meu-painel, tarefas]
 ---
 
@@ -56,14 +56,14 @@ Chat interno (SESSAO-26) · metas e cockpit (ficam como estão) · notificação
 
 ## Critérios de aceite
 
-- [ ] Demanda delegada a alguém aparece em "Delegados a mim" do delegado; tarefa própria em "Meus afazeres"; ambas na "Fila de prioridade" em ordem de cadastro.
-- [ ] Reordenar a fila persiste por usuário e não afeta a fila de nenhum outro usuário.
-- [ ] Subtarefas: criar, concluir e reabrir dentro de uma tarefa; contador no card da mãe; tudo logado (D-40).
-- [ ] Pendência de qualidade nova gera tarefa "Sistema" em Delegados a mim; dar o parecer conclui a tarefa sozinha; o bloco "Qualidade a atestar" não existe mais no painel.
-- [ ] Tempo de afazeres próprios: o próprio vê o gráfico em Dashboards; líder e admin **não** conseguem ler esse dado nem pela API (testar com papel simulado no banco, não só na UI).
-- [ ] Tempo de delegados: líder do setor e admin veem; operador de outro setor não.
-- [ ] "Avisos recentes" fora do painel; botão "Ver todos" no sino lista o histórico paginado.
-- [ ] Revisão da D-37 registrada em [[PLT - Decisoes de Produto]] com D-NN novo.
+- [x] Demanda delegada a alguém aparece em "Delegados a mim" do delegado; tarefa própria em "Meus afazeres"; ambas na "Fila de prioridade" em ordem de cadastro (cards de produção delegados entram também — resposta 5 do dono).
+- [x] Reordenar a fila persiste por usuário (`plt_usuarios.fila_prioridade`) e não afeta a fila de nenhum outro usuário — provado no test:banco.
+- [x] Subtarefas: criar, concluir e reabrir dentro de uma tarefa (até 2 níveis — resposta 2); contador no card da mãe; tudo logado pelo trigger de trilha (D-40).
+- [x] Pendência de qualidade nova gera tarefa "Sistema" em Delegados a mim; dar o parecer conclui a tarefa sozinha; o bloco "Qualidade a atestar" não existe mais no painel (e o retroativo criou as tarefas das 2 pendências já abertas).
+- [x] Tempo de afazeres próprios: só o próprio — provado com papel simulado no PGlite (A-21) E por ensaio A-11 no banco real (admin vê 0 linhas e 0 tempo).
+- [x] Tempo de delegados: líder do setor e admin veem (RLS por setor); operador de outro setor não.
+- [x] "Avisos recentes" fora do painel; "Ver todos" no sino abre `/inicio/avisos` paginado no servidor.
+- [x] Revisão da D-37 registrada como **D-51** em [[PLT - Decisoes de Produto]].
 
 ## Notas para o Claude Code
 
@@ -73,7 +73,7 @@ Terreno: subtarefa = `plt_tarefas.tarefa_mae_id` (autorreferência na MESMA tabe
 
 ## Resultado (preencher ao entregar)
 
-*—*
+**Entregue em 23/09/2026** — branch `sessao-23-meu-painel-2`, handoff [[handoff_2026_09_23_sessao23_meu_painel_2]], decisão nova **D-51** (com as 7 respostas do dono, inclusive as que a demanda não previa: subtarefas em **2 níveis**, tarefa do Sistema **fora** da fila mas com notificação, cards delegados **dentro** da fila, tarefa pessoal **privada por padrão** com "tornar pública", e o painel pessoal com **KPIs de desempenho**). Migration 33 aplicada em produção com permissão total do dono nesta conversa (integração intacta, advisors só com as 3 RPCs pessoais esperadas). Validação final logada + merge: com o dono.
 
 ## Ver também
 

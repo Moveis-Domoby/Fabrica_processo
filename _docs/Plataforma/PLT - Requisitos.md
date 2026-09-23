@@ -78,6 +78,11 @@ tags: [plataforma, requisitos, backlog]
 | RF-41 | Delegação aleatória: item entra no setor → sorteia responsável no time | 💡 registrado |
 | RF-42 | Delegação direta: líder/admin define quem executa | 💡 registrado |
 | RF-43 | Modo de delegação personalizável por setor | 💡 registrado |
+| RF-44 | Meu Painel em três filas: Delegados a mim (tarefas + cards) · Meus afazeres · Fila de prioridade em ordem de cadastro, reordenável e persistente por usuário — só exibição (D-51) | ✅ entregue (SESSAO-23) |
+| RF-45 | Subtarefas na mesma tabela (`tarefa_mae_id`), até dois níveis, com concluir/reabrir e contador na mãe; tudo logado (D-51) | ✅ entregue (SESSAO-23) |
+| RF-46 | Tarefa pessoal privada por padrão — invisível a líder/admin até o dono torná-la pública (criação/edição); garantido por RLS, não só na UI (D-51) | ✅ entregue (SESSAO-23) |
+| RF-47 | Pendência de parecer de qualidade vira tarefa do "Sistema" no setor recebedor; o parecer a conclui sozinho; fora da fila de prioridade, com aviso no sino (D-51) | ✅ entregue (SESSAO-23) |
+| RF-48 | Painel pessoal "Meu desempenho": tempo em afazeres por dia e por tarefa + KPIs, tudo gateado ao próprio no banco (D-51) | ✅ entregue (SESSAO-23) |
 
 ## API e integrações
 

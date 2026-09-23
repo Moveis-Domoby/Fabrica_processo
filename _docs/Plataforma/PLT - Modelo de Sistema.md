@@ -284,6 +284,30 @@ SESSAO-05.
   A linha do tempo repete o número num bloco próprio e desconta as pausas de cada execução
   ("Xmin de pausa descontados").
 
+### Meu Painel 2.0: filas pessoais, subtarefas e o painel privado (SESSAO-23 / D-51)
+
+- **Três separadores** no Meu Painel (contador + até 3 itens clicáveis, mesmo cartão dos
+  blocos da S14): *Delegados a mim* (tarefas do Sistema com prefixo "Sistema · ", tarefas
+  delegadas e cards de produção delegados), *Meus afazeres* e *Em execução agora*.
+- **Fila de prioridade**: lista numerada com **setas ▲▼ de 44px** (mobile-first — nada que
+  dependa só de arrastar); a ordem é preferência do usuário (`plt_usuarios.fila_prioridade`)
+  e cada item leva a etiqueta da origem ("produção" em amarelo-ação; "meu"/"delegado" em
+  cinza). Reordenar grava a lista inteira de chaves (`t:{id}` / `c:{id}`) — nunca dado da tarefa.
+- **Checklist de subtarefas** dentro do card da tarefa: linha expansível "Subtarefas 2/5"
+  (contador fica `perfeito-*` quando completo), ○/✔ para concluir/reabrir, campo "nova
+  subtarefa…" em cada nível (até dois níveis — a regra é do banco, a UI só reflete a recusa).
+- **Privacidade da tarefa pessoal**: chip alternável **"privada" (EyeOff) / "visível" (Eye)**
+  no card — só na tarefa que a própria pessoa criou para si. Na criação, o checkbox
+  "Visível para a liderança" (desmarcado = privada, o padrão da D-51).
+- **"Ver todos" no sino**: rodapé do popover leva a `/inicio/avisos` — lista completa
+  paginada no servidor (`range` + `count` na mesma consulta, regra 17), filho de Início sem
+  item de menu (como o Meu Perfil).
+- **Meu desempenho** (`/dashboards/meu-desempenho`, primeiro filho de Dashboards, visível a
+  TODO papel logado — o gate do dado é do banco: cada um só recebe o próprio): 4 Heróis de
+  KPI, barras empilhadas do tempo em afazeres por dia (`--dm-serie-1` = meus, `--dm-serie-2`
+  = delegados — nunca o âmbar da qualidade) e a quebra por tarefa paginada. O cabeçalho diz
+  em língua de gente que a página é privada.
+
 ### Qualidade nas transições (SESSAO-06 / D-09 / D-25)
 
 - **Marcação de estado** (no `ModalMoverCard`, ao sair de setor de produção) e **parecer de
