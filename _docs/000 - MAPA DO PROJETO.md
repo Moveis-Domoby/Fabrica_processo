@@ -58,7 +58,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 
 ## 🛒 Módulo Comercial (ex–Painel de Recompra)
 
-> O pós-venda da loja dentro da plataforma: espelho das vendas do Tiny, taxa de recompra/LTV/sazonalidade, campanhas de reativação por WhatsApp (DataCrazy) com ROI. Banco na fábrica desde a SESSAO-19; front em `/comercial/*` desde a SESSAO-20; **cutover feito em 22/09 (SESSAO-21)**: crons e renovador do token só na fábrica, projeto antigo em quarentena — a trava do disparo no front o dono vira depois de repontar o DataCrazy.
+> O pós-venda da loja dentro da plataforma: espelho das vendas do Tiny, taxa de recompra/LTV/sazonalidade, campanhas de reativação por WhatsApp (DataCrazy) com ROI. Banco na fábrica desde a SESSAO-19; front em `/comercial/*` desde a SESSAO-20; **cutover feito em 22/09 (SESSAO-21)**: crons e renovador do token só na fábrica, projeto antigo em quarentena — DataCrazy repontado pelo dono e trava do disparo aberta em 23/09.
 
 Modelos mentais (leia primeiro):
 - [[PLT - Comercial - Fluxo do Dado]] — do pedido no Tiny até o pixel na tela (estado pós-união)
@@ -166,7 +166,7 @@ Telas, integração e dívidas:
 
 ## Estado atual em uma linha
 
-**↪️ 22/09/2026 (SESSAO-21 entregue — fecha a União D-46):** o cutover aconteceu — o **renovador do token do Tiny** e os **3 crons de disparo** rodam **só na fábrica** (renovação provada às 21:20 UTC, antigo parado), as 6 tabelas do disparo batem byte a byte, e o projeto Supabase antigo da loja está em **quarentena**. Na mesma janela, a conferência Tiny × plataforma (206 pedidos de setembro + os 5.360 do histórico) corrigiu 15 pedidos e 2 cadastros e mostrou que o webhook não cobre tudo — causa-raiz em P17, correção de raiz na [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (🔶). **Com o dono:** repontar o DataCrazy, virar a trava do disparo, `unschedule` no antigo, data da F7. **Próxima de construção: SESSAO-23 (Bloco 5).**
+**↪️ 22/09/2026 (SESSAO-21 entregue — fecha a União D-46):** o cutover aconteceu — o **renovador do token do Tiny** e os **3 crons de disparo** rodam **só na fábrica** (renovação provada às 21:20 UTC, antigo parado), as 6 tabelas do disparo batem byte a byte, e o projeto Supabase antigo da loja está em **quarentena**. Na mesma janela, a conferência Tiny × plataforma (206 pedidos de setembro + os 5.360 do histórico) corrigiu 15 pedidos e 2 cadastros e mostrou que o webhook não cobre tudo — causa-raiz em P17, correção de raiz na [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (🔶). **23/09:** DataCrazy repontado pelo dono, trava do disparo aberta (PR #6), 1ª renovação automática do token ✅. **Com o dono:** data da F7, os 3 apontamentos de segurança e as perguntas da SESSAO-29. **Próxima de construção: SESSAO-23 (Bloco 5).**
 
 **↪️ Atualizado em 21/09/2026 (SESSAO-16 entregue):** os dashboards de verdade estão no ar — as 4 telas-filhas do pai Dashboards (Visão do dia/andon, Tempo por setor, Pessoas, Qualidade) nos moldes dos mockups da D-42, com a migration 28 aplicada (8 portas de leitura gateadas — D-32), os tokens fixos de fila/execução, visualizações salvas por tela+filtros e vazamento zero medido em 700–2400px; validada ao vivo com o dono e **mesclada na `main` pelo PR #4 em 18/09**. **Próxima: SESSAO-22 (Bloco 5)**, com a 21 (cutover) na janela do dono.
 

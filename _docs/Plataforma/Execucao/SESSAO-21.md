@@ -168,6 +168,14 @@ Dono logou no Tiny no navegador do painel e autorizou corrigir o que divergir (*
 - Causa 3 no histórico: 13180 e 13410 (`obs_interna` limpa no Tiny — raw traz ""), 13183 e 13421 (vendedor removido no Tiny — **o raw nem traz a chave `nome_vendedor`**; conferido na tela do Tiny: `idVendedor`/`nomeVendedor` vazios). **Lição nova para a raiz B: vazio no Tiny pode chegar como chave AUSENTE.**
 - Correção: `supabase/manutencao/2026-09-22_correcoes_auditoria_historico.sql` — ensaio A-11 (A=2 · B_obs=2 · B_vend=2 · C_ped=2 · C_cad=1 · 3 hashes = Tiny · 0 eventos nos cards 110/445) → aplicado com guarda atômica. Conferência: **54/55 faixas = Tiny** (a 117 é o 11710) e **0 campo preso pelo coalesce** em todo o banco (previsão, obs, obs_interna, rastreio, vendedor).
 
+### 23/09 — respostas do dono e fechamento
+
+- **PR #5 mesclado** pelo dono (00:30 UTC). **1ª renovação AUTOMÁTICA** do token na fábrica: 00:00:01 UTC ✔ (vigia só de leitura em segundo plano); antigo parado em 18:00 de 22/09, 0 jobs ativos, 0 execuções.
+- Dono: "troquei" (URL do DataCrazy). Conferido 01:24 UTC: 134 webhooks (nenhum novo — nenhuma lista enviando); 4 listas `em_andamento`; membros ganho=2 · perdido=126.
+- Dono: "pode destravar, só cuidado pra não disparar pra ninguém". Antes de virar: estado acima + código lido (`ListasDisparoDetalhe.tsx`: envio só em `handleRegistrarEnvio` — clique — e `iniciarFila` — botão + confirmação; o polling de 8 s só lê). Branch `sessao-21-destravar-disparo` a partir da `main` mesclada; `DISPARO_LIBERADO = true` + teste da trava atualizado; tsc ✔ · lint ✔ · vitest 49/49 ✔ · build ✔ (desta vez a permissão automática não barrou — o dono autorizou explicitamente). **PR #6** aberto; publica quando o dono mesclar. Tela não aberta no navegador (exigiria login; a mudança é uma constante coberta por teste).
+- Dono sobre os jobs desativados do antigo: perguntou se há problema em deixá-los → explicado (aceitável até a F7; risco = reativação manual). 1ª lista real: não é pendência (dono). Backup final: dispensado (dono) — nada exclusivo ficou no antigo.
+- Em aberto com o dono: data da F7; 3 apontamentos de segurança (explicados em linguagem simples); 4 perguntas da SESSAO-29.
+
 **Achado sistêmico (para decisão do dono — não é da S21):** três buracos da integração webhook→banco que vão continuar gerando deriva: (1) marcador alterado sozinho no Tiny não notifica; (2) contato renomeado não notifica; (3) campo limpo no Tiny nunca limpa no banco (coalesce). Candidato a pendência nova em [[N8N - Pendencias e Riscos]] (P17) — perguntar antes de registrar/mexer (arquivo com alteração pendente do Cowork, E-23).
 
 ### Outros
