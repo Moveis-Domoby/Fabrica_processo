@@ -3826,6 +3826,374 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+// ============================================================================
+// SESSAO-23 — Meu Painel 2.0 (migration 33): subtarefas, tarefa privada,
+// tarefa do Sistema (qualidade), fila de prioridade e portas de tempo pessoais.
+// RLS aqui É provada com `set role authenticated` (o papel não é dono da
+// tabela, então as policies valem) — e reconferida no banco real no F-08.
+// ============================================================================
+titulo('SESSAO-23 · subtarefas: herança da mãe, dois níveis, mãe imutável')
+
+await bd.exec(`
+  update public.plt_usuarios set auth_user_id = '00000000-0000-0000-0000-000000000001'
+   where usuario = 'primeira.pessoa' and auth_user_id is null;
+  insert into public.plt_tarefas (titulo, setor_id, responsavel_id, criada_por_id, delegacao, situacao)
+    values ('Organizar o estoque de fitas',
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'),
+            (select id from public.plt_usuarios where usuario = 'lider.fita'),
+            'direta', 'aberta');
+`)
+const tarefaMae = (await bd.query(`select max(id)::int as id from public.plt_tarefas`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_tarefas (titulo, criada_por_id, tarefa_mae_id)
+    values ('Separar por cor',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), ${tarefaMae});
+  insert into public.plt_tarefas (titulo, criada_por_id, tarefa_mae_id)
+    values ('Etiquetar caixas',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), ${tarefaMae});
+`)
+const sub1 = (
+  await bd.query(`select id::int as id from public.plt_tarefas where titulo = 'Separar por cor'`)
+).rows[0].id
+const heranca = (
+  await bd.query(`
+    select (t.setor_id = (select id from public.plt_setores where codigo = 'fitamento')) as setor_ok,
+           (t.responsavel_id = (select id from public.plt_usuarios where usuario = 'exec.um')) as responsavel_ok,
+           t.privada
+      from public.plt_tarefas t where t.id = ${sub1}`)
+).rows[0]
+conferir(
+  heranca?.setor_ok === true && heranca?.responsavel_ok === true && heranca?.privada === false,
+  'subtarefa herda setor, responsável e privacidade da mãe',
+  JSON.stringify(heranca ?? null),
+)
+await bd.exec(`
+  insert into public.plt_tarefas (titulo, criada_por_id, tarefa_mae_id)
+    values ('Cores frias primeiro',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), ${sub1});
+`)
+const sub2 = (await bd.query(`select max(id)::int as id from public.plt_tarefas`)).rows[0].id
+await deveRecusarExec(
+  `insert into public.plt_tarefas (titulo, criada_por_id, tarefa_mae_id)
+     values ('Nível demais', (select id from public.plt_usuarios where usuario = 'lider.fita'), ${sub2})`,
+  'terceiro nível de subtarefa é recusado (resposta 2 do dono: até dois níveis)',
+  /dois níveis/i,
+)
+await deveRecusarExec(
+  `update public.plt_tarefas set tarefa_mae_id = null where id = ${sub1}`,
+  'subtarefa não muda de mãe depois de criada',
+  /não muda de tarefa/i,
+)
+await bd.exec(`
+  update public.plt_tarefas set situacao = 'concluida', concluida_em = now() where id = ${sub1};
+`)
+const contador = (
+  await bd.query(`
+    select count(*)::int as total,
+           count(*) filter (where situacao = 'concluida')::int as feitas
+      from public.plt_tarefas where tarefa_mae_id = ${tarefaMae}`)
+).rows[0]
+conferir(
+  contador?.total === 2 && contador?.feitas === 1,
+  'o contador da mãe conta as filhas (1/2) direto da consulta — nada gravado',
+  JSON.stringify(contador ?? null),
+)
+await bd.exec(`
+  update public.plt_tarefas set situacao = 'aberta', concluida_em = null where id = ${sub1};
+`)
+conferir(true, 'reabrir subtarefa concluída é permitido (checklist vivo)')
+
+titulo('SESSAO-23 · tarefa privada: só o dono enxerga — nem admin, nem pela API')
+
+await deveRecusarExec(
+  `insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, privada)
+     values ('Segredo delegado',
+             (select id from public.plt_usuarios where usuario = 'exec.dois'),
+             (select id from public.plt_usuarios where usuario = 'exec.um'), true)`,
+  'tarefa privada delegada a OUTRA pessoa é recusada (privada = pessoal)',
+  /cria para você mesmo/i,
+)
+await bd.exec(`
+  insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, privada, iniciada_em)
+    values ('Minha lista pessoal',
+            (select id from public.plt_usuarios where usuario = 'exec.um'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'),
+            true, now() - interval '2 hours');
+`)
+const tarefaPrivada = (await bd.query(`select max(id)::int as id from public.plt_tarefas`)).rows[0].id
+
+// RLS de verdade: o papel authenticated não é dono da tabela — as policies valem.
+await bd.exec(`
+  grant usage on schema public to authenticated;
+  grant select, insert, update on public.plt_tarefas to authenticated;
+  set role authenticated;
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+`)
+const adminVe = (
+  await bd.query(`select count(*)::int as total from public.plt_tarefas where id = ${tarefaPrivada}`)
+).rows[0]
+conferir(
+  adminVe.total === 0,
+  'ADMIN não enxerga a tarefa privada de outra pessoa (RLS, com papel simulado)',
+  `vieram ${adminVe.total}`,
+)
+const adminEdita = (
+  await bd.query(`update public.plt_tarefas set titulo = 'invadida' where id = ${tarefaPrivada} returning id`)
+).rows
+conferir(adminEdita.length === 0, 'ADMIN também não edita a tarefa privada de outra pessoa')
+const tempoDoAdmin = (
+  await bd.query(`
+    select coalesce(sum(extract(epoch from tempo_pessoal)), 0)::int as segundos
+      from public.plt_fn_meu_tempo_dias(now() - interval '1 day', now() + interval '1 day')`)
+).rows[0]
+conferir(
+  tempoDoAdmin.segundos === 0,
+  'a porta de tempo devolve ao admin SÓ o tempo dele (zero — o de exec.um não vaza nem pela API)',
+  `vieram ${tempoDoAdmin.segundos}s`,
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+const donoVe = (
+  await bd.query(`select count(*)::int as total from public.plt_tarefas where id = ${tarefaPrivada}`)
+).rows[0]
+const tempoDoDono = (
+  await bd.query(`
+    select coalesce(sum(extract(epoch from tempo_pessoal)), 0)::int as pessoal,
+           coalesce(sum(extract(epoch from tempo_delegado)), 0)::int as delegado
+      from public.plt_fn_meu_tempo_dias(now() - interval '1 day', now() + interval '1 day')`)
+).rows[0]
+conferir(
+  donoVe.total === 1 && tempoDoDono.pessoal >= 7100 && tempoDoDono.pessoal <= 7300,
+  'o DONO vê a tarefa privada e o tempo dela (~2h) na porta pessoal',
+  JSON.stringify({ ve: donoVe.total, ...tempoDoDono }),
+)
+const porTarefa = (
+  await bd.query(`
+    select titulo, pessoal, contagem_total::int as total
+      from public.plt_fn_meu_tempo_tarefas(now() - interval '1 day', now() + interval '1 day', 5, 0)`)
+).rows
+conferir(
+  porTarefa.some((t) => t.titulo === 'Minha lista pessoal' && t.pessoal === true) &&
+    (porTarefa[0]?.total ?? 0) >= 1,
+  'a quebra por tarefa (resposta 4) lista a tarefa com o rótulo pessoal/delegada e o total paginável',
+  JSON.stringify(porTarefa),
+)
+const desempenho = (
+  await bd.query(`
+    select execucoes, tarefas_concluidas, extract(epoch from tempo_afazeres)::int as afazeres_s
+      from public.plt_fn_meu_desempenho(now() - interval '1 day', now() + interval '1 day')`)
+).rows[0]
+conferir(
+  (desempenho?.execucoes ?? 0) >= 1 && (desempenho?.afazeres_s ?? 0) >= 7100,
+  'plt_fn_meu_desempenho devolve os KPIs SÓ de quem chama (execuções e tempo em afazeres)',
+  JSON.stringify(desempenho ?? null),
+)
+await bd.exec(`reset role; select set_config('request.jwt.claim.sub', '', false);`)
+const semUsuarioTempo = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_meu_desempenho(now() - interval '1 day', now())`)
+).rows[0]
+conferir(semUsuarioTempo.total === 0, 'sem usuário no contexto, as portas pessoais devolvem vazio')
+
+// Reatribuir a tarefa privada → deixa de ser pessoal → vira pública sozinha.
+await bd.exec(`
+  update public.plt_tarefas
+     set responsavel_id = (select id from public.plt_usuarios where usuario = 'exec.dois')
+   where id = ${tarefaPrivada};
+`)
+const aposReatribuir = (
+  await bd.query(`select privada from public.plt_tarefas where id = ${tarefaPrivada}`)
+).rows[0]
+conferir(
+  aposReatribuir?.privada === false,
+  'reatribuída a outra pessoa, a tarefa privada vira pública sozinha (a pendência agora é de outro)',
+  JSON.stringify(aposReatribuir ?? null),
+)
+
+titulo('SESSAO-23 · pendência de parecer vira tarefa do Sistema — e conclui sozinha')
+
+// Card novo: PCP → SECC (sem marcação) → SECC entrega à FITAMENTO marcando 🟡.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 4, '077', 'Painel Ripado', 1, 2
+      from public.pedidos p where p.numero = 999990;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface');
+`)
+const cardSistema = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardSistema}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface', 'atencao');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+    values (${cardSistema}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardSistema} and tipo = 'qualidade_marcada'));
+`)
+const marcacao1 = (
+  await bd.query(`select max(id)::int as id from public.plt_eventos where card_id = ${cardSistema} and tipo = 'qualidade_marcada'`)
+).rows[0].id
+const tarefaSistema = (
+  await bd.query(`
+    select t.id::int as id, t.situacao, t.responsavel_id is null as sem_responsavel,
+           (t.setor_id = (select id from public.plt_setores where codigo = 'fitamento')) as no_setor_certo,
+           t.titulo
+      from public.plt_tarefas t
+     where t.origem = 'sistema' and t.evento_referencia_id = ${marcacao1}`)
+).rows[0]
+conferir(
+  tarefaSistema !== undefined && tarefaSistema.situacao === 'aberta'
+    && tarefaSistema.sem_responsavel === true && tarefaSistema.no_setor_certo === true
+    && /Confirmar recebimento/.test(tarefaSistema.titulo ?? ''),
+  'a chegada com marcação criou a tarefa do Sistema no setor recebedor, sem usuário fantasma',
+  JSON.stringify(tarefaSistema ?? null),
+)
+const avisoSistema = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_notificacoes n
+     where n.card_id = ${cardSistema} and n.tipo = 'tarefa_sistema'
+       and n.destinatario_id = (select id from public.plt_usuarios where usuario = 'lider.fita')`)
+).rows[0]
+conferir(
+  avisoSistema.total === 1,
+  'os membros do setor recebedor foram avisados no sino (resposta 3 do dono)',
+  `vieram ${avisoSistema.total}`,
+)
+await deveRecusarExec(
+  `update public.plt_tarefas set situacao = 'concluida', concluida_em = now()
+    where id = ${tarefaSistema?.id ?? 0}`,
+  'tarefa do Sistema não se conclui à mão — resolve-se dando o parecer',
+  /registrando o parecer/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_tarefas (titulo, origem) values ('Falso sistema', 'sistema')`,
+  'ninguém cria tarefa do Sistema à mão',
+  /nasce sozinha/i,
+)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+    values (${cardSistema}, 'qualidade_parecer',
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface',
+            ${marcacao1}, 'atencao');
+`)
+const aposParecerSistema = (
+  await bd.query(`
+    select situacao, concluida_em is not null as fechada
+      from public.plt_tarefas where evento_referencia_id = ${marcacao1} and origem = 'sistema'`)
+).rows[0]
+conferir(
+  aposParecerSistema?.situacao === 'concluida' && aposParecerSistema?.fechada === true,
+  'o parecer dado concluiu a tarefa do Sistema sozinho',
+  JSON.stringify(aposParecerSistema ?? null),
+)
+
+// Card segue adiante com marcação nova → a pendência antiga morre e a tarefa
+// dela fecha; chegada em TERMINAL não gera tarefa (lá não existe parecer).
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardSistema}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface', 'perfeito');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+    values (${cardSistema}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'fitamento'),
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardSistema} and tipo = 'qualidade_marcada'));
+`)
+const marcacao2 = (
+  await bd.query(`select max(id)::int as id from public.plt_eventos where card_id = ${cardSistema} and tipo = 'qualidade_marcada'`)
+).rows[0].id
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${cardSistema}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_setores where codigo = 'estoque'),
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface', 'perfeito');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
+    values (${cardSistema}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select id from public.plt_setores where codigo = 'estoque'),
+            (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${cardSistema} and tipo = 'qualidade_marcada'));
+`)
+const filaSistema = (
+  await bd.query(`
+    select (select situacao from public.plt_tarefas where evento_referencia_id = ${marcacao2}) as antiga,
+           (select count(*)::int from public.plt_tarefas t
+             where t.origem = 'sistema' and t.card_id = ${cardSistema} and t.situacao <> 'concluida') as abertas`)
+).rows[0]
+conferir(
+  filaSistema?.antiga === 'concluida' && filaSistema?.abertas === 0,
+  'card que seguiu adiante fecha a tarefa da pendência morta; chegada em terminal não abre tarefa',
+  JSON.stringify(filaSistema ?? null),
+)
+
+titulo('SESSAO-23 · fila de prioridade do usuário e o relógio da delegação')
+
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_origem_id, dados)
+    values (${cardDelegado}, 'delegacao',
+            (select id from public.plt_usuarios where usuario = 'lider.secc'), 'interface',
+            (select id from public.plt_setores where codigo = 'secc'),
+            jsonb_build_object('responsavel_id',
+              (select id from public.plt_usuarios where usuario = 'exec.um'), 'modo', 'direta'));
+`)
+const delegadoEm = (
+  await bd.query(`select delegado_em is not null as tem from public.plt_cards where id = ${cardDelegado}`)
+).rows[0]
+conferir(delegadoEm?.tem === true, 'delegar projeta delegado_em no card (a ordem de cadastro da fila)')
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${cardDelegado}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'secc'),
+            (select id from public.plt_setores where codigo = 'furacao'), 'api');
+`)
+const delegadoZerado = (
+  await bd.query(`
+    select responsavel_id is null as sem_dono, delegado_em is null as sem_relogio
+      from public.plt_cards where id = ${cardDelegado}`)
+).rows[0]
+conferir(
+  delegadoZerado?.sem_dono === true && delegadoZerado?.sem_relogio === true,
+  'mudar de setor zera o responsável E o relógio da delegação juntos',
+  JSON.stringify(delegadoZerado ?? null),
+)
+await bd.exec(`
+  update public.plt_usuarios
+     set fila_prioridade = '["t:${tarefaMae}", "c:${cardDelegado}"]'::jsonb
+   where usuario = 'exec.um';
+`)
+const logFila = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_logs_atividade
+     where acao = 'fila_prioridade_reordenada'`)
+).rows[0]
+conferir(
+  logFila.total >= 1,
+  'reordenar a fila de prioridade gera log de atividade (D-40)',
+  `vieram ${logFila.total}`,
+)
+const filaDoOutro = (
+  await bd.query(`
+    select fila_prioridade from public.plt_usuarios where usuario = 'exec.dois'`)
+).rows[0]
+conferir(
+  JSON.stringify(filaDoOutro?.fila_prioridade) === '[]',
+  'a fila de um usuário não toca a fila de nenhum outro',
+  JSON.stringify(filaDoOutro ?? null),
+)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
