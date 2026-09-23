@@ -128,8 +128,10 @@ Não entram no PR (trabalho do Cowork de 21/09, intocado — E-23): `supabase-fa
 > 4. **6 jobs desativados no antigo:** o dono perguntou se pode deixá-los assim. Resposta: pode, até a F7 — o risco é só alguém reativar à mão no painel (o renovador de lá tentaria um token morto). Somem sozinhos quando o projeto for excluído.
 > 5. **1ª lista real:** o dono roda quando for usar — **não é pendência** ("vou lembrar disso se der erro").
 > 6. **Backup final: dispensado** — os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica byte a byte; nada exclusivo ficou no projeto antigo.
-> 7. Os 3 apontamentos de segurança e 8. as 4 perguntas da SESSAO-29: explicados ao dono em linguagem simples na conversa — aguardam a resposta dele.
-> **Continua em aberto:** a data da F7 (pausar → excluir o projeto antigo), itens 7 e 8.
+> 7. ✅ **3 apontamentos de segurança — resolvidos** (migration 32, aplicada em 23/09 com aprovação do dono depois de conferir os 4 workflows principais do n8n, o uso interno e os logs da API): função fechada para quem não tem login (sonda → 401) e `search_path` fixo nas duas; a tabela do Atendimento segue fechada de propósito.
+> 8. As 4 perguntas da SESSAO-29: explicadas ao dono em linguagem simples — aguardam a resposta dele.
+> ⚠️ **Novo (23/09):** o JSON do workflow de vendas que o dono colou na conversa traz o **token da API v2 do Tiny em texto puro** (node `Tiny · pedido.obter` — é a P4). Como passou pelo chat: gerar token novo no Tiny e trocar o valor fixo por `{{ $env.TINY_TOKEN }}` (E-03). Gesto do dono.
+> **Continua em aberto:** a data da F7 (pausar → excluir o projeto antigo), o item 8 e a troca do token v2.
 >
 > A lista abaixo é a de 22/09, mantida como estava.
 

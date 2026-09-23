@@ -81,6 +81,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 ## 🟢 Acertos que viraram padrão (A-NN)
 
+- [2026-09-23] **A-20** (Claude Code) · **Provar que ninguém usa um endpoint antes de fechá-lo — com consulta de CONTROLE.** Para revogar a `fn_pedido_por_numero_nf` do `anon` (S21): (1) grep no repo e nos workflows do n8n, (2) `pg_proc.prosrc` para achar quem a chama por dentro (era uma função DEFINER — o revoke não a afeta), (3) logs da API do Supabase com a MESMA consulta contando uma RPC sabidamente usada (66 × `fn_upsert_pedido`) ao lado da suspeita (0) — sem o controle, "0 chamadas" podia ser consulta errada. Depois: sonda anônima → 401 e advisors.
+
 - [2026-08-11] **A-01** · **Copiar o real antes de construir**: engenharia reversa da planilha antes de migrar deu 100% de paridade (1.982 pedidos) — mapear o comportamento existente célula a célula antes de replicar.
 - [2026-08-11] **A-02** · **Evento > polling**: construir sobre webhook/evento, nunca varredura — o workflow Tiny nasceu assim e não perde nada.
 - [2026-08-11] **A-03** · Manter a mesma URL/UUID de webhook ao migrar sistema → zero janela de integração desligada.

@@ -57,7 +57,10 @@ estavam fora do escopo dela — e mexer em objeto de outra frente sem o dono ped
 | `fn_backfill_conta_mapear` e `fn_vig_touch` **sem `search_path` fixo** | a função não trava em quais schemas procura o que usa — o caminho pode ser manipulado por quem consiga criar objeto | 🟡 é a mesma classe do E-11, já corrigida em todo o resto da casa |
 | `vig_conhecimento_vendas` com **RLS ligado e nenhuma policy** | ninguém lê pelo navegador (nem admin); só a chave de serviço | ⚪ inofensivo — pode até ser intencional, como a `tiny_auth` |
 
-**O que fazer:** perguntar ao dono se essas funções ainda são usadas (o backfill
+> [!success] ✅ Resolvido em 23/09/2026 — migration 32 (`20260923120000_plt_seguranca_herdada.sql`)
+> Dono: *"analise as principais [automações]; se nenhuma tiver, pode realizar os ajustes"*. Nenhum dos 4 workflows principais do n8n chama a função; o único uso é interno (`plt_privado.fn_vincular_conta_receber`, SECURITY DEFINER); 0 chamadas pela API em 24h (consulta de controle viu 66 da `fn_upsert_pedido`). Aplicado: EXECUTE revogado de `public`/`anon`/`authenticated` na `fn_pedido_por_numero_nf` (sonda anônima → 401) e `search_path` fixo nas duas. `vig_conhecimento_vendas`: mantida como está (intencional). Test:banco 2 rodadas ✔, impressão digital idêntica, advisors limpos desses 3.
+
+**O que fazer (original):** perguntar ao dono se essas funções ainda são usadas (o backfill
 já terminou) e então **revogar o execute do `anon`** na primeira, **fixar o
 `search_path`** nas duas, ou **dropar** o que estiver morto. Nada disso é do
 domínio Comercial — mas é o tipo de coisa que, com ~30 logins entrando, não deve
