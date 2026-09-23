@@ -30,7 +30,8 @@ tags: [handoff, sessao, plataforma, bloco-5, meu-painel, tarefas, d-51]
 | Mojibake (E-34) | ✅ grep zero no `src/` |
 | **F-08 no banco real (23/09)** | ✅ migration 33 aplicada, integração intacta (estrutura e linhas idênticas); advisors só com as 3 RPCs novas esperadas |
 | **Ensaio A-11 no banco real** | ✅ tarefa privada criada → admin com papel simulado vê **0 linhas** e **0 tempo** pela API → rollback proposital (zero linha gravada) |
-| F-07 (375px/768px) | ✅ telas públicas sem rolagem horizontal e console limpo. **A conferência visual logada é a sua validação** (roteiro abaixo) — sem sua senha eu não entro, e senha em chat é proibido (regra 4) |
+| F-07 (375px/768px) | ✅ telas públicas sem rolagem horizontal e console limpo |
+| **Validação LOGADA (23/09, você logou no painel do app)** | ✅ Meu Painel com as 3 filas e sem os blocos antigos · subtarefas 1/2 com 2º nível criado e reabrir funcionando · tarefa nova nasceu **privada** (chip) e **outro usuário logado vê 0 pela API** (prova com papel simulado no banco vivo) · fila reordenada pelas setas e **persistida após recarregar** · `/inicio/avisos` com o histórico real · **Meu desempenho** com KPIs e a lista por tarefa certos (7d 13h). Console limpo em todas. **Achado corrigido na hora (E-40):** o campo do 2º nível de subtarefa só aparecia se já houvesse filha — ganhou o botão "detalhar". **Nota de ambiente:** as barras do Recharts não pintam no navegador embutido do app (acontece igual nas telas da S16 já validadas em produção — primo do E-32); no seu navegador normal elas aparecem, e o tooltip/lista provaram o dado |
 
 ## 3. Como validar (10 minutos — o `npm run dev` ficou no ar)
 
@@ -44,8 +45,8 @@ tags: [handoff, sessao, plataforma, bloco-5, meu-painel, tarefas, d-51]
 
 ## 4. Pendente / decisões para você
 
-- 🔶 **Sua validação logada (roteiro acima) + merge na `main`** (D-20). A branch está no GitHub; depois do seu OK eu mesclo (ou você mescla).
-- ⚪ **Screenshot das telas novas logadas** fica com a sua validação (item F-07 acima).
+- 🔶 **Só o merge na `main`** (D-20) — a validação logada foi feita em 23/09 com você na conversa (tabela acima); o roteiro do §3 segue servindo para você repassar o que quiser.
+- ⚪ A **"Tarefa privada de teste (pode excluir depois)"** e as subtarefas de validação ficaram na sua conta — conclua-as quando quiser (ou peça que eu as remova).
 - ⚪ Trabalho paralelo do Cowork no working tree (estudo Tiny fábrica/S25, `PROMPT - Bloco 5`, espelho da migration 23 no `.sql`) **não foi tocado nem commitado** (E-23).
 - ⚪ Próxima do bloco: **SESSAO-24 (Estoque núcleo)** — abre em conversa própria com o ritual de sempre.
 

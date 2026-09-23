@@ -63,12 +63,17 @@ function Checklist({
   ocupado: boolean
 }) {
   const [novo, setNovo] = useState('')
+  // Sem isto, o campo do 2º nível só existiria DEPOIS de já haver uma filha —
+  // e a primeira nunca poderia nascer (pego na validação ao vivo da S23).
+  const [expandidas, setExpandidas] = useState<Set<number>>(new Set())
   const filhas = subtarefasPorMae.get(maeId) ?? []
 
   return (
     <div className={cn('flex flex-col gap-1', nivel === 2 && 'ml-6 border-l border-borda pl-3')}>
       {filhas.map((s) => {
         const feita = s.situacao === 'concluida'
+        const netas = subtarefasPorMae.get(s.id)?.length ?? 0
+        const aberta = netas > 0 || expandidas.has(s.id)
         return (
           <div key={s.id} className="flex flex-col">
             <div className="flex items-center gap-1">
@@ -88,9 +93,22 @@ function Checklist({
                   {s.titulo}
                 </span>
               </button>
+              {nivel === 1 && !aberta && (
+                <button
+                  type="button"
+                  aria-label={`Criar subtarefa dentro de "${s.titulo}"`}
+                  onClick={() =>
+                    setExpandidas((atual) => new Set(atual).add(s.id))
+                  }
+                  className="toque-seguro inline-flex h-toque-md items-center gap-0.5 rounded-dm px-1 text-xs text-texto-fraco hover:bg-superficie-sutil hover:text-texto-suave"
+                >
+                  <ChevronRight aria-hidden className="size-3.5" />
+                  detalhar
+                </button>
+              )}
             </div>
             {/* o segundo (e último) nível do checklist */}
-            {nivel === 1 && (subtarefasPorMae.get(s.id)?.length ?? 0) > 0 && (
+            {nivel === 1 && aberta && (
               <Checklist
                 maeId={s.id}
                 nivel={2}
