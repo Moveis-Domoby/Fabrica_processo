@@ -4194,6 +4194,37 @@ conferir(
   JSON.stringify(filaDoOutro ?? null),
 )
 
+titulo('SESSAO-23 · apagar avisos lidos (migration 34): só o próprio, só o lido')
+
+// exec.um tem avisos? Garante um lido e um não lido para ele, e um de outro.
+await bd.exec(`
+  insert into public.plt_notificacoes (destinatario_id, tipo, titulo, corpo, lida_em) values
+    ((select id from public.plt_usuarios where usuario = 'exec.um'),
+     'teste', 'Aviso lido do exec.um', 'corpo', now()),
+    ((select id from public.plt_usuarios where usuario = 'exec.um'),
+     'teste', 'Aviso NAO lido do exec.um', 'corpo', null),
+    ((select id from public.plt_usuarios where usuario = 'exec.dois'),
+     'teste', 'Aviso lido do exec.dois', 'corpo', now());
+  grant select, delete on public.plt_notificacoes to authenticated;
+  set role authenticated;
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false);
+`)
+const apagouLido = (
+  await bd.query(`delete from public.plt_notificacoes where titulo = 'Aviso lido do exec.um' returning id`)
+).rows
+const naoApagaNaoLido = (
+  await bd.query(`delete from public.plt_notificacoes where titulo = 'Aviso NAO lido do exec.um' returning id`)
+).rows
+const naoApagaAlheio = (
+  await bd.query(`delete from public.plt_notificacoes where titulo = 'Aviso lido do exec.dois' returning id`)
+).rows
+await bd.exec(`reset role; select set_config('request.jwt.claim.sub', '', false);`)
+conferir(
+  apagouLido.length === 1 && naoApagaNaoLido.length === 0 && naoApagaAlheio.length === 0,
+  'apaga o próprio aviso lido; o não lido e o alheio ficam (RLS com papel simulado — A-21)',
+  JSON.stringify({ lido: apagouLido.length, naoLido: naoApagaNaoLido.length, alheio: naoApagaAlheio.length }),
+)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
