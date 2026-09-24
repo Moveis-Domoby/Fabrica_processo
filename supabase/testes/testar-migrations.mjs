@@ -4225,6 +4225,97 @@ conferir(
   JSON.stringify({ lido: apagouLido.length, naoLido: naoApagaNaoLido.length, alheio: naoApagaAlheio.length }),
 )
 
+titulo('SESSAO-23 · pausar tarefa guarda o tempo (migration 35)')
+
+await bd.exec(`
+  insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, iniciada_em, situacao)
+    values ('Tarefa com pausa',
+            (select id from public.plt_usuarios where usuario = 'exec.um'),
+            (select id from public.plt_usuarios where usuario = 'exec.um'),
+            now() - interval '40 minutes', 'em_andamento');
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false);
+`)
+const tarefaPausa = (await bd.query(`select max(id)::int as id from public.plt_tarefas`)).rows[0].id
+await bd.exec(`select public.plt_fn_tarefa_pausar(${tarefaPausa})`)
+const aposPausa = (
+  await bd.query(`
+    select extract(epoch from tempo_acumulado)::int as acumulado_s,
+           iniciada_em is null as parada, situacao
+      from public.plt_tarefas where id = ${tarefaPausa}`)
+).rows[0]
+conferir(
+  (aposPausa?.acumulado_s ?? 0) >= 2350 && (aposPausa?.acumulado_s ?? 0) <= 2450
+    && aposPausa?.parada === true && aposPausa?.situacao === 'aberta',
+  'pausar somou os ~40min ao acumulado e desligou o timer (nada digitado — derivado)',
+  JSON.stringify(aposPausa ?? null),
+)
+await deveRecusarExec(
+  `select public.plt_fn_tarefa_pausar(${tarefaPausa})`,
+  'pausar tarefa que não está rodando é recusado',
+  /não está com o tempo rodando/i,
+)
+await bd.exec(`
+  update public.plt_tarefas
+     set iniciada_em = now() - interval '20 minutes', situacao = 'em_andamento'
+   where id = ${tarefaPausa};
+`)
+const somaPorta = (
+  await bd.query(`
+    select extract(epoch from duracao)::int as total_s
+      from public.plt_fn_meu_tempo_tarefas(now() - interval '1 day', now() + interval '1 hour', 50, 0)
+     where tarefa_id = ${tarefaPausa}`)
+).rows[0]
+conferir(
+  (somaPorta?.total_s ?? 0) >= 3550 && (somaPorta?.total_s ?? 0) <= 3650,
+  'a porta pessoal soma acumulado + segmento aberto (~40min pausados + ~20min rodando = ~1h)',
+  JSON.stringify(somaPorta ?? null),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+titulo('SESSAO-23 · PCP sem pedidos encerrados no Tiny (plt_fn_cards_pedido_pcp)')
+
+// Pedido NOVO e aberto (1 de 2 unidades liberadas): entra no quadro; virando
+// "Entregue" no Tiny, sai — e a unidade viva continua no setor.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (999993, (select id from public.clientes order by id limit 1), 'aprovado');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 999993), 1, '055', 'Aparador Teste PCP', 2);
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, '055', 'Aparador Teste PCP', 1, 2
+      from public.pedidos p where p.numero = 999993;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado',
+            (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false);
+`)
+const pcpAntes = (
+  await bd.query(`select count(*)::int as total, coalesce(bool_or(pedido_id = (select id from public.pedidos where numero = 999993)), false) as tem_teste
+                    from public.plt_fn_cards_pedido_pcp(100, 0)`)
+).rows[0]
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 999993`)
+const pcpDepois = (
+  await bd.query(`select count(*)::int as total, coalesce(bool_or(pedido_id = (select id from public.pedidos where numero = 999993)), false) as tem_teste
+                    from public.plt_fn_cards_pedido_pcp(100, 0)`)
+).rows[0]
+const unidadesVivas = (
+  await bd.query(`
+    select count(*)::int as total from public.plt_cards c
+     where c.tipo = 'unidade' and c.arquivado_em is null
+       and c.pedido_id = (select id from public.pedidos where numero = 999993)`)
+).rows[0]
+conferir(
+  pcpAntes?.tem_teste === true && pcpDepois?.tem_teste === false
+    && pcpDepois.total === pcpAntes.total - 1 && (unidadesVivas?.total ?? 0) >= 1,
+  'pedido que virou "Entregue" no Tiny some do quadro do PCP — e as UNIDADES dele seguem vivas nos setores',
+  JSON.stringify({ antes: pcpAntes, depois: pcpDepois, unidades: unidadesVivas?.total }),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+const pcpSemUsuario = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_cards_pedido_pcp(100, 0)`)
+).rows[0]
+conferir(pcpSemUsuario.total === 0, 'sem usuário no contexto, a porta do PCP devolve vazio (gate)')
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
