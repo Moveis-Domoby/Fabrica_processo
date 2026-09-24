@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell, CheckCheck, Trash2 } from 'lucide-react'
 import { Paginacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { buscarAvisosPagina, marcarAvisoLido, marcarTodosLidos } from '@/notificacoes/api'
+import {
+  apagarAviso,
+  apagarLidas,
+  buscarAvisosPagina,
+  marcarAvisoLido,
+  marcarTodosLidos,
+} from '@/notificacoes/api'
 
 const POR_PAGINA = 20
 
@@ -43,6 +49,12 @@ export function Avisos() {
     mutationFn: () => marcarTodosLidos(perfil!.id),
     onSuccess: invalidar,
   })
+  // Só o aviso LIDO se apaga (regra do banco); o fato segue em plt_eventos.
+  const apagarUm = useMutation({ mutationFn: apagarAviso, onSuccess: invalidar })
+  const apagarTodasLidas = useMutation({
+    mutationFn: () => apagarLidas(perfil!.id),
+    onSuccess: invalidar,
+  })
 
   if (!perfil) return null
 
@@ -55,17 +67,30 @@ export function Avisos() {
             Tudo o que o sino já te avisou, do mais novo para o mais antigo.
           </p>
         </div>
-        {naoLidos > 0 && (
-          <button
-            type="button"
-            onClick={() => lerTodos.mutate()}
-            disabled={lerTodos.isPending}
-            className="inline-flex min-h-toque-md items-center gap-1.5 rounded-dm border border-borda-forte px-3 text-sm font-medium text-texto hover:bg-superficie-sutil"
-          >
-            <CheckCheck aria-hidden className="size-4" />
-            Marcar todas como lidas
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {naoLidos > 0 && (
+            <button
+              type="button"
+              onClick={() => lerTodos.mutate()}
+              disabled={lerTodos.isPending}
+              className="inline-flex min-h-toque-md items-center gap-1.5 rounded-dm border border-borda-forte px-3 text-sm font-medium text-texto hover:bg-superficie-sutil"
+            >
+              <CheckCheck aria-hidden className="size-4" />
+              Marcar todas como lidas
+            </button>
+          )}
+          {avisos.some((a) => a.lida_em !== null) && (
+            <button
+              type="button"
+              onClick={() => apagarTodasLidas.mutate()}
+              disabled={apagarTodasLidas.isPending}
+              className="inline-flex min-h-toque-md items-center gap-1.5 rounded-dm border border-borda-forte px-3 text-sm font-medium text-texto-suave hover:bg-superficie-sutil hover:text-danificado-forte"
+            >
+              <Trash2 aria-hidden className="size-4" />
+              Apagar lidas
+            </button>
+          )}
+        </div>
       </div>
 
       {total === 0 ? (
@@ -76,14 +101,14 @@ export function Avisos() {
         <>
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
             {avisos.map((a) => (
-              <li key={a.id} className="border-b border-borda last:border-b-0">
+              <li key={a.id} className="flex items-stretch border-b border-borda last:border-b-0">
                 <button
                   type="button"
                   onClick={() => {
                     if (!a.lida_em) lerUm.mutate(a.id)
                   }}
                   className={cn(
-                    'flex w-full min-h-toque-md flex-col gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-superficie-sutil',
+                    'flex min-w-0 min-h-toque-md flex-1 flex-col gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-superficie-sutil',
                     !a.lida_em && 'bg-superficie-sutil',
                   )}
                 >
@@ -101,6 +126,17 @@ export function Avisos() {
                     </span>
                   )}
                 </button>
+                {a.lida_em !== null && (
+                  <button
+                    type="button"
+                    aria-label={`Apagar o aviso "${a.titulo}"`}
+                    disabled={apagarUm.isPending}
+                    onClick={() => apagarUm.mutate(a.id)}
+                    className="toque-seguro flex w-12 shrink-0 items-center justify-center text-texto-fraco transition-colors hover:bg-superficie-sutil hover:text-danificado-forte"
+                  >
+                    <Trash2 aria-hidden className="size-4" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

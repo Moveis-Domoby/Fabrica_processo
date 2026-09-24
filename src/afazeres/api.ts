@@ -109,6 +109,34 @@ export async function criarSubtarefa(parametros: {
   if (error) throw new Error(`Não deu para criar a subtarefa: ${error.message}`)
 }
 
+/** Editar o texto da tarefa — direto no card (pedido do dono, 23/09). */
+export async function editarTarefa(parametros: {
+  id: number
+  titulo: string
+  descricao?: string | null
+}): Promise<void> {
+  const { error } = await supabase
+    .from('plt_tarefas')
+    .update({
+      titulo: parametros.titulo.trim(),
+      descricao: parametros.descricao?.trim() || null,
+    })
+    .eq('id', parametros.id)
+  if (error) throw new Error(`Não deu para salvar a tarefa: ${error.message}`)
+}
+
+/**
+ * Parar o timer SEM concluir: a contagem é descartada (o timer da tarefa é
+ * opcional — D-34; quem parou é porque não quer contar aquele tempo).
+ */
+export async function pararTempo(id: number): Promise<void> {
+  const { error } = await supabase
+    .from('plt_tarefas')
+    .update({ iniciada_em: null, situacao: 'aberta' })
+    .eq('id', id)
+  if (error) throw new Error(`Não deu para parar o tempo: ${error.message}`)
+}
+
 export async function reabrirTarefa(id: number): Promise<void> {
   const { error } = await supabase
     .from('plt_tarefas')

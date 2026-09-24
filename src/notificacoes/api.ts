@@ -58,6 +58,22 @@ export async function marcarAvisoLido(id: number): Promise<void> {
   if (error) throw new Error(`Não deu para marcar o aviso como lido: ${error.message}`)
 }
 
+/** Apagar UM aviso já lido (a história do fato segue em plt_eventos). */
+export async function apagarAviso(id: number): Promise<void> {
+  const { error } = await supabase.from('plt_notificacoes').delete().eq('id', id)
+  if (error) throw new Error(`Não deu para apagar o aviso: ${error.message}`)
+}
+
+/** Apagar todos os avisos já lidos — o RLS só deixa apagar os seus, lidos. */
+export async function apagarLidas(usuarioId: string): Promise<void> {
+  const { error } = await supabase
+    .from('plt_notificacoes')
+    .delete()
+    .eq('destinatario_id', usuarioId)
+    .not('lida_em', 'is', null)
+  if (error) throw new Error(`Não deu para apagar os avisos lidos: ${error.message}`)
+}
+
 export async function marcarTodosLidos(usuarioId: string): Promise<void> {
   const { error } = await supabase
     .from('plt_notificacoes')

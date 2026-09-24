@@ -33,6 +33,8 @@ import {
   minhasExecucoesAbertas,
 } from '@/metas/api'
 import type { MetaPainel } from '@/metas/api'
+import type { Tarefa } from '@/afazeres/api'
+import { ModalTarefa } from '@/afazeres/ModalTarefa'
 import { ModalMeta } from '@/metas/ModalMeta'
 import { CartaoMeta } from '@/metas/CartaoMeta'
 
@@ -44,7 +46,9 @@ interface ItemFila {
   chave: string
   texto: string
   origem: 'delegada' | 'minha' | 'card'
-  para: string
+  /** Card de produção navega para o quadro; tarefa abre o preview. */
+  para?: string
+  tarefa?: Tarefa
   /** Ordem de cadastro (ms) — o desempate de quem não está na ordem salva. */
   cadastro: number
 }
@@ -117,14 +121,14 @@ export function MeuPainel() {
         chave: `t:${t.id}`,
         texto: t.titulo,
         origem: 'delegada' as const,
-        para: '/inicio/afazeres',
+        tarefa: t,
         cadastro: new Date(t.criada_em).getTime(),
       })),
       ...tarefasProprias.map((t) => ({
         chave: `t:${t.id}`,
         texto: t.titulo,
         origem: 'minha' as const,
-        para: '/inicio/afazeres',
+        tarefa: t,
         cadastro: new Date(t.criada_em).getTime(),
       })),
       ...cardsDelegados.map((c) => {
@@ -187,6 +191,16 @@ export function MeuPainel() {
   const [modalAberta, setModalAberta] = useState(false)
   const [metaEmEdicao, setMetaEmEdicao] = useState<MetaPainel | null>(null)
 
+  // O preview da demanda (pedido do dono, 23/09): clicar abre o modal com
+  // iniciar/parar/editar/concluir ali mesmo — nada de pular para outra tela.
+  const [tarefaAbertaId, setTarefaAbertaId] = useState<number | null>(null)
+  const tarefaAberta =
+    [...tarefas, ...tarefasSistema].find((t) => t.id === tarefaAbertaId) ?? null
+  const linkQuadroDaAberta =
+    tarefaAberta?.origem === 'sistema' && tarefaAberta.setor_id
+      ? rotaDoSetor(setorPorId.get(tarefaAberta.setor_id)?.codigo ?? '')
+      : null
+
   const encerrarMutacao = useMutation({
     mutationFn: encerrarMeta,
     onSuccess: async () => {
@@ -232,12 +246,12 @@ export function MeuPainel() {
         ...tarefasSistema.map((t) => ({
           id: `ts-${t.id}`,
           texto: `Sistema · ${t.titulo}`,
-          para: t.setor_id ? rotaDoSetor(setorPorId.get(t.setor_id)?.codigo ?? '') : '/inicio/afazeres',
+          tarefa: t,
         })),
         ...tarefasDelegadas.map((t) => ({
           id: `td-${t.id}`,
           texto: t.titulo,
-          para: '/inicio/afazeres',
+          tarefa: t,
         })),
         ...cardsDelegados.map((c) => ({
           id: `cd-${c.id}`,
@@ -257,7 +271,7 @@ export function MeuPainel() {
       itens: tarefasProprias.slice(0, 3).map((t) => ({
         id: `m-${t.id}`,
         texto: t.titulo,
-        para: '/inicio/afazeres',
+        tarefa: t,
       })),
     },
     {
@@ -315,12 +329,22 @@ export function MeuPainel() {
                 <ul className="flex flex-col gap-1 border-t border-borda pt-2">
                   {p.itens.map((item) => (
                     <li key={item.id}>
-                      <Link
-                        to={item.para}
-                        className="block min-h-toque-md content-center truncate rounded-dm px-1 text-sm text-texto hover:bg-superficie-sutil"
-                      >
-                        {item.texto}
-                      </Link>
+                      {'tarefa' in item && item.tarefa ? (
+                        <button
+                          type="button"
+                          onClick={() => setTarefaAbertaId(item.tarefa.id)}
+                          className="block min-h-toque-md w-full content-center truncate rounded-dm px-1 text-left text-sm text-texto hover:bg-superficie-sutil"
+                        >
+                          {item.texto}
+                        </button>
+                      ) : (
+                        <Link
+                          to={'para' in item ? item.para : '/inicio/afazeres'}
+                          className="block min-h-toque-md content-center truncate rounded-dm px-1 text-sm text-texto hover:bg-superficie-sutil"
+                        >
+                          {item.texto}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -353,12 +377,22 @@ export function MeuPainel() {
                 <span className="w-6 shrink-0 text-center text-sm font-semibold text-texto-fraco tabular-nums">
                   {indice + 1}
                 </span>
-                <Link
-                  to={item.para}
-                  className="min-w-0 flex-1 truncate rounded-dm py-2 text-sm text-texto hover:bg-superficie-sutil"
-                >
-                  {item.texto}
-                </Link>
+                {item.tarefa ? (
+                  <button
+                    type="button"
+                    onClick={() => setTarefaAbertaId(item.tarefa!.id)}
+                    className="min-w-0 flex-1 truncate rounded-dm py-2 text-left text-sm text-texto hover:bg-superficie-sutil"
+                  >
+                    {item.texto}
+                  </button>
+                ) : (
+                  <Link
+                    to={item.para ?? '/inicio/afazeres'}
+                    className="min-w-0 flex-1 truncate rounded-dm py-2 text-sm text-texto hover:bg-superficie-sutil"
+                  >
+                    {item.texto}
+                  </Link>
+                )}
                 <span
                   className={cn(
                     'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -451,6 +485,13 @@ export function MeuPainel() {
           </div>
         )}
       </section>
+
+      {/* O preview da demanda: iniciar, parar, editar e concluir sem sair daqui. */}
+      <ModalTarefa
+        tarefa={tarefaAberta}
+        aoFechar={() => setTarefaAbertaId(null)}
+        linkQuadro={linkQuadroDaAberta}
+      />
 
       {modalAberta && (
         <ModalMeta

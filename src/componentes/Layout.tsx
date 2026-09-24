@@ -210,7 +210,9 @@ export function Layout({ children }: { children: ReactNode }) {
           {
             filhos: [
               { para: '/inicio/meu-painel', rotulo: 'Meu painel' },
-              { para: '/inicio/afazeres', rotulo: 'Afazeres' },
+              { para: '/inicio/afazeres', rotulo: 'Meus afazeres' },
+              // A visão da liderança virou filha própria (23/09).
+              ...(ehLider ? [{ para: '/inicio/afazeres-do-time', rotulo: 'Afazeres do time' }] : []),
             ],
           },
         ],

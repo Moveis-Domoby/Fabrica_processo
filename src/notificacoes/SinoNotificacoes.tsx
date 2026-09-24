@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell, CheckCheck, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { buscarAvisos, marcarAvisoLido, marcarTodosLidos } from './api'
+import { apagarAviso, apagarLidas, buscarAvisos, marcarAvisoLido, marcarTodosLidos } from './api'
 
 const ATUALIZA_A_CADA = 30_000
 
@@ -45,6 +45,12 @@ export function SinoNotificacoes({
   const lerUm = useMutation({ mutationFn: marcarAvisoLido, onSuccess: invalidar })
   const lerTodos = useMutation({
     mutationFn: () => marcarTodosLidos(usuarioId),
+    onSuccess: invalidar,
+  })
+  // Só o aviso LIDO se apaga (regra do banco); o fato segue em plt_eventos.
+  const apagarUm = useMutation({ mutationFn: apagarAviso, onSuccess: invalidar })
+  const apagarTodasLidas = useMutation({
+    mutationFn: () => apagarLidas(usuarioId),
     onSuccess: invalidar,
   })
 
@@ -111,14 +117,17 @@ export function SinoNotificacoes({
                 </li>
               )}
               {avisos.map((aviso) => (
-                <li key={aviso.id} className="border-b border-borda last:border-b-0">
+                <li
+                  key={aviso.id}
+                  className="flex items-stretch border-b border-borda last:border-b-0"
+                >
                   <button
                     type="button"
                     onClick={() => {
                       if (aviso.lida_em === null) lerUm.mutate(aviso.id)
                     }}
                     className={cn(
-                      'flex w-full flex-col gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-superficie-sutil',
+                      'flex min-w-0 flex-1 flex-col gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-superficie-sutil',
                       aviso.lida_em === null && 'bg-superficie-sutil',
                     )}
                   >
@@ -142,19 +151,43 @@ export function SinoNotificacoes({
                       </span>
                     )}
                   </button>
+                  {aviso.lida_em !== null && (
+                    <button
+                      type="button"
+                      aria-label={`Apagar o aviso "${aviso.titulo}"`}
+                      disabled={apagarUm.isPending}
+                      onClick={() => apagarUm.mutate(aviso.id)}
+                      className="toque-seguro flex w-10 shrink-0 items-center justify-center text-texto-fraco transition-colors hover:bg-superficie-sutil hover:text-danificado-forte"
+                    >
+                      <Trash2 aria-hidden className="size-4" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
 
             {/* SESSAO-23: o histórico completo mora numa tela própria, paginada
                 no servidor — aqui só os mais recentes. */}
-            <Link
-              to="/inicio/avisos"
-              onClick={() => setAberto(false)}
-              className="flex min-h-toque-md items-center justify-center border-t border-borda text-sm font-medium text-texto hover:bg-superficie-sutil"
-            >
-              Ver todos
-            </Link>
+            <div className="flex border-t border-borda">
+              {avisos.some((a) => a.lida_em !== null) && (
+                <button
+                  type="button"
+                  disabled={apagarTodasLidas.isPending}
+                  onClick={() => apagarTodasLidas.mutate()}
+                  className="flex min-h-toque-md flex-1 items-center justify-center gap-1.5 border-r border-borda text-sm font-medium text-texto-suave hover:bg-superficie-sutil hover:text-danificado-forte"
+                >
+                  <Trash2 aria-hidden className="size-4" />
+                  Apagar lidas
+                </button>
+              )}
+              <Link
+                to="/inicio/avisos"
+                onClick={() => setAberto(false)}
+                className="flex min-h-toque-md flex-1 items-center justify-center text-sm font-medium text-texto hover:bg-superficie-sutil"
+              >
+                Ver todos
+              </Link>
+            </div>
           </div>
         </>
       )}

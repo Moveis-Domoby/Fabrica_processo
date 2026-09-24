@@ -19,6 +19,7 @@ import { Qualidade } from '@/paginas/dashboards/Qualidade'
 import { Expedicao } from '@/paginas/Expedicao'
 import { Rotas } from '@/paginas/Rotas'
 import { Afazeres } from '@/paginas/Afazeres'
+import { AfazeresDoTime } from '@/paginas/AfazeresDoTime'
 import { AdminApi } from '@/paginas/AdminApi'
 import { Estrutura } from '@/paginas/Estrutura'
 import { MeuPerfil } from '@/paginas/MeuPerfil'
@@ -74,7 +75,10 @@ export function App() {
 
               {/* Início — a casa: pendências, avisos e o cockpit de metas */}
               <Route path="/inicio/meu-painel" element={<MeuPainel />} />
+              {/* "Afazeres" virou "Meus afazeres" (23/09); a visão da liderança
+                  ganhou a filha própria — a página se guarda por papel */}
               <Route path="/inicio/afazeres" element={<Afazeres />} />
+              <Route path="/inicio/afazeres-do-time" element={<AfazeresDoTime />} />
               {/* filho sem item de menu: abre pelo bloco do usuário no rodapé */}
               <Route path="/inicio/meu-perfil" element={<MeuPerfil />} />
               {/* filho sem item de menu: o "Ver todos" do sino (SESSAO-23) */}

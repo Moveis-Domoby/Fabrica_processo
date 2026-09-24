@@ -326,7 +326,13 @@ export function MeuPerfil() {
             hora e fica guardada para você em qualquer dispositivo.
           </p>
         </div>
-        <div role="radiogroup" aria-label="Escolher tema" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Colunas por auto-fill com mínimo calibrado pelo NOME mais largo
+            ("Esmeralda escuro") — grade fixa quebrava o rótulo em zoom (E-30). */}
+        <div
+          role="radiogroup"
+          aria-label="Escolher tema"
+          className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))]"
+        >
           {TEMAS.map((tema) => {
             const amostra = AMOSTRA_TEMA[tema]
             const escolhido = temaEscolhido === tema
@@ -360,8 +366,8 @@ export function MeuPerfil() {
                     style={{ backgroundColor: amostra.acao }}
                   />
                 </span>
-                <span className="flex items-center gap-1.5 text-sm font-medium text-texto">
-                  {escolhido && <Check aria-hidden className="size-4 text-acao-ativa" />}
+                <span className="flex items-center gap-1.5 text-sm leading-tight font-medium text-texto">
+                  {escolhido && <Check aria-hidden className="size-4 shrink-0 text-acao-ativa" />}
                   {ROTULO_TEMA[tema]}
                 </span>
               </button>
