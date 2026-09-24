@@ -199,7 +199,9 @@ export function Equipe() {
       )
     if (dados.cpf.replace(/\D/g, '').length !== 11)
       return setErroFormulario('Informe o CPF completo — a matrícula é gerada a partir dele.')
-    if (setoresEscolhidos.size === 0)
+    // D-52: admin tem acesso a tudo — o setor é opcional só para ele.
+    const papelFinal = souAdmin ? dados.papel : 'operador'
+    if (papelFinal !== 'admin' && setoresEscolhidos.size === 0)
       return setErroFormulario('Escolha pelo menos um setor.')
     if (dados.pin && !/^[0-9]{4,6}$/.test(dados.pin))
       return setErroFormulario('PIN: 4 a 6 dígitos, só números.')
@@ -468,7 +470,17 @@ export function Equipe() {
         </div>
 
         <fieldset className="mt-4">
-          <legend className="text-sm font-medium text-texto">Setores</legend>
+          <legend className="text-sm font-medium text-texto">
+            Setores
+            {souAdmin && formulario.papel === 'admin' && (
+              <span className="ml-1 font-normal text-texto-fraco">(opcional para admin)</span>
+            )}
+          </legend>
+          {souAdmin && formulario.papel === 'admin' && (
+            <p className="mt-1 text-sm text-texto-suave">
+              Admin tem acesso a todos os setores — vincular é opcional.
+            </p>
+          )}
           <ul className="mt-2 flex flex-col divide-y divide-borda rounded-dm border border-borda">
             {setoresDisponiveis.map((setor) => {
               const marcado = setoresEscolhidos.has(setor.id)

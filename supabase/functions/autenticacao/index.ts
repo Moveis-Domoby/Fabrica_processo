@@ -306,7 +306,10 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
   if (!/^[0-9]{11}$/.test(cpf)) return erro(400, 'Informe o CPF completo (11 dígitos) — a matrícula depende dele.')
   if (!['operador', 'lider', 'admin'].includes(papel)) return erro(400, 'Papel inválido.')
   if (pin && !/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
-  if (setores.length === 0) return erro(400, 'Vincule a pessoa a pelo menos um setor.')
+  // D-52 (23/09): admin tem permissão total — o vínculo de setor é opcional
+  // para ele. Líder e operador continuam precisando de pelo menos um.
+  if (papel !== 'admin' && setores.length === 0)
+    return erro(400, 'Vincule a pessoa a pelo menos um setor.')
 
   if (quem.papel === 'lider') {
     if (papel !== 'operador') return erro(403, 'Líder só cadastra operador. Papéis maiores, só o admin.')
@@ -357,18 +360,20 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
     return erro(500, 'Não consegui gravar o cadastro. Tente de novo.')
   }
 
-  // 3 · vínculos com os setores
-  const { error: erroVinculo } = await servidor.from('plt_usuario_setores').insert(
-    setores.map((s) => ({
-      usuario_id: pessoa.id,
-      setor_id: Number(s.setor_id),
-      lider_do_setor: quem.papel === 'admin' ? Boolean(s.lider) : false,
-    })),
-  )
-  if (erroVinculo) {
-    await servidor.from('plt_usuarios').delete().eq('id', pessoa.id)
-    await servidor.auth.admin.deleteUser(authId)
-    return erro(500, 'Não consegui vincular aos setores. Nada foi gravado — tente de novo.')
+  // 3 · vínculos com os setores (admin pode nascer sem nenhum — D-52)
+  if (setores.length > 0) {
+    const { error: erroVinculo } = await servidor.from('plt_usuario_setores').insert(
+      setores.map((s) => ({
+        usuario_id: pessoa.id,
+        setor_id: Number(s.setor_id),
+        lider_do_setor: quem.papel === 'admin' ? Boolean(s.lider) : false,
+      })),
+    )
+    if (erroVinculo) {
+      await servidor.from('plt_usuarios').delete().eq('id', pessoa.id)
+      await servidor.auth.admin.deleteUser(authId)
+      return erro(500, 'Não consegui vincular aos setores. Nada foi gravado — tente de novo.')
+    }
   }
 
   return resposta(201, {
