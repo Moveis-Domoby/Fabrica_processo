@@ -50,7 +50,14 @@ tags: [handoff, sessao, plataforma, bloco-5, meu-painel, tarefas, d-51]
 - **Notificações:** lixeira em cada aviso **já lido** + **"Apagar lidas"** ao lado do "Ver todos" (sino e tela Avisos). **Migration 34 aplicada**: só o próprio apaga, e só o lido — provado no test:banco com papel simulado; o fato segue em `plt_eventos`.
 - **Temas (zoom 100%):** a grade das amostras virou `auto-fill/minmax` calibrada pelo nome mais largo — os rótulos não quebram mais.
 - **AJUSTE 1 (D-52):** admin não precisa de setor — tela da Equipe com o aviso "opcional para admin" e **Edge Function `autenticacao` v10 publicada** (conferida de volta do servidor, byte a byte). Operador/líder continuam exigindo setor.
-- **AJUSTE 2 (PCP × entregues): PAROU NA PERGUNTA que o próprio ajuste mandou fazer** — há 2 pedidos "Entregue" no Tiny com unidade ainda em produção (13107 e 13196, FURAÇÃO "A FURAR" desde 21/09). Aguardando sua resposta.
+- **AJUSTE 2 (PCP × entregues) — entregue na 2ª rodada (sua resposta: eram teste):** 13107 e 13196 **concluídos (ESTOQUE) e arquivados por evento** (manutenção versionada; 2 avisos de chegada ao ESTOQUE saíram, é o fluxo normal). **Migration 35 aplicada**: o quadro do PCP passou a esconder os pedidos encerrados no Tiny NA CONSULTA (porta `plt_fn_cards_pedido_pcp`, situação normalizada) — **de 161 para 37 pedidos**; cancelados ficam (aba própria na S24) e unidades de encerrados seguem nos setores.
+
+## 3c. Segunda rodada (23/09): pausar de verdade + bolinha flutuante
+
+- **Iniciar/pausar/finalizar na Fila de prioridade** — ▶ na linha; com o tempo rodando aparecem **⏸ e ✓** com o total ao lado. **Pausar agora GUARDA a contagem** (`tempo_acumulado` no banco, RPC própria; "Retomar" continua de onde parou) — o antigo "Parar (descarta)" morreu.
+- **"Em execução agora" virou a bolinha flutuante**: botão redondo amarelo meio transparente em todas as telas (some quando nada conta tempo), badge com o total; o clique abre o painel com **Pausar · Concluir · Ver detalhes** (o preview) e as execuções de produção com link para o quadro.
+- Validado ao vivo com você logado: iniciar pela fila → bolha com badge 2 → pausar pela bolha → **39s guardados no banco**.
+- ⚠️ **Achado para você:** pedido **13257 está "Entregue" no Tiny com 2 unidades REAIS em produção** (MONTAGEM, desde 23/09 — uma "MONTANDO"). Não era teste e não bloqueia nada (ele já está 100% liberado, fora do quadro), mas mostra que "Entregue" no Tiny nem sempre é entregue de fato — a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] é quem cuida dessa reconciliação.
 
 ## 4. Pendente / decisões para você
 

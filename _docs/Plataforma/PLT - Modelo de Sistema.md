@@ -326,6 +326,19 @@ SESSAO-05.
 - **Grade de amostras (temas do Meu Perfil)**: colunas por `auto-fill/minmax` calibradas
   pelo NOME mais largo — grade de colunas fixas quebrava o rótulo em zoom (mesma lição
   E-30: quem manda no tamanho é a largura do cartão).
+- **Pausar tarefa GUARDA a contagem** (2ª rodada do dono, 23/09): `tempo_acumulado` no
+  banco (RPC `plt_fn_tarefa_pausar` — leitura+escrita atômicas), "Iniciar" vira "Retomar",
+  e o tempo total = acumulado + segmento aberto, sempre derivado. Na **Fila de prioridade**
+  cada linha de tarefa tem **▶ iniciar/retomar** e, com o tempo rodando, **⏸ pausar** e
+  **✓ finalizar** (44px, com o total ao lado).
+- **Bolinha flutuante "Em execução agora"**: o bloco saiu do grid do painel e virou o
+  botão redondo amarelo, meio transparente, fixo no canto de TODAS as telas (some quando
+  nada conta tempo; badge com o total). O clique abre o painel rápido: tarefa rodando com
+  **Pausar · Concluir · Ver detalhes** (o preview) e execução de produção com link para o
+  quadro do setor.
+- **Quadro do PCP sem encerrados no Tiny** (`plt_fn_cards_pedido_pcp`): entregue/não
+  entregue sai da coluna de pedidos NA CONSULTA (situação normalizada — E-25); cancelado
+  fica (aba própria na S24) e as unidades de pedido encerrado seguem normais nos setores.
 
 ### Qualidade nas transições (SESSAO-06 / D-09 / D-25)
 
