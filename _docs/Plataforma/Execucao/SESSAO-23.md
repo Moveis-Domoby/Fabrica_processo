@@ -61,6 +61,8 @@ Pedidos na conversa, com prints:
 6. **Notificações: lixeira + "Apagar lidas"** — migration 34 (`plt_notificacoes_apaga_lidas`: DELETE só do próprio aviso e só depois de lido; o fato segue em `plt_eventos`); lixeira por aviso lido e "Apagar lidas" no popover do sino e na tela Avisos.
 
 **AJUSTE 1 (prompt colado — D-52):** admin não precisa de setor no cadastro — trava condicionada na tela e na Edge Function `autenticacao` (deploy + E2E registrados abaixo).
+
+**Validação ao vivo da rodada (23/09, dono logado no painel do app):** preview da tarefa abrindo no Meu Painel (fila e separador) e nos Meus afazeres, com timer/Parar/Editar/checklist 1/4 em dois níveis ✓ · sidebar "Meus afazeres" + "Afazeres do time" e a rota nova com o modal de delegação ("Para quem"/"Sem dono") ✓ · grade de temas sem sobreposição ✓ · sino com lixeira nos lidos + "Apagar lidas"/"Ver todos" ✓ (nenhum aviso real do dono apagado — mecânica provada no harness) · **E2E do D-52 na Edge Function v10**: "Teste Admin D52" criado SEM setor (papel admin, 0 vínculos, conta auth criada), operador sem setor recusado ("Escolha pelo menos um setor."), e o teste **excluído de verdade** (plt_usuarios 0, auth.users 0). Console limpo em todas as telas.
 **AJUSTE 2 (prompt colado — PCP × entregues): TRAVADO na pergunta que o próprio prompt exigiu** — apareceram 2 pedidos "Entregue" no Tiny com unidade AINDA em produção (13107 e 13196, ambos na FURAÇÃO "A FURAR" desde 21/09). Aguardando a resposta do dono antes de codar.
 
 ## Erros e acertos (anotados na memória NA HORA)
