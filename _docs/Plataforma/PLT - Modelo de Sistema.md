@@ -308,6 +308,25 @@ SESSAO-05.
   = delegados — nunca o âmbar da qualidade) e a quebra por tarefa paginada. O cabeçalho diz
   em língua de gente que a página é privada.
 
+**↪️ Revisão do dono (23/09) — o padrão virou PREVIEW:**
+
+- **Clicar na demanda abre o `ModalTarefa`** (em vez de navegar ou expandir o card):
+  iniciar/parar o tempo, editar título/descrição, concluir/reabrir, o checklist de
+  subtarefas e o chip de privacidade vivem TODOS no modal. O card na tela fica compacto
+  (título, chips, contador, linha do timer). "Parar" **descarta a contagem** — o rótulo do
+  botão avisa. Tarefa do Sistema no preview só explica e aponta o quadro (o gesto é o parecer).
+- **Criar é botão primário no topo da tela**, abrindo modal — nada de formulário fixo no
+  meio da página. Em **Meus afazeres** a tarefa nova é sempre PARA MIM (com o checkbox
+  "Visível para a liderança"); **delegar mora em Afazeres do time** (filha própria de
+  Início, `/inicio/afazeres-do-time`, só líder/admin), com "Para quem" (membro ou
+  "Sem dono — qualquer um do setor pega").
+- **Avisos têm lixeira**: ícone por aviso **já lido** + "Apagar lidas" (popover do sino e
+  tela Avisos). Só o próprio e só o lido — o RLS garante (migration 34); o fato segue em
+  `plt_eventos`.
+- **Grade de amostras (temas do Meu Perfil)**: colunas por `auto-fill/minmax` calibradas
+  pelo NOME mais largo — grade de colunas fixas quebrava o rótulo em zoom (mesma lição
+  E-30: quem manda no tamanho é a largura do cartão).
+
 ### Qualidade nas transições (SESSAO-06 / D-09 / D-25)
 
 - **Marcação de estado** (no `ModalMoverCard`, ao sair de setor de produção) e **parecer de

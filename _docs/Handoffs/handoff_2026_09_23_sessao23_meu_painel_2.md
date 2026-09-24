@@ -43,6 +43,15 @@ tags: [handoff, sessao, plataforma, bloco-5, meu-painel, tarefas, d-51]
 6. Sino → **Ver todos**: histórico completo paginado.
 7. **Dashboards → Meu desempenho** (aparece para operador também): KPIs, gráfico por dia e a lista por tarefa — sempre só os SEUS números.
 
+## 3b. Rodada de ajustes seus (23/09, mesma branch — commits separados)
+
+- **Preview em tudo (seu pedido):** clicar na demanda — no Meu Painel ou nos Meus afazeres — abre o **modal da tarefa** com iniciar/**parar** (descarta a contagem, o botão avisa)/editar/concluir/reabrir, subtarefas e privacidade. O card ficou compacto; nada mais expande na tela.
+- **"Nova tarefa" virou botão no topo**: em **Meus afazeres** cadastra **só para você** (com o "Visível para a liderança"); em **Afazeres do time** — agora **filha própria de Início**, só líder/admin — nasceu o botão de **delegar** ("Para quem": membro ou "Sem dono").
+- **Notificações:** lixeira em cada aviso **já lido** + **"Apagar lidas"** ao lado do "Ver todos" (sino e tela Avisos). **Migration 34 aplicada**: só o próprio apaga, e só o lido — provado no test:banco com papel simulado; o fato segue em `plt_eventos`.
+- **Temas (zoom 100%):** a grade das amostras virou `auto-fill/minmax` calibrada pelo nome mais largo — os rótulos não quebram mais.
+- **AJUSTE 1 (D-52):** admin não precisa de setor — tela da Equipe com o aviso "opcional para admin" e **Edge Function `autenticacao` v10 publicada** (conferida de volta do servidor, byte a byte). Operador/líder continuam exigindo setor.
+- **AJUSTE 2 (PCP × entregues): PAROU NA PERGUNTA que o próprio ajuste mandou fazer** — há 2 pedidos "Entregue" no Tiny com unidade ainda em produção (13107 e 13196, FURAÇÃO "A FURAR" desde 21/09). Aguardando sua resposta.
+
 ## 4. Pendente / decisões para você
 
 - 🔶 **Só o merge na `main`** (D-20) — a validação logada foi feita em 23/09 com você na conversa (tabela acima); o roteiro do §3 segue servindo para você repassar o que quiser.

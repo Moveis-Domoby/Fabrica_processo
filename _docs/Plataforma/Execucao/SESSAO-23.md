@@ -49,6 +49,20 @@ tags: [execucao, sessao-23, meu-painel, tarefas, bloco-5]
 7. **RLS provada no PGlite** com `grant … to authenticated` + `set role authenticated` (novo padrão A-21) — e reprovada no banco real com ensaio A-11 (rollback proposital).
 8. Front: fila com **setas** (44px, mobile-first) em vez de arrastar obrigatório; `Meu desempenho` visível a todo papel (rota fora do gate de líder — o dado é gateado no banco); o Meu Painel **deixou de baixar os cards dos setores** (a S14 baixava para o bloco de qualidade — regra 17 aplicada à tela tocada).
 
+## Rodada de ajustes do dono (23/09, mesma branch — commits separados)
+
+Pedidos na conversa, com prints:
+
+1. **Tema quebrando em zoom 100%** → grade do seletor de temas virou `auto-fill/minmax(9.5rem)` calibrada pelo nome mais largo (E-30), rótulo `leading-tight`.
+2. **Clicar na demanda não navega mais**: nasceu o **`ModalTarefa`** (preview) — iniciar/parar o tempo, editar título/descrição, concluir/reabrir, subtarefas e privacidade, tudo ali. Vale no Meu Painel (separadores e fila) e nos Afazeres. "Parar" descarta a contagem (`iniciada_em` → null — o timer é opcional, D-34) com aviso explícito. Tarefa do Sistema no preview só aponta o quadro (resolve-se no parecer).
+3. **Nada de expansão no card**: o checklist saiu do card — card compacto (título, chips, contador, timer), tudo no preview.
+4. **"Nova tarefa" virou botão no topo** da tela (modal) — e, pela mensagem seguinte do dono, **em Meus afazeres cadastra SÓ para mim** (com o "Visível para a liderança"); o botão de **delegar** nasceu em Afazeres do time ("Para quem" com os membros ou "Sem dono").
+5. **"Afazeres do time" virou filha própria de Início** (`/inicio/afazeres-do-time`, só líder/admin no menu e com guarda na rota); a tela atual virou **"Meus afazeres"** (rota `/inicio/afazeres` mantida — bookmark não quebra).
+6. **Notificações: lixeira + "Apagar lidas"** — migration 34 (`plt_notificacoes_apaga_lidas`: DELETE só do próprio aviso e só depois de lido; o fato segue em `plt_eventos`); lixeira por aviso lido e "Apagar lidas" no popover do sino e na tela Avisos.
+
+**AJUSTE 1 (prompt colado — D-52):** admin não precisa de setor no cadastro — trava condicionada na tela e na Edge Function `autenticacao` (deploy + E2E registrados abaixo).
+**AJUSTE 2 (prompt colado — PCP × entregues): TRAVADO na pergunta que o próprio prompt exigiu** — apareceram 2 pedidos "Entregue" no Tiny com unidade AINDA em produção (13107 e 13196, ambos na FURAÇÃO "A FURAR" desde 21/09). Aguardando a resposta do dono antes de codar.
+
 ## Erros e acertos (anotados na memória NA HORA)
 
 - **E-39** · `update … from lateral` referenciando a tabela-alvo → quebrou no test:banco; corrigido com `distinct on` (a produção nunca viu).
