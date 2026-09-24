@@ -135,28 +135,24 @@ export async function buscarCardsDaEtapa(parametros: {
 /**
  * Os pedidos ABERTOS do quadro do PCP (SESSAO-22), paginados no servidor:
  * aberto = ainda tem unidade por liberar (`liberado_completo_em` nulo — a
- * projeção da D-48). Pedido 100% liberado sai do quadro (D-22) sem o front
- * precisar baixar tudo para filtrar.
+ * projeção da D-48). SESSAO-23 (ajuste do dono): pedido ENCERRADO no Tiny
+ * (entregue/não entregue) também sai do quadro — o filtro vive na porta
+ * `plt_fn_cards_pedido_pcp` (a situação mora em `pedidos`, que o navegador
+ * não lê; comparação sempre normalizada). Cancelado continua aparecendo.
  */
 export async function buscarCardsPedidoPcp(parametros: {
-  setorPcpId: number
   pagina: number
   porPagina?: number
 }): Promise<PaginaDeCards> {
   const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
   const inicio = parametros.pagina * porPagina
-  const { data, error, count } = await supabase
-    .from('plt_cards')
-    .select(COLUNAS_CARD, { count: 'exact' })
-    .eq('setor_atual_id', parametros.setorPcpId)
-    .eq('tipo', 'pedido')
-    .is('arquivado_em', null)
-    .is('liberado_completo_em', null)
-    .order('desde', { ascending: true, nullsFirst: false })
-    .order('id')
-    .range(inicio, inicio + porPagina - 1)
+  const { data, error } = await supabase.rpc('plt_fn_cards_pedido_pcp', {
+    p_limite: porPagina,
+    p_deslocamento: inicio,
+  })
   if (error) throw new Error(`Não deu para carregar os pedidos do PCP: ${error.message}`)
-  return { cards: (data as unknown as Card[]) ?? [], total: count ?? 0 }
+  const linhas = (data ?? []) as (Card & { contagem_total: number })[]
+  return { cards: linhas as unknown as Card[], total: linhas[0]?.contagem_total ?? 0 }
 }
 
 // ---------------------------------------------------------------------------

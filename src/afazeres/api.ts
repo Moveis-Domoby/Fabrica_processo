@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { COLUNAS_CARD } from '@/kanban/tipos'
 import type { Card } from '@/kanban/tipos'
+import { msDeIntervalo } from '@/dashboards/intervalo'
 
 /**
  * Camada de dados dos afazeres (SESSAO-12 / D-34 / RF-40…43).
@@ -29,12 +30,27 @@ export interface Tarefa {
   evento_referencia_id: number | null
   /** SESSAO-23: pessoal privada — só o dono vê; o RLS garante, aqui só reflete. */
   privada: boolean
+  /** SESSAO-23: os segmentos de timer já pausados (interval do Postgres, em texto). */
+  tempo_acumulado: string
 }
 
 const COLUNAS_TAREFA =
   'id, titulo, descricao, card_id, setor_id, responsavel_id, criada_por_id, ' +
   'delegacao, situacao, prazo, iniciada_em, concluida_em, criada_em, ' +
-  'tarefa_mae_id, origem, evento_referencia_id, privada'
+  'tarefa_mae_id, origem, evento_referencia_id, privada, tempo_acumulado'
+
+/** O tempo total da tarefa em ms: acumulado (pausas) + segmento aberto. */
+export function msTempoTarefa(t: Tarefa, agora: number): number {
+  const acumulado = msDeIntervalo(t.tempo_acumulado)
+  if (!t.iniciada_em) return acumulado
+  const fim = t.concluida_em ? new Date(t.concluida_em).getTime() : agora
+  return acumulado + Math.max(0, fim - new Date(t.iniciada_em).getTime())
+}
+
+/** O timer da tarefa está contando agora? */
+export function tarefaRodando(t: Tarefa): boolean {
+  return t.iniciada_em !== null && t.situacao !== 'concluida'
+}
 
 /** Tarefa criada por mim, para mim (é a que pode ser privada). */
 export function ehTarefaPessoal(t: Tarefa): boolean {
@@ -126,15 +142,13 @@ export async function editarTarefa(parametros: {
 }
 
 /**
- * Parar o timer SEM concluir: a contagem é descartada (o timer da tarefa é
- * opcional — D-34; quem parou é porque não quer contar aquele tempo).
+ * Pausar o timer GUARDANDO o tempo corrido (ajuste do dono, 23/09): o segmento
+ * vai para `tempo_acumulado` no banco (RPC — leitura+escrita atômicas) e o
+ * "Iniciar" de sempre retoma a contagem de onde parou.
  */
-export async function pararTempo(id: number): Promise<void> {
-  const { error } = await supabase
-    .from('plt_tarefas')
-    .update({ iniciada_em: null, situacao: 'aberta' })
-    .eq('id', id)
-  if (error) throw new Error(`Não deu para parar o tempo: ${error.message}`)
+export async function pausarTarefa(id: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_tarefa_pausar', { p_tarefa_id: id })
+  if (error) throw new Error(`Não deu para pausar: ${error.message}`)
 }
 
 export async function reabrirTarefa(id: number): Promise<void> {
@@ -173,6 +187,14 @@ export async function salvarFilaPrioridade(usuarioId: string, chaves: string[]):
     .update({ fila_prioridade: chaves })
     .eq('id', usuarioId)
   if (error) throw new Error(`Não deu para guardar a ordem da fila: ${error.message}`)
+}
+
+/** Cards pelo id — rótulo das execuções de produção na bolha flutuante. */
+export async function cardsPorIds(ids: number[]): Promise<Card[]> {
+  if (ids.length === 0) return []
+  const { data, error } = await supabase.from('plt_cards').select(COLUNAS_CARD).in('id', ids)
+  if (error) throw new Error(`Não deu para carregar os cards: ${error.message}`)
+  return (data ?? []) as unknown as Card[]
 }
 
 /** Cards e tarefas abertas de um setor — a visão do líder (RF-40). */

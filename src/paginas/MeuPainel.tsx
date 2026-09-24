@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   ListChecks,
   ListTodo,
+  Pause,
   Play,
   Plus,
   Target,
@@ -18,20 +20,21 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor } from '@/navegacao/rotas'
-import { formatarDuracao, useAgora } from '@/kanban/tempo'
+import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
 import {
   buscarFilaPrioridade,
+  concluirTarefa,
   ehTarefaPessoal,
+  iniciarTarefa,
   meusCards,
   minhasTarefas,
+  msTempoTarefa,
+  pausarTarefa,
   salvarFilaPrioridade,
+  tarefaRodando,
   tarefasDoSistema,
 } from '@/afazeres/api'
-import {
-  buscarMetasPainel,
-  encerrarMeta,
-  minhasExecucoesAbertas,
-} from '@/metas/api'
+import { buscarMetasPainel, encerrarMeta } from '@/metas/api'
 import type { MetaPainel } from '@/metas/api'
 import type { Tarefa } from '@/afazeres/api'
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
@@ -90,12 +93,6 @@ export function MeuPainel() {
     enabled: meusSetorIds.length > 0,
     refetchInterval: ATUALIZA_A_CADA,
   })
-  const { data: execucoes = [] } = useQuery({
-    queryKey: ['meu-painel', 'execucoes', perfil?.id],
-    queryFn: () => minhasExecucoesAbertas(perfil!.id),
-    enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
   const { data: ordemSalva = [] } = useQuery({
     queryKey: ['fila-prioridade', perfil?.id],
     queryFn: () => buscarFilaPrioridade(perfil!.id),
@@ -107,10 +104,6 @@ export function MeuPainel() {
     [tarefas],
   )
   const tarefasProprias = useMemo(() => tarefas.filter((t) => ehTarefaPessoal(t)), [tarefas])
-  const cardPorId = useMemo(
-    () => new Map(cardsDelegados.map((c) => [c.id, c])),
-    [cardsDelegados],
-  )
 
   // A Fila de prioridade: delegadas + minhas + cards delegados, na ordem salva;
   // quem não está na ordem entra no fim, por ordem de cadastro. Tarefa do
@@ -164,6 +157,42 @@ export function MeuPainel() {
         descricao: excecao instanceof Error ? excecao.message : undefined,
         tom: 'danificado',
       }),
+  })
+
+  // Iniciar/pausar/finalizar direto na fila (pedido do dono, 23/09): o gesto
+  // mora na linha; pausar GUARDA a contagem, finalizar conclui a tarefa.
+  function aoErroGesto(titulo: string) {
+    return (excecao: unknown) =>
+      notificar({
+        titulo,
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado' as const,
+      })
+  }
+  async function invalidarFilas() {
+    await clienteQuery.invalidateQueries({ queryKey: ['meu-painel'] })
+    await clienteQuery.invalidateQueries({ queryKey: ['afazeres'] })
+  }
+  const iniciarMutacao = useMutation({
+    mutationFn: iniciarTarefa,
+    onSuccess: invalidarFilas,
+    onError: aoErroGesto('Não deu para iniciar o tempo'),
+  })
+  const pausarMutacao = useMutation({
+    mutationFn: pausarTarefa,
+    onSuccess: async () => {
+      notificar({ titulo: 'Tempo pausado', descricao: 'A contagem fica guardada.', tom: 'perfeito' })
+      await invalidarFilas()
+    },
+    onError: aoErroGesto('Não deu para pausar'),
+  })
+  const finalizarMutacao = useMutation({
+    mutationFn: concluirTarefa,
+    onSuccess: async () => {
+      notificar({ titulo: 'Tarefa concluída', tom: 'perfeito' })
+      await invalidarFilas()
+    },
+    onError: aoErroGesto('Não deu para concluir'),
   })
 
   function mover(indice: number, direcao: -1 | 1) {
@@ -274,22 +303,8 @@ export function MeuPainel() {
         tarefa: t,
       })),
     },
-    {
-      chave: 'execucoes',
-      icone: Play,
-      titulo: 'Em execução agora',
-      total: execucoes.length,
-      descricao: 'o tempo está contando para você',
-      itens: execucoes.slice(0, 3).map((e) => {
-        const card = cardPorId.get(e.card_id)
-        const setor = card?.setor_atual_id ? setorPorId.get(card.setor_atual_id) : undefined
-        return {
-          id: `e-${e.evento_inicio_id}`,
-          texto: `${card?.item_descricao ?? `Card ${e.card_id}`} · ${formatarDuracao(e.iniciou_em, agora)}`,
-          para: setor ? rotaDoSetor(setor.codigo) : '/inicio/afazeres',
-        }
-      }),
-    },
+    // "Em execução agora" saiu do grid (pedido do dono, 23/09): virou a
+    // bolinha flutuante que percorre a plataforma inteira (BolhaExecucao).
   ]
 
   return (
@@ -306,7 +321,7 @@ export function MeuPainel() {
       {/* ----- Os separadores: delegados · meus · em execução ----- */}
       <section aria-label="O que me espera" className="flex flex-col gap-3">
         <h2 className="text-lg">O que me espera</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {separadores.map((p) => (
             <div
               key={p.chave}
@@ -403,6 +418,51 @@ export function MeuPainel() {
                 >
                   {item.origem === 'card' ? 'produção' : item.origem === 'minha' ? 'meu' : 'delegado'}
                 </span>
+                {/* iniciar/pausar/finalizar na própria linha (pedido do dono):
+                    pausar e finalizar só aparecem com o tempo iniciado. */}
+                {item.tarefa && (
+                  <span className="flex shrink-0 items-center">
+                    {tarefaRodando(item.tarefa) ? (
+                      <>
+                        <span className="hidden text-xs text-texto-suave tabular-nums sm:inline">
+                          {formatarDuracaoMs(msTempoTarefa(item.tarefa, agora))}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Pausar o tempo de "${item.texto}"`}
+                          disabled={pausarMutacao.isPending}
+                          onClick={() => pausarMutacao.mutate(item.tarefa!.id)}
+                          className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-texto-suave hover:bg-superficie-sutil"
+                        >
+                          <Pause aria-hidden className="size-4.5" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Finalizar "${item.texto}"`}
+                          disabled={finalizarMutacao.isPending}
+                          onClick={() => finalizarMutacao.mutate(item.tarefa!.id)}
+                          className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-perfeito-forte hover:bg-superficie-sutil"
+                        >
+                          <CheckCircle2 aria-hidden className="size-4.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label={
+                          msTempoTarefa(item.tarefa, agora) > 0
+                            ? `Retomar o tempo de "${item.texto}"`
+                            : `Iniciar o tempo de "${item.texto}"`
+                        }
+                        disabled={iniciarMutacao.isPending}
+                        onClick={() => iniciarMutacao.mutate(item.tarefa!.id)}
+                        className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-texto-suave hover:bg-superficie-sutil"
+                      >
+                        <Play aria-hidden className="size-4.5" />
+                      </button>
+                    )}
+                  </span>
+                )}
                 <span className="flex shrink-0">
                   <button
                     type="button"

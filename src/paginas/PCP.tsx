@@ -50,11 +50,13 @@ export function PCP() {
   // SESSAO-22: pedidos ABERTOS filtrados e paginados no SERVIDOR — pedido 100%
   // liberado sai do quadro lá (projeção liberado_completo_em, D-22/D-48), e a
   // tela só requisita as páginas que mostra (10 + "Ver mais").
+  // SESSAO-23 (ajuste do dono): pedido encerrado no Tiny também fica de fora —
+  // o filtro vive na porta plt_fn_cards_pedido_pcp.
   const [paginasPedidos, setPaginasPedidos] = useState(1)
   const consultasPedidos = useQueries({
     queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
       queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ setorPcpId: setorPcp!.id, pagina }),
+      queryFn: () => buscarCardsPedidoPcp({ pagina }),
       enabled: setorPcp !== undefined,
       refetchInterval: ATUALIZA_A_CADA,
       placeholderData: keepPreviousData,

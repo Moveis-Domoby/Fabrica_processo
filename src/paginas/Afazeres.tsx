@@ -7,9 +7,17 @@ import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor } from '@/navegacao/rotas'
-import { formatarDuracao, useAgora } from '@/kanban/tempo'
+import { formatarDuracao, formatarDuracaoMs, useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
-import { criarTarefa, ehTarefaPessoal, meusCards, minhasTarefas, subtarefasDe } from '@/afazeres/api'
+import {
+  criarTarefa,
+  ehTarefaPessoal,
+  meusCards,
+  minhasTarefas,
+  msTempoTarefa,
+  subtarefasDe,
+  tarefaRodando,
+} from '@/afazeres/api'
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
 
 const ATUALIZA_A_CADA = 15_000
@@ -215,10 +223,15 @@ export function Afazeres() {
                       {contador.feitas}/{contador.total}
                     </span>
                   )}
-                  {tarefa.iniciada_em ? (
+                  {tarefaRodando(tarefa) ? (
                     <span className="inline-flex items-center gap-1 text-texto-suave tabular-nums">
                       <Timer aria-hidden className="size-3.5" />
-                      contando há {formatarDuracao(tarefa.iniciada_em, agora)}
+                      contando — {formatarDuracaoMs(msTempoTarefa(tarefa, agora))}
+                    </span>
+                  ) : msTempoTarefa(tarefa, agora) > 0 ? (
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Timer aria-hidden className="size-3.5" />
+                      pausada — {formatarDuracaoMs(msTempoTarefa(tarefa, agora))} guardado
                     </span>
                   ) : (
                     <span>toque para ver e agir</span>

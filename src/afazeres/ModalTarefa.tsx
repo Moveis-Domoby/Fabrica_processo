@@ -8,17 +8,17 @@ import {
   ClipboardList,
   Eye,
   EyeOff,
+  Pause,
   Pencil,
   Play,
   Plus,
   RotateCcw,
-  Square,
   Timer,
 } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { formatarDuracao, useAgora } from '@/kanban/tempo'
+import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
 import {
   concluirTarefa,
   criarSubtarefa,
@@ -26,9 +26,11 @@ import {
   editarTarefa,
   ehTarefaPessoal,
   iniciarTarefa,
-  pararTempo,
+  msTempoTarefa,
+  pausarTarefa,
   reabrirTarefa,
   subtarefasDe,
+  tarefaRodando,
 } from './api'
 import type { Tarefa } from './api'
 
@@ -209,13 +211,13 @@ export function ModalTarefa({
     onSuccess: invalidar,
     onError: aoErro('Não deu para iniciar o tempo'),
   })
-  const pararMutacao = useMutation({
-    mutationFn: pararTempo,
+  const pausarMutacao = useMutation({
+    mutationFn: pausarTarefa,
     onSuccess: async () => {
-      notificar({ titulo: 'Tempo parado', descricao: 'A contagem foi descartada.', tom: 'atencao' })
+      notificar({ titulo: 'Tempo pausado', descricao: 'A contagem fica guardada — retome quando quiser.', tom: 'perfeito' })
       await invalidar()
     },
-    onError: aoErro('Não deu para parar o tempo'),
+    onError: aoErro('Não deu para pausar'),
   })
   const concluirMutacao = useMutation({
     mutationFn: concluirTarefa,
@@ -393,31 +395,33 @@ export function ModalTarefa({
 
           {tarefa.descricao && <p className="text-sm text-texto-suave">{tarefa.descricao}</p>}
 
-          {/* ---- tempo (o timer é opcional — só conta se você quiser) ---- */}
+          {/* ---- tempo: pausar GUARDA a contagem (ajuste do dono, 23/09) ---- */}
           <div className="flex flex-wrap items-center gap-2 rounded-dm border border-borda bg-superficie-sutil px-3 py-2">
-            {tarefa.iniciada_em ? (
+            {tarefaRodando(tarefa) ? (
               <>
                 <span className="inline-flex items-center gap-1.5 text-sm text-texto tabular-nums">
                   <Timer aria-hidden className="size-4 text-texto-suave" />
-                  contando há {formatarDuracao(tarefa.iniciada_em, agora)}
+                  contando — {formatarDuracaoMs(msTempoTarefa(tarefa, agora))} no total
                 </span>
                 {!concluida && (
                   <Botao
                     variante="secundaria"
                     tamanho="sm"
-                    icone={<Square />}
+                    icone={<Pause />}
                     className="ml-auto"
-                    carregando={pararMutacao.isPending}
-                    onClick={() => pararMutacao.mutate(tarefa.id)}
+                    carregando={pausarMutacao.isPending}
+                    onClick={() => pausarMutacao.mutate(tarefa.id)}
                   >
-                    Parar (descarta a contagem)
+                    Pausar
                   </Botao>
                 )}
               </>
             ) : (
               <>
-                <span className="text-sm text-texto-suave">
-                  O tempo só conta se você quiser.
+                <span className="text-sm text-texto-suave tabular-nums">
+                  {msTempoTarefa(tarefa, agora) > 0
+                    ? `Pausada — ${formatarDuracaoMs(msTempoTarefa(tarefa, agora))} guardado.`
+                    : 'O tempo só conta se você quiser.'}
                 </span>
                 {!concluida && (
                   <Botao
@@ -428,7 +432,7 @@ export function ModalTarefa({
                     carregando={iniciarMutacao.isPending}
                     onClick={() => iniciarMutacao.mutate(tarefa.id)}
                   >
-                    Iniciar tempo
+                    {msTempoTarefa(tarefa, agora) > 0 ? 'Retomar tempo' : 'Iniciar tempo'}
                   </Botao>
                 )}
               </>

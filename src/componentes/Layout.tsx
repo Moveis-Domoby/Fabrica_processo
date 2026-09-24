@@ -23,6 +23,7 @@ import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { temModulo } from '@/autenticacao/tipos'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
+import { BolhaExecucao } from '@/afazeres/BolhaExecucao'
 import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
@@ -660,6 +661,10 @@ export function Layout({ children }: { children: ReactNode }) {
           Móveis Domoby · Plataforma de Produção
         </footer>
       </div>
+
+      {/* A bolinha do "em execução agora" percorre a plataforma inteira
+          (pedido do dono, 23/09) — só aparece quando algo conta tempo. */}
+      <BolhaExecucao />
     </div>
   )
 }
