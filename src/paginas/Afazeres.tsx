@@ -19,6 +19,7 @@ import {
   tarefaRodando,
 } from '@/afazeres/api'
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
+import { rotuloOrigemCard } from '@/kanban/rotulos'
 
 const ATUALIZA_A_CADA = 15_000
 
@@ -151,7 +152,7 @@ export function Afazeres() {
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold text-texto tabular-nums">
-                  Pedido {pedido?.numero ?? '…'}
+                  {rotuloOrigemCard(card, pedido)}
                 </span>
                 <span className="text-sm text-texto-suave tabular-nums">
                   {formatarDuracao(card.desde, agora)}

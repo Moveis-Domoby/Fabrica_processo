@@ -9,6 +9,7 @@ import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { membrosDoSetor } from '@/tablet/api'
 import { afazeresDoSetor, criarTarefa } from '@/afazeres/api'
+import { rotuloOrigemCard } from '@/kanban/rotulos'
 
 const ATUALIZA_A_CADA = 15_000
 const SEM_DONO = 'sem-dono'
@@ -168,7 +169,7 @@ export function AfazeresDoTime() {
             >
               <div className="min-w-0">
                 <p className="line-clamp-1 text-sm font-medium text-texto">
-                  Pedido {pedido?.numero ?? '…'} · {card.item_descricao ?? 'Sem descrição'}
+                  {rotuloOrigemCard(card, pedido)} · {card.item_descricao ?? 'Sem descrição'}
                   {card.indice_unidade !== null && ` (${card.indice_unidade}/${card.total_unidades})`}
                 </p>
                 <p className="text-xs text-texto-fraco tabular-nums">

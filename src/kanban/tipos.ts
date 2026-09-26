@@ -26,11 +26,19 @@ export interface Etapa {
   ativa: boolean
 }
 
-/** Card do kanban (D-01): 'pedido' é o que o PCP enxerga; 'unidade' é o (k/n). */
+/**
+ * Card do kanban (D-01): 'pedido' é o que o PCP enxerga; 'unidade' é o (k/n).
+ * SESSAO-25: 'reposicao' é o card que o ESTOQUE gera no PCP quando um produto
+ * fica abaixo do mínimo — sem pedido do Tiny; as unidades dele também nascem
+ * sem pedido e, prontas, ficam livres no estoque.
+ */
 export interface Card {
   id: number
-  tipo: 'pedido' | 'unidade'
-  pedido_id: number
+  tipo: 'pedido' | 'unidade' | 'reposicao'
+  /** Nulo só na REPOSIÇÃO de estoque e nas unidades dela (SESSAO-25). */
+  pedido_id: number | null
+  /** SESSAO-25: produto do catálogo da fábrica (reposição e unidades dela). */
+  produto_tiny_id: number | null
   card_pai_id: number | null
   item_seq: number | null
   item_codigo: string | null
@@ -59,7 +67,7 @@ export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
   'executor_atual_id, responsavel_id, delegado_em, qualidade_atual, concluido_em, ' +
-  'pausado_em, liberado_completo_em'
+  'pausado_em, liberado_completo_em, produto_tiny_id'
 
 /**
  * Uma página de cards de uma coluna do quadro (SESSAO-22): a regra "cada tela

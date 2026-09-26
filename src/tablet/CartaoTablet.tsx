@@ -16,6 +16,7 @@ import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { formatarDuracao, formatarDuracaoMs } from '@/kanban/tempo'
 import type { Card, Etapa, ParecerPendente, PedidoResumo } from '@/kanban/tipos'
+import { rotuloOrigemCard } from '@/kanban/rotulos'
 
 export interface CartaoTabletProps {
   card: Card
@@ -87,11 +88,11 @@ export function CartaoTablet({
             ? 'border-atencao-forte'
             : 'border-borda',
       )}
-      aria-label={`${card.item_descricao ?? 'Peça'} — pedido ${pedido?.numero ?? card.pedido_id}`}
+      aria-label={`${card.item_descricao ?? 'Peça'} — ${rotuloOrigemCard(card, pedido)}`}
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-lg font-semibold text-texto tabular-nums">
-          Pedido {pedido?.numero ?? '…'}
+          {rotuloOrigemCard(card, pedido)}
         </span>
         {kn && (
           <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave tabular-nums">

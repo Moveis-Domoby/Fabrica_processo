@@ -8,6 +8,7 @@ import { estornarEvento, linhaTempoCard } from '../api'
 import { eventoEstornavel, montarSegmentos } from '../linha-tempo'
 import { formatarDuracaoMs, useAgora } from '../tempo'
 import type { Card, EventoLinhaTempo, PedidoResumo } from '../tipos'
+import { rotuloOrigemCard } from '../rotulos'
 
 export interface ModalLinhaTempoProps {
   card: Card | null
@@ -115,7 +116,7 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
       titulo="Linha do tempo"
       descricao={
         card
-          ? `${card.item_descricao ?? 'Card'}${kn} · Pedido ${pedido?.numero ?? card.pedido_id}`
+          ? `${card.item_descricao ?? 'Card'}${kn} · ${rotuloOrigemCard(card, pedido)}`
           : undefined
       }
       rodape={

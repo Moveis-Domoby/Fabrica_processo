@@ -14,6 +14,7 @@ import type { Estado } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { registrarParecer } from '../api'
 import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
+import { rotuloOrigemCard } from '../rotulos'
 
 export interface ModalParecerProps {
   card: Card | null
@@ -117,7 +118,7 @@ export function ModalParecer({
       titulo="Confirmar recebimento"
       descricao={
         card
-          ? `${card.item_descricao ?? 'Card'}${kn} · Pedido ${pedido?.numero ?? card.pedido_id}`
+          ? `${card.item_descricao ?? 'Card'}${kn} · ${rotuloOrigemCard(card, pedido)}`
           : undefined
       }
       rodape={

@@ -15,45 +15,156 @@ function garantir<T>(dados: T | null, erro: { message: string } | null, contexto
 }
 
 // ---------------------------------------------------------------------------
-// Estoque (D-38): unidades paradas com ID de produção digitável
+// Estoque (SESSAO-25): por PRODUTO — saldo do Tiny, reservas da loja, prontos
+// reservados × livres, mínimo e a reposição. O saldo é leitura derivada do
+// último aviso do Tiny (nada guardado); o disponível desconta os pedidos da
+// loja ainda abertos; negativo vira "necessidade extrema" (a tela mostra 0).
 // ---------------------------------------------------------------------------
 
-export interface LinhaEstoque {
+/** Os dois grupos da tela (resposta 8 do dono). */
+export type GrupoEstoque = 'acabados' | 'insumos'
+
+/** Filtros da lista por produto — todos resolvidos NO SERVIDOR (regra 17). */
+export type FiltroEstoque = 'abaixo_minimo' | 'extrema' | 'reservados' | 'livres' | 'sem_leitura'
+
+/** Onde está o card de reposição mais recente do produto. */
+export type EstadoReposicao = 'no_pcp' | 'em_producao' | 'concluida' | 'arquivada'
+
+export interface LinhaEstoqueProduto {
+  tiny_id: number
+  codigo: string | null
+  descricao: string
+  classe: string | null
+  unidade: string | null
+  minimo: number | null
+  /** Último saldo lido do Tiny (cru — pode ser negativo). Nulo = nunca houve leitura. */
+  saldo_tiny: number | null
+  lido_em: string | null
+  origem_leitura: string | null
+  /** Itens de pedidos da loja ainda abertos (reserva) — o "débito" da venda. */
+  reservas_loja: number
+  /** Disponível que a tela mostra — nunca negativo (D-53). Nulo = sem leitura. */
+  em_estoque: number | null
+  /** Quanto o disponível passou do zero: vendido sem estoque. */
+  necessidade_extrema: number
+  abaixo_minimo: boolean
+  /** Quanto falta para voltar ao mínimo (0 quando está acima). */
+  repor: number
+  /** Prontos COM pedido no ESTOQUE (etiquetas SKU + pedido). */
+  prontos_reservados: number
+  /** Prontos SEM pedido no ESTOQUE (vieram da reposição). */
+  prontos_livres: number
+  reposicao_card_id: number | null
+  reposicao_estado: EstadoReposicao | null
+  reposicao_quantidade: number | null
+  reposicao_liberadas: number | null
+  contagem_total: number
+}
+
+const numeroOuNulo = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+
+export async function listarEstoqueProdutos(parametros: {
+  grupo: GrupoEstoque
+  busca?: string
+  filtro?: FiltroEstoque | null
+  limite?: number
+  deslocamento?: number
+}): Promise<LinhaEstoqueProduto[]> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_produtos', {
+    p_grupo: parametros.grupo,
+    p_busca: parametros.busca || null,
+    p_filtro: parametros.filtro ?? null,
+    p_limite: parametros.limite ?? 20,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  // numeric chega como texto do PostgREST — vira número aqui, num lugar só.
+  return garantir(
+    data as LinhaEstoqueProduto[] | null,
+    error,
+    'Não deu para carregar o estoque',
+  ).map((l) => ({
+    ...l,
+    minimo: numeroOuNulo(l.minimo),
+    saldo_tiny: numeroOuNulo(l.saldo_tiny),
+    reservas_loja: Number(l.reservas_loja ?? 0),
+    em_estoque: numeroOuNulo(l.em_estoque),
+    necessidade_extrema: Number(l.necessidade_extrema ?? 0),
+    repor: Number(l.repor ?? 0),
+    contagem_total: Number(l.contagem_total ?? 0),
+  }))
+}
+
+/**
+ * As PEÇAS paradas no ESTOQUE (SESSAO-15, evoluída na SESSAO-25): reservadas
+ * (com pedido — as duas etiquetas, SKU + pedido) e livres (sem pedido — da
+ * reposição). O ID é o SKU (resposta do dono na Q-63).
+ */
+export interface PecaEstoque {
   card_id: number
-  id_producao: string | null
+  dono: 'pedido' | 'livre'
+  pedido_id: number | null
+  numero: number | null
   item_codigo: string | null
   item_descricao: string | null
   indice_unidade: number | null
   total_unidades: number | null
-  pedido_id: number
-  numero: number
-  /** 'pedido' hoje; "produção para estoque" fica para quando a Q-23 for decidida. */
-  origem: 'pedido' | 'producao_para_estoque'
+  produto_tiny_id: number | null
+  reposicao_card_id: number | null
+  origem: 'pedido' | 'reposicao'
   qualidade_atual: Estado | null
   desde: string | null
   contagem_total: number
 }
 
-export async function listarEstoque(parametros: {
+export async function listarPecasEstoque(parametros: {
+  produtoTinyId?: number | null
+  dono?: 'pedido' | 'livre' | null
   busca?: string
   limite?: number
   deslocamento?: number
-}): Promise<LinhaEstoque[]> {
+}): Promise<PecaEstoque[]> {
   const { data, error } = await supabase.rpc('plt_fn_estoque', {
     p_busca: parametros.busca || null,
     p_limite: parametros.limite ?? 20,
     p_deslocamento: parametros.deslocamento ?? 0,
+    p_produto_tiny_id: parametros.produtoTinyId ?? null,
+    p_dono: parametros.dono ?? null,
   })
-  return garantir(data as LinhaEstoque[] | null, error, 'Não deu para carregar o estoque')
+  return garantir(data as PecaEstoque[] | null, error, 'Não deu para carregar as peças do estoque')
 }
 
-/** O ID de produção: formato livre (Q-63 aberta), único entre unidades vivas. */
-export async function definirIdProducao(cardId: number, idProducao: string): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_definir_id_producao', {
-    p_card_id: cardId,
-    p_id_producao: idProducao,
+/**
+ * Sugestão de mínimo (SESSAO-25): os 20 mais vendidos dos últimos 90 dias, com
+ * rank — média semanal × semanas de cobertura escolhidas na tela. O dono ajusta
+ * o mínimo no Tiny (o mínimo mora lá).
+ */
+export interface LinhaSugestaoMinimo {
+  posicao: number
+  tiny_id: number
+  codigo: string
+  descricao: string
+  vendidos_90d: number
+  media_semana: number
+  minimo_atual: number | null
+  sugestao: number
+  em_estoque: number | null
+}
+
+export async function sugestaoMinimo(semanas: number): Promise<LinhaSugestaoMinimo[]> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_sugestao_minimo', {
+    p_semanas: semanas,
   })
-  if (error) throw new Error(`Não deu para gravar o ID: ${error.message}`)
+  return garantir(
+    data as LinhaSugestaoMinimo[] | null,
+    error,
+    'Não deu para carregar a sugestão de mínimo',
+  ).map((l) => ({
+    ...l,
+    vendidos_90d: Number(l.vendidos_90d ?? 0),
+    media_semana: Number(l.media_semana ?? 0),
+    minimo_atual: numeroOuNulo(l.minimo_atual),
+    em_estoque: numeroOuNulo(l.em_estoque),
+  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -108,8 +219,9 @@ export async function lancarParaRotas(cardPedidoId: number): Promise<void> {
 
 export interface Danificado {
   card_id: number
-  pedido_id: number
-  numero: number
+  /** Nulo na peça da REPOSIÇÃO de estoque (SESSAO-25). */
+  pedido_id: number | null
+  numero: number | null
   item_codigo: string | null
   item_descricao: string | null
   indice_unidade: number | null

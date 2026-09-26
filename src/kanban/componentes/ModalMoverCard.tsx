@@ -15,6 +15,7 @@ import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarEtapasDoSetor, moverCard } from '../api'
 import type { Card, PedidoResumo, Setor } from '../tipos'
+import { rotuloOrigemCard } from '../rotulos'
 
 export interface ModalMoverCardProps {
   card: Card | null
@@ -87,6 +88,14 @@ export function ModalMoverCard({
     setorEscolhido !== undefined &&
     setorEscolhido.id !== card?.setor_atual_id
 
+  // SESSAO-25 (resposta 7 do dono): o ESTOQUE só recebe peça 🟢 — a peça em
+  // atenção ou danificada vai para o DANIFICADO do setor. O banco recusa o
+  // resto; a tela nem oferece.
+  const destinoEhEstoque = setorEscolhido?.codigo === 'estoque'
+  const estadosPermitidos: readonly Estado[] = destinoEhEstoque ? ['perfeito'] : ESTADOS_QUALIDADE
+  // A peça da REPOSIÇÃO de estoque não tem pedido: pronta, fica livre no estoque.
+  const semPedido = card?.pedido_id === null
+
   const { data: etapasDestino = [] } = useQuery({
     queryKey: ['etapas', setorEscolhido?.id ?? 0],
     queryFn: () => buscarEtapasDoSetor(setorEscolhido!.id),
@@ -114,7 +123,9 @@ export function ModalMoverCard({
       const destino = setores.find((s) => s.id === variaveis.destinoSetorId)
       notificar({
         titulo: concluir
-          ? 'Peça concluída — foi para o ESTOQUE e entrou nos Pedidos em aguardo'
+          ? semPedido
+            ? 'Peça concluída — está livre no ESTOQUE, aguardando a venda'
+            : 'Peça concluída — foi para o ESTOQUE e entrou nos Pedidos em aguardo'
           : `Card movido para ${destino?.nome ?? 'o destino'}`,
         descricao: variaveis.estadoQualidade
           ? `Peça entregue como ${ROTULO_ESTADO[variaveis.estadoQualidade].toLowerCase()} — o setor que recebe confirma.`
@@ -153,6 +164,10 @@ export function ModalMoverCard({
       setErro('Marque o estado da peça para mover.')
       return
     }
+    if (exigeQualidade && estadoQualidade !== null && !estadosPermitidos.includes(estadoQualidade)) {
+      setErro('O ESTOQUE só recebe peça em perfeito estado.')
+      return
+    }
     setErro('')
     mutacao.mutate({
       card,
@@ -175,7 +190,7 @@ export function ModalMoverCard({
       titulo={concluir ? 'Concluir a peça' : 'Mover para…'}
       descricao={
         card
-          ? `${card.item_descricao ?? 'Card'}${kn} · Pedido ${pedido?.numero ?? card.pedido_id}`
+          ? `${card.item_descricao ?? 'Card'}${kn} · ${rotuloOrigemCard(card, pedido)}`
           : undefined
       }
       rodape={
@@ -192,9 +207,19 @@ export function ModalMoverCard({
       <div className="flex flex-col gap-4">
         {concluir && (
           <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto">
-            A peça está pronta: vai para o <strong>ESTOQUE</strong> (fim de linha) e entra nos{' '}
-            <strong>Pedidos em aguardo</strong>. Quando todas as unidades do pedido estiverem
-            prontas, a logística lança o pedido para as ROTAS.
+            {semPedido ? (
+              <>
+                A peça da reposição está pronta: vai para o <strong>ESTOQUE</strong> e fica{' '}
+                <strong>livre</strong>, aguardando a venda.
+              </>
+            ) : (
+              <>
+                A peça está pronta: vai para o <strong>ESTOQUE</strong> (fim de linha) e entra nos{' '}
+                <strong>Pedidos em aguardo</strong>. Quando todas as unidades do pedido estiverem
+                prontas, a logística lança o pedido para as ROTAS.
+              </>
+            )}{' '}
+            Só entra peça em perfeito estado — com defeito, mova para o DANIFICADO do setor.
             {!estoque && ' ⚠️ O setor ESTOQUE não está cadastrado.'}
           </p>
         )}
@@ -217,6 +242,8 @@ export function ModalMoverCard({
             aoMudar={(v) => {
               setSetorDestinoId(v)
               setEtapaDestinoId(CHEGADA)
+              // Trocar o destino pode tornar a marcação inválida (ESTOQUE só 🟢).
+              setEstadoQualidade(null)
             }}
           />
         )}
@@ -249,9 +276,11 @@ export function ModalMoverCard({
               Em que estado a peça está saindo? <span aria-hidden>*</span>
             </legend>
             <p className="text-xs text-texto-suave">
-              Obrigatório para mover. O setor que recebe vai confirmar.
+              {destinoEhEstoque
+                ? 'O ESTOQUE só recebe peça em perfeito estado. Com defeito, mova para o DANIFICADO do setor.'
+                : 'Obrigatório para mover. O setor que recebe vai confirmar.'}
             </p>
-            {ESTADOS_QUALIDADE.map((estado) => (
+            {estadosPermitidos.map((estado) => (
               <button
                 key={estado}
                 type="button"

@@ -15,6 +15,7 @@ import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
 import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
+import { rotuloOrigemCard } from '../rotulos'
 
 export interface CartaoUnidadeProps {
   card: Card
@@ -100,11 +101,11 @@ export function CartaoUnidade({
         emExecucao ? 'border-acao-ativa' : 'border-borda',
         arrastando && 'opacity-60 shadow-lg',
       )}
-      aria-label={`Unidade ${kn} do pedido ${pedido?.numero ?? card.pedido_id}`}
+      aria-label={`Unidade ${kn} — ${rotuloOrigemCard(card, pedido)}`}
     >
       <header className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-semibold text-texto tabular-nums">
-          Pedido {pedido?.numero ?? '…'}
+          {rotuloOrigemCard(card, pedido)}
         </span>
         {kn && <span className="text-sm font-medium text-texto-suave tabular-nums">{kn}</span>}
       </header>

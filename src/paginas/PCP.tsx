@@ -7,7 +7,17 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { AlertTriangle, Ban, ChevronDown, Clock, PackageOpen, Plus } from 'lucide-react'
+import {
+  AlertTriangle,
+  Ban,
+  ChevronDown,
+  Clock,
+  OctagonAlert,
+  PackageOpen,
+  PackagePlus,
+  PackageX,
+  Plus,
+} from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
@@ -15,7 +25,10 @@ import {
   buscarEtapasDoSetor,
   buscarSetores,
   moverCard,
+  reposicoesResumo,
 } from '@/kanban/api'
+import type { ReposicaoResumo } from '@/kanban/api'
+import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
@@ -34,6 +47,10 @@ const ATUALIZA_A_CADA = 20_000
  * setores sozinho. Pedido 100% liberado sai daqui e passa a ser acompanhado
  * na Expedição (D-22). O PCP também é a logística e trabalha no computador,
  * então esta tela é a mais completa do chão de fábrica.
+ *
+ * SESSAO-25: o ESTOQUE manda para cá o card de REPOSIÇÃO quando um produto
+ * fica abaixo do mínimo do Tiny. O PCP decide o rumo (resposta 7 do dono):
+ * libera as unidades para a produção ou não produz (arquiva).
  */
 export function PCP() {
   const { perfil, vinculos, carregando } = useSessao()
@@ -95,6 +112,35 @@ export function PCP() {
   )
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
 
+  // SESSAO-25: o card de reposição não tem pedido — o resumo vem da porta dele.
+  const idsReposicao = cardsPedidoAbertos
+    .filter((c) => c.tipo === 'reposicao')
+    .map((c) => c.id)
+    .sort((a, b) => a - b)
+  const { data: reposicoesPorId = new Map<number, ReposicaoResumo>() } = useQuery({
+    queryKey: ['reposicoes-resumo', idsReposicao],
+    queryFn: async () => new Map((await reposicoesResumo(idsReposicao)).map((r) => [r.card_id, r])),
+    enabled: idsReposicao.length > 0,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
+  const [arquivandoId, setArquivandoId] = useState<number | null>(null)
+  const naoProduzir = useMutation({
+    mutationFn: (cardId: number) =>
+      arquivarCard(cardId, 'O PCP decidiu não produzir esta reposição.'),
+    onSuccess: async () => {
+      notificar({ titulo: 'Reposição arquivada — não será produzida', tom: 'perfeito' })
+      setArquivandoId(null)
+      await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
+      await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para arquivar a reposição',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
   const [modalNovo, setModalNovo] = useState(false)
   const [cardParaLiberar, setCardParaLiberar] = useState<Card | null>(null)
   const [cardParaMover, setCardParaMover] = useState<Card | null>(null)
@@ -120,8 +166,9 @@ export function PCP() {
           <h1 className="text-2xl sm:text-3xl">PCP</h1>
           <p className="mt-1 max-w-2xl text-texto-suave">
             {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
-            Todo pedido entra por aqui. Libere as unidades para os setores — dá para
-            liberar parcial e terminar depois.
+            Todo pedido entra por aqui — e o estoque manda para cá a reposição do que ficou
+            abaixo do mínimo. Libere as unidades para os setores — dá para liberar parcial e
+            terminar depois.
           </p>
         </div>
         <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
@@ -131,7 +178,7 @@ export function PCP() {
 
       <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
         <h2 className="text-lg">
-          Pedidos no PCP{' '}
+          Aguardando liberação{' '}
           <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
         </h2>
 
@@ -145,7 +192,23 @@ export function PCP() {
 
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cardsPedidoAbertos.map((card) => {
-            const resumo = pedidosPorId.get(card.pedido_id)
+            if (card.tipo === 'reposicao') {
+              return (
+                <CartaoReposicaoPcp
+                  key={card.id}
+                  card={card}
+                  resumo={reposicoesPorId.get(card.id)}
+                  agora={agora}
+                  confirmandoArquivar={arquivandoId === card.id}
+                  arquivando={naoProduzir.isPending && naoProduzir.variables === card.id}
+                  aoLiberar={() => setCardParaLiberar(card)}
+                  aoPedirArquivar={() => setArquivandoId(card.id)}
+                  aoCancelarArquivar={() => setArquivandoId(null)}
+                  aoArquivar={() => naoProduzir.mutate(card.id)}
+                />
+              )
+            }
+            const resumo = card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)
             const liberadas = resumo?.unidades_liberadas ?? 0
             const total = resumo?.total_unidades ?? 0
             return (
@@ -277,7 +340,12 @@ export function PCP() {
       {setorPcp && (
         <ModalLiberarPedido
           cardPedido={cardParaLiberar}
-          pedido={cardParaLiberar ? pedidosPorId.get(cardParaLiberar.pedido_id) : undefined}
+          pedido={
+            cardParaLiberar && cardParaLiberar.pedido_id !== null
+              ? pedidosPorId.get(cardParaLiberar.pedido_id)
+              : undefined
+          }
+          reposicao={cardParaLiberar ? reposicoesPorId.get(cardParaLiberar.id) : undefined}
           setorPcp={setorPcp}
           setores={setores}
           aoFechar={() => setCardParaLiberar(null)}
@@ -285,10 +353,118 @@ export function PCP() {
       )}
       <ModalMoverCard
         card={cardParaMover}
-        pedido={cardParaMover ? pedidosPorId.get(cardParaMover.pedido_id) : undefined}
+        pedido={
+          cardParaMover && cardParaMover.pedido_id !== null
+            ? pedidosPorId.get(cardParaMover.pedido_id)
+            : undefined
+        }
         setores={setores}
         aoFechar={() => setCardParaMover(null)}
       />
     </div>
+  )
+}
+
+/**
+ * SESSAO-25: o card de REPOSIÇÃO de estoque no PCP — o produto, quanto repor
+ * (até o mínimo do Tiny), quanto já foi liberado e, quando houver, a
+ * necessidade extrema (vendido sem estoque: esses pedidos têm card próprio).
+ * Estado sempre com ícone + texto (M-12); "Não produzir" em dois toques.
+ */
+function CartaoReposicaoPcp({
+  card,
+  resumo,
+  agora,
+  confirmandoArquivar,
+  arquivando,
+  aoLiberar,
+  aoPedirArquivar,
+  aoCancelarArquivar,
+  aoArquivar,
+}: {
+  card: Card
+  resumo?: ReposicaoResumo
+  agora: number
+  confirmandoArquivar: boolean
+  arquivando: boolean
+  aoLiberar: () => void
+  aoPedirArquivar: () => void
+  aoCancelarArquivar: () => void
+  aoArquivar: () => void
+}) {
+  const total = card.total_unidades ?? 0
+  const liberadas = resumo?.liberadas ?? 0
+  const extrema = resumo ? Math.max(resumo.extrema_agora, resumo.extrema_na_criacao) : 0
+  return (
+    <li className="flex flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie p-4">
+      <header className="flex items-baseline justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-texto">
+          <PackagePlus aria-hidden className="size-4 shrink-0" />
+          Reposição de estoque
+        </span>
+        <span
+          className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums"
+          title={
+            card.desde ? 'No PCP desde ' + new Date(card.desde).toLocaleString('pt-BR') : undefined
+          }
+        >
+          <Clock aria-hidden className="size-4" />
+          {formatarDuracao(card.desde, agora)}
+        </span>
+      </header>
+
+      <p className="line-clamp-2 text-sm text-texto">
+        {card.item_descricao ?? 'Sem descrição'}
+        {card.item_codigo && (
+          <span className="text-texto-suave tabular-nums"> · SKU {card.item_codigo}</span>
+        )}
+      </p>
+      {resumo && (
+        <p className="text-xs text-texto-fraco tabular-nums">
+          Em estoque {resumo.em_estoque_agora ?? '—'} · mínimo {resumo.minimo ?? '—'}
+        </p>
+      )}
+      {extrema > 0 && (
+        <p className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+            <OctagonAlert aria-hidden className="size-3.5" />
+            Necessidade extrema: {extrema} vendido{extrema === 1 ? '' : 's'} sem estoque
+          </span>
+        </p>
+      )}
+      <p className="text-sm text-texto tabular-nums">
+        Repor {total} unidade{total === 1 ? '' : 's'} · {liberadas} liberada
+        {liberadas === 1 ? '' : 's'}
+      </p>
+
+      {confirmandoArquivar ? (
+        <div className="flex flex-col gap-2 rounded-dm bg-superficie-sutil p-2">
+          <p className="text-sm text-texto">Não produzir esta reposição? O card sai do PCP.</p>
+          <div className="flex gap-2">
+            <Botao variante="perigo" tamanho="sm" carregando={arquivando} onClick={aoArquivar}>
+              Sim, não produzir
+            </Botao>
+            <Botao variante="fantasma" tamanho="sm" onClick={aoCancelarArquivar}>
+              Voltar
+            </Botao>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Botao
+            variante={liberadas > 0 ? 'secundaria' : 'primaria'}
+            icone={<PackageOpen />}
+            larguraTotal
+            disabled={total === 0 || !resumo}
+            onClick={aoLiberar}
+          >
+            {liberadas > 0 ? 'Continuar liberação' : 'Liberar unidades'}
+          </Botao>
+          <Botao variante="fantasma" icone={<PackageX />} onClick={aoPedirArquivar}>
+            Não produzir
+          </Botao>
+        </div>
+      )}
+    </li>
   )
 }

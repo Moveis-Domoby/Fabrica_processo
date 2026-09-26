@@ -200,6 +200,56 @@ export async function expedicaoResumo(filtro: FiltroExpedicao = {}): Promise<Exp
   return garantir(data as ExpedicaoLinha[] | null, error, 'Não deu para carregar a expedição')
 }
 
+/**
+ * SESSAO-25: resumo dos cards de REPOSIÇÃO de estoque visíveis no PCP —
+ * produto, quantidade, quanto já foi liberado e a foto do estoque (na criação
+ * e agora). Mesmo papel do `usePedidosDosCards` para o card de pedido.
+ */
+export interface ReposicaoResumo {
+  card_id: number
+  produto_tiny_id: number
+  codigo: string | null
+  descricao: string | null
+  quantidade: number
+  liberadas: number
+  concluidas: number
+  minimo: number | null
+  disponivel_na_criacao: number | null
+  extrema_na_criacao: number
+  em_estoque_agora: number | null
+  extrema_agora: number
+  criado_em: string | null
+}
+
+export async function reposicoesResumo(cardIds: number[]): Promise<ReposicaoResumo[]> {
+  if (cardIds.length === 0) return []
+  const { data, error } = await supabase.rpc('plt_fn_reposicoes_resumo', { p_card_ids: cardIds })
+  return garantir(
+    data as ReposicaoResumo[] | null,
+    error,
+    'Não deu para carregar as reposições de estoque',
+  ).map((r) => ({
+    ...r,
+    minimo: r.minimo === null ? null : Number(r.minimo),
+    disponivel_na_criacao: r.disponivel_na_criacao === null ? null : Number(r.disponivel_na_criacao),
+    extrema_na_criacao: Number(r.extrema_na_criacao ?? 0),
+    em_estoque_agora: r.em_estoque_agora === null ? null : Number(r.em_estoque_agora),
+    extrema_agora: Number(r.extrema_agora ?? 0),
+  }))
+}
+
+/** SESSAO-25: as unidades já liberadas de um card de reposição (o "já liberada" do modal). */
+export async function unidadesDaReposicao(
+  cardId: number,
+): Promise<{ card_id: number; item_seq: number; indice_unidade: number }[]> {
+  const { data, error } = await supabase.rpc('plt_fn_reposicao_unidades', { p_card_id: cardId })
+  return garantir(
+    data as { card_id: number; item_seq: number; indice_unidade: number }[] | null,
+    error,
+    'Não deu para carregar as unidades da reposição',
+  )
+}
+
 export async function unidadesDoPedido(pedidoId: number): Promise<UnidadePedido[]> {
   const { data, error } = await supabase.rpc('plt_fn_pedido_unidades', {
     p_pedido_id: pedidoId,
@@ -269,11 +319,15 @@ export interface LiberacaoUnidade extends UnidadeParaLiberar {
  * Libera unidades do pedido (D-01/D-22): cada uma nasce como card no PCP
  * (evento card_criado) e é movida ao setor escolhido (evento
  * movimentacao_setor). A liberação pode ser parcial — o que não foi liberado
- * continua no card de pedido.
+ * continua no card de pedido. SESSAO-25: o card de REPOSIÇÃO libera igual —
+ * sem pedido, com o produto do catálogo (o banco completa a liberação dele).
  */
 export async function liberarUnidades(parametros: {
   cardPaiId: number
-  pedidoId: number
+  /** Nulo na reposição de estoque (SESSAO-25). */
+  pedidoId: number | null
+  /** SESSAO-25: produto do catálogo — obrigatório quando não há pedido. */
+  produtoTinyId?: number | null
   setorPcpId: number
   usuarioId: string
   unidades: LiberacaoUnidade[]
@@ -285,6 +339,7 @@ export async function liberarUnidades(parametros: {
       .insert({
         tipo: 'unidade',
         pedido_id: parametros.pedidoId,
+        produto_tiny_id: parametros.produtoTinyId ?? null,
         card_pai_id: parametros.cardPaiId,
         item_seq: unidade.item_seq,
         item_codigo: unidade.item_codigo,

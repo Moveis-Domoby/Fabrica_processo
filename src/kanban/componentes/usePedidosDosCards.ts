@@ -5,10 +5,13 @@ import type { Card, PedidoResumo } from '../tipos'
 /**
  * Resolve número do pedido e nome do cliente para os cards visíveis
  * (via plt_fn_pedidos_kanban — as tabelas da integração não são legíveis
- * pelo navegador). Devolve um mapa pedido_id → resumo.
+ * pelo navegador). Devolve um mapa pedido_id → resumo. Card da reposição de
+ * estoque não tem pedido (SESSAO-25) — fica de fora da consulta.
  */
 export function usePedidosDosCards(cards: Card[]) {
-  const ids = [...new Set(cards.map((c) => c.pedido_id))].sort((a, b) => a - b)
+  const ids = [
+    ...new Set(cards.map((c) => c.pedido_id).filter((id): id is number => id !== null)),
+  ].sort((a, b) => a - b)
 
   return useQuery({
     queryKey: ['pedidos-resumo', ids],

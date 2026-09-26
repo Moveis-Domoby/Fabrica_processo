@@ -92,7 +92,7 @@ export function Danificados() {
   const arquivarMutacao = useMutation({
     mutationFn: (item: Danificado) => arquivarCard(item.card_id),
     onSuccess: async (_dados, item) => {
-      notificar({ titulo: `Peça do pedido ${item.numero} arquivada`, tom: 'perfeito' })
+      notificar({ titulo: `Peça arquivada — ${origemDaPeca(item)}`, tom: 'perfeito' })
       setArquivando(null)
       await invalidar()
     },
@@ -276,7 +276,7 @@ function CartaoDanificado({
             ({item.indice_unidade}/{item.total_unidades})
           </span>
         )}
-        <span className="text-sm text-texto-suave tabular-nums">· Pedido {item.numero}</span>
+        <span className="text-sm text-texto-suave tabular-nums">· {origemDaPeca(item)}</span>
         <span className="ml-auto rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave">
           {item.setor_nome} · {item.etapa_nome}
         </span>
@@ -361,6 +361,12 @@ function ModalResolver({
   // SESSAO-22 (D-48): destino de produção com fila não tem mais "Chegada" —
   // a fila é o padrão (o banco resolve igual se a etapa vier vazia).
   const setorDestinoInfo = setores.find((s) => s.id === setorEscolhido)
+  // SESSAO-25 (resposta 7 do dono): o ESTOQUE só recebe peça 🟢 — o banco
+  // recusa o resto; a tela nem oferece.
+  const destinoEhEstoque = setorDestinoInfo?.codigo === 'estoque'
+  const estadosPermitidos: readonly Estado[] = destinoEhEstoque
+    ? ['perfeito']
+    : ESTADOS_QUALIDADE
   const filaDoDestino = etapasDoDestino.find((e) => e.eh_fila)
   const producaoComFila =
     setorDestinoInfo?.papel_no_fluxo === 'producao' && filaDoDestino !== undefined
@@ -395,7 +401,9 @@ function ModalResolver({
       }),
   })
 
-  const podeConfirmar = setorEscolhido !== null && (mesmoSetor || estado !== null)
+  const podeConfirmar =
+    setorEscolhido !== null &&
+    (mesmoSetor || (estado !== null && estadosPermitidos.includes(estado)))
 
   return (
     <Modal
@@ -403,7 +411,7 @@ function ModalResolver({
       aoFechar={(aberto) => {
         if (!aberto) aoFechar()
       }}
-      titulo={`Resolvido — ${item.item_descricao ?? 'peça'} · Pedido ${item.numero}`}
+      titulo={`Resolvido — ${item.item_descricao ?? 'peça'} · ${origemDaPeca(item)}`}
       descricao="Para onde a peça vai agora? Para outro setor, marque o estado em que ela sai."
       tamanho="galpao"
       rodape={
@@ -430,6 +438,7 @@ function ModalResolver({
           aoMudar={(v) => {
             setSetorId(v)
             setEtapaId('chegada')
+            setEstado(null)
           }}
           placeholder="Estoque, ROTAS ou um setor"
           tamanho="galpao"
@@ -441,7 +450,13 @@ function ModalResolver({
         {setorEscolhido !== null && !mesmoSetor && (
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium text-texto">Em que estado ela sai?</legend>
-            {ESTADOS_QUALIDADE.map((opcao) => (
+            {destinoEhEstoque && (
+              <p className="text-sm text-texto-suave">
+                O ESTOQUE só recebe peça em perfeito estado. Se ela ainda tem defeito, mande
+                para um setor de produção.
+              </p>
+            )}
+            {estadosPermitidos.map((opcao) => (
               <button
                 key={opcao}
                 type="button"
@@ -472,4 +487,9 @@ function ModalResolver({
       </div>
     </Modal>
   )
+}
+
+/** SESSAO-25: peça da reposição de estoque não tem pedido do Tiny. */
+function origemDaPeca(item: Pick<Danificado, 'numero'>): string {
+  return item.numero === null ? 'Reposição de estoque' : `Pedido ${item.numero}`
 }

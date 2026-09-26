@@ -136,7 +136,7 @@ function Coluna({
           const execucaoAberta = execucao.execucoesPorCard.get(card.id)
           const comuns = {
             card,
-            pedido: pedidosPorId.get(card.pedido_id),
+            pedido: card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id),
             agora,
             terminal,
             aoMover,
