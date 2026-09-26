@@ -4316,6 +4316,342 @@ const pcpSemUsuario = (
 ).rows[0]
 conferir(pcpSemUsuario.total === 0, 'sem usuário no contexto, a porta do PCP devolve vazio (gate)')
 
+titulo('SESSAO-25 · saldo do Tiny é LEITURA derivada do último aviso (CNPJ conferido)')
+
+// Catálogo de teste (a tabela da integração, espelhada da migration 23): dois
+// móveis com mínimo, uma peça (insumo) e um inativo que reusa o SKU do 1º.
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade)
+  values (910001, 'S25A', 'Armário Teste S25 - Branco', 'F', 'A', 4, 'un'),
+         (910002, 'S25B', 'Estante Teste S25 - Branca', 'F', 'A', 2, 'un'),
+         (910003, null,   'Peça 100 x 762 x 15,5 - A55 teste', 'M', 'A', null, 'pc'),
+         (910004, 'S25A', 'Armário Teste S25 - modelo antigo', 'F', 'I', 9, 'un')
+  on conflict (tiny_id) do nothing;
+`)
+// Avisos: webhook antigo e carga mais nova para o 910001; um de OUTRO CNPJ
+// (mais novo ainda) que tem de ser ignorado; saldo ilegível ignorado; a peça
+// com saldo negativo (P16).
+await bd.exec(`
+  insert into public.eventos (tipo, payload, recebido_em) values
+    ('estoque_fabrica', '{"versao":"1.0.1","cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":910001,"sku":"S25A","nome":"Armário","saldo":1}}', now() - interval '3 hours'),
+    ('estoque_fabrica', '{"versao":"carga-1","origem":"carga_inicial","cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":910001,"sku":"S25A","nome":"Armário","saldo":"3.00","saldoReservado":"1.00"}}', now() - interval '2 hours'),
+    ('estoque_fabrica', '{"versao":"1.0.1","cnpj":"11111111000111","tipo":"estoque","dados":{"idProduto":910001,"sku":"S25A","nome":"Armário","saldo":99}}', now() - interval '1 hour'),
+    ('estoque_fabrica', '{"versao":"1.0.1","cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":910002,"sku":"S25B","nome":"Estante","saldo":5}}', now() - interval '2 hours'),
+    ('estoque_fabrica', '{"versao":"1.0.1","cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":910002,"sku":"S25B","nome":"Estante","saldo":"abc"}}', now() - interval '1 hour'),
+    ('estoque_fabrica', '{"versao":"1.0.1","cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":910003,"sku":"","nome":"Peça","saldo":-14}}', now() - interval '2 hours');
+`)
+const leituras = (
+  await bd.query(`
+    select tiny_id::int as tiny_id, saldo::float as saldo, reservado_tiny::float as reservado, origem
+      from plt_privado.fn_leituras_tiny() where tiny_id in (910001, 910002, 910003) order by tiny_id`)
+).rows
+conferir(
+  leituras.length === 3
+    && leituras[0].saldo === 3 && leituras[0].reservado === 1 && leituras[0].origem === 'carga_inicial'
+    && leituras[1].saldo === 5 && leituras[2].saldo === -14,
+  'vale o último aviso VÁLIDO de cada produto — outro CNPJ e saldo ilegível são ignorados; a carga guarda a reserva do Tiny',
+  JSON.stringify(leituras),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from plt_privado.fn_leituras_tiny() where saldo = 99`)).rows[0].total === 0,
+  'aviso de outra empresa (CNPJ diferente) nunca vira saldo — webhook de conta não é assinado',
+)
+
+titulo('SESSAO-25 · disponível = saldo − reservas abertas da loja (sem personalizado, sem cancelado)')
+
+// Pedidos da loja pelo caminho real (situação = DESCRIÇÃO do Tiny).
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+  values (925001, (select id from public.clientes order by id limit 1), 'Em aberto',  current_date),
+         (925002, (select id from public.clientes order by id limit 1), 'Cancelado',  current_date),
+         (925003, (select id from public.clientes order by id limit 1), 'Entregue',   current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 925001), 1, 'S25A', 'Armário Teste S25 - Branco', 2),
+    ((select id from public.pedidos where numero = 925001), 2, 'S25A', 'PERSONLAIZADO Armário 1 porta 1.82x45', 1),
+    ((select id from public.pedidos where numero = 925001), 3, 'S25B', 'Estante Teste S25 - Branca', 1),
+    ((select id from public.pedidos where numero = 925002), 1, 'S25A', 'Armário Teste S25 - Branco', 5),
+    ((select id from public.pedidos where numero = 925003), 1, 'S25A', 'Armário Teste S25 - Branco', 3);
+`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+const acabados = async () =>
+  Object.fromEntries(
+    (
+      await bd.query(`
+        select tiny_id::int as tiny_id, saldo_tiny::float as saldo, reservas_loja::float as reservas,
+               em_estoque::float as em_estoque, necessidade_extrema::float as extrema,
+               abaixo_minimo, repor::float as repor, prontos_reservados, prontos_livres,
+               reposicao_estado
+          from public.plt_fn_estoque_produtos('acabados', 'Teste S25', null, 100, 0)`)
+    ).rows.map((r) => [r.tiny_id, r]),
+  )
+let porProduto = await acabados()
+conferir(
+  porProduto[910001]?.reservas === 2 && porProduto[910001]?.em_estoque === 1
+    && porProduto[910001]?.abaixo_minimo === true && porProduto[910001]?.repor === 3
+    && porProduto[910001]?.extrema === 0,
+  'Armário: Tiny 3 − 2 reservados pela loja = 1 em estoque; abaixo do mínimo 4 → repor 3 (personalizado, cancelado e entregue não reservam)',
+  JSON.stringify(porProduto[910001] ?? null),
+)
+conferir(
+  porProduto[910002]?.reservas === 1 && porProduto[910002]?.em_estoque === 4
+    && porProduto[910002]?.abaixo_minimo === false,
+  'Estante: Tiny 5 − 1 reservado = 4, acima do mínimo 2',
+  JSON.stringify(porProduto[910002] ?? null),
+)
+conferir(porProduto[910004] === undefined, 'produto inativo não aparece na tela (e não rouba o SKU do ativo)')
+const insumos = (
+  await bd.query(`select tiny_id::int as tiny_id, em_estoque::float as em_estoque, saldo_tiny::float as saldo
+                    from public.plt_fn_estoque_produtos('insumos', 'A55 teste', null, 100, 0)`)
+).rows
+conferir(
+  insumos.length === 1 && insumos[0].tiny_id === 910003 && insumos[0].em_estoque === 0 && insumos[0].saldo === -14,
+  'matéria-prima na tela própria; saldo negativo do Tiny aparece como 0 em estoque (o cru segue no evento — D-53)',
+  JSON.stringify(insumos),
+)
+// Venda que passa do saldo: a Estante fica NEGATIVA = necessidade extrema.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+  values (925004, (select id from public.clientes order by id limit 1), 'Aprovado', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 925004), 1, 'S25B', 'Estante Teste S25 - Branca', 6);
+`)
+porProduto = await acabados()
+conferir(
+  porProduto[910002]?.em_estoque === 0 && porProduto[910002]?.extrema === 2
+    && porProduto[910002]?.abaixo_minimo === true && porProduto[910002]?.repor === 2,
+  'Estante: 5 − 7 reservados → 0 em estoque (nunca negativo), necessidade extrema 2, repor 2 até o mínimo',
+  JSON.stringify(porProduto[910002] ?? null),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_fn_estoque_produtos()`)).rows[0].total === 0,
+  'operador de produção não enxerga a tela de estoque (gate da logística)',
+)
+
+titulo('SESSAO-25 · abaixo do mínimo → card de REPOSIÇÃO no PCP (um ciclo vivo por produto)')
+
+const gerados1 = (await bd.query(`select plt_privado.fn_gerar_reposicoes() as n`)).rows[0].n
+const gerados2 = (await bd.query(`select plt_privado.fn_gerar_reposicoes() as n`)).rows[0].n
+const reposicoes = (
+  await bd.query(`
+    select c.id::int as id, c.produto_tiny_id::int as produto, c.total_unidades as qtd, s.codigo as setor,
+           c.pedido_id, (select count(*)::int from public.plt_eventos e
+                          where e.card_id = c.id and e.tipo = 'card_criado' and e.origem = 'automacao'
+                            and e.dados ->> 'motivo' = 'reposicao_estoque') as eventos,
+           (select (e.dados ->> 'necessidade_extrema')::float from public.plt_eventos e
+             where e.card_id = c.id and e.tipo = 'card_criado') as extrema
+      from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+     where c.tipo = 'reposicao' order by c.produto_tiny_id`)
+).rows
+conferir(
+  gerados1 === 2 && gerados2 === 0 && reposicoes.length === 2
+    && reposicoes[0].produto === 910001 && reposicoes[0].qtd === 3
+    && reposicoes[1].produto === 910002 && reposicoes[1].qtd === 2 && reposicoes[1].extrema === 2
+    && reposicoes.every((r) => r.setor === 'pcp' && r.pedido_id === null && r.eventos === 1),
+  'nascem 2 cards no PCP pela maquinaria (evento com o retrato do estoque); rodar de novo não duplica; a quantidade repõe até o mínimo e a necessidade extrema fica registrada à parte',
+  JSON.stringify({ gerados1, gerados2, reposicoes }),
+)
+const cardRepA = reposicoes[0].id
+const cardRepB = reposicoes[1].id
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
+const pcpComReposicao = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_cards_pedido_pcp(100, 0)
+                   where id in (${cardRepA}, ${cardRepB}) and tipo = 'reposicao'`)
+).rows[0].total
+conferir(pcpComReposicao === 2, 'os cards de reposição aparecem no quadro do PCP (mesma porta dos pedidos)')
+
+await deveRecusarExec(
+  `insert into public.plt_cards (tipo, total_unidades) values ('reposicao', 2)`,
+  'card de reposição sem produto do catálogo é recusado (coerência por tipo)',
+  /plt_cards_unidade_coerente/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_cards (tipo) values ('pedido')`,
+  'card de PEDIDO continua exigindo o pedido do Tiny',
+  /plt_cards_unidade_coerente/i,
+)
+
+// O PCP libera as 3 unidades do Armário (como o modal faz: card + card_criado).
+await bd.exec(`
+  insert into public.plt_cards (tipo, card_pai_id, produto_tiny_id, item_seq, item_codigo, item_descricao,
+                                indice_unidade, total_unidades, setor_atual_id)
+    select 'unidade', ${cardRepA}, 910001, 1, 'S25A', 'Armário Teste S25 - Branco', n, 3,
+           (select id from public.plt_setores where codigo = 'pcp')
+      from generate_series(1, 3) n;
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_destino_id)
+    select c.id, 'card_criado', (select id from public.plt_usuarios where usuario = 'primeira.pessoa'),
+           'interface', (select id from public.plt_setores where codigo = 'pcp')
+      from public.plt_cards c where c.card_pai_id = ${cardRepA} and c.tipo = 'unidade';
+`)
+const unidadesRepA = (
+  await bd.query(`select id::int as id from public.plt_cards where card_pai_id = ${cardRepA} and tipo = 'unidade' order by indice_unidade`)
+).rows.map((r) => r.id)
+const liberadaA = (
+  await bd.query(`
+    select (select liberado_completo_em is not null from public.plt_cards where id = ${cardRepA}) as completa,
+           (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0) where id = ${cardRepA}) as no_quadro`)
+).rows[0]
+conferir(
+  unidadesRepA.length === 3 && liberadaA.completa === true && liberadaA.no_quadro === 0,
+  'liberadas as 3 unidades (sem pedido), a reposição completa a liberação e sai do quadro do PCP',
+  JSON.stringify({ unidadesRepA, liberadaA }),
+)
+await deveRecusarExec(
+  `insert into public.plt_cards (tipo, card_pai_id, produto_tiny_id, item_seq, item_codigo, indice_unidade, total_unidades)
+     values ('unidade', ${cardRepA}, 910001, 1, 'S25A', 2, 3)`,
+  'a mesma unidade (k) da reposição não nasce duas vezes',
+  /plt_cards_unidade_reposicao_uq|duplicate key/i,
+)
+
+titulo('SESSAO-25 · o ESTOQUE só recebe peça 🟢 (e a reposição pronta fica LIVRE)')
+
+// As unidades vão para a produção (CNC) e voltam prontas.
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, setor_destino_id)
+    select c.id, 'movimentacao_setor', 'api',
+           (select id from public.plt_setores where codigo = 'pcp'),
+           (select id from public.plt_setores where codigo = 'cnc')
+      from public.plt_cards c where c.card_pai_id = ${cardRepA} and c.tipo = 'unidade';
+`)
+await deveRecusarExec(
+  `select public.plt_fn_mover_card(${unidadesRepA[0]}, (select id from public.plt_setores where codigo = 'estoque'),
+                                   null, 'atencao', 'risco na lateral')`,
+  'peça marcada 🟡 não entra no ESTOQUE (vai para o DANIFICADO do setor)',
+  /só recebe peça em perfeito estado/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_mover_card(${unidadesRepA[0]}, (select id from public.plt_setores where codigo = 'estoque'),
+                                   null, 'danificado', null)`,
+  'peça marcada 🔴 não entra no ESTOQUE',
+  /só recebe peça em perfeito estado/i,
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_eventos
+                    where card_id = ${unidadesRepA[0]} and tipo = 'qualidade_marcada'`)).rows[0].total === 0,
+  'a recusa desfaz a marcação junto (a transição inteira volta — nada pela metade)',
+)
+await bd.exec(`
+  select public.plt_fn_mover_card(c.id, (select id from public.plt_setores where codigo = 'estoque'), null, 'perfeito', null)
+    from public.plt_cards c where c.card_pai_id = ${cardRepA} and c.tipo = 'unidade';
+`)
+// Uma unidade COM pedido (reservada) e uma personalizada com o mesmo SKU no ESTOQUE.
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+  values ('unidade', (select id from public.pedidos where numero = 925001), 1, 'S25A', 'Armário Teste S25 - Branco', 1, 2),
+         ('unidade', (select id from public.pedidos where numero = 925001), 2, 'S25A', 'PERSONLAIZADO Armário 1 porta 1.82x45', 1, 1);
+  insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id)
+    select c.id, 'card_criado', 'api', (select id from public.plt_setores where codigo = 'estoque')
+      from public.plt_cards c
+     where c.pedido_id = (select id from public.pedidos where numero = 925001) and c.tipo = 'unidade';
+`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+porProduto = await acabados()
+conferir(
+  porProduto[910001]?.prontos_livres === 3 && porProduto[910001]?.prontos_reservados === 1
+    && porProduto[910001]?.reposicao_estado === 'concluida' && porProduto[910001]?.em_estoque === 1,
+  'Armário: 3 prontas LIVRES (da reposição) e 1 RESERVADA (com pedido; a personalizada não conta) — nada somado ao Tiny (em estoque segue 1)',
+  JSON.stringify(porProduto[910001] ?? null),
+)
+const pecasA = (
+  await bd.query(`select dono, origem, numero, reposicao_card_id::int as rep
+                    from public.plt_fn_estoque(null, 100, 0, 910001, null) order by dono, card_id`)
+).rows
+conferir(
+  pecasA.length === 4
+    && pecasA.filter((p) => p.dono === 'livre' && p.origem === 'reposicao' && p.rep === cardRepA).length === 3
+    && pecasA.filter((p) => p.dono === 'pedido' && p.numero === 925001).length === 1,
+  'as peças do produto: 3 livres (vindas da reposição) + 1 com as duas etiquetas (SKU + pedido 925001)',
+  JSON.stringify(pecasA),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_fn_estoque(null, 100, 0, null, 'livre')`)).rows[0].total >= 3,
+  'filtro "livres" da lista de peças funciona (dono sem pedido)',
+)
+
+titulo('SESSAO-25 · depois do ciclo, só reabre com leitura NOVA do Tiny; o PCP pode arquivar')
+
+const semLeituraNova = (await bd.query(`select plt_privado.fn_gerar_reposicoes() as n`)).rows[0].n
+conferir(
+  semLeituraNova === 0,
+  'ciclo concluído e o Tiny ainda não registrou as peças prontas → não pede outra reposição',
+  `gerou ${semLeituraNova}`,
+)
+await bd.exec(`
+  insert into public.eventos (tipo, payload, recebido_em) values
+    ('estoque_fabrica', '{"versao":"1.0.1","cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":910001,"sku":"S25A","nome":"Armário","saldo":4}}', now());
+`)
+const comLeituraNova = (await bd.query(`select plt_privado.fn_gerar_reposicoes() as n`)).rows[0].n
+const novaRepA = (
+  await bd.query(`select id::int as id, total_unidades as qtd from public.plt_cards
+                   where tipo = 'reposicao' and produto_tiny_id = 910001 and id <> ${cardRepA}`)
+).rows
+conferir(
+  comLeituraNova === 1 && novaRepA.length === 1 && novaRepA[0].qtd === 2,
+  'leitura nova do Tiny (4 − 2 reservados = 2 < mínimo 4) abre um novo ciclo: repor 2',
+  JSON.stringify({ comLeituraNova, novaRepA }),
+)
+await bd.exec(`select public.plt_fn_arquivar_card(${novaRepA[0].id}, 'temos peça pronta na fábrica')`)
+conferir(
+  (await bd.query(`select arquivado_em is not null as arq from public.plt_cards where id = ${novaRepA[0].id}`)).rows[0].arq === true,
+  'a logística (PCP) arquiva o card de reposição — o PCP decide o rumo, inclusive não produzir',
+)
+conferir(
+  (await bd.query(`select plt_privado.fn_gerar_reposicoes() as n`)).rows[0].n === 0,
+  'arquivado pelo PCP não volta sozinho com a MESMA leitura (sem ciclo em loop)',
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
+await deveRecusarExec(
+  `select public.plt_fn_arquivar_card(${cardRepB})`,
+  'operador de produção não arquiva card de reposição (gate)',
+  /gesto de admin ou da integração/i,
+)
+
+titulo('SESSAO-25 · peça da reposição no DANIFICADO e a sugestão de mínimo (top 20 com rank)')
+
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_danificado)
+  select s.id, 'DANIFICADO', 99, true from public.plt_setores s
+   where s.codigo = 'cnc'
+     and not exists (select 1 from public.plt_etapas e where e.setor_id = s.id and e.eh_danificado);
+  insert into public.plt_cards (tipo, card_pai_id, produto_tiny_id, item_seq, item_codigo, item_descricao,
+                                indice_unidade, total_unidades)
+    values ('unidade', ${cardRepB}, 910002, 1, 'S25B', 'Estante Teste S25 - Branca', 1, 2);
+  insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, etapa_destino_id)
+    values ((select max(id) from public.plt_cards where card_pai_id = ${cardRepB}), 'card_criado', 'api',
+            (select id from public.plt_setores where codigo = 'cnc'),
+            (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+              where s.codigo = 'cnc' and e.eh_danificado));
+`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+const danRep = (
+  await bd.query(`select card_id::int as card_id, numero from public.plt_fn_danificados()
+                   where card_id = (select max(id) from public.plt_cards where card_pai_id = ${cardRepB})`)
+).rows
+conferir(
+  danRep.length === 1 && danRep[0].numero === null,
+  'peça da reposição que quebrou aparece nos Danificados (sem número de pedido)',
+  JSON.stringify(danRep),
+)
+await deveRecusarExec(
+  `select public.plt_fn_resolver_danificado(${danRep[0]?.card_id ?? 0},
+            (select id from public.plt_setores where codigo = 'estoque'), null, 'danificado', 'sem conserto')`,
+  'resolver peça danificada PARA o ESTOQUE marcando 🔴 é recusado',
+  /só recebe peça em perfeito estado/i,
+)
+const sugestao = (
+  await bd.query(`select posicao, codigo, vendidos_90d::float as vendidos, sugestao
+                    from public.plt_fn_estoque_sugestao_minimo(2) where codigo in ('S25A', 'S25B') order by posicao`)
+).rows
+conferir(
+  sugestao.length === 2 && sugestao[0].codigo === 'S25B' && sugestao[0].vendidos === 7
+    && sugestao[1].codigo === 'S25A' && sugestao[1].vendidos === 5
+    && sugestao[0].sugestao >= sugestao[1].sugestao,
+  'sugestão de mínimo: rank pelas vendas de 90 dias (sem cancelado/personalizado) — o mais vendido nunca sugere menos que o de baixo',
+  JSON.stringify(sugestao),
+)
+const topo = (await bd.query(`select count(*)::int as total, max(posicao) as ultima from public.plt_fn_estoque_sugestao_minimo(4)`)).rows[0]
+conferir(topo.total <= 20 && (topo.ultima ?? 0) <= 20, 'a sugestão traz no máximo os 20 mais vendidos', JSON.stringify(topo))
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
