@@ -305,7 +305,6 @@ function CartaoProduto({ linha, agora }: { linha: LinhaEstoqueProduto; agora: nu
         <div className="flex flex-col gap-2">
           <Botao
             variante="secundaria"
-            tamanho="sm"
             className="self-start"
             icone={verPecas ? <ChevronUp /> : <ChevronDown />}
             aria-expanded={verPecas}
@@ -415,7 +414,6 @@ function PecasDoProduto({ produtoTinyId, agora }: { produtoTinyId: number; agora
       {pecas.length < total && (
         <Botao
           variante="fantasma"
-          tamanho="sm"
           className="my-2"
           icone={<ChevronDown />}
           carregando={isFetching}

@@ -441,10 +441,10 @@ function CartaoReposicaoPcp({
         <div className="flex flex-col gap-2 rounded-dm bg-superficie-sutil p-2">
           <p className="text-sm text-texto">Não produzir esta reposição? O card sai do PCP.</p>
           <div className="flex gap-2">
-            <Botao variante="perigo" tamanho="sm" carregando={arquivando} onClick={aoArquivar}>
+            <Botao variante="perigo" carregando={arquivando} onClick={aoArquivar}>
               Sim, não produzir
             </Botao>
-            <Botao variante="fantasma" tamanho="sm" onClick={aoCancelarArquivar}>
+            <Botao variante="fantasma" onClick={aoCancelarArquivar}>
               Voltar
             </Botao>
           </div>
