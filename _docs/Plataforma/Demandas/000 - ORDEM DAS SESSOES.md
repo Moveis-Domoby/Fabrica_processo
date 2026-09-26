@@ -2,7 +2,7 @@
 titulo: Ordem das Sessões de Construção
 tipo: indice
 data: 2026-08-19
-atualizado: 2026-09-23
+atualizado: 2026-09-24
 tags: [plataforma, demandas, sessoes, roadmap]
 ---
 
@@ -17,7 +17,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 > - 27/08 (D-23): Dashboards 08→**10** · Tarefas 09→**12** · API completa 10→**11** · Automações 11→13 · Admin 12→14 · Entrada n8n 13→**09** · Publicação 14→**08**.
 > - 28/08 (D-35 — bloco 3, a reforma): **Automações 13→17 · Painel Admin 14→18**; as novas **13–16 são a reforma** (D-36…D-42), com checkpoint por sessão.
 > - 15/09 (D-46 — bloco União): entram as **SESSÕES 19–21 (União das Plataformas)**. Ordem real de execução: **16 → 19 (pode correr em paralelo com a 16) → 20 → 21**; 17 e 18 seguem em standby. A 20 só começa com a 16 entregue — as duas mexem em `App.tsx`, `Layout.tsx` e `tokens.css`. ↩️ Revisa a nota de 15/09 que dizia "19–21 antes das 16–18" (ver D-46).
-> - 18/09 (**Bloco 5** — [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]): entram as **SESSÕES 22–28** (produção, estoque, chat, automações, rota). Ordem decidida com o dono: **16 → 22 → 23 → 24 → 25 → 26 → 27 → 28**; a **21 roda na janela que o dono definir** (não bloqueia o bloco). A **17 foi absorvida pela 27** (o builder virou canvas); a 18 segue em standby.
+> - 18/09 (**Bloco 5** — [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]): entram as **SESSÕES 22–28** (produção, estoque, chat, automações, rota). Ordem decidida com o dono: **16 → 22 → 23 → 24 → 25 → 26 → 27 → 28** ↩️ **revisada em 24/09 (D-53): 16 → 22 → 23 → 25 → 24 → 26 → 27 → 28** — a 25 (estoque) passou na frente por urgência do dono, e o estoque-base saiu da 24 para ela; a **21 roda na janela que o dono definir** (não bloqueia o bloco). A **17 foi absorvida pela 27** (o builder virou canvas); a 18 segue em standby.
 
 | Ordem | Sessão | Entrega em uma frase | Depende de | Status |
 |---|---|---|---|---|
@@ -44,8 +44,8 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 21º ⏫ | [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] | Cutover dos crons e do webhook DataCrazy, quarentena e exclusão do projeto Supabase antigo | 19, 20 | ✅ entregue — [[handoff_2026_09_22_sessao21_cutover]] (cutover em 22/09: 4 crons e o renovador do token **só na fábrica**, antigo em quarentena; + conferência Tiny×banco dos 5.360 pedidos com 15 corrigidos). **Aceite em curso:** 24h de renovação (1ª automática 23/09 00:00 ✅) e F7 (data do dono; backup dispensado). DataCrazy repontado e trava aberta em 23/09. Entregue pelos PRs #5 e #6 |
 | 22º 🆕 | [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] | Fim da coluna "Chegada", tempo de PCP verdadeiro no card, 10 cards por etapa + "Ver mais", regra "cada tela requisita só o que mostra", 1 pedido por vez + pausa por líder — e os extras da revisão: iniciar na fila avança a etapa (D-48↪️) e arquivar/excluir usuário (D-49) | 16 | ✅ entregue — [[handoff_2026_09_21_sessao22_filas_tempo_pausa]] (migrations 29–31 aplicadas em 21–22/09 com aprovação do dono; validada ao vivo, com E2E real de arquivar/excluir; mesclada na `main` em 22/09 — D-20) |
 | 23º 🆕 | [[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]] | Meu Painel com "Delegados a mim / Meus afazeres / Fila de prioridade" reordenável (com ▶/⏸/✓ na linha), subtarefas em 2 níveis, tarefa pessoal privada (D-51), pausa que GUARDA o tempo, bolinha flutuante de execução, tarefa do "Sistema", "Ver todos" + lixeira nos avisos, painel pessoal "Meu desempenho", admin sem setor (D-52) e PCP sem encerrados do Tiny | 22 | ✅ entregue — [[handoff_2026_09_23_sessao23_meu_painel_2]] (migrations 33–35 aplicadas em 23–24/09 com permissão total do dono; validada ao vivo em 2 rodadas e **mesclada na `main` em 24/09 com o OK do dono — D-20**) |
-| 24º 🆕 | [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] | "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), 3 fluxos de cancelamento (aba Cancelados no PCP, tag em produção, estoque sem dono), sugestão de alocação no PCP, lançamento manual | 22 | 📐 pronta para code |
-| 25º 🆕 | [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] | Integração NOVA com o Tiny da fábrica: lançamento de estoque alimenta o app, venda da loja debita, mínimo/saldo/necessidade de produção + sugestão de mínimo pelo trimestre | 24 | 📐 pronta para code (depende do dono: conta/plano/token) |
+| **24ª na fila** (arquivo 25) 🆕⏫ | [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] | **O estoque inteiro**: saldo do Tiny pelo webhook (integração já no ar desde 23/09), item com pedido × sem dono, lançamento manual, tela com saldo/mínimo/necessidade, venda da loja debita, sugestão de mínimo pelo trimestre | 22 | 📐 pronta para code — **passou na frente da 24 (D-53, 24/09)**; metade já entregue fora de sessão: [[N8N - Tiny Fabrica Produtos para Banco]] |
+| **25ª na fila** (arquivo 24) 🆕 | [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] | "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), 3 fluxos de cancelamento (aba Cancelados no PCP, tag em produção, estoque sem dono) e sugestão de alocação no PCP | 22, **25** | 📐 pronta para code — **roda depois da 25**; o estoque-base foi movido para lá (D-53) |
 | 26º 🆕 | [[SESSAO-26 - Chat Interno]] | Chat autenticado e enxuto em requisições: `/inicio/chat` + balão arrastável com badge; canais, particulares, avisos gerais, aniversários automáticos (campo novo: data de nascimento) | 22 | 📐 pronta para code |
 | 27º 🆕 | [[SESSAO-27 - Automacoes em Canvas]] | Automações em canvas (absorve a 17): gatilho "pedido iniciado na etapa X do setor Y"; ações mover card (revisa D-03), arquivar, etiqueta (etiquetas em Configurações) | 22, 24 | 📐 pronta para code |
 | 28º 🆕 | [[SESSAO-28 - Rota Calculada no Mapa]] | Linha da Programação vira rota calculada nas ruas (OSRM, grátis), partindo da fábrica; interdições/trânsito = evolução paga futura | 15 | 📐 pronta para code |
@@ -56,6 +56,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 ## Regras deste índice
 
 - Status possíveis: `🔶 rascunho` → `📐 pronta para code` → `🔨 em execução` → `✅ entregue (handoff linkado)` (e `⏸️ standby/adiada` · `🔁 absorvida`).
+- ⚠️ **24/09 (D-53):** os **números 24 e 25 continuam nos nomes dos arquivos** (evita quebrar dezenas de links), mas a **ordem de execução é 25 → 24**. Onde número e ordem divergirem, **vale a coluna Ordem desta tabela**.
 - Reordenar é permitido ATÉ a sessão virar `🔨` — depois disso, mudança de ordem é decisão registrada em [[PLT - Decisoes de Produto]].
 - Toda sessão entregue linka aqui o handoff correspondente de `Handoffs/`.
 - Descoberta no meio de uma sessão que muda outra demanda → atualizar o arquivo da demanda afetada na hora (regra 8 do [[CLAUDE - Regras do Claude Code (repo)]]) — e a lição vai para [[PLT - Memoria de Aprendizado]].

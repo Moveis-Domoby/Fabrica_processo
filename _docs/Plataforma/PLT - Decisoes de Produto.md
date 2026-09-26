@@ -499,6 +499,18 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - Para isso funcionar, [[CLAUDE - Regras do Claude Code (repo)]] abre com a seção **"Ao iniciar qualquer sessão"**, com a ordem de leitura obrigatória. **Manter essa seção viva é o que sustenta prompts curtos.**
 - Vale para todos os blocos seguintes: muda só a linha que nomeia o bloco.
 
+## D-53 · Estoque na frente: a 25 troca de ordem com a 24 e absorve o estoque-base (24/09/2026)
+
+**Pedido do dono:** *"preciso urgentemente dessa sessão do estoque completamente entregue"*.
+
+**Decidido:**
+1. **Ordem de execução do Bloco 5 passa a ser 22 → 23 → 25 → 24 → 26 → 27 → 28.** A [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] roda **antes** da [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]].
+2. **O estoque-base migra da 24 para a 25**, para o estoque sair inteiro numa sessão só: **item com pedido × sem dono**, **lançamento manual de estoque** e a **tela de Estoque** (saldo, mínimo, sinalização). A 24 fica com as **consequências**: "Concluir produção" → Pedidos em aguardo, os 3 fluxos de cancelamento e a sugestão de alocação no PCP.
+3. **Os números dos arquivos NÃO mudam** (`SESSAO-24`/`SESSAO-25` continuam como estão) — renomear quebraria dezenas de links do cofre. Isto abre **exceção pontual à regra "número = ordem"** da D-23: onde número e ordem divergirem, **vale a coluna Ordem de [[000 - ORDEM DAS SESSOES]]**.
+4. **Saldo negativo:** na plataforma é exibido como **0** (*"não existe ter −2 mesas em estoque"*); o valor cru continua no evento. A correção da causa no Tiny fica com o dono ([[N8N - Pendencias e Riscos#P16]]) — **não corrigir por automação**.
+
+**Contexto que tornou isso possível:** entre 21 e 23/09, fora de sessão de código, a **integração com o Tiny da fábrica ficou pronta e em produção** (catálogo `produtos` com 487 itens, `fn_upsert_produto`, workflow n8n ativo e webhook de lançamentos de estoque ligado, com o payload capturado). Ou seja, a parte "externa" da 25 já está feita — sobrou o trabalho dentro da plataforma. Ver [[N8N - Tiny Fabrica Produtos para Banco]].
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

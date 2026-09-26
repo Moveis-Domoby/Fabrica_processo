@@ -1,7 +1,7 @@
 ---
 titulo: n8n — Tiny: referência completa de integrações (v2, v3, webhooks, apps)
 tipo: referencia
-atualizado: 2026-09-22
+atualizado: 2026-09-23
 tags: [n8n, tiny, api, webhooks, oauth, referencia, comercial]
 ---
 
@@ -213,7 +213,7 @@ Tela: Menu → Configurações → Outras configurações → **Webhooks** (exig
 |---|---|---|
 | **Notificações de vendas** | criação/alteração de pedido de venda | ✅ sim (abaixo) |
 | Notificações de pedidos enviados | pedido marcado como enviado / rastreio | ❌ não publicado — capturar empiricamente |
-| Lançamentos de estoque | movimentação de estoque | ❌ não publicado |
+| Lançamentos de estoque | movimentação de estoque | ✅ **capturado em 23/09/2026** (abaixo) — a Olist não publica |
 | Notas fiscais autorizadas | NF autorizada na SEFAZ | ❌ não publicado |
 
 **Payload de "Notificações de vendas"** (o que chega no `Webhook Tiny` hoje):
@@ -240,6 +240,27 @@ Regras de entrega:
 - **Não é assinado** (sem HMAC, sem header de verificação). Segurança = manter a URL secreta (UUID no path) + conferir `cnpj` no payload se quiser reforço.
 - Mudança de situação (ex.: alguém marca "entregue") **dispara `atualizacao_pedido`** com o `codigoSituacao` novo. É assim que a planilha fica sabendo.
 - Não existe evento de exclusão de pedido.
+
+
+**🆕 Payload de "Lançamentos de estoque"** (capturado ao vivo na conta da FÁBRICA em 23/09/2026 — entrada manual e balanço geraram o MESMO formato):
+
+```json
+{ "versao": "1.0.1",
+  "cnpj": "27556613000166",
+  "tipo": "estoque",
+  "dados": {
+    "idProduto": 947854547,     // id interno do produto → usar no produto.obter
+    "sku": "TESTE-INT-01",      // código do produto (pode ser vazio no cadastro)
+    "nome": "ZZ TESTE INTEGRACAO - APAGAR",
+    "saldo": 2                  // SALDO RESULTANTE depois do lançamento
+  } }
+```
+
+Aprendizados:
+- **Manda o saldo final, não o movimento** — não há tipo (entrada/saída/balanço), quantidade nem depósito. Para o espelho de saldo da SESSAO-25 isso basta: cada evento é "o saldo deste produto agora é X".
+- Chave é **`dados.idProduto`** (não `dados.id`, que não existe aqui).
+- `versao` "1.0.1" — diferente do "1.0.0" do webhook de vendas.
+- A conferir quando for usado no saldo: se esse `saldo` é o da empresa ou o **consolidado do grupo** (a multiempresa da fábrica está com "estoque de todas as empresas" na API).
 
 ## 2.2 Webhooks de E-COMMERCE — NÃO usar (armadilha de doc)
 
@@ -547,7 +568,7 @@ Free/Unlimited/Business: **100 req/min por token** (HTTP 429 ao estourar). Irrel
 
 # PARTE 5 · Lacunas conhecidas desta pesquisa
 
-1. Payloads dos webhooks de conta "pedidos enviados", "estoque" e "NF autorizada" **não são publicados** — quando forem necessários, apontar para o n8n e capturar um evento real (ou webhook.site).
+1. ↪️ **estoque resolvido em 23/09/2026** (payload em 2.1). Faltam os payloads de "pedidos enviados" e "NF autorizada", que **não são publicados** — quando forem necessários, apontar para o n8n e capturar um evento real (ou webhook.site).
 2. Mapeamento "Impulsione = Evoluir" é por posição de mercado, não confirmado em página oficial — o header `x-limit-api` na primeira chamada tira a dúvida (esperado: 60).
 3. Rotação do refresh token v3 não é afirmada com todas as letras na doc oficial — mas é o comportamento padrão do Keycloak, confirmado por integradores. **Tratar como fato.**
 4. URL exata do "alterar situação da separação" v2 não aparece no corpo da doc — validar com chamada de teste se um dia for usar.

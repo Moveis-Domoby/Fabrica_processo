@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-09-23
+atualizado: 2026-09-24
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -15,21 +15,22 @@ tags: [planejamento, roadmap, indice]
 
 Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (21–22/09), a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] (22–23/09) e a **[[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]]** (23/09, [[handoff_2026_09_23_sessao23_meu_painel_2]]) — o Meu Painel 2.0 com as três filas, subtarefas, tarefa privada, tarefa do Sistema e o painel pessoal "Meu desempenho"; migration 33 aplicada com permissão total do dono.
 
-## ▶️ Agora: SESSAO-24 (Estoque núcleo)
+## ▶️ Agora: SESSAO-25 (Estoque completo) — ⏫ passou na frente da 24 (D-53)
 
 - **SESSAO-23:** ✅ validada ao vivo em 2 rodadas de ajustes com o dono e **mesclada na `main` em 24/09** — detalhe no [[handoff_2026_09_23_sessao23_meu_painel_2]]. Bônus entregues: D-52 (admin sem setor), PCP sem encerrados do Tiny (161 → 37) e o achado do pedido 13257 (reforça a urgência da SESSAO-29).
 - **Cutover (SESSAO-21):** ✅ DataCrazy repontado e ✅ trava do disparo aberta em 23/09 (PR #6). **Exclusão do projeto antigo: 06/10/2026**. Detalhe: [[handoff_2026_09_22_sessao21_cutover]].
-- **Próxima de construção:** [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]].
+- **Próxima de construção:** [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] — **o estoque inteiro numa sessão só**. Em 24/09 o dono pediu urgência: a **25 trocou de lugar com a 24** e o estoque-base (item sem dono, lançamento manual, tela) **saiu da 24 e foi para a 25** (D-53). A 24 ficou com as consequências de produção e cancelamento e roda depois.
+- **Metade da 25 já está entregue, fora de sessão (21–23/09):** integração com o **Tiny da fábrica no ar** — catálogo de 487 produtos no banco, produto novo entra sozinho a cada 15 min, varredura diária e **webhook de lançamentos de estoque ligado e testado** (manda o saldo resultante). Detalhe: [[N8N - Tiny Fabrica Produtos para Banco]] e [[N8N - Tiny Fabrica - Estudo do Cadastro]].
 - **Nova (🔶 rascunho, 4 perguntas suas):** [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — a correção de raiz da deriva Tiny × banco achada na conferência de 22/09 (P17). Recomendo encaixar cedo: sem ela, a deriva volta.
 
 ## ⏭️ Depois: o resto do Bloco 5, na ordem (decidida em 18/09)
 
-**22 → 23 → 24 → 25 → 26 → 27 → 28** — plano completo com o de-para demanda→sessão em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]:
+**22 → 23 → 25 → 24 → 26 → 27 → 28** (ordem revisada em 24/09 — D-53) — plano completo com o de-para demanda→sessão em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]:
 
 1. ✅ [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (entregue 22/09) — fim da coluna "Chegada", tempo de PCP verdadeiro, 10 cards por etapa + "Ver mais", regra nova *"cada tela requisita só o que mostra"*, 1 pedido por vez + pausa por líder.
 2. ✅ [[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]] (entregue 23/09) — as três filas com a Fila de prioridade reordenável, subtarefas em 2 níveis, tarefa privada (D-51), tarefa do Sistema no lugar do bloco de qualidade, "Ver todos" no sino e o painel pessoal Meu desempenho.
-3. [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] — "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), os 3 fluxos de cancelamento, estoque sem dono + sugestão de alocação no PCP, lançamento manual.
-4. [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] — integração **nova** com o Tiny da fábrica: estoque entra sozinho, venda da loja debita, mínimo/saldo/necessidade de produção, sugestão de mínimo pelo trimestre.
+3. ⏫ [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] — **o estoque inteiro**: saldo vindo do Tiny (integração já no ar), item com pedido × sem dono, lançamento manual, tela com saldo/mínimo/necessidade, venda da loja debita, sugestão de mínimo pelo trimestre.
+4. [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] — "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), os 3 fluxos de cancelamento e a sugestão de alocação no PCP, consumindo o estoque da 25.
 5. [[SESSAO-26 - Chat Interno]] — `/inicio/chat` + balão arrastável em toda tela; canais, particulares, avisos gerais, aniversários automáticos.
 6. [[SESSAO-27 - Automacoes em Canvas]] — absorve a antiga 17: canvas com gatilho por etapa/setor, mover card (revisa D-03), arquivar, etiquetas.
 7. [[SESSAO-28 - Rota Calculada no Mapa]] — rota real nas ruas (OSRM, grátis), partindo da fábrica.
@@ -48,7 +49,7 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 ## 🙋 Pendências que estão com VOCÊ (o dono)
 
 1. **Trocar a senha do admin** — ela já vazou em chat duas vezes. (Pendente desde 28/08.)
-2. **Conta Tiny da fábrica** (para a SESSAO-25): existe? qual plano? O token vai direto no lugar seguro — nunca em chat (E-03).
+2. ✅ **Conta Tiny da fábrica resolvida (21–23/09):** conta FábricaDomoby, plano Evoluir, token no compose do n8n, integração no ar. **Fica com você:** o saldo negativo das peças no Tiny (P16 — decidido: na plataforma vira 0; a correção no Tiny é sua) e as 6 perguntas do início da SESSAO-25.
 3. Decidir a **limpeza dos ~163 cards históricos** do PCP (E-24).
 4. **Q-63** — formato do ID de produção (Estoque).
 5. Conferir as **decisões provisórias** dos handoffs 13–15 e 19–20.

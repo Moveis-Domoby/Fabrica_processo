@@ -1,0 +1,453 @@
+{
+  "name": "Domoby · Tiny FÁBRICA → produtos no Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000001",
+      "name": "A cada 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Pega produto NOVO: produtos.pesquisa com dataCriacao = agora − 3h (janela sobreposta; o upsert é idempotente, repetir não duplica)."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { origem: 'novos', dataCriacao: $now.setZone('America/Sao_Paulo').minus({ hours: 3 }).toFormat('dd/LL/yyyy HH:mm:ss') } }];"
+      },
+      "id": "f3000000-0000-0000-0000-000000000002",
+      "name": "Parâmetros · novos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000003",
+      "name": "Varredura diária 03:15",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ],
+      "notes": "Rede de segurança + ALTERAÇÕES (mínimo, descrição, inativação): relê o catálogo inteiro toda madrugada (~430 produtos ≈ 9 min). Também é a CARGA INICIAL: rodar este ramo na mão uma vez."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [ { json: { origem: 'varredura', situacao: 'A' } }, { json: { origem: 'varredura', situacao: 'I' } } ];"
+      },
+      "id": "f3000000-0000-0000-0000-000000000004",
+      "name": "Parâmetros · varredura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Pesquisa produtos no Tiny da FÁBRICA, TODAS as páginas (100 por página).\n// Entrada: itens com { origem, situacao?, dataCriacao? } (dos nodes 'Parâmetros').\n// Saída: um item por produto { tiny_id, origem }.\n// 'Consulta sem registros' (codigo_erro 20) = janela vazia, fim normal de ciclo.\n// ATENÇÃO (erro real em 21/09): o Code node roda em sandbox e NÃO expõe\n// URLSearchParams nem temporizador. O corpo é montado à mão e não há pausa —\n// são poucas requisições (≤ ~10 por execução). O ritmo pesado fica no node\n// produto.obter, que usa o batching do HTTP Request.\nconst URL_PESQUISA = 'https://api.tiny.com.br/api2/produtos.pesquisa.php';\nconst TOKEN = $env.TINY_FABRICA_TOKEN;\nif (!TOKEN) throw new Error('Falta a variável TINY_FABRICA_TOKEN no compose do n8n.');\n\nconst corpo = (obj) =>\n  Object.keys(obj)\n    .filter((k) => obj[k] !== undefined && obj[k] !== null && obj[k] !== '')\n    .map((k) => encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]))\n    .join('&');\n\nconst saida = [];\nfor (const entrada of $input.all()) {\n  const q = entrada.json;\n  let pagina = 1, total = 1;\n  do {\n    const txt = await this.helpers.httpRequest({\n      method: 'POST', url: URL_PESQUISA, json: false, timeout: 30000,\n      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },\n      body: corpo({ token: TOKEN, formato: 'JSON', pesquisa: '', pagina: String(pagina), situacao: q.situacao, dataCriacao: q.dataCriacao }),\n    });\n    const ret = (typeof txt === 'string' ? JSON.parse(txt) : txt)?.retorno ?? {};\n    if (ret.status !== 'OK') {\n      if (Number(ret.codigo_erro) === 20) break; // nenhum produto nessa janela\n      throw new Error('produtos.pesquisa (fábrica) falhou na página ' + pagina + ': ' + JSON.stringify(ret.erros ?? ret));\n    }\n    total = Number(ret.numero_paginas ?? 1) || 1;\n    for (const x of ret.produtos ?? []) {\n      const pr = x.produto ?? x;\n      const id = Number(pr.id);\n      if (id) saida.push({ json: { tiny_id: id, origem: q.origem } });\n    }\n    pagina++;\n  } while (pagina <= total);\n}\n\n// Varredura: inclui os FILHOS de variação (a pesquisa lista só o pai).\n// Lê os ids em produtos.raw->variacoes dos pais já gravados.\nif ($input.all().some((e) => e.json.origem === 'varredura')) {\n  const base = $env.SUPABASE_FABRICA_URL, chave = $env.SUPABASE_FABRICA_KEY;\n  const pais = await this.helpers.httpRequest({\n    method: 'GET', url: base + '/rest/v1/produtos?tipo_variacao=eq.P&select=variacoes:raw->variacoes',\n    headers: { apikey: chave, Authorization: 'Bearer ' + chave }, json: true, timeout: 20000,\n  });\n  for (const pai of pais ?? []) {\n    for (const v of Array.isArray(pai.variacoes) ? pai.variacoes : []) {\n      const id = Number((v.variacao ?? v).id);\n      if (id) saida.push({ json: { tiny_id: id, origem: 'varredura' } });\n    }\n  }\n}\nreturn saida;"
+      },
+      "id": "f3000000-0000-0000-0000-000000000005",
+      "name": "Tiny F · pesquisar produtos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9d7738c8-f7a7-4d8b-9061-e9ace8a39f78",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "f3000000-0000-0000-0000-000000000006",
+      "name": "Webhook · lançamentos de estoque",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        460
+      ],
+      "webhookId": "9d7738c8-f7a7-4d8b-9061-e9ace8a39f78",
+      "notes": "URL de produção deste node vai no Tiny da fábrica: Configurações → Geral → Webhooks → 'Receber notificações de lançamentos de estoque'. Responde 200 na hora (o Tiny reenvia até 10x sem 200). Path com UUID = segredo (webhook do Tiny não é assinado)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/eventos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tipo: 'estoque_fabrica', payload: $json.body ?? {} }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000007",
+      "name": "Supabase · registrar em eventos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        460
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Webhook \"lançamentos de estoque\" do Tiny da FÁBRICA.\n// O payload NÃO é documentado pela Olist (F-05). Por isso:\n//   1) o evento cru JÁ foi gravado em eventos (tipo 'estoque_fabrica', node anterior);\n//   2) aqui só seguimos quando achamos um id de PRODUTO em campo com nome explícito.\n//      NÃO usamos dados.id (pode ser o id do lançamento, não do produto).\n// Depois de ver o primeiro payload real, ajustar a lista CAMPOS abaixo e registrar no cofre.\nconst CNPJ_FABRICA = '27556613000166';\nconst CAMPOS = ['idProduto', 'id_produto', 'produtoId'];\nconst corpo = $('Webhook · lançamentos de estoque').first().json.body ?? {};\nconst cnpj = String(corpo.cnpj ?? '').replace(/\\D/g, '');\nif (cnpj && cnpj !== CNPJ_FABRICA) return []; // não é da fábrica: ignora\nconst d = corpo.dados ?? corpo;\nlet id = null;\nfor (const c of CAMPOS) if (d?.[c]) { id = Number(d[c]); break; }\nif (!id && d?.produto?.id) id = Number(d.produto.id);\nif (!id) return []; // só capturado; nada a buscar ainda\nreturn [{ json: { tiny_id: id, origem: 'webhook_estoque' } }];"
+      },
+      "id": "f3000000-0000-0000-0000-000000000008",
+      "name": "Extrair id do produto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Junta os ids vindos de qualquer gatilho e remove repetidos.\nconst vistos = new Set();\nconst saida = [];\nfor (const it of $input.all()) {\n  const id = Number(it.json.tiny_id);\n  if (!id || vistos.has(id)) continue;\n  vistos.add(id);\n  saida.push({ json: { tiny_id: id, origem: it.json.origem || 'n8n' } });\n}\nreturn saida;"
+      },
+      "id": "f3000000-0000-0000-0000-000000000009",
+      "name": "Juntar ids",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/produto.obter.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY_FABRICA_TOKEN }}"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.tiny_id }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          }
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000010",
+      "name": "Tiny F · produto.obter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        220
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "1 item a cada 1,2 s (~50 req/min; conta Evoluir = 60/min). 3 tentativas em falha de rede."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "tf1",
+              "leftValue": "={{ $json.retorno.status }}",
+              "rightValue": "OK",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f3000000-0000-0000-0000-000000000011",
+      "name": "Retorno OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        220
+      ],
+      "notes": "A API v2 devolve HTTP 200 mesmo em erro — o que vale é retorno.status."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/fn_upsert_produto",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.retorno.produto }) }}",
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 10,
+              "batchInterval": 300
+            }
+          }
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000012",
+      "name": "Supabase · fn_upsert_produto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1380,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "Batching 10/300 ms + 3 tentativas: a carga inicial manda ~490 chamadas seguidas e o Supabase derrubou a conexão no meio (22/09). Rodar de novo é seguro — o upsert é idempotente."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// produto.obter recusou algum produto. Os demais JÁ foram gravados.\n// Não há trava a desfazer: o próximo ciclo (ou a varredura diária) tenta de novo.\nconst falhas = $input.all().map((it, i) => ({\n  tiny_id: $('Juntar ids').itemMatching(i)?.json?.tiny_id,\n  erro: it.json?.retorno?.erros ?? it.json?.retorno ?? it.json,\n}));\nthrow new Error('produto.obter (fábrica) falhou em ' + falhas.length + ' produto(s): ' + JSON.stringify(falhas).slice(0, 1500));"
+      },
+      "id": "f3000000-0000-0000-0000-000000000013",
+      "name": "Erro · obter falhou",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "A cada 15 min": {
+      "main": [
+        [
+          {
+            "node": "Parâmetros · novos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parâmetros · novos": {
+      "main": [
+        [
+          {
+            "node": "Tiny F · pesquisar produtos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Varredura diária 03:15": {
+      "main": [
+        [
+          {
+            "node": "Parâmetros · varredura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parâmetros · varredura": {
+      "main": [
+        [
+          {
+            "node": "Tiny F · pesquisar produtos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny F · pesquisar produtos": {
+      "main": [
+        [
+          {
+            "node": "Juntar ids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook · lançamentos de estoque": {
+      "main": [
+        [
+          {
+            "node": "Supabase · registrar em eventos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase · registrar em eventos": {
+      "main": [
+        [
+          {
+            "node": "Extrair id do produto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair id do produto": {
+      "main": [
+        [
+          {
+            "node": "Juntar ids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar ids": {
+      "main": [
+        [
+          {
+            "node": "Tiny F · produto.obter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny F · produto.obter": {
+      "main": [
+        [
+          {
+            "node": "Retorno OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retorno OK?": {
+      "main": [
+        [
+          {
+            "node": "Supabase · fn_upsert_produto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erro · obter falhou",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}
