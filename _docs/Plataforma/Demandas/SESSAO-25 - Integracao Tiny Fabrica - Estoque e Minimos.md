@@ -111,7 +111,7 @@ Terreno: v2 devolve **HTTP 200 mesmo em erro** (IF em `retorno.status`) · nunca
 
 ## 8. Resultado (preencher ao entregar)
 
-✅ **Entregue em 26/09/2026** — [[handoff_2026_09_26_sessao25_estoque]] · execução em `Plataforma/Execucao/SESSAO-25.md`. Migration 36 aplicada (integração intacta), test:banco com 27 cenários novos, ensaio A-11 no banco real, telas validadas no navegador (E2E da reposição com o produto de teste do Tiny, arquivado ao fim). As respostas do dono mudaram o desenho: sem lançamento manual; estoque de fato = peça pronta, 🟢 e sem pedido; abaixo do mínimo → **card de reposição no PCP** (D-54); o número = Tiny − pedidos da loja em aberto (D-55); ID = SKU (+ pedido) (D-56); duas telas + top 20 (D-57). **Com o dono:** ligar a reposição automática (a 1ª rodada criaria 44 cards / 121 unidades) e o lançamento real de conferência no Tiny.
+✅ **Entregue em 26/09/2026** — [[handoff_2026_09_26_sessao25_estoque]] · execução em `Plataforma/Execucao/SESSAO-25.md`. Migration 36 aplicada (integração intacta), test:banco com 27 cenários novos, ensaio A-11 no banco real, telas validadas no navegador (E2E da reposição com o produto de teste do Tiny, arquivado ao fim). As respostas do dono mudaram o desenho: sem lançamento manual; estoque de fato = peça pronta, 🟢 e sem pedido; abaixo do mínimo → **card de reposição no PCP** (D-54); o número = Tiny − pedidos da loja em aberto (D-55); ID = SKU (+ pedido) (D-56); duas telas + top 20 (D-57). **Mesclada na `main` em 26/09 (D-20).** Com o dono: ligar a reposição automática (a 1ª rodada criaria 44 cards / 121 unidades) e o lançamento real de conferência no Tiny.
 
 ## Ver também
 

@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, tiny, d-54, d-55, d-56, d-
 
 # 📋 Handoff — SESSAO-25 · O estoque completo (D-54…D-57)
 
-**Branch:** `sessao-25-estoque-completo` — **aguardando sua validação e o merge (D-20)**
+**Branch:** `sessao-25-estoque-completo` — **mesclada na `main` em 26/09/2026 com o seu OK (D-20)**
 **Banco:** migration **36 APLICADA em 26/09** com o seu OK na conversa, pelo aplicador de sempre (F-08): reaplicação das 36, **integração do Tiny com estrutura e linhas idênticas antes/depois**. Advisors: só as 4 portas novas do estoque (endpoints de propósito, padrão E-11).
 **Carga do saldo:** rodada por você no n8n em 26/09 (21:16–21:26 UTC) — **442 avisos, 442 produtos**.
 **Demanda:** [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] · **Memória:** `_docs/Plataforma/Execucao/SESSAO-25.md` · **Decisões novas:** D-54, D-55, D-56, D-57 (suas respostas de 26/09)
@@ -58,7 +58,7 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, tiny, d-54, d-55, d-56, d-
 - ⚪ **Serviços como "Corte", "Furo" e "FITAMENTO"** estão cadastrados como produto simples no Tiny e aparecem na aba de acabados (com 0). Se quiser, eles saem da tela — é uma regra de uma linha, mas precisa do seu critério (nome? unidade?).
 - ⚪ **Duas peças no ESTOQUE fora da regra nova:** 🔴 do pedido 13215 (penteadeira 521) e 🟡 do pedido 13203 (penteadeira 478). Estavam lá antes da regra; a logística decide (Danificados).
 - ⚪ **Teste E2E ficou na história com o seu usuário:** card 571 (reposição de teste, arquivado pelo "Não produzir") e peça 572 (arquivada), ambos do produto "ZZ TESTE INTEGRACAO - APAGAR"; houve 2 avisos de "chegou ao ESTOQUE" no sino dos admins.
-- ⚪ **Merge na `main`** (D-20) depois da sua validação.
+- ✅ **Mesclada na `main` em 26/09** (D-20) — a pedido do dono.
 
 ## 5. Arquivos alterados
 
