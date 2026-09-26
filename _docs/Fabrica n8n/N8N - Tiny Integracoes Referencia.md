@@ -260,7 +260,8 @@ Aprendizados:
 - **Manda o saldo final, não o movimento** — não há tipo (entrada/saída/balanço), quantidade nem depósito. Para o espelho de saldo da SESSAO-25 isso basta: cada evento é "o saldo deste produto agora é X".
 - Chave é **`dados.idProduto`** (não `dados.id`, que não existe aqui).
 - `versao` "1.0.1" — diferente do "1.0.0" do webhook de vendas.
-- A conferir quando for usado no saldo: se esse `saldo` é o da empresa ou o **consolidado do grupo** (a multiempresa da fábrica está com "estoque de todas as empresas" na API).
+- ↪️ **Conferido em 26/09/2026 (SESSAO-25):** o `saldo` do aviso é o **FÍSICO** — não desconta reserva. Prova: Corte, Furo 3mm e FITAMENTO chegaram pelo aviso com saldo 0 e, na carga (`produto.obter.estoque`), têm saldo 0 e milhares em `saldoReservado`. A API traz `saldo` (físico) + `saldoReservado`; o "disponível" do Tiny é a diferença.
+- **Pedido de venda da loja NÃO gera aviso** de lançamentos de estoque da fábrica (46 pedidos em 3 dias, 0 avisos): o pedido vira **reserva**, e reserva não é lançamento (A-22).
 
 ## 2.2 Webhooks de E-COMMERCE — NÃO usar (armadilha de doc)
 

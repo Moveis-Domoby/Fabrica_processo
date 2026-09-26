@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-09-15
+atualizado: 2026-09-26
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -510,6 +510,49 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 4. **Saldo negativo:** na plataforma é exibido como **0** (*"não existe ter −2 mesas em estoque"*); o valor cru continua no evento. A correção da causa no Tiny fica com o dono ([[N8N - Pendencias e Riscos#P16]]) — **não corrigir por automação**.
 
 **Contexto que tornou isso possível:** entre 21 e 23/09, fora de sessão de código, a **integração com o Tiny da fábrica ficou pronta e em produção** (catálogo `produtos` com 487 itens, `fn_upsert_produto`, workflow n8n ativo e webhook de lançamentos de estoque ligado, com o payload capturado). Ou seja, a parte "externa" da 25 já está feita — sobrou o trabalho dentro da plataforma. Ver [[N8N - Tiny Fabrica Produtos para Banco]].
+
+## D-54 · O fluxo do estoque: só peça pronta, perfeita e sem pedido; abaixo do mínimo, o estoque pede REPOSIÇÃO ao PCP (26/09/2026) — ↩️ revisa a D-22 e fecha a Q-23
+
+**Decidido (resposta 7 do dono no início da SESSAO-25 — ele NÃO confirmou o item sem dono nascendo direto no ESTOQUE):** *"Dentro dele não ficará mais nenhum produto danificado, nem com estado de atenção, nem produtos prontos com pedido definido; produtos prontos com pedidos definidos serão estoque reservado e não devem contabilizar positivamente no estoque de fato … quando o produto ficar abaixo do estoque mínimo, lançamos para a produção (PCP) um card de 'necessidade de reposição em estoque', esse card que o estoque vai gerar, no fim também é o PCP que vai decidir o rumo dele; assim que o produto for produzido, vai para estoque aguardar a venda."*
+
+- **Estoque de fato = peça pronta, 🟢 e SEM pedido.** Pronta COM pedido = **reservada** (duas etiquetas: SKU + pedido) — aparece à parte, nunca soma.
+- **O ESTOQUE só recebe peça 🟢** — regra do banco para chegada humana (trigger `plt_eventos_validar_chegada_estoque`); as telas de mover/concluir/resolver danificado só oferecem 🟢 quando o destino é o ESTOQUE.
+- **Card de REPOSIÇÃO** (tipo novo `reposicao` em `plt_cards`): a maquinaria gera no **PCP** quando o disponível de um produto do catálogo fica abaixo do mínimo do Tiny — um ciclo vivo por produto; depois de um ciclo, só reabre com leitura NOVA do Tiny daquele produto (a peça pronta precisa entrar no Tiny antes). Quantidade = mínimo − disponível (o negativo NÃO entra: aqueles pedidos já têm card próprio no PCP). O **PCP decide**: libera as unidades (nascem sem pedido) ou **"Não produzir"** (arquiva). Pronta → fica **livre** no ESTOQUE.
+- **D-13 continua valendo** (tudo entra pelo PCP). **↩️ D-22 revisada:** existe card no PCP que não nasce de pedido do Tiny — o de reposição, gerado pelo estoque (nunca digitado à mão).
+- **Não existe lançamento manual direto no ESTOQUE** (item 5 da demanda original, não confirmado): a entrada de estoque é o Tiny (a equipe cadastra o pronto lá) e a produção de reposição.
+- **Q-23 ✅ fechada:** produção para estoque = card de reposição que o estoque gera no PCP.
+- A geração automática (pg_cron, a cada 5 min) **é ligada à parte**, com o OK do dono (`supabase/manutencao/2026-09-26_ligar_reposicao_automatica.sql`) — a primeira rodada com a carga de 26/09 criaria 44 cards (121 unidades).
+
+**Descartada:** item sem dono lançado à mão direto no ESTOQUE (não confirmado pelo dono).
+
+## D-55 · O número do estoque: o do Tiny menos o que a loja já vendeu e ainda não saiu; negativo = "necessidade extrema" (26/09/2026)
+
+**Decidido (respostas 1, 2 e 3 do dono, SESSAO-25):** *"o pessoal cadastra o produto dentro do Tiny como pronto, o Tiny aumenta a quantidade; quando um pedido de venda é gerado no Tiny da loja, ele já debita automaticamente do Tiny da fábrica … para eles o negativo é necessidade de produção, mas na nossa plataforma não faremos assim, não teremos estoque negativo, quando ficar negativo é porque é necessidade extrema de produção."*
+
+- **Saldo do Tiny = leitura derivada** do último aviso de cada produto (webhook de lançamentos de estoque ou a carga inicial) — **sem tabela e sem coluna nova** (resposta 1: "faça o mais profissional, otimizado e rápido"; o dono autorizou 2 colunas em `produtos` se um dia precisar).
+- **Disponível = saldo físico lido − reservas abertas** (itens não personalizados de pedidos da loja em aberto/aprovado/preparando envio, casados por SKU). O Tiny **não avisa** quando sai pedido (46 pedidos, 0 avisos — a reserva não é lançamento); a plataforma faz a conta com os pedidos que já chegam ao banco.
+- **Na tela, nunca negativo** (D-53): mostra 0 e a **"necessidade extrema — N vendidos sem estoque"** (ícone + texto).
+- **Tiny e plataforma nunca se somam** (resposta 2): "Em estoque" (Tiny) · "Reservados" (prontos com pedido) · "Livres na plataforma" (prontos sem pedido, da reposição).
+- **Venda da loja debita** = a reserva derivada acima (a venda nova entra na conta na hora).
+- **Personalizado** não reserva nem desconta o produto do catálogo (a loja reusa o SKU com outras medidas). **Exceção (dono, 26/09):** personalizado produzido cujo pedido foi cancelado **vai para o estoque** e, a partir daí, uma venda igual dá baixa nele — fluxo do cancelamento, [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]].
+
+⚠️ **Achado da carga de 26/09 (para o dono):** o **físico** dos fabricados no Tiny está **negativo em 93 de 168** (venda que baixou sem o "pronto" correspondente) e a **reserva do Tiny não bate com os pedidos abertos** (ex.: 327 com 44 reservados no Tiny × 0 pedidos abertos no banco; serviços da própria fábrica — Corte, Furo, FITAMENTO — com milhares reservados). Por isso a plataforma usa os pedidos abertos, não o `saldoReservado` do Tiny.
+
+## D-56 · O ID da peça é o SKU; reservada ganha a segunda etiqueta, a do pedido (26/09/2026) — fecha a Q-63
+
+**Decidido (resposta 4 do dono):** *"O id que eles usam atualmente é apenas o SKU do Tiny etiquetando, e eles contam em um papel todos os dias quantos tem de cada produto em estoque. Vamos deixar que ainda seja o SKU contando a quantidade, mas a nossa ideia é eliminar o papel. Quando sai um pedido com o respectivo produto tendo sido vendido, o produto passa a ter 2 ids, o SKU e o id do pedido, duas etiquetas diferentes, e ele vira produto reservado."*
+
+- A tela de Estoque mostra a **quantidade por SKU** (o papel deixa de ser a fonte); a peça reservada aparece com **SKU + nº do pedido**.
+- O campo livre "ID de produção" (D-38) **sai da tela** (a coluna e a RPC ficam no banco — nada se apaga).
+- **Q-63 ✅ fechada.**
+
+## D-57 · Estoque em duas telas + sugestão de mínimo pelo top 20 (26/09/2026)
+
+**Decidido (resposta 8 e pedido do dono na abertura da SESSAO-25):**
+
+- **Produtos acabados** (F fabricado, S simples/revenda, variações) e **Matéria-prima e insumos** (M, K — peças, MDF, parafusos): *"pra produção, o que futuramente irá existir é estoque de peça e necessidade de produção de peça com plano de corte — esse será o nosso próximo passo, então já adiantaremos a peça."* As duas vivem em abas do mesmo filho `/fabrica/logistica/estoque` (não são rotas novas — D-36).
+- **Sugestão de mínimo:** *"é para os 20 produtos mais vendidos dos últimos 90 dias, porém com rank — obviamente o produto mais vendido deve ter mais em estoque do que o top 20."* Sugestão = média semanal de vendas (sem personalizado, sem cancelado) × semanas de cobertura escolhidas na tela (1, 2 ou 4) — cresce com a venda. O dono ajusta o mínimo **no Tiny**.
+- **Alerta de erro do n8n (P1): não agora** (*"belíssima ideia, porém não faremos ainda"*).
 
 ## Ver também
 

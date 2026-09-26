@@ -2,7 +2,7 @@
 titulo: PLT — Modelo de Sistema (o design system da plataforma)
 tipo: modelo-de-sistema
 data: 2026-08-24
-atualizado: 2026-09-08
+atualizado: 2026-09-26
 tags: [plataforma, design-system, modelo-de-sistema, ui]
 ---
 
@@ -446,6 +446,40 @@ SESSAO-05.
   `superficie-sutil`); exclusão em modal `perigo`; quando o banco recusa (em uso), um segundo
   modal explica e oferece **Arquivar** como primária — o "não" do sistema sempre vem com a
   saída certa.
+
+### Estoque completo e reposição (SESSAO-25 / D-54…D-57)
+
+- **`<Abas>`** (`src/componentes/ui/Abas.tsx` — componente novo): visões diferentes do MESMO
+  filho de rota (não são rotas — D-36). `role="tablist"`/`tab` com `aria-selected`, alvo de
+  44px, aba ativa com borda `acao-ativa` + texto forte (nunca só cor), setas ←/→ trocam de
+  aba, quebra linha no celular em vez de rolar a página. A aba vive na URL (`?aba=`) — o
+  Voltar e o link funcionam. O painel é da tela (`role="tabpanel"`, `id`/`aria-labelledby`
+  pelo `idBase`). A SESSAO-24 usa o mesmo componente no "Ver pedidos / Ver itens".
+- **Estoque em abas:** *Produtos acabados* · *Matéria-prima e insumos* · *Sugestão de mínimo*.
+  O cartão de produto mostra o **sinal** (pílula com ícone + texto: necessidade extrema
+  `danificado-*` com `OctagonAlert`, abaixo do mínimo `atencao-*` com `TriangleAlert`, ok
+  `perfeito-*`, sem mínimo/sem leitura em `superficie-sutil`), **4 números** em grade
+  (Em estoque em destaque · Mínimo (Tiny) · Reservados · Livres na plataforma — nunca
+  somados), a linha da leitura do Tiny ("Tiny: 3 − 2 vendidos pela loja ainda sem sair ·
+  lido há 2 h (carga inicial)") e "Ver as peças" sob demanda (regra 17). Estoque na tela
+  **nunca negativo** (D-53); o negativo vira a pílula de necessidade extrema. A lógica do
+  sinal é pura em `src/logistica/estoque.ts` (Vitest).
+- **Peça no estoque:** reservada = "Reservada · Pedido N (k/n)" + SKU (as duas etiquetas);
+  livre = "Livre · veio da reposição". "Ver todas as peças no ESTOQUE" (inclusive
+  personalizada de pedido) só carrega ao abrir.
+- **Sugestão de mínimo:** lista numerada (1º…20º) com vendidos em 90 dias e média por semana;
+  a cobertura (1/2/4 semanas) é `FiltroPill`; a sugestão que difere do mínimo atual ganha
+  borda `acao-ativa`.
+- **Card de REPOSIÇÃO no PCP:** borda `acao-ativa`, cabeçalho "Reposição de estoque" com
+  `PackagePlus`, produto + SKU, "Em estoque X · mínimo Y", pílula de necessidade extrema
+  quando houver, "Repor N unidades · k liberadas"; **"Liberar unidades"** abre o MESMO
+  `ModalLiberarPedido` (modo reposição) e **"Não produzir"** arquiva em dois toques inline.
+- **Card sem pedido** aparece como **"Reposição de estoque"** onde o card de unidade diria
+  "Pedido N" (quadros, tablet, modais, afazeres, Danificados) — helper único
+  `src/kanban/rotulos.ts` (`rotuloOrigemCard`).
+- **ESTOQUE só com 🟢:** mover/concluir/resolver para o ESTOQUE só oferece "Perfeito estado",
+  com a frase da regra ("com defeito, mova para o DANIFICADO do setor"); o banco recusa o
+  resto (mensagem mostrada como veio).
 
 ### Controle de tempo do admin (SESSAO-07 / D-29)
 

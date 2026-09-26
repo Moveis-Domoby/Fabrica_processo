@@ -12,6 +12,13 @@ tags: [plataforma, demanda, bloco-5, estoque, producao]
 > [!warning] A ordem mudou em 24/09/2026 (D-53)
 > Esta sessão **roda DEPOIS da [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]]**, a pedido do dono (estoque entregue com urgência).
 > **O que era "estoque" aqui foi movido para a 25**: item **com pedido × sem dono**, **lançamento manual de estoque** e a **tela de Estoque** (saldo, mínimo, sinalização). Esta demanda ficou com as **consequências da produção e do cancelamento**, que consomem aquilo. **Não reconstruir o que a 25 entregou** — ler o handoff dela primeiro.
+>
+> **↪️ O que a 25 ENTREGOU (26/09 — [[handoff_2026_09_26_sessao25_estoque]]), que muda esta demanda:**
+> - **Não existe lançamento manual** (D-54). A peça **sem dono** é a unidade com `pedido_id` NULO + `produto_tiny_id` (catálogo da fábrica) — hoje nasce do **card de REPOSIÇÃO** (tipo `reposicao`) que o estoque gera no PCP. O cancelamento desta sessão cria peça sem dono do MESMO jeito (pedido desvinculado por evento), com a origem "cancelamento".
+> - **Estoque de fato = pronta, 🟢 e sem pedido** (o banco já recusa 🟡/🔴 chegando no ESTOQUE). Pronta com pedido = **reservada** (SKU + pedido).
+> - **"Concluir produção" da unidade de REPOSIÇÃO continua indo para o ESTOQUE** (fica livre, aguardando a venda); só a unidade COM pedido vai para Pedidos em aguardo.
+> - **Personalizado (regra do dono, 26/09):** o produzido cujo pedido foi cancelado **vai para o estoque** e, a partir daí, uma venda igual dá baixa nele — casar por SKU **e** descrição (a loja reusa o SKU com outras medidas; regra única `plt_privado.fn_eh_personalizado`).
+> - A sugestão de alocação casa por **SKU** — o id do produto da loja NUNCA casa com o da fábrica (A-22). Evoluir `plt_fn_estoque`/`plt_fn_estoque_produtos` (E-22), e usar o componente `ui/Abas` no "Ver pedidos / Ver itens".
 
 ## O que é
 

@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-25 — Estoque da fábrica: Tiny, saldo, mínimos e lançamento manual"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-09-18
-atualizado: 2026-09-24
+atualizado: 2026-09-26
 tags: [plataforma, demanda, bloco-5, estoque, tiny, n8n]
 ---
 
@@ -92,16 +92,16 @@ Mexer no workflow ou na migration 23 (estão em produção) · corrigir saldo ne
 
 ## 6. Critérios de aceite
 
-- [ ] Movimentação de estoque no Tiny da fábrica reflete no saldo da plataforma em segundos (testado com um lançamento real, como em 23/09).
-- [ ] Saldo negativo aparece como **0**; o valor cru continua no evento.
-- [ ] Estoque distingue **item com pedido × sem dono**, e o item sem dono mostra a origem.
-- [ ] **Lançamento manual** cria item sem dono com evento e log; só logística/admin conseguem.
-- [ ] Tela de Estoque mostra saldo, mínimo e **sinalização de necessidade** (ícone + texto), paginada no servidor, com busca.
-- [ ] Venda de teste na loja debita o SKU correspondente; **personalizado não debita**; sem saldo, a falta é registrada.
-- [ ] Sugestão de mínimo pelo trimestre entregue **ou** registrada como pendência com escopo pronto.
-- [ ] Nenhuma alteração no workflow `domoby-tiny-fabrica-produtos` nem na `fn_upsert_produto` (se parecer necessário, ⏸️ checkpoint com o dono antes).
-- [ ] Nenhum evento existente alterado ou apagado (RNF-05); toda transição nova é evento com projeção (M-13).
-- [ ] D-53 e as decisões novas registradas em [[PLT - Decisoes de Produto]]; [[SUPA - Esquema do Banco]], [[N8N - Tiny Fabrica Produtos para Banco]] e [[PLT - Requisitos]] atualizados.
+- [~] Movimentação de estoque no Tiny da fábrica reflete no saldo da plataforma em segundos — **a leitura é derivada do aviso (sem atraso de projeção) e a carga de 26/09 apareceu na tela em minutos**; o lançamento REAL de conferência fica com o dono na validação (o Tiny não tem sandbox).
+- [x] Saldo negativo aparece como **0**; o valor cru continua no evento (e a tela mostra "necessidade extrema" — D-55).
+- [x] Estoque distingue **item com pedido × sem dono** — "Reservados" × "Livres na plataforma"; a peça mostra de onde veio (pedido N ou reposição).
+- [x] ~~**Lançamento manual**~~ → **não confirmado pelo dono (D-54)**: no lugar, o card de REPOSIÇÃO gerado pelo estoque no PCP (evento + trilha; só logística/admin arquivam).
+- [x] Tela de Estoque mostra saldo, mínimo e **sinalização de necessidade** (ícone + texto), paginada no servidor, com busca (e as duas telas da D-57).
+- [x] Venda na loja debita o SKU correspondente (reserva derivada dos pedidos abertos); **personalizado não debita**; sem saldo, a falta aparece como necessidade extrema — provado no `test:banco` e com os pedidos reais.
+- [x] Sugestão de mínimo **entregue**: top 20 dos 90 dias com rank (D-57).
+- [x] Nenhuma alteração no workflow `domoby-tiny-fabrica-produtos` nem na `fn_upsert_produto` (a carga do saldo é um workflow SEPARADO).
+- [x] Nenhum evento existente alterado ou apagado (RNF-05); toda transição nova é evento com projeção (M-13).
+- [x] D-53 e as decisões novas (D-54…D-57) registradas; [[SUPA - Esquema do Banco]], [[N8N - Tiny Fabrica Produtos para Banco]] e [[PLT - Requisitos]] atualizados.
 
 ## 7. Notas para o Claude Code
 
@@ -111,7 +111,7 @@ Terreno: v2 devolve **HTTP 200 mesmo em erro** (IF em `retorno.status`) · nunca
 
 ## 8. Resultado (preencher ao entregar)
 
-*—*
+✅ **Entregue em 26/09/2026** — [[handoff_2026_09_26_sessao25_estoque]] · execução em `Plataforma/Execucao/SESSAO-25.md`. Migration 36 aplicada (integração intacta), test:banco com 27 cenários novos, ensaio A-11 no banco real, telas validadas no navegador (E2E da reposição com o produto de teste do Tiny, arquivado ao fim). As respostas do dono mudaram o desenho: sem lançamento manual; estoque de fato = peça pronta, 🟢 e sem pedido; abaixo do mínimo → **card de reposição no PCP** (D-54); o número = Tiny − pedidos da loja em aberto (D-55); ID = SKU (+ pedido) (D-56); duas telas + top 20 (D-57). **Com o dono:** ligar a reposição automática (a 1ª rodada criaria 44 cards / 121 unidades) e o lançamento real de conferência no Tiny.
 
 ## Ver também
 

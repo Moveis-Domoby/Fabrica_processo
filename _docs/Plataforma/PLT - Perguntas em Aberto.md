@@ -2,7 +2,7 @@
 titulo: Plataforma — Perguntas em Aberto (entrevista de descoberta)
 tipo: descoberta
 data: 2026-08-19
-atualizado: 2026-09-15
+atualizado: 2026-09-26
 tags: [plataforma, descoberta, perguntas]
 ---
 
@@ -45,7 +45,7 @@ tags: [plataforma, descoberta, perguntas]
 - ✅ **Q-28 · ROTAS na plataforma?** → respondida em 26/08, nas palavras do dono: *"coloque o setor de rotas nos primórdios de criação"*. **ESTOQUE e ROTAS nascem como setores terminais desde o seed**; a ROTAS é terminal de *handoff* enquanto a logística viver no ClickUp (D-05) → [[PLT - Decisoes de Produto#D-18]]. Desbloqueou a SESSAO-04.
 - ⏸️ **Q-21 · Card de unidade que se divide:** e quando UMA unidade gera trabalho paralelo (base de metalon na METALURGICA enquanto a madeira corre na SECC)? O card se divide em sub-cards que se juntam na montagem? → **adiada de propósito em 27/08 (SESSAO-04): "fica para depois" (D-22). Nada no modelo depende disso; quando decidido, entra como acréscimo.**
 - **Q-22 · Terceirizados (corte/fita para SF Madeiras etc., 350+ cards hoje):** entram na plataforma desde o dia 1 como fluxo próprio, ou ficam fora do escopo inicial?
-- **Q-23 · Produção para estoque** (best-sellers sem pedido): o card nasce de onde, já que não há pedido no Tiny? Botão "produzir para estoque" no PCP?
+- ✅ **Q-23 · Produção para estoque** → respondida em 26/09 (SESSAO-25): abaixo do mínimo do Tiny, o **estoque gera no PCP um card de reposição**; o PCP decide (libera ou não produz); pronta, a peça fica livre no estoque → [[PLT - Decisoes de Produto#D-54]]
 - ✅ **Q-24 · Cancelamento** → respondida em 28/08 (bloco noturno): card marcado "cancelado", visível, não some; com unidades liberadas, notifica admins → D-31
 - **Q-25 · Migração:** os cards vivos do ClickUp/Trello entram na plataforma no corte (importação), ou só pedidos novos nascem nela e o legado morre onde está?
 
@@ -76,7 +76,7 @@ tags: [plataforma, descoberta, perguntas]
 
 ## 🟤 Reforma (bloco 3 — 28/08/2026)
 
-- **Q-63 · Formato definitivo do ID de produção do Estoque** (por ora campo digitável livre — D-38): número do pedido do Tiny? sequencial próprio? etiqueta impressa?
+- ✅ **Q-63 · ID do Estoque** → respondida em 26/09 (SESSAO-25): o ID é o **SKU** (a equipe etiqueta e conta por SKU); peça reservada ganha a segunda etiqueta, o **nº do pedido**. O campo livre sai da tela → [[PLT - Decisoes de Produto#D-56]]
 - **Q-64 · Os 8 temas (D-41):** o Claude Code propõe as 8 variações claro→escuro no DNA Domoby e o dono ajusta ao ver. Alguma cor proibida/obrigatória?
 - **Q-65 · Endereço para o mapa das ROTAS (D-39):** o endereço de entrega vindo do Tiny é completo/padronizado o bastante para geocodificar? Pedido sem endereço válido aparece como na programação?
 

@@ -52,19 +52,20 @@ tags: [execucao, sessao-25, estoque, tiny, bloco-5]
 - **Q-63 fecha:** ID = SKU; reservado = SKU + nº do pedido. O campo livre "ID de produção" sai da tela.
 - Sem lançamento manual direto no ESTOQUE (Q7 não confirmada) — a entrada de estoque é o Tiny (cadastro do pronto) e a produção de reposição.
 
-## Task list (espelho da demanda + respostas do dono)
+## Task list (espelho da demanda + respostas do dono) — conferida contra a demanda em 26/09
 
-- [ ] 1. Saldo do Tiny derivado dos avisos (`estoque_fabrica`), com CNPJ/tipo conferidos; negativo = 0 na tela, cru no evento
-- [ ] 2. Carga inicial: workflow separado entregue (o dono roda) + validação da reserva (API `saldoReservado` × reservas derivadas)
-- [ ] 3. Disponível = físico − reservas abertas dos pedidos da loja (SKU, sem personalizado, sem cancelado) — "venda debita"; negativo → necessidade extrema
-- [ ] 4. Reservado (pronto com pedido) × livre na plataforma, sem somar; itens com as duas etiquetas (SKU + pedido)
-- [ ] 5. Card de reposição no PCP gerado pelo estoque (um vivo por produto), liberação pelo PCP, unidades sem pedido até o ESTOQUE
-- [ ] 6. ESTOQUE só recebe peça 🟢 (banco + telas de mover/concluir/danificados)
-- [ ] 7. Tela Estoque: Produtos acabados (paginada no servidor, busca, filtros, sinal com ícone + texto) + Matéria-prima e insumos
-- [ ] 8. Sugestão de mínimo: top 20 dos 90 dias com rank
-- [ ] 9. Cards/unidades sem pedido aparecem certo em quadros, tablet, danificados, afazeres, linha do tempo
-- [ ] 10. Migration 36 + test:banco (2 rodadas + cenários) · tsc · lint · test · build · F-07 · ⏸️ checkpoint antes de aplicar · advisors
-- [ ] 11. Decisões novas (D-54…) + Requisitos + Esquema do Banco + notas N8N + Modelo de Sistema + memória + handoff
+- [x] 1. Saldo do Tiny derivado dos avisos (`estoque_fabrica`), com CNPJ/tipo conferidos; negativo = 0 na tela, cru no evento
+- [x] 2. Carga inicial: workflow separado entregue; **o dono rodou em 26/09** (442 produtos); reserva do Tiny × derivada conferida (não bate — ver achado 10)
+- [x] 3. Disponível = físico − reservas abertas dos pedidos da loja (SKU, sem personalizado, sem cancelado) — "venda debita"; negativo → necessidade extrema
+- [x] 4. Reservado (pronto com pedido) × livre na plataforma, sem somar; peça com as duas etiquetas (SKU + pedido)
+- [x] 5. Card de reposição no PCP gerado pelo estoque (um vivo por produto), liberação pelo PCP, unidades sem pedido até o ESTOQUE — **ligar a geração automática: com o dono** (prévia: 44 cards / 121 unidades)
+- [x] 6. ESTOQUE só recebe peça 🟢 (banco + telas de mover/concluir/danificados)
+- [x] 7. Tela Estoque: Produtos acabados (paginada no servidor, busca, filtros, sinal com ícone + texto) + Matéria-prima e insumos
+- [x] 8. Sugestão de mínimo: top 20 dos 90 dias com rank
+- [x] 9. Cards/unidades sem pedido aparecem certo em quadros, tablet, danificados, afazeres, linha do tempo
+- [x] 10. Migration 36 + test:banco (2 rodadas + 27 cenários) · tsc · lint · test 56/56 · build · F-07 · checkpoint antes de aplicar (OK do dono) · advisors
+- [x] 11. D-54…D-57 + Q-23/Q-63 + RF-70…76 + Esquema do Banco + notas N8N + Modelo de Sistema + memória + demandas 24/25 + ORDEM/MAPA/PRÓXIMOS PASSOS + handoff
+- [ ] Critério "lançamento real no Tiny reflete em segundos": com o dono (o Tiny não tem sandbox) — roteiro no handoff
 
 ## Log
 
@@ -76,3 +77,11 @@ tags: [execucao, sessao-25, estoque, tiny, bloco-5]
 - 26/09 · `npm run test:banco` ✅ — 27 cenários novos da S25, tudo verde nas 2 rodadas (commit bed1b8b).
 - 26/09 · front (commit e3e0103): Estoque em 3 abas (componente novo `ui/Abas`), PCP com o card de reposição + modal de liberação para os dois tipos, "Reposição de estoque" no lugar de "Pedido …" onde o card não tem pedido, mover/concluir/resolver para o ESTOQUE só oferece 🟢, campo "ID de produção" fora da tela. `tsc` ✅ · `lint` ✅ · `npm test` ✅ 56/56 (+7) · `build` ✅ · mojibake 0.
 - 26/09 · pré-aplicação (só leitura, produção): check de tipo = `plt_cards_tipo_check`; **0** cards violam a coerência nova (469 pedido, 29 unidade); o front no ar segue funcionando com a 36 aplicada (a chamada de `plt_fn_estoque` por nome casa com a assinatura nova; colunas antigas mantidas); nenhum cron novo. `npm run banco:aplicar` (sem confirmar) lista as 36. ⏸️ aguardando o OK do dono para aplicar.
+- 26/09 · **OK do dono ("aplique, faça os testes completos")**: `npm run banco:aplicar -- --confirmar` → as 36 aplicadas, **integração com estrutura e linhas idênticas**. Advisors: segurança só +4 WARN (portas novas: `plt_fn_estoque_produtos`, `plt_fn_estoque_sugestao_minimo`, `plt_fn_reposicoes_resumo`, `plt_fn_reposicao_unidades`; `plt_fn_estoque` com assinatura nova); desempenho: nada novo além do índice recém-criado.
+- 26/09 · carga do saldo (workflow do dono, 21:16–21:26 UTC): **442 avisos / 442 produtos** (`origem: carga_inicial`, saldo + saldoReservado numéricos). Nos logs, o GET dos produtos às 21:16:41 e as gravações ao fim (o n8n só grava depois de consultar todos).
+- 26/09 · **ensaio A-11 no banco real** (rollback): leitura simulada do 327 (saldo 1) → tela "repor 3"; gerador 1 card (3 un.) e, de novo, 0; card no quadro do PCP; liberar 1 → `liberadas` 1; `plt_fn_mover_card` 🟡 → ESTOQUE **recusado** ("O ESTOQUE só recebe peça em perfeito estado…"); 🟢 → livres 0 → 1 e a peça na lista de livres. Gate sem usuário: 0 nas 3 portas. (Em produção só existem 3 usuários, todos admin — o gate do operador fica provado no harness; criar operador de teste gastaria número de matrícula, que não volta.)
+- 26/09 · **achado 10 (carga):** fabricados com **físico negativo em 93 de 168**; reserva do Tiny = 23.390 un. × 91 dos pedidos abertos — a maior parte em **serviços da própria fábrica** (Corte 12.982, FITAMENTO 6.352, Furo…), e nos móveis reservas sem pedido aberto correspondente (327: 44 × 0). **O aviso manda o FÍSICO** (Corte/Furo/FITAMENTO: aviso 0 × milhares reservados). Decisão técnica mantida: reserva = pedidos da loja em aberto (D-55). Nos 53 produtos com mínimo, as duas contas só divergem em 4 na decisão "abaixo do mínimo". **Prévia da reposição automática: 44 cards, 121 unidades** (37 com físico negativo) → ligar fica com o dono (A-24).
+- 26/09 · **telas no navegador** (Vite desta pasta já rodando na 5173, sessão do dono no painel): Estoque 234 acabados / 208 insumos; peças do produto ("Reservada · Pedido 13215 (1/1) · SKU 174"); sugestão top 20 (327 → 15 … 484 → 4, 2 semanas); lista por produto com a carga ("SKU 521 · Necessidade extrema — 14 … Tiny: −12 − 2 vendidos pela loja ainda sem sair · lido há 6 min (carga inicial)"); insumos com "No Tiny está −14 … conta como 0" (a A55 do print do dono). Screenshot do painel expirou (limitação conhecida — A-13/E-32); provas por DOM + banco (F-09).
+- 26/09 · **F-07:** 375px e 768px nas 3 abas → sem rolagem lateral; "Ver as peças" e os botões do "Não produzir" estavam com 36px (tamanho `sm`) → viraram o padrão de 44px na hora.
+- 26/09 · **E2E da reposição** com o produto de teste do Tiny (947854547, inativo — a maquinaria e a tela o ignoram): card 571 criado por SQL como a maquinaria cria (2 un.) → no PCP (fim da fila — ordem por chegada) → **Liberar 1** pelo modal (CNC, fila "A USINAR" como padrão) → unidade 572 sem pedido, com produto e card pai → **"Não produzir"** (dois toques) tirou o 571 do quadro → no CNC a peça "Reposição de estoque (1/2)" → **Concluir só ofereceu 🟢** → ESTOQUE, livre, com os eventos na ordem e 2 avisos de chegada aos admins → "Todas as peças no ESTOQUE" mostra "Livre · veio da reposição". Limpeza: 572 arquivada por evento (origem `api`); 571 já arquivado pela tela. Os eventos ficam na história com o usuário do dono.
+- 26/09 · outras telas tocadas (Danificados, Meus afazeres, Meu Painel, MONTAGEM) abrem sem erro; interceptando o `fetch` nas abas do Estoque: 2 chamadas novas (o resto do cache) e zero falha. O único 401 do console era o meu teste de conexão sem chave.

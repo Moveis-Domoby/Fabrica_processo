@@ -97,7 +97,13 @@ tags: [plataforma, requisitos, backlog]
 | ID | Requisito | Status |
 |---|---|---|
 | RF-60 | Painel admin COMPLETO e bem estruturado (usuários, setores, etapas, permissões, automações, API keys) | 💡 registrado |
-| RF-70 | Módulo de estoque (fase 2 — D-07): peças, produtos montados para venda/despacho, reposição | 💡 registrado |
+| RF-70 | Módulo de estoque (fase 2 — D-07): peças, produtos montados para venda/despacho, reposição | ✅ entregue (SESSAO-25) — acabados + matéria-prima/insumos; o estoque de PEÇA com plano de corte é o próximo passo (D-57) |
+| RF-71 | Saldo do Tiny da fábrica dentro da plataforma: leitura derivada do último aviso de estoque de cada produto (webhook ou carga inicial), CNPJ conferido, sem tabela nova (D-55) | ✅ entregue (SESSAO-25) |
+| RF-72 | Disponível = saldo lido − itens de pedidos da loja ainda abertos (sem personalizado, sem cancelado, por SKU); nunca negativo na tela — negativo vira "necessidade extrema" (D-53/D-55) | ✅ entregue (SESSAO-25) |
+| RF-73 | Peça pronta COM pedido = reservada (SKU + pedido); SEM pedido = livre; nunca somadas ao Tiny (D-54/D-56) | ✅ entregue (SESSAO-25) |
+| RF-74 | Abaixo do mínimo do Tiny, o estoque gera no PCP o card de REPOSIÇÃO (um ciclo vivo por produto); o PCP libera as unidades ou "Não produzir"; pronta, a peça fica livre no estoque (D-54) | ✅ entregue (SESSAO-25) — geração automática ligada à parte, com o OK do dono |
+| RF-75 | O ESTOQUE só recebe peça 🟢 — regra no banco e nas telas de mover/concluir/resolver (D-54) | ✅ entregue (SESSAO-25) |
+| RF-76 | Tela de Estoque em abas (acabados · matéria-prima e insumos · sugestão de mínimo top 20 com rank), paginada no servidor, com busca e sinal por ícone + texto (D-57) | ✅ entregue (SESSAO-25) |
 
 ## Requisitos não-funcionais
 

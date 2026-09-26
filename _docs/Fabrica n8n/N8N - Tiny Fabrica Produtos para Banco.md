@@ -2,8 +2,8 @@
 titulo: n8n — Tiny da FÁBRICA → produtos no Supabase
 tipo: workflow
 data: 2026-09-21
-atualizado: 2026-09-21
-status: banco APLICADO 21/09 · carga inicial e teste ponta a ponta OK 22-23/09 · FALTA: ativar o workflow e ligar o webhook de estoque no Tiny
+atualizado: 2026-09-26
+status: EM PRODUÇÃO — workflow ativo e webhook de estoque ligado desde 23/09 · carga do SALDO rodada em 26/09 (workflow separado, 442 produtos) · consumido pela SESSAO-25
 tags: [n8n, tiny, fabrica, produtos, supabase, sessao-25]
 ---
 
@@ -85,7 +85,15 @@ Feito pelo Cowork no Tiny da fábrica, com o dono acompanhando.
 3. **Inativação:** o produto de teste foi **inativado** (ações em lote → "Inativar produtos" → confirmação do Tiny "produtos foram inativados com sucesso"). **Não foi excluído** — excluir é decisão do dono; se ele excluir, a linha do banco precisa ser apagada à mão (a varredura só enxerga A e I).
 4. **Pendente de verificação:** o reflexo da inativação no banco (`situacao` A → I) só acontece na próxima execução — **o workflow ainda estava desativado** nessa noite (as execuções foram manuais).
 
-⚠️ **Webhook de estoque ainda NÃO ligado**: os 4 toggles da tela de Webhooks do Tiny da fábrica estavam **desligados** em 23/09. Enquanto ficarem assim, `eventos.tipo = 'estoque_fabrica'` continua vazio e o payload real (F-05) segue por capturar. URL a colar no Tiny: a **Production URL** do node `Webhook · lançamentos de estoque` (`https://n8n.srv1877515.hstgr.cloud/webhook/<path do node>`), e só depois do workflow **publicado** — senão o Tiny bate em 404 e reenvia 10×.
+↪️ ~~Webhook de estoque ainda NÃO ligado~~ — **ligado no Tiny em 23/09/2026** e testado (entrada e balanço); o payload real está em [[N8N - Tiny Integracoes Referencia]] (2.1). Até 26/09 chegaram 9 avisos, todos de lançamento feito NA FÁBRICA (produto de teste, serviços e ferramentas) — **pedido de venda da loja não gera aviso** (reserva não é lançamento — A-22).
+
+## Carga do SALDO (SESSAO-25, 26/09/2026)
+
+> [!important] A carga inicial de 22–23/09 foi a do **catálogo** (varredura de produtos) — `produto.obter` **não traz saldo** (E-43).
+
+- Workflow **separado**, rodar 1× à mão: `domoby-tiny-fabrica-carga-saldo.json` (nesta pasta) — lê os produtos **ativos** em `produtos`, chama `produto.obter.estoque` (1 a cada 1,2 s) e grava cada saldo em `eventos` como aviso `estoque_fabrica` com `origem: carga_inicial`, `saldo` e `saldoReservado` (+ depósitos crus). Rodar de novo é seguro: a plataforma usa sempre a leitura MAIS NOVA de cada produto. **O workflow de produção não foi tocado.**
+- **Rodada pelo dono em 26/09/2026** (21:16–21:26 UTC): **442 avisos, 442 produtos** (todos os ativos).
+- O que a carga mostrou (F-05): o `saldo` é o **físico**; o **aviso** também manda o físico (Corte/Furo/FITAMENTO: aviso com saldo 0 × milhares reservados na carga). Fabricados: **93 de 168 com físico negativo** (venda que baixou sem o "pronto" correspondente) e reserva do Tiny **maior** que os pedidos abertos no banco (327: 44 × 0). Por isso a plataforma calcula a reserva pelos pedidos da loja (D-55).
 
 ## Riscos e observações
 

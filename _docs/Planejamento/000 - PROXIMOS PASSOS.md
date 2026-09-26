@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-09-24
+atualizado: 2026-09-26
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -15,7 +15,12 @@ tags: [planejamento, roadmap, indice]
 
 Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (21–22/09), a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] (22–23/09) e a **[[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]]** (23/09, [[handoff_2026_09_23_sessao23_meu_painel_2]]) — o Meu Painel 2.0 com as três filas, subtarefas, tarefa privada, tarefa do Sistema e o painel pessoal "Meu desempenho"; migration 33 aplicada com permissão total do dono.
 
-## ▶️ Agora: SESSAO-25 (Estoque completo) — ⏫ passou na frente da 24 (D-53)
+## ▶️ Agora: validar a SESSAO-25 e ligar a reposição; depois SESSAO-24
+
+- **SESSAO-25 (Estoque completo):** ✅ **entregue em 26/09** — [[handoff_2026_09_26_sessao25_estoque]]. Migration 36 aplicada, carga do saldo rodada (442 produtos), telas validadas. **Com você:** (1) validar no roteiro do handoff e fazer um lançamento real no Tiny; (2) **decidir ligar a reposição automática** (1ª rodada: 44 cards / 121 unidades no PCP); (3) merge na `main`. ⚠️ O físico dos móveis no Tiny está negativo em 93 de 168 — vale conferir o 327 na aba "reservas" do Tiny.
+- **Próxima de construção:** [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] — já atualizada com o que a 25 entregou (peça sem dono = `pedido_id` nulo + produto; personalizado cancelado vai ao estoque).
+
+## (histórico) SESSAO-25 (Estoque completo) — ⏫ passou na frente da 24 (D-53)
 
 - **SESSAO-23:** ✅ validada ao vivo em 2 rodadas de ajustes com o dono e **mesclada na `main` em 24/09** — detalhe no [[handoff_2026_09_23_sessao23_meu_painel_2]]. Bônus entregues: D-52 (admin sem setor), PCP sem encerrados do Tiny (161 → 37) e o achado do pedido 13257 (reforça a urgência da SESSAO-29).
 - **Cutover (SESSAO-21):** ✅ DataCrazy repontado e ✅ trava do disparo aberta em 23/09 (PR #6). **Exclusão do projeto antigo: 06/10/2026**. Detalhe: [[handoff_2026_09_22_sessao21_cutover]].
