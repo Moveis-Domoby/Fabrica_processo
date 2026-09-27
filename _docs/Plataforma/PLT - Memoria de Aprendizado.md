@@ -91,6 +91,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-09-26] **E-43** (Claude Code + dono) · "Já rodei a carga inicial" era a carga do **catálogo** (a varredura de produtos), não a do **saldo** — `produto.obter` nem traz saldo. Nada de saldo tinha chegado ao banco → **correção:** conferido nos logs da API (só `fn_upsert_produto` da varredura diária, nenhum aviso "carga") e escrito o workflow separado da carga do saldo. **Lição (primo do A-20): "carga inicial" é ambíguo — conferir no banco/logs O QUE foi carregado antes de construir em cima.**
 
+- [2026-09-27] **E-44** (Claude Code) · No checkpoint da SESSAO-24 perguntei ao dono **quais etapas iniciam o tempo** e propus cadastrar uma marca nova por etapa — o código já respondia: a migration 30 define **fila → próxima etapa (o início)** e todo setor de produção tem **CONCLUÍDO**. O dono: *"você já viu o código?"* → **correção:** o arrastar usa a estrutura que existe (fila · início = próxima etapa · CONCLUÍDO), nada novo cadastrado. **Lição: antes de levar pergunta ao dono, conferir se o código ou o banco já respondem — grep na migration da regra vizinha + consulta às etapas cadastradas. Pergunta cuja resposta está no repo gasta a paciência do dono e a confiança na sessão.**
+
 ## 🟢 Acertos que viraram padrão (A-NN)
 
 - [2026-09-26] **A-22** (Claude Code) · **Tiny: o id do produto NÃO casa entre contas; pedido de venda NÃO gera aviso de estoque.** Conferido na SESSAO-25: 0 de 8.043 itens vendidos da loja têm `id_produto` igual ao `tiny_id` do catálogo da fábrica (cada conta tem seus ids) — a ponte é o **SKU** (7.086 casam; 0 repetidos entre ativos). E 46 pedidos da loja em 3 dias geraram **zero** avisos de "lançamentos de estoque" da fábrica: o pedido vira **reserva** no Tiny, e reserva não é lançamento. → o disponível da plataforma = saldo lido − reservas abertas calculadas dos pedidos que já chegam ao banco (a mesma conta do "disponível" do Tiny).
@@ -141,6 +143,7 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - **M-12** · [2026-08-24] **Estado nunca se comunica só por cor** — ícone e texto sempre juntos. Daltonismo é comum e a iluminação do galpão é ruim; cor sozinha é informação que parte da equipe não recebe.
 - **M-13** · [2026-08-26] **Estado guardado é projeção; evento é a verdade.** A posição do card fica gravada para a tela ser rápida, mas é escrita SÓ por trigger a partir do evento. Onde houver as duas coisas, a que se edita à mão tem que ser nenhuma.
 - **M-14** · [2026-08-26] **Trava que precisa valer para todos não pode morar no RLS** — a `service_role` ignora RLS por natureza do Postgres. Regra que vale até para a chave mais poderosa vira TRIGGER.
+- **M-15** · [2026-09-27] **O dono pensa em TELA, não em tabela** — para ele "Pedidos em aguardo já existe" (a aba), e o lugar final da peça de pedido "já mudou". Propor "criar um 3º fim de linha" soou como inventar coisa (SESSAO-24). Decisão técnica de onde o dado mora se apresenta na língua da tela ("a aba que já existe passa a ser o lugar da peça"); o setor/tabela por baixo é detalhe do Claude.
 
 ## 🧪 Fórmulas e receitas (F-NN)
 
