@@ -110,16 +110,16 @@ const setores = (
 ).rows
 console.log('  ' + setores.map((s) => `${s.nome} (${s.papel_no_fluxo})`).join(' · '))
 conferir(
-  setores.length === 9,
-  '9 setores semeados, sem duplicar na segunda rodada',
+  setores.length === 10,
+  '10 setores semeados (os 9 da D-18 + PEDIDOS EM AGUARDO da SESSAO-24), sem duplicar na segunda rodada',
   `vieram ${setores.length}`,
 )
 conferir(
   setores
     .filter((s) => s.papel_no_fluxo === 'terminal')
     .map((s) => s.codigo)
-    .join(',') === 'estoque,rotas',
-  'ESTOQUE e ROTAS são os dois fins de linha (D-13 / Q-28)',
+    .join(',') === 'estoque,aguardo,rotas',
+  'fins de linha: ESTOQUE (peça sem dono), PEDIDOS EM AGUARDO (peça de pedido) e ROTAS (D-18 ↪️ SESSAO-24)',
 )
 conferir(
   setores.filter((s) => s.papel_no_fluxo === 'entrada').length === 1,
@@ -333,7 +333,9 @@ conferir(
 
 titulo('Liberação em unidades + reagrupamento (D-01 / D-13)')
 // Simula a SESSAO-04 inteira no banco: 2 unidades liberadas do pedido, uma
-// movida até o terminal ESTOQUE. A expedição precisa contar 1 de 3.
+// movida até o fim de linha. A expedição precisa contar 1 de 3.
+// ↪️ SESSAO-24 (b4 do dono): peça de pedido termina em PEDIDOS EM AGUARDO — o
+// ESTOQUE só recebe peça sem dono (a interface recusa o contrário).
 await bd.exec(`
   insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
     select 'unidade', p.id, c.id, 1, '061', 'Guarda-roupa Master', k, 2
@@ -347,7 +349,7 @@ await bd.exec(`
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
     select cu.id, 'movimentacao_setor',
            (select id from public.plt_setores where codigo = 'pcp'),
-           (select id from public.plt_setores where codigo = 'estoque'),
+           (select id from public.plt_setores where codigo = 'aguardo'),
            'interface'
       from public.plt_cards cu where cu.tipo = 'unidade' and cu.indice_unidade = 1;
 `)
@@ -412,7 +414,7 @@ const unidades = (
 ).rows
 conferir(
   unidades.length === 2 &&
-    unidades[0]?.setor_nome === 'ESTOQUE' &&
+    unidades[0]?.setor_nome === 'PEDIDOS EM AGUARDO' &&
     unidades[0]?.setor_terminal === true &&
     unidades[0]?.concluida === true &&
     unidades[1]?.setor_nome === 'PCP' &&
@@ -4118,12 +4120,12 @@ await bd.exec(`
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
     values (${cardSistema}, 'qualidade_marcada',
             (select id from public.plt_setores where codigo = 'cnc'),
-            (select id from public.plt_setores where codigo = 'estoque'),
+            (select id from public.plt_setores where codigo = 'aguardo'),
             (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface', 'perfeito');
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, evento_referencia_id)
     values (${cardSistema}, 'movimentacao_setor',
             (select id from public.plt_setores where codigo = 'cnc'),
-            (select id from public.plt_setores where codigo = 'estoque'),
+            (select id from public.plt_setores where codigo = 'aguardo'),
             (select id from public.plt_usuarios where usuario = 'lider.fita'), 'interface',
             (select max(id) from public.plt_eventos where card_id = ${cardSistema} and tipo = 'qualidade_marcada'));
 `)
@@ -4651,6 +4653,582 @@ conferir(
 )
 const topo = (await bd.query(`select count(*)::int as total, max(posicao) as ultima from public.plt_fn_estoque_sugestao_minimo(4)`)).rows[0]
 conferir(topo.total <= 20 && (topo.ultima ?? 0) <= 20, 'a sugestão traz no máximo os 20 mais vendidos', JSON.stringify(topo))
+
+// ============================================================================
+// SESSAO-24 — produção concluída, cancelamentos, alocação e o quadro por arrasto
+// (migration 37 + as manutenções de 27/09). O dono em 27/09: "os locais finais
+// não são mais estoque e muito menos rota — estoque só fica como local final de
+// peça sem dono"; "tudo arrastando"; "só a limpeza e embalagem conclui".
+// ============================================================================
+titulo('SESSAO-24 · rotas das etapas (dado do dono): nome de setor e CONCLUÍDO encaminham')
+
+const s24 = {
+  admin: '00000000-0000-0000-0000-000000000001',
+  logistica: '00000000-0000-0000-0000-000000000031',
+  montaUm: '00000000-0000-0000-0000-000000000041',
+  limpaUm: '00000000-0000-0000-0000-000000000042',
+  montaDois: '00000000-0000-0000-0000-000000000043',
+}
+const comoS24 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth}', false)`)
+const idSetorS24 = async (codigo) =>
+  (await bd.query(`select id::int as id from public.plt_setores where codigo = '${codigo}'`)).rows[0].id
+const idEtapaS24 = async (codigo, nome) =>
+  (await bd.query(`select e.id::int as id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                    where s.codigo = '${codigo}' and e.nome = '${nome}'`)).rows[0]?.id ?? null
+const cardS24 = async (id) =>
+  (await bd.query(`select c.id::int as id, c.pedido_id::int as pedido_id, c.produto_tiny_id::int as produto,
+                          c.executor_atual_id is not null as executando,
+                          (select u.usuario from public.plt_usuarios u where u.id = c.executor_atual_id) as executor,
+                          c.concluido_em is not null as concluido, c.arquivado_em is not null as arquivado,
+                          c.indice_unidade, c.total_unidades, s.codigo as setor, e.nome as etapa
+                     from public.plt_cards c
+                     left join public.plt_setores s on s.id = c.setor_atual_id
+                     left join public.plt_etapas e on e.id = c.etapa_atual_id
+                    where c.id = ${id}`)).rows[0]
+// Libera uma unidade como o front faz (card + card_criado no PCP + mover), por API.
+async function liberarS24(numero, seq, k, n, codigo, descricao, destino) {
+  await bd.exec(`
+    insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+      select 'unidade', p.id, pc.id, ${seq}, ${codigo === null ? 'null' : `'${codigo}'`}, '${descricao}', ${k}, ${n}
+        from public.pedidos p join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido'
+       where p.numero = ${numero};
+    insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'card_criado',
+              (select id from public.plt_setores where codigo = 'pcp'), 'api');
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+              (select id from public.plt_setores where codigo = 'pcp'),
+              (select id from public.plt_setores where codigo = '${destino}'), 'api');
+  `)
+  return (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+}
+
+// Etapas como o dono cadastrou (herança do ClickUp — simuladas). A MONTAGEM já
+// tem a fila "A MONTAR" (cenário da S22).
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+  select s.id, x.nome, x.ordem, x.fila
+    from public.plt_setores s
+    join (values
+      ('montagem',          'MONTANDO',             2, false),
+      ('montagem',          'PARADO',               3, false),
+      ('montagem',          'LIMPEZA E EMBALAGEM',  4, false),
+      ('montagem',          'CONCLUÍDO',            5, false),
+      ('limpeza_embalagem', 'A LIMPAR',             1, true),
+      ('limpeza_embalagem', 'LIMPANDO E EMBALANDO', 2, false),
+      ('limpeza_embalagem', 'ESTOQUE',              3, false),
+      ('secc',              'CENTRO DE FURAÇÃO',   30, false),
+      ('secc',              'FITAMENTO',           40, false),
+      ('secc',              'CONCLUÍDO',           50, false),
+      ('furacao',           'CONCLUÍDO',           50, false)
+    ) as x(codigo, nome, ordem, fila) on x.codigo = s.codigo
+  on conflict (setor_id, nome) do nothing;
+`)
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-27_rotas_das_etapas.sql'), 'utf8'))
+const rotas = Object.fromEntries(
+  (await bd.query(`
+    select so.codigo || '/' || e.nome as chave, coalesce(sd.codigo, '-') as destino
+      from public.plt_etapas e
+      join public.plt_setores so on so.id = e.setor_id
+      left join public.plt_setores sd on sd.id = e.setor_destino_id
+     where so.codigo in ('montagem', 'limpeza_embalagem', 'secc', 'furacao')`)).rows.map((r) => [r.chave, r.destino]),
+)
+conferir(
+  rotas['montagem/LIMPEZA E EMBALAGEM'] === 'limpeza_embalagem' && rotas['montagem/CONCLUÍDO'] === 'limpeza_embalagem'
+    && rotas['secc/CONCLUÍDO'] === 'furacao' && rotas['secc/CENTRO DE FURAÇÃO'] === 'furacao'
+    && rotas['secc/FITAMENTO'] === 'fitamento' && rotas['furacao/CONCLUÍDO'] === 'montagem',
+  'etapa com nome de setor → o setor; CENTRO DE FURAÇÃO → FURAÇÃO; CONCLUÍDO de SECC → FURAÇÃO; o dos outros → o próximo',
+  JSON.stringify(rotas),
+)
+conferir(
+  rotas['limpeza_embalagem/ESTOQUE'] === '-' && rotas['montagem/MONTANDO'] === '-' && rotas['montagem/PARADO'] === '-'
+    && rotas['montagem/A MONTAR'] === '-',
+  'etapa chamada ESTOQUE, a de trabalho, PARADO e a fila NÃO encaminham (quem leva ao estoque é o Concluir)',
+  JSON.stringify(rotas),
+)
+// Edição do admin sobrevive a rodar a manutenção de novo.
+await bd.exec(`
+  update public.plt_etapas set setor_destino_id = (select id from public.plt_setores where codigo = 'furacao')
+   where id = (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                where s.codigo = 'montagem' and e.nome = 'CONCLUÍDO');
+`)
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-27_rotas_das_etapas.sql'), 'utf8'))
+conferir(
+  (await bd.query(`select sd.codigo from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                     join public.plt_setores sd on sd.id = e.setor_destino_id
+                    where s.codigo = 'montagem' and e.nome = 'CONCLUÍDO'`)).rows[0]?.codigo === 'furacao',
+  'a manutenção só preenche etapa SEM rota — rodar de novo não desfaz a edição do admin',
+)
+await bd.exec(`
+  update public.plt_etapas set setor_destino_id = (select id from public.plt_setores where codigo = 'limpeza_embalagem')
+   where id = (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                where s.codigo = 'montagem' and e.nome = 'CONCLUÍDO');
+`)
+await deveRecusarExec(
+  `update public.plt_etapas set setor_destino_id = setor_id
+    where id = (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                 where s.codigo = 'montagem' and e.nome = 'PARADO')`,
+  'etapa não encaminha para o próprio setor',
+  /plt_etapas_encaminha_ck/i,
+)
+await deveRecusarExec(
+  `update public.plt_etapas set setor_destino_id = (select id from public.plt_setores where codigo = 'secc')
+    where id = (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                 where s.codigo = 'montagem' and e.eh_fila)`,
+  'a fila nunca encaminha',
+  /plt_etapas_encaminha_ck/i,
+)
+conferir(
+  (await bd.query(`select plt_privado.fn_etapa_inicio((select id from public.plt_setores where codigo = 'montagem'))::int as id`)).rows[0].id
+    === (await idEtapaS24('montagem', 'MONTANDO')),
+  'a etapa de INÍCIO da MONTAGEM é a próxima depois da fila (MONTANDO) — a regra única do iniciar e do arrasto',
+)
+
+titulo('SESSAO-24 · o arrasto: soltar no início inicia; limite de 1; parecer antes; encaminhar marca o estado')
+
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+    ('Monta Um',   'monta1@teste.com', '44444444401', 'monta.um',   'operador', '${s24.montaUm}'),
+    ('Monta Dois', 'monta2@teste.com', '44444444402', 'monta.dois', 'operador', '${s24.montaDois}'),
+    ('Limpa Um',   'limpa1@teste.com', '44444444403', 'limpa.um',   'operador', '${s24.limpaUm}');
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'monta.um'),   (select id from public.plt_setores where codigo = 'montagem')),
+    ((select id from public.plt_usuarios where usuario = 'monta.dois'), (select id from public.plt_setores where codigo = 'montagem')),
+    ((select id from public.plt_usuarios where usuario = 'limpa.um'),   (select id from public.plt_setores where codigo = 'limpeza_embalagem'));
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade)
+  values (924101, 'S24A', 'Mesa Teste S24 - Branca', 'F', 'A', 2, 'un')
+  on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924001, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924001), 1, 'S24A', 'Mesa Teste S24 - Branca', 3);
+`)
+const u1 = await liberarS24(924001, 1, 1, 3, 'S24A', 'Mesa Teste S24 - Branca', 'montagem')
+const u2 = await liberarS24(924001, 1, 2, 3, 'S24A', 'Mesa Teste S24 - Branca', 'montagem')
+const u3 = await liberarS24(924001, 1, 3, 3, 'S24A', 'Mesa Teste S24 - Branca', 'montagem')
+const montando = await idEtapaS24('montagem', 'MONTANDO')
+const parado = await idEtapaS24('montagem', 'PARADO')
+const montLE = await idEtapaS24('montagem', 'LIMPEZA E EMBALAGEM')
+const montConcluido = await idEtapaS24('montagem', 'CONCLUÍDO')
+conferir((await cardS24(u1)).etapa === 'A MONTAR', 'a unidade liberada para a MONTAGEM cai na fila (A MONTAR)')
+
+await comoS24(s24.montaUm)
+const soltou = (await bd.query(`select public.plt_fn_soltar_card(${u1}, ${montando}) as r`)).rows[0].r
+const u1Depois = await cardS24(u1)
+conferir(
+  soltou?.acao === 'iniciado' && u1Depois.etapa === 'MONTANDO' && u1Depois.executor === 'monta.um',
+  'arrastar de A MONTAR para MONTANDO inicia o tempo de quem arrastou, na hora (dono: "não o contrário")',
+  JSON.stringify({ soltou, u1Depois }),
+)
+await deveRecusarExec(
+  `select public.plt_fn_soltar_card(${u2}, ${montando})`,
+  'o segundo card arrastado pela mesma pessoa esbarra no limite de 1 (D-48) — com a instrução de arrastar o outro adiante',
+  /arraste-o adiante/i,
+)
+const u2Parado = await cardS24(u2)
+conferir(
+  u2Parado.etapa === 'A MONTAR' && !u2Parado.executando,
+  'a recusa desfaz o arrasto inteiro — o card continua na fila, sem ninguém (transação única)',
+  JSON.stringify(u2Parado),
+)
+const paraParado = (await bd.query(`select public.plt_fn_soltar_card(${u1}, ${parado}) as r`)).rows[0].r
+const execU1 = (
+  await bd.query(`select encerramento, em_andamento from public.plt_vw_execucoes where card_id = ${u1} order by iniciou_em desc limit 1`)
+).rows[0]
+conferir(
+  paraParado?.acao === 'movido' && !(await cardS24(u1)).executando
+    && execU1?.encerramento === 'movimentacao' && execU1?.em_andamento === false,
+  'arrastar de MONTANDO para PARADO para o tempo (a execução fecha no mover — D-24)',
+  JSON.stringify({ paraParado, execU1 }),
+)
+await bd.exec(`select public.plt_fn_soltar_card(${u2}, ${montando})`)
+conferir((await cardS24(u2)).executor === 'monta.um', 'livre do primeiro, o montador pega o segundo arrastando')
+await comoS24(s24.montaDois)
+const voltou = (await bd.query(`select public.plt_fn_soltar_card(${u1}, ${montando}) as r`)).rows[0].r
+const eventosVolta = (
+  await bd.query(`select tipo from public.plt_eventos where card_id = ${u1} order by id desc limit 2`)
+).rows.map((r) => r.tipo)
+conferir(
+  voltou?.acao === 'iniciado' && (await cardS24(u1)).executor === 'monta.dois'
+    && eventosVolta[0] === 'execucao_iniciada' && eventosVolta[1] === 'movimentacao_etapa',
+  'de PARADO de volta para MONTANDO: move e inicia na mesma transação, para quem arrastou',
+  JSON.stringify({ voltou, eventosVolta }),
+)
+await deveRecusarExec(
+  `select public.plt_fn_soltar_card(${u1}, ${montLE})`,
+  'soltar numa etapa que encaminha sem marcar o estado é recusado (D-09 é lei)',
+  /marcar o estado da peça/i,
+)
+const encaminhou = (
+  await bd.query(`select public.plt_fn_soltar_card(${u1}, ${montLE}, 'perfeito', 'montado') as r`)
+).rows[0].r
+const u1NaLE = await cardS24(u1)
+const execFechada = (
+  await bd.query(`select em_andamento from public.plt_vw_execucoes where card_id = ${u1} order by iniciou_em desc limit 1`)
+).rows[0]
+conferir(
+  encaminhou?.acao === 'encaminhado' && u1NaLE.setor === 'limpeza_embalagem' && u1NaLE.etapa === 'A LIMPAR'
+    && execFechada?.em_andamento === false,
+  'soltar em "LIMPEZA E EMBALAGEM" leva o card ao setor (na fila dele), com a marcação, e fecha o tempo da montagem',
+  JSON.stringify({ encaminhou, u1NaLE, execFechada }),
+)
+await comoS24(s24.montaUm)
+await deveRecusarExec(
+  `select public.plt_fn_soltar_card(${u2}, (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                                            where s.codigo = 'limpeza_embalagem' and e.nome = 'A LIMPAR'))`,
+  'soltar em etapa de OUTRO quadro é recusado',
+  /próprio quadro/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_soltar_card(${u3}, ${montando}, null, null,
+                                    (select id from public.plt_usuarios where usuario = 'limpa.um'))`,
+  'no tablet, operador do PIN que não trabalha no setor não inicia o card',
+  /não trabalha neste setor/i,
+)
+const concluidoMontagem = (
+  await bd.query(`select public.plt_fn_soltar_card(${u2}, ${montConcluido}, 'perfeito') as r`)
+).rows[0].r
+conferir(
+  concluidoMontagem?.acao === 'encaminhado' && (await cardS24(u2)).setor === 'limpeza_embalagem',
+  'soltar em CONCLUÍDO da MONTAGEM manda para o próximo setor (LIMPEZA E EMBALAGEM)',
+  JSON.stringify(concluidoMontagem),
+)
+
+// Na LIMPEZA E EMBALAGEM, a peça chegou marcada: iniciar pede o parecer antes.
+await comoS24(s24.limpaUm)
+const limpando = await idEtapaS24('limpeza_embalagem', 'LIMPANDO E EMBALANDO')
+await deveRecusarExec(
+  `select public.plt_fn_soltar_card(${u1}, ${limpando})`,
+  'arrastar para o trabalho uma peça que chegou marcada, sem o parecer, é recusado (D-09 item 2)',
+  /confirme o recebimento/i,
+)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, estado_qualidade)
+    values (${u1}, 'qualidade_parecer', (select id from public.plt_usuarios where usuario = 'limpa.um'), 'interface',
+            (select max(id) from public.plt_eventos where card_id = ${u1} and tipo = 'qualidade_marcada'), 'perfeito');
+`)
+await bd.exec(`select public.plt_fn_soltar_card(${u1}, ${limpando})`)
+conferir((await cardS24(u1)).executor === 'limpa.um', 'com o parecer dado, soltar em LIMPANDO E EMBALANDO inicia o tempo')
+
+titulo('SESSAO-24 · Concluir produção: pedido vivo → Pedidos em aguardo; sem dono → ESTOQUE; só 🟢')
+
+await deveRecusarExec(
+  `select public.plt_fn_concluir_producao(${u1}, 'atencao')`,
+  'concluir marcando 🟡 é recusado — Pedidos em aguardo só recebe peça em perfeito estado',
+  /Pedidos em aguardo só recebe peça em perfeito estado/i,
+)
+const destinoU1 = (await bd.query(`select public.plt_fn_concluir_producao(${u1}) as d`)).rows[0].d
+const u1Pronta = await cardS24(u1)
+conferir(
+  destinoU1 === 'aguardo' && u1Pronta.setor === 'aguardo' && u1Pronta.concluido && !u1Pronta.executando,
+  'concluir a peça de pedido vivo leva a Pedidos em aguardo (fim de linha: concluída, tempo fechado)',
+  JSON.stringify({ destinoU1, u1Pronta }),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_notificacoes
+                    where card_id = ${u1} and tipo = 'chegada_aguardo'`)).rows[0].total >= 1,
+  'a chegada a Pedidos em aguardo avisa os admins (o aviso que o concluir já dava)',
+)
+await deveRecusarExec(
+  `select public.plt_fn_mover_card(${u2}, (select id from public.plt_setores where codigo = 'estoque'), null, 'perfeito', null)`,
+  'peça de pedido vivo NÃO entra no ESTOQUE (b4 do dono: estoque é só de peça sem dono)',
+  /vai para Pedidos em aguardo/i,
+)
+// Uma reposição (sem pedido) chega à limpeza e embalagem.
+await bd.exec(`
+  insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
+    values ('reposicao', 924101, 'S24A', 'Mesa Teste S24 - Branca', 1, (select id from public.plt_setores where codigo = 'pcp'));
+  insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id)
+    values ((select max(id) from public.plt_cards), 'card_criado', 'automacao', (select id from public.plt_setores where codigo = 'pcp'));
+`)
+const cardRepS24 = (await bd.query(`select max(id)::int as id from public.plt_cards where tipo = 'reposicao'`)).rows[0].id
+await bd.exec(`
+  insert into public.plt_cards (tipo, card_pai_id, produto_tiny_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    values ('unidade', ${cardRepS24}, 924101, 1, 'S24A', 'Mesa Teste S24 - Branca', 1, 1);
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'api');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'),
+            (select id from public.plt_setores where codigo = 'limpeza_embalagem'), 'api');
+`)
+const r1 = (await bd.query(`select max(id)::int as id from public.plt_cards where card_pai_id = ${cardRepS24}`)).rows[0].id
+await deveRecusarExec(
+  `select public.plt_fn_mover_card(${r1}, (select id from public.plt_setores where codigo = 'aguardo'), null, 'perfeito', null)`,
+  'peça sem dono NÃO entra em Pedidos em aguardo',
+  /recebe só peça de pedido/i,
+)
+const destinoR1 = (await bd.query(`select public.plt_fn_concluir_producao(${r1}) as d`)).rows[0].d
+conferir(
+  destinoR1 === 'estoque' && (await cardS24(r1)).setor === 'estoque',
+  'concluir a peça da REPOSIÇÃO leva ao ESTOQUE — livre, aguardando a venda',
+  JSON.stringify(destinoR1),
+)
+
+titulo('SESSAO-24 · cancelamento nos três estágios (PCP · em produção · pronto no aguardo)')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao) values
+    (924002, (select id from public.clientes order by id limit 1), 'Em aberto'),
+    (924003, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 924002), 1, 'S24A', 'Mesa Teste S24 - Branca', 1),
+    ((select id from public.pedidos where numero = 924002), 2, 'S24A', 'PERSONALIZADO Mesa 1,20 x 0,60 Preta', 1),
+    ((select id from public.pedidos where numero = 924002), 3, 'S24X', 'Cadeira fora do catálogo', 1),
+    ((select id from public.pedidos where numero = 924003), 1, 'S24A', 'Mesa Teste S24 - Branca', 1);
+`)
+const ca = await liberarS24(924002, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'limpeza_embalagem')
+const cb = await liberarS24(924002, 2, 1, 1, 'S24A', 'PERSONALIZADO Mesa 1,20 x 0,60 Preta', 'montagem')
+const cc = await liberarS24(924002, 3, 1, 1, 'S24X', 'Cadeira fora do catálogo', 'montagem')
+await comoS24(s24.limpaUm)
+await bd.exec(`select public.plt_fn_concluir_producao(${ca})`)
+conferir((await cardS24(ca)).setor === 'aguardo', 'a primeira peça do pedido 924002 ficou pronta em Pedidos em aguardo')
+
+await comoS24(s24.admin)
+const concluidasAntes = (await bd.query(`select concluidas_dia from public.plt_fn_dash_dia()`)).rows[0].concluidas_dia
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero in (924002, 924003)`)
+const caCancelada = await cardS24(ca)
+conferir(
+  caCancelada.setor === 'estoque' && caCancelada.pedido_id === null && caCancelada.produto === 924101,
+  'pronta no aguardo + pedido cancelado → a peça perde o pedido e volta ao ESTOQUE, sem dono (produto do catálogo pelo SKU)',
+  JSON.stringify(caCancelada),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_eventos
+                    where card_id = ${ca} and tipo = 'unidade_desvinculada' and origem = 'automacao'`)).rows[0].total === 1,
+  'a perda do pedido é um EVENTO (unidade_desvinculada), nunca edição',
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_notificacoes
+                    where card_id = ${ca} and titulo like 'Pedido 924002 cancelado%'`)).rows[0].total >= 1,
+  'o aviso aos admins diz o que aconteceu: "Pedido 924002 cancelado: peça voltou ao ESTOQUE"',
+)
+conferir(
+  (await bd.query(`select concluidas_dia from public.plt_fn_dash_dia()`)).rows[0].concluidas_dia === concluidasAntes,
+  'o painel NÃO conta a peça de novo ao voltar do aguardo para o ESTOQUE (terminal → terminal)',
+  `antes ${concluidasAntes}`,
+)
+const noQuadroPcp = (
+  await bd.query(`select count(*)::int as total from public.plt_fn_cards_pedido_pcp(100, 0) c
+                   where c.pedido_id in (select id from public.pedidos where numero in (924002, 924003))`)
+).rows[0].total
+const cancelados = Object.fromEntries(
+  (await bd.query(`select numero, em_producao, prontas, no_estoque, cancelado_em is not null as com_data
+                     from public.plt_fn_pedidos_cancelados(null, 100, 0) where numero in (924002, 924003)`)).rows
+    .map((r) => [r.numero, r]),
+)
+conferir(
+  noQuadroPcp === 0 && cancelados[924003]?.em_producao === 0 && cancelados[924003]?.no_estoque === 0
+    && cancelados[924003]?.com_data === true,
+  'pedido cancelado ainda no PCP sai do quadro e entra na aba Cancelados (sem efeito em estoque)',
+  JSON.stringify({ noQuadroPcp, cancelados }),
+)
+conferir(
+  cancelados[924002]?.em_producao === 2 && cancelados[924002]?.prontas === 0 && cancelados[924002]?.no_estoque === 1,
+  'na aba Cancelados, o 924002 mostra 2 peças ainda na produção (com a etiqueta) e 1 que já ficou sem dono no estoque',
+  JSON.stringify(cancelados[924002] ?? null),
+)
+const naProducao = await cardS24(cb)
+conferir(
+  naProducao.setor === 'montagem' && naProducao.pedido_id !== null,
+  'peça em produção de pedido cancelado NÃO some — segue na produção com o pedido (a etiqueta "Pedido cancelado")',
+  JSON.stringify(naProducao),
+)
+await comoS24(s24.montaUm)
+await deveRecusarExec(
+  `select public.plt_fn_mover_card(${cc}, (select id from public.plt_setores where codigo = 'aguardo'), null, 'perfeito', null)`,
+  'peça de pedido cancelado não vai para Pedidos em aguardo',
+  /foi cancelado no Tiny/i,
+)
+const destinoCb = (await bd.query(`select public.plt_fn_concluir_producao(${cb}) as d`)).rows[0].d
+const destinoCc = (await bd.query(`select public.plt_fn_concluir_producao(${cc}) as d`)).rows[0].d
+const cbPronta = await cardS24(cb)
+const ccPronta = await cardS24(cc)
+conferir(
+  destinoCb === 'estoque' && destinoCc === 'estoque'
+    && cbPronta.setor === 'estoque' && cbPronta.pedido_id === null && cbPronta.produto === null
+    && ccPronta.pedido_id === null && ccPronta.produto === null,
+  'concluída a peça do pedido cancelado, ela vai DIRETO ao estoque sem dono — a personalizada e a fora do catálogo ficam sem produto do catálogo',
+  JSON.stringify({ destinoCb, destinoCc, cbPronta, ccPronta }),
+)
+await comoS24(s24.logistica)
+const livresS24 = Object.fromEntries(
+  (await bd.query(`select card_id::int as id, origem, origem_numero, local
+                     from public.plt_fn_estoque(null, 100, 0, null, 'livre')
+                    where card_id in (${ca}, ${cb}, ${cc}, ${r1})`)).rows.map((r) => [r.id, r]),
+)
+conferir(
+  livresS24[ca]?.origem === 'cancelamento' && livresS24[ca]?.origem_numero === 924002
+    && livresS24[cb]?.origem === 'cancelamento' && livresS24[r1]?.origem === 'reposicao'
+    && livresS24[ca]?.local === 'estoque',
+  'as peças sem dono dizem de onde vieram: reposição, ou o pedido cancelado (com o número)',
+  JSON.stringify(livresS24),
+)
+const produtoS24 = (
+  await bd.query(`select prontos_livres, prontos_reservados from plt_privado.fn_estoque_por_produto() where tiny_id = 924101`)
+).rows[0]
+conferir(
+  produtoS24?.prontos_livres === 2 && produtoS24?.prontos_reservados === 1,
+  'Mesa S24: 2 livres (reposição + a do cancelamento; a personalizada NÃO conta) e 1 reservada (a do 924001 no aguardo)',
+  JSON.stringify(produtoS24 ?? null),
+)
+
+titulo('SESSAO-24 · alocação: peça igual sem dono vira unidade pronta do pedido — e volta se cancelar')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924004, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 924004), 1, 'S24A', 'Mesa Teste S24 - Branca', 2),
+    ((select id from public.pedidos where numero = 924004), 2, 'S24A', 'personalizado  mesa 1,20 x 0,60 PRÉTA', 1),
+    ((select id from public.pedidos where numero = 924004), 3, 'S24Z', 'Banco que não existe no estoque', 1);
+`)
+const cardPed4 = (
+  await bd.query(`select id::int as id from public.plt_cards
+                   where tipo = 'pedido' and pedido_id = (select id from public.pedidos where numero = 924004)`)
+).rows[0].id
+await comoS24(s24.montaUm)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_fn_sugestoes_alocacao(${cardPed4})`)).rows[0].total === 0,
+  'operador de produção não recebe sugestão de alocação (gate: PCP/logística e admin)',
+)
+await deveRecusarExec(
+  `select public.plt_fn_alocar_peca(${cardPed4}, 1, 1, ${ca})`,
+  'operador de produção não aloca peça do estoque',
+  /PCP\/logística ou de admin/i,
+)
+await comoS24(s24.logistica)
+const sugestoes = (
+  await bd.query(`select item_seq, indice_unidade, peca_card_id::int as peca, peca_origem, pecas_iguais
+                    from public.plt_fn_sugestoes_alocacao(${cardPed4}) order by item_seq, indice_unidade`)
+).rows
+conferir(
+  sugestoes.length === 3
+    && sugestoes[0].item_seq === 1 && sugestoes[1].item_seq === 1 && sugestoes[0].peca !== sugestoes[1].peca
+    && [ca, r1].includes(sugestoes[0].peca) && [ca, r1].includes(sugestoes[1].peca) && sugestoes[0].pecas_iguais === 2
+    && sugestoes[2].item_seq === 2 && sugestoes[2].peca === cb,
+  'sugestão por vaga: as 2 mesas livres para as 2 unidades do item 1; a personalizada casa por SKU + descrição (maiúsculas, acento e espaço não importam); o banco sem peça igual não tem sugestão',
+  JSON.stringify(sugestoes),
+)
+const n1 = (await bd.query(`select public.plt_fn_alocar_peca(${cardPed4}, 1, 1, ${ca})::int as id`)).rows[0].id
+const n1Card = await cardS24(n1)
+const caConsumida = await cardS24(ca)
+conferir(
+  n1Card.setor === 'aguardo' && n1Card.concluido && n1Card.pedido_id !== null
+    && n1Card.indice_unidade === 1 && n1Card.total_unidades === 2 && caConsumida.arquivado,
+  'aceitar: nasce a unidade (1/2) do pedido direto em Pedidos em aguardo (não volta à produção) e a peça livre é consumida',
+  JSON.stringify({ n1Card, caConsumida }),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_eventos
+                    where (card_id = ${ca} and tipo = 'peca_alocada')
+                       or (card_id = ${n1} and tipo = 'card_criado' and (dados ->> 'alocada_de')::bigint = ${ca})`)).rows[0].total === 2,
+  'a alocação é história nos dois cards (peca_alocada na peça; card_criado com alocada_de na unidade)',
+)
+await deveRecusarExec(
+  `select public.plt_fn_alocar_peca(${cardPed4}, 1, 2, ${ca})`,
+  'a mesma peça não é usada duas vezes',
+  /não está livre no ESTOQUE/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_alocar_peca(${cardPed4}, 2, 1, ${r1})`,
+  'peça que não é igual ao item (mesa do catálogo × personalizada) é recusada',
+  /não é igual ao item/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_alocar_peca(${cardPed4}, 1, 1, ${r1})`,
+  'unidade do pedido já preenchida não recebe outra peça',
+  /já foi liberada/i,
+)
+const n2 = (await bd.query(`select public.plt_fn_alocar_peca(${cardPed4}, 2, 1, ${cb})::int as id`)).rows[0].id
+const liberadas4 = (
+  await bd.query(`select unidades_liberadas from public.plt_fn_pedidos_kanban(p_ids => array[(select id from public.pedidos where numero = 924004)])`)
+).rows[0]?.unidades_liberadas
+const sugestoesDepois = (
+  await bd.query(`select item_seq, peca_card_id::int as peca from public.plt_fn_sugestoes_alocacao(${cardPed4})`)
+).rows
+conferir(
+  liberadas4 === 2 && sugestoesDepois.length === 1 && sugestoesDepois[0].item_seq === 1 && sugestoesDepois[0].peca === r1,
+  'o pedido conta 2 liberadas (as alocadas) e a sugestão que sobra é a outra mesa para a vaga que falta',
+  JSON.stringify({ liberadas4, sugestoesDepois }),
+)
+
+titulo('SESSAO-24 · Pedidos em aguardo: "Pedidos" e "Produtos reservados" batem')
+
+const abaPedidos = (
+  await bd.query(`select numero, unidades_prontas, total_unidades, contagem_total::int as total from public.plt_fn_pedidos_aguardo(null, 100, 0)`)
+).rows
+const abaProdutos = (
+  await bd.query(`select card_id::int as id, numero, veio_do_estoque, local, contagem_total::int as total
+                    from public.plt_fn_produtos_reservados(null, 100, 0)`)
+).rows
+const contagens = (await bd.query(`select * from public.plt_fn_aguardo_contagens()`)).rows[0]
+const somaProntas = abaPedidos.reduce((s, l) => s + l.unidades_prontas, 0)
+conferir(
+  contagens.pedidos === abaPedidos.length && contagens.produtos === abaProdutos.length
+    && somaProntas === abaProdutos.length && (abaPedidos[0]?.total ?? 0) === abaPedidos.length
+    && (abaProdutos[0]?.total ?? 0) === abaProdutos.length,
+  'os contadores batem: Σ prontas da aba Pedidos = linhas de Produtos reservados = contagem da aba',
+  JSON.stringify({ contagens, somaProntas, pedidos: abaPedidos.length, produtos: abaProdutos.length }),
+)
+const p924004 = abaPedidos.find((l) => l.numero === 924004)
+conferir(
+  p924004?.unidades_prontas === 2 && p924004?.total_unidades === 4
+    && abaProdutos.filter((p) => p.numero === 924004 && p.veio_do_estoque).length === 2,
+  'o 924004 aparece com 2 de 4 prontas; as duas peças dizem que vieram do estoque',
+  JSON.stringify({ p924004, produtos: abaProdutos.filter((p) => p.numero === 924004) }),
+)
+await comoS24(s24.montaUm)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_fn_produtos_reservados()`)).rows[0].total === 0
+    && (await bd.query(`select produtos from public.plt_fn_aguardo_contagens()`)).rows[0].produtos === 0,
+  'operador de produção não enxerga Pedidos em aguardo (gate da logística)',
+)
+
+await comoS24(s24.admin)
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 924004`)
+const n1Volta = await cardS24(n1)
+const n2Volta = await cardS24(n2)
+conferir(
+  n1Volta.setor === 'estoque' && n1Volta.pedido_id === null && n1Volta.produto === 924101
+    && n2Volta.setor === 'estoque' && n2Volta.pedido_id === null,
+  'cancelado o pedido que usou peças do estoque, elas voltam ao ESTOQUE sem dono (o fluxo 3 de novo)',
+  JSON.stringify({ n1Volta, n2Volta }),
+)
+
+titulo('SESSAO-24 · manutenção: peça de pedido que ficou no ESTOQUE vai para Pedidos em aguardo')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924005, (select id from public.clientes order by id limit 1), 'Preparando envio');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924005), 1, 'S24A', 'Mesa Teste S24 - Branca', 1);
+`)
+const legado = await liberarS24(924005, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'estoque')
+const avisosAntes = (await bd.query(`select count(*)::int as total from public.plt_notificacoes where tipo = 'chegada_aguardo'`)).rows[0].total
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-27_pecas_de_pedido_para_aguardo.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-27_pecas_de_pedido_para_aguardo.sql'), 'utf8'))
+const legadoDepois = await cardS24(legado)
+conferir(
+  legadoDepois.setor === 'aguardo'
+    && (await bd.query(`select count(*)::int as total from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+                         where s.codigo = 'estoque' and c.tipo = 'unidade' and c.pedido_id is not null and c.arquivado_em is null
+                           and not plt_privado.fn_pedido_cancelado(c.pedido_id)`)).rows[0].total === 0
+    && (await bd.query(`select count(*)::int as total from public.plt_eventos where card_id = ${legado} and tipo = 'movimentacao_setor'`)).rows[0].total === 2,
+  'a manutenção leva toda peça de pedido vivo do ESTOQUE para Pedidos em aguardo — uma vez só (rodar de novo não repete)',
+  JSON.stringify(legadoDepois),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_notificacoes where tipo = 'chegada_aguardo'`)).rows[0].total === avisosAntes,
+  'vinda de outro fim de linha não dispara o aviso de "peça pronta" (não é produção nova)',
+)
+conferir(
+  (await bd.query(`select cards_parados from public.plt_fn_dash_estoque()`)).rows[0].cards_parados
+    === (await bd.query(`select count(*)::int as total from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+                          where s.codigo = 'estoque' and c.tipo = 'unidade' and c.arquivado_em is null`)).rows[0].total,
+  'tempo parado no ESTOQUE ignora a peça consumida pela alocação (arquivada)',
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

@@ -110,6 +110,9 @@ $$;
 --   unidade   → (k/n) e um dono: pedido OU produto da reposição;
 --   pedido    → sem (k/n), com pedido;
 --   reposicao → sem k, n = quantidade a repor, sem pedido, com produto.
+-- ↪️ SESSAO-24 (E-19): `not valid` — a migration 37 relaxa esta regra (peça de
+-- pedido cancelado personalizada fica sem pedido E sem produto do catálogo) e é
+-- ela quem valida; aqui, validar quebraria a reaplicação num banco com essas peças.
 alter table public.plt_cards drop constraint if exists plt_cards_unidade_coerente;
 alter table public.plt_cards add constraint plt_cards_unidade_coerente check (
   (tipo = 'unidade' and indice_unidade is not null and total_unidades is not null
@@ -118,7 +121,7 @@ alter table public.plt_cards add constraint plt_cards_unidade_coerente check (
      and pedido_id is not null)
   or (tipo = 'reposicao' and indice_unidade is null and total_unidades >= 1
      and pedido_id is null and produto_tiny_id is not null)
-);
+) not valid;
 
 -- Um card de reposição ABERTO no PCP por produto — a maquinaria nunca duplica.
 create unique index if not exists plt_cards_reposicao_aberta_uq
@@ -839,6 +842,9 @@ comment on function public.plt_fn_estoque_produtos(text, text, text, integer, in
 --       pedido) e livres (sem pedido — vieram da reposição). Evolui a porta da
 --       SESSAO-15 (E-22: nada de leitura paralela); assinatura nova (A-12).
 drop function if exists public.plt_fn_estoque(text, integer, integer);
+-- ↪️ SESSAO-24 (E-17): a migration 37 muda a FORMA do retorno desta assinatura
+-- — sem este drop, a reaplicação quebraria em "cannot change return type".
+drop function if exists public.plt_fn_estoque(text, integer, integer, bigint, text);
 
 create or replace function public.plt_fn_estoque(
   p_busca           text    default null,

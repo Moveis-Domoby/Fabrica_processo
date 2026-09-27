@@ -1410,5 +1410,6 @@ grant execute on function public.plt_fn_pedidos_kanban(text, boolean, bigint[], 
 grant execute on function public.plt_fn_pedidos_aguardo(text, integer, integer)    to authenticated;
 grant execute on function public.plt_fn_definir_limite_execucoes(bigint, integer)  to authenticated;
 
--- E-19: o check de tipos mais novo valida a tabela inteira.
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- E-19: o check de tipos mais novo valida a tabela inteira — desde a SESSAO-24
+-- quem valida é a migration 37 (a lista daqui não conhece os tipos dela; validar
+-- aqui quebraria a reaplicação num banco que já viveu o futuro).
