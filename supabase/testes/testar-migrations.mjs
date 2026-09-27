@@ -5196,27 +5196,73 @@ conferir(
   JSON.stringify({ n1Volta, n2Volta }),
 )
 
-titulo('SESSAO-24 · manutenção: peça de pedido que ficou no ESTOQUE vai para Pedidos em aguardo')
+titulo('SESSAO-24 · manutenção: peças de pedido que ficaram no ESTOQUE (aguardo · entregue some · 🔴 fica)')
 
-await bd.exec(`
-  insert into public.pedidos (numero, cliente_id, situacao)
-    values (924005, (select id from public.clientes order by id limit 1), 'Preparando envio');
-  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
-    values ((select id from public.pedidos where numero = 924005), 1, 'S24A', 'Mesa Teste S24 - Branca', 1);
-`)
+// O legado de produção em 27/09: peça 🟢 de pedido vivo, peça de pedido já
+// "Entregue" no Tiny e peça 🔴 de pedido vivo — todas no ESTOQUE, com pedido.
+for (const numero of [924005, 924006, 924007]) {
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao)
+      values (${numero}, (select id from public.clientes order by id limit 1), 'Preparando envio');
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      values ((select id from public.pedidos where numero = ${numero}), 1, 'S24A', 'Mesa Teste S24 - Branca', 1);
+  `)
+}
 const legado = await liberarS24(924005, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'estoque')
+const legadoEntregue = await liberarS24(924007, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'estoque')
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 924007`)
+// A 🔴 chegou ao ESTOQUE antes da regra: marcada danificada na MONTAGEM e
+// levada por lote (origem api — a trava do 🟢 vale só para gesto humano).
+const legadoDanificado = await liberarS24(924006, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'montagem')
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, estado_qualidade)
+    values (${legadoDanificado}, 'qualidade_marcada',
+            (select id from public.plt_setores where codigo = 'montagem'),
+            (select id from public.plt_setores where codigo = 'estoque'),
+            (select id from public.plt_usuarios where usuario = 'monta.um'), 'interface', 'danificado');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${legadoDanificado}, 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'montagem'),
+            (select id from public.plt_setores where codigo = 'estoque'), 'api');
+`)
+const antesDaManutencao = await cardS24(legadoDanificado)
 const avisosAntes = (await bd.query(`select count(*)::int as total from public.plt_notificacoes where tipo = 'chegada_aguardo'`)).rows[0].total
 await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-27_pecas_de_pedido_para_aguardo.sql'), 'utf8'))
 await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-27_pecas_de_pedido_para_aguardo.sql'), 'utf8'))
+const contarEventosS24 = async (card, tipo) =>
+  (await bd.query(`select count(*)::int as total from public.plt_eventos where card_id = ${card} and tipo = '${tipo}'`)).rows[0].total
 const legadoDepois = await cardS24(legado)
 conferir(
-  legadoDepois.setor === 'aguardo'
-    && (await bd.query(`select count(*)::int as total from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
-                         where s.codigo = 'estoque' and c.tipo = 'unidade' and c.pedido_id is not null and c.arquivado_em is null
-                           and not plt_privado.fn_pedido_cancelado(c.pedido_id)`)).rows[0].total === 0
-    && (await bd.query(`select count(*)::int as total from public.plt_eventos where card_id = ${legado} and tipo = 'movimentacao_setor'`)).rows[0].total === 2,
-  'a manutenção leva toda peça de pedido vivo do ESTOQUE para Pedidos em aguardo — uma vez só (rodar de novo não repete)',
+  legadoDepois.setor === 'aguardo' && !legadoDepois.arquivado
+    && (await contarEventosS24(legado, 'movimentacao_setor')) === 2,
+  'a manutenção leva a peça 🟢 de pedido vivo do ESTOQUE para Pedidos em aguardo — uma vez só (rodar de novo não repete)',
   JSON.stringify(legadoDepois),
+)
+const entregueDepois = await cardS24(legadoEntregue)
+conferir(
+  entregueDepois.arquivado && entregueDepois.setor === 'estoque'
+    && (await contarEventosS24(legadoEntregue, 'card_arquivado')) === 1
+    && (await contarEventosS24(legadoEntregue, 'movimentacao_setor')) === 1,
+  'peça de pedido já entregue no Tiny é arquivada por evento ("não deve nem aparecer mais") — uma vez só, sem ir ao aguardo',
+  JSON.stringify(entregueDepois),
+)
+const danificadoDepois = await cardS24(legadoDanificado)
+conferir(
+  antesDaManutencao.setor === 'estoque' && danificadoDepois.setor === 'estoque'
+    && !danificadoDepois.arquivado && danificadoDepois.pedido_id !== null
+    && (await contarEventosS24(legadoDanificado, 'movimentacao_setor')) === 2,
+  'peça 🔴 de pedido vivo não vai para Pedidos em aguardo (só recebe perfeita) — fica no ESTOQUE para o dono decidir',
+  JSON.stringify({ antesDaManutencao, danificadoDepois }),
+)
+conferir(
+  (await bd.query(`select count(*)::int as total from public.plt_cards c
+                     join public.plt_setores s on s.id = c.setor_atual_id
+                     join public.pedidos p on p.id = c.pedido_id
+                    where s.codigo = 'estoque' and c.tipo = 'unidade' and c.arquivado_em is null
+                      and not plt_privado.fn_pedido_cancelado(c.pedido_id)
+                      and plt_privado.fn_situacao_normalizada(p.situacao) <> 'entregue'
+                      and coalesce(c.qualidade_atual, 'perfeito') = 'perfeito'`)).rows[0].total === 0,
+  'depois da manutenção, nenhuma peça 🟢 de pedido vivo sobra no ESTOQUE',
 )
 conferir(
   (await bd.query(`select count(*)::int as total from public.plt_notificacoes where tipo = 'chegada_aguardo'`)).rows[0].total === avisosAntes,
