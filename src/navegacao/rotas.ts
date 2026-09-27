@@ -8,6 +8,8 @@
 export function rotaDoSetor(codigo: string): string {
   if (codigo === 'estoque') return '/fabrica/logistica/estoque'
   if (codigo === 'rotas') return '/fabrica/rotas/entregas'
+  // SESSAO-24: o lugar da peça pronta de pedido é a tela que já existia.
+  if (codigo === 'aguardo') return '/fabrica/logistica/pedidos-em-aguardo'
   return `/fabrica/producao/${codigo}`
 }
 

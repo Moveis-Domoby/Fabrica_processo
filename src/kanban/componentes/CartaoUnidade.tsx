@@ -1,19 +1,21 @@
 import {
+  Ban,
   CircleCheckBig,
   Clock,
   ClipboardCheck,
   Flag,
+  GripVertical,
   History,
   Hourglass,
-  MoveRight,
+  Images,
   Pause,
   Play,
-  Square,
   UserRound,
 } from 'lucide-react'
 import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
+import { pedidoCancelado } from '../situacao'
 import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 
@@ -21,20 +23,15 @@ export interface CartaoUnidadeProps {
   card: Card
   pedido?: PedidoResumo
   agora: number
-  /** Abre o modal "Mover para…" — o gesto de tablet (D-06). */
-  aoMover?: (card: Card) => void
-  /** SESSAO-15: "Concluir" — a peça está pronta e vai para o fim de linha (ESTOQUE). */
+  /**
+   * SESSAO-24: "Concluir produção" — o ÚNICO botão de gesto que sobrou nos
+   * quadros, e só na LIMPEZA E EMBALAGEM (dono, 27/09). O resto é arrastar.
+   */
   aoConcluir?: (card: Card) => void
-  /** Iniciar / assumir a execução (SESSAO-05, D-24). */
-  aoIniciar?: (card: Card) => void
-  /** Finalizar a execução (SESSAO-05). */
-  aoFinalizar?: (card: Card) => void
-  /** SESSAO-22 (D-48): pausar a execução — gesto de líder do setor ou admin. */
-  aoPausar?: (card: Card) => void
-  /** SESSAO-22 (D-48): retomar — quem executa (ao finalizar a urgência), líder ou admin. */
-  aoRetomar?: (card: Card) => void
   /** Abre a linha do tempo do card (SESSAO-05). */
   aoLinhaTempo?: (card: Card) => void
+  /** Tablet (D-28): o espaço de imagens da peça. */
+  aoFotos?: (card: Card) => void
   /** Desde quando a execução aberta corre (vem de plt_vw_execucoes). */
   execucaoDesde?: string
   /** Nome de quem está executando agora. */
@@ -43,33 +40,35 @@ export interface CartaoUnidadeProps {
   souExecutor?: boolean
   /** true no card há mais tempo esperando sem ninguém na etapa (indicador da demanda). */
   esperandoHaMaisTempo?: boolean
-  /** Desabilita os gestos enquanto um deles roda. */
+  /** Desabilita o botão enquanto um gesto roda. */
   gestoPendente?: boolean
   /** true quando o card está num setor terminal (D-13): mostra a chegada. */
   terminal?: boolean
-  /** Marcação de quem entregou ainda sem parecer (SESSAO-06/D-09): o Iniciar
-   *  passa primeiro pela confirmação de recebimento. */
+  /** Marcação de quem entregou ainda sem parecer (SESSAO-06/D-09): ao arrastar
+   *  para o trabalho, a confirmação de recebimento vem antes. */
   parecerPendente?: ParecerPendente
   arrastando?: boolean
+  /** 'galpao' = a tela do setor no tablet: letra maior, sem dado de cliente (D-28). */
+  tamanho?: 'padrao' | 'galpao'
 }
 
 /**
  * O card de UNIDADE (D-01): o (k/n) que percorre os setores.
- * A SESSAO-05 pôs o tempo nele de verdade (D-02/D-24): na fila mostra o tempo
- * do SETOR (sem dono); em execução mostra QUEM está executando e há quanto
- * tempo — e os gestos Iniciar / Finalizar / Assumir, com dedo de galpão.
+ * O tempo mora nele desde a SESSAO-05 (D-02/D-24): na fila, o tempo do SETOR
+ * (sem dono); em execução, QUEM executa e há quanto tempo.
+ *
+ * SESSAO-24 (dono, 27/09): os botões de gesto saíram — o card se ARRASTA.
+ * Soltar na etapa de trabalho inicia o tempo; soltar numa etapa com nome de
+ * setor (ou no CONCLUÍDO) leva o card adiante. Ficam só os ícones de ver
+ * (histórico, fotos) e, na LIMPEZA E EMBALAGEM, o "Concluir produção".
  */
 export function CartaoUnidade({
   card,
   pedido,
   agora,
-  aoMover,
   aoConcluir,
-  aoIniciar,
-  aoFinalizar,
-  aoPausar,
-  aoRetomar,
   aoLinhaTempo,
+  aoFotos,
   execucaoDesde,
   executorNome,
   souExecutor = false,
@@ -78,7 +77,9 @@ export function CartaoUnidade({
   terminal = false,
   parecerPendente,
   arrastando = false,
+  tamanho = 'padrao',
 }: CartaoUnidadeProps) {
+  const galpao = tamanho === 'galpao'
   const kn =
     card.indice_unidade !== null && card.total_unidades !== null
       ? `(${card.indice_unidade}/${card.total_unidades})`
@@ -86,36 +87,71 @@ export function CartaoUnidade({
   const emExecucao = card.executor_atual_id !== null
   // SESSAO-22 (D-48): pausado não conta tempo nem ocupa o limite.
   const pausado = emExecucao && card.pausado_em !== null
-  const comGestos = !terminal && (aoIniciar !== undefined || aoFinalizar !== undefined)
+  // SESSAO-24: a peça segue na produção com o pedido cancelado — ao concluir,
+  // ela vai para o estoque sem dono. Lido da situação do pedido (a mesma fonte
+  // do evento de cancelamento — nada guardado para dessincronizar).
+  const cancelado = card.pedido_id !== null && pedidoCancelado(pedido?.situacao)
   // D-48: o tempo em PCP é do PEDIDO — da entrada até a liberação completa.
   const pcpMs = pedido?.entrou_pcp_em
     ? (pedido.liberado_completo_em
         ? new Date(pedido.liberado_completo_em).getTime()
         : agora) - new Date(pedido.entrou_pcp_em).getTime()
     : null
+  const temRodape = aoLinhaTempo || aoFotos || (!terminal && aoConcluir)
 
   return (
     <article
       className={cn(
-        'flex flex-col gap-2 rounded-dm border bg-superficie p-3',
+        'flex flex-col gap-2 rounded-dm border bg-superficie',
+        galpao ? 'p-4' : 'p-3',
         emExecucao ? 'border-acao-ativa' : 'border-borda',
         arrastando && 'opacity-60 shadow-lg',
       )}
       aria-label={`Unidade ${kn} — ${rotuloOrigemCard(card, pedido)}`}
     >
       <header className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-semibold text-texto tabular-nums">
+        <span
+          className={cn(
+            'font-semibold text-texto tabular-nums',
+            galpao ? 'text-base' : 'text-sm',
+          )}
+        >
           {rotuloOrigemCard(card, pedido)}
         </span>
-        {kn && <span className="text-sm font-medium text-texto-suave tabular-nums">{kn}</span>}
+        <span className="flex items-center gap-1">
+          {kn && (
+            <span
+              className={cn(
+                'font-medium text-texto-suave tabular-nums',
+                galpao ? 'text-base' : 'text-sm',
+              )}
+            >
+              {kn}
+            </span>
+          )}
+          {/* O card se arrasta (SESSAO-24) — a pega diz isso sem texto. */}
+          <GripVertical aria-hidden className="size-4 shrink-0 text-texto-fraco" />
+        </span>
       </header>
 
-      <p className="line-clamp-2 text-sm text-texto">{card.item_descricao ?? 'Sem descrição'}</p>
-      {pedido?.cliente_nome && (
+      <p className={cn('line-clamp-2 text-texto', galpao ? 'text-lg font-medium' : 'text-sm')}>
+        {card.item_descricao ?? 'Sem descrição'}
+      </p>
+      {/* D-28: a tela do galpão não mostra dado de cliente. */}
+      {!galpao && pedido?.cliente_nome && (
         <p className="line-clamp-1 text-xs text-texto-fraco">{pedido.cliente_nome}</p>
       )}
+      {cancelado && (
+        // M-12: estado com ícone + texto, nunca só cor.
+        <p>
+          <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+            <Ban aria-hidden className="size-3.5" />
+            Pedido cancelado — pronta, vai para o estoque
+          </span>
+        </p>
+      )}
       {/* D-48: o tempo em PCP verdadeiro — do pedido, entrada → liberação completa. */}
-      {pcpMs !== null && (
+      {!galpao && pcpMs !== null && (
         <p
           className="text-xs text-texto-fraco tabular-nums"
           title={
@@ -155,7 +191,10 @@ export function CartaoUnidade({
         </p>
       ) : emExecucao ? (
         <p
-          className="inline-flex flex-wrap items-center gap-1.5 text-sm text-texto tabular-nums"
+          className={cn(
+            'inline-flex flex-wrap items-center gap-1.5 text-texto tabular-nums',
+            galpao ? 'text-base' : 'text-sm',
+          )}
           title={
             execucaoDesde
               ? `Em execução desde ${new Date(execucaoDesde).toLocaleString('pt-BR')}`
@@ -174,12 +213,13 @@ export function CartaoUnidade({
       ) : (
         <p
           className={cn(
-            'inline-flex items-center gap-1.5 text-sm tabular-nums',
+            'inline-flex items-center gap-1.5 tabular-nums',
+            galpao ? 'text-base' : 'text-sm',
             esperandoHaMaisTempo ? 'font-medium text-atencao-texto' : 'text-texto-suave',
           )}
           title={
             card.desde
-              ? `Esperando alguém iniciar desde ${new Date(card.desde).toLocaleString('pt-BR')}`
+              ? `Esperando alguém pegar desde ${new Date(card.desde).toLocaleString('pt-BR')}`
               : undefined
           }
         >
@@ -199,126 +239,56 @@ export function CartaoUnidade({
           <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
           {parecerPendente.setorOrigemNome} entregou como
           <BadgeEstado estado={parecerPendente.estado} tamanho="sm" />
-          <span className="text-texto-suave">— confirme ao iniciar.</span>
+          <span className="text-texto-suave">— você confirma ao pegar para trabalhar.</span>
         </p>
       )}
 
-      {/* Duas linhas de propósito (SESSAO-15): os gestos de tempo em cima; estado,
-          histórico e destinos embaixo — nada estoura a borda do card. */}
-      <footer className="mt-1 flex flex-col gap-2">
-        {comGestos && (
-          <div className="flex flex-wrap items-center gap-2">
-            {pausado ? (
-              // D-48: retomar volta a contar o tempo — quem executa (ao finalizar
-              // a urgência), líder ou admin. O banco valida de verdade.
-              aoRetomar && (
-                <Botao
-                  tamanho="sm"
-                  icone={<Play />}
-                  className="min-h-toque-md flex-1"
-                  disabled={gestoPendente}
-                  onClick={() => aoRetomar(card)}
-                >
-                  Retomar
-                </Botao>
-              )
-            ) : emExecucao ? (
-              <>
-                {aoFinalizar && (
-                  <Botao
-                    tamanho="sm"
-                    icone={<Square />}
-                    className="min-h-toque-md flex-1"
-                    disabled={gestoPendente}
-                    onClick={() => aoFinalizar(card)}
-                  >
-                    Finalizar
-                  </Botao>
-                )}
-                {aoPausar && (
-                  <Botao
-                    variante="secundaria"
-                    tamanho="sm"
-                    icone={<Pause />}
-                    className="min-h-toque-md"
-                    disabled={gestoPendente}
-                    onClick={() => aoPausar(card)}
-                  >
-                    Pausar
-                  </Botao>
-                )}
-                {!souExecutor && aoIniciar && (
-                  <Botao
-                    variante="secundaria"
-                    tamanho="sm"
-                    icone={<Play />}
-                    className="min-h-toque-md"
-                    disabled={gestoPendente}
-                    onClick={() => aoIniciar(card)}
-                  >
-                    Assumir
-                  </Botao>
-                )}
-              </>
-            ) : (
-              aoIniciar && (
-                <Botao
-                  tamanho="sm"
-                  icone={<Play />}
-                  className="min-h-toque-md flex-1"
-                  disabled={gestoPendente}
-                  onClick={() => aoIniciar(card)}
-                >
-                  Iniciar
-                </Botao>
-              )
-            )}
-          </div>
-        )}
+      {card.qualidade_atual && (
+        <div>
+          <BadgeEstado estado={card.qualidade_atual} tamanho="sm" />
+        </div>
+      )}
 
-        {card.qualidade_atual && (
-          <div>
-            <BadgeEstado estado={card.qualidade_atual} tamanho="sm" />
-          </div>
-        )}
-        {(aoLinhaTempo || aoMover || (!terminal && aoConcluir)) && (
-          <div className="flex items-center gap-2">
-            {aoLinhaTempo && (
-              <Botao
-                variante="fantasma"
-                tamanho="sm"
-                icone={<History />}
-                className="min-h-toque-md shrink-0 px-2"
-                aria-label="Linha do tempo do card"
-                onClick={() => aoLinhaTempo(card)}
-              />
-            )}
-            {!terminal && aoConcluir && (
-              <Botao
-                variante="secundaria"
-                tamanho="sm"
-                icone={<CircleCheckBig />}
-                className="min-h-toque-md min-w-0 flex-1 px-2"
-                disabled={gestoPendente}
-                onClick={() => aoConcluir(card)}
-              >
-                Concluir
-              </Botao>
-            )}
-            {aoMover && (
-              <Botao
-                variante="secundaria"
-                tamanho="sm"
-                icone={<MoveRight />}
-                className="min-h-toque-md min-w-0 flex-1 px-2"
-                onClick={() => aoMover(card)}
-              >
-                Mover
-              </Botao>
-            )}
-          </div>
-        )}
-      </footer>
+      {temRodape && (
+        <footer className="mt-1 flex items-center gap-2">
+          {aoLinhaTempo && (
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              icone={<History />}
+              className="min-h-toque-md shrink-0 px-2"
+              aria-label="Linha do tempo do card"
+              // Enter/Espaço no botão é do botão — não pode virar arrasto de teclado.
+              onKeyDown={(e) => e.stopPropagation()}
+              onClick={() => aoLinhaTempo(card)}
+            />
+          )}
+          {aoFotos && (
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              icone={<Images />}
+              className="min-h-toque-md shrink-0 px-2"
+              aria-label="Fotos da peça"
+              onKeyDown={(e) => e.stopPropagation()}
+              onClick={() => aoFotos(card)}
+            />
+          )}
+          {!terminal && aoConcluir && (
+            <Botao
+              variante="secundaria"
+              tamanho={galpao ? 'lg' : 'sm'}
+              icone={<CircleCheckBig />}
+              className="min-h-toque-md min-w-0 flex-1 px-2"
+              disabled={gestoPendente}
+              onKeyDown={(e) => e.stopPropagation()}
+              onClick={() => aoConcluir(card)}
+            >
+              Concluir produção
+            </Botao>
+          )}
+        </footer>
+      )}
     </article>
   )
 }

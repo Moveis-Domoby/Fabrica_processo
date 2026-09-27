@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   ChevronDown,
   ChevronRight,
@@ -18,6 +19,7 @@ import {
   atualizarSetor,
   buscarEtapasDoSetor,
   buscarSetores,
+  codigoDeSetor,
   criarEtapa,
   criarSetor,
   definirLimiteExecucoes,
@@ -156,6 +158,7 @@ export function Estrutura() {
                 if (setor.ativo) setSetorParaDesativar(setor)
                 else atualizarSetorMutacao.mutate({ id: setor.id, mudancas: { ativo: true } })
               }}
+              setores={setores}
               aoErro={aoErro}
               aoMudar={invalidarEstrutura}
             />
@@ -288,6 +291,8 @@ function SecaoSetor(props: {
   aoDescer?: () => void
   aoRenomear: () => void
   aoAlternarAtivo: () => void
+  /** SESSAO-24: para o "Manda para" das etapas. */
+  setores: Setor[]
   aoErro: (excecao: unknown) => void
   aoMudar: () => Promise<void>
 }) {
@@ -374,6 +379,7 @@ function SecaoSetor(props: {
           )}
           <ListaEtapas
             setor={setor}
+            setores={props.setores}
             podeGerir={podeGerirEtapas}
             aoErro={props.aoErro}
             aoMudar={props.aoMudar}
@@ -511,6 +517,7 @@ function LimiteExecucoes(props: {
 
 function ListaEtapas(props: {
   setor: Setor
+  setores: Setor[]
   podeGerir: boolean
   aoErro: (excecao: unknown) => void
   aoMudar: () => Promise<void>
@@ -523,14 +530,29 @@ function ListaEtapas(props: {
     queryFn: () => buscarEtapasDoSetor(setor.id, true),
   })
 
+  // SESSAO-24: para onde uma etapa pode mandar o card — os OUTROS setores de
+  // produção (quem leva ao estoque ou a Pedidos em aguardo é o Concluir).
+  const setoresDestino = props.setores.filter(
+    (s) => s.ativo && s.papel_no_fluxo === 'producao' && s.id !== setor.id,
+  )
+  const nomeDoSetor = new Map(props.setores.map((s) => [s.id, s.nome]))
+  const SEM_DESTINO = 'nenhum'
+
   const [nomeNova, setNomeNova] = useState('')
   const [novaEhFila, setNovaEhFila] = useState(false)
   const [erroNova, setErroNova] = useState('')
   const [etapaEmEdicao, setEtapaEmEdicao] = useState<Etapa | null>(null)
   const [nomeEditado, setNomeEditado] = useState('')
 
+  // SESSAO-24 (dono: "etapa com nome de setor move o card para o setor"): a
+  // etapa nova que tem nome de setor já nasce mandando para ele.
+  const destinoPeloNome =
+    nomeNova.trim().length >= 2 && !novaEhFila
+      ? setoresDestino.find((s) => codigoDeSetor(s.nome) === codigoDeSetor(nomeNova))
+      : undefined
+
   const criarMutacao = useMutation({
-    mutationFn: () => criarEtapa(setor.id, nomeNova, novaEhFila),
+    mutationFn: () => criarEtapa(setor.id, nomeNova, novaEhFila, destinoPeloNome?.id ?? null),
     onSuccess: async () => {
       notificar({
         titulo: `Etapa "${nomeNova.trim()}" criada`,
@@ -587,7 +609,31 @@ function ListaEtapas(props: {
                   fila
                 </span>
               )}
+              {/* SESSAO-24: soltar o card nesta etapa o leva para outro setor. */}
+              {etapa.setor_destino_id !== null && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto no-underline">
+                  <ArrowRight aria-hidden className="size-3" />
+                  manda para {nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor'}
+                </span>
+              )}
             </span>
+            {podeGerir && !etapa.eh_fila && !etapa.eh_danificado && setoresDestino.length > 0 && (
+              <Selecao
+                rotulo={`Soltar o card em ${etapa.nome} manda para`}
+                className="w-full sm:w-56"
+                opcoes={[
+                  { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
+                  ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
+                ]}
+                valor={etapa.setor_destino_id === null ? SEM_DESTINO : String(etapa.setor_destino_id)}
+                aoMudar={(v) =>
+                  atualizarMutacao.mutate({
+                    id: etapa.id,
+                    mudancas: { setor_destino_id: v === SEM_DESTINO ? null : Number(v) },
+                  })
+                }
+              />
+            )}
             {podeGerir && (
               <span className="flex items-center gap-1">
                 <Botao
@@ -661,6 +707,12 @@ function ListaEtapas(props: {
             />
             é a fila do setor (o card espera sem dono — uma por setor)
           </label>
+          {destinoPeloNome && (
+            <p className="flex items-center gap-1 text-xs text-texto-suave sm:self-center">
+              <ArrowRight aria-hidden className="size-3.5" />
+              Tem nome de setor: soltar o card nela manda para {destinoPeloNome.nome}.
+            </p>
+          )}
           <Botao type="submit" variante="secundaria" carregando={criarMutacao.isPending} icone={<Plus />}>
             Criar etapa
           </Botao>

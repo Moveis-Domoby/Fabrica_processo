@@ -361,9 +361,10 @@ function ModalResolver({
   // SESSAO-22 (D-48): destino de produção com fila não tem mais "Chegada" —
   // a fila é o padrão (o banco resolve igual se a etapa vier vazia).
   const setorDestinoInfo = setores.find((s) => s.id === setorEscolhido)
-  // SESSAO-25 (resposta 7 do dono): o ESTOQUE só recebe peça 🟢 — o banco
-  // recusa o resto; a tela nem oferece.
-  const destinoEhEstoque = setorDestinoInfo?.codigo === 'estoque'
+  // SESSAO-25 (resposta 7 do dono): o ESTOQUE só recebe peça 🟢 — e, desde a
+  // SESSAO-24, Pedidos em aguardo também. O banco recusa o resto; a tela nem oferece.
+  const destinoEhEstoque =
+    setorDestinoInfo?.codigo === 'estoque' || setorDestinoInfo?.codigo === 'aguardo'
   const estadosPermitidos: readonly Estado[] = destinoEhEstoque
     ? ['perfeito']
     : ESTADOS_QUALIDADE
@@ -452,8 +453,10 @@ function ModalResolver({
             <legend className="mb-1 text-sm font-medium text-texto">Em que estado ela sai?</legend>
             {destinoEhEstoque && (
               <p className="text-sm text-texto-suave">
-                O ESTOQUE só recebe peça em perfeito estado. Se ela ainda tem defeito, mande
-                para um setor de produção.
+                {setorDestinoInfo?.codigo === 'aguardo'
+                  ? 'Pedidos em aguardo só recebe peça de pedido em perfeito estado.'
+                  : 'O ESTOQUE só recebe peça sem dono em perfeito estado.'}{' '}
+                Se ela ainda tem defeito, mande para um setor de produção.
               </p>
             )}
             {estadosPermitidos.map((opcao) => (

@@ -136,8 +136,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const telaCheia = perfil !== null && location.pathname.startsWith('/tablet')
   const souAdmin = perfil?.papel === 'admin'
   const ehDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
-  const ehDeTerminal = vinculos.some(
-    (v) => v.setor.codigo === 'estoque' || v.setor.codigo === 'rotas',
+  // SESSAO-24: todo fim de linha (ESTOQUE, Pedidos em aguardo, ROTAS) é logística.
+  const ehDeTerminal = vinculos.some((v) =>
+    ['estoque', 'aguardo', 'rotas'].includes(v.setor.codigo),
   )
 
   // Um filho por setor cadastrado — dinâmico, vem do banco (D-12).

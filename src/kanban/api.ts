@@ -61,7 +61,7 @@ export async function buscarEtapasDoSetor(
 ): Promise<Etapa[]> {
   let consulta = supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa')
+    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id')
     .eq('setor_id', setorId)
     .order('ordem')
     .order('id')
@@ -74,7 +74,7 @@ export async function buscarEtapasDoSetor(
 export async function buscarEtapasAtivas(): Promise<Etapa[]> {
   const { data, error } = await supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa')
+    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id')
     .eq('ativa', true)
     .order('setor_id')
     .order('ordem')
@@ -267,12 +267,7 @@ export async function unidadesDoPedido(pedidoId: number): Promise<UnidadePedido[
 
 interface NovoEvento {
   card_id: number
-  tipo:
-    | 'card_criado'
-    | 'movimentacao_setor'
-    | 'movimentacao_etapa'
-    | 'execucao_pausada'
-    | 'execucao_retomada'
+  tipo: 'card_criado' | 'movimentacao_setor' | 'movimentacao_etapa'
   usuario_id: string
   setor_origem_id?: number | null
   etapa_origem_id?: number | null
@@ -379,33 +374,135 @@ export async function liberarUnidades(parametros: {
   return liberadas
 }
 
+/** O que o banco fez com o card solto (SESSAO-24). */
+export interface ResultadoSoltar {
+  acao: 'iniciado' | 'encaminhado' | 'movido'
+  setor_destino_id?: number
+}
+
 /**
- * Move um card pela RPC da SESSAO-06 (plt_fn_mover_card): mesmo setor →
- * movimentação de etapa; setor diferente → marcação de qualidade + movimentação
- * NUMA transação (D-09). Saindo de setor de produção, o estado é obrigatório —
- * o banco recusa sem ele, com a mensagem já em português.
+ * O GESTO do quadro por arrasto (SESSAO-24 — dono: "tudo arrastando, é mais
+ * rápido"): soltar o card numa coluna. O BANCO decide o que o gesto é
+ * (plt_fn_soltar_card): etapa que encaminha → o card vai ao setor dela (com
+ * a marcação 🟢🟡🔴 — D-09); etapa de início → o tempo de quem arrastou
+ * começa; o resto → só mover. Tudo numa transação, mensagens já em português.
  */
-export async function moverCard(parametros: {
+export async function soltarCard(parametros: {
   card: Card
-  destinoSetorId: number
-  destinoEtapaId: number | null
-  /** 🟢🟡🔴 de quem entrega (D-09) — obrigatório ao sair de setor de produção. */
+  /** A coluna onde o card foi solto; nulo = "Chegada" (sem etapa — PCP/terminais). */
+  etapaId: number | null
+  /** 🟢🟡🔴 de quem entrega — obrigatório quando a etapa encaminha para outro setor. */
   estadoQualidade?: Estado | null
+  observacao?: string
   /** Tablet compartilhado (SESSAO-07/D-06): o AUTOR é o operador do PIN, não a sessão. */
   operadorId?: string | null
-}): Promise<void> {
-  const { card, destinoSetorId, destinoEtapaId, estadoQualidade, operadorId } = parametros
-  const mesmoSetor = card.setor_atual_id === destinoSetorId
-  if (mesmoSetor && card.etapa_atual_id === destinoEtapaId) return
-  const { error } = await supabase.rpc('plt_fn_mover_card', {
-    p_card_id: card.id,
-    p_setor_destino_id: destinoSetorId,
+}): Promise<ResultadoSoltar> {
+  const { data, error } = await supabase.rpc('plt_fn_soltar_card', {
+    p_card_id: parametros.card.id,
     // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
-    p_etapa_destino_id: destinoEtapaId || null,
-    p_estado_qualidade: estadoQualidade ?? null,
-    p_operador_id: operadorId ?? null,
+    p_etapa_destino_id: parametros.etapaId || null,
+    p_estado_qualidade: parametros.estadoQualidade ?? null,
+    p_observacao: parametros.observacao?.trim() || null,
+    p_operador_id: parametros.operadorId ?? null,
   })
-  if (error) throw new Error(`Não deu para mover: ${error.message}`)
+  if (error) throw new Error(error.message)
+  return data as ResultadoSoltar
+}
+
+/**
+ * Concluir produção (SESSAO-24, só na LIMPEZA E EMBALAGEM): o banco decide o
+ * destino — pedido vivo vai para Pedidos em aguardo; peça sem pedido ou de
+ * pedido cancelado vai para o ESTOQUE, sem dono. Só 🟢.
+ */
+export async function concluirProducao(parametros: {
+  card: Card
+  estadoQualidade: Estado
+  operadorId?: string | null
+}): Promise<'aguardo' | 'estoque'> {
+  const { data, error } = await supabase.rpc('plt_fn_concluir_producao', {
+    p_card_id: parametros.card.id,
+    p_estado_qualidade: parametros.estadoQualidade,
+    p_observacao: null,
+    p_operador_id: parametros.operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return data as 'aguardo' | 'estoque'
+}
+
+/**
+ * SESSAO-24: para cada unidade (k/n) ainda não liberada do pedido, a peça sem
+ * dono IGUAL no ESTOQUE (produto do catálogo; personalizada = SKU + descrição).
+ * Só sugestão — quem decide é o PCP.
+ */
+export interface SugestaoAlocacao {
+  item_seq: number
+  indice_unidade: number
+  total_unidades: number
+  peca_card_id: number
+  peca_origem: 'reposicao' | 'cancelamento'
+  peca_origem_numero: number | null
+  pecas_iguais: number
+}
+
+export async function sugestoesAlocacao(cardPedidoId: number): Promise<SugestaoAlocacao[]> {
+  const { data, error } = await supabase.rpc('plt_fn_sugestoes_alocacao', {
+    p_card_id: cardPedidoId,
+  })
+  return garantir(
+    data as SugestaoAlocacao[] | null,
+    error,
+    'Não deu para carregar as peças do estoque',
+  )
+}
+
+/**
+ * Aceitar a sugestão: a unidade (k/n) do pedido nasce PRONTA em Pedidos em
+ * aguardo (não passa pela produção) e a peça livre do ESTOQUE é consumida.
+ */
+export async function alocarPeca(parametros: {
+  cardPedidoId: number
+  itemSeq: number
+  indiceUnidade: number
+  pecaCardId: number
+}): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_alocar_peca', {
+    p_card_pedido_id: parametros.cardPedidoId,
+    p_item_seq: parametros.itemSeq,
+    p_indice_unidade: parametros.indiceUnidade,
+    p_peca_card_id: parametros.pecaCardId,
+  })
+  if (error) throw new Error(error.message)
+  return data as number
+}
+
+/** SESSAO-24 — a aba Cancelados do PCP (histórico, para sempre, paginado no servidor). */
+export interface PedidoCancelado {
+  card_id: number
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  data_pedido: string | null
+  cancelado_em: string | null
+  total_unidades: number
+  /** Peças que ainda carregam o pedido na produção — com a etiqueta "Pedido cancelado". */
+  em_producao: number
+  prontas: number
+  /** Peças que perderam o pedido e ficaram sem dono no estoque. */
+  no_estoque: number
+  contagem_total: number
+}
+
+export async function pedidosCancelados(parametros: {
+  busca?: string
+  limite?: number
+  deslocamento?: number
+}): Promise<PedidoCancelado[]> {
+  const { data, error } = await supabase.rpc('plt_fn_pedidos_cancelados', {
+    p_busca: parametros.busca || null,
+    p_limite: parametros.limite ?? 20,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  return garantir(data as PedidoCancelado[] | null, error, 'Não deu para carregar os cancelados')
 }
 
 // ---------------------------------------------------------------------------
@@ -496,10 +593,10 @@ export async function registrarParecer(parametros: {
 // ---------------------------------------------------------------------------
 // Execução e linha do tempo (SESSAO-05 / D-02 / D-24)
 //
-// Iniciar/finalizar são INSERTs de evento como qualquer gesto — as regras
-// (iniciar obrigatório, limite por setor, transferência) vivem em trigger no
-// banco e valem para todo escritor. O front só dá o clique e mostra o erro
-// que o banco devolver, já em português.
+// SESSAO-24: o quadro é por ARRASTO — iniciar e encerrar o tempo acontecem ao
+// soltar o card (soltarCard). As regras (iniciar obrigatório, limite por
+// setor, parecer antes) vivem em trigger no banco e valem para todo escritor;
+// o front só mostra o erro que o banco devolver, já em português.
 // ---------------------------------------------------------------------------
 
 /** Nomes de todo mundo (id → nome) — para o card dizer QUEM está executando. */
@@ -526,88 +623,6 @@ export async function buscarExecucoesAbertas(cardIds: number[]): Promise<Execuca
     error,
     'Não deu para carregar as execuções',
   )
-}
-
-/**
- * Iniciar (D-24): fecha a fila, abre a execução de quem clicou. Num card já em
- * execução por OUTRA pessoa, é a transferência — fecha para um, abre para o
- * outro; `transferido_de` fica gravado para a linha do tempo contar a história.
- */
-export async function iniciarExecucao(parametros: {
-  card: Card
-  usuarioId: string
-}): Promise<void> {
-  const { card, usuarioId } = parametros
-  const { error } = await supabase.from('plt_eventos').insert({
-    card_id: card.id,
-    tipo: 'execucao_iniciada',
-    usuario_id: usuarioId,
-    origem: 'interface',
-    setor_origem_id: card.setor_atual_id,
-    etapa_origem_id: card.etapa_atual_id,
-    dados: card.executor_atual_id ? { transferido_de: card.executor_atual_id } : {},
-  })
-  if (error) throw new Error(`Não deu para iniciar: ${error.message}`)
-}
-
-/**
- * Pausar a execução de alguém (SESSAO-22/D-48): gesto de líder do setor do
- * card ou admin — a urgência do dia entra porque o pausado sai do limite.
- * A validação (quem pode, execução aberta, referência) vive no trigger do
- * banco e a mensagem volta já em português.
- */
-export async function pausarExecucao(parametros: {
-  card: Card
-  usuarioId: string
-}): Promise<void> {
-  const { card, usuarioId } = parametros
-  const { error } = await supabase.from('plt_eventos').insert({
-    card_id: card.id,
-    tipo: 'execucao_pausada',
-    usuario_id: usuarioId,
-    origem: 'interface',
-    setor_origem_id: card.setor_atual_id,
-    etapa_origem_id: card.etapa_atual_id,
-  })
-  if (error) throw new Error(`Não deu para pausar: ${error.message}`)
-}
-
-/**
- * Retomar a execução pausada (SESSAO-22/D-48): a própria pessoa retoma ao
- * finalizar a urgência (o banco recusa enquanto ela tiver outra execução
- * aberta no teto do setor); líder/admin também podem.
- */
-export async function retomarExecucao(parametros: {
-  card: Card
-  usuarioId: string
-}): Promise<void> {
-  const { card, usuarioId } = parametros
-  const { error } = await supabase.from('plt_eventos').insert({
-    card_id: card.id,
-    tipo: 'execucao_retomada',
-    usuario_id: usuarioId,
-    origem: 'interface',
-    setor_origem_id: card.setor_atual_id,
-    etapa_origem_id: card.etapa_atual_id,
-  })
-  if (error) throw new Error(`Não deu para retomar: ${error.message}`)
-}
-
-/** Finalizar (D-24): fecha a execução — o card fica pronto para ser movido. */
-export async function finalizarExecucao(parametros: {
-  card: Card
-  usuarioId: string
-}): Promise<void> {
-  const { card, usuarioId } = parametros
-  const { error } = await supabase.from('plt_eventos').insert({
-    card_id: card.id,
-    tipo: 'execucao_finalizada',
-    usuario_id: usuarioId,
-    origem: 'interface',
-    setor_origem_id: card.setor_atual_id,
-    etapa_origem_id: card.etapa_atual_id,
-  })
-  if (error) throw new Error(`Não deu para finalizar: ${error.message}`)
 }
 
 /**
@@ -708,7 +723,13 @@ export async function atualizarSetor(
   if (error) throw new Error(`Não deu para atualizar o setor: ${error.message}`)
 }
 
-export async function criarEtapa(setorId: number, nome: string, ehFila: boolean): Promise<void> {
+export async function criarEtapa(
+  setorId: number,
+  nome: string,
+  ehFila: boolean,
+  /** SESSAO-24: a etapa que encaminha — soltar o card nela o leva para este setor. */
+  setorDestinoId: number | null = null,
+): Promise<void> {
   const { data: existentes, error: erroOrdem } = await supabase
     .from('plt_etapas')
     .select('ordem')
@@ -719,7 +740,13 @@ export async function criarEtapa(setorId: number, nome: string, ehFila: boolean)
   const ordem = ((existentes?.[0] as { ordem: number } | undefined)?.ordem ?? 0) + 1
   const { error } = await supabase
     .from('plt_etapas')
-    .insert({ setor_id: setorId, nome: nome.trim(), ordem, eh_fila: ehFila })
+    .insert({
+      setor_id: setorId,
+      nome: nome.trim(),
+      ordem,
+      eh_fila: ehFila,
+      setor_destino_id: ehFila ? null : setorDestinoId,
+    })
   if (error) {
     if (/plt_etapas_fila_unica_por_setor/.test(error.message))
       // D-02: uma etapa de fila por setor — o código fica aqui, não na tela (D-27).
@@ -730,7 +757,7 @@ export async function criarEtapa(setorId: number, nome: string, ehFila: boolean)
 
 export async function atualizarEtapa(
   id: number,
-  mudancas: Partial<Pick<Etapa, 'nome' | 'ordem' | 'eh_fila' | 'ativa'>>,
+  mudancas: Partial<Pick<Etapa, 'nome' | 'ordem' | 'eh_fila' | 'ativa' | 'setor_destino_id'>>,
 ): Promise<void> {
   const dados = { ...mudancas }
   if (dados.nome) dados.nome = dados.nome.trim()

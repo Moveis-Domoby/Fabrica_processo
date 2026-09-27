@@ -24,6 +24,11 @@ export interface Etapa {
   /** D-09/D-25: etapa especial para onde vai o 🔴 confirmado — o sistema garante uma por setor. */
   eh_danificado: boolean
   ativa: boolean
+  /**
+   * SESSAO-24: etapa que ENCAMINHA — soltar o card aqui o leva para este setor
+   * (a etapa com nome de setor e o CONCLUÍDO, como no ClickUp). Nulo = comum.
+   */
+  setor_destino_id: number | null
 }
 
 /**
@@ -198,6 +203,12 @@ export interface EventoLinhaTempo {
     | 'estorno'
     | 'pedido_atualizado'
     | 'pedido_cancelado'
+    | 'card_arquivado'
+    | 'pedido_entregue'
+    | 'pedido_lancado_rotas'
+    // SESSAO-24: a peça que perdeu o pedido (cancelado) e a peça livre usada por um pedido.
+    | 'unidade_desvinculada'
+    | 'peca_alocada'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null
