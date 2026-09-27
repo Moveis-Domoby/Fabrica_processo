@@ -2,7 +2,7 @@
 titulo: Plataforma — Perguntas em Aberto (entrevista de descoberta)
 tipo: descoberta
 data: 2026-08-19
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 tags: [plataforma, descoberta, perguntas]
 ---
 
@@ -85,6 +85,11 @@ tags: [plataforma, descoberta, perguntas]
 - **Q-66 · Onde mora o dashboard do Comercial no menu?** Por ora ele nasce dentro do próprio módulo, em `/comercial/dashboard` (decisão do dono em 15/09: *"deixa a 16 como está, depois alteramos isso da comercial"*). Em aberto: os filhos do pai **Dashboards** passam a ser nomeados por domínio ("Dash Produção", "Dash Comercial", …)? Se sim, as quatro telas da SESSAO-16 viram abas de um filho só, ou continuam quatro filhos com prefixo? Lembrar que a *Visão do dia* é candidata a TV do galpão e precisa de URL fixa.
 - **Q-67 · Quando o projeto Supabase antigo (`kfkcumjepnxnnzyvmxfo`) pode ser excluído?** O plano prevê 2–4 semanas de quarentena após o cutover, mas a data é decisão do dono — e só depois do dump final de backup guardado.
 - **Q-68 · Quem ganha o módulo `comercial` depois do admin?** A D-46 fixou "só admin por ora, ajustando com o tempo" — falta saber quais papéis/pessoas entram na segunda leva e se o acesso é por pessoa ou por papel.
+
+## 🟫 Quadro por arrasto e fins de linha (SESSAO-24 — 27/09/2026)
+
+- **Q-69 · A peça 502 🔴 do pedido 13215 (herança no ESTOQUE):** consertar ou refazer? Ela ficou no ESTOQUE porque Pedidos em aguardo só recebe peça perfeita (D-58) — mas ainda **conta como pronta** do 13215: quando a última peça do pedido for concluída, o "Lançar para ROTAS" a levaria junto. Aparece em Produtos reservados com o selo 🔴.
+- **Q-70 · Unidades em produção de pedidos já "Entregue" no Tiny:** a 518 (13257, MONTAGEM, A MONTAR) e a 537 (13236, CNC, USINANDO). As do ESTOQUE foram arquivadas por ordem do dono (*"se já foi entregue, não deve nem aparecer mais aí"*) — arquivar estas também, ou deixar para a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]?
 
 ## Ver também
 

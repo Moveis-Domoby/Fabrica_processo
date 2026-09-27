@@ -1,7 +1,7 @@
 ---
 titulo: Execução — memórias de sessão do Claude Code
 tipo: indice
-atualizado: 2026-09-17
+atualizado: 2026-09-27
 tags: [plataforma, execucao, indice]
 ---
 
@@ -18,7 +18,9 @@ tags: [plataforma, execucao, indice]
 - [[SESSAO-01]] · [[SESSAO-02]] · [[SESSAO-03]] · [[SESSAO-04]] · [[SESSAO-05]] · [[SESSAO-06]] · [[SESSAO-07]]
 - [[SESSAO-09]] · [[SESSAO-10]] · [[SESSAO-11]] · [[SESSAO-12]] · [[SESSAO-13]] · [[SESSAO-14]] · [[SESSAO-15]]
 - [[SESSAO-19]] · [[SESSAO-20]] — o bloco **União** (banco do Comercial na fábrica + módulo Comercial no front)
+- [[SESSAO-16]] (dashboards) · [[SESSAO-21]] (cutover — fecha a União)
+- [[SESSAO-22]] · [[SESSAO-23]] · [[SESSAO-25]] · [[SESSAO-24]] — o **Bloco 5** (a 25 rodou antes da 24 — D-53)
 
-*(Não existe SESSAO-08 nem 16–18 e 21 aqui: são demandas ainda não executadas — a 08 (publicação) aguarda o dono (D-30), a 16 é a próxima da fila e a 21 é o cutover. Ver [[000 - ORDEM DAS SESSOES]].)*
+*(Não existe SESSAO-08, 17 nem 18 aqui: a 08 (publicação) aguarda o dono (D-30), a 17 foi absorvida pela 27 e a 18 está em standby. Ver [[000 - ORDEM DAS SESSOES]].)*
 
 ← Voltar ao [[000 - MAPA DO PROJETO]]

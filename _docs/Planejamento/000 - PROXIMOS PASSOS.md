@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -15,10 +15,12 @@ tags: [planejamento, roadmap, indice]
 
 Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (21–22/09), a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] (22–23/09) e a **[[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]]** (23/09, [[handoff_2026_09_23_sessao23_meu_painel_2]]) — o Meu Painel 2.0 com as três filas, subtarefas, tarefa privada, tarefa do Sistema e o painel pessoal "Meu desempenho"; migration 33 aplicada com permissão total do dono.
 
-## ▶️ Agora: SESSAO-24 (a 25 foi mesclada em 26/09) — e ligar a reposição quando o dono decidir
+## ▶️ Agora: SESSAO-24 entregue (conferir e mesclar) · SESSAO-26 em execução · ligar a reposição quando o dono decidir
+
+- **SESSAO-24 (Produção concluída, cancelamentos e alocação):** ✅ **entregue em 27/09** — [[handoff_2026_09_27_sessao24_producao_concluida]]. Quadros **só por arrasto** (D-59/D-60), **Pedidos em aguardo como lugar** e ESTOQUE só sem dono (D-58), aba **Cancelados** no PCP (D-61), **sugestão do estoque** na liberação (D-62). Migration 37 aplicada com o seu OK. **Com você:** (1) conferir as telas pelo roteiro do handoff (§9) e **mesclar na `main`** (= publicar); (2) **Q-69** — a peça 🔴 502 do 13215; (3) **Q-70** — as unidades 518 e 537 de pedidos já entregues no Tiny.
+- **Em execução em paralelo:** [[SESSAO-26 - Chat Interno]] (outra pasta; a migration 38 dela entra depois do seu OK).
 
 - **SESSAO-25 (Estoque completo):** ✅ **entregue em 26/09** — [[handoff_2026_09_26_sessao25_estoque]]. Migration 36 aplicada, carga do saldo rodada (442 produtos), telas validadas. **Com você:** (1) validar no roteiro do handoff e fazer um lançamento real no Tiny; (2) **decidir ligar a reposição automática** (1ª rodada: 44 cards / 121 unidades no PCP); (3) ✅ mesclada na `main` em 26/09. ⚠️ O físico dos móveis no Tiny está negativo em 93 de 168 — vale conferir o 327 na aba "reservas" do Tiny.
-- **Próxima de construção:** [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] — já atualizada com o que a 25 entregou (peça sem dono = `pedido_id` nulo + produto; personalizado cancelado vai ao estoque).
 
 ## (histórico) SESSAO-25 (Estoque completo) — ⏫ passou na frente da 24 (D-53)
 
@@ -34,8 +36,8 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 
 1. ✅ [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (entregue 22/09) — fim da coluna "Chegada", tempo de PCP verdadeiro, 10 cards por etapa + "Ver mais", regra nova *"cada tela requisita só o que mostra"*, 1 pedido por vez + pausa por líder.
 2. ✅ [[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]] (entregue 23/09) — as três filas com a Fila de prioridade reordenável, subtarefas em 2 níveis, tarefa privada (D-51), tarefa do Sistema no lugar do bloco de qualidade, "Ver todos" no sino e o painel pessoal Meu desempenho.
-3. ⏫ [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] — **o estoque inteiro**: saldo vindo do Tiny (integração já no ar), item com pedido × sem dono, lançamento manual, tela com saldo/mínimo/necessidade, venda da loja debita, sugestão de mínimo pelo trimestre.
-4. [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] — "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), os 3 fluxos de cancelamento e a sugestão de alocação no PCP, consumindo o estoque da 25.
+3. ✅ ⏫ [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] (entregue 26/09) — **o estoque inteiro**: saldo vindo do Tiny (integração já no ar), item com pedido × sem dono, lançamento manual, tela com saldo/mínimo/necessidade, venda da loja debita, sugestão de mínimo pelo trimestre.
+4. ✅ [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] (entregue 27/09) — com o desenho novo do dono: quadros só por arrasto, "Concluir produção" só na LIMPEZA E EMBALAGEM → Pedidos em aguardo (abas Pedidos/Produtos reservados), os 3 fluxos de cancelamento e a sugestão do estoque no PCP.
 5. [[SESSAO-26 - Chat Interno]] — `/inicio/chat` + balão arrastável em toda tela; canais, particulares, avisos gerais, aniversários automáticos.
 6. [[SESSAO-27 - Automacoes em Canvas]] — absorve a antiga 17: canvas com gatilho por etapa/setor, mover card (revisa D-03), arquivar, etiquetas.
 7. [[SESSAO-28 - Rota Calculada no Mapa]] — rota real nas ruas (OSRM, grátis), partindo da fábrica.

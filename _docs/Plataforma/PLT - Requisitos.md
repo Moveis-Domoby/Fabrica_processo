@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-09-27
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -23,7 +23,10 @@ tags: [plataforma, requisitos, backlog]
 | RF-06 | Automações internas fáceis de configurar, estilo ClickUp ("quando X acontecer, faça Y") — sem depender de dev | 💡 registrado |
 | RF-07 | Estrutura em 2 níveis como o ClickUp: setores contendo etapas internas; admin cadastra novos setores e novas etapas dentro de cada setor (D-12) | 💡 registrado |
 | RF-08 | Toda etapa interna cadastrada nasce com **timer próprio automático** — card que chega nela conta tempo ali, sem configuração extra; sistema NÃO impõe etapas padrão (D-14) | 💡 registrado |
-| RF-09 | Entrada única pelo PCP; saídas terminais ESTOQUE (parado) ou ROTAS (entregue) (D-13) | 💡 registrado |
+| RF-09 | Entrada única pelo PCP; saídas terminais ESTOQUE (parado) ou ROTAS (entregue) (D-13) | ↪️ D-58 (27/09): três fins de linha — Pedidos em aguardo (peça de pedido), ESTOQUE (só sem dono), ROTAS (pedido lançado) |
+| RF-77 | Quadros de produção só por arrasto (D-59): soltar na etapa de início inicia o tempo de quem arrastou (limite 1 por pessoa e parecer seguem valendo); soltar em etapa que encaminha leva ao setor dela com a marcação 🟢🟡🔴; outra etapa só move; modo tablet igual, com PIN ao soltar | ✅ entregue (SESSAO-24) |
+| RF-78 | Rotas das etapas (D-60): etapa com nome de setor e CONCLUÍDO levam ao setor configurado; editável em Setores e etapas ("manda para"); etapa nova com nome de setor já nasce com a rota | ✅ entregue (SESSAO-24) |
+| RF-79 | "Concluir produção" só na LIMPEZA E EMBALAGEM (D-59): peça de pedido vivo → Pedidos em aguardo; sem pedido ou de pedido cancelado → ESTOQUE sem dono; só 🟢 | ✅ entregue (SESSAO-24) |
 
 ## Tempo e produtividade (a razão de existir)
 
@@ -104,6 +107,9 @@ tags: [plataforma, requisitos, backlog]
 | RF-74 | Abaixo do mínimo do Tiny, o estoque gera no PCP o card de REPOSIÇÃO (um ciclo vivo por produto); o PCP libera as unidades ou "Não produzir"; pronta, a peça fica livre no estoque (D-54) | ✅ entregue (SESSAO-25) — geração automática ligada à parte, com o OK do dono |
 | RF-75 | O ESTOQUE só recebe peça 🟢 — regra no banco e nas telas de mover/concluir/resolver (D-54) | ✅ entregue (SESSAO-25) |
 | RF-76 | Tela de Estoque em abas (acabados · matéria-prima e insumos · sugestão de mínimo top 20 com rank), paginada no servidor, com busca e sinal por ícone + texto (D-57) | ✅ entregue (SESSAO-25) |
+| RF-87 | Pedidos em aguardo é o LUGAR da peça pronta de pedido (D-58), com as abas "Pedidos" e "Produtos reservados" — paginadas no servidor, contadores de uma porta só (batem por construção); o painel conta "concluídas" só a chegada vinda da produção | ✅ entregue (SESSAO-24) |
+| RF-88 | Cancelamento em 3 estágios (D-61): no PCP → aba Cancelados do PCP (paginada, sob demanda, para sempre); em produção → etiqueta "Pedido cancelado" e conclui para o ESTOQUE sem dono; pronto → vai sozinho ao ESTOQUE sem dono (produto pelo SKU) | ✅ entregue (SESSAO-24) |
+| RF-89 | Sugestão do estoque na liberação (D-62): "peça igual" (SKU; personalizado = SKU + descrição idêntica; sem SKU = descrição), desmarcada por padrão; PCP/logística e admin aceitam; aceitar faz a unidade nascer em Pedidos em aguardo | ✅ entregue (SESSAO-24) |
 
 ## Requisitos não-funcionais
 

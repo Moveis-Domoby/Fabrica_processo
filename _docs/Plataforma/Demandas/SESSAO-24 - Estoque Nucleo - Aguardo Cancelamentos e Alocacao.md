@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-24 — Produção concluída, cancelamentos e alocação"
 tipo: demanda
-status: pronta para code
+status: entregue — migration 37 aplicada em 27/09; merge com o dono
 data: 2026-09-18
-atualizado: 2026-09-24
+atualizado: 2026-09-27
 tags: [plataforma, demanda, bloco-5, estoque, producao]
 ---
 
@@ -58,14 +58,14 @@ RF-70 (estoque, fase 2 — D-07) · RF-14 (tempo parado no estoque). Registrar o
 
 ## Critérios de aceite
 
-- [ ] Card de unidade em qualquer setor de produção tem "Concluir produção"; ao usar, a unidade aparece em Pedidos em aguardo (e não no setor ESTOQUE).
-- [ ] "Ver pedidos" e "Ver itens" mostram os mesmos dados por ângulos diferentes; ambas paginadas no servidor; contadores batem.
-- [ ] Cancelar pedido de teste em cada um dos três estágios produz exatamente o desfecho descrito, verificado com pedidos reais/de teste e registrado na memória de execução.
-- [ ] Aba "Cancelados" existe dentro do PCP, paginada, carregada sob demanda.
-- [ ] Na liberação de um pedido cujo produto exista sem dono no estoque, a sugestão aparece; aceitar move o item para o pedido; cancelar esse pedido devolve o item ao estoque sem dono.
-- [ ] Nada do que a SESSAO-25 entregou foi recriado ou duplicado (um dado, um dono — M-04).
-- [ ] Nenhum evento existente alterado ou apagado (RNF-05); toda transição nova é evento novo com projeção.
-- [ ] Revisões de D-45 e D-22 (e o fechamento da Q-23, junto com a 25) registradas em [[PLT - Decisoes de Produto]] com D-NN novos.
+- [x] ~~Card de unidade em qualquer setor de produção tem "Concluir produção"~~ **↪️ revisado pelo dono (D-59): só a LIMPEZA E EMBALAGEM tem "Concluir produção"; os outros setores encaminham arrastando.** Ao usar, a unidade de pedido aparece em Pedidos em aguardo (e não no ESTOQUE) — provado no harness e no ensaio no banco real.
+- [x] "Ver pedidos" e "Ver itens" — **com os nomes do dono: "Pedidos" e "Produtos reservados"** — mostram os mesmos dados por ângulos diferentes; ambas paginadas no servidor; contadores batem (uma porta só — harness).
+- [x] Cancelar pedido de teste em cada um dos três estágios produz exatamente o desfecho descrito — os 3 no harness; o 3º (peça pronta no aguardo) também no ensaio no banco real, com o pedido 13215 (desfeito) — registrado na memória de execução.
+- [x] Aba "Cancelados" existe dentro do PCP, paginada, carregada sob demanda (guarda para sempre — b3).
+- [x] Na liberação de um pedido cujo produto exista sem dono no estoque, a sugestão aparece; aceitar faz a unidade do pedido nascer em Pedidos em aguardo (a peça livre é consumida); cancelar esse pedido devolve a peça ao estoque sem dono — harness (em produção ainda não existe peça sem dono para provar ao vivo).
+- [x] Nada do que a SESSAO-25 entregou foi recriado ou duplicado (um dado, um dono — M-04): as portas dela foram evoluídas (`fn_estoque_por_produto`, `plt_fn_estoque`, `plt_fn_pedidos_aguardo`).
+- [x] Nenhum evento existente alterado ou apagado (RNF-05); toda transição nova é evento novo com projeção (`unidade_desvinculada`, `peca_alocada`).
+- [x] Revisões registradas em [[PLT - Decisoes de Produto]] com D-NN novos: D-58 (revisa D-13/D-18/D-38/D-45), D-59 (revisa D-24/D-48/D-03), D-60, D-61, D-62. (D-22 e Q-23 já tinham sido revistas/fechadas pela 25 — D-54.)
 
 ## Notas para o Claude Code
 
@@ -75,7 +75,13 @@ Terreno: **`plt_cards` NÃO tem FK para `pedido_itens` — não "consertar"** (o
 
 ## Resultado (preencher ao entregar)
 
-*—*
+**Entregue em 27/09/2026** — handoff: [[handoff_2026_09_27_sessao24_producao_concluida]] · memória: `_docs/Plataforma/Execucao/SESSAO-24.md`.
+
+**O dono mudou o desenho no início da sessão** (respostas de 27/09): depois de um alinhamento com a equipe, **tudo por arrasto** — soltar no início inicia o tempo, soltar em etapa com nome de setor ou CONCLUÍDO leva ao próximo setor, e o **único botão é "Concluir produção", só na LIMPEZA E EMBALAGEM** (D-59/D-60); **Pedidos em aguardo virou o lugar** da peça pronta de pedido e o ESTOQUE ficou só com peça sem dono (D-58); as abas se chamam **"Pedidos" e "Produtos reservados"**; nada de estocar peça inacabada; Cancelados guarda para sempre (D-61); sugestão com a regra de "peça igual" e aceita por PCP/logística e admin (D-62).
+
+**Banco:** migration 37 aplicada com o OK do dono (integração do Tiny idêntica), rotas de 20 etapas gravadas, as 6 peças antigas tratadas pela resposta do dono (2 → aguardo, 3 arquivadas de pedidos já entregues, a 🔴 esperando decisão — Q-69). Harness: 57 checks novos; ensaio no banco real desfeito, tudo como esperado.
+
+**Pendente com o dono:** Q-69 (a 502 🔴), Q-70 (duas unidades em produção de pedidos já entregues no Tiny), conferir as telas e mesclar na `main`.
 
 ## Ver também
 
