@@ -6024,51 +6024,57 @@ await comoChat(null)
 // sem nada a produzir vai direto para Pedidos em aguardo. Pedidos próprios
 // 924201–924205; usa as pessoas do bloco da SESSAO-24 (admin, log.um, limpa.um).
 // ============================================================================
-titulo('D-63 · a regra única: frete/entrega pela 1ª palavra da descrição')
+titulo('D-63 · a regra única (vw_itens_producao): frete/entrega pela 1ª palavra da descrição')
 
-const freteD63 = async (texto) =>
-  (await bd.query(`select plt_privado.fn_eh_frete(${texto === null ? 'null' : `'${texto}'`}) as r`)).rows[0].r
-const casosFreteD63 = [
-  ['Frete', true],
-  ['Frete cliente', true],
-  ['Entrega', true],
-  ['FRETE', true],
-  [' frete: R$ 50', true],
-  ['Mesa de entrega', false],
-  ['Entregador de móveis', false],
-  ['PERSONALIZADO frete', false],
-  ['PERSONLAIZADO Penteadeira camarim - sem a parte de instalação das lâmpadas', false],
-  ['Painel freijó (LED e instalação não inclusos)', false],
-  ['Cadeira executiva - Preta', false],
-  ['', false],
-  [null, false],
+// Um pedido de calibração (já "Entregue": não nasce card) com as grafias reais
+// do levantamento de 28/09 e as armadilhas dele (A-31).
+const casosD63 = [
+  // [descrição, quantidade, é frete?, unidades de produção]
+  ['Frete', 1, true, 0],
+  ['Frete cliente', 3, true, 0],
+  ['Entrega', 1, true, 0],
+  ['FRETE', 1, true, 0],
+  [' frete: R$ 50', 1, true, 0],
+  ['(Frete)', 1, true, 0],
+  ['Frete-cliente', 1, true, 0],
+  ['Fretes', 1, false, 1],
+  ['Mesa de entrega', 1, false, 1],
+  ['Entregador de móveis', 2, false, 2],
+  ['PERSONALIZADO frete', 1, false, 1],
+  ['PERSONLAIZADO Penteadeira camarim - sem a parte de instalação das lâmpadas', 1, false, 1],
+  ['Painel freijó (LED e instalação não inclusos)', 1, false, 1],
+  ['Cadeira executiva - Preta', 3, false, 3],
+  ['', 1, false, 1],
+  [null, 1, false, 1],
+  ['Mesa Teste', 2.4, false, 2],
+  ['Mesa Teste', 2.6, false, 3],
+  ['Mesa Teste', 0.4, false, 0],
 ]
-const errosFreteD63 = []
-for (const [texto, esperado] of casosFreteD63) {
-  if ((await freteD63(texto)) !== esperado) errosFreteD63.push(String(texto))
-}
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924200, (select id from public.clientes order by id limit 1), 'Entregue');
+  insert into public.pedido_itens (pedido_id, seq, descricao, quantidade) values
+  ${casosD63
+    .map(([d, q], i) => `((select id from public.pedidos where numero = 924200), ${i + 1}, ${d === null ? 'null' : `'${d}'`}, ${q})`)
+    .join(',\n  ')};
+`)
+const lidosD63 = (
+  await bd.query(`select seq, eh_frete, unidades from plt_privado.vw_itens_producao
+                   where pedido_id = (select id from public.pedidos where numero = 924200) order by seq`)
+).rows
+const errosD63 = casosD63
+  .map(([d, q, frete, n], i) => ({ d, q, frete, n, lido: lidosD63[i] }))
+  .filter((c) => !c.lido || c.lido.eh_frete !== c.frete || c.lido.unidades !== c.n)
+  .map((c) => `${c.d} × ${c.q} → ${JSON.stringify(c.lido ?? null)}`)
 conferir(
-  errosFreteD63.length === 0,
-  'frete/entrega só pela 1ª palavra — palavra no meio do texto, personalizado, vazio e nulo não são frete (A-31)',
-  errosFreteD63.join(' | '),
+  lidosD63.length === casosD63.length && errosD63.length === 0,
+  'frete/entrega só pela 1ª palavra (no meio do texto, personalizado, vazio e nulo não são); unidades = quantidade arredondada, frete = 0, abaixo de 1 = 0',
+  errosD63.join(' | '),
 )
-const casosUnidadesD63 = [
-  ['Frete', 1, 0],
-  ['Frete cliente', 3, 0],
-  ['Mesa Teste', 2.4, 2],
-  ['Mesa Teste', 2.6, 3],
-  ['Mesa Teste', 0.4, 0],
-  ['Cadeira Tiffany Teste', 3, 3],
-]
-const errosUnidadesD63 = []
-for (const [texto, qtd, esperado] of casosUnidadesD63) {
-  const n = (await bd.query(`select plt_privado.fn_unidades_do_item('${texto}', ${qtd}) as n`)).rows[0].n
-  if (n !== esperado) errosUnidadesD63.push(`${texto} × ${qtd} → ${n}`)
-}
 conferir(
-  errosUnidadesD63.length === 0,
-  'unidades do item: frete = 0; o resto = quantidade arredondada, abaixo de 1 = 0 (a regra do n8n)',
-  errosUnidadesD63.join(' | '),
+  (await bd.query(`select plt_privado.fn_unidades_do_pedido((select id from public.pedidos where numero = 924200)) as n`)).rows[0].n
+    === casosD63.reduce((s, c) => s + c[3], 0),
+  'o total do pedido (fn_unidades_do_pedido) é a soma da view — o mesmo número em toda porta',
 )
 
 titulo('D-63 · pedido com frete: o frete não aparece para liberar, não vira card e não conta')
@@ -6367,8 +6373,9 @@ conferir(
 )
 conferir(
   (await bd.query(`select count(*)::int as n from public.plt_cards c
-                    where c.tipo = 'unidade' and c.arquivado_em is null and c.pedido_id is not null
-                      and plt_privado.fn_eh_frete(c.item_descricao)`)).rows[0].n === 0,
+                    where c.tipo = 'unidade' and c.arquivado_em is null
+                      and exists (select 1 from plt_privado.vw_itens_producao v
+                                   where v.pedido_id = c.pedido_id and v.seq = c.item_seq and v.eh_frete)`)).rows[0].n === 0,
   'depois da manutenção, nenhum card de frete vivo',
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)

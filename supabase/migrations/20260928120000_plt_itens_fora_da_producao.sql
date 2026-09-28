@@ -4,10 +4,14 @@
 -- EMBALAGEM) · Data: 2026-09-28 · Decisão: D-63 (respostas do dono em 28/09)
 --
 --   1. "Quais itens NÃO devem virar card de produção?" → "Frete / entrega".
---      A regra mora num lugar só (plt_privado): fn_eh_frete (pela 1ª palavra
---      da descrição — calibrada nas grafias reais: "Frete", "Frete cliente",
---      "Entrega") → fn_unidades_do_item → fn_unidades_do_pedido. Toda porta
---      que contava `round(quantidade) >= 1` passa a usar essas funções.
+--      A regra mora num lugar só: a VIEW plt_privado.vw_itens_producao — o
+--      item é frete pela 1ª palavra da descrição (calibrada nas grafias reais:
+--      "Frete", "Frete cliente", "Entrega") e diz quantas unidades de produção
+--      ele vira. Toda porta que contava `round(quantidade) >= 1` soma da view.
+--      Por que VIEW e não função (E-65): função com `set search_path` (regra
+--      da casa) nunca é embutida pelo planner — chamada item a item, deixou a
+--      aba do aguardo 45× mais lenta no ensaio no banco real. A view é
+--      embutida na consulta: custo de expressão, não de chamada.
 --   2. Todo o resto — cadeira, lâmpada, acessório — "sempre nasce no PCP do
 --      jeito que está e o PCP define o local correto": nada muda (o PCP já
 --      manda a unidade direto para Pedidos em aguardo na liberação).
@@ -37,69 +41,67 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- 1 · A regra única: o que é frete e quantas unidades um item vira
+-- 1 · A regra única: o item do pedido é frete? Quantas unidades ele vira?
 -- ----------------------------------------------------------------------------
 
--- Frete/entrega pela PRIMEIRA palavra da descrição (minúscula, sem acento,
--- pontuação vira espaço). Palavra solta no meio do texto NÃO conta: "Painel …
--- (LED e instalação não inclusos)" e "Penteadeira … sem a parte de instalação
--- das lâmpadas" são móveis — o levantamento de 28/09 (A-31).
-create or replace function plt_privado.fn_eh_frete(p_descricao text)
-returns boolean
-language sql
-immutable
-set search_path = public, pg_temp
-as $$
-  select split_part(
-           btrim(regexp_replace(plt_privado.fn_normalizar_texto(p_descricao), '[^a-z0-9]+', ' ', 'g')),
-           ' ', 1) in ('frete', 'entrega');
-$$;
+-- Frete/entrega pela PRIMEIRA palavra da descrição, em minúsculas: o que vem
+-- antes dela (espaço, pontuação) não conta, e a palavra tem que terminar ali
+-- ("Entregador" não é "Entrega"). Letra acentuada conta como letra, sem
+-- depender do idioma do servidor. Palavra solta no meio do texto NÃO conta:
+-- "Painel … (LED e instalação não inclusos)" e "Penteadeira … sem a parte de
+-- instalação das lâmpadas" são móveis — o levantamento de 28/09 (A-31).
+-- Uma regex ANCORADA no começo: desiste no 1º caractere quase sempre (E-65).
+-- Unidades (D-01 + D-63): frete, nenhuma; o resto, a regra real do n8n —
+-- quantidade arredondada, abaixo de 1 não vira card.
+-- security_invoker: quem lê é quem chama (as portas, donas do dado).
+create or replace view plt_privado.vw_itens_producao
+with (security_invoker = on) as
+  select pi.pedido_id,
+         pi.seq,
+         pi.codigo,
+         pi.descricao,
+         pi.quantidade,
+         f.eh_frete,
+         case when f.eh_frete then 0
+              when round(coalesce(pi.quantidade, 0)) >= 1 then round(pi.quantidade)::int
+              else 0
+         end as unidades
+    from public.pedido_itens pi
+    cross join lateral (
+      select lower(coalesce(pi.descricao, ''))
+               ~ '^[^a-z0-9áàâãäéèêëíìîïóòôõöúùûüç]*(frete|entrega)([^a-z0-9áàâãäéèêëíìîïóòôõöúùûüç]|$)'
+               as eh_frete
+    ) f;
 
-comment on function plt_privado.fn_eh_frete(text) is
-  'D-63: o item é frete/entrega? Pela 1ª palavra da descrição normalizada ("Frete", "Frete cliente", "Entrega"). Regra ÚNICA — todo lugar que precisa saber pergunta aqui.';
+comment on view plt_privado.vw_itens_producao is
+  'D-63: a regra ÚNICA de unidade de produção por item do pedido — eh_frete (1ª palavra da descrição: frete/entrega) e unidades (frete = 0; o resto = quantidade arredondada, < 1 = 0). Toda porta que conta unidades soma daqui.';
 
--- Quantas UNIDADES DE PRODUÇÃO o item vira (D-01 + D-63): frete/entrega,
--- nenhuma; o resto, a regra real do n8n — quantidade arredondada, abaixo de 1
--- não vira card.
-create or replace function plt_privado.fn_unidades_do_item(p_descricao text, p_quantidade numeric)
-returns integer
-language sql
-immutable
-set search_path = public, pg_temp
-as $$
-  select case
-           when plt_privado.fn_eh_frete(p_descricao) then 0
-           when round(coalesce(p_quantidade, 0)) >= 1 then round(p_quantidade)::int
-           else 0
-         end;
-$$;
-
-comment on function plt_privado.fn_unidades_do_item(text, numeric) is
-  'D-01 + D-63: unidades de produção de um item do pedido — frete/entrega = 0; o resto = quantidade arredondada (abaixo de 1 = 0, a regra do n8n).';
-
--- O total de unidades de produção do pedido — a soma que TODA porta usa.
+-- O total de unidades de produção do pedido, para quem precisa de UM número
+-- num gesto (lançar, entregar, recalcular a liberação). Porta que varre muitos
+-- pedidos soma direto da view (embutida) — nunca chama isto por linha (E-65).
 create or replace function plt_privado.fn_unidades_do_pedido(p_pedido_id bigint)
 returns integer
 language sql
 stable
 set search_path = public, pg_temp
 as $$
-  select coalesce(sum(plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade)), 0)::int
-    from public.pedido_itens pi
-   where pi.pedido_id = p_pedido_id;
+  select coalesce(sum(v.unidades), 0)::int
+    from plt_privado.vw_itens_producao v
+   where v.pedido_id = p_pedido_id;
 $$;
 
 comment on function plt_privado.fn_unidades_do_pedido(bigint) is
-  'D-63: total de unidades de produção do pedido (soma de fn_unidades_do_item) — o "n" do pedido completo em todas as portas.';
+  'D-63: total de unidades de produção de UM pedido (soma de vw_itens_producao) — para gestos (lançar, entregar, recalcular). Porta que varre muitos pedidos soma da view.';
 
 -- ----------------------------------------------------------------------------
 -- 2 · Pedido sem nada a produzir (só frete) — a base do "direto para Pedidos
 --     em aguardo" (resposta 4 do dono). Decidido NA LEITURA: nada é gravado
---     (M-13); se o Tiny acrescentar um móvel, fn_unidades_do_pedido passa de
---     0 e o pedido volta sozinho ao quadro do PCP (plt_fn_cards_pedido_pcp).
+--     (M-13); se o Tiny acrescentar um móvel, a view passa a ter unidade e o
+--     pedido volta sozinho ao quadro do PCP (plt_fn_cards_pedido_pcp).
 --     Pedido sem unidade nunca fica "liberado por completo" (a regra de
 --     fn_recalcular_liberacao exige total > 0) — daí o filtro pelo índice
---     parcial plt_cards_pcp_abertos_idx.
+--     parcial plt_cards_pcp_abertos_idx. O barato vai primeiro (E-65): só os
+--     sem unidade (quase nunca há) chegam à situação do Tiny.
 -- ----------------------------------------------------------------------------
 create or replace function plt_privado.fn_pedidos_sem_producao()
 returns table (
@@ -112,17 +114,22 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select pc.id, pc.pedido_id, pc.criado_em
-    from public.plt_cards pc
-    join public.pedidos p on p.id = pc.pedido_id
-   where pc.tipo = 'pedido'
-     and pc.arquivado_em is null
-     and pc.liberado_completo_em is null
-     and pc.lancado_rotas_em is null
-     and plt_privado.fn_situacao_normalizada(p.situacao) not in ('entregue', 'nao_entregue', 'cancelado')
-     and plt_privado.fn_unidades_do_pedido(pc.pedido_id) = 0
+  with sem_unidade as materialized (
+    select pc.id, pc.pedido_id, pc.criado_em
+      from public.plt_cards pc
+     where pc.tipo = 'pedido'
+       and pc.arquivado_em is null
+       and pc.liberado_completo_em is null
+       and pc.lancado_rotas_em is null
+       and not exists (select 1 from plt_privado.vw_itens_producao v
+                        where v.pedido_id = pc.pedido_id and v.unidades > 0)
+  )
+  select s.id, s.pedido_id, s.criado_em
+    from sem_unidade s
+    join public.pedidos p on p.id = s.pedido_id
+   where plt_privado.fn_situacao_normalizada(p.situacao) not in ('entregue', 'nao_entregue', 'cancelado')
      and not exists (select 1 from public.plt_cards u
-                      where u.pedido_id = pc.pedido_id and u.tipo = 'unidade'
+                      where u.pedido_id = s.pedido_id and u.tipo = 'unidade'
                         and u.arquivado_em is null);
 $$;
 
@@ -131,8 +138,9 @@ comment on function plt_privado.fn_pedidos_sem_producao() is
 
 -- ----------------------------------------------------------------------------
 -- 3 · Frete não vira card — para todo escritor (M-14). A liberação do PCP já
---     não oferece o item; a trava pega API, script e o que vier. Só no INSERT:
---     card antigo não é tocado (o do 13215 sai por manutenção, arquivado).
+--     não oferece o item; a trava pega API, script e o que vier — pelo ITEM do
+--     pedido (a fonte da verdade), não pela descrição que o card traz. Só no
+--     INSERT: card antigo não é tocado (o do 13215 sai por manutenção).
 -- ----------------------------------------------------------------------------
 create or replace function plt_privado.fn_validar_unidade_de_producao()
 returns trigger
@@ -141,12 +149,11 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  if new.tipo <> 'unidade' or new.pedido_id is null then
+  if new.tipo <> 'unidade' or new.pedido_id is null or new.item_seq is null then
     return new;
   end if;
-  if plt_privado.fn_eh_frete(new.item_descricao)
-     or plt_privado.fn_eh_frete((select pi.descricao from public.pedido_itens pi
-                                  where pi.pedido_id = new.pedido_id and pi.seq = new.item_seq)) then
+  if exists (select 1 from plt_privado.vw_itens_producao v
+              where v.pedido_id = new.pedido_id and v.seq = new.item_seq and v.eh_frete) then
     raise exception 'Frete não vira card de produção — o pedido fica completo sem ele.'
       using errcode = 'check_violation';
   end if;
@@ -155,7 +162,7 @@ end;
 $$;
 
 comment on function plt_privado.fn_validar_unidade_de_producao() is
-  'D-63: recusa card de UNIDADE de frete/entrega (pela descrição do card ou do item do pedido) — vale para tela, API e script (M-14).';
+  'D-63: recusa card de UNIDADE cujo item do pedido é frete/entrega (vw_itens_producao) — vale para tela, API e script (M-14).';
 
 drop trigger if exists plt_cards_validar_unidade_de_producao on public.plt_cards;
 create trigger plt_cards_validar_unidade_de_producao
@@ -179,19 +186,19 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select pi.seq,
-         pi.codigo,
-         pi.descricao,
-         plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade) as unidades
-    from public.pedido_itens pi
+  select v.seq,
+         v.codigo,
+         v.descricao,
+         v.unidades
+    from plt_privado.vw_itens_producao v
    where plt_privado.fn_usuario_atual() is not null
-     and pi.pedido_id = p_pedido_id
-     and plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade) >= 1
-   order by pi.seq;
+     and v.pedido_id = p_pedido_id
+     and v.unidades >= 1
+   order by v.seq;
 $$;
 
 comment on function public.plt_fn_pedido_itens_kanban(bigint) is
-  'Itens de um pedido em unidades (k/n) para a liberação no PCP (D-01). Quantidade arredondada, < 1 não vira card; frete/entrega não vira card (D-63 — fn_unidades_do_item).';
+  'Itens de um pedido em unidades (k/n) para a liberação no PCP (D-01). Quantidade arredondada, < 1 não vira card; frete/entrega não vira card (D-63 — vw_itens_producao).';
 
 create or replace function public.plt_fn_pedidos_kanban(
   p_busca            text     default null,
@@ -242,19 +249,19 @@ as $$
     from public.pedidos p
     left join public.clientes c on c.id = p.cliente_id
     left join lateral (
-      -- D-63: o frete não conta como unidade (fn_unidades_do_item).
+      -- D-63: o frete não conta como unidade (vw_itens_producao).
       select count(*)::int as total_itens,
-             coalesce(sum(plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade)), 0)::int
-               as total_unidades
-        from public.pedido_itens pi
-       where pi.pedido_id = p.id
+             coalesce(sum(v.unidades), 0)::int as total_unidades
+        from plt_privado.vw_itens_producao v
+       where v.pedido_id = p.id
     ) i on true
     left join lateral (
       -- D-63: card de frete nascido antes da regra não conta como liberado.
       select count(*)::int as liberadas
         from public.plt_cards cu
        where cu.pedido_id = p.id and cu.tipo = 'unidade'
-         and not plt_privado.fn_eh_frete(cu.item_descricao)
+         and not exists (select 1 from plt_privado.vw_itens_producao v
+                          where v.pedido_id = cu.pedido_id and v.seq = cu.item_seq and v.eh_frete)
     ) u on true
     left join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido'
     left join lateral (
@@ -299,7 +306,8 @@ begin
   select count(*)::int into v_liberadas
     from public.plt_cards cu
    where cu.pedido_id = p_pedido_id and cu.tipo = 'unidade'
-     and not plt_privado.fn_eh_frete(cu.item_descricao);
+     and not exists (select 1 from plt_privado.vw_itens_producao v
+                      where v.pedido_id = cu.pedido_id and v.seq = cu.item_seq and v.eh_frete);
 
   if v_total > 0 and v_liberadas >= v_total then
     -- O instante da liberação da ÚLTIMA unidade (D-48: fim do tempo em PCP).
@@ -382,7 +390,8 @@ as $$
                   not in ('entregue', 'nao_entregue', 'cancelado')
               -- D-63: sem nada a produzir (só frete), o pedido não espera
               -- liberação — vai direto para Pedidos em aguardo.
-              and plt_privado.fn_unidades_do_pedido(p.id) > 0))
+              and exists (select 1 from plt_privado.vw_itens_producao v
+                           where v.pedido_id = p.id and v.unidades > 0)))
    order by c.desde asc nulls last, c.id
    limit least(greatest(coalesce(p_limite, 10), 1), 100)
   offset greatest(coalesce(p_deslocamento, 0), 0);
@@ -420,13 +429,13 @@ as $$
        and not plt_privado.fn_pedido_cancelado(pc.pedido_id)
   ),
   itens as (
-    -- D-63: frete não é vaga (fn_unidades_do_item = 0).
-    select pi.seq, plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade) as n,
-           plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(pi.codigo, pi.descricao),
-                                     pi.codigo, pi.descricao) as chave
-      from public.pedido_itens pi
-      join alvo a on a.pedido_id = pi.pedido_id
-     where plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade) >= 1
+    -- D-63: frete não é vaga (vw_itens_producao: unidades = 0).
+    select v.seq, v.unidades as n,
+           plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(v.codigo, v.descricao),
+                                     v.codigo, v.descricao) as chave
+      from plt_privado.vw_itens_producao v
+      join alvo a on a.pedido_id = v.pedido_id
+     where v.unidades >= 1
   ),
   vagas as (
     select i.seq, k.k, i.n, i.chave,
@@ -515,12 +524,12 @@ begin
     raise exception 'O pedido foi cancelado no Tiny — não recebe peça do estoque.' using errcode = 'check_violation';
   end if;
 
-  -- D-63: item de frete não tem unidade (fn_unidades_do_item = 0).
-  select pi.codigo, pi.descricao, plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade)
+  -- D-63: item de frete não tem unidade (vw_itens_producao: unidades = 0).
+  select v.codigo, v.descricao, v.unidades
     into v_codigo, v_descricao, v_n
-    from public.pedido_itens pi
-   where pi.pedido_id = v_pc.pedido_id and pi.seq = p_item_seq
-     and plt_privado.fn_unidades_do_item(pi.descricao, pi.quantidade) >= 1;
+    from plt_privado.vw_itens_producao v
+   where v.pedido_id = v_pc.pedido_id and v.seq = p_item_seq
+     and v.unidades >= 1;
   if v_n is null or p_indice_unidade is null or p_indice_unidade < 1 or p_indice_unidade > v_n then
     raise exception 'Esta unidade não existe no pedido.' using errcode = 'check_violation';
   end if;
@@ -654,7 +663,8 @@ as $$
       join public.pedidos p on p.id = pc.pedido_id
       left join public.clientes c on c.id = p.cliente_id
       left join lateral (
-        select plt_privado.fn_unidades_do_pedido(p.id) as total_unidades
+        select coalesce(sum(v.unidades), 0)::int as total_unidades
+          from plt_privado.vw_itens_producao v where v.pedido_id = p.id
       ) i on true
       left join lateral (
         select count(*)::int as liberadas
@@ -714,7 +724,8 @@ as $$
   ),
   por_pedido as (
     select b.card_pedido_id, b.pedido_id, count(*)::int as prontas,
-           plt_privado.fn_unidades_do_pedido(b.pedido_id) as total
+           (select coalesce(sum(v.unidades), 0)::int
+              from plt_privado.vw_itens_producao v where v.pedido_id = b.pedido_id) as total
       from base b
      group by b.card_pedido_id, b.pedido_id
   )
@@ -768,7 +779,8 @@ as $$
   ),
   por_pedido as (
     select b.card_pedido_id, count(*)::int as prontas,
-           plt_privado.fn_unidades_do_pedido(b.pedido_id) as total,
+           (select coalesce(sum(v.unidades), 0)::int
+              from plt_privado.vw_itens_producao v where v.pedido_id = b.pedido_id) as total,
            false as sem_producao
       from base b
      group by b.card_pedido_id, b.pedido_id
@@ -1017,7 +1029,8 @@ as $$
       left join public.clientes c on c.id = p.cliente_id
       left join lateral (
         -- D-63: frete não conta.
-        select plt_privado.fn_unidades_do_pedido(p.id) as total_unidades
+        select coalesce(sum(v.unidades), 0)::int as total_unidades
+          from plt_privado.vw_itens_producao v where v.pedido_id = p.id
       ) i on true
       left join lateral (
         select count(*)::int as em_rotas
@@ -1118,7 +1131,8 @@ as $$
       left join public.clientes c on c.id = p.cliente_id
       left join lateral (
         -- D-63: frete não conta.
-        select plt_privado.fn_unidades_do_pedido(p.id) as total_unidades
+        select coalesce(sum(v.unidades), 0)::int as total_unidades
+          from plt_privado.vw_itens_producao v where v.pedido_id = p.id
       ) i on true
       left join public.plt_programacoes pr on pr.card_id = pc.id
       left join public.plt_caminhoes cam on cam.id = pr.caminhao_id
@@ -1192,7 +1206,8 @@ as $$
     left join public.clientes c on c.id = p.cliente_id
     left join lateral (
       -- D-63: frete não conta.
-      select plt_privado.fn_unidades_do_pedido(p.id) as total_unidades
+      select coalesce(sum(v.unidades), 0)::int as total_unidades
+          from plt_privado.vw_itens_producao v where v.pedido_id = p.id
     ) i on true
     left join lateral (
       select count(*)::int as liberadas,
@@ -1254,7 +1269,8 @@ as $$
     ) ev on true
     left join lateral (
       -- D-63: frete não conta.
-      select plt_privado.fn_unidades_do_pedido(p.id) as total
+      select coalesce(sum(v.unidades), 0)::int as total
+           from plt_privado.vw_itens_producao v where v.pedido_id = p.id
     ) i on true
     left join lateral (
       -- peças que ainda carregam o pedido: na produção (com a etiqueta) ou num fim de linha
@@ -1315,7 +1331,8 @@ as $$
        from public.plt_cards pc
        join public.pedidos p on p.id = pc.pedido_id
        left join lateral (
-         select plt_privado.fn_unidades_do_pedido(p.id) as total
+         select coalesce(sum(v.unidades), 0)::int as total
+           from plt_privado.vw_itens_producao v where v.pedido_id = p.id
        ) i on true
        left join lateral (
          select count(*)::int as liberadas
@@ -1406,7 +1423,8 @@ as $$
        join public.pedidos p on p.id = pc.pedido_id
        left join lateral (
          -- D-63: frete não conta.
-         select plt_privado.fn_unidades_do_pedido(p.id) as total
+         select coalesce(sum(v.unidades), 0)::int as total
+           from plt_privado.vw_itens_producao v where v.pedido_id = p.id
        ) i on true
        left join lateral (
          select count(*) filter (where s.papel_no_fluxo = 'terminal')::int as prontas
@@ -1429,8 +1447,7 @@ $$;
 -- 12 · Permissões (E-11): o que é maquinaria fica fora da API; as portas
 --     recriadas mantêm o acesso de sempre (reafirmado aqui).
 -- ----------------------------------------------------------------------------
-revoke all on function plt_privado.fn_eh_frete(text)                        from public, anon, authenticated;
-revoke all on function plt_privado.fn_unidades_do_item(text, numeric)       from public, anon, authenticated;
+revoke all on plt_privado.vw_itens_producao                                 from public, anon, authenticated;
 revoke all on function plt_privado.fn_unidades_do_pedido(bigint)            from public, anon, authenticated;
 revoke all on function plt_privado.fn_pedidos_sem_producao()                from public, anon, authenticated;
 revoke all on function plt_privado.fn_validar_unidade_de_producao()         from public, anon, authenticated;

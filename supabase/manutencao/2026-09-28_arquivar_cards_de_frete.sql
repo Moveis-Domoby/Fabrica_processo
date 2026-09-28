@@ -13,9 +13,9 @@
 --   1. card com tempo aberto: movimentação para a FILA do setor — a execução
 --      fecha pela regra de sempre e o limite de 1 por pessoa fica livre;
 --   2. card_arquivado (some das telas; a história fica).
--- Quem é frete sai da regra única (plt_privado.fn_eh_frete — migration 39):
--- pela descrição do card OU do item do pedido. Idempotente (rodar de novo não
--- faz nada). Depende da migration 39 aplicada.
+-- Quem é frete sai da regra única (plt_privado.vw_itens_producao — migration
+-- 39), pelo item do pedido a que o card pertence. Idempotente (rodar de novo
+-- não faz nada). Depende da migration 39 aplicada.
 -- ============================================================================
 do $$
 declare
@@ -29,9 +29,8 @@ begin
       join public.pedidos p on p.id = c.pedido_id
      where c.tipo = 'unidade'
        and c.arquivado_em is null
-       and (plt_privado.fn_eh_frete(c.item_descricao)
-            or plt_privado.fn_eh_frete((select pi.descricao from public.pedido_itens pi
-                                         where pi.pedido_id = c.pedido_id and pi.seq = c.item_seq)))
+       and exists (select 1 from plt_privado.vw_itens_producao v
+                    where v.pedido_id = c.pedido_id and v.seq = c.item_seq and v.eh_frete)
      order by c.id
   loop
     if r.executor_atual_id is not null then
@@ -65,5 +64,6 @@ $$;
 
 -- Conferência (esperado: 0)
 --   select count(*) from public.plt_cards c
---    where c.tipo = 'unidade' and c.arquivado_em is null and c.pedido_id is not null
---      and plt_privado.fn_eh_frete(c.item_descricao);
+--    where c.tipo = 'unidade' and c.arquivado_em is null
+--      and exists (select 1 from plt_privado.vw_itens_producao v
+--                   where v.pedido_id = c.pedido_id and v.seq = c.item_seq and v.eh_frete);
