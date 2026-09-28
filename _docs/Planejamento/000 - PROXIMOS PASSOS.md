@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -19,6 +19,7 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 
 - **SESSAO-24 (Produção concluída, cancelamentos e alocação):** ✅ **entregue em 27/09** — [[handoff_2026_09_27_sessao24_producao_concluida]]. Quadros **só por arrasto** (D-59/D-60), **Pedidos em aguardo como lugar** e ESTOQUE só sem dono (D-58), aba **Cancelados** no PCP (D-61), **sugestão do estoque** na liberação (D-62). Migration 37 aplicada com o seu OK. Telas conferidas com você logado e **mesclada na `main` em 27/09** (D-20). Q-69/Q-70 respondidas na sessão (a 502 é card de teste; 518 e 537 arquivadas).
 - **SESSAO-26 (Chat interno):** ✅ **entregue em 27/09** — [[handoff_2026_09_27_sessao26_chat]]. Migration 38 aplicada (sozinha, depois da 37 da 24). **Validada ao vivo com você logado e mesclada na `main` em 28/09 (D-20).** Com você: cadastrar a sua data de nascimento no Meu Perfil e, se quiser, liberar quem mais escreve nos Avisos gerais. Falta só ver, com uma 2ª pessoa de verdade, o número de não lidas subindo (provado nos testes automáticos). ⚠️ **Segurança corrigida na mesma migration (D-68):** CPF, PIN e convite estavam legíveis por qualquer pessoa logada.
+- **Ajuste do Frete (28/09, achado da S24):** ✅ o **frete deixou de virar peça de produção** (D-63) — [[handoff_2026_09_28_ajuste_frete_fora_da_producao]]. Cadeira e acessório seguem nascendo no PCP (o PCP escolhe o lugar); pedido só de frete vai direto para Pedidos em aguardo. Migration 39 **aplicada com o seu OK** (integração idêntica); card de frete do 13215 arquivado. **Falta o seu OK para juntar na `main`** (publica o texto "Nada a produzir").
 
 ## (histórico) 26/09 — SESSAO-25 mesclada; a reposição automática espera o dono
 
@@ -70,6 +71,8 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 10. ✅ SESSAO-29 respondida por inteiro (D-50) — **📐 pronta para code**; só falta você dizer quando ela entra na fila.
 11. ~~Trocar o token da API v2 do Tiny~~ — o dono decidiu **não** trocar (23/09).
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
+12. **Q-71 (ajuste do Frete):** no Tiny da fábrica — cadastrar Espelho Adnet, Longarina e Carro de mão; decidir se as lâmpadas em kit aparecem em produtos acabados; dar um código à "Fechadura (com instalação)" (sem ele a venda não baixa o estoque).
+13. **Tarefa sugerida (ajuste do Frete):** a Visão do dia mostra 226 "pedidos a liberar", mas 198 já estão entregues no Tiny — alinhar com o quadro do PCP (mexe no banco; precisa do seu OK).
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 
