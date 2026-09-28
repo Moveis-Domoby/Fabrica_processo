@@ -48,7 +48,7 @@ Mesmo defeito por outro caminho: se o **painel do sino** estivesse aberto quando
 - **E-48** na [[PLT - Memoria de Aprendizado]]: o que sai da tela por deslize tem que **conter** o próprio conteúdo (o deslize move a caixa, não o que transborda); deslize num ancestral vira o "chão" de todo painel fixo de dentro (e corta junto); fechado = invisível, não só fora da tela.
 - **F-07 ↪️:** a conferência de celular ganhou "com a gaveta FECHADA, a borda esquerda é da página" (`elementFromPoint` de x = 0 a ~60).
 - **E-57** (da sessão do chat) completado com a correção.
-- **Descoberto no caminho (alheio a este ajuste):** três erros passageiros no console durante o teste — os registros do banco mostram que, naquele segundo, a sessão do "Frete fora da produção" aplicava a mudança dela no banco; três leituras da tela esperaram e estouraram o tempo limite. Repetidas depois, nenhuma falha. A sessão do Frete foi avisada.
+- **Descoberto no caminho (alheio a este ajuste):** três erros passageiros no console durante o teste — os registros do banco mostram que, naquele segundo, a sessão do "Frete fora da produção" fazia um **ensaio** da mudança dela no banco (um teste desfeito no fim — **nada foi aplicado nem gravado**; eu tinha dito "aplicava", corrigido: E-59); a trava do ensaio fez três leituras da tela esperarem e estourarem o tempo limite. Repetidas depois, nenhuma falha. A sessão do Frete foi avisada, conferiu que nenhuma gravação vinda do Tiny caiu naqueles segundos e passou a fazer o ensaio desistir rápido da trava.
 
 ## 5. Arquivos alterados
 
