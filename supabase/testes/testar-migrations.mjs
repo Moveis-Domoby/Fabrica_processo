@@ -63,6 +63,36 @@ await bd.exec(`
 `)
 console.log('  ambiente pronto')
 
+titulo('Simulando o Realtime do Supabase (SESSAO-26 — o websocket do chat)')
+// O Supabase traz o schema realtime do Broadcast: realtime.messages, send() e
+// topic(). Aqui vai o mínimo para a migration do chat criar a política de
+// entrada nos canais e o gatilho empurrar as mensagens. A LINHA em
+// realtime.messages é a prova de que o broadcast saiu (o send de verdade
+// engole erro e só avisa — ver migration 38).
+await bd.exec(`
+  create schema if not exists realtime;
+  create table if not exists realtime.messages (
+    id          uuid primary key default gen_random_uuid(),
+    topic       text not null,
+    extension   text not null default 'broadcast',
+    payload     jsonb,
+    event       text,
+    private     boolean default true,
+    inserted_at timestamp not null default now()
+  );
+  alter table realtime.messages enable row level security;
+  create or replace function realtime.topic() returns text
+    language sql stable as $$ select nullif(current_setting('realtime.topic', true), '')::text $$;
+  create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true)
+    returns void language plpgsql as $$
+  begin
+    insert into realtime.messages (payload, event, topic, private) values (payload, event, topic, private);
+  end $$;
+  grant usage on schema realtime to authenticated;
+  grant select on realtime.messages to authenticated;
+`)
+console.log('  realtime.messages, send() e topic() no lugar')
+
 titulo('Carregando o esquema REAL da integração (produção)')
 await bd.exec(await readFile(ESQUEMA_INTEGRACAO, 'utf8'))
 console.log('  clientes, pedidos, pedido_itens, eventos e fn_upsert_pedido no lugar')
@@ -4651,6 +4681,718 @@ conferir(
 )
 const topo = (await bd.query(`select count(*)::int as total, max(posicao) as ultima from public.plt_fn_estoque_sugestao_minimo(4)`)).rows[0]
 conferir(topo.total <= 20 && (topo.ultima ?? 0) <= 20, 'a sugestão traz no máximo os 20 mais vendidos', JSON.stringify(topo))
+
+// ============================================================================
+// SESSAO-26 · Chat interno (migration 38) — websocket privado, leitura só
+// paginada, RLS por participação, aniversários e a leitura por coluna de
+// plt_usuarios (E-50). Pessoas próprias (chat.*), ids de sessão ...c00N.
+// ============================================================================
+const SESSAO_CHAT = {
+  admin: '00000000-0000-0000-0000-00000000c001',
+  lider: '00000000-0000-0000-0000-00000000c002',
+  op1: '00000000-0000-0000-0000-00000000c003',
+  op2: '00000000-0000-0000-0000-00000000c004',
+  arq: '00000000-0000-0000-0000-00000000c005',
+  novato: '00000000-0000-0000-0000-00000000c006',
+}
+const linhas = async (sql) => (await bd.query(sql)).rows
+async function comoChat(quem) {
+  await bd.exec(
+    `select set_config('request.jwt.claim.sub', '${quem ? SESSAO_CHAT[quem] : ''}', false)`,
+  )
+}
+
+titulo('SESSAO-26 · plt_usuarios: o navegador só lê as colunas de trabalho (E-50)')
+// Em produção o Supabase dá SELECT na TABELA ao authenticated — é esse grant
+// que anulava os revoke por coluna. Simula-se o padrão e reaplica-se a 38
+// (idempotente): o grant de tabela some, ficam só as colunas de trabalho.
+const SQL_CHAT = await readFile(
+  path.join(MIGRATIONS, '20260927180000_plt_chat_interno.sql'),
+  'utf8',
+)
+await bd.exec(`
+  grant usage on schema public to authenticated;
+  grant select on public.plt_usuarios to authenticated;
+`)
+await bd.exec(SQL_CHAT)
+await bd.exec(`set role authenticated`)
+for (const coluna of ['cpf', 'pin_hash', 'convite_token', 'data_nascimento']) {
+  await deveRecusar(
+    `select ${coluna} from public.plt_usuarios limit 1`,
+    `a API NÃO lê plt_usuarios.${coluna} (nem com o grant de tabela do Supabase)`,
+    /permission denied|permissão negada/i,
+  )
+}
+const colunasDeTrabalho = await linhas(`
+  select id, auth_user_id, nome, email, telefone, papel, ativo, usuario, matricula,
+         senha_padrao, tema, foto_caminho, modulos, arquivado_em, fila_prioridade
+    from public.plt_usuarios limit 1`)
+conferir(
+  colunasDeTrabalho.length === 1,
+  'as colunas de trabalho seguem legíveis (perfil, equipe, tablet, fila de prioridade)',
+)
+await bd.exec(`reset role`)
+
+titulo('SESSAO-26 · Avisos gerais: uma conversa só, e todo cadastro participa')
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+    ('Chat Admin',         'chat.admin@teste.com', '962.000.001-01', 'chat.admin', 'admin',    '${SESSAO_CHAT.admin}'),
+    ('Chat Líder',         'chat.lider@teste.com', '962.000.002-02', 'chat.lider', 'lider',    '${SESSAO_CHAT.lider}'),
+    ('Chat Operador Um',   'chat.op1@teste.com',   '962.000.003-03', 'chat.op1',   'operador', '${SESSAO_CHAT.op1}'),
+    ('Chat Operador Dois', 'chat.op2@teste.com',   '962.000.004-04', 'chat.op2',   'operador', '${SESSAO_CHAT.op2}'),
+    ('Chat Arquivado',     'chat.arq@teste.com',   '962.000.005-05', 'chat.arq',   'operador', '${SESSAO_CHAT.arq}');
+  update public.plt_usuarios set ativo = false, arquivado_em = now() where usuario = 'chat.arq';
+`)
+const PESSOA = {}
+for (const chave of ['admin', 'lider', 'op1', 'op2', 'arq']) {
+  PESSOA[chave] = (await linhas(`select id from public.plt_usuarios where usuario = 'chat.${chave}'`))[0].id
+}
+const conversasAvisos = await linhas(
+  `select id::int as id, nome from public.plt_chat_conversas where tipo = 'avisos'`,
+)
+conferir(
+  conversasAvisos.length === 1 && conversasAvisos[0].nome === 'Avisos gerais',
+  'Avisos gerais semeado UMA vez (a migration rodou 3 vezes)',
+  JSON.stringify(conversasAvisos),
+)
+const AVISOS = conversasAvisos[0]?.id
+const foraDosAvisos = (
+  await linhas(`
+    select count(*)::int as n from public.plt_usuarios u
+     where not exists (select 1 from public.plt_chat_participantes p
+                        where p.conversa_id = ${AVISOS} and p.usuario_id = u.id)`)
+)[0].n
+conferir(
+  foraDosAvisos === 0,
+  'todo cadastro participa dos Avisos gerais — os antigos (carga) e os novos (gatilho no cadastro)',
+  `${foraDosAvisos} fora`,
+)
+
+titulo('SESSAO-26 · data de nascimento: a própria pessoa ou o admin — com trilha, sem o valor')
+await comoChat('op1')
+await bd.exec(`select public.plt_fn_definir_nascimento(null, date '1990-05-17')`)
+conferir(
+  (await linhas(`select public.plt_fn_ler_nascimento() = date '1990-05-17' as ok`))[0].ok === true,
+  'a pessoa grava e lê a PRÓPRIA data de nascimento',
+)
+await deveRecusar(
+  `select public.plt_fn_ler_nascimento('${PESSOA.op2}')`,
+  'operador NÃO lê a data de nascimento de outra pessoa',
+  /própria pessoa ou o admin/i,
+)
+await deveRecusar(
+  `select public.plt_fn_definir_nascimento('${PESSOA.op2}', date '1991-01-01')`,
+  'operador NÃO muda a data de outra pessoa',
+  /própria pessoa ou o admin/i,
+)
+await deveRecusar(
+  `select public.plt_fn_definir_nascimento(null, date '1850-01-01')`,
+  'data antes de 1900 é recusada',
+  /fora do intervalo/i,
+)
+await deveRecusar(
+  `select public.plt_fn_definir_nascimento(null, current_date + 5)`,
+  'data no futuro é recusada',
+  /fora do intervalo/i,
+)
+await comoChat('admin')
+await bd.exec(`select public.plt_fn_definir_nascimento('${PESSOA.op2}', date '1991-01-01')`)
+conferir(
+  (await linhas(`select public.plt_fn_ler_nascimento('${PESSOA.op2}') = date '1991-01-01' as ok`))[0]
+    .ok === true,
+  'o admin lê e grava a data de qualquer pessoa',
+)
+await comoChat(null)
+const logsNascimento = await linhas(`
+  select contexto from public.plt_logs_atividade
+   where acao = 'data_nascimento_alterada'
+     and contexto ->> 'alvo_id' in ('${PESSOA.op1}', '${PESSOA.op2}')`)
+conferir(
+  logsNascimento.length === 2 &&
+    logsNascimento.every((l) => !/19(90|91)/.test(JSON.stringify(l.contexto))),
+  'cada mudança foi para a trilha — quem mudou e de quem, NUNCA a data (D-40)',
+  JSON.stringify(logsNascimento),
+)
+
+titulo('SESSAO-26 · canal: só líder ou admin cria; quem cria administra')
+await bd.exec(`delete from realtime.messages`)
+await comoChat('op1')
+await deveRecusar(
+  `select public.plt_fn_chat_criar_canal('Canal do operador', array['${PESSOA.op2}']::uuid[])`,
+  'operador NÃO cria canal (resposta 2 do dono)',
+  /líder ou de admin/i,
+)
+await comoChat('lider')
+await deveRecusar(
+  `select public.plt_fn_chat_criar_canal('   ', '{}')`,
+  'canal sem nome é recusado',
+  /nome ao canal/i,
+)
+const CANAL = (
+  await linhas(`
+    select public.plt_fn_chat_criar_canal('Montagem — turno da manhã',
+      array['${PESSOA.op1}', '${PESSOA.op1}', '${PESSOA.arq}', '${PESSOA.lider}']::uuid[])::int as id`)
+)[0].id
+const membrosDoCanal = await linhas(
+  `select usuario_id, papel from public.plt_chat_participantes where conversa_id = ${CANAL}`,
+)
+conferir(
+  membrosDoCanal.length === 2 &&
+    membrosDoCanal.some((m) => m.usuario_id === PESSOA.lider && m.papel === 'administrador') &&
+    membrosDoCanal.some((m) => m.usuario_id === PESSOA.op1 && m.papel === 'membro'),
+  'o líder criou e administra; o operador entrou UMA vez; o arquivado ficou de fora',
+  JSON.stringify(membrosDoCanal),
+)
+const logCriacao = await linhas(`
+  select contexto from public.plt_logs_atividade
+   where acao = 'chat_canal_criado' and (contexto ->> 'conversa_id')::bigint = ${CANAL}`)
+conferir(
+  logCriacao.length === 1 && logCriacao[0].contexto.membros === 1,
+  'a criação do canal foi para a trilha (D-40)',
+  JSON.stringify(logCriacao),
+)
+const sinaisEntrou = (await linhas(`select topic from realtime.messages where event = 'entrou'`)).map(
+  (s) => s.topic,
+)
+conferir(
+  sinaisEntrou.length === 2 &&
+    sinaisEntrou.includes(`plt-chat-u:${PESSOA.lider}`) &&
+    sinaisEntrou.includes(`plt-chat-u:${PESSOA.op1}`),
+  'o criador e o membro receberam o sinal "entrou" — cada um no PRÓPRIO canal',
+  sinaisEntrou.join(' | '),
+)
+
+titulo('SESSAO-26 · particular: uma conversa por par, quem quer que abra')
+await comoChat('op1')
+const PARTICULAR = (
+  await linhas(`select public.plt_fn_chat_abrir_particular('${PESSOA.op2}')::int as id`)
+)[0].id
+await comoChat('op2')
+const particularDeVolta = (
+  await linhas(`select public.plt_fn_chat_abrir_particular('${PESSOA.op1}')::int as id`)
+)[0].id
+conferir(PARTICULAR === particularDeVolta, 'op1 → op2 e op2 → op1 caem na MESMA conversa')
+await deveRecusar(
+  `select public.plt_fn_chat_abrir_particular('${PESSOA.op2}')`,
+  'ninguém abre particular consigo mesmo',
+  /outra pessoa/i,
+)
+await deveRecusar(
+  `select public.plt_fn_chat_abrir_particular('${PESSOA.arq}')`,
+  'particular com pessoa arquivada é recusada',
+  /não está ativa/i,
+)
+
+titulo('SESSAO-26 · enviar: só quem participa; a mensagem sai pelo websocket (broadcast privado)')
+await bd.exec(`delete from realtime.messages`)
+await comoChat('op1')
+const enviada = (
+  await linhas(
+    `select id::int as id, autor_nome, texto from public.plt_fn_chat_enviar(${CANAL}, '   Bom dia, turma!   ')`,
+  )
+)[0]
+conferir(
+  enviada?.texto === 'Bom dia, turma!' && enviada?.autor_nome === 'Chat Operador Um',
+  'o POST devolve a mensagem gravada (sem espaços nas pontas) — quem envia não relê nada',
+  JSON.stringify(enviada),
+)
+const naConversa = await linhas(
+  `select event, payload from realtime.messages where topic = 'plt-chat-c:${CANAL}'`,
+)
+conferir(
+  naConversa.length === 1 &&
+    naConversa[0].event === 'mensagem' &&
+    naConversa[0].payload.texto === 'Bom dia, turma!' &&
+    naConversa[0].payload.autor_nome === 'Chat Operador Um',
+  'UMA transmissão no canal da conversa, com a mensagem inteira',
+  JSON.stringify(naConversa),
+)
+const sinaisDaMensagem = await linhas(
+  `select topic, payload from realtime.messages where topic like 'plt-chat-u:%'`,
+)
+conferir(
+  sinaisDaMensagem.length === 2 &&
+    sinaisDaMensagem.every(
+      (s) => s.payload.previa === 'Bom dia, turma!' && Number(s.payload.conversa_id) === CANAL,
+    ),
+  'um sinal pequeno no canal de CADA participante (badge e lista), com a prévia',
+  JSON.stringify(sinaisDaMensagem),
+)
+const ponteiroDoAutor = (
+  await linhas(`
+    select ultima_lida_id::int as p from public.plt_chat_participantes
+     where conversa_id = ${CANAL} and usuario_id = '${PESSOA.op1}'`)
+)[0].p
+conferir(ponteiroDoAutor === enviada.id, 'a própria mensagem já conta como lida para quem enviou')
+await deveRecusar(
+  `select * from public.plt_fn_chat_enviar(${CANAL}, '   ')`,
+  'mensagem vazia é recusada',
+  /Escreva a mensagem/i,
+)
+await deveRecusar(
+  `select * from public.plt_fn_chat_enviar(${CANAL}, repeat('a', 2001))`,
+  'mensagem acima de 2.000 caracteres é recusada',
+  /2\.000 caracteres/i,
+)
+await bd.exec(`select * from public.plt_fn_chat_enviar(${PARTICULAR}, 'Oi, tudo bem?')`)
+await comoChat('op2')
+await deveRecusar(
+  `select * from public.plt_fn_chat_enviar(${CANAL}, 'Posso entrar?')`,
+  'quem NÃO participa não escreve no canal',
+  /não participa/i,
+)
+await bd.exec(`select * from public.plt_fn_chat_enviar(${PARTICULAR}, 'Tudo ótimo!')`)
+
+titulo('SESSAO-26 · Avisos gerais: o admin escreve e decide quem mais escreve (resposta 3)')
+await comoChat('op1')
+await deveRecusar(
+  `select * from public.plt_fn_chat_enviar(${AVISOS}, 'Oi, pessoal')`,
+  'operador NÃO escreve nos Avisos gerais sem liberação',
+  /admin liberou/i,
+)
+await comoChat('lider')
+await deveRecusar(
+  `select public.plt_fn_chat_definir_escritor('${PESSOA.op1}', true)`,
+  'líder NÃO decide quem escreve nos avisos — só o admin',
+  /Só o admin/i,
+)
+await comoChat('admin')
+await bd.exec(`delete from realtime.messages`)
+await bd.exec(`select * from public.plt_fn_chat_enviar(${AVISOS}, 'Amanhã a fábrica abre às 7h.')`)
+const sinaisDoAviso = (
+  await linhas(`select count(*)::int as n from realtime.messages where topic like 'plt-chat-u:%'`)
+)[0].n
+const pessoasAtivas = (await linhas(`select count(*)::int as n from public.plt_usuarios where ativo`))[0]
+  .n
+conferir(
+  sinaisDoAviso === pessoasAtivas,
+  'o aviso sinaliza TODAS as pessoas ativas pelo websocket (nenhuma arquivada)',
+  `${sinaisDoAviso} sinais × ${pessoasAtivas} ativas`,
+)
+const logDoAviso = await linhas(
+  `select contexto from public.plt_logs_atividade where acao = 'chat_aviso_publicado' order by id desc limit 1`,
+)
+conferir(
+  logDoAviso.length === 1 && !JSON.stringify(logDoAviso[0].contexto).includes('fábrica'),
+  'aviso publicado foi para a trilha — sem o conteúdo (D-40)',
+  JSON.stringify(logDoAviso),
+)
+await bd.exec(`select public.plt_fn_chat_definir_escritor('${PESSOA.op1}', true)`)
+await comoChat('op1')
+conferir(
+  (await linhas(`select id from public.plt_fn_chat_enviar(${AVISOS}, 'Obrigado pelo aviso!')`))
+    .length === 1,
+  'liberado pelo admin, o operador escreve nos avisos',
+)
+await comoChat('admin')
+await bd.exec(`select public.plt_fn_chat_definir_escritor('${PESSOA.op1}', false)`)
+await comoChat('op1')
+await deveRecusar(
+  `select * from public.plt_fn_chat_enviar(${AVISOS}, 'De novo')`,
+  'liberação retirada: o operador volta a só ler',
+  /admin liberou/i,
+)
+
+titulo('SESSAO-26 · mensagem é só inserção; conversa não se apaga')
+await comoChat(null)
+await deveRecusar(
+  `update public.plt_chat_mensagens set texto = 'editada' where id = ${enviada.id}`,
+  'editar mensagem é recusado — até para quem ignora RLS (M-14)',
+  /não se edita nem se apaga/i,
+)
+await deveRecusar(
+  `delete from public.plt_chat_mensagens where id = ${enviada.id}`,
+  'apagar mensagem é recusado',
+  /não se edita nem se apaga/i,
+)
+await deveRecusar(
+  `delete from public.plt_chat_conversas where id = ${CANAL}`,
+  'apagar conversa é recusado',
+  /não se apaga/i,
+)
+await deveRecusar(
+  `update public.plt_chat_conversas set criada_em = now() - interval '1 day' where id = ${CANAL}`,
+  'mexer em outra coisa da conversa que não o nome é recusado',
+  /só o nome muda/i,
+)
+
+titulo('SESSAO-26 · quem não participa não lê nada — nem pela API, nem sendo admin')
+await bd.exec(`set role authenticated`)
+await comoChat('op2')
+const op2NoCanal = (
+  await linhas(`
+    select (select count(*) from public.plt_chat_mensagens where conversa_id = ${CANAL})::int as m,
+           (select count(*) from public.plt_chat_conversas where id = ${CANAL})::int as c,
+           (select count(*) from public.plt_chat_participantes where conversa_id = ${CANAL})::int as p`)
+)[0]
+conferir(
+  op2NoCanal.m === 0 && op2NoCanal.c === 0 && op2NoCanal.p === 0,
+  'fora do canal: 0 mensagens, 0 conversa, 0 membros pela API (RLS, papel simulado)',
+  JSON.stringify(op2NoCanal),
+)
+await deveRecusar(
+  `select * from public.plt_fn_chat_mensagens(${CANAL})`,
+  'e a porta de mensagens recusa quem não participa',
+  /não participa/i,
+)
+await comoChat('admin')
+conferir(
+  (await linhas(`select count(*)::int as m from public.plt_chat_mensagens where conversa_id = ${PARTICULAR}`))[0]
+    .m === 0,
+  'ADMIN não lê a particular dos outros pela API',
+)
+await deveRecusar(
+  `select * from public.plt_fn_chat_mensagens(${PARTICULAR})`,
+  'nem pela porta',
+  /não participa/i,
+)
+await comoChat('op1')
+conferir(
+  (await linhas(`select count(*)::int as m from public.plt_chat_mensagens where conversa_id = ${PARTICULAR}`))[0]
+    .m === 2,
+  'quem participa lê a conversa inteira',
+)
+await deveRecusar(
+  `insert into public.plt_chat_mensagens (conversa_id, autor_id, texto) values (${CANAL}, '${PESSOA.op1}', 'direto')`,
+  'ninguém grava direto na tabela — só pela porta',
+  /permission denied|permissão negada/i,
+)
+await bd.exec(`reset role`)
+
+titulo('SESSAO-26 · canal de websocket privado: só entra quem pode (política em realtime.messages)')
+// O Realtime confere a ENTRADA lendo realtime.messages com o tópico no
+// contexto (realtime.topic()); com uma linha de cada tópico, "vê a linha" =
+// "entra no canal".
+await bd.exec(`
+  delete from realtime.messages;
+  insert into realtime.messages (topic, event, payload) values
+    ('plt-chat-u:${PESSOA.op1}', 'teste', '{}'),
+    ('plt-chat-u:${PESSOA.op2}', 'teste', '{}'),
+    ('plt-chat-c:${CANAL}',      'teste', '{}'),
+    ('plt-chat-c:${PARTICULAR}', 'teste', '{}'),
+    ('plt-chat-c:abc',           'teste', '{}'),
+    ('outro-topico',             'teste', '{}');
+`)
+await bd.exec(`set role authenticated`)
+async function entraNoCanal(quem, topico) {
+  await comoChat(quem)
+  await bd.exec(`select set_config('realtime.topic', '${topico}', false)`)
+  return (
+    (await linhas(`select count(*)::int as n from realtime.messages where topic = '${topico}'`))[0].n > 0
+  )
+}
+conferir(await entraNoCanal('op1', `plt-chat-u:${PESSOA.op1}`), 'a pessoa entra no PRÓPRIO canal de sinais')
+conferir(
+  !(await entraNoCanal('op1', `plt-chat-u:${PESSOA.op2}`)),
+  'e NÃO entra no canal de sinais de outra pessoa',
+)
+conferir(await entraNoCanal('op1', `plt-chat-c:${CANAL}`), 'participante entra no canal da conversa')
+conferir(!(await entraNoCanal('op2', `plt-chat-c:${CANAL}`)), 'quem não participa NÃO entra')
+conferir(
+  !(await entraNoCanal('admin', `plt-chat-c:${PARTICULAR}`)),
+  'nem o admin entra no canal da particular dos outros',
+)
+conferir(
+  !(await entraNoCanal('op1', 'plt-chat-c:abc')) && !(await entraNoCanal('op1', 'outro-topico')),
+  'tópico estranho: ninguém entra',
+)
+await bd.exec(`reset role; select set_config('realtime.topic', '', false);`)
+await comoChat(null)
+
+titulo('SESSAO-26 · lista de conversas: 5 por página, a mais recente primeiro; a 1ª traz o total')
+await comoChat('lider')
+const CANAIS_EXTRAS = []
+for (const n of [1, 2, 3, 4]) {
+  const id = (
+    await linhas(
+      `select public.plt_fn_chat_criar_canal('Canal extra ${n}', array['${PESSOA.op1}']::uuid[])::int as id`,
+    )
+  )[0].id
+  await bd.exec(`select * from public.plt_fn_chat_enviar(${id}, 'Mensagem ${n} do canal extra')`)
+  CANAIS_EXTRAS.push(id)
+}
+await comoChat('op1')
+const PARTICULAR_VAZIA = (
+  await linhas(`select public.plt_fn_chat_abrir_particular('${PESSOA.admin}')::int as id`)
+)[0].id
+const pagina1 = await linhas(`
+  select conversa_id::int as id, tipo, titulo, atividade_em::text as atividade, nao_lidas,
+         total_nao_lidas, pode_escrever, administra
+    from public.plt_fn_chat_conversas()`)
+conferir(pagina1.length === 5, '1ª página: exatamente 5 conversas', `vieram ${pagina1.length}`)
+const ultimaDaPagina = pagina1[pagina1.length - 1]
+const pagina2 = await linhas(`
+  select conversa_id::int as id, tipo, titulo, nao_lidas, total_nao_lidas, pode_escrever, administra
+    from public.plt_fn_chat_conversas('${ultimaDaPagina.atividade}'::timestamptz, ${ultimaDaPagina.id})`)
+const todas = [...pagina1, ...pagina2]
+conferir(
+  pagina2.length === 2 && new Set(todas.map((c) => c.id)).size === 7,
+  'a 2ª página (cursor) traz o resto — 7 conversas, nenhuma repetida',
+  JSON.stringify(todas.map((c) => c.id)),
+)
+conferir(
+  !todas.some((c) => c.id === PARTICULAR_VAZIA),
+  'particular sem mensagem nenhuma não aparece na lista (ninguém disse nada ainda)',
+)
+conferir(
+  (await linhas(`select count(*)::int as n from public.plt_fn_chat_conversas(null, null, 5, ${PARTICULAR_VAZIA})`))[0]
+    .n === 1,
+  '… mas abre pelo link (resumo de uma conversa só)',
+)
+const somaNaoLidas = todas.reduce((soma, c) => soma + c.nao_lidas, 0)
+conferir(
+  pagina1[0].total_nao_lidas === somaNaoLidas && somaNaoLidas === 5 && pagina2[0].total_nao_lidas === null,
+  'o total da 1ª página = soma das não lidas (4 canais extras + a resposta na particular); a 2ª não recalcula',
+  `total ${pagina1[0].total_nao_lidas} × soma ${somaNaoLidas}`,
+)
+const particularDaLista = todas.find((c) => c.id === PARTICULAR)
+conferir(
+  particularDaLista?.titulo === 'Chat Operador Dois' && particularDaLista?.nao_lidas === 1,
+  'na particular, o título é o nome da OUTRA pessoa',
+  JSON.stringify(particularDaLista),
+)
+const avisosDaLista = pagina1.concat(pagina2).find((c) => c.id === AVISOS)
+const canalDaLista = todas.find((c) => c.id === CANAL)
+conferir(
+  avisosDaLista?.pode_escrever === false && canalDaLista?.pode_escrever === true && canalDaLista?.administra === false,
+  'a lista já diz se pode escrever e se administra (sem outra leitura)',
+  JSON.stringify({ avisosDaLista, canalDaLista }),
+)
+
+titulo('SESSAO-26 · marcar como lida: o ponteiro só anda para frente e sincroniza a outra aba')
+await bd.exec(`delete from realtime.messages`)
+const extra0 = CANAIS_EXTRAS[0]
+const ultimaDoExtra0 = (
+  await linhas(`select max(id)::int as m from public.plt_chat_mensagens where conversa_id = ${extra0}`)
+)[0].m
+const ponteiroNovo = (
+  await linhas(`select public.plt_fn_chat_marcar_lida(${extra0}, 999999999)::int as p`)
+)[0].p
+conferir(ponteiroNovo === ultimaDoExtra0, 'lida até a última mensagem da conversa (nunca além dela)')
+const totalDepois = (await linhas(`select total_nao_lidas from public.plt_fn_chat_conversas()`))[0]
+  .total_nao_lidas
+conferir(totalDepois === 4, 'o total cai 1', `total ${totalDepois}`)
+const sinalLida = await linhas(`select topic, payload from realtime.messages where event = 'lida'`)
+conferir(
+  sinalLida.length === 1 &&
+    sinalLida[0].topic === `plt-chat-u:${PESSOA.op1}` &&
+    Number(sinalLida[0].payload.ultima_lida_id) === ultimaDoExtra0,
+  'o sinal "lida" vai para o canal da própria pessoa (a outra aba apaga o badge)',
+  JSON.stringify(sinalLida),
+)
+await bd.exec(`delete from realtime.messages`)
+const ponteiroVolta = (await linhas(`select public.plt_fn_chat_marcar_lida(${extra0}, 1)::int as p`))[0].p
+conferir(
+  ponteiroVolta === ultimaDoExtra0 &&
+    (await linhas(`select count(*)::int as n from realtime.messages`))[0].n === 0,
+  'o ponteiro nunca volta — e sem mudança não há sinal',
+)
+
+titulo('SESSAO-26 · mensagens: 10 por página, "anteriores" pelo cursor, teto do banco')
+await comoChat('lider')
+const extra1 = CANAIS_EXTRAS[1]
+await bd.exec(
+  `select (public.plt_fn_chat_enviar(${extra1}, 'Rajada ' || g)).id from generate_series(1, 120) g`,
+)
+await comoChat('op1')
+const paginaMsg1 = await linhas(`select id::int as id from public.plt_fn_chat_mensagens(${extra1})`)
+conferir(
+  paginaMsg1.length === 10 && paginaMsg1[0].id > paginaMsg1[9].id,
+  '1ª página: as 10 mais novas, da mais nova para a mais antiga',
+)
+const paginaMsg2 = await linhas(
+  `select id::int as id from public.plt_fn_chat_mensagens(${extra1}, ${paginaMsg1[9].id})`,
+)
+conferir(
+  paginaMsg2.length === 10 && paginaMsg2[0].id < paginaMsg1[9].id,
+  '"ver anteriores" traz as 10 de antes do cursor, sem repetir',
+)
+conferir(
+  (await linhas(`select id from public.plt_fn_chat_mensagens(${extra1}, null, 50)`)).length === 10,
+  'pedir 50 devolve 10 — o teto é do banco (adendo do dono)',
+)
+conferir(
+  (await linhas(`select conversa_id from public.plt_fn_chat_conversas(null, null, 50)`)).length === 5,
+  'e pedir 50 conversas devolve 5',
+)
+const rajada = (
+  await linhas(`select nao_lidas from public.plt_fn_chat_conversas() where conversa_id = ${extra1}`)
+)[0]
+conferir(
+  rajada?.nao_lidas === 100,
+  'não lidas têm teto (100): o badge mostra "99+" sem contar o mundo',
+  JSON.stringify(rajada ?? null),
+)
+
+titulo('SESSAO-26 · membros: quem administra põe e tira; quem sai perde a leitura')
+const membrosLista = await linhas(
+  `select usuario_id, papel, total from public.plt_fn_chat_membros(${CANAL})`,
+)
+conferir(
+  membrosLista.length === 2 && membrosLista[0].papel === 'administrador' && membrosLista[0].total === 2,
+  'membros paginados, quem administra primeiro, com o total',
+  JSON.stringify(membrosLista),
+)
+await deveRecusar(
+  `select public.plt_fn_chat_adicionar_membros(${CANAL}, array['${PESSOA.op2}']::uuid[])`,
+  'membro comum NÃO põe gente no canal',
+  /administra o canal/i,
+)
+await deveRecusar(
+  `select public.plt_fn_chat_renomear_canal(${CANAL}, 'Outro nome')`,
+  'membro comum NÃO renomeia o canal',
+  /administra o canal/i,
+)
+await comoChat('lider')
+await bd.exec(`delete from realtime.messages`)
+const postos = (
+  await linhas(
+    `select public.plt_fn_chat_adicionar_membros(${CANAL}, array['${PESSOA.op2}', '${PESSOA.op1}', '${PESSOA.arq}']::uuid[]) as n`,
+  )
+)[0].n
+conferir(postos === 1, 'entra só quem ainda não está e está ativo (op2 sim; op1 já estava; arquivado não)')
+conferir(
+  (await linhas(`select count(*)::int as n from realtime.messages where event = 'entrou' and topic = 'plt-chat-u:${PESSOA.op2}'`))[0]
+    .n === 1,
+  'quem entrou recebeu o sinal "entrou"',
+)
+await deveRecusar(
+  `select public.plt_fn_chat_remover_membro(${CANAL}, '${PESSOA.lider}')`,
+  'ninguém tira a si mesmo do canal',
+  /a si mesmo/i,
+)
+await bd.exec(`select public.plt_fn_chat_remover_membro(${CANAL}, '${PESSOA.op2}')`)
+conferir(
+  (await linhas(`select count(*)::int as n from realtime.messages where event = 'saiu' and topic = 'plt-chat-u:${PESSOA.op2}'`))[0]
+    .n === 1,
+  'quem saiu recebeu o sinal "saiu"',
+)
+await comoChat('op2')
+await deveRecusar(
+  `select * from public.plt_fn_chat_mensagens(${CANAL})`,
+  'fora do canal, perde a leitura na hora',
+  /não participa/i,
+)
+await comoChat('lider')
+await bd.exec(`select public.plt_fn_chat_adicionar_membros(${CANAL}, array['${PESSOA.op2}', '${PESSOA.admin}']::uuid[])`)
+conferir(
+  (await linhas(`select saiu_em from public.plt_chat_participantes where conversa_id = ${CANAL} and usuario_id = '${PESSOA.op2}'`))[0]
+    .saiu_em === null,
+  'posto de novo, volta (a saída não apaga nada)',
+)
+await bd.exec(`delete from realtime.messages`)
+await bd.exec(`select public.plt_fn_chat_renomear_canal(${CANAL}, 'Montagem — manhã')`)
+conferir(
+  (await linhas(`select count(*)::int as n from realtime.messages where event = 'renomeada'`))[0].n ===
+    4,
+  'renomear avisa os 4 membros ativos (lider, op1, op2, admin)',
+)
+await comoChat('admin')
+await bd.exec(`select public.plt_fn_chat_remover_membro(${CANAL}, '${PESSOA.op2}')`)
+conferir(true, 'o admin da plataforma que está no canal também administra')
+await comoChat(null)
+const acoesChat = (
+  await linhas(
+    `select distinct acao from public.plt_logs_atividade where acao like 'chat\\_%' order by acao`,
+  )
+).map((l) => l.acao)
+conferir(
+  [
+    'chat_aviso_publicado',
+    'chat_canal_criado',
+    'chat_canal_renomeado',
+    'chat_escritor_definido',
+    'chat_membro_adicionado',
+    'chat_membro_removido',
+  ].every((a) => acoesChat.includes(a)),
+  'na trilha: canal criado/renomeado, membro posto/tirado, escritor dos avisos, aviso publicado',
+  acoesChat.join(', '),
+)
+conferir(
+  (
+    await linhas(`
+      select count(*)::int as n from public.plt_logs_atividade
+       where contexto::text ilike '%Bom dia, turma%' or contexto::text ilike '%fábrica abre%'
+          or contexto::text ilike '%tudo bem%'`)
+  )[0].n === 0,
+  'nenhum conteúdo de mensagem na trilha — e a particular nem aparece nela',
+)
+
+titulo('SESSAO-26 · aniversário: o Sistema publica sozinho nos Avisos gerais (resposta 1)')
+await bd.exec(`
+  update public.plt_usuarios
+     set data_nascimento = make_date(1990,
+           extract(month from (now() at time zone 'America/Fortaleza'))::int,
+           extract(day from (now() at time zone 'America/Fortaleza'))::int)
+   where usuario in ('chat.op1', 'chat.arq');
+  update public.plt_usuarios set data_nascimento = date '1992-02-29' where usuario = 'chat.op2';
+  delete from realtime.messages;
+`)
+const publicados = (await linhas(`select plt_privado.fn_chat_publicar_aniversarios() as n`))[0].n
+const parabens = await linhas(`
+  select texto, autor_id, sobre_usuario_id, conversa_id::int as c
+    from public.plt_chat_mensagens where tipo = 'aniversario'`)
+conferir(
+  publicados === 1 &&
+    parabens.length === 1 &&
+    parabens[0].c === AVISOS &&
+    parabens[0].autor_id === null &&
+    parabens[0].sobre_usuario_id === PESSOA.op1,
+  'no dia, UM parabéns do Sistema nos Avisos gerais — do ativo (o arquivado não)',
+  JSON.stringify(parabens),
+)
+conferir(
+  parabens[0]?.texto ===
+    '🎉 Hoje é aniversário de Chat Operador Um! Parabéns — toda a Domoby deseja um ótimo dia.',
+  'o texto é o aprovado pelo dono',
+  parabens[0]?.texto,
+)
+const sinaisDoParabens = (
+  await linhas(`select count(*)::int as n from realtime.messages where topic like 'plt-chat-u:%'`)
+)[0].n
+conferir(
+  sinaisDoParabens === pessoasAtivas,
+  'o parabéns chega a todas as pessoas ativas pelo websocket',
+  `${sinaisDoParabens} × ${pessoasAtivas}`,
+)
+conferir(
+  (await linhas(`select plt_privado.fn_chat_publicar_aniversarios() as n`))[0].n === 0,
+  'rodar de novo no mesmo dia não repete (um por pessoa por dia)',
+)
+await deveRecusar(
+  `insert into public.plt_chat_mensagens (conversa_id, tipo, texto, sobre_usuario_id)
+     values (${AVISOS}, 'aniversario', 'duplicado', '${PESSOA.op1}')`,
+  'o índice único barra o parabéns duplicado mesmo por fora da função',
+  /aniversario_uq|duplicate/i,
+)
+conferir(
+  (await linhas(`select plt_privado.fn_chat_publicar_aniversarios(date '2028-02-28') as n`))[0].n === 0,
+  'em ano bissexto, quem nasceu em 29/02 NÃO é lembrado no dia 28',
+)
+conferir(
+  (await linhas(`select plt_privado.fn_chat_publicar_aniversarios(date '2027-02-28') as n`))[0].n === 1,
+  'em ano não bissexto, quem nasceu em 29/02 é lembrado em 28/02',
+)
+
+titulo('SESSAO-26 · quem chega participa dos Avisos gerais sem herdar "não lidas" antigas')
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id)
+    values ('Chat Novato', 'chat.novato@teste.com', '962.000.006-06', 'chat.novato', 'operador',
+            '${SESSAO_CHAT.novato}');
+`)
+await comoChat('novato')
+const doNovato = await linhas(
+  `select tipo, nao_lidas, total_nao_lidas from public.plt_fn_chat_conversas()`,
+)
+conferir(
+  doNovato.length === 1 &&
+    doNovato[0].tipo === 'avisos' &&
+    doNovato[0].nao_lidas === 0 &&
+    doNovato[0].total_nao_lidas === 0,
+  'o novato vê os Avisos gerais com zero não lidas (o ponteiro nasce na última mensagem)',
+  JSON.stringify(doNovato),
+)
+await comoChat(null)
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
