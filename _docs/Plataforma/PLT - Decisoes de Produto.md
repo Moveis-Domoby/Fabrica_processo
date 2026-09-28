@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -525,6 +525,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-54 · O fluxo do estoque: só peça pronta, perfeita e sem pedido; abaixo do mínimo, o estoque pede REPOSIÇÃO ao PCP (26/09/2026) — ↩️ revisa a D-22 e fecha a Q-23
 
+**↩️ revisada em 2026-09-28 (D-70):** agora EXISTE entrada manual no ESTOQUE — a logística/admin cadastra, dá baixa e confere a contagem dos acabados ("por enquanto", palavras do dono). O resto desta decisão (ESTOQUE só com peça 🟢 e sem dono; reposição no PCP) segue valendo.
+
 **Decidido (resposta 7 do dono no início da SESSAO-25 — ele NÃO confirmou o item sem dono nascendo direto no ESTOQUE):** *"Dentro dele não ficará mais nenhum produto danificado, nem com estado de atenção, nem produtos prontos com pedido definido; produtos prontos com pedidos definidos serão estoque reservado e não devem contabilizar positivamente no estoque de fato … quando o produto ficar abaixo do estoque mínimo, lançamos para a produção (PCP) um card de 'necessidade de reposição em estoque', esse card que o estoque vai gerar, no fim também é o PCP que vai decidir o rumo dele; assim que o produto for produzido, vai para estoque aguardar a venda."*
 
 - **Estoque de fato = peça pronta, 🟢 e SEM pedido.** Pronta COM pedido = **reservada** (duas etiquetas: SKU + pedido) — aparece à parte, nunca soma.
@@ -538,6 +540,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Descartada:** item sem dono lançado à mão direto no ESTOQUE (não confirmado pelo dono).
 
 ## D-55 · O número do estoque: o do Tiny menos o que a loja já vendeu e ainda não saiu; negativo = "necessidade extrema" (26/09/2026)
+
+**↩️ revisada em 2026-09-28 (D-70):** nos ACABADOS o número passou a ser a contagem da logística (peças livres no ESTOQUE) — o Tiny não avisava a saída da venda nem o pronto dos móveis, e o negativo dele virava falsa "necessidade extrema". Esta regra (Tiny − reservas) segue só para matéria-prima e insumos.
 
 **Decidido (respostas 1, 2 e 3 do dono, SESSAO-25):** *"o pessoal cadastra o produto dentro do Tiny como pronto, o Tiny aumenta a quantidade; quando um pedido de venda é gerado no Tiny da loja, ele já debita automaticamente do Tiny da fábrica … para eles o negativo é necessidade de produção, mas na nossa plataforma não faremos assim, não teremos estoque negativo, quando ficar negativo é porque é necessidade extrema de produção."*
 
@@ -559,6 +563,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Q-63 ✅ fechada.**
 
 ## D-57 · Estoque em duas telas + sugestão de mínimo pelo top 20 (26/09/2026)
+
+**↪️ 28/09/2026 (D-71/D-72):** "Produtos acabados" virou **Top 20+** (a lista de prioridade das vendas foi para lá) e "Sugestão de mínimo" virou **Configurações** (mínimo editável aqui, capacidade do galpão, sugestão que cabe no galpão). O dono ajusta o mínimo na plataforma — o do Tiny vale só enquanto não houver um definido aqui.
 
 **Decidido (resposta 8 e pedido do dono na abertura da SESSAO-25):**
 
@@ -661,6 +667,50 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Decidido (resposta 6 do dono — "a"):** o navegador passa a ler de `plt_usuarios` **só as colunas de trabalho**. **CPF, hash do PIN, token de convite e data de nascimento ficam fora da API.** Achado da SESSAO-26 (E-50): o grant de TABELA que o Supabase dá por padrão anulava os `revoke` por coluna da S03 — qualquer pessoa logada lia CPF, PIN e convite de todos.
 
 - **Regra permanente:** coluna nova em `plt_usuarios` só fica legível pelo navegador com `grant select (coluna)` explícito; dado pessoal novo nasce fora da API e é lido por porta própria (como a data de nascimento).
+
+## D-70 · O estoque dos acabados é a CONTAGEM da logística (entrada, baixa e contagem manual) — o Tiny sai da conta (28/09/2026) — ↩️ revisa a D-54 e a D-55
+
+**Contexto (diagnóstico de 28/09, só leitura no banco real):** o número dos acabados era "saldo do Tiny − pedidos da loja em aberto" (D-55). Mas o aviso de estoque do Tiny não chega na saída da venda nem no "pronto" dos móveis — 9 avisos na vida toda, nenhum de móvel, o último em 25/09; 45 pedidos saíram da reserva sem aviso (A-25). Só 19 dos 168 fabricados tinham saldo positivo e 57 viravam "necessidade extrema" sem pedido nenhum (o negativo do Tiny — P16). O dono, vendo a tela: *"porque nenhum produto está em estoque?"*.
+
+**Decidido (pedido do dono na conversa, 28/09):** *"deve ter um botão de 'cadastrar produto ao estoque' … a logística irá dar baixa manual na quantidade de itens em estoque por enquanto"*.
+
+- **O número de cada produto acabado (F/S/variação) = as peças livres no ESTOQUE** — a contagem da plataforma. A logística (e o admin) **cadastra** (entrada), **dá baixa** (sai a mais antiga primeiro) ou **confere a contagem** (o sistema acerta a diferença). Por baixo, cada peça é um card `unidade` sem pedido, com o produto do catálogo, direto no ESTOQUE — a mesma peça que a reposição e o pedido cancelado já deixam lá. Tudo por evento append-only (RNF-05); a baixa é o `card_arquivado` com o motivo, e a logística passa a poder arquivar peça livre do ESTOQUE.
+- **Consequência boa, sem nada novo:** a sugestão do PCP na liberação ("há N no estoque — usar?", D-62) enxerga as peças cadastradas.
+- **O Tiny sai da conta dos acabados** — fica nos insumos (M/K) e como referência no detalhe do produto. Os pedidos da loja em aberto **não descontam mais** o número (o pedido vira peça pela produção ou pela alocação do PCP). Acaba a "necessidade extrema" (↩️ D-55: o negativo era do Tiny).
+- **A reposição automática** (ainda desligada) passa a olhar a contagem da plataforma e o mínimo efetivo; depois de um ciclo, reabre com **movimento novo do estoque** do produto (antes: leitura nova do Tiny). ⚠️ Antes de ligar, a logística precisa ter contado o estoque — senão todo produto com mínimo pede reposição.
+- ↩️ **D-54:** "não existe lançamento manual direto no ESTOQUE" deixa de valer — agora existe, pela logística/admin, só peça pronta e em perfeito estado (o ESTOQUE continua só com peça 🟢 e sem dono). "Por enquanto" (palavra do dono): quando o fluxo do galpão estiver todo na plataforma, a entrada vem da produção.
+
+## D-71 · Top 20+: a tela do estoque abre pelos 20 mais vendidos; só aparece o que está em estoque; o resto na busca (28/09/2026) — ↪️ D-57
+
+**Decidido (pedido do dono, 28/09):** *"no estoque deve aparecer apenas os itens que realmente estão em estoque, os outros devem ficar nas próximas páginas, ou em um botão de 'ver produtos'"*; *"a paginação pegue os 20 produtos mais vendidos dos últimos 90 dias"*; *"gostei dessa lista de prioridade do mais vendido ao menos vendido, passe essa lista para a aba de 'produtos acabados' que agora irá se chamar 'Top 20+'"*.
+
+- A aba **Produtos acabados vira "Top 20+"**: a primeira página são os **20 mais vendidos dos últimos 90 dias**, em ordem de venda (o rank aparece na foto); depois vem **tudo o que tem estoque**. O resto do catálogo não aparece: fica em **"Ver os outros produtos"** (carrega só ao abrir) e na **busca**, que procura no catálogo inteiro.
+- A venda de 90 dias é **uma regra só** no banco (sem cancelado, sem personalizado, SKU do catálogo ativo) — a mesma do rank e da sugestão de mínimo.
+- A aba **Matéria-prima e insumos** mostra primeiro o que tem estoque (o resto nas páginas seguintes).
+
+## D-72 · Mínimo e capacidade do galpão na plataforma; a sugestão de mínimo CABE no galpão (28/09/2026) — ↩️ revisa a decisão 4 da SESSAO-25 e a D-57
+
+**Decidido (pedido do dono, 28/09):** *"o mínimo deve ser editável em uma caixinha de configurações … aparecer também a quantidade máxima do galpão; a quantidade mínima sugerida deve se adequar ao tamanho máximo do galpão (cuidado aqui)"*; *"a aba de sugestão de mínimo pode na verdade virar a aba de configurações"*.
+
+- A aba **Sugestão de mínimo vira "Configurações"**: a **capacidade do galpão** (quantas peças cabem) e o **mínimo de cada produto**, editável ali. **Mínimo vazio volta a valer o do Tiny** (↩️ "o mínimo mora no Tiny" da SESSAO-25) — nada se perde, e o que for definido aqui manda.
+- **A sugestão** = venda média da semana (90 dias) × cobertura (1, 2 ou 4 semanas). **Se a soma de todas passar da capacidade, todas encolhem na mesma proporção** (arredondamento pelo maior resto): a soma nunca passa da capacidade e **o mais vendido nunca fica com menos que o de baixo**. Quem não vendeu nos 90 dias não tem sugestão.
+- **"Usar todas as sugestões"** (dois toques): os mínimos viram as sugestões e quem não vendeu fica **sem mínimo** — só assim a soma dos mínimos cabe de verdade no galpão. Um a um também ("Usar" em cada linha). A tela avisa quando a soma dos mínimos passa da capacidade.
+- Decidido pelo Claude (o dono pediu para não perguntar): capacidade em **peças** (não em volume); a sugestão cabe na capacidade inteira (as peças reservadas em Pedidos em aguardo aparecem no resumo, mas não descontam a capacidade); mínimo e capacidade são gesto da **logística e do admin**, com trilha (D-40).
+
+## D-73 · Foto de cada produto no estoque — só a logística e o admin cadastram (28/09/2026) — ↪️ D-28
+
+**Decidido (pedido do dono, 28/09):** *"deve ter a possibilidade de cadastrar e ver a imagem de cada item … dando destaque para a imagem (apenas logística e admins podem cadastrar imagens)"*.
+
+- Cada produto ganha a **foto (capa)**, que aparece em destaque no cartão do Top 20+; tocar na foto abre o produto (foto grande, números, peça por peça).
+- A foto mora na **mesma biblioteca por SKU** que o tablet já usa para as imagens de produto (D-28 — `produtos/{sku}/…`): uma foto do produto, um lugar só. **Quem define a capa do estoque: logística e admin** (o banco confere); a política de envio da logística vale só para a pasta de produtos. A foto é reduzida no próprio celular antes de subir (rede do galpão).
+
+## D-74 · Estoque enxuto: "i" no lugar do texto, abas em quadrados no canto superior direito, cartão com a foto em destaque (28/09/2026) — ↪️ D-27
+
+**Decidido (pedido do dono, 28/09):** *"esse texto abaixo do nome estoque, troque por um ícone i de informativo e deixe apenas o balãozinho … a troca entre abas do estoque, deixe no extremo canto superior direito em quadrados que integram ao passar do mouse"*; *"ficou muito ruim essa visualização de produto, está muito poluído, deixe mais enxuto com valores menores"*.
+
+- O texto explicativo sob o título virou o **ícone "i" com balão** (abre ao passar o mouse, focar ou tocar). Embaixo do título fica só onde a pessoa está ("Top 20+ · os mais vendidos primeiro").
+- As abas viraram **quadrados só com ícone, no canto superior direito**, que sobem ao passar o mouse e mostram o nome num balãozinho (variante do componente de abas — não é componente novo).
+- **Cartão do produto enxuto:** foto em cima (com o rank), nome, SKU e vendas, o número do estoque, o mínimo, o sinal (ícone + texto — "Sem estoque", "Faltam N para o mínimo", "No mínimo") e os dois gestos (Entrada/Baixa). Peças, referência do Tiny e contagem ficam no detalhe.
 
 ## Ver também
 

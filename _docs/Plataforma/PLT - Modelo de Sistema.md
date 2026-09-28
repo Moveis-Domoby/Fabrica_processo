@@ -2,7 +2,7 @@
 titulo: PLT — Modelo de Sistema (o design system da plataforma)
 tipo: modelo-de-sistema
 data: 2026-08-24
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [plataforma, design-system, modelo-de-sistema, ui]
 ---
 
@@ -538,6 +538,46 @@ SESSAO-05.
 - **Conversa**: bolhas — a **minha** à direita em `superficie-inversa`/`texto-inverso`; as dos outros à esquerda em `superficie-sutil` com borda, avatar e (canal/avisos) o nome no começo de cada sequência; **aniversário** é um cartão centralizado com `Cake` e borda `acao-ativa`, assinado "Sistema". Separador de dia ("Hoje", "Ontem", "27/09/2026") no fuso de Natal. **10 por página**: "Ver mensagens anteriores" (ou rolar ao topo) traz a página de antes sem pular o que se lê. Compositor: `textarea` que cresce até 128px, **Enter envia / Shift+Enter quebra linha**, botão enviar de 44px. Sem permissão de escrever, o compositor vira uma linha explicando por quê (avisos: "Só quem o admin liberou escreve…").
 - **Pessoas / Quem escreve** (`ModalMembros`): lista de 10 em 10 com "Ver mais"; quem administra tira (ícone `UserMinus`, 44px) e põe (seletor com busca no servidor, múltipla escolha com checkbox). Nos Avisos gerais, o mesmo modal lista só quem o admin liberou.
 - **Regras de dado (lei do dono — D-67):** um canal de websocket por pessoa + um por conversa aberta, os dois PRIVADOS, geridos por `src/chat/canais.ts` (um canal por tópico com contagem de quem ouve — `supabase.channel(t)` devolve o canal que já existe e sair é assíncrono; reaproveitar um canal "saindo" faz o `subscribe` não fazer nada, calado). **Assina antes de ler** (nada escapa entre ler e ouvir). O cache do chat leva a pessoa na chave e é apagado ao sair da conta. Sinal do websocket muda a lista e o badge **no cache** (`src/chat/cache.ts`, lógica pura testada) — sem reler. `staleTime: Infinity`, sem refetch por foco/reconexão/intervalo.
+
+### Estoque enxuto: Top 20+, contagem da logística, configurações e foto (ajuste de 28/09 / D-70…D-74)
+
+> ↪️ Revisa a seção "Estoque completo e reposição" acima: as abas agora são **Top 20+ · Matéria-prima e insumos · Configurações**; o cartão grande de 4 números e a linha do Tiny saíram do cartão.
+
+- **`<Dica>`** (`src/componentes/ui/Dica.tsx` — componente novo): o **"i" de informação** com o
+  balãozinho, no lugar de texto explicativo embaixo de título (pedido do dono). Botão redondo de
+  44px com `Info`; abre ao passar o mouse, focar ou tocar; fecha no ESC, ao sair o mouse ou ao
+  tocar fora. `role="tooltip"` + `aria-describedby`. **O balão ancora no PAI posicionado** (ponha
+  `relative` no cabeçalho) — no celular ele ocupa a largura do cabeçalho e nunca estoura a borda
+  (lição da F-07: overlay se ancora na página, não no elemento).
+- **`<Abas variante="quadrados">`**: as abas de uma tela como **quadrados de 44px só com o ícone,
+  no canto superior direito**, na mesma linha do título. Sobem 2px com sombra ao passar o mouse
+  (a microinteração da casa, D-27) e mostram o nome num balãozinho escuro embaixo (`group-hover`/
+  `group-focus-visible`, ancorado à direita); a ativa é preenchida (`bg-acao`). O nome também vai
+  no `aria-label` — toda aba precisa de ícone. Embaixo do título, uma linha curta diz onde a pessoa
+  está ("Top 20+ · os mais vendidos primeiro") — no celular não existe passar o mouse.
+- **Cartão de produto com foto** (`CartaoProdutoEstoque`): **a foto em cima** (`h-40`,
+  `object-cover`, ou o ícone `Package` em `superficie-sutil`), com o **rank** numa pílula escura no
+  canto (1º, 2º…) e o botão de câmera (44px, canto inferior direito) para quem pode trocar;
+  embaixo: nome (2 linhas no máximo), SKU e vendas de 90 dias em `text-xs`, o número do estoque em
+  `text-xl` com "em estoque", o mínimo em `text-xs` à direita, o sinal (pílula com ícone + texto:
+  "Sem estoque" `danificado-*`, "Faltam N para o mínimo" `atencao-*`, "No mínimo" `perfeito-*`,
+  sem mínimo e zerado em `superficie-sutil`) e os gestos **Entrada/Baixa** (secundários, 44px).
+  Grade `repeat(auto-fill,minmax(14.5rem,1fr))` — quem manda é a largura do conteúdo, não a da
+  janela (E-30). **Tocar na foto abre o detalhe** (modal `galpao`): foto grande, números, Entrada/
+  Baixa/Contagem, peça por peça (só carrega ao abrir) e a referência do Tiny em `text-xs`.
+- **Foto de produto** (`FotoProduto`): reduzida no aparelho antes de subir (`src/lib/imagem.ts` —
+  lado maior 1280px, JPEG 0,82; se falhar, sobe a original), gravada na pasta do SKU
+  (`pastaDoProduto`, a mesma regra do tablet) e o caminho vai para o produto — a lista traz o
+  caminho numa consulta só (nunca listar o storage por cartão).
+- **Movimentar estoque** (`ModalMovimentarEstoque`): `FiltroPill` com Entrada · Baixa · Contagem,
+  uma frase do que cada uma é, o campo numérico grande e a **prévia antes de confirmar** ("Ficam 5
+  no estoque", "Saem 3 peças (de 5 para 2)", "Só há 2 — não dá para dar baixa em 3") — lógica pura
+  em `previaMovimento` (Vitest); o botão de confirmar fica desligado enquanto a prévia não vale.
+- **Configurações** (`PainelConfiguracoes`): o cartão **Galpão** (capacidade em peças + 4 números:
+  peças no estoque, reservadas, soma dos mínimos — com aviso quando passa da capacidade —, soma
+  das sugestões); a lista por produto com o rank redondo, a foto pequena, o campo **Mínimo**
+  (vazio = o do Tiny, que aparece no placeholder), a **Sugestão** (borda de ação quando difere) e
+  "Usar"; **"Usar todas as sugestões"** em dois toques inline (caixa `atencao-*` explicando).
 
 ### Controle de tempo do admin (SESSAO-07 / D-29)
 

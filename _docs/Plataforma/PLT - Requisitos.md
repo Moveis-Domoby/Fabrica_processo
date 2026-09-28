@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -102,11 +102,16 @@ tags: [plataforma, requisitos, backlog]
 | RF-60 | Painel admin COMPLETO e bem estruturado (usuários, setores, etapas, permissões, automações, API keys) | 💡 registrado |
 | RF-70 | Módulo de estoque (fase 2 — D-07): peças, produtos montados para venda/despacho, reposição | ✅ entregue (SESSAO-25) — acabados + matéria-prima/insumos; o estoque de PEÇA com plano de corte é o próximo passo (D-57) |
 | RF-71 | Saldo do Tiny da fábrica dentro da plataforma: leitura derivada do último aviso de estoque de cada produto (webhook ou carga inicial), CNPJ conferido, sem tabela nova (D-55) | ✅ entregue (SESSAO-25) |
-| RF-72 | Disponível = saldo lido − itens de pedidos da loja ainda abertos (sem personalizado, sem cancelado, por SKU); nunca negativo na tela — negativo vira "necessidade extrema" (D-53/D-55) | ✅ entregue (SESSAO-25) |
+| RF-72 | Disponível = saldo lido − itens de pedidos da loja ainda abertos (sem personalizado, sem cancelado, por SKU); nunca negativo na tela — negativo vira "necessidade extrema" (D-53/D-55) | ✅ entregue (SESSAO-25) — ↩️ 28/09 (D-70): vale só para insumos; nos acabados o número é a contagem da logística (RF-100) |
 | RF-73 | Peça pronta COM pedido = reservada (SKU + pedido); SEM pedido = livre; nunca somadas ao Tiny (D-54/D-56) | ✅ entregue (SESSAO-25) |
 | RF-74 | Abaixo do mínimo do Tiny, o estoque gera no PCP o card de REPOSIÇÃO (um ciclo vivo por produto); o PCP libera as unidades ou "Não produzir"; pronta, a peça fica livre no estoque (D-54) | ✅ entregue (SESSAO-25) — geração automática ligada à parte, com o OK do dono |
 | RF-75 | O ESTOQUE só recebe peça 🟢 — regra no banco e nas telas de mover/concluir/resolver (D-54) | ✅ entregue (SESSAO-25) |
-| RF-76 | Tela de Estoque em abas (acabados · matéria-prima e insumos · sugestão de mínimo top 20 com rank), paginada no servidor, com busca e sinal por ícone + texto (D-57) | ✅ entregue (SESSAO-25) |
+| RF-76 | Tela de Estoque em abas (acabados · matéria-prima e insumos · sugestão de mínimo top 20 com rank), paginada no servidor, com busca e sinal por ícone + texto (D-57) | ✅ entregue (SESSAO-25) — ↪️ 28/09: abas Top 20+ · insumos · Configurações (RF-101/RF-102) |
+| RF-100 | O número dos acabados é a CONTAGEM da logística (D-70): cadastrar produto ao estoque (entrada), baixa (sai a mais antiga) e contagem (acerta a diferença) — peças livres no ESTOQUE por evento, gate da logística/admin, trilha; a peça cadastrada entra na sugestão do PCP na liberação | ✅ entregue (ajuste de 28/09) |
+| RF-101 | Top 20+ (D-71): a tela abre pelos 20 mais vendidos dos 90 dias (rank), depois o que tem estoque; o resto em "Ver os outros produtos" e na busca pelo catálogo; paginado no servidor | ✅ entregue (ajuste de 28/09) |
+| RF-102 | Configurações do estoque (D-72): capacidade do galpão, mínimo por produto editável na plataforma (vazio = o do Tiny), sugestão de mínimo que cabe no galpão (encolhe proporcional, rank preservado), "usar" por linha e "usar todas" | ✅ entregue (ajuste de 28/09) |
+| RF-103 | Foto de cada produto (D-73): capa na biblioteca por SKU, reduzida no aparelho; só logística/admin cadastram; aparece em destaque no cartão e ampliada no detalhe | ✅ entregue (ajuste de 28/09) |
+| RF-104 | Estoque enxuto (D-74): "i" com balão no lugar do texto, abas em quadrados no canto superior direito, cartão com a foto em destaque e valores menores; peças e referência do Tiny no detalhe | ✅ entregue (ajuste de 28/09) |
 | RF-87 | Pedidos em aguardo é o LUGAR da peça pronta de pedido (D-58), com as abas "Pedidos" e "Produtos reservados" — paginadas no servidor, contadores de uma porta só (batem por construção); o painel conta "concluídas" só a chegada vinda da produção | ✅ entregue (SESSAO-24) |
 | RF-88 | Cancelamento em 3 estágios (D-61): no PCP → aba Cancelados do PCP (paginada, sob demanda, para sempre); em produção → etiqueta "Pedido cancelado" e conclui para o ESTOQUE sem dono; pronto → vai sozinho ao ESTOQUE sem dono (produto pelo SKU) | ✅ entregue (SESSAO-24) |
 | RF-89 | Sugestão do estoque na liberação (D-62): "peça igual" (SKU; personalizado = SKU + descrição idêntica; sem SKU = descrição), desmarcada por padrão; PCP/logística e admin aceitam; aceitar faz a unidade nascer em Pedidos em aguardo | ✅ entregue (SESSAO-24) |
