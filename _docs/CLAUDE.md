@@ -11,6 +11,7 @@ Este diretório (`_docs/`) é um cofre Obsidian: a **memória de longo prazo da 
 3. **Depois de mexer, atualizar a nota faz parte da tarefa.** Problema novo vai para [[N8N - Pendencias e Riscos]] (automações) ou [[PLT - Comercial - Debito Tecnico]] (comercial) com ID; resolvido é marcado `✅ resolvido em AAAA-MM-DD` sem apagar. Passo dado ou plano mudado → [[000 - PROXIMOS PASSOS]] atualizado.
 4. **Ao fim de cada sessão**: memória técnica em `Plataforma/Execucao/SESSAO-NN.md` (não existe mais `docs/` no repo — foi unificado aqui em 17/09/2026), handoff em `Handoffs/` a partir de [[TEMPLATE - Handoff de Sessao]], e link no mapa.
 5. **Não inventar fatos sobre o processo físico da fábrica.** O que não estiver registrado como certo, marcar como incerto ou perguntar. Os setores conhecidos: SECC (corte), CNC, FURAÇÃO, FITAMENTO, METALURGICA, MONTAGEM, LIMPEZA E EMBALAGEM, ESTOQUE, logística própria — o detalhe interno de cada um **ainda não foi mapeado**.
+6. **Com o dono, fale português de gente — nunca em código** (pedido dele, 28/09/2026: *"não fique falando em códigos… quem entende isso é a máquina, não eu nem ninguém — fale português"*). Nada de D-NN, E-NN, RF-NN, Q-NN, hash de commit, nome de branch, número de migration ou nome de tabela na conversa: diga o que a coisa é e o que faz. Os códigos ficam nas notas (são a memória da máquina).
 
 ## Regras críticas que já custaram caro (não repetir)
 

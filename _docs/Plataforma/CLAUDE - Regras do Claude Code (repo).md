@@ -27,7 +27,7 @@ Cofre: `C:\Users\wccau\Domoby\Domoby - fabrica\_docs\`
 8. `000 - MAPA DO PROJETO.md` e `CLAUDE.md` da raiz do cofre — contexto da fábrica.
 9. `Plataforma\PLT - Perguntas em Aberto.md` — o que está aí **não tem resposta**: pergunte, não invente.
 
-Depois de ler, **antes de codar**, traga: (a) entendimento do escopo em até 15 linhas, (b) dúvidas de negócio, (c) decisões técnicas que precisa tomar. Só siga com o OK do dono. Trabalhe e escreva **em português**.
+Depois de ler, **antes de codar**, traga: (a) entendimento do escopo em até 15 linhas, (b) dúvidas de negócio, (c) decisões técnicas que precisa tomar. Só siga com o OK do dono. Trabalhe e escreva **em português** — e, na conversa com o dono, **português de gente, sem código nenhum** (regra 12c).
 
 ---
 
@@ -55,6 +55,7 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 11. **Seguir o modelo de sistema** (`_docs/Plataforma/PLT - Modelo de Sistema.md` — desde a SESSAO-07/D-27, o antigo `docs/design-system.md` vive lá, fonte única) em toda tela nova; componente novo só se não existir equivalente. Tela com muitos dados → **paginação obrigatória** (RNF-02).
 12. **Termos da equipe sem tradução:** SECC, FITAMENTO, FURAÇÃO, PCP, "rota" — a interface fala a língua do galpão. UI em português.
 12b. **Códigos internos NUNCA em texto de interface** (D-27): "D-09", "RF-80", "Q-16" etc. não aparecem para o usuário — ele não entende. Na UI, escrever em língua de gente; o código vai para comentário no código-fonte, como entendimento do Claude.
+12c. **Na conversa com o dono, NUNCA falar em código** (pedido do dono, 28/09/2026): *"não fique falando em códigos no estilo (D-63, E-55, 3503d77) — eu nem sei o que é isso; quem entende isso é a máquina, não eu nem ninguém — fale português"*. Nas mensagens para ele: **nada** de ID de decisão, erro, aprendizado, requisito ou pergunta (D-NN, E-NN, A-NN, M-NN, F-NN, RF-NN, Q-NN), hash de commit, nome de branch, número de migration, nome de função/tabela/coluna ou caminho de arquivo. Diga o que a coisa **é** e o que ela **faz**, em português do galpão ("a regra de que o frete não vira peça", "a atualização do banco de hoje", "a versão que subiu para o site"). Os códigos continuam valendo **dentro** do cofre e do código — são a memória da máquina; na conversa, só a tradução. Vale também para o texto das perguntas e opções que você mostra a ele.
 13. **Commits pequenos e descritivos; uma branch por demanda.** Nada de entrega gigante misturando assuntos.
 14. **Verificação conforme os critérios de aceite da demanda** — cada critério testado e reportado no handoff; UI nova acompanha screenshot.
 15. **Mobile-first para o chão de fábrica** (D-06): tudo que o operador toca funciona em tablet com botão grande e em celular.
