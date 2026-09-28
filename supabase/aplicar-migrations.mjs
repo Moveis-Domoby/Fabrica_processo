@@ -13,6 +13,10 @@
  *   npm run banco:conferir     → mostra o que está no banco, sem escrever nada
  *   npm run banco:aplicar      → mostra o plano, mas NÃO aplica
  *   npm run banco:aplicar -- --confirmar   → aplica de verdade
+ *   npm run banco:aplicar -- --confirmar --so <arquivo.sql>
+ *       → aplica SÓ essa migration (SESSAO-26: quando outra frente em paralelo
+ *         já aplicou uma migration que esta pasta ainda não tem, reaplicar tudo
+ *         daqui desfaria a dela — ver PLT - Memoria de Aprendizado)
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync, readFileSync } from 'node:fs'
@@ -81,6 +85,8 @@ async function contarLinhas(cliente) {
 
 const confirmado = process.argv.includes('--confirmar')
 const soConferir = process.argv.includes('--conferir')
+const indiceSo = process.argv.indexOf('--so')
+const somente = indiceSo >= 0 ? process.argv[indiceSo + 1] : null
 const ambiente = carregarAmbiente()
 
 /**
@@ -187,14 +193,23 @@ try {
       : '  nenhuma',
   )
 
-  const arquivos = (await readdir(MIGRATIONS)).filter((f) => f.endsWith('.sql')).sort()
+  const todas = (await readdir(MIGRATIONS)).filter((f) => f.endsWith('.sql')).sort()
+  const arquivos = somente ? todas.filter((f) => f === somente) : todas
+  if (somente && arquivos.length === 0) {
+    console.error(vermelho(`Não achei a migration "${somente}" em supabase/migrations.`))
+    process.exit(1)
+  }
 
   if (soConferir) {
     titulo('Modo conferência — nada foi escrito')
     process.exit(0)
   }
 
-  titulo(`Plano: ${arquivos.length} migration(s)`)
+  titulo(
+    somente
+      ? `Plano: SÓ ${somente} (as outras NÃO são reaplicadas)`
+      : `Plano: ${arquivos.length} migration(s)`,
+  )
   arquivos.forEach((f) => console.log(`  · ${f}`))
 
   if (!confirmado) {
