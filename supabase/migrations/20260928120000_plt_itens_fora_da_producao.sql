@@ -40,6 +40,12 @@
 -- eventos, gp_pcp_processados, produtos).
 -- ============================================================================
 
+-- Aplicação curta e sem fila (E-66): a troca do gatilho em plt_cards pede a
+-- trava exclusiva da tabela; se ela não vier em 5 s, a migration desiste
+-- inteira (nada muda) em vez de deixar as telas esperando atrás dela. Vale
+-- dentro da transação do aplicador; fora de uma (harness), é só um aviso.
+set local lock_timeout = '5s';
+
 -- ----------------------------------------------------------------------------
 -- 1 · A regra única: o item do pedido é frete? Quantas unidades ele vira?
 -- ----------------------------------------------------------------------------
