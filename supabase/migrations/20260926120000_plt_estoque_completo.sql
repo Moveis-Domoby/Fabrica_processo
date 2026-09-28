@@ -745,6 +745,9 @@ $$;
 
 -- 8.1 · A tela por PRODUTO: acabados (F/S/variação) ou matéria-prima e insumos
 --       (M/K). Paginada no servidor com o total na mesma consulta (regra 17).
+--       ↪️ 28/09 (migration 40): a forma de retorno mudou (Top 20+) — o drop
+--       aqui deixa a reaplicação desta migration passar por cima da nova (E-17).
+drop function if exists public.plt_fn_estoque_produtos(text, text, text, integer, integer);
 create or replace function public.plt_fn_estoque_produtos(
   p_grupo        text    default 'acabados',  -- 'acabados' | 'insumos'
   p_busca        text    default null,

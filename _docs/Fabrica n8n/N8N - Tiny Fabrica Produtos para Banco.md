@@ -13,6 +13,9 @@ tags: [n8n, tiny, fabrica, produtos, supabase, sessao-25]
 > Todo produto **cadastrado** no Tiny da fábrica (FábricaDomoby, CNPJ 27.556.613/0001-66, login `lojadomoby`) entra na tabela `produtos` do Supabase da fábrica em até **15 min** — **todas as classes** (fabricado, matéria-prima, simples, kit, variação). Alterações (mínimo, descrição, inativação) entram na **varredura da madrugada**. O webhook de **lançamentos de estoque** já fica ligado **capturando o payload cru** para a SESSAO-25.
 > Arquivos: `domoby-tiny-fabrica-produtos.json` (nesta pasta) · `Supabase-fabrica/23_tiny_fabrica_produtos.sql`. Estudo que embasa: [[N8N - Tiny Fabrica - Estudo do Cadastro]].
 
+> [!warning] ↪️ 28/09/2026 — o saldo do Tiny saiu da conta dos ACABADOS
+> Conferido no banco real: o aviso de "lançamentos de estoque" **não cobre a venda** (nem quando o pedido nasce, nem quando sai) nem o "pronto" dos móveis — 9 avisos na vida toda, nenhum de móvel, o último em 25/09 (A-25). Por isso, desde o ajuste de 28/09 (D-70) o número dos produtos acabados na plataforma é a **contagem da logística** (entrada/baixa/contagem manual). O saldo do Tiny continua valendo para **matéria-prima e insumos** e aparece como referência no detalhe do produto. O mínimo também pode ser definido na plataforma (D-72 — vazio = vale o do Tiny, que este workflow segue trazendo). **Nada mudou no workflow.**
+
 ## Decisões do dono (21/09/2026)
 
 | # | Pergunta | Decisão |

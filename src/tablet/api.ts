@@ -45,8 +45,11 @@ export async function membrosDoSetor(setorId: number): Promise<MembroSetor[]> {
 
 const BUCKET = 'plt-imagens'
 
-/** Pasta do produto no bucket. O SKU vira caminho seguro. */
-function pastaDoProduto(codigo: string): string {
+/**
+ * Pasta do produto no bucket. O SKU vira caminho seguro. Uma regra só — a
+ * foto do Estoque (ajuste de 28/09) mora na mesma pasta do produto.
+ */
+export function pastaDoProduto(codigo: string): string {
   return `produtos/${codigo.replace(/[^a-zA-Z0-9._-]/g, '_')}`
 }
 

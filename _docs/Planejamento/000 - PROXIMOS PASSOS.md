@@ -15,7 +15,11 @@ tags: [planejamento, roadmap, indice]
 
 Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (21–22/09), a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] (22–23/09) e a **[[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]]** (23/09, [[handoff_2026_09_23_sessao23_meu_painel_2]]) — o Meu Painel 2.0 com as três filas, subtarefas, tarefa privada, tarefa do Sistema e o painel pessoal "Meu desempenho"; migration 33 aplicada com permissão total do dono.
 
-## ▶️ Agora (27/09): SESSAO-24 e SESSAO-26 — ligar a reposição quando o dono decidir
+## ▶️ Agora (28/09): o estoque virou a contagem da logística — falta a contagem inicial
+
+- **Ajuste urgente do estoque (28/09):** ✅ entregue — [[handoff_2026_09_28_ajuste_estoque_contagem_top20]]. O número dos produtos prontos passou a ser a **contagem da logística** (cadastrar ao estoque, baixa e contagem — o Tiny não avisava a saída da venda e deixava quase tudo zerado ou negativo); a tela abre no **Top 20+** (os 20 mais vendidos dos 90 dias, depois o que tem estoque); **foto de cada produto**; **Configurações** com o mínimo editável, a **capacidade do galpão** e a sugestão de mínimo que cabe nela; o "i" no lugar do texto e as abas em quadrados no canto (D-70…D-74). Migration 40 aplicada com o seu OK, telas conferidas com você logado. **Com você:** (1) a logística fazer a **contagem inicial** (hoje tudo está em 0); (2) pôr a **capacidade do galpão** em Configurações; (3) conferir os mínimos (ou "usar todas as sugestões"); (4) as fotos; (5) só depois disso, decidir ligar a reposição automática.
+
+## (histórico) 27/09: SESSAO-24 e SESSAO-26 — ligar a reposição quando o dono decidir
 
 - **SESSAO-24 (Produção concluída, cancelamentos e alocação):** ✅ **entregue em 27/09** — [[handoff_2026_09_27_sessao24_producao_concluida]]. Quadros **só por arrasto** (D-59/D-60), **Pedidos em aguardo como lugar** e ESTOQUE só sem dono (D-58), aba **Cancelados** no PCP (D-61), **sugestão do estoque** na liberação (D-62). Migration 37 aplicada com o seu OK. Telas conferidas com você logado e **mesclada na `main` em 27/09** (D-20). Q-69/Q-70 respondidas na sessão (a 502 é card de teste; 518 e 537 arquivadas).
 - **SESSAO-26 (Chat interno):** ✅ **entregue em 27/09** — [[handoff_2026_09_27_sessao26_chat]]. Migration 38 aplicada (sozinha, depois da 37 da 24). **Validada ao vivo com você logado e mesclada na `main` em 28/09 (D-20).** Com você: cadastrar a sua data de nascimento no Meu Perfil e, se quiser, liberar quem mais escreve nos Avisos gerais. Falta só ver, com uma 2ª pessoa de verdade, o número de não lidas subindo (provado nos testes automáticos). ⚠️ **Segurança corrigida na mesma migration (D-68):** CPF, PIN e convite estavam legíveis por qualquer pessoa logada.
@@ -71,8 +75,9 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 10. ✅ SESSAO-29 respondida por inteiro (D-50) — **📐 pronta para code**; só falta você dizer quando ela entra na fila.
 11. ~~Trocar o token da API v2 do Tiny~~ — o dono decidiu **não** trocar (23/09).
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
-12. **Q-71 (ajuste do Frete):** no Tiny da fábrica — cadastrar Espelho Adnet, Longarina e Carro de mão; decidir se as lâmpadas em kit aparecem em produtos acabados; dar um código à "Fechadura (com instalação)" (sem ele a venda não baixa o estoque).
-13. **Tarefa sugerida (ajuste do Frete):** a Visão do dia mostra 226 "pedidos a liberar", mas 198 já estão entregues no Tiny — alinhar com o quadro do PCP (mexe no banco; precisa do seu OK).
+12. **Estoque (28/09):** contagem inicial pela logística · capacidade do galpão · conferir os mínimos · fotos dos produtos · depois, ligar (ou não) a reposição automática — tudo no [[handoff_2026_09_28_ajuste_estoque_contagem_top20]].
+13. **Q-71 (ajuste do Frete):** no Tiny da fábrica — cadastrar Espelho Adnet, Longarina e Carro de mão; decidir se as lâmpadas em kit aparecem em produtos acabados; dar um código à "Fechadura (com instalação)" (sem ele a venda não baixa o estoque).
+14. **Tarefa sugerida (ajuste do Frete):** a Visão do dia mostra 226 "pedidos a liberar", mas 198 já estão entregues no Tiny — alinhar com o quadro do PCP (mexe no banco; precisa do seu OK).
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 

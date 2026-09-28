@@ -1,60 +1,69 @@
 import { describe, expect, it } from 'vitest'
-import { formatarQuantidade, idadeDaLeitura, sinalDoProduto, textoReposicao } from './estoque'
+import {
+  formatarQuantidade,
+  idadeDaLeitura,
+  previaMovimento,
+  rotuloPosicao,
+  sinalDoProduto,
+  textoReposicao,
+} from './estoque'
 
-const base = {
-  saldo_tiny: 5,
-  necessidade_extrema: 0,
-  abaixo_minimo: false,
-  minimo: 4,
-  repor: 0,
-  reposicao_estado: null,
-} as const
-
-describe('sinal do produto no Estoque (SESSAO-25)', () => {
-  it('sem leitura do Tiny vem antes de tudo — não dá para decidir nada', () => {
-    const sinal = sinalDoProduto({ ...base, saldo_tiny: null, abaixo_minimo: true, repor: 4 })
-    expect(sinal.tom).toBe('sem_leitura')
-  })
-
-  it('vendido sem estoque é necessidade extrema, no plural certo', () => {
-    expect(sinalDoProduto({ ...base, necessidade_extrema: 1, abaixo_minimo: true }).texto).toBe(
-      'Necessidade extrema — 1 vendido sem estoque',
-    )
-    const sinal = sinalDoProduto({
-      ...base,
-      necessidade_extrema: 3,
-      abaixo_minimo: true,
-      reposicao_estado: 'no_pcp',
-    })
-    expect(sinal.tom).toBe('extrema')
-    expect(sinal.texto).toBe('Necessidade extrema — 3 vendidos sem estoque')
-    expect(sinal.detalhe).toBe('reposição aguardando o PCP')
-  })
-
-  it('abaixo do mínimo diz quanto repor e onde está a reposição', () => {
-    const sinal = sinalDoProduto({
-      ...base,
-      abaixo_minimo: true,
-      repor: 3,
-      reposicao_estado: 'em_producao',
-    })
-    expect(sinal).toEqual({
+describe('sinal do produto no Estoque (ajuste de 28/09 — a contagem da logística)', () => {
+  it('com mínimo: sem estoque, faltam N, ou no mínimo', () => {
+    expect(sinalDoProduto({ em_estoque: 0, minimo: 2 })).toEqual({ tom: 'sem_estoque', texto: 'Sem estoque' })
+    expect(sinalDoProduto({ em_estoque: 1, minimo: 4 })).toEqual({
       tom: 'abaixo',
-      texto: 'Abaixo do mínimo — repor 3',
-      detalhe: 'reposição em produção',
+      texto: 'Faltam 3 para o mínimo',
+    })
+    expect(sinalDoProduto({ em_estoque: 4, minimo: 4 })?.tom).toBe('ok')
+    expect(sinalDoProduto({ em_estoque: 9, minimo: 4 })?.tom).toBe('ok')
+  })
+
+  it('sem mínimo: só avisa quando não tem nada (neutro); com estoque, nenhum sinal', () => {
+    expect(sinalDoProduto({ em_estoque: 0, minimo: null })).toEqual({ tom: 'neutro', texto: 'Sem estoque' })
+    expect(sinalDoProduto({ em_estoque: null, minimo: 0 })?.tom).toBe('neutro')
+    expect(sinalDoProduto({ em_estoque: 3, minimo: null })).toBeNull()
+  })
+
+  it('a reposição só aparece enquanto está andando', () => {
+    expect(textoReposicao('no_pcp')).toBe('reposição pedida ao PCP')
+    expect(textoReposicao('em_producao')).toBe('reposição em produção')
+    expect(textoReposicao('concluida')).toBeUndefined()
+    expect(textoReposicao('arquivada')).toBeUndefined()
+    expect(textoReposicao(null)).toBeUndefined()
+  })
+
+  it('posição nas vendas vira "1º", e nada quando não vendeu', () => {
+    expect(rotuloPosicao(1)).toBe('1º')
+    expect(rotuloPosicao(20)).toBe('20º')
+    expect(rotuloPosicao(null)).toBeNull()
+  })
+})
+
+describe('prévia da movimentação (antes de confirmar)', () => {
+  it('entrada soma; baixa tira e não passa do que há', () => {
+    expect(previaMovimento('entrada', 3, 2)).toMatchObject({ depois: 5, valida: true, texto: 'Ficam 5 no estoque.' })
+    expect(previaMovimento('baixa', 1, 2)).toMatchObject({ depois: 1, valida: true, texto: 'Fica 1 no estoque.' })
+    expect(previaMovimento('baixa', 3, 2)).toMatchObject({
+      valida: false,
+      texto: 'Só há 2 no estoque — não dá para dar baixa em 3.',
     })
   })
 
-  it('sem mínimo no Tiny não sinaliza; com mínimo e acima, está ok', () => {
-    expect(sinalDoProduto({ ...base, minimo: null }).tom).toBe('sem_minimo')
-    expect(sinalDoProduto({ ...base, minimo: 0 }).tom).toBe('sem_minimo')
-    expect(sinalDoProduto(base).tom).toBe('ok')
+  it('contagem acerta a diferença para cima ou para baixo, e registra quando bate', () => {
+    expect(previaMovimento('contagem', 5, 2).texto).toBe('Entram 3 peças (de 2 para 5).')
+    expect(previaMovimento('contagem', 3, 2).texto).toBe('Entra 1 peça (de 2 para 3).')
+    expect(previaMovimento('contagem', 1, 2).texto).toBe('Sai 1 peça (de 2 para 1).')
+    expect(previaMovimento('contagem', 0, 3).texto).toBe('Saem 3 peças (de 3 para 0).')
+    expect(previaMovimento('contagem', 2, 2)).toMatchObject({ depois: 2, valida: true })
+    expect(previaMovimento('contagem', 0, 4)).toMatchObject({ depois: 0, valida: true })
   })
 
-  it('texto da reposição para cada estado (e nada quando não há)', () => {
-    expect(textoReposicao('concluida')).toBe('reposição pronta — falta entrar no Tiny')
-    expect(textoReposicao('arquivada')).toBe('o PCP decidiu não produzir')
-    expect(textoReposicao(null)).toBeUndefined()
+  it('quantidade fora da faixa não passa', () => {
+    expect(previaMovimento('entrada', 0, 0).valida).toBe(false)
+    expect(previaMovimento('entrada', 501, 0).valida).toBe(false)
+    expect(previaMovimento('contagem', -1, 0).valida).toBe(false)
+    expect(previaMovimento('entrada', Number.NaN, 0).valida).toBe(false)
   })
 })
 
