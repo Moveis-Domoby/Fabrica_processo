@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-26 — Chat interno"
 tipo: demanda
-status: entregue — aguardando revisão do dono e merge (D-20)
+status: entregue — validada ao vivo e mesclada na main em 28/09 (D-20)
 data: 2026-09-18
 atualizado: 2026-09-27
 tags: [plataforma, demanda, bloco-5, chat, comunicacao]
@@ -72,7 +72,7 @@ Terreno: tabelas novas com prefixo `plt_` (conversas, participantes, mensagens) 
 
 ## Resultado (preencher ao entregar)
 
-**Entregue em 27/09/2026** (em paralelo com a SESSAO-24, worktree própria) — [[handoff_2026_09_27_sessao26_chat]]. Respostas do dono: D-65 (canais só líder/admin; avisos com escritores definidos pelo admin; para sempre; tablet participa), D-66 (aniversário só nos Avisos gerais, texto aprovado), D-68 (dados sensíveis fora da API). **Adendo do dono → D-67:** websocket (Broadcast privado) e leitura só por página — 10 mensagens, 5 conversas; por isso a publicação realtime **não** ganhou tabela (↩️ ajusta a nota técnica acima). Data de nascimento por **RPC**, não pela Edge Function (↩️ ajusta a nota técnica: evita deploy e o grant de coluna que a reaplicação apaga). Migration 38 aplicada; 389 verificações no harness + 446 com a 37 junto; ensaio no banco real; 72 testes do front (incluindo o que conta leituras e canais). Pendente com o dono: a validação ao vivo com duas contas (roteiro no handoff).
+**Entregue em 27/09/2026** (em paralelo com a SESSAO-24, worktree própria) — [[handoff_2026_09_27_sessao26_chat]]. Respostas do dono: D-65 (canais só líder/admin; avisos com escritores definidos pelo admin; para sempre; tablet participa), D-66 (aniversário só nos Avisos gerais, texto aprovado), D-68 (dados sensíveis fora da API). **Adendo do dono → D-67:** websocket (Broadcast privado) e leitura só por página — 10 mensagens, 5 conversas; por isso a publicação realtime **não** ganhou tabela (↩️ ajusta a nota técnica acima). Data de nascimento por **RPC**, não pela Edge Function (↩️ ajusta a nota técnica: evita deploy e o grant de coluna que a reaplicação apaga). Migration 38 aplicada; 389 verificações no harness + 446 com a 37 junto; ensaio no banco real; 72 testes do front (incluindo o que conta leituras e canais). **Validada ao vivo em 28/09** (o dono logado em duas abas) e **mesclada na `main`** (D-20); 3 achados do teste ao vivo corrigidos na hora.
 
 ## Ver também
 

@@ -82,6 +82,13 @@ tags: [execucao, sessao-26, chat, aniversarios, realtime, bloco-5]
 - **No código juntado:** `test:banco` 01…38 em 2 rodadas ✅ **446**; `tsc` ✅; `lint` ✅; `npm test` ✅ **80**; `build` ✅. Commit do merge `a6ff33c` (8 à frente de `origin/main`, entra por avanço direto). O 5175 serve o código juntado sem erro.
 - ⚠️ A pasta principal está na `main` com mudanças NÃO commitadas de outra frente (plano de integração do Tiny: MAPA, PRÓXIMOS PASSOS e um "003 - PLANO…") — nada dela entra aqui; o `main` local de lá não é mexido (o envio vai direto da branch para `origin/main`).
 
+## Validação ao vivo (28/09) — o dono logado nas duas abas
+
+O dono: *"Faça tudo, desde a criação do usuário até o teste de tela; eu logo aqui com minha conta, você cria os usuários e vai testar."* Criar conta e entrar com senha seguem bloqueados para a sessão (explicado ao dono); ele entrou com a PRÓPRIA conta em `localhost:5175` e em `127.0.0.1:5175` (origens diferentes = duas sessões). Resultados, medidos com `PerformanceObserver` (A-30), no §2b do handoff: abrir o app = 1 chamada do chat; criar canal → a outra aba relê a lista 1× pelo sinal; mensagem da aba A chega na B **sem leitura** (canal privado com o JWT real) e vice-versa; 11 envios = 11 POST e zero leitura; reabrir = 1 página, anteriores = +1; renomear chega sozinho; arrasto real com o mouse, persistido e restaurado ao padrão; 375/768/1280; `/tablet` sem balão; Equipe e Meu Perfil normais depois da leitura por coluna; console limpo.
+- **Achados corrigidos na hora** (`afb2c30`): **E-53** (lista relida 2× ao criar canal — fica só o sinal), **E-54** (conversa cortada no celular — `grid-cols-1`; botões 36 → 44px). Registrados na memória de aprendizado com o **A-30** (como medir requisições ao vivo; duas origens para duas sessões).
+- Não testado ao vivo, de propósito: não lida por OUTRA pessoa (as duas abas eram o dono) e o parabéns (seria aniversário falso para os sócios) — cobertos pelos testes automáticos e pelo ensaio no banco real.
+- Artefato de teste: canal "Teste do chat (pode ignorar) - renomeado" (conversa 2), só com o dono, 13 mensagens — conversa não se apaga; oferecido ao dono tirá-lo do canal (some da lista).
+
 ## Mapa do merge com a SESSAO-24 (o que a 24 informou no fim, 27/09)
 
 A 24 (branch `sessao-24-producao-concluida-cancelamentos`, local, sem push) está pronta esperando a conferência de telas. Não mexeu em schema depois da 37, nem no aplicador, nem no `CLAUDE.md`; rodou só manutenção de dado (arquivou por evento as unidades 518 e 537, de pedidos entregues no Tiny). A 38 não a afeta (o front dela só lê `id`, `nome` e o `COLUNAS_PERFIL`). Conflitos esperados — **manter os dois lados, a 24 primeiro**:

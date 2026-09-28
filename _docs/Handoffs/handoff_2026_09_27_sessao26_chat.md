@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, bloco-5, chat, websocket, seguranca, d-65, d
 
 # 📋 Handoff — SESSAO-26 · Chat interno (D-65…D-68)
 
-**Branch:** `sessao-26-chat-interno` — numa **worktree própria** (`C:\Users\wccau\Domoby\Domoby - Fabrica - sessao-26`), porque a SESSAO-24 rodou **ao mesmo tempo** na pasta principal. **Não mesclada** — aguarda a sua revisão (regra 1 / D-20).
+**Branch:** `sessao-26-chat-interno` — numa **worktree própria** (`C:\Users\wccau\Domoby\Domoby - Fabrica - sessao-26`), porque a SESSAO-24 rodou **ao mesmo tempo** na pasta principal. **Validada ao vivo com você logado e mesclada na `main` em 28/09 (D-20)**, depois de trazer a `main` com a SESSAO-24 (446 verificações do banco e 80 testes no código juntado).
 **Banco:** migration **38 APLICADA em 27/09** com o seu OK (resposta 7) — **sozinha** (`npm run banco:aplicar -- --confirmar --so 20260927180000_plt_chat_interno.sql`), porque a 24 aplicou a 37 antes e reaplicar tudo desta pasta desfaria a dela. Integração do Tiny com estrutura e linhas **idênticas** antes/depois (digital `e2109f3a…`, 65 colunas).
 **Demanda:** [[SESSAO-26 - Chat Interno]] · **Memória:** `_docs/Plataforma/Execucao/SESSAO-26.md` · **Decisões novas:** D-65, D-66, D-67, D-68 (suas respostas + o adendo do websocket)
 
@@ -35,6 +35,31 @@ tags: [handoff, sessao, plataforma, bloco-5, chat, websocket, seguranca, d-65, d
 | Mojibake (E-34) | ✅ zero |
 | Advisors | ✅ nenhum ERROR; +13 WARN esperados (as portas novas — padrão da casa); desempenho: INFO de FK sem índice (deixada de propósito) |
 | Navegador | ✅ o app desta branch sobe no **5175** sem erro; deslogado não faz nenhuma chamada ao Supabase nem mostra balão. ⏳ **Telas logadas: com você** — eu não posso entrar com a senha de ninguém |
+
+## 2b. Validação ao vivo (28/09 — você logado em duas abas, `localhost:5175` e `127.0.0.1:5175`)
+
+Medido na própria página (observador de requisições do navegador — o registro de rede do painel não mostra outra origem):
+
+| O quê | Resultado |
+|---|---|
+| Abrir o app (Meu Painel) | ✅ o chat fez **1** chamada — `plt_fn_chat_conversas` (1ª página); as outras 12 são do painel e do menu |
+| Criar canal "Teste do chat (pode ignorar)" na aba A | ✅ na aba B a lista foi relida **1 vez**, sozinha, pelo sinal "entrou" do websocket |
+| Aba B abre o canal | ✅ painel sem reler a lista; conversa = **1** página |
+| Aba A envia; aba B com a conversa aberta | ✅ **chegou sem recarregar e sem nenhuma leitura na B** (canal privado com o seu login real) — e a resposta da B chegou na A do mesmo jeito |
+| 11 mensagens seguidas da A | ✅ A: 11 envios e **nenhuma leitura**; B: as 13 na tela, **zero leitura** |
+| Voltar à lista / reabrir / "Ver mensagens anteriores" | ✅ voltar: 0 leitura (a prévia já tinha vindo pelo websocket); reabrir: **1** página (10); anteriores: **+1** página (13, e o botão some) |
+| Renomear o canal na A | ✅ o título mudou na B **sozinho**, zero leitura |
+| Avisos gerais (admin) | ✅ "Todos leem · você pode escrever"; "Quem escreve": "Por enquanto, só os admins escrevem" (ninguém foi liberado) |
+| Nova conversa | ✅ lista de pessoas (só os outros) e busca "gui" → Guilherme, uma leitura por intenção; nenhuma conversa aberta com os sócios |
+| Arrastar o balão (mouse real) | ✅ mudou de lugar, **não abriu o painel**, e continuou no mesmo lugar depois de recarregar (depois voltei ao padrão) |
+| Celular 375 / tablet 768 / computador 1280 | ✅ depois da correção: nada cortado, sem rolagem lateral, nenhum alvo < 44px; o balão fica ao lado da bolinha de execução sem encostar; o painel ocupa a tela no celular; 2 colunas a partir de 1024px |
+| `/tablet` | ✅ sem balão e sem menu |
+| Meu Perfil / Gestão da equipe | ✅ seção Aniversário (data vazia — não mexi); a equipe carrega normal depois da correção de segurança; o bolo abre a data pela porta própria (fechado sem salvar) |
+| Console | ✅ zero erro nas duas abas |
+
+**3 achados corrigidos na hora** (commit `afb2c30`): (1) criar canal relia a lista **2 vezes** (a tela + o sinal) → fica só o sinal; (2) no celular a conversa da tela do Chat era **cortada à direita** (a coluna da grade crescia até o título) → corrigido; (3) botões do chat com **36px** → 44px.
+
+**Não testado ao vivo, de propósito:** o número de não lidas subindo por mensagem de OUTRA pessoa (as duas abas eram você — mensagem sua não conta) e o parabéns publicado (seria um aniversário falso seu para os sócios). Os dois estão provados nos testes automáticos e no ensaio do banco real. Ficou no seu chat o canal **"Teste do chat (pode ignorar) - renomeado"**, só com você e 13 mensagens de teste — conversa não se apaga; se quiser, eu te tiro dele e ele some da sua lista.
 
 ## 3. Como validar (10 minutos)
 
