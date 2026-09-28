@@ -126,7 +126,8 @@ export function ModalMovimentarEstoque({
           valor={operacao}
           aoMudar={(v) => {
             setOperacao(v)
-            if (v === 'contagem') setQuantidade(String(atual))
+            // Na contagem o campo nasce vazio: quem contou digita o que viu.
+            if (v === 'contagem') setQuantidade('')
             else if (quantidade.trim() === '' || operacao === 'contagem') setQuantidade('1')
           }}
         />

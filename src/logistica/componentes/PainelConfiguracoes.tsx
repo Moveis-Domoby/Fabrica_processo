@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, TriangleAlert, Warehouse } from 'lucide-react'
-import { Botao, Campo, Paginacao, useNotificacao } from '@/componentes/ui'
+import { Botao, Campo, Dica, Paginacao, useNotificacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { cn } from '@/lib/cn'
 import {
@@ -92,12 +92,21 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
       <section aria-label="Mínimo por produto" className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-texto">Mínimo por produto</h2>
-            <p className="max-w-2xl text-sm text-texto-suave">
-              Os mais vendidos dos últimos 90 dias primeiro. A sugestão é a venda média da semana
-              vezes a cobertura; se a soma passar da capacidade do galpão, todas encolhem na mesma
-              proporção — o mais vendido continua com mais. Mínimo vazio volta a valer o do Tiny.
-            </p>
+            {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
+            <div className="relative flex items-center gap-1">
+              <h2 className="text-lg font-semibold text-texto">Mínimo por produto</h2>
+              <Dica rotulo="Como a sugestão de mínimo é calculada">
+                <span className="flex flex-col gap-2">
+                  <span>Os mais vendidos dos últimos 90 dias vêm primeiro.</span>
+                  <span>
+                    A sugestão é a venda média da semana vezes a cobertura. Se a soma passar da
+                    capacidade do galpão, todas encolhem na mesma proporção — o mais vendido
+                    continua com mais.
+                  </span>
+                  <span>Mínimo vazio volta a valer o do Tiny.</span>
+                </span>
+              </Dica>
+            </div>
             <FiltroPill
               rotulo="Cobertura"
               opcoes={COBERTURAS}
@@ -110,7 +119,7 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
           </div>
           {podeMexer &&
             (confirmandoTodas ? (
-              <div className="flex max-w-md flex-col gap-2 rounded-dm-lg border border-atencao-borda bg-atencao-fundo p-3">
+              <div className="flex max-w-md flex-col gap-2 self-start rounded-dm-lg border border-atencao-borda bg-atencao-fundo p-3 lg:self-end">
                 <p className="text-sm text-atencao-texto">
                   Todos os mínimos passam a ser a sugestão — quem não vendeu em 90 dias fica sem
                   mínimo. Pode ajustar um a um depois.
@@ -125,7 +134,11 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
                 </div>
               </div>
             ) : (
-              <Botao variante="secundaria" onClick={() => setConfirmandoTodas(true)}>
+              <Botao
+                variante="secundaria"
+                className="self-start lg:self-end"
+                onClick={() => setConfirmandoTodas(true)}
+              >
                 Usar todas as sugestões
               </Botao>
             ))}
@@ -280,15 +293,25 @@ function CartaoGalpao({ resumo, podeMexer }: { resumo: ResumoEstoque | null; pod
           Sem a capacidade, a sugestão de mínimo não tem teto.
         </p>
       )}
+      {/* Enquanto carrega, "…" — zero seria um número falso. */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Numero rotulo="Peças no estoque agora" valor={formatarQuantidade(resumo?.pecas_no_estoque ?? 0)} />
-        <Numero rotulo="Reservadas (em aguardo)" valor={formatarQuantidade(resumo?.pecas_reservadas ?? 0)} />
+        <Numero
+          rotulo="Peças no estoque agora"
+          valor={resumo ? formatarQuantidade(resumo.pecas_no_estoque) : '…'}
+        />
+        <Numero
+          rotulo="Reservadas (em aguardo)"
+          valor={resumo ? formatarQuantidade(resumo.pecas_reservadas) : '…'}
+        />
         <Numero
           rotulo="Soma dos mínimos"
-          valor={formatarQuantidade(resumo?.soma_minimos ?? 0)}
+          valor={resumo ? formatarQuantidade(resumo.soma_minimos) : '…'}
           alerta={passou}
         />
-        <Numero rotulo="Soma das sugestões" valor={formatarQuantidade(resumo?.soma_sugestoes ?? 0)} />
+        <Numero
+          rotulo="Soma das sugestões"
+          valor={resumo ? formatarQuantidade(resumo.soma_sugestoes) : '…'}
+        />
       </div>
     </section>
   )
@@ -387,7 +410,8 @@ function LinhaConfiguracao({
         )}
         <div
           className={cn(
-            'flex h-toque-md items-center gap-2 rounded-dm px-3',
+            // Largura fixa: as linhas ficam alinhadas com 1 ou 2 dígitos.
+            'flex h-toque-md min-w-[7.5rem] items-center justify-between gap-2 rounded-dm px-3',
             sugestaoDiferente ? 'border border-acao-ativa' : 'bg-superficie-sutil',
           )}
         >

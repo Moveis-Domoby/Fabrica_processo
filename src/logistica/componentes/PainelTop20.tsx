@@ -72,7 +72,11 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
           />
         </div>
         {podeMexer && (
-          <Botao icone={<PackagePlus />} onClick={() => setEscolhendo(true)}>
+          <Botao
+            icone={<PackagePlus />}
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => setEscolhendo(true)}
+          >
             Cadastrar produto ao estoque
           </Botao>
         )}
