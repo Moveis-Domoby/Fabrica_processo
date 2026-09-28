@@ -96,3 +96,24 @@ export function urlDaFoto(caminho: string | null): string | null {
   if (!caminho) return null
   return supabase.storage.from('plt-imagens').getPublicUrl(caminho).data.publicUrl
 }
+
+/**
+ * Data de nascimento (SESSAO-26): o navegador não lê a coluna — só por estas
+ * portas, e só a própria pessoa (sem id) ou o admin (com id). No dia, o chat
+ * publica os parabéns nos Avisos gerais.
+ */
+export async function lerNascimento(usuarioId?: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('plt_fn_ler_nascimento', {
+    p_usuario: usuarioId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return (data as string | null) ?? null
+}
+
+export async function definirNascimento(usuarioId: string | null, data: string | null): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_definir_nascimento', {
+    p_usuario: usuarioId,
+    p_data: data,
+  })
+  if (error) throw new Error(error.message)
+}

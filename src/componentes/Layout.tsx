@@ -24,6 +24,8 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { temModulo } from '@/autenticacao/tipos'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { BolhaExecucao } from '@/afazeres/BolhaExecucao'
+import { ProvedorChat } from '@/chat/ProvedorChat'
+import { BalaoChat } from '@/chat/BalaoChat'
 import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
@@ -214,6 +216,8 @@ export function Layout({ children }: { children: ReactNode }) {
               { para: '/inicio/afazeres', rotulo: 'Meus afazeres' },
               // A visão da liderança virou filha própria (23/09).
               ...(ehLider ? [{ para: '/inicio/afazeres-do-time', rotulo: 'Afazeres do time' }] : []),
+              // O chat interno (SESSAO-26) — o balão também abre em qualquer tela.
+              { para: '/inicio/chat', rotulo: 'Chat' },
             ],
           },
         ],
@@ -604,6 +608,8 @@ export function Layout({ children }: { children: ReactNode }) {
   )
 
   return (
+    // O chat (SESSAO-26) acompanha toda tela logada — nunca o /tablet (acima).
+    <ProvedorChat eu={perfil.id}>
     <div className="min-h-dvh bg-fundo lg:flex">
       {/* Barra do celular: menu + marca + sino (a gaveta traz o resto). */}
       <header className="menu-superficie sticky top-0 z-30 bg-grafite-700 lg:hidden">
@@ -665,6 +671,9 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* A bolinha do "em execução agora" percorre a plataforma inteira
           (pedido do dono, 23/09) — só aparece quando algo conta tempo. */}
       <BolhaExecucao />
+      {/* O balão do chat (SESSAO-26): arrastável, ao lado da bolinha. */}
+      <BalaoChat />
     </div>
+    </ProvedorChat>
   )
 }

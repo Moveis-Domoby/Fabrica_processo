@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { AtSign, Camera, Check, IdCard, KeyRound, Phone, Trash2, UserRound } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { AtSign, Cake, Camera, Check, IdCard, KeyRound, Phone, Trash2, UserRound } from 'lucide-react'
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -9,7 +9,9 @@ import { ROTULO_PAPEL } from '@/autenticacao/tipos'
 import {
   alterarSenha,
   atualizarPerfil,
+  definirNascimento,
   enviarFotoPerfil,
+  lerNascimento,
   removerFotoPerfil,
   salvarTema,
   urlDaFoto,
@@ -87,6 +89,31 @@ export function MeuPerfil() {
       await recarregarPerfil()
       notificar({ titulo: 'Foto removida', tom: 'perfeito' })
     },
+  })
+
+  // Data de nascimento (SESSAO-26): o navegador não lê a coluna — só a porta
+  // própria. Ninguém além da pessoa e do admin vê a data.
+  const nascimento = useQuery({
+    queryKey: ['perfil', perfil?.id, 'nascimento'],
+    queryFn: () => lerNascimento(),
+    enabled: perfil !== null,
+    staleTime: Infinity,
+  })
+  const [nascimentoEditado, setNascimentoEditado] = useState<string | null>(null)
+  const valorNascimento = nascimentoEditado ?? nascimento.data ?? ''
+  const salvarNascimento = useMutation({
+    mutationFn: () => definirNascimento(null, valorNascimento || null),
+    onSuccess: async () => {
+      setNascimentoEditado(null)
+      await nascimento.refetch()
+      notificar({ titulo: 'Data de nascimento salva', tom: 'perfeito' })
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para salvar a data',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
   })
 
   const trocarTema = useMutation({
@@ -263,6 +290,49 @@ export function MeuPerfil() {
           <div>
             <Botao type="submit" icone={<Check />} carregando={salvarDados.isPending}>
               Salvar dados
+            </Botao>
+          </div>
+        </form>
+      </section>
+
+      {/* Aniversário (SESSAO-26) */}
+      <section
+        aria-label="Data de nascimento"
+        className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-5"
+      >
+        <div>
+          <h2 className="text-lg">Aniversário</h2>
+          <p className="mt-1 text-sm text-texto-suave">
+            No dia do seu aniversário, a Domoby publica os parabéns nos Avisos gerais do chat. Só
+            você e o admin veem esta data.
+          </p>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            salvarNascimento.mutate()
+          }}
+          className="flex flex-col gap-4"
+          noValidate
+        >
+          <Campo
+            rotulo="Data de nascimento"
+            type="date"
+            prefixo={<Cake />}
+            min="1900-01-01"
+            max={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' })}
+            value={valorNascimento}
+            disabled={nascimento.isPending}
+            onChange={(e) => setNascimentoEditado(e.target.value)}
+          />
+          <div>
+            <Botao
+              type="submit"
+              icone={<Check />}
+              carregando={salvarNascimento.isPending}
+              disabled={nascimentoEditado === null}
+            >
+              Salvar data
             </Botao>
           </div>
         </form>

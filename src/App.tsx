@@ -23,6 +23,7 @@ import { AfazeresDoTime } from '@/paginas/AfazeresDoTime'
 import { AdminApi } from '@/paginas/AdminApi'
 import { Estrutura } from '@/paginas/Estrutura'
 import { MeuPerfil } from '@/paginas/MeuPerfil'
+import { Chat } from '@/paginas/Chat'
 import { Estoque } from '@/paginas/Estoque'
 import { PedidosAguardo } from '@/paginas/PedidosAguardo'
 import { Danificados } from '@/paginas/Danificados'
@@ -83,6 +84,8 @@ export function App() {
               <Route path="/inicio/meu-perfil" element={<MeuPerfil />} />
               {/* filho sem item de menu: o "Ver todos" do sino (SESSAO-23) */}
               <Route path="/inicio/avisos" element={<Avisos />} />
+              {/* o chat interno (SESSAO-26): a tela cheia; o balão vive na casca */}
+              <Route path="/inicio/chat" element={<Chat />} />
 
               {/* o modo do galpão: sem navegação nenhuma (D-06/D-28) */}
               <Route path="/tablet" element={<TelaSetor />} />

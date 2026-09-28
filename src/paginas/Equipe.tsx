@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
+  Cake,
   Check,
   Copy,
   KeyRound,
@@ -25,6 +26,7 @@ import type { UsuarioCriado } from '@/autenticacao/api'
 import { COLUNAS_PERFIL, ROTULO_PAPEL } from '@/autenticacao/tipos'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
+import { definirNascimento, lerNascimento } from '@/perfil/api'
 
 interface LinhaEquipe extends Perfil {
   setores: string
@@ -108,6 +110,32 @@ export function Equipe() {
   const [alvoExcluir, setAlvoExcluir] = useState<LinhaEquipe | null>(null)
   const [erroDestino, setErroDestino] = useState('')
   const [processando, setProcessando] = useState(false)
+
+  // Data de nascimento (SESSAO-26): o admin cadastra/corrige a de qualquer
+  // pessoa — o chat publica os parabéns no dia. Lida só ao abrir o modal.
+  const [alvoNascimento, setAlvoNascimento] = useState<LinhaEquipe | null>(null)
+  const [nascimentoEditado, setNascimentoEditado] = useState<string | null>(null)
+  const nascimento = useQuery({
+    queryKey: ['equipe', 'nascimento', alvoNascimento?.id],
+    queryFn: () => lerNascimento(alvoNascimento!.id),
+    enabled: alvoNascimento !== null,
+    gcTime: 0,
+  })
+  const valorNascimento = nascimentoEditado ?? nascimento.data ?? ''
+  const salvarNascimento = useMutation({
+    mutationFn: () => definirNascimento(alvoNascimento!.id, valorNascimento || null),
+    onSuccess: () => {
+      notificar({ titulo: `Data de nascimento de ${alvoNascimento?.nome ?? ''} salva`, tom: 'perfeito' })
+      setAlvoNascimento(null)
+      setNascimentoEditado(null)
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para salvar a data',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
 
   async function aoArquivar() {
     if (!alvoArquivar) return
@@ -309,6 +337,20 @@ export function Equipe() {
             >
               PIN
             </Botao>
+          )}
+          {/* Data de nascimento: só o admin (e a própria pessoa, no Meu Perfil). */}
+          {souAdmin && !p.arquivado_em && (
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<Cake />}
+              aria-label={`Data de nascimento de ${p.nome}`}
+              className="toque-seguro px-2"
+              onClick={() => {
+                setNascimentoEditado(null)
+                setAlvoNascimento(p)
+              }}
+            />
           )}
           {/* Arquivar/excluir é gesto de admin (o banco confere de novo — D-49). */}
           {souAdmin && p.id !== perfil?.id && (
@@ -590,6 +632,43 @@ export function Equipe() {
           value={pinNovo}
           onChange={(e) => setPinNovo(e.target.value)}
           erro={erroPin || undefined}
+        />
+      </Modal>
+
+      {/* ---------- Data de nascimento (SESSAO-26) ---------- */}
+      <Modal
+        aberto={alvoNascimento !== null}
+        aoFechar={(aberto) => {
+          if (!aberto) setAlvoNascimento(null)
+        }}
+        titulo={alvoNascimento ? `Aniversário de ${alvoNascimento.nome}` : 'Aniversário'}
+        descricao="No dia, o chat publica os parabéns nos Avisos gerais. Só a pessoa e o admin veem esta data."
+        rodape={
+          <>
+            <Botao variante="secundaria" onClick={() => setAlvoNascimento(null)}>
+              Cancelar
+            </Botao>
+            <Botao
+              icone={<Check />}
+              carregando={salvarNascimento.isPending}
+              disabled={nascimentoEditado === null}
+              onClick={() => salvarNascimento.mutate()}
+            >
+              Salvar data
+            </Botao>
+          </>
+        }
+      >
+        <Campo
+          rotulo="Data de nascimento"
+          type="date"
+          prefixo={<Cake />}
+          min="1900-01-01"
+          max={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' })}
+          value={valorNascimento}
+          disabled={nascimento.isPending}
+          ajuda="Deixe em branco e salve para apagar a data."
+          onChange={(e) => setNascimentoEditado(e.target.value)}
         />
       </Modal>
 
