@@ -100,7 +100,7 @@ export function BalaoChat() {
 
   const rotulo =
     totalNaoLidas > 0
-      ? `Chat: ${rotuloContagem(totalNaoLidas)} mensagem${totalNaoLidas === 1 ? '' : 's'} não lida${totalNaoLidas === 1 ? '' : 's'}`
+      ? `Chat: ${rotuloContagem(totalNaoLidas)} ${totalNaoLidas === 1 ? 'mensagem não lida' : 'mensagens não lidas'}`
       : 'Chat'
 
   return (
