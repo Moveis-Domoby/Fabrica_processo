@@ -113,6 +113,11 @@ export function Expedicao() {
                   </span>
                   {completo ? (
                     <BadgeEstado estado="perfeito" rotulo="Pedido completo" tamanho="sm" />
+                  ) : linha.total_unidades === 0 ? (
+                    // D-63: pedido só de frete — não há móvel a produzir.
+                    <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave">
+                      Nada a produzir
+                    </span>
                   ) : (
                     <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave tabular-nums">
                       {linha.unidades_no_terminal} de {linha.total_unidades} no fim de linha

@@ -186,10 +186,14 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
 
       <ul className="flex flex-col gap-3">
         {linhas.map((linha) => {
+          // D-63: pedido sem nada a produzir (só frete) chega aqui já completo.
+          const nadaAProduzir = linha.total_unidades === 0
           const progresso =
             linha.total_unidades > 0
               ? Math.round((linha.unidades_prontas / linha.total_unidades) * 100)
-              : 0
+              : linha.completo
+                ? 100
+                : 0
           const confirmando = lancando?.card_id === linha.card_id
           return (
             <li
@@ -209,6 +213,11 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
                   ) : (
                     <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave tabular-nums">
                       {linha.unidades_prontas} de {linha.total_unidades} prontas
+                    </span>
+                  )}
+                  {nadaAProduzir && (
+                    <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-sm font-medium text-texto-suave">
+                      Nada a produzir
                     </span>
                   )}
                   {pedidoCancelado(linha.situacao) && (
@@ -264,9 +273,11 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Botao variante="secundaria" icone={<Eye />} onClick={() => setPedidoAberto(linha)}>
-                  Ver unidades
-                </Botao>
+                {!nadaAProduzir && (
+                  <Botao variante="secundaria" icone={<Eye />} onClick={() => setPedidoAberto(linha)}>
+                    Ver unidades
+                  </Botao>
+                )}
                 <span className="ml-auto">
                   {linha.completo &&
                     (confirmando ? (
