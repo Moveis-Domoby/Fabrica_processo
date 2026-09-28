@@ -27,6 +27,6 @@ tags: [plataforma, execucao, indice]
 
 Correções pedidas pelo dono fora de uma `SESSAO-NN` — mesma disciplina (branch própria, memória aqui, handoff em `Handoffs/`).
 
-- [[AJUSTE - Gaveta do menu no celular]] (28/09) — achado da F-07 da SESSAO-24: a gaveta passou a conter as duas barras e some de verdade quando fechada (E-48)
+- [[AJUSTE - Gaveta do menu no celular]] (28/09) — achado da F-07 da SESSAO-24: a gaveta passou a conter as duas barras e some de verdade quando fechada (E-48); o menu aberto ficou por cima das bolhas flutuantes (E-57)
 
 ← Voltar ao [[000 - MAPA DO PROJETO]]
