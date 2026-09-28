@@ -633,13 +633,16 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Fundo escuro atrás da gaveta aberta (só celular). */}
+      {/* Fundo escuro atrás da gaveta aberta (só celular/tablet). Fundo e gaveta
+          ficam na camada 55 (E-57, ajuste de 28/09): acima das bolhas flutuantes
+          (balão do chat, bolinha de execução — 40) e dos painéis delas (50), que
+          vêm depois no DOM; abaixo dos avisos passageiros (60). */}
       {gavetaAberta && (
         <button
           type="button"
           aria-label="Fechar o menu"
           onClick={() => setGavetaAberta(false)}
-          className="fixed inset-0 z-40 bg-grafite-950/60 lg:hidden"
+          className="fixed inset-0 z-[55] bg-grafite-950/60 lg:hidden"
         />
       )}
 
@@ -652,9 +655,9 @@ export function Layout({ children }: { children: ReactNode }) {
       <aside
         aria-label="Menu lateral"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex max-w-[100vw] transition-[translate,visibility] duration-200',
+          'fixed inset-y-0 left-0 z-[55] flex max-w-[100vw] transition-[translate,visibility] duration-200',
           gavetaAberta ? 'visible translate-x-0' : 'invisible -translate-x-full',
-          'lg:visible lg:sticky lg:top-0 lg:h-dvh lg:shrink-0 lg:translate-x-0',
+          'lg:visible lg:sticky lg:top-0 lg:z-50 lg:h-dvh lg:shrink-0 lg:translate-x-0',
         )}
       >
         <div className="flex h-full overflow-x-auto lg:overflow-visible">
