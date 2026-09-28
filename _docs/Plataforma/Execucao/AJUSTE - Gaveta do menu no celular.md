@@ -10,7 +10,7 @@ tags: [execucao, ajuste, navegacao, gaveta, celular, layout]
 
 **Origem:** achado fora do escopo da F-07 da SESSAO-24 (27/09, 375px) — [[handoff_2026_09_27_sessao24_producao_concluida]] §4. Não foi introduzido pela S24: já existia na `main`.
 **Pedido do dono (28/09):** a gaveta fechada tem que ficar 100% fora da tela em qualquer largura, sem quebrar a gaveta aberta (as duas barras precisam caber/rolar no celular) nem o computador (`lg:sticky`); conferir no navegador em 375 e 768; registrar no Modelo de Sistema e na memória de aprendizado.
-**Branch:** `ajuste-gaveta-menu-celular` — criada da `main` em 98c17b5 (= `origin/main`), na worktree `.claude/worktrees/suspicious-lederberg-5645e1`.
+**Branch:** `ajuste-gaveta-menu-celular` — criada da `main` em 98c17b5 (= `origin/main`), na worktree `.claude/worktrees/suspicious-lederberg-5645e1`; **rebaseada sobre `origin/main` fcf1af1** (SESSAO-26 mesclada) no meio do caminho.
 **Sem banco:** nenhuma consulta, nenhuma migration.
 
 ## Task list (espelha o pedido)
@@ -19,14 +19,14 @@ tags: [execucao, ajuste, navegacao, gaveta, celular, layout]
 2. [x] Reproduzir e medir o defeito em 375px.
 3. [x] Achar a causa.
 4. [x] Levar entendimento + decisões ao dono e ter o OK → **"Conter + invisível"** (28/09).
-5. [ ] Corrigir: gaveta fechada 100% fora da tela, em qualquer largura e com qualquer nome de usuário.
-6. [ ] Gaveta aberta: as duas barras cabem ou rolam no celular.
-7. [ ] Computador (`lg`) intacto.
-8. [ ] Navegador em 375 e 768: nenhum ponto da borda esquerda do conteúdo cai em link do menu com a gaveta fechada; abrir e fechar a gaveta.
-9. [ ] `tsc` · `lint` · `test` · `build`.
-10. [ ] Modelo de Sistema — navegação em duas barras (SESSAO-13).
-11. [ ] Memória de aprendizado — E-48.
-12. [ ] Handoff + mapa + índice de execução; marcar o achado da S24 como resolvido.
+5. [x] Corrigir: gaveta fechada 100% fora da tela, em qualquer largura e com qualquer nome de usuário.
+6. [x] Gaveta aberta: as duas barras cabem ou rolam no celular.
+7. [x] Computador (`lg`) intacto.
+8. [x] Navegador em 375 e 768 (tela real, dono logado): nenhum ponto da borda esquerda do conteúdo cai em link do menu com a gaveta fechada; abrir e fechar a gaveta.
+9. [x] `tsc` · `lint` · `test` · `build` (antes e depois de trazer a S26).
+10. [x] Modelo de Sistema — navegação em duas barras (SESSAO-13).
+11. [x] Memória de aprendizado — E-48 (+ ↪️ F-07).
+12. [x] Handoff + mapa + índice de execução; marcar o achado da S24 como resolvido.
 13. [ ] Revisão do dono → merge na `main` só com o OK (D-20).
 
 ## Ambiente
@@ -63,3 +63,16 @@ tags: [execucao, ajuste, navegacao, gaveta, celular, layout]
 ## Log
 
 - 28/09 · ritual lido; branch `ajuste-gaveta-menu-celular` criada da `main` (98c17b5); ambiente preparado; defeito reproduzido e medido na réplica; alternativas medidas; proposta levada ao dono → OK "Conter + invisível".
+- 28/09 · **código** (`Layout.tsx`, só o `<aside>`): envoltório `flex h-full overflow-x-auto lg:overflow-visible`; aside `max-w-[100vw] transition-[translate,visibility]`, `visible translate-x-0` × `invisible -translate-x-full`, `lg:visible`. `tsc` ✅ · `lint` ✅ · `test` 64/64 ✅ · `build` ✅. Classes conferidas no CSS final (A-07) — todas lá. Commit `cb2f17e`.
+- 28/09 · **réplica com a marcação nova:** 375 fechada 0 pontos no menu (nome curto e longo), aberta rola 8/16px; painel do sino + gaveta fechando → `hidden`, 0 pontos (antes 92px); 768 e 1280 ok. ⚠️ Com o painel do navegador oculto, **transição não anda** (fica em `t=0`): a primeira sonda do sino deu "visível e parado" — não era defeito; a prova é `getAnimations().forEach(a => a.finish())` e medir o estado final (E-32 de novo; registrado na ↪️ F-07).
+- 28/09 · cofre (modelo de sistema, E-48 + ↪️ F-07, esta memória, handoff, índices, achado da S24 ✅). Commit `ee427ca`. Merge simulado com a `sessao-26-chat-interno`: sem conflito.
+- 28/09 · **avisos das outras frentes (SendMessage):** a sessão do "Frete fora da produção" (branch `ajuste-itens-fora-da-producao`, migration 39) renumerou os IDs dela para E-55/E-56/A-31 — o E-48 fica comigo; a SESSAO-26 foi mesclada (`origin/main` 3503d77 → fcf1af1) e pediu para rodar tudo de novo depois de trazer a `main` (o `Layout.tsx` ganhou `ProvedorChat`/`BalaoChat`), e registrou o **E-57** (balão do chat e bolinha de execução acesos por cima do fundo escuro da gaveta aberta no tablet) como pendente do dono, com o conserto natural no `Layout`.
+- 28/09 · **rebase sobre `origin/main` fcf1af1** (os 2 commits locais, nunca enviados): limpo → `3b118a4` (código) + `ed4ecc1` (cofre). Ordem dos IDs na memória: E-47, **E-48**, E-50…E-58. `tsc` ✅ · `lint` ✅ · `test` **80/80** (a S26 trouxe testes) ✅ · `build` ✅. Sem dependência nova.
+- 28/09 · **F-07 na tela real (dono logado; o login demorou: primeiro foi feito fora do painel embutido):**
+  - 375, Meu painel, fechada: aside `-375..0`, `hidden`; **0 de 527** pontos (x 0–60) no menu; título em x=16; sem rolagem lateral.
+  - 375, **Pedidos em aguardo** (a tela do relato; barra 2 = Fábrica, 13 itens), fechada: **0 de 527**; "Aqui fica a peça…" começa em x=16 e o toque no começo dele cai no próprio texto.
+  - Prova por partes (transição desligada só na sonda): **original reconstituído** (teto 92vw, barras direto no aside, visível) → gaveta 345, barra 2 até **+38px**, **323 pontos no menu** — a medição do relato; só o envoltório (100vw ou 92vw) → 0; só o invisível → 0; restaurado → 0.
+  - 375, aberta pelo ≡ (handler real): aside `0..375`, barra 1 `0..233`, barra 2 `233..383`, rola 8px; os 13 itens inteiros (texto mais à direita em x=359); toque em "LIMPEZA E EMBALAGEM" cai no link. Print ok. Fechada pelo X: durante o deslize `visible` (translate + visibility rodando), no fim `-375..0`, `hidden`, sem fundo escuro, 0 pontos.
+  - 375, sino: gaveta só com a barra 1 (240) → painel `12..332` **inteiro** (passa da caixa e não é cortado — o envoltório não o corta); fechar pelo fundo escuro com o painel aberto → painel em `-228..92` mas `hidden`, 0 pontos. Preferência da barra 2 devolvida (a chave criada no teste foi removida).
+  - 768: fechada `-448..0`, `hidden`, 0 de 589; aberta 240 + 208 sem rolagem, toque na faixa escura fecha. Print ok (mostra o E-57: balão e bolinha acesos por cima do escuro — medido: balão `z-40` recebe o toque).
+  - 1280: `sticky`, visível, `translate 0`, envoltório `visible`, barras 240 + 208, conteúdo em 448, painel do sino inteiro. (Ao trocar a janela de 375 para 1280 as transições ficaram em `t=0` — painel oculto; terminadas, tudo certo.) Console sem erro.

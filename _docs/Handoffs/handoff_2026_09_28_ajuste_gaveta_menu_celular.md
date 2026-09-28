@@ -8,7 +8,7 @@ tags: [handoff, ajuste, navegacao, gaveta, celular, layout, e-48]
 
 # 📋 Handoff — Ajuste · Gaveta do menu no celular
 
-**Branch:** `ajuste-gaveta-menu-celular` (criada da `main` em 98c17b5) — **aguardando a sua revisão para ir à `main`** (D-20).
+**Branch:** `ajuste-gaveta-menu-celular` (criada da `main` em 98c17b5 e **rebaseada sobre a `main` com a SESSAO-26**, fcf1af1) — **aguardando a sua revisão para ir à `main`** (D-20).
 **Origem:** achado fora do escopo da F-07 da SESSAO-24 ([[handoff_2026_09_27_sessao24_producao_concluida]] §4) — já existia na `main`; nasceu na SESSAO-13.
 **Memória:** [[AJUSTE - Gaveta do menu no celular]] · **Aprendizado:** E-48 (+ ↪️ na F-07)
 **Banco:** nada — nenhuma consulta, nenhuma migration.
@@ -71,7 +71,8 @@ Nenhum — só a casca da navegação no celular/tablet.
 ## 8. Ficou pendente
 
 ### Aguardando decisão sua
-1. **Revisar e autorizar o merge na `main`** (D-20). ⚠️ A SESSAO-26 (chat) mexe no `Layout.tsx` em outros trechos (imports, filho "Chat", provedor e balão) — o merge dela depois deste não deve conflitar, mas ela precisa trazer a `main` nova antes de mesclar.
+1. **Revisar e autorizar o merge na `main`** (D-20). A branch já está em cima da `main` com a SESSAO-26 (o chat mora no mesmo `Layout.tsx`) — tudo verde depois de juntar.
+2. **E-57 (achado da SESSAO-26, mesma casca):** no tablet (768px), com o menu aberto, o **balão do chat** e a **bolinha de execução** ficam acesos e clicáveis por cima do fundo escuro — os três estão na mesma camada (`z-40`) e as bolhas vêm depois no código. Conferido aqui na tela real (o toque no centro do balão cai no balão). Se quiser as bolhas apagadas com o menu aberto, o conserto é no `Layout` (subir o fundo escuro acima das bolhas) — não foi feito: é decisão sua.
 
 ## 9. Como validar (passo a passo)
 
@@ -85,11 +86,17 @@ Nenhum — só a casca da navegação no celular/tablet.
 
 | O quê | Resultado |
 |---|---|
-| `npx tsc -b` · `npm run lint` · `npm test` · `npm run build` | ✅ · ✅ · ✅ 64/64 · ✅ (o aviso de chunk grande já existia) |
+| `npx tsc -b` · `npm run lint` · `npm test` · `npm run build` | ✅ · ✅ · ✅ 64/64 · ✅ — e de novo depois de juntar a SESSAO-26: ✅ · ✅ · ✅ **80/80** · ✅ (o aviso de chunk grande já existia) |
 | Classes novas no CSS final (A-07) | ✅ `max-w-[100vw]`, `transition-[translate,visibility]`, `invisible`/`visible`/`lg:visible`, `overflow-x-auto`/`lg:overflow-visible` |
 | Réplica fiel da gaveta (mesmas classes), 375px, fechada | ✅ nenhum ponto de x = 0…60 cai no menu (antes: 28 de 28), com nome curto e longo; `visibility: hidden` |
 | Réplica, 375px, aberta | ✅ barra 1 0..233 · barra 2 233..383 (nome curto) — rola 8px; nome longo rola 16px |
 | Réplica, painel do sino aberto + gaveta fechando | ✅ antes sobravam 92px; agora `hidden`, nenhum ponto pega toque; durante o deslize segue visível |
 | Réplica, 768px | ✅ fechada: nada na tela; aberta: 240 + 208, sem rolagem, faixa escura de 320px |
 | Réplica, computador (1280px) | ✅ `sticky`, visível, sem rolagem, painel do sino inteiro |
-| **Tela real, logado (375 e 768)** | ⏳ aguardando o seu login no painel do navegador |
+| **Tela real, 375px, gaveta fechada** (Meu painel e **Pedidos em aguardo**, a tela do relato) | ✅ **0 de 527** pontos da borda esquerda (x 0–60) caem no menu; "Aqui fica a peça…" começa inteiro em x=16 e o toque no começo dele cai no texto; sem rolagem lateral |
+| **Tela real, prova por partes** | ✅ o defeito original reconstituído dá a sua medição (barra 2 até **+38px**, 323 pontos no menu); só a caixa → 0; só o invisível → 0; os dois juntos → 0 |
+| **Tela real, 375px, abrir e fechar** | ✅ aberta pelo ≡: as duas barras com os 13 itens da Fábrica inteiros (rola 8px); o toque em "LIMPEZA E EMBALAGEM" abre o item; fechada pelo X: o deslize aparece e no fim não sobra nada |
+| **Tela real, sino + gaveta fechando** | ✅ o painel abre inteiro mesmo passando da gaveta; fechando a gaveta com ele aberto, não sobra nada na tela (antes: 92px) |
+| **Tela real, 768px** | ✅ fechada: 0 de 589 pontos; aberta: 240 + 208, sem rolagem, a faixa escura fecha o menu |
+| **Tela real, computador (1280px)** | ✅ igual a antes: coluna fixa com as duas barras, conteúdo em 448, painel do sino inteiro; console sem erro |
+| Prints | ✅ mostrados na conversa (375 aberta e fechada, 768 aberta, computador) — não guardados no repositório porque mostram nomes de clientes |
