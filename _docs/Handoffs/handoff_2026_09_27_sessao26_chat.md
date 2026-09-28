@@ -2,13 +2,13 @@
 titulo: Handoff — SESSAO-26 · Chat interno (websocket privado, leitura só por página, aniversários)
 tipo: handoff
 data: 2026-09-27
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [handoff, sessao, plataforma, bloco-5, chat, websocket, seguranca, d-65, d-66, d-67, d-68]
 ---
 
 # 📋 Handoff — SESSAO-26 · Chat interno (D-65…D-68)
 
-**Branch:** `sessao-26-chat-interno` — numa **worktree própria** (`C:\Users\wccau\Domoby\Domoby - Fabrica - sessao-26`), porque a SESSAO-24 rodou **ao mesmo tempo** na pasta principal. **Validada ao vivo com você logado e mesclada na `main` em 28/09 (D-20)**, depois de trazer a `main` com a SESSAO-24 (446 verificações do banco e 80 testes no código juntado).
+**Branch:** `sessao-26-chat-interno` — numa **worktree própria** (`C:\Users\wccau\Domoby\Domoby - Fabrica - sessao-26`), porque a SESSAO-24 rodou **ao mesmo tempo** na pasta principal. **Validada ao vivo com você logado e mesclada na `main` em 28/09 (D-20)** — `origin/main` = `3503d77`, publicado pelo Vercel sem erro —, depois de trazer a `main` com a SESSAO-24 (446 verificações do banco e 80 testes no código juntado).
 **Banco:** migration **38 APLICADA em 27/09** com o seu OK (resposta 7) — **sozinha** (`npm run banco:aplicar -- --confirmar --so 20260927180000_plt_chat_interno.sql`), porque a 24 aplicou a 37 antes e reaplicar tudo desta pasta desfaria a dela. Integração do Tiny com estrutura e linhas **idênticas** antes/depois (digital `e2109f3a…`, 65 colunas).
 **Demanda:** [[SESSAO-26 - Chat Interno]] · **Memória:** `_docs/Plataforma/Execucao/SESSAO-26.md` · **Decisões novas:** D-65, D-66, D-67, D-68 (suas respostas + o adendo do websocket)
 
@@ -77,7 +77,8 @@ O servidor desta branch está no ar em **http://localhost:5175** (se tiver caíd
 
 ## 4. Pendente / decisões para você
 
-- 🔶 **Validar ao vivo (§3)** e depois **mesclar** — esta branch e a da 24. **Quem mesclar por último** junta os dois blocos do `supabase/testes/testar-migrations.mjs` (os dois antes de `titulo('Resumo')`; o simulador do Realtime desta sessão fica no topo, onde a 24 não mexeu) e os índices do cofre (ORDEM, MAPA, PRÓXIMOS PASSOS, Decisões, Requisitos, Esquema, Memória, Modelo de Sistema), e roda o `test:banco` com a 37 e a 38 juntas. A combinação já foi provada aqui (446 verdes).
+- ✅ **Validada ao vivo (§2b) e mesclada** em 28/09 — `3503d77` na `main`, Vercel ✅. A SESSAO-24 entrou antes; os dois blocos do harness e os índices do cofre foram juntados aqui, e o `test:banco` com a 37 e a 38 juntas passou (446). A SESSAO-24 e as sessões em curso (Frete fora da produção — dona da migration 39 — e gaveta do celular) foram avisadas.
+- 🔶 **Balão por cima do menu aberto, no tablet** (E-57): com o menu aberto no tablet, o balão do chat — e a bolinha de "em execução", que já era assim antes do chat — fica aceso e tocável por cima do escurecido. No celular o menu cobre o balão, e nas janelas (modais) o escurecido cobre certo. Se quiser as bolhas apagadas com o menu aberto, o conserto é um só, no `Layout` (o menu por cima das bolhas); a sessão da gaveta do celular, que está mexendo no `Layout`, já sabe. É só dizer.
 - 🔶 **Escritores dos Avisos gerais:** por ora só os admins escrevem. Se quiser liberar líderes ou outra pessoa: abra os Avisos gerais → "Quem escreve".
 - ⚪ Ferramenta nova do banco: `npm run banco:aplicar -- --confirmar --so <arquivo>` aplica **uma** migration (para sessões em paralelo). Virou regra no `CLAUDE.md` (regra 10), junto com a leitura por coluna de `plt_usuarios`.
 - ⚪ Limpeza depois da validação: a configuração `plataforma-sessao-26` no `.claude/launch.json` da pasta principal (fora do git) e o atalho de pasta `C:\Users\wccau\Domoby\s26` (o painel não aceita caminho com espaço) — posso apagar os dois quando você disser.
@@ -95,13 +96,13 @@ src/chat/  (novo)  tipos · api · cache (+teste) · canais · contexto · consu
 src/paginas/Chat.tsx (nova) · src/App.tsx (rota) · src/componentes/Layout.tsx (filho Chat, provedor, balão)
 src/paginas/MeuPerfil.tsx (aniversário) · src/paginas/Equipe.tsx (bolo do admin) · src/perfil/api.ts (ler/definir nascimento)
 CLAUDE.md (regra 10)
-_docs: D-65…D-68 · RF-90…RF-95 · Esquema do Banco · Modelo de Sistema · Memória (E-50 promovida, E-51, E-52)
+_docs: D-65…D-68 · RF-90…RF-95 · Esquema do Banco · Modelo de Sistema · Memória (E-50 promovida, E-51…E-54, E-57, E-58, A-30, A-32, A-33)
        · CLAUDE (repo) · demanda 26 · ORDEM · MAPA · PRÓXIMOS PASSOS · Execucao/SESSAO-26.md · este handoff
 ```
 
 ## 6. Notas do cofre atualizadas
 
-[[PLT - Decisoes de Produto]] (D-65…D-68) · [[PLT - Requisitos]] (RF-90…RF-95) · [[SUPA - Esquema do Banco]] (migration 38 + leitura por coluna de `plt_usuarios`) · [[PLT - Modelo de Sistema]] (chat) · [[PLT - Memoria de Aprendizado]] (E-50 → promovida, E-51, E-52) · [[CLAUDE - Regras do Claude Code (repo)]] (regra 10) · [[SESSAO-26 - Chat Interno]] · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · [[000 - PROXIMOS PASSOS]]
+[[PLT - Decisoes de Produto]] (D-65…D-68) · [[PLT - Requisitos]] (RF-90…RF-95) · [[SUPA - Esquema do Banco]] (migration 38 + leitura por coluna de `plt_usuarios`) · [[PLT - Modelo de Sistema]] (chat) · [[PLT - Memoria de Aprendizado]] (E-50 → promovida, E-51…E-54, E-57, E-58, A-30, A-32, A-33) · [[CLAUDE - Regras do Claude Code (repo)]] (regra 10) · [[SESSAO-26 - Chat Interno]] · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · [[000 - PROXIMOS PASSOS]]
 
 ## Ver também
 
