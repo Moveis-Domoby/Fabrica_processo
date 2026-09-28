@@ -40,13 +40,13 @@ tags: [execucao, ajuste, frete, unidades, pcp, aguardo, rotas, d-63]
 
 ## Task list (espelha o plano aprovado)
 
-- [ ] 1. Branch + memória de execução + numeração avisada — branch e aviso ✅ (28/09)
-- [ ] 2. Migration 39: helper único em `plt_privado` + as 16 portas recriadas com ele; pedido sem nada a produzir sai do quadro do PCP e entra em Pedidos em aguardo; Lançar para ROTAS e entrega aceitam
-- [ ] 3. Harness (`npm run test:banco`, 2 rodadas): frete fora da liberação e das contas; pedido só de frete PCP → aguardo → ROTAS → entregue; pedido que ganha um móvel volta ao PCP; cadeira liberável direto para o aguardo
-- [ ] 4. Front: "nada a produzir" onde apareceria 0 de 0 · tsc/lint/test/build
-- [ ] 5. Ensaio A-11 no banco real + prévia das telas → OK do dono → aplicar só a 39 (`--so`), F-08 antes/depois → advisors
+- [x] 1. Branch + memória de execução + numeração avisada (28/09)
+- [x] 2. Migration 39 (redesenhada: a regra por item numa VIEW — E-65; `lock_timeout` 5 s — E-66): helper único em `plt_privado` + as 16 portas recriadas com ele; pedido sem nada a produzir sai do quadro do PCP e entra em Pedidos em aguardo; Lançar para ROTAS e entrega aceitam
+- [x] 3. Harness (`npm run test:banco`, 2 rodadas — 471 ✔): frete fora da liberação e das contas; pedido só de frete PCP → aguardo → ROTAS → entregue; pedido que ganha um móvel volta ao PCP; cadeira liberável direto para o aguardo
+- [x] 4. Front (81/81, teste de componente novo): "nada a produzir" onde apareceria 0 de 0 · tsc/lint/test/build
+- [ ] 5. Ensaio A-11 no banco real ✅ + prévia das telas ✅ → **OK do dono (pedido em 28/09, aguardando)** → aplicar só a 39 (`--so`), F-08 antes/depois → advisors
 - [ ] 6. Manutenção: arquivar por evento o card de teste "Frete" do 13215
-- [ ] 7. Cofre: D-63 (+ a nota da S26 sobre D-63/D-64 sem uso), ↪️ RF-02, esquema (migration 39), memória (A-31, E-55, E-56), handoff, mapa, índice da Execução
+- [ ] 7. Cofre — feitos: D-63, ↪️ RF-02, Q-71, Modelo de Sistema, índice da Execução, memória; faltam (depois da aplicação): esquema do banco, handoff, mapa · a lista original: D-63 (+ a nota da S26 sobre D-63/D-64 sem uso), ↪️ RF-02, esquema (migration 39), memória (A-31, E-55, E-56), handoff, mapa, índice da Execução
 
 ## Diário
 
@@ -70,4 +70,4 @@ tags: [execucao, ajuste, frete, unidades, pcp, aguardo, rotas, d-63]
 - 28/09 · numeração: a sessão "Ajustes urgentes no módulo de estoque" (migration 40, `20260928180000_plt_estoque_manual_top20.sql`, aditiva, `--so`) reservou E-60…E-64 — o meu E-60 (ainda sem commit) virou **E-65**. A trava da 39 não pega a entrada manual dela (unidade sem pedido passa direto) — avisada. A sessão da gaveta: E-48 é dela, E-49 já está na `main` (outra frente); a `main` remota já está em 96207bc (rebase antes do merge).
 - 28/09 · `main` remota em **9f55bee** (4 commits, nenhuma migration: plano da integração completa com o Tiny, evidências de tela, e a **regra 12c do dono** — na conversa, português de gente, sem código nenhum; daqui em diante as mensagens ao dono seguem isso). Rebase limpo; harness **471 ✔ / 0 ✘** na linha nova.
 - 28/09 · **E-66 — incidente do ensaio** (avisado pela sessão da gaveta): os 8 ensaios/perfis no banco real (12:49–13:04 UTC) montavam a 39 numa transação desfeita; a troca do gatilho em `plt_cards` pede trava exclusiva até o ROLLBACK. O perfil das 13:00:16 UTC (EXPLAIN ANALYZE 5× em 10 portas COM a mudança montada) segurou `plt_cards` (oid 17827) ~33 s: registros do Postgres mostram esperas por AccessShareLock, **6 cancelamentos por statement timeout** e 3 por pedido do cliente; os registros da API, **3 respostas 500** às 13:00:23 (contadores e lista de Pedidos em aguardo e `plt_vw_execucoes`, do painel do navegador da outra sessão) — tudo liberado às 13:00:49.5, no ROLLBACK. A outra espera (RowExclusiveLock na 17243) era `realtime.messages`. **Integração intacta:** de 12:45 a 13:10 UTC só houve o `fn_fila_proximos` do n8n a cada minuto, todos 200; nenhum `fn_upsert_pedido` no período; `eventos` sem linha nova de 12:45 a 13:30. A 39 **não** está no banco (view e gatilho novos inexistentes). Correção: `set local lock_timeout = '5s'` no topo da 39 (dentro da transação do aplicador a espera máxima é 5 s — e, sem a trava, a migration desiste inteira) + regra para o próximo ensaio (curto; medição longa sem DDL aberta). Harness **471 ✔** com a mudança.
-
+- 28/09 · `main` remota em **2b589ec** (a gaveta corrigiu os textos dela: a 39 não foi aplicada; E-59 é dela) — rebase: 1 conflito na memória (o E-59 dela e o meu E-65 no mesmo ponto), resolvido mantendo os dois em ordem. Harness **471 ✔** · tsc ✅ · lint ✅ · **81/81** ✅. Cofre adiantado enquanto o dono decide: D-63 (+ a nota da S26 sobre a numeração), ↪️ RF-02, **Q-71** (o que falta no Tiny: Espelho Adnet/Longarina/Carro de mão fora do Tiny da fábrica; lâmpadas-kit na aba de insumos; "Fechadura (com instalação)" sem SKU), Modelo de Sistema ("Nada a produzir"), índice da Execução.

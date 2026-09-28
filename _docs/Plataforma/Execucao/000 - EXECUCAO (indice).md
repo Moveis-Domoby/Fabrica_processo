@@ -28,5 +28,6 @@ tags: [plataforma, execucao, indice]
 Correções pedidas pelo dono fora de uma `SESSAO-NN` — mesma disciplina (branch própria, memória aqui, handoff em `Handoffs/`).
 
 - [[AJUSTE - Gaveta do menu no celular]] (28/09) — achado da F-07 da SESSAO-24: a gaveta passou a conter as duas barras e some de verdade quando fechada (E-48); o menu aberto ficou por cima das bolhas flutuantes (E-57)
+- [[AJUSTE - Frete fora da producao]] (28/09) — achado da F-07 da SESSAO-24: frete/entrega não vira peça de produção (D-63) — regra única numa view somada pelas 17 portas que contam unidades, trava no banco, pedido sem nada a produzir direto para Pedidos em aguardo; E-65 (função com `set search_path` não é embutida — medido no banco real) e E-66 (o ensaio que travou `plt_cards` ~33 s)
 
 ← Voltar ao [[000 - MAPA DO PROJETO]]

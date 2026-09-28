@@ -2,7 +2,7 @@
 titulo: Plataforma — Perguntas em Aberto (entrevista de descoberta)
 tipo: descoberta
 data: 2026-08-19
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [plataforma, descoberta, perguntas]
 ---
 
@@ -90,6 +90,13 @@ tags: [plataforma, descoberta, perguntas]
 
 - ✅ **Q-69 · A peça 502 🔴 do pedido 13215** → respondida em 27/09: **nada a fazer** — *"ninguém tá usando essa bomba, tudo que tu tá vendo aí é teste ainda, mas os pedidos são reais"*. A plataforma ainda não está em uso no galpão: card é teste (a 502 nasceu na validação ao vivo da SESSAO-22). Fica como está.
 - ✅ **Q-70 · Unidades em produção de pedidos já "Entregue" no Tiny** → respondida em 27/09: **arquivar** — a 518 (13257) e a 537 (13236) foram arquivadas por evento (a 537 teve o tempo aberto fechado antes; o limite de quem a iniciou ficou livre) — `supabase/manutencao/2026-09-27_arquivar_unidades_de_pedidos_entregues.sql`.
+
+## 🟩 Frete fora da produção (ajuste — 28/09/2026 — D-63)
+
+- **Q-71 · Revenda e acessório no estoque da plataforma — o que falta no Tiny.** Na D-63 o dono disse que *"cadeiras e outros acessórios assim … devem estar no estoque cadastradas com a quantidade de acordo com o Tiny, se não está assim atualmente, está errado"*. Conferido em 28/09: as cadeiras estão em Estoque → Produtos acabados com o número do Tiny. Ficou em aberto:
+  - (a) **Espelho Adnet, Longarina e Carro de mão** são vendidos pela loja mas **não existem no Tiny da fábrica** (o SKU da venda, quando há, é outro produto lá — ex.: 435 é uma estante) — cadastrar no Tiny da fábrica?
+  - (b) As **lâmpadas LED em kit** (7 e 8 unidades) são classe "kit" no Tiny e por isso aparecem em **Matéria-prima e insumos**, não em Produtos acabados (regra da D-57) — mudar a classe no Tiny, ou a tela passa a mostrar kit de revenda em acabados?
+  - (c) **"Fechadura (com instalação)"** não tem SKU no Tiny — a venda não reserva a peça (a conta da reserva casa pelo SKU, D-55) — dar um SKU a ela?
 
 ## Ver também
 

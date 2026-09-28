@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -16,7 +16,7 @@ tags: [plataforma, requisitos, backlog]
 | ID | Requisito | Status |
 |---|---|---|
 | RF-01 | Kanban estilo ClickUp: quadros, etapas (colunas), cards, movimentação drag-and-drop | 💡 registrado |
-| RF-02 | Card híbrido: pedido no PCP → cards por unidade nos setores → reagrupamento na expedição (D-01) | 💡 registrado |
+| RF-02 | Card híbrido: pedido no PCP → cards por unidade nos setores → reagrupamento na expedição (D-01) | 💡 registrado · ↪️ D-63 (28/09): frete/entrega não vira unidade nem conta para o pedido completo (regra única: a descrição); o resto nasce no PCP e o PCP escolhe o lugar; pedido sem nada a produzir vai direto para Pedidos em aguardo |
 | RF-03 | Entrada automática de pedido: pedido cadastrado no Tiny cria o card no PCP (via n8n + API) | 💡 registrado |
 | RF-04 | Movimentação manual entre etapas; destino decidido por quem finaliza (D-03) | 💡 registrado |
 | RF-05 | Estados dentro da etapa: na fila → iniciado → finalizado (D-02) | 💡 registrado |

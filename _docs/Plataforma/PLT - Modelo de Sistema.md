@@ -546,6 +546,13 @@ SESSAO-05.
   nascer com ela.
 - **Estoque:** a reservada que está no aguardo mostra "· em Pedidos em aguardo"; a livre
   de cancelamento mostra "Livre · veio do pedido N, que foi cancelado".
+- **↪️ Ajuste do Frete (D-63, 28/09):** frete/entrega não vira card e some da lista de
+  liberação (a regra é do banco — a tela só mostra o que a porta devolve). O **pedido sem
+  nada a produzir** (só frete) aparece em Pedidos em aguardo já com o selo "Pedido
+  completo" + a pílula de texto **"Nada a produzir"** (`superficie-sutil`, texto — nunca só
+  cor), barra de progresso cheia e **sem "Ver unidades"** (não há unidade); o Lançar para
+  ROTAS é o de sempre. Na Expedição, "Nada a produzir" entra no lugar de "0 de 0 no fim de
+  linha". Teste de componente: `src/paginas/PedidosAguardo.test.tsx`.
 
 ### Chat interno (SESSAO-26 / D-65…D-68) — `src/chat/`
 
