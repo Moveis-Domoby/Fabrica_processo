@@ -6018,6 +6018,361 @@ conferir(
 )
 await comoChat(null)
 
+// ============================================================================
+// Ajuste do Frete · D-63 (migration 39) — frete/entrega não vira unidade de
+// produção; o resto nasce no PCP como sempre e o PCP define o lugar; pedido
+// sem nada a produzir vai direto para Pedidos em aguardo. Pedidos próprios
+// 924201–924205; usa as pessoas do bloco da SESSAO-24 (admin, log.um, limpa.um).
+// ============================================================================
+titulo('D-63 · a regra única: frete/entrega pela 1ª palavra da descrição')
+
+const freteD63 = async (texto) =>
+  (await bd.query(`select plt_privado.fn_eh_frete(${texto === null ? 'null' : `'${texto}'`}) as r`)).rows[0].r
+const casosFreteD63 = [
+  ['Frete', true],
+  ['Frete cliente', true],
+  ['Entrega', true],
+  ['FRETE', true],
+  [' frete: R$ 50', true],
+  ['Mesa de entrega', false],
+  ['Entregador de móveis', false],
+  ['PERSONALIZADO frete', false],
+  ['PERSONLAIZADO Penteadeira camarim - sem a parte de instalação das lâmpadas', false],
+  ['Painel freijó (LED e instalação não inclusos)', false],
+  ['Cadeira executiva - Preta', false],
+  ['', false],
+  [null, false],
+]
+const errosFreteD63 = []
+for (const [texto, esperado] of casosFreteD63) {
+  if ((await freteD63(texto)) !== esperado) errosFreteD63.push(String(texto))
+}
+conferir(
+  errosFreteD63.length === 0,
+  'frete/entrega só pela 1ª palavra — palavra no meio do texto, personalizado, vazio e nulo não são frete (A-31)',
+  errosFreteD63.join(' | '),
+)
+const casosUnidadesD63 = [
+  ['Frete', 1, 0],
+  ['Frete cliente', 3, 0],
+  ['Mesa Teste', 2.4, 2],
+  ['Mesa Teste', 2.6, 3],
+  ['Mesa Teste', 0.4, 0],
+  ['Cadeira Tiffany Teste', 3, 3],
+]
+const errosUnidadesD63 = []
+for (const [texto, qtd, esperado] of casosUnidadesD63) {
+  const n = (await bd.query(`select plt_privado.fn_unidades_do_item('${texto}', ${qtd}) as n`)).rows[0].n
+  if (n !== esperado) errosUnidadesD63.push(`${texto} × ${qtd} → ${n}`)
+}
+conferir(
+  errosUnidadesD63.length === 0,
+  'unidades do item: frete = 0; o resto = quantidade arredondada, abaixo de 1 = 0 (a regra do n8n)',
+  errosUnidadesD63.join(' | '),
+)
+
+titulo('D-63 · pedido com frete: o frete não aparece para liberar, não vira card e não conta')
+
+const idPedidoD63 = async (numero) =>
+  (await bd.query(`select id::int as id from public.pedidos where numero = ${numero}`)).rows[0].id
+const cardPedidoD63 = async (numero) =>
+  (await bd.query(`select c.id::int as id, c.liberado_completo_em is not null as liberado,
+                          c.lancado_rotas_em is not null as lancado, s.codigo as setor
+                     from public.plt_cards c
+                     left join public.plt_setores s on s.id = c.setor_atual_id
+                    where c.tipo = 'pedido'
+                      and c.pedido_id = (select id from public.pedidos where numero = ${numero})`)).rows[0]
+const noQuadroPcpD63 = async (pedidoId) =>
+  (await bd.query(`select count(*)::int as n from public.plt_fn_cards_pedido_pcp(100, 0) where pedido_id = ${pedidoId}`)).rows[0].n
+const noAguardoD63 = async (numero) =>
+  (await bd.query(`select total_unidades, unidades_prontas, completo, completo_em is not null as tem_data
+                     from public.plt_fn_pedidos_aguardo('${numero}', 20, 0)`)).rows[0]
+// A liberação como a TELA faz (gesto humano, origem interface): card no PCP +
+// card_criado + mover para o destino que o PCP escolheu.
+async function liberarNaTelaD63(numero, seq, k, n, codigo, descricao, destino, auth) {
+  await bd.exec(`
+    insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao,
+                                  indice_unidade, total_unidades, setor_atual_id)
+      select 'unidade', p.id, pc.id, ${seq}, '${codigo}', '${descricao}', ${k}, ${n},
+             (select id from public.plt_setores where codigo = 'pcp')
+        from public.pedidos p join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido'
+       where p.numero = ${numero};
+    insert into public.plt_eventos (card_id, tipo, usuario_id, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'card_criado',
+              (select id from public.plt_usuarios where auth_user_id = '${auth}'),
+              (select id from public.plt_setores where codigo = 'pcp'), 'interface');
+    insert into public.plt_eventos (card_id, tipo, usuario_id, setor_origem_id, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+              (select id from public.plt_usuarios where auth_user_id = '${auth}'),
+              (select id from public.plt_setores where codigo = 'pcp'),
+              (select id from public.plt_setores where codigo = '${destino}'), 'interface');
+  `)
+  return (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
+}
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924201, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 924201), 1, 'S24A', 'Mesa Teste S24 - Branca', 1),
+    ((select id from public.pedidos where numero = 924201), 2, 'S63C', 'Cadeira Tiffany Teste - Preta', 2),
+    ((select id from public.pedidos where numero = 924201), 3, null,   'Frete', 1),
+    ((select id from public.pedidos where numero = 924201), 4, null,   'Frete cliente', 1);
+`)
+const p201 = await idPedidoD63(924201)
+const c201 = await cardPedidoD63(924201)
+await comoS24(s24.logistica)
+const itens201 = (
+  await bd.query(`select seq, unidades from public.plt_fn_pedido_itens_kanban(${p201}) order by seq`)
+).rows
+conferir(
+  itens201.length === 2 && itens201[0].seq === 1 && itens201[0].unidades === 1
+    && itens201[1].seq === 2 && itens201[1].unidades === 2,
+  'na liberação do PCP só aparecem a mesa (1) e as cadeiras (2) — "Frete" e "Frete cliente" não',
+  JSON.stringify(itens201),
+)
+const resumo201 = (
+  await bd.query(`select total_unidades from public.plt_fn_pedidos_kanban(p_ids => array[${p201}::bigint])`)
+).rows[0]
+conferir(
+  resumo201?.total_unidades === 3,
+  'o pedido soma 3 unidades a produzir (antes somava 5, com os dois fretes)',
+  JSON.stringify(resumo201),
+)
+await comoS24(s24.admin)
+const quadro201 = await noQuadroPcpD63(p201)
+conferir(
+  c201?.setor === 'pcp' && quadro201 === 1,
+  'o pedido nasce no PCP e fica no quadro esperando a liberação (entrada única — D-13)',
+  JSON.stringify({ c201, quadro201 }),
+)
+await deveRecusarExec(
+  `insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+     values ('unidade', ${p201}, ${c201.id}, 3, null, 'Frete', 1, 1)`,
+  'criar card de unidade do Frete é recusado pelo banco — vale para tela, API e script (M-14)',
+  /Frete não vira card/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+     values ('unidade', ${p201}, ${c201.id}, 4, null, 'Mesa disfarçada', 1, 1)`,
+  'nem disfarçado: o item do pedido (seq 4 = "Frete cliente") manda, não a descrição que veio no card',
+  /Frete não vira card/i,
+)
+const m201 = await liberarS24(924201, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'limpeza_embalagem')
+// As cadeiras vêm prontas do estoque: o PCP manda direto para Pedidos em aguardo
+// na liberação — "sempre nasce no PCP do jeito que está e o PCP define o local
+// correto" (resposta do dono, 28/09). Nada mudou para elas.
+const cad1 = await liberarNaTelaD63(924201, 2, 1, 2, 'S63C', 'Cadeira Tiffany Teste - Preta', 'aguardo', s24.logistica)
+await liberarNaTelaD63(924201, 2, 2, 2, 'S63C', 'Cadeira Tiffany Teste - Preta', 'aguardo', s24.logistica)
+const cad1Card = await cardS24(cad1)
+conferir(
+  cad1Card.setor === 'aguardo' && cad1Card.concluido,
+  'a cadeira que vem do estoque vai da liberação direto para Pedidos em aguardo — o PCP define o lugar',
+  JSON.stringify(cad1Card),
+)
+const c201Liberado = await cardPedidoD63(924201)
+const quadro201Depois = await noQuadroPcpD63(p201)
+conferir(
+  c201Liberado.liberado && quadro201Depois === 0,
+  'mesa + 2 cadeiras = pedido liberado por completo sem o frete — sai do quadro do PCP (fim do tempo em PCP)',
+  JSON.stringify({ c201Liberado, quadro201Depois }),
+)
+await comoS24(s24.limpaUm)
+const destinoM201 = (await bd.query(`select public.plt_fn_concluir_producao(${m201}) as d`)).rows[0].d
+await comoS24(s24.logistica)
+const aguardo201 = await noAguardoD63(924201)
+conferir(
+  destinoM201 === 'aguardo' && aguardo201?.total_unidades === 3 && aguardo201?.unidades_prontas === 3
+    && aguardo201?.completo === true,
+  'com a mesa concluída, o pedido fica COMPLETO em Pedidos em aguardo: 3 de 3 — o frete não segura o pedido',
+  JSON.stringify({ destinoM201, aguardo201 }),
+)
+const lancou201 = (await bd.query(`select public.plt_fn_lancar_rotas(${c201.id}) as e`)).rows[0].e
+const rotas201 = (
+  await bd.query(`select total_unidades, unidades_em_rotas from public.plt_fn_rotas(null, '924201', 20, 0)`)
+).rows[0]
+const entrega201 = (await bd.query(`select public.plt_fn_registrar_entrega(${c201.id}) as e`)).rows[0].e
+conferir(
+  lancou201 !== null && rotas201?.total_unidades === 3 && rotas201?.unidades_em_rotas === 3 && entrega201 !== null,
+  'lança para ROTAS com 3 de 3 e a entrega fecha o pedido — nenhum card de frete no caminho',
+  JSON.stringify(rotas201),
+)
+
+titulo('D-63 · pedido sem nada a produzir (só frete): nasce no PCP e vai direto para Pedidos em aguardo')
+
+await comoS24(s24.admin)
+const aguardandoAntesD63 = (await bd.query(`select aguardando_lancamento from public.plt_fn_dash_dia()`)).rows[0].aguardando_lancamento
+const aLiberarAntesD63 = (await bd.query(`select pedidos_a_liberar from public.plt_fn_dash_pcp_dia()`)).rows[0].pedidos_a_liberar
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924202, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924202), 1, null, 'Frete', 1);
+`)
+const p202 = await idPedidoD63(924202)
+const c202 = await cardPedidoD63(924202)
+const quadro202 = await noQuadroPcpD63(p202)
+const itens202 = (await bd.query(`select count(*)::int as n from public.plt_fn_pedido_itens_kanban(${p202})`)).rows[0].n
+conferir(
+  c202?.setor === 'pcp' && quadro202 === 0 && itens202 === 0,
+  'o pedido só de frete NASCE no PCP (entrada única), mas não aparece no quadro — não há nada a liberar',
+  JSON.stringify({ c202, quadro202, itens202 }),
+)
+const aguardandoDepoisD63 = (await bd.query(`select aguardando_lancamento from public.plt_fn_dash_dia()`)).rows[0].aguardando_lancamento
+const aLiberarDepoisD63 = (await bd.query(`select pedidos_a_liberar from public.plt_fn_dash_pcp_dia()`)).rows[0].pedidos_a_liberar
+conferir(
+  aguardandoDepoisD63 === aguardandoAntesD63 + 1 && aLiberarDepoisD63 === aLiberarAntesD63,
+  'no painel: +1 pedido aguardando o lançamento e nenhum a mais para liberar no PCP',
+  JSON.stringify({ aguardandoAntesD63, aguardandoDepoisD63, aLiberarAntesD63, aLiberarDepoisD63 }),
+)
+await comoS24(s24.logistica)
+const aguardo202 = await noAguardoD63(924202)
+conferir(
+  aguardo202?.completo === true && aguardo202?.total_unidades === 0 && aguardo202?.unidades_prontas === 0
+    && aguardo202?.tem_data === true,
+  'em Pedidos em aguardo ele aparece JÁ COMPLETO (nada a produzir), com o relógio do aguardo correndo desde que nasceu',
+  JSON.stringify(aguardo202),
+)
+const abaPedidosD63 = (
+  await bd.query(`select numero, unidades_prontas, completo from public.plt_fn_pedidos_aguardo(null, 100, 0)`)
+).rows
+const abaProdutosD63 = (await bd.query(`select card_id from public.plt_fn_produtos_reservados(null, 100, 0)`)).rows
+const contagensD63 = (await bd.query(`select * from public.plt_fn_aguardo_contagens()`)).rows[0]
+conferir(
+  contagensD63.pedidos === abaPedidosD63.length
+    && contagensD63.pedidos_completos === abaPedidosD63.filter((l) => l.completo).length
+    && contagensD63.produtos === abaProdutosD63.length
+    && abaPedidosD63.reduce((s, l) => s + l.unidades_prontas, 0) === abaProdutosD63.length
+    && abaPedidosD63.some((l) => l.numero === 924202),
+  'as abas continuam batendo com o pedido sem produção: pedidos, completos, Σ prontas = Produtos reservados',
+  JSON.stringify({ contagensD63, pedidos: abaPedidosD63.length, produtos: abaProdutosD63.length }),
+)
+const lancou202 = (await bd.query(`select public.plt_fn_lancar_rotas(${c202.id}) as e`)).rows[0].e
+const aguardo202Depois = await noAguardoD63(924202)
+const rotas202 = (
+  await bd.query(`select total_unidades, unidades_em_rotas, situacao_entrega from public.plt_fn_rotas(null, '924202', 20, 0)`)
+).rows[0]
+conferir(
+  lancou202 !== null && aguardo202Depois === undefined && rotas202?.total_unidades === 0
+    && rotas202?.situacao_entrega === 'pronta',
+  'a logística lança para ROTAS: sai de Pedidos em aguardo e entra nas ROTAS pronto para a entrega',
+  JSON.stringify({ aguardo202Depois, rotas202 }),
+)
+const entrega202 = (await bd.query(`select public.plt_fn_registrar_entrega(${c202.id}) as e`)).rows[0].e
+const rotas202Entregue = (
+  await bd.query(`select situacao_entrega from public.plt_fn_rotas('entregue', '924202', 20, 0)`)
+).rows[0]
+conferir(
+  entrega202 !== null && rotas202Entregue?.situacao_entrega === 'entregue',
+  'e a entrega se registra normalmente — sem nada a produzir, o pedido está completo',
+  JSON.stringify(rotas202Entregue),
+)
+
+titulo('D-63 · pedido que era só frete e ganhou um móvel no Tiny volta sozinho ao PCP')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924203, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924203), 1, null, 'Entrega', 1);
+`)
+const p203 = await idPedidoD63(924203)
+const antes203 = await noAguardoD63(924203)
+// O Tiny regrava os itens a cada atualização (fn_upsert_pedido apaga e regrava).
+await bd.exec(`
+  delete from public.pedido_itens where pedido_id = ${p203};
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    (${p203}, 1, null,   'Entrega', 1),
+    (${p203}, 2, 'S24A', 'Mesa Teste S24 - Branca', 1);
+`)
+const depois203 = await noAguardoD63(924203)
+await comoS24(s24.admin)
+const quadro203 = await noQuadroPcpD63(p203)
+const resumo203 = (
+  await bd.query(`select total_unidades from public.plt_fn_pedidos_kanban(p_ids => array[${p203}::bigint])`)
+).rows[0]
+conferir(
+  antes203?.completo === true && depois203 === undefined && quadro203 === 1 && resumo203?.total_unidades === 1,
+  'só "Entrega": estava em Pedidos em aguardo; o Tiny acrescentou uma mesa → saiu do aguardo e voltou ao quadro do PCP com 1 unidade (decidido na leitura, nada gravado)',
+  JSON.stringify({ antes203, depois203, quadro203, resumo203 }),
+)
+
+titulo('D-63 · pedido só de frete cancelado no Tiny: aba Cancelados, nunca nas ROTAS')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924204, (select id from public.clientes order by id limit 1), 'Em aberto');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924204), 1, null, 'Frete', 1);
+  update public.pedidos set situacao = 'Cancelado' where numero = 924204;
+`)
+const c204 = await cardPedidoD63(924204)
+await comoS24(s24.logistica)
+const aguardo204 = await noAguardoD63(924204)
+await comoS24(s24.admin)
+const cancelado204 = (
+  await bd.query(`select total_unidades from public.plt_fn_pedidos_cancelados('924204', 20, 0)`)
+).rows[0]
+conferir(
+  aguardo204 === undefined && cancelado204?.total_unidades === 0,
+  'não aparece em Pedidos em aguardo; está na aba Cancelados do PCP, com 0 unidade',
+  JSON.stringify({ aguardo204, cancelado204 }),
+)
+await deveRecusarExec(
+  `select public.plt_fn_lancar_rotas(${c204.id})`,
+  'lançar para ROTAS um pedido cancelado no Tiny é recusado (sem nada a produzir, o "completo" sozinho não barraria)',
+  /cancelado no Tiny/i,
+)
+
+titulo('D-63 · card de frete de antes da regra: não conta como liberado e a manutenção o arquiva')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    values (924205, (select id from public.clientes order by id limit 1), 'Preparando envio');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 924205), 1, 'S24A', 'Mesa Teste S24 - Branca', 1),
+    ((select id from public.pedidos where numero = 924205), 2, null,   'Frete', 1);
+  alter table public.plt_cards disable trigger plt_cards_validar_unidade_de_producao;
+`)
+// O legado: o card de frete nasceu antes da migration 39 (a trava desligada só aqui).
+const legadoFreteD63 = await liberarS24(924205, 2, 1, 1, null, 'Frete', 'limpeza_embalagem')
+await bd.exec(`alter table public.plt_cards enable trigger plt_cards_validar_unidade_de_producao;`)
+conferir(
+  !(await cardPedidoD63(924205)).liberado,
+  'o card de frete antigo NÃO conta como liberado — o pedido continua esperando a mesa no PCP',
+)
+await comoS24(s24.limpaUm)
+await bd.exec(
+  `select public.plt_fn_soltar_card(${legadoFreteD63}, ${await idEtapaS24('limpeza_embalagem', 'LIMPANDO E EMBALANDO')})`,
+)
+conferir(
+  (await cardS24(legadoFreteD63)).executor === 'limpa.um',
+  'o card de frete antigo está com tempo aberto (como um card esquecido na LIMPEZA E EMBALAGEM)',
+)
+const m205 = await liberarS24(924205, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'montagem')
+conferir((await cardPedidoD63(924205)).liberado, 'liberada a mesa, aí sim o pedido fica liberado por completo')
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-28_arquivar_cards_de_frete.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MANUTENCAO, '2026-09-28_arquivar_cards_de_frete.sql'), 'utf8'))
+const legadoDepoisD63 = await cardS24(legadoFreteD63)
+const execLegadoD63 = (
+  await bd.query(`select em_andamento from public.plt_vw_execucoes where card_id = ${legadoFreteD63}
+                   order by iniciou_em desc limit 1`)
+).rows[0]
+conferir(
+  legadoDepoisD63.arquivado && !legadoDepoisD63.executando && execLegadoD63?.em_andamento === false
+    && (await contarEventosS24(legadoFreteD63, 'card_arquivado')) === 1
+    && !(await cardS24(m205)).arquivado,
+  'a manutenção fecha o tempo aberto e arquiva o card de frete por evento — uma vez só; a mesa do mesmo pedido não é tocada',
+  JSON.stringify({ legadoDepoisD63, execLegadoD63 }),
+)
+conferir(
+  (await bd.query(`select count(*)::int as n from public.plt_cards c
+                    where c.tipo = 'unidade' and c.arquivado_em is null and c.pedido_id is not null
+                      and plt_privado.fn_eh_frete(c.item_descricao)`)).rows[0].n === 0,
+  'depois da manutenção, nenhum card de frete vivo',
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
