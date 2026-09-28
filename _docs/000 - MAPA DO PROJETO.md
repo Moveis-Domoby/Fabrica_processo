@@ -34,6 +34,7 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 ## 🎯 Planejamento e roadmap (pasta `Planejamento/`)
 
 - [[000 - PROXIMOS PASSOS]] — **a leitura única**: onde estamos, o próximo passo, o que vem depois, o que está com o dono
+- [[003 - PLANO - Integracao Completa Tiny da Fabrica]] — 🆕 27/09: o caminho para a fábrica no nível de **peça e insumo** (estrutura/BOM, estoque com movimento, plano de corte para CNC/SECC) e o que a API do Tiny oferece de verdade (v2 × v3)
 - [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]] — a pesquisa sobre a empresa + o banco de ideias para os próximos sistemas (estoque, rotas, cargas, custo real, portal do cliente…)
 - [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]] — a orquestração do pacote de 18/09: sessões 22–28 (produção infalível, estoque + Tiny da fábrica, Meu Painel 2.0, chat interno, automações em canvas, rota calculada), com ordem de execução e de-para demanda→sessão
 
