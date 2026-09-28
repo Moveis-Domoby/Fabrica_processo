@@ -311,10 +311,10 @@ export function TelaSetor() {
           {totalNoSetor} no setor
         </span>
         <span className="ml-auto flex items-center gap-1">
+          {/* SESSAO-24 (F-07): alvo de toque de 44px também no cabeçalho do tablet (D-06). */}
           {opcoes.length > 1 && (
             <Botao
               variante="fantasma"
-              tamanho="sm"
               icone={<ArrowLeftRight />}
               className="text-grafite-100 hover:bg-grafite-600"
               onClick={() => escolherSetor(null)}
@@ -325,7 +325,6 @@ export function TelaSetor() {
           <Link to="/" aria-label="Sair da tela do setor">
             <Botao
               variante="fantasma"
-              tamanho="sm"
               icone={<House />}
               className="text-grafite-100 hover:bg-grafite-600"
             />
