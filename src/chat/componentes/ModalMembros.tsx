@@ -138,7 +138,7 @@ export function ModalMembros({
             {nome === null ? (
               <Botao
                 variante="secundaria"
-                tamanho="sm"
+                tamanho="md"
                 icone={<Pencil />}
                 className="self-start"
                 onClick={() => setNome(resumo.titulo ?? '')}
@@ -215,7 +215,7 @@ export function ModalMembros({
             <li className="p-2">
               <Botao
                 variante="fantasma"
-                tamanho="sm"
+                tamanho="md"
                 larguraTotal
                 carregando={membros.isFetchingNextPage}
                 onClick={() => void membros.fetchNextPage()}

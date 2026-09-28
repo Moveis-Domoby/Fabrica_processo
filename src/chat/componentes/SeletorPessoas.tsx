@@ -115,7 +115,7 @@ export function SeletorPessoas({
           <div className="p-2">
             <Botao
               variante="fantasma"
-              tamanho="sm"
+              tamanho="md"
               larguraTotal
               carregando={pessoas.isFetchingNextPage}
               onClick={() => void pessoas.fetchNextPage()}

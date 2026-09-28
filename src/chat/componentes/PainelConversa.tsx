@@ -153,10 +153,10 @@ export function PainelConversa({
             { eu, visivel: true },
           ).cache,
         )
-      } else {
-        // conversa nova (a particular aparece na lista com a 1ª mensagem)
-        void clienteQuery.resetQueries({ queryKey: chaveConversas(eu) })
       }
+      // Conversa fora da lista (a particular nova aparece com a 1ª mensagem):
+      // o sinal da própria mensagem chega pelo websocket e relê a 1ª página —
+      // reler aqui também seria uma leitura a mais.
     },
     onError: (e: Error) => notificar({ titulo: 'Mensagem não enviada', descricao: e.message, tom: 'danificado' }),
   })
@@ -223,12 +223,17 @@ export function PainelConversa({
         {mostraPessoas && (
           <Botao
             variante="fantasma"
-            tamanho="sm"
+            tamanho="md"
             icone={<Users />}
             onClick={() => setMembrosAberto(true)}
             aria-label={resumo.tipo === 'avisos' ? 'Quem escreve nos avisos' : 'Pessoas do canal'}
           >
-            {!compacto && (resumo.tipo === 'avisos' ? 'Quem escreve' : 'Pessoas')}
+            {/* no celular só o ícone (o título precisa do espaço); o nome acessível fica */}
+            {!compacto && (
+              <span className="hidden sm:inline">
+                {resumo.tipo === 'avisos' ? 'Quem escreve' : 'Pessoas'}
+              </span>
+            )}
           </Botao>
         )}
       </header>
@@ -244,7 +249,7 @@ export function PainelConversa({
           <div className="flex justify-center pb-2">
             <Botao
               variante="fantasma"
-              tamanho="sm"
+              tamanho="md"
               carregando={mensagens.isFetchingNextPage}
               onClick={carregarAnteriores}
             >

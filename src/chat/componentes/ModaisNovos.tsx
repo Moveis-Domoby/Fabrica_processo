@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Hash, X } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { abrirParticular, criarCanal } from '../api'
-import { chaveConversa, chaveConversas } from '../consultas'
+import { chaveConversa } from '../consultas'
 import type { ConversaResumo, Pessoa } from '../tipos'
 import { SeletorPessoas } from './SeletorPessoas'
 
@@ -112,7 +112,8 @@ export function ModalNovoCanal({
           membros: escolhidos.length + 1,
         }),
       )
-      void clienteQuery.resetQueries({ queryKey: chaveConversas(eu) })
+      // A lista NÃO é relida aqui: o sinal "entrou" chega pelo websocket (o
+      // criador também recebe) e relê a 1ª página uma vez só — medido ao vivo.
       setNome('')
       setEscolhidos([])
       aoFechar()

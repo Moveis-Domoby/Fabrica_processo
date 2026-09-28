@@ -44,7 +44,7 @@ export function ListaConversas({
       <div className={cn('flex flex-wrap items-center gap-2 border-b border-borda', compacta ? 'p-2' : 'p-3')}>
         <Botao
           variante="secundaria"
-          tamanho="sm"
+          tamanho="md"
           icone={<MessageSquarePlus />}
           onClick={() => setNovaConversa(true)}
         >
@@ -52,7 +52,7 @@ export function ListaConversas({
         </Botao>
         {/* Canal: só líder e admin criam (resposta 2 do dono — o banco confere). */}
         {ehLider && (
-          <Botao variante="secundaria" tamanho="sm" icone={<Hash />} onClick={() => setNovoCanal(true)}>
+          <Botao variante="secundaria" tamanho="md" icone={<Hash />} onClick={() => setNovoCanal(true)}>
             Novo canal
           </Botao>
         )}
@@ -123,7 +123,7 @@ export function ListaConversas({
           <li className="p-2">
             <Botao
               variante="fantasma"
-              tamanho="sm"
+              tamanho="md"
               larguraTotal
               carregando={conversas.isFetchingNextPage}
               onClick={() => void conversas.fetchNextPage()}
