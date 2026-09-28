@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-24 — Produção concluída, cancelamentos e alocação"
 tipo: demanda
-status: entregue — migration 37 aplicada em 27/09; merge com o dono
+status: entregue — migration 37 aplicada e mesclada na main em 27/09 (D-20)
 data: 2026-09-18
 atualizado: 2026-09-27
 tags: [plataforma, demanda, bloco-5, estoque, producao]
@@ -81,7 +81,7 @@ Terreno: **`plt_cards` NÃO tem FK para `pedido_itens` — não "consertar"** (o
 
 **Banco:** migration 37 aplicada com o OK do dono (integração do Tiny idêntica), rotas de 20 etapas gravadas, as 6 peças antigas tratadas pela resposta do dono (2 → aguardo, 3 arquivadas de pedidos já entregues, a 🔴 ficou — card de teste, Q-69). Harness: 57 checks novos; ensaio no banco real desfeito, tudo como esperado.
 
-**Q-69 e Q-70 respondidas na mesma sessão** (a 502 é card de teste — fica; 518 e 537 arquivadas). **Pendente com o dono:** conferir as telas e mesclar na `main`.
+**Q-69 e Q-70 respondidas na mesma sessão** (a 502 é card de teste — fica; 518 e 537 arquivadas). Telas conferidas no navegador com a sessão do dono (F-07 em 375/768px) e **mesclada na `main` em 27/09 (D-20)**.
 
 ## Ver também
 

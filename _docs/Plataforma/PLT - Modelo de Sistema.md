@@ -511,6 +511,7 @@ SESSAO-05.
   sem dono para reposição e pedido cancelado).
 - **Modo tablet** (`TelaSetor`): o MESMO `QuadroKanban` com `tamanho="galpao"` (sem
   cliente — D-28); ao soltar ou concluir, o `ModalPinOperador` pergunta quem fez ANTES.
+  Os botões do cabeçalho (Trocar setor · Sair) também têm 44px (achado da F-07).
 - **Pedidos em aguardo em `<Abas>`:** "Pedidos (n)" · "Produtos reservados (n)"
   (`?aba=produtos`); as contagens vêm de UMA porta (`plt_fn_aguardo_contagens`) e batem
   por construção. Produto reservado: SKU + "Pedido N (k/n)", selo do estado quando não é
@@ -524,7 +525,7 @@ SESSAO-05.
   no estoque, sem dono — usar?" com checkbox **desmarcado por padrão** e a origem da peça;
   o aceito é alocado, o resto segue para a produção.
 - **Setores e etapas:** chip "manda para X" na etapa e seletor "Soltar o card em {etapa}
-  manda para" (opção "Nenhum setor"); etapa nova com nome de setor avisa a rota que vai
+  manda para" (a opção sem rota é "Fica no setor (não manda)"); etapa nova com nome de setor avisa a rota que vai
   nascer com ela.
 - **Estoque:** a reservada que está no aguardo mostra "· em Pedidos em aguardo"; a livre
   de cancelamento mostra "Livre · veio do pedido N, que foi cancelado".

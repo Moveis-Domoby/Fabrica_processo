@@ -8,7 +8,7 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, aguardo, cancelamento, alo
 
 # 📋 Handoff — SESSAO-24 · Produção concluída, cancelamentos e alocação (D-58…D-62)
 
-**Branch:** `sessao-24-producao-concluida-cancelamentos` — **ainda NÃO mesclada** (espera a sua revisão na conversa — D-20). ⚠️ As telas novas **só funcionam com a migration 37 aplicada** — ela já está (abaixo); mesclar = publicar no Vercel.
+**Branch:** `sessao-24-producao-concluida-cancelamentos` — **mesclada na `main` em 27/09/2026 com o seu OK ("pode juntar na main" — D-20)**, depois de conferidas as telas com a sua sessão. A migration 37 já estava aplicada (as telas novas dependem dela).
 **Banco:** migration **37 APLICADA em 27/09** com o seu OK na conversa, pelo aplicador de sempre (F-08): reaplicação das 37, **integração do Tiny com estrutura e linhas idênticas antes/depois** (`e2109f3a…`, 65 colunas). + 2 manutenções de dado (rotas das etapas; peças antigas). Advisors: só as 7 portas novas.
 **Demanda:** [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] · **Memória:** `_docs/Plataforma/Execucao/SESSAO-24.md` · **Decisões novas:** D-58, D-59, D-60, D-61, D-62 (suas respostas de 27/09)
 **Sessão paralela:** a SESSAO-26 (chat) roda em outra pasta; a migration dela é a 38 e ela aplica **só o arquivo dela**, depois do seu OK — avisada antes e depois da 37.
@@ -43,7 +43,8 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, aguardo, cancelamento, alo
 | **F-08 no banco real** | ✅ migration 37 aplicada; integração idêntica (estrutura e linhas); blindagem dos gatilhos de `pedidos` (D-43) intacta |
 | **Ensaio A-11 no banco real** (termina desfeito — zero linha) | ✅ soltar no início → iniciado (MONTANDO, tempo de quem arrastou) · CONCLUÍDO sem marcar → recusado · com 🟢 → foi para a LIMPEZA E EMBALAGEM com o tempo fechado · concluir 🟡 → recusado · peça de pedido para o ESTOQUE → recusado · concluir 🟢 → Pedidos em aguardo (3 → 4 reservados) · **cancelar o pedido no Tiny** → a peça do aguardo foi sozinha para o ESTOQUE, sem dono, com o produto pelo SKU; aba Cancelados e Estoque mostraram certo · usuário estranho não arrasta e não vê nada |
 | Advisors | ✅ segurança: só os +7 WARN das portas novas (endpoints de propósito); desempenho: só o INFO da coluna nova de rota (tabela de 46 linhas) |
-| **Telas no navegador (sua sessão)** | ⏳ **pendente** — o navegador da conversa precisa do seu login (eu não digito senha) |
+| **Telas no navegador (sua sessão, banco real)** | ✅ MONTAGEM: colunas com "soltar aqui começa o tempo" (MONTANDO) e LIMPEZA E EMBALAGEM/CONCLUÍDO tracejadas "Solte aqui para mandar para LIMPEZA E EMBALAGEM" · LIMPEZA E EMBALAGEM: 10 cards, só "Concluir produção" (nenhum Iniciar/Finalizar); o modal diz "vai para Pedidos em aguardo" e só oferece 🟢 (cancelado sem gravar) · Pedidos em aguardo: "Pedidos (1)" — 13215 com 3 de 6 prontas — e "Produtos reservados (3)", a 502 com o selo "Danificado" · PCP → Cancelados: 8 pedidos, cada um com o desfecho · Setores e etapas: "manda para FURAÇÃO/FITAMENTO…" e o seletor · Modo tablet: sem cliente, "Concluir produção" com 56px, o PIN ("quem é você?") vem ANTES · Estoque, Danificados e Visão do dia sem nenhuma chamada com erro |
+| **F-07 (375px e 768px)** | ✅ nenhuma tela com rolagem lateral; nenhum alvo de toque < 44px — o cabeçalho do tablet tinha 3 com 36px ("Trocar setor", "Sair") → corrigidos na hora (commit 0914ac0) |
 
 ## 3. Decisões tomadas
 
@@ -68,6 +69,11 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, aguardo, cancelamento, alo
 - **Duas unidades em produção de pedidos já entregues no Tiny** (518 e 537) → Q-70 ✅: arquivadas por evento (`supabase/manutencao/2026-09-27_arquivar_unidades_de_pedidos_entregues.sql`, ensaiada antes no banco real).
 - **M-16** registrado: enquanto a plataforma não está em uso no galpão, card é teste — o pedido é real.
 
+### Descobertos na conferência das telas (fora do escopo — ficaram como tarefa sugerida)
+- **Gaveta do menu no celular (antigo, da `main`):** com 375px e a gaveta FECHADA, ~38px da segunda barra ficam por cima da borda esquerda do conteúdo e pegam o toque (as duas barras passam dos 92vw da gaveta). Não é da S24 — tarefa sugerida na conversa.
+- **"Frete" vira card de produção (antigo):** o 13215 tem um card "Frete" na LIMPEZA E EMBALAGEM — hoje todo item do pedido com quantidade vira unidade a produzir (serviço, frete e revenda também). É decisão de produto — tarefa sugerida na conversa.
+- **"Fim de linha — hoje" (Visão do dia)** conta toda chegada a um fim de linha, inclusive a troca entre fins de linha: hoje mostra "→ Pedidos em aguardo 2" por causa da manutenção (503/504 saíram do ESTOQUE). O "concluídas do dia" já conta só o que vem da produção; se o número deste bloco incomodar, alinhar a porta `plt_fn_dash_fim_de_linha` (mantendo o lançamento para as ROTAS) — migration nova, com o seu OK.
+
 ## 5. Arquivos alterados
 
 ```
@@ -89,7 +95,7 @@ src/tablet/CartaoTablet.tsx                                                   (a
 ## 6. Impacto nos números visíveis
 
 > [!warning] O que muda na tela no minuto da publicação
-> - **Quadro do PCP:** os **8** pedidos cancelados saem do "Aguardando liberação" e aparecem na aba **Cancelados** (13 contando os já arquivados).
+> - **Quadro do PCP:** os **8** pedidos cancelados saem do "Aguardando liberação" e aparecem na aba **Cancelados** (os 5 cancelados que a limpeza histórica do PCP já tinha arquivado continuam fora das telas — arquivado some; eu tinha dito 13 na prévia, errado: E-47).
 > - **Pedidos em aguardo:** passa a mostrar o que está NO aguardo (hoje 503 e 504 do 13215, mais a 502 🔴 que conta como reservada do 13215) — antes mostrava as peças de pedido que estavam no ESTOQUE.
 > - **Estoque:** reservadas = peças de pedido em fim de linha (aguardo), livres = sem dono; as 3 arquivadas somem.
 > - **Painel "concluídas do dia":** cai o que era dupla contagem (o lançamento para as ROTAS contava a peça outra vez) — o número fica menor e certo.
@@ -108,7 +114,7 @@ src/tablet/CartaoTablet.tsx                                                   (a
 ## 8. Ficou pendente
 
 ### Aguardando decisão sua
-1. **Conferir as telas** (o navegador da conversa precisa do seu login) e **mesclar na `main`** (= publicar no Vercel). ⚠️ A SESSAO-26 também espera merge: os dois ramos partem da mesma `main` e dividem `Layout.tsx`, o harness e notas do cofre — quem mesclar por último resolve e roda o `test:banco` com 37 + 38 (as duas já estão aplicadas no banco).
+1. ✅ Telas conferidas e **mesclada na `main` em 27/09**. ⚠️ A **SESSAO-26** mescla DEPOIS desta: os dois ramos partiam da mesma `main` e dividem `Layout.tsx`, o harness e notas do cofre — ela resolve os conflitos e roda o `test:banco` com 37 + 38 (as duas já estão aplicadas no banco).
 2. (herança da S25) ligar a reposição automática continua com você.
 
 ### Próximo passo sugerido
