@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -553,6 +553,48 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Produtos acabados** (F fabricado, S simples/revenda, variações) e **Matéria-prima e insumos** (M, K — peças, MDF, parafusos): *"pra produção, o que futuramente irá existir é estoque de peça e necessidade de produção de peça com plano de corte — esse será o nosso próximo passo, então já adiantaremos a peça."* As duas vivem em abas do mesmo filho `/fabrica/logistica/estoque` (não são rotas novas — D-36).
 - **Sugestão de mínimo:** *"é para os 20 produtos mais vendidos dos últimos 90 dias, porém com rank — obviamente o produto mais vendido deve ter mais em estoque do que o top 20."* Sugestão = média semanal de vendas (sem personalizado, sem cancelado) × semanas de cobertura escolhidas na tela (1, 2 ou 4) — cresce com a venda. O dono ajusta o mínimo **no Tiny**.
 - **Alerta de erro do n8n (P1): não agora** (*"belíssima ideia, porém não faremos ainda"*).
+
+> Numeração: D-58…D-64 ficaram reservadas à SESSAO-24, que rodou em paralelo com a 26 (combinado entre as duas em 27/09).
+
+## D-65 · Chat interno: canais, particulares e Avisos gerais — quem cria, quem escreve, quem lê (27/09/2026)
+
+**Decidido (respostas do dono no início da SESSAO-26):**
+
+- **Três tipos de conversa:** canal de grupo, particular (1:1 com qualquer colega) e **Avisos gerais** (uma conversa da empresa inteira — todo cadastro participa, inclusive quem chega depois, sem herdar "não lidas" antigas).
+- **Canal: só líder e admin criam** (resposta 2). **Quem cria administra** — muda o nome, põe e tira pessoas; o admin da plataforma que estiver no canal também administra. Ninguém tira a si mesmo.
+- **Avisos gerais: o admin escreve sempre e decide QUEM MAIS escreve** (resposta 3 — lista configurável na própria conversa, "Quem escreve"); os demais só leem.
+- **Cada um lê só as conversas de que participa — nem o admin lê particular ou canal alheio**, nem pela API (RLS por participação + canal de websocket privado).
+- **Guardar para sempre** (resposta 4). Mensagem é **só inserção**: não se edita nem se apaga (histórico simples e honesto); quem sai de um canal não é apagado — a saída fica marcada.
+- **Conta de tablet do setor participa normalmente** (resposta 5) — na prática ela vive no `/tablet`, onde o chat não aparece.
+- **Trilha (D-40):** canal criado/renomeado, pessoa posta/tirada, quem escreve nos avisos, aviso publicado e data de nascimento alterada. **Mensagem comum e abertura de particular NÃO vão para a trilha** — a própria mensagem já é o registro, e a trilha mostraria aos admins quem conversa com quem. Conteúdo, nunca.
+- Mensagem nova **não** vai para o sino (o sino é dos avisos do sistema); quem avisa é o badge do balão.
+
+**Descartadas:** todos criarem canal; líderes escreverem nos avisos por padrão; admin lendo tudo (auditoria de conversa); apagar/editar mensagem.
+
+## D-66 · Aniversários: o Sistema publica os parabéns nos Avisos gerais (27/09/2026)
+
+**Decidido (resposta 1 do dono — "só no grupo mesmo, tá boa a mensagem"):**
+
+- Campo novo **data de nascimento** em `plt_usuarios` (D-21) — a própria pessoa cadastra no Meu Perfil; o admin, na Gestão da equipe. **Só a pessoa e o admin veem a data** (fora da API — D-68).
+- No dia, às **08:00 de Natal**, o Sistema publica nos **Avisos gerais**, uma vez por pessoa: *"🎉 Hoje é aniversário de {nome}! Parabéns — toda a Domoby deseja um ótimo dia."* Só pessoas ativas.
+- Nascido em **29/02** é lembrado em **28/02** nos anos não bissextos.
+
+**Descartada:** mandar também em particular para a pessoa.
+
+## D-67 · Chat por websocket; leitura só por página — 10 mensagens, 5 conversas (27/09/2026) — ↩️ ajusta as notas técnicas da SESSAO-26
+
+**Decidido (adendo do dono no início da SESSAO-26):** *"a comunicação deve ser por websockets, não deve ter consulta de leitura ao banco, apenas de post; a única leitura deve ser da paginação para consultar mensagens antigas, até 10 mensagens por paginação, até 5 conversas por paginação também, até rolar o scroll e requisitar mais."*
+
+- **Websocket = Broadcast do banco em canal PRIVADO.** A autorização é conferida UMA vez, na entrada do canal (política em `realtime.messages`); o banco empurra cada mensagem. **↩️ Ajusta a nota da demanda** ("a publicação realtime ganha a tabela de mensagens"): no `postgres_changes` o Realtime relê o banco para cada assinante a cada mudança — o peso que o dono proibiu —, então a publicação **não** mudou.
+- **Dois canais só:** o da pessoa (sinais do badge e da lista — 1 por login) e o da conversa ABERTA (a mensagem inteira — sai ao fechar).
+- **Leitura:** a lista vem de 5 em 5 e as mensagens de 10 em 10 (o teto é do banco), a próxima página só ao rolar ou tocar em "Ver mais/Ver anteriores". A 1ª página da lista é a única leitura na abertura do app (é ela que acende o badge). **Nada de polling, nada de reler ao voltar à aba**; só a queda do websocket relê a 1ª página (pode ter perdido sinal).
+- **O resto é POST:** enviar (devolve a mensagem — quem envia não relê), marcar como lida, abrir particular, criar/renomear canal, pôr/tirar pessoa, liberar quem escreve, data de nascimento.
+
+## D-68 · Dados sensíveis do cadastro fora da API (27/09/2026)
+
+**Decidido (resposta 6 do dono — "a"):** o navegador passa a ler de `plt_usuarios` **só as colunas de trabalho**. **CPF, hash do PIN, token de convite e data de nascimento ficam fora da API.** Achado da SESSAO-26 (E-50): o grant de TABELA que o Supabase dá por padrão anulava os `revoke` por coluna da S03 — qualquer pessoa logada lia CPF, PIN e convite de todos.
+
+- **Regra permanente:** coluna nova em `plt_usuarios` só fica legível pelo navegador com `grant select (coluna)` explícito; dado pessoal novo nasce fora da API e é lido por porta própria (como a data de nascimento).
 
 ## Ver também
 

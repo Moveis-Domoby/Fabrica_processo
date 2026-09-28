@@ -2,7 +2,7 @@
 titulo: PLT — Modelo de Sistema (o design system da plataforma)
 tipo: modelo-de-sistema
 data: 2026-08-24
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 tags: [plataforma, design-system, modelo-de-sistema, ui]
 ---
 
@@ -480,6 +480,15 @@ SESSAO-05.
 - **ESTOQUE só com 🟢:** mover/concluir/resolver para o ESTOQUE só oferece "Perfeito estado",
   com a frase da regra ("com defeito, mova para o DANIFICADO do setor"); o banco recusa o
   resto (mensagem mostrada como veio).
+
+### Chat interno (SESSAO-26 / D-65…D-68) — `src/chat/`
+
+- **Balão (`BalaoChat`)**: botão redondo de 56px, `bg-superficie` + borda grafite + sombra (não é o amarelo — não é ação nem marca), ícone de balão e o **badge de não lidas** em `danificado-forte` com número (`99+` a partir de 100 — teto do banco). Nasce **ao lado da bolinha de execução** (88px da direita; no celular, 80px de baixo, acima da faixa do polegar) e **se arrasta** por pointer events (`touch-action: none`; arrasto só depois de 6px — antes é toque). A posição fica no `localStorage` por pessoa (`dm-chat-balao:{id}`), sempre inteira na tela. Some no `/tablet` e na própria tela do Chat.
+- **Painel compacto**: ancorado à BORDA DA PÁGINA (lição do sino — nunca no balão, que pode estar em qualquer lugar): no computador `right-4 bottom-4`, 24rem × até 36rem; no celular ocupa a tela abaixo da barra do topo. Cabeçalho com "abrir em tela cheia" (`/inicio/chat?c=`) e fechar (ESC fecha).
+- **Lista de conversas**: linha de 56px com avatar (foto/iniciais; `#` para canal; megafone com borda `acao-ativa` para os Avisos gerais), título em negrito quando há não lida, prévia "Você: … / Ana: …" (na particular só o texto), hora ("14:32", "ontem", "27/09") e a pílula de não lidas. Conversa aberta: borda esquerda `acao-ativa`. **5 por página**: a próxima ao rolar até o fim OU no botão "Ver mais conversas" (nada de carregar sozinho).
+- **Conversa**: bolhas — a **minha** à direita em `superficie-inversa`/`texto-inverso`; as dos outros à esquerda em `superficie-sutil` com borda, avatar e (canal/avisos) o nome no começo de cada sequência; **aniversário** é um cartão centralizado com `Cake` e borda `acao-ativa`, assinado "Sistema". Separador de dia ("Hoje", "Ontem", "27/09/2026") no fuso de Natal. **10 por página**: "Ver mensagens anteriores" (ou rolar ao topo) traz a página de antes sem pular o que se lê. Compositor: `textarea` que cresce até 128px, **Enter envia / Shift+Enter quebra linha**, botão enviar de 44px. Sem permissão de escrever, o compositor vira uma linha explicando por quê (avisos: "Só quem o admin liberou escreve…").
+- **Pessoas / Quem escreve** (`ModalMembros`): lista de 10 em 10 com "Ver mais"; quem administra tira (ícone `UserMinus`, 44px) e põe (seletor com busca no servidor, múltipla escolha com checkbox). Nos Avisos gerais, o mesmo modal lista só quem o admin liberou.
+- **Regras de dado (lei do dono — D-67):** um canal de websocket por pessoa + um por conversa aberta, os dois PRIVADOS, geridos por `src/chat/canais.ts` (um canal por tópico com contagem de quem ouve — `supabase.channel(t)` devolve o canal que já existe e sair é assíncrono; reaproveitar um canal "saindo" faz o `subscribe` não fazer nada, calado). **Assina antes de ler** (nada escapa entre ler e ouvir). O cache do chat leva a pessoa na chave e é apagado ao sair da conta. Sinal do websocket muda a lista e o badge **no cache** (`src/chat/cache.ts`, lógica pura testada) — sem reler. `staleTime: Infinity`, sem refetch por foco/reconexão/intervalo.
 
 ### Controle de tempo do admin (SESSAO-07 / D-29)
 

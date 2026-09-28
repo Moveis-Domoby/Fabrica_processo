@@ -65,15 +65,28 @@ tags: [execucao, sessao-26, chat, aniversarios, realtime, bloco-5]
 
 ## Task list (espelho da demanda + respostas + adendo)
 
-- [ ] 1. Migration 38 aditiva: 3 tabelas + RLS por participação + imutabilidade + avisos semeados/participação automática + RPCs (lista 5, mensagens 10, membros 10, enviar, lida, particular, canal, membros, escritores) + broadcast privado + política de `realtime.messages` + data de nascimento + correção de segurança de `plt_usuarios` + aniversário com pg_cron
-- [ ] 2. `test:banco` 2 rodadas com os cenários do chat (RLS com papel simulado, broadcast no stub, paginação, aniversário, segurança) + teste da 38 POR CIMA da 37 (migrations do `df2109a` + harness `b99316b` da 24)
-- [ ] 3. Front: `/inicio/chat` (lista à esquerda, conversa à direita; celular uma coisa por vez) + filho "Chat" em Início
-- [ ] 4. Balão global arrastável (pointer events, posição por usuário no aparelho), badge de não lidas, painel compacto; fora do `/tablet` e da própria tela do Chat; convivência com a bolinha de execução
-- [ ] 5. Canais (só líder/admin criam; quem cria administra: renomear, pôr/tirar membros), particulares, avisos (admin define quem escreve)
-- [ ] 6. Websocket: 1 canal da pessoa + 1 por conversa aberta; zero leitura fora das páginas; reconexão relê só a 1ª página
-- [ ] 7. Data de nascimento no Meu Perfil (próprio) e na Gestão da equipe (admin)
-- [ ] 8. Validação: tsc · lint · test · build · F-07 (375/768, arrasto no touch, balão sem cobrir ação) · ensaio A-11 no banco real · F-08 (digital antes/depois) · aplicar SÓ a 38 · advisors
-- [ ] 9. Cofre: D-65…, RF-90…, Esquema do Banco, Modelo de Sistema, memória (E-50…, A-30…), demanda, ORDEM/MAPA/PRÓXIMOS PASSOS, handoff
+- [x] 1. Migration 38 aditiva: 3 tabelas + RLS por participação + imutabilidade + avisos semeados/participação automática + RPCs (lista 5, mensagens 10, membros 10, enviar, lida, particular, canal, membros, escritores) + broadcast privado + política de `realtime.messages` + data de nascimento + correção de segurança de `plt_usuarios` + aniversário com pg_cron
+- [x] 2. `test:banco` 2 rodadas com os cenários do chat (389 ✔) + teste da 38 POR CIMA da 37 (446 ✔)
+- [x] 3. Front: `/inicio/chat` (lista à esquerda, conversa à direita; celular uma coisa por vez) + filho "Chat" em Início
+- [x] 4. Balão global arrastável (pointer events, posição por pessoa no aparelho), badge, painel compacto; fora do `/tablet` e da tela do Chat; ao lado da bolinha de execução
+- [x] 5. Canais (só líder/admin criam; quem cria administra), particulares, avisos (admin define quem escreve)
+- [x] 6. Websocket: 1 canal da pessoa + 1 por conversa aberta; assina antes de ler; zero leitura fora das páginas; reconexão relê só a 1ª página — provado no teste de integração (conta leituras e canais) e AO VIVO no Realtime do projeto (broadcast do banco chega em 167 ms; sem login, canal privado recusado)
+- [x] 7. Data de nascimento no Meu Perfil (próprio) e na Gestão da equipe (admin)
+- [~] 8. Validação: tsc ✔ · lint ✔ · test ✔ 72 · build ✔ · mojibake 0 · ensaio A-11 ✔ · F-08 ✔ · aplicada SÓ a 38 ✔ · advisors ✔ · **F-07 visual (375/768, arrasto no toque) e o teste com duas contas: PENDENTES com o dono** — a sessão não pode entrar com senha de ninguém na autenticação de produção; o app sobe no 5175 sem erro e, deslogado, não faz nenhuma chamada ao Supabase
+- [x] 9. Cofre: D-65…D-68, RF-90…RF-95, Esquema do Banco, Modelo de Sistema, memória (E-50 promovida, E-51, E-52), demanda, ORDEM/MAPA/PRÓXIMOS PASSOS, regra 10 dos dois CLAUDE.md, handoff
+
+## Conferência contra a demanda (2ª leitura, no fim)
+
+| Critério de aceite | Como foi provado | Situação |
+|---|---|---|
+| `/inicio/chat` no desktop e no celular; balão em toda tela logada (menos `/tablet`), arrastável, posição guardada | código + testes da posição (limite, padrão) + teste de integração (balão, badge, painel) | ✅ código · ⏳ visual com o dono |
+| Canal, particular e avisos; quem não participa não lê nada, nem pela API (papel simulado) | harness `set role authenticated` + ensaio no banco real + canal privado recusado ao vivo | ✅ |
+| Mensagem aparece sem recarregar; badge sobe | broadcast real (167 ms) + linhas de broadcast por participante no ensaio + teste de integração | ✅ · ⏳ duas contas ao vivo |
+| Aba Network: fechado = só a lista; abrir = 1 assinatura + 1 página; fechar desinscreve | teste de integração que conta leituras e canais | ✅ · ⏳ conferir ao vivo |
+| Data de nascimento (próprio e admin); parabéns no dia (forjando a data) | harness + ensaio no banco real com data forjada | ✅ · ⏳ na tela |
+| Histórico por cursor | harness + teste de integração | ✅ |
+| Canal criado e aviso geral na trilha; conteúdo fora | harness | ✅ |
+| Decisões registradas | D-65…D-68 | ✅ |
 
 ## Log
 
@@ -90,3 +103,9 @@ tags: [execucao, sessao-26, chat, aniversarios, realtime, bloco-5]
 - 27/09 · aplicador ganhou `--so <arquivo>` (aplica só aquela migration, com a mesma transação e a mesma conferência da integração). Prova a seco: plano "SÓ 20260927180000_plt_chat_interno.sql".
 - 27/09 · S24 avisada antes → **migration 38 APLICADA em produção** (`npm run banco:aplicar -- --confirmar --so 20260927180000_plt_chat_interno.sql`): integração estrutura e linhas **idênticas** (digital `e2109f3a…`, 65 colunas; clientes 10.699 · pedidos 5.410 · itens 8.093 · eventos 8.473 · gp 1); 24 tabelas · 3 visões · 46 políticas · 10 setores · 46 etapas. Conferido depois: cpf/pin/convite/nascimento NÃO legíveis, nome sim; Avisos gerais 1 com 3 participantes; job ativo; política ativa; objetos da 37 intactos. S24 avisada depois.
 - 27/09 · advisors: segurança — nenhum ERROR; +13 WARN `authenticated_security_definer_function_executable` (as 11 portas do chat + ler/definir nascimento — endpoints de propósito, E-11); o resto pré-existente. Desempenho — INFO FK `plt_chat_mensagens_autor_id_fkey` sem índice (só pesaria na exclusão D-49, rara; índice custaria escrita a cada mensagem — deixado, como os outros 28 da casa) e INFO índice novo ainda não usado.
+- 27/09 · commits `ef6dd06` (aplicador `--so`) e `b53e33a` (cofre).
+- 27/09 · **front** (`src/chat/*`, `src/paginas/Chat.tsx`, Layout, App, Meu Perfil, Equipe, `perfil/api.ts`). Decisões técnicas: **registro de canais** (`canais.ts`) — `supabase.channel(t)` devolve o canal existente e sair é assíncrono (lido no código do realtime-js 2.112.4: `channel()` acha por tópico; `subscribe` num canal que não está fechado não faz nada) → um canal por tópico com contagem, saída adiada 1,5 s, canal novo só depois do antigo sair; **assina antes de ler** (a leitura espera o SUBSCRIBED, com desistência em 4 s); **cache com a pessoa na chave** + apagado ao desmontar (o `sair()` não limpa cache); efeito do provedor depende de `perfil.id`/papel, não do objeto (trocar tema recriava o `perfil`); `set-state-in-effect` respeitada (estado só em callbacks; conversa monta com `key`); leitura extra só em 3 casos, todos de página: 1ª página ao abrir o app, reler a 1ª ao cair o websocket ou ao aparecer conversa fora das páginas carregadas.
+- 27/09 · `tsc` ✔ · `lint` ✔ · `test` ✔ (71 → 72 com o de integração) · `build` ✔ · mojibake 0. O **teste de integração** (`chat.integracao.test.tsx`, Supabase simulado contando leituras e canais) pegou o plural "mensagems" no nome acessível do balão → **E-52** registrado e corrigido. Commits `b6d9201` e `4d87ff1`.
+- 27/09 · navegador: o painel de preview quebra a linha de comando com espaço no argumento (`'C:\Program' não é reconhecido`) → configuração `plataforma-sessao-26` no `launch.json` da pasta principal (ignorado pelo git) apontando para a junção sem espaço `C:\Users\wccau\Domoby\s26` → worktree. Servidor no 5175 com o código desta branch (conferido pelo fonte servido); tela de login sem erro de console; deslogado, zero chamada ao Supabase e nenhum balão. **Sem login não há como ver as telas logadas** — a sessão não entra com senha de ninguém na autenticação de produção.
+- 27/09 · **prova ao vivo do websocket** (`ensaio-websocket.mjs` no scratchpad; chave de serviço lida do `.env.local`, nunca impressa): cliente em canal PRIVADO de tópico descartável recebeu o `realtime.send` feito no banco em **167 ms**; cliente anônimo tentando entrar em `plt-chat-c:1` (Avisos gerais) → **CHANNEL_ERROR "Unauthorized: You do not have permissions to read from this Channel topic"**. Nada do chat foi gravado.
+- 27/09 · cofre: D-65…D-68, RF-90…RF-95, Esquema do Banco, Modelo de Sistema, demanda (Resultado), ORDEM/MAPA/PRÓXIMOS PASSOS, E-50 promovida à regra 10 dos dois `CLAUDE.md` (+ o `--so`), handoff.

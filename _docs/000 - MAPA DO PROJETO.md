@@ -1,7 +1,7 @@
 ---
 titulo: Mapa do Cofre — Domoby (Fábrica + Comercial)
 tipo: MOC
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 tags: [moc, indice, fabrica, comercial]
 ---
 
@@ -125,6 +125,7 @@ Telas, integração e dívidas:
 
 ## 📜 Histórico de sessões (pasta `Handoffs/`)
 
+- [[handoff_2026_09_27_sessao26_chat]] — **SESSAO-26 (Bloco 5 — rodou em paralelo com a 24)**: o chat interno — `Início → Chat` + balão arrastável com badge em toda tela logada; canais (líder/admin criam), particulares e Avisos gerais (o admin define quem escreve); aniversário automático às 08:00; **websocket privado e leitura só por página (5 conversas / 10 mensagens — D-67)**; e a correção de segurança do cadastro (CPF, PIN e convite estavam legíveis por qualquer logado — D-68/E-50). Migration 38 aplicada em 27/09; aguarda a validação ao vivo e o merge
 - [[handoff_2026_09_26_sessao25_estoque]] — **SESSAO-25 (Bloco 5 — passou na frente da 24, D-53)**: o estoque completo — número do Tiny menos o vendido pela loja ainda sem sair (nunca negativo: "necessidade extrema"), reservados × livres, **card de reposição que o estoque gera no PCP** quando fica abaixo do mínimo (D-54), ESTOQUE só com peça 🟢, ID = SKU (D-56), duas telas (acabados · matéria-prima/insumos) + sugestão de mínimo top 20 (D-57), carga do saldo por workflow separado — migration 36 aplicada e mesclada na `main` em 26/09; reposição automática com o dono
 - [[handoff_2026_09_23_sessao23_meu_painel_2]] — **SESSAO-23 (Bloco 5)**: o Meu Painel 2.0 (D-51) — três filas com a Fila de prioridade reordenável por usuário, subtarefas em 2 níveis na mesma tabela, tarefa pessoal PRIVADA com "tornar pública", qualidade a atestar virou tarefa do "Sistema" (parecer conclui sozinho), "Ver todos" no sino e o painel pessoal "Meu desempenho" com portas gateadas ao próprio — migration 33 aplicada em 23/09 com permissão total do dono; validação logada + merge com o dono
 - [[handoff_2026_09_22_sessao21_cutover]] — **SESSAO-21 (União 3 — o cutover)**: o renovador do token do Tiny e os 3 crons de disparo mudaram para a fábrica (renovação provada só lá), o projeto antigo entrou em quarentena, e a conferência Tiny × plataforma pedido a pedido (5.360) corrigiu 15 pedidos + 2 cadastros e expôs a causa-raiz (P17 → SESSAO-29). Pendências do dono: DataCrazy, trava do disparo, `unschedule` no antigo, data da F7 — entregue por PR
@@ -168,6 +169,8 @@ Telas, integração e dívidas:
 > A IA registra o técnico (o que mudou, por quê, o que quebrou). **O dono registra o de negócio** — o que a equipe reclamou, o que mudou de prioridade, como o processo físico funciona de verdade. Isso a IA não tem como saber, e é o que mais falta neste cofre hoje: o detalhe real de cada setor.
 
 ## Estado atual em uma linha
+
+**↪️ 27/09/2026 (SESSAO-26 entregue, em paralelo com a 24 — o chat interno):** a plataforma ganhou o **chat da empresa**: `Início → Chat` (lista à esquerda, conversa à direita) e o **balão arrastável** com o número de não lidas em toda tela logada (fora do tablet). **Canais** (só líder e admin criam; quem cria administra), **particulares** e os **Avisos gerais** (todos leem; o admin escreve e escolhe quem mais escreve); no dia do aniversário, o Sistema publica os parabéns às 08:00. Tudo por **websocket privado** — o banco empurra a mensagem, a tela só lê página (5 conversas, 10 mensagens) —, e **ninguém lê conversa alheia, nem o admin**. Na mesma migration (38, aplicada em 27/09), a **correção de segurança do cadastro**: CPF, hash do PIN e token de convite estavam legíveis por qualquer pessoa logada (D-68). **Com o dono:** validar ao vivo com duas contas (roteiro no handoff) e mesclar a 24 e a 26.
 
 **↪️ 26/09/2026 (SESSAO-25 entregue — o estoque completo):** a tela de **Estoque** mostra, produto a produto, o número do Tiny da fábrica menos o que a loja já vendeu e ainda não saiu (nunca negativo — o negativo vira **"necessidade extrema"**), os prontos **reservados** (SKU + pedido) e **livres**, o mínimo do Tiny e o sinal com ícone + texto; tem a aba de **matéria-prima e insumos** (o começo do estoque de peça) e a **sugestão de mínimo** (top 20 dos 90 dias com rank). Abaixo do mínimo, o estoque gera no PCP o **card de reposição** (o PCP libera ou "Não produz"); o **ESTOQUE só aceita peça 🟢**. Migration 36 aplicada, carga do saldo rodada (442 produtos), **mesclada na `main` em 26/09 (D-20)**. ⚠️ A carga mostrou que o físico dos móveis no Tiny está **negativo em 93 de 168** — a reposição automática (44 cards na 1ª rodada) espera o OK do dono. **Próxima: SESSAO-24** (concluir produção → aguardo, cancelamentos, alocação).
 

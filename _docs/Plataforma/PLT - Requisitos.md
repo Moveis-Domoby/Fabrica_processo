@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-09-27
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -104,6 +104,17 @@ tags: [plataforma, requisitos, backlog]
 | RF-74 | Abaixo do mínimo do Tiny, o estoque gera no PCP o card de REPOSIÇÃO (um ciclo vivo por produto); o PCP libera as unidades ou "Não produzir"; pronta, a peça fica livre no estoque (D-54) | ✅ entregue (SESSAO-25) — geração automática ligada à parte, com o OK do dono |
 | RF-75 | O ESTOQUE só recebe peça 🟢 — regra no banco e nas telas de mover/concluir/resolver (D-54) | ✅ entregue (SESSAO-25) |
 | RF-76 | Tela de Estoque em abas (acabados · matéria-prima e insumos · sugestão de mínimo top 20 com rank), paginada no servidor, com busca e sinal por ícone + texto (D-57) | ✅ entregue (SESSAO-25) |
+
+## Comunicação interna (chat)
+
+| ID | Requisito | Status |
+|---|---|---|
+| RF-90 | Chat interno com duas portas: `Início → Chat` (lista à esquerda, conversa à direita; no celular uma coisa por vez) e o balão arrastável em toda tela logada (fora do `/tablet`), com o badge de não lidas e posição guardada por pessoa no aparelho (D-65) | ✅ entregue (SESSAO-26) |
+| RF-91 | Canais de grupo (só líder/admin criam; quem cria administra), particulares 1:1 e Avisos gerais (todos leem; o admin escreve e define quem mais escreve) (D-65) | ✅ entregue (SESSAO-26) |
+| RF-92 | Cada um lê só as conversas de que participa — RLS por participação e canal de websocket privado; nem admin lê conversa alheia, nem pela API (D-65) | ✅ entregue (SESSAO-26) |
+| RF-93 | Comunicação por websocket (Broadcast do banco, canal privado); leitura só por página — 5 conversas e 10 mensagens, a próxima ao rolar; sem polling (D-67) | ✅ entregue (SESSAO-26) |
+| RF-94 | Data de nascimento no cadastro (própria no Meu Perfil, qualquer uma pelo admin) e parabéns automático nos Avisos gerais às 08:00 de Natal (D-66) | ✅ entregue (SESSAO-26) |
+| RF-95 | Dados sensíveis do cadastro (CPF, PIN, convite, data de nascimento) fora da API — leitura por coluna em `plt_usuarios` (D-68) | ✅ entregue (SESSAO-26) |
 
 ## Requisitos não-funcionais
 
