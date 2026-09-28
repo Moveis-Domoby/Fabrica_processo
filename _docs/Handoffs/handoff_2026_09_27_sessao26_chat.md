@@ -59,7 +59,7 @@ Medido na própria página (observador de requisições do navegador — o regis
 
 **3 achados corrigidos na hora** (commit `afb2c30`): (1) criar canal relia a lista **2 vezes** (a tela + o sinal) → fica só o sinal; (2) no celular a conversa da tela do Chat era **cortada à direita** (a coluna da grade crescia até o título) → corrigido; (3) botões do chat com **36px** → 44px.
 
-**Não testado ao vivo, de propósito:** o número de não lidas subindo por mensagem de OUTRA pessoa (as duas abas eram você — mensagem sua não conta) e o parabéns publicado (seria um aniversário falso seu para os sócios). Os dois estão provados nos testes automáticos e no ensaio do banco real. Ficou no seu chat o canal **"Teste do chat (pode ignorar) - renomeado"**, só com você e 13 mensagens de teste — conversa não se apaga; se quiser, eu te tiro dele e ele some da sua lista.
+**Não testado ao vivo, de propósito:** o número de não lidas subindo por mensagem de OUTRA pessoa (as duas abas eram você — mensagem sua não conta) e o parabéns publicado (seria um aniversário falso seu para os sócios). Os dois estão provados nos testes automáticos e no ensaio do banco real. O canal **"Teste do chat (pode ignorar) - renomeado"** (só com você e 13 mensagens de teste) **saiu da sua lista em 28/09**, a seu pedido — ver §4.
 
 ## 3. Como validar (10 minutos)
 
@@ -78,10 +78,13 @@ O servidor desta branch está no ar em **http://localhost:5175** (se tiver caíd
 ## 4. Pendente / decisões para você
 
 - ✅ **Validada ao vivo (§2b) e mesclada** em 28/09 — `3503d77` na `main`, Vercel ✅. A SESSAO-24 entrou antes; os dois blocos do harness e os índices do cofre foram juntados aqui, e o `test:banco` com a 37 e a 38 juntas passou (446). A SESSAO-24 e as sessões em curso (Frete fora da produção — dona da migration 39 — e gaveta do celular) foram avisadas.
-- 🔶 **Balão por cima do menu aberto, no tablet** (E-57): com o menu aberto no tablet, o balão do chat — e a bolinha de "em execução", que já era assim antes do chat — fica aceso e tocável por cima do escurecido. No celular o menu cobre o balão, e nas janelas (modais) o escurecido cobre certo. Se quiser as bolhas apagadas com o menu aberto, o conserto é um só, no `Layout` (o menu por cima das bolhas); a sessão da gaveta do celular, que está mexendo no `Layout`, já sabe. É só dizer.
+- ✅ **Balão por cima do menu aberto, no tablet** (E-57) — **corrigido em 28/09** pela sessão da gaveta do celular, com o seu OK: com o menu aberto no celular e no tablet, o escurecido e o menu agora ficam por cima do balão do chat, da bolinha de "em execução" e da janelinha do chat. Conferido também daqui, na tela, a 768px: o toque no balão e na bolinha cai no escurecido; com a janelinha do chat aberta, onde ela e o menu se cruzam, o toque cai no menu.
+- ✅ **Sua data de nascimento:** cadastrada por você no Meu Perfil em 28/09. Conferido sem ler a data: ficou salva e a trilha registrou a mudança **sem o valor** (só de quem foi). No seu dia, às 08:00, o parabéns sai sozinho nos Avisos gerais.
+- ✅ **Canal de teste:** você saiu dele em 28/09, a seu pedido. Como o sistema **não deixa ninguém tirar a si mesmo** de um canal, foi feito direto no banco, do mesmo jeito que o sistema faz (saída marcada + registro na trilha com o motivo + aviso ao vivo para as suas abas). Conferido: o canal sumiu da sua lista sem recarregar; ninguém mais participa dele; as 13 mensagens ficam guardadas (conversa não se apaga), sem ninguém que as veja.
+- ⚪ **Para decidir quando quiser:** hoje **ninguém sai sozinho de um canal** — nem quem o administra. Quem administra tira os outros; para sair, a pessoa depende de outro administrador. Se quiser um botão "Sair do canal", vira ajuste numa próxima sessão.
 - 🔶 **Escritores dos Avisos gerais:** por ora só os admins escrevem. Se quiser liberar líderes ou outra pessoa: abra os Avisos gerais → "Quem escreve".
 - ⚪ Ferramenta nova do banco: `npm run banco:aplicar -- --confirmar --so <arquivo>` aplica **uma** migration (para sessões em paralelo). Virou regra no `CLAUDE.md` (regra 10), junto com a leitura por coluna de `plt_usuarios`.
-- ⚪ Limpeza depois da validação: a configuração `plataforma-sessao-26` no `.claude/launch.json` da pasta principal (fora do git) e o atalho de pasta `C:\Users\wccau\Domoby\s26` (o painel não aceita caminho com espaço) — posso apagar os dois quando você disser.
+- ⚪ Limpeza depois da validação: a configuração `plataforma-sessao-26` no `.claude/launch.json` da pasta principal (fora do git) e o atalho de pasta `C:\Users\wccau\Domoby\s26` (o painel não aceita caminho com espaço) — **você decidiu manter** (28/09: "não precisa").
 - ⚪ Fora do escopo, apontado pelos advisors do Supabase (já existiam): a proteção contra senha vazada do Auth está desligada; `pg_net` no schema public.
 
 ## 5. Arquivos alterados

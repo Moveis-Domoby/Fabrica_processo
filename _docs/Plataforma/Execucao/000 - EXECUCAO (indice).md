@@ -1,7 +1,7 @@
 ---
 titulo: Execução — memórias de sessão do Claude Code
 tipo: indice
-atualizado: 2026-09-27
+atualizado: 2026-09-28
 tags: [plataforma, execucao, indice]
 ---
 
@@ -22,5 +22,11 @@ tags: [plataforma, execucao, indice]
 - [[SESSAO-22]] · [[SESSAO-23]] · [[SESSAO-25]] · [[SESSAO-24]] — o **Bloco 5** (a 25 rodou antes da 24 — D-53)
 
 *(Não existe SESSAO-08, 17 nem 18 aqui: a 08 (publicação) aguarda o dono (D-30), a 17 foi absorvida pela 27 e a 18 está em standby. Ver [[000 - ORDEM DAS SESSOES]].)*
+
+## Ajustes fora de sessão
+
+Correções pedidas pelo dono fora de uma `SESSAO-NN` — mesma disciplina (branch própria, memória aqui, handoff em `Handoffs/`).
+
+- [[AJUSTE - Gaveta do menu no celular]] (28/09) — achado da F-07 da SESSAO-24: a gaveta passou a conter as duas barras e some de verdade quando fechada (E-48); o menu aberto ficou por cima das bolhas flutuantes (E-57)
 
 ← Voltar ao [[000 - MAPA DO PROJETO]]

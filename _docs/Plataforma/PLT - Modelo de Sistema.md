@@ -399,6 +399,23 @@ SESSAO-05.
   barra tem o próprio botão de recolher e os dois estados ficam lembrados
   (`localStorage`). Barra 1 recolhida vira trilho de ícones; clicar num ícone abre a
   barra 2 com os filhos. No celular, a gaveta carrega as duas barras.
+- **↪️ A gaveta CONTÉM as duas barras (ajuste de 28/09/2026):** quem desliza é o
+  `<aside>`; quem rola na horizontal (abaixo de `lg`), quando as duas não cabem na
+  tela, é um envoltório por dentro dele. Teto da gaveta = a largura da tela
+  (`max-w-[100vw]`). Fechada, sai inteira e fica **`invisible` depois do deslize**
+  (`transition-[translate,visibility]`) — nada dela pega toque nem Tab. **Nunca
+  `overflow` no próprio `<aside>`:** o `translate` dele faz dele o bloco de contenção
+  do painel `fixed` do sino, que seria cortado. Origem: o teto de 92vw era da gaveta
+  de uma barra só (SESSAO-07); com a segunda, ~38–45px da barra 2 ficavam na borda
+  esquerda com a gaveta fechada, pegando o toque (E-48).
+- **Camadas da gaveta aberta (celular/tablet, ajuste de 28/09/2026 — E-57):** fundo
+  escuro e gaveta em **`z-[55]`** — acima das bolhas flutuantes (balão do chat e
+  bolinha de execução, `z-40`) e dos painéis delas (`z-50`), que vêm DEPOIS no DOM e
+  por isso venciam o empate; abaixo dos avisos passageiros (`z-[60]`). No computador a
+  coluna fica em `lg:z-50`, abaixo das janelas (Modal). A escala da casa: 30 barra do
+  celular · 40 bolhas e fundos · 50 painéis, gaveta no computador e janelas · 55
+  gaveta aberta no celular/tablet · 60 avisos. Menu aberto = tudo da página por
+  baixo do escuro.
 - **Sino no topo** da barra 1, junto à logo; painel de avisos **ancorado à borda
   ESQUERDA da página** (prop `painelLado` do `<SinoNotificacoes>`), com `max-h` da
   viewport — nunca cortado. No rodapé: **Modo tablet** (botão fixo), bloco do usuário
