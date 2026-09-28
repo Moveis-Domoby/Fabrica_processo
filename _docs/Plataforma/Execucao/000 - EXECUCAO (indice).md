@@ -28,5 +28,6 @@ tags: [plataforma, execucao, indice]
 Correções pedidas pelo dono fora de uma `SESSAO-NN` — mesma disciplina (branch própria, memória aqui, handoff em `Handoffs/`).
 
 - [[AJUSTE - Gaveta do menu no celular]] (28/09) — achado da F-07 da SESSAO-24: a gaveta passou a conter as duas barras e some de verdade quando fechada (E-48); o menu aberto ficou por cima das bolhas flutuantes (E-57)
+- [[AJUSTE - Estoque contagem manual e Top 20]] (28/09) — pedido urgente do dono: o estoque dos acabados virou a contagem da logística (entrada/baixa/contagem), Top 20+, foto do produto, mínimo e capacidade do galpão na plataforma (D-70…D-74, migration 40)
 
 ← Voltar ao [[000 - MAPA DO PROJETO]]

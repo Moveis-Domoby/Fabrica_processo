@@ -47,13 +47,15 @@ tags: [execucao, ajuste, estoque, logistica]
 - [x] 5. Banco: configurações (mínimo, capacidade, sugestão que cabe, aplicar todas) + resumo
 - [x] 6. Banco: foto do produto (porta + política de storage para a logística)
 - [x] 7. Harness: cenários novos + os da S25 ajustados à regra nova; 2 rodadas verdes
-- [ ] 8. Front: cabeçalho com "i" e abas em quadrados no canto superior direito
-- [ ] 9. Front: Top 20+ (cartão enxuto com foto, entrada/baixa, cadastrar produto, ver os outros, detalhe)
-- [ ] 10. Front: Configurações (capacidade, mínimos, sugestão) e Insumos
-- [ ] 11. tsc · lint · test · build · mojibake 0
-- [ ] 12. Aplicar no banco (só esta migration, `--so`), impressão digital antes/depois, advisors
-- [ ] 13. Telas no navegador (logado pelo dono) + F-07 375/768
-- [ ] 14. Cofre: decisões, requisitos, esquema, modelo de sistema, memória, handoff, mapa
+- [x] 8. Front: cabeçalho com "i" e abas em quadrados no canto superior direito
+- [x] 9. Front: Top 20+ (cartão enxuto com foto, entrada/baixa, cadastrar produto, ver os outros, detalhe)
+- [x] 10. Front: Configurações (capacidade, mínimos, sugestão) e Insumos
+- [x] 11. tsc · lint · test · build · mojibake 0
+- [x] 12. Aplicar no banco (só esta migration, `--so`), impressão digital antes/depois, advisors
+- [x] 13. Telas no navegador (logado pelo dono) + F-07 375/768
+- [x] 14. Cofre: decisões, requisitos, esquema, modelo de sistema, memória, handoff, mapa
+
+**Conferida contra o pedido do dono (28/09):** 1 respondida (handoff §1) · 2 Top 20+ ∪ com estoque, "Ver os outros produtos" e busca · 3 foto por produto · 4 "Cadastrar produto ao estoque" + Top 20 na tela inicial + entrada/baixa/contagem manual · 5 cartão enxuto com a foto em destaque, só logística/admin cadastram · 6 "i" com balão + quadrados no canto que reagem ao mouse · 7 mínimo editável + capacidade do galpão + sugestão que cabe · 8 Sugestão → Configurações e a lista de prioridade no Top 20+. ✅ todos.
 
 ## Log
 
@@ -72,3 +74,7 @@ tags: [execucao, ajuste, estoque, logistica]
 - 28/09 · ensaio de leitura no banco real (bloco que termina em exceção — nada gravado), como o admin: Top 20+ devolve **20** produtos na ordem do rank (327, 174, 489, 029, 419…), todos com 0 em estoque (ninguém contou ainda); reservadas: 174 e 521 (as peças do 13215 no aguardo); resumo: capacidade vazia, soma dos mínimos 133, soma das sugestões 274 (2 semanas), 48 abaixo do mínimo, 0 no estoque, 3 reservadas; configurações: 327 → sugestão 15.
 - 28/09 · preview da worktree: junção sem espaço `C:\Users\wccau\Domoby\estq` + entrada `plataforma-estoque` (porta 5176) no `.claude/launch.json` da pasta principal (padrão das sessões paralelas). Aguardando o dono entrar para conferir as telas.
 - 28/09 · cofre: D-70…D-74 (+ ↩️ em D-54/D-55/D-57), RF-100…RF-104 (+ ↩️ RF-72/RF-76), Esquema do Banco (produtos, plt_setores, parágrafo da migration 40), Modelo de Sistema (seção do estoque enxuto: Dica, abas em quadrados, cartão com foto, movimentar, configurações), nota do n8n (o saldo saiu da conta dos acabados).
+- 28/09 · **o dono entrou no preview (5176) e pediu "teste"** — conferido logado: Top 20+ com os 20 da ordem real e as 2 reservadas (174, 521); "i" com balão; quadrados com o nome ao passar o mouse; **E2E no 327:** entrada 2 (mesmo lote, com a observação) → contagem 1 (saiu a mais antiga, motivo `contagem`) → baixa 1 (motivo `baixa_manual`) = 0, os 4 eventos com o nome do dono; **foto:** imagem de teste gerada no canvas entrou pelo input escondido (DataTransfer), foi reduzida de 55 KB PNG para 16 KB JPEG, apareceu no cartão e foi **apagada** pelo cliente do próprio app (porta com nulo + storage.remove — A-34; pasta do 327 vazia, capa nula); "Cadastrar produto ao estoque" buscando "penteadeira" (3 achados, com a posição); "Ver os outros produtos" (21º em diante); insumos com estoque primeiro; **Configurações:** capacidade 100 → soma das sugestões exatamente 100 (327 → 7, 174 → 4…) e o aviso "soma dos mínimos passa da capacidade"; mínimo do 327 = 5 (soma 133 → 134) e de volta ao do Tiny (133); "usar todas" até a confirmação e cancelado; capacidade de volta ao vazio.
+- 28/09 · acertos da conferência (commit próprio): "Usar todas as sugestões" não estica mais (self-start); caixa da sugestão com largura fixa (linhas alinhadas); "…" em vez de 0 enquanto o resumo carrega; a explicação da sugestão virou "i" ao lado do título (pedido do dono de menos texto); contagem nasce com o campo vazio também ao trocar de operação; "Cadastrar produto ao estoque" sem quebrar linha no tablet.
+- 28/09 · F-07: 375px e 768px sem rolagem lateral e sem alvo < 44px (os únicos "pequenos" são os inputs de arquivo escondidos). A faixa escura à esquerda no celular é o defeito antigo da gaveta — corrigido pela outra sessão, já na `main`. Console sem erros.
+- 28/09 · `main` andou (gaveta + SESSAO-26): `git merge origin/main` sem conflito; `tsc` ✅, `npm test` ✅ 82/82, **`test:banco` ✅ 485 (2ª rodada)**. A 39 do frete foi aplicada no banco pela outra sessão depois da 40 (ela avisou; nada da 40 tocado) mas ainda não está na `main` — quem mesclar por último junta os blocos do harness (combinado).
