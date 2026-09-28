@@ -2,7 +2,7 @@
 titulo: Plataforma — Memória de Aprendizado (Claude Code + Cowork)
 tipo: memoria-aprendizado
 data: 2026-08-19
-atualizado: 2026-09-22
+atualizado: 2026-09-27
 tags: [plataforma, memoria, aprendizado, erros, acertos]
 ---
 
@@ -147,6 +147,7 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - **M-13** · [2026-08-26] **Estado guardado é projeção; evento é a verdade.** A posição do card fica gravada para a tela ser rápida, mas é escrita SÓ por trigger a partir do evento. Onde houver as duas coisas, a que se edita à mão tem que ser nenhuma.
 - **M-14** · [2026-08-26] **Trava que precisa valer para todos não pode morar no RLS** — a `service_role` ignora RLS por natureza do Postgres. Regra que vale até para a chave mais poderosa vira TRIGGER.
 - **M-15** · [2026-09-27] **O dono pensa em TELA, não em tabela** — para ele "Pedidos em aguardo já existe" (a aba), e o lugar final da peça de pedido "já mudou". Propor "criar um 3º fim de linha" soou como inventar coisa (SESSAO-24). Decisão técnica de onde o dado mora se apresenta na língua da tela ("a aba que já existe passa a ser o lugar da peça"); o setor/tabela por baixo é detalhe do Claude.
+- **M-16** · [2026-09-27] **Enquanto a plataforma não estiver em uso no galpão, card é TESTE — o pedido é real.** Na SESSAO-24 levei ao dono o destino de uma peça 🔴 de herança (a 502, nascida na validação ao vivo da S22) e ele respondeu: *"ninguém tá usando essa bomba, tudo que tu tá vendo aí é teste ainda, mas os pedidos são reais"*. → Sujeira de card de teste não vira pergunta de negócio: tratar pelo caminho mais simples e seguro (evento, origem `api`, reversível pela história) e só REGISTRAR. Pergunta ao dono só quando mexe em pedido/cliente (real) ou em regra. Vale até o dono avisar que a fábrica começou a usar (SESSAO-08 — D-30).
 
 ## 🧪 Fórmulas e receitas (F-NN)
 

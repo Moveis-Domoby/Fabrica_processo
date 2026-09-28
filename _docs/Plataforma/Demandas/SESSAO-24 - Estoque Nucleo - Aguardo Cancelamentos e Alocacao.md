@@ -79,9 +79,9 @@ Terreno: **`plt_cards` NÃO tem FK para `pedido_itens` — não "consertar"** (o
 
 **O dono mudou o desenho no início da sessão** (respostas de 27/09): depois de um alinhamento com a equipe, **tudo por arrasto** — soltar no início inicia o tempo, soltar em etapa com nome de setor ou CONCLUÍDO leva ao próximo setor, e o **único botão é "Concluir produção", só na LIMPEZA E EMBALAGEM** (D-59/D-60); **Pedidos em aguardo virou o lugar** da peça pronta de pedido e o ESTOQUE ficou só com peça sem dono (D-58); as abas se chamam **"Pedidos" e "Produtos reservados"**; nada de estocar peça inacabada; Cancelados guarda para sempre (D-61); sugestão com a regra de "peça igual" e aceita por PCP/logística e admin (D-62).
 
-**Banco:** migration 37 aplicada com o OK do dono (integração do Tiny idêntica), rotas de 20 etapas gravadas, as 6 peças antigas tratadas pela resposta do dono (2 → aguardo, 3 arquivadas de pedidos já entregues, a 🔴 esperando decisão — Q-69). Harness: 57 checks novos; ensaio no banco real desfeito, tudo como esperado.
+**Banco:** migration 37 aplicada com o OK do dono (integração do Tiny idêntica), rotas de 20 etapas gravadas, as 6 peças antigas tratadas pela resposta do dono (2 → aguardo, 3 arquivadas de pedidos já entregues, a 🔴 ficou — card de teste, Q-69). Harness: 57 checks novos; ensaio no banco real desfeito, tudo como esperado.
 
-**Pendente com o dono:** Q-69 (a 502 🔴), Q-70 (duas unidades em produção de pedidos já entregues no Tiny), conferir as telas e mesclar na `main`.
+**Q-69 e Q-70 respondidas na mesma sessão** (a 502 é card de teste — fica; 518 e 537 arquivadas). **Pendente com o dono:** conferir as telas e mesclar na `main`.
 
 ## Ver também
 

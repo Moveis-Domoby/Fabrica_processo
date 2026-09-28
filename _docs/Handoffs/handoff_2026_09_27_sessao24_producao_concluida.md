@@ -31,7 +31,7 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, aguardo, cancelamento, alo
   3. peça pronta no aguardo → vai **sozinha** ao ESTOQUE, sem dono (o produto do catálogo é achado pelo SKU).
 - **Sugestão do estoque na liberação (D-62):** ao liberar um pedido, cada linha mostra "Há N igual(is) no estoque, sem dono — usar?" — **desmarcado por padrão**. Aceitar faz a unidade do pedido nascer **direto em Pedidos em aguardo**; se o pedido cancelar depois, a peça volta ao estoque sem dono. "Peça igual" = sua regra b1.
 - **Painel:** "concluídas do dia" conta só a chegada vinda da produção (o lançamento para as ROTAS contava a peça duas vezes); o "fim de linha" ganhou Pedidos em aguardo.
-- **As peças antigas** (6 de pedido que estavam no ESTOQUE), pela sua resposta: 503 e 504 (🟢, 13215) → Pedidos em aguardo; **479, 519 e 533 arquivadas** (pedidos já entregues no Tiny — "não deve nem aparecer mais"); a **502 🔴 (13215) ficou** no ESTOQUE esperando você (§8).
+- **As peças antigas** (6 de pedido que estavam no ESTOQUE), pela sua resposta: 503 e 504 (🟢, 13215) → Pedidos em aguardo; **479, 519 e 533 arquivadas** (pedidos já entregues no Tiny — "não deve nem aparecer mais"); a **502 🔴 (13215) ficou** no ESTOQUE — sua resposta: *"tudo que tu tá vendo aí é teste ainda, mas os pedidos são reais"* (Q-69 ✅, nada a fazer). E, com o seu OK, as **518 (13257) e 537 (13236)** — unidades em produção de pedidos já entregues no Tiny — foram **arquivadas** (a 537 tinha um tempo aberto desde 24/09: fechado antes, o limite de quem a iniciou ficou livre — Q-70 ✅).
 
 ## 2. Verificação executada
 
@@ -63,9 +63,10 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, aguardo, cancelamento, alo
 - **E-45** — crase dentro de `node -e "…"` no bash esvaziou textos sem erro (corrigido na hora).
 - **E-46** — nome de coluna de memória numa consulta de leitura (recusada, sem dano).
 
-### Descobertos (para você decidir)
-- A **502 🔴** ainda conta como "pronta" do 13215 (regra antiga — ela está num fim de linha). → Q-69.
-- **Duas unidades em produção de pedidos já entregues no Tiny**: 518 (13257, MONTAGEM) e 537 (13236, CNC). → Q-70.
+### Descobertos (e já resolvidos com você)
+- A **502 🔴** contava como "pronta" do 13215 → Q-69 ✅: é card de teste, fica como está.
+- **Duas unidades em produção de pedidos já entregues no Tiny** (518 e 537) → Q-70 ✅: arquivadas por evento (`supabase/manutencao/2026-09-27_arquivar_unidades_de_pedidos_entregues.sql`, ensaiada antes no banco real).
+- **M-16** registrado: enquanto a plataforma não está em uso no galpão, card é teste — o pedido é real.
 
 ## 5. Arquivos alterados
 
@@ -75,6 +76,7 @@ supabase/migrations/20260921120000_plt_filas_tempo_pausa_paginacao.sql        (2
 supabase/migrations/20260926120000_plt_estoque_completo.sql                   (36: coerência not valid + drop antes do create — E-17)
 supabase/manutencao/2026-09-27_rotas_das_etapas.sql                           (nova — rodada)
 supabase/manutencao/2026-09-27_pecas_de_pedido_para_aguardo.sql               (nova — rodada)
+supabase/manutencao/2026-09-27_arquivar_unidades_de_pedidos_entregues.sql     (nova — ensaiada e rodada; Q-70)
 supabase/testes/testar-migrations.mjs                                         (bloco S24)
 src/kanban/arrasto.ts + arrasto.test.ts                                       (novos)
 src/kanban/api.ts · tipos.ts
@@ -99,17 +101,15 @@ src/tablet/CartaoTablet.tsx                                                   (a
 - [[SUPA - Esquema do Banco]] — migration 37
 - [[PLT - Modelo de Sistema]] — "Quadro por arrasto, fins de linha e cancelados" + ↪️ nas seções que mudaram
 - [[FAB - Estrutura de Producao (Trello e ClickUp)]] — os fatos da fábrica que você confirmou (SECC/CNC, o móvel nasce na montagem, a LIMPEZA E EMBALAGEM leva ao fim de linha)
-- [[PLT - Perguntas em Aberto]] — Q-69, Q-70
-- [[PLT - Memoria de Aprendizado]] — E-44, E-45, E-46, M-15
+- [[PLT - Perguntas em Aberto]] — Q-69 e Q-70 (abertas e respondidas na mesma sessão)
+- [[PLT - Memoria de Aprendizado]] — E-44, E-45, E-46, M-15, M-16
 - [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] — Resultado · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · [[000 - PROXIMOS PASSOS]]
 
 ## 8. Ficou pendente
 
 ### Aguardando decisão sua
-1. **Q-69 · a 502 🔴 (13215):** consertar ou refazer? Enquanto isso ela conta como pronta — quando a última peça do 13215 for concluída, o "Lançar para ROTAS" a levaria junto.
-2. **Q-70 · 518 (13257) e 537 (13236):** estão em produção, mas os pedidos já constam "Entregue" no Tiny. Arquivo também (como fiz com as do ESTOQUE) ou fica para a SESSAO-29?
-3. **Mesclar na `main`** (= publicar no Vercel) depois de você conferir as telas.
-4. (herança da S25) ligar a reposição automática continua com você.
+1. **Conferir as telas** (o navegador da conversa precisa do seu login) e **mesclar na `main`** (= publicar no Vercel). ⚠️ A SESSAO-26 também espera merge: os dois ramos partem da mesma `main` e dividem `Layout.tsx`, o harness e notas do cofre — quem mesclar por último resolve e roda o `test:banco` com 37 + 38 (as duas já estão aplicadas no banco).
+2. (herança da S25) ligar a reposição automática continua com você.
 
 ### Próximo passo sugerido
 - **SESSAO-26 (chat)** já está em execução em paralelo — a migration 38 dela entra depois do seu OK.

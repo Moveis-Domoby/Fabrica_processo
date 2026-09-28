@@ -88,8 +88,8 @@ tags: [plataforma, descoberta, perguntas]
 
 ## 🟫 Quadro por arrasto e fins de linha (SESSAO-24 — 27/09/2026)
 
-- **Q-69 · A peça 502 🔴 do pedido 13215 (herança no ESTOQUE):** consertar ou refazer? Ela ficou no ESTOQUE porque Pedidos em aguardo só recebe peça perfeita (D-58) — mas ainda **conta como pronta** do 13215: quando a última peça do pedido for concluída, o "Lançar para ROTAS" a levaria junto. Aparece em Produtos reservados com o selo 🔴.
-- **Q-70 · Unidades em produção de pedidos já "Entregue" no Tiny:** a 518 (13257, MONTAGEM, A MONTAR) e a 537 (13236, CNC, USINANDO). As do ESTOQUE foram arquivadas por ordem do dono (*"se já foi entregue, não deve nem aparecer mais aí"*) — arquivar estas também, ou deixar para a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]?
+- ✅ **Q-69 · A peça 502 🔴 do pedido 13215** → respondida em 27/09: **nada a fazer** — *"ninguém tá usando essa bomba, tudo que tu tá vendo aí é teste ainda, mas os pedidos são reais"*. A plataforma ainda não está em uso no galpão: card é teste (a 502 nasceu na validação ao vivo da SESSAO-22). Fica como está.
+- ✅ **Q-70 · Unidades em produção de pedidos já "Entregue" no Tiny** → respondida em 27/09: **arquivar** — a 518 (13257) e a 537 (13236) foram arquivadas por evento (a 537 teve o tempo aberto fechado antes; o limite de quem a iniciou ficou livre) — `supabase/manutencao/2026-09-27_arquivar_unidades_de_pedidos_entregues.sql`.
 
 ## Ver também
 
