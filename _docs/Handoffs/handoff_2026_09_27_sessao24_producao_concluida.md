@@ -70,7 +70,7 @@ tags: [handoff, sessao, plataforma, bloco-5, estoque, aguardo, cancelamento, alo
 - **M-16** registrado: enquanto a plataforma não está em uso no galpão, card é teste — o pedido é real.
 
 ### Descobertos na conferência das telas (fora do escopo — ficaram como tarefa sugerida)
-- **Gaveta do menu no celular (antigo, da `main`):** com 375px e a gaveta FECHADA, ~38px da segunda barra ficam por cima da borda esquerda do conteúdo e pegam o toque (as duas barras passam dos 92vw da gaveta). Não é da S24 — tarefa sugerida na conversa.
+- **Gaveta do menu no celular (antigo, da `main`):** com 375px e a gaveta FECHADA, ~38px da segunda barra ficam por cima da borda esquerda do conteúdo e pegam o toque (as duas barras passam dos 92vw da gaveta). Não é da S24 — tarefa sugerida na conversa. ✅ **resolvido em 2026-09-28** — [[handoff_2026_09_28_ajuste_gaveta_menu_celular]] (E-48).
 - **"Frete" vira card de produção (antigo):** o 13215 tem um card "Frete" na LIMPEZA E EMBALAGEM — hoje todo item do pedido com quantidade vira unidade a produzir (serviço, frete e revenda também). É decisão de produto — tarefa sugerida na conversa.
 - **"Fim de linha — hoje" (Visão do dia)** conta toda chegada a um fim de linha, inclusive a troca entre fins de linha: hoje mostra "→ Pedidos em aguardo 2" por causa da manutenção (503/504 saíram do ESTOQUE). O "concluídas do dia" já conta só o que vem da produção; se o número deste bloco incomodar, alinhar a porta `plt_fn_dash_fim_de_linha` (mantendo o lançamento para as ROTAS) — migration nova, com o seu OK.
 
