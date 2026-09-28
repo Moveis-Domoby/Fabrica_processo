@@ -643,17 +643,24 @@ export function Layout({ children }: { children: ReactNode }) {
         />
       )}
 
-      {/* As duas barras, lado a lado: gaveta no celular, coluna fixa no computador. */}
+      {/* As duas barras, lado a lado: gaveta no celular, coluna fixa no computador.
+          A gaveta CONTÉM as barras (ajuste de 28/09): quem desliza é o aside e
+          quem rola, se as duas não couberem na tela, é o envoltório de dentro —
+          nunca o aside, porque o `translate` dele faz dele o "chão" do painel
+          fixo do sino, que seria cortado. Fechada, sai inteira da tela e fica
+          invisível depois do deslize: nada dela pega toque nem Tab. */}
       <aside
         aria-label="Menu lateral"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex max-w-[92vw] transition-transform duration-200',
-          gavetaAberta ? 'translate-x-0' : '-translate-x-full',
-          'lg:sticky lg:top-0 lg:h-dvh lg:shrink-0 lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex max-w-[100vw] transition-[translate,visibility] duration-200',
+          gavetaAberta ? 'visible translate-x-0' : 'invisible -translate-x-full',
+          'lg:visible lg:sticky lg:top-0 lg:h-dvh lg:shrink-0 lg:translate-x-0',
         )}
       >
-        {barraPais}
-        {barraFilhos}
+        <div className="flex h-full overflow-x-auto lg:overflow-visible">
+          {barraPais}
+          {barraFilhos}
+        </div>
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
