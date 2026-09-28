@@ -447,7 +447,10 @@ export function ModalLiberarPedido({
                       <span className="text-xs text-texto-suave">
                         {sugestao.peca_origem === 'cancelamento' && sugestao.peca_origem_numero
                           ? `Veio do pedido ${sugestao.peca_origem_numero}, que foi cancelado.`
-                          : 'Veio da reposição de estoque.'}{' '}
+                          : sugestao.peca_origem === 'reposicao'
+                            ? 'Veio da reposição de estoque.'
+                            : // Ajuste de 28/09: peça cadastrada pela logística (sem card pai).
+                              'Está pronta no estoque.'}{' '}
                         {usandoEstoque
                           ? 'Vai direto, pronta, para Pedidos em aguardo — não passa pela produção.'
                           : 'Marque para usar; sem marcar, a unidade vai para a produção.'}

@@ -15,6 +15,13 @@ export interface AbasProps<T extends string> {
   aoMudar: (valor: T) => void
   /** Base dos ids (aba e painel): `${idBase}-aba-${valor}` / `${idBase}-painel`. */
   idBase: string
+  /**
+   * `linha` (padrão): abas com texto sobre uma linha. `quadrados` (ajuste de
+   * 28/09, pedido do dono no Estoque): quadrados só com o ícone, no canto da
+   * tela, que sobem ao passar o mouse e mostram o nome num balãozinho — o nome
+   * também vai no rótulo acessível. Toda aba precisa de ícone nessa variante.
+   */
+  variante?: 'linha' | 'quadrados'
   className?: string
 }
 
@@ -33,9 +40,11 @@ export function Abas<T extends string>({
   valor,
   aoMudar,
   idBase,
+  variante = 'linha',
   className,
 }: AbasProps<T>) {
   const refs = useRef<Map<T, HTMLButtonElement>>(new Map())
+  const quadrados = variante === 'quadrados'
 
   function aoTeclar(evento: KeyboardEvent<HTMLButtonElement>, indice: number) {
     const passo = evento.key === 'ArrowRight' ? 1 : evento.key === 'ArrowLeft' ? -1 : 0
@@ -50,7 +59,10 @@ export function Abas<T extends string>({
     <div
       role="tablist"
       aria-label={rotulo}
-      className={cn('flex flex-wrap gap-x-1 gap-y-1 border-b border-borda', className)}
+      className={cn(
+        quadrados ? 'flex gap-2' : 'flex flex-wrap gap-x-1 gap-y-1 border-b border-borda',
+        className,
+      )}
     >
       {abas.map((aba, indice) => {
         const ativa = aba.valor === valor
@@ -66,19 +78,48 @@ export function Abas<T extends string>({
             id={`${idBase}-aba-${aba.valor}`}
             aria-selected={ativa}
             aria-controls={`${idBase}-painel`}
+            aria-label={quadrados ? aba.rotulo : undefined}
             tabIndex={ativa ? 0 : -1}
             onClick={() => aoMudar(aba.valor)}
             onKeyDown={(e) => aoTeclar(e, indice)}
             className={cn(
-              '-mb-px inline-flex min-h-toque-md items-center gap-2 rounded-t-dm border-b-2 px-4 text-sm transition-colors',
-              '[&_svg]:size-4 [&_svg]:shrink-0',
-              ativa
-                ? 'border-acao-ativa font-semibold text-texto'
-                : 'border-transparent text-texto-suave hover:bg-superficie-sutil hover:text-texto',
+              quadrados
+                ? cn(
+                    'group relative inline-flex size-toque-md items-center justify-center rounded-dm border',
+                    'transition-[background-color,border-color,box-shadow,translate] duration-150',
+                    '[&>svg]:size-5 [&>svg]:shrink-0',
+                    // A microinteração da casa: sobe 2px com sombra suave (D-27).
+                    'hover:-translate-y-0.5 hover:shadow-md hover:shadow-grafite-950/20',
+                    'focus-visible:-translate-y-0.5 focus-visible:shadow-md focus-visible:shadow-grafite-950/20',
+                    'active:translate-y-0 active:shadow-none',
+                    ativa
+                      ? 'border-acao-ativa bg-acao text-acao-texto'
+                      : 'border-borda-forte bg-superficie text-texto-suave hover:bg-superficie-sutil hover:text-texto',
+                  )
+                : cn(
+                    '-mb-px inline-flex min-h-toque-md items-center gap-2 rounded-t-dm border-b-2 px-4 text-sm transition-colors',
+                    '[&_svg]:size-4 [&_svg]:shrink-0',
+                    ativa
+                      ? 'border-acao-ativa font-semibold text-texto'
+                      : 'border-transparent text-texto-suave hover:bg-superficie-sutil hover:text-texto',
+                  ),
             )}
           >
             {aba.icone}
-            {aba.rotulo}
+            {quadrados ? (
+              <span
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute top-full right-0 z-20 mt-2 whitespace-nowrap rounded-dm',
+                  'bg-superficie-inversa px-2.5 py-1 text-xs font-medium text-texto-inverso shadow-md',
+                  'opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100',
+                )}
+              >
+                {aba.rotulo}
+              </span>
+            ) : (
+              aba.rotulo
+            )}
           </button>
         )
       })}
