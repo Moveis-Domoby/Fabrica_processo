@@ -51,8 +51,9 @@ const ABAS: Aba<AbaEstoque>[] = [
  * - O número é o do Tiny da fábrica (o último aviso de estoque de cada produto),
  *   menos o que a loja já vendeu e ainda não saiu (a reserva do pedido). Nunca
  *   aparece negativo (D-53): passou do zero é "necessidade extrema".
- * - Peça pronta COM pedido é RESERVADA (duas etiquetas: SKU + pedido); SEM
- *   pedido é LIVRE (veio da reposição). Nada disso se soma ao Tiny.
+ * - Peça pronta COM pedido é RESERVADA (duas etiquetas: SKU + pedido) e mora em
+ *   Pedidos em aguardo (SESSAO-24); SEM pedido é LIVRE no ESTOQUE (veio da
+ *   reposição ou de pedido cancelado). Nada disso se soma ao Tiny.
  * - Abaixo do mínimo (o do cadastro do Tiny), o estoque gera o card de
  *   reposição no PCP — é sugestão; quem decide produzir é o PCP (M-01).
  * - Duas telas (resposta 8 do dono): produtos acabados e matéria-prima/insumos;
@@ -78,8 +79,9 @@ export function Estoque() {
         </h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
           O número vem do Tiny da fábrica, menos o que a loja já vendeu e ainda não saiu. Peça
-          pronta com pedido é reservada; sem pedido, está livre — e nada disso se soma ao Tiny.
-          Abaixo do mínimo, o estoque pede a reposição ao PCP.
+          pronta com pedido é reservada e fica em Pedidos em aguardo; sem pedido, está livre aqui
+          no estoque — e nada disso se soma ao Tiny. Abaixo do mínimo, o estoque pede a reposição
+          ao PCP.
         </p>
       </div>
 
@@ -376,7 +378,15 @@ function LinhaPeca({ peca, agora }: { peca: PecaEstoque; agora: number }) {
                   ({peca.indice_unidade}/{peca.total_unidades})
                 </span>
               )}
+              {/* SESSAO-24: a peça pronta de pedido mora em Pedidos em aguardo. */}
+              {peca.local === 'aguardo' && (
+                <span className="text-texto-suave"> · em Pedidos em aguardo</span>
+              )}
             </>
+          ) : peca.origem === 'cancelamento' ? (
+            <span className="font-medium">
+              Livre · veio do pedido {peca.origem_numero ?? '…'}, que foi cancelado
+            </span>
           ) : (
             <span className="font-medium">Livre · veio da reposição</span>
           )}
@@ -427,8 +437,10 @@ function PecasDoProduto({ produtoTinyId, agora }: { produtoTinyId: number; agora
 }
 
 /**
- * Tudo o que está fisicamente no ESTOQUE — inclusive o que não é do catálogo
- * (peça personalizada de pedido). Só carrega ao abrir (regra 17).
+ * Tudo o que está no ESTOQUE — só peça SEM DONO desde a SESSAO-24 (b4 do dono:
+ * "estoque só fica como local final de peça sem dono"), inclusive o que não é
+ * do catálogo (a personalizada de pedido cancelado). A peça reservada mora em
+ * Pedidos em aguardo. Só carrega ao abrir (regra 17).
  */
 function TodasAsPecas({ ativo, agora }: { ativo: boolean; agora: number }) {
   const [aberto, setAberto] = useState(false)
@@ -436,7 +448,11 @@ function TodasAsPecas({ ativo, agora }: { ativo: boolean; agora: number }) {
   const { data: pecas = [], isPending } = useQuery({
     queryKey: ['estoque', 'todas-pecas', pagina],
     queryFn: () =>
-      listarPecasEstoque({ limite: POR_PAGINA, deslocamento: (pagina - 1) * POR_PAGINA }),
+      listarPecasEstoque({
+        dono: 'livre',
+        limite: POR_PAGINA,
+        deslocamento: (pagina - 1) * POR_PAGINA,
+      }),
     enabled: ativo && aberto,
     placeholderData: keepPreviousData,
   })

@@ -247,6 +247,9 @@ Componentes de DOMÍNIO (não são primitivos de `ui/`, mas seguem as mesmas reg
   sem etapa. Colunas rolam na horizontal com `snap` no celular (85vw por coluna) e
   largura fixa no desktop. **Dois gestos sempre:** drag-and-drop (`@dnd-kit/core`,
   desktop) E botão "Mover" (tablet) — nenhuma movimentação pode existir só no arrasto.
+  **↪️ SESSAO-24 (D-59): revogado nos quadros** — a equipe pediu SÓ arrasto; a alternativa
+  acessível passou a ser o **teclado** (espaço + setas, `KeyboardSensor`) e o toque segura
+  ~200 ms antes de arrastar. Ver "Quadro por arrasto" abaixo.
 - **Modais do PCP** (`ModalNovoPedido`, `ModalLiberarPedido`) e **`ModalMoverCard`** — decisão
   curta em modal (`tamanho="galpao"` quando tem lista); seleção de destino com `<Selecao>`
   `tamanho="galpao"` no fluxo de tablet.
@@ -261,7 +264,8 @@ SESSAO-05.
   (ícone de relógio; o card há mais tempo esperando na coluna ganha ampulheta + texto em
   `atencao-texto` — nunca só cor, M-12); em execução mostra `Play` + tempo + **quem** executa
   ("você" para o próprio). Botões **Iniciar / Finalizar / Assumir** com `min-h-toque-md` (44px);
-  card em execução tem borda `acao-ativa`.
+  card em execução tem borda `acao-ativa`. **↪️ SESSAO-24 (D-59):** os botões saíram — iniciar
+  é soltar na etapa de início; a borda e o "quem executa" continuam.
 - **`<ModalLinhaTempo>`** — o histórico legível: um bloco por permanência (setor · etapa) com
   **Fila (do setor)**, **Execução de {pessoa}** e **Total na etapa**; durações via
   `formatarDuracaoMs` (precisão de segundos abaixo de 1min). A lista crua de eventos fica
@@ -279,6 +283,8 @@ SESSAO-05.
   em `atencao-texto`, com quem executa ao lado. Pausar (líder/admin) aparece ao lado do
   Finalizar; pausado troca os gestos por **Retomar** (no tablet, `galpao` com PIN). O banco
   valida tudo — o front só mostra a mensagem que voltar ("finalize a urgência antes…").
+  **↪️ SESSAO-24 (D-59):** Pausar/Retomar saíram dos quadros junto com os botões (arrastar
+  para PARADO ou para a fila fecha o tempo); o estado "Pausado há X" continua sendo mostrado.
 - **Tempo em PCP no card de unidade é do PEDIDO:** linha discreta "Pedido ficou X em PCP"
   (entrada → liberação completa; "ainda contando" enquanto houver unidade por liberar).
   A linha do tempo repete o número num bloco próprio e desconta as pausas de cada execução
@@ -351,6 +357,7 @@ SESSAO-05.
   tom de bronca — divergir é gesto legítimo).
 - **`<CartaoUnidade>` com parecer pendente** mostra a faixa "{SETOR} entregou como {estado} —
   confirme ao iniciar" e o Iniciar abre a confirmação primeiro (o banco também trava).
+  **↪️ SESSAO-24:** soltar o card na etapa de início abre o parecer primeiro.
 - **Coluna DANIFICADO** (`eh_danificado`) ganha selo vermelho `danificado-fundo/texto` no
   cabeçalho, como a fila ganha o selo `info`.
 - **`<SinoNotificacoes>`** (`src/notificacoes/`): sino no topo com contador de não lidas;
@@ -368,6 +375,8 @@ SESSAO-05.
   do cliente (D-28), tempo em fonte grande, etiqueta da etapa, ações em botões `galpao`
   (Iniciar/Finalizar/Receber com 64px; Mover/Fotos/Histórico com 56px). O card há mais
   tempo esperando ganha borda âmbar + ampulheta + texto (nunca só cor — M-12).
+  **↪️ SESSAO-24 (D-59): apagado** — o modo tablet usa o `QuadroKanban` com `tamanho="galpao"`
+  (sem cliente), e o PIN é pedido ao soltar/concluir.
 - **`<ModalPinOperador>`** — o "quem é você?" de toda ação no tablet: o operador toca no
   PRÓPRIO NOME (lista dos membros do setor) e digita o PIN num **teclado na tela** — o
   ciclo inteiro sem teclado do sistema. A conferência é da Edge Function; o resultado vira
@@ -430,6 +439,8 @@ SESSAO-05.
   `DESCRICAO_ESTADO` (M-12), só quando o destino é outro setor.
 - **Botão "Concluir"** (`CartaoUnidade` e `CartaoTablet`): atalho da peça pronta — abre o
   `ModalMoverCard` em `modo="concluir"` (destino fixo ESTOQUE, só a marcação do estado).
+  **↪️ SESSAO-24 (D-59):** virou "Concluir produção", só na LIMPEZA E EMBALAGEM, e o destino
+  é do banco (pedido vivo → Pedidos em aguardo; sem pedido/cancelado → ESTOQUE).
   O rodapé do card de unidade ficou em **duas linhas**: gestos de tempo (Iniciar/Finalizar/
   Assumir) em cima; estado, histórico, Concluir e Mover embaixo — nada estoura a borda.
 - **Mapa de programação** (`MapaProgramacao`, Leaflet + tiles OSM com atribuição): marcadores
@@ -480,6 +491,44 @@ SESSAO-05.
 - **ESTOQUE só com 🟢:** mover/concluir/resolver para o ESTOQUE só oferece "Perfeito estado",
   com a frase da regra ("com defeito, mova para o DANIFICADO do setor"); o banco recusa o
   resto (mensagem mostrada como veio).
+
+### Quadro por arrasto, fins de linha e cancelados (SESSAO-24 / D-58…D-62)
+
+- **Quadros de produção são SÓ arrasto** (D-59 — pedido da equipe): o `<CartaoUnidade>`
+  perdeu Iniciar/Pausar/Retomar/Finalizar/Assumir/Mover; ficaram linha do tempo, fotos e,
+  só onde o setor conclui (LIMPEZA E EMBALAGEM — `setorConcluiProducao`), **"Concluir
+  produção"**. Alça `GripVertical` avisa que o card se arrasta; botões dentro do card param
+  a propagação do teclado para não disparar o arrasto. Mouse: 8px de distância; toque:
+  segura ~200 ms (tolerância 8px); **teclado: espaço + setas** — a alternativa acessível.
+- **O banco decide o gesto** (`plt_fn_soltar_card`); a tela só sabe antes o que precisa
+  perguntar — `src/kanban/arrasto.ts` (espelho de `fn_etapa_inicio`, testado no Vitest):
+  soltar no **início** → inicia (o parecer pendente abre antes); soltar em etapa que
+  **encaminha** → `ModalMoverCard` modo `encaminhar` (os 3 estados — D-09); o resto → move.
+- **Coluna que encaminha:** borda tracejada, sempre vazia, "Solte aqui para mandar para X"
+  (o card nunca fica nela). **Coluna de início:** aviso "soltar aqui começa o tempo".
+- **`ModalMoverCard`** virou o modal do gesto: `encaminhar` (marcação obrigatória) ou
+  `concluir` (só 🟢, já marcado; o texto diz o destino: Pedidos em aguardo, ou ESTOQUE
+  sem dono para reposição e pedido cancelado).
+- **Modo tablet** (`TelaSetor`): o MESMO `QuadroKanban` com `tamanho="galpao"` (sem
+  cliente — D-28); ao soltar ou concluir, o `ModalPinOperador` pergunta quem fez ANTES.
+  Os botões do cabeçalho (Trocar setor · Sair) também têm 44px (achado da F-07).
+- **Pedidos em aguardo em `<Abas>`:** "Pedidos (n)" · "Produtos reservados (n)"
+  (`?aba=produtos`); as contagens vêm de UMA porta (`plt_fn_aguardo_contagens`) e batem
+  por construção. Produto reservado: SKU + "Pedido N (k/n)", selo do estado quando não é
+  🟢, "veio do estoque", "em aguardo há X". Botões da lista com 44px.
+- **PCP em `<Abas>`:** "Aguardando liberação" · "Cancelados" (`?aba=cancelados`) — lista
+  paginada (20) com busca, carregada só ao abrir (regra 17); cada pedido mostra quantas
+  peças estão em produção, no estoque e nas ROTAS.
+- **Etiqueta "Pedido cancelado — pronta, vai para o estoque"** no card de unidade em
+  produção (`danificado-*` com `Ban` — ícone + texto, nunca só cor).
+- **Liberar com sugestão do estoque** (`ModalLiberarPedido`): por linha, "Há N igual(is)
+  no estoque, sem dono — usar?" com checkbox **desmarcado por padrão** e a origem da peça;
+  o aceito é alocado, o resto segue para a produção.
+- **Setores e etapas:** chip "manda para X" na etapa e seletor "Soltar o card em {etapa}
+  manda para" (a opção sem rota é "Fica no setor (não manda)"); etapa nova com nome de setor avisa a rota que vai
+  nascer com ela.
+- **Estoque:** a reservada que está no aguardo mostra "· em Pedidos em aguardo"; a livre
+  de cancelamento mostra "Livre · veio do pedido N, que foi cancelado".
 
 ### Chat interno (SESSAO-26 / D-65…D-68) — `src/chat/`
 

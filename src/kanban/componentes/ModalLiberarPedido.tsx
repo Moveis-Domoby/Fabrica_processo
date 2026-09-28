@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, PackageCheck } from 'lucide-react'
 import { Botao, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
+  alocarPeca,
   buscarEtapasAtivas,
   itensDoPedido,
   liberarUnidades,
+  sugestoesAlocacao,
   unidadesDaReposicao,
   unidadesDoPedido,
 } from '../api'
-import type { ReposicaoResumo } from '../api'
+import type { ReposicaoResumo, SugestaoAlocacao } from '../api'
 import type { Card, Etapa, ItemKanban, PedidoResumo, Setor } from '../tipos'
 
 const CHEGADA = 'chegada'
@@ -26,6 +29,8 @@ interface LinhaLiberacao {
   selecionada: boolean
   setorId: string
   etapaId: string
+  /** SESSAO-24: usar a peça igual sem dono do estoque (a unidade nasce pronta). */
+  usarEstoque: boolean
 }
 
 export interface ModalLiberarPedidoProps {
@@ -46,6 +51,12 @@ export interface ModalLiberarPedidoProps {
  * SESSAO-25: o card de REPOSIÇÃO de estoque libera do mesmo jeito — as
  * unidades nascem sem pedido, com o produto do catálogo, e prontas ficam
  * livres no estoque.
+ *
+ * SESSAO-24: se existe no estoque peça IGUAL sem dono (mesmo produto; a
+ * personalizada, mesmo SKU e descrição), a unidade mostra "Há N no estoque —
+ * usar?". Aceitar faz a unidade nascer PRONTA em Pedidos em aguardo (não
+ * volta à produção); recusar libera normal. A sugestão nunca decide sozinha —
+ * vem desmarcada.
  */
 export function ModalLiberarPedido({
   cardPedido,
@@ -79,6 +90,19 @@ export function ModalLiberarPedido({
     queryFn: () => unidadesDaReposicao(cardPedido!.id),
     enabled: aberto && ehReposicao,
   })
+  // SESSAO-24: peça igual sem dono no estoque, uma por unidade ainda não liberada.
+  const { data: sugestoes = [] } = useQuery({
+    queryKey: ['sugestoes-alocacao', cardPedido?.id ?? 0],
+    queryFn: () => sugestoesAlocacao(cardPedido!.id),
+    enabled: aberto && !ehReposicao,
+  })
+  const sugestaoPorChave = useMemo(
+    () =>
+      new Map<string, SugestaoAlocacao>(
+        sugestoes.map((s) => [`${s.item_seq}:${s.indice_unidade}`, s]),
+      ),
+    [sugestoes],
+  )
   const itens: ItemKanban[] = useMemo(
     () =>
       ehReposicao && cardPedido
@@ -135,6 +159,7 @@ export function ModalLiberarPedido({
           selecionada: !jaLiberada,
           setorId: '',
           etapaId: CHEGADA,
+          usarEstoque: false,
         })
       }
     }
@@ -182,12 +207,44 @@ export function ModalLiberarPedido({
     })
   }
 
+  // SESSAO-24: numa só confirmação, as unidades marcadas para usar o estoque
+  // nascem prontas (alocar) e as demais seguem para a produção (liberar).
   const mutacao = useMutation({
-    mutationFn: liberarUnidades,
-    onSuccess: async (quantidade) => {
+    mutationFn: async (parametros: {
+      alocar: { itemSeq: number; indiceUnidade: number; pecaCardId: number }[]
+      liberar: Parameters<typeof liberarUnidades>[0] | null
+    }) => {
+      let alocadas = 0
+      for (const a of parametros.alocar) {
+        try {
+          await alocarPeca({ cardPedidoId: cardPedido!.id, ...a })
+        } catch (erro) {
+          const detalhe = erro instanceof Error ? erro.message : 'sem resposta do servidor'
+          throw new Error(
+            alocadas === 0
+              ? `Não deu para usar a peça do estoque: ${detalhe}`
+              : `Usei ${alocadas} peça(s) do estoque, mas parei na seguinte: ${detalhe}`,
+            { cause: erro },
+          )
+        }
+        alocadas += 1
+      }
+      const liberadas = parametros.liberar ? await liberarUnidades(parametros.liberar) : 0
+      return { alocadas, liberadas }
+    },
+    onSuccess: async ({ alocadas, liberadas }) => {
+      const partes = [
+        liberadas > 0
+          ? `${liberadas} unidade${liberadas === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
+          : null,
+        alocadas > 0
+          ? `${alocadas} do estoque — já pronta${alocadas === 1 ? '' : 's'} em Pedidos em aguardo`
+          : null,
+      ].filter(Boolean)
       notificar({
-        titulo: `${quantidade} unidade${quantidade === 1 ? '' : 's'} liberada${quantidade === 1 ? '' : 's'}`,
-        descricao: `${origem} — cada unidade seguiu para o setor escolhido.`,
+        titulo: partes.join(' · '),
+        descricao:
+          liberadas > 0 ? `${origem} — cada unidade seguiu para o setor escolhido.` : origem,
         tom: 'perfeito',
       })
       aoFechar()
@@ -198,13 +255,19 @@ export function ModalLiberarPedido({
         clienteQuery.invalidateQueries({ queryKey: ['expedicao'] }),
         clienteQuery.invalidateQueries({ queryKey: ['reposicoes-resumo'] }),
         clienteQuery.invalidateQueries({ queryKey: ['reposicao-unidades'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['sugestoes-alocacao'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['produtos-reservados'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['aguardo-contagens'] }),
       ])
     },
     onError: async (excecao) => {
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
-      // Uma liberação parcial pode ter acontecido antes do erro — recarrega.
+      // Uma parte pode ter acontecido antes do erro — recarrega.
       await clienteQuery.invalidateQueries({ queryKey: ['pedido-unidades'] })
       await clienteQuery.invalidateQueries({ queryKey: ['reposicao-unidades'] })
+      await clienteQuery.invalidateQueries({ queryKey: ['sugestoes-alocacao'] })
       await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
     },
   })
@@ -219,7 +282,9 @@ export function ModalLiberarPedido({
       setErro('Selecione pelo menos uma unidade para liberar.')
       return
     }
-    const semDestino = selecionadas.filter((l) => l.setorId === '')
+    const semDestino = selecionadas.filter(
+      (l) => l.setorId === '' && !(l.usarEstoque && sugestaoPorChave.has(l.chave)),
+    )
     if (semDestino.length > 0) {
       setErro(
         `Escolha o setor de destino de ${semDestino.length === 1 ? '1 unidade selecionada' : `${semDestino.length} unidades selecionadas`}.`,
@@ -227,21 +292,36 @@ export function ModalLiberarPedido({
       return
     }
     setErro('')
+    const alocar = selecionadas.flatMap((l) => {
+      const sugestao = l.usarEstoque ? sugestaoPorChave.get(l.chave) : undefined
+      return sugestao
+        ? [{ itemSeq: l.item_seq, indiceUnidade: l.indice_unidade, pecaCardId: sugestao.peca_card_id }]
+        : []
+    })
+    const paraProducao = selecionadas.filter(
+      (l) => !(l.usarEstoque && sugestaoPorChave.has(l.chave)),
+    )
     mutacao.mutate({
-      cardPaiId: cardPedido.id,
-      pedidoId: ehReposicao ? null : cardPedido.pedido_id,
-      produtoTinyId: ehReposicao ? (reposicao?.produto_tiny_id ?? null) : null,
-      setorPcpId: setorPcp.id,
-      usuarioId: perfil.id,
-      unidades: selecionadas.map((l) => ({
-        item_seq: l.item_seq,
-        item_codigo: l.item_codigo,
-        item_descricao: l.item_descricao,
-        indice_unidade: l.indice_unidade,
-        total_unidades: l.total_unidades,
-        destinoSetorId: Number(l.setorId),
-        destinoEtapaId: l.etapaId === CHEGADA ? null : Number(l.etapaId),
-      })),
+      alocar,
+      liberar:
+        paraProducao.length === 0
+          ? null
+          : {
+              cardPaiId: cardPedido.id,
+              pedidoId: ehReposicao ? null : cardPedido.pedido_id,
+              produtoTinyId: ehReposicao ? (reposicao?.produto_tiny_id ?? null) : null,
+              setorPcpId: setorPcp.id,
+              usuarioId: perfil.id,
+              unidades: paraProducao.map((l) => ({
+                item_seq: l.item_seq,
+                item_codigo: l.item_codigo,
+                item_descricao: l.item_descricao,
+                indice_unidade: l.indice_unidade,
+                total_unidades: l.total_unidades,
+                destinoSetorId: Number(l.setorId),
+                destinoEtapaId: l.etapaId === CHEGADA ? null : Number(l.etapaId),
+              })),
+            },
     })
   }
 
@@ -311,6 +391,9 @@ export function ModalLiberarPedido({
               producaoComFila && linha.etapaId === CHEGADA
                 ? String(filaDoDestino!.id)
                 : linha.etapaId
+            // SESSAO-24: peça igual sem dono no estoque para esta unidade.
+            const sugestao = linha.jaLiberada ? undefined : sugestaoPorChave.get(linha.chave)
+            const usandoEstoque = sugestao !== undefined && linha.usarEstoque
             return (
               <li key={linha.chave} className="flex flex-col gap-2 px-3 py-3">
                 <div className="flex items-center justify-between gap-3">
@@ -338,7 +421,42 @@ export function ModalLiberarPedido({
                   )}
                 </div>
 
-                {!linha.jaLiberada && linha.selecionada && (
+                {sugestao && linha.selecionada && (
+                  <label
+                    className={cn(
+                      'ml-8 flex min-h-toque-md cursor-pointer items-center gap-3 rounded-dm border px-3 py-2 text-sm',
+                      usandoEstoque
+                        ? 'border-acao-ativa bg-superficie-sutil'
+                        : 'border-perfeito-borda bg-perfeito-fundo',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-5 shrink-0 accent-[var(--dm-acao)]"
+                      checked={linha.usarEstoque}
+                      onChange={() =>
+                        mudarLinha(linha.chave, { usarEstoque: !linha.usarEstoque })
+                      }
+                    />
+                    <PackageCheck aria-hidden className="size-5 shrink-0 text-perfeito-forte" />
+                    <span className="flex flex-col">
+                      <span className="font-medium text-texto">
+                        Há {sugestao.pecas_iguais} igual{sugestao.pecas_iguais === 1 ? '' : 'is'} no
+                        estoque, sem dono — usar?
+                      </span>
+                      <span className="text-xs text-texto-suave">
+                        {sugestao.peca_origem === 'cancelamento' && sugestao.peca_origem_numero
+                          ? `Veio do pedido ${sugestao.peca_origem_numero}, que foi cancelado.`
+                          : 'Veio da reposição de estoque.'}{' '}
+                        {usandoEstoque
+                          ? 'Vai direto, pronta, para Pedidos em aguardo — não passa pela produção.'
+                          : 'Marque para usar; sem marcar, a unidade vai para a produção.'}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                {!linha.jaLiberada && linha.selecionada && !usandoEstoque && (
                   <div className="grid grid-cols-1 gap-2 pl-8 sm:grid-cols-2">
                     <Selecao
                       rotulo="Setor de destino"

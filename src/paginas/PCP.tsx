@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Navigate } from 'react-router'
+import { Navigate, useSearchParams } from 'react-router'
 import {
   keepPreviousData,
   useMutation,
@@ -12,29 +12,31 @@ import {
   Ban,
   ChevronDown,
   Clock,
+  Inbox,
   OctagonAlert,
   PackageOpen,
   PackagePlus,
   PackageX,
   Plus,
+  Search,
 } from 'lucide-react'
-import { Botao, useNotificacao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Paginacao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
   buscarCardsPedidoPcp,
   buscarEtapasDoSetor,
   buscarSetores,
-  moverCard,
+  pedidosCancelados,
   reposicoesResumo,
+  soltarCard,
 } from '@/kanban/api'
-import type { ReposicaoResumo } from '@/kanban/api'
+import type { PedidoCancelado, ReposicaoResumo } from '@/kanban/api'
 import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
-import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
 import type { Card } from '@/kanban/tipos'
@@ -51,6 +53,11 @@ const ATUALIZA_A_CADA = 20_000
  * SESSAO-25: o ESTOQUE manda para cá o card de REPOSIÇÃO quando um produto
  * fica abaixo do mínimo do Tiny. O PCP decide o rumo (resposta 7 do dono):
  * libera as unidades para a produção ou não produz (arquiva).
+ *
+ * SESSAO-24: pedido CANCELADO no Tiny sai do quadro e vai para a aba
+ * Cancelados (histórico para sempre, carregado só ao abrir — b3 do dono); a
+ * liberação sugere peça igual sem dono do estoque; e as unidades de passagem
+ * pelo PCP se arrastam (a etapa com nome de setor manda o card para ele).
  */
 export function PCP() {
   const { perfil, vinculos, carregando } = useSessao()
@@ -143,10 +150,15 @@ export function PCP() {
 
   const [modalNovo, setModalNovo] = useState(false)
   const [cardParaLiberar, setCardParaLiberar] = useState<Card | null>(null)
-  const [cardParaMover, setCardParaMover] = useState<Card | null>(null)
 
-  const mutacaoEtapa = useMutation({
-    mutationFn: moverCard,
+  // SESSAO-24: a aba vive na URL (?aba=cancelados) — Voltar e link funcionam.
+  const [parametros, setParametros] = useSearchParams()
+  const aba: 'quadro' | 'cancelados' =
+    parametros.get('aba') === 'cancelados' ? 'cancelados' : 'quadro'
+
+  // SESSAO-24: unidade de passagem pelo PCP se arrasta (o banco decide o gesto).
+  const mutacaoSoltar = useMutation({
+    mutationFn: soltarCard,
     onSuccess: () => clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
     onError: (excecao) =>
       notificar({
@@ -176,6 +188,28 @@ export function PCP() {
         </Botao>
       </div>
 
+      <Abas
+        rotulo="Visões do PCP"
+        idBase="pcp"
+        abas={[
+          { valor: 'quadro', rotulo: 'Aguardando liberação', icone: <PackageOpen aria-hidden /> },
+          { valor: 'cancelados', rotulo: 'Cancelados', icone: <Ban aria-hidden /> },
+        ]}
+        valor={aba}
+        aoMudar={(valor) => {
+          const novos = new URLSearchParams(parametros)
+          if (valor === 'quadro') novos.delete('aba')
+          else novos.set('aba', valor)
+          setParametros(novos, { replace: true })
+        }}
+      />
+
+      {aba === 'cancelados' ? (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-cancelados">
+          <PainelCancelados />
+        </div>
+      ) : (
+      <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-quadro" className="flex flex-col gap-6">
       <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
         <h2 className="text-lg">
           Aguardando liberação{' '}
@@ -304,14 +338,8 @@ export function PCP() {
             colunas={colunasUnidades}
             pedidosPorId={pedidosPorId}
             agora={agora}
-            aoMoverParaEtapa={(card, etapaId) =>
-              mutacaoEtapa.mutate({
-                card,
-                destinoSetorId: setorPcp.id,
-                destinoEtapaId: etapaId,
-              })
-            }
-            aoAbrirMover={setCardParaMover}
+            setores={setores}
+            aoSoltarNaEtapa={(card, etapaId) => mutacaoSoltar.mutate({ card, etapaId })}
             // No PCP não há gesto de execução: a unidade só está de passagem
             // entre nascer e ser liberada (D-22). O tempo dela aqui é fila.
             execucao={{
@@ -329,6 +357,8 @@ export function PCP() {
           </p>
         )}
       </section>
+      </div>
+      )}
 
       {setorPcp && (
         <ModalNovoPedido
@@ -351,16 +381,6 @@ export function PCP() {
           aoFechar={() => setCardParaLiberar(null)}
         />
       )}
-      <ModalMoverCard
-        card={cardParaMover}
-        pedido={
-          cardParaMover && cardParaMover.pedido_id !== null
-            ? pedidosPorId.get(cardParaMover.pedido_id)
-            : undefined
-        }
-        setores={setores}
-        aoFechar={() => setCardParaMover(null)}
-      />
     </div>
   )
 }
@@ -465,6 +485,127 @@ function CartaoReposicaoPcp({
           </Botao>
         </div>
       )}
+    </li>
+  )
+}
+
+const CANCELADOS_POR_PAGINA = 20
+
+function formatarDataPedido(iso: string | null): string {
+  return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
+}
+
+/**
+ * SESSAO-24 — a aba CANCELADOS do PCP: todo pedido cancelado no Tiny, com o
+ * que aconteceu com as peças dele. Guarda para sempre (b3 do dono); só
+ * carrega ao abrir a aba e pagina no servidor (regra 17). Nada aqui é gesto:
+ * as consequências são do sistema (M-01) — a peça pronta perdeu o pedido e
+ * foi para o estoque sem dono; a que estava na produção segue com a etiqueta
+ * "Pedido cancelado" e, concluída, vai para o estoque.
+ */
+function PainelCancelados() {
+  const agora = useAgora()
+  const [busca, setBusca] = useState('')
+  const [pagina, setPagina] = useState(1)
+
+  const { data: linhas = [], isPending } = useQuery({
+    queryKey: ['pcp-cancelados', busca, pagina],
+    queryFn: () =>
+      pedidosCancelados({
+        busca,
+        limite: CANCELADOS_POR_PAGINA,
+        deslocamento: (pagina - 1) * CANCELADOS_POR_PAGINA,
+      }),
+    placeholderData: keepPreviousData,
+  })
+  const total = Number(linhas[0]?.contagem_total ?? 0)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="max-w-2xl text-sm text-texto-suave">
+        Pedidos cancelados no Tiny. Peça que já estava pronta voltou para o estoque, sem dono; peça
+        que estava na produção segue com a etiqueta &quot;Pedido cancelado&quot; e, concluída, vai
+        para o estoque.
+      </p>
+      <div className="max-w-md">
+        <Campo
+          rotulo="Buscar cancelado"
+          prefixo={<Search />}
+          placeholder="Número do pedido ou nome do cliente"
+          value={busca}
+          onChange={(e) => {
+            setBusca(e.target.value)
+            setPagina(1)
+          }}
+        />
+      </div>
+
+      {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
+      {!isPending && linhas.length === 0 && (
+        <p className="flex items-center gap-2 rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+          <Inbox aria-hidden className="size-5 shrink-0" />
+          Nenhum pedido cancelado{busca ? ' para esta busca' : ''}.
+        </p>
+      )}
+
+      <ul className="flex flex-col gap-3">
+        {linhas.map((linha) => (
+          <LinhaCancelado key={linha.card_id} linha={linha} agora={agora} />
+        ))}
+      </ul>
+
+      {total > CANCELADOS_POR_PAGINA && (
+        <Paginacao
+          paginaAtual={pagina}
+          totalPaginas={Math.ceil(total / CANCELADOS_POR_PAGINA)}
+          totalItens={total}
+          porPagina={CANCELADOS_POR_PAGINA}
+          aoMudarPagina={setPagina}
+          className="rounded-dm-lg border border-borda bg-superficie"
+        />
+      )}
+    </div>
+  )
+}
+
+function LinhaCancelado({ linha, agora }: { linha: PedidoCancelado; agora: number }) {
+  const liberadas = linha.em_producao + linha.prontas + linha.no_estoque
+  return (
+    <li className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-semibold text-texto tabular-nums">Pedido {linha.numero}</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+          <Ban aria-hidden className="size-3.5" />
+          Cancelado no Tiny
+          {linha.cancelado_em && ` há ${formatarDuracao(linha.cancelado_em, agora)}`}
+        </span>
+      </div>
+      <p className="line-clamp-1 text-sm text-texto-suave">
+        {linha.cliente_nome || 'Sem cliente'} · pedido de {formatarDataPedido(linha.data_pedido)}
+        {' · '}
+        {linha.total_unidades} unidade{linha.total_unidades === 1 ? '' : 's'}
+      </p>
+      <p className="text-sm text-texto tabular-nums">
+        {liberadas === 0 ? (
+          'Nenhuma unidade tinha ido para a produção — sem efeito no estoque.'
+        ) : (
+          <>
+            {linha.em_producao > 0 && (
+              <>
+                {linha.em_producao} na produção com a etiqueta &quot;Pedido cancelado&quot;
+                {(linha.no_estoque > 0 || linha.prontas > 0) && ' · '}
+              </>
+            )}
+            {linha.no_estoque > 0 && (
+              <>
+                {linha.no_estoque} no estoque, sem dono
+                {linha.prontas > 0 && ' · '}
+              </>
+            )}
+            {linha.prontas > 0 && <>{linha.prontas} já lançada(s) para as ROTAS</>}
+          </>
+        )}
+      </p>
     </li>
   )
 }

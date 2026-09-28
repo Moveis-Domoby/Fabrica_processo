@@ -1,7 +1,7 @@
 ---
 titulo: Fábrica — A linha de produção real (mapeada dos quadros do Trello)
 tipo: modelo-mental
-atualizado: 2026-08-13
+atualizado: 2026-09-27
 tags: [fabrica, producao, trello, clickup, processo, setores]
 ---
 
@@ -30,6 +30,14 @@ Os quadros do Trello são numerados na ordem física do fluxo — a numeração 
 ```
 
 **Padrão de handoff observado:** cada quadro tem listas com o nome dos setores vizinhos (ex.: SECC tem listas "FITAMENTO" e "CENTRO FURAÇÃO"; FITAMENTO tem "MONTAGEM", "CENTRO FURAÇÃO", "ESTOQUE"). O card vai para a lista com o nome do próximo setor e depois é movido/recriado no quadro daquele setor. ⚠️ Como isso é feito na prática (mover vs duplicar, quem faz, quando) **não foi confirmado** — é a primeira pergunta do mapeamento com a equipe.
+
+> [!success] Confirmado pelo dono em 27/09/2026 (SESSAO-24, depois de um alinhamento com a equipe da fábrica)
+> - **SECC e CNC são duas máquinas que fazem praticamente a mesma coisa:** cortam a chapa de MDF de acordo com o **plano de corte feito no SketchUp**. A diferença: **a CNC também fura a peça, a SECC não.** Por isso o que sai da SECC e da CNC vai para a **FURAÇÃO**.
+> - **Um móvel só vira móvel na MONTAGEM.** Até lá, ele é um plano de corte dividido em várias peças — às vezes junto com peças de outros móveis.
+> - **A etapa com nome de setor leva o card para aquele setor** (o jeito do ClickUp que a plataforma herdou — "CENTRO DE FURAÇÃO" é o setor FURAÇÃO). O **CONCLUÍDO** de cada setor leva ao próximo: SECC/CNC → FURAÇÃO; FITAMENTO → FURAÇÃO; FURAÇÃO → MONTAGEM; MONTAGEM → LIMPEZA E EMBALAGEM.
+> - **Todo móvel que vai para o estoque passa pela LIMPEZA E EMBALAGEM** — são eles que levam ao estoque (móvel sem dono) ou a Pedidos em aguardo (móvel já reservado por um pedido).
+> - A equipe prefere **arrastar** os cards a apertar botões ("é mais rápido").
+> Na plataforma: [[PLT - Decisoes de Produto]] D-58 a D-60.
 
 ## Quadro a quadro (o que os prints mostram)
 

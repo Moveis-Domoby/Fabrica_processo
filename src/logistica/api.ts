@@ -110,7 +110,12 @@ export interface PecaEstoque {
   total_unidades: number | null
   produto_tiny_id: number | null
   reposicao_card_id: number | null
-  origem: 'pedido' | 'reposicao'
+  /** SESSAO-24: 'cancelamento' = a peça perdeu o pedido (cancelado no Tiny). */
+  origem: 'pedido' | 'reposicao' | 'cancelamento'
+  /** SESSAO-24: o número do pedido cancelado de onde a peça sem dono veio. */
+  origem_numero: number | null
+  /** SESSAO-24: onde a peça está — 'estoque' (sem dono) ou 'aguardo' (reservada). */
+  local: 'estoque' | 'aguardo'
   qualidade_atual: Estado | null
   desde: string | null
   contagem_total: number
@@ -205,8 +210,70 @@ export async function listarPedidosAguardo(parametros: {
 }
 
 /**
- * Lançar para ROTAS (D-45): evento no card do pedido + as unidades saem do
- * ESTOQUE para o setor ROTAS numa transação. O banco recusa pedido incompleto.
+ * SESSAO-24 — a aba "Produtos reservados" de Pedidos em aguardo (a2 do dono):
+ * cada peça pronta de pedido, com o pedido, o produto e o tempo em aguardo.
+ * Mesma base da aba "Pedidos" no banco — os contadores batem.
+ */
+export interface ProdutoReservado {
+  card_id: number
+  card_pedido_id: number
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  situacao: string | null
+  item_codigo: string | null
+  item_descricao: string | null
+  indice_unidade: number | null
+  total_unidades: number | null
+  /** 'aguardo' normalmente; 'estoque'/'rotas' só em peça antiga. */
+  local: string | null
+  qualidade_atual: Estado | null
+  /** Quando ficou pronta (chegou ao fim de linha) — o começo do tempo em aguardo. */
+  pronta_em: string | null
+  /** A unidade nasceu de uma peça do estoque (alocação), não da produção. */
+  veio_do_estoque: boolean
+  pedido_completo: boolean
+  contagem_total: number
+}
+
+export async function listarProdutosReservados(parametros: {
+  busca?: string
+  limite?: number
+  deslocamento?: number
+}): Promise<ProdutoReservado[]> {
+  const { data, error } = await supabase.rpc('plt_fn_produtos_reservados', {
+    p_busca: parametros.busca || null,
+    p_limite: parametros.limite ?? 20,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  return garantir(
+    data as ProdutoReservado[] | null,
+    error,
+    'Não deu para carregar os produtos reservados',
+  )
+}
+
+/** SESSAO-24: os números das abas de Pedidos em aguardo (agregado barato — regra 17). */
+export interface ContagensAguardo {
+  pedidos: number
+  pedidos_completos: number
+  produtos: number
+}
+
+export async function contagensAguardo(): Promise<ContagensAguardo> {
+  const { data, error } = await supabase.rpc('plt_fn_aguardo_contagens')
+  const linhas = garantir(
+    data as ContagensAguardo[] | null,
+    error,
+    'Não deu para carregar as contagens do aguardo',
+  )
+  return linhas[0] ?? { pedidos: 0, pedidos_completos: 0, produtos: 0 }
+}
+
+/**
+ * Lançar para ROTAS (D-45): evento no card do pedido + as unidades saem de
+ * Pedidos em aguardo (antes: do ESTOQUE) para o setor ROTAS numa transação.
+ * O banco recusa pedido incompleto.
  */
 export async function lancarParaRotas(cardPedidoId: number): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_lancar_rotas', { p_card_id: cardPedidoId })

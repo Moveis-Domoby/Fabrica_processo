@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BadgeEstado,
   Botao,
@@ -7,175 +7,124 @@ import {
   ESTADOS_QUALIDADE,
   Modal,
   ROTULO_ESTADO,
-  Selecao,
   useNotificacao,
 } from '@/componentes/ui'
 import type { Estado } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { useSessao } from '@/autenticacao/sessao-contexto'
-import { buscarEtapasDoSetor, moverCard } from '../api'
-import type { Card, PedidoResumo, Setor } from '../tipos'
+import { concluirProducao, soltarCard } from '../api'
+import { pedidoCancelado } from '../situacao'
+import type { Card, Etapa, PedidoResumo } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 
 export interface ModalMoverCardProps {
   card: Card | null
   pedido?: PedidoResumo
-  setores: Setor[]
-  /** Nome de quem está executando o card agora (para o aviso da D-24). */
+  /**
+   * SESSAO-24 — o quadro é por arrasto; este modal só pergunta o ESTADO da peça
+   * (D-09: quem entrega marca):
+   * - 'encaminhar': o card foi solto numa etapa que leva a outro setor;
+   * - 'concluir': "Concluir produção" (só LIMPEZA E EMBALAGEM) — o banco decide
+   *   o destino: Pedidos em aguardo (pedido vivo) ou ESTOQUE (sem dono). Só 🟢.
+   */
+  modo: 'encaminhar' | 'concluir'
+  /** encaminhar: a coluna onde o card foi solto (a etapa que encaminha). */
+  etapaDestino?: Etapa
+  /** encaminhar: o nome do setor para onde a etapa leva. */
+  setorDestinoNome?: string
+  /** Nome de quem está executando o card agora (o aviso da D-24). */
   executorNome?: string
   /** Tablet compartilhado (SESSAO-07): o gesto sai em nome do operador do PIN. */
   operadorId?: string
-  /**
-   * SESSAO-15 (pedido do dono): 'concluir' é o atalho "a peça está pronta" —
-   * o destino é fixo no ESTOQUE (fim de linha), a unidade entra nos Pedidos
-   * em aguardo e só a marcação do estado é pedida.
-   */
-  modo?: 'mover' | 'concluir'
   aoFechar: () => void
 }
 
 /**
- * "Mover para…" — o gesto de movimentação do tablet (a demanda exige os dois:
- * drag-and-drop no desktop E botão no tablet). Destino livre (D-22): qualquer
- * setor ativo, inclusive mudar de etapa dentro do setor atual.
- *
- * SESSAO-06 (D-09): saindo de setor de PRODUÇÃO para outro setor, a marcação
- * do estado da peça é obrigatória — sem marcar, não move. Saída do PCP não
- * exige (a peça ainda nem foi produzida — D-25); mudança de etapa dentro do
- * mesmo setor também não.
+ * A marcação do estado ao mandar a peça adiante (SESSAO-06/D-09 — lei): 3
+ * botões grandes com ícone + texto; o setor que recebe confirma depois. Na
+ * conclusão, só "Perfeito estado": Pedidos em aguardo e ESTOQUE só recebem
+ * peça 🟢 — com defeito, a peça vai para o DANIFICADO do setor.
  */
 export function ModalMoverCard({
   card,
   pedido,
-  setores,
+  modo,
+  etapaDestino,
+  setorDestinoNome,
   executorNome,
   operadorId,
-  modo = 'mover',
   aoFechar,
 }: ModalMoverCardProps) {
   const concluir = modo === 'concluir'
-  const estoque = setores.find((s) => s.codigo === 'estoque')
-  const { perfil } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
+  const estadosPermitidos: readonly Estado[] = concluir ? ['perfeito'] : ESTADOS_QUALIDADE
 
-  // Radix Select não aceita item com valor vazio — 'chegada' é o sentinela
-  // para "sem etapa" (a coluna fixa de todo setor).
-  const CHEGADA = 'chegada'
-  const [setorDestinoId, setSetorDestinoId] = useState<string>('')
-  const [etapaDestinoId, setEtapaDestinoId] = useState<string>(CHEGADA)
   const [estadoQualidade, setEstadoQualidade] = useState<Estado | null>(null)
   const [erro, setErro] = useState('')
 
-  // Reinicia a escolha a cada card novo (ajuste de estado durante o render,
-  // como recomenda a doc do React — nada de effect para isso).
+  // Reinicia a cada card novo (ajuste de estado durante o render, sem effect).
+  // Na conclusão só existe uma opção — ela já vem marcada (dono: "é mais rápido").
   const [cardAnterior, setCardAnterior] = useState<string | null>(null)
-  const chaveAtual = card ? `${card.id}:${modo}` : null
+  const chaveAtual = card ? `${card.id}:${modo}:${etapaDestino?.id ?? ''}` : null
   if (chaveAtual !== cardAnterior) {
     setCardAnterior(chaveAtual)
-    setSetorDestinoId(concluir && estoque ? String(estoque.id) : '')
-    setEtapaDestinoId(CHEGADA)
-    setEstadoQualidade(null)
+    setEstadoQualidade(concluir ? 'perfeito' : null)
     setErro('')
   }
 
-  const setorAtual = setores.find((s) => s.id === card?.setor_atual_id)
-  const setorEscolhido = setores.find((s) => String(s.id) === setorDestinoId)
-
-  // D-09/D-25: a marcação é da transição ENTRE setores, saindo de produção.
-  const exigeQualidade =
-    setorAtual?.papel_no_fluxo === 'producao' &&
-    setorEscolhido !== undefined &&
-    setorEscolhido.id !== card?.setor_atual_id
-
-  // SESSAO-25 (resposta 7 do dono): o ESTOQUE só recebe peça 🟢 — a peça em
-  // atenção ou danificada vai para o DANIFICADO do setor. O banco recusa o
-  // resto; a tela nem oferece.
-  const destinoEhEstoque = setorEscolhido?.codigo === 'estoque'
-  const estadosPermitidos: readonly Estado[] = destinoEhEstoque ? ['perfeito'] : ESTADOS_QUALIDADE
-  // A peça da REPOSIÇÃO de estoque não tem pedido: pronta, fica livre no estoque.
   const semPedido = card?.pedido_id === null
+  const cancelado = !semPedido && pedidoCancelado(pedido?.situacao)
 
-  const { data: etapasDestino = [] } = useQuery({
-    queryKey: ['etapas', setorEscolhido?.id ?? 0],
-    queryFn: () => buscarEtapasDoSetor(setorEscolhido!.id),
-    enabled: setorEscolhido !== undefined,
-  })
-
-  // SESSAO-22 (D-48): em setor de produção com fila cadastrada, a "Chegada"
-  // acabou — o padrão É a fila (o banco resolve igual se a etapa vier vazia).
-  const filaDestino = etapasDestino.find((e) => e.eh_fila)
-  const destinoProducaoComFila =
-    setorEscolhido?.papel_no_fluxo === 'producao' && filaDestino !== undefined
-  if (
-    destinoProducaoComFila &&
-    etapaDestinoId === CHEGADA &&
-    filaDestino !== undefined
-  ) {
-    // Ajuste de estado durante o render (padrão da casa): a fila vira o padrão
-    // assim que as etapas do destino chegam.
-    setEtapaDestinoId(String(filaDestino.id))
+  async function invalidar() {
+    await Promise.all([
+      clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['expedicao'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['produtos-reservados'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['aguardo-contagens'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
+    ])
   }
 
   const mutacao = useMutation({
-    mutationFn: moverCard,
-    onSuccess: async (_dados, variaveis) => {
-      const destino = setores.find((s) => s.id === variaveis.destinoSetorId)
+    mutationFn: async (estado: Estado) => {
+      if (!card) throw new Error('Card não encontrado.')
+      if (concluir) return concluirProducao({ card, estadoQualidade: estado, operadorId })
+      if (!etapaDestino) throw new Error('Etapa de destino não encontrada.')
+      await soltarCard({ card, etapaId: etapaDestino.id, estadoQualidade: estado, operadorId })
+      return null
+    },
+    onSuccess: async (destino, estado) => {
       notificar({
         titulo: concluir
-          ? semPedido
-            ? 'Peça concluída — está livre no ESTOQUE, aguardando a venda'
-            : 'Peça concluída — foi para o ESTOQUE e entrou nos Pedidos em aguardo'
-          : `Card movido para ${destino?.nome ?? 'o destino'}`,
-        descricao: variaveis.estadoQualidade
-          ? `Peça entregue como ${ROTULO_ESTADO[variaveis.estadoQualidade].toLowerCase()} — o setor que recebe confirma.`
-          : undefined,
+          ? destino === 'aguardo'
+            ? `Peça concluída — está em Pedidos em aguardo (${rotuloOrigemCard(card!, pedido)})`
+            : 'Peça concluída — está no ESTOQUE, sem dono, aguardando a venda'
+          : `Card mandado para ${setorDestinoNome ?? 'o próximo setor'}`,
+        descricao: concluir
+          ? undefined
+          : `Peça entregue como ${ROTULO_ESTADO[estado].toLowerCase()} — o setor que recebe confirma.`,
         tom: 'perfeito',
       })
       aoFechar()
-      await Promise.all([
-        clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['expedicao'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
-      ])
+      await invalidar()
     },
     onError: (excecao) =>
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.'),
   })
 
   function aoConfirmar() {
-    if (!card || !perfil) return
-    if (!setorEscolhido) {
-      setErro('Escolha o setor de destino.')
-      return
-    }
-    const etapaEscolhida = etapaDestinoId === CHEGADA ? null : Number(etapaDestinoId)
-    const mesmoLugar =
-      setorEscolhido.id === card.setor_atual_id && etapaEscolhida === card.etapa_atual_id
-    if (mesmoLugar) {
-      setErro('O card já está aí — escolha outro destino.')
-      return
-    }
-    if (exigeQualidade && estadoQualidade === null) {
-      // D-09: marcação obrigatória ao sair de produção — código fora da tela (D-27).
-      setErro('Marque o estado da peça para mover.')
-      return
-    }
-    if (exigeQualidade && estadoQualidade !== null && !estadosPermitidos.includes(estadoQualidade)) {
-      setErro('O ESTOQUE só recebe peça em perfeito estado.')
+    if (!card) return
+    if (estadoQualidade === null) {
+      // D-09: marcação obrigatória ao mandar a peça adiante — código fora da tela (D-27).
+      setErro('Marque o estado da peça.')
       return
     }
     setErro('')
-    mutacao.mutate({
-      card,
-      destinoSetorId: setorEscolhido.id,
-      destinoEtapaId: etapaEscolhida,
-      estadoQualidade: exigeQualidade ? estadoQualidade : null,
-      operadorId,
-    })
+    mutacao.mutate(estadoQualidade)
   }
 
   const kn =
@@ -187,7 +136,7 @@ export function ModalMoverCard({
       aoFechar={(aberto) => {
         if (!aberto) aoFechar()
       }}
-      titulo={concluir ? 'Concluir a peça' : 'Mover para…'}
+      titulo={concluir ? 'Concluir produção' : `Mandar para ${setorDestinoNome ?? 'o próximo setor'}`}
       descricao={
         card
           ? `${card.item_descricao ?? 'Card'}${kn} · ${rotuloOrigemCard(card, pedido)}`
@@ -199,7 +148,7 @@ export function ModalMoverCard({
             Cancelar
           </Botao>
           <Botao tamanho="lg" carregando={mutacao.isPending} onClick={aoConfirmar}>
-            {concluir ? 'Concluir' : 'Mover'}
+            {concluir ? 'Concluir' : 'Mandar'}
           </Botao>
         </>
       }
@@ -212,97 +161,60 @@ export function ModalMoverCard({
                 A peça da reposição está pronta: vai para o <strong>ESTOQUE</strong> e fica{' '}
                 <strong>livre</strong>, aguardando a venda.
               </>
+            ) : cancelado ? (
+              <>
+                O pedido desta peça foi <strong>cancelado no Tiny</strong>: pronta, ela vai para o{' '}
+                <strong>ESTOQUE, sem dono</strong> — e pode ser usada num próximo pedido igual.
+              </>
             ) : (
               <>
-                A peça está pronta: vai para o <strong>ESTOQUE</strong> (fim de linha) e entra nos{' '}
-                <strong>Pedidos em aguardo</strong>. Quando todas as unidades do pedido estiverem
-                prontas, a logística lança o pedido para as ROTAS.
+                A peça está pronta: vai para <strong>Pedidos em aguardo</strong>, reservada para o
+                pedido. Quando todas as unidades estiverem prontas, a logística lança o pedido para
+                as ROTAS.
               </>
             )}{' '}
-            Só entra peça em perfeito estado — com defeito, mova para o DANIFICADO do setor.
-            {!estoque && ' ⚠️ O setor ESTOQUE não está cadastrado.'}
+            Só sai peça em perfeito estado — com defeito, arraste para o DANIFICADO do setor.
           </p>
         )}
         {card?.executor_atual_id && (
           <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
             Este card está <strong>em execução{executorNome ? ` por ${executorNome}` : ''}</strong>.
-            {/* D-24: mover nunca bloqueia; encerra a execução aberta. */}
-            Mover encerra a execução agora — o tempo conta até este momento.
+            {/* D-24: mandar adiante nunca bloqueia; encerra a execução aberta. */}
+            {' '}Mandar adiante encerra o tempo agora — ele conta até este momento.
           </p>
         )}
-        {!concluir && (
-          <Selecao
-            rotulo="Setor de destino"
-            tamanho="galpao"
-            opcoes={setores.map((s) => ({
-              valor: String(s.id),
-              rotulo: s.id === card?.setor_atual_id ? `${s.nome} (setor atual)` : s.nome,
-            }))}
-            valor={setorDestinoId}
-            aoMudar={(v) => {
-              setSetorDestinoId(v)
-              setEtapaDestinoId(CHEGADA)
-              // Trocar o destino pode tornar a marcação inválida (ESTOQUE só 🟢).
-              setEstadoQualidade(null)
-            }}
-          />
-        )}
 
-        {!concluir && setorEscolhido && etapasDestino.length > 0 && (
-          <Selecao
-            rotulo="Etapa"
-            tamanho="galpao"
-            ajuda={
-              destinoProducaoComFila
-                ? 'O card entra na fila do setor — mude só se for direto para outra etapa.'
-                : 'Sem escolher, o card entra na Chegada do setor.'
-            }
-            opcoes={[
-              // D-48: produção com fila não tem mais "Chegada" — a fila é o padrão.
-              ...(destinoProducaoComFila ? [] : [{ valor: CHEGADA, rotulo: 'Chegada (sem etapa)' }]),
-              ...etapasDestino.map((e) => ({
-                valor: String(e.id),
-                rotulo: e.eh_fila ? `${e.nome} (fila)` : e.nome,
-              })),
-            ]}
-            valor={etapaDestinoId}
-            aoMudar={setEtapaDestinoId}
-          />
-        )}
-
-        {exigeQualidade && (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium text-texto">
-              Em que estado a peça está saindo? <span aria-hidden>*</span>
-            </legend>
-            <p className="text-xs text-texto-suave">
-              {destinoEhEstoque
-                ? 'O ESTOQUE só recebe peça em perfeito estado. Com defeito, mova para o DANIFICADO do setor.'
-                : 'Obrigatório para mover. O setor que recebe vai confirmar.'}
-            </p>
-            {estadosPermitidos.map((estado) => (
-              <button
-                key={estado}
-                type="button"
-                role="radio"
-                aria-checked={estadoQualidade === estado}
-                onClick={() => {
-                  setEstadoQualidade(estado)
-                  setErro('')
-                }}
-                className={cn(
-                  'toque-seguro flex min-h-toque-lg items-center gap-3 rounded-dm border-2 px-3 py-2 text-left transition-colors',
-                  estadoQualidade === estado
-                    ? 'border-acao-ativa bg-superficie-sutil'
-                    : 'border-borda bg-superficie hover:border-borda-forte',
-                )}
-              >
-                <BadgeEstado estado={estado} tamanho="md" />
-                <span className="text-xs text-texto-suave">{DESCRICAO_ESTADO[estado]}</span>
-              </button>
-            ))}
-          </fieldset>
-        )}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium text-texto">
+            Em que estado a peça está saindo? <span aria-hidden>*</span>
+          </legend>
+          <p className="text-xs text-texto-suave">
+            {concluir
+              ? 'Pedidos em aguardo e ESTOQUE só recebem peça em perfeito estado.'
+              : `Obrigatório para mandar. ${setorDestinoNome ?? 'O setor que recebe'} vai confirmar.`}
+          </p>
+          {estadosPermitidos.map((estado) => (
+            <button
+              key={estado}
+              type="button"
+              role="radio"
+              aria-checked={estadoQualidade === estado}
+              onClick={() => {
+                setEstadoQualidade(estado)
+                setErro('')
+              }}
+              className={cn(
+                'toque-seguro flex min-h-toque-lg items-center gap-3 rounded-dm border-2 px-3 py-2 text-left transition-colors',
+                estadoQualidade === estado
+                  ? 'border-acao-ativa bg-superficie-sutil'
+                  : 'border-borda bg-superficie hover:border-borda-forte',
+              )}
+            >
+              <BadgeEstado estado={estado} tamanho="md" />
+              <span className="text-xs text-texto-suave">{DESCRICAO_ESTADO[estado]}</span>
+            </button>
+          ))}
+        </fieldset>
 
         {erro && (
           <p className="text-sm text-danificado-forte" role="alert">

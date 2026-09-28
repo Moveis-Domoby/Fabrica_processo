@@ -33,8 +33,9 @@ export function ProducaoSetor() {
   const setor = setores.find((s) => s.codigo === codigo)
   if (!setor) return <Navigate to="/inicio/meu-painel" replace />
 
-  // Os terminais têm casa própria: Estoque na Logística, ROTAS nas entregas.
-  if (setor.codigo === 'estoque' || setor.codigo === 'rotas')
+  // Os terminais têm casa própria: Estoque e Pedidos em aguardo na Logística,
+  // ROTAS nas entregas (SESSAO-24: todo fim de linha, não só os dois antigos).
+  if (setor.papel_no_fluxo === 'terminal')
     return <Navigate to={rotaDoSetor(setor.codigo)} replace />
 
   return <QuadroSetor setorId={setor.id} />

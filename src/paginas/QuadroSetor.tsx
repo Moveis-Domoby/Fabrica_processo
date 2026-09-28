@@ -10,12 +10,9 @@ import {
   buscarNomesUsuarios,
   buscarPareceresPendentes,
   buscarSetores,
-  finalizarExecucao,
-  iniciarExecucao,
-  moverCard,
-  pausarExecucao,
-  retomarExecucao,
+  soltarCard,
 } from '@/kanban/api'
+import { acaoAoSoltar, setorConcluiProducao } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
@@ -23,17 +20,27 @@ import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
-import type { Card, ExecucaoAberta, ParecerPendente, QualidadePendente } from '@/kanban/tipos'
+import type {
+  Card,
+  Etapa,
+  ExecucaoAberta,
+  ParecerPendente,
+  QualidadePendente,
+} from '@/kanban/tipos'
 
 const ATUALIZA_A_CADA = 20_000
 
 /**
  * O quadro de um setor (RF-01): etapas internas como colunas, cards de
- * unidade, drag-and-drop (desktop) e botão "Mover" (tablet). Quem vê: gente
- * do setor e admin — o RLS garante por baixo, a tela só evita a página vazia.
- * Desde a SESSAO-05 os cards carregam Iniciar/Finalizar/Assumir (D-02/D-24) e
- * a linha do tempo. Desde a SESSAO-22, cada coluna pagina no servidor (a tela
- * só requisita o que mostra) e o líder pode pausar uma execução (D-48).
+ * unidade. Quem vê: gente do setor e admin — o RLS garante por baixo, a tela
+ * só evita a página vazia. Cada coluna pagina no servidor (SESSAO-22).
+ *
+ * SESSAO-24 (dono, 27/09 — "tudo arrastando, é mais rápido"): o quadro é SÓ
+ * ARRASTO. Soltar na etapa de início inicia o tempo de quem arrastou (o
+ * parecer de recebimento vem antes, quando a peça chegou marcada — D-09);
+ * soltar numa etapa que leva a outro setor pergunta o estado da peça e a manda
+ * adiante; o resto é só mover. O único botão é o "Concluir produção", e só
+ * na LIMPEZA E EMBALAGEM.
  */
 export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
@@ -105,11 +112,15 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     ]),
   )
 
-  const [cardParaMover, setCardParaMover] = useState<Card | null>(null)
-  // SESSAO-15: o mesmo modal serve para "Mover para…" e para "Concluir" (destino fixo: ESTOQUE).
-  const [modoMover, setModoMover] = useState<'mover' | 'concluir'>('mover')
-  const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
+  // SESSAO-24: o que o soltar precisa perguntar antes de ir ao banco.
+  const [encaminhando, setEncaminhando] = useState<{ card: Card; etapa: Etapa } | null>(null)
+  const [cardConcluir, setCardConcluir] = useState<Card | null>(null)
   const [cardParecer, setCardParecer] = useState<Card | null>(null)
+  const [inicioDepoisDoParecer, setInicioDepoisDoParecer] = useState<{
+    card: Card
+    etapaId: number
+  } | null>(null)
+  const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
 
   async function invalidarQuadro() {
     await Promise.all([
@@ -120,47 +131,19 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     ])
   }
 
-  function aoErroGesto(titulo: string) {
-    return (excecao: unknown) =>
+  const mutacaoSoltar = useMutation({
+    mutationFn: soltarCard,
+    onSuccess: invalidarQuadro,
+    onError: (excecao) => {
       notificar({
-        titulo,
+        titulo: 'Não deu para mover o card',
         descricao: excecao instanceof Error ? excecao.message : undefined,
         tom: 'danificado',
       })
-  }
-
-  const mutacaoEtapa = useMutation({
-    mutationFn: moverCard,
-    onSuccess: invalidarQuadro,
-    onError: aoErroGesto('Não deu para mover o card'),
+      // O card volta para onde estava — o banco recusou a transação inteira.
+      void invalidarQuadro()
+    },
   })
-  const mutacaoIniciar = useMutation({
-    mutationFn: iniciarExecucao,
-    onSuccess: invalidarQuadro,
-    onError: aoErroGesto('Não deu para iniciar'),
-  })
-  const mutacaoFinalizar = useMutation({
-    mutationFn: finalizarExecucao,
-    onSuccess: invalidarQuadro,
-    onError: aoErroGesto('Não deu para finalizar'),
-  })
-  // SESSAO-22 (D-48): pausar é gesto de líder/admin; retomar, de quem executa.
-  const mutacaoPausar = useMutation({
-    mutationFn: pausarExecucao,
-    onSuccess: invalidarQuadro,
-    onError: aoErroGesto('Não deu para pausar'),
-  })
-  const mutacaoRetomar = useMutation({
-    mutationFn: retomarExecucao,
-    onSuccess: invalidarQuadro,
-    onError: aoErroGesto('Não deu para retomar'),
-  })
-  const gestoPendente =
-    mutacaoIniciar.isPending ||
-    mutacaoFinalizar.isPending ||
-    mutacaoEtapa.isPending ||
-    mutacaoPausar.isPending ||
-    mutacaoRetomar.isPending
 
   if (!carregando && !souAdmin && !vinculoAqui) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -171,7 +154,23 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
 
   const terminal = setor.papel_no_fluxo === 'terminal'
   const podeGerirEtapas = souAdmin || vinculoAqui?.lider_do_setor === true
-  const podePausar = souAdmin || vinculoAqui?.lider_do_setor === true
+  const setorAtual = setor
+
+  function aoSoltarNaEtapa(card: Card, etapaId: number | null) {
+    const acao = acaoAoSoltar({ setor: setorAtual, etapas, card, etapaDestinoId: etapaId })
+    if (acao.tipo === 'encaminhar') {
+      // D-09: mandar a peça adiante pede o estado dela.
+      setEncaminhando({ card, etapa: acao.etapa })
+      return
+    }
+    if (acao.tipo === 'iniciar' && etapaId !== null && pareceresPorCard.has(card.id)) {
+      // D-09 item 2: a peça chegou marcada — o recebimento vem antes do trabalho.
+      setInicioDepoisDoParecer({ card, etapaId })
+      setCardParecer(card)
+      return
+    }
+    mutacaoSoltar.mutate({ card, etapaId })
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -189,8 +188,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
           <p className="mt-1 text-texto-suave">
             {/* D-13 (terminais) e D-02 (fila × execução) — código fora da tela (D-27). */}
             {terminal
-              ? 'Unidade que chega aqui está concluída — o pedido reagrupa na Expedição.'
-              : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Iniciar e Finalizar contam o tempo de quem executa; a fila conta sozinha.`}
+              ? 'Unidade que chega aqui está concluída.'
+              : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
           </p>
         </div>
         {podeGerirEtapas && (
@@ -208,86 +207,75 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         colunas={colunas}
         pedidosPorId={pedidosPorId}
         agora={agora}
-        aoMoverParaEtapa={(card, etapaId) =>
-          mutacaoEtapa.mutate({
-            card,
-            destinoSetorId: setor.id,
-            destinoEtapaId: etapaId,
-          })
-        }
-        aoAbrirMover={(card) => {
-          setModoMover('mover')
-          setCardParaMover(card)
-        }}
-        aoAbrirConcluir={
-          terminal
-            ? undefined
-            : (card) => {
-                setModoMover('concluir')
-                setCardParaMover(card)
-              }
-        }
+        setores={setores}
+        aoSoltarNaEtapa={aoSoltarNaEtapa}
+        aoAbrirConcluir={setorConcluiProducao(setor) ? setCardConcluir : undefined}
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
           meuUsuarioId: perfil.id,
-          gestoPendente,
+          gestoPendente: mutacaoSoltar.isPending,
           pareceresPorCard,
-          aoIniciar: terminal
-            ? undefined
-            : (card) => {
-                // D-09: com entrega marcada e sem parecer, o Iniciar passa
-                // primeiro pela confirmação de recebimento (o banco também trava).
-                if (pareceresPorCard.has(card.id)) setCardParecer(card)
-                else mutacaoIniciar.mutate({ card, usuarioId: perfil.id })
-              },
-          aoFinalizar: terminal
-            ? undefined
-            : (card) => mutacaoFinalizar.mutate({ card, usuarioId: perfil.id }),
-          aoPausar:
-            terminal || !podePausar
-              ? undefined
-              : (card) => mutacaoPausar.mutate({ card, usuarioId: perfil.id }),
-          aoRetomar: terminal
-            ? undefined
-            : (card) => {
-                // Retomar: quem executa (ao finalizar a urgência), líder ou admin —
-                // o banco valida de verdade.
-                if (card.executor_atual_id === perfil.id || podePausar)
-                  mutacaoRetomar.mutate({ card, usuarioId: perfil.id })
-              },
           aoLinhaTempo: setCardLinhaTempo,
         }}
       />
 
       <ModalMoverCard
-        card={cardParaMover}
-        pedido={cardParaMover ? pedidosPorId.get(cardParaMover.pedido_id) : undefined}
-        setores={setores}
-        executorNome={
-          cardParaMover?.executor_atual_id
-            ? nomesUsuarios.get(cardParaMover.executor_atual_id)
+        modo="encaminhar"
+        card={encaminhando?.card ?? null}
+        pedido={
+          encaminhando?.card.pedido_id != null
+            ? pedidosPorId.get(encaminhando.card.pedido_id)
             : undefined
         }
-        modo={modoMover}
-        aoFechar={() => setCardParaMover(null)}
+        etapaDestino={encaminhando?.etapa}
+        setorDestinoNome={
+          encaminhando?.etapa.setor_destino_id != null
+            ? setores.find((s) => s.id === encaminhando.etapa.setor_destino_id)?.nome
+            : undefined
+        }
+        executorNome={
+          encaminhando?.card.executor_atual_id
+            ? nomesUsuarios.get(encaminhando.card.executor_atual_id)
+            : undefined
+        }
+        aoFechar={() => setEncaminhando(null)}
+      />
+
+      <ModalMoverCard
+        modo="concluir"
+        card={cardConcluir}
+        pedido={cardConcluir?.pedido_id != null ? pedidosPorId.get(cardConcluir.pedido_id) : undefined}
+        executorNome={
+          cardConcluir?.executor_atual_id
+            ? nomesUsuarios.get(cardConcluir.executor_atual_id)
+            : undefined
+        }
+        aoFechar={() => setCardConcluir(null)}
       />
 
       <ModalLinhaTempo
         card={cardLinhaTempo}
-        pedido={cardLinhaTempo ? pedidosPorId.get(cardLinhaTempo.pedido_id) : undefined}
+        pedido={
+          cardLinhaTempo?.pedido_id != null ? pedidosPorId.get(cardLinhaTempo.pedido_id) : undefined
+        }
         aoFechar={() => setCardLinhaTempo(null)}
       />
 
       <ModalParecer
         card={cardParecer}
-        pedido={cardParecer ? pedidosPorId.get(cardParecer.pedido_id) : undefined}
+        pedido={cardParecer?.pedido_id != null ? pedidosPorId.get(cardParecer.pedido_id) : undefined}
         pendente={cardParecer ? (pareceresPorCard.get(cardParecer.id) ?? null) : null}
-        aoFechar={() => setCardParecer(null)}
-        aoRegistrado={(card, estado) => {
-          // 🟢/🟡 seguem o fluxo: o Iniciar que motivou o parecer acontece na
+        aoFechar={() => {
+          setCardParecer(null)
+          setInicioDepoisDoParecer(null)
+        }}
+        aoRegistrado={(_card, estado) => {
+          // 🟢/🟡 seguem o fluxo: o arrasto que motivou o parecer acontece na
           // sequência. 🔴 não — o card acabou de ir para DANIFICADO (D-09).
-          if (estado !== 'danificado') mutacaoIniciar.mutate({ card, usuarioId: perfil.id })
+          const pendente = inicioDepoisDoParecer
+          setInicioDepoisDoParecer(null)
+          if (estado !== 'danificado' && pendente) mutacaoSoltar.mutate(pendente)
         }}
       />
     </div>

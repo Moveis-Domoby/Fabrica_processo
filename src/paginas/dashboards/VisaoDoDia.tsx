@@ -27,6 +27,8 @@ const ATUALIZA_A_CADA = 60_000
 
 const ROTULO_DESTINO: Record<string, string> = {
   rotas: 'Expedição / ROTAS',
+  // SESSAO-24: a peça pronta de pedido mora em Pedidos em aguardo; o ESTOQUE é só sem dono.
+  aguardo: 'Pedidos em aguardo',
   estoque: 'Estoque',
   danificado: 'Danificado',
 }
@@ -409,7 +411,7 @@ export function VisaoDoDia() {
               <h2 className="text-lg">Fim de linha — hoje</h2>
               <p className="text-xs text-texto-fraco">destino das unidades concluídas</p>
             </div>
-            {(['rotas', 'estoque', 'danificado'] as const).map((chave) => {
+            {(['aguardo', 'rotas', 'estoque', 'danificado'] as const).map((chave) => {
               const linha = fimDeLinha.find((d) => d.destino === chave)
               const qtd = linha?.quantidade ?? 0
               if (chave === 'danificado' && qtd === 0) return null
@@ -418,7 +420,9 @@ export function VisaoDoDia() {
                   ? 'var(--dm-serie-execucao)'
                   : chave === 'estoque'
                     ? 'var(--dm-serie-fila)'
-                    : 'var(--dm-danificado-forte)'
+                    : chave === 'aguardo'
+                      ? 'var(--dm-serie-2)'
+                      : 'var(--dm-danificado-forte)'
               return (
                 <div key={chave} className="flex flex-col gap-1">
                   <div className="flex items-baseline justify-between gap-2">

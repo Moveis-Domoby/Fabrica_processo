@@ -84,6 +84,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 ## D-18 · Fins de linha: ESTOQUE e ROTAS nascem juntos (26/08/2026)
 
+**↩️ revisada em 2026-09-27 (D-58):** nasceu o 10º setor, o fim de linha interno PEDIDOS EM AGUARDO (a aba que já existia virou o lugar da peça pronta de pedido).
+
 **Contexto — contradição encontrada ao codar a SESSAO-02:** a D-13 diz que o card termina em ESTOQUE ou ROTAS, mas a lista de setores do dia 1 da D-12 (copiada do ClickUp) não tem nenhum dos dois, e a D-05 mantém a ROTAS no ClickUp na fase 1. O Claude Code parou e perguntou em vez de escolher.
 
 **Decidido (palavras do dono):** *"coloque o setor de rotas nos primórdios de criação então"*.
@@ -173,6 +175,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 **↪️ Complemento (mesma data) — renumeração: número passa a ser ordem.** Nas palavras do dono: *"não existe 05→06→07→14→13... pelo menos muda o nome pra deixar na ordem numérica certa"*. As demandas a partir da 5ª posição foram **renumeradas para os números espelharem a ordem de execução** (isto revisa o modelo mental M-09). De-para, para ler notas antigas: Dashboards 08→**10** · Tarefas 09→**12** · API completa 10→**11** · Automações 11→**13** · Admin 12→**14** · Entrada n8n 13→**09** · Publicação 14→**08**. Arquivos renomeados e todas as referências do cofre e do repositório atualizadas na mesma data; a lista numerada acima já usa os números novos.
 
 ## D-24 · Execução: vários cards por pessoa com limite configurável, iniciar obrigatório, transferência conta para os dois (27/08/2026)
+
+**↩️ revisada em 2026-09-27 (D-59):** os quadros viraram só arrasto — iniciar = soltar o card na etapa de início; o "assumir" (transferência) saiu dos quadros por ora.
 
 **Decidido (respostas do dono no início da SESSAO-05):**
 
@@ -309,6 +313,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 ## D-38 · Logística: Estoque com ID digitável, sala de Pedidos em aguardo, Danificados com destino (28/08/2026)
 
+**↩️ revisada em 2026-09-27 (D-58):** Pedidos em aguardo deixou de ser só uma sala (filtro do ESTOQUE) e virou o lugar da peça pronta de pedido, com as abas "Pedidos" e "Produtos reservados".
+
 - **Estoque:** produtos parados, cada um com **ID de produção digitável de formato livre** (o formato definitivo é decisão futura — Q-63).
 - **Pedidos em aguardo:** onde unidades prontas esperam o pedido ficar **completo**; completo → **lançar para ROTAS**. Absorve como tela o reagrupamento da expedição.
 - **Danificados:** tela própria com tudo que está em DANIFICADO; ações **arquivar** ou **resolvido → escolher destino** (Estoque, ROTAS ou qualquer setor). Tudo evento append-only.
@@ -343,6 +349,8 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - **Log de atividade (D-40): registrar tudo** — nenhum tipo de atividade excluído do registro.
 
 ## D-45 · Logística e ROTAS: unidade pronta, lançamento, ID de produção, danificados, programação e metas completas (01/09/2026, registrada em 08/09)
+
+**↩️ revisada em 2026-09-27 (D-58):** "unidade pronta" = chegou a um dos três fins de linha; o lançamento move as unidades de Pedidos em aguardo para as ROTAS (não mais do ESTOQUE).
 
 **Decidido (respostas do dono no início da SESSAO-15, em 01/09; a D-44 pertence à frente do backfill — cofre de Pedidos entregues):**
 
@@ -381,6 +389,8 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - A regra vale daqui em diante para toda demanda: antes de propor tabela nova, provar que nenhuma existente serve.
 
 ## D-48 · Execução um por vez com pausa por líder; tempo de PCP e de aguardo são do pedido (21/09/2026) — ↩️ revisa a D-24 e a Q-17
+
+**↩️ revisada em 2026-09-27 (D-59):** a pausa do líder saiu dos quadros junto com os botões — arrastar para PARADO ou para a fila fecha o tempo. O limite de 1 por pessoa e o "iniciar na fila avança" continuam (agora pelo arrasto).
 
 **Decidido (respostas do dono no início da SESSAO-22):**
 
@@ -462,6 +472,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **METALURGICA (confirmado pelo dono em 24/08):** **ainda não é um setor utilizado** — apenas futuramente será. Não entra no dia 1; quando for usada, o admin a cadastra (RF-07). Nenhuma lógica do sistema pode assumir a existência dela.
 
 ## D-13 · Entrada única e saídas terminais do fluxo (24/08/2026)
+
+**↩️ revisada em 2026-09-27 (D-58):** os fins de linha agora são três — Pedidos em aguardo (peça de pedido), ESTOQUE (só peça sem dono) e ROTAS (pedido lançado). A entrada única pelo PCP não muda.
 
 **Decidido (palavras do dono):** *"Todos os pedidos chegam exclusivamente primeiro para PCP e por último em estoque ou rotas, ficando ou parado ou entregue lá mesmo."*
 
@@ -554,7 +566,61 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Sugestão de mínimo:** *"é para os 20 produtos mais vendidos dos últimos 90 dias, porém com rank — obviamente o produto mais vendido deve ter mais em estoque do que o top 20."* Sugestão = média semanal de vendas (sem personalizado, sem cancelado) × semanas de cobertura escolhidas na tela (1, 2 ou 4) — cresce com a venda. O dono ajusta o mínimo **no Tiny**.
 - **Alerta de erro do n8n (P1): não agora** (*"belíssima ideia, porém não faremos ainda"*).
 
-> Numeração: D-58…D-64 ficaram reservadas à SESSAO-24, que rodou em paralelo com a 26 (combinado entre as duas em 27/09).
+## D-58 · O lugar da peça pronta: com pedido → Pedidos em aguardo; o ESTOQUE fica só com peça sem dono (27/09/2026) — ↩️ revisa a D-13, a D-18, a D-38 e a D-45
+
+**Decidido (resposta b4 do dono no início da SESSAO-24):** *"JÁ EXISTE A ABA DE PEDIDOS EM AGUARDO, OS LOCAIS FINAIS NÃO SÃO MAIS ESTOQUE E MUITO MENOS ROTA, ISSO JÁ MUDOU, ESTOQUE SÓ FICA COMO LOCAL FINAL DE PEÇA SEM DONO."*
+
+- **Peça pronta COM pedido termina em Pedidos em aguardo** — a aba que já existia passa a ser o **lugar** da peça (por baixo, um fim de linha interno "PEDIDOS EM AGUARDO"; nenhuma tela nova, nenhuma rota nova). De lá o pedido completo é **lançado para as ROTAS** (D-45, que segue valendo para o lançamento).
+- **O ESTOQUE só recebe peça SEM dono** (reposição, ou peça de pedido cancelado — que perde o pedido na chegada). Peça de pedido vivo mandada ao ESTOQUE é recusada pelo banco com a explicação.
+- **Os dois lugares só recebem peça 🟢** (a regra da D-54 vale para os dois). Pedidos em aguardo só aceita peça de pedido vivo.
+- **Painel:** "concluídas do dia" passa a contar só a chegada vinda da **produção** (a mudança entre fins de linha — lançar para ROTAS, cancelamento — não é produção nova; antes o lançamento contava a peça duas vezes). O "fim de linha" do painel ganha Pedidos em aguardo.
+- **O que estava no ESTOQUE com pedido em 27/09** (herança): as 🟢 de pedido vivo foram para Pedidos em aguardo; as de pedido **já entregue no Tiny** foram **arquivadas** (dono: *"se já foi entregue, não deve nem aparecer mais aí"*); a 🔴 do 13215 ficou esperando decisão.
+- ↩️ **D-13 / D-18:** os fins de linha agora são três — Pedidos em aguardo (peça de pedido), ESTOQUE (peça sem dono) e ROTAS (pedido lançado); a entrada única pelo PCP não muda. ↩️ **D-38:** a "sala" de Pedidos em aguardo virou lugar. ↩️ **D-45:** "unidade pronta" = chegou a um fim de linha (qualquer um dos três); o lançamento move do aguardo para as ROTAS.
+
+**Descartadas:** manter a peça de pedido no ESTOQUE e só filtrar a aba (era o modelo antigo, que o dono disse que "já mudou"); criar tela ou rota nova para o aguardo.
+
+## D-59 · Quadros de produção só por arrasto; o único botão é "Concluir produção", na LIMPEZA E EMBALAGEM (27/09/2026) — ↩️ revisa a D-24, a D-48 e a D-03
+
+**Decidido (resposta a1 do dono, depois de um alinhamento com a equipe da fábrica):** *"um móvel só vira móvel na parte de montagem; até a montagem ele é um plano de corte dividido em várias peças de outros móveis até. Então, por enquanto, vamos remover todos os botões, eles preferem que tudo seja arrastando, é mais rápido. Se o cara mover de 'a montar' para 'montando', esse card já deve ser instantaneamente iniciado, não o contrário; se ele mover para 'montado', o card já deve ir para o próximo setor, que é limpeza e embalagem. O único lugar que terá o botão de concluir é no setor de limpeza e embalagem: todos os móveis que vão para estoque passam por ele e eles que movem para estoque, seja móvel para estoque de fato, ou móvel já reservado por algum pedido."* E: *"já existe a etapa de fila, início e conclusão em todos os setores."*
+
+- **Soltar o card na etapa de INÍCIO** (a próxima depois da fila — a mesma regra da D-48↪️) **inicia o tempo de quem arrastou**, na mesma hora. O limite de 1 por pessoa (D-48) e o parecer de quem recebe (D-09) continuam valendo.
+- **Soltar numa etapa que ENCAMINHA** (com nome de setor, ou CONCLUÍDO — D-60) **leva o card ao setor dela**, pedindo a marcação 🟢🟡🔴 de quem entrega (D-09 é lei).
+- **Soltar em qualquer outra etapa** (PARADO, a própria fila…) só move — e fecha o tempo de quem executava (regra que já existia).
+- **"Concluir produção"** é o único botão dos quadros e só existe na **LIMPEZA E EMBALAGEM**: peça de pedido vivo → **Pedidos em aguardo**; peça sem pedido (reposição) ou de pedido cancelado → **ESTOQUE, sem dono** (D-58). Só 🟢.
+- **Modo tablet** também vira quadro de arrastar, com botão grande; ao soltar ou concluir, pede o **PIN** de quem fez (D-06/SESSAO-07).
+- **Saem dos quadros** os botões Iniciar, Pausar, Retomar, Finalizar, Assumir e Mover. ↩️ **D-24:** "iniciar é obrigatório" continua — o gesto agora é soltar na coluna de início; o "assumir" (transferência) sai por ora. ↩️ **D-48:** a pausa do líder sai junto com os botões — arrastar para PARADO ou para a fila fecha o tempo (as regras e os eventos de pausa continuam no banco). ↩️ **D-03:** o destino continua manual — quem decide é quem arrasta; a etapa que encaminha só poupa o segundo gesto.
+- Decidido pelo Claude e avisado ao dono (pode corrigir): tablet por arrasto com PIN; etapa chamada ESTOQUE não encaminha (quem leva ao fim de linha é o Concluir).
+
+**Descartadas:** manter os botões ao lado do arrasto (a equipe prefere só arrastar); concluir em todos os setores (só a LIMPEZA E EMBALAGEM leva ao fim de linha); cadastrar marca nova "etapa que inicia" (a estrutura fila → início já existia — E-44).
+
+## D-60 · Rotas das etapas: etapa com nome de setor leva ao setor; CONCLUÍDO leva ao próximo — SECC e CNC mandam para a FURAÇÃO (27/09/2026)
+
+**Decidido (respostas do dono na SESSAO-24):** *"etapa com nome de setor move o card para o setor"*; *"a etapa CONCLUÍDO de SECC e CNC manda para FURAÇÃO, o concluído dos outros setores manda sempre para o próximo (SECC e CNC são 2 máquinas diferentes que fazem praticamente a mesma coisa: cortam uma chapa de MDF de acordo com o plano de corte feito no SketchUp; a diferença é que a CNC também fura a peça, a SECC não)"*; "CENTRO DE FURAÇÃO" = setor FURAÇÃO.
+
+- **Etapa com nome de setor de produção** (herança do ClickUp — em todos os quadros e também no PCP) leva ao setor do nome. **"CENTRO DE FURAÇÃO" → FURAÇÃO.**
+- **CONCLUÍDO:** SECC → FURAÇÃO · CNC → FURAÇÃO · FITAMENTO → FURAÇÃO · FURAÇÃO → MONTAGEM · MONTAGEM → LIMPEZA E EMBALAGEM ("o próximo" pela ordem cadastrada dos setores — confirmado pelo dono na prévia: *"Sim, está certo"*).
+- A LIMPEZA E EMBALAGEM não tem rota: as etapas ESTOQUE, EXPEDIÇÃO, CANCELADO, NÃO ENCONTRADO e ENTREGUE ficam etapas comuns — o fim de linha é o **Concluir produção** (D-59).
+- **É dado do dono, não código:** editável em **Setores e etapas** ("Soltar o card em {etapa} manda para…"); etapa nova com nome de setor já nasce com a rota. A carga inicial (20 etapas) só preencheu etapa sem rota — reaplicar nunca desfaz edição do admin.
+
+## D-61 · Cancelamento em três estágios; a aba Cancelados guarda para sempre; peça inacabada não vai para o estoque (27/09/2026)
+
+**Decidido (respostas b2 e b3 do dono na SESSAO-24, sobre o desenho da demanda):**
+
+- **Cancelado ainda no PCP** (nada produzido): o pedido sai do quadro do PCP e vai para a **aba Cancelados** do PCP — que **guarda para sempre** (b3), paginada, carregada só ao abrir.
+- **Cancelado com peça em produção:** a peça **segue em produção** com a etiqueta **"Pedido cancelado — pronta, vai para o estoque"**; ao ser concluída na LIMPEZA E EMBALAGEM, vai ao **ESTOQUE sem dono**. Nada de estocar peça inacabada (b2): *"a peça continua em produção e logo mais irá para o estoque de peças de fato, não de produtos prontos"* (o estoque de peça é o próximo passo — D-57).
+- **Cancelado com peça pronta** (em Pedidos em aguardo): a peça vai **sozinha** ao ESTOQUE, **sem dono** (o produto do catálogo é achado pelo SKU). Personalizado cancelado também vai ao estoque (a exceção da D-55).
+- A etiqueta é lida da situação do pedido no Tiny (a mesma fonte do cancelamento) — nada guardado à parte.
+
+## D-62 · A sugestão do estoque na liberação: o que é "peça igual" e quem aceita (27/09/2026)
+
+**Decidido (respostas b1 e b5 do dono na SESSAO-24):**
+
+- **"Peça igual" (b1):** produto do catálogo casa pelo **SKU**; **personalizado** casa por **SKU + descrição idêntica** (sem ligar para maiúsculas, acentos e espaços); item **sem SKU** casa pela descrição idêntica.
+- Ao liberar um pedido no PCP, cada linha mostra **"Há N igual(is) no estoque, sem dono — usar?"** — **desmarcado por padrão** (a sugestão nunca decide sozinha).
+- **Quem aceita (b5):** PCP/logística (*"são a mesma coisa no fim das contas"*) e admin.
+- **Aceitar** faz a unidade do pedido nascer **direto em Pedidos em aguardo** (a peça livre sai do ESTOQUE; as duas histórias ficam guardadas). Se o pedido for cancelado depois, a peça volta ao ESTOQUE sem dono (D-61).
+
+> Numeração: a SESSAO-24 (que rodou em paralelo com a 26) usou D-58…D-62; D-63 e D-64 ficaram sem uso — eram a reserva dela.
 
 ## D-65 · Chat interno: canais, particulares e Avisos gerais — quem cria, quem escreve, quem lê (27/09/2026)
 
