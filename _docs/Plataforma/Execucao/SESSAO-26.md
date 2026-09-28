@@ -75,6 +75,22 @@ tags: [execucao, sessao-26, chat, aniversarios, realtime, bloco-5]
 - [~] 8. Validação: tsc ✔ · lint ✔ · test ✔ 72 · build ✔ · mojibake 0 · ensaio A-11 ✔ · F-08 ✔ · aplicada SÓ a 38 ✔ · advisors ✔ · **F-07 visual (375/768, arrasto no toque) e o teste com duas contas: PENDENTES com o dono** — a sessão não pode entrar com senha de ninguém na autenticação de produção; o app sobe no 5175 sem erro e, deslogado, não faz nenhuma chamada ao Supabase
 - [x] 9. Cofre: D-65…D-68, RF-90…RF-95, Esquema do Banco, Modelo de Sistema, memória (E-50 promovida, E-51, E-52), demanda, ORDEM/MAPA/PRÓXIMOS PASSOS, regra 10 dos dois CLAUDE.md, handoff
 
+## Mapa do merge com a SESSAO-24 (o que a 24 informou no fim, 27/09)
+
+A 24 (branch `sessao-24-producao-concluida-cancelamentos`, local, sem push) está pronta esperando a conferência de telas. Não mexeu em schema depois da 37, nem no aplicador, nem no `CLAUDE.md`; rodou só manutenção de dado (arquivou por evento as unidades 518 e 537, de pedidos entregues no Tiny). A 38 não a afeta (o front dela só lê `id`, `nome` e o `COLUNAS_PERFIL`). Conflitos esperados — **manter os dois lados, a 24 primeiro**:
+
+| Arquivo | 24 | 26 |
+|---|---|---|
+| `src/componentes/Layout.tsx` | linha do `ehDeTerminal` (inclui `aguardo`) | grupo Início, `ProvedorChat`, `BalaoChat` — sem sobreposição |
+| `supabase/testes/testar-migrations.mjs` | 3 checks antigos do seed (10 setores) + bloco S24 antes do Resumo | simulador do Realtime no topo + bloco S26 antes do Resumo |
+| Decisões | D-58…D-62 no fim | D-65…D-68 no fim |
+| Requisitos | RF-77/78/79/87/88/89 | seção nova "Comunicação interna" (RF-90…95) |
+| Memória | E-44/45/46, M-15/M-16 | E-50/51/52 |
+| Modelo de Sistema | seção nova antes de "Controle de tempo" | seção nova antes de "Controle de tempo" |
+| ORDEM / MAPA / PRÓXIMOS PASSOS | linha 25 + entradas de 27/09 | linha 26 + entradas de 27/09 |
+
+Depois de juntar: `npm run test:banco` (2 rodadas) com a 37 e a 38 — a combinação já passou aqui com 446 verificações.
+
 ## Conferência contra a demanda (2ª leitura, no fim)
 
 | Critério de aceite | Como foi provado | Situação |
