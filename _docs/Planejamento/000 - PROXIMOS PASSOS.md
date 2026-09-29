@@ -77,7 +77,7 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
 12. **Estoque (28/09):** contagem inicial pela logística · capacidade do galpão · conferir os mínimos · fotos dos produtos · depois, ligar (ou não) a reposição automática — tudo no [[handoff_2026_09_28_ajuste_estoque_contagem_top20]].
 13. **Q-71 (ajuste do Frete):** no Tiny da fábrica — cadastrar Espelho Adnet, Longarina e Carro de mão; decidir se as lâmpadas em kit aparecem em produtos acabados; dar um código à "Fechadura (com instalação)" (sem ele a venda não baixa o estoque).
-14. ✅ **Painel do PCP = quadro do PCP (28/09, D-75):** a Visão do dia dizia 233 "a liberar" com 200 já entregues no Tiny — agora conta o que o quadro mostra (33), reposição inclusa, e a "mais antiga" também; "liberadas hoje" ficou como estava. Aplicado com o seu OK — falta só a sua revisão para entrar na `main` ([[handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro]]).
+14. ✅ **Painel do PCP = quadro do PCP (28/09, D-75):** a Visão do dia dizia 233 "a liberar" com 200 já entregues no Tiny — agora conta o que o quadro mostra (33), reposição inclusa, e a "mais antiga" também; "liberadas hoje" ficou como estava. Aplicado com o seu OK e **mesclado na `main` em 29/09** ([[handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro]]).
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 

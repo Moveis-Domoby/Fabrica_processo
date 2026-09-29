@@ -10,7 +10,7 @@ tags: [handoff, ajuste, dashboards, visao-do-dia, pcp, d-75]
 
 **Em uma frase:** o quadrinho do PCP na Visão do dia passou a mostrar o mesmo que o quadro do PCP — de 233 "a liberar" para 33.
 
-**Branch:** `ajuste-painel-pcp-como-o-quadro` (criada da `main` em 943ce63, trazida até 34dde06 por fast-forward) — **aguardando a sua revisão para entrar na `main`** (D-20).
+**Branch:** `ajuste-painel-pcp-como-o-quadro` (criada da `main` em 943ce63, trazida até 34dde06 por fast-forward) — **mesclada na `main` em 29/09/2026 com o seu OK** ("Pode juntar" — D-20).
 **Origem:** achado fora do escopo do ajuste do Frete ([[handoff_2026_09_28_ajuste_frete_fora_da_producao]] §4 — a "tarefa sugerida").
 **Memória:** [[AJUSTE - Painel do PCP como o quadro]] · **Decisão:** D-75 · **Aprendizado:** A-35, A-36, A-37
 **Banco:** migration 41 **aplicada em 28/09 (~23:53) com o seu OK** ("Pode aplicar"), só o arquivo dela; integração do Tiny idêntica antes e depois.
@@ -90,7 +90,7 @@ _docs: Decisões (D-75), Esquema do Banco (migration 41 + ↪️ no painel da S1
 ## 8. Ficou pendente
 
 ### Aguardando decisão sua
-1. **Revisão e entrada na versão principal** (D-20) — o banco já está com a mudança; falta juntar o código na `main` e publicar (a tela não muda, então a publicação não altera nada visível).
+1. ✅ Revisado na conversa e juntado na versão principal em 29/09 (seu OK — D-20). A tela não muda, então a publicação não altera nada visível.
 
 ### Próximo passo sugerido
 - Nenhum. Se um dia quiser que "liberadas hoje" conte só o que o PCP liberou (sem o cadastro direto no estoque), é uma troca pequena na mesma conta.

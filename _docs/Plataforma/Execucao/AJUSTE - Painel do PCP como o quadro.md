@@ -25,7 +25,7 @@ tags: [execucao, ajuste, dashboards, visao-do-dia, pcp, d-75]
 8. [x] Aplicar SÓ com o "pode" do dono: `--so` + `set local lock_timeout = '5s'` (E-66); impressão digital da integração antes = depois
 9. [x] Depois de aplicar: painel × quadro no banco real (mesmas portas das telas — E-47) + advisors
 10. [x] Cofre: D-75, esquema do banco, modelo de sistema (nota do quadro do PCP), memória de aprendizado (A-35, A-36, A-37), esta memória, índice de execução, handoff, mapa, próximos passos
-11. [ ] Revisão do dono → merge na `main` (D-20)
+11. [x] Revisão do dono → merge na `main` (D-20) — *"Pode juntar"* (29/09)
 
 ## Leitura no banco real — 28/09 ~23:34 (Natal), só leitura
 
@@ -70,6 +70,8 @@ tags: [execucao, ajuste, dashboards, visao-do-dia, pcp, d-75]
 - **Advisors:** segurança e desempenho sem nada novo (a porta já constava entre as DEFINER de propósito; o índice duplicado de `plt_cards` é antigo, de outra sessão).
 - Conferência de uma frase do handoff antes de afirmar (E-47): o "Pedidos completos aguardando lançamento" do painel e a aba Pedidos em aguardo não olham a situação no Tiny (mesma regra nas duas) — só leitura: hoje os dois dão **0**. Escrito assim no handoff (não "bate", que eu não tinha medido).
 - **Cofre:** D-75 (Decisões) · Esquema do Banco (parágrafo da migration 41 + ↪️ na linha do painel da S16 + a linha em branco que faltava entre os parágrafos do Frete e do estoque — dois parágrafos grudados viravam um só no Obsidian) · Modelo de Sistema (↪️ no "Quadro do PCP sem encerrados no Tiny" + o padrão "painel sai da porta da tela") · Memória de Aprendizado (A-35, A-36, A-37 — nenhum erro novo nesta sessão) · índice de Execução · handoff `handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro` · Mapa (↳ sob a S16) · Próximos Passos (item 14 ✅). `supabase-fabrica-schema.sql` não muda (só porta de plataforma — as `plt_` vivem nas migrations).
+
+- 29/09 — revisão na conversa (resumo em português + como conferir na tela); **dono: "Pode juntar"**. Envio para a `main` pela própria branch (`push origin <branch>:main`, avanço direto, credencial do `gh` — a `main` local é da pasta principal, que não se toca), depois de refazer o fetch e conferir `0 N` e o autor `contatodomoby` (E-33).
 
 ## Conferência da task list contra a demanda (regra 7)
 
