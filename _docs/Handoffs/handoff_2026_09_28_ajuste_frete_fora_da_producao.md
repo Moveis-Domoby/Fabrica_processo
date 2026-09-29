@@ -136,3 +136,5 @@ select v.seq, v.descricao, v.eh_frete, v.unidades
 | Manutenção | ✅ 1 evento: card 507 arquivado; 0 card de frete vivo |
 | Checagem do Supabase (segurança e desempenho) | ✅ nada novo |
 | Depois de aplicar (mesmas contas das telas) | ✅ 13215: aguardo 3 de 5 · PCP 5 de 5 · Expedição 3 de 5 (5 liberadas) · liberação sem o Frete · 0 pedido só de frete |
+| Com a atualização do estoque junto (antes de publicar) | ✅ testes do banco **510** verdes (as duas atualizações, 2 rodadas) · telas: tsc · lint · **83/83** · build ✅ |
+| Publicação (28/09, com o seu OK) | ✅ juntado na versão principal sem conflito pendente; o site terminou de publicar (Vercel: success) |
