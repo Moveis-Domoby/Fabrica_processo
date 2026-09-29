@@ -3030,19 +3030,14 @@ conferir(
   JSON.stringify(fimDeLinha),
 )
 
-// 3 · O tile do PCP fecha com a conta manual de pedidos com unidade por liberar.
+// 3 · O tile do PCP conta o que o QUADRO do PCP mostra. ↪️ D-75 (28/09): antes
+// era uma conta à parte (card de pedido não cancelado com unidade por liberar)
+// que deixava passar o pedido já encerrado no Tiny — o painel dizia 233 e o
+// quadro 33. Agora a referência é a própria porta do quadro (E-47: o número
+// sai da mesma porta que a tela chama); os casos estão no bloco D-75 no fim.
 const pcpManual = (
-  await bd.query(`
-    select count(*)::int as total
-      from public.plt_cards pc
-      join public.pedidos p on p.id = pc.pedido_id
-     where pc.tipo = 'pedido' and pc.arquivado_em is null
-       and plt_privado.fn_situacao_normalizada(p.situacao) is distinct from 'cancelado'
-       and (select count(*) from public.plt_cards cu
-             where cu.pedido_id = p.id and cu.tipo = 'unidade' and cu.arquivado_em is null)
-           < (select coalesce(sum(case when round(pi.quantidade) >= 1
-                                       then round(pi.quantidade)::int else 0 end), 0)
-                from public.pedido_itens pi where pi.pedido_id = p.id)`)
+  await bd.query(`select coalesce(max(contagem_total), 0)::int as total
+                    from public.plt_fn_cards_pedido_pcp(1, 0)`)
 ).rows[0].total
 const pcpPorta = (
   await bd.query(`select pedidos_a_liberar, unidades_liberadas_dia from public.plt_fn_dash_pcp_dia()`)
@@ -3051,8 +3046,8 @@ conferir(
   pcpPorta !== undefined
     && pcpPorta.pedidos_a_liberar === pcpManual
     && pcpPorta.unidades_liberadas_dia >= 1,
-  'tile do PCP: pedidos a liberar bate com a conta manual e as liberações do dia aparecem',
-  `porta=${JSON.stringify(pcpPorta)} manual=${pcpManual}`,
+  'tile do PCP: "a liberar" = o que o quadro do PCP mostra (D-75) e as liberações do dia aparecem',
+  `porta=${JSON.stringify(pcpPorta)} quadro=${pcpManual}`,
 )
 
 // 4 · Danificados em aberto = os cards na etapa DANIFICADO agora, nem mais nem menos.
@@ -6691,6 +6686,176 @@ conferir(
                       and exists (select 1 from plt_privado.vw_itens_producao v
                                    where v.pedido_id = c.pedido_id and v.seq = c.item_seq and v.eh_frete)`)).rows[0].n === 0,
   'depois da manutenção, nenhum card de frete vivo',
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+
+// ============================================================================
+// Ajuste do painel do PCP · D-75 (migration 41) — o quadrinho do PCP na Visão
+// do dia conta o que o QUADRO do PCP mostra: pedido encerrado no Tiny sai do
+// "a liberar", o card de reposição entra, e a "mais antiga" é a do quadro.
+// "Liberadas hoje" fica como estava (o dono não pediu mudança). Pedidos
+// 924301–924305 e o produto 924390; como o admin do bloco da SESSAO-24.
+// ============================================================================
+titulo('D-75 · o quadrinho do PCP na Visão do dia conta o que o quadro do PCP mostra')
+
+await comoS24(s24.admin)
+// Painel e quadro lidos NA MESMA consulta: o "agora" é um só, e a espera mais
+// antiga dos dois se compara ao segundo. "Liberadas hoje" vem junto com a
+// regra de sempre (toda unidade criada no dia), também no mesmo "agora".
+const painelQuadroD75 = async () =>
+  (
+    await bd.query(`
+      select pn.pedidos_a_liberar,
+             pn.unidades_liberadas_dia,
+             extract(epoch from pn.espera_mais_antiga)::int as espera_s,
+             (select coalesce(max(q.contagem_total), 0)::int
+                from public.plt_fn_cards_pedido_pcp(1, 0) q) as quadro,
+             (select extract(epoch from now() - min(q.desde))::int
+                from public.plt_fn_cards_pedido_pcp(100, 0) q) as quadro_espera_s,
+             (select count(*)::int
+                from public.plt_eventos e join public.plt_cards c on c.id = e.card_id
+               where e.tipo = 'card_criado' and c.tipo = 'unidade'
+                 and e.ocorrido_em >= ((now() at time zone 'America/Fortaleza')::date::timestamp
+                                       at time zone 'America/Fortaleza')
+                 and e.ocorrido_em <  ((now() at time zone 'America/Fortaleza')::date::timestamp
+                                       at time zone 'America/Fortaleza') + interval '1 day')
+                                                                   as liberadas_regra_de_sempre
+        from public.plt_fn_dash_pcp_dia() pn`)
+  ).rows[0]
+
+// Os blocos anteriores deixaram pedido já encerrado no Tiny com peça por
+// liberar (ex.: o 999993 da SESSAO-23, "Entregue" com 1 de 2 liberadas) — o
+// caso que fazia o painel dizer 233 e o quadro 33.
+const encerradosD75 = (
+  await bd.query(`
+    select count(*)::int as n
+      from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+     where c.tipo = 'pedido' and c.arquivado_em is null and c.liberado_completo_em is null
+       and plt_privado.fn_situacao_normalizada(p.situacao) in ('entregue', 'nao_entregue')
+       and exists (select 1 from plt_privado.vw_itens_producao v
+                    where v.pedido_id = p.id and v.unidades > 0)`)
+).rows[0].n
+const antesD75 = await painelQuadroD75()
+conferir(
+  encerradosD75 >= 1 && antesD75 !== undefined
+    && antesD75.pedidos_a_liberar === antesD75.quadro
+    && antesD75.espera_s === antesD75.quadro_espera_s,
+  'com pedido encerrado no Tiny ainda com peça por liberar no banco, o painel já é o quadro: mesmo "a liberar" e mesma "mais antiga"',
+  JSON.stringify({ encerradosD75, antesD75 }),
+)
+
+// Cinco pedidos que nascem "Em aberto" (card no PCP pelo gatilho) e mudam de
+// situação no Tiny; mais um card de reposição, como a maquinaria cria.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao)
+    select n, (select id from public.clientes order by id limit 1), 'Em aberto'
+      from generate_series(924301, 924305) n;
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    select p.id, 1, 'D75', 'Mesa Teste D-75', 2
+      from public.pedidos p where p.numero between 924301 and 924304;
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924305), 1, null, 'Frete', 1);
+  update public.pedidos set situacao = 'Preparando envio' where numero = 924301;
+  update public.pedidos set situacao = 'Entregue'         where numero = 924302;
+  update public.pedidos set situacao = 'Não entregue'     where numero = 924303;
+  update public.pedidos set situacao = 'Cancelado'        where numero = 924304;
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade)
+    values (924390, 'D75R', 'Estante Teste D-75', 'F', 'A', 3, 'un')
+    on conflict (tiny_id) do nothing;
+  insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
+    values ('reposicao', 924390, 'D75R', 'Estante Teste D-75', 3,
+            (select id from public.plt_setores where codigo = 'pcp'));
+  insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, dados)
+    values ((select id from public.plt_cards where tipo = 'reposicao' and produto_tiny_id = 924390),
+            'card_criado', 'automacao', (select id from public.plt_setores where codigo = 'pcp'),
+            jsonb_build_object('motivo', 'reposicao_estoque', 'produto_tiny_id', 924390, 'quantidade', 3));
+`)
+const cardsD75 = (
+  await bd.query(`
+    select p.numero, c.id::int as id
+      from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+     where c.tipo = 'pedido' and p.numero between 924301 and 924305
+     order by p.numero`)
+).rows
+const cardD75 = (numero) => cardsD75.find((c) => c.numero === numero)?.id
+const repD75 = (
+  await bd.query(`select id::int as id from public.plt_cards where tipo = 'reposicao' and produto_tiny_id = 924390`)
+).rows[0]?.id
+const noQuadroD75 = (
+  await bd.query(`
+    select coalesce(array_agg(coalesce(p.numero::text, 'reposição') order by q.id), '{}') as itens
+      from public.plt_fn_cards_pedido_pcp(100, 0) q
+      left join public.pedidos p on p.id = q.pedido_id
+     where q.id in (${[...cardsD75.map((c) => c.id), repD75 ?? 0].join(', ')})`)
+).rows[0].itens
+const depoisD75 = await painelQuadroD75()
+conferir(
+  cardsD75.length === 5 && repD75 !== undefined
+    && noQuadroD75.length === 2 && noQuadroD75.includes('924301') && noQuadroD75.includes('reposição'),
+  'no quadro do PCP: o pedido "Preparando envio" e o card de reposição — o "Entregue", o "Não entregue", o "Cancelado" e o só de frete, não',
+  JSON.stringify({ cardsD75, repD75, noQuadroD75 }),
+)
+conferir(
+  depoisD75.pedidos_a_liberar === antesD75.pedidos_a_liberar + 2
+    && depoisD75.pedidos_a_liberar === depoisD75.quadro,
+  'no painel: +2 no "a liberar" (o pedido vivo e a reposição) — o mesmo número do quadro',
+  JSON.stringify({ antesD75, depoisD75 }),
+)
+
+// A "mais antiga": o card do pedido já entregue no Tiny é o mais velho de todos,
+// mas não está no quadro — quem manda é o card do quadro esperando há mais tempo.
+await bd.exec(`
+  update public.plt_cards set desde = now() - interval '3000 days' where id = ${cardD75(924302)};
+  update public.plt_cards set desde = now() - interval '2000 days' where id = ${cardD75(924301)};
+`)
+const esperaD75 = await painelQuadroD75()
+conferir(
+  esperaD75.espera_s === esperaD75.quadro_espera_s
+    && esperaD75.espera_s >= 2000 * 86400 && esperaD75.espera_s < 3000 * 86400,
+  '"mais antiga" = o card do quadro esperando há mais tempo; o pedido entregue no Tiny, mais velho, não conta',
+  JSON.stringify(esperaD75),
+)
+
+// O PCP libera as 2 peças do 924301 (como a tela: card no PCP + card_criado):
+// liberado por inteiro, sai do quadro e do "a liberar".
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao,
+                                indice_unidade, total_unidades, setor_atual_id)
+    select 'unidade', p.id, pc.id, 1, 'D75', 'Mesa Teste D-75', k, 2,
+           (select id from public.plt_setores where codigo = 'pcp')
+      from public.pedidos p
+      join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido'
+      cross join generate_series(1, 2) k
+     where p.numero = 924301;
+  insert into public.plt_eventos (card_id, tipo, usuario_id, setor_destino_id, origem)
+    select c.id, 'card_criado', (select id from public.plt_usuarios where auth_user_id = '${s24.admin}'),
+           (select id from public.plt_setores where codigo = 'pcp'), 'interface'
+      from public.plt_cards c
+     where c.tipo = 'unidade' and c.pedido_id = (select id from public.pedidos where numero = 924301);
+`)
+const liberadoD75 = await painelQuadroD75()
+conferir(
+  liberadoD75.pedidos_a_liberar === depoisD75.pedidos_a_liberar - 1
+    && liberadoD75.pedidos_a_liberar === liberadoD75.quadro,
+  'liberado por inteiro, o pedido sai do "a liberar" — e do quadro',
+  JSON.stringify({ depoisD75, liberadoD75 }),
+)
+conferir(
+  liberadoD75.unidades_liberadas_dia === liberadoD75.liberadas_regra_de_sempre
+    && liberadoD75.unidades_liberadas_dia >= 2,
+  '"liberadas hoje" continua a regra de sempre (toda unidade criada no dia) — o dono não pediu mudança',
+  JSON.stringify(liberadoD75),
+)
+
+// "Não produzir" (arquivar) tira a reposição do quadro — e do painel.
+await bd.exec(`select public.plt_fn_arquivar_card(${repD75}, 'não produzir (teste D-75)')`)
+const arquivadoD75 = await painelQuadroD75()
+conferir(
+  arquivadoD75.pedidos_a_liberar === liberadoD75.pedidos_a_liberar - 1
+    && arquivadoD75.pedidos_a_liberar === arquivadoD75.quadro
+    && arquivadoD75.espera_s === arquivadoD75.quadro_espera_s,
+  '"Não produzir" na reposição: sai do "a liberar" junto com o quadro, e a "mais antiga" segue a do quadro',
+  JSON.stringify({ liberadoD75, arquivadoD75 }),
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
