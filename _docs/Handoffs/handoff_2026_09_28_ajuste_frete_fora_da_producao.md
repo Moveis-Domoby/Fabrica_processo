@@ -10,7 +10,7 @@ tags: [handoff, ajuste, frete, unidades, pcp, aguardo, rotas, d-63]
 
 **Em uma frase:** o frete deixou de virar peça de produção; tudo o mais continua nascendo no PCP, e o PCP escolhe para onde vai.
 
-**Branch:** `ajuste-itens-fora-da-producao` (criada da `main` em 3503d77, rebaseada sobre 2b589ec) — **ainda não mesclada**: espera o seu OK para juntar na versão principal (que publica o site).
+**Branch:** `ajuste-itens-fora-da-producao` (criada da `main` em 3503d77, rebaseada sobre 2b589ec) — **mesclada na `main` em 28/09/2026 com o seu OK** ("Publique suas alterações" — D-20), depois de trazer a `main` com o ajuste do estoque (testes do banco 39 + 40: 510 verdes).
 **Origem:** achado fora do escopo da F-07 da SESSAO-24 ([[handoff_2026_09_27_sessao24_producao_concluida]] §4) — o card "Frete" (1/1) do 13215 na LIMPEZA E EMBALAGEM.
 **Memória:** [[AJUSTE - Frete fora da producao]] · **Decisão:** D-63 · **Aprendizado:** E-55, E-56, E-65, E-66, A-31 · **Pergunta nova:** Q-71
 **Banco:** migration 39 **aplicada em 28/09 com o seu OK** ("Pode"), só o arquivo dela; integração do Tiny idêntica antes e depois. Manutenção: o card de frete do 13215 foi arquivado.
@@ -99,7 +99,7 @@ _docs: Decisões (D-63), Requisitos (RF-02), Perguntas (Q-71), Modelo de Sistema
 ## 8. Ficou pendente
 
 ### Aguardando decisão sua
-1. **Juntar na versão principal** (publica o site com o texto "Nada a produzir"). O banco já está atualizado — as telas de hoje já mostram os números novos.
+1. ✅ Juntado na versão principal e publicado em 28/09 (seu OK).
 2. **Q-71** — os três pontos do Tiny (acima).
 3. **Tarefa sugerida** — alinhar o "a liberar" da Visão do dia com o quadro do PCP.
 
