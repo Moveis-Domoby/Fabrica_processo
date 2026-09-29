@@ -18,13 +18,13 @@ tags: [execucao, ajuste, dashboards, visao-do-dia, pcp, d-75]
 1. [x] Leituras obrigatórias (CLAUDE.md, memória de aprendizado, decisões, visão geral, requisitos, ordem das sessões, handoff do Frete, esquema do banco, mapa, perguntas em aberto, modelo de sistema)
 2. [x] Confirmar o número atual com consultas SÓ de leitura (nomes tirados da nota do esquema e da migration 39 — E-36/E-46)
 3. [x] Levar ao dono, em português de gente, se o painel deve contar só o que o quadro do PCP mostra → **sim** (+ "mais antiga" e reposição — ver respostas)
-4. [ ] Migration nova recriando `plt_fn_dash_pcp_dia` a partir da versão mais nova (a da 39 — E-24), com o filtro do quadro do PCP
-5. [ ] Bloco novo no harness + `npm run test:banco` (duas rodadas) verde
-6. [ ] Conferir "recriada da versão mais nova": diff do corpo 39 × 41 = só as trocas pretendidas
-7. [ ] Medir no servidor a consulta nova × a antiga (EXPLAIN ANALYZE só de leitura — E-65; sem ensaio com DDL — E-66)
-8. [ ] Aplicar SÓ com o "pode" do dono: `--so` + `set local lock_timeout = '5s'` (E-66); impressão digital da integração antes = depois
-9. [ ] Depois de aplicar: painel × quadro no banco real (mesmas portas das telas — E-47) + advisors
-10. [ ] Cofre: D-75, esquema do banco, modelo de sistema (nota do quadro do PCP), memória de aprendizado (o que surgir), esta memória, índice de execução, handoff, mapa, próximos passos
+4. [x] Migration nova recriando `plt_fn_dash_pcp_dia` a partir da versão mais nova (a da 39 — E-24), com o filtro do quadro do PCP
+5. [x] Bloco novo no harness + `npm run test:banco` (duas rodadas) verde — 517
+6. [x] Conferir "recriada da versão mais nova": diff do corpo 39 × 41 = só as trocas pretendidas
+7. [x] Medir no servidor a consulta nova × a antiga (EXPLAIN ANALYZE só de leitura — E-65; sem ensaio com DDL — E-66)
+8. [x] Aplicar SÓ com o "pode" do dono: `--so` + `set local lock_timeout = '5s'` (E-66); impressão digital da integração antes = depois
+9. [x] Depois de aplicar: painel × quadro no banco real (mesmas portas das telas — E-47) + advisors
+10. [x] Cofre: D-75, esquema do banco, modelo de sistema (nota do quadro do PCP), memória de aprendizado (A-35, A-36, A-37), esta memória, índice de execução, handoff, mapa, próximos passos
 11. [ ] Revisão do dono → merge na `main` (D-20)
 
 ## Leitura no banco real — 28/09 ~23:34 (Natal), só leitura
@@ -61,3 +61,20 @@ tags: [execucao, ajuste, dashboards, visao-do-dia, pcp, d-75]
 - **Teste de mutação** (a 41 tirada da pasta, cópia no rascunho, restaurada com `cmp` idêntico): **5 vermelhos** no bloco D-75 (512 ✔ + 5 ✘) — o teste pega a regra antiga. Curioso: na 1ª conferência os números coincidiram (5 = 5: o antigo contava o 999993 entregue, o quadro contava uma reposição da S25) — só a "mais antiga" denunciou (3 s × 1 s). Coincidência de total esconde conjunto diferente: por isso o bloco confere também QUEM está no quadro.
 - **Recriada da versão mais nova (E-24):** diff do corpo 39 × 41 = só a CTE `quadro` nova e as duas colunas; `dia`, `pcp`, `unidades_liberadas_dia` e o gate final idênticos. Filtro da CTE × `plt_fn_cards_pedido_pcp` (39, seção 6): idêntico, menos o gate por pessoa.
 - **Medição no servidor, só leitura** (EXPLAIN ANALYZE do corpo como SELECT puro — sem DDL, sem ensaio: E-66): antigo **~5,5 ms** (1ª execução fria 133 ms) → novo **~3,4 ms**; planejamento ~3,5 ms nos dois. O quadro usa `plt_cards_arquivado_idx` (236 cards no PCP) e a view só para os 33 vivos.
+- Commit `ff0c23a` (migration + harness + esta memória), autor `contatodomoby`.
+- `.env.local` copiado da pasta principal SEM exibir (a worktree nasce sem ele); `npm run banco:aplicar -- --so <41>` sem `--confirmar` = ensaio do aplicador (só leitura): integração `e2109f3a…` (65 colunas), plano = SÓ a 41.
+- Prévia ao dono (23:51): "a liberar" 233 → 33; "mais antiga" 31 → 27 dias; liberadas hoje igual; reposição 0 hoje. **Dono: "Pode aplicar".**
+- Antes de aplicar: aviso às sessões do Frete e do estoque (E-66 — "como se fosse aplicação"; as duas responderam: nada rodando no banco); `pg_stat_activity` sem transação aberta há mais de 2 s.
+- **Aplicada em 28/09 ~23:53 (Natal)**: `npm run banco:aplicar -- --confirmar --so 20260928210000_plt_painel_pcp_como_o_quadro.sql` → ✔; integração do Tiny **estrutura idêntica e linhas idênticas** (clientes 10.706 · pedidos 5.421 · pedido_itens 8.118 · eventos 8.523 · gp 1); 24 tabelas · 3 visões · 46 políticas · 10 setores · 46 etapas.
+- **Depois de aplicar, no banco real, pelas portas das telas (E-47)** — bloco `do $$ … raise exception` (A-11: nada gravado; `set_config` local com o login de um admin ativo, sem exibir): **painel 33 = quadro 33**; **mais antiga 27 dias 07:42 = a do quadro** (iguais = verdadeiro); liberadas hoje 12 (igual); corpo vivo = o novo (md5 `62770e80…`, antes `fa716014…`).
+- **Advisors:** segurança e desempenho sem nada novo (a porta já constava entre as DEFINER de propósito; o índice duplicado de `plt_cards` é antigo, de outra sessão).
+- Conferência de uma frase do handoff antes de afirmar (E-47): o "Pedidos completos aguardando lançamento" do painel e a aba Pedidos em aguardo não olham a situação no Tiny (mesma regra nas duas) — só leitura: hoje os dois dão **0**. Escrito assim no handoff (não "bate", que eu não tinha medido).
+- **Cofre:** D-75 (Decisões) · Esquema do Banco (parágrafo da migration 41 + ↪️ na linha do painel da S16 + a linha em branco que faltava entre os parágrafos do Frete e do estoque — dois parágrafos grudados viravam um só no Obsidian) · Modelo de Sistema (↪️ no "Quadro do PCP sem encerrados no Tiny" + o padrão "painel sai da porta da tela") · Memória de Aprendizado (A-35, A-36, A-37 — nenhum erro novo nesta sessão) · índice de Execução · handoff `handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro` · Mapa (↳ sob a S16) · Próximos Passos (item 14 ✅). `supabase-fabrica-schema.sql` não muda (só porta de plataforma — as `plt_` vivem nas migrations).
+
+## Conferência da task list contra a demanda (regra 7)
+
+- Demanda 1 (confirmar o número só com leitura, nomes tirados da nota/migration) → ✅ 233 = 200 Entregue + 33 Preparando envio; quadro 33.
+- Demanda 2 (levar ao dono em português de gente) → ✅ três perguntas, sem códigos; respostas registradas acima.
+- Demanda 3 (migration nova a partir da versão mais nova, filtro do quadro, harness 2 rodadas, aplicada só com aprovação, `--so`, `lock_timeout` curto) → ✅ todos os itens.
+- "Registre na memória de execução e no handoff" → ✅.
+- Fora do escopo, não feito de propósito: "liberadas hoje" (o dono não escolheu); regra única compartilhada entre painel e quadro (anotada como alternativa descartada na D-75).

@@ -345,6 +345,11 @@ SESSAO-05.
 - **Quadro do PCP sem encerrados no Tiny** (`plt_fn_cards_pedido_pcp`): entregue/não
   entregue sai da coluna de pedidos NA CONSULTA (situação normalizada — E-25); cancelado
   fica (aba própria na S24) e as unidades de pedido encerrado seguem normais nos setores.
+  **↪️ 28/09 (D-75):** o quadrinho do PCP da **Visão do dia** conta o mesmo — "a liberar" =
+  os cards do quadro (reposição inclusa) e "mais antiga" = a do quadro; "liberadas hoje"
+  ficou como era. Regra de casa: **número de painel que resume uma tela sai do MESMO
+  conjunto da porta dessa tela** (o harness amarra os dois) — foi a conta à parte que
+  deixou o painel em 233 com o quadro em 33.
 
 ### Qualidade nas transições (SESSAO-06 / D-09 / D-25)
 
