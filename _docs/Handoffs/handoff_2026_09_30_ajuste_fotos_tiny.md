@@ -77,6 +77,7 @@ Nenhum número mudou. Visual: os cartões do Estoque ficaram **mais altos** (a f
 
 ### Aguardando decisão de negócio
 - **Cópia automática da foto** (você pediu "automático depois"): quando entrar produto novo ou a foto mudar no Tiny, a plataforma copia sozinha. O Claude desenha e traz para aprovar.
+  - *Nota técnica (combinada com a sessão do estoque sincronizado, 30/09):* o Tiny da fábrica passou a ter **um fluxo único no n8n** (catálogo + estoque — `domoby-tiny-fabrica-produtos.json`, D-76…D-80). Dois caminhos a comparar no desenho: (a) um ramo **dentro desse fluxo**, depois do `Supabase · fn_upsert_produto`, lendo `anexos` — avisar a frente dona do fluxo antes de editar o JSON (uma versão só); ou (b) pelo **banco**, a partir de `produtos.raw->'anexos'` (não toca no n8n; lembrar que o banco não escreve no storage por SQL — E-35 — então o download/upload fica numa função do Supabase). Regra que vale nos dois: só preencher quem está sem foto ou cuja foto veio do Tiny (nunca sobrescrever a que a logística pôs pela câmera).
 
 ### Próximo passo sugerido
 - A logística pôr foto nos 47 móveis que o Tiny não tem (pela câmera do cartão) — ou pôr no Tiny, e a cópia automática traz.
