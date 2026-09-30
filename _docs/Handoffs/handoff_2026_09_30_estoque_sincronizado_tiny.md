@@ -42,6 +42,8 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 
 ### ↪️ 30/09 de manhã — a lista das reservas presas no Tiny (o conflito do 567)
 
+> ↪️ **Mudou de lugar (30/09, rodada do dono na sessão "Ajuste Estoque 2"):** o quadro **Tiny** — com a chave, a fila, os ajustes e a lista das reservas presas — saiu de Estoque → Configurações e fica em **Painel admin → Estoque** (só administrador; o líder da logística é administrador). Conferido no site publicado: a lista abre e carrega lá.
+
 - **Por que o Tiny mostrava −21 e a plataforma 2:** o "disponível multiempresa" é **saldo − reservado**, e o reservado do Tiny guarda reserva de pedido que **já saiu** (567: 23 reservadas, nenhum pedido aberto). A plataforma segue o **saldo** — puxar o disponível traria o erro junto.
 - **O que foi feito (a sua escolha):** em **Estoque → Configurações → Tiny**, o botão **"Ver as reservas presas no Tiny"** abre a lista, móvel a móvel: quanto o Tiny reserva, quantas unidades há em pedidos abertos e a sobra ("presas"), do maior para o menor, 20 por página, com o total no topo e o passo a passo de onde limpar. Serviços do Tiny (Corte, Furo, Fitamento) e itens sem código ficam fora.
 - **Hoje:** **111 móveis, 814 unidades presas** — Estante Basic 5 nichos 45 · Closet fechado 30 · Estante Basic 15 nichos 28 · Mesa Close 24 · Armário Aéreo 3 portas (567) 23.
@@ -79,7 +81,7 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 2. **Entrada de 1** num produto → em até 1 minuto, "Últimos ajustes gravados no Tiny" mostra o produto — e no Tiny o multiempresa sobe 1.
 3. **No Tiny**, lance +2 num produto → em até 1 minuto a plataforma sobe 2.
 4. **Pedido novo** de um produto com estoque → a peça aparece "Reservada para o pedido N"; no PCP, ao liberar, ela vem marcada.
-5. **Configurações → Tiny → "Ver as reservas presas no Tiny"** → o 567 aparece com 23 presas (0 pedidos abertos). Limpe as reservas dele no Tiny → depois da próxima leitura do produto (um movimento dele ou a varredura da madrugada), ele sai da lista.
+5. **Painel admin → Estoque → quadro Tiny → "Ver os produtos para ajustar no Tiny"** → o 567 aparece com 23 presas (0 pedidos abertos). Limpe as reservas dele no Tiny → depois da próxima leitura do produto (um movimento dele ou a varredura da madrugada), ele sai da lista.
 
 ## 6. Ficou com você
 
