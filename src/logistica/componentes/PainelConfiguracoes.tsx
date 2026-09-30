@@ -151,7 +151,9 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
                 </span>
               </Dica>
             </div>
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+            {/* relative: o balão do "i" do Top X ancora nesta LINHA inteira
+                (ancorar no ícone espreme o texto — ver Dica). */}
+            <div className="relative flex flex-wrap items-end gap-x-4 gap-y-2">
               <form
                 className="flex items-end gap-1.5"
                 onSubmit={(e) => {
@@ -173,8 +175,7 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
                     onChange={(e) => setTopXTexto(e.target.value)}
                   />
                 </div>
-                {/* relative: o balão do "i" ancora aqui (ver Dica). */}
-                <span className="relative mb-2 inline-flex">
+                <span className="mb-2 inline-flex">
                   <Dica rotulo="O que é o Top X">
                     <span className="flex flex-col gap-2">
                       <span>

@@ -40,10 +40,12 @@ export function CartaoProdutoEstoque({
   return (
     <li className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
       <div className="relative">
-        {/* Quadro quadrado: 121 das 144 fotos do catálogo são quadradas (30/09). */}
+        {/* Quadro quadrado: 121 das 144 fotos do catálogo são quadradas (30/09).
+            A câmera de trocar a foto NÃO aparece no cartão (pedido do dono,
+            30/09) — só no detalhe, ao tocar no produto. */}
         <FotoProduto
           produto={linha}
-          podeTrocar={podeMexer}
+          podeTrocar={false}
           aoAbrir={aoAbrir}
           className="aspect-square"
         />
