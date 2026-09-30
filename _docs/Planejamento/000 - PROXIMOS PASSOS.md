@@ -15,9 +15,9 @@ tags: [planejamento, roadmap, indice]
 
 Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (21–22/09), a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] (22–23/09) e a **[[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]]** (23/09, [[handoff_2026_09_23_sessao23_meu_painel_2]]) — o Meu Painel 2.0 com as três filas, subtarefas, tarefa privada, tarefa do Sistema e o painel pessoal "Meu desempenho"; migration 33 aplicada com permissão total do dono.
 
-## ▶️ Agora (30/09): o estoque conversa com o Tiny — falta trocar o fluxo no n8n e ligar
+## ▶️ Agora (30/09): o estoque conversa com o Tiny — LIGADO
 
-- **Estoque sincronizado com o Tiny (29–30/09):** ✅ construído e aplicado — [[handoff_2026_09_30_estoque_sincronizado_tiny]]. As duas mostram o mesmo número: o que entra no Tiny (fábrica ou loja) **sobe a plataforma**; entrada, baixa e contagem daqui **deixam o Tiny igual**; a **venda reserva a peça** e o PCP decide; **um fluxo só** no n8n (D-76…D-80). Migration 42 aplicada com o seu OK. **Com você:** (1) trocar o fluxo no n8n e excluir a carga do saldo (ou entrar no n8n pelo navegador do app para o Claude fazer); (2) ligar o aviso de **lançamentos de estoque** no Tiny da **loja**, com o mesmo endereço da fábrica; (3) **ligar o sincronismo** em Estoque → Configurações → Tiny (copia o Tiny uma vez); (4) conferir as telas logado.
+- **Estoque sincronizado com o Tiny (29–30/09):** ✅ construído e aplicado — [[handoff_2026_09_30_estoque_sincronizado_tiny]]. As duas mostram o mesmo número: o que entra no Tiny (fábrica ou loja) **sobe a plataforma**; entrada, baixa e contagem daqui **deixam o Tiny igual**; a **venda reserva a peça** e o PCP decide; **um fluxo só** no n8n (D-76…D-80). Migration 42 aplicada com o seu OK. ✅ **Ligado em 30/09 01:30** — fluxo publicado no n8n (sem relógio: o banco chama só quando há trabalho — migration 43), aviso da loja ligado, cópia inicial conferida (234 produtos, 46 peças, 0 falhas). **Com você:** acompanhar os primeiros dias (Configurações → Tiny mostra fila, erros e os ajustes gravados) e confirmar que a venda baixa o Tiny na hora.
 
 ## (anterior) Agora (28/09): o estoque virou a contagem da logística — falta a contagem inicial
 

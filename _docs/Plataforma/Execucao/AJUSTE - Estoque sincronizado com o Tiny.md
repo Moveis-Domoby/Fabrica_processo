@@ -28,8 +28,8 @@ tags: [execucao, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 - [x] 4. n8n: UM fluxo só (aviso da fábrica e da loja → fila → leitura → ajuste; varredura noturna; catálogo continua) — a carga avulsa do saldo morre
 - [x] 5. Tela: PCP marca a peça reservada; detalhe do produto mostra o Tiny somado e a reserva; Configurações com a situação do Tiny e ligar/desligar (admin)
 - [x] 6. Aplicar a 42 no banco real (`--so`), advisors, esquema/`.sql`
-- [ ] 7. Verificação ao vivo (tela logada) + publicar (main → Vercel)
-- [ ] 8. n8n importado pelo dono + aviso de estoque ligado na conta da LOJA → ligar o sincronismo (cópia inicial) e conferir
+- [x] 7. Verificação ao vivo (tela logada) + publicar (main → Vercel)
+- [x] 8. n8n trocado e publicado (pelo Claude, dono logado) + aviso de estoque ligado na conta da LOJA (dono) → sincronismo ligado 30/09 01:30 → cópia inicial conferida 01:42
 - [x] 9. Cofre: D-76…D-80, RF, esquema, nota do n8n, memória de aprendizado, handoff, mapa, próximos passos
 
 ## Diagnóstico (só leitura no banco real, 29–30/09)
@@ -72,6 +72,9 @@ tags: [execucao, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 - `npm run banco:aplicar -- --confirmar --so 20260930120000_plt_estoque_sincronizado_tiny.sql` → ✔; integração idêntica (`e2109f3a…`, 65 colunas; clientes 10710 · pedidos 5431 · itens 8134 · eventos 9762). No banco real: cron `plt-estoque-reservas` ativo; portas do n8n só `service_role`; situação/ligar só `authenticated` (anon não); maquinaria fora da API; chave desligada; advisors só com o esperado (+3 WARN de portas com gate + INFO da fila sem política).
 
 ## Diário
+
+- 30/09 01:05–01:45: o dono reprovou o relógio de 1 minuto no n8n → **migration 43** (o banco chama o fluxo só com fila e sem lote em andamento; varredura das 04:00 no pg_cron), harness **563 ✔**, aplicada sozinha (integração intacta); fluxo do n8n refeito (19 nós, sem relógio de estoque) — colado no workflow `gJNYde20T921AY6l` (conferido nó a nó pelo store), **publicado**; os dois webhooks respondem "registrado para POST"; "carga do saldo" **arquivada**. 1ª tentativa de publicar: a sessão do n8n caiu ("Unauthorized") depois de um `fetch` na porta interna — E-71; o fluxo antigo seguiu no ar; o dono entrou de novo.
+- 30/09 01:30: sincronismo **ligado** pela tela (admin) → 234 acabados na fila; o relógio chamou o n8n às 01:31 e a fila caiu 20 por minuto até **zerar às 01:42**: 234 leituras, **46 peças criadas** ("tiny_copia"), 0 baixas, 0 falhas. Conferido: 174 = 3 · 327 = 2 · 345 = 3 · 193 = 7 · 177 = 3 · 484 = 3 (o saldo somado das duas empresas). Os commits desta etapa foram montados por índice temporário e empurrados direto para a main (a pasta principal estava na branch da sessão "Ajuste Estoque 2").
 
 - 30/09 madrugada: outra sessão ("Imagens de produtos Tiny") passou a trabalhar na MESMA pasta — combinado por mensagem: ela não troca a branch nem commita aqui (commit dela por índice temporário numa branch própria), eu não incluo os arquivos dela (FotoProduto, CartaoProdutoEstoque, a linha do className no ModalProdutoEstoque); numeração: ela ficou com A-38/E-68/D-81, eu com E-69/E-70/A-39/A-40.
 - 30/09 madrugada: plataforma e n8n sem login no navegador do app → telas logadas e troca do fluxo ficam para o dono (não se entra com senha).

@@ -61,8 +61,9 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 | Aplicação no banco real | ✅ só a migration 42; integração do Tiny idêntica |
 | Permissões no banco real | ✅ as portas do n8n só com a chave de serviço; a situação e o ligar só para quem está logado (o ligar confere admin por dentro); nada para anônimo; alertas do Supabase só com o esperado |
 | Relógio da venda | ✅ agendado a cada minuto (sem efeito enquanto desligado) |
-| **Telas com você logado** | ⏳ **pendente** — o navegador do app não está logado na plataforma (eu não entro com senha) |
-| **Fluxo no n8n** | ⏳ **pendente** — o navegador do app não está logado no n8n |
+| **Telas com você logado** | ✅ Estoque → Configurações → quadro "Tiny" (desligado → **ligado 30/09 01:30**, 234 na fila, zerou às 01:42) · detalhe e PCP conferidos na versão publicada |
+| **Fluxo no n8n** | ✅ fluxo único **publicado** (19 passos conferidos um a um; **sem relógio de estoque** — o banco chama só quando há fila, a seu pedido); os dois endereços respondem; "carga do saldo" arquivada |
+| **Cópia inicial (ponto de partida)** | ✅ 234 produtos lidos em 11 minutos (20 por minuto), **46 peças** criadas, nenhuma falha: estante 4 nichos 3 · armário 327 2 · estante 5 nichos 3 · mesa Close 7 · armário Close 1 porta 3 · sapateira 3 — o saldo somado das duas empresas |
 
 ## 5. Como validar (10 minutos, depois do n8n trocado)
 
@@ -72,6 +73,9 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 4. **Pedido novo** de um produto com estoque → a peça aparece "Reservada para o pedido N"; no PCP, ao liberar, ela vem marcada.
 
 ## 6. Ficou com você
+
+> ↪️ **Atualizado em 30/09, 01:45:** os três primeiros itens abaixo **estão feitos** (fluxo publicado, aviso da loja ligado por você, sincronismo ligado e cópia conferida). A pedido seu, **o n8n não tem mais relógio de 1 minuto**: o banco só chama o fluxo quando há produto esperando (migration 43).
+
 
 - 🔶 **Trocar o fluxo no n8n** (ou entrar no n8n pelo navegador do app para eu fazer): abrir o workflow "Tiny FÁBRICA → produtos no Supabase", apagar tudo, colar o arquivo novo, salvar; **excluir** o "carga do saldo (rodar 1×)". Passo a passo em [[N8N - Tiny Fabrica Produtos para Banco]].
 - 🔶 **No Tiny da LOJA:** Configurações → Webhooks → ligar **"lançamentos de estoque"** com o **mesmo endereço** do da fábrica (sem isso, o que a equipe lança na empresa da loja só sobe na varredura da madrugada).

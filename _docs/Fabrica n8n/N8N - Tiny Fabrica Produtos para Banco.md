@@ -103,32 +103,33 @@ Feito pelo Cowork no Tiny da fábrica, com o dono acompanhando.
 
 ## Fluxo único — o estoque conversando com a plataforma (30/09/2026)
 
-**Por quê:** o balanço do Guilherme (29/09) não apareceu na plataforma — o aviso de estoque desta conta só vê o depósito **Geral da FÁBRICA**, e a equipe olha o **multiempresa** (Geral + os depósitos "Fábrica", "Loja" e "Desmontado" da empresa da LOJA). Regras de produto: D-76 (Tiny acima sobe a plataforma), D-77 (gesto da plataforma deixa o Tiny igual), D-78 (venda reserva a peça), D-79 (ligar copia o Tiny uma vez), D-80 (um fluxo só). O banco é a migration 42 — [[SUPA - Esquema do Banco]].
+**Por quê:** o balanço do Guilherme (29/09) não apareceu na plataforma — o aviso de estoque desta conta só vê o depósito **Geral da FÁBRICA**, e a equipe olha o **multiempresa** (Geral + os depósitos "Fábrica", "Loja" e "Desmontado" da empresa da LOJA). Regras de produto: D-76 (Tiny acima sobe a plataforma), D-77 (gesto da plataforma deixa o Tiny igual), D-78 (venda reserva a peça), D-79 (ligar copia o Tiny uma vez), D-80 (um fluxo só — ↪️ sob demanda). O banco é a migration 42 (+ a 43, que faz o banco chamar o n8n só quando há trabalho) — [[SUPA - Esquema do Banco]].
 
 ```
 CATÁLOGO (igual)  A cada 15 min / Varredura 03:15 ─► pesquisar ─► Juntar ids ─► produto.obter ─► fn_upsert_produto
 AVISO             Webhook · lançamentos de estoque (fábrica E loja, mesmo endereço) ─► Supabase · aviso de estoque
-FILA              A cada minuto ─► próximos da fila (até 20) ─► Tiny F · obter estoque (1/1,2 s) ─► aplicar leitura
+FILA              Webhook · processar a fila do estoque (o BANCO chama) ─► próximos da fila (até 20) ─► Tiny F · obter estoque (1/1,2 s) ─► aplicar leitura
                                    └► Gravar no Tiny? ─(sim)► Tiny · gravar estoque (1/1,2 s) ─► confirmar ajuste
-VARREDURA         Varredura do estoque 04:00 ─► Supabase · varrer estoque (todos os acabados para a fila)
+(a varredura do estoque das 04:00 mora no BANCO — pg_cron plt-tiny-estoque-varredura — e não no n8n)
 ```
 
 - **Supabase · aviso de estoque** → `plt_fn_tiny_estoque_aviso(p)`: grava o aviso cru em `eventos` (o mesmo registro de antes) e, com o sincronismo ligado, põe o produto acabado na fila. Aviso da LOJA é achado pelo SKU. **O aviso não dispara mais a releitura do cadastro** — produto novo entra pelo ciclo de 15 min.
-- **próximos da fila** → `plt_fn_tiny_estoque_proximos(20)`; lista vazia (ou desligado) = o fluxo para ali.
+- **Webhook · processar a fila do estoque** (caminho próprio, secreto) — ↪️ 30/09, pedido do dono (*"você não tá nem doido de deixar alguma coisa rodando no meu n8n a cada 1 minuto"*): **não há relógio no n8n para o estoque.** Quem chama é o relógio INTERNO do banco (`plt-estoque-reservas`, que já existia para a venda): só posta aqui se o sincronismo está ligado, há produto esperando na fila e nenhum lote está em andamento. Fila vazia = o fluxo não roda, nenhuma consulta ao Tiny. O endereço mora em `plt_webhooks` (marcado `tiny_estoque_fila`).
+- **próximos da fila** → `plt_fn_tiny_estoque_proximos(20)`; sobrou fila, o banco chama de novo no minuto seguinte.
 - **Tiny F · obter estoque** → `produto.obter.estoque.php` com o token da FÁBRICA (`TINY_FABRICA_TOKEN`) — o saldo somado das duas empresas + cada depósito.
 - **aplicar leitura** → `plt_fn_tiny_estoque_leitura(produto, versao, resposta)`: a plataforma decide (copiar / subir / devolver o ajuste). Erro do Tiny (limite, fora do ar) volta para a plataforma, que tenta de novo no minuto seguinte; 5 falhas seguidas → o produto para e aparece em Configurações → Tiny.
 - **Tiny · gravar estoque** → `produto.atualizar.estoque.php`, tipo **B** (balanço) no depósito que a plataforma mandar: **"Fábrica" da LOJA pela conta da loja** (`TINY_TOKEN` — o mesmo do fluxo principal) ou **Geral pela conta da fábrica**. Balanço é repetível (reenvio não dobra); saída "S" só quando o balanço ficaria negativo.
 - **confirmar ajuste** → `plt_fn_tiny_estoque_ajustado(...)`: sai da fila e fica na trilha (`estoque_tiny_ajustado`).
-- **Cota:** até 20 leituras + os ajustes por minuto na fila (bem abaixo dos 60/min); a varredura do catálogo (03:15) e a do estoque (04:00) não se cruzam.
-- **Execuções:** o workflow guarda **só as com erro** (a fila roda a cada minuto — 1.440 execuções vazias por dia). O que foi feito fica na plataforma.
+- **Cota:** no máximo 20 leituras + os ajustes por chamada, uma chamada por vez (bem abaixo dos 60/min); a varredura do catálogo (03:15) e a do estoque (04:00) não se cruzam.
+- **Execuções:** o workflow guarda **só as com erro**; fuso do workflow = America/Sao_Paulo. O que foi feito fica na plataforma (trilha + Configurações → Tiny).
+- **Relógios que sobraram no n8n:** só os do CATÁLOGO, que já existiam (a cada 15 min e 03:15).
 
-### Como trocar no n8n (uma vez)
+### Como foi trocado no n8n (30/09/2026 — feito pelo Claude no navegador do app, com o dono logado)
 
-1. Abrir o workflow atual **"Domoby · Tiny FÁBRICA → produtos no Supabase"** → selecionar tudo (Ctrl+A) → apagar → colar o conteúdo de `domoby-tiny-fabrica-produtos.json` → **Salvar** (fica ativo; o id e o endereço do webhook continuam os mesmos). Conferir o nome novo no topo.
-2. **Excluir** o workflow **"Domoby · Tiny FÁBRICA → carga do saldo (rodar 1×)"**.
-3. No **Tiny da LOJA**: Configurações → Webhooks → ligar **"lançamentos de estoque"** com a **mesma URL** de produção do webhook deste fluxo (a da fábrica).
-4. Conferir que o compose do n8n tem `TINY_TOKEN` e `TINY_FABRICA_TOKEN` (`printenv | grep TINY` — só ver que existem).
-5. Na plataforma, um admin liga em **Estoque → Configurações → Tiny** ("Ligar o sincronismo com o Tiny") — a cópia inicial leva uns 15 min (~230 produtos a 20 por minuto).
+1. ✅ O workflow **"Domoby · Tiny FÁBRICA → produtos no Supabase"** (mesmo id `gJNYde20T921AY6l`) virou **"Domoby · Tiny FÁBRICA → produtos e estoque (fluxo único)"**: tudo apagado e o JSON colado (19 nós conferidos um a um contra o arquivo), fuso de São Paulo, só execuções com erro guardadas, **publicado** (n8n 2.32 — rascunho ≠ publicado). Os dois webhooks de produção respondem "registrado para POST".
+2. ✅ O workflow **"carga do saldo (rodar 1×)"** foi **arquivado** (dá para restaurar; apagar de vez fica com o dono).
+3. ✅ No **Tiny da LOJA**, o dono ligou **"lançamentos de estoque"** com a mesma URL do webhook de estoque deste fluxo.
+4. ✅ Na plataforma, o sincronismo foi ligado em **Estoque → Configurações → Tiny** em 30/09 às 01:30 (234 acabados na fila para a cópia). Receita do n8n pelo navegador e as armadilhas: E-71 na memória de aprendizado.
 
 ## Riscos e observações
 

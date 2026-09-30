@@ -810,6 +810,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - O aviso de estoque deixa de disparar a releitura do cadastro (o produto novo entra pelo ciclo de 15 min).
 - O n8n guarda só as execuções com erro (a fila roda a cada minuto); o que foi feito fica na plataforma (trilha + Configurações → Tiny).
 
+**↪️ 30/09/2026 (mesma madrugada) — sob demanda, sem relógio no n8n:** o dono, vendo o gatilho de 1 em 1 minuto: *"você não tá nem doido de deixar alguma coisa rodando no meu n8n a cada 1 minuto para requisitar várias coisas, calma paizão, melhora isso daí"*. Decidido: **o n8n não tem relógio para o estoque.** Quem chama o fluxo é o relógio INTERNO do banco (o mesmo da reserva da venda), e só quando o sincronismo está ligado, há produto esperando na fila e nenhum lote está em andamento — fila vazia não gera execução no n8n nem consulta ao Tiny. A varredura das 04:00 também passou para o banco. No n8n sobram só os relógios do catálogo que já existiam (15 min e 03:15). Técnico: migration 43.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
