@@ -31,7 +31,7 @@ tags: [execucao, ajuste, estoque, fotos, tiny, d-73, d-81]
 - [x] Cofre: D-81, A-38, E-68, esquema, modelo de sistema, mapa, próximos passos, handoff
 - [x] OK do dono para publicar (*"Pode publicar"*) e para corrigir junto o fundo preto da câmera (*"Sim, corrige junto"*)
 - [x] `reduzirImagem`: fundo branco antes do `drawImage` → provado na página (canto 255,255,255 com a correção; controle sem ela: 0,0,0) · tsc ✅ · eslint ✅ · 84/84 ✅
-- [ ] Mesclar na `main` e publicar (Vercel) · limpar a pasta principal (compartilhada)
+- [x] Mesclado na `main` e publicado em 30/09 (avanço direto 2f441f4 → a6e2f50, `push ajuste-fotos-tiny:main` pela credencial do `gh`; autores `contatodomoby`); **Vercel: "Deployment has completed"** no status do commit · pasta principal devolvida limpa (as 4 edições de tela desfeitas pela ferramenta de edição depois de conferir que eram idênticas às publicadas; a pasta segue na branch da sessão do estoque, na 2f441f4 — quem estiver lá traz a `main` com `merge --ff-only`)
 
 ## O que se descobriu
 
