@@ -1283,6 +1283,8 @@ comment on function public.plt_fn_concluir_producao(bigint, text, text, uuid) is
 
 -- 11.3 · SUGESTÃO DE ALOCAÇÃO: para cada vaga (k/n) ainda não liberada do
 --        pedido, a peça livre IGUAL mais antiga do ESTOQUE (uma por vaga).
+-- E-17: a 42 mudou a forma de retorno (coluna `reservada`) — drop antes do create.
+drop function if exists public.plt_fn_sugestoes_alocacao(bigint);
 create or replace function public.plt_fn_sugestoes_alocacao(p_card_id bigint)
 returns table (
   item_seq           integer,
@@ -2346,4 +2348,5 @@ grant execute on function public.plt_fn_dash_estoque()                          
 -- ----------------------------------------------------------------------------
 -- 14 · E-19: o check de tipos mais novo valida a tabela inteira
 -- ----------------------------------------------------------------------------
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- E-19: o `validate constraint` mudou de casa — quem valida é sempre a
+-- migration MAIS NOVA do check (desde 30/09, a 42 — estoque sincronizado).

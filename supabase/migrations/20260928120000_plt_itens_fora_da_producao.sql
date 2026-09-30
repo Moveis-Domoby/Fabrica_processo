@@ -409,6 +409,8 @@ comment on function public.plt_fn_cards_pedido_pcp(integer, integer) is
 -- ----------------------------------------------------------------------------
 -- 7 · Sugestão do estoque e alocação (37): a vaga é unidade de produção
 -- ----------------------------------------------------------------------------
+-- E-17: a 42 mudou a forma de retorno (coluna `reservada`) — drop antes do create.
+drop function if exists public.plt_fn_sugestoes_alocacao(bigint);
 create or replace function public.plt_fn_sugestoes_alocacao(p_card_id bigint)
 returns table (
   item_seq           integer,

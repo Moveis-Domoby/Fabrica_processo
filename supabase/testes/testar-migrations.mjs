@@ -6859,6 +6859,453 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 
+// ============================================================================
+// ESTOQUE SINCRONIZADO COM O TINY (30/09 — migration 42, D-76…D-80): o
+// Tiny acima sobe a plataforma; gesto da plataforma manda o Tiny ficar igual;
+// a venda reserva a peça; ligar copia o Tiny uma vez. O dono: "as duas precisam
+// se conversar bem para mostrar os mesmos dados"; "eles só olham o saldo
+// multiempresa".
+// ============================================================================
+{ // escopo próprio: os nomes daqui não colidem com os dos blocos anteriores
+titulo('Estoque × Tiny (30/09) · desligado: o aviso só fica registrado, nada entra na fila')
+
+const S42 = { admin: E40.admin, logistica: E40.logistica, operador: E40.operador }
+const como42 = como40
+const linhas42 = linhas40
+const um42 = async (sql) => (await linhas42(sql))[0]
+const sqlJson = (obj) => `'${JSON.stringify(obj).split("'").join("''")}'::jsonb`
+// A resposta do produto.obter.estoque da FÁBRICA (saldo somado + depósitos das duas empresas).
+const respostaTiny = (id, sku, depositos, reservado = 0) => ({
+  retorno: {
+    status: 'OK',
+    produto: {
+      id, codigo: sku, nome: 'Produto ' + sku,
+      saldo: depositos.reduce((s, d) => s + d[2], 0),
+      saldoReservado: reservado,
+      depositos: depositos.map(([empresa, nome, saldo]) => ({ deposito: { nome, desconsiderar: 'N', saldo, empresa } })),
+    },
+  },
+})
+const livres42 = async (id) => (await um42(`select livres, reservadas from plt_privado.fn_estoque_pecas(${id})`))
+const fila42 = async (id) => await um42(`select produto_tiny_id::int as id, enviar, copiar, versao, tentativas, parado_em is not null as parado
+                                           from public.plt_tiny_estoque_fila where produto_tiny_id = ${id}`)
+const pegar42 = async () => await linhas42(`select produto_tiny_id::int as id, versao, sku, enviar, copiar from public.plt_fn_tiny_estoque_proximos(50)`)
+const ler42 = async (id, versao, resposta) =>
+  (await um42(`select public.plt_fn_tiny_estoque_leitura(${id}, ${versao}, ${sqlJson(resposta)}) as r`)).r
+
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade) values
+    (942001, 'S42A', 'Estante Teste 42 - Branco', 'F', 'A', null, 'un'),
+    (942002, 'S42B', 'Armário Teste 42 - Branco', 'F', 'A', null, 'un'),
+    (942003, 'S42C', 'Nicho Teste 42 - Preto', 'F', 'A', 2, 'un'),
+    (942004, 'S42D', 'Painel Teste 42 - só na fábrica', 'F', 'A', null, 'un'),
+    (942009, 'S42M', 'Chapa Teste 42', 'M', 'A', null, 'chapa')
+  on conflict (tiny_id) do nothing;
+  -- o id do S42A na conta da LOJA vem do último pedido que o vendeu (A-22)
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (942100, (select id from public.clientes order by id limit 1), 'Entregue', current_date - 30);
+  insert into public.pedido_itens (pedido_id, seq, id_produto, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 942100), 1, 777001, 'S42A', 'Estante Teste 42 - Branco', 1);
+`)
+await como42(S42.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(942002, 'entrada', 2, 'antes de ligar')`)
+const avisoDesligado = (await um42(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({
+  versao: '1.0.1', cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942001, sku: 'S42A', nome: 'x', saldo: 0 } })}) as r`)).r
+conferir(
+  avisoDesligado.registrado === true && avisoDesligado.na_fila === false
+    && (await um42(`select count(*)::int as n from public.eventos where tipo = 'estoque_fabrica' and payload -> 'dados' ->> 'sku' = 'S42A'`)).n === 1
+    && (await um42(`select count(*)::int as n from public.plt_tiny_estoque_fila`)).n === 0
+    && (await pegar42()).length === 0,
+  'desligado: o aviso do Tiny fica registrado como sempre (o mesmo registro cru), mas nada entra na fila e o n8n não recebe trabalho',
+  JSON.stringify(avisoDesligado),
+)
+// pedido que chegou ANTES de ligar: a venda dele já está no saldo do Tiny — não reserva
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (942101, (select id from public.clientes order by id limit 1), 'Em aberto', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 942101), 1, 'S42B', 'Armário Teste 42 - Branco', 1);
+`)
+
+titulo('Estoque × Tiny (30/09) · ligar é do admin e copia o saldo do Tiny uma vez (ponto de partida)')
+
+await como42(S42.logistica)
+await deveRecusarExec(`select public.plt_fn_tiny_estoque_ligar()`,
+  'a logística não liga o sincronismo (gesto de admin)', /admin/i)
+await como42(S42.admin)
+const ligou = (await um42(`select public.plt_fn_tiny_estoque_ligar() as r`)).r
+// o n8n pega de 50 em 50; aqui pega tudo o que a cópia pôs na fila
+const pegos = []
+for (let i = 0; i < 20; i++) {
+  const lote = await pegar42()
+  if (lote.length === 0) break
+  pegos.push(...lote)
+}
+const pego = (id) => pegos.find((p) => p.id === id)
+conferir(
+  ligou.ligado_desde && ligou.produtos_para_copiar >= 4
+    && pego(942001)?.copiar && pego(942002)?.copiar && !pego(942009)
+    && (await um42(`select count(*)::int as n from public.plt_logs_atividade where acao = 'estoque_tiny_ligado'`)).n === 1,
+  'ligar: todo acabado ativo entra na fila para COPIAR o Tiny (insumo não entra); fica o registro de quem ligou',
+  JSON.stringify({ ligou, pegos: pegos.filter((p) => p.id >= 942001 && p.id <= 942009) }),
+)
+const copiaA = await ler42(942001, pego(942001).versao,
+  respostaTiny(942001, 'S42A', [['FábricaDomoby', 'Geral', 0], ['lojadomoby', 'Fábrica', 3]]))
+const copiaB = await ler42(942002, pego(942002).versao,
+  respostaTiny(942002, 'S42B', [['FábricaDomoby', 'Geral', 0], ['lojadomoby', 'Fábrica', 1]]))
+const copiaC = await ler42(942003, pego(942003).versao,
+  respostaTiny(942003, 'S42C', [['FábricaDomoby', 'Geral', 0], ['lojadomoby', 'Fábrica', -4]]))
+const eventosCopia = await linhas42(`
+  select e.origem, e.dados ->> 'motivo' as motivo, e.tipo
+    from public.plt_eventos e join public.plt_cards c on c.id = e.card_id
+   where c.produto_tiny_id in (942001, 942002) and e.dados ->> 'motivo' = 'tiny_copia'`)
+conferir(
+  (await livres42(942001)).livres === 3 && (await livres42(942002)).livres === 1
+    && (await livres42(942003)).livres === 0
+    && copiaA.motivo === 'copiado' && copiaB.motivo === 'copiado'
+    && eventosCopia.length === 4 && eventosCopia.every((e) => e.origem === 'api')
+    && eventosCopia.filter((e) => e.tipo === 'card_criado').length === 3
+    && eventosCopia.filter((e) => e.tipo === 'card_arquivado').length === 1,
+  'cópia nos dois sentidos: 0 → 3 (o Tiny tem 3 na loja), 2 → 1 (a plataforma desce ao Tiny) e negativo no Tiny vira 0 — tudo por evento, origem da integração',
+  JSON.stringify({ copiaA, copiaB, copiaC, eventosCopia }),
+)
+conferir(
+  !(await fila42(942001)) && !(await fila42(942002))
+    && (await um42(`select count(*)::int as n from public.plt_tiny_estoque_fila where enviar`)).n === 0,
+  'a cópia não volta para o Tiny (nada de "enviar" na fila) e o produto sai da fila',
+)
+const leituraGuardada = await um42(`
+  select l.saldo, l.origem from plt_privado.fn_leituras_tiny() l where l.tiny_id = 942001`)
+conferir(
+  Number(leituraGuardada?.saldo) === 3 && leituraGuardada?.origem === 'leitura',
+  'a leitura fica guardada (o detalhe do produto mostra "o que o Tiny diz" = o saldo somado das duas empresas)',
+  JSON.stringify(leituraGuardada),
+)
+// resto da cópia (produtos de outros blocos): esvazia a fila sem mudar nada
+for (const p of pegos.filter((x) => ![942001, 942002, 942003].includes(x.id))) {
+  await bd.exec(`delete from public.plt_tiny_estoque_fila where produto_tiny_id = ${p.id}`)
+}
+
+titulo('Estoque × Tiny (30/09) · plataforma → Tiny: a entrada manda o Tiny ficar igual (depósito Fábrica da loja)')
+
+await como42(S42.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(942001, 'entrada', 2, 'chegou da produção')`)
+const filaEntrada = await fila42(942001)
+conferir(filaEntrada?.enviar === true && filaEntrada?.copiar === false,
+  'entrada de 2 põe o produto na fila para ENVIAR ao Tiny (uma linha só, mesmo com 2 peças)',
+  JSON.stringify(filaEntrada))
+const p1 = (await pegar42()).find((p) => p.id === 942001)
+const ajuste = await ler42(942001, p1.versao,
+  respostaTiny(942001, 'S42A', [['FábricaDomoby', 'Geral', 0], ['lojadomoby', 'Fábrica', 3]]))
+conferir(
+  ajuste.acao === 'ajustar' && ajuste.conta === 'loja' && Number(ajuste.id_produto) === 777001
+    && ajuste.deposito === 'Fábrica' && ajuste.tipo === 'B' && Number(ajuste.quantidade) === 5
+    && Number(ajuste.tiny_depois) === 5
+    && ajuste.estoque?.estoque?.idProduto === 777001 && ajuste.estoque.estoque.deposito === 'Fábrica',
+  'o n8n recebe o ajuste pronto: balanço no depósito "Fábrica" da LOJA (id do produto na loja), para a soma ficar 5 — o número da plataforma',
+  JSON.stringify(ajuste),
+)
+conferir((await fila42(942001))?.enviar === true,
+  'enquanto o Tiny não confirma, o produto segue na fila (reservado para o n8n)')
+const confirmou = (await um42(`select public.plt_fn_tiny_estoque_ajustado(942001, ${p1.versao}, ${sqlJson(ajuste)},
+  ${sqlJson({ retorno: { status: 'OK', registros: [{ registro: { sequencia: 1, status: 'OK', id: 555, saldoEstoque: 5 } }] } })}) as r`)).r
+const logAjuste = await um42(`select contexto from public.plt_logs_atividade where acao = 'estoque_tiny_ajustado' order by id desc limit 1`)
+conferir(
+  confirmou.ok === true && !(await fila42(942001))
+    && logAjuste?.contexto?.sku === 'S42A' && Number(logAjuste.contexto.tiny_depois) === 5
+    && Number(logAjuste.contexto.lancamento_id) === 555,
+  'confirmado pelo Tiny: sai da fila e o ajuste fica na trilha (produto, depósito, antes/depois, o lançamento do Tiny)',
+  JSON.stringify({ confirmou, logAjuste }),
+)
+// sem o depósito da loja (produto só na fábrica): ajusta o Geral da fábrica
+await bd.exec(`select public.plt_fn_estoque_movimentar(942004, 'entrada', 1, null)`)
+const p4 = (await pegar42()).find((p) => p.id === 942004)
+const ajusteFabrica = await ler42(942004, p4.versao, respostaTiny(942004, 'S42D', [['FábricaDomoby', 'Geral', 0]]))
+conferir(
+  ajusteFabrica.conta === 'fabrica' && Number(ajusteFabrica.id_produto) === 942004
+    && ajusteFabrica.deposito === 'Geral' && ajusteFabrica.tipo === 'B' && Number(ajusteFabrica.quantidade) === 1,
+  'produto que não existe na loja: o ajuste vai para o Geral da fábrica',
+  JSON.stringify(ajusteFabrica),
+)
+await bd.exec(`select public.plt_fn_tiny_estoque_ajustado(942004, ${p4.versao}, ${sqlJson(ajusteFabrica)}, ${sqlJson({ retorno: { status: 'OK', registros: [{ registro: { status: 'OK', id: 1 } }] } })})`)
+// baixa com o saldo no Geral: balanço negativo não existe → saída da diferença
+await bd.exec(`select public.plt_fn_estoque_movimentar(942004, 'baixa', 1, null)`)
+const p4b = (await pegar42()).find((p) => p.id === 942004)
+const ajusteSaida = await ler42(942004, p4b.versao,
+  respostaTiny(942004, 'S42D', [['FábricaDomoby', 'Geral', -2], ['FábricaDomoby', 'Mostruário', 4]]))
+conferir(
+  ajusteSaida.tipo === 'S' && Number(ajusteSaida.quantidade) === 2 && Number(ajusteSaida.tiny_depois) === 0,
+  'quando o balanço do depósito ficaria negativo, vira saída da diferença (a soma fica igual à plataforma)',
+  JSON.stringify(ajusteSaida),
+)
+await bd.exec(`select public.plt_fn_tiny_estoque_ajustado(942004, ${p4b.versao}, ${sqlJson(ajusteSaida)}, ${sqlJson({ retorno: { status: 'OK', registros: [{ registro: { status: 'OK', id: 2 } }] } })})`)
+// já igual: nada a gravar
+await bd.exec(`select public.plt_fn_estoque_movimentar(942002, 'contagem', 1, 'conferido')`)
+const p2 = (await pegar42()).find((p) => p.id === 942002)
+const igual = await ler42(942002, p2.versao, respostaTiny(942002, 'S42B', [['lojadomoby', 'Fábrica', 1]]))
+conferir(
+  igual.acao === 'nada' && igual.motivo === 'ja_igual' && !(await fila42(942002)),
+  'contagem conferida e o Tiny já igual: nenhuma gravação no Tiny, sai da fila',
+  JSON.stringify(igual),
+)
+
+titulo('Estoque × Tiny (30/09) · Tiny → plataforma: o Tiny acima sobe a plataforma; abaixo, nada')
+
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942001, sku: 'S42A', nome: 'x', saldo: 0 } })})`)
+const filaAviso = await fila42(942001)
+const pA = (await pegar42()).find((p) => p.id === 942001)
+const subiu = await ler42(942001, pA.versao,
+  respostaTiny(942001, 'S42A', [['FábricaDomoby', 'Geral', 0], ['lojadomoby', 'Fábrica', 8]]))
+const entradasTiny = await linhas42(`
+  select e.origem, e.usuario_id is null as sem_pessoa from public.plt_eventos e join public.plt_cards c on c.id = e.card_id
+   where c.produto_tiny_id = 942001 and e.tipo = 'card_criado' and e.dados ->> 'motivo' = 'tiny'`)
+conferir(
+  filaAviso?.enviar === false && subiu.motivo === 'subiu' && subiu.entraram === 3
+    && (await livres42(942001)).livres === 8
+    && entradasTiny.length === 3 && entradasTiny.every((e) => e.origem === 'api' && e.sem_pessoa),
+  'aviso do Tiny (fábrica) → leitura com 8 × 5 na plataforma: entram 3 peças, motivo "entrou pelo Tiny", origem da integração',
+  JSON.stringify({ filaAviso, subiu, entradasTiny }),
+)
+conferir(!(await fila42(942001)),
+  'o que veio do Tiny NÃO volta para o Tiny (sem "enviar" depois de subir)')
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942001, sku: 'S42A', nome: 'x', saldo: 0 } })})`)
+const pA2 = (await pegar42()).find((p) => p.id === 942001)
+const abaixo = await ler42(942001, pA2.versao, respostaTiny(942001, 'S42A', [['lojadomoby', 'Fábrica', 2]]))
+conferir(abaixo.motivo === 'sem_mudanca' && (await livres42(942001)).livres === 8,
+  'Tiny abaixo da plataforma (2 × 8): nada muda — a saída se dá pela plataforma (resposta do dono)',
+  JSON.stringify(abaixo))
+// aviso da LOJA: o id não casa — vale o SKU
+const avisoLoja = (await um42(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '48.404.755/0001-88', tipo: 'estoque', dados: { idProduto: 777001, sku: 'S42A', nome: 'Estante Teste 42 - Branco', saldo: 8 } })}) as r`)).r
+conferir(Number(avisoLoja.produto_tiny_id) === 942001 && avisoLoja.na_fila === true,
+  'aviso da conta da LOJA: acha o produto pelo SKU e põe na fila para ler',
+  JSON.stringify(avisoLoja))
+await bd.exec(`delete from public.plt_tiny_estoque_fila where produto_tiny_id = 942001`)
+// reposição no PCP e o Tiny cobre o mínimo: a reposição sai do PCP sozinha
+await bd.exec(`
+  insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
+    values ('reposicao', 942003, 'S42C', 'Nicho Teste 42 - Preto', 2, (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+  insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, dados)
+    values ((select max(id) from public.plt_cards where tipo = 'reposicao' and produto_tiny_id = 942003), 'card_criado', 'automacao',
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1), '{"motivo":"reposicao_estoque"}');
+`)
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942003, sku: 'S42C', nome: 'x', saldo: 3 } })})`)
+const pC = (await pegar42()).find((p) => p.id === 942003)
+await ler42(942003, pC.versao, respostaTiny(942003, 'S42C', [['lojadomoby', 'Fábrica', 3]]))
+const repo = await um42(`
+  select c.arquivado_em is not null as arquivada, e.dados ->> 'motivo' as motivo, e.origem
+    from public.plt_cards c left join public.plt_eventos e on e.card_id = c.id and e.tipo = 'card_arquivado'
+   where c.tipo = 'reposicao' and c.produto_tiny_id = 942003 order by c.id desc limit 1`)
+conferir(
+  (await livres42(942003)).livres === 3 && repo?.arquivada && repo.motivo === 'estoque_coberto' && repo.origem === 'api',
+  'o exemplo do dono: 3 lançadas no Tiny com mínimo 2 → a plataforma fica com 3 e a reposição ainda no PCP é arquivada sozinha',
+  JSON.stringify(repo),
+)
+
+titulo('Estoque × Tiny (30/09) · o Tiny falhou 5 vezes: para e aparece na tela; um aviso novo destrava')
+
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942002, sku: 'S42B', nome: 'x', saldo: 1 } })})`)
+for (let i = 0; i < 5; i++) {
+  const p = (await pegar42()).find((x) => x.id === 942002)
+  if (p) await ler42(942002, p.versao, { retorno: { status: 'Erro', codigo_erro: 6, erros: [{ erro: 'API Bloqueada - Excedido o número de acessos a API' }] } })
+}
+const parado = await fila42(942002)
+await como42(S42.logistica)
+const situacao = (await um42(`select public.plt_fn_tiny_estoque_situacao() as r`)).r
+conferir(
+  parado?.parado === true && parado.tentativas === 5 && !(await pegar42()).some((p) => p.id === 942002)
+    && situacao?.ligado_desde && situacao.parados.some((p) => p.sku === 'S42B' && /Excedido/.test(p.erro))
+    && situacao.ultimos_ajustes.length >= 1
+    && (await um42(`select count(*)::int as n from public.plt_logs_atividade where acao = 'estoque_tiny_falha'`)).n === 1,
+  'na 5ª falha seguida o produto para (não é mais entregue ao n8n), aparece na situação com o erro, e fica na trilha',
+  JSON.stringify({ parado, situacao }),
+)
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942002, sku: 'S42B', nome: 'x', saldo: 1 } })})`)
+const destravou = await fila42(942002)
+conferir(destravou?.parado === false && destravou.tentativas === 0 && (await pegar42()).some((p) => p.id === 942002),
+  'um aviso novo do mesmo produto destrava a fila', JSON.stringify(destravou))
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+
+titulo('Estoque × Tiny (30/09) · a venda reserva a peça na hora; o PCP decide; nada da venda vai ao Tiny')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (942102, (select id from public.clientes order by id limit 1), 'Em aberto', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 942102), 1, 'S42A', 'Estante Teste 42 - Branco', 2),
+    ((select id from public.pedidos where numero = 942102), 2, null, 'Frete cliente', 1);
+`)
+const antesVenda = await livres42(942001)
+const rodada1 = (await um42(`select plt_privado.fn_estoque_reservas_rodar() as r`)).r
+const reservadasVenda = await linhas42(`
+  select c.id::int as id, c.reservada_item_seq as seq, c.reservada_indice as k
+    from public.plt_cards c where c.reservada_pedido_id = (select id from public.pedidos where numero = 942102)
+   order by c.reservada_indice`)
+const baseVenda = await um42(`select disponivel, prontos_reservados from plt_privado.fn_estoque_por_produto() where tiny_id = 942001`)
+conferir(
+  rodada1.reservadas === 2 && reservadasVenda.length === 2
+    && reservadasVenda[0].seq === 1 && reservadasVenda[0].k === 1 && reservadasVenda[1].k === 2
+    && (await livres42(942001)).livres === antesVenda.livres - 2 && (await livres42(942001)).reservadas === 2
+    && Number(baseVenda.disponivel) === antesVenda.livres - 2 && baseVenda.prontos_reservados === 2,
+  'pedido novo com 2 estantes: 2 peças livres ficam RESERVADAS na hora — o número do estoque cai 2 e elas aparecem como reservadas (o frete não reserva nada)',
+  JSON.stringify({ rodada1, reservadasVenda, baseVenda }),
+)
+const filaVenda = await fila42(942001)
+conferir(filaVenda && filaVenda.enviar === false,
+  'a venda não manda nada ao Tiny (o Tiny já baixou) — só pede uma leitura para conferir',
+  JSON.stringify(filaVenda))
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+const rodada2 = (await um42(`select plt_privado.fn_estoque_reservas_rodar() as r`)).r
+conferir(rodada2.reservadas === 0 && rodada2.pedidos_avaliados === 0 && (await livres42(942001)).reservadas === 2,
+  'a próxima rodada não reserva de novo (o pedido foi avaliado uma vez só)', JSON.stringify(rodada2))
+conferir(
+  (await um42(`select count(*)::int as n from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                where p.numero = 942101 and c.tipo = 'pedido'
+                  and exists (select 1 from public.plt_eventos e where e.card_id = c.id and e.tipo = 'estoque_reserva_avaliada')`)).n === 0,
+  'pedido que chegou antes de ligar não reserva (a venda dele já estava no saldo copiado do Tiny)',
+)
+const cardVenda = (await um42(`select id::int as id from public.plt_cards where tipo = 'pedido'
+                                and pedido_id = (select id from public.pedidos where numero = 942102)`)).id
+await como42(S42.logistica)
+const sugestoesVenda = await linhas42(`select item_seq, indice_unidade, peca_card_id::int as peca, reservada
+                                         from public.plt_fn_sugestoes_alocacao(${cardVenda})`)
+conferir(
+  sugestoesVenda.length === 2 && sugestoesVenda.every((s) => s.reservada)
+    && sugestoesVenda.map((s) => s.peca).sort().join() === reservadasVenda.map((r) => r.id).sort().join(),
+  'no PCP, ao liberar, cada unidade vem com a SUA peça reservada (a tela já marca)',
+  JSON.stringify(sugestoesVenda),
+)
+// outro pedido não pega a peça reservada deste
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (942103, (select id from public.clientes order by id limit 1), 'Em aberto', current_date - 1);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 942103), 1, 'S42A', 'Estante Teste 42 - Branco', 1);
+`)
+const cardOutro = (await um42(`select id::int as id from public.plt_cards where tipo = 'pedido'
+                                and pedido_id = (select id from public.pedidos where numero = 942103)`)).id
+await bd.exec(`select plt_privado.fn_estoque_reservas_rodar()`)   // o 942103 reserva a dele
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await deveRecusarExec(`select public.plt_fn_alocar_peca(${cardOutro}, 1, 1, ${reservadasVenda[0].id})`,
+  'a peça reservada para um pedido não serve para outro', /reservada para outro pedido/i)
+// o PCP usa a reservada na unidade 1 (sem ir ao Tiny) e manda produzir a unidade 2 (a peça volta e o Tiny recebe)
+await bd.exec(`select public.plt_fn_alocar_peca(${cardVenda}, 1, 1, ${reservadasVenda[0].id})`)
+const alocada = await um42(`select dados ->> 'reservada' as reservada from public.plt_eventos
+                             where card_id = ${reservadasVenda[0].id} and tipo = 'peca_alocada'`)
+conferir(alocada?.reservada === 'true' && !(await fila42(942001)),
+  'usar a peça reservada no próprio pedido: vai para Pedidos em aguardo e não gera nada para o Tiny',
+  JSON.stringify(alocada))
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades, setor_atual_id)
+    values ('unidade', (select id from public.pedidos where numero = 942102), ${cardVenda}, 1, 'S42A', 'Estante Teste 42 - Branco', 2, 2,
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_destino_id)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_usuarios where auth_user_id = '${S42.admin}'), 'interface',
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+`)
+const livresAntesRecusa = await livres42(942001)
+const rodada3 = (await um42(`select plt_privado.fn_estoque_reservas_rodar() as r`)).r
+const desfeita = await um42(`select dados ->> 'motivo' as motivo from public.plt_eventos
+                              where card_id = ${reservadasVenda[1].id} and tipo = 'peca_reserva_desfeita'`)
+conferir(
+  rodada3.desfeitas === 1 && desfeita?.motivo === 'pcp_produzir'
+    && (await livres42(942001)).livres === livresAntesRecusa.livres + 1
+    && (await livres42(942001)).reservadas === livresAntesRecusa.reservadas - 1
+    && (await fila42(942001))?.enviar === true,
+  'o PCP liberou a unidade para PRODUÇÃO: a reserva se desfaz, a peça volta ao estoque e o Tiny recebe +1 (enviar)',
+  JSON.stringify({ rodada3, desfeita }),
+)
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+
+titulo('Estoque × Tiny (30/09) · cancelado devolve a peça sem ir ao Tiny; faturado leva a peça junto')
+
+const reservarPedido = async (numero, qtd) => {
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+      values (${numero}, (select id from public.clientes order by id limit 1), 'Em aberto', current_date);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      values ((select id from public.pedidos where numero = ${numero}), 1, 'S42A', 'Estante Teste 42 - Branco', ${qtd});
+  `)
+  await bd.exec(`select plt_privado.fn_estoque_reservas_rodar()`)
+  return (await um42(`select count(*)::int as n from public.plt_cards
+                       where reservada_pedido_id = (select id from public.pedidos where numero = ${numero})`)).n
+}
+const reservaCancelada = await reservarPedido(942104, 1)
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 942104`)
+const rodadaCancel = (await um42(`select plt_privado.fn_estoque_reservas_rodar() as r`)).r
+conferir(
+  reservaCancelada === 1 && rodadaCancel.desfeitas === 1
+    && (await um42(`select count(*)::int as n from public.plt_cards where reservada_pedido_id = (select id from public.pedidos where numero = 942104)`)).n === 0
+    && !(await fila42(942001)),
+  'cancelado no Tiny: a reserva se desfaz e a peça volta — sem mandar nada ao Tiny (ele devolve sozinho)',
+  JSON.stringify(rodadaCancel),
+)
+const reservaFaturada = await reservarPedido(942105, 1)
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+const antesFaturar = await livres42(942001)
+await bd.exec(`update public.pedidos set situacao = 'Faturado' where numero = 942105`)
+const rodadaFat = (await um42(`select plt_privado.fn_estoque_reservas_rodar() as r`)).r
+const consumo = await um42(`
+  select e.origem, e.dados ->> 'motivo' as motivo from public.plt_eventos e
+   where e.tipo = 'card_arquivado' and (e.dados ->> 'pedido_id')::bigint = (select id from public.pedidos where numero = 942105)`)
+conferir(
+  reservaFaturada === 1 && rodadaFat.consumidas === 1 && consumo?.motivo === 'venda' && consumo.origem === 'api'
+    && (await livres42(942001)).reservadas === antesFaturar.reservadas - 1
+    && (await livres42(942001)).livres === antesFaturar.livres
+    && !(await fila42(942001)),
+  'faturado: a peça reservada sai com o pedido (baixa "venda"), o número livre não muda e nada vai ao Tiny',
+  JSON.stringify({ rodadaFat, consumo }),
+)
+
+titulo('Estoque × Tiny (30/09) · contagem é física (conta a reservada); só a plataforma reserva')
+
+const reservaContagem = await reservarPedido(942106, 1)
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await como42(S42.logistica)
+const pecasAntes = await livres42(942001)
+await deveRecusarExec(`select public.plt_fn_estoque_movimentar(942001, 'contagem', 0, null)`,
+  'contagem menor que as peças reservadas no galpão é recusada, dizendo quantas são', /reservada/i)
+const depoisContagem = (await um42(`select public.plt_fn_estoque_movimentar(942001, 'contagem', ${pecasAntes.livres + pecasAntes.reservadas}, null) as n`)).n
+conferir(
+  reservaContagem === 1 && pecasAntes.reservadas >= 1 && depoisContagem === pecasAntes.livres
+    && (await livres42(942001)).reservadas === pecasAntes.reservadas
+    && (await fila42(942001))?.enviar === true,
+  'contagem física = livres + reservadas: contar o que já está lá não mexe em nada — e confere o Tiny (enviar)',
+  JSON.stringify({ pecasAntes, depoisContagem }),
+)
+await deveRecusarExec(`
+  insert into public.plt_eventos (card_id, tipo, origem, dados)
+    values ((select min(id) from public.plt_cards where produto_tiny_id = 942001 and arquivado_em is null and reservada_pedido_id is null and pedido_id is null),
+            'peca_reservada', 'automacao', '{"pedido_id": 1}')`,
+  'ninguém reserva peça por fora — só a plataforma (vale até para a chave de serviço)', /só pela plataforma/i)
+
+titulo('Estoque × Tiny (30/09) · as portas do n8n são só da chave de serviço; desligar para tudo')
+
+const privilegio = await um42(`
+  select has_function_privilege('authenticated', 'public.plt_fn_tiny_estoque_aviso(jsonb)', 'execute') as aviso,
+         has_function_privilege('authenticated', 'public.plt_fn_tiny_estoque_leitura(bigint, integer, jsonb)', 'execute') as leitura,
+         has_function_privilege('authenticated', 'public.plt_fn_tiny_estoque_proximos(integer)', 'execute') as proximos,
+         has_function_privilege('anon', 'public.plt_fn_tiny_estoque_situacao()', 'execute') as situacao_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_estoque_reservas_rodar()', 'execute') as maquinaria`)
+conferir(
+  !privilegio.aviso && !privilegio.leitura && !privilegio.proximos && !privilegio.situacao_anon && !privilegio.maquinaria,
+  'quem está logado não chama as portas do n8n nem a maquinaria; anônimo não vê nem a situação',
+  JSON.stringify(privilegio),
+)
+await como42(S42.admin)
+await bd.exec(`select public.plt_fn_tiny_estoque_desligar()`)
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+const avisoDepois = (await um42(`select public.plt_fn_tiny_estoque_aviso(${sqlJson({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 942001, sku: 'S42A', nome: 'x', saldo: 1 } })}) as r`)).r
+await como42(S42.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(942001, 'entrada', 1, null)`)
+conferir(
+  avisoDepois.na_fila === false && (await pegar42()).length === 0
+    && (await um42(`select count(*)::int as n from public.plt_tiny_estoque_fila`)).n === 0,
+  'desligado: nem aviso nem gesto põem nada na fila',
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+} // fim do bloco Estoque × Tiny
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
