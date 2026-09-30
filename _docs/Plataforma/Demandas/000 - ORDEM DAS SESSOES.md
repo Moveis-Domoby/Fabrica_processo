@@ -53,6 +53,8 @@ tags: [plataforma, demandas, sessoes, roadmap]
 
 **Depois:** BOM/insumos (chapas MDF) e custo por móvel · migração dos cards vivos (Q-25) · app/fluxo do motorista · central de notificações com preferências (o resto da antiga 17).
 
+**Ajustes fora da numeração:** [[AJUSTE - Estoque 2 - Top X, necessidade de producao e sugestao por dias uteis]] — 🔨 em execução (30/09/2026, branch própria a partir da main; revisa D-71/D-72 e o fluxo da reposição da D-54).
+
 ## Regras deste índice
 
 - Status possíveis: `🔶 rascunho` → `📐 pronta para code` → `🔨 em execução` → `✅ entregue (handoff linkado)` (e `⏸️ standby/adiada` · `🔁 absorvida`).

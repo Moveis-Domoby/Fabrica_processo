@@ -723,7 +723,11 @@ drop function if exists public.plt_fn_estoque_sugestao_minimo(integer);
 -- 10 · Configurações: por produto acabado — o rank, o mínimo (efetivo, o do
 --      Tiny e se foi definido aqui) e a sugestão que cabe no galpão.
 -- ----------------------------------------------------------------------------
-create or replace function public.plt_fn_estoque_configuracoes(
+-- E-17 (migration 45): a forma mudou depois — derruba antes de recriar, senão
+-- a reaplicação quebra ("cannot change return type").
+drop function if exists public.plt_fn_estoque_configuracoes(integer, text, integer, integer);
+drop function if exists public.plt_fn_estoque_configuracoes(text, integer, integer);
+create function public.plt_fn_estoque_configuracoes(
   p_semanas      integer default 2,
   p_busca        text    default null,
   p_limite       integer default 20,
@@ -789,7 +793,10 @@ comment on function public.plt_fn_estoque_configuracoes(integer, text, integer, 
   'Aba Configurações do Estoque (D-72): produtos acabados pelo rank de 90 dias, com o mínimo (efetivo / do Tiny / definido aqui) e a sugestão que cabe na capacidade do galpão. Gate da logística.';
 
 -- O resumo do galpão: capacidade, peças, soma dos mínimos e das sugestões.
-create or replace function public.plt_fn_estoque_resumo(p_semanas integer default 2)
+-- E-17 (migration 45): a forma mudou depois — derruba antes de recriar.
+drop function if exists public.plt_fn_estoque_resumo(integer);
+drop function if exists public.plt_fn_estoque_resumo();
+create function public.plt_fn_estoque_resumo(p_semanas integer default 2)
 returns table (
   capacidade       integer,
   pecas_no_estoque integer,

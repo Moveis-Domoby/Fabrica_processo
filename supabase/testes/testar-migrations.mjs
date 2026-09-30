@@ -4403,27 +4403,31 @@ await bd.exec(`
     ((select id from public.pedidos where numero = 925003), 1, 'S25A', 'Armário Teste S25 - Branco', 3);
 `)
 await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
+// ↪️ 30/09 (Ajuste Estoque 2 — D-83): o mínimo do Tiny deixou de valer como
+// reserva nos acabados; o cenário fixa na PLATAFORMA os mesmos mínimos de
+// antes (4 e 2) — os dois produtos estão no Top X (venderam nos 90 dias).
+await bd.exec(`select public.plt_fn_estoque_definir_minimo(910001, 4)`)
+await bd.exec(`select public.plt_fn_estoque_definir_minimo(910002, 2)`)
 const acabados = async () =>
   Object.fromEntries(
     (
       await bd.query(`
         select tiny_id::int as tiny_id, saldo_tiny::float as saldo,
-               em_estoque::float as em_estoque, abaixo_minimo, repor::float as repor,
-               reservados, reposicao_estado, minimo::float as minimo
+               em_estoque::float as em_estoque,
+               reservados_venda as reservados, reposicao_estado, minimo::float as minimo
           from public.plt_fn_estoque_produtos('acabados', 'Teste S25', null, 100, 0)`)
     ).rows.map((r) => [r.tiny_id, r]),
   )
 let porProduto = await acabados()
 conferir(
   porProduto[910001]?.em_estoque === 0 && porProduto[910001]?.saldo === 3
-    && porProduto[910001]?.abaixo_minimo === true && porProduto[910001]?.repor === 4,
-  'Armário: o Tiny diz 3, mas nenhuma peça contada no ESTOQUE → 0 em estoque (D-70); abaixo do mínimo 4 → repor 4',
+    && porProduto[910001]?.minimo === 4,
+  'Armário: o Tiny diz 3, mas nenhuma peça contada no ESTOQUE → 0 em estoque (D-70); mínimo 4 da plataforma (D-83)',
   JSON.stringify(porProduto[910001] ?? null),
 )
 conferir(
-  porProduto[910002]?.em_estoque === 0 && porProduto[910002]?.abaixo_minimo === true
-    && porProduto[910002]?.repor === 2,
-  'Estante: Tiny 5, contagem 0 → abaixo do mínimo 2, repor 2 (o Tiny não entra na conta dos acabados)',
+  porProduto[910002]?.em_estoque === 0 && porProduto[910002]?.minimo === 2,
+  'Estante: Tiny 5, contagem 0 → 0 em estoque com mínimo 2 (o Tiny não entra na conta dos acabados)',
   JSON.stringify(porProduto[910002] ?? null),
 )
 conferir(porProduto[910004] === undefined, 'produto inativo não aparece na tela (e não rouba o SKU do ativo)')
@@ -4445,9 +4449,8 @@ await bd.exec(`
 `)
 porProduto = await acabados()
 conferir(
-  porProduto[910002]?.em_estoque === 0 && porProduto[910002]?.abaixo_minimo === true
-    && porProduto[910002]?.repor === 2,
-  'venda da loja acima do Tiny não mexe mais na contagem dos acabados (nunca negativa): segue 0, repor 2 até o mínimo',
+  porProduto[910002]?.em_estoque === 0 && porProduto[910002]?.minimo === 2,
+  'venda da loja acima do Tiny não mexe mais na contagem dos acabados (nunca negativa): segue 0, com o mínimo 2',
   JSON.stringify(porProduto[910002] ?? null),
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
@@ -4576,7 +4579,7 @@ await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-00
 porProduto = await acabados()
 conferir(
   porProduto[910001]?.em_estoque === 4 && porProduto[910001]?.reservados === 1
-    && porProduto[910001]?.reposicao_estado === 'concluida' && porProduto[910001]?.abaixo_minimo === false,
+    && porProduto[910001]?.reposicao_estado === 'concluida' && porProduto[910001]?.minimo === 4,
   'Armário: as 4 prontas LIVRES (da reposição) SÃO o estoque (↪️ 28/09 — a contagem da plataforma) e 1 RESERVADA à parte (a personalizada não conta); o Tiny não soma',
   JSON.stringify(porProduto[910001] ?? null),
 )
@@ -4677,7 +4680,7 @@ await deveRecusarExec(
 // ↪️ 28/09: a sugestão mora na aba Configurações (a porta antiga saiu).
 const sugestao = (
   await bd.query(`select posicao, codigo, vendidos_90d::float as vendidos, sugestao
-                    from public.plt_fn_estoque_configuracoes(2, 'Teste S25', 100, 0)
+                    from public.plt_fn_estoque_configuracoes('Teste S25', 100, 0)
                    where codigo in ('S25A', 'S25B') order by posicao`)
 ).rows
 conferir(
@@ -6184,15 +6187,14 @@ await deveRecusarExec(
   /gesto de admin ou da integração/i,
 )
 
-titulo('Ajuste do estoque (28/09) · mínimo da plataforma e capacidade do galpão')
+titulo('Ajuste do estoque (28/09, ↪️ 30/09 D-84) · mínimo da plataforma: editar TRAVA, "voltar ao automático" solta')
 
 await bd.exec(`select public.plt_fn_estoque_definir_minimo(940001, 6)`)
-let min40 = (await linhas40(`select minimo::float as minimo, minimo_tiny::float as tiny, minimo_definido_aqui as aqui,
-                                    abaixo_minimo, repor::float as repor
+let min40 = (await linhas40(`select minimo::float as minimo, minimo_tiny::float as tiny, minimo_travado as travado
                                from public.plt_fn_estoque_produtos('acabados', 'S40A', null, 10, 0)`))[0]
 conferir(
-  min40?.minimo === 6 && min40?.tiny === 3 && min40?.aqui === true && min40?.abaixo_minimo === true && min40?.repor === 5,
-  'mínimo definido aqui (6) vale no lugar do Tiny (3): com 1 no estoque, repor 5',
+  min40?.minimo === 6 && min40?.tiny === 3 && min40?.travado === true,
+  'mínimo editado à mão (6) vale no lugar da sugestão e fica TRAVADO (o do Tiny é só referência — D-83/D-84)',
   JSON.stringify(min40),
 )
 conferir(
@@ -6200,26 +6202,35 @@ conferir(
                     and (contexto ->> 'produto_tiny_id')::bigint = 940001`))[0].n >= 1,
   'mudar o mínimo deixa rastro na trilha (quem, antes, depois)',
 )
-await bd.exec(`select public.plt_fn_estoque_definir_minimo(940001, null)`)
-min40 = (await linhas40(`select minimo::float as minimo, minimo_definido_aqui as aqui
+await deveRecusarExec(`select public.plt_fn_estoque_definir_minimo(940001, null)`,
+  'mínimo vazio não existe mais — o caminho é "voltar ao automático"', /voltar ao automático/i)
+await bd.exec(`select public.plt_fn_estoque_minimo_automatico(940001)`)
+min40 = (await linhas40(`select minimo::float as minimo, minimo_travado as travado, sugestao
                            from public.plt_fn_estoque_produtos('acabados', 'S40A', null, 10, 0)`))[0]
-conferir(min40?.minimo === 3 && min40?.aqui === false, 'mínimo vazio volta a valer o do Tiny', JSON.stringify(min40))
+conferir(
+  min40?.travado === false && min40?.minimo === Number(min40?.sugestao),
+  '"voltar ao automático": destrava e o mínimo fica igual à sugestão do dia',
+  JSON.stringify(min40),
+)
 await deveRecusarExec(`select public.plt_fn_estoque_definir_minimo(940001, -1)`,
   'mínimo negativo é recusado', /de 0 a 100000/i)
-await deveRecusarExec(`select public.plt_fn_estoque_definir_capacidade(0)`,
-  'capacidade zero é recusada', /de 1 a 100000/i)
+await deveRecusarExec(`select public.plt_fn_estoque_definir_top_x(0)`,
+  'Top X fora de 1 a 50 é recusado', /de 1 a 50/i)
 await como40(E40.operador)
 await deveRecusarExec(`select public.plt_fn_estoque_definir_minimo(940001, 2)`,
   'operador de produção não mexe no mínimo', /logística ou de admin/i)
-await deveRecusarExec(`select public.plt_fn_estoque_definir_capacidade(50)`,
-  'operador de produção não mexe na capacidade', /logística ou de admin/i)
+await deveRecusarExec(`select public.plt_fn_estoque_definir_top_x(10)`,
+  'operador de produção não mexe no Top X', /logística ou de admin/i)
 conferir(
-  (await linhas40(`select count(*)::int as n from public.plt_fn_estoque_configuracoes(2, null, 100, 0)`))[0].n === 0
-    && (await linhas40(`select count(*)::int as n from public.plt_fn_estoque_resumo(2)`))[0].n === 0,
+  (await linhas40(`select count(*)::int as n from public.plt_fn_estoque_configuracoes(null, 100, 0)`))[0].n === 0
+    && (await linhas40(`select count(*)::int as n from public.plt_fn_estoque_resumo()`))[0].n === 0,
   'operador de produção não enxerga Configurações nem o resumo (gate)',
 )
+await como40(E40.logistica)
+await deveRecusarExec(`select public.plt_fn_estoque_definir_corte(15)`,
+  'o corte de pedido fora do comum é gesto de admin (Painel admin)', /admin/i)
 
-titulo('Ajuste do estoque (28/09) · a sugestão de mínimo CABE no galpão (cuidado aqui)')
+titulo('Ajuste do estoque (↪️ 30/09 D-84) · sugestão por dias úteis de venda, sem capacidade do galpão')
 
 await como40(E40.logistica)
 await bd.exec(`
@@ -6227,45 +6238,56 @@ await bd.exec(`
     (940201, (select id from public.clientes order by id limit 1), 'Entregue', current_date),
     (940202, (select id from public.clientes order by id limit 1), 'Entregue', current_date - 10);
   insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
-    ((select id from public.pedidos where numero = 940201), 1, 'S40A', 'Armário Teste 40 - Branco', 20),
-    ((select id from public.pedidos where numero = 940201), 2, 'S40C', 'Painel Teste 40 - Preto', 10),
+    ((select id from public.pedidos where numero = 940201), 1, 'S40A', 'Armário Teste 40 - Branco', 10),
+    ((select id from public.pedidos where numero = 940201), 2, 'S40A', 'Armário Teste 40 - Branco', 10),
+    ((select id from public.pedidos where numero = 940201), 3, 'S40C', 'Painel Teste 40 - Preto', 10),
     ((select id from public.pedidos where numero = 940202), 1, 'S40B', 'Nicho Teste 40 - Branco', 1);
 `)
-await bd.exec(`select public.plt_fn_estoque_definir_capacidade(null)`)
+// A fórmula nova (D-84): vendidos ÷ dias úteis de VENDA (loja seg–sáb, 76–79
+// na janela) × 6 × semanas, teto no fim. S40A = 21 vendidos → 2 semanas dá 4
+// para qualquer contagem de dias da janela; S40C = 10 → 2; S40B = 1 → 1.
+const diasUteis40 = (await linhas40(`select plt_privado.fn_dias_uteis_venda_90d() as d`))[0].d
 const semTeto = await linhas40(`
-  select codigo, posicao, sugestao from public.plt_fn_estoque_configuracoes(2, 'Teste 40', 100, 0) order by posicao nulls last`)
+  select codigo, posicao, sugestao from public.plt_fn_estoque_configuracoes('Teste 40', 100, 0) order by posicao nulls last`)
 const porSku40 = Object.fromEntries(semTeto.map((l) => [l.codigo, l]))
 conferir(
-  porSku40.S40A?.sugestao === 4 && porSku40.S40C?.sugestao === 2 && porSku40.S40B?.sugestao === 1
+  diasUteis40 >= 76 && diasUteis40 <= 79
+    && porSku40.S40A?.sugestao === Math.ceil((21 / diasUteis40) * 6 * 2)
+    && porSku40.S40A?.sugestao === 4
+    && porSku40.S40C?.sugestao === 2 && porSku40.S40B?.sugestao === 1
     && porSku40.S40Z?.sugestao === null,
-  'sem capacidade definida: média da semana × 2 semanas, para cima (20 → 4, 10 → 2, 1 → 1); quem não vendeu não tem sugestão',
-  JSON.stringify(semTeto),
+  'sugestão por dias úteis (seg–sáb): 21 vendidos → 4, 10 → 2, 1 → 1 (2 semanas); quem não vendeu não tem sugestão — e capacidade nenhuma encolhe nada',
+  JSON.stringify({ diasUteis40, semTeto }),
 )
-await bd.exec(`select public.plt_fn_estoque_definir_capacidade(3)`)
-const comTeto = await linhas40(`
-  select codigo, posicao, sugestao from public.plt_fn_estoque_configuracoes(2, null, 100, 0)
-   where sugestao is not null order by posicao`)
-const somaTeto = comTeto.reduce((s, l) => s + l.sugestao, 0)
-const emOrdem = comTeto.every((l, i) => i === 0 || comTeto[i - 1].sugestao >= l.sugestao)
+// Trocar a cobertura recalcula os mínimos AUTOMÁTICOS na hora; o travado fica.
+await bd.exec(`select public.plt_fn_estoque_definir_minimo(940001, 6)`)   // trava o Armário em 6
+await bd.exec(`select public.plt_fn_estoque_definir_cobertura(1)`)
+const aposCobertura = await linhas40(`
+  select codigo, minimo::float as minimo, minimo_travado as travado, sugestao
+    from public.plt_fn_estoque_configuracoes('Teste 40', 100, 0) where codigo in ('S40A', 'S40C')`)
+const porSku40b = Object.fromEntries(aposCobertura.map((l) => [l.codigo, l]))
 conferir(
-  somaTeto === 3 && emOrdem && comTeto[0]?.codigo === 'S40A' && comTeto[0]?.sugestao >= 1,
-  'capacidade 3: a soma de TODAS as sugestões fica em 3 e o mais vendido nunca recebe menos que o de baixo',
-  JSON.stringify({ somaTeto, comTeto }),
+  porSku40b.S40C?.travado === false && porSku40b.S40C?.minimo === Number(porSku40b.S40C?.sugestao)
+    && porSku40b.S40C?.sugestao === 1
+    && porSku40b.S40A?.travado === true && porSku40b.S40A?.minimo === 6
+    && (await linhas40(`select count(*)::int as n from public.plt_logs_atividade where acao = 'estoque_cobertura_alterada'`))[0].n >= 1,
+  'cobertura 1 semana: o mínimo automático recalcula na hora (10 vendidos → 1) e o travado à mão não se mexe — com rastro na trilha',
+  JSON.stringify(aposCobertura),
 )
-const resumo40 = (await linhas40(`select capacidade, soma_sugestoes, pecas_no_estoque from public.plt_fn_estoque_resumo(2)`))[0]
+await bd.exec(`select public.plt_fn_estoque_definir_cobertura(2)`)
+const resumo40 = (await linhas40(`select moveis_estoque, moveis_reservados, pecas_producao, moveis_producao,
+                                         soma_minimos from public.plt_fn_estoque_resumo()`))[0]
 conferir(
-  resumo40?.capacidade === 3 && resumo40?.soma_sugestoes === 3,
-  'o resumo do galpão mostra a capacidade e a soma das sugestões (a mesma regra)',
+  resumo40 != null && typeof resumo40.moveis_estoque === 'number'
+    && resumo40.pecas_producao >= 1 && Number(resumo40.soma_minimos) >= 6,
+  'o resumo remodelado (30/09): móveis em estoque, prontos reservados, peças e móveis em produção — a peça solta na CNC conta como peça em produção',
   JSON.stringify(resumo40),
 )
-const aplicados = (await linhas40(`select public.plt_fn_estoque_aplicar_sugestoes(2) as n`))[0].n
-const somaMinimos = Number((await linhas40(`select soma_minimos from public.plt_fn_estoque_resumo(2)`))[0].soma_minimos)
 conferir(
-  aplicados > 0 && somaMinimos === 3,
-  '"usar todas as sugestões": os mínimos viram as sugestões e quem não vendeu fica sem mínimo — a soma dos mínimos cabe no galpão',
-  JSON.stringify({ aplicados, somaMinimos }),
+  (await linhas40(`select count(*)::int as n from pg_proc
+                    where proname in ('plt_fn_estoque_aplicar_sugestoes', 'plt_fn_estoque_definir_capacidade')`))[0].n === 0,
+  'as portas da capacidade e do "usar todas as sugestões" saíram (↩️ D-72); a coluna da capacidade fica guardada, sem uso',
 )
-await bd.exec(`select public.plt_fn_estoque_definir_capacidade(null)`)
 
 titulo('Ajuste do estoque (28/09) · Top 20+: os mais vendidos, depois o que tem estoque; o resto na busca')
 
