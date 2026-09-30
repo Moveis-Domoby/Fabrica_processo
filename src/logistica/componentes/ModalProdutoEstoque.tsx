@@ -58,7 +58,7 @@ export function ModalProdutoEstoque({
           <FotoProduto
             produto={produto}
             podeTrocar={podeMexer}
-            className="h-64 rounded-dm-lg sm:h-80"
+            className="mx-auto aspect-square w-full max-w-sm rounded-dm-lg sm:max-w-md"
           />
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">

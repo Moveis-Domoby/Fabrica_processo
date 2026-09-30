@@ -20,6 +20,11 @@ export async function reduzirImagem(
     canvas.height = altura
     const contexto = canvas.getContext('2d')
     if (!contexto) return original
+    // JPEG não tem transparência: sem fundo pintado, o recorte (PNG
+    // transparente) sairia com fundo PRETO. Branco = o fundo das fotos do
+    // catálogo (D-81).
+    contexto.fillStyle = '#ffffff'
+    contexto.fillRect(0, 0, largura, altura)
     contexto.drawImage(bitmap, 0, 0, largura, altura)
     bitmap.close()
     const reduzida = await new Promise<Blob | null>((resolver) =>

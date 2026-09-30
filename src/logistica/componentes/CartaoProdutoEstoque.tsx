@@ -39,7 +39,13 @@ export function CartaoProdutoEstoque({
   return (
     <li className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
       <div className="relative">
-        <FotoProduto produto={linha} podeTrocar={podeMexer} aoAbrir={aoAbrir} className="h-40" />
+        {/* Quadro quadrado: 121 das 144 fotos do catálogo são quadradas (30/09). */}
+        <FotoProduto
+          produto={linha}
+          podeTrocar={podeMexer}
+          aoAbrir={aoAbrir}
+          className="aspect-square"
+        />
         {posicao && (
           <span
             className="pointer-events-none absolute top-2 left-2 rounded-full bg-grafite-900/85 px-2.5 py-0.5 text-xs font-semibold text-white tabular-nums"

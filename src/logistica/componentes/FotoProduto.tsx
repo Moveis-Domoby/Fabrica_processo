@@ -52,8 +52,12 @@ export function FotoProduto({
       }),
   })
 
+  // A foto aparece INTEIRA (contain), nunca cortada: o móvel é quase sempre em
+  // pé dentro de uma foto quadrada, e o corte mostrava só a faixa do meio
+  // (pedido do dono, 30/09). A sobra do quadro fica branca — o fundo das fotos
+  // do catálogo (Tiny/site) — em qualquer tema.
   const imagem = url ? (
-    <img src={url} alt="" loading="lazy" className="size-full object-cover" />
+    <img src={url} alt="" loading="lazy" className="size-full object-contain" />
   ) : (
     <span className="flex size-full items-center justify-center text-texto-fraco">
       <Package aria-hidden className={iconeGrande ? 'size-10' : 'size-6'} />
@@ -61,7 +65,13 @@ export function FotoProduto({
   )
 
   return (
-    <div className={cn('relative overflow-hidden bg-superficie-sutil', className)}>
+    <div
+      className={cn(
+        'relative overflow-hidden',
+        url ? 'bg-white' : 'bg-superficie-sutil',
+        className,
+      )}
+    >
       {aoAbrir ? (
         <button
           type="button"
