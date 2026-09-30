@@ -525,6 +525,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-54 · O fluxo do estoque: só peça pronta, perfeita e sem pedido; abaixo do mínimo, o estoque pede REPOSIÇÃO ao PCP (26/09/2026) — ↩️ revisa a D-22 e fecha a Q-23
 
+**↪️ 30/09/2026 (D-85/D-87):** a reposição ganhou a **segunda saída** (parada 2 dias úteis no PCP, sai sozinha — o Sistema assina) e o **liga/desliga no Painel admin** (agendar/desagendar a rotina); desligada, a logística lança à mão. O mínimo que dispara passou a ser o automático do Top X (D-83/D-84), e a conta desconta o que já vem para o estoque (D-86).
+
 **↩️ revisada em 2026-09-28 (D-70):** agora EXISTE entrada manual no ESTOQUE — a logística/admin cadastra, dá baixa e confere a contagem dos acabados ("por enquanto", palavras do dono). O resto desta decisão (ESTOQUE só com peça 🟢 e sem dono; reposição no PCP) segue valendo.
 
 **Decidido (resposta 7 do dono no início da SESSAO-25 — ele NÃO confirmou o item sem dono nascendo direto no ESTOQUE):** *"Dentro dele não ficará mais nenhum produto danificado, nem com estado de atenção, nem produtos prontos com pedido definido; produtos prontos com pedidos definidos serão estoque reservado e não devem contabilizar positivamente no estoque de fato … quando o produto ficar abaixo do estoque mínimo, lançamos para a produção (PCP) um card de 'necessidade de reposição em estoque', esse card que o estoque vai gerar, no fim também é o PCP que vai decidir o rumo dele; assim que o produto for produzido, vai para estoque aguardar a venda."*
@@ -700,6 +702,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-71 · Top 20+: a tela do estoque abre pelos 20 mais vendidos; só aparece o que está em estoque; o resto na busca (28/09/2026) — ↪️ D-57
 
+**↩️ revisada em 2026-09-30 (D-83):** o 20 virou o **Top X configurável** (1–50), que é o tamanho da página; a lista virou UMA (o catálogo inteiro pelo ranking, o "Ver os outros" morreu) e o corte de pedido fora do comum entrou no ranking (D-84).
+
 **Decidido (pedido do dono, 28/09):** *"no estoque deve aparecer apenas os itens que realmente estão em estoque, os outros devem ficar nas próximas páginas, ou em um botão de 'ver produtos'"*; *"a paginação pegue os 20 produtos mais vendidos dos últimos 90 dias"*; *"gostei dessa lista de prioridade do mais vendido ao menos vendido, passe essa lista para a aba de 'produtos acabados' que agora irá se chamar 'Top 20+'"*.
 
 - A aba **Produtos acabados vira "Top 20+"**: a primeira página são os **20 mais vendidos dos últimos 90 dias**, em ordem de venda (o rank aparece na foto); depois vem **tudo o que tem estoque**. O resto do catálogo não aparece: fica em **"Ver os outros produtos"** (carrega só ao abrir) e na **busca**, que procura no catálogo inteiro.
@@ -707,6 +711,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - A aba **Matéria-prima e insumos** mostra primeiro o que tem estoque (o resto nas páginas seguintes).
 
 ## D-72 · Mínimo e capacidade do galpão na plataforma; a sugestão de mínimo CABE no galpão (28/09/2026) — ↩️ revisa a decisão 4 da SESSAO-25 e a D-57
+
+**↩️ revisada em 2026-09-30 (D-83/D-84):** a capacidade do galpão **saiu de uso** (a coluna fica guardada) e a sugestão passou a ser por **dias úteis de venda**, sem teto; o mínimo virou **automático** (editar trava) e **só o Top X tem mínimo** — o do Tiny deixou de valer como reserva nos acabados. O "Usar todas as sugestões" morreu. O cartão Galpão virou o painel de seis números (pedido do dono em 30/09).
 
 **Decidido (pedido do dono, 28/09):** *"o mínimo deve ser editável em uma caixinha de configurações … aparecer também a quantidade máxima do galpão; a quantidade mínima sugerida deve se adequar ao tamanho máximo do galpão (cuidado aqui)"*; *"a aba de sugestão de mínimo pode na verdade virar a aba de configurações"*.
 
@@ -753,6 +759,57 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Como ficou (técnico):** migration 44 — `produtos.imagem_tiny` (o link do Tiny da foto copiada; nulo = foto da câmera ou sem foto; as 144 da carga de 30/09 marcadas pelo histórico daquela carga); a câmera (`plt_fn_estoque_definir_imagem`) zera `imagem_tiny`; portas só da chave de serviço (`plt_fn_fotos_tiny_pendentes`, `plt_fn_foto_tiny_definir`, `plt_fn_foto_tiny_falhou`, `plt_fn_fotos_tiny_conferir`); relógio `plt-fotos-tiny` (pg_cron */5) → `plt_privado.fn_fotos_tiny_relogio` → Edge Function **`fotos-tiny`** (verify_jwt desligado; quem chama prova com o segredo guardado em `plt_webhooks`, conferido pelo banco). A função baixa só do armazém do Tiny, reduz com a ImageScript (≤ 1280 px, JPEG 82, fundo branco; WebP sobe como veio), grava em `produtos/{pasta}/tiny-{md5}.{ext}`, até 3 por chamada (limite de CPU). Link que falha espera 24 h (histórico `estoque_foto_tiny_falhou`). **O n8n não foi tocado** — a função lê o que o fluxo do catálogo já grava em `produtos.raw`.
 
 **Descartadas:** ramo no fluxo único do n8n (sem redução de imagem lá e mexeria no fluxo da outra frente); função chamada de 5 em 5 min direto pelo relógio (execução à toa — o dono vetou isso na 43); gatilho na tabela `produtos` (mexeria no caminho de escrita da integração: um erro ali derrubaria o catálogo — A-09); guardar a origem da foto só no nome do arquivo (as 144 de hoje não seriam reconhecidas sem renomear os arquivos).
+
+## D-83 · O Top X manda no estoque: é o tamanho da página e só ele tem mínimo; a capacidade do galpão sai de uso (30/09/2026) — ↩️ revisa a D-71 e a D-72
+
+**Pedido do dono (30/09, demanda "Ajuste Estoque 2"):** o Top X vira configurável (*mínimo 1, máximo 50*), *"X é o tamanho da página"*, e *"retire o botão de quantas peças cabem por enquanto"* (na sessão, com print).
+
+- **Top X (1–50)** é valor único da equipe (logística e admin mudam, com trilha — D-40) e mora na ficha do setor ESTOQUE, como a capacidade e a chave do Tiny. Página 1 = 1º ao Xº do ranking; página 2 = X+1 ao 2X; **a lista é UMA** — o "Ver os outros produtos" morreu (o resto do catálogo está nas páginas seguintes e na busca, que varre tudo).
+- **Só os X primeiros têm mínimo** e pedem reposição. Fora do Top X: sem mínimo, sem sugestão, nunca pede. Quem sai do Top X fica com o mínimo **adormecido** (nada se apaga; voltando, vale de novo).
+- **A capacidade do galpão sai de uso**: o campo e o encolhimento proporcional da sugestão morreram; a coluna fica guardada, sem uso (o dono não pediu exclusão). Quem limita o estoque é o Top X.
+- **O mínimo do Tiny deixa de valer como reserva** nos acabados — vira só referência na linha. Nos insumos nada muda.
+
+**Como ficou (técnico):** migration 45 — configurações na linha do setor `estoque` em `plt_setores` (`top_x`, `cobertura_semanas`, `corte_pedido_grande`), mínimo efetivo dos acabados = `minimo_plataforma` e só dentro do Top X (`fn_minimo_efetivo`), lista única em `plt_fn_estoque_produtos` paginada pelo X.
+
+## D-84 · Sugestão por dias úteis de VENDA (loja seg–sáb) e mínimo AUTOMÁTICO que trava ao editar; corte de pedido fora do comum (30/09/2026) — ↩️ revisa a D-72
+
+**Decidido (demanda + respostas do dono em 30/09):** a loja vende de segunda a sábado; a fábrica funciona de segunda a sexta (resposta 1). Cobertura personalizada de 1 a 8 semanas (resposta 2).
+
+- **Fórmula:** vendidos nos 90 dias ÷ dias úteis de venda decorridos (seg–sáb, ~78) × 6 (os dias úteis de uma semana de venda) × semanas de cobertura (1 · 2 · 3 · personalizada 1–8; padrão 2), **arredondada para cima no fim**. Exemplo conferido com o dono: 96 vendidos → 15 para 2 semanas. Sem tabela de feriados (decisão do dono).
+- **Mínimo automático:** acompanha a sugestão sozinho — recalcula ao trocar cobertura/Top X/corte e 1×/dia de madrugada (a janela dos 90 dias anda todo dia). **Editar à mão TRAVA** naquele valor até "voltar ao automático". O "Usar todas as sugestões" morreu. Os mínimos definidos antes desta decisão entraram no automático (editar de novo trava).
+- **Corte de pedido fora do comum:** linha de pedido com MAIS unidades que o corte (padrão 10; Painel admin, só admin, com trilha) sai da conta de vendas — **do ranking E da sugestão** — como se o pedido não existisse. O pedido de 23 closets sai. O cartão avisa discreto: "1 pedido grande fora da conta".
+
+**Como ficou (técnico):** migration 45 — `fn_vendas_90d` aplica o corte na fonte (regra única), `fn_sugestoes_minimo` por dias úteis, `produtos.minimo_travado`, `fn_recalcular_minimos` (cron diário `plt-estoque-minimos` + nas trocas de configuração).
+
+## D-85 · Reposição parada 2 dias úteis da FÁBRICA (seg–sex) no PCP sai sozinha — o Sistema assina; parcial vence só a parte parada (30/09/2026) — ↪️ a segunda saída, ao lado do "estoque coberto" da D-76
+
+**Decidido (demanda + resposta 7 do dono):** se em 2 dias úteis o que está no PCP não sair para a produção, a parte parada sai do PCP e deixa de contar como reservada — vale igual para a reposição lançada à mão.
+
+- **O prazo:** vence à meia-noite (de Fortaleza) depois do 2º dia útil da fábrica (seg–sex) seguinte à criação — criada na segunda vence quinta 00:00; criada na sexta ou no sábado, o fim de semana não conta. Sem feriados.
+- **Parcial:** o que já entrou na produção segue produzindo e contando; só a parte parada vence. A saída é por **evento** (origem da integração, sem pessoa — o Sistema assina), nada se apaga.
+- **Depois de vencida, a necessidade volta sozinha** — sem exigir movimento novo do estoque (diferente do "Não produzir" do PCP, que continua exigindo).
+- **Dupla garantia:** as contas da tela já ignoram a parte vencida na hora; uma rotina leve de hora em hora (`plt-estoque-vencimentos`) faz a saída oficial. A rotina é **independente** do liga/desliga da reposição automática (a manual também vence).
+
+## D-86 · Reservados: o cartão mostra TUDO que está em produção; a NECESSIDADE conta só o que vem para o estoque; reservados em venda é um número só; a bolinha vermelha leva à decisão do PCP (30/09/2026)
+
+**Decidido (respostas 3, 5 e 6 do dono em 30/09):**
+
+- **Reservados para produção (o número do cartão)** = a reposição parada no PCP (dentro do prazo) + TODAS as unidades em produção — as sem dono a caminho do estoque (inclusive peça de pedido cancelado — resposta 3) **e os móveis de pedidos** (o exemplo do dono: PCP recusou a peça do estoque e mandou produzir → "1 reservado para produção"). Aparece para todo produto, mesmo fora do Top X.
+- **A conta da NECESSIDADE** (`em estoque + reservados < mínimo`) usa só o que **vem para o estoque** — móvel de pedido sai com o pedido, não abastece o galpão.
+- **Reservados em venda é UM número** (resposta 6): as peças prontas separadas para pedidos — reservadas no galpão + em Pedidos em aguardo.
+- **A bolinha vermelha** no canto do cartão: pedido esperando a decisão do PCP (peça reservada pela venda, pedido ainda não liberado). Tocar **leva direto à decisão** na tela do PCP.
+- **O filtro do topo tem 4 posições:** Todos · Necessidade de produção · Reservados para produção · **Com estoque** (novo, resposta 5). A ordem é sempre pela venda; a busca varre o catálogo inteiro.
+
+**Como ficou (técnico):** migration 45 — regra única em `fn_reservados_producao` (para_estoque × exibição), filtros e a bolinha (`pendente_card_id`) em `plt_fn_estoque_produtos`; no PCP, `?liberar=<card>` abre a decisão com uma busca própria página a página no servidor (modal por derivação, sem estado intermediário).
+
+## D-87 · Liga/desliga da reposição automática no Painel admin = agendar/desagendar a rotina de verdade; desligada, a logística tem o "Lançar para produção" (30/09/2026) — ↪️ o fluxo da reposição da D-54
+
+**Decidido (demanda + resposta 4 do dono):**
+
+- O botão (Painel admin → **Estoque**, só admin) **agenda e desagenda o job no relógio do banco**: desligada, a rotina NÃO existe — nenhuma consulta, nenhuma execução à toa (a lição da migration 43). A situação que a tela mostra é o próprio relógio (o job existe?).
+- **Com a automática desligada**, o cartão em necessidade ganha o **"Lançar para produção"**: a logística cria a reposição no PCP à mão (gesto com autor e trilha), quantidade proposta = mínimo − estoque − o que já vem para o estoque, editável. **Com ela ligada, o botão some** (resposta 4: *"não faz nem sentido aparecer"*).
+- A automática agora **desconta o que já vem para o estoque** na conta e no tamanho do card (antes não descontava a produção em andamento).
+- **Entregue DESLIGADA** — só liga depois da contagem inicial da logística (senão todo o Top X pede reposição de uma vez).
 
 ## D-74 · Estoque enxuto: "i" no lugar do texto, abas em quadrados no canto superior direito, cartão com a foto em destaque (28/09/2026) — ↪️ D-27
 

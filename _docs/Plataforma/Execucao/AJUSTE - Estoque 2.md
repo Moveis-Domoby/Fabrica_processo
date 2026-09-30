@@ -34,16 +34,26 @@ tags: [execucao, ajuste, estoque, logistica, pcp, reposicao]
 
 ## Task list
 
-- [ ] 1. Registrar respostas na demanda (feito) + abrir esta execução (feito)
-- [ ] 2. Migration 45: configs (top_x, cobertura, corte), trava do mínimo, dias úteis, sugestão nova, mínimo automático + recálculo, filtros/paginação por X, reservados produção/venda, necessidade, vencimento 2 dias úteis, liga/desliga por agendamento, lançamento manual, logs
-- [ ] 3. Harness: bloco novo em escopo próprio no fim; 2 rodadas verdes; blocos das outras frentes intactos
-- [ ] 4. Telas: PainelTop20 (Top X, filtro 4 posições, cartão novo, bolinha → PCP), PainelConfiguracoes (sai capacidade/"usar todas"; mínimo automático travável; cobertura 1/2/3/personalizada), página nova /admin/estoque, deep-link no PCP
-- [ ] 5. tsc · lint · vitest · build · grep mojibake
-- [ ] 6. Registrar pendências do raio-x de 29/09 em Perguntas em Aberto / Próximos Passos (sem corrigir)
-- [ ] 7. Cofre: decisões D-83+ (↩️ D-71/D-72/D-54), RF-110+, memória na hora, esquema após aplicar
-- [ ] 8. Aplicar a 45 no banco real SÓ com aprovação explícita do dono (`--so`), integração conferida antes/depois
-- [ ] 9. Validação ao vivo + handoff + mapa + próximos passos
+- [x] 1. Registrar respostas na demanda + abrir esta execução
+- [x] 2. Migration 45 (`20260930190000_plt_estoque_top_x_dias_uteis.sql`): configs (top_x/cobertura/corte em `plt_setores`), `produtos.minimo_travado`, dias úteis (venda seg–sáb · prazo seg–sex), `fn_vendas_90d` com corte + `fn_estoque_cortes_90d`, `fn_sugestoes_minimo` por dias úteis (só Top X), `fn_minimo_efetivo` + `fn_recalcular_minimos` (cron diário), `fn_reservados_producao` (para_estoque × exibição), `fn_estoque_por_produto`/`fn_gerar_reposicoes`/`fn_estoque_reposicao_coberta` recriadas das vigentes, `fn_vencer_reposicoes` + `fn_reposicao_vence_em` (cron horário), lista/configurações/resumo novos, RPCs de config + travar/automático + lançar manual + ligar/desligar (pg_cron), drops do "usar todas"/capacidade, E-17 na migration 40
+- [x] 3. Harness: bloco 45 em escopo próprio (24 verificações); testes antigos (S25/40/42) ajustados à regra nova em combinação com as frentes; **619 ✔ TUDO VERDE** com os blocos 42/43/44/46
+- [x] 4. Telas: PainelTop20 refeito (Top X = página, filtro 4 posições ao centro, cartão novo com bolinha → PCP e "Lançar para produção", modal de lançamento), PainelConfiguracoes (galpão de 6 números sem capacidade, cobertura 1/2/3/personalizada 1–8 no servidor, mínimo automático/travado com "voltar ao automático"), Estoque.tsx (aba "Top X" dinâmica), AdminEstoque (nova, /admin/estoque: liga/desliga + corte), PCP com ?liberar= (A-42), SeloSinal removido
+- [x] 5. tsc ✔ · eslint ✔ (1 achado do set-state-in-effect corrigido pelo desenho — A-42) · vitest 83/83 ✔ · build ✔ · grep mojibake (duplas quebradas) limpo
+- [x] 6. Raio-x de 29/09 registrado como Q-72 em Perguntas em Aberto + apontado nos Próximos Passos (SEM correção)
+- [x] 7. Cofre: D-83…D-87 (↩️ D-71/D-72; ↪️ D-54), RF-110…RF-113, memória (A-42 + ↪️ E-34), demanda com as respostas do dono, ordem das sessões
+- [ ] 8. Aplicar a 45 no banco real SÓ com aprovação explícita do dono (`--so`), integração conferida antes/depois + advisors + esquema/`.sql` atualizados
+- [ ] 9. Validação ao vivo com o dono (F-07 celular/tablet + roteiro) + handoff + mapa + próximos passos finais
+
+## Comandos e resultados
+
+- `node supabase/testes/testar-migrations.mjs` → 1ª rodada: 4 ✘ (grant faltando nas portas públicas; cenário da bolinha com pedido já liberado; chave legada `necessidade_extrema` no evento; teste antigo do Top 20 na regra velha) → corrigidos → **610 ✔**; após o merge da 46: **619 ✔ TUDO VERDE**.
+- `tsc -b` ✔ · `eslint src --max-warnings=0` ✔ · `vitest run` 83/83 ✔ (o teste do sinal saiu com os selos; entrou o do corte) · `npm run build` ✔.
+- Commits na branch `ajuste-estoque-2`: banco+testes → telas → PCP/admin → merges da main (44, 46) — sempre por caminho explícito (E-23).
 
 ## Diário
 
 - 30/09: ritual completo (demanda 2×, handoffs 28 e 30/09, execuções, memória inteira, D-54/70/71/72/76…81, mapa do código por agente). Branch criada de origin/main e avançada com a 43. Numeração cedida à sessão das fotos (44/D-82/A-41/E-72/RF-109) — fico com 45+/D-83+. Combinado com o sincronismo: quadro Tiny e ModalLiberarPedido intocados; funções compartilhadas partem da versão vigente.
+- 30/09 (na sessão): o dono remodelou o cartão Galpão no meio da execução (print): saem capacidade e somas, entram os SEIS números — registrado na demanda (§1.1) e na D-83.
+- 30/09: colisões de numeração resolvidas por mensagem (44/D-82 ficaram com as fotos; 46 com o sincronismo — a minha é 45, próxima livre 47+); merges da main sem perda (o conflito único do harness = os dois blocos no mesmo ponto; ficaram os dois, 45 antes do 46).
+- 30/09: o lint recusou o efeito com estado do atalho da bolinha → desenho novo por consulta + derivação (A-42).
+- Pendente: telas logadas e n8n não se validam daqui (sem senha — mesmo caso da 42); a validação ao vivo fica com o dono.
