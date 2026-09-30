@@ -278,6 +278,44 @@ export async function desligarSincronismoTiny(): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+/**
+ * Reserva presa no Tiny (↪️ D-76, pedido do dono em 30/09): o Tiny reserva
+ * mais do que há de pedido aberto — a sobra é reserva de pedido que já saiu e
+ * derruba o "disponível multiempresa". A equipe limpa lá; aqui só a lista.
+ */
+export interface ReservaPresaTiny {
+  tiny_id: number
+  codigo: string | null
+  descricao: string
+  saldo_tiny: number
+  reservado_tiny: number
+  pedidos_abertos: number
+  presas: number
+  lido_em: string
+  contagem_total: number
+  total_presas: number
+}
+
+export async function listarReservasPresasTiny(opcoes: {
+  limite: number
+  deslocamento: number
+}): Promise<ReservaPresaTiny[]> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_reservas_presas', {
+    p_limite: opcoes.limite,
+    p_deslocamento: opcoes.deslocamento,
+  })
+  const linhas = garantir(data as ReservaPresaTiny[] | null, error, 'Não deu para ver as reservas presas no Tiny')
+  return linhas.map((l) => ({
+    ...l,
+    saldo_tiny: Number(l.saldo_tiny),
+    reservado_tiny: Number(l.reservado_tiny),
+    pedidos_abertos: Number(l.pedidos_abertos),
+    presas: Number(l.presas),
+    contagem_total: Number(l.contagem_total),
+    total_presas: Number(l.total_presas),
+  }))
+}
+
 // ---------------------------------------------------------------------------
 // Foto do produto (D-73): a capa mora na biblioteca por SKU que o tablet já usa
 // (`produtos/{sku}/…`, D-28); o caminho fica no catálogo — a lista traz o

@@ -7570,6 +7570,74 @@ conferir(
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco 44
 
+// ============================================================================
+// AS RESERVAS PRESAS DO TINY (30/09 — migration 46, ↪️ D-76). O "disponível
+// multiempresa" do Tiny = saldo − reservado, e o reservado guarda pedido que já
+// saiu (567: 23 reservadas, 0 pedidos abertos). A lista mostra o que limpar NO
+// TINY: o que ele reserva × as unidades de pedidos ainda abertos.
+// ============================================================================
+{
+titulo('Estoque × Tiny (30/09) · a lista das reservas presas no Tiny (o que a equipe limpa lá)')
+
+const leitura46 = (id, sku, saldo, reservado, origem = 'leitura') => `
+  insert into public.eventos (tipo, tiny_id, payload) values ('estoque_fabrica', ${id},
+    jsonb_build_object('cnpj', '27556613000166', 'tipo', 'estoque', 'origem', '${origem}',
+      'dados', jsonb_build_object('idProduto', ${id}, 'sku', '${sku}', 'saldo', ${saldo}, 'saldoReservado', ${reservado})))`
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+    (946001, 'S46A', 'Armário Teste 46 - reserva presa', 'F', 'A', 'un'),
+    (946002, 'S46B', 'Estante Teste 46 - reserva de pedido aberto', 'F', 'A', 'un'),
+    (946003, 'S46C', 'Nicho Teste 46 - já limpo no Tiny', 'F', 'A', 'un'),
+    (946009, 'S46M', 'Chapa Teste 46', 'M', 'A', 'chapa'),
+    (946010, null, 'Nicho Teste 46 sem SKU', 'F', 'A', 'un')
+  on conflict (tiny_id) do nothing;
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw) values
+    (946011, 'S46S', 'Corte Teste 46', 'S', 'A', 'un', '{"tipo": "S"}')
+  on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (946101, (select id from public.clientes order by id limit 1), 'Preparando envio', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 946101), 1, 'S46B', 'Estante Teste 46 - reserva de pedido aberto', 1);
+`)
+await bd.exec(leitura46(946001, 'S46A', 2, 23))
+await bd.exec(leitura46(946002, 'S46B', 1, 1))
+await bd.exec(leitura46(946003, 'S46C', 3, 17, 'carga_inicial'))
+await bd.exec(leitura46(946003, 'S46C', 3, 0))          // o Guilherme limpou: a leitura nova manda
+await bd.exec(leitura46(946009, 'S46M', 0, 500))        // insumo não entra
+await bd.exec(leitura46(946010, '', 0, 9))              // sem SKU não entra
+await bd.exec(leitura46(946011, 'S46S', 0, 12982))      // serviço do Tiny não entra
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.logistica}', false)`)
+const lista46 = (await bd.query(`select codigo, reservado_tiny, pedidos_abertos, presas, contagem_total, total_presas
+                                   from public.plt_fn_tiny_reservas_presas(100, 0)`)).rows
+const s46 = (sku) => lista46.find((l) => l.codigo === sku)
+conferir(
+  Number(s46('S46A')?.presas) === 23 && Number(s46('S46A')?.pedidos_abertos) === 0 && Number(s46('S46A')?.reservado_tiny) === 23,
+  'o 567 dos testes: o Tiny reserva 23 e não há pedido aberto → 23 presas na lista',
+  JSON.stringify(s46('S46A')),
+)
+conferir(!s46('S46B'), 'reserva que bate com pedido aberto não é presa (não aparece)')
+conferir(!s46('S46C'), 'produto já limpo no Tiny sai da lista (vale a leitura mais nova)')
+conferir(!s46('S46M'), 'matéria-prima e insumo não entram (a lista é dos produtos prontos)')
+conferir(!s46('S46S') && !lista46.some((l) => l.codigo === null),
+  'serviço do Tiny (Corte, Furo…) e produto sem SKU não entram')
+conferir(
+  lista46.length > 0 && Number(lista46[0].contagem_total) === lista46.length
+    && lista46.every((l, i) => i === 0 || Number(lista46[i - 1].presas) >= Number(l.presas)),
+  'a lista vem do maior para o menor, com o total na mesma consulta (paginada no servidor — regra 17)',
+)
+const pagina46 = (await bd.query(`select count(*)::int as n from public.plt_fn_tiny_reservas_presas(1, 0)`)).rows[0].n
+conferir(pagina46 === 1, 'uma página por vez (o "ver mais" pede a seguinte)')
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.operador}', false)`)
+conferir((await bd.query(`select count(*)::int as n from public.plt_fn_tiny_reservas_presas(100, 0)`)).rows[0].n === 0,
+  'quem não é da logística não vê a lista')
+conferir(
+  !(await bd.query(`select has_function_privilege('anon', 'public.plt_fn_tiny_reservas_presas(integer, integer)', 'execute') as p`)).rows[0].p,
+  'anônimo não chama a porta',
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+} // fim do bloco 46
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

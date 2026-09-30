@@ -19,6 +19,7 @@ import {
 import type { LinhaConfiguracaoEstoque, ResumoEstoque } from '@/logistica/api'
 import { formatarQuantidade, idadeDaLeitura, rotuloPosicao } from '@/logistica/estoque'
 import { FotoProduto } from './FotoProduto'
+import { ReservasPresasTiny } from './ReservasPresasTiny'
 
 const POR_PAGINA = 20
 
@@ -348,6 +349,8 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
           </ul>
         </div>
       )}
+
+      <ReservasPresasTiny ativo={ativo} agora={agora} />
 
       {souAdmin &&
         (confirmando ? (
