@@ -29,14 +29,22 @@ export function ReservasPresasTiny({ ativo, agora }: { ativo: boolean; agora: nu
 
   return (
     <section aria-label="Reservas presas no Tiny" className="flex flex-col gap-2">
+      {/* O dono não achou o botão "fantasma" no meio do quadro (30/09): título próprio + botão de verdade. */}
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm font-semibold text-texto">Reservas presas no Tiny</h3>
+        <p className="text-sm text-texto-suave">
+          Os móveis em que o Tiny reserva mais do que há de pedido aberto — é isso que deixa o disponível
+          multiempresa errado. A limpeza é feita no Tiny.
+        </p>
+      </div>
       <Botao
-        variante="fantasma"
+        variante="secundaria"
         className="self-start"
         icone={<ListChecks />}
         aria-expanded={aberto}
         onClick={() => setAberto((v) => !v)}
       >
-        {aberto ? 'Esconder as reservas presas no Tiny' : 'Ver as reservas presas no Tiny'}
+        {aberto ? 'Esconder a lista' : 'Ver os produtos para ajustar no Tiny'}
       </Botao>
       {aberto && (
         <div className="flex flex-col gap-2">
@@ -59,8 +67,8 @@ export function ReservasPresasTiny({ ativo, agora }: { ativo: boolean; agora: nu
                   {formatarQuantidade(unidades)} {unidades === 1 ? 'unidade reservada' : 'unidades reservadas'} a
                   mais no Tiny.
                 </span>{' '}
-                São reservas de pedidos que já saíram: elas derrubam o disponível multiempresa. Para limpar, abra o
-                produto no Tiny, aba de reservas, e tire as dos pedidos que já foram entregues ou cancelados.
+                Para limpar, abra o produto no Tiny, aba de reservas, e tire as dos pedidos que já foram entregues ou
+                cancelados. Depois da próxima leitura do Tiny, o produto sai daqui.
               </p>
               <div className="rounded-dm-lg border border-borda bg-superficie px-4">
                 <ul className="divide-y divide-borda">
