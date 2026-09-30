@@ -4,25 +4,16 @@ import {
   idadeDaLeitura,
   previaMovimento,
   rotuloPosicao,
-  sinalDoProduto,
+  textoCorte,
   textoReposicao,
 } from './estoque'
 
-describe('sinal do produto no Estoque (ajuste de 28/09 — a contagem da logística)', () => {
-  it('com mínimo: sem estoque, faltam N, ou no mínimo', () => {
-    expect(sinalDoProduto({ em_estoque: 0, minimo: 2 })).toEqual({ tom: 'sem_estoque', texto: 'Sem estoque' })
-    expect(sinalDoProduto({ em_estoque: 1, minimo: 4 })).toEqual({
-      tom: 'abaixo',
-      texto: 'Faltam 3 para o mínimo',
-    })
-    expect(sinalDoProduto({ em_estoque: 4, minimo: 4 })?.tom).toBe('ok')
-    expect(sinalDoProduto({ em_estoque: 9, minimo: 4 })?.tom).toBe('ok')
-  })
-
-  it('sem mínimo: só avisa quando não tem nada (neutro); com estoque, nenhum sinal', () => {
-    expect(sinalDoProduto({ em_estoque: 0, minimo: null })).toEqual({ tom: 'neutro', texto: 'Sem estoque' })
-    expect(sinalDoProduto({ em_estoque: null, minimo: 0 })?.tom).toBe('neutro')
-    expect(sinalDoProduto({ em_estoque: 3, minimo: null })).toBeNull()
+describe('cartão do produto (↪️ 30/09 — os selos saíram; os números falam)', () => {
+  it('o aviso do corte: pedidos fora do comum que saíram da conta (plural por extenso — E-52)', () => {
+    expect(textoCorte(0)).toBeNull()
+    expect(textoCorte(1)).toBe('1 pedido grande fora da conta')
+    expect(textoCorte(2)).toBe('2 pedidos grandes fora da conta')
+    expect(textoCorte(Number.NaN)).toBeNull()
   })
 
   it('a reposição só aparece enquanto está andando', () => {

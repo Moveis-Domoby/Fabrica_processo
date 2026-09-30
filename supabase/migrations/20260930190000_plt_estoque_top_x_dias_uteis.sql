@@ -774,6 +774,8 @@ returns table (
   reservados_venda        integer,
   reservadas_estoque      integer,
   reservados_producao     integer,
+  em_necessidade          boolean,
+  repor_sugerido          integer,
   pendente_card_id        bigint,
   pendente_pedido_numero  integer,
   saldo_tiny              numeric,
@@ -826,6 +828,12 @@ as $$
            coalesce(re.quantidade, 0)                                                   as reservadas_estoque_,
            coalesce(rp.exibicao, 0)                                                     as reservados_producao_,
            coalesce(rp.para_estoque, 0)                                                 as para_estoque_,
+           (coalesce(b.minimo, 0) > 0
+              and coalesce(b.disponivel, 0) + coalesce(rp.para_estoque, 0) < b.minimo)  as em_necessidade_,
+           case when coalesce(b.minimo, 0) > 0
+                then greatest(ceil(b.minimo - greatest(coalesce(b.disponivel, 0), 0)
+                                   - coalesce(rp.para_estoque, 0))::int, 0)
+                else 0 end                                                              as repor_sugerido_,
            pd.card_id                                                                   as pendente_card_,
            pd.pedido_numero                                                             as pendente_numero_,
            case when b.disponivel is not null then greatest(b.disponivel, 0) end        as em_estoque_
@@ -870,6 +878,8 @@ as $$
          f.prontos_reservados,
          f.reservadas_estoque_,
          f.reservados_producao_,
+         f.em_necessidade_,
+         f.repor_sugerido_,
          f.pendente_card_,
          f.pendente_numero_,
          f.saldo_tiny,
@@ -882,9 +892,7 @@ as $$
            when coalesce(p_grupo, 'acabados') = 'insumos'
              then coalesce(p_filtro, '') <> 'sem_leitura' or f.saldo_tiny is null
            when p_busca is not null and btrim(p_busca) <> '' then true
-           when p_filtro = 'necessidade'
-             then coalesce(f.minimo, 0) > 0
-              and coalesce(f.em_estoque_, 0) + f.para_estoque_ < f.minimo
+           when p_filtro = 'necessidade'         then f.em_necessidade_
            when p_filtro = 'reservados_producao' then f.reservados_producao_ > 0
            when p_filtro = 'com_estoque'         then coalesce(f.em_estoque_, 0) > 0
            else true

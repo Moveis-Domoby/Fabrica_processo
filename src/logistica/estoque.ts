@@ -1,37 +1,17 @@
-import type { EstadoReposicao, LinhaEstoqueProduto, OperacaoEstoque } from './api'
+import type { EstadoReposicao, OperacaoEstoque } from './api'
 
 /**
- * O "sinal" de cada produto na tela de Estoque — lógica pura, sem React,
- * testada no Vitest. Estado nunca só por cor (M-12): cada tom tem ícone e texto
- * na tela; aqui mora só a regra de QUAL sinal vale.
+ * Lógica pura da tela de Estoque, sem React, testada no Vitest.
  *
- * Ajuste de 28/09 (D-70): o número dos acabados é a contagem da logística
- * (nunca negativa) — acabou a "necessidade extrema", que era o negativo do
- * Tiny. Com mínimo: sem estoque · faltam N · no mínimo. Sem mínimo, só se
- * avisa o "sem estoque" (neutro); com estoque, nada a sinalizar (tela enxuta).
+ * ↪️ 30/09 (Ajuste Estoque 2 — D-83/D-86): os selos "Sem estoque"/"Faltam N"
+ * saíram do cartão; agora ele mostra os NÚMEROS (em estoque em destaque,
+ * reservados para produção e reservados em venda) e o aviso do corte.
  */
-export type TomSinal = 'sem_estoque' | 'abaixo' | 'ok' | 'neutro'
 
-export interface SinalProduto {
-  tom: TomSinal
-  texto: string
-}
-
-export function sinalDoProduto(
-  linha: Pick<LinhaEstoqueProduto, 'em_estoque' | 'minimo'>,
-): SinalProduto | null {
-  const estoque = Math.max(linha.em_estoque ?? 0, 0)
-  const minimo = linha.minimo ?? 0
-  if (minimo > 0) {
-    if (estoque === 0) return { tom: 'sem_estoque', texto: 'Sem estoque' }
-    if (estoque < minimo) {
-      const faltam = Math.ceil(minimo - estoque)
-      return { tom: 'abaixo', texto: `Faltam ${faltam} para o mínimo` }
-    }
-    return { tom: 'ok', texto: 'No mínimo' }
-  }
-  if (estoque === 0) return { tom: 'neutro', texto: 'Sem estoque' }
-  return null
+/** O aviso discreto do corte: pedidos fora do comum que saíram da conta (D-84). */
+export function textoCorte(cortes: number): string | null {
+  if (!Number.isFinite(cortes) || cortes < 1) return null
+  return cortes === 1 ? '1 pedido grande fora da conta' : `${cortes} pedidos grandes fora da conta`
 }
 
 /** Em língua do galpão: a reposição que ainda está andando (as outras não se mostram). */

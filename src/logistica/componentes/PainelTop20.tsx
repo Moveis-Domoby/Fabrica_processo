@@ -1,47 +1,88 @@
 import { useState } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, PackagePlus, Plus, Search } from 'lucide-react'
-import { Botao, Campo, Paginacao } from '@/componentes/ui'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router'
+import { Factory, PackagePlus, Search } from 'lucide-react'
+import { Botao, Campo, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
+import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { useAgora } from '@/kanban/tempo'
-import { listarEstoqueProdutos } from '@/logistica/api'
-import type { LinhaEstoqueProduto, OperacaoEstoque } from '@/logistica/api'
-import { formatarQuantidade, rotuloPosicao } from '@/logistica/estoque'
+import {
+  configEstoque,
+  definirTopX,
+  lancarReposicao,
+  listarEstoqueProdutos,
+  situacaoReposicao,
+} from '@/logistica/api'
+import type { FiltroEstoque, LinhaEstoqueProduto, OperacaoEstoque } from '@/logistica/api'
 import { CartaoProdutoEstoque } from './CartaoProdutoEstoque'
-import { FotoProduto } from './FotoProduto'
 import { ModalEscolherProduto } from './ModalEscolherProduto'
 import { ModalMovimentarEstoque } from './ModalMovimentarEstoque'
 import { ModalProdutoEstoque } from './ModalProdutoEstoque'
 import { TodasAsPecas } from './PecasDoEstoque'
 
-const POR_PAGINA = 20
 const ATUALIZA_A_CADA = 30_000
 
+/** O filtro do topo (resposta 5 do dono: entra o "Com estoque"). */
+const FILTROS = [
+  { valor: 'todos', rotulo: 'Todos' },
+  { valor: 'necessidade', rotulo: 'Necessidade de produção' },
+  { valor: 'reservados_producao', rotulo: 'Reservados para produção' },
+  { valor: 'com_estoque', rotulo: 'Com estoque' },
+] as const
+type FiltroTopo = (typeof FILTROS)[number]['valor']
+
 /**
- * Top 20+ (ajuste de 28/09 — D-71): a tela inicial do estoque. A primeira
- * página são os 20 produtos mais vendidos dos últimos 90 dias (o rank); depois
- * vem o que tem estoque. O resto do catálogo não polui a lista: fica em "Ver os
- * outros produtos" e na busca (que procura no catálogo inteiro). Tudo paginado
- * no servidor — a tela só pede o que mostra (regra 17).
+ * A lista dos acabados (↪️ 30/09 — D-83/D-86/D-87): UMA lista pelo ranking dos
+ * 90 dias (com o corte), em que o TOP X é o tamanho da página — página 1 = 1º
+ * ao Xº. O filtro do topo (Todos · Necessidade · Reservados p/ produção · Com
+ * estoque) pagina no servidor; a busca varre o catálogo inteiro. Com a
+ * reposição automática desligada, o cartão em necessidade ganha o "Lançar para
+ * produção". Tudo no servidor — a tela só pede o que mostra (regra 17).
  */
 export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: boolean }) {
   const agora = useAgora()
+  const navegar = useNavigate()
+  const notificar = useNotificacao()
+  const clienteQuery = useQueryClient()
   const [busca, setBusca] = useState('')
+  const [filtro, setFiltro] = useState<FiltroTopo>('todos')
   const [pagina, setPagina] = useState(1)
   const [escolhendo, setEscolhendo] = useState(false)
+  const [textoTopX, setTextoTopX] = useState<string | null>(null)
   const [movimento, setMovimento] = useState<{
     produto: LinhaEstoqueProduto
     operacao: OperacaoEstoque
   } | null>(null)
   const [aberto, setAberto] = useState<LinhaEstoqueProduto | null>(null)
+  const [lancando, setLancando] = useState<LinhaEstoqueProduto | null>(null)
 
+  // O Top X é valor único da equipe e mora no banco (D-83).
+  const { data: config } = useQuery({
+    queryKey: ['estoque', 'config'],
+    queryFn: configEstoque,
+    enabled: ativo,
+  })
+  const topX = config?.top_x ?? 20
+
+  // Desligada, o cartão em necessidade ganha o botão manual (resposta 4).
+  const { data: reposicao } = useQuery({
+    queryKey: ['estoque', 'reposicao-situacao'],
+    queryFn: situacaoReposicao,
+    enabled: ativo && podeMexer,
+    refetchInterval: ATUALIZA_A_CADA,
+  })
+  const podeLancar = podeMexer && reposicao !== undefined && !reposicao.ligada
+
+  const buscando = busca.trim() !== ''
+  const filtroServidor: FiltroEstoque | null = buscando || filtro === 'todos' ? null : filtro
   const { data: linhas = [], isPending, isError, error } = useQuery({
-    queryKey: ['estoque', 'top20', busca, pagina],
+    queryKey: ['estoque', 'topx', filtroServidor, busca, pagina, topX],
     queryFn: () =>
       listarEstoqueProdutos({
         grupo: 'acabados',
         busca,
-        limite: POR_PAGINA,
-        deslocamento: (pagina - 1) * POR_PAGINA,
+        filtro: filtroServidor,
+        limite: topX,
+        deslocamento: (pagina - 1) * topX,
       }),
     enabled: ativo,
     refetchInterval: ATUALIZA_A_CADA,
@@ -51,6 +92,24 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
   // O detalhe aberto acompanha a lista (foto nova, número novo) quando o produto está nela.
   const produtoAberto = aberto ? (linhas.find((l) => l.tiny_id === aberto.tiny_id) ?? aberto) : null
 
+  const salvarTopX = useMutation({
+    mutationFn: (x: number) => definirTopX(x),
+    onSuccess: async () => {
+      setTextoTopX(null)
+      setPagina(1)
+      notificar({ titulo: 'Top X salvo para toda a equipe', tom: 'perfeito' })
+      await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu para salvar o Top X',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+  const topXDigitado = textoTopX === null ? topX : Number(textoTopX)
+  const topXValido = Number.isInteger(topXDigitado) && topXDigitado >= 1 && topXDigitado <= 50
+
   function movimentar(produto: LinhaEstoqueProduto, operacao: OperacaoEstoque) {
     setAberto(null)
     setMovimento({ produto, operacao })
@@ -58,6 +117,20 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
 
   return (
     <div className="flex flex-col gap-4">
+      {/* O filtro no topo, ao centro (pedido do dono, 1.3). */}
+      <div className="flex justify-center">
+        <FiltroPill
+          rotulo="Mostrar"
+          opcoes={FILTROS}
+          valor={buscando ? 'todos' : filtro}
+          aoMudar={(v) => {
+            setFiltro(v)
+            setBusca('')
+            setPagina(1)
+          }}
+        />
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="w-full max-w-md">
           <Campo
@@ -71,15 +144,45 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
             }}
           />
         </div>
-        {podeMexer && (
-          <Botao
-            icone={<PackagePlus />}
-            className="shrink-0 whitespace-nowrap"
-            onClick={() => setEscolhendo(true)}
-          >
-            Cadastrar produto ao estoque
-          </Botao>
-        )}
+        <div className="flex flex-wrap items-end gap-2">
+          {podeMexer && (
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (topXValido && topXDigitado !== topX) salvarTopX.mutate(topXDigitado)
+              }}
+            >
+              <div className="w-24">
+                <Campo
+                  rotulo="Top X"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={textoTopX ?? String(topX)}
+                  erro={topXValido ? undefined : 'De 1 a 50'}
+                  onChange={(e) => setTextoTopX(e.target.value)}
+                />
+              </div>
+              {textoTopX !== null && topXDigitado !== topX && topXValido && (
+                <Botao type="submit" variante="secundaria" carregando={salvarTopX.isPending}>
+                  Salvar
+                </Botao>
+              )}
+            </form>
+          )}
+          {podeMexer && (
+            <Botao
+              icone={<PackagePlus />}
+              className="shrink-0 whitespace-nowrap"
+              onClick={() => setEscolhendo(true)}
+            >
+              Cadastrar produto ao estoque
+            </Botao>
+          )}
+        </div>
       </div>
 
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
@@ -90,7 +193,15 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
       )}
       {!isPending && !isError && linhas.length === 0 && (
         <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-          {busca.trim() ? 'Nenhum produto com esse nome ou SKU.' : 'Nenhum produto vendido nem em estoque ainda.'}
+          {buscando
+            ? 'Nenhum produto com esse nome ou SKU.'
+            : filtro === 'necessidade'
+              ? 'Nenhum produto em necessidade de produção.'
+              : filtro === 'reservados_producao'
+                ? 'Nada reservado para produção agora.'
+                : filtro === 'com_estoque'
+                  ? 'Nenhum produto com estoque.'
+                  : 'Nenhum produto no catálogo ainda.'}
         </p>
       )}
 
@@ -100,30 +211,29 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
             key={linha.tiny_id}
             linha={linha}
             podeMexer={podeMexer}
+            podeLancar={podeLancar}
             aoMovimentar={(operacao) => movimentar(linha, operacao)}
             aoAbrir={() => setAberto(linha)}
+            aoLancar={() => setLancando(linha)}
+            aoAbrirPendencia={() =>
+              linha.pendente_card_id !== null &&
+              navegar(`/fabrica/producao/pcp?liberar=${linha.pendente_card_id}`)
+            }
           />
         ))}
       </ul>
 
-      {total > POR_PAGINA && (
+      {total > topX && (
         <Paginacao
           paginaAtual={pagina}
-          totalPaginas={Math.ceil(total / POR_PAGINA)}
+          totalPaginas={Math.ceil(total / topX)}
           totalItens={total}
-          porPagina={POR_PAGINA}
+          porPagina={topX}
           aoMudarPagina={setPagina}
           className="rounded-dm-lg border border-borda bg-superficie"
         />
       )}
 
-      {!busca.trim() && (
-        <OutrosProdutos
-          ativo={ativo}
-          podeMexer={podeMexer}
-          aoCadastrar={(produto) => movimentar(produto, 'entrada')}
-        />
-      )}
       <TodasAsPecas ativo={ativo} agora={agora} />
 
       <ModalEscolherProduto
@@ -146,105 +256,105 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
         aoFechar={() => setAberto(null)}
         aoMovimentar={(operacao) => produtoAberto && movimentar(produtoAberto, operacao)}
       />
+      <ModalLancarReposicao
+        key={lancando?.tiny_id ?? 'fechado'}
+        produto={lancando}
+        aoFechar={() => setLancando(null)}
+      />
     </div>
   )
 }
 
 /**
- * "Ver os outros produtos": o catálogo que não entrou no Top 20+ (não vende
- * tanto e não tem estoque). Só carrega ao abrir (regra 17); daqui a logística
- * cadastra a entrada direto.
+ * "Lançar para produção" (D-87): com a automática desligada, a logística cria
+ * a reposição no PCP à mão. A quantidade proposta = o que falta para o mínimo,
+ * já descontando o que vem para o estoque — editável.
  */
-function OutrosProdutos({
-  ativo,
-  podeMexer,
-  aoCadastrar,
+function ModalLancarReposicao({
+  produto,
+  aoFechar,
 }: {
-  ativo: boolean
-  podeMexer: boolean
-  aoCadastrar: (produto: LinhaEstoqueProduto) => void
+  produto: LinhaEstoqueProduto | null
+  aoFechar: () => void
 }) {
-  const [aberto, setAberto] = useState(false)
-  const [pagina, setPagina] = useState(1)
-  const { data: linhas = [], isPending } = useQuery({
-    queryKey: ['estoque', 'outros', pagina],
-    queryFn: () =>
-      listarEstoqueProdutos({
-        grupo: 'acabados',
-        filtro: 'fora',
-        limite: POR_PAGINA,
-        deslocamento: (pagina - 1) * POR_PAGINA,
+  const notificar = useNotificacao()
+  const clienteQuery = useQueryClient()
+  const proposta = Math.min(Math.max(produto?.repor_sugerido ?? 1, 1), 500)
+  const [texto, setTexto] = useState<string | null>(null)
+  const quantidade = texto === null ? proposta : Number(texto)
+  const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= 500
+
+  const lancar = useMutation({
+    mutationFn: () => lancarReposicao(produto!.tiny_id, quantidade),
+    onSuccess: async () => {
+      notificar({
+        titulo: 'Reposição lançada ao PCP',
+        descricao: `${quantidade} ${quantidade === 1 ? 'unidade' : 'unidades'} de ${produto?.descricao ?? ''} — o PCP decide.`,
+        tom: 'perfeito',
+      })
+      aoFechar()
+      await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
+      await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu para lançar a reposição',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
       }),
-    enabled: ativo && aberto,
-    placeholderData: keepPreviousData,
   })
-  const total = linhas[0]?.contagem_total ?? 0
 
   return (
-    <section aria-label="Outros produtos do catálogo" className="flex flex-col gap-2">
-      <Botao
-        variante="secundaria"
-        className="self-start"
-        icone={aberto ? <ChevronUp /> : <ChevronDown />}
-        aria-expanded={aberto}
-        onClick={() => setAberto((v) => !v)}
-      >
-        {aberto ? 'Esconder os outros produtos' : 'Ver os outros produtos'}
-      </Botao>
-      {aberto && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-texto-suave">
-            Os produtos do catálogo que não estão entre os mais vendidos e não têm estoque.
+    <Modal
+      aberto={produto !== null}
+      aoFechar={(v) => !v && aoFechar()}
+      titulo="Lançar para produção"
+      descricao={produto ? `${produto.descricao}${produto.codigo ? ` · SKU ${produto.codigo}` : ''}` : undefined}
+    >
+      {produto && (
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (valida) lancar.mutate()
+          }}
+        >
+          <p className="text-sm text-texto-suave tabular-nums">
+            Em estoque: <span className="font-medium text-texto">{produto.em_estoque ?? 0}</span>
+            {' · '}mínimo: <span className="font-medium text-texto">{produto.minimo ?? '—'}</span>
+            {produto.reservados_producao > 0 && (
+              <>
+                {' · '}já reservados p/ produção:{' '}
+                <span className="font-medium text-texto">{produto.reservados_producao}</span>
+              </>
+            )}
           </p>
-          {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
-          {!isPending && linhas.length === 0 && (
-            <p className="text-sm text-texto-suave">Todo o catálogo já aparece na lista acima.</p>
-          )}
-          {linhas.length > 0 && (
-            <ul className="flex flex-col divide-y divide-borda rounded-dm-lg border border-borda bg-superficie">
-              {linhas.map((p) => (
-                <li key={p.tiny_id} className="flex items-center gap-3 px-3 py-2">
-                  <FotoProduto
-                    produto={p}
-                    podeTrocar={false}
-                    iconeGrande={false}
-                    className="size-12 shrink-0 rounded-dm"
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-medium text-texto">{p.descricao}</span>
-                    <span className="text-xs text-texto-suave tabular-nums">
-                      {p.codigo ? `SKU ${p.codigo}` : 'sem SKU'}
-                      {p.posicao !== null
-                        ? ` · ${rotuloPosicao(p.posicao)} em vendas (${formatarQuantidade(p.vendidos_90d)} em 90 dias)`
-                        : ' · sem venda em 90 dias'}
-                    </span>
-                  </div>
-                  {podeMexer && (
-                    <Botao
-                      variante="secundaria"
-                      icone={<Plus />}
-                      onClick={() => aoCadastrar(p)}
-                      aria-label={`Cadastrar ${p.descricao} ao estoque`}
-                    >
-                      <span className="hidden sm:inline">Cadastrar</span>
-                    </Botao>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {total > POR_PAGINA && (
-            <Paginacao
-              paginaAtual={pagina}
-              totalPaginas={Math.ceil(total / POR_PAGINA)}
-              totalItens={total}
-              porPagina={POR_PAGINA}
-              aoMudarPagina={setPagina}
-              className="rounded-dm-lg border border-borda bg-superficie"
+          <div className="w-36">
+            <Campo
+              rotulo="Quantidade"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={500}
+              step={1}
+              value={texto ?? String(proposta)}
+              erro={valida ? undefined : 'De 1 a 500'}
+              onChange={(e) => setTexto(e.target.value)}
             />
-          )}
-        </div>
+          </div>
+          <p className="text-sm text-texto-suave">
+            A reposição nasce no PCP, que decide o rumo. Parada 2 dias úteis lá, ela sai sozinha.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Botao type="submit" icone={<Factory />} disabled={!valida} carregando={lancar.isPending}>
+              Lançar ao PCP
+            </Botao>
+            <Botao type="button" variante="secundaria" onClick={aoFechar}>
+              Cancelar
+            </Botao>
+          </div>
+        </form>
       )}
-    </section>
+    </Modal>
   )
 }

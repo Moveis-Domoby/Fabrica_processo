@@ -16,21 +16,21 @@ function garantir<T>(dados: T | null, erro: { message: string } | null, contexto
 }
 
 // ---------------------------------------------------------------------------
-// Estoque (SESSAO-25 ↪️ ajuste de 28/09 — D-70…D-73). Nos ACABADOS o número é a
-// CONTAGEM da logística (peças livres no ESTOQUE: entrada/baixa/contagem
-// manual, reposição e pedido cancelado); o Tiny fica nos insumos e como
-// referência. A lista abre pelo Top 20+ (os 20 mais vendidos dos 90 dias,
-// depois o que tem estoque). Mínimo e capacidade do galpão moram na plataforma.
+// Estoque (SESSAO-25 ↪️ 28/09 D-70…D-73 ↪️ 30/09 D-83…D-87). Nos ACABADOS o
+// número é a CONTAGEM da logística; o Tiny fica nos insumos e como referência.
+// A lista é UMA, pelo ranking dos 90 dias (com o corte de pedido grande), e o
+// Top X é o tamanho da página — só os X primeiros têm mínimo.
 // ---------------------------------------------------------------------------
 
 /** Os dois grupos da tela (resposta 8 do dono em 26/09). */
 export type GrupoEstoque = 'acabados' | 'insumos'
 
 /**
- * Recortes da lista — resolvidos NO SERVIDOR (regra 17). Acabados: nulo = o
- * Top 20+; 'fora' = o resto do catálogo; 'todos'. Insumos: 'sem_leitura'.
+ * Recortes da lista — resolvidos NO SERVIDOR (regra 17). Acabados: nulo/'todos'
+ * = a lista inteira pelo ranking; 'necessidade' · 'reservados_producao' ·
+ * 'com_estoque' são o filtro do topo (D-86). Insumos: 'sem_leitura'.
  */
-export type FiltroEstoque = 'fora' | 'todos' | 'abaixo_minimo' | 'sem_leitura'
+export type FiltroEstoque = 'todos' | 'necessidade' | 'reservados_producao' | 'com_estoque' | 'sem_leitura'
 
 /** Onde está o card de reposição mais recente do produto. */
 export type EstadoReposicao = 'no_pcp' | 'em_producao' | 'concluida' | 'arquivada'
@@ -46,22 +46,32 @@ export interface LinhaEstoqueProduto {
   /** Rank de vendas dos últimos 90 dias (1 = o mais vendido). Nulo = não vendeu. */
   posicao: number | null
   vendidos_90d: number
-  /** O mínimo que vale: o definido aqui, senão o do Tiny. */
+  /** Linhas de pedido fora do comum que saíram da conta (o aviso discreto). */
+  cortes: number
+  /** Dentro do Top X? Só quem está tem mínimo e pede reposição (D-83). */
+  no_top: boolean
+  /** O mínimo da plataforma — só dentro do Top X (insumos: plataforma ou Tiny). */
   minimo: number | null
   minimo_tiny: number | null
-  minimo_definido_aqui: boolean
+  /** true = editado à mão (não acompanha a sugestão até "voltar ao automático"). */
+  minimo_travado: boolean
+  /** A sugestão do dia (nulo fora do Top X). */
+  sugestao: number | null
   /** Acabados: a contagem da plataforma (peças livres). Insumos: o Tiny (nunca negativo). */
   em_estoque: number | null
-  /**
-   * Peças prontas já com dono — em Pedidos em aguardo ou reservadas por uma
-   * venda (D-78) — à parte, nunca somam no número.
-   */
-  reservados: number
-  /** D-78: das reservadas, as que ainda estão no galpão (reservadas pela venda). A contagem é física. */
+  /** Reservados em venda: prontos separados para pedidos (aguardo + reservadas no galpão). */
+  reservados_venda: number
+  /** D-78: das reservadas em venda, as que ainda estão no galpão. A contagem é física. */
   reservadas_estoque: number
-  abaixo_minimo: boolean
-  /** Quanto falta para voltar ao mínimo (0 quando está acima). */
-  repor: number
+  /** Em produção agora: o que vem para o estoque + os móveis de pedidos (resposta 6). */
+  reservados_producao: number
+  /** Abaixo do mínimo já contando o que vem para o estoque (a régua da necessidade). */
+  em_necessidade: boolean
+  /** Quanto falta produzir para voltar ao mínimo (a proposta do lançamento manual). */
+  repor_sugerido: number
+  /** A bolinha vermelha (D-86): o card do pedido que espera a decisão do PCP. */
+  pendente_card_id: number | null
+  pendente_pedido_numero: number | null
   /** Último saldo lido do Tiny (cru — pode ser negativo). Só referência nos acabados. */
   saldo_tiny: number | null
   lido_em: string | null
@@ -94,11 +104,17 @@ export async function listarEstoqueProdutos(parametros: {
   ).map((l) => ({
     ...l,
     vendidos_90d: Number(l.vendidos_90d ?? 0),
+    cortes: Number(l.cortes ?? 0),
     minimo: numeroOuNulo(l.minimo),
     minimo_tiny: numeroOuNulo(l.minimo_tiny),
+    sugestao: numeroOuNulo(l.sugestao),
     em_estoque: numeroOuNulo(l.em_estoque),
+    reservados_venda: Number(l.reservados_venda ?? 0),
     reservadas_estoque: Number(l.reservadas_estoque ?? 0),
-    repor: Number(l.repor ?? 0),
+    reservados_producao: Number(l.reservados_producao ?? 0),
+    repor_sugerido: Number(l.repor_sugerido ?? 0),
+    pendente_card_id: numeroOuNulo(l.pendente_card_id),
+    pendente_pedido_numero: numeroOuNulo(l.pendente_pedido_numero),
     saldo_tiny: numeroOuNulo(l.saldo_tiny),
     contagem_total: Number(l.contagem_total ?? 0),
   }))
@@ -128,8 +144,9 @@ export async function movimentarEstoque(parametros: {
 }
 
 // ---------------------------------------------------------------------------
-// Configurações do estoque (D-72): mínimo por produto, capacidade do galpão e
-// a sugestão de mínimo que CABE no galpão.
+// Configurações do estoque (↪️ 30/09 — D-83/D-84): Top X, cobertura por dias
+// úteis de venda, corte de pedido fora do comum e o mínimo AUTOMÁTICO (editar
+// trava; "voltar ao automático" solta). A capacidade do galpão saiu de uso.
 // ---------------------------------------------------------------------------
 
 export interface LinhaConfiguracaoEstoque {
@@ -139,24 +156,27 @@ export interface LinhaConfiguracaoEstoque {
   imagem_caminho: string | null
   posicao: number | null
   vendidos_90d: number
+  /** Linhas de pedido fora do comum que saíram da conta. */
+  cortes: number
+  /** Dentro do Top X? Fora dele não há mínimo nem sugestão (D-83). */
+  no_top: boolean
   media_semana: number
   minimo: number | null
   minimo_tiny: number | null
-  minimo_definido_aqui: boolean
-  /** Nulo = não vendeu nos 90 dias (sem sugestão). */
+  /** true = editado à mão (não acompanha a sugestão). */
+  minimo_travado: boolean
+  /** Nulo = fora do Top X (sem sugestão). */
   sugestao: number | null
   em_estoque: number
   contagem_total: number
 }
 
 export async function listarConfiguracoesEstoque(parametros: {
-  semanas: number
   busca?: string
   limite?: number
   deslocamento?: number
 }): Promise<LinhaConfiguracaoEstoque[]> {
   const { data, error } = await supabase.rpc('plt_fn_estoque_configuracoes', {
-    p_semanas: parametros.semanas,
     p_busca: parametros.busca?.trim() || null,
     p_limite: parametros.limite ?? 20,
     p_deslocamento: parametros.deslocamento ?? 0,
@@ -168,6 +188,7 @@ export async function listarConfiguracoesEstoque(parametros: {
   ).map((l) => ({
     ...l,
     vendidos_90d: Number(l.vendidos_90d ?? 0),
+    cortes: Number(l.cortes ?? 0),
     media_semana: Number(l.media_semana ?? 0),
     minimo: numeroOuNulo(l.minimo),
     minimo_tiny: numeroOuNulo(l.minimo_tiny),
@@ -177,33 +198,75 @@ export async function listarConfiguracoesEstoque(parametros: {
   }))
 }
 
+/** O resumo do galpão remodelado (pedido do dono, 30/09): seis números. */
 export interface ResumoEstoque {
-  /** Quantas peças cabem no galpão. Nulo = ainda não definida. */
-  capacidade: number | null
-  pecas_no_estoque: number
-  pecas_reservadas: number
+  /** Móveis livres no galpão (a contagem). */
+  moveis_estoque: number
+  /** Matéria-prima e insumos contados por unidade (o que o Tiny informa). */
+  pecas_unidades: number
+  /** Matéria-prima e insumos medidos em m². */
+  pecas_m2: number
+  /** Prontos separados para pedidos (em aguardo + reservados no galpão). */
+  moveis_reservados: number
+  /** Sendo produzido SEM dono, a caminho do estoque. */
+  pecas_producao: number
+  /** Sendo produzido PARA pedidos. */
+  moveis_producao: number
   soma_minimos: number
-  soma_sugestoes: number
   produtos_abaixo: number
 }
 
-export async function resumoEstoque(semanas: number): Promise<ResumoEstoque | null> {
-  const { data, error } = await supabase.rpc('plt_fn_estoque_resumo', { p_semanas: semanas })
+export async function resumoEstoque(): Promise<ResumoEstoque | null> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_resumo')
   const linhas = garantir(data as ResumoEstoque[] | null, error, 'Não deu para carregar o resumo do estoque')
   const r = linhas[0]
   if (!r) return null
   return {
-    capacidade: numeroOuNulo(r.capacidade),
-    pecas_no_estoque: Number(r.pecas_no_estoque ?? 0),
-    pecas_reservadas: Number(r.pecas_reservadas ?? 0),
+    moveis_estoque: Number(r.moveis_estoque ?? 0),
+    pecas_unidades: Number(r.pecas_unidades ?? 0),
+    pecas_m2: Number(r.pecas_m2 ?? 0),
+    moveis_reservados: Number(r.moveis_reservados ?? 0),
+    pecas_producao: Number(r.pecas_producao ?? 0),
+    moveis_producao: Number(r.moveis_producao ?? 0),
     soma_minimos: Number(r.soma_minimos ?? 0),
-    soma_sugestoes: Number(r.soma_sugestoes ?? 0),
     produtos_abaixo: Number(r.produtos_abaixo ?? 0),
   }
 }
 
-/** Mínimo do produto na plataforma. Nulo = volta a valer o do Tiny. */
-export async function definirMinimo(produtoTinyId: number, minimo: number | null): Promise<void> {
+/** As configurações do estoque num pacote só (uma requisição — regra 17). */
+export interface ConfigEstoque {
+  top_x: number
+  cobertura_semanas: number
+  corte_pedido_grande: number
+  dias_uteis_venda: number
+}
+
+export async function configEstoque(): Promise<ConfigEstoque | null> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_config')
+  if (error) throw new Error(`Não deu para carregar as configurações: ${error.message}`)
+  return (data as ConfigEstoque | null) ?? null
+}
+
+/** Top X (1–50): o tamanho da página e quem tem mínimo — valor único da equipe. */
+export async function definirTopX(topX: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_definir_top_x', { p_top_x: topX })
+  if (error) throw new Error(error.message)
+}
+
+/** Cobertura da sugestão (1–8 semanas) — recalcula os mínimos automáticos. */
+export async function definirCobertura(semanas: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_definir_cobertura', { p_semanas: semanas })
+  if (error) throw new Error(error.message)
+}
+
+/** Corte de pedido fora do comum (Painel admin, só admin). */
+export async function definirCorte(quantidade: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_definir_corte', { p_quantidade: quantidade })
+  if (error) throw new Error(error.message)
+}
+
+/** Mínimo editado à mão: grava e TRAVA (deixa de acompanhar a sugestão). */
+export async function definirMinimo(produtoTinyId: number, minimo: number): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_estoque_definir_minimo', {
     p_produto_tiny_id: produtoTinyId,
     p_minimo: minimo,
@@ -211,21 +274,43 @@ export async function definirMinimo(produtoTinyId: number, minimo: number | null
   if (error) throw new Error(error.message)
 }
 
-/** "Usar todas as sugestões": devolve quantos mínimos mudaram. */
-export async function aplicarSugestoes(semanas: number): Promise<number> {
-  const { data, error } = await supabase.rpc('plt_fn_estoque_aplicar_sugestoes', {
-    p_semanas: semanas,
+/** "Voltar ao automático": destrava e alinha à sugestão do dia. */
+export async function minimoAutomatico(produtoTinyId: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_minimo_automatico', {
+    p_produto_tiny_id: produtoTinyId,
+  })
+  if (error) throw new Error(error.message)
+}
+
+// ---------------------------------------------------------------------------
+// Reposição automática (D-87): liga/desliga = agendar/desagendar a rotina no
+// banco (desligada, nada roda). Desligada, a logística lança à mão.
+// ---------------------------------------------------------------------------
+
+export async function situacaoReposicao(): Promise<{ ligada: boolean }> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_reposicao_situacao')
+  if (error) throw new Error(`Não deu para ver a reposição automática: ${error.message}`)
+  return { ligada: Boolean((data as { ligada?: boolean } | null)?.ligada) }
+}
+
+export async function ligarReposicao(): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_reposicao_ligar')
+  if (error) throw new Error(error.message)
+}
+
+export async function desligarReposicao(): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_reposicao_desligar')
+  if (error) throw new Error(error.message)
+}
+
+/** "Lançar para produção" (manual, com a automática desligada): cria a reposição no PCP. */
+export async function lancarReposicao(produtoTinyId: number, quantidade: number): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_lancar_reposicao', {
+    p_produto_tiny_id: produtoTinyId,
+    p_quantidade: quantidade,
   })
   if (error) throw new Error(error.message)
   return Number(data ?? 0)
-}
-
-/** Capacidade do galpão, em peças. Nulo = não definir. */
-export async function definirCapacidade(capacidade: number | null): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_estoque_definir_capacidade', {
-    p_capacidade: capacidade,
-  })
-  if (error) throw new Error(error.message)
 }
 
 // ---------------------------------------------------------------------------

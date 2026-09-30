@@ -6,12 +6,10 @@ import {
   formatarQuantidade,
   idadeDaLeitura,
   rotuloPosicao,
-  sinalDoProduto,
   textoReposicao,
 } from '@/logistica/estoque'
 import { FotoProduto } from './FotoProduto'
 import { PecasDoProduto } from './PecasDoEstoque'
-import { SeloSinal } from './SeloSinal'
 
 export interface ModalProdutoEstoqueProps {
   produto: LinhaEstoqueProduto | null
@@ -32,7 +30,6 @@ export function ModalProdutoEstoque({
   aoMovimentar,
 }: ModalProdutoEstoqueProps) {
   const agora = useAgora()
-  const sinal = produto ? sinalDoProduto(produto) : null
   const reposicao = produto ? textoReposicao(produto.reposicao_estado) : undefined
   const idade = produto ? idadeDaLeitura(produto.lido_em, agora) : null
 
@@ -71,23 +68,33 @@ export function ModalProdutoEstoque({
             <p className="text-sm text-texto-suave tabular-nums">
               Mínimo{' '}
               <span className="font-medium text-texto">
-                {produto.minimo !== null && produto.minimo > 0 ? formatarQuantidade(produto.minimo) : '—'}
+                {produto.no_top && produto.minimo !== null && produto.minimo > 0
+                  ? formatarQuantidade(produto.minimo)
+                  : '—'}
               </span>
-              {produto.minimo_definido_aqui ? ' (definido aqui)' : produto.minimo ? ' (do Tiny)' : ''}
+              {produto.no_top
+                ? produto.minimo_travado
+                  ? ' (travado à mão)'
+                  : ' (automático)'
+                : ' (fora do Top X)'}
             </p>
-            {produto.reservados > 0 && (
+            {produto.reservados_producao > 0 && (
               <p className="text-sm text-texto-suave tabular-nums">
-                {produto.reservados === 1 ? '1 reservada' : `${produto.reservados} reservadas`} para pedidos
+                {produto.reservados_producao === 1
+                  ? '1 reservado p/ produção'
+                  : `${produto.reservados_producao} reservados p/ produção`}
+              </p>
+            )}
+            {produto.reservados_venda > 0 && (
+              <p className="text-sm text-texto-suave tabular-nums">
+                {produto.reservados_venda === 1
+                  ? '1 reservado em venda'
+                  : `${produto.reservados_venda} reservados em venda`}
               </p>
             )}
           </div>
 
-          {(sinal || reposicao) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {sinal && <SeloSinal sinal={sinal} />}
-              {reposicao && <span className="text-sm text-texto-suave">{reposicao}</span>}
-            </div>
-          )}
+          {reposicao && <p className="text-sm text-texto-suave">{reposicao}</p>}
 
           {podeMexer && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">

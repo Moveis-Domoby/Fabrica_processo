@@ -1,26 +1,15 @@
 import { Navigate, useSearchParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { Layers, Package, Settings2, Trophy } from 'lucide-react'
 import { Abas, Dica } from '@/componentes/ui'
 import type { Aba } from '@/componentes/ui'
 import { useAcessoLogistica } from '@/logistica/acesso'
+import { configEstoque } from '@/logistica/api'
 import { PainelConfiguracoes } from '@/logistica/componentes/PainelConfiguracoes'
 import { PainelInsumos } from '@/logistica/componentes/PainelInsumos'
 import { PainelTop20 } from '@/logistica/componentes/PainelTop20'
 
 type AbaEstoque = 'top20' | 'insumos' | 'configuracoes'
-
-const ABAS: Aba<AbaEstoque>[] = [
-  { valor: 'top20', rotulo: 'Top 20+', icone: <Trophy aria-hidden /> },
-  { valor: 'insumos', rotulo: 'Matéria-prima e insumos', icone: <Layers aria-hidden /> },
-  { valor: 'configuracoes', rotulo: 'Configurações', icone: <Settings2 aria-hidden /> },
-]
-
-/** O que aparece embaixo do título: onde a pessoa está, em poucas palavras. */
-const SUBTITULO: Record<AbaEstoque, string> = {
-  top20: 'Top 20+ · os mais vendidos primeiro',
-  insumos: 'Matéria-prima e insumos · número do Tiny',
-  configuracoes: 'Configurações · mínimo e capacidade do galpão',
-}
 
 /** Aba na URL (?aba=) — o Voltar e o link funcionam. "sugestao" é o nome antigo. */
 function abaDaUrl(valor: string | null): AbaEstoque {
@@ -30,21 +19,42 @@ function abaDaUrl(valor: string | null): AbaEstoque {
 }
 
 /**
- * Logística → Estoque. Ajuste de 28/09 (pedido do dono):
- * - o número dos produtos acabados é a CONTAGEM da logística (entrada, baixa e
- *   contagem manual — "por enquanto"); o Tiny fica nos insumos (D-70);
- * - a tela abre no Top 20+: os 20 mais vendidos dos 90 dias, depois o que tem
- *   estoque; o resto do catálogo na busca e em "ver os outros" (D-71);
- * - mínimo e capacidade do galpão nas Configurações; a sugestão cabe no galpão (D-72);
- * - foto de cada produto, cadastrada pela logística/admin (D-73);
- * - o texto explicativo virou o "i" com balão, e as abas são quadrados no
- *   canto superior direito (D-74).
+ * Logística → Estoque. Ajuste de 28/09 ↪️ 30/09 (Ajuste Estoque 2 — D-83…D-87):
+ * - a lista dos acabados é UMA, pelo ranking dos 90 dias (com o corte de
+ *   pedido fora do comum), e o TOP X é o tamanho da página — só ele tem mínimo;
+ * - filtro no topo: Todos · Necessidade de produção · Reservados para produção
+ *   · Com estoque;
+ * - o mínimo é automático por dias úteis de venda (editar trava); a capacidade
+ *   do galpão saiu de uso;
+ * - a reposição automática liga/desliga no Painel admin; desligada, a
+ *   logística lança à mão.
  * Tudo paginado no servidor — a tela só requisita o que mostra (regra 17).
  */
 export function Estoque() {
   const { perfil, semAcesso, tenhoAcesso } = useAcessoLogistica()
   const [parametros, setParametros] = useSearchParams()
   const aba = abaDaUrl(parametros.get('aba'))
+
+  const { data: config } = useQuery({
+    queryKey: ['estoque', 'config'],
+    queryFn: configEstoque,
+    enabled: tenhoAcesso,
+  })
+  const topX = config?.top_x ?? 20
+  const rotuloTop = `Top ${topX}`
+
+  const abas: Aba<AbaEstoque>[] = [
+    { valor: 'top20', rotulo: rotuloTop, icone: <Trophy aria-hidden /> },
+    { valor: 'insumos', rotulo: 'Matéria-prima e insumos', icone: <Layers aria-hidden /> },
+    { valor: 'configuracoes', rotulo: 'Configurações', icone: <Settings2 aria-hidden /> },
+  ]
+
+  /** O que aparece embaixo do título: onde a pessoa está, em poucas palavras. */
+  const subtitulo: Record<AbaEstoque, string> = {
+    top20: `${rotuloTop} · os mais vendidos primeiro`,
+    insumos: 'Matéria-prima e insumos · número do Tiny',
+    configuracoes: 'Configurações · mínimo automático e cobertura',
+  }
 
   if (semAcesso) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -68,20 +78,20 @@ export function Estoque() {
                   matéria-prima e os insumos.
                 </span>
                 <span>
-                  A lista abre pelos 20 mais vendidos dos últimos 90 dias; o resto do catálogo está
-                  na busca. Mínimo e capacidade do galpão ficam em Configurações.
+                  A lista segue os mais vendidos dos últimos 90 dias, {topX} por página (o Top X) —
+                  só eles têm mínimo. A busca acha qualquer produto do catálogo.
                 </span>
               </span>
             </Dica>
           </h1>
-          <p className="text-sm text-texto-suave">{SUBTITULO[aba]}</p>
+          <p className="text-sm text-texto-suave">{subtitulo[aba]}</p>
         </div>
 
         <Abas
           rotulo="Visões do estoque"
           idBase="estoque"
           variante="quadrados"
-          abas={ABAS}
+          abas={abas}
           valor={aba}
           aoMudar={(valor) => {
             const novos = new URLSearchParams(parametros)
