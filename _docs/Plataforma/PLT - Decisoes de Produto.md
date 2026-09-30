@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-09-28
+atualizado: 2026-09-30
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -622,7 +622,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Decidido (respostas b1 e b5 do dono na SESSAO-24):**
 
 - **"Peça igual" (b1):** produto do catálogo casa pelo **SKU**; **personalizado** casa por **SKU + descrição idêntica** (sem ligar para maiúsculas, acentos e espaços); item **sem SKU** casa pela descrição idêntica.
-- Ao liberar um pedido no PCP, cada linha mostra **"Há N igual(is) no estoque, sem dono — usar?"** — **desmarcado por padrão** (a sugestão nunca decide sozinha).
+- Ao liberar um pedido no PCP, cada linha mostra **"Há N igual(is) no estoque, sem dono — usar?"** — **desmarcado por padrão** (a sugestão nunca decide sozinha). **↪️ 30/09 (D-78):** a peça que a VENDA já reservou para a unidade vem **marcada** ("Peça do estoque reservada para este pedido — usar?").
 - **Quem aceita (b5):** PCP/logística (*"são a mesma coisa no fim das contas"*) e admin.
 - **Aceitar** faz a unidade do pedido nascer **direto em Pedidos em aguardo** (a peça livre sai do ESTOQUE; as duas histórias ficam guardadas). Se o pedido for cancelado depois, a peça volta ao ESTOQUE sem dono (D-61).
 
@@ -686,6 +686,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-70 · O estoque dos acabados é a CONTAGEM da logística (entrada, baixa e contagem manual) — o Tiny sai da conta (28/09/2026) — ↩️ revisa a D-54 e a D-55
 
+**↪️ 30/09/2026 (D-76…D-79):** a contagem continua sendo o número, mas agora **conversa com o Tiny** (sincronismo ligado pelo admin): o Tiny acima sobe a plataforma, os gestos daqui deixam o Tiny igual, e a venda reserva a peça.
+
 **Contexto (diagnóstico de 28/09, só leitura no banco real):** o número dos acabados era "saldo do Tiny − pedidos da loja em aberto" (D-55). Mas o aviso de estoque do Tiny não chega na saída da venda nem no "pronto" dos móveis — 9 avisos na vida toda, nenhum de móvel, o último em 25/09; 45 pedidos saíram da reserva sem aviso (A-25). Só 19 dos 168 fabricados tinham saldo positivo e 57 viravam "necessidade extrema" sem pedido nenhum (o negativo do Tiny — P16). O dono, vendo a tela: *"porque nenhum produto está em estoque?"*.
 
 **Decidido (pedido do dono na conversa, 28/09):** *"deve ter um botão de 'cadastrar produto ao estoque' … a logística irá dar baixa manual na quantidade de itens em estoque por enquanto"*.
@@ -742,6 +744,56 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Como ficou (técnico):** migration 41 — `plt_fn_dash_pcp_dia` recriada a partir da versão da 39 (E-24), com o mesmo filtro de `plt_fn_cards_pedido_pcp` (sem o gate por pessoa; o painel mantém o dele). A coluna segue `pedidos_a_liberar` (mesma forma — a tela não mudou). O harness amarra painel = quadro: quem mudar a regra de um sem a do outro fica vermelho.
 
 **Descartadas:** manter a conta própria do painel (foi ela que se separou do quadro em silêncio); juntar as duas numa regra única compartilhada agora (mexeria no quadro, sem ganho hoje — o teste já amarra os dois).
+
+## D-76 · O Tiny sobe a plataforma: vale o saldo SOMADO das duas empresas; Tiny acima → a plataforma sobe até ele; abaixo → nada (30/09/2026) — ↪️ D-70
+
+**Contexto (29/09, vídeo do Guilherme — líder da logística):** ele fez o balanço no Tiny e a plataforma não mudou. Diagnóstico só de leitura: desde a D-70 o número dos acabados é a contagem da plataforma; e o aviso de estoque do Tiny da fábrica só enxerga o depósito **Geral da FÁBRICA**, enquanto o "multiempresa" que a equipe olha é a soma de quatro depósitos de duas empresas (**FábricaDomoby/Geral** + **lojadomoby/Fábrica · Loja · Desmontado**). As peças prontas estão no depósito "Fábrica" da empresa da loja (174: Geral 0 + 3 lá = os 3 da tela). O "reservado" do Tiny não serve (345: 47 no Tiny × 2 em pedidos abertos) — vale o **saldo**.
+
+**Decidido (dono, 29–30/09):** *"a ideia futura é deixar que a plataforma seja o centro … mas eles irão usar o tiny por bastante tempo ainda"*; *"quando for cadastrado um produto no estoque do tiny, vai disparar pra gente aqui e a lógica deve conferir a quantidade a partir do sku"*; *"eles só olham o saldo multiempresa"*.
+
+- Cada aviso de estoque (da conta da fábrica **ou da loja** — a loja é achada pelo SKU, os ids não casam entre contas, A-22) põe o produto numa fila; o n8n lê o **saldo somado** (`produto.obter.estoque` da fábrica) e devolve à plataforma.
+- **Tiny acima** do que está no galpão pela plataforma (livres + reservadas para venda) → a plataforma **sobe até o Tiny** (peças novas, motivo "entrou pelo Tiny", origem da integração). **Abaixo → nada** (a saída se dá pela plataforma — D-77). Negativo no Tiny = 0 no galpão (D-53).
+- **"Sobe até", não "soma a diferença"** (decidido pelo Claude, avisado ao dono): o aviso traz só o saldo final; somar diferenças transforma correção de balanço em peça (o −7 → 0 do 327 viraria 7 peças).
+- Com o mínimo coberto, a **reposição que ainda está no PCP sem nada liberado é arquivada sozinha** (o exemplo do dono: *"removeria os dois cards de necessidade de produção que provavelmente ainda vão estar em pcp"*). Liberada em parte fica com o PCP.
+- Toda madrugada (04:00) todos os acabados são relidos — rede de segurança para aviso perdido.
+
+**Descartadas:** somar a diferença entre avisos (lixo com balanço); usar o "disponível" do Tiny (o reservado dele não bate com os pedidos); ler só o depósito da fábrica (não é o número que a equipe vê).
+
+## D-77 · A plataforma manda no Tiny: entrada, baixa e contagem daqui deixam o Tiny com o número da plataforma; a produção que chega ao estoque também (30/09/2026)
+
+**Decidido (dono, 29/09):** *"deixe que os botões de dar baixa, entrada e contagem continuem na plataforma, porém eles funcionam como gatilho para atualizar o tiny … demos entrada em estoque de 4 penteadeiras, no tiny estava −2 … ela avisa para o tiny ficar com 4"*; resposta de 30/09 — produção que chega ao estoque: **"a plataforma avisa sozinha"** (a equipe para de lançar no Tiny); saída feita direto no Tiny (avaria, correção): **ignorar — a baixa se dá só pela plataforma**.
+
+- **O Tiny fica com o número da plataforma** (as peças livres — o da tela), por produto, depois de: entrada, baixa, contagem (até a conferida), arquivar peça livre, peça que chega ao / sai do ESTOQUE (produção, cancelamento), peça livre usada num pedido, e o PCP mandar produzir a unidade que tinha peça reservada (D-78).
+- **Não vão ao Tiny:** o que veio do Tiny, a venda (reserva e consumo — o Tiny já baixa sozinho), a reserva desfeita por cancelamento ou pedido alterado (o Tiny devolve sozinho) e a peça reservada usada no próprio pedido.
+- **Onde grava** (decidido pelo Claude, avisado ao dono): balanço no depósito **"Fábrica" da empresa da loja** (onde as peças prontas estão e onde a venda baixa), pela conta da loja; sem ele, no **Geral** da fábrica. A **soma** das duas empresas fica igual à plataforma. Balanço porque é repetível sem dobrar; se ficaria negativo, saída da diferença.
+- Uma fila por produto junta vários movimentos seguidos num pedido só ao Tiny (limite de 60 consultas/min da conta). 5 falhas seguidas → o produto para e aparece em Configurações do Estoque; um movimento novo destrava.
+
+**Descartadas:** empurrar cada movimento como entrada/saída relativa (não se conserta sozinho e dobraria em repetição); aceitar as quedas do Tiny (o aviso não diz se foi venda ou avaria — descontaria a venda duas vezes).
+
+## D-78 · A venda reserva a peça na hora; o pedido segue no PCP, que decide; nada da venda vai ao Tiny (30/09/2026) — ↪️ D-62 e D-70
+
+**Decidido (dono, 29–30/09):** *"sempre que um pedido de venda for gerado com o produto daquele sku, a plataforma deve ver e diminuir menos 1 do estoque, isso não deve disparar nada para o tiny"*; e, na pergunta sobre reservar ou só baixar: *"a peça é reservada no estoque para atualizar em tempo real, mas deve aparecer no pcp ainda para ele liberar, se ele não liberar, a peça volta para o estoque e manda o tiny somar mais 1 lá também, o pcp decide a produção completa"*.
+
+- Pedido **novo** da loja (chegou depois de ligar o sincronismo), em aberto/aprovado/preparando envio: cada unidade de produto acabado do catálogo **reserva uma peça livre igual** (a mais antiga) — o número do estoque cai na hora e a peça aparece como "reservada para o pedido N". Uma vez só, na chegada da venda (a peça que entra depois não é reservada para pedido antigo). Frete não reserva (D-63); personalizado não (D-55).
+- No **PCP**, a unidade vem com a peça reservada **já marcada** para usar (↪️ D-62, que vinha desmarcada). Usar → a unidade nasce pronta em Pedidos em aguardo (nada ao Tiny). **Desmarcar e liberar para a produção** → a reserva se desfaz, a peça volta livre e o Tiny recebe de volta (D-77).
+- **Cancelado** → a reserva se desfaz (sem Tiny). **Item mudou/saiu** → desfaz. **Faturado / pronto para envio / enviado / entregue / não entregue** → a peça saiu com o pedido (baixa "venda", sem Tiny).
+- Contagem é **física**: conta as reservadas que ainda estão no galpão; contar menos que elas é recusado.
+- Só a plataforma reserva (vale até para a chave de serviço). Depois de cada venda, uma leitura do Tiny só para conferir.
+
+## D-79 · Ponto de partida: ligar copia uma vez o saldo do Tiny; tudo nasce desligado e só o admin liga (30/09/2026)
+
+**Decidido (dono, 30/09):** *"Copiar o Tiny uma vez"* (o balanço do Guilherme vira a contagem inicial; as 2 peças do 327 lançadas pelo dono passam a valer o número do Tiny).
+
+- A chave mora no ESTOQUE (Configurações → Tiny): **Ligar** (só admin) copia, produto a produto, o saldo somado do Tiny para a plataforma — **nos dois sentidos** (o que estiver diferente fica igual ao Tiny). Depois disso vale a D-76/D-77/D-78. **Desligar** para tudo (as reservas que já existem seguem acompanhando o pedido).
+- A venda que chegou **antes** de ligar não reserva (ela já está no saldo copiado do Tiny).
+
+## D-80 · Um fluxo só no n8n para o Tiny da fábrica (catálogo + estoque); a carga avulsa do saldo morre (30/09/2026)
+
+**Decidido (dono, 30/09):** *"eu não quero vários fluxos para a mesma coisa, quero 1 único que faz o trabalho completinho sem erro"*.
+
+- O workflow do Tiny da FÁBRICA vira **"Domoby · Tiny FÁBRICA → produtos e estoque (fluxo único)"**: o catálogo segue igual (a cada 15 min + varredura 03:15); o aviso de estoque (mesmo endereço — da fábrica e da loja) chama a plataforma; a cada minuto a fila lê o Tiny e grava o ajuste; às 04:00 a varredura do estoque. O workflow "carga do saldo (rodar 1×)" **sai** (a varredura faz o papel dele).
+- O aviso de estoque deixa de disparar a releitura do cadastro (o produto novo entra pelo ciclo de 15 min).
+- O n8n guarda só as execuções com erro (a fila roda a cada minuto); o que foi feito fica na plataforma (trilha + Configurações → Tiny).
 
 ## Ver também
 

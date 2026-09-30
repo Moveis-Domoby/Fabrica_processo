@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-09-28
+atualizado: 2026-09-30
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -112,6 +112,10 @@ tags: [plataforma, requisitos, backlog]
 | RF-102 | Configurações do estoque (D-72): capacidade do galpão, mínimo por produto editável na plataforma (vazio = o do Tiny), sugestão de mínimo que cabe no galpão (encolhe proporcional, rank preservado), "usar" por linha e "usar todas" | ✅ entregue (ajuste de 28/09) |
 | RF-103 | Foto de cada produto (D-73): capa na biblioteca por SKU, reduzida no aparelho; só logística/admin cadastram; aparece em destaque no cartão e ampliada no detalhe | ✅ entregue (ajuste de 28/09) |
 | RF-104 | Estoque enxuto (D-74): "i" com balão no lugar do texto, abas em quadrados no canto superior direito, cartão com a foto em destaque e valores menores; peças e referência do Tiny no detalhe | ✅ entregue (ajuste de 28/09) |
+| RF-105 | Tiny → plataforma (D-76): cada aviso de estoque (fábrica ou loja, pelo SKU) põe o produto numa fila; a leitura do saldo SOMADO das duas empresas sobe a plataforma quando o Tiny está acima (livres + reservadas); abaixo, nada; com o mínimo coberto, a reposição ainda no PCP sem nada liberado é arquivada; releitura de todos às 04:00 | ✅ entregue (ajuste de 30/09) |
+| RF-106 | Plataforma → Tiny (D-77): entrada/baixa/contagem, arquivar peça livre, chegada/saída do ESTOQUE, peça livre usada em pedido e PCP que manda produzir a unidade reservada deixam o Tiny com as peças livres (balanço no depósito Fábrica da loja; sem ele, Geral da fábrica); fila por produto, 5 falhas → para e aparece em Configurações | ✅ entregue (ajuste de 30/09) |
+| RF-107 | Venda reserva a peça (D-78): pedido novo com peça pronta reserva na hora; o PCP vê a peça marcada e decide (usar → aguardo; produzir → a peça volta e o Tiny recebe); cancelado desfaz; faturado em diante consome; contagem física conta as reservadas | ✅ entregue (ajuste de 30/09) |
+| RF-108 | Chave e situação do sincronismo (D-79/D-80): Configurações do Estoque → Tiny (ligado desde, fila, última leitura, parados com o erro, últimos ajustes); só o admin liga (copia o Tiny uma vez) e desliga; um fluxo único no n8n para o Tiny da fábrica | ✅ entregue (ajuste de 30/09) — ligar depende do n8n importado |
 | RF-87 | Pedidos em aguardo é o LUGAR da peça pronta de pedido (D-58), com as abas "Pedidos" e "Produtos reservados" — paginadas no servidor, contadores de uma porta só (batem por construção); o painel conta "concluídas" só a chegada vinda da produção | ✅ entregue (SESSAO-24) |
 | RF-88 | Cancelamento em 3 estágios (D-61): no PCP → aba Cancelados do PCP (paginada, sob demanda, para sempre); em produção → etiqueta "Pedido cancelado" e conclui para o ESTOQUE sem dono; pronto → vai sozinho ao ESTOQUE sem dono (produto pelo SKU) | ✅ entregue (SESSAO-24) |
 | RF-89 | Sugestão do estoque na liberação (D-62): "peça igual" (SKU; personalizado = SKU + descrição idêntica; sem SKU = descrição), desmarcada por padrão; PCP/logística e admin aceitam; aceitar faz a unidade nascer em Pedidos em aguardo | ✅ entregue (SESSAO-24) |

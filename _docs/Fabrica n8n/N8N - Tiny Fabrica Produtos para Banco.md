@@ -2,8 +2,8 @@
 titulo: n8n — Tiny da FÁBRICA → produtos no Supabase
 tipo: workflow
 data: 2026-09-21
-atualizado: 2026-09-26
-status: EM PRODUÇÃO — workflow ativo e webhook de estoque ligado desde 23/09 · carga do SALDO rodada em 26/09 (workflow separado, 442 produtos) · consumido pela SESSAO-25
+atualizado: 2026-09-30
+status: EM PRODUÇÃO — catálogo ativo desde 23/09 · 30/09 virou o FLUXO ÚNICO do Tiny da fábrica (catálogo + estoque ↔ plataforma, D-76…D-80) — importar no n8n e excluir a carga do saldo
 tags: [n8n, tiny, fabrica, produtos, supabase, sessao-25]
 ---
 
@@ -12,6 +12,9 @@ tags: [n8n, tiny, fabrica, produtos, supabase, sessao-25]
 > [!abstract] O que faz
 > Todo produto **cadastrado** no Tiny da fábrica (FábricaDomoby, CNPJ 27.556.613/0001-66, login `lojadomoby`) entra na tabela `produtos` do Supabase da fábrica em até **15 min** — **todas as classes** (fabricado, matéria-prima, simples, kit, variação). Alterações (mínimo, descrição, inativação) entram na **varredura da madrugada**. O webhook de **lançamentos de estoque** já fica ligado **capturando o payload cru** para a SESSAO-25.
 > Arquivos: `domoby-tiny-fabrica-produtos.json` (nesta pasta) · `Supabase-fabrica/23_tiny_fabrica_produtos.sql`. Estudo que embasa: [[N8N - Tiny Fabrica - Estudo do Cadastro]].
+
+> [!important] ↪️ 30/09/2026 — FLUXO ÚNICO: catálogo + estoque (D-76…D-80)
+> O dono: *"eu não quero vários fluxos para a mesma coisa, quero 1 único que faz o trabalho completinho sem erro"*. Este workflow passou a se chamar **"Domoby · Tiny FÁBRICA → produtos e estoque (fluxo único)"** (mesmo arquivo `domoby-tiny-fabrica-produtos.json`, **mesmo caminho de webhook** — o Tiny da fábrica não muda nada). A **carga do saldo (rodar 1×)** morreu: o arquivo saiu do cofre e o workflow deve ser **excluído no n8n**. Detalhe na seção [[#Fluxo único — o estoque conversando com a plataforma (30/09/2026)]].
 
 > [!warning] ↪️ 28/09/2026 — o saldo do Tiny saiu da conta dos ACABADOS
 > Conferido no banco real: o aviso de "lançamentos de estoque" **não cobre a venda** (nem quando o pedido nasce, nem quando sai) nem o "pronto" dos móveis — 9 avisos na vida toda, nenhum de móvel, o último em 25/09 (A-25). Por isso, desde o ajuste de 28/09 (D-70) o número dos produtos acabados na plataforma é a **contagem da logística** (entrada/baixa/contagem manual). O saldo do Tiny continua valendo para **matéria-prima e insumos** e aparece como referência no detalhe do produto. O mínimo também pode ser definido na plataforma (D-72 — vazio = vale o do Tiny, que este workflow segue trazendo). **Nada mudou no workflow.**
@@ -94,9 +97,38 @@ Feito pelo Cowork no Tiny da fábrica, com o dono acompanhando.
 
 > [!important] A carga inicial de 22–23/09 foi a do **catálogo** (varredura de produtos) — `produto.obter` **não traz saldo** (E-43).
 
-- Workflow **separado**, rodar 1× à mão: `domoby-tiny-fabrica-carga-saldo.json` (nesta pasta) — lê os produtos **ativos** em `produtos`, chama `produto.obter.estoque` (1 a cada 1,2 s) e grava cada saldo em `eventos` como aviso `estoque_fabrica` com `origem: carga_inicial`, `saldo` e `saldoReservado` (+ depósitos crus). Rodar de novo é seguro: a plataforma usa sempre a leitura MAIS NOVA de cada produto. **O workflow de produção não foi tocado.**
+- ↩️ **30/09/2026: este workflow saiu** (D-80) — a varredura do estoque das 04:00 do fluxo único faz o papel dele. Histórico: workflow **separado**, rodar 1× à mão: `domoby-tiny-fabrica-carga-saldo.json` (nesta pasta) — lê os produtos **ativos** em `produtos`, chama `produto.obter.estoque` (1 a cada 1,2 s) e grava cada saldo em `eventos` como aviso `estoque_fabrica` com `origem: carga_inicial`, `saldo` e `saldoReservado` (+ depósitos crus). Rodar de novo é seguro: a plataforma usa sempre a leitura MAIS NOVA de cada produto. **O workflow de produção não foi tocado.**
 - **Rodada pelo dono em 26/09/2026** (21:16–21:26 UTC): **442 avisos, 442 produtos** (todos os ativos).
 - O que a carga mostrou (F-05): o `saldo` é o **físico**; o **aviso** também manda o físico (Corte/Furo/FITAMENTO: aviso com saldo 0 × milhares reservados na carga). Fabricados: **93 de 168 com físico negativo** (venda que baixou sem o "pronto" correspondente) e reserva do Tiny **maior** que os pedidos abertos no banco (327: 44 × 0). Por isso a plataforma calcula a reserva pelos pedidos da loja (D-55).
+
+## Fluxo único — o estoque conversando com a plataforma (30/09/2026)
+
+**Por quê:** o balanço do Guilherme (29/09) não apareceu na plataforma — o aviso de estoque desta conta só vê o depósito **Geral da FÁBRICA**, e a equipe olha o **multiempresa** (Geral + os depósitos "Fábrica", "Loja" e "Desmontado" da empresa da LOJA). Regras de produto: D-76 (Tiny acima sobe a plataforma), D-77 (gesto da plataforma deixa o Tiny igual), D-78 (venda reserva a peça), D-79 (ligar copia o Tiny uma vez), D-80 (um fluxo só). O banco é a migration 42 — [[SUPA - Esquema do Banco]].
+
+```
+CATÁLOGO (igual)  A cada 15 min / Varredura 03:15 ─► pesquisar ─► Juntar ids ─► produto.obter ─► fn_upsert_produto
+AVISO             Webhook · lançamentos de estoque (fábrica E loja, mesmo endereço) ─► Supabase · aviso de estoque
+FILA              A cada minuto ─► próximos da fila (até 20) ─► Tiny F · obter estoque (1/1,2 s) ─► aplicar leitura
+                                   └► Gravar no Tiny? ─(sim)► Tiny · gravar estoque (1/1,2 s) ─► confirmar ajuste
+VARREDURA         Varredura do estoque 04:00 ─► Supabase · varrer estoque (todos os acabados para a fila)
+```
+
+- **Supabase · aviso de estoque** → `plt_fn_tiny_estoque_aviso(p)`: grava o aviso cru em `eventos` (o mesmo registro de antes) e, com o sincronismo ligado, põe o produto acabado na fila. Aviso da LOJA é achado pelo SKU. **O aviso não dispara mais a releitura do cadastro** — produto novo entra pelo ciclo de 15 min.
+- **próximos da fila** → `plt_fn_tiny_estoque_proximos(20)`; lista vazia (ou desligado) = o fluxo para ali.
+- **Tiny F · obter estoque** → `produto.obter.estoque.php` com o token da FÁBRICA (`TINY_FABRICA_TOKEN`) — o saldo somado das duas empresas + cada depósito.
+- **aplicar leitura** → `plt_fn_tiny_estoque_leitura(produto, versao, resposta)`: a plataforma decide (copiar / subir / devolver o ajuste). Erro do Tiny (limite, fora do ar) volta para a plataforma, que tenta de novo no minuto seguinte; 5 falhas seguidas → o produto para e aparece em Configurações → Tiny.
+- **Tiny · gravar estoque** → `produto.atualizar.estoque.php`, tipo **B** (balanço) no depósito que a plataforma mandar: **"Fábrica" da LOJA pela conta da loja** (`TINY_TOKEN` — o mesmo do fluxo principal) ou **Geral pela conta da fábrica**. Balanço é repetível (reenvio não dobra); saída "S" só quando o balanço ficaria negativo.
+- **confirmar ajuste** → `plt_fn_tiny_estoque_ajustado(...)`: sai da fila e fica na trilha (`estoque_tiny_ajustado`).
+- **Cota:** até 20 leituras + os ajustes por minuto na fila (bem abaixo dos 60/min); a varredura do catálogo (03:15) e a do estoque (04:00) não se cruzam.
+- **Execuções:** o workflow guarda **só as com erro** (a fila roda a cada minuto — 1.440 execuções vazias por dia). O que foi feito fica na plataforma.
+
+### Como trocar no n8n (uma vez)
+
+1. Abrir o workflow atual **"Domoby · Tiny FÁBRICA → produtos no Supabase"** → selecionar tudo (Ctrl+A) → apagar → colar o conteúdo de `domoby-tiny-fabrica-produtos.json` → **Salvar** (fica ativo; o id e o endereço do webhook continuam os mesmos). Conferir o nome novo no topo.
+2. **Excluir** o workflow **"Domoby · Tiny FÁBRICA → carga do saldo (rodar 1×)"**.
+3. No **Tiny da LOJA**: Configurações → Webhooks → ligar **"lançamentos de estoque"** com a **mesma URL** de produção do webhook deste fluxo (a da fábrica).
+4. Conferir que o compose do n8n tem `TINY_TOKEN` e `TINY_FABRICA_TOKEN` (`printenv | grep TINY` — só ver que existem).
+5. Na plataforma, um admin liga em **Estoque → Configurações → Tiny** ("Ligar o sincronismo com o Tiny") — a cópia inicial leva uns 15 min (~230 produtos a 20 por minuto).
 
 ## Riscos e observações
 

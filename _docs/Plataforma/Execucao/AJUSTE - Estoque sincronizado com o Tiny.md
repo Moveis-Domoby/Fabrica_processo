@@ -10,7 +10,7 @@ tags: [execucao, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 
 **Branch:** `estoque-sincronizado-tiny` (na pasta principal — o dono pediu, 29/09: *"não crie worktree nova, trabalha na principal"*)
 **Migration:** 42 — `supabase/migrations/20260930120000_plt_estoque_sincronizado_tiny.sql`
-**Numeração usada:** D-76…D-80 · RF-105…RF-108 · E-68+ · A-38+ (conferido em todas as cópias em 30/09; a maior em uso era E-67, da frente do Frete)
+**Numeração usada:** D-76…D-80 · RF-105…RF-108 · E-69/E-70 · A-39/A-40 (conferido em todas as cópias em 30/09; a maior em uso era E-67, da frente do Frete; A-38, E-68 e D-81 ficaram com a sessão das fotos do Tiny, que trabalha na mesma pasta)
 
 ## O pedido do dono (29/09, depois do vídeo do Guilherme)
 
@@ -25,12 +25,12 @@ tags: [execucao, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 - [x] 1. Diagnóstico do vídeo + dados reais (o multiempresa = 4 depósitos de 2 empresas; o aviso da fábrica só vê o Geral)
 - [x] 2. Banco: fila do Tiny, leitura que sobe a plataforma, ajuste que iguala o Tiny, venda que reserva, ligar com cópia (migration 42)
 - [x] 3. Testes do banco (35 verificações novas; 552 no total, duas rodadas)
-- [ ] 4. n8n: UM fluxo só (aviso da fábrica e da loja → fila → leitura → ajuste; varredura noturna; catálogo continua) — a carga avulsa do saldo morre
-- [ ] 5. Tela: PCP marca a peça reservada; detalhe do produto mostra o Tiny somado e a reserva; Configurações com a situação do Tiny e ligar/desligar (admin)
-- [ ] 6. Aplicar a 42 no banco real (`--so`), advisors, esquema/`.sql`
+- [x] 4. n8n: UM fluxo só (aviso da fábrica e da loja → fila → leitura → ajuste; varredura noturna; catálogo continua) — a carga avulsa do saldo morre
+- [x] 5. Tela: PCP marca a peça reservada; detalhe do produto mostra o Tiny somado e a reserva; Configurações com a situação do Tiny e ligar/desligar (admin)
+- [x] 6. Aplicar a 42 no banco real (`--so`), advisors, esquema/`.sql`
 - [ ] 7. Verificação ao vivo (tela logada) + publicar (main → Vercel)
 - [ ] 8. n8n importado pelo dono + aviso de estoque ligado na conta da LOJA → ligar o sincronismo (cópia inicial) e conferir
-- [ ] 9. Cofre: D-76…D-80, RF, esquema, nota do n8n, memória de aprendizado, handoff, mapa, próximos passos
+- [x] 9. Cofre: D-76…D-80, RF, esquema, nota do n8n, memória de aprendizado, handoff, mapa, próximos passos
 
 ## Diagnóstico (só leitura no banco real, 29–30/09)
 
@@ -58,13 +58,22 @@ tags: [execucao, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 - `supabase/migrations/20260930120000_plt_estoque_sincronizado_tiny.sql` (nova — 42)
 - `supabase/migrations/20260927120000_plt_producao_concluida_cancelamentos.sql` (37: o `validate` do check de tipos saiu — E-19; `drop` antes de recriar a sugestão — E-17)
 - `supabase/migrations/20260928120000_plt_itens_fora_da_producao.sql` (39: `drop` antes de recriar a sugestão — E-17)
-- `supabase/testes/testar-migrations.mjs` (bloco "Estoque × Tiny", 35 verificações, em escopo próprio)
+- `supabase/testes/testar-migrations.mjs` (bloco "Estoque × Tiny", 37 verificações, em escopo próprio)
+- `src/logistica/api.ts`, `src/logistica/estoque.ts` (+ teste), `src/logistica/componentes/{PainelConfiguracoes,ModalMovimentarEstoque,ModalProdutoEstoque,PecasDoEstoque}.tsx`, `src/kanban/api.ts`, `src/kanban/componentes/ModalLiberarPedido.tsx`
+- `_docs/Fabrica n8n/domoby-tiny-fabrica-produtos.json` (fluxo único, gerado por script a partir do atual — catálogo intacto, mesmo caminho de webhook) · `domoby-tiny-fabrica-carga-saldo.json` (removido)
+- Cofre: Decisões (D-76…D-80, ↪️ D-62/D-70), Requisitos (RF-105…RF-108), Esquema do Banco, nota do n8n, Memória (E-69, E-70, A-39, A-40), handoff, mapa, próximos passos
 
 ## Comandos e resultados
 
 - `node supabase/testes/testar-migrations.mjs` → antes dos testes novos: tudo verde (a 42 aplica duas vezes); com o bloco novo: **552 ✔, TUDO VERDE** (a 1ª tentativa quebrou só por nome de variável repetido com bloco antigo → escopo próprio `{ … }`).
-- Commit `ae60864` na branch.
+- Commit `ae60864` (banco + testes) e `94599f5` (telas + n8n) na branch.
+- 2ª rodada do harness (lista com `reservadas_estoque` e peça com `reservada_numero`): **554 ✔**.
+- `tsc -b` ✔ · `eslint src --max-warnings=0` ✔ · `vitest run` **84/84** ✔ · `npm run build` ✔ · grep de mojibake no `src` limpo.
+- `npm run banco:aplicar -- --confirmar --so 20260930120000_plt_estoque_sincronizado_tiny.sql` → ✔; integração idêntica (`e2109f3a…`, 65 colunas; clientes 10710 · pedidos 5431 · itens 8134 · eventos 9762). No banco real: cron `plt-estoque-reservas` ativo; portas do n8n só `service_role`; situação/ligar só `authenticated` (anon não); maquinaria fora da API; chave desligada; advisors só com o esperado (+3 WARN de portas com gate + INFO da fila sem política).
 
 ## Diário
+
+- 30/09 madrugada: outra sessão ("Imagens de produtos Tiny") passou a trabalhar na MESMA pasta — combinado por mensagem: ela não troca a branch nem commita aqui (commit dela por índice temporário numa branch própria), eu não incluo os arquivos dela (FotoProduto, CartaoProdutoEstoque, a linha do className no ModalProdutoEstoque); numeração: ela ficou com A-38/E-68/D-81, eu com E-69/E-70/A-39/A-40.
+- 30/09 madrugada: plataforma e n8n sem login no navegador do app → telas logadas e troca do fluxo ficam para o dono (não se entra com senha).
 
 - 30/09 manhã: vídeo visto quadro a quadro (ffmpeg portátil no scratchpad — sem ffmpeg na máquina); outra sessão consultada; leitura do cofre; worktree criada e **removida a pedido do dono** (trabalho na pasta principal); plano aprovado ("já tá aprovado").
