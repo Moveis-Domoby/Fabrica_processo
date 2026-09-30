@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import {
   keepPreviousData,
@@ -113,12 +113,6 @@ export function PCP() {
   })
   const totalUnidadesNoPcp = [...colunasUnidades.values()].reduce((s, c) => s + c.total, 0)
 
-  const todosOsCards = useMemo(
-    () => [...cardsPedidoAbertos, ...unidadesNoPcp],
-    [cardsPedidoAbertos, unidadesNoPcp],
-  )
-  const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
-
   // SESSAO-25: o card de reposição não tem pedido — o resumo vem da porta dele.
   const idsReposicao = cardsPedidoAbertos
     .filter((c) => c.tipo === 'reposicao')
@@ -155,6 +149,53 @@ export function PCP() {
   const [parametros, setParametros] = useSearchParams()
   const aba: 'quadro' | 'cancelados' =
     parametros.get('aba') === 'cancelados' ? 'cancelados' : 'quadro'
+
+  // Ajuste Estoque 2 (resposta 6 do dono): a bolinha vermelha do Estoque chega
+  // com ?liberar=<card do pedido> — a decisão abre sozinha. Uma consulta
+  // própria procura o card página a página NO SERVIDOR e devolve o objeto
+  // pronto (nada de estado intermediário); o modal abre por derivação.
+  const idLiberar = (() => {
+    const v = Number(parametros.get('liberar') ?? '')
+    return Number.isInteger(v) && v > 0 ? v : null
+  })()
+  const { data: cardDoLink = null, isFetched: buscouLiberar } = useQuery({
+    queryKey: ['cards', 'pcp-liberar', idLiberar],
+    enabled: idLiberar !== null && setorPcp !== undefined,
+    queryFn: async () => {
+      let vistos = 0
+      for (let pagina = 0; pagina < 50; pagina++) {
+        const r = await buscarCardsPedidoPcp({ pagina })
+        const card = r.cards.find((c) => c.id === idLiberar)
+        if (card) return card
+        vistos += r.cards.length
+        if (r.cards.length === 0 || vistos >= r.total) return null
+      }
+      return null
+    },
+  })
+  function limparLiberar() {
+    const novos = new URLSearchParams(parametros)
+    novos.delete('liberar')
+    setParametros(novos, { replace: true })
+  }
+  useEffect(() => {
+    if (idLiberar !== null && buscouLiberar && cardDoLink === null) {
+      notificar({
+        titulo: 'Este pedido não está mais aguardando liberação',
+        descricao: 'O PCP já decidiu, ou o pedido saiu do quadro.',
+        tom: 'atencao',
+      })
+      limparLiberar()
+    }
+    // limparLiberar/notificar são estáveis no uso — o gatilho é o resultado da busca.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idLiberar, buscouLiberar, cardDoLink])
+
+  const todosOsCards = useMemo(
+    () => [...cardsPedidoAbertos, ...unidadesNoPcp, ...(cardDoLink ? [cardDoLink] : [])],
+    [cardsPedidoAbertos, unidadesNoPcp, cardDoLink],
+  )
+  const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
 
   // SESSAO-24: unidade de passagem pelo PCP se arrasta (o banco decide o gesto).
   const mutacaoSoltar = useMutation({
@@ -369,16 +410,21 @@ export function PCP() {
       )}
       {setorPcp && (
         <ModalLiberarPedido
-          cardPedido={cardParaLiberar}
-          pedido={
-            cardParaLiberar && cardParaLiberar.pedido_id !== null
-              ? pedidosPorId.get(cardParaLiberar.pedido_id)
-              : undefined
+          // Ajuste Estoque 2: a bolinha do Estoque (?liberar=) abre por derivação.
+          cardPedido={cardParaLiberar ?? cardDoLink}
+          pedido={(() => {
+            const card = cardParaLiberar ?? cardDoLink
+            return card && card.pedido_id !== null ? pedidosPorId.get(card.pedido_id) : undefined
+          })()}
+          reposicao={
+            (cardParaLiberar ?? cardDoLink) ? reposicoesPorId.get((cardParaLiberar ?? cardDoLink)!.id) : undefined
           }
-          reposicao={cardParaLiberar ? reposicoesPorId.get(cardParaLiberar.id) : undefined}
           setorPcp={setorPcp}
           setores={setores}
-          aoFechar={() => setCardParaLiberar(null)}
+          aoFechar={() => {
+            setCardParaLiberar(null)
+            if (idLiberar !== null) limparLiberar()
+          }}
         />
       )}
     </div>

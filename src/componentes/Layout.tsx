@@ -294,6 +294,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     ...(souAdmin
                       ? [
                           { para: '/admin/tempo', rotulo: 'Controle de tempo' },
+                          { para: '/admin/estoque', rotulo: 'Estoque' },
                           { para: '/admin/api', rotulo: 'API e integrações' },
                           { para: '/admin/caminhoes', rotulo: 'Caminhões' },
                         ]

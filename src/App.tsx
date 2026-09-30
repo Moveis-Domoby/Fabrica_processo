@@ -21,6 +21,7 @@ import { Rotas } from '@/paginas/Rotas'
 import { Afazeres } from '@/paginas/Afazeres'
 import { AfazeresDoTime } from '@/paginas/AfazeresDoTime'
 import { AdminApi } from '@/paginas/AdminApi'
+import { AdminEstoque } from '@/paginas/AdminEstoque'
 import { Estrutura } from '@/paginas/Estrutura'
 import { MeuPerfil } from '@/paginas/MeuPerfil'
 import { Chat } from '@/paginas/Chat'
@@ -133,6 +134,7 @@ export function App() {
             {/* só admin */}
             <Route element={<RotaProtegida nivel="admin" />}>
               <Route path="/admin/tempo" element={<ControleTempo />} />
+              <Route path="/admin/estoque" element={<AdminEstoque />} />
               <Route path="/admin/api" element={<AdminApi />} />
               <Route path="/admin/caminhoes" element={<Caminhoes />} />
             </Route>
