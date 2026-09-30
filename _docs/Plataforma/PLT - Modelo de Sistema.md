@@ -584,8 +584,9 @@ SESSAO-05.
   `group-focus-visible`, ancorado à direita); a ativa é preenchida (`bg-acao`). O nome também vai
   no `aria-label` — toda aba precisa de ícone. Embaixo do título, uma linha curta diz onde a pessoa
   está ("Top 20+ · os mais vendidos primeiro") — no celular não existe passar o mouse.
-- **Cartão de produto com foto** (`CartaoProdutoEstoque`): **a foto em cima** (`h-40`,
-  `object-cover`, ou o ícone `Package` em `superficie-sutil`), com o **rank** numa pílula escura no
+- **Cartão de produto com foto** (`CartaoProdutoEstoque`): **a foto em cima** (↩️ 30/09, D-81:
+  quadro **quadrado** `aspect-square`, a foto **inteira** `object-contain` sobre **branco** — nunca
+  `object-cover`, que cortava o móvel em pé; sem foto, o ícone `Package` em `superficie-sutil`), com o **rank** numa pílula escura no
   canto (1º, 2º…) e o botão de câmera (44px, canto inferior direito) para quem pode trocar;
   embaixo: nome (2 linhas no máximo), SKU e vendas de 90 dias em `text-xs`, o número do estoque em
   `text-xl` com "em estoque", o mínimo em `text-xs` à direita, o sinal (pílula com ícone + texto:
@@ -597,7 +598,12 @@ SESSAO-05.
 - **Foto de produto** (`FotoProduto`): reduzida no aparelho antes de subir (`src/lib/imagem.ts` —
   lado maior 1280px, JPEG 0,82; se falhar, sobe a original), gravada na pasta do SKU
   (`pastaDoProduto`, a mesma regra do tablet) e o caminho vai para o produto — a lista traz o
-  caminho numa consulta só (nunca listar o storage por cartão).
+  caminho numa consulta só (nunca listar o storage por cartão). **Mostrar foto de produto (D-81):
+  sempre inteira** — `object-contain` sobre `bg-white` (o fundo das fotos do catálogo, em qualquer
+  tema); no detalhe, quadrado centralizado (`mx-auto aspect-square w-full max-w-sm sm:max-w-md`);
+  nas miniaturas (`size-12`), idem. **Recorte (PNG transparente) sobe com fundo BRANCO** — a
+  redução (`reduzirImagem`) pinta o fundo antes do `drawImage` (sem isso, o JPEG saía com fundo
+  preto; corrigido em 30/09).
 - **Movimentar estoque** (`ModalMovimentarEstoque`): `FiltroPill` com Entrada · Baixa · Contagem,
   uma frase do que cada uma é, o campo numérico grande e a **prévia antes de confirmar** ("Ficam 5
   no estoque", "Saem 3 peças (de 5 para 2)", "Só há 2 — não dá para dar baixa em 3") — lógica pura

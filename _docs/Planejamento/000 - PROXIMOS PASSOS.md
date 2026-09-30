@@ -79,15 +79,17 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 10. ✅ SESSAO-29 respondida por inteiro (D-50) — **📐 pronta para code**; só falta você dizer quando ela entra na fila.
 11. ~~Trocar o token da API v2 do Tiny~~ — o dono decidiu **não** trocar (23/09).
 8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
-12. **Estoque (28/09):** contagem inicial pela logística · capacidade do galpão · conferir os mínimos · fotos dos produtos · depois, ligar (ou não) a reposição automática — tudo no [[handoff_2026_09_28_ajuste_estoque_contagem_top20]].
+12. **Estoque (28/09):** contagem inicial pela logística · capacidade do galpão · conferir os mínimos · ~~fotos dos produtos~~ ✅ **30/09: 144 produtos com a foto do Tiny** (47 móveis ativos seguem sem foto porque o Tiny não tem — a logística põe pela câmera) · depois, ligar (ou não) a reposição automática — tudo no [[handoff_2026_09_28_ajuste_estoque_contagem_top20]].
 13. ✅ **Q-71 (ajuste do Frete) — respondida em 29/09: fica tudo como está.** Espelho Adnet, Longarina e Carro de mão: *"quando eles sentirem falta, eles cadastram"*. Lâmpadas em kit: *"são insumos"*, e continuam em Matéria-prima e insumos. "Fechadura (com instalação)": fica sem código; é insumo e serviço, e desde a D-70 a venda não baixa o estoque, com ou sem código (a premissa antiga estava velha — E-67).
 14. ✅ **Painel do PCP = quadro do PCP (28/09, D-75):** a Visão do dia dizia 233 "a liberar" com 200 já entregues no Tiny — agora conta o que o quadro mostra (33), reposição inclusa, e a "mais antiga" também; "liberadas hoje" ficou como estava. Aplicado com o seu OK e **mesclado na `main` em 29/09** ([[handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro]]).
+15. **Fotos dos produtos (30/09, D-81):** ✅ as fotos do Tiny entraram (144 produtos) e agora aparecem **inteiras** — quadro quadrado, sem corte ([[handoff_2026_09_30_ajuste_fotos_tiny]]). **Próximo passo que você pediu:** a **cópia automática** — produto novo ou foto trocada no Tiny chega sozinha à plataforma. O Claude desenha e traz para você aprovar.
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 
 - **P17** — o webhook de vendas não cobre marcador, contato renomeado nem campo limpo: deriva silenciosa Tiny × banco (acumulado corrigido em 22/09; raiz na SESSAO-29).
 - **P1** — não existe alerta de erro nas automações do n8n (a SESSAO-25 propõe resolver junto). **P4** — token do Tiny v2 em texto puro no workflow. Lista completa: [[N8N - Pendencias e Riscos]].
 - Débito técnico do módulo Comercial: [[PLT - Comercial - Debito Tecnico]].
+- ✅ ~~Foto com fundo transparente vira fundo PRETO pela câmera do Estoque~~ — corrigido em 30/09 com o OK do dono (a redução pinta o fundo de branco — D-81).
 
 ## Ver também
 

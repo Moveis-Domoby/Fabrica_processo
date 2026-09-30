@@ -119,7 +119,7 @@ Catálogo de produtos da Domoby, espelho do **Tiny da FÁBRICA** (FábricaDomoby
 | `raw` | jsonb | o `retorno.produto` INTEIRO do `produto.obter` (preço, NCM, GTIN, variações, kit…) |
 | `criado_em` / `atualizado_em` | timestamptz | `atualizado_em` só muda quando o `raw` muda |
 | `minimo_plataforma` | numeric(14,4) | 🆕 28/09/2026 (migration 40 da plataforma, D-72): o mínimo definido NA PLATAFORMA (aba Configurações do Estoque); **nulo = vale `estoque_minimo`** (o do Tiny). Check `produtos_minimo_plataforma_ck` (≥ 0). Escrito só por `plt_fn_estoque_definir_minimo`/`plt_fn_estoque_aplicar_sugestoes` — o `fn_upsert_produto` grava só a lista explícita dele e nunca toca |
-| `imagem_caminho` | text | 🆕 28/09/2026 (migration 40, D-73): a foto (capa) do produto no bucket `plt-imagens`, pasta `produtos/{sku}/…` (a biblioteca do tablet — D-28). Escrito só por `plt_fn_estoque_definir_imagem` (logística/admin) |
+| `imagem_caminho` | text | 🆕 28/09/2026 (migration 40, D-73): a foto (capa) do produto no bucket `plt-imagens`, pasta `produtos/{sku}/…` (a biblioteca do tablet — D-28; sem SKU: `produtos/tiny-{tiny_id}/…`). Escrito só por `plt_fn_estoque_definir_imagem` (logística/admin). **30/09/2026 (D-81):** preenchido em 144 produtos com a foto do Tiny — o link vem em `raw->'anexos'[].anexo` (S3 público do Tiny); `raw->'imagens_externas'` vem vazio em todos |
 
 ## Função `fn_upsert_produto(p jsonb) → bigint` — ✅ aplicada em 2026-09-21
 
