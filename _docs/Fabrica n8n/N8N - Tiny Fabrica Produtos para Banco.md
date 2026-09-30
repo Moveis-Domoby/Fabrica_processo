@@ -16,6 +16,9 @@ tags: [n8n, tiny, fabrica, produtos, supabase, sessao-25]
 > [!important] ↪️ 30/09/2026 — FLUXO ÚNICO: catálogo + estoque (D-76…D-80)
 > O dono: *"eu não quero vários fluxos para a mesma coisa, quero 1 único que faz o trabalho completinho sem erro"*. Este workflow passou a se chamar **"Domoby · Tiny FÁBRICA → produtos e estoque (fluxo único)"** (mesmo arquivo `domoby-tiny-fabrica-produtos.json`, **mesmo caminho de webhook** — o Tiny da fábrica não muda nada). A **carga do saldo (rodar 1×)** morreu: o arquivo saiu do cofre e o workflow deve ser **excluído no n8n**. Detalhe na seção [[#Fluxo único — o estoque conversando com a plataforma (30/09/2026)]].
 
+> [!note] ↪️ 30/09/2026 — as FOTOS dos produtos vêm daqui, mas não passam pelo n8n (D-81, D-82)
+> O `produto.obter` traz `anexos` (o link da foto no armazém do Tiny) e este fluxo já grava o retorno inteiro em `produtos.raw`. A cópia da foto para a plataforma é do **banco + Edge Function `fotos-tiny`** (relógio interno de 5 em 5 min, que só chama a função quando há foto nova). **Nada mudou neste workflow.** Consequência do desenho daqui: produto novo ganha a foto em ~20 min; foto trocada num produto que já existe, depois da varredura das 03:15.
+
 > [!warning] ↪️ 28/09/2026 — o saldo do Tiny saiu da conta dos ACABADOS
 > Conferido no banco real: o aviso de "lançamentos de estoque" **não cobre a venda** (nem quando o pedido nasce, nem quando sai) nem o "pronto" dos móveis — 9 avisos na vida toda, nenhum de móvel, o último em 25/09 (A-25). Por isso, desde o ajuste de 28/09 (D-70) o número dos produtos acabados na plataforma é a **contagem da logística** (entrada/baixa/contagem manual). O saldo do Tiny continua valendo para **matéria-prima e insumos** e aparece como referência no detalhe do produto. O mínimo também pode ser definido na plataforma (D-72 — vazio = vale o do Tiny, que este workflow segue trazendo). **Nada mudou no workflow.**
 
