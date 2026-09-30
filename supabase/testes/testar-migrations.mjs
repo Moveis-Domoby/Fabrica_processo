@@ -7960,6 +7960,35 @@ conferir(
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco 46
 
+// ============================================================================
+// O PCP EM ABAS (30/09 — migration 47, ↪️ D-86): a porta do quadro ganhou o
+// p_grupo — nulo = tudo (o painel da Visão do dia continua batendo — D-75),
+// 'pedido' = aguardando liberação, 'reposicao' = solicitações de estoque.
+// ============================================================================
+{
+titulo('PCP em abas (30/09) · a porta do quadro separa pedidos e solicitações de estoque')
+
+const um47 = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.admin}', false)`)
+const grupos47 = await um47(`
+  select (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0))                 as tudo,
+         (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0, 'pedido'))       as pedidos,
+         (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0, 'reposicao'))    as reposicoes,
+         (select bool_and(q.tipo = 'pedido')    from public.plt_fn_cards_pedido_pcp(100, 0, 'pedido') q)    as so_pedidos,
+         (select bool_and(q.tipo = 'reposicao') from public.plt_fn_cards_pedido_pcp(100, 0, 'reposicao') q) as so_reposicoes,
+         (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname = 'plt_fn_cards_pedido_pcp')            as assinaturas`)
+conferir(
+  grupos47.tudo === grupos47.pedidos + grupos47.reposicoes
+    && grupos47.reposicoes >= 1 && grupos47.pedidos >= 1
+    && grupos47.so_pedidos === true && grupos47.so_reposicoes === true
+    && grupos47.assinaturas === 1,
+  'nulo = tudo (pedidos + solicitações batem na soma); cada grupo vem puro; UMA assinatura só (sem sobrecarga — A-12)',
+  JSON.stringify(grupos47),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+} // fim do bloco 47
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

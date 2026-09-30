@@ -27,6 +27,7 @@ import { MeuPerfil } from '@/paginas/MeuPerfil'
 import { Chat } from '@/paginas/Chat'
 import { Estoque } from '@/paginas/Estoque'
 import { PedidosAguardo } from '@/paginas/PedidosAguardo'
+import { Cancelados } from '@/paginas/Cancelados'
 import { Danificados } from '@/paginas/Danificados'
 import { Programacao } from '@/paginas/Programacao'
 import { Caminhoes } from '@/paginas/Caminhoes'
@@ -98,6 +99,7 @@ export function App() {
                 <Route path="/fabrica/logistica/estoque" element={<Estoque />} />
                 <Route path="/fabrica/logistica/pedidos-em-aguardo" element={<PedidosAguardo />} />
                 <Route path="/fabrica/logistica/danificados" element={<Danificados />} />
+                <Route path="/fabrica/logistica/cancelados" element={<Cancelados />} />
                 <Route path="/fabrica/rotas/entregas" element={<Rotas />} />
                 <Route path="/fabrica/rotas/programacao" element={<Programacao />} />
               </Route>

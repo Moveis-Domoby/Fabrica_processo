@@ -20,17 +20,18 @@ import {
   Plus,
   Search,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Paginacao, useNotificacao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Dica, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
   buscarCardsPedidoPcp,
   buscarEtapasDoSetor,
   buscarSetores,
-  pedidosCancelados,
+  pedidosResumo,
   reposicoesResumo,
   soltarCard,
 } from '@/kanban/api'
-import type { PedidoCancelado, ReposicaoResumo } from '@/kanban/api'
+import type { ReposicaoResumo } from '@/kanban/api'
+import type { PedidoResumo } from '@/kanban/tipos'
 import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
@@ -80,7 +81,7 @@ export function PCP() {
   const consultasPedidos = useQueries({
     queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
       queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ pagina }),
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'pedido' }),
       enabled: setorPcp !== undefined,
       refetchInterval: ATUALIZA_A_CADA,
       placeholderData: keepPreviousData,
@@ -96,6 +97,31 @@ export function PCP() {
     0
   const carregandoPedidos = consultasPedidos.some((c) => c.isPending)
   const carregandoMaisPedidos = consultasPedidos[consultasPedidos.length - 1]?.isFetching ?? false
+
+  // Rodada de 30/09: as SOLICITAÇÕES DE ESTOQUE (reposição) ganharam aba
+  // própria — lançada à mão ou pela automática, ela aparece aqui na hora, sem
+  // se perder atrás dos pedidos na paginação.
+  const [paginasSolicitacoes, setPaginasSolicitacoes] = useState(1)
+  const consultasSolicitacoes = useQueries({
+    queries: Array.from({ length: paginasSolicitacoes }, (_, pagina) => ({
+      queryKey: ['cards', 'pcp-solicitacoes', setorPcp?.id, pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'reposicao' }),
+      enabled: setorPcp !== undefined,
+      refetchInterval: ATUALIZA_A_CADA,
+      placeholderData: keepPreviousData,
+    })),
+  })
+  const cardsSolicitacoes = useMemo(
+    () => consultasSolicitacoes.flatMap((c) => c.data?.cards ?? []),
+    [consultasSolicitacoes],
+  )
+  const totalSolicitacoes =
+    consultasSolicitacoes[consultasSolicitacoes.length - 1]?.data?.total ??
+    consultasSolicitacoes[0]?.data?.total ??
+    0
+  const carregandoSolicitacoes = consultasSolicitacoes.some((c) => c.isPending)
+  const carregandoMaisSolicitacoes =
+    consultasSolicitacoes[consultasSolicitacoes.length - 1]?.isFetching ?? false
 
   const { data: etapasPcp = [] } = useQuery({
     queryKey: ['etapas', setorPcp?.id ?? 0],
@@ -114,8 +140,7 @@ export function PCP() {
   const totalUnidadesNoPcp = [...colunasUnidades.values()].reduce((s, c) => s + c.total, 0)
 
   // SESSAO-25: o card de reposição não tem pedido — o resumo vem da porta dele.
-  const idsReposicao = cardsPedidoAbertos
-    .filter((c) => c.tipo === 'reposicao')
+  const idsReposicao = cardsSolicitacoes
     .map((c) => c.id)
     .sort((a, b) => a - b)
   const { data: reposicoesPorId = new Map<number, ReposicaoResumo>() } = useQuery({
@@ -145,10 +170,13 @@ export function PCP() {
   const [modalNovo, setModalNovo] = useState(false)
   const [cardParaLiberar, setCardParaLiberar] = useState<Card | null>(null)
 
-  // SESSAO-24: a aba vive na URL (?aba=cancelados) — Voltar e link funcionam.
+  // Rodada de 30/09: três abas — solicitações de estoque, aguardando liberação
+  // e todos os pedidos. A aba vive na URL (?aba=) — Voltar e link funcionam;
+  // ?aba=cancelados (bookmark antigo) leva à tela nova, na Logística.
   const [parametros, setParametros] = useSearchParams()
-  const aba: 'quadro' | 'cancelados' =
-    parametros.get('aba') === 'cancelados' ? 'cancelados' : 'quadro'
+  const abaParam = parametros.get('aba')
+  const aba: 'solicitacoes' | 'quadro' | 'todos' =
+    abaParam === 'solicitacoes' ? 'solicitacoes' : abaParam === 'todos' ? 'todos' : 'quadro'
 
   // Ajuste Estoque 2 (resposta 6 do dono): a bolinha vermelha do Estoque chega
   // com ?liberar=<card do pedido> — a decisão abre sozinha. Uma consulta
@@ -211,18 +239,27 @@ export function PCP() {
 
   if (!carregando && !souAdmin && !souDoPcp) return <Navigate to="/" replace />
   if (!perfil) return null
+  // A tela Cancelados mudou para a Logística (rodada de 30/09) — bookmark antigo segue.
+  if (abaParam === 'cancelados') return <Navigate to="/fabrica/logistica/cancelados" replace />
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
+        <div className="relative flex items-center gap-1">
           <h1 className="text-2xl sm:text-3xl">PCP</h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
-            {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
-            Todo pedido entra por aqui — e o estoque manda para cá a reposição do que ficou
-            abaixo do mínimo. Libere as unidades para os setores — dá para liberar parcial e
-            terminar depois.
-          </p>
+          <Dica rotulo="Como o PCP funciona">
+            <span className="flex flex-col gap-2">
+              {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
+              <span>
+                Todo pedido entra por aqui — e o estoque manda para cá a solicitação do que
+                ficou abaixo do mínimo.
+              </span>
+              <span>
+                Libere as unidades para os setores — dá para liberar parcial e terminar depois.
+              </span>
+            </span>
+          </Dica>
         </div>
         <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
           Novo card de pedido
@@ -233,8 +270,9 @@ export function PCP() {
         rotulo="Visões do PCP"
         idBase="pcp"
         abas={[
-          { valor: 'quadro', rotulo: 'Aguardando liberação', icone: <PackageOpen aria-hidden /> },
-          { valor: 'cancelados', rotulo: 'Cancelados', icone: <Ban aria-hidden /> },
+          { valor: 'solicitacoes', rotulo: 'Solicitação de estoque', icone: <PackagePlus aria-hidden /> },
+          { valor: 'quadro', rotulo: 'Pedidos aguardando liberação', icone: <PackageOpen aria-hidden /> },
+          { valor: 'todos', rotulo: 'Todos os pedidos', icone: <Inbox aria-hidden /> },
         ]}
         valor={aba}
         aoMudar={(valor) => {
@@ -245,11 +283,58 @@ export function PCP() {
         }}
       />
 
-      {aba === 'cancelados' ? (
-        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-cancelados">
-          <PainelCancelados />
+      {aba === 'solicitacoes' && (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-solicitacoes">
+          <section aria-label="Solicitações de estoque" className="flex flex-col gap-3">
+            <h2 className="text-lg">
+              Solicitação de estoque{' '}
+              <span className="text-texto-suave tabular-nums">({totalSolicitacoes})</span>
+            </h2>
+            {carregandoSolicitacoes && <p className="text-sm text-texto-fraco">Carregando…</p>}
+            {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && (
+              <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+                Nenhuma solicitação de estoque agora — elas nascem quando um produto do Top X
+                fica abaixo do mínimo (pela automática ou pelo lançamento da logística).
+              </p>
+            )}
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {cardsSolicitacoes.map((card) => (
+                <CartaoReposicaoPcp
+                  key={card.id}
+                  card={card}
+                  resumo={reposicoesPorId.get(card.id)}
+                  agora={agora}
+                  confirmandoArquivar={arquivandoId === card.id}
+                  arquivando={naoProduzir.isPending && naoProduzir.variables === card.id}
+                  aoLiberar={() => setCardParaLiberar(card)}
+                  aoPedirArquivar={() => setArquivandoId(card.id)}
+                  aoCancelarArquivar={() => setArquivandoId(null)}
+                  aoArquivar={() => naoProduzir.mutate(card.id)}
+                />
+              ))}
+            </ul>
+            {cardsSolicitacoes.length < totalSolicitacoes && (
+              <Botao
+                variante="secundaria"
+                icone={<ChevronDown />}
+                className="self-start"
+                carregando={carregandoMaisSolicitacoes}
+                onClick={() => setPaginasSolicitacoes((p) => p + 1)}
+              >
+                Ver mais ({totalSolicitacoes - cardsSolicitacoes.length})
+              </Botao>
+            )}
+          </section>
         </div>
-      ) : (
+      )}
+
+      {aba === 'todos' && (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-todos">
+          <PainelTodosPedidos />
+        </div>
+      )}
+
+      {aba === 'quadro' && (
       <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-quadro" className="flex flex-col gap-6">
       <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
         <h2 className="text-lg">
@@ -267,22 +352,6 @@ export function PCP() {
 
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cardsPedidoAbertos.map((card) => {
-            if (card.tipo === 'reposicao') {
-              return (
-                <CartaoReposicaoPcp
-                  key={card.id}
-                  card={card}
-                  resumo={reposicoesPorId.get(card.id)}
-                  agora={agora}
-                  confirmandoArquivar={arquivandoId === card.id}
-                  arquivando={naoProduzir.isPending && naoProduzir.variables === card.id}
-                  aoLiberar={() => setCardParaLiberar(card)}
-                  aoPedirArquivar={() => setArquivandoId(card.id)}
-                  aoCancelarArquivar={() => setArquivandoId(null)}
-                  aoArquivar={() => naoProduzir.mutate(card.id)}
-                />
-              )
-            }
             const resumo = card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)
             const liberadas = resumo?.unidades_liberadas ?? 0
             const total = resumo?.total_unidades ?? 0
@@ -535,123 +604,113 @@ function CartaoReposicaoPcp({
   )
 }
 
-const CANCELADOS_POR_PAGINA = 20
+const TODOS_POR_PAGINA = 20
 
 function formatarDataPedido(iso: string | null): string {
   return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
 }
 
 /**
- * SESSAO-24 — a aba CANCELADOS do PCP: todo pedido cancelado no Tiny, com o
- * que aconteceu com as peças dele. Guarda para sempre (b3 do dono); só
- * carrega ao abrir a aba e pagina no servidor (regra 17). Nada aqui é gesto:
- * as consequências são do sistema (M-01) — a peça pronta perdeu o pedido e
- * foi para o estoque sem dono; a que estava na produção segue com a etiqueta
- * "Pedido cancelado" e, concluída, vai para o estoque.
+ * Rodada de 30/09 — a aba TODOS OS PEDIDOS: a lista completa dos pedidos da
+ * integração (aguardando, liberados e encerrados), com busca e páginas no
+ * servidor (regra 17), pela porta de resumo que já existia. Só leitura — os
+ * gestos moram nas outras abas.
  */
-function PainelCancelados() {
-  const agora = useAgora()
+function PainelTodosPedidos() {
   const [busca, setBusca] = useState('')
-  const [pagina, setPagina] = useState(1)
-
-  const { data: linhas = [], isPending } = useQuery({
-    queryKey: ['pcp-cancelados', busca, pagina],
-    queryFn: () =>
-      pedidosCancelados({
-        busca,
-        limite: CANCELADOS_POR_PAGINA,
-        deslocamento: (pagina - 1) * CANCELADOS_POR_PAGINA,
-      }),
-    placeholderData: keepPreviousData,
+  const [paginas, setPaginas] = useState(1)
+  const consultas = useQueries({
+    queries: Array.from({ length: paginas }, (_, pagina) => ({
+      queryKey: ['pcp-todos', busca, pagina],
+      queryFn: () =>
+        pedidosResumo({
+          busca: busca.trim() || undefined,
+          limite: TODOS_POR_PAGINA,
+          deslocamento: pagina * TODOS_POR_PAGINA,
+        }),
+      placeholderData: keepPreviousData,
+    })),
   })
-  const total = Number(linhas[0]?.contagem_total ?? 0)
+  const linhas = consultas.flatMap((c) => c.data ?? [])
+  const total = Number(
+    consultas[consultas.length - 1]?.data?.[0]?.contagem_total ??
+      consultas[0]?.data?.[0]?.contagem_total ??
+      0,
+  )
+  const carregando = consultas.some((c) => c.isPending)
+  const carregandoMais = consultas[consultas.length - 1]?.isFetching ?? false
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="max-w-2xl text-sm text-texto-suave">
-        Pedidos cancelados no Tiny. Peça que já estava pronta voltou para o estoque, sem dono; peça
-        que estava na produção segue com a etiqueta &quot;Pedido cancelado&quot; e, concluída, vai
-        para o estoque.
-      </p>
-      <div className="max-w-md">
-        <Campo
-          rotulo="Buscar cancelado"
-          prefixo={<Search />}
-          placeholder="Número do pedido ou nome do cliente"
-          value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value)
-            setPagina(1)
-          }}
-        />
+    <section aria-label="Todos os pedidos" className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="text-lg">
+          Todos os pedidos <span className="text-texto-suave tabular-nums">({total})</span>
+        </h2>
+        <div className="w-full max-w-md">
+          <Campo
+            rotulo="Buscar pedido"
+            prefixo={<Search />}
+            placeholder="Número do pedido ou nome do cliente"
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value)
+              setPaginas(1)
+            }}
+          />
+        </div>
       </div>
 
-      {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
-      {!isPending && linhas.length === 0 && (
+      {carregando && <p className="text-sm text-texto-fraco">Carregando…</p>}
+      {!carregando && linhas.length === 0 && (
         <p className="flex items-center gap-2 rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
           <Inbox aria-hidden className="size-5 shrink-0" />
-          Nenhum pedido cancelado{busca ? ' para esta busca' : ''}.
+          Nenhum pedido{busca.trim() ? ' para esta busca' : ''}.
         </p>
       )}
 
-      <ul className="flex flex-col gap-3">
-        {linhas.map((linha) => (
-          <LinhaCancelado key={linha.card_id} linha={linha} agora={agora} />
+      <ul className="flex flex-col divide-y divide-borda rounded-dm-lg border border-borda bg-superficie">
+        {linhas.map((p) => (
+          <LinhaPedidoResumo key={p.pedido_id} pedido={p} />
         ))}
       </ul>
 
-      {total > CANCELADOS_POR_PAGINA && (
-        <Paginacao
-          paginaAtual={pagina}
-          totalPaginas={Math.ceil(total / CANCELADOS_POR_PAGINA)}
-          totalItens={total}
-          porPagina={CANCELADOS_POR_PAGINA}
-          aoMudarPagina={setPagina}
-          className="rounded-dm-lg border border-borda bg-superficie"
-        />
+      {linhas.length < total && (
+        <Botao
+          variante="secundaria"
+          icone={<ChevronDown />}
+          className="self-start"
+          carregando={carregandoMais}
+          onClick={() => setPaginas((p) => p + 1)}
+        >
+          Ver mais ({total - linhas.length})
+        </Botao>
       )}
-    </div>
+    </section>
   )
 }
 
-function LinhaCancelado({ linha, agora }: { linha: PedidoCancelado; agora: number }) {
-  const liberadas = linha.em_producao + linha.prontas + linha.no_estoque
+function LinhaPedidoResumo({ pedido }: { pedido: PedidoResumo }) {
+  const cancelado = pedidoCancelado(pedido.situacao)
   return (
-    <li className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="font-semibold text-texto tabular-nums">Pedido {linha.numero}</span>
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+      <span className="font-semibold text-texto tabular-nums">Pedido {pedido.numero}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-texto-suave">
+        {pedido.cliente_nome || 'Sem cliente'} · {formatarDataPedido(pedido.data_pedido)}
+      </span>
+      {cancelado && (
         <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
           <Ban aria-hidden className="size-3.5" />
-          Cancelado no Tiny
-          {linha.cancelado_em && ` há ${formatarDuracao(linha.cancelado_em, agora)}`}
+          Cancelado
         </span>
-      </div>
-      <p className="line-clamp-1 text-sm text-texto-suave">
-        {linha.cliente_nome || 'Sem cliente'} · pedido de {formatarDataPedido(linha.data_pedido)}
-        {' · '}
-        {linha.total_unidades} unidade{linha.total_unidades === 1 ? '' : 's'}
-      </p>
-      <p className="text-sm text-texto tabular-nums">
-        {liberadas === 0 ? (
-          'Nenhuma unidade tinha ido para a produção — sem efeito no estoque.'
-        ) : (
-          <>
-            {linha.em_producao > 0 && (
-              <>
-                {linha.em_producao} na produção com a etiqueta &quot;Pedido cancelado&quot;
-                {(linha.no_estoque > 0 || linha.prontas > 0) && ' · '}
-              </>
-            )}
-            {linha.no_estoque > 0 && (
-              <>
-                {linha.no_estoque} no estoque, sem dono
-                {linha.prontas > 0 && ' · '}
-              </>
-            )}
-            {linha.prontas > 0 && <>{linha.prontas} já lançada(s) para as ROTAS</>}
-          </>
-        )}
-      </p>
+      )}
+      {!cancelado && pedido.situacao && (
+        <span className="text-xs text-texto-suave">{pedido.situacao}</span>
+      )}
+      <span className="text-sm text-texto tabular-nums">
+        {pedido.total_unidades > 0
+          ? `${pedido.unidades_liberadas}/${pedido.total_unidades} liberadas`
+          : 'sem produção'}
+      </span>
     </li>
   )
 }

@@ -143,12 +143,15 @@ export async function buscarCardsDaEtapa(parametros: {
 export async function buscarCardsPedidoPcp(parametros: {
   pagina: number
   porPagina?: number
+  /** Rodada de 30/09 (migration 47): a aba — 'pedido' | 'reposicao'; nulo = tudo. */
+  grupo?: 'pedido' | 'reposicao'
 }): Promise<PaginaDeCards> {
   const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
   const inicio = parametros.pagina * porPagina
   const { data, error } = await supabase.rpc('plt_fn_cards_pedido_pcp', {
     p_limite: porPagina,
     p_deslocamento: inicio,
+    p_grupo: parametros.grupo ?? null,
   })
   if (error) throw new Error(`Não deu para carregar os pedidos do PCP: ${error.message}`)
   const linhas = (data ?? []) as (Card & { contagem_total: number })[]
