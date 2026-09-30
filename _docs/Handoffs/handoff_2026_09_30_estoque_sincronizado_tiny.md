@@ -40,6 +40,13 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 - Fila do Tiny (um pedido por produto — vários movimentos viram um só), reserva da peça, leitura que sobe a plataforma, ajuste que iguala o Tiny, chave de liga/desliga, relógio da venda a cada minuto. **Tudo nasce desligado.**
 - **Fluxo único do n8n** (`_docs/Fabrica n8n/domoby-tiny-fabrica-produtos.json`): o catálogo continua igual; o aviso de estoque (mesmo endereço) chama a plataforma; a cada minuto a fila lê o Tiny e grava o ajuste; às 04:00 a varredura. A **carga do saldo avulsa saiu**.
 
+### ↪️ 30/09 de manhã — a lista das reservas presas no Tiny (o conflito do 567)
+
+- **Por que o Tiny mostrava −21 e a plataforma 2:** o "disponível multiempresa" é **saldo − reservado**, e o reservado do Tiny guarda reserva de pedido que **já saiu** (567: 23 reservadas, nenhum pedido aberto). A plataforma segue o **saldo** — puxar o disponível traria o erro junto.
+- **O que foi feito (a sua escolha):** em **Estoque → Configurações → Tiny**, o botão **"Ver as reservas presas no Tiny"** abre a lista, móvel a móvel: quanto o Tiny reserva, quantas unidades há em pedidos abertos e a sobra ("presas"), do maior para o menor, 20 por página, com o total no topo e o passo a passo de onde limpar. Serviços do Tiny (Corte, Furo, Fitamento) e itens sem código ficam fora.
+- **Hoje:** **111 móveis, 814 unidades presas** — Estante Basic 5 nichos 45 · Closet fechado 30 · Estante Basic 15 nichos 28 · Mesa Close 24 · Armário Aéreo 3 portas (567) 23.
+- **Quem arruma o quê:** reserva presa → **no Tiny** (abrir o produto, aba de reservas, tirar as de pedidos entregues ou cancelados; ao limpar, o produto sai da lista na próxima leitura). Entrada, baixa e contagem → **na plataforma** (vão sozinhas ao Tiny).
+
 ## 3. Decisões que tomei (você pode mudar)
 
 | Decisão | Alternativa descartada | Por quê |
@@ -64,6 +71,7 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 | **Telas com você logado** | ✅ Estoque → Configurações → quadro "Tiny" (desligado → **ligado 30/09 01:30**, 234 na fila, zerou às 01:42) · detalhe e PCP conferidos na versão publicada |
 | **Fluxo no n8n** | ✅ fluxo único **publicado** (19 passos conferidos um a um; **sem relógio de estoque** — o banco chama só quando há fila, a seu pedido); os dois endereços respondem; "carga do saldo" arquivada |
 | **Cópia inicial (ponto de partida)** | ✅ 234 produtos lidos em 11 minutos (20 por minuto), **46 peças** criadas, nenhuma falha: estante 4 nichos 3 · armário 327 2 · estante 5 nichos 3 · mesa Close 7 · armário Close 1 porta 3 · sapateira 3 — o saldo somado das duas empresas |
+| **Lista das reservas presas (30/09 manhã)** | ✅ testes do banco 595 (9 novos: presa aparece com o número certo; reserva de pedido aberto não; produto já limpo sai; insumo, serviço e sem código fora; do maior para o menor; uma página por vez; só a logística vê; anônimo não) · ✅ teste combinado com a outra sessão do estoque: 619 · ✅ aplicada sozinha, integração idêntica · ✅ no banco real: 111 móveis, 814 unidades · ✅ tipos, lint, 84 testes de tela, build |
 
 ## 5. Como validar (10 minutos, depois do n8n trocado)
 
@@ -71,6 +79,7 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 2. **Entrada de 1** num produto → em até 1 minuto, "Últimos ajustes gravados no Tiny" mostra o produto — e no Tiny o multiempresa sobe 1.
 3. **No Tiny**, lance +2 num produto → em até 1 minuto a plataforma sobe 2.
 4. **Pedido novo** de um produto com estoque → a peça aparece "Reservada para o pedido N"; no PCP, ao liberar, ela vem marcada.
+5. **Configurações → Tiny → "Ver as reservas presas no Tiny"** → o 567 aparece com 23 presas (0 pedidos abertos). Limpe as reservas dele no Tiny → depois da próxima leitura do produto (um movimento dele ou a varredura da madrugada), ele sai da lista.
 
 ## 6. Ficou com você
 
@@ -82,6 +91,8 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 - 🔶 **Ligar o sincronismo** (Configurações → Tiny) — só depois dos dois itens acima.
 - ⚪ Nos primeiros dias, conferir que **a venda baixa o Tiny na hora** (você disse que sim; a plataforma lê o Tiny depois de cada venda para confirmar). Se não baixar, o ajuste é num lugar só.
 - ⚪ A reposição automática continua **desligada** (a regra de arquivar a reposição coberta já funciona quando ela for ligada).
+- 🔶 **Pedir à equipe:** limpar no Tiny as reservas da lista (começando pelo topo). A plataforma não mexe em reserva do Tiny.
+- ⚪ **Observação (sem ação):** o sincronismo também lê os 11 serviços do Tiny (Corte, Furo…), porque a regra de "produto pronto" é a classe do catálogo — inofensivo (saldo 0, nenhuma peça criada). Se um dia incomodar, o ajuste é num lugar só.
 
 ## 7. Arquivos
 
@@ -94,6 +105,8 @@ src/logistica/api.ts · src/logistica/estoque.ts (+ teste)
 src/logistica/componentes/{PainelConfiguracoes, ModalMovimentarEstoque, ModalProdutoEstoque, PecasDoEstoque}.tsx
 src/kanban/api.ts · src/kanban/componentes/ModalLiberarPedido.tsx
 _docs/Fabrica n8n/domoby-tiny-fabrica-produtos.json   (o fluxo único) · domoby-tiny-fabrica-carga-saldo.json (saiu)
+supabase/migrations/20260930200000_plt_tiny_reservas_presas.sql        (30/09 manhã — migration 46, aplicada: a lista das reservas presas)
+src/logistica/componentes/ReservasPresasTiny.tsx                        (30/09 manhã — a lista; + 1 linha no quadro Tiny)
 _docs: D-76…D-80 (+ ↪️ D-62/D-70) · RF-105…RF-108 · Esquema do Banco · nota do n8n · memória (E-69, E-70, A-39, A-40) ·
        execução · mapa · próximos passos · este handoff
 ```

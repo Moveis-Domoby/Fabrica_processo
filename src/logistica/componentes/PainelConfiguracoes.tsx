@@ -20,6 +20,7 @@ import {
 import type { LinhaConfiguracaoEstoque, ResumoEstoque } from '@/logistica/api'
 import { formatarQuantidade, idadeDaLeitura, rotuloPosicao, textoCorte } from '@/logistica/estoque'
 import { FotoProduto } from './FotoProduto'
+import { ReservasPresasTiny } from './ReservasPresasTiny'
 
 /** Coberturas de 1 a 8 semanas (resposta 2 do dono): três prontas + digitar. */
 const COBERTURAS = [
@@ -362,6 +363,8 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
           </ul>
         </div>
       )}
+
+      <ReservasPresasTiny ativo={ativo} agora={agora} />
 
       {souAdmin &&
         (confirmando ? (
