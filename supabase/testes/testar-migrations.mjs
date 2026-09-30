@@ -7368,6 +7368,208 @@ await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = null wher
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco 43
 
+// ============================================================================
+// A FOTO DO TINY CHEGA SOZINHA (30/09 — migration 44, D-82). O dono: a foto
+// posta pela CÂMERA fica (o Tiny não a troca); foto apagada no Tiny: fica a
+// última. O relógio do banco só chama a função quando há foto para copiar.
+// ============================================================================
+{
+titulo('Fotos do Tiny (30/09) · o que falta copiar: foto no Tiny e sem foto aqui (ou a do Tiny trocou)')
+
+const um44 = async (sql) => (await bd.query(sql)).rows[0]
+const linhas44 = async (sql) => (await bd.query(sql)).rows
+// Link no formato real do Tiny: s3 da Amazon, pasta tiny-anexos, arquivo = md5.
+const urlT = (letra, ext = 'jpeg') => `https://s3.amazonaws.com/tiny-anexos-us/erp/T44/${letra.repeat(32)}.${ext}`
+const rawCom = (...urls) => `'${JSON.stringify({ anexos: urls.map((u) => ({ anexo: u })) })}'::jsonb`
+const pendentes44 = async () =>
+  linhas44(`select produto_tiny_id::int as id, pasta, url_tiny from public.plt_fn_fotos_tiny_pendentes(20)
+             where produto_tiny_id between 944001 and 944099 order by 1`)
+const ids44 = async () => (await pendentes44()).map((p) => p.id).join(',')
+const definir44 = async (id, caminho, url) =>
+  (await um44(`select public.plt_fn_foto_tiny_definir(${id}, '${caminho}', '${url}') as r`)).r
+const produto44 = (id) => um44(`select imagem_caminho, imagem_tiny from public.produtos where tiny_id = ${id}`)
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw) values
+    (944001, 'S44A',   'Armário Teste 44',                  'F', 'A', 'un', ${rawCom(urlT('a'))}),
+    (944002, 'S44B',   'Nicho Teste 44 sem foto no Tiny',   'F', 'A', 'un', '{"anexos": []}'::jsonb),
+    (944003, 'S44C',   'Painel Teste 44 com link de fora',  'F', 'A', 'un', ${rawCom('https://exemplo.com/foto.jpg')}),
+    (944004, 'S 44/D', 'Mesa Teste 44 com SKU estranho',    'F', 'A', 'un', ${rawCom(urlT('d'), urlT('e'))}),
+    (944005, null,     'Banco Teste 44 sem SKU',            'S', 'A', 'un', ${rawCom(urlT('f', 'png'))})
+  on conflict (tiny_id) do nothing;
+`)
+const inicio44 = await pendentes44()
+conferir(
+  inicio44.map((p) => p.id).join(',') === '944001,944004,944005'
+    && inicio44[0].pasta === 'produtos/S44A' && inicio44[0].url_tiny === urlT('a')
+    && inicio44[1].pasta === 'produtos/S_44_D' && inicio44[1].url_tiny === urlT('d')
+    && inicio44[2].pasta === 'produtos/tiny-944005',
+  'entra quem tem foto no Tiny e não tem aqui; a principal é a 1ª; a pasta segue a regra do app (SKU limpo, ou tiny-{id} sem SKU); sem foto no Tiny ou link de fora do Tiny não entram',
+  JSON.stringify(inicio44),
+)
+
+titulo('Fotos do Tiny (30/09) · gravar a cópia; o Tiny trocou a foto → troca aqui e a cópia antiga sai')
+
+const g1 = await definir44(944001, `produtos/S44A/tiny-${'a'.repeat(32)}.jpg`, urlT('a'))
+const p1 = await produto44(944001)
+const log1 = await um44(`select count(*)::int as n, bool_and(usuario_id is null) as sistema from public.plt_logs_atividade
+                          where acao = 'estoque_foto_tiny' and contexto ->> 'produto_tiny_id' = '944001'`)
+conferir(
+  g1.gravou === true && g1.anterior == null && p1.imagem_caminho === `produtos/S44A/tiny-${'a'.repeat(32)}.jpg`
+    && p1.imagem_tiny === urlT('a') && log1.n === 1 && log1.sistema && !(await ids44()).includes('944001'),
+  'a cópia grava a foto e de onde ela veio, fica no histórico como feita pelo sistema, e o produto sai da lista',
+  JSON.stringify({ g1, p1, log1 }),
+)
+await bd.exec(`update public.produtos set raw = ${rawCom(urlT('b'))} where tiny_id = 944001`)
+conferir((await ids44()).includes('944001'), 'o Tiny trocou a foto principal: o produto volta para a lista')
+const g2 = await definir44(944001, `produtos/S44A/tiny-${'b'.repeat(32)}.jpg`, urlT('b'))
+conferir(
+  g2.gravou === true && g2.anterior === `produtos/S44A/tiny-${'a'.repeat(32)}.jpg`
+    && (await produto44(944001)).imagem_tiny === urlT('b'),
+  'grava a nova e devolve a cópia antiga do Tiny para a função apagar da biblioteca',
+  JSON.stringify(g2),
+)
+const g3 = await definir44(944001, `produtos/S44A/tiny-${'a'.repeat(32)}.jpg`, urlT('a'))
+conferir(
+  g3.gravou === false && g3.atual === `produtos/S44A/tiny-${'b'.repeat(32)}.jpg`
+    && (await produto44(944001)).imagem_tiny === urlT('b'),
+  'chamada atrasada (link que já não é o do Tiny) não grava nada — a função apaga o que subiu, porque não é o atual',
+  JSON.stringify(g3),
+)
+const g4 = await definir44(944001, `produtos/S44A/tiny-${'b'.repeat(32)}.jpg`, urlT('b'))
+conferir(g4.gravou === false && g4.atual === `produtos/S44A/tiny-${'b'.repeat(32)}.jpg`,
+  'a mesma cópia duas vezes não grava de novo — e o arquivo fica (é o atual)', JSON.stringify(g4))
+
+titulo('Fotos do Tiny (30/09) · a foto da câmera fica (resposta do dono)')
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.logistica}', false)`)
+await bd.exec(`select public.plt_fn_estoque_definir_imagem(944001, 'produtos/S44A/capa-44.jpg')`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec(`update public.produtos set raw = ${rawCom(urlT('c'))} where tiny_id = 944001`)
+const p944001 = await produto44(944001)
+conferir(
+  p944001.imagem_caminho === 'produtos/S44A/capa-44.jpg' && p944001.imagem_tiny === null
+    && !(await ids44()).includes('944001'),
+  'foto posta pela câmera deixa de ser do Tiny: o Tiny troca a foto dele e a da câmera continua',
+  JSON.stringify(p944001),
+)
+conferir(
+  (await definir44(944001, `produtos/S44A/tiny-${'c'.repeat(32)}.jpg`, urlT('c'))).gravou === false
+    && (await produto44(944001)).imagem_caminho === 'produtos/S44A/capa-44.jpg',
+  'nem uma chamada direta passa por cima da foto da câmera',
+)
+// Corrida: a logística põe a foto entre a lista e a gravação da cópia.
+conferir((await ids44()).includes('944004'), 'a mesa (sem foto) está na lista')
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.logistica}', false)`)
+await bd.exec(`select public.plt_fn_estoque_definir_imagem(944004, 'produtos/S_44_D/capa-1.jpg')`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+const corrida = await definir44(944004, `produtos/S_44_D/tiny-${'d'.repeat(32)}.jpg`, urlT('d'))
+conferir(
+  corrida.gravou === false && corrida.atual === 'produtos/S_44_D/capa-1.jpg',
+  'a câmera chegou primeiro: a cópia do Tiny não grava (e a função apaga o arquivo que subiu)',
+  JSON.stringify(corrida),
+)
+
+titulo('Fotos do Tiny (30/09) · foto apagada no Tiny: fica a última (resposta do dono)')
+
+const g5 = await definir44(944005, `produtos/tiny-944005/tiny-${'f'.repeat(32)}.jpg`, urlT('f', 'png'))
+await bd.exec(`update public.produtos set raw = '{"anexos": []}'::jsonb where tiny_id = 944005`)
+const p944005 = await produto44(944005)
+conferir(
+  g5.gravou === true && p944005.imagem_caminho === `produtos/tiny-944005/tiny-${'f'.repeat(32)}.jpg`
+    && !(await ids44()).includes('944005'),
+  'o produto sem SKU ganha a foto na pasta tiny-{id}; o Tiny apagou a foto e a plataforma mantém a última',
+  JSON.stringify({ g5, p944005 }),
+)
+await deveRecusarExec(`select public.plt_fn_foto_tiny_definir(944005, '../perfis/x.jpg', '${urlT('f', 'png')}')`,
+  'caminho fora da pasta produtos/ é recusado', /inválido/i)
+
+titulo('Fotos do Tiny (30/09) · link que falhou espera 24 h; foto nova no Tiny tenta na hora')
+
+await bd.exec(`insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw)
+               values (944006, 'S44F', 'Estante Teste 44', 'F', 'A', 'un', ${rawCom(urlT('1'))})
+               on conflict (tiny_id) do nothing`)
+conferir((await ids44()).includes('944006'), 'a estante (sem foto) está na lista')
+await bd.exec(`select public.plt_fn_foto_tiny_falhou(944006, '${urlT('1')}', 'Tiny respondeu 404')`)
+const falha = await um44(`select count(*)::int as n, max(contexto ->> 'motivo') as motivo from public.plt_logs_atividade
+                           where acao = 'estoque_foto_tiny_falhou' and contexto ->> 'produto_tiny_id' = '944006'`)
+conferir(
+  falha.n === 1 && falha.motivo === 'Tiny respondeu 404' && !(await ids44()).includes('944006'),
+  'a falha fica no histórico com o motivo e o produto sai da lista (não fica tentando a cada 5 min)',
+  JSON.stringify(falha),
+)
+await bd.exec(`update public.produtos set raw = ${rawCom(urlT('2'))} where tiny_id = 944006`)
+conferir((await ids44()).includes('944006'), 'o Tiny trocou a foto: link novo tenta de novo na hora (a espera é do link, não do produto)')
+
+titulo('Fotos do Tiny (30/09) · as 144 fotos da carga de 30/09 nascem marcadas como do Tiny')
+
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw, imagem_caminho) values
+    (944007, 'S44G', 'Balcão Teste 44 da carga de 30/09', 'F', 'A', 'un', ${rawCom(urlT('7'))}, 'produtos/S44G/capa-1790739424006.jpg'),
+    (944008, 'S44H', 'Balcão Teste 44 com foto da câmera', 'F', 'A', 'un', ${rawCom(urlT('8'))}, 'produtos/S44H/capa-1.jpg')
+  on conflict (tiny_id) do nothing;
+  insert into public.plt_logs_atividade (usuario_id, acao, contexto, criado_em) values
+    (null, 'estoque_foto_definida', '{"produto_tiny_id": 944007, "sku": "S44G", "caminho": "produtos/S44G/capa-1790739424006.jpg"}', '2026-09-30 03:37:04+00'),
+    (null, 'estoque_foto_definida', '{"produto_tiny_id": 944008, "sku": "S44H", "caminho": "produtos/S44H/capa-1.jpg"}', '2026-09-29 12:00:00+00');
+`)
+await bd.exec(await readFile(path.join(MIGRATIONS, '20260930170000_plt_fotos_tiny_automaticas.sql'), 'utf8'))
+const carga = await linhas44(`select tiny_id::int as id, imagem_tiny from public.produtos where tiny_id in (944007, 944008) order by 1`)
+conferir(
+  carga[0].imagem_tiny === urlT('7') && carga[1].imagem_tiny === null
+    && !(await ids44()).includes('944007') && !(await ids44()).includes('944008'),
+  'reaplicada com dados: a foto da carga de 30/09 vira "do Tiny"; a da câmera (outro momento) continua da câmera',
+  JSON.stringify(carga),
+)
+await bd.exec(`update public.produtos set raw = ${rawCom(urlT('9'))} where tiny_id = 944007`)
+conferir((await ids44()).includes('944007'), 'e quando o Tiny trocar a foto de um desses, a plataforma troca junto')
+
+titulo('Fotos do Tiny (30/09) · o relógio só chama a função com foto para copiar; o segredo confere quem chama')
+
+const endereco44 = await um44(`select count(*)::int as n, bool_and(ativo) as ativo, min(url) as url, min(segredo) as segredo
+                                 from public.plt_webhooks where 'fotos_tiny' = any (eventos)`)
+conferir(
+  endereco44.n === 1 && endereco44.ativo && /\/functions\/v1\/fotos-tiny$/.test(endereco44.url)
+    && /^[0-9a-f]{64}$/.test(endereco44.segredo),
+  'o endereço da função mora nos webhooks de saída (um só, mesmo reaplicando), com segredo gerado no próprio banco',
+  JSON.stringify({ ...endereco44, segredo: endereco44.segredo?.length }),
+)
+const confere = await um44(`select public.plt_fn_fotos_tiny_conferir('${endereco44.segredo}') as certo,
+                                   public.plt_fn_fotos_tiny_conferir('errado') as errado,
+                                   public.plt_fn_fotos_tiny_conferir('') as vazio,
+                                   public.plt_fn_fotos_tiny_conferir(null) as nulo`)
+conferir(confere.certo === true && !confere.errado && !confere.vazio && !confere.nulo,
+  'só o segredo certo abre a função', JSON.stringify(confere))
+conferir((await um44(`select plt_privado.fn_fotos_tiny_relogio() as r`)).r === 'sem_pg_net',
+  'com foto para copiar, o relógio chama (aqui sem pg_net, só decide — em produção posta na função)')
+await bd.exec(`update public.plt_webhooks set ativo = false where 'fotos_tiny' = any (eventos)`)
+conferir((await um44(`select plt_privado.fn_fotos_tiny_relogio() as r`)).r === 'sem_endereco'
+    && (await um44(`select public.plt_fn_fotos_tiny_conferir('${endereco44.segredo}') as r`)).r === false,
+  'o admin desligou o endereço: o relógio não chama e o segredo deixa de abrir a função')
+await bd.exec(`update public.plt_webhooks set ativo = true where 'fotos_tiny' = any (eventos)`)
+for (const p of await linhas44(`select * from public.plt_fn_fotos_tiny_pendentes(20)`)) {
+  await definir44(p.produto_tiny_id, `${p.pasta}/tiny-teste.jpg`, p.url_tiny)
+}
+conferir((await um44(`select plt_privado.fn_fotos_tiny_relogio() as r`)).r === 'nada_a_fazer',
+  'sem foto nova: o relógio não chama nada (nenhuma execução à toa)')
+
+const privilegio44 = await um44(`
+  select has_function_privilege('authenticated', 'public.plt_fn_fotos_tiny_pendentes(integer)', 'execute') as pendentes,
+         has_function_privilege('authenticated', 'public.plt_fn_foto_tiny_definir(bigint, text, text)', 'execute') as definir,
+         has_function_privilege('authenticated', 'public.plt_fn_foto_tiny_falhou(bigint, text, text)', 'execute') as falhou,
+         has_function_privilege('anon', 'public.plt_fn_fotos_tiny_conferir(text)', 'execute') as conferir_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_fotos_tiny_relogio()', 'execute') as relogio,
+         has_function_privilege('service_role', 'public.plt_fn_foto_tiny_definir(bigint, text, text)', 'execute') as servico,
+         has_function_privilege('authenticated', 'public.plt_fn_estoque_definir_imagem(bigint, text)', 'execute') as camera`)
+conferir(
+  !privilegio44.pendentes && !privilegio44.definir && !privilegio44.falhou && !privilegio44.conferir_anon
+    && !privilegio44.relogio && privilegio44.servico && privilegio44.camera,
+  'as portas da cópia são só da chave de serviço; o relógio fica fora da API; a câmera segue para quem está logado',
+  JSON.stringify(privilegio44),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+} // fim do bloco 44
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
