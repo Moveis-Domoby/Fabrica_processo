@@ -97,12 +97,27 @@ export function CartaoProdutoEstoque({
             </span>
             <span className="text-xs text-texto-suave">em estoque</span>
           </p>
-          <p className="text-right text-xs text-texto-suave tabular-nums">
-            Mínimo{' '}
-            {linha.no_top && linha.minimo !== null && linha.minimo > 0
-              ? formatarQuantidade(linha.minimo)
-              : '—'}
-          </p>
+          <div className="flex items-center justify-end gap-0.5">
+            <p className="text-right text-xs text-texto-suave tabular-nums">
+              Mínimo{' '}
+              {linha.no_top && linha.minimo !== null && linha.minimo > 0
+                ? formatarQuantidade(linha.minimo)
+                : '—'}
+            </p>
+            {podeLancar && linha.em_necessidade && (
+              // O chamado da produção (pedido do dono, 30/09): ícone pequeno,
+              // vermelho, pulando — tocar abre o lançamento (alvo de toque cheio).
+              <button
+                type="button"
+                onClick={aoLancar}
+                aria-label={`${linha.descricao} precisa de produção — lançar para produção`}
+                title="Precisa de produção — tocar lança para produção"
+                className="-my-3 -mr-2 flex size-11 shrink-0 items-center justify-center"
+              >
+                <Factory aria-hidden className="size-4 animate-bounce text-danificado-forte" />
+              </button>
+            )}
+          </div>
         </div>
 
         {(linha.reservados_producao > 0 || linha.reservados_venda > 0) && (
@@ -124,36 +139,24 @@ export function CartaoProdutoEstoque({
         )}
 
         {podeMexer && (
-          <div className="mt-auto flex flex-col gap-2 pt-1">
-            <div className="grid grid-cols-2 gap-2">
-              <Botao
-                variante="secundaria"
-                icone={<Plus />}
-                onClick={() => aoMovimentar('entrada')}
-                aria-label={`Entrada de ${linha.descricao}`}
-              >
-                Entrada
-              </Botao>
-              <Botao
-                variante="secundaria"
-                icone={<Minus />}
-                onClick={() => aoMovimentar('baixa')}
-                disabled={emEstoque === 0}
-                aria-label={`Baixa de ${linha.descricao}`}
-              >
-                Baixa
-              </Botao>
-            </div>
-            {podeLancar && linha.em_necessidade && (
-              <Botao
-                variante="secundaria"
-                icone={<Factory />}
-                onClick={aoLancar}
-                aria-label={`Lançar ${linha.descricao} para produção`}
-              >
-                Lançar para produção
-              </Botao>
-            )}
+          <div className="mt-auto grid grid-cols-2 gap-2 pt-1">
+            <Botao
+              variante="secundaria"
+              icone={<Plus />}
+              onClick={() => aoMovimentar('entrada')}
+              aria-label={`Entrada de ${linha.descricao}`}
+            >
+              Entrada
+            </Botao>
+            <Botao
+              variante="secundaria"
+              icone={<Minus />}
+              onClick={() => aoMovimentar('baixa')}
+              disabled={emEstoque === 0}
+              aria-label={`Baixa de ${linha.descricao}`}
+            >
+              Baixa
+            </Botao>
           </div>
         )}
       </div>

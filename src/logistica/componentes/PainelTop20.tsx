@@ -7,7 +7,6 @@ import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { useAgora } from '@/kanban/tempo'
 import {
   configEstoque,
-  definirTopX,
   lancarReposicao,
   listarEstoqueProdutos,
   situacaoReposicao,
@@ -41,13 +40,10 @@ type FiltroTopo = (typeof FILTROS)[number]['valor']
 export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: boolean }) {
   const agora = useAgora()
   const navegar = useNavigate()
-  const notificar = useNotificacao()
-  const clienteQuery = useQueryClient()
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState<FiltroTopo>('todos')
   const [pagina, setPagina] = useState(1)
   const [escolhendo, setEscolhendo] = useState(false)
-  const [textoTopX, setTextoTopX] = useState<string | null>(null)
   const [movimento, setMovimento] = useState<{
     produto: LinhaEstoqueProduto
     operacao: OperacaoEstoque
@@ -92,24 +88,6 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
   // O detalhe aberto acompanha a lista (foto nova, número novo) quando o produto está nela.
   const produtoAberto = aberto ? (linhas.find((l) => l.tiny_id === aberto.tiny_id) ?? aberto) : null
 
-  const salvarTopX = useMutation({
-    mutationFn: (x: number) => definirTopX(x),
-    onSuccess: async () => {
-      setTextoTopX(null)
-      setPagina(1)
-      notificar({ titulo: 'Top X salvo para toda a equipe', tom: 'perfeito' })
-      await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
-    },
-    onError: (erro) =>
-      notificar({
-        titulo: 'Não deu para salvar o Top X',
-        descricao: erro instanceof Error ? erro.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-  const topXDigitado = textoTopX === null ? topX : Number(textoTopX)
-  const topXValido = Number.isInteger(topXDigitado) && topXDigitado >= 1 && topXDigitado <= 50
-
   function movimentar(produto: LinhaEstoqueProduto, operacao: OperacaoEstoque) {
     setAberto(null)
     setMovimento({ produto, operacao })
@@ -117,22 +95,10 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
 
   return (
     <div className="flex flex-col gap-4">
-      {/* O filtro no topo, ao centro (pedido do dono, 1.3). */}
-      <div className="flex justify-center">
-        <FiltroPill
-          rotulo="Mostrar"
-          opcoes={FILTROS}
-          valor={buscando ? 'todos' : filtro}
-          aoMudar={(v) => {
-            setFiltro(v)
-            setBusca('')
-            setPagina(1)
-          }}
-        />
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="w-full max-w-md">
+      {/* Busca e filtro na MESMA linha (pedido do dono, 30/09); o Top X mora
+          nas Configurações. */}
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        <div className="w-full max-w-md min-w-64 flex-1">
           <Campo
             rotulo="Buscar no catálogo"
             prefixo={<Search />}
@@ -144,45 +110,27 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
             }}
           />
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          {podeMexer && (
-            <form
-              className="flex items-end gap-2"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (topXValido && topXDigitado !== topX) salvarTopX.mutate(topXDigitado)
-              }}
-            >
-              <div className="w-24">
-                <Campo
-                  rotulo="Top X"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={50}
-                  step={1}
-                  value={textoTopX ?? String(topX)}
-                  erro={topXValido ? undefined : 'De 1 a 50'}
-                  onChange={(e) => setTextoTopX(e.target.value)}
-                />
-              </div>
-              {textoTopX !== null && topXDigitado !== topX && topXValido && (
-                <Botao type="submit" variante="secundaria" carregando={salvarTopX.isPending}>
-                  Salvar
-                </Botao>
-              )}
-            </form>
-          )}
-          {podeMexer && (
-            <Botao
-              icone={<PackagePlus />}
-              className="shrink-0 whitespace-nowrap"
-              onClick={() => setEscolhendo(true)}
-            >
-              Cadastrar produto ao estoque
-            </Botao>
-          )}
+        <div className="pb-1">
+          <FiltroPill
+            rotulo="Mostrar"
+            opcoes={FILTROS}
+            valor={buscando ? 'todos' : filtro}
+            aoMudar={(v) => {
+              setFiltro(v)
+              setBusca('')
+              setPagina(1)
+            }}
+          />
         </div>
+        {podeMexer && (
+          <Botao
+            icone={<PackagePlus />}
+            className="ml-auto shrink-0 whitespace-nowrap"
+            onClick={() => setEscolhendo(true)}
+          >
+            Cadastrar produto ao estoque
+          </Botao>
+        )}
       </div>
 
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}

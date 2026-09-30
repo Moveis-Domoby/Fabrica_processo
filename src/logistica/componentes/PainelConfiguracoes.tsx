@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleCheck, CirclePause, RefreshCw, Search, Warehouse } from 'lucide-react'
+import { ChevronDown, ChevronUp, CircleCheck, CirclePause, RefreshCw, Search, Warehouse } from 'lucide-react'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { Botao, Campo, Dica, Paginacao, useNotificacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
@@ -10,6 +10,7 @@ import {
   configEstoque,
   definirCobertura,
   definirMinimo,
+  definirTopX,
   desligarSincronismoTiny,
   ligarSincronismoTiny,
   listarConfiguracoesEstoque,
@@ -99,6 +100,31 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
   const coberturaDigitada = coberturaTexto === null ? cobertura : Number(coberturaTexto)
   const coberturaValida = Number.isInteger(coberturaDigitada) && coberturaDigitada >= 1 && coberturaDigitada <= 8
 
+  // O Top X mudou de casa (pedido do dono, 30/09): sai da tela da lista e mora
+  // aqui, com a bolinha informativa ao lado.
+  const salvarTopX = useMutation({
+    mutationFn: (x: number) => definirTopX(x),
+    onSuccess: async (_, x) => {
+      setTopXTexto(null)
+      setPagina(1)
+      notificar({
+        titulo: 'Top X salvo para toda a equipe',
+        descricao: `Só os ${x} mais vendidos têm mínimo; a página da lista passa a ser de ${x}.`,
+        tom: 'perfeito',
+      })
+      await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu para salvar o Top X',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+  const [topXTexto, setTopXTexto] = useState<string | null>(null)
+  const topXDigitado = topXTexto === null ? topX : Number(topXTexto)
+  const topXValido = Number.isInteger(topXDigitado) && topXDigitado >= 1 && topXDigitado <= 50
+
   return (
     <div className="flex flex-col gap-5">
       <CartaoGalpao resumo={resumo ?? null} />
@@ -125,7 +151,46 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
                 </span>
               </Dica>
             </div>
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <form
+                className="flex items-end gap-1.5"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (podeMexer && topXValido && topXDigitado !== topX) salvarTopX.mutate(topXDigitado)
+                }}
+              >
+                <div className="w-24">
+                  <Campo
+                    rotulo="Top X"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={topXTexto ?? String(topX)}
+                    disabled={!podeMexer}
+                    erro={topXValido ? undefined : 'De 1 a 50'}
+                    onChange={(e) => setTopXTexto(e.target.value)}
+                  />
+                </div>
+                {/* relative: o balão do "i" ancora aqui (ver Dica). */}
+                <span className="relative mb-2 inline-flex">
+                  <Dica rotulo="O que é o Top X">
+                    <span className="flex flex-col gap-2">
+                      <span>
+                        Os X produtos mais vendidos dos últimos 90 dias. Só eles têm mínimo e
+                        pedem reposição — e X é o tamanho de cada página da lista.
+                      </span>
+                      <span>Vale para toda a equipe. De 1 a 50.</span>
+                    </span>
+                  </Dica>
+                </span>
+                {podeMexer && topXTexto !== null && topXValido && topXDigitado !== topX && (
+                  <Botao type="submit" variante="secundaria" carregando={salvarTopX.isPending}>
+                    Salvar
+                  </Botao>
+                )}
+              </form>
               <FiltroPill
                 rotulo="Cobertura"
                 opcoes={COBERTURAS}
@@ -243,6 +308,7 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
   const { perfil } = useSessao()
   const souAdmin = perfil?.papel === 'admin'
   const agora = useAgora()
+  const [aberto, setAberto] = useState(false)
   const [confirmando, setConfirmando] = useState<'ligar' | 'desligar' | null>(null)
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -316,9 +382,25 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
               ? `Ligado desde ${dataHora(situacao!.ligado_desde!)}`
               : 'Desligado — o número daqui não conversa com o Tiny'}
         </p>
+        {/* Recolhível (pedido do dono, 30/09): a tela fica leve; a situação
+            continua visível no cabeçalho mesmo fechado. */}
+        <button
+          type="button"
+          aria-expanded={aberto}
+          aria-label={aberto ? 'Recolher o quadro do Tiny' : 'Abrir o quadro do Tiny'}
+          onClick={() => setAberto((v) => !v)}
+          className="flex size-11 shrink-0 items-center justify-center self-start sm:self-center"
+        >
+          {aberto ? (
+            <ChevronUp aria-hidden className="size-5 text-texto-suave" />
+          ) : (
+            <ChevronDown aria-hidden className="size-5 text-texto-suave" />
+          )}
+        </button>
       </div>
 
-      {/* Enquanto carrega, "…" — zero seria um número falso. */}
+      {aberto && (
+      // Enquanto carrega, "…" — zero seria um número falso.
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Numero rotulo="Produtos na fila" valor={situacao ? formatarQuantidade(situacao.na_fila) : '…'} />
         <Numero
@@ -330,8 +412,9 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
           valor={situacao ? formatarQuantidade(situacao.parados.length) : '…'}
         />
       </div>
+      )}
 
-      {situacao && situacao.parados.length > 0 && (
+      {aberto && situacao && situacao.parados.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">
           {situacao.parados.map((p) => (
             <li key={`${p.sku}-${p.desde}`} className="flex flex-col">
@@ -348,7 +431,7 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
         </ul>
       )}
 
-      {situacao && situacao.ultimos_ajustes.length > 0 && (
+      {aberto && situacao && situacao.ultimos_ajustes.length > 0 && (
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold text-texto">Últimos ajustes gravados no Tiny</h3>
           <ul className="flex flex-col gap-1 text-sm text-texto-suave">
@@ -364,9 +447,10 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
         </div>
       )}
 
-      <ReservasPresasTiny ativo={ativo} agora={agora} />
+      {aberto && <ReservasPresasTiny ativo={ativo} agora={agora} />}
 
-      {souAdmin &&
+      {aberto &&
+        souAdmin &&
         (confirmando ? (
           <div className="flex max-w-xl flex-col gap-2 rounded-dm-lg border border-atencao-borda bg-atencao-fundo p-3">
             <p className="text-sm text-atencao-texto">
@@ -398,46 +482,61 @@ function CartaoTiny({ ativo }: { ativo: boolean }) {
 }
 
 /**
- * O retrato do galpão (pedido do dono, 30/09): SEIS números, uma porta só.
- * O campo "quantas peças cabem" saiu — quem limita o estoque é o Top X (D-83).
+ * O retrato do galpão (pedido do dono, 30/09): SEIS números, uma porta só,
+ * num cartão RECOLHÍVEL (fechado por padrão — a tela fica leve). O campo
+ * "quantas peças cabem" saiu — quem limita o estoque é o Top X (D-83).
  */
 function CartaoGalpao({ resumo }: { resumo: ResumoEstoque | null }) {
+  const [aberto, setAberto] = useState(false)
   return (
     <section
       aria-label="Retrato do galpão"
       className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-4"
     >
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-expanded={aberto}
+        onClick={() => setAberto((v) => !v)}
+        className="flex min-h-toque-md items-center gap-2 text-left"
+      >
         <Warehouse aria-hidden className="size-6 shrink-0 text-texto-suave" />
         <h2 className="text-lg font-semibold text-texto">Galpão</h2>
-      </div>
-      {/* Enquanto carrega, "…" — zero seria um número falso. */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-        <Numero
-          rotulo="Móveis em estoque"
-          valor={resumo ? formatarQuantidade(resumo.moveis_estoque) : '…'}
-        />
-        <Numero
-          rotulo="Peças em estoque (un.)"
-          valor={resumo ? formatarQuantidade(resumo.pecas_unidades) : '…'}
-        />
-        <Numero
-          rotulo="Peças em estoque (m²)"
-          valor={resumo ? formatarQuantidade(resumo.pecas_m2) : '…'}
-        />
-        <Numero
-          rotulo="Móveis prontos reservados"
-          valor={resumo ? formatarQuantidade(resumo.moveis_reservados) : '…'}
-        />
-        <Numero
-          rotulo="Peças em produção"
-          valor={resumo ? formatarQuantidade(resumo.pecas_producao) : '…'}
-        />
-        <Numero
-          rotulo="Móveis em produção"
-          valor={resumo ? formatarQuantidade(resumo.moveis_producao) : '…'}
-        />
-      </div>
+        <span className="flex-1" />
+        {aberto ? (
+          <ChevronUp aria-hidden className="size-5 shrink-0 text-texto-suave" />
+        ) : (
+          <ChevronDown aria-hidden className="size-5 shrink-0 text-texto-suave" />
+        )}
+      </button>
+      {aberto && (
+        // Enquanto carrega, "…" — zero seria um número falso.
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          <Numero
+            rotulo="Móveis em estoque"
+            valor={resumo ? formatarQuantidade(resumo.moveis_estoque) : '…'}
+          />
+          <Numero
+            rotulo="Peças em estoque (un.)"
+            valor={resumo ? formatarQuantidade(resumo.pecas_unidades) : '…'}
+          />
+          <Numero
+            rotulo="Peças em estoque (m²)"
+            valor={resumo ? formatarQuantidade(resumo.pecas_m2) : '…'}
+          />
+          <Numero
+            rotulo="Móveis prontos reservados"
+            valor={resumo ? formatarQuantidade(resumo.moveis_reservados) : '…'}
+          />
+          <Numero
+            rotulo="Peças em produção"
+            valor={resumo ? formatarQuantidade(resumo.pecas_producao) : '…'}
+          />
+          <Numero
+            rotulo="Móveis em produção"
+            valor={resumo ? formatarQuantidade(resumo.moveis_producao) : '…'}
+          />
+        </div>
+      )}
     </section>
   )
 }
@@ -509,7 +608,6 @@ function LinhaConfiguracao({
               ? ` · ${formatarQuantidade(linha.vendidos_90d)} em 90 dias · ${formatarQuantidade(linha.media_semana)} por semana`
               : ' · sem venda em 90 dias'}
             {` · ${formatarQuantidade(linha.em_estoque)} em estoque`}
-            {linha.minimo_tiny !== null && ` · Tiny: ${formatarQuantidade(linha.minimo_tiny)}`}
           </span>
           {corte && <span className="text-[11px] text-texto-fraco">{corte}</span>}
         </div>
@@ -554,6 +652,18 @@ function LinhaConfiguracao({
               {linha.sugestao === null ? '—' : linha.sugestao}
             </span>
           </div>
+          {linha.minimo_tiny !== null && (
+            // Só informativo (pedido do dono, 30/09): o que o Tiny sugere.
+            <div
+              className="flex h-toque-md items-center gap-2 rounded-dm px-3 text-texto-suave"
+              title="O mínimo cadastrado no Tiny — só referência"
+            >
+              <span className="text-xs">Tiny</span>
+              <span className="text-base font-semibold tabular-nums">
+                {formatarQuantidade(linha.minimo_tiny)}
+              </span>
+            </div>
+          )}
           {podeMexer && linha.minimo_travado && (
             <Botao
               type="button"
