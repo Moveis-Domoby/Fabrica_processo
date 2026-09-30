@@ -7321,6 +7321,53 @@ conferir(
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco Estoque × Tiny
 
+// ============================================================================
+// O n8n SÓ RODA QUANDO HÁ TRABALHO (30/09 — migration 43, ↪️ D-80). O dono:
+// "você não tá nem doido de deixar alguma coisa rodando no meu n8n a cada 1
+// minuto". O relógio do banco (interno) chama o fluxo só com fila e sem lote em
+// andamento; a varredura da madrugada é agendamento do banco.
+// ============================================================================
+{
+titulo('Estoque × Tiny (30/09) · o banco só chama o n8n quando há fila (e nenhum lote em andamento)')
+
+const um43 = async (sql) => (await bd.query(sql)).rows[0]
+const precisa = async () => (await um43(`select plt_privado.fn_tiny_estoque_precisa_chamar() as p`)).p
+const endereco = await um43(`select count(*)::int as n, bool_and(ativo) as ativo, min(url) as url
+                               from public.plt_webhooks where 'tiny_estoque_fila' = any (eventos)`)
+conferir(endereco.n === 1 && endereco.ativo && /\/webhook\/[0-9a-f-]{36}$/.test(endereco.url),
+  'o endereço do fluxo do estoque no n8n mora nos webhooks de saída (um só, ativo, caminho secreto)',
+  JSON.stringify(endereco))
+
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.admin}', false)`)
+await bd.exec(`select public.plt_fn_tiny_estoque_desligar()`)
+conferir((await precisa()) === false, 'desligado: não chama')
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = now() where codigo = 'estoque'`)
+conferir((await precisa()) === false, 'ligado e fila vazia: não chama (nenhuma execução no n8n, nenhuma consulta ao Tiny)')
+await bd.exec(`select plt_privado.fn_tiny_estoque_enfileirar(942001, false, 'teste 43')`)
+conferir((await precisa()) === true, 'ligado e com produto esperando: chama')
+await bd.exec(`select * from public.plt_fn_tiny_estoque_proximos(20)`)   // o n8n pegou o lote
+conferir((await precisa()) === false, 'lote em andamento (pego há menos de 2 min): não chama de novo — nunca dois lotes ao mesmo tempo')
+await bd.exec(`update public.plt_tiny_estoque_fila set reservado_em = now() - interval '11 minutes'`)
+conferir((await precisa()) === true, 'lote que travou (pego há mais de 10 min) volta e chama de novo')
+await bd.exec(`update public.plt_tiny_estoque_fila set reservado_em = null, parado_em = now()`)
+conferir((await precisa()) === false, 'só produto PARADO (5 falhas) na fila: não fica chamando à toa')
+
+await bd.exec(`update public.plt_tiny_estoque_fila set parado_em = null`)
+const relogio = (await um43(`select plt_privado.fn_estoque_relogio() as r`)).r
+conferir(relogio.ligado === true && relogio.n8n === 'sem_pg_net' && 'reservadas' in relogio,
+  'o relógio faz a reserva da venda e a chamada numa rodada só (aqui sem pg_net, só decide — em produção posta no n8n)',
+  JSON.stringify(relogio))
+const privilegio43 = await um43(`
+  select has_function_privilege('authenticated', 'plt_privado.fn_estoque_relogio()', 'execute') as relogio,
+         has_function_privilege('authenticated', 'plt_privado.fn_tiny_estoque_chamar_n8n()', 'execute') as chamar`)
+conferir(!privilegio43.relogio && !privilegio43.chamar, 'o relógio e a chamada ficam fora da API', JSON.stringify(privilegio43))
+
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = null where codigo = 'estoque'`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+} // fim do bloco 43
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

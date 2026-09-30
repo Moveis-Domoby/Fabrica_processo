@@ -299,26 +299,6 @@
     },
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 1
-            }
-          ]
-        }
-      },
-      "id": "f3000000-0000-0000-0000-000000000021",
-      "name": "A cada minuto · fila do estoque",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        0,
-        740
-      ]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_proximos",
         "sendHeaders": true,
@@ -352,7 +332,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 3000,
-      "notes": "Até 20 produtos por minuto (a fila junta vários movimentos do mesmo produto). Desligado ou vazio = nenhum item, o fluxo para aqui."
+      "notes": "Até 20 produtos por chamada (a fila junta vários movimentos do mesmo produto). Sobrou fila? O banco chama de novo no minuto seguinte."
     },
     {
       "parameters": {
@@ -566,60 +546,21 @@
     },
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 4 * * *"
-            }
-          ]
-        }
+        "httpMethod": "POST",
+        "path": "29bec08a-f220-4c18-bdb7-bce79da744fa",
+        "responseMode": "onReceived",
+        "options": {}
       },
-      "id": "f3000000-0000-0000-0000-000000000028",
-      "name": "Varredura do estoque 04:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
+      "id": "f3000000-0000-0000-0000-000000000030",
+      "name": "Webhook · processar a fila do estoque",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
       "position": [
         0,
-        960
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_varrer",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({}) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
-      "id": "f3000000-0000-0000-0000-000000000029",
-      "name": "Supabase · varrer estoque",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        240,
-        960
+        740
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "notes": "Põe todos os acabados na fila para ler (a fila faz o resto no ritmo do minuto). Pega o que algum aviso deixou passar."
+      "webhookId": "29bec08a-f220-4c18-bdb7-bce79da744fa",
+      "notes": "Quem chama é o BANCO (relógio interno do estoque), só quando há produto esperando na fila e nenhum lote em andamento. Fila vazia = este fluxo não roda. O endereço está em plt_webhooks (marcado tiny_estoque_fila)."
     }
   ],
   "connections": {
@@ -729,17 +670,6 @@
         ]
       ]
     },
-    "A cada minuto · fila do estoque": {
-      "main": [
-        [
-          {
-            "node": "Supabase · próximos da fila",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Supabase · próximos da fila": {
       "main": [
         [
@@ -796,11 +726,11 @@
         ]
       ]
     },
-    "Varredura do estoque 04:00": {
+    "Webhook · processar a fila do estoque": {
       "main": [
         [
           {
-            "node": "Supabase · varrer estoque",
+            "node": "Supabase · próximos da fila",
             "type": "main",
             "index": 0
           }
