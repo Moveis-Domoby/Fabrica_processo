@@ -6289,7 +6289,7 @@ conferir(
   'as portas da capacidade e do "usar todas as sugestões" saíram (↩️ D-72); a coluna da capacidade fica guardada, sem uso',
 )
 
-titulo('Ajuste do estoque (28/09) · Top 20+: os mais vendidos, depois o que tem estoque; o resto na busca')
+titulo('Ajuste do estoque (28/09, ↪️ 30/09 D-83) · UMA lista pelo ranking; o catálogo inteiro nas páginas')
 
 const lista40 = async (filtro, busca = null) =>
   (await linhas40(`select codigo, posicao, em_estoque::float as em_estoque
@@ -6302,22 +6302,24 @@ const semRankNoFim =
   primeiroSemRank === -1 || padrao.slice(primeiroSemRank).every((l) => l.posicao === null)
 conferir(
   padrao.some((l) => l.codigo === 'S40A') && padrao.some((l) => l.codigo === 'S40C')
-    && !padrao.some((l) => l.codigo === 'S40Z')
+    && padrao.some((l) => l.codigo === 'S40Z' && l.posicao === null)
     && ranks.every((p, i) => i === 0 || ranks[i - 1] < p)
     && semRankNoFim,
-  'a lista abre pelos mais vendidos (rank crescente) e não mostra produto sem venda e sem estoque',
+  'a lista é UMA: os mais vendidos primeiro (rank crescente) e o resto do catálogo nas páginas seguintes — o "ver os outros" morreu (↪️ D-83)',
   JSON.stringify(padrao.map((l) => `${l.codigo}:${l.posicao}`)),
 )
 conferir(
-  (await lista40('fora')).some((l) => l.codigo === 'S40Z') && (await lista40(null, 'S40Z')).length === 1,
-  'o produto sem venda e sem estoque fica em "ver os outros" e aparece na busca',
+  (await lista40(null, 'S40Z')).length === 1
+    && !(await lista40('com_estoque')).some((l) => l.codigo === 'S40Z'),
+  'a busca acha quem não vendeu; o filtro "Com estoque" ainda não o mostra (0 peças)',
 )
 await bd.exec(`select public.plt_fn_estoque_movimentar(940006, 'entrada', 1, null)`)
 padrao = await lista40(null)
 conferir(
   padrao.some((l) => l.codigo === 'S40Z' && l.em_estoque === 1 && l.posicao === null)
+    && (await lista40('com_estoque')).some((l) => l.codigo === 'S40Z')
     && padrao[padrao.length - 1]?.posicao === null,
-  'com estoque, ele entra na lista — depois dos ranqueados',
+  'com 1 peça contada, o filtro "Com estoque" passa a mostrá-lo — e os sem venda seguem depois dos ranqueados',
   JSON.stringify(padrao.map((l) => `${l.codigo}:${l.posicao}:${l.em_estoque}`)),
 )
 
@@ -7103,6 +7105,13 @@ conferir(Number(avisoLoja.produto_tiny_id) === 942001 && avisoLoja.na_fila === t
   JSON.stringify(avisoLoja))
 await bd.exec(`delete from public.plt_tiny_estoque_fila where produto_tiny_id = 942001`)
 // reposição no PCP e o Tiny cobre o mínimo: a reposição sai do PCP sozinha
+// ↪️ 30/09 (Ajuste Estoque 2 — D-83): o mínimo agora é o da plataforma e só no
+// Top X; o cenário dá uma venda ao Nicho (entra no ranking) e fixa o mínimo 2.
+await bd.exec(`
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 942100), 2, 'S42C', 'Nicho Teste 42 - Preto', 1);
+  select public.plt_fn_estoque_definir_minimo(942003, 2);
+`)
 await bd.exec(`
   insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
     values ('reposicao', 942003, 'S42C', 'Nicho Teste 42 - Preto', 2, (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
@@ -7295,7 +7304,7 @@ conferir(
   'contagem física = livres + reservadas: contar o que já está lá não mexe em nada — e confere o Tiny (enviar)',
   JSON.stringify({ pecasAntes, depoisContagem }),
 )
-const linhaLista = await um42(`select em_estoque, reservados, reservadas_estoque
+const linhaLista = await um42(`select em_estoque, reservados_venda as reservados, reservadas_estoque
                                  from public.plt_fn_estoque_produtos('acabados', 'S42A', null, 20, 0)`)
 conferir(
   Number(linhaLista?.em_estoque) === pecasAntes.livres && linhaLista.reservadas_estoque === pecasAntes.reservadas
@@ -7591,6 +7600,297 @@ conferir(
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco 44
+
+// ============================================================================
+// AJUSTE ESTOQUE 2 (30/09 — migration 45, D-83…D-87): Top X é o tamanho da
+// página e só ele tem mínimo; sugestão por dias úteis de venda (loja seg–sáb);
+// mínimo automático que trava ao editar; corte de pedido fora do comum;
+// necessidade × reservados para produção; vencimento em 2 dias úteis da
+// fábrica (seg–sex); liga/desliga = agendar/desagendar o job.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajuste Estoque 2 · cenário: vendas com corte, ranking e configurações')
+
+const como45 = como40
+const linhas45 = linhas40
+const um45 = async (sql) => (await linhas45(sql))[0]
+const sqlJson45 = (obj) => `'${JSON.stringify(obj).split("'").join("''")}'::jsonb`
+
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade) values
+    (945001, 'S45A', 'Cama Teste 45 - Branco', 'F', 'A', 9, 'un'),
+    (945002, 'S45B', 'Mesa Teste 45 - Preta', 'F', 'A', null, 'un'),
+    (945003, 'S45C', 'Banco Teste 45 - Cru', 'F', 'A', null, 'un'),
+    (945004, 'S45D', 'Rack Teste 45 - Branco', 'F', 'A', null, 'un'),
+    (945011, 'S45UN', 'Corrediça Teste 45', 'M', 'A', null, 'un'),
+    (945012, 'S45M2', 'Chapa MDF Teste 45', 'M', 'A', null, 'm2')
+  on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido) values
+    (945100, (select id from public.clientes order by id limit 1), 'Entregue', current_date - 5),
+    (945101, (select id from public.clientes order by id limit 1), 'Entregue', current_date - 40);
+  -- S45A: 8 linhas de 9 = 72 · S45B: 5 linhas de 8 = 40 · S45C: 2 linhas de 9 = 18
+  -- S45D: 1 linha de 25 (passa do corte 10 → fora da conta) + 1 linha de 2
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+  select (select id from public.pedidos where numero = 945100), g, 'S45A', 'Cama Teste 45 - Branco', 9 from generate_series(1, 4) g;
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+  select (select id from public.pedidos where numero = 945101), g, 'S45A', 'Cama Teste 45 - Branco', 9 from generate_series(1, 4) g;
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+  select (select id from public.pedidos where numero = 945101), 4 + g, 'S45B', 'Mesa Teste 45 - Preta', 8 from generate_series(1, 5) g;
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 945100), 5, 'S45C', 'Banco Teste 45 - Cru', 9),
+    ((select id from public.pedidos where numero = 945100), 6, 'S45C', 'Banco Teste 45 - Cru', 9),
+    ((select id from public.pedidos where numero = 945100), 7, 'S45D', 'Rack Teste 45 - Branco', 25),
+    ((select id from public.pedidos where numero = 945100), 8, 'S45D', 'Rack Teste 45 - Branco', 2);
+`)
+
+await como45(E40.logistica)
+const cfg45 = (await um45(`select public.plt_fn_estoque_config() as r`)).r
+conferir(
+  cfg45?.top_x === 20 && cfg45?.cobertura_semanas === 2 && cfg45?.corte_pedido_grande === 10
+    && cfg45?.dias_uteis_venda >= 76 && cfg45?.dias_uteis_venda <= 79,
+  'as configurações nascem nos padrões (Top 20, 2 semanas, corte 10) e os dias úteis de venda (seg–sáb) batem com a janela',
+  JSON.stringify(cfg45),
+)
+const vendas45 = async () =>
+  Object.fromEntries((await linhas45(`select codigo, vendidos::float as vendidos, posicao
+                                        from plt_privado.fn_vendas_90d()
+                                       where codigo in ('S45A','S45B','S45C','S45D')`)).map((v) => [v.codigo, v]))
+let v45 = await vendas45()
+conferir(
+  v45.S45A?.vendidos === 72 && v45.S45B?.vendidos === 40 && v45.S45C?.vendidos === 18
+    && v45.S45D?.vendidos === 2
+    && v45.S45A.posicao < v45.S45B.posicao && v45.S45B.posicao < v45.S45C.posicao,
+  'o ranking JÁ nasce com o corte: a linha de 25 do Rack sai da conta como se o pedido não existisse (ficam só 2)',
+  JSON.stringify(v45),
+)
+const linhaD = await um45(`select vendidos_90d::float as vendidos, cortes
+                             from public.plt_fn_estoque_produtos('acabados', 'S45D', null, 10, 0)`)
+conferir(linhaD?.vendidos === 2 && linhaD?.cortes === 1,
+  'o cartão avisa: 1 pedido grande fora da conta', JSON.stringify(linhaD))
+await como45(E40.admin)
+await bd.exec(`select public.plt_fn_estoque_definir_corte(30)`)
+v45 = await vendas45()
+conferir(
+  v45.S45D?.vendidos === 27
+    && (await um45(`select count(*)::int as n from public.plt_logs_atividade where acao = 'estoque_corte_alterado'`)).n >= 1,
+  'admin sobe o corte para 30: a linha de 25 volta à conta (27 vendidos) — com rastro na trilha',
+  JSON.stringify(v45.S45D),
+)
+await bd.exec(`select public.plt_fn_estoque_definir_corte(10)`)
+
+titulo('Ajuste Estoque 2 · sugestão por dias úteis; Top X é a página e só ele tem mínimo')
+
+await como45(E40.logistica)
+const dias45 = (await um45(`select plt_privado.fn_dias_uteis_venda_90d() as d`)).d
+const confA = await um45(`select media_semana::float as media, sugestao, minimo::float as minimo, no_top
+                            from public.plt_fn_estoque_configuracoes('S45A', 10, 0)`)
+conferir(
+  confA?.sugestao === Math.ceil((72 / dias45) * 6 * 2)
+    && confA?.media === Math.round((72 / dias45) * 6 * 10) / 10,
+  'a fórmula do dono: 72 vendidos ÷ dias úteis × 6 dias da semana de venda × 2 semanas, teto no fim',
+  JSON.stringify({ dias45, confA }),
+)
+const posB = v45.S45B.posicao
+await bd.exec(`select public.plt_fn_estoque_definir_top_x(${posB})`)
+const pag1 = await linhas45(`select codigo, posicao from public.plt_fn_estoque_produtos('acabados', null, null, ${posB}, 0)`)
+const pag2 = await linhas45(`select codigo, posicao from public.plt_fn_estoque_produtos('acabados', null, null, ${posB}, ${posB})`)
+conferir(
+  pag1.length === posB && pag1[0].posicao === 1 && pag1[pag1.length - 1].posicao === posB
+    && pag2[0]?.posicao === posB + 1
+    && (await um45(`select count(*)::int as n from public.plt_logs_atividade where acao = 'estoque_top_x_alterado'`)).n >= 1,
+  'X é o tamanho da página: página 1 = 1º ao Xº, página 2 começa no X+1 — e a troca do Top X fica na trilha',
+  JSON.stringify({ posB, pag1, pag2: pag2.slice(0, 2) }),
+)
+const linhaA = await um45(`select no_top, minimo::float as minimo, sugestao, minimo_travado
+                             from public.plt_fn_estoque_produtos('acabados', 'S45A', null, 10, 0)`)
+const linhaC = await um45(`select no_top, minimo, sugestao
+                             from public.plt_fn_estoque_produtos('acabados', 'S45C', null, 10, 0)`)
+conferir(
+  linhaA?.no_top === true && linhaA?.minimo === Number(linhaA?.sugestao) && linhaA?.minimo_travado === false
+    && linhaC?.no_top === false && linhaC?.minimo === null && linhaC?.sugestao === null,
+  'trocar o Top X recalculou os mínimos automáticos: dentro do Top X o mínimo é a sugestão; fora, sem mínimo e sem sugestão',
+  JSON.stringify({ linhaA, linhaC }),
+)
+
+titulo('Ajuste Estoque 2 · necessidade × reservados para produção; "Lançar para produção" (manual)')
+
+const mB = Math.ceil((40 / dias45) * 6 * 2)
+const filtro45 = async (filtro) =>
+  (await linhas45(`select codigo from public.plt_fn_estoque_produtos('acabados', null, '${filtro}', 100, 0)`)).map((l) => l.codigo)
+let necessidade = await filtro45('necessidade')
+conferir(
+  necessidade.includes('S45A') && necessidade.includes('S45B') && !necessidade.includes('S45C'),
+  'necessidade de produção: quem tem mínimo e não tem estoque nem reposição a caminho; fora do Top X nunca aparece',
+  JSON.stringify(necessidade),
+)
+const cardManual = (await um45(`select public.plt_fn_estoque_lancar_reposicao(945002, ${mB}) as id`)).id
+const eventoManual = await um45(`
+  select e.origem, e.usuario_id is not null as com_pessoa, e.dados ->> 'motivo' as motivo
+    from public.plt_eventos e where e.card_id = ${cardManual} and e.tipo = 'card_criado'`)
+necessidade = await filtro45('necessidade')
+const reservadosProd = await filtro45('reservados_producao')
+const linhaB = await um45(`select reservados_producao, reservados_venda
+                             from public.plt_fn_estoque_produtos('acabados', 'S45B', null, 10, 0)`)
+conferir(
+  eventoManual?.origem === 'interface' && eventoManual?.com_pessoa === true && eventoManual?.motivo === 'reposicao_manual'
+    && !necessidade.includes('S45B') && reservadosProd.includes('S45B')
+    && linhaB?.reservados_producao === mB
+    && (await um45(`select count(*)::int as n from public.plt_logs_atividade where acao = 'estoque_reposicao_lancada'`)).n === 1,
+  'lançada à mão a quantidade que falta: sai da necessidade, entra em reservados para produção (a reposição no PCP conta no prazo) — gesto com autor e trilha',
+  JSON.stringify({ eventoManual, linhaB }),
+)
+await deveRecusarExec(`select public.plt_fn_estoque_lancar_reposicao(945002, 1)`,
+  'não nasce segunda reposição aberta para o mesmo produto', /já tem uma reposição aberta/i)
+await bd.exec(`select public.plt_fn_estoque_movimentar(945003, 'entrada', 1, null)`)
+conferir(
+  (await filtro45('com_estoque')).includes('S45C') && !(await filtro45('necessidade')).includes('S45C'),
+  'o filtro "Com estoque" mostra quem tem pelo menos 1; produto fora do Top X segue sem pedir reposição',
+)
+// Unidade DE PEDIDO em produção: aparece no número, mas não abate a necessidade.
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (945103, (select id from public.clientes order by id limit 1), 'Em aberto', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 945103), 1, 'S45B', 'Mesa Teste 45 - Preta', 1);
+`)
+const cardPedido45 = (await um45(`select id::int as id from public.plt_cards where tipo = 'pedido'
+                                    and pedido_id = (select id from public.pedidos where numero = 945103)`)).id
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades, setor_atual_id)
+    values ('unidade', (select id from public.pedidos where numero = 945103), ${cardPedido45}, 1, 'S45B', 'Mesa Teste 45 - Preta', 1, 1,
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_destino_id)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_usuarios where auth_user_id = '${E40.admin}'), 'interface',
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+`)
+const linhaB2 = await um45(`select reservados_producao from public.plt_fn_estoque_produtos('acabados', 'S45B', null, 10, 0)`)
+conferir(
+  linhaB2?.reservados_producao === mB + 1 && !(await filtro45('necessidade')).includes('S45B'),
+  'móvel de PEDIDO em produção soma no número de reservados (resposta 6), mas quem abate a necessidade é só o que vem para o estoque',
+  JSON.stringify(linhaB2),
+)
+// A bolinha vermelha: peça reservada para venda esperando a decisão do PCP
+// (um pedido AINDA sem nada liberado — pedido já decidido não acende bolinha).
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido)
+    values (945104, (select id from public.clientes order by id limit 1), 'Em aberto', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 945104), 1, 'S45C', 'Banco Teste 45 - Cru', 1);
+`)
+const cardPendente45 = (await um45(`select id::int as id from public.plt_cards where tipo = 'pedido'
+                                      and pedido_id = (select id from public.pedidos where numero = 945104)`)).id
+const pecaC = (await um45(`select id::int as id from public.plt_cards
+                            where tipo = 'unidade' and produto_tiny_id = 945003 and pedido_id is null and arquivado_em is null limit 1`)).id
+await bd.exec(`update public.plt_cards set reservada_pedido_id = (select id from public.pedidos where numero = 945104),
+                                            reservada_em = now() where id = ${pecaC}`)
+const linhaC2 = await um45(`select pendente_card_id::int as card, pendente_pedido_numero as numero, reservadas_estoque
+                              from public.plt_fn_estoque_produtos('acabados', 'S45C', null, 10, 0)`)
+conferir(
+  linhaC2?.card === cardPendente45 && linhaC2?.numero === 945104 && linhaC2?.reservadas_estoque === 1,
+  'a bolinha vermelha sabe para onde apontar: o card do pedido que espera a decisão do PCP',
+  JSON.stringify(linhaC2),
+)
+await bd.exec(`update public.plt_cards set reservada_pedido_id = null, reservada_em = null where id = ${pecaC}`)
+
+titulo('Ajuste Estoque 2 · o prazo de 2 dias úteis da fábrica (seg–sex) e o vencimento por evento')
+
+const prazos = await um45(`
+  select plt_privado.fn_reposicao_vence_em('2026-09-21T15:00:00-03:00') = '2026-09-24T00:00:00-03:00'::timestamptz as segunda,
+         plt_privado.fn_reposicao_vence_em('2026-09-25T10:00:00-03:00') = '2026-09-30T00:00:00-03:00'::timestamptz as sexta,
+         plt_privado.fn_reposicao_vence_em('2026-09-26T10:00:00-03:00') = '2026-09-30T00:00:00-03:00'::timestamptz as sabado`)
+conferir(prazos?.segunda && prazos?.sexta && prazos?.sabado,
+  'a régua do prazo: criada segunda vence quinta 00:00; criada sexta ou sábado, o fim de semana não conta — vence quarta 00:00',
+  JSON.stringify(prazos))
+await bd.exec(`select plt_privado.fn_vencer_reposicoes()`)
+conferir(
+  (await um45(`select arquivado_em is null as aberta from public.plt_cards where id = ${cardManual}`)).aberta === true,
+  'reposição dentro do prazo não vence',
+)
+await bd.exec(`update public.plt_cards set criado_em = now() - interval '10 days' where id = ${cardManual}`)
+const vencidas1 = (await um45(`select plt_privado.fn_vencer_reposicoes() as n`)).n
+const eventoVencida = await um45(`
+  select e.origem, e.usuario_id is null as sistema, e.dados ->> 'motivo' as motivo,
+         (e.dados ->> 'vencidas')::int as vencidas, (e.dados ->> 'liberadas')::int as liberadas
+    from public.plt_eventos e where e.card_id = ${cardManual} and e.tipo = 'card_arquivado'`)
+necessidade = await filtro45('necessidade')
+conferir(
+  vencidas1 >= 1 && eventoVencida?.motivo === 'reposicao_vencida' && eventoVencida?.origem === 'api'
+    && eventoVencida?.sistema === true && eventoVencida?.vencidas === mB && eventoVencida?.liberadas === 0
+    && necessidade.includes('S45B'),
+  'parada 2 dias úteis no PCP: sai por evento com o Sistema assinando, e o produto volta para a necessidade',
+  JSON.stringify({ vencidas1, eventoVencida }),
+)
+const gerados45 = (await um45(`select plt_privado.fn_gerar_reposicoes() as n`)).n
+const novaRepo = await um45(`select id::int as id, total_unidades as qtd from public.plt_cards
+                               where tipo = 'reposicao' and produto_tiny_id = 945002
+                                 and arquivado_em is null and liberado_completo_em is null`)
+conferir(
+  gerados45 >= 1 && novaRepo?.qtd === mB,
+  'depois do vencimento a automática reabre SEM exigir movimento novo do estoque — e o móvel do pedido em produção não abate a conta',
+  JSON.stringify({ gerados45, novaRepo }),
+)
+// Parcial: 1 unidade liberada entra na produção; só a parte parada vence.
+await bd.exec(`
+  insert into public.plt_cards (tipo, produto_tiny_id, card_pai_id, item_codigo, item_descricao, indice_unidade, total_unidades, setor_atual_id)
+    values ('unidade', 945002, ${novaRepo.id}, 'S45B', 'Mesa Teste 45 - Preta', 1, ${mB},
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_destino_id)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_usuarios where auth_user_id = '${E40.admin}'), 'interface',
+            (select id from public.plt_setores where papel_no_fluxo = 'entrada' order by id limit 1));
+`)
+await bd.exec(`update public.plt_cards set criado_em = now() - interval '10 days' where id = ${novaRepo.id}`)
+await bd.exec(`select plt_privado.fn_vencer_reposicoes()`)
+const eventoParcial = await um45(`
+  select (e.dados ->> 'vencidas')::int as vencidas, (e.dados ->> 'liberadas')::int as liberadas
+    from public.plt_eventos e where e.card_id = ${novaRepo.id} and e.tipo = 'card_arquivado'`)
+const linhaB3 = await um45(`select reservados_producao from public.plt_fn_estoque_produtos('acabados', 'S45B', null, 10, 0)`)
+conferir(
+  eventoParcial?.liberadas === 1 && eventoParcial?.vencidas === mB - 1
+    && linhaB3?.reservados_producao === 2,
+  'parcial: só a parte parada vence; a peça que entrou na produção segue produzindo e contando (1 da reposição + 1 do pedido)',
+  JSON.stringify({ eventoParcial, linhaB3 }),
+)
+
+titulo('Ajuste Estoque 2 · o resumo do galpão remodelado e o liga/desliga por agendamento')
+
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson45({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 945011, sku: 'S45UN', nome: 'x', saldo: 5 } })})`)
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso(${sqlJson45({ cnpj: '27556613000166', tipo: 'estoque', dados: { idProduto: 945012, sku: 'S45M2', nome: 'x', saldo: 12 } })})`)
+const resumo45 = await um45(`select moveis_estoque, pecas_unidades::float as pecas_unidades, pecas_m2::float as pecas_m2,
+                                    moveis_reservados, pecas_producao, moveis_producao from public.plt_fn_estoque_resumo()`)
+conferir(
+  resumo45?.pecas_m2 === 12 && resumo45?.pecas_unidades >= 5
+    && resumo45?.moveis_estoque >= 1 && resumo45?.pecas_producao >= 1 && resumo45?.moveis_producao >= 1,
+  'os seis números do galpão: móveis livres, insumos por unidade e por m², prontos reservados, peças (sem dono) e móveis (de pedido) em produção',
+  JSON.stringify(resumo45),
+)
+const situacao45 = (await um45(`select public.plt_fn_estoque_reposicao_situacao() as r`)).r
+await deveRecusarExec(`select public.plt_fn_estoque_reposicao_ligar()`,
+  'ligar a reposição automática é gesto de admin', /admin/i)
+await como45(E40.admin)
+const ligou45 = (await um45(`select public.plt_fn_estoque_reposicao_ligar() as r`)).r
+const desligou45 = (await um45(`select public.plt_fn_estoque_reposicao_desligar() as r`)).r
+conferir(
+  situacao45?.ligada === false && ligou45?.ligada === false && ligou45?.motivo === 'sem_pg_cron'
+    && desligou45?.ligada === false,
+  'nasce desligada; o botão agenda/desagenda o job de verdade (aqui sem pg_cron, só decide — em produção cria e remove o agendamento)',
+  JSON.stringify({ situacao45, ligou45, desligou45 }),
+)
+const privilegio45 = await um45(`
+  select has_function_privilege('authenticated', 'public.plt_fn_estoque_definir_top_x(integer)', 'execute') as top_x,
+         has_function_privilege('anon', 'public.plt_fn_estoque_definir_top_x(integer)', 'execute') as top_x_anon,
+         has_function_privilege('anon', 'public.plt_fn_estoque_config()', 'execute') as config_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_vencer_reposicoes()', 'execute') as vencer,
+         has_function_privilege('authenticated', 'plt_privado.fn_recalcular_minimos()', 'execute') as recalcular`)
+conferir(
+  privilegio45.top_x === true && !privilegio45.top_x_anon && !privilegio45.config_anon
+    && !privilegio45.vencer && !privilegio45.recalcular,
+  'as portas das pessoas ficam para quem está logado (gate por dentro); anônimo e maquinaria fora da API',
+  JSON.stringify(privilegio45),
+)
+await como45(E40.logistica)
+await bd.exec(`select public.plt_fn_estoque_definir_top_x(20)`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+} // fim do bloco 45
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

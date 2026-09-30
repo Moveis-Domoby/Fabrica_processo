@@ -680,6 +680,7 @@ begin
                 'minimo',              r.minimo,
                 'em_estoque',          r.disponivel,
                 'disponivel',          r.disponivel,
+                'necessidade_extrema', 0,
                 'reservados_producao', r.para_estoque,
                 'quantidade',          v_qtd,
                 'saldo_tiny',          r.saldo_tiny,
@@ -1478,3 +1479,17 @@ revoke all on function public.plt_fn_estoque_lancar_reposicao(bigint, integer)  
 revoke all on function public.plt_fn_estoque_reposicao_ligar()                            from public, anon;
 revoke all on function public.plt_fn_estoque_reposicao_desligar()                         from public, anon;
 revoke all on function public.plt_fn_estoque_reposicao_situacao()                         from public, anon;
+
+grant execute on function public.plt_fn_estoque_produtos(text, text, text, integer, integer) to authenticated;
+grant execute on function public.plt_fn_estoque_configuracoes(text, integer, integer)        to authenticated;
+grant execute on function public.plt_fn_estoque_resumo()                                     to authenticated;
+grant execute on function public.plt_fn_estoque_config()                                     to authenticated;
+grant execute on function public.plt_fn_estoque_definir_top_x(integer)                       to authenticated;
+grant execute on function public.plt_fn_estoque_definir_cobertura(integer)                   to authenticated;
+grant execute on function public.plt_fn_estoque_definir_corte(integer)                       to authenticated;
+grant execute on function public.plt_fn_estoque_definir_minimo(bigint, numeric)              to authenticated;
+grant execute on function public.plt_fn_estoque_minimo_automatico(bigint)                    to authenticated;
+grant execute on function public.plt_fn_estoque_lancar_reposicao(bigint, integer)            to authenticated;
+grant execute on function public.plt_fn_estoque_reposicao_ligar()                            to authenticated;
+grant execute on function public.plt_fn_estoque_reposicao_desligar()                         to authenticated;
+grant execute on function public.plt_fn_estoque_reposicao_situacao()                         to authenticated;
