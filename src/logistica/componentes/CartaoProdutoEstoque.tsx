@@ -1,48 +1,51 @@
-import { Minus, Plus } from 'lucide-react'
+import { Factory, Minus, Plus } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import type { LinhaEstoqueProduto, OperacaoEstoque } from '@/logistica/api'
-import {
-  formatarQuantidade,
-  rotuloPosicao,
-  sinalDoProduto,
-  textoReposicao,
-} from '@/logistica/estoque'
+import { formatarQuantidade, rotuloPosicao, textoCorte } from '@/logistica/estoque'
 import { FotoProduto } from './FotoProduto'
-import { SeloSinal } from './SeloSinal'
 
 export interface CartaoProdutoEstoqueProps {
   linha: LinhaEstoqueProduto
   /** Logística/admin: foto, entrada e baixa. */
   podeMexer: boolean
+  /** Com a reposição automática DESLIGADA: o "Lançar para produção" (D-87). */
+  podeLancar: boolean
   aoMovimentar: (operacao: OperacaoEstoque) => void
   aoAbrir: () => void
+  aoLancar: () => void
+  /** A bolinha vermelha (resposta 6): pedido esperando a decisão do PCP. */
+  aoAbrirPendencia: () => void
 }
 
 /**
- * O cartão do produto no Top 20+ (ajuste de 28/09 — "muito poluído, deixe mais
- * enxuto com valores menores e dando destaque para a imagem"): a FOTO em cima,
- * com a posição nas vendas; embaixo, nome, SKU, o número do estoque, o mínimo,
- * o sinal (ícone + texto) e os dois gestos da logística. O resto (peças,
- * referência do Tiny) mora no detalhe — tocar na foto abre.
+ * O cartão do produto (↪️ 30/09 — D-86): foto em cima com a posição nas vendas
+ * e a BOLINHA VERMELHA quando um pedido espera a decisão do PCP (tocar leva à
+ * decisão); embaixo, nome, SKU, vendidos (com o aviso do corte), o número EM
+ * ESTOQUE em destaque, reservados para produção e em venda, e o mínimo. Os
+ * selos "Sem estoque"/"Faltam N" saíram — os números falam por si.
  */
 export function CartaoProdutoEstoque({
   linha,
   podeMexer,
+  podeLancar,
   aoMovimentar,
   aoAbrir,
+  aoLancar,
+  aoAbrirPendencia,
 }: CartaoProdutoEstoqueProps) {
-  const sinal = sinalDoProduto(linha)
-  const reposicao = textoReposicao(linha.reposicao_estado)
   const posicao = rotuloPosicao(linha.posicao)
+  const corte = textoCorte(linha.cortes)
   const emEstoque = linha.em_estoque ?? 0
 
   return (
     <li className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
       <div className="relative">
-        {/* Quadro quadrado: 121 das 144 fotos do catálogo são quadradas (30/09). */}
+        {/* Quadro quadrado: 121 das 144 fotos do catálogo são quadradas (30/09).
+            A câmera de trocar a foto NÃO aparece no cartão (pedido do dono,
+            30/09) — só no detalhe, ao tocar no produto. */}
         <FotoProduto
           produto={linha}
-          podeTrocar={podeMexer}
+          podeTrocar={false}
           aoAbrir={aoAbrir}
           className="aspect-square"
         />
@@ -53,6 +56,25 @@ export function CartaoProdutoEstoque({
           >
             {posicao}
           </span>
+        )}
+        {linha.pendente_card_id !== null && (
+          // Alvo de toque cheio (F-07); o vermelho é a bolinha, não o botão.
+          <button
+            type="button"
+            onClick={aoAbrirPendencia}
+            aria-label={
+              linha.pendente_pedido_numero !== null
+                ? `Pedido ${linha.pendente_pedido_numero} espera a decisão do PCP — abrir`
+                : 'Pedido esperando a decisão do PCP — abrir'
+            }
+            title="Pedido esperando a decisão do PCP — tocar abre a decisão"
+            className="absolute top-0 right-0 flex size-11 items-center justify-center"
+          >
+            <span aria-hidden className="relative flex size-3.5">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-danificado-forte opacity-60" />
+              <span className="relative inline-flex size-3.5 rounded-full border border-white/70 bg-danificado-forte" />
+            </span>
+          </button>
         )}
       </div>
 
@@ -66,31 +88,56 @@ export function CartaoProdutoEstoque({
             {linha.vendidos_90d > 0 &&
               ` · ${formatarQuantidade(linha.vendidos_90d)} ${linha.vendidos_90d === 1 ? 'vendido' : 'vendidos'} em 90 dias`}
           </p>
+          {corte && <p className="truncate text-[11px] text-texto-fraco">{corte}</p>}
         </div>
 
         <div className="flex items-end justify-between gap-2">
+          {/* O número em estoque com MAIS destaque (pedido do dono, 1.4). */}
           <p className="flex items-baseline gap-1.5">
-            <span className="text-xl font-semibold text-texto tabular-nums">
+            <span className="text-3xl font-bold text-texto tabular-nums">
               {formatarQuantidade(emEstoque)}
             </span>
             <span className="text-xs text-texto-suave">em estoque</span>
           </p>
-          <p className="text-right text-xs text-texto-suave tabular-nums">
-            Mínimo {linha.minimo !== null && linha.minimo > 0 ? formatarQuantidade(linha.minimo) : '—'}
-            {linha.reservados > 0 && (
-              <>
-                <br />
-                {linha.reservados === 1 ? '1 reservada' : `${linha.reservados} reservadas`}
-              </>
+          <div className="flex items-center justify-end gap-0.5">
+            <p className="text-right text-xs text-texto-suave tabular-nums">
+              Mínimo{' '}
+              {linha.no_top && linha.minimo !== null && linha.minimo > 0
+                ? formatarQuantidade(linha.minimo)
+                : '—'}
+            </p>
+            {podeLancar && linha.em_necessidade && (
+              // O chamado da produção (pedido do dono, 30/09): ícone pequeno,
+              // vermelho, pulando — tocar abre o lançamento (alvo de toque cheio).
+              <button
+                type="button"
+                onClick={aoLancar}
+                aria-label={`${linha.descricao} precisa de produção — lançar para produção`}
+                title="Precisa de produção — tocar lança para produção"
+                className="-my-3 -mr-2 flex size-11 shrink-0 items-center justify-center"
+              >
+                <Factory aria-hidden className="size-4 animate-bounce text-danificado-forte" />
+              </button>
             )}
-          </p>
+          </div>
         </div>
 
-        {(sinal || reposicao) && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {sinal && <SeloSinal sinal={sinal} />}
-            {reposicao && <span className="text-xs text-texto-suave">{reposicao}</span>}
-          </div>
+        {(linha.reservados_producao > 0 || linha.reservados_venda > 0) && (
+          <p className="text-xs text-texto-suave tabular-nums">
+            {linha.reservados_producao > 0 && (
+              <span>
+                {formatarQuantidade(linha.reservados_producao)}{' '}
+                {linha.reservados_producao === 1 ? 'reservado' : 'reservados'} p/ produção
+              </span>
+            )}
+            {linha.reservados_producao > 0 && linha.reservados_venda > 0 && ' · '}
+            {linha.reservados_venda > 0 && (
+              <span>
+                {formatarQuantidade(linha.reservados_venda)}{' '}
+                {linha.reservados_venda === 1 ? 'reservado' : 'reservados'} em venda
+              </span>
+            )}
+          </p>
         )}
 
         {podeMexer && (

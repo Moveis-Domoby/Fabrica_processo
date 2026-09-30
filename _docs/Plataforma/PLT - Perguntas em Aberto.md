@@ -99,6 +99,21 @@ tags: [plataforma, descoberta, perguntas]
   - (c) **"Fechadura (com instalação)"** não tem SKU no Tiny — a venda não reserva a peça (a conta da reserva casa pelo SKU, D-55) — dar um SKU a ela? → ✅ **fica sem SKU.** A premissa já estava velha quando a pergunta foi refeita ao dono (E-67). Desde a D-70 a venda não reserva nem baixa o estoque dos acabados, com ou sem SKU. Sem SKU, a fechadura só fica de fora do Top 20 e da sugestão de mínimo, que casam pelo SKU (o cadastro dela no Tiny da fábrica também não tem SKU). Primeira resposta, dada com a premissa velha: *"Padronize pelo formato do nome"*. Corrigida a premissa, o dono escolheu **"Deixar como está"**: ela é insumo e serviço, como as lâmpadas, e ficar fora dos mais vendidos dos acabados está certo.
   - Registro do levantamento (29/09, só leitura): 376 dos 8.134 itens de pedido vêm sem SKU. O cadastro tem **60 produtos prontos (F/S/V) ativos sem SKU**, e nenhum chega perto do Top 20: o que mais vendeu em 90 dias teve 5 peças, contra 21 do 20º colocado. Hoje não há efeito prático. Se um dia importar, o caminho é a equipe dar SKU no Tiny; a porta de "reconhecer pelo nome" foi oferecida ao dono e não escolhida.
 
+## 🟨 O raio-x do estoque (29/09/2026) — pendência registrada, SEM correção
+
+- **Q-72 · O pacote de correções do raio-x de 29/09** (documento do projeto "estoque-raio-x-2026-09-29"; o dono mandou **anotar sem corrigir** — demanda Ajuste Estoque 2, seção 2). Os achados, à espera de uma frente própria:
+  1. Peça danificada de pedido VIVO parada no ESTOQUE (o card 502 — é teste, mas a porta existe).
+  2. Baixa de peça por fora do caminho oficial (sem passar pela porta da movimentação).
+  3. Liberação do PCP direto para ESTOQUE/AGUARDO (pula a produção sem ser pela sugestão).
+  4. Origem errada da peça manual na alocação.
+  5. A regra de "peça livre" copiada em 3 funções (M-04: um dono por regra).
+  6. Peça personalizada presa (não entra nem sai pelos caminhos normais).
+  7. Leitura do Tiny pesada a cada 30 s na tela.
+  8. Reaplicar a migration 36 desfaz a 40 (ordem de recriação).
+  9. Resíduos da "necessidade extrema" (regra morta da D-55).
+  10. 173 produtos sem SKU no catálogo.
+  - ↪️ 30/09 (Ajuste Estoque 2): nenhum dos 10 foi corrigido — era fora do escopo; o "Usar todas as sugestões" citado no raio-x deixou de existir (D-84).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Decisoes de Produto]] · [[PLT - Requisitos]] · [[000 - ORDEM DAS SESSOES]] · [[PLT - Plano Uniao das Plataformas]]

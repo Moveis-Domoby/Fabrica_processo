@@ -192,6 +192,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 { para: '/fabrica/logistica/estoque', rotulo: 'Estoque' },
                 { para: '/fabrica/logistica/pedidos-em-aguardo', rotulo: 'Pedidos em aguardo' },
                 { para: '/fabrica/logistica/danificados', rotulo: 'Danificados' },
+                { para: '/fabrica/logistica/cancelados', rotulo: 'Cancelados' },
               ],
             },
             {
@@ -294,6 +295,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     ...(souAdmin
                       ? [
                           { para: '/admin/tempo', rotulo: 'Controle de tempo' },
+                          { para: '/admin/estoque', rotulo: 'Estoque' },
                           { para: '/admin/api', rotulo: 'API e integrações' },
                           { para: '/admin/caminhoes', rotulo: 'Caminhões' },
                         ]
