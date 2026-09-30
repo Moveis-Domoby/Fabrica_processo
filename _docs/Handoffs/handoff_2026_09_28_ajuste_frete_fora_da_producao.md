@@ -2,7 +2,7 @@
 titulo: Handoff — Ajuste · Frete fora da produção (D-63)
 tipo: handoff
 data: 2026-09-28
-atualizado: 2026-09-28
+atualizado: 2026-09-29
 tags: [handoff, ajuste, frete, unidades, pcp, aguardo, rotas, d-63]
 ---
 
@@ -61,8 +61,8 @@ Todo item do pedido com quantidade virava peça a produzir — até o frete. O P
 - **A-31** — como classificar item de pedido: cruzar catálogo × código × descrição e calibrar pela 1ª palavra.
 
 ### Achados fora do escopo (não mexidos)
-- **Visão do dia — "pedidos a liberar" = 226**, mas **198 já estão entregues no Tiny**; só 28 esperam de verdade. O quadro do PCP esconde os entregues; o painel não. Deixei como **tarefa sugerida** (mexe no banco, precisa do seu OK).
-- **O que falta no Tiny** (Q-71, com você): Espelho Adnet, Longarina e Carro de mão não estão cadastrados no Tiny da fábrica; as lâmpadas em kit aparecem na aba de insumos; "Fechadura (com instalação)" sem código não baixa o estoque.
+- **Visão do dia — "pedidos a liberar" = 226**, mas **198 já estão entregues no Tiny**; só 28 esperam de verdade. O quadro do PCP esconde os entregues; o painel não. Deixei como **tarefa sugerida** (mexe no banco, precisa do seu OK). → ✅ feita pela outra frente (D-75), publicada em 29/09.
+- **O que falta no Tiny** (Q-71, com você): Espelho Adnet, Longarina e Carro de mão não estão cadastrados no Tiny da fábrica; as lâmpadas em kit aparecem na aba de insumos; "Fechadura (com instalação)" sem código. → ✅ respondida em 29/09: **fica tudo como está** (ver §8; a premissa da fechadura estava velha — E-67).
 - A checagem de desempenho do Supabase aponta dois índices iguais na tabela de cards (antigo, de outra sessão) — sem efeito para você.
 
 ## 5. Arquivos alterados
@@ -100,11 +100,12 @@ _docs: Decisões (D-63), Requisitos (RF-02), Perguntas (Q-71), Modelo de Sistema
 
 ### Aguardando decisão sua
 1. ✅ Juntado na versão principal e publicado em 28/09 (seu OK).
-2. **Q-71** — os três pontos do Tiny (acima).
-3. **Tarefa sugerida** — alinhar o "a liberar" da Visão do dia com o quadro do PCP.
+2. ✅ **Q-71** — os três pontos do Tiny: **respondida em 29/09, fica tudo como está.** A revenda sem cadastro vai ser cadastrada pela equipe quando sentir falta. As lâmpadas em kit são insumos. A fechadura com instalação fica sem código: desde a D-70 a venda não baixa o estoque, com ou sem código, e a premissa antiga estava velha (E-67).
+3. ✅ **Tarefa sugerida** — o "a liberar" da Visão do dia foi alinhado ao quadro do PCP pela outra frente (D-75), aplicado e publicado com o seu OK em 29/09 ([[handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro]]). A regra do frete foi conferida lá e continua valendo.
 
 ### Próximo passo sugerido
-- A sessão do estoque (em paralelo) aplicou a atualização dela depois da minha; quem juntar por último na versão principal roda os testes do banco com as duas.
+- ✅ A sessão do estoque aplicou a atualização dela depois da minha. Juntei as duas por último, com os testes do banco rodando as duas (510 verdes), e publiquei em 28/09.
+- Nada pendente deste ajuste.
 
 ## 9. Como validar (passo a passo)
 
