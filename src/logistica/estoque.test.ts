@@ -59,6 +59,21 @@ describe('prévia da movimentação (antes de confirmar)', () => {
     expect(previaMovimento('contagem', 0, 4)).toMatchObject({ depois: 0, valida: true })
   })
 
+  it('contagem física: as reservadas por venda que estão no galpão entram na conta (D-78)', () => {
+    // 2 livres + 1 reservada = 3 no galpão; contou 3 → nada muda, ficam 2 livres
+    expect(previaMovimento('contagem', 3, 2, 1)).toMatchObject({
+      depois: 2,
+      valida: true,
+      texto: 'Bate com o que já está aqui — fica registrado que foi conferido.',
+    })
+    expect(previaMovimento('contagem', 5, 2, 1)).toMatchObject({ depois: 4, texto: 'Entram 2 peças (de 3 para 5).' })
+    expect(previaMovimento('contagem', 1, 2, 1)).toMatchObject({ depois: 0, texto: 'Saem 2 peças (de 3 para 1).' })
+    expect(previaMovimento('contagem', 0, 2, 1)).toMatchObject({
+      valida: false,
+      texto: 'Há 1 peça reservada para um pedido no galpão — a contagem não pode ser menor.',
+    })
+  })
+
   it('quantidade fora da faixa não passa', () => {
     expect(previaMovimento('entrada', 0, 0).valida).toBe(false)
     expect(previaMovimento('entrada', 501, 0).valida).toBe(false)

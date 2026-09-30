@@ -59,14 +59,31 @@ export function previaMovimento(
   operacao: OperacaoEstoque,
   quantidade: number,
   atual: number,
+  /**
+   * D-78: peças reservadas por uma venda que ainda estão no galpão. A contagem
+   * é FÍSICA — quem conta vê essas também; o número livre é o que sobra.
+   */
+  reservadas = 0,
 ): { depois: number; texto: string; valida: boolean } {
   const q = Number.isFinite(quantidade) ? Math.trunc(quantidade) : NaN
   if (operacao === 'contagem') {
     if (!(q >= 0 && q <= 500)) return { depois: atual, texto: 'Informe de 0 a 500.', valida: false }
-    const diferenca = q - atual
+    if (q < reservadas) {
+      return {
+        depois: atual,
+        texto:
+          reservadas === 1
+            ? 'Há 1 peça reservada para um pedido no galpão — a contagem não pode ser menor.'
+            : `Há ${reservadas} peças reservadas para pedidos no galpão — a contagem não pode ser menor.`,
+        valida: false,
+      }
+    }
+    const noGalpao = atual + reservadas
+    const diferenca = q - noGalpao
+    const livresDepois = q - reservadas
     if (diferenca === 0) {
       return {
-        depois: q,
+        depois: livresDepois,
         texto: 'Bate com o que já está aqui — fica registrado que foi conferido.',
         valida: true,
       }
@@ -75,7 +92,7 @@ export function previaMovimento(
     const n = Math.abs(diferenca)
     const verbo =
       diferenca > 0 ? (n === 1 ? 'Entra 1 peça' : `Entram ${n} peças`) : n === 1 ? 'Sai 1 peça' : `Saem ${n} peças`
-    return { depois: q, texto: `${verbo} (de ${atual} para ${q}).`, valida: true }
+    return { depois: livresDepois, texto: `${verbo} (de ${noGalpao} para ${q}).`, valida: true }
   }
   if (!(q >= 1 && q <= 500)) return { depois: atual, texto: 'Informe de 1 a 500.', valida: false }
   if (operacao === 'baixa') {

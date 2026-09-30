@@ -50,10 +50,15 @@ export interface LinhaEstoqueProduto {
   minimo: number | null
   minimo_tiny: number | null
   minimo_definido_aqui: boolean
-  /** Acabados: a contagem da plataforma. Insumos: o Tiny (nunca negativo). */
+  /** Acabados: a contagem da plataforma (peças livres). Insumos: o Tiny (nunca negativo). */
   em_estoque: number | null
-  /** Peças prontas COM pedido (em Pedidos em aguardo) — à parte, nunca somam. */
+  /**
+   * Peças prontas já com dono — em Pedidos em aguardo ou reservadas por uma
+   * venda (D-78) — à parte, nunca somam no número.
+   */
   reservados: number
+  /** D-78: das reservadas, as que ainda estão no galpão (reservadas pela venda). A contagem é física. */
+  reservadas_estoque: number
   abaixo_minimo: boolean
   /** Quanto falta para voltar ao mínimo (0 quando está acima). */
   repor: number
@@ -92,6 +97,7 @@ export async function listarEstoqueProdutos(parametros: {
     minimo: numeroOuNulo(l.minimo),
     minimo_tiny: numeroOuNulo(l.minimo_tiny),
     em_estoque: numeroOuNulo(l.em_estoque),
+    reservadas_estoque: Number(l.reservadas_estoque ?? 0),
     repor: Number(l.repor ?? 0),
     saldo_tiny: numeroOuNulo(l.saldo_tiny),
     contagem_total: Number(l.contagem_total ?? 0),
@@ -223,6 +229,56 @@ export async function definirCapacidade(capacidade: number | null): Promise<void
 }
 
 // ---------------------------------------------------------------------------
+// Estoque × Tiny (D-76…D-80): a plataforma e o Tiny mostrando o mesmo número.
+// Quem faz o trabalho é o n8n (um fluxo só); aqui só a chave (admin) e a
+// situação — o que está na fila, o que parou e os últimos ajustes gravados.
+// ---------------------------------------------------------------------------
+
+export interface ProdutoParadoTiny {
+  sku: string | null
+  descricao: string
+  erro: string | null
+  desde: string
+}
+
+export interface AjusteTiny {
+  sku?: string
+  deposito?: string
+  tiny_antes?: number
+  tiny_depois?: number
+  em: string
+}
+
+export interface SituacaoTiny {
+  /** Nulo = desligado. */
+  ligado_desde: string | null
+  na_fila: number
+  parados: ProdutoParadoTiny[]
+  ultima_leitura_em: string | null
+  ultimos_ajustes: AjusteTiny[]
+}
+
+export async function situacaoTiny(): Promise<SituacaoTiny | null> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_estoque_situacao')
+  if (error) throw new Error(`Não deu para ver o sincronismo com o Tiny: ${error.message}`)
+  if (!data) return null
+  const s = data as SituacaoTiny
+  return { ...s, na_fila: Number(s.na_fila ?? 0), parados: s.parados ?? [], ultimos_ajustes: s.ultimos_ajustes ?? [] }
+}
+
+/** Liga (admin): o ponto de partida copia o saldo do Tiny uma vez, produto a produto. */
+export async function ligarSincronismoTiny(): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_estoque_ligar')
+  if (error) throw new Error(error.message)
+  return Number((data as { produtos_para_copiar?: number } | null)?.produtos_para_copiar ?? 0)
+}
+
+export async function desligarSincronismoTiny(): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_tiny_estoque_desligar')
+  if (error) throw new Error(error.message)
+}
+
+// ---------------------------------------------------------------------------
 // Foto do produto (D-73): a capa mora na biblioteca por SKU que o tablet já usa
 // (`produtos/{sku}/…`, D-28); o caminho fica no catálogo — a lista traz o
 // caminho numa consulta só, sem listar o storage cartão a cartão (regra 17).
@@ -285,6 +341,8 @@ export interface PecaEstoque {
   local: 'estoque' | 'aguardo'
   qualidade_atual: Estado | null
   desde: string | null
+  /** D-78: peça livre do ESTOQUE reservada por uma venda — o número do pedido. */
+  reservada_numero: number | null
   contagem_total: number
 }
 

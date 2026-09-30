@@ -1,5 +1,5 @@
 {
-  "name": "Domoby · Tiny FÁBRICA → produtos no Supabase",
+  "name": "Domoby · Tiny FÁBRICA → produtos e estoque (fluxo único)",
   "nodes": [
     {
       "parameters": {
@@ -98,64 +98,10 @@
       "typeVersion": 2,
       "position": [
         0,
-        460
+        520
       ],
       "webhookId": "9d7738c8-f7a7-4d8b-9061-e9ace8a39f78",
       "notes": "URL de produção deste node vai no Tiny da fábrica: Configurações → Geral → Webhooks → 'Receber notificações de lançamentos de estoque'. Responde 200 na hora (o Tiny reenvia até 10x sem 200). Path com UUID = segredo (webhook do Tiny não é assinado)."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/eventos",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=minimal"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tipo: 'estoque_fabrica', payload: $json.body ?? {} }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
-      "id": "f3000000-0000-0000-0000-000000000007",
-      "name": "Supabase · registrar em eventos",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        220,
-        460
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Webhook \"lançamentos de estoque\" do Tiny da FÁBRICA.\n// O payload NÃO é documentado pela Olist (F-05). Por isso:\n//   1) o evento cru JÁ foi gravado em eventos (tipo 'estoque_fabrica', node anterior);\n//   2) aqui só seguimos quando achamos um id de PRODUTO em campo com nome explícito.\n//      NÃO usamos dados.id (pode ser o id do lançamento, não do produto).\n// Depois de ver o primeiro payload real, ajustar a lista CAMPOS abaixo e registrar no cofre.\nconst CNPJ_FABRICA = '27556613000166';\nconst CAMPOS = ['idProduto', 'id_produto', 'produtoId'];\nconst corpo = $('Webhook · lançamentos de estoque').first().json.body ?? {};\nconst cnpj = String(corpo.cnpj ?? '').replace(/\\D/g, '');\nif (cnpj && cnpj !== CNPJ_FABRICA) return []; // não é da fábrica: ignora\nconst d = corpo.dados ?? corpo;\nlet id = null;\nfor (const c of CAMPOS) if (d?.[c]) { id = Number(d[c]); break; }\nif (!id && d?.produto?.id) id = Number(d.produto.id);\nif (!id) return []; // só capturado; nada a buscar ainda\nreturn [{ json: { tiny_id: id, origem: 'webhook_estoque' } }];"
-      },
-      "id": "f3000000-0000-0000-0000-000000000008",
-      "name": "Extrair id do produto",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        460,
-        460
-      ]
     },
     {
       "parameters": {
@@ -313,6 +259,367 @@
         1380,
         340
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_aviso",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.body ?? {} }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000020",
+      "name": "Supabase · aviso de estoque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        520
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "Grava o aviso cru em eventos (como sempre) e, com o sincronismo ligado, põe o produto acabado na fila da plataforma. Aviso da LOJA acha o produto pelo SKU."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000021",
+      "name": "A cada minuto · fila do estoque",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_proximos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limite: 20 }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000022",
+      "name": "Supabase · próximos da fila",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        740
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "Até 20 produtos por minuto (a fila junta vários movimentos do mesmo produto). Desligado ou vazio = nenhum item, o fluxo para aqui."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/produto.obter.estoque.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY_FABRICA_TOKEN }}"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.produto_tiny_id }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          }
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000023",
+      "name": "Tiny F · obter estoque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        740
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "Saldo SOMADO das duas empresas (FábricaDomoby + lojadomoby) e cada depósito. 1 a cada 1,2 s. Erro do Tiny (ex.: limite) volta para a plataforma, que tenta de novo no próximo minuto."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_leitura",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_produto_tiny_id: $('Supabase · próximos da fila').item.json.produto_tiny_id, p_versao: $('Supabase · próximos da fila').item.json.versao, p_resposta: $json }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000024",
+      "name": "Supabase · aplicar leitura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        740
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "A plataforma decide: copiar (ponto de partida), subir (Tiny acima) ou devolver o AJUSTE para gravar no Tiny (a plataforma mandou)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "aj1",
+              "leftValue": "={{ $json.acao }}",
+              "rightValue": "ajustar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f3000000-0000-0000-0000-000000000025",
+      "name": "Gravar no Tiny?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/produto.atualizar.estoque.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $json.conta === 'loja' ? $env.TINY_TOKEN : $env.TINY_FABRICA_TOKEN }}"
+            },
+            {
+              "name": "estoque",
+              "value": "={{ JSON.stringify($json.estoque) }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          }
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000026",
+      "name": "Tiny · gravar estoque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        660
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "notes": "Balanço no depósito \"Fábrica\" da LOJA (conta da loja) ou no Geral da FÁBRICA — a plataforma já manda tudo pronto (conta, id do produto naquela conta, depósito, quantidade)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_ajustado",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_produto_tiny_id: $('Supabase · próximos da fila').item.json.produto_tiny_id, p_versao: $('Supabase · próximos da fila').item.json.versao, p_acao: $('Supabase · aplicar leitura').item.json, p_resposta: $json }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000027",
+      "name": "Supabase · confirmar ajuste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        660
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "Deu certo: sai da fila e fica na trilha. Deu erro: a plataforma tenta de novo (5 falhas seguidas → para e aparece na tela de Configurações do Estoque)."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * *"
+            }
+          ]
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000028",
+      "name": "Varredura do estoque 04:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_estoque_varrer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "f3000000-0000-0000-0000-000000000029",
+      "name": "Supabase · varrer estoque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        960
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "notes": "Põe todos os acabados na fila para ler (a fila faz o resto no ritmo do minuto). Pega o que algum aviso deixou passar."
     }
   ],
   "connections": {
@@ -371,39 +678,6 @@
         ]
       ]
     },
-    "Webhook · lançamentos de estoque": {
-      "main": [
-        [
-          {
-            "node": "Supabase · registrar em eventos",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Supabase · registrar em eventos": {
-      "main": [
-        [
-          {
-            "node": "Extrair id do produto",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extrair id do produto": {
-      "main": [
-        [
-          {
-            "node": "Juntar ids",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Juntar ids": {
       "main": [
         [
@@ -443,11 +717,103 @@
           }
         ]
       ]
+    },
+    "Webhook · lançamentos de estoque": {
+      "main": [
+        [
+          {
+            "node": "Supabase · aviso de estoque",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A cada minuto · fila do estoque": {
+      "main": [
+        [
+          {
+            "node": "Supabase · próximos da fila",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase · próximos da fila": {
+      "main": [
+        [
+          {
+            "node": "Tiny F · obter estoque",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny F · obter estoque": {
+      "main": [
+        [
+          {
+            "node": "Supabase · aplicar leitura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase · aplicar leitura": {
+      "main": [
+        [
+          {
+            "node": "Gravar no Tiny?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar no Tiny?": {
+      "main": [
+        [
+          {
+            "node": "Tiny · gravar estoque",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Tiny · gravar estoque": {
+      "main": [
+        [
+          {
+            "node": "Supabase · confirmar ajuste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Varredura do estoque 04:00": {
+      "main": [
+        [
+          {
+            "node": "Supabase · varrer estoque",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "America/Sao_Paulo"
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true
   },
   "active": false
 }

@@ -22,8 +22,8 @@ export interface ModalProdutoEstoqueProps {
 
 /**
  * O produto aberto (tocar na foto do cartão): a foto grande — e a troca dela —,
- * os números, as peças uma a uma e, só como referência, o que o Tiny diz. O
- * cartão fica enxuto; o detalhe mora aqui.
+ * os números, as peças uma a uma e o que o Tiny diz (as duas empresas somadas,
+ * quando a plataforma já leu). O cartão fica enxuto; o detalhe mora aqui.
  */
 export function ModalProdutoEstoque({
   produto,
@@ -77,7 +77,7 @@ export function ModalProdutoEstoque({
             </p>
             {produto.reservados > 0 && (
               <p className="text-sm text-texto-suave tabular-nums">
-                {produto.reservados === 1 ? '1 reservada' : `${produto.reservados} reservadas`} em Pedidos em aguardo
+                {produto.reservados === 1 ? '1 reservada' : `${produto.reservados} reservadas`} para pedidos
               </p>
             )}
           </div>
@@ -119,8 +119,14 @@ export function ModalProdutoEstoque({
 
           {produto.saldo_tiny !== null && (
             <p className="text-xs text-texto-fraco tabular-nums">
-              Só referência: no Tiny este produto está com {formatarQuantidade(produto.saldo_tiny)}
-              {idade && `, lido ${idade}`}. O número do estoque aqui é a contagem da logística.
+              {/* D-76: a leitura da plataforma traz as duas empresas somadas (o
+                  "multiempresa" que a equipe olha); o aviso cru do Tiny, só o
+                  depósito Geral da fábrica. */}
+              {produto.origem_leitura === 'webhook'
+                ? 'No Tiny, só o depósito da fábrica: '
+                : 'No Tiny, as duas empresas somadas: '}
+              {formatarQuantidade(produto.saldo_tiny)}
+              {idade && ` · lido ${idade}`}.
             </p>
           )}
         </div>

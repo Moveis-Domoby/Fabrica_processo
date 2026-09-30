@@ -1,18 +1,23 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, TriangleAlert, Warehouse } from 'lucide-react'
+import { CircleCheck, CirclePause, RefreshCw, Search, TriangleAlert, Warehouse } from 'lucide-react'
+import { useSessao } from '@/autenticacao/sessao-contexto'
 import { Botao, Campo, Dica, Paginacao, useNotificacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
+import { useAgora } from '@/kanban/tempo'
 import { cn } from '@/lib/cn'
 import {
   aplicarSugestoes,
   definirCapacidade,
   definirMinimo,
+  desligarSincronismoTiny,
+  ligarSincronismoTiny,
   listarConfiguracoesEstoque,
   resumoEstoque,
+  situacaoTiny,
 } from '@/logistica/api'
 import type { LinhaConfiguracaoEstoque, ResumoEstoque } from '@/logistica/api'
-import { formatarQuantidade, rotuloPosicao } from '@/logistica/estoque'
+import { formatarQuantidade, idadeDaLeitura, rotuloPosicao } from '@/logistica/estoque'
 import { FotoProduto } from './FotoProduto'
 
 const POR_PAGINA = 20
@@ -88,6 +93,7 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
   return (
     <div className="flex flex-col gap-5">
       <CartaoGalpao resumo={resumo ?? null} podeMexer={podeMexer} />
+      <CartaoTiny ativo={ativo} />
 
       <section aria-label="Mínimo por produto" className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -206,6 +212,171 @@ function Numero({ rotulo, valor, alerta }: { rotulo: string; valor: string; aler
         </span>
       )}
     </div>
+  )
+}
+
+const dataHora = (iso: string) =>
+  new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+/**
+ * Estoque × Tiny (D-76…D-80): a chave (só o admin liga e desliga) e a
+ * situação — o que está na fila, o que parou com erro e os últimos ajustes
+ * gravados no Tiny. Quem faz o trabalho é o fluxo do n8n; aqui só se vê.
+ */
+function CartaoTiny({ ativo }: { ativo: boolean }) {
+  const { perfil } = useSessao()
+  const souAdmin = perfil?.papel === 'admin'
+  const agora = useAgora()
+  const [confirmando, setConfirmando] = useState<'ligar' | 'desligar' | null>(null)
+  const notificar = useNotificacao()
+  const clienteQuery = useQueryClient()
+
+  const { data: situacao, isPending } = useQuery({
+    queryKey: ['estoque', 'tiny'],
+    queryFn: situacaoTiny,
+    enabled: ativo,
+    refetchInterval: 30_000,
+  })
+  const ligado = Boolean(situacao?.ligado_desde)
+
+  const chave = useMutation({
+    mutationFn: async (acao: 'ligar' | 'desligar') =>
+      acao === 'ligar' ? ligarSincronismoTiny() : (await desligarSincronismoTiny(), 0),
+    onSuccess: async (produtos, acao) => {
+      setConfirmando(null)
+      notificar({
+        titulo: acao === 'ligar' ? 'Sincronismo com o Tiny ligado' : 'Sincronismo com o Tiny desligado',
+        descricao:
+          acao === 'ligar'
+            ? `${produtos} produtos vão copiar o saldo do Tiny nos próximos minutos.`
+            : 'O número daqui deixa de conversar com o Tiny.',
+        tom: 'perfeito',
+      })
+      await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu para mudar o sincronismo',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
+  return (
+    <section
+      aria-label="Sincronismo com o Tiny"
+      className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-4"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
+        <div className="relative flex items-center gap-2">
+          <RefreshCw aria-hidden className="size-6 shrink-0 text-texto-suave" />
+          <h2 className="text-lg font-semibold text-texto">Tiny</h2>
+          <Dica rotulo="Como o estoque conversa com o Tiny">
+            <span className="flex flex-col gap-2">
+              <span>Ligado, a plataforma e o Tiny mostram o mesmo número de cada produto pronto.</span>
+              <span>
+                O que entra no Tiny sobe aqui. Entrada, baixa e contagem feitas aqui vão para o Tiny. A
+                venda reserva a peça na hora e não vai para o Tiny (ele já baixa sozinho).
+              </span>
+              <span>Ao ligar, cada produto copia uma vez o saldo do Tiny (as duas empresas somadas).</span>
+            </span>
+          </Dica>
+        </div>
+        <p
+          className={cn(
+            'inline-flex items-center gap-1.5 text-sm font-medium',
+            ligado ? 'text-perfeito-texto' : 'text-texto-suave',
+          )}
+        >
+          {ligado ? (
+            <CircleCheck aria-hidden className="size-4 shrink-0" />
+          ) : (
+            <CirclePause aria-hidden className="size-4 shrink-0" />
+          )}
+          {isPending
+            ? '…'
+            : ligado
+              ? `Ligado desde ${dataHora(situacao!.ligado_desde!)}`
+              : 'Desligado — o número daqui não conversa com o Tiny'}
+        </p>
+      </div>
+
+      {/* Enquanto carrega, "…" — zero seria um número falso. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Numero rotulo="Produtos na fila" valor={situacao ? formatarQuantidade(situacao.na_fila) : '…'} />
+        <Numero
+          rotulo="Última leitura do Tiny"
+          valor={situacao ? (idadeDaLeitura(situacao.ultima_leitura_em, agora) ?? '—') : '…'}
+        />
+        <Numero
+          rotulo="Parados com erro"
+          valor={situacao ? formatarQuantidade(situacao.parados.length) : '…'}
+          alerta={situacao && situacao.parados.length > 0 ? 'veja abaixo' : undefined}
+        />
+      </div>
+
+      {situacao && situacao.parados.length > 0 && (
+        <ul className="flex flex-col gap-1 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">
+          {situacao.parados.map((p) => (
+            <li key={`${p.sku}-${p.desde}`} className="flex flex-col">
+              <span className="font-medium">
+                {p.sku ? `SKU ${p.sku} · ` : ''}
+                {p.descricao}
+              </span>
+              <span className="text-xs">
+                {p.erro ?? 'erro sem descrição'} · parou {idadeDaLeitura(p.desde, agora)}. Um movimento novo do
+                produto tenta de novo.
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {situacao && situacao.ultimos_ajustes.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold text-texto">Últimos ajustes gravados no Tiny</h3>
+          <ul className="flex flex-col gap-1 text-sm text-texto-suave">
+            {situacao.ultimos_ajustes.map((a) => (
+              <li key={a.em} className="tabular-nums">
+                {a.sku ? `SKU ${a.sku}: ` : ''}
+                Tiny de {formatarQuantidade(Number(a.tiny_antes ?? 0))} para{' '}
+                <span className="font-medium text-texto">{formatarQuantidade(Number(a.tiny_depois ?? 0))}</span>
+                {a.deposito ? ` (depósito ${a.deposito})` : ''} · {idadeDaLeitura(a.em, agora)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {souAdmin &&
+        (confirmando ? (
+          <div className="flex max-w-xl flex-col gap-2 rounded-dm-lg border border-atencao-borda bg-atencao-fundo p-3">
+            <p className="text-sm text-atencao-texto">
+              {confirmando === 'ligar'
+                ? 'Cada produto pronto passa a ter aqui o saldo do Tiny (as duas empresas somadas) — o que estiver diferente é acertado para o número do Tiny. Depois disso, os dois andam juntos.'
+                : 'Desligado, o que acontecer aqui não vai para o Tiny, o que entrar no Tiny não sobe aqui, e a venda nova não reserva peça.'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Botao onClick={() => chave.mutate(confirmando)} carregando={chave.isPending}>
+                {confirmando === 'ligar' ? 'Sim, ligar e copiar o Tiny' : 'Sim, desligar'}
+              </Botao>
+              <Botao variante="secundaria" onClick={() => setConfirmando(null)}>
+                Cancelar
+              </Botao>
+            </div>
+          </div>
+        ) : (
+          <Botao
+            variante={ligado ? 'secundaria' : 'primaria'}
+            className="self-start"
+            disabled={isPending}
+            onClick={() => setConfirmando(ligado ? 'desligar' : 'ligar')}
+          >
+            {ligado ? 'Desligar o sincronismo' : 'Ligar o sincronismo com o Tiny'}
+          </Botao>
+        ))}
+    </section>
   )
 }
 

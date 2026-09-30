@@ -1404,6 +1404,127 @@ comment on function public.plt_fn_estoque(text, integer, integer, bigint, text) 
   'Peças no ESTOQUE (livres, sem dono — com a reserva para venda, quando houver — D-78) e em Pedidos em aguardo (com pedido). Paginada; gate da logística.';
 
 -- ----------------------------------------------------------------------------
+-- 12b · A lista por produto (drop + create a partir da migration 40 — a 40 já
+--       dropa antes de criar): ganhou `reservadas_estoque`, as peças
+--       reservadas para venda que ainda estão no galpão (a contagem é física e
+--       a prévia da tela precisa delas). O resto é o da 40.
+-- ----------------------------------------------------------------------------
+drop function if exists public.plt_fn_estoque_produtos(text, text, text, integer, integer);
+create function public.plt_fn_estoque_produtos(
+  p_grupo        text    default 'acabados',  -- 'acabados' | 'insumos'
+  p_busca        text    default null,
+  p_filtro       text    default null,        -- acabados: null (Top 20+) | 'fora' | 'abaixo_minimo' | 'todos'; insumos: null | 'sem_leitura'
+  p_limite       integer default 20,
+  p_deslocamento integer default 0
+)
+returns table (
+  tiny_id              bigint,
+  codigo               text,
+  descricao            text,
+  classe               text,
+  unidade              text,
+  imagem_caminho       text,
+  posicao              integer,
+  vendidos_90d         numeric,
+  minimo               numeric,
+  minimo_tiny          numeric,
+  minimo_definido_aqui boolean,
+  em_estoque           numeric,
+  reservados           integer,
+  reservadas_estoque   integer,
+  abaixo_minimo        boolean,
+  repor                numeric,
+  saldo_tiny           numeric,
+  lido_em              timestamptz,
+  origem_leitura       text,
+  reposicao_estado     text,
+  contagem_total       bigint
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  with res_estoque as (
+    select c.produto_tiny_id as tiny_id, count(*)::int as quantidade
+      from public.plt_cards c
+      join public.plt_setores s on s.id = c.setor_atual_id and s.codigo = 'estoque'
+     where c.tipo = 'unidade' and c.pedido_id is null and c.arquivado_em is null
+       and c.reservada_pedido_id is not null and c.produto_tiny_id is not null
+     group by c.produto_tiny_id
+  ),
+  base as (
+    select b.tiny_id, b.codigo, b.descricao, b.classe, b.unidade, b.minimo, b.disponivel,
+           b.saldo_tiny, b.lido_em, b.origem_leitura, b.prontos_reservados, b.reposicao_estado,
+           pr.imagem_caminho, pr.estoque_minimo as minimo_tiny, pr.minimo_plataforma,
+           v.posicao, v.vendidos,
+           coalesce(re.quantidade, 0)                                                   as reservadas_estoque_,
+           case when b.disponivel is not null then greatest(b.disponivel, 0) end        as em_estoque_,
+           (b.disponivel is not null and coalesce(b.minimo, 0) > 0
+              and b.disponivel < b.minimo)                                              as abaixo_
+      from plt_privado.fn_estoque_por_produto() b
+      join public.produtos pr on pr.tiny_id = b.tiny_id
+      left join plt_privado.fn_vendas_90d() v on v.tiny_id = b.tiny_id
+      left join res_estoque re on re.tiny_id = b.tiny_id
+     where b.situacao = 'A'
+       and case when coalesce(p_grupo, 'acabados') = 'insumos'
+                then b.classe in ('M', 'K')
+                else coalesce(b.classe, '') in ('F', 'S', 'V')
+           end
+  ),
+  visivel as (
+    select b.*,
+           (coalesce(b.posicao, 2147483647) <= 20 or coalesce(b.em_estoque_, 0) > 0) as na_lista_
+      from base b
+     where plt_privado.fn_pode_ver_expedicao()
+       and (p_busca is null or btrim(p_busca) = ''
+            or b.descricao ilike '%' || btrim(p_busca) || '%'
+            or b.codigo ilike btrim(p_busca) || '%')
+  )
+  select f.tiny_id,
+         f.codigo,
+         f.descricao,
+         f.classe,
+         f.unidade,
+         f.imagem_caminho,
+         f.posicao,
+         coalesce(f.vendidos, 0),
+         f.minimo,
+         f.minimo_tiny,
+         f.minimo_plataforma is not null,
+         f.em_estoque_,
+         f.prontos_reservados,
+         f.reservadas_estoque_,
+         f.abaixo_,
+         case when f.abaixo_ then f.minimo - coalesce(f.em_estoque_, 0) else 0 end,
+         f.saldo_tiny,
+         f.lido_em,
+         f.origem_leitura,
+         f.reposicao_estado,
+         count(*) over ()
+    from visivel f
+   where case
+           when coalesce(p_grupo, 'acabados') = 'insumos'
+             then coalesce(p_filtro, '') <> 'sem_leitura' or f.saldo_tiny is null
+           -- Com busca, procura no catálogo inteiro (o "ver produtos").
+           when p_busca is not null and btrim(p_busca) <> '' then true
+           when p_filtro = 'fora'          then not f.na_lista_
+           when p_filtro = 'abaixo_minimo' then f.abaixo_
+           when p_filtro = 'todos'         then true
+           else f.na_lista_
+         end
+   order by (coalesce(p_grupo, 'acabados') = 'insumos' and coalesce(f.em_estoque_, 0) > 0) desc,
+            f.posicao nulls last,
+            f.descricao,
+            f.tiny_id
+   limit least(greatest(coalesce(p_limite, 20), 1), 100)
+  offset greatest(coalesce(p_deslocamento, 0), 0);
+$$;
+
+comment on function public.plt_fn_estoque_produtos(text, text, text, integer, integer) is
+  'Estoque por produto. Acabados (Top 20+ — D-71): os 20 mais vendidos dos 90 dias + o que tem estoque, pelo rank; ''fora'' = o resto do catálogo; a busca varre tudo. Número = peças livres (D-70/D-78); reservados = Pedidos em aguardo + reservadas para venda; reservadas_estoque = as reservadas para venda ainda no galpão. Insumos: Tiny, com estoque primeiro. Gate da logística.';
+
+-- ----------------------------------------------------------------------------
 -- 13 · As PORTAS do n8n (D-76/D-77/D-80 — um fluxo só). Execute só para a
 --      chave de serviço: nenhuma pessoa chama estas.
 -- ----------------------------------------------------------------------------
@@ -1850,6 +1971,8 @@ revoke all on function public.plt_fn_tiny_estoque_desligar()                    
 revoke all on function public.plt_fn_tiny_estoque_situacao()                                 from public, anon;
 revoke all on function public.plt_fn_sugestoes_alocacao(bigint)                              from public, anon;
 revoke all on function public.plt_fn_estoque(text, integer, integer, bigint, text)           from public, anon;
+revoke all on function public.plt_fn_estoque_produtos(text, text, text, integer, integer)    from public, anon;
+grant execute on function public.plt_fn_estoque_produtos(text, text, text, integer, integer) to authenticated;
 grant execute on function public.plt_fn_tiny_estoque_ligar()                                 to authenticated;
 grant execute on function public.plt_fn_tiny_estoque_desligar()                              to authenticated;
 grant execute on function public.plt_fn_tiny_estoque_situacao()                              to authenticated;

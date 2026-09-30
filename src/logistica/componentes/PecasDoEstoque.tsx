@@ -38,6 +38,12 @@ export function LinhaPeca({ peca, agora }: { peca: PecaEstoque; agora: number })
                 <span className="text-texto-suave"> · em Pedidos em aguardo</span>
               )}
             </>
+          ) : peca.reservada_numero !== null ? (
+            // D-78: a venda reservou esta peça; ela segue no estoque até o PCP decidir ou o pedido sair.
+            <>
+              <span className="font-medium">Reservada para o pedido {peca.reservada_numero}</span>
+              <span className="text-texto-suave"> · ainda no estoque</span>
+            </>
           ) : (
             <span className="font-medium">{origemDaPeca(peca)}</span>
           )}

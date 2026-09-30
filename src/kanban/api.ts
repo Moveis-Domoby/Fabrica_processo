@@ -439,9 +439,15 @@ export interface SugestaoAlocacao {
   indice_unidade: number
   total_unidades: number
   peca_card_id: number
-  peca_origem: 'reposicao' | 'cancelamento'
+  /** 'manual' = cadastrada pela logística (ajuste de 28/09). */
+  peca_origem: 'reposicao' | 'cancelamento' | 'manual'
   peca_origem_numero: number | null
   pecas_iguais: number
+  /**
+   * D-78: a venda reservou ESTA peça para esta unidade quando o pedido chegou
+   * (a tela já marca "usar"; desmarcar manda produzir e a peça volta ao estoque).
+   */
+  reservada: boolean
 }
 
 export async function sugestoesAlocacao(cardPedidoId: number): Promise<SugestaoAlocacao[]> {

@@ -57,6 +57,12 @@ export interface ModalLiberarPedidoProps {
  * usar?". Aceitar faz a unidade nascer PRONTA em Pedidos em aguardo (não
  * volta à produção); recusar libera normal. A sugestão nunca decide sozinha —
  * vem desmarcada.
+ *
+ * D-78 (30/09): quando a VENDA já reservou a peça para a unidade (o pedido
+ * chegou com peça pronta no estoque), ela vem MARCADA — o dono: "a peça é
+ * reservada … mas deve aparecer no PCP ainda para ele liberar; se ele não
+ * liberar, a peça volta para o estoque". Desmarcar e liberar para a produção
+ * desfaz a reserva (o banco devolve a peça e o Tiny recebe de volta).
  */
 export function ModalLiberarPedido({
   cardPedido,
@@ -180,7 +186,12 @@ export function ModalLiberarPedido({
     setErro('')
   }
 
-  const linhas = linhasBase.map((l) => ({ ...l, ...ajustes.get(l.chave) }))
+  // D-78: a peça reservada pela venda já vem marcada para usar (o PCP pode desmarcar).
+  const linhas = linhasBase.map((l) => ({
+    ...l,
+    usarEstoque: sugestaoPorChave.get(l.chave)?.reservada ?? false,
+    ...ajustes.get(l.chave),
+  }))
   const pendentes = linhas.filter((l) => !l.jaLiberada)
   const selecionadas = pendentes.filter((l) => l.selecionada)
 
@@ -441,19 +452,24 @@ export function ModalLiberarPedido({
                     <PackageCheck aria-hidden className="size-5 shrink-0 text-perfeito-forte" />
                     <span className="flex flex-col">
                       <span className="font-medium text-texto">
-                        Há {sugestao.pecas_iguais} igual{sugestao.pecas_iguais === 1 ? '' : 'is'} no
-                        estoque, sem dono — usar?
+                        {sugestao.reservada
+                          ? 'Peça do estoque reservada para este pedido — usar?'
+                          : `Há ${sugestao.pecas_iguais} igual${sugestao.pecas_iguais === 1 ? '' : 'is'} no estoque, sem dono — usar?`}
                       </span>
                       <span className="text-xs text-texto-suave">
-                        {sugestao.peca_origem === 'cancelamento' && sugestao.peca_origem_numero
-                          ? `Veio do pedido ${sugestao.peca_origem_numero}, que foi cancelado.`
-                          : sugestao.peca_origem === 'reposicao'
-                            ? 'Veio da reposição de estoque.'
-                            : // Ajuste de 28/09: peça cadastrada pela logística (sem card pai).
-                              'Está pronta no estoque.'}{' '}
+                        {sugestao.reservada
+                          ? 'Separada quando a venda chegou.'
+                          : sugestao.peca_origem === 'cancelamento' && sugestao.peca_origem_numero
+                            ? `Veio do pedido ${sugestao.peca_origem_numero}, que foi cancelado.`
+                            : sugestao.peca_origem === 'reposicao'
+                              ? 'Veio da reposição de estoque.'
+                              : // Ajuste de 28/09: peça cadastrada pela logística (sem card pai).
+                                'Está pronta no estoque.'}{' '}
                         {usandoEstoque
                           ? 'Vai direto, pronta, para Pedidos em aguardo — não passa pela produção.'
-                          : 'Marque para usar; sem marcar, a unidade vai para a produção.'}
+                          : sugestao.reservada
+                            ? 'Sem marcar, a unidade vai para a produção e a peça volta a ficar livre no estoque.'
+                            : 'Marque para usar; sem marcar, a unidade vai para a produção.'}
                       </span>
                     </span>
                   </label>

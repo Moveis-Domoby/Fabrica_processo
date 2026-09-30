@@ -11,6 +11,8 @@ export interface ProdutoMovimento {
   codigo: string | null
   descricao: string
   em_estoque: number | null
+  /** D-78: reservadas por venda, ainda no galpão (a contagem é física). */
+  reservadas_estoque?: number
 }
 
 export interface ModalMovimentarEstoqueProps {
@@ -28,7 +30,8 @@ const OPERACOES: { valor: OperacaoEstoque; rotulo: string }[] = [
 const EXPLICACAO: Record<OperacaoEstoque, string> = {
   entrada: 'Peças prontas, em perfeito estado, que entraram no estoque.',
   baixa: 'Peças que saíram do estoque (venda, entrega, avaria). Saem as mais antigas primeiro.',
-  contagem: 'Quantas tem agora no galpão — o sistema acerta a diferença sozinho.',
+  contagem:
+    'Quantas tem agora no galpão (contando as reservadas para pedido que ainda estão lá) — o sistema acerta a diferença sozinho.',
 }
 
 /**
@@ -50,8 +53,9 @@ export function ModalMovimentarEstoque({
   const clienteQuery = useQueryClient()
 
   const atual = Math.max(produto?.em_estoque ?? 0, 0)
+  const reservadas = Math.max(produto?.reservadas_estoque ?? 0, 0)
   const numero = quantidade.trim() === '' ? Number.NaN : Number(quantidade)
-  const previa = previaMovimento(operacao, numero, atual)
+  const previa = previaMovimento(operacao, numero, atual, reservadas)
 
   const mutacao = useMutation({
     mutationFn: () =>
@@ -119,6 +123,14 @@ export function ModalMovimentarEstoque({
         <p className="text-sm text-texto-suave">
           Hoje no estoque:{' '}
           <span className="font-semibold text-texto tabular-nums">{formatarQuantidade(atual)}</span>
+          {reservadas > 0 && (
+            <>
+              {' '}
+              <span className="tabular-nums">
+                + {reservadas === 1 ? '1 reservada' : `${reservadas} reservadas`} para pedido no galpão
+              </span>
+            </>
+          )}
         </p>
         <FiltroPill
           rotulo="O que aconteceu"

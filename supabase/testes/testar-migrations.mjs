@@ -7273,6 +7273,21 @@ conferir(
   'contagem física = livres + reservadas: contar o que já está lá não mexe em nada — e confere o Tiny (enviar)',
   JSON.stringify({ pecasAntes, depoisContagem }),
 )
+const linhaLista = await um42(`select em_estoque, reservados, reservadas_estoque
+                                 from public.plt_fn_estoque_produtos('acabados', 'S42A', null, 20, 0)`)
+conferir(
+  Number(linhaLista?.em_estoque) === pecasAntes.livres && linhaLista.reservadas_estoque === pecasAntes.reservadas
+    && linhaLista.reservados >= pecasAntes.reservadas,
+  'a lista do estoque mostra as livres como número e as reservadas para venda à parte (a prévia da contagem usa as duas)',
+  JSON.stringify(linhaLista),
+)
+const pecasLista = await linhas42(`select dono, reservada_numero from public.plt_fn_estoque(null, 100, 0, 942001, 'livre')`)
+conferir(
+  pecasLista.filter((p) => p.reservada_numero !== null).length === pecasAntes.reservadas
+    && pecasLista.every((p) => p.dono === 'livre'),
+  'peça por peça: a reservada para venda diz para qual pedido (e segue "sem dono" até sair)',
+  JSON.stringify(pecasLista.filter((p) => p.reservada_numero !== null)),
+)
 await deveRecusarExec(`
   insert into public.plt_eventos (card_id, tipo, origem, dados)
     values ((select min(id) from public.plt_cards where produto_tiny_id = 942001 and arquivado_em is null and reservada_pedido_id is null and pedido_id is null),
