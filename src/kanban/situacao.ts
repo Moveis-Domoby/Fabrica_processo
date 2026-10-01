@@ -16,3 +16,35 @@ export function situacaoNormalizada(situacao: string | null | undefined): string
 export function pedidoCancelado(situacao: string | null | undefined): boolean {
   return situacaoNormalizada(situacao) === 'cancelado'
 }
+
+export function pedidoEntregue(situacao: string | null | undefined): boolean {
+  return situacaoNormalizada(situacao) === 'entregue'
+}
+
+/**
+ * A bolinha de cor da situação do Tiny (rodada do dono, 30/09) — classe
+ * COMPLETA por situação (A-07: nada de montar classe). A cor nunca vem
+ * sozinha: o texto da situação fica sempre ao lado (M-12).
+ */
+export function corDaSituacao(situacao: string | null | undefined): string {
+  switch (situacaoNormalizada(situacao)) {
+    case 'em_aberto':
+      return 'bg-grafite-400'
+    case 'aprovado':
+      return 'bg-acao-ativa'
+    case 'preparando_envio':
+      return 'bg-atencao-forte'
+    case 'faturado':
+    case 'pronto_para_envio':
+      return 'bg-perfeito-forte'
+    case 'enviado':
+      return 'bg-grafite-600'
+    case 'entregue':
+      return 'bg-perfeito-forte'
+    case 'nao_entregue':
+    case 'cancelado':
+      return 'bg-danificado-forte'
+    default:
+      return 'bg-grafite-400'
+  }
+}

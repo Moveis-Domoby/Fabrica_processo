@@ -42,6 +42,11 @@ export interface Card {
   tipo: 'pedido' | 'unidade' | 'reposicao'
   /** Nulo só na REPOSIÇÃO de estoque e nas unidades dela (SESSAO-25). */
   pedido_id: number | null
+  /**
+   * Só na porta do quadro do PCP (migration 48 — D-62): quantas peças do
+   * galpão atendem o pedido (reservadas p/ ele + livres de mesmo SKU).
+   */
+  pecas_estoque?: number
   /** SESSAO-25: produto do catálogo da fábrica (reposição e unidades dela). */
   produto_tiny_id: number | null
   card_pai_id: number | null

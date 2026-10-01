@@ -10,8 +10,9 @@ import {
 import {
   AlertTriangle,
   Ban,
-  ChevronDown,
+  Boxes,
   Clock,
+  Eye,
   Inbox,
   OctagonAlert,
   PackageOpen,
@@ -20,24 +21,22 @@ import {
   Plus,
   Search,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Dica, useNotificacao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Dica, Modal, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
   buscarCardsPedidoPcp,
-  buscarEtapasDoSetor,
   buscarSetores,
+  itensDoPedido,
   pedidosResumo,
   reposicoesResumo,
-  soltarCard,
+  unidadesDoPedido,
 } from '@/kanban/api'
 import type { ReposicaoResumo } from '@/kanban/api'
 import type { PedidoResumo } from '@/kanban/tipos'
 import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
-import { pedidoCancelado } from '@/kanban/situacao'
+import { corDaSituacao, pedidoCancelado, pedidoEntregue } from '@/kanban/situacao'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
-import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
-import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
 import type { Card } from '@/kanban/tipos'
@@ -123,22 +122,6 @@ export function PCP() {
   const carregandoMaisSolicitacoes =
     consultasSolicitacoes[consultasSolicitacoes.length - 1]?.isFetching ?? false
 
-  const { data: etapasPcp = [] } = useQuery({
-    queryKey: ['etapas', setorPcp?.id ?? 0],
-    queryFn: () => buscarEtapasDoSetor(setorPcp!.id),
-    enabled: setorPcp !== undefined,
-  })
-
-  // Unidades de passagem pelo PCP: colunas paginadas (a estrutura do PCP não
-  // muda nesta sessão — a "Chegada" continua aqui).
-  const { colunas: colunasUnidades, cards: unidadesNoPcp } = useColunasPaginadas({
-    setorId: setorPcp?.id,
-    etapas: etapasPcp,
-    tipo: 'unidade',
-    atualizaACada: ATUALIZA_A_CADA,
-  })
-  const totalUnidadesNoPcp = [...colunasUnidades.values()].reduce((s, c) => s + c.total, 0)
-
   // SESSAO-25: o card de reposição não tem pedido — o resumo vem da porta dele.
   const idsReposicao = cardsSolicitacoes
     .map((c) => c.id)
@@ -220,22 +203,10 @@ export function PCP() {
   }, [idLiberar, buscouLiberar, cardDoLink])
 
   const todosOsCards = useMemo(
-    () => [...cardsPedidoAbertos, ...unidadesNoPcp, ...(cardDoLink ? [cardDoLink] : [])],
-    [cardsPedidoAbertos, unidadesNoPcp, cardDoLink],
+    () => [...cardsPedidoAbertos, ...(cardDoLink ? [cardDoLink] : [])],
+    [cardsPedidoAbertos, cardDoLink],
   )
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
-
-  // SESSAO-24: unidade de passagem pelo PCP se arrasta (o banco decide o gesto).
-  const mutacaoSoltar = useMutation({
-    mutationFn: soltarCard,
-    onSuccess: () => clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
-    onError: (excecao) =>
-      notificar({
-        titulo: 'Não deu para mover o card',
-        descricao: excecao instanceof Error ? excecao.message : undefined,
-        tom: 'danificado',
-      }),
-  })
 
   if (!carregando && !souAdmin && !souDoPcp) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -270,7 +241,7 @@ export function PCP() {
         rotulo="Visões do PCP"
         idBase="pcp"
         abas={[
-          { valor: 'solicitacoes', rotulo: 'Solicitação de estoque', icone: <PackagePlus aria-hidden /> },
+          { valor: 'solicitacoes', rotulo: 'Reabastecimento', icone: <PackagePlus aria-hidden /> },
           { valor: 'quadro', rotulo: 'Pedidos aguardando liberação', icone: <PackageOpen aria-hidden /> },
           { valor: 'todos', rotulo: 'Todos os pedidos', icone: <Inbox aria-hidden /> },
         ]}
@@ -285,16 +256,16 @@ export function PCP() {
 
       {aba === 'solicitacoes' && (
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-solicitacoes">
-          <section aria-label="Solicitações de estoque" className="flex flex-col gap-3">
+          <section aria-label="Reabastecimento" className="flex flex-col gap-3">
             <h2 className="text-lg">
-              Solicitação de estoque{' '}
+              Reabastecimento{' '}
               <span className="text-texto-suave tabular-nums">({totalSolicitacoes})</span>
             </h2>
             {carregandoSolicitacoes && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-                Nenhuma solicitação de estoque agora — elas nascem quando um produto do Top X
-                fica abaixo do mínimo (pela automática ou pelo lançamento da logística).
+                Nenhum reabastecimento agora — ele nasce quando um produto do Top X fica abaixo
+                do mínimo (pela automática ou pelo lançamento da logística).
               </p>
             )}
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -313,17 +284,11 @@ export function PCP() {
                 />
               ))}
             </ul>
-            {cardsSolicitacoes.length < totalSolicitacoes && (
-              <Botao
-                variante="secundaria"
-                icone={<ChevronDown />}
-                className="self-start"
-                carregando={carregandoMaisSolicitacoes}
-                onClick={() => setPaginasSolicitacoes((p) => p + 1)}
-              >
-                Ver mais ({totalSolicitacoes - cardsSolicitacoes.length})
-              </Botao>
-            )}
+            <MaisAoRolar
+              temMais={cardsSolicitacoes.length < totalSolicitacoes}
+              carregando={carregandoMaisSolicitacoes}
+              aoChegar={() => setPaginasSolicitacoes((p) => p + 1)}
+            />
           </section>
         </div>
       )}
@@ -381,6 +346,19 @@ export function PCP() {
                   {resumo?.cliente_nome || '…'}
                 </p>
 
+                {/* Rodada de 30/09 (migration 48 — D-62): há peça no galpão
+                    que atende este pedido — o sinal visual que o dono pediu. */}
+                {(card.pecas_estoque ?? 0) > 0 && (
+                  <p className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-0.5 text-xs font-medium text-perfeito-texto">
+                      <Boxes aria-hidden className="size-3.5" />
+                      {card.pecas_estoque === 1
+                        ? '1 peça no estoque — dá para usar'
+                        : `${card.pecas_estoque} peças no estoque — dá para usar`}
+                    </span>
+                  </p>
+                )}
+
                 {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
                 {(pedidoCancelado(resumo?.situacao) || resumo?.alterado_apos_liberacao) && (
                   <p className="flex flex-wrap gap-1.5">
@@ -423,49 +401,11 @@ export function PCP() {
           })}
         </ul>
 
-        {cardsPedidoAbertos.length < totalPedidosAbertos && (
-          <Botao
-            variante="secundaria"
-            icone={<ChevronDown />}
-            className="self-start"
-            carregando={carregandoMaisPedidos}
-            onClick={() => setPaginasPedidos((p) => p + 1)}
-          >
-            Ver mais ({totalPedidosAbertos - cardsPedidoAbertos.length})
-          </Botao>
-        )}
-      </section>
-
-      <section aria-label="Unidades no PCP" className="flex flex-col gap-3">
-        <h2 className="text-lg">
-          Unidades no PCP{' '}
-          <span className="text-texto-suave tabular-nums">({totalUnidadesNoPcp})</span>
-        </h2>
-        {setorPcp && totalUnidadesNoPcp > 0 && (
-          <QuadroKanban
-            setor={setorPcp}
-            etapas={etapasPcp}
-            colunas={colunasUnidades}
-            pedidosPorId={pedidosPorId}
-            agora={agora}
-            setores={setores}
-            aoSoltarNaEtapa={(card, etapaId) => mutacaoSoltar.mutate({ card, etapaId })}
-            // No PCP não há gesto de execução: a unidade só está de passagem
-            // entre nascer e ser liberada (D-22). O tempo dela aqui é fila.
-            execucao={{
-              execucoesPorCard: new Map(),
-              nomesUsuarios: new Map(),
-              meuUsuarioId: perfil.id,
-              gestoPendente: false,
-            }}
-          />
-        )}
-        {totalUnidadesNoPcp === 0 && (
-          <p className="text-sm text-texto-fraco">
-            Nenhuma unidade parada no PCP — o normal: elas nascem aqui e já seguem para os
-            setores na liberação.
-          </p>
-        )}
+        <MaisAoRolar
+          temMais={cardsPedidoAbertos.length < totalPedidosAbertos}
+          carregando={carregandoMaisPedidos}
+          aoChegar={() => setPaginasPedidos((p) => p + 1)}
+        />
       </section>
       </div>
       )}
@@ -619,6 +559,7 @@ function formatarDataPedido(iso: string | null): string {
 function PainelTodosPedidos() {
   const [busca, setBusca] = useState('')
   const [paginas, setPaginas] = useState(1)
+  const [detalhe, setDetalhe] = useState<PedidoResumo | null>(null)
   const consultas = useQueries({
     queries: Array.from({ length: paginas }, (_, pagina) => ({
       queryKey: ['pcp-todos', busca, pagina],
@@ -670,47 +611,208 @@ function PainelTodosPedidos() {
 
       <ul className="flex flex-col divide-y divide-borda rounded-dm-lg border border-borda bg-superficie">
         {linhas.map((p) => (
-          <LinhaPedidoResumo key={p.pedido_id} pedido={p} />
+          <LinhaPedidoResumo key={p.pedido_id} pedido={p} aoAbrir={() => setDetalhe(p)} />
         ))}
       </ul>
 
-      {linhas.length < total && (
-        <Botao
-          variante="secundaria"
-          icone={<ChevronDown />}
-          className="self-start"
-          carregando={carregandoMais}
-          onClick={() => setPaginas((p) => p + 1)}
-        >
-          Ver mais ({total - linhas.length})
-        </Botao>
-      )}
+      <MaisAoRolar
+        temMais={linhas.length < total}
+        carregando={carregandoMais}
+        aoChegar={() => setPaginas((p) => p + 1)}
+      />
+
+      <ModalPedidoProducao pedido={detalhe} aoFechar={() => setDetalhe(null)} />
     </section>
   )
 }
 
-function LinhaPedidoResumo({ pedido }: { pedido: PedidoResumo }) {
-  const cancelado = pedidoCancelado(pedido.situacao)
+/** A bolinha de cor da situação do Tiny + o texto (nunca cor sozinha — M-12). */
+function SituacaoTiny({ situacao }: { situacao: string | null }) {
+  if (!situacao) return null
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+    <span className="inline-flex items-center gap-1.5 text-xs text-texto-suave">
+      <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${corDaSituacao(situacao)}`} />
+      {situacao}
+    </span>
+  )
+}
+
+function LinhaPedidoResumo({ pedido, aoAbrir }: { pedido: PedidoResumo; aoAbrir: () => void }) {
+  // Visual do dono (30/09): pedido ENTREGUE mostra tudo liberado — conclusão
+  // visual; o número real continua nas outras telas.
+  const liberadas = pedidoEntregue(pedido.situacao) ? pedido.total_unidades : pedido.unidades_liberadas
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
       <span className="font-semibold text-texto tabular-nums">Pedido {pedido.numero}</span>
       <span className="min-w-0 flex-1 truncate text-sm text-texto-suave">
         {pedido.cliente_nome || 'Sem cliente'} · {formatarDataPedido(pedido.data_pedido)}
       </span>
-      {cancelado && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
-          <Ban aria-hidden className="size-3.5" />
-          Cancelado
-        </span>
-      )}
-      {!cancelado && pedido.situacao && (
-        <span className="text-xs text-texto-suave">{pedido.situacao}</span>
-      )}
+      <SituacaoTiny situacao={pedido.situacao} />
       <span className="text-sm text-texto tabular-nums">
         {pedido.total_unidades > 0
-          ? `${pedido.unidades_liberadas}/${pedido.total_unidades} liberadas`
+          ? `${liberadas}/${pedido.total_unidades} liberadas`
           : 'sem produção'}
       </span>
+      <button
+        type="button"
+        onClick={aoAbrir}
+        aria-label={`Detalhes de produção do pedido ${pedido.numero}`}
+        title="Detalhes de produção"
+        className="-my-1 flex size-11 items-center justify-center rounded-dm text-texto-suave transition-colors hover:bg-superficie-sutil hover:text-texto"
+      >
+        <Eye aria-hidden className="size-4" />
+      </button>
     </li>
+  )
+}
+
+/**
+ * O detalhe de PRODUÇÃO do pedido (rodada do dono, 30/09): busca só ao abrir e
+ * ESQUECE ao fechar (gcTime 0 — nada fica no cache), pelas portas que já
+ * existiam. Itens em unidades, onde está cada unidade, situação do Tiny.
+ */
+function ModalPedidoProducao({
+  pedido,
+  aoFechar,
+}: {
+  pedido: PedidoResumo | null
+  aoFechar: () => void
+}) {
+  const agora = useAgora()
+  const { data: itens = [], isPending: carregandoItens } = useQuery({
+    queryKey: ['pcp-detalhe-itens', pedido?.pedido_id],
+    queryFn: () => itensDoPedido(pedido!.pedido_id),
+    enabled: pedido !== null,
+    gcTime: 0,
+    staleTime: 0,
+  })
+  const { data: unidades = [], isPending: carregandoUnidades } = useQuery({
+    queryKey: ['pcp-detalhe-unidades', pedido?.pedido_id],
+    queryFn: () => unidadesDoPedido(pedido!.pedido_id),
+    enabled: pedido !== null,
+    gcTime: 0,
+    staleTime: 0,
+  })
+  const entregue = pedidoEntregue(pedido?.situacao)
+  const liberadas = pedido ? (entregue ? pedido.total_unidades : pedido.unidades_liberadas) : 0
+
+  return (
+    <Modal
+      aberto={pedido !== null}
+      aoFechar={(v) => !v && aoFechar()}
+      titulo={pedido ? `Pedido ${pedido.numero}` : 'Pedido'}
+      descricao={pedido ? `${pedido.cliente_nome || 'Sem cliente'} · ${formatarDataPedido(pedido.data_pedido)}` : undefined}
+    >
+      {pedido && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <SituacaoTiny situacao={pedido.situacao} />
+            {pedido.data_prevista && (
+              <span className="text-xs text-texto-suave tabular-nums">
+                prevista: {formatarDataPedido(pedido.data_prevista)}
+              </span>
+            )}
+            <span className="text-sm font-medium text-texto tabular-nums">
+              {pedido.total_unidades > 0
+                ? `${liberadas} de ${pedido.total_unidades} unidade${pedido.total_unidades === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
+                : 'Sem itens com quantidade a produzir'}
+            </span>
+            {pedido.alterado_apos_liberacao && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
+                <AlertTriangle aria-hidden className="size-3.5" />
+                Alterado no Tiny após a liberação
+              </span>
+            )}
+          </div>
+
+          <section aria-label="Itens do pedido" className="flex flex-col gap-1.5">
+            <h3 className="text-sm font-semibold text-texto">Itens (em unidades de produção)</h3>
+            {carregandoItens && <p className="text-sm text-texto-fraco">Carregando…</p>}
+            {!carregandoItens && itens.length === 0 && (
+              <p className="text-sm text-texto-suave">Nenhum item com quantidade a produzir (só frete/serviço).</p>
+            )}
+            <ul className="flex flex-col gap-1 text-sm text-texto">
+              {itens.map((item) => (
+                <li key={item.seq} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 flex-1 truncate" title={item.descricao ?? undefined}>
+                    {item.descricao || 'Sem descrição'}
+                    {item.codigo && <span className="text-texto-suave tabular-nums"> · SKU {item.codigo}</span>}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-texto-suave">
+                    {item.unidades} un.
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section aria-label="Onde está cada unidade" className="flex flex-col gap-1.5">
+            <h3 className="text-sm font-semibold text-texto">Onde está cada unidade</h3>
+            {carregandoUnidades && <p className="text-sm text-texto-fraco">Carregando…</p>}
+            {!carregandoUnidades && unidades.length === 0 && (
+              <p className="text-sm text-texto-suave">
+                Nenhuma unidade liberada ainda — tudo aguardando o PCP.
+              </p>
+            )}
+            <ul className="flex flex-col gap-1 text-sm">
+              {unidades.map((u) => (
+                <li key={u.card_id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="min-w-0 flex-1 truncate text-texto" title={u.item_descricao ?? undefined}>
+                    {u.item_descricao || 'Unidade'}
+                    {u.indice_unidade !== null && u.total_unidades !== null && (
+                      <span className="text-texto-suave tabular-nums">
+                        {' '}
+                        ({u.indice_unidade}/{u.total_unidades})
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-texto-suave">
+                    {u.concluido_em
+                      ? `concluída em ${u.setor_nome ?? '—'}`
+                      : `${u.setor_nome ?? '—'}${u.etapa_nome ? ` · ${u.etapa_nome}` : ''}`}
+                    {!u.concluido_em && u.desde && ` · há ${formatarDuracao(u.desde, agora)}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+/**
+ * Paginação por ROLAGEM (rodada do dono, 30/09): quando esta âncora entra na
+ * tela e ainda há mais, pede a página seguinte — sem botão. O setState roda no
+ * callback do observador (gesto do navegador), não no corpo do efeito.
+ */
+function MaisAoRolar({
+  temMais,
+  carregando,
+  aoChegar,
+}: {
+  temMais: boolean
+  carregando: boolean
+  aoChegar: () => void
+}) {
+  const [ancora, setAncora] = useState<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!ancora || !temMais || carregando) return
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas.some((e) => e.isIntersecting)) aoChegar()
+      },
+      { rootMargin: '200px' },
+    )
+    observador.observe(ancora)
+    return () => observador.disconnect()
+  }, [ancora, temMais, carregando, aoChegar])
+
+  if (!temMais) return null
+  return (
+    <div ref={setAncora} aria-hidden className="flex h-10 items-center justify-center">
+      {carregando && <p className="text-sm text-texto-fraco">Carregando mais…</p>}
+    </div>
   )
 }

@@ -7961,12 +7961,13 @@ await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco 46
 
 // ============================================================================
-// O PCP EM ABAS (30/09 — migration 47, ↪️ D-86): a porta do quadro ganhou o
-// p_grupo — nulo = tudo (o painel da Visão do dia continua batendo — D-75),
-// 'pedido' = aguardando liberação, 'reposicao' = solicitações de estoque.
+// O PCP EM ABAS (30/09 — migrations 47 e 48, ↪️ D-86/D-62): a porta do quadro
+// ganhou o p_grupo — nulo = tudo (o painel da Visão do dia continua batendo —
+// D-75), 'pedido' = aguardando liberação, 'reposicao' = reabastecimento — e a
+// coluna pecas_estoque (o aviso de que há peça no galpão para o pedido).
 // ============================================================================
 {
-titulo('PCP em abas (30/09) · a porta do quadro separa pedidos e solicitações de estoque')
+titulo('PCP em abas (30/09) · a porta separa pedidos e reabastecimento; e avisa a peça no estoque')
 
 const um47 = async (sql) => (await bd.query(sql)).rows[0]
 await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.admin}', false)`)
@@ -7976,6 +7977,9 @@ const grupos47 = await um47(`
          (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0, 'reposicao'))    as reposicoes,
          (select bool_and(q.tipo = 'pedido')    from public.plt_fn_cards_pedido_pcp(100, 0, 'pedido') q)    as so_pedidos,
          (select bool_and(q.tipo = 'reposicao') from public.plt_fn_cards_pedido_pcp(100, 0, 'reposicao') q) as so_reposicoes,
+         (select bool_and(q.pecas_estoque = 0)  from public.plt_fn_cards_pedido_pcp(100, 0, 'reposicao') q) as reposicao_sem_peca,
+         (select q.pecas_estoque from public.plt_fn_cards_pedido_pcp(100, 0, 'pedido') q
+           where q.pedido_id = (select id from public.pedidos where numero = 945104))       as pecas_do_945104,
          (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'public' and p.proname = 'plt_fn_cards_pedido_pcp')            as assinaturas`)
 conferir(
@@ -7983,11 +7987,16 @@ conferir(
     && grupos47.reposicoes >= 1 && grupos47.pedidos >= 1
     && grupos47.so_pedidos === true && grupos47.so_reposicoes === true
     && grupos47.assinaturas === 1,
-  'nulo = tudo (pedidos + solicitações batem na soma); cada grupo vem puro; UMA assinatura só (sem sobrecarga — A-12)',
+  'nulo = tudo (pedidos + reabastecimento batem na soma); cada grupo vem puro; UMA assinatura só (sem sobrecarga — A-12)',
   JSON.stringify(grupos47),
 )
+conferir(
+  grupos47.pecas_do_945104 === 1 && grupos47.reposicao_sem_peca === true,
+  'pecas_estoque (48): o pedido do Banco enxerga a peça LIVRE de mesmo SKU no galpão; reabastecimento não tem pedido — 0',
+  JSON.stringify({ pecas: grupos47.pecas_do_945104 }),
+)
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
-} // fim do bloco 47
+} // fim do bloco 47/48
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
