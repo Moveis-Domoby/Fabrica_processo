@@ -3,24 +3,21 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 1
-            }
-          ]
-        }
+        "httpMethod": "POST",
+        "path": "a9564e90-bdf4-4e46-b425-ea668cb7a22e",
+        "responseMode": "onReceived",
+        "options": {}
       },
-      "id": "b4000000-0000-0000-0000-000000000001",
-      "name": "Cada minuto",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
+      "id": "b4000000-0000-0000-0000-000000000009",
+      "name": "Webhook · processar a fila do Tiny",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
       "position": [
         -180,
         300
       ],
-      "notes": "Desativar o workflow É o botão de pausa. O lote reservado volta pra fila sozinho em 15 min."
+      "webhookId": "a9564e90-bdf4-4e46-b425-ea668cb7a22e",
+      "notes": "Quem chama é o BANCO (o relógio interno, de 1 em 1 minuto, dentro do banco — sem custo): só quando há linha pendente na fila e nenhum lote em andamento. Fila vazia = este fluxo não roda. A conferência diária (pente-fino) enche a fila às 3h. O endereço mora em plt_webhooks (marcado tiny_fila). SESSAO-29, 01/10/2026 — substituiu o gatilho Cada minuto (1.392 execuções vazias por dia)."
     },
     {
       "parameters": {
@@ -205,17 +202,6 @@
     }
   ],
   "connections": {
-    "Cada minuto": {
-      "main": [
-        [
-          {
-            "node": "Config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Config": {
       "main": [
         [
@@ -276,6 +262,17 @@
         [
           {
             "node": "Supabase · gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook · processar a fila do Tiny": {
+      "main": [
+        [
+          {
+            "node": "Config",
             "type": "main",
             "index": 0
           }

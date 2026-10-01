@@ -7998,6 +7998,440 @@ conferir(
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 } // fim do bloco 47/48
 
+// ============================================================================
+// SESSAO-29 (01/10 — migration 49, D-50 · D-95…D-97): a conferência diária com
+// o Tiny (pente-fino). A porta dos pedidos grava só o que mudou, as observações
+// acompanham o Tiny também quando apagadas, o cliente não duplica quando o
+// contato é renomeado, e cada rodada deixa UMA linha no log com o que mudou.
+// ============================================================================
+{
+titulo('SESSAO-29 · a porta dos pedidos: uma assinatura só (a nova), só para a chave de serviço')
+
+const um49 = async (sql) => (await bd.query(sql)).rows[0]
+const todos49 = async (sql) => (await bd.query(sql)).rows
+const j49 = (obj) => `'${JSON.stringify(obj).split("'").join("''")}'::jsonb`
+
+const assinaturas49 = await todos49(`
+  select pg_get_function_identity_arguments(p.oid) as args
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'fn_upsert_pedido'`)
+conferir(
+  assinaturas49.length === 1 && /p_tiny_id_contato bigint/.test(assinaturas49[0].args),
+  'fn_upsert_pedido tem UMA assinatura — a nova, com o id do contato; a antiga saiu (A-12: as duas confundiriam o PostgREST)',
+  JSON.stringify(assinaturas49),
+)
+const priv49 = await um49(`
+  select has_function_privilege('anon', 'public.fn_upsert_pedido(jsonb, text, bigint, text, bigint)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.fn_upsert_pedido(jsonb, text, bigint, text, bigint)', 'execute') as logado,
+         has_function_privilege('service_role', 'public.fn_upsert_pedido(jsonb, text, bigint, text, bigint)', 'execute') as servico,
+         has_function_privilege('authenticated', 'plt_privado.fn_tiny_pente_fino_iniciar(text)', 'execute') as iniciar,
+         has_function_privilege('authenticated', 'plt_privado.fn_tiny_fila_relogio()', 'execute') as relogio,
+         has_function_privilege('authenticated', 'plt_privado.fn_tiny_fila_acordar()', 'execute') as acordar,
+         has_function_privilege('anon', 'public.fn_backfill_aplicar(bigint, text, jsonb)', 'execute') as aplicar_anon`)
+conferir(
+  !priv49.anon && !priv49.logado && priv49.servico && !priv49.iniciar && !priv49.relogio && !priv49.acordar && !priv49.aplicar_anon,
+  'só a chave de serviço (o n8n) grava pedido; a maquinaria da conferência fica fora da API',
+  JSON.stringify(priv49),
+)
+
+// O pedido como o pedido.obter do Tiny devolve (v2): o cliente SEM id do contato.
+const cliente49 = (nome, fone, cpf = '') => ({
+  codigo: '', nome, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: cpf, ie: '', rg: '',
+  endereco: 'Rua Teste', numero: '49', complemento: '', bairro: 'Centro', cep: '59000-000',
+  cidade: 'Natal', uf: 'RN', fone, email: '',
+})
+const pedido49 = (numero, tinyId, cliente, extra = {}) => ({
+  id: String(tinyId),
+  numero: String(numero),
+  data_pedido: '15/09/2026',
+  data_prevista: '30/09/2026',
+  situacao: 'Em aberto',
+  total_produtos: '1000.00',
+  total_pedido: '1000.00',
+  valor_frete: '0.00',
+  forma_pagamento: 'pix',
+  meio_pagamento: '',
+  forma_envio: 'Transportadora',
+  parcelas: [],
+  marcadores: [],
+  obs: 'entregar de manhã',
+  obs_interna: 'cliente antigo',
+  nome_vendedor: 'Vendedora 49',
+  codigo_rastreamento: '',
+  url_rastreamento: '',
+  cliente,
+  itens: [{ item: { id_produto: '4901', codigo: 'S49A', descricao: 'Mesa Teste 49', unidade: 'UN', quantidade: '1.00', valor_unitario: '1000.00' } }],
+  ...extra,
+})
+// O aviso de venda (o n8n chama por NOME, com 4 ou 5 parâmetros)
+const aviso49 = (p, tipo, contato = null) =>
+  um49(`select public.fn_upsert_pedido(p => ${j49(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)},
+                                        p_origem => 'webhook', p_tiny_id_contato => ${contato ?? 'null'})::int as id`)
+const avisoSemContato49 = (p, tipo) =>
+  um49(`select public.fn_upsert_pedido(p => ${j49(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)
+const clienteDo49 = (numero) =>
+  um49(`select c.id::int as id, c.nome, c.cpf_cnpj, c.tiny_id_contato::int as contato
+          from public.clientes c join public.pedidos p on p.cliente_id = c.id where p.numero = ${numero}`)
+const colunas49 = (numero) =>
+  um49(`select obs, obs_interna, to_char(data_prevista, 'DD/MM/YYYY') as previsao, vendedor, marcadores,
+               situacao, origem, atualizado_em::text as atualizado, raw -> 'cliente' ->> 'nome' as nome_raw
+          from public.pedidos where numero = ${numero}`)
+const eventosDe49 = async (numero) => (await um49(`select count(*)::int as n from public.eventos where numero = ${numero}`)).n
+
+titulo('SESSAO-29 · cliente: o id do contato (que só o aviso traz) vem antes de tudo; renomear no Tiny não duplica')
+
+const maria = cliente49('Maria Teste 49 / Cidade Alta / Instagram', '(84) 90000-4901')
+await aviso49(pedido49(990101, 7290101, maria), 'inclusao_pedido', 55501)
+const cli1 = await clienteDo49(990101)
+conferir(cli1?.contato === 55501, 'o aviso de venda traz o id do contato e ele fica no cadastro do cliente', JSON.stringify(cli1))
+await aviso49(pedido49(990101, 7290101, { ...maria, nome: 'Maria Teste 49' }), 'atualizacao_pedido', 55501)
+const cli1b = await clienteDo49(990101)
+const mesmos1 = (await um49(`select count(*)::int as n from public.clientes where fone = '(84) 90000-4901'`)).n
+conferir(
+  cli1b?.id === cli1?.id && cli1b?.nome === 'Maria Teste 49' && mesmos1 === 1,
+  'contato renomeado no Tiny (o "/ bairro / origem" saiu): o MESMO cliente, com o nome novo — nada de duplicata',
+  JSON.stringify({ cli1, cli1b, mesmos1 }),
+)
+await aviso49(pedido49(990102, 7290102, { ...maria, nome: 'Maria T. 49' }), 'inclusao_pedido', 55501)
+const cli2 = await clienteDo49(990102)
+conferir(
+  cli2?.id === cli1?.id && cli2?.nome === 'Maria T. 49',
+  'pedido NOVO de um cliente sem CPF que mudou de nome: o id do contato acha o mesmo cliente (o nome e o telefone sozinhos não achariam)',
+  JSON.stringify(cli2),
+)
+
+// Sem o id do contato (o pente-fino não tem): o cliente que o pedido JÁ tem
+const joao = cliente49('João Teste 49 / Ponta Negra', '(84) 90000-4903')
+await avisoSemContato49(pedido49(990103, 7290103, joao), 'inclusao_pedido')
+const cli3 = await clienteDo49(990103)
+await avisoSemContato49(pedido49(990103, 7290103, { ...joao, nome: 'João Teste 49' }), 'atualizacao_pedido')
+const cli3b = await clienteDo49(990103)
+const mesmos3 = (await um49(`select count(*)::int as n from public.clientes where fone = '(84) 90000-4903'`)).n
+conferir(
+  cli3b?.id === cli3?.id && cli3b?.nome === 'João Teste 49' && mesmos3 === 1,
+  'sem o id do contato e sem CPF dos dois lados: o pedido reprocessado continua no MESMO cliente (o renomeado) — antes virava cliente novo',
+  JSON.stringify({ cli3, cli3b, mesmos3 }),
+)
+
+// CPF que prova outra pessoa: aí sim é outro cliente
+const pedro = cliente49('Pedro Teste 49', '(84) 90000-4907')
+await avisoSemContato49(pedido49(990107, 7290107, pedro), 'inclusao_pedido')
+const cli7 = await clienteDo49(990107)
+await avisoSemContato49(pedido49(990107, 7290107, cliente49('Paulo Teste 49', '(84) 90000-4977', '222.333.444-49')), 'atualizacao_pedido')
+const cli7b = await clienteDo49(990107)
+const pedroIntacto = await um49(`select nome from public.clientes where id = ${cli7.id}`)
+conferir(
+  cli7b?.id !== cli7?.id && cli7b?.cpf_cnpj === '222.333.444-49' && pedroIntacto.nome === 'Pedro Teste 49',
+  'o pedido trocado de contato no Tiny, com CPF que nenhum cliente sem CPF tinha: vai para OUTRO cliente — o antigo fica intacto',
+  JSON.stringify({ cli7, cli7b, pedroIntacto }),
+)
+
+// O id do contato e um CPF que já é de OUTRO cliente: nunca colide (índice único)
+await bd.exec(`insert into public.clientes (cpf_cnpj, nome, fone) values ('111.222.333-49', 'Dono do CPF 49', '(84) 90000-4911')`)
+const ana = cliente49('Ana Teste 49', '(84) 90000-4908')
+await aviso49(pedido49(990108, 7290108, ana), 'inclusao_pedido', 55508)
+const cli8 = await clienteDo49(990108)
+let colidiu49 = null
+try {
+  await aviso49(pedido49(990108, 7290108, { ...ana, cpf_cnpj: '111.222.333-49' }), 'atualizacao_pedido', 55508)
+} catch (erro) {
+  colidiu49 = erro.message
+}
+const cli8b = await clienteDo49(990108)
+conferir(
+  colidiu49 === null && cli8b?.id === cli8?.id && cli8b?.cpf_cnpj === null,
+  'o CPF que já é de outro cliente não é copiado para o cliente do id do contato — o aviso não quebra (o índice único seguraria a gravação)',
+  JSON.stringify({ colidiu49, cli8, cli8b }),
+)
+
+titulo('SESSAO-29 · o nome sem entidade HTML (D-97); o raw fica como o Tiny mandou')
+
+const ent = await um49(`
+  select plt_privado.fn_texto_sem_entidades('Ana D&#39;Ávila') as a,
+         plt_privado.fn_texto_sem_entidades('Tom &amp; Jerry &quot;Móveis&quot;') as b,
+         plt_privado.fn_texto_sem_entidades('&amp;#39;') as c,
+         plt_privado.fn_texto_sem_entidades('L&#x27;Oreal &lt;3&gt;') as d,
+         plt_privado.fn_texto_sem_entidades('Sem entidade & sem ponto e vírgula') as e,
+         plt_privado.fn_texto_sem_entidades(null) is null as f`)
+conferir(
+  ent.a === "Ana D'Ávila" && ent.b === 'Tom & Jerry "Móveis"' && ent.c === '&#39;' && ent.d === "L'Oreal <3>"
+    && ent.e === 'Sem entidade & sem ponto e vírgula' && ent.f,
+  'decimal, hexadecimal e com nome; uma camada só ("&amp;#39;" vira "&#39;"); texto comum não muda',
+  JSON.stringify(ent),
+)
+await avisoSemContato49(pedido49(990110, 7290110, cliente49('Rita D&#39;Elia 49', '(84) 90000-4910')), 'inclusao_pedido')
+const cli10 = await clienteDo49(990110)
+const raw10 = await colunas49(990110)
+conferir(
+  cli10?.nome === "Rita D'Elia 49" && raw10.nome_raw === 'Rita D&#39;Elia 49',
+  'o cliente é gravado com o nome limpo; a cópia crua do pedido segue igual à do Tiny',
+  JSON.stringify({ cli10, nome_raw: raw10.nome_raw }),
+)
+
+titulo('SESSAO-29 · grava só o que mudou: aviso repetido não regrava o pedido (mas fica registrado)')
+
+const antes101 = await colunas49(990101)
+const ev101 = await eventosDe49(990101)
+const itens101 = (await um49(`select string_agg(i.xmin::text, ',' order by i.seq) as x from public.pedido_itens i
+                                join public.pedidos p on p.id = i.pedido_id where p.numero = 990101`)).x
+await aviso49(pedido49(990101, 7290101, { ...maria, nome: 'Maria Teste 49' }), 'atualizacao_pedido', 55501)
+const depois101 = await colunas49(990101)
+const itens101b = (await um49(`select string_agg(i.xmin::text, ',' order by i.seq) as x from public.pedido_itens i
+                                 join public.pedidos p on p.id = i.pedido_id where p.numero = 990101`)).x
+conferir(
+  depois101.atualizado === antes101.atualizado && itens101b === itens101 && (await eventosDe49(990101)) === ev101 + 1,
+  'o mesmo pedido de novo: nada é regravado (nem os itens), e o aviso continua registrado no log',
+  JSON.stringify({ antes: antes101.atualizado, depois: depois101.atualizado, itens101, itens101b }),
+)
+
+titulo('SESSAO-29 · a conferência: a busca dos 60 dias + os não terminados entram na fila; o relógio só existe com trabalho')
+
+// Um pedido ENTREGUE da janela, que a carga antiga já tinha lido ("ok", sem rodada)
+await avisoSemContato49(pedido49(990104, 7290104, cliente49('Lia Teste 49', '(84) 90000-4904'), { situacao: 'Entregue' }), 'inclusao_pedido')
+await bd.exec(`insert into public.tiny_fila (recurso, chave, referencia, prioridade, status, processado_em)
+               values ('pedido', '7290104', '990104', 2, 'ok', now() - interval '20 days')`)
+// O obs/previsão/vendedor/marcador do 990105 e 990106
+await avisoSemContato49(pedido49(990105, 7290105, cliente49('Bia Teste 49', '(84) 90000-4905')), 'inclusao_pedido')
+await avisoSemContato49(pedido49(990106, 7290106, cliente49('Caio Teste 49', '(84) 90000-4906')), 'inclusao_pedido')
+
+const ini1 = (await um49(`select plt_privado.fn_tiny_pente_fino_iniciar('teste') as r`)).r
+const datas49 = await um49(`
+  select to_char((now() at time zone 'America/Fortaleza')::date, 'DD/MM/YYYY') as hoje,
+         to_char((now() at time zone 'America/Fortaleza')::date - 60, 'DD/MM/YYYY') as menos60`)
+const busca1 = await um49(`select id::int as id, status, params from public.tiny_fila
+                            where recurso = 'pedidos_pesquisa' and chave = 'pente-fino:p1'`)
+conferir(
+  busca1?.status === 'pendente' && busca1.params.dataInicial === datas49.menos60
+    && busca1.params.dataFinal === datas49.hoje && busca1.params.rodada === ini1.rodada
+    && busca1.params.janela === 'pente-fino' && busca1.params.pagina === 1,
+  'a busca do Tiny pelos últimos 60 dias (dd/mm/aaaa, hora de Natal) entra na fila com a rodada',
+  JSON.stringify({ busca1, datas49 }),
+)
+const naRodada1 = (await um49(`select count(*)::int as n from public.tiny_fila
+                                where recurso = 'pedido' and params->>'rodada' = '${ini1.rodada}' and status = 'pendente'`)).n
+const vivos1 = (await um49(`select count(*)::int as n from public.pedidos where tiny_id is not null
+                             and plt_privado.fn_situacao_normalizada(situacao) not in ('entregue','nao_entregue','cancelado')`)).n
+const entregueFora = await um49(`select status, params from public.tiny_fila where recurso = 'pedido' and chave = '7290104'`)
+conferir(
+  naRodada1 === vivos1 && ini1.nao_terminados === vivos1 && entregueFora.status === 'ok' && !entregueFora.params.rodada,
+  'os pedidos NÃO terminados (de qualquer idade) entram na rodada; o entregue só volta se a busca do Tiny o trouxer',
+  JSON.stringify({ naRodada1, vivos1, ini1, entregueFora }),
+)
+conferir(
+  ini1.relogio === 'sem_pg_cron' && ini1.n8n === 'sem_pg_net',
+  'acorda a fila: agenda o relógio e chama o n8n (aqui sem pg_cron/pg_net, só decide — em produção agenda e posta)',
+  JSON.stringify(ini1),
+)
+const precisa1 = (await um49(`select plt_privado.fn_tiny_fila_precisa_chamar() as p`)).p
+await bd.exec(`select * from public.fn_fila_proximos(500)`)   // o n8n pegou o lote
+const precisa1b = (await um49(`select plt_privado.fn_tiny_fila_precisa_chamar() as p`)).p
+const relogio1 = (await um49(`select plt_privado.fn_tiny_fila_relogio() as r`)).r
+conferir(
+  precisa1 === true && precisa1b === false && relogio1.fila === 'com_trabalho' && relogio1.n8n === 'nada_a_fazer',
+  'com fila e nada em andamento: chama; com lote em andamento: o relógio espera (nunca dois lotes ao mesmo tempo — limite do Tiny)',
+  JSON.stringify({ precisa1, precisa1b, relogio1 }),
+)
+
+// O n8n lê a busca: o Tiny devolve 990101 (já na rodada), 990104 (entregue, carga antiga),
+// 990199 (vivo, NUNCA chegou aqui), 990198 (entregue, nunca chegou) e a página 2
+const enf1 = (await um49(`select public.fn_backfill_aplicar(${busca1.id}, 'pedidos_pesquisa', ${j49([
+  { recurso: 'pedido', chave: '7290101', referencia: '990101', prioridade: 2 },
+  { recurso: 'pedido', chave: '7290104', referencia: '990104', prioridade: 2 },
+  { recurso: 'pedido', chave: '7290199', referencia: '990199', prioridade: 2 },
+  { recurso: 'pedido', chave: '7290198', referencia: '990198', prioridade: 2 },
+  { recurso: 'pedidos_pesquisa', chave: 'pente-fino:p2', prioridade: 1, params: { ...busca1.params, pagina: 2 } },
+])}) as r`)).r
+const reaberto104 = await um49(`select status, params->>'rodada' as rodada from public.tiny_fila where recurso = 'pedido' and chave = '7290104'`)
+const pag2 = await um49(`select status, params from public.tiny_fila where recurso = 'pedidos_pesquisa' and chave = 'pente-fino:p2'`)
+conferir(
+  enf1.enfileirados === 4 && reaberto104.status === 'pendente' && reaberto104.rodada === ini1.rodada
+    && pag2?.status === 'pendente' && pag2.params.rodada === ini1.rodada && pag2.params.pagina === 2,
+  'a busca reabre o lido pela carga antiga, põe os que nunca chegaram e a página 2 — o que já está na rodada não entra de novo',
+  JSON.stringify({ enf1, reaberto104, pag2 }),
+)
+const enf1b = (await um49(`select public.fn_backfill_aplicar(${busca1.id}, 'pedidos_pesquisa', ${j49([
+  { recurso: 'pedido', chave: '7290104', referencia: '990104', prioridade: 2 },
+])}) as r`)).r
+conferir(enf1b.enfileirados === 0, 'a mesma busca repetida não reabre nada (uma releitura por rodada)', JSON.stringify(enf1b))
+
+// A busca antiga (sem rodada) continua "não mexe no que já está na fila"
+await bd.exec(`insert into public.tiny_fila (recurso, chave, prioridade, status, params)
+               values ('pedidos_pesquisa', '2025-03:p9', 1, 'processando', '{"janela":"2025-03","pagina":9}')`)
+const velha = await um49(`select id::int as id from public.tiny_fila where chave = '2025-03:p9'`)
+await bd.exec(`insert into public.tiny_fila (recurso, chave, referencia, prioridade, status) values ('pedido', '7290197', '990197', 2, 'ok')`)
+const enfVelha = (await um49(`select public.fn_backfill_aplicar(${velha.id}, 'pedidos_pesquisa', ${j49([
+  { recurso: 'pedido', chave: '7290197', referencia: '990197', prioridade: 2 },
+])}) as r`)).r
+const intacto197 = await um49(`select status from public.tiny_fila where recurso = 'pedido' and chave = '7290197'`)
+conferir(enfVelha.enfileirados === 0 && intacto197.status === 'ok', 'a carga antiga (sem rodada) segue igual: o que já está na fila não se mexe', JSON.stringify({ enfVelha, intacto197 }))
+
+titulo('SESSAO-29 · a releitura da conferência: as observações acompanham o Tiny; o resto não se apaga (D-50)')
+
+await bd.exec(`select * from public.fn_fila_proximos(500)`)
+const linha49 = async (chave) => (await um49(`select id::int as id from public.tiny_fila where recurso = 'pedido' and chave = '${chave}'`)).id
+const reler49 = async (chave, payload) =>
+  (await um49(`select public.fn_backfill_aplicar(${await linha49(chave)}, 'pedido', ${j49(payload)}) as r`)).r
+
+// 990105: observação e observação interna APAGADAS no Tiny; previsão apagada; vendedor SEM a chave
+const p105 = pedido49(990105, 7290105, cliente49('Bia Teste 49', '(84) 90000-4905'), { obs: '', obs_interna: '   ', data_prevista: '' })
+delete p105.nome_vendedor
+const r105 = await reler49('7290105', p105)
+const c105 = await colunas49(990105)
+conferir(
+  c105.obs === null && c105.obs_interna === null,
+  'observação e observação interna apagadas no Tiny: a coluna fica vazia na próxima rodada',
+  JSON.stringify(c105),
+)
+conferir(
+  c105.previsao === '30/09/2026' && c105.vendedor === 'Vendedora 49',
+  'previsão apagada e vendedor ausente do pacote (a chave nem vem): o banco MANTÉM — apagar no Tiny não apaga aqui',
+  JSON.stringify(c105),
+)
+conferir(
+  JSON.stringify(r105.mudou) === JSON.stringify(['obs', 'obs_interna']) && r105.numero === '990105',
+  'a linha da fila guarda o que mudou (só as observações)',
+  JSON.stringify(r105),
+)
+const semObs = pedido49(990106, 7290106, cliente49('Caio Teste 49', '(84) 90000-4906'), { marcadores: [{ marcador: { descricao: 'Devolvido' } }] })
+delete semObs.obs
+delete semObs.obs_interna
+const r106 = await reler49('7290106', semObs)
+const c106 = await colunas49(990106)
+conferir(
+  JSON.stringify(c106.marcadores) === JSON.stringify(['Devolvido']) && c106.obs === 'entregar de manhã' && c106.obs_interna === 'cliente antigo'
+    && JSON.stringify(r106.mudou) === JSON.stringify(['marcadores']),
+  'marcador posto sozinho no Tiny aparece na rodada; observação AUSENTE do pacote (nunca vista em 5.440) não apaga nada',
+  JSON.stringify({ c106, r106 }),
+)
+
+// 990103: o contato renomeado — a releitura (sem id de contato) mantém o mesmo cliente
+const r103 = await reler49('7290103', pedido49(990103, 7290103, { ...joao, nome: 'João T. 49' }))
+const cli3c = await clienteDo49(990103)
+conferir(
+  cli3c?.id === cli3?.id && cli3c?.nome === 'João T. 49' && JSON.stringify(r103.mudou) === JSON.stringify(['cliente']),
+  'contato sem CPF renomeado no Tiny: a releitura da conferência continua no MESMO cliente, com o nome novo',
+  JSON.stringify({ cli3c, r103 }),
+)
+
+// 990199: vivo e nunca chegou → nasce (origem pente_fino) e ganha o card no PCP; 990198 entregue → sem card
+const r199 = await reler49('7290199', pedido49(990199, 7290199, cliente49('Novo Teste 49', '(84) 90000-4999')))
+const r198 = await reler49('7290198', pedido49(990198, 7290198, cliente49('Velho Teste 49', '(84) 90000-4998'), { situacao: 'Entregue' }))
+const novos = await todos49(`
+  select p.numero, p.origem, (select count(*)::int from public.plt_cards c where c.pedido_id = p.id and c.tipo = 'pedido') as cards
+    from public.pedidos p where p.numero in (990199, 990198) order by p.numero`)
+conferir(
+  novos.length === 2 && novos.every((n) => n.origem === 'pente_fino')
+    && novos.find((n) => n.numero === 990199)?.cards === 1 && novos.find((n) => n.numero === 990198)?.cards === 0
+    && JSON.stringify(r199.mudou) === JSON.stringify(['novo']),
+  'pedido vivo que o aviso nunca trouxe: a conferência o grava e ele entra no PCP (D-96); o já entregue entra só no banco',
+  JSON.stringify({ novos, r199, r198 }),
+)
+
+// os demais da rodada (pedidos de outros blocos, sem pacote aqui) → "não encontrado no Tiny"
+const resto1 = await todos49(`select id::int as id from public.tiny_fila where status = 'processando'
+                                and params->>'rodada' = '${ini1.rodada}' and chave not in ('7290101','7290104','pente-fino:p2')`)
+for (const r of resto1) await bd.exec(`select public.fn_backfill_falha(${r.id}, 'codigo 32: Registro não localizado', true)`)
+// 990101 e 990104 voltam iguais; a página 2 do Tiny vem vazia
+const p101igual = pedido49(990101, 7290101, { ...maria, nome: 'Maria Teste 49' })
+const r101 = await reler49('7290101', p101igual)
+const r104 = await reler49('7290104', pedido49(990104, 7290104, cliente49('Lia Teste 49', '(84) 90000-4904'), { situacao: 'Entregue' }))
+const p2id = (await um49(`select id::int as id from public.tiny_fila where recurso = 'pedidos_pesquisa' and chave = 'pente-fino:p2'`)).id
+await bd.exec(`select public.fn_backfill_aplicar(${p2id}, 'pedidos_pesquisa', '[]'::jsonb)`)
+conferir(
+  JSON.stringify(r101.mudou) === '[]' && JSON.stringify(r104.mudou) === '[]',
+  'pedido igual ao Tiny (inclusive o entregue que a carga antiga já tinha lido): nada muda, nada é regravado',
+  JSON.stringify({ r101, r104 }),
+)
+
+titulo('SESSAO-29 · a fila vazia fecha a rodada: UMA linha no log com o que mudou, e o relógio se desliga')
+
+const fim1 = (await um49(`select plt_privado.fn_tiny_fila_relogio() as r`)).r
+const resumo1 = await todos49(`select payload from public.eventos where tipo = 'pente_fino' and payload->>'rodada' = '${ini1.rodada}'`)
+const r1 = resumo1[0]?.payload
+const numerosMudados = (r1?.pedidos ?? []).map((p) => p.numero).sort()
+conferir(
+  fim1.fila === 'vazia' && fim1.resumo === true && fim1.relogio === 'desligado' && resumo1.length === 1,
+  'fila vazia: o relógio escreve o resumo da rodada e se desagenda (nada fica rodando à toa)',
+  JSON.stringify(fim1),
+)
+conferir(
+  r1?.estado === 'concluida' && r1?.relidos === 7 && r1?.novos === 2 && r1?.mudaram === 5
+    && r1?.nao_encontrados === resto1.length && r1?.paginas_busca === 2 && r1?.janela_dias === 60 && r1?.pendentes === 0
+    && JSON.stringify(numerosMudados) === JSON.stringify(['990103', '990105', '990106', '990198', '990199']),
+  'o resumo: quantos relidos, quantos estavam diferentes, quais (com os campos), novos, não encontrados',
+  JSON.stringify(r1),
+)
+const fim1b = (await um49(`select plt_privado.fn_tiny_fila_relogio() as r`)).r
+const resumo1b = (await um49(`select count(*)::int as n from public.eventos where tipo = 'pente_fino' and payload->>'rodada' = '${ini1.rodada}'`)).n
+conferir(fim1b.resumo === false && resumo1b === 1, 'chamado de novo com a fila vazia, não repete o resumo', JSON.stringify({ fim1b, resumo1b }))
+const semLogPorPedido = (await um49(`select count(*)::int as n from public.eventos where tipo = 'pente_fino' and numero is not null`)).n
+conferir(semLogPorPedido === 0, 'a conferência não escreve uma linha por pedido no log — só o resumo da rodada', String(semLogPorPedido))
+
+titulo('SESSAO-29 · a segunda rodada logo depois: ZERO mudanças')
+
+const ini2 = (await um49(`select plt_privado.fn_tiny_pente_fino_iniciar('teste') as r`)).r
+const busca2 = await um49(`select id::int as id from public.tiny_fila where recurso = 'pedidos_pesquisa' and chave = 'pente-fino:p1'`)
+await bd.exec(`select * from public.fn_fila_proximos(500)`)
+await bd.exec(`select public.fn_backfill_aplicar(${busca2.id}, 'pedidos_pesquisa', ${j49([
+  { recurso: 'pedido', chave: '7290101', referencia: '990101', prioridade: 2 },
+  { recurso: 'pedido', chave: '7290104', referencia: '990104', prioridade: 2 },
+  { recurso: 'pedido', chave: '7290198', referencia: '990198', prioridade: 2 },
+])})`)
+await bd.exec(`select * from public.fn_fila_proximos(500)`)
+const pacotes2 = {
+  '7290101': p101igual,
+  '7290103': pedido49(990103, 7290103, { ...joao, nome: 'João T. 49' }),
+  '7290104': pedido49(990104, 7290104, cliente49('Lia Teste 49', '(84) 90000-4904'), { situacao: 'Entregue' }),
+  '7290105': p105,
+  '7290106': semObs,
+  '7290199': pedido49(990199, 7290199, cliente49('Novo Teste 49', '(84) 90000-4999')),
+  '7290198': pedido49(990198, 7290198, cliente49('Velho Teste 49', '(84) 90000-4998'), { situacao: 'Entregue' }),
+}
+const mudou2 = []
+for (const [chave, pacote] of Object.entries(pacotes2)) {
+  const existe = await um49(`select id::int as id from public.tiny_fila where recurso = 'pedido' and chave = '${chave}'
+                              and params->>'rodada' = '${ini2.rodada}' and status = 'processando'`)
+  if (!existe) continue
+  const r = (await um49(`select public.fn_backfill_aplicar(${existe.id}, 'pedido', ${j49(pacote)}) as r`)).r
+  if (r.mudou.length > 0) mudou2.push({ chave, mudou: r.mudou })
+}
+const resto2 = await todos49(`select id::int as id from public.tiny_fila where status = 'processando' and params->>'rodada' = '${ini2.rodada}'`)
+for (const r of resto2) await bd.exec(`select public.fn_backfill_falha(${r.id}, 'codigo 32: Registro não localizado', true)`)
+await bd.exec(`select plt_privado.fn_tiny_fila_relogio()`)
+const r2 = (await um49(`select payload from public.eventos where tipo = 'pente_fino' and payload->>'rodada' = '${ini2.rodada}'`))?.payload
+conferir(
+  mudou2.length === 0 && r2?.mudaram === 0 && r2?.relidos >= 7,
+  'uma segunda rodada logo depois registra ZERO mudanças (critério de aceite)',
+  JSON.stringify({ mudou2, r2 }),
+)
+
+titulo('SESSAO-29 · rodada que não terminou até a próxima fica registrada como interrompida')
+
+const ini3 = (await um49(`select plt_privado.fn_tiny_pente_fino_iniciar('teste') as r`)).r
+const ini4 = (await um49(`select plt_privado.fn_tiny_pente_fino_iniciar('teste') as r`)).r
+const r3 = (await um49(`select payload from public.eventos where tipo = 'pente_fino' and payload->>'rodada' = '${ini3.rodada}'`))?.payload
+conferir(
+  r3?.estado === 'interrompida' && r3?.pendentes > 0 && ini4.rodada !== ini3.rodada,
+  'a rodada que ainda tinha pedido na fila fecha como interrompida (com quantos ficaram) e a nova começa',
+  JSON.stringify({ r3, ini3: ini3.rodada, ini4: ini4.rodada }),
+)
+// limpa a rodada 4 (o resto do harness não espera fila aberta)
+await bd.exec(`update public.tiny_fila set status = 'ok' where params->>'rodada' = '${ini4.rodada}'`)
+await bd.exec(`select plt_privado.fn_tiny_fila_relogio()`)
+
+titulo('SESSAO-29 · o endereço do fluxo no n8n mora nos webhooks de saída; a conferência agendada às 3h')
+
+const endereco49 = await um49(`select count(*)::int as n, bool_and(ativo) as ativo, min(url) as url
+                                 from public.plt_webhooks where 'tiny_fila' = any (eventos)`)
+conferir(
+  endereco49.n === 1 && endereco49.ativo && /\/webhook\/a9564e90-bdf4-4e46-b425-ea668cb7a22e$/.test(endereco49.url),
+  'o fluxo de carga do n8n tem UM endereço (o caminho secreto que o dono publicou em 01/10), ativo',
+  JSON.stringify(endereco49),
+)
+const nomeLimpo = (await um49(`select count(*)::int as n from public.clientes where nome like '%&#39;%'`)).n
+conferir(nomeLimpo === 0, 'nenhum cliente fica com entidade HTML no nome (correção única da migration)', String(nomeLimpo))
+} // fim do bloco 49
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
