@@ -200,6 +200,8 @@ export function grupoDaAcao(acao: string): GrupoAcao | null {
 }
 
 const TELAS: Record<string, string> = {
+  '/': 'Início',
+  '/entrar': 'Tela de entrada',
   '/inicio/meu-painel': 'Meu painel',
   '/inicio/afazeres': 'Meus afazeres',
   '/inicio/afazeres-do-time': 'Afazeres do time',

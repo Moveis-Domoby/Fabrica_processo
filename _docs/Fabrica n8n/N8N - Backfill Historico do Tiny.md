@@ -1,11 +1,17 @@
 ---
 titulo: Backfill histórico do Tiny → Supabase
 tipo: automacao
-atualizado: 2026-08-28
+atualizado: 2026-10-01
 tags: [n8n, tiny, supabase, backfill, historico]
 ---
 
 # 📦 Backfill histórico do Tiny → Supabase
+
+> [!important] ↪️ 01/10/2026 — a fila virou a CONFERÊNCIA DIÁRIA com o Tiny (SESSAO-29)
+> - A carga histórica terminou em 10/09, mas o fluxo seguia acordando **de 1 em 1 minuto** sem nada para fazer (1.392 chamadas vazias em 24 h). No n8n o fluxo se chama **"subir banco de dados --- tiny → supabase"**; o dono trocou o nó "Cada minuto" pelo **"Webhook · processar a fila do Tiny"** (POST, responde na hora; o endereço mora em `plt_webhooks`, marca `tiny_fila`). O resto do fluxo não mudou.
+> - **Quem chama é o banco**, só quando há linha pendente e nenhum lote em andamento: às 3h a conferência (`plt_privado.fn_tiny_pente_fino_iniciar`) enfileira a busca dos últimos 60 dias + os pedidos não terminados e agenda o relógio da fila, que chama um lote por minuto e **se desagenda** quando a fila esvazia. Fila vazia = nenhuma execução no n8n.
+> - **Reprocessar de propósito** (abaixo) continua valendo, mas depois de reabrir as linhas é preciso acordar a fila: `select plt_privado.fn_tiny_fila_acordar();`
+> - Detalhe: [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] · [[SUPA - Esquema do Banco]] (migration 49).
 
 > [!abstract] Em uma frase
 > Trazer **todo o histórico da Domoby desde 12/03/2025** — pedidos, contatos,

@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-09-30
+atualizado: 2026-10-01
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -94,12 +94,15 @@ tags: [plataforma, requisitos, backlog]
 | RF-50 | API aberta: criar, editar, mover e excluir cards em qualquer etapa (D-03) | 💡 registrado |
 | RF-51 | n8n como intermediador principal (Tiny → plataforma; plataforma → ClickUp ROTAS na transição — D-05) | 💡 registrado |
 | RF-52 | Webhooks de saída: eventos da plataforma notificam sistemas externos | 💡 registrado |
+| RF-115 | Conferência diária com o Tiny (D-50): às 3h relê a busca do Tiny dos últimos 60 dias + os pedidos não terminados, pelo fluxo de carga do n8n acordado pelo banco só com trabalho; observações acompanham o Tiny, o resto "edição edita, apagar não apaga"; grava só o que mudou; uma linha por rodada no log (relidos, diferentes, quais e o quê); pedido vivo nunca avisado entra no PCP (D-96) | ✅ entregue (SESSAO-29 — migration 49) |
+| RF-116 | Cliente pelo cadastro do Tiny (D-98): número do cadastro → CPF → o cliente que o pedido já tem → nome+fone; contato renomeado não duplica cliente; CPF nunca colide; nome sem código HTML (D-97) | ✅ entregue (SESSAO-29 — migration 49) · o número do cadastro no aviso de venda depende do dono colar a mudança no fluxo de vendas do n8n |
 
 ## Admin e estoque
 
 | ID | Requisito | Status |
 |---|---|---|
 | RF-60 | Painel admin COMPLETO e bem estruturado (usuários, setores, etapas, permissões, automações, API keys) | 💡 registrado |
+| RF-117 | Auditoria no Painel admin (D-95): a trilha de tudo (entradas/saídas, telas, movimentações, execuções, qualidade, estoque, ROTAS, tarefas, cadastros, chat sem mensagens) com quem, quando, onde, o quê e porquê; filtros e páginas no servidor; tarefa privada fora; aba das conferências com o Tiny (e, no futuro, os erros do n8n) | ✅ entregue (SESSAO-29 — migration 50 + tela) |
 | RF-70 | Módulo de estoque (fase 2 — D-07): peças, produtos montados para venda/despacho, reposição | ✅ entregue (SESSAO-25) — acabados + matéria-prima/insumos; o estoque de PEÇA com plano de corte é o próximo passo (D-57) |
 | RF-71 | Saldo do Tiny da fábrica dentro da plataforma: leitura derivada do último aviso de estoque de cada produto (webhook ou carga inicial), CNPJ conferido, sem tabela nova (D-55) | ✅ entregue (SESSAO-25) |
 | RF-72 | Disponível = saldo lido − itens de pedidos da loja ainda abertos (sem personalizado, sem cancelado, por SKU); nunca negativo na tela — negativo vira "necessidade extrema" (D-53/D-55) | ✅ entregue (SESSAO-25) — ↩️ 28/09 (D-70): vale só para insumos; nos acabados o número é a contagem da logística (RF-100) |
@@ -148,6 +151,7 @@ tags: [plataforma, requisitos, backlog]
 | RNF-05 | Eventos append-only: movimentação nunca é sobrescrita, só acrescentada (D-04) | 💡 registrado |
 | RNF-06 | Plataforma publicada numa URL estável, acessível dos tablets/celulares do galpão, com deploy repetível (D-23 — SESSAO-08) | 💡 registrado |
 | RNF-07 | **Lei de requisição (pedido do dono, SESSAO-22): cada tela requisita apenas o que mostra** — paginação no servidor, total por agregado barato, "Ver mais" busca só a próxima página; baixar o conjunto inteiro para filtrar no cliente é proibido (regra 17 do CLAUDE + Modelo de Sistema) | ✅ entregue (SESSAO-22) |
+| RNF-08 | **O banco espelha o Tiny em até 24h** (P17/D-50): o que o aviso de venda não traz (marcador sozinho, contato renomeado, campo apagado, pedido que nunca chegou) é corrigido pela conferência da madrugada, e a divergência vira número visível (Auditoria) | ✅ entregue (SESSAO-29) |
 
 ## Ver também
 

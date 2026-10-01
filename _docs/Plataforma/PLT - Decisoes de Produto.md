@@ -331,6 +331,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 Toda ação de usuário registra **log no banco** (quem, quando, o quê, onde), **append-only**, sem exceção. O registro nasce na SESSAO-13; a consulta admin completa pode vir depois.
 
+**↪️ 01/10/2026 (D-95):** a consulta chegou — **Painel admin → Auditoria**, com o porquê de cada gesto e a saída da plataforma também na trilha.
+
 ## D-41 · Identidade: Meu Perfil com 8 temas Domoby; login com logo metálica (28/08/2026)
 
 - Clicar no bloco do usuário (rodapé da sidebar) abre **Meu Perfil**: alterar nome de usuário, senha, **foto**, dados cadastrais e **tema da plataforma**.
@@ -431,6 +433,8 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 
 - **Marcadores:** ficam como estão hoje — a lista do banco acompanha a do Tiny a cada atualização (marcador removido lá sai daqui também). Resposta do dono, 23/09: *"pode deixar do jeito que está atualmente"*.
 - **Nada de depender de combinado com a equipe de vendas:** a plataforma tem que se virar sozinha com o que vier do Tiny (resposta do dono à pergunta 4 da SESSAO-29) — a proposta D ("nome do contato só com o nome") foi **descartada**; o que resolve contato renomeado é o pente-fino + a identidade do cliente pelo id do contato no Tiny (itens A e C da SESSAO-29).
+
+**↪️ 01/10/2026 — entregue na SESSAO-29 (migration 49):** a conferência roda às 3h (06:00 UTC) pelo fluxo de carga do n8n, que agora é **acordado pelo banco só quando há pedido para reler** (o relógio de 1 em 1 minuto do n8n saiu — fazia ~1.400 execuções vazias por dia). Relê a busca do Tiny pelos últimos 60 dias (pega até pedido que nunca chegou) + os não terminados de qualquer idade. As observações acompanham o Tiny quando o Tiny manda o campo (vazio = apaga); se o campo nem vier, nada muda. **Gravar só o que mudou:** pedido igual ao Tiny não é regravado (nem os itens); cada rodada deixa UMA linha no log com quantos foram relidos, quais estavam diferentes e o quê — visível em Painel admin → Auditoria (D-95). Cliente: D-98. Pedido achado só pela conferência: D-96.
 
 ## D-51 · Meu Painel 2.0: três filas, subtarefas, tarefa privada e o painel pessoal (23/09/2026) — ↩️ revisa a D-37 e complementa a D-32
 
@@ -938,6 +942,35 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 ## D-94 · Bonificação descartada (01/10/2026) — ↩️ encerra o tema da D-04
 
 **Decidido (01/10):** o dono mandou **esquecer a bonificação**. As perguntas Q-10, Q-11, Q-12 e Q-14 saem da lista; a medição segue servindo à alavancagem operacional (D-04 revisada), sem ponto nem ranking de prêmio.
+
+## D-95 · Auditoria no Painel admin: o rastro de tudo — quem, quando, onde, o quê e porquê (01/10/2026) — ↪️ D-40
+
+**Pedido do dono (respostas da [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]):** *"Crie uma página de auditoria dentro do painel admin; lá dentro iremos colocar para mapear os erros do n8n também futuramente; dentro dessa auditoria deve aparecer log de tudo — execução, visualização, clique de entrada, movimentações e coisas do tipo; deve salvar o rastro de quem, quando, onde, porquê, o quê e por aí vai."*
+
+- **Painel admin → Auditoria** (`/admin/auditoria`, só admin) com duas abas: **Atividade** (a trilha que a D-40 grava desde a SESSAO-13 — entradas e saídas, telas abertas, movimentações, execuções, qualidade, pedidos vindos do Tiny, estoque, ROTAS, tarefas, cadastros, chat sem as mensagens, avisos) e **Conferências com o Tiny** (a conferência diária da SESSAO-29: a rodada em andamento e o histórico, com os pedidos que estavam diferentes e o quê).
+- Cada linha diz **o quê** (frase de gente, nunca o código), **quem** (o nome; "Sistema" quando é automático), **quando**, **onde** (a tela, ou os setores/etapas de origem → destino) e **por quê** (a observação do gesto ou o motivo, quando há). Detalhes sem ids. Busca pelo nº do pedido acha o que aconteceu com os cards dele.
+- Filtros no servidor (pessoa, tipo, período, busca) e uma página por vez (regra 17). A saída da plataforma passou a entrar na trilha.
+- **Tarefa pessoal privada (D-51) não aparece nem para o admin** — a trilha existe no banco, mas a auditoria a esconde de quem não a criou.
+- **Os erros do n8n** entram na aba das conferências numa próxima etapa (o dono avisou que vêm "futuramente").
+- Decidido pelo Claude (o dono pode mudar): o período abre em "Últimos 7 dias"; 30 linhas por página; nenhuma tabela nova (D-47) — só duas portas de leitura.
+
+**Como ficou (técnico):** migration 50 — `plt_fn_auditoria` (trilha paginada com filtros, já traduzida: nome, pedido do card, setores/etapas, motivo; tarefa privada fora) e `plt_fn_auditoria_conferencias`; tela `src/paginas/Auditoria.tsx`; `ProvedorSessao.sair` registra `saiu`.
+
+## D-96 · O pedido vivo que só a conferência achou entra no PCP (01/10/2026) — ↪️ a blindagem da carga histórica
+
+**Decidido (resposta 3 do dono — "Pode ser"):** o pedido que o aviso do Tiny nunca trouxe e a conferência diária achou entra no quadro do PCP **como se tivesse chegado pelo aviso**, se ainda não foi entregue nem cancelado. Encerrado (entregue, não entregue, cancelado) entra só no banco. Nos 5.360 pedidos conferidos em 22/09 isso nunca tinha acontecido — é rede de segurança. **Técnico:** origem nova `pente_fino` em `pedidos`, aceita pela guarda do gatilho de inserção (migration 49); a carga histórica (`backfill`) segue fora.
+
+## D-97 · O nome do cliente é gravado sem o código no lugar do apóstrofo (01/10/2026)
+
+**Decidido (resposta 4 do dono — "Corrija"):** o Tiny guarda alguns nomes com o código da página no lugar de caracteres ("D&#39;Elia" em vez de "D'Elia" — 1 caso em 5.440). A plataforma grava o **nome do cliente já corrigido** (e o existente foi corrigido uma vez). A cópia crua do pedido segue igual à do Tiny (é ela que a conferência compara). ⚠️ O módulo Comercial mostra o nome da cópia crua do pedido — lá o caso único continua como o Tiny guarda.
+
+## D-98 · O cliente é achado pelo cadastro do Tiny; o fluxo de vendas passa esse número (01/10/2026) — item C da SESSAO-29
+
+**Achado (só leitura, 01/10):** o pedido que o Tiny devolve (`pedido.obter`) **não traz o número do cadastro do cliente** — só nome, CPF, telefone e endereço; o número só vem no **aviso de venda**, e o fluxo de vendas do n8n o descartava. E o nome que vem no pedido é o **atual** do cadastro (4.932 de 4.932 pedidos da carga histórica batem com o cadastro).
+
+**Decidido:** o cliente do pedido é achado nesta ordem — **1)** o número do cadastro do Tiny (quando o aviso traz); **2)** o CPF/CNPJ; **3)** o cliente que o pedido **já tem**, quando nada prova que é outra pessoa (sem CPF dos dois lados e sem número de cadastro que contradiga) — é o contato renomeado no Tiny; **4)** nome + telefone; **5)** cliente novo. O CPF nunca é copiado para um cliente se já pertence a outro. Resposta 1 do dono sobre a mudança no fluxo de vendas: *"Você gera para mim e eu edito o fluxo"* — o passo a passo está no handoff; **o banco já aceita o número** (sem ele, os passos 2–5 seguem valendo).
+
+**Consequência:** reprocessar um pedido de cliente sem CPF renomeado no Tiny não cria mais cliente duplicado; um pedido **novo** desse cliente só deixa de duplicar quando o fluxo de vendas passar o número do cadastro.
 
 ## Ver também
 

@@ -109,6 +109,26 @@ O coração. Verificado contra **1.982 pedidos reais**: 47 colunas 100% idêntic
 | QUANT. PRODUTOS corrompida como data (`1, 1, 1` → `1, 1, 2001`) | 95 de 107 pedidos de 3 itens |
 | Linha nunca atualizada (SITUAÇÃO congelada, rastreio 100% vazio, edição no Tiny ignorada) | caso provado: pedido 13026 |
 
+## ↪️ 01/10/2026 — passar o número do cadastro do cliente ao banco (SESSAO-29, D-98) — A COLAR PELO DONO
+
+O aviso de venda traz `dados.idContato` (o cadastro do cliente no Tiny) e o `pedido.obter` **não** traz (A-43). O banco já aceita o número desde a migration 49 (`fn_upsert_pedido(..., p_tiny_id_contato)`); falta o fluxo repassar. No n8n, fluxo **"Principal - Tiny → planilha / banco / clickup / trello"** — **sem renomear nenhum nó**:
+
+1. **"Normalizar evento"** (Code): na lista do resultado (`tipo`, `id`, `numero`, `situacao`, `cnpj`), acrescentar a linha:
+   ```js
+   id_contato: d.idContato ?? "",
+   ```
+2. **"Montar payload Supabase"** (Code): no objeto devolvido, acrescentar:
+   ```js
+   p_tiny_id_contato: Number(ev.id_contato) || null,
+   ```
+3. **"Supabase · upsert pedido"** (HTTP): o corpo (JSON) passa a ser:
+   ```
+   ={{ JSON.stringify({ p: $json.p, p_tipo: $json.p_tipo, p_tiny_id: $json.p_tiny_id, p_origem: $json.p_origem, p_tiny_id_contato: $json.p_tiny_id_contato }) }}
+   ```
+4. Publicar. Conferência: no próximo pedido, `clientes.tiny_id_contato` do cliente preenchido (cliente novo nasce com ele).
+
+Se o aviso não trouxer o número (vazio/0), vai nulo e o banco segue pelos outros caminhos (CPF → o cliente que o pedido já tem → nome+fone) — nada quebra.
+
 ## Ver também
 
 [[N8N - Visao Geral da Migracao]] · [[N8N - Codigo Mapear 49 Colunas]] · [[N8N - Incidente Credencial Google]] · [[N8N - API Tiny v2 vs v3]]
