@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-29 — Reconciliação com o Tiny: pente-fino diário e 'o último pacote vence'"
 tipo: demanda
-status: pronta para code
+status: entregue (banco no ar; a tela da Auditoria espera a revisão do dono para ir à main)
 data: 2026-09-22
-atualizado: 2026-09-23
+atualizado: 2026-10-01
 tags: [plataforma, demanda, integracao, tiny, n8n, reconciliacao]
 ---
 
@@ -40,13 +40,13 @@ Migrar o n8n para a API v3 · webhook de contatos (o Tiny não oferece para cont
 
 ## Critérios de aceite
 
-- [ ] Uma rodada do pente-fino relê os pedidos da janela e registra no log quantos mudaram; uma segunda rodada logo depois registra **zero** mudanças.
-- [ ] Teste de campo limpo (D-50): pedido com **observação/observação interna** apagada no Tiny fica com a coluna vazia no banco após a próxima rodada; pedido com **previsão ou vendedor** apagado no Tiny **mantém** o valor no banco (inclusive com a chave ausente no payload).
-- [ ] Teste de marcador: marcador posto sozinho no Tiny aparece no banco após a próxima rodada.
-- [ ] Contato sem CPF renomeado no Tiny: pedido reprocessado continua no MESMO cliente (sem duplicata).
-- [ ] Impressão digital das tabelas da integração idêntica antes/depois da migration; `test:banco` de duas rodadas verde.
-- [ ] A plataforma ficou o mais otimizada possível depois do meu serviço, requisições minimas, banco sem tabelas, colunas e funções desnecessarias e front bem apontado e leve.
-- [ ] Nenhum renovador de token novo em lugar nenhum.
+- [x] Uma rodada do pente-fino relê os pedidos da janela e registra no log quantos mudaram; uma segunda rodada logo depois registra **zero** mudanças. *(01/10: 611 relidos, 138 diferentes → 2ª rodada 611 relidos, 0.)*
+- [x] Teste de campo limpo (D-50): pedido com **observação/observação interna** apagada no Tiny fica com a coluna vazia no banco após a próxima rodada; pedido com **previsão ou vendedor** apagado no Tiny **mantém** o valor no banco (inclusive com a chave ausente no payload). *(Ao vivo no Tiny com o pedido do dono — obs interna e previsão — pela mesma função que a rodada usa; vendedor e chave ausente no banco de teste.)*
+- [~] Teste de marcador: marcador posto sozinho no Tiny aparece no banco após a próxima rodada. *(Provado no banco de teste; no Tiny a permissão automática da sessão barrou editar o marcador — fica para o dono, opcional.)*
+- [~] Contato sem CPF renomeado no Tiny: pedido reprocessado continua no MESMO cliente (sem duplicata). *(Provado no banco de teste; nas duas rodadas reais, nenhum cliente criado. No Tiny, não feito — mesmo motivo.)*
+- [x] Impressão digital das tabelas da integração idêntica antes/depois da migration; `test:banco` de duas rodadas verde. *(`e2109f3a…`, 65 colunas, nas duas aplicações; 667 verificações.)*
+- [x] A plataforma ficou o mais otimizada possível depois do meu serviço, requisições minimas, banco sem tabelas, colunas e funções desnecessarias e front bem apontado e leve. *(No que a sessão tocou — confirmado pelo dono: nenhuma tabela nova; o fluxo da carga deixou de acordar 1.392×/dia à toa; pedido igual não é regravado; a Auditoria pagina no servidor, 30 por vez.)*
+- [x] Nenhum renovador de token novo em lugar nenhum.
 
 ## Notas para o Claude Code
 
@@ -65,4 +65,4 @@ Migrar o n8n para a API v3 · webhook de contatos (o Tiny não oferece para cont
 
 ## Resultado (preencher ao entregar)
 
-*—*
+✅ **Entregue em 01/10/2026** — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]]. Migrations 49 (conferência) e 50 (auditoria) **aplicadas** na madrugada, integração idêntica; o fluxo da carga do n8n passou a ser acordado pelo banco (trocado pelo dono). **A 1ª conferência real (03:00):** 611 relidos, 138 diferentes (134 só na cópia completa — ex.: data de faturamento mudada no Tiny depois do último aviso —, 2 de cliente, 1 de observação, 1 de itens); **a 2ª, logo depois: 0**. No dia 01/10 a função nova atendeu as vendas sem nenhum erro (45 gravações, 12 pedidos novos → 12 cards). Escopo novo do dono: **Auditoria no Painel admin** (D-95) — na branch, à espera da revisão dele para ir à `main`. Pendente com o dono: colar no fluxo de vendas a passagem do número do cadastro do cliente (D-98).

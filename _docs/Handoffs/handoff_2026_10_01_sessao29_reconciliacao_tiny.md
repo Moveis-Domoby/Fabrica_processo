@@ -6,7 +6,7 @@ atualizado: 2026-10-01
 tags: [handoff, sessao, sessao-29, tiny, n8n, reconciliacao, auditoria, d-50, d-95, d-96, d-97, d-98]
 ---
 
-# 📋 Handoff — SESSAO-29 (01/10/2026, madrugada)
+# 📋 Handoff — SESSAO-29 (01/10/2026 — construída na madrugada, conferida até a noite)
 
 **Branch:** `sessao-29-reconciliacao-tiny` (pasta principal, sem worktree — pedido do dono) · **enviada ao GitHub; NÃO mesclada na `main`** (a tela da Auditoria espera a sua revisão)
 **Banco:** migrations **49** (conferência) e **50** (auditoria) **aplicadas** em 01/10 (05:17 e 05:26 UTC), cada uma sozinha; integração idêntica antes/depois (`e2109f3a…`, 65 colunas, linhas idênticas) — com o seu OK ("pode atualizar o banco, contanto que não quebre o que está em produção")
@@ -54,17 +54,28 @@ tags: [handoff, sessao, sessao-29, tiny, n8n, reconciliacao, auditoria, d-50, d-
 | **No Tiny, com o seu pedido** (via "editar alguns dados" — sem estornar nada) | ✅ observação interna posta → apagada no Tiny → **apagada aqui**; previsão apagada no Tiny → **mantida aqui**; previsão devolvida. **Tiny e banco de volta ao original.** |
 | Marcador e contato renomeado no Tiny | ⚪ não feito no Tiny (a permissão automática da sessão barrou editar o marcador do seu pedido — parei de mexer no Tiny); provados no banco de teste e pela rodada real (abaixo) |
 | Auditoria com os dados reais (sua sessão aberta no navegador do app) | ✅ 1.133 registros em 7 dias; filtro "Movimentações" = 191 com o porquê ("Entrou pelo Tiny.", "Saiu com o pedido 13541 (Entregue no Tiny)"); celular 375 sem rolagem lateral e toques ≥ 44 px |
-| **1ª rodada real (3h)** | *(preenchido abaixo, §5)* |
+| **1ª rodada real (3h)** | ✅ 611 pedidos relidos em 21 min, **138 estavam diferentes**, nenhum novo, nenhuma falha (§5) |
+| **2ª rodada, logo depois** (à mão, 03:39) | ✅ 611 relidos, **zero diferentes** — o critério de aceite |
+| Durante as duas | ✅ nenhum cliente criado (nenhuma duplicata), nenhum aviso nos cards do quadro, o relógio da fila se desligou sozinho nas duas |
+| **O dia 01/10 em produção** (a versão nova atendendo as vendas) | ✅ 12 pedidos novos → 12 cards no PCP; 32 avisos de atualização; os 21 pedidos com aviso estão no banco com a mesma situação do Tiny; **45 gravações de pedido, todas sem erro**; nenhuma porta da plataforma com erro no dia |
 
 ## 5. A primeira conferência de verdade
 
-*(preenchido depois da rodada)*
+**Madrugada de 01/10, 03:00–03:21:** relidos **611** pedidos (os 60 dias + os não terminados), em 7 páginas de busca. **138 estavam diferentes do Tiny:**
+
+- **134 só em dados que não aparecem em nenhuma tela** (a cópia completa do pedido que o banco guarda). Quase todos entregues. Fui atrás do porquê (só leitura no Tiny, 9 pedidos antigos): no que deu para ver, foi a **data de faturamento** — o Tiny mudou a data depois do último aviso de venda, e o aviso nunca trouxe. É exatamente o tipo de diferença calada que a conferência existe para pegar; espere alguns por noite.
+- **2 de cliente:** um pedido recebeu o cadastro atualizado do cliente (mesma pessoa, achada pelo CPF); o outro (12939) **passou de um cadastro para outro da mesma pessoa** — ela tem dois cadastros no próprio Tiny (mesmo nome e telefone, um com CPF e outro sem) e o pedido hoje aponta o sem CPF. Nenhum cliente novo foi criado.
+- **1 de observação** (13521) e **1 de itens** (13060) — corrigidos para ficar como o Tiny.
+
+**Logo depois (03:39–04:01), a segunda rodada: 611 relidos, zero diferentes.** O banco ficou igual ao Tiny e ficou parado assim.
+
+As duas aparecem em **Painel admin → Auditoria → Conferências com o Tiny**, com a lista dos pedidos que estavam diferentes. A próxima roda sozinha às 3h.
 
 ## 6. Ficou com você
 
-1. 🔶 **Colar no fluxo de vendas do n8n** ("Principal - Tiny → planilha / banco / clickup / trello") a mudança que passa o número do cadastro do cliente — 3 trocas pequenas, passo a passo em [[N8N - Workflow Tiny para Planilha]] (seção de 01/10). O banco já aceita. Sem ela, pedido NOVO de um cliente sem CPF que mudou de nome no Tiny ainda pode virar cliente duplicado (o reprocessado já não vira).
+1. 🔶 **Colar no fluxo de vendas do n8n** ("Principal - Tiny → planilha / banco / clickup / trello") a mudança que passa o número do cadastro do cliente — 3 trocas pequenas, passo a passo em [[N8N - Workflow Tiny para Planilha]] (seção de 01/10). O banco já aceita. Sem ela, pedido NOVO de um cliente sem CPF que mudou de nome no Tiny ainda pode virar cliente duplicado (o reprocessado já não vira). *(Conferido no fim do dia 01/10: os 8 clientes novos do dia chegaram sem o número — a mudança ainda não está no fluxo.)*
 2. 🔶 **Ver a Auditoria** (Painel admin → Auditoria) e me dizer se pode ir ao site — aí eu mesclo e publico.
-3. 🔶 **Trocar a sua senha da plataforma** (Meu Perfil) — ela passou pelo chat.
+3. ⚪ **Senha da plataforma:** ela passou de novo pelo chat (madrugada de 01/10 — não a usei; você entrou sozinho). Pela sua decisão de 01/10, a troca fica para a publicação ([[000 - PROXIMOS PASSOS]]) — só registrando.
 4. ⚪ (opcional) Testar você mesmo, no Tiny, o marcador e o nome: ponha um marcador num pedido recente (ou troque o nome de um cadastro sem CPF) → na manhã seguinte, a Auditoria → Conferências mostra o pedido com "marcadores"/"cliente". Desfaça depois.
 5. ⚪ (opcional) No n8n, no fluxo de carga: Settings → "Save successful production executions" → "Do not save" (hoje ele guarda toda execução com os pedidos inteiros).
 

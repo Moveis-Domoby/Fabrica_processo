@@ -61,8 +61,8 @@ Leituras: CLAUDE (repo e cofre), Memória de Aprendizado, Decisões (D-01…D-94
 - [x] Auditoria no Painel admin (D-95): atividade + conferências com o Tiny
 - [x] Harness (2 rodadas, impressão digital) · front (tsc/lint/testes/build)
 - [x] Aplicar no banco (49 e 50) com a integração conferida idêntica
-- [ ] Aceite ao vivo: rodada real (3h) + 2ª rodada com zero mudanças + testes no Tiny com o pedido do dono (marcador, observação, previsão/vendedor, contato renomeado) e tudo devolvido
-- [ ] Cofre: decisões, requisitos, esquema, notas do n8n, P17, memória, handoff, mapa, próximos passos, ordem
+- [x] Aceite ao vivo: rodada real (3h) ✅ + 2ª rodada com zero mudanças ✅ + no Tiny com o pedido do dono: observação interna ✅ e previsão ✅, tudo devolvido ✅ — marcador e contato renomeado ⚪ (barrados pela permissão automática; provados no banco de teste)
+- [x] Cofre: decisões, requisitos, esquema, notas do n8n, P17, memória, handoff, mapa, próximos passos, ordem
 
 ## Construção (01/10, madrugada)
 
@@ -93,7 +93,29 @@ Leituras: CLAUDE (repo e cofre), Memória de Aprendizado, Decisões (D-01…D-94
 - **05:38:09 UTC:** previsão devolvida no Tiny (25/07/2026) → banco igual. **Tiny e banco de volta ao estado original** (obs interna vazia, previsão 25/07, marcador "1ª venda"). Nenhum evento no card do pedido (sem unidade liberada).
 - **Marcador e contato renomeado:** ao digitar o marcador no Tiny, a permissão automática da sessão **barrou** a ação ("transação no mundo real") — parei de editar o Tiny (o diálogo foi fechado sem salvar; conferido: só "1ª venda"). Esses dois ficam para o dono fazer no Tiny (1 minuto) — ou se provam pela rodada real, se ela achar marcador/nome mudados em pedidos de verdade. O harness prova os dois.
 
+## As rodadas reais (01/10)
+
+- **1ª — a da madrugada** (job das 06:00 UTC = 03:00 de Natal; `eventos` id 10473): 06:00:00 → 06:21:00 UTC. **611 relidos**, 7 páginas de busca, **138 diferentes**, 0 novos, 0 não encontrados, 0 falhas, 0 pendentes. Os 138: **134 só "outros"** (cópia crua diferente, nenhuma coluna), **2 "cliente"** (12939, 13536), **1 "obs"** (13521), **1 "itens"** (13060).
+- **2ª — manual, logo depois** (`fn_tiny_pente_fino_iniciar('manual')`, `eventos` id 10474): 06:39:24 → 07:01:00 UTC. **611 relidos, 0 diferentes**, 0 novos, 0 falhas → **critério de aceite 1 ✅**.
+- Durante as duas: **nenhum cliente criado** (0 duplicatas), 1 cadastro atualizado (o do 13536 — dado novo do Tiny pelo CPF), **nenhum evento nos cards** (`plt_eventos` vazio na janela), relógio da fila desligado sozinho ao fim de cada uma.
+- **Os 2 "cliente":** 13536 → o cadastro do cliente (com CPF) recebeu o dado novo do Tiny (mesmo cliente). 12939 → o pedido **passou do cadastro com CPF para o cadastro sem CPF da MESMA pessoa** (mesmo nome e telefone; são dois contatos no próprio Tiny, ambos carregados pela carga de 08/09 com 0,25 s de diferença); o Tiny devolve hoje o pedido SEM CPF, então o passo 3 (cliente que o pedido já tem) não vale (o cadastro antigo tem CPF) e o passo 4 (nome + telefone) achou o outro registro dela. É o desenho de D-98 (CPF dos dois lados ou nada); quando o fluxo de vendas passar o número do cadastro, o aviso decide pelo passo 1.
+
+## O "outros" da 1ª rodada — diagnóstico (01/10 ~22:50 UTC, só leitura no Tiny)
+
+- Perfil: 132 dos 459 entregues que nasceram pelo aviso + 1 entregue da carga + 1 "Preparando envio"; 133 dos 134 tiveram o aviso de "Entregue". Por dia do último aviso: dos 230 de 08/09 só 5; de 09/09 em diante, ~metade.
+- Teste: 9 pedidos entregues **fora** da janela de 60 dias (cópia crua ainda a do último aviso, 09/09–01/10) relidos por uma rodada de diagnóstico (`diagnostico-copia-crua-0710`, 9 consultas ao Tiny), com foto só de HASHES por caminho antes (script no scratchpad — nenhum dado pessoal guardado). Resultado: **8 iguais, 1 diferente** — o 12379: `data_faturamento` 18/06/2026 → 15/09/2026 (o aviso de 15/09 trouxe a data antiga; o Tiny mudou depois, sem aviso).
+- Conclusão: o "outros" é **deriva real em campo que só mora na cópia crua** (não é coluna, nenhuma tela usa) — o que a conferência existe para pegar; não é ruído de formato (os dois fluxos mandam o mesmo `retorno.pedido`). A 2ª rodada zerou → estável. → A-46.
+
+## O dia em produção (01/10, 07:01 → 22:48 UTC)
+
+- **12 pedidos novos** (todos pelo aviso de venda) → **12 cards no PCP**; 32 avisos de atualização; 21 pedidos com aviso no dia — **todos no banco com a mesma situação do aviso**; 19 regravados (12 novos + 7), os outros avisos chegaram iguais e **não regravaram nada** (como desenhado).
+- Registros do Supabase: **45 chamadas da gravação de pedido, todas 200**; nenhuma função com 4xx/5xx (só 3 × 401 de sessão expirada de um navegador às 22:41, em leituras de usuários/execuções — fora desta frente).
+- **8 clientes novos, nenhum com o número do cadastro do Tiny** → a mudança do fluxo de vendas (3 trocas) **ainda não foi colada** pelo dono.
+- ⚠️ E-76: ao retomar a sessão, datei o trabalho como "~07:10 UTC" pela continuidade — o `now()` do banco dizia **22:48 UTC** (a sessão ficou parada ~15 h). Corrigido antes de escrever qualquer horário.
+
 ## Status
 
 - 01/10 ~02:00 (Natal): construção começa, em silêncio (pedido do dono).
 - 01/10 ~02:35 (Natal): 49 e 50 no banco; tela pronta na branch; à espera da 1ª rodada real (3h).
+- 01/10 03:00–04:01 (Natal): 1ª rodada (138 diferentes) e 2ª rodada (0) — aceite.
+- 01/10 ~19:50 (Natal): diagnóstico do "outros", saúde do dia, cofre fechado; branch enviada; **à espera da revisão do dono (tela da Auditoria) para ir à `main`**.
