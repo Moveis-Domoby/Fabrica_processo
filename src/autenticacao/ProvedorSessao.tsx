@@ -92,6 +92,16 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
   }, [temaPerfil])
 
   const sair = useCallback(async () => {
+    // A saída também fica na trilha (SESSAO-29 · D-95 — a auditoria): registra
+    // ANTES do signOut, enquanto a sessão existe. Sair nunca espera mais que 2 s.
+    try {
+      await Promise.race([
+        supabase.rpc('plt_fn_registrar_log', { p_acao: 'saiu', p_rota: null, p_contexto: {} }),
+        new Promise((resolver) => setTimeout(resolver, 2000)),
+      ])
+    } catch {
+      // registrar nunca impede a pessoa de sair
+    }
     await supabase.auth.signOut()
   }, [])
 

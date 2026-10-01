@@ -8432,6 +8432,113 @@ const nomeLimpo = (await um49(`select count(*)::int as n from public.clientes wh
 conferir(nomeLimpo === 0, 'nenhum cliente fica com entidade HTML no nome (correção única da migration)', String(nomeLimpo))
 } // fim do bloco 49
 
+// ============================================================================
+// SESSAO-29 · a AUDITORIA no Painel admin (01/10 — migration 50, D-95 ↪️ D-40):
+// a trilha de atividade (quem, quando, onde, o quê, porquê) e a conferência
+// diária com o Tiny, só para o admin, paginadas no servidor.
+// ============================================================================
+{
+titulo('Auditoria (SESSAO-29) · só o admin abre; a trilha vem traduzida: nome, pedido, setores e o porquê')
+
+const um50 = async (sql) => (await bd.query(sql)).rows[0]
+const todos50 = async (sql) => (await bd.query(sql)).rows
+const como50 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+
+await como50(E40.operador)
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'operador não abre a auditoria', /só do admin/i)
+await como50(E40.logistica)
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'nem a logística (a auditoria é do admin)', /só do admin/i)
+await deveRecusarExec(`select public.plt_fn_auditoria_conferencias()`, 'a conferência com o Tiny também é do admin', /só do admin/i)
+await como50('')
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'sem sessão, nada', /só do admin/i)
+
+// Um gesto com PORQUÊ: o admin arquiva o card do 990199 com uma observação
+await como50(E40.admin)
+const card50 = (await um50(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                             where p.numero = 990199 and c.tipo = 'pedido'`))?.id
+await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, observacao)
+               values (${card50}, 'card_arquivado',
+                       (select id from public.plt_usuarios where auth_user_id = '${E40.admin}'), 'interface',
+                       'Teste de auditoria 50 — pedido de teste')`)
+await bd.exec(`select public.plt_fn_registrar_log('navegacao', '/admin/auditoria')`)
+
+const pagina1 = await todos50(`select * from public.plt_fn_auditoria(p_limite => 5)`)
+const totalTudo = Number(pagina1[0]?.contagem_total ?? 0)
+const totalReal = (await um50(`select count(*)::int as n from public.plt_logs_atividade`)).n
+conferir(
+  pagina1.length === 5 && totalTudo > 5 && totalTudo <= totalReal
+    && pagina1[0].acao === 'navegacao' && pagina1[0].rota === '/admin/auditoria' && pagina1[0].usuario_nome,
+  'uma página por vez, do mais novo para o mais antigo, com o total na mesma consulta (regra 17) e o NOME de quem fez',
+  JSON.stringify({ n: pagina1.length, totalTudo, totalReal, primeiro: pagina1[0] }),
+)
+const doPedido = await todos50(`select * from public.plt_fn_auditoria(p_busca => '990199', p_limite => 20)`)
+const arquivo = doPedido.find((l) => l.acao === 'card_arquivado')
+conferir(
+  arquivo && arquivo.pedido_numero === 990199 && arquivo.motivo === 'Teste de auditoria 50 — pedido de teste'
+    && arquivo.card_tipo === 'pedido' && arquivo.usuario_nome,
+  'busca pelo nº do pedido traz o que aconteceu com os cards dele — com o PORQUÊ (a observação do gesto)',
+  JSON.stringify(arquivo ?? doPedido),
+)
+const movimento = (await todos50(`select * from public.plt_fn_auditoria(p_acoes => array['movimentacao_setor'], p_limite => 1)`))[0]
+conferir(
+  !movimento || (movimento.acao === 'movimentacao_setor' && (movimento.setor_origem || movimento.setor_destino)),
+  'movimentação vem com os NOMES dos setores de origem e destino (onde)',
+  JSON.stringify(movimento ?? null),
+)
+const soNavegacao = await todos50(`select acao from public.plt_fn_auditoria(p_acoes => array['navegacao'], p_limite => 50)`)
+const soSistema = await todos50(`select usuario_id from public.plt_fn_auditoria(p_sistema => true, p_limite => 50)`)
+const soPessoas = await todos50(`select usuario_id from public.plt_fn_auditoria(p_sistema => false, p_limite => 50)`)
+conferir(
+  soNavegacao.length > 0 && soNavegacao.every((l) => l.acao === 'navegacao')
+    && soSistema.every((l) => l.usuario_id === null) && soPessoas.every((l) => l.usuario_id !== null),
+  'filtros no servidor: por tipo de ação, só o Sistema, só pessoas',
+  JSON.stringify({ nav: soNavegacao.length, sistema: soSistema.length, pessoas: soPessoas.length }),
+)
+const futuro = await todos50(`select * from public.plt_fn_auditoria(p_desde => now() + interval '1 day')`)
+const limiteAlto = await todos50(`select id from public.plt_fn_auditoria(p_limite => 100000)`)
+conferir(
+  futuro.length === 0 && limiteAlto.length <= 100,
+  'período sem nada devolve vazio; a página nunca passa de 100 linhas',
+  JSON.stringify({ futuro: futuro.length, limiteAlto: limiteAlto.length }),
+)
+
+// D-51: a tarefa pessoal PRIVADA de outra pessoa não aparece nem para o admin
+const privada50 = (await um50(`insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, privada)
+  values ('Pessoal 50', (select id from public.plt_usuarios where usuario = 'exec.um'),
+          (select id from public.plt_usuarios where usuario = 'exec.um'), true)
+  returning id::int as id`))?.id
+const comPrivada = await todos50(`select contexto from public.plt_fn_auditoria(p_acoes => array['tarefa_criada','tarefa_atualizada','tarefa_iniciada','tarefa_concluida','tarefa_reatribuida'], p_limite => 100)`)
+const logsPrivada = (await um50(`select count(*)::int as n from public.plt_logs_atividade where acao like 'tarefa\\_%' and contexto->>'tarefa_id' = '${privada50}'`)).n
+conferir(
+  privada50 && logsPrivada > 0 && !comPrivada.some((l) => String(l.contexto?.tarefa_id) === String(privada50)),
+  'a trilha da tarefa pessoal PRIVADA existe no banco, mas a auditoria não a mostra ao admin (D-51)',
+  JSON.stringify({ privada50, logsPrivada }),
+)
+
+titulo('Auditoria (SESSAO-29) · a conferência diária com o Tiny: as rodadas e o que mudou')
+
+const conf = (await um50(`select public.plt_fn_auditoria_conferencias(p_limite => 2) as r`)).r
+const totalRodadas = (await um50(`select count(*)::int as n from public.eventos where tipo = 'pente_fino'`)).n
+conferir(
+  conf.total === totalRodadas && conf.rodadas.length === Math.min(2, totalRodadas) && conf.em_andamento === null
+    && conf.agendada === null && conf.rodadas[0].id > conf.rodadas[1].id && 'relidos' in conf.rodadas[0],
+  'as rodadas da mais nova para a mais antiga, paginadas, com o resumo de cada uma; nenhuma em andamento (aqui sem pg_cron)',
+  JSON.stringify({ total: conf.total, n: conf.rodadas.length, em_andamento: conf.em_andamento }),
+)
+const comMudanca = (await um50(`select public.plt_fn_auditoria_conferencias(p_limite => 50) as r`)).r.rodadas.find((r) => r.mudaram > 0)
+conferir(
+  comMudanca && comMudanca.pedidos.some((p) => p.numero === '990105' && p.campos.includes('obs')),
+  'a rodada mostra QUAIS pedidos estavam diferentes do Tiny e o QUÊ (o 990105: as observações)',
+  JSON.stringify(comMudanca?.pedidos ?? null),
+)
+const priv50 = await um50(`
+  select has_function_privilege('anon', 'public.plt_fn_auditoria(integer, integer, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_auditoria(integer, integer, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as logado,
+         has_function_privilege('anon', 'public.plt_fn_auditoria_conferencias(integer, integer)', 'execute') as conf_anon`)
+conferir(!priv50.anon && priv50.logado && !priv50.conf_anon, 'anônimo fora; logado entra na porta e o gate de admin decide por dentro', JSON.stringify(priv50))
+await como50('')
+} // fim do bloco 50
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

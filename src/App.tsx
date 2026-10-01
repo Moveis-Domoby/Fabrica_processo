@@ -22,6 +22,7 @@ import { Afazeres } from '@/paginas/Afazeres'
 import { AfazeresDoTime } from '@/paginas/AfazeresDoTime'
 import { AdminApi } from '@/paginas/AdminApi'
 import { AdminEstoque } from '@/paginas/AdminEstoque'
+import { Auditoria } from '@/paginas/Auditoria'
 import { Estrutura } from '@/paginas/Estrutura'
 import { MeuPerfil } from '@/paginas/MeuPerfil'
 import { Chat } from '@/paginas/Chat'
@@ -139,6 +140,8 @@ export function App() {
               <Route path="/admin/estoque" element={<AdminEstoque />} />
               <Route path="/admin/api" element={<AdminApi />} />
               <Route path="/admin/caminhoes" element={<Caminhoes />} />
+              {/* SESSAO-29 (D-95): a auditoria — o rastro de tudo, só do admin. */}
+              <Route path="/admin/auditoria" element={<Auditoria />} />
             </Route>
 
             {/* pais nunca navegam: cada um direciona ao primeiro filho */}

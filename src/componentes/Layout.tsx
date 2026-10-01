@@ -298,6 +298,7 @@ export function Layout({ children }: { children: ReactNode }) {
                           { para: '/admin/estoque', rotulo: 'Estoque' },
                           { para: '/admin/api', rotulo: 'API e integrações' },
                           { para: '/admin/caminhoes', rotulo: 'Caminhões' },
+                          { para: '/admin/auditoria', rotulo: 'Auditoria' },
                         ]
                       : []),
                   ],
