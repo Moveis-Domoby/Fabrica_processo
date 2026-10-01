@@ -43,6 +43,7 @@ Migrar o n8n para a API v3 · webhook de contatos (o Tiny não oferece para cont
 - [ ] Teste de marcador: marcador posto sozinho no Tiny aparece no banco após a próxima rodada.
 - [ ] Contato sem CPF renomeado no Tiny: pedido reprocessado continua no MESMO cliente (sem duplicata).
 - [ ] Impressão digital das tabelas da integração idêntica antes/depois da migration; `test:banco` de duas rodadas verde.
+- [ ] A plataforma ficou o mais otimizada possível depois do meu serviço, requisições minimas, banco sem tabelas, colunas e funções desnecessarias e front bem apontado e leve.
 - [ ] Nenhum renovador de token novo em lugar nenhum.
 
 ## Notas para o Claude Code
