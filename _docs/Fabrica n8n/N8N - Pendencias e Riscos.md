@@ -1,7 +1,7 @@
 ---
 titulo: n8n — Pendências e Riscos
 tipo: indice
-atualizado: 2026-09-21
+atualizado: 2026-10-01
 tags: [pendencias, riscos, n8n, debito-tecnico]
 ---
 
@@ -90,7 +90,7 @@ Discutido, nada decidido. Ver [[FAB - Estrutura de Producao (Trello e ClickUp)#M
 O dono decidiu iniciar: Supabase passa a ser o armazenamento canônico de clientes/pedidos (todos os dados possíveis, **incluindo o `id` interno do Tiny**), alimentado pelo webhook de vendas; os nós de planilha serão substituídos gradualmente conforme der certo. Estratégia acordada: **dupla escrita** primeiro (ramo Supabase em paralelo ao Sheets, zero risco), backfill do histórico, conferência de paridade, e só então desligar planilha — mesmo método dos cortes do Plugga. Com o id armazenado, a automação P14 pode trocar o passo `pedidos.pesquisa` por uma leitura no banco. O n8n já tem o id em toda execução (`Normalizar evento` → `dados.id`).
 
 ### P16 · Tiny da fábrica: estoque NEGATIVO em peças e insumos (registrado em 2026-09-21)
-No estudo de 21/09 ([[N8N - Tiny Fabrica - Estudo do Cadastro]]) dezenas de matérias-primas (peças cortadas `… - A12`, `… - A54` etc.) aparecem com saldo físico negativo (ex.: A12 = −28, A54 = −14). Causa provável: a Ordem de Produção finalizada **baixa a estrutura (BOM)** do fabricado, mas ninguém dá **entrada** nas peças/insumos. **Decisão do dono em 21/09: saldo negativo está errado.** Não é bloqueio para a automação de produtos (ela só lê o catálogo), mas é bloqueio para qualquer conta de saldo/necessidade de produção da SESSAO-25. ↪️ **Decisão do dono em 23/09/2026:** na **plataforma**, saldo negativo **é exibido como 0** (*"não existe ter −2 mesas em estoque"*) — o valor cru continua no evento, nada é apagado. A **correção da causa no Tiny** (dar entrada nas peças ou tirar peças cortadas da estrutura) **fica com o dono, para depois**. **Não corrigir por automação, não lançar estoque no Tiny.**
+No estudo de 21/09 ([[N8N - Tiny Fabrica - Estudo do Cadastro]]) dezenas de matérias-primas (peças cortadas `… - A12`, `… - A54` etc.) aparecem com saldo físico negativo (ex.: A12 = −28, A54 = −14). Causa provável: a Ordem de Produção finalizada **baixa a estrutura (BOM)** do fabricado, mas ninguém dá **entrada** nas peças/insumos. **Decisão do dono em 21/09: saldo negativo está errado.** Não é bloqueio para a automação de produtos (ela só lê o catálogo), mas é bloqueio para qualquer conta de saldo/necessidade de produção da SESSAO-25. ↪️ **Decisão do dono em 23/09/2026:** na **plataforma**, saldo negativo **é exibido como 0** (*"não existe ter −2 mesas em estoque"*) — o valor cru continua no evento, nada é apagado. A **correção da causa no Tiny** (dar entrada nas peças ou tirar peças cortadas da estrutura) **fica com o dono, para depois**. **Não corrigir por automação, não lançar estoque no Tiny.** ↪️ **01/10:** o dono vai pedir aos responsáveis que corrijam no Tiny.
 
 ### P17 · Webhook de vendas não cobre tudo — deriva silenciosa Tiny × banco (registrado em 2026-09-22)
 Achado na conferência pedido a pedido da SESSAO-21 (setembro + os 5.360 do histórico; detalhe em `_docs/Plataforma/Execucao/SESSAO-21.md`). A fábrica depende **100% do webhook "Notificações de vendas"**, e três coisas nunca chegam ao banco:

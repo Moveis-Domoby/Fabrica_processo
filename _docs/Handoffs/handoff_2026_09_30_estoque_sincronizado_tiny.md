@@ -85,6 +85,10 @@ tags: [handoff, ajuste, estoque, tiny, n8n, d-76, d-77, d-78, d-79, d-80]
 
 ## 6. Ficou com você
 
+> [!info] ↪️ Revisão com o dono em 01/10/2026
+> - **Limpar as reservas presas no Tiny** e **conferir que a venda baixa o Tiny** saíram da lista do dono: ele pede aos responsáveis.
+> - A reposição automática é escolha da operação, não pendência (**D-90**).
+
 > ↪️ **Atualizado em 30/09, 01:45:** os três primeiros itens abaixo **estão feitos** (fluxo publicado, aviso da loja ligado por você, sincronismo ligado e cópia conferida). A pedido seu, **o n8n não tem mais relógio de 1 minuto**: o banco só chama o fluxo quando há produto esperando (migration 43).
 
 

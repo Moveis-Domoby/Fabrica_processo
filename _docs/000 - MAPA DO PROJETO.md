@@ -1,7 +1,7 @@
 ---
 titulo: Mapa do Cofre — Domoby (Fábrica + Comercial)
 tipo: MOC
-atualizado: 2026-09-30
+atualizado: 2026-10-01
 tags: [moc, indice, fabrica, comercial]
 ---
 
@@ -180,6 +180,8 @@ Telas, integração e dívidas:
 
 ## Estado atual em uma linha
 
+**↪️ 01/10/2026 (revisão das pendências com o dono):** a lista do dono foi passada a limpo em [[000 - PROXIMOS PASSOS]] — rotina da equipe saiu da lista, o que estava feito ganhou ✅ (os cards históricos do PCP foram arquivados em 08/09) e as respostas viraram as decisões **D-90…D-94** (reposição automática é escolha da operação; usuário da fábrica, do comercial e dos dois; automações só pelo admin, como laboratório; endereço do Tiny = endereço de entrega; bonificação descartada). **Próxima: [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]**, que o dono roda em 01/10. A contagem inicial do estoque está **a confirmar** (sem registro na plataforma até 01/10 00:30).
+
 **↪️ 30/09/2026 (Ajuste Estoque 2 entregue e publicado — na mesma madrugada do sincronismo com o Tiny e das fotos automáticas):** o estoque passou a ser governado pelo **Top X** (só os X mais vendidos têm mínimo; X é a página da lista), com **mínimo automático por dias úteis de venda** da loja (editar trava; corte de pedido fora do comum no admin), reposição parada **2 dias úteis** saindo do PCP sozinha e **liga/desliga de verdade** da automática (segue **DESLIGADA** até a contagem inicial). O **PCP virou três abas** — Reabastecimento, Pedidos aguardando liberação (com o selo de peça no estoque) e Todos os pedidos (status do Tiny com bolinha de cor, detalhe de produção sob demanda) — e **Cancelados virou tela da Logística**. Painel admin ganhou a página **Estoque** (automática, Top X, corte e o quadro do Tiny). Migrations 45/47/48 aplicadas; 621 verificações verdes; 6 rodadas de lapidação dirigidas pelo dono logado. **Com o dono:** contagem inicial, ligar (ou não) a automática, e a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] recomendada como próxima (os pedidos presos com "entregue no Tiny" são avisos que o Tiny não mandou — P17).
 
 **↪️ 27/09/2026 (SESSAO-26 entregue, em paralelo com a 24 — o chat interno):** a plataforma ganhou o **chat da empresa**: `Início → Chat` (lista à esquerda, conversa à direita) e o **balão arrastável** com o número de não lidas em toda tela logada (fora do tablet). **Canais** (só líder e admin criam; quem cria administra), **particulares** e os **Avisos gerais** (todos leem; o admin escreve e escolhe quem mais escreve); no dia do aniversário, o Sistema publica os parabéns às 08:00. Tudo por **websocket privado** — o banco empurra a mensagem, a tela só lê página (5 conversas, 10 mensagens) —, e **ninguém lê conversa alheia, nem o admin**. Na mesma migration (38, aplicada em 27/09), a **correção de segurança do cadastro**: CPF, hash do PIN e token de convite estavam legíveis por qualquer pessoa logada (D-68). **Validada ao vivo em 28/09** (mensagem de uma aba chegando na outra pelo canal privado, páginas de 10/5, zero leitura extra; 3 achados corrigidos na hora) **e mesclada na `main`** — a 24 e a 26 estão na `main`.
@@ -206,6 +208,6 @@ Telas, integração e dívidas:
 
 **↪️ 08/09/2026 (SESSAO-15 entregue):** Logística e ROTAS viraram módulo de verdade (Estoque com ID, Pedidos em aguardo, Danificados, Programação de caminhão com mapa — D-38/D-39/D-45); migration 25 aplicada, Edge `geocodificar` no ar; branch mesclada na main e publicada em 15/09.
 
-**↪️ 01/09/2026 (SESSAO-14 entregue):** o Meu Painel no ar (pendências, avisos, cockpit de metas — D-37); migrations 23/24 aplicadas; achado E-24 (blindagem do backfill desfeita e devolvida; ~163 cards históricos aguardam decisão de limpeza).
+**↪️ 01/09/2026 (SESSAO-14 entregue):** o Meu Painel no ar (pendências, avisos, cockpit de metas — D-37); migrations 23/24 aplicadas; achado E-24 (blindagem do backfill desfeita e devolvida; ~163 cards históricos aguardam decisão de limpeza — ✅ arquivados em 08/09, 233 cards).
 
 **↪️ 28/08/2026 (SESSAO-13 + bloco 3 definido):** a reforma da casca (navegação pai→filho, 8 temas, login novo, log de tudo — D-36/D-40/D-41); o bloco noturno D-26 tinha somado as sessões 07/09→12; nasceram as demandas 13–16 da reforma, com automações→17 e admin→18 em standby.

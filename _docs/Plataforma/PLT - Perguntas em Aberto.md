@@ -2,7 +2,7 @@
 titulo: Plataforma — Perguntas em Aberto (entrevista de descoberta)
 tipo: descoberta
 data: 2026-08-19
-atualizado: 2026-09-28
+atualizado: 2026-10-01
 tags: [plataforma, descoberta, perguntas]
 ---
 
@@ -33,33 +33,33 @@ tags: [plataforma, descoberta, perguntas]
 - ✅ **Q-19 · API exige estado de qualidade?** → NÃO — qualidade é gesto exclusivamente humano; API move sem estado → D-09 complemento
 - ✅ **Q-20 · Setores do dia 1?** → Os do ClickUp DPTO PRODUÇÃO: PCP · SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM, com **cadastro livre de novos setores e de etapas dentro de cada setor** (2 níveis, como no ClickUp) → D-12
 
-## ⏸️ Adiadas (bonificação — D-04 revisada; retomar quando o dono reabrir o tema)
+## ❌ Descartadas (bonificação — D-04 revisada; ↪️ 01/10: o dono mandou esquecer o tema — D-94)
 
-- ⏸️ **Q-10 · O que conta como "produção" de um usuário?** (dupla, divisão de ponto)
-- ⏸️ **Q-11 · Ponto por card ou por peso do card?** (minutos-padrão por produto)
-- ⏸️ **Q-12 · Anti-manipulação: quais golpes prever e o que exige aprovação do líder?**
-- ⏸️ **Q-14 · Ranking público no chão de fábrica ou só gestão?**
+- ❌ **Q-10 · O que conta como "produção" de um usuário?** (dupla, divisão de ponto)
+- ❌ **Q-11 · Ponto por card ou por peso do card?** (minutos-padrão por produto)
+- ❌ **Q-12 · Anti-manipulação: quais golpes prever e o que exige aprovação do líder?**
+- ❌ **Q-14 · Ranking público no chão de fábrica ou só gestão?**
 
 ## 🟠 Fluxo e modelo
 
 - ✅ **Q-28 · ROTAS na plataforma?** → respondida em 26/08, nas palavras do dono: *"coloque o setor de rotas nos primórdios de criação"*. **ESTOQUE e ROTAS nascem como setores terminais desde o seed**; a ROTAS é terminal de *handoff* enquanto a logística viver no ClickUp (D-05) → [[PLT - Decisoes de Produto#D-18]]. Desbloqueou a SESSAO-04.
-- ⏸️ **Q-21 · Card de unidade que se divide:** e quando UMA unidade gera trabalho paralelo (base de metalon na METALURGICA enquanto a madeira corre na SECC)? O card se divide em sub-cards que se juntam na montagem? → **adiada de propósito em 27/08 (SESSAO-04): "fica para depois" (D-22). Nada no modelo depende disso; quando decidido, entra como acréscimo.**
-- **Q-22 · Terceirizados (corte/fita para SF Madeiras etc., 350+ cards hoje):** entram na plataforma desde o dia 1 como fluxo próprio, ou ficam fora do escopo inicial?
+- ⏸️ **Q-21 · Card de unidade que se divide:** e quando UMA unidade gera trabalho paralelo (base de metalon na METALURGICA enquanto a madeira corre na SECC)? O card se divide em sub-cards que se juntam na montagem? → **adiada de propósito em 27/08 (SESSAO-04): "fica para depois" (D-22). Nada no modelo depende disso; quando decidido, entra como acréscimo.** ↪️ **01/10:** o dono pediu explicação — levada a ele com três caminhos: (a) a unidade ganha **sub-cards** (base na METALÚRGICA, tampo na SECC) que se juntam na MONTAGEM, que só começa com todos chegados; (b) o card segue um caminho só e a parte paralela vira **tarefa ligada** a ele; (c) a base vira **item próprio do pedido** (SKU próprio no Tiny). Recomendação: (a), e casa com a onda 4 do [[003 - PLANO - Integracao Completa Tiny da Fabrica]] (produção por peça). Aguardando a escolha do dono.
+- **Q-22 · Terceirizados (corte/fita para SF Madeiras etc., 350+ cards hoje):** entram na plataforma desde o dia 1 como fluxo próprio, ou ficam fora do escopo inicial? ↪️ **01/10:** o dono pediu uma ideia. Proposta levada a ele: o serviço de terceiro vira um **card de serviço** — nasce no PCP (pelo pedido do Tiny com os itens de serviço, que o catálogo já tem — Corte, Furo…, ou à mão pelo PCP), percorre **só os setores do serviço** (CNC, FITAMENTO), termina num fim de linha próprio **"Separado para retirada"** e tem selo e cor próprios — a fila do setor passa a mostrar a carga real e o dashboard separa tempo próprio × terceiro. Aguardando o dono (quem cobra e como o pedido de serviço nasce hoje).
 - ✅ **Q-23 · Produção para estoque** → respondida em 26/09 (SESSAO-25): abaixo do mínimo do Tiny, o **estoque gera no PCP um card de reposição**; o PCP decide (libera ou não produz); pronta, a peça fica livre no estoque → [[PLT - Decisoes de Produto#D-54]]
 - ✅ **Q-24 · Cancelamento** → respondida em 28/08 (bloco noturno): card marcado "cancelado", visível, não some; com unidades liberadas, notifica admins → D-31
-- **Q-25 · Migração:** os cards vivos do ClickUp/Trello entram na plataforma no corte (importação), ou só pedidos novos nascem nela e o legado morre onde está?
+- **Q-25 · Migração:** os cards vivos do ClickUp/Trello entram na plataforma no corte (importação), ou só pedidos novos nascem nela e o legado morre onde está? ⏸️ **01/10:** o dono vai **integrar o Trello por completo** à plataforma primeiro, para estudar a lógica que a fábrica usa nele; a migração se decide depois disso.
 
 ## 🟡 UX e visual
 
-- **Q-30 · Referência visual:** *(modo escuro ✅ respondido em 28/08: 8 temas claro→escuro no Meu Perfil — D-41)* o "réplica do ClickUp" vale também para o visual (sidebar, densidade, cores por etapa), ou é só o funcionamento? Existe identidade Domoby (cores/logo) que a plataforma deve vestir? Modo escuro?
+- **Q-30 · Referência visual:** *(modo escuro ✅ respondido em 28/08: 8 temas claro→escuro no Meu Perfil — D-41)* o "réplica do ClickUp" vale também para o visual (sidebar, densidade, cores por etapa), ou é só o funcionamento? Existe identidade Domoby (cores/logo) que a plataforma deve vestir? Modo escuro? ↪️ 01/10: reformulada ao dono em linguagem simples (as telas devem imitar o visual do ClickUp ou só o jeito de funcionar? há cores/logo oficiais da Domoby?).
 - ✅ **Q-31 · A tela do setor (tablet)** → respondida em 28/08: todos os dados do produto, nenhum dado de cliente, espaço funcional de imagens (futura biblioteca de peças) → D-28
 - ✅ **Q-32 · Som/alerta físico no setor** → respondida em 28/08: som mínimo e discreto na chegada de card → D-28
 - **Q-33 · Idioma dos termos:** manter os nomes que a equipe já usa (SECC, FITAMENTO, "rota") — sugestão: sim, sempre.
 
 ## 🟢 Automações internas e alertas
 
-- **Q-40 · Quais as 3 primeiras automações internas** que você configuraria no estilo "quando X, faça Y"? (candidatas óbvias do cofre: card parado > N dias alerta o líder; pedido completo — todas as unidades prontas — avisa a expedição)
-- **Q-41 · Quem pode criar automações?** Só admin, ou líder também (no escopo do setor dele)?
+- ✅ **Q-40 · Quais as 3 primeiras automações internas** que você configuraria no estilo "quando X, faça Y"? (candidatas óbvias do cofre: card parado > N dias alerta o líder; pedido completo — todas as unidades prontas — avisa a expedição) → respondida em 01/10: **nenhuma definida ainda — o módulo de automações existe justamente para testá-las** → [[PLT - Decisoes de Produto#D-92]]
+- ✅ **Q-41 · Quem pode criar automações?** → respondida em 01/10: **só admin, por enquanto** (revisar depois) → D-92
 - **Q-42 · Notificações:** onde o líder recebe alertas (inclusive os de qualidade da D-09)? Na plataforma, WhatsApp (via n8n), e-mail?
 
 ## 🔵 API e integrações
@@ -77,14 +77,14 @@ tags: [plataforma, descoberta, perguntas]
 ## 🟤 Reforma (bloco 3 — 28/08/2026)
 
 - ✅ **Q-63 · ID do Estoque** → respondida em 26/09 (SESSAO-25): o ID é o **SKU** (a equipe etiqueta e conta por SKU); peça reservada ganha a segunda etiqueta, o **nº do pedido**. O campo livre sai da tela → [[PLT - Decisoes de Produto#D-56]]
-- **Q-64 · Os 8 temas (D-41):** o Claude Code propõe as 8 variações claro→escuro no DNA Domoby e o dono ajusta ao ver. Alguma cor proibida/obrigatória?
-- **Q-65 · Endereço para o mapa das ROTAS (D-39):** o endereço de entrega vindo do Tiny é completo/padronizado o bastante para geocodificar? Pedido sem endereço válido aparece como na programação?
+- **Q-64 · Os 8 temas (D-41):** o Claude Code propõe as 8 variações claro→escuro no DNA Domoby e o dono ajusta ao ver. Alguma cor proibida/obrigatória? ↪️ 01/10: reformulada ao dono junto com a Q-30.
+- ✅ **Q-65 · Endereço para o mapa das ROTAS (D-39):** o endereço de entrega vindo do Tiny é completo/padronizado o bastante para geocodificar? Pedido sem endereço válido aparece como na programação? → respondida em 01/10: **sim — o endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS** → D-93 (o pedido sem endereço válido segue como a SESSAO-28 definir)
 
 ## 🟣 União das Plataformas (15/09/2026 — D-46)
 
-- **Q-66 · Onde mora o dashboard do Comercial no menu?** Por ora ele nasce dentro do próprio módulo, em `/comercial/dashboard` (decisão do dono em 15/09: *"deixa a 16 como está, depois alteramos isso da comercial"*). Em aberto: os filhos do pai **Dashboards** passam a ser nomeados por domínio ("Dash Produção", "Dash Comercial", …)? Se sim, as quatro telas da SESSAO-16 viram abas de um filho só, ou continuam quatro filhos com prefixo? Lembrar que a *Visão do dia* é candidata a TV do galpão e precisa de URL fixa.
-- **Q-67 · Quando o projeto Supabase antigo (`kfkcumjepnxnnzyvmxfo`) pode ser excluído?** O plano prevê 2–4 semanas de quarentena após o cutover, mas a data é decisão do dono — e só depois do dump final de backup guardado.
-- **Q-68 · Quem ganha o módulo `comercial` depois do admin?** A D-46 fixou "só admin por ora, ajustando com o tempo" — falta saber quais papéis/pessoas entram na segunda leva e se o acesso é por pessoa ou por papel.
+- ✅ **Q-66 · Onde mora o dashboard do Comercial no menu?** Por ora ele nasce dentro do próprio módulo, em `/comercial/dashboard` (decisão do dono em 15/09: *"deixa a 16 como está, depois alteramos isso da comercial"*). Em aberto: os filhos do pai **Dashboards** passam a ser nomeados por domínio ("Dash Produção", "Dash Comercial", …)? Se sim, as quatro telas da SESSAO-16 viram abas de um filho só, ou continuam quatro filhos com prefixo? Lembrar que a *Visão do dia* é candidata a TV do galpão e precisa de URL fixa. → 01/10: **fica dentro do Comercial, por enquanto — não é pendência** → D-91
+- ✅ **Q-67 · Quando o projeto Supabase antigo (`kfkcumjepnxnnzyvmxfo`) pode ser excluído?** O plano prevê 2–4 semanas de quarentena após o cutover, mas a data é decisão do dono — e só depois do dump final de backup guardado. → respondida na SESSAO-21: **exclusão em 06/10/2026**, backup dispensado pelo dono (F7 — [[handoff_2026_09_22_sessao21_cutover]])
+- ✅ **Q-68 · Quem ganha o módulo `comercial` depois do admin?** A D-46 fixou "só admin por ora, ajustando com o tempo" — falta saber quais papéis/pessoas entram na segunda leva e se o acesso é por pessoa ou por papel. → respondida em 01/10: **o usuário do Comercial**. Haverá três tipos — **da fábrica, do comercial e dos dois** — com permissões bem definidas → D-91
 
 ## 🟫 Quadro por arrasto e fins de linha (SESSAO-24 — 27/09/2026)
 
@@ -113,6 +113,7 @@ tags: [plataforma, descoberta, perguntas]
   9. Resíduos da "necessidade extrema" (regra morta da D-55).
   10. 173 produtos sem SKU no catálogo.
   - ↪️ 30/09 (Ajuste Estoque 2): nenhum dos 10 foi corrigido — era fora do escopo; o "Usar todas as sugestões" citado no raio-x deixou de existir (D-84).
+  - ↪️ 01/10: o dono decidiu tratar as pendências técnicas **depois** (a SESSAO-29 vem antes).
 
 ## Ver também
 

@@ -77,6 +77,8 @@ O servidor desta branch está no ar em **http://localhost:5175** (se tiver caíd
 
 ## 4. Pendente / decisões para você
 
+> [!info] ↪️ 01/10/2026: o dono **postergou o chat** — os itens em aberto abaixo (botão "Sair do canal", escritores dos Avisos gerais, ver as não lidas com uma 2ª pessoa) saem da lista de pendências e voltam quando ele retomar o chat.
+
 - ✅ **Validada ao vivo (§2b) e mesclada** em 28/09 — `3503d77` na `main`, Vercel ✅. A SESSAO-24 entrou antes; os dois blocos do harness e os índices do cofre foram juntados aqui, e o `test:banco` com a 37 e a 38 juntas passou (446). A SESSAO-24 e as sessões em curso (Frete fora da produção — dona da migration 39 — e gaveta do celular) foram avisadas.
 - ✅ **Balão por cima do menu aberto, no tablet** (E-57) — **corrigido em 28/09** pela sessão da gaveta do celular, com o seu OK: com o menu aberto no celular e no tablet, o escurecido e o menu agora ficam por cima do balão do chat, da bolinha de "em execução" e da janelinha do chat. Conferido também daqui, na tela, a 768px: o toque no balão e na bolinha cai no escurecido; com a janelinha do chat aberta, onde ela e o menu se cruzam, o toque cai no menu.
 - ✅ **Sua data de nascimento:** cadastrada por você no Meu Perfil em 28/09. Conferido sem ler a data: ficou salva e a trilha registrou a mudança **sem o valor** (só de quem foi). No seu dia, às 08:00, o parabéns sai sozinho nos Avisos gerais.

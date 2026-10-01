@@ -55,6 +55,8 @@ tags: [handoff, sessao, plataforma, uniao, comercial, banco]
 
 ## 5. Pendente / decisões para você
 
+> [!info] ↪️ Situação em 01/10/2026: ✅ os **secrets** foram configurados e usados no cutover (SESSAO-21) · segue para o dono confirmar só a **`tiny_auth` fechada até para admin**.
+
 - **Confirmar o desvio do `tiny_auth`** (fechada até para admin) — ou mando abrir para admin.
 - **Secrets** (§3) quando quiser.
 - ✅ Merge na `main` feito pelo PR #3 em 15/09, com sua aprovação na conversa.

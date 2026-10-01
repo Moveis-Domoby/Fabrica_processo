@@ -48,6 +48,8 @@ Mais: `test:banco` 2 rodadas **TUDO VERDE** (+21 verificações novas) · tsc ·
 
 ## 5. Pendente / decisões para você
 
+> [!success] ↪️ Tudo resolvido (conferido em 01/10/2026): os cards históricos foram **arquivados em 08/09** na SESSAO-15 (233 — D-45); a meta criada por líder ficou **travada para quem criou** e as horas úteis do setor contam **só execução** (D-45).
+
 - **Os ~163 cards históricos no PCP:** quer que a próxima sessão os **arquive em massa** (evento `card_arquivado`, exclusão lógica — o histórico fica)? É 1 comando preparado; não executei porque mexer em dado de produção em lote é decisão sua (regra 3).
 - **Meta pessoal criada por líder pode ser editada/encerrada pela própria pessoa** (letra da D-37 — "segue a mesma regra"). Se preferir travar para só quem criou, é 1 ajuste de policy.
 - **"Horas úteis" de meta de setor** contam só EXECUÇÃO no setor (fila não é "trabalhado"). Se quiser fila+execução, é 1 ajuste na porta.

@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-09-30
+atualizado: 2026-10-01
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -32,6 +32,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 **Descartadas (por ora):** sugestão automática com confirmação; roteiro automático por produto. Nota: isso **revisa** parcialmente [[FAB - Processo Alvo - Um Clique Um Evento]] — ver [[PLT - Visao Geral]].
 
 ## D-04 · Produtividade e bonificação ↩️ revisada em 19/08/2026
+
+**↪️ 01/10/2026 (D-94):** bonificação descartada pelo dono — o tema está encerrado.
 
 **Decisão original (manhã de 19/08):** medição alimentaria bonificação/meritocracia.
 
@@ -359,7 +361,7 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 - **Estoque é lista, não quadro:** a lista da D-38 SUBSTITUI o quadro kanban do setor ESTOQUE (palavras do dono: *"esse quadro primeiramente que não deveria nem existir"*). **Quem vê e edita o ID de produção:** logística (PCP/terminais) e admin.
 - **Danificados:** resolver para outro setor **exige marcar o estado** (a peça pode sair 🟡 ou 🔴 mesmo); as ações ficam com **logística e admin** (líder fora — resposta de 08/09); o botão **"visualizar arquivados" só carrega ao ser clicado**.
 - **Programação de caminhão:** reprogramável a qualquer instante, inclusive no dia — **nunca depois de o pedido ser registrado como entregue**; admin tem controle total; quem opera é a logística.
-- **Os ~163 cards históricos do PCP** (E-24): aprovado arquivar em massa (evento `card_arquivado`, exclusão lógica; o histórico fica).
+- **Os ~163 cards históricos do PCP** (E-24): aprovado arquivar em massa (evento `card_arquivado`, exclusão lógica; o histórico fica). ✅ **Feito em 08/09** na SESSAO-15 — 233 cards arquivados (conferido no banco em 01/10).
 - **Metas (pendência da S14):** a meta que o líder define para o liderado é **completa** — *"Lucas → concluir X cards na etapa Y em x tempo (opcional)"* — o liderado só pega, executa e finaliza o card, e a meta contabiliza sozinha. Consequências: **edição/encerramento travados para quem criou** (admin mantém tudo; a pessoa manda só nas metas que ela mesma criou) e a meta de unidades ganha **etapa opcional**.
 - **Horas úteis:** cada etapa conta o próprio tempo; a pessoa conta do iniciar ao finalizar; cada card carrega o tempo total de produção (PCP → fim de linha); a dashboard mostra a **média por etapa** — insumo registrado para a SESSAO-16. A meta de setor em horas úteis segue contando só execução.
 
@@ -809,7 +811,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - O botão (Painel admin → **Estoque**, só admin) **agenda e desagenda o job no relógio do banco**: desligada, a rotina NÃO existe — nenhuma consulta, nenhuma execução à toa (a lição da migration 43). A situação que a tela mostra é o próprio relógio (o job existe?).
 - **Com a automática desligada**, o cartão em necessidade ganha o **"Lançar para produção"**: a logística cria a reposição no PCP à mão (gesto com autor e trilha), quantidade proposta = mínimo − estoque − o que já vem para o estoque, editável. **Com ela ligada, o botão some** (resposta 4: *"não faz nem sentido aparecer"*).
 - A automática agora **desconta o que já vem para o estoque** na conta e no tamanho do card (antes não descontava a produção em andamento).
-- **Entregue DESLIGADA** — só liga depois da contagem inicial da logística (senão todo o Top X pede reposição de uma vez).
+- **Entregue DESLIGADA** — só liga depois da contagem inicial da logística (senão todo o Top X pede reposição de uma vez). ↪️ **01/10 (D-90):** ligar ou não é escolha da operação, não pendência do dono.
 
 ## D-88 · O PCP em três abas: Reabastecimento · Pedidos aguardando liberação · Todos os pedidos; Cancelados vira tela da Logística (30/09/2026) — ↪️ D-86/D-62, ↩️ revisa a aba Cancelados da D-61
 
@@ -913,6 +915,29 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - O n8n guarda só as execuções com erro (a fila roda a cada minuto); o que foi feito fica na plataforma (trilha + Configurações → Tiny).
 
 **↪️ 30/09/2026 (mesma madrugada) — sob demanda, sem relógio no n8n:** o dono, vendo o gatilho de 1 em 1 minuto: *"você não tá nem doido de deixar alguma coisa rodando no meu n8n a cada 1 minuto para requisitar várias coisas, calma paizão, melhora isso daí"*. Decidido: **o n8n não tem relógio para o estoque.** Quem chama o fluxo é o relógio INTERNO do banco (o mesmo da reserva da venda), e só quando o sincronismo está ligado, há produto esperando na fila e nenhum lote está em andamento — fila vazia não gera execução no n8n nem consulta ao Tiny. A varredura das 04:00 também passou para o banco. No n8n sobram só os relógios do catálogo que já existiam (15 min e 03:15). Técnico: migration 43.
+
+## D-90 · Reposição automática é escolha da operação, não pendência do dono (01/10/2026) — ↪️ D-87
+
+**Decidido (revisão das pendências com o dono no Cowork, 01/10):** ligar ou não a reposição automática **não é decisão pendente** — é um modo de trabalho. A logística escolhe entre deixar a automática lançar para a produção sozinha ou lançar ela mesma pelo botão **"Lançar para produção"** do cartão. O mecanismo da D-87 fica como está (o liga/desliga vive no Painel admin → Estoque; o admin liga quando a logística pedir). A frase "só liga depois da contagem inicial" da D-87 vira cuidado operacional, não pendência.
+
+## D-91 · Três tipos de usuário — da fábrica, do comercial e dos dois — com permissões bem definidas; o dashboard do Comercial fica no Comercial (01/10/2026) — ↪️ D-46
+
+**Decidido (respostas do dono às Q-66 e Q-68, 01/10):**
+
+- Depois do admin, quem ganha o módulo `comercial` é o **usuário do comercial**. A plataforma separa **usuário da fábrica**, **usuário do comercial** e **usuário dos dois**, e as permissões de cada um precisam ser **bem definidas** (o desenho fino nasce numa demanda própria).
+- O **dashboard do Comercial fica dentro do Comercial** (`/comercial/dashboard`), por enquanto. Renomear os filhos do pai Dashboards por domínio **não é pendência**.
+
+## D-92 · Automações: só admin cria, por ora; o módulo é o laboratório (01/10/2026) — ↪️ SESSAO-27
+
+**Decidido (respostas do dono às Q-40 e Q-41, 01/10):** **só o admin cria automações** por enquanto (revisar depois). O dono **não tem automações definidas** — o módulo da [[SESSAO-27 - Automacoes em Canvas]] existe justamente para **testá-las** e descobrir as que valem. A SESSAO-27 não espera uma lista de automações para começar.
+
+## D-93 · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS (01/10/2026) — ↪️ D-39
+
+**Decidido (resposta do dono à Q-65, 01/10):** as ROTAS entregam no **endereço do cliente que vem do Tiny** — é ele que a geocodificação e a [[SESSAO-28 - Rota Calculada no Mapa]] usam. Não existe outra fonte de endereço de entrega.
+
+## D-94 · Bonificação descartada (01/10/2026) — ↩️ encerra o tema da D-04
+
+**Decidido (01/10):** o dono mandou **esquecer a bonificação**. As perguntas Q-10, Q-11, Q-12 e Q-14 saem da lista; a medição segue servindo à alavancagem operacional (D-04 revisada), sem ponto nem ranking de prêmio.
 
 ## Ver também
 

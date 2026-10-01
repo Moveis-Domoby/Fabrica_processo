@@ -54,6 +54,13 @@ tags: [handoff, ajuste, estoque, pcp, logistica, d-83, d-84, d-85, d-86, d-87, d
 
 ## 5. Ficou com você
 
+> [!info] ↪️ Revisão com o dono em 01/10/2026
+> - **Contagem inicial:** o dono acredita que foi feita em 30/09; no banco (01/10 00:30) não há contagem lançada pela plataforma — **a confirmar** com a logística.
+> - **Reposição automática:** não é pendência — é escolha da operação (automática ou o botão "Lançar para produção") — **D-90**.
+> - ✅ **Top X e cobertura:** revisados pelo dono.
+> - ▶️ **SESSAO-29:** o dono roda em 01/10.
+> - **Raio-x (Q-72):** fica para depois, com as outras pendências técnicas.
+
 - 🔶 **Contagem inicial da logística** (a maior parte segue em 0) — e só depois decidir **ligar a reposição automática** (Painel admin → Estoque).
 - 🔶 **Os pedidos presos no quadro com "entregue no Tiny"**: é o aviso que o Tiny não mandou (P17) — não há status mais novo no banco. Recomendo a **[[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] como próxima** (mata isso de vez); enquanto isso, salvar o pedido no Tiny reenvia o aviso e ele some daqui na hora (visto ao vivo: 33 → 30 durante a sessão).
 - ⚪ Você deixou **Top X = 30** e **cobertura = 1 semana** nos seus testes — valem para a equipe; mude quando quiser.

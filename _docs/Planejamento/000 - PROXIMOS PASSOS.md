@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-09-30
+atualizado: 2026-10-01
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -11,13 +11,20 @@ tags: [planejamento, roadmap, indice]
 > A leitura única de planejamento do projeto: **onde estamos, qual é o próximo passo, o que vem depois e o que está esperando você**. Ela não substitui as demandas — resume e aponta. Detalhe de execução vive em [[000 - ORDEM DAS SESSOES]]; o novo bloco em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]; ideias de longo prazo em [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]].
 > **Regra de manutenção:** toda sessão entregue ou decisão nova atualiza esta nota junto com o mapa.
 
-## Onde estamos (23/09/2026)
+## Onde estamos (01/10/2026)
 
-Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Paginacao]] (21–22/09), a [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] (22–23/09) e a **[[SESSAO-23 - Meu Painel 2 - Filas Pessoais Subtarefas e Tempos]]** (23/09, [[handoff_2026_09_23_sessao23_meu_painel_2]]) — o Meu Painel 2.0 com as três filas, subtarefas, tarefa privada, tarefa do Sistema e o painel pessoal "Meu desempenho"; migration 33 aplicada com permissão total do dono.
+O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24 e 26 e os ajustes do estoque (contagem da logística, sincronismo com o Tiny, fotos automáticas e o Ajuste Estoque 2). Faltam a **27** (automações em canvas) e a **28** (rota no mapa). A **[[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] é a próxima** — o dono roda em 01/10, com alguns ajustes dele na demanda antes de começar.
 
-## ▶️ Agora (30/09): o Ajuste Estoque 2 está ENTREGUE e publicado — faltam a contagem inicial e a decisão da automática
+> [!info] Revisão das pendências com o dono (01/10/2026)
+> O dono passou a lista inteira a limpo: o que era rotina da equipe saiu da lista (reservas presas, conferência da venda, fotos, saldo negativo das peças), o que ele já resolveu foi marcado ✅, e as respostas viraram as decisões **D-90…D-94**. A lista abaixo é a que vale.
 
-- **Ajuste Estoque 2:** ✅ **entregue e publicado em 30/09** — [[handoff_2026_09_30_ajuste_estoque_2]]. O **Top X** (1–50) virou a régua e a página do estoque — só ele tem mínimo (a capacidade do galpão saiu de uso); **mínimo automático por dias úteis de venda** (editar trava; "voltar ao automático" solta); **corte de pedido fora do comum**; filtro de 4 posições; cartão com a **bolinha vermelha** que abre a decisão no PCP e o **ícone vermelho** de lançar para produção; reposição parada **2 dias úteis sai do PCP sozinha**; **Painel admin → Estoque** com o liga/desliga de verdade, o Top X, o corte e o quadro do Tiny. Das rodadas ao vivo: **PCP em três abas** (Reabastecimento · Aguardando liberação com o selo de peça no estoque · Todos os pedidos com o status do Tiny em bolinha de cor e o detalhe de produção sob demanda) e **Cancelados na Logística**. Migrations 45/47/48 aplicadas (integração idêntica), 621 verificações verdes, 6 rodadas de lapidação com você logado (D-83…D-89). **Com você:** (1) a **contagem inicial** da logística; (2) depois dela, decidir **ligar a reposição automática** (Painel admin → Estoque); (3) você deixou **Top X = 30** e **cobertura = 1 semana** — mude quando quiser; (4) os pedidos presos no quadro com "entregue no Tiny" são avisos que o Tiny NÃO mandou (P17) — **recomendo a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] como próxima**; salvar o pedido no Tiny reenvia o aviso e ele some na hora. Pendência registrada sem correção: o raio-x de 29/09 (Q-72 em [[PLT - Perguntas em Aberto]]).
+## ▶️ Agora (01/10): SESSAO-29 — Reconciliação Tiny
+
+- [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — **📐 pronta para code (D-50); o dono roda em 01/10**, ajustando a demanda antes. Mata de vez os pedidos presos no quadro com "entregue no Tiny" (P17).
+
+## (anterior) 30/09: o Ajuste Estoque 2 está ENTREGUE e publicado
+
+- **Ajuste Estoque 2:** ✅ **entregue e publicado em 30/09** — [[handoff_2026_09_30_ajuste_estoque_2]]. O **Top X** (1–50) virou a régua e a página do estoque — só ele tem mínimo (a capacidade do galpão saiu de uso); **mínimo automático por dias úteis de venda** (editar trava; "voltar ao automático" solta); **corte de pedido fora do comum**; filtro de 4 posições; cartão com a **bolinha vermelha** que abre a decisão no PCP e o **ícone vermelho** de lançar para produção; reposição parada **2 dias úteis sai do PCP sozinha**; **Painel admin → Estoque** com o liga/desliga de verdade, o Top X, o corte e o quadro do Tiny. Das rodadas ao vivo: **PCP em três abas** (Reabastecimento · Aguardando liberação com o selo de peça no estoque · Todos os pedidos com o status do Tiny em bolinha de cor e o detalhe de produção sob demanda) e **Cancelados na Logística**. Migrations 45/47/48 aplicadas (integração idêntica), 621 verificações verdes, 6 rodadas de lapidação com você logado (D-83…D-89). **Com você:** (1) a **contagem inicial** da logística; (2) depois dela, decidir **ligar a reposição automática** (Painel admin → Estoque); (3) você deixou **Top X = 30** e **cobertura = 1 semana** — mude quando quiser; (4) os pedidos presos no quadro com "entregue no Tiny" são avisos que o Tiny NÃO mandou (P17) — **recomendo a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] como próxima**; salvar o pedido no Tiny reenvia o aviso e ele some na hora. Pendência registrada sem correção: o raio-x de 29/09 (Q-72 em [[PLT - Perguntas em Aberto]]). ↪️ **01/10:** (2) **não é pendência** — ligar ou não a automática é escolha da operação (D-90); (3) ✅ revisado pelo dono; (4) a SESSAO-29 roda em 01/10.
 
 ## (anterior) 30/09: o estoque conversa com o Tiny — LIGADO
 
@@ -43,7 +50,7 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 - **Cutover (SESSAO-21):** ✅ DataCrazy repontado e ✅ trava do disparo aberta em 23/09 (PR #6). **Exclusão do projeto antigo: 06/10/2026**. Detalhe: [[handoff_2026_09_22_sessao21_cutover]].
 - **Próxima de construção:** [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] — **o estoque inteiro numa sessão só**. Em 24/09 o dono pediu urgência: a **25 trocou de lugar com a 24** e o estoque-base (item sem dono, lançamento manual, tela) **saiu da 24 e foi para a 25** (D-53). A 24 ficou com as consequências de produção e cancelamento e roda depois.
 - **Metade da 25 já está entregue, fora de sessão (21–23/09):** integração com o **Tiny da fábrica no ar** — catálogo de 487 produtos no banco, produto novo entra sozinho a cada 15 min, varredura diária e **webhook de lançamentos de estoque ligado e testado** (manda o saldo resultante). Detalhe: [[N8N - Tiny Fabrica Produtos para Banco]] e [[N8N - Tiny Fabrica - Estudo do Cadastro]].
-- **Nova (🔶 rascunho, 4 perguntas suas):** [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — a correção de raiz da deriva Tiny × banco achada na conferência de 22/09 (P17). Recomendo encaixar cedo: sem ela, a deriva volta.
+- **Nova (↪️ pronta para code desde 23/09 — D-50):** [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — a correção de raiz da deriva Tiny × banco achada na conferência de 22/09 (P17). Recomendo encaixar cedo: sem ela, a deriva volta.
 
 ## ⏭️ Depois: o resto do Bloco 5, na ordem (decidida em 18/09)
 
@@ -59,40 +66,51 @@ Entregues nesta semana: a [[SESSAO-22 - Producao - Filas Reais Tempo de PCP e Pa
 
 ## ⏸️ Em espera (decisão sua)
 
-- [[SESSAO-08 - Publicacao no Ar]] — **você avisa quando quer lançar (D-30).**
+- [[SESSAO-08 - Publicacao no Ar]] — **você avisa quando quer lançar (D-30).** ↪️ 01/10: o dono vai **revisar se a demanda ainda faz sentido** antes de qualquer coisa.
 - [[SESSAO-18 - Painel Admin Completo]] — standby desde a D-35. (A antiga 17 foi absorvida pela 27.)
 - Ajustes herdados da loja no módulo Comercial — triagem em [[PLT - Comercial - Legado e Cutover]].
 
 ## 🧭 Depois do Bloco 5 (o horizonte)
 
-- 🆕 **[[003 - PLANO - Integracao Completa Tiny da Fabrica]] (27/09)** — o pedido do dono de enxergar a fábrica **no nível de peça e insumo** (a CNC não conhece "penteadeira", corta peças). Levantamento da API feito: a **v3 tem filtro por data de ALTERAÇÃO**, traz a **estrutura com etapas** e tem **logs de movimentação com autor e origem**; a v2 dá a estrutura e o **saldo por depósito/empresa**. Plano em 5 ondas (alterações em minutos → estrutura/BOM → estoque com movimento → produção por peça → plano de corte SketchUp/CNC). **6 perguntas esperando o dono** — a primeira (app v3 na conta da fábrica) destrava as três primeiras ondas.
+- 🆕 **[[003 - PLANO - Integracao Completa Tiny da Fabrica]] (27/09)** — o pedido do dono de enxergar a fábrica **no nível de peça e insumo** (a CNC não conhece "penteadeira", corta peças). Levantamento da API feito: a **v3 tem filtro por data de ALTERAÇÃO**, traz a **estrutura com etapas** e tem **logs de movimentação com autor e origem**; a v2 dá a estrutura e o **saldo por depósito/empresa**. Plano em 5 ondas (alterações em minutos → estrutura/BOM → estoque com movimento → produção por peça → plano de corte SketchUp/CNC). **6 perguntas esperando o dono** (levadas a ele de novo em 01/10) — a primeira (app v3 na conta da fábrica) destrava as três primeiras ondas.
 
 - BOM/insumos (chapas MDF) e custo real por móvel · migração dos **cards vivos** do ClickUp (Q-25) · **app/fluxo do motorista** · central de notificações com preferências.
 - Banco de ideias completo: [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]] · perguntas sem resposta: [[PLT - Perguntas em Aberto]].
 
-## 🙋 Pendências que estão com VOCÊ (o dono)
+## 🙋 Pendências que estão com VOCÊ (o dono) — revisada em 01/10/2026
 
-1. **Trocar a senha do admin** — ela já vazou em chat duas vezes. (Pendente desde 28/08.)
-2. ✅ **Conta Tiny da fábrica resolvida (21–23/09):** conta FábricaDomoby, plano Evoluir, token no compose do n8n, integração no ar. **Fica com você:** o saldo negativo das peças no Tiny (P16 — decidido: na plataforma vira 0; a correção no Tiny é sua) e as 6 perguntas do início da SESSAO-25.
-3. Decidir a **limpeza dos ~163 cards históricos** do PCP (E-24).
-4. **Q-63** — formato do ID de produção (Estoque).
-5. Conferir as **decisões provisórias** dos handoffs 13–15 e 19–20.
-6. `PLT_GEOCODIFICACAO_CONTATO` (contato do Nominatim, opcional).
-7. Avisar quando quiser a **publicação no ar** (SESSAO-08 / D-30).
-9. **Cutover (SESSAO-21):** excluir o projeto antigo em **06/10** · (se souber) o vendedor antigo dos pedidos 13183 e 13421 — tudo no [[handoff_2026_09_22_sessao21_cutover]].
-10. ✅ SESSAO-29 respondida por inteiro (D-50) — **📐 pronta para code**; só falta você dizer quando ela entra na fila.
-11. ~~Trocar o token da API v2 do Tiny~~ — o dono decidiu **não** trocar (23/09).
-8. Pendências antigas de 28/08: contas dos tablets e modo de delegação por setor.
-12. **Estoque (28/09):** contagem inicial pela logística · capacidade do galpão · conferir os mínimos · ~~fotos dos produtos~~ ✅ **30/09: 144 produtos com a foto do Tiny** (47 móveis ativos seguem sem foto porque o Tiny não tem — a logística põe pela câmera) · depois, ligar (ou não) a reposição automática — tudo no [[handoff_2026_09_28_ajuste_estoque_contagem_top20]].
-13. ✅ **Q-71 (ajuste do Frete) — respondida em 29/09: fica tudo como está.** Espelho Adnet, Longarina e Carro de mão: *"quando eles sentirem falta, eles cadastram"*. Lâmpadas em kit: *"são insumos"*, e continuam em Matéria-prima e insumos. "Fechadura (com instalação)": fica sem código; é insumo e serviço, e desde a D-70 a venda não baixa o estoque, com ou sem código (a premissa antiga estava velha — E-67).
-14. ✅ **Painel do PCP = quadro do PCP (28/09, D-75):** a Visão do dia dizia 233 "a liberar" com 200 já entregues no Tiny — agora conta o que o quadro mostra (33), reposição inclusa, e a "mais antiga" também; "liberadas hoje" ficou como estava. Aplicado com o seu OK e **mesclado na `main` em 29/09** ([[handoff_2026_09_28_ajuste_painel_pcp_como_o_quadro]]).
-15. **Fotos dos produtos (30/09, D-81):** ✅ as fotos do Tiny entraram (144 produtos) e agora aparecem **inteiras** — quadro quadrado, sem corte ([[handoff_2026_09_30_ajuste_fotos_tiny]]). ✅ **Cópia automática ligada em 30/09 (D-82):** produto novo com foto no Tiny ganha a foto em ~20 min; foto trocada no Tiny, na manhã seguinte; a da câmera fica; apagada no Tiny fica a última; o banco só chama a função quando há foto nova ([[handoff_2026_09_30_ajuste_fotos_tiny_automaticas]]). Se um dia quiser a troca no mesmo dia: rodar a releitura do catálogo mais vezes no n8n.
+1. ▶️ **Rodar a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]** (01/10), com os ajustes que você quer na demanda.
+2. 🔶 **Contagem inicial da logística — confirmar.** Você acredita que foi feita em 30/09; a leitura do banco em 01/10 00:30 não achou contagem lançada pela plataforma (52 peças no ESTOQUE, 25 produtos — 46 delas vieram da cópia inicial do Tiny às 01:00 de 30/09). Se a equipe contou no papel, falta lançar.
+3. **Responder as 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]]** (a 1ª — app v3 na conta da fábrica — destrava as ondas 1–3).
+4. **Cutover (SESSAO-21):** excluir o projeto antigo em **06/10** — tudo no [[handoff_2026_09_22_sessao21_cutover]].
+5. **Revisar a [[SESSAO-08 - Publicacao no Ar]]** — se ainda faz sentido e como fica.
+6. **Confirmar as decisões provisórias que sobraram** (handoffs 13, 15 e 19): Configurações → Meu Perfil; presença de 5 em 5 min fora da trilha; raio de 5 km fixo; `tiny_auth` fechada até para admin.
+7. **Contas dos tablets e delegação por setor** — você vai mexer na lógica disso depois.
+8. **Responder as perguntas de produto que restam:** Q-21 (card que se divide), Q-22 (terceirizados), Q-30/Q-64 (visual), Q-42 (onde chegam os alertas) — em [[PLT - Perguntas em Aberto]].
+9. `PLT_GEOCODIFICACAO_CONTATO` (contato do Nominatim, opcional).
+
+**Com os responsáveis (o dono pede; fora da lista do dono):** limpar no Tiny as reservas presas (Configurações → Tiny); conferir nos primeiros dias que a venda baixa o Tiny; corrigir no Tiny o saldo negativo das peças (P16).
+
+### ✅ Saíram da lista em 01/10 (resolvidas ou decididas)
+
+- **Reposição automática** — não é pendência: a logística escolhe deixar a automática ligada ou lançar pelo botão "Lançar para produção" (**D-90**, sobre a D-87).
+- **Top X = 30 e cobertura = 1 semana** — revisados pelo dono.
+- **Fotos dos produtos** — os 47 sem foto no Tiny ficam com a equipe, pela câmera; não é pendência.
+- **Vendedor dos pedidos 13183 e 13421** — o dono não sabe; ficam vazios, como no Tiny.
+- **Trocar a senha do admin** — fora da lista enquanto o projeto está em desenvolvimento (a senha só apareceu em conversa com o Claude). Revisitar na publicação ([[SESSAO-08 - Publicacao no Ar]]).
+- **Limpeza dos ~163 cards históricos do PCP (E-24)** — ✅ **já feita em 08/09** na SESSAO-15: 233 cards arquivados por evento (D-45; conferido no banco em 01/10).
+- **Q-63** (ID de produção) — ✅ respondida em 26/09: é o SKU (D-56).
+- **Chat** (escritores dos Avisos gerais, botão "Sair do canal", ver não lidas com 2ª pessoa) — **postergado pelo dono**; volta quando ele retomar o chat.
+- **Conta Tiny da fábrica** ✅ (21–23/09) · **Q-71** ✅ (29/09) · **Painel do PCP = quadro** ✅ (D-75) · **fotos automáticas** ✅ (D-81/D-82) · **token v2** — decidido não trocar (23/09).
+- **Bonificação (Q-10…Q-14)** — descartada pelo dono (**D-94**).
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 
 - **P17** — o webhook de vendas não cobre marcador, contato renomeado nem campo limpo: deriva silenciosa Tiny × banco (acumulado corrigido em 22/09; raiz na SESSAO-29).
 - **P1** — não existe alerta de erro nas automações do n8n (a SESSAO-25 propõe resolver junto). **P4** — token do Tiny v2 em texto puro no workflow. Lista completa: [[N8N - Pendencias e Riscos]].
 - Débito técnico do módulo Comercial: [[PLT - Comercial - Debito Tecnico]].
+- O raio-x do estoque (Q-72) — 10 achados, sem correção.
+- ↪️ **01/10:** o dono decidiu tratar as pendências técnicas **depois** — nenhuma entra antes da SESSAO-29.
 - ✅ ~~Foto com fundo transparente vira fundo PRETO pela câmera do Estoque~~ — corrigido em 30/09 com o OK do dono (a redução pinta o fundo de branco — D-81).
 
 ## Ver também

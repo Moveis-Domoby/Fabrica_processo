@@ -58,6 +58,8 @@ Mais: `test:banco` 2 rodadas **TUDO VERDE** (+32 verificações da S15; a seçã
 
 ## 5. Pendente / decisões para você
 
+> [!info] ↪️ Situação em 01/10/2026: ✅ **Q-63** respondida (ID = SKU, D-56) · ✅ a "tela de concluídos" virou **Pedidos em aguardo** (D-58) · segue para o dono confirmar só o **raio de 5 km fixo** · o resto é técnico (mapa sob demanda, nota do backfill).
+
 - **Formato definitivo do ID de produção (Q-63)** segue aberto — hoje é texto livre e único.
 - **Tela de "concluídos"** que você citou em 01/09 (além de Estoque/ROTAS) não existe ainda — é demanda nova se quiser.
 - **Raio da sugestão (5 km)** é constante no código; se quiser configurável no admin, é pequeno.

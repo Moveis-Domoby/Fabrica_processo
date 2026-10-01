@@ -138,7 +138,7 @@ Não entram no PR (trabalho do Cowork de 21/09, intocado — E-23): `supabase-fa
 > - **Retroativo da D-50:** a previsão do 13276 apagada em 22/09 foi **devolvida** (11/09) — `supabase/manutencao/2026-09-23_restaurar_previsao_13276.sql`, ensaio + guarda, 0 eventos. Observações internas limpas (13180, 13410) ficam limpas (permitido). **Vendedor de 13183 e 13421:** o nome antigo não está guardado em lugar nenhum da plataforma — se o dono souber, devolvemos; senão fica vazio (como no Tiny).
 > - ⚠️ **O PR #6 foi mesclado (01:31 UTC) antes de os commits da migration 32 chegarem à branch (01:38)** — a migration já estava aplicada em produção, mas o arquivo ficou fora da `main`. Os 2 commits foram trazidos para o PR #7 (E-38).
 > - **Perguntas 4 e 5 da SESSAO-29:** nenhum combinado com a equipe de vendas (item D descartado — a plataforma se vira sozinha) · marcadores ficam como estão. → **SESSAO-29 📐 pronta para code.**
-> **Continua em aberto (com o dono):** aprovar o PR #7 · excluir o projeto antigo em 06/10 · (opcional) vendedor de 13183/13421.
+> **Continua em aberto (com o dono):** aprovar o PR #7 · excluir o projeto antigo em 06/10 · ~~(opcional) vendedor de 13183/13421~~ ↪️ **01/10: o dono não sabe quem foi — os dois ficam sem vendedor, como no Tiny; item encerrado.**
 >
 > 🏁 **SESSAO-21 finalizada em 23/09/2026** a pedido do dono (*"podemos finalizar?"*).
 >

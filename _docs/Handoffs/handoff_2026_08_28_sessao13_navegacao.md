@@ -57,6 +57,8 @@ Mais: `test:banco` 2 rodadas **TUDO VERDE** (+7 verificações novas) · tsc · 
 
 ## 5. Pendente / decisões provisórias (para você confirmar)
 
+> [!info] ↪️ 01/10/2026: levadas de novo ao dono — continuam para confirmar só **Configurações → Meu Perfil** e a **presença (5 em 5 min) fora da trilha**. O Meu Painel foi entregue na SESSAO-14 (e refeito na 23).
+
 - **Configurações (rodapé) abre o Meu Perfil** — as configurações pessoais vivem lá. Se preferir outro destino, é 1 linha.
 - **Controle de Produção por papel:** admin/PCP veem todos os setores; operador vê os dele (menu mínimo — RF-24). As guardas de acesso não mudaram.
 - **Meu painel ainda é a tela de boas-vindas antiga** — o cockpit de verdade é a SESSAO-14.

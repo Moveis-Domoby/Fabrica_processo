@@ -2,7 +2,7 @@
 titulo: Ordem das Sessões de Construção
 tipo: indice
 data: 2026-08-19
-atualizado: 2026-09-27
+atualizado: 2026-10-01
 tags: [plataforma, demandas, sessoes, roadmap]
 ---
 
@@ -28,7 +28,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 5º | [[SESSAO-05 - Timers e Eventos de Tempo]] | Fila (do setor) vs execução (da pessoa), eventos imutáveis — **a razão de existir** | 04 | ✅ entregue — [[handoff_2026_08_27_sessao05_timers]] (mesclada na `main` em 27/08) |
 | 6º | [[SESSAO-06 - Qualidade nas Transicoes]] | 3 estados + dupla marcação, sem disputa (D-09 revisada) | 05 | ✅ entregue — [[handoff_2026_08_27_sessao06_qualidade]] (dúvidas viraram a D-25) |
 | 7º | [[SESSAO-07 - Tela do Setor Tablet]] | A tela do chão de fábrica: fila do setor, PIN na tela, tempo real + som — e o prelúdio D-27 | 05, 06 | ✅ entregue — [[handoff_2026_08_28_sessao07_tela_setor]] (bloco noturno D-26) |
-| 8º | [[SESSAO-08 - Publicacao no Ar]] | **A plataforma hospedada e acessível dos tablets do galpão** (Q-62/Q-60); encerra a permissão da D-19 | 07 | ⏸️ adiada (D-30 — o dono avisa quando for lançar) |
+| 8º | [[SESSAO-08 - Publicacao no Ar]] | **A plataforma hospedada e acessível dos tablets do galpão** (Q-62/Q-60); encerra a permissão da D-19 | 07 | ⏸️ adiada (D-30 — o dono avisa quando for lançar). ↪️ 01/10: o dono vai **revisar se a demanda ainda faz sentido** |
 | 9º | [[SESSAO-09 - Entrada de Pedidos via n8n]] | **Pedido do Tiny vira card no PCP sozinho** — por trigger no banco (D-31) | 04 | ✅ entregue — [[handoff_2026_08_28_sessao09_entrada_pedidos]] (bloco noturno D-26) |
 | 10º | [[SESSAO-10 - Dashboards e Visualizacoes Salvas]] | Tempo em 1º lugar (D-32): portas de leitura + views salvas | 06, 07 | ✅ entregue — [[handoff_2026_08_28_sessao10_dashboards]] · **visual rejeitado pelo dono → refeito na 16 (D-42); os dados ficam** |
 | 11º | [[SESSAO-11 - API Aberta e Integracao n8n]] | API por chave + webhooks de saída + ROTAS na plataforma (D-33) | 05, 09 | ✅ entregue — [[handoff_2026_08_28_sessao11_api_rotas]] (bloco noturno D-26) |
@@ -47,9 +47,9 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | **24ª na fila** (arquivo 25) 🆕⏫ | [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] | **O estoque inteiro**: saldo do Tiny pelo webhook (integração já no ar desde 23/09), item com pedido × sem dono, lançamento manual, tela com saldo/mínimo/necessidade, venda da loja debita, sugestão de mínimo pelo trimestre | 22 | ✅ entregue — [[handoff_2026_09_26_sessao25_estoque]] (migration 36 aplicada em 26/09 com o OK do dono; carga do saldo rodada; validada no navegador com E2E da reposição). Desenho mudado pelo dono: sem lançamento manual, **card de reposição no PCP** (D-54), número = Tiny − pedidos abertos (D-55), ID = SKU (D-56), duas telas + top 20 (D-57). **Mesclada na `main` em 26/09 com o OK do dono (D-20).** Com o dono: ligar a reposição automática |
 | **25ª na fila** (arquivo 24) 🆕 | [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] | "Concluir produção" → Pedidos em aguardo (Ver pedidos/Ver itens), 3 fluxos de cancelamento (aba Cancelados no PCP, tag em produção, estoque sem dono) e sugestão de alocação no PCP | 22, **25** | ✅ entregue — [[handoff_2026_09_27_sessao24_producao_concluida]] (migration 37 aplicada em 27/09 com o OK do dono; o desenho mudou no início: quadros só por arrasto, "Concluir produção" só na LIMPEZA E EMBALAGEM, Pedidos em aguardo como lugar — D-58…D-62; telas conferidas e **mesclada na `main` em 27/09** — D-20) |
 | 26º 🆕 | [[SESSAO-26 - Chat Interno]] | Chat autenticado e enxuto em requisições: `/inicio/chat` + balão arrastável com badge; canais, particulares, avisos gerais, aniversários automáticos (campo novo: data de nascimento) | 22 | ✅ entregue — [[handoff_2026_09_27_sessao26_chat]] (**rodou em paralelo com a 24**, worktree própria; migration 38 aplicada em 27/09 com o OK do dono — sozinha, depois da 37 da 24; websocket privado + leitura só por página (D-67); dados sensíveis do cadastro fora da API (D-68)). **Validada ao vivo com o dono logado (duas abas) e mesclada na `main` em 28/09 — D-20** |
-| 27º 🆕 | [[SESSAO-27 - Automacoes em Canvas]] | Automações em canvas (absorve a 17): gatilho "pedido iniciado na etapa X do setor Y"; ações mover card (revisa D-03), arquivar, etiqueta (etiquetas em Configurações) | 22, 24 | 📐 pronta para code |
+| 27º 🆕 | [[SESSAO-27 - Automacoes em Canvas]] | Automações em canvas (absorve a 17) — **só admin cria, por ora; o módulo é o laboratório para descobrir as automações (D-92)**: gatilho "pedido iniciado na etapa X do setor Y"; ações mover card (revisa D-03), arquivar, etiqueta (etiquetas em Configurações) | 22, 24 | 📐 pronta para code |
 | 28º 🆕 | [[SESSAO-28 - Rota Calculada no Mapa]] | Linha da Programação vira rota calculada nas ruas (OSRM, grátis), partindo da fábrica; interdições/trânsito = evolução paga futura | 15 | 📐 pronta para code |
-| 29º 🆕 | [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] | O banco nunca mais diverge do Tiny em silêncio: pente-fino diário, "o último pacote do Tiny vence", cliente pelo id do contato (P17) | 21 | 📐 pronta para code (23/09 — perguntas respondidas, D-50) — nasceu da conferência da S21; posição no bloco a decidir pelo dono |
+| 29º 🆕 | [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] | O banco nunca mais diverge do Tiny em silêncio: pente-fino diário, "o último pacote do Tiny vence", cliente pelo id do contato (P17) | 21 | ▶️ **próxima — o dono roda em 01/10** (📐 pronta para code desde 23/09, D-50; ele ajusta a demanda antes de começar) — nasceu da conferência da S21 |
 
 **Depois:** BOM/insumos (chapas MDF) e custo por móvel · migração dos cards vivos (Q-25) · app/fluxo do motorista · central de notificações com preferências (o resto da antiga 17).
 
