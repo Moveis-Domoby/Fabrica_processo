@@ -41,8 +41,11 @@ tags: [execucao, ajuste, estoque, logistica, pcp, reposicao]
 - [x] 5. tsc ✔ · eslint ✔ (1 achado do set-state-in-effect corrigido pelo desenho — A-42) · vitest 83/83 ✔ · build ✔ · grep mojibake (duplas quebradas) limpo
 - [x] 6. Raio-x de 29/09 registrado como Q-72 em Perguntas em Aberto + apontado nos Próximos Passos (SEM correção)
 - [x] 7. Cofre: D-83…D-87 (↩️ D-71/D-72; ↪️ D-54), RF-110…RF-113, memória (A-42 + ↪️ E-34), demanda com as respostas do dono, ordem das sessões
-- [ ] 8. Aplicar a 45 no banco real SÓ com aprovação explícita do dono (`--so`), integração conferida antes/depois + advisors + esquema/`.sql` atualizados
-- [ ] 9. Validação ao vivo com o dono (F-07 celular/tablet + roteiro) + handoff + mapa + próximos passos finais
+- [x] 8. Migration 45 aplicada com o OK do dono (`--so`, integração idêntica) + advisors (só o esperado) + esquema atualizado; conferência pós-aplicação no banco real (relógios, recálculo inicial 61 automáticos, portas)
+- [x] 9. Validação ao vivo COM o dono logado (navegador do app; 5 rodadas de lapidação respondidas na hora — D-89) + F-07 em 375/768 sem estouro
+- [x] 10. Rodada do PCP (D-88): migrations 47 (p_grupo) e 48 (pecas_estoque) aplicadas; PCP em 3 abas; Cancelados na Logística; detalhe de produção sob demanda; bolinha da situação do Tiny; entregue = tudo liberado (visual); paginação por rolagem; harness 621 ✔
+- [x] 11. Publicado na main (autor/committer contatodomoby — E-33) em três levas: 45+telas (6b1d961), rodadas (0cf44dc), PCP (pós-48); merges com as frentes paralelas (44, 46, retoques) sem perda
+- [x] 12. Handoff + decisões D-88/D-89 + RF-114 + memória (E-73, A-42, ↪️ E-34) + mapa + próximos passos
 
 ## Comandos e resultados
 
@@ -56,4 +59,7 @@ tags: [execucao, ajuste, estoque, logistica, pcp, reposicao]
 - 30/09 (na sessão): o dono remodelou o cartão Galpão no meio da execução (print): saem capacidade e somas, entram os SEIS números — registrado na demanda (§1.1) e na D-83.
 - 30/09: colisões de numeração resolvidas por mensagem (44/D-82 ficaram com as fotos; 46 com o sincronismo — a minha é 45, próxima livre 47+); merges da main sem perda (o conflito único do harness = os dois blocos no mesmo ponto; ficaram os dois, 45 antes do 46).
 - 30/09: o lint recusou o efeito com estado do atalho da bolinha → desenho novo por consulta + derivação (A-42).
-- Pendente: telas logadas e n8n não se validam daqui (sem senha — mesmo caso da 42); a validação ao vivo fica com o dono.
+- 30/09 (validação ao vivo): o dono LOGOU no navegador do app e dirigiu 6 rodadas de lapidação em cima da tela viva, cada uma construída, conferida e publicada na hora — filtros na linha da busca, Top X → Configurações → Painel admin, ícone vermelho pulando no lugar do botão, Galpão/Tiny recolhíveis, Tiny de referência no mínimo, balão do "i" ancorado na linha (D-89); e a reforma do PCP (D-88): abas Reabastecimento/Aguardando/Todos, Cancelados → Logística, detalhe de produção sob demanda, bolinha de status, selo de peça no estoque, rolagem no lugar de paginação (migrations 47/48).
+- 30/09 (incidente E-73): a 45 aplicada com as telas ainda na branch quebrou Estoque → Configurações no site publicado (porta com assinatura nova); a frente do sincronismo avistou; corrigido publicando a main na sequência — **aplicar banco e publicar front viraram UM gesto**.
+- 30/09 (achado do "zere os pedidos"): os pedidos presos no quadro com "entregue no Tiny" são avisos que o Tiny NÃO mandou (P17) — conferido: `eventos` de pedido não guardam payload; a ficha É o último dado recebido. Caminhos dados ao dono: SESSAO-29 (raiz) e o salvamento do pedido no Tiny (reenvia o aviso — visto ao vivo: o quadro caiu de 33 para 30 sozinho durante a sessão).
+- Migrations finais da frente: 45 (Top X/dias úteis/vencimento/liga-desliga), 47 (PCP em grupos), 48 (peças no estoque no quadro). Harness final: 621 ✔ TUDO VERDE; tsc/lint/vitest 83/build ✔ em cada leva.
