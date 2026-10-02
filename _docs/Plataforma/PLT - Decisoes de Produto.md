@@ -27,6 +27,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 ## D-03 · Destino do card: manual hoje, automação via API amanhã (19/08/2026)
 
+**↩️ revisada em 2026-10-01 (D-99):** a automação do canvas pode mover o card sozinha — montada e ligada pelo super admin, nascendo desligada.
+
 **Decidido:** movimentação **manual** (PCP e setores decidem), até encontrarmos padrões bem definidos que justifiquem automatizar. Desde o dia 1, porém, a **API aberta permite movimentação, criação, edição e exclusão em cada etapa via automação** — ou seja, a automação de destino poderá nascer no n8n sem mudar o núcleo da plataforma.
 
 **Descartadas (por ora):** sugestão automática com confirmação; roteiro automático por produto. Nota: isso **revisa** parcialmente [[FAB - Processo Alvo - Um Clique Um Evento]] — ver [[PLT - Visao Geral]].
@@ -331,7 +333,7 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 Toda ação de usuário registra **log no banco** (quem, quando, o quê, onde), **append-only**, sem exceção. O registro nasce na SESSAO-13; a consulta admin completa pode vir depois.
 
-**↪️ 01/10/2026 (D-95):** a consulta chegou — **Painel admin → Auditoria**, com o porquê de cada gesto e a saída da plataforma também na trilha.
+**↪️ 01/10/2026 (D-95):** a consulta chegou — **Painel admin → Auditoria**, com o porquê de cada gesto e a saída da plataforma também na trilha. **↪️ 01/10 (D-100):** a Auditoria foi para o **Painel super admin** (só o dono).
 
 ## D-41 · Identidade: Meu Perfil com 8 temas Domoby; login com logo metálica (28/08/2026)
 
@@ -933,6 +935,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-92 · Automações: só admin cria, por ora; o módulo é o laboratório (01/10/2026) — ↪️ SESSAO-27
 
+**↪️ 01/10 (D-99/D-100):** na própria SESSAO-27 o dono afinou: só o **super admin** (ele) monta e liga — o canvas mora no Painel super admin.
+
 **Decidido (respostas do dono às Q-40 e Q-41, 01/10):** **só o admin cria automações** por enquanto (revisar depois). O dono **não tem automações definidas** — o módulo da [[SESSAO-27 - Automacoes em Canvas]] existe justamente para **testá-las** e descobrir as que valem. A SESSAO-27 não espera uma lista de automações para começar.
 
 ## D-93 · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS (01/10/2026) — ↪️ D-39
@@ -971,6 +975,56 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Decidido:** o cliente do pedido é achado nesta ordem — **1)** o número do cadastro do Tiny (quando o aviso traz); **2)** o CPF/CNPJ; **3)** o cliente que o pedido **já tem**, quando nada prova que é outra pessoa (sem CPF dos dois lados e sem número de cadastro que contradiga) — é o contato renomeado no Tiny; **4)** nome + telefone; **5)** cliente novo. O CPF nunca é copiado para um cliente se já pertence a outro. Resposta 1 do dono sobre a mudança no fluxo de vendas: *"Você gera para mim e eu edito o fluxo"* — o passo a passo está no handoff; **o banco já aceita o número** (sem ele, os passos 2–5 seguem valendo).
 
 **Consequência:** reprocessar um pedido de cliente sem CPF renomeado no Tiny não cria mais cliente duplicado; um pedido **novo** desse cliente só deixa de duplicar quando o fluxo de vendas passar o número do cadastro.
+
+## D-99 · A automação pode mover o card sozinha — e serve "para tudo"; quem monta e liga é só o super admin (01/10/2026) — ↩️ revisa a D-03, ↪️ D-92
+
+**Decidido (resposta 1 do dono no início da [[SESSAO-27 - Automacoes em Canvas]]):** *"A automação em canvas deve ser para tudo, comercial, api, pedidos, e só eu vou construir essas coisas, então eu vou saber quando ligar"*.
+
+- ↩️ **D-03:** mover o card automaticamente por gatilho **passa a existir** — com o freio de que a automação é montada por humano (o super admin — D-100) e **nasce desligada** (garantido no banco, para todo escritor — M-14).
+- **"Para tudo":** o canvas não se limita à produção — tem gatilhos de card, de pedido do Tiny e de chamada de fora (n8n/API), e ações de card, de pedido, de aviso e de saída para fora (catálogo na D-103). O comercial entra pelos gatilhos de pedido + "chamar endereço de fora" (ex.: pedido entregue → n8n → DataCrazy); um bloco próprio de campanha só quando o dono pedir.
+- **Sem as travas extras que o Claude propôs** (só setores de produção, só peças): a automação vale para qualquer setor e card, mas **obedece às mesmas regras de uma pessoa** (D-103).
+
+## D-100 · O "Painel admin" vira Configurações; nasce o Painel super admin (só o dono): Automações e Auditoria; a engrenagem do rodapé vira o seletor de tema (01/10/2026) — ↪️ D-36, D-46, D-95
+
+**Decidido (pedido do dono, mesma conversa):** *"Esse canvas será para apenas super admin … o atual painel admin será as configurações; na parte de baixo, o símbolo de configurações será agora um símbolo de tema para escolher o tema com um campinho pequeno de select; as configurações atuais e o meu perfil são a mesma coisa, não faz muito sentido; o painel admin vira configurações e a partir de hoje é criado um painel de super admin que só o meu usuário tem permissão de acessar, por enquanto, dentro dele deve ficar a auditoria e o canvas"*.
+
+- **Configurações** (`/configuracoes/*`) = o antigo Painel admin, com tudo o que tinha (menos a Auditoria) + **Utilitários** (D-101). As rotas antigas `/admin/*` redirecionam (bookmark não quebra) — lei D-36 (rota = hierarquia).
+- **Super admin** (`/super-admin/*`): **Automações** e **Auditoria**. Só o dono por enquanto: marca `super_admin` no cadastro, posta por SQL (nenhuma tela dá ou tira); o banco confere (`fn_eh_super_admin`) em todas as portas das automações e da Auditoria — e a trilha inteira (`plt_logs_atividade`) passou a ser lida só pelo super admin (cada um segue lendo a própria). ↪️ D-95: a Auditoria era "só admin".
+- **Rodapé do menu:** a engrenagem (que abria o Meu Perfil, igual ao bloco do usuário) virou o **ícone de tema** com o seletor pequeno — aplica na hora e guarda no perfil. O Meu Perfil segue abrindo pelo bloco do usuário.
+
+## D-101 · Utilitários: etiquetas (várias por card, só a automação põe e tira) e campos customizados (peças e pedidos; automação e admin preenchem) (01/10/2026)
+
+**Decidido (respostas 2 e 3 do dono e as escolhas de 01/10):** *"Crie uma aba na página de admin chamada Utilitários, lá dentro coloque para cadastrar etiquetas e campos customizados"*; etiquetas *"quantas eu quiser colocar, para tirar deve ter o nó de remover etiquetas"*; campos **nas peças, no card do pedido e nos pedidos**, preenchidos **pela automação e pelo admin**.
+
+- **Configurações → Utilitários** (só admin), em abas: **Etiquetas** (nome + uma de 6 cores da paleta das etiquetas — sem verde/âmbar/vermelho da qualidade nem o amarelo da ação) e **Campos customizados** (texto, número, data, lista de opções, sim/não; valem nas peças, nos pedidos ou nos dois). Usado não se exclui — arquiva (a história fica).
+- **Etiquetas no card:** várias; quem põe e tira são os blocos "pôr etiqueta" / "tirar etiqueta" (o admin também pode pelo banco). Vínculo por **evento com projeção** (M-13): `etiqueta_adicionada`/`etiqueta_removida` → `plt_cards.etiquetas`. Aparecem no quadro, no tablet e no card do pedido do PCP — ícone + nome + cor (M-12).
+- **"No card do pedido" e "no pedido" são o MESMO valor** (decidido pelo Claude, dito ao dono): um pedido tem um card só no PCP; o valor é guardado pelo pedido — alcança até pedido antigo sem card. Na peça, o valor é da peça. Aparece no card (até 3), no histórico do card (todos, com edição à mão do admin), no card do pedido no PCP e no detalhe do pedido em "Todos os pedidos". A história do valor (quem, antes → depois) vai para a trilha.
+
+## D-102 · "Trazer de volta" um card arquivado — bloco da automação e botão do admin (01/10/2026)
+
+**Decidido (resposta 4 do dono):** *"Sim, a automação deve ter um nó de trazer de volta também"*.
+
+- Evento novo `card_desarquivado` (o arquivar deixa de ser só ida): o card volta para onde estava (o arquivamento nunca mudou a posição). A peça livre que volta ao ESTOQUE volta a contar no Tiny (D-77).
+- **Bloco "Trazer de volta"** no canvas (com o gatilho "O card foi arquivado") e **botão "Trazer de volta"** no histórico das execuções, onde uma automação arquivou (o admin desfaz à mão).
+
+## D-103 · As regras do motor: na hora, no banco, nunca derruba o gesto; cadeia até 5; obedece às regras de uma pessoa; o catálogo de blocos (01/10/2026)
+
+**Decidido pelo Claude, apresentado ao dono e aceito ("pode fazer"):**
+
+- **Roda no banco, na hora:** um gatilho ADIADO sobre os eventos dispara no fechamento do gesto (depois de tudo o que o gesto gravou — A-47); outro sobre a situação do pedido. Sem fila, sem relógio rodando à toa, nada no n8n. **Falha de automação nunca desfaz o gesto da pessoa nem a gravação do Tiny** — vira registro.
+- **Cadeia limitada:** automação que dispara outra (que dispara outra…) para em **5**; a 6ª fica "barrada no limite" no histórico. Disjuntor extra: 50 execuções no mesmo gesto.
+- **Obedece às regras de uma pessoa:** ESTOQUE só peça 🟢 e sem dono; Pedidos em aguardo só peça de pedido vivo; **o card do pedido não sai do PCP** (vira peças pela liberação); **para as ROTAS só pelo "Lançar para ROTAS"**; etapa que "manda para" outro setor leva o card até lá (como no arrasto). Se a regra recusar, o histórico diz por quê. Mover tira o tempo de quem estava trabalhando (regra de sempre do mover).
+- **Só vale para o que acontecer depois de ligar.** O "parado há" conta desde a chegada ou desde que a automação foi ligada — o que for mais novo (ligar não dispara em massa); dispara uma vez por permanência.
+- **Toda execução registrada:** o que disparou (card/pedido), a condição avaliada ("o card entrou e continua na etapa" / "já tinha saído"), cada passo com o resultado e o porquê — na tela das automações (paginado) e na Auditoria. Os gestos da automação aparecem como "Automático", com o nome dela como o porquê.
+- **Catálogo — QUANDO:** o card entrou numa etapa (ou em qualquer etapa do setor) · alguém começou a trabalhar no card · a peça foi marcada (perfeito/atenção/danificado) · o card ficou parado N horas/dias · o card foi arquivado · etiqueta posta · etiqueta tirada · pedido novo do Tiny · o pedido mudou de situação (de → para) · chamada de fora (n8n/API, pela chave da API). **FAÇA:** só se… (etiqueta, campo, setor, situação do pedido, tipo do card) · mover · pôr etiqueta · tirar etiqueta (ou todas) · preencher/limpar campo · avisar no sino (pessoa, líderes do setor, todos do setor, admins — com {pedido} {produto} {setor} {etapa} {situacao} {automacao}) · chamar endereço de fora (POST assinado com a chave da automação) · esperar (1 min a 30 dias) · arquivar · trazer de volta. Até 20 passos.
+- **Exemplos de fábrica, desligados:** "parado há 3 dias avisa o líder" e "peça danificada avisa os admins" (os da antiga SESSAO-17 que cabem; o "pedido completo avisa a expedição" não — esse gatilho não existe ainda).
+- **O canvas é feito em casa** (sem biblioteca nova): blocos arrastáveis, ligações em curva, ligar arrastando a bolinha; tudo também por botão ("+" põe o próximo bloco já ligado). No tablet a tela serve para ligar/desligar e ver o histórico.
+
+**Descartadas:** fila com relógio de 1 em 1 minuto para executar (o dono vetou relógio à toa — D-80); travar a automação aos setores de produção e às peças (o dono: "para tudo"); deixar a automação passar por cima das regras do estoque (corromperia o número do galpão).
+
+## D-104 · Teste ao vivo com os cards de teste (01/10/2026) — ↪️ M-16
+
+**Decidido (resposta 6 do dono):** *"Sim, ainda são só de teste, pode fazer o que quiser com eles"* — os quadros de produção seguem sendo de teste; o aceite das automações roda com eles (o pedido é real, o card é teste).
 
 ## Ver também
 

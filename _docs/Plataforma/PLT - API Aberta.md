@@ -36,9 +36,18 @@ para esta porta igualzinho.
 | POST | `/cards` | criar card de pedido ou de unidade (nasce no PCP) |
 | POST | `/cards/:id/mover` | mover para setor/etapa — sem estado de qualidade |
 | DELETE | `/cards/:id` | arquivar (exclusão lógica — nada se apaga) |
+| POST | `/automacoes/:id/disparar` | **SESSAO-27:** dispara uma automação do canvas cujo QUANDO é "Chamada de fora" (precisa estar LIGADA). Corpo opcional: `{ "card_id": 123 }` ou `{ "pedido": 13541 }` e `{ "dados": {…} }` livres. Responde `{ execucao_id, situacao, resultado }`. Chave de **escrita**. |
 
 Todo evento desta porta sai com `origem: "api"` e `dados.integracao` com o
-nome da chave — a linha do tempo do card conta quem foi.
+nome da chave — a linha do tempo do card conta quem foi. (Os gestos da
+automação disparada saem com `origem: "automacao"` e o nome dela como o porquê;
+o nome da chave vai no contexto da execução.)
+
+**↪️ SESSAO-27 — o caminho de volta (plataforma → n8n):** o bloco "Chamar
+endereço de fora" de uma automação faz `POST` no endereço escolhido com
+`{ automacao, execucao_id, gatilho, contexto, card, pedido, enviado_em }` e os
+cabeçalhos `X-Domoby-Automacao` (o id) e `X-Assinatura` (HMAC-SHA256 do corpo
+com a chave da automação — visível ao super admin no painel do bloco).
 
 ## Exemplos (validados na entrega da sessão)
 
