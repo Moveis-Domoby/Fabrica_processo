@@ -1980,6 +1980,7 @@ grant execute on function public.plt_fn_sugestoes_alocacao(bigint)              
 grant execute on function public.plt_fn_estoque(text, integer, integer, bigint, text)        to authenticated;
 
 -- ----------------------------------------------------------------------------
--- 17 · E-19: a migration mais nova do check valida TUDO
+-- 17 · E-19: o `validate constraint` mudou de casa — quem valida é sempre a
+--      migration MAIS NOVA do check (desde 02/10, a 51 — automações em canvas,
+--      que acrescentou os tipos de etiqueta e o "trazer de volta").
 -- ----------------------------------------------------------------------------
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;

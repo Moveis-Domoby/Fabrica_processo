@@ -2100,9 +2100,11 @@ titulo('Espelho da blindagem do backfill (migration 24 / nota do esquema)')
 const gatilhosPedidos = (
   await bd.query(`
     select tgname from pg_trigger
-     where tgrelid = 'public.pedidos'::regclass and tgname like 'plt_pedidos%'
+     where tgrelid = 'public.pedidos'::regclass and tgname like 'plt_pedidos_reagir%'
      order by tgname`)
 ).rows.map((r) => r.tgname)
+// (SESSAO-27 acrescentou um terceiro objeto da plataforma em `pedidos`, à parte:
+// o gatilho adiado das automações — conferido no bloco da migration 51.)
 conferir(
   gatilhosPedidos.join(',') === 'plt_pedidos_reagir_atualizacao,plt_pedidos_reagir_insercao',
   'os DOIS gatilhos com guarda existem e o antigo gatilho único morreu',
@@ -8444,15 +8446,19 @@ const um50 = async (sql) => (await bd.query(sql)).rows[0]
 const todos50 = async (sql) => (await bd.query(sql)).rows
 const como50 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
 
+// ↪️ SESSAO-27 (migration 51, D-100): a auditoria passou ao SUPER ADMIN.
 await como50(E40.operador)
-await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'operador não abre a auditoria', /só do admin/i)
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'operador não abre a auditoria', /só do super admin/i)
 await como50(E40.logistica)
-await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'nem a logística (a auditoria é do admin)', /só do admin/i)
-await deveRecusarExec(`select public.plt_fn_auditoria_conferencias()`, 'a conferência com o Tiny também é do admin', /só do admin/i)
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'nem a logística (a auditoria é do super admin)', /só do super admin/i)
+await deveRecusarExec(`select public.plt_fn_auditoria_conferencias()`, 'a conferência com o Tiny também é do super admin', /só do super admin/i)
 await como50('')
-await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'sem sessão, nada', /só do admin/i)
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'sem sessão, nada', /só do super admin/i)
+await como50(E40.admin)
+await deveRecusarExec(`select * from public.plt_fn_auditoria()`, 'admin comum também não abre (D-100: só o super admin)', /só do super admin/i)
+await bd.exec(`update public.plt_usuarios set super_admin = true where auth_user_id = '${E40.admin}'`)
 
-// Um gesto com PORQUÊ: o admin arquiva o card do 990199 com uma observação
+// Um gesto com PORQUÊ: o admin (agora super admin) arquiva o card do 990199 com uma observação
 await como50(E40.admin)
 const card50 = (await um50(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
                              where p.numero = 990199 and c.tipo = 'pedido'`))?.id
@@ -8538,6 +8544,420 @@ const priv50 = await um50(`
 conferir(!priv50.anon && priv50.logado && !priv50.conf_anon, 'anônimo fora; logado entra na porta e o gate de admin decide por dentro', JSON.stringify(priv50))
 await como50('')
 } // fim do bloco 50
+
+// ============================================================================
+// SESSAO-27 · AUTOMAÇÕES EM CANVAS (02/10 — migration 51, D-99…D-104):
+// super admin, etiquetas (várias por card, por evento), campos customizados
+// (peça e pedido), "trazer de volta", e o MOTOR no banco — gatilho adiado que
+// roda no fechamento do gesto, cadeia limitada a 5, relógio só com trabalho.
+// O dono: "a automação em canvas deve ser para tudo … só eu vou construir
+// essas coisas, então eu vou saber quando ligar".
+// ============================================================================
+{
+titulo('Automações (SESSAO-27) · quem pode: super admin para as automações; admin para etiquetas e campos')
+
+const um51 = async (sql) => (await bd.query(sql)).rows[0]
+const todos51 = async (sql) => (await bd.query(sql)).rows
+const como51 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const ADMIN51 = '00000000-0000-0000-0000-000000000051'
+const j51 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+// O bloco da SESSAO-26 reaplica a migration 38 (que tira o SELECT da tabela e
+// devolve só as colunas DELA) — aqui a 51 é reaplicada, como em produção a
+// ordem garante (38 → 51). No fim do bloco ela roda de novo, já com dados.
+const SQL51 = await readFile(path.join(MIGRATIONS, '20261002120000_plt_automacoes_canvas.sql'), 'utf8')
+await bd.exec(SQL51)
+
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+    values ('Admin Comum 51', 'admin51@teste.com', '51515151501', 'admin.comum51', 'admin');
+  update public.plt_usuarios set auth_user_id = '${ADMIN51}' where usuario = 'admin.comum51';
+`)
+const priv51 = await um51(`
+  select has_column_privilege('authenticated', 'public.plt_usuarios', 'super_admin', 'SELECT') as le,
+         has_column_privilege('authenticated', 'public.plt_usuarios', 'super_admin', 'UPDATE') as escreve,
+         (select super_admin from public.plt_usuarios where usuario = 'admin.comum51') as comum_super,
+         has_function_privilege('anon', 'public.plt_fn_automacao_chamada(bigint, bigint, bigint, jsonb, text)', 'execute') as chamada_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_automacao_chamada(bigint, bigint, bigint, jsonb, text)', 'execute') as chamada_logado,
+         has_function_privilege('service_role', 'public.plt_fn_automacao_chamada(bigint, bigint, bigint, jsonb, text)', 'execute') as chamada_servico,
+         has_table_privilege('authenticated', 'public.plt_automacoes', 'select') as tabela_logado,
+         has_column_privilege('authenticated', 'public.plt_usuarios', 'nome', 'SELECT') as le_nome,
+         (select qual from pg_policies where policyname = 'plt_logs_atividade_leitura') ~ 'fn_eh_super_admin' as trilha_super`)
+conferir(
+  priv51.le && priv51.le_nome && !priv51.escreve && priv51.comum_super === false && !priv51.chamada_anon && !priv51.chamada_logado
+    && priv51.chamada_servico && !priv51.tabela_logado && priv51.trilha_super,
+  'super admin: o navegador LÊ a marca e nunca escreve; admin novo nasce comum; a chamada de fora só pela chave de serviço; a tabela das automações fora da API; a trilha inteira só para o super admin',
+  JSON.stringify(priv51),
+)
+
+await como51(E40.admin)
+const ehSuper = (await um51(`select plt_privado.fn_eh_super_admin() as s`)).s
+await como51(ADMIN51)
+const comumSuper = (await um51(`select plt_privado.fn_eh_super_admin() as s`)).s
+conferir(ehSuper === true && comumSuper === false, 'o gate reconhece o super admin e recusa o admin comum', JSON.stringify({ ehSuper, comumSuper }))
+
+await deveRecusarExec(`select * from public.plt_fn_automacoes()`, 'admin comum não abre as automações (D-100)', /só do super admin/i)
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Tentativa', 'pedido_novo', '{}'::jsonb, '[]'::jsonb)`,
+  'nem salva automação', /só do super admin/i)
+await como51(E40.operador)
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(null, 'Operador', 'azul')`, 'operador não cadastra etiqueta', /pelo admin/i)
+
+// Etiquetas e campos: o admin COMUM cadastra (Configurações → Utilitários)
+await como51(ADMIN51)
+const urgente = (await um51(`select public.plt_fn_etiqueta_salvar(null, ' Urgente ', 'azul')::int as id`)).id
+const revisar = (await um51(`select public.plt_fn_etiqueta_salvar(null, 'Revisar', 'rosa')::int as id`)).id
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(null, 'urgente', 'violeta')`, 'nome de etiqueta repetido é recusado (sem ligar para maiúsculas)', /Já existe/i)
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(null, 'Verde', 'verde')`, 'cor fora da paleta das etiquetas é recusada (nada de cor da qualidade)', /plt_etiquetas_cor_ck/i)
+const corMdf = (await um51(`select public.plt_fn_campo_salvar(null, 'Cor do MDF', 'lista', array['Branco', 'Preto', ' Branco ', ''], true, false)::int as id`)).id
+const prioridade = (await um51(`select public.plt_fn_campo_salvar(null, 'Prioridade', 'numero', null, false, true)::int as id`)).id
+const camposCriados = await todos51(`select nome, tipo, opcoes, em_pecas, em_pedidos from public.plt_campos where id in (${corMdf}, ${prioridade}) order by id`)
+const nomeUrgente = (await um51(`select nome from public.plt_etiquetas where id = ${urgente}`)).nome
+conferir(
+  nomeUrgente === 'Urgente' && camposCriados[0].opcoes.join('|') === 'Branco|Preto' && camposCriados[0].em_pecas && !camposCriados[0].em_pedidos
+    && camposCriados[1].tipo === 'numero' && camposCriados[1].em_pedidos && !camposCriados[1].em_pecas,
+  'etiqueta e campo nascem limpos (sem espaço; opções da lista sem repetida e NA ORDEM escrita; onde o campo vale)',
+  JSON.stringify({ nomeUrgente, camposCriados }),
+)
+
+titulo('Automações (SESSAO-27) · o cenário: um pedido de teste, a peça e as etapas')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem)
+    values (995101, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook');
+  insert into public.plt_etapas (setor_id, nome, ordem) values
+    ((select id from public.plt_setores where codigo = 'montagem'),  'TESTE 51 A', 91),
+    ((select id from public.plt_setores where codigo = 'montagem'),  'TESTE 51 B', 92),
+    ((select id from public.plt_setores where codigo = 'fitamento'), 'TESTE 51 C', 93);
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, 1, 'S51', 'Mesa Teste 51', 1, 1 from public.pedidos p where p.numero = 995101;
+`)
+const ids51 = await um51(`
+  select (select id from public.plt_setores where codigo = 'montagem')::int as montagem,
+         (select id from public.plt_setores where codigo = 'fitamento')::int as fitamento,
+         (select id from public.plt_setores where codigo = 'estoque')::int as estoque,
+         (select id from public.plt_setores where codigo = 'rotas')::int as rotas,
+         (select id from public.plt_etapas where nome = 'TESTE 51 A')::int as a,
+         (select id from public.plt_etapas where nome = 'TESTE 51 B')::int as b,
+         (select id from public.plt_etapas where nome = 'TESTE 51 C')::int as c,
+         (select max(c.id) from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+           where p.numero = 995101 and c.tipo = 'unidade')::int as peca,
+         (select c.id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+           where p.numero = 995101 and c.tipo = 'pedido')::int as card_pedido`)
+await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, etapa_destino_id)
+               values (${ids51.peca}, 'card_criado', 'api', ${ids51.montagem}, ${ids51.b})`)
+const mover51 = (destSetor, destEtapa) => `
+  insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, etapa_origem_id, setor_destino_id, etapa_destino_id)
+  select c.id, case when c.setor_atual_id = ${destSetor} then 'movimentacao_etapa' else 'movimentacao_setor' end, 'api',
+         c.setor_atual_id, c.etapa_atual_id, ${destSetor}, ${destEtapa}
+    from public.plt_cards c where c.id = ${ids51.peca};`
+const peca51 = () => um51(`select setor_atual_id::int as setor, etapa_atual_id::int as etapa, etiquetas, arquivado_em
+                             from public.plt_cards where id = ${ids51.peca}`)
+const execs51 = (auto) => todos51(`select id::int as id, situacao, avaliacao, resultado, profundidade
+                                    from public.plt_automacao_execucoes where automacao_id = ${auto} order by id`)
+conferir(ids51.peca && ids51.card_pedido && ids51.a && ids51.b && ids51.c, 'cenário montado (pedido 995101, a peça e o card do pedido no PCP)', JSON.stringify(ids51))
+
+titulo('Automações (SESSAO-27) · nasce DESLIGADA; desligada não dispara; ligada roda NA HORA, no fechamento do gesto')
+
+await como51(E40.admin)
+const salvar51 = (nome, gatilho, cfg, passos, id = null) =>
+  um51(`select public.plt_fn_automacao_salvar(${id ?? 'null'}, '${nome}', '${gatilho}', ${j51(cfg)}, ${j51(passos)}, '{}'::jsonb)::int as id`)
+const ligar51 = (id, ligar = true) => bd.exec(`select public.plt_fn_automacao_ligar(${id}, ${ligar})`)
+
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Para as rotas', 'chamada_externa', '{}'::jsonb,
+                         ${j51([{ tipo: 'mover', setor_id: ids51.rotas }])}, '{}'::jsonb)`,
+  'mandar para as ROTAS é recusado ao salvar (só pelo "Lançar para ROTAS")', /ROTAS/)
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Etapa errada', 'card_entrou', ${j51({ setor_id: ids51.fitamento, etapa_id: ids51.a })}, '[]'::jsonb, '{}'::jsonb)`,
+  'etapa que não é do setor escolhido é recusada no QUANDO', /não é do setor/i)
+await bd.exec(`insert into public.plt_automacoes (nome, gatilho, ligada, ligada_em) values ('Direto no banco 51', 'pedido_novo', true, now())`)
+const direta = await um51(`select ligada, ligada_em from public.plt_automacoes where nome = 'Direto no banco 51'`)
+conferir(direta.ligada === false && direta.ligada_em === null, 'automação nasce DESLIGADA até escrita direto no banco (gatilho — vale para todo escritor)', JSON.stringify(direta))
+
+const a1 = (await salvar51('A1 entrou em A', 'card_entrou', { setor_id: ids51.montagem, etapa_id: ids51.a }, [
+  { tipo: 'etiqueta_por', etiquetas: [urgente] },
+  { tipo: 'mover', setor_id: ids51.montagem, etapa_id: ids51.b },
+  { tipo: 'campo', campo_id: corMdf, valor: 'Preto' },
+])).id
+await bd.exec(mover51(ids51.montagem, ids51.a))
+const desligadaNada = await execs51(a1)
+await deveRecusarExec(`select public.plt_fn_automacao_ligar((select id from public.plt_automacoes where nome = 'Direto no banco 51'), true)`,
+  'não liga automação sem nenhum passo', /nenhum passo/i)
+await ligar51(a1)
+await bd.exec(mover51(ids51.montagem, ids51.b))
+await bd.exec(mover51(ids51.montagem, ids51.a))
+const apos1 = await peca51()
+const ex1 = await execs51(a1)
+const eventosAuto = await todos51(`select tipo, observacao, dados from public.plt_eventos
+                                    where card_id = ${ids51.peca} and origem = 'automacao' order by id`)
+const valor1 = await um51(`select valor, origem, atualizado_por from public.plt_campos_valores where campo_id = ${corMdf} and card_id = ${ids51.peca}`)
+const log1 = await um51(`select count(*)::int as n from public.plt_logs_atividade where acao = 'automacao_executada' and contexto->>'automacao_id' = '${a1}'`)
+conferir(desligadaNada.length === 0, 'desligada não dispara: o card entrou na etapa e nada aconteceu', JSON.stringify(desligadaNada))
+conferir(
+  apos1.etapa === ids51.b && apos1.etiquetas.map(Number).includes(urgente) && valor1?.valor === 'Preto' && valor1?.origem === 'automacao'
+    && valor1?.atualizado_por === null && ex1.length === 1 && ex1[0].situacao === 'concluida'
+    && ex1[0].resultado.length === 3 && ex1[0].resultado.every((r) => r.resultado === 'feito')
+    && ex1[0].avaliacao === 'o card entrou e continua na etapa',
+  'ligada: entrou em A → pôs a etiqueta, moveu para B e preencheu o campo — tudo na hora, uma execução com os 3 passos e a condição avaliada',
+  JSON.stringify({ apos1, ex1, valor1 }),
+)
+conferir(
+  eventosAuto.length >= 2 && eventosAuto.every((e) => e.observacao === 'Automação "A1 entrou em A"' && Number(e.dados.automacao_id) === a1
+    && Number(e.dados.automacao_profundidade) === 1) && log1.n === 1,
+  'cada gesto da automação é evento de origem automacao, com o NOME dela como o porquê e a profundidade 1; uma linha na trilha por execução',
+  JSON.stringify({ eventosAuto, log1 }),
+)
+
+// O card entra em A e sai no MESMO gesto → no fechamento ele já não está lá
+await bd.exec(`begin; ${mover51(ids51.montagem, ids51.a)} ${mover51(ids51.fitamento, ids51.c)} commit;`)
+const ex1b = await execs51(a1)
+const apos1b = await peca51()
+conferir(
+  ex1b.length === 2 && ex1b[1].situacao === 'ignorada' && /já tinha saído/.test(ex1b[1].avaliacao) && apos1b.setor === ids51.fitamento,
+  'o card entrou e saiu no mesmo gesto: a execução fica IGNORADA, com o porquê (avaliado no fechamento, não no meio)',
+  JSON.stringify({ ex1b: ex1b.map((e) => [e.situacao, e.avaliacao]), apos1b }),
+)
+
+titulo('Automações (SESSAO-27) · arquivar → "card arquivado" → trazer de volta e tirar etiquetas (cadeia de 2)')
+
+const a2 = (await salvar51('A2 entrou em C arquiva', 'card_entrou', { setor_id: ids51.fitamento, etapa_id: ids51.c }, [{ tipo: 'arquivar' }])).id
+const a3 = (await salvar51('A3 arquivado volta', 'card_arquivado', { setor_id: ids51.fitamento }, [
+  { tipo: 'desarquivar' }, { tipo: 'etiqueta_tirar', todas: true },
+])).id
+await ligar51(a2)
+await ligar51(a3)
+await bd.exec(mover51(ids51.montagem, ids51.b))
+await bd.exec(mover51(ids51.fitamento, ids51.c))
+const apos2 = await peca51()
+const ex2 = await execs51(a2)
+const ex3 = await execs51(a3)
+const marcas = await todos51(`select tipo from public.plt_eventos where card_id = ${ids51.peca}
+                               and tipo in ('card_arquivado', 'card_desarquivado', 'etiqueta_removida') order by id`)
+conferir(
+  apos2.arquivado_em === null && apos2.etiquetas.length === 0 && ex2.at(-1)?.situacao === 'concluida'
+    && ex3.at(-1)?.situacao === 'concluida' && ex3.at(-1)?.profundidade === 1
+    && marcas.map((m) => m.tipo).join(',') === 'card_arquivado,card_desarquivado,etiqueta_removida',
+  'a automação arquivou; o arquivamento disparou a outra (profundidade 1), que trouxe o card de volta e tirou as etiquetas — tudo por evento',
+  JSON.stringify({ apos2, ex2: ex2.at(-1), ex3: ex3.at(-1), marcas }),
+)
+await ligar51(a2, false)
+await ligar51(a3, false)
+await ligar51(a1, false)
+
+titulo('Automações (SESSAO-27) · duas automações em CICLO: a cadeia para no limite e fica registrada')
+
+const a4 = (await salvar51('A4 A para B', 'card_entrou', { setor_id: ids51.montagem, etapa_id: ids51.a }, [{ tipo: 'mover', setor_id: ids51.montagem, etapa_id: ids51.b }])).id
+const a5 = (await salvar51('A5 B para A', 'card_entrou', { setor_id: ids51.montagem, etapa_id: ids51.b }, [{ tipo: 'mover', setor_id: ids51.montagem, etapa_id: ids51.a }])).id
+await ligar51(a4)
+await ligar51(a5)
+await bd.exec(mover51(ids51.montagem, ids51.a))
+const ex4 = await execs51(a4)
+const ex5 = await execs51(a5)
+const barrada = [...ex4, ...ex5].filter((e) => e.situacao === 'barrada')
+conferir(
+  barrada.length === 1 && /limite de 5/.test(barrada[0].avaliacao) && barrada[0].profundidade === 5
+    && ex4.length + ex5.length === 6 && (await peca51()).etapa === ids51.b,
+  'ciclo A→B→A…: 5 execuções e a 6ª BARRADA com o porquê (profundidade 5) — o gesto terminou, nada travou',
+  JSON.stringify({ ex4: ex4.map((e) => [e.situacao, e.profundidade]), ex5: ex5.map((e) => [e.situacao, e.profundidade]) }),
+)
+await ligar51(a4, false)
+await ligar51(a5, false)
+
+titulo('Automações (SESSAO-27) · a automação obedece às regras de uma pessoa; o card do pedido não sai do PCP')
+
+const a6 = (await salvar51('A6 peça para o estoque', 'chamada_externa', {}, [{ tipo: 'mover', setor_id: ids51.estoque }])).id
+await ligar51(a6)
+const r6 = (await um51(`select public.plt_fn_automacao_chamada(${a6}, ${ids51.peca}, null, '{"origem":"teste"}'::jsonb, 'harness') as r`)).r
+conferir(
+  r6.situacao === 'falhou' && /Pedidos em aguardo/.test(r6.resultado[0]?.frase ?? '') && (await peca51()).setor === ids51.montagem,
+  'peça de pedido VIVO mandada ao ESTOQUE: a regra do fim de linha recusa (como para uma pessoa) e a falha fica registrada',
+  JSON.stringify(r6),
+)
+const a7 = (await salvar51('A7 card do pedido para a SECC', 'chamada_externa', {}, [{ tipo: 'mover', setor_id: ids51.montagem }])).id
+await ligar51(a7)
+const r7 = (await um51(`select public.plt_fn_automacao_chamada(${a7}, null, 995101, '{}'::jsonb, null) as r`)).r
+conferir(r7.situacao === 'falhou' && /não sai do PCP/.test(r7.resultado[0]?.frase ?? ''),
+  'o card do pedido (achado pelo número do pedido) não sai do PCP — vira peças pela liberação', JSON.stringify(r7))
+await ligar51(a6, false)
+await ligar51(a7, false)
+
+titulo('Automações (SESSAO-27) · pedido novo e pedido que mudou de situação (sem quebrar a gravação do Tiny)')
+
+const a8 = (await salvar51('A8 pedido novo etiqueta', 'pedido_novo', {}, [
+  { tipo: 'etiqueta_por', etiquetas: [revisar] }, { tipo: 'campo', campo_id: prioridade, valor: 3 },
+])).id
+const a9 = (await salvar51('A9 cancelado', 'pedido_situacao', { para: 'cancelado' }, [
+  { tipo: 'etiqueta_tirar', etiquetas: [revisar] }, { tipo: 'etiqueta_por', etiquetas: [urgente] },
+])).id
+const a10 = (await salvar51('A10 pedido novo quebra', 'pedido_novo', {}, [{ tipo: 'mover', setor_id: ids51.montagem }])).id
+await ligar51(a8)
+await ligar51(a9)
+await ligar51(a10)
+// O pacote do aviso de venda no formato real (o mesmo do bloco 49)
+const pedido51 = (situacao) => ({
+  id: '7295102', numero: '995102', data_pedido: '01/10/2026', data_prevista: '15/10/2026', situacao,
+  total_produtos: '500.00', total_pedido: '500.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 51',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: 'Cliente Teste 51', nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste', numero: '51', complemento: '', bairro: 'Centro', cep: '59000-000', cidade: 'Natal',
+             uf: 'RN', fone: '84999995151', email: '' },
+  itens: [{ item: { id_produto: '5101', codigo: 'S51B', descricao: 'Nicho Teste 51', unidade: 'UN', quantidade: '1.00', valor_unitario: '500.00' } }],
+})
+const novo51 = (await um51(`select public.fn_upsert_pedido(p => ${j51(pedido51('Aprovado'))}, p_tipo => 'inclusao_pedido', p_tiny_id => 7295102, p_origem => 'webhook')::int as id`))?.id
+const cardNovo = await um51(`select c.id::int as id, c.etiquetas, c.setor_atual_id::int as setor
+                               from public.plt_cards c where c.pedido_id = ${novo51 ?? 0} and c.tipo = 'pedido'`)
+const prio = await um51(`select valor from public.plt_campos_valores where campo_id = ${prioridade} and pedido_id = ${novo51 ?? 0}`)
+const ex10 = await execs51(a10)
+conferir(
+  novo51 && cardNovo?.etiquetas.map(Number).includes(revisar) && Number(prio?.valor) === 3 && ex10.at(-1)?.situacao === 'falhou',
+  'pedido novo do Tiny (pela gravação de sempre): ganha etiqueta e o campo do PEDIDO; a automação que falha só registra — o pedido e o card nasceram',
+  JSON.stringify({ novo51, cardNovo, prio, ex10: ex10.at(-1)?.resultado }),
+)
+await bd.exec(`select public.fn_upsert_pedido(p => ${j51(pedido51('Cancelado'))}, p_tipo => 'atualizacao_pedido', p_tiny_id => 7295102, p_origem => 'webhook')`)
+const cancelado51 = await um51(`select c.etiquetas,
+         (select count(*)::int from public.plt_eventos e where e.card_id = c.id and e.tipo = 'pedido_cancelado') as cancelou,
+         (select situacao from public.pedidos where id = ${novo51 ?? 0}) as situacao
+    from public.plt_cards c where c.id = ${cardNovo?.id ?? 0}`)
+const ex9 = await execs51(a9)
+conferir(
+  cancelado51?.situacao === 'Cancelado' && cancelado51.cancelou === 1 && ex9.length === 1 && ex9[0].situacao === 'concluida'
+    && cancelado51.etiquetas.map(Number).includes(urgente) && !cancelado51.etiquetas.map(Number).includes(revisar),
+  'situação mudou para cancelado no Tiny: a reação de sempre (pedido cancelado) aconteceu E a automação trocou as etiquetas — uma vez só',
+  JSON.stringify({ cancelado51, ex9 }),
+)
+await ligar51(a8, false)
+await ligar51(a9, false)
+await ligar51(a10, false)
+
+titulo('Automações (SESSAO-27) · "esperar", "só se" e o relógio que só existe com trabalho')
+
+const a11 = (await salvar51('A11 espera e etiqueta', 'chamada_externa', {}, [
+  { tipo: 'esperar', quantidade: 1, unidade: 'minutos' }, { tipo: 'etiqueta_por', etiquetas: [revisar] },
+])).id
+await ligar51(a11)
+const r11 = (await um51(`select public.plt_fn_automacao_chamada(${a11}, ${ids51.peca}) as r`)).r
+const espera = await um51(`select situacao, proximo_passo, executar_em > now() as no_futuro from public.plt_automacao_execucoes where id = ${r11.execucao_id}`)
+await bd.exec(`update public.plt_automacao_execucoes set executar_em = now() - interval '1 second' where id = ${r11.execucao_id}`)
+const tique = (await um51(`select plt_privado.fn_automacoes_relogio() as r`)).r
+const depois11 = await um51(`select situacao, resultado from public.plt_automacao_execucoes where id = ${r11.execucao_id}`)
+conferir(
+  r11.situacao === 'esperando' && espera.situacao === 'esperando' && espera.proximo_passo === 1 && espera.no_futuro
+    && tique.esperas === 1 && depois11.situacao === 'concluida' && (await peca51()).etiquetas.map(Number).includes(revisar),
+  '"esperar 1 minuto": a execução fica ESPERANDO; vencido o tempo, o relógio continua do passo seguinte e conclui',
+  JSON.stringify({ r11, espera, tique, depois11 }),
+)
+const r11b = (await um51(`select public.plt_fn_automacao_chamada(${a11}, ${ids51.peca}) as r`)).r
+await ligar51(a11, false)
+await bd.exec(`update public.plt_automacao_execucoes set executar_em = now() - interval '1 second' where id = ${r11b.execucao_id}`)
+await bd.exec(`select plt_privado.fn_automacoes_relogio()`)
+const parou11 = await um51(`select situacao, avaliacao from public.plt_automacao_execucoes where id = ${r11b.execucao_id}`)
+conferir(parou11.situacao === 'parou' && /desligada durante a espera/.test(parou11.avaliacao ?? ''),
+  'desligada no meio da espera: a execução PARA (não continua escondida)', JSON.stringify(parou11))
+
+const a12 = (await salvar51('A12 só se urgente arquiva', 'chamada_externa', {}, [
+  { tipo: 'se', condicao: 'tem_etiqueta', etiqueta_id: urgente }, { tipo: 'arquivar' },
+])).id
+await ligar51(a12)
+const r12 = (await um51(`select public.plt_fn_automacao_chamada(${a12}, ${ids51.peca}) as r`)).r
+conferir(
+  r12.situacao === 'parou' && r12.resultado.length === 1 && r12.resultado[0].resultado === 'nao_bateu'
+    && /não|tem a etiqueta/.test(r12.resultado[0].frase) && (await peca51()).arquivado_em === null,
+  '"só se tem a etiqueta Urgente": a peça não tem → a sequência PARA ali e nada é arquivado',
+  JSON.stringify(r12),
+)
+await ligar51(a12, false)
+
+const a13 = (await salvar51('A13 parado avisa', 'card_parado', { horas: 1, setor_id: ids51.montagem, etapa_id: ids51.b }, [
+  { tipo: 'avisar', destino: 'admins', titulo: 'Parado: {pedido}', mensagem: '{produto} parado em {setor} · {etapa}' },
+])).id
+await ligar51(a13)
+await bd.exec(`update public.plt_cards set desde = now() - interval '2 hours' where id = ${ids51.peca};
+               update public.plt_automacoes set ligada_em = now() - interval '2 hours' where id = ${a13};`)
+const tiqueParado = (await um51(`select plt_privado.fn_automacoes_relogio() as r`)).r
+const tiqueDeNovo = (await um51(`select plt_privado.fn_automacoes_relogio() as r`)).r
+const aviso13 = await todos51(`select titulo, corpo from public.plt_notificacoes where tipo = 'automacao' and card_id = ${ids51.peca}`)
+conferir(
+  tiqueParado.parados === 1 && tiqueDeNovo.parados === 0 && aviso13.length > 0
+    && aviso13[0].titulo === 'Parado: 995101' && aviso13[0].corpo === 'Mesa Teste 51 parado em MONTAGEM · TESTE 51 B',
+  '"parado há 1 hora": o relógio dispara UMA vez por permanência e o aviso chega aos admins com o texto montado (pedido, produto, setor, etapa)',
+  JSON.stringify({ tiqueParado, tiqueDeNovo, aviso13: aviso13[0] }),
+)
+await ligar51(a13, false)
+const relogio = (await um51(`select plt_privado.fn_automacoes_relogio_ajustar() as r`)).r
+conferir(relogio === 'sem_pg_cron', 'aqui sem pg_cron o relógio só decide (em produção agenda/desagenda o job plt-automacoes-relogio)', relogio)
+
+titulo('Automações (SESSAO-27) · trazer de volta à mão, campos à mão, exclusão só sem uso, as portas de leitura')
+
+await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, observacao)
+               values (${ids51.peca}, 'card_arquivado', (select id from public.plt_usuarios where auth_user_id = '${E40.admin}'), 'interface', 'teste 51')`)
+await como51(E40.operador)
+await deveRecusarExec(`select public.plt_fn_desarquivar_card(${ids51.peca})`, 'operador não traz card de volta', /admin/i)
+await como51(ADMIN51)
+await bd.exec(`select public.plt_fn_desarquivar_card(${ids51.peca}, 'voltou no teste')`)
+conferir((await peca51()).arquivado_em === null, 'o admin traz o card arquivado de volta (evento "trazido de volta"; a posição é a de antes)')
+await deveRecusarExec(`select public.plt_fn_desarquivar_card(${ids51.peca})`, 'card que não está arquivado não "volta"', /não está arquivado/i)
+
+await deveRecusarExec(`select public.plt_fn_campo_definir(${corMdf}, ${ids51.peca}, null, '"Azul"'::jsonb)`, 'valor fora das opções da lista é recusado', /opções/i)
+await deveRecusarExec(`select public.plt_fn_campo_definir(${corMdf}, ${ids51.card_pedido}, null, '"Branco"'::jsonb)`, 'campo só de peças não vale no card do pedido', /só nas peças|não vale nos pedidos/i)
+await bd.exec(`select public.plt_fn_campo_definir(${prioridade}, ${ids51.card_pedido}, null, '7'::jsonb)`)
+const noPedido = await um51(`select card_id, pedido_id::int as pedido_id, valor from public.plt_campos_valores
+                              where campo_id = ${prioridade} and pedido_id = (select pedido_id from public.plt_cards where id = ${ids51.card_pedido})`)
+const logCampo = await um51(`select usuario_id is not null as com_autor, contexto from public.plt_logs_atividade
+                              where acao = 'campo_preenchido' and contexto->>'campo_id' = '${prioridade}' order by id desc limit 1`)
+conferir(noPedido?.card_id === null && Number(noPedido?.valor) === 7 && logCampo?.com_autor && Number(logCampo.contexto.depois) === 7,
+  'no card do pedido o valor grava NO PEDIDO (o mesmo valor do pedido); a trilha guarda quem, antes e depois', JSON.stringify({ noPedido, logCampo }))
+await deveRecusarExec(`select public.plt_fn_etiqueta_excluir(${urgente})`, 'etiqueta já usada não se exclui (arquive — a história fica)', /arquive/i)
+const semUso = (await um51(`select public.plt_fn_etiqueta_salvar(null, 'Sem uso 51', 'cinza')::int as id`)).id
+await bd.exec(`select public.plt_fn_etiqueta_excluir(${semUso})`)
+conferir(!(await um51(`select 1 as x from public.plt_etiquetas where id = ${semUso}`)), 'etiqueta nunca usada se exclui de fato')
+
+await como51(E40.admin)
+// Modo IMEDIATO forçado (o ensaio no banco real, 02/10, achou que o gatilho do
+// motor rodava antes da projeção — a ordem do mesmo momento é alfabética): com
+// o nome "zzzz" ele roda depois de tudo e o card já está onde entrou.
+const a14 = (await salvar51('A14 modo imediato', 'card_entrou', { setor_id: ids51.fitamento, etapa_id: ids51.c }, [
+  { tipo: 'etiqueta_por', etiquetas: [urgente] },
+])).id
+await ligar51(a14)
+await bd.exec(`begin; set constraints all immediate; ${mover51(ids51.fitamento, ids51.c)} commit;`)
+const ex14 = await execs51(a14)
+conferir(
+  ex14.length === 1 && ex14[0].situacao === 'concluida' && (await peca51()).etiquetas.map(Number).includes(urgente),
+  'com o modo imediato forçado, o motor ainda roda DEPOIS da projeção (o card já está na etapa onde entrou)',
+  JSON.stringify(ex14),
+)
+await ligar51(a14, false)
+
+const lista51 = await todos51(`select * from public.plt_fn_automacoes(p_limite => 50)`)
+const execPorta = await todos51(`select * from public.plt_fn_automacao_execucoes(${a1}, 1, 0)`)
+const exemplos = lista51.filter((a) => a.nome.startsWith('Exemplo · '))
+conferir(
+  lista51.length > 0 && Number(lista51[0].contagem_total) === lista51.length && exemplos.length === 2 && exemplos.every((a) => !a.ligada)
+    && execPorta.length === 1 && Number(execPorta[0].contagem_total) === 2 && execPorta[0].pedido_numero === 995101
+    && execPorta[0].produto === 'Mesa Teste 51',
+  'portas paginadas no servidor: a lista (com os 2 exemplos de fábrica DESLIGADOS) e as execuções de uma automação, com o card traduzido',
+  JSON.stringify({ n: lista51.length, exemplos: exemplos.map((e) => [e.nome, e.ligada]), exec: execPorta[0] }),
+)
+const gat51 = await um51(`select tgdeferrable as adiado, tginitdeferred as inicial from pg_trigger
+                           where tgrelid = 'public.pedidos'::regclass and tgname = 'plt_pedidos_zz_automacoes'`)
+const gatEv = await um51(`select tgdeferrable as adiado from pg_trigger where tgrelid = 'public.plt_eventos'::regclass and tgname = 'plt_eventos_zzzz_automacoes'`)
+conferir(gat51?.adiado && gat51?.inicial && gatEv?.adiado,
+  'os dois gatilhos do motor são ADIADOS (rodam no fechamento do gesto) — o de pedidos e o de eventos', JSON.stringify({ gat51, gatEv }))
+await como51('')
+
+// Reaplicar com o banco já cheio (etiquetas e "trazer de volta" nos eventos,
+// automações ligadas e desligadas): o check novo valida, nada duplica, nada desliga.
+const antesDeReaplicar = await um51(`select count(*)::int as autos, count(*) filter (where ligada)::int as ligadas,
+                                            (select count(*)::int from public.plt_eventos where tipo like 'etiqueta\\_%') as marcas
+                                       from public.plt_automacoes`)
+let reaplicou = true
+try { await bd.exec(SQL51) } catch (erro) { reaplicou = erro.message }
+const depoisDeReaplicar = await um51(`select count(*)::int as autos, count(*) filter (where ligada)::int as ligadas from public.plt_automacoes`)
+conferir(
+  reaplicou === true && antesDeReaplicar.marcas > 0 && depoisDeReaplicar.autos === antesDeReaplicar.autos
+    && depoisDeReaplicar.ligadas === antesDeReaplicar.ligadas,
+  'a migration 51 se reaplica com dados de verdade (eventos de etiqueta validados pelo check novo; exemplos não duplicam; ninguém desliga)',
+  JSON.stringify({ reaplicou, antesDeReaplicar, depoisDeReaplicar }),
+)
+} // fim do bloco 51
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
