@@ -130,7 +130,11 @@ export function Execucoes({ automacaoId }: { automacaoId: number }) {
                           key={`${e.id}-${r.n}`}
                           className={cn(
                             'flex gap-1.5',
-                            r.resultado === 'falhou' ? 'text-danificado-forte' : r.resultado === 'feito' || r.resultado === 'bateu' ? 'text-texto' : 'text-texto-suave',
+                            r.resultado === 'falhou'
+                              ? 'text-danificado-forte'
+                              : ['feito', 'bateu', 'sim', 'senao'].includes(r.resultado)
+                                ? 'text-texto'
+                                : 'text-texto-suave',
                           )}
                         >
                           <span className="tabular-nums text-texto-fraco">{r.n}.</span>

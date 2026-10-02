@@ -4,13 +4,28 @@ import { Maximize2, Minus, Plus, Unplug, X, Zap } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { TipoPasso } from '../catalogo'
 import { ICONE_PASSO } from '../icones'
-import { ALTURA_BLOCO, ID_QUANDO, LARGURA_BLOCO, limites, ligar, moverBloco, podeLigar, sequencia } from '../desenho'
-import type { EstadoDesenho, Posicao } from '../desenho'
-
+import {
+  ALTURA_BLOCO,
+  ID_QUANDO,
+  LARGURA_BLOCO,
+  limites,
+  ligar,
+  moverBloco,
+  podeLigar,
+  proximoDe,
+  sequencia,
+  temDuasSaidas,
+} from '../desenho'
+import type { EstadoDesenho, Ligacao, Posicao, Saida } from '../desenho'
 
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 1.6
 const MEIO = ALTURA_BLOCO / 2
+// As duas saídas do "Se… senão" — afastadas o bastante para cada uma ter o seu "+".
+const ALTURA_SAIDA: Record<Saida, number> = { sim: MEIO - 22, nao: MEIO + 22 }
+const alturaSaida = (saida?: Saida) => (saida ? ALTURA_SAIDA[saida] : MEIO)
+const NOME_SAIDA: Record<Saida, string> = { sim: 'Sim', nao: 'Senão' }
+const chaveLigacao = (l: Ligacao) => `${l.de}>${l.saida ?? ''}>${l.para}`
 
 interface Vista {
   x: number
@@ -21,7 +36,7 @@ interface Vista {
 type Gesto =
   | { tipo: 'pan'; inicio: Posicao; vista: Vista }
   | { tipo: 'bloco'; id: string; inicio: Posicao; original: Posicao; moveu: boolean }
-  | { tipo: 'ligar'; de: string; ponto: Posicao }
+  | { tipo: 'ligar'; de: string; saida?: Saida; ponto: Posicao }
 
 function curva(a: Posicao, b: Posicao): string {
   const dx = Math.max(60, Math.abs(b.x - a.x) / 2)
@@ -36,6 +51,7 @@ function curva(a: Posicao, b: Posicao): string {
  * lugar dele, arrastar a bolinha da direita até a da esquerda de outro bloco
  * LIGA os dois. Nada depende só do arrasto: o "+" põe o próximo bloco já
  * ligado, a ligação se tira tocando nela, e o painel ao lado configura.
+ * O "Se… senão" tem duas bolinhas de saída (Sim e Senão), cada uma com o seu "+".
  */
 export function CanvasAutomacao({
   estado,
@@ -51,7 +67,7 @@ export function CanvasAutomacao({
   aoMudar: (estado: EstadoDesenho) => void
   selecionado: string | null
   aoSelecionar: (id: string | null) => void
-  aoAdicionar: (depoisDe: string) => void
+  aoAdicionar: (depoisDe: string, saida?: Saida) => void
   /** título e frase de cada bloco (id → {titulo, frase, icone}) */
   titulos: (id: string) => { titulo: string; frase: string; tipo: TipoPasso | 'quando' }
   somenteLeitura?: boolean
@@ -141,11 +157,19 @@ export function CanvasAutomacao({
     setGesto({ tipo: 'bloco', id, inicio: { x: evento.clientX, y: evento.clientY }, original: posicaoDe(id), moveu: false })
   }
 
-  function aoBaixarSaida(evento: EventoPonteiro<HTMLElement>, id: string) {
+  // A bolinha diz de quem é (e qual saída) pelos data-* — sem função criada no
+  // meio do desenho (o compilador do React não aceita ref lida nesse caminho).
+  function aoBaixarSaida(evento: EventoPonteiro<HTMLElement>) {
     evento.stopPropagation()
-    if (somenteLeitura) return
+    const { de, saida } = evento.currentTarget.dataset
+    if (somenteLeitura || !de) return
     area.current?.setPointerCapture(evento.pointerId)
-    setGesto({ tipo: 'ligar', de: id, ponto: paraQuadro(evento.clientX, evento.clientY) })
+    setGesto({
+      tipo: 'ligar',
+      de,
+      saida: saida === 'sim' || saida === 'nao' ? saida : undefined,
+      ponto: paraQuadro(evento.clientX, evento.clientY),
+    })
   }
 
   function aoMoverPonteiro(evento: EventoPonteiro<HTMLDivElement>) {
@@ -177,7 +201,7 @@ export function CanvasAutomacao({
         .map((el) => (el as HTMLElement).closest?.('[data-bloco]') as HTMLElement | null)
         .find((el) => el && el.dataset.bloco)
       const para = alvo?.dataset.bloco
-      if (para && podeLigar(estado, gesto.de, para)) aoMudar(ligar(estado, gesto.de, para))
+      if (para && podeLigar(estado, gesto.de, para, gesto.saida)) aoMudar(ligar(estado, gesto.de, para, gesto.saida))
     }
     setGesto(null)
   }
@@ -186,9 +210,9 @@ export function CanvasAutomacao({
   const ligacoesDesenhadas = estado.ligacoes.map((l) => {
     const a = posicaoDe(l.de)
     const b = posicaoDe(l.para)
-    const pa = { x: a.x + LARGURA_BLOCO, y: a.y + MEIO }
+    const pa = { x: a.x + LARGURA_BLOCO, y: a.y + alturaSaida(l.saida) }
     const pb = { x: b.x, y: b.y + MEIO }
-    return { chave: `${l.de}>${l.para}`, de: l.de, d: curva(pa, pb), meio: { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 } }
+    return { chave: chaveLigacao(l), de: l.de, d: curva(pa, pb), meio: { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 } }
   })
 
   return (
@@ -244,7 +268,7 @@ export function CanvasAutomacao({
             {gesto?.tipo === 'ligar' && (
               <path
                 d={curva(
-                  { x: posicaoDe(gesto.de).x + LARGURA_BLOCO, y: posicaoDe(gesto.de).y + MEIO },
+                  { x: posicaoDe(gesto.de).x + LARGURA_BLOCO, y: posicaoDe(gesto.de).y + alturaSaida(gesto.saida) },
                   gesto.ponto,
                 )}
                 fill="none"
@@ -269,7 +293,7 @@ export function CanvasAutomacao({
                 aria-label="Tirar esta ligação"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
-                  aoMudar({ ...estado, ligacoes: estado.ligacoes.filter((x) => `${x.de}>${x.para}` !== l.chave) })
+                  aoMudar({ ...estado, ligacoes: estado.ligacoes.filter((x) => chaveLigacao(x) !== l.chave) })
                   setLigacaoEscolhida(null)
                 }}
                 className="absolute z-10 inline-flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-borda-forte bg-superficie text-texto shadow"
@@ -284,7 +308,8 @@ export function CanvasAutomacao({
             const info = titulos(id)
             const ehQuando = id === ID_QUANDO
             const solto = !ehQuando && !naSequencia.has(id)
-            const temSaida = estado.ligacoes.some((l) => l.de === id)
+            const duas = !ehQuando && temDuasSaidas(estado.blocos.find((b) => b.id === id)?.passo)
+            const saidas: (Saida | undefined)[] = duas ? ['sim', 'nao'] : [undefined]
             return (
               <div
                 key={id}
@@ -309,13 +334,14 @@ export function CanvasAutomacao({
                     'flex min-h-11 items-center gap-2 rounded-t-dm-lg px-3 text-left text-sm font-semibold',
                     ehQuando ? 'bg-acao text-acao-texto' : 'bg-superficie-sutil text-texto',
                     somenteLeitura ? 'cursor-pointer' : 'cursor-move',
+                    duas && 'pr-16',
                   )}
                   aria-label={`${info.titulo}: ${info.frase}. Toque para configurar.`}
                 >
                   {ehQuando ? <Zap aria-hidden className="size-4" /> : ICONE_PASSO[info.tipo as TipoPasso]}
                   <span className="truncate">{info.titulo}</span>
                 </button>
-                <p className="line-clamp-3 px-3 py-2 text-xs leading-snug text-texto-suave">{info.frase}</p>
+                <p className={cn('line-clamp-3 px-3 py-2 text-xs leading-snug text-texto-suave', duas && 'pr-16')}>{info.frase}</p>
                 {solto && (
                   <span className="mx-3 mb-2 self-start rounded-full bg-atencao-fundo px-2 py-0.5 text-[11px] font-medium text-atencao-texto">
                     solto — não roda
@@ -330,31 +356,61 @@ export function CanvasAutomacao({
                     style={{ top: MEIO - 10 }}
                   />
                 )}
-                {/* saída (direita) — arraste até outro bloco para ligar */}
-                {!somenteLeitura && (
-                  <span
-                    role="presentation"
-                    onPointerDown={(e) => aoBaixarSaida(e, id)}
-                    title="Arraste até outro bloco para ligar"
-                    className={cn(
-                      'absolute -right-3 size-6 cursor-crosshair rounded-full border-2 bg-superficie',
-                      temSaida ? 'border-acao-ativa' : 'border-borda-forte',
-                    )}
-                    style={{ top: MEIO - 12 }}
-                  />
+                {/* o nome de cada saída do "Se… senão", rente à bolinha dela */}
+                {saidas.map(
+                  (saida) =>
+                    saida && (
+                      <span
+                        key={`nome-${saida}`}
+                        aria-hidden
+                        className={cn(
+                          'pointer-events-none absolute right-4 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-4',
+                          saida === 'sim' ? 'bg-perfeito-fundo text-perfeito-texto' : 'bg-danificado-fundo text-danificado-texto',
+                        )}
+                        style={{ top: ALTURA_SAIDA[saida] - 10 }}
+                      >
+                        {NOME_SAIDA[saida]}
+                      </span>
+                    ),
                 )}
-                {!somenteLeitura && (
-                  <button
-                    type="button"
-                    aria-label={`Pôr um bloco depois de "${info.titulo}"`}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => aoAdicionar(id)}
-                    className="absolute -right-12 inline-flex size-9 items-center justify-center rounded-full border border-borda-forte bg-superficie text-texto shadow-sm transition hover:-translate-y-0.5 hover:shadow"
-                    style={{ top: MEIO - 18 }}
-                  >
-                    <Plus aria-hidden className="size-4" />
-                  </button>
-                )}
+                {/* saída (direita) — arraste até outro bloco para ligar; o "+" põe o próximo já ligado */}
+                {!somenteLeitura &&
+                  saidas.map((saida) => (
+                    <span key={`saida-${saida ?? 'unica'}`}>
+                      <span
+                        role="presentation"
+                        data-de={id}
+                        data-saida={saida}
+                        onPointerDown={aoBaixarSaida}
+                        title={saida ? `Caminho ${NOME_SAIDA[saida]}: arraste até outro bloco para ligar` : 'Arraste até outro bloco para ligar'}
+                        className={cn(
+                          'absolute -right-3 size-6 cursor-crosshair rounded-full border-2 bg-superficie',
+                          !proximoDe(estado, id, saida)
+                            ? 'border-borda-forte'
+                            : saida === 'sim'
+                              ? 'border-perfeito-forte'
+                              : saida === 'nao'
+                                ? 'border-danificado-forte'
+                                : 'border-acao-ativa',
+                        )}
+                        style={{ top: alturaSaida(saida) - 12 }}
+                      />
+                      <button
+                        type="button"
+                        aria-label={
+                          saida
+                            ? `Pôr um bloco no caminho ${NOME_SAIDA[saida]} de "${info.titulo}"`
+                            : `Pôr um bloco depois de "${info.titulo}"`
+                        }
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => aoAdicionar(id, saida)}
+                        className="absolute -right-12 inline-flex size-9 items-center justify-center rounded-full border border-borda-forte bg-superficie text-texto shadow-sm transition hover:-translate-y-0.5 hover:shadow"
+                        style={{ top: alturaSaida(saida) - 18 }}
+                      >
+                        <Plus aria-hidden className="size-4" />
+                      </button>
+                    </span>
+                  ))}
               </div>
             )
           })}

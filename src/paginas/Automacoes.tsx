@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Botao, Dica, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
+import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { buscarEtapasAtivas, buscarSetores } from '@/kanban/api'
 import { usuariosAtivos } from '@/metas/api'
 import { useCampos, useEtiquetas } from '@/utilitarios/consultas'
@@ -27,7 +28,7 @@ import {
   salvarAutomacao,
 } from '@/automacoes/api'
 import type { Automacao, AutomacaoResumo } from '@/automacoes/api'
-import { GATILHOS, PASSOS, ROTULO_PASSO, ROTULO_SITUACAO_EXECUCAO } from '@/automacoes/catalogo'
+import { GATILHOS, GRUPOS_PASSO, PASSOS, ROTULO_PASSO, ROTULO_SITUACAO_EXECUCAO } from '@/automacoes/catalogo'
 import type { TipoPasso } from '@/automacoes/catalogo'
 import {
   ID_QUANDO,
@@ -40,7 +41,7 @@ import {
   soltos,
   trocarPasso,
 } from '@/automacoes/desenho'
-import type { EstadoDesenho, Passo } from '@/automacoes/desenho'
+import type { EstadoDesenho, Passo, Saida } from '@/automacoes/desenho'
 import { resumoGatilho, resumoPasso } from '@/automacoes/resumo'
 import type { NomesAutomacao } from '@/automacoes/resumo'
 import { CanvasAutomacao } from '@/automacoes/componentes/CanvasAutomacao'
@@ -163,18 +164,18 @@ function ListaAutomacoes() {
           Nova automação
         </Botao>
       </div>
-      <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
-        <input
-          type="checkbox"
-          className="size-5 accent-marca-500"
-          checked={arquivadas}
-          onChange={(e) => {
-            setArquivadas(e.target.checked)
-            setPagina(1)
-          }}
-        />
-        Ver as arquivadas
-      </label>
+      <FiltroPill
+        rotulo="Mostrar"
+        opcoes={[
+          { valor: 'ativas', rotulo: 'Ativas' },
+          { valor: 'arquivadas', rotulo: 'Arquivadas' },
+        ]}
+        valor={arquivadas ? 'arquivadas' : 'ativas'}
+        aoMudar={(v) => {
+          setArquivadas(v === 'arquivadas')
+          setPagina(1)
+        }}
+      />
       {consulta.isError && (
         <p className="rounded-dm border border-danificado-forte bg-danificado-fundo p-3 text-sm text-danificado-texto">
           {(consulta.error as Error).message}
@@ -353,7 +354,8 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
   // Como no n8n: as execuções ficam escondidas até clicar em "Execuções" lá em cima.
   const [vista, setVista] = useState<'editor' | 'execucoes'>('editor')
   const [alterado, setAlterado] = useState(automacao === null)
-  const [adicionandoDepois, setAdicionandoDepois] = useState<string | null>(null)
+  // onde entra o bloco novo: depois de qual bloco (e, no "Se… senão", em qual caminho)
+  const [adicionandoDepois, setAdicionandoDepois] = useState<{ de: string; saida?: Saida } | null>(null)
   const [confirmando, setConfirmando] = useState<'publicar' | 'desligar' | 'arquivar' | null>(null)
 
   function mudar(novo: EstadoDesenho) {
@@ -573,7 +575,7 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
           aoMudar={mudar}
           selecionado={selecionado}
           aoSelecionar={selecionar}
-          aoAdicionar={(depoisDe) => setAdicionandoDepois(depoisDe)}
+          aoAdicionar={(de, saida) => setAdicionandoDepois({ de, saida })}
           titulos={titulos}
         />
 
@@ -660,34 +662,51 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
       <Modal
         aberto={adicionandoDepois !== null}
         aoFechar={(aberto) => !aberto && setAdicionandoDepois(null)}
-        titulo="Que bloco vem depois?"
-        descricao="Ele entra na sequência logo depois do bloco escolhido."
+        tamanho="galpao"
+        titulo={
+          adicionandoDepois?.saida
+            ? `Que bloco vem no caminho ${adicionandoDepois.saida === 'sim' ? 'Sim' : 'Senão'}?`
+            : 'Que bloco vem depois?'
+        }
+        descricao={
+          adicionandoDepois?.saida
+            ? `Ele entra no caminho ${adicionandoDepois.saida === 'sim' ? 'Sim' : 'Senão'}, logo depois do bloco escolhido.`
+            : 'Ele entra na sequência logo depois do bloco escolhido.'
+        }
       >
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {PASSOS.map((p) => (
-            <li key={p.valor}>
-              <button
-                type="button"
-                onClick={() => {
-                  const r = inserirDepois(estado, adicionandoDepois ?? ID_QUANDO, passoNovo(p.valor))
-                  mudar(r.estado)
-                  selecionar(r.id)
-                  setAdicionandoDepois(null)
-                }}
-                className={cn(
-                  'flex w-full items-start gap-3 rounded-dm border border-borda bg-superficie p-3 text-left transition',
-                  'hover:-translate-y-0.5 hover:border-acao-ativa hover:shadow-sm',
-                )}
-              >
-                <span className="mt-0.5 text-texto-suave">{ICONE_PASSO[p.valor]}</span>
-                <span className="flex flex-col">
-                  <span className="font-medium text-texto">{p.rotulo}</span>
-                  <span className="text-xs text-texto-suave">{p.descricao}</span>
-                </span>
-              </button>
-            </li>
+        <div className="flex flex-col gap-5">
+          {GRUPOS_PASSO.map((grupo) => (
+            <section key={grupo} aria-labelledby={`grupo-${grupo}`} className="flex flex-col gap-2">
+              <h3 id={`grupo-${grupo}`} className="text-xs font-semibold uppercase tracking-wide text-texto-suave">
+                {grupo}
+              </h3>
+              <ul className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-3">
+                {PASSOS.filter((p) => p.grupo === grupo).map((p) => (
+                  <li key={p.valor}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const r = inserirDepois(estado, adicionandoDepois?.de ?? ID_QUANDO, passoNovo(p.valor), adicionandoDepois?.saida)
+                        mudar(r.estado)
+                        selecionar(r.id)
+                        setAdicionandoDepois(null)
+                      }}
+                      className="flex h-full w-full items-start gap-3 rounded-dm border border-borda bg-superficie p-3 text-left transition hover:border-acao-ativa hover:bg-superficie-sutil"
+                    >
+                      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-dm bg-superficie-sutil text-texto">
+                        {ICONE_PASSO[p.valor]}
+                      </span>
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-texto">{p.rotulo}</span>
+                        <span className="line-clamp-3 text-xs leading-snug text-texto-suave">{p.descricao}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       </Modal>
     </div>
   )

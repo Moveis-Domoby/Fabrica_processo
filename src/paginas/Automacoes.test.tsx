@@ -145,6 +145,25 @@ describe('Super admin → Automações', () => {
     expect(enviado.desenho.versao).toBe(1)
   })
 
+  it('o "Se… senão" ganha duas saídas, cada uma com o seu "+", e salva os caminhos dentro dele', async () => {
+    renderizar('/super-admin/automacoes?a=nova')
+    fireEvent.change(await screen.findByLabelText('Nome da automação'), { target: { value: 'Com caminhos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pôr um bloco depois de "Quando"' }))
+    const escolha = await screen.findByRole('dialog')
+    // a escolha vem por grupos
+    expect(within(escolha).getByRole('heading', { name: 'Lógica' })).toBeInTheDocument()
+    fireEvent.click(within(escolha).getByText('Se… senão'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pôr um bloco no caminho Senão de "1. Se… senão"' }))
+    const noSenao = await screen.findByRole('dialog', { name: 'Que bloco vem no caminho Senão?' })
+    fireEvent.click(within(noSenao).getByText('Arquivar o card'))
+    expect(screen.getByRole('button', { name: 'Pôr um bloco no caminho Sim de "1. Se… senão"' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(salvarAutomacao).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(salvarAutomacao).mock.calls[0][0].passos).toEqual([
+      { tipo: 'se_senao', entao: [], senao: [{ tipo: 'arquivar' }] },
+    ])
+  })
+
   it('a aba Execuções (escondida até o clique) mostra cada passo e o "Trazer de volta" quando a automação arquivou', async () => {
     renderizar('/super-admin/automacoes?a=12')
     expect(await screen.findByDisplayValue('Entrou em A arquiva')).toBeInTheDocument()

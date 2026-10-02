@@ -117,3 +117,75 @@ describe('desenho da automação', () => {
     expect(mesmoConteudo({ a: 1 }, { a: 2 })).toBe(false)
   })
 })
+
+/**
+ * O "Se… senão" (D-105, pedido do dono): duas saídas, Sim e Senão, cada uma
+ * com os próprios passos — o banco recebe os caminhos dentro do bloco.
+ */
+const SE: Passo = { tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: 1 }
+
+function comCaminhos(): EstadoDesenho {
+  let e = desenhoNovo('card_entrou')
+  e = inserirDepois(e, ID_QUANDO, { tipo: 'etiqueta_por', etiquetas: [1] }).estado // p1
+  e = inserirDepois(e, 'p1', SE).estado // p2
+  e = inserirDepois(e, 'p2', { tipo: 'mover', setor_id: 5 }, 'sim').estado // p3
+  e = inserirDepois(e, 'p3', { tipo: 'arquivar' }).estado // p4
+  e = inserirDepois(e, 'p2', { tipo: 'avisar', destino: 'admins' }, 'nao').estado // p5
+  return e
+}
+
+describe('o "Se… senão" no desenho', () => {
+  it('os passos levam os dois caminhos dentro; a leitura é o Sim inteiro e depois o Senão', () => {
+    const e = comCaminhos()
+    expect(passosDaSequencia(e)).toEqual([
+      { tipo: 'etiqueta_por', etiquetas: [1] },
+      { ...SE, entao: [{ tipo: 'mover', setor_id: 5 }, { tipo: 'arquivar' }], senao: [{ tipo: 'avisar', destino: 'admins' }] },
+    ])
+    expect(sequencia(e)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5'])
+    expect(soltos(e)).toEqual([])
+    // o Senão desce abaixo do Sim
+    const p3 = e.blocos.find((b) => b.id === 'p3')!
+    const p5 = e.blocos.find((b) => b.id === 'p5')!
+    expect(p5.posicao.x).toBe(p3.posicao.x)
+    expect(p5.posicao.y).toBeGreaterThan(p3.posicao.y)
+  })
+
+  it('o "Se… senão" liga só pelo Sim ou pelo Senão; os outros blocos, só pela saída única', () => {
+    const e = comCaminhos()
+    const novo = 'p6'
+    const s: EstadoDesenho = { ...e, blocos: [...e.blocos, { id: novo, passo: { tipo: 'desarquivar' }, posicao: { x: 0, y: 0 } }] }
+    expect(podeLigar(s, 'p2', novo)).toBe(false)
+    expect(podeLigar(s, 'p3', novo, 'sim')).toBe(false)
+    expect(podeLigar(s, 'p4', novo)).toBe(true)
+    // ligar pelo Senão troca quem estava lá (o aviso fica solto)
+    const trocado = ligar(s, 'p2', novo, 'nao')
+    expect(passosDaSequencia(trocado)[1].senao).toEqual([{ tipo: 'desarquivar' }])
+    expect(soltos(trocado)).toEqual(['p5'])
+    // nunca um ciclo: o fim de um caminho não volta ao "Se… senão"
+    expect(podeLigar(e, 'p4', 'p2')).toBe(false)
+  })
+
+  it('pôr um "Se… senão" no meio: quem vinha depois segue pelo Sim', () => {
+    const r = inserirDepois(comTres(), 'p1', SE)
+    const passos = passosDaSequencia(r.estado)
+    expect(passos.map((p) => p.tipo)).toEqual(['etiqueta_por', 'se_senao'])
+    expect(passos[1].entao).toEqual([{ tipo: 'mover', setor_id: 5 }, { tipo: 'arquivar' }])
+    expect(passos[1].senao).toEqual([])
+  })
+
+  it('tirar o "Se… senão": o caminho Sim continua no lugar dele; o Senão fica solto', () => {
+    const e = remover(comCaminhos(), 'p2')
+    expect(passosDaSequencia(e).map((p) => p.tipo)).toEqual(['etiqueta_por', 'mover', 'arquivar'])
+    expect(soltos(e)).toEqual(['p5'])
+  })
+
+  it('guardar e remontar devolve os mesmos caminhos; sem desenho, os caminhos são refeitos dos passos', () => {
+    const e = comCaminhos()
+    const { passos, desenho } = paraGuardar(e)
+    const volta = montarDesenho({ gatilho: 'card_entrou', gatilho_config: {}, passos: JSON.parse(JSON.stringify(passos)), desenho })
+    expect(volta.ligacoes).toEqual(e.ligacoes)
+    const refeito = montarDesenho({ gatilho: 'card_entrou', gatilho_config: {}, passos, desenho: null })
+    expect(passosDaSequencia(refeito)).toEqual(passos)
+    expect(refeito.blocos.every((b) => !('entao' in b.passo) && !('senao' in b.passo))).toBe(true)
+  })
+})

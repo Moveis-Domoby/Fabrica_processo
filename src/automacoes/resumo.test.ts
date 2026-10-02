@@ -58,6 +58,8 @@ describe('resumo dos blocos', () => {
     expect(resumoPasso({ tipo: 'mover' }, nomes)).toBe('Mover — escolha o destino')
     expect(resumoPasso({ tipo: 'campo' }, nomes)).toBe('Preencher — escolha o campo')
     expect(resumoPasso({ tipo: 'se' }, nomes)).toBe('Só se… — escolha a condição')
+    expect(resumoPasso({ tipo: 'se_senao' }, nomes)).toBe('Se… senão — escolha a condição')
+    expect(resumoPasso({ tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: 1 }, nomes)).toBe('Se o card tem a etiqueta "Urgente"')
   })
 
   it('horas viram dias quando fecham o dia', () => {

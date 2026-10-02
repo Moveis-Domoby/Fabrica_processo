@@ -119,23 +119,26 @@ export function resumoPasso(passo: Passo, nomes: NomesAutomacao): string {
     }
     case 'esperar':
       return `Esperar ${tempo(passo.quantidade, passo.unidade)}`
-    case 'se': {
+    case 'se':
+    case 'se_senao': {
+      // o "Só se…" e o "Se… senão" testam as mesmas condições; muda só o começo da frase
+      const se = passo.tipo === 'se' ? 'Só se' : 'Se'
       const condicao = CONDICOES.find((c) => c.valor === passo.condicao)
-      if (!condicao) return 'Só se… — escolha a condição'
+      if (!condicao) return `${ROTULO_PASSO[passo.tipo]} — escolha a condição`
       if (passo.condicao === 'tem_etiqueta' || passo.condicao === 'nao_tem_etiqueta')
-        return `Só se ${condicao.rotulo} "${nomes.etiquetas.get(num(passo.etiqueta_id) ?? -1) ?? '?'}"`
+        return `${se} ${condicao.rotulo} "${nomes.etiquetas.get(num(passo.etiqueta_id) ?? -1) ?? '?'}"`
       if (passo.condicao === 'campo_igual' || passo.condicao === 'campo_vazio' || passo.condicao === 'campo_preenchido') {
         const campo = nomes.campos.get(num(passo.campo_id) ?? -1)
         const nome = campo ? `"${campo.nome}"` : '(campo)'
         if (passo.condicao === 'campo_igual')
-          return `Só se ${nome} for ${campo ? textoDoValorCampo(campo, passo.valor as ValorCampo) : '?'}`
-        return `Só se ${nome} estiver ${passo.condicao === 'campo_vazio' ? 'vazio' : 'preenchido'}`
+          return `${se} ${nome} for ${campo ? textoDoValorCampo(campo, passo.valor as ValorCampo) : '?'}`
+        return `${se} ${nome} estiver ${passo.condicao === 'campo_vazio' ? 'vazio' : 'preenchido'}`
       }
-      if (passo.condicao === 'no_setor') return `Só se o card estiver em ${lugar(nomes, passo.setor_id, passo.etapa_id)}`
+      if (passo.condicao === 'no_setor') return `${se} o card estiver em ${lugar(nomes, passo.setor_id, passo.etapa_id)}`
       const valores = Array.isArray(passo.valores) ? (passo.valores as string[]) : []
       if (passo.condicao === 'situacao_pedido')
-        return `Só se o pedido estiver ${valores.map((v) => rotuloSituacaoPedido(v)).join(' ou ') || '(escolha)'}`
-      return `Só se o card for ${valores.map((v) => TIPOS_CARD.find((t) => t.valor === v)?.rotulo ?? v).join(' ou ') || '(escolha)'}`
+        return `${se} o pedido estiver ${valores.map((v) => rotuloSituacaoPedido(v)).join(' ou ') || '(escolha)'}`
+      return `${se} o card for ${valores.map((v) => TIPOS_CARD.find((t) => t.valor === v)?.rotulo ?? v).join(' ou ') || '(escolha)'}`
     }
   }
   return ROTULO_PASSO[passo.tipo] ?? 'Passo'

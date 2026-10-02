@@ -503,12 +503,12 @@ export function PainelPasso({
         </div>
       )}
 
-      {passo.tipo === 'se' && (
+      {(passo.tipo === 'se' || passo.tipo === 'se_senao') && (
         <>
           <Selecao
-            rotulo="Só segue se"
+            rotulo={passo.tipo === 'se' ? 'Só segue se' : 'Vai pelo caminho Sim se'}
             valor={passo.condicao ? String(passo.condicao) : undefined}
-            aoMudar={(v) => aoMudar({ tipo: 'se', condicao: v })}
+            aoMudar={(v) => aoMudar({ tipo: passo.tipo, condicao: v })}
             opcoes={CONDICOES}
             placeholder="Escolha a condição"
           />
@@ -555,6 +555,13 @@ export function PainelPasso({
                 </label>
               ))}
             </fieldset>
+          )}
+          {passo.tipo === 'se_senao' && (
+            <p className="rounded-dm border border-borda bg-superficie-sutil p-3 text-sm text-texto-suave">
+              Se a condição bater, segue pelo caminho <strong className="text-texto">Sim</strong>; se não bater, pelo
+              caminho <strong className="text-texto">Senão</strong>. Os próximos passos vão dentro dos caminhos — use o
+              "+" ao lado de cada saída. Um caminho vazio só termina ali.
+            </p>
           )}
         </>
       )}

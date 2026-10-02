@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, ListPlus, Pencil, Plus, Tag, Trash2, Wrench, X } from 'lucide-react'
 import { Abas, Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
+import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import {
   arquivarCampo,
   arquivarEtiqueta,
@@ -120,15 +121,15 @@ function PainelEtiquetas() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
-          <input
-            type="checkbox"
-            className="size-5 accent-marca-500"
-            checked={mostrarArquivadas}
-            onChange={(e) => setMostrarArquivadas(e.target.checked)}
-          />
-          Mostrar arquivadas
-        </label>
+        <FiltroPill
+          rotulo="Mostrar"
+          opcoes={[
+            { valor: 'ativas', rotulo: 'Ativas' },
+            { valor: 'todas', rotulo: 'Com as arquivadas' },
+          ]}
+          valor={mostrarArquivadas ? 'todas' : 'ativas'}
+          aoMudar={(v) => setMostrarArquivadas(v === 'todas')}
+        />
         <Botao icone={<Plus />} onClick={() => setEditando('nova')}>
           Nova etiqueta
         </Botao>
@@ -346,15 +347,15 @@ function PainelCampos() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
-          <input
-            type="checkbox"
-            className="size-5 accent-marca-500"
-            checked={mostrarArquivados}
-            onChange={(e) => setMostrarArquivados(e.target.checked)}
-          />
-          Mostrar arquivados
-        </label>
+        <FiltroPill
+          rotulo="Mostrar"
+          opcoes={[
+            { valor: 'ativos', rotulo: 'Ativos' },
+            { valor: 'todos', rotulo: 'Com os arquivados' },
+          ]}
+          valor={mostrarArquivados ? 'todos' : 'ativos'}
+          aoMudar={(v) => setMostrarArquivados(v === 'todos')}
+        />
         <Botao icone={<Plus />} onClick={() => setEditando('novo')}>
           Novo campo
         </Botao>

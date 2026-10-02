@@ -103,24 +103,46 @@ export type TipoPasso =
   | 'chamar'
   | 'esperar'
   | 'se'
+  | 'se_senao'
+
+/** Os grupos da escolha do bloco, na ordem em que aparecem. */
+export const GRUPOS_PASSO = ['Lógica', 'No card', 'Etiquetas e campos', 'Avisos e integrações'] as const
+export type GrupoPasso = (typeof GRUPOS_PASSO)[number]
 
 export interface DefinicaoPasso {
   valor: TipoPasso
   rotulo: string
   descricao: string
+  grupo: GrupoPasso
 }
 
 export const PASSOS: DefinicaoPasso[] = [
-  { valor: 'se', rotulo: 'Só se…', descricao: 'Segue só se a condição bater; senão, a automação para aqui.' },
-  { valor: 'mover', rotulo: 'Mover o card', descricao: 'Leva o card para outra etapa ou setor (com as regras de sempre).' },
-  { valor: 'etiqueta_por', rotulo: 'Pôr etiqueta', descricao: 'Põe uma ou mais etiquetas no card.' },
-  { valor: 'etiqueta_tirar', rotulo: 'Tirar etiqueta', descricao: 'Tira etiquetas do card (escolhidas ou todas).' },
-  { valor: 'campo', rotulo: 'Preencher campo', descricao: 'Grava um valor num campo customizado (ou limpa).' },
-  { valor: 'avisar', rotulo: 'Avisar no sino', descricao: 'Manda um aviso no sino de uma pessoa, dos líderes, do setor ou dos admins.' },
-  { valor: 'chamar', rotulo: 'Chamar endereço de fora', descricao: 'Manda os dados do card/pedido para o n8n ou outro sistema.' },
-  { valor: 'esperar', rotulo: 'Esperar um tempo', descricao: 'Espera antes de seguir para o próximo passo.' },
-  { valor: 'arquivar', rotulo: 'Arquivar o card', descricao: 'Arquiva o card — nada se apaga, a história fica.' },
-  { valor: 'desarquivar', rotulo: 'Trazer de volta', descricao: 'Traz de volta um card arquivado, para onde ele estava.' },
+  {
+    valor: 'se_senao',
+    rotulo: 'Se… senão',
+    descricao: 'Duas saídas: segue pelo Sim se a condição bater; pelo Senão, se não bater.',
+    grupo: 'Lógica',
+  },
+  { valor: 'se', rotulo: 'Só se…', descricao: 'Segue só se a condição bater; senão, a automação para aqui.', grupo: 'Lógica' },
+  { valor: 'esperar', rotulo: 'Esperar um tempo', descricao: 'Espera antes de seguir para o próximo passo.', grupo: 'Lógica' },
+  { valor: 'mover', rotulo: 'Mover o card', descricao: 'Leva o card para outra etapa ou setor (com as regras de sempre).', grupo: 'No card' },
+  { valor: 'arquivar', rotulo: 'Arquivar o card', descricao: 'Arquiva o card — nada se apaga, a história fica.', grupo: 'No card' },
+  { valor: 'desarquivar', rotulo: 'Trazer de volta', descricao: 'Traz de volta um card arquivado, para onde ele estava.', grupo: 'No card' },
+  { valor: 'etiqueta_por', rotulo: 'Pôr etiqueta', descricao: 'Põe uma ou mais etiquetas no card.', grupo: 'Etiquetas e campos' },
+  { valor: 'etiqueta_tirar', rotulo: 'Tirar etiqueta', descricao: 'Tira etiquetas do card (escolhidas ou todas).', grupo: 'Etiquetas e campos' },
+  { valor: 'campo', rotulo: 'Preencher campo', descricao: 'Grava um valor num campo customizado (ou limpa).', grupo: 'Etiquetas e campos' },
+  {
+    valor: 'avisar',
+    rotulo: 'Avisar no sino',
+    descricao: 'Aviso no sino de uma pessoa, dos líderes, do setor ou dos admins.',
+    grupo: 'Avisos e integrações',
+  },
+  {
+    valor: 'chamar',
+    rotulo: 'Chamar endereço de fora',
+    descricao: 'Manda os dados do card/pedido para o n8n ou outro sistema.',
+    grupo: 'Avisos e integrações',
+  },
 ]
 
 export const ROTULO_PASSO = Object.fromEntries(PASSOS.map((p) => [p.valor, p.rotulo])) as Record<TipoPasso, string>
@@ -191,4 +213,6 @@ export const ROTULO_RESULTADO_PASSO: Record<string, string> = {
   esperando: 'esperando',
   bateu: 'condição bateu',
   nao_bateu: 'condição não bateu',
+  sim: 'condição bateu',
+  senao: 'condição não bateu',
 }
