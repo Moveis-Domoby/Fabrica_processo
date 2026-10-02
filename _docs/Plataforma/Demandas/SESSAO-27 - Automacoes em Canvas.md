@@ -78,7 +78,7 @@ Critérios de aceite:
 - [x] Nasce desligada (gatilho no banco).
 - [x] Revisão da D-03 (D-99) + respostas registradas; S17 anotada como absorvida.
 
-Pendente com o dono: o "pode subir" (site — leva a Auditoria da S29) e a publicação da Edge Function `api` (disparo de fora).
+**No site desde 02/10 (04:27 UTC)**, com o OK do dono — levou junto a Auditoria da S29. Pendente com o dono: a publicação da Edge Function `api` (disparo de fora).
 
 ## Ver também
 

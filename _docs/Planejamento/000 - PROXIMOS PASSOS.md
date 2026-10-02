@@ -13,7 +13,7 @@ tags: [planejamento, roadmap, indice]
 
 ## Onde estamos (02/10/2026)
 
-O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24, 26 e **27** (automações em canvas, 02/10) e os ajustes do estoque (contagem da logística, sincronismo com o Tiny, fotos automáticas e o Ajuste Estoque 2). Falta a **28** (rota no mapa). A **[[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] foi entregue em 01/10** — a conferência diária com o Tiny está no ar. **Com você:** o "pode subir" das telas novas (Automações, Configurações, Utilitários e a Auditoria da 29 vão juntas para o site — o banco já está pronto) e, quando quiser chamar automação pelo n8n, a publicação da Edge Function.
+O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24, 26 e **27** (automações em canvas, 02/10) e os ajustes do estoque (contagem da logística, sincronismo com o Tiny, fotos automáticas e o Ajuste Estoque 2). Falta a **28** (rota no mapa). A **[[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] foi entregue em 01/10** — a conferência diária com o Tiny está no ar. As telas novas (Automações, Configurações, Utilitários e a Auditoria da 29) **estão no site desde 02/10**. **Com você:** quando quiser chamar automação pelo n8n, a publicação da Edge Function.
 
 > [!info] Revisão das pendências com o dono (01/10/2026)
 > O dono passou a lista inteira a limpo: o que era rotina da equipe saiu da lista (reservas presas, conferência da venda, fotos, saldo negativo das peças), o que ele já resolveu foi marcado ✅, e as respostas viraram as decisões **D-90…D-94**. A lista abaixo é a que vale.
@@ -61,7 +61,7 @@ O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24, 26 e **
 3. ✅ ⏫ [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] (entregue 26/09) — **o estoque inteiro**: saldo vindo do Tiny (integração já no ar), item com pedido × sem dono, lançamento manual, tela com saldo/mínimo/necessidade, venda da loja debita, sugestão de mínimo pelo trimestre.
 4. ✅ [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]] (entregue 27/09) — com o desenho novo do dono: quadros só por arrasto, "Concluir produção" só na LIMPEZA E EMBALAGEM → Pedidos em aguardo (abas Pedidos/Produtos reservados), os 3 fluxos de cancelamento e a sugestão do estoque no PCP.
 5. ✅ [[SESSAO-26 - Chat Interno]] (entregue 27/09, validada e mesclada 28/09) — `/inicio/chat` + balão arrastável em toda tela; canais, particulares, avisos gerais, aniversários automáticos; websocket privado e leitura só por página.
-6. ✅ [[SESSAO-27 - Automacoes em Canvas]] (entregue 02/10) — canvas no Painel super admin, para tudo e só o dono cria; motor na hora; "Se… senão"; Configurações, Utilitários (etiquetas e campos) e seletor de tema — [[handoff_2026_10_02_sessao27_automacoes_canvas]]. **Com você:** o "pode subir" para o site e a publicação da Edge Function (disparo pelo n8n).
+6. ✅ [[SESSAO-27 - Automacoes em Canvas]] (entregue 02/10) — canvas no Painel super admin, para tudo e só o dono cria; motor na hora; "Se… senão"; Configurações, Utilitários (etiquetas e campos) e seletor de tema — [[handoff_2026_10_02_sessao27_automacoes_canvas]]. No site desde 02/10. **Com você:** a publicação da Edge Function (disparo pelo n8n), quando quiser.
 7. [[SESSAO-28 - Rota Calculada no Mapa]] — rota real nas ruas (OSRM, grátis), partindo da fábrica.
 
 ## ⏸️ Em espera (decisão sua)

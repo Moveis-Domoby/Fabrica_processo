@@ -8,7 +8,7 @@ tags: [handoff, sessao, sessao-27, automacao, canvas, etiquetas, campos-customiz
 
 # 📋 Handoff — 02/10/2026 · SESSAO-27 · Automações em canvas
 
-**Branch:** `sessao-27-automacoes-canvas` (nasceu da branch da S29 — a Auditoria vai junto para a `main` no merge). **Banco:** migration 51 **aplicada** (02/10 03:13 UTC) e **reaplicada** com o "Se… senão" (04:11 UTC), as duas com o OK do dono, integração idêntica. **Site e Edge Function `api`:** ainda **não publicados** — esperam o "pode subir" do dono. Memória técnica: [[SESSAO-27]] (`Plataforma/Execucao/SESSAO-27.md`).
+**Branch:** `sessao-27-automacoes-canvas` (nasceu da branch da S29 — a Auditoria vai junto para a `main` no merge). **Banco:** migration 51 **aplicada** (02/10 03:13 UTC) e **reaplicada** com o "Se… senão" (04:11 UTC), as duas com o OK do dono, integração idêntica. **Site:** mesclada na `main` e **publicada no site em 02/10 (04:27 UTC)** com o OK do dono (*"Pode subir em produção"*) — avanço direto, sem mistura (levou a Auditoria da S29; conferido que o site entrega o pacote novo). **Edge Function `api`:** ainda **não publicada** — espera o OK. Memória técnica: [[SESSAO-27]] (`Plataforma/Execucao/SESSAO-27.md`).
 
 ## 1. Objetivo da sessão
 
@@ -93,7 +93,7 @@ Nenhum número de painel muda. O que aparece de novo: pílulas de etiqueta e lin
 ## 8. Ficou pendente
 
 ### Aguardando decisão do dono
-1. **Subir para o site** (merge na `main` + publicação): leva junto a Auditoria da S29 (que ele já viu). O banco já está pronto para as telas novas.
+1. ✅ **Subir para o site** — feito em 02/10 (04:27 UTC), com o OK do dono.
 2. **Publicar a Edge Function `api`** com a rota de disparo de fora — só necessária quando ele quiser chamar uma automação pelo n8n.
 3. Os dados de teste no banco (combinados): etiqueta e campo "Teste automação", as 2 automações de teste (desligadas), o card de teste 589 com etiqueta/campo. Ficam até ele dizer.
 
@@ -101,7 +101,7 @@ Nenhum número de painel muda. O que aparece de novo: pílulas de etiqueta e lin
 - **A conferência diária com o Tiny das 3h (06:00 UTC) de 03/10** é a primeira com o gatilho novo em `pedidos` no ar: conferir que a rodada fechou sem falha e sem aviso das automações nos registros (o ensaio da S29 com o gatilho forçado deu 63 ms, sem erro).
 
 ### Próximo passo sugerido
-- Com o "pode subir": merge na `main`, conferir a publicação no site e montar a 1ª automação real (o dono, no canvas). Depois, a [[SESSAO-28 - Rota Calculada no Mapa]] fecha o Bloco 5.
+- O dono monta a 1ª automação real no canvas (o site já tem tudo). Depois, a [[SESSAO-28 - Rota Calculada no Mapa]] fecha o Bloco 5.
 
 ## 9. Como validar
 
