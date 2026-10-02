@@ -964,3 +964,21 @@ revoke execute on function public.fn_backfill_falha(bigint, text, boolean) from 
 grant  execute on function public.fn_fila_proximos(integer)                to service_role;
 grant  execute on function public.fn_backfill_aplicar(bigint, text, jsonb)  to service_role;
 grant  execute on function public.fn_backfill_falha(bigint, text, boolean) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 11 · GATILHOS DA PLATAFORMA DENTRO DE public.pedidos (tabela da integração)
+--      — conferido no banco vivo em 02/10/2026 (SESSAO-27): são TRÊS; o DDL
+--      completo mora nas migrations citadas. Todos à prova de falha: um erro
+--      da plataforma NUNCA derruba a gravação do Tiny (fn_upsert_pedido).
+-- ---------------------------------------------------------------------------
+-- plt_pedidos_reagir_insercao   — nasceu como plt_pedidos_reagir em
+-- plt_pedidos_reagir_atualizacao  20260828040000_plt_entrada_pedidos.sql e foi
+--   separado em dois em 20260901121000_plt_gatilhos_pedidos_espelho.sql (última
+--   versão da função: 20261001120000_plt_tiny_pente_fino.sql). O pedido novo
+--   vira card no PCP; a atualização com produção vira evento; o cancelamento avisa.
+-- plt_pedidos_zz_automacoes     — supabase/migrations/20261002120000_plt_automacoes_canvas.sql
+--   constraint trigger ADIADO (deferrable initially deferred), after update
+--   of situacao: dispara as automações "o pedido mudou de situação" no
+--   fechamento da gravação; o "zz" o faz rodar depois do plt_pedidos_reagir.
+--   Aplicada em 02/10/2026 03:13 UTC e reaplicada 04:11 UTC (o "Se… senão"),
+--   impressão digital da integração idêntica: e2109f3a0ab69112b6a48baadbbba876.
