@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-27 — Automações em canvas"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-09-18
-atualizado: 2026-09-18
+atualizado: 2026-10-02
 tags: [plataforma, demanda, bloco-5, automacao, canvas]
 ---
 
@@ -66,7 +66,19 @@ Terreno: o motor reusa o desenho da S11 (trigger enfileira → despacho por pg_c
 
 ## Resultado (preencher ao entregar)
 
-*—*
+✅ **Entregue em 02/10/2026** — [[handoff_2026_10_02_sessao27_automacoes_canvas]] (execução: [[SESSAO-27]]). O dono abriu o escopo no início: o canvas é **para tudo** e **só ele cria** (D-99 — substitui a Q-41 do líder), etiquetas e **campos customizados** em Configurações → Utilitários (D-100/101), **Configurações + Painel super admin** com Auditoria e Automações (D-102), catálogo amplo de QUANDO/FAÇA com o motor **na hora** por gatilho adiado (D-103), e no teste ao vivo: o editor como **área de trabalho** (D-105) e o bloco **"Se… senão"** com duas saídas (D-106).
+
+Critérios de aceite:
+- [x] Montar no canvas, sem código, e ver rodar com card de teste (evento de origem `automacao` na linha do tempo) — ao vivo com o dono (etiqueta + campo; cadeia que arquivou) e ensaio no banco real (mover pela rota da etapa).
+- [x] Arquivar e etiqueta por gatilho; etiqueta no card (quadro e tablet) — e "trazer de volta".
+- [x] Etiquetas em Configurações (Utilitários), cores da paleta das etiquetas (tokens).
+- [x] Histórico mostra gatilho, avaliação e cada passo; desligada não dispara (provado ao vivo).
+- [x] ~~Líder só no próprio setor~~ → **só o super admin** cria/edita/liga (D-99), garantido no banco.
+- [x] Ciclo entre duas automações: 5 execuções e a 6ª barrada, registrada (harness).
+- [x] Nasce desligada (gatilho no banco).
+- [x] Revisão da D-03 (D-99) + respostas registradas; S17 anotada como absorvida.
+
+Pendente com o dono: o "pode subir" (site — leva a Auditoria da S29) e a publicação da Edge Function `api` (disparo de fora).
 
 ## Ver também
 

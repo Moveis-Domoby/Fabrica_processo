@@ -45,39 +45,39 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (D-01…D-98
 ## Task list (espelho da demanda + respostas do dono)
 
 **Navegação e acesso**
-- [ ] N1 · "Painel admin" vira **Configurações** (rotas `/configuracoes/*`, as antigas `/admin/*` redirecionam); Auditoria sai de lá
-- [ ] N2 · **Painel super admin** (`/super-admin/*`) com Automações e Auditoria — só o dono (coluna nova no cadastro, gate no banco e na rota)
-- [ ] N3 · Rodapé: a engrenagem vira o **seletor de tema** (ícone + seletor pequeno)
-- [ ] N4 · Auditoria passa a exigir super admin no banco
+- [x] N1 · "Painel admin" vira **Configurações** (rotas `/configuracoes/*`, as antigas `/admin/*` redirecionam); Auditoria sai de lá
+- [x] N2 · **Painel super admin** (`/super-admin/*`) com Automações e Auditoria — só o dono (coluna nova no cadastro, gate no banco e na rota)
+- [x] N3 · Rodapé: a engrenagem vira o **seletor de tema** (ícone + seletor pequeno)
+- [x] N4 · Auditoria passa a exigir super admin no banco
 
 **Utilitários (Configurações → Utilitários)**
-- [ ] U1 · Etiquetas: cadastro (nome + cor de token), editar, arquivar/excluir sem uso
-- [ ] U2 · Campos customizados: cadastro (texto, número, data, lista de opções, sim/não; vale em peças e/ou pedidos), editar, arquivar
-- [ ] U3 · Etiquetas no card (várias), no quadro, no tablet e no card do pedido do PCP
-- [ ] U4 · Campos no card (peça) e no pedido (PCP + Todos os pedidos), com edição à mão pelo admin
+- [x] U1 · Etiquetas: cadastro (nome + cor de token), editar, arquivar/excluir sem uso
+- [x] U2 · Campos customizados: cadastro (texto, número, data, lista de opções, sim/não; vale em peças e/ou pedidos), editar, arquivar
+- [x] U3 · Etiquetas no card (várias), no quadro, no tablet e no card do pedido do PCP
+- [x] U4 · Campos no card (peça) e no pedido (PCP + Todos os pedidos), com edição à mão pelo admin
 
 **Motor no banco**
-- [ ] M1 · Cadastro das automações (só super admin; nasce desligada — garantido no banco)
-- [ ] M2 · Execução na hora (gatilho adiado sobre os eventos), cada disparo registrado (gatilho, condição, ações, quando), limite de cadeia registrado
-- [ ] M3 · QUANDO: entrou na etapa · iniciado · qualidade 🟡/🔴 · parado há N · arquivado · etiqueta posta/tirada · pedido novo · pedido mudou de situação · chamada de fora
-- [ ] M4 · FAÇA: mover · arquivar · trazer de volta · pôr/tirar etiqueta · preencher campo · avisar no sino · chamar endereço de fora · esperar · só se
-- [ ] M5 · Relógio do banco só existe quando há "parado há N" ligado ou execução esperando
-- [ ] M6 · A automação obedece às regras de uma pessoa (estoque só 🟢 etc.); card do pedido não sai do PCP; ROTAS só pelo lançamento
-- [ ] M7 · Trazer de volta à mão (botão no histórico das execuções)
-- [ ] M8 · Chamada de fora pela API (Edge Function `api`) — publicar só com OK
+- [x] M1 · Cadastro das automações (só super admin; nasce desligada — garantido no banco)
+- [x] M2 · Execução na hora (gatilho adiado sobre os eventos), cada disparo registrado (gatilho, condição, ações, quando), limite de cadeia registrado
+- [x] M3 · QUANDO: entrou na etapa · iniciado · qualidade 🟡/🔴 · parado há N · arquivado · etiqueta posta/tirada · pedido novo · pedido mudou de situação · chamada de fora
+- [x] M4 · FAÇA: mover · arquivar · trazer de volta · pôr/tirar etiqueta · preencher campo · avisar no sino · chamar endereço de fora · esperar · só se
+- [x] M5 · Relógio do banco só existe quando há "parado há N" ligado ou execução esperando
+- [x] M6 · A automação obedece às regras de uma pessoa (estoque só 🟢 etc.); card do pedido não sai do PCP; ROTAS só pelo lançamento
+- [x] M7 · Trazer de volta à mão (botão no histórico das execuções)
+- [~] M8 · Chamada de fora pela API (Edge Function `api`) — escrita e testada; **publicar só com OK** (pendente)
 
 **Tela das automações**
-- [ ] T1 · Lista + liga/desliga (com confirmação) + nova/arquivar — usável no tablet
-- [ ] T2 · Canvas próprio leve (blocos arrastáveis, ligações em SVG, "adicionar bloco" por botão, aproximar/afastar)
-- [ ] T3 · Painel de configuração de cada bloco com seletores reais (setor, etapa, etiqueta, campo, pessoa, situação)
-- [ ] T4 · Últimas execuções (paginadas no servidor) com gatilho, condição, cada ação e o resultado
-- [ ] T5 · Exemplos desligados de fábrica (parado há 3 dias avisa o líder; peça danificada avisa os admins)
+- [x] T1 · Lista + liga/desliga (com confirmação) + nova/arquivar — usável no tablet
+- [x] T2 · Canvas próprio leve (blocos arrastáveis, ligações em SVG, "adicionar bloco" por botão, aproximar/afastar)
+- [x] T3 · Painel de configuração de cada bloco com seletores reais (setor, etapa, etiqueta, campo, pessoa, situação)
+- [x] T4 · Últimas execuções (paginadas no servidor) com gatilho, condição, cada ação e o resultado
+- [x] T5 · Exemplos desligados de fábrica (parado há 3 dias avisa o líder; peça danificada avisa os admins)
 
 **Registro e fechamento**
-- [ ] R1 · Rótulos novos na Auditoria e na linha do tempo ("Automático" no lugar de `[automacao]`)
-- [ ] R2 · Harness (2 rodadas) com o bloco 51; tsc; lint; testes; build; F-07 (celular/tablet)
-- [ ] R3 · Checkpoint antes de aplicar (md5 da integração antes/depois), aplicar com OK + publicar no mesmo gesto (E-73), `get_advisors`
-- [ ] R4 · Cofre: D-99…, RF-118…, esquema + retrato, Modelo de Sistema, API Aberta, memória, handoff, mapa, ordem, demanda (Resultado) e a S17 anotada
+- [x] R1 · Rótulos novos na Auditoria e na linha do tempo ("Automático" no lugar de `[automacao]`)
+- [x] R2 · Harness (2 rodadas) com o bloco 51; tsc; lint; testes; build; F-07 (celular/tablet)
+- [~] R3 · Checkpoint antes de aplicar (md5 da integração antes/depois), aplicar com OK + publicar no mesmo gesto (E-73), `get_advisors` — banco aplicado (3×, integração idêntica), advisors ok; **o site espera o "pode subir"**
+- [x] R4 · Cofre: D-99…, RF-118…, esquema + retrato, Modelo de Sistema, API Aberta, memória, handoff, mapa, ordem, demanda (Resultado) e a S17 anotada
 
 ## Banco — migration 51 (`20261002120000_plt_automacoes_canvas.sql`)
 
@@ -118,6 +118,8 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (D-01…D-98
     - **Testes:** `desenho.test.ts` (+5), `resumo.test.ts` (+2), `Automacoes.test.tsx` (+1: o "+" do Senão abre "Que bloco vem no caminho Senão?" e salva os caminhos). Tipos, padrão de código, 117 testes da tela e a montagem — verdes.
     - **Conferido no navegador (1280×800):** a escolha por grupos alinhada (3 colunas, alturas iguais); o "Se… senão" com Sim/Senão e um bloco em cada caminho (o Senão uma linha abaixo).
     - ⚠️ E-79 (heredoc grande quebrou no terminal → script por arquivo).
+    - **Banco real (com o OK do dono, "Pode aplicar"):** migration 51 reaplicada às **04:11 UTC**, sozinha (`--so`); integração idêntica (`e2109f3a…`/65, linhas idênticas). Ensaio desfeito (super admin, card de teste 589): A "se tem a etiqueta de teste" → caminho Sim → campo preenchido; B "se NÃO tem" → caminho Senão → tirou a etiqueta; passo depois do "Se… senão" recusado com a frase certa; a lista conta 3 — 125 ms. Depois: 4 automações, todas desligadas, card 589 como antes, nenhuma execução nova; funções novas sem acesso de logado/anônimo; advisors de segurança iguais aos de antes. Esquema: os **3** gatilhos da plataforma em `pedidos` (`plt_pedidos_reagir_insercao`, `_atualizacao`, `plt_pedidos_zz_automacoes`) registrados no DDL do cofre.
+12. **Tablet e celular (conferência que tinha ficado interrompida):** lista no tablet (768) — nada rolando de lado; os "Ligar" estavam com 36px → `md` (44); histórico ("Atualizar", "Trazer de volta") → 44; editor — abas 40 → 44 e botões da barra 36 → 44; o **nome espremia para "T"** (24px) → largura mínima de 10rem (a barra quebra em linhas): 327px no tablet. Celular (375): sem rolagem lateral, canvas 375×581; os "+" do canvas seguem 36px (decisão do canvas). **E-80:** o "caber na tela" não rodava ao abrir → corrigido (`ResizeObserver`; abre em 61% no celular). **A-50:** o painel escondido não desenha — medir depois de uma captura.
 
 **Ficaram no banco (teste, combinado com o dono):** a etiqueta e o campo "Teste automação", as 2 automações de teste (desligadas) e o card 589 com a etiqueta/campo e os eventos do teste (a história fica — RNF-05).
 
