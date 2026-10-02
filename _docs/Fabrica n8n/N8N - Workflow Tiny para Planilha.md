@@ -113,19 +113,21 @@ O coração. Verificado contra **1.982 pedidos reais**: 47 colunas 100% idêntic
 
 O aviso de venda traz `dados.idContato` (o cadastro do cliente no Tiny) e o `pedido.obter` **não** traz (A-43). O banco já aceita o número desde a migration 49 (`fn_upsert_pedido(..., p_tiny_id_contato)`); falta o fluxo repassar. No n8n, fluxo **"Principal - Tiny → planilha / banco / clickup / trello"** — **sem renomear nenhum nó**:
 
-1. **"Normalizar evento"** (Code): na lista do resultado (`tipo`, `id`, `numero`, `situacao`, `cnpj`), acrescentar a linha:
+1. **"Normalizar evento"** (Code): logo **abaixo** da linha `cnpj: b?.cnpj ?? "",` acrescentar:
    ```js
    id_contato: d.idContato ?? "",
    ```
-2. **"Montar payload Supabase"** (Code): no objeto devolvido, acrescentar:
+2. **"Montar payload Supabase"** (Code): logo **abaixo** da linha `p_origem: 'webhook',` acrescentar:
    ```js
    p_tiny_id_contato: Number(ev.id_contato) || null,
    ```
-3. **"Supabase · upsert pedido"** (HTTP): o corpo (JSON) passa a ser:
+3. **"Supabase · upsert pedido"** (HTTP): o campo JSON do corpo (em modo *Expression*) passa a ser — **sem `=` na frente** (o `=` só existe no JSON exportado; colado no editor viraria texto e quebraria o corpo):
    ```
-   ={{ JSON.stringify({ p: $json.p, p_tipo: $json.p_tipo, p_tiny_id: $json.p_tiny_id, p_origem: $json.p_origem, p_tiny_id_contato: $json.p_tiny_id_contato }) }}
+   {{ JSON.stringify({ p: $json.p, p_tipo: $json.p_tipo, p_tiny_id: $json.p_tiny_id, p_origem: $json.p_origem, p_tiny_id_contato: $json.p_tiny_id_contato }) }}
    ```
-4. Publicar. Conferência: no próximo pedido, `clientes.tiny_id_contato` do cliente preenchido (cliente novo nasce com ele).
+4. Salvar e publicar. Conferência: no próximo pedido, `clientes.tiny_id_contato` do cliente preenchido (cliente novo nasce com ele); na execução do n8n, o corpo do nó 3 mostra `p_tiny_id_contato` com número.
+
+> Conferido com o espelho do cofre (o nó 2 e o 3 em `Supabase-fabrica/n8n-ramo-supabase.json`; o nó 1 na seção 2 acima). O n8n pediu login no navegador do app em 01/10 à noite — o objeto vivo NÃO foi conferido (A-44); se o código do nó estiver diferente, o dono manda print e o trecho é ajustado.
 
 Se o aviso não trouxer o número (vazio/0), vai nulo e o banco segue pelos outros caminhos (CPF → o cliente que o pedido já tem → nome+fone) — nada quebra.
 
