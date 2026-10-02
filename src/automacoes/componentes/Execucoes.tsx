@@ -78,7 +78,6 @@ export function Execucoes({ automacaoId }: { automacaoId: number }) {
         </h2>
         <Botao
           variante="fantasma"
-          tamanho="sm"
           icone={<RefreshCw />}
           carregando={consulta.isFetching}
           onClick={() => void consulta.refetch()}
@@ -151,7 +150,6 @@ export function Execucoes({ automacaoId }: { automacaoId: number }) {
                   {arquivouNesta && e.card_id && e.card_arquivado && (
                     <Botao
                       variante="secundaria"
-                      tamanho="sm"
                       icone={<ArchiveRestore />}
                       className="self-start"
                       carregando={voltar.isPending && voltar.variables === e.card_id}

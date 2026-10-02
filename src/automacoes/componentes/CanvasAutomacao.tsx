@@ -98,22 +98,34 @@ export function CanvasAutomacao({
     [vista],
   )
 
-  const caberNaTela = useCallback(() => {
+  /** Ajusta o quadro para caber tudo; devolve se conseguiu (sem medida, não há o que ajustar). */
+  const caberNaTela = useCallback((): boolean => {
     const r = area.current?.getBoundingClientRect()
-    if (!r || r.width === 0) return
+    if (!r || r.width === 0 || r.height === 0) return false
     const l = limites(estado)
     const zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.min((r.width - 48) / l.largura, (r.height - 48) / l.altura, 1)))
     setVista({ zoom, x: (r.width - l.largura * zoom) / 2 - l.x * zoom, y: (r.height - l.altura * zoom) / 2 - l.y * zoom })
+    return true
   }, [estado])
 
-  // Ao abrir uma automação, o desenho inteiro cabe na tela (uma vez, no
-  // próximo quadro — a medida do contêiner só existe depois de pintar).
+  // Ao abrir uma automação, o desenho inteiro cabe na tela — uma vez, assim
+  // que o quadro GANHA tamanho (na abertura da área de trabalho ele nasce sem
+  // medida; o observador avisa quando ela chega). A marca "já coube" só vale
+  // depois de caber de fato.
   const jaCoube = useRef(false)
   useEffect(() => {
-    if (jaCoube.current) return
-    jaCoube.current = true
-    const quadro = requestAnimationFrame(caberNaTela)
-    return () => cancelAnimationFrame(quadro)
+    const el = area.current
+    if (!el || jaCoube.current) return
+    const tentar = () => {
+      if (!jaCoube.current && caberNaTela()) jaCoube.current = true
+    }
+    if (typeof ResizeObserver === 'undefined') {
+      const quadro = requestAnimationFrame(tentar)
+      return () => cancelAnimationFrame(quadro)
+    }
+    const observador = new ResizeObserver(tentar)
+    observador.observe(el)
+    return () => observador.disconnect()
   }, [caberNaTela])
 
   const zoomPara = useCallback((multiplicador: number) => {

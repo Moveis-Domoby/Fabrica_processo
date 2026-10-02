@@ -229,17 +229,16 @@ function BotaoLigar({ id, ligada, desabilitado }: { id: number; ligada: boolean;
     return (
       <span className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-texto">{ligada ? 'Desligar? Ela para de agir.' : 'Ligar? Ela passa a agir sozinha.'}</span>
-        <Botao tamanho="sm" variante={ligada ? 'secundaria' : 'primaria'} carregando={mutacao.isPending} onClick={() => mutacao.mutate()}>
+        <Botao variante={ligada ? 'secundaria' : 'primaria'} carregando={mutacao.isPending} onClick={() => mutacao.mutate()}>
           {ligada ? 'Sim, desligar' : 'Sim, ligar'}
         </Botao>
-        <Botao tamanho="sm" variante="fantasma" onClick={() => setConfirmando(false)}>
+        <Botao variante="fantasma" onClick={() => setConfirmando(false)}>
           Não
         </Botao>
       </span>
     )
   return (
     <Botao
-      tamanho="sm"
       variante={ligada ? 'secundaria' : 'primaria'}
       icone={ligada ? <CirclePause /> : <CirclePlay />}
       disabled={Boolean(desabilitado)}
@@ -469,7 +468,7 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
             setNome(e.target.value)
             setAlterado(true)
           }}
-          className="h-11 min-w-0 flex-1 rounded-dm border border-transparent bg-transparent px-2 text-base font-semibold text-texto hover:border-borda focus:border-borda-forte sm:max-w-md"
+          className="h-11 min-w-40 flex-1 rounded-dm border border-transparent bg-transparent px-2 text-base font-semibold text-texto hover:border-borda focus:border-borda-forte sm:max-w-md"
         />
         {automacao && <SeloLigada ligada={ligada} />}
         {alterado && <span className="text-xs text-texto-suave">não salvo</span>}
@@ -486,7 +485,7 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
                   if (v === 'execucoes') selecionar(null)
                 }}
                 className={cn(
-                  'inline-flex min-h-10 items-center gap-1.5 rounded-[0.45rem] px-3 text-sm font-medium transition',
+                  'inline-flex min-h-11 items-center gap-1.5 rounded-[0.45rem] px-3 text-sm font-medium transition',
                   vista === v ? 'bg-superficie text-texto shadow-sm' : 'text-texto-suave hover:text-texto',
                 )}
               >
@@ -506,14 +505,13 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
                 {confirmando === 'arquivar' && (arquivada ? 'Reativar? Ela volta desligada.' : 'Arquivar? Ela é desligada e sai da lista.')}
               </span>
               <Botao
-                tamanho="sm"
                 variante={confirmando === 'publicar' ? 'primaria' : 'secundaria'}
                 carregando={publicar.isPending || arquivar.isPending}
                 onClick={() => (confirmando === 'arquivar' ? arquivar.mutate() : publicar.mutate(confirmando === 'publicar'))}
               >
                 {confirmando === 'publicar' ? 'Sim, publicar' : confirmando === 'desligar' ? 'Sim, desligar' : arquivada ? 'Sim, reativar' : 'Sim, arquivar'}
               </Botao>
-              <Botao tamanho="sm" variante="fantasma" onClick={() => setConfirmando(null)}>
+              <Botao variante="fantasma" onClick={() => setConfirmando(null)}>
                 Não
               </Botao>
             </span>
@@ -521,7 +519,6 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
             <>
               {automacao && (
                 <Botao
-                  tamanho="sm"
                   variante="fantasma"
                   icone={arquivada ? <ArchiveRestore /> : <Archive />}
                   aria-label={arquivada ? 'Reativar a automação' : 'Arquivar a automação'}
@@ -530,7 +527,6 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
                 />
               )}
               <Botao
-                tamanho="sm"
                 variante="secundaria"
                 icone={<Save />}
                 carregando={salvar.isPending}
@@ -541,12 +537,12 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
               </Botao>
               {!arquivada &&
                 (ligada ? (
-                  <Botao tamanho="sm" variante="secundaria" icone={<CirclePause />} onClick={() => setConfirmando('desligar')}>
+                  <Botao variante="secundaria" icone={<CirclePause />} onClick={() => setConfirmando('desligar')}>
                     Desligar
                   </Botao>
                 ) : (
                   <Botao
-                    tamanho="sm"
+                   
                     icone={<CirclePlay />}
                     disabled={!nome.trim() || naSequencia === 0}
                     title={naSequencia === 0 ? 'Monte pelo menos um passo antes de publicar' : 'Salva e liga a automação'}
