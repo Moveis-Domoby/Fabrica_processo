@@ -92,7 +92,7 @@ vi.mock('@/auditoria/api', () => ({
 function renderizar() {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/admin/auditoria']}>
+      <MemoryRouter initialEntries={['/super-admin/auditoria']}>
         <ProvedorNotificacao>
           <Auditoria />
         </ProvedorNotificacao>

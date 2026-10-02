@@ -13,6 +13,8 @@
 //   POST   /api/cards                       · criar card (pedido ou unidade)
 //   POST   /api/cards/:id/mover             · mover (SEM qualidade — RF-86)
 //   DELETE /api/cards/:id                   · arquivar (exclusão lógica)
+//   POST   /api/automacoes/:id/disparar     · SESSAO-27: dispara uma automação
+//                                             "Chamada de fora" (ligada)
 //
 // Regras que NÃO vivem aqui: append-only, iniciar-antes-de-finalizar, limite
 // por pessoa, DANIFICADO automático — tudo é TRIGGER no banco (M-14) e vale
@@ -146,6 +148,30 @@ Deno.serve(async (req) => {
         .eq('ativa', true)
         .order('ordem')
       if (error) throw error
+      return resposta(200, data)
+    }
+
+    // ---------------- POST /automacoes/:id/disparar ----------------
+    // SESSAO-27 (D-103): a "chamada de fora" — o n8n (ou outro sistema)
+    // dispara uma automação do canvas cujo QUANDO é "Chamada de fora". Corpo
+    // opcional: { card_id?, pedido?, dados? }. A automação precisa estar
+    // LIGADA (o banco confere e recusa em português).
+    if (req.method === 'POST' && rota[0] === 'automacoes' && rota[2] === 'disparar') {
+      const automacaoId = Number(rota[1])
+      if (!Number.isFinite(automacaoId) || automacaoId <= 0) return erro(400, 'Id de automação inválido.')
+      const cardId = corpo.card_id === undefined || corpo.card_id === null ? null : Number(corpo.card_id)
+      const pedidoNumero = corpo.pedido === undefined || corpo.pedido === null ? null : Number(corpo.pedido)
+      if ((cardId !== null && !Number.isFinite(cardId)) || (pedidoNumero !== null && !Number.isFinite(pedidoNumero)))
+        return erro(400, 'card_id e pedido precisam ser números.')
+      const dados = corpo.dados && typeof corpo.dados === 'object' ? (corpo.dados as Json) : {}
+      const { data, error } = await servidor.rpc('plt_fn_automacao_chamada', {
+        p_automacao_id: automacaoId,
+        p_card_id: cardId,
+        p_pedido_numero: pedidoNumero,
+        p_dados: dados,
+        p_quem: chave.nome,
+      })
+      if (error) return erro(error.code === 'P0002' ? 404 : 422, error.message)
       return resposta(200, data)
     }
 

@@ -19,6 +19,7 @@ import {
   Timer,
   Truck,
   Users,
+  Workflow,
 } from 'lucide-react'
 import { Abas, Botao, Campo, Dica, Paginacao, Selecao } from '@/componentes/ui'
 import { buscarNomesUsuarios, buscarSetores } from '@/kanban/api'
@@ -84,6 +85,7 @@ const ICONE_GRUPO: Record<GrupoAcao, ReactNode> = {
   equipe: <Users aria-hidden className="size-4" />,
   chat: <MessageSquare aria-hidden className="size-4" />,
   avisos: <Bell aria-hidden className="size-4" />,
+  automacoes: <Workflow aria-hidden className="size-4" />,
 }
 
 /**

@@ -59,6 +59,28 @@
   --dm-info-borda: #93c5fd;
   --dm-info-forte: #2563eb;
   --dm-info-texto: #1e3a8a;
+
+  /* --- Etiquetas (SESSAO-27 · D-101) — a paleta das etiquetas dos cards.
+     Seis cores que NÃO competem com a qualidade (verde/âmbar/vermelho — A-08)
+     nem com a ação (amarelo). Sempre com o nome da etiqueta junto (M-12). */
+  --dm-etiqueta-azul-fundo: #dbeafe;
+  --dm-etiqueta-azul-borda: #93c5fd;
+  --dm-etiqueta-azul-texto: #1e3a8a;
+  --dm-etiqueta-violeta-fundo: #ede9fe;
+  --dm-etiqueta-violeta-borda: #c4b5fd;
+  --dm-etiqueta-violeta-texto: #4c1d95;
+  --dm-etiqueta-ciano-fundo: #cffafe;
+  --dm-etiqueta-ciano-borda: #67e8f9;
+  --dm-etiqueta-ciano-texto: #155e75;
+  --dm-etiqueta-rosa-fundo: #fce7f3;
+  --dm-etiqueta-rosa-borda: #f9a8d4;
+  --dm-etiqueta-rosa-texto: #831843;
+  --dm-etiqueta-marrom-fundo: #efe6dd;
+  --dm-etiqueta-marrom-borda: #c9ae94;
+  --dm-etiqueta-marrom-texto: #4a3324;
+  --dm-etiqueta-cinza-fundo: #e5e5e8;
+  --dm-etiqueta-cinza-borda: #b4b2b7;
+  --dm-etiqueta-cinza-texto: #2e2c30;
 }
 
 /* ==========================================================================
@@ -416,6 +438,26 @@
   --dm-info-fundo: #172554;
   --dm-info-borda: #1e40af;
   --dm-info-texto: #bfdbfe;
+
+  /* etiquetas (SESSAO-27) na versão escura: fundo fechado, texto claro */
+  --dm-etiqueta-azul-fundo: #172554;
+  --dm-etiqueta-azul-borda: #1e40af;
+  --dm-etiqueta-azul-texto: #bfdbfe;
+  --dm-etiqueta-violeta-fundo: #2e1065;
+  --dm-etiqueta-violeta-borda: #6d28d9;
+  --dm-etiqueta-violeta-texto: #ddd6fe;
+  --dm-etiqueta-ciano-fundo: #083344;
+  --dm-etiqueta-ciano-borda: #0e7490;
+  --dm-etiqueta-ciano-texto: #a5f3fc;
+  --dm-etiqueta-rosa-fundo: #500724;
+  --dm-etiqueta-rosa-borda: #9d174d;
+  --dm-etiqueta-rosa-texto: #fbcfe8;
+  --dm-etiqueta-marrom-fundo: #3b2a1e;
+  --dm-etiqueta-marrom-borda: #7a5b43;
+  --dm-etiqueta-marrom-texto: #ead8c6;
+  --dm-etiqueta-cinza-fundo: #3a383c;
+  --dm-etiqueta-cinza-borda: #6c6a6f;
+  --dm-etiqueta-cinza-texto: #ececee;
 }
 
 /* escuro — o tema escuro "clássico" (era o preparado desde a SESSAO-01). */

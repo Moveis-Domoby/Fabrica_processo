@@ -70,6 +70,11 @@ export interface Card {
   pausado_em: string | null
   /** SESSAO-22 (D-48): quando a ÚLTIMA unidade foi liberada (só card de pedido) — fim do tempo em PCP. */
   liberado_completo_em: string | null
+  /**
+   * SESSAO-27 (D-101): as etiquetas do card (ids — projeção dos eventos de
+   * etiqueta). Ausente na porta do quadro do PCP, que busca à parte.
+   */
+  etiquetas?: number[]
 }
 
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
@@ -77,7 +82,7 @@ export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
   'executor_atual_id, responsavel_id, delegado_em, qualidade_atual, concluido_em, ' +
-  'pausado_em, liberado_completo_em, produto_tiny_id'
+  'pausado_em, liberado_completo_em, produto_tiny_id, etiquetas'
 
 /**
  * Uma página de cards de uma coluna do quadro (SESSAO-22): a regra "cada tela
@@ -214,6 +219,10 @@ export interface EventoLinhaTempo {
     // SESSAO-24: a peça que perdeu o pedido (cancelado) e a peça livre usada por um pedido.
     | 'unidade_desvinculada'
     | 'peca_alocada'
+    // SESSAO-27 (D-101/D-102): etiquetas e o "trazer de volta".
+    | 'etiqueta_adicionada'
+    | 'etiqueta_removida'
+    | 'card_desarquivado'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

@@ -13,6 +13,8 @@ import { ArrowRight, ChevronDown, Inbox, Play, TriangleAlert } from 'lucide-reac
 import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
 import { CartaoUnidade } from './CartaoUnidade'
+import { useCamposDasPecas } from '@/utilitarios/consultas'
+import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
 import type {
   Card,
@@ -73,6 +75,8 @@ interface ColunaProps {
   arrastavel: boolean
   execucao: ContextoExecucao
   tamanho: 'padrao' | 'galpao'
+  /** SESSAO-27 (D-101): os campos customizados preenchidos de cada peça mostrada. */
+  camposPorCard: Map<number, CampoMostrado[]>
 }
 
 function Coluna({
@@ -90,6 +94,7 @@ function Coluna({
   arrastavel,
   execucao,
   tamanho,
+  camposPorCard,
 }: ColunaProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const { cards, total } = dados
@@ -180,6 +185,7 @@ function Coluna({
             gestoPendente: execucao.gestoPendente,
             parecerPendente: execucao.pareceresPorCard?.get(card.id),
             tamanho,
+            campos: camposPorCard.get(card.id),
           }
           return arrastavel ? (
             <CardArrastavel key={card.id} {...comuns} />
@@ -303,6 +309,7 @@ export function QuadroKanban({
     ...(mostrarChegada ? chegada.cards : []),
     ...etapas.flatMap((e) => dadosDe(String(e.id)).cards),
   ]
+  const camposPorCard = useCamposDasPecas(todosOsCards.map((c) => c.id))
 
   function aoSoltar(evento: DragEndEvent) {
     const card = todosOsCards.find((c) => c.id === evento.active.id)
@@ -329,6 +336,7 @@ export function QuadroKanban({
             aoConcluir={aoAbrirConcluir}
             arrastavel={etapas.length > 0}
             execucao={execucao}
+            camposPorCard={camposPorCard}
             tamanho={tamanho}
           />
         )}
@@ -352,6 +360,7 @@ export function QuadroKanban({
             aoConcluir={aoAbrirConcluir}
             arrastavel
             execucao={execucao}
+            camposPorCard={camposPorCard}
             tamanho={tamanho}
           />
         ))}

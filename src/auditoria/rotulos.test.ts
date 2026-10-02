@@ -37,7 +37,12 @@ describe('auditoria — rótulos', () => {
     expect(nomeDaTela('/inicio/meu-painel')).toBe('Meu painel')
     expect(nomeDaTela('/fabrica/producao/secc', setores)).toBe('Produção · SECC')
     expect(nomeDaTela('/fabrica/producao/furacao')).toBe('Produção · FURACAO')
-    expect(nomeDaTela('/admin/auditoria')).toBe('Painel admin · Auditoria')
+    // SESSAO-27 (D-100): a auditoria foi para o Super admin; o endereço antigo
+    // (que está na trilha de antes) ganha o nome de hoje.
+    expect(nomeDaTela('/super-admin/auditoria')).toBe('Super admin · Auditoria')
+    expect(nomeDaTela('/admin/auditoria')).toBe('Super admin · Auditoria')
+    expect(nomeDaTela('/configuracoes/utilitarios')).toBe('Configurações · Utilitários')
+    expect(nomeDaTela('/admin/estoque')).toBe('Configurações · Estoque')
     expect(nomeDaTela('/comercial/listas/abc-123')).toBe('Comercial · Uma lista de disparo')
     expect(nomeDaTela('/uma/tela/nova')).toBe('/uma/tela/nova')
   })

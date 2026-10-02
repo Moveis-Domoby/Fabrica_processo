@@ -23,6 +23,8 @@ import { AfazeresDoTime } from '@/paginas/AfazeresDoTime'
 import { AdminApi } from '@/paginas/AdminApi'
 import { AdminEstoque } from '@/paginas/AdminEstoque'
 import { Auditoria } from '@/paginas/Auditoria'
+import { Automacoes } from '@/paginas/Automacoes'
+import { Utilitarios } from '@/paginas/Utilitarios'
 import { Estrutura } from '@/paginas/Estrutura'
 import { MeuPerfil } from '@/paginas/MeuPerfil'
 import { Chat } from '@/paginas/Chat'
@@ -130,18 +132,26 @@ export function App() {
                 <Route path="/dashboards/pessoas" element={<Pessoas />} />
                 <Route path="/dashboards/qualidade" element={<Qualidade />} />
               </Route>
-              <Route path="/admin/equipe" element={<Equipe />} />
-              <Route path="/admin/setores-e-etapas" element={<Estrutura />} />
+              {/* SESSAO-27 (D-100): o antigo "Painel admin" virou CONFIGURAÇÕES */}
+              <Route path="/configuracoes/equipe" element={<Equipe />} />
+              <Route path="/configuracoes/setores-e-etapas" element={<Estrutura />} />
             </Route>
 
             {/* só admin */}
             <Route element={<RotaProtegida nivel="admin" />}>
-              <Route path="/admin/tempo" element={<ControleTempo />} />
-              <Route path="/admin/estoque" element={<AdminEstoque />} />
-              <Route path="/admin/api" element={<AdminApi />} />
-              <Route path="/admin/caminhoes" element={<Caminhoes />} />
-              {/* SESSAO-29 (D-95): a auditoria — o rastro de tudo, só do admin. */}
-              <Route path="/admin/auditoria" element={<Auditoria />} />
+              <Route path="/configuracoes/tempo" element={<ControleTempo />} />
+              <Route path="/configuracoes/estoque" element={<AdminEstoque />} />
+              <Route path="/configuracoes/api" element={<AdminApi />} />
+              <Route path="/configuracoes/caminhoes" element={<Caminhoes />} />
+              {/* SESSAO-27 (D-101): etiquetas e campos customizados */}
+              <Route path="/configuracoes/utilitarios" element={<Utilitarios />} />
+            </Route>
+
+            {/* SESSAO-27 (D-100): o Painel SUPER ADMIN — só o dono, por enquanto */}
+            <Route element={<RotaProtegida nivel="super" />}>
+              <Route path="/super-admin/automacoes" element={<Automacoes />} />
+              {/* SESSAO-29 (D-95) → SESSAO-27: a auditoria passou ao super admin */}
+              <Route path="/super-admin/auditoria" element={<Auditoria />} />
             </Route>
 
             {/* pais nunca navegam: cada um direciona ao primeiro filho */}
@@ -155,7 +165,15 @@ export function App() {
             <Route path="/dashboards" element={<Navigate to="/dashboards/meu-desempenho" replace />} />
             {/* a tela única da S10 virou as 4 filhas — bookmark antigo não quebra */}
             <Route path="/dashboards/geral" element={<Navigate to="/dashboards/visao-do-dia" replace />} />
-            <Route path="/admin" element={<Navigate to="/admin/equipe" replace />} />
+            <Route path="/configuracoes" element={<Navigate to="/configuracoes/equipe" replace />} />
+            <Route path="/super-admin" element={<Navigate to="/super-admin/automacoes" replace />} />
+            {/* o antigo "Painel admin" (/admin/*) → Configurações; a auditoria → Super admin */}
+            <Route path="/admin" element={<Navigate to="/configuracoes/equipe" replace />} />
+            <Route path="/admin/auditoria" element={<Navigate to="/super-admin/auditoria" replace />} />
+            <Route
+              path="/admin/*"
+              element={<RedirecionarComPrefixo de="/admin" para="/configuracoes" />}
+            />
 
             {/* rotas antigas → novas (bookmarks dos tablets não quebram) */}
             <Route path="/producao" element={<Navigate to="/fabrica/producao/pcp" replace />} />
@@ -174,11 +192,11 @@ export function App() {
               <Route path="/setores/:id" element={<RedirecionarSetorAntigo />} />
             </Route>
             <Route path="/expedicao" element={<Navigate to="/fabrica/logistica/expedicao" replace />} />
-            <Route path="/equipe" element={<Navigate to="/admin/equipe" replace />} />
-            <Route path="/estrutura" element={<Navigate to="/admin/setores-e-etapas" replace />} />
-            <Route path="/administracao" element={<Navigate to="/admin/equipe" replace />} />
-            <Route path="/administracao/tempo" element={<Navigate to="/admin/tempo" replace />} />
-            <Route path="/administracao/api" element={<Navigate to="/admin/api" replace />} />
+            <Route path="/equipe" element={<Navigate to="/configuracoes/equipe" replace />} />
+            <Route path="/estrutura" element={<Navigate to="/configuracoes/setores-e-etapas" replace />} />
+            <Route path="/administracao" element={<Navigate to="/configuracoes/equipe" replace />} />
+            <Route path="/administracao/tempo" element={<Navigate to="/configuracoes/tempo" replace />} />
+            <Route path="/administracao/api" element={<Navigate to="/configuracoes/api" replace />} />
 
             {/* nenhuma rota solta na raiz: tudo desemboca no Meu painel */}
             <Route path="/" element={<Navigate to="/inicio/meu-painel" replace />} />

@@ -18,6 +18,8 @@ import { formatarDuracao, formatarDuracaoMs } from '../tempo'
 import { pedidoCancelado } from '../situacao'
 import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
+import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
+import type { CampoMostrado } from '@/utilitarios/consultas'
 
 export interface CartaoUnidadeProps {
   card: Card
@@ -50,6 +52,8 @@ export interface CartaoUnidadeProps {
   arrastando?: boolean
   /** 'galpao' = a tela do setor no tablet: letra maior, sem dado de cliente (D-28). */
   tamanho?: 'padrao' | 'galpao'
+  /** SESSAO-27 (D-101): os campos customizados preenchidos desta peça. */
+  campos?: CampoMostrado[]
 }
 
 /**
@@ -78,6 +82,7 @@ export function CartaoUnidade({
   parecerPendente,
   arrastando = false,
   tamanho = 'padrao',
+  campos,
 }: CartaoUnidadeProps) {
   const galpao = tamanho === 'galpao'
   const kn =
@@ -149,6 +154,21 @@ export function CartaoUnidade({
             Pedido cancelado — pronta, vai para o estoque
           </span>
         </p>
+      )}
+      {/* SESSAO-27 (D-101): etiquetas e campos customizados — também no tablet. */}
+      <EtiquetasDoCard ids={card.etiquetas} tamanho={galpao ? 'galpao' : 'sm'} />
+      {campos && campos.length > 0 && (
+        <dl className={cn('flex flex-col gap-0.5', galpao ? 'text-sm' : 'text-xs')}>
+          {campos.slice(0, 3).map((c) => (
+            <div key={c.campoId} className="flex min-w-0 gap-1">
+              <dt className="shrink-0 text-texto-suave">{c.nome}:</dt>
+              <dd className="truncate font-medium text-texto" title={c.texto}>
+                {c.texto}
+              </dd>
+            </div>
+          ))}
+          {campos.length > 3 && <div className="text-texto-fraco">+{campos.length - 3} no histórico</div>}
+        </dl>
       )}
       {/* D-48: o tempo em PCP verdadeiro — do pedido, entrada → liberação completa. */}
       {!galpao && pcpMs !== null && (

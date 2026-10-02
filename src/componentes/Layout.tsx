@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  ShieldCheck,
   Store,
   TabletSmartphone,
   X,
@@ -21,7 +22,8 @@ import {
 import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { temModulo } from '@/autenticacao/tipos'
+import { ehSuperAdmin, temModulo } from '@/autenticacao/tipos'
+import { SeletorTemaRapido } from '@/perfil/SeletorTemaRapido'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { BolhaExecucao } from '@/afazeres/BolhaExecucao'
 import { ProvedorChat } from '@/chat/ProvedorChat'
@@ -137,6 +139,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const telaCheia = perfil !== null && location.pathname.startsWith('/tablet')
   const souAdmin = perfil?.papel === 'admin'
+  const souSuperAdmin = ehSuperAdmin(perfil)
   const ehDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
   // SESSAO-24: todo fim de linha (ESTOQUE, Pedidos em aguardo, ROTAS) é logística.
   const ehDeTerminal = vinculos.some((v) =>
@@ -282,23 +285,23 @@ export function Layout({ children }: { children: ReactNode }) {
       ...(ehLider
         ? [
             {
-              // Só o rótulo mudou: "Administração" → "Painel admin" (D-46);
-              // as rotas /admin/* seguem intactas.
-              id: 'admin',
-              rotulo: 'Painel admin',
+              // SESSAO-27 (D-100): "Painel admin" virou CONFIGURAÇÕES (/configuracoes/*);
+              // a Auditoria foi para o Painel super admin.
+              id: 'configuracoes',
+              rotulo: 'Configurações',
               icone: <Settings aria-hidden />,
               secoes: [
                 {
                   filhos: [
-                    { para: '/admin/equipe', rotulo: 'Gestão da equipe' },
-                    { para: '/admin/setores-e-etapas', rotulo: 'Setores e etapas' },
+                    { para: '/configuracoes/equipe', rotulo: 'Gestão da equipe' },
+                    { para: '/configuracoes/setores-e-etapas', rotulo: 'Setores e etapas' },
                     ...(souAdmin
                       ? [
-                          { para: '/admin/tempo', rotulo: 'Controle de tempo' },
-                          { para: '/admin/estoque', rotulo: 'Estoque' },
-                          { para: '/admin/api', rotulo: 'API e integrações' },
-                          { para: '/admin/caminhoes', rotulo: 'Caminhões' },
-                          { para: '/admin/auditoria', rotulo: 'Auditoria' },
+                          { para: '/configuracoes/tempo', rotulo: 'Controle de tempo' },
+                          { para: '/configuracoes/estoque', rotulo: 'Estoque' },
+                          { para: '/configuracoes/api', rotulo: 'API e integrações' },
+                          { para: '/configuracoes/caminhoes', rotulo: 'Caminhões' },
+                          { para: '/configuracoes/utilitarios', rotulo: 'Utilitários' },
                         ]
                       : []),
                   ],
@@ -307,8 +310,26 @@ export function Layout({ children }: { children: ReactNode }) {
             },
           ]
         : []),
+      ...(souSuperAdmin
+        ? [
+            {
+              // SESSAO-27 (D-100): só o dono, por enquanto — o gate de verdade é do banco.
+              id: 'super-admin',
+              rotulo: 'Super admin',
+              icone: <ShieldCheck aria-hidden />,
+              secoes: [
+                {
+                  filhos: [
+                    { para: '/super-admin/automacoes', rotulo: 'Automações' },
+                    { para: '/super-admin/auditoria', rotulo: 'Auditoria' },
+                  ],
+                },
+              ],
+            },
+          ]
+        : []),
     ]
-  }, [perfil, vinculos, setores, souAdmin, ehDoPcp, ehDeTerminal, ehLider, veFabrica, veComercial])
+  }, [perfil, vinculos, setores, souAdmin, souSuperAdmin, ehDoPcp, ehDeTerminal, ehLider, veFabrica, veComercial])
 
   const grupoAtivo = grupos.find((g) =>
     filhosDoGrupo(g).some((f) => location.pathname.startsWith(f.para)),
@@ -515,15 +536,9 @@ export function Layout({ children }: { children: ReactNode }) {
             )}
           </NavLink>
 
-          {/* Configurações no lugar do sino (D-36): as pessoais vivem no perfil. */}
-          <NavLink
-            to="/inicio/meu-perfil"
-            onClick={() => setGavetaAberta(false)}
-            aria-label="Configurações"
-            className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
-          >
-            <Settings aria-hidden className="size-5" />
-          </NavLink>
+          {/* SESSAO-27 (D-100): a engrenagem virou o seletor de TEMA — as
+              configurações pessoais e o perfil eram a mesma coisa. */}
+          <SeletorTemaRapido recolhida={recolhida} />
           <button
             type="button"
             onClick={() => void sair()}

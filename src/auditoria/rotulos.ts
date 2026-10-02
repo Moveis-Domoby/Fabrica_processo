@@ -94,6 +94,29 @@ export const ROTULO_ACAO: Record<string, string> = {
   chat_aviso_publicado: 'Publicou nos avisos gerais',
   // avisos do sino
   notificacao_enviada: 'Aviso enviado no sino',
+  // automações, etiquetas e campos customizados (SESSAO-27)
+  automacao_executada: 'Uma automação rodou',
+  automacao_criada: 'Criou uma automação',
+  automacao_editada: 'Alterou uma automação',
+  automacao_ligada: 'Ligou uma automação',
+  automacao_desligada: 'Desligou uma automação',
+  automacao_arquivada: 'Arquivou uma automação',
+  automacao_reativada: 'Reativou uma automação',
+  etiqueta_adicionada: 'Pôs uma etiqueta no card',
+  etiqueta_removida: 'Tirou uma etiqueta do card',
+  card_desarquivado: 'Trouxe o card de volta',
+  etiqueta_criada: 'Cadastrou uma etiqueta',
+  etiqueta_editada: 'Alterou uma etiqueta',
+  etiqueta_arquivada: 'Arquivou uma etiqueta',
+  etiqueta_reativada: 'Reativou uma etiqueta',
+  etiqueta_excluida: 'Excluiu uma etiqueta',
+  campo_criado: 'Cadastrou um campo customizado',
+  campo_editado: 'Alterou um campo customizado',
+  campo_arquivado: 'Arquivou um campo customizado',
+  campo_reativado: 'Reativou um campo customizado',
+  campo_excluido: 'Excluiu um campo customizado',
+  campo_preenchido: 'Preencheu um campo customizado',
+  campo_limpo: 'Limpou um campo customizado',
 }
 
 /** Código sem rótulo vira frase: "algo_novo" → "Algo novo". */
@@ -119,6 +142,7 @@ export type GrupoAcao =
   | 'equipe'
   | 'chat'
   | 'avisos'
+  | 'automacoes'
 
 /** Os tipos do filtro — cada um manda ao servidor a lista das ações dele. */
 export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[] = [
@@ -139,6 +163,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'unidade_desvinculada',
       'peca_alocada',
       'id_producao_definido',
+      'card_desarquivado',
     ],
   },
   {
@@ -193,6 +218,13 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
   },
   { valor: 'chat', rotulo: 'Chat (sem as mensagens)', acoes: Object.keys(ROTULO_ACAO).filter((a) => a.startsWith('chat_')) },
   { valor: 'avisos', rotulo: 'Avisos do sino', acoes: ['notificacao_enviada'] },
+  {
+    valor: 'automacoes',
+    rotulo: 'Automações, etiquetas e campos',
+    acoes: Object.keys(ROTULO_ACAO).filter(
+      (a) => a.startsWith('automacao_') || a.startsWith('etiqueta_') || a.startsWith('campo_'),
+    ),
+  },
 ]
 
 export function grupoDaAcao(acao: string): GrupoAcao | null {
@@ -225,13 +257,25 @@ const TELAS: Record<string, string> = {
   '/comercial/recompra': 'Comercial · Painel de Recompra',
   '/comercial/dashboard': 'Comercial · Dashboard',
   '/comercial/listas': 'Comercial · Listas de disparo',
-  '/admin/equipe': 'Painel admin · Gestão da equipe',
-  '/admin/setores-e-etapas': 'Painel admin · Setores e etapas',
-  '/admin/tempo': 'Painel admin · Controle de tempo',
-  '/admin/estoque': 'Painel admin · Estoque',
-  '/admin/api': 'Painel admin · API e integrações',
-  '/admin/caminhoes': 'Painel admin · Caminhões',
-  '/admin/auditoria': 'Painel admin · Auditoria',
+  // SESSAO-27 (D-100): o "Painel admin" virou Configurações; Auditoria e
+  // Automações moram no Super admin. Os endereços antigos (que estão na
+  // trilha de antes) ganham o nome de hoje.
+  '/configuracoes/equipe': 'Configurações · Gestão da equipe',
+  '/configuracoes/setores-e-etapas': 'Configurações · Setores e etapas',
+  '/configuracoes/tempo': 'Configurações · Controle de tempo',
+  '/configuracoes/estoque': 'Configurações · Estoque',
+  '/configuracoes/api': 'Configurações · API e integrações',
+  '/configuracoes/caminhoes': 'Configurações · Caminhões',
+  '/configuracoes/utilitarios': 'Configurações · Utilitários',
+  '/super-admin/automacoes': 'Super admin · Automações',
+  '/super-admin/auditoria': 'Super admin · Auditoria',
+  '/admin/equipe': 'Configurações · Gestão da equipe',
+  '/admin/setores-e-etapas': 'Configurações · Setores e etapas',
+  '/admin/tempo': 'Configurações · Controle de tempo',
+  '/admin/estoque': 'Configurações · Estoque',
+  '/admin/api': 'Configurações · API e integrações',
+  '/admin/caminhoes': 'Configurações · Caminhões',
+  '/admin/auditoria': 'Super admin · Auditoria',
 }
 
 /** O nome da tela a partir do endereço — o quadro de cada setor pelo nome do setor. */
@@ -272,7 +316,8 @@ const ESTADO_QUALIDADE: Record<string, string> = {
   atencao: 'Estado de atenção',
   danificado: 'Danificado',
 }
-const ORIGEM: Record<string, string> = {
+/** De onde veio o gesto — também a linha do tempo do card usa (SESSAO-27). */
+export const ORIGEM: Record<string, string> = {
   interface: 'Pela tela',
   api: 'Pela integração',
   automacao: 'Automático',
@@ -310,6 +355,13 @@ const CHAVES: Record<string, string> = {
   url: 'Endereço da foto',
   caminho: 'Arquivo',
   anterior: 'Arquivo anterior',
+  automacao: 'Automação',
+  etiqueta: 'Etiqueta',
+  cor: 'Cor',
+  campo: 'Campo',
+  gatilho: 'Quando',
+  situacao: 'Resultado',
+  ligada: 'Estava ligada',
 }
 /** Chaves que só servem à máquina (ids) — não vão para a tela. */
 function ehChaveDeMaquina(chave: string): boolean {

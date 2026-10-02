@@ -114,7 +114,7 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
                     O mínimo acompanha a sugestão sozinho. Editou à mão, trava naquele valor até
                     tocar em "voltar ao automático". O do Tiny fica só como referência.
                   </span>
-                  <span>Pedido fora do comum (Painel admin) não entra na conta.</span>
+                  <span>Pedido fora do comum (Configurações → Estoque) não entra na conta.</span>
                 </span>
               </Dica>
             </div>

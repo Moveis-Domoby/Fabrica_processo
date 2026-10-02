@@ -40,6 +40,9 @@ import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
 import type { Card } from '@/kanban/tipos'
+import { useCamposDosPedidos, useEtiquetasDosCards } from '@/utilitarios/consultas'
+import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
+import { CamposDoCard } from '@/utilitarios/CamposDoCard'
 
 const ATUALIZA_A_CADA = 20_000
 
@@ -207,6 +210,11 @@ export function PCP() {
     [cardsPedidoAbertos, cardDoLink],
   )
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
+  // SESSAO-27 (D-101): etiquetas e campos do pedido — só dos cards mostrados.
+  const etiquetasPorCard = useEtiquetasDosCards(todosOsCards.map((c) => c.id))
+  const camposPorPedido = useCamposDosPedidos(
+    todosOsCards.map((c) => c.pedido_id).filter((id): id is number => id !== null),
+  )
 
   if (!carregando && !souAdmin && !souDoPcp) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -345,6 +353,21 @@ export function PCP() {
                 <p className="line-clamp-1 text-sm text-texto-suave">
                   {resumo?.cliente_nome || '…'}
                 </p>
+
+                {/* SESSAO-27 (D-101): etiquetas e campos customizados do pedido. */}
+                <EtiquetasDoCard ids={etiquetasPorCard.get(card.id)} />
+                {card.pedido_id !== null && (camposPorPedido.get(card.pedido_id)?.length ?? 0) > 0 && (
+                  <dl className="flex flex-col gap-0.5 text-xs">
+                    {camposPorPedido.get(card.pedido_id)!.map((c) => (
+                      <div key={c.campoId} className="flex min-w-0 gap-1">
+                        <dt className="shrink-0 text-texto-suave">{c.nome}:</dt>
+                        <dd className="truncate font-medium text-texto" title={c.texto}>
+                          {c.texto}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
 
                 {/* Rodada de 30/09 (migration 48 — D-62): há peça no galpão
                     que atende este pedido — o sinal visual que o dono pediu. */}
@@ -679,6 +702,7 @@ function ModalPedidoProducao({
   aoFechar: () => void
 }) {
   const agora = useAgora()
+  const souAdminModal = useSessao().perfil?.papel === 'admin'
   const { data: itens = [], isPending: carregandoItens } = useQuery({
     queryKey: ['pcp-detalhe-itens', pedido?.pedido_id],
     queryFn: () => itensDoPedido(pedido!.pedido_id),
@@ -724,6 +748,9 @@ function ModalPedidoProducao({
               </span>
             )}
           </div>
+
+          {/* SESSAO-27 (D-101): os campos customizados do pedido — o admin preenche aqui. */}
+          <CamposDoCard pedidoId={pedido.pedido_id} podeEditar={souAdminModal} />
 
           <section aria-label="Itens do pedido" className="flex flex-col gap-1.5">
             <h3 className="text-sm font-semibold text-texto">Itens (em unidades de produção)</h3>

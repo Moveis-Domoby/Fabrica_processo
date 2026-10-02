@@ -67,6 +67,26 @@
   --color-info-forte: var(--dm-info-forte);
   --color-info-texto: var(--dm-info-texto);
 
+  /* --- Etiquetas dos cards (SESSAO-27 · D-101) --------------------------- */
+  --color-etiqueta-azul-fundo: var(--dm-etiqueta-azul-fundo);
+  --color-etiqueta-azul-borda: var(--dm-etiqueta-azul-borda);
+  --color-etiqueta-azul-texto: var(--dm-etiqueta-azul-texto);
+  --color-etiqueta-violeta-fundo: var(--dm-etiqueta-violeta-fundo);
+  --color-etiqueta-violeta-borda: var(--dm-etiqueta-violeta-borda);
+  --color-etiqueta-violeta-texto: var(--dm-etiqueta-violeta-texto);
+  --color-etiqueta-ciano-fundo: var(--dm-etiqueta-ciano-fundo);
+  --color-etiqueta-ciano-borda: var(--dm-etiqueta-ciano-borda);
+  --color-etiqueta-ciano-texto: var(--dm-etiqueta-ciano-texto);
+  --color-etiqueta-rosa-fundo: var(--dm-etiqueta-rosa-fundo);
+  --color-etiqueta-rosa-borda: var(--dm-etiqueta-rosa-borda);
+  --color-etiqueta-rosa-texto: var(--dm-etiqueta-rosa-texto);
+  --color-etiqueta-marrom-fundo: var(--dm-etiqueta-marrom-fundo);
+  --color-etiqueta-marrom-borda: var(--dm-etiqueta-marrom-borda);
+  --color-etiqueta-marrom-texto: var(--dm-etiqueta-marrom-texto);
+  --color-etiqueta-cinza-fundo: var(--dm-etiqueta-cinza-fundo);
+  --color-etiqueta-cinza-borda: var(--dm-etiqueta-cinza-borda);
+  --color-etiqueta-cinza-texto: var(--dm-etiqueta-cinza-texto);
+
   /* --- Destaque do menu lateral (SESSAO-20) ----------------------------- */
   --color-menu-ativo: var(--dm-menu-ativo);
   --color-menu-ativo-texto: var(--dm-menu-ativo-texto);

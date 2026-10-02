@@ -9,6 +9,8 @@ import { eventoEstornavel, montarSegmentos } from '../linha-tempo'
 import { formatarDuracaoMs, useAgora } from '../tempo'
 import type { Card, EventoLinhaTempo, PedidoResumo } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
+import { ORIGEM } from '@/auditoria/rotulos'
+import { CamposDoCard } from '@/utilitarios/CamposDoCard'
 
 export interface ModalLinhaTempoProps {
   card: Card | null
@@ -40,6 +42,10 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   // SESSAO-24: a peça que perdeu o pedido e a peça do estoque usada por um pedido.
   unidade_desvinculada: 'Ficou sem dono (pedido cancelado)',
   peca_alocada: 'Usada por um pedido',
+  // SESSAO-27: etiquetas (as automações põem e tiram) e o "trazer de volta".
+  etiqueta_adicionada: 'Etiqueta posta',
+  etiqueta_removida: 'Etiqueta tirada',
+  card_desarquivado: 'Trazido de volta',
 }
 
 function hora(iso: string): string {
@@ -155,6 +161,9 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
             </span>
           </p>
         )}
+
+        {/* SESSAO-27 (D-101): os campos customizados — o admin preenche aqui. */}
+        {card && <CamposDoCard card={card} podeEditar={perfil?.papel === 'admin'} />}
 
         {!isPending && segmentos.length === 0 && (
           <p className="text-sm text-texto-suave">Este card ainda não tem movimentação.</p>
@@ -348,8 +357,11 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
                         {e.etapa_destino_nome && ` (${e.etapa_destino_nome})`}
                       </span>
                     )}
+                    {(e.tipo === 'etiqueta_adicionada' || e.tipo === 'etiqueta_removida') &&
+                      typeof e.dados?.etiqueta === 'string' && <span>“{e.dados.etiqueta}”</span>}
                     {e.observacao && <span className="italic">“{e.observacao}”</span>}
-                    {e.origem !== 'interface' && <span>[{e.origem}]</span>}
+                    {/* SESSAO-27: a origem em língua de gente ("Automático", "Pela integração"). */}
+                    {e.origem !== 'interface' && <span>· {ORIGEM[e.origem] ?? e.origem}</span>}
                   </li>
                 ))}
               </ol>

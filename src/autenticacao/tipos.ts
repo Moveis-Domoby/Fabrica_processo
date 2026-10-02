@@ -29,6 +29,8 @@ export interface Perfil {
   foto_caminho: string | null
   /** Módulos liberados (SESSAO-19/D-46): 'fabrica' e/ou 'comercial'. Admin vê tudo. */
   modulos: Modulo[]
+  /** SESSAO-27 (D-100): abre o Painel super admin (Automações e Auditoria). Só o dono, por ora. */
+  super_admin?: boolean
 }
 
 export type Modulo = 'fabrica' | 'comercial'
@@ -52,4 +54,9 @@ export interface VinculoSetor {
 /** Colunas de plt_usuarios que o front pode ler. NUNCA usar select('*') aqui:
  *  cpf/convite_token/pin_hash são revogados e derrubariam a consulta inteira. */
 export const COLUNAS_PERFIL =
-  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, arquivado_em, tema, foto_caminho, modulos'
+  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, arquivado_em, tema, foto_caminho, modulos, super_admin'
+
+/** O gate do Painel super admin no front (espelho de plt_privado.fn_eh_super_admin). */
+export function ehSuperAdmin(perfil: Perfil | null): boolean {
+  return perfil !== null && perfil.papel === 'admin' && perfil.super_admin === true
+}
