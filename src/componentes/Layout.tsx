@@ -138,6 +138,20 @@ export function Layout({ children }: { children: ReactNode }) {
   }
 
   const telaCheia = perfil !== null && location.pathname.startsWith('/tablet')
+  // SESSAO-27 (pedido do dono, 02/10): abrir uma automação é entrar numa ÁREA
+  // DE TRABALHO — o menu RECOLHE sozinho ao entrar (a pessoa pode reabrir) e
+  // volta ao jeito lembrado ao sair; a barra do editor tem o voltar.
+  const modoFoco =
+    perfil !== null &&
+    location.pathname === '/super-admin/automacoes' &&
+    new URLSearchParams(location.search).has('a')
+  const [focoAnterior, setFocoAnterior] = useState(false)
+  if (modoFoco !== focoAnterior) {
+    setFocoAnterior(modoFoco)
+    setRecolhida(modoFoco ? true : lerGuardado(CHAVE_RECOLHIDA))
+    setPainelRecolhido(modoFoco ? true : lerGuardado(CHAVE_PAINEL))
+    setGavetaAberta(false)
+  }
   const souAdmin = perfil?.papel === 'admin'
   const souSuperAdmin = ehSuperAdmin(perfil)
   const ehDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
@@ -684,6 +698,11 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {modoFoco ? (
+        // A área de trabalho das automações: a altura toda da tela (menos a
+        // barra do celular); o voltar mora na barra do próprio editor.
+        <main className="flex h-[calc(100dvh-60px)] min-w-0 flex-1 flex-col overflow-hidden lg:h-dvh">{children}</main>
+      ) : (
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         {/* Toda tela tem botão de voltar (D-36). */}
         <div className="w-full px-4 pt-3 sm:px-6">
@@ -696,12 +715,13 @@ export function Layout({ children }: { children: ReactNode }) {
           Móveis Domoby · Plataforma de Produção
         </footer>
       </div>
+      )}
 
       {/* A bolinha do "em execução agora" percorre a plataforma inteira
           (pedido do dono, 23/09) — só aparece quando algo conta tempo. */}
-      <BolhaExecucao />
+      {!modoFoco && <BolhaExecucao />}
       {/* O balão do chat (SESSAO-26): arrastável, ao lado da bolinha. */}
-      <BalaoChat />
+      {!modoFoco && <BalaoChat />}
     </div>
     </ProvedorChat>
   )

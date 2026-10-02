@@ -7,11 +7,13 @@ import {
   ArrowLeft,
   CirclePause,
   CirclePlay,
+  History,
   Plus,
   Save,
   Workflow,
+  X,
 } from 'lucide-react'
-import { Botao, Campo, Dica, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
+import { Botao, Dica, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { buscarEtapasAtivas, buscarSetores } from '@/kanban/api'
 import { usuariosAtivos } from '@/metas/api'
@@ -306,7 +308,11 @@ function LinhaAutomacao({ automacao: a, nomes }: { automacao: AutomacaoResumo; n
 }
 
 // ---------------------------------------------------------------------------
-// O editor
+// O editor — uma ÁREA DE TRABALHO em tela cheia (pedido do dono, 02/10: "sempre
+// que eu clicar para entrar no canvas, deve abrir uma área de workflow com foco
+// no trabalho … apenas na parte superior, um botão de salvar, publicar …, fecha
+// inclusive o menu esquerdo"). A casca (Layout) tira o menu; aqui: a barra fina
+// no topo, o canvas no resto, e as gavetas da direita (o bloco, o histórico).
 // ---------------------------------------------------------------------------
 
 function EditorCarregado({ chave }: { chave: string }) {
@@ -319,7 +325,7 @@ function EditorCarregado({ chave }: { chave: string }) {
   if (id === null) return <Editor key="nova" automacao={null} />
   if (consulta.isError)
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 p-4">
         <Link to="/super-admin/automacoes" className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto-suave">
           <ArrowLeft aria-hidden className="size-4" /> Voltar às automações
         </Link>
@@ -328,10 +334,12 @@ function EditorCarregado({ chave }: { chave: string }) {
         </p>
       </div>
     )
-  if (!consulta.data) return <p className="text-sm text-texto-fraco">Carregando…</p>
-  // a chave muda quando outra automação abre → o editor nasce de novo com o estado dela
+  if (!consulta.data) return <p className="p-4 text-sm text-texto-fraco">Carregando…</p>
+  // a chave muda quando outra automação abre (ou volta salva) → o editor nasce de novo com o estado dela
   return <Editor key={`${consulta.data.id}-${consulta.data.atualizada_em}`} automacao={consulta.data} />
 }
+
+type Gaveta = 'bloco' | null
 
 function Editor({ automacao }: { automacao: Automacao | null }) {
   const notificar = useNotificacao()
@@ -341,29 +349,39 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
   const [nome, setNome] = useState(automacao?.nome ?? '')
   const [estado, setEstado] = useState<EstadoDesenho>(() => (automacao ? montarDesenho(automacao) : desenhoNovo()))
   const [selecionado, setSelecionado] = useState<string | null>(automacao ? null : ID_QUANDO)
+  const [gaveta, setGaveta] = useState<Gaveta>(automacao ? null : 'bloco')
+  // Como no n8n: as execuções ficam escondidas até clicar em "Execuções" lá em cima.
+  const [vista, setVista] = useState<'editor' | 'execucoes'>('editor')
   const [alterado, setAlterado] = useState(automacao === null)
   const [adicionandoDepois, setAdicionandoDepois] = useState<string | null>(null)
-  const [confirmandoArquivar, setConfirmandoArquivar] = useState(false)
+  const [confirmando, setConfirmando] = useState<'publicar' | 'desligar' | 'arquivar' | null>(null)
 
   function mudar(novo: EstadoDesenho) {
     setEstado(novo)
     setAlterado(true)
   }
 
+  function selecionar(id: string | null) {
+    setSelecionado(id)
+    setGaveta(id ? 'bloco' : null)
+  }
+
+  async function gravar(): Promise<number> {
+    const { passos, desenho } = paraGuardar(estado)
+    return salvarAutomacao({
+      id: automacao?.id ?? null,
+      nome: nome.trim(),
+      gatilho: estado.gatilho,
+      gatilhoConfig: estado.gatilhoConfig,
+      passos,
+      desenho,
+    })
+  }
+
   const salvar = useMutation({
-    mutationFn: () => {
-      const { passos, desenho } = paraGuardar(estado)
-      return salvarAutomacao({
-        id: automacao?.id ?? null,
-        nome: nome.trim(),
-        gatilho: estado.gatilho,
-        gatilhoConfig: estado.gatilhoConfig,
-        passos,
-        desenho,
-      })
-    },
+    mutationFn: gravar,
     onSuccess: async (idSalvo) => {
-      notificar({ titulo: automacao ? 'Automação salva' : 'Automação criada — desligada até você ligar', tom: 'perfeito' })
+      notificar({ titulo: automacao ? 'Automação salva' : 'Automação criada — desligada até você publicar', tom: 'perfeito' })
       setAlterado(false)
       await clienteQuery.invalidateQueries({ queryKey: ['automacoes'] })
       if (!automacao) setParametros({ a: String(idSalvo) }, { replace: true })
@@ -372,11 +390,32 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
       notificar({ titulo: 'Não deu para salvar', descricao: excecao instanceof Error ? excecao.message : undefined, tom: 'danificado' }),
   })
 
+  // Publicar = salvar o que mudou E ligar (como no n8n); desligar só desliga.
+  const publicar = useMutation({
+    mutationFn: async (ligar: boolean) => {
+      let id = automacao?.id ?? null
+      if (ligar && (alterado || id === null)) id = await gravar()
+      await ligarAutomacao(id!, ligar)
+      return id!
+    },
+    onSuccess: async (idSalvo, ligar) => {
+      notificar({ titulo: ligar ? 'Publicada — a automação está ligada e já age sozinha' : 'Automação desligada', tom: 'perfeito' })
+      setConfirmando(null)
+      setAlterado(false)
+      await clienteQuery.invalidateQueries({ queryKey: ['automacoes'] })
+      if (!automacao) setParametros({ a: String(idSalvo) }, { replace: true })
+    },
+    onError: (excecao) => {
+      setConfirmando(null)
+      notificar({ titulo: 'Não deu certo', descricao: excecao instanceof Error ? excecao.message : undefined, tom: 'danificado' })
+    },
+  })
+
   const arquivar = useMutation({
     mutationFn: () => arquivarAutomacao(automacao!.id, automacao!.arquivada_em === null),
     onSuccess: async () => {
       notificar({ titulo: automacao!.arquivada_em ? 'Automação reativada (desligada)' : 'Automação arquivada', tom: 'perfeito' })
-      setConfirmandoArquivar(false)
+      setConfirmando(null)
       await clienteQuery.invalidateQueries({ queryKey: ['automacoes'] })
     },
     onError: (excecao) =>
@@ -386,6 +425,8 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
   const blocoSelecionado = selecionado && selecionado !== ID_QUANDO ? estado.blocos.find((b) => b.id === selecionado) : null
   const quantosSoltos = soltos(estado).length
   const naSequencia = sequencia(estado).length
+  const ligada = automacao?.ligada ?? false
+  const arquivada = Boolean(automacao?.arquivada_em)
 
   function titulos(id: string) {
     if (id === ID_QUANDO) {
@@ -402,131 +443,219 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
     }
   }
 
+  const gavetaAberta = gaveta === 'bloco' && (selecionado === ID_QUANDO || Boolean(blocoSelecionado))
+
   return (
-    <div className="flex flex-col gap-4">
-      <Link
-        to="/super-admin/automacoes"
-        className="inline-flex min-h-toque-md items-center gap-2 self-start text-sm text-texto-suave hover:text-texto"
-      >
-        <ArrowLeft aria-hidden className="size-4" /> Voltar às automações
-      </Link>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[min(100%,18rem)] flex-1">
-          <Campo
-            rotulo="Nome da automação"
-            value={nome}
-            maxLength={80}
-            placeholder="Ex.: Peça parada na montagem avisa o líder"
-            onChange={(e) => {
-              setNome(e.target.value)
-              setAlterado(true)
-            }}
-          />
-        </div>
-        {automacao && <SeloLigada ligada={automacao.ligada} />}
-        <Botao icone={<Save />} carregando={salvar.isPending} disabled={!nome.trim() || !alterado} onClick={() => salvar.mutate()}>
-          {alterado ? 'Salvar' : 'Salvo'}
-        </Botao>
-        {automacao && !automacao.arquivada_em && (
-          <BotaoLigar
-            id={automacao.id}
-            ligada={automacao.ligada}
-            desabilitado={alterado ? 'Salve antes de ligar ou desligar' : naSequencia === 0 ? 'Monte pelo menos um passo antes de ligar' : undefined}
-          />
+    <div className="flex h-full flex-col">
+      {/* A barra do topo: o único "menu" da área de trabalho */}
+      <header className="flex flex-wrap items-center gap-2 border-b border-borda bg-superficie px-2 py-2 sm:px-3">
+        <Link
+          to="/super-admin/automacoes"
+          aria-label="Sair do editor e voltar às automações"
+          title="Voltar às automações"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-dm text-texto hover:bg-superficie-sutil"
+        >
+          <ArrowLeft aria-hidden className="size-5" />
+        </Link>
+        <Workflow aria-hidden className="hidden size-5 shrink-0 text-texto-suave sm:block" />
+        <input
+          aria-label="Nome da automação"
+          value={nome}
+          maxLength={80}
+          placeholder="Dê um nome à automação"
+          onChange={(e) => {
+            setNome(e.target.value)
+            setAlterado(true)
+          }}
+          className="h-11 min-w-0 flex-1 rounded-dm border border-transparent bg-transparent px-2 text-base font-semibold text-texto hover:border-borda focus:border-borda-forte sm:max-w-md"
+        />
+        {automacao && <SeloLigada ligada={ligada} />}
+        {alterado && <span className="text-xs text-texto-suave">não salvo</span>}
+        {automacao && (
+          <span role="tablist" aria-label="O que ver" className="flex rounded-dm border border-borda bg-superficie-sutil p-0.5">
+            {(['editor', 'execucoes'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={vista === v}
+                onClick={() => {
+                  setVista(v)
+                  if (v === 'execucoes') selecionar(null)
+                }}
+                className={cn(
+                  'inline-flex min-h-10 items-center gap-1.5 rounded-[0.45rem] px-3 text-sm font-medium transition',
+                  vista === v ? 'bg-superficie text-texto shadow-sm' : 'text-texto-suave hover:text-texto',
+                )}
+              >
+                {v === 'editor' ? <Workflow aria-hidden className="size-4" /> : <History aria-hidden className="size-4" />}
+                {v === 'editor' ? 'Editor' : 'Execuções'}
+              </button>
+            ))}
+          </span>
         )}
-      </div>
 
-      {(quantosSoltos > 0 || (alterado && automacao?.ligada)) && (
-        <div className="flex flex-col gap-1 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">
-          {quantosSoltos > 0 && (
-            <span>
-              {quantosSoltos === 1 ? 'Há 1 bloco solto' : `Há ${quantosSoltos} blocos soltos`} — fora da sequência, não roda. Ligue
-              a bolinha da direita de um bloco à esquerda dele.
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          {confirmando ? (
+            <span className="flex flex-wrap items-center gap-2 rounded-dm border border-borda bg-superficie-sutil px-2 py-1">
+              <span className="text-sm text-texto">
+                {confirmando === 'publicar' && 'Publicar? Ela é salva e LIGADA — passa a agir sozinha.'}
+                {confirmando === 'desligar' && 'Desligar? Ela para de agir.'}
+                {confirmando === 'arquivar' && (arquivada ? 'Reativar? Ela volta desligada.' : 'Arquivar? Ela é desligada e sai da lista.')}
+              </span>
+              <Botao
+                tamanho="sm"
+                variante={confirmando === 'publicar' ? 'primaria' : 'secundaria'}
+                carregando={publicar.isPending || arquivar.isPending}
+                onClick={() => (confirmando === 'arquivar' ? arquivar.mutate() : publicar.mutate(confirmando === 'publicar'))}
+              >
+                {confirmando === 'publicar' ? 'Sim, publicar' : confirmando === 'desligar' ? 'Sim, desligar' : arquivada ? 'Sim, reativar' : 'Sim, arquivar'}
+              </Botao>
+              <Botao tamanho="sm" variante="fantasma" onClick={() => setConfirmando(null)}>
+                Não
+              </Botao>
             </span>
+          ) : (
+            <>
+              {automacao && (
+                <Botao
+                  tamanho="sm"
+                  variante="fantasma"
+                  icone={arquivada ? <ArchiveRestore /> : <Archive />}
+                  aria-label={arquivada ? 'Reativar a automação' : 'Arquivar a automação'}
+                  title={arquivada ? 'Reativar' : 'Arquivar'}
+                  onClick={() => setConfirmando('arquivar')}
+                />
+              )}
+              <Botao
+                tamanho="sm"
+                variante="secundaria"
+                icone={<Save />}
+                carregando={salvar.isPending}
+                disabled={!nome.trim() || !alterado}
+                onClick={() => salvar.mutate()}
+              >
+                {alterado ? 'Salvar' : 'Salvo'}
+              </Botao>
+              {!arquivada &&
+                (ligada ? (
+                  <Botao tamanho="sm" variante="secundaria" icone={<CirclePause />} onClick={() => setConfirmando('desligar')}>
+                    Desligar
+                  </Botao>
+                ) : (
+                  <Botao
+                    tamanho="sm"
+                    icone={<CirclePlay />}
+                    disabled={!nome.trim() || naSequencia === 0}
+                    title={naSequencia === 0 ? 'Monte pelo menos um passo antes de publicar' : 'Salva e liga a automação'}
+                    onClick={() => setConfirmando('publicar')}
+                  >
+                    Publicar
+                  </Botao>
+                ))}
+            </>
           )}
-          {alterado && automacao?.ligada && <span>Esta automação está ligada: as mudanças valem assim que você salvar.</span>}
-        </div>
-      )}
+        </span>
+      </header>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {/* A área de trabalho: o canvas no resto da tela; as gavetas por cima, à direita */}
+      {vista === 'execucoes' && automacao ? (
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="mx-auto w-full max-w-4xl">
+            <Execucoes automacaoId={automacao.id} />
+          </div>
+        </div>
+      ) : (
+      <div className="relative min-h-0 flex-1">
         <CanvasAutomacao
+          cheio
           estado={estado}
           aoMudar={mudar}
           selecionado={selecionado}
-          aoSelecionar={setSelecionado}
+          aoSelecionar={selecionar}
           aoAdicionar={(depoisDe) => setAdicionandoDepois(depoisDe)}
           titulos={titulos}
         />
-        <aside className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4" aria-label="Configurar o bloco">
-          {selecionado === ID_QUANDO ? (
-            <>
-              <h2 className="text-lg">Quando</h2>
-              <PainelQuando
-                gatilho={estado.gatilho}
-                config={estado.gatilhoConfig}
-                dados={dados}
-                automacaoId={automacao?.id ?? null}
-                aoMudar={(gatilho, gatilhoConfig) => mudar({ ...estado, gatilho, gatilhoConfig })}
-              />
-            </>
-          ) : blocoSelecionado ? (
-            <>
-              <h2 className="flex items-center gap-2 text-lg">
-                {ICONE_PASSO[blocoSelecionado.passo.tipo]}
-                {ROTULO_PASSO[blocoSelecionado.passo.tipo]}
-              </h2>
-              <PainelPasso
-                passo={blocoSelecionado.passo}
-                dados={dados}
-                segredo={automacao?.segredo ?? null}
-                aoMudar={(passo) => mudar(trocarPasso(estado, blocoSelecionado.id, passo))}
-                aoRemover={() => {
-                  mudar(remover(estado, blocoSelecionado.id))
-                  setSelecionado(null)
-                }}
-              />
-            </>
-          ) : (
-            <div className="flex flex-col gap-3 text-sm text-texto-suave">
-              <h2 className="text-lg text-texto">Montar</h2>
-              <p>Toque num bloco para configurar. O "+" ao lado de cada bloco põe o próximo já ligado.</p>
-              <Botao variante="secundaria" icone={<Plus />} onClick={() => setAdicionandoDepois(sequencia(estado).at(-1) ?? ID_QUANDO)}>
-                Pôr um bloco no fim
-              </Botao>
-            </div>
-          )}
-        </aside>
-      </div>
 
-      {automacao && (
-        <div className="flex flex-wrap items-center gap-2">
-          {confirmandoArquivar ? (
-            <>
-              <span className="text-sm text-texto">
-                {automacao.arquivada_em ? 'Reativar? Ela volta desligada.' : 'Arquivar? Ela é desligada e sai da lista (o histórico fica).'}
-              </span>
-              <Botao tamanho="sm" variante="secundaria" carregando={arquivar.isPending} onClick={() => arquivar.mutate()}>
-                {automacao.arquivada_em ? 'Sim, reativar' : 'Sim, arquivar'}
-              </Botao>
-              <Botao tamanho="sm" variante="fantasma" onClick={() => setConfirmandoArquivar(false)}>
-                Não
-              </Botao>
-            </>
-          ) : (
-            <Botao
-              tamanho="sm"
-              variante="fantasma"
-              icone={automacao.arquivada_em ? <ArchiveRestore /> : <Archive />}
-              onClick={() => setConfirmandoArquivar(true)}
-            >
-              {automacao.arquivada_em ? 'Reativar a automação' : 'Arquivar a automação'}
-            </Botao>
+        {/* Avisos que flutuam no canto (não roubam espaço do desenho) */}
+        <div className="pointer-events-none absolute left-3 top-3 flex max-w-[min(26rem,calc(100%-1.5rem))] flex-col gap-2">
+          {quantosSoltos > 0 && (
+            <p className="pointer-events-auto rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto shadow-sm">
+              {quantosSoltos === 1 ? '1 bloco solto' : `${quantosSoltos} blocos soltos`} — fora da sequência, não roda. Ligue a bolinha da
+              direita de um bloco à esquerda dele.
+            </p>
+          )}
+          {alterado && ligada && (
+            <p className="pointer-events-auto rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto shadow-sm">
+              Esta automação está ligada: as mudanças valem assim que você salvar.
+            </p>
+          )}
+          {!gavetaAberta && naSequencia === 0 && (
+            <p className="pointer-events-auto rounded-dm border border-borda bg-superficie px-3 py-2 text-xs text-texto-suave shadow-sm">
+              Toque no QUANDO para escolher o que dispara; o "+" ao lado dele põe o primeiro passo.
+            </p>
           )}
         </div>
-      )}
 
-      {automacao && <Execucoes automacaoId={automacao.id} />}
+        {gavetaAberta && (
+          <aside
+            aria-label="Configurar o bloco"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') selecionar(null)
+            }}
+            className="absolute inset-y-0 right-0 z-10 flex w-full flex-col border-l border-borda bg-superficie shadow-xl sm:w-[26rem]"
+          >
+            <div className="flex items-center gap-2 border-b border-borda px-4 py-2">
+              <h2 className="flex flex-1 items-center gap-2 text-lg">
+                {selecionado === ID_QUANDO
+                    ? 'Quando'
+                    : blocoSelecionado && (
+                        <>
+                          {ICONE_PASSO[blocoSelecionado.passo.tipo]}
+                          {ROTULO_PASSO[blocoSelecionado.passo.tipo]}
+                        </>
+                      )}
+              </h2>
+              <button
+                type="button"
+                aria-label="Fechar a gaveta"
+                onClick={() => {
+                  setSelecionado(null)
+                  setGaveta(null)
+                }}
+                className="inline-flex size-11 items-center justify-center rounded-dm text-texto-suave hover:bg-superficie-sutil"
+              >
+                <X aria-hidden className="size-5" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {selecionado === ID_QUANDO ? (
+                <PainelQuando
+                  gatilho={estado.gatilho}
+                  config={estado.gatilhoConfig}
+                  dados={dados}
+                  automacaoId={automacao?.id ?? null}
+                  aoMudar={(gatilho, gatilhoConfig) => mudar({ ...estado, gatilho, gatilhoConfig })}
+                />
+              ) : (
+                blocoSelecionado && (
+                  <PainelPasso
+                    passo={blocoSelecionado.passo}
+                    dados={dados}
+                    segredo={automacao?.segredo ?? null}
+                    aoMudar={(passo) => mudar(trocarPasso(estado, blocoSelecionado.id, passo))}
+                    aoRemover={() => {
+                      mudar(remover(estado, blocoSelecionado.id))
+                      selecionar(null)
+                    }}
+                  />
+                )
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+      )}
 
       <Modal
         aberto={adicionandoDepois !== null}
@@ -542,7 +671,7 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
                 onClick={() => {
                   const r = inserirDepois(estado, adicionandoDepois ?? ID_QUANDO, passoNovo(p.valor))
                   mudar(r.estado)
-                  setSelecionado(r.id)
+                  selecionar(r.id)
                   setAdicionandoDepois(null)
                 }}
                 className={cn(

@@ -45,6 +45,7 @@ export function CanvasAutomacao({
   aoAdicionar,
   titulos,
   somenteLeitura = false,
+  cheio = false,
 }: {
   estado: EstadoDesenho
   aoMudar: (estado: EstadoDesenho) => void
@@ -54,6 +55,8 @@ export function CanvasAutomacao({
   /** título e frase de cada bloco (id → {titulo, frase, icone}) */
   titulos: (id: string) => { titulo: string; frase: string; tipo: TipoPasso | 'quando' }
   somenteLeitura?: boolean
+  /** Área de trabalho em tela cheia: o canvas ocupa todo o espaço do pai, sem moldura. */
+  cheio?: boolean
 }) {
   const area = useRef<HTMLDivElement>(null)
   const [vista, setVista] = useState<Vista>({ x: 0, y: 0, zoom: 1 })
@@ -189,7 +192,7 @@ export function CanvasAutomacao({
   })
 
   return (
-    <div className="relative">
+    <div className={cn('relative', cheio && 'h-full')}>
       <div
         ref={area}
         role="application"
@@ -200,7 +203,8 @@ export function CanvasAutomacao({
         onPointerUp={aoSoltarPonteiro}
         onPointerCancel={() => setGesto(null)}
         className={cn(
-          'relative h-[clamp(24rem,62vh,46rem)] w-full touch-none select-none overflow-hidden rounded-dm-lg border border-borda bg-superficie-sutil',
+          'relative w-full touch-none select-none overflow-hidden bg-superficie-sutil',
+          cheio ? 'h-full' : 'h-[clamp(24rem,62vh,46rem)] rounded-dm-lg border border-borda',
           gesto?.tipo === 'pan' ? 'cursor-grabbing' : 'cursor-grab',
         )}
         style={{

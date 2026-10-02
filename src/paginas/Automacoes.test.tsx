@@ -145,9 +145,12 @@ describe('Super admin → Automações', () => {
     expect(enviado.desenho.versao).toBe(1)
   })
 
-  it('o editor mostra as últimas execuções com cada passo e o "Trazer de volta" quando a automação arquivou', async () => {
+  it('a aba Execuções (escondida até o clique) mostra cada passo e o "Trazer de volta" quando a automação arquivou', async () => {
     renderizar('/super-admin/automacoes?a=12')
     expect(await screen.findByDisplayValue('Entrou em A arquiva')).toBeInTheDocument()
+    // como no n8n: as execuções ficam escondidas até clicar na aba lá em cima
+    expect(screen.queryByText('Últimas execuções')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: /Execuções/ }))
     const execucao = (await screen.findByText(/Pedido 13429 · Mesa Teste \(1\/1\)/)).closest('li') as HTMLElement
     expect(within(execucao).getByText('Concluída')).toBeInTheDocument()
     expect(within(execucao).getByText(/Condição: o card entrou e continua na etapa/)).toBeInTheDocument()
