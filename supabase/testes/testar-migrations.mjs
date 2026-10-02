@@ -8865,7 +8865,76 @@ conferir(
 )
 await ligar51(a12, false)
 
-const a13 = (await salvar51('A13 parado avisa', 'card_parado', { horas: 1, setor_id: ids51.montagem, etapa_id: ids51.b }, [
+titulo('Automações (SESSAO-27) · "Se… senão": dois caminhos, cada um com os próprios passos')
+
+const doCaminho = (await um51(`select public.plt_fn_etiqueta_salvar(null, 'Do caminho 51', 'cinza')::int as id`)).id
+const soNoCaminho = (await um51(`select public.plt_fn_etiqueta_salvar(null, 'Só no caminho 51', 'cinza')::int as id`)).id
+const medida = (await um51(`select public.plt_fn_campo_salvar(null, 'Medida 51', 'numero', null, true, false)::int as id`)).id
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Passo depois do se senão', 'chamada_externa', '{}'::jsonb,
+                         ${j51([{ tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: urgente, entao: [], senao: [] }, { tipo: 'arquivar' }])}, '{}'::jsonb)`,
+  'passo DEPOIS de um "Se… senão" é recusado (os passos continuam dentro dos caminhos)', /DENTRO dos caminhos/)
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Caminho quebrado', 'chamada_externa', '{}'::jsonb,
+                         ${j51([{ tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: urgente, entao: [{ tipo: 'campo' }], senao: [] }])}, '{}'::jsonb)`,
+  'passo quebrado DENTRO de um caminho é recusado como fora dele', /escolha o campo a preencher/)
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Se senão sem condição', 'chamada_externa', '{}'::jsonb,
+                         ${j51([{ tipo: 'se_senao', entao: [], senao: [] }])}, '{}'::jsonb)`,
+  'o "Se… senão" sem condição é recusado com o nome dele', /condição do "Se… senão"/)
+await deveRecusarExec(`select public.plt_fn_automacao_salvar(null, 'Caminho grande demais', 'chamada_externa', '{}'::jsonb,
+                         ${j51([{ tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: urgente,
+                                  entao: Array.from({ length: 40 }, () => ({ tipo: 'desarquivar' })), senao: [] }])}, '{}'::jsonb)`,
+  'o limite de 40 passos conta os passos dos caminhos', /no máximo 40 passos/)
+
+// A peça tem "Revisar" (do teste da espera) → caminho Sim, com uma espera no meio
+const a15 = (await salvar51('A15 se senão revisar', 'chamada_externa', {}, [
+  { tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: revisar,
+    entao: [{ tipo: 'campo', campo_id: corMdf, valor: 'Branco' }, { tipo: 'esperar', quantidade: 1, unidade: 'minutos' },
+            { tipo: 'etiqueta_por', etiquetas: [doCaminho] }],
+    senao: [{ tipo: 'etiqueta_por', etiquetas: [urgente] }] },
+])).id
+await ligar51(a15)
+const r15 = (await um51(`select public.plt_fn_automacao_chamada(${a15}, ${ids51.peca}) as r`)).r
+const espera15 = await um51(`select situacao, proximo_passo, jsonb_array_length(passos_previstos) as previstos
+                               from public.plt_automacao_execucoes where id = ${r15.execucao_id}`)
+await bd.exec(`update public.plt_automacao_execucoes set executar_em = now() - interval '1 second' where id = ${r15.execucao_id}`)
+await bd.exec(`select plt_privado.fn_automacoes_relogio()`)
+const depois15 = await um51(`select situacao, resultado from public.plt_automacao_execucoes where id = ${r15.execucao_id}`)
+const cor15 = await um51(`select valor from public.plt_campos_valores where campo_id = ${corMdf} and card_id = ${ids51.peca}`)
+const peca15 = await peca51()
+conferir(
+  r15.situacao === 'esperando' && r15.resultado[0]?.resultado === 'sim' && /caminho Sim/.test(r15.resultado[0]?.frase ?? '')
+    && espera15.previstos === 4 && espera15.proximo_passo === 3
+    && depois15.situacao === 'concluida' && depois15.resultado.length === 4 && cor15?.valor === 'Branco'
+    && peca15.etiquetas.map(Number).includes(doCaminho) && !peca15.etiquetas.map(Number).includes(urgente),
+  '"Se tem Revisar": foi pelo caminho Sim (campo, espera, etiqueta) — a espera retomou DENTRO do caminho; o Senão não rodou',
+  JSON.stringify({ r15, espera15, depois15, cor15, peca15 }),
+)
+await ligar51(a15, false)
+
+// A peça NÃO tem "Urgente" → caminho Senão; o Sim (com etiqueta e campo) não roda
+const a16 = (await salvar51('A16 se senão urgente', 'chamada_externa', {}, [
+  { tipo: 'se_senao', condicao: 'tem_etiqueta', etiqueta_id: urgente,
+    entao: [{ tipo: 'etiqueta_por', etiquetas: [soNoCaminho] }, { tipo: 'campo', campo_id: medida, valor: 5 }],
+    senao: [{ tipo: 'etiqueta_tirar', etiquetas: [doCaminho] }] },
+])).id
+await ligar51(a16)
+const r16 = (await um51(`select public.plt_fn_automacao_chamada(${a16}, ${ids51.peca}) as r`)).r
+const peca16 = await peca51()
+conferir(
+  r16.situacao === 'concluida' && r16.resultado.length === 2 && r16.resultado[0].resultado === 'senao'
+    && /caminho Senão/.test(r16.resultado[0].frase) && r16.resultado[1].resultado === 'feito'
+    && !peca16.etiquetas.map(Number).includes(doCaminho) && !peca16.etiquetas.map(Number).includes(soNoCaminho),
+  '"Se tem Urgente": não tem → caminho Senão (tirou a etiqueta); o caminho Sim não rodou',
+  JSON.stringify({ r16, peca16 }),
+)
+await ligar51(a16, false)
+await deveRecusarExec(`select public.plt_fn_etiqueta_excluir(${soNoCaminho})`,
+  'etiqueta usada só DENTRO de um caminho (nunca rodou) também não se exclui', /arquive/i)
+await deveRecusarExec(`select public.plt_fn_campo_excluir(${medida})`,
+  'campo usado só DENTRO de um caminho também não se exclui', /arquive/i)
+const contagem15 = await um51(`select passos_total from public.plt_fn_automacoes(p_limite => 50) where id = ${a15}`)
+conferir(contagem15?.passos_total === 5, 'a lista conta os passos dos caminhos (1 "Se… senão" + 3 no Sim + 1 no Senão = 5)', JSON.stringify(contagem15))
+
+const a13 =(await salvar51('A13 parado avisa', 'card_parado', { horas: 1, setor_id: ids51.montagem, etapa_id: ids51.b }, [
   { tipo: 'avisar', destino: 'admins', titulo: 'Parado: {pedido}', mensagem: '{produto} parado em {setor} · {etapa}' },
 ])).id
 await ligar51(a13)

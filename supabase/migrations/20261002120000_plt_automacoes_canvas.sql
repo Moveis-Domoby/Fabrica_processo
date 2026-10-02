@@ -1077,16 +1077,44 @@ begin
     end if;
   end if;
 
+  -- os passos (com os caminhos do "Se… senão") — função recursiva abaixo
+  v_total := plt_privado.fn_automacao_validar_passos(p_passos, 0);
+  if v_total > 40 then
+    raise exception 'Uma automação tem no máximo 40 passos (contando os dos caminhos).' using errcode = 'check_violation';
+  end if;
+end;
+$$;
+
+create or replace function plt_privado.fn_automacao_validar_passos(p_passos jsonb, p_nivel integer default 0)
+returns integer
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_passo  jsonb;
+  v_tipo   text;
+  v_n      integer := 0;
+  v_qtd    integer;
+  v_total  integer := 0;
+  v_setor  public.plt_setores%rowtype;
+  v_etapa  public.plt_etapas%rowtype;
+  v_id     bigint;
+  v_campo  public.plt_campos%rowtype;
+  v_rotulo text;
+begin
   if p_passos is null or jsonb_typeof(p_passos) <> 'array' then
     raise exception 'A sequência de passos está quebrada.' using errcode = 'check_violation';
   end if;
-  v_total := jsonb_array_length(p_passos);
-  if v_total > 20 then
-    raise exception 'Uma automação tem no máximo 20 passos.' using errcode = 'check_violation';
+  if p_nivel > 5 then
+    raise exception 'Caminhos dentro de caminhos: no máximo 5 níveis.' using errcode = 'check_violation';
   end if;
+  v_qtd := jsonb_array_length(p_passos);
 
   for v_passo in select value from jsonb_array_elements(p_passos) loop
     v_n := v_n + 1;
+    v_total := v_total + 1;
     v_tipo := v_passo ->> 'tipo';
     if v_tipo = 'mover' then
       select * into v_setor from public.plt_setores where id = nullif(v_passo ->> 'setor_id', '')::bigint and ativo;
@@ -1149,19 +1177,20 @@ begin
             * (case v_passo ->> 'unidade' when 'minutos' then 1 when 'horas' then 60 else 1440 end) > 43200 then
         raise exception 'Passo %: espere de 1 minuto a 30 dias.', v_n using errcode = 'check_violation';
       end if;
-    elsif v_tipo = 'se' then
+    elsif v_tipo in ('se', 'se_senao') then
+      v_rotulo := case v_tipo when 'se' then '"só se"' else '"Se… senão"' end;
       if coalesce(v_passo ->> 'condicao', '') not in ('tem_etiqueta', 'nao_tem_etiqueta', 'campo_igual', 'campo_vazio',
                                                      'campo_preenchido', 'no_setor', 'situacao_pedido', 'tipo_card') then
-        raise exception 'Passo %: escolha a condição do "só se".', v_n using errcode = 'check_violation';
+        raise exception 'Passo %: escolha a condição do %.', v_n, v_rotulo using errcode = 'check_violation';
       end if;
       if v_passo ->> 'condicao' in ('tem_etiqueta', 'nao_tem_etiqueta')
          and not exists (select 1 from public.plt_etiquetas where id = nullif(v_passo ->> 'etiqueta_id', '')::bigint) then
-        raise exception 'Passo %: escolha a etiqueta do "só se".', v_n using errcode = 'check_violation';
+        raise exception 'Passo %: escolha a etiqueta do %.', v_n, v_rotulo using errcode = 'check_violation';
       end if;
       if v_passo ->> 'condicao' in ('campo_igual', 'campo_vazio', 'campo_preenchido') then
         select * into v_campo from public.plt_campos where id = nullif(v_passo ->> 'campo_id', '')::bigint;
         if not found then
-          raise exception 'Passo %: escolha o campo do "só se".', v_n using errcode = 'check_violation';
+          raise exception 'Passo %: escolha o campo do %.', v_n, v_rotulo using errcode = 'check_violation';
         end if;
         if v_passo ->> 'condicao' = 'campo_igual' then
           perform plt_privado.fn_campo_valor_normalizado(v_campo, v_passo -> 'valor');
@@ -1169,18 +1198,51 @@ begin
       end if;
       if v_passo ->> 'condicao' = 'no_setor'
          and not exists (select 1 from public.plt_setores where id = nullif(v_passo ->> 'setor_id', '')::bigint) then
-        raise exception 'Passo %: escolha o setor do "só se".', v_n using errcode = 'check_violation';
+        raise exception 'Passo %: escolha o setor do %.', v_n, v_rotulo using errcode = 'check_violation';
       end if;
       if v_passo ->> 'condicao' in ('situacao_pedido', 'tipo_card')
          and (jsonb_typeof(v_passo -> 'valores') is distinct from 'array' or jsonb_array_length(v_passo -> 'valores') = 0) then
-        raise exception 'Passo %: escolha pelo menos uma opção do "só se".', v_n using errcode = 'check_violation';
+        raise exception 'Passo %: escolha pelo menos uma opção do %.', v_n, v_rotulo using errcode = 'check_violation';
+      end if;
+      -- SESSAO-27 (pedido do dono): o "Se… senão" — dois caminhos, cada um com
+      -- os próprios passos; nada vem DEPOIS dele na mesma sequência.
+      if v_tipo = 'se_senao' then
+        if v_n < v_qtd then
+          raise exception 'Passo %: depois de um "Se… senão", os passos continuam DENTRO dos caminhos (Sim e Senão).', v_n
+            using errcode = 'check_violation';
+        end if;
+        v_total := v_total
+                 + plt_privado.fn_automacao_validar_passos(coalesce(v_passo -> 'entao', '[]'::jsonb), p_nivel + 1)
+                 + plt_privado.fn_automacao_validar_passos(coalesce(v_passo -> 'senao', '[]'::jsonb), p_nivel + 1);
       end if;
     else
       raise exception 'Passo %: bloco desconhecido.', v_n using errcode = 'check_violation';
     end if;
   end loop;
+  return v_total;
 end;
 $$;
+
+revoke all on function plt_privado.fn_automacao_validar_passos(jsonb, integer) from public, anon, authenticated;
+
+-- Quantos passos (os dos caminhos do "Se… senão" também) — a lista mostra.
+create or replace function plt_privado.fn_automacao_contar_passos(p_passos jsonb)
+returns integer
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+begin
+  return coalesce((
+    select sum(1 + case when s ->> 'tipo' = 'se_senao'
+                        then plt_privado.fn_automacao_contar_passos(coalesce(s -> 'entao', '[]'::jsonb))
+                           + plt_privado.fn_automacao_contar_passos(coalesce(s -> 'senao', '[]'::jsonb))
+                        else 0 end)
+      from jsonb_array_elements(coalesce(p_passos, '[]'::jsonb)) s), 0)::integer;
+end;
+$$;
+
+revoke all on function plt_privado.fn_automacao_contar_passos(jsonb) from public, anon, authenticated;
 
 revoke all on function plt_privado.fn_automacao_validar(text, jsonb, jsonb) from public, anon, authenticated;
 
@@ -1595,6 +1657,7 @@ declare
   v_ret    jsonb;
   v_res    jsonb;
   v_min    numeric;
+  v_caminho text;
 begin
   select * into v_exec from public.plt_automacao_execucoes where id = p_exec_id for update;
   if not found or v_exec.situacao not in ('rodando', 'esperando') then
@@ -1628,14 +1691,30 @@ begin
         update public.plt_automacao_execucoes
            set situacao = 'esperando', proximo_passo = v_i + 1,
                executar_em = now() + make_interval(mins => v_min::integer),
-               resultado = v_res, atualizada_em = now()
+               resultado = v_res, passos_previstos = v_passos, atualizada_em = now()
          where id = v_exec.id;
         perform plt_privado.fn_automacoes_relogio_ajustar();
         return 'esperando';
       end if;
 
       begin
-        if v_passo ->> 'tipo' = 'se' then
+        if v_passo ->> 'tipo' = 'se_senao' then
+          -- SESSAO-27: o "Se… senão" escolhe o caminho; daqui em diante o plano
+          -- da execução É esse caminho (guardado — o "esperar" retoma certo).
+          v_ret := plt_privado.fn_automacao_condicao(v_passo, v_exec);
+          v_caminho := case when (v_ret ->> 'ok')::boolean then 'entao' else 'senao' end;
+          v_res := v_res || jsonb_build_array(jsonb_build_object(
+                     'n', v_i + 1, 'tipo', 'se_senao',
+                     'resultado', case when v_caminho = 'entao' then 'sim' else 'senao' end,
+                     'frase', 'se ' || (v_ret ->> 'frase') || ' → '
+                              || case when v_caminho = 'entao' then 'caminho Sim' else 'caminho Senão' end,
+                     'em', now()));
+          v_passos := coalesce((select jsonb_agg(e.valor order by e.ordem)
+                                  from jsonb_array_elements(v_passos) with ordinality e(valor, ordem)
+                                 where e.ordem <= v_i + 1), '[]'::jsonb)
+                      || coalesce(v_passo -> v_caminho, '[]'::jsonb);
+          v_total := jsonb_array_length(v_passos);
+        elsif v_passo ->> 'tipo' = 'se' then
           v_ret := plt_privado.fn_automacao_condicao(v_passo, v_exec);
           v_res := v_res || jsonb_build_array(jsonb_build_object(
                      'n', v_i + 1, 'tipo', 'se',
@@ -1666,7 +1745,7 @@ begin
 
     update public.plt_automacao_execucoes
        set situacao = v_exec.situacao, resultado = v_res, proximo_passo = null, executar_em = null,
-           atualizada_em = now()
+           passos_previstos = v_passos, atualizada_em = now()
      where id = v_exec.id;
   end if;
 
@@ -2073,10 +2152,11 @@ begin
               where tipo in ('etiqueta_adicionada', 'etiqueta_removida') and dados ->> 'etiqueta_id' = p_id::text)
      or exists (select 1 from public.plt_automacoes a
                  where a.gatilho_config ->> 'etiqueta_id' = p_id::text
-                    or exists (select 1 from jsonb_array_elements(a.passos) s
-                                where s ->> 'etiqueta_id' = p_id::text
-                                   or exists (select 1 from jsonb_array_elements_text(coalesce(s -> 'etiquetas', '[]'::jsonb)) t
-                                               where t = p_id::text))) then
+                    -- em qualquer nível (os caminhos do "Se… senão" também)
+                    or jsonb_path_exists(a.passos, '$.**.etiqueta_id ? (@ == $n || @ == $t)',
+                                         jsonb_build_object('n', p_id, 't', p_id::text))
+                    or jsonb_path_exists(a.passos, '$.**.etiquetas[*] ? (@ == $n || @ == $t)',
+                                         jsonb_build_object('n', p_id, 't', p_id::text))) then
     raise exception 'A etiqueta "%" já foi usada — arquive em vez de excluir (a história fica).', v_nome
       using errcode = 'foreign_key_violation';
   end if;
@@ -2206,8 +2286,9 @@ begin
   if exists (select 1 from public.plt_campos_valores where campo_id = p_id)
      or exists (select 1 from public.plt_logs_atividade
                  where acao in ('campo_preenchido', 'campo_limpo') and contexto ->> 'campo_id' = p_id::text)
-     or exists (select 1 from public.plt_automacoes a, jsonb_array_elements(a.passos) s
-                 where s ->> 'campo_id' = p_id::text) then
+     or exists (select 1 from public.plt_automacoes a   -- em qualquer nível (caminhos também)
+                 where jsonb_path_exists(a.passos, '$.**.campo_id ? (@ == $n || @ == $t)',
+                                         jsonb_build_object('n', p_id, 't', p_id::text))) then
     raise exception 'O campo "%" já foi usado — arquive em vez de excluir (a história fica).', v_nome
       using errcode = 'foreign_key_violation';
   end if;
@@ -2279,7 +2360,7 @@ begin
     raise exception 'As automações são só do super admin.' using errcode = 'insufficient_privilege';
   end if;
   return query
-  select a.id, a.nome, a.ligada, a.gatilho, a.gatilho_config, jsonb_array_length(a.passos),
+  select a.id, a.nome, a.ligada, a.gatilho, a.gatilho_config, plt_privado.fn_automacao_contar_passos(a.passos),
          a.ligada_em, a.atualizada_em, a.arquivada_em,
          u.criada_em, u.situacao,
          (select count(*)::int from public.plt_automacao_execucoes x
