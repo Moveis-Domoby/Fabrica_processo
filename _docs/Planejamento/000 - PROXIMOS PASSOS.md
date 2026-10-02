@@ -20,7 +20,7 @@ O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24 e 26 e o
 
 ## ▶️ Agora (01/10): SESSAO-29 entregue — falta a sua revisão da Auditoria
 
-- [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — ✅ **entregue em 01/10** — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]]. **Conferência diária às 3h** (60 dias + não terminados) pelo fluxo da carga do n8n, agora acordado pelo banco só quando há trabalho; o que muda no Tiny muda aqui (apagar só apaga as observações); cliente pelo cadastro do Tiny → CPF → o cliente que o pedido já tem → nome + telefone; pedido igual não é regravado (D-95…D-98). 1ª conferência real: 611 relidos, 138 diferentes → **2ª: zero**. Migrations 49/50 aplicadas com o seu OK (integração idêntica). **Escopo novo seu: Painel admin → Auditoria** (D-95) — na branch. **Com você:** (1) colar no fluxo de vendas do n8n as 3 trocas que passam o número do cadastro do cliente ([[N8N - Workflow Tiny para Planilha]]); (2) ver a Auditoria e dizer se pode ir ao site.
+- [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — ✅ **entregue em 01/10** — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]]. **Conferência diária às 3h** (60 dias + não terminados) pelo fluxo da carga do n8n, agora acordado pelo banco só quando há trabalho; o que muda no Tiny muda aqui (apagar só apaga as observações); cliente pelo cadastro do Tiny → CPF → o cliente que o pedido já tem → nome + telefone; pedido igual não é regravado (D-95…D-98). 1ª conferência real: 611 relidos, 138 diferentes → **2ª: zero**. Migrations 49/50 aplicadas com o seu OK (integração idêntica). **Escopo novo seu: Painel admin → Auditoria** (D-95) — na branch. **Com você:** (1) ✅ ~~colar no fluxo de vendas do n8n as 3 trocas que passam o número do cadastro do cliente~~ — **colado e publicado em 01/10, 23:20** ([[N8N - Workflow Tiny para Planilha]]); (2) a Auditoria: você já viu a tela — falta o "pode subir" para ir ao site. ↪️ **01/10 à noite:** o Claude passou a **ler o n8n pela API** (chave criada por você, só no seu computador — [[N8N - Infraestrutura VPS]]).
 
 ## (anterior) 30/09: o Ajuste Estoque 2 está ENTREGUE e publicado
 
@@ -79,7 +79,7 @@ O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24 e 26 e o
 
 ## 🙋 Pendências que estão com VOCÊ (o dono) — revisada em 01/10/2026
 
-1. 🔶 **SESSAO-29 (entregue em 01/10):** (a) colar no fluxo de vendas do n8n a passagem do número do cadastro do cliente — 3 trocas, passo a passo em [[N8N - Workflow Tiny para Planilha]]; (b) ver **Painel admin → Auditoria** e dizer se pode ir ao site — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]].
+1. 🔶 **SESSAO-29 (entregue em 01/10):** (a) ✅ fluxo de vendas do n8n passando o número do cadastro do cliente — **colado e publicado em 01/10, 23:20**; (b) dizer se a **Auditoria** (Painel admin → Auditoria — você já viu) pode ir ao site — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]].
 2. 🔶 **Contagem inicial da logística — confirmar.** Você acredita que foi feita em 30/09; a leitura do banco em 01/10 00:30 não achou contagem lançada pela plataforma (52 peças no ESTOQUE, 25 produtos — 46 delas vieram da cópia inicial do Tiny às 01:00 de 30/09). Se a equipe contou no papel, falta lançar.
 3. **Responder as 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]]** (a 1ª — app v3 na conta da fábrica — destrava as ondas 1–3).
 4. **Cutover (SESSAO-21):** excluir o projeto antigo em **06/10** — tudo no [[handoff_2026_09_22_sessao21_cutover]].
@@ -106,7 +106,7 @@ O **Bloco 5 está quase fechado**: entregues as SESSÕES 22, 23, 25, 24 e 26 e o
 
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 
-- ✅ ~~**P17** — o webhook de vendas não cobre marcador, contato renomeado nem campo limpo: deriva silenciosa Tiny × banco~~ — **resolvido em 2026-10-01** (SESSAO-29: conferência diária às 3h); falta só o dono colar no fluxo de vendas a passagem do número do cadastro.
+- ✅ ~~**P17** — o webhook de vendas não cobre marcador, contato renomeado nem campo limpo: deriva silenciosa Tiny × banco~~ — **resolvido em 2026-10-01** (SESSAO-29: conferência diária às 3h; o fluxo de vendas passa o número do cadastro desde 01/10 23:20).
 - **P1** — não existe alerta de erro nas automações do n8n (a SESSAO-25 propõe resolver junto). **P4** — token do Tiny v2 em texto puro no workflow. Lista completa: [[N8N - Pendencias e Riscos]].
 - Débito técnico do módulo Comercial: [[PLT - Comercial - Debito Tecnico]].
 - O raio-x do estoque (Q-72) — 10 achados, sem correção.

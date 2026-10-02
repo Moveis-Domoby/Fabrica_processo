@@ -10,7 +10,7 @@ tags: [handoff, sessao, sessao-29, tiny, n8n, reconciliacao, auditoria, d-50, d-
 
 **Branch:** `sessao-29-reconciliacao-tiny` (pasta principal, sem worktree — pedido do dono) · **enviada ao GitHub; NÃO mesclada na `main`** (a tela da Auditoria espera a sua revisão)
 **Banco:** migrations **49** (conferência) e **50** (auditoria) **aplicadas** em 01/10 (05:17 e 05:26 UTC), cada uma sozinha; integração idêntica antes/depois (`e2109f3a…`, 65 colunas, linhas idênticas) — com o seu OK ("pode atualizar o banco, contanto que não quebre o que está em produção")
-**n8n:** o gatilho do fluxo de carga ("subir banco de dados --- tiny → supabase") trocado **por você** às ~01:50 (o relógio de 1 em 1 minuto saiu; o banco acorda o fluxo)
+**n8n:** o gatilho do fluxo de carga ("subir banco de dados --- tiny → supabase") trocado **por você** às ~01:50 (o relógio de 1 em 1 minuto saiu; o banco acorda o fluxo) · o fluxo de vendas passou a mandar o número do cadastro do cliente (**colado e publicado por você às 23:20 de 01/10**) · desde 01/10 à noite o Claude **lê o n8n pela API** (chave criada por você, guardada só no seu computador)
 **Demanda:** [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] · **Execução:** `_docs/Plataforma/Execucao/SESSAO-29.md` · **Decisões:** D-95…D-98 (↪️ D-40, D-50) · **Requisitos:** RF-115…RF-117, RNF-08
 
 ## 1. O que você pediu
@@ -73,8 +73,8 @@ As duas aparecem em **Painel admin → Auditoria → Conferências com o Tiny**,
 
 ## 6. Ficou com você
 
-1. 🔶 **Colar no fluxo de vendas do n8n** ("Principal - Tiny → planilha / banco / clickup / trello") a mudança que passa o número do cadastro do cliente — 3 trocas pequenas, passo a passo em [[N8N - Workflow Tiny para Planilha]] (seção de 01/10). O banco já aceita. Sem ela, pedido NOVO de um cliente sem CPF que mudou de nome no Tiny ainda pode virar cliente duplicado (o reprocessado já não vira). *(Conferido no fim do dia 01/10: os 8 clientes novos do dia chegaram sem o número — a mudança ainda não está no fluxo.)*
-2. 🔶 **Ver a Auditoria** (Painel admin → Auditoria) e me dizer se pode ir ao site — aí eu mesclo e publico.
+1. ✅ ~~**Colar no fluxo de vendas do n8n** ("Principal - Tiny → planilha / banco / clickup / trello") a mudança que passa o número do cadastro do cliente — 3 trocas pequenas, passo a passo em [[N8N - Workflow Tiny para Planilha]] (seção de 01/10).~~ **Feito por você em 01/10 à noite: salvo às 23:09 e publicado às 23:20** — conferido pela conexão nova com o n8n (os 3 passos que rodam batem com o passo a passo). *(No fim do dia 01/10, os 8 clientes novos tinham chegado sem o número — eram de antes da mudança.)*
+2. 🔶 **Ver a Auditoria** (Painel admin → Auditoria) e me dizer se pode ir ao site — aí eu mesclo e publico. *(01/10 à noite: você já viu a tela; o merge espera o seu "pode subir".)*
 3. ⚪ **Senha da plataforma:** ela passou de novo pelo chat (madrugada de 01/10 — não a usei; você entrou sozinho). Pela sua decisão de 01/10, a troca fica para a publicação ([[000 - PROXIMOS PASSOS]]) — só registrando.
 4. ⚪ (opcional) Testar você mesmo, no Tiny, o marcador e o nome: ponha um marcador num pedido recente (ou troque o nome de um cadastro sem CPF) → na manhã seguinte, a Auditoria → Conferências mostra o pedido com "marcadores"/"cliente". Desfaça depois.
 5. ⚪ (opcional) No n8n, no fluxo de carga: Settings → "Save successful production executions" → "Do not save" (hoje ele guarda toda execução com os pedidos inteiros).

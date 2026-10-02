@@ -1,7 +1,7 @@
 ---
 titulo: n8n — Infraestrutura (VPS, Docker, credenciais)
 tipo: infraestrutura
-atualizado: 2026-08-13
+atualizado: 2026-10-01
 tags: [n8n, vps, docker, credenciais]
 ---
 
@@ -53,6 +53,12 @@ docker exec n8n-n8n-1 printenv | grep -E "EXECUTIONS|TZ="
 
 > [!danger] Regra de segurança aprendida do jeito difícil
 > **Nunca mandar token em print ou chat.** O primeiro token do Tiny vazou num print e teve que ser trocado.
+
+## Acesso do Claude Code — API pública do n8n (desde 01/10/2026)
+
+- **A chave:** criada pelo dono em 01/10 à noite (Settings → n8n API → "Claude Code") e colada **por ele** num arquivo de segredos só do computador dele (`.env.n8n` na raiz do repo — o `.gitignore` cobre `.env.*`; separado do `.env.local` para não expor as outras senhas ao abrir). **Nunca** no chat, em nota ou em commit. **Revogar:** apagar a chave na mesma tela do n8n (para de funcionar na hora).
+- **O que o Claude faz com ela:** LÊ fluxos e execuções pela API pública (`/api/v1/workflows`, `/api/v1/executions`, cabeçalho `X-N8N-API-KEY`) com scripts que leem o arquivo e nunca imprimem a chave; dado pessoal de execução não é impresso (só o campo que interessa). **Mudar fluxo que roda em produção só com o OK do dono** (regra crítica 3 do repo) — mostra o que muda antes. Nunca a porta interna `/rest` do editor (derrubou a sessão do dono em 30/09).
+- **n8n 2.32 — salvar não publica (A-53):** o fluxo tem `versionId` (o rascunho salvo) e `activeVersionId`/`activeVersion` (o que RODA). Mudança só "está no ar" quando os dois batem.
 
 ## Webhooks cadastrados no Tiny
 

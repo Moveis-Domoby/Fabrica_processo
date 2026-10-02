@@ -109,7 +109,7 @@ O coração. Verificado contra **1.982 pedidos reais**: 47 colunas 100% idêntic
 | QUANT. PRODUTOS corrompida como data (`1, 1, 1` → `1, 1, 2001`) | 95 de 107 pedidos de 3 itens |
 | Linha nunca atualizada (SITUAÇÃO congelada, rastreio 100% vazio, edição no Tiny ignorada) | caso provado: pedido 13026 |
 
-## ↪️ 01/10/2026 — passar o número do cadastro do cliente ao banco (SESSAO-29, D-98) — A COLAR PELO DONO
+## ↪️ 01/10/2026 — passar o número do cadastro do cliente ao banco (SESSAO-29, D-98) — ✅ COLADO E PUBLICADO PELO DONO (01/10, 23:20 de Natal)
 
 O aviso de venda traz `dados.idContato` (o cadastro do cliente no Tiny) e o `pedido.obter` **não** traz (A-43). O banco já aceita o número desde a migration 49 (`fn_upsert_pedido(..., p_tiny_id_contato)`); falta o fluxo repassar. No n8n, fluxo **"Principal - Tiny → planilha / banco / clickup / trello"** — **sem renomear nenhum nó**:
 
@@ -128,6 +128,8 @@ O aviso de venda traz `dados.idContato` (o cadastro do cliente no Tiny) e o `ped
 4. Salvar e publicar. Conferência: no próximo pedido, `clientes.tiny_id_contato` do cliente preenchido (cliente novo nasce com ele); na execução do n8n, o corpo do nó 3 mostra `p_tiny_id_contato` com número.
 
 > Conferido com o espelho do cofre (o nó 2 e o 3 em `Supabase-fabrica/n8n-ramo-supabase.json`; o nó 1 na seção 2 acima). O n8n pediu login no navegador do app em 01/10 à noite — o objeto vivo NÃO foi conferido (A-44); se o código do nó estiver diferente, o dono manda print e o trecho é ajustado.
+>
+> ↪️ **01/10, 23:20 — conferido no objeto VIVO pela API do n8n** (chave local — [[N8N - Infraestrutura VPS]]): os 3 nós batem com este passo a passo (o corpo do nó 3 guardado como `={{ … p_tiny_id_contato … }}` — um `=` só, o de expressão). O dono **salvou** às 23:09 e a versão que RODAVA ainda era a de 17/08 (`versionId` ≠ `activeVersionId` — A-53); ele **publicou às 23:20** e a API confirmou a versão nova no ar. Só os 3 nós diferiam entre o rascunho e a versão publicada.
 
 Se o aviso não trouxer o número (vazio/0), vai nulo e o banco segue pelos outros caminhos (CPF → o cliente que o pedido já tem → nome+fone) — nada quebra.
 

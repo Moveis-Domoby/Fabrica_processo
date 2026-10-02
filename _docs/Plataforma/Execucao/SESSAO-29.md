@@ -113,9 +113,17 @@ Leituras: CLAUDE (repo e cofre), Memória de Aprendizado, Decisões (D-01…D-94
 - **8 clientes novos, nenhum com o número do cadastro do Tiny** → a mudança do fluxo de vendas (3 trocas) **ainda não foi colada** pelo dono.
 - ⚠️ E-76: ao retomar a sessão, datei o trabalho como "~07:10 UTC" pela continuidade — o `now()` do banco dizia **22:48 UTC** (a sessão ficou parada ~15 h). Corrigido antes de escrever qualquer horário.
 
+## 01/10 à noite — o fluxo de vendas e a conexão com o n8n
+
+- O dono pediu o passo a passo exato do fluxo de vendas; o n8n pediu login no navegador do app (não entro com senha) → passo a passo pelo espelho do cofre, ancorado em linhas ("logo abaixo de…"), e o corpo do nó 3 **sem `=` na frente** (o `=` só existe no JSON exportado; colado no editor de expressão viraria texto — nota corrigida no commit 06c269c).
+- A S27 (automações em canvas) começou na mesma pasta: reservas trocadas (dela: D-99…D-106, E-77…E-84, A-47…A-52, RF-118…RF-126, Q-73…Q-75, migration 51), avisada de que 49/50 estão aplicadas; com o OK do dono ela nasceu da minha branch (06c269c) e a pasta passou para a branch dela. Daqui em diante os commits da S29 vão por índice temporário (sem checkout).
+- **Conexão com o n8n (pedido do dono):** chave da API criada por ele (Settings → n8n API, "Claude Code") e colada POR ELE num arquivo local novo, `.env.n8n` (ignorado pelo git por `.env.*`; separado do `.env.local` para não pôr as outras senhas na tela) — aberto no VS Code com o cursor no lugar; um laço em segundo plano esperou a linha ser preenchida (sem ler a chave). Teste: **9 fluxos** (5 ativos). Scripts no scratchpad que leem o arquivo e nunca imprimem a chave (e mascaram cara de token no que imprimem).
+- **Achado (A-53):** o dono tinha colado as 3 trocas certinhas (23:09) mas só SALVO — `versionId` ≠ `activeVersionId`; a versão que rodava era a de 17/08 e só os 3 nós diferiam. Ele publicou às **23:20** e a API confirmou a versão nova no ar (os 3 nós com a troca). Um laço em segundo plano espera o próximo aviso de venda para conferir na execução que o número do cadastro foi passado (sem imprimir dado pessoal).
+
 ## Status
 
 - 01/10 ~02:00 (Natal): construção começa, em silêncio (pedido do dono).
 - 01/10 ~02:35 (Natal): 49 e 50 no banco; tela pronta na branch; à espera da 1ª rodada real (3h).
 - 01/10 03:00–04:01 (Natal): 1ª rodada (138 diferentes) e 2ª rodada (0) — aceite.
 - 01/10 ~19:50 (Natal): diagnóstico do "outros", saúde do dia, cofre fechado; branch enviada; **à espera da revisão do dono (tela da Auditoria) para ir à `main`**.
+- 01/10 ~23:30 (Natal): fluxo de vendas publicado pelo dono (número do cadastro passando); Claude conectado ao n8n pela API; o dono já viu a Auditoria — **o merge espera o "pode subir" dele**.
