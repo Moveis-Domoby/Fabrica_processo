@@ -1022,6 +1022,28 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Descartadas:** fila com relógio de 1 em 1 minuto para executar (o dono vetou relógio à toa — D-80); travar a automação aos setores de produção e às peças (o dono: "para tudo"); deixar a automação passar por cima das regras do estoque (corromperia o número do galpão).
 
+## D-106 · O "Se… senão": a condição com DUAS saídas, cada uma com os próprios passos (02/10/2026) — ↪️ D-103
+
+**Pedido do dono no teste ao vivo:** *"coloque separador lógico condicionais tipo, if (com um else embutido como segunda saída), coisas assim também"* — e, na mesma mensagem, *"ajuste a hierarquia disso aqui, está tudo fora de esquadro"* (a janela de escolher o próximo bloco).
+
+- **Bloco novo "Se… senão"** (no grupo Lógica, ao lado do "Só se…" e do "Esperar"): testa as MESMAS condições do "Só se…" (etiqueta, campo, setor, situação do pedido, tipo de card). Bateu → segue pelo caminho **Sim**; não bateu → pelo caminho **Senão**. No canvas, o bloco tem **duas bolinhas de saída**, com o nome de cada uma (Sim em verde, Senão em vermelho) e **um "+" para cada**.
+- **Depois do "Se… senão" não há "continuação comum"**: os passos seguintes moram DENTRO dos caminhos (o banco recusa passo depois dele na mesma sequência). Caminho vazio = a automação termina ali. Caminhos dentro de caminhos valem até **5 níveis**; o limite de **40 passos conta os dos caminhos**.
+- **Pôr um "Se… senão" no meio** de uma sequência: quem vinha depois passa a seguir pelo **Sim**. **Tirar** um "Se… senão": o caminho Sim continua no lugar dele; o Senão fica **solto** (não roda — a tela avisa).
+- Como o banco guarda: o passo `se_senao` leva `entao` e `senao` (listas de passos) dentro dele. O executor, ao avaliar, troca o resto do plano pelo caminho escolhido e **guarda o plano** — o "esperar" dentro de um caminho retoma no lugar certo. No histórico: "se … → caminho Sim/Senão — condição bateu/não bateu". Etiqueta ou campo usado só dentro de um caminho também conta como "já usado" (não se exclui; arquiva).
+- **A escolha do bloco** passa a vir **por grupos** (Lógica · No card · Etiquetas e campos · Avisos e integrações), cartões do mesmo tamanho, ícone num quadrado, nome e uma frase curta.
+
+**Descartadas:** caminhos que se reencontram depois do "Se… senão" (junção — vira grafo com várias entradas por bloco; complica sem pedido); "senão" como bloco separado ligado depois do "Só se…" (o dono pediu o else **embutido** como segunda saída).
+
+## D-105 · O editor de uma automação é uma ÁREA DE TRABALHO: menu recolhido, canvas na tela toda, barra fina com Salvar e Publicar, execuções numa aba (02/10/2026) — ↪️ D-36
+
+**Pedido do dono no teste ao vivo:** *"Está pequeno demais; sempre que eu clicar para entrar no canvas, deve abrir uma área de workflow com foco no trabalho que está sendo realizado e apenas na parte superior um botão de salvar, publicar e coisas assim; fecha inclusive o menu esquerdo"*; e, na rodada seguinte: *"deixa apenas que feche o menu automaticamente quando entrar, mas a pessoa pode abrir novamente, ele vai ficar apenas recolhido na lateral; as últimas execuções ficam ocultas tipo n8n, quando eu tenho que clicar lá em cima em execuções; o bloco lateral de selecionar o que aquela condição faz pode ser esse lateral mesmo, mas permita fechar ele"*.
+
+- Abrir uma automação **recolhe o menu** (as duas barras — fica o trilho de ícones); a pessoa reabre quando quiser; ao sair do editor, o menu volta ao jeito lembrado. ↪️ D-36: a sidebar continua presente (recolhida); o "voltar" mora na barra do editor (não há o voltar padrão da casca nem o rodapé nessa tela).
+- O **canvas ocupa a tela toda**; em cima, só: voltar, o nome (editável no lugar), o selo Ligada/Desligada, as abas **Editor | Execuções**, **Salvar** e **Publicar** (salva o que mudou e LIGA — como no n8n) / **Desligar**, e arquivar.
+- As **execuções ficam escondidas** até clicar na aba "Execuções" (a lista troca o canvas; só busca ao abrir).
+- O painel do bloco é uma **gaveta à direita**, que fecha no X (ou no ESC).
+- As bolhas flutuantes (balão do chat, bolinha de execução) não aparecem na área de trabalho — cobririam o canvas e a gaveta.
+
 ## D-104 · Teste ao vivo com os cards de teste (01/10/2026) — ↪️ M-16
 
 **Decidido (resposta 6 do dono):** *"Sim, ainda são só de teste, pode fazer o que quiser com eles"* — os quadros de produção seguem sendo de teste; o aceite das automações roda com eles (o pedido é real, o card é teste).

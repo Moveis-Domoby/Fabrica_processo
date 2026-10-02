@@ -92,6 +92,35 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (D-01…D-98
 - **Erros no caminho:** (1) "syntax error at end of input" — o CASE dentro do IF do "esperar" sem parênteses (E-61 de novo, pego pelo harness na 1ª rodada; corrigido). (2) o harness reaplica a migration 38 no bloco da S26 (simula o grant de tabela do Supabase) e isso apaga o `grant select (super_admin)` — em produção a ordem 38 → 51 garante; o bloco 51 reaplica a 51 no começo (e no fim, com dados, provando a reaplicação).
 - **Harness:** **707 verificações, tudo verde, 2 rodadas** (39 novas no bloco 51; bloco 50 ajustado para o super admin; o teste dos gatilhos de `pedidos` agora filtra `plt_pedidos_reagir%`).
 
+## Aplicação no banco real (02/10)
+
+- **03:13 UTC** — migration 51 aplicada (`--so`), com o OK do dono ("Pode aplicar"); integração `e2109f3a…`/65 col idêntica antes/depois, linhas idênticas. Conferido: super admin = só o dono (MDM-084-001); 2 exemplos desligados; gatilhos adiados no lugar; relógio NÃO agendado (nada que precise); check validado; leitura da marca liberada ao navegador. `get_advisors`: segurança — só os 14 WARN esperados das portas novas (gate dentro) + o INFO das 2 tabelas sem política (só pelas portas, de propósito); nenhuma porta para anônimo; desempenho — só INFO (chaves sem índice de `criada_por`/`atualizado_por`, índices novos ainda sem uso).
+- A sessão da S29 conferiu do lado dela (03:15): `fn_upsert_pedido` intacta; ensaio desfeito do aviso de venda com o gatilho adiado forçado a disparar — 63 ms, sem erro. Depois ela foi encerrada (a conferência pós-06:00 ficou comigo).
+- **Ensaio A-11 no banco real** (card de teste 589, FITAMENTO): 1ª tentativa deu "ignorada — o card já tinha saído" com o card parado na etapa → **E-78** (no modo imediato forçado, o gatilho "automacoes" rodava antes do "projetar" — ordem alfabética). Gatilhos renomeados (`plt_eventos_zzzz_automacoes`, `plt_pedidos_zz_automacoes`), harness com a prova do modo imediato (708 verdes), 51 reaplicada (`--so`, integração idêntica), ensaio repetido: A1 pôs a etiqueta e moveu (CONCLUÍDO → FURAÇÃO · A FURAR pela rota da etapa), A2 em cadeia (prof 1) conferiu a etiqueta e tirou — 58 ms, desfeito.
+
+## Teste ao vivo com o dono logado (02/10, ~00:30 de Natal)
+
+1. Menu: "Configurações" e "Super admin" no lugar; o grupo Super admin com Automações e Auditoria; o ícone de tema no rodapé (foto).
+2. Lista das automações com os dados reais (os 2 exemplos desligados, o QUANDO em português).
+3. **Configurações → Utilitários pela tela:** etiqueta "Teste automação" (violeta) e campo "Teste automação" (texto, nas peças).
+4. **Automação montada pelo canvas** (seletores reais): "Teste — chegou na furação" = QUANDO entrou em FURAÇÃO · A FURAR → pôr "Teste automação" → preencher o campo = "veio da automação"; salva → **nasceu desligada** (aviso "desligada até você publicar").
+5. **Desligada não dispara:** o card 589 foi solto no CONCLUÍDO do FITAMENTO (gesto real do dono, perfeito estado) → chegou na FURAÇÃO, nenhuma execução, nenhuma etiqueta.
+6. 2ª automação pelo canvas: "Teste — etiqueta posta arquiva" (QUANDO "Teste automação" posta → arquivar). As duas ligadas pela lista (dois toques).
+7. Card de volta à fila do FITAMENTO e solto de novo no CONCLUÍDO → **A1 concluída** (etiqueta + campo), **A2 em cadeia (prof 1) arquivou**.
+8. **"Trazer de volta" pelo histórico da A2** → o card voltou (FURAÇÃO · A FURAR, com a etiqueta). As duas de teste **desligadas** no fim.
+9. **No quadro da FURAÇÃO**, o card mostra a pílula "Teste automação" e a linha "Teste automação: veio da automação" (foto não saiu — janela do app atrás).
+10. **Rodada do dono** (D-105): o editor virou área de trabalho — menu recolhido na entrada (reabre), canvas na tela toda, barra com Salvar/Publicar, abas Editor | Execuções, gaveta do bloco com X. Conferido por medida: menu 72px no editor → 240px ao reabrir/sair; canvas 1446×636 numa tela de 1518×698; a aba Execuções troca o canvas pela lista; a gaveta abre (416px) e fecha.
+
+11. **Rodada do dono — "Se… senão", a escolha por grupos e o filtro no padrão** (D-106; pedidos: *"coloque separador lógico condicionais tipo, if (com um else embutido como segunda saída)"*, *"ajuste a hierarquia disso aqui, está tudo fora de esquadro"*, *"esse modal de select não está no padrão do sistema"*):
+    - **Banco (ainda na migration 51, a reaplicar com o OK do dono):** `fn_automacao_validar_passos` recursiva (5 níveis; 40 passos contando os caminhos; nada depois do `se_senao`; mensagens com o nome do bloco certo — "Só se" ou "Se… senão"); `fn_automacao_contar_passos` (a lista); `fn_automacao_continuar` com o ramo `se_senao` (plano = já rodado + caminho; grava `passos_previstos` na espera e no fim; resultado `sim`/`senao`); exclusão de etiqueta/campo confere em qualquer nível (`jsonb_path_exists` com `$.**`). Scripts de troca no scratchpad (`se-senao-validar.mjs`, `se-senao-2.mjs`), com conferência de contagem e de cifrões.
+    - **Harness:** bloco novo "Se… senão" (9 conferências: passo depois recusado; passo quebrado dentro do caminho recusado; sem condição recusado com o nome; 40 contando caminhos; caminho Sim com espera no meio retomando DENTRO do caminho; caminho Senão; etiqueta e campo usados só no caminho não se excluem; a lista conta 5) — **tudo verde**.
+    - **Tela:** `desenho.ts` (ligação com `saida` opcional; `sequencia` em profundidade — o Sim antes do Senão; `passosDaSequencia` monta a árvore; `podeLigar`/`ligar`/`desligar`/`inserirDepois` por saída; tirar o "Se… senão" mantém o Sim; `trocarPasso` acerta as ligações; `montarDesenho` refaz os caminhos dos passos com o Senão descendo), `catalogo.ts` (`se_senao`, `GRUPOS_PASSO`, descrições curtas), `icones.tsx` (`Split`), `resumo.ts` ("Se …"), `PainelBloco` ("Vai pelo caminho Sim se" + explicação; o tipo não vira "se" ao trocar a condição), `CanvasAutomacao` (duas bolinhas + pílulas + dois "+"; tratador por `data-*` — A-49), `Execucoes` (sim/senão como resultado normal), `Automacoes.tsx` (escolha por grupos, título com o caminho). Filtros "Mostrar" (`FiltroPill`) em Automações e Utilitários no lugar da caixinha.
+    - **Testes:** `desenho.test.ts` (+5), `resumo.test.ts` (+2), `Automacoes.test.tsx` (+1: o "+" do Senão abre "Que bloco vem no caminho Senão?" e salva os caminhos). Tipos, padrão de código, 117 testes da tela e a montagem — verdes.
+    - **Conferido no navegador (1280×800):** a escolha por grupos alinhada (3 colunas, alturas iguais); o "Se… senão" com Sim/Senão e um bloco em cada caminho (o Senão uma linha abaixo).
+    - ⚠️ E-79 (heredoc grande quebrou no terminal → script por arquivo).
+
+**Ficaram no banco (teste, combinado com o dono):** a etiqueta e o campo "Teste automação", as 2 automações de teste (desligadas) e o card 589 com a etiqueta/campo e os eventos do teste (a história fica — RNF-05).
+
 ## Diário
 
 - 01/10 noite · leituras, mapeamento, ensaio do gatilho adiado; perguntas ao dono; respostas; branch criada de 06c269c.
