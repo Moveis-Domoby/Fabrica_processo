@@ -1022,6 +1022,17 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Descartadas:** fila com relógio de 1 em 1 minuto para executar (o dono vetou relógio à toa — D-80); travar a automação aos setores de produção e às peças (o dono: "para tudo"); deixar a automação passar por cima das regras do estoque (corromperia o número do galpão).
 
+## D-107 · Excluir automação: some de vez; o que ela fez FICA na Auditoria, marcado "automação excluída" (02/10/2026) — ↪️ D-99
+
+**Pedido do dono (02/10, noite):** *"deixe um botão para excluir automação"*; perguntado sobre o histórico de execuções: *"fica na auditoria com uma tagzinha de automação excluída"*.
+
+- Botão **Excluir** (lixeira) na barra do editor, com o "tem certeza?" na própria barra (*"Excluir de vez? Ela some; o que ela fez fica na Auditoria."*). Só o super admin (garantido no banco).
+- A automação **sai de vez** (some da lista, inclusive das arquivadas). Se estava ligada, para no mesmo gesto; quem estava **esperando** para continuar **para** ali.
+- **O histórico fica:** as execuções continuam guardadas (com o nome da automação), e na **Auditoria** toda linha dela — criou, ligou, rodou, os gestos que ela fez nos cards e a própria exclusão — ganha a etiqueta vermelha **"Automação excluída"**. A trilha não é reescrita (é imutável): a marca é calculada na leitura.
+- Exemplo de fábrica que o dono excluir **não volta** numa reaplicação do banco.
+
+**Descartadas:** só excluir automação que nunca rodou (como as etiquetas — o dono quis excluir as de teste, que rodaram); apagar o histórico junto (o dono quer o rastro na Auditoria).
+
 ## D-106 · O "Se… senão": a condição com DUAS saídas, cada uma com os próprios passos (02/10/2026) — ↪️ D-103
 
 **Pedido do dono no teste ao vivo:** *"coloque separador lógico condicionais tipo, if (com um else embutido como segunda saída), coisas assim também"* — e, na mesma mensagem, *"ajuste a hierarquia disso aqui, está tudo fora de esquadro"* (a janela de escolher o próximo bloco).
