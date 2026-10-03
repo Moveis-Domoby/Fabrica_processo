@@ -43,7 +43,8 @@ const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
 
 const idsDe = (lista: { card_id: number }[]) => lista.map((p) => p.card_id)
-const mesmaOrdem = (a: number[], b: number[]) => a.length === b.length && a.every((id, i) => id === b[i])
+const mesmaOrdem = (a: number[], b: number[]) =>
+  a.length === b.length && a.every((id, i) => id === b[i])
 
 function hojeIso(): string {
   const d = new Date()
@@ -111,18 +112,32 @@ export function AbaProgramar({
       .slice(0, GEOCODIFICAR_POR_CHAMADA)
     if (pendentes.length === 0) return
     for (const p of pendentes) pedidas.current.add(p.geo_chave!)
-    geocodificarMutacao.mutate(pendentes.map((p) => ({ chave: p.geo_chave!, endereco: p.endereco_geocodificavel! })))
+    geocodificarMutacao.mutate(
+      pendentes.map((p) => ({ chave: p.geo_chave!, endereco: p.endereco_geocodificavel! })),
+    )
   }, [pedidos, geocodificarMutacao])
 
   // ---- a rota que se está montando ----------------------------------------
-  const listaSelecionados = useMemo(() => pedidos.filter((p) => selecionados.has(p.card_id)), [pedidos, selecionados])
-  const ordemMontando = useMemo(() => ordemDaRota(listaSelecionados, { rascunho }), [listaSelecionados, rascunho])
+  const listaSelecionados = useMemo(
+    () => pedidos.filter((p) => selecionados.has(p.card_id)),
+    [pedidos, selecionados],
+  )
+  const ordemMontando = useMemo(
+    () => ordemDaRota(listaSelecionados, { rascunho }),
+    [listaSelecionados, rascunho],
+  )
   const idsMontando = useMemo(() => idsDe(ordemMontando), [ordemMontando])
-  const ordemDaSugestao = useMemo(() => idsDe(ordemSugerida(listaSelecionados)), [listaSelecionados])
+  const ordemDaSugestao = useMemo(
+    () => idsDe(ordemSugerida(listaSelecionados)),
+    [listaSelecionados],
+  )
   const ajustada = !mesmaOrdem(idsMontando, ordemDaSugestao)
   const porId = useMemo(() => new Map(pedidos.map((p) => [p.card_id, p])), [pedidos])
 
-  const naoSelecionados = useMemo(() => pedidos.filter((p) => !selecionados.has(p.card_id)), [pedidos, selecionados])
+  const naoSelecionados = useMemo(
+    () => pedidos.filter((p) => !selecionados.has(p.card_id)),
+    [pedidos, selecionados],
+  )
   const referencia = useMemo(() => ordemMontando.filter(temPonto) as Ponto[], [ordemMontando])
   const listaOrdenada = useMemo(
     () => ordenarCandidatos(naoSelecionados, criterio, referencia),
@@ -132,10 +147,15 @@ export function AbaProgramar({
     () => sugerirProximos(listaSelecionados, pedidos, RAIO_SUGESTAO_KM),
     [listaSelecionados, pedidos],
   )
-  const sugestaoDe = useMemo(() => new Map(sugestoes.map((s) => [s.item.card_id, s.distanciaKm])), [sugestoes])
+  const sugestaoDe = useMemo(
+    () => new Map(sugestoes.map((s) => [s.item.card_id, s.distanciaKm])),
+    [sugestoes],
+  )
 
   const pontosRota = useMemo(() => pontosDaRota(ordemMontando), [ordemMontando])
-  const estadoRota = useRotaPelasRuas(pontosRota.length - 2 > MAXIMO_PARADAS ? SEM_PONTOS : pontosRota)
+  const estadoRota = useRotaPelasRuas(
+    pontosRota.length - 2 > MAXIMO_PARADAS ? SEM_PONTOS : pontosRota,
+  )
   const geometria =
     estadoRota.estado === 'pronta'
       ? estadoRota.rota.geometria
@@ -149,7 +169,10 @@ export function AbaProgramar({
     // a linha de ANTES (outra ordem) não se corta pelos pontos de agora
     return pronta ? separarTrechos(linha, pontosRota) : [linha]
   }, [geometria, pronta, pontosRota])
-  const trechos = useMemo(() => trechosDaRota(estadoRota, trechosEmLinhaReta(pontosRota)), [estadoRota, pontosRota])
+  const trechos = useMemo(
+    () => trechosDaRota(estadoRota, trechosEmLinhaReta(pontosRota)),
+    [estadoRota, pontosRota],
+  )
   const trechoValido = pronta && trecho !== null && trecho < trechos.length ? trecho : null
 
   const paradasNoMapa: ParadaNoMapa[] = useMemo(
@@ -207,18 +230,31 @@ export function AbaProgramar({
   }
 
   const programarMutacao = useMutation({
-    mutationFn: async (v: { data: string; caminhaoId: number; cardIds: number[]; ajustada: boolean }) => {
+    mutationFn: async (v: {
+      data: string
+      caminhaoId: number
+      cardIds: number[]
+      ajustada: boolean
+    }) => {
       // D-109: a rota do caminhão naquele dia — quem já está nela fica na ordem
       // dela e os novos entram no FIM; se nada estava salvo e a montagem não foi
       // mexida, o banco fica com a sugestão de tudo (sem ordem salva).
-      const existentes = await listarProgramadas({ data: v.data, caminhaoId: v.caminhaoId, limite: 200 })
+      const existentes = await listarProgramadas({
+        data: v.data,
+        caminhaoId: v.caminhaoId,
+        limite: 200,
+      })
       const temSalva = existentes.some((p) => typeof p.ordem === 'number')
-      const ordem = temSalva || v.ajustada ? [...idsDe(ordemDaRota(existentes)), ...v.cardIds] : null
+      const ordem =
+        temSalva || v.ajustada ? [...idsDe(ordemDaRota(existentes)), ...v.cardIds] : null
       await programarRota({ data: v.data, caminhaoId: v.caminhaoId, cardIds: v.cardIds, ordem })
     },
     onSuccess: async (_d, v) => {
       notificar({
-        titulo: v.cardIds.length === 1 ? 'Entrega programada' : `${v.cardIds.length} entregas programadas`,
+        titulo:
+          v.cardIds.length === 1
+            ? 'Entrega programada'
+            : `${v.cardIds.length} entregas programadas`,
         tom: 'perfeito',
       })
       limpar()
@@ -238,175 +274,198 @@ export function AbaProgramar({
       }),
   })
 
-  const opcoesCaminhao = caminhoes.map((c) => ({ valor: String(c.id), rotulo: c.placa ? `${c.nome} · ${c.placa}` : c.nome }))
+  const opcoesCaminhao = caminhoes.map((c) => ({
+    valor: String(c.id),
+    rotulo: c.placa ? `${c.nome} · ${c.placa}` : c.nome,
+  }))
   const semPonto = listaSelecionados.filter((p) => !temPonto(p)).length
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <section className="flex min-w-0 flex-col gap-4">
-        {/* Na rota: os marcados sobem, numerados, e se arrastam (D-111). */}
-        {ordemMontando.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie-sutil p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-lg">
-                <Route aria-hidden className="size-5 text-texto-suave" />
-                Na rota{' '}
-                <span className="text-sm font-normal text-texto-suave tabular-nums">
-                  ({ordemMontando.length} · {pecas} {pecas === 1 ? 'peça' : 'peças'})
+    // duas colunas só quando a ÁREA da tela tem espaço (container, não janela — E-30):
+    // com os dois menus abertos numa tela de 1024, a lista ficava com 221 px. Numa
+    // coluna só: "Na rota" → mapa → a lista; em duas: o mapa à direita, fixo.
+    <div className="@container flex flex-col gap-5">
+      <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <section className="flex min-w-0 flex-col gap-4 empty:hidden @3xl:col-start-1 @3xl:row-start-1">
+          {/* Na rota: os marcados sobem, numerados, e se arrastam (D-111). */}
+          {ordemMontando.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie-sutil p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg">
+                  <Route aria-hidden className="size-5 text-texto-suave" />
+                  Na rota{' '}
+                  <span className="text-sm font-normal text-texto-suave tabular-nums">
+                    ({ordemMontando.length} · {pecas} {pecas === 1 ? 'peça' : 'peças'})
+                  </span>
+                </h2>
+                <span className="text-xs text-texto-suave">
+                  {ajustada
+                    ? 'Ordem ajustada à mão'
+                    : 'Ordem sugerida: o mais perto, a partir da fábrica'}{' '}
+                  · arraste para mudar
                 </span>
-              </h2>
-              <span className="text-xs text-texto-suave">
-                {ajustada ? 'Ordem ajustada à mão' : 'Ordem sugerida: o mais perto, a partir da fábrica'} · arraste
-                para mudar
-              </span>
+              </div>
+              <ListaArrastavel
+                ids={idsMontando}
+                rotulo="Pedidos na rota, na ordem das paradas"
+                aoReordenar={reordenar}
+              >
+                {(id, indice) => {
+                  const p = porId.get(id)
+                  if (!p) return null
+                  return (
+                    // div, não label: tocar no cartão não tira o pedido da rota (só a caixinha)
+                    <div className="flex min-h-toque-lg items-start gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3">
+                      <input
+                        type="checkbox"
+                        className="mt-1 size-5 shrink-0 accent-marca-500"
+                        checked
+                        onChange={() => alternar(id)}
+                        aria-label={`Tirar o pedido ${p.numero} da rota`}
+                      />
+                      <span
+                        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-acao text-xs font-bold text-acao-texto tabular-nums"
+                        aria-label={`${indice + 1}ª parada`}
+                      >
+                        {indice + 1}
+                      </span>
+                      <CartaoPedido pedido={p} />
+                    </div>
+                  )
+                }}
+              </ListaArrastavel>
             </div>
-            <ListaArrastavel ids={idsMontando} rotulo="Pedidos na rota, na ordem das paradas" aoReordenar={reordenar}>
-              {(id, indice) => {
-                const p = porId.get(id)
-                if (!p) return null
-                return (
-                  // div, não label: tocar no cartão não tira o pedido da rota (só a caixinha)
-                  <div className="flex min-h-toque-lg items-start gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3">
-                    <input
-                      type="checkbox"
-                      className="mt-1 size-5 shrink-0 accent-marca-500"
-                      checked
-                      onChange={() => alternar(id)}
-                      aria-label={`Tirar o pedido ${p.numero} da rota`}
-                    />
-                    <span
-                      className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-acao text-xs font-bold text-acao-texto tabular-nums"
-                      aria-label={`${indice + 1}ª parada`}
-                    >
-                      {indice + 1}
-                    </span>
-                    <CartaoPedido pedido={p} />
-                  </div>
-                )
-              }}
-            </ListaArrastavel>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-lg">
-              Sem programação{' '}
-              <span className="text-sm font-normal text-texto-suave tabular-nums">({naoSelecionados.length})</span>
-            </h2>
-            <div className="w-full max-w-xs sm:w-auto sm:min-w-64">
-              <Selecao
-                rotulo="Ordenar por"
-                opcoes={OPCOES_ORDEM}
-                valor={criterio}
-                aoMudar={(v) => setCriterio(v as CriterioOrdem)}
-              />
-            </div>
-          </div>
-          {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
-          {!isPending && pedidos.length === 0 && (
-            <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-              Nenhum pedido lançado esperando programação.
-            </p>
           )}
-          <ul className="flex flex-col gap-2">
-            {listaOrdenada.map((p) => {
-              const distancia = sugestaoDe.get(p.card_id)
-              return (
-                <li key={p.card_id}>
-                  <label
-                    className={cn(
-                      'flex min-h-toque-lg cursor-pointer items-start gap-3 rounded-dm-lg border bg-superficie p-3',
-                      distancia !== undefined ? 'border-atencao-borda' : 'border-borda',
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-1 size-5 shrink-0 accent-marca-500"
-                      checked={false}
-                      onChange={() => alternar(p.card_id)}
-                      aria-label={`Selecionar o pedido ${p.numero}`}
-                    />
-                    <CartaoPedido
-                      pedido={p}
-                      selo={
-                        distancia !== undefined ? (
-                          <span className="rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
-                            sugestão · {formatarDistancia(distancia)}
-                          </span>
-                        ) : undefined
-                      }
-                    />
-                  </label>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
+        </section>
 
-        {listaSelecionados.length > 0 && (
-          <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3 shadow-lg">
-            <span className="text-sm text-texto tabular-nums">
-              {listaSelecionados.length} pedido(s) · {pecas} {pecas === 1 ? 'peça' : 'peças'}
-              {estadoRota.estado === 'pronta' && (
-                <span className="text-texto-suave">
-                  {' '}
-                  · rota de {formatarDistancia(estadoRota.rota.distancia_m / 1000)} pelas ruas, ida e volta
-                </span>
-              )}
-              {semPonto > 0 && <span className="text-texto-suave"> · {semPonto} sem ponto no mapa</span>}
+        <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1 @3xl:self-start">
+          <h2 className="text-lg">
+            Mapa{' '}
+            <span className="text-sm font-normal text-texto-suave">
+              F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · âmbar = pedidos
+              próximos (até {RAIO_SUGESTAO_KM} km)
             </span>
-            <span className="ml-auto flex gap-2">
-              <Botao variante="fantasma" onClick={limpar}>
-                Limpar
-              </Botao>
-              <Botao icone={<Truck />} onClick={() => setConfirmando(true)}>
-                Programar
-              </Botao>
-            </span>
-          </div>
-        )}
-      </section>
-
-      <section className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-4 lg:self-start">
-        <h2 className="text-lg">
-          Mapa{' '}
-          <span className="text-sm font-normal text-texto-suave">
-            F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · âmbar = pedidos próximos (até{' '}
-            {RAIO_SUGESTAO_KM} km)
-          </span>
-        </h2>
-        <MapaProgramacao
-          rotas={rotasNoMapa}
-          trechoSelecionado={trechoValido}
-          aoSelecionarTrecho={setTrecho}
-          resumo={resumoMapa}
-          sugestoes={sugestoes}
-          aoEscolherSugestao={escolherSugestao}
-        />
-        {ordemMontando.length > 0 ? (
-          <PainelRota
-            titulo="Rota que você está montando"
-            cor={COR_MONTAGEM}
-            paradas={ordemMontando}
-            estado={estadoRota}
-            trechos={trechos}
+          </h2>
+          <MapaProgramacao
+            rotas={rotasNoMapa}
             trechoSelecionado={trechoValido}
             aoSelecionarTrecho={setTrecho}
-            ajustada={ajustada}
-            aoVoltarSugestao={voltarSugestao}
+            resumo={resumoMapa}
+            sugestoes={sugestoes}
+            aoEscolherSugestao={escolherSugestao}
           />
-        ) : (
-          <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-            Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas entregas e volta.
-          </p>
-        )}
-        {paradasNoMapa.length > MAXIMO_PARADAS && (
-          <p className="text-xs text-atencao-texto">
-            Mais de {MAXIMO_PARADAS} paradas no mapa: a rota pelas ruas não é calculada — mostrando em linha reta.
-          </p>
-        )}
-      </section>
+          {ordemMontando.length > 0 ? (
+            <PainelRota
+              titulo="Rota que você está montando"
+              cor={COR_MONTAGEM}
+              paradas={ordemMontando}
+              estado={estadoRota}
+              trechos={trechos}
+              trechoSelecionado={trechoValido}
+              aoSelecionarTrecho={setTrecho}
+              ajustada={ajustada}
+              aoVoltarSugestao={voltarSugestao}
+            />
+          ) : (
+            <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+              Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas entregas
+              e volta.
+            </p>
+          )}
+          {paradasNoMapa.length > MAXIMO_PARADAS && (
+            <p className="text-xs text-atencao-texto">
+              Mais de {MAXIMO_PARADAS} paradas no mapa: a rota pelas ruas não é calculada —
+              mostrando em linha reta.
+            </p>
+          )}
+        </section>
+
+        <section className="flex min-w-0 flex-col gap-3 @3xl:col-start-1 @3xl:row-start-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 className="text-lg">
+                Sem programação{' '}
+                <span className="text-sm font-normal text-texto-suave tabular-nums">
+                  ({naoSelecionados.length})
+                </span>
+              </h2>
+              <div className="w-full max-w-xs sm:w-auto sm:min-w-64">
+                <Selecao
+                  rotulo="Ordenar por"
+                  opcoes={OPCOES_ORDEM}
+                  valor={criterio}
+                  aoMudar={(v) => setCriterio(v as CriterioOrdem)}
+                />
+              </div>
+            </div>
+            {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
+            {!isPending && pedidos.length === 0 && (
+              <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+                Nenhum pedido lançado esperando programação.
+              </p>
+            )}
+            <ul className="flex flex-col gap-2">
+              {listaOrdenada.map((p) => {
+                const distancia = sugestaoDe.get(p.card_id)
+                return (
+                  <li key={p.card_id}>
+                    <label
+                      className={cn(
+                        'flex min-h-toque-lg cursor-pointer items-start gap-3 rounded-dm-lg border bg-superficie p-3',
+                        distancia !== undefined ? 'border-atencao-borda' : 'border-borda',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1 size-5 shrink-0 accent-marca-500"
+                        checked={false}
+                        onChange={() => alternar(p.card_id)}
+                        aria-label={`Selecionar o pedido ${p.numero}`}
+                      />
+                      <CartaoPedido
+                        pedido={p}
+                        selo={
+                          distancia !== undefined ? (
+                            <span className="rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
+                              sugestão · {formatarDistancia(distancia)}
+                            </span>
+                          ) : undefined
+                        }
+                      />
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </section>
+      </div>
+
+      {listaSelecionados.length > 0 && (
+        <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3 shadow-lg">
+          <span className="text-sm text-texto tabular-nums">
+            {listaSelecionados.length} pedido(s) · {pecas} {pecas === 1 ? 'peça' : 'peças'}
+            {estadoRota.estado === 'pronta' && (
+              <span className="text-texto-suave">
+                {' '}
+                · rota de {formatarDistancia(estadoRota.rota.distancia_m / 1000)} pelas ruas, ida e
+                volta
+              </span>
+            )}
+            {semPonto > 0 && (
+              <span className="text-texto-suave"> · {semPonto} sem ponto no mapa</span>
+            )}
+          </span>
+          <span className="ml-auto flex gap-2">
+            <Botao variante="fantasma" onClick={limpar}>
+              Limpar
+            </Botao>
+            <Botao icone={<Truck />} onClick={() => setConfirmando(true)}>
+              Programar
+            </Botao>
+          </span>
+        </div>
+      )}
 
       {confirmando && (
         <ModalProgramar
@@ -419,7 +478,12 @@ export function AbaProgramar({
           aoFechar={() => setConfirmando(false)}
           aoConfirmar={(data, caminhao) => {
             setCaminhaoId(String(caminhao))
-            programarMutacao.mutate({ data, caminhaoId: caminhao, cardIds: idsMontando, ajustada })
+            programarMutacao.mutate({
+              data,
+              caminhaoId: caminhao,
+              cardIds: idsMontando,
+              ajustada,
+            })
           }}
         />
       )}

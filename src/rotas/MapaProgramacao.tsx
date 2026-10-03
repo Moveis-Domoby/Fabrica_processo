@@ -192,7 +192,9 @@ export const MapaProgramacao = memo(function MapaProgramacao({
   return (
     <div
       className={cn(
-        'relative overflow-hidden border border-borda bg-superficie',
+        // isolate: as camadas do Leaflet (z-index 400–1000) ficam DENTRO do mapa —
+        // sem isso o mapa desenhava por cima da barra fixa do Programar e das bolhas
+        'relative isolate overflow-hidden border border-borda bg-superficie',
         expandido ? 'fixed inset-0 z-[60] rounded-none' : 'h-[24rem] rounded-dm-lg lg:h-[32rem]',
       )}
     >
