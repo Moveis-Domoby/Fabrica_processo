@@ -9128,8 +9128,8 @@ const estrutura54 = await um54(`
          (select pg_get_constraintdef(oid) from pg_constraint where conname = 'plt_programacoes_ordem_ck') as ordem_ck,
          has_function_privilege('anon', 'public.plt_fn_ordenar_rota(date, bigint, bigint[])', 'execute') as ordenar_anon,
          has_function_privilege('authenticated', 'public.plt_fn_ordenar_rota(date, bigint, bigint[])', 'execute') as ordenar_logado,
-         has_function_privilege('anon', 'public.plt_fn_programacao(date, integer, integer)', 'execute') as porta_anon,
-         has_function_privilege('authenticated', 'public.plt_fn_programacao(date, integer, integer)', 'execute') as porta_logado,
+         has_function_privilege('anon', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as porta_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as porta_logado,
          (select count(*)::int from pg_proc where proname = 'plt_fn_programacao') as sobrecargas`)
 conferir(
   estrutura54.rota_tipo === 'jsonb' && estrutura54.ordem_tipo === 'integer' && /ordem >= 1/.test(estrutura54.ordem_ck ?? '')
@@ -9288,6 +9288,136 @@ conferir(
 )
 await como54('')
 } // fim do bloco 54
+
+// ============================================================================
+// AJUSTES DA SESSAO-28 (03/10 — migration 55, D-111): os móveis de cada pedido
+// na porta do mapa (sem o frete), a aba "Já programadas" (porta paginada; as
+// entregues só quando se pede) e programar a rota inteira numa chamada só.
+// O dono: "eu devo conseguir sempre ver quais itens vão em cada pedido".
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Rotas (ajustes da SESSAO-28) · itens do pedido, "Já programadas" e programar de uma vez')
+
+const um55 = async (sql) => (await bd.query(sql)).rows[0]
+const todos55 = async (sql) => (await bd.query(sql)).rows
+const como55 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+
+await como55(E40.admin)
+await bd.exec(`
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 55', 'RTA5C55'), ('Baú 55B', 'RTA5D55');
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (955001, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook'),
+    (955002, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook'),
+    (955003, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 955001), 1, 'Mesa Teste 55 - Branca', 2),
+    ((select id from public.pedidos where numero = 955001), 2, 'Frete', 1),
+    ((select id from public.pedidos where numero = 955001), 3, 'Cadeira Teste 55', 4);
+`)
+const cam55 = await um55(`select (select id from public.plt_caminhoes where placa = 'RTA5C55')::int as a,
+                                 (select id from public.plt_caminhoes where placa = 'RTA5D55')::int as b`)
+const card55 = async (n) => (await um55(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                          where c.tipo = 'pedido' and p.numero = ${n}`))?.id
+const [d1, d2, d3] = [await card55(955001), await card55(955002), await card55(955003)]
+// lançados para ROTAS pelo evento (o 955001 tem móveis que nunca passaram pela
+// produção no teste — a porta de lançar recusaria; aqui importa a programação)
+await bd.exec(`
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_destino_id, dados)
+  select c, 'pedido_lancado_rotas', (select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'), 'api',
+         (select id from public.plt_setores where codigo = 'rotas'), '{"teste": true}'::jsonb
+    from unnest(array[${d1}, ${d2}, ${d3}]::bigint[]) c;
+`)
+await como55(E40.logistica)
+const itens55 = await um55(`select total_unidades, itens from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${d1}`)
+conferir(
+  itens55?.total_unidades === 6 && Array.isArray(itens55?.itens) && itens55.itens.length === 2
+    && itens55.itens[0].descricao === 'Mesa Teste 55 - Branca' && itens55.itens[0].quantidade === 2
+    && itens55.itens[1].descricao === 'Cadeira Teste 55' && itens55.itens[1].quantidade === 4,
+  'a porta do mapa traz os móveis de cada pedido, na ordem, com a quantidade — e o frete não aparece nem conta',
+  JSON.stringify(itens55 ?? null),
+)
+
+titulo('Rotas (ajustes da SESSAO-28) · programar a rota inteira numa chamada só (tudo ou nada)')
+
+const antesLote = await um55(`select count(*)::int as n from public.plt_logs_atividade where acao in ('entrega_programada', 'rota_ordem_salva')`)
+const devolveu55 = (await um55(`select public.plt_fn_programar_rota('2026-10-20', ${cam55.a}, array[${d1}, ${d2}]::bigint[], array[${d2}, ${d1}]::bigint[]) as n`)).n
+const lote = await todos55(`select card_id::int as id, ordem, caminhao_id::int as cam, data_entrega::text as dia
+                              from public.plt_programacoes where card_id in (${d1}, ${d2}) order by card_id`)
+const depoisLote = await um55(`select count(*)::int as n from public.plt_logs_atividade where acao in ('entrega_programada', 'rota_ordem_salva')`)
+conferir(
+  devolveu55 === 2 && lote.length === 2 && lote.every((l) => l.cam === cam55.a && l.dia === '2026-10-20')
+    && lote.find((l) => l.id === d2).ordem === 1 && lote.find((l) => l.id === d1).ordem === 2
+    && depoisLote.n === antesLote.n + 3,
+  'uma chamada programa os 2 pedidos no dia e caminhão e salva a ordem da rota — 2 linhas "programou" + 1 "salvou a ordem" na trilha',
+  JSON.stringify({ devolveu55, lote, antesLote, depoisLote }),
+)
+await deveRecusarExec(
+  `select public.plt_fn_programar_rota('2026-10-21', ${cam55.b}, array[${d3}, 99999999]::bigint[])`,
+  'um pedido inválido no lote recusa o lote inteiro',
+  /não existe/i,
+)
+const naoFicou = await um55(`select count(*)::int as n from public.plt_programacoes where card_id = ${d3}`)
+conferir(naoFicou.n === 0, 'e nada do lote fica gravado (o pedido válido também não foi programado)', JSON.stringify(naoFicou))
+await deveRecusarExec(
+  `select public.plt_fn_programar_rota('2026-10-21', ${cam55.b}, '{}'::bigint[])`,
+  'lote vazio é recusado',
+  /ao menos um pedido/i,
+)
+await bd.exec(`select public.plt_fn_programar_rota('2026-10-18', ${cam55.b}, array[${d3}]::bigint[])`)
+
+titulo('Rotas (ajustes da SESSAO-28) · a aba "Programar" só com os sem programação; "Já programadas" paginada')
+
+const soSem = await todos55(`select card_id::int as id from public.plt_fn_programacao(null, 200, 0, true) where card_id in (${d1}, ${d2}, ${d3})`)
+const comDia = await todos55(`select card_id::int as id from public.plt_fn_programacao('2026-10-20') where card_id in (${d1}, ${d2}, ${d3})`)
+conferir(
+  soSem.length === 0 && comDia.length === 2,
+  'com "só sem programação" os programados não vêm; sem o parâmetro, a porta continua como antes (o site antigo segue funcionando)',
+  JSON.stringify({ soSem, comDia }),
+)
+const programadas = await todos55(`select card_id::int as id, programacao_data::text as dia, caminhao_placa, ordem, itens, contagem_total
+                                     from public.plt_fn_programadas(false, null, null, 200, 0) where card_id in (${d1}, ${d2}, ${d3})`)
+conferir(
+  programadas.map((p) => p.id).join(',') === [d3, d2, d1].join(',')
+    && programadas[0].dia === '2026-10-18' && programadas[1].ordem === 1 && programadas[2].ordem === 2
+    && programadas[0].caminhao_placa === 'RTA5D55' && Array.isArray(programadas[2].itens) && programadas[2].itens.length === 2,
+  '"Já programadas": do dia mais perto ao mais longe, por caminhão e na ordem salva, com a placa e os itens',
+  JSON.stringify(programadas.map(({ itens, ...p }) => ({ ...p, itens: itens.length }))),
+)
+const filtrada = await todos55(`select card_id::int as id from public.plt_fn_programadas(false, '2026-10-20', ${cam55.a}, 50, 0)`)
+const pagina = await todos55(`select card_id::int as id, contagem_total::int as total from public.plt_fn_programadas(false, null, null, 1, 0)`)
+conferir(
+  filtrada.length === 2 && filtrada.every((f) => [d1, d2].includes(f.id)) && pagina.length === 1 && pagina[0].total >= 3,
+  'filtro por dia e caminhão; uma página por vez com o total na mesma consulta (regra 17)',
+  JSON.stringify({ filtrada, pagina }),
+)
+await bd.exec(`select public.plt_fn_registrar_entrega(${d3}, 'entregue no teste dos ajustes da S28')`)
+const aEntregar = await todos55(`select card_id::int as id from public.plt_fn_programadas(false, null, null, 200, 0) where card_id = ${d3}`)
+const entregues = await todos55(`select card_id::int as id, entregue_em is not null as tem_data from public.plt_fn_programadas(true, null, null, 200, 0) where card_id = ${d3}`)
+conferir(
+  aEntregar.length === 0 && entregues.length === 1 && entregues[0].tem_data,
+  'o entregue sai de "a entregar" e aparece só quando se pede as entregues, com a data da entrega',
+  JSON.stringify({ aEntregar, entregues }),
+)
+await como55(E40.operador)
+const operador55 = await um55(`select count(*)::int as n from public.plt_fn_programadas(false, null, null, 200, 0)`)
+await deveRecusarExec(
+  `select public.plt_fn_programar_rota('2026-10-22', ${cam55.a}, array[${d1}]::bigint[])`,
+  'operador de produção não programa rota (gate da logística)',
+  /logística/i,
+)
+conferir(operador55.n === 0, 'quem não é da logística não vê as programações', JSON.stringify(operador55))
+const priv55 = await um55(`
+  select has_function_privilege('anon', 'public.plt_fn_programadas(boolean, date, bigint, integer, integer)', 'execute') as prog_anon,
+         has_function_privilege('anon', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[])', 'execute') as rota_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[])', 'execute') as rota_logado,
+         (select count(*)::int from pg_proc where proname = 'plt_fn_programacao') as sobrecargas`)
+conferir(
+  !priv55.prog_anon && !priv55.rota_anon && priv55.rota_logado && priv55.sobrecargas === 1,
+  'portas novas só para quem está logado; a porta do mapa sem sobrecarga (a forma antiga saiu)',
+  JSON.stringify(priv55),
+)
+await como55('')
+} // fim do bloco 55
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
