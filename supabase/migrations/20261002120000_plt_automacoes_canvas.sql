@@ -2653,7 +2653,10 @@ select 'Exemplo · parado há 3 dias avisa o líder', 'card_parado',
        jsonb_build_object('nos', jsonb_build_array(
          jsonb_build_object('id', 'q', 'x', 80, 'y', 120),
          jsonb_build_object('id', 'p1', 'x', 400, 'y', 120)))
-where not exists (select 1 from public.plt_automacoes where nome = 'Exemplo · parado há 3 dias avisa o líder');
+where not exists (select 1 from public.plt_automacoes where nome = 'Exemplo · parado há 3 dias avisa o líder')
+  -- excluído pelo dono (migration 52) não volta numa reaplicação
+  and not exists (select 1 from public.plt_logs_atividade
+                   where acao = 'automacao_excluida' and contexto->>'automacao' = 'Exemplo · parado há 3 dias avisa o líder');
 
 insert into public.plt_automacoes (nome, gatilho, gatilho_config, passos, desenho)
 select 'Exemplo · peça danificada avisa os admins', 'qualidade_marcada',
@@ -2665,7 +2668,10 @@ select 'Exemplo · peça danificada avisa os admins', 'qualidade_marcada',
        jsonb_build_object('nos', jsonb_build_array(
          jsonb_build_object('id', 'q', 'x', 80, 'y', 120),
          jsonb_build_object('id', 'p1', 'x', 400, 'y', 120)))
-where not exists (select 1 from public.plt_automacoes where nome = 'Exemplo · peça danificada avisa os admins');
+where not exists (select 1 from public.plt_automacoes where nome = 'Exemplo · peça danificada avisa os admins')
+  -- excluído pelo dono (migration 52) não volta numa reaplicação
+  and not exists (select 1 from public.plt_logs_atividade
+                   where acao = 'automacao_excluida' and contexto->>'automacao' = 'Exemplo · peça danificada avisa os admins');
 
 -- ----------------------------------------------------------------------------
 -- 16 · E-19: a migration mais nova do check valida TUDO

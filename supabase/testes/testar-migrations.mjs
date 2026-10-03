@@ -8565,7 +8565,10 @@ const j51 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
 // devolve só as colunas DELA) — aqui a 51 é reaplicada, como em produção a
 // ordem garante (38 → 51). No fim do bloco ela roda de novo, já com dados.
 const SQL51 = await readFile(path.join(MIGRATIONS, '20261002120000_plt_automacoes_canvas.sql'), 'utf8')
+// a 52 (excluir automação) recria a porta da Auditoria por cima da 51 — a ordem de produção é 51 → 52
+const SQL52 = await readFile(path.join(MIGRATIONS, '20261003120000_plt_automacao_excluir.sql'), 'utf8')
 await bd.exec(SQL51)
+await bd.exec(SQL52)
 
 await bd.exec(`
   insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
@@ -9012,13 +9015,58 @@ conferir(gat51?.adiado && gat51?.inicial && gatEv?.adiado,
   'os dois gatilhos do motor são ADIADOS (rodam no fechamento do gesto) — o de pedidos e o de eventos', JSON.stringify({ gat51, gatEv }))
 await como51('')
 
+titulo('Automações (ajuste da SESSAO-27, migration 52) · excluir: a automação sai, o histórico fica e a Auditoria marca')
+
+await como51(E40.admin)
+// pôs uma etiqueta (gesto dela) e ficou ESPERANDO para arquivar
+const a17 = (await salvar51('A17 para excluir', 'chamada_externa', {}, [
+  { tipo: 'etiqueta_por', etiquetas: [doCaminho] }, { tipo: 'esperar', quantidade: 1, unidade: 'horas' }, { tipo: 'arquivar' },
+])).id
+await ligar51(a17)
+const r17 = (await um51(`select public.plt_fn_automacao_chamada(${a17}, ${ids51.peca}) as r`)).r
+const gesto17 = await um51(`select id::int as id from public.plt_eventos
+                             where tipo = 'etiqueta_adicionada' and dados->>'automacao_id' = '${a17}' order by id desc limit 1`)
+await como51(ADMIN51)
+await deveRecusarExec(`select public.plt_fn_automacao_excluir(${a17})`, 'admin comum não exclui automação', /só do super admin/)
+await como51(E40.admin)
+const nome17 = (await um51(`select public.plt_fn_automacao_excluir(${a17}) as n`)).n
+const sumiu17 = await um51(`select count(*)::int as n from public.plt_automacoes where id = ${a17}`)
+const exec17 = await um51(`select automacao_id, automacao_nome, situacao, avaliacao from public.plt_automacao_execucoes where id = ${r17.execucao_id}`)
+const log17 = await um51(`select usuario_id is not null as com_autor, contexto from public.plt_logs_atividade
+                           where acao = 'automacao_excluida' and contexto->>'automacao_id' = '${a17}'`)
+conferir(
+  r17.situacao === 'esperando' && nome17 === 'A17 para excluir' && sumiu17.n === 0
+    && exec17?.automacao_id === null && exec17?.automacao_nome === 'A17 para excluir'
+    && exec17?.situacao === 'parou' && /excluída durante a espera/.test(exec17?.avaliacao ?? '')
+    && log17?.com_autor && log17.contexto.automacao === 'A17 para excluir' && Number(log17.contexto.execucoes) === 1
+    && Number(log17.contexto.esperas_paradas) === 1 && log17.contexto.estava_ligada === true,
+  'excluir: a automação sai de vez; a execução FICA (sem a chave, com o nome) e a espera PARA; a trilha registra quem, o nome e quantas execuções',
+  JSON.stringify({ r17: r17.situacao, nome17, sumiu17, exec17, log17 }),
+)
+const aud17 = await todos51(`select acao, contexto from public.plt_fn_auditoria(p_limite => 100)`)
+const linhas17 = aud17.filter((l) => l.contexto?.automacao_id !== undefined && Number(l.contexto.automacao_id) === a17)
+const linhaGesto17 = aud17.find((l) => Number(l.contexto?.evento_id) === gesto17?.id)
+const linhasVivas = aud17.filter((l) => l.contexto?.automacao_id !== undefined && Number(l.contexto.automacao_id) === a1)
+conferir(
+  linhas17.length >= 2 && linhas17.every((l) => l.contexto.automacao_excluida === true)
+    && linhas17.some((l) => l.acao === 'automacao_excluida')
+    && linhaGesto17?.contexto?.automacao_excluida === true
+    && linhasVivas.every((l) => l.contexto.automacao_excluida === undefined),
+  'na Auditoria, as linhas da automação excluída (e os gestos dela) vêm marcadas "automação excluída"; as de automação viva, não',
+  JSON.stringify({ linhas17: linhas17.map((l) => [l.acao, l.contexto.automacao_excluida]), gesto: linhaGesto17?.contexto, vivas: linhasVivas.length }),
+)
+await deveRecusarExec(`select public.plt_fn_automacao_excluir(${a17})`, 'excluir de novo (ou o que não existe) é recusado com o porquê', /não existe/)
+const exemploExcluido = 'Exemplo · peça danificada avisa os admins'
+await bd.exec(`select public.plt_fn_automacao_excluir((select id from public.plt_automacoes where nome = '${exemploExcluido}'))`)
+await como51('')
+
 // Reaplicar com o banco já cheio (etiquetas e "trazer de volta" nos eventos,
 // automações ligadas e desligadas): o check novo valida, nada duplica, nada desliga.
 const antesDeReaplicar = await um51(`select count(*)::int as autos, count(*) filter (where ligada)::int as ligadas,
                                             (select count(*)::int from public.plt_eventos where tipo like 'etiqueta\\_%') as marcas
                                        from public.plt_automacoes`)
 let reaplicou = true
-try { await bd.exec(SQL51) } catch (erro) { reaplicou = erro.message }
+try { await bd.exec(SQL51); await bd.exec(SQL52) } catch (erro) { reaplicou = erro.message }
 const depoisDeReaplicar = await um51(`select count(*)::int as autos, count(*) filter (where ligada)::int as ligadas from public.plt_automacoes`)
 conferir(
   reaplicou === true && antesDeReaplicar.marcas > 0 && depoisDeReaplicar.autos === antesDeReaplicar.autos
@@ -9026,6 +9074,8 @@ conferir(
   'a migration 51 se reaplica com dados de verdade (eventos de etiqueta validados pelo check novo; exemplos não duplicam; ninguém desliga)',
   JSON.stringify({ reaplicou, antesDeReaplicar, depoisDeReaplicar }),
 )
+const voltou = await um51(`select count(*)::int as n from public.plt_automacoes where nome = '${exemploExcluido}'`)
+conferir(voltou.n === 0, 'o exemplo de fábrica que o dono excluiu NÃO volta quando a 51 é reaplicada', JSON.stringify(voltou))
 } // fim do bloco 51
 
 titulo('Resumo')
