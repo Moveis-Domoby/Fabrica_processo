@@ -8565,10 +8565,13 @@ const j51 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
 // devolve só as colunas DELA) — aqui a 51 é reaplicada, como em produção a
 // ordem garante (38 → 51). No fim do bloco ela roda de novo, já com dados.
 const SQL51 = await readFile(path.join(MIGRATIONS, '20261002120000_plt_automacoes_canvas.sql'), 'utf8')
-// a 52 (excluir automação) recria a porta da Auditoria por cima da 51 — a ordem de produção é 51 → 52
-const SQL52 = await readFile(path.join(MIGRATIONS, '20261003120000_plt_automacao_excluir.sql'), 'utf8')
+// as migrations DEPOIS da 51 recriam funções dela (a 52 a porta da Auditoria, a 53
+// a trilha dos campos) — reaplicar na ordem de produção, 51 → as seguintes (E-81)
+const DEPOIS51 = await Promise.all(
+  arquivos.filter((f) => f > '20261002120000_plt_automacoes_canvas.sql').map((f) => readFile(path.join(MIGRATIONS, f), 'utf8')),
+)
 await bd.exec(SQL51)
-await bd.exec(SQL52)
+for (const sql of DEPOIS51) await bd.exec(sql)
 
 await bd.exec(`
   insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
@@ -9058,6 +9061,30 @@ conferir(
 await deveRecusarExec(`select public.plt_fn_automacao_excluir(${a17})`, 'excluir de novo (ou o que não existe) é recusado com o porquê', /não existe/)
 const exemploExcluido = 'Exemplo · peça danificada avisa os admins'
 await bd.exec(`select public.plt_fn_automacao_excluir((select id from public.plt_automacoes where nome = '${exemploExcluido}'))`)
+
+titulo('Automações (ajuste da SESSAO-27, migration 53) · quem limpou o campo aparece na trilha')
+
+// a automação preencheu "Cor do MDF" na peça (caminho Sim do "Se… senão") — o admin limpa à mão
+await como51(ADMIN51)
+await bd.exec(`select public.plt_fn_campo_definir(${corMdf}, ${ids51.peca}, null, null)`)
+const limpoAdmin = await um51(`select l.usuario_id = (select id from public.plt_usuarios where auth_user_id = '${ADMIN51}') as quem_limpou,
+                                      l.contexto->>'origem' as origem
+                                 from public.plt_logs_atividade l
+                                where l.acao = 'campo_limpo' and l.contexto->>'campo_id' = '${corMdf}' order by l.id desc limit 1`)
+// e a automação limpa a prioridade que o admin pôs no pedido
+await como51(E40.admin)
+const a18 = (await salvar51('A18 limpa a prioridade', 'chamada_externa', {}, [{ tipo: 'campo', campo_id: prioridade, limpar: true }])).id
+await ligar51(a18)
+const r18 = (await um51(`select public.plt_fn_automacao_chamada(${a18}, ${ids51.card_pedido}) as r`)).r
+const limpoAuto = await um51(`select l.usuario_id, l.contexto->>'origem' as origem from public.plt_logs_atividade l
+                               where l.acao = 'campo_limpo' and l.contexto->>'campo_id' = '${prioridade}' order by l.id desc limit 1`)
+await ligar51(a18, false)
+conferir(
+  limpoAdmin?.quem_limpou === true && limpoAdmin.origem === 'interface'
+    && r18.situacao === 'concluida' && limpoAuto?.usuario_id === null && limpoAuto?.origem === 'automacao',
+  'campo limpo à mão: a trilha diz QUEM limpou e que foi pela tela; limpo pela automação: "Sistema" e origem automação',
+  JSON.stringify({ limpoAdmin, r18: r18.situacao, limpoAuto }),
+)
 await como51('')
 
 // Reaplicar com o banco já cheio (etiquetas e "trazer de volta" nos eventos,
@@ -9066,7 +9093,7 @@ const antesDeReaplicar = await um51(`select count(*)::int as autos, count(*) fil
                                             (select count(*)::int from public.plt_eventos where tipo like 'etiqueta\\_%') as marcas
                                        from public.plt_automacoes`)
 let reaplicou = true
-try { await bd.exec(SQL51); await bd.exec(SQL52) } catch (erro) { reaplicou = erro.message }
+try { await bd.exec(SQL51); for (const sql of DEPOIS51) await bd.exec(sql) } catch (erro) { reaplicou = erro.message }
 const depoisDeReaplicar = await um51(`select count(*)::int as autos, count(*) filter (where ligada)::int as ligadas from public.plt_automacoes`)
 conferir(
   reaplicou === true && antesDeReaplicar.marcas > 0 && depoisDeReaplicar.autos === antesDeReaplicar.autos
