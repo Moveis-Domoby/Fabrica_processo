@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { Automacoes } from './Automacoes'
-import { ligarAutomacao, salvarAutomacao } from '@/automacoes/api'
+import { excluirAutomacao, ligarAutomacao, salvarAutomacao } from '@/automacoes/api'
 import { desarquivarCard } from '@/utilitarios/api'
 
 /**
@@ -70,6 +70,7 @@ vi.mock('@/automacoes/api', () => ({
   salvarAutomacao: vi.fn(async () => 99),
   ligarAutomacao: vi.fn(async () => undefined),
   arquivarAutomacao: vi.fn(async () => undefined),
+  excluirAutomacao: vi.fn(async () => undefined),
   listarExecucoes: vi.fn(async () => ({
     total: 1,
     linhas: [
@@ -162,6 +163,16 @@ describe('Super admin → Automações', () => {
     expect(vi.mocked(salvarAutomacao).mock.calls[0][0].passos).toEqual([
       { tipo: 'se_senao', entao: [], senao: [{ tipo: 'arquivar' }] },
     ])
+  })
+
+  it('excluir: confirma na própria barra e some de vez (o que ela fez fica na Auditoria)', async () => {
+    renderizar('/super-admin/automacoes?a=12')
+    expect(await screen.findByDisplayValue('Entrou em A arquiva')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir a automação' }))
+    expect(screen.getByText('Excluir de vez? Ela some; o que ela fez fica na Auditoria.')).toBeInTheDocument()
+    expect(excluirAutomacao).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Sim, excluir' }))
+    await waitFor(() => expect(excluirAutomacao).toHaveBeenCalledWith(12))
   })
 
   it('a aba Execuções (escondida até o clique) mostra cada passo e o "Trazer de volta" quando a automação arquivou', async () => {

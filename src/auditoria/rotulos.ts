@@ -102,6 +102,7 @@ export const ROTULO_ACAO: Record<string, string> = {
   automacao_desligada: 'Desligou uma automação',
   automacao_arquivada: 'Arquivou uma automação',
   automacao_reativada: 'Reativou uma automação',
+  automacao_excluida: 'Excluiu uma automação',
   etiqueta_adicionada: 'Pôs uma etiqueta no card',
   etiqueta_removida: 'Tirou uma etiqueta do card',
   card_desarquivado: 'Trouxe o card de volta',
@@ -362,10 +363,15 @@ const CHAVES: Record<string, string> = {
   gatilho: 'Quando',
   situacao: 'Resultado',
   ligada: 'Estava ligada',
+  estava_ligada: 'Estava ligada',
+  passos: 'Passos',
+  execucoes: 'Execuções no histórico',
+  esperas_paradas: 'Esperas interrompidas',
 }
 /** Chaves que só servem à máquina (ids) — não vão para a tela. */
 function ehChaveDeMaquina(chave: string): boolean {
-  return chave === 'id' || chave.endsWith('_id') || chave === 'lancamento_id' || chave === 'motivo'
+  // automacao_excluida vira a etiqueta da linha, não um detalhe
+  return chave === 'id' || chave.endsWith('_id') || chave === 'lancamento_id' || chave === 'motivo' || chave === 'automacao_excluida'
 }
 
 function textoDoValor(chave: string, valor: unknown): string {

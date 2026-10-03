@@ -17,6 +17,7 @@ import {
   Search,
   ShieldCheck,
   Timer,
+  Trash2,
   Truck,
   Users,
   Workflow,
@@ -305,6 +306,13 @@ function ItemAtividade({ linha, setores }: { linha: LinhaAuditoria; setores: { c
               <span className="text-texto-suave"> · pedido {linha.pedido_numero}</span>
             )}
           </span>
+          {/* a automação desta linha já não existe (o histórico fica — pedido do dono) */}
+          {linha.contexto?.automacao_excluida === true && (
+            <span className="inline-flex shrink-0 items-center gap-1 self-center rounded-full bg-danificado-fundo px-2 py-0.5 text-[11px] font-semibold text-danificado-texto">
+              <Trash2 aria-hidden className="size-3" />
+              Automação excluída
+            </span>
+          )}
         </span>
         <time dateTime={linha.criado_em} className="ml-auto shrink-0 text-xs text-texto-fraco tabular-nums">
           {quando(linha.criado_em)}

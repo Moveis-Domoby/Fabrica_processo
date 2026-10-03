@@ -127,6 +127,37 @@ describe('Painel admin → Auditoria', () => {
     expect(buscarConferencias).not.toHaveBeenCalled()
   })
 
+  it('linha de uma automação que já foi excluída ganha a etiqueta "Automação excluída" (o histórico fica)', async () => {
+    vi.mocked(buscarAuditoria).mockResolvedValueOnce({
+      total: 1,
+      linhas: [
+        {
+          id: 3,
+          criado_em: '2026-10-02T23:00:00Z',
+          usuario_id: 'u2',
+          usuario_nome: 'Guilherme',
+          acao: 'automacao_excluida',
+          rota: null,
+          contexto: { automacao_id: 10, automacao: 'Teste — etiqueta posta arquiva', execucoes: 2, automacao_excluida: true },
+          pedido_numero: null,
+          card_tipo: null,
+          setor_origem: null,
+          setor_destino: null,
+          etapa_origem: null,
+          etapa_destino: null,
+          motivo: 'Automação "Teste — etiqueta posta arquiva" excluída',
+          contagem_total: 1,
+        },
+      ],
+    })
+    renderizar()
+    const linha = (await screen.findByText('Excluiu uma automação')).closest('li') as HTMLElement
+    expect(within(linha).getByText('Automação excluída')).toBeInTheDocument()
+    // a marca é a etiqueta, não um "detalhe" com nome de máquina
+    expect(within(linha).queryByText(/automacao[ _]excluida/i)).toBeNull()
+    expect(within(linha).getByText('Execuções no histórico')).toBeInTheDocument()
+  })
+
   it('a busca (nº do pedido) só vai ao servidor no Enter/botão, na página 1', async () => {
     renderizar()
     await screen.findByText('Moveu o card de setor')

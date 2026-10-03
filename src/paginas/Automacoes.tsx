@@ -10,6 +10,7 @@ import {
   History,
   Plus,
   Save,
+  Trash2,
   Workflow,
   X,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import {
   POR_PAGINA_AUTOMACOES,
   arquivarAutomacao,
   buscarAutomacao,
+  excluirAutomacao,
   ligarAutomacao,
   listarAutomacoes,
   salvarAutomacao,
@@ -355,7 +357,7 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
   const [alterado, setAlterado] = useState(automacao === null)
   // onde entra o bloco novo: depois de qual bloco (e, no "Se… senão", em qual caminho)
   const [adicionandoDepois, setAdicionandoDepois] = useState<{ de: string; saida?: Saida } | null>(null)
-  const [confirmando, setConfirmando] = useState<'publicar' | 'desligar' | 'arquivar' | null>(null)
+  const [confirmando, setConfirmando] = useState<'publicar' | 'desligar' | 'arquivar' | 'excluir' | null>(null)
 
   function mudar(novo: EstadoDesenho) {
     setEstado(novo)
@@ -421,6 +423,21 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
     },
     onError: (excecao) =>
       notificar({ titulo: 'Não deu certo', descricao: excecao instanceof Error ? excecao.message : undefined, tom: 'danificado' }),
+  })
+
+  // Excluir = some de vez; o que ela fez fica na Auditoria, marcado "automação excluída"
+  const excluir = useMutation({
+    mutationFn: () => excluirAutomacao(automacao!.id),
+    onSuccess: async () => {
+      notificar({ titulo: 'Automação excluída', descricao: 'O que ela fez continua na Auditoria.', tom: 'perfeito' })
+      setConfirmando(null)
+      await clienteQuery.invalidateQueries({ queryKey: ['automacoes'] })
+      setParametros({}, { replace: true })
+    },
+    onError: (excecao) => {
+      setConfirmando(null)
+      notificar({ titulo: 'Não deu para excluir', descricao: excecao instanceof Error ? excecao.message : undefined, tom: 'danificado' })
+    },
   })
 
   const blocoSelecionado = selecionado && selecionado !== ID_QUANDO ? estado.blocos.find((b) => b.id === selecionado) : null
@@ -503,13 +520,28 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
                 {confirmando === 'publicar' && 'Publicar? Ela é salva e LIGADA — passa a agir sozinha.'}
                 {confirmando === 'desligar' && 'Desligar? Ela para de agir.'}
                 {confirmando === 'arquivar' && (arquivada ? 'Reativar? Ela volta desligada.' : 'Arquivar? Ela é desligada e sai da lista.')}
+                {confirmando === 'excluir' && 'Excluir de vez? Ela some; o que ela fez fica na Auditoria.'}
               </span>
               <Botao
-                variante={confirmando === 'publicar' ? 'primaria' : 'secundaria'}
-                carregando={publicar.isPending || arquivar.isPending}
-                onClick={() => (confirmando === 'arquivar' ? arquivar.mutate() : publicar.mutate(confirmando === 'publicar'))}
+                variante={confirmando === 'publicar' ? 'primaria' : confirmando === 'excluir' ? 'perigo' : 'secundaria'}
+                carregando={publicar.isPending || arquivar.isPending || excluir.isPending}
+                onClick={() =>
+                  confirmando === 'excluir'
+                    ? excluir.mutate()
+                    : confirmando === 'arquivar'
+                      ? arquivar.mutate()
+                      : publicar.mutate(confirmando === 'publicar')
+                }
               >
-                {confirmando === 'publicar' ? 'Sim, publicar' : confirmando === 'desligar' ? 'Sim, desligar' : arquivada ? 'Sim, reativar' : 'Sim, arquivar'}
+                {confirmando === 'publicar'
+                  ? 'Sim, publicar'
+                  : confirmando === 'desligar'
+                    ? 'Sim, desligar'
+                    : confirmando === 'excluir'
+                      ? 'Sim, excluir'
+                      : arquivada
+                        ? 'Sim, reativar'
+                        : 'Sim, arquivar'}
               </Botao>
               <Botao variante="fantasma" onClick={() => setConfirmando(null)}>
                 Não
@@ -524,6 +556,15 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
                   aria-label={arquivada ? 'Reativar a automação' : 'Arquivar a automação'}
                   title={arquivada ? 'Reativar' : 'Arquivar'}
                   onClick={() => setConfirmando('arquivar')}
+                />
+              )}
+              {automacao && (
+                <Botao
+                  variante="fantasma"
+                  icone={<Trash2 />}
+                  aria-label="Excluir a automação"
+                  title="Excluir"
+                  onClick={() => setConfirmando('excluir')}
                 />
               )}
               <Botao

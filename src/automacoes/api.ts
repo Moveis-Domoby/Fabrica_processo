@@ -121,6 +121,12 @@ export async function arquivarAutomacao(id: number, arquivar: boolean): Promise<
   if (error) throw new Error(error.message)
 }
 
+/** Exclui de vez (só super admin). As execuções ficam na história; a Auditoria marca as linhas dela. */
+export async function excluirAutomacao(id: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_automacao_excluir', { p_id: id })
+  if (error) throw new Error(error.message)
+}
+
 export async function listarExecucoes(
   automacaoId: number,
   pagina: number,
