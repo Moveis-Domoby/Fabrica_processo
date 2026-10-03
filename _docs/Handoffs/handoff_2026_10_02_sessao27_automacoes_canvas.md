@@ -100,7 +100,7 @@ Nenhum número de painel muda. O que aparece de novo: pílulas de etiqueta e lin
 ### Ajuste depois da entrega (02/10, noite) — excluir automação (D-107)
 - Botão **Excluir** no editor (lixeira + "Excluir de vez?"): a automação some; as execuções ficam; na **Auditoria** as linhas dela ganham a etiqueta **"Automação excluída"**. Migration 52 aplicada e tela publicada com o OK do dono; testado ao vivo excluindo as 2 automações de teste.
 - **Limpeza do teste:** etiqueta e campo "Teste automação" tirados do card de teste e arquivados; cópias antigas do código apagadas (21 locais, 8 no GitHub).
-- ⚠️ Achado: "Limpou um campo customizado" aparece com autor "Sistema" (deveria ser quem limpou) — correção no banco, pendente.
+- ✅ Achado corrigido (migration 53, com o OK do dono): "Limpou um campo customizado" agora mostra quem limpou e que foi pela tela; limpeza pela automação continua "Sistema".
 
 ### Conferido depois da entrega
 - ✅ **A conferência diária com o Tiny das 3h de 02/10** (06:00 UTC) — a primeira com o gatilho novo em `pedidos` no ar — fechou **concluída: 623 relidos, 8 mudaram, 0 falhas**; os 8 pedidos regravados sem erro; nenhuma execução de automação (todas desligadas).
