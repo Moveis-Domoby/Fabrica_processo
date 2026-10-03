@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -145,6 +145,10 @@ tags: [plataforma, requisitos, backlog]
 | RF-127 | Rota da Programação calculada PELAS RUAS (D-108 — ↩️ a linha reta da D-39): parte da fábrica (Rua Tancredo Neves, Planalto) e volta para ela; serviço gratuito de rotas (OSRM) chamado por Edge Function identificada; distância e tempo ("só dirigindo") por trecho e totais; aviso fixo de "sugestão inicial"; a rota de cada sequência de paradas fica guardada no cache do mapa (reabrir = 1 leitura, 0 chamada ao serviço); serviço fora do ar → linha reta tracejada + aviso, tela viva | ✅ entregue (SESSAO-28) |
 | RF-128 | Ordem das paradas à mão (D-109): sugestão do mais perto a partir da fábrica; subir/descer redesenha na hora; "Salvar ordem" grava a ordem do caminhão no dia (uma linha na Auditoria) e "Voltar à sugestão" desfaz; na montagem a ordem vai junto com o Programar (novos entram no fim); trocar dia/caminhão zera | ✅ entregue (SESSAO-28) |
 | RF-129 | O mapa mostra também a rota já programada de cada caminhão no dia escolhido (D-110), sem consulta nova | ✅ entregue (SESSAO-28) |
+| RF-131 | Programação em duas abas filhas (D-111): **Programar** (montar a rota) e **Já programadas** (todas as não entregues, por dia e por caminhão, paginadas no servidor; "Ver entregues" sob demanda); cada caminhão com a sua cor; escolher um acende a rota dele e os outros do mesmo dia ficam transparentes | ✅ entregue (ajustes da SESSAO-28, 03/10) |
+| RF-132 | Itens sempre à vista (D-111): cada pedido mostra os móveis com a quantidade (sem o frete); total de peças na rota e por caminhão | ✅ entregue (ajustes da SESSAO-28) |
+| RF-133 | Montar a rota (D-111): lista pelo dia de entrega mais perto, com "Ordenar por" (mais perto da rota/da fábrica, número); marcou, sobe para "Na rota" e se ARRASTA (mouse, dedo, teclado); trecho aceso no mapa com km/tempo; programar = uma chamada só (tudo ou nada, a ordem junto) | ✅ entregue (ajustes da SESSAO-28) |
+| RF-134 | Busca de endereços (D-112): recusa do serviço não vira "não existe"; três tentativas; segundo buscador gratuito (Photon) quando o primeiro recusa | ✅ entregue (ajustes da SESSAO-28) |
 | RF-130 | Trânsito ao vivo, interdição do dia programado e horário de chegada garantido (D-108 — evolução futura: depende de serviço pago, ex. Google Routes) | 💡 registrado — decisão nova do dono, se um dia quiser |
 
 ## Comunicação interna (chat)

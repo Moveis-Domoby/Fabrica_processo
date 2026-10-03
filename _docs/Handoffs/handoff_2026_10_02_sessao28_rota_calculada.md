@@ -91,15 +91,26 @@ A demanda: [[SESSAO-28 - Rota Calculada no Mapa]] — a linha da Programação d
 - **18 pedidos já entregues no Tiny** (um por bairro: Zona Sul, Leste, Oeste, Norte, Parnamirim, São Gonçalo, Macaíba, Extremoz) lançados para ROTAS como **teste**, sem programação, para o dono montar rotas à vontade. Na Auditoria: "Lançou para ROTAS", pela integração, com o porquê "Carga de teste das rotas pedida pelo dono". Nada sai para fora (nenhuma integração de saída escuta isso; nenhuma automação ligada). **Desfazer:** quando o dono terminar, arquivar os 18 (estão entregues no Tiny — nada se perde).
 - **Achado:** a busca de endereços do servidor (a da SESSAO-15) devolveu "não encontrado" para os 18 — a MESMA busca feita daqui achou 15. Causa provável: o serviço gratuito de endereços recusando pedidos do nosso servidor, e a função tratando a recusa como "endereço não existe" por 7 dias. Os 15 foram localizados daqui e gravados; 3 dos 18 de fato não existem no mapa aberto. **Correção proposta (precisa do OK do dono):** a função distinguir "recusou" de "não existe", tentar também sem o CEP e registrar a resposta do serviço.
 
+### Ajustes de 03/10 — depois do teste do dono com a carga (D-111, D-112)
+- **Duas abas filhas:** **Programar** (montar a rota) e **Já programadas** (todas as não entregues, por dia e por caminhão; "Ver entregues" quando pedir). O "dia lá em cima" saiu — o dia se escolhe ao programar.
+- **Cada caminhão com a sua cor** (faixa, paradas, linha); escolher um acende a rota dele e os outros do mesmo dia ficam transparentes.
+- **Lista pelo dia de entrega mais perto**, com "Ordenar por": mais perto (do que já está na rota, ou da fábrica) ou número do pedido.
+- **Os móveis de cada pedido sempre à vista**, com a quantidade (sem o frete), e o total de peças da rota e de cada caminhão.
+- **Marcou, sobe para "Na rota"** — a ordem se **arrasta** (mouse, dedo ou teclado) e a rota recalcula. Os botões de subir/descer saíram.
+- **Trecho aceso:** tocar num trecho mostra só ele no mapa (o resto transparente) com os km e o tempo dele; a linha tem cor forte com contorno.
+- **Mais leve:** a linha de antes fica na tela até a nova chegar; o mapa só redesenha quando muda; programar é uma chamada só (antes, uma por pedido).
+- **Busca de endereços consertada:** o buscador gratuito bloqueia o nosso servidor ("acesso proibido" — provado); agora a recusa não vira "não existe" e um segundo buscador gratuito responde no lugar.
+- Banco: migration 55 (itens, "Já programadas", programar de uma vez), aplicada com o OK do dono, integração idêntica. Funções do servidor: `geocodificar` v8. Tudo testado ao vivo e desfeito no fim (as programações de teste voltaram como estavam).
+
 ### Próximo passo sugerido
 - **O Bloco 5 está fechado.** O dono decide o próximo pacote (ver [[000 - PROXIMOS PASSOS]] — horizonte depois do Bloco 5).
 
 ## 9. Como validar
 
 **Na tela (logado):**
-1. Fábrica → ROTAS → **Programação**; dia **22/09/2026** → botão **"Baú cinza (teste da sessão) · 3 parada(s)"**.
+1. Fábrica → ROTAS → **Programação** → aba **"Já programadas"** → no grupo **"Baú cinza (teste da sessão)"** de 22/09, **"Ver no mapa"** (↪️ 03/10: o "dia lá em cima" saiu; antes era o dia 22/09 + o botão do caminhão).
 2. O mapa mostra o **F** e a linha contínua pelas ruas; o painel abaixo mostra "F · Saída da fábrica", as paradas com "da fábrica…/da parada anterior…", "Volta à fábrica" e o total com o tempo "dirigindo".
-3. **Descer** a 1ª parada → o mapa redesenha (depois de ~1 s) e aparecem **Salvar ordem** / **Voltar à sugestão**. Salvar → aviso "Ordem das paradas salva"; recarregar a página → a ordem continua. **Voltar à sugestão** + **Salvar ordem** → "A rota voltou à ordem sugerida".
+3. **Arrastar** uma parada pela alça (↪️ 03/10: antes, botão "descer") → o mapa redesenha (depois de ~1 s) e aparecem **Salvar ordem** / **Voltar à sugestão**. Salvar → aviso "Ordem das paradas salva"; recarregar a página → a ordem continua. **Voltar à sugestão** + **Salvar ordem** → "A rota voltou à ordem sugerida". Na aba **"Programar"**: marcar pedidos (sobem para "Na rota" com os móveis), "Ordenar por", tocar num trecho do painel (acende só ele no mapa) e Programar (dia + caminhão — a tela vai para "Já programadas" com o caminhão aceso).
 4. **Expandir** o mapa (tela cheia, enquadrado) → **ESC** recolhe. No celular: tudo cabe, botões grandes.
 5. Super admin → Auditoria → "Salvou a ordem das paradas".
 

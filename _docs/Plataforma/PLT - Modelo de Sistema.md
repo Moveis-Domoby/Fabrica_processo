@@ -2,7 +2,7 @@
 titulo: PLT — Modelo de Sistema (o design system da plataforma)
 tipo: modelo-de-sistema
 data: 2026-08-24
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 tags: [plataforma, design-system, modelo-de-sistema, ui]
 ---
 
@@ -496,6 +496,25 @@ SESSAO-05.
   o ativo é primária. Nome comprido quebra linha DENTRO do botão: `style={{ height: 'auto' }}` +
   `min-h-toque-md` (o juntador de classes não reconhece a altura da casa `h-toque-*` como
   conflito de `h-auto` — classe sozinha não vence).
+  **↪️ Ajustes de 03/10 (D-111):** o mapa recebe `rotas[]` — cada rota com a sua cor (a do
+  caminhão, `corDoCaminhao`, ou `COR_MONTAGEM` azul na montagem), a linha cortada em TRECHOS
+  (`separarTrechos`) com contorno branco (peso 9) sob a cor (peso 5); tocar num trecho acende só
+  ele (os outros a 18%) e o resumo do canto vira "Trecho 1ª parada → 2ª parada: 6,2 km · 7 min";
+  rota de outro caminhão do mesmo dia = `esmaecida` (linha a 28%, paradas pequenas sem número);
+  enquanto a rota nova é calculada, a de antes fica a 45% (`recalculando`). O mapa é `memo` e
+  `isolate` (as camadas do Leaflet não passam por cima da barra fixa nem das bolhas).
+- **Abas da Programação** (D-111): `<Abas>` com "Programar" e "Já programadas" (`?aba=`; o
+  caminhão escolhido em `?dia=&caminhao=`). Duas colunas só pelo CONTAINER (`@container` +
+  `@3xl:`), nunca pela janela (E-30/E-85); numa coluna só: "Na rota" → mapa → lista (Programar)
+  e mapa primeiro (Já programadas). A barra de Programar fica fixa no rodapé da aba inteira.
+- **Cartão do pedido** (`CartaoPedido`, memo): número, peças, previsão, cliente, endereço e a lista
+  dos MÓVEIS com a quantidade (ícone de caixa, `1×` em negrito); o frete nunca aparece.
+- **Ordem por arrasto** (`ListaArrastavel`, dnd-kit sortable — ↩️ os botões de subir/descer da
+  D-109): alça de 44 px à esquerda, mesmos sensores do kanban (mouse 8 px, toque 200 ms, teclado).
+  No "Na rota" o cartão é `div` (tocar nele não tira o pedido — só a caixinha).
+- **Grupo de caminhão** (Já programadas): faixa de 8 px na cor do caminhão, foto (ou o ícone no
+  fundo da cor), nome · placa, "N paradas · P peças · km · tempo"; o escolhido com `ring`; "Ver no
+  mapa" nos outros; "Voltar à sugestão"/"Salvar ordem" no cabeçalho do escolhido.
 - **Seleção da programação**: `label` inteira clicável com `checkbox` (`accent-marca-500`),
   borda `acao-ativa` quando marcado e `atencao-borda` quando é sugestão; barra fixa no rodapé
   da lista (`sticky bottom-2`) com a contagem, a distância da rota e o botão Programar.
