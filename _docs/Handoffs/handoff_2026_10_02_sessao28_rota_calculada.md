@@ -100,7 +100,7 @@ A demanda: [[SESSAO-28 - Rota Calculada no Mapa]] — a linha da Programação d
 - **Trecho aceso:** tocar num trecho mostra só ele no mapa (o resto transparente) com os km e o tempo dele; a linha tem cor forte com contorno.
 - **Mais leve:** a linha de antes fica na tela até a nova chegar; o mapa só redesenha quando muda; programar é uma chamada só (antes, uma por pedido).
 - **Busca de endereços consertada:** o buscador gratuito bloqueia o nosso servidor ("acesso proibido" — provado); agora a recusa não vira "não existe" e um segundo buscador gratuito responde no lugar.
-- Banco: migration 55 (itens, "Já programadas", programar de uma vez), aplicada com o OK do dono, integração idêntica. Funções do servidor: `geocodificar` v8. Tudo testado ao vivo e desfeito no fim (as programações de teste voltaram como estavam).
+- Banco: migration 55 (itens, "Já programadas", programar de uma vez), aplicada com o OK do dono, integração idêntica. Funções do servidor: `geocodificar` v8. Tudo testado ao vivo e desfeito no fim (as programações de teste voltaram como estavam). **Publicado no site em 03/10 04:56 UTC** com o OK do dono (*"Sim, aplica e sobe"*) — conferido que o site entrega a tela nova.
 
 ### Próximo passo sugerido
 - **O Bloco 5 está fechado.** O dono decide o próximo pacote (ver [[000 - PROXIMOS PASSOS]] — horizonte depois do Bloco 5).
