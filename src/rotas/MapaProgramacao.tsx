@@ -9,6 +9,7 @@ import {
   useMap,
 } from 'react-leaflet'
 import { latLngBounds } from 'leaflet'
+import type { Map as LeafletMap } from 'leaflet'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import { Botao } from '@/componentes/ui'
@@ -18,36 +19,41 @@ import type { Ponto, Sugestao } from './proximidade'
 import { formatarDistancia, temPonto } from './proximidade'
 import { FABRICA } from './rotaRuas'
 
+function enquadrar(mapa: LeafletMap, pontos: [number, number][]) {
+  if (pontos.length === 0) return
+  if (pontos.length === 1) {
+    mapa.setView(pontos[0], 14)
+    return
+  }
+  mapa.fitBounds(latLngBounds(pontos), { padding: [32, 32], maxZoom: 15 })
+}
+
 /**
  * Enquadra o mapa nos pontos visíveis quando o CONJUNTO muda — reordenar
  * paradas, recarregar a lista a cada 30 s ou a rota chegar não tiram o mapa de
- * onde a pessoa o deixou.
+ * onde a pessoa o deixou. Expandir/recolher: o Leaflet não percebe sozinho que
+ * o contêiner mudou de tamanho — mede de novo e reenquadra (senão a rota fica
+ * cortada no canto do mapa grande).
  */
-function Enquadrar({ pontos }: { pontos: [number, number][] }) {
+function Enquadrar({ pontos, expandido }: { pontos: [number, number][]; expandido: boolean }) {
   const mapa = useMap()
   const ultimo = useRef('')
+  const pontosAtuais = useRef(pontos)
   useEffect(() => {
+    pontosAtuais.current = pontos
     const conjunto = pontos
       .map((p) => p.join(','))
       .sort()
       .join(';')
     if (conjunto === ultimo.current) return
     ultimo.current = conjunto
-    if (pontos.length === 0) return
-    if (pontos.length === 1) {
-      mapa.setView(pontos[0], 14)
-      return
-    }
-    mapa.fitBounds(latLngBounds(pontos), { padding: [32, 32], maxZoom: 15 })
+    enquadrar(mapa, pontos)
   }, [mapa, pontos])
-  return null
-}
-
-/** O Leaflet não percebe sozinho que o contêiner mudou de tamanho (expandir/recolher). */
-function Redimensionar({ expandido }: { expandido: boolean }) {
-  const mapa = useMap()
   useEffect(() => {
-    const timer = setTimeout(() => mapa.invalidateSize(), 60)
+    const timer = setTimeout(() => {
+      mapa.invalidateSize()
+      enquadrar(mapa, pontosAtuais.current)
+    }, 60)
     return () => clearTimeout(timer)
   }, [mapa, expandido])
   return null
@@ -117,7 +123,8 @@ export function MapaProgramacao({
           : 'h-[24rem] rounded-dm-lg lg:h-[32rem]',
       )}
     >
-      <div className="absolute top-2 right-2 z-[1000] flex max-w-[calc(100%-1rem)] flex-wrap items-center justify-end gap-2">
+      {/* left-14: o resumo nunca cobre o + / − do zoom (canto esquerdo) em mapa estreito */}
+      <div className="pointer-events-none absolute top-2 right-2 left-14 z-[1000] flex flex-wrap items-center justify-end gap-2 [&>*]:pointer-events-auto">
         {resumo && (
           <span className="rounded-dm bg-superficie/95 px-2.5 py-1 text-xs font-medium text-texto shadow tabular-nums">
             {resumo}
@@ -144,15 +151,22 @@ export function MapaProgramacao({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <Enquadrar pontos={pontos} />
-        <Redimensionar expandido={expandido} />
+        <Enquadrar pontos={pontos} expandido={expandido} />
 
-        {/* A rota: pelas ruas quando há; senão, linha reta tracejada. */}
+        {/* A rota: pelas ruas quando há; senão, linha reta tracejada. As
+            chaves separam as duas linhas: sem elas o React reaproveita a
+            camada e o Leaflet MESCLA o estilo novo no antigo — a rota pelas
+            ruas herdava o tracejado da reta. */}
         {linha && linha.length > 1 ? (
-          <Polyline positions={linha} pathOptions={{ color: '#5A585C', weight: 4, opacity: 0.85 }} />
+          <Polyline
+            key="pelas-ruas"
+            positions={linha}
+            pathOptions={{ color: '#5A585C', weight: 4, opacity: 0.85 }}
+          />
         ) : (
           linhaReta.length > 1 && (
             <Polyline
+              key="linha-reta"
               positions={linhaReta}
               pathOptions={{ color: '#5A585C', weight: 3, opacity: 0.7, dashArray: '6 8' }}
             />
