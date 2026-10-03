@@ -87,6 +87,10 @@ A demanda: [[SESSAO-28 - Rota Calculada no Mapa]] — a linha da Programação d
 - **Evolução futura (decisão nova, se o dono quiser):** trânsito ao vivo, interdição do dia, horário garantido — serviço pago.
 - **Servidor próprio de rotas:** só se o gratuito falhar com frequência — é trocar a configuração da função.
 
+### Depois da entrega — carga de teste (03/10, pedido do dono)
+- **18 pedidos já entregues no Tiny** (um por bairro: Zona Sul, Leste, Oeste, Norte, Parnamirim, São Gonçalo, Macaíba, Extremoz) lançados para ROTAS como **teste**, sem programação, para o dono montar rotas à vontade. Na Auditoria: "Lançou para ROTAS", pela integração, com o porquê "Carga de teste das rotas pedida pelo dono". Nada sai para fora (nenhuma integração de saída escuta isso; nenhuma automação ligada). **Desfazer:** quando o dono terminar, arquivar os 18 (estão entregues no Tiny — nada se perde).
+- **Achado:** a busca de endereços do servidor (a da SESSAO-15) devolveu "não encontrado" para os 18 — a MESMA busca feita daqui achou 15. Causa provável: o serviço gratuito de endereços recusando pedidos do nosso servidor, e a função tratando a recusa como "endereço não existe" por 7 dias. Os 15 foram localizados daqui e gravados; 3 dos 18 de fato não existem no mapa aberto. **Correção proposta (precisa do OK do dono):** a função distinguir "recusou" de "não existe", tentar também sem o CEP e registrar a resposta do serviço.
+
 ### Próximo passo sugerido
 - **O Bloco 5 está fechado.** O dono decide o próximo pacote (ver [[000 - PROXIMOS PASSOS]] — horizonte depois do Bloco 5).
 
