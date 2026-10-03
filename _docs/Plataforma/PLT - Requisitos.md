@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-10-01
+atualizado: 2026-10-02
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -137,6 +137,15 @@ tags: [plataforma, requisitos, backlog]
 | RF-87 | Pedidos em aguardo é o LUGAR da peça pronta de pedido (D-58), com as abas "Pedidos" e "Produtos reservados" — paginadas no servidor, contadores de uma porta só (batem por construção); o painel conta "concluídas" só a chegada vinda da produção | ✅ entregue (SESSAO-24) |
 | RF-88 | Cancelamento em 3 estágios (D-61): no PCP → aba Cancelados do PCP (paginada, sob demanda, para sempre); em produção → etiqueta "Pedido cancelado" e conclui para o ESTOQUE sem dono; pronto → vai sozinho ao ESTOQUE sem dono (produto pelo SKU) | ✅ entregue (SESSAO-24) |
 | RF-89 | Sugestão do estoque na liberação (D-62): "peça igual" (SKU; personalizado = SKU + descrição idêntica; sem SKU = descrição), desmarcada por padrão; PCP/logística e admin aceitam; aceitar faz a unidade nascer em Pedidos em aguardo | ✅ entregue (SESSAO-24) |
+
+## ROTAS e mapa
+
+| ID | Requisito | Status |
+|---|---|---|
+| RF-127 | Rota da Programação calculada PELAS RUAS (D-108 — ↩️ a linha reta da D-39): parte da fábrica (Rua Tancredo Neves, Planalto) e volta para ela; serviço gratuito de rotas (OSRM) chamado por Edge Function identificada; distância e tempo ("só dirigindo") por trecho e totais; aviso fixo de "sugestão inicial"; a rota de cada sequência de paradas fica guardada no cache do mapa (reabrir = 1 leitura, 0 chamada ao serviço); serviço fora do ar → linha reta tracejada + aviso, tela viva | ✅ entregue (SESSAO-28) |
+| RF-128 | Ordem das paradas à mão (D-109): sugestão do mais perto a partir da fábrica; subir/descer redesenha na hora; "Salvar ordem" grava a ordem do caminhão no dia (uma linha na Auditoria) e "Voltar à sugestão" desfaz; na montagem a ordem vai junto com o Programar (novos entram no fim); trocar dia/caminhão zera | ✅ entregue (SESSAO-28) |
+| RF-129 | O mapa mostra também a rota já programada de cada caminhão no dia escolhido (D-110), sem consulta nova | ✅ entregue (SESSAO-28) |
+| RF-130 | Trânsito ao vivo, interdição do dia programado e horário de chegada garantido (D-108 — evolução futura: depende de serviço pago, ex. Google Routes) | 💡 registrado — decisão nova do dono, se um dia quiser |
 
 ## Comunicação interna (chat)
 

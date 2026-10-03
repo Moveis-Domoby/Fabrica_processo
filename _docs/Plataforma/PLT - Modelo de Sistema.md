@@ -2,7 +2,7 @@
 titulo: PLT — Modelo de Sistema (o design system da plataforma)
 tipo: modelo-de-sistema
 data: 2026-08-24
-atualizado: 2026-09-28
+atualizado: 2026-10-02
 tags: [plataforma, design-system, modelo-de-sistema, ui]
 ---
 
@@ -469,9 +469,33 @@ SESSAO-05.
   são `CircleMarker` desenhados (sem asset de imagem) — amarelo-marca com o **número da
   parada** dentro (tooltip permanente `.plt-parada`) para os selecionados, âmbar para as
   sugestões; a rota sugerida é uma `Polyline` grafite ligando as paradas na ordem do vizinho
-  mais perto (linha reta — nunca chamar de rota "calculada"). Botão **Expandir** vira o
+  mais perto (linha reta — nunca chamar de rota "calculada" — ↩️ caiu na SESSAO-28, ver abaixo). Botão **Expandir** vira o
   contêiner em `fixed inset-0` (ESC recolhe) e o mapa recebe `invalidateSize()`. A lógica de
   distância/ordem/sugestão é pura em `src/rotas/proximidade.ts`, testada no Vitest.
+  **↪️ SESSAO-28 (D-108…D-110) — a linha AGORA É calculada:** a rota é pelas ruas (serviço
+  gratuito de rotas, chamado pela Edge Function `calcular-rota`), da **fábrica à fábrica** — a
+  fábrica é um `CircleMarker` grafite com "F" branco (`.plt-fabrica`), as paradas numeradas como
+  antes (o número é o da lista). Linha pelas ruas = `Polyline` grafite contínua (peso 4); sem
+  ela (calculando, serviço fora, sem caminho) = linha reta **tracejada** (`dashArray 6 8`) com o
+  aviso na tela. As duas `Polyline` levam `key` diferente — sem ela o React reaproveita a camada
+  e o Leaflet mescla o estilo (a rota herdava o tracejado). O mapa só reenquadra quando o
+  CONJUNTO de pontos muda, e ao expandir/recolher (`invalidateSize` + reenquadrar). O resumo do
+  canto (`left-14`) nunca cobre o + / − do zoom. A tela inteira vem por `React.lazy` (o Leaflet
+  fora do pacote principal).
+- **Painel da rota** (`PainelRota`): "F · Saída da fábrica" → paradas numeradas com o trecho que
+  chega a cada uma ("da fábrica: 12,9 km · 16 min" / "da parada anterior: …") → "F · Volta à
+  fábrica"; total no topo ("31,9 km · 42 min dirigindo · ida e volta da fábrica"); aviso fixo
+  em `superficie-sutil` com ícone: *"Sugestão inicial: sem trânsito ao vivo nem interdições do
+  dia. O tempo é só dirigindo, sem as paradas das entregas."*; falha em `atencao-fundo` com
+  ícone. Parada sem ponto fica na lista (bolinha cinza, "sem ponto no mapa — fora da conta da
+  rota") e pode ser movida. Subir/descer = `Botao` secundário só com ícone (44px) e
+  `aria-label` com o número do pedido; **"Voltar à sugestão"** (fantasma) e **"Salvar ordem"**
+  (primária) só aparecem quando há o que fazer.
+- **Escolha do que o mapa mostra** (D-110): grupo `role="group"` de `Botao` com `aria-pressed`
+  — "Montando agora (N)" + um por caminhão do dia ("Baú … · 3 parada(s)", ícone de caminhão);
+  o ativo é primária. Nome comprido quebra linha DENTRO do botão: `style={{ height: 'auto' }}` +
+  `min-h-toque-md` (o juntador de classes não reconhece a altura da casa `h-toque-*` como
+  conflito de `h-auto` — classe sozinha não vence).
 - **Seleção da programação**: `label` inteira clicável com `checkbox` (`accent-marca-500`),
   borda `acao-ativa` quando marcado e `atencao-borda` quando é sugestão; barra fixa no rodapé
   da lista (`sticky bottom-2`) com a contagem, a distância da rota e o botão Programar.

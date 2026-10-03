@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-10-01
+atualizado: 2026-10-02
 tags: [plataforma, decisoes, produto]
 ---
 

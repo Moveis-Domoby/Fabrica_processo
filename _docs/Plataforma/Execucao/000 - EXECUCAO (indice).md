@@ -1,7 +1,7 @@
 ---
 titulo: Execução — memórias de sessão do Claude Code
 tipo: indice
-atualizado: 2026-09-28
+atualizado: 2026-10-03
 tags: [plataforma, execucao, indice]
 ---
 
@@ -19,7 +19,8 @@ tags: [plataforma, execucao, indice]
 - [[SESSAO-09]] · [[SESSAO-10]] · [[SESSAO-11]] · [[SESSAO-12]] · [[SESSAO-13]] · [[SESSAO-14]] · [[SESSAO-15]]
 - [[SESSAO-19]] · [[SESSAO-20]] — o bloco **União** (banco do Comercial na fábrica + módulo Comercial no front)
 - [[SESSAO-16]] (dashboards) · [[SESSAO-21]] (cutover — fecha a União)
-- [[SESSAO-22]] · [[SESSAO-23]] · [[SESSAO-25]] · [[SESSAO-24]] — o **Bloco 5** (a 25 rodou antes da 24 — D-53)
+- [[SESSAO-22]] · [[SESSAO-23]] · [[SESSAO-25]] · [[SESSAO-24]] · [[SESSAO-26]] · [[SESSAO-27]] · [[SESSAO-28]] — o **Bloco 5** (a 25 rodou antes da 24 — D-53; a 28, rota calculada no mapa, fecha o bloco)
+- [[SESSAO-29]] — conferência diária com o Tiny (fora do bloco)
 
 *(Não existe SESSAO-08, 17 nem 18 aqui: a 08 (publicação) aguarda o dono (D-30), a 17 foi absorvida pela 27 e a 18 está em standby. Ver [[000 - ORDEM DAS SESSOES]].)*
 

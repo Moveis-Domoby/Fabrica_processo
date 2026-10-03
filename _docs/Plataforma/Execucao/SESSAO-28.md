@@ -2,7 +2,7 @@
 titulo: Execução — SESSAO-28 · Rota calculada no mapa
 tipo: execucao
 data: 2026-10-02
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 tags: [execucao, sessao-28, rotas, mapa, osrm, bloco-5]
 ---
 
@@ -37,18 +37,18 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (índice + D
 
 ## Task list (espelho da demanda + respostas)
 
-- [ ] T1 · Decisões no cofre (revisão consciente da D-39: rota pelas ruas no serviço gratuito, partida e volta na fábrica, tempo visível; ordem à mão com salvar; mapa com a rota de cada caminhão) + evolução paga anotada
-- [ ] T2 · Migration 54: `plt_geocache.rota` (o cache da rota — sem tabela nova, D-47) · `plt_programacoes.ordem` · `fn_logar_programacao` (só ordem não loga por linha) · `plt_fn_programar_entrega` (trocar dia/caminhão zera a ordem) · `plt_fn_ordenar_rota` (nova, com 1 linha na trilha) · `plt_fn_programacao` (+ `ordem`; drop nas 25 e 39 — E-17)
-- [ ] T3 · Harness: bloco da 54 (escopo próprio — E-70)
-- [ ] T4 · Edge Function `calcular-rota` (serviço público, User-Agent, só pessoa ativa, cache no banco, falha não grava)
-- [ ] T5 · Lógica pura testável (`src/rotas/rotaRuas.ts` + Vitest): chave da rota, decodificar a linha, ordem a partir da fábrica, ordem manual, formatar tempo
-- [ ] T6 · Mapa: linha pelas ruas, a fábrica marcada, ida e volta, distância/tempo totais, aviso de "sugestão inicial", serviço fora → linha reta + aviso
-- [ ] T7 · Trechos com distância/tempo + reordenar à mão (subir/descer) + "Salvar ordem" / "Voltar à sugestão"
-- [ ] T8 · O mapa mostra "montando agora" ou a rota de cada caminhão do dia
-- [ ] T9 · `React.lazy` na tela de Programação (Leaflet fora do pacote principal)
-- [ ] T10 · Auditoria: rótulo do gesto novo
-- [ ] T11 · Validação: `test:banco` 2 rodadas · `tsc -b` · lint · `npm test` · build · F-07 (mapa expandido no celular; ESC recolhe) · Network (cache) · serviço fora · ⏸️ checkpoint antes de aplicar/publicar · `get_advisors` · programação real + screenshot
-- [ ] T12 · Cofre: Requisitos, Modelo de Sistema (nota da linha), Esquema do Banco, Ordem, Mapa, demanda (Resultado), handoff, memória
+- [x] T1 · Decisões no cofre (revisão consciente da D-39: rota pelas ruas no serviço gratuito, partida e volta na fábrica, tempo visível; ordem à mão com salvar; mapa com a rota de cada caminhão) + evolução paga anotada
+- [x] T2 · Migration 54: `plt_geocache.rota` (o cache da rota — sem tabela nova, D-47) · `plt_programacoes.ordem` · `fn_logar_programacao` (só ordem não loga por linha) · `plt_fn_programar_entrega` (trocar dia/caminhão zera a ordem) · `plt_fn_ordenar_rota` (nova, com 1 linha na trilha) · `plt_fn_programacao` (+ `ordem`; drop nas 25 e 39 — E-17)
+- [x] T3 · Harness: bloco da 54 (escopo próprio — E-70)
+- [x] T4 · Edge Function `calcular-rota` (serviço público, User-Agent, só pessoa ativa, cache no banco, falha não grava)
+- [x] T5 · Lógica pura testável (`src/rotas/rotaRuas.ts` + Vitest): chave da rota, decodificar a linha, ordem a partir da fábrica, ordem manual, formatar tempo
+- [x] T6 · Mapa: linha pelas ruas, a fábrica marcada, ida e volta, distância/tempo totais, aviso de "sugestão inicial", serviço fora → linha reta + aviso
+- [x] T7 · Trechos com distância/tempo + reordenar à mão (subir/descer) + "Salvar ordem" / "Voltar à sugestão"
+- [x] T8 · O mapa mostra "montando agora" ou a rota de cada caminhão do dia
+- [x] T9 · `React.lazy` na tela de Programação (Leaflet fora do pacote principal)
+- [x] T10 · Auditoria: rótulo do gesto novo
+- [x] T11 · Validação: `test:banco` 2 rodadas · `tsc -b` · lint · `npm test` · build · F-07 (mapa expandido no celular; ESC recolhe) · Network (cache) · serviço fora · ⏸️ checkpoint antes de aplicar/publicar · `get_advisors` · programação real + screenshot
+- [x] T12 · Cofre: Requisitos, Modelo de Sistema (nota da linha), Esquema do Banco, Ordem, Mapa, demanda (Resultado), handoff, memória
 
 ## Decisões técnicas (02/10)
 
@@ -72,3 +72,7 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (índice + D
 - [02/10] Servidor de preview: o da sessão vizinha (5173, mesma pasta) foi parado com a permissão dela e subido o desta sessão; login do dono ainda ativo. Produção (só leitura, 03/10 01:33 UTC): 4 pedidos lançados não entregues, 4 programações — **22/09, "Baú cinza (teste da sessão)", 3 pedidos reais** (2 com ponto, 1 sem: Parnamirim) — a programação real do aceite.
 - [02/10] **Na tela, ANTES de publicar a função:** dia 22/09 → caminhão → rota F→13114→13156→F + 13146 "sem ponto no mapa — fora da conta"; o serviço "não respondeu" (a função ainda não existe) → **linha reta tracejada + aviso, 22,0 km em linha reta, tela viva** (o critério "serviço fora do ar" provado de verdade). Descer o 13114 → ordem trocada na hora, "Salvar ordem" + "Voltar à sugestão" aparecem; voltar → ordem sugerida, botões somem (nada salvo).
 - [02/10] Achado na tela: o nome comprido do caminhão estourava o botão (texto 48 px num botão de 44). `h-auto` não venceu: o juntador de classes não reconhece `h-toque-md` como altura → `style={{ height: 'auto' }}` + `min-h-toque-md`; medido 66 px, texto dentro. F-07 a 375: sem rolagem lateral, nada fora da borda; Expandir/Reprogramar/Tirar eram 36 px (herança da S15) → 44 px; mapa expandido = 375×812 `fixed`, ESC recolhe (343×384 `relative`).
+- [03/10 ~01:40 UTC] **OK do dono: *"Pode fazer tudo"*.** `fetch` → `origin/main` sem novidade (0 × 4). Migration 54 aplicada com `--so` (impressão digital da integração `e2109f3a…` antes = depois, estrutura e linhas idênticas). Conferido no banco vivo: `rota` jsonb, `ordem` integer + check, 1 só `plt_fn_programacao`, `plt_fn_ordenar_rota` só para logado, 0 ordens salvas, trilha nova no `fn_logar_programacao`. `get_advisors`: segurança — só o aviso de sempre das portas públicas (a nova entra nele); desempenho — nada novo. Edge Function `calcular-rota` v1 publicada (`verify_jwt`), conteúdo conferido igual ao do repo, sem login → 401.
+- [03/10] **Ao vivo (dono logado na cópia local, banco de produção):** 22/09 → caminhão de teste: rota pelas ruas **31,9 km · 42 min** (trechos 12,9/3,9/15,1 km) — a tela fez **1 leitura do cache (vazio) + 1 chamada à função**; recarregar e reabrir = **1 leitura, 0 chamada** (observador de requisições — A-30). Rota conhecida: fábrica → Midway Mall 9,48 km (aqui) × 9,7/10,2 km (Google Maps, que reconheceu a partida como "Fábrica Domoby, Rua Tancredo Neves" — confere o ponto). Descer o 13114 → recalculou (31,8 km; o trecho entre as paradas muda com o sentido: 3,9 × 4,2 km) → **Salvar ordem** → banco: 13156=1, 13114=2, 13146=3, **1 linha** `rota_ordem_salva` com autor, nenhuma `entrega_reprogramada`. **Tirar** o 13146 → montagem → **Programar** no mesmo caminhão/dia → `plt_fn_programar_entrega` + `plt_fn_ordenar_rota` + releitura: entrou **no fim** (3ª) e o mapa passou para o caminhão. **Voltar à sugestão + Salvar** → todas as ordens nulas, linha com `automatica: true`. O caminhão de teste ficou como antes (3 pedidos, 22/09, sem ordem). Auditoria mostra "Salvou a ordem das paradas".
+- [03/10] **Achados da foto (E-83):** a rota pelas ruas saía **tracejada** (as duas `Polyline` na mesma posição do JSX → o React reaproveitou a camada e o `setStyle` do Leaflet MESCLOU o `dashArray` da reta) → `key` por linha; e o mapa **expandido não reenquadrava** → o reenquadrar roda também depois do `invalidateSize` (componente único `Enquadrar`). Conferido: `stroke-dasharray` nulo, F/1/2 dentro do mapa expandido, foto guardada em `Handoffs/imagens/sessao28_rota_pelas_ruas.jpg`. E o resumo do canto cobria o + / − do zoom em mapa estreito → `left-14`.
+- [03/10] Validação final: `test:banco` 2 rodadas TUDO VERDE · `tsc -b` · `lint` · `npm test` 134/134 · `build` (Programação 179,8 kB à parte). Cofre: D-108…D-110, E-82/E-83, A-54, RF-127…RF-130, Modelo de Sistema, Esquema do Banco, Ordem, Mapa, Próximos Passos, a demanda (Resultado), índice da Execução, handoff.

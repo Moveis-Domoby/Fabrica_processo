@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-28 — Rota calculada no mapa"
 tipo: demanda
-status: pronta para code
+status: entregue
 data: 2026-09-18
-atualizado: 2026-09-18
+atualizado: 2026-10-03
 tags: [plataforma, demanda, bloco-5, rotas, mapa]
 ---
 
@@ -45,12 +45,12 @@ Trânsito ao vivo, interdições do dia e horários de chegada garantidos (API p
 
 ## Critérios de aceite
 
-- [ ] Rota do dia desenhada pelas ruas partindo da fábrica, na ordem das paradas; nada de linha reta cruzando quarteirão (verificado com uma programação real e screenshot no handoff).
-- [ ] Distância e tempo por trecho e totais exibidos; distância bate com a realidade (conferência manual de uma rota conhecida).
-- [ ] Reprogramar (incluir/remover/reordenar parada) recalcula; reabrir a mesma programação usa o cache (conferir na aba Network — regra "cada tela requisita só o que mostra").
-- [ ] Serviço de rota fora do ar → linha reta antiga + aviso; a tela continua funcionando.
-- [ ] Aviso de "sugestão inicial" visível; nota do [[PLT - Modelo de Sistema]] sobre a linha atualizada.
-- [ ] Decisão OSRM + partida na fábrica registrada em [[PLT - Decisoes de Produto]] (revisão consciente da D-39, com a evolução paga anotada).
+- [x] Rota do dia desenhada pelas ruas partindo da fábrica, na ordem das paradas; nada de linha reta cruzando quarteirão (verificado com uma programação real e screenshot no handoff).
+- [x] Distância e tempo por trecho e totais exibidos; distância bate com a realidade (conferência manual de uma rota conhecida).
+- [x] Reprogramar (incluir/remover/reordenar parada) recalcula; reabrir a mesma programação usa o cache (conferir na aba Network — regra "cada tela requisita só o que mostra").
+- [x] Serviço de rota fora do ar → linha reta antiga + aviso; a tela continua funcionando.
+- [x] Aviso de "sugestão inicial" visível; nota do [[PLT - Modelo de Sistema]] sobre a linha atualizada.
+- [x] Decisão OSRM + partida na fábrica registrada em [[PLT - Decisoes de Produto]] (revisão consciente da D-39, com a evolução paga anotada).
 
 ## Notas para o Claude Code
 
@@ -60,7 +60,11 @@ Terreno: Leaflet 1.9.4 + react-leaflet 5.0.0 já no projeto; `MapaProgramacao.ts
 
 ## Resultado (preencher ao entregar)
 
-*—*
+✅ **Entregue em 02/10/2026** — [[handoff_2026_10_02_sessao28_rota_calculada]] · execução em `Execucao/SESSAO-28.md`.
+
+- **Respostas do dono:** partida na **Rua Tancredo Neves, Planalto** (−5,84800 · −35,25428); **volta para a fábrica**; **tempo à vista** ("só dirigindo"); servidor = o **site gratuito** (a pergunta 4 foi reexplicada em uma frase — E-82). E duas novidades pedidas por ele: **ordem à mão com "Salvar ordem"** (D-109) e **a rota de cada caminhão do dia no mapa** (D-110). Tudo em D-108…D-110.
+- **Banco:** migration 54 (a rota guardada no cache do mapa — sem tabela nova; a ordem das paradas; o gesto "Salvar ordem" com uma linha na Auditoria). **Função:** `calcular-rota` (serviço público da FOSSGIS, identificado, trocável por configuração).
+- **Aceite:** programação real de 22/09 (31,9 km, 42 min, pelas pontes da Zona Norte); fábrica → Midway Mall 9,5 km × 9,7/10,2 km no Google; reabrir = 1 leitura, 0 chamada; serviço fora → linha reta tracejada + aviso (provado antes de publicar a função).
 
 ## Ver também
 
