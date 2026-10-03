@@ -9105,6 +9105,190 @@ const voltou = await um51(`select count(*)::int as n from public.plt_automacoes 
 conferir(voltou.n === 0, 'o exemplo de fábrica que o dono excluiu NÃO volta quando a 51 é reaplicada', JSON.stringify(voltou))
 } // fim do bloco 51
 
+// ============================================================================
+// SESSAO-28 · ROTA CALCULADA NO MAPA (02/10 — migration 54, D-108…D-110):
+// o cache da rota mora no cache do mapa (D-47), a ordem das paradas de um
+// caminhão num dia é salva à mão ("Salvar ordem" — uma linha na trilha), trocar
+// dia/caminhão zera a ordem, e a porta do mapa devolve a ordem salva.
+// O dono: "deve sim ser possível alguém alterar as ordens e ver em tempo real
+// clicando em um botão de salvar".
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Rota calculada (SESSAO-28) · estrutura: cache da rota, ordem das paradas, a porta nova')
+
+const um54 = async (sql) => (await bd.query(sql)).rows[0]
+const todos54 = async (sql) => (await bd.query(sql)).rows
+const como54 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+
+const estrutura54 = await um54(`
+  select (select data_type from information_schema.columns
+           where table_schema = 'public' and table_name = 'plt_geocache' and column_name = 'rota') as rota_tipo,
+         (select data_type from information_schema.columns
+           where table_schema = 'public' and table_name = 'plt_programacoes' and column_name = 'ordem') as ordem_tipo,
+         (select pg_get_constraintdef(oid) from pg_constraint where conname = 'plt_programacoes_ordem_ck') as ordem_ck,
+         has_function_privilege('anon', 'public.plt_fn_ordenar_rota(date, bigint, bigint[])', 'execute') as ordenar_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_ordenar_rota(date, bigint, bigint[])', 'execute') as ordenar_logado,
+         has_function_privilege('anon', 'public.plt_fn_programacao(date, integer, integer)', 'execute') as porta_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_programacao(date, integer, integer)', 'execute') as porta_logado,
+         (select count(*)::int from pg_proc where proname = 'plt_fn_programacao') as sobrecargas`)
+conferir(
+  estrutura54.rota_tipo === 'jsonb' && estrutura54.ordem_tipo === 'integer' && /ordem >= 1/.test(estrutura54.ordem_ck ?? '')
+    && !estrutura54.ordenar_anon && estrutura54.ordenar_logado && !estrutura54.porta_anon && estrutura54.porta_logado
+    && estrutura54.sobrecargas === 1,
+  'o cache do mapa ganha a rota (sem tabela nova), a programação ganha a ordem (≥ 1), as portas só para quem está logado e a porta do mapa sem sobrecarga',
+  JSON.stringify(estrutura54),
+)
+
+titulo('Rota calculada (SESSAO-28) · o cenário: 3 pedidos lançados para ROTAS num caminhão')
+
+await como54(E40.admin)
+await bd.exec(`
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 54', 'RTA5A40'), ('Baú 54B', 'RTA5B41');
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (954001, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook'),
+    (954002, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook'),
+    (954003, (select id from public.clientes order by id limit 1), 'Aprovado', 'webhook');
+`)
+const cam54 = await um54(`
+  select (select id from public.plt_caminhoes where placa = 'RTA5A40')::int as a,
+         (select id from public.plt_caminhoes where placa = 'RTA5B41')::int as b`)
+const card54 = async (numero) =>
+  (await um54(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                where c.tipo = 'pedido' and p.numero = ${numero}`))?.id
+const [c1, c2, c3] = [await card54(954001), await card54(954002), await card54(954003)]
+await como54(E40.logistica)
+// D-63: pedido sem nada a produzir está completo desde que nasce — lança direto.
+for (const c of [c1, c2, c3]) await bd.exec(`select public.plt_fn_lancar_rotas(${c})`)
+for (const c of [c1, c2, c3]) await bd.exec(`select public.plt_fn_programar_entrega(${c}, '2026-10-10', ${cam54.a})`)
+const ordemNaPorta = async () =>
+  Object.fromEntries(
+    (await todos54(`select card_id::int as id, ordem from public.plt_fn_programacao('2026-10-10')
+                     where card_id in (${c1}, ${c2}, ${c3})`)).map((r) => [r.id, r.ordem]),
+  )
+const logs54 = async () =>
+  um54(`select count(*) filter (where acao = 'rota_ordem_salva')::int as salvas,
+               count(*) filter (where acao = 'entrega_reprogramada')::int as reprogramadas,
+               count(*) filter (where acao = 'entrega_programada')::int as programadas
+          from public.plt_logs_atividade`)
+const inicio54 = await ordemNaPorta()
+conferir(
+  c1 && c2 && c3 && inicio54[c1] === null && inicio54[c2] === null && inicio54[c3] === null,
+  'programados no mesmo dia e caminhão, sem ordem salva: a porta do mapa devolve a ordem nula (a tela sugere o mais perto da fábrica)',
+  JSON.stringify({ c1, c2, c3, inicio54 }),
+)
+
+titulo('Rota calculada (SESSAO-28) · "Salvar ordem" (D-109)')
+
+const antes54 = await logs54()
+const devolveu = (await um54(`select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c3}, ${c1}, ${c2}]::bigint[]) as n`)).n
+const salva54 = await ordemNaPorta()
+const depois54 = await logs54()
+const linhaSalva = await um54(`select usuario_id is not null as com_autor, contexto from public.plt_logs_atividade
+                                where acao = 'rota_ordem_salva' order by id desc limit 1`)
+conferir(
+  devolveu === 3 && salva54[c3] === 1 && salva54[c1] === 2 && salva54[c2] === 3,
+  'a ordem da lista vira a ordem das paradas, e a porta do mapa devolve',
+  JSON.stringify({ devolveu, salva54 }),
+)
+conferir(
+  depois54.salvas === antes54.salvas + 1 && depois54.reprogramadas === antes54.reprogramadas
+    && linhaSalva.com_autor && linhaSalva.contexto.paradas === 3 && linhaSalva.contexto.automatica === false
+    && JSON.stringify(linhaSalva.contexto.card_ids) === JSON.stringify([c3, c1, c2]),
+  'salvar a ordem é UMA linha na trilha, com quem salvou e a ordem — nenhuma linha de "reprogramou" por parada',
+  JSON.stringify({ antes54, depois54, linhaSalva }),
+)
+await bd.exec(`select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c3}, ${c1}, ${c2}]::bigint[])`)
+const repetiu = await logs54()
+conferir(
+  repetiu.salvas === depois54.salvas + 1 && repetiu.reprogramadas === depois54.reprogramadas,
+  'salvar a mesma ordem de novo registra o gesto e não toca nas paradas',
+  JSON.stringify(repetiu),
+)
+await bd.exec(`select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c2}]::bigint[])`)
+const parcial54 = await ordemNaPorta()
+conferir(
+  parcial54[c2] === 1 && parcial54[c1] === null && parcial54[c3] === null,
+  'lista com só parte das paradas: as de fora ficam sem ordem (vão para o fim, pela sugestão)',
+  JSON.stringify(parcial54),
+)
+await deveRecusarExec(
+  `select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.b}, array[${c1}]::bigint[])`,
+  'pedido que não está neste dia e caminhão é recusado — a tela pede para recarregar',
+  /A rota mudou/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c1}, ${c1}]::bigint[])`,
+  'pedido repetido na lista é recusado',
+  /repetido/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_ordenar_rota(null, ${cam54.a}, array[${c1}]::bigint[])`,
+  'sem o dia (ou o caminhão) é recusado',
+  /dia e o caminhão/i,
+)
+await como54(E40.operador)
+await deveRecusarExec(
+  `select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c1}]::bigint[])`,
+  'operador de produção não mexe na ordem (gate da logística)',
+  /logística/i,
+)
+await como54(E40.logistica)
+
+titulo('Rota calculada (SESSAO-28) · reprogramar zera a ordem; a lista vazia volta à sugestão')
+
+await bd.exec(`select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c1}, ${c2}, ${c3}]::bigint[])`)
+const antesTroca = await logs54()
+await bd.exec(`select public.plt_fn_programar_entrega(${c1}, '2026-10-10', ${cam54.a})`) // mesmo dia e caminhão
+await bd.exec(`select public.plt_fn_programar_entrega(${c2}, '2026-10-10', ${cam54.b})`) // outro caminhão
+const trocou = await um54(`select (select ordem from public.plt_programacoes where card_id = ${c1}) as c1,
+                                  (select ordem from public.plt_programacoes where card_id = ${c2}) as c2,
+                                  (select ordem from public.plt_programacoes where card_id = ${c3}) as c3`)
+const depoisTroca = await logs54()
+conferir(
+  trocou.c1 === 1 && trocou.c2 === null && trocou.c3 === 3 && depoisTroca.reprogramadas === antesTroca.reprogramadas + 2,
+  'reprogramar no MESMO dia e caminhão mantém a ordem; trocar o caminhão zera (vai para o fim da rota nova); os dois gestos seguem na trilha como antes',
+  JSON.stringify({ trocou, antesTroca, depoisTroca }),
+)
+await bd.exec(`select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, '{}'::bigint[])`)
+const automatica = await um54(`select count(*) filter (where ordem is not null)::int as com_ordem,
+                                      (select contexto->>'automatica' from public.plt_logs_atividade
+                                        where acao = 'rota_ordem_salva' order by id desc limit 1) as marca
+                                 from public.plt_programacoes
+                                where data_entrega = '2026-10-10' and caminhao_id = ${cam54.a}`)
+conferir(
+  automatica.com_ordem === 0 && automatica.marca === 'true',
+  '"Voltar à sugestão" salvo (lista vazia): o caminhão fica sem ordem salva e a trilha diz que voltou ao automático',
+  JSON.stringify(automatica),
+)
+await bd.exec(`select public.plt_fn_registrar_entrega(${c3}, 'entregue no teste da S28')`)
+await deveRecusarExec(
+  `select public.plt_fn_ordenar_rota('2026-10-10', ${cam54.a}, array[${c3}, ${c1}]::bigint[])`,
+  'depois de entregue, a ordem daquela rota não muda mais (D-45)',
+  /já foi entregue/i,
+)
+
+titulo('Rota calculada (SESSAO-28) · o cache da rota no cache do mapa')
+
+const chaveRota54 = 'rota:carro:-35.25428,-5.84800;-35.20900,-5.79500;-35.25428,-5.84800'
+await bd.exec(`
+  insert into public.plt_geocache (chave, endereco, resolvido, fonte, rota)
+    values ('${chaveRota54}', 'rota de 1 parada (fábrica → … → fábrica)', true, 'osrm',
+            '{"distancia_m": 18972, "duracao_s": 1397, "trechos": [{"distancia_m": 9730, "duracao_s": 676}, {"distancia_m": 9242, "duracao_s": 721}], "geometria": "abc", "servidor": "teste"}'::jsonb)
+  on conflict (chave) do nothing;
+`)
+const cache54 = await um54(`select resolvido, fonte, (rota->>'distancia_m')::int as metros,
+                                   jsonb_array_length(rota->'trechos') as trechos
+                              from public.plt_geocache where chave = '${chaveRota54}'`)
+const geoIntacta = await um54(`select count(*)::int as n from public.plt_fn_programacao()
+                                where geo_chave like 'rota:%'`)
+conferir(
+  cache54?.resolvido && cache54.fonte === 'osrm' && cache54.metros === 18972 && cache54.trechos === 2 && geoIntacta.n === 0,
+  'a rota calculada se guarda no cache do mapa com chave própria — a busca de endereços não enxerga as linhas de rota',
+  JSON.stringify({ cache54, geoIntacta }),
+)
+await como54('')
+} // fim do bloco 54
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

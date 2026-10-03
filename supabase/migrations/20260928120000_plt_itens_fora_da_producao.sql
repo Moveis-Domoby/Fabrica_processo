@@ -1080,6 +1080,9 @@ as $$
   offset greatest(coalesce(p_deslocamento, 0), 0);
 $$;
 
+-- A migration 54 (SESSAO-28) mudou a forma desta porta (ganhou `ordem`): sem
+-- o drop, a reaplicação quebraria com "cannot change return type" (E-17).
+drop function if exists public.plt_fn_programacao(date, integer, integer);
 create or replace function public.plt_fn_programacao(
   p_data         date    default null,
   p_limite       integer default 100,
