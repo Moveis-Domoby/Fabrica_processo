@@ -8,7 +8,7 @@ tags: [handoff, sessao, sessao-28, rotas, mapa, osrm, bloco-5]
 
 # 📋 Handoff — 02/10/2026 · SESSAO-28 · Rota calculada no mapa (fecha o Bloco 5)
 
-**Branch:** `sessao-28-rota-calculada` (nasceu da `main` = `origin/main`, c38355e). **Banco:** migration 54 **aplicada** em 03/10 ~01:40 UTC (22:40 de 02/10 em Natal), sozinha via `--so`, integração idêntica (`e2109f3a…`, 65 colunas, linhas idênticas), com o OK do dono (*"Pode fazer tudo"*). **Edge Function `calcular-rota`:** **publicada** (v1, `verify_jwt` ligado; conteúdo conferido igual ao do repositório; sem login → 401). **Site:** ver §8. Memória técnica: [[SESSAO-28]] (`Plataforma/Execucao/SESSAO-28.md`).
+**Branch:** `sessao-28-rota-calculada` (nasceu da `main` = `origin/main`, c38355e). **Banco:** migration 54 **aplicada** em 03/10 ~01:40 UTC (22:40 de 02/10 em Natal), sozinha via `--so`, integração idêntica (`e2109f3a…`, 65 colunas, linhas idênticas), com o OK do dono (*"Pode fazer tudo"*). **Edge Function `calcular-rota`:** **publicada** (v1, `verify_jwt` ligado; conteúdo conferido igual ao do repositório; sem login → 401). **Site:** mesclada na `main` (avanço direto, autor `contatodomoby`) e **publicada no site em 03/10 01:58 UTC (22:58 de 02/10 em Natal)** — conferido que o site entrega a tela nova ("Sugestão inicial…", "Salvar ordem", a chamada da rota). Memória técnica: [[SESSAO-28]] (`Plataforma/Execucao/SESSAO-28.md`).
 
 ## 1. Objetivo da sessão
 
@@ -82,7 +82,7 @@ A demanda: [[SESSAO-28 - Rota Calculada no Mapa]] — a linha da Programação d
 
 ## 8. Ficou pendente
 
-- **Site:** a publicar com o OK que o dono já deu (*"Pode fazer tudo"*) — o resultado da publicação fica registrado abaixo.
+- **Site:** ✅ publicado em 03/10 01:58 UTC com o OK do dono (*"Pode fazer tudo"*). A conferência visual no SITE fica para o dono (o login do site é separado do da cópia local; a cópia local testada usa o mesmo banco e o mesmo código que subiu).
 - **Teste deixou rastro (combinado):** no caminhão de teste de 22/09, 5 linhas na Auditoria (salvou a ordem, tirou o 13146, programou de novo, salvou com ele no fim, voltou à sugestão) e 2 rotas guardadas no cache (as duas ordens das 2 paradas com ponto: 31,9 e 31,8 km). O caminhão voltou ao estado de antes (os 3 pedidos no mesmo dia/caminhão, sem ordem salva).
 - **Evolução futura (decisão nova, se o dono quiser):** trânsito ao vivo, interdição do dia, horário garantido — serviço pago.
 - **Servidor próprio de rotas:** só se o gratuito falhar com frequência — é trocar a configuração da função.
