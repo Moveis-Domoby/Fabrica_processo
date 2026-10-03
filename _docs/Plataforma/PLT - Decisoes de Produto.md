@@ -325,6 +325,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 ## D-39 · ROTAS: programação de caminhão com mapa e sugestão; caminhões cadastráveis (28/08/2026)
 
+**↩️ revisada em 2026-10-02 (D-108/D-109/D-110):** a linha deixou de ser reta — é a rota pelas ruas (serviço gratuito de rotas), da fábrica à fábrica, com distância e tempo; a ordem sugerida pode ser ajustada à mão e salva; o mapa mostra também a rota programada de cada caminhão. Continua grátis, sem chave e só sugestão.
+
 - ROTAS lista **apenas pedidos prontos** lançados pelos Pedidos em aguardo.
 - **Programar caminhão:** escolhe o dia → pedidos sem programação → a seleção abre **mapa lateral** (Leaflet + OpenStreetMap, grátis e sem chave; geocodificação aberta com cache no banco) mostrando a rota selecionada e **sugerindo** pedidos que fazem sentido nela (proximidade). **É só sugestão — a decisão é humana** (princípio de sempre). Confirma com **data + caminhão**.
 - **Caminhões:** cadastro em Administração — visualizar, editar, excluir, com foto.
@@ -1058,6 +1060,40 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 ## D-104 · Teste ao vivo com os cards de teste (01/10/2026) — ↪️ M-16
 
 **Decidido (resposta 6 do dono):** *"Sim, ainda são só de teste, pode fazer o que quiser com eles"* — os quadros de produção seguem sendo de teste; o aceite das automações roda com eles (o pedido é real, o card é teste).
+
+## D-108 · A rota da Programação é calculada PELAS RUAS, parte da fábrica e VOLTA para ela; distância e tempo à vista (02/10/2026) — ↩️ revisa a D-39 (a linha reta)
+
+**Decidido (respostas do dono no início da SESSAO-28, 02/10):** *"Rua Tancredo Neves - Planalto, Natal - RN, 59073-351"* · *"Volta para a fábrica"* · *"Pode mostrar [o tempo], já dá para ter alguma ideia"* · sobre o servidor: *"Que miséria é isso? Não entendi nada"* — a escolha ficou com o Claude, explicada em uma frase (E-82).
+
+- **Partida e chegada = a fábrica da Móveis Domoby**, Rua Tancredo Neves, Planalto, Natal-RN (CEP 59073-351), no ponto **−5,84800 · −35,25428** (conferido com o print do Google Maps que o dono mandou; no mapa aberto a rua está grafada "Trancredo"). Fica **fixa no sistema**, sem tela de edição — se a fábrica mudar de endereço, é um ajuste no código.
+- **A rota vai da fábrica às paradas, na ordem, e volta à fábrica** — a volta é o último trecho, separado.
+- **A linha é a rota de verdade pelas ruas** (respeita contramão e sentido das vias), calculada pelo **serviço gratuito de rotas sobre o mapa aberto (OSRM)** — o servidor público da FOSSGIS, perfil de carro, sem chave, com identificação e no máximo 1 pedido por segundo. **Sem garantia de ficar no ar:** se ele falhar, a tela mostra a linha reta antiga com um aviso e continua funcionando. O endereço do servidor é configuração — trocar por um servidor próprio (o da casa) é um ajuste, se um dia precisar.
+- **Distância e tempo por trecho e totais** aparecem na tela. O tempo é **"só dirigindo"**: de carro, sem trânsito e sem o tempo parado em cada entrega — está escrito assim na tela.
+- **A rota calculada fica guardada** (no mesmo lugar onde o sistema já guarda os endereços achados no mapa — sem tabela nova, D-47): a mesma sequência de paradas não é recalculada; mudou a sequência, recalcula.
+- **Continua sendo sugestão inicial** — aviso curto na tela: sem trânsito ao vivo e sem interdições do dia. A decisão é humana (princípio da D-39, mantido).
+- **Evolução futura, registrada:** trânsito ao vivo, **trecho interditado no dia programado** e horário de chegada garantido dependem de serviço PAGO (ex.: Google Routes). Se um dia o dono quiser, é decisão nova.
+
+**Descartadas:** hospedar o motor de rotas no servidor da casa (o do n8n) agora — exige instalar o mapa da região na máquina que roda o n8n em produção, sem ganho visível no volume de hoje (algumas dezenas de cálculos por dia, guardados); serviço pago com trânsito (fora da regra "grátis e sem chave" da D-39 por ora); manter a linha reta.
+
+## D-109 · A ordem das paradas: a sugestão é a do mais perto, mas qualquer um da logística REORDENA à mão, vê na hora e SALVA (02/10/2026) — ↪️ D-39/D-45
+
+**Decidido (resposta 6 do dono):** *"Faça a possibilidade de poder reordenar à mão também, a sugestão de rota é a mais próxima, porém deve sim ser possível alguém alterar as ordens e ver em tempo real clicando em um botão de salvar"*.
+
+- A **sugestão** continua sendo "o mais perto primeiro" — agora **a partir da fábrica** (a 1ª parada é a mais perto da fábrica).
+- Quem opera a programação (logística e admin) **sobe/desce paradas** na lista; o mapa redesenha a rota **na hora**, com os quilômetros e o tempo novos.
+- **"Salvar ordem"** grava a ordem daquele caminhão naquele dia para todo mundo; **"Voltar à sugestão"** desfaz o ajuste. Na montagem (antes de programar), a ordem mostrada é gravada junto ao clicar em **Programar**; pedido programado depois num caminhão que já tem ordem entra **no fim**.
+- **Trocar o dia ou o caminhão** de um pedido tira a ordem dele (ele vai para o fim da rota nova). Salvar a ordem vai para a trilha como UM gesto ("Salvou a ordem das paradas"); depois de entregue, nada muda.
+
+**Descartadas:** arrastar e soltar as paradas (os botões de subir/descer funcionam igual no celular e no tablet do galpão — D-06); ordem só automática (o dono pediu o ajuste humano); "otimização de rota" automática de verdade (continua fora).
+
+## D-110 · O mapa da Programação mostra também a rota JÁ PROGRAMADA de cada caminhão no dia (02/10/2026) — ↪️ D-39
+
+**Decidido (resposta 5 do dono):** *"Sim, faça mostrar"*.
+
+- Além de **"Montando agora"** (os pedidos marcados, como antes), o mapa tem uma escolha por **caminhão programado no dia**: escolher um caminhão mostra a rota dele (fábrica → paradas na ordem salva → fábrica), com distância e tempo, e permite reordenar e salvar (D-109).
+- Os dados já chegam na tela junto com a lista (nenhuma consulta nova — regra "cada tela requisita só o que mostra").
+
+**Descartadas:** o mapa só da seleção (a rota calculada sumia no momento em que se confirmava a programação).
 
 ## Ver também
 
