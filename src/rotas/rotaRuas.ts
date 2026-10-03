@@ -158,3 +158,98 @@ export function formatarDuracao(segundos: number): string {
   const resto = minutos % 60
   return `${horas} h ${String(resto).padStart(2, '0')} min`
 }
+
+// ---------------------------------------------------------------------------
+// Ajustes da SESSAO-28 (03/10 — D-111)
+// ---------------------------------------------------------------------------
+
+/**
+ * A cor de cada caminhão no mapa e na lista ("Já programadas"): fixa por
+ * caminhão, fora das cores de estado (verde/âmbar/vermelho) e do amarelo das
+ * paradas. Hex de propósito — o Leaflet desenha a linha com o valor literal.
+ */
+export const CORES_CAMINHAO = ['#2563EB', '#7C3AED', '#DB2777', '#0891B2', '#92400E', '#4F46E5'] as const
+
+export function corDoCaminhao(caminhaoId: number): string {
+  return CORES_CAMINHAO[Math.abs(caminhaoId) % CORES_CAMINHAO.length]
+}
+
+/** A rota que se está montando (aba "Programar"): azul forte com contorno branco. */
+export const COR_MONTAGEM = '#1D4ED8'
+
+export type CriterioOrdem = 'entrega' | 'perto' | 'numero'
+
+interface Candidato extends ComPonto {
+  numero: number
+  data_prevista: string | null
+}
+
+/**
+ * A ordem da lista de pedidos sem programação (D-111): por padrão o dia de
+ * entrega mais perto primeiro (sem previsão, no fim). "Mais perto": com
+ * pedidos já na rota, o mais perto DELES (a menor distância a qualquer um) até
+ * o mais longe; com nada marcado, o mais perto da fábrica. Quem não tem ponto
+ * no mapa vai para o fim. Empate desempata pelo número do pedido.
+ */
+export function ordenarCandidatos<T extends Candidato>(
+  lista: T[],
+  criterio: CriterioOrdem,
+  referencia: Ponto[] = [],
+  origem: Ponto = FABRICA,
+): T[] {
+  const copia = [...lista]
+  if (criterio === 'numero') return copia.sort((a, b) => a.numero - b.numero)
+  if (criterio === 'entrega') {
+    return copia.sort((a, b) => {
+      if (a.data_prevista === b.data_prevista) return a.numero - b.numero
+      if (a.data_prevista === null) return 1
+      if (b.data_prevista === null) return -1
+      return a.data_prevista < b.data_prevista ? -1 : 1
+    })
+  }
+  const alvos = referencia.length > 0 ? referencia : [origem]
+  const distancia = (p: T) =>
+    temPonto(p) ? Math.min(...alvos.map((a) => distanciaKm(a, p))) : Number.POSITIVE_INFINITY
+  const medida = new Map(copia.map((p) => [p.card_id, distancia(p)]))
+  return copia.sort((a, b) => medida.get(a.card_id)! - medida.get(b.card_id)! || a.numero - b.numero)
+}
+
+/** Total de peças de uma lista de pedidos (frete não conta — vem do banco). */
+export function somarPecas(lista: { total_unidades: number }[]): number {
+  return lista.reduce((soma, p) => soma + (p.total_unidades || 0), 0)
+}
+
+/**
+ * Corta a linha da rota (fábrica → … → fábrica) em trechos, um por perna, para
+ * destacar um trecho no mapa. Para cada parada, em ordem, acha o PRIMEIRO
+ * vértice da linha (depois do corte anterior) que chega a menos de 5 m da
+ * menor distância até ela — o serviço encaixa a parada na rua mais perto, e a
+ * linha passa por esse encaixe; uma passagem posterior (a volta) nunca chega
+ * mais perto que o próprio encaixe. Linha sem vértices bastantes devolve vazio.
+ */
+export function separarTrechos(linha: [number, number][], pontos: Ponto[]): [number, number][][] {
+  const pernas = pontos.length - 1
+  if (pernas < 1 || linha.length < 2) return []
+  if (pernas === 1) return [linha]
+  const metros = (v: [number, number], p: Ponto) =>
+    distanciaKm({ latitude: v[0], longitude: v[1] }, p) * 1000
+  const cortes: number[] = [0]
+  for (let k = 1; k < pernas; k++) {
+    const inicio = cortes[cortes.length - 1]
+    const restante = linha.length - (pernas - k) // deixa vértice para as próximas pernas
+    let menor = Number.POSITIVE_INFINITY
+    for (let j = inicio; j < restante; j++) menor = Math.min(menor, metros(linha[j], pontos[k]))
+    let corte = inicio
+    for (let j = inicio; j < restante; j++) {
+      if (metros(linha[j], pontos[k]) <= menor + 5) {
+        corte = j
+        break
+      }
+    }
+    cortes.push(Math.max(corte, inicio))
+  }
+  cortes.push(linha.length - 1)
+  const trechos: [number, number][][] = []
+  for (let k = 0; k < pernas; k++) trechos.push(linha.slice(cortes[k], cortes[k + 1] + 1))
+  return trechos
+}

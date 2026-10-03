@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   FABRICA,
   chaveRota,
+  corDoCaminhao,
   decodificarLinha,
   formatarDuracao,
   moverParada,
   ordemDaRota,
   ordemSugerida,
+  ordenarCandidatos,
   pontosDaRota,
+  separarTrechos,
+  somarPecas,
   trechosEmLinhaReta,
 } from './rotaRuas'
 import type { ComPonto } from './proximidade'
@@ -139,5 +143,82 @@ describe('o tempo na tela', () => {
     expect(formatarDuracao(480)).toBe('8 min')
     expect(formatarDuracao(3900)).toBe('1 h 05 min')
     expect(formatarDuracao(7200)).toBe('2 h 00 min')
+  })
+})
+
+describe('ajustes de 03/10: a ordem da lista sem programação', () => {
+  type P = Parada & { numero: number; data_prevista: string | null }
+  const a: P = { ...centro, numero: 30, data_prevista: '2026-10-08' }
+  const b: P = { ...parnamirim, numero: 10, data_prevista: '2026-10-05' }
+  const c: P = { ...zonaNorte, numero: 20, data_prevista: null }
+  const d: P = { ...semPonto, numero: 40, data_prevista: '2026-10-05' }
+  const lista = [a, b, c, d]
+  const numeros = (l: P[]) => l.map((p) => p.numero)
+
+  it('padrão: o dia de entrega mais perto primeiro; empate pelo número; sem previsão no fim', () => {
+    expect(numeros(ordenarCandidatos(lista, 'entrega'))).toEqual([10, 40, 30, 20])
+  })
+
+  it('"mais perto" sem nada na rota: da fábrica; sem ponto no fim', () => {
+    expect(numeros(ordenarCandidatos(lista, 'perto'))).toEqual([10, 30, 20, 40])
+  })
+
+  it('"mais perto" com pedido na rota: do mais perto DELE até o mais longe', () => {
+    // na rota: um ponto na Zona Norte → a Zona Norte, depois o Centro, Parnamirim por último
+    expect(numeros(ordenarCandidatos([a, b, d], 'perto', [{ latitude: -5.75, longitude: -35.25 }]))).toEqual([30, 10, 40])
+  })
+
+  it('por número do pedido', () => {
+    expect(numeros(ordenarCandidatos(lista, 'numero'))).toEqual([10, 20, 30, 40])
+  })
+})
+
+describe('ajustes de 03/10: cor do caminhão, peças e trechos', () => {
+  it('cada caminhão tem a sua cor, sempre a mesma', () => {
+    expect(corDoCaminhao(7)).toBe(corDoCaminhao(7))
+    expect(corDoCaminhao(1)).not.toBe(corDoCaminhao(2))
+  })
+
+  it('soma as peças da rota', () => {
+    expect(somarPecas([{ total_unidades: 2 }, { total_unidades: 5 }])).toBe(7)
+  })
+
+  it('corta a linha nos encaixes das paradas: um trecho por perna, emendados', () => {
+    // F (0) → A (2) → F: a linha vai e volta pelo mesmo caminho
+    const linha: [number, number][] = [
+      [-5.848, -35.254],
+      [-5.84, -35.25],
+      [-5.83, -35.24],
+      [-5.84, -35.25],
+      [-5.848, -35.254],
+    ]
+    const pontos = [
+      { latitude: -5.848, longitude: -35.254 },
+      { latitude: -5.8301, longitude: -35.2401 },
+      { latitude: -5.848, longitude: -35.254 },
+    ]
+    const trechos = separarTrechos(linha, pontos)
+    expect(trechos).toHaveLength(2)
+    expect(trechos[0][trechos[0].length - 1]).toEqual([-5.83, -35.24])
+    expect(trechos[1][0]).toEqual([-5.83, -35.24])
+    expect(trechos[1][trechos[1].length - 1]).toEqual([-5.848, -35.254])
+  })
+
+  it('a volta que passa perto da 1ª parada não rouba o corte (vale a 1ª passagem)', () => {
+    // F → A → B → F, e a volta de B passa de novo exatamente por A
+    const linha: [number, number][] = [
+      [0, 0],
+      [0, 0.01], // A
+      [0, 0.02], // B
+      [0, 0.01], // passa por A na volta
+      [0, 0],
+    ]
+    const p = (lon: number) => ({ latitude: 0, longitude: lon })
+    const trechos = separarTrechos(linha, [p(0), p(0.01), p(0.02), p(0)])
+    expect(trechos.map((t) => t.length)).toEqual([2, 2, 3])
+  })
+
+  it('sem linha suficiente, nada a cortar', () => {
+    expect(separarTrechos([], [FABRICA, FABRICA])).toEqual([])
   })
 })

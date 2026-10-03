@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, memo, useEffect, useRef, useState } from 'react'
 import {
   CircleMarker,
   MapContainer,
@@ -59,34 +59,111 @@ function Enquadrar({ pontos, expandido }: { pontos: [number, number][]; expandid
   return null
 }
 
+/** O que o mapa precisa de uma parada (serve ao pedido sem programação e ao já programado). */
+export type ParadaMinima = Pick<PedidoProgramacao, 'card_id' | 'numero' | 'cliente_nome' | 'total_unidades'>
+
 export interface ParadaNoMapa {
-  parada: PedidoProgramacao & Ponto
+  parada: ParadaMinima & Ponto
   /** A posição da parada na rota (a mesma da lista). */
   numero: number
 }
 
+export interface RotaNoMapa {
+  id: string
+  /** A cor da linha (a do caminhão, ou a da rota em montagem). */
+  cor: string
+  paradas: ParadaNoMapa[]
+  /** A rota pelas ruas cortada em trechos (um por perna); null = linha reta tracejada. */
+  trechos: [number, number][][] | null
+  /** Outro caminhão do mesmo dia: aparece transparente, sem números. */
+  esmaecida?: boolean
+  /** A linha que está na tela é a de antes — a nova está sendo calculada. */
+  recalculando?: boolean
+}
+
 const PONTO_FABRICA: [number, number] = [FABRICA.latitude, FABRICA.longitude]
 
+function LinhaDaRota({
+  rota,
+  trechoSelecionado,
+  aoSelecionarTrecho,
+}: {
+  rota: RotaNoMapa
+  trechoSelecionado: number | null
+  aoSelecionarTrecho?: (indice: number | null) => void
+}) {
+  const pontos = rota.paradas.map(({ parada }) => [parada.latitude, parada.longitude] as [number, number])
+  if (!rota.trechos || rota.trechos.length === 0) {
+    if (pontos.length === 0) return null
+    return (
+      <Polyline
+        key={`reta-${rota.id}`}
+        positions={[PONTO_FABRICA, ...pontos, PONTO_FABRICA]}
+        pathOptions={{ color: rota.cor, weight: 3, opacity: rota.esmaecida ? 0.25 : 0.8, dashArray: '6 8' }}
+      />
+    )
+  }
+  const base = rota.esmaecida ? 0.28 : rota.recalculando ? 0.45 : 0.95
+  return (
+    <>
+      {rota.trechos.map((trecho, i) => {
+        const apagado = trechoSelecionado !== null && trechoSelecionado !== i
+        const opacidade = apagado ? 0.18 : base
+        return (
+          // As chaves separam as camadas: o Leaflet MESCLA o estilo novo no
+          // antigo (E-83) — cada trecho e o contorno têm camada própria.
+          <Fragment key={`${rota.id}-${i}`}>
+            {!rota.esmaecida && (
+              <Polyline
+                positions={trecho}
+                pathOptions={{ color: '#FFFFFF', weight: 9, opacity: apagado ? 0.15 : 0.9 }}
+                interactive={false}
+              />
+            )}
+            <Polyline
+              positions={trecho}
+              pathOptions={{ color: rota.cor, weight: rota.esmaecida ? 4 : 5, opacity: opacidade }}
+              eventHandlers={
+                aoSelecionarTrecho && !rota.esmaecida
+                  ? { click: () => aoSelecionarTrecho(trechoSelecionado === i ? null : i) }
+                  : undefined
+              }
+            />
+          </Fragment>
+        )
+      })}
+    </>
+  )
+}
+
 /**
- * O mapa lateral da programação (D-39 → D-108): Leaflet + tiles do
- * OpenStreetMap (gratuito, sem chave, com a atribuição obrigatória). A rota
- * parte da FÁBRICA (marcador grafite com "F") e volta para ela; a linha é a
- * rota pelas ruas que o serviço de rotas devolveu. Sem ela (calculando, ou o
- * serviço fora do ar), a linha reta tracejada liga fábrica → paradas → fábrica
- * — a tela nunca morre. Paradas numeradas em amarelo (o número é o da lista),
- * sugestões em âmbar (clique inclui). Marcadores são círculos desenhados — nada
- * depende de imagem externa. Expandir abre em tela cheia; ESC recolhe.
+ * O mapa lateral da programação (D-39 → D-108 → ajustes de 03/10, D-111):
+ * Leaflet + tiles do OpenStreetMap (gratuito, sem chave, com a atribuição
+ * obrigatória). A rota parte da FÁBRICA ("F") e volta para ela, pelas ruas.
+ *
+ * - **Prioridade visual:** a linha tem a cor da rota (a do caminhão, ou azul na
+ *   montagem) com contorno branco — destaca sobre as ruas coloridas do mapa.
+ * - **Trecho escolhido:** tocar num trecho (ou escolher no painel) acende só
+ *   ele; o resto fica transparente — tocar de novo volta à rota inteira.
+ * - **Outros caminhões do dia:** aparecem transparentes, sem números.
+ * - **Sem a rota pelas ruas** (calculando, serviço fora): linha reta tracejada.
+ *   Enquanto a nova chega, a de antes fica, esmaecida — a tela não "pisca".
+ *
+ * Só redesenha quando o que mostra muda (memo — a lista ao lado pode mudar à
+ * vontade). Marcadores são círculos desenhados — nada depende de imagem externa.
  */
-export function MapaProgramacao({
-  paradas,
-  linha,
+export const MapaProgramacao = memo(function MapaProgramacao({
+  rotas,
+  trechoSelecionado = null,
+  aoSelecionarTrecho,
   resumo,
-  sugestoes = [],
+  sugestoes = SEM_SUGESTOES,
   aoEscolherSugestao,
 }: {
-  paradas: ParadaNoMapa[]
-  /** A rota pelas ruas, ou null para a linha reta tracejada. */
-  linha: [number, number][] | null
+  rotas: RotaNoMapa[]
+  /** O trecho aceso da rota principal (a 1ª não esmaecida). */
+  trechoSelecionado?: number | null
+  aoSelecionarTrecho?: (indice: number | null) => void
   resumo: string | null
   sugestoes?: Sugestao<PedidoProgramacao>[]
   aoEscolherSugestao?: (pedido: PedidoProgramacao) => void
@@ -103,30 +180,29 @@ export function MapaProgramacao({
     return () => window.removeEventListener('keydown', aoTecla)
   }, [expandido])
 
-  const pontosParadas = paradas.map(({ parada }) => [parada.latitude, parada.longitude] as [number, number])
+  const principal = rotas.find((r) => !r.esmaecida)
   const pontos: [number, number][] = [
     PONTO_FABRICA,
-    ...pontosParadas,
+    ...rotas.flatMap((r) => r.paradas.map(({ parada }) => [parada.latitude, parada.longitude] as [number, number])),
     ...sugestoes
       .filter((s) => temPonto(s.item))
       .map((s) => [s.item.latitude!, s.item.longitude!] as [number, number]),
   ]
-  const linhaReta: [number, number][] =
-    pontosParadas.length > 0 ? [PONTO_FABRICA, ...pontosParadas, PONTO_FABRICA] : []
 
   return (
     <div
       className={cn(
         'relative overflow-hidden border border-borda bg-superficie',
-        expandido
-          ? 'fixed inset-0 z-[60] rounded-none'
-          : 'h-[24rem] rounded-dm-lg lg:h-[32rem]',
+        expandido ? 'fixed inset-0 z-[60] rounded-none' : 'h-[24rem] rounded-dm-lg lg:h-[32rem]',
       )}
     >
       {/* left-14: o resumo nunca cobre o + / − do zoom (canto esquerdo) em mapa estreito */}
       <div className="pointer-events-none absolute top-2 right-2 left-14 z-[1000] flex flex-wrap items-center justify-end gap-2 [&>*]:pointer-events-auto">
         {resumo && (
-          <span className="rounded-dm bg-superficie/95 px-2.5 py-1 text-xs font-medium text-texto shadow tabular-nums">
+          <span
+            className="rounded-dm bg-superficie/95 px-2.5 py-1 text-xs font-medium text-texto shadow tabular-nums"
+            role="status"
+          >
             {resumo}
           </span>
         )}
@@ -141,37 +217,24 @@ export function MapaProgramacao({
         </Botao>
       </div>
 
-      <MapContainer
-        center={PONTO_FABRICA}
-        zoom={12}
-        scrollWheelZoom
-        style={{ height: '100%', width: '100%' }}
-      >
+      <MapContainer center={PONTO_FABRICA} zoom={12} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <Enquadrar pontos={pontos} expandido={expandido} />
 
-        {/* A rota: pelas ruas quando há; senão, linha reta tracejada. As
-            chaves separam as duas linhas: sem elas o React reaproveita a
-            camada e o Leaflet MESCLA o estilo novo no antigo — a rota pelas
-            ruas herdava o tracejado da reta. */}
-        {linha && linha.length > 1 ? (
-          <Polyline
-            key="pelas-ruas"
-            positions={linha}
-            pathOptions={{ color: '#5A585C', weight: 4, opacity: 0.85 }}
-          />
-        ) : (
-          linhaReta.length > 1 && (
-            <Polyline
-              key="linha-reta"
-              positions={linhaReta}
-              pathOptions={{ color: '#5A585C', weight: 3, opacity: 0.7, dashArray: '6 8' }}
+        {/* As esmaecidas por baixo; a principal por cima. */}
+        {[...rotas]
+          .sort((a, b) => Number(!a.esmaecida) - Number(!b.esmaecida))
+          .map((rota) => (
+            <LinhaDaRota
+              key={rota.id}
+              rota={rota}
+              trechoSelecionado={rota === principal ? trechoSelecionado : null}
+              aoSelecionarTrecho={rota === principal ? aoSelecionarTrecho : undefined}
             />
-          )
-        )}
+          ))}
 
         <CircleMarker
           center={PONTO_FABRICA}
@@ -190,27 +253,44 @@ export function MapaProgramacao({
           </Popup>
         </CircleMarker>
 
-        {paradas.map(({ parada: p, numero }) => (
-          <CircleMarker
-            key={`sel-${p.card_id}`}
-            center={[p.latitude, p.longitude]}
-            radius={12}
-            pathOptions={{ color: '#5A585C', fillColor: '#F1C24B', fillOpacity: 1, weight: 2 }}
-          >
-            <Tooltip permanent direction="center" className="plt-parada" opacity={1}>
-              {numero}
-            </Tooltip>
-            <Popup>
-              <strong>
-                {numero}ª parada · Pedido {p.numero}
-              </strong>
-              <br />
-              {p.cliente_nome}
-              <br />
-              {p.total_unidades} unidade(s)
-            </Popup>
-          </CircleMarker>
-        ))}
+        {rotas.map((rota) =>
+          rota.paradas.map(({ parada: p, numero }) =>
+            rota.esmaecida ? (
+              <CircleMarker
+                key={`esm-${rota.id}-${p.card_id}`}
+                center={[p.latitude, p.longitude]}
+                radius={6}
+                pathOptions={{ color: rota.cor, fillColor: rota.cor, fillOpacity: 0.35, opacity: 0.5, weight: 2 }}
+              >
+                <Popup>
+                  Pedido {p.numero} · outro caminhão
+                  <br />
+                  {p.cliente_nome}
+                </Popup>
+              </CircleMarker>
+            ) : (
+              <CircleMarker
+                key={`sel-${rota.id}-${p.card_id}`}
+                center={[p.latitude, p.longitude]}
+                radius={12}
+                pathOptions={{ color: rota.cor, fillColor: '#F1C24B', fillOpacity: 1, weight: 3 }}
+              >
+                <Tooltip permanent direction="center" className="plt-parada" opacity={1}>
+                  {numero}
+                </Tooltip>
+                <Popup>
+                  <strong>
+                    {numero}ª parada · Pedido {p.numero}
+                  </strong>
+                  <br />
+                  {p.cliente_nome}
+                  <br />
+                  {p.total_unidades} {p.total_unidades === 1 ? 'peça' : 'peças'}
+                </Popup>
+              </CircleMarker>
+            ),
+          ),
+        )}
 
         {sugestoes.map(({ item, distanciaKm }) =>
           temPonto(item) ? (
@@ -233,4 +313,6 @@ export function MapaProgramacao({
       </MapContainer>
     </div>
   )
-}
+})
+
+const SEM_SUGESTOES: Sugestao<PedidoProgramacao>[] = []

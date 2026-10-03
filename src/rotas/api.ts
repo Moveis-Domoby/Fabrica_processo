@@ -82,6 +82,11 @@ export function enderecoLegivel(e: {
   return partes.join(' · ') || 'Sem endereço cadastrado'
 }
 
+/** Data ISO (aaaa-mm-dd) em dd/mm/aaaa; nula vira "—". */
+export function dataLegivel(iso: string | null): string {
+  return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
+}
+
 /** Link do WhatsApp (wa.me) a partir do telefone cru. */
 export function linkWhatsApp(telefone: string | null): string | null {
   const digitos = (telefone ?? '').replace(/\D/g, '')
@@ -101,6 +106,12 @@ export function linkMapa(e: Entrega): string | null {
 // ---------------------------------------------------------------------------
 // Programação de caminhão (D-39/D-45)
 // ---------------------------------------------------------------------------
+
+/** Um móvel do pedido (D-111): a descrição e a quantidade — o frete não vem. */
+export interface ItemPedido {
+  descricao: string
+  quantidade: number
+}
 
 export interface PedidoProgramacao {
   card_id: number
@@ -123,6 +134,8 @@ export interface PedidoProgramacao {
   geo_resolvido: boolean | null
   geo_consultado_em: string | null
   total_unidades: number
+  /** D-111: os móveis do pedido, na ordem, sem o frete. */
+  itens: ItemPedido[]
   data_prevista: string | null
   lancado_em: string | null
   programacao_data: string | null
@@ -135,10 +148,12 @@ export interface PedidoProgramacao {
 
 /**
  * Os pedidos da programação: SEM programação (sempre) + os programados no dia
- * pedido. Vem com o ponto do cache quando já geocodificado.
+ * pedido (a não ser com `soSemProgramacao` — a aba "Programar", D-111). Vem com
+ * o ponto do cache quando já geocodificado e com os móveis de cada pedido.
  */
 export async function listarProgramacao(parametros: {
   data?: string | null
+  soSemProgramacao?: boolean
   limite?: number
   deslocamento?: number
 }): Promise<PedidoProgramacao[]> {
@@ -146,6 +161,7 @@ export async function listarProgramacao(parametros: {
     p_data: parametros.data ?? null,
     p_limite: parametros.limite ?? 100,
     p_deslocamento: parametros.deslocamento ?? 0,
+    p_so_sem_programacao: parametros.soSemProgramacao ?? false,
   })
   if (error) throw new Error(`Não deu para carregar a programação: ${error.message}`)
   return (data ?? []) as PedidoProgramacao[]
@@ -163,6 +179,75 @@ export async function programarEntrega(parametros: {
     p_caminhao_id: parametros.caminhaoId,
   })
   if (error) throw new Error(`Não deu para programar: ${error.message}`)
+}
+
+/**
+ * Programar a rota inteira numa chamada só (D-111): os pedidos no dia e
+ * caminhão e, se vier, a ordem da rota do caminhão naquele dia. Tudo ou nada.
+ */
+export async function programarRota(parametros: {
+  data: string
+  caminhaoId: number
+  cardIds: number[]
+  ordem: number[] | null
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_programar_rota', {
+    p_data: parametros.data,
+    p_caminhao_id: parametros.caminhaoId,
+    p_card_ids: parametros.cardIds,
+    p_ordem: parametros.ordem,
+  })
+  if (error) throw new Error(`Não deu para programar: ${error.message}`)
+}
+
+/** Uma entrega já programada (aba "Já programadas" — D-111). */
+export interface PedidoProgramado {
+  card_id: number
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  endereco: string | null
+  numero_endereco: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  geo_chave: string | null
+  latitude: number | null
+  longitude: number | null
+  geo_resolvido: boolean | null
+  total_unidades: number
+  itens: ItemPedido[]
+  data_prevista: string | null
+  programacao_data: string
+  caminhao_id: number
+  caminhao_nome: string | null
+  caminhao_placa: string | null
+  ordem: number | null
+  entregue_em: string | null
+  contagem_total: number
+}
+
+/**
+ * As programações (D-111), paginadas no servidor: as que ainda não foram
+ * entregues (dia mais perto primeiro) ou, com `entregues`, o histórico.
+ */
+export async function listarProgramadas(parametros: {
+  entregues?: boolean
+  data?: string | null
+  caminhaoId?: number | null
+  limite?: number
+  deslocamento?: number
+}): Promise<PedidoProgramado[]> {
+  const { data, error } = await supabase.rpc('plt_fn_programadas', {
+    p_entregues: parametros.entregues ?? false,
+    p_data: parametros.data ?? null,
+    p_caminhao_id: parametros.caminhaoId ?? null,
+    p_limite: parametros.limite ?? 50,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  if (error) throw new Error(`Não deu para carregar as programações: ${error.message}`)
+  return (data ?? []) as PedidoProgramado[]
 }
 
 export async function desprogramarEntrega(cardId: number): Promise<void> {
