@@ -59,7 +59,7 @@ tags: [plataforma, descoberta, perguntas]
 ## 🟢 Automações internas e alertas
 
 - ✅ **Q-40 · Quais as 3 primeiras automações internas** que você configuraria no estilo "quando X, faça Y"? (candidatas óbvias do cofre: card parado > N dias alerta o líder; pedido completo — todas as unidades prontas — avisa a expedição) → respondida em 01/10: **nenhuma definida ainda — o módulo de automações existe justamente para testá-las** → [[PLT - Decisoes de Produto#D-92]]
-- ✅ **Q-41 · Quem pode criar automações?** → respondida em 01/10: **só admin, por enquanto** (revisar depois) → D-92
+- ✅ **Q-41 · Quem pode criar automações?** → respondida em 01/10: **só admin, por enquanto** (revisar depois) → D-92 · ↪️ **01/10 noite (SESSAO-27): só o SUPER ADMIN** (o dono) cria, edita e liga — D-99/D-102
 - **Q-42 · Notificações:** onde o líder recebe alertas (inclusive os de qualidade da D-09)? Na plataforma, WhatsApp (via n8n), e-mail?
 
 ## 🔵 API e integrações

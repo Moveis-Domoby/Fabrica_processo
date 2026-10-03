@@ -76,7 +76,7 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (D-01…D-98
 **Registro e fechamento**
 - [x] R1 · Rótulos novos na Auditoria e na linha do tempo ("Automático" no lugar de `[automacao]`)
 - [x] R2 · Harness (2 rodadas) com o bloco 51; tsc; lint; testes; build; F-07 (celular/tablet)
-- [~] R3 · Checkpoint antes de aplicar (md5 da integração antes/depois), aplicar com OK + publicar no mesmo gesto (E-73), `get_advisors` — banco aplicado (3×, integração idêntica), advisors ok; **o site espera o "pode subir"**
+- [x] R3 · Checkpoint antes de aplicar (md5 da integração antes/depois), aplicar com OK + publicar no mesmo gesto (E-73), `get_advisors` — banco aplicado (3×, integração idêntica), advisors ok; site publicado em 02/10 04:27 UTC com o OK do dono
 - [x] R4 · Cofre: D-99…, RF-118…, esquema + retrato, Modelo de Sistema, API Aberta, memória, handoff, mapa, ordem, demanda (Resultado) e a S17 anotada
 
 ## Banco — migration 51 (`20261002120000_plt_automacoes_canvas.sql`)
@@ -122,6 +122,7 @@ CLAUDE (repo + cofre), Memória de Aprendizado (inteira), Decisões (D-01…D-98
 12. **Tablet e celular (conferência que tinha ficado interrompida):** lista no tablet (768) — nada rolando de lado; os "Ligar" estavam com 36px → `md` (44); histórico ("Atualizar", "Trazer de volta") → 44; editor — abas 40 → 44 e botões da barra 36 → 44; o **nome espremia para "T"** (24px) → largura mínima de 10rem (a barra quebra em linhas): 327px no tablet. Celular (375): sem rolagem lateral, canvas 375×581; os "+" do canvas seguem 36px (decisão do canvas). **E-80:** o "caber na tela" não rodava ao abrir → corrigido (`ResizeObserver`; abre em 61% no celular). **A-50:** o painel escondido não desenha — medir depois de uma captura.
 
 13. **Subiu para o site (02/10, com o OK do dono — *"Pode subir em produção"*):** a `main` do GitHub não tinha andado (6750a58 ancestral) → montagem conferida de novo → `push origin sessao-27-automacoes-canvas:main` pela credencial do gh (avanço direto 6750a58..60c97de; leva a S29 inteira) + a branch remota atualizada + a `main` local avançada. Vercel: produção **success** às 04:27 UTC. Conferido no site: o HTML (com quebra de cache) aponta o mesmo pacote da montagem local e ele tem o "Se… senão", os grupos e o Super admin — a 1ª consulta sem quebra de cache trouxe o HTML anterior guardado no caminho. A tela publicada pede login (sessão separada da local) — quem entra é o dono. Edge Function `api` **não** publicada (espera o OK).
+14. **Conferência com o Tiny das 3h de 02/10 (06:00 UTC) — a 1ª com o gatilho de pedidos no ar:** concluída 06:00→06:21, **623 relidos, 8 mudaram, 0 falhas, 0 não encontrados**; os 8 pedidos regravados sem erro; nenhuma execução de automação (todas desligadas), relógio não agendado. Conferido em 02/10 21:20 (Natal).
 
 **Ficaram no banco (teste, combinado com o dono):** a etiqueta e o campo "Teste automação", as 2 automações de teste (desligadas) e o card 589 com a etiqueta/campo e os eventos do teste (a história fica — RNF-05).
 

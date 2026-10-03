@@ -97,8 +97,8 @@ Nenhum número de painel muda. O que aparece de novo: pílulas de etiqueta e lin
 2. **Publicar a Edge Function `api`** com a rota de disparo de fora — só necessária quando ele quiser chamar uma automação pelo n8n.
 3. Os dados de teste no banco (combinados): etiqueta e campo "Teste automação", as 2 automações de teste (desligadas), o card de teste 589 com etiqueta/campo. Ficam até ele dizer.
 
-### A conferir
-- **A conferência diária com o Tiny das 3h (06:00 UTC) de 03/10** é a primeira com o gatilho novo em `pedidos` no ar: conferir que a rodada fechou sem falha e sem aviso das automações nos registros (o ensaio da S29 com o gatilho forçado deu 63 ms, sem erro).
+### Conferido depois da entrega
+- ✅ **A conferência diária com o Tiny das 3h de 02/10** (06:00 UTC) — a primeira com o gatilho novo em `pedidos` no ar — fechou **concluída: 623 relidos, 8 mudaram, 0 falhas**; os 8 pedidos regravados sem erro; nenhuma execução de automação (todas desligadas).
 
 ### Próximo passo sugerido
 - O dono monta a 1ª automação real no canvas (o site já tem tudo). Depois, a [[SESSAO-28 - Rota Calculada no Mapa]] fecha o Bloco 5.
