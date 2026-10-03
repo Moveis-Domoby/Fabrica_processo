@@ -170,6 +170,9 @@ export async function desprogramarEntrega(cardId: number): Promise<void> {
   if (error) throw new Error(`Não deu para tirar da programação: ${error.message}`)
 }
 
+/** Quantos endereços por chamada à função (o mesmo teto do lado dela). */
+export const GEOCODIFICAR_POR_CHAMADA = 5
+
 export interface ResultadoGeocodificacao {
   chave: string
   latitude: number | null
@@ -179,15 +182,15 @@ export interface ResultadoGeocodificacao {
 
 /**
  * Geocodificação pela Edge Function `geocodificar` (Nominatim com ritmo e
- * identificação — o navegador não consegue garantir nenhum dos dois). Até 10
- * por chamada; o resultado já fica no cache do banco.
+ * identificação — o navegador não consegue garantir nenhum dos dois). Até 5
+ * por chamada (D-112: 3 tentativas por endereço); o resultado já fica no cache.
  */
 export async function geocodificar(
   itens: { chave: string; endereco: string }[],
 ): Promise<ResultadoGeocodificacao[]> {
   if (itens.length === 0) return []
   const { data, error } = await supabase.functions.invoke('geocodificar', {
-    body: { itens: itens.slice(0, 10) },
+    body: { itens: itens.slice(0, GEOCODIFICAR_POR_CHAMADA) },
   })
   if (error) {
     let mensagem = 'Não consegui consultar o mapa. Confira a internet e tente de novo.'

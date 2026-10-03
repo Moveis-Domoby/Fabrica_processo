@@ -8,6 +8,7 @@ import { useAcessoLogistica } from '@/logistica/acesso'
 import { listarCaminhoes, urlFotoCaminhao } from '@/admin/caminhoes'
 import {
   desprogramarEntrega,
+  GEOCODIFICAR_POR_CHAMADA,
   enderecoLegivel,
   geocodificar,
   listarProgramacao,
@@ -244,7 +245,7 @@ export function Programacao() {
   })
 
   // Geocodificação preguiçosa: quem ainda não tem ponto vai à Edge Function
-  // (até 10 por vez), uma vez só por chave nesta visita.
+  // (alguns por vez), uma vez só por chave nesta visita.
   const pedidas = useRef<Set<string>>(new Set())
   const geocodificarMutacao = useMutation({
     mutationFn: geocodificar,
@@ -256,7 +257,7 @@ export function Programacao() {
     if (geocodificarMutacao.isPending) return
     const pendentes = pedidos
       .filter((p) => precisaGeocodificar(p) && !pedidas.current.has(p.geo_chave!))
-      .slice(0, 10)
+      .slice(0, GEOCODIFICAR_POR_CHAMADA)
     if (pendentes.length === 0) return
     for (const p of pendentes) pedidas.current.add(p.geo_chave!)
     geocodificarMutacao.mutate(
