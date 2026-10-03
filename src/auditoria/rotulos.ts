@@ -63,6 +63,7 @@ export const ROTULO_ACAO: Record<string, string> = {
   entrega_programada: 'Programou a entrega',
   entrega_reprogramada: 'Reprogramou a entrega',
   programacao_removida: 'Tirou a entrega da programação',
+  rota_ordem_salva: 'Salvou a ordem das paradas',
   caminhao_criado: 'Cadastrou um caminhão',
   caminhao_alterado: 'Alterou um caminhão',
   caminhao_arquivado: 'Arquivou um caminhão',
@@ -195,7 +196,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
     valor: 'rotas',
     rotulo: 'ROTAS e caminhões',
     acoes: Object.keys(ROTULO_ACAO).filter(
-      (a) => a.startsWith('caminhao_') || ['entrega_programada', 'entrega_reprogramada', 'programacao_removida'].includes(a),
+      (a) => a.startsWith('caminhao_') || ['entrega_programada', 'entrega_reprogramada', 'programacao_removida', 'rota_ordem_salva'].includes(a),
     ),
   },
   {
@@ -367,11 +368,14 @@ const CHAVES: Record<string, string> = {
   passos: 'Passos',
   execucoes: 'Execuções no histórico',
   esperas_paradas: 'Esperas interrompidas',
+  paradas: 'Paradas na rota',
+  automatica: 'Voltou à ordem sugerida',
 }
 /** Chaves que só servem à máquina (ids) — não vão para a tela. */
 function ehChaveDeMaquina(chave: string): boolean {
   // automacao_excluida vira a etiqueta da linha, não um detalhe
-  return chave === 'id' || chave.endsWith('_id') || chave === 'lancamento_id' || chave === 'motivo' || chave === 'automacao_excluida'
+  // card_ids (a ordem salva da rota — SESSAO-28) também é só da máquina
+  return chave === 'id' || chave.endsWith('_id') || chave.endsWith('_ids') || chave === 'lancamento_id' || chave === 'motivo' || chave === 'automacao_excluida'
 }
 
 function textoDoValor(chave: string, valor: unknown): string {

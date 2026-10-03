@@ -318,3 +318,19 @@
 .leaflet-tooltip.plt-parada::before {
   display: none;
 }
+
+/* A fábrica no mapa (SESSAO-28): o "F" branco dentro do marcador grafite —
+   saída e volta da rota. */
+.leaflet-tooltip.plt-fabrica {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+  pointer-events: none;
+}
+.leaflet-tooltip.plt-fabrica::before {
+  display: none;
+}

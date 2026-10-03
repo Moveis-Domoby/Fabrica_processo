@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router'
 import { Layout } from '@/componentes/Layout'
 import { ProvedorNotificacao } from '@/componentes/ui'
@@ -32,13 +33,16 @@ import { Estoque } from '@/paginas/Estoque'
 import { PedidosAguardo } from '@/paginas/PedidosAguardo'
 import { Cancelados } from '@/paginas/Cancelados'
 import { Danificados } from '@/paginas/Danificados'
-import { Programacao } from '@/paginas/Programacao'
 import { Caminhoes } from '@/paginas/Caminhoes'
 import { ProducaoSetor, RedirecionarSetorAntigo } from '@/navegacao/ProducaoSetor'
 import { PainelRecompra } from '@/comercial/paginas/PainelRecompra'
 import { DashboardComercial } from '@/comercial/paginas/DashboardComercial'
 import { ListasDisparoIndice } from '@/comercial/paginas/ListasDisparoIndice'
 import { ListaDetalhe } from '@/comercial/paginas/ListaDetalhe'
+
+// O mapa (Leaflet, ~150 kB) só vem quando a Programação abre — o resto do
+// sistema não paga por ele (SESSAO-28; pendência anotada na SESSAO-15).
+const Programacao = lazy(() => import('@/paginas/Programacao').then((m) => ({ default: m.Programacao })))
 
 /** /producao/{codigo} antigo → /fabrica/producao/{codigo} (bookmark não quebra). */
 function RedirecionarProducaoAntiga() {
@@ -104,7 +108,14 @@ export function App() {
                 <Route path="/fabrica/logistica/danificados" element={<Danificados />} />
                 <Route path="/fabrica/logistica/cancelados" element={<Cancelados />} />
                 <Route path="/fabrica/rotas/entregas" element={<Rotas />} />
-                <Route path="/fabrica/rotas/programacao" element={<Programacao />} />
+                <Route
+                  path="/fabrica/rotas/programacao"
+                  element={
+                    <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando o mapa…</p>}>
+                      <Programacao />
+                    </Suspense>
+                  }
+                />
               </Route>
 
               {/* Dashboards → Meu desempenho (SESSAO-23): o painel PRIVADO de

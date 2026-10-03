@@ -128,6 +128,8 @@ export interface PedidoProgramacao {
   programacao_data: string | null
   caminhao_id: number | null
   caminhao_nome: string | null
+  /** D-109: a posição salva à mão na rota do caminhão; null = vale a sugestão. */
+  ordem: number | null
   contagem_total: number
 }
 
@@ -200,6 +202,86 @@ export async function geocodificar(
     throw new Error(mensagem)
   }
   return ((data as { resultados?: ResultadoGeocodificacao[] })?.resultados ?? [])
+}
+
+/**
+ * "Salvar ordem" (D-109): a ordem das paradas de um caminhão num dia. Lista
+ * vazia = volta à sugestão automática. O banco recusa se a rota mudou noutra
+ * tela, se alguém já foi entregue ou se quem salva não é da logística.
+ */
+export async function ordenarRota(parametros: {
+  data: string
+  caminhaoId: number
+  cardIds: number[]
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_ordenar_rota', {
+    p_data: parametros.data,
+    p_caminhao_id: parametros.caminhaoId,
+    p_card_ids: parametros.cardIds,
+  })
+  if (error) throw new Error(`Não deu para salvar a ordem: ${error.message}`)
+}
+
+// ---------------------------------------------------------------------------
+// Rota pelas ruas (SESSAO-28 / D-108)
+// ---------------------------------------------------------------------------
+
+export interface RotaCalculada {
+  distancia_m: number
+  duracao_s: number
+  trechos: { distancia_m: number; duracao_s: number }[]
+  /** A linha no formato compacto do serviço (polyline, precisão 5). */
+  geometria: string
+  servidor: string
+}
+
+export type ResultadoRota =
+  | { tipo: 'pronta'; rota: RotaCalculada; doCache: boolean }
+  | { tipo: 'sem_caminho' }
+
+/** "Não existe caminho" guardado vale por 7 dias (a Edge Function também não insiste). */
+const SEM_CAMINHO_VALE_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * A rota pelas ruas para a sequência de pontos (já com a fábrica na ida e na
+ * volta). Primeiro o cache do mapa — reabrir a mesma programação é UMA leitura
+ * barata, sem chamar o serviço; só o que nunca foi calculado vai à Edge
+ * Function `calcular-rota` (que chama o serviço gratuito de rotas, identificada,
+ * e guarda). Serviço fora do ar → erro (a tela cai na linha reta com aviso).
+ */
+export async function buscarRotaPelasRuas(
+  chave: string,
+  pontos: { latitude: number; longitude: number }[],
+): Promise<ResultadoRota> {
+  const { data: guardada } = await supabase
+    .from('plt_geocache')
+    .select('resolvido, rota, consultado_em')
+    .eq('chave', chave)
+    .maybeSingle()
+  if (guardada?.resolvido && guardada.rota) {
+    return { tipo: 'pronta', rota: guardada.rota as RotaCalculada, doCache: true }
+  }
+  if (
+    guardada &&
+    !guardada.resolvido &&
+    Date.now() - new Date(guardada.consultado_em as string).getTime() < SEM_CAMINHO_VALE_MS
+  ) {
+    return { tipo: 'sem_caminho' }
+  }
+
+  const { data, error } = await supabase.functions.invoke('calcular-rota', {
+    body: { pontos: pontos.map((p) => [p.latitude, p.longitude]) },
+  })
+  if (error) throw new Error('O serviço de rotas não respondeu agora.')
+  const resposta = data as { chave?: string; resolvido?: boolean; rota?: RotaCalculada | null }
+  if (resposta.chave && resposta.chave !== chave) {
+    // A chave da tela e a da função do servidor saíram diferentes: o formato
+    // mudou num lado só (rotaRuas.ts × calcular-rota) — a rota vale, o cache
+    // da tela é que não vai achá-la na próxima vez.
+    console.warn('rota: a chave da tela e a do servidor divergem', { tela: chave, servidor: resposta.chave })
+  }
+  if (resposta.resolvido && resposta.rota) return { tipo: 'pronta', rota: resposta.rota, doCache: false }
+  return { tipo: 'sem_caminho' }
 }
 
 /** Falha de geocodificação vale por 7 dias (a Edge Function também não insiste). */
