@@ -123,6 +123,45 @@ for (const rodada of [1, 2]) {
 }
 conferir(falhas === 0, 'migrations aplicadas duas vezes seguidas sem erro')
 
+// SESSAO-30 (migration 57): em produção, todo aviso/leitura de estoque do Tiny
+// entra pelas portas do n8n (plt_fn_tiny_estoque_aviso / _leitura), que
+// atualizam a projeção no mesmo gesto. Os blocos antigos deste teste gravam o
+// aviso DIRETO em `eventos` (o jeito do n8n antes da migration 42) — este
+// gatilho, só do teste, faz o papel da porta. O bloco 57 o desliga para provar
+// que as portas sozinhas atualizam a projeção.
+await bd.exec(`
+  create or replace function public.teste_eventos_leitura_projecao() returns trigger
+    language plpgsql as $f$
+  begin
+    if new.tipo = 'estoque_fabrica' then
+      perform plt_privado.fn_estoque_numeros_leitura(new.id);
+    end if;
+    return null;
+  end $f$;
+  drop trigger if exists teste_eventos_leitura_projecao on public.eventos;
+  create trigger teste_eventos_leitura_projecao after insert on public.eventos
+    for each row execute function public.teste_eventos_leitura_projecao();
+`)
+// D-119: em produção, as vendas de 90 dias (o ranking do Top X) ficam prontas
+// de madrugada e a cada troca de Top X / cobertura / corte. Os blocos antigos
+// conferem o ranking logo depois de gravar as vendas de teste — estes gatilhos,
+// só do teste, fazem "a madrugada passar" a cada venda gravada. O bloco 57 os
+// desliga para provar que, sem a madrugada, o ranking não muda sozinho.
+await bd.exec(`
+  create or replace function public.teste_vendas_madrugada() returns trigger
+    language plpgsql as $f$
+  begin
+    perform plt_privado.fn_estoque_vendas_atualizar();
+    return null;
+  end $f$;
+  drop trigger if exists teste_itens_vendas_madrugada on public.pedido_itens;
+  create trigger teste_itens_vendas_madrugada after insert or update or delete on public.pedido_itens
+    for each statement execute function public.teste_vendas_madrugada();
+  drop trigger if exists teste_pedidos_vendas_madrugada on public.pedidos;
+  create trigger teste_pedidos_vendas_madrugada after update on public.pedidos
+    for each statement execute function public.teste_vendas_madrugada();
+`)
+
 titulo('A integração continua intacta?')
 const depois = (await bd.query(RETRATO)).rows.map((r) => r.linha)
 const mudou = antes
@@ -1074,10 +1113,14 @@ await deveRecusarExec(
 
 // API move sem estado nenhum (RF-86) — e a chegada em ESTOQUE avisa os admins (D-25).
 await bd.exec(`
+  -- ↩️ SESSAO-30 (raio-x 1): a regra dos fins de linha vale para TODA origem;
+  -- este cenário simula o estado de ANTES da regra — passa com a marca do ajuste.
+  select set_config('plt.ajuste_super_admin', 'on', false);
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
     values (${cardQ}, 'movimentacao_setor',
             (select id from public.plt_setores where codigo = 'secc'),
             (select id from public.plt_setores where codigo = 'estoque'), 'api');
+  select set_config('plt.ajuste_super_admin', '', false);
 `)
 const chegadaEstoque = (
   await bd.query(`
@@ -2156,12 +2199,16 @@ await bd.exec(`
     select c.id, 'card_criado', (select id from public.plt_setores where codigo = 'cnc'), 'api'
       from public.plt_cards c
      where c.pedido_id = (select id from public.pedidos where numero = 999994) and c.tipo = 'unidade';
+  -- ↩️ SESSAO-30 (raio-x 1): a regra dos fins de linha vale para TODA origem;
+  -- este cenário simula o estado de ANTES da regra — passa com a marca do ajuste.
+  select set_config('plt.ajuste_super_admin', 'on', false);
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
     select min(c.id), 'movimentacao_setor',
            (select id from public.plt_setores where codigo = 'cnc'),
            (select id from public.plt_setores where codigo = 'estoque'), 'api'
       from public.plt_cards c
      where c.pedido_id = (select id from public.pedidos where numero = 999994) and c.tipo = 'unidade';
+  select set_config('plt.ajuste_super_admin', '', false);
 `)
 const cardPedido994 = (
   await bd.query(`
@@ -2215,10 +2262,14 @@ conferir(
 // A segunda unidade chega no ESTOQUE; o pedido completa e é lançado — as
 // unidades SAEM do Estoque para o setor ROTAS (D-45).
 await bd.exec(`
+  -- ↩️ SESSAO-30 (raio-x 1): a regra dos fins de linha vale para TODA origem;
+  -- este cenário simula o estado de ANTES da regra — passa com a marca do ajuste.
+  select set_config('plt.ajuste_super_admin', 'on', false);
   insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
     values (${unidades994[1]}, 'movimentacao_setor',
             (select id from public.plt_setores where codigo = 'cnc'),
             (select id from public.plt_setores where codigo = 'estoque'), 'api');
+  select set_config('plt.ajuste_super_admin', '', false);
   select public.plt_fn_lancar_rotas(${cardPedido994});
 `)
 const lancado = (
@@ -2500,9 +2551,13 @@ titulo('Projeção de concluído (SESSAO-15): terminal AGORA, não "já passou p
 await bd.exec(`
   insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
     select 'unidade', p.id, 70, 'VOLTA', 'Peça que volta', 1, 1 from public.pedidos p where p.numero = 999999;
+  -- ↩️ SESSAO-30 (raio-x 1): a regra dos fins de linha vale para TODA origem;
+  -- este cenário simula o estado de ANTES da regra — passa com a marca do ajuste.
+  select set_config('plt.ajuste_super_admin', 'on', false);
   insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
     values ((select max(id) from public.plt_cards), 'card_criado',
             (select id from public.plt_setores where codigo = 'estoque'), 'api');
+  select set_config('plt.ajuste_super_admin', '', false);
 `)
 const cardVolta = (await bd.query(`select max(id)::int as id from public.plt_cards`)).rows[0].id
 const concluidoAntes = (
@@ -4571,7 +4626,10 @@ await bd.exec(`
     from public.plt_cards c where c.card_pai_id = ${cardRepA} and c.tipo = 'unidade';
 `)
 // Uma unidade COM pedido (reservada) e uma personalizada com o mesmo SKU no ESTOQUE.
+// ↩️ SESSAO-30 (raio-x 1): o estado de ANTES da regra dos fins de linha — passa
+// com a marca do ajuste (desligada logo depois).
 await bd.exec(`
+  select set_config('plt.ajuste_super_admin', 'on', false);
   insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
   values ('unidade', (select id from public.pedidos where numero = 925001), 1, 'S25A', 'Armário Teste S25 - Branco', 1, 2),
          ('unidade', (select id from public.pedidos where numero = 925001), 2, 'S25A', 'PERSONLAIZADO Armário 1 porta 1.82x45', 1, 1);
@@ -4579,6 +4637,7 @@ await bd.exec(`
     select c.id, 'card_criado', 'api', (select id from public.plt_setores where codigo = 'estoque')
       from public.plt_cards c
      where c.pedido_id = (select id from public.pedidos where numero = 925001) and c.tipo = 'unidade';
+  select set_config('plt.ajuste_super_admin', '', false);
 `)
 await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000031', false)`)
 porProduto = await acabados()
@@ -5254,6 +5313,7 @@ for (const numero of [924005, 924006, 924007]) {
       values ((select id from public.pedidos where numero = ${numero}), 1, 'S24A', 'Mesa Teste S24 - Branca', 1);
   `)
 }
+await bd.exec(`select set_config('plt.ajuste_super_admin', 'on', false)`) // ↩️ SESSAO-30: estado de antes da regra (raio-x 1)
 const legado = await liberarS24(924005, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'estoque')
 const legadoEntregue = await liberarS24(924007, 1, 1, 1, 'S24A', 'Mesa Teste S24 - Branca', 'estoque')
 await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 924007`)
@@ -5270,6 +5330,7 @@ await bd.exec(`
     values (${legadoDanificado}, 'movimentacao_setor',
             (select id from public.plt_setores where codigo = 'montagem'),
             (select id from public.plt_setores where codigo = 'estoque'), 'api');
+  select set_config('plt.ajuste_super_admin', '', false);
 `)
 const antesDaManutencao = await cardS24(legadoDanificado)
 const avisosAntes = (await bd.query(`select count(*)::int as total from public.plt_notificacoes where tipo = 'chegada_aguardo'`)).rows[0].total
@@ -9717,6 +9778,282 @@ conferir(
 )
 await como56('')
 } // fim do bloco 56
+
+// ============================================================================
+// SESSAO-30 · etapa 2 (migration 57 — D-118, D-119, raio-x 1/2/5/6): os
+// números do estoque PRONTOS numa projeção por produto, mantida no mesmo gesto;
+// "reservado em venda" até a ENTREGA; a regra da peça num lugar só.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · números do estoque prontos: a projeção bate com a contagem ao vivo, gesto a gesto')
+
+const um57 = async (sql) => (await bd.query(sql)).rows[0]
+const todos57 = async (sql) => (await bd.query(sql)).rows
+const como57 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const numeros57 = async (p) => um57(`
+  select n.livres, n.reservadas_estoque, n.prontas_pedido, n.producao_sem_dono, n.producao_de_pedido
+    from public.plt_estoque_numeros n where n.produto_tiny_id = ${p}`)
+const aoVivo57 = async (p) => um57(`select * from plt_privado.fn_estoque_contar(${p})`)
+const igual57 = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+await como57('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+    (957001, 'S57A', 'Cômoda Teste 57 - Branca', 'F', 'A', 'un'),
+    (957002, 'S57B', 'Nicho Teste 57 - Preto',   'F', 'A', 'un')
+  on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (957001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 957001), 1, 'S57A', 'Cômoda Teste 57 - Branca', 2);
+`)
+await como57(E40.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(957001, 'entrada', 3, 'teste 57')`)
+const passo1 = { proj: await numeros57(957001), vivo: await aoVivo57(957001) }
+await bd.exec(`select public.plt_fn_estoque_movimentar(957001, 'baixa', 1, 'teste 57 — baixa')`)
+const passo2 = { proj: await numeros57(957001), vivo: await aoVivo57(957001) }
+conferir(
+  passo1.proj.livres === 3 && igual57(passo1.proj, passo1.vivo) && passo2.proj.livres === 2 && igual57(passo2.proj, passo2.vivo),
+  'entrada de 3 e baixa de 1: a linha do produto anda no mesmo gesto e bate com a contagem ao vivo',
+  JSON.stringify({ passo1, passo2 }),
+)
+// As duas unidades do pedido: uma em produção, uma pronta no aguardo
+await como57('')
+const pc57 = (await um57(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = 957001`)).id
+async function liberar57(k, destino) {
+  await bd.exec(`
+    insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+      select 'unidade', p.id, ${pc57}, 1, 'S57A', 'Cômoda Teste 57 - Branca', ${k}, 2 from public.pedidos p where p.numero = 957001;
+    insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'api');
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+              (select id from public.plt_setores where codigo = 'pcp'),
+              (select id from public.plt_setores where codigo = '${destino}'), 'api');`)
+  return (await um57(`select max(id)::int as id from public.plt_cards`)).id
+}
+await liberar57(1, 'montagem')
+await liberar57(2, 'aguardo')
+const passo3 = { proj: await numeros57(957001), vivo: await aoVivo57(957001) }
+conferir(
+  passo3.proj.producao_de_pedido === 1 && passo3.proj.prontas_pedido === 1 && igual57(passo3.proj, passo3.vivo),
+  'liberar para a produção e para o aguardo: 1 em produção de pedido e 1 pronta — iguais à contagem ao vivo',
+  JSON.stringify(passo3),
+)
+
+titulo('SESSAO-30 · D-118: reservado em venda até a ENTREGA (lançar para ROTAS não muda; entregar baixa)')
+
+await como57(E40.logistica)
+const reservadosVenda = async () =>
+  (await um57(`select reservados_venda from public.plt_fn_estoque_produtos('acabados', 'S57A', null, 20, 0) where tiny_id = 957001`))?.reservados_venda
+const antesRotas = await reservadosVenda()
+await como57('')
+// a 1ª unidade fica pronta (aguardo) — o pedido completa — e vai para ROTAS
+await bd.exec(`
+  select set_config('plt.ajuste_super_admin', 'on', false);
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    select c.id, 'movimentacao_setor', c.setor_atual_id, (select id from public.plt_setores where codigo = 'aguardo'), 'api'
+      from public.plt_cards c where c.pedido_id = (select id from public.pedidos where numero = 957001)
+       and c.tipo = 'unidade' and c.indice_unidade = 1;
+  select set_config('plt.ajuste_super_admin', '', false);
+`)
+await como57(E40.logistica)
+const prontoAntesRotas = await reservadosVenda()
+await bd.exec(`select public.plt_fn_lancar_rotas(${pc57})`)
+const emRotas = await reservadosVenda()
+const proj4 = { proj: await numeros57(957001), vivo: await aoVivo57(957001) }
+await como57('')
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 957001`)
+await como57(E40.logistica)
+const entregue = await reservadosVenda()
+conferir(
+  antesRotas === 1 && prontoAntesRotas === 2 && emRotas === 2 && igual57(proj4.proj, proj4.vivo) && entregue === 0,
+  'reservados em venda: 1 pronta → 2 prontas → 2 em ROTAS (não muda ao lançar) → 0 depois de entregue',
+  JSON.stringify({ antesRotas, prontoAntesRotas, emRotas, entregue, proj4 }),
+)
+
+titulo('SESSAO-30 · raio-x 5: uma regra só — o resumo do galpão é a soma da lista')
+
+const listaToda = await todos57(`select em_estoque, reservados_venda from public.plt_fn_estoque_produtos('acabados', null, null, 100, 0)`)
+let somaLivres = listaToda.reduce((a, l) => a + Number(l.em_estoque ?? 0), 0)
+let somaReservados = listaToda.reduce((a, l) => a + Number(l.reservados_venda ?? 0), 0)
+for (let pag = 1; listaToda.length === 100 * pag; pag++) {
+  const mais = await todos57(`select em_estoque, reservados_venda from public.plt_fn_estoque_produtos('acabados', null, null, 100, ${100 * pag})`)
+  listaToda.push(...mais)
+  somaLivres += mais.reduce((a, l) => a + Number(l.em_estoque ?? 0), 0)
+  somaReservados += mais.reduce((a, l) => a + Number(l.reservados_venda ?? 0), 0)
+}
+const resumo57 = await um57(`select moveis_estoque, moveis_reservados from public.plt_fn_estoque_resumo()`)
+conferir(
+  resumo57.moveis_estoque === somaLivres && resumo57.moveis_reservados === somaReservados,
+  'móveis em estoque e reservados do resumo = a soma dos cartões da lista (a mesma regra)',
+  JSON.stringify({ resumo57, somaLivres, somaReservados, produtos: listaToda.length }),
+)
+await como57('')
+const deriva0 = await um57(`select plt_privado.fn_estoque_numeros_recontar() as n`)
+await bd.exec(`update public.plt_estoque_numeros set livres = livres + 7 where produto_tiny_id = 957001`)
+const deriva1 = await um57(`select plt_privado.fn_estoque_numeros_recontar() as n`)
+const depoisRecontar = { proj: await numeros57(957001), vivo: await aoVivo57(957001) }
+conferir(
+  deriva0.n === 0 && deriva1.n === 1 && igual57(depoisRecontar.proj, depoisRecontar.vivo),
+  'a recontagem completa (madrugada) não acha deriva depois dos gestos; uma deriva forçada é achada e corrigida',
+  JSON.stringify({ deriva0, deriva1, depoisRecontar }),
+)
+
+titulo('SESSAO-30 · raio-x 1: a regra dos fins de linha vale para TODA origem')
+
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (957002, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 957002), 1, 'S57B', 'Nicho Teste 57 - Preto', 1);
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, pc.id, 1, 'S57B', 'Nicho Teste 57 - Preto', 1, 1
+      from public.pedidos p join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido' where p.numero = 957002;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'api');
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+            (select id from public.plt_setores where codigo = 'pcp'), (select id from public.plt_setores where codigo = 'montagem'), 'api');
+`)
+const peca57 = (await um57(`select max(id)::int as id from public.plt_cards`)).id
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+     values (${peca57}, 'movimentacao_setor', (select id from public.plt_setores where codigo = 'montagem'),
+             (select id from public.plt_setores where codigo = 'estoque'), 'api')`,
+  'pela integração (API) a peça de pedido vivo também não entra no ESTOQUE',
+  /vai para Pedidos em aguardo/i,
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+     values (${peca57}, 'movimentacao_setor', (select id from public.plt_setores where codigo = 'montagem'),
+             (select id from public.plt_setores where codigo = 'estoque'), 'automacao')`,
+  'nem pela maquinaria (automação)',
+  /vai para Pedidos em aguardo/i,
+)
+await bd.exec(`
+  insert into public.plt_cards (tipo, item_codigo, item_descricao, indice_unidade, total_unidades, produto_tiny_id)
+    values ('unidade', 'S57B', 'Nicho Teste 57 - Preto', 1, 1, 957002);
+`)
+const solta57 = (await um57(`select max(id)::int as id from public.plt_cards`)).id
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+     values (${solta57}, 'card_criado', (select id from public.plt_setores where codigo = 'aguardo'), 'api')`,
+  'card CRIADO direto em Pedidos em aguardo sem pedido é recusado (a regra vale para o card que nasce lá)',
+  /recebe só peça de pedido/i,
+)
+
+titulo('SESSAO-30 · raio-x 2: peça livre do ESTOQUE só sai pela baixa do estoque')
+
+const livre57 = (await um57(`select c.id::int as id from public.plt_cards c
+                              where c.produto_tiny_id = 957001 and c.pedido_id is null and c.arquivado_em is null
+                                and c.setor_atual_id = (select id from public.plt_setores where codigo = 'estoque')
+                              order by c.id limit 1`)).id
+await como57(E40.admin)
+await deveRecusarExec(
+  `select public.plt_fn_arquivar_card(${livre57}, 'arquivando à mão')`,
+  'nem o admin arquiva peça livre do ESTOQUE por fora (a baixa leva o motivo, a ordem e o Tiny)',
+  /baixa do estoque/i,
+)
+await como57('')
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, origem, observacao) values (${livre57}, 'card_arquivado', 'api', 'lote')`,
+  'nem pela integração (evento gravado direto)',
+  /baixa do estoque/i,
+)
+await como57(E40.logistica)
+const antesBaixa = (await numeros57(957001)).livres
+await bd.exec(`select public.plt_fn_estoque_movimentar(957001, 'baixa', 1, 'baixa pela porta oficial')`)
+const depoisBaixa = (await numeros57(957001)).livres
+conferir(depoisBaixa === antesBaixa - 1, 'pela baixa do estoque, sai (e o número anda junto)', JSON.stringify({ antesBaixa, depoisBaixa }))
+
+titulo('SESSAO-30 · raio-x 6: a peça personalizada livre aparece numa lista e tem baixa')
+
+await como57('')
+await bd.exec(`
+  -- a personalizada de pedido cancelado fica sem pedido e sem produto do catálogo:
+  -- é identificada pelo item e pelo card de origem
+  insert into public.plt_cards (tipo, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    values ('unidade', ${pc57}, 9, 'S57A', 'PERSONALIZADO Cômoda 57 com 3 gavetas 1.20', 1, 1);
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, dados)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'estoque'), 'api',
+            '{"motivo": "pedido_cancelado"}'::jsonb);
+`)
+const pers57 = (await um57(`select max(id)::int as id from public.plt_cards`)).id
+await como57(E40.logistica)
+const listaPers = await todos57(`select card_id::int as id, item_descricao, origem_numero from public.plt_fn_estoque_personalizadas(null, 20)`)
+await deveRecusarExec(
+  `select public.plt_fn_estoque_baixar_personalizada(${livre57 + 1000000}, 'não existe')`,
+  'a baixa de personalizada só vale para peça personalizada livre no ESTOQUE',
+  /não é uma peça personalizada/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_estoque_baixar_personalizada(${pers57}, '  ')`,
+  'a baixa pede o motivo',
+  /motivo/i,
+)
+await bd.exec(`select public.plt_fn_estoque_baixar_personalizada(${pers57}, 'vendida no balcão com outra medida')`)
+const persDepois = await um57(`select arquivado_em is not null as arquivada,
+                                      (select dados ->> 'motivo' from public.plt_eventos where card_id = ${pers57} and tipo = 'card_arquivado') as motivo
+                                 from public.plt_cards where id = ${pers57}`)
+const listaDepois = await todos57(`select card_id::int as id from public.plt_fn_estoque_personalizadas(null, 20) where card_id = ${pers57}`)
+conferir(
+  listaPers.some((l) => l.id === pers57 && l.origem_numero === 957001) && persDepois.arquivada && persDepois.motivo === 'baixa_manual' && listaDepois.length === 0,
+  'a personalizada livre aparece na lista própria (com o pedido de origem) e sai pela baixa (motivo de baixa manual)',
+  JSON.stringify({ listaPers, persDepois }),
+)
+
+titulo('SESSAO-30 · a leitura do Tiny entra na linha do produto pelas portas do n8n (sem o gatilho do teste)')
+
+await como57('')
+await bd.exec(`alter table public.eventos disable trigger teste_eventos_leitura_projecao`)
+await bd.exec(`select public.plt_fn_tiny_estoque_aviso('{"cnpj":"27556613000166","tipo":"estoque","dados":{"idProduto":957002,"sku":"S57B","nome":"Nicho","saldo":"11.00"}}'::jsonb)`)
+const leitura57 = await um57(`select saldo_tiny::float as saldo, origem_leitura from public.plt_estoque_numeros where produto_tiny_id = 957002`)
+await bd.exec(`alter table public.eventos enable trigger teste_eventos_leitura_projecao`)
+conferir(
+  leitura57.saldo === 11 && leitura57.origem_leitura === 'webhook',
+  'o aviso de estoque gravado pela porta já atualiza o saldo do Tiny na linha do produto',
+  JSON.stringify(leitura57),
+)
+
+titulo('SESSAO-30 · D-119: o ranking das vendas é o da madrugada (e de quando a configuração muda)')
+
+await bd.exec(`
+  alter table public.pedido_itens disable trigger teste_itens_vendas_madrugada;
+  alter table public.pedidos disable trigger teste_pedidos_vendas_madrugada;
+`)
+const vendasAntes = await um57(`select vendidos_90d::float as v from public.plt_estoque_numeros where produto_tiny_id = 957002`)
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem, data_pedido) values
+    (957003, (select id from public.clientes order by id limit 1), 'Entregue', 'backfill', current_date);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 957003), 1, 'S57B', 'Nicho Teste 57 - Preto', 1);
+`)
+const vendasSemMadrugada = await um57(`select vendidos_90d::float as v from public.plt_estoque_numeros where produto_tiny_id = 957002`)
+await bd.exec(`select plt_privado.fn_recalcular_minimos()`)
+const vendasDepois = await um57(`select vendidos_90d::float as v, posicao from public.plt_estoque_numeros where produto_tiny_id = 957002`)
+await bd.exec(`
+  alter table public.pedido_itens enable trigger teste_itens_vendas_madrugada;
+  alter table public.pedidos enable trigger teste_pedidos_vendas_madrugada;
+`)
+conferir(
+  vendasSemMadrugada.v === vendasAntes.v && vendasDepois.v === vendasAntes.v + 1 && vendasDepois.posicao !== null,
+  'a venda nova não mexe no ranking na hora; a rotina da madrugada (a mesma do mínimo automático) atualiza',
+  JSON.stringify({ vendasAntes, vendasSemMadrugada, vendasDepois }),
+)
+const priv57 = await um57(`
+  select has_table_privilege('authenticated', 'public.plt_estoque_numeros', 'select') as tabela_logado,
+         has_function_privilege('anon', 'public.plt_fn_estoque_personalizadas(bigint, integer)', 'execute') as pers_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_estoque_baixar_personalizada(bigint, text)', 'execute') as baixa_logado,
+         has_function_privilege('authenticated', 'plt_privado.fn_estoque_numeros_recontar()', 'execute') as recontar_logado`)
+conferir(
+  !priv57.tabela_logado && !priv57.pers_anon && priv57.baixa_logado && !priv57.recontar_logado,
+  'a projeção só pelas portas; a maquinaria fora da API',
+  JSON.stringify(priv57),
+)
+await como57('')
+} // fim do bloco 57
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
