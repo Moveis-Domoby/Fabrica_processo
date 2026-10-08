@@ -162,9 +162,7 @@ export function PCP() {
     consultasSolicitacoes[consultasSolicitacoes.length - 1]?.isFetching ?? false
 
   // SESSAO-25: o card de reposição não tem pedido — o resumo vem da porta dele.
-  const idsReposicao = cardsSolicitacoes
-    .map((c) => c.id)
-    .sort((a, b) => a - b)
+  const idsReposicao = cardsSolicitacoes.map((c) => c.id).sort((a, b) => a - b)
   const { data: reposicoesPorId = new Map<number, ReposicaoResumo>() } = useQuery({
     queryKey: ['reposicoes-resumo', idsReposicao],
     queryFn: async () => new Map((await reposicoesResumo(idsReposicao)).map((r) => [r.card_id, r])),
@@ -267,8 +265,8 @@ export function PCP() {
             <span className="flex flex-col gap-2">
               {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
               <span>
-                Todo pedido entra por aqui — e o estoque manda para cá a solicitação do que
-                ficou abaixo do mínimo.
+                Todo pedido entra por aqui — e o estoque manda para cá a solicitação do que ficou
+                abaixo do mínimo.
               </span>
               <span>
                 Libere as unidades para os setores — dá para liberar parcial e terminar depois.
@@ -301,7 +299,11 @@ export function PCP() {
         idBase="pcp"
         abas={[
           { valor: 'solicitacoes', rotulo: 'Reabastecimento', icone: <PackagePlus aria-hidden /> },
-          { valor: 'quadro', rotulo: 'Pedidos aguardando liberação', icone: <PackageOpen aria-hidden /> },
+          {
+            valor: 'quadro',
+            rotulo: 'Pedidos aguardando liberação',
+            icone: <PackageOpen aria-hidden />,
+          },
           { valor: 'todos', rotulo: 'Todos os pedidos', icone: <Inbox aria-hidden /> },
         ]}
         valor={aba}
@@ -323,8 +325,8 @@ export function PCP() {
             {carregandoSolicitacoes && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-                Nenhum reabastecimento agora — ele nasce quando um produto do Top X fica abaixo
-                do mínimo (pela automática ou pelo lançamento da logística).
+                Nenhum reabastecimento agora — ele nasce quando um produto do Top X fica abaixo do
+                mínimo (pela automática ou pelo lançamento da logística).
               </p>
             )}
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -364,157 +366,166 @@ export function PCP() {
       )}
 
       {aba === 'quadro' && (
-      <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-quadro" className="flex flex-col gap-6">
-      <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg">
-            Aguardando liberação{' '}
-            <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
-          </h2>
-          {selecionando && cardsPedidoAbertos.length > 0 && (
-            <Botao
-              variante="fantasma"
-              tamanho="sm"
-              icone={<CheckSquare />}
-              onClick={() =>
-                marcarVarios(
-                  cardsPedidoAbertos
-                    .filter((c) => c.pedido_id !== null)
-                    .map((c) => ({
-                      pedidoId: c.pedido_id as number,
-                      numero: pedidosPorId.get(c.pedido_id as number)?.numero ?? 0,
-                    })),
-                )
-              }
-            >
-              Marcar os {cardsPedidoAbertos.length} da tela
-            </Botao>
-          )}
-        </div>
-
-        {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
-        {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
-          <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-            Nenhum pedido aguardando. Pedido novo do Tiny entra aqui sozinho — o botão serve
-            para trazer algum antigo que ficou de fora.
-          </p>
-        )}
-
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {cardsPedidoAbertos.map((card) => {
-            const resumo = card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)
-            const liberadas = resumo?.unidades_liberadas ?? 0
-            const total = resumo?.total_unidades ?? 0
-            return (
-              <li
-                key={card.id}
-                className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4"
-              >
-                <header className="flex items-baseline justify-between gap-2">
-                  <span className="flex items-center gap-1 font-semibold text-texto tabular-nums">
-                    {selecionando && card.pedido_id !== null && (
-                      <CaixaSelecao
-                        marcado={selecionados.has(card.pedido_id)}
-                        rotulo={`Selecionar o pedido ${resumo?.numero ?? ''}`}
-                        aoAlternar={() => alternarSelecao(card.pedido_id as number, resumo?.numero ?? 0)}
-                      />
-                    )}
-                    Pedido {resumo?.numero ?? '…'}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums"
-                    title={
-                      card.desde
-                        ? `No PCP desde ${new Date(card.desde).toLocaleString('pt-BR')}`
-                        : undefined
-                    }
-                  >
-                    <Clock aria-hidden className="size-4" />
-                    {formatarDuracao(card.desde, agora)}
-                  </span>
-                </header>
-
-                <p className="line-clamp-1 text-sm text-texto-suave">
-                  {resumo?.cliente_nome || '…'}
-                </p>
-
-                {/* SESSAO-27 (D-101): etiquetas e campos customizados do pedido. */}
-                <EtiquetasDoCard ids={etiquetasPorCard.get(card.id)} />
-                {card.pedido_id !== null && (camposPorPedido.get(card.pedido_id)?.length ?? 0) > 0 && (
-                  <dl className="flex flex-col gap-0.5 text-xs">
-                    {camposPorPedido.get(card.pedido_id)!.map((c) => (
-                      <div key={c.campoId} className="flex min-w-0 gap-1">
-                        <dt className="shrink-0 text-texto-suave">{c.nome}:</dt>
-                        <dd className="truncate font-medium text-texto" title={c.texto}>
-                          {c.texto}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-
-                {/* Rodada de 30/09 (migration 48 — D-62): há peça no galpão
-                    que atende este pedido — o sinal visual que o dono pediu. */}
-                {(card.pecas_estoque ?? 0) > 0 && (
-                  <p className="flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-0.5 text-xs font-medium text-perfeito-texto">
-                      <Boxes aria-hidden className="size-3.5" />
-                      {card.pecas_estoque === 1
-                        ? '1 peça no estoque — dá para usar'
-                        : `${card.pecas_estoque} peças no estoque — dá para usar`}
-                    </span>
-                  </p>
-                )}
-
-                {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
-                {(pedidoCancelado(resumo?.situacao) || resumo?.alterado_apos_liberacao) && (
-                  <p className="flex flex-wrap gap-1.5">
-                    {pedidoCancelado(resumo?.situacao) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
-                        <Ban aria-hidden className="size-3.5" />
-                        Cancelado no Tiny
-                      </span>
-                    )}
-                    {resumo?.alterado_apos_liberacao && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
-                        <AlertTriangle aria-hidden className="size-3.5" />
-                        Alterado no Tiny após a liberação — confira
-                      </span>
-                    )}
-                  </p>
-                )}
-                <p className="text-sm text-texto tabular-nums">
-                  {total > 0 ? (
-                    <>
-                      {liberadas} de {total} unidade{total === 1 ? '' : 's'} liberada
-                      {liberadas === 1 ? '' : 's'}
-                    </>
-                  ) : (
-                    'Sem itens com quantidade a produzir'
-                  )}
-                </p>
-
+        <div
+          role="tabpanel"
+          id="pcp-painel"
+          aria-labelledby="pcp-aba-quadro"
+          className="flex flex-col gap-6"
+        >
+          <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg">
+                Aguardando liberação{' '}
+                <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
+              </h2>
+              {selecionando && cardsPedidoAbertos.length > 0 && (
                 <Botao
-                  variante={liberadas > 0 ? 'secundaria' : 'primaria'}
-                  icone={<PackageOpen />}
-                  larguraTotal
-                  disabled={total === 0}
-                  onClick={() => setCardParaLiberar(card)}
+                  variante="fantasma"
+                  tamanho="sm"
+                  icone={<CheckSquare />}
+                  onClick={() =>
+                    marcarVarios(
+                      cardsPedidoAbertos
+                        .filter((c) => c.pedido_id !== null)
+                        .map((c) => ({
+                          pedidoId: c.pedido_id as number,
+                          numero: pedidosPorId.get(c.pedido_id as number)?.numero ?? 0,
+                        })),
+                    )
+                  }
                 >
-                  {liberadas > 0 ? 'Continuar liberação' : 'Liberar unidades'}
+                  Marcar os {cardsPedidoAbertos.length} da tela
                 </Botao>
-              </li>
-            )
-          })}
-        </ul>
+              )}
+            </div>
 
-        <MaisAoRolar
-          temMais={cardsPedidoAbertos.length < totalPedidosAbertos}
-          carregando={carregandoMaisPedidos}
-          aoChegar={() => setPaginasPedidos((p) => p + 1)}
-        />
-      </section>
-      </div>
+            {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
+            {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
+              <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+                Nenhum pedido aguardando. Pedido novo do Tiny entra aqui sozinho — o botão serve
+                para trazer algum antigo que ficou de fora.
+              </p>
+            )}
+
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {cardsPedidoAbertos.map((card) => {
+                const resumo =
+                  card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)
+                const liberadas = resumo?.unidades_liberadas ?? 0
+                const total = resumo?.total_unidades ?? 0
+                return (
+                  <li
+                    key={card.id}
+                    className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4"
+                  >
+                    <header className="flex items-baseline justify-between gap-2">
+                      <span className="flex items-center gap-1 font-semibold text-texto tabular-nums">
+                        {selecionando && card.pedido_id !== null && (
+                          <CaixaSelecao
+                            marcado={selecionados.has(card.pedido_id)}
+                            rotulo={`Selecionar o pedido ${resumo?.numero ?? ''}`}
+                            aoAlternar={() =>
+                              alternarSelecao(card.pedido_id as number, resumo?.numero ?? 0)
+                            }
+                          />
+                        )}
+                        Pedido {resumo?.numero ?? '…'}
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums"
+                        title={
+                          card.desde
+                            ? `No PCP desde ${new Date(card.desde).toLocaleString('pt-BR')}`
+                            : undefined
+                        }
+                      >
+                        <Clock aria-hidden className="size-4" />
+                        {formatarDuracao(card.desde, agora)}
+                      </span>
+                    </header>
+
+                    <p className="line-clamp-1 text-sm text-texto-suave">
+                      {resumo?.cliente_nome || '…'}
+                    </p>
+
+                    {/* SESSAO-27 (D-101): etiquetas e campos customizados do pedido. */}
+                    <EtiquetasDoCard ids={etiquetasPorCard.get(card.id)} />
+                    {card.pedido_id !== null &&
+                      (camposPorPedido.get(card.pedido_id)?.length ?? 0) > 0 && (
+                        <dl className="flex flex-col gap-0.5 text-xs">
+                          {camposPorPedido.get(card.pedido_id)!.map((c) => (
+                            <div key={c.campoId} className="flex min-w-0 gap-1">
+                              <dt className="shrink-0 text-texto-suave">{c.nome}:</dt>
+                              <dd className="truncate font-medium text-texto" title={c.texto}>
+                                {c.texto}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
+
+                    {/* Rodada de 30/09 (migration 48 — D-62): há peça no galpão
+                    que atende este pedido — o sinal visual que o dono pediu. */}
+                    {(card.pecas_estoque ?? 0) > 0 && (
+                      <p className="flex flex-wrap gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-0.5 text-xs font-medium text-perfeito-texto">
+                          <Boxes aria-hidden className="size-3.5" />
+                          {card.pecas_estoque === 1
+                            ? '1 peça no estoque — dá para usar'
+                            : `${card.pecas_estoque} peças no estoque — dá para usar`}
+                        </span>
+                      </p>
+                    )}
+
+                    {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
+                    {(pedidoCancelado(resumo?.situacao) || resumo?.alterado_apos_liberacao) && (
+                      <p className="flex flex-wrap gap-1.5">
+                        {pedidoCancelado(resumo?.situacao) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+                            <Ban aria-hidden className="size-3.5" />
+                            Cancelado no Tiny
+                          </span>
+                        )}
+                        {resumo?.alterado_apos_liberacao && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
+                            <AlertTriangle aria-hidden className="size-3.5" />
+                            Alterado no Tiny após a liberação — confira
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    <p className="text-sm text-texto tabular-nums">
+                      {total > 0 ? (
+                        <>
+                          {liberadas} de {total} unidade{total === 1 ? '' : 's'} liberada
+                          {liberadas === 1 ? '' : 's'}
+                        </>
+                      ) : (
+                        'Sem itens com quantidade a produzir'
+                      )}
+                    </p>
+
+                    <Botao
+                      variante={liberadas > 0 ? 'secundaria' : 'primaria'}
+                      icone={<PackageOpen />}
+                      larguraTotal
+                      disabled={total === 0}
+                      onClick={() => setCardParaLiberar(card)}
+                    >
+                      {liberadas > 0 ? 'Continuar liberação' : 'Liberar unidades'}
+                    </Botao>
+                  </li>
+                )
+              })}
+            </ul>
+
+            <MaisAoRolar
+              temMais={cardsPedidoAbertos.length < totalPedidosAbertos}
+              carregando={carregandoMaisPedidos}
+              aoChegar={() => setPaginasPedidos((p) => p + 1)}
+            />
+          </section>
+        </div>
       )}
 
       {souSuperAdmin && selecionando && (
@@ -541,9 +552,10 @@ export function PCP() {
             return card && card.pedido_id !== null ? pedidosPorId.get(card.pedido_id) : undefined
           })()}
           reposicao={
-            (cardParaLiberar ?? cardDoLink) ? reposicoesPorId.get((cardParaLiberar ?? cardDoLink)!.id) : undefined
+            (cardParaLiberar ?? cardDoLink)
+              ? reposicoesPorId.get((cardParaLiberar ?? cardDoLink)!.id)
+              : undefined
           }
-          setorPcp={setorPcp}
           setores={setores}
           aoFechar={() => {
             setCardParaLiberar(null)
@@ -712,7 +724,9 @@ function PainelTodosPedidos({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-lg">
           Todos os pedidos{' '}
-          {total !== null && <span className="text-texto-suave tabular-nums">({textoDoTotal(total)})</span>}
+          {total !== null && (
+            <span className="text-texto-suave tabular-nums">({textoDoTotal(total)})</span>
+          )}
         </h2>
         <div className="w-full max-w-md">
           <Campo
@@ -731,7 +745,11 @@ function PainelTodosPedidos({
             variante="fantasma"
             tamanho="sm"
             icone={<CheckSquare />}
-            onClick={() => aoMarcarVarios(selecionaveis.map((p) => ({ pedidoId: p.pedido_id, numero: p.numero })))}
+            onClick={() =>
+              aoMarcarVarios(
+                selecionaveis.map((p) => ({ pedidoId: p.pedido_id, numero: p.numero })),
+              )
+            }
           >
             Marcar os {selecionaveis.length} da tela
           </Botao>
@@ -754,7 +772,10 @@ function PainelTodosPedidos({
             aoAbrir={() => setDetalhe(p)}
             selecao={
               selecionando && p.card_id !== null
-                ? { marcado: selecionados.has(p.pedido_id), aoAlternar: () => aoAlternar(p.pedido_id, p.numero) }
+                ? {
+                    marcado: selecionados.has(p.pedido_id),
+                    aoAlternar: () => aoAlternar(p.pedido_id, p.numero),
+                  }
                 : undefined
             }
           />
@@ -806,11 +827,22 @@ function LinhaPedidoResumo({
 }) {
   // Visual do dono (30/09): pedido ENTREGUE mostra tudo liberado — conclusão
   // visual; o número real continua nas outras telas.
-  const liberadas = pedidoEntregue(pedido.situacao) ? pedido.total_unidades : pedido.unidades_liberadas
+  const liberadas = pedidoEntregue(pedido.situacao)
+    ? pedido.total_unidades
+    : pedido.unidades_liberadas
   return (
-    <li className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2', selecao?.marcado && 'bg-superficie-sutil')}>
+    <li
+      className={cn(
+        'flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2',
+        selecao?.marcado && 'bg-superficie-sutil',
+      )}
+    >
       {selecao && (
-        <CaixaSelecao marcado={selecao.marcado} rotulo={`Selecionar o pedido ${pedido.numero}`} aoAlternar={selecao.aoAlternar} />
+        <CaixaSelecao
+          marcado={selecao.marcado}
+          rotulo={`Selecionar o pedido ${pedido.numero}`}
+          aoAlternar={selecao.aoAlternar}
+        />
       )}
       <span className="font-semibold text-texto tabular-nums">Pedido {pedido.numero}</span>
       <span className="min-w-0 flex-1 truncate text-sm text-texto-suave">
@@ -837,7 +869,15 @@ function LinhaPedidoResumo({
 }
 
 /** A caixinha de marcar do super admin — alvo de 44 px (D-06), estado em ícone + texto acessível. */
-function CaixaSelecao({ marcado, rotulo, aoAlternar }: { marcado: boolean; rotulo: string; aoAlternar: () => void }) {
+function CaixaSelecao({
+  marcado,
+  rotulo,
+  aoAlternar,
+}: {
+  marcado: boolean
+  rotulo: string
+  aoAlternar: () => void
+}) {
   return (
     <button
       type="button"
@@ -850,7 +890,11 @@ function CaixaSelecao({ marcado, rotulo, aoAlternar }: { marcado: boolean; rotul
         marcado ? 'text-texto' : 'text-texto-suave',
       )}
     >
-      {marcado ? <CheckSquare aria-hidden className="size-5" /> : <Square aria-hidden className="size-5" />}
+      {marcado ? (
+        <CheckSquare aria-hidden className="size-5" />
+      ) : (
+        <Square aria-hidden className="size-5" />
+      )}
     </button>
   )
 }
@@ -890,7 +934,11 @@ function BarraAjustePedidos({
       const ficaram = lista.length - feitos
       notificar({
         titulo:
-          feitos === 0 ? 'Nenhum pedido ajustado' : feitos === 1 ? '1 pedido ajustado' : `${feitos} pedidos ajustados`,
+          feitos === 0
+            ? 'Nenhum pedido ajustado'
+            : feitos === 1
+              ? '1 pedido ajustado'
+              : `${feitos} pedidos ajustados`,
         descricao:
           ficaram === 0
             ? undefined
@@ -918,7 +966,7 @@ function BarraAjustePedidos({
   const explicacao =
     confirmando === 'arquivar'
       ? 'Os pedidos e as peças deles somem das telas da plataforma (a história fica, e dá para trazer de volta).'
-      : AJUSTES_PEDIDO.find((a) => a.valor === confirmando)?.explica ?? ''
+      : (AJUSTES_PEDIDO.find((a) => a.valor === confirmando)?.explica ?? '')
   const tituloConfirmar =
     confirmando === 'arquivar'
       ? `Arquivar ${pedidosPorExtenso(quantos)}?`
@@ -935,9 +983,16 @@ function BarraAjustePedidos({
       >
         <div className="flex items-center justify-between gap-2 sm:mb-3 sm:min-w-32">
           <p className="text-sm font-medium text-texto">
-            {quantos === 0 ? 'Marque os pedidos' : `${pedidosPorExtenso(quantos)} marcado${quantos === 1 ? '' : 's'}`}
+            {quantos === 0
+              ? 'Marque os pedidos'
+              : `${pedidosPorExtenso(quantos)} marcado${quantos === 1 ? '' : 's'}`}
           </p>
-          <Botao variante="fantasma" disabled={quantos === 0} onClick={aoLimpar} className="sm:hidden">
+          <Botao
+            variante="fantasma"
+            disabled={quantos === 0}
+            onClick={aoLimpar}
+            className="sm:hidden"
+          >
             Desmarcar
           </Botao>
         </div>
@@ -950,7 +1005,10 @@ function BarraAjustePedidos({
             placeholder="Escolha…"
             className="min-w-0 flex-1 sm:max-w-56"
           />
-          <Botao disabled={quantos === 0 || ajuste === ''} onClick={() => ajuste && setConfirmando(ajuste)}>
+          <Botao
+            disabled={quantos === 0 || ajuste === ''}
+            onClick={() => ajuste && setConfirmando(ajuste)}
+          >
             Aplicar
           </Botao>
           <Botao
@@ -964,7 +1022,12 @@ function BarraAjustePedidos({
           >
             <span className="hidden sm:inline">Arquivar</span>
           </Botao>
-          <Botao variante="fantasma" disabled={quantos === 0} onClick={aoLimpar} className="hidden sm:inline-flex">
+          <Botao
+            variante="fantasma"
+            disabled={quantos === 0}
+            onClick={aoLimpar}
+            className="hidden sm:inline-flex"
+          >
             Desmarcar
           </Botao>
         </div>
@@ -977,7 +1040,11 @@ function BarraAjustePedidos({
         descricao="Ajuste da plataforma — o Tiny não muda."
         rodape={
           <>
-            <Botao variante="fantasma" disabled={mutacao.isPending} onClick={() => setConfirmando(null)}>
+            <Botao
+              variante="fantasma"
+              disabled={mutacao.isPending}
+              onClick={() => setConfirmando(null)}
+            >
               Voltar
             </Botao>
             <Botao
@@ -1023,7 +1090,9 @@ function BarraAjustePedidos({
             .filter((r) => !r.feito)
             .map((r) => (
               <li key={r.pedido_id} className="flex flex-col">
-                <span className="font-medium text-texto tabular-nums">Pedido {r.numero ?? '—'}</span>
+                <span className="font-medium text-texto tabular-nums">
+                  Pedido {r.numero ?? '—'}
+                </span>
                 <span className="text-texto-suave">{r.resultado}</span>
               </li>
             ))}
@@ -1069,7 +1138,11 @@ function ModalPedidoProducao({
       aberto={pedido !== null}
       aoFechar={(v) => !v && aoFechar()}
       titulo={pedido ? `Pedido ${pedido.numero}` : 'Pedido'}
-      descricao={pedido ? `${pedido.cliente_nome || 'Sem cliente'} · ${formatarDataPedido(pedido.data_pedido)}` : undefined}
+      descricao={
+        pedido
+          ? `${pedido.cliente_nome || 'Sem cliente'} · ${formatarDataPedido(pedido.data_pedido)}`
+          : undefined
+      }
     >
       {pedido && (
         <div className="flex flex-col gap-4">
@@ -1100,14 +1173,18 @@ function ModalPedidoProducao({
             <h3 className="text-sm font-semibold text-texto">Itens (em unidades de produção)</h3>
             {carregandoItens && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!carregandoItens && itens.length === 0 && (
-              <p className="text-sm text-texto-suave">Nenhum item com quantidade a produzir (só frete/serviço).</p>
+              <p className="text-sm text-texto-suave">
+                Nenhum item com quantidade a produzir (só frete/serviço).
+              </p>
             )}
             <ul className="flex flex-col gap-1 text-sm text-texto">
               {itens.map((item) => (
                 <li key={item.seq} className="flex items-baseline justify-between gap-3">
                   <span className="min-w-0 flex-1 truncate" title={item.descricao ?? undefined}>
                     {item.descricao || 'Sem descrição'}
-                    {item.codigo && <span className="text-texto-suave tabular-nums"> · SKU {item.codigo}</span>}
+                    {item.codigo && (
+                      <span className="text-texto-suave tabular-nums"> · SKU {item.codigo}</span>
+                    )}
                   </span>
                   <span className="shrink-0 tabular-nums text-texto-suave">
                     {item.unidades} un.
@@ -1128,7 +1205,10 @@ function ModalPedidoProducao({
             <ul className="flex flex-col gap-1 text-sm">
               {unidades.map((u) => (
                 <li key={u.card_id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="min-w-0 flex-1 truncate text-texto" title={u.item_descricao ?? undefined}>
+                  <span
+                    className="min-w-0 flex-1 truncate text-texto"
+                    title={u.item_descricao ?? undefined}
+                  >
                     {u.item_descricao || 'Unidade'}
                     {u.indice_unidade !== null && u.total_unidades !== null && (
                       <span className="text-texto-suave tabular-nums">

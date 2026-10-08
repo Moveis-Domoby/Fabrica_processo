@@ -14,7 +14,6 @@ import type {
   QualidadePendente,
   Setor,
   UnidadePedido,
-  UnidadeParaLiberar,
 } from './tipos'
 
 /** SESSAO-22: 10 cards por página em cada coluna do quadro ("Ver mais" traz os próximos). */
@@ -48,7 +47,9 @@ function garantir<T>(dados: T | null, erro: { message: string } | null, contexto
 export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
   let consulta = supabase
     .from('plt_setores')
-    .select('id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa, modo_delegacao')
+    .select(
+      'id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa, modo_delegacao',
+    )
     .order('ordem')
     .order('id')
   if (!incluirInativos) consulta = consulta.eq('ativo', true)
@@ -127,7 +128,8 @@ export async function buscarCardsDaEtapa(parametros: {
     .order('desde', { ascending: true, nullsFirst: false })
     .order('id')
     .range(inicio, inicio + porPagina - 1)
-  consulta = etapaId === null ? consulta.is('etapa_atual_id', null) : consulta.eq('etapa_atual_id', etapaId)
+  consulta =
+    etapaId === null ? consulta.is('etapa_atual_id', null) : consulta.eq('etapa_atual_id', etapaId)
   const { data, error, count } = await consulta
   if (error) throw new Error(`Não deu para carregar os cards: ${error.message}`)
   return { cards: (data as unknown as Card[]) ?? [], total: count ?? 0 }
@@ -282,23 +284,12 @@ export async function reposicoesResumo(cardIds: number[]): Promise<ReposicaoResu
   ).map((r) => ({
     ...r,
     minimo: r.minimo === null ? null : Number(r.minimo),
-    disponivel_na_criacao: r.disponivel_na_criacao === null ? null : Number(r.disponivel_na_criacao),
+    disponivel_na_criacao:
+      r.disponivel_na_criacao === null ? null : Number(r.disponivel_na_criacao),
     extrema_na_criacao: Number(r.extrema_na_criacao ?? 0),
     em_estoque_agora: r.em_estoque_agora === null ? null : Number(r.em_estoque_agora),
     extrema_agora: Number(r.extrema_agora ?? 0),
   }))
-}
-
-/** SESSAO-25: as unidades já liberadas de um card de reposição (o "já liberada" do modal). */
-export async function unidadesDaReposicao(
-  cardId: number,
-): Promise<{ card_id: number; item_seq: number; indice_unidade: number }[]> {
-  const { data, error } = await supabase.rpc('plt_fn_reposicao_unidades', { p_card_id: cardId })
-  return garantir(
-    data as { card_id: number; item_seq: number; indice_unidade: number }[] | null,
-    error,
-    'Não deu para carregar as unidades da reposição',
-  )
 }
 
 export async function unidadesDoPedido(pedidoId: number): Promise<UnidadePedido[]> {
@@ -354,75 +345,6 @@ export async function criarCardPedido(parametros: {
     setor_destino_id: parametros.setorPcpId,
   })
   return card.id
-}
-
-export interface LiberacaoUnidade extends UnidadeParaLiberar {
-  destinoSetorId: number
-  destinoEtapaId: number | null
-}
-
-/**
- * Libera unidades do pedido (D-01/D-22): cada uma nasce como card no PCP
- * (evento card_criado) e é movida ao setor escolhido (evento
- * movimentacao_setor). A liberação pode ser parcial — o que não foi liberado
- * continua no card de pedido. SESSAO-25: o card de REPOSIÇÃO libera igual —
- * sem pedido, com o produto do catálogo (o banco completa a liberação dele).
- */
-export async function liberarUnidades(parametros: {
-  cardPaiId: number
-  /** Nulo na reposição de estoque (SESSAO-25). */
-  pedidoId: number | null
-  /** SESSAO-25: produto do catálogo — obrigatório quando não há pedido. */
-  produtoTinyId?: number | null
-  setorPcpId: number
-  usuarioId: string
-  unidades: LiberacaoUnidade[]
-}): Promise<number> {
-  let liberadas = 0
-  for (const unidade of parametros.unidades) {
-    const { data, error } = await supabase
-      .from('plt_cards')
-      .insert({
-        tipo: 'unidade',
-        pedido_id: parametros.pedidoId,
-        produto_tiny_id: parametros.produtoTinyId ?? null,
-        card_pai_id: parametros.cardPaiId,
-        item_seq: unidade.item_seq,
-        item_codigo: unidade.item_codigo,
-        item_descricao: unidade.item_descricao,
-        indice_unidade: unidade.indice_unidade,
-        total_unidades: unidade.total_unidades,
-        setor_atual_id: parametros.setorPcpId,
-      })
-      .select('id')
-      .single()
-    if (error || !data) {
-      const detalhe = error?.message ?? 'sem resposta do servidor'
-      throw new Error(
-        liberadas === 0
-          ? `Não deu para liberar: ${detalhe}`
-          : `Liberei ${liberadas} unidade(s), mas parei em ${unidade.item_descricao ?? 'item'} (${unidade.indice_unidade}/${unidade.total_unidades}): ${detalhe}`,
-      )
-    }
-    const cardId = (data as { id: number }).id
-    await registrarEvento({
-      card_id: cardId,
-      tipo: 'card_criado',
-      usuario_id: parametros.usuarioId,
-      setor_destino_id: parametros.setorPcpId,
-    })
-    await registrarEvento({
-      card_id: cardId,
-      tipo: 'movimentacao_setor',
-      usuario_id: parametros.usuarioId,
-      setor_origem_id: parametros.setorPcpId,
-      setor_destino_id: unidade.destinoSetorId,
-      // `|| null`: id 0/NaN nunca é etapa válida — Number('') === 0 já rendeu FK violada.
-      etapa_destino_id: unidade.destinoEtapaId || null,
-    })
-    liberadas += 1
-  }
-  return liberadas
 }
 
 /** O que o banco fez com o card solto (SESSAO-24). */
@@ -501,35 +423,52 @@ export interface SugestaoAlocacao {
   reservada: boolean
 }
 
-export async function sugestoesAlocacao(cardPedidoId: number): Promise<SugestaoAlocacao[]> {
-  const { data, error } = await supabase.rpc('plt_fn_sugestoes_alocacao', {
-    p_card_id: cardPedidoId,
-  })
-  return garantir(
-    data as SugestaoAlocacao[] | null,
-    error,
-    'Não deu para carregar as peças do estoque',
-  )
+/**
+ * SESSAO-30 (Lei de Desempenho — 1 requisição por janela): o que a janela de
+ * liberação mostra, numa chamada — os itens em unidades (sem frete — D-63), as
+ * unidades já liberadas e as sugestões do estoque (D-62/D-78). Pedido ou
+ * reposição.
+ */
+export interface JanelaLiberacao {
+  itens: ItemKanban[]
+  ja_liberadas: { item_seq: number; indice_unidade: number }[]
+  sugestoes: SugestaoAlocacao[]
+}
+
+export async function janelaLiberacao(cardId: number): Promise<JanelaLiberacao> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_liberacao', { p_card_id: cardId })
+  return garantir(data as JanelaLiberacao | null, error, 'Não deu para carregar o que liberar')
+}
+
+/** Uma unidade da liberação: usar a peça do estoque OU ir para um setor de produção. */
+export type UnidadeLiberacao =
+  | { item_seq: number; indice_unidade: number; peca_card_id: number }
+  | { item_seq: number; indice_unidade: number; setor_id: number; etapa_id: number | null }
+
+export interface ResultadoLiberacao {
+  /** Usaram a peça do estoque — nasceram prontas em Pedidos em aguardo. */
+  alocadas: number
+  /** Foram para o setor de produção escolhido. */
+  liberadas: number
+  /** Já tinham sido liberadas (o toque repetido não duplica). */
+  ja_liberadas: number
+  cards: number[]
 }
 
 /**
- * Aceitar a sugestão: a unidade (k/n) do pedido nasce PRONTA em Pedidos em
- * aguardo (não passa pela produção) e a peça livre do ESTOQUE é consumida.
+ * A liberação do PCP numa chamada (SESSAO-30 — raio-x 3): o banco faz tudo
+ * numa transação — tudo ou nada — e só manda para setor de produção (a peça
+ * pronta do estoque vai pela sugestão, direto para o aguardo).
  */
-export async function alocarPeca(parametros: {
-  cardPedidoId: number
-  itemSeq: number
-  indiceUnidade: number
-  pecaCardId: number
-}): Promise<number> {
-  const { data, error } = await supabase.rpc('plt_fn_alocar_peca', {
-    p_card_pedido_id: parametros.cardPedidoId,
-    p_item_seq: parametros.itemSeq,
-    p_indice_unidade: parametros.indiceUnidade,
-    p_peca_card_id: parametros.pecaCardId,
+export async function liberarNoPcp(
+  cardId: number,
+  unidades: UnidadeLiberacao[],
+): Promise<ResultadoLiberacao> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_liberar', {
+    p_card_id: cardId,
+    p_unidades: unidades,
   })
-  if (error) throw new Error(error.message)
-  return data as number
+  return garantir(data as ResultadoLiberacao | null, error, 'Não deu para liberar')
 }
 
 /** SESSAO-24 — a aba Cancelados do PCP (histórico, para sempre, paginado no servidor). */
@@ -675,11 +614,7 @@ export async function buscarExecucoesAbertas(cardIds: number[]): Promise<Execuca
     .select('evento_inicio_id, card_id, usuario_inicio_id, iniciou_em')
     .in('card_id', cardIds)
     .eq('em_andamento', true)
-  return garantir(
-    data as ExecucaoAberta[] | null,
-    error,
-    'Não deu para carregar as execuções',
-  )
+  return garantir(data as ExecucaoAberta[] | null, error, 'Não deu para carregar as execuções')
 }
 
 /**
@@ -760,7 +695,10 @@ export async function criarSetor(nome: string, ordem: number): Promise<void> {
  * líder ajusta o PRÓPRIO setor, admin qualquer um; null = sem limite. A troca
  * fica na trilha de atividade.
  */
-export async function definirLimiteExecucoes(setorId: number, limite: number | null): Promise<void> {
+export async function definirLimiteExecucoes(
+  setorId: number,
+  limite: number | null,
+): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_definir_limite_execucoes', {
     p_setor_id: setorId,
     p_limite: limite,
@@ -795,15 +733,13 @@ export async function criarEtapa(
     .limit(1)
   if (erroOrdem) throw new Error(`Não deu para criar a etapa: ${erroOrdem.message}`)
   const ordem = ((existentes?.[0] as { ordem: number } | undefined)?.ordem ?? 0) + 1
-  const { error } = await supabase
-    .from('plt_etapas')
-    .insert({
-      setor_id: setorId,
-      nome: nome.trim(),
-      ordem,
-      eh_fila: ehFila,
-      setor_destino_id: ehFila ? null : setorDestinoId,
-    })
+  const { error } = await supabase.from('plt_etapas').insert({
+    setor_id: setorId,
+    nome: nome.trim(),
+    ordem,
+    eh_fila: ehFila,
+    setor_destino_id: ehFila ? null : setorDestinoId,
+  })
   if (error) {
     if (/plt_etapas_fila_unica_por_setor/.test(error.message))
       // D-02: uma etapa de fila por setor — o código fica aqui, não na tela (D-27).

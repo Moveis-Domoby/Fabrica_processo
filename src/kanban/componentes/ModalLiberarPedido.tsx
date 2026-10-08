@@ -4,16 +4,8 @@ import { CheckCircle2, PackageCheck } from 'lucide-react'
 import { Botao, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import {
-  alocarPeca,
-  buscarEtapasAtivas,
-  itensDoPedido,
-  liberarUnidades,
-  sugestoesAlocacao,
-  unidadesDaReposicao,
-  unidadesDoPedido,
-} from '../api'
-import type { ReposicaoResumo, SugestaoAlocacao } from '../api'
+import { buscarEtapasAtivas, janelaLiberacao, liberarNoPcp } from '../api'
+import type { ReposicaoResumo, SugestaoAlocacao, UnidadeLiberacao } from '../api'
 import type { Card, Etapa, ItemKanban, PedidoResumo, Setor } from '../tipos'
 
 const CHEGADA = 'chegada'
@@ -38,7 +30,6 @@ export interface ModalLiberarPedidoProps {
   pedido?: PedidoResumo
   /** SESSAO-25: quando o card é de REPOSIÇÃO de estoque (sem pedido). */
   reposicao?: ReposicaoResumo
-  setorPcp: Setor
   setores: Setor[]
   aoFechar: () => void
 }
@@ -68,7 +59,6 @@ export function ModalLiberarPedido({
   cardPedido,
   pedido,
   reposicao,
-  setorPcp,
   setores,
   aoFechar,
 }: ModalLiberarPedidoProps) {
@@ -77,31 +67,18 @@ export function ModalLiberarPedido({
   const clienteQuery = useQueryClient()
 
   const ehReposicao = cardPedido?.tipo === 'reposicao'
-  const pedidoId = cardPedido?.pedido_id ?? 0
   const aberto = cardPedido !== null
 
-  const { data: itensDoTiny = [], isPending: carregandoItensDoTiny } = useQuery({
-    queryKey: ['pedido-itens', pedidoId],
-    queryFn: () => itensDoPedido(pedidoId),
-    enabled: aberto && !ehReposicao,
+  // SESSAO-30 (Lei de Desempenho): a janela abre com UMA requisição — os itens
+  // em unidades, as já liberadas e as sugestões do estoque (SESSAO-24: peça
+  // igual sem dono, uma por unidade ainda não liberada). A reposição tem UM
+  // item — o produto × a quantidade a repor (SESSAO-25).
+  const { data: janela, isPending: carregandoItens } = useQuery({
+    queryKey: ['liberacao', cardPedido?.id ?? 0],
+    queryFn: () => janelaLiberacao(cardPedido!.id),
+    enabled: aberto,
   })
-  const { data: unidadesDoTiny = [] } = useQuery({
-    queryKey: ['pedido-unidades', pedidoId],
-    queryFn: () => unidadesDoPedido(pedidoId),
-    enabled: aberto && !ehReposicao,
-  })
-  // SESSAO-25: a reposição tem UM item — o produto × a quantidade a repor.
-  const { data: unidadesDaRepo = [] } = useQuery({
-    queryKey: ['reposicao-unidades', cardPedido?.id ?? 0],
-    queryFn: () => unidadesDaReposicao(cardPedido!.id),
-    enabled: aberto && ehReposicao,
-  })
-  // SESSAO-24: peça igual sem dono no estoque, uma por unidade ainda não liberada.
-  const { data: sugestoes = [] } = useQuery({
-    queryKey: ['sugestoes-alocacao', cardPedido?.id ?? 0],
-    queryFn: () => sugestoesAlocacao(cardPedido!.id),
-    enabled: aberto && !ehReposicao,
-  })
+  const sugestoes = useMemo(() => janela?.sugestoes ?? [], [janela])
   const sugestaoPorChave = useMemo(
     () =>
       new Map<string, SugestaoAlocacao>(
@@ -109,22 +86,8 @@ export function ModalLiberarPedido({
       ),
     [sugestoes],
   )
-  const itens: ItemKanban[] = useMemo(
-    () =>
-      ehReposicao && cardPedido
-        ? [
-            {
-              seq: 1,
-              codigo: cardPedido.item_codigo,
-              descricao: cardPedido.item_descricao,
-              unidades: cardPedido.total_unidades ?? 0,
-            },
-          ]
-        : itensDoTiny,
-    [ehReposicao, cardPedido, itensDoTiny],
-  )
-  const unidadesExistentes = ehReposicao ? unidadesDaRepo : unidadesDoTiny
-  const carregandoItens = !ehReposicao && carregandoItensDoTiny
+  const itens: ItemKanban[] = useMemo(() => janela?.itens ?? [], [janela])
+  const unidadesExistentes = useMemo(() => janela?.ja_liberadas ?? [], [janela])
   const origem = ehReposicao ? 'Reposição de estoque' : `Pedido ${pedido?.numero ?? ''}`
   const { data: todasEtapas = [] } = useQuery({
     queryKey: ['etapas-ativas'],
@@ -142,8 +105,13 @@ export function ModalLiberarPedido({
     return mapa
   }, [todasEtapas])
 
-  // Destinos possíveis: qualquer setor ativo que não seja o próprio PCP.
-  const destinos = useMemo(() => setores.filter((s) => s.id !== setorPcp.id), [setores, setorPcp.id])
+  // Destinos possíveis (SESSAO-30 — raio-x 3): só setor de PRODUÇÃO. A peça
+  // pronta do estoque vai pela sugestão "usar?" (direto para o aguardo);
+  // ESTOQUE, Pedidos em aguardo e ROTAS não são destino de liberação.
+  const destinos = useMemo(
+    () => setores.filter((s) => s.ativo && s.papel_no_fluxo === 'producao'),
+    [setores],
+  )
 
   // As linhas são DERIVADAS de itens + unidades já criadas; o que o usuário
   // mexe (seleção e destinos) vive à parte, em `ajustes` — assim não há
@@ -219,37 +187,21 @@ export function ModalLiberarPedido({
   }
 
   // SESSAO-24: numa só confirmação, as unidades marcadas para usar o estoque
-  // nascem prontas (alocar) e as demais seguem para a produção (liberar).
+  // nascem prontas e as demais seguem para a produção. SESSAO-30: tudo numa
+  // chamada só, numa transação no banco (tudo ou nada; o toque repetido não
+  // duplica).
   const mutacao = useMutation({
-    mutationFn: async (parametros: {
-      alocar: { itemSeq: number; indiceUnidade: number; pecaCardId: number }[]
-      liberar: Parameters<typeof liberarUnidades>[0] | null
-    }) => {
-      let alocadas = 0
-      for (const a of parametros.alocar) {
-        try {
-          await alocarPeca({ cardPedidoId: cardPedido!.id, ...a })
-        } catch (erro) {
-          const detalhe = erro instanceof Error ? erro.message : 'sem resposta do servidor'
-          throw new Error(
-            alocadas === 0
-              ? `Não deu para usar a peça do estoque: ${detalhe}`
-              : `Usei ${alocadas} peça(s) do estoque, mas parei na seguinte: ${detalhe}`,
-            { cause: erro },
-          )
-        }
-        alocadas += 1
-      }
-      const liberadas = parametros.liberar ? await liberarUnidades(parametros.liberar) : 0
-      return { alocadas, liberadas }
-    },
-    onSuccess: async ({ alocadas, liberadas }) => {
+    mutationFn: (unidades: UnidadeLiberacao[]) => liberarNoPcp(cardPedido!.id, unidades),
+    onSuccess: async ({ alocadas, liberadas, ja_liberadas }) => {
       const partes = [
         liberadas > 0
           ? `${liberadas} unidade${liberadas === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
           : null,
         alocadas > 0
           ? `${alocadas} do estoque — já pronta${alocadas === 1 ? '' : 's'} em Pedidos em aguardo`
+          : null,
+        ja_liberadas > 0
+          ? `${ja_liberadas} já ${ja_liberadas === 1 ? 'tinha' : 'tinham'} sido liberada${ja_liberadas === 1 ? '' : 's'}`
           : null,
       ].filter(Boolean)
       notificar({
@@ -263,10 +215,9 @@ export function ModalLiberarPedido({
         clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
         clienteQuery.invalidateQueries({ queryKey: ['pedidos-resumo'] }),
         clienteQuery.invalidateQueries({ queryKey: ['pedido-unidades'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['liberacao'] }),
         clienteQuery.invalidateQueries({ queryKey: ['expedicao'] }),
         clienteQuery.invalidateQueries({ queryKey: ['reposicoes-resumo'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['reposicao-unidades'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['sugestoes-alocacao'] }),
         clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
         clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),
         clienteQuery.invalidateQueries({ queryKey: ['produtos-reservados'] }),
@@ -275,11 +226,8 @@ export function ModalLiberarPedido({
     },
     onError: async (excecao) => {
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
-      // Uma parte pode ter acontecido antes do erro — recarrega.
-      await clienteQuery.invalidateQueries({ queryKey: ['pedido-unidades'] })
-      await clienteQuery.invalidateQueries({ queryKey: ['reposicao-unidades'] })
-      await clienteQuery.invalidateQueries({ queryKey: ['sugestoes-alocacao'] })
-      await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
+      // Tudo ou nada: nada mudou — relê só a janela (alguém pode ter liberado antes).
+      await clienteQuery.invalidateQueries({ queryKey: ['liberacao'] })
     },
   })
 
@@ -303,37 +251,23 @@ export function ModalLiberarPedido({
       return
     }
     setErro('')
-    const alocar = selecionadas.flatMap((l) => {
-      const sugestao = l.usarEstoque ? sugestaoPorChave.get(l.chave) : undefined
-      return sugestao
-        ? [{ itemSeq: l.item_seq, indiceUnidade: l.indice_unidade, pecaCardId: sugestao.peca_card_id }]
-        : []
-    })
-    const paraProducao = selecionadas.filter(
-      (l) => !(l.usarEstoque && sugestaoPorChave.has(l.chave)),
-    )
-    mutacao.mutate({
-      alocar,
-      liberar:
-        paraProducao.length === 0
-          ? null
+    mutacao.mutate(
+      selecionadas.map((l): UnidadeLiberacao => {
+        const sugestao = l.usarEstoque ? sugestaoPorChave.get(l.chave) : undefined
+        return sugestao
+          ? {
+              item_seq: l.item_seq,
+              indice_unidade: l.indice_unidade,
+              peca_card_id: sugestao.peca_card_id,
+            }
           : {
-              cardPaiId: cardPedido.id,
-              pedidoId: ehReposicao ? null : cardPedido.pedido_id,
-              produtoTinyId: ehReposicao ? (reposicao?.produto_tiny_id ?? null) : null,
-              setorPcpId: setorPcp.id,
-              usuarioId: perfil.id,
-              unidades: paraProducao.map((l) => ({
-                item_seq: l.item_seq,
-                item_codigo: l.item_codigo,
-                item_descricao: l.item_descricao,
-                indice_unidade: l.indice_unidade,
-                total_unidades: l.total_unidades,
-                destinoSetorId: Number(l.setorId),
-                destinoEtapaId: l.etapaId === CHEGADA ? null : Number(l.etapaId),
-              })),
-            },
-    })
+              item_seq: l.item_seq,
+              indice_unidade: l.indice_unidade,
+              setor_id: Number(l.setorId),
+              etapa_id: l.etapaId === CHEGADA ? null : Number(l.etapaId),
+            }
+      }),
+    )
   }
 
   return (
@@ -414,9 +348,7 @@ export function ModalLiberarPedido({
                       className="size-5 shrink-0 accent-[var(--dm-acao)]"
                       checked={linha.jaLiberada || linha.selecionada}
                       disabled={linha.jaLiberada}
-                      onChange={() =>
-                        mudarLinha(linha.chave, { selecionada: !linha.selecionada })
-                      }
+                      onChange={() => mudarLinha(linha.chave, { selecionada: !linha.selecionada })}
                     />
                     <span className={linha.jaLiberada ? 'text-texto-fraco' : 'text-texto'}>
                       {linha.item_descricao ?? 'Sem descrição'}{' '}
@@ -445,9 +377,7 @@ export function ModalLiberarPedido({
                       type="checkbox"
                       className="size-5 shrink-0 accent-[var(--dm-acao)]"
                       checked={linha.usarEstoque}
-                      onChange={() =>
-                        mudarLinha(linha.chave, { usarEstoque: !linha.usarEstoque })
-                      }
+                      onChange={() => mudarLinha(linha.chave, { usarEstoque: !linha.usarEstoque })}
                     />
                     <PackageCheck aria-hidden className="size-5 shrink-0 text-perfeito-forte" />
                     <span className="flex flex-col">
@@ -463,8 +393,9 @@ export function ModalLiberarPedido({
                             ? `Veio do pedido ${sugestao.peca_origem_numero}, que foi cancelado.`
                             : sugestao.peca_origem === 'reposicao'
                               ? 'Veio da reposição de estoque.'
-                              : // Ajuste de 28/09: peça cadastrada pela logística (sem card pai).
-                                'Está pronta no estoque.'}{' '}
+                              : // Ajuste de 28/09 ↪️ SESSAO-30 (raio-x 4): peça cadastrada pela
+                                // logística (sem card pai) — o rótulo diz a origem certa.
+                                'Veio da entrada manual da logística.'}{' '}
                         {usandoEstoque
                           ? 'Vai direto, pronta, para Pedidos em aguardo — não passa pela produção.'
                           : sugestao.reservada

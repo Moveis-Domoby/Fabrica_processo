@@ -119,13 +119,7 @@ export interface PedidoResumo {
  * outra coisa — vem em `situacao`).
  */
 export type SituacaoPlataforma =
-  | 'sem_card'
-  | 'pcp'
-  | 'producao'
-  | 'aguardo'
-  | 'em_rota'
-  | 'entregue'
-  | 'arquivado'
+  'sem_card' | 'pcp' | 'producao' | 'aguardo' | 'em_rota' | 'entregue' | 'arquivado'
 
 /**
  * Linha de plt_fn_pcp_todos_pedidos — a aba "Todos os pedidos" do PCP por
@@ -190,14 +184,6 @@ export interface UnidadePedido {
 }
 
 /** Uma unidade a liberar no modal do PCP (ainda não existe como card). */
-export interface UnidadeParaLiberar {
-  item_seq: number
-  item_codigo: string | null
-  item_descricao: string | null
-  indice_unidade: number
-  total_unidades: number
-}
-
 /**
  * Marcação de qualidade sem parecer, como sai de plt_vw_qualidade_transicoes
  * (SESSAO-06/D-09) — o que o setor recebedor ainda precisa responder.
