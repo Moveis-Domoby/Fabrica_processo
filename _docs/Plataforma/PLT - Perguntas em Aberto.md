@@ -114,6 +114,7 @@ tags: [plataforma, descoberta, perguntas]
   10. 173 produtos sem SKU no catálogo.
   - ↪️ 30/09 (Ajuste Estoque 2): nenhum dos 10 foi corrigido — era fora do escopo; o "Usar todas as sugestões" citado no raio-x deixou de existir (D-84).
   - ↪️ 07/10 (Bloco 6): **os itens 1 a 6 entram na [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]]** (escolha do dono em 06/10 — mexem no caminho da peça); os itens 7 a 10 seguem pendentes.
+  - ✅ **itens 1 a 6 resolvidos em 2026-10-08** (SESSAO-30, migrations 57 e 58): 1 a regra dos fins de linha vale para toda origem e para o card criado lá · 2 peça livre do ESTOQUE só sai pela baixa do estoque · 3 o PCP libera só para setor de produção, numa transação (↩️ D-63) · 4 o rótulo da entrada manual (o banco já devolvia a origem certa desde 28/09 — só a tela dizia "está pronta no estoque") · 5 a regra da peça numa função só, resumo = soma da lista · 6 peças sob medida e fora do catálogo com lista e baixa. Os itens 7 a 10 seguem pendentes (o 7 — a leitura de 30 s — sai na etapa 6 da SESSAO-30).
   - ↪️ 01/10: o dono decidiu tratar as pendências técnicas **depois** (a SESSAO-29 vem antes).
 
 ## Ver também
