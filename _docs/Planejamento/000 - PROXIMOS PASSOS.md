@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-10-03
+atualizado: 2026-10-07
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -11,6 +11,19 @@ tags: [planejamento, roadmap, indice]
 > A leitura única de planejamento do projeto: **onde estamos, qual é o próximo passo, o que vem depois e o que está esperando você**. Ela não substitui as demandas — resume e aponta. Detalhe de execução vive em [[000 - ORDEM DAS SESSOES]]; o novo bloco em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]; ideias de longo prazo em [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]].
 > **Regra de manutenção:** toda sessão entregue ou decisão nova atualiza esta nota junto com o mapa.
 
+## ▶️ Agora (07/10): Bloco 6 — produção de ponta a ponta e kanban completo
+
+O dono pediu em 06/10 o setor de produção funcionando por completo. Mapeado no Cowork em [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]] e dividido em **duas sessões**, nesta ordem:
+
+1. [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] — **📐 pronta para code.** O fluxo do pedido já existe até "Lançar para ROTAS"; os furos achados: a peça **deixa de contar como reservada em venda** ao ir para ROTAS (antes de ser entregue), o **"Entregue" daqui não chega ao Tiny** e o **"Entregue" do Tiny não fecha nada aqui** (3 pedidos com 6 peças paradas em ROTAS). Entram também a **tela do entregador** com comprovante, as correções 1–6 do raio-x e o **ensaio completo** de pedido e reabastecimento.
+2. [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] — **📐 pronta para code, roda depois da 30.** Aba **Lançamento manual** no PCP com **card avulso**, frente enxuta no jeito do ClickUp, **janela do card para todo card** (descrição, tempo, histórico, anexos PDF/imagem/áudio, conversa com **menções** que avisam no sino e mandam um cartão na conversa particular) e **pausa com motivo**.
+
+3. [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] — **📐 pronta para code, roda depois da 31** (decisão do dono, 07/10). Leva a plataforma inteira para dentro da nova [[PLT - Lei de Desempenho e Escala]] (regra 18): abertura em 1 requisição, permissões no token, websocket no lugar dos 35 relógios, pacote dividido, banco ajustado, listas por cursor e prova de carga. As sessões 30 e 31 já seguem a lei no que tocam.
+
+↪️ **07/10 — duas regras novas para o Claude Code:** a **18** (a Lei de Desempenho e Escala: a solução mais otimizada do mercado, mesmo quando é mais difícil) e a **19** (ClickUp: o Cowork cria tudo como tarefa na lista PRODUÇÃO; o Claude Code move para FAZENDO ao começar e **não conclui** — avisa o dono, que conclui). As 21 tarefas do Bloco 6 já estão no ClickUp (4 que já existiam + 17 novas), com os links em cada demanda.
+
+Respostas do dono (06/10): "Entregue" vale dos dois lados · janela para todo card · menção → sino + conversa particular · entram raio-x 1–6, pausa com motivo e tela do entregador · impressora de etiqueta fica para depois. O resto das perguntas está em cada demanda, para o início da sessão.
+
 ## Onde estamos (02/10/2026)
 
 O **Bloco 5 está FECHADO** (02/10): entregues as SESSÕES 22, 23, 25, 24, 26, 27 (automações em canvas) e **28** (rota calculada no mapa — [[handoff_2026_10_02_sessao28_rota_calculada]]) e os ajustes do estoque (contagem da logística, sincronismo com o Tiny, fotos automáticas e o Ajuste Estoque 2). ↪️ *Até 02/10 esta linha dizia "falta a 28".* A **[[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] foi entregue em 01/10** — a conferência diária com o Tiny está no ar. As telas novas (Automações, Configurações, Utilitários e a Auditoria da 29) **estão no site desde 02/10**. **Com você:** quando quiser chamar automação pelo n8n, a publicação da Edge Function.
@@ -18,7 +31,7 @@ O **Bloco 5 está FECHADO** (02/10): entregues as SESSÕES 22, 23, 25, 24, 26, 2
 > [!info] Revisão das pendências com o dono (01/10/2026)
 > O dono passou a lista inteira a limpo: o que era rotina da equipe saiu da lista (reservas presas, conferência da venda, fotos, saldo negativo das peças), o que ele já resolveu foi marcado ✅, e as respostas viraram as decisões **D-90…D-94**. A lista abaixo é a que vale.
 
-## ▶️ Agora (01/10): SESSAO-29 entregue — falta a sua revisão da Auditoria
+## (anterior) 01/10: SESSAO-29 entregue — falta a sua revisão da Auditoria
 
 - [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] — ✅ **entregue em 01/10** — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]]. **Conferência diária às 3h** (60 dias + não terminados) pelo fluxo da carga do n8n, agora acordado pelo banco só quando há trabalho; o que muda no Tiny muda aqui (apagar só apaga as observações); cliente pelo cadastro do Tiny → CPF → o cliente que o pedido já tem → nome + telefone; pedido igual não é regravado (D-95…D-98). 1ª conferência real: 611 relidos, 138 diferentes → **2ª: zero**. Migrations 49/50 aplicadas com o seu OK (integração idêntica). **Escopo novo seu: Painel admin → Auditoria** (D-95) — na branch. **Com você:** (1) ✅ ~~colar no fluxo de vendas do n8n as 3 trocas que passam o número do cadastro do cliente~~ — **colado e publicado em 01/10, 23:20** ([[N8N - Workflow Tiny para Planilha]]); (2) a Auditoria: você já viu a tela — falta o "pode subir" para ir ao site. ↪️ **01/10 à noite:** o Claude passou a **ler o n8n pela API** (chave criada por você, só no seu computador — [[N8N - Infraestrutura VPS]]).
 

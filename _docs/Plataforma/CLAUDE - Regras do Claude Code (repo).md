@@ -2,7 +2,7 @@
 titulo: CLAUDE.md — Regras do Claude Code (repositório da plataforma)
 tipo: regras
 data: 2026-08-19
-atualizado: 2026-08-24
+atualizado: 2026-10-07
 tags: [plataforma, claude-code, regras, conduta]
 ---
 
@@ -24,6 +24,7 @@ Cofre: `C:\Users\wccau\Domoby\Domoby - fabrica\_docs\`
 5. `Plataforma\PLT - Requisitos.md` — RF/RNF.
 6. `Plataforma\Demandas\000 - ORDEM DAS SESSOES.md` + a `SESSAO-NN` da vez (leia a demanda **duas vezes**) + o **handoff da última sessão entregue** (linkado nesse índice) — é lá que estão as pendências, as decisões novas e as armadilhas já descobertas.
 7. `Supabase-fabrica\SUPA - Esquema do Banco.md` — **obrigatório antes de qualquer SQL**.
+7b. `Plataforma\PLT - Lei de Desempenho e Escala.md` — **obrigatório em toda sessão** (regra 18): os orçamentos, as proibições e o checklist de desempenho que toda tela, porta e tabela cumpre.
 8. `000 - MAPA DO PROJETO.md` e `CLAUDE.md` da raiz do cofre — contexto da fábrica.
 9. `Plataforma\PLT - Perguntas em Aberto.md` — o que está aí **não tem resposta**: pergunte, não invente.
 
@@ -61,15 +62,18 @@ Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby
 15. **Mobile-first para o chão de fábrica** (D-06): tudo que o operador toca funciona em tablet com botão grande e em celular.
 16. **Lei de layout e navegação (D-36):** layout nunca nasce fora do padrão **pai→filho** — um filho é sempre herdeiro de um pai. **Pai nunca é rota navegável**: só direciona aos filhos, no padrão `/pai/filho` (ex.: `/logistica/estoque`). **Nenhuma rota solta na raiz**: toda entrada redireciona para a rota herdeira — `/entrar` → `/inicio/meu-painel`, `/` → `/inicio/meu-painel`. Sidebar presente e recolhível em **toda** tela; **botão de voltar em toda tela**; sino de notificações no topo; e **toda atividade de usuário gera log no banco** (D-40).
 17. **Lei de requisição (SESSAO-22, pedido do dono): cada tela requisita apenas o que ela mostra — se a tela não mostra, ela não requisita.** Lista/coluna pagina **no servidor** (`limite/deslocamento` ou `range`), o total vem de agregado barato (contagem na mesma consulta paginada), e "Ver mais" busca só a próxima página. Baixar o conjunto inteiro para filtrar/desenhar um pedaço no cliente é proibido — vale para toda tela nova e para toda tela que for tocada.
+18. **Lei de desempenho e escala (pedido do dono, 07/10/2026) — vale como regra CRÍTICA:** sempre a solução mais otimizada do padrão de mercado, a das plataformas que atendem milhares de usuários — **"é mais difícil" nunca é motivo para escolher o caminho que não escala**; atalho só com o OK do dono, registrado como D-NN. Leia e cumpra `_docs/Plataforma/PLT - Lei de Desempenho e Escala.md`. O essencial: **(a)** primeira abertura do app = **1 requisição de dados** (uma porta de abertura) e cada tela = 1 requisição; nada em cascata; **(b)** dado escondido só chega **no clique** (aba, modal, detalhe, "Ver mais"); **(c)** tempo real **por websocket** (Broadcast em canal privado, tópico estreito); long polling/SSE só se websocket for impossível; **polling por intervalo e `postgres_changes` são PROIBIDOS**; no banco, trabalho nasce do fato (fila), nunca de relógio que acorda para ver se há trabalho; **(d)** sessão por token curto que se renova enquanto a pessoa usa, **verificado localmente** (chaves assimétricas, `getClaims`) e com as **permissões dentro do token** — nada de ir ao banco perguntar "quem sou eu" quando está tudo certo; **(e)** **paginação no servidor em toda lista que um dia possa crescer**, por **cursor** (deslocamento só em lista pequena e limitada), com teto no banco; **(f)** banco impecável: projeção pronta para leitura pesada, índice em toda chave estrangeira, filtro, ordenação e coluna de RLS, RLS com `(select …)`, `EXPLAIN ANALYZE` com volume ×100 de toda porta nova, migração sem travar, plano de crescimento das tabelas que só aumentam; **(g)** código dividido por tela, cache com invalidação por sinal, escrita idempotente, chamada externa com tempo limite, nova tentativa com espera crescente e disjuntor. **Orçamentos:** porta de tela ≤ 50 ms (p95), painel ≤ 150 ms; LCP ≤ 2,5 s, INP ≤ 200 ms, CLS ≤ 0,1; JS inicial ≤ 250 KB comprimido. **Toda tela tocada sai dentro da lei** — o que não sair vira dívida registrada na própria lei, com o porquê. O checklist de desempenho da lei entra no checklist final de toda sessão.
+19. **ClickUp — quem cria, quem move, quem conclui (pedido do dono, 07/10/2026):** o que o dono mapeia com o Cowork vira **tarefa** na lista **PRODUÇÃO** do espaço DPTO TI — **tudo como tarefa, nada como subtarefa**, no padrão "Área - Item" (ex.: "Kanban - Cartões avulsos"), atribuída ao dono, em **A FAZER**; a demanda lista os links das suas tarefas na seção "Tarefas no ClickUp". **O Claude Code, ao começar a executar uma tarefa, move-a para FAZENDO — e NUNCA para CONCLUÍDO:** quem conclui é o dono. Ao terminar cada tarefa, o Claude Code **avisa o dono** na conversa (e deixa um comentário curto na tarefa: o que foi entregue e como conferir). Não cria tarefa nem subtarefa por conta própria; achou trabalho novo → avisa o dono, que decide. Sem acesso ao ClickUp na sessão → avisa o dono no início, para ele mover.
 
 ## O ciclo de toda sessão
 
 ```
-ler SESSAO-NN (2x) → ler decisões + modelo de sistema + MEMÓRIA DE APRENDIZADO
-→ listar dúvidas → task list → branch
+ler SESSAO-NN (2x) → ler decisões + modelo de sistema + MEMÓRIA DE APRENDIZADO + LEI DE DESEMPENHO
+→ listar dúvidas → task list → branch → tarefas do ClickUp da demanda em FAZENDO (regra 19)
 → codar computando tudo em _docs/Plataforma/Execucao/SESSAO-NN.md
    (errou/acertou/aprendeu → anotar em PLT - Memoria de Aprendizado NA HORA)
-→ conferir task list contra a demanda → revisão do dono → merge na main
+→ conferir task list contra a demanda + checklist de desempenho (regra 18) → revisão do dono → merge na main
+→ avisar o dono de cada tarefa entregue (o dono conclui no ClickUp — regra 19)
 → handoff em _docs/Handoffs/ + memória de aprendizado atualizada
 ```
 
@@ -80,4 +84,5 @@ ler SESSAO-NN (2x) → ler decisões + modelo de sistema + MEMÓRIA DE APRENDIZA
 - **Memória de aprendizado (leitura E escrita obrigatórias em toda sessão): `_docs/Plataforma/PLT - Memoria de Aprendizado.md`**
 - Requisitos: `_docs/Plataforma/PLT - Requisitos.md`
 - Esquema do banco: `_docs/Supabase-fabrica/SUPA - Esquema do Banco.md`
+- **Lei de desempenho e escala (leitura obrigatória em toda sessão): `_docs/Plataforma/PLT - Lei de Desempenho e Escala.md`**
 - O que ainda não foi decidido: `_docs/Plataforma/PLT - Perguntas em Aberto.md` — se sua dúvida está lá, ela está SEM resposta: pergunte ao dono, não invente.

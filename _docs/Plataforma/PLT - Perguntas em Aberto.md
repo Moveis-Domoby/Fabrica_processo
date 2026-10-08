@@ -113,6 +113,7 @@ tags: [plataforma, descoberta, perguntas]
   9. Resíduos da "necessidade extrema" (regra morta da D-55).
   10. 173 produtos sem SKU no catálogo.
   - ↪️ 30/09 (Ajuste Estoque 2): nenhum dos 10 foi corrigido — era fora do escopo; o "Usar todas as sugestões" citado no raio-x deixou de existir (D-84).
+  - ↪️ 07/10 (Bloco 6): **os itens 1 a 6 entram na [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]]** (escolha do dono em 06/10 — mexem no caminho da peça); os itens 7 a 10 seguem pendentes.
   - ↪️ 01/10: o dono decidiu tratar as pendências técnicas **depois** (a SESSAO-29 vem antes).
 
 ## Ver também

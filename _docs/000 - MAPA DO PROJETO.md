@@ -36,6 +36,8 @@ Uma fábrica de **móveis em MDF (e linha industrial com metalurgia própria)** 
 - [[000 - PROXIMOS PASSOS]] — **a leitura única**: onde estamos, o próximo passo, o que vem depois, o que está com o dono
 - [[003 - PLANO - Integracao Completa Tiny da Fabrica]] — 🆕 27/09: o caminho para a fábrica no nível de **peça e insumo** (estrutura/BOM, estoque com movimento, plano de corte para CNC/SECC) e o que a API do Tiny oferece de verdade (v2 × v3)
 - [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]] — a pesquisa sobre a empresa + o banco de ideias para os próximos sistemas (estoque, rotas, cargas, custo real, portal do cliente…)
+- [[PLT - Lei de Desempenho e Escala]] — 🆕 07/10: **leitura obrigatória do Claude Code** (regra 18) — os orçamentos (1 requisição na abertura, porta ≤ 50 ms, sem relógio, websocket, token verificado sem ir ao banco, paginação por cursor, banco impecável), a pesquisa com as fontes e o retrato das dívidas de hoje
+- [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]] — 🆕 07/10: o mapeamento do setor de produção (fluxo do pedido, reabastecimento e lançamento manual) dividido em **2 sessões** — SESSAO-30 (o caminho da peça de ponta a ponta, com a entrega e o Tiny) e SESSAO-31 (o kanban completo: card avulso e a janela do card)
 - [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]] — a orquestração do pacote de 18/09: sessões 22–28 (produção infalível, estoque + Tiny da fábrica, Meu Painel 2.0, chat interno, automações em canvas, rota calculada), com ordem de execução e de-para demanda→sessão
 
 ## 🏗️ Plataforma de Produção (pasta `Plataforma/`)
@@ -182,6 +184,10 @@ Telas, integração e dívidas:
 > A IA registra o técnico (o que mudou, por quê, o que quebrou). **O dono registra o de negócio** — o que a equipe reclamou, o que mudou de prioridade, como o processo físico funciona de verdade. Isso a IA não tem como saber, e é o que mais falta neste cofre hoje: o detalhe real de cada setor.
 
 ## Estado atual em uma linha
+
+**↪️ 07/10/2026 (Lei de Desempenho e Escala + ClickUp):** o dono mandou que toda solução seja a mais otimizada do mercado, mesmo quando mais difícil — virou a regra 18 e a [[PLT - Lei de Desempenho e Escala]]; a auditoria de 07/10 achou 35 relógios em 15 telas, 3 telas relendo tudo a cada mudança de card, ~13 requisições na abertura, pacote de 1,8 MB e estoque de 1 a 4 s no banco → [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] (depois da 31; a 30 e a 31 já seguem a lei no que tocam). Regra 19: o mapeado no Cowork vira tarefa no ClickUp; o Claude Code move para FAZENDO e o dono conclui.
+
+**↪️ 07/10/2026 (nasce o Bloco 6):** o dono pediu o setor de produção funcionando por completo; o Cowork mapeou os dois fluxos (pedido e reabastecimento) e o lançamento manual em [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]] e dividiu em **duas sessões**: [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] (reservado em venda até a entrega, "Entregue" dos dois lados com o Tiny, tela do entregador, raio-x 1–6, ensaio completo) → [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] (card avulso, janela do card para todo card, anexos, conversa com menções, pausa com motivo).
 
 **↪️ 02/10/2026 (SESSAO-28 entregue — o Bloco 5 está FECHADO):** a Programação de caminhão mostra a **rota de verdade pelas ruas**, saindo da fábrica e voltando a ela, com quilômetros e tempo de cada trecho; a ordem das paradas é sugerida pelo mais perto e qualquer um da logística ajusta à mão e salva; o mapa mostra também a rota já programada de cada caminhão. Continua sugestão — sem trânsito nem interdições (evolução paga, se um dia o dono quiser).
 
