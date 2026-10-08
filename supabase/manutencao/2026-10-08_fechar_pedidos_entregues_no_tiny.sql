@@ -54,7 +54,11 @@ begin
       join public.pedidos p on p.id = pc.pedido_id
      where pc.tipo = 'pedido'
        and plt_privado.fn_situacao_normalizada(p.situacao) = 'entregue'
-       and (pc.arquivado_em is null
+       -- E-88: o pedido lançado e já entregue fica com o card vivo (é o
+       -- registro em ROTAS) — ele não entra de novo numa 2ª rodada.
+       and ((pc.arquivado_em is null
+             and not exists (select 1 from public.plt_eventos e
+                              where e.card_id = pc.id and e.tipo = 'pedido_entregue'))
             or exists (select 1 from public.plt_cards u
                         where u.pedido_id = pc.pedido_id and u.tipo = 'unidade' and u.arquivado_em is null)
             or exists (select 1 from public.plt_cards s

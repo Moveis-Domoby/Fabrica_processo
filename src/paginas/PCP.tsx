@@ -887,12 +887,16 @@ function BarraAjustePedidos({
       setObservacao('')
       setAjuste('')
       if (feitos < lista.length) setResultados(lista)
+      const ficaram = lista.length - feitos
       notificar({
-        titulo: feitos === 1 ? '1 pedido ajustado' : `${feitos} pedidos ajustados`,
+        titulo:
+          feitos === 0 ? 'Nenhum pedido ajustado' : feitos === 1 ? '1 pedido ajustado' : `${feitos} pedidos ajustados`,
         descricao:
-          feitos < lista.length
-            ? `${pedidosPorExtenso(lista.length - feitos)} ficaram como estavam — veja o porquê.`
-            : undefined,
+          ficaram === 0
+            ? undefined
+            : ficaram === 1
+              ? '1 pedido ficou como estava — veja o porquê.'
+              : `${ficaram} pedidos ficaram como estavam — veja o porquê.`,
         tom: feitos < lista.length ? 'atencao' : 'perfeito',
       })
       aoTerminar()
@@ -922,22 +926,29 @@ function BarraAjustePedidos({
 
   return (
     <>
+      {/* Celular: uma linha de controles, acima do balão do chat (bottom-20);
+          no computador, tudo numa linha só (E-54 — nada passa da borda). */}
       <div
         role="region"
         aria-label="Pedidos marcados"
-        className="sticky bottom-3 z-30 flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-3 shadow-lg sm:flex-row sm:items-end"
+        className="sticky bottom-20 z-30 flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 shadow-lg sm:bottom-3 sm:flex-row sm:items-end sm:gap-3"
       >
-        <p className="text-sm font-medium text-texto sm:mb-3 sm:min-w-32">
-          {quantos === 0 ? 'Marque os pedidos' : `${pedidosPorExtenso(quantos)} marcado${quantos === 1 ? '' : 's'}`}
-        </p>
-        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex items-center justify-between gap-2 sm:mb-3 sm:min-w-32">
+          <p className="text-sm font-medium text-texto">
+            {quantos === 0 ? 'Marque os pedidos' : `${pedidosPorExtenso(quantos)} marcado${quantos === 1 ? '' : 's'}`}
+          </p>
+          <Botao variante="fantasma" disabled={quantos === 0} onClick={aoLimpar} className="sm:hidden">
+            Desmarcar
+          </Botao>
+        </div>
+        <div className="flex min-w-0 flex-1 items-end gap-2">
           <Selecao
             rotulo="Mudar a situação para"
             opcoes={AJUSTES_PEDIDO.map((a) => ({ valor: a.valor, rotulo: a.rotulo }))}
             valor={ajuste || undefined}
             aoMudar={(v) => setAjuste(v as AcaoAjustePedido)}
             placeholder="Escolha…"
-            className="sm:max-w-56"
+            className="min-w-0 flex-1 sm:max-w-56"
           />
           <Botao disabled={quantos === 0 || ajuste === ''} onClick={() => ajuste && setConfirmando(ajuste)}>
             Aplicar
@@ -945,12 +956,15 @@ function BarraAjustePedidos({
           <Botao
             variante="perigo"
             icone={<Archive />}
+            aria-label="Arquivar"
+            title="Arquivar"
             disabled={quantos === 0}
             onClick={() => setConfirmando('arquivar')}
+            className="px-3 sm:px-4"
           >
-            Arquivar
+            <span className="hidden sm:inline">Arquivar</span>
           </Botao>
-          <Botao variante="fantasma" disabled={quantos === 0} onClick={aoLimpar}>
+          <Botao variante="fantasma" disabled={quantos === 0} onClick={aoLimpar} className="hidden sm:inline-flex">
             Desmarcar
           </Botao>
         </div>
@@ -995,7 +1009,14 @@ function BarraAjustePedidos({
         aberto={resultados !== null}
         aoFechar={(v) => !v && setResultados(null)}
         titulo="O que ficou como estava"
-        descricao="Os outros pedidos foram ajustados."
+        descricao={(() => {
+          const feitos = (resultados ?? []).filter((r) => r.feito).length
+          return feitos === 0
+            ? 'Nenhum pedido foi ajustado.'
+            : feitos === 1
+              ? 'O outro pedido foi ajustado.'
+              : `Os outros ${feitos} pedidos foram ajustados.`
+        })()}
       >
         <ul className="flex flex-col gap-2 text-sm">
           {(resultados ?? [])
