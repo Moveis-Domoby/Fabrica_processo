@@ -4333,10 +4333,13 @@ const unidadesVivas = (
      where c.tipo = 'unidade' and c.arquivado_em is null
        and c.pedido_id = (select id from public.pedidos where numero = 999993)`)
 ).rows[0]
+// ↩️ SESSAO-30 (D-113): até 07/10 a unidade viva continuava no setor; agora o
+// "Entregue" do Tiny fecha TUDO do pedido aqui (o dono: "a peça do pedido não
+// existe mais no galpão") — a unidade sai de toda conta.
 conferir(
   pcpAntes?.tem_teste === true && pcpDepois?.tem_teste === false
-    && pcpDepois.total === pcpAntes.total - 1 && (unidadesVivas?.total ?? 0) >= 1,
-  'pedido que virou "Entregue" no Tiny some do quadro do PCP — e as UNIDADES dele seguem vivas nos setores',
+    && pcpDepois.total === pcpAntes.total - 1 && (unidadesVivas?.total ?? 1) === 0,
+  'pedido que virou "Entregue" no Tiny some do quadro do PCP — e (D-113) nenhuma unidade dele fica viva nos setores',
   JSON.stringify({ antes: pcpAntes, depois: pcpDepois, unidades: unidadesVivas?.total }),
 )
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
@@ -6752,6 +6755,16 @@ const painelQuadroD75 = async () =>
 // Os blocos anteriores deixaram pedido já encerrado no Tiny com peça por
 // liberar (ex.: o 999993 da SESSAO-23, "Entregue" com 1 de 2 liberadas) — o
 // caso que fazia o painel dizer 233 e o quadro 33.
+// ↩️ SESSAO-30 (D-113): o "Entregue" do Tiny agora FECHA o pedido aqui (o card
+// sai do PCP) — o caso que sobra é o "Não entregue" com peça por liberar; o
+// 924300 nasce "Em aberto" (card pelo gatilho) e vira "Não entregue".
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem)
+    values (924300, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 924300), 1, null, 'Estante Teste D-75 encerrada', 1);
+  update public.pedidos set situacao = 'Não entregue' where numero = 924300;
+`)
 const encerradosD75 = (
   await bd.query(`
     select count(*)::int as n
@@ -9418,6 +9431,286 @@ conferir(
 )
 await como55('')
 } // fim do bloco 55
+
+// ============================================================================
+// SESSAO-30 · etapa 1 (migration 56 — D-113/D-117): "Entregue" no Tiny fecha
+// TUDO do pedido aqui; o PCP do super admin (concluído · em rota · entregue ·
+// arquivar, sem mexer no Tiny); "Todos os pedidos" por cursor. O dono (08/10):
+// "para ser entregue no Tiny é porque a peça do pedido não existe mais no
+// galpão e não deve mais estar nada referente a ele em aberto aqui".
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · o Tiny ficou "Entregue": a plataforma fecha tudo do pedido, assinado "Sistema"')
+
+const um56 = async (sql) => (await bd.query(sql)).rows[0]
+const todos56 = async (sql) => (await bd.query(sql)).rows
+const como56 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const op56 = '00000000-0000-0000-0000-000000000561'
+
+await como56('')
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+    ('Monta 56', 'monta56@teste.com', '56565656501', 'monta.56', 'operador', '${op56}');
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'monta.56'), (select id from public.plt_setores where codigo = 'montagem'));
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (956001, 'S56A', 'Mesa Teste 56 - Branca', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (956001, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook'),
+    (956002, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook'),
+    (956003, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook'),
+    (956004, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook'),
+    (956006, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook'),
+    (956007, (select id from public.clientes order by id limit 1), 'Em aberto', 'webhook');
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (956005, (select id from public.clientes order by id limit 1), 'Em aberto', 'backfill');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 956001), 1, 'S56A', 'Mesa Teste 56 - Branca', 3),
+    ((select id from public.pedidos where numero = 956001), 2, null, 'Frete', 1),
+    ((select id from public.pedidos where numero = 956002), 1, 'S56A', 'Mesa Teste 56 - Branca', 1),
+    ((select id from public.pedidos where numero = 956003), 1, 'S56A', 'Mesa Teste 56 - Branca', 2),
+    ((select id from public.pedidos where numero = 956004), 1, 'S56A', 'Mesa Teste 56 - Branca', 2),
+    ((select id from public.pedidos where numero = 956006), 1, 'S56A', 'Mesa Teste 56 - Branca', 1),
+    ((select id from public.pedidos where numero = 956007), 1, 'S56A', 'Mesa Teste 56 - Branca', 1);
+`)
+const pedido56 = async (n) => (await um56(`select id::int as id from public.pedidos where numero = ${n}`)).id
+const cardPedido56 = async (n) => (await um56(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                                where c.tipo = 'pedido' and p.numero = ${n}`))?.id
+// Libera uma unidade como o front faz (card + card_criado no PCP + mover), por API.
+async function liberar56(numero, k, n, destino) {
+  await bd.exec(`
+    insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+      select 'unidade', p.id, pc.id, 1, 'S56A', 'Mesa Teste 56 - Branca', ${k}, ${n}
+        from public.pedidos p join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido'
+       where p.numero = ${numero};
+    insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'api');
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+              (select id from public.plt_setores where codigo = 'pcp'),
+              (select id from public.plt_setores where codigo = '${destino}'), 'api');
+  `)
+  return (await um56(`select max(id)::int as id from public.plt_cards`)).id
+}
+const card56 = async (id) => um56(`
+  select c.arquivado_em is not null as arquivado, c.executor_atual_id is not null as executando,
+         s.codigo as setor, e.nome as etapa, c.reservada_pedido_id::int as reservada_para,
+         (select x.dados ->> 'motivo' from public.plt_eventos x where x.card_id = c.id and x.tipo = 'card_arquivado'
+           order by x.id desc limit 1) as motivo
+    from public.plt_cards c
+    left join public.plt_setores s on s.id = c.setor_atual_id
+    left join public.plt_etapas e on e.id = c.etapa_atual_id
+   where c.id = ${id}`)
+
+const c1 = await cardPedido56(956001)
+const u1 = await liberar56(956001, 1, 3, 'montagem')      // em produção, com tempo aberto
+const u2 = await liberar56(956001, 2, 3, 'aguardo')       // pronta, no aguardo
+// a 3ª unidade não foi liberada: a peça livre do estoque está reservada para ela pela venda
+await como56(E40.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(956001, 'entrada', 1, 'teste 56')`)
+await como56('')
+const peca56 = (await um56(`select c.id::int as id from public.plt_cards c where c.produto_tiny_id = 956001
+                              and c.pedido_id is null and c.arquivado_em is null order by c.id desc limit 1`)).id
+await bd.exec(`
+  select set_config('plt.estoque_maquinaria', 'on', false);
+  insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, dados)
+    values (${peca56}, 'peca_reservada', 'automacao', (select id from public.plt_setores where codigo = 'estoque'),
+            jsonb_build_object('pedido_id', ${await pedido56(956001)}, 'numero', 956001, 'item_seq', 1,
+                               'indice_unidade', 3, 'total_unidades', 3, 'produto_tiny_id', 956001));
+  select set_config('plt.estoque_maquinaria', '', false);
+`)
+await como56(op56)
+await bd.exec(`select public.plt_fn_soltar_card(${u1}, (select e.id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id
+                                                        where s.codigo = 'montagem' and e.nome = 'MONTANDO'))`)
+await como56('')
+const antes56 = { u1: await card56(u1), u2: await card56(u2), peca: await card56(peca56) }
+conferir(
+  antes56.u1.executando && antes56.u1.etapa === 'MONTANDO' && antes56.u2.setor === 'aguardo'
+    && antes56.peca.reservada_para === await pedido56(956001),
+  'cenário: uma peça montando (tempo aberto), uma pronta no aguardo e a peça do estoque reservada pela venda para a 3ª',
+  JSON.stringify(antes56),
+)
+
+// O aviso do Tiny: a situação vira "Entregue" (o n8n grava pelo fn_upsert_pedido — aqui, o mesmo UPDATE)
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 956001`)
+const entrega56 = await todos56(`select e.usuario_id is null as sistema, e.origem, e.dados ->> 'fonte' as fonte,
+                                        (e.dados ->> 'unidades')::int as unidades
+                                   from public.plt_eventos e where e.card_id = ${c1} and e.tipo = 'pedido_entregue'`)
+const depois56 = { u1: await card56(u1), u2: await card56(u2), peca: await card56(peca56), card: await card56(c1) }
+conferir(
+  entrega56.length === 1 && entrega56[0].sistema && entrega56[0].fonte === 'tiny' && entrega56[0].origem === 'api'
+    && entrega56[0].unidades === 2,
+  'a entrega é registrada sozinha, uma vez, assinada "Sistema" (sem pessoa), com a origem Tiny',
+  JSON.stringify(entrega56),
+)
+conferir(
+  depois56.u1.arquivado && !depois56.u1.executando && depois56.u1.motivo === 'entregue'
+    && depois56.u2.arquivado && depois56.u2.motivo === 'entregue'
+    && depois56.peca.arquivado && depois56.peca.motivo === 'venda',
+  'a peça em produção (tempo fechado antes) e a do aguardo saem de toda conta; a do estoque reservada sai com o pedido ("venda")',
+  JSON.stringify(depois56),
+)
+const tempo56 = await um56(`select count(*)::int as n from public.plt_eventos where card_id = ${u1} and tipo = 'movimentacao_etapa'
+                              and (dados ->> 'fechar_tempo')::boolean`)
+const livre56 = await um56(`select count(*)::int as n from public.plt_cards c
+                              where c.executor_atual_id = (select id from public.plt_usuarios where usuario = 'monta.56')`)
+conferir(
+  tempo56.n === 1 && livre56.n === 0 && depois56.card.arquivado && depois56.card.motivo === 'entregue',
+  'o tempo de quem montava fecha (o limite dele fica livre) e o card do pedido, que nunca foi às ROTAS, sai do PCP',
+  JSON.stringify({ tempo56, livre56, card: depois56.card }),
+)
+const vivos56 = await um56(`select count(*)::int as n from public.plt_cards c where c.pedido_id = ${await pedido56(956001)}
+                              and c.arquivado_em is null`)
+conferir(vivos56.n === 0, 'nada do pedido entregue fica aberto aqui', JSON.stringify(vivos56))
+await bd.exec(`update public.pedidos set situacao = 'Entregue', obs = 'mudou outra coisa' where numero = 956001`)
+const entregas56b = await um56(`select count(*)::int as n from public.plt_eventos where card_id = ${c1} and tipo = 'pedido_entregue'`)
+conferir(entregas56b.n === 1, 'o aviso repetido do Tiny não cria uma segunda entrega (idempotente)', JSON.stringify(entregas56b))
+
+titulo('SESSAO-30 · pedido já lançado para ROTAS e entregue no Tiny: o card fica como registro da entrega')
+
+const c2 = await cardPedido56(956002)
+const u2b = await liberar56(956002, 1, 1, 'aguardo')
+await como56(E40.logistica)
+await bd.exec(`select public.plt_fn_lancar_rotas(${c2})`)
+await como56('')
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 956002`)
+await como56(E40.logistica)
+const rota56 = await um56(`select situacao_entrega, entregue_por from public.plt_fn_rotas('entregue', '956002', 20, 0) where card_id = ${c2}`)
+await como56('')
+const u2bDepois = await card56(u2b)
+const c2Depois = await card56(c2)
+conferir(
+  rota56?.situacao_entrega === 'entregue' && rota56.entregue_por === null && u2bDepois.arquivado && !c2Depois.arquivado,
+  'em ROTAS → Entregas ele aparece entregue (pelo Sistema), a peça sai da ROTAS ativa e o card do pedido fica',
+  JSON.stringify({ rota56, u2bDepois, c2Depois }),
+)
+await deveRecusarExec(
+  `insert into public.plt_eventos (card_id, tipo, origem) values (${await cardPedido56(956007)}, 'pedido_entregue', 'api')`,
+  'fora da maquinaria, entrega sem pessoa continua recusada',
+  /quem entregou/i,
+)
+
+titulo('SESSAO-30 · o PCP do super admin: concluído, em rota, entregue e arquivar (o Tiny não muda)')
+
+const u3a = await liberar56(956003, 1, 2, 'montagem')   // a 2ª unidade do 956003 não foi liberada
+await liberar56(956004, 1, 2, 'montagem')
+await liberar56(956004, 2, 2, 'montagem')
+const [p3, p4, p5, p6, p7] = [await pedido56(956003), await pedido56(956004), await pedido56(956005), await pedido56(956006), await pedido56(956007)]
+const c3 = await cardPedido56(956003)
+await como56(E40.operador)
+await deveRecusarExec(
+  `select * from public.plt_fn_pcp_ajustar_pedidos(array[${p3}]::bigint[], 'concluido')`,
+  'operador não ajusta pedido',
+  /super admin/i,
+)
+await como56(E40.logistica)
+await deveRecusarExec(
+  `select * from public.plt_fn_pcp_ajustar_pedidos(array[${p3}]::bigint[], 'concluido')`,
+  'nem a logística — é só do super admin',
+  /super admin/i,
+)
+await como56(E40.admin)
+const situacaoTinyAntes = await um56(`select situacao from public.pedidos where id = ${p3}`)
+const conc56 = await todos56(`select pedido_id::int as id, feito, resultado from public.plt_fn_pcp_ajustar_pedidos(array[${p3}]::bigint[], 'concluido')`)
+const unidades3 = await todos56(`select s.codigo as setor, c.arquivado_em is null as viva from public.plt_cards c
+                                    join public.plt_setores s on s.id = c.setor_atual_id
+                                   where c.pedido_id = ${p3} and c.tipo = 'unidade' order by c.id`)
+const aguardo3 = await um56(`select completo from public.plt_fn_pedidos_aguardo('956003', 20, 0) where pedido_id = ${p3}`)
+conferir(
+  conc56.length === 1 && conc56[0].feito && unidades3.length === 2 && unidades3.every((u) => u.setor === 'aguardo' && u.viva)
+    && aguardo3?.completo === true && (await card56(u3a)).setor === 'aguardo',
+  '"Concluído": a peça em produção vai ao aguardo e a que faltava nasce pronta lá — o pedido aparece completo em Pedidos em aguardo',
+  JSON.stringify({ conc56, unidades3, aguardo3 }),
+)
+const rota3 = await todos56(`select feito, resultado from public.plt_fn_pcp_ajustar_pedidos(array[${p3}]::bigint[], 'em_rota')`)
+const lancado3 = await um56(`select lancado_rotas_em is not null as lancado from public.plt_cards where id = ${c3}`)
+const emRotas3 = await um56(`select count(*)::int as n from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+                               where c.pedido_id = ${p3} and c.tipo = 'unidade' and c.arquivado_em is null and s.codigo = 'rotas'`)
+conferir(
+  rota3[0]?.feito && lancado3.lancado && emRotas3.n === 2,
+  '"Em rota": o pedido é lançado para ROTAS e as peças vão junto (aparece em Programação)',
+  JSON.stringify({ rota3, lancado3, emRotas3 }),
+)
+const ent3 = await todos56(`select feito, resultado from public.plt_fn_pcp_ajustar_pedidos(array[${p3}]::bigint[], 'entregue', 'teste do super admin')`)
+const entrega3 = await um56(`select e.usuario_id = (select id from public.plt_usuarios where auth_user_id = '${E40.admin}') as dono,
+                                    e.origem, e.dados ->> 'fonte' as fonte
+                               from public.plt_eventos e where e.card_id = ${c3} and e.tipo = 'pedido_entregue'`)
+const vivas3 = await um56(`select count(*)::int as n from public.plt_cards c where c.pedido_id = ${p3} and c.tipo = 'unidade' and c.arquivado_em is null`)
+const situacaoTinyDepois = await um56(`select situacao from public.pedidos where id = ${p3}`)
+conferir(
+  ent3[0]?.feito && entrega3?.dono && entrega3.fonte === 'super_admin' && entrega3.origem === 'interface' && vivas3.n === 0
+    && situacaoTinyDepois.situacao === situacaoTinyAntes.situacao,
+  '"Entregue": fecha tudo do pedido com o super admin como autor — e a situação do Tiny não muda',
+  JSON.stringify({ ent3, entrega3, vivas3, situacaoTinyAntes, situacaoTinyDepois }),
+)
+const lote56 = await todos56(`select pedido_id::int as id, feito, resultado
+                                from public.plt_fn_pcp_ajustar_pedidos(array[${p4}, ${p5}]::bigint[], 'arquivar')`)
+const c4 = await card56(await cardPedido56(956004))
+const vivas4 = await um56(`select count(*)::int as n from public.plt_cards c where c.pedido_id = ${p4} and c.arquivado_em is null`)
+conferir(
+  lote56.length === 2 && lote56.find((l) => l.id === p4)?.feito && c4.arquivado && vivas4.n === 0
+    && lote56.find((l) => l.id === p5)?.feito === false && /não tem card/i.test(lote56.find((l) => l.id === p5)?.resultado ?? ''),
+  'arquivar em massa: o pedido e as peças dele saem das telas; o pedido sem card volta explicado, sem segurar os outros',
+  JSON.stringify({ lote56, c4, vivas4 }),
+)
+const deNovo56 = await todos56(`select feito, resultado from public.plt_fn_pcp_ajustar_pedidos(array[${p4}]::bigint[], 'arquivar')`)
+conferir(
+  deNovo56[0]?.feito === false && /já estava arquivado/i.test(deNovo56[0]?.resultado ?? ''),
+  'arquivar de novo não faz nada (e diz por quê)',
+  JSON.stringify(deNovo56),
+)
+await como56('')
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 956006`)
+await como56(E40.admin)
+const cancel56 = await todos56(`select pedido_id::int as id, feito, resultado
+                                  from public.plt_fn_pcp_ajustar_pedidos(array[${p6}, ${p7}]::bigint[], 'concluido')`)
+const p7unid = await um56(`select count(*)::int as n from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+                             where c.pedido_id = ${p7} and c.tipo = 'unidade' and s.codigo = 'aguardo'`)
+conferir(
+  cancel56.find((l) => l.id === p6)?.feito === false && /cancelado no tiny/i.test(cancel56.find((l) => l.id === p6)?.resultado ?? '')
+    && cancel56.find((l) => l.id === p7)?.feito === true && p7unid.n === 1,
+  'pedido cancelado no Tiny não é concluído (explicado) e o outro do lote segue normalmente',
+  JSON.stringify({ cancel56, p7unid }),
+)
+const trilha56 = await um56(`select count(*)::int as n, max(contexto ->> 'acao') filter (where contexto ->> 'acao' = 'concluido') as acao
+                               from public.plt_logs_atividade where acao = 'pcp_pedidos_ajustados'`)
+conferir(trilha56.n >= 5 && trilha56.acao === 'concluido', 'cada ajuste do super admin deixa uma linha na trilha (com a ação)', JSON.stringify(trilha56))
+
+titulo('SESSAO-30 · "Todos os pedidos" do PCP por cursor, com a situação na plataforma')
+
+await como56(E40.logistica)
+const pag1 = await todos56(`select numero, situacao_plataforma, tem_mais, contagem_total from public.plt_fn_pcp_todos_pedidos('95600', null, 3)`)
+const pag2 = await todos56(`select numero, situacao_plataforma, tem_mais, contagem_total
+                              from public.plt_fn_pcp_todos_pedidos('95600', ${pag1[pag1.length - 1]?.numero ?? 0}, 3)`)
+const tudo56 = [...pag1, ...pag2]
+const sit = Object.fromEntries(tudo56.map((r) => [r.numero, r.situacao_plataforma]))
+conferir(
+  pag1.length === 3 && pag1[0].tem_mais === true && pag1[0].contagem_total === 7
+    && pag2.length === 3 && pag2[0].tem_mais === true && pag2[0].contagem_total === null
+    && pag1.map((r) => r.numero).join(',') === '956007,956006,956005' && pag2.map((r) => r.numero).join(',') === '956004,956003,956002',
+  'página por cursor do mais novo ao mais antigo, "tem mais" e o total só na 1ª página',
+  JSON.stringify({ pag1, pag2 }),
+)
+conferir(
+  sit[956007] === 'aguardo' && sit[956005] === 'sem_card' && sit[956004] === 'arquivado' && sit[956003] === 'entregue'
+    && sit[956002] === 'entregue' && sit[956006] === 'pcp',
+  'a situação na plataforma vem pronta: aguardo · sem card · arquivado · entregue · no PCP',
+  JSON.stringify(sit),
+)
+await como56(E40.operador)
+const op56lista = await todos56(`select numero from public.plt_fn_pcp_todos_pedidos('95600', null, 20)`)
+conferir(op56lista.length === 0, 'quem não é da logística não vê a lista', JSON.stringify(op56lista))
+const priv56 = await um56(`
+  select has_function_privilege('anon', 'public.plt_fn_pcp_ajustar_pedidos(bigint[], text, text)', 'execute') as ajustar_anon,
+         has_function_privilege('anon', 'public.plt_fn_pcp_todos_pedidos(text, integer, integer)', 'execute') as todos_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_fechar_pedido(bigint, uuid, text, text, text)', 'execute') as fechar_logado`)
+conferir(
+  !priv56.ajustar_anon && !priv56.todos_anon && !priv56.fechar_logado,
+  'portas novas fechadas para quem não entrou; a maquinaria de fechar o pedido fora da API',
+  JSON.stringify(priv56),
+)
+await como56('')
+} // fim do bloco 56
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
