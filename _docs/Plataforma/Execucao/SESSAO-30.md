@@ -130,6 +130,12 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 - ⚠️ **Achado para a etapa 6 (PCP dentro da lei):** depois do ajuste, a invalidação de `['cards']` releu o quadro e a reposição mesmo com a aba "Todos os pedidos" aberta — as consultas do quadro rodam em qualquer aba (fere o "dado escondido só no clique"); + uma leitura direta de `plt_cards` (etiquetas). Corrige-se na etapa 6.
 - **Publicado:** `main` avançada para **c040a3a** (avanço direto, autor `contatodomoby`); branch também enviada ao GitHub.
 
+## Ordem do dono à noite (08/10 ~01:40 Natal) — trabalho autônomo
+
+*"Você não irá realizar a sessão 31, mas sim outra sessão de Claude Code; por enquanto, rode um /compact e guarde na sua memória toda a execução atual, já deixe o handoff pré-feito para não perder o contexto e siga para todas as outras etapas da sessão 30 sem me perguntar mais, vou dormir, fique trabalhando."*
+
+→ Vale como OK, nesta conversa, para **aplicar banco e publicar o site ao fim de cada etapa testada** (precedente: D-26). Fica para o dono de manhã: **a prova com 1 pedido real indo ao Tiny** (muda pedido de verdade) e desligar qualquer coisa do ClickUp. O /compact é comando do dono (não roda daqui); a memória foi salva no cofre, na memória do Claude (`sessao-30-em-andamento`) e no handoff em rascunho ([[handoff_2026_10_08_sessao30_producao_ponta_a_ponta]]).
+
 ## Retrato complementar (08/10, só leitura, depois das respostas)
 
 - **Volumes:** o cadastro do Tiny da fábrica tem `produtos.raw->>'qtd_volumes'` (o pedido não traz volume). Acabados ativos: 166 com 1, **12 com 2**, 84 vazios/0 (contar como 1).
