@@ -38,8 +38,17 @@ Fechar o caminho da peça de ponta a ponta — do pedido do Tiny até a entrega,
 - **Limpeza de 08/10:** 287 pedidos entregues no Tiny fechados (264 saíram do PCP, 23 nas ROTAS — inclui os 18 da carga de teste da S28 e 13108/13114), 13 peças fora das contas, 1 tempo fechado (13272), peça 502 arquivada; 0 avisos, nada ao Tiny.
 - Banco: migration 56 (`20261008120000_plt_entregue_fecha_tudo.sql`), aplicada com o OK do dono, integração idêntica. Site publicado (c040a3a).
 
-### Etapa 2 — estoque — *em andamento*
-### Etapa 3 — PCP numa chamada — *a fazer*
+### Etapa 2 — estoque ✅ no ar (08/10 ~05:08 UTC)
+- **Reservado em venda até a ENTREGA** (D-118): a peça pronta de pedido conta desde que fica pronta até o pedido ser entregue, inclusive na ROTAS e no caminhão.
+- **Os números do estoque ficam prontos no banco** (D-119): uma linha por produto, atualizada no mesmo gesto que mexe a peça; de madrugada uma recontagem completa confere tudo. Lista do Top X ~0,7 s → ~0,02 s no banco; resumo ~0,9 s → ~0,01 s. O ranking das vendas anda de madrugada e quando Top X/cobertura/corte mudam.
+- **Resumo = soma dos cartões** (raio-x 5). Deixou de contar 3 peças que não são de produto nenhum do Estoque (2 mesas sem código do 13177, 1 lâmpada do 13215).
+- **Raio-x 1:** a regra dos fins de linha vale para toda origem e para o card criado lá. **Raio-x 2:** peça livre do ESTOQUE só sai pela baixa do estoque (nem o admin arquiva por fora). **Raio-x 6:** "Peças sob medida e fora do catálogo" no Estoque, com baixa e motivo.
+- Banco: migration 57 (`20261008130000_plt_estoque_numeros_prontos.sql`); site publicado (1330762). Ainda com o relógio de 30 s — sai na etapa 6. Dívida 13 (catálogo ×100) na lei.
+### Etapa 3 — PCP numa chamada ✅ no ar (08/10)
+- **Liberar no PCP é uma chamada só, tudo ou nada:** usar a peça do estoque e mandar as outras para a produção acontece numa transação no banco; tocar duas vezes não duplica. A janela de liberação abre com uma requisição (antes 3–4); a sugestão do estoque caiu de ~90 ms para ~5 ms no banco.
+- **Raio-x 3:** o PCP libera só para setor de produção (para toda origem); a peça pronta do estoque vai pela sugestão "usar?". ⚠️ **Para o dono confirmar:** a decisão de 28/09 deixava a cadeira de estoque ir do PCP direto para o aguardo — agora ela vai pela sugestão do estoque (ou pela LIMPEZA E EMBALAGEM → "Concluir produção"); na história isso nunca foi usado (0 de 33 liberações).
+- **Raio-x 4:** a sugestão diz "Veio da entrada manual da logística" (o banco já estava certo).
+- Banco: migration 58 (`20261008140000_plt_pcp_liberar_numa_chamada.sql`); site publicado (314280f).
 ### Etapa 4 — entregue nos dois lados — *a fazer*
 ### Etapa 5 — entregador — *a fazer*
 ### Etapa 6 — ao vivo, listas, ensaio completo — *a fazer*
