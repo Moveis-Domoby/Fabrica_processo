@@ -17,6 +17,7 @@ import { ModalEscolherProduto } from './ModalEscolherProduto'
 import { ModalMovimentarEstoque } from './ModalMovimentarEstoque'
 import { ModalProdutoEstoque } from './ModalProdutoEstoque'
 import { TodasAsPecas } from './PecasDoEstoque'
+import { PecasPersonalizadas } from './PecasPersonalizadas'
 
 const ATUALIZA_A_CADA = 30_000
 
@@ -70,7 +71,12 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
 
   const buscando = busca.trim() !== ''
   const filtroServidor: FiltroEstoque | null = buscando || filtro === 'todos' ? null : filtro
-  const { data: linhas = [], isPending, isError, error } = useQuery({
+  const {
+    data: linhas = [],
+    isPending,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ['estoque', 'topx', filtroServidor, busca, pagina, topX],
     queryFn: () =>
       listarEstoqueProdutos({
@@ -183,6 +189,7 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
       )}
 
       <TodasAsPecas ativo={ativo} agora={agora} />
+      <PecasPersonalizadas ativo={ativo} agora={agora} podeMexer={podeMexer} />
 
       <ModalEscolherProduto
         aberto={escolhendo}
@@ -257,7 +264,11 @@ function ModalLancarReposicao({
       aberto={produto !== null}
       aoFechar={(v) => !v && aoFechar()}
       titulo="Lançar para produção"
-      descricao={produto ? `${produto.descricao}${produto.codigo ? ` · SKU ${produto.codigo}` : ''}` : undefined}
+      descricao={
+        produto
+          ? `${produto.descricao}${produto.codigo ? ` · SKU ${produto.codigo}` : ''}`
+          : undefined
+      }
     >
       {produto && (
         <form
@@ -294,7 +305,12 @@ function ModalLancarReposicao({
             A reposição nasce no PCP, que decide o rumo. Parada 2 dias úteis lá, ela sai sozinha.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Botao type="submit" icone={<Factory />} disabled={!valida} carregando={lancar.isPending}>
+            <Botao
+              type="submit"
+              icone={<Factory />}
+              disabled={!valida}
+              carregando={lancar.isPending}
+            >
               Lançar ao PCP
             </Botao>
             <Botao type="button" variante="secundaria" onClick={aoFechar}>

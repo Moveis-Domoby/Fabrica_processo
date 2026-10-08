@@ -77,6 +77,11 @@ create index if not exists plt_cards_unidade_pedido_sku_idx
   where tipo = 'unidade' and arquivado_em is null and pedido_id is not null;
 create index if not exists plt_estoque_numeros_posicao_idx
   on public.plt_estoque_numeros (posicao) where posicao is not null;
+-- Raio-x 6: a lista das peças livres SEM produto do catálogo (personalizada ou
+-- fora do catálogo — não entram em número nenhum) anda só por elas (cursor por id).
+create index if not exists plt_cards_livre_sem_produto_idx
+  on public.plt_cards (id desc)
+  where tipo = 'unidade' and pedido_id is null and arquivado_em is null and produto_tiny_id is null;
 
 -- ----------------------------------------------------------------------------
 -- 2 · A regra única da peça (M-04 — raio-x 5)
@@ -1188,10 +1193,12 @@ revoke all on function public.plt_fn_estoque_resumo() from public, anon;
 grant execute on function public.plt_fn_estoque_resumo() to authenticated;
 
 -- ----------------------------------------------------------------------------
--- 8 · Raio-x 6: a peça personalizada livre no ESTOQUE ganha lista e baixa (a
---     regra do personalizado: não é o produto do catálogo; casa por SKU +
---     descrição na sugestão do PCP — D-62). Lista por cursor (id), baixa por
---     peça com motivo, pela marca da maquinaria (raio-x 2).
+-- 8 · Raio-x 6: a peça livre no ESTOQUE SEM produto do catálogo — a
+--     personalizada (a regra do personalizado: não é o produto do catálogo;
+--     casa por SKU + descrição na sugestão do PCP — D-62) e a de SKU fora do
+--     catálogo — não entra em número nenhum: ganha lista e baixa. Lista por
+--     cursor (id), baixa por peça com motivo, pela marca da maquinaria
+--     (raio-x 2). A que está numa etapa de DANIFICADO sai pelos Danificados.
 -- ----------------------------------------------------------------------------
 create or replace function public.plt_fn_estoque_personalizadas(
   p_antes_id bigint  default null,
@@ -1214,9 +1221,11 @@ as $$
     select c.id, c.item_codigo, c.item_descricao, c.desde, c.card_pai_id
       from public.plt_cards c
       join public.plt_setores s on s.id = c.setor_atual_id and s.codigo = 'estoque'
+      left join public.plt_etapas e on e.id = c.etapa_atual_id
      where plt_privado.fn_pode_ver_expedicao()
        and c.tipo = 'unidade' and c.pedido_id is null and c.arquivado_em is null
-       and plt_privado.fn_eh_personalizado(c.item_descricao)
+       and c.produto_tiny_id is null
+       and not coalesce(e.eh_danificado, false)
        and (p_antes_id is null or c.id < p_antes_id)
      order by c.id desc
      limit least(greatest(coalesce(p_limite, 20), 1), 100) + 1
@@ -1249,9 +1258,11 @@ begin
   end if;
   select * into v_card from public.plt_cards c where c.id = p_card_id for update;
   if not found or v_card.tipo <> 'unidade' or v_card.pedido_id is not null or v_card.arquivado_em is not null
+     or v_card.produto_tiny_id is not null
      or not exists (select 1 from public.plt_setores s where s.id = v_card.setor_atual_id and s.codigo = 'estoque')
-     or not plt_privado.fn_eh_personalizado(v_card.item_descricao) then
-    raise exception 'Esta peça não é uma peça personalizada livre no ESTOQUE.' using errcode = 'check_violation';
+     or exists (select 1 from public.plt_etapas e where e.id = v_card.etapa_atual_id and e.eh_danificado) then
+    raise exception 'Esta peça não é uma peça livre do ESTOQUE fora do catálogo (personalizada) — a do catálogo sai pela baixa do produto; a danificada, pelos Danificados.'
+      using errcode = 'check_violation';
   end if;
   if nullif(btrim(p_observacao), '') is null then
     raise exception 'Diga o motivo da baixa.' using errcode = 'check_violation';
@@ -1260,7 +1271,8 @@ begin
   perform set_config('plt.estoque_maquinaria', 'on', true);
   insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_origem_id, observacao, dados)
     values (v_card.id, 'card_arquivado', v_usuario, 'interface', v_card.setor_atual_id,
-            btrim(p_observacao), jsonb_build_object('motivo', 'baixa_manual', 'personalizada', true))
+            btrim(p_observacao), jsonb_build_object('motivo', 'baixa_manual', 'fora_do_catalogo', true,
+                                                   'personalizada', plt_privado.fn_eh_personalizado(v_card.item_descricao)))
     returning id into v_evento;
   perform set_config('plt.estoque_maquinaria', coalesce(v_marca, ''), true);
   return v_evento;

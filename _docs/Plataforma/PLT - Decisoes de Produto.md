@@ -1175,6 +1175,15 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Decidido (pedido do dono em 06/10, mapeado no Cowork):** a peça pronta de pedido conta como **"reservada em venda" desde que fica pronta** (no aguardo, ou a peça do estoque reservada pela venda) **até o pedido ser entregue** — inclusive lançada para ROTAS, programada ou no caminhão. Vale em todo número que mostra "reservados" (cartão do Estoque, filtros, Visão do dia, Pedidos em aguardo). ↩️ **D-86:** "reservados em venda = reservadas no galpão + em Pedidos em aguardo" — agora soma a ROTAS até a entrega. Um dono para a regra (M-04): a contagem mora num lugar só e todas as portas a leem.
 
+## D-119 · Os números do estoque ficam PRONTOS no banco; o ranking das vendas anda de madrugada (08/10/2026, Claude — sob a ordem noturna do dono; o dono pode revisar) — ↪️ D-84/D-86/D-118
+
+**Decidido pelo Claude (SESSAO-30, etapa 2 — Lei de Desempenho §6: "projeção pronta para leitura pesada"):**
+
+- **Cada produto tem uma linha com os seus números prontos** — livres no galpão, reservadas pela venda, prontas de pedido (aguardo e ROTAS até a entrega — D-118), em produção para o estoque e de pedido, a última leitura do Tiny. A linha anda **no mesmo gesto** que mexe a peça (entrada, baixa, liberação, movimentação, entrega, cancelamento, leitura do Tiny) — o número na tela é sempre o de agora. **De madrugada** uma recontagem completa confere tudo e corrige qualquer diferença.
+- **As vendas de 90 dias e a posição no ranking (o Top X) são recalculadas de madrugada** (na mesma rotina do mínimo automático) **e na hora em que o Top X, a cobertura ou o corte de pedido grande mudam** em Configurações. Uma venda nova **não** muda a posição do produto no ranking na hora — muda na manhã seguinte. *Por quê:* recalcular 90 dias de vendas de todos os produtos a cada abertura da tela custava segundos; a posição de um produto entre 90 dias de vendas não muda de forma que importe dentro do mesmo dia.
+- **O resumo do galpão é a soma dos cartões** (raio-x 5) — a mesma regra, lida da mesma linha.
+- A peça de estoque **personalizada** (de pedido cancelado, sem produto do catálogo) aparece numa lista própria na tela do Estoque, com o pedido de origem, e tem **baixa com motivo** (raio-x 6).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

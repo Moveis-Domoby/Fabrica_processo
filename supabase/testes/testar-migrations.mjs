@@ -9968,7 +9968,7 @@ await bd.exec(`select public.plt_fn_estoque_movimentar(957001, 'baixa', 1, 'baix
 const depoisBaixa = (await numeros57(957001)).livres
 conferir(depoisBaixa === antesBaixa - 1, 'pela baixa do estoque, sai (e o número anda junto)', JSON.stringify({ antesBaixa, depoisBaixa }))
 
-titulo('SESSAO-30 · raio-x 6: a peça personalizada livre aparece numa lista e tem baixa')
+titulo('SESSAO-30 · raio-x 6: a peça livre fora do catálogo (personalizada) aparece numa lista e tem baixa')
 
 await como57('')
 await bd.exec(`
@@ -9981,12 +9981,27 @@ await bd.exec(`
             '{"motivo": "pedido_cancelado"}'::jsonb);
 `)
 const pers57 = (await um57(`select max(id)::int as id from public.plt_cards`)).id
+// e uma de SKU fora do catálogo (também não entra em número nenhum)
+await bd.exec(`
+  insert into public.plt_cards (tipo, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    values ('unidade', ${pc57}, 8, 'FORA57', 'Painel fora do catálogo 57', 1, 1);
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, dados)
+    values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'estoque'), 'api',
+            '{"motivo": "pedido_cancelado"}'::jsonb);
+`)
+const fora57 = (await um57(`select max(id)::int as id from public.plt_cards`)).id
 await como57(E40.logistica)
 const listaPers = await todos57(`select card_id::int as id, item_descricao, origem_numero from public.plt_fn_estoque_personalizadas(null, 20)`)
 await deveRecusarExec(
   `select public.plt_fn_estoque_baixar_personalizada(${livre57 + 1000000}, 'não existe')`,
-  'a baixa de personalizada só vale para peça personalizada livre no ESTOQUE',
-  /não é uma peça personalizada/i,
+  'a baixa de fora do catálogo só vale para peça livre do ESTOQUE sem produto',
+  /fora do catálogo/i,
+)
+await deveRecusarExec(
+  `select public.plt_fn_estoque_baixar_personalizada((select c.id from public.plt_cards c
+      where c.produto_tiny_id = 957001 and c.pedido_id is null and c.arquivado_em is null order by c.id limit 1), 'é do catálogo')`,
+  'a peça do catálogo não sai por aqui (sai pela baixa do produto)',
+  /fora do catálogo/i,
 )
 await deveRecusarExec(
   `select public.plt_fn_estoque_baixar_personalizada(${pers57}, '  ')`,
@@ -9999,8 +10014,9 @@ const persDepois = await um57(`select arquivado_em is not null as arquivada,
                                  from public.plt_cards where id = ${pers57}`)
 const listaDepois = await todos57(`select card_id::int as id from public.plt_fn_estoque_personalizadas(null, 20) where card_id = ${pers57}`)
 conferir(
-  listaPers.some((l) => l.id === pers57 && l.origem_numero === 957001) && persDepois.arquivada && persDepois.motivo === 'baixa_manual' && listaDepois.length === 0,
-  'a personalizada livre aparece na lista própria (com o pedido de origem) e sai pela baixa (motivo de baixa manual)',
+  listaPers.some((l) => l.id === pers57 && l.origem_numero === 957001) && listaPers.some((l) => l.id === fora57)
+    && persDepois.arquivada && persDepois.motivo === 'baixa_manual' && listaDepois.length === 0,
+  'a personalizada e a de SKU fora do catálogo aparecem na lista própria (com o pedido de origem); a baixa tira a peça (motivo de baixa manual)',
   JSON.stringify({ listaPers, persDepois }),
 )
 

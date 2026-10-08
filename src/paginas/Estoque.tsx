@@ -74,7 +74,9 @@ export function Estoque() {
                   quando o PCP usa a peça num pedido.
                 </span>
                 <span>
-                  Peça com pedido fica em Pedidos em aguardo e não soma aqui. O Tiny vale só para a
+                  Peça com pedido fica em Pedidos em aguardo e não soma aqui: ela conta como{' '}
+                  <strong>reservada em venda</strong> desde que fica pronta até o pedido ser
+                  entregue — inclusive lançada para ROTAS ou já no caminhão. O Tiny vale só para a
                   matéria-prima e os insumos.
                 </span>
                 <span>
@@ -106,7 +108,9 @@ export function Estoque() {
       <div role="tabpanel" id="estoque-painel" aria-labelledby={`estoque-aba-${aba}`}>
         {aba === 'top20' && <PainelTop20 ativo={tenhoAcesso} podeMexer={tenhoAcesso} />}
         {aba === 'insumos' && <PainelInsumos ativo={tenhoAcesso} />}
-        {aba === 'configuracoes' && <PainelConfiguracoes ativo={tenhoAcesso} podeMexer={tenhoAcesso} />}
+        {aba === 'configuracoes' && (
+          <PainelConfiguracoes ativo={tenhoAcesso} podeMexer={tenhoAcesso} />
+        )}
       </div>
     </div>
   )

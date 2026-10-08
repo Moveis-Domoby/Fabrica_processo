@@ -30,7 +30,8 @@ export type GrupoEstoque = 'acabados' | 'insumos'
  * = a lista inteira pelo ranking; 'necessidade' · 'reservados_producao' ·
  * 'com_estoque' são o filtro do topo (D-86). Insumos: 'sem_leitura'.
  */
-export type FiltroEstoque = 'todos' | 'necessidade' | 'reservados_producao' | 'com_estoque' | 'sem_leitura'
+export type FiltroEstoque =
+  'todos' | 'necessidade' | 'reservados_producao' | 'com_estoque' | 'sem_leitura'
 
 /** Onde está o card de reposição mais recente do produto. */
 export type EstadoReposicao = 'no_pcp' | 'em_producao' | 'concluida' | 'arquivada'
@@ -59,7 +60,10 @@ export interface LinhaEstoqueProduto {
   sugestao: number | null
   /** Acabados: a contagem da plataforma (peças livres). Insumos: o Tiny (nunca negativo). */
   em_estoque: number | null
-  /** Reservados em venda: prontos separados para pedidos (aguardo + reservadas no galpão). */
+  /**
+   * Reservados em venda: prontos separados para pedidos — reservadas no galpão
+   * + no aguardo + na ROTAS até a entrega (D-118).
+   */
   reservados_venda: number
   /** D-78: das reservadas em venda, as que ainda estão no galpão. A contagem é física. */
   reservadas_estoque: number
@@ -218,7 +222,11 @@ export interface ResumoEstoque {
 
 export async function resumoEstoque(): Promise<ResumoEstoque | null> {
   const { data, error } = await supabase.rpc('plt_fn_estoque_resumo')
-  const linhas = garantir(data as ResumoEstoque[] | null, error, 'Não deu para carregar o resumo do estoque')
+  const linhas = garantir(
+    data as ResumoEstoque[] | null,
+    error,
+    'Não deu para carregar o resumo do estoque',
+  )
   const r = linhas[0]
   if (!r) return null
   return {
@@ -348,7 +356,12 @@ export async function situacaoTiny(): Promise<SituacaoTiny | null> {
   if (error) throw new Error(`Não deu para ver o sincronismo com o Tiny: ${error.message}`)
   if (!data) return null
   const s = data as SituacaoTiny
-  return { ...s, na_fila: Number(s.na_fila ?? 0), parados: s.parados ?? [], ultimos_ajustes: s.ultimos_ajustes ?? [] }
+  return {
+    ...s,
+    na_fila: Number(s.na_fila ?? 0),
+    parados: s.parados ?? [],
+    ultimos_ajustes: s.ultimos_ajustes ?? [],
+  }
 }
 
 /** Liga (admin): o ponto de partida copia o saldo do Tiny uma vez, produto a produto. */
@@ -389,7 +402,11 @@ export async function listarReservasPresasTiny(opcoes: {
     p_limite: opcoes.limite,
     p_deslocamento: opcoes.deslocamento,
   })
-  const linhas = garantir(data as ReservaPresaTiny[] | null, error, 'Não deu para ver as reservas presas no Tiny')
+  const linhas = garantir(
+    data as ReservaPresaTiny[] | null,
+    error,
+    'Não deu para ver as reservas presas no Tiny',
+  )
   return linhas.map((l) => ({
     ...l,
     saldo_tiny: Number(l.saldo_tiny),
@@ -486,6 +503,44 @@ export async function listarPecasEstoque(parametros: {
   return garantir(data as PecaEstoque[] | null, error, 'Não deu para carregar as peças do estoque')
 }
 
+/**
+ * SESSAO-30 (raio-x 6): a peça livre no ESTOQUE FORA DO CATÁLOGO (a
+ * personalizada e a de SKU que não está no catálogo, de pedido cancelado — não
+ * entra em número de produto). Lista própria por cursor e baixa com motivo.
+ */
+export interface PecaPersonalizada {
+  card_id: number
+  item_codigo: string | null
+  item_descricao: string | null
+  /** O pedido cancelado de onde a peça veio. */
+  origem_numero: number | null
+  desde: string | null
+  tem_mais: boolean
+}
+
+export async function listarPecasPersonalizadas(parametros: {
+  antesId?: number | null
+  limite?: number
+}): Promise<PecaPersonalizada[]> {
+  const { data, error } = await supabase.rpc('plt_fn_estoque_personalizadas', {
+    p_antes_id: parametros.antesId ?? null,
+    p_limite: parametros.limite ?? 20,
+  })
+  return garantir(
+    data as PecaPersonalizada[] | null,
+    error,
+    'Não deu para carregar as peças personalizadas',
+  )
+}
+
+export async function baixarPecaPersonalizada(cardId: number, observacao: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_estoque_baixar_personalizada', {
+    p_card_id: cardId,
+    p_observacao: observacao,
+  })
+  if (error) throw new Error(error.message)
+}
+
 // ---------------------------------------------------------------------------
 // Pedidos em aguardo (D-38/D-45): unidades prontas esperando o pedido completar
 // ---------------------------------------------------------------------------
@@ -520,7 +575,11 @@ export async function listarPedidosAguardo(parametros: {
     p_limite: parametros.limite ?? 20,
     p_deslocamento: parametros.deslocamento ?? 0,
   })
-  return garantir(data as PedidoAguardo[] | null, error, 'Não deu para carregar os pedidos em aguardo')
+  return garantir(
+    data as PedidoAguardo[] | null,
+    error,
+    'Não deu para carregar os pedidos em aguardo',
+  )
 }
 
 /**
