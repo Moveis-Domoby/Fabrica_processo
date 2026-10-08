@@ -194,6 +194,12 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | 11 | ~20 portas por deslocamento (offset) | listas | 32 (30/31 nas que tocarem) |
 | 12 | Presença gravada a cada 5 min por aba aberta | casca | 32 |
 
+**Andamento (SESSAO-30, 08/10):**
+- **#5 estoque — pago em parte.** Os números do estoque ficaram prontos numa linha por produto, mantida no mesmo gesto (D-119). No banco de verdade (tempo do servidor, sem a viagem da rede): lista do Top X **~700 ms → ~21 ms**, busca ~650 → ~21 ms, resumo **~900 → ~13 ms**, configurações ~370 → ~8 ms; lista nova das peças fora do catálogo ~2 ms (índice próprio). Crescer pedidos, peças e eventos **não pesa mais** nessas portas. **Resta (nova dívida 13):** elas ainda montam a página a partir do **catálogo inteiro** — com o catálogo ×100 (53 mil produtos, ensaio de 08/10): lista ~550 ms, busca ~340 ms, resumo ~390 ms, configurações ~125 ms. O catálogo de hoje tem 537 produtos e cresce devagar. **Caminho:** página em duas fases — as chaves da página primeiro, pelo índice da posição na linha pronta (e índice de trigramas para a busca no catálogo, que precisa de OK por ser extensão nova), e as colunas pesadas só para os 20 da página; o resumo como uma linha única mantida no mesmo gesto. Quem paga: 32.
+- **#1 relógios — Estoque (Top X):** ainda com o relógio de 30 s — sai na etapa 6 da 30 (aviso por websocket).
+
+| 13 | Portas do estoque montam a página a partir do catálogo inteiro (O(catálogo)) — ver o andamento acima | estoque | 32 |
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes
