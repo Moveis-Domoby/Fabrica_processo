@@ -67,7 +67,7 @@ export function PecasPersonalizadas({
           )}
           {!isPending && !isError && pecas.length === 0 && (
             <p className="text-sm text-texto-suave">
-              Nenhuma peça personalizada parada no ESTOQUE.
+              Nenhuma peça fora do catálogo parada no ESTOQUE.
             </p>
           )}
           {pecas.length > 0 && (

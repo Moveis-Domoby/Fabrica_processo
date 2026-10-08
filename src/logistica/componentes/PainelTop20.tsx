@@ -212,7 +212,7 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
         aoMovimentar={(operacao) => produtoAberto && movimentar(produtoAberto, operacao)}
       />
       <ModalLancarReposicao
-        key={lancando?.tiny_id ?? 'fechado'}
+        key={lancando?.tiny_id ?? 'lancar-fechado'}
         produto={lancando}
         aoFechar={() => setLancando(null)}
       />
