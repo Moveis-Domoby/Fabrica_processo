@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQueries,
   useQuery,
@@ -9,30 +10,44 @@ import {
 } from '@tanstack/react-query'
 import {
   AlertTriangle,
+  Archive,
   Ban,
   Boxes,
+  CheckSquare,
   Clock,
   Eye,
   Inbox,
+  ListChecks,
   OctagonAlert,
   PackageOpen,
   PackagePlus,
   PackageX,
   Plus,
   Search,
+  Square,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Dica, Modal, useNotificacao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { ehSuperAdmin } from '@/autenticacao/tipos'
+import { cn } from '@/lib/cn'
+import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
 import {
+  ajustarPedidosPcp,
   buscarCardsPedidoPcp,
   buscarSetores,
   itensDoPedido,
-  pedidosResumo,
   reposicoesResumo,
+  todosPedidosPcp,
   unidadesDoPedido,
 } from '@/kanban/api'
-import type { ReposicaoResumo } from '@/kanban/api'
-import type { PedidoResumo } from '@/kanban/tipos'
+import type { AcaoAjustePedido, ReposicaoResumo, ResultadoAjustePedido } from '@/kanban/api'
+import type { PedidoTodosPcp } from '@/kanban/tipos'
+import {
+  AJUSTES_PEDIDO,
+  ROTULO_SITUACAO_PLATAFORMA,
+  pedidosPorExtenso,
+  textoDoTotal,
+} from '@/kanban/situacaoPlataforma'
 import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { corDaSituacao, pedidoCancelado, pedidoEntregue } from '@/kanban/situacao'
@@ -70,6 +85,27 @@ export function PCP() {
 
   const souAdmin = perfil?.papel === 'admin'
   const souDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
+  // SESSAO-30 (D-117): o super admin marca pedidos (nas abas "aguardando
+  // liberação" e "todos") e muda a situação deles na plataforma ou arquiva —
+  // nada vai ao Tiny. Marcados: pedido_id → número (para a confirmação).
+  const souSuperAdmin = ehSuperAdmin(perfil)
+  const [selecionando, setSelecionando] = useState(false)
+  const [selecionados, setSelecionados] = useState<Map<number, number>>(() => new Map())
+  function alternarSelecao(pedidoId: number, numero: number) {
+    setSelecionados((atual) => {
+      const novo = new Map(atual)
+      if (novo.has(pedidoId)) novo.delete(pedidoId)
+      else novo.set(pedidoId, numero)
+      return novo
+    })
+  }
+  function marcarVarios(pedidos: { pedidoId: number; numero: number }[]) {
+    setSelecionados((atual) => {
+      const novo = new Map(atual)
+      for (const p of pedidos) novo.set(p.pedidoId, p.numero)
+      return novo
+    })
+  }
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPcp = setores.find((s) => s.codigo === 'pcp')
@@ -240,9 +276,24 @@ export function PCP() {
             </span>
           </Dica>
         </div>
-        <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
-          Novo card de pedido
-        </Botao>
+        <div className="flex flex-wrap gap-2">
+          {souSuperAdmin && (
+            <Botao
+              variante={selecionando ? 'primaria' : 'secundaria'}
+              icone={<ListChecks />}
+              aria-pressed={selecionando}
+              onClick={() => {
+                setSelecionando((s) => !s)
+                setSelecionados(new Map())
+              }}
+            >
+              {selecionando ? 'Sair da seleção' : 'Selecionar pedidos'}
+            </Botao>
+          )}
+          <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
+            Novo card de pedido
+          </Botao>
+        </div>
       </div>
 
       <Abas
@@ -303,17 +354,43 @@ export function PCP() {
 
       {aba === 'todos' && (
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-todos">
-          <PainelTodosPedidos />
+          <PainelTodosPedidos
+            selecionando={selecionando}
+            selecionados={selecionados}
+            aoAlternar={alternarSelecao}
+            aoMarcarVarios={marcarVarios}
+          />
         </div>
       )}
 
       {aba === 'quadro' && (
       <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-quadro" className="flex flex-col gap-6">
       <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
-        <h2 className="text-lg">
-          Aguardando liberação{' '}
-          <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg">
+            Aguardando liberação{' '}
+            <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
+          </h2>
+          {selecionando && cardsPedidoAbertos.length > 0 && (
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              icone={<CheckSquare />}
+              onClick={() =>
+                marcarVarios(
+                  cardsPedidoAbertos
+                    .filter((c) => c.pedido_id !== null)
+                    .map((c) => ({
+                      pedidoId: c.pedido_id as number,
+                      numero: pedidosPorId.get(c.pedido_id as number)?.numero ?? 0,
+                    })),
+                )
+              }
+            >
+              Marcar os {cardsPedidoAbertos.length} da tela
+            </Botao>
+          )}
+        </div>
 
         {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
         {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
@@ -334,7 +411,14 @@ export function PCP() {
                 className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4"
               >
                 <header className="flex items-baseline justify-between gap-2">
-                  <span className="font-semibold text-texto tabular-nums">
+                  <span className="flex items-center gap-1 font-semibold text-texto tabular-nums">
+                    {selecionando && card.pedido_id !== null && (
+                      <CaixaSelecao
+                        marcado={selecionados.has(card.pedido_id)}
+                        rotulo={`Selecionar o pedido ${resumo?.numero ?? ''}`}
+                        aoAlternar={() => alternarSelecao(card.pedido_id as number, resumo?.numero ?? 0)}
+                      />
+                    )}
                     Pedido {resumo?.numero ?? '…'}
                   </span>
                   <span
@@ -431,6 +515,14 @@ export function PCP() {
         />
       </section>
       </div>
+      )}
+
+      {souSuperAdmin && selecionando && (
+        <BarraAjustePedidos
+          selecionados={selecionados}
+          aoLimpar={() => setSelecionados(new Map())}
+          aoTerminar={() => setSelecionados(new Map())}
+        />
       )}
 
       {setorPcp && (
@@ -575,40 +667,52 @@ function formatarDataPedido(iso: string | null): string {
 
 /**
  * Rodada de 30/09 — a aba TODOS OS PEDIDOS: a lista completa dos pedidos da
- * integração (aguardando, liberados e encerrados), com busca e páginas no
- * servidor (regra 17), pela porta de resumo que já existia. Só leitura — os
- * gestos moram nas outras abas.
+ * integração (aguardando, liberados e encerrados), com busca no servidor.
+ * SESSAO-30 (regra 18): por CURSOR — cada página pede só os 20 seguintes ao
+ * último número já mostrado (a porta antiga calculava os 5.400 pedidos antes
+ * de cortar: 3,2 s na 1ª página); a busca espera a pessoa parar de digitar;
+ * cada linha diz também onde o pedido está NA PLATAFORMA. O super admin
+ * marca pedidos aqui (D-117).
  */
-function PainelTodosPedidos() {
+function PainelTodosPedidos({
+  selecionando,
+  selecionados,
+  aoAlternar,
+  aoMarcarVarios,
+}: {
+  selecionando: boolean
+  selecionados: Map<number, number>
+  aoAlternar: (pedidoId: number, numero: number) => void
+  aoMarcarVarios: (pedidos: { pedidoId: number; numero: number }[]) => void
+}) {
   const [busca, setBusca] = useState('')
-  const [paginas, setPaginas] = useState(1)
-  const [detalhe, setDetalhe] = useState<PedidoResumo | null>(null)
-  const consultas = useQueries({
-    queries: Array.from({ length: paginas }, (_, pagina) => ({
-      queryKey: ['pcp-todos', busca, pagina],
-      queryFn: () =>
-        pedidosResumo({
-          busca: busca.trim() || undefined,
-          limite: TODOS_POR_PAGINA,
-          deslocamento: pagina * TODOS_POR_PAGINA,
-        }),
-      placeholderData: keepPreviousData,
-    })),
+  const buscaAdiada = useDebouncedValue(busca.trim(), 300)
+  // Lei de desempenho (§3): busca só com 2 letras ou mais — 1 letra lista tudo.
+  const buscaValida = buscaAdiada.length >= 2 ? buscaAdiada : ''
+  const [detalhe, setDetalhe] = useState<PedidoTodosPcp | null>(null)
+  const consulta = useInfiniteQuery({
+    queryKey: ['pcp-todos', buscaValida],
+    queryFn: ({ pageParam }) =>
+      todosPedidosPcp({
+        busca: buscaValida || undefined,
+        antesNumero: pageParam,
+        limite: TODOS_POR_PAGINA,
+      }),
+    initialPageParam: null as number | null,
+    getNextPageParam: (ultima) =>
+      ultima.length > 0 && ultima[0].tem_mais ? ultima[ultima.length - 1].numero : undefined,
+    placeholderData: keepPreviousData,
   })
-  const linhas = consultas.flatMap((c) => c.data ?? [])
-  const total = Number(
-    consultas[consultas.length - 1]?.data?.[0]?.contagem_total ??
-      consultas[0]?.data?.[0]?.contagem_total ??
-      0,
-  )
-  const carregando = consultas.some((c) => c.isPending)
-  const carregandoMais = consultas[consultas.length - 1]?.isFetching ?? false
+  const linhas = useMemo(() => consulta.data?.pages.flat() ?? [], [consulta.data])
+  const total = consulta.data?.pages[0]?.[0]?.contagem_total ?? null
+  const selecionaveis = linhas.filter((p) => p.card_id !== null)
 
   return (
     <section aria-label="Todos os pedidos" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-lg">
-          Todos os pedidos <span className="text-texto-suave tabular-nums">({total})</span>
+          Todos os pedidos{' '}
+          {total !== null && <span className="text-texto-suave tabular-nums">({textoDoTotal(total)})</span>}
         </h2>
         <div className="w-full max-w-md">
           <Campo
@@ -616,32 +720,53 @@ function PainelTodosPedidos() {
             prefixo={<Search />}
             placeholder="Número do pedido ou nome do cliente"
             value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value)
-              setPaginas(1)
-            }}
+            onChange={(e) => setBusca(e.target.value)}
           />
         </div>
       </div>
 
-      {carregando && <p className="text-sm text-texto-fraco">Carregando…</p>}
-      {!carregando && linhas.length === 0 && (
+      {selecionando && selecionaveis.length > 0 && (
+        <div>
+          <Botao
+            variante="fantasma"
+            tamanho="sm"
+            icone={<CheckSquare />}
+            onClick={() => aoMarcarVarios(selecionaveis.map((p) => ({ pedidoId: p.pedido_id, numero: p.numero })))}
+          >
+            Marcar os {selecionaveis.length} da tela
+          </Botao>
+        </div>
+      )}
+
+      {consulta.isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
+      {!consulta.isPending && linhas.length === 0 && (
         <p className="flex items-center gap-2 rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
           <Inbox aria-hidden className="size-5 shrink-0" />
-          Nenhum pedido{busca.trim() ? ' para esta busca' : ''}.
+          Nenhum pedido{buscaValida ? ' para esta busca' : ''}.
         </p>
       )}
 
       <ul className="flex flex-col divide-y divide-borda rounded-dm-lg border border-borda bg-superficie">
         {linhas.map((p) => (
-          <LinhaPedidoResumo key={p.pedido_id} pedido={p} aoAbrir={() => setDetalhe(p)} />
+          <LinhaPedidoResumo
+            key={p.pedido_id}
+            pedido={p}
+            aoAbrir={() => setDetalhe(p)}
+            selecao={
+              selecionando && p.card_id !== null
+                ? { marcado: selecionados.has(p.pedido_id), aoAlternar: () => aoAlternar(p.pedido_id, p.numero) }
+                : undefined
+            }
+          />
         ))}
       </ul>
 
       <MaisAoRolar
-        temMais={linhas.length < total}
-        carregando={carregandoMais}
-        aoChegar={() => setPaginas((p) => p + 1)}
+        temMais={consulta.hasNextPage}
+        carregando={consulta.isFetchingNextPage}
+        aoChegar={() => {
+          if (!consulta.isFetchingNextPage) void consulta.fetchNextPage()
+        }}
       />
 
       <ModalPedidoProducao pedido={detalhe} aoFechar={() => setDetalhe(null)} />
@@ -660,17 +785,39 @@ function SituacaoTiny({ situacao }: { situacao: string | null }) {
   )
 }
 
-function LinhaPedidoResumo({ pedido, aoAbrir }: { pedido: PedidoResumo; aoAbrir: () => void }) {
+/** SESSAO-30 (D-117): onde o pedido está NA PLATAFORMA — texto, nunca só cor (M-12). */
+function SituacaoNaPlataforma({ situacao }: { situacao: PedidoTodosPcp['situacao_plataforma'] }) {
+  return (
+    <span className="rounded-full border border-borda px-2 py-0.5 text-xs text-texto">
+      <span className="sr-only">Na plataforma: </span>
+      {ROTULO_SITUACAO_PLATAFORMA[situacao]}
+    </span>
+  )
+}
+
+function LinhaPedidoResumo({
+  pedido,
+  aoAbrir,
+  selecao,
+}: {
+  pedido: PedidoTodosPcp
+  aoAbrir: () => void
+  selecao?: { marcado: boolean; aoAlternar: () => void }
+}) {
   // Visual do dono (30/09): pedido ENTREGUE mostra tudo liberado — conclusão
   // visual; o número real continua nas outras telas.
   const liberadas = pedidoEntregue(pedido.situacao) ? pedido.total_unidades : pedido.unidades_liberadas
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
+    <li className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2', selecao?.marcado && 'bg-superficie-sutil')}>
+      {selecao && (
+        <CaixaSelecao marcado={selecao.marcado} rotulo={`Selecionar o pedido ${pedido.numero}`} aoAlternar={selecao.aoAlternar} />
+      )}
       <span className="font-semibold text-texto tabular-nums">Pedido {pedido.numero}</span>
       <span className="min-w-0 flex-1 truncate text-sm text-texto-suave">
         {pedido.cliente_nome || 'Sem cliente'} · {formatarDataPedido(pedido.data_pedido)}
       </span>
       <SituacaoTiny situacao={pedido.situacao} />
+      <SituacaoNaPlataforma situacao={pedido.situacao_plataforma} />
       <span className="text-sm text-texto tabular-nums">
         {pedido.total_unidades > 0
           ? `${liberadas}/${pedido.total_unidades} liberadas`
@@ -689,6 +836,182 @@ function LinhaPedidoResumo({ pedido, aoAbrir }: { pedido: PedidoResumo; aoAbrir:
   )
 }
 
+/** A caixinha de marcar do super admin — alvo de 44 px (D-06), estado em ícone + texto acessível. */
+function CaixaSelecao({ marcado, rotulo, aoAlternar }: { marcado: boolean; rotulo: string; aoAlternar: () => void }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={marcado}
+      aria-label={rotulo}
+      onClick={aoAlternar}
+      className={cn(
+        '-my-2 -ml-2 flex size-11 shrink-0 items-center justify-center rounded-dm transition-colors hover:bg-superficie-sutil',
+        marcado ? 'text-texto' : 'text-texto-suave',
+      )}
+    >
+      {marcado ? <CheckSquare aria-hidden className="size-5" /> : <Square aria-hidden className="size-5" />}
+    </button>
+  )
+}
+
+/**
+ * SESSAO-30 (D-117): a barra do super admin com os pedidos marcados — mudar a
+ * situação na plataforma (Concluído · Em rota · Entregue) ou arquivar. Confirma
+ * antes; o resultado volta pedido a pedido (o que não deu, com o porquê). O
+ * Tiny não muda (resposta do dono, 08/10).
+ */
+function BarraAjustePedidos({
+  selecionados,
+  aoLimpar,
+  aoTerminar,
+}: {
+  selecionados: Map<number, number>
+  aoLimpar: () => void
+  aoTerminar: () => void
+}) {
+  const notificar = useNotificacao()
+  const clienteQuery = useQueryClient()
+  const [ajuste, setAjuste] = useState<AcaoAjustePedido | ''>('')
+  const [confirmando, setConfirmando] = useState<AcaoAjustePedido | null>(null)
+  const [observacao, setObservacao] = useState('')
+  const [resultados, setResultados] = useState<ResultadoAjustePedido[] | null>(null)
+  const quantos = selecionados.size
+
+  const mutacao = useMutation({
+    mutationFn: (acao: AcaoAjustePedido) =>
+      ajustarPedidosPcp({ pedidoIds: [...selecionados.keys()], acao, observacao }),
+    onSuccess: async (lista) => {
+      const feitos = lista.filter((r) => r.feito).length
+      setConfirmando(null)
+      setObservacao('')
+      setAjuste('')
+      if (feitos < lista.length) setResultados(lista)
+      notificar({
+        titulo: feitos === 1 ? '1 pedido ajustado' : `${feitos} pedidos ajustados`,
+        descricao:
+          feitos < lista.length
+            ? `${pedidosPorExtenso(lista.length - feitos)} ficaram como estavam — veja o porquê.`
+            : undefined,
+        tom: feitos < lista.length ? 'atencao' : 'perfeito',
+      })
+      aoTerminar()
+      await Promise.all([
+        clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['pcp-todos'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['pedidos-resumo'] }),
+      ])
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para ajustar os pedidos',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
+  const numeros = [...selecionados.values()].sort((a, b) => a - b)
+  const explicacao =
+    confirmando === 'arquivar'
+      ? 'Os pedidos e as peças deles somem das telas da plataforma (a história fica, e dá para trazer de volta).'
+      : AJUSTES_PEDIDO.find((a) => a.valor === confirmando)?.explica ?? ''
+  const tituloConfirmar =
+    confirmando === 'arquivar'
+      ? `Arquivar ${pedidosPorExtenso(quantos)}?`
+      : `Marcar ${pedidosPorExtenso(quantos)} como "${AJUSTES_PEDIDO.find((a) => a.valor === confirmando)?.rotulo ?? ''}"?`
+
+  return (
+    <>
+      <div
+        role="region"
+        aria-label="Pedidos marcados"
+        className="sticky bottom-3 z-30 flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-3 shadow-lg sm:flex-row sm:items-end"
+      >
+        <p className="text-sm font-medium text-texto sm:mb-3 sm:min-w-32">
+          {quantos === 0 ? 'Marque os pedidos' : `${pedidosPorExtenso(quantos)} marcado${quantos === 1 ? '' : 's'}`}
+        </p>
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
+          <Selecao
+            rotulo="Mudar a situação para"
+            opcoes={AJUSTES_PEDIDO.map((a) => ({ valor: a.valor, rotulo: a.rotulo }))}
+            valor={ajuste || undefined}
+            aoMudar={(v) => setAjuste(v as AcaoAjustePedido)}
+            placeholder="Escolha…"
+            className="sm:max-w-56"
+          />
+          <Botao disabled={quantos === 0 || ajuste === ''} onClick={() => ajuste && setConfirmando(ajuste)}>
+            Aplicar
+          </Botao>
+          <Botao
+            variante="perigo"
+            icone={<Archive />}
+            disabled={quantos === 0}
+            onClick={() => setConfirmando('arquivar')}
+          >
+            Arquivar
+          </Botao>
+          <Botao variante="fantasma" disabled={quantos === 0} onClick={aoLimpar}>
+            Desmarcar
+          </Botao>
+        </div>
+      </div>
+
+      <Modal
+        aberto={confirmando !== null}
+        aoFechar={(v) => !v && !mutacao.isPending && setConfirmando(null)}
+        titulo={tituloConfirmar}
+        descricao="Ajuste da plataforma — o Tiny não muda."
+        rodape={
+          <>
+            <Botao variante="fantasma" disabled={mutacao.isPending} onClick={() => setConfirmando(null)}>
+              Voltar
+            </Botao>
+            <Botao
+              variante={confirmando === 'arquivar' ? 'perigo' : 'primaria'}
+              carregando={mutacao.isPending}
+              onClick={() => confirmando && mutacao.mutate(confirmando)}
+            >
+              {confirmando === 'arquivar' ? 'Sim, arquivar' : 'Sim, aplicar'}
+            </Botao>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-texto">{explicacao}</p>
+          <p className="text-sm text-texto-suave tabular-nums">
+            {numeros.slice(0, 30).join(' · ')}
+            {numeros.length > 30 ? ` · e mais ${numeros.length - 30}` : ''}
+          </p>
+          <Campo
+            rotulo="Por quê (opcional)"
+            placeholder="Fica na auditoria"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        aberto={resultados !== null}
+        aoFechar={(v) => !v && setResultados(null)}
+        titulo="O que ficou como estava"
+        descricao="Os outros pedidos foram ajustados."
+      >
+        <ul className="flex flex-col gap-2 text-sm">
+          {(resultados ?? [])
+            .filter((r) => !r.feito)
+            .map((r) => (
+              <li key={r.pedido_id} className="flex flex-col">
+                <span className="font-medium text-texto tabular-nums">Pedido {r.numero ?? '—'}</span>
+                <span className="text-texto-suave">{r.resultado}</span>
+              </li>
+            ))}
+        </ul>
+      </Modal>
+    </>
+  )
+}
+
 /**
  * O detalhe de PRODUÇÃO do pedido (rodada do dono, 30/09): busca só ao abrir e
  * ESQUECE ao fechar (gcTime 0 — nada fica no cache), pelas portas que já
@@ -698,7 +1021,7 @@ function ModalPedidoProducao({
   pedido,
   aoFechar,
 }: {
-  pedido: PedidoResumo | null
+  pedido: PedidoTodosPcp | null
   aoFechar: () => void
 }) {
   const agora = useAgora()

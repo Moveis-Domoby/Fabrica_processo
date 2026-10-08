@@ -114,6 +114,40 @@ export interface PedidoResumo {
   contagem_total: number
 }
 
+/**
+ * SESSAO-30 (D-117): onde o pedido está NA PLATAFORMA (a situação do Tiny é
+ * outra coisa — vem em `situacao`).
+ */
+export type SituacaoPlataforma =
+  | 'sem_card'
+  | 'pcp'
+  | 'producao'
+  | 'aguardo'
+  | 'em_rota'
+  | 'entregue'
+  | 'arquivado'
+
+/**
+ * Linha de plt_fn_pcp_todos_pedidos — a aba "Todos os pedidos" do PCP por
+ * cursor (regra 18): `tem_mais` diz se há outra página; `contagem_total` só
+ * vem na primeira (com teto de 10.000).
+ */
+export interface PedidoTodosPcp {
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  data_pedido: string | null
+  data_prevista: string | null
+  situacao: string | null
+  total_unidades: number
+  unidades_liberadas: number
+  alterado_apos_liberacao: boolean
+  card_id: number | null
+  situacao_plataforma: SituacaoPlataforma
+  tem_mais: boolean
+  contagem_total: number | null
+}
+
 /** Linha de plt_fn_pedido_itens_kanban — item já traduzido em unidades (k/n). */
 export interface ItemKanban {
   seq: number

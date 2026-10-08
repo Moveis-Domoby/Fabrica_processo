@@ -10,6 +10,7 @@ import type {
   ItemKanban,
   PaginaDeCards,
   PedidoResumo,
+  PedidoTodosPcp,
   QualidadePendente,
   Setor,
   UnidadePedido,
@@ -179,6 +180,53 @@ export async function pedidosResumo(filtro: FiltroPedidos = {}): Promise<PedidoR
     p_deslocamento: filtro.deslocamento ?? 0,
   })
   return garantir(data as PedidoResumo[] | null, error, 'Não deu para carregar os pedidos')
+}
+
+/**
+ * SESSAO-30 (regra 18): a aba "Todos os pedidos" do PCP por CURSOR — o número
+ * do último pedido da página anterior (nulo = a primeira). A porta corta a
+ * página antes de contar as unidades (a antiga levava 3,2 s na 1ª página).
+ */
+export async function todosPedidosPcp(filtro: {
+  busca?: string
+  antesNumero?: number | null
+  limite?: number
+}): Promise<PedidoTodosPcp[]> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_todos_pedidos', {
+    p_busca: filtro.busca ?? null,
+    p_antes_numero: filtro.antesNumero ?? null,
+    p_limite: filtro.limite ?? 20,
+  })
+  return garantir(data as PedidoTodosPcp[] | null, error, 'Não deu para carregar os pedidos')
+}
+
+/** SESSAO-30 (D-117): o que o super admin faz com os pedidos marcados no PCP. */
+export type AcaoAjustePedido = 'concluido' | 'em_rota' | 'entregue' | 'arquivar'
+
+export interface ResultadoAjustePedido {
+  pedido_id: number
+  numero: number | null
+  feito: boolean
+  /** Já em língua de gente — o que foi feito, ou por que não deu. */
+  resultado: string
+}
+
+/**
+ * O PCP do super admin (D-117): concluído · em rota · entregue · arquivar,
+ * para até 300 pedidos numa chamada — um resultado por pedido (o que não deu
+ * vem explicado e não segura os outros). Nada vai ao Tiny.
+ */
+export async function ajustarPedidosPcp(parametros: {
+  pedidoIds: number[]
+  acao: AcaoAjustePedido
+  observacao?: string
+}): Promise<ResultadoAjustePedido[]> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_ajustar_pedidos', {
+    p_pedido_ids: parametros.pedidoIds,
+    p_acao: parametros.acao,
+    p_observacao: parametros.observacao?.trim() || null,
+  })
+  return garantir(data as ResultadoAjustePedido[] | null, error, 'Não deu para ajustar os pedidos')
 }
 
 export async function itensDoPedido(pedidoId: number): Promise<ItemKanban[]> {

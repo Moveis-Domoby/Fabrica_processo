@@ -775,12 +775,20 @@ begin
     return next;
   end loop;
 
-  -- D-40: o gesto inteiro numa linha da trilha (cada evento já grava a sua).
+  -- D-40: o gesto inteiro numa linha da trilha (cada evento já grava a sua) —
+  -- em língua de gente (os números dos pedidos; os ids ficam só para a máquina).
   insert into public.plt_logs_atividade (usuario_id, acao, rota, contexto)
     values (v_usuario, 'pcp_pedidos_ajustados', '/fabrica/producao/pcp',
-            jsonb_build_object('acao', p_acao, 'pedidos', to_jsonb(v_ids),
-                               'feitos', v_feitos, 'nao_feitos', v_falhas,
-                               'observacao', v_obs));
+            jsonb_build_object(
+              'ajuste', case p_acao when 'concluido' then 'Concluído'
+                                    when 'em_rota'   then 'Em rota'
+                                    when 'entregue'  then 'Entregue'
+                                    else 'Arquivar' end,
+              'pedidos', (select coalesce(jsonb_agg(p.numero order by p.numero), '[]'::jsonb)
+                            from public.pedidos p where p.id = any (v_ids)),
+              'pedido_ids', to_jsonb(v_ids),
+              'feitos', v_feitos, 'nao_feitos', v_falhas,
+              'observacao', v_obs));
 end;
 $$;
 

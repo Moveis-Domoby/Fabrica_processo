@@ -9672,9 +9672,15 @@ conferir(
   'pedido cancelado no Tiny não é concluído (explicado) e o outro do lote segue normalmente',
   JSON.stringify({ cancel56, p7unid }),
 )
-const trilha56 = await um56(`select count(*)::int as n, max(contexto ->> 'acao') filter (where contexto ->> 'acao' = 'concluido') as acao
+const trilha56 = await um56(`select count(*)::int as n,
+                                    max(contexto ->> 'ajuste') filter (where contexto ->> 'ajuste' = 'Concluído') as ajuste,
+                                    bool_or(contexto -> 'pedidos' @> '[956003]'::jsonb) as tem_numero
                                from public.plt_logs_atividade where acao = 'pcp_pedidos_ajustados'`)
-conferir(trilha56.n >= 5 && trilha56.acao === 'concluido', 'cada ajuste do super admin deixa uma linha na trilha (com a ação)', JSON.stringify(trilha56))
+conferir(
+  trilha56.n >= 5 && trilha56.ajuste === 'Concluído' && trilha56.tem_numero,
+  'cada ajuste do super admin deixa uma linha na trilha, em língua de gente (o ajuste e os números dos pedidos)',
+  JSON.stringify(trilha56),
+)
 
 titulo('SESSAO-30 · "Todos os pedidos" do PCP por cursor, com a situação na plataforma')
 

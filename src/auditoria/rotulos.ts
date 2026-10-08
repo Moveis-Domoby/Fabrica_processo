@@ -107,6 +107,7 @@ export const ROTULO_ACAO: Record<string, string> = {
   etiqueta_adicionada: 'Pôs uma etiqueta no card',
   etiqueta_removida: 'Tirou uma etiqueta do card',
   card_desarquivado: 'Trouxe o card de volta',
+  pcp_pedidos_ajustados: 'Ajustou pedidos no PCP (super admin)',
   etiqueta_criada: 'Cadastrou uma etiqueta',
   etiqueta_editada: 'Alterou uma etiqueta',
   etiqueta_arquivada: 'Arquivou uma etiqueta',
@@ -166,6 +167,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'peca_alocada',
       'id_producao_definido',
       'card_desarquivado',
+      'pcp_pedidos_ajustados',
     ],
   },
   {
@@ -370,6 +372,12 @@ const CHAVES: Record<string, string> = {
   esperas_paradas: 'Esperas interrompidas',
   paradas: 'Paradas na rota',
   automatica: 'Voltou à ordem sugerida',
+  // SESSAO-30 (D-117): o ajuste do super admin no PCP
+  ajuste: 'Ajuste',
+  pedidos: 'Pedidos',
+  feitos: 'Feitos',
+  nao_feitos: 'Não feitos',
+  observacao: 'Observação',
 }
 /** Chaves que só servem à máquina (ids) — não vão para a tela. */
 function ehChaveDeMaquina(chave: string): boolean {
