@@ -104,6 +104,24 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 
 **Ordem combinada:** (1) zerar a plataforma — regra "entregue no Tiny fecha tudo", limpeza com prévia, seletor de situação e arquivar em massa no PCP, 502 → (2) estoque (números prontos, reservado até a entrega, raio-x) → (3) PCP numa chamada → (4) entregue nos dois lados (n8n bifurcado, desfazer, não entregue, devolvido, motivos) → (5) entregador (tipo de usuário, equipe do caminhão, detalhe da entrega, tela, comprovante) → (6) ao vivo, listas, ensaio completo e o pedido real.
 
+## Etapa 1 — zerar a plataforma (08/10)
+
+**Banco — migration 56 `20261008120000_plt_entregue_fecha_tudo.sql`** (só funções; nenhuma tabela, nenhuma coluna; reaplicável):
+- `fn_validar_api` recriada por inteiro (a partir da 51): `pedido_entregue` sem pessoa só passa com a flag `plt.entrega_maquinaria` (M-14).
+- `plt_privado.fn_fechar_tempo_aberto(card, obs)` — movimentação para a fila do setor, origem `api` (a receita da manutenção de 27/09).
+- `plt_privado.fn_fechar_pedido(card, usuario, origem, obs, fonte)` — **a regra única de "entregue"** (M-04): entrega uma vez; cada peça viva → tempo fechado + `card_arquivado` motivo `entregue` (com `entrega_evento_id`); peça do estoque reservada pela venda → `card_arquivado` motivo `venda` (não vai ao Tiny — regra do `fn_tiny_estoque_marcar`); card do pedido que nunca foi às ROTAS → `card_arquivado` (sai do PCP); o lançado fica (registro em ROTAS → Entregas / Já programadas). Card arquivado sem nada vivo → nada.
+- `fn_reagir_pedido` recriada por inteiro a partir da **migration 25** (a versão viva — E-24): virou "Entregue" (normalizado — E-25) → `fn_fechar_pedido(card, null, 'api', 'Entregue no Tiny.', 'tiny')`.
+- Super admin: `fn_concluir_pedido` (viva → aguardo por `movimentacao_setor` origem `api` com o super admin como autor; faltante → nasce no aguardo, usando a peça reservada pela venda quando há — `peca_alocada` reservada, sem Tiny), `fn_arquivar_pedido` (peças e card; reserva desfeita motivo `pedido_arquivado` — não vai ao Tiny), porta **`plt_fn_pcp_ajustar_pedidos(ids[], acao, obs)`** (≤ 300, subtransação por pedido, um resultado por pedido, 1 linha `pcp_pedidos_ajustados` na trilha com o ajuste e os NÚMEROS dos pedidos).
+- **`plt_fn_pcp_todos_pedidos(busca, antes_numero, limite)`** — cursor pelo número (índice único de `pedidos.numero`), página cortada antes das laterais, `situacao_plataforma`, `tem_mais`, total com teto de 10.000 só na 1ª página; gate da logística.
+- Harness: bloco 56 (21 verificações) + 2 testes antigos atualizados para a regra nova (S23: "a unidade segue viva" → ↩️ D-113 nenhuma fica viva; D-75: o caso "encerrado com peça por liberar" passou a ser montado com "Não entregue", o 924300). **770 ✔, 2 rodadas, integração intacta.**
+
+**Tela:** PCP — botão "Selecionar pedidos" (só super admin), caixinha de 44 px nos cards de "aguardando liberação" e nas linhas de "Todos os pedidos" (só pedido com card), "Marcar os N da tela", barra fixa com "Mudar a situação para" (Concluído · Em rota · Entregue) + Aplicar + Arquivar + Desmarcar, confirmação com o que acontece e "por quê (opcional)", modal com o que ficou como estava. "Todos os pedidos": `useInfiniteQuery` por cursor, busca adiada 300 ms e só com 2+ letras, rótulo "Na plataforma: …". Auditoria: "Ajustou pedidos no PCP (super admin)" + rótulos do contexto. `tsc` ✔ · lint ✔ · `npm test` 146 ✔ · build ✔ (JS principal 1.852,72 kB / 505,71 kB gzip — a divisão por tela é da S32).
+
+**Limpeza — `supabase/manutencao/2026-10-08_fechar_pedidos_entregues_no_tiny.sql`** (prévia no topo; fecha com `fn_fechar_pedido` fonte `tiny`; arquiva a 502).
+
+**Ensaio A-11 no banco real (08/10 ~04:15 UTC, migration 56 + limpeza numa transação → ROLLBACK, script no scratchpad):** 287 pedidos fechados · 285 entregas novas (2 já tinham) · 277 arquivamentos motivo `entregue` (13 peças + 264 cards do PCP) · 1 tempo aberto fechado (13272, MONTAGEM) · 502 arquivada · **0 avisos no sino · fila do estoque do Tiny intocada** · sobra 0 peça viva e 0 card no PCP de pedido entregue. Porta nova "Todos os pedidos": **11 ms no banco** (EXPLAIN ANALYZE; ~100 ms com a ida e volta daqui), busca "silva" ~130 ms com a ida e volta, 2ª página ~107 ms (a antiga: 3,2 s). 1ª chamada fria 2 s (compilação + leitura de disco na transação de ensaio).
+- **Dívida registrada (busca por nome com volume ×100):** a busca por nome varre `clientes` com `ilike` — rápida hoje (~5.500 pedidos); com ×100 pediria índice de trigramas em `clientes` (tabela da integração — só com o OK do dono). A página sem busca e por número continua no índice.
+
 ## Retrato complementar (08/10, só leitura, depois das respostas)
 
 - **Volumes:** o cadastro do Tiny da fábrica tem `produtos.raw->>'qtd_volumes'` (o pedido não traz volume). Acabados ativos: 166 com 1, **12 com 2**, 84 vazios/0 (contar como 1).
