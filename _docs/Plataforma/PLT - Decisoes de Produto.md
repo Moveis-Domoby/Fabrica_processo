@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-10-02
+atualizado: 2026-10-08
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -272,6 +272,8 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 
 ## D-33 · ROTAS dentro da plataforma; ClickUp não recebe mais nada (28/08/2026) — ↩️ revisa a D-05
 
+**↩️ revisada em 2026-10-08 (D-113):** a entrega passa a ir e voltar do Tiny pelo n8n — o fluxo do ClickUp ganha um segundo ramo (plataforma → Tiny) e o Tiny "Entregue" fecha o pedido aqui. O ClickUp só avisa, nunca recebe.
+
 **Decidido (palavras do dono):** *"rotas será criado aqui dentro também, então nada deve ser pensado mais em criar coisa no ClickUp; n8n também não vai jogar nada aqui por enquanto, já temos todos os dados que precisamos para as rotas da forma que o n8n joga pra gente"*.
 
 - A **ponte ROTAS → ClickUp morre antes de nascer**: nenhuma integração nova cria nada no ClickUp.
@@ -359,6 +361,8 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 ## D-45 · Logística e ROTAS: unidade pronta, lançamento, ID de produção, danificados, programação e metas completas (01/09/2026, registrada em 08/09)
 
 **↩️ revisada em 2026-09-27 (D-58):** "unidade pronta" = chegou a um dos três fins de linha; o lançamento move as unidades de Pedidos em aguardo para as ROTAS (não mais do ESTOQUE).
+
+**↩️ revisada em 2026-10-08 (D-113/D-115):** registrar a entrega deixa de ser só interno — vai ao Tiny, volta do Tiny, fecha as peças, e o entregador entrega, desfaz, marca "não entregue" ou "devolvido" pela tela dele.
 
 **Decidido (respostas do dono no início da SESSAO-15, em 01/09; a D-44 pertence à frente do backfill — cofre de Pedidos entregues):**
 
@@ -802,6 +806,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-86 · Reservados: o cartão mostra TUDO que está em produção; a NECESSIDADE conta só o que vem para o estoque; reservados em venda é um número só; a bolinha vermelha leva à decisão do PCP (30/09/2026)
 
+**↩️ revisada em 2026-10-08 (D-118):** "reservados em venda" inclui a peça lançada para ROTAS (programada, no caminhão) até o pedido ser entregue.
+
 **Decidido (respostas 3, 5 e 6 do dono em 30/09):**
 
 - **Reservados para produção (o número do cartão)** = a reposição parada no PCP (dentro do prazo) + TODAS as unidades em produção — as sem dono a caminho do estoque (inclusive peça de pedido cancelado — resposta 3) **e os móveis de pedidos** (o exemplo do dono: PCP recusou a peça do estoque e mandou produzir → "1 reservado para produção"). Aparece para todo produto, mesmo fora do Top X.
@@ -1123,6 +1129,51 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - A resposta do serviço fica no **registro da função** (sem o endereço — dado pessoal).
 
 **Descartadas:** buscar o endereço no navegador de quem usa (o ritmo e a identificação que o serviço exige não se garantem lá); serviço pago com chave.
+
+## D-113 · "Entregue" é um fato só, dos dois lados — e entregue no Tiny fecha TUDO do pedido aqui (08/10/2026) — ↩️ revisa a D-33 e a D-45
+
+**Decidido (respostas do dono no início da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]], 06/10 no Cowork e 08/10 na sessão):**
+
+- *"Se está entregue no Tiny, aqui deve estar como entregue também; para ser entregue no Tiny é porque a peça do pedido não existe mais no galpão e não deve mais estar nada referente a ele em aberto aqui."* → o Tiny ficou "Entregue" (aviso de venda ou conferência das 3h) = a plataforma registra a entrega sozinha (assinada "Sistema", origem Tiny) e **fecha tudo do pedido, onde a peça estiver** — PCP, produção (o tempo aberto é fechado antes), aguardo, ROTAS. Nada volta ao Tiny. ↩️ A recomendação do Claude era avisar e uma pessoa decidir — o dono escolheu fechar.
+- **Marcou entregue na plataforma → o Tiny fica "Entregue" na hora** (o banco chama o n8n só quando há entrega — sem relógio); a entrega vale aqui na hora, o Tiny vai depois se estiver fora do ar.
+- **Os caminhos (resposta 8 — *"coloque um fluxo bifurcado"*):** Tiny → plataforma (pelo fluxo de vendas que já existe); ClickUp → Tiny → plataforma (o fluxo antigo do ClickUp continua ligado); plataforma → Tiny (caminho novo no MESMO fluxo do ClickUp, como um segundo ramo). **O ClickUp só avisa, nunca recebe.** O fluxo antigo **não será desligado por enquanto** — a equipe ainda dá a entrega pelo ClickUp.
+- **Desfazer (resposta 6):** quem desfaz é **o entregador**, só as entregas **do dia**, escolhendo um **motivo** (D-116); o Tiny volta junto para a situação de antes, na hora.
+- **As peças entregues saem de toda conta** (estoque, reservas, ROTAS ativa, Visão do dia) e ficam no histórico — por evento, nada se apaga.
+- ↩️ **D-33** ("a automação ROTAS entregue → Tiny em produção não se toca"; "a plataforma nunca lê do Tiny"): a entrega agora vai e volta do Tiny pelo n8n. ↩️ **D-45**: a entrega deixa de ser só um registro interno.
+
+## D-114 · Cancelado ou devolvido com o móvel pronto vai SOZINHO para o estoque — inclusive da ROTAS e do caminhão; o marcador "Devolvido" do Tiny vale como cancelamento (08/10/2026) — ↪️ D-61
+
+**Decidido (respostas 2 e 1a/2 do dono, 08/10):** *"Se o pedido for cancelado ou devolvido e o móvel já estiver montado, não tem essa de logística confirmar, o produto automaticamente já deve ir para o estoque."*
+
+- Peça pronta de pedido cancelado — no aguardo (como já era, D-61), **na ROTAS, programada ou no caminhão** — vai ao **ESTOQUE sem dono**, sem confirmação de ninguém.
+- **Devolvido no Tiny = o marcador "Devolvido"** (resposta do dono): a plataforma reage a ele como ao cancelamento.
+- **"Pedido devolvido" marcado pelo entregador** (D-115): o móvel volta ao ESTOQUE sem dono aqui e **o Tiny não muda** (resposta 1a — devolução mexe com dinheiro e nota fiscal; o comercial trata lá).
+
+## D-115 · O entregador: usuário só de ROTAS, a tela das entregas do dia, a equipe de cada caminhão e o card com volumes (08/10/2026) — ↪️ D-39/D-109/D-111
+
+**Decidido (respostas 3 e 4 do dono, 08/10):**
+
+- **Login próprio** (o sistema de login muda no futuro). Na criação de usuário existe o tipo **ROTAS (entregador)**: ele vê **só a tela das entregas do dia** — nada mais da plataforma.
+- **Quem programa a rota escolhe quem a recebe** — **um ou mais usuários** por caminhão naquele dia (decidido pelo Claude: quem pode programar, ou seja, logística e admin; o dono disse *"algum admin irá liberar o caminhão para ele"*).
+- **A tela:** mini mapa da rota do dia; os pedidos na ordem de entrega (a ordem salva da rota — do mais perto ao mais longe); o card de ROTAS → Entregas que já existe (*"já sana bem todos os dados"*), ajustado para celular e tablet, com: cliente, nº do pedido, **quantidade de VOLUMES** (≠ produtos — o cadastro do Tiny diz quantos volumes cada produto tem; vazio conta 1), endereço, observações do pedido e o **detalhe da entrega** (escrito ao programar ou em "Já programadas" — ex.: "cliente só pode receber depois das 10h"), a lista de produtos; botões **Comentário · Entregue · Não entregue · Pedido devolvido · Anexar comprovante · WhatsApp · Mapa**.
+- **Entregue** abre um painel em cima com o **comprovante de pagamento** (PDF, Word, imagem e outros formatos de comprovante) e uma **observação** — os dois **opcionais** (resposta 4: não é obrigatório). Anexar comprovante também existe **fora da entrega** (um botão no card, a qualquer hora — entendimento do Claude, dito ao dono).
+
+## D-116 · Motivos de "não entregue" e de "desfazer a entrega" em Configurações → Utilitários (08/10/2026) — ↪️ D-101
+
+**Decidido (resposta 5 do dono):** "Não entregue" pede um **motivo escolhido numa lista**; os motivos se cadastram **em Configurações, junto de etiquetas e campos customizados**; já nascem vários, curtos (*"Cliente estava ausente", "Endereço errado", "Caminhão quebrou", "Entrega reagendada"*…). Não entregue → o pedido volta para "Programar" (as peças continuam na ROTAS; o Tiny não muda). O desfazer da entrega (D-113) também escolhe motivo de uma lista própria.
+
+## D-117 · PCP do super admin: seletor de situação do pedido e arquivar em massa — sem mexer no Tiny (08/10/2026)
+
+**Decidido (resposta 7 do dono + resposta 3 de 08/10):** *"pedido entregue no Tiny não deve mais aparecer como aberto para o PCP; deve ter a opção de mudar status do pedido já diretamente pelo PCP, um botão simples de selecionar status do pedido, 'entregue, em rota, concluído', esse botão deve ser apenas para super admin; coloque também um botão de seleção em massa … eu preciso dela zerada"*.
+
+- **Só o super admin.** **Concluído** = as peças ficam prontas e o pedido vai para Pedidos em aguardo · **Em rota** = lançado para ROTAS · **Entregue** = fecha tudo do pedido (como a D-113).
+- **Não mexe no Tiny** (resposta do dono: *"não mexe"*) — é arrumação da plataforma.
+- **Seleção em massa** para arquivar (e para a mesma troca de situação). Tudo por evento, com o super admin como autor e o porquê; arquivado se traz de volta (D-102).
+- A peça 502 (teste, danificada) é arquivada (resposta 7).
+
+## D-118 · Reservados em venda até a ENTREGA (06/10/2026, Cowork; registrada em 08/10) — ↩️ revisa a D-86
+
+**Decidido (pedido do dono em 06/10, mapeado no Cowork):** a peça pronta de pedido conta como **"reservada em venda" desde que fica pronta** (no aguardo, ou a peça do estoque reservada pela venda) **até o pedido ser entregue** — inclusive lançada para ROTAS, programada ou no caminhão. Vale em todo número que mostra "reservados" (cartão do Estoque, filtros, Visão do dia, Pedidos em aguardo). ↩️ **D-86:** "reservados em venda = reservadas no galpão + em Pedidos em aguardo" — agora soma a ROTAS até a entrega. Um dono para a regra (M-04): a contagem mora num lugar só e todas as portas a leem.
 
 ## Ver também
 

@@ -81,4 +81,30 @@ Acesso ao ClickUp **funciona** nesta sessão. As 6 tarefas da demanda estão em 
 
 ## Perguntas levadas ao dono (08/10)
 
-As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada — resposta registrada aqui quando vier.
+As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
+
+## Respostas do dono (08/10) — palavras dele, resumidas só onde não muda o sentido
+
+1. *"Se está entregue no Tiny, aqui deve estar como entregue também; para ser entregue no Tiny é porque a peça do pedido não existe mais no galpão e não deve mais estar nada referente a ele em aberto aqui."* → Tiny "Entregue" fecha TUDO do pedido aqui, onde a peça estiver (produção, aguardo, ROTAS, PCP). ↩️ minha recomendação era avisar.
+2. *"Se o pedido for cancelado ou devolvido e o móvel já estiver montado, não tem essa de logística confirmar, o produto automaticamente já deve ir para o estoque."*
+3. Entregador: login próprio; *"iremos cadastrar ele apenas como ROTAS, então rotas deve ser uma permissão na criação de usuário"*; a única coisa que ele vê é a tela das entregas do dia; quem programa a rota **define quais usuários recebem a rota (mais de um por vez)**; **mini mapa**; pedidos na ordem de entrega (do mais perto ao mais longe); botões por pedido: **Comentário · Entregue · Não entregue · Pedido devolvido · WhatsApp · endereço no mapa · lista de produtos**; o card mostra cliente, nº do pedido, **quantidade de VOLUMES** (≠ produtos — no Tiny há produto com mais de um volume, montado na entrega), endereço e **observações** — inclusive um **detalhe da entrega** cadastrado ao programar o caminhão ou em "Já programadas" (ex.: "cliente só pode receber depois das 10h"). O card atual de ROTAS → Entregas (print do 13176) já tem os dados: *"coloque apenas o botão e ajuste a visualização para tablet e celular"*. **Entregue** abre um menu em cima para anexar **comprovante de pagamento** (PDF, Word, imagem e outros formatos de comprovante) + **observação opcional**; comprovante **opcional**; e **um botão de anexar fora da entrega também**.
+4. Comprovante **não é obrigatório**.
+5. **Não entregue** com **motivo escolhido numa lista**; os motivos se cadastram em **Configurações, junto de etiquetas e campos customizados**; já semear vários curtos ("Cliente estava ausente", "Endereço errado", "Caminhão quebrou", "Entrega reagendada"…). O pedido volta para "Programar".
+6. **Quem desfaz é o entregador**, e desfaz **no Tiny também** (*"a comunicação deve ser imediata entre os dois"*); **só as entregas do dia**; o desfazer também pede **motivo da lista** (ex.: o cliente ligou para devolver e foram buscar).
+7. Pode arquivar a 502. E: *"revise todos os pedidos que estão em PCP também … pedido entregue no Tiny não deve mais aparecer como aberto para o PCP"*; **no PCP, um seletor simples de status do pedido — "Entregue, Em rota, Concluído" — só para o super admin**; e **seleção em massa para arquivar** (*"eu preciso dela zerada"*).
+8. *"Não vamos desligar por enquanto, coloque um fluxo bifurcado"*: entregue no Tiny → avisa a plataforma; entregue no ClickUp → avisa o Tiny, que avisa a plataforma; entregue na plataforma → avisa o Tiny; o ClickUp só avisa, nunca recebe.
+
+## Respostas da 2ª rodada (08/10) — o OK para codar
+
+*"1a, 2 sim marcador Devolvido, 3 não mexe, 4 cria"* → (1) "Pedido devolvido" pelo entregador não mexe no Tiny; (2) devolução no Tiny = o marcador "Devolvido", reage como o cancelamento; (3) o seletor de situação do PCP não mexe no Tiny; (4) criar a tarefa no ClickUp. Escolhas do Claude aceitas em silêncio: quem programa escolhe a equipe do caminhão (logística e admin); o botão de anexar fora da entrega; comprovante foto/imagem/PDF/Word até 10 MB.
+
+**Decisões registradas:** D-113 (entregue dos dois lados; Tiny entregue fecha tudo; fluxo bifurcado; desfazer pelo entregador) · D-114 (cancelado/devolvido pronto → estoque sozinho, inclusive da ROTAS; marcador "Devolvido") · D-115 (entregador) · D-116 (motivos) · D-117 (PCP do super admin) · D-118 (reservados em venda até a entrega, ↩️ D-86). ↩️ marcas na D-33, D-45, D-86.
+
+**ClickUp (08/10):** criada a tarefa **"Produção - Situação do pedido e arquivar em massa no PCP"** (id 17tya50fm4p, lista PRODUÇÃO, responsável o dono) → **FAZENDO**; **"Rotas - Entregue nos dois lados (plataforma e Tiny)"** → **FAZENDO** (a etapa 1 começa por ela: entregue no Tiny fecha tudo + limpeza).
+
+**Ordem combinada:** (1) zerar a plataforma — regra "entregue no Tiny fecha tudo", limpeza com prévia, seletor de situação e arquivar em massa no PCP, 502 → (2) estoque (números prontos, reservado até a entrega, raio-x) → (3) PCP numa chamada → (4) entregue nos dois lados (n8n bifurcado, desfazer, não entregue, devolvido, motivos) → (5) entregador (tipo de usuário, equipe do caminhão, detalhe da entrega, tela, comprovante) → (6) ao vivo, listas, ensaio completo e o pedido real.
+
+## Retrato complementar (08/10, só leitura, depois das respostas)
+
+- **Volumes:** o cadastro do Tiny da fábrica tem `produtos.raw->>'qtd_volumes'` (o pedido não traz volume). Acabados ativos: 166 com 1, **12 com 2**, 84 vazios/0 (contar como 1).
+- **PCP:** 287 cards de pedido vivos no PCP com o pedido **"Entregue" no Tiny** (275 com peça por liberar, 8 com peça viva — escondidos do quadro desde a S23, mas abertos), 9 cancelados, 1 enviado, 43 "preparando envio".
