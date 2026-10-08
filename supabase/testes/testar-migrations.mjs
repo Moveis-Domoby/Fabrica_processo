@@ -161,6 +161,11 @@ await bd.exec(`
   create trigger teste_pedidos_vendas_madrugada after update on public.pedidos
     for each statement execute function public.teste_vendas_madrugada();
 `)
+// SESSAO-30 (raio-x 3): o PCP só libera para setor de produção, para toda
+// origem. Os cenários antigos montam a peça pronta liberando direto do PCP para
+// o fim de linha (atalho de montagem do teste, de antes da regra): o gatilho
+// fica desligado até o bloco 58, que o liga e prova a regra.
+await bd.exec(`alter table public.plt_eventos disable trigger plt_eventos_validar_saida_pcp`)
 
 titulo('A integração continua intacta?')
 const depois = (await bd.query(RETRATO)).rows.map((r) => r.linha)
@@ -8646,6 +8651,8 @@ const DEPOIS51 = await Promise.all(
 )
 await bd.exec(SQL51)
 for (const sql of DEPOIS51) await bd.exec(sql)
+// (a 58 recria o gatilho do raio-x 3 ligado — os cenários antigos seguem sem ele até o bloco 58)
+await bd.exec(`alter table public.plt_eventos disable trigger plt_eventos_validar_saida_pcp`)
 
 await bd.exec(`
   insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
@@ -9168,6 +9175,7 @@ const antesDeReaplicar = await um51(`select count(*)::int as autos, count(*) fil
                                        from public.plt_automacoes`)
 let reaplicou = true
 try { await bd.exec(SQL51); for (const sql of DEPOIS51) await bd.exec(sql) } catch (erro) { reaplicou = erro.message }
+await bd.exec(`alter table public.plt_eventos disable trigger plt_eventos_validar_saida_pcp`)
 const depoisDeReaplicar = await um51(`select count(*)::int as autos, count(*) filter (where ligada)::int as ligadas from public.plt_automacoes`)
 conferir(
   reaplicou === true && antesDeReaplicar.marcas > 0 && depoisDeReaplicar.autos === antesDeReaplicar.autos
@@ -10070,6 +10078,184 @@ conferir(
 )
 await como57('')
 } // fim do bloco 57
+
+// ============================================================================
+// SESSAO-30 · etapa 3 (migration 58 — raio-x 3 e 4; Lei de Desempenho): a
+// liberação do PCP numa chamada, numa transação, só para setor de produção.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · PCP numa chamada: a janela abre com uma requisição e a liberação é tudo ou nada')
+
+const um58 = async (sql) => (await bd.query(sql)).rows[0]
+const como58 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j58 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const setor58 = async (codigo) => (await um58(`select id::int as id from public.plt_setores where codigo = '${codigo}'`)).id
+await bd.exec(`alter table public.plt_eventos enable trigger plt_eventos_validar_saida_pcp`)
+
+await como58('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+    (958001, 'S58A', 'Rack Teste 58 - Off White', 'F', 'A', 'un'),
+    (958002, 'S58B', 'Painel Teste 58 - Freijó',  'F', 'A', 'un')
+  on conflict (tiny_id) do nothing;
+`)
+await como58(E40.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(958001, 'entrada', 1, 'teste 58')`)
+await como58('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (958001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 958001), 1, 'S58A', 'Rack Teste 58 - Off White', 2),
+    ((select id from public.pedidos where numero = 958001), 2, 'S58B', 'Painel Teste 58 - Freijó', 1),
+    ((select id from public.pedidos where numero = 958001), 3, null, 'Frete cliente', 1);
+`)
+const pc58 = (await um58(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = 958001`)).id
+const [secc, montagem, aguardo, estoque, rotas] = await Promise.all(
+  ['secc', 'montagem', 'aguardo', 'estoque', 'rotas'].map(setor58))
+await como58(E40.logistica)
+const janela = (await um58(`select public.plt_fn_pcp_liberacao(${pc58}) as j`)).j
+const sug58 = janela.sugestoes.find((s) => s.item_seq === 1)
+conferir(
+  janela.itens.length === 2 && janela.itens[0].unidades === 2 && janela.ja_liberadas.length === 0 && sug58?.peca_card_id > 0,
+  'a janela de liberação vem numa requisição: 2 itens (o frete não vira peça), nada liberado, a sugestão do estoque',
+  JSON.stringify(janela),
+)
+
+const unidades58 = async () => (await um58(`select count(*)::int as n from public.plt_cards u
+                                             where u.pedido_id = (select id from public.pedidos where numero = 958001) and u.tipo = 'unidade'`)).n
+for (const [destino, nome] of [[aguardo, 'Pedidos em aguardo'], [estoque, 'o ESTOQUE'], [rotas, 'a ROTAS']]) {
+  await deveRecusarExec(
+    `select public.plt_fn_pcp_liberar(${pc58}, ${j58([{ item_seq: 2, indice_unidade: 1, setor_id: destino }])})`,
+    `liberar direto para ${nome} é recusado (raio-x 3)`,
+    /setor de produção/i,
+  )
+}
+await deveRecusarExec(
+  `select public.plt_fn_pcp_liberar(${pc58}, ${j58([
+    { item_seq: 1, indice_unidade: 2, setor_id: secc },
+    { item_seq: 2, indice_unidade: 1, setor_id: aguardo },
+  ])})`,
+  'uma unidade errada no meio recusa a liberação inteira…',
+  /setor de produção/i,
+)
+const depoisRecusa = await unidades58()
+conferir(depoisRecusa === 0, '…e nada fica pela metade (tudo ou nada)', `unidades criadas: ${depoisRecusa}`)
+const etapaMontagem = (await um58(`select id::int as id from public.plt_etapas where setor_id = ${montagem} and ativa order by ordem limit 1`)).id
+await deveRecusarExec(
+  `select public.plt_fn_pcp_liberar(${pc58}, ${j58([{ item_seq: 2, indice_unidade: 1, setor_id: secc, etapa_id: etapaMontagem }])})`,
+  'a etapa precisa ser do setor escolhido',
+  /não é deste setor/i,
+)
+
+const pedidoLib = [
+  { item_seq: 1, indice_unidade: 1, peca_card_id: sug58.peca_card_id },
+  { item_seq: 1, indice_unidade: 2, setor_id: secc },
+  { item_seq: 2, indice_unidade: 1, setor_id: montagem, etapa_id: etapaMontagem },
+]
+const lib1 = (await um58(`select public.plt_fn_pcp_liberar(${pc58}, ${j58(pedidoLib)}) as r`)).r
+const onde58 = (await bd.query(`
+  select u.item_seq, u.indice_unidade, s.codigo as setor, u.etapa_atual_id::int as etapa,
+         (select count(*)::int from public.plt_eventos e where e.card_id = u.id
+             and e.usuario_id = (select id from public.plt_usuarios where auth_user_id = '${E40.logistica}')) as do_autor
+    from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+   where u.pedido_id = (select id from public.pedidos where numero = 958001) and u.tipo = 'unidade'
+   order by u.item_seq, u.indice_unidade`)).rows
+conferir(
+  lib1.alocadas === 1 && lib1.liberadas === 2 && lib1.ja_liberadas === 0
+    && onde58.map((o) => o.setor).join(',') === 'aguardo,secc,montagem'
+    && onde58[2].etapa === etapaMontagem && onde58.every((o) => o.do_autor >= 1),
+  'numa chamada: a do estoque nasce pronta no aguardo, as outras vão para a SECC e a MONTAGEM (na etapa escolhida), assinadas por quem liberou',
+  JSON.stringify({ lib1, onde58 }),
+)
+const lib2 = (await um58(`select public.plt_fn_pcp_liberar(${pc58}, ${j58(pedidoLib)}) as r`)).r
+conferir(
+  lib2.alocadas === 0 && lib2.liberadas === 0 && lib2.ja_liberadas === 3 && (await unidades58()) === 3,
+  'o toque repetido (ou a rede que volta) não duplica nem dá erro: as 3 já liberadas são puladas',
+  JSON.stringify(lib2),
+)
+
+titulo('SESSAO-30 · raio-x 3 para toda origem: a peça que está no PCP só sai para setor de produção')
+
+await como58('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (958002, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 958002), 1, 'S58B', 'Painel Teste 58 - Freijó', 1);
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, pc.id, 1, 'S58B', 'Painel Teste 58 - Freijó', 1, 1
+      from public.pedidos p join public.plt_cards pc on pc.pedido_id = p.id and pc.tipo = 'pedido' where p.numero = 958002;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards), 'card_criado', ${await setor58('pcp')}, 'api');
+`)
+const noPcp = (await um58(`select max(id)::int as id from public.plt_cards`)).id
+for (const origem of ['api', 'automacao']) {
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+       values (${noPcp}, 'movimentacao_setor', ${await setor58('pcp')}, ${aguardo}, '${origem}')`,
+    `pela ${origem === 'api' ? 'integração' : 'automação'}, do PCP direto para Pedidos em aguardo: recusado`,
+    /setor de produção/i,
+  )
+}
+await bd.exec(`
+  select set_config('plt.ajuste_super_admin', 'on', false);
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    values (${noPcp}, 'movimentacao_setor', ${await setor58('pcp')}, ${aguardo}, 'api');
+  select set_config('plt.ajuste_super_admin', '', false);
+`)
+const ajustado = (await um58(`select s.codigo from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id where c.id = ${noPcp}`)).codigo
+conferir(ajustado === 'aguardo', 'o ajuste do super admin ("Concluído" no PCP) passa', ajustado)
+
+titulo('SESSAO-30 · a reposição libera pela mesma porta (sem pedido, com o produto)')
+
+await bd.exec(`
+  insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
+    values ('reposicao', 958002, 'S58B', 'Painel Teste 58 - Freijó', 2, ${await setor58('pcp')});
+  insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id)
+    values ((select max(id) from public.plt_cards), 'card_criado', 'automacao', ${await setor58('pcp')});
+`)
+const rep58 = (await um58(`select max(id)::int as id from public.plt_cards where tipo = 'reposicao'`)).id
+await como58(E40.logistica)
+const janelaRep = (await um58(`select public.plt_fn_pcp_liberacao(${rep58}) as j`)).j
+await deveRecusarExec(
+  `select public.plt_fn_pcp_liberar(${rep58}, ${j58([{ item_seq: 1, indice_unidade: 1, setor_id: estoque }])})`,
+  'a reposição também não vai direto para o ESTOQUE (estoque fantasma)',
+  /setor de produção/i,
+)
+const libRep = (await um58(`select public.plt_fn_pcp_liberar(${rep58}, ${j58([{ item_seq: 1, indice_unidade: 1, setor_id: secc }])}) as r`)).r
+const unidRep = await um58(`select pedido_id, produto_tiny_id::int as produto, s.codigo as setor
+                              from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+                             where u.card_pai_id = ${rep58} and u.tipo = 'unidade'`)
+const janelaRep2 = (await um58(`select public.plt_fn_pcp_liberacao(${rep58}) as j`)).j
+conferir(
+  janelaRep.itens[0].unidades === 2 && janelaRep.sugestoes.length === 0 && libRep.liberadas === 1
+    && unidRep.pedido_id === null && unidRep.produto === 958002 && unidRep.setor === 'secc'
+    && janelaRep2.ja_liberadas.length === 1,
+  'reposição: 1 de 2 liberada para a SECC, sem pedido e com o produto; a janela mostra a já liberada',
+  JSON.stringify({ janelaRep, libRep, unidRep, janelaRep2 }),
+)
+
+await como58(E40.operador)
+await deveRecusarExec(
+  `select public.plt_fn_pcp_liberar(${pc58}, ${j58([{ item_seq: 2, indice_unidade: 1, setor_id: secc }])})`,
+  'operador de produção não libera (gate da logística)',
+  /gesto do PCP/i,
+)
+await deveRecusarExec(`select public.plt_fn_pcp_liberacao(${pc58})`, 'nem abre a janela de liberação', /gesto do PCP/i)
+await como58('')
+const priv58 = await um58(`
+  select has_function_privilege('anon', 'public.plt_fn_pcp_liberar(bigint, jsonb)', 'execute') as liberar_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_pcp_liberar(bigint, jsonb)', 'execute') as liberar_logado,
+         has_function_privilege('anon', 'public.plt_fn_pcp_liberacao(bigint)', 'execute') as janela_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_validar_saida_pcp()', 'execute') as gatilho_logado`)
+conferir(
+  !priv58.liberar_anon && priv58.liberar_logado && !priv58.janela_anon && !priv58.gatilho_logado,
+  'portas só para quem está logado; a maquinaria fora da API',
+  JSON.stringify(priv58),
+)
+} // fim do bloco 58
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
