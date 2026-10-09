@@ -1196,6 +1196,15 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **PCP → Todos os pedidos** é a casa do pedido entregue. O clique no pedido abre a **janela completa**, numa requisição só (Lei §2/§3): situação na plataforma e no Tiny, marcadores, a entrega (quando, quem, de onde, observação), cliente e endereço com telefone e documento, programação e equipe, **pagamento** (forma, meio, condição, parcelas; as contas a receber e o "pago / em aberto" quando a integração as tem), comprovantes, valores, datas, vendedor, envio e rastreio, nota fiscal, **observações** (a do pedido e a interna), itens com valor e unidades de produção, onde está (ou para onde foi) cada peça e a linha do tempo. **Desfazer a entrega** também pode ser feito dali, no mesmo dia, por quem pode.
 - **Limite conhecido (avisado ao dono):** o "pago / em aberto" de cada parcela vem das contas a receber copiadas do Tiny, e essa cópia parou em 09/09/2026. A janela diz isso com todas as letras quando não há conta copiada. Voltar a copiar as contas a receber é uma frente separada — **decisão do dono**.
 
+## D-121 · "Entregas do dia" é uma aba de ROTAS → Entregas, não um filho do menu (09/10/2026, pedido do dono) — ↪️ D-115/D-36
+
+**Decidido (pedido do dono, 09/10):** *"Entrega do dia não precisa ser uma rota filha, pode ser apenas um filtro/aba dentro de entregas."*
+
+- **ROTAS → Entregas** tem duas abas: **A entregar** (a lista de sempre, o padrão) e **Entregas do dia** (o caminhão de cada dia, parada por parada — a mesma tela do entregador, com "Ver outro dia" e o caminhão). A aba vive no endereço (`?aba=do-dia`), como as abas do PCP e da Programação — o Voltar e o link funcionam.
+- No menu, a seção ROTAS fica com **Entregas** e **Programação**. Quem tinha o endereço antigo das entregas do dia cai direto na aba.
+- **O entregador não muda (D-115):** ele não tem o módulo da fábrica, então continua com a tela própria dele, que é a única que ele vê.
+- Cada aba só pede o que mostra (regra 17): "A entregar" pede a lista; "Entregas do dia" pede o dia — e o código da tela do dia só baixa quando a aba abre.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

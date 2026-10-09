@@ -262,3 +262,13 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 - **Preview (localhost, logado como o dono):** 13470 entregue → janela completa conferida (texto e foto, desktop e celular 375 px sem rolagem lateral; console limpo); ROTAS → Entregas e Já programadas vazias (tudo entregue); Entregas do dia 06/10 "4 de 4 entregues" + lista recolhida com os 4.
 - **Publicado:** 067bb51 → `main` (push pela credencial do gh), Vercel **success**.
 - **Documentos:** D-120 nas decisões; Esquema do Banco (63); Lei (dívida 14 paga); handoff §6 e §9; A-59.
+
+## Ajuste do dono (09/10) — D-121: "Entregas do dia" é aba de Entregas
+
+**Pedido:** "Entrega do dia não precisa ser uma rota filha, pode ser apenas um filtro/aba dentro de entregas" (print do menu de ROTAS com Entregas · Programação · Entregas do dia).
+
+- `Rotas.tsx`: abas `A entregar` | `Entregas do dia` (padrão de `Programacao.tsx`: `useSearchParams`, `?aba=do-dia`, `Abas` + `role="tabpanel"`); a lista e o ao vivo só com "A entregar" aberta; `EntregasDoDia` por `lazy` (pedaço próprio).
+- `EntregasDoDia.tsx`: prop `embutida` (sem o título próprio e sem centralizar).
+- `Layout.tsx`: sai o filho "Entregas do dia" da seção ROTAS (o menu do entregador fica igual).
+- `App.tsx`: `/entregas/do-dia` → `EntregasDoEntregador`: só-entregador vê a tela; os demais vão para `/fabrica/rotas/entregas?aba=do-dia`.
+- tsc 0 · eslint 0 · prettier ok · vitest 152/152 · build ok. Preview conferido (ver handoff §10). Commit 49d6343 → `main`.

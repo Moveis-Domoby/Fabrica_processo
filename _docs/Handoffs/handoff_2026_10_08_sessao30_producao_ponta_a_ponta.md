@@ -110,7 +110,7 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 4. **Configurações → Utilitários → Motivos da entrega** (cadastrar, desligar).
 5. **Configurações → Gestão da equipe → Novo usuário → "Entregador (só ROTAS)"** → entrar com ele: só "Entregas do dia".
 6. **ROTAS → Programação → Já programadas → Equipe** (marcar o entregador no caminhão do dia) e **Detalhe** no pedido → o entregador vê o caminhão, o mapa e o detalhe.
-7. **ROTAS → Entregas:** "Não entregue" (motivo → volta para Programar), "Pedido devolvido" (móveis ao estoque), "Entregue" — e o pedido **some** da ROTAS (D-120). "Desfazer" no mesmo dia: em **Entregas do dia → Entregues hoje** ou na **janela do pedido no PCP**.
+7. **ROTAS → Entregas:** "Não entregue" (motivo → volta para Programar), "Pedido devolvido" (móveis ao estoque), "Entregue" — e o pedido **some** da ROTAS (D-120). "Desfazer" no mesmo dia: na aba **Entregas do dia → Entregues hoje** ou na **janela do pedido no PCP**. "Entregas do dia" é uma **aba** de ROTAS → Entregas para a logística (D-121); o entregador segue com a tela própria.
 9. **PCP → Todos os pedidos → clicar num pedido entregue (ex.: 13470):** a janela completa — entrega, cliente e endereço, pagamento e parcelas, valores, datas, observações, itens, peças e histórico (D-120).
 8. **Ao vivo:** com duas abas abertas, marcar algo numa — a outra atualiza sozinha em ~1 s.
 
@@ -134,3 +134,11 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 - **Conferido no preview com o pedido 13470 (entregue):** situação nos dois lados e marcadores, a entrega (Sistema, observação da limpeza), cliente/endereço/CEP/telefone/e-mail/CPF, programação (06/10, caminhão, parada), pagamento (forma, meio, parcela), valores, datas, vendedor, envio, observação "cliente irá pagar na entrega", item com valor e o histórico; no celular a janela cabe sem rolagem lateral; console sem erro. ROTAS e Já programadas vazias (tudo entregue hoje); Entregas do dia de 06/10: "4 de 4 entregues", lista recolhida com os 4.
 - **⚠️ Situação de pagamento:** o Tiny manda no pedido a forma, o meio e as parcelas; o **"pago / em aberto"** só vem pelas contas a receber copiadas do Tiny — e essa cópia **parou em 09/09/2026**. A janela avisa isso quando não há conta copiada. Voltar a copiar é uma frente separada — **decisão do dono**.
 - A dívida 14 da lei (histórico de entregues na ROTAS por deslocamento) ficou paga: o histórico mora em "Todos os pedidos", que anda por cursor.
+
+## 10. Ajuste do dono (09/10) — "Entregas do dia" vira aba de Entregas (D-121)
+
+> *"Entrega do dia não precisa ser uma rota filha, pode ser apenas um filtro/aba dentro de entregas."*
+
+- **Tela (publicada):** ROTAS → Entregas com as abas **A entregar** | **Entregas do dia** (`?aba=do-dia`); o filho "Entregas do dia" saiu do menu de ROTAS; o endereço antigo leva a logística para a aba; o entregador (sem o módulo da fábrica) continua na tela própria. Sem mudança no banco.
+- **Conferido no preview (dono logado):** as duas abas; a do dia em 06/10 → "4 de 4 entregues" com os 4 recolhidos; menu de ROTAS = Entregas e Programação; o endereço antigo cai na aba; "A entregar" faz 1 requisição e a aba do dia não refaz a da lista; celular 375 px sem rolagem lateral; console limpo. A tela do dia segue pedaço próprio do pacote (14,5 kB / 4,2 kB gz).
+- **Não testado com o login de um entregador** (precisa da senha dele) — a regra que leva o entregador à tela própria não mudou.
