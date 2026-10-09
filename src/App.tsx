@@ -4,6 +4,8 @@ import { Layout } from '@/componentes/Layout'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { ProvedorSessao } from '@/autenticacao/ProvedorSessao'
 import { RotaModulo, RotaProtegida } from '@/autenticacao/guardas'
+import { useSessao } from '@/autenticacao/sessao-contexto'
+import { ehSoEntregador } from '@/autenticacao/tipos'
 import { MeuPainel } from '@/paginas/MeuPainel'
 import { Entrar } from '@/paginas/Entrar'
 import { Convite } from '@/paginas/Convite'
@@ -49,6 +51,21 @@ const Programacao = lazy(() =>
 const EntregasDoDia = lazy(() =>
   import('@/paginas/EntregasDoDia').then((m) => ({ default: m.EntregasDoDia })),
 )
+
+/**
+ * ↪️ D-121 (09/10, pedido do dono): para a logística, "Entregas do dia" virou
+ * aba de ROTAS → Entregas — o endereço antigo leva para lá. A rota própria
+ * ficou só para o ENTREGADOR, que não tem o módulo da fábrica (D-115).
+ */
+function EntregasDoEntregador() {
+  const { perfil } = useSessao()
+  if (!ehSoEntregador(perfil)) return <Navigate to="/fabrica/rotas/entregas?aba=do-dia" replace />
+  return (
+    <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando as entregas…</p>}>
+      <EntregasDoDia />
+    </Suspense>
+  )
+}
 
 /** /producao/{codigo} antigo → /fabrica/producao/{codigo} (bookmark não quebra). */
 function RedirecionarProducaoAntiga() {
@@ -102,18 +119,9 @@ export function App() {
               {/* o chat interno (SESSAO-26): a tela cheia; o balão vive na casca */}
               <Route path="/inicio/chat" element={<Chat />} />
 
-              {/* SESSAO-30 (D-115): as entregas do dia — o entregador (módulo
-                  "entregas") e a logística; o banco decide o que cada um vê */}
-              <Route
-                path="/entregas/do-dia"
-                element={
-                  <Suspense
-                    fallback={<p className="text-sm text-texto-fraco">Carregando as entregas…</p>}
-                  >
-                    <EntregasDoDia />
-                  </Suspense>
-                }
-              />
+              {/* SESSAO-30 (D-115): a casa do entregador (módulo "entregas");
+                  a logística vê a mesma tela como aba de ROTAS → Entregas (D-121) */}
+              <Route path="/entregas/do-dia" element={<EntregasDoEntregador />} />
 
               {/* o modo do galpão: sem navegação nenhuma (D-06/D-28) */}
               <Route path="/tablet" element={<TelaSetor />} />

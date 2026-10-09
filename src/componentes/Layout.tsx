@@ -231,8 +231,7 @@ export function Layout({ children }: { children: ReactNode }) {
               filhos: [
                 { para: '/fabrica/rotas/entregas', rotulo: 'Entregas' },
                 { para: '/fabrica/rotas/programacao', rotulo: 'Programação' },
-                // SESSAO-30 (D-115): a tela do entregador — a logística também abre.
-                { para: ROTA_ENTREGADOR, rotulo: 'Entregas do dia' },
+                // ↪️ D-121: "Entregas do dia" é aba de Entregas — não é filho no menu.
               ],
             },
           ]

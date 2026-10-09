@@ -54,8 +54,12 @@ function dataLonga(iso: string): string {
  * móveis. Por pedido: Comentário · Entregue (com comprovante e observação,
  * opcionais) · Não entregue · Pedido devolvido · Anexar comprovante ·
  * WhatsApp · Mapa. A logística e o admin também abrem (escolhendo o caminhão).
+ *
+ * ↪️ D-121 (09/10, pedido do dono): para a logística, é uma ABA de ROTAS →
+ * Entregas (`embutida` — a aba já diz o nome, sem título próprio); a rota
+ * própria ficou só para o entregador.
  */
-export function EntregasDoDia() {
+export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   const [caminhaoId, setCaminhaoId] = useState<number | null>(null)
   // A logística pode olhar outro dia (o entregador vê sempre o de hoje).
   const [dia, setDia] = useState<string | null>(null)
@@ -84,12 +88,14 @@ export function EntregasDoDia() {
   const caminhao = data?.caminhoes.find((c) => c.id === data.caminhao_id)
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+    <div className={cn('flex w-full max-w-3xl flex-col gap-4', !embutida && 'mx-auto')}>
       <div className="flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-          <Truck aria-hidden className="size-7 shrink-0 text-texto-suave" />
-          Entregas do dia
-        </h1>
+        {!embutida && (
+          <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
+            <Truck aria-hidden className="size-7 shrink-0 text-texto-suave" />
+            Entregas do dia
+          </h1>
+        )}
         {data && (
           <p className="text-sm text-texto-suave first-letter:uppercase">
             {dataLonga(data.data)}
