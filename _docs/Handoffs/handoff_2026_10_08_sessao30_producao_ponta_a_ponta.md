@@ -11,7 +11,7 @@ tags: [handoff, sessao, sessao-30, bloco-6, producao, estoque, rotas, entrega, t
 > [!success] Entregue — as 6 etapas no ar
 > Tudo aplicado no banco e publicado no site ao fim de cada etapa testada (ordem do dono de seguir sem perguntar). **Falta só o que é do dono:** importar o fluxo novo do n8n, ligar "Entregue vai ao Tiny" e fazer a prova com 1 pedido real (passo a passo no fim). Memória técnica completa: [[SESSAO-30]] (`Plataforma/Execucao/SESSAO-30.md`).
 
-**Branch:** `sessao-30-producao-ponta-a-ponta` (nasceu da `main` 16e03e5; cada etapa foi à `main` por avanço direto). **Demanda:** [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]]. **Plano:** [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]]. **Banco:** migrations 56 a 62 (integração do Tiny idêntica em todas). **Bateria do banco:** 770 → **845 verificações, tudo verde**; testes da tela 146 → **152**.
+**Branch:** `sessao-30-producao-ponta-a-ponta` (nasceu da `main` 16e03e5; cada etapa foi à `main` por avanço direto). **Demanda:** [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]]. **Plano:** [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]]. **Banco:** migrations 56 a 63 (integração do Tiny idêntica em todas). **Bateria do banco:** 770 → **848 verificações, tudo verde**; testes da tela 146 → **152**.
 
 ## 1. Objetivo da sessão
 
@@ -110,7 +110,8 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 4. **Configurações → Utilitários → Motivos da entrega** (cadastrar, desligar).
 5. **Configurações → Gestão da equipe → Novo usuário → "Entregador (só ROTAS)"** → entrar com ele: só "Entregas do dia".
 6. **ROTAS → Programação → Já programadas → Equipe** (marcar o entregador no caminhão do dia) e **Detalhe** no pedido → o entregador vê o caminhão, o mapa e o detalhe.
-7. **ROTAS → Entregas:** "Não entregue" (motivo → volta para Programar), "Pedido devolvido" (móveis ao estoque), "Entregue", e "Desfazer" no mesmo dia.
+7. **ROTAS → Entregas:** "Não entregue" (motivo → volta para Programar), "Pedido devolvido" (móveis ao estoque), "Entregue" — e o pedido **some** da ROTAS (D-120). "Desfazer" no mesmo dia: em **Entregas do dia → Entregues hoje** ou na **janela do pedido no PCP**.
+9. **PCP → Todos os pedidos → clicar num pedido entregue (ex.: 13470):** a janela completa — entrega, cliente e endereço, pagamento e parcelas, valores, datas, observações, itens, peças e histórico (D-120).
 8. **Ao vivo:** com duas abas abertas, marcar algo numa — a outra atualiza sozinha em ~1 s.
 
 ## 7. Ficou com o dono
@@ -121,5 +122,15 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 
 ## 8. Pendências técnicas (registradas)
 
-- Lei: dívida 13 (portas do estoque O(catálogo)), 14 (ROTAS/Já programadas entregues por deslocamento), 15 (porta de abertura do Estoque e do PCP), 4 (o entregador ainda baixa a casca inteira) — **SESSAO-32**.
+- Lei: dívida 13 (portas do estoque O(catálogo)), 15 (porta de abertura do Estoque e do PCP), 4 (o entregador ainda baixa a casca inteira) — **SESSAO-32**. A dívida 14 foi paga pela D-120.
 - A SESSAO-31 usa a base de anexos (`plt_anexos` + armário privado) e os comentários (`comentario_adicionado`) desta sessão na janela do card.
+
+## 9. Ajuste do dono (08/10, noite) — o entregue mora no PCP (D-120)
+
+> *"Os pedidos entregues devem sumir das rotas também e moram apenas em PCP com TODAS as informações daquele pedido caso eu clique nele, observações, situação de pagamento e tudo mais."*
+
+- **Banco (migration 63, aplicada; integração idêntica; bloco 63 no ensaio → 848 verdes):** a porta da janela completa do pedido (`plt_fn_pcp_pedido_detalhe`) — tudo numa requisição, só no clique, gate da logística.
+- **Tela (publicada, Vercel ✔):** ROTAS → Entregas só com o que falta entregar (saiu a escolha "Entregues"); Já programadas idem; Entregas do dia tira o entregue da lista e do mapa e guarda numa linha recolhida "Entregues hoje / neste dia" (para desfazer); PCP → Todos os pedidos → clique abre a janela nova (`PedidoCompleto`) com o desfazer do mesmo dia para entrega feita por gente.
+- **Conferido no preview com o pedido 13470 (entregue):** situação nos dois lados e marcadores, a entrega (Sistema, observação da limpeza), cliente/endereço/CEP/telefone/e-mail/CPF, programação (06/10, caminhão, parada), pagamento (forma, meio, parcela), valores, datas, vendedor, envio, observação "cliente irá pagar na entrega", item com valor e o histórico; no celular a janela cabe sem rolagem lateral; console sem erro. ROTAS e Já programadas vazias (tudo entregue hoje); Entregas do dia de 06/10: "4 de 4 entregues", lista recolhida com os 4.
+- **⚠️ Situação de pagamento:** o Tiny manda no pedido a forma, o meio e as parcelas; o **"pago / em aberto"** só vem pelas contas a receber copiadas do Tiny — e essa cópia **parou em 09/09/2026**. A janela avisa isso quando não há conta copiada. Voltar a copiar é uma frente separada — **decisão do dono**.
+- A dívida 14 da lei (histórico de entregues na ROTAS por deslocamento) ficou paga: o histórico mora em "Todos os pedidos", que anda por cursor.
