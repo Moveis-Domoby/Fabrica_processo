@@ -10890,6 +10890,57 @@ conferir(tabela.every((t) => t.ok), `ensaio de ponta a ponta: ${tabela.filter((t
   JSON.stringify(tabela))
 } // fim do bloco 62
 
+// ============================================================================
+// SESSAO-30 · ajuste do dono (D-120, migration 63): o entregue sai da ROTAS e
+// mora no PCP — a janela completa do pedido numa requisição.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · a janela completa do pedido no PCP: pagamento, observações, itens, peças, entrega e histórico')
+
+const um63 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const como63 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+await como63('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (963001, 'S63A', 'Cômoda Janela 63', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem, obs, obs_interna, forma_pagamento, meio_pagamento,
+                              total_produtos, valor_frete, total_pedido, marcadores, parcelas, raw) values
+    (963001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook',
+     'cliente paga na entrega', 'conferir a cor', 'pix', 'Sicredi', 900, 50, 950, array['Instagram'],
+     '[{"parcela": {"data": "10/10/2026", "dias": "0", "valor": "950.00", "forma_pagamento": "pix", "meio_pagamento": "Sicredi", "obs": ""}}]'::jsonb,
+     '{"condicao_pagamento": "à vista", "valor_desconto": "0"}'::jsonb);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade, valor_unitario) values
+    ((select id from public.pedidos where numero = 963001), 1, 'S63A', 'Cômoda Janela 63', 2, 450),
+    ((select id from public.pedidos where numero = 963001), 2, null, 'Frete', 1, 50);
+`)
+const ped63 = (await um63(`select id::int as id from public.pedidos where numero = 963001`)).id
+const pc63 = (await um63(`select id::int as id from public.plt_cards where pedido_id = ${ped63} and tipo = 'pedido'`)).id
+await como63(E40.admin)
+await bd.exec(`select public.plt_fn_pcp_ajustar_pedidos(array[${ped63}]::bigint[], 'concluido', 'teste 63')`)
+await bd.exec(`select public.plt_fn_lancar_rotas(${pc63})`)
+await bd.exec(`select public.plt_fn_card_comentar(${pc63}, 'portão azul')`)
+await bd.exec(`select public.plt_fn_registrar_entrega(${pc63}, 'entregue à vizinha')`)
+await como63(E40.logistica)
+const d63 = (await um63(`select public.plt_fn_pcp_pedido_detalhe(${ped63}) as d`)).d
+conferir(
+  d63.plataforma.situacao === 'entregue' && d63.pedido.obs === 'cliente paga na entrega' && d63.pedido.obs_interna === 'conferir a cor'
+    && d63.pedido.forma_pagamento === 'pix' && d63.pedido.condicao_pagamento === 'à vista' && d63.pedido.parcelas.length === 1
+    && d63.pedido.parcelas[0].valor === '950.00' && d63.pedido.marcadores[0] === 'Instagram'
+    && d63.itens.length === 2 && Number(d63.itens[0].valor_total) === 900 && d63.itens[1].eh_frete === true
+    && d63.unidades.length === 2 && d63.unidades.every((u) => u.motivo_saida === 'entregue')
+    && d63.entrega?.por_gente === true && d63.entrega.observacao === 'entregue à vizinha'
+    && d63.historico.some((h) => h.tipo === 'pedido_entregue') && d63.historico.some((h) => h.tipo === 'comentario_adicionado')
+    && d63.cliente !== null,
+  'numa requisição: situação, pagamento (forma, condição, parcelas), observações, marcadores, itens com valor (frete marcado), as peças que saíram com a entrega, quem entregou e o histórico',
+  JSON.stringify({ plataforma: d63.plataforma, parcelas: d63.pedido.parcelas, itens: d63.itens.length, entrega: d63.entrega }),
+)
+await como63(E40.operador)
+await deveRecusarExec(`select public.plt_fn_pcp_pedido_detalhe(${ped63})`, 'o operador de produção não abre o detalhe do pedido (gate da logística)', /logística/i)
+await como63('')
+const priv63 = await um63(`select has_function_privilege('anon', 'public.plt_fn_pcp_pedido_detalhe(bigint)', 'execute') as anon`)
+conferir(!priv63.anon, 'anônimo fora', JSON.stringify(priv63))
+} // fim do bloco 63
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
