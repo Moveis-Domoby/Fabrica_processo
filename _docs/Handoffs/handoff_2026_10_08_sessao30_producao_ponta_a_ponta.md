@@ -116,7 +116,7 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 
 ## 7. Ficou com o dono
 
-- **Pôr o "Entregue vai ao Tiny" no ar (passo a passo em [[N8N - Plataforma para Tiny (situacao do pedido)]]):** n8n → Import from file → `_docs/Fabrica n8n/domoby-plataforma-tiny-situacao.json` → Publish; Configurações → Caminhões → **Ligar**; registrar a entrega de **1 pedido real** já entregue de verdade e ver o Tiny ficar "Entregue". ⚠️ O fluxo usa o token da conta da **fábrica** (`TINY_FABRICA_TOKEN`); se o 1º teste disser "pedido não encontrado", a conta está trocada.
+- **Ligar o "Entregue vai ao Tiny" ([[N8N - Plataforma para Tiny (situacao do pedido)]]):** ~~importar no n8n~~ — **feito em 09/10 pelo Claude** (dentro da automação do Tiny que já existia, com a chave da **loja** — D-123, §11). Falta: Configurações → Caminhões → **Ligar**; registrar a entrega de **1 pedido real** já entregue de verdade e ver o Tiny ficar "Entregue".
 - **Confirmar:** a cadeira de estoque pelo PCP agora vai pela sugestão "usar?" (↩️ D-63); o ranking das vendas de madrugada (D-119); o marcador "Devolvido" num pedido **já entregue** não traz os móveis de volta ao estoque sozinho (só os vivos) — se quiser que traga, é uma decisão nova.
 - **ClickUp:** desligar o fluxo antigo quando a equipe passar a dar a entrega pela plataforma.
 
@@ -142,3 +142,20 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 - **Tela (publicada):** ROTAS → Entregas com as abas **A entregar** | **Entregas do dia** (`?aba=do-dia`); o filho "Entregas do dia" saiu do menu de ROTAS; o endereço antigo leva a logística para a aba; o entregador (sem o módulo da fábrica) continua na tela própria. Sem mudança no banco.
 - **Conferido no preview (dono logado):** as duas abas; a do dia em 06/10 → "4 de 4 entregues" com os 4 recolhidos; menu de ROTAS = Entregas e Programação; o endereço antigo cai na aba; "A entregar" faz 1 requisição e a aba do dia não refaz a da lista; celular 375 px sem rolagem lateral; console limpo. A tela do dia segue pedaço próprio do pacote (14,5 kB / 4,2 kB gz).
 - **Não testado com o login de um entregador** (precisa da senha dele) — a regra que leva o entregador à tela própria não mudou.
+
+## 11. Ajustes do dono (09/10, madrugada) — as contas a receber de volta (D-122) e o fluxo do n8n no ar (D-123)
+
+> *"traga de volta as contas a receber do Tiny"* → *"Pode, e roda já"* · *"atualizei também a api do n8n… o fluxo que tinha ficado pendente de importação, publique lá, CUIDADO EXTREMO PARA NÃO QUEBRAR OS QUE JÁ EXISTEM, se possível, coloque esses fluxos de tiny dentro de automações já existentes do tiny"*
+
+**Contas a receber (migrations 64 e 65, aplicadas; integração idêntica; ensaio 854 verdes):**
+- Vinham só da carga do histórico (até 09/09). Agora a **conferência das 3h** traz também as contas — a busca das emitidas nos últimos 60 dias + a releitura das que não fecharam; a conta paga/cancelada não é relida. **O fluxo do n8n da fila não mudou.**
+- **1ª rodada (manual, 09/10 00:39 → 01:14):** 614 pedidos relidos (6 diferentes, 1 não encontrado) · **340 contas relidas, 282 novas, 47 que estavam em aberto foram pagas, 19 em aberto**, 0 falhas. Hoje: 6.354 contas, 18 em aberto.
+- Janela do pedido no PCP: "Contas a receber do Tiny (conferidas em …)", **Pago / Em aberto / Pago em parte / Cancelada** (13470: "Pago em 25/09"). Auditoria: a linha das contas em cada rodada.
+- A 65 corrigiu o resumo: "pagas" somava as contas novas já pagas — agora só as que viraram pagas.
+- **Limite:** conta paga que o Tiny estorna depois não é relida sozinha.
+
+**O fluxo Plataforma → Tiny no ar (D-123):**
+- Entrou **dentro** da automação "subir banco de dados --- tiny -> supabase" (a que já liga o Tiny ao banco), como 2ª parte com gatilho próprio — os 8 nós de antes **idênticos** (provado antes e depois de salvar); cópia da versão anterior guardada para voltar.
+- **Corrigido antes de publicar:** o arquivo usava a chave do Tiny da **fábrica**; os pedidos moram na conta da **loja** → `TINY_TOKEN`.
+- Provas: os dois gatilhos responderam a um envio vazio (o novo não chama o Tiny nesse caso); nenhuma execução com erro; a parte antiga releu um pedido de verdade (13625) depois da troca.
+- **Com o dono:** ligar "Entregue vai ao Tiny" (Configurações → Caminhões) e a prova com 1 pedido real.

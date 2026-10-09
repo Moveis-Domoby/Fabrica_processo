@@ -1205,6 +1205,23 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **O entregador não muda (D-115):** ele não tem o módulo da fábrica, então continua com a tela própria dele, que é a única que ele vê.
 - Cada aba só pede o que mostra (regra 17): "A entregar" pede a lista; "Entregas do dia" pede o dia — e o código da tela do dia só baixa quando a aba abre.
 
+## D-122 · As contas a receber voltam do Tiny todo dia, na conferência da madrugada (09/10/2026, pedido do dono) — ↪️ D-50/D-120
+
+**Decidido (pedido do dono, 09/10):** *"traga de volta as contas a receber do Tiny"* — e, perguntado, *"pode, e roda já"*.
+
+- As contas a receber (o "pago / em aberto" de cada parcela) tinham vindo **uma vez só**, na carga do histórico (terminou em 09/09/2026). Agora a **conferência diária com o Tiny (3h)** traz também as contas: a busca das contas **emitidas nos últimos 60 dias** (acha as novas) e a **releitura das que ainda não fecharam** (nem pagas nem canceladas), de qualquer idade — é ela que pega o "pago" do dia. A conta que já fechou no Tiny não é relida (dezenas de chamadas por noite, não centenas).
+- **O fluxo do n8n não mudou** — ele faz no Tiny a busca que a fila manda.
+- A janela do pedido no PCP mostra cada conta como **Pago / Em aberto / Pago em parte / Cancelada**, com a data da última conferência; sem conta e com a conferência em dia, diz que o Tiny não tem conta para o pedido. A Auditoria (super admin) mostra, em cada rodada, quantas contas foram relidas, novas, pagas e em aberto.
+- **Limite conhecido:** conta já paga que o Tiny **estorna** depois não é relida sozinha — se acontecer, reabrir a conta na fila e acordar a fila.
+
+## D-123 · O "Entregue vai ao Tiny" mora dentro da automação do Tiny que já existia (09/10/2026, pedido do dono) — ↪️ D-113
+
+**Decidido (pedido do dono, 09/10):** *"atualizei também a api do n8n para que você possa aplicar fluxos lá, o fluxo que tinha ficado pendente de importação, publique lá, CUIDADO EXTREMO PARA NÃO QUEBRAR OS QUE JÁ EXISTEM, se possível, coloque esses fluxos de tiny dentro de automações já existentes do tiny."*
+
+- O caminho plataforma → Tiny (a entrega registrada deixa o Tiny "Entregue"; desfeita, volta) **não é uma automação nova**: é a 2ª parte, com gatilho próprio, da automação que já liga o Tiny ao banco da fábrica ("subir banco de dados --- tiny -> supabase" — a mesma que traz pedidos e contas toda madrugada). A do ClickUp (que um dia será desligada) não serviu de casa por isso.
+- Usa a chave da **loja** no Tiny (onde moram os pedidos de venda), não a da fábrica — o arquivo de 08/10 estava trocado.
+- No ar desde 09/10 ~01:15; a chave "Entregue vai ao Tiny" segue **desligada** até o dono ligar e fazer a prova com 1 pedido real.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

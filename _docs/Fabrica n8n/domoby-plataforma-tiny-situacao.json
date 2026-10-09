@@ -73,7 +73,7 @@
           "parameters": [
             {
               "name": "token",
-              "value": "={{ $env.TINY_FABRICA_TOKEN }}"
+              "value": "={{ $env.TINY_TOKEN }}"
             },
             {
               "name": "numero",
@@ -164,7 +164,7 @@
           "parameters": [
             {
               "name": "token",
-              "value": "={{ $env.TINY_FABRICA_TOKEN }}"
+              "value": "={{ $env.TINY_TOKEN }}"
             },
             {
               "name": "id",

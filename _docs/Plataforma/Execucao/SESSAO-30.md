@@ -272,3 +272,24 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 - `Layout.tsx`: sai o filho "Entregas do dia" da seção ROTAS (o menu do entregador fica igual).
 - `App.tsx`: `/entregas/do-dia` → `EntregasDoEntregador`: só-entregador vê a tela; os demais vão para `/fabrica/rotas/entregas?aba=do-dia`.
 - tsc 0 · eslint 0 · prettier ok · vitest 152/152 · build ok. Preview conferido (ver handoff §10). Commit 49d6343 → `main`.
+
+## Ajuste do dono (09/10, madrugada) — D-122: as contas a receber de volta
+
+**Pedido:** "traga de volta as contas a receber do Tiny" → (pergunta: aplicar?) **"Pode, e roda já"**.
+
+- **Retrato (só leitura):** `contas_receber` = 6.072 (6.004 pago · 57 aberto · 10 cancelada · 1 parcial), última gravação 10/09 02:12 UTC — vieram SÓ na carga do histórico (`tiny_fila` `cr_pesquisa` 72 + `conta_receber` 6.072, todas `ok` até 10/09). A conferência das 3h (migration 49) enfileira só `pedidos_pesquisa` + `pedido`. O fluxo do n8n `Rzm3N1bKnhsgGfav` ("subir banco de dados --- tiny -> supabase") é genérico: os filtros da busca vão da `params` da fila, palavra por palavra (a carga usou `data_ini_emissao`/`data_fim_emissao`) → **nada a mudar no n8n**.
+- **Migration 64** `20261009120000_plt_contas_receber_de_volta.sql` (gerada de `pg_get_functiondef` por `scratchpad/gerar_m64.py`): iniciar + `cr_pesquisa` `pente-fino-cr:p1` (60 dias de emissão) + releitura das não fechadas; `fn_backfill_aplicar` não reabre conta `pago`/`cancelada` na rodada e guarda `nova`/`situacao_antes`/`situacao`; resumo com `contas`; detalhe do pedido com `contas_receber_ate` pela fila (a da 63 varria `contas_receber` — seq scan; agora 1 linha pelo índice `tiny_fila_chave_uq`, 0,3 ms; o reserva, 5 ms frio).
+- **Ensaio:** bloco 64 (6 verificações) + o bloco 49 antigo passou a tratar a busca das contas da rodada (a página 1 vazia) e a contar só os pedidos nos "não encontrados" → **854 verdes**. A-11 no banco real (transação desfeita): compila; filtro de 100 chaves 8 ms (índice único de `tiny_id`).
+- **Tela:** janela do pedido ("conferidas em", Pago/Em aberto/Pago em parte/Cancelada; sem conta e conferência em dia → "O Tiny não tem conta a receber para este pedido"); Auditoria: linha das contas na rodada. tsc/eslint/prettier ok · vitest 152 · build ok.
+- **Aplicada** (09/10 ~00:39 Natal) com `--so`, integração idêntica; site publicado (7632a92, Vercel success). **Rodada manual** `2026-10-09T00:39:21` iniciada (46 não terminados, 58 contas abertas, n8n chamado).
+- **E-90** registrado (listei `cron.job.command` inteiro — dois comandos antigos trazem a chave pública no cabeçalho).
+- **Rodada manual fechada** 09/10 01:14 (Natal): 614 pedidos (6 mudaram, 1 não encontrado) · contas: 7 páginas de busca, 340 relidas, 282 novas, 19 abertas, 0 falhas; `contas_receber` 6.072 → 6.354 (18 abertas; 2 novas sem pedido ligado). 47 abertas viraram pagas; o resumo dizia "pagas 320" (somava 273 novas já pagas) → **migration 65** `20261009130000_plt_contas_resumo_pagas.sql` (`viraram_pagas`; o `pagas` sai; o resumo gravado fica) — ensaio 854, A-11 = 47, aplicada, 9147162 publicado. Janela do 13470 conferida no preview ("Pago em 25/09/2026"); Auditoria mostra "340 contas a receber relidas · 282 novas · 19 em aberto".
+
+## Ajuste do dono (09/10, madrugada) — D-123: o fluxo Plataforma → Tiny no ar, dentro da automação que existia
+
+- A chave da API do n8n passou a escrever (o dono trocou). OpenAPI do próprio n8n lida (`/api/v1/openapi.yml`): `PUT /workflows/{id}` **republica na hora** se a automação está publicada; `POST /workflows/{id}/activate {versionId}` publica uma versão do histórico (= o caminho de volta); `settings` aceitos são uma lista fechada (`binaryMode`/`timeSavedMode` fora — o servidor manteve os dois).
+- **Conta do Tiny:** `Rzm3N` lê pedidos/contas com `$env.TINY_TOKEN`; o fluxo de vendas e o do ClickUp usam a MESMA chave literal (hash comparado, nunca impresso); o cofre diz `TINY_TOKEN` = conta 1 (Domoby). O arquivo de 08/10 usava `TINY_FABRICA_TOKEN` (conta de produtos/estoque) → trocado no arquivo e no corpo publicado.
+- **Casa escolhida:** `Rzm3N1bKnhsgGfav` (permanente, mesmo padrão banco ↔ n8n ↔ Tiny). Não o do ClickUp (`FY5T…`, que será desligado).
+- `scratchpad/n8n-montar.mjs`: corpo = 8 nós publicados (idênticos — `isDeepStrictEqual`) + 9 nós novos (deslocados x+2788, y+160) + nota adesiva; ligações de antes idênticas; sem colisão de nome/id/caminho. Esperei a rodada fechar. `n8n-publicar.mjs salvar` → PUT 200; publicado = salvo; 18 nós; 8 de antes idênticos; gatilhos `a9564e90…` e `11118300…`.
+- Fumaça: POST `{}` nos dois gatilhos → 200; 0 execuções com erro (o fluxo só guarda execução com erro); pedido 13625 reaberto na fila + `fn_tiny_fila_acordar()` → relido 04:16:00 UTC, `mudou` [], fila vazia.
+- **Cópia de segurança:** `scratchpad/backup_Rzm3N1bKnhsgGfav.json` (+ ClickUp, vendas e estoque) — local, nunca impressa.

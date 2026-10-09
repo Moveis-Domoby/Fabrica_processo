@@ -1,14 +1,17 @@
 ---
 titulo: n8n — Plataforma → Tiny (situação do pedido)
 tipo: workflow
-atualizado: 2026-10-08
+atualizado: 2026-10-09
 tags: [n8n, tiny, rotas, entregue, plataforma, sessao-30]
 ---
 
 # n8n · Plataforma → Tiny (situação do pedido)
 
-**Criado em:** 08/10/2026 (SESSAO-30, etapa 4 — D-113). **Status: pronto para importar — ainda NÃO está no n8n.**
-**Arquivo importável:** `domoby-plataforma-tiny-situacao.json` (nesta pasta — **sem segredo nenhum**: o token do Tiny vem da variável `TINY_FABRICA_TOKEN` do n8n, a mesma do fluxo do estoque; o Supabase, de `SUPABASE_FABRICA_URL`/`SUPABASE_FABRICA_KEY`).
+**Criado em:** 08/10/2026 (SESSAO-30, etapa 4 — D-113). **Status: NO AR desde 09/10/2026 ~01:15 (Natal) — DENTRO da automação existente "subir banco de dados --- tiny -> supabase" (`Rzm3N1bKnhsgGfav`), como uma 2ª parte com gatilho próprio (D-123).** A chave "Entregue vai ao Tiny" continua **desligada** — ligar e a prova com 1 pedido real são do dono.
+**Arquivo de referência:** `domoby-plataforma-tiny-situacao.json` (nesta pasta — **sem segredo nenhum**: o token do Tiny vem da variável **`TINY_TOKEN`** do n8n — a conta 1, da **loja** Domoby, onde moram os pedidos de venda; o Supabase, de `SUPABASE_FABRICA_URL`/`SUPABASE_FABRICA_KEY`).
+
+> [!warning] ↪️ 09/10 — a chave estava trocada no arquivo de 08/10
+> O arquivo nasceu com `TINY_FABRICA_TOKEN` (a conta da **fábrica**, de produtos e estoque). Os pedidos de venda moram na conta da **loja** (`TINY_TOKEN` — a mesma com que a fila lê pedidos e contas todo dia; o fluxo de vendas e o do ClickUp usam a mesma chave, escrita no nó). Com a da fábrica, todo pedido daria "não encontrado". Corrigido no arquivo e no n8n antes de publicar.
 
 > **O que faz:** quando alguém registra a entrega na plataforma (ROTAS → Entregas, e o entregador na SESSAO-30 etapa 5), o Tiny fica **"Entregue"**; quando a entrega do dia é **desfeita**, o Tiny volta para a situação de antes. É o terceiro caminho do "fluxo bifurcado" do dono (resposta 8): Tiny → plataforma (fluxo de vendas, já existia) · ClickUp → Tiny → plataforma (o fluxo antigo, [[N8N - ROTAS Entregue para Tiny]], **intocado**) · **plataforma → Tiny (este)**. O ClickUp só avisa, nunca recebe.
 
@@ -25,10 +28,16 @@ tags: [n8n, tiny, rotas, entregue, plataforma, sessao-30]
 
 `Webhook · situação do pedido` (POST, caminho `11118300-48bf-416f-be4d-95a58d0a106b` — o endereço já está cadastrado em `plt_webhooks`, evento `tiny_pedido_situacao`) → `Validar pedido` → `Tem o id do Tiny?` → (sim) `Tiny · pedido.alterar.situacao` / (não) `Tiny · pedidos.pesquisa` → `Achar o id pelo número` → `Achou?` → `Tiny · pedido.alterar.situacao` → `Montar resposta` → `Supabase · resultado`. Não renomear `Validar pedido` (os códigos o leem pelo nome).
 
-## Para pôr no ar — com o dono (manhã de 08/10)
+## Como entrou no ar (09/10, Claude pela API do n8n — D-123)
 
-1. n8n → **Import from file** → `domoby-plataforma-tiny-situacao.json` → **Publish** (o webhook de produção passa a valer).
-2. ⚠️ **Conferir a conta:** o fluxo do ClickUp usa um token escrito no próprio nó; este usa `TINY_FABRICA_TOKEN`. Os pedidos da plataforma são da conta da **fábrica** (CNPJ 27556613000166) — se o primeiro teste disser "pedido não encontrado", a conta está trocada.
+- A API do n8n passou a escrever (o dono trocou a chave em 09/10). O fluxo **não virou automação nova**: entrou como 2ª parte da "subir banco de dados --- tiny -> supabase" — os **8 nós de antes foram IDÊNTICOS** (comparação automática antes e depois de salvar, ligações também), + os 9 nós daqui (posições abaixo, com uma nota "Plataforma → Tiny") + o gatilho `11118300-…`.
+- ⚠️ Na API do n8n 2.x, **salvar uma automação publicada a republica na hora** — por isso: cópia da versão publicada guardada e o `versionId` anterior anotado para voltar (`POST /workflows/{id}/activate` com o `versionId` antigo — **`4d0b5e79-56f4-43bd-976a-4fba61a6d100`**, a versão só com a fila, de antes de 09/10).
+- Provas: os dois gatilhos responderam 200 a um envio vazio (o novo para em "Validar pedido" — não chama o Tiny); nenhuma execução com erro; a parte antiga releu de verdade um pedido (13625) pela fila depois da troca.
+
+## Para ligar — com o dono
+
+1. ~~Importar e publicar~~ — feito (acima).
+2. ~~Conferir a conta~~ — é a da loja (`TINY_TOKEN`).
 3. Plataforma → Configurações → Caminhões → **Ligar** "Entregue vai ao Tiny".
 4. **A prova com 1 pedido real:** registrar a entrega de um pedido que já foi entregue de verdade → no Tiny ele fica "Entregue" em segundos (e a fila esvazia). Se não, o erro aparece no cartão da chave.
 5. Desfazer (opcional): "Desfazer" na ROTAS com o motivo "Marquei entregue por engano" → o Tiny volta para "Enviado".

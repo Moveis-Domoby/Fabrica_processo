@@ -12,6 +12,8 @@ tags: [n8n, tiny, supabase, backfill, historico]
 > - **Quem chama é o banco**, só quando há linha pendente e nenhum lote em andamento: às 3h a conferência (`plt_privado.fn_tiny_pente_fino_iniciar`) enfileira a busca dos últimos 60 dias + os pedidos não terminados e agenda o relógio da fila, que chama um lote por minuto e **se desagenda** quando a fila esvazia. Fila vazia = nenhuma execução no n8n.
 > - **Reprocessar de propósito** (abaixo) continua valendo, mas depois de reabrir as linhas é preciso acordar a fila: `select plt_privado.fn_tiny_fila_acordar();`
 > - Detalhe: [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] · [[SUPA - Esquema do Banco]] (migration 49).
+> - ↪️ **09/10/2026 (D-122):** a conferência das 3h traz também as **contas a receber** — a busca `cr_pesquisa` das emitidas nos últimos 60 dias (`data_ini_emissao`/`data_fim_emissao`) + a releitura das que não estão pagas nem canceladas. O fluxo do n8n **não mudou** (os filtros vão da fila, palavra por palavra). Migration 64.
+> - ↪️ **09/10/2026 (D-123):** esta automação ganhou uma **2ª parte, com gatilho próprio**: [[N8N - Plataforma para Tiny (situacao do pedido)]] (a plataforma → Tiny "Entregue"/desfazer). A 1ª parte (a fila) ficou idêntica.
 
 > [!abstract] Em uma frase
 > Trazer **todo o histórico da Domoby desde 12/03/2025** — pedidos, contatos,
