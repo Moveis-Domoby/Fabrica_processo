@@ -8643,7 +8643,15 @@ const j51 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
 // O bloco da SESSAO-26 reaplica a migration 38 (que tira o SELECT da tabela e
 // devolve só as colunas DELA) — aqui a 51 é reaplicada, como em produção a
 // ordem garante (38 → 51). No fim do bloco ela roda de novo, já com dados.
-const SQL51 = await readFile(path.join(MIGRATIONS, '20261002120000_plt_automacoes_canvas.sql'), 'utf8')
+// SESSAO-30: a 59 estendeu a lista de fatos (entrega desfeita, não entregue,
+// devolvido) e blocos anteriores já gravaram fatos novos (o marcador
+// "Devolvido" do bloco 49). Em produção a 51 veio antes deles; só na
+// reaplicação do teste a lista dela precisa aceitá-los.
+const SQL51 = (await readFile(path.join(MIGRATIONS, '20261002120000_plt_automacoes_canvas.sql'), 'utf8')).replace(
+  `'card_desarquivado'          -- SESSAO-27 (D-102): o card arquivado voltou`,
+  `'card_desarquivado', 'entrega_desfeita', 'entrega_nao_realizada', 'pedido_devolvido'`,
+)
+if (!SQL51.includes("'entrega_desfeita'")) throw new Error('a lista de fatos da 51 mudou — rever a reaplicação')
 // as migrations DEPOIS da 51 recriam funções dela (a 52 a porta da Auditoria, a 53
 // a trilha dos campos) — reaplicar na ordem de produção, 51 → as seguintes (E-81)
 const DEPOIS51 = await Promise.all(
@@ -10256,6 +10264,260 @@ conferir(
   JSON.stringify(priv58),
 )
 } // fim do bloco 58
+
+// ============================================================================
+// SESSAO-30 · etapa 4 (migration 59 — D-113, D-114, D-116): "Entregue" nos
+// dois lados — a fila do Tiny, desfazer, não entregue, devolvido, motivos.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · motivos de "não entregue" e de "desfazer" (Configurações → Utilitários)')
+
+const um59 = async (sql) => (await bd.query(sql)).rows[0]
+const todos59 = async (sql) => (await bd.query(sql)).rows
+const como59 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+
+await como59(E40.logistica)
+const naoEntregue = await todos59(`select id::int as id, texto from public.plt_fn_motivos('nao_entregue')`)
+const desfazer = await todos59(`select id::int as id, texto from public.plt_fn_motivos('desfazer_entrega')`)
+conferir(
+  naoEntregue.some((m) => m.texto === 'Cliente estava ausente') && naoEntregue.some((m) => m.texto === 'Caminhão quebrou')
+    && desfazer.some((m) => m.texto === 'Cliente ligou para devolver'),
+  'as duas listas já nascem com frases curtas',
+  JSON.stringify({ naoEntregue: naoEntregue.length, desfazer: desfazer.length }),
+)
+await deveRecusarExec(`select public.plt_fn_motivo_salvar(null, 'nao_entregue', 'Chuva forte')`,
+  'só o admin cadastra motivo', /gesto de admin/i)
+await como59(E40.admin)
+const chuva = (await um59(`select public.plt_fn_motivo_salvar(null, 'nao_entregue', 'Chuva forte', 95) as id`)).id
+await deveRecusarExec(`select public.plt_fn_motivo_salvar(null, 'nao_entregue', 'chuva forte')`, 'motivo repetido é recusado', /já existe/i)
+await bd.exec(`select public.plt_fn_motivo_salvar(${chuva}, 'nao_entregue', 'Chuva forte', 95, false)`)
+await como59(E40.logistica)
+const semChuva = await todos59(`select texto from public.plt_fn_motivos('nao_entregue') where texto = 'Chuva forte'`)
+await como59(E40.admin)
+const comChuva = await todos59(`select texto from public.plt_fn_motivos('nao_entregue', true) where texto = 'Chuva forte'`)
+conferir(semChuva.length === 0 && comChuva.length === 1, 'o motivo desligado some da lista do dia a dia e o admin ainda o vê', JSON.stringify({ semChuva, comChuva }))
+const motivo = (t, texto) => (t === 'nao' ? naoEntregue : desfazer).find((m) => m.texto === texto).id
+
+// Pedidos de teste na ROTAS, programados para hoje
+await como59('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (959001, 'S59A', 'Sapateira Teste 59 - Branca', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 59', 'TST5E59');
+`)
+const caminhao59 = (await um59(`select id::int as id from public.plt_caminhoes where placa = 'TST5E59'`)).id
+async function pedidoNaRota(numero, unidades = 1) {
+  await como59('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id) values
+      (${numero}, (select id from public.clientes order by id limit 1), 'Enviado', 'webhook', ${numero}00);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), 1, 'S59A', 'Sapateira Teste 59 - Branca', ${unidades});
+  `)
+  const pc = (await um59(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  for (let k = 1; k <= unidades; k++) {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, ${pc}, 1, 'S59A', 'Sapateira Teste 59 - Branca', ${k}, ${unidades} from public.pedidos p where p.numero = ${numero};
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'aguardo'), 'api');
+    `)
+  }
+  await como59(E40.logistica)
+  await bd.exec(`select public.plt_fn_lancar_rotas(${pc})`)
+  await bd.exec(`select public.plt_fn_programar_entrega(${pc}, (now() at time zone 'America/Fortaleza')::date, ${caminhao59})`)
+  return pc
+}
+const vivas59 = async (numero) => (await um59(`
+  select count(*) filter (where u.arquivado_em is null)::int as vivas,
+         count(*) filter (where u.arquivado_em is null and s.codigo = 'rotas')::int as na_rotas,
+         count(*) filter (where u.arquivado_em is null and s.codigo = 'estoque' and u.pedido_id is null)::int as no_estoque
+    from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+   where u.tipo = 'unidade' and (u.pedido_id = (select id from public.pedidos where numero = ${numero})
+         or (u.pedido_id is null and u.card_pai_id = (select c.id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                                       where c.tipo = 'pedido' and p.numero = ${numero})))`))
+const fila59 = async (numero) => um59(`select situacao, motivo, versao, tentativas, parado_em is not null as parado,
+                                              enviado_em is not null as enviado, ultimo_erro
+                                         from public.plt_tiny_pedido_fila where numero = ${numero}`)
+
+titulo('SESSAO-30 · registrar a entrega na plataforma fecha tudo; com a chave desligada, nada vai ao Tiny')
+
+const pcA = await pedidoNaRota(959001, 2)
+const entregaA = (await um59(`select public.plt_fn_registrar_entrega(${pcA}, 'entregue no teste 59') as e`)).e
+const depoisA = await vivas59(959001)
+const projA = await um59(`select entrega_evento_id::int as e from public.plt_cards where id = ${pcA}`)
+conferir(
+  depoisA.vivas === 0 && projA.e === Number(entregaA) && (await fila59(959001)) === undefined,
+  'as 2 peças saem de toda conta, a entrega vigente fica no card; chave desligada = fila vazia',
+  JSON.stringify({ depoisA, projA, entregaA }),
+)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcA})`, 'a mesma entrega não se registra duas vezes', /já foi registrado/i)
+
+titulo('SESSAO-30 · chave ligada: o "Entregue" vai ao Tiny pela fila (sem relógio, com nova tentativa e disjuntor)')
+
+await deveRecusarExec(`select public.plt_fn_tiny_entrega_ligar(true)`, 'só o super admin liga a chave', /super admin/i)
+await como59(E40.admin)
+const ligada = (await um59(`select public.plt_fn_tiny_entrega_ligar(true) as d`)).d
+await como59(E40.logistica)
+const pcB = await pedidoNaRota(959002)
+await bd.exec(`select public.plt_fn_registrar_entrega(${pcB})`)
+const filaB = await fila59(959002)
+conferir(
+  ligada !== null && filaB?.situacao === 'entregue' && filaB.motivo === 'entregue' && filaB.versao === 1 && filaB.enviado,
+  'ligada: a entrega entra na fila do Tiny como "entregue" e o banco já tentou chamar o n8n',
+  JSON.stringify({ ligada, filaB }),
+)
+await como59('')
+const pedB = (await um59(`select id::int as id from public.pedidos where numero = 959002`)).id
+const erro1 = (await um59(`select public.plt_fn_tiny_pedido_resultado(${pedB}, 1, false, 'Tiny fora do ar') as r`)).r
+const filaB2 = await um59(`select tentativas, proxima_em > now() as adiada, ultimo_erro from public.plt_tiny_pedido_fila where pedido_id = ${pedB}`)
+const velha = (await um59(`select public.plt_fn_tiny_pedido_resultado(${pedB}, 0, true) as r`)).r
+const ok = (await um59(`select public.plt_fn_tiny_pedido_resultado(${pedB}, 1, true) as r`)).r
+const okLog = await um59(`select count(*)::int as n from public.plt_logs_atividade where acao = 'tiny_situacao_alterada' and (contexto ->> 'pedido_id')::bigint = ${pedB}`)
+conferir(
+  erro1.acao === 'nova_tentativa' && filaB2.tentativas === 1 && filaB2.adiada && velha.motivo === 'versao_antiga'
+    && ok.acao === 'ok' && (await fila59(959002)) === undefined && okLog.n === 1,
+  'erro = nova tentativa mais tarde; resposta de versão antiga é ignorada; OK tira da fila e fica na trilha',
+  JSON.stringify({ erro1, filaB2, velha, ok, okLog }),
+)
+
+const pcC = await pedidoNaRota(959003)
+await bd.exec(`select public.plt_fn_registrar_entrega(${pcC})`)
+await como59('')
+const pedC = (await um59(`select id::int as id from public.pedidos where numero = 959003`)).id
+for (let i = 0; i < 8; i++) await bd.exec(`select public.plt_fn_tiny_pedido_resultado(${pedC}, 1, false, 'Pedido não encontrado no Tiny')`)
+const filaC = await fila59(959003)
+const avisoC = await um59(`select count(*)::int as n from public.plt_notificacoes where tipo = 'tiny_pedido_parado'`)
+await como59(E40.admin)
+const situacao59 = (await um59(`select public.plt_fn_tiny_entrega_situacao() as s`)).s
+const reenviou = (await um59(`select public.plt_fn_tiny_entrega_reenviar(${pedC}) as r`)).r
+const filaC2 = await fila59(959003)
+conferir(
+  filaC.parado && filaC.tentativas === 8 && avisoC.n >= 1 && situacao59.parados.some((p) => p.numero === 959003)
+    && reenviou === 'sem_pg_net' && !filaC2.parado && filaC2.tentativas === 0 && filaC2.versao === 2,
+  '8 erros = parado, o super admin é avisado e vê na situação; "mandar de novo" volta à fila com versão nova',
+  JSON.stringify({ filaC, avisoC, parados: situacao59.parados, reenviou, filaC2 }),
+)
+await como59('')
+const pausadoAntes = (await um59(`select plt_privado.fn_tiny_pedido_pausado() as p`)).p
+await bd.exec(`
+  insert into public.plt_tiny_pedido_fila (pedido_id, numero, situacao, motivo, ultimo_erro, tentativas)
+  select p.id, p.numero, 'entregue', 'entregue', 'Tiny fora do ar', 1
+    from public.pedidos p where p.numero between 956001 and 956005
+  on conflict (pedido_id) do nothing;
+  update public.plt_setores set tiny_entrega_ok_em = now() - interval '1 hour' where codigo = 'rotas';
+`)
+const pausadoDepois = (await um59(`select plt_privado.fn_tiny_pedido_pausado() as p`)).p
+const chamadaPausada = (await um59(`select plt_privado.fn_tiny_pedido_chamar(${pedC}) as r`)).r
+conferir(
+  !pausadoAntes && pausadoDepois && chamadaPausada === 'pausado',
+  'disjuntor: 5 pedidos com erro e nenhum OK em 15 min = o banco para de chamar por 15 min',
+  JSON.stringify({ pausadoAntes, pausadoDepois, chamadaPausada }),
+)
+await bd.exec(`delete from public.plt_tiny_pedido_fila where numero between 956001 and 956005;
+               update public.plt_setores set tiny_entrega_ok_em = now() where codigo = 'rotas';`)
+
+titulo('SESSAO-30 · desfazer a entrega (só no dia, com motivo): as peças voltam e o Tiny volta junto')
+
+await como59(E40.logistica)
+const pcD = await pedidoNaRota(959004, 2)
+await bd.exec(`select public.plt_fn_registrar_entrega(${pcD})`)
+await deveRecusarExec(`select public.plt_fn_entrega_desfazer(${pcD}, ${motivo('nao', 'Cliente estava ausente')})`,
+  'desfazer pede um motivo da lista de desfazer', /motivo de desfazer/i)
+const desfez = (await um59(`select public.plt_fn_entrega_desfazer(${pcD}, ${motivo('des', 'Cliente ligou para devolver')}, 'vamos buscar') as r`)).r
+const depoisD = await vivas59(959004)
+const filaD = await fila59(959004)
+const situacaoD = await um59(`select situacao_plataforma from public.plt_fn_pcp_todos_pedidos('959004', null, 20)`)
+const programadaD = await um59(`select count(*)::int as n from public.plt_fn_programadas(false, null, null, 50, 0) where card_id = ${pcD}`)
+conferir(
+  desfez.pecas_voltaram === 2 && depoisD.na_rotas === 2 && filaD?.situacao === 'enviado' && filaD.motivo === 'desfeita'
+    && filaD.versao === 2 && situacaoD?.situacao_plataforma === 'em_rota' && programadaD.n === 1,
+  'as 2 peças voltam à ROTAS; o Tiny volta para "enviado" (a situação de antes) pela mesma fila; o PCP vê "em rota" e "Já programadas" o mostra a entregar',
+  JSON.stringify({ desfez, depoisD, filaD, situacaoD, programadaD }),
+)
+const de_novo = (await um59(`select public.plt_fn_registrar_entrega(${pcD}) as e`)).e
+const filaD2 = await fila59(959004)
+conferir(
+  Number(de_novo) > 0 && (await vivas59(959004)).vivas === 0 && filaD2.situacao === 'entregue' && filaD2.versao === 3,
+  'depois de desfeita, a entrega se registra de novo (a vigente é a nova) e o Tiny volta a "entregue"',
+  JSON.stringify({ de_novo, filaD2 }),
+)
+// entrega de ontem: não se desfaz
+await como59('')
+const pcE = await pedidoNaRota(959005)
+await como59('')
+await bd.exec(`
+  select set_config('plt.entrega_maquinaria', 'on', false);
+  insert into public.plt_eventos (card_id, tipo, origem, ocorrido_em, dados)
+    values (${pcE}, 'pedido_entregue', 'api', now() - interval '2 days', '{"fonte": "tiny"}'::jsonb);
+  select set_config('plt.entrega_maquinaria', '', false);
+`)
+await como59(E40.logistica)
+await deveRecusarExec(`select public.plt_fn_entrega_desfazer(${pcE}, ${motivo('des', 'Marquei entregue por engano')})`,
+  'a entrega de outro dia não se desfaz', /mesmo dia/i)
+
+titulo('SESSAO-30 · não entregue (com motivo): volta para "Programar"; as peças seguem na ROTAS; o Tiny não muda')
+
+const pcF = await pedidoNaRota(959006)
+await deveRecusarExec(`select public.plt_fn_entrega_nao_realizada(${pcF}, ${motivo('des', 'Marquei entregue por engano')})`,
+  'não entregue pede um motivo da lista de não entregue', /motivo de não ter entregue/i)
+const naoEnt = (await um59(`select public.plt_fn_entrega_nao_realizada(${pcF}, ${motivo('nao', 'Cliente estava ausente')}, 'volta amanhã') as e`)).e
+const progF = await um59(`select count(*)::int as n from public.plt_programacoes where card_id = ${pcF}`)
+const naProgramar = await um59(`select count(*)::int as n from public.plt_fn_programacao(null, 100, 0, true) where card_id = ${pcF}`)
+const evF = await um59(`select observacao, dados ->> 'motivo' as motivo from public.plt_eventos where id = ${naoEnt}`)
+conferir(
+  progF.n === 0 && (await vivas59(959006)).na_rotas === 1 && evF.motivo === 'Cliente estava ausente'
+    && evF.observacao.includes('volta amanhã') && (await fila59(959006)) === undefined && naProgramar.n === 1,
+  'sai do caminhão e volta à lista de programar; a peça segue na ROTAS; o motivo fica no fato; nada vai ao Tiny',
+  JSON.stringify({ progF, evF, naProgramar }),
+)
+
+titulo('SESSAO-30 · pedido devolvido e cancelado/devolvido no Tiny: a peça pronta vai sozinha ao ESTOQUE (D-114)')
+
+const pcG = await pedidoNaRota(959007, 2)
+const devolveu = (await um59(`select public.plt_fn_entrega_devolvida(${pcG}, 'cliente recusou na porta') as r`)).r
+const depoisG = await vivas59(959007)
+const progG = await um59(`select count(*)::int as n from public.plt_programacoes where card_id = ${pcG}`)
+conferir(
+  devolveu.devolvido && devolveu.pecas_no_estoque === 2 && depoisG.no_estoque === 2 && depoisG.na_rotas === 0
+    && progG.n === 0 && (await fila59(959007)) === undefined,
+  'devolvido pelo entregador: as 2 peças vão ao ESTOQUE sem dono, sai do caminhão e o Tiny não muda',
+  JSON.stringify({ devolveu, depoisG, progG }),
+)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcG})`, 'pedido devolvido não se entrega', /cancelado ou devolvido/i)
+
+const pcH = await pedidoNaRota(959008)
+await como59('')
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 959008`)
+const depoisH = await vivas59(959008)
+const pcI = await pedidoNaRota(959009)
+await como59('')
+await bd.exec(`update public.pedidos set marcadores = array['Devolvido'] where numero = 959009`)
+const depoisI = await vivas59(959009)
+const evI = await um59(`select dados ->> 'fonte' as fonte from public.plt_eventos where card_id = ${pcI} and tipo = 'pedido_devolvido'`)
+conferir(
+  depoisH.no_estoque === 1 && depoisH.na_rotas === 0 && depoisI.no_estoque === 1 && depoisI.na_rotas === 0 && evI?.fonte === 'tiny',
+  'cancelado no Tiny com a peça na ROTAS, e o marcador "Devolvido" do Tiny: a peça vai ao ESTOQUE sem dono, sem ninguém confirmar',
+  JSON.stringify({ depoisH, depoisI, evI }),
+)
+
+await como59('')
+const priv59 = await um59(`
+  select has_table_privilege('authenticated', 'public.plt_motivos', 'select') as motivos_logado,
+         has_table_privilege('authenticated', 'public.plt_tiny_pedido_fila', 'select') as fila_logado,
+         has_function_privilege('authenticated', 'public.plt_fn_tiny_pedido_resultado(bigint, integer, boolean, text)', 'execute') as resultado_logado,
+         has_function_privilege('anon', 'public.plt_fn_entrega_desfazer(bigint, bigint, text)', 'execute') as desfazer_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_tiny_pedido_enfileirar(bigint, text, text)', 'execute') as fila_maquina`)
+conferir(
+  !priv59.motivos_logado && !priv59.fila_logado && !priv59.resultado_logado && !priv59.desfazer_anon && !priv59.fila_maquina,
+  'tabelas só pelas portas; a resposta do n8n só com a chave de serviço; a maquinaria fora da API',
+  JSON.stringify(priv59),
+)
+await como59(E40.admin)
+await bd.exec(`select public.plt_fn_tiny_entrega_ligar(false)`)
+await como59('')
+} // fim do bloco 59
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
