@@ -81,7 +81,8 @@ export interface RodadaConferencia {
     paginas_busca: number
     relidas: number
     novas: number
-    pagas: number
+    /** Só as que já estavam aqui e viraram pagas (a 1ª rodada, de 09/10, não tem). */
+    viraram_pagas?: number
     abertas: number
     nao_encontradas: number
   }

@@ -11040,7 +11040,8 @@ conferir(
 const resumo64 = (await um64(`select plt_privado.fn_tiny_pente_fino_resumir('${ini64.rodada}', 'concluida') as r`)).r
 conferir(
   resumo64.contas?.paginas_busca === 2 && resumo64.contas.relidas === 2 && resumo64.contas.novas === 1
-    && resumo64.contas.pagas === 1 && resumo64.contas.abertas === 1 && resumo64.contas.nao_encontradas === 0
+    && resumo64.contas.viraram_pagas === 1 && resumo64.contas.abertas === 1 && resumo64.contas.nao_encontradas === 0
+    && !('pagas' in resumo64.contas)
     && typeof resumo64.relidos === 'number',
   'o resumo da rodada ganha as contas: 2 páginas de busca, 2 relidas, 1 nova, 1 paga hoje, 1 ainda aberta (os pedidos seguem iguais)',
   JSON.stringify(resumo64.contas),

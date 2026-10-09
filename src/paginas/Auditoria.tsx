@@ -460,8 +460,8 @@ function PainelConferencias() {
                     <strong className="text-texto tabular-nums">{r.contas.relidas}</strong>{' '}
                     {r.contas.relidas === 1 ? 'conta a receber relida' : 'contas a receber relidas'}
                     {r.contas.novas > 0 ? ` · ${r.contas.novas} novas` : ''}
-                    {r.contas.pagas > 0
-                      ? ` · ${r.contas.pagas} ${r.contas.pagas === 1 ? 'foi paga' : 'foram pagas'}`
+                    {r.contas.viraram_pagas
+                      ? ` · ${r.contas.viraram_pagas} ${r.contas.viraram_pagas === 1 ? 'foi paga' : 'foram pagas'}`
                       : ''}
                     {` · ${r.contas.abertas} em aberto`}
                     {r.contas.nao_encontradas > 0
