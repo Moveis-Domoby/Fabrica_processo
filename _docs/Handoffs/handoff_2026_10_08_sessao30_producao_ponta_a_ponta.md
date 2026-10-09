@@ -49,7 +49,14 @@ Fechar o caminho da peça de ponta a ponta — do pedido do Tiny até a entrega,
 - **Raio-x 3:** o PCP libera só para setor de produção (para toda origem); a peça pronta do estoque vai pela sugestão "usar?". ⚠️ **Para o dono confirmar:** a decisão de 28/09 deixava a cadeira de estoque ir do PCP direto para o aguardo — agora ela vai pela sugestão do estoque (ou pela LIMPEZA E EMBALAGEM → "Concluir produção"); na história isso nunca foi usado (0 de 33 liberações).
 - **Raio-x 4:** a sugestão diz "Veio da entrada manual da logística" (o banco já estava certo).
 - Banco: migration 58 (`20261008140000_plt_pcp_liberar_numa_chamada.sql`); site publicado (314280f).
-### Etapa 4 — entregue nos dois lados — *a fazer*
+### Etapa 4 — entregue nos dois lados ✅ no ar (08/10) — falta só ligar o Tiny com o dono
+- **"Entregue" na plataforma fecha tudo** (as peças saem de toda conta, como quando o Tiny avisa).
+- **Plataforma → Tiny pela fila do banco:** com a chave **"Entregue vai ao Tiny"** ligada (Configurações → Caminhões, só o super admin), o Tiny fica "Entregue" na hora; sem resposta ou com erro, nova tentativa crescente; se o Tiny cair, pausa; 8 falhas = parado e aviso. **A chave está DESLIGADA** — o fluxo novo do n8n está pronto para importar (`_docs/Fabrica n8n/domoby-plataforma-tiny-situacao.json`, sem segredo) e o passo a passo da prova está em [[N8N - Plataforma para Tiny (situacao do pedido)]]. O fluxo do ClickUp: intocado.
+- **Desfazer** (só a entrega de hoje feita por gente, com motivo): os móveis voltam à ROTAS e o Tiny volta à situação de antes.
+- **Não entregue** (com motivo): volta para "Programar"; os móveis seguem na ROTAS; o Tiny não muda.
+- **Pedido devolvido** (entregador): móveis ao ESTOQUE sem dono; o Tiny não muda. **Marcador "Devolvido" no Tiny** = cancelamento; **cancelado com móvel na ROTAS** (programado ou no caminhão) vai sozinho ao ESTOQUE.
+- **Motivos:** Configurações → Utilitários → "Motivos da entrega" (13 frases já cadastradas).
+- Banco: migration 59 (`20261008150000_plt_entregue_nos_dois_lados.sql`); site publicado (1fb72dd).
 ### Etapa 5 — entregador — *a fazer*
 ### Etapa 6 — ao vivo, listas, ensaio completo — *a fazer*
 
