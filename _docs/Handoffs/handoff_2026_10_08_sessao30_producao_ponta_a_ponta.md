@@ -57,7 +57,12 @@ Fechar o caminho da peça de ponta a ponta — do pedido do Tiny até a entrega,
 - **Pedido devolvido** (entregador): móveis ao ESTOQUE sem dono; o Tiny não muda. **Marcador "Devolvido" no Tiny** = cancelamento; **cancelado com móvel na ROTAS** (programado ou no caminhão) vai sozinho ao ESTOQUE.
 - **Motivos:** Configurações → Utilitários → "Motivos da entrega" (13 frases já cadastradas).
 - Banco: migration 59 (`20261008150000_plt_entregue_nos_dois_lados.sql`); site publicado (1fb72dd).
-### Etapa 5 — entregador — *a fazer*
+### Etapa 5 — entregador ✅ no ar (08/10)
+- **Tipo de usuário "Entregador (só ROTAS)"** na Gestão da equipe (na criação ou no botão "Entregador"): ele entra e vê só **"Entregas do dia"** — nada da fábrica, nem chat.
+- **Quem leva cada caminhão:** ROTAS → Programação → "Já programadas" → botão **Equipe** (uma ou mais pessoas por caminhão e dia). **Detalhe** em cada pedido (ex.: "só depois das 10h") — o entregador vê destacado.
+- **A tela "Entregas do dia"** (celular primeiro): caminhão do dia, mini mapa com as paradas numeradas, card com cliente, pedido, **volumes** (do cadastro do Tiny), endereço, OBS, detalhe, produtos e comentários; botões WhatsApp · Mapa · Comentário · Comprovante · **Entregue** (painel em cima com comprovante e observação, opcionais) · Não entregue · Pedido devolvido; desfazer a de hoje. Abre com uma requisição só (~5 ms no banco).
+- **Comprovante** num armário privado (foto, PDF, Word até 10 MB; foto reduzida no celular). "Entregue" tocado duas vezes = uma entrega só.
+- Banco: migration 60 (`20261008160000_plt_entregador.sql`); site publicado (eec05f6).
 ### Etapa 6 — ao vivo, listas, ensaio completo — *a fazer*
 
 ## 3. Decisões tomadas
