@@ -116,7 +116,7 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 
 ## 7. Ficou com o dono
 
-- **Ligar o "Entregue vai ao Tiny" ([[N8N - Plataforma para Tiny (situacao do pedido)]]):** ~~importar no n8n~~ — **feito em 09/10 pelo Claude** (dentro da automação do Tiny que já existia, com a chave da **loja** — D-123, §11). Falta: Configurações → Caminhões → **Ligar**; registrar a entrega de **1 pedido real** já entregue de verdade e ver o Tiny ficar "Entregue".
+- **Ligar o "Entregue vai ao Tiny" ([[N8N - Plataforma para Tiny (situacao do pedido)]]):** ~~importar no n8n~~ — **feito em 09/10 pelo Claude** (dentro da automação do Tiny que já existia, com a chave da **loja** — D-123, §11). ~~Ligar e a prova com 1 pedido real~~ — **feitas em 09/10** (o dono ligou; o 13470 foi ao Tiny e voltou OK — §11).
 - **Confirmar:** a cadeira de estoque pelo PCP agora vai pela sugestão "usar?" (↩️ D-63); o ranking das vendas de madrugada (D-119); o marcador "Devolvido" num pedido **já entregue** não traz os móveis de volta ao estoque sozinho (só os vivos) — se quiser que traga, é uma decisão nova.
 - **ClickUp:** desligar o fluxo antigo quando a equipe passar a dar a entrega pela plataforma.
 
@@ -158,4 +158,4 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 - Entrou **dentro** da automação "subir banco de dados --- tiny -> supabase" (a que já liga o Tiny ao banco), como 2ª parte com gatilho próprio — os 8 nós de antes **idênticos** (provado antes e depois de salvar); cópia da versão anterior guardada para voltar.
 - **Corrigido antes de publicar:** o arquivo usava a chave do Tiny da **fábrica**; os pedidos moram na conta da **loja** → `TINY_TOKEN`.
 - Provas: os dois gatilhos responderam a um envio vazio (o novo não chama o Tiny nesse caso); nenhuma execução com erro; a parte antiga releu um pedido de verdade (13625) depois da troca.
-- **Com o dono:** ligar "Entregue vai ao Tiny" (Configurações → Caminhões) e a prova com 1 pedido real.
+- **Prova (09/10, 01:30 Natal, pedido do dono — "liguei a chave, testa com o pedido 13470"):** a chave ligada às 01:29; o 13470 (entregue de fato em 25/09, já "Entregue" no Tiny) entrou na fila de envio com o mesmo gesto do botão "Entregue" → o banco chamou o gatilho → o n8n pediu `pedido.alterar.situacao` = entregue com a chave da loja → **o Tiny respondeu OK na 1ª tentativa, ~1 s** → a fila esvaziou, ficou a trilha "situação alterada no Tiny" e o "último OK" da chave. Releitura do 13470 pelo Tiny logo depois: **"Entregue"**, nada mudou no pedido.

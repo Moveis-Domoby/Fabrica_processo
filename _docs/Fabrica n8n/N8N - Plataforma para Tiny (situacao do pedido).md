@@ -38,7 +38,9 @@ tags: [n8n, tiny, rotas, entregue, plataforma, sessao-30]
 
 1. ~~Importar e publicar~~ — feito (acima).
 2. ~~Conferir a conta~~ — é a da loja (`TINY_TOKEN`).
-3. Plataforma → Configurações → Caminhões → **Ligar** "Entregue vai ao Tiny".
+3. ~~Ligar "Entregue vai ao Tiny"~~ — **ligada pelo dono em 09/10, 01:29 (Natal).**
+
+> [!success] **Prova (09/10, 01:30 Natal, pedido do dono — "liguei a chave, testa com o pedido 13470"):** a chave ligada às 01:29; o 13470 (entregue de fato em 25/09, já "Entregue" no Tiny) entrou na fila de envio com o mesmo gesto do botão "Entregue" → o banco chamou o gatilho → o n8n pediu `pedido.alterar.situacao` = entregue com a chave da loja → **o Tiny respondeu OK na 1ª tentativa, ~1 s** → a fila esvaziou, ficou a trilha "situação alterada no Tiny" e o "último OK" da chave. Releitura do 13470 pelo Tiny logo depois: **"Entregue"**, nada mudou no pedido.
 4. **A prova com 1 pedido real:** registrar a entrega de um pedido que já foi entregue de verdade → no Tiny ele fica "Entregue" em segundos (e a fila esvazia). Se não, o erro aparece no cartão da chave.
 5. Desfazer (opcional): "Desfazer" na ROTAS com o motivo "Marquei entregue por engano" → o Tiny volta para "Enviado".
 
