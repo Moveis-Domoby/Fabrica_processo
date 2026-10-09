@@ -1615,11 +1615,11 @@ conferir(
   'registrar entrega grava o evento append-only e o pedido vira "entregue"',
   JSON.stringify(entregue ?? null),
 )
-await deveRecusarExec(
-  `select public.plt_fn_registrar_entrega(${cardRotas})`,
-  'entregar duas vezes é recusado',
-  /já foi registrado/i,
-)
+// ↩️ SESSAO-30 (Lei §10): o mesmo toque repetido pela mesma pessoa = uma
+// entrega só (devolve a que já existe); o bloco 60 prova que outra pessoa é recusada.
+const repetida = (await bd.query(`select public.plt_fn_registrar_entrega(${cardRotas}) as e`)).rows[0].e
+const entregasDoCard = (await bd.query(`select count(*)::int as n from public.plt_eventos where card_id = ${cardRotas} and tipo = 'pedido_entregue'`)).rows[0].n
+conferir(Number(repetida) > 0 && entregasDoCard === 1, 'entregar duas vezes (mesma pessoa, na hora) não duplica: uma entrega só', JSON.stringify({ repetida, entregasDoCard }))
 
 // Gate: operador de produção não vê rotas nem registra entrega.
 await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false)`)
@@ -10352,7 +10352,11 @@ conferir(
   'as 2 peças saem de toda conta, a entrega vigente fica no card; chave desligada = fila vazia',
   JSON.stringify({ depoisA, projA, entregaA }),
 )
-await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcA})`, 'a mesma entrega não se registra duas vezes', /já foi registrado/i)
+const repetidaA = (await um59(`select public.plt_fn_registrar_entrega(${pcA}) as e`)).e
+conferir(Number(repetidaA) === Number(entregaA), 'o toque repetido da mesma pessoa devolve a mesma entrega (Lei §10)', JSON.stringify({ repetidaA, entregaA }))
+await como59(E40.admin)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcA})`, 'outra pessoa não registra de novo a entrega que já existe', /já foi registrado/i)
+await como59(E40.logistica)
 
 titulo('SESSAO-30 · chave ligada: o "Entregue" vai ao Tiny pela fila (sem relógio, com nova tentativa e disjuntor)')
 
@@ -10449,8 +10453,9 @@ const pcE = await pedidoNaRota(959005)
 await como59('')
 await bd.exec(`
   select set_config('plt.entrega_maquinaria', 'on', false);
-  insert into public.plt_eventos (card_id, tipo, origem, ocorrido_em, dados)
-    values (${pcE}, 'pedido_entregue', 'api', now() - interval '2 days', '{"fonte": "tiny"}'::jsonb);
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, dados)
+    values (${pcE}, 'pedido_entregue', (select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'),
+            'interface', now() - interval '2 days', '{"fonte": "plataforma"}'::jsonb);
   select set_config('plt.entrega_maquinaria', '', false);
 `)
 await como59(E40.logistica)
@@ -10518,6 +10523,159 @@ await como59(E40.admin)
 await bd.exec(`select public.plt_fn_tiny_entrega_ligar(false)`)
 await como59('')
 } // fim do bloco 59
+
+// ============================================================================
+// SESSAO-30 · etapa 5 (migration 60 — D-115): o entregador — tipo de usuário,
+// equipe do caminhão, detalhe da entrega, "Entregas do dia" numa requisição,
+// os gestos dele, comentário e comprovante.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · o entregador: só as entregas do caminhão dele, nada da logística')
+
+const um60 = async (sql) => (await bd.query(sql)).rows[0]
+const como60 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const ENT = '00000000-0000-0000-0000-000000000601'
+const ENT2 = '00000000-0000-0000-0000-000000000602'
+await como60('')
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Motorista 60', 'motorista60@teste.com', '60606060601', 'motorista.60', 'operador', '${ENT}', array['fabrica']),
+    ('Ajudante 60', 'ajudante60@teste.com', '60606060602', 'ajudante.60', 'operador', '${ENT2}', array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id)
+    values ((select id from public.plt_usuarios where usuario = 'ajudante.60'), (select id from public.plt_setores where codigo = 'montagem'));
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw)
+  values (960001, 'S60A', 'Guarda-roupa Teste 60 - 2 volumes', 'F', 'A', 'un', '{"qtd_volumes": "2"}'::jsonb),
+         (960002, 'S60B', 'Mesa Teste 60', 'F', 'A', 'un', '{"qtd_volumes": ""}'::jsonb)
+  on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 60', 'TST6E60'), ('Baú 61', 'TST6E61');
+`)
+const motorista = (await um60(`select id from public.plt_usuarios where usuario = 'motorista.60'`)).id
+const ajudante = (await um60(`select id from public.plt_usuarios where usuario = 'ajudante.60'`)).id
+const [cam60, cam61] = [(await um60(`select id::int as id from public.plt_caminhoes where placa = 'TST6E60'`)).id,
+                        (await um60(`select id::int as id from public.plt_caminhoes where placa = 'TST6E61'`)).id]
+await como60(E40.logistica)
+await deveRecusarExec(`select public.plt_fn_usuario_entregador('${motorista}', true)`, 'só o admin define o entregador', /gesto de admin/i)
+await como60(E40.admin)
+const mods = (await um60(`select public.plt_fn_usuario_entregador('${motorista}', true) as m`)).m
+await bd.exec(`select public.plt_fn_usuario_entregador('${ajudante}', true)`)
+const vinculoRotas = await um60(`select count(*)::int as n from public.plt_usuario_setores us join public.plt_setores s on s.id = us.setor_id
+                                   where us.usuario_id = '${motorista}' and s.codigo = 'rotas'`)
+conferir(JSON.stringify(mods) === JSON.stringify(['entregas']) && vinculoRotas.n === 1,
+  'virar entregador: só o módulo de entregas e o vínculo com a ROTAS', JSON.stringify({ mods, vinculoRotas }))
+
+async function pedidoProgramado(numero, caminhao, itens) {
+  await como60('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, obs) values
+      (${numero}, (select id from public.clientes order by id limit 1), 'Enviado', 'webhook', 'pagar na entrega');
+    ${itens.map(([seq, cod, desc, q]) => `insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), ${seq}, ${cod === null ? 'null' : `'${cod}'`}, '${desc}', ${q});`).join('\n')}
+  `)
+  const pc = (await um60(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  for (const [seq, cod, desc, q] of itens) {
+    if (cod === null) continue
+    for (let k = 1; k <= q; k++) {
+      await bd.exec(`
+        insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+          select 'unidade', p.id, ${pc}, ${seq}, '${cod}', '${desc}', ${k}, ${q} from public.pedidos p where p.numero = ${numero};
+        insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+          values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'aguardo'), 'api');`)
+    }
+  }
+  await como60(E40.logistica)
+  await bd.exec(`select public.plt_fn_lancar_rotas(${pc})`)
+  await bd.exec(`select public.plt_fn_programar_entrega(${pc}, (now() at time zone 'America/Fortaleza')::date, ${caminhao})`)
+  return pc
+}
+const pcX = await pedidoProgramado(960001, cam60, [[1, 'S60A', 'Guarda-roupa Teste 60 - 2 volumes', 2], [2, 'S60B', 'Mesa Teste 60', 1], [3, null, 'Frete', 1]])
+const pcY = await pedidoProgramado(960002, cam60, [[1, 'S60B', 'Mesa Teste 60', 1]])
+const pcZ = await pedidoProgramado(960003, cam61, [[1, 'S60B', 'Mesa Teste 60', 1]])
+
+await como60(ENT)
+await deveRecusarExec(`select public.plt_fn_equipe_definir((now() at time zone 'America/Fortaleza')::date, ${cam60}, array['${motorista}']::uuid[])`,
+  'o entregador não escolhe a equipe (é de quem programa)', /logística ou de admin/i)
+const semEquipe = (await um60(`select public.plt_fn_entregas_do_dia() as j`)).j
+await como60(E40.logistica)
+const n = (await um60(`select public.plt_fn_equipe_definir((now() at time zone 'America/Fortaleza')::date, ${cam60}, array['${motorista}', '${ajudante}']::uuid[]) as n`)).n
+await bd.exec(`select public.plt_fn_programacao_detalhe(${pcX}, 'Cliente só recebe depois das 10h')`)
+await como60(ENT)
+const dia = (await um60(`select public.plt_fn_entregas_do_dia() as j`)).j
+const eX = dia.entregas.find((e) => e.card_id === pcX)
+conferir(
+  semEquipe.caminhoes.length === 0 && semEquipe.entregas.length === 0 && n === 2
+    && dia.caminhoes.length === 1 && dia.caminhoes[0].id === cam60 && dia.caminhoes[0].equipe.length === 2
+    && dia.entregas.length === 2 && !dia.entregas.some((e) => e.card_id === pcZ)
+    && eX.volumes === 5 && eX.unidades === 3 && eX.itens.length === 2 && eX.detalhe === 'Cliente só recebe depois das 10h'
+    && eX.obs === 'pagar na entrega' && !dia.sou_logistica,
+  'numa requisição: só o caminhão da equipe dele; os pedidos com móveis, VOLUMES (2 × 2 + 1 vazio = 5, sem o frete), observação e o detalhe da entrega',
+  JSON.stringify({ semEquipe, n, caminhoes: dia.caminhoes, eX }),
+)
+const outro = (await um60(`select public.plt_fn_entregas_do_dia(null, ${cam61}) as j`)).j
+conferir(outro.caminhao_id === null && outro.entregas.length === 0, 'o caminhão de outra equipe não aparece nem pedindo', JSON.stringify(outro))
+const logistica60 = await um60(`
+  select (select count(*) from public.plt_fn_programadas(false, null, null, 50, 0))::int as programadas,
+         (select count(*) from public.plt_fn_estoque_produtos('acabados', null, null, 20, 0))::int as estoque,
+         (select count(*) from public.plt_fn_rotas(null, null, 50, 0))::int as rotas`)
+conferir(logistica60.programadas === 0 && logistica60.estoque === 0 && logistica60.rotas === 0,
+  'o entregador não lê nada da logística (programação, estoque, ROTAS)', JSON.stringify(logistica60))
+
+titulo('SESSAO-30 · os gestos do entregador: comentário, comprovante, entregue (uma vez só), desfazer, não entregue, devolvido')
+
+const com = (await um60(`select public.plt_fn_card_comentar(${pcX}, 'Portão azul, tocar a campainha') as id`)).id
+const anexo = (await um60(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/abc-comprovante.jpg', 'comprovante.jpg', 'image/jpeg', 120000) as id`)).id
+const anexoDeNovo = (await um60(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/abc-comprovante.jpg', 'comprovante.jpg', 'image/jpeg', 120000) as id`)).id
+await deveRecusarExec(`select public.plt_fn_anexo_registrar(${pcX}, '${pcY}/x.pdf', 'x.pdf', 'application/pdf', 1000)`,
+  'o arquivo precisa ser do mesmo pedido', /não é deste pedido/i)
+await deveRecusarExec(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/grande.pdf', 'grande.pdf', 'application/pdf', 20000000)`,
+  'arquivo acima de 10 MB é recusado', /10 MB/i)
+const entX = (await um60(`select public.plt_fn_registrar_entrega(${pcX}, 'entregue ao porteiro') as e`)).e
+const entX2 = (await um60(`select public.plt_fn_registrar_entrega(${pcX}, 'entregue ao porteiro') as e`)).e
+const depois = (await um60(`select public.plt_fn_entregas_do_dia() as j`)).j
+const dX = depois.entregas.find((e) => e.card_id === pcX)
+conferir(
+  com > 0 && anexo > 0 && anexoDeNovo === anexo && Number(entX2) === Number(entX)
+    && dX.entregue_em !== null && dX.entregue_por === 'Motorista 60' && dX.comprovantes === 1
+    && dX.comentarios[0]?.texto === 'Portão azul, tocar a campainha',
+  'comentário e comprovante no card; "Entregue" tocado duas vezes = uma entrega só; a tela mostra entregue, o comprovante e o comentário',
+  JSON.stringify({ com, anexo, anexoDeNovo, entX, entX2, dX }),
+)
+const motivoDesf = (await um60(`select id from public.plt_motivos where tipo = 'desfazer_entrega' and texto = 'Marquei entregue por engano'`)).id
+const motivoNao = (await um60(`select id from public.plt_motivos where tipo = 'nao_entregue' and texto = 'Cliente estava ausente'`)).id
+const desf = (await um60(`select public.plt_fn_entrega_desfazer(${pcX}, ${motivoDesf}) as r`)).r
+await bd.exec(`select public.plt_fn_entrega_nao_realizada(${pcY}, ${motivoNao}, 'ninguém em casa')`)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcZ})`, 'o pedido de outro caminhão não é dele', /entregador do caminhão/i)
+await deveRecusarExec(`select public.plt_fn_card_comentar(${pcZ}, 'oi')`, 'nem comentário em pedido de outro caminhão', /entregador do caminhão/i)
+const fim = (await um60(`select public.plt_fn_entregas_do_dia() as j`)).j
+conferir(
+  desf.pecas_voltaram === 3 && fim.entregas.length === 1 && fim.entregas[0].card_id === pcX && fim.entregas[0].entregue_em === null,
+  'desfez a de hoje (as 3 peças voltam); o "não entregue" sai da lista dele; o pedido de outro caminhão é recusado',
+  JSON.stringify({ desf, fim: fim.entregas.map((e) => e.numero) }),
+)
+await bd.exec(`select public.plt_fn_entrega_devolvida(${pcX}, 'cliente desistiu na porta')`)
+const devolvido = await um60(`select count(*)::int as n from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+                                where u.card_pai_id = ${pcX} and u.tipo = 'unidade' and u.arquivado_em is null and u.pedido_id is null and s.codigo = 'estoque'`)
+conferir(devolvido.n === 3, 'o entregador marca devolvido: as 3 peças vão ao ESTOQUE sem dono', JSON.stringify(devolvido))
+
+titulo('SESSAO-30 · E-89: a entrega que veio do Tiny (Sistema) não se desfaz pela plataforma')
+
+await como60('')
+const pcW = await pedidoProgramado(960004, cam60, [[1, 'S60B', 'Mesa Teste 60', 1]])
+await como60('')
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 960004`)
+await como60(E40.logistica)
+await deveRecusarExec(`select public.plt_fn_entrega_desfazer(${pcW}, ${motivoDesf})`, 'desfazer a entrega do Tiny é recusado (mexe-se lá)', /veio do Tiny/i)
+
+await como60('')
+const priv60 = await um60(`
+  select has_table_privilege('authenticated', 'public.plt_anexos', 'select') as anexos_logado,
+         has_table_privilege('authenticated', 'public.plt_programacao_equipes', 'select') as equipes_logado,
+         has_function_privilege('anon', 'public.plt_fn_entregas_do_dia(date, bigint)', 'execute') as dia_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_entregas_do_dia(date, bigint)', 'execute') as dia_logado,
+         has_function_privilege('authenticated', 'plt_privado.fn_eh_entregador(uuid)', 'execute') as maquina`)
+conferir(!priv60.anexos_logado && !priv60.equipes_logado && !priv60.dia_anon && priv60.dia_logado && !priv60.maquina,
+  'tabelas só pelas portas; a tela do dia só para quem está logado', JSON.stringify(priv60))
+} // fim do bloco 60
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
