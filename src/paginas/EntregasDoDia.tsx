@@ -75,7 +75,12 @@ export function EntregasDoDia() {
   useAoVivo('rotas', [['entregas-do-dia']])
 
   const entregas = data?.entregas ?? []
-  const feitas = entregas.filter((e) => e.entregue_em).length
+  // SESSAO-30 (D-120): o entregue sai da rota (lista e mapa) e mora no PCP; o do
+  // dia fica recolhido aqui só para o entregador poder desfazer (D-113).
+  const aEntregar = entregas.filter((e) => !e.entregue_em)
+  const entreguesHoje = entregas.filter((e) => e.entregue_em)
+  const feitas = entreguesHoje.length
+  const [verEntregues, setVerEntregues] = useState(false)
   const caminhao = data?.caminhoes.find((c) => c.id === data.caminhao_id)
 
   return (
@@ -154,7 +159,7 @@ export function EntregasDoDia() {
         </p>
       )}
 
-      {entregas.length > 0 && (
+      {aEntregar.length > 0 && (
         <section aria-label="Mapa da rota" className="flex flex-col gap-2">
           <Botao
             variante="fantasma"
@@ -170,15 +175,21 @@ export function EntregasDoDia() {
               <Suspense
                 fallback={<p className="p-3 text-sm text-texto-fraco">Carregando o mapa…</p>}
               >
-                <MiniMapa entregas={entregas} />
+                <MiniMapa entregas={aEntregar} />
               </Suspense>
             </div>
           )}
         </section>
       )}
 
+      {data && entregas.length > 0 && aEntregar.length === 0 && (
+        <p className="rounded-dm-lg border border-perfeito-borda bg-perfeito-fundo p-4 text-perfeito-texto">
+          Todas as entregas do dia foram feitas.
+        </p>
+      )}
+
       <ol className="flex flex-col gap-3">
-        {entregas.map((entrega) => (
+        {aEntregar.map((entrega) => (
           <CartaoEntrega
             key={entrega.card_id}
             entrega={entrega}
@@ -190,6 +201,48 @@ export function EntregasDoDia() {
           />
         ))}
       </ol>
+
+      {entreguesHoje.length > 0 && (
+        <section aria-label="Entregues" className="flex flex-col gap-2">
+          <Botao
+            variante="fantasma"
+            tamanho="sm"
+            className="self-start"
+            icone={verEntregues ? <ChevronUp /> : <ChevronDown />}
+            aria-expanded={verEntregues}
+            onClick={() => setVerEntregues((v) => !v)}
+          >
+            Entregues {dia ? 'neste dia' : 'hoje'} ({entreguesHoje.length})
+          </Botao>
+          {verEntregues && (
+            <ul className="flex flex-col divide-y divide-borda rounded-dm-lg border border-borda bg-superficie px-3">
+              {entreguesHoje.map((e) => (
+                <li key={e.card_id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                  <CheckCircle2 aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+                  <span className="min-w-0 flex-1 text-texto">
+                    Pedido {e.numero} · {e.cliente_nome || 'Sem cliente'}
+                    <span className="text-texto-suave">
+                      {' '}
+                      · {horaCurta(e.entregue_em)}
+                      {e.entregue_por ? ` · ${e.entregue_por}` : ''}
+                    </span>
+                  </span>
+                  {e.entregue_por_gente && entregueHoje(e.entregue_em) && (
+                    <Botao
+                      variante="secundaria"
+                      tamanho="sm"
+                      icone={<Undo2 />}
+                      onClick={() => setComMotivo({ tipo: 'desfazer_entrega', entrega: e })}
+                    >
+                      Desfazer
+                    </Botao>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <ModalMotivoEntrega
         key={comMotivo ? `${comMotivo.tipo}-${comMotivo.entrega.card_id}` : 'motivo-fechado'}

@@ -9,9 +9,8 @@ import {
   RotateCcw,
   Search,
   Truck,
-  Undo2,
 } from 'lucide-react'
-import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
+import { Botao, Campo, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useAoVivo } from '@/lib/aoVivo'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -19,7 +18,6 @@ import { buscarSetores } from '@/kanban/api'
 import { urlFotoCaminhao } from '@/admin/caminhoes'
 import {
   enderecoLegivel,
-  entregueHoje,
   linkMapa,
   linkWhatsApp,
   listarEntregas,
@@ -31,12 +29,8 @@ import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 const POR_PAGINA = 20
 
 // D-45: só o pedido LANÇADO pelos Pedidos em aguardo chega aqui — não existe
-// mais "aguardando completar" nas ROTAS.
-const SITUACOES = [
-  { valor: 'todas', rotulo: 'Todas' },
-  { valor: 'pronta', rotulo: 'Prontas para entrega' },
-  { valor: 'entregue', rotulo: 'Entregues' },
-]
+// mais "aguardando completar" nas ROTAS. ↪️ SESSAO-30 (D-120): e só o que FALTA
+// entregar — o entregue sai da ROTAS e mora no PCP → Todos os pedidos.
 
 function dataLegivel(iso: string | null): string {
   return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
@@ -71,7 +65,6 @@ export function Rotas() {
   )
   const tenhoAcesso = souAdmin || vinculos.some((v) => setoresComAcesso.has(v.setor_id))
 
-  const [situacao, setSituacao] = useState('todas')
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(0)
   const [entregando, setEntregando] = useState<Entrega | null>(null)
@@ -79,10 +72,10 @@ export function Rotas() {
   const [devolvendo, setDevolvendo] = useState<Entrega | null>(null)
 
   const { data: entregas = [], isPending } = useQuery({
-    queryKey: ['rotas', situacao, busca, pagina],
+    queryKey: ['rotas', 'pronta', busca, pagina],
     queryFn: () =>
       listarEntregas({
-        situacao: situacao === 'todas' ? null : situacao,
+        situacao: 'pronta',
         busca: busca || undefined,
         limite: POR_PAGINA,
         deslocamento: pagina * POR_PAGINA,
@@ -125,20 +118,12 @@ export function Rotas() {
           <Link to="/rotas/programacao" className="font-medium text-texto underline">
             Programação
           </Link>
-          . Com o "Entregue vai ao Tiny" ligado, a entrega registrada aqui vai também para o Tiny.
+          . Entregue, o pedido sai daqui e fica no PCP → Todos os pedidos, com tudo dele. Com o
+          "Entregue vai ao Tiny" ligado, a entrega registrada aqui vai também para o Tiny.
         </p>
       </div>
 
       <div className="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
-        <Selecao
-          rotulo="Mostrar"
-          opcoes={SITUACOES}
-          valor={situacao}
-          aoMudar={(v) => {
-            setSituacao(v)
-            setPagina(0)
-          }}
-        />
         <Campo
           rotulo="Buscar"
           prefixo={<Search />}
@@ -175,16 +160,9 @@ export function Rotas() {
                 <span className="text-lg font-semibold text-texto tabular-nums">
                   Pedido {entrega.numero}
                 </span>
-                {entrega.situacao_entrega === 'entregue' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-0.5 text-sm font-medium text-perfeito-texto">
-                    <CheckCircle2 aria-hidden className="size-4" />
-                    entregue
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto">
-                    pronta para entrega
-                  </span>
-                )}
+                <span className="rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto">
+                  pronta para entrega
+                </span>
                 <span className="ml-auto text-sm text-texto-suave tabular-nums">
                   previsão {dataLegivel(entrega.data_prevista)}
                 </span>
@@ -287,32 +265,6 @@ export function Rotas() {
                         </Botao>
                       </span>
                     ))}
-                  {entrega.situacao_entrega === 'entregue' && (
-                    <span className="flex flex-wrap items-center justify-end gap-2 text-sm text-texto-fraco">
-                      {/* D-113: só a entrega de HOJE feita por gente aqui se desfaz — a
-                          que veio do Tiny (assinada "Sistema") se mexe lá. */}
-                      {entregueHoje(entrega.entregue_em) && entrega.entregue_por && (
-                        <Botao
-                          variante="fantasma"
-                          tamanho="sm"
-                          icone={<Undo2 />}
-                          onClick={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
-                        >
-                          Desfazer
-                        </Botao>
-                      )}
-                      <span>
-                        por {entrega.entregue_por ?? '—'}
-                        {entrega.entregue_em &&
-                          ` · ${new Date(entrega.entregue_em).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}`}
-                      </span>
-                    </span>
-                  )}
                 </span>
               </div>
             </li>

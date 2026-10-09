@@ -36,10 +36,8 @@ import {
   ajustarPedidosPcp,
   buscarCardsPedidoPcp,
   buscarSetores,
-  itensDoPedido,
   reposicoesResumo,
   todosPedidosPcp,
-  unidadesDoPedido,
 } from '@/kanban/api'
 import type { AcaoAjustePedido, ReposicaoResumo, ResultadoAjustePedido } from '@/kanban/api'
 import type { PedidoTodosPcp } from '@/kanban/tipos'
@@ -59,6 +57,7 @@ import type { Card } from '@/kanban/tipos'
 import { useCamposDosPedidos, useEtiquetasDosCards } from '@/utilitarios/consultas'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
+import { PedidoCompleto } from '@/kanban/componentes/PedidoCompleto'
 
 /**
  * O quadro do PCP (D-01): um card por PEDIDO. O PCP enxerga o pedido inteiro,
@@ -1104,9 +1103,10 @@ function BarraAjustePedidos({
 }
 
 /**
- * O detalhe de PRODUÇÃO do pedido (rodada do dono, 30/09): busca só ao abrir e
- * ESQUECE ao fechar (gcTime 0 — nada fica no cache), pelas portas que já
- * existiam. Itens em unidades, onde está cada unidade, situação do Tiny.
+ * A janela do pedido no PCP. ↪️ SESSAO-30 (D-120 — o entregue sai da ROTAS e
+ * "mora no PCP com TODAS as informações"): tudo do pedido numa requisição só,
+ * no clique — pagamento, observações, itens, peças, entrega, comprovantes e o
+ * histórico (PedidoCompleto) — + os campos customizados do pedido.
  */
 function ModalPedidoProducao({
   pedido,
@@ -1115,25 +1115,7 @@ function ModalPedidoProducao({
   pedido: PedidoTodosPcp | null
   aoFechar: () => void
 }) {
-  const agora = useAgora()
   const souAdminModal = useSessao().perfil?.papel === 'admin'
-  const { data: itens = [], isPending: carregandoItens } = useQuery({
-    queryKey: ['pcp-detalhe-itens', pedido?.pedido_id],
-    queryFn: () => itensDoPedido(pedido!.pedido_id),
-    enabled: pedido !== null,
-    gcTime: 0,
-    staleTime: 0,
-  })
-  const { data: unidades = [], isPending: carregandoUnidades } = useQuery({
-    queryKey: ['pcp-detalhe-unidades', pedido?.pedido_id],
-    queryFn: () => unidadesDoPedido(pedido!.pedido_id),
-    enabled: pedido !== null,
-    gcTime: 0,
-    staleTime: 0,
-  })
-  const entregue = pedidoEntregue(pedido?.situacao)
-  const liberadas = pedido ? (entregue ? pedido.total_unidades : pedido.unidades_liberadas) : 0
-
   return (
     <Modal
       aberto={pedido !== null}
@@ -1144,90 +1126,13 @@ function ModalPedidoProducao({
           ? `${pedido.cliente_nome || 'Sem cliente'} · ${formatarDataPedido(pedido.data_pedido)}`
           : undefined
       }
+      tamanho="galpao"
     >
       {pedido && (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <SituacaoTiny situacao={pedido.situacao} />
-            {pedido.data_prevista && (
-              <span className="text-xs text-texto-suave tabular-nums">
-                prevista: {formatarDataPedido(pedido.data_prevista)}
-              </span>
-            )}
-            <span className="text-sm font-medium text-texto tabular-nums">
-              {pedido.total_unidades > 0
-                ? `${liberadas} de ${pedido.total_unidades} unidade${pedido.total_unidades === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
-                : 'Sem itens com quantidade a produzir'}
-            </span>
-            {pedido.alterado_apos_liberacao && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
-                <AlertTriangle aria-hidden className="size-3.5" />
-                Alterado no Tiny após a liberação
-              </span>
-            )}
-          </div>
-
+        <div className="flex flex-col gap-5">
+          <PedidoCompleto key={pedido.pedido_id} pedidoId={pedido.pedido_id} />
           {/* SESSAO-27 (D-101): os campos customizados do pedido — o admin preenche aqui. */}
           <CamposDoCard pedidoId={pedido.pedido_id} podeEditar={souAdminModal} />
-
-          <section aria-label="Itens do pedido" className="flex flex-col gap-1.5">
-            <h3 className="text-sm font-semibold text-texto">Itens (em unidades de produção)</h3>
-            {carregandoItens && <p className="text-sm text-texto-fraco">Carregando…</p>}
-            {!carregandoItens && itens.length === 0 && (
-              <p className="text-sm text-texto-suave">
-                Nenhum item com quantidade a produzir (só frete/serviço).
-              </p>
-            )}
-            <ul className="flex flex-col gap-1 text-sm text-texto">
-              {itens.map((item) => (
-                <li key={item.seq} className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 flex-1 truncate" title={item.descricao ?? undefined}>
-                    {item.descricao || 'Sem descrição'}
-                    {item.codigo && (
-                      <span className="text-texto-suave tabular-nums"> · SKU {item.codigo}</span>
-                    )}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-texto-suave">
-                    {item.unidades} un.
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section aria-label="Onde está cada unidade" className="flex flex-col gap-1.5">
-            <h3 className="text-sm font-semibold text-texto">Onde está cada unidade</h3>
-            {carregandoUnidades && <p className="text-sm text-texto-fraco">Carregando…</p>}
-            {!carregandoUnidades && unidades.length === 0 && (
-              <p className="text-sm text-texto-suave">
-                Nenhuma unidade liberada ainda — tudo aguardando o PCP.
-              </p>
-            )}
-            <ul className="flex flex-col gap-1 text-sm">
-              {unidades.map((u) => (
-                <li key={u.card_id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span
-                    className="min-w-0 flex-1 truncate text-texto"
-                    title={u.item_descricao ?? undefined}
-                  >
-                    {u.item_descricao || 'Unidade'}
-                    {u.indice_unidade !== null && u.total_unidades !== null && (
-                      <span className="text-texto-suave tabular-nums">
-                        {' '}
-                        ({u.indice_unidade}/{u.total_unidades})
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-texto-suave">
-                    {u.concluido_em
-                      ? `concluída em ${u.setor_nome ?? '—'}`
-                      : `${u.setor_nome ?? '—'}${u.etapa_nome ? ` · ${u.etapa_nome}` : ''}`}
-                    {!u.concluido_em && u.desde && ` · há ${formatarDuracao(u.desde, agora)}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
       )}
     </Modal>

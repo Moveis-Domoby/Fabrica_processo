@@ -76,9 +76,9 @@ function pontosDoGrupo(g: Grupo): Ponto[] {
  * caminhão com a sua COR (faixa, linha no mapa, contorno das paradas) e as
  * entregas dele juntas, na ordem da rota. Escolher um caminhão acende a rota
  * dele no mapa; os outros caminhões do mesmo dia ficam transparentes. No
- * caminhão escolhido a ordem se ARRASTA e se salva. "Entregues" mostra o
- * histórico (só quando se pede). Paginada no servidor — "Ver mais" busca a
- * próxima página.
+ * caminhão escolhido a ordem se ARRASTA e se salva. Paginada no servidor —
+ * "Ver mais" busca a próxima página. ↪️ SESSAO-30 (D-120): o histórico de
+ * entregues saiu daqui — o entregue mora no PCP → Todos os pedidos.
  */
 export function AbaJaProgramadas({
   ativa,
@@ -92,7 +92,8 @@ export function AbaJaProgramadas({
 }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
-  const [entregues, setEntregues] = useState(false)
+  // SESSAO-30 (D-120): só o que falta entregar (o entregue mora no PCP).
+  const entregues = false
   const [rascunhos, setRascunhos] = useState<Record<string, number[]>>({})
   const [trecho, setTrecho] = useState<number | null>(null)
   const [reprogramando, setReprogramando] = useState<PedidoProgramado | null>(null)
@@ -431,22 +432,9 @@ export function AbaJaProgramadas({
 
         <section className="flex min-w-0 flex-col gap-4 @3xl:col-start-1 @3xl:row-start-1">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div role="group" aria-label="Quais programações" className="flex flex-wrap gap-2">
-              <Botao
-                variante={!entregues ? 'primaria' : 'secundaria'}
-                aria-pressed={!entregues}
-                onClick={() => setEntregues(false)}
-              >
-                A entregar
-              </Botao>
-              <Botao
-                variante={entregues ? 'primaria' : 'secundaria'}
-                aria-pressed={entregues}
-                onClick={() => setEntregues(true)}
-              >
-                Ver entregues
-              </Botao>
-            </div>
+            <p className="text-sm text-texto-suave">
+              A entregar — o entregue sai daqui e fica no PCP → Todos os pedidos.
+            </p>
             {total > 0 && (
               <span className="text-sm text-texto-suave tabular-nums">
                 {linhas.length} de {total} {total === 1 ? 'entrega' : 'entregas'}

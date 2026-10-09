@@ -12,6 +12,8 @@ import { PedidosAguardo } from './PedidosAguardo'
  * ROTAS continua. O pedido comum segue igual ("3 de 5 prontas").
  */
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
+// O "ao vivo" abre canal no Realtime — fora do escopo deste teste.
+vi.mock('@/lib/aoVivo', () => ({ useAoVivo: () => {} }))
 vi.mock('@/logistica/acesso', () => ({
   useAcessoLogistica: () => ({
     perfil: { id: 'u1', papel: 'admin' },

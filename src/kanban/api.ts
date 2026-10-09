@@ -762,3 +762,155 @@ export async function atualizarEtapa(
     throw new Error(`Não deu para atualizar a etapa: ${error.message}`)
   }
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-30 (D-120): a janela COMPLETA do pedido no PCP — numa requisição
+// ---------------------------------------------------------------------------
+
+export interface ParcelaPedido {
+  data: string | null
+  dias: string | null
+  valor: string | null
+  forma: string | null
+  meio: string | null
+  obs: string | null
+}
+
+export interface DetalhePedido {
+  pedido: {
+    id: number
+    numero: number
+    situacao: string | null
+    origem: string | null
+    data_pedido: string | null
+    data_prevista: string | null
+    data_faturamento: string | null
+    data_envio: string | null
+    data_entrega_tiny: string | null
+    total_produtos: number | null
+    valor_frete: number | null
+    valor_desconto: string | null
+    outras_despesas: string | null
+    total_pedido: number | null
+    forma_pagamento: string | null
+    meio_pagamento: string | null
+    condicao_pagamento: string | null
+    qtd_parcelas: number | null
+    parcelas: ParcelaPedido[]
+    obs: string | null
+    obs_interna: string | null
+    marcadores: string[]
+    vendedor: string | null
+    ecommerce: string | null
+    numero_ecommerce: string | null
+    forma_envio: string | null
+    forma_frete: string | null
+    transportador: string | null
+    codigo_rastreamento: string | null
+    url_rastreamento: string | null
+    atualizado_em: string | null
+  }
+  cliente: {
+    nome: string | null
+    fone: string | null
+    email: string | null
+    documento: string | null
+    endereco: string | null
+    numero: string | null
+    complemento: string | null
+    bairro: string | null
+    cidade: string | null
+    uf: string | null
+    cep: string | null
+  }
+  plataforma: {
+    card_id: number | null
+    situacao: string
+    total_unidades: number
+    lancado_rotas_em: string | null
+    arquivado_em: string | null
+    liberado_completo_em: string | null
+  }
+  programacao: {
+    data: string
+    ordem: number | null
+    detalhe: string | null
+    caminhao: string | null
+    equipe: string[]
+  } | null
+  entrega: {
+    em: string
+    por: string | null
+    por_gente: boolean
+    observacao: string | null
+    fonte: string
+  } | null
+  itens: {
+    seq: number
+    codigo: string | null
+    descricao: string | null
+    unidade: string | null
+    quantidade: number | null
+    valor_unitario: number | null
+    valor_total: number | null
+    unidades_producao: number
+    eh_frete: boolean
+  }[]
+  unidades: {
+    card_id: number
+    descricao: string | null
+    indice: number | null
+    total: number | null
+    setor: string | null
+    etapa: string | null
+    desde: string | null
+    concluido_em: string | null
+    qualidade: string | null
+    arquivado_em: string | null
+    motivo_saida: string | null
+  }[]
+  contas_receber: {
+    vencimento: string | null
+    valor: number | null
+    saldo: number | null
+    situacao: string | null
+    liquidacao: string | null
+    forma: string | null
+    meio: string | null
+    historico: string | null
+  }[]
+  contas_receber_ate: string | null
+  notas_fiscais: {
+    numero: string | null
+    serie: string | null
+    emissao: string | null
+    situacao: string | null
+    valor: number | null
+  }[]
+  anexos: {
+    id: number
+    tipo: string
+    nome: string
+    mime: string
+    tamanho: number
+    caminho: string
+    por: string | null
+    em: string
+  }[]
+  historico: {
+    id: number
+    tipo: string
+    em: string
+    por: string | null
+    origem: string | null
+    observacao: string | null
+    motivo: string | null
+    setor: string | null
+  }[]
+}
+
+/** Tudo do pedido, numa requisição, só no clique (Lei §3). */
+export async function detalhePedidoPcp(pedidoId: number): Promise<DetalhePedido> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_pedido_detalhe', { p_pedido_id: pedidoId })
+  return garantir(data as DetalhePedido | null, error, 'Não deu para abrir o pedido')
+}
