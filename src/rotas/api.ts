@@ -342,6 +342,8 @@ export interface PedidoProgramado {
   caminhao_placa: string | null
   ordem: number | null
   entregue_em: string | null
+  /** SESSAO-30 (D-115): o detalhe da entrega escrito por quem programou. */
+  detalhe: string | null
   contagem_total: number
 }
 
@@ -502,4 +504,235 @@ export function precisaGeocodificar(p: PedidoProgramacao, agora = Date.now()): b
   if (p.geo_resolvido === null) return true
   const consultado = p.geo_consultado_em ? new Date(p.geo_consultado_em).getTime() : 0
   return agora - consultado > RETENTAR_APOS_MS
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-30 (D-115): o entregador — "Entregas do dia", equipe do caminhão,
+// detalhe da entrega, comentário e comprovante
+// ---------------------------------------------------------------------------
+
+export interface ItemEntrega {
+  descricao: string
+  quantidade: number
+  volumes: number
+}
+
+export interface ComentarioEntrega {
+  texto: string
+  por: string | null
+  em: string
+}
+
+export interface EntregaDoDia {
+  posicao: number
+  card_id: number
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  telefone: string | null
+  endereco: string | null
+  numero_endereco: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  latitude: number | null
+  longitude: number | null
+  obs: string | null
+  /** O detalhe escrito por quem programou ("só depois das 10h"). */
+  detalhe: string | null
+  data_prevista: string | null
+  itens: ItemEntrega[]
+  unidades: number
+  /** Volumes do cadastro do Tiny (produto com mais de um volume — montado na entrega). */
+  volumes: number
+  entregue_em: string | null
+  entregue_por: string | null
+  entregue_por_gente: boolean
+  comprovantes: number
+  comentarios: ComentarioEntrega[]
+}
+
+export interface CaminhaoDoDia {
+  id: number
+  nome: string
+  placa: string | null
+  foto: string | null
+  equipe: string[]
+  entregas: number
+}
+
+export interface EntregasDoDia {
+  data: string
+  caminhao_id: number | null
+  caminhoes: CaminhaoDoDia[]
+  entregas: EntregaDoDia[]
+  sou_logistica: boolean
+}
+
+/** A tela do entregador numa requisição só (Lei §2). */
+export async function entregasDoDia(
+  parametros: { data?: string | null; caminhaoId?: number | null } = {},
+): Promise<EntregasDoDia> {
+  const { data, error } = await supabase.rpc('plt_fn_entregas_do_dia', {
+    p_data: parametros.data ?? null,
+    p_caminhao_id: parametros.caminhaoId ?? null,
+  })
+  if (error) throw new Error(`Não deu para carregar as entregas: ${error.message}`)
+  return data as EntregasDoDia
+}
+
+export async function comentarNoCard(cardId: number, texto: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_card_comentar', {
+    p_card_id: cardId,
+    p_texto: texto.trim(),
+  })
+  if (error) throw new Error(error.message)
+}
+
+const ARMARIO = 'plt-anexos'
+export const TIPOS_COMPROVANTE =
+  'image/*,application/pdf,.pdf,.doc,.docx,.odt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const LIMITE_ARQUIVO = 10 * 1024 * 1024
+
+/**
+ * Foto reduzida NO APARELHO antes de subir (Lei §9): o lado maior vai a 1600 px
+ * em JPEG; PDF, Word e o que o navegador não sabe desenhar (HEIC) vão como estão.
+ */
+export async function reduzirSeForFoto(arquivo: File): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type)) return arquivo
+  try {
+    const bitmap = await createImageBitmap(arquivo)
+    const escala = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+    if (escala === 1 && arquivo.size < 1.5 * 1024 * 1024) return arquivo
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * escala)
+    canvas.height = Math.round(bitmap.height * escala)
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/jpeg', 0.8))
+    if (!blob) return arquivo
+    return new File([blob], arquivo.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch {
+    return arquivo
+  }
+}
+
+/**
+ * O comprovante sobe DIRETO ao armário privado (não passa pelo banco); depois o
+ * banco registra o anexo no card. O caminho começa pelo card — é o que a regra
+ * do armário confere.
+ */
+export async function anexarComprovante(cardId: number, original: File): Promise<void> {
+  const arquivo = await reduzirSeForFoto(original)
+  if (arquivo.size > LIMITE_ARQUIVO)
+    throw new Error('O arquivo tem mais de 10 MB — mande uma foto ou um PDF menor.')
+  const nomeLimpo =
+    arquivo.name
+      .normalize('NFD')
+      .replace(/[^\w.-]+/g, '-')
+      .slice(-80) || 'comprovante'
+  const caminho = `${cardId}/${crypto.randomUUID()}-${nomeLimpo}`
+  const envio = await supabase.storage.from(ARMARIO).upload(caminho, arquivo, {
+    contentType: arquivo.type || 'application/octet-stream',
+    upsert: false,
+  })
+  if (envio.error) throw new Error(`Não deu para enviar o arquivo: ${envio.error.message}`)
+  const { error } = await supabase.rpc('plt_fn_anexo_registrar', {
+    p_card_id: cardId,
+    p_caminho: caminho,
+    p_nome_arquivo: original.name,
+    p_mime: arquivo.type || 'application/octet-stream',
+    p_tamanho: arquivo.size,
+    p_tipo: 'comprovante',
+  })
+  if (error) throw new Error(error.message)
+}
+
+export interface Anexo {
+  id: number
+  tipo: string
+  caminho: string
+  nome_arquivo: string
+  mime: string
+  tamanho: number
+  enviado_por_nome: string | null
+  enviado_em: string
+}
+
+export async function listarAnexos(cardId: number): Promise<Anexo[]> {
+  const { data, error } = await supabase.rpc('plt_fn_anexos', { p_card_id: cardId })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as Anexo[]
+}
+
+/** Link de poucos minutos para abrir o comprovante (o armário é privado). */
+export async function linkDoAnexo(caminho: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(ARMARIO).createSignedUrl(caminho, 300)
+  if (error || !data) throw new Error('Não deu para abrir o arquivo.')
+  return data.signedUrl
+}
+
+export interface PessoaEntregadora {
+  id: string
+  nome: string
+  foto_caminho: string | null
+  entregador: boolean
+}
+
+export async function listarEntregadores(): Promise<PessoaEntregadora[]> {
+  const { data, error } = await supabase.rpc('plt_fn_entregadores')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as PessoaEntregadora[]
+}
+
+export interface MembroEquipe {
+  caminhao_id: number
+  usuario_id: string
+  nome: string
+}
+
+export async function equipesDoDia(dataIso: string): Promise<MembroEquipe[]> {
+  const { data, error } = await supabase.rpc('plt_fn_equipes_do_dia', { p_data: dataIso })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as MembroEquipe[]
+}
+
+export async function definirEquipe(
+  dataIso: string,
+  caminhaoId: number,
+  usuarios: string[],
+): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_equipe_definir', {
+    p_data: dataIso,
+    p_caminhao_id: caminhaoId,
+    p_usuarios: usuarios,
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function salvarDetalheEntrega(cardId: number, detalhe: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_programacao_detalhe', {
+    p_card_id: cardId,
+    p_detalhe: detalhe,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Admin: tornar (ou deixar de ser) entregador — só "Entregas do dia" (D-115). */
+export async function definirEntregador(usuarioId: string, entregador: boolean): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_usuario_entregador', {
+    p_usuario_id: usuarioId,
+    p_entregador: entregador,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** O mapa do endereço (o ponto, quando há; senão a busca pelo texto). */
+export function linkMapaEntrega(e: EntregaDoDia): string | null {
+  if (e.latitude !== null && e.longitude !== null)
+    return `https://www.google.com/maps/search/?api=1&query=${e.latitude},${e.longitude}`
+  const endereco = [e.endereco, e.numero_endereco, e.bairro, e.cidade, e.uf]
+    .filter(Boolean)
+    .join(', ')
+  return endereco ? `https://www.google.com/maps/search/${encodeURIComponent(endereco)}` : null
 }

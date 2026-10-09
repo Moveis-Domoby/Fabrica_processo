@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, MapPin, RotateCcw, Save, Truck, X } from 'lucide-react'
+import { CalendarDays, MapPin, NotebookPen, RotateCcw, Save, Truck, Users, X } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { listarCaminhoes, urlFotoCaminhao } from '@/admin/caminhoes'
@@ -17,6 +17,7 @@ import { ListaArrastavel } from './ListaArrastavel'
 import { MapaProgramacao } from './MapaProgramacao'
 import type { ParadaNoMapa, RotaNoMapa } from './MapaProgramacao'
 import { ModalProgramar } from './ModalProgramar'
+import { ModalDetalheEntrega, ModalEquipe } from './ModaisProgramacao'
 import { PainelRota } from './PainelRota'
 import { formatarDistancia, temPonto } from './proximidade'
 import type { Ponto } from './proximidade'
@@ -95,6 +96,13 @@ export function AbaJaProgramadas({
   const [rascunhos, setRascunhos] = useState<Record<string, number[]>>({})
   const [trecho, setTrecho] = useState<number | null>(null)
   const [reprogramando, setReprogramando] = useState<PedidoProgramado | null>(null)
+  // SESSAO-30 (D-115): a equipe do caminhão no dia e o detalhe da entrega.
+  const [equipeDe, setEquipeDe] = useState<{
+    dia: string
+    caminhaoId: number
+    caminhaoNome: string
+  } | null>(null)
+  const [detalheDe, setDetalheDe] = useState<PedidoProgramado | null>(null)
 
   const consulta = useInfiniteQuery({
     queryKey: ['programadas', entregues],
@@ -351,13 +359,23 @@ export function AbaJaProgramadas({
         >
           {numero}
         </span>
-        <CartaoPedido pedido={p} />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <CartaoPedido pedido={p} />
+          {p.detalhe && (
+            <span className="rounded-dm border border-atencao-borda bg-atencao-fundo px-2 py-1 text-sm text-atencao-texto">
+              {p.detalhe}
+            </span>
+          )}
+        </span>
         {entregues ? (
           <span className="text-xs text-texto-suave tabular-nums">
             entregue em {p.entregue_em ? new Date(p.entregue_em).toLocaleDateString('pt-BR') : '—'}
           </span>
         ) : (
-          <span className="flex gap-2">
+          <span className="flex flex-wrap gap-2">
+            <Botao variante="secundaria" icone={<NotebookPen />} onClick={() => setDetalheDe(p)}>
+              Detalhe
+            </Botao>
             <Botao variante="secundaria" onClick={() => setReprogramando(p)}>
               Reprogramar
             </Botao>
@@ -536,6 +554,21 @@ export function AbaJaProgramadas({
                           Ver no mapa
                         </Botao>
                       )}
+                      {!entregues && (
+                        <Botao
+                          variante="secundaria"
+                          icone={<Users />}
+                          onClick={() =>
+                            setEquipeDe({
+                              dia: g.dia,
+                              caminhaoId: g.caminhaoId,
+                              caminhaoNome: g.caminhaoNome,
+                            })
+                          }
+                        >
+                          Equipe
+                        </Botao>
+                      )}
                     </div>
                     {ativo && !entregues ? (
                       <ListaArrastavel
@@ -572,6 +605,17 @@ export function AbaJaProgramadas({
             </Botao>
           )}
         </section>
+
+        <ModalEquipe
+          key={equipeDe ? `${equipeDe.dia}-${equipeDe.caminhaoId}` : 'equipe-fechada'}
+          alvo={equipeDe}
+          aoFechar={() => setEquipeDe(null)}
+        />
+        <ModalDetalheEntrega
+          key={detalheDe ? `detalhe-${detalheDe.card_id}` : 'detalhe-fechado'}
+          pedido={detalheDe}
+          aoFechar={() => setDetalheDe(null)}
+        />
 
         {reprogramando && (
           <ModalProgramar

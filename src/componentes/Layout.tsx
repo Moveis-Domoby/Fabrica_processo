@@ -17,12 +17,13 @@ import {
   ShieldCheck,
   Store,
   TabletSmartphone,
+  Truck,
   X,
 } from 'lucide-react'
 import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { ehSuperAdmin, temModulo } from '@/autenticacao/tipos'
+import { ehSoEntregador, ehSuperAdmin, ROTA_ENTREGADOR, temModulo } from '@/autenticacao/tipos'
 import { SeletorTemaRapido } from '@/perfil/SeletorTemaRapido'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { BolhaExecucao } from '@/afazeres/BolhaExecucao'
@@ -154,6 +155,9 @@ export function Layout({ children }: { children: ReactNode }) {
   }
   const souAdmin = perfil?.papel === 'admin'
   const souSuperAdmin = ehSuperAdmin(perfil)
+  // SESSAO-30 (D-115): o entregador vê só as entregas do dia — nem o quadro,
+  // nem o chat, nem a bolinha de execução.
+  const soEntregador = ehSoEntregador(perfil)
   const ehDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
   // SESSAO-24: todo fim de linha (ESTOQUE, Pedidos em aguardo, ROTAS) é logística.
   const ehDeTerminal = vinculos.some((v) =>
@@ -180,6 +184,16 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const grupos: GrupoMenu[] = useMemo(() => {
     if (!perfil) return []
+    if (soEntregador) {
+      return [
+        {
+          id: 'entregas',
+          rotulo: 'Entregas',
+          icone: <Truck aria-hidden />,
+          secoes: [{ filhos: [{ para: ROTA_ENTREGADOR, rotulo: 'Entregas do dia' }] }],
+        },
+      ]
+    }
 
     const idsVinculados = new Set(vinculos.map((v) => v.setor_id))
     const setoresDoMenu = setores.filter(
@@ -192,7 +206,7 @@ export function Layout({ children }: { children: ReactNode }) {
       .filter((s) => (s.codigo === 'pcp' ? souAdmin || ehDoPcp : true))
       .map((s) => ({ para: rotaDoSetor(s.codigo), rotulo: s.nome }))
 
-    const veLogistica = souAdmin || ehDoPcp || ehDeTerminal
+    const veLogistica = (souAdmin || ehDoPcp || ehDeTerminal) && !soEntregador
 
     // O pai Fábrica (D-46): Controle de Produção, Logística e ROTAS viraram
     // seções da barra 2 — os dashboards da produção ficam onde estão (Q-66).
@@ -217,6 +231,8 @@ export function Layout({ children }: { children: ReactNode }) {
               filhos: [
                 { para: '/fabrica/rotas/entregas', rotulo: 'Entregas' },
                 { para: '/fabrica/rotas/programacao', rotulo: 'Programação' },
+                // SESSAO-30 (D-115): a tela do entregador — a logística também abre.
+                { para: ROTA_ENTREGADOR, rotulo: 'Entregas do dia' },
               ],
             },
           ]
@@ -234,7 +250,9 @@ export function Layout({ children }: { children: ReactNode }) {
               { para: '/inicio/meu-painel', rotulo: 'Meu painel' },
               { para: '/inicio/afazeres', rotulo: 'Meus afazeres' },
               // A visão da liderança virou filha própria (23/09).
-              ...(ehLider ? [{ para: '/inicio/afazeres-do-time', rotulo: 'Afazeres do time' }] : []),
+              ...(ehLider
+                ? [{ para: '/inicio/afazeres-do-time', rotulo: 'Afazeres do time' }]
+                : []),
               // O chat interno (SESSAO-26) — o balão também abre em qualquer tela.
               { para: '/inicio/chat', rotulo: 'Chat' },
             ],
@@ -343,7 +361,19 @@ export function Layout({ children }: { children: ReactNode }) {
           ]
         : []),
     ]
-  }, [perfil, vinculos, setores, souAdmin, souSuperAdmin, ehDoPcp, ehDeTerminal, ehLider, veFabrica, veComercial])
+  }, [
+    perfil,
+    vinculos,
+    setores,
+    souAdmin,
+    souSuperAdmin,
+    soEntregador,
+    ehDoPcp,
+    ehDeTerminal,
+    ehLider,
+    veFabrica,
+    veComercial,
+  ])
 
   const grupoAtivo = grupos.find((g) =>
     filhosDoGrupo(g).some((f) => location.pathname.startsWith(f.para)),
@@ -399,9 +429,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
           </div>
         </header>
-        <main className="w-full flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          {children}
-        </main>
+        <main className="w-full flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
         <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
           Móveis Domoby · Plataforma de Produção
         </footer>
@@ -542,9 +570,7 @@ export function Layout({ children }: { children: ReactNode }) {
             )}
             {!recolhida && (
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium text-grafite-100">
-                  {perfil.nome}
-                </span>
+                <span className="truncate text-sm font-medium text-grafite-100">{perfil.nome}</span>
                 <span className="text-xs text-grafite-300 tabular-nums">{perfil.matricula}</span>
               </span>
             )}
@@ -643,86 +669,86 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     // O chat (SESSAO-26) acompanha toda tela logada — nunca o /tablet (acima).
     <ProvedorChat eu={perfil.id}>
-    <div className="min-h-dvh bg-fundo lg:flex">
-      {/* Barra do celular: menu + marca + sino (a gaveta traz o resto). */}
-      <header className="menu-superficie sticky top-0 z-30 bg-grafite-700 lg:hidden">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <button
-            type="button"
-            onClick={() => setGavetaAberta(true)}
-            aria-label="Abrir o menu"
-            aria-expanded={gavetaAberta}
-            className="inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
-          >
-            <Menu aria-hidden className="size-6" />
-          </button>
-          <NavLink to={ROTA_INICIAL} className="rounded-dm" aria-label="Domoby — início">
-            <Marca tamanho="sm" />
-          </NavLink>
-          <div className="ml-auto">
-            <SinoNotificacoes usuarioId={perfil.id} />
+      <div className="min-h-dvh bg-fundo lg:flex">
+        {/* Barra do celular: menu + marca + sino (a gaveta traz o resto). */}
+        <header className="menu-superficie sticky top-0 z-30 bg-grafite-700 lg:hidden">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <button
+              type="button"
+              onClick={() => setGavetaAberta(true)}
+              aria-label="Abrir o menu"
+              aria-expanded={gavetaAberta}
+              className="inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
+            >
+              <Menu aria-hidden className="size-6" />
+            </button>
+            <NavLink to={ROTA_INICIAL} className="rounded-dm" aria-label="Domoby — início">
+              <Marca tamanho="sm" />
+            </NavLink>
+            <div className="ml-auto">
+              <SinoNotificacoes usuarioId={perfil.id} />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Fundo escuro atrás da gaveta aberta (só celular/tablet). Fundo e gaveta
+        {/* Fundo escuro atrás da gaveta aberta (só celular/tablet). Fundo e gaveta
           ficam na camada 55 (E-57, ajuste de 28/09): acima das bolhas flutuantes
           (balão do chat, bolinha de execução — 40) e dos painéis delas (50), que
           vêm depois no DOM; abaixo dos avisos passageiros (60). */}
-      {gavetaAberta && (
-        <button
-          type="button"
-          aria-label="Fechar o menu"
-          onClick={() => setGavetaAberta(false)}
-          className="fixed inset-0 z-[55] bg-grafite-950/60 lg:hidden"
-        />
-      )}
+        {gavetaAberta && (
+          <button
+            type="button"
+            aria-label="Fechar o menu"
+            onClick={() => setGavetaAberta(false)}
+            className="fixed inset-0 z-[55] bg-grafite-950/60 lg:hidden"
+          />
+        )}
 
-      {/* As duas barras, lado a lado: gaveta no celular, coluna fixa no computador.
+        {/* As duas barras, lado a lado: gaveta no celular, coluna fixa no computador.
           A gaveta CONTÉM as barras (ajuste de 28/09): quem desliza é o aside e
           quem rola, se as duas não couberem na tela, é o envoltório de dentro —
           nunca o aside, porque o `translate` dele faz dele o "chão" do painel
           fixo do sino, que seria cortado. Fechada, sai inteira da tela e fica
           invisível depois do deslize: nada dela pega toque nem Tab. */}
-      <aside
-        aria-label="Menu lateral"
-        className={cn(
-          'fixed inset-y-0 left-0 z-[55] flex max-w-[100vw] transition-[translate,visibility] duration-200',
-          gavetaAberta ? 'visible translate-x-0' : 'invisible -translate-x-full',
-          'lg:visible lg:sticky lg:top-0 lg:z-50 lg:h-dvh lg:shrink-0 lg:translate-x-0',
+        <aside
+          aria-label="Menu lateral"
+          className={cn(
+            'fixed inset-y-0 left-0 z-[55] flex max-w-[100vw] transition-[translate,visibility] duration-200',
+            gavetaAberta ? 'visible translate-x-0' : 'invisible -translate-x-full',
+            'lg:visible lg:sticky lg:top-0 lg:z-50 lg:h-dvh lg:shrink-0 lg:translate-x-0',
+          )}
+        >
+          <div className="flex h-full overflow-x-auto lg:overflow-visible">
+            {barraPais}
+            {barraFilhos}
+          </div>
+        </aside>
+
+        {modoFoco ? (
+          // A área de trabalho das automações: a altura toda da tela (menos a
+          // barra do celular); o voltar mora na barra do próprio editor.
+          <main className="flex h-[calc(100dvh-60px)] min-w-0 flex-1 flex-col overflow-hidden lg:h-dvh">
+            {children}
+          </main>
+        ) : (
+          <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+            {/* Toda tela tem botão de voltar (D-36). */}
+            <div className="w-full px-4 pt-3 sm:px-6">
+              <BotaoVoltar />
+            </div>
+            <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">{children}</main>
+            <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
+              Móveis Domoby · Plataforma de Produção
+            </footer>
+          </div>
         )}
-      >
-        <div className="flex h-full overflow-x-auto lg:overflow-visible">
-          {barraPais}
-          {barraFilhos}
-        </div>
-      </aside>
 
-      {modoFoco ? (
-        // A área de trabalho das automações: a altura toda da tela (menos a
-        // barra do celular); o voltar mora na barra do próprio editor.
-        <main className="flex h-[calc(100dvh-60px)] min-w-0 flex-1 flex-col overflow-hidden lg:h-dvh">{children}</main>
-      ) : (
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        {/* Toda tela tem botão de voltar (D-36). */}
-        <div className="w-full px-4 pt-3 sm:px-6">
-          <BotaoVoltar />
-        </div>
-        <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">
-          {children}
-        </main>
-        <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
-          Móveis Domoby · Plataforma de Produção
-        </footer>
-      </div>
-      )}
-
-      {/* A bolinha do "em execução agora" percorre a plataforma inteira
+        {/* A bolinha do "em execução agora" percorre a plataforma inteira
           (pedido do dono, 23/09) — só aparece quando algo conta tempo. */}
-      {!modoFoco && <BolhaExecucao />}
-      {/* O balão do chat (SESSAO-26): arrastável, ao lado da bolinha. */}
-      {!modoFoco && <BalaoChat />}
-    </div>
+        {!modoFoco && !soEntregador && <BolhaExecucao />}
+        {/* O balão do chat (SESSAO-26): arrastável, ao lado da bolinha. */}
+        {!modoFoco && !soEntregador && <BalaoChat />}
+      </div>
     </ProvedorChat>
   )
 }

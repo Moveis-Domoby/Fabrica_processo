@@ -42,7 +42,13 @@ import { ListaDetalhe } from '@/comercial/paginas/ListaDetalhe'
 
 // O mapa (Leaflet, ~150 kB) só vem quando a Programação abre — o resto do
 // sistema não paga por ele (SESSAO-28; pendência anotada na SESSAO-15).
-const Programacao = lazy(() => import('@/paginas/Programacao').then((m) => ({ default: m.Programacao })))
+const Programacao = lazy(() =>
+  import('@/paginas/Programacao').then((m) => ({ default: m.Programacao })),
+)
+// SESSAO-30 (D-115): a tela do entregador — pedaço próprio do pacote (Lei §9).
+const EntregasDoDia = lazy(() =>
+  import('@/paginas/EntregasDoDia').then((m) => ({ default: m.EntregasDoDia })),
+)
 
 /** /producao/{codigo} antigo → /fabrica/producao/{codigo} (bookmark não quebra). */
 function RedirecionarProducaoAntiga() {
@@ -96,6 +102,19 @@ export function App() {
               {/* o chat interno (SESSAO-26): a tela cheia; o balão vive na casca */}
               <Route path="/inicio/chat" element={<Chat />} />
 
+              {/* SESSAO-30 (D-115): as entregas do dia — o entregador (módulo
+                  "entregas") e a logística; o banco decide o que cada um vê */}
+              <Route
+                path="/entregas/do-dia"
+                element={
+                  <Suspense
+                    fallback={<p className="text-sm text-texto-fraco">Carregando as entregas…</p>}
+                  >
+                    <EntregasDoDia />
+                  </Suspense>
+                }
+              />
+
               {/* o modo do galpão: sem navegação nenhuma (D-06/D-28) */}
               <Route path="/tablet" element={<TelaSetor />} />
 
@@ -111,7 +130,9 @@ export function App() {
                 <Route
                   path="/fabrica/rotas/programacao"
                   element={
-                    <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando o mapa…</p>}>
+                    <Suspense
+                      fallback={<p className="text-sm text-texto-fraco">Carregando o mapa…</p>}
+                    >
                       <Programacao />
                     </Suspense>
                   }
@@ -168,19 +189,44 @@ export function App() {
             {/* pais nunca navegam: cada um direciona ao primeiro filho */}
             <Route path="/inicio" element={<Navigate to="/inicio/meu-painel" replace />} />
             <Route path="/fabrica" element={<Navigate to="/fabrica/producao/pcp" replace />} />
-            <Route path="/fabrica/producao" element={<Navigate to="/fabrica/producao/pcp" replace />} />
-            <Route path="/fabrica/logistica" element={<Navigate to="/fabrica/logistica/expedicao" replace />} />
-            <Route path="/fabrica/rotas" element={<Navigate to="/fabrica/rotas/entregas" replace />} />
+            <Route
+              path="/fabrica/producao"
+              element={<Navigate to="/fabrica/producao/pcp" replace />}
+            />
+            <Route
+              path="/fabrica/logistica"
+              element={<Navigate to="/fabrica/logistica/expedicao" replace />}
+            />
+            <Route
+              path="/fabrica/rotas"
+              element={<Navigate to="/fabrica/rotas/entregas" replace />}
+            />
             <Route path="/comercial" element={<Navigate to="/comercial/recompra" replace />} />
             {/* o 1º filho que TODO papel pode abrir (SESSAO-23) */}
-            <Route path="/dashboards" element={<Navigate to="/dashboards/meu-desempenho" replace />} />
+            <Route
+              path="/dashboards"
+              element={<Navigate to="/dashboards/meu-desempenho" replace />}
+            />
             {/* a tela única da S10 virou as 4 filhas — bookmark antigo não quebra */}
-            <Route path="/dashboards/geral" element={<Navigate to="/dashboards/visao-do-dia" replace />} />
-            <Route path="/configuracoes" element={<Navigate to="/configuracoes/equipe" replace />} />
-            <Route path="/super-admin" element={<Navigate to="/super-admin/automacoes" replace />} />
+            <Route
+              path="/dashboards/geral"
+              element={<Navigate to="/dashboards/visao-do-dia" replace />}
+            />
+            <Route
+              path="/configuracoes"
+              element={<Navigate to="/configuracoes/equipe" replace />}
+            />
+            <Route
+              path="/super-admin"
+              element={<Navigate to="/super-admin/automacoes" replace />}
+            />
+            <Route path="/entregas" element={<Navigate to="/entregas/do-dia" replace />} />
             {/* o antigo "Painel admin" (/admin/*) → Configurações; a auditoria → Super admin */}
             <Route path="/admin" element={<Navigate to="/configuracoes/equipe" replace />} />
-            <Route path="/admin/auditoria" element={<Navigate to="/super-admin/auditoria" replace />} />
+            <Route
+              path="/admin/auditoria"
+              element={<Navigate to="/super-admin/auditoria" replace />}
+            />
             <Route
               path="/admin/*"
               element={<RedirecionarComPrefixo de="/admin" para="/configuracoes" />}
@@ -202,12 +248,27 @@ export function App() {
             <Route element={<RotaProtegida />}>
               <Route path="/setores/:id" element={<RedirecionarSetorAntigo />} />
             </Route>
-            <Route path="/expedicao" element={<Navigate to="/fabrica/logistica/expedicao" replace />} />
+            <Route
+              path="/expedicao"
+              element={<Navigate to="/fabrica/logistica/expedicao" replace />}
+            />
             <Route path="/equipe" element={<Navigate to="/configuracoes/equipe" replace />} />
-            <Route path="/estrutura" element={<Navigate to="/configuracoes/setores-e-etapas" replace />} />
-            <Route path="/administracao" element={<Navigate to="/configuracoes/equipe" replace />} />
-            <Route path="/administracao/tempo" element={<Navigate to="/configuracoes/tempo" replace />} />
-            <Route path="/administracao/api" element={<Navigate to="/configuracoes/api" replace />} />
+            <Route
+              path="/estrutura"
+              element={<Navigate to="/configuracoes/setores-e-etapas" replace />}
+            />
+            <Route
+              path="/administracao"
+              element={<Navigate to="/configuracoes/equipe" replace />}
+            />
+            <Route
+              path="/administracao/tempo"
+              element={<Navigate to="/configuracoes/tempo" replace />}
+            />
+            <Route
+              path="/administracao/api"
+              element={<Navigate to="/configuracoes/api" replace />}
+            />
 
             {/* nenhuma rota solta na raiz: tudo desemboca no Meu painel */}
             <Route path="/" element={<Navigate to="/inicio/meu-painel" replace />} />

@@ -9,6 +9,7 @@ import {
   MessageCircle,
   RotateCcw,
   Trash2,
+  Truck,
   UserRoundPlus,
 } from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
@@ -23,7 +24,8 @@ import {
   pinDefinir,
 } from '@/autenticacao/api'
 import type { UsuarioCriado } from '@/autenticacao/api'
-import { COLUNAS_PERFIL, ROTULO_PAPEL } from '@/autenticacao/tipos'
+import { COLUNAS_PERFIL, ehSoEntregador, ROTULO_PAPEL } from '@/autenticacao/tipos'
+import { definirEntregador } from '@/rotas/api'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
 import { definirNascimento, lerNascimento } from '@/perfil/api'
@@ -63,6 +65,8 @@ const FORMULARIO_VAZIO = {
   telefone: '',
   papel: 'operador' as Papel,
   pin: '',
+  /** SESSAO-30 (D-115): o tipo "Entregador (só ROTAS)" — operador com o módulo de entregas. */
+  entregador: false,
 }
 
 /** Gestão mínima de usuários e convites (RF-20/RF-21) — o painel completo é a SESSAO-14. */
@@ -125,7 +129,10 @@ export function Equipe() {
   const salvarNascimento = useMutation({
     mutationFn: () => definirNascimento(alvoNascimento!.id, valorNascimento || null),
     onSuccess: () => {
-      notificar({ titulo: `Data de nascimento de ${alvoNascimento?.nome ?? ''} salva`, tom: 'perfeito' })
+      notificar({
+        titulo: `Data de nascimento de ${alvoNascimento?.nome ?? ''} salva`,
+        tom: 'perfeito',
+      })
       setAlvoNascimento(null)
       setNascimentoEditado(null)
     },
@@ -167,7 +174,8 @@ export function Equipe() {
       await desarquivarUsuario(pessoa.id)
       notificar({
         titulo: `${pessoa.nome} reativado(a)`,
-        descricao: 'As pendências realocadas no arquivamento não voltam — realoque à mão se precisar.',
+        descricao:
+          'As pendências realocadas no arquivamento não voltam — realoque à mão se precisar.',
         tom: 'perfeito',
       })
       await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
@@ -229,7 +237,12 @@ export function Equipe() {
       return setErroFormulario('Informe o CPF completo — a matrícula é gerada a partir dele.')
     // D-52: admin tem acesso a tudo — o setor é opcional só para ele.
     const papelFinal = souAdmin ? dados.papel : 'operador'
-    if (papelFinal !== 'admin' && setoresEscolhidos.size === 0)
+    const entregador = souAdmin && dados.entregador
+    // O entregador fica ligado à ROTAS (o banco confere de novo).
+    const rotas = setores.find((s) => s.codigo === 'rotas')
+    const vinculos = new Map(setoresEscolhidos)
+    if (entregador && rotas) vinculos.set(rotas.id, false)
+    if (papelFinal !== 'admin' && vinculos.size === 0)
       return setErroFormulario('Escolha pelo menos um setor.')
     if (dados.pin && !/^[0-9]{4,6}$/.test(dados.pin))
       return setErroFormulario('PIN: 4 a 6 dígitos, só números.')
@@ -243,13 +256,14 @@ export function Equipe() {
         usuario: dados.usuario.trim().toLowerCase(),
         cpf: dados.cpf.replace(/\D/g, ''),
         telefone: dados.telefone.trim() || undefined,
-        papel: souAdmin ? dados.papel : 'operador',
-        setores: [...setoresEscolhidos.entries()].map(([setor_id, lider]) => ({
+        papel: entregador ? 'operador' : papelFinal,
+        setores: [...vinculos.entries()].map(([setor_id, lider]) => ({
           setor_id,
           lider: souAdmin ? lider : false,
         })),
         pin: dados.pin || undefined,
       })
+      if (entregador) await definirEntregador(resultado.id, true)
       setCriado({ ...resultado, nome: dados.nome.trim() })
       setModalNovo(false)
       setFormulario(FORMULARIO_VAZIO)
@@ -257,7 +271,9 @@ export function Equipe() {
       setLinkCopiado(false)
       await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
     } catch (excecao) {
-      setErroFormulario(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
+      setErroFormulario(
+        excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.',
+      )
     } finally {
       setEnviando(false)
     }
@@ -274,7 +290,11 @@ export function Equipe() {
       setLinkCopiado(true)
       notificar({ titulo: 'Link copiado', tom: 'perfeito' })
     } catch {
-      notificar({ titulo: 'Não consegui copiar', descricao: 'Selecione o link e copie à mão.', tom: 'atencao' })
+      notificar({
+        titulo: 'Não consegui copiar',
+        descricao: 'Selecione o link e copie à mão.',
+        tom: 'atencao',
+      })
     }
   }
 
@@ -298,11 +318,42 @@ export function Equipe() {
     }
   }
 
+  // SESSAO-30 (D-115): tornar (ou deixar de ser) entregador — só "Entregas do dia".
+  const entregadorMutacao = useMutation({
+    mutationFn: (p: LinhaEquipe) => definirEntregador(p.id, !ehSoEntregador(p)),
+    onSuccess: async (_d, p) => {
+      notificar({
+        titulo: ehSoEntregador(p)
+          ? `${p.nome} voltou a ver a fábrica`
+          : `${p.nome} agora é entregador`,
+        descricao: ehSoEntregador(p)
+          ? undefined
+          : 'Vê só "Entregas do dia" — do caminhão em que for escolhido.',
+        tom: 'perfeito',
+      })
+      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu certo',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
   const colunas: ColunaTabela<LinhaEquipe>[] = [
-    { chave: 'matricula', cabecalho: 'Matrícula', celula: (p) => <span className="tabular-nums">{p.matricula}</span> },
+    {
+      chave: 'matricula',
+      cabecalho: 'Matrícula',
+      celula: (p) => <span className="tabular-nums">{p.matricula}</span>,
+    },
     { chave: 'nome', cabecalho: 'Nome', celula: (p) => p.nome, ocultarNoCelular: true },
     { chave: 'usuario', cabecalho: 'Usuário', celula: (p) => p.usuario },
-    { chave: 'papel', cabecalho: 'Papel', celula: (p) => ROTULO_PAPEL[p.papel] },
+    {
+      chave: 'papel',
+      cabecalho: 'Papel',
+      celula: (p) => (ehSoEntregador(p) ? 'Entregador' : ROTULO_PAPEL[p.papel]),
+    },
     { chave: 'setores', cabecalho: 'Setores', celula: (p) => p.setores },
     {
       chave: 'situacao',
@@ -352,9 +403,21 @@ export function Equipe() {
               }}
             />
           )}
+          {souAdmin && !p.arquivado_em && p.papel !== 'admin' && (
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<Truck />}
+              carregando={entregadorMutacao.isPending && entregadorMutacao.variables?.id === p.id}
+              onClick={() => entregadorMutacao.mutate(p)}
+            >
+              {ehSoEntregador(p) ? 'Tirar de entregador' : 'Entregador'}
+            </Botao>
+          )}
           {/* Arquivar/excluir é gesto de admin (o banco confere de novo — D-49). */}
-          {souAdmin && p.id !== perfil?.id && (
-            p.arquivado_em ? (
+          {souAdmin &&
+            p.id !== perfil?.id &&
+            (p.arquivado_em ? (
               <Botao
                 variante="secundaria"
                 tamanho="sm"
@@ -388,8 +451,7 @@ export function Equipe() {
                   }}
                 />
               </>
-            )
-          )}
+            ))}
         </span>
       ),
     },
@@ -495,9 +557,17 @@ export function Equipe() {
                 { valor: 'operador', rotulo: 'Operador' },
                 { valor: 'lider', rotulo: 'Líder' },
                 { valor: 'admin', rotulo: 'Admin' },
+                // SESSAO-30 (D-115): vê só "Entregas do dia".
+                { valor: 'entregador', rotulo: 'Entregador (só ROTAS)' },
               ]}
-              valor={formulario.papel}
-              aoMudar={(v) => setFormulario({ ...formulario, papel: v as Papel })}
+              valor={formulario.entregador ? 'entregador' : formulario.papel}
+              aoMudar={(v) =>
+                setFormulario(
+                  v === 'entregador'
+                    ? { ...formulario, papel: 'operador', entregador: true }
+                    : { ...formulario, papel: v as Papel, entregador: false },
+                )
+              }
             />
           ) : (
             <Campo rotulo="Papel" value="Operador" disabled ajuda="Líder cadastra operadores." />
@@ -528,7 +598,10 @@ export function Equipe() {
               const marcado = setoresEscolhidos.has(setor.id)
               const lider = setoresEscolhidos.get(setor.id) ?? false
               return (
-                <li key={setor.id} className="flex min-h-toque-md items-center justify-between gap-3 px-3 py-1.5">
+                <li
+                  key={setor.id}
+                  className="flex min-h-toque-md items-center justify-between gap-3 px-3 py-1.5"
+                >
                   <label className="flex flex-1 cursor-pointer items-center gap-3 py-1.5">
                     <input
                       type="checkbox"
@@ -695,12 +768,14 @@ export function Equipe() {
           <p>No ato do arquivamento:</p>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-texto-suave">
             <li>
-              <strong className="text-texto">Execução aberta é encerrada</strong> — o tempo até
-              aqui fica no nome dela.
+              <strong className="text-texto">Execução aberta é encerrada</strong> — o tempo até aqui
+              fica no nome dela.
             </li>
             <li>
-              <strong className="text-texto">Cards delegados e tarefas abertas passam ao líder
-              direto</strong> do setor de cada um, para realocar (sem líder, vêm para você).
+              <strong className="text-texto">
+                Cards delegados e tarefas abertas passam ao líder direto
+              </strong>{' '}
+              do setor de cada um, para realocar (sem líder, vêm para você).
             </li>
             <li>Dá para reativar depois — as pendências realocadas não voltam.</li>
           </ul>
@@ -738,10 +813,10 @@ export function Equipe() {
       >
         <div className="flex flex-col gap-3 text-sm text-texto">
           <p>
-            Somem de verdade: o cadastro, os vínculos com setores, as tarefas dela, a foto e a
-            conta de acesso. Serve para <strong>cadastro errado ou nunca usado</strong> — quem já
-            tem história na plataforma não pode ser excluído (a história não se apaga); para
-            esses, o caminho é arquivar.
+            Somem de verdade: o cadastro, os vínculos com setores, as tarefas dela, a foto e a conta
+            de acesso. Serve para <strong>cadastro errado ou nunca usado</strong> — quem já tem
+            história na plataforma não pode ser excluído (a história não se apaga); para esses, o
+            caminho é arquivar.
           </p>
           {erroDestino && (
             <div className="flex flex-col gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3">

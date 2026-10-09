@@ -33,7 +33,7 @@ export interface Perfil {
   super_admin?: boolean
 }
 
-export type Modulo = 'fabrica' | 'comercial'
+export type Modulo = 'fabrica' | 'comercial' | 'entregas'
 
 /**
  * O gate de módulo do front (D-46) — espelho do plt_privado.fn_tem_modulo do
@@ -44,6 +44,24 @@ export function temModulo(perfil: Perfil | null, modulo: Modulo): boolean {
   if (!perfil) return false
   return perfil.papel === 'admin' || perfil.modulos.includes(modulo)
 }
+
+/**
+ * SESSAO-30 (D-115): o ENTREGADOR — o módulo "entregas" sem o da fábrica. Ele
+ * vê só "Entregas do dia" (espelho do banco: fn_pode_ver_expedicao o deixa de
+ * fora da logística). Admin nunca é "só entregador".
+ */
+export function ehSoEntregador(perfil: Perfil | null): boolean {
+  return (
+    perfil !== null &&
+    perfil.papel !== 'admin' &&
+    perfil.modulos.includes('entregas') &&
+    !perfil.modulos.includes('fabrica')
+  )
+}
+
+/** A casa do entregador e o que mais ele pode abrir. */
+export const ROTA_ENTREGADOR = '/entregas/do-dia'
+export const ROTAS_DO_ENTREGADOR = new Set([ROTA_ENTREGADOR, '/trocar-senha', '/inicio/meu-perfil'])
 
 export interface VinculoSetor {
   setor_id: number

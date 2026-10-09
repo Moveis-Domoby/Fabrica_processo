@@ -2,7 +2,13 @@ import { Navigate, Outlet, useLocation } from 'react-router'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import { useSessao } from './sessao-contexto'
-import { ehSuperAdmin, temModulo } from './tipos'
+import {
+  ehSoEntregador,
+  ehSuperAdmin,
+  ROTA_ENTREGADOR,
+  ROTAS_DO_ENTREGADOR,
+  temModulo,
+} from './tipos'
 import type { Modulo } from './tipos'
 
 function TelaCarregando() {
@@ -22,8 +28,8 @@ function ContaSemAcesso() {
       <ShieldAlert aria-hidden className="size-12 text-atencao-forte" />
       <h1 className="text-2xl">Conta sem acesso</h1>
       <p className="text-texto-suave">
-        Esta conta não tem cadastro ativo na plataforma. Fale com a liderança para ser
-        cadastrado — o acesso só nasce pela mão de um admin ou líder.
+        Esta conta não tem cadastro ativo na plataforma. Fale com a liderança para ser cadastrado —
+        o acesso só nasce pela mão de um admin ou líder.
       </p>
       <Botao variante="secundaria" onClick={() => void sair()}>
         Sair desta conta
@@ -49,6 +55,9 @@ export function RotaProtegida({ nivel }: { nivel?: 'lider' | 'admin' | 'super' }
   if (!perfil) return <ContaSemAcesso />
   if (perfil.senha_padrao && local.pathname !== '/trocar-senha')
     return <Navigate to="/trocar-senha" replace />
+  // SESSAO-30 (D-115): o entregador só vê as entregas do dia — o resto leva para lá.
+  if (ehSoEntregador(perfil) && !ROTAS_DO_ENTREGADOR.has(local.pathname))
+    return <Navigate to={ROTA_ENTREGADOR} replace />
   if (nivel === 'admin' && perfil.papel !== 'admin') return <Navigate to="/" replace />
   if (nivel === 'super' && !ehSuperAdmin(perfil)) return <Navigate to="/" replace />
   if (nivel === 'lider' && !ehLider) return <Navigate to="/" replace />

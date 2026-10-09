@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { temModulo } from './tipos'
+import { ehSoEntregador, temModulo } from './tipos'
 import type { Perfil } from './tipos'
 
 function perfilDeTeste(sobrescrever: Partial<Perfil>): Perfil {
@@ -39,5 +39,19 @@ describe('temModulo (D-46)', () => {
   it('sem perfil, nenhum módulo', () => {
     expect(temModulo(null, 'fabrica')).toBe(false)
     expect(temModulo(null, 'comercial')).toBe(false)
+  })
+})
+
+// SESSAO-30 (D-115): o entregador = módulo "entregas" sem o da fábrica.
+describe('ehSoEntregador (D-115)', () => {
+  it('só entregas = entregador (vê só as entregas do dia)', () => {
+    expect(ehSoEntregador(perfilDeTeste({ modulos: ['entregas'] }))).toBe(true)
+  })
+  it('com a fábrica junto, não é "só" entregador', () => {
+    expect(ehSoEntregador(perfilDeTeste({ modulos: ['fabrica', 'entregas'] }))).toBe(false)
+  })
+  it('admin nunca é "só" entregador; sem perfil também não', () => {
+    expect(ehSoEntregador(perfilDeTeste({ papel: 'admin', modulos: ['entregas'] }))).toBe(false)
+    expect(ehSoEntregador(null)).toBe(false)
   })
 })
