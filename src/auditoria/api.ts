@@ -76,6 +76,15 @@ export interface RodadaConferencia {
   falhas: number
   pendentes: number
   pedidos: { numero: string; campos: string[] }[]
+  /** SESSAO-30 (D-122): as contas a receber na mesma rodada (rodadas antigas não têm). */
+  contas?: {
+    paginas_busca: number
+    relidas: number
+    novas: number
+    pagas: number
+    abertas: number
+    nao_encontradas: number
+  }
 }
 
 export interface ConferenciaEmAndamento {
@@ -101,6 +110,9 @@ export async function buscarConferencias(pagina: number, porPagina: number): Pro
     p_deslocamento: (pagina - 1) * porPagina,
   })
   if (error) throw new Error(`Não deu para carregar as conferências com o Tiny: ${error.message}`)
-  if (!data) throw new Error('Não deu para carregar as conferências com o Tiny: o servidor não devolveu dados.')
+  if (!data)
+    throw new Error(
+      'Não deu para carregar as conferências com o Tiny: o servidor não devolveu dados.',
+    )
   return data as Conferencias
 }

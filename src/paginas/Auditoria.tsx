@@ -24,7 +24,12 @@ import {
 } from 'lucide-react'
 import { Abas, Botao, Campo, Dica, Paginacao, Selecao } from '@/componentes/ui'
 import { buscarNomesUsuarios, buscarSetores } from '@/kanban/api'
-import { buscarAuditoria, buscarConferencias, type FiltrosAuditoria, type LinhaAuditoria } from '@/auditoria/api'
+import {
+  buscarAuditoria,
+  buscarConferencias,
+  type FiltrosAuditoria,
+  type LinhaAuditoria,
+} from '@/auditoria/api'
 import {
   GRUPOS_ACAO,
   detalhesDoContexto,
@@ -108,14 +113,14 @@ export function Auditoria() {
         <Dica rotulo="O que a auditoria mostra">
           <span className="flex flex-col gap-2">
             <span>
-              Tudo o que acontece na plataforma fica registrado aqui: quem fez, quando, em que tela ou
-              setor, o que fez e, quando houver, o porquê. Entradas, telas abertas, movimentações,
-              execuções, qualidade, estoque, ROTAS, tarefas e cadastros.
+              Tudo o que acontece na plataforma fica registrado aqui: quem fez, quando, em que tela
+              ou setor, o que fez e, quando houver, o porquê. Entradas, telas abertas,
+              movimentações, execuções, qualidade, estoque, ROTAS, tarefas e cadastros.
             </span>
             <span>
-              Em "Conferências com o Tiny" fica a conferência de toda madrugada: quantos pedidos foram
-              relidos e quais estavam diferentes do Tiny. Os erros das automações (n8n) vão aparecer
-              ali também, numa próxima etapa.
+              Em "Conferências com o Tiny" fica a conferência de toda madrugada: quantos pedidos
+              foram relidos e quais estavam diferentes do Tiny. Os erros das automações (n8n) vão
+              aparecer ali também, numa próxima etapa.
             </span>
             <span>Tarefa pessoal privada não aparece aqui — só para quem a criou.</span>
           </span>
@@ -128,7 +133,11 @@ export function Auditoria() {
         valor={aba}
         aoMudar={setAba}
         abas={[
-          { valor: 'atividade', rotulo: 'Atividade', icone: <Activity aria-hidden className="size-4" /> },
+          {
+            valor: 'atividade',
+            rotulo: 'Atividade',
+            icone: <Activity aria-hidden className="size-4" />,
+          },
           {
             valor: 'conferencias',
             rotulo: 'Conferências com o Tiny',
@@ -218,7 +227,10 @@ function PainelAtividade() {
         />
         <Selecao
           rotulo="Tipo"
-          opcoes={[{ valor: 'tudo', rotulo: 'Tudo' }, ...GRUPOS_ACAO.map((g) => ({ valor: g.valor, rotulo: g.rotulo }))]}
+          opcoes={[
+            { valor: 'tudo', rotulo: 'Tudo' },
+            ...GRUPOS_ACAO.map((g) => ({ valor: g.valor, rotulo: g.rotulo })),
+          ]}
           valor={tipo}
           aoMudar={(v) => {
             setTipo(v as 'tudo' | GrupoAcao)
@@ -243,7 +255,12 @@ function PainelAtividade() {
             onChange={(e) => setTextoBusca(e.target.value)}
             maxLength={120}
           />
-          <Botao type="submit" variante="secundaria" aria-label="Fazer a busca" className="shrink-0">
+          <Botao
+            type="submit"
+            variante="secundaria"
+            aria-label="Fazer a busca"
+            className="shrink-0"
+          >
             <Search aria-hidden className="size-4" />
           </Botao>
         </div>
@@ -287,7 +304,13 @@ function PainelAtividade() {
   )
 }
 
-function ItemAtividade({ linha, setores }: { linha: LinhaAuditoria; setores: { codigo: string; nome: string }[] }) {
+function ItemAtividade({
+  linha,
+  setores,
+}: {
+  linha: LinhaAuditoria
+  setores: { codigo: string; nome: string }[]
+}) {
   const grupo = grupoDaAcao(linha.acao)
   const onde = ondeAconteceu(linha, setores)
   const detalhes = detalhesDoContexto(linha.contexto)
@@ -314,7 +337,10 @@ function ItemAtividade({ linha, setores }: { linha: LinhaAuditoria; setores: { c
             </span>
           )}
         </span>
-        <time dateTime={linha.criado_em} className="ml-auto shrink-0 text-xs text-texto-fraco tabular-nums">
+        <time
+          dateTime={linha.criado_em}
+          className="ml-auto shrink-0 text-xs text-texto-fraco tabular-nums"
+        >
           {quando(linha.criado_em)}
         </time>
       </div>
@@ -404,7 +430,10 @@ function PainelConferencias() {
         <>
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
             {data.rodadas.map((r) => (
-              <li key={r.id} className="flex flex-col gap-1 border-b border-borda px-4 py-3 last:border-b-0">
+              <li
+                key={r.id}
+                className="flex flex-col gap-1 border-b border-borda px-4 py-3 last:border-b-0"
+              >
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="font-medium text-texto">{rotuloDoMotivo(r.motivo)}</span>
                   {r.estado === 'interrompida' && (
@@ -425,6 +454,21 @@ function PainelConferencias() {
                   {r.nao_encontrados > 0 ? ` · ${r.nao_encontrados} não encontrados no Tiny` : ''}
                   {r.falhas > 0 ? ` · ${r.falhas} com erro` : ''}
                 </p>
+                {/* SESSAO-30 (D-122): as contas a receber voltaram na mesma rodada. */}
+                {r.contas && (
+                  <p className="text-sm text-texto-suave">
+                    <strong className="text-texto tabular-nums">{r.contas.relidas}</strong>{' '}
+                    {r.contas.relidas === 1 ? 'conta a receber relida' : 'contas a receber relidas'}
+                    {r.contas.novas > 0 ? ` · ${r.contas.novas} novas` : ''}
+                    {r.contas.pagas > 0
+                      ? ` · ${r.contas.pagas} ${r.contas.pagas === 1 ? 'foi paga' : 'foram pagas'}`
+                      : ''}
+                    {` · ${r.contas.abertas} em aberto`}
+                    {r.contas.nao_encontradas > 0
+                      ? ` · ${r.contas.nao_encontradas} não encontradas no Tiny`
+                      : ''}
+                  </p>
+                )}
                 {r.pedidos.length > 0 && (
                   <details className="text-sm">
                     <summary className="flex min-h-toque-md cursor-pointer items-center text-texto-suave hover:text-texto">

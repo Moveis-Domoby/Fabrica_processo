@@ -8409,9 +8409,12 @@ conferir(
 )
 
 // os demais da rodada (pedidos de outros blocos, sem pacote aqui) → "não encontrado no Tiny"
-const resto1 = await todos49(`select id::int as id from public.tiny_fila where status = 'processando'
+const resto1 = await todos49(`select id::int as id from public.tiny_fila where status = 'processando' and recurso = 'pedido'
                                 and params->>'rodada' = '${ini1.rodada}' and chave not in ('7290101','7290104','pente-fino:p2')`)
 for (const r of resto1) await bd.exec(`select public.fn_backfill_falha(${r.id}, 'codigo 32: Registro não localizado', true)`)
+// SESSAO-30 (D-122): a rodada busca também as contas a receber — aqui o Tiny não tem nenhuma
+const cr1 = (await um49(`select id::int as id from public.tiny_fila where recurso = 'cr_pesquisa' and chave = 'pente-fino-cr:p1'`)).id
+await bd.exec(`select public.fn_backfill_aplicar(${cr1}, 'cr_pesquisa', '[]'::jsonb)`)
 // 990101 e 990104 voltam iguais; a página 2 do Tiny vem vazia
 const p101igual = pedido49(990101, 7290101, { ...maria, nome: 'Maria Teste 49' })
 const r101 = await reler49('7290101', p101igual)
@@ -10940,6 +10943,125 @@ await como63('')
 const priv63 = await um63(`select has_function_privilege('anon', 'public.plt_fn_pcp_pedido_detalhe(bigint)', 'execute') as anon`)
 conferir(!priv63.anon, 'anônimo fora', JSON.stringify(priv63))
 } // fim do bloco 63
+
+// ============================================================================
+// SESSAO-30 · ajuste do dono (09/10, D-122): "traga de volta as contas a
+// receber do Tiny" — a conferência diária traz também as contas: a busca das
+// emitidas nos últimos 60 dias (as novas) + a releitura das que não fecharam.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · as contas a receber voltam na conferência diária: novas pela busca, abertas relidas, fechadas puladas')
+
+const um64 = async (sql) => (await bd.query(sql)).rows[0]
+const j64 = (obj) => `'${JSON.stringify(obj).split("'").join("''")}'::jsonb`
+const linha64 = async (recurso, chave) =>
+  um64(`select id::int as id, status, params from public.tiny_fila where recurso = '${recurso}' and chave = '${chave}'`)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+// três contas que a carga antiga trouxe: uma ABERTA (antiga), uma PAGA e uma CANCELADA
+await bd.exec(`
+  insert into public.contas_receber (tiny_id, numero_documento, historico, data_emissao, data_vencimento, valor, saldo, situacao)
+  values (8640001, 'D64-1', 'conta antiga em aberto', date '2026-06-01', date '2026-07-01', 300, 300, 'aberto'),
+         (8640002, 'D64-2', 'conta paga',             date '2026-09-20', date '2026-09-25', 200, 0,   'pago'),
+         (8640003, 'D64-3', 'conta cancelada',        date '2026-09-21', date '2026-09-26', 100, 100, 'cancelada');
+  insert into public.tiny_fila (recurso, chave, referencia, prioridade, status, processado_em)
+  values ('conta_receber', '8640001', 'D64-1', 8, 'ok', now() - interval '30 days'),
+         ('conta_receber', '8640002', 'D64-2', 8, 'ok', now() - interval '30 days'),
+         ('conta_receber', '8640003', 'D64-3', 8, 'ok', now() - interval '30 days');
+`)
+
+const ini64 = (await um64(`select plt_privado.fn_tiny_pente_fino_iniciar('teste') as r`)).r
+const datas64 = await um64(`
+  select to_char((now() at time zone 'America/Fortaleza')::date, 'DD/MM/YYYY') as hoje,
+         to_char((now() at time zone 'America/Fortaleza')::date - 60, 'DD/MM/YYYY') as menos60`)
+const buscaCr = await linha64('cr_pesquisa', 'pente-fino-cr:p1')
+conferir(
+  buscaCr?.status === 'pendente' && buscaCr.params.data_ini_emissao === datas64.menos60
+    && buscaCr.params.data_fim_emissao === datas64.hoje && buscaCr.params.rodada === ini64.rodada
+    && buscaCr.params.janela === 'pente-fino-cr' && buscaCr.params.pagina === 1,
+  'a busca das contas EMITIDAS nos últimos 60 dias entra na rodada, com os filtros que o Tiny entende (data_ini/fim_emissao)',
+  JSON.stringify({ buscaCr, datas64 }),
+)
+const aberta64 = await linha64('conta_receber', '8640001')
+const paga64 = await linha64('conta_receber', '8640002')
+const cancelada64 = await linha64('conta_receber', '8640003')
+const naoFechadas = (await um64(`select count(*)::int as n from public.contas_receber
+                                  where tiny_id is not null and coalesce(situacao, '') not in ('pago', 'cancelada')`)).n
+conferir(
+  aberta64.status === 'pendente' && aberta64.params.rodada === ini64.rodada
+    && paga64.status === 'ok' && !paga64.params.rodada && cancelada64.status === 'ok' && !cancelada64.params.rodada
+    && ini64.contas_abertas === naoFechadas,
+  'a conta AINDA ABERTA (de qualquer idade) é relida; a paga e a cancelada ficam quietas',
+  JSON.stringify({ aberta64, paga64, cancelada64, ini64, naoFechadas }),
+)
+
+// O n8n lê a busca: o Tiny devolve a aberta (já na rodada), a paga (fechada), uma NOVA e a página 2
+const enf64 = (await um64(`select public.fn_backfill_aplicar(${buscaCr.id}, 'cr_pesquisa', ${j64([
+  { recurso: 'conta_receber', chave: '8640001', referencia: 'D64-1', prioridade: 8 },
+  { recurso: 'conta_receber', chave: '8640002', referencia: 'D64-2', prioridade: 8 },
+  { recurso: 'conta_receber', chave: '8640004', referencia: 'D64-4', prioridade: 8 },
+  { recurso: 'cr_pesquisa', chave: 'pente-fino-cr:p2', prioridade: 7, params: { ...buscaCr.params, pagina: 2 } },
+])}) as r`)).r
+const paga64b = await linha64('conta_receber', '8640002')
+const nova64 = await linha64('conta_receber', '8640004')
+const pag2cr = await linha64('cr_pesquisa', 'pente-fino-cr:p2')
+conferir(
+  enf64.enfileirados === 2 && paga64b.status === 'ok' && !paga64b.params.rodada
+    && nova64?.status === 'pendente' && nova64.params.rodada === ini64.rodada
+    && pag2cr?.status === 'pendente' && pag2cr.params.pagina === 2 && pag2cr.params.rodada === ini64.rodada,
+  'a busca põe a conta NOVA e a página 2; a conta que já fechou no Tiny não volta para a fila',
+  JSON.stringify({ enf64, paga64b, nova64, pag2cr }),
+)
+
+// A releitura: a nova (do pedido 963001, do bloco 63) chega em aberto; a antiga foi paga hoje
+const pacoteNova = { id: '8640004', nro_documento: 'D64-4', data: '05/10/2026', vencimento: '20/10/2026',
+  valor: '950,00', saldo: '950,00', situacao: 'aberto', forma_pagamento: 'pix', portador: 'Sicredi',
+  historico: 'Ref. ao pedido de venda nº 963001', cliente: { nome: 'Cliente 64' } }
+const rNova = (await um64(`select public.fn_backfill_aplicar(${nova64.id}, 'conta_receber', ${j64(pacoteNova)}) as r`)).r
+const pacotePaga = { id: '8640001', nro_documento: 'D64-1', data: '01/06/2026', vencimento: '01/07/2026',
+  liquidacao: '08/10/2026', valor: '300,00', saldo: '0,00', situacao: 'pago', historico: 'conta antiga em aberto',
+  cliente: { nome: 'Cliente 64' } }
+const rPaga = (await um64(`select public.fn_backfill_aplicar(${aberta64.id}, 'conta_receber', ${j64(pacotePaga)}) as r`)).r
+await bd.exec(`select public.fn_backfill_aplicar(${pag2cr.id}, 'cr_pesquisa', '[]'::jsonb)`)
+const gravNova = await um64(`select cr.situacao, cr.valor::float as valor, p.numero as pedido
+                               from public.contas_receber cr left join public.pedidos p on p.id = cr.pedido_id
+                              where cr.tiny_id = 8640004`)
+const gravPaga = await um64(`select situacao, saldo::float as saldo, data_liquidacao::text as liq from public.contas_receber where tiny_id = 8640001`)
+const filaNova = await linha64('conta_receber', '8640004')
+const filaPaga = await linha64('conta_receber', '8640001')
+conferir(
+  rNova.ok && rPaga.ok && gravNova?.situacao === 'aberto' && gravNova.valor === 950 && gravNova.pedido === 963001
+    && gravPaga.situacao === 'pago' && gravPaga.saldo === 0 && gravPaga.liq === '2026-10-08'
+    && filaNova.status === 'ok' && filaNova.params.nova === true && filaNova.params.situacao === 'aberto'
+    && filaPaga.params.nova === false && filaPaga.params.situacao_antes === 'aberto' && filaPaga.params.situacao === 'pago',
+  'a releitura grava a conta nova (ligada ao pedido pelo histórico) e o PAGO do dia, e guarda o antes e o depois na fila',
+  JSON.stringify({ gravNova, gravPaga, filaNova: filaNova.params, filaPaga: filaPaga.params }),
+)
+
+const resumo64 = (await um64(`select plt_privado.fn_tiny_pente_fino_resumir('${ini64.rodada}', 'concluida') as r`)).r
+conferir(
+  resumo64.contas?.paginas_busca === 2 && resumo64.contas.relidas === 2 && resumo64.contas.novas === 1
+    && resumo64.contas.pagas === 1 && resumo64.contas.abertas === 1 && resumo64.contas.nao_encontradas === 0
+    && typeof resumo64.relidos === 'number',
+  'o resumo da rodada ganha as contas: 2 páginas de busca, 2 relidas, 1 nova, 1 paga hoje, 1 ainda aberta (os pedidos seguem iguais)',
+  JSON.stringify(resumo64.contas),
+)
+
+// A janela do pedido no PCP mostra a conta e "conferidas em" = a última busca
+await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.logistica}', false)`)
+const ped64 = (await um64(`select id::int as id from public.pedidos where numero = 963001`)).id
+const det64 = (await um64(`select public.plt_fn_pcp_pedido_detalhe(${ped64}) as d`)).d
+const p1feito = (await um64(`select processado_em from public.tiny_fila where recurso = 'cr_pesquisa' and chave = 'pente-fino-cr:p1'`)).processado_em
+conferir(
+  det64.contas_receber.some((c) => c.situacao === 'aberto' && Number(c.valor) === 950)
+    && det64.contas_receber_ate !== null && new Date(det64.contas_receber_ate) >= new Date(p1feito),
+  'a janela do pedido mostra a conta a receber de volta, com a data da última conferência',
+  JSON.stringify({ contas: det64.contas_receber, ate: det64.contas_receber_ate, p1feito }),
+)
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+// fecha a rodada (o resto do harness não espera fila aberta)
+await bd.exec(`update public.tiny_fila set status = 'ok' where params->>'rodada' = '${ini64.rodada}'`)
+await bd.exec(`select plt_privado.fn_tiny_fila_relogio()`)
+} // fim do bloco 64
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

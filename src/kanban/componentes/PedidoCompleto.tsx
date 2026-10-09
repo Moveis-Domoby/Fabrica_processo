@@ -34,6 +34,18 @@ const dataHora = (v: string | null | undefined) =>
       })
     : '—'
 
+/** A situação da conta a receber como o Tiny manda → como a gente fala. */
+const SITUACAO_CONTA: Record<string, string> = {
+  pago: 'Pago',
+  aberto: 'Em aberto',
+  parcial: 'Pago em parte',
+  cancelada: 'Cancelada',
+}
+
+/** D-122: a conferência traz as contas toda madrugada — 2 dias é margem para uma falha. */
+const contasEmDia = (ate: string | null) =>
+  ate !== null && Date.now() - new Date(ate).getTime() < 2 * 24 * 60 * 60 * 1000
+
 /** O que cada fato do pedido quer dizer, em língua do galpão. */
 const FATOS: Record<string, string> = {
   card_criado: 'Pedido chegou ao PCP',
@@ -256,7 +268,7 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
             <div className="mt-1 flex flex-col gap-1">
               <p className="text-xs text-texto-suave">
                 Contas a receber do Tiny
-                {d.contas_receber_ate ? ` (copiadas até ${data(d.contas_receber_ate)})` : ''}:
+                {d.contas_receber_ate ? ` (conferidas em ${data(d.contas_receber_ate)})` : ''}:
               </p>
               {d.contas_receber.map((cr, i) => (
                 <p key={i} className="flex flex-wrap justify-between gap-2 text-sm">
@@ -271,7 +283,7 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
                           : 'text-texto',
                     )}
                   >
-                    {cr.situacao ?? '—'}
+                    {(cr.situacao && SITUACAO_CONTA[cr.situacao]) ?? cr.situacao ?? '—'}
                     {cr.liquidacao && ` em ${data(cr.liquidacao)}`}
                   </span>
                   <span className="tabular-nums">{moeda(cr.valor)}</span>
@@ -280,8 +292,11 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
             </div>
           ) : (
             <p className="mt-1 text-xs text-texto-suave">
-              Sem conta a receber copiada do Tiny para este pedido — o "pago / em aberto" do Tiny só
-              chega até {data(d.contas_receber_ate)}.
+              {/* D-122: a conferência das 3h traz as contas todo dia — conferência
+                  recente diz que o Tiny não tem conta; antiga, avisa até quando. */}
+              {contasEmDia(d.contas_receber_ate)
+                ? `O Tiny não tem conta a receber para este pedido (conferido em ${data(d.contas_receber_ate)}).`
+                : `Sem conta a receber copiada do Tiny para este pedido — o "pago / em aberto" do Tiny só chega até ${data(d.contas_receber_ate)}.`}
             </p>
           )}
           {d.anexos.length > 0 && (
