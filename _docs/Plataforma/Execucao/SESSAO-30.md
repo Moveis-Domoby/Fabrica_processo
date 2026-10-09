@@ -141,7 +141,7 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 - **Volumes:** o cadastro do Tiny da fábrica tem `produtos.raw->>'qtd_volumes'` (o pedido não traz volume). Acabados ativos: 166 com 1, **12 com 2**, 84 vazios/0 (contar como 1).
 - **PCP:** 287 cards de pedido vivos no PCP com o pedido **"Entregue" no Tiny** (275 com peça por liberar, 8 com peça viva — escondidos do quadro desde a S23, mas abertos), 9 cancelados, 1 enviado, 43 "preparando envio".
 
-## Etapa 2 — estoque (08/10, madrugada, trabalho autônomo)
+## Etapa 2 — estoque (08/10, trabalho autônomo)
 
 **Banco — migration 57 `20261008130000_plt_estoque_numeros_prontos.sql`** (gerada no scratchpad por `gerar_m57.py` a partir de `m57_template.sql` + os corpos VIVOS das migrations 42/45/56 recortados e emendados — E-24):
 - **Tabela nova `public.plt_estoque_numeros`** (uma linha por produto do catálogo): `livres`, `reservadas_estoque`, `prontas_pedido`, `producao_sem_dono`, `producao_de_pedido`, `vendidos_90d`, `cortes_90d`, `posicao`, `vendas_em`, `saldo_tiny`, `reservado_tiny`, `lido_em`, `origem_leitura`, `evento_leitura_id`, `atualizado_em`. RLS ligada, sem política, revogada de todos — só as portas leem (D-119).
@@ -165,7 +165,7 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 - "Pedidos em aguardo" segue mostrando só o que está fisicamente no aguardo; a "Visão do dia" não tem número de reservados (só o tempo parado no ESTOQUE) — D-118 atendida no Estoque (cartão, detalhe, filtros e resumo).
 - Achado: avisos de chave repetida do React com ids numéricos (3405…3413, 74137, 172000…) vindos de OUTRA tela visitada antes (não do Estoque — recarregado, limpo). Conferir no PCP na etapa 3/6.
 
-## Etapa 3 — o PCP numa chamada (08/10, madrugada)
+## Etapa 3 — o PCP numa chamada (08/10)
 
 **Conferido antes de corrigir (demanda §3.4):** raio-x 4 — o banco já devolvia a origem `manual` na sugestão e na alocação desde 28/09, e o tipo do front já a conhecia; faltava só o rótulo ("Está pronta no estoque." → "Veio da entrada manual da logística."). Raio-x 3 — na história, o PCP liberou 33 vezes: SECC 5, CNC 5, FITAMENTO 2, FURAÇÃO 3, MONTAGEM 4, LIMPEZA E EMBALAGEM 13, **ESTOQUE 1, aguardo 0**. A D-63 dizia que a cadeira podia ir direto ao aguardo; o raio-x 3 (escolha do dono de 06/10) proíbe — segui o mais novo e explícito, ↩️ na D-63, aviso ao dono no handoff e no ClickUp.
 
@@ -182,7 +182,7 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 
 **No ar:** migration 58 aplicada (`--so`), integração **idêntica**. Tela conferida no preview com o dono logado: a janela do 13562 abre com os 4 móveis; o destino oferece só SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM; a do 13573 mostra as 3 peças reservadas pela venda marcadas para usar; fechadas sem liberar; console limpo. **Publicado:** `main` → **314280f**. ClickUp: comentário de entrega no raio-x (17tya50fm3p — os 6 itens + o aviso da cadeira).
 
-## Etapa 4 — "Entregue" nos dois lados (08/10, madrugada)
+## Etapa 4 — "Entregue" nos dois lados (08/10)
 
 **Conferido antes:** os leitores de "existe entrega?" eram 11 funções vivas (guardas de registrar/lançar/programar/desprogramar/ordenar/concluir + as listas da ROTAS, Programação, Já programadas e "Todos os pedidos" do PCP) — todas varriam `plt_eventos`; desfazer exigia uma "entrega vigente". 113 pedidos têm o marcador "Devolvido" no Tiny: os 8 com card vivo já estão "Cancelado" e nenhum tem peça viva — a regra nova não muda nada retroativamente. Nenhum cancelado com peça na ROTAS hoje.
 
@@ -205,7 +205,7 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 - ⚠️ **E-89** (o desfazer aparecia para as entregas do Sistema) — corrigido na tela antes de publicar; a trava no banco entra na migration da etapa 5.
 
 
-## Etapa 5 — o entregador (08/10, madrugada)
+## Etapa 5 — o entregador (08/10)
 
 **Conferido antes:** criar usuário passa pela Edge Function `autenticacao` (aceita só operador/líder/admin e exige ≥ 1 setor) — para **não mexer na Edge Function de produção**, o entregador virou **módulo** (`plt_usuarios.modulos` = `{entregas}`, sem `fabrica`) + vínculo com a ROTAS, definido por uma porta do banco depois da criação. Todos os usuários ativos não-admin têm `fabrica` hoje. `clientes` não tem celular (só `fone`). 14 programações (09/09 → 06/10), 4 com ordem salva.
 
@@ -229,3 +229,24 @@ As 8 da demanda (§5), com o retrato de hoje e uma recomendação em cada.
 **No ar:** migration 60 aplicada (`--so`), integração **idêntica**; 35 tabelas. Tela conferida no preview a 375 px (06/10: 4 paradas, mapa com os números, nada passa da borda — o recorte das capturas era da escala do painel). **Publicado:** `main` → **eec05f6**, Vercel ✔. ClickUp: "Rotas - Visualização dos entregadores" (17tya50fbqb) estava em A FAZER → movida para FAZENDO e comentada como entregue; "Teste de ponta a ponta" (17tya50fm3q) → FAZENDO (etapa 6).
 - Dívida que fica: o entregador ainda baixa a casca inteira do app (pacote único ~507 kB comprimidos — dívida 4 da lei, S32); a tela dele já é pedaço próprio.
 - ⚠️ Atalho de terminal: textos longos com aspas dentro de "cat <<EOF" falharam 3× nesta sessão — gravar por arquivo (Write) e anexar.
+
+
+## Etapa 6 — ao vivo, ensaio de ponta a ponta, checklist da lei (08/10, fim do dia)
+
+⚠️ **Relógio:** o `date` da máquina e o `now()` do banco mostraram **09/10 01:25 UTC (08/10 22:25 em Natal)** — o trabalho das etapas 2–6 correu pelo dia 08/10 (não só de madrugada; os títulos foram corrigidos).
+
+**Banco — migration 61 `20261008170000_plt_avisos_ao_vivo.sql`:** `fn_aviso_pode_ouvir(topico)` (logística: estoque/aguardo/pcp/rotas; entregador: rotas) + política `plt_avisos_ouvir` em `realtime.messages`; `fn_avisar(area)` (um `realtime.send` por área por transação — marca `plt.avisado_<area>`); gatilhos de instrução `plt_eventos_zzzz_avisar` (tabela de transição: áreas pelos setores de origem/destino/atual, pelo tipo do card e pelos tipos de fato da entrega), `plt_estoque_numeros_avisar`, `plt_programacoes_avisar`, `plt_programacao_equipes_avisar`. Bloco 61 da bateria (o harness já tinha o `realtime.send` falso do chat): entrada no estoque = 1 aviso; liberar 2 peças (6 fatos) = 1 aviso do PCP; quem ouve. Ensaio no banco real: 2 avisos (rotas uma vez só, estoque), política e 4 gatilhos. **1ª aplicação estourou a espera por trava (5 s — banco em uso); a 2ª passou** (aplicador em transação, idempotente); integração idêntica.
+**Migration 62 `20261008180000_plt_indice_equipe_definido_por.sql`:** índice de `plt_programacao_equipes.definido_por` (o único item novo dos alertas de desempenho do Supabase depois da 60).
+
+**Tela:** `src/lib/aoVivo.ts` — `useAoVivo(areas, chaves, ligado)` sobre o registro de canais privados do chat (`ouvirCanal`); "mudou" → releitura das chaves em 400 ms (só as consultas ativas refazem); reconexão → releitura de recuperação. **Relógios removidos** (`refetchInterval`): PainelTop20 (×2), PainelInsumos, PCP (×3 — e o quadro/solicitações só rodam na aba aberta: `enabled` por aba; o `aba` subiu para antes das consultas), PedidosAguardo (×3), Rotas, AbaJaProgramadas, AbaProgramar; EntregasDoDia ganhou o aviso. Conferido no preview: com o Estoque aberto, `select plt_privado.fn_avisar('estoque')` no banco → 3 consultas relidas (config, situação da reposição, lista) e nenhuma outra. (Armadilha de medição: o buffer de `performance` para em 250 entradas — limpar antes de medir.)
+
+**Ensaio de ponta a ponta (§3.5) — `scratchpad/ensaio-ponta-a-ponta.mjs`, banco real, UMA transação → ROLLBACK (pg_net só envia o que foi gravado):** A = 327 (1 peça livre), B = 174 (sem peça). **12/12 passos OK** — a tabela está no handoff. Destaques: a venda reserva a peça de A (estoque 1→0, reservados 3→4); liberação numa chamada (a sugestão veio marcada "reservada"); B pela produção e concluída → reservados de B +1; lançar e programar não mudam os reservados (D-118); "Entregas do dia" mostra a parada 1 com 2 volumes e o detalhe; entregue → reservados −1 nos dois, a fila do Tiny "entregue" e **1 chamada ao n8n pronta** (desfeita); volta do Tiny → 1 entrega do Sistema, 0 peça viva, 0 eco; reabastecimento de B (2) → +2 no estoque, +2 ajustes na fila do Tiny do estoque; cancelamento nos 3 estágios + na ROTAS → peças ao ESTOQUE sem dono; reposição vencida arquivada; recontagem 0.
+**Bloco 62 da bateria** (o mesmo roteiro, permanente): a reserva da venda só acontece com o estoque sincronizado (em produção desde 30/09) — o bloco liga `tiny_sincronizado_desde` só para ele e desliga no fim. **845 ✔.**
+
+**Checklist da lei (§12):** busca por relógios nas telas tocadas — **nenhum**; portas novas no banco ≤ 12 ms (Entregas do dia 4–9 ms); alertas de desempenho: sem item de tipo novo (a FK sem índice da 60 → 62); alertas de segurança: só o padrão da casa (tabelas sem política = só pelas portas; portas `security definer` com a trava dentro); listas: "Todos os pedidos" e peças fora do catálogo por cursor, ROTAS/Já programadas entregues por deslocamento (**dívida 14**); primeira abertura: Entregas do dia e janela de liberação = 1 requisição, Estoque 3 e PCP várias (**dívida 15**); pacote 505,7 → 507,1 kB gz (+ pedaços da tela do entregador 4,0 kB e mini mapa 0,8 kB). Tudo registrado no §14 da lei.
+
+**Documentos:** Esquema do Banco (migrations 56–62), Lei (andamento + dívidas 14 e 15), handoff final, Resultado da demanda, Ordem das Sessões (✅), Mapa, Próximos Passos (pendência 0 do dono), nota [[N8N - Plataforma para Tiny (situacao do pedido)]].
+
+## Conferência final — task list × demanda
+
+- [x] T0 ritual · [x] T1 reservado até a entrega (D-118) · [x] T2 números prontos (D-119; ≤ 50 ms no banco com o volume de hoje; ×100 do catálogo = dívida 13) · [x] T3 "Entregue" daqui → Tiny pela fila (chave desligada até a prova; fluxo n8n como arquivo) · [x] T4 Tiny → aqui (etapa 1) · [x] T5 peças entregues saem de toda conta · [x] T6 manutenção dos errados (287) · [x] T7 base de anexos (`plt_anexos` + armário privado) · [x] T8 tela do entregador · [~] T9 comprovante visível para a logística — o entregador e a logística veem o número de comprovantes no card de "Entregas do dia" (a lista com abrir o arquivo é da janela do card, S31) · [x] T10 raio-x 1–6 · [x] T11 ao vivo nas telas tocadas · [~] T12 listas por cursor — "Todos os pedidos" sim; ROTAS/Já programadas entregues = dívida 14 · [x] T13 ensaio 12/12 + bloco permanente · [ ] T14 prova com 1 pedido real — **do dono** · [x] T15 decisões/Q-72/esquema · [x] T16 checklist · [x] T17 ClickUp (comentários; nunca concluído) · [x] T18 handoff + mapa + próximos passos + ordem + resultado.
