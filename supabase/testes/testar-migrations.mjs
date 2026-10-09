@@ -10677,6 +10677,59 @@ conferir(!priv60.anexos_logado && !priv60.equipes_logado && !priv60.dia_anon && 
   'tabelas só pelas portas; a tela do dia só para quem está logado', JSON.stringify(priv60))
 } // fim do bloco 60
 
+// ============================================================================
+// SESSAO-30 · etapa 6 (migration 61 — Lei §4): as telas tocadas ao vivo — o
+// banco empurra um aviso curto por área, um por transação, só para quem pode.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · avisos ao vivo: um por área por transação, só para quem pode ouvir')
+
+const um61 = async (sql) => (await bd.query(sql)).rows[0]
+const como61 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const avisos61 = async () => (await bd.query(`select topic, count(*)::int as n from realtime.messages
+                                                where topic like 'plt-aviso:%' group by 1 order by 1`)).rows
+const limpar61 = () => bd.exec(`delete from realtime.messages where topic like 'plt-aviso:%'`)
+await como61('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (961001, 'S61A', 'Estante Teste 61', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (961001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 961001), 1, 'S61A', 'Estante Teste 61', 3);
+`)
+await como61(E40.logistica)
+await limpar61()
+await bd.exec(`select public.plt_fn_estoque_movimentar(961001, 'entrada', 2, 'teste 61')`)
+const aposEntrada = await avisos61()
+await limpar61()
+const pc61 = (await um61(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = 961001`)).id
+const secc61 = (await um61(`select id::int as id from public.plt_setores where codigo = 'secc'`)).id
+await bd.exec(`select public.plt_fn_pcp_liberar(${pc61}, '[{"item_seq":1,"indice_unidade":2,"setor_id":${secc61}},{"item_seq":1,"indice_unidade":3,"setor_id":${secc61}}]'::jsonb)`)
+const aposLiberar = await avisos61()
+conferir(
+  aposEntrada.length === 1 && aposEntrada[0].topic === 'plt-aviso:estoque' && aposEntrada[0].n === 1
+    && aposLiberar.find((a) => a.topic === 'plt-aviso:pcp')?.n === 1,
+  'entrada no estoque = 1 aviso do estoque; liberar 2 peças (6 fatos numa transação) = 1 aviso do PCP',
+  JSON.stringify({ aposEntrada, aposLiberar }),
+)
+const ouve = async (auth, topico) => { await como61(auth); return (await um61(`select plt_privado.fn_aviso_pode_ouvir('${topico}') as p`)).p }
+const regras = {
+  logistica_estoque: await ouve(E40.logistica, 'plt-aviso:estoque'),
+  operador_estoque: await ouve(E40.operador, 'plt-aviso:estoque'),
+  entregador_rotas: await ouve('00000000-0000-0000-0000-000000000601', 'plt-aviso:rotas'),
+  entregador_estoque: await ouve('00000000-0000-0000-0000-000000000601', 'plt-aviso:estoque'),
+  outro_topico: await ouve(E40.logistica, 'plt-aviso:qualquer'),
+}
+conferir(
+  regras.logistica_estoque && !regras.operador_estoque && regras.entregador_rotas && !regras.entregador_estoque && !regras.outro_topico,
+  'quem ouve: a logística as áreas dela; o entregador só a ROTAS; o operador de produção, nada',
+  JSON.stringify(regras),
+)
+await como61('')
+} // fim do bloco 61
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
