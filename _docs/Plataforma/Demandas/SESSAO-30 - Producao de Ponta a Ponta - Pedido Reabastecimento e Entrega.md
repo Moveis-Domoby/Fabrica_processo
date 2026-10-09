@@ -181,7 +181,11 @@ Lista **PRODUÇÃO** (DPTO TI). Ao começar cada uma → **FAZENDO**. **Nunca** 
 
 ## Resultado (preencher ao entregar)
 
-*O que foi feito, o que mudou de rota, link do handoff.*
+**Entregue em 08/10/2026** — [[handoff_2026_10_08_sessao30_producao_ponta_a_ponta]].
+
+- §3.1 reservado em venda até a entrega ✅ (D-118) · §3.2 "Entregue" dos dois lados ✅ — Tiny → plataforma no ar; plataforma → Tiny pronto, **chave desligada até a prova do dono** (fluxo do n8n como arquivo importável — a chave de acesso do n8n só lê) · §3.3 tela do entregador ✅ (D-115) · §3.4 raio-x 1–6 ✅ (Q-72) · §3.5 ensaio de ponta a ponta ✅ 12/12 no banco real + bloco permanente na bateria · §3.6 lei nas telas tocadas ✅ (ao vivo por websocket, sem relógio; portas novas ≤ 12 ms no banco) — dívidas 13–15 registradas para a 32.
+- **Mudou de rota:** o entregador é um módulo ("entregas"), não um papel novo (não mexe na função de login); o caminho plataforma → Tiny é um fluxo próprio no n8n (↩️ D-113); o PCP libera só para produção (↩️ D-63); o ranking das vendas anda de madrugada (D-119).
+- **Fica com o dono:** importar o fluxo, ligar a chave e provar com 1 pedido real; confirmar as revisões acima.
 
 ## Ver também
 
