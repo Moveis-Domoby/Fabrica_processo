@@ -1,7 +1,16 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, MapPin, MessageCircle, Search, Truck } from 'lucide-react'
+import {
+  CheckCircle2,
+  MapPin,
+  MessageCircle,
+  PackageX,
+  RotateCcw,
+  Search,
+  Truck,
+  Undo2,
+} from 'lucide-react'
 import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -9,12 +18,14 @@ import { buscarSetores } from '@/kanban/api'
 import { urlFotoCaminhao } from '@/admin/caminhoes'
 import {
   enderecoLegivel,
+  entregueHoje,
   linkMapa,
   linkWhatsApp,
   listarEntregas,
   registrarEntrega,
 } from '@/rotas/api'
-import type { Entrega } from '@/rotas/api'
+import type { Entrega, TipoMotivo } from '@/rotas/api'
+import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 
 const POR_PAGINA = 20
 
@@ -38,8 +49,11 @@ function dataLegivel(iso: string | null): string {
  * programados (D-39). Quem vê: a logística — admin, PCP (que É a logística)
  * e terminais.
  *
- * ⚠️ Marcar "Entregue" aqui NÃO atualiza o Tiny — a automação do ClickUp que
- * faz isso continua viva e intocada; ligar os dois é decisão futura do dono.
+ * SESSAO-30 (D-113): "Entregue" fecha tudo do pedido aqui e, com a chave
+ * "Entregue vai ao Tiny" ligada (super admin), o Tiny fica "Entregue" pela
+ * fila; "Desfazer" (só a do dia, com motivo) volta os dois lados. "Não
+ * entregue" (motivo) devolve o pedido para "Programar"; "Pedido devolvido"
+ * leva os móveis ao ESTOQUE sem dono (D-114). O fluxo do ClickUp segue vivo.
  */
 export function Rotas() {
   const { perfil, vinculos, carregando } = useSessao()
@@ -60,6 +74,8 @@ export function Rotas() {
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(0)
   const [entregando, setEntregando] = useState<Entrega | null>(null)
+  const [comMotivo, setComMotivo] = useState<{ tipo: TipoMotivo; entrega: Entrega } | null>(null)
+  const [devolvendo, setDevolvendo] = useState<Entrega | null>(null)
 
   const { data: entregas = [], isPending } = useQuery({
     queryKey: ['rotas', situacao, busca, pagina],
@@ -107,7 +123,7 @@ export function Rotas() {
           <Link to="/rotas/programacao" className="font-medium text-texto underline">
             Programação
           </Link>
-          . Registrar a entrega aqui não mexe no Tiny.
+          . Com o "Entregue vai ao Tiny" ligado, a entrega registrada aqui vai também para o Tiny.
         </p>
       </div>
 
@@ -136,8 +152,8 @@ export function Rotas() {
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {!isPending && entregas.length === 0 && (
         <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-          Nenhuma entrega por aqui{busca ? ' para esta busca' : ' ainda'} — o pedido aparece
-          quando é lançado pelos Pedidos em aguardo.
+          Nenhuma entrega por aqui{busca ? ' para esta busca' : ' ainda'} — o pedido aparece quando
+          é lançado pelos Pedidos em aguardo.
         </p>
       )}
 
@@ -247,23 +263,52 @@ export function Rotas() {
                         </Botao>
                       </span>
                     ) : (
-                      <Botao
-                        icone={<CheckCircle2 />}
-                        onClick={() => setEntregando(entrega)}
-                      >
-                        Entregue
-                      </Botao>
+                      <span className="flex flex-wrap items-center justify-end gap-2">
+                        <Botao
+                          variante="secundaria"
+                          tamanho="sm"
+                          icone={<RotateCcw />}
+                          onClick={() => setComMotivo({ tipo: 'nao_entregue', entrega })}
+                        >
+                          Não entregue
+                        </Botao>
+                        <Botao
+                          variante="secundaria"
+                          tamanho="sm"
+                          icone={<PackageX />}
+                          onClick={() => setDevolvendo(entrega)}
+                        >
+                          Pedido devolvido
+                        </Botao>
+                        <Botao icone={<CheckCircle2 />} onClick={() => setEntregando(entrega)}>
+                          Entregue
+                        </Botao>
+                      </span>
                     ))}
                   {entrega.situacao_entrega === 'entregue' && (
-                    <span className="text-sm text-texto-fraco">
-                      por {entrega.entregue_por ?? '—'}
-                      {entrega.entregue_em &&
-                        ` · ${new Date(entrega.entregue_em).toLocaleString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}`}
+                    <span className="flex flex-wrap items-center justify-end gap-2 text-sm text-texto-fraco">
+                      {/* D-113: só a entrega de HOJE feita por gente aqui se desfaz — a
+                          que veio do Tiny (assinada "Sistema") se mexe lá. */}
+                      {entregueHoje(entrega.entregue_em) && entrega.entregue_por && (
+                        <Botao
+                          variante="fantasma"
+                          tamanho="sm"
+                          icone={<Undo2 />}
+                          onClick={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
+                        >
+                          Desfazer
+                        </Botao>
+                      )}
+                      <span>
+                        por {entrega.entregue_por ?? '—'}
+                        {entrega.entregue_em &&
+                          ` · ${new Date(entrega.entregue_em).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}`}
+                      </span>
                     </span>
                   )}
                 </span>
@@ -272,6 +317,18 @@ export function Rotas() {
           )
         })}
       </ul>
+
+      <ModalMotivoEntrega
+        key={comMotivo ? `${comMotivo.tipo}-${comMotivo.entrega.card_id}` : 'motivo-fechado'}
+        tipo={comMotivo?.tipo ?? 'nao_entregue'}
+        pedido={comMotivo?.entrega ?? null}
+        aoFechar={() => setComMotivo(null)}
+      />
+      <ModalDevolvido
+        key={devolvendo ? `devolvido-${devolvendo.card_id}` : 'devolvido-fechado'}
+        pedido={devolvendo}
+        aoFechar={() => setDevolvendo(null)}
+      />
 
       {total > POR_PAGINA && (
         <div className="flex items-center justify-end gap-2">

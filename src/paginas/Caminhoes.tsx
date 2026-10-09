@@ -16,6 +16,7 @@ import {
   urlFotoCaminhao,
 } from '@/admin/caminhoes'
 import type { Caminhao } from '@/admin/caminhoes'
+import { CartaoEntregaTiny } from '@/rotas/CartaoEntregaTiny'
 
 /**
  * Administração → Caminhões (SESSAO-15 / D-39): cadastro completo — nome ou
@@ -50,7 +51,8 @@ export function Caminhoes() {
   }
 
   const arquivarMutacao = useMutation({
-    mutationFn: ({ id, arquivar }: { id: number; arquivar: boolean }) => arquivarCaminhao(id, arquivar),
+    mutationFn: ({ id, arquivar }: { id: number; arquivar: boolean }) =>
+      arquivarCaminhao(id, arquivar),
     onSuccess: async (_d, { arquivar }) => {
       notificar({ titulo: arquivar ? 'Caminhão arquivado' : 'Caminhão reativado', tom: 'perfeito' })
       setEmUso(null)
@@ -94,6 +96,9 @@ export function Caminhoes() {
         </Botao>
       </div>
 
+      {/* SESSAO-30 (D-113): a chave da entrega no Tiny mora junto dos caminhões. */}
+      <CartaoEntregaTiny />
+
       <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
         <input
           type="checkbox"
@@ -124,7 +129,11 @@ export function Caminhoes() {
               )}
             >
               {foto ? (
-                <img src={foto} alt={`Foto do caminhão ${c.nome}`} className="h-40 w-full object-cover" />
+                <img
+                  src={foto}
+                  alt={`Foto do caminhão ${c.nome}`}
+                  className="h-40 w-full object-cover"
+                />
               ) : (
                 <div className="flex h-40 items-center justify-center bg-superficie-sutil text-texto-fraco">
                   <Truck aria-hidden className="size-12" />

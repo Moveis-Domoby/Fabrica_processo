@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, ListPlus, Pencil, Plus, Tag, Trash2, Wrench, X } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Archive,
+  ArchiveRestore,
+  ListPlus,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Tag,
+  Trash2,
+  Wrench,
+  X,
+} from 'lucide-react'
 import { Abas, Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
@@ -15,11 +26,13 @@ import {
   salvarEtiqueta,
 } from '@/utilitarios/api'
 import { useCampos, useEtiquetas } from '@/utilitarios/consultas'
+import { listarMotivos, salvarMotivo } from '@/rotas/api'
+import type { Motivo, TipoMotivo } from '@/rotas/api'
 import { PilulaEtiqueta } from '@/utilitarios/PilulaEtiqueta'
 import { CORES_ETIQUETA, ROTULO_COR, ROTULO_TIPO_CAMPO, TIPOS_CAMPO } from '@/utilitarios/tipos'
 import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utilitarios/tipos'
 
-type AbaUtilitarios = 'etiquetas' | 'campos'
+type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101 — pedido do dono: "crie uma
@@ -29,7 +42,8 @@ type AbaUtilitarios = 'etiquetas' | 'campos'
  */
 export function Utilitarios() {
   const [parametros, setParametros] = useSearchParams()
-  const aba: AbaUtilitarios = parametros.get('aba') === 'campos' ? 'campos' : 'etiquetas'
+  const pedida = parametros.get('aba')
+  const aba: AbaUtilitarios = pedida === 'campos' || pedida === 'motivos' ? pedida : 'etiquetas'
 
   return (
     <div className="flex flex-col gap-5">
@@ -41,12 +55,17 @@ export function Utilitarios() {
         <Dica rotulo="Para que servem os utilitários">
           <span className="flex flex-col gap-2">
             <span>
-              Etiquetas são marcas coloridas que as automações põem e tiram dos cards — um card pode ter
-              várias, e elas aparecem no quadro e no tablet.
+              Etiquetas são marcas coloridas que as automações põem e tiram dos cards — um card pode
+              ter várias, e elas aparecem no quadro e no tablet.
             </span>
             <span>
-              Campos customizados são informações a mais que você define: valem nas peças, nos pedidos ou
-              nos dois. A automação preenche, e o admin também pode preencher à mão no card.
+              Campos customizados são informações a mais que você define: valem nas peças, nos
+              pedidos ou nos dois. A automação preenche, e o admin também pode preencher à mão no
+              card.
+            </span>
+            <span>
+              Motivos são as frases curtas que o entregador escolhe ao marcar "não entregue" ou ao
+              desfazer uma entrega.
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
@@ -57,15 +76,36 @@ export function Utilitarios() {
         rotulo="O que cadastrar"
         idBase="utilitarios"
         valor={aba}
-        aoMudar={(valor) => setParametros(valor === 'etiquetas' ? {} : { aba: valor }, { replace: true })}
+        aoMudar={(valor) =>
+          setParametros(valor === 'etiquetas' ? {} : { aba: valor }, { replace: true })
+        }
         abas={[
-          { valor: 'etiquetas', rotulo: 'Etiquetas', icone: <Tag aria-hidden className="size-4" /> },
-          { valor: 'campos', rotulo: 'Campos customizados', icone: <ListPlus aria-hidden className="size-4" /> },
+          {
+            valor: 'etiquetas',
+            rotulo: 'Etiquetas',
+            icone: <Tag aria-hidden className="size-4" />,
+          },
+          {
+            valor: 'campos',
+            rotulo: 'Campos customizados',
+            icone: <ListPlus aria-hidden className="size-4" />,
+          },
+          {
+            valor: 'motivos',
+            rotulo: 'Motivos da entrega',
+            icone: <MessageSquareText aria-hidden className="size-4" />,
+          },
         ]}
       />
 
       <div role="tabpanel" id="utilitarios-painel" aria-labelledby={`utilitarios-aba-${aba}`}>
-        {aba === 'etiquetas' ? <PainelEtiquetas /> : <PainelCampos />}
+        {aba === 'etiquetas' ? (
+          <PainelEtiquetas />
+        ) : aba === 'campos' ? (
+          <PainelCampos />
+        ) : (
+          <PainelMotivos />
+        )}
       </div>
     </div>
   )
@@ -154,10 +194,17 @@ function PainelEtiquetas() {
               <PilulaEtiqueta etiqueta={e} />
               <span className="text-xs text-texto-suave">{ROTULO_COR[e.cor]}</span>
               {e.arquivada_em && (
-                <span className="rounded-full bg-superficie-sutil px-2 py-0.5 text-xs text-texto-suave">arquivada</span>
+                <span className="rounded-full bg-superficie-sutil px-2 py-0.5 text-xs text-texto-suave">
+                  arquivada
+                </span>
               )}
               <span className="ml-auto flex items-center gap-1">
-                <Botao variante="fantasma" tamanho="sm" icone={<Pencil />} onClick={() => setEditando(e)}>
+                <Botao
+                  variante="fantasma"
+                  tamanho="sm"
+                  icone={<Pencil />}
+                  onClick={() => setEditando(e)}
+                >
                   Editar
                 </Botao>
                 <Botao
@@ -269,7 +316,13 @@ function ModalEtiqueta({
       }
     >
       <form id="form-etiqueta" onSubmit={aoEnviar} className="flex flex-col gap-4">
-        <Campo rotulo="Nome" value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} erro={erro} />
+        <Campo
+          rotulo="Nome"
+          value={nome}
+          maxLength={40}
+          onChange={(e) => setNome(e.target.value)}
+          erro={erro}
+        />
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium text-texto">Cor</legend>
           <div className="flex flex-wrap gap-2">
@@ -385,10 +438,17 @@ function PainelCampos() {
                 </span>
               </span>
               {c.arquivado_em && (
-                <span className="rounded-full bg-superficie-sutil px-2 py-0.5 text-xs text-texto-suave">arquivado</span>
+                <span className="rounded-full bg-superficie-sutil px-2 py-0.5 text-xs text-texto-suave">
+                  arquivado
+                </span>
               )}
               <span className="ml-auto flex items-center gap-1">
-                <Botao variante="fantasma" tamanho="sm" icone={<Pencil />} onClick={() => setEditando(c)}>
+                <Botao
+                  variante="fantasma"
+                  tamanho="sm"
+                  icone={<Pencil />}
+                  onClick={() => setEditando(c)}
+                >
                   Editar
                 </Botao>
                 <Botao
@@ -487,8 +547,10 @@ function ModalCampo({
   function aoEnviar(evento: FormEvent) {
     evento.preventDefault()
     if (!nome.trim()) return setErro('Dê um nome ao campo.')
-    if (!emPecas && !emPedidos) return setErro('Escolha onde o campo vale: nas peças, nos pedidos ou nos dois.')
-    if (tipo === 'lista' && opcoes.every((o) => !o.trim())) return setErro('A lista precisa de pelo menos uma opção.')
+    if (!emPecas && !emPedidos)
+      return setErro('Escolha onde o campo vale: nas peças, nos pedidos ou nos dois.')
+    if (tipo === 'lista' && opcoes.every((o) => !o.trim()))
+      return setErro('A lista precisa de pelo menos uma opção.')
     setErro('')
     salvar.mutate()
   }
@@ -510,7 +572,12 @@ function ModalCampo({
       }
     >
       <form id="form-campo" onSubmit={aoEnviar} className="flex flex-col gap-4">
-        <Campo rotulo="Nome" value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} />
+        <Campo
+          rotulo="Nome"
+          value={nome}
+          maxLength={40}
+          onChange={(e) => setNome(e.target.value)}
+        />
         <Selecao
           rotulo="Tipo"
           valor={tipo}
@@ -528,13 +595,19 @@ function ModalCampo({
                   rotuloOculto
                   value={opcao}
                   maxLength={60}
-                  onChange={(e) => setOpcoes((atual) => atual.map((o, i) => (i === indice ? e.target.value : o)))}
+                  onChange={(e) =>
+                    setOpcoes((atual) => atual.map((o, i) => (i === indice ? e.target.value : o)))
+                  }
                 />
                 <Botao
                   variante="fantasma"
                   icone={<X />}
                   aria-label={`Tirar a opção ${indice + 1}`}
-                  onClick={() => setOpcoes((atual) => (atual.length > 1 ? atual.filter((_, i) => i !== indice) : ['']))}
+                  onClick={() =>
+                    setOpcoes((atual) =>
+                      atual.length > 1 ? atual.filter((_, i) => i !== indice) : [''],
+                    )
+                  }
                 />
               </div>
             ))}
@@ -552,16 +625,186 @@ function ModalCampo({
         <fieldset className="flex flex-col gap-1">
           <legend className="text-sm font-medium text-texto">Onde o campo vale</legend>
           <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
-            <input type="checkbox" className="size-5 accent-marca-500" checked={emPecas} onChange={(e) => setEmPecas(e.target.checked)} />
+            <input
+              type="checkbox"
+              className="size-5 accent-marca-500"
+              checked={emPecas}
+              onChange={(e) => setEmPecas(e.target.checked)}
+            />
             Nas peças (os cards que andam pelos setores)
           </label>
           <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
-            <input type="checkbox" className="size-5 accent-marca-500" checked={emPedidos} onChange={(e) => setEmPedidos(e.target.checked)} />
+            <input
+              type="checkbox"
+              className="size-5 accent-marca-500"
+              checked={emPedidos}
+              onChange={(e) => setEmPedidos(e.target.checked)}
+            />
             Nos pedidos (o card do pedido no PCP e a lista de todos os pedidos)
           </label>
         </fieldset>
         {erro && <p className="text-sm text-danificado-forte">{erro}</p>}
       </form>
     </Modal>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Motivos da entrega (SESSAO-30 · D-116 — "a possibilidade de criar um motivo
+// deve estar dentro de configurações, na mesma parte que configura etiquetas e
+// campos customizados")
+// ---------------------------------------------------------------------------
+
+const LISTAS_MOTIVO: { tipo: TipoMotivo; titulo: string; explica: string }[] = [
+  {
+    tipo: 'nao_entregue',
+    titulo: 'Não entregue',
+    explica: 'O entregador escolhe um destes ao marcar "não entregue".',
+  },
+  {
+    tipo: 'desfazer_entrega',
+    titulo: 'Desfazer a entrega',
+    explica: 'Escolhido ao desfazer uma entrega do dia.',
+  },
+]
+
+function PainelMotivos() {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {LISTAS_MOTIVO.map((l) => (
+        <ListaMotivos key={l.tipo} {...l} />
+      ))}
+    </div>
+  )
+}
+
+function ListaMotivos({
+  tipo,
+  titulo,
+  explica,
+}: {
+  tipo: TipoMotivo
+  titulo: string
+  explica: string
+}) {
+  const notificar = useNotificacao()
+  const aoErro = useErro()
+  const clienteQuery = useQueryClient()
+  const [novo, setNovo] = useState('')
+  const [editando, setEditando] = useState<{ id: number; texto: string } | null>(null)
+  const { data: motivos = [], isPending } = useQuery({
+    queryKey: ['motivos', tipo, 'todos'],
+    queryFn: () => listarMotivos(tipo, true),
+  })
+  const salvar = useMutation({
+    mutationFn: (m: { id: number | null; texto: string; ordem?: number | null; ativo?: boolean }) =>
+      salvarMotivo({ ...m, tipo }),
+    onSuccess: async (_d, m) => {
+      notificar({ titulo: m.id === null ? 'Motivo cadastrado' : 'Motivo salvo', tom: 'perfeito' })
+      setNovo('')
+      setEditando(null)
+      await clienteQuery.invalidateQueries({ queryKey: ['motivos', tipo] })
+    },
+    onError: aoErro,
+  })
+
+  function aoCadastrar(e: FormEvent) {
+    e.preventDefault()
+    if (novo.trim().length >= 2) salvar.mutate({ id: null, texto: novo })
+  }
+
+  return (
+    <section
+      className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4"
+      aria-label={titulo}
+    >
+      <div>
+        <h2 className="text-lg font-semibold text-texto">{titulo}</h2>
+        <p className="text-sm text-texto-suave">{explica}</p>
+      </div>
+      {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
+      <ul className="flex flex-col divide-y divide-borda">
+        {motivos.map((m: Motivo) => (
+          <li key={m.id} className="flex flex-wrap items-center gap-2 py-2">
+            {editando?.id === m.id ? (
+              <form
+                className="flex flex-1 flex-wrap items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  salvar.mutate({ id: m.id, texto: editando.texto, ativo: m.ativo })
+                }}
+              >
+                <div className="min-w-48 flex-1">
+                  <Campo
+                    rotulo="Motivo"
+                    value={editando.texto}
+                    maxLength={80}
+                    onChange={(e) => setEditando({ id: m.id, texto: e.target.value })}
+                  />
+                </div>
+                <Botao type="submit" tamanho="sm" carregando={salvar.isPending}>
+                  Salvar
+                </Botao>
+                <Botao
+                  type="button"
+                  variante="fantasma"
+                  tamanho="sm"
+                  icone={<X />}
+                  onClick={() => setEditando(null)}
+                >
+                  Cancelar
+                </Botao>
+              </form>
+            ) : (
+              <>
+                <span
+                  className={cn(
+                    'flex-1 text-sm',
+                    m.ativo ? 'text-texto' : 'text-texto-fraco line-through',
+                  )}
+                >
+                  {m.texto}
+                </span>
+                <Botao
+                  variante="fantasma"
+                  tamanho="sm"
+                  icone={<Pencil />}
+                  aria-label={`Editar "${m.texto}"`}
+                  onClick={() => setEditando({ id: m.id, texto: m.texto })}
+                />
+                <Botao
+                  variante="fantasma"
+                  tamanho="sm"
+                  icone={m.ativo ? <Archive /> : <ArchiveRestore />}
+                  carregando={salvar.isPending && salvar.variables?.id === m.id}
+                  onClick={() => salvar.mutate({ id: m.id, texto: m.texto, ativo: !m.ativo })}
+                >
+                  {m.ativo ? 'Desligar' : 'Religar'}
+                </Botao>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form className="flex flex-wrap items-end gap-2" onSubmit={aoCadastrar}>
+        <div className="min-w-48 flex-1">
+          <Campo
+            rotulo="Novo motivo"
+            placeholder="Uma frase curta"
+            maxLength={80}
+            value={novo}
+            onChange={(e) => setNovo(e.target.value)}
+          />
+        </div>
+        <Botao
+          type="submit"
+          icone={<Plus />}
+          disabled={novo.trim().length < 2}
+          carregando={salvar.isPending && salvar.variables?.id === null}
+        >
+          Cadastrar
+        </Botao>
+      </form>
+    </section>
   )
 }

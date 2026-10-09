@@ -66,6 +66,123 @@ export async function registrarEntrega(parametros: {
   if (error) throw new Error(`Não deu para registrar a entrega: ${error.message}`)
 }
 
+// ---------------------------------------------------------------------------
+// SESSAO-30 (D-113/D-114/D-116): o que acontece na entrega além do "Entregue"
+// ---------------------------------------------------------------------------
+
+export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega'
+
+export interface Motivo {
+  id: number
+  tipo: TipoMotivo
+  texto: string
+  ordem: number
+  ativo: boolean
+}
+
+/** Os motivos de uma lista (Configurações → Utilitários). `todos` = com os desligados (só admin). */
+export async function listarMotivos(tipo: TipoMotivo, todos = false): Promise<Motivo[]> {
+  const { data, error } = await supabase.rpc('plt_fn_motivos', { p_tipo: tipo, p_todos: todos })
+  if (error) throw new Error(`Não deu para carregar os motivos: ${error.message}`)
+  return (data ?? []) as Motivo[]
+}
+
+export async function salvarMotivo(parametros: {
+  id: number | null
+  tipo: TipoMotivo
+  texto: string
+  ordem?: number | null
+  ativo?: boolean
+}): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_motivo_salvar', {
+    p_id: parametros.id,
+    p_tipo: parametros.tipo,
+    p_texto: parametros.texto.trim(),
+    p_ordem: parametros.ordem ?? null,
+    p_ativo: parametros.ativo ?? true,
+  })
+  if (error) throw new Error(error.message)
+  return Number(data)
+}
+
+/** Desfaz a entrega do dia (com motivo): as peças voltam à ROTAS e o Tiny volta junto. */
+export async function desfazerEntrega(parametros: {
+  cardId: number
+  motivoId: number
+  observacao?: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_entrega_desfazer', {
+    p_card_id: parametros.cardId,
+    p_motivo_id: parametros.motivoId,
+    p_observacao: parametros.observacao?.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Não entregue (com motivo): o pedido volta para "Programar"; o Tiny não muda. */
+export async function marcarNaoEntregue(parametros: {
+  cardId: number
+  motivoId: number
+  observacao?: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_entrega_nao_realizada', {
+    p_card_id: parametros.cardId,
+    p_motivo_id: parametros.motivoId,
+    p_observacao: parametros.observacao?.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Pedido devolvido na entrega: as peças voltam ao ESTOQUE sem dono; o Tiny não muda. */
+export async function marcarDevolvido(parametros: {
+  cardId: number
+  observacao?: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_entrega_devolvida', {
+    p_card_id: parametros.cardId,
+    p_observacao: parametros.observacao?.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** A chave "Entregue vai ao Tiny" e a fila (só admin vê; só o super admin liga). */
+export interface SituacaoEntregaTiny {
+  ligado_desde: string | null
+  ultimo_ok_em: string | null
+  pausado: boolean
+  esperando: number
+  parados: {
+    pedido_id: number
+    numero: number
+    situacao: string
+    erro: string | null
+    parado_em: string
+  }[]
+}
+
+export async function situacaoEntregaTiny(): Promise<SituacaoEntregaTiny | null> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_entrega_situacao')
+  if (error) throw new Error(error.message)
+  return (data ?? null) as SituacaoEntregaTiny | null
+}
+
+export async function ligarEntregaTiny(ligar: boolean): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_tiny_entrega_ligar', { p_ligar: ligar })
+  if (error) throw new Error(error.message)
+}
+
+export async function reenviarEntregaTiny(pedidoId: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_tiny_entrega_reenviar', { p_pedido_id: pedidoId })
+  if (error) throw new Error(error.message)
+}
+
+/** A entrega foi hoje (no fuso do galpão)? Só a do dia se desfaz (D-113). */
+export function entregueHoje(entregueEm: string | null, agora = new Date()): boolean {
+  if (!entregueEm) return false
+  const dia = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza' })
+  return dia(new Date(entregueEm)) === dia(agora)
+}
+
 /** Endereço em linha única (o formato do card real de entrega). */
 export function enderecoLegivel(e: {
   endereco: string | null
@@ -289,7 +406,7 @@ export async function geocodificar(
     }
     throw new Error(mensagem)
   }
-  return ((data as { resultados?: ResultadoGeocodificacao[] })?.resultados ?? [])
+  return (data as { resultados?: ResultadoGeocodificacao[] })?.resultados ?? []
 }
 
 /**
@@ -324,8 +441,7 @@ export interface RotaCalculada {
 }
 
 export type ResultadoRota =
-  | { tipo: 'pronta'; rota: RotaCalculada; doCache: boolean }
-  | { tipo: 'sem_caminho' }
+  { tipo: 'pronta'; rota: RotaCalculada; doCache: boolean } | { tipo: 'sem_caminho' }
 
 /** "Não existe caminho" guardado vale por 7 dias (a Edge Function também não insiste). */
 const SEM_CAMINHO_VALE_MS = 7 * 24 * 60 * 60 * 1000
@@ -366,9 +482,13 @@ export async function buscarRotaPelasRuas(
     // A chave da tela e a da função do servidor saíram diferentes: o formato
     // mudou num lado só (rotaRuas.ts × calcular-rota) — a rota vale, o cache
     // da tela é que não vai achá-la na próxima vez.
-    console.warn('rota: a chave da tela e a do servidor divergem', { tela: chave, servidor: resposta.chave })
+    console.warn('rota: a chave da tela e a do servidor divergem', {
+      tela: chave,
+      servidor: resposta.chave,
+    })
   }
-  if (resposta.resolvido && resposta.rota) return { tipo: 'pronta', rota: resposta.rota, doCache: false }
+  if (resposta.resolvido && resposta.rota)
+    return { tipo: 'pronta', rota: resposta.rota, doCache: false }
   return { tipo: 'sem_caminho' }
 }
 
