@@ -10730,6 +10730,166 @@ conferir(
 await como61('')
 } // fim do bloco 61
 
+// ============================================================================
+// SESSAO-30 §3.5 — O ENSAIO DE PONTA A PONTA (bloco permanente; o mesmo
+// roteiro rodou no banco real numa transação desfeita, 08/10). Números de cada
+// passo: em estoque / reservados em venda / reservados para produção.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-30 · ensaio de ponta a ponta: pedido → produção → ROTAS → entregue; Tiny; reabastecimento; cancelamento')
+
+const um62 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos62 = async (sql, p) => (await bd.query(sql, p)).rows
+const como62 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const DONO = E40.admin
+const ids62 = Object.fromEntries((await todos62(`select codigo, id::int as id from public.plt_setores`)).map((s) => [s.codigo, s.id]))
+async function n62(tiny) {
+  await como62(DONO)
+  const r = await um62(`select em_estoque::int as e, reservados_venda::int as rv, reservados_producao::int as rp
+                          from public.plt_fn_estoque_produtos('acabados', (select codigo from public.produtos where tiny_id = ${tiny}), null, 20, 0)
+                         where tiny_id = ${tiny}`)
+  return r ?? { e: null, rv: null, rp: null }
+}
+const tabela = []
+const marcar = (passo, A, B, ok) => { tabela.push({ passo, A: `${A.e}/${A.rv}/${A.rp}`, B: `${B.e}/${B.rv}/${B.rp}`, ok }); return ok }
+
+await como62('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw) values
+    (962001, 'S62A', 'Armário Ensaio 62', 'F', 'A', 'un', '{}'::jsonb),
+    (962002, 'S62B', 'Estante Ensaio 62', 'F', 'A', 'un', '{"qtd_volumes": "2"}'::jsonb)
+  on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 62', 'TST6E62');
+`)
+const cam62 = (await um62(`select id::int as id from public.plt_caminhoes where placa = 'TST6E62'`)).id
+const cli62 = (await um62(`select id from public.clientes order by id limit 1`)).id
+// Como em produção (desde 30/09): o estoque sincronizado com o Tiny — a venda reserva a peça (D-78).
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = now() - interval '1 minute' where codigo = 'estoque'`)
+await como62(E40.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(962001, 'entrada', 1, 'ensaio 62')`)
+const A0 = await n62(962001); const B0 = await n62(962002)
+marcar('0 · antes', A0, B0, true)
+
+await como62('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values (962001, ${cli62}, 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 962001), 1, 'S62A', 'Armário Ensaio 62', 1),
+    ((select id from public.pedidos where numero = 962001), 2, 'S62B', 'Estante Ensaio 62', 1);
+  select plt_privado.fn_estoque_reservas_rodar();
+`)
+const pc62 = (await um62(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id where c.tipo = 'pedido' and p.numero = 962001`)).id
+const A1 = await n62(962001); const B1 = await n62(962002)
+marcar('1 · pedido chega; a venda reserva a peça de A', A1, B1, A1.e === A0.e - 1 && A1.rv === A0.rv + 1 && B1.rv === B0.rv)
+
+await como62(DONO)
+const jan62 = (await um62(`select public.plt_fn_pcp_liberacao(${pc62}) as j`)).j
+const sug62 = jan62.sugestoes.find((s) => s.item_seq === 1)
+await bd.query(`select public.plt_fn_pcp_liberar($1, $2::jsonb)`, [pc62, JSON.stringify([
+  { item_seq: 1, indice_unidade: 1, peca_card_id: sug62?.peca_card_id }, { item_seq: 2, indice_unidade: 1, setor_id: ids62.secc }])])
+const A2 = await n62(962001); const B2 = await n62(962002)
+marcar('2 · liberação numa chamada (A do estoque, B à SECC)', A2, B2, sug62?.reservada === true && A2.rv === A1.rv && B2.rp === B1.rp + 1)
+
+const uB62 = (await um62(`select id::int as id from public.plt_cards where card_pai_id = ${pc62} and item_seq = 2`)).id
+await como62('')
+for (const [de, para] of [['secc', 'furacao'], ['furacao', 'montagem'], ['montagem', 'limpeza_embalagem']]) {
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem) values (${uB62}, 'movimentacao_setor', ${ids62[de]}, ${ids62[para]}, 'api')`)
+}
+await como62(DONO)
+await bd.exec(`select public.plt_fn_concluir_producao(${uB62})`)
+const A4 = await n62(962001); const B4 = await n62(962002)
+marcar('3-4 · B pela produção e concluída (aguardo)', A4, B4, B4.rp === B2.rp - 1 && B4.rv === B2.rv + 1)
+
+await bd.exec(`select public.plt_fn_lancar_rotas(${pc62})`)
+await bd.exec(`select public.plt_fn_programar_entrega(${pc62}, (now() at time zone 'America/Fortaleza')::date, ${cam62})`)
+const A6 = await n62(962001); const B6 = await n62(962002)
+const dia62 = (await um62(`select public.plt_fn_entregas_do_dia(null, ${cam62}) as j`)).j
+marcar('5-6 · lançado e programado (D-118: reservado não muda; aparece no dia)', A6, B6,
+  A6.rv === A4.rv && B6.rv === B4.rv && dia62.entregas.some((e) => e.card_id === pc62 && e.volumes === 3))
+
+await bd.exec(`select public.plt_fn_tiny_entrega_ligar(true)`)
+await bd.exec(`select public.plt_fn_registrar_entrega(${pc62}, 'ensaio 62')`)
+const fila62 = await um62(`select situacao, motivo from public.plt_tiny_pedido_fila where numero = 962001`)
+const A7 = await n62(962001); const B7 = await n62(962002)
+marcar('7 · entregue: fecha tudo; o Tiny "entregue" na fila', A7, B7, A7.rv === A6.rv - 1 && B7.rv === B6.rv - 1 && fila62?.situacao === 'entregue')
+
+await como62('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values (962002, ${cli62}, 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values ((select id from public.pedidos where numero = 962002), 1, 'S62B', 'Estante Ensaio 62', 1);
+`)
+const pc62b = (await um62(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id where c.tipo = 'pedido' and p.numero = 962002`)).id
+await como62(DONO)
+await bd.exec(`select public.plt_fn_pcp_ajustar_pedidos(array[(select id from public.pedidos where numero = 962002)]::bigint[], 'concluido', 'ensaio')`)
+await bd.exec(`select public.plt_fn_lancar_rotas(${pc62b})`)
+const antes8 = await n62(962002)
+await como62('')
+await bd.exec(`update public.pedidos set situacao = 'Entregue' where numero = 962002`)
+const volta62 = await um62(`select (select count(*)::int from public.plt_eventos where card_id = ${pc62b} and tipo = 'pedido_entregue') as entregas,
+                                   (select count(*)::int from public.plt_cards where card_pai_id = ${pc62b} and arquivado_em is null) as vivas,
+                                   (select count(*)::int from public.plt_tiny_pedido_fila where numero = 962002) as eco`)
+const A8 = await n62(962001); const B8 = await n62(962002)
+marcar('8 · o Tiny ficou "Entregue": fecha sozinha, uma vez, sem eco', A8, B8,
+  volta62.entregas === 1 && volta62.vivas === 0 && volta62.eco === 0 && B8.rv === antes8.rv - 1)
+
+await como62(DONO)
+const rep62 = (await um62(`select public.plt_fn_estoque_lancar_reposicao(962002, 2) as id`)).id
+const B9a = await n62(962002)
+await bd.query(`select public.plt_fn_pcp_liberar($1, $2::jsonb)`, [rep62, JSON.stringify([
+  { item_seq: 1, indice_unidade: 1, setor_id: ids62.secc }, { item_seq: 1, indice_unidade: 2, setor_id: ids62.secc }])])
+for (const r of await todos62(`select id::int as id from public.plt_cards where card_pai_id = ${rep62} and tipo = 'unidade'`)) {
+  await bd.exec(`select public.plt_fn_concluir_producao(${r.id})`)
+}
+const A9 = await n62(962001); const B9 = await n62(962002)
+marcar('9 · reabastecimento: 2 no PCP → produção → ESTOQUE', A9, B9, B9a.rp === B8.rp + 2 && B9.e === B8.e + 2 && B9.rp === B8.rp)
+
+await como62('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values (962003, ${cli62}, 'aprovado', 'webhook'), (962004, ${cli62}, 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+    ((select id from public.pedidos where numero = 962003), 1, 'S62B', 'Estante Ensaio 62', 3),
+    ((select id from public.pedidos where numero = 962004), 1, 'S62B', 'Estante Ensaio 62', 1);
+`)
+const pc62c = (await um62(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id where c.tipo = 'pedido' and p.numero = 962003`)).id
+const pc62d = (await um62(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id where c.tipo = 'pedido' and p.numero = 962004`)).id
+await como62(DONO)
+await bd.query(`select public.plt_fn_pcp_liberar($1, $2::jsonb)`, [pc62c, JSON.stringify([
+  { item_seq: 1, indice_unidade: 1, setor_id: ids62.secc }, { item_seq: 1, indice_unidade: 2, setor_id: ids62.secc }])])
+const u621 = (await um62(`select id::int as id from public.plt_cards where card_pai_id = ${pc62c} and indice_unidade = 1`)).id
+const u622 = (await um62(`select id::int as id from public.plt_cards where card_pai_id = ${pc62c} and indice_unidade = 2`)).id
+await bd.exec(`select public.plt_fn_concluir_producao(${u621})`)
+await bd.exec(`select public.plt_fn_pcp_ajustar_pedidos(array[(select id from public.pedidos where numero = 962004)]::bigint[], 'concluido', 'ensaio')`)
+await bd.exec(`select public.plt_fn_lancar_rotas(${pc62d})`)
+await como62('')
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero in (962003, 962004)`)
+const onde62 = async (id) => um62(`select s.codigo as setor, c.pedido_id is null as sem_dono from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id where c.id = ${id}`)
+const r621 = await onde62(u621); const r622 = await onde62(u622)
+await como62(DONO)
+await bd.exec(`select public.plt_fn_concluir_producao(${u622})`)
+const r622b = await onde62(u622)
+const r641 = await onde62((await um62(`select id::int as id from public.plt_cards where card_pai_id = ${pc62d} and tipo = 'unidade'`)).id)
+const A10 = await n62(962001); const B10 = await n62(962002)
+marcar('10 · cancelamento nos 3 estágios + na ROTAS (D-114)', A10, B10,
+  r621.setor === 'estoque' && r621.sem_dono && r622.setor === 'secc' && !r622.sem_dono && r622b.setor === 'estoque' && r622b.sem_dono
+    && r641.setor === 'estoque' && r641.sem_dono && B10.e === B9.e + 3)
+
+await como62('')
+const venc62 = (await um62(`insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id, criado_em)
+                             values ('reposicao', 962001, 'S62A', 'Armário Ensaio 62', 1, ${ids62.pcp}, now() - interval '10 days') returning id::int as id`)).id
+await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id) values (${venc62}, 'card_criado', 'automacao', ${ids62.pcp});
+               select plt_privado.fn_vencer_reposicoes();`)
+const vencida62 = (await um62(`select arquivado_em is not null as a from public.plt_cards where id = ${venc62}`)).a
+const recont62 = (await um62(`select plt_privado.fn_estoque_numeros_recontar() as n`)).n
+marcar('11-12 · reposição vencida sai sozinha; a recontagem não acha diferença', A10, B10, vencida62 && recont62 === 0)
+
+await como62(DONO)
+await bd.exec(`select public.plt_fn_tiny_entrega_ligar(false)`)
+await como62('')
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = null where codigo = 'estoque'`)
+conferir(tabela.every((t) => t.ok), `ensaio de ponta a ponta: ${tabela.filter((t) => t.ok).length} de ${tabela.length} passos com os números esperados (em estoque / reservados em venda / para produção)`,
+  JSON.stringify(tabela))
+} // fim do bloco 62
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
