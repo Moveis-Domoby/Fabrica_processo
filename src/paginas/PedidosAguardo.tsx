@@ -25,9 +25,9 @@ import {
   listarProdutosReservados,
 } from '@/logistica/api'
 import type { PedidoAguardo, ProdutoReservado } from '@/logistica/api'
+import { useAoVivo } from '@/lib/aoVivo'
 
 const POR_PAGINA = 20
-const ATUALIZA_A_CADA = 30_000
 
 type AbaAguardo = 'pedidos' | 'produtos'
 
@@ -55,8 +55,13 @@ export function PedidosAguardo() {
     queryKey: ['aguardo-contagens'],
     queryFn: contagensAguardo,
     enabled: tenhoAcesso,
-    refetchInterval: ATUALIZA_A_CADA,
   })
+  // SESSAO-30 (Lei §4): chegou/saiu peça do aguardo → AO VIVO, sem relógio.
+  useAoVivo(
+    'aguardo',
+    [['aguardo-contagens'], ['pedidos-aguardo'], ['produtos-reservados']],
+    tenhoAcesso,
+  )
 
   if (semAcesso) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -85,7 +90,9 @@ export function PedidosAguardo() {
           },
           {
             valor: 'produtos',
-            rotulo: contagens ? `Produtos reservados (${contagens.produtos})` : 'Produtos reservados',
+            rotulo: contagens
+              ? `Produtos reservados (${contagens.produtos})`
+              : 'Produtos reservados',
             icone: <PackageCheck aria-hidden />,
           },
         ]}
@@ -128,7 +135,6 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
     queryFn: () =>
       listarPedidosAguardo({ busca, limite: POR_PAGINA, deslocamento: (pagina - 1) * POR_PAGINA }),
     enabled: ativo,
-    refetchInterval: ATUALIZA_A_CADA,
     placeholderData: keepPreviousData,
   })
   const total = Number(linhas[0]?.contagem_total ?? 0)
@@ -234,7 +240,8 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
                   )}
                 </div>
                 <p className="line-clamp-1 text-sm text-texto-suave">
-                  {linha.cliente_nome || 'Sem cliente'} · previsão {formatarData(linha.data_prevista)}
+                  {linha.cliente_nome || 'Sem cliente'} · previsão{' '}
+                  {formatarData(linha.data_prevista)}
                   {linha.unidades_liberadas < linha.total_unidades && (
                     <> · {linha.total_unidades - linha.unidades_liberadas} ainda no PCP</>
                   )}
@@ -245,8 +252,11 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
                   <Hourglass aria-hidden className="size-4" />
                   {linha.completo && linha.completo_em ? (
                     <>
-                      Completo há <strong className="text-texto">{formatarDuracao(linha.completo_em, agora)}</strong>
-                      {' '}aguardando o lançamento
+                      Completo há{' '}
+                      <strong className="text-texto">
+                        {formatarDuracao(linha.completo_em, agora)}
+                      </strong>{' '}
+                      aguardando o lançamento
                     </>
                   ) : linha.primeira_pronta_em ? (
                     <>1ª peça pronta há {formatarDuracao(linha.primeira_pronta_em, agora)}</>
@@ -274,7 +284,11 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
 
               <div className="flex flex-wrap items-center gap-2">
                 {!nadaAProduzir && (
-                  <Botao variante="secundaria" icone={<Eye />} onClick={() => setPedidoAberto(linha)}>
+                  <Botao
+                    variante="secundaria"
+                    icone={<Eye />}
+                    onClick={() => setPedidoAberto(linha)}
+                  >
                     Ver unidades
                   </Botao>
                 )}
@@ -285,7 +299,10 @@ function PainelPedidos({ ativo }: { ativo: boolean }) {
                         <span className="text-sm text-texto-suave">
                           Lançar o pedido inteiro para as ROTAS?
                         </span>
-                        <Botao carregando={lancarMutacao.isPending} onClick={() => lancarMutacao.mutate(linha)}>
+                        <Botao
+                          carregando={lancarMutacao.isPending}
+                          onClick={() => lancarMutacao.mutate(linha)}
+                        >
                           Sim, lançar
                         </Botao>
                         <Botao variante="fantasma" onClick={() => setLancando(null)}>
@@ -382,7 +399,6 @@ function PainelProdutos({ ativo }: { ativo: boolean }) {
         deslocamento: (pagina - 1) * POR_PAGINA,
       }),
     enabled: ativo,
-    refetchInterval: ATUALIZA_A_CADA,
     placeholderData: keepPreviousData,
   })
   const total = Number(linhas[0]?.contagem_total ?? 0)

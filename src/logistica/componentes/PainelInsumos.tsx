@@ -7,9 +7,9 @@ import { useAgora } from '@/kanban/tempo'
 import { listarEstoqueProdutos } from '@/logistica/api'
 import type { FiltroEstoque, LinhaEstoqueProduto } from '@/logistica/api'
 import { formatarQuantidade, idadeDaLeitura } from '@/logistica/estoque'
+import { useAoVivo } from '@/lib/aoVivo'
 
 const POR_PAGINA = 20
-const ATUALIZA_A_CADA = 30_000
 
 const FILTROS: { valor: FiltroEstoque | 'todos'; rotulo: string }[] = [
   { valor: 'todos', rotulo: 'Todos' },
@@ -27,7 +27,12 @@ export function PainelInsumos({ ativo }: { ativo: boolean }) {
   const [filtro, setFiltro] = useState<FiltroEstoque | 'todos'>('todos')
   const [pagina, setPagina] = useState(1)
 
-  const { data: linhas = [], isPending, isError, error } = useQuery({
+  const {
+    data: linhas = [],
+    isPending,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ['estoque', 'insumos', busca, filtro, pagina],
     queryFn: () =>
       listarEstoqueProdutos({
@@ -38,9 +43,10 @@ export function PainelInsumos({ ativo }: { ativo: boolean }) {
         deslocamento: (pagina - 1) * POR_PAGINA,
       }),
     enabled: ativo,
-    refetchInterval: ATUALIZA_A_CADA,
     placeholderData: keepPreviousData,
   })
+  // SESSAO-30 (Lei §4): a leitura do Tiny chega AO VIVO (o aviso do estoque), sem relógio.
+  useAoVivo('estoque', [['estoque', 'insumos']], ativo)
   const total = linhas[0]?.contagem_total ?? 0
 
   return (
@@ -110,7 +116,9 @@ function CartaoInsumo({ linha, agora }: { linha: LinhaEstoqueProduto; agora: num
         <p className="text-xs text-texto-suave tabular-nums">
           {linha.codigo ? `SKU ${linha.codigo}` : 'sem SKU'}
           {linha.classe === 'K' ? ' · kit' : ' · matéria-prima'}
-          {linha.minimo !== null && linha.minimo > 0 && ` · mínimo ${formatarQuantidade(linha.minimo)}`}
+          {linha.minimo !== null &&
+            linha.minimo > 0 &&
+            ` · mínimo ${formatarQuantidade(linha.minimo)}`}
         </p>
         {linha.saldo_tiny === null ? (
           <p className="inline-flex items-center gap-1.5 text-xs text-texto-fraco">

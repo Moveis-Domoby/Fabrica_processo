@@ -35,9 +35,9 @@ import {
 } from './rotaRuas'
 import { nomeDoTrecho, textoTrecho, trechosDaRota } from './trechos'
 import { useRotaPelasRuas, useRotasPelasRuas } from './useRotaPelasRuas'
+import { useAoVivo } from '@/lib/aoVivo'
 
 const POR_PAGINA = 50
-const ATUALIZA_A_CADA = 30_000
 const SEM_PONTOS: Ponto[] = []
 
 const idsDe = (lista: { card_id: number }[]) => lista.map((p) => p.card_id)
@@ -115,8 +115,9 @@ export function AbaJaProgramadas({
       return carregadas < total ? carregadas : undefined
     },
     enabled: ativa,
-    refetchInterval: entregues ? false : ATUALIZA_A_CADA,
   })
+  // SESSAO-30 (Lei §4): programação/entrega mudou → AO VIVO, sem relógio (o histórico não muda).
+  useAoVivo('rotas', [['programadas', false]], ativa && !entregues)
   const { data: caminhoes = [] } = useQuery({
     queryKey: ['caminhoes', false],
     queryFn: () => listarCaminhoes(false),

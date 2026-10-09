@@ -28,6 +28,7 @@ import {
 } from '@/rotas/api'
 import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { useAoVivo } from '@/lib/aoVivo'
 
 const MiniMapa = lazy(() => import('@/rotas/MiniMapaEntregas'))
 
@@ -70,6 +71,8 @@ export function EntregasDoDia() {
     queryKey: ['entregas-do-dia', dia, caminhaoId],
     queryFn: () => entregasDoDia({ data: dia, caminhaoId }),
   })
+  // A rota mudou (outro entregador marcou, a logística programou) → AO VIVO (Lei §4).
+  useAoVivo('rotas', [['entregas-do-dia']])
 
   const entregas = data?.entregas ?? []
   const feitas = entregas.filter((e) => e.entregue_em).length

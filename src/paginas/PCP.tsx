@@ -30,6 +30,7 @@ import { Abas, Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/comp
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSuperAdmin } from '@/autenticacao/tipos'
 import { cn } from '@/lib/cn'
+import { useAoVivo } from '@/lib/aoVivo'
 import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
 import {
   ajustarPedidosPcp,
@@ -58,8 +59,6 @@ import type { Card } from '@/kanban/tipos'
 import { useCamposDosPedidos, useEtiquetasDosCards } from '@/utilitarios/consultas'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
-
-const ATUALIZA_A_CADA = 20_000
 
 /**
  * O quadro do PCP (D-01): um card por PEDIDO. O PCP enxerga o pedido inteiro,
@@ -107,8 +106,21 @@ export function PCP() {
     })
   }
 
+  // Rodada de 30/09: três abas — solicitações de estoque, aguardando liberação
+  // e todos os pedidos. A aba vive na URL (?aba=) — Voltar e link funcionam;
+  // ?aba=cancelados (bookmark antigo) leva à tela nova, na Logística.
+  const [parametros, setParametros] = useSearchParams()
+  const abaParam = parametros.get('aba')
+  const aba: 'solicitacoes' | 'quadro' | 'todos' =
+    abaParam === 'solicitacoes' ? 'solicitacoes' : abaParam === 'todos' ? 'todos' : 'quadro'
+
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPcp = setores.find((s) => s.codigo === 'pcp')
+
+  // SESSAO-30 (Lei §3 e §4): cada aba só pede o que ela mostra (antes o quadro
+  // e as solicitações rodavam em qualquer aba) e as mudanças chegam AO VIVO
+  // pelo websocket do PCP — sem o relógio de 20 s.
+  useAoVivo('pcp', [['cards'], ['reposicoes-resumo'], ['pcp-todos']])
 
   // SESSAO-22: pedidos ABERTOS filtrados e paginados no SERVIDOR — pedido 100%
   // liberado sai do quadro lá (projeção liberado_completo_em, D-22/D-48), e a
@@ -120,8 +132,7 @@ export function PCP() {
     queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
       queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, pagina],
       queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'pedido' }),
-      enabled: setorPcp !== undefined,
-      refetchInterval: ATUALIZA_A_CADA,
+      enabled: setorPcp !== undefined && aba === 'quadro',
       placeholderData: keepPreviousData,
     })),
   })
@@ -144,8 +155,7 @@ export function PCP() {
     queries: Array.from({ length: paginasSolicitacoes }, (_, pagina) => ({
       queryKey: ['cards', 'pcp-solicitacoes', setorPcp?.id, pagina],
       queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'reposicao' }),
-      enabled: setorPcp !== undefined,
-      refetchInterval: ATUALIZA_A_CADA,
+      enabled: setorPcp !== undefined && aba === 'solicitacoes',
       placeholderData: keepPreviousData,
     })),
   })
@@ -167,7 +177,6 @@ export function PCP() {
     queryKey: ['reposicoes-resumo', idsReposicao],
     queryFn: async () => new Map((await reposicoesResumo(idsReposicao)).map((r) => [r.card_id, r])),
     enabled: idsReposicao.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
   })
   const [arquivandoId, setArquivandoId] = useState<number | null>(null)
   const naoProduzir = useMutation({
@@ -189,14 +198,6 @@ export function PCP() {
 
   const [modalNovo, setModalNovo] = useState(false)
   const [cardParaLiberar, setCardParaLiberar] = useState<Card | null>(null)
-
-  // Rodada de 30/09: três abas — solicitações de estoque, aguardando liberação
-  // e todos os pedidos. A aba vive na URL (?aba=) — Voltar e link funcionam;
-  // ?aba=cancelados (bookmark antigo) leva à tela nova, na Logística.
-  const [parametros, setParametros] = useSearchParams()
-  const abaParam = parametros.get('aba')
-  const aba: 'solicitacoes' | 'quadro' | 'todos' =
-    abaParam === 'solicitacoes' ? 'solicitacoes' : abaParam === 'todos' ? 'todos' : 'quadro'
 
   // Ajuste Estoque 2 (resposta 6 do dono): a bolinha vermelha do Estoque chega
   // com ?liberar=<card do pedido> — a decisão abre sozinha. Uma consulta

@@ -37,8 +37,8 @@ import {
 import type { CriterioOrdem } from './rotaRuas'
 import { nomeDoTrecho, textoTrecho, trechosDaRota } from './trechos'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
+import { useAoVivo } from '@/lib/aoVivo'
 
-const ATUALIZA_A_CADA = 30_000
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
 
@@ -88,8 +88,9 @@ export function AbaProgramar({
     queryKey: ['programacao', 'sem-programacao'],
     queryFn: () => listarProgramacao({ soSemProgramacao: true, limite: 200 }),
     enabled: ativa,
-    refetchInterval: ATUALIZA_A_CADA,
   })
+  // SESSAO-30 (Lei §4): pedido lançado/programado/"não entregue" → AO VIVO, sem relógio.
+  useAoVivo('rotas', [['programacao']], ativa)
   const { data: caminhoes = [] } = useQuery({
     queryKey: ['caminhoes', false],
     queryFn: () => listarCaminhoes(false),

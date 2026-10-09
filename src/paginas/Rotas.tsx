@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
+import { useAoVivo } from '@/lib/aoVivo'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
 import { urlFotoCaminhao } from '@/admin/caminhoes'
@@ -87,8 +88,9 @@ export function Rotas() {
         deslocamento: pagina * POR_PAGINA,
       }),
     enabled: tenhoAcesso,
-    refetchInterval: 30_000,
   })
+  // SESSAO-30 (Lei §4): entrega/programação mudou → AO VIVO, sem o relógio de 30 s.
+  useAoVivo('rotas', [['rotas']], tenhoAcesso)
   const total = Number(entregas[0]?.contagem_total ?? 0)
 
   const entregarMutacao = useMutation({

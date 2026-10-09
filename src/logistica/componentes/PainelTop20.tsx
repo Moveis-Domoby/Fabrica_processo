@@ -18,8 +18,7 @@ import { ModalMovimentarEstoque } from './ModalMovimentarEstoque'
 import { ModalProdutoEstoque } from './ModalProdutoEstoque'
 import { TodasAsPecas } from './PecasDoEstoque'
 import { PecasPersonalizadas } from './PecasPersonalizadas'
-
-const ATUALIZA_A_CADA = 30_000
+import { useAoVivo } from '@/lib/aoVivo'
 
 /** O filtro do topo (resposta 5 do dono: entra o "Com estoque"). */
 const FILTROS = [
@@ -65,7 +64,6 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
     queryKey: ['estoque', 'reposicao-situacao'],
     queryFn: situacaoReposicao,
     enabled: ativo && podeMexer,
-    refetchInterval: ATUALIZA_A_CADA,
   })
   const podeLancar = podeMexer && reposicao !== undefined && !reposicao.ligada
 
@@ -87,9 +85,10 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
         deslocamento: (pagina - 1) * topX,
       }),
     enabled: ativo,
-    refetchInterval: ATUALIZA_A_CADA,
     placeholderData: keepPreviousData,
   })
+  // SESSAO-30 (Lei §4): os números mudam AO VIVO (o aviso do estoque), sem relógio.
+  useAoVivo('estoque', [['estoque']], ativo)
   const total = linhas[0]?.contagem_total ?? 0
   // O detalhe aberto acompanha a lista (foto nova, número novo) quando o produto está nela.
   const produtoAberto = aberto ? (linhas.find((l) => l.tiny_id === aberto.tiny_id) ?? aberto) : null
