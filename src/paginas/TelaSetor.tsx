@@ -10,11 +10,10 @@ import {
   buscarEtapasDoSetor,
   buscarExecucoesAbertas,
   buscarNomesUsuarios,
-  buscarPareceresPendentes,
   buscarSetores,
   soltarCard,
 } from '@/kanban/api'
-import { acaoAoSoltar, setorConcluiProducao } from '@/kanban/arrasto'
+import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import type { AcaoAoSoltar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
@@ -23,7 +22,7 @@ import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
-import type { Card, ExecucaoAberta, ParecerPendente, QualidadePendente } from '@/kanban/tipos'
+import type { Card, ExecucaoAberta } from '@/kanban/tipos'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
 import { prepararSom, tocarSomChegada } from '@/tablet/som'
@@ -31,10 +30,14 @@ import { prepararSom, tocarSomChegada } from '@/tablet/som'
 const ATUALIZA_A_CADA = 20_000
 const CHAVE_SETOR = 'plt-tela-setor-id'
 
-/** O gesto que espera o PIN: um card solto numa coluna, ou o Concluir. */
-type GestoComPin =
-  | { tipo: 'soltar'; card: Card; etapaId: number | null; acao: AcaoAoSoltar; rotulo: string }
-  | { tipo: 'concluir'; card: Card }
+/** O gesto que espera o PIN: um card solto numa coluna. */
+type GestoComPin = {
+  tipo: 'soltar'
+  card: Card
+  etapaId: number | null
+  acao: AcaoAoSoltar
+  rotulo: string
+}
 
 /**
  * A TELA DO SETOR (SESSAO-07 / D-06 / D-28): o que o chão de fábrica vê o dia
@@ -44,10 +47,11 @@ type GestoComPin =
  *
  * SESSAO-24 (dono, 27/09 — "tudo arrastando, é mais rápido"): a tela virou o
  * QUADRO de colunas do setor, só por arrasto. Soltar o card pede o PIN; na
- * etapa de trabalho o tempo do operador começa (com o parecer antes, quando a
- * peça chegou marcada); na etapa que leva a outro setor, o estado da peça é
- * perguntado e o card segue. Na LIMPEZA E EMBALAGEM existe o "Concluir
- * produção". Dados do produto, nunca do cliente (D-28).
+ * etapa de trabalho o tempo do operador começa (com a confirmação de
+ * recebimento antes, quando o setor pede o estado na chegada — D-126); na
+ * etapa que leva a outro setor, o card segue (o estado da peça é perguntado só
+ * quando o setor pede ao enviar); na EXPEDIÇÃO da LIMPEZA E EMBALAGEM, a peça
+ * é concluída (D-127). Dados do produto, nunca do cliente (D-28).
  *
  * A mesma tela serve o celular pessoal logado: aparece o setor da pessoa.
  */
@@ -130,26 +134,6 @@ export function TelaSetor() {
   })
   const execucoesPorCard = new Map<number, ExecucaoAberta>(execucoes.map((e) => [e.card_id, e]))
 
-  const { data: pendencias = new Map<number, QualidadePendente>() } = useQuery({
-    queryKey: ['qualidade-pendente', setorId, idsDosCards.join(',')],
-    queryFn: () => buscarPareceresPendentes(cards),
-    enabled: idsDosCards.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const pareceresPorCard = new Map<number, ParecerPendente>(
-    [...pendencias.values()].map((p) => [
-      p.card_id,
-      {
-        marcacaoEventoId: p.evento_marcacao_id,
-        estado: p.estado_remetente,
-        setorOrigemNome: setores.find((s) => s.id === p.setor_origem_id)?.nome ?? 'Setor anterior',
-        remetenteNome: p.usuario_remetente_id
-          ? (nomesUsuarios.get(p.usuario_remetente_id) ?? null)
-          : null,
-      },
-    ]),
-  )
-
   // ------------------------------------------------------------------
   // Tempo real: mudança em plt_cards → recarrega na hora (a RLS decide o que
   // este dispositivo enxerga). O polling de 20s segue como rede de segurança.
@@ -161,7 +145,6 @@ export function TelaSetor() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'plt_cards' }, () => {
         void clienteQuery.invalidateQueries({ queryKey: ['cards'] })
         void clienteQuery.invalidateQueries({ queryKey: ['execucoes'] })
-        void clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] })
       })
       .subscribe()
     return () => {
@@ -190,9 +173,11 @@ export function TelaSetor() {
     acao: Extract<AcaoAoSoltar, { tipo: 'encaminhar' }>
     operador: OperadorIdentificado
   } | null>(null)
-  const [concluindo, setConcluindo] = useState<{ card: Card; operador: OperadorIdentificado } | null>(
-    null,
-  )
+  const [concluindo, setConcluindo] = useState<{
+    card: Card
+    acao: Extract<AcaoAoSoltar, { tipo: 'concluir' }>
+    operador: OperadorIdentificado
+  } | null>(null)
   const [contextoParecer, setContextoParecer] = useState<{
     card: Card
     etapaId: number
@@ -206,7 +191,6 @@ export function TelaSetor() {
       clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
       clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
       clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
     ])
   }
 
@@ -214,6 +198,14 @@ export function TelaSetor() {
     mutationFn: soltarCard,
     onSuccess: async (resultado) => {
       if (resultado.acao === 'iniciado') notificar({ titulo: 'Tempo começou', tom: 'perfeito' })
+      if (resultado.acao === 'concluido')
+        notificar({
+          titulo:
+            resultado.destino === 'estoque'
+              ? 'Peça concluída — está no ESTOQUE'
+              : 'Peça concluída — está em Pedidos em aguardo',
+          tom: 'perfeito',
+        })
       await invalidarQuadro()
     },
     onError: (excecao) => {
@@ -231,15 +223,14 @@ export function TelaSetor() {
     if (!gesto) return
     setGestoComPin(null)
     notificar({ titulo: `${operador.nome} identificado`, tom: 'perfeito' })
-    if (gesto.tipo === 'concluir') {
-      setConcluindo({ card: gesto.card, operador })
-      return
-    }
     const { card, etapaId, acao } = gesto
-    if (acao.tipo === 'encaminhar') {
+    // SESSAO-31 (D-126): o estado só é perguntado quando o setor pede ao enviar.
+    if (acao.tipo === 'encaminhar' && setor && pedeEstadoAoEnviar(setor, card)) {
       setEncaminhando({ card, acao, operador })
-    } else if (acao.tipo === 'iniciar' && etapaId !== null && pareceresPorCard.has(card.id)) {
-      // Peça chegou marcada: o parecer vem antes do trabalho (D-09), no nome do MESMO operador.
+    } else if (acao.tipo === 'concluir' && setor && pedeEstadoAoEnviar(setor, card)) {
+      setConcluindo({ card, acao, operador })
+    } else if (acao.tipo === 'iniciar' && etapaId !== null && card.parecer_pendente_id != null) {
+      // A chegada ficou pendente: a confirmação vem antes do trabalho, no nome do MESMO operador.
       setContextoParecer({ card, etapaId, operador })
     } else {
       mutacaoSoltar.mutate({ card, etapaId, operadorId: operador.usuario_id })
@@ -296,9 +287,11 @@ export function TelaSetor() {
     const rotulo =
       acao.tipo === 'encaminhar'
         ? `Mandar para ${destinoNome ?? 'o próximo setor'}`
-        : acao.tipo === 'iniciar'
-          ? 'Começar o trabalho'
-          : 'Mover'
+        : acao.tipo === 'concluir'
+          ? 'Concluir a peça'
+          : acao.tipo === 'iniciar'
+            ? 'Começar o trabalho'
+            : 'Mover'
     setGestoComPin({ tipo: 'soltar', card, etapaId, acao, rotulo })
   }
 
@@ -346,18 +339,12 @@ export function TelaSetor() {
           setores={setores}
           tamanho="galpao"
           aoSoltarNaEtapa={aoSoltarNaEtapa}
-          aoAbrirConcluir={
-            setorConcluiProducao(setor)
-              ? (card) => setGestoComPin({ tipo: 'concluir', card })
-              : undefined
-          }
           execucao={{
             execucoesPorCard,
             nomesUsuarios,
             // Tablet compartilhado: ninguém é "você" — o PIN diz quem agiu.
             meuUsuarioId: '',
             gestoPendente: mutacaoSoltar.isPending,
-            pareceresPorCard,
             aoLinhaTempo: setCardHistorico,
             aoFotos: setCardFotos,
           }}
@@ -366,13 +353,7 @@ export function TelaSetor() {
 
       {/* Quem é você? — o PIN antes de qualquer gesto (D-06). */}
       <ModalPinOperador
-        acao={
-          gestoComPin
-            ? gestoComPin.tipo === 'concluir'
-              ? 'Concluir produção'
-              : gestoComPin.rotulo
-            : null
-        }
+        acao={gestoComPin ? gestoComPin.rotulo : null}
         setorId={setor.id}
         aoFechar={() => setGestoComPin(null)}
         aoIdentificado={aoOperadorIdentificado}
@@ -412,6 +393,7 @@ export function TelaSetor() {
             ? nomesUsuarios.get(concluindo.card.executor_atual_id)
             : undefined
         }
+        etapaDestino={concluindo?.acao.etapa}
         operadorId={concluindo?.operador.usuario_id}
         aoFechar={() => setConcluindo(null)}
       />
@@ -423,9 +405,8 @@ export function TelaSetor() {
             ? pedidosPorId.get(contextoParecer.card.pedido_id)
             : undefined
         }
-        pendente={
-          contextoParecer ? (pareceresPorCard.get(contextoParecer.card.id) ?? null) : null
-        }
+        setores={setores}
+        nomesUsuarios={nomesUsuarios}
         operadorId={contextoParecer?.operador.usuario_id}
         aoFechar={() => setContextoParecer(null)}
         aoRegistrado={(card, estado) => {

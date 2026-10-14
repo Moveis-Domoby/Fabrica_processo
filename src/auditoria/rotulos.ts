@@ -30,6 +30,7 @@ export const ROTULO_ACAO: Record<string, string> = {
   execucao_pausada: 'Pausou a execução',
   execucao_retomada: 'Retomou a execução',
   limite_execucoes_alterado: 'Mudou o limite de execuções do setor',
+  qualidade_setor_alterada: 'Mudou o estado da peça pedido no setor',
   // qualidade
   qualidade_marcada: 'Marcou o estado da peça',
   qualidade_parecer: 'Deu o parecer de qualidade',
@@ -184,7 +185,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
   {
     valor: 'qualidade',
     rotulo: 'Qualidade',
-    acoes: ['qualidade_marcada', 'qualidade_parecer', 'divergencia_registrada'],
+    acoes: ['qualidade_marcada', 'qualidade_parecer', 'divergencia_registrada', 'qualidade_setor_alterada'],
   },
   { valor: 'pedidos', rotulo: 'Pedidos vindos do Tiny', acoes: ['pedido_atualizado', 'pedido_cancelado'] },
   {

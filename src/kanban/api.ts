@@ -11,8 +11,9 @@ import type {
   PaginaDeCards,
   PedidoResumo,
   PedidoTodosPcp,
-  QualidadePendente,
+  ChegadaPendente,
   Setor,
+  TipoQualidade,
   UnidadePedido,
 } from './tipos'
 
@@ -48,7 +49,8 @@ export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
   let consulta = supabase
     .from('plt_setores')
     .select(
-      'id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa, modo_delegacao',
+      'id, codigo, nome, papel_no_fluxo, ordem, ativo, limite_execucoes_por_pessoa, modo_delegacao, ' +
+        'qualidade_envio_tipos, qualidade_recebimento_tipos',
     )
     .order('ordem')
     .order('id')
@@ -63,7 +65,7 @@ export async function buscarEtapasDoSetor(
 ): Promise<Etapa[]> {
   let consulta = supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id')
+    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao')
     .eq('setor_id', setorId)
     .order('ordem')
     .order('id')
@@ -76,7 +78,7 @@ export async function buscarEtapasDoSetor(
 export async function buscarEtapasAtivas(): Promise<Etapa[]> {
   const { data, error } = await supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id')
+    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao')
     .eq('ativa', true)
     .order('setor_id')
     .order('ordem')
@@ -349,8 +351,10 @@ export async function criarCardPedido(parametros: {
 
 /** O que o banco fez com o card solto (SESSAO-24). */
 export interface ResultadoSoltar {
-  acao: 'iniciado' | 'encaminhado' | 'movido'
+  acao: 'iniciado' | 'encaminhado' | 'movido' | 'concluido'
   setor_destino_id?: number
+  /** SESSAO-31 (D-127): a etapa que conclui — para onde a peça foi. */
+  destino?: 'aguardo' | 'estoque'
 }
 
 /**
@@ -389,7 +393,8 @@ export async function soltarCard(parametros: {
  */
 export async function concluirProducao(parametros: {
   card: Card
-  estadoQualidade: Estado
+  /** SESSAO-31 (D-126): nulo quando o setor não pede o estado ao enviar. */
+  estadoQualidade: Estado | null
   operadorId?: string | null
 }): Promise<'aguardo' | 'estoque'> {
   const { data, error } = await supabase.rpc('plt_fn_concluir_producao', {
@@ -506,63 +511,35 @@ export async function pedidosCancelados(parametros: {
 // ---------------------------------------------------------------------------
 
 /**
- * Marcações sem parecer dos cards informados — o que cada setor recebedor
- * ainda precisa responder. Fica só a da CHEGADA ATUAL de cada card (marcação
- * de chegada antiga é registro unilateral; o banco recusaria o parecer dela).
- *
- * SESSAO-22: a comparação é com a última chegada de SETOR do card, nunca com
- * `desde` — mover entre ETAPAS atualiza o `desde` e fazia a pendência sumir da
- * tela enquanto o banco (certo) seguia exigindo o parecer.
+ * SESSAO-31 (D-126): a chegada que o card ainda precisa confirmar — lida só
+ * quando a confirmação abre (o card já traz `parecer_pendente_id`; antes eram
+ * duas consultas a mais por quadro, a cada 20 s).
  */
-export async function buscarPareceresPendentes(
-  cards: Card[],
-): Promise<Map<number, QualidadePendente>> {
-  if (cards.length === 0) return new Map()
-  const ids = cards.map((c) => c.id)
-  const [pendencias, chegadas] = await Promise.all([
-    supabase
-      .from('plt_vw_qualidade_transicoes')
-      .select(
-        'evento_marcacao_id, card_id, setor_origem_id, setor_destino_id, usuario_remetente_id, estado_remetente, marcado_em',
-      )
-      .in('card_id', ids)
-      .is('evento_parecer_id', null)
-      .order('marcado_em', { ascending: false }),
-    supabase
-      .from('plt_eventos')
-      .select('card_id, ocorrido_em')
-      .in('card_id', ids)
-      .eq('tipo', 'movimentacao_setor')
-      .order('ocorrido_em', { ascending: false }),
-  ])
-  const linhas = garantir(
-    pendencias.data as QualidadePendente[] | null,
-    pendencias.error,
-    'Não deu para carregar as pendências de qualidade',
-  )
-  const eventosChegada = garantir(
-    chegadas.data as { card_id: number; ocorrido_em: string }[] | null,
-    chegadas.error,
-    'Não deu para carregar as chegadas',
-  )
-  // A última chegada de setor de cada card (a lista já vem do mais novo para o mais velho).
-  const chegadaPorCard = new Map<number, number>()
-  for (const e of eventosChegada) {
-    if (!chegadaPorCard.has(e.card_id))
-      chegadaPorCard.set(e.card_id, new Date(e.ocorrido_em).getTime())
-  }
-  const cardsPorId = new Map(cards.map((c) => [c.id, c]))
-  const pendentes = new Map<number, QualidadePendente>()
-  for (const linha of linhas) {
-    const card = cardsPorId.get(linha.card_id)
-    if (!card || pendentes.has(linha.card_id)) continue
-    if (linha.setor_destino_id !== card.setor_atual_id) continue
-    // Marcação de uma passagem ANTERIOR pelo mesmo setor não vale para agora.
-    const chegouEm = chegadaPorCard.get(linha.card_id)
-    if (chegouEm !== undefined && new Date(linha.marcado_em).getTime() < chegouEm) continue
-    pendentes.set(linha.card_id, linha)
-  }
-  return pendentes
+export async function buscarChegadaPendente(eventoId: number): Promise<ChegadaPendente> {
+  const { data, error } = await supabase
+    .from('plt_eventos')
+    .select('id, tipo, setor_origem_id, usuario_id, estado_qualidade')
+    .eq('id', eventoId)
+    .single()
+  return garantir(data as ChegadaPendente | null, error, 'Não deu para carregar a chegada')
+}
+
+/**
+ * SESSAO-31 (D-126): as duas chaves do estado da peça de um setor de produção
+ * — ao enviar e ao receber, cada uma com os tipos de card. Só admin; o banco
+ * valida e deixa o rastro na trilha.
+ */
+export async function definirQualidadeSetor(parametros: {
+  setorId: number
+  envio: TipoQualidade[]
+  recebimento: TipoQualidade[]
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_setor_qualidade_definir', {
+    p_setor_id: parametros.setorId,
+    p_envio: parametros.envio,
+    p_recebimento: parametros.recebimento,
+  })
+  if (error) throw new Error(error.message)
 }
 
 /**
@@ -750,7 +727,9 @@ export async function criarEtapa(
 
 export async function atualizarEtapa(
   id: number,
-  mudancas: Partial<Pick<Etapa, 'nome' | 'ordem' | 'eh_fila' | 'ativa' | 'setor_destino_id'>>,
+  mudancas: Partial<
+    Pick<Etapa, 'nome' | 'ordem' | 'eh_fila' | 'ativa' | 'setor_destino_id' | 'conclui_producao'>
+  >,
 ): Promise<void> {
   const dados = { ...mudancas }
   if (dados.nome) dados.nome = dados.nome.trim()

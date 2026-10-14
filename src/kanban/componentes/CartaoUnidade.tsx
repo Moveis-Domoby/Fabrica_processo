@@ -16,7 +16,7 @@ import { BadgeEstado, Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
 import { pedidoCancelado } from '../situacao'
-import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
+import type { Card, PedidoResumo } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import type { CampoMostrado } from '@/utilitarios/consultas'
@@ -26,8 +26,9 @@ export interface CartaoUnidadeProps {
   pedido?: PedidoResumo
   agora: number
   /**
-   * SESSAO-24: "Concluir produção" — o ÚNICO botão de gesto que sobrou nos
-   * quadros, e só na LIMPEZA E EMBALAGEM (dono, 27/09). O resto é arrastar.
+   * O único botão de gesto do card. ↩️ SESSAO-31 (D-127): a peça não tem mais
+   * "Concluir produção" — a LIMPEZA E EMBALAGEM conclui soltando na EXPEDIÇÃO;
+   * o "Concluir" fica para o card avulso (D-125), em qualquer setor.
    */
   aoConcluir?: (card: Card) => void
   /** Abre a linha do tempo do card (SESSAO-05). */
@@ -46,9 +47,6 @@ export interface CartaoUnidadeProps {
   gestoPendente?: boolean
   /** true quando o card está num setor terminal (D-13): mostra a chegada. */
   terminal?: boolean
-  /** Marcação de quem entregou ainda sem parecer (SESSAO-06/D-09): ao arrastar
-   *  para o trabalho, a confirmação de recebimento vem antes. */
-  parecerPendente?: ParecerPendente
   arrastando?: boolean
   /** 'galpao' = a tela do setor no tablet: letra maior, sem dado de cliente (D-28). */
   tamanho?: 'padrao' | 'galpao'
@@ -63,8 +61,9 @@ export interface CartaoUnidadeProps {
  *
  * SESSAO-24 (dono, 27/09): os botões de gesto saíram — o card se ARRASTA.
  * Soltar na etapa de trabalho inicia o tempo; soltar numa etapa com nome de
- * setor (ou no CONCLUÍDO) leva o card adiante. Ficam só os ícones de ver
- * (histórico, fotos) e, na LIMPEZA E EMBALAGEM, o "Concluir produção".
+ * setor (ou no CONCLUÍDO) leva o card adiante; na EXPEDIÇÃO da LIMPEZA E
+ * EMBALAGEM, conclui (SESSAO-31 — D-127). Ficam só os ícones de ver
+ * (histórico, fotos).
  */
 export function CartaoUnidade({
   card,
@@ -79,7 +78,6 @@ export function CartaoUnidade({
   esperandoHaMaisTempo = false,
   gestoPendente = false,
   terminal = false,
-  parecerPendente,
   arrastando = false,
   tamanho = 'padrao',
   campos,
@@ -253,12 +251,12 @@ export function CartaoUnidade({
         </p>
       )}
 
-      {/* SESSAO-06 (D-09): a entrega marcada esperando a confirmação de quem recebe. */}
-      {!terminal && parecerPendente && (
+      {/* SESSAO-31 (D-126): o setor pede o estado na chegada — a confirmação
+          vem antes do trabalho (o card já traz a pendência, projetada no banco). */}
+      {!terminal && card.parecer_pendente_id != null && (
         <p className="flex flex-wrap items-center gap-1.5 rounded-dm bg-superficie-sutil px-2 py-1.5 text-xs text-texto">
           <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
-          {parecerPendente.setorOrigemNome} entregou como
-          <BadgeEstado estado={parecerPendente.estado} tamanho="sm" />
+          Recebimento a confirmar
           <span className="text-texto-suave">— você confirma ao pegar para trabalhar.</span>
         </p>
       )}
@@ -304,7 +302,7 @@ export function CartaoUnidade({
               onKeyDown={(e) => e.stopPropagation()}
               onClick={() => aoConcluir(card)}
             >
-              Concluir produção
+              Concluir
             </Botao>
           )}
         </footer>

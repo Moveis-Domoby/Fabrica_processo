@@ -7,6 +7,8 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  CircleCheckBig,
+  ClipboardCheck,
   Pencil,
   Plus,
   RotateCcw,
@@ -23,8 +25,9 @@ import {
   criarEtapa,
   criarSetor,
   definirLimiteExecucoes,
+  definirQualidadeSetor,
 } from '@/kanban/api'
-import type { Etapa, Setor } from '@/kanban/tipos'
+import type { Etapa, Setor, TipoQualidade } from '@/kanban/tipos'
 
 const ROTULO_PAPEL_FLUXO: Record<Setor['papel_no_fluxo'], string> = {
   entrada: 'entrada do fluxo',
@@ -377,6 +380,10 @@ function SecaoSetor(props: {
           {props.podeGerirSetor && (
             <ModoDelegacao setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
           )}
+          {/* SESSAO-31 (D-126): o estado da peça é chave do setor — só admin. */}
+          {props.podeGerirSetor && setor.papel_no_fluxo === 'producao' && (
+            <EstadoDaPeca setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+          )}
           <ListaEtapas
             setor={setor}
             setores={props.setores}
@@ -387,6 +394,125 @@ function SecaoSetor(props: {
         </>
       )}
     </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+const TIPOS_QUALIDADE: { valor: TipoQualidade; rotulo: string }[] = [
+  { valor: 'peca_pedido', rotulo: 'Peça de pedido' },
+  { valor: 'peca_estoque', rotulo: 'Peça de estoque (reposição)' },
+  { valor: 'avulso', rotulo: 'Card avulso' },
+]
+
+/**
+ * SESSAO-31 (D-126 — pedido do dono): "deve ter a opção de confirmar situação
+ * no envio e no recebimento … bem personalizado". Duas chaves independentes,
+ * cada uma com os tipos de card em que vale. Tudo nasce desligado: sem chave,
+ * mover e concluir não perguntam nada. Só admin (o banco confere e guarda o
+ * antes → depois na trilha).
+ */
+function EstadoDaPeca(props: {
+  setor: Setor
+  aoErro: (excecao: unknown) => void
+  aoMudar: () => Promise<void>
+}) {
+  const { setor } = props
+  const notificar = useNotificacao()
+  const [envio, setEnvio] = useState<TipoQualidade[]>(setor.qualidade_envio_tipos ?? [])
+  const [recebimento, setRecebimento] = useState<TipoQualidade[]>(
+    setor.qualidade_recebimento_tipos ?? [],
+  )
+  const mudou =
+    [...envio].sort().join() !== [...(setor.qualidade_envio_tipos ?? [])].sort().join() ||
+    [...recebimento].sort().join() !== [...(setor.qualidade_recebimento_tipos ?? [])].sort().join()
+
+  const salvarMutacao = useMutation({
+    mutationFn: () => definirQualidadeSetor({ setorId: setor.id, envio, recebimento }),
+    onSuccess: async () => {
+      notificar({
+        titulo: `${setor.nome}: estado da peça salvo`,
+        descricao:
+          envio.length === 0 && recebimento.length === 0
+            ? 'Desligado — mover e concluir não perguntam o estado.'
+            : undefined,
+        tom: 'perfeito',
+      })
+      await props.aoMudar()
+    },
+    onError: props.aoErro,
+  })
+
+  function grupo(
+    titulo: string,
+    ajuda: string,
+    valores: TipoQualidade[],
+    aoMudar: (v: TipoQualidade[]) => void,
+  ) {
+    return (
+      <fieldset className="flex min-w-0 flex-1 flex-col gap-1">
+        <legend className="text-sm font-medium text-texto">{titulo}</legend>
+        <p className="text-xs text-texto-suave">{ajuda}</p>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {TIPOS_QUALIDADE.map((tipo) => {
+            const ligado = valores.includes(tipo.valor)
+            return (
+              <label
+                key={tipo.valor}
+                className={cn(
+                  'toque-seguro flex min-h-toque-md cursor-pointer items-center gap-2 rounded-dm border px-3 text-sm',
+                  ligado ? 'border-acao-ativa bg-superficie-sutil text-texto' : 'border-borda text-texto-suave',
+                )}
+              >
+                <input
+                  type="checkbox"
+                  className="size-5 accent-[var(--dm-acao)]"
+                  checked={ligado}
+                  onChange={() =>
+                    aoMudar(ligado ? valores.filter((v) => v !== tipo.valor) : [...valores, tipo.valor])
+                  }
+                />
+                {tipo.rotulo}
+              </label>
+            )
+          })}
+        </div>
+      </fieldset>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-borda px-3 py-3 sm:px-4">
+      <p className="flex items-center gap-2 text-sm font-semibold text-texto">
+        <ClipboardCheck aria-hidden className="size-4 text-texto-suave" />
+        Estado da peça (perfeito · atenção · danificado)
+      </p>
+      <div className="flex flex-col gap-3 md:flex-row">
+        {grupo(
+          'Pedir ao enviar',
+          'Quem tira a peça deste setor marca o estado em que ela saiu.',
+          envio,
+          setEnvio,
+        )}
+        {grupo(
+          'Pedir ao receber',
+          'Este setor confirma o estado em que a peça chegou, antes de começar.',
+          recebimento,
+          setRecebimento,
+        )}
+      </div>
+      <div>
+        <Botao
+          variante="secundaria"
+          className="min-h-toque-md"
+          disabled={!mudou}
+          carregando={salvarMutacao.isPending}
+          onClick={() => salvarMutacao.mutate()}
+        >
+          Salvar estado da peça
+        </Botao>
+      </div>
+    </div>
   )
 }
 
@@ -537,6 +663,10 @@ function ListaEtapas(props: {
   )
   const nomeDoSetor = new Map(props.setores.map((s) => [s.id, s.nome]))
   const SEM_DESTINO = 'nenhum'
+  // SESSAO-31 (D-127): a etapa que CONCLUI a produção (a EXPEDIÇÃO da LIMPEZA E
+  // EMBALAGEM) — Pedidos em aguardo ou ESTOQUE, o banco decide pela peça.
+  const CONCLUI = 'concluir'
+  const producao = setor.papel_no_fluxo === 'producao'
 
   const [nomeNova, setNomeNova] = useState('')
   const [novaEhFila, setNovaEhFila] = useState(false)
@@ -616,20 +746,42 @@ function ListaEtapas(props: {
                   manda para {nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor'}
                 </span>
               )}
+              {etapa.conclui_producao && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto no-underline">
+                  <CircleCheckBig aria-hidden className="size-3" />
+                  conclui a produção
+                </span>
+              )}
             </span>
-            {podeGerir && !etapa.eh_fila && !etapa.eh_danificado && setoresDestino.length > 0 && (
+            {podeGerir && producao && !etapa.eh_fila && !etapa.eh_danificado && (
               <Selecao
                 rotulo={`Soltar o card em ${etapa.nome} manda para`}
                 className="w-full sm:w-56"
                 opcoes={[
                   { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
+                  {
+                    valor: CONCLUI,
+                    rotulo: 'Conclui a produção (Pedidos em aguardo ou ESTOQUE)',
+                  },
                   ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
                 ]}
-                valor={etapa.setor_destino_id === null ? SEM_DESTINO : String(etapa.setor_destino_id)}
+                valor={
+                  etapa.conclui_producao
+                    ? CONCLUI
+                    : etapa.setor_destino_id === null
+                      ? SEM_DESTINO
+                      : String(etapa.setor_destino_id)
+                }
                 aoMudar={(v) =>
                   atualizarMutacao.mutate({
                     id: etapa.id,
-                    mudancas: { setor_destino_id: v === SEM_DESTINO ? null : Number(v) },
+                    mudancas:
+                      v === CONCLUI
+                        ? { setor_destino_id: null, conclui_producao: true }
+                        : {
+                            setor_destino_id: v === SEM_DESTINO ? null : Number(v),
+                            conclui_producao: false,
+                          },
                   })
                 }
               />

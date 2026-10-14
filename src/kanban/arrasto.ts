@@ -1,15 +1,16 @@
-import type { Card, Etapa, Setor } from './tipos'
+import type { Card, Etapa, Setor, TipoQualidade } from './tipos'
 
 /**
  * O quadro por ARRASTO (SESSAO-24 — dono, 27/09: "tudo arrastando, é mais
  * rápido"). Quem decide de verdade é o banco (plt_fn_soltar_card); aqui a
  * tela só sabe, antes de soltar, se precisa perguntar algo: o estado da peça
- * (etapa que encaminha — D-09) ou o parecer de quem recebe (etapa de início).
+ * (quando o setor pede ao enviar — D-126) ou a confirmação de quem recebe
+ * (etapa de início, quando a chegada ficou pendente).
  */
 
 /**
  * A etapa de INÍCIO do setor — a próxima depois da fila (ordem seguinte,
- * ativa, não-DANIFICADO, que não encaminha). Espelho de
+ * ativa, não-DANIFICADO, que não encaminha nem conclui). Espelho de
  * `plt_privado.fn_etapa_inicio`: soltar o card aqui inicia o tempo de quem
  * arrastou ("de A MONTAR para MONTANDO, o card já deve ser iniciado").
  */
@@ -23,6 +24,7 @@ export function etapaDeInicio(etapas: readonly Etapa[]): Etapa | undefined {
         !e.eh_fila &&
         !e.eh_danificado &&
         e.setor_destino_id === null &&
+        !e.conclui_producao &&
         (e.ordem > fila.ordem || (e.ordem === fila.ordem && e.id > fila.id)),
     )
     .sort((a, b) => a.ordem - b.ordem || a.id - b.id)[0]
@@ -30,6 +32,7 @@ export function etapaDeInicio(etapas: readonly Etapa[]): Etapa | undefined {
 
 export type AcaoAoSoltar =
   | { tipo: 'encaminhar'; etapa: Etapa; setorDestinoId: number }
+  | { tipo: 'concluir'; etapa: Etapa }
   | { tipo: 'iniciar' }
   | { tipo: 'mover' }
 
@@ -47,6 +50,11 @@ export function acaoAoSoltar(parametros: {
   if (etapa.setor_destino_id !== null) {
     return { tipo: 'encaminhar', etapa, setorDestinoId: etapa.setor_destino_id }
   }
+  // SESSAO-31 (D-127): a EXPEDIÇÃO da LIMPEZA E EMBALAGEM conclui a produção
+  // da peça; o card que não é peça só se move nela.
+  if (etapa.conclui_producao && card.tipo === 'unidade') {
+    return { tipo: 'concluir', etapa }
+  }
   if (
     setor.papel_no_fluxo === 'producao' &&
     card.tipo === 'unidade' &&
@@ -58,10 +66,26 @@ export function acaoAoSoltar(parametros: {
 }
 
 /**
- * Só a LIMPEZA E EMBALAGEM conclui a produção (dono, 27/09: "todos os móveis
- * que vão para estoque passam por ele e eles que movem para estoque") — o
- * único botão que sobrou nos quadros.
+ * SESSAO-31 (D-126): o tipo de card das chaves de estado — espelho de
+ * `plt_privado.fn_tipo_qualidade`. Card do pedido e de reposição não andam
+ * pela produção: não entram.
  */
-export function setorConcluiProducao(setor: Pick<Setor, 'codigo'> | undefined | null): boolean {
-  return setor?.codigo === 'limpeza_embalagem'
+export function tipoQualidade(card: Pick<Card, 'tipo' | 'pedido_id'>): TipoQualidade | null {
+  if (card.tipo === 'unidade') return card.pedido_id !== null ? 'peca_pedido' : 'peca_estoque'
+  if ((card.tipo as string) === 'avulso') return 'avulso'
+  return null
+}
+
+/**
+ * SESSAO-31 (D-126): o setor pede o estado da peça ao ENVIAR este card? Espelho
+ * de `plt_privado.fn_pede_estado` — tudo nasce desligado; quem liga é o admin
+ * em Setores e etapas. Sem pedido, o quadro manda direto (sem modal).
+ */
+export function pedeEstadoAoEnviar(
+  setor: Pick<Setor, 'papel_no_fluxo' | 'qualidade_envio_tipos'>,
+  card: Pick<Card, 'tipo' | 'pedido_id'>,
+): boolean {
+  if (setor.papel_no_fluxo !== 'producao') return false
+  const tipo = tipoQualidade(card)
+  return tipo !== null && (setor.qualidade_envio_tipos ?? []).includes(tipo)
 }

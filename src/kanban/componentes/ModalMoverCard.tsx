@@ -21,13 +21,15 @@ export interface ModalMoverCardProps {
   pedido?: PedidoResumo
   /**
    * SESSAO-24 — o quadro é por arrasto; este modal só pergunta o ESTADO da peça
-   * (D-09: quem entrega marca):
+   * (D-09: quem entrega marca). ↩️ SESSAO-31 (D-126): só abre quando o setor
+   * pede o estado ao enviar; sem a chave, o arrasto vai direto ao banco.
    * - 'encaminhar': o card foi solto numa etapa que leva a outro setor;
-   * - 'concluir': "Concluir produção" (só LIMPEZA E EMBALAGEM) — o banco decide
-   *   o destino: Pedidos em aguardo (pedido vivo) ou ESTOQUE (sem dono). Só 🟢.
+   * - 'concluir': a peça foi solta na etapa que conclui (a EXPEDIÇÃO da
+   *   LIMPEZA E EMBALAGEM — D-127). O banco decide o destino: Pedidos em
+   *   aguardo (pedido vivo) ou ESTOQUE (sem dono). Só 🟢.
    */
   modo: 'encaminhar' | 'concluir'
-  /** encaminhar: a coluna onde o card foi solto (a etapa que encaminha). */
+  /** A coluna onde o card foi solto (a etapa que encaminha ou a que conclui). */
   etapaDestino?: Etapa
   /** encaminhar: o nome do setor para onde a etapa leva. */
   setorDestinoNome?: string
@@ -84,7 +86,6 @@ export function ModalMoverCard({
       clienteQuery.invalidateQueries({ queryKey: ['produtos-reservados'] }),
       clienteQuery.invalidateQueries({ queryKey: ['aguardo-contagens'] }),
       clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
       clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
     ])
   }
@@ -92,10 +93,15 @@ export function ModalMoverCard({
   const mutacao = useMutation({
     mutationFn: async (estado: Estado) => {
       if (!card) throw new Error('Card não encontrado.')
-      if (concluir) return concluirProducao({ card, estadoQualidade: estado, operadorId })
+      if (concluir && !etapaDestino) return concluirProducao({ card, estadoQualidade: estado, operadorId })
       if (!etapaDestino) throw new Error('Etapa de destino não encontrada.')
-      await soltarCard({ card, etapaId: etapaDestino.id, estadoQualidade: estado, operadorId })
-      return null
+      const resultado = await soltarCard({
+        card,
+        etapaId: etapaDestino.id,
+        estadoQualidade: estado,
+        operadorId,
+      })
+      return resultado.destino ?? null
     },
     onSuccess: async (destino, estado) => {
       notificar({
@@ -106,7 +112,7 @@ export function ModalMoverCard({
           : `Card mandado para ${setorDestinoNome ?? 'o próximo setor'}`,
         descricao: concluir
           ? undefined
-          : `Peça entregue como ${ROTULO_ESTADO[estado].toLowerCase()} — o setor que recebe confirma.`,
+          : `Peça entregue como ${ROTULO_ESTADO[estado].toLowerCase()}.`,
         tom: 'perfeito',
       })
       aoFechar()
@@ -119,7 +125,7 @@ export function ModalMoverCard({
   function aoConfirmar() {
     if (!card) return
     if (estadoQualidade === null) {
-      // D-09: marcação obrigatória ao mandar a peça adiante — código fora da tela (D-27).
+      // D-126: este setor pede o estado ao mandar adiante — código fora da tela (D-27).
       setErro('Marque o estado da peça.')
       return
     }
@@ -190,8 +196,8 @@ export function ModalMoverCard({
           </legend>
           <p className="text-xs text-texto-suave">
             {concluir
-              ? 'Pedidos em aguardo e ESTOQUE só recebem peça em perfeito estado.'
-              : `Obrigatório para mandar. ${setorDestinoNome ?? 'O setor que recebe'} vai confirmar.`}
+              ? 'Este setor pede o estado ao concluir. Pedidos em aguardo e ESTOQUE só recebem peça em perfeito estado.'
+              : 'Este setor pede o estado da peça ao mandar adiante.'}
           </p>
           {estadosPermitidos.map((estado) => (
             <button

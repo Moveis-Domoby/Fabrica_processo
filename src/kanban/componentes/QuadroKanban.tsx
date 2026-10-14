@@ -9,7 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
-import { ArrowRight, ChevronDown, Inbox, Play, TriangleAlert } from 'lucide-react'
+import { ArrowRight, ChevronDown, CircleCheckBig, Inbox, Play, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
 import { CartaoUnidade } from './CartaoUnidade'
@@ -20,7 +20,6 @@ import type {
   Card,
   Etapa,
   ExecucaoAberta,
-  ParecerPendente,
   PedidoResumo,
   Setor,
 } from '../tipos'
@@ -51,8 +50,6 @@ export interface ContextoExecucao {
   /** Quem está olhando a tela (para o "você"). */
   meuUsuarioId: string
   gestoPendente: boolean
-  /** Marcações da SESSAO-06 esperando o parecer do recebedor, por card. */
-  pareceresPorCard?: Map<number, ParecerPendente>
   aoLinhaTempo?: (card: Card) => void
   /** Tablet (D-28): o espaço de imagens da peça. */
   aoFotos?: (card: Card) => void
@@ -67,6 +64,8 @@ interface ColunaProps {
   ehInicio?: boolean
   /** SESSAO-24: soltar aqui leva o card para este setor (nome já resolvido). */
   levaPara?: string
+  /** SESSAO-31 (D-127): soltar a peça aqui conclui a produção (a EXPEDIÇÃO). */
+  conclui?: boolean
   dados: ColunaPaginada
   pedidosPorId: Map<number, PedidoResumo>
   agora: number
@@ -86,6 +85,7 @@ function Coluna({
   ehDanificado = false,
   ehInicio = false,
   levaPara,
+  conclui = false,
   dados,
   pedidosPorId,
   agora,
@@ -114,13 +114,15 @@ function Coluna({
       aria-label={
         levaPara
           ? `Etapa ${titulo}: solte aqui para mandar o card para ${levaPara}`
-          : `Etapa ${titulo} com ${total} card(s)`
+          : conclui
+            ? `Etapa ${titulo}: solte aqui a peça pronta para concluir a produção`
+            : `Etapa ${titulo} com ${total} card(s)`
       }
       className={cn(
         'flex shrink-0 snap-start flex-col rounded-dm-lg border bg-superficie-sutil',
         tamanho === 'galpao' ? 'w-[85vw] max-w-sm sm:w-80' : 'w-[85vw] max-w-xs sm:w-72',
         isOver ? 'border-acao-ativa ring-2 ring-acao' : 'border-borda',
-        levaPara && 'border-dashed',
+        (levaPara || conclui) && 'border-dashed',
       )}
     >
       <header className="flex flex-col gap-1 border-b border-borda px-3 py-2.5">
@@ -138,7 +140,7 @@ function Coluna({
               </span>
             )}
             {/* SESSAO-22: o contador é o TOTAL real do servidor, não só o carregado. */}
-            {!levaPara && (
+            {!levaPara && (!conclui || total > 0) && (
               <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-medium text-texto-suave tabular-nums">
                 {total}
               </span>
@@ -158,12 +160,22 @@ function Coluna({
             leva para {levaPara}
           </span>
         )}
+        {conclui && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
+            <CircleCheckBig aria-hidden className="size-3.5 text-perfeito-forte" />
+            conclui a produção
+          </span>
+        )}
       </header>
 
       <div className="flex min-h-28 flex-1 flex-col gap-2 p-2">
         {cards.length === 0 && (
           <p className="flex flex-1 items-center justify-center px-2 py-6 text-center text-sm text-texto-fraco">
-            {levaPara ? `Solte aqui para mandar para ${levaPara}` : 'Vazio'}
+            {levaPara
+              ? `Solte aqui para mandar para ${levaPara}`
+              : conclui
+                ? 'Solte aqui a peça pronta: vai para Pedidos em aguardo (ou ESTOQUE, sem pedido)'
+                : 'Vazio'}
           </p>
         )}
         {cards.map((card) => {
@@ -183,7 +195,6 @@ function Coluna({
             souExecutor: card.executor_atual_id === execucao.meuUsuarioId,
             esperandoHaMaisTempo: card.id === maisAntigoEsperandoId,
             gestoPendente: execucao.gestoPendente,
-            parecerPendente: execucao.pareceresPorCard?.get(card.id),
             tamanho,
             campos: camposPorCard.get(card.id),
           }
@@ -252,7 +263,7 @@ export interface QuadroKanbanProps {
    * parecer, PIN) e manda ao banco, que resolve o resto.
    */
   aoSoltarNaEtapa: (card: Card, etapaId: number | null) => void
-  /** SESSAO-24: só na LIMPEZA E EMBALAGEM — "Concluir produção". */
+  /** SESSAO-31 (D-125): o "Concluir" do card avulso (a peça conclui na EXPEDIÇÃO). */
   aoAbrirConcluir?: (card: Card) => void
   /** Para as colunas que encaminham dizerem PARA ONDE (id → setor). */
   setores?: Setor[]
@@ -353,6 +364,7 @@ export function QuadroKanban({
                 ? (nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor')
                 : undefined
             }
+            conclui={etapa.conclui_producao}
             dados={dadosDe(String(etapa.id))}
             pedidosPorId={pedidosPorId}
             agora={agora}

@@ -12,7 +12,17 @@ export interface Setor {
   limite_execucoes_por_pessoa: number | null
   /** D-34: como o card que chega ganha dono — desativada · direta · aleatoria. */
   modo_delegacao: 'desativada' | 'direta' | 'aleatoria'
+  /**
+   * SESSAO-31 (D-126): em que tipos de card quem TIRA a peça deste setor marca
+   * o estado (perfeito/atenção/danificado). Vazio = não pede — o padrão.
+   */
+  qualidade_envio_tipos: TipoQualidade[]
+  /** SESSAO-31 (D-126): em que tipos de card o setor CONFIRMA o estado na chegada. */
+  qualidade_recebimento_tipos: TipoQualidade[]
 }
+
+/** SESSAO-31 (D-126): os tipos de card das chaves de estado da peça. */
+export type TipoQualidade = 'peca_pedido' | 'peca_estoque' | 'avulso'
 
 /** Etapa interna de um setor (D-14): cadastro livre, toda etapa conta tempo. */
 export interface Etapa {
@@ -29,6 +39,11 @@ export interface Etapa {
    * (a etapa com nome de setor e o CONCLUÍDO, como no ClickUp). Nulo = comum.
    */
   setor_destino_id: number | null
+  /**
+   * SESSAO-31 (D-127): soltar a peça aqui CONCLUI a produção (a EXPEDIÇÃO da
+   * LIMPEZA E EMBALAGEM) — Pedidos em aguardo ou ESTOQUE, o banco decide.
+   */
+  conclui_producao: boolean
 }
 
 /**
@@ -75,6 +90,12 @@ export interface Card {
    * etiqueta). Ausente na porta do quadro do PCP, que busca à parte.
    */
   etiquetas?: number[]
+  /**
+   * SESSAO-31 (D-126): a chegada que o setor ainda precisa confirmar (a
+   * marcação de quem entregou ou a própria chegada). Nula = nada a confirmar.
+   * Projeção do banco — a tela não pergunta mais à parte.
+   */
+  parecer_pendente_id?: number | null
 }
 
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
@@ -82,7 +103,7 @@ export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
   'indice_unidade, total_unidades, setor_atual_id, etapa_atual_id, desde, ' +
   'executor_atual_id, responsavel_id, delegado_em, qualidade_atual, concluido_em, ' +
-  'pausado_em, liberado_completo_em, produto_tiny_id, etiquetas'
+  'pausado_em, liberado_completo_em, produto_tiny_id, etiquetas, parecer_pendente_id'
 
 /**
  * Uma página de cards de uma coluna do quadro (SESSAO-22): a regra "cada tela
@@ -188,20 +209,25 @@ export interface UnidadePedido {
  * Marcação de qualidade sem parecer, como sai de plt_vw_qualidade_transicoes
  * (SESSAO-06/D-09) — o que o setor recebedor ainda precisa responder.
  */
-export interface QualidadePendente {
-  evento_marcacao_id: number
-  card_id: number
+/**
+ * SESSAO-31 (D-126): a chegada que o setor confirma — lida só ao abrir a
+ * confirmação (o card já diz que há pendência). `tipo` 'qualidade_marcada' =
+ * quem entregou marcou; 'movimentacao_setor' = ninguém marcou na saída.
+ */
+export interface ChegadaPendente {
+  id: number
+  tipo: 'qualidade_marcada' | 'movimentacao_setor'
   setor_origem_id: number | null
-  setor_destino_id: number | null
-  usuario_remetente_id: string | null
-  estado_remetente: Extract<Estado, 'perfeito' | 'atencao' | 'danificado'>
-  marcado_em: string
+  usuario_id: string | null
+  estado_qualidade: Extract<Estado, 'perfeito' | 'atencao' | 'danificado'> | null
 }
 
 /** A pendência já enriquecida com nomes — o que o card e o modal mostram. */
 export interface ParecerPendente {
+  /** A chegada que a confirmação responde (marcação ou a própria chegada). */
   marcacaoEventoId: number
-  estado: Extract<Estado, 'perfeito' | 'atencao' | 'danificado'>
+  /** O estado que quem entregou marcou — nulo quando ninguém marcou na saída. */
+  estado: Extract<Estado, 'perfeito' | 'atencao' | 'danificado'> | null
   setorOrigemNome: string
   remetenteNome: string | null
 }

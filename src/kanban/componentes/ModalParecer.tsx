@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BadgeEstado,
   Botao,
@@ -12,14 +12,18 @@ import {
 } from '@/componentes/ui'
 import type { Estado } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { registrarParecer } from '../api'
-import type { Card, ParecerPendente, PedidoResumo } from '../tipos'
+import { buscarChegadaPendente, registrarParecer } from '../api'
+import type { Card, ParecerPendente, PedidoResumo, Setor } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 
 export interface ModalParecerProps {
+  /** O card com a chegada pendente (`parecer_pendente_id` — D-126). */
   card: Card | null
   pedido?: PedidoResumo
-  pendente: ParecerPendente | null
+  /** Para dizer DE ONDE a peça veio (cache de referência — nada a mais no banco). */
+  setores?: Setor[]
+  /** id → nome, para dizer quem entregou. */
+  nomesUsuarios?: Map<string, string>
   /** Tablet compartilhado (SESSAO-07): o parecer sai em nome do operador do PIN. */
   operadorId?: string
   aoFechar: () => void
@@ -33,11 +37,16 @@ export interface ModalParecerProps {
  * Iniciar no setor, quem recebe responde "o setor X marcou como Y — você
  * concorda?". Divergência NÃO trava nada — vira registro e aviso automático à
  * liderança; 🔴 leva o card à etapa DANIFICADO sozinho (regras do banco).
+ *
+ * SESSAO-31 (D-126): só aparece quando o setor pede o estado na chegada; se
+ * ninguém marcou na saída, a pergunta é "em que estado a peça chegou?". A
+ * chegada é lida só quando o modal abre (dado escondido só no clique — Lei §3).
  */
 export function ModalParecer({
   card,
   pedido,
-  pendente,
+  setores = [],
+  nomesUsuarios,
   operadorId,
   aoFechar,
   aoRegistrado,
@@ -58,7 +67,29 @@ export function ModalParecer({
     setErro('')
   }
 
-  const divergente = pendente !== null && estado !== null && estado !== pendente.estado
+  const chegadaId = card?.parecer_pendente_id ?? null
+  const { data: chegada, error: erroChegada } = useQuery({
+    queryKey: ['chegada-pendente', chegadaId],
+    queryFn: () => buscarChegadaPendente(chegadaId!),
+    enabled: chegadaId !== null,
+    staleTime: Infinity,
+  })
+  const pendente: ParecerPendente | null =
+    chegada && chegadaId !== null
+      ? {
+          marcacaoEventoId: chegadaId,
+          estado: chegada.tipo === 'qualidade_marcada' ? chegada.estado_qualidade : null,
+          setorOrigemNome:
+            setores.find((s) => s.id === chegada.setor_origem_id)?.nome ?? 'o setor anterior',
+          remetenteNome:
+            chegada.tipo === 'qualidade_marcada' && chegada.usuario_id
+              ? (nomesUsuarios?.get(chegada.usuario_id) ?? null)
+              : null,
+        }
+      : null
+
+  const divergente =
+    pendente !== null && pendente.estado !== null && estado !== null && estado !== pendente.estado
 
   const mutacao = useMutation({
     mutationFn: registrarParecer,
@@ -82,7 +113,6 @@ export function ModalParecer({
       await Promise.all([
         clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
         clienteQuery.invalidateQueries({ queryKey: ['etapas'] }),
-        clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
         clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
       ])
       if (cardAtual) aoRegistrado?.(cardAtual, escolhido)
@@ -111,7 +141,7 @@ export function ModalParecer({
 
   return (
     <Modal
-      aberto={card !== null && pendente !== null}
+      aberto={card !== null && chegadaId !== null}
       aoFechar={(aberto) => {
         if (!aberto) aoFechar()
       }}
@@ -132,13 +162,26 @@ export function ModalParecer({
         </>
       }
     >
+      {erroChegada && (
+        <p className="text-sm text-danificado-forte" role="alert">
+          {erroChegada instanceof Error ? erroChegada.message : 'Não deu para carregar a chegada.'}
+        </p>
+      )}
+      {!pendente && !erroChegada && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {pendente && (
         <div className="flex flex-col gap-4">
-          <p className="flex flex-wrap items-center gap-2 rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto">
-            O setor <strong>{pendente.setorOrigemNome}</strong>
-            {pendente.remetenteNome ? ` (${pendente.remetenteNome})` : ''} marcou como
-            <BadgeEstado estado={pendente.estado} tamanho="sm" />— você concorda?
-          </p>
+          {pendente.estado !== null ? (
+            <p className="flex flex-wrap items-center gap-2 rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto">
+              O setor <strong>{pendente.setorOrigemNome}</strong>
+              {pendente.remetenteNome ? ` (${pendente.remetenteNome})` : ''} marcou como
+              <BadgeEstado estado={pendente.estado} tamanho="sm" />— você concorda?
+            </p>
+          ) : (
+            <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto">
+              A peça chegou de <strong>{pendente.setorOrigemNome}</strong>. Este setor confirma o
+              estado na chegada — em que estado ela chegou?
+            </p>
+          )}
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium text-texto">
@@ -174,7 +217,7 @@ export function ModalParecer({
             ))}
           </fieldset>
 
-          {divergente && (
+          {divergente && pendente.estado !== null && (
             <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto">
               Você vê diferente do que {pendente.setorOrigemNome} marcou (
               {ROTULO_ESTADO[pendente.estado].toLowerCase()}). A divergência fica registrada e a

@@ -8,11 +8,10 @@ import {
   buscarEtapasDoSetor,
   buscarExecucoesAbertas,
   buscarNomesUsuarios,
-  buscarPareceresPendentes,
   buscarSetores,
   soltarCard,
 } from '@/kanban/api'
-import { acaoAoSoltar, setorConcluiProducao } from '@/kanban/arrasto'
+import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
@@ -20,13 +19,7 @@ import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
-import type {
-  Card,
-  Etapa,
-  ExecucaoAberta,
-  ParecerPendente,
-  QualidadePendente,
-} from '@/kanban/tipos'
+import type { Card, Etapa, ExecucaoAberta } from '@/kanban/tipos'
 
 const ATUALIZA_A_CADA = 20_000
 
@@ -36,11 +29,12 @@ const ATUALIZA_A_CADA = 20_000
  * só evita a página vazia. Cada coluna pagina no servidor (SESSAO-22).
  *
  * SESSAO-24 (dono, 27/09 — "tudo arrastando, é mais rápido"): o quadro é SÓ
- * ARRASTO. Soltar na etapa de início inicia o tempo de quem arrastou (o
- * parecer de recebimento vem antes, quando a peça chegou marcada — D-09);
- * soltar numa etapa que leva a outro setor pergunta o estado da peça e a manda
- * adiante; o resto é só mover. O único botão é o "Concluir produção", e só
- * na LIMPEZA E EMBALAGEM.
+ * ARRASTO. Soltar na etapa de início inicia o tempo de quem arrastou (a
+ * confirmação de recebimento vem antes, quando o setor pede o estado na
+ * chegada — D-126); soltar numa etapa que leva a outro setor manda a peça
+ * adiante (perguntando o estado só quando o setor pede ao enviar); soltar na
+ * EXPEDIÇÃO da LIMPEZA E EMBALAGEM conclui a produção (D-127); o resto é só
+ * mover.
  */
 export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
@@ -90,31 +84,9 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     execucoes.map((e) => [e.card_id, e]),
   )
 
-  // SESSAO-06 (D-09): entregas marcadas esperando a confirmação deste setor.
-  const { data: pendencias = new Map<number, QualidadePendente>() } = useQuery({
-    queryKey: ['qualidade-pendente', setorId, idsDosCards.join(',')],
-    queryFn: () => buscarPareceresPendentes(cards),
-    enabled: idsDosCards.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const pareceresPorCard = new Map<number, ParecerPendente>(
-    [...pendencias.values()].map((p) => [
-      p.card_id,
-      {
-        marcacaoEventoId: p.evento_marcacao_id,
-        estado: p.estado_remetente,
-        setorOrigemNome:
-          setores.find((s) => s.id === p.setor_origem_id)?.nome ?? 'Setor anterior',
-        remetenteNome: p.usuario_remetente_id
-          ? (nomesUsuarios.get(p.usuario_remetente_id) ?? null)
-          : null,
-      },
-    ]),
-  )
-
   // SESSAO-24: o que o soltar precisa perguntar antes de ir ao banco.
   const [encaminhando, setEncaminhando] = useState<{ card: Card; etapa: Etapa } | null>(null)
-  const [cardConcluir, setCardConcluir] = useState<Card | null>(null)
+  const [concluindo, setConcluindo] = useState<{ card: Card; etapa: Etapa } | null>(null)
   const [cardParecer, setCardParecer] = useState<Card | null>(null)
   const [inicioDepoisDoParecer, setInicioDepoisDoParecer] = useState<{
     card: Card
@@ -127,13 +99,30 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
       clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
       clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['qualidade-pendente'] }),
     ])
   }
 
   const mutacaoSoltar = useMutation({
     mutationFn: soltarCard,
-    onSuccess: invalidarQuadro,
+    onSuccess: async (resultado) => {
+      // SESSAO-31 (D-127): a EXPEDIÇÃO concluiu — diz para onde a peça foi.
+      if (resultado.acao === 'concluido') {
+        notificar({
+          titulo:
+            resultado.destino === 'estoque'
+              ? 'Peça concluída — está no ESTOQUE, sem dono, aguardando a venda'
+              : 'Peça concluída — está em Pedidos em aguardo',
+          tom: 'perfeito',
+        })
+        await Promise.all([
+          clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),
+          clienteQuery.invalidateQueries({ queryKey: ['produtos-reservados'] }),
+          clienteQuery.invalidateQueries({ queryKey: ['aguardo-contagens'] }),
+          clienteQuery.invalidateQueries({ queryKey: ['estoque'] }),
+        ])
+      }
+      await invalidarQuadro()
+    },
     onError: (excecao) => {
       notificar({
         titulo: 'Não deu para mover o card',
@@ -158,13 +147,17 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
 
   function aoSoltarNaEtapa(card: Card, etapaId: number | null) {
     const acao = acaoAoSoltar({ setor: setorAtual, etapas, card, etapaDestinoId: etapaId })
-    if (acao.tipo === 'encaminhar') {
-      // D-09: mandar a peça adiante pede o estado dela.
+    // SESSAO-31 (D-126): o estado da peça só é perguntado quando o setor pede ao enviar.
+    if (acao.tipo === 'encaminhar' && pedeEstadoAoEnviar(setorAtual, card)) {
       setEncaminhando({ card, etapa: acao.etapa })
       return
     }
-    if (acao.tipo === 'iniciar' && etapaId !== null && pareceresPorCard.has(card.id)) {
-      // D-09 item 2: a peça chegou marcada — o recebimento vem antes do trabalho.
+    if (acao.tipo === 'concluir' && pedeEstadoAoEnviar(setorAtual, card)) {
+      setConcluindo({ card, etapa: acao.etapa })
+      return
+    }
+    if (acao.tipo === 'iniciar' && etapaId !== null && card.parecer_pendente_id != null) {
+      // D-09 item 2 / D-126: o setor confirma a chegada antes do trabalho.
       setInicioDepoisDoParecer({ card, etapaId })
       setCardParecer(card)
       return
@@ -209,13 +202,11 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         agora={agora}
         setores={setores}
         aoSoltarNaEtapa={aoSoltarNaEtapa}
-        aoAbrirConcluir={setorConcluiProducao(setor) ? setCardConcluir : undefined}
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
           meuUsuarioId: perfil.id,
           gestoPendente: mutacaoSoltar.isPending,
-          pareceresPorCard,
           aoLinhaTempo: setCardLinhaTempo,
         }}
       />
@@ -244,14 +235,17 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
 
       <ModalMoverCard
         modo="concluir"
-        card={cardConcluir}
-        pedido={cardConcluir?.pedido_id != null ? pedidosPorId.get(cardConcluir.pedido_id) : undefined}
+        card={concluindo?.card ?? null}
+        pedido={
+          concluindo?.card.pedido_id != null ? pedidosPorId.get(concluindo.card.pedido_id) : undefined
+        }
+        etapaDestino={concluindo?.etapa}
         executorNome={
-          cardConcluir?.executor_atual_id
-            ? nomesUsuarios.get(cardConcluir.executor_atual_id)
+          concluindo?.card.executor_atual_id
+            ? nomesUsuarios.get(concluindo.card.executor_atual_id)
             : undefined
         }
-        aoFechar={() => setCardConcluir(null)}
+        aoFechar={() => setConcluindo(null)}
       />
 
       <ModalLinhaTempo
@@ -265,7 +259,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       <ModalParecer
         card={cardParecer}
         pedido={cardParecer?.pedido_id != null ? pedidosPorId.get(cardParecer.pedido_id) : undefined}
-        pendente={cardParecer ? (pareceresPorCard.get(cardParecer.id) ?? null) : null}
+        setores={setores}
+        nomesUsuarios={nomesUsuarios}
         aoFechar={() => {
           setCardParecer(null)
           setInicioDepoisDoParecer(null)

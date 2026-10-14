@@ -123,6 +123,20 @@ for (const rodada of [1, 2]) {
 }
 conferir(falhas === 0, 'migrations aplicadas duas vezes seguidas sem erro')
 
+// SESSAO-31 (migration 66 — D-126): a marcação do estado da peça virou chave
+// por setor e por tipo de card, e em produção TUDO NASCE DESLIGADO. Os blocos
+// antigos deste teste provam a regra de antes (D-09: marcar ao sair de
+// produção e confirmar na chegada) — então o teste liga as duas chaves para
+// todos os tipos, em todo setor e no padrão dos setores que os blocos criam.
+// O bloco 66 desliga e prova o jeito novo, chave por chave.
+await bd.exec(`
+  alter table public.plt_setores alter column qualidade_envio_tipos set default '{avulso,peca_estoque,peca_pedido}';
+  alter table public.plt_setores alter column qualidade_recebimento_tipos set default '{avulso,peca_estoque,peca_pedido}';
+  update public.plt_setores
+     set qualidade_envio_tipos = '{avulso,peca_estoque,peca_pedido}',
+         qualidade_recebimento_tipos = '{avulso,peca_estoque,peca_pedido}';
+`)
+
 // SESSAO-30 (migration 57): em produção, todo aviso/leitura de estoque do Tiny
 // entra pelas portas do n8n (plt_fn_tiny_estoque_aviso / _leitura), que
 // atualizam a projeção no mesmo gesto. Os blocos antigos deste teste gravam o
@@ -11063,6 +11077,191 @@ await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 await bd.exec(`update public.tiny_fila set status = 'ok' where params->>'rodada' = '${ini64.rodada}'`)
 await bd.exec(`select plt_privado.fn_tiny_fila_relogio()`)
 } // fim do bloco 64
+
+// ============================================================================
+// SESSAO-31 · etapa A (migration 66 — D-126/D-127): o estado da peça vira
+// CHAVE por setor e por tipo de card (ao enviar e ao receber, independentes;
+// tudo nasce desligado) e a etapa EXPEDIÇÃO conclui a produção.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · o estado da peça é chave do setor: ao enviar, ao receber, os dois ou nenhum')
+
+const um66 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos66 = async (sql, p) => (await bd.query(sql, p)).rows
+const como66 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+await como66('')
+await bd.exec(`
+  insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem, limite_execucoes_por_pessoa,
+                                  qualidade_envio_tipos, qualidade_recebimento_tipos)
+  values ('q66a', 'Q66 CORTE', 'producao', 961, null, '{}', '{}'),
+         ('q66b', 'Q66 MONTAGEM', 'producao', 962, null, '{}', '{}');
+`)
+const S1 = (await um66(`select id::int as id from public.plt_setores where codigo = 'q66a'`)).id
+const S2 = (await um66(`select id::int as id from public.plt_setores where codigo = 'q66b'`)).id
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, setor_destino_id, conclui_producao) values
+    (${S1}, 'A CORTAR', 10, true, null, false), (${S1}, 'CORTANDO', 20, false, null, false),
+    (${S1}, 'PRONTO', 30, false, ${S2}, false),
+    (${S2}, 'A MONTAR', 10, true, null, false), (${S2}, 'MONTANDO', 20, false, null, false),
+    (${S2}, 'EXPEDIÇÃO', 30, false, null, true), (${S2}, 'PARADO', 40, false, null, false);
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (966001, 'S66A', 'Mesa Chave 66', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem)
+  values (966001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+  values ((select id from public.pedidos where numero = 966001), 1, 'S66A', 'Mesa Chave 66', 8);
+`)
+const etapa66 = async (setor, nome) => (await um66(`select id::int as id from public.plt_etapas where setor_id = ${setor} and nome = '${nome}'`)).id
+const PRONTO = await etapa66(S1, 'PRONTO')
+const MONTANDO = await etapa66(S2, 'MONTANDO')
+const EXPEDICAO = await etapa66(S2, 'EXPEDIÇÃO')
+const PARADO = await etapa66(S2, 'PARADO')
+const pc66 = (await um66(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = 966001`)).id
+await como66(E40.admin)
+await bd.query(`select public.plt_fn_pcp_liberar($1, $2::jsonb)`, [pc66, JSON.stringify(
+  Array.from({ length: 8 }, (_, i) => ({ item_seq: 1, indice_unidade: i + 1, setor_id: S1 })))])
+const u66 = {}
+for (const r of await todos66(`select id::int as id, indice_unidade as k from public.plt_cards where card_pai_id = ${pc66} and tipo = 'unidade'`)) u66[r.k] = r.id
+const chaves66 = (envio, recebimento) =>
+  bd.query(`select public.plt_fn_setor_qualidade_definir($1, $2::text[], $3::text[]), public.plt_fn_setor_qualidade_definir($4, $5::text[], $6::text[])`,
+    [S1, envio, '{}', S2, '{}', recebimento])
+const soltar66 = (card, etapa, estado = null) =>
+  um66(`select public.plt_fn_soltar_card($1, $2, $3) as r`, [card, etapa, estado]).then((x) => x.r)
+const card66 = (id) => um66(`select c.setor_atual_id::int as setor, e.nome as etapa, c.parecer_pendente_id::int as pend,
+                                    c.qualidade_atual as q, c.executor_atual_id is not null as executando
+                               from public.plt_cards c left join public.plt_etapas e on e.id = c.etapa_atual_id where c.id = ${id}`)
+const marcacoes66 = async (id) => (await um66(`select count(*)::int as n from public.plt_eventos where card_id = ${id} and tipo = 'qualidade_marcada'`)).n
+const tarefa66 = (ref) => um66(`select situacao from public.plt_tarefas where origem = 'sistema' and evento_referencia_id = ${ref}`)
+
+// 1 · tudo desligado (o jeito de produção a partir de hoje)
+await chaves66('{}', '{}')
+const r1 = await soltar66(u66[1], PRONTO)
+const c1 = await card66(u66[1])
+const ini1 = await soltar66(u66[1], MONTANDO)
+conferir(
+  r1.acao === 'encaminhado' && c1.setor === S2 && c1.etapa === 'A MONTAR' && c1.pend === null
+    && (await marcacoes66(u66[1])) === 0 && ini1.acao === 'iniciado',
+  'tudo desligado: a peça segue para o outro setor sem perguntar o estado, chega sem pendência e o tempo começa direto',
+  JSON.stringify({ r1, c1, ini1 }),
+)
+
+// 2 · só ao ENVIAR
+await chaves66('{peca_pedido}', '{}')
+await deveRecusarExec(`select public.plt_fn_soltar_card(${u66[2]}, ${PRONTO})`,
+  'chave "ao enviar" ligada: mandar adiante sem o estado é recusado', /marcar o estado da peça/i)
+await soltar66(u66[2], PRONTO, 'atencao')
+const c2 = await card66(u66[2])
+const ini2 = await soltar66(u66[2], MONTANDO)
+conferir(
+  c2.setor === S2 && c2.pend === null && c2.q === 'atencao' && (await marcacoes66(u66[2])) === 1 && ini2.acao === 'iniciado',
+  'só ao enviar: quem tira marca, o setor que recebe não precisa confirmar e começa direto',
+  JSON.stringify({ c2, ini2 }),
+)
+
+// 3 · só ao RECEBER (ninguém marcou na saída — quem recebe diz o estado)
+await chaves66('{}', '{peca_pedido}')
+const r3 = await soltar66(u66[3], PRONTO)
+const c3 = await card66(u66[3])
+const chegada3 = (await um66(`select id::int as id from public.plt_eventos where card_id = ${u66[3]} and tipo = 'movimentacao_setor' order by id desc limit 1`)).id
+await deveRecusarExec(`select public.plt_fn_soltar_card(${u66[3]}, ${MONTANDO})`,
+  'só ao receber: começar antes de confirmar a chegada é recusado', /diga em que estado a peça chegou/i)
+const t3 = await tarefa66(chegada3)
+await bd.exec(`select public.plt_fn_registrar_parecer(${chegada3}, 'perfeito')`)
+const c3b = await card66(u66[3])
+const t3b = await tarefa66(chegada3)
+const ini3 = await soltar66(u66[3], MONTANDO)
+conferir(
+  r3.acao === 'encaminhado' && c3.pend === chegada3 && t3?.situacao === 'aberta'
+    && c3b.pend === null && t3b?.situacao === 'concluida' && ini3.acao === 'iniciado',
+  'só ao receber: a chegada fica pendente (a tarefa do Sistema nasce), a confirmação sem marcação limpa a pendência e o tempo começa',
+  JSON.stringify({ r3, c3, t3, c3b, t3b, ini3 }),
+)
+
+// 4 · os dois: a confirmação responde à marcação — e a divergência avisa
+await chaves66('{peca_pedido}', '{peca_pedido}')
+await soltar66(u66[4], PRONTO, 'perfeito')
+const marc4 = (await um66(`select id::int as id from public.plt_eventos where card_id = ${u66[4]} and tipo = 'qualidade_marcada' order by id desc limit 1`)).id
+const c4 = await card66(u66[4])
+await deveRecusarExec(`select public.plt_fn_registrar_parecer(${marc4 - 1000000}, 'perfeito')`,
+  'confirmar uma chegada que não existe é recusado', /não existe/i)
+await bd.exec(`select public.plt_fn_registrar_parecer(${marc4}, 'atencao')`)
+await deveRecusarExec(`select public.plt_fn_registrar_parecer(${marc4}, 'perfeito')`,
+  'a confirmação se registra uma vez só', /uma vez só/i)
+const div4 = (await um66(`select count(*)::int as n from public.plt_notificacoes where card_id = ${u66[4]} and tipo = 'qualidade_divergencia'`)).n
+conferir(c4.pend === marc4 && div4 > 0 && (await card66(u66[4])).pend === null,
+  'os dois ligados: a pendência é a marcação de quem entregou; a confirmação diferente vira aviso de divergência',
+  JSON.stringify({ c4, marc4, div4 }))
+
+// 5 · marcada 🔴 e ninguém vai confirmar → DANIFICADO do setor que recebe
+await chaves66('{peca_pedido}', '{}')
+await soltar66(u66[5], PRONTO, 'danificado')
+const c5 = await card66(u66[5])
+conferir(c5.setor === S2 && c5.etapa === 'DANIFICADO' && c5.pend === null,
+  'marcada danificada sem confirmação na chegada: a peça vai sozinha para o DANIFICADO de quem recebe', JSON.stringify(c5))
+
+// 6 · desligar a chave "ao receber" limpa a pendência de quem já está lá
+await chaves66('{}', '{peca_pedido}')
+await soltar66(u66[6], PRONTO)
+const chegada6 = (await card66(u66[6])).pend
+await chaves66('{}', '{}')
+const c6 = await card66(u66[6])
+const t6 = await tarefa66(chegada6)
+const ini6 = await soltar66(u66[6], MONTANDO)
+conferir(chegada6 !== null && c6.pend === null && t6?.situacao === 'concluida' && ini6.acao === 'iniciado',
+  'desligar a chave "ao receber" tira a pendência dos cards que já estão no setor (e fecha a tarefa do Sistema)',
+  JSON.stringify({ chegada6, c6, t6, ini6 }))
+
+titulo('SESSAO-31 · a etapa EXPEDIÇÃO conclui a produção (o botão "Concluir produção" saiu)')
+
+// 7 · soltar na EXPEDIÇÃO = concluir (sem estado com a chave desligada)
+const inicio66 = (await um66(`select plt_privado.fn_etapa_inicio(${S2}) as id`)).id
+const r7 = await soltar66(u66[1], EXPEDICAO)
+const c7 = await um66(`select s.codigo from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id where c.id = ${u66[1]}`)
+conferir(inicio66 === MONTANDO && r7.acao === 'concluido' && r7.destino === 'aguardo' && c7.codigo === 'aguardo'
+    && (await marcacoes66(u66[1])) === 0,
+  'soltar a peça na EXPEDIÇÃO a leva para Pedidos em aguardo (a etapa que conclui não é a de início; sem chave, sem estado)',
+  JSON.stringify({ inicio66, r7, c7 }))
+
+// 8 · com a chave "ao enviar" ligada na MONTAGEM, concluir pede o estado; danificada não entra
+await bd.query(`select public.plt_fn_setor_qualidade_definir($1, $2::text[], $3::text[])`, [S2, '{peca_pedido}', '{}'])
+await deveRecusarExec(`select public.plt_fn_soltar_card(${u66[2]}, ${EXPEDICAO})`,
+  'MONTAGEM com a chave "ao enviar": concluir sem o estado é recusado', /marcar o estado da peça/i)
+await deveRecusarExec(`select public.plt_fn_soltar_card(${u66[2]}, ${EXPEDICAO}, 'danificado')`,
+  'peça danificada não entra em Pedidos em aguardo', /perfeito estado/i)
+const r8 = await soltar66(u66[2], EXPEDICAO, 'perfeito')
+conferir(r8.acao === 'concluido' && r8.destino === 'aguardo', 'concluída em perfeito estado, vai para Pedidos em aguardo', JSON.stringify(r8))
+
+// 9 · PARADO continua só movendo; a regra da etapa que conclui
+const r9 = await soltar66(u66[3], PARADO)
+conferir(r9.acao === 'movido' && (await card66(u66[3])).etapa === 'PARADO', 'soltar em PARADO continua só movendo', JSON.stringify(r9))
+await deveRecusarExec(`update public.plt_etapas set conclui_producao = true where setor_id = ${S2} and eh_fila`,
+  'a fila nunca conclui', /plt_etapas_conclui_ck/i)
+await deveRecusarExec(`update public.plt_etapas set conclui_producao = true, setor_destino_id = ${S1} where id = ${PARADO}`,
+  'etapa que encaminha não conclui', /plt_etapas_conclui_ck|encaminha/i)
+await deveRecusarExec(`insert into public.plt_etapas (setor_id, nome, ordem, conclui_producao) values ((select id from public.plt_setores where codigo = 'estoque'), 'Q66 X', 99, true)`,
+  'só setor de produção conclui', /setor de produção conclui/i)
+
+// 10 · a porta das chaves
+await deveRecusarExec(`select public.plt_fn_setor_qualidade_definir(${S1}, '{peca_pedido,inventado}', '{}')`,
+  'tipo de card desconhecido é recusado', /desconhecido/i)
+await deveRecusarExec(`select public.plt_fn_setor_qualidade_definir((select id from public.plt_setores where codigo = 'estoque'), '{}', '{}')`,
+  'fim de linha não tem chave de estado', /setores de produção/i)
+const log66 = await um66(`select contexto from public.plt_logs_atividade where acao = 'qualidade_setor_alterada' order by id desc limit 1`)
+await como66(E40.operador)
+await deveRecusarExec(`select public.plt_fn_setor_qualidade_definir(${S1}, '{}', '{}')`,
+  'só admin liga e desliga o estado da peça', /admin/i)
+await como66('')
+const priv66 = await um66(`select has_function_privilege('anon', 'public.plt_fn_setor_qualidade_definir(bigint, text[], text[])', 'execute') as anon`)
+conferir(log66?.contexto?.setor_id === S2 && Array.isArray(log66.contexto.envio) && !priv66.anon,
+  'cada mudança de chave deixa a linha na trilha (antes → depois); anônimo fora', JSON.stringify({ log66, priv66 }))
+
+// 11 · peça de estoque (sem pedido) e tipo da chave
+const tipos66 = await um66(`select plt_privado.fn_tipo_qualidade('unidade', 1) as a, plt_privado.fn_tipo_qualidade('unidade', null) as b,
+                                   plt_privado.fn_tipo_qualidade('avulso', null) as c, plt_privado.fn_tipo_qualidade('pedido', 1) as d`)
+conferir(tipos66.a === 'peca_pedido' && tipos66.b === 'peca_estoque' && tipos66.c === 'avulso' && tipos66.d === null,
+  'os tipos das chaves: peça de pedido, peça de estoque, avulso (card do pedido não anda pela produção)', JSON.stringify(tipos66))
+} // fim do bloco 66
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
