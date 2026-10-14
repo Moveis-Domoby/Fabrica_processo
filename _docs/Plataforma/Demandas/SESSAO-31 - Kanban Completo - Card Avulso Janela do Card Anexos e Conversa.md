@@ -3,7 +3,7 @@ titulo: "SESSAO-31 — Kanban completo: card avulso, janela do card, anexos, con
 tipo: demanda
 status: 📐 pronta para code
 data: 2026-10-07
-atualizado: 2026-10-07
+atualizado: 2026-10-13
 origem: pedido do dono em 06/10/2026 (com 3 prints do ClickUp como referência), mapeado no Cowork (leitura só de cofre, código, banco e ClickUp — nada alterado)
 plano: "[[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]]"
 depende: "[[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] (a base de anexos nasce lá)"
@@ -75,6 +75,16 @@ tags: [plataforma, demanda, bloco-6, kanban, pcp, card-avulso, anexos, conversa,
 - **Motivos:** lista cadastrada em Configurações → Utilitários (aba nova **"Motivos de pausa"**) + **"Outro"** com texto (pergunta 9).
 - O motivo fica **guardado no evento** — um painel de motivos é para depois.
 
+## 4c. Entra também — o marcador "Devolvido" do Tiny deixa de ser cancelamento (pedido do dono, 13/10 — D-124)
+
+> *"Sobre essa marcação devolvido, anote para a próxima sessão remover, deixar apenas os outros do jeito que está, pois o devolvido a fábrica ainda tenta recuperar a venda."*
+
+- **Remover** a regra que a SESSAO-30 pôs (D-114, migration 59): hoje o marcador **"Devolvido"** no Tiny faz o pedido contar como cancelado — `plt_privado.fn_pedido_cancelado` olha o marcador, e `fn_reagir_pedido` grava o fato `pedido_devolvido` (fonte tiny) quando o marcador aparece, o que manda a peça viva ao ESTOQUE sem dono (`fn_desvincular_por_cancelamento`). Depois da remoção, pedido com "Devolvido" é um pedido como outro qualquer.
+- **Fica como está:** cancelado no Tiny com móvel pronto (aguardo, ROTAS, caminhão) vai sozinho ao ESTOQUE; a regra do PCP só liberar para produção (↩️ D-63) e o ranking de madrugada (D-119) — confirmados pelo dono.
+- **Perguntar no início (pergunta 11):** o botão **"Pedido devolvido"** do entregador também para de mandar os móveis ao ESTOQUE sem dono (para a fábrica tentar recuperar a venda), ou continua?
+- **Conferir antes de mudar:** quantos pedidos vivos têm o marcador e se algum fato `pedido_devolvido` (fonte tiny) já moveu peça de verdade (em 08/10: 113 pedidos com o marcador, os com card vivo todos já "Cancelado", nenhuma peça viva). Fato gravado não se apaga (RNF-05) — se houver peça movida por engano, a correção é um fato novo, com prévia ao dono.
+- Harness: o bloco 59 da bateria prova o marcador → ESTOQUE; ele passa a provar o contrário (o marcador não mexe em nada).
+
 ## 4b. Desempenho e escala — o que esta sessão toca sai dentro da lei (regra 18)
 
 > Decisão do dono (07/10): as sessões 30 e 31 seguem a [[PLT - Lei de Desempenho e Escala]] **em tudo o que tocam**; o resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]]. Nesta sessão:
@@ -102,6 +112,7 @@ D-03/D-59/D-60 (arrasto decide; rotas das etapas) · D-06 (toque de 44 px, table
 **Já respondidas no Cowork (06/10) — só confirmar:** a janela vale para **todo** card · menção = aviso no sino **+ cartão na conversa particular** · a **pausa com motivo** entra aqui · prioridade é etiqueta.
 
 **Abertas:**
+11. 🆕 (13/10, §4c) **"Pedido devolvido" do entregador:** continua mandando os móveis ao ESTOQUE sem dono, ou também segura a peça para a fábrica tentar recuperar a venda?
 1. **Quem cria card avulso?** (proposta: PCP, líderes e admin)
 2. **Onde o avulso termina?** Proposta: tem **"Concluir"** em qualquer setor (não precisa passar pela LIMPEZA E EMBALAGEM) e vai para "Concluídos". E se estiver ligado a um **produto** — a peça pronta vira peça livre no ESTOQUE? Ligado a um **pedido** — vira uma peça a mais do pedido ou é só trabalho registrado?
 3. O avulso pede a **marcação de estado** (perfeito / atenção / danificado) ao passar de setor? (Proposta: só quando ligado a produto ou peça.)
@@ -115,7 +126,7 @@ D-03/D-59/D-60 (arrasto decide; rotas das etapas) · D-06 (toque de 44 px, table
 
 ## 7. Fora do escopo
 
-Tudo da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] (fluxo do pedido, entrega, Tiny, tela do entregador) · subtarefas, checklist e dependências dentro do card avulso (o ClickUp tem; o dono não pediu — o Meu Painel já tem tarefas) · painel dos motivos de pausa · aviso por WhatsApp/e-mail (Q-42) · card que se divide (Q-21) · terceirizados (Q-22) · impressora de etiqueta · migração dos cards vivos do ClickUp (Q-25) · a adequação de desempenho das telas que esta sessão **não** toca (Meu Painel, Afazeres, Visão do dia, primeira abertura, permissões no token, pacote dividido) — é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
+Tudo da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] (fluxo do pedido, entrega, Tiny, tela do entregador) **— menos o §4c (o marcador "Devolvido")** · subtarefas, checklist e dependências dentro do card avulso (o ClickUp tem; o dono não pediu — o Meu Painel já tem tarefas) · painel dos motivos de pausa · aviso por WhatsApp/e-mail (Q-42) · card que se divide (Q-21) · terceirizados (Q-22) · impressora de etiqueta · migração dos cards vivos do ClickUp (Q-25) · a adequação de desempenho das telas que esta sessão **não** toca (Meu Painel, Afazeres, Visão do dia, primeira abertura, permissões no token, pacote dividido) — é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## 8. Critérios de aceite
 
@@ -132,6 +143,7 @@ Tudo da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entre
 - [ ] Tudo o que grava autor deixa rastro na Auditoria; nenhum evento editado ou apagado.
 - [ ] Celular 375 px e tablet 768 px: sem rolagem lateral, toques ≥ 44 px, janela do card usável com uma mão.
 - [ ] Revisões registradas como D-NN novas (↩️ D-101, ↩️ D-59, ↩️ D-22).
+- [ ] **§4c:** pedido com o marcador "Devolvido" no Tiny não conta mais como cancelado — as peças seguem com ele (harness + ensaio desfeito no banco real); o cancelado continua indo ao estoque; a resposta da pergunta 11 aplicada.
 - [ ] **Aba Network:** abrir o quadro de um setor (e o tablet) = **1 requisição**; "Ver mais" = 1; abrir a janela do card = 1; histórico/anexos só no clique; **nada se repete sozinho** — card movido em outra aba aparece sem releitura.
 - [ ] **Busca no código:** nenhum `refetchInterval`/`postgres_changes` no quadro, no tablet, no PCP e no sino.
 - [ ] Porta do quadro e porta da janela do card **≤ 50 ms (p95) com volume ×100** — plano (`EXPLAIN ANALYZE`) na execução.
@@ -140,6 +152,8 @@ Tudo da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entre
 - [ ] Tarefas do ClickUp (seção abaixo) movidas para **FAZENDO** ao começar e **nunca** para concluído; o dono avisado de cada uma ao terminar.
 
 ## 9. Notas para o Claude Code
+
+- 🆕 **O que a SESSAO-30 deixou pronto (13/10 — ler o handoff dela antes):** a **base de anexos** já existe — tabela `plt_anexos` (card, tipo `comprovante|foto|documento`, caminho único, nome, mime, tamanho ≤ 10 MB, quem/quando, `removido_em`) e o **armário privado `plt-anexos`** (10 MB; imagens, PDF, Word, ODT — **sem áudio**), com as regras de enviar/ler pelo card do caminho e as portas `plt_fn_anexo_registrar` / `plt_fn_anexos`; **estender** (áudio, 25 MB se o dono confirmar, quem vê) em vez de criar outra. **Comentário** já existe como fato `comentario_adicionado` (porta `plt_fn_card_comentar`, usada pelo entregador) — a conversa do card precisa decidir se reaproveita. A **janela completa do pedido** no PCP → Todos os pedidos (`PedidoCompleto`, porta `plt_fn_pcp_pedido_detalhe` — D-120) é a 1ª "janela de card" — alinhar com a janela nova. Telas já **ao vivo por websocket** (`useAoVivo`, tópicos `plt-aviso:*` — migration 61) — o quadro, o tablet e o sino seguem o mesmo padrão. Numeração livre em 13/10: **migration 66, D-125, E-91, A-61** (conferir no cofre).
 
 - **Decisão técnica a trazer no (c):** o avulso como **tipo novo de card** em `plt_cards` (proposta — herda arrasto, tempo, linha do tempo e quadro) × outra estrutura. Se tipo novo: rever a coerência e **toda porta que filtra por tipo** (quadros, PCP, painel, dashboards, estoque, reservas, automações, API) para o avulso entrar só onde deve.
 - **Conversa do card** — decisão no (c): conversa do chat de tipo novo (reaproveita mensagens, websocket e imutabilidade — mas **some da lista do chat**) × tabela própria. Seguir à risca o padrão do chat: assina antes de ler, cache por pessoa, `staleTime: Infinity`, sem releitura por foco/intervalo.

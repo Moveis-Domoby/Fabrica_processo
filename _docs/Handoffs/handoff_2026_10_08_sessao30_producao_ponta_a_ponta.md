@@ -116,9 +116,12 @@ A = "327 · Armário multiuso 2 portas" (tinha 1 peça livre); B = "174 · Estan
 
 ## 7. Ficou com o dono
 
-- **Ligar o "Entregue vai ao Tiny" ([[N8N - Plataforma para Tiny (situacao do pedido)]]):** ~~importar no n8n~~ — **feito em 09/10 pelo Claude** (dentro da automação do Tiny que já existia, com a chave da **loja** — D-123, §11). ~~Ligar e a prova com 1 pedido real~~ — **feitas em 09/10** (o dono ligou; o 13470 foi ao Tiny e voltou OK — §11).
-- **Confirmar:** a cadeira de estoque pelo PCP agora vai pela sugestão "usar?" (↩️ D-63); o ranking das vendas de madrugada (D-119); o marcador "Devolvido" num pedido **já entregue** não traz os móveis de volta ao estoque sozinho (só os vivos) — se quiser que traga, é uma decisão nova.
-- **ClickUp:** desligar o fluxo antigo quando a equipe passar a dar a entrega pela plataforma.
+✅ **Fechado em 13/10 (resposta do dono):**
+- "Entregue vai ao Tiny" — fluxo no ar (09/10), prova com o 13470 OK; a chave ficou **desligada por escolha do dono** depois da prova — *"pode tirar de pendências"*.
+- Uso da tela do entregador (cadastrar entregador, escolher equipe) e o desligamento do fluxo antigo do ClickUp — *"não se preocupe"*: saem das pendências.
+- ✅ Confirmadas: o PCP só libera para produção (↩️ D-63) e o ranking das vendas de madrugada (D-119).
+- **O marcador "Devolvido" do Tiny deixa de ser cancelamento (D-124)** — *"o devolvido a fábrica ainda tenta recuperar a venda"*: a remoção foi anotada na [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] (§4c, com a pergunta sobre o botão "Pedido devolvido" do entregador).
+- **ClickUp:** as 7 tarefas desta sessão **concluídas pelo Claude a pedido do dono** (13/10).
 
 ## 8. Pendências técnicas (registradas)
 

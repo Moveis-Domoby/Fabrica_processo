@@ -654,7 +654,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Pedido sem nada a produzir** (só frete — nunca aconteceu: 0 em 5.410 pedidos): *"Direto p/ Pedidos em aguardo"* — nasce no PCP (entrada única, D-13), não espera liberação e aparece já completo para a logística lançar para ROTAS. Decidido **na leitura**: se o Tiny acrescentar um móvel, o pedido volta sozinho ao quadro do PCP.
 - ↪️ **D-01:** "cada móvel vira um card por unidade" — frete/entrega não é móvel e não vira card. ↪️ **D-45:** "unidade pronta" e pedido completo contam só unidades de produção.
 
-**↩️ revisada em 2026-10-08 (SESSAO-30, raio-x 3 — escolha do dono em 06/10 de incluir o item):** o PCP libera **só para setor de produção**; ESTOQUE, Pedidos em aguardo e ROTAS não são destino de liberação, para toda origem (o ajuste do super admin — D-117 — passa). A peça pronta do estoque (a cadeira de revenda, inclusive) entra pela **sugestão "usar?"**, que a faz nascer pronta no aguardo; sem peça no estoque, vai pela LIMPEZA E EMBALAGEM → "Concluir produção". Na história, o PCP nunca liberou direto para o aguardo (0 de 33 liberações). *O dono pode revisar — avisado no handoff.*
+**↩️ revisada em 2026-10-08 (SESSAO-30, raio-x 3 — escolha do dono em 06/10 de incluir o item):** o PCP libera **só para setor de produção**; ESTOQUE, Pedidos em aguardo e ROTAS não são destino de liberação, para toda origem (o ajuste do super admin — D-117 — passa). A peça pronta do estoque (a cadeira de revenda, inclusive) entra pela **sugestão "usar?"**, que a faz nascer pronta no aguardo; sem peça no estoque, vai pela LIMPEZA E EMBALAGEM → "Concluir produção". Na história, o PCP nunca liberou direto para o aguardo (0 de 33 liberações). ✅ **Confirmada pelo dono em 13/10** (D-124).
 
 **Como ficou (técnico):** migration 39 — a regra única na view `plt_privado.vw_itens_producao` (eh_frete + unidades; view e não função porque função com `set search_path` não é embutida pelo planner — E-65), somada pelas 17 portas que contam unidades; gatilho em `plt_cards` recusa card de unidade de frete para todo escritor (M-14); `lock_timeout` de 5 s na aplicação (E-66); manutenção arquiva o card de frete que nasceu antes da regra (o do 13215 — card de teste, M-16).
 
@@ -1146,6 +1146,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-114 · Cancelado ou devolvido com o móvel pronto vai SOZINHO para o estoque — inclusive da ROTAS e do caminhão; o marcador "Devolvido" do Tiny vale como cancelamento (08/10/2026) — ↪️ D-61
 
+**↩️ revisada em 2026-10-13 (D-124):** o marcador "Devolvido" do Tiny deixa de valer como cancelamento — a fábrica ainda tenta recuperar a venda (a remoção é da SESSAO-31). O cancelado continua indo sozinho ao estoque.
+
 **Decidido (respostas 2 e 1a/2 do dono, 08/10):** *"Se o pedido for cancelado ou devolvido e o móvel já estiver montado, não tem essa de logística confirmar, o produto automaticamente já deve ir para o estoque."*
 
 - Peça pronta de pedido cancelado — no aguardo (como já era, D-61), **na ROTAS, programada ou no caminhão** — vai ao **ESTOQUE sem dono**, sem confirmação de ninguém.
@@ -1178,7 +1180,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Decidido (pedido do dono em 06/10, mapeado no Cowork):** a peça pronta de pedido conta como **"reservada em venda" desde que fica pronta** (no aguardo, ou a peça do estoque reservada pela venda) **até o pedido ser entregue** — inclusive lançada para ROTAS, programada ou no caminhão. Vale em todo número que mostra "reservados" (cartão do Estoque, filtros, Visão do dia, Pedidos em aguardo). ↩️ **D-86:** "reservados em venda = reservadas no galpão + em Pedidos em aguardo" — agora soma a ROTAS até a entrega. Um dono para a regra (M-04): a contagem mora num lugar só e todas as portas a leem.
 
-## D-119 · Os números do estoque ficam PRONTOS no banco; o ranking das vendas anda de madrugada (08/10/2026, Claude — sob a ordem noturna do dono; o dono pode revisar) — ↪️ D-84/D-86/D-118
+## D-119 · Os números do estoque ficam PRONTOS no banco; o ranking das vendas anda de madrugada (08/10/2026, Claude — sob a ordem noturna do dono; ✅ confirmada pelo dono em 13/10 — D-124) — ↪️ D-84/D-86/D-118
 
 **Decidido pelo Claude (SESSAO-30, etapa 2 — Lei de Desempenho §6: "projeção pronta para leitura pesada"):**
 
@@ -1221,6 +1223,15 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - O caminho plataforma → Tiny (a entrega registrada deixa o Tiny "Entregue"; desfeita, volta) **não é uma automação nova**: é a 2ª parte, com gatilho próprio, da automação que já liga o Tiny ao banco da fábrica ("subir banco de dados --- tiny -> supabase" — a mesma que traz pedidos e contas toda madrugada). A do ClickUp (que um dia será desligada) não serviu de casa por isso.
 - Usa a chave da **loja** no Tiny (onde moram os pedidos de venda), não a da fábrica — o arquivo de 08/10 estava trocado.
 - No ar desde 09/10 ~01:15; a chave "Entregue vai ao Tiny" segue **desligada** até o dono ligar e fazer a prova com 1 pedido real.
+
+## D-124 · O marcador "Devolvido" do Tiny NÃO é cancelamento — a fábrica ainda tenta recuperar a venda (13/10/2026, pedido do dono) — ↩️ revisa a D-114
+
+**Decidido (resposta do dono, 13/10):** *"Sobre essa marcação devolvido, anote para a próxima sessão remover, deixar apenas os outros do jeito que está, pois o devolvido a fábrica ainda tenta recuperar a venda."*
+
+- **Sai** a regra da D-114 de que o marcador **"Devolvido"** no Tiny vale como cancelamento (a peça viva desse pedido ia sozinha ao ESTOQUE sem dono e o pedido passava a contar como cancelado). Pedido com o marcador "Devolvido" volta a ser um pedido como outro qualquer: as peças seguem com ele. **A remoção é da [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]]** (§4c da demanda).
+- **Fica como está** (o resto da D-114): cancelado no Tiny com móvel pronto — inclusive na ROTAS e no caminhão — vai sozinho ao ESTOQUE.
+- **A conferir com o dono no início da SESSAO-31:** o botão **"Pedido devolvido"** do entregador (D-115) também deixa de mandar os móveis ao ESTOQUE sem dono (para a fábrica tentar recuperar a venda), ou continua como está?
+- **Confirmadas pelo dono na mesma resposta ("deixar apenas os outros do jeito que está"):** a ↩️ da D-63 (o PCP libera só para setor de produção; a peça pronta do estoque vai pela sugestão "usar?") e a D-119 (o ranking das vendas anda de madrugada).
 
 ## Ver também
 

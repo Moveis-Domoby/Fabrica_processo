@@ -92,7 +92,7 @@ O **Bloco 5 está FECHADO** (02/10): entregues as SESSÕES 22, 23, 25, 24, 26, 2
 
 ## 🙋 Pendências que estão com VOCÊ (o dono) — revisada em 01/10/2026
 
-0. 🆕 **SESSAO-30 (entregue em 08/10):** (a) n8n → Import from file → `domoby-plataforma-tiny-situacao.json` (pasta Fabrica n8n) → Publish; (b) Configurações → Caminhões → **Ligar "Entregue vai ao Tiny"**; (c) registrar a entrega de **1 pedido real** já entregue e ver o Tiny ficar "Entregue"; (d) confirmar: a cadeira pelo PCP vai pela sugestão do estoque, o ranking das vendas anda de madrugada, e o "Devolvido" num pedido já entregue não traz os móveis sozinho — [[handoff_2026_10_08_sessao30_producao_ponta_a_ponta]]; [[N8N - Plataforma para Tiny (situacao do pedido)]].
+0. ✅ **SESSAO-30 — nada mais com o dono (13/10):** a chave do Tiny ficou desligada por escolha dele; a tela do entregador e o fluxo do ClickUp, sem pendência; as revisões confirmadas; o marcador "Devolvido" deixa de ser cancelamento — vai na SESSAO-31 (D-124); as 7 tarefas do ClickUp concluídas.
 1. 🔶 **SESSAO-29 (entregue em 01/10):** (a) ✅ fluxo de vendas do n8n passando o número do cadastro do cliente — **colado e publicado em 01/10, 23:20**; (b) dizer se a **Auditoria** (Painel admin → Auditoria — você já viu) pode ir ao site — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]].
 2. 🔶 **Contagem inicial da logística — confirmar.** Você acredita que foi feita em 30/09; a leitura do banco em 01/10 00:30 não achou contagem lançada pela plataforma (52 peças no ESTOQUE, 25 produtos — 46 delas vieram da cópia inicial do Tiny às 01:00 de 30/09). Se a equipe contou no papel, falta lançar.
 3. **Responder as 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]]** (a 1ª — app v3 na conta da fábrica — destrava as ondas 1–3).
