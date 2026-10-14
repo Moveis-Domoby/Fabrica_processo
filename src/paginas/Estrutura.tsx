@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleCheckBig,
   ClipboardCheck,
+  Pause,
   Pencil,
   Plus,
   RotateCcw,
@@ -765,6 +766,13 @@ function ListaEtapas(props: {
                   conclui a produção
                 </span>
               )}
+              {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo. */}
+              {etapa.pede_motivo && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto no-underline">
+                  <Pause aria-hidden className="size-3" />
+                  pede o motivo
+                </span>
+              )}
             </span>
             {podeGerir && producao && !etapa.eh_fila && !etapa.eh_danificado && (
               <Selecao
@@ -799,6 +807,27 @@ function ListaEtapas(props: {
                 }
               />
             )}
+            {podeGerir &&
+              producao &&
+              !etapa.eh_fila &&
+              !etapa.eh_danificado &&
+              etapa.setor_destino_id === null &&
+              !etapa.conclui_producao && (
+                <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-marca-500"
+                    checked={etapa.pede_motivo}
+                    onChange={(ev) =>
+                      atualizarMutacao.mutate({
+                        id: etapa.id,
+                        mudancas: { pede_motivo: ev.target.checked },
+                      })
+                    }
+                  />
+                  Parar aqui pede o motivo
+                </label>
+              )}
             {podeGerir && (
               <span className="flex items-center gap-1">
                 <Botao

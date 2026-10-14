@@ -36,6 +36,9 @@ export interface JanelaDoCard {
     concluir: boolean
     anexar: boolean
     ver_removidos: boolean
+    /** SESSAO-31 (§4): o próprio executor, o líder do setor, o admin. */
+    pausar: boolean
+    retomar: boolean
   }
 }
 

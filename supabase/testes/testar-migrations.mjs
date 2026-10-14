@@ -3469,8 +3469,9 @@ await deveRecusarExec(
   `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
      values (${cardB}, 'execucao_pausada',
              (select id from public.plt_usuarios where usuario = 'exec.um'), 'interface')`,
-  'operador comum não pausa (gesto de líder do setor ou admin — D-48)',
-  /gesto de líder/i,
+  // ↩️ SESSAO-31 (D-125 resp. 9): o próprio executor também pausa — o OUTRO operador, não.
+  'operador que não executa o card não pausa (quem executa, o líder do setor ou o admin — D-48/D-125)',
+  /gesto de quem executa|gesto de líder/i,
 )
 await deveRecusarExec(
   `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
@@ -12281,6 +12282,94 @@ conferir(!ouve.anon_ouve && ouveMen && !ouveFora && !priv72.anon_c && priv72.log
   'o canal do card só para quem vê o card (a mencionada sim, quem é de fora não); a projeção só pela porta; anônimo fora',
   JSON.stringify({ ouve, ouveMen, ouveFora, priv72 }))
 } // fim do bloco 72
+
+// ============================================================================
+// SESSAO-31 · etapa G (migration 73 — §4 · D-125 resp. 9): pausa com motivo.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · pausa com motivo: o operador pausa o dele, o líder qualquer um; parar no PARADO pede o motivo')
+
+const um73 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const como73 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const OP = '00000000-0000-0000-0000-000000000731'
+const COL = '00000000-0000-0000-0000-000000000732'
+const LID = '00000000-0000-0000-0000-000000000733'
+await como73('')
+await bd.exec(`
+  insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('pz73', 'PZ73 MONTAGEM', 'producao', 995);
+  update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo = 'pz73';
+`)
+const S = (await um73(`select id::int as id from public.plt_setores where codigo = 'pz73'`)).id
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${S}, 'A MONTAR', 10, true), (${S}, 'MONTANDO', 20, false), (${S}, 'PARADO', 30, false);
+  update public.plt_etapas set pede_motivo = true where setor_id = ${S} and nome = 'PARADO';
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Operador 73', 'op73@teste.com', '73737373731', 'op.73', 'operador', '${OP}', array['fabrica']),
+    ('Colega 73', 'col73@teste.com', '73737373732', 'col.73', 'operador', '${COL}', array['fabrica']),
+    ('Líder 73', 'lid73@teste.com', '73737373733', 'lid.73', 'operador', '${LID}', array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+    ((select id from public.plt_usuarios where usuario = 'op.73'), ${S}, false),
+    ((select id from public.plt_usuarios where usuario = 'col.73'), ${S}, false),
+    ((select id from public.plt_usuarios where usuario = 'lid.73'), ${S}, true);
+`)
+const etapa = async (nome) => (await um73(`select id::int as id from public.plt_etapas where setor_id = ${S} and nome = '${nome}'`)).id
+const [MONTANDO, PARADO] = [await etapa('MONTANDO'), await etapa('PARADO')]
+const motivo = (await um73(`select id::int as id from public.plt_motivos where tipo = 'pausa' and texto = 'Falta de material'`)).id
+await como73(E40.logistica)
+const c1 = (await um73(`select (public.plt_fn_avulso_criar('Montar o gabarito', p_setor_id => ${S}) ->> 'card_id')::int as id`)).id
+const c2 = (await um73(`select (public.plt_fn_avulso_criar('Montar a bancada', p_setor_id => ${S}) ->> 'card_id')::int as id`)).id
+const estado = (id) => um73(`select executor_atual_id is not null as executando, pausado_em is not null as pausado, pausa_motivo, e.nome as etapa
+                               from public.plt_cards c left join public.plt_etapas e on e.id = c.etapa_atual_id where c.id = ${id}`)
+
+// 1 · o operador pausa o dele com motivo da lista; o colega não; sem motivo não
+await como73(OP)
+await bd.exec(`select public.plt_fn_soltar_card(${c1}, ${MONTANDO})`)
+await deveRecusarExec(`select public.plt_fn_card_pausar(${c1})`, 'pausar sem motivo é recusado', /motivo/i)
+await como73(COL)
+await deveRecusarExec(`select public.plt_fn_card_pausar(${c1}, ${motivo})`, 'o colega não pausa o card de outro', /quem executa o card/i)
+await como73(OP)
+await bd.exec(`select public.plt_fn_card_pausar(${c1}, ${motivo}, 'chapa acabou')`)
+const pausado = await estado(c1)
+const repetido = (await um73(`select public.plt_fn_card_pausar(${c1}, ${motivo}) as ev`)).ev
+const q = (await um73(`select public.plt_fn_quadro_setor(${S}, 10) as q`)).q
+const naFrente = q.colunas.flatMap((c) => c.cards).find((c) => c.id === c1)
+const j = (await um73(`select public.plt_fn_card_janela(${c1}) -> 'permissoes' as p`)).p
+conferir(pausado.executando && pausado.pausado && pausado.pausa_motivo === 'Falta de material — chapa acabou' && repetido === null
+    && naFrente?.pausa_motivo === 'Falta de material — chapa acabou' && j.retomar && !j.pausar
+    && q.etapas.find((e) => e.id === PARADO)?.pede_motivo === true && q.etapas.find((e) => e.id === MONTANDO)?.pede_motivo === false,
+  'o próprio operador pausa com o motivo da lista (+ o detalhe); o toque repetido não pausa de novo; o motivo vem na frente do card, o quadro diz qual etapa pede o motivo e a janela oferece Retomar',
+  JSON.stringify({ pausado, repetido, naFrente: naFrente?.pausa_motivo, j, etapas: q.etapas.map((e) => [e.nome, e.pede_motivo]) }))
+
+// 2 · retomar volta a contar e limpa o motivo; o líder pausa o de qualquer um ("Outro")
+await bd.exec(`select public.plt_fn_card_retomar(${c1})`)
+const retomado = await estado(c1)
+await como73(LID)
+await bd.exec(`select public.plt_fn_card_pausar(${c1}, null, 'Chamado para outra urgência')`)
+const peloLider = await estado(c1)
+conferir(!retomado.pausado && retomado.pausa_motivo === null && peloLider.pausado && peloLider.pausa_motivo === 'Chamado para outra urgência',
+  'retomar volta a contar e tira o motivo; o líder pausa o card de qualquer um, com "Outro" escrito', JSON.stringify({ retomado, peloLider }))
+
+// 3 · soltar no PARADO um card em execução pede o motivo: o tempo fecha, o motivo fica
+await como73(OP)
+await bd.exec(`select public.plt_fn_soltar_card(${c2}, ${MONTANDO})`)
+await deveRecusarExec(`select public.plt_fn_card_parar(${c2}, ${MONTANDO}, ${motivo})`, 'parar só na etapa que pede o motivo', /etapa de parada/i)
+await bd.exec(`select public.plt_fn_card_parar(${c2}, ${PARADO}, ${motivo})`)
+const parado = await estado(c2)
+const aberta = (await um73(`select count(*)::int as n from public.plt_vw_execucoes where card_id = ${c2} and em_andamento`)).n
+await bd.exec(`select public.plt_fn_soltar_card(${c2}, ${MONTANDO})`)
+const voltou = await estado(c2)
+conferir(parado.etapa === 'PARADO' && !parado.executando && parado.pausa_motivo === 'Falta de material' && aberta === 0
+    && voltou.executando && voltou.pausa_motivo === null,
+  'no PARADO: o tempo fecha (como sempre), o motivo fica no card; ao voltar para MONTANDO o tempo recomeça e o motivo some',
+  JSON.stringify({ parado, aberta, voltou }))
+
+// 4 · permissões
+await como73('')
+const priv73 = await um73(`
+  select has_function_privilege('anon', 'public.plt_fn_card_pausar(bigint, bigint, text, uuid)', 'execute') as anon_p,
+         has_function_privilege('authenticated', 'public.plt_fn_card_parar(bigint, bigint, bigint, text, uuid)', 'execute') as logado_parar`)
+conferir(!priv73.anon_p && priv73.logado_parar, 'anônimo fora', JSON.stringify(priv73))
+} // fim do bloco 73
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

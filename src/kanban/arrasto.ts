@@ -33,6 +33,7 @@ export function etapaDeInicio(etapas: readonly Etapa[]): Etapa | undefined {
 export type AcaoAoSoltar =
   | { tipo: 'encaminhar'; etapa: Etapa; setorDestinoId: number }
   | { tipo: 'concluir'; etapa: Etapa }
+  | { tipo: 'parar'; etapa: Etapa }
   | { tipo: 'iniciar' }
   | { tipo: 'mover' }
 
@@ -40,7 +41,7 @@ export type AcaoAoSoltar =
 export function acaoAoSoltar(parametros: {
   setor: Pick<Setor, 'papel_no_fluxo'>
   etapas: readonly Etapa[]
-  card: Pick<Card, 'tipo'>
+  card: Pick<Card, 'tipo'> & Partial<Pick<Card, 'executor_atual_id' | 'etapa_atual_id'>>
   etapaDestinoId: number | null
 }): AcaoAoSoltar {
   const { setor, etapas, card, etapaDestinoId } = parametros
@@ -54,6 +55,16 @@ export function acaoAoSoltar(parametros: {
   // da peça — e conclui o card avulso (D-125: soltar ali = o Concluir).
   if (etapa.conclui_producao && (card.tipo === 'unidade' || card.tipo === 'avulso')) {
     return { tipo: 'concluir', etapa }
+  }
+  // SESSAO-31 (§4): o card em EXECUÇÃO solto na etapa de parada (o PARADO)
+  // pergunta o motivo — o tempo fecha como sempre (D-59). Sem execução, é mover.
+  if (
+    etapa.pede_motivo &&
+    card.executor_atual_id != null &&
+    card.etapa_atual_id !== etapa.id &&
+    (card.tipo === 'unidade' || card.tipo === 'avulso')
+  ) {
+    return { tipo: 'parar', etapa }
   }
   if (
     setor.papel_no_fluxo === 'producao' &&

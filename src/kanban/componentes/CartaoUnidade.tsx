@@ -160,6 +160,9 @@ export function CartaoUnidade({
   const emExecucao = card.executor_atual_id !== null
   // SESSAO-22 (D-48): pausado não conta tempo nem ocupa o limite.
   const pausado = emExecucao && card.pausado_em !== null
+  // SESSAO-31 (§4): o motivo da pausa — ou da parada (solto no PARADO, sem execução).
+  const motivo = card.pausa_motivo ?? null
+  const parado = !emExecucao && motivo !== null
   // SESSAO-24: a peça segue na produção com o pedido cancelado — ao concluir,
   // ela vai para o estoque sem dono. Lido da situação do pedido (a mesma fonte
   // do evento de cancelamento — nada guardado para dessincronizar).
@@ -358,15 +361,19 @@ export function CartaoUnidade({
       ) : pausado ? (
         // SESSAO-22 (D-48): pausado é estado com ícone + texto, nunca só cor (M-12).
         <p
-          className="inline-flex flex-wrap items-center gap-1.5 text-sm font-medium text-atencao-texto tabular-nums"
+          className="inline-flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-medium text-atencao-texto tabular-nums"
           title={
             card.pausado_em
-              ? `Pausado pelo líder em ${new Date(card.pausado_em).toLocaleString('pt-BR')} — o tempo não conta enquanto pausado.`
+              ? `Pausado em ${new Date(card.pausado_em).toLocaleString('pt-BR')} — o tempo não conta enquanto pausado.`
               : undefined
           }
         >
           <Pause aria-hidden className="size-4" />
-          Pausado há {formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
+          {/* SESSAO-31 (§4): "Pausado · Falta de material · há 2 h". */}
+          <span className="min-w-0 break-words">
+            Pausado{motivo ? ` · ${motivo} ·` : ''} há{' '}
+            {formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
+          </span>
           <span className="inline-flex items-center gap-1 font-normal text-texto-suave">
             <UserRound aria-hidden className="size-4" />
             {souExecutor ? 'você' : (executorNome ?? '…')}
@@ -389,6 +396,23 @@ export function CartaoUnidade({
           <span className="inline-flex items-center gap-1 text-texto-suave">
             <UserRound aria-hidden className="size-4" />
             {souExecutor ? 'você' : (executorNome ?? '…')}
+          </span>
+        </p>
+      ) : parado ? (
+        // SESSAO-31 (§4): solto no PARADO com o motivo — o tempo de execução fechou.
+        <p
+          className={cn(
+            'inline-flex min-w-0 items-center gap-1.5 font-medium text-atencao-texto tabular-nums',
+            galpao ? 'text-base' : 'text-sm',
+          )}
+          title={
+            card.desde ? `Parado desde ${new Date(card.desde).toLocaleString('pt-BR')}` : undefined
+          }
+        >
+          <Pause aria-hidden className="size-4 shrink-0" />
+          <span className="min-w-0 break-words">
+            Parado · {motivo} · há{' '}
+            {formatarDuracaoMs(agora - new Date(card.desde ?? agora).getTime())}
           </span>
         </p>
       ) : (

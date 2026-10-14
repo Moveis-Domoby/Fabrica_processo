@@ -14,6 +14,7 @@ import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
 import { ModalConcluirAvulso } from '@/kanban/componentes/ModalConcluirAvulso'
+import { ModalMotivoPausa } from '@/kanban/componentes/ModalMotivoPausa'
 import type { Card, Etapa } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 
@@ -32,7 +33,8 @@ import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
  *
  * SESSAO-31 (Lei §2/§4 — regra 18): o quadro abre com UMA requisição e fica ao
  * vivo pelo websocket do setor (useQuadro) — sem relógio. O card avulso
- * (D-125) anda igual e tem o botão "Concluir".
+ * (D-125) anda igual e tem o botão "Concluir". Soltar o card em execução no
+ * PARADO (a etapa que pede o motivo — §4) pergunta o motivo antes.
  */
 export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
@@ -66,6 +68,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   } | null>(null)
   const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
   const [concluindoAvulso, setConcluindoAvulso] = useState<Card | null>(null)
+  const [parando, setParando] = useState<{ card: Card; etapa: Etapa } | null>(null)
 
   // Com o websocket conectado, o próprio aviso do setor relê o quadro (1 vez);
   // sem ele, a tela relê por conta própria.
@@ -129,6 +132,11 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       pedeEstadoAoEnviar(setorAtual, card)
     ) {
       setConcluindo({ card, etapa: acao.etapa })
+      return
+    }
+    // SESSAO-31 (§4): parar o card em execução pede o motivo.
+    if (acao.tipo === 'parar') {
+      setParando({ card, etapa: acao.etapa })
       return
     }
     if (acao.tipo === 'iniciar' && etapaId !== null && card.parecer_pendente_id != null) {
@@ -203,6 +211,15 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         key={concluindoAvulso?.id ?? 'concluir-fechado'}
         card={concluindoAvulso}
         aoFechar={() => setConcluindoAvulso(null)}
+      />
+
+      <ModalMotivoPausa
+        key={parando ? `parar-${parando.card.id}` : 'parar-fechado'}
+        modo="parar"
+        card={parando?.card ?? null}
+        etapaId={parando?.etapa.id}
+        etapaNome={parando?.etapa.nome}
+        aoFechar={() => setParando(null)}
       />
 
       <ModalMoverCard

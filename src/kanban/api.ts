@@ -59,15 +59,17 @@ export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
   return garantir(data as Setor[] | null, error, 'Não deu para carregar os setores')
 }
 
+/** As colunas da etapa que o front lê — espelho do tipo Etapa. */
+const COLUNAS_ETAPA =
+  'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao, pede_motivo'
+
 export async function buscarEtapasDoSetor(
   setorId: number,
   incluirInativas = false,
 ): Promise<Etapa[]> {
   let consulta = supabase
     .from('plt_etapas')
-    .select(
-      'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao',
-    )
+    .select(COLUNAS_ETAPA)
     .eq('setor_id', setorId)
     .order('ordem')
     .order('id')
@@ -80,9 +82,7 @@ export async function buscarEtapasDoSetor(
 export async function buscarEtapasAtivas(): Promise<Etapa[]> {
   const { data, error } = await supabase
     .from('plt_etapas')
-    .select(
-      'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao',
-    )
+    .select(COLUNAS_ETAPA)
     .eq('ativa', true)
     .order('setor_id')
     .order('ordem')
@@ -738,7 +738,16 @@ export async function criarEtapa(
 export async function atualizarEtapa(
   id: number,
   mudancas: Partial<
-    Pick<Etapa, 'nome' | 'ordem' | 'eh_fila' | 'ativa' | 'setor_destino_id' | 'conclui_producao'>
+    Pick<
+      Etapa,
+      | 'nome'
+      | 'ordem'
+      | 'eh_fila'
+      | 'ativa'
+      | 'setor_destino_id'
+      | 'conclui_producao'
+      | 'pede_motivo'
+    >
   >,
 ): Promise<void> {
   const dados = { ...mudancas }

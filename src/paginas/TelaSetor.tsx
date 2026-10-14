@@ -17,6 +17,7 @@ import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
 import { ModalConcluirAvulso } from '@/kanban/componentes/ModalConcluirAvulso'
+import { ModalMotivoPausa } from '@/kanban/componentes/ModalMotivoPausa'
 import type { Card } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
@@ -53,7 +54,8 @@ type GestoComPin =
  * A mesma tela serve o celular pessoal logado: aparece o setor da pessoa.
  *
  * SESSAO-31 (Lei §2/§4): o quadro numa requisição e ao vivo pelo websocket do
- * setor — saiu a escuta da tabela de cards inteira e o relógio de 20 s.
+ * setor — saiu a escuta da tabela de cards inteira e o relógio de 20 s. Soltar
+ * o card em execução no PARADO (§4): o PIN, depois o motivo.
  */
 export function TelaSetor() {
   const { perfil, vinculos, ehLider, carregando } = useSessao()
@@ -156,6 +158,11 @@ export function TelaSetor() {
     card: Card
     operadorId: string
   } | null>(null)
+  const [parando, setParando] = useState<{
+    card: Card
+    acao: Extract<AcaoAoSoltar, { tipo: 'parar' }>
+    operadorId: string
+  } | null>(null)
 
   // Com o websocket conectado, o aviso do setor relê o quadro; sem ele, a tela relê.
   async function invalidarQuadro(forcar = false) {
@@ -206,6 +213,9 @@ export function TelaSetor() {
       pedeEstadoAoEnviar(setor, card)
     ) {
       setConcluindo({ card, acao, operador })
+    } else if (acao.tipo === 'parar') {
+      // SESSAO-31 (§4): o motivo da parada, no nome de quem digitou o PIN.
+      setParando({ card, acao, operadorId: operador.usuario_id })
     } else if (acao.tipo === 'iniciar' && etapaId !== null && card.parecer_pendente_id != null) {
       // A chegada ficou pendente: a confirmação vem antes do trabalho, no nome do MESMO operador.
       setContextoParecer({ card, etapaId, operador })
@@ -273,7 +283,9 @@ export function TelaSetor() {
             : 'Concluir a peça'
           : acao.tipo === 'iniciar'
             ? 'Começar o trabalho'
-            : 'Mover'
+            : acao.tipo === 'parar'
+              ? 'Parar o card'
+              : 'Mover'
     setGestoComPin({ tipo: 'soltar', card, etapaId, acao, rotulo })
   }
 
@@ -416,6 +428,17 @@ export function TelaSetor() {
 
       {/* SESSAO-31: a janela do card no tablet — só para ver, sem dado de cliente (D-28). */}
       <JanelaDoCardNaUrl modo="tablet" />
+
+      <ModalMotivoPausa
+        key={parando ? `parar-${parando.card.id}` : 'parar-fechado'}
+        modo="parar"
+        card={parando?.card ?? null}
+        etapaId={parando?.acao.etapa.id}
+        etapaNome={parando?.acao.etapa.nome}
+        operadorId={parando?.operadorId}
+        tamanho="galpao"
+        aoFechar={() => setParando(null)}
+      />
 
       <ModalConcluirAvulso
         key={concluindoAvulso?.card.id ?? 'concluir-fechado'}

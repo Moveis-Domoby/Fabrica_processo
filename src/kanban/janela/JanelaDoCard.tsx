@@ -28,6 +28,9 @@ import { textoDoValorCampo } from '@/utilitarios/tipos'
 import { definirEtiquetaDoCard, definirResponsavel, editarCard } from '../avulso'
 import type { PessoaMini } from '../avulso'
 import { ModalConcluirAvulso } from '../componentes/ModalConcluirAvulso'
+import { ModalMotivoPausa } from '../componentes/ModalMotivoPausa'
+import { retomarCard } from '../pausa'
+import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { HistoricoDoCard } from '../componentes/ModalLinhaTempo'
 import { SeletorEtiquetas, SeletorPessoas } from '../lancamento/Seletores'
 import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
@@ -49,7 +52,8 @@ function hojeIso(agora: number): string {
  * anexos só no clique; fechar esquece o que era pesado (D-89).
  *
  * No tablet (`modo="tablet"`) é só para ver e sem dado de cliente (D-28) —
- * mudar o card é pelo computador ou pelo celular (decisão provisória).
+ * mudar o card é pelo computador ou pelo celular (decisão provisória); a
+ * exceção é Pausar/Retomar (§4), que pedem o PIN de quem age.
  */
 export function JanelaDoCard({
   cardId,
@@ -117,6 +121,9 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   const pessoas = dados.pessoas
   const [verHistorico, setVerHistorico] = useState(false)
   const [concluindo, setConcluindo] = useState(false)
+  // SESSAO-31 (§4): Pausar (com o motivo) / Retomar. No tablet, o PIN antes.
+  const [pausando, setPausando] = useState<{ operadorId?: string } | null>(null)
+  const [pinPara, setPinPara] = useState<'pausar' | 'retomar' | null>(null)
 
   const releituras = async () => {
     await Promise.all([
@@ -175,6 +182,26 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   // ---- estado e tempo ------------------------------------------------------
   const executor = card.executor_atual_id ? pessoas[card.executor_atual_id]?.nome : null
   const pausado = card.executor_atual_id !== null && card.pausado_em !== null
+  const motivo = card.pausa_motivo ?? null
+  // No tablet a conta é do dispositivo: o botão aparece pelo estado e o banco
+  // decide com o PIN (o próprio executor, o líder, o admin).
+  const vivo = !dados.arquivado_em
+  const podePausar = tablet
+    ? vivo && card.executor_atual_id !== null && !pausado
+    : permissoes.pausar
+  const podeRetomar = tablet ? vivo && pausado : permissoes.retomar
+  const retomar = useMutation({
+    mutationFn: (operadorId?: string) => retomarCard({ cardId: card.id, operadorId }),
+    onSuccess: async () => {
+      notificar({ titulo: 'Retomado — o tempo voltou a contar', tom: 'perfeito' })
+      await Promise.all([
+        releituras(),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
+      ])
+    },
+    onError: falhou('Não deu para retomar'),
+  })
   const hoje = hojeIso(agora)
   const atrasado = card.vence_em != null && card.vence_em < hoje && !dados.arquivado_em
   const ondeEsta = dados.arquivado_em
@@ -197,17 +224,39 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
               Ajuste · vai para {ROTULO_DESTINO_FINAL[card.ajuste_destino].toLowerCase()}
             </span>
           )}
-          {permissoes.concluir && !tablet && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<CircleCheckBig />}
-              className="ml-auto"
-              onClick={() => setConcluindo(true)}
-            >
-              Concluir
-            </Botao>
-          )}
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            {podePausar && (
+              <Botao
+                variante="secundaria"
+                tamanho={tablet ? 'lg' : 'sm'}
+                icone={<Pause />}
+                onClick={() => (tablet ? setPinPara('pausar') : setPausando({}))}
+              >
+                Pausar
+              </Botao>
+            )}
+            {podeRetomar && (
+              <Botao
+                variante="secundaria"
+                tamanho={tablet ? 'lg' : 'sm'}
+                icone={<Play />}
+                carregando={retomar.isPending}
+                onClick={() => (tablet ? setPinPara('retomar') : retomar.mutate(undefined))}
+              >
+                Retomar
+              </Botao>
+            )}
+            {permissoes.concluir && !tablet && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<CircleCheckBig />}
+                onClick={() => setConcluindo(true)}
+              >
+                Concluir
+              </Botao>
+            )}
+          </span>
         </div>
         {editandoNome ? (
           <form
@@ -259,9 +308,12 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         {/* O estado: na fila, em execução por quem, pausado (ícone + texto — M-12). */}
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-texto-suave tabular-nums">
           {pausado ? (
-            <span className="inline-flex items-center gap-1 font-medium text-atencao-texto">
-              <Pause aria-hidden className="size-4" />
-              Pausado há {formatarDuracao(card.pausado_em, agora)} · {executor ?? '…'}
+            <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
+              <Pause aria-hidden className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">
+                Pausado{motivo ? ` · ${motivo}` : ''} · há {formatarDuracao(card.pausado_em, agora)}{' '}
+                · {executor ?? '…'}
+              </span>
             </span>
           ) : executor ? (
             <span className="inline-flex items-center gap-1 text-texto">
@@ -269,8 +321,16 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
               Em execução por {executor} há{' '}
               {formatarDuracao(dados.execucao?.iniciou_em ?? card.desde, agora)}
             </span>
+          ) : motivo && vivo ? (
+            // SESSAO-31 (§4): solto no PARADO com o motivo.
+            <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
+              <Pause aria-hidden className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">
+                Parado · {motivo} · há {formatarDuracao(card.desde, agora)}
+              </span>
+            </span>
           ) : (
-            !dados.arquivado_em && (
+            vivo && (
               <span className="inline-flex items-center gap-1">
                 <Clock aria-hidden className="size-4" />
                 Esperando há {formatarDuracao(card.desde, agora)}
@@ -483,9 +543,34 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
 
       {tablet && (
         <p className={cn('rounded-dm bg-superficie-sutil px-3 py-2 text-xs text-texto-suave')}>
-          No tablet a janela é só para ver. Para mudar o card, anexar ou conversar, use o computador
-          ou o celular.
+          No tablet a janela é só para ver (pausar e retomar pedem o seu PIN). Para mudar o card,
+          anexar ou conversar, use o computador ou o celular.
         </p>
+      )}
+
+      <ModalMotivoPausa
+        key={pausando ? 'pausar-aberto' : 'pausar-fechado'}
+        modo="pausar"
+        card={pausando ? card : null}
+        operadorId={pausando?.operadorId}
+        tamanho={tablet ? 'galpao' : 'padrao'}
+        aoFechar={() => setPausando(null)}
+      />
+
+      {tablet && card.setor_atual_id !== null && (
+        <ModalPinOperador
+          acao={
+            pinPara === 'pausar' ? 'Pausar o card' : pinPara === 'retomar' ? 'Retomar o card' : null
+          }
+          setorId={card.setor_atual_id}
+          aoFechar={() => setPinPara(null)}
+          aoIdentificado={(operador) => {
+            const gesto = pinPara
+            setPinPara(null)
+            if (gesto === 'pausar') setPausando({ operadorId: operador.usuario_id })
+            if (gesto === 'retomar') retomar.mutate(operador.usuario_id)
+          }}
+        />
       )}
 
       <ModalConcluirAvulso

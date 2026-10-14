@@ -44,6 +44,11 @@ export interface Etapa {
    * LIMPEZA E EMBALAGEM) — Pedidos em aguardo ou ESTOQUE, o banco decide.
    */
   conclui_producao: boolean
+  /**
+   * SESSAO-31 (§4): soltar aqui um card em EXECUÇÃO pede o motivo da parada
+   * (o PARADO). O tempo fecha como antes; o motivo fica na frente do card.
+   */
+  pede_motivo: boolean
 }
 
 /**
@@ -115,6 +120,11 @@ export interface Card {
   /** D-130: a peça em AJUSTE e o destino final escolhido pelo PCP. */
   ajuste_destino?: 'estoque' | 'pedido' | 'terceirizado' | 'loja' | 'danificados' | null
   criado_por_id?: string | null
+  /**
+   * SESSAO-31 (§4): o motivo da pausa (execução pausada) ou da parada (solto
+   * na etapa que pede o motivo) — projeção do banco; some ao retomar.
+   */
+  pausa_motivo?: string | null
 }
 
 /**

@@ -10,6 +10,7 @@ function etapa(parcial: Partial<Etapa> & Pick<Etapa, 'id' | 'nome' | 'ordem'>): 
     ativa: true,
     setor_destino_id: null,
     conclui_producao: false,
+    pede_motivo: false,
     ...parcial,
   }
 }
@@ -18,7 +19,7 @@ function etapa(parcial: Partial<Etapa> & Pick<Etapa, 'id' | 'nome' | 'ordem'>): 
 const MONTAGEM: Etapa[] = [
   etapa({ id: 29, nome: 'A MONTAR', ordem: 10, eh_fila: true }),
   etapa({ id: 28, nome: 'MONTANDO', ordem: 20 }),
-  etapa({ id: 27, nome: 'PARADO', ordem: 30 }),
+  etapa({ id: 27, nome: 'PARADO', ordem: 30, pede_motivo: true }),
   etapa({ id: 26, nome: 'LIMPEZA E EMBALAGEM', ordem: 40, setor_destino_id: 7 }),
   etapa({ id: 25, nome: 'CONCLUÍDO', ordem: 50, setor_destino_id: 7 }),
   etapa({ id: 47, nome: 'DANIFICADO', ordem: 9999, eh_danificado: true }),
@@ -73,6 +74,38 @@ describe('acaoAoSoltar', () => {
     expect(soltar(27)).toEqual({ tipo: 'mover' })
     expect(soltar(29)).toEqual({ tipo: 'mover' })
     expect(soltar(null)).toEqual({ tipo: 'mover' })
+  })
+
+  it('o card em execução solto no PARADO pergunta o motivo; parado sem execução é só mover (§4)', () => {
+    const executando = { tipo: 'unidade' as const, executor_atual_id: 'u1', etapa_atual_id: 28 }
+    expect(
+      acaoAoSoltar({ setor: PRODUCAO, etapas: MONTAGEM, card: executando, etapaDestinoId: 27 }),
+    ).toMatchObject({ tipo: 'parar', etapa: { id: 27 } })
+    expect(
+      acaoAoSoltar({
+        setor: PRODUCAO,
+        etapas: MONTAGEM,
+        card: { tipo: 'avulso', executor_atual_id: 'u1', etapa_atual_id: 28 },
+        etapaDestinoId: 27,
+      }),
+    ).toMatchObject({ tipo: 'parar' })
+    // já está no PARADO (o mesmo lugar) ou ninguém executa: só mover
+    expect(
+      acaoAoSoltar({
+        setor: PRODUCAO,
+        etapas: MONTAGEM,
+        card: { ...executando, etapa_atual_id: 27 },
+        etapaDestinoId: 27,
+      }),
+    ).toEqual({ tipo: 'mover' })
+    expect(
+      acaoAoSoltar({
+        setor: PRODUCAO,
+        etapas: MONTAGEM,
+        card: { tipo: 'unidade', executor_atual_id: null },
+        etapaDestinoId: 27,
+      }),
+    ).toEqual({ tipo: 'mover' })
   })
 
   it('soltar a peça na EXPEDIÇÃO conclui; o card que não é peça só se move (D-127)', () => {

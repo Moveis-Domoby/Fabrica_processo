@@ -690,6 +690,13 @@ const LISTAS_MOTIVO: { tipo: TipoMotivo; titulo: string; explica: string }[] = [
     titulo: 'Pedido devolvido',
     explica: 'A logística escolhe um destes ao marcar o pedido como devolvido.',
   },
+  {
+    // SESSAO-31 (§4): pausar um card em execução — e parar na etapa que pede o motivo.
+    tipo: 'pausa',
+    titulo: 'Motivos de pausa',
+    explica:
+      'Escolhido ao pausar um card em execução ou ao soltá-lo numa etapa de parada (além de "Outro", escrito).',
+  },
 ]
 
 function PainelMotivos() {
