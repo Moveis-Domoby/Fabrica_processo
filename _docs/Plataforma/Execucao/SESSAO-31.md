@@ -58,9 +58,9 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - [x] D6 · Quadro do setor e tablet em 1 requisição (porta do quadro: 1ª página de todas as colunas; "Ver mais" por cursor), canal privado por setor (payload mínimo, aplicado no cache), recuperação ao reconectar; zero relógio e zero `postgres_changes` no quadro e no tablet; índice das colunas; RLS dos cards com `(select …)`
 
 **Etapa E — janela do card + anexos + histórico (§3)**
-- [ ] E1 · Janela para todo card (quadro, PCP, tablet, Meu Painel, sino), link `?card=`, ESC, celular em tela cheia; 1 requisição ao abrir; histórico e anexos só no clique; canal do card só aberto; pedaço próprio do pacote
-- [ ] E2 · Propriedades editáveis (quem pode — D-125), descrição, tempo, histórico (o `ModalLinhaTempo` vira seção; estorno mantido)
-- [ ] E3 · Anexos: imagem, PDF, áudio (arquivo e gravação), câmera, arrastar; 25 MB; áudio 5 min; miniatura; remoção por evento (arquivo guardado, admin vê); quem vê = quem vê o card
+- [x] E1 · Janela para todo card (quadro, PCP, tablet, Meu Painel, sino), link `?card=`, ESC, celular em tela cheia; 1 requisição ao abrir; histórico e anexos só no clique; canal do card só aberto; pedaço próprio do pacote
+- [x] E2 · Propriedades editáveis (quem pode — D-125), descrição, tempo, histórico (o `ModalLinhaTempo` vira seção; estorno mantido)
+- [x] E3 · Anexos: imagem, PDF, áudio (arquivo e gravação), câmera, arrastar; 25 MB; áudio 5 min; miniatura; remoção por evento (arquivo guardado, admin vê); quem vê = quem vê o card
 
 **Etapa F — conversa + menções + sino ao vivo + editar/apagar (§3, D-131)**
 - [ ] F1 · Conversa do card (a história do card: mensagem = fato do card), "Só conversa | Tudo", 10 por página por cursor, canal do card, otimista e idempotente
@@ -122,3 +122,12 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - **Harness:** blocos **69** (28) e **70** (7); E-19 em duas antigas (os checks do tipo); 3 testes de tela novos/ajustados. **943 verdes.** Tela: tsc, lint, 158 testes, build. Pacote: 1.906,1 kB / 519,4 kB gz (antes da etapa D: 1.894,6 / 516,2).
 - **Banco real:** ensaio desfeito (69 + 70: 0,9 s + 0,1 s; checks validados; criar → quadro → aviso do setor → lista → concluir; **800 avulsos num setor**: quadro **6,5 ms**, Ver mais 4,2 ms, lista 7,7 ms, busca na lista 8,7 ms, busca de peça para ajuste 45 ms, de pedido 21 ms) → **69 e 70 aplicadas** (`--so`, integração idêntica).
 - **Publicado:** `main` = ad1669d.
+
+### 14/10 · Etapa E — janela do card e anexos (no ar ~03:05 Natal)
+
+- **Decisões técnicas (Claude):** a janela vive no **endereço** (`?card=<id>`) e é desenhada por um componente só, montado na casca e no tablet — qualquer tela abre um card pondo o parâmetro (quadro, PCP → Lançamento manual, sino). Abrir = **1 requisição** (`plt_fn_card_janela`: o card como o quadro, setor · etapa, execução aberta, pessoas, pedido, campos que valem com os valores, etiquetas, permissões); histórico e anexos **só no clique**; a janela e a conversa são **pedaços próprios** do pacote (22,0 kB / 7,0 kB gz). O histórico de sempre virou seção (`HistoricoDoCard`) — o modal antigo continua para o botão do card. Clicar ≠ arrastar: o clique que o navegador dispara no fim do arrasto é ignorado (300 ms); pelo teclado, **Enter abre** e **Espaço pega** para arrastar.
+- **Anexos (D-125 resp. 8):** a base da SESSAO-30 estendida — 25 MB, tipo áudio (com duração, até 5 min), quem vê o card anexa e lê (o entregador segue pela equipe da rota), **remover = fato** `anexo_removido` (some para todos; o admin ainda vê, com quem tirou, inclusive o arquivo no armário). Envio: botão, arrastar e soltar, câmera, **gravar áudio** (o formato do aparelho: webm no Chrome, mp4 no Safari — o tipo vai sem parâmetros). Links de vida curta de todos os anexos mostrados **numa chamada só**.
+- **Decisão provisória:** no **tablet** a janela é só para ver e sem dado de cliente (D-28) — mudar, anexar e conversar pelo computador ou pelo celular (o PIN por gesto dentro da janela fica para depois; as portas de anexo já aceitam o operador do PIN).
+- **Harness:** **bloco 71** (10 verificações) + 2 testes antigos do anexo revistos (o teto passou a 25 MB). **953 verdes.** Tela: tsc, lint, 158 testes, build; JS principal 1.909,6 kB / 520,7 kB gz.
+- **Banco real:** ensaio desfeito (0,6 s; armário com 25 MB e os tipos de áudio; as regras do armário novas; janela do card do pedido e de uma peça certas) — janela **2,1 ms**, histórico 25,6 ms, anexos 1,1 ms → **71 aplicada**.
+- **Publicado:** `main` = e8ecc94.
