@@ -63,11 +63,11 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - [x] E3 · Anexos: imagem, PDF, áudio (arquivo e gravação), câmera, arrastar; 25 MB; áudio 5 min; miniatura; remoção por evento (arquivo guardado, admin vê); quem vê = quem vê o card
 
 **Etapa F — conversa + menções + sino ao vivo + editar/apagar (§3, D-131)**
-- [ ] F1 · Conversa do card (a história do card: mensagem = fato do card), "Só conversa | Tudo", 10 por página por cursor, canal do card, otimista e idempotente
-- [ ] F2 · @menção (busca com espera, ≥ 2 letras): aviso no sino + cartão "mencionou você" na particular (tipo novo de mensagem, como o aniversário) com "Abrir card"; mencionar a si mesmo não avisa; mencionado passa a ver o card
-- [ ] F3 · Responsável adicionado recebe aviso no sino
-- [ ] F4 · Sino sem relógio: aviso novo pelo canal pessoal, aplicado no cache; clicar abre o destino
-- [ ] F5 · Editar/apagar mensagem no card e no chat (D-131)
+- [x] F1 · Conversa do card (a história do card: mensagem = fato do card), "Só conversa | Tudo", 10 por página por cursor, canal do card, otimista e idempotente
+- [x] F2 · @menção (busca com espera, ≥ 2 letras): aviso no sino + cartão "mencionou você" na particular (tipo novo de mensagem, como o aniversário) com "Abrir card"; mencionar a si mesmo não avisa; mencionado passa a ver o card
+- [x] F3 · Responsável adicionado recebe aviso no sino
+- [x] F4 · Sino sem relógio: aviso novo pelo canal pessoal, aplicado no cache; clicar abre o destino
+- [x] F5 · Editar/apagar mensagem no card e no chat (D-131)
 
 **Etapa G — pausa com motivo (§4)**
 - [ ] G1 · Motivos de pausa em Utilitários (lista + "Outro"); arrastar para PARADO um card em execução pede o motivo; Pausar/Retomar na janela; quem pausa (D-125); motivo na frente e no histórico; regras da D-48 intactas
@@ -131,3 +131,14 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - **Harness:** **bloco 71** (10 verificações) + 2 testes antigos do anexo revistos (o teto passou a 25 MB). **953 verdes.** Tela: tsc, lint, 158 testes, build; JS principal 1.909,6 kB / 520,7 kB gz.
 - **Banco real:** ensaio desfeito (0,6 s; armário com 25 MB e os tipos de áudio; as regras do armário novas; janela do card do pedido e de uma peça certas) — janela **2,1 ms**, histórico 25,6 ms, anexos 1,1 ms → **71 aplicada**.
 - **Publicado:** `main` = e8ecc94.
+
+### 14/10 · Etapa F — conversa do card, menções, sino ao vivo, editar/apagar (no ar ~03:20 Natal)
+
+- **Decisões técnicas (Claude):** a mensagem do card é **fato do card** (`comentario_adicionado` — reaproveita o da SESSAO-30); editar e apagar são fatos novos com a referência (`comentario_editado` / `comentario_apagado`); a leitura vem de uma **projeção** (`plt_card_mensagens`), por cursor, 10 por página; o canal privado **`plt-card:{id}`** (só quem vê o card) empurra a mensagem nova e a mudada — a janela assina **antes** de ler e aplica no cache (nada se relê); sai ao fechar. No filtro **"Tudo"**, os fatos do card entram na mesma linha (em língua de gente). A conversa não entra mais na linha do tempo (ela tem porta própria).
+- **@menção:** a lista de pessoas busca no servidor (espera 300 ms, 2 letras); quem foi mencionado recebe o **aviso no sino** e o **cartão "📌 mencionou você no card"** na conversa **particular** dos dois (nasce se não existir; para quem mencionou, já nasce lido) com **"Abrir card"**; mencionar a si mesmo não avisa; o mencionado passa a ver o card (participantes).
+- **Editar/apagar (D-131):** cada um só a própria (decisão provisória da D-131), no card e **no chat**. No chat a mensagem continua só-inserção para tudo que não for a porta (a guarda aceita só a mudança de texto/editada/apagada pela marca da porta); cada versão anterior fica em `plt_chat_versoes`. Para todos: "editada" / "Mensagem apagada"; o admin vê o texto apagado e as versões **só nas conversas de que participa** (a particular dos outros segue fechada — provado no harness).
+- **Sino ao vivo (Lei §4):** aviso novo → sinal `aviso` no canal da pessoa (o mesmo do chat) → entra no cache; o relógio de 30 s saiu; assina antes de ler; ao reconectar, uma releitura.
+- **Pendência registrada:** a prévia da conversa na lista do chat (e os 5 últimos comentários na tela do entregador) ainda mostram o texto de antes de apagar/editar até a próxima mensagem — a mensagem em si já aparece certa.
+- **Harness:** **bloco 72** (10 verificações) + 2 testes antigos do chat revistos (mensagem só muda pela porta). **963 verdes.** Tela: tsc, lint, **161 testes** (3 novos: conversa e chat no cache), build — a conversa é pedaço próprio (12,5 kB / 4,5 kB gz); o build passou a separar o Supabase num pedaço (o primeiro carregamento continua ~1.925 kB / ~527 kB gz no total).
+- **Banco real:** ensaio desfeito (0,5 s; menção → 1 aviso, 1 cartão, os dois ao vivo; 300 mensagens: conversa 20 ms, "Tudo" 3 ms; editar/apagar: o admin vê o texto e 1 versão; chat 6 ms) → **72 aplicada**.
+- **Publicado:** `main` = b944aa8.
