@@ -204,6 +204,11 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Primeira abertura das telas tocadas:** "Entregas do dia" = 1 requisição; janela de liberação = 1; Estoque abre com 3 (configuração, situação da reposição, lista) e o PCP com várias (setores, página do quadro, pedidos, etiquetas, campos) — dívida 15, a porta de abertura de cada tela é da 32.
 - **Advisors (08/10, depois da 62):** nenhum item de tipo novo; a chave sem índice criada na 60 foi corrigida na 62 (as 33 FKs antigas seguem — #8).
 
+**Andamento (SESSAO-31, 14/10):**
+- **#1 relógios e #2 `postgres_changes` — pagos no quadro do setor e no tablet:** o quadro abre com **1 requisição** (`plt_fn_quadro_setor` — antes 1 por coluna + Chegada + execuções + pedidos + pessoas + campos, cada uma relida a cada 20 s) e fica ao vivo pelo canal privado `plt-aviso:setor_{id}` (um aviso por setor por transação; 1 releitura; recuperação ao reconectar). O tablet deixou de escutar a tabela de cards inteira. "Ver mais" = 1 requisição por cursor. No banco real, com 800 cards num setor: quadro 6,5 ms, Ver mais 4,2 ms. Seguem com relógio (32): sino (sai na etapa F desta sessão), bolinha de execução, Meu Painel, Afazeres, Visão do dia, Expedição, Danificados, Painel admin.
+- **#7 RLS dos cards:** `plt_cards_leitura` reescrita com as funções de sessão em `(select …)` (a permissão no token segue para a 32).
+- **Pacote:** a aba Lançamento manual é pedaço próprio (20,0 kB / 5,7 kB gz); JS principal 1.894,6 → 1.906,1 kB (516,2 → 519,4 kB gz) com o quadro novo e a frente do card.
+
 | 13 | Portas do estoque montam a página a partir do catálogo inteiro (O(catálogo)) — ver o andamento acima | estoque | 32 |
 | ~~14~~ | ~~ROTAS → Entregas e "Já programadas" (entregues) por deslocamento~~ — ✔ paga pela D-120 (o entregue saiu da ROTAS; o histórico mora em "Todos os pedidos", por cursor) | ROTAS | 30 |
 | 15 | Estoque abre com 3 requisições e o PCP com várias — falta a porta de abertura de cada tela (Lei §2) | Estoque, PCP | 32 |
