@@ -70,7 +70,7 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - [x] F5 · Editar/apagar mensagem no card e no chat (D-131)
 
 **Etapa G — pausa com motivo (§4)**
-- [ ] G1 · Motivos de pausa em Utilitários (lista + "Outro"); arrastar para PARADO um card em execução pede o motivo; Pausar/Retomar na janela; quem pausa (D-125); motivo na frente e no histórico; regras da D-48 intactas
+- [x] G1 · Motivos de pausa em Utilitários (lista + "Outro"); arrastar para PARADO um card em execução pede o motivo; Pausar/Retomar na janela; quem pausa (D-125); motivo na frente e no histórico; regras da D-48 intactas
 
 **Fechamento**
 - [ ] H1 · Checklist final: `npm run test:banco` 2×, `npx tsc -b`, lint, testes, build, 375/768 px, advisors (segurança e desempenho), `pg_stat_statements`, checklist da lei (§12) com pacote antes/depois, critérios de aceite um a um
@@ -142,3 +142,10 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - **Harness:** **bloco 72** (10 verificações) + 2 testes antigos do chat revistos (mensagem só muda pela porta). **963 verdes.** Tela: tsc, lint, **161 testes** (3 novos: conversa e chat no cache), build — a conversa é pedaço próprio (12,5 kB / 4,5 kB gz); o build passou a separar o Supabase num pedaço (o primeiro carregamento continua ~1.925 kB / ~527 kB gz no total).
 - **Banco real:** ensaio desfeito (0,5 s; menção → 1 aviso, 1 cartão, os dois ao vivo; 300 mensagens: conversa 20 ms, "Tudo" 3 ms; editar/apagar: o admin vê o texto e 1 versão; chat 6 ms) → **72 aplicada**.
 - **Publicado:** `main` = b944aa8.
+
+### 14/10 · Etapa G — pausa com motivo (no ar ~03:45 Natal)
+
+- **Decisões técnicas (Claude):** a etapa ganha a marca **"pede o motivo"** (`plt_etapas.pede_motivo`) — nasce ligada só no **PARADO dos setores de produção** (hoje: MONTAGEM; o ensaio mostrou que o PCP também tinha um PARADO, e lá ninguém executa — ficou de fora) e o admin liga/desliga em Setores e etapas ("Parar aqui pede o motivo"). O motivo é **projetado no card** (`plt_cards.pausa_motivo`) pelos fatos: pausa → motivo; retomar, iniciar, arquivar ou mudar de lugar sem motivo → some. Portas: `plt_fn_card_pausar` (o toque repetido não pausa de novo), `plt_fn_card_retomar`, `plt_fn_card_parar` (o card em execução solto na etapa de parada: o tempo fecha como sempre — D-59 — com o motivo no fato). A trava de quem pausa (`fn_validar_execucao`) aceita agora **o próprio executor** (D-125 resp. 9), além de líder e admin.
+- **Tela:** soltar no PARADO um card **em execução** abre "Por que parar?" (lista + "Outro"; no tablet, PIN antes e botões grandes); a janela do card tem **Pausar / Retomar** (pelas permissões que a própria janela traz; **no tablet, com PIN** — exceção à janela "só para ver"); a frente: **"Pausado · motivo · há X"** e **"Parado · motivo · há X"**; Utilitários → Motivos ganhou **"Motivos de pausa"** (cache longo, relê quando a lista muda); o histórico já mostrava a observação do fato — o motivo aparece lá.
+- **Harness:** **bloco 73** (7 verificações) + o teste antigo da pausa revisto (o próprio executor pausa). **970 verdes.** Tela: tsc, lint, **162 testes** (1 novo: o arrasto para o PARADO), build (a janela 23,7 kB; o principal + Supabase ≈ 1.919 kB).
+- **Banco real:** ensaio desfeito (pausar com motivo → na frente; retomar; parar no PARADO → tempo fechado, motivo no card; quadro da MONTAGEM 4,9 ms; janela 3,4 ms) → **73 aplicada**; conferido depois: só MONTAGEM · PARADO pede o motivo; anônimo fora.
