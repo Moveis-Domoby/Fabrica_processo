@@ -10651,9 +10651,10 @@ const com = (await um60(`select public.plt_fn_card_comentar(${pcX}, 'Portão azu
 const anexo = (await um60(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/abc-comprovante.jpg', 'comprovante.jpg', 'image/jpeg', 120000) as id`)).id
 const anexoDeNovo = (await um60(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/abc-comprovante.jpg', 'comprovante.jpg', 'image/jpeg', 120000) as id`)).id
 await deveRecusarExec(`select public.plt_fn_anexo_registrar(${pcX}, '${pcY}/x.pdf', 'x.pdf', 'application/pdf', 1000)`,
-  'o arquivo precisa ser do mesmo pedido', /não é deste pedido/i)
-await deveRecusarExec(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/grande.pdf', 'grande.pdf', 'application/pdf', 20000000)`,
-  'arquivo acima de 10 MB é recusado', /10 MB/i)
+  'o arquivo precisa ser do mesmo pedido', /não é deste (pedido|card)/i)
+// ↩️ SESSAO-31 (D-125 resp. 8): o teto passou a 25 MB.
+await deveRecusarExec(`select public.plt_fn_anexo_registrar(${pcX}, '${pcX}/grande.pdf', 'grande.pdf', 'application/pdf', 30000000)`,
+  'arquivo acima de 25 MB é recusado', /25 MB/i)
 const entX = (await um60(`select public.plt_fn_registrar_entrega(${pcX}, 'entregue ao porteiro') as e`)).e
 const entX2 = (await um60(`select public.plt_fn_registrar_entrega(${pcX}, 'entregue ao porteiro') as e`)).e
 const depois = (await um60(`select public.plt_fn_entregas_do_dia() as j`)).j
@@ -12028,6 +12029,121 @@ const priv70 = await um70(`
          has_function_privilege('authenticated', 'plt_privado.fn_quadro_cards(bigint[])', 'execute') as maquina`)
 conferir(!priv70.anon_q && priv70.logado_c && !priv70.maquina, 'anônimo fora; a maquinaria fora da API', JSON.stringify(priv70))
 } // fim do bloco 70
+
+// ============================================================================
+// SESSAO-31 · etapa E (migration 71 — §3 · D-125): a janela do card numa
+// requisição; anexos (imagem, PDF, áudio) para quem vê o card; remover guarda.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · a janela do card e os anexos: quem vê o card anexa; o removido some, mas fica para o admin')
+
+const um71 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos71 = async (sql, p) => (await bd.query(sql, p)).rows
+const como71 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const OP = '00000000-0000-0000-0000-000000000711'
+const RESP = '00000000-0000-0000-0000-000000000712'
+const FORA = '00000000-0000-0000-0000-000000000713'
+const OP2 = '00000000-0000-0000-0000-000000000714'
+await como71('')
+await bd.exec(`
+  insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+    ('jn71a', 'JN71 CORTE', 'producao', 991), ('jn71b', 'JN71 OUTRO', 'producao', 992);
+  update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo like 'jn71%';
+`)
+const A = (await um71(`select id::int as id from public.plt_setores where codigo = 'jn71a'`)).id
+const B = (await um71(`select id::int as id from public.plt_setores where codigo = 'jn71b'`)).id
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${A}, 'A FAZER', 10, true), (${A}, 'FAZENDO', 20, false),
+    (${B}, 'A FAZER', 10, true);
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Operador 71', 'op71@teste.com', '71717171711', 'op.71', 'operador', '${OP}', array['fabrica']),
+    ('Responsável 71', 'resp71@teste.com', '71717171712', 'resp.71', 'operador', '${RESP}', array['fabrica']),
+    ('Fora 71', 'fora71@teste.com', '71717171713', 'fora.71', 'operador', '${FORA}', array['fabrica']),
+    ('Colega 71', 'col71@teste.com', '71717171714', 'col.71', 'operador', '${OP2}', array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'op.71'), ${A}),
+    ((select id from public.plt_usuarios where usuario = 'col.71'), ${A}),
+    ((select id from public.plt_usuarios where usuario = 'resp.71'), ${B}),
+    ((select id from public.plt_usuarios where usuario = 'fora.71'), ${B});
+`)
+const idDe = async (u) => (await um71(`select id from public.plt_usuarios where usuario = '${u}'`)).id
+const [op, resp] = [await idDe('op.71'), await idDe('resp.71')]
+await como71(E40.admin)
+const campo71 = (await um71(`select public.plt_fn_campo_salvar(null, 'Ferramenta 71', 'texto', null, false, false, true) as id`)).id
+await como71(E40.logistica)
+const card = (await um71(`select (public.plt_fn_avulso_criar('Regular a plaina', 'Ver o nível', null, '2026-11-20',
+                             array['${resp}']::uuid[], null, null, null, ${A}) ->> 'card_id')::int as id`)).id
+
+// 1 · anexos: o operador do setor anexa (antes só a logística); 25 MB; áudio até 5 min
+await como71(OP)
+const img = (await um71(`select public.plt_fn_anexo_registrar(${card}, '${card}/a-foto.jpg', 'foto.jpg', 'image/jpeg', 2000000) as id`)).id
+const aud = (await um71(`select public.plt_fn_anexo_registrar(${card}, '${card}/b-audio.webm', 'audio.webm', 'audio/webm', 900000, null, 120) as id`)).id
+const pdf = (await um71(`select public.plt_fn_anexo_registrar(${card}, '${card}/c-planta.pdf', 'planta.pdf', 'application/pdf', 20000000) as id`)).id
+await deveRecusarExec(`select public.plt_fn_anexo_registrar(${card}, '${card}/d-grande.pdf', 'grande.pdf', 'application/pdf', 30000000)`,
+  'arquivo acima de 25 MB é recusado', /25 MB/i)
+await deveRecusarExec(`select public.plt_fn_anexo_registrar(${card}, '${card}/e-longo.webm', 'longo.webm', 'audio/webm', 900000, null, 301)`,
+  'áudio acima de 5 minutos é recusado', /5 minutos/i)
+const tipos = await todos71(`select tipo, duracao_s from public.plt_anexos where card_id = ${card} order by id`)
+const qtd1 = (await um71(`select anexos_qtd from public.plt_cards where id = ${card}`)).anexos_qtd
+await como71(FORA)
+await deveRecusarExec(`select public.plt_fn_anexo_registrar(${card}, '${card}/f.jpg', 'f.jpg', 'image/jpeg', 1000)`,
+  'quem não vê o card não anexa', /quem vê o card/i)
+const lista0 = (await um71(`select count(*)::int as n from public.plt_fn_anexos(${card})`)).n
+conferir(JSON.stringify(tipos.map((x) => x.tipo)) === JSON.stringify(['foto', 'audio', 'documento']) && tipos[1].duracao_s === 120
+    && qtd1 === 3 && lista0 === 0,
+  'o operador do setor anexa foto, áudio (com a duração) e PDF de 19 MB; o contador do card sobe; quem é de fora não vê nem anexa',
+  JSON.stringify({ tipos, qtd1, lista0 }))
+
+// 2 · remover: quem enviou, quem edita, admin; some para todos, o admin vê (e lê no armário)
+await como71(RESP)
+const tirou = (await um71(`select public.plt_fn_anexo_remover(${aud}) as r`)).r
+const tirouDeNovo = (await um71(`select public.plt_fn_anexo_remover(${aud}) as r`)).r
+const listaResp = await todos71(`select id::int as id from public.plt_fn_anexos(${card}, true)`)
+const lerResp = (await um71(`select plt_privado.fn_pode_ler_anexo('${card}/b-audio.webm') as r, plt_privado.fn_pode_ler_anexo('${card}/a-foto.jpg') as f`))
+await como71(E40.admin)
+const listaAdm = await todos71(`select id::int as id, removido_em is not null as removido, removido_por_nome from public.plt_fn_anexos(${card}, true)`)
+const lerAdm = (await um71(`select plt_privado.fn_pode_ler_anexo('${card}/b-audio.webm') as r`)).r
+const qtd2 = (await um71(`select anexos_qtd from public.plt_cards where id = ${card}`)).anexos_qtd
+conferir(tirou === 'tirado' && tirouDeNovo === 'ja_estava' && listaResp.length === 2 && !listaResp.some((x) => x.id === aud)
+    && !lerResp.r && lerResp.f && listaAdm.length === 3 && listaAdm.some((x) => x.id === aud && x.removido && x.removido_por_nome === 'Responsável 71')
+    && lerAdm && qtd2 === 2,
+  'o responsável tira o áudio: some para todos (nem o arquivo se lê), o toque repetido não repete; o admin ainda vê e ouve, com quem tirou',
+  JSON.stringify({ tirou, listaResp, lerResp, listaAdm, lerAdm, qtd2 }))
+await como71(OP2)
+await deveRecusarExec(`select public.plt_fn_anexo_remover(${pdf}) as r`, 'o colega do setor (não enviou nem edita) não tira', /de quem enviou/i)
+
+// 3 · a janela numa requisição
+await como71(RESP)
+const j = (await um71(`select public.plt_fn_card_janela(${card}) as j`)).j
+await como71(OP)
+const jOp = (await um71(`select public.plt_fn_card_janela(${card}) as j`)).j
+await como71(FORA)
+await deveRecusarExec(`select public.plt_fn_card_janela(${card})`, 'quem não vê o card não abre a janela', /não vê este card/i)
+conferir(j.card.id === card && j.card.titulo === 'Regular a plaina' && j.setor.id === A && j.etapa.nome === 'A FAZER'
+    && j.pedido === null && j.permissoes.editar && j.permissoes.editar_nome && j.permissoes.concluir && !j.permissoes.ver_removidos
+    && j.campos.some((c) => c.id === Number(campo71)) && j.pessoas[resp]?.nome === 'Responsável 71'
+    && !jOp.permissoes.editar && jOp.permissoes.concluir && Array.isArray(j.etiquetas),
+  'a janela numa requisição: o card, onde está, as pessoas, os campos do avulso e o que cada um pode (o responsável edita; o operador só conclui)',
+  JSON.stringify({ perm: j.permissoes, permOp: jOp.permissoes, setor: j.setor, etapa: j.etapa }))
+
+// 4 · a linha do tempo abre para o participante e não mostra a conversa
+await como71(OP)
+await bd.exec(`select public.plt_fn_card_comentar(${card}, 'olá') `).catch(() => undefined)
+await como71(RESP)
+const lt = await todos71(`select tipo from public.plt_fn_linha_tempo_card(${card})`)
+conferir(lt.length > 0 && lt.some((x) => x.tipo === 'anexo_removido') && !lt.some((x) => x.tipo.startsWith('comentario')),
+  'o responsável (de outro setor) vê a história do card; a conversa não entra na linha do tempo', JSON.stringify(lt.map((x) => x.tipo)))
+
+// 5 · permissões
+await como71('')
+const priv71 = await um71(`
+  select has_function_privilege('anon', 'public.plt_fn_card_janela(bigint)', 'execute') as anon_j,
+         has_function_privilege('authenticated', 'public.plt_fn_anexo_remover(bigint, uuid)', 'execute') as logado_r,
+         to_regprocedure('public.plt_fn_anexo_registrar(bigint, text, text, text, integer, text)') is null as velha_saiu,
+         to_regprocedure('public.plt_fn_anexos(bigint)') is null as lista_velha_saiu`)
+conferir(!priv71.anon_j && priv71.logado_r && priv71.velha_saiu && priv71.lista_velha_saiu,
+  'anônimo fora; as portas antigas dos anexos saíram', JSON.stringify(priv71))
+} // fim do bloco 71
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

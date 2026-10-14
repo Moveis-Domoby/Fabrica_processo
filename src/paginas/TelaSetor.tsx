@@ -10,6 +10,8 @@ import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import type { AcaoAoSoltar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
+import { useAbrirCard } from '@/kanban/janela/abrirCard'
+import { JanelaDoCardNaUrl } from '@/kanban/janela/JanelaDoCardNaUrl'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
@@ -58,6 +60,7 @@ export function TelaSetor() {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora()
+  const abrirCard = useAbrirCard()
 
   const souAdmin = perfil?.papel === 'admin'
 
@@ -327,6 +330,7 @@ export function TelaSetor() {
             execucoesPorCard,
             nomesUsuarios,
             pessoas,
+            aoAbrirCard: (card) => abrirCard(card.id),
             // Tablet compartilhado: ninguém é "você" — o PIN diz quem agiu.
             meuUsuarioId: '',
             gestoPendente: mutacaoSoltar.isPending,
@@ -409,6 +413,9 @@ export function TelaSetor() {
           }
         }}
       />
+
+      {/* SESSAO-31: a janela do card no tablet — só para ver, sem dado de cliente (D-28). */}
+      <JanelaDoCardNaUrl modo="tablet" />
 
       <ModalConcluirAvulso
         key={concluindoAvulso?.card.id ?? 'concluir-fechado'}

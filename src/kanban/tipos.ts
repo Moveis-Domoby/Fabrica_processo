@@ -311,6 +311,19 @@ export interface EventoLinhaTempo {
     | 'etiqueta_adicionada'
     | 'etiqueta_removida'
     | 'card_desarquivado'
+    // SESSAO-30/31: entrega, devolução, ajuste e as propriedades do card.
+    | 'entrega_desfeita'
+    | 'entrega_nao_realizada'
+    | 'pedido_devolvido'
+    | 'devolucao_decidida'
+    | 'ajuste_aberto'
+    | 'ajuste_concluido'
+    | 'avulso_concluido'
+    | 'card_editado'
+    | 'responsavel_adicionado'
+    | 'responsavel_removido'
+    | 'anexo_adicionado'
+    | 'anexo_removido'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

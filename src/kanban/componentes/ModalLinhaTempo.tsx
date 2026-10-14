@@ -46,6 +46,19 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   etiqueta_adicionada: 'Etiqueta posta',
   etiqueta_removida: 'Etiqueta tirada',
   card_desarquivado: 'Trazido de volta',
+  // SESSAO-30/31: entrega, devolução, ajuste e as propriedades do card.
+  entrega_desfeita: 'Entrega desfeita',
+  entrega_nao_realizada: 'Não entregue',
+  pedido_devolvido: 'Pedido devolvido',
+  devolucao_decidida: 'Devolução decidida',
+  ajuste_aberto: 'Mandada para ajuste',
+  ajuste_concluido: 'Ajuste concluído',
+  avulso_concluido: 'Card concluído',
+  card_editado: 'Card editado',
+  responsavel_adicionado: 'Responsável posto',
+  responsavel_removido: 'Responsável tirado',
+  anexo_adicionado: 'Anexo posto',
+  anexo_removido: 'Anexo tirado',
 }
 
 function hora(iso: string): string {
@@ -58,12 +71,55 @@ function hora(iso: string): string {
 }
 
 /**
+ * A linha do tempo do card como janela própria (o histórico de sempre). ↪️
+ * SESSAO-31: o conteúdo é o <HistoricoDoCard>, que também mora dentro da
+ * janela do card.
+ */
+export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps) {
+  const kn =
+    card && card.indice_unidade !== null ? ` (${card.indice_unidade}/${card.total_unidades})` : ''
+  return (
+    <Modal
+      aberto={card !== null}
+      aoFechar={(aberto) => {
+        if (!aberto) aoFechar()
+      }}
+      titulo="Linha do tempo"
+      descricao={
+        card
+          ? `${card.tipo === 'avulso' ? (card.titulo ?? 'Card avulso') : (card.item_descricao ?? 'Card')}${kn} · ${rotuloOrigemCard(card, pedido)}`
+          : undefined
+      }
+      rodape={
+        <Botao variante="secundaria" tamanho="lg" onClick={aoFechar}>
+          Fechar
+        </Botao>
+      }
+    >
+      <HistoricoDoCard card={card} pedido={pedido} />
+    </Modal>
+  )
+}
+
+/**
  * A linha do tempo do card (SESSAO-05): cada etapa com fila, execução, total e
  * autores (D-02) — e a história crua embaixo, evento a evento, com estornados
  * riscados (histórico nunca some — RNF-05). O estorno é o gesto do líder do
- * setor ou do admin (D-24), sempre do último gesto para trás.
+ * setor ou do admin (D-24), sempre do último gesto para trás. Busca só quando
+ * aparece (na janela do card, no clique — Lei §3).
  */
-export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps) {
+export function HistoricoDoCard({
+  card,
+  pedido,
+  comCampos = true,
+  alturaLimitada = true,
+}: {
+  card: Card | null
+  pedido?: PedidoDoCard
+  /** Os campos customizados no topo (a janela do card mostra os dela). */
+  comCampos?: boolean
+  alturaLimitada?: boolean
+}) {
   const { perfil, vinculos } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -118,258 +174,239 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.'),
   })
 
-  const kn =
-    card && card.indice_unidade !== null ? ` (${card.indice_unidade}/${card.total_unidades})` : ''
-
   return (
-    <Modal
-      aberto={card !== null}
-      aoFechar={(aberto) => {
-        if (!aberto) aoFechar()
-      }}
-      titulo="Linha do tempo"
-      descricao={
-        card
-          ? `${card.item_descricao ?? 'Card'}${kn} · ${rotuloOrigemCard(card, pedido)}`
-          : undefined
-      }
-      rodape={
-        <Botao variante="secundaria" tamanho="lg" onClick={aoFechar}>
-          Fechar
-        </Botao>
-      }
+    <div
+      className={cn('flex flex-col gap-4', alturaLimitada && 'max-h-[60vh] overflow-y-auto pr-1')}
     >
-      <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
-        {isPending && <p className="text-sm text-texto-fraco">Carregando a história do card…</p>}
+      {isPending && <p className="text-sm text-texto-fraco">Carregando a história do card…</p>}
 
-        {/* D-48 (SESSAO-22): o tempo em PCP é do PEDIDO — da entrada até a
+      {/* D-48 (SESSAO-22): o tempo em PCP é do PEDIDO — da entrada até a
             liberação da última unidade. É o número verdadeiro, não o instante
             em que ESTA unidade nasceu e saiu. */}
-        {card?.tipo === 'unidade' && pedido?.entrou_pcp_em && (
-          <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto tabular-nums">
-            Pedido no PCP:{' '}
-            <strong>
-              {formatarDuracaoMs(
-                (pedido.liberado_completo_em
-                  ? new Date(pedido.liberado_completo_em).getTime()
-                  : agora) - new Date(pedido.entrou_pcp_em).getTime(),
-              )}
-            </strong>{' '}
-            <span className="text-texto-suave">
-              {pedido.liberado_completo_em
-                ? '— da entrada à liberação da última unidade.'
-                : '— ainda contando: o pedido tem unidade por liberar.'}
-            </span>
-          </p>
-        )}
-
-        {/* SESSAO-27 (D-101): os campos customizados — o admin preenche aqui. */}
-        {card && <CamposDoCard card={card} podeEditar={perfil?.papel === 'admin'} />}
-
-        {!isPending && segmentos.length === 0 && (
-          <p className="text-sm text-texto-suave">Este card ainda não tem movimentação.</p>
-        )}
-
-        {/* ------- O resumo que a demanda pede: etapa a etapa ------- */}
-        <ol className="flex flex-col gap-3">
-          {segmentos.map((s) => (
-            <li
-              key={s.eventoEntradaId}
-              className="rounded-dm border border-borda bg-superficie-sutil p-3"
-            >
-              <header className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm font-semibold text-texto">
-                  {s.setorNome}
-                  {s.etapaNome && <span className="text-texto-suave"> · {s.etapaNome}</span>}
-                  {s.ehFila && (
-                    <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
-                      fila
-                    </span>
-                  )}
-                </span>
-                <span className="text-xs text-texto-fraco tabular-nums">
-                  {hora(new Date(s.entrouEm).toISOString())}
-                  {s.saiuEm === null ? ' → agora' : ` → ${hora(new Date(s.saiuEm).toISOString())}`}
-                </span>
-              </header>
-
-              {/* SESSAO-06 (D-09): a dupla atestação desta chegada. */}
-              {s.qualidade && (
-                <div className="mt-2 flex flex-col gap-1 rounded-dm bg-superficie px-2 py-1.5 text-xs">
-                  <span className="flex flex-wrap items-center gap-1.5 text-texto">
-                    <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                    Entrega de {s.qualidade.setorRemetenteNome ?? 'setor anterior'}
-                    {s.qualidade.remetenteNome ? ` (${s.qualidade.remetenteNome})` : ''}:
-                    <BadgeEstado estado={s.qualidade.estadoRemetente} tamanho="sm" />
-                  </span>
-                  {s.qualidade.estadoRecebedor ? (
-                    <span className="flex flex-wrap items-center gap-1.5 text-texto">
-                      <span className="w-4 shrink-0" aria-hidden />
-                      Recebimento
-                      {s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
-                      <BadgeEstado estado={s.qualidade.estadoRecebedor} tamanho="sm" />
-                      {s.qualidade.divergente && (
-                        <span className="rounded-full bg-atencao-fundo px-2 py-0.5 font-medium text-atencao-texto">
-                          divergência — liderança avisada
-                        </span>
-                      )}
-                      {s.qualidade.observacaoRecebedor && (
-                        <span className="italic text-texto-suave">
-                          “{s.qualidade.observacaoRecebedor}”
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="pl-5 text-texto-fraco">
-                      Recebimento ainda sem parecer — exigido antes do primeiro Iniciar.
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
-                <div className="flex items-center gap-2">
-                  <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                  <dt className="text-texto-suave">Fila (do setor):</dt>
-                  <dd className="font-medium text-texto">{formatarDuracaoMs(s.filaMs)}</dd>
-                </div>
-
-                {s.execucoes.map((e) => (
-                  <div key={e.inicioEventoId} className="flex flex-wrap items-center gap-2">
-                    <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
-                    <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
-                    <dd className="font-medium text-texto">{formatarDuracaoMs(e.duracaoMs)}</dd>
-                    <dd className="text-xs text-texto-fraco">
-                      {e.encerramento === null && !e.pausada && '· em andamento'}
-                      {/* D-48: pausado não conta — o desconto já está na duração. */}
-                      {e.pausada && '· pausada agora (o tempo não conta)'}
-                      {e.encerramento === 'finalizada' &&
-                        (e.autorFim && e.autorFim !== e.autorInicio
-                          ? `· finalizada por ${e.autorFim}`
-                          : '· finalizada')}
-                      {e.encerramento === 'transferencia' &&
-                        '· transferida (assumida por outra pessoa)'}
-                      {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
-                      {e.pausaMs > 0 && ` · ${formatarDuracaoMs(e.pausaMs)} de pausa descontados`}
-                    </dd>
-                  </div>
-                ))}
-                {s.execucoes.length === 0 && (
-                  <p className="text-xs text-texto-fraco">
-                    Ninguém iniciou aqui — o tempo foi todo de fila.
-                  </p>
-                )}
-
-                <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
-                  <dt className="text-texto-suave">Total na etapa:</dt>
-                  <dd className="font-semibold text-texto">{formatarDuracaoMs(s.totalMs)}</dd>
-                </div>
-              </dl>
-            </li>
-          ))}
-        </ol>
-
-        {/* ------- Estorno (líder do setor / admin — D-24) ------- */}
-        {podeEstornar && estornavel && (
-          <div className="rounded-dm border border-borda bg-superficie p-3">
-            {!estornando ? (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-texto-suave">
-                  Gesto errado? O estorno anula{' '}
-                  <strong className="text-texto">
-                    {ROTULO_TIPO[estornavel.tipo]?.toLowerCase()} de{' '}
-                    {estornavel.usuario_nome ?? '—'} ({hora(estornavel.ocorrido_em)})
-                  </strong>{' '}
-                  com um evento novo — nada se apaga.
-                </p>
-                <Botao
-                  variante="secundaria"
-                  tamanho="sm"
-                  icone={<Undo2 />}
-                  className="min-h-toque-md"
-                  onClick={() => {
-                    setEstornando(true)
-                    setErro('')
-                  }}
-                >
-                  Estornar
-                </Botao>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <Campo
-                  rotulo={`Estornar: ${ROTULO_TIPO[estornavel.tipo]} de ${estornavel.usuario_nome ?? '—'}`}
-                  ajuda="Opcional: por que está estornando (fica na história do card)."
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  erro={erro || undefined}
-                />
-                <div className="flex justify-end gap-2">
-                  <Botao variante="secundaria" tamanho="sm" onClick={() => setEstornando(false)}>
-                    Cancelar
-                  </Botao>
-                  <Botao
-                    tamanho="sm"
-                    icone={<Undo2 />}
-                    carregando={estornoMutacao.isPending}
-                    onClick={() =>
-                      estornoMutacao.mutate({ eventoId: estornavel.evento_id, observacao })
-                    }
-                  >
-                    Confirmar estorno
-                  </Botao>
-                </div>
-              </div>
+      {card?.tipo === 'unidade' && pedido?.entrou_pcp_em && (
+        <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto tabular-nums">
+          Pedido no PCP:{' '}
+          <strong>
+            {formatarDuracaoMs(
+              (pedido.liberado_completo_em
+                ? new Date(pedido.liberado_completo_em).getTime()
+                : agora) - new Date(pedido.entrou_pcp_em).getTime(),
             )}
-          </div>
-        )}
+          </strong>{' '}
+          <span className="text-texto-suave">
+            {pedido.liberado_completo_em
+              ? '— da entrada à liberação da última unidade.'
+              : '— ainda contando: o pedido tem unidade por liberar.'}
+          </span>
+        </p>
+      )}
 
-        {/* ------- A história crua, evento a evento ------- */}
-        {eventos.length > 0 && (
-          <div>
-            <Botao
-              variante="fantasma"
-              tamanho="sm"
-              icone={<RotateCcw />}
-              onClick={() => setMostrarEventos(!mostrarEventos)}
-            >
-              {mostrarEventos ? 'Esconder eventos' : `Todos os eventos (${eventos.length})`}
-            </Botao>
-            {mostrarEventos && (
-              <ol className="mt-2 flex flex-col gap-1">
-                {eventos.map((e) => (
-                  <li
-                    key={e.evento_id}
-                    className={cn(
-                      'flex flex-wrap items-center gap-x-2 rounded-dm px-2 py-1 text-xs',
-                      e.estornado ? 'text-texto-fraco line-through' : 'text-texto-suave',
-                      e.tipo === 'estorno' && 'bg-atencao-fundo text-atencao-texto',
-                    )}
-                  >
-                    <span className="tabular-nums">{hora(e.ocorrido_em)}</span>
-                    <span className="font-medium">{ROTULO_TIPO[e.tipo] ?? e.tipo}</span>
-                    {e.usuario_nome && <span>· {e.usuario_nome}</span>}
-                    {e.estado_qualidade && <BadgeEstado estado={e.estado_qualidade} tamanho="sm" />}
-                    {e.tipo.startsWith('movimentacao') && (
-                      <span className="inline-flex items-center gap-1">
-                        {e.setor_origem_nome}
-                        <ArrowRight aria-hidden className="size-3" />
-                        {e.setor_destino_nome}
-                        {e.etapa_destino_nome && ` (${e.etapa_destino_nome})`}
+      {/* SESSAO-27 (D-101): os campos customizados — o admin preenche aqui. */}
+      {card && comCampos && <CamposDoCard card={card} podeEditar={perfil?.papel === 'admin'} />}
+
+      {!isPending && segmentos.length === 0 && (
+        <p className="text-sm text-texto-suave">Este card ainda não tem movimentação.</p>
+      )}
+
+      {/* ------- O resumo que a demanda pede: etapa a etapa ------- */}
+      <ol className="flex flex-col gap-3">
+        {segmentos.map((s) => (
+          <li
+            key={s.eventoEntradaId}
+            className="rounded-dm border border-borda bg-superficie-sutil p-3"
+          >
+            <header className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold text-texto">
+                {s.setorNome}
+                {s.etapaNome && <span className="text-texto-suave"> · {s.etapaNome}</span>}
+                {s.ehFila && (
+                  <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
+                    fila
+                  </span>
+                )}
+              </span>
+              <span className="text-xs text-texto-fraco tabular-nums">
+                {hora(new Date(s.entrouEm).toISOString())}
+                {s.saiuEm === null ? ' → agora' : ` → ${hora(new Date(s.saiuEm).toISOString())}`}
+              </span>
+            </header>
+
+            {/* SESSAO-06 (D-09): a dupla atestação desta chegada. */}
+            {s.qualidade && (
+              <div className="mt-2 flex flex-col gap-1 rounded-dm bg-superficie px-2 py-1.5 text-xs">
+                <span className="flex flex-wrap items-center gap-1.5 text-texto">
+                  <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
+                  Entrega de {s.qualidade.setorRemetenteNome ?? 'setor anterior'}
+                  {s.qualidade.remetenteNome ? ` (${s.qualidade.remetenteNome})` : ''}:
+                  <BadgeEstado estado={s.qualidade.estadoRemetente} tamanho="sm" />
+                </span>
+                {s.qualidade.estadoRecebedor ? (
+                  <span className="flex flex-wrap items-center gap-1.5 text-texto">
+                    <span className="w-4 shrink-0" aria-hidden />
+                    Recebimento
+                    {s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
+                    <BadgeEstado estado={s.qualidade.estadoRecebedor} tamanho="sm" />
+                    {s.qualidade.divergente && (
+                      <span className="rounded-full bg-atencao-fundo px-2 py-0.5 font-medium text-atencao-texto">
+                        divergência — liderança avisada
                       </span>
                     )}
-                    {(e.tipo === 'etiqueta_adicionada' || e.tipo === 'etiqueta_removida') &&
-                      typeof e.dados?.etiqueta === 'string' && <span>“{e.dados.etiqueta}”</span>}
-                    {e.observacao && <span className="italic">“{e.observacao}”</span>}
-                    {/* SESSAO-27: a origem em língua de gente ("Automático", "Pela integração"). */}
-                    {e.origem !== 'interface' && <span>· {ORIGEM[e.origem] ?? e.origem}</span>}
-                  </li>
-                ))}
-              </ol>
+                    {s.qualidade.observacaoRecebedor && (
+                      <span className="italic text-texto-suave">
+                        “{s.qualidade.observacaoRecebedor}”
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="pl-5 text-texto-fraco">
+                    Recebimento ainda sem parecer — exigido antes do primeiro Iniciar.
+                  </span>
+                )}
+              </div>
             )}
-          </div>
-        )}
-      </div>
-    </Modal>
+
+            <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
+              <div className="flex items-center gap-2">
+                <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
+                <dt className="text-texto-suave">Fila (do setor):</dt>
+                <dd className="font-medium text-texto">{formatarDuracaoMs(s.filaMs)}</dd>
+              </div>
+
+              {s.execucoes.map((e) => (
+                <div key={e.inicioEventoId} className="flex flex-wrap items-center gap-2">
+                  <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+                  <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
+                  <dd className="font-medium text-texto">{formatarDuracaoMs(e.duracaoMs)}</dd>
+                  <dd className="text-xs text-texto-fraco">
+                    {e.encerramento === null && !e.pausada && '· em andamento'}
+                    {/* D-48: pausado não conta — o desconto já está na duração. */}
+                    {e.pausada && '· pausada agora (o tempo não conta)'}
+                    {e.encerramento === 'finalizada' &&
+                      (e.autorFim && e.autorFim !== e.autorInicio
+                        ? `· finalizada por ${e.autorFim}`
+                        : '· finalizada')}
+                    {e.encerramento === 'transferencia' &&
+                      '· transferida (assumida por outra pessoa)'}
+                    {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
+                    {e.pausaMs > 0 && ` · ${formatarDuracaoMs(e.pausaMs)} de pausa descontados`}
+                  </dd>
+                </div>
+              ))}
+              {s.execucoes.length === 0 && (
+                <p className="text-xs text-texto-fraco">
+                  Ninguém iniciou aqui — o tempo foi todo de fila.
+                </p>
+              )}
+
+              <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
+                <dt className="text-texto-suave">Total na etapa:</dt>
+                <dd className="font-semibold text-texto">{formatarDuracaoMs(s.totalMs)}</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ol>
+
+      {/* ------- Estorno (líder do setor / admin — D-24) ------- */}
+      {podeEstornar && estornavel && (
+        <div className="rounded-dm border border-borda bg-superficie p-3">
+          {!estornando ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-texto-suave">
+                Gesto errado? O estorno anula{' '}
+                <strong className="text-texto">
+                  {ROTULO_TIPO[estornavel.tipo]?.toLowerCase()} de {estornavel.usuario_nome ?? '—'}{' '}
+                  ({hora(estornavel.ocorrido_em)})
+                </strong>{' '}
+                com um evento novo — nada se apaga.
+              </p>
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<Undo2 />}
+                className="min-h-toque-md"
+                onClick={() => {
+                  setEstornando(true)
+                  setErro('')
+                }}
+              >
+                Estornar
+              </Botao>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Campo
+                rotulo={`Estornar: ${ROTULO_TIPO[estornavel.tipo]} de ${estornavel.usuario_nome ?? '—'}`}
+                ajuda="Opcional: por que está estornando (fica na história do card)."
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                erro={erro || undefined}
+              />
+              <div className="flex justify-end gap-2">
+                <Botao variante="secundaria" tamanho="sm" onClick={() => setEstornando(false)}>
+                  Cancelar
+                </Botao>
+                <Botao
+                  tamanho="sm"
+                  icone={<Undo2 />}
+                  carregando={estornoMutacao.isPending}
+                  onClick={() =>
+                    estornoMutacao.mutate({ eventoId: estornavel.evento_id, observacao })
+                  }
+                >
+                  Confirmar estorno
+                </Botao>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ------- A história crua, evento a evento ------- */}
+      {eventos.length > 0 && (
+        <div>
+          <Botao
+            variante="fantasma"
+            tamanho="sm"
+            icone={<RotateCcw />}
+            onClick={() => setMostrarEventos(!mostrarEventos)}
+          >
+            {mostrarEventos ? 'Esconder eventos' : `Todos os eventos (${eventos.length})`}
+          </Botao>
+          {mostrarEventos && (
+            <ol className="mt-2 flex flex-col gap-1">
+              {eventos.map((e) => (
+                <li
+                  key={e.evento_id}
+                  className={cn(
+                    'flex flex-wrap items-center gap-x-2 rounded-dm px-2 py-1 text-xs',
+                    e.estornado ? 'text-texto-fraco line-through' : 'text-texto-suave',
+                    e.tipo === 'estorno' && 'bg-atencao-fundo text-atencao-texto',
+                  )}
+                >
+                  <span className="tabular-nums">{hora(e.ocorrido_em)}</span>
+                  <span className="font-medium">{ROTULO_TIPO[e.tipo] ?? e.tipo}</span>
+                  {e.usuario_nome && <span>· {e.usuario_nome}</span>}
+                  {e.estado_qualidade && <BadgeEstado estado={e.estado_qualidade} tamanho="sm" />}
+                  {e.tipo.startsWith('movimentacao') && (
+                    <span className="inline-flex items-center gap-1">
+                      {e.setor_origem_nome}
+                      <ArrowRight aria-hidden className="size-3" />
+                      {e.setor_destino_nome}
+                      {e.etapa_destino_nome && ` (${e.etapa_destino_nome})`}
+                    </span>
+                  )}
+                  {(e.tipo === 'etiqueta_adicionada' || e.tipo === 'etiqueta_removida') &&
+                    typeof e.dados?.etiqueta === 'string' && <span>“{e.dados.etiqueta}”</span>}
+                  {e.observacao && <span className="italic">“{e.observacao}”</span>}
+                  {/* SESSAO-27: a origem em língua de gente ("Automático", "Pela integração"). */}
+                  {e.origem !== 'interface' && <span>· {ORIGEM[e.origem] ?? e.origem}</span>}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

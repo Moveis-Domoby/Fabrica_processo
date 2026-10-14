@@ -9,6 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
+import { useRef } from 'react'
 import { ArrowRight, ChevronDown, CircleCheckBig, Inbox, Play, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
@@ -49,6 +50,8 @@ export interface ContextoExecucao {
   aoFotos?: (card: Card) => void
   /** SESSAO-31: nome e foto de quem aparece nos cards (responsáveis) — vem com o quadro. */
   pessoas?: Map<string, { nome: string; foto: string | null }>
+  /** SESSAO-31 (§3): clicar no card (sem arrastar) abre a janela dele. */
+  aoAbrirCard?: (card: Card) => void
 }
 
 interface ColunaProps {
@@ -72,6 +75,8 @@ interface ColunaProps {
   tamanho: 'padrao' | 'galpao'
   /** SESSAO-27 (D-101): os campos customizados preenchidos de cada peça mostrada. */
   camposPorCard: Map<number, CampoMostrado[]>
+  /** true logo depois de um arrasto — o clique que vem junto não abre a janela. */
+  acabouDeArrastar: () => boolean
 }
 
 function Coluna({
@@ -91,6 +96,7 @@ function Coluna({
   execucao,
   tamanho,
   camposPorCard,
+  acabouDeArrastar,
 }: ColunaProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const { cards, total } = dados
@@ -194,6 +200,11 @@ function Coluna({
             tamanho,
             campos: camposPorCard.get(card.id),
             pessoas: execucao.pessoas,
+            aoAbrir: execucao.aoAbrirCard
+              ? (c: Card) => {
+                  if (!acabouDeArrastar()) execucao.aoAbrirCard?.(c)
+                }
+              : undefined,
           }
           return arrastavel ? (
             <CardArrastavel key={card.id} {...comuns} />
@@ -231,7 +242,17 @@ function CardArrastavel(props: CardArrastavelProps) {
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      // SESSAO-31: Enter abre a janela do card; Espaço segue pegando para arrastar.
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && props.aoAbrir) {
+          e.preventDefault()
+          props.aoAbrir(props.card)
+          return
+        }
+        listeners?.onKeyDown?.(e)
+      }}
       aria-roledescription="card arrastável"
+      aria-description={props.aoAbrir ? 'Enter abre o card; Espaço pega para arrastar.' : undefined}
       className={cn(
         'touch-manipulation rounded-dm',
         isDragging ? 'z-10 cursor-grabbing' : 'cursor-grab',
@@ -304,8 +325,14 @@ export function QuadroKanban({
   const sensores = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-    useSensor(KeyboardSensor),
+    // SESSAO-31: só o Espaço pega o card (o Enter abre a janela).
+    useSensor(KeyboardSensor, {
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] },
+    }),
   )
+  // O clique que o navegador dispara no fim de um arrasto não abre a janela.
+  const arrastouEm = useRef(0)
+  const acabouDeArrastar = () => Date.now() - arrastouEm.current < 300
   const terminal = setor.papel_no_fluxo === 'terminal'
   const producao = setor.papel_no_fluxo === 'producao'
   const temFila = etapas.some((e) => e.eh_fila)
@@ -325,6 +352,7 @@ export function QuadroKanban({
   const camposPorCard = camposVindos ?? camposPerguntados
 
   function aoSoltar(evento: DragEndEvent) {
+    arrastouEm.current = Date.now()
     const card = todosOsCards.find((c) => c.id === evento.active.id)
     if (!card || evento.over === null) return
     const etapaId = evento.over.id === CHEGADA ? null : Number(evento.over.id)
@@ -333,7 +361,12 @@ export function QuadroKanban({
   }
 
   return (
-    <DndContext sensors={sensores} onDragEnd={aoSoltar}>
+    <DndContext
+      sensors={sensores}
+      onDragStart={() => (arrastouEm.current = Date.now())}
+      onDragCancel={() => (arrastouEm.current = Date.now())}
+      onDragEnd={aoSoltar}
+    >
       <div
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 sm:snap-none"
         aria-label={`Quadro do setor ${setor.nome}`}
@@ -350,6 +383,7 @@ export function QuadroKanban({
             arrastavel={etapas.length > 0}
             execucao={execucao}
             camposPorCard={camposPorCard}
+            acabouDeArrastar={acabouDeArrastar}
             tamanho={tamanho}
           />
         )}
@@ -375,6 +409,7 @@ export function QuadroKanban({
             arrastavel
             execucao={execucao}
             camposPorCard={camposPorCard}
+            acabouDeArrastar={acabouDeArrastar}
             tamanho={tamanho}
           />
         ))}

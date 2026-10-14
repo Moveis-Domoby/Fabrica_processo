@@ -25,6 +25,13 @@ export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'>): string |
   if (aviso.tipo === 'devolucao_decidir' && aviso.card_id !== null) {
     return `/fabrica/logistica/estoque?devolucao=${aviso.card_id}`
   }
+  // SESSAO-31 (§3): responsável e menção abrem a janela do card, ali mesmo.
+  if (
+    (aviso.tipo === 'card_responsavel' || aviso.tipo === 'card_mencao') &&
+    aviso.card_id !== null
+  ) {
+    return `?card=${aviso.card_id}`
+  }
   return null
 }
 

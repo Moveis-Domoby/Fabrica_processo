@@ -27,7 +27,12 @@ export function CamposDoCard({
   const noPedido = card ? card.tipo === 'pedido' : true
   const idPedido = card ? (card.tipo === 'pedido' ? card.pedido_id : null) : (pedidoId ?? null)
   const { data: catalogo = [] } = useCampos()
-  const campos = catalogo.filter((c) => c.arquivado_em === null && (noPedido ? c.em_pedidos : c.em_pecas))
+  // SESSAO-31 (↩️ D-101): o card avulso usa os campos que valem nos avulsos.
+  const campos = catalogo.filter(
+    (c) =>
+      c.arquivado_em === null &&
+      (noPedido ? c.em_pedidos : card?.tipo === 'avulso' ? c.em_avulsos : c.em_pecas),
+  )
   const { data: valores = [] } = useValoresCampos(
     !noPedido && card ? [card.id] : [],
     noPedido && idPedido ? [idPedido] : [],
@@ -36,11 +41,20 @@ export function CamposDoCard({
   if (campos.length === 0 || (noPedido && !idPedido)) return null
 
   const valorDe = (campo: CampoCustomizado) =>
-    valores.find((v) => v.campo_id === campo.id && (noPedido ? v.pedido_id === idPedido : v.card_id === card?.id))?.valor
+    valores.find(
+      (v) =>
+        v.campo_id === campo.id && (noPedido ? v.pedido_id === idPedido : v.card_id === card?.id),
+    )?.valor
 
   return (
-    <section className="rounded-dm border border-borda bg-superficie-sutil p-3" aria-labelledby={`campos-${card?.id ?? idPedido}`}>
-      <h3 id={`campos-${card?.id ?? idPedido}`} className="mb-2 flex items-center gap-2 text-sm font-semibold text-texto">
+    <section
+      className="rounded-dm border border-borda bg-superficie-sutil p-3"
+      aria-labelledby={`campos-${card?.id ?? idPedido}`}
+    >
+      <h3
+        id={`campos-${card?.id ?? idPedido}`}
+        className="mb-2 flex items-center gap-2 text-sm font-semibold text-texto"
+      >
         <ListPlus aria-hidden className="size-4 text-texto-suave" />
         {noPedido ? 'Campos do pedido' : 'Campos da peça'}
       </h3>
@@ -75,26 +89,46 @@ function LinhaCampo({
   const [editando, setEditando] = useState(false)
   const [rascunho, setRascunho] = useState<ValorCampo | null>(valor)
   const gravar = useMutation({
-    mutationFn: (novo: ValorCampo | null) => definirCampo({ campoId: campo.id, ...alvo, valor: novo }),
+    mutationFn: (novo: ValorCampo | null) =>
+      definirCampo({ campoId: campo.id, ...alvo, valor: novo }),
     onSuccess: async () => {
       notificar({ titulo: 'Campo salvo', tom: 'perfeito' })
       setEditando(false)
       await clienteQuery.invalidateQueries({ queryKey: ['campos-valores'] })
     },
     onError: (excecao) =>
-      notificar({ titulo: 'Não deu certo', descricao: excecao instanceof Error ? excecao.message : undefined, tom: 'danificado' }),
+      notificar({
+        titulo: 'Não deu certo',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
   })
 
   if (editando)
     return (
       <div className="flex flex-col gap-2 rounded-dm border border-borda bg-superficie p-2">
-        <EntradaValorCampo campo={campo} valor={rascunho} aoMudar={setRascunho} rotulo={campo.nome} />
+        <EntradaValorCampo
+          campo={campo}
+          valor={rascunho}
+          aoMudar={setRascunho}
+          rotulo={campo.nome}
+        />
         <div className="flex flex-wrap gap-2">
-          <Botao tamanho="sm" carregando={gravar.isPending} disabled={rascunho === null} onClick={() => gravar.mutate(rascunho)}>
+          <Botao
+            tamanho="sm"
+            carregando={gravar.isPending}
+            disabled={rascunho === null}
+            onClick={() => gravar.mutate(rascunho)}
+          >
             Salvar
           </Botao>
           {valor !== null && (
-            <Botao tamanho="sm" variante="secundaria" carregando={gravar.isPending} onClick={() => gravar.mutate(null)}>
+            <Botao
+              tamanho="sm"
+              variante="secundaria"
+              carregando={gravar.isPending}
+              onClick={() => gravar.mutate(null)}
+            >
               Limpar
             </Botao>
           )}
@@ -108,7 +142,9 @@ function LinhaCampo({
   return (
     <div className="flex min-h-9 items-center gap-2 text-sm">
       <dt className="shrink-0 text-texto-suave">{campo.nome}:</dt>
-      <dd className="min-w-0 flex-1 truncate font-medium text-texto">{textoDoValorCampo(campo, valor)}</dd>
+      <dd className="min-w-0 flex-1 truncate font-medium text-texto">
+        {textoDoValorCampo(campo, valor)}
+      </dd>
       {podeEditar && (
         <Botao
           variante="fantasma"

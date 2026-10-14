@@ -8,6 +8,7 @@ import { buscarSetores, soltarCard } from '@/kanban/api'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
+import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
@@ -38,6 +39,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora()
+  const abrirCard = useAbrirCard()
 
   const souAdmin = perfil?.papel === 'admin'
   const vinculoAqui = vinculos.find((v) => v.setor_id === setorId)
@@ -185,6 +187,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
           execucoesPorCard,
           nomesUsuarios,
           pessoas,
+          aoAbrirCard: (card) => abrirCard(card.id),
           meuUsuarioId: perfil.id,
           gestoPendente: mutacaoSoltar.isPending,
           aoLinhaTempo: setCardLinhaTempo,

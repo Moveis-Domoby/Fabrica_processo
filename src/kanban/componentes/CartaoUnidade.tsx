@@ -118,6 +118,8 @@ export interface CartaoUnidadeProps {
   campos?: CampoMostrado[]
   /** SESSAO-31: nome e foto de quem aparece no card (responsáveis). */
   pessoas?: Map<string, { nome: string; foto: string | null }>
+  /** SESSAO-31 (§3): clicar no card abre a janela dele. */
+  aoAbrir?: (card: Card) => void
 }
 
 /**
@@ -148,6 +150,7 @@ export function CartaoUnidade({
   tamanho = 'padrao',
   campos,
   pessoas,
+  aoAbrir,
 }: CartaoUnidadeProps) {
   const galpao = tamanho === 'galpao'
   const kn =
@@ -186,7 +189,9 @@ export function CartaoUnidade({
         galpao ? 'p-4' : 'p-3',
         emExecucao ? 'border-acao-ativa' : 'border-borda',
         arrastando && 'opacity-60 shadow-lg',
+        aoAbrir && 'cursor-pointer hover:border-borda-forte',
       )}
+      onClick={aoAbrir ? () => aoAbrir(card) : undefined}
       aria-label={
         avulso
           ? `Card avulso — ${nomeDoCard(card)}`
@@ -280,7 +285,11 @@ export function CartaoUnidade({
           {card.descricao && (
             // O botãozinho da descrição: passar o mouse (ou tocar) mostra o texto.
             // Enter/Espaço nele é dele — não vira arrasto de teclado.
-            <span className="-my-2" onKeyDown={(e) => e.stopPropagation()}>
+            <span
+              className="-my-2"
+              onKeyDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
               <Dica
                 rotulo="Ver a descrição do card"
                 icone={<AlignLeft aria-hidden className="size-4" />}
@@ -432,7 +441,10 @@ export function CartaoUnidade({
               aria-label="Linha do tempo do card"
               // Enter/Espaço no botão é do botão — não pode virar arrasto de teclado.
               onKeyDown={(e) => e.stopPropagation()}
-              onClick={() => aoLinhaTempo(card)}
+              onClick={(e) => {
+                e.stopPropagation()
+                aoLinhaTempo(card)
+              }}
             />
           )}
           {aoFotos && (
@@ -443,7 +455,10 @@ export function CartaoUnidade({
               className="min-h-toque-md shrink-0 px-2"
               aria-label="Fotos da peça"
               onKeyDown={(e) => e.stopPropagation()}
-              onClick={() => aoFotos(card)}
+              onClick={(e) => {
+                e.stopPropagation()
+                aoFotos(card)
+              }}
             />
           )}
           {!terminal && aoConcluir && (
@@ -454,7 +469,10 @@ export function CartaoUnidade({
               className="min-h-toque-md min-w-0 flex-1 px-2"
               disabled={gestoPendente}
               onKeyDown={(e) => e.stopPropagation()}
-              onClick={() => aoConcluir(card)}
+              onClick={(e) => {
+                e.stopPropagation()
+                aoConcluir(card)
+              }}
             >
               Concluir
             </Botao>

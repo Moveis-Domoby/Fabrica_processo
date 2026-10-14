@@ -27,6 +27,7 @@ import type { LinhaAvulso, VisaoAvulsos } from '../avulso'
 import { ModalConcluirAvulso } from '../componentes/ModalConcluirAvulso'
 import type { Card } from '../tipos'
 import { ModalNovoCardAvulso } from './ModalNovoCardAvulso'
+import { useAbrirCard } from '../janela/abrirCard'
 
 const POR_PAGINA = 20
 const VISOES: { valor: VisaoAvulsos; rotulo: string }[] = (
@@ -56,6 +57,7 @@ export function AbaLancamentoManual({ ativa }: { ativa: boolean }) {
   const [criando, setCriando] = useState(false)
   const [lancando, setLancando] = useState<LinhaAvulso | null>(null)
   const [concluindo, setConcluindo] = useState<Card | null>(null)
+  const abrirCard = useAbrirCard()
 
   const consulta = useInfiniteQuery({
     queryKey: ['avulsos', visao, termo],
@@ -114,6 +116,7 @@ export function AbaLancamentoManual({ ativa }: { ativa: boolean }) {
           <li key={l.card_id}>
             <LinhaDoAvulso
               linha={l}
+              aoAbrir={() => abrirCard(l.card_id)}
               aoLancar={() => setLancando(l)}
               aoConcluir={() =>
                 setConcluindo({
@@ -156,10 +159,12 @@ export function AbaLancamentoManual({ ativa }: { ativa: boolean }) {
 
 function LinhaDoAvulso({
   linha: l,
+  aoAbrir,
   aoLancar,
   aoConcluir,
 }: {
   linha: LinhaAvulso
+  aoAbrir: () => void
   aoLancar: () => void
   aoConcluir: () => void
 }) {
@@ -170,7 +175,13 @@ function LinhaDoAvulso({
     <article className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 sm:flex-row sm:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <p className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-texto">{l.titulo}</span>
+          <button
+            type="button"
+            onClick={aoAbrir}
+            className="min-h-toque-md text-left font-medium text-texto underline-offset-2 hover:underline"
+          >
+            {l.titulo}
+          </button>
           {l.ajuste_destino && (
             <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
               <Wrench aria-hidden className="size-3.5" />

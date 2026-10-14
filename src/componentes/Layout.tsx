@@ -29,6 +29,7 @@ import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { BolhaExecucao } from '@/afazeres/BolhaExecucao'
 import { ProvedorChat } from '@/chat/ProvedorChat'
 import { BalaoChat } from '@/chat/BalaoChat'
+import { JanelaDoCardNaUrl } from '@/kanban/janela/JanelaDoCardNaUrl'
 import { buscarSetores } from '@/kanban/api'
 import { rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
@@ -747,6 +748,8 @@ export function Layout({ children }: { children: ReactNode }) {
         {!modoFoco && !soEntregador && <BolhaExecucao />}
         {/* O balão do chat (SESSAO-26): arrastável, ao lado da bolinha. */}
         {!modoFoco && !soEntregador && <BalaoChat />}
+        {/* SESSAO-31 (§3): a janela do card — qualquer tela abre pondo ?card= no endereço. */}
+        {!soEntregador && <JanelaDoCardNaUrl />}
       </div>
     </ProvedorChat>
   )

@@ -12,8 +12,10 @@ export interface ModalProps {
   children?: ReactNode
   /** Ações do rodapé — a primária vai à direita no desktop, e em cima no celular. */
   rodape?: ReactNode
-  /** `galpao` ocupa a tela inteira no tablet: menos mira, menos erro. */
-  tamanho?: 'md' | 'galpao'
+  /** `galpao` ocupa a tela inteira no tablet: menos mira, menos erro.
+   *  `tela` (SESSAO-31 — a janela do card): grande no computador, a tela
+   *  inteira no celular; o conteúdo cuida da própria rolagem. */
+  tamanho?: 'md' | 'galpao' | 'tela'
 }
 
 /**
@@ -36,9 +38,11 @@ export function Modal({
         <Dialog.Content
           className={cn(
             'fixed z-50 flex flex-col bg-superficie shadow-2xl',
-            'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-dm-lg',
-            'sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-dm-lg',
-            tamanho === 'galpao' ? 'sm:w-[min(48rem,92vw)]' : 'sm:w-[min(32rem,92vw)]',
+            tamanho === 'tela'
+              ? 'inset-0 h-dvh sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-[min(56rem,92dvh)] sm:w-[min(76rem,96vw)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-dm-lg'
+              : 'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-dm-lg sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-dm-lg',
+            tamanho === 'galpao' && 'sm:w-[min(48rem,92vw)]',
+            tamanho === 'md' && 'sm:w-[min(32rem,92vw)]',
           )}
         >
           <div className="flex items-start justify-between gap-4 border-b border-borda p-4 sm:p-5">
@@ -61,7 +65,13 @@ export function Modal({
             </Dialog.Close>
           </div>
 
-          <div className="overflow-y-auto p-4 sm:p-5">{children}</div>
+          <div
+            className={
+              tamanho === 'tela' ? 'flex min-h-0 flex-1 flex-col' : 'overflow-y-auto p-4 sm:p-5'
+            }
+          >
+            {children}
+          </div>
 
           {rodape && (
             <div className="flex flex-col-reverse gap-2 border-t border-borda p-4 sm:flex-row sm:justify-end sm:p-5">
