@@ -14,10 +14,17 @@ export async function buscarEtiquetas(): Promise<Etiqueta[]> {
     .select('id, nome, cor, arquivada_em')
     .order('nome')
   if (error) throw new Error(`Não deu para carregar as etiquetas: ${error.message}`)
-  return ((data ?? []) as Etiqueta[]).map((e) => ({ ...e, cor: ehCorEtiqueta(e.cor) ? e.cor : 'cinza' }))
+  return ((data ?? []) as Etiqueta[]).map((e) => ({
+    ...e,
+    cor: ehCorEtiqueta(e.cor) ? e.cor : 'cinza',
+  }))
 }
 
-export async function salvarEtiqueta(parametros: { id: number | null; nome: string; cor: string }): Promise<number> {
+export async function salvarEtiqueta(parametros: {
+  id: number | null
+  nome: string
+  cor: string
+}): Promise<number> {
   const { data, error } = await supabase.rpc('plt_fn_etiqueta_salvar', {
     p_id: parametros.id,
     p_nome: parametros.nome,
@@ -28,7 +35,10 @@ export async function salvarEtiqueta(parametros: { id: number | null; nome: stri
 }
 
 export async function arquivarEtiqueta(id: number, arquivar: boolean): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_etiqueta_arquivar', { p_id: id, p_arquivar: arquivar })
+  const { error } = await supabase.rpc('plt_fn_etiqueta_arquivar', {
+    p_id: id,
+    p_arquivar: arquivar,
+  })
   if (error) throw new Error(error.message)
 }
 
@@ -40,7 +50,7 @@ export async function excluirEtiqueta(id: number): Promise<void> {
 export async function buscarCampos(): Promise<CampoCustomizado[]> {
   const { data, error } = await supabase
     .from('plt_campos')
-    .select('id, nome, tipo, opcoes, em_pecas, em_pedidos, arquivado_em')
+    .select('id, nome, tipo, opcoes, em_pecas, em_pedidos, em_avulsos, arquivado_em')
     .order('nome')
   if (error) throw new Error(`Não deu para carregar os campos: ${error.message}`)
   return (data ?? []) as CampoCustomizado[]
@@ -53,6 +63,8 @@ export async function salvarCampo(parametros: {
   opcoes: string[]
   emPecas: boolean
   emPedidos: boolean
+  /** SESSAO-31 (↩️ D-101): vale também nos cards avulsos. */
+  emAvulsos?: boolean
 }): Promise<number> {
   const { data, error } = await supabase.rpc('plt_fn_campo_salvar', {
     p_id: parametros.id,
@@ -61,6 +73,7 @@ export async function salvarCampo(parametros: {
     p_opcoes: parametros.opcoes,
     p_em_pecas: parametros.emPecas,
     p_em_pedidos: parametros.emPedidos,
+    p_em_avulsos: parametros.emAvulsos ?? false,
   })
   if (error) throw new Error(error.message)
   return data as number
@@ -99,7 +112,9 @@ export async function buscarValoresCampos(parametros: {
 }
 
 /** As etiquetas dos cards mostrados (para telas cuja porta não traz a coluna — o PCP). */
-export async function buscarEtiquetasDosCards(cardIds: number[]): Promise<{ id: number; etiquetas: number[] }[]> {
+export async function buscarEtiquetasDosCards(
+  cardIds: number[],
+): Promise<{ id: number; etiquetas: number[] }[]> {
   if (cardIds.length === 0) return []
   const { data, error } = await supabase.from('plt_cards').select('id, etiquetas').in('id', cardIds)
   if (error) throw new Error(`Não deu para carregar as etiquetas: ${error.message}`)

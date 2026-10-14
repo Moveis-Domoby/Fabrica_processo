@@ -51,10 +51,12 @@ export interface Etapa {
  * SESSAO-25: 'reposicao' é o card que o ESTOQUE gera no PCP quando um produto
  * fica abaixo do mínimo — sem pedido do Tiny; as unidades dele também nascem
  * sem pedido e, prontas, ficam livres no estoque.
+ * SESSAO-31 (D-125): 'avulso' é o card digitado à mão no PCP (Lançamento
+ * manual) — anda pelos quadros como a peça, mas nunca vira peça.
  */
 export interface Card {
   id: number
-  tipo: 'pedido' | 'unidade' | 'reposicao'
+  tipo: 'pedido' | 'unidade' | 'reposicao' | 'avulso'
   /** Nulo só na REPOSIÇÃO de estoque e nas unidades dela (SESSAO-25). */
   pedido_id: number | null
   /**
@@ -96,7 +98,39 @@ export interface Card {
    * Projeção do banco — a tela não pergunta mais à parte.
    */
   parecer_pendente_id?: number | null
+  // ---- SESSAO-31 (D-125): as propriedades do card (projeções — vêm do quadro e da janela)
+  /** O nome do card avulso. */
+  titulo?: string | null
+  descricao?: string | null
+  inicio_em?: string | null
+  vence_em?: string | null
+  /** Os responsáveis (vários) — diferente de responsavel_id (a delegação do afazer). */
+  responsaveis?: string[]
+  anexos_qtd?: number
+  mensagens_qtd?: number
+  /** O vínculo do avulso (só referência — D-125). */
+  vinculo_tipo?: 'pedido' | 'produto' | 'peca' | null
+  vinculo_id?: number | null
+  vinculo_rotulo?: string | null
+  /** D-130: a peça em AJUSTE e o destino final escolhido pelo PCP. */
+  ajuste_destino?: 'estoque' | 'pedido' | 'terceirizado' | 'loja' | 'danificados' | null
+  criado_por_id?: string | null
 }
+
+/**
+ * O que o card mostra do pedido dele (o quadro numa requisição traz só isto —
+ * SESSAO-31). O resumo completo do pedido cabe aqui também.
+ */
+export type PedidoDoCard = Pick<
+  PedidoResumo,
+  | 'pedido_id'
+  | 'numero'
+  | 'cliente_nome'
+  | 'situacao'
+  | 'data_prevista'
+  | 'entrou_pcp_em'
+  | 'liberado_completo_em'
+>
 
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
 export const COLUNAS_CARD =

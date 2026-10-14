@@ -51,13 +51,13 @@ export function acaoAoSoltar(parametros: {
     return { tipo: 'encaminhar', etapa, setorDestinoId: etapa.setor_destino_id }
   }
   // SESSAO-31 (D-127): a EXPEDIÇÃO da LIMPEZA E EMBALAGEM conclui a produção
-  // da peça; o card que não é peça só se move nela.
-  if (etapa.conclui_producao && card.tipo === 'unidade') {
+  // da peça — e conclui o card avulso (D-125: soltar ali = o Concluir).
+  if (etapa.conclui_producao && (card.tipo === 'unidade' || card.tipo === 'avulso')) {
     return { tipo: 'concluir', etapa }
   }
   if (
     setor.papel_no_fluxo === 'producao' &&
-    card.tipo === 'unidade' &&
+    (card.tipo === 'unidade' || card.tipo === 'avulso') &&
     etapaDeInicio(etapas)?.id === etapa.id
   ) {
     return { tipo: 'iniciar' }
@@ -72,7 +72,7 @@ export function acaoAoSoltar(parametros: {
  */
 export function tipoQualidade(card: Pick<Card, 'tipo' | 'pedido_id'>): TipoQualidade | null {
   if (card.tipo === 'unidade') return card.pedido_id !== null ? 'peca_pedido' : 'peca_estoque'
-  if ((card.tipo as string) === 'avulso') return 'avulso'
+  if (card.tipo === 'avulso') return 'avulso'
   return null
 }
 

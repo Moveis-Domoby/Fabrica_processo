@@ -359,9 +359,16 @@ function ModalEtiqueta({
 // Campos customizados
 // ---------------------------------------------------------------------------
 
-function ondeVale(c: Pick<CampoCustomizado, 'em_pecas' | 'em_pedidos'>): string {
-  if (c.em_pecas && c.em_pedidos) return 'Nas peças e nos pedidos'
-  return c.em_pecas ? 'Nas peças' : 'Nos pedidos'
+function ondeVale(c: Pick<CampoCustomizado, 'em_pecas' | 'em_pedidos' | 'em_avulsos'>): string {
+  const onde = [
+    c.em_pecas && 'nas peças',
+    c.em_pedidos && 'nos pedidos',
+    c.em_avulsos && 'nos cards avulsos',
+  ].filter(Boolean) as string[]
+  if (onde.length === 0) return 'Em lugar nenhum'
+  const texto =
+    onde.length === 1 ? onde[0] : `${onde.slice(0, -1).join(', ')} e ${onde[onde.length - 1]}`
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
 function PainelCampos() {
@@ -525,6 +532,7 @@ function ModalCampo({
   const [opcoes, setOpcoes] = useState<string[]>(campo?.opcoes.length ? campo.opcoes : [''])
   const [emPecas, setEmPecas] = useState(campo?.em_pecas ?? true)
   const [emPedidos, setEmPedidos] = useState(campo?.em_pedidos ?? false)
+  const [emAvulsos, setEmAvulsos] = useState(campo?.em_avulsos ?? false)
   const [erro, setErro] = useState('')
 
   const salvar = useMutation({
@@ -536,6 +544,7 @@ function ModalCampo({
         opcoes: tipo === 'lista' ? opcoes.map((o) => o.trim()).filter(Boolean) : [],
         emPecas,
         emPedidos,
+        emAvulsos,
       }),
     onSuccess: async () => {
       notificar({ titulo: campo ? 'Campo alterado' : 'Campo cadastrado', tom: 'perfeito' })
@@ -547,8 +556,8 @@ function ModalCampo({
   function aoEnviar(evento: FormEvent) {
     evento.preventDefault()
     if (!nome.trim()) return setErro('Dê um nome ao campo.')
-    if (!emPecas && !emPedidos)
-      return setErro('Escolha onde o campo vale: nas peças, nos pedidos ou nos dois.')
+    if (!emPecas && !emPedidos && !emAvulsos)
+      return setErro('Escolha onde o campo vale: nas peças, nos pedidos ou nos cards avulsos.')
     if (tipo === 'lista' && opcoes.every((o) => !o.trim()))
       return setErro('A lista precisa de pelo menos uma opção.')
     setErro('')
@@ -641,6 +650,15 @@ function ModalCampo({
               onChange={(e) => setEmPedidos(e.target.checked)}
             />
             Nos pedidos (o card do pedido no PCP e a lista de todos os pedidos)
+          </label>
+          <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
+            <input
+              type="checkbox"
+              className="size-5 accent-marca-500"
+              checked={emAvulsos}
+              onChange={(e) => setEmAvulsos(e.target.checked)}
+            />
+            Nos cards avulsos (os do Lançamento manual do PCP)
           </label>
         </fieldset>
         {erro && <p className="text-sm text-danificado-forte">{erro}</p>}

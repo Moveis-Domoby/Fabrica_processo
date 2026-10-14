@@ -101,8 +101,9 @@ begin
   loop
     execute format('alter table public.plt_cards drop constraint %I', v_nome);
   end loop;
+  -- ↪️ SESSAO-31 (E-19): `not valid` — a migration 69 acrescenta o avulso e é ela quem valida.
   alter table public.plt_cards add constraint plt_cards_tipo_check
-    check (tipo in ('pedido', 'unidade', 'reposicao'));
+    check (tipo in ('pedido', 'unidade', 'reposicao')) not valid;
 end;
 $$;
 

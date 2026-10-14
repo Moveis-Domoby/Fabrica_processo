@@ -13,13 +13,13 @@ import type { Estado } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { concluirProducao, soltarCard } from '../api'
 import { pedidoCancelado } from '../situacao'
-import type { Card, Etapa, PedidoResumo } from '../tipos'
+import type { Card, Etapa, PedidoDoCard } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 import { textoPecaConcluida } from '../situacaoPlataforma'
 
 export interface ModalMoverCardProps {
   card: Card | null
-  pedido?: PedidoResumo
+  pedido?: PedidoDoCard
   /**
    * SESSAO-24 — o quadro é por arrasto; este modal só pergunta o ESTADO da peça
    * (D-09: quem entrega marca). ↩️ SESSAO-31 (D-126): só abre quando o setor
@@ -81,6 +81,7 @@ export function ModalMoverCard({
   async function invalidar() {
     await Promise.all([
       clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+      clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
       clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
       clienteQuery.invalidateQueries({ queryKey: ['expedicao'] }),
       clienteQuery.invalidateQueries({ queryKey: ['pedidos-aguardo'] }),

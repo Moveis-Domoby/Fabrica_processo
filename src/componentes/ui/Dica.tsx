@@ -7,6 +7,8 @@ export interface DicaProps {
   rotulo: string
   children: ReactNode
   className?: string
+  /** SESSAO-31: o ícone do botão (padrão: o "i"); o card usa o da descrição. */
+  icone?: ReactNode
 }
 
 /**
@@ -19,7 +21,7 @@ export interface DicaProps {
  * no ícone — assim ele nunca estoura a borda da tela no celular (lição da
  * F-07: overlay se ancora na borda da página, não no elemento).
  */
-export function Dica({ rotulo, children, className }: DicaProps) {
+export function Dica({ rotulo, children, className, icone }: DicaProps) {
   const [aberta, setAberta] = useState(false)
   const id = useId()
   const raiz = useRef<HTMLSpanElement>(null)
@@ -61,7 +63,7 @@ export function Dica({ rotulo, children, className }: DicaProps) {
           aberta && 'text-texto',
         )}
       >
-        <Info aria-hidden className="size-5" />
+        {icone ?? <Info aria-hidden className="size-5" />}
       </button>
       {aberta && (
         <span

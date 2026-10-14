@@ -1,5 +1,7 @@
 import {
+  AlignLeft,
   Ban,
+  CalendarClock,
   CircleCheckBig,
   Clock,
   ClipboardCheck,
@@ -8,22 +10,84 @@ import {
   History,
   Hourglass,
   Images,
+  Link2,
+  MessageSquare,
+  Paperclip,
   Pause,
   Play,
+  TriangleAlert,
   UserRound,
+  Wrench,
 } from 'lucide-react'
-import { BadgeEstado, Botao } from '@/componentes/ui'
+import { BadgeEstado, Botao, Dica } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
+import { urlDaFoto } from '@/perfil/api'
+import { iniciais } from '@/chat/formato'
+import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
 import { pedidoCancelado } from '../situacao'
-import type { Card, PedidoResumo } from '../tipos'
-import { rotuloOrigemCard } from '../rotulos'
+import type { Card, PedidoDoCard } from '../tipos'
+import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 
+/** A data local de hoje (aaaa-mm-dd) — o vencimento é do calendário de Natal. */
+function hojeLocal(agora: number): string {
+  const d = new Date(agora)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+
+/** Os rostos dos responsáveis (até 3 + "+N") — o nome vai no texto acessível. */
+function Responsaveis({
+  ids,
+  pessoas,
+}: {
+  ids: string[]
+  pessoas?: Map<string, { nome: string; foto: string | null }>
+}) {
+  const nomes = ids.map((id) => pessoas?.get(id)?.nome ?? 'alguém')
+  return (
+    <span className="flex items-center" aria-label={`Responsáveis: ${nomes.join(', ')}`} role="img">
+      {ids.slice(0, 3).map((id, i) => {
+        const p = pessoas?.get(id)
+        const url = urlDaFoto(p?.foto ?? null)
+        return url ? (
+          <img
+            key={id}
+            src={url}
+            alt=""
+            title={p?.nome}
+            className={cn(
+              'size-6 rounded-full border-2 border-superficie object-cover',
+              i > 0 && '-ml-1.5',
+            )}
+          />
+        ) : (
+          <span
+            key={id}
+            title={p?.nome}
+            className={cn(
+              'inline-flex size-6 items-center justify-center rounded-full border-2 border-superficie bg-superficie-sutil text-[10px] font-semibold text-texto-suave',
+              i > 0 && '-ml-1.5',
+            )}
+          >
+            {iniciais(p?.nome ?? null) || '?'}
+          </span>
+        )
+      })}
+      {ids.length > 3 && (
+        <span className="-ml-1.5 inline-flex size-6 items-center justify-center rounded-full border-2 border-superficie bg-superficie-sutil text-[10px] font-semibold text-texto-suave">
+          +{ids.length - 3}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export interface CartaoUnidadeProps {
   card: Card
-  pedido?: PedidoResumo
+  pedido?: PedidoDoCard
   agora: number
   /**
    * O único botão de gesto do card. ↩️ SESSAO-31 (D-127): a peça não tem mais
@@ -52,6 +116,8 @@ export interface CartaoUnidadeProps {
   tamanho?: 'padrao' | 'galpao'
   /** SESSAO-27 (D-101): os campos customizados preenchidos desta peça. */
   campos?: CampoMostrado[]
+  /** SESSAO-31: nome e foto de quem aparece no card (responsáveis). */
+  pessoas?: Map<string, { nome: string; foto: string | null }>
 }
 
 /**
@@ -81,6 +147,7 @@ export function CartaoUnidade({
   arrastando = false,
   tamanho = 'padrao',
   campos,
+  pessoas,
 }: CartaoUnidadeProps) {
   const galpao = tamanho === 'galpao'
   const kn =
@@ -100,16 +167,31 @@ export function CartaoUnidade({
       new Date(pedido.entrou_pcp_em).getTime()
     : null
   const temRodape = aoLinhaTempo || aoFotos || (!terminal && aoConcluir)
+  // SESSAO-31 (D-125 / §2): a frente enxuta — só o que o card tem.
+  const avulso = card.tipo === 'avulso'
+  const responsaveis = card.responsaveis ?? []
+  const hoje = hojeLocal(agora)
+  const vence = card.vence_em ?? null
+  const atrasado = vence !== null && !terminal && vence < hoje
+  const venceHoje = vence !== null && !terminal && vence === hoje
+  const anexos = card.anexos_qtd ?? 0
+  const mensagens = card.mensagens_qtd ?? 0
+  const temIndicadores =
+    Boolean(card.descricao) || anexos > 0 || mensagens > 0 || responsaveis.length > 0
 
   return (
     <article
       className={cn(
-        'flex flex-col gap-2 rounded-dm border bg-superficie',
+        'relative flex flex-col gap-2 rounded-dm border bg-superficie',
         galpao ? 'p-4' : 'p-3',
         emExecucao ? 'border-acao-ativa' : 'border-borda',
         arrastando && 'opacity-60 shadow-lg',
       )}
-      aria-label={`Unidade ${kn} — ${rotuloOrigemCard(card, pedido)}`}
+      aria-label={
+        avulso
+          ? `Card avulso — ${nomeDoCard(card)}`
+          : `Unidade ${kn} — ${rotuloOrigemCard(card, pedido)}`
+      }
     >
       <header className="flex items-baseline justify-between gap-2">
         <span
@@ -134,8 +216,24 @@ export function CartaoUnidade({
       </header>
 
       <p className={cn('line-clamp-2 text-texto', galpao ? 'text-lg font-medium' : 'text-sm')}>
-        {card.item_descricao ?? 'Sem descrição'}
+        {nomeDoCard(card)}
       </p>
+      {/* SESSAO-31 (D-125): o vínculo do avulso é só referência — linha pequena. */}
+      {avulso && card.vinculo_rotulo && (
+        <p className="inline-flex min-w-0 items-center gap-1 text-xs text-texto-suave">
+          <Link2 aria-hidden className="size-3.5 shrink-0" />
+          <span className="truncate">{card.vinculo_rotulo}</span>
+        </p>
+      )}
+      {/* D-130: a peça em ajuste e para onde ela vai ao terminar. */}
+      {card.ajuste_destino && (
+        <p>
+          <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2.5 py-0.5 text-xs font-medium text-info-texto">
+            <Wrench aria-hidden className="size-3.5" />
+            Ajuste · vai para {ROTULO_DESTINO_FINAL[card.ajuste_destino].toLowerCase()}
+          </span>
+        </p>
+      )}
       {/* D-28: a tela do galpão não mostra dado de cliente. */}
       {!galpao && pedido?.cliente_nome && (
         <p className="line-clamp-1 text-xs text-texto-fraco">{pedido.cliente_nome}</p>
@@ -151,6 +249,66 @@ export function CartaoUnidade({
       )}
       {/* SESSAO-27 (D-101): etiquetas e campos customizados — também no tablet. */}
       <EtiquetasDoCard ids={card.etiquetas} tamanho={galpao ? 'galpao' : 'sm'} />
+      {/* SESSAO-31 (§2): vencimento — atrasado é ícone + texto, nunca só cor (M-12). */}
+      {vence && (
+        <p
+          className={cn(
+            'inline-flex items-center gap-1 tabular-nums',
+            galpao ? 'text-sm' : 'text-xs',
+            atrasado
+              ? 'font-medium text-atencao-texto'
+              : venceHoje
+                ? 'font-medium text-texto'
+                : 'text-texto-suave',
+          )}
+        >
+          {atrasado ? (
+            <TriangleAlert aria-hidden className="size-3.5" />
+          ) : (
+            <CalendarClock aria-hidden className="size-3.5" />
+          )}
+          {atrasado
+            ? `Venceu em ${diaMes(vence)} — atrasado`
+            : venceHoje
+              ? 'Vence hoje'
+              : `Vence ${diaMes(vence)}`}
+        </p>
+      )}
+      {temIndicadores && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {responsaveis.length > 0 && <Responsaveis ids={responsaveis} pessoas={pessoas} />}
+          {card.descricao && (
+            // O botãozinho da descrição: passar o mouse (ou tocar) mostra o texto.
+            // Enter/Espaço nele é dele — não vira arrasto de teclado.
+            <span className="-my-2" onKeyDown={(e) => e.stopPropagation()}>
+              <Dica
+                rotulo="Ver a descrição do card"
+                icone={<AlignLeft aria-hidden className="size-4" />}
+              >
+                <span className="whitespace-pre-wrap">{card.descricao}</span>
+              </Dica>
+            </span>
+          )}
+          {anexos > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-xs text-texto-suave tabular-nums"
+              aria-label={anexos === 1 ? '1 anexo' : `${anexos} anexos`}
+            >
+              <Paperclip aria-hidden className="size-3.5" />
+              {anexos}
+            </span>
+          )}
+          {mensagens > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-xs text-texto-suave tabular-nums"
+              aria-label={mensagens === 1 ? '1 mensagem' : `${mensagens} mensagens`}
+            >
+              <MessageSquare aria-hidden className="size-3.5" />
+              {mensagens}
+            </span>
+          )}
+        </div>
+      )}
       {campos && campos.length > 0 && (
         <dl className={cn('flex flex-col gap-0.5', galpao ? 'text-sm' : 'text-xs')}>
           {campos.slice(0, 3).map((c) => (

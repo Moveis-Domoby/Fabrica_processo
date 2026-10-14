@@ -4,25 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flag, ListChecks } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import {
-  buscarEtapasDoSetor,
-  buscarExecucoesAbertas,
-  buscarNomesUsuarios,
-  buscarSetores,
-  soltarCard,
-} from '@/kanban/api'
+import { buscarSetores, soltarCard } from '@/kanban/api'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
-import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
-import { useColunasPaginadas } from '@/kanban/componentes/useColunasPaginadas'
+import { useQuadro } from '@/kanban/useQuadro'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
-import type { Card, Etapa, ExecucaoAberta } from '@/kanban/tipos'
+import { ModalConcluirAvulso } from '@/kanban/componentes/ModalConcluirAvulso'
+import type { Card, Etapa } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
-
-const ATUALIZA_A_CADA = 20_000
 
 /**
  * O quadro de um setor (RF-01): etapas internas como colunas, cards de
@@ -36,6 +28,10 @@ const ATUALIZA_A_CADA = 20_000
  * adiante (perguntando o estado só quando o setor pede ao enviar); soltar na
  * EXPEDIÇÃO da LIMPEZA E EMBALAGEM conclui a produção (D-127); o resto é só
  * mover.
+ *
+ * SESSAO-31 (Lei §2/§4 — regra 18): o quadro abre com UMA requisição e fica ao
+ * vivo pelo websocket do setor (useQuadro) — sem relógio. O card avulso
+ * (D-125) anda igual e tem o botão "Concluir".
  */
 export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
@@ -52,36 +48,11 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   })
   const setor = setores.find((s) => s.id === setorId)
 
-  const { data: etapas = [] } = useQuery({
-    queryKey: ['etapas', setorId],
-    queryFn: () => buscarEtapasDoSetor(setorId),
-    enabled: Number.isFinite(setorId),
-  })
-
-  // SESSAO-22: cada coluna carrega só a própria página (10 por vez + "Ver mais").
-  const { colunas, cards } = useColunasPaginadas({
-    setorId: Number.isFinite(setorId) ? setorId : undefined,
-    etapas,
-    tipo: 'unidade',
-    atualizaACada: ATUALIZA_A_CADA,
-  })
+  // SESSAO-31: o quadro inteiro numa requisição e ao vivo pelo websocket do setor.
+  const quadro = useQuadro(Number.isFinite(setorId) ? setorId : undefined)
+  const { etapas, colunas, pedidosPorId, execucoesPorCard, nomesUsuarios, pessoas, camposPorCard } =
+    quadro
   const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
-  const { data: pedidosPorId = new Map() } = usePedidosDosCards(cards)
-
-  // SESSAO-05: quem executa o quê, desde quando — e os nomes das pessoas.
-  const idsDosCards = cards.map((c) => c.id)
-  const { data: execucoes = [] } = useQuery({
-    queryKey: ['execucoes', 'setor', setorId, idsDosCards.join(',')],
-    queryFn: () => buscarExecucoesAbertas(idsDosCards),
-    enabled: idsDosCards.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const { data: nomesUsuarios = new Map<string, string>() } = useQuery({
-    queryKey: ['usuarios', 'nomes'],
-    queryFn: buscarNomesUsuarios,
-    staleTime: 5 * 60_000,
-  })
-  const execucoesPorCard = new Map<number, ExecucaoAberta>(execucoes.map((e) => [e.card_id, e]))
 
   // SESSAO-24: o que o soltar precisa perguntar antes de ir ao banco.
   const [encaminhando, setEncaminhando] = useState<{ card: Card; etapa: Etapa } | null>(null)
@@ -92,11 +63,13 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     etapaId: number
   } | null>(null)
   const [cardLinhaTempo, setCardLinhaTempo] = useState<Card | null>(null)
+  const [concluindoAvulso, setConcluindoAvulso] = useState<Card | null>(null)
 
-  async function invalidarQuadro() {
+  // Com o websocket conectado, o próprio aviso do setor relê o quadro (1 vez);
+  // sem ele, a tela relê por conta própria.
+  async function invalidarQuadro(forcar = false) {
     await Promise.all([
-      clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
+      forcar || !quadro.conectado ? quadro.reler() : Promise.resolve(),
       clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
     ])
   }
@@ -126,7 +99,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         tom: 'danificado',
       })
       // O card volta para onde estava — o banco recusou a transação inteira.
-      void invalidarQuadro()
+      void invalidarQuadro(true)
     },
   })
 
@@ -148,7 +121,11 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       setEncaminhando({ card, etapa: acao.etapa })
       return
     }
-    if (acao.tipo === 'concluir' && pedeEstadoAoEnviar(setorAtual, card)) {
+    if (
+      acao.tipo === 'concluir' &&
+      card.tipo === 'unidade' &&
+      pedeEstadoAoEnviar(setorAtual, card)
+    ) {
       setConcluindo({ card, etapa: acao.etapa })
       return
     }
@@ -157,6 +134,10 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       setInicioDepoisDoParecer({ card, etapaId })
       setCardParecer(card)
       return
+    }
+    // O card muda de coluna na hora (mover e começar o tempo ficam no setor).
+    if ((acao.tipo === 'mover' || acao.tipo === 'iniciar') && etapaId !== null) {
+      quadro.moverOtimista(card, etapaId)
     }
     mutacaoSoltar.mutate({ card, etapaId })
   }
@@ -198,13 +179,27 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         agora={agora}
         setores={setores}
         aoSoltarNaEtapa={aoSoltarNaEtapa}
+        aoAbrirConcluir={(card) => card.tipo === 'avulso' && setConcluindoAvulso(card)}
+        camposPorCard={camposPorCard}
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
+          pessoas,
           meuUsuarioId: perfil.id,
           gestoPendente: mutacaoSoltar.isPending,
           aoLinhaTempo: setCardLinhaTempo,
         }}
+      />
+      {quadro.erro && (
+        <p className="rounded-dm border border-danificado-borda bg-danificado-fundo p-3 text-sm text-danificado-texto">
+          {quadro.erro instanceof Error ? quadro.erro.message : 'Não deu para carregar o quadro.'}
+        </p>
+      )}
+
+      <ModalConcluirAvulso
+        key={concluindoAvulso?.id ?? 'concluir-fechado'}
+        card={concluindoAvulso}
+        aoFechar={() => setConcluindoAvulso(null)}
       />
 
       <ModalMoverCard

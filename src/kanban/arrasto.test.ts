@@ -82,6 +82,21 @@ describe('acaoAoSoltar', () => {
     expect(naLimpeza({ tipo: 'pedido' })).toEqual({ tipo: 'mover' })
   })
 
+  it('o card avulso (D-125) inicia o tempo como a peça e, na etapa que conclui, é concluído', () => {
+    const avulso = { tipo: 'avulso' as const }
+    expect(
+      acaoAoSoltar({ setor: PRODUCAO, etapas: MONTAGEM, card: avulso, etapaDestinoId: 28 }),
+    ).toEqual({
+      tipo: 'iniciar',
+    })
+    expect(
+      acaoAoSoltar({ setor: PRODUCAO, etapas: LIMPEZA, card: avulso, etapaDestinoId: 62 }),
+    ).toMatchObject({
+      tipo: 'concluir',
+    })
+    expect(tipoQualidade({ tipo: 'avulso', pedido_id: null })).toBe('avulso')
+  })
+
   it('no PCP (entrada) soltar na etapa seguinte à fila NÃO inicia tempo', () => {
     expect(
       acaoAoSoltar({

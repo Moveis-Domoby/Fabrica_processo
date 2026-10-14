@@ -16,7 +16,7 @@ import { CartaoUnidade } from './CartaoUnidade'
 import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
-import type { Card, Etapa, ExecucaoAberta, PedidoResumo, Setor } from '../tipos'
+import type { Card, Etapa, ExecucaoAberta, PedidoDoCard, Setor } from '../tipos'
 
 /** Id de coluna no drag-and-drop para cards ainda sem etapa (PCP/terminais). */
 const CHEGADA = 'chegada'
@@ -47,6 +47,8 @@ export interface ContextoExecucao {
   aoLinhaTempo?: (card: Card) => void
   /** Tablet (D-28): o espaço de imagens da peça. */
   aoFotos?: (card: Card) => void
+  /** SESSAO-31: nome e foto de quem aparece nos cards (responsáveis) — vem com o quadro. */
+  pessoas?: Map<string, { nome: string; foto: string | null }>
 }
 
 interface ColunaProps {
@@ -61,7 +63,7 @@ interface ColunaProps {
   /** SESSAO-31 (D-127): soltar a peça aqui conclui a produção (a EXPEDIÇÃO). */
   conclui?: boolean
   dados: ColunaPaginada
-  pedidosPorId: Map<number, PedidoResumo>
+  pedidosPorId: Map<number, PedidoDoCard>
   agora: number
   terminal: boolean
   aoConcluir?: (card: Card) => void
@@ -168,7 +170,7 @@ function Coluna({
             {levaPara
               ? `Solte aqui para mandar para ${levaPara}`
               : conclui
-                ? 'Solte aqui a peça pronta: vai para Pedidos em aguardo (ou ESTOQUE, sem pedido)'
+                ? 'Solte aqui a peça pronta: vai para Pedidos em aguardo (ou ESTOQUE, sem pedido). O card avulso solto aqui é concluído.'
                 : 'Vazio'}
           </p>
         )}
@@ -191,6 +193,7 @@ function Coluna({
             gestoPendente: execucao.gestoPendente,
             tamanho,
             campos: camposPorCard.get(card.id),
+            pessoas: execucao.pessoas,
           }
           return arrastavel ? (
             <CardArrastavel key={card.id} {...comuns} />
@@ -247,7 +250,7 @@ export interface QuadroKanbanProps {
   etapas: Etapa[]
   /** Uma coluna paginada por chave: 'chegada' (sem etapa) ou o id da etapa. */
   colunas: Map<string, ColunaPaginada>
-  pedidosPorId: Map<number, PedidoResumo>
+  pedidosPorId: Map<number, PedidoDoCard>
   agora: number
   /**
    * SESSAO-24: o GESTO do quadro — o card foi solto numa coluna (nula =
@@ -263,6 +266,11 @@ export interface QuadroKanbanProps {
   execucao: ContextoExecucao
   /** 'galpao' = a tela do setor no tablet (colunas e letra maiores — D-06). */
   tamanho?: 'padrao' | 'galpao'
+  /**
+   * SESSAO-31 (Lei §2): os campos de cada card já vieram com o quadro (uma
+   * requisição) — sem isto, o quadro pergunta à parte (o jeito antigo).
+   */
+  camposPorCard?: Map<number, CampoMostrado[]>
 }
 
 /**
@@ -291,6 +299,7 @@ export function QuadroKanban({
   setores = [],
   execucao,
   tamanho = 'padrao',
+  camposPorCard: camposVindos,
 }: QuadroKanbanProps) {
   const sensores = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -312,7 +321,8 @@ export function QuadroKanban({
     ...(mostrarChegada ? chegada.cards : []),
     ...etapas.flatMap((e) => dadosDe(String(e.id)).cards),
   ]
-  const camposPorCard = useCamposDasPecas(todosOsCards.map((c) => c.id))
+  const camposPerguntados = useCamposDasPecas(camposVindos ? [] : todosOsCards.map((c) => c.id))
+  const camposPorCard = camposVindos ?? camposPerguntados
 
   function aoSoltar(evento: DragEndEvent) {
     const card = todosOsCards.find((c) => c.id === evento.active.id)

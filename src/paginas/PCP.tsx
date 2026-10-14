@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import {
   keepPreviousData,
@@ -25,6 +25,7 @@ import {
   Plus,
   Search,
   Square,
+  SquarePen,
 } from 'lucide-react'
 import { Abas, Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -41,6 +42,12 @@ import {
 } from '@/kanban/api'
 import type { AcaoAjustePedido, ReposicaoResumo, ResultadoAjustePedido } from '@/kanban/api'
 import type { PedidoTodosPcp } from '@/kanban/tipos'
+// SESSAO-31 (Lei §9): a aba Lançamento manual é pedaço próprio — carrega no 1º clique.
+const AbaLancamentoManual = lazy(() =>
+  import('@/kanban/lancamento/AbaLancamentoManual').then((m) => ({
+    default: m.AbaLancamentoManual,
+  })),
+)
 import {
   AJUSTES_PEDIDO,
   ROTULO_SITUACAO_PLATAFORMA,
@@ -110,8 +117,15 @@ export function PCP() {
   // ?aba=cancelados (bookmark antigo) leva à tela nova, na Logística.
   const [parametros, setParametros] = useSearchParams()
   const abaParam = parametros.get('aba')
-  const aba: 'solicitacoes' | 'quadro' | 'todos' =
-    abaParam === 'solicitacoes' ? 'solicitacoes' : abaParam === 'todos' ? 'todos' : 'quadro'
+  // SESSAO-31 (D-125): a quarta aba — o Lançamento manual (card avulso e ajuste de peça).
+  const aba: 'solicitacoes' | 'quadro' | 'todos' | 'lancamento' =
+    abaParam === 'solicitacoes'
+      ? 'solicitacoes'
+      : abaParam === 'todos'
+        ? 'todos'
+        : abaParam === 'lancamento'
+          ? 'lancamento'
+          : 'quadro'
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPcp = setores.find((s) => s.codigo === 'pcp')
@@ -305,6 +319,7 @@ export function PCP() {
             icone: <PackageOpen aria-hidden />,
           },
           { valor: 'todos', rotulo: 'Todos os pedidos', icone: <Inbox aria-hidden /> },
+          { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
         ]}
         valor={aba}
         aoMudar={(valor) => {
@@ -351,6 +366,14 @@ export function PCP() {
               aoChegar={() => setPaginasSolicitacoes((p) => p + 1)}
             />
           </section>
+        </div>
+      )}
+
+      {aba === 'lancamento' && (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-lancamento">
+          <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando…</p>}>
+            <AbaLancamentoManual ativa />
+          </Suspense>
         </div>
       )}
 

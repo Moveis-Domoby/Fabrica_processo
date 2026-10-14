@@ -7,14 +7,25 @@ import type { Card, PedidoResumo } from './tipos'
  * no estoque aguardando a venda.
  */
 export function rotuloOrigemCard(
-  card: Pick<Card, 'pedido_id'>,
+  card: Pick<Card, 'pedido_id'> & Partial<Pick<Card, 'tipo'>>,
   pedido?: Pick<PedidoResumo, 'numero'> | null,
 ): string {
+  // SESSAO-31 (D-125): o card digitado à mão no PCP.
+  if (card.tipo === 'avulso') return 'Card avulso'
   if (card.pedido_id === null) return 'Reposição de estoque'
   return `Pedido ${pedido?.numero ?? '…'}`
 }
 
 /** Card ou unidade sem pedido do Tiny = reposição de estoque (SESSAO-25). */
 export function ehDaReposicao(card: Pick<Card, 'tipo' | 'pedido_id'>): boolean {
+  if (card.tipo === 'avulso') return false
   return card.tipo === 'reposicao' || card.pedido_id === null
+}
+
+/** O nome do card em língua de gente: o avulso pelo título; a peça pelo produto. */
+export function nomeDoCard(
+  card: Pick<Card, 'tipo' | 'item_descricao'> & Partial<Pick<Card, 'titulo'>>,
+): string {
+  if (card.tipo === 'avulso') return card.titulo ?? 'Card avulso'
+  return card.item_descricao ?? 'Sem descrição'
 }

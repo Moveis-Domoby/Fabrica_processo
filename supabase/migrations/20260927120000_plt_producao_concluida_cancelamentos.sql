@@ -131,7 +131,7 @@ alter table public.plt_cards add constraint plt_cards_unidade_coerente check (
      and pedido_id is not null)
   or (tipo = 'reposicao' and indice_unidade is null and total_unidades >= 1
      and pedido_id is null and produto_tiny_id is not null)
-);
+) not valid;  -- ↪️ SESSAO-31 (E-19): a migration 69 (card avulso) recria e valida.
 
 -- A unicidade da 25 era (card de origem, k): duas unidades de um pedido
 -- cancelado com o mesmo k (itens diferentes) colidiriam. Ganha o item.

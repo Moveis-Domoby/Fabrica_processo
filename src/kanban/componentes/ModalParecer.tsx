@@ -13,13 +13,13 @@ import {
 import type { Estado } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { buscarChegadaPendente, registrarParecer } from '../api'
-import type { Card, ParecerPendente, PedidoResumo, Setor } from '../tipos'
+import type { Card, ParecerPendente, PedidoDoCard, Setor } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 
 export interface ModalParecerProps {
   /** O card com a chegada pendente (`parecer_pendente_id` — D-126). */
   card: Card | null
-  pedido?: PedidoResumo
+  pedido?: PedidoDoCard
   /** Para dizer DE ONDE a peça veio (cache de referência — nada a mais no banco). */
   setores?: Setor[]
   /** id → nome, para dizer quem entregou. */
@@ -112,6 +112,7 @@ export function ModalParecer({
       aoFechar()
       await Promise.all([
         clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
         clienteQuery.invalidateQueries({ queryKey: ['etapas'] }),
         clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
       ])

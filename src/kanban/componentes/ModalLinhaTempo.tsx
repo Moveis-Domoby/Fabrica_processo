@@ -7,14 +7,14 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { estornarEvento, linhaTempoCard } from '../api'
 import { eventoEstornavel, montarSegmentos } from '../linha-tempo'
 import { formatarDuracaoMs, useAgora } from '../tempo'
-import type { Card, EventoLinhaTempo, PedidoResumo } from '../tipos'
+import type { Card, EventoLinhaTempo, PedidoDoCard } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 import { ORIGEM } from '@/auditoria/rotulos'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
 
 export interface ModalLinhaTempoProps {
   card: Card | null
-  pedido?: PedidoResumo
+  pedido?: PedidoDoCard
   aoFechar: () => void
 }
 
@@ -110,6 +110,7 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
       await Promise.all([
         clienteQuery.invalidateQueries({ queryKey: ['linha-tempo'] }),
         clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
         clienteQuery.invalidateQueries({ queryKey: ['execucoes'] }),
       ])
     },
@@ -179,9 +180,7 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
               <header className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-sm font-semibold text-texto">
                   {s.setorNome}
-                  {s.etapaNome && (
-                    <span className="text-texto-suave"> · {s.etapaNome}</span>
-                  )}
+                  {s.etapaNome && <span className="text-texto-suave"> · {s.etapaNome}</span>}
                   {s.ehFila && (
                     <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
                       fila
@@ -206,7 +205,8 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
                   {s.qualidade.estadoRecebedor ? (
                     <span className="flex flex-wrap items-center gap-1.5 text-texto">
                       <span className="w-4 shrink-0" aria-hidden />
-                      Recebimento{s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
+                      Recebimento
+                      {s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
                       <BadgeEstado estado={s.qualidade.estadoRecebedor} tamanho="sm" />
                       {s.qualidade.divergente && (
                         <span className="rounded-full bg-atencao-fundo px-2 py-0.5 font-medium text-atencao-texto">
@@ -247,7 +247,8 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
                         (e.autorFim && e.autorFim !== e.autorInicio
                           ? `· finalizada por ${e.autorFim}`
                           : '· finalizada')}
-                      {e.encerramento === 'transferencia' && '· transferida (assumida por outra pessoa)'}
+                      {e.encerramento === 'transferencia' &&
+                        '· transferida (assumida por outra pessoa)'}
                       {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
                       {e.pausaMs > 0 && ` · ${formatarDuracaoMs(e.pausaMs)} de pausa descontados`}
                     </dd>

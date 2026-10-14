@@ -14,7 +14,15 @@ vi.mock('@/lib/supabase', () => ({ supabase: {} }))
 vi.mock('@/utilitarios/api', () => ({
   buscarEtiquetas: vi.fn(async () => [{ id: 1, nome: 'Revisar', cor: 'rosa', arquivada_em: null }]),
   buscarCampos: vi.fn(async () => [
-    { id: 3, nome: 'Cor do MDF', tipo: 'lista', opcoes: ['Branco', 'Preto'], em_pecas: true, em_pedidos: false, arquivado_em: null },
+    {
+      id: 3,
+      nome: 'Cor do MDF',
+      tipo: 'lista',
+      opcoes: ['Branco', 'Preto'],
+      em_pecas: true,
+      em_pedidos: false,
+      arquivado_em: null,
+    },
   ]),
   salvarEtiqueta: vi.fn(async () => 2),
   arquivarEtiqueta: vi.fn(async () => undefined),
@@ -26,7 +34,9 @@ vi.mock('@/utilitarios/api', () => ({
 
 function renderizar(rota = '/configuracoes/utilitarios') {
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <MemoryRouter initialEntries={[rota]}>
         <ProvedorNotificacao>
           <Utilitarios />
@@ -47,7 +57,9 @@ describe('Configurações → Utilitários', () => {
     fireEvent.change(within(modal).getByLabelText('Nome'), { target: { value: 'Urgente' } })
     fireEvent.click(within(modal).getByRole('radio', { name: /Violeta/ }))
     fireEvent.click(within(modal).getByRole('button', { name: 'Salvar' }))
-    await waitFor(() => expect(salvarEtiqueta).toHaveBeenCalledWith({ id: null, nome: 'Urgente', cor: 'violeta' }))
+    await waitFor(() =>
+      expect(salvarEtiqueta).toHaveBeenCalledWith({ id: null, nome: 'Urgente', cor: 'violeta' }),
+    )
   })
 
   it('o campo do tipo lista mostra as opções e onde vale; o novo campo de texto vale nas peças por padrão', async () => {
@@ -56,7 +68,9 @@ describe('Configurações → Utilitários', () => {
     expect(screen.getByText(/Lista de opções · Nas peças · Branco, Preto/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Novo campo' }))
     const modal = await screen.findByRole('dialog')
-    fireEvent.change(within(modal).getByLabelText('Nome'), { target: { value: 'Observação da montagem' } })
+    fireEvent.change(within(modal).getByLabelText('Nome'), {
+      target: { value: 'Observação da montagem' },
+    })
     fireEvent.click(within(modal).getByRole('checkbox', { name: /Nos pedidos/ }))
     fireEvent.click(within(modal).getByRole('button', { name: 'Salvar' }))
     await waitFor(() =>
@@ -67,6 +81,7 @@ describe('Configurações → Utilitários', () => {
         opcoes: [],
         emPecas: true,
         emPedidos: true,
+        emAvulsos: false,
       }),
     )
   })

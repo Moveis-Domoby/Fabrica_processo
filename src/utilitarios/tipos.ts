@@ -56,6 +56,8 @@ export interface CampoCustomizado {
   opcoes: string[]
   em_pecas: boolean
   em_pedidos: boolean
+  /** SESSAO-31 (↩️ D-101): o campo vale também nos cards avulsos. */
+  em_avulsos?: boolean
   arquivado_em: string | null
 }
 
@@ -69,7 +71,10 @@ export interface ValorDeCampo {
 }
 
 /** O valor em língua de gente (data dd/mm/aaaa, sim/não, número com vírgula). */
-export function textoDoValorCampo(campo: Pick<CampoCustomizado, 'tipo'>, valor: ValorCampo | null | undefined): string {
+export function textoDoValorCampo(
+  campo: Pick<CampoCustomizado, 'tipo'>,
+  valor: ValorCampo | null | undefined,
+): string {
   if (valor === null || valor === undefined || valor === '') return '—'
   if (campo.tipo === 'sim_nao') return valor === true || valor === 'true' ? 'Sim' : 'Não'
   if (campo.tipo === 'data' && typeof valor === 'string') {

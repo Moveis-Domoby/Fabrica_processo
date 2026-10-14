@@ -11661,6 +11661,374 @@ conferir(priv68.equipes_saiu && priv68.programar_velha_saiu && priv68.ordenar_ve
   'as portas antigas saíram; anônimo fora; a maquinaria fora da API', JSON.stringify(priv68))
 } // fim do bloco 68
 
+// ============================================================================
+// SESSAO-31 · etapa D (migration 69 — D-125): o CARD AVULSO — nasce no PCP
+// (Lançamento manual), anda pelos quadros como qualquer card, termina no
+// Concluir; quem edita, quem vê, etiquetas pelas pessoas, campos no avulso.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · o card avulso: quem cria, nasce no PCP, lança, anda, conclui (D-125)')
+
+const um69 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos69 = async (sql, p) => (await bd.query(sql, p)).rows
+const como69 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const OP = '00000000-0000-0000-0000-000000000691'      // operador do setor av69a
+const LID = '00000000-0000-0000-0000-000000000692'     // líder do av69a
+const FORA = '00000000-0000-0000-0000-000000000693'    // operador de outro setor
+await como69('')
+await bd.exec(`
+  insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+    ('av69a', 'AV69 CORTE', 'producao', 971), ('av69b', 'AV69 MONTAGEM', 'producao', 972), ('av69c', 'AV69 OUTRO', 'producao', 973);
+  -- o teste liga as chaves do estado da peça no padrão dos setores novos — aqui, desligadas (D-126)
+  update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo like 'av69%';
+`)
+const ids69 = Object.fromEntries((await todos69(`select codigo, id::int as id from public.plt_setores`)).map((s) => [s.codigo, s.id]))
+const [A, B, C] = [ids69.av69a, ids69.av69b, ids69.av69c]
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, setor_destino_id, conclui_producao) values
+    (${A}, 'A CORTAR', 10, true, null, false), (${A}, 'CORTANDO', 20, false, null, false),
+    (${A}, 'PRONTO', 30, false, ${B}, false), (${A}, 'PARA O ESTOQUE', 40, false, ${ids69.estoque}, false),
+    (${B}, 'A MONTAR', 10, true, null, false), (${B}, 'MONTANDO', 20, false, null, false),
+    (${B}, 'EXPEDIÇÃO', 30, false, null, true), (${B}, 'PARADO', 40, false, null, false),
+    (${C}, 'A FAZER', 10, true, null, false);
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Operador 69', 'op69@teste.com', '69696969691', 'op.69', 'operador', '${OP}', array['fabrica']),
+    ('Líder 69', 'lid69@teste.com', '69696969692', 'lid.69', 'operador', '${LID}', array['fabrica']),
+    ('Fora 69', 'fora69@teste.com', '69696969693', 'fora.69', 'operador', '${FORA}', array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+    ((select id from public.plt_usuarios where usuario = 'op.69'), ${A}, false),
+    ((select id from public.plt_usuarios where usuario = 'op.69'), ${B}, false),
+    ((select id from public.plt_usuarios where usuario = 'lid.69'), ${A}, true),
+    ((select id from public.plt_usuarios where usuario = 'fora.69'), ${C}, false);
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (969001, 'S69A', 'Cadeira Avulso 69', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (969001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+`)
+const idDe = async (usuario) => (await um69(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+const [op, lid, fora] = [await idDe('op.69'), await idDe('lid.69'), await idDe('fora.69')]
+const etapa69 = async (setor, nome) => (await um69(`select id::int as id from public.plt_etapas where setor_id = ${setor} and nome = '${nome}'`)).id
+const [CORTANDO, PRONTO, PARA_ESTOQUE, MONTANDO, EXPEDICAO] =
+  [await etapa69(A, 'CORTANDO'), await etapa69(A, 'PRONTO'), await etapa69(A, 'PARA O ESTOQUE'),
+   await etapa69(B, 'MONTANDO'), await etapa69(B, 'EXPEDIÇÃO')]
+const pedido69 = (await um69(`select id::int as id from public.pedidos where numero = 969001`)).id
+const card69 = (id) => um69(`select c.tipo, c.titulo, c.descricao, c.inicio_em::text as inicio, c.vence_em::text as vence,
+                                    c.vinculo_tipo, c.vinculo_id::int as vinculo_id, c.criado_por_id, c.responsaveis,
+                                    c.participantes, c.etiquetas, c.anexos_qtd, c.mensagens_qtd, s.codigo as onde,
+                                    e.nome as etapa, c.executor_atual_id, c.concluido_em is not null as concluido,
+                                    c.arquivado_em is not null as arquivado
+                               from public.plt_cards c left join public.plt_setores s on s.id = c.setor_atual_id
+                               left join public.plt_etapas e on e.id = c.etapa_atual_id where c.id = ${id}`)
+
+// 1 · quem cria: PCP/logística, líder, admin — o operador não
+await como69(OP)
+await deveRecusarExec(`select public.plt_fn_avulso_criar('Trocar a lâmina')`, 'o operador não cria card avulso', /PCP\/logística, pelos líderes/i)
+await como69(E40.logistica)
+const k1 = '11111111-6969-4969-8969-000000000001'
+const r1 = (await um69(`select public.plt_fn_avulso_criar('  Trocar a lâmina da serra  ', p_chave => '${k1}') as r`)).r
+const r1b = (await um69(`select public.plt_fn_avulso_criar('Trocar a lâmina da serra', p_chave => '${k1}') as r`)).r
+const c1 = await card69(r1.card_id)
+const logId = (await um69(`select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'`)).id
+conferir(r1.repetido === false && r1b.repetido === true && r1b.card_id === r1.card_id
+    && c1.tipo === 'avulso' && c1.titulo === 'Trocar a lâmina da serra' && c1.onde === 'pcp'
+    && c1.criado_por_id === logId && c1.participantes.includes(logId) && !c1.arquivado,
+  'só o nome basta: o avulso nasce no PCP com quem criou; o mesmo toque de novo devolve o mesmo card (um efeito só)',
+  JSON.stringify({ r1, r1b, c1 }))
+await deveRecusarExec(`select public.plt_fn_avulso_criar('   ')`, 'card sem nome é recusado', /nome ao card/i)
+await deveRecusarExec(`select public.plt_fn_avulso_criar('X', p_vinculo_tipo => 'pedido', p_vinculo_id => 999999999)`,
+  'vínculo que não existe é recusado', /vínculo escolhido não existe/i)
+
+// 2 · etiquetas: criar só líder/admin; nome repetido recusado (acentos, maiúsculas, espaços, arquivadas)
+await como69(OP)
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(null, 'Urgente', 'rosa')`, 'o operador não cria etiqueta', /líder ou pelo admin/i)
+await como69(LID)
+const etqUrg = (await um69(`select public.plt_fn_etiqueta_salvar(null, 'Urgênte 69', 'rosa') as id`)).id
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(null, ' urgente69 ', 'azul')`,
+  'nome repetido (sem acento, maiúscula nem espaço) é recusado', /Já existe a etiqueta/i)
+await como69(E40.admin)
+const etqArq = (await um69(`select public.plt_fn_etiqueta_salvar(null, 'Velha 69', 'cinza') as id`)).id
+await bd.exec(`select public.plt_fn_etiqueta_arquivar(${etqArq}, true)`)
+await como69(LID)
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(null, 'VELHA 69', 'azul')`,
+  'nome igual a uma arquivada também é recusado (reative em vez de criar)', /arquivada/i)
+await deveRecusarExec(`select public.plt_fn_etiqueta_salvar(${etqUrg}, 'Outro nome', 'rosa')`,
+  'alterar etiqueta segue do admin', /Alterar uma etiqueta é do admin/i)
+
+// 3 · o líder cria já lançando, com responsável de fora, etiqueta, datas e vínculo
+const r2 = (await um69(`select public.plt_fn_avulso_criar('Afiar as fresas', 'Ver a ponta das 3 fresas grandes',
+                          '2026-11-03', '2026-11-05', array['${fora}']::uuid[], array[${etqUrg}]::bigint[],
+                          'pedido', ${pedido69}, ${A}) as r`)).r
+const c2 = await card69(r2.card_id)
+const aviso2 = await um69(`select count(*)::int as n, max(titulo) as titulo from public.plt_notificacoes
+                            where destinatario_id = '${fora}' and card_id = ${r2.card_id} and tipo = 'card_responsavel'`)
+const rotulo2 = (await um69(`select plt_privado.fn_vinculo_rotulo('pedido', ${pedido69}) as t`)).t
+conferir(c2.onde === 'av69a' && c2.etapa === 'A CORTAR' && c2.descricao === 'Ver a ponta das 3 fresas grandes'
+    && c2.inicio === '2026-11-03' && c2.vence === '2026-11-05' && c2.vinculo_tipo === 'pedido' && c2.vinculo_id === pedido69
+    && JSON.stringify(c2.responsaveis) === JSON.stringify([fora]) && c2.participantes.includes(fora)
+    && JSON.stringify(c2.etiquetas.map(Number)) === JSON.stringify([Number(etqUrg)])
+    && aviso2.n === 1 && /responsável pelo card "Afiar as fresas"/.test(aviso2.titulo) && rotulo2 === 'Pedido 969001',
+  'criado já lançado: cai na fila do setor; responsável de outro setor é avisado no sino e passa a ver o card; etiqueta, datas e vínculo (só referência)',
+  JSON.stringify({ c2, aviso2, rotulo2 }))
+
+// 4 · quem vê: o responsável de fora enxerga o card (RLS); outro de fora não
+await como69('')
+await bd.exec(`grant select on public.plt_cards to authenticated`)
+await como69(FORA)
+await bd.exec(`set role authenticated`)
+const veFora = (await um69(`select count(*)::int as n from public.plt_cards where id = ${r2.card_id}`)).n
+const naoVeOutro = (await um69(`select count(*)::int as n from public.plt_cards where id = ${r1.card_id}`)).n
+await bd.exec(`reset role`)
+const podeVer = await um69(`select plt_privado.fn_pode_ver_card(${r2.card_id}) as sim, plt_privado.fn_pode_editar_card(${r2.card_id}) as edita`)
+conferir(veFora === 1 && naoVeOutro === 0 && podeVer.sim && podeVer.edita,
+  'o responsável vê e edita aquele card, mesmo fora do setor; o card dos outros continua fechado para ele',
+  JSON.stringify({ veFora, naoVeOutro, podeVer }))
+
+// 5 · o operador do setor anda com o avulso: soltar no início inicia o tempo; o limite vale
+await como69(OP)
+await deveRecusarExec(`select public.plt_fn_card_editar(${r2.card_id}, '{"descricao":"x"}'::jsonb)`,
+  'o operador (não é responsável nem líder) não edita o avulso', /de quem pode editá-lo/i)
+const ini = (await um69(`select public.plt_fn_soltar_card(${r2.card_id}, ${CORTANDO}) as r`)).r
+const emExec = await card69(r2.card_id)
+await deveRecusarExec(`select public.plt_fn_soltar_card(${r2.card_id}, ${PARA_ESTOQUE})`,
+  'o avulso não vai para o ESTOQUE (nem aguardo/ROTAS) — o vínculo é só referência', /anda só pelos setores de produção/i)
+const enc = (await um69(`select public.plt_fn_soltar_card(${r2.card_id}, ${PRONTO}) as r`)).r
+const noB = await card69(r2.card_id)
+const ini2 = (await um69(`select public.plt_fn_soltar_card(${r2.card_id}, ${MONTANDO}) as r`)).r
+const tempo = await um69(`select count(*)::int as n from public.plt_vw_execucoes where card_id = ${r2.card_id}`)
+conferir(ini.acao === 'iniciado' && emExec.executor_atual_id === op && enc.acao === 'encaminhado' && noB.onde === 'av69b'
+    && noB.executor_atual_id === null && ini2.acao === 'iniciado' && tempo.n === 2,
+  'soltar o avulso no início inicia o tempo de quem arrastou; encaminhar leva ao próximo setor; o tempo fica nas execuções (2)',
+  JSON.stringify({ ini, emExec, enc, noB, ini2, tempo }))
+
+// 6 · editar (responsável), responsável, etiqueta — fatos com antes e depois; o mesmo toque não repete
+await como69(FORA)
+const n1 = (await um69(`select public.plt_fn_card_editar(${r2.card_id}, '{"descricao":"Ver as 4 fresas","vence_em":"2026-11-06","titulo":"Afiar as fresas grandes"}'::jsonb) as n`)).n
+const n1b = (await um69(`select public.plt_fn_card_editar(${r2.card_id}, '{"descricao":"Ver as 4 fresas"}'::jsonb) as n`)).n
+const ed = await um69(`select dados -> 'mudancas' as m from public.plt_eventos where card_id = ${r2.card_id} and tipo = 'card_editado' order by id desc limit 1`)
+const pos = (await um69(`select public.plt_fn_card_responsavel(${r2.card_id}, '${lid}', true) as r`)).r
+const posDeNovo = (await um69(`select public.plt_fn_card_responsavel(${r2.card_id}, '${lid}', true) as r`)).r
+const tira = (await um69(`select public.plt_fn_card_etiqueta(${r2.card_id}, ${etqUrg}, false) as r`)).r
+const tiraDeNovo = (await um69(`select public.plt_fn_card_etiqueta(${r2.card_id}, ${etqUrg}, false) as r`)).r
+const c6 = await card69(r2.card_id)
+conferir(n1 === 3 && n1b === 0 && ed.m.descricao.antes === 'Ver a ponta das 3 fresas grandes' && ed.m.descricao.depois === 'Ver as 4 fresas'
+    && c6.titulo === 'Afiar as fresas grandes' && c6.vence === '2026-11-06' && pos === 'posto' && posDeNovo === 'ja_estava'
+    && c6.responsaveis.includes(lid) && tira === 'tirada' && tiraDeNovo === 'ja_estava' && c6.etiquetas.length === 0,
+  'o responsável edita (o fato guarda o antes e o depois), põe responsável e tira etiqueta; repetir o toque não gera fato',
+  JSON.stringify({ n1, n1b, ed, pos, posDeNovo, tira, c6 }))
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+                       values (${r2.card_id}, 'card_editado', '${fora}', 'interface', '{"mudancas":{}}'::jsonb)`,
+  'card_editado direto na tabela (sem a porta) é recusado', /janela do card/i)
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+                       values (${r2.card_id}, 'etiqueta_adicionada', '${fora}', 'interface', jsonb_build_object('etiqueta_id', ${etqUrg}))`,
+  'etiqueta direto na tabela (sem a porta) segue recusada', /janela do card/i)
+await deveRecusarExec(`select public.plt_fn_card_editar(${r2.card_id}, '{"vinculo":{"tipo":"produto","id":123456789}}'::jsonb)`,
+  'trocar o vínculo para algo que não existe é recusado', /vínculo escolhido não existe/i)
+
+// 7 · campo customizado no avulso
+await como69(E40.admin)
+const campoAv = (await um69(`select public.plt_fn_campo_salvar(null, 'Máquina 69', 'texto', null, false, false, true) as id`)).id
+const campoPeca = (await um69(`select public.plt_fn_campo_salvar(null, 'Lote 69', 'texto', null, true, false) as id`)).id
+await como69(FORA)
+const gravou = (await um69(`select public.plt_fn_campo_definir(${campoAv}, ${r2.card_id}, null, '"Serra 2"'::jsonb) as r`)).r
+await deveRecusarExec(`select public.plt_fn_campo_definir(${campoPeca}, ${r2.card_id}, null, '"L1"'::jsonb)`,
+  'campo só de peças não vale no avulso', /não vale nos cards avulsos/i)
+await como69(OP)
+await deveRecusarExec(`select public.plt_fn_campo_definir(${campoAv}, ${r2.card_id}, null, '"Serra 3"'::jsonb)`,
+  'quem não edita o card não preenche campo', /de quem pode editar o card/i)
+conferir(gravou === 'gravado', 'o campo que vale em avulsos é preenchido por quem edita o card (↩️ D-101)', JSON.stringify({ gravou }))
+
+// 8 · concluir: em qualquer setor; fecha o tempo; sai do quadro; o mesmo toque não repete
+await como69(OP)
+const conc = (await um69(`select public.plt_fn_avulso_concluir(${r2.card_id}, 'fresas afiadas') as r`)).r
+const conc2 = (await um69(`select public.plt_fn_avulso_concluir(${r2.card_id}) as r`)).r
+const c8 = await card69(r2.card_id)
+const aberta = (await um69(`select count(*)::int as n from public.plt_vw_execucoes where card_id = ${r2.card_id} and em_andamento`)).n
+const fatos8 = (await todos69(`select tipo from public.plt_eventos where card_id = ${r2.card_id} order by id desc limit 3`)).map((x) => x.tipo)
+conferir(conc.acao === 'concluido' && conc.destino === 'concluidos' && conc2.repetido === true && c8.concluido && c8.arquivado
+    && c8.executor_atual_id === null && aberta === 0
+    && JSON.stringify(fatos8) === JSON.stringify(['card_arquivado', 'avulso_concluido', 'execucao_finalizada']),
+  'Concluir no meio do setor: o tempo aberto fecha, o fato fica e o card vai para Concluídos; o toque repetido devolve o mesmo',
+  JSON.stringify({ conc, conc2, c8, aberta, fatos8 }))
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem) values (${r1.card_id}, 'avulso_concluido', '${op}', 'interface')`,
+  'avulso_concluido direto na tabela é recusado (só pelo Concluir)', /botão Concluir/i)
+
+// 9 · soltar o avulso na etapa que conclui = Concluir
+await como69(E40.logistica)
+const r3 = (await um69(`select public.plt_fn_avulso_criar('Regular a coladeira', p_setor_id => ${B}) as r`)).r
+await como69(OP)
+const r3s = (await um69(`select public.plt_fn_soltar_card(${r3.card_id}, ${EXPEDICAO}) as r`)).r
+const c9 = await card69(r3.card_id)
+conferir(r3s.acao === 'concluido' && r3s.destino === 'concluidos' && c9.concluido && c9.arquivado,
+  'soltar o avulso na etapa que conclui (a EXPEDIÇÃO) = Concluir', JSON.stringify({ r3s, c9 }))
+
+// 10 · a aba Lançamento manual: A lançar · Em produção · Concluídos (por cursor)
+await como69(E40.logistica)
+const r4 = (await um69(`select public.plt_fn_avulso_criar('Limpar o filtro', p_setor_id => ${A}) as r`)).r
+const lancar = await um69(`select public.plt_fn_avulso_lancar(${r1.card_id}, ${A}) as ev`)
+await deveRecusarExec(`select public.plt_fn_avulso_lancar(${r1.card_id}, ${B})`, 'lançar duas vezes é recusado', /já foi lançado/i)
+const r5 = (await um69(`select public.plt_fn_avulso_criar('Organizar a bancada') as r`)).r
+const aLancar = await todos69(`select card_id::int as id, tem_mais from public.plt_fn_avulsos('a_lancar', null, null, 20)`)
+const emProd = await todos69(`select card_id::int as id, setor_nome, tem_mais from public.plt_fn_avulsos('em_producao', null, null, 1)`)
+const emProd2 = await todos69(`select card_id::int as id from public.plt_fn_avulsos('em_producao', null, ${emProd[0]?.id ?? 0}, 20)`)
+const concl = await todos69(`select card_id::int as id, concluido_em is not null as c from public.plt_fn_avulsos('concluidos', null, null, 20)`)
+const busca = await todos69(`select card_id::int as id from public.plt_fn_avulsos('concluidos', 'colad', null, 20)`)
+await como69(OP)
+const semAcesso = (await um69(`select count(*)::int as n from public.plt_fn_avulsos('em_producao', null, null, 20)`)).n
+conferir(lancar.ev > 0 && aLancar.some((x) => x.id === r5.card_id) && !aLancar.some((x) => x.id === r1.card_id)
+    && emProd.length === 1 && emProd[0].tem_mais && emProd2.some((x) => [r1.card_id, r4.card_id].includes(x.id))
+    && concl.some((x) => x.id === r2.card_id) && concl.some((x) => x.id === r3.card_id) && concl.every((x) => x.c)
+    && busca.length === 1 && busca[0].id === r3.card_id && semAcesso === 0,
+  'a aba Lançamento manual: A lançar (no PCP), Em produção (cursor: 1 por página + "ver mais"), Concluídos, busca pelo nome; o operador não lê a lista',
+  JSON.stringify({ aLancar, emProd, emProd2, concl, busca, semAcesso }))
+
+// 11 · fora de "peças": estoque, peças do pedido e meta de unidades
+await como69('')
+const fora11 = await um69(`
+  select (select count(*) from public.plt_estoque_numeros n where n.produto_tiny_id = 969001 and (n.livres + n.prontas_pedido) > 0)::int as estoque,
+         (select count(*) from public.plt_cards u where u.pedido_id = ${pedido69})::int as do_pedido`)
+conferir(fora11.estoque === 0 && fora11.do_pedido === 1,
+  'o avulso não vira peça: nada no estoque, e o pedido do vínculo continua só com o card dele',
+  JSON.stringify(fora11))
+
+// 11b · a busca do vínculo: no servidor, a partir de 2 letras, só para quem cria avulso
+await como69(E40.logistica)
+const bPed = await todos69(`select id::int as id, rotulo from public.plt_fn_vinculo_buscar('pedido', '96900', false, 10)`)
+const bProd = await todos69(`select rotulo from public.plt_fn_vinculo_buscar('produto', 'cadeira avul', false, 10)`)
+const bCurta = await todos69(`select id from public.plt_fn_vinculo_buscar('pedido', '9', false, 10)`)
+await como69(OP)
+const bOp = await todos69(`select id from public.plt_fn_vinculo_buscar('pedido', '96900', false, 10)`)
+await como69('')
+conferir(bPed.some((x) => x.id === pedido69 && x.rotulo === 'Pedido 969001') && bProd.some((x) => /S69A/.test(x.rotulo))
+    && bCurta.length === 0 && bOp.length === 0,
+  'a busca do vínculo acha pedido (número) e produto (nome), espera 2 letras e não abre para o operador',
+  JSON.stringify({ bPed, bProd, bCurta, bOp }))
+
+// 12 · permissões
+const priv69 = await um69(`
+  select has_function_privilege('anon', 'public.plt_fn_avulso_criar(text, text, date, date, uuid[], bigint[], text, bigint, bigint, uuid)', 'execute') as criar_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_avulsos(text, text, bigint, integer)', 'execute') as lista_logado,
+         has_function_privilege('authenticated', 'plt_privado.fn_avulso_concluir(bigint, uuid, text)', 'execute') as maquina,
+         to_regprocedure('public.plt_fn_campo_salvar(bigint, text, text, text[], boolean, boolean)') is null as campo_velha_saiu`)
+conferir(!priv69.criar_anon && priv69.lista_logado && !priv69.maquina && priv69.campo_velha_saiu,
+  'anônimo fora; a maquinaria fora da API; a porta antiga do campo saiu', JSON.stringify(priv69))
+} // fim do bloco 69
+
+// ============================================================================
+// SESSAO-31 · etapa D (migration 70 — Lei §2/§4/§6): o quadro do setor e o
+// tablet numa requisição; "Ver mais" por cursor; o aviso ao vivo do setor.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · o quadro numa requisição: todas as colunas, "Ver mais" por cursor, aviso ao vivo por setor')
+
+const um70 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos70 = async (sql, p) => (await bd.query(sql, p)).rows
+const como70 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const OP = '00000000-0000-0000-0000-000000000701'
+const OUT = '00000000-0000-0000-0000-000000000702'
+await como70('')
+await bd.exec(`
+  insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+    ('qd70a', 'QD70 CORTE', 'producao', 981), ('qd70b', 'QD70 MONTAGEM', 'producao', 982), ('qd70c', 'QD70 OUTRO', 'producao', 983);
+  update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo like 'qd70%';
+`)
+const ids70 = Object.fromEntries((await todos70(`select codigo, id::int as id from public.plt_setores where codigo like 'qd70%'`)).map((s) => [s.codigo, s.id]))
+const [A, B, C] = [ids70.qd70a, ids70.qd70b, ids70.qd70c]
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, setor_destino_id, conclui_producao) values
+    (${A}, 'A CORTAR', 10, true, null, false), (${A}, 'CORTANDO', 20, false, null, false),
+    (${A}, 'PRONTO', 30, false, ${B}, false),
+    (${B}, 'A MONTAR', 10, true, null, false), (${B}, 'MONTANDO', 20, false, null, false),
+    (${C}, 'A FAZER', 10, true, null, false);
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Operador 70', 'op70@teste.com', '70707070701', 'op.70', 'operador', '${OP}', array['fabrica']),
+    ('Outro 70', 'out70@teste.com', '70707070702', 'out.70', 'operador', '${OUT}', array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'op.70'), ${A}),
+    ((select id from public.plt_usuarios where usuario = 'op.70'), ${B}),
+    ((select id from public.plt_usuarios where usuario = 'out.70'), ${C});
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (970001, 'S70A', 'Gaveteiro Quadro 70', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.pedidos (numero, cliente_id, situacao, origem) values
+    (970001, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+  values ((select id from public.pedidos where numero = 970001), 1, 'S70A', 'Gaveteiro Quadro 70', 11);
+`)
+const etapa70 = async (setor, nome) => (await um70(`select id::int as id from public.plt_etapas where setor_id = ${setor} and nome = '${nome}'`)).id
+const [FILA, CORTANDO, PRONTO] = [await etapa70(A, 'A CORTAR'), await etapa70(A, 'CORTANDO'), await etapa70(A, 'PRONTO')]
+const pc70 = (await um70(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = 970001`)).id
+await como70(E40.admin)
+await bd.query(`select public.plt_fn_pcp_liberar($1, $2::jsonb)`, [pc70, JSON.stringify(
+  Array.from({ length: 11 }, (_, i) => ({ item_seq: 1, indice_unidade: i + 1, setor_id: A })))])
+await como70(E40.logistica)
+const av = (await um70(`select public.plt_fn_avulso_criar('Lubrificar a esquadrejadeira', p_setor_id => ${A}) as r`)).r
+
+// 1 · o quadro inteiro numa requisição
+await como70(OP)
+const q = (await um70(`select public.plt_fn_quadro_setor(${A}, 10) as q`)).q
+const fila = q.colunas.find((c) => c.etapa_id === FILA)
+const chegada = q.colunas.find((c) => c.etapa_id === null)
+conferir(q.etapas.length === 3 && q.colunas.length === 4 && chegada.total === 0 && fila.total === 12 && fila.cards.length === 10
+    && fila.cards[0].tipo === 'unidade' && fila.cards.every((c) => c.etapa_atual_id === FILA)
+    && q.pedidos[String(fila.cards[0].pedido_id)]?.numero === 970001 && Array.isArray(q.etiquetas) && Array.isArray(q.campos)
+    && Array.isArray(q.execucoes) && typeof q.pessoas === 'object',
+  'uma porta só: as etapas, a "Chegada" e cada coluna com a 1ª página (10) e o total (12), os pedidos dos cards e os catálogos',
+  JSON.stringify({ etapas: q.etapas.length, colunas: q.colunas.map((c) => [c.etapa_id, c.total, c.cards.length]) }))
+
+// 2 · "Ver mais" = a página seguinte daquela coluna (por cursor), sem repetir
+const ultimo = fila.cards[fila.cards.length - 1]
+const mais = (await um70(`select public.plt_fn_quadro_coluna(${A}, ${FILA}, $1::timestamptz, ${ultimo.id}, 10) as m`, [ultimo.desde])).m
+const idsMais = mais.cards.map((c) => c.id)
+conferir(mais.cards.length === 2 && idsMais.includes(av.card_id) && !idsMais.some((id) => fila.cards.some((c) => c.id === id)),
+  '"Ver mais" traz só as 2 que faltam (o card avulso entre elas), sem repetir as 10 da 1ª página', JSON.stringify(idsMais))
+
+// 3 · a execução aberta e quem executa vêm junto
+const peca = fila.cards[0].id
+await bd.exec(`select public.plt_fn_soltar_card(${peca}, ${CORTANDO})`)
+const q2 = (await um70(`select public.plt_fn_quadro_setor(${A}, 10) as q`)).q
+const opId = (await um70(`select id from public.plt_usuarios where usuario = 'op.70'`)).id
+const corte = q2.colunas.find((c) => c.etapa_id === CORTANDO)
+conferir(corte.total === 1 && corte.cards[0].executor_atual_id === opId
+    && q2.execucoes.some((e) => e.card_id === peca && e.usuario_inicio_id === opId) && q2.pessoas[opId]?.nome === 'Operador 70',
+  'a peça em execução vem com a execução aberta e o nome de quem executa (sem ler a tabela de pessoas inteira)',
+  JSON.stringify({ corte, ex: q2.execucoes, pessoas: q2.pessoas }))
+
+// 4 · quem vê o quadro
+await como70(OUT)
+await deveRecusarExec(`select public.plt_fn_quadro_setor(${A}, 10)`, 'quem é de outro setor não lê o quadro', /não vê o quadro/i)
+const ouveOut = (await um70(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:setor_${A}') as v`)).v
+await como70(OP)
+const ouveOp = (await um70(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:setor_${A}') as v`)).v
+const ouveLixo = (await um70(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:setor_1;drop') as v`)).v
+await como70(E40.logistica)
+const qLog = (await um70(`select (public.plt_fn_quadro_setor(${A}, 10) ->> 'setor_id')::int as s`)).s
+conferir(!ouveOut && ouveOp && !ouveLixo && qLog === A,
+  'o aviso do setor só para quem vê aquele quadro (o setor, o admin, a logística); tópico estranho = ninguém', JSON.stringify({ ouveOut, ouveOp, ouveLixo, qLog }))
+
+// 5 · o aviso ao vivo: um por setor por transação, nos dois setores quando o card muda de setor
+await como70('')
+await bd.exec(`delete from realtime.messages where topic like 'plt-aviso:setor_%'`)
+await como70(OP)
+await bd.exec(`select public.plt_fn_soltar_card(${peca}, ${PRONTO})`)
+const avisos = await todos70(`select topic, count(*)::int as n from realtime.messages where topic like 'plt-aviso:setor_%' group by 1 order by 1`)
+await como70('')
+await bd.exec(`delete from realtime.messages where topic like 'plt-aviso:setor_%'`)
+await bd.exec(`update public.plt_etapas set nome = 'A CORTAR HOJE' where id = ${FILA}`)
+const avisoEtapa = await todos70(`select topic from realtime.messages where topic like 'plt-aviso:setor_%'`)
+conferir(avisos.length === 2 && avisos.every((a) => a.n === 1)
+    && avisos.some((a) => a.topic === `plt-aviso:setor_${A}`) && avisos.some((a) => a.topic === `plt-aviso:setor_${B}`)
+    && avisoEtapa.length === 1 && avisoEtapa[0].topic === `plt-aviso:setor_${A}`,
+  'mandar a peça adiante avisa os DOIS quadros (um aviso por setor, mesmo com vários fatos); mudar as etapas avisa o quadro do setor',
+  JSON.stringify({ avisos, avisoEtapa }))
+
+// 6 · permissões
+const priv70 = await um70(`
+  select has_function_privilege('anon', 'public.plt_fn_quadro_setor(bigint, integer)', 'execute') as anon_q,
+         has_function_privilege('authenticated', 'public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer)', 'execute') as logado_c,
+         has_function_privilege('authenticated', 'plt_privado.fn_quadro_cards(bigint[])', 'execute') as maquina`)
+conferir(!priv70.anon_q && priv70.logado_c && !priv70.maquina, 'anônimo fora; a maquinaria fora da API', JSON.stringify(priv70))
+} // fim do bloco 70
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
