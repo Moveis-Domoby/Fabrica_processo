@@ -110,38 +110,6 @@ export async function buscarCardsDoSetor(
 }
 
 /**
- * UMA página de UMA coluna do quadro (SESSAO-22): a regra "cada tela requisita
- * só o que mostra" — o quadro nunca baixa o setor inteiro. A paginação e o
- * total (contagem exata, sem trazer linhas a mais) acontecem no servidor;
- * `etapaId` nulo lê os cards ainda sem etapa (a antiga "Chegada").
- */
-export async function buscarCardsDaEtapa(parametros: {
-  setorId: number
-  etapaId: number | null
-  tipo: 'pedido' | 'unidade'
-  pagina: number
-  porPagina?: number
-}): Promise<PaginaDeCards> {
-  const { setorId, etapaId, tipo, pagina } = parametros
-  const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
-  const inicio = pagina * porPagina
-  let consulta = supabase
-    .from('plt_cards')
-    .select(COLUNAS_CARD, { count: 'exact' })
-    .eq('setor_atual_id', setorId)
-    .eq('tipo', tipo)
-    .is('arquivado_em', null)
-    .order('desde', { ascending: true, nullsFirst: false })
-    .order('id')
-    .range(inicio, inicio + porPagina - 1)
-  consulta =
-    etapaId === null ? consulta.is('etapa_atual_id', null) : consulta.eq('etapa_atual_id', etapaId)
-  const { data, error, count } = await consulta
-  if (error) throw new Error(`Não deu para carregar os cards: ${error.message}`)
-  return { cards: (data as unknown as Card[]) ?? [], total: count ?? 0 }
-}
-
-/**
  * Os pedidos ABERTOS do quadro do PCP (SESSAO-22), paginados no servidor:
  * aberto = ainda tem unidade por liberar (`liberado_completo_em` nulo — a
  * projeção da D-48). SESSAO-23 (ajuste do dono): pedido ENCERRADO no Tiny

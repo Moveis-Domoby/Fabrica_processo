@@ -207,7 +207,9 @@ notificar({ titulo: 'Card movido', tom: 'perfeito' })
 - O **total** de uma coluna/lista vem de agregado barato: contagem exata na MESMA
   requisição paginada (`count: 'exact'` + `range`), sem trazer linhas a mais.
 - **"Ver mais"** busca só a página seguinte daquela coluna, sem recarregar o resto
-  (padrão da casa: `useColunasPaginadas`, 10 cards por página nos quadros).
+  (padrão da casa desde a SESSAO-31: `useQuadro` — o quadro inteiro numa requisição,
+  10 cards por coluna, "Ver mais" por cursor e ao vivo pelo canal do setor; o antigo
+  `useColunasPaginadas`, uma consulta por coluna com relógio, saiu).
 - Filtro que decide o que aparece (ex.: "pedidos abertos" no PCP) vive **no servidor**,
   como coluna projetada ou parâmetro — nunca como filter em cima de um download completo.
 
