@@ -32,18 +32,18 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 ## Task list (espelho da demanda + ajustes) — ordem de entrega
 
 **Etapa A — marcação configurável, EXPEDIÇÃO conclui, marcador "Devolvido"**
-- [ ] A1 · D-126: chaves por setor "pedir o estado ao enviar" / "ao receber", cada uma com os tipos de card; tudo desligado; validação no banco (mover/encaminhar/concluir/parecer) e na tela (o modal só pergunta quando a chave manda); fins de linha recusam só 🟡/🔴
-- [ ] A2 · Configurações → Setores e etapas: a tela das chaves (admin)
-- [ ] A3 · D-127: rota "concluir a produção" na etapa (EXPEDIÇÃO da LIMPEZA E EMBALAGEM); soltar = concluir; sai o botão "Concluir produção"; avulso só move
-- [ ] A4 · As 6 peças da EXPEDIÇÃO → Pedidos em aguardo (manutenção por evento, prévia no handoff)
-- [ ] A5 · §4c: o marcador "Devolvido" sai de `fn_pedido_cancelado` e de `fn_reagir_pedido`; bloco 59 do harness passa a provar o contrário; ensaio desfeito no banco real
-- [ ] A6 · Botão "Pedido devolvido" sai da tela do entregador (D-129)
+- [x] A1 · D-126: chaves por setor "pedir o estado ao enviar" / "ao receber", cada uma com os tipos de card; tudo desligado; validação no banco (mover/encaminhar/concluir/parecer) e na tela (o modal só pergunta quando a chave manda); fins de linha recusam só 🟡/🔴
+- [x] A2 · Configurações → Setores e etapas: a tela das chaves (admin)
+- [x] A3 · D-127: rota "concluir a produção" na etapa (EXPEDIÇÃO da LIMPEZA E EMBALAGEM); soltar = concluir; sai o botão "Concluir produção"; avulso só move
+- [x] A4 · As 6 peças da EXPEDIÇÃO → Pedidos em aguardo (manutenção por evento, prévia no handoff)
+- [x] A5 · §4c: o marcador "Devolvido" sai de `fn_pedido_cancelado` e de `fn_reagir_pedido`; bloco 59 do harness passa a provar o contrário; ensaio desfeito no banco real
+- [x] A6 · Botão "Pedido devolvido" sai da tela do entregador (D-129)
 
 **Etapa B — devolução decidida pela logística (D-129) + ajuste de peça (D-130)**
-- [ ] B1 · Fim de linha interno "DEVOLUÇÕES"; "Pedido devolvido" da logística/admin (ROTAS → Entregas e janela do pedido no PCP, inclusive entregue) com motivo (lista própria em Utilitários) e observação
-- [ ] B2 · Linha "Em decisão pós devolução" nos números do estoque (projeção por produto) e no cartão do Estoque
-- [ ] B3 · Aviso no sino para a logística que abre "Decidir situação" (mini relatório + decisões por peça ou todas): reenviar · estoque · realocar · danificados · loja · ajuste
-- [ ] B4 · Ajuste de peça: setor + destino final; aplicado na EXPEDIÇÃO (ou no Concluir do ajuste)
+- [x] B1 · Fim de linha interno "DEVOLUÇÕES"; "Pedido devolvido" da logística/admin (ROTAS → Entregas e janela do pedido no PCP, inclusive entregue) com motivo (lista própria em Utilitários) e observação
+- [x] B2 · Linha "Em decisão pós devolução" nos números do estoque (projeção por produto) e no cartão do Estoque
+- [x] B3 · Aviso no sino para a logística que abre "Decidir situação" (mini relatório + decisões por peça ou todas): reenviar · estoque · realocar · danificados · loja · ajuste
+- [x] B4 · Ajuste de peça: setor + destino final; aplicado na EXPEDIÇÃO (ou no Concluir do ajuste)
 
 **Etapa C — várias rotas por dia (D-128)**
 - [ ] C1 · Banco: rota nº por (dia, caminhão); equipe por rota; ordem por rota; portas da Programação, Já programadas, Entregas do dia e do entregador
@@ -78,3 +78,24 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - [ ] H3 · Handoff + mapa + próximos passos + ordem das sessões + esquema do banco + lei (§14) + modelo de sistema
 
 ## Diário
+
+### 14/10 · Etapa A — estado da peça como chave + EXPEDIÇÃO conclui (no ar ~01:05 Natal)
+
+- **Decisão técnica (Claude):** a confirmação pendente virou **projeção no card** (`plt_cards.parecer_pendente_id`, gatilho `plt_eventos_projetar_parecer` — roda depois da posição pela ordem alfabética) em vez de ser recalculada pela view a cada leitura: o iniciar, o parecer, a tarefa do Sistema e a TELA leem dela (o quadro e o tablet deixaram de fazer as 2 consultas de pendência a cada 20 s). Pendência só nasce na chegada de GENTE vinda de outro setor de produção, quando o setor que recebe pede o estado daquele tipo de card (D-25 mantida: API/automação e saída do PCP não participam). Sem marcação, a pendência é a própria chegada (`movimentacao_setor`) e a confirmação diz "em que estado chegou"; com marcação, é a marcação (divergência como antes). Marcação 🔴 sem confirmação na chegada → DANIFICADO do setor que recebe. Desligar a chave "ao receber" limpa a pendência de quem está no setor (gatilho em `plt_setores`) e fecha a tarefa do Sistema.
+- **Decisão técnica:** a rota "conclui a produção" é coluna da etapa (`conclui_producao`, dado do dono — a manutenção marca a EXPEDIÇÃO; reaplicar migration não desfaz edição). `plt_fn_soltar_card` ganhou o ramo "concluído"; `plt_fn_concluir_producao` manteve a assinatura e o padrão 'perfeito' (API/ensaios antigos), mas passa o estado como vem (o arrasto manda nulo quando a chave está desligada).
+- **Harness:** os blocos antigos provam a regra antiga — o teste liga as duas chaves para todos os tipos (e no padrão dos setores criados pelos blocos) logo depois das migrations; o **bloco 66** desliga e prova o jeito novo (23 verificações). Ajuste: a mensagem nova manteve "marcar o estado da peça" (os blocos antigos casam por ela). **877 verdes.**
+- **Tela:** chaves em Setores e etapas (admin, só setores de produção, "Pedir ao enviar" / "Pedir ao receber" × Peça de pedido / Peça de estoque / Card avulso) e a opção "Conclui a produção" na rota da etapa; o quadro e o tablet só abrem o modal de estado quando o setor pede; a coluna que conclui tem borda tracejada e "conclui a produção"; o "Concluir produção" saiu do cartão (o botão fica para o avulso). Auditoria: "Mudou o estado da peça pedido no setor". Testes da tela 152 → **157**; tsc, lint, build ok. Pacote: 1.877,6 kB / 511,6 kB gz (fim da S30: 1.862,5 / 507,1).
+- **Banco real:** ensaio desfeito (migration + manutenção: 0,3 s + 0,3 s, transação de 1,7 s; integração idêntica `e2109f3a…`) → **migration 66 aplicada** (aplicador, `--so`; integração idêntica, 35 tabelas, 49 políticas) → **manutenção `2026-10-14_expedicao_conclui.sql` gravada uma vez** (saída guardada): EXPEDIÇÃO da LIMPEZA E EMBALAGEM conclui; as 6 peças (508, 509, 511–514 — pedidos 13207 e 13177) em Pedidos em aguardo; 0 setores com chave; 24 avisos "Peça pronta em Pedidos em aguardo" (6 peças × admins). **E-92 (achado no ensaio):** um parêntese a mais na manutenção — o ensaio pegou, nada gravado (manutenção não passa pelo harness: ensaio sempre antes).
+- **Publicado:** `main` = e4697b7 (Vercel ✔). Conferência visual no site: **pendente com o dono** — o navegador do app não está logado e o Claude não entra com senha.
+
+### 14/10 · Etapa B — devolução decidida pela logística + ajuste de peça (no ar ~01:40 Natal)
+
+- **Decisão técnica (Claude):** "Em decisão pós devolução" é um **fim de linha interno novo** (`plt_setores` código `devolucao`, papel terminal, ordem 86 — tratado como o `aguardo`): a peça devolvida **continua do pedido** e fica lá até a logística decidir. Só entra e sai pela maquinaria (marca `plt.devolucao_maquinaria`, guarda `fn_validar_devolucao`); a única saída manual é a da etapa DANIFICADO. O card do pedido projeta a devolução aberta (`devolucao_evento_id`) e a peça em ajuste o seu destino final (`ajuste_evento_id`, `ajuste_destino`) — gatilho `plt_eventos_projetar_devolucao`.
+- **"Pedido devolvido" (D-129):** saiu da tela do entregador (a porta velha `plt_fn_entrega_devolvida` foi apagada); a logística/admin marca em **Entregas** (pedido na ROTAS) e na **janela do pedido no PCP** (pedido já entregue — escolhe quais peças voltaram), com motivo (lista nova "Motivos de devolução" em Utilitários, 7 semeados) e observação. Toque repetido em 10 min = o mesmo efeito. O Tiny não muda. Aviso no sino para admins e logística → tocar abre "Decidir situação" no Estoque (`?devolucao=<card do pedido>`).
+- **"Decidir situação":** mini relatório (motivo, quem, quando, histórico das entregas, comprovantes) + decisão por peça ou todas: **reenviar** (reentrega só do que voltou — `fn_unidades_a_entregar`; se a entrega já tinha acontecido, ela é reaberta só na plataforma), **estoque** (sem dono), **realocar** (estoque + uso no pedido escolhido — opções carregadas no clique), **danificados**, **loja** (sai das contas da fábrica) e **ajuste** (setor de produção + destino final, aplicado quando a peça conclui).
+- **Marcador "Devolvido" do Tiny (D-124):** deixou de ser cancelamento (`fn_pedido_cancelado` = só cancelado no Tiny; `fn_desvincular_por_cancelamento` e `fn_reagir_pedido` sem o ramo do marcador). Retrato no banco real: 113 pedidos com o marcador, **nenhuma peça viva** deles fora dos cancelados — nada muda no que existe.
+- **Estoque:** linha nova `em_devolucao` nos números (gatilhos divididos em update/insert/delete), filtro "Em decisão pós devolução", número no resumo do galpão, linha no cartão (tocar abre as devoluções do produto, lista por cursor) e no detalhe do produto. O PCP ganhou a situação "Em decisão pós devolução".
+- **Harness:** a 67 obrigou E-17 numa antiga (`fn_estoque_contar` da 57 muda o retorno → `drop` antes do `create` lá também) e E-19 em três antigas (só a última valida o check de tipos). Blocos 57, 59 e 60 revistos (o devolvido agora é da logística e não vai ao ESTOQUE; o marcador não mexe em nada); **bloco 67** novo (19 verificações). **897 verdes**, rodado de novo antes de aplicar.
+- **Tela:** tsc, lint, testes (157), build ok. O sino e a página de Avisos abrem o destino do aviso ("Toque para abrir"); Auditoria com os fatos novos; a mensagem de "peça concluída" diz o destino do ajuste (terceirizado, loja, DANIFICADO). Pacote: 1.894,3 kB / 516,1 kB gz.
+- **Banco real:** ensaio desfeito com uma devolução DE VERDADE (pedido 13645, entregue): 1 peça → "Em decisão pós devolução", 4 avisados, toque repetido sem efeito, números do estoque e resumo com 1, lista e detalhe certos, "reenviar" reabriu a entrega e relançou para a ROTAS (peça em ROTAS, pedido sem programação, nada na fila do Tiny), recontagem 0 diferenças antes e depois; `plt_fn_devolucoes` 2,6 ms e o filtro do Estoque 15,7 ms → **migration 67 aplicada** (aplicador `--so`; integração idêntica; 11 setores, 46 etapas).
+- **Publicado:** `main` = c6f890a.
