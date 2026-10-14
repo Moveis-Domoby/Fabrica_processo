@@ -1,4 +1,4 @@
-import { Factory, Minus, Plus } from 'lucide-react'
+import { Factory, Minus, Plus, Undo2 } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import type { LinhaEstoqueProduto, OperacaoEstoque } from '@/logistica/api'
 import { formatarQuantidade, rotuloPosicao, textoCorte } from '@/logistica/estoque'
@@ -15,6 +15,8 @@ export interface CartaoProdutoEstoqueProps {
   aoLancar: () => void
   /** A bolinha vermelha (resposta 6): pedido esperando a decisão do PCP. */
   aoAbrirPendencia: () => void
+  /** SESSAO-31 (D-129): as devoluções em decisão deste produto. */
+  aoAbrirDevolucoes?: () => void
 }
 
 /**
@@ -32,6 +34,7 @@ export function CartaoProdutoEstoque({
   aoAbrir,
   aoLancar,
   aoAbrirPendencia,
+  aoAbrirDevolucoes,
 }: CartaoProdutoEstoqueProps) {
   const posicao = rotuloPosicao(linha.posicao)
   const corte = textoCorte(linha.cortes)
@@ -121,6 +124,19 @@ export function CartaoProdutoEstoque({
             )}
           </div>
         </div>
+
+        {/* SESSAO-31 (D-129): a peça devolvida espera a decisão da logística —
+            tocar abre as devoluções deste produto. */}
+        {linha.em_devolucao > 0 && aoAbrirDevolucoes && (
+          <button
+            type="button"
+            onClick={aoAbrirDevolucoes}
+            className="-my-1 flex min-h-toque-md items-center gap-1 self-start text-left text-xs font-medium text-atencao-texto underline-offset-2 hover:underline"
+          >
+            <Undo2 aria-hidden className="size-3.5 shrink-0" />
+            {formatarQuantidade(linha.em_devolucao)} em decisão pós devolução
+          </button>
+        )}
 
         {(linha.reservados_producao > 0 || linha.reservados_venda > 0) && (
           <p className="text-xs text-texto-suave tabular-nums">

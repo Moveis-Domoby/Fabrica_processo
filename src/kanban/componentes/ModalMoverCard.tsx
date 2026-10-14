@@ -15,6 +15,7 @@ import { concluirProducao, soltarCard } from '../api'
 import { pedidoCancelado } from '../situacao'
 import type { Card, Etapa, PedidoResumo } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
+import { textoPecaConcluida } from '../situacaoPlataforma'
 
 export interface ModalMoverCardProps {
   card: Card | null
@@ -108,7 +109,7 @@ export function ModalMoverCard({
         titulo: concluir
           ? destino === 'aguardo'
             ? `Peça concluída — está em Pedidos em aguardo (${rotuloOrigemCard(card!, pedido)})`
-            : 'Peça concluída — está no ESTOQUE, sem dono, aguardando a venda'
+            : textoPecaConcluida(destino)
           : `Card mandado para ${setorDestinoNome ?? 'o próximo setor'}`,
         descricao: concluir
           ? undefined

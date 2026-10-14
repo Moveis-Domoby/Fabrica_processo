@@ -92,6 +92,14 @@ export function ModalProdutoEstoque({
                   : `${produto.reservados_venda} reservados em venda`}
               </p>
             )}
+            {produto.em_devolucao > 0 && (
+              // SESSAO-31 (D-129): a peça devolvida esperando a decisão da logística.
+              <p className="text-sm text-atencao-texto tabular-nums">
+                {produto.em_devolucao === 1
+                  ? '1 em decisão pós devolução'
+                  : `${produto.em_devolucao} em decisão pós devolução`}
+              </p>
+            )}
           </div>
 
           {reposicao && <p className="text-sm text-texto-suave">{reposicao}</p>}

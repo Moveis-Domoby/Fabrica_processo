@@ -88,7 +88,7 @@ export function Rotas() {
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(0)
   const [entregando, setEntregando] = useState<Entrega | null>(null)
-  const [comMotivo, setComMotivo] = useState<{ tipo: TipoMotivo; entrega: Entrega } | null>(null)
+  const [comMotivo, setComMotivo] = useState<{ tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao'>; entrega: Entrega } | null>(null)
   const [devolvendo, setDevolvendo] = useState<Entrega | null>(null)
 
   const { data: entregas = [], isPending } = useQuery({

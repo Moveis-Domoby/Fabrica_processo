@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Trash2 } from 'lucide-react'
 import { Paginacao } from '@/componentes/ui'
@@ -8,6 +9,7 @@ import {
   apagarAviso,
   apagarLidas,
   buscarAvisosPagina,
+  destinoDoAviso,
   marcarAvisoLido,
   marcarTodosLidos,
 } from '@/notificacoes/api'
@@ -32,6 +34,7 @@ function quando(iso: string): string {
 export function Avisos() {
   const { perfil } = useSessao()
   const clienteQuery = useQueryClient()
+  const navegar = useNavigate()
   const [pagina, setPagina] = useState(1)
 
   const { data } = useQuery({
@@ -106,6 +109,8 @@ export function Avisos() {
                   type="button"
                   onClick={() => {
                     if (!a.lida_em) lerUm.mutate(a.id)
+                    const destino = destinoDoAviso(a)
+                    if (destino) navegar(destino)
                   }}
                   className={cn(
                     'flex min-w-0 min-h-toque-md flex-1 flex-col gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-superficie-sutil',
@@ -120,10 +125,14 @@ export function Avisos() {
                     </span>
                   </span>
                   <span className="text-sm text-texto-suave">{a.corpo}</span>
-                  {!a.lida_em && (
-                    <span className="text-xs font-medium text-acao-ativa">
-                      Toque para marcar como lida
-                    </span>
+                  {destinoDoAviso(a) ? (
+                    <span className="text-xs font-medium text-acao-ativa">Toque para abrir</span>
+                  ) : (
+                    !a.lida_em && (
+                      <span className="text-xs font-medium text-acao-ativa">
+                        Toque para marcar como lida
+                      </span>
+                    )
                   )}
                 </button>
                 {a.lida_em !== null && (

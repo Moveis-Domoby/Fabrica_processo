@@ -31,7 +31,13 @@ export type GrupoEstoque = 'acabados' | 'insumos'
  * 'com_estoque' são o filtro do topo (D-86). Insumos: 'sem_leitura'.
  */
 export type FiltroEstoque =
-  'todos' | 'necessidade' | 'reservados_producao' | 'com_estoque' | 'sem_leitura'
+  | 'todos'
+  | 'necessidade'
+  | 'reservados_producao'
+  | 'com_estoque'
+  | 'sem_leitura'
+  /** SESSAO-31 (D-129): os produtos com peça em decisão pós devolução. */
+  | 'em_devolucao'
 
 /** Onde está o card de reposição mais recente do produto. */
 export type EstadoReposicao = 'no_pcp' | 'em_producao' | 'concluida' | 'arquivada'
@@ -69,6 +75,8 @@ export interface LinhaEstoqueProduto {
   reservadas_estoque: number
   /** Em produção agora: o que vem para o estoque + os móveis de pedidos (resposta 6). */
   reservados_producao: number
+  /** SESSAO-31 (D-129): peças devolvidas esperando a decisão da logística. */
+  em_devolucao: number
   /** Abaixo do mínimo já contando o que vem para o estoque (a régua da necessidade). */
   em_necessidade: boolean
   /** Quanto falta produzir para voltar ao mínimo (a proposta do lançamento manual). */
@@ -116,6 +124,7 @@ export async function listarEstoqueProdutos(parametros: {
     reservados_venda: Number(l.reservados_venda ?? 0),
     reservadas_estoque: Number(l.reservadas_estoque ?? 0),
     reservados_producao: Number(l.reservados_producao ?? 0),
+    em_devolucao: Number(l.em_devolucao ?? 0),
     repor_sugerido: Number(l.repor_sugerido ?? 0),
     pendente_card_id: numeroOuNulo(l.pendente_card_id),
     pendente_pedido_numero: numeroOuNulo(l.pendente_pedido_numero),
@@ -218,6 +227,8 @@ export interface ResumoEstoque {
   moveis_producao: number
   soma_minimos: number
   produtos_abaixo: number
+  /** SESSAO-31 (D-129): móveis em decisão pós devolução. */
+  moveis_em_devolucao: number
 }
 
 export async function resumoEstoque(): Promise<ResumoEstoque | null> {
@@ -238,6 +249,7 @@ export async function resumoEstoque(): Promise<ResumoEstoque | null> {
     moveis_producao: Number(r.moveis_producao ?? 0),
     soma_minimos: Number(r.soma_minimos ?? 0),
     produtos_abaixo: Number(r.produtos_abaixo ?? 0),
+    moveis_em_devolucao: Number(r.moveis_em_devolucao ?? 0),
   }
 }
 

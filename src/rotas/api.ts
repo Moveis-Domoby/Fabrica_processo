@@ -70,7 +70,8 @@ export async function registrarEntrega(parametros: {
 // SESSAO-30 (D-113/D-114/D-116): o que acontece na entrega além do "Entregue"
 // ---------------------------------------------------------------------------
 
-export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega'
+/** SESSAO-31: + 'devolucao' (D-129 — o "Pedido devolvido" da logística) e 'pausa' (D-125). */
+export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pausa'
 
 export interface Motivo {
   id: number
@@ -133,14 +134,24 @@ export async function marcarNaoEntregue(parametros: {
   if (error) throw new Error(error.message)
 }
 
-/** Pedido devolvido na entrega: as peças voltam ao ESTOQUE sem dono; o Tiny não muda. */
+/**
+ * "Pedido devolvido" — ↩️ SESSAO-31 (D-129): gesto da LOGÍSTICA (o entregador
+ * não tem mais esse botão), com motivo. As peças voltam para a fábrica e ficam
+ * em "Em decisão pós devolução" (continuam do pedido); a logística decide no
+ * Estoque. Pedido já entregue: as peças escolhidas voltam. O Tiny não muda.
+ */
 export async function marcarDevolvido(parametros: {
   cardId: number
+  motivoId: number
   observacao?: string
+  /** Pedido já entregue: só as peças que voltaram (vazio = todas). */
+  pecas?: number[]
 }): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_entrega_devolvida', {
+  const { error } = await supabase.rpc('plt_fn_pedido_devolver', {
     p_card_id: parametros.cardId,
+    p_motivo_id: parametros.motivoId,
     p_observacao: parametros.observacao?.trim() || null,
+    p_pecas: parametros.pecas && parametros.pecas.length > 0 ? parametros.pecas : null,
   })
   if (error) throw new Error(error.message)
 }

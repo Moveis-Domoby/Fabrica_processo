@@ -7,7 +7,6 @@ import {
   MapPin,
   MessageCircle,
   MessageSquarePlus,
-  PackageX,
   Paperclip,
   RotateCcw,
   Truck,
@@ -27,7 +26,7 @@ import {
   TIPOS_COMPROVANTE,
 } from '@/rotas/api'
 import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
-import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { useAoVivo } from '@/lib/aoVivo'
 
 const MiniMapa = lazy(() => import('@/rotas/MiniMapaEntregas'))
@@ -52,7 +51,8 @@ function dataLonga(iso: string): string {
  * dele, as paradas na ordem salva da rota, cada uma com cliente, nº do
  * pedido, VOLUMES, endereço, observação, o detalhe de quem programou e os
  * móveis. Por pedido: Comentário · Entregue (com comprovante e observação,
- * opcionais) · Não entregue · Pedido devolvido · Anexar comprovante ·
+ * opcionais) · Não entregue · Anexar comprovante · (↩️ SESSAO-31, D-129: o
+ * "Pedido devolvido" saiu — é da logística) ·
  * WhatsApp · Mapa. A logística e o admin também abrem (escolhendo o caminhão).
  *
  * ↪️ D-121 (09/10, pedido do dono): para a logística, é uma ABA de ROTAS →
@@ -64,10 +64,9 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   // A logística pode olhar outro dia (o entregador vê sempre o de hoje).
   const [dia, setDia] = useState<string | null>(null)
   const [verMapa, setVerMapa] = useState(true)
-  const [comMotivo, setComMotivo] = useState<{ tipo: TipoMotivo; entrega: EntregaDoDia } | null>(
+  const [comMotivo, setComMotivo] = useState<{ tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao'>; entrega: EntregaDoDia } | null>(
     null,
   )
-  const [devolvendo, setDevolvendo] = useState<EntregaDoDia | null>(null)
   const [comentando, setComentando] = useState<EntregaDoDia | null>(null)
   const [anexando, setAnexando] = useState<EntregaDoDia | null>(null)
 
@@ -201,7 +200,6 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
             entrega={entrega}
             aoNaoEntregue={() => setComMotivo({ tipo: 'nao_entregue', entrega })}
             aoDesfazer={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
-            aoDevolvido={() => setDevolvendo(entrega)}
             aoComentar={() => setComentando(entrega)}
             aoAnexar={() => setAnexando(entrega)}
           />
@@ -256,11 +254,6 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         pedido={comMotivo?.entrega ?? null}
         aoFechar={() => setComMotivo(null)}
       />
-      <ModalDevolvido
-        key={devolvendo ? `devolvido-${devolvendo.card_id}` : 'devolvido-fechado'}
-        pedido={devolvendo}
-        aoFechar={() => setDevolvendo(null)}
-      />
       <ModalComentario
         key={comentando ? `comentario-${comentando.card_id}` : 'comentario-fechado'}
         entrega={comentando}
@@ -280,14 +273,12 @@ function CartaoEntrega({
   entrega,
   aoNaoEntregue,
   aoDesfazer,
-  aoDevolvido,
   aoComentar,
   aoAnexar,
 }: {
   entrega: EntregaDoDia
   aoNaoEntregue: () => void
   aoDesfazer: () => void
-  aoDevolvido: () => void
   aoComentar: () => void
   aoAnexar: () => void
 }) {
@@ -433,7 +424,7 @@ function CartaoEntrega({
       </div>
 
       {!entregue ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Botao
             tamanho="lg"
             icone={<CheckCircle2 />}
@@ -444,9 +435,6 @@ function CartaoEntrega({
           </Botao>
           <Botao tamanho="lg" variante="secundaria" icone={<RotateCcw />} onClick={aoNaoEntregue}>
             Não entregue
-          </Botao>
-          <Botao tamanho="lg" variante="secundaria" icone={<PackageX />} onClick={aoDevolvido}>
-            Pedido devolvido
           </Botao>
         </div>
       ) : (

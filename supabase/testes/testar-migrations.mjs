@@ -198,16 +198,16 @@ const setores = (
 ).rows
 console.log('  ' + setores.map((s) => `${s.nome} (${s.papel_no_fluxo})`).join(' · '))
 conferir(
-  setores.length === 10,
-  '10 setores semeados (os 9 da D-18 + PEDIDOS EM AGUARDO da SESSAO-24), sem duplicar na segunda rodada',
+  setores.length === 11,
+  '11 setores semeados (os 9 da D-18 + PEDIDOS EM AGUARDO da SESSAO-24 + EM DECISÃO PÓS DEVOLUÇÃO da SESSAO-31), sem duplicar na segunda rodada',
   `vieram ${setores.length}`,
 )
 conferir(
   setores
     .filter((s) => s.papel_no_fluxo === 'terminal')
     .map((s) => s.codigo)
-    .join(',') === 'estoque,aguardo,rotas',
-  'fins de linha: ESTOQUE (peça sem dono), PEDIDOS EM AGUARDO (peça de pedido) e ROTAS (D-18 ↪️ SESSAO-24)',
+    .join(',') === 'estoque,aguardo,devolucao,rotas',
+  'fins de linha: ESTOQUE (peça sem dono), PEDIDOS EM AGUARDO (peça de pedido), EM DECISÃO PÓS DEVOLUÇÃO (D-129) e ROTAS (D-18 ↪️ SESSAO-24)',
 )
 conferir(
   setores.filter((s) => s.papel_no_fluxo === 'entrada').length === 1,
@@ -9824,7 +9824,8 @@ const um57 = async (sql) => (await bd.query(sql)).rows[0]
 const todos57 = async (sql) => (await bd.query(sql)).rows
 const como57 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
 const numeros57 = async (p) => um57(`
-  select n.livres, n.reservadas_estoque, n.prontas_pedido, n.producao_sem_dono, n.producao_de_pedido
+  select n.livres, n.reservadas_estoque, n.prontas_pedido, n.producao_sem_dono, n.producao_de_pedido,
+         n.em_devolucao -- SESSAO-31 (D-129)
     from public.plt_estoque_numeros n where n.produto_tiny_id = ${p}`)
 const aoVivo57 = async (p) => um57(`select * from plt_privado.fn_estoque_contar(${p})`)
 const igual57 = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -10495,19 +10496,24 @@ conferir(
   JSON.stringify({ progF, evF, naProgramar }),
 )
 
-titulo('SESSAO-30 · pedido devolvido e cancelado/devolvido no Tiny: a peça pronta vai sozinha ao ESTOQUE (D-114)')
+titulo('SESSAO-30/31 · pedido devolvido (agora da logística — D-129) e cancelado no Tiny; o marcador "Devolvido" não faz nada (D-124)')
 
+// ↩️ SESSAO-31: o devolvido NÃO vai ao ESTOQUE — espera a decisão da logística
+// (o bloco 67 prova a decisão). Aqui: sai da ROTAS e do caminhão; o Tiny não muda.
 const pcG = await pedidoNaRota(959007, 2)
-const devolveu = (await um59(`select public.plt_fn_entrega_devolvida(${pcG}, 'cliente recusou na porta') as r`)).r
+const motivoDev59 = (await um59(`select id::int as id from public.plt_motivos where tipo = 'devolucao' and texto = 'Cliente recusou na entrega'`)).id
+const devolveu = (await um59(`select public.plt_fn_pedido_devolver(${pcG}, ${motivoDev59}, 'cliente recusou na porta') as r`)).r
 const depoisG = await vivas59(959007)
 const progG = await um59(`select count(*)::int as n from public.plt_programacoes where card_id = ${pcG}`)
+const emDecisaoG = await um59(`select count(*)::int as n from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+                                 where u.card_pai_id = ${pcG} and s.codigo = 'devolucao' and u.pedido_id is not null`)
 conferir(
-  devolveu.devolvido && devolveu.pecas_no_estoque === 2 && depoisG.no_estoque === 2 && depoisG.na_rotas === 0
+  devolveu.pecas === 2 && depoisG.no_estoque === 0 && depoisG.na_rotas === 0 && emDecisaoG.n === 2
     && progG.n === 0 && (await fila59(959007)) === undefined,
-  'devolvido pelo entregador: as 2 peças vão ao ESTOQUE sem dono, sai do caminhão e o Tiny não muda',
-  JSON.stringify({ devolveu, depoisG, progG }),
+  'devolvido pela logística: as 2 peças continuam do pedido, em decisão (não vão ao ESTOQUE), saem do caminhão e o Tiny não muda',
+  JSON.stringify({ devolveu, depoisG, progG, emDecisaoG }),
 )
-await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcG})`, 'pedido devolvido não se entrega', /cancelado ou devolvido/i)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcG})`, 'pedido em decisão pós devolução não se entrega (saiu da ROTAS)', /não foi lançado/i)
 
 const pcH = await pedidoNaRota(959008)
 await como59('')
@@ -10517,11 +10523,13 @@ const pcI = await pedidoNaRota(959009)
 await como59('')
 await bd.exec(`update public.pedidos set marcadores = array['Devolvido'] where numero = 959009`)
 const depoisI = await vivas59(959009)
-const evI = await um59(`select dados ->> 'fonte' as fonte from public.plt_eventos where card_id = ${pcI} and tipo = 'pedido_devolvido'`)
+const evI = await um59(`select count(*)::int as n from public.plt_eventos where card_id = ${pcI} and tipo = 'pedido_devolvido'`)
+const cancI = await um59(`select plt_privado.fn_pedido_cancelado((select id from public.pedidos where numero = 959009)) as c`)
 conferir(
-  depoisH.no_estoque === 1 && depoisH.na_rotas === 0 && depoisI.no_estoque === 1 && depoisI.na_rotas === 0 && evI?.fonte === 'tiny',
-  'cancelado no Tiny com a peça na ROTAS, e o marcador "Devolvido" do Tiny: a peça vai ao ESTOQUE sem dono, sem ninguém confirmar',
-  JSON.stringify({ depoisH, depoisI, evI }),
+  depoisH.no_estoque === 1 && depoisH.na_rotas === 0 && depoisI.no_estoque === 0 && depoisI.na_rotas === 1
+    && evI.n === 0 && cancI.c === false,
+  'cancelado no Tiny com a peça na ROTAS: vai ao ESTOQUE sozinha; o marcador "Devolvido" do Tiny NÃO mexe em nada (D-124 — a peça segue com o pedido)',
+  JSON.stringify({ depoisH, depoisI, evI, cancI }),
 )
 
 await como59('')
@@ -10669,10 +10677,12 @@ conferir(
   'desfez a de hoje (as 3 peças voltam); o "não entregue" sai da lista dele; o pedido de outro caminhão é recusado',
   JSON.stringify({ desf, fim: fim.entregas.map((e) => e.numero) }),
 )
-await bd.exec(`select public.plt_fn_entrega_devolvida(${pcX}, 'cliente desistiu na porta')`)
-const devolvido = await um60(`select count(*)::int as n from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
-                                where u.card_pai_id = ${pcX} and u.tipo = 'unidade' and u.arquivado_em is null and u.pedido_id is null and s.codigo = 'estoque'`)
-conferir(devolvido.n === 3, 'o entregador marca devolvido: as 3 peças vão ao ESTOQUE sem dono', JSON.stringify(devolvido))
+// ↩️ SESSAO-31 (D-129): "o entregador não pode ter esse controle nas mãos".
+const motivoDev60 = (await um60(`select id::int as id from public.plt_motivos where tipo = 'devolucao' order by ordem limit 1`)).id
+await deveRecusarExec(`select public.plt_fn_pedido_devolver(${pcX}, ${motivoDev60}, 'cliente desistiu na porta')`,
+  'o entregador NÃO marca pedido devolvido (é da logística)', /logística/i)
+const naoExiste60 = await um60(`select to_regprocedure('public.plt_fn_entrega_devolvida(bigint, text)') is null as saiu`)
+conferir(naoExiste60.saiu, 'a porta antiga do "Pedido devolvido" do entregador saiu', JSON.stringify(naoExiste60))
 
 titulo('SESSAO-30 · E-89: a entrega que veio do Tiny (Sistema) não se desfaz pela plataforma')
 
@@ -11262,6 +11272,241 @@ const tipos66 = await um66(`select plt_privado.fn_tipo_qualidade('unidade', 1) a
 conferir(tipos66.a === 'peca_pedido' && tipos66.b === 'peca_estoque' && tipos66.c === 'avulso' && tipos66.d === null,
   'os tipos das chaves: peça de pedido, peça de estoque, avulso (card do pedido não anda pela produção)', JSON.stringify(tipos66))
 } // fim do bloco 66
+
+// ============================================================================
+// SESSAO-31 · etapa B (migration 67 — D-124/D-129/D-130): a devolução é da
+// LOGÍSTICA — as peças ficam "Em decisão pós devolução" e ela decide; o ajuste
+// leva a mesma peça de volta à produção com o destino final; a reentrega.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · "Pedido devolvido" da logística: as peças continuam do pedido e esperam a decisão (D-129)')
+
+const um67 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos67 = async (sql, p) => (await bd.query(sql, p)).rows
+const como67 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const LOG = E40.logistica
+const ADM = E40.admin
+await como67('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (967001, 'S67A', 'Rack Devolução 67', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 67', 'TST6E67');
+  update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo in ('q66a', 'q66b');
+`)
+const cam67 = (await um67(`select id::int as id from public.plt_caminhoes where placa = 'TST6E67'`)).id
+const ids67 = Object.fromEntries((await todos67(`select codigo, id::int as id from public.plt_setores`)).map((s) => [s.codigo, s.id]))
+async function pedido67(numero, unidades, lancar = true) {
+  await como67('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id) values
+      (${numero}, (select id from public.clientes order by id limit 1), 'Enviado', 'webhook', ${numero}00);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), 1, 'S67A', 'Rack Devolução 67', ${unidades});
+  `)
+  const pc = (await um67(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  if (!lancar) return pc
+  for (let k = 1; k <= unidades; k++) {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, ${pc}, 1, 'S67A', 'Rack Devolução 67', ${k}, ${unidades} from public.pedidos p where p.numero = ${numero};
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${ids67.aguardo}, 'api');
+    `)
+  }
+  await como67(LOG)
+  await bd.exec(`select public.plt_fn_lancar_rotas(${pc})`)
+  await bd.exec(`select public.plt_fn_programar_entrega(${pc}, (now() at time zone 'America/Fortaleza')::date, ${cam67})`)
+  return pc
+}
+const pecas67 = (pc) => todos67(`select u.id::int as id, s.codigo as onde, u.pedido_id is not null as com_dono, e.eh_danificado as dano,
+                                        u.arquivado_em is not null as arquivada
+                                   from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+                                   left join public.plt_etapas e on e.id = u.etapa_atual_id
+                                  where u.card_pai_id = ${pc} and u.tipo = 'unidade' order by u.id`)
+const pedidoCard67 = (pc) => um67(`select devolucao_evento_id::int as dev, lancado_rotas_em is not null as lancado,
+                                          entrega_evento_id is not null as entregue, liberado_completo_em is not null as liberado
+                                     from public.plt_cards where id = ${pc}`)
+const numeros67 = () => um67(`select em_devolucao, livres, prontas_pedido from public.plt_estoque_numeros where produto_tiny_id = 967001`)
+const motivoDev = (await um67(`select id::int as id from public.plt_motivos where tipo = 'devolucao' and texto = 'Cliente desistiu da compra'`)).id
+const filaTiny67 = (numero) => um67(`select count(*)::int as n from public.plt_tiny_pedido_fila where numero = ${numero}`)
+
+// 1 · devolvido na ROTAS
+const pcA = await pedido67(967001, 2)
+const antesA = await numeros67()
+await como67(E40.operador)
+await deveRecusarExec(`select public.plt_fn_pedido_devolver(${pcA}, ${motivoDev})`, 'o operador de produção não marca devolvido', /logística/i)
+await como67(LOG)
+await deveRecusarExec(`select public.plt_fn_pedido_devolver(${pcA}, null)`, 'devolver pede o motivo da lista de devolução', /motivo da devolução/i)
+const devA = (await um67(`select public.plt_fn_pedido_devolver(${pcA}, ${motivoDev}, 'ligou desistindo') as r`)).r
+const devA2 = (await um67(`select public.plt_fn_pedido_devolver(${pcA}, ${motivoDev}, 'ligou desistindo') as r`)).r
+const pA = await pecas67(pcA)
+const cA = await pedidoCard67(pcA)
+const depoisA = await numeros67()
+const progA = await um67(`select count(*)::int as n from public.plt_programacoes where card_id = ${pcA}`)
+const avisoA = await um67(`select count(*)::int as n from public.plt_notificacoes where card_id = ${pcA} and tipo = 'devolucao_decidir'`)
+conferir(
+  devA.pecas === 2 && devA2.repetido === true && pA.every((x) => x.onde === 'devolucao' && x.com_dono)
+    && cA.dev === devA.evento_id && !cA.lancado && progA.n === 0 && avisoA.n > 0
+    && depoisA.em_devolucao === antesA.em_devolucao + 2 && depoisA.prontas_pedido === antesA.prontas_pedido - 2
+    && (await filaTiny67(967001)).n === 0,
+  'devolvido na ROTAS: as 2 peças em decisão (do pedido), o pedido sai da ROTAS e do caminhão, a logística é avisada, o estoque ganha a linha "em decisão" (sai dos reservados) e o Tiny não muda; repetir o toque = um efeito só',
+  JSON.stringify({ devA, devA2, pA, cA, antesA, depoisA, progA, avisoA }),
+)
+const listaA = await todos67(`select tiny_id, em_devolucao from public.plt_fn_estoque_produtos('acabados', null, 'em_devolucao', 20, 0) where tiny_id = 967001`)
+const resumoA = await um67(`select moveis_em_devolucao from public.plt_fn_estoque_resumo()`)
+const todosA = await um67(`select situacao_plataforma from public.plt_fn_pcp_todos_pedidos('967001', null, 5) where numero = 967001`)
+const detA = (await um67(`select public.plt_fn_devolucao_detalhe(${pcA}) as d`)).d
+const devsA = await todos67(`select card_id, pecas from public.plt_fn_devolucoes(967001, null, 20)`)
+const aguardoA = await um67(`select count(*)::int as n from public.plt_fn_pedidos_aguardo('967001', 20, 0)`)
+conferir(
+  listaA[0]?.em_devolucao === 2 && resumoA.moveis_em_devolucao >= 2 && todosA.situacao_plataforma === 'devolvido'
+    && detA.em_decisao && detA.pecas.length === 2 && detA.devolucao.motivo === 'Cliente desistiu da compra'
+    && detA.historico.some((h) => h.tipo === 'pedido_devolvido') && devsA.some((d) => d.card_id === pcA && d.pecas === 2)
+    && aguardoA.n === 0,
+  'o Estoque mostra a linha e o filtro "em decisão pós devolução"; o PCP diz "devolvido"; a telinha traz o mini relatório e as peças numa requisição; não aparece em Pedidos em aguardo',
+  JSON.stringify({ listaA, resumoA, todosA, detA: { em: detA.em_decisao, pecas: detA.pecas.length, motivo: detA.devolucao.motivo }, devsA, aguardoA }),
+)
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, setor_destino_id)
+                        values (${pA[0].id}, 'movimentacao_setor', 'api', ${ids67.devolucao}, ${ids67.q66a})`,
+  'a peça em decisão não sai por fora da decisão (nem pela integração)', /decisão da logística/i)
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, setor_destino_id)
+                        values ((select id from public.plt_cards where tipo = 'unidade' and arquivado_em is null and setor_atual_id = ${ids67.rotas} limit 1),
+                                'movimentacao_setor', 'api', ${ids67.rotas}, ${ids67.devolucao})`,
+  'e nenhuma peça entra lá por fora do "Pedido devolvido"', /Pedido devolvido/i)
+
+titulo('SESSAO-31 · a decisão da logística: estoque, reenviar (e o pedido volta à ROTAS), loja, danificados, realocar')
+
+// 2 · uma ao ESTOQUE, a outra reenviada
+const dEst = (await um67(`select public.plt_fn_devolucao_decidir(array[${pA[0].id}]::bigint[], 'estoque') as r`)).r
+const dEst2 = (await um67(`select public.plt_fn_devolucao_decidir(array[${pA[0].id}]::bigint[], 'estoque') as r`)).r
+const cA2 = await pedidoCard67(pcA)
+const dReenv = (await um67(`select public.plt_fn_devolucao_decidir(array[${pA[1].id}]::bigint[], 'reenviar') as r`)).r
+const pA3 = await pecas67(pcA)
+const cA3 = await pedidoCard67(pcA)
+const livreA = await um67(`select s.codigo as onde, u.pedido_id is null as sem_dono from public.plt_cards u
+                             join public.plt_setores s on s.id = u.setor_atual_id where u.id = ${pA[0].id}`)
+conferir(
+  dEst.decididas === 1 && dEst2.repetidas === 1 && cA2.dev !== null && livreA.onde === 'estoque' && livreA.sem_dono
+    && dReenv.decididas === 1 && pA3.find((x) => x.id === pA[1].id)?.onde === 'aguardo' && cA3.dev === null
+    && dReenv.relancados.length === 0 && !cA3.lancado,
+  'estoque: a peça fica livre (repetir = um efeito só; a devolução segue aberta); reenviar a última: volta ao aguardo e a devolução fecha — o pedido perdeu uma peça, então espera em Pedidos em aguardo',
+  JSON.stringify({ dEst, dEst2, cA2, dReenv, pA3, cA3, livreA }),
+)
+
+// 3 · reenviar com o pedido todo → volta sozinho à ROTAS (Programar)
+const pcB = await pedido67(967002, 2)
+await bd.exec(`select public.plt_fn_pedido_devolver(${pcB}, ${motivoDev})`)
+const pB = await pecas67(pcB)
+const dB = (await um67(`select public.plt_fn_devolucao_decidir(array[${pB[0].id}, ${pB[1].id}]::bigint[], 'reenviar') as r`)).r
+const cB = await pedidoCard67(pcB)
+const pB2 = await pecas67(pcB)
+const programarB = await um67(`select count(*)::int as n from public.plt_fn_programacao(null, 100, 0, true) where card_id = ${pcB}`)
+conferir(dB.decididas === 2 && dB.relancados.includes(pcB) && cB.lancado && cB.dev === null && pB2.every((x) => x.onde === 'rotas')
+    && programarB.n === 1,
+  'reenviar o pedido inteiro: as peças voltam e o pedido volta sozinho para as ROTAS → Programar', JSON.stringify({ dB, cB, pB2, programarB }))
+
+// 4 · loja e danificados
+const pcC = await pedido67(967003, 2)
+await bd.exec(`select public.plt_fn_pedido_devolver(${pcC}, ${motivoDev})`)
+const pC = await pecas67(pcC)
+await bd.exec(`select public.plt_fn_devolucao_decidir(array[${pC[0].id}]::bigint[], 'loja')`)
+await bd.exec(`select public.plt_fn_devolucao_decidir(array[${pC[1].id}]::bigint[], 'danificados')`)
+const pC2 = await pecas67(pcC)
+const cC = await pedidoCard67(pcC)
+const motivoLoja = await um67(`select dados ->> 'motivo' as m from public.plt_eventos where card_id = ${pC[0].id} and tipo = 'card_arquivado' order by id desc limit 1`)
+conferir(pC2[0].arquivada && motivoLoja.m === 'loja' && pC2[1].onde === 'devolucao' && pC2[1].dano && cC.dev === null,
+  'loja: a peça sai das contas da fábrica; danificada: vai para o DANIFICADO (segue pelos Danificados) — e a devolução fecha',
+  JSON.stringify({ pC2, motivoLoja, cC }))
+await como67(LOG)
+const tem67 = await um67(`select count(*)::int as n from public.plt_fn_danificados(null, 50, 0) where card_id = ${pC[1].id}`).catch((e) => ({ n: -1, e: e.message }))
+
+// 5 · realocar para outro pedido vivo, no PCP, com vaga da mesma peça
+const pcD = await pedido67(967004, 1)
+const pcAlvo = await pedido67(967005, 1, false)
+await como67(LOG)
+await bd.exec(`select public.plt_fn_pedido_devolver(${pcD}, ${motivoDev})`)
+const pD = await pecas67(pcD)
+const opcoesD = await todos67(`select * from public.plt_fn_devolucao_realocar_opcoes(${pD[0].id})`)
+const op = opcoesD.find((o) => Number(o.card_pedido_id) === pcAlvo)
+const dD = (await um67(`select public.plt_fn_devolucao_decidir(array[${pD[0].id}]::bigint[], 'realocar', $1::jsonb) as r`,
+  [JSON.stringify({ card_pedido_id: pcAlvo, item_seq: op?.item_seq, indice_unidade: op?.indice_unidade })])).r
+const alvoD = await um67(`select count(*)::int as n from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+                            where u.card_pai_id = ${pcAlvo} and u.tipo = 'unidade' and s.codigo = 'aguardo' and u.arquivado_em is null`)
+const decD = await um67(`select dados from public.plt_eventos where card_id = ${pD[0].id} and tipo = 'devolucao_decidida'`)
+conferir(op !== undefined && dD.decididas === 1 && alvoD.n === 1 && Number(decD.dados.card_pedido_destino_id) === pcAlvo,
+  'realocar: as opções são os pedidos vivos com vaga da mesma peça; a peça vira a unidade do outro pedido, pronta em Pedidos em aguardo',
+  JSON.stringify({ opcoesD, dD, alvoD, decD }))
+await deveRecusarExec(`select public.plt_fn_devolucao_decidir(array[${pD[0].id}]::bigint[], 'inventada')`, 'decisão desconhecida é recusada', /desconhecida/i)
+
+titulo('SESSAO-31 · o ajuste de peça (D-130) e a reentrega ao cliente: só o que voltou, o Tiny não muda')
+
+// 6 · pedido ENTREGUE: 1 das 2 peças volta, vai para ajuste com destino "pedido" (reentrega)
+const pcE = await pedido67(967006, 2)
+await bd.exec(`select public.plt_fn_registrar_entrega(${pcE}, 'entregue')`)
+const filaE0 = (await filaTiny67(967006)).n
+const pE = await pecas67(pcE)
+await deveRecusarExec(`select public.plt_fn_devolucao_decidir(array[${pE[0].id}]::bigint[], 'estoque')`,
+  'peça que não está em decisão não se decide', /não está mais em decisão/i)
+const devE = (await um67(`select public.plt_fn_pedido_devolver(${pcE}, ${motivoDev}, 'mal acabada', array[${pE[0].id}]::bigint[]) as r`)).r
+const pE2 = await pecas67(pcE)
+const cE = await pedidoCard67(pcE)
+conferir(devE.entregue && devE.pecas === 1 && pE2[0].onde === 'devolucao' && !pE2[0].arquivada && pE2[1].arquivada && cE.entregue && cE.dev !== null,
+  'pedido já entregue: a peça escolhida volta do cliente (em decisão), a outra fica entregue; a entrega continua valendo',
+  JSON.stringify({ devE, pE2, cE }))
+await deveRecusarExec(`select public.plt_fn_devolucao_decidir(array[${pE[0].id}]::bigint[], 'ajuste', $1::jsonb)`.replace('$1', `'${JSON.stringify({ setor_id: ids67.estoque, destino_final: 'pedido' })}'`),
+  'o ajuste vai para um setor de produção', /setor de produção/i)
+await bd.query(`select public.plt_fn_devolucao_decidir(array[${pE[0].id}]::bigint[], 'ajuste', $1::jsonb)`,
+  [JSON.stringify({ setor_id: ids67.q66a, destino_final: 'pedido', descricao: 'lixar a porta' })])
+const ajE = await um67(`select c.ajuste_destino, s.codigo as onde, e.eh_fila as na_fila from public.plt_cards c
+                          join public.plt_setores s on s.id = c.setor_atual_id left join public.plt_etapas e on e.id = c.etapa_atual_id
+                         where c.id = ${pE[0].id}`)
+await como67(ADM)
+const prontoE = (await um67(`select id::int as id from public.plt_etapas where setor_id = ${ids67.q66a} and nome = 'PRONTO'`)).id
+const expE = (await um67(`select id::int as id from public.plt_etapas where setor_id = ${ids67.q66b} and nome = 'EXPEDIÇÃO'`)).id
+await bd.exec(`select public.plt_fn_soltar_card(${pE[0].id}, ${prontoE})`)
+const concluiE = (await um67(`select public.plt_fn_soltar_card(${pE[0].id}, ${expE}) as r`)).r
+const cE2 = await pedidoCard67(pcE)
+const pE3 = await pecas67(pcE)
+const reab = await um67(`select dados from public.plt_eventos where card_id = ${pcE} and tipo = 'entrega_desfeita' order by id desc limit 1`)
+const filaE1 = (await filaTiny67(967006)).n
+const ajFim = await um67(`select ajuste_destino from public.plt_cards where id = ${pE[0].id}`)
+conferir(
+  ajE.ajuste_destino === 'pedido' && ajE.onde === 'q66a' && ajE.na_fila
+    && concluiE.acao === 'concluido' && concluiE.destino === 'aguardo' && ajFim.ajuste_destino === null
+    && !cE2.entregue && cE2.lancado && pE3[0].onde === 'rotas' && reab.dados.tiny === 'nao_muda' && filaE1 === filaE0,
+  'ajuste com destino "pedido" num pedido entregue: a peça vai à produção, conclui na EXPEDIÇÃO, a entrega reabre só na plataforma (nada ao Tiny) e o pedido volta sozinho às ROTAS com o que voltou',
+  JSON.stringify({ ajE, concluiE, cE2, pE3, reab, filaE0, filaE1 }),
+)
+await como67(LOG)
+const entE = (await um67(`select public.plt_fn_registrar_entrega(${pcE}, 'reentregue') as e`)).e
+const cE3 = await pedidoCard67(pcE)
+conferir(Number(entE) > 0 && cE3.entregue, 'a reentrega sai com o que voltou (1 de 2 — a outra já estava com o cliente)', JSON.stringify({ entE, cE3 }))
+
+// 7 · ajuste a partir do ESTOQUE (peça livre) com destino "estoque"
+await como67(LOG)
+await bd.exec(`select public.plt_fn_estoque_movimentar(967001, 'entrada', 1, 'teste 67')`)
+const livre7 = (await um67(`select u.id::int as id from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+                             where s.codigo = 'estoque' and u.produto_tiny_id = 967001 and u.pedido_id is null and u.arquivado_em is null
+                               and u.reservada_pedido_id is null order by u.id desc limit 1`)).id
+await bd.exec(`select public.plt_fn_ajuste_abrir(${livre7}, ${ids67.q66b}, 'estoque', 'pintar de novo')`)
+await deveRecusarExec(`select public.plt_fn_ajuste_abrir(${livre7}, ${ids67.q66b}, 'estoque')`, 'a peça já em ajuste não abre outro', /já está em ajuste/i)
+await como67(ADM)
+const r7 = (await um67(`select public.plt_fn_soltar_card(${livre7}, ${expE}) as r`)).r
+const fim7 = await um67(`select s.codigo as onde, u.ajuste_destino from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id where u.id = ${livre7}`)
+conferir(r7.acao === 'concluido' && r7.destino === 'estoque' && fim7.onde === 'estoque' && fim7.ajuste_destino === null,
+  'ajuste a partir do ESTOQUE com destino "estoque": a peça volta livre ao estoque ao concluir', JSON.stringify({ r7, fim7 }))
+
+// 8 · permissões
+await como67('')
+const priv67 = await um67(`
+  select has_function_privilege('anon', 'public.plt_fn_pedido_devolver(bigint, bigint, text, bigint[])', 'execute') as devolver_anon,
+         has_function_privilege('anon', 'public.plt_fn_devolucao_decidir(bigint[], text, jsonb, text)', 'execute') as decidir_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_ajuste_concluir(bigint, text, text, uuid)', 'execute') as maquina,
+         (select count(*)::int from public.plt_fn_devolucoes(null, null, 20)) as lista_sem_login`)
+conferir(!priv67.devolver_anon && !priv67.decidir_anon && !priv67.maquina && priv67.lista_sem_login === 0,
+  'anônimo fora; a maquinaria fora da API; sem login a lista vem vazia', JSON.stringify({ priv67, tem67 }))
+} // fim do bloco 67
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

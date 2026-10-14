@@ -666,6 +666,12 @@ const LISTAS_MOTIVO: { tipo: TipoMotivo; titulo: string; explica: string }[] = [
     titulo: 'Desfazer a entrega',
     explica: 'Escolhido ao desfazer uma entrega do dia.',
   },
+  {
+    // SESSAO-31 (D-129): o "Pedido devolvido" é da logística, com motivo.
+    tipo: 'devolucao',
+    titulo: 'Pedido devolvido',
+    explica: 'A logística escolhe um destes ao marcar o pedido como devolvido.',
+  },
 ]
 
 function PainelMotivos() {

@@ -23,6 +23,7 @@ import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
 import type { Card, ExecucaoAberta } from '@/kanban/tipos'
+import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
 import { prepararSom, tocarSomChegada } from '@/tablet/som'
@@ -200,10 +201,7 @@ export function TelaSetor() {
       if (resultado.acao === 'iniciado') notificar({ titulo: 'Tempo começou', tom: 'perfeito' })
       if (resultado.acao === 'concluido')
         notificar({
-          titulo:
-            resultado.destino === 'estoque'
-              ? 'Peça concluída — está no ESTOQUE'
-              : 'Peça concluída — está em Pedidos em aguardo',
+          titulo: textoPecaConcluida(resultado.destino),
           tom: 'perfeito',
         })
       await invalidarQuadro()

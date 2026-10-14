@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { Factory, PackagePlus, Search } from 'lucide-react'
 import { Botao, Campo, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
@@ -19,6 +19,8 @@ import { ModalProdutoEstoque } from './ModalProdutoEstoque'
 import { TodasAsPecas } from './PecasDoEstoque'
 import { PecasPersonalizadas } from './PecasPersonalizadas'
 import { useAoVivo } from '@/lib/aoVivo'
+import { ModalDecidirDevolucao } from './ModalDecidirDevolucao'
+import { ModalDevolucoes } from './ModalDevolucoes'
 
 /** O filtro do topo (resposta 5 do dono: entra o "Com estoque"). */
 const FILTROS = [
@@ -26,6 +28,8 @@ const FILTROS = [
   { valor: 'necessidade', rotulo: 'Necessidade de produção' },
   { valor: 'reservados_producao', rotulo: 'Reservados para produção' },
   { valor: 'com_estoque', rotulo: 'Com estoque' },
+  // SESSAO-31 (D-129): a linha nova do estoque — a peça devolvida esperando decisão.
+  { valor: 'em_devolucao', rotulo: 'Em decisão pós devolução' },
 ] as const
 type FiltroTopo = (typeof FILTROS)[number]['valor']
 
@@ -50,6 +54,18 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
   } | null>(null)
   const [aberto, setAberto] = useState<LinhaEstoqueProduto | null>(null)
   const [lancando, setLancando] = useState<LinhaEstoqueProduto | null>(null)
+  // SESSAO-31 (D-129): as devoluções de um produto e a telinha "Decidir
+  // situação" — esta vive no endereço (?devolucao=<card do pedido>), para o
+  // aviso do sino e o link abrirem direto.
+  const [devolucoesDe, setDevolucoesDe] = useState<LinhaEstoqueProduto | null>(null)
+  const [parametros, setParametros] = useSearchParams()
+  const decidindo = Number(parametros.get('devolucao')) || null
+  function abrirDecisao(cardId: number | null) {
+    const novos = new URLSearchParams(parametros)
+    if (cardId === null) novos.delete('devolucao')
+    else novos.set('devolucao', String(cardId))
+    setParametros(novos, { replace: true })
+  }
 
   // O Top X é valor único da equipe e mora no banco (D-83).
   const { data: config } = useQuery({
@@ -154,7 +170,9 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
                 ? 'Nada reservado para produção agora.'
                 : filtro === 'com_estoque'
                   ? 'Nenhum produto com estoque.'
-                  : 'Nenhum produto no catálogo ainda.'}
+                  : filtro === 'em_devolucao'
+                    ? 'Nenhuma peça devolvida esperando decisão.'
+                    : 'Nenhum produto no catálogo ainda.'}
         </p>
       )}
 
@@ -172,6 +190,7 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
               linha.pendente_card_id !== null &&
               navegar(`/fabrica/producao/pcp?liberar=${linha.pendente_card_id}`)
             }
+            aoAbrirDevolucoes={podeMexer ? () => setDevolucoesDe(linha) : undefined}
           />
         ))}
       </ul>
@@ -214,6 +233,20 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
         key={lancando?.tiny_id ?? 'lancar-fechado'}
         produto={lancando}
         aoFechar={() => setLancando(null)}
+      />
+      <ModalDevolucoes
+        aberto={devolucoesDe !== null}
+        produto={devolucoesDe ? { tinyId: devolucoesDe.tiny_id, descricao: devolucoesDe.descricao } : null}
+        aoFechar={() => setDevolucoesDe(null)}
+        aoDecidir={(cardId) => {
+          setDevolucoesDe(null)
+          abrirDecisao(cardId)
+        }}
+      />
+      <ModalDecidirDevolucao
+        key={decidindo ?? 'decidir-fechado'}
+        cardId={decidindo}
+        aoFechar={() => abrirDecisao(null)}
       />
     </div>
   )

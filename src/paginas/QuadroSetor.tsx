@@ -20,6 +20,7 @@ import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
 import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
 import type { Card, Etapa, ExecucaoAberta } from '@/kanban/tipos'
+import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 
 const ATUALIZA_A_CADA = 20_000
 
@@ -108,10 +109,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       // SESSAO-31 (D-127): a EXPEDIÇÃO concluiu — diz para onde a peça foi.
       if (resultado.acao === 'concluido') {
         notificar({
-          titulo:
-            resultado.destino === 'estoque'
-              ? 'Peça concluída — está no ESTOQUE, sem dono, aguardando a venda'
-              : 'Peça concluída — está em Pedidos em aguardo',
+          titulo: textoPecaConcluida(resultado.destino),
           tom: 'perfeito',
         })
         await Promise.all([

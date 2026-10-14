@@ -1,4 +1,4 @@
-import type { AcaoAjustePedido } from './api'
+import type { AcaoAjustePedido, DestinoConclusao } from './api'
 import type { SituacaoPlataforma } from './tipos'
 
 /**
@@ -13,6 +13,7 @@ export const ROTULO_SITUACAO_PLATAFORMA: Record<SituacaoPlataforma, string> = {
   em_rota: 'Em rota',
   entregue: 'Entregue',
   arquivado: 'Arquivado',
+  devolvido: 'Em decisão pós devolução',
 }
 
 /** O que cada ajuste do super admin faz — o texto da confirmação. */
@@ -45,4 +46,20 @@ export function textoDoTotal(total: number | null | undefined): string {
 /** "1 pedido" / "N pedidos" — plural por extenso (E-52). */
 export function pedidosPorExtenso(n: number): string {
   return n === 1 ? '1 pedido' : `${n.toLocaleString('pt-BR')} pedidos`
+}
+
+/** A frase de quando a peça se conclui — diz para onde ela foi (D-127/D-130). */
+export function textoPecaConcluida(destino: DestinoConclusao | null | undefined): string {
+  switch (destino) {
+    case 'estoque':
+      return 'Peça concluída — está no ESTOQUE, sem dono, aguardando a venda'
+    case 'terceirizado':
+      return 'Ajuste concluído — a peça foi para o terceirizado'
+    case 'loja':
+      return 'Ajuste concluído — a peça foi para o estoque da loja'
+    case 'danificados':
+      return 'Ajuste concluído — a peça foi para DANIFICADO'
+    default:
+      return 'Peça concluída — está em Pedidos em aguardo'
+  }
 }

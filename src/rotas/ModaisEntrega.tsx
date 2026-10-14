@@ -21,10 +21,12 @@ const CHAVES_ENTREGA = [
   ['entregas-do-dia'],
   ['estoque'],
   ['pcp-todos'],
+  ['pcp-pedido-completo'],
+  ['devolucoes'],
 ]
 
 const TEXTOS: Record<
-  TipoMotivo,
+  Exclude<TipoMotivo, 'pausa'>,
   {
     titulo: string
     explica: string
@@ -52,6 +54,16 @@ const TEXTOS: Record<
     erro: 'Não deu para desfazer a entrega',
     acao: desfazerEntrega,
   },
+  // SESSAO-31 (D-129): gesto da logística — o entregador não tem esse botão.
+  devolucao: {
+    titulo: 'Pedido devolvido',
+    explica:
+      'As peças voltam para a fábrica e ficam em "Em decisão pós devolução" (Estoque) — continuam do pedido até a logística decidir: reenviar, estoque, outro pedido, loja, danificados ou ajuste. O Tiny não muda.',
+    botao: 'Marcar devolvido',
+    feito: 'devolvido — as peças esperam a decisão no Estoque',
+    erro: 'Não deu para marcar devolvido',
+    acao: marcarDevolvido,
+  },
 }
 
 /**
@@ -62,10 +74,16 @@ const TEXTOS: Record<
 export function ModalMotivoEntrega({
   tipo,
   pedido,
+  pecas,
   aoFechar,
 }: {
-  tipo: TipoMotivo
+  tipo: Exclude<TipoMotivo, 'pausa'>
   pedido: PedidoDaEntrega | null
+  /**
+   * SESSAO-31 (D-129): pedido já entregue — quais peças voltaram (todas
+   * marcadas de início). Só no "Pedido devolvido".
+   */
+  pecas?: { id: number; rotulo: string }[]
   aoFechar: () => void
 }) {
   const notificar = useNotificacao()
@@ -73,6 +91,7 @@ export function ModalMotivoEntrega({
   const textos = TEXTOS[tipo]
   const [motivoId, setMotivoId] = useState<number | null>(null)
   const [observacao, setObservacao] = useState('')
+  const [escolhidas, setEscolhidas] = useState<number[]>(() => (pecas ?? []).map((p) => p.id))
 
   const { data: motivos = [], isPending } = useQuery({
     queryKey: ['motivos', tipo],
@@ -82,7 +101,10 @@ export function ModalMotivoEntrega({
   })
 
   const confirmar = useMutation({
-    mutationFn: () => textos.acao({ cardId: pedido!.card_id, motivoId: motivoId!, observacao }),
+    mutationFn: () =>
+      tipo === 'devolucao'
+        ? marcarDevolvido({ cardId: pedido!.card_id, motivoId: motivoId!, observacao, pecas: escolhidas })
+        : textos.acao({ cardId: pedido!.card_id, motivoId: motivoId!, observacao }),
     onSuccess: async () => {
       notificar({ titulo: `Pedido ${pedido?.numero}: ${textos.feito}`, tom: 'perfeito' })
       aoFechar()
@@ -109,10 +131,30 @@ export function ModalMotivoEntrega({
         className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault()
-          if (motivoId !== null) confirmar.mutate()
+          if (motivoId !== null && (!pecas || escolhidas.length > 0)) confirmar.mutate()
         }}
       >
         <p className="text-sm text-texto-suave">{textos.explica}</p>
+        {pecas && pecas.length > 0 && (
+          <fieldset className="flex flex-col gap-1">
+            <legend className="mb-1 text-sm font-medium text-texto">Quais peças voltaram</legend>
+            {pecas.map((p) => (
+              <label key={p.id} className="flex min-h-toque-md cursor-pointer items-center gap-2 text-sm text-texto">
+                <input
+                  type="checkbox"
+                  className="size-5 accent-[var(--dm-acao)]"
+                  checked={escolhidas.includes(p.id)}
+                  onChange={() =>
+                    setEscolhidas((atual) =>
+                      atual.includes(p.id) ? atual.filter((x) => x !== p.id) : [...atual, p.id],
+                    )
+                  }
+                />
+                {p.rotulo}
+              </label>
+            ))}
+          </fieldset>
+        )}
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium text-texto">Motivo</legend>
           {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
@@ -144,8 +186,8 @@ export function ModalMotivoEntrega({
         <div className="flex flex-wrap gap-2">
           <Botao
             type="submit"
-            icone={tipo === 'nao_entregue' ? <RotateCcw /> : <Undo2 />}
-            disabled={motivoId === null}
+            icone={tipo === 'nao_entregue' ? <RotateCcw /> : tipo === 'devolucao' ? <PackageX /> : <Undo2 />}
+            disabled={motivoId === null || (pecas !== undefined && escolhidas.length === 0)}
             carregando={confirmar.isPending}
           >
             {textos.botao}
@@ -160,75 +202,17 @@ export function ModalMotivoEntrega({
 }
 
 /**
- * "Pedido devolvido" (D-114, resposta 1a do dono): os móveis voltam ao
- * ESTOQUE sem dono, sem ninguém confirmar; o Tiny NÃO muda (devolução mexe
- * com dinheiro e nota — o comercial trata lá).
+ * "Pedido devolvido" — ↩️ SESSAO-31 (D-129): da LOGÍSTICA, com motivo da lista
+ * (Configurações → Utilitários → Motivos). As peças ficam em decisão no Estoque.
  */
 export function ModalDevolvido({
   pedido,
+  pecas,
   aoFechar,
 }: {
   pedido: PedidoDaEntrega | null
+  pecas?: { id: number; rotulo: string }[]
   aoFechar: () => void
 }) {
-  const notificar = useNotificacao()
-  const clienteQuery = useQueryClient()
-  const [observacao, setObservacao] = useState('')
-
-  const confirmar = useMutation({
-    mutationFn: () => marcarDevolvido({ cardId: pedido!.card_id, observacao }),
-    onSuccess: async () => {
-      notificar({
-        titulo: `Pedido ${pedido?.numero} devolvido`,
-        descricao: 'Os móveis voltaram ao ESTOQUE, sem dono.',
-        tom: 'perfeito',
-      })
-      aoFechar()
-      await Promise.all(
-        CHAVES_ENTREGA.map((queryKey) => clienteQuery.invalidateQueries({ queryKey })),
-      )
-    },
-    onError: (erro) =>
-      notificar({
-        titulo: 'Não deu para marcar devolvido',
-        descricao: erro instanceof Error ? erro.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-
-  return (
-    <Modal
-      aberto={pedido !== null}
-      aoFechar={(v) => !v && aoFechar()}
-      titulo={`Pedido devolvido — ${pedido?.numero ?? ''}`}
-      descricao={pedido?.cliente_nome ?? undefined}
-    >
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault()
-          confirmar.mutate()
-        }}
-      >
-        <p className="text-sm text-texto-suave">
-          Os móveis voltam para o ESTOQUE, sem dono, e o pedido sai do caminhão. O Tiny não muda — a
-          devolução é tratada pelo comercial.
-        </p>
-        <Campo
-          rotulo="O que aconteceu (opcional)"
-          placeholder="Ex.: cliente recusou na porta"
-          value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Botao type="submit" icone={<PackageX />} carregando={confirmar.isPending}>
-            Confirmar devolução
-          </Botao>
-          <Botao type="button" variante="secundaria" onClick={aoFechar}>
-            Cancelar
-          </Botao>
-        </div>
-      </form>
-    </Modal>
-  )
+  return <ModalMotivoEntrega tipo="devolucao" pedido={pedido} pecas={pecas} aoFechar={aoFechar} />
 }

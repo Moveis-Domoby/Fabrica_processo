@@ -17,6 +17,17 @@ export interface Aviso {
   criada_em: string
 }
 
+/**
+ * Para onde tocar no aviso leva (nulo = só marca como lido). SESSAO-31
+ * (D-129): a devolução abre direto a telinha "Decidir situação" no Estoque.
+ */
+export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'>): string | null {
+  if (aviso.tipo === 'devolucao_decidir' && aviso.card_id !== null) {
+    return `/fabrica/logistica/estoque?devolucao=${aviso.card_id}`
+  }
+  return null
+}
+
 export async function buscarAvisos(usuarioId: string, limite = 20): Promise<Aviso[]> {
   const { data, error } = await supabase
     .from('plt_notificacoes')

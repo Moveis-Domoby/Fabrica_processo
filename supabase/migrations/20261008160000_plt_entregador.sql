@@ -52,7 +52,8 @@ begin
     )) not valid;
 end;
 $$;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- E-19 (SESSAO-31): quem valida o check de tipos é a migration MAIS NOVA (67) —
+-- reaplicar esta num banco que já viveu o futuro não pode quebrar.
 
 -- ----------------------------------------------------------------------------
 -- 2 · Quem é quem: logística (com o módulo da fábrica) × entregador

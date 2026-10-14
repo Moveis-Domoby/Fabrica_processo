@@ -253,7 +253,7 @@ function CartaoGalpao({ resumo }: { resumo: ResumoEstoque | null }) {
       </button>
       {aberto && (
         // Enquanto carrega, "…" — zero seria um número falso.
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
           <Numero
             rotulo="Móveis em estoque"
             valor={resumo ? formatarQuantidade(resumo.moveis_estoque) : '…'}
@@ -277,6 +277,11 @@ function CartaoGalpao({ resumo }: { resumo: ResumoEstoque | null }) {
           <Numero
             rotulo="Móveis em produção"
             valor={resumo ? formatarQuantidade(resumo.moveis_producao) : '…'}
+          />
+          {/* SESSAO-31 (D-129): devolvidos esperando a decisão da logística. */}
+          <Numero
+            rotulo="Em decisão pós devolução"
+            valor={resumo ? formatarQuantidade(resumo.moveis_em_devolucao) : '…'}
           />
         </div>
       )}

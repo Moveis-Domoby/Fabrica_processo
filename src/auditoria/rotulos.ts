@@ -70,6 +70,20 @@ export const ROTULO_ACAO: Record<string, string> = {
   caminhao_arquivado: 'Arquivou um caminhão',
   caminhao_reativado: 'Reativou um caminhão',
   caminhao_excluido: 'Excluiu um caminhão',
+  // devolução e ajuste (SESSAO-31)
+  pedido_devolvido: 'Marcou o pedido como devolvido',
+  devolucao_decidida: 'Decidiu a situação da peça devolvida',
+  entrega_desfeita: 'Desfez a entrega',
+  ajuste_aberto: 'Mandou a peça para ajuste',
+  ajuste_concluido: 'O ajuste da peça terminou',
+  // card (SESSAO-31)
+  avulso_concluido: 'Concluiu o card avulso',
+  card_editado: 'Alterou o card',
+  responsavel_adicionado: 'Pôs um responsável no card',
+  responsavel_removido: 'Tirou um responsável do card',
+  anexo_removido: 'Tirou um anexo do card',
+  comentario_editado: 'Editou um comentário do card',
+  comentario_apagado: 'Apagou um comentário do card',
   // tarefas e metas
   tarefa_criada: 'Criou uma tarefa',
   tarefa_atualizada: 'Alterou uma tarefa',
@@ -169,6 +183,15 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'id_producao_definido',
       'card_desarquivado',
       'pcp_pedidos_ajustados',
+      'ajuste_aberto',
+      'ajuste_concluido',
+      'avulso_concluido',
+      'card_editado',
+      'responsavel_adicionado',
+      'responsavel_removido',
+      'anexo_removido',
+      'comentario_editado',
+      'comentario_apagado',
     ],
   },
   {
@@ -199,7 +222,15 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
     valor: 'rotas',
     rotulo: 'ROTAS e caminhões',
     acoes: Object.keys(ROTULO_ACAO).filter(
-      (a) => a.startsWith('caminhao_') || ['entrega_programada', 'entrega_reprogramada', 'programacao_removida', 'rota_ordem_salva'].includes(a),
+      (a) => a.startsWith('caminhao_') || [
+          'entrega_programada',
+          'entrega_reprogramada',
+          'programacao_removida',
+          'rota_ordem_salva',
+          'pedido_devolvido',
+          'devolucao_decidida',
+          'entrega_desfeita',
+        ].includes(a),
     ),
   },
   {

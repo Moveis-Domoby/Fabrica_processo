@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { apagarAviso, apagarLidas, buscarAvisos, marcarAvisoLido, marcarTodosLidos } from './api'
+import {
+  apagarAviso,
+  apagarLidas,
+  buscarAvisos,
+  destinoDoAviso,
+  marcarAvisoLido,
+  marcarTodosLidos,
+} from './api'
 
 const ATUALIZA_A_CADA = 30_000
 
@@ -32,6 +39,7 @@ export function SinoNotificacoes({
   painelLado?: 'esquerda' | 'direita'
 }) {
   const clienteQuery = useQueryClient()
+  const navegar = useNavigate()
   const [aberto, setAberto] = useState(false)
 
   const { data: avisos = [] } = useQuery({
@@ -125,6 +133,11 @@ export function SinoNotificacoes({
                     type="button"
                     onClick={() => {
                       if (aviso.lida_em === null) lerUm.mutate(aviso.id)
+                      const destino = destinoDoAviso(aviso)
+                      if (destino) {
+                        setAberto(false)
+                        navegar(destino)
+                      }
                     }}
                     className={cn(
                       'flex min-w-0 flex-1 flex-col gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-superficie-sutil',
@@ -145,10 +158,14 @@ export function SinoNotificacoes({
                       </span>
                     </span>
                     <span className="text-xs text-texto-suave">{aviso.corpo}</span>
-                    {aviso.lida_em === null && (
-                      <span className="text-xs font-medium text-acao-ativa">
-                        Toque para marcar como lida
-                      </span>
+                    {destinoDoAviso(aviso) ? (
+                      <span className="text-xs font-medium text-acao-ativa">Toque para abrir</span>
+                    ) : (
+                      aviso.lida_em === null && (
+                        <span className="text-xs font-medium text-acao-ativa">
+                          Toque para marcar como lida
+                        </span>
+                      )
                     )}
                   </button>
                   {aviso.lida_em !== null && (

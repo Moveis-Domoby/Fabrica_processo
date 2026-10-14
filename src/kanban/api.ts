@@ -350,11 +350,17 @@ export async function criarCardPedido(parametros: {
 }
 
 /** O que o banco fez com o card solto (SESSAO-24). */
+/**
+ * Para onde a peça vai ao concluir (D-127): Pedidos em aguardo ou ESTOQUE; a
+ * peça em ajuste vai ao destino final que o PCP escolheu (D-130).
+ */
+export type DestinoConclusao = 'aguardo' | 'estoque' | 'terceirizado' | 'loja' | 'danificados'
+
 export interface ResultadoSoltar {
   acao: 'iniciado' | 'encaminhado' | 'movido' | 'concluido'
   setor_destino_id?: number
-  /** SESSAO-31 (D-127): a etapa que conclui — para onde a peça foi. */
-  destino?: 'aguardo' | 'estoque'
+  /** SESSAO-31 (D-127/D-130): a etapa que conclui — para onde a peça foi. */
+  destino?: DestinoConclusao
 }
 
 /**
@@ -396,7 +402,7 @@ export async function concluirProducao(parametros: {
   /** SESSAO-31 (D-126): nulo quando o setor não pede o estado ao enviar. */
   estadoQualidade: Estado | null
   operadorId?: string | null
-}): Promise<'aguardo' | 'estoque'> {
+}): Promise<DestinoConclusao> {
   const { data, error } = await supabase.rpc('plt_fn_concluir_producao', {
     p_card_id: parametros.card.id,
     p_estado_qualidade: parametros.estadoQualidade,
@@ -802,6 +808,15 @@ export interface DetalhePedido {
     uf: string | null
     cep: string | null
   }
+  /** SESSAO-31 (D-129): a devolução em decisão (nula quando não há). */
+  devolucao: {
+    evento_id: number
+    quando: string
+    quem: string | null
+    motivo: string | null
+    observacao: string | null
+    entregue: boolean
+  } | null
   plataforma: {
     card_id: number | null
     situacao: string

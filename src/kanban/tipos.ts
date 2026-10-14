@@ -140,7 +140,15 @@ export interface PedidoResumo {
  * outra coisa — vem em `situacao`).
  */
 export type SituacaoPlataforma =
-  'sem_card' | 'pcp' | 'producao' | 'aguardo' | 'em_rota' | 'entregue' | 'arquivado'
+  | 'sem_card'
+  | 'pcp'
+  | 'producao'
+  | 'aguardo'
+  | 'em_rota'
+  | 'entregue'
+  | 'arquivado'
+  /** SESSAO-31 (D-129): as peças voltaram e esperam a decisão da logística. */
+  | 'devolvido'
 
 /**
  * Linha de plt_fn_pcp_todos_pedidos — a aba "Todos os pedidos" do PCP por

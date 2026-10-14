@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ExternalLink, MessageCircle, Paperclip, Undo2 } from 'lucide-react'
+import { ClipboardList, ExternalLink, MessageCircle, PackageX, Paperclip, Undo2 } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { detalhePedidoPcp } from '@/kanban/api'
@@ -9,7 +9,8 @@ import { ROTULO_SITUACAO_PLATAFORMA } from '@/kanban/situacaoPlataforma'
 import type { SituacaoPlataforma } from '@/kanban/tipos'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { entregueHoje, linkDoAnexo, linkWhatsApp } from '@/rotas/api'
-import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { ModalDecidirDevolucao } from '@/logistica/componentes/ModalDecidirDevolucao'
 
 const moeda = (v: number | string | null | undefined) => {
   const n = typeof v === 'string' ? Number(v.replace(',', '.')) : v
@@ -102,6 +103,9 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
   const agora = useAgora()
   const notificar = useNotificacao()
   const [desfazendo, setDesfazendo] = useState(false)
+  // SESSAO-31 (D-129): o "Pedido devolvido" do pedido já entregue e a decisão.
+  const [devolvendo, setDevolvendo] = useState(false)
+  const [decidindo, setDecidindo] = useState(false)
   const {
     data: d,
     isPending,
@@ -178,17 +182,50 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
                 : ''}
           </p>
           {d.entrega.observacao && <p>{d.entrega.observacao}</p>}
-          {podeDesfazer && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<Undo2 />}
-              className="self-start"
-              onClick={() => setDesfazendo(true)}
-            >
-              Desfazer a entrega
-            </Botao>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {podeDesfazer && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<Undo2 />}
+                onClick={() => setDesfazendo(true)}
+              >
+                Desfazer a entrega
+              </Botao>
+            )}
+            {/* SESSAO-31 (D-129): "devolução de peça já entregue pode ocorrer também". */}
+            {!d.devolucao && d.plataforma.card_id !== null && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<PackageX />}
+                onClick={() => setDevolvendo(true)}
+              >
+                Pedido devolvido
+              </Botao>
+            )}
+          </div>
+        </div>
+      )}
+
+      {d.devolucao && (
+        // SESSAO-31 (D-129): as peças voltaram e esperam a logística decidir.
+        <div className="flex flex-col gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">
+          <p>
+            <span className="font-medium">Em decisão pós devolução</span> desde{' '}
+            {dataHora(d.devolucao.quando)}
+            {d.devolucao.quem ? ` — ${d.devolucao.quem}` : ''}
+            {d.devolucao.motivo ? ` · ${d.devolucao.motivo}` : ''}
+          </p>
+          {d.devolucao.observacao && <p>{d.devolucao.observacao}</p>}
+          <Botao
+            tamanho="sm"
+            icone={<ClipboardList />}
+            className="self-start"
+            onClick={() => setDecidindo(true)}
+          >
+            Decidir situação
+          </Botao>
         </div>
       )}
 
@@ -489,6 +526,33 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
         }
         aoFechar={() => {
           setDesfazendo(false)
+          void refetch()
+        }}
+      />
+      <ModalDevolvido
+        key={devolvendo ? 'devolvido-aberto' : 'devolvido-fechado'}
+        pedido={
+          devolvendo && d.plataforma.card_id !== null
+            ? { card_id: d.plataforma.card_id, numero: p.numero, cliente_nome: c.nome }
+            : null
+        }
+        // As peças que saíram com a entrega — quais voltaram (todas marcadas).
+        pecas={d.unidades
+          .filter((u) => u.motivo_saida === 'entregue')
+          .map((u) => ({
+            id: u.card_id,
+            rotulo: `${u.descricao ?? 'Peça'}${u.indice !== null ? ` (${u.indice}/${u.total})` : ''}`,
+          }))}
+        aoFechar={() => {
+          setDevolvendo(false)
+          void refetch()
+        }}
+      />
+      <ModalDecidirDevolucao
+        key={decidindo ? 'decidir-aberto' : 'decidir-fechado'}
+        cardId={decidindo ? d.plataforma.card_id : null}
+        aoFechar={() => {
+          setDecidindo(false)
           void refetch()
         }}
       />

@@ -2676,4 +2676,5 @@ where not exists (select 1 from public.plt_automacoes where nome = 'Exemplo · p
 -- ----------------------------------------------------------------------------
 -- 16 · E-19: a migration mais nova do check valida TUDO
 -- ----------------------------------------------------------------------------
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- E-19 (SESSAO-31): quem valida o check de tipos é a migration MAIS NOVA (67) —
+-- reaplicar esta num banco que já viveu o futuro não pode quebrar.

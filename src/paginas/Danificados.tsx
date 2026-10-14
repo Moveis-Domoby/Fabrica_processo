@@ -349,7 +349,8 @@ function ModalResolver({
   const opcoesSetor = useMemo(
     () =>
       setores
-        .filter((s) => s.ativo && s.papel_no_fluxo !== 'entrada')
+        // SESSAO-31 (D-129): "Em decisão pós devolução" só recebe pelo gesto da logística.
+        .filter((s) => s.ativo && s.papel_no_fluxo !== 'entrada' && s.codigo !== 'devolucao')
         .map((s) => ({ valor: String(s.id), rotulo: s.nome })),
     [setores],
   )

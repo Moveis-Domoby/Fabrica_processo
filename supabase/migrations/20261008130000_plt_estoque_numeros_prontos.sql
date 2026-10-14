@@ -128,6 +128,8 @@ $$;
 
 -- A contagem AO VIVO de um produto pelas mesmas regras (usada pela baixa e
 -- pela contagem sob a trava do produto, e pela conferência).
+-- E-17 (SESSAO-31): a 67 mudou a forma (+ em_devolucao) — drop antes do create.
+drop function if exists plt_privado.fn_estoque_contar(bigint);
 create or replace function plt_privado.fn_estoque_contar(p_produto bigint)
 returns table (livres integer, reservadas_estoque integer, prontas_pedido integer,
                producao_sem_dono integer, producao_de_pedido integer)
