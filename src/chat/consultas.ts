@@ -85,6 +85,17 @@ export function useMensagens(eu: string, conversaId: number) {
     const parar = ouvirCanal(
       topicoDaConversa(conversaId),
       (evento, dados) => {
+        if (evento === 'mensagem_mudou') {
+          // SESSAO-31 (D-131): editada/apagada — troca no cache, sem reler.
+          const mudanca = dados as unknown as Pick<
+            MensagemChat,
+            'id' | 'texto' | 'editada_em' | 'apagada_em'
+          >
+          clienteQuery.setQueryData<CacheMensagens>(chaveMensagens(eu, conversaId), (atual) =>
+            trocarMensagem(atual, mudanca),
+          )
+          return
+        }
         if (evento !== 'mensagem') return
         const nova = dados as unknown as MensagemChat
         clienteQuery.setQueryData<CacheMensagens>(chaveMensagens(eu, conversaId), (atual) =>
@@ -137,6 +148,32 @@ export function juntarMensagem(
   if (atual.pages.some((p) => p.some((m) => m.id === nova.id))) return atual
   const [primeira, ...resto] = atual.pages
   return { ...atual, pages: [[nova, ...primeira], ...resto] }
+}
+
+/**
+ * SESSAO-31 (D-131): troca a mensagem já mostrada (editada ou apagada). A
+ * apagada chega sem o texto — quem já o tinha (o admin) só ganha a marca.
+ */
+export function trocarMensagem(
+  atual: CacheMensagens | undefined,
+  mudanca: Pick<MensagemChat, 'id'> & Partial<MensagemChat>,
+): CacheMensagens | undefined {
+  if (!atual) return atual
+  return {
+    ...atual,
+    pages: atual.pages.map((p) =>
+      p.map((m) =>
+        m.id === mudanca.id
+          ? {
+              ...m,
+              ...mudanca,
+              texto:
+                mudanca.texto === null && mudanca.apagada_em ? m.texto : (mudanca.texto ?? m.texto),
+            }
+          : m,
+      ),
+    ),
+  }
 }
 
 export type { CacheConversas }

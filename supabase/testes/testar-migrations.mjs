@@ -5717,13 +5717,14 @@ titulo('SESSAO-26 · mensagem é só inserção; conversa não se apaga')
 await comoChat(null)
 await deveRecusar(
   `update public.plt_chat_mensagens set texto = 'editada' where id = ${enviada.id}`,
-  'editar mensagem é recusado — até para quem ignora RLS (M-14)',
-  /não se edita nem se apaga/i,
+  // ↩️ SESSAO-31 (D-131): editar/apagar existe — só pela porta (a versão anterior fica).
+  'editar mensagem direto na tabela é recusado — até para quem ignora RLS (M-14)',
+  /só muda pela porta|não se edita nem se apaga/i,
 )
 await deveRecusar(
   `delete from public.plt_chat_mensagens where id = ${enviada.id}`,
-  'apagar mensagem é recusado',
-  /não se edita nem se apaga/i,
+  'apagar mensagem de verdade é recusado',
+  /nunca se apaga|não se edita nem se apaga/i,
 )
 await deveRecusar(
   `delete from public.plt_chat_conversas where id = ${CANAL}`,
@@ -12144,6 +12145,142 @@ const priv71 = await um71(`
 conferir(!priv71.anon_j && priv71.logado_r && priv71.velha_saiu && priv71.lista_velha_saiu,
   'anônimo fora; as portas antigas dos anexos saíram', JSON.stringify(priv71))
 } // fim do bloco 71
+
+// ============================================================================
+// SESSAO-31 · etapa F (migration 72 — §3 · D-131 · Lei §4): a conversa do
+// card, as menções (sino + cartão na particular), editar/apagar no card e no
+// chat, o sino ao vivo.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · a conversa do card: mensagem é fato, menção avisa no sino e na particular, editar/apagar guarda a história')
+
+const um72 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const todos72 = async (sql, p) => (await bd.query(sql, p)).rows
+const como72 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const OP = '00000000-0000-0000-0000-000000000721'
+const MEN = '00000000-0000-0000-0000-000000000722'
+const FORA = '00000000-0000-0000-0000-000000000723'
+await como72('')
+await bd.exec(`
+  insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('cv72a', 'CV72 CORTE', 'producao', 993), ('cv72b', 'CV72 OUTRO', 'producao', 994);
+  update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo like 'cv72%';
+`)
+const A = (await um72(`select id::int as id from public.plt_setores where codigo = 'cv72a'`)).id
+const B = (await um72(`select id::int as id from public.plt_setores where codigo = 'cv72b'`)).id
+await bd.exec(`
+  insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${A}, 'A FAZER', 10, true), (${A}, 'FAZENDO', 20, false), (${B}, 'A FAZER', 10, true);
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Operador 72', 'op72@teste.com', '72727272721', 'op.72', 'operador', '${OP}', array['fabrica']),
+    ('Mencionada 72', 'men72@teste.com', '72727272722', 'men.72', 'operador', '${MEN}', array['fabrica']),
+    ('Fora 72', 'fora72@teste.com', '72727272723', 'fora.72', 'operador', '${FORA}', array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'op.72'), ${A}),
+    ((select id from public.plt_usuarios where usuario = 'men.72'), ${B}),
+    ((select id from public.plt_usuarios where usuario = 'fora.72'), ${B});
+`)
+const idDe = async (u) => (await um72(`select id from public.plt_usuarios where usuario = '${u}'`)).id
+const [op, men] = [await idDe('op.72'), await idDe('men.72')]
+await como72(E40.logistica)
+const card = (await um72(`select (public.plt_fn_avulso_criar('Trocar a correia', p_setor_id => ${A}) ->> 'card_id')::int as id`)).id
+
+// 1 · mandar mensagem, com @menção; o mesmo toque = uma mensagem; mencionar a si mesmo não avisa
+await como72(FORA)
+const veAntes = (await um72(`select plt_privado.fn_pode_ver_card(${card}) as v`)).v
+await deveRecusarExec(`select public.plt_fn_card_comentar(${card}, 'oi')`, 'quem não vê o card não conversa nele', /quem vê o card/i)
+await como72(OP)
+await bd.exec(`delete from realtime.messages where topic like 'plt-chat-u:%' or topic like 'plt-card:%'`)
+const chave = '22222222-7272-4272-8272-000000000001'
+const m1 = (await um72(`select public.plt_fn_card_comentar(${card}, 'Correia chegou, @Mencionada 72 confere?', array['${men}', '${op}']::uuid[], '${chave}') as id`)).id
+const m1b = (await um72(`select public.plt_fn_card_comentar(${card}, 'Correia chegou, @Mencionada 72 confere?', array['${men}']::uuid[], '${chave}') as id`)).id
+const proj = await um72(`select texto, mencoes, (select mensagens_qtd from public.plt_cards where id = ${card}) as qtd from public.plt_card_mensagens where evento_id = ${m1}`)
+const sino = await todos72(`select destinatario_id, tipo, titulo from public.plt_notificacoes where card_id = ${card} and tipo = 'card_mencao'`)
+const cartao = await todos72(`select m.tipo, m.card_id::int as card_id, m.autor_id, c.tipo as conversa
+                                from public.plt_chat_mensagens m join public.plt_chat_conversas c on c.id = m.conversa_id
+                               where m.card_id = ${card}`)
+const ao_vivo = await todos72(`select topic, event from realtime.messages
+                                where topic in ('plt-card:${card}', 'plt-chat-u:${men}') order by topic, event`)
+await como72(MEN)
+const veDepois = (await um72(`select plt_privado.fn_pode_ver_card(${card}) as v`)).v
+conferir(Number(m1b) === Number(m1) && proj.texto.startsWith('Correia chegou') && JSON.stringify(proj.mencoes) === JSON.stringify([men]) && proj.qtd === 1
+    && sino.length === 1 && sino[0].destinatario_id === men && /mencionou você no card "Trocar a correia"/.test(sino[0].titulo)
+    && cartao.length === 1 && cartao[0].tipo === 'mencao' && cartao[0].autor_id === op && cartao[0].conversa === 'particular'
+    && !veAntes && veDepois
+    && ao_vivo.some((x) => x.topic === `plt-card:${card}` && x.event === 'mensagem')
+    && ao_vivo.some((x) => x.topic === `plt-chat-u:${men}` && x.event === 'aviso')
+    && ao_vivo.some((x) => x.topic === `plt-chat-u:${men}` && x.event === 'mensagem'),
+  'a mensagem é fato do card (o mesmo toque = uma só); a mencionada recebe o aviso no sino e o cartão na particular, AO VIVO, e passa a ver o card; mencionar a si mesmo não avisa',
+  JSON.stringify({ m1, m1b, proj, sino, cartao, ao_vivo, veAntes, veDepois }))
+
+// 2 · a conversa por cursor, "Só conversa | Tudo"
+await como72(OP)
+for (let i = 1; i <= 11; i++) await bd.exec(`select public.plt_fn_card_comentar(${card}, 'mensagem ${i}')`)
+const p1 = await todos72(`select id::int as id, tipo, tem_mais from public.plt_fn_card_mensagens(${card}, null, 10)`)
+const p2 = await todos72(`select id::int as id from public.plt_fn_card_mensagens(${card}, ${p1[9].id}, 10)`)
+const tudo = await todos72(`select tipo from public.plt_fn_card_mensagens(${card}, null, 20, true)`)
+conferir(p1.length === 10 && p1[0].tem_mais && p1.every((x) => x.tipo === 'mensagem') && p2.length === 2
+    && tudo.some((x) => x.tipo === 'card_criado' || x.tipo === 'movimentacao_setor'),
+  'a conversa vem de 10 em 10 (a mais nova primeiro) com "ver anteriores"; em "Tudo", os fatos do card entram na mesma linha',
+  JSON.stringify({ p1: p1.length, p2: p2.length, tudo: tudo.map((x) => x.tipo) }))
+
+// 3 · editar e apagar: só a própria; a história fica; o admin vê
+await como72(MEN)
+await deveRecusarExec(`select public.plt_fn_card_mensagem_editar(${m1}, 'mudei')`, 'ninguém edita a mensagem do outro', /só a própria/i)
+await como72(OP)
+await bd.exec(`select public.plt_fn_card_mensagem_editar(${m1}, 'Correia chegou e foi trocada')`)
+await bd.exec(`select public.plt_fn_card_mensagem_apagar(${m1})`)
+await bd.exec(`select public.plt_fn_card_mensagem_apagar(${m1})`)
+const vista = await um72(`select texto, editada_em is not null as editada, apagada_em is not null as apagada from public.plt_fn_card_mensagens(${card}, ${m1} + 1, 1)`)
+const qtd = (await um72(`select mensagens_qtd from public.plt_cards where id = ${card}`)).mensagens_qtd
+await como72(E40.admin)
+const vistaAdm = await um72(`select texto, editada_vezes from public.plt_fn_card_mensagens(${card}, ${m1} + 1, 1)`)
+const versoes = await todos72(`select texto from public.plt_fn_card_mensagem_versoes(${m1})`)
+const fatos = (await todos72(`select tipo from public.plt_eventos where evento_referencia_id = ${m1} order by id`)).map((x) => x.tipo)
+conferir(vista.texto === null && vista.editada && vista.apagada && qtd === 11
+    && vistaAdm.texto === 'Correia chegou e foi trocada' && vistaAdm.editada_vezes === 1 && versoes.length === 1
+    && versoes[0].texto.startsWith('Correia chegou, @') && JSON.stringify(fatos) === JSON.stringify(['comentario_editado', 'comentario_apagado']),
+  'editar e apagar a própria: para todos vira "Mensagem apagada" (editada); o admin vê o texto e a versão anterior; tudo é fato novo — nada se apaga',
+  JSON.stringify({ vista, qtd, vistaAdm, versoes, fatos }))
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, observacao) values (${card}, 'comentario_adicionado', '${op}', 'interface', 'direto')`,
+  'mensagem direto na tabela (sem a porta) é recusada', /janela do card/i)
+
+// 4 · o chat: editar/apagar a própria; a versão fica; o admin só vê onde participa
+await como72(OP)
+const conv = (await um72(`select conversa_id::int as id from public.plt_chat_mensagens where card_id = ${card} limit 1`)).id
+const enviada = (await um72(`select id::int as id from public.plt_fn_chat_enviar(${conv}, 'oi, viu o card?')`)).id
+await bd.exec(`select public.plt_fn_chat_editar(${enviada}, 'oi, viu o card da correia?')`)
+await como72(MEN)
+await deveRecusarExec(`select public.plt_fn_chat_apagar(${enviada})`, 'no chat, ninguém apaga a mensagem do outro', /só a própria/i)
+const vistaMen = await um72(`select texto, editada_em is not null as editada from public.plt_fn_chat_mensagens(${conv}) where id = ${enviada}`)
+await como72(OP)
+await bd.exec(`select public.plt_fn_chat_apagar(${enviada})`)
+await como72(MEN)
+const apagadaMen = await um72(`select texto, apagada_em is not null as apagada from public.plt_fn_chat_mensagens(${conv}) where id = ${enviada}`)
+await como72(E40.admin)
+const versaoAdmFora = await todos72(`select texto from public.plt_fn_chat_versoes(${enviada})`)
+await deveRecusarExec(`select * from public.plt_fn_chat_mensagens(${conv})`, 'o admin não lê a particular dos outros (D-131 — privacidade)', /não participa/i)
+await como72('')
+const versoesGuardadas = (await um72(`select count(*)::int as n from public.plt_chat_versoes where mensagem_id = ${enviada}`)).n
+conferir(vistaMen.texto === 'oi, viu o card da correia?' && vistaMen.editada && apagadaMen.texto === null && apagadaMen.apagada
+    && versaoAdmFora.length === 0 && versoesGuardadas === 1,
+  'chat: editar mostra "editada", apagar vira "Mensagem apagada"; a versão anterior fica guardada; o admin não abre a particular dos outros',
+  JSON.stringify({ vistaMen, apagadaMen, versaoAdmFora, versoesGuardadas }))
+
+// 5 · permissões e ao vivo
+const ouve = await um72(`select plt_privado.fn_card_pode_ouvir('plt-card:${card}') as anon_ouve`)
+await como72(MEN)
+const ouveMen = (await um72(`select plt_privado.fn_card_pode_ouvir('plt-card:${card}') as v`)).v
+await como72(FORA)
+const ouveFora = (await um72(`select plt_privado.fn_card_pode_ouvir('plt-card:${card}') as v`)).v
+await como72('')
+const priv72 = await um72(`
+  select has_function_privilege('anon', 'public.plt_fn_card_comentar(bigint, text, uuid[], uuid, uuid)', 'execute') as anon_c,
+         has_function_privilege('authenticated', 'public.plt_fn_card_mensagens(bigint, bigint, integer, boolean)', 'execute') as logado_l,
+         has_table_privilege('authenticated', 'public.plt_card_mensagens', 'select') as tabela,
+         to_regprocedure('public.plt_fn_card_comentar(bigint, text)') is null as velha_saiu`)
+conferir(!ouve.anon_ouve && ouveMen && !ouveFora && !priv72.anon_c && priv72.logado_l && !priv72.tabela && priv72.velha_saiu,
+  'o canal do card só para quem vê o card (a mencionada sim, quem é de fora não); a projeção só pela porta; anônimo fora',
+  JSON.stringify({ ouve, ouveMen, ouveFora, priv72 }))
+} // fim do bloco 72
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

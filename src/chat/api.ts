@@ -66,6 +66,30 @@ export async function buscarMensagens(
   return (data ?? []) as MensagemChat[]
 }
 
+/** SESSAO-31 (D-131): editar a própria mensagem (a versão anterior fica guardada). */
+export async function editarMensagem(mensagemId: number, texto: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_chat_editar', {
+    p_mensagem_id: mensagemId,
+    p_texto: texto,
+  })
+  if (error) throw falha(error)
+}
+
+/** SESSAO-31 (D-131): apagar a própria mensagem — vira "Mensagem apagada"; o texto fica. */
+export async function apagarMensagem(mensagemId: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_chat_apagar', { p_mensagem_id: mensagemId })
+  if (error) throw falha(error)
+}
+
+/** SESSAO-31 (D-131): as versões anteriores — só o admin, só onde participa. */
+export async function versoesDaMensagem(
+  mensagemId: number,
+): Promise<{ texto: string; trocada_por: string | null; trocada_em: string }[]> {
+  const { data, error } = await supabase.rpc('plt_fn_chat_versoes', { p_mensagem_id: mensagemId })
+  if (error) throw falha(error)
+  return (data ?? []) as { texto: string; trocada_por: string | null; trocada_em: string }[]
+}
+
 /** POST: devolve a mensagem gravada — quem envia não relê nada. */
 export async function enviarMensagem(conversaId: number, texto: string): Promise<MensagemChat> {
   const { data, error } = await supabase.rpc('plt_fn_chat_enviar', {

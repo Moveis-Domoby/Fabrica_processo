@@ -1,11 +1,28 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent, UIEvent } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Cake, SendHorizontal, Users } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  ArrowLeft,
+  Cake,
+  History,
+  Pencil,
+  Pin,
+  SendHorizontal,
+  SquareArrowOutUpRight,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { enviarMensagem, marcarLida } from '../api'
+import {
+  apagarMensagem,
+  editarMensagem,
+  enviarMensagem,
+  marcarLida,
+  versoesDaMensagem,
+} from '../api'
+import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { acharConversa, aplicarLida, aplicarMensagemNova } from '../cache'
 import type { CacheConversas } from '../cache'
 import {
@@ -13,6 +30,7 @@ import {
   chaveConversas,
   chaveMensagens,
   juntarMensagem,
+  trocarMensagem,
   useMensagens,
   useResumoConversa,
 } from '../consultas'
@@ -130,8 +148,9 @@ export function PainelConversa({
     mutationFn: (conteudo: string) => enviarMensagem(conversaId, conteudo),
     onSuccess: (msg: MensagemChat) => {
       setTexto('')
-      clienteQuery.setQueryData(chaveMensagens(eu, conversaId), (atual: Parameters<typeof juntarMensagem>[0]) =>
-        juntarMensagem(atual, msg),
+      clienteQuery.setQueryData(
+        chaveMensagens(eu, conversaId),
+        (atual: Parameters<typeof juntarMensagem>[0]) => juntarMensagem(atual, msg),
       )
       const lista = clienteQuery.getQueryData<CacheConversas>(chaveConversas(eu))
       if (lista && acharConversa(lista, conversaId)) {
@@ -147,7 +166,7 @@ export function PainelConversa({
               autor_id: eu,
               autor_nome: msg.autor_nome,
               autor_foto: msg.autor_foto,
-              previa: msg.texto.slice(0, 80),
+              previa: (msg.texto ?? '').slice(0, 80),
               criada_em: msg.criada_em,
             },
             { eu, visivel: true },
@@ -158,7 +177,8 @@ export function PainelConversa({
       // o sinal da própria mensagem chega pelo websocket e relê a 1ª página —
       // reler aqui também seria uma leitura a mais.
     },
-    onError: (e: Error) => notificar({ titulo: 'Mensagem não enviada', descricao: e.message, tom: 'danificado' }),
+    onError: (e: Error) =>
+      notificar({ titulo: 'Mensagem não enviada', descricao: e.message, tom: 'danificado' }),
   })
 
   function aoEnviar(evento?: FormEvent) {
@@ -178,7 +198,9 @@ export function PainelConversa({
   if (erro && !resumo) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-sm text-texto-suave">Esta conversa não está mais disponível para você.</p>
+        <p className="text-sm text-texto-suave">
+          Esta conversa não está mais disponível para você.
+        </p>
         {aoVoltar && (
           <Botao variante="secundaria" icone={<ArrowLeft />} onClick={aoVoltar}>
             Voltar às conversas
@@ -200,11 +222,17 @@ export function PainelConversa({
         : resumo.outro_ativo === false
           ? 'Esta pessoa não está mais ativa'
           : 'Conversa particular — só vocês dois leem'
-  const mostraPessoas = resumo && (resumo.tipo === 'canal' || (resumo.tipo === 'avisos' && souAdmin))
+  const mostraPessoas =
+    resumo && (resumo.tipo === 'canal' || (resumo.tipo === 'avisos' && souAdmin))
 
   return (
     <section aria-label={`Conversa: ${titulo}`} className="flex h-full min-h-0 flex-col">
-      <header className={cn('flex items-center gap-2 border-b border-borda', compacto ? 'px-2 py-1.5' : 'px-3 py-2')}>
+      <header
+        className={cn(
+          'flex items-center gap-2 border-b border-borda',
+          compacto ? 'px-2 py-1.5' : 'px-3 py-2',
+        )}
+      >
         {aoVoltar && (
           <button
             type="button"
@@ -261,7 +289,9 @@ export function PainelConversa({
           <p className="my-auto text-center text-sm text-texto-fraco">Abrindo a conversa…</p>
         )}
         {mensagens.isError && (
-          <p className="my-auto text-center text-sm text-danificado-texto">{mensagens.error.message}</p>
+          <p className="my-auto text-center text-sm text-danificado-texto">
+            {mensagens.error.message}
+          </p>
         )}
         {!mensagens.isPending && ordenadas.length === 0 && !mensagens.isError && (
           <p className="my-auto text-center text-sm text-texto-fraco">Nenhuma mensagem ainda.</p>
@@ -270,7 +300,10 @@ export function PainelConversa({
           const anterior = ordenadas[indice - 1]
           const novoDia = !anterior || chaveDoDia(anterior.criada_em) !== chaveDoDia(m.criada_em)
           const emSequencia =
-            !novoDia && anterior?.autor_id === m.autor_id && anterior?.tipo === 'texto' && m.tipo === 'texto'
+            !novoDia &&
+            anterior?.autor_id === m.autor_id &&
+            anterior?.tipo === 'texto' &&
+            m.tipo === 'texto'
           return (
             <div key={m.id} className="flex flex-col">
               {novoDia && (
@@ -283,6 +316,14 @@ export function PainelConversa({
                 minha={m.autor_id === eu}
                 mostrarAutor={!emSequencia && resumo?.tipo !== 'particular'}
                 mostrarAvatar={!emSequencia}
+                souAdmin={souAdmin}
+                aoMudar={(mudanca) =>
+                  clienteQuery.setQueryData(
+                    chaveMensagens(eu, conversaId),
+                    (atual: Parameters<typeof trocarMensagem>[0]) =>
+                      trocarMensagem(atual, { id: m.id, ...mudanca }),
+                  )
+                }
               />
             </div>
           )
@@ -344,30 +385,224 @@ function Bolha({
   minha,
   mostrarAutor,
   mostrarAvatar,
+  souAdmin,
+  aoMudar,
 }: {
   mensagem: MensagemChat
   minha: boolean
   mostrarAutor: boolean
   mostrarAvatar: boolean
+  souAdmin: boolean
+  aoMudar: (mudanca: Partial<MensagemChat>) => void
 }) {
+  const abrirCard = useAbrirCard()
+  const notificar = useNotificacao()
+  const [editando, setEditando] = useState(false)
+  const [texto, setTexto] = useState(mensagem.texto ?? '')
+  const [confirmando, setConfirmando] = useState(false)
+  const [verVersoes, setVerVersoes] = useState(false)
+  const apagada = Boolean(mensagem.apagada_em)
+  const versoes = useQuery({
+    queryKey: ['chat-versoes', mensagem.id],
+    queryFn: () => versoesDaMensagem(mensagem.id),
+    enabled: verVersoes,
+  })
+  const editar = useMutation({
+    mutationFn: () => editarMensagem(mensagem.id, texto.trim()),
+    onSuccess: () => {
+      aoMudar({
+        texto: texto.trim(),
+        editada_em: new Date().toISOString(),
+        editada_vezes: (mensagem.editada_vezes ?? 0) + 1,
+      })
+      setEditando(false)
+    },
+    onError: (e) =>
+      notificar({
+        titulo: 'Não deu para editar',
+        descricao: e instanceof Error ? e.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+  const apagar = useMutation({
+    mutationFn: () => apagarMensagem(mensagem.id),
+    onSuccess: () => {
+      aoMudar({ apagada_em: new Date().toISOString(), ...(souAdmin ? {} : { texto: null }) })
+      setConfirmando(false)
+    },
+    onError: (e) =>
+      notificar({
+        titulo: 'Não deu para apagar',
+        descricao: e instanceof Error ? e.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
+  // SESSAO-31 (§3): o cartão "mencionou você no card" — como o do aniversário, com o card para abrir.
+  if (mensagem.tipo === 'mencao') {
+    return (
+      <div className="my-1 flex max-w-[92%] flex-col gap-1.5 self-center rounded-dm-lg border-2 border-acao-ativa bg-superficie px-3 py-2">
+        <div className="flex items-start gap-2">
+          <Pin aria-hidden className="mt-0.5 size-5 shrink-0 text-texto" />
+          <div className="min-w-0">
+            <p className="whitespace-pre-wrap break-words text-sm text-texto">
+              <span className="font-semibold">{mensagem.autor_nome}</span>{' '}
+              {apagada && !souAdmin ? 'Mensagem apagada' : mensagem.texto}
+            </p>
+            <p className="mt-0.5 text-xs text-texto-fraco">{horaDaMensagem(mensagem.criada_em)}</p>
+          </div>
+        </div>
+        {mensagem.card_id && (
+          <Botao
+            tamanho="sm"
+            variante="secundaria"
+            icone={<SquareArrowOutUpRight />}
+            className="self-start"
+            onClick={() => abrirCard(mensagem.card_id!)}
+          >
+            Abrir card
+          </Botao>
+        )}
+      </div>
+    )
+  }
   if (mensagem.tipo === 'aniversario') {
     return (
       <div className="my-1 flex max-w-[92%] items-start gap-2 self-center rounded-dm-lg border-2 border-acao-ativa bg-superficie px-3 py-2">
         <Cake aria-hidden className="mt-0.5 size-5 shrink-0 text-texto" />
         <div className="min-w-0">
           <p className="whitespace-pre-wrap break-words text-sm text-texto">{mensagem.texto}</p>
-          <p className="mt-0.5 text-xs text-texto-fraco">Sistema · {horaDaMensagem(mensagem.criada_em)}</p>
+          <p className="mt-0.5 text-xs text-texto-fraco">
+            Sistema · {horaDaMensagem(mensagem.criada_em)}
+          </p>
         </div>
       </div>
     )
   }
+  // SESSAO-31 (D-131): editada mostra "editada"; apagada vira "Mensagem apagada"
+  // para todos — o admin ainda vê o texto (só nas conversas de que participa).
+  const corpo = apagada ? (
+    <p className="text-sm italic opacity-75">
+      Mensagem apagada
+      {souAdmin && mensagem.texto && (
+        <span className="block line-through not-italic">“{mensagem.texto}”</span>
+      )}
+    </p>
+  ) : (
+    <p className="whitespace-pre-wrap break-words text-sm">{mensagem.texto}</p>
+  )
+  const rodape = (
+    <>
+      {horaDaMensagem(mensagem.criada_em)}
+      {mensagem.editada_em && !apagada && ' · editada'}
+    </>
+  )
+  const versoesDaBolha = souAdmin && (mensagem.editada_vezes ?? 0) > 0 && (
+    <span className="flex flex-col gap-1">
+      <button
+        type="button"
+        className="inline-flex min-h-8 items-center gap-1 text-xs underline-offset-2 hover:underline"
+        onClick={() => setVerVersoes((v) => !v)}
+      >
+        <History aria-hidden className="size-3.5" />
+        {verVersoes ? 'Esconder versões' : 'Versões anteriores'}
+      </button>
+      {verVersoes &&
+        versoes.data?.map((v, i) => (
+          <span key={i} className="text-xs opacity-80">
+            “{v.texto}”
+          </span>
+        ))}
+    </span>
+  )
   if (minha) {
     return (
-      <div className={cn('flex justify-end', mostrarAvatar && 'mt-1.5')}>
+      <div className={cn('group flex flex-col items-end', mostrarAvatar && 'mt-1.5')}>
         <div className="max-w-[80%] rounded-dm-lg rounded-br-sm bg-superficie-inversa px-3 py-2 text-texto-inverso">
-          <p className="whitespace-pre-wrap break-words text-sm">{mensagem.texto}</p>
-          <p className="mt-0.5 text-right text-xs opacity-75">{horaDaMensagem(mensagem.criada_em)}</p>
+          {editando ? (
+            <form
+              className="flex flex-col gap-1"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (texto.trim()) editar.mutate()
+              }}
+            >
+              <textarea
+                className="min-h-16 rounded-dm bg-superficie p-2 text-sm text-texto"
+                maxLength={2000}
+                autoFocus
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                aria-label="Editar a mensagem"
+              />
+              <span className="flex justify-end gap-2">
+                <Botao
+                  type="button"
+                  variante="fantasma"
+                  tamanho="sm"
+                  className="text-texto-inverso"
+                  onClick={() => setEditando(false)}
+                >
+                  Cancelar
+                </Botao>
+                <Botao type="submit" tamanho="sm" carregando={editar.isPending}>
+                  Salvar
+                </Botao>
+              </span>
+            </form>
+          ) : (
+            corpo
+          )}
+          <p className="mt-0.5 text-right text-xs opacity-75">{rodape}</p>
+          {versoesDaBolha}
         </div>
+        {!apagada && !editando && mensagem.tipo === 'texto' && (
+          <span className="mt-0.5 flex gap-1 opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              icone={<Pencil />}
+              className="h-8 px-2 text-xs"
+              onClick={() => {
+                setTexto(mensagem.texto ?? '')
+                setEditando(true)
+              }}
+            >
+              Editar
+            </Botao>
+            {confirmando ? (
+              <>
+                <Botao
+                  variante="perigo"
+                  tamanho="sm"
+                  className="h-8 px-2 text-xs"
+                  carregando={apagar.isPending}
+                  onClick={() => apagar.mutate()}
+                >
+                  Apagar mesmo
+                </Botao>
+                <Botao
+                  variante="fantasma"
+                  tamanho="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => setConfirmando(false)}
+                >
+                  Não
+                </Botao>
+              </>
+            ) : (
+              <Botao
+                variante="fantasma"
+                tamanho="sm"
+                icone={<Trash2 />}
+                className="h-8 px-2 text-xs"
+                onClick={() => setConfirmando(true)}
+              >
+                Apagar
+              </Botao>
+            )}
+          </span>
+        )}
       </div>
     )
   }
@@ -382,8 +617,9 @@ function Bolha({
         {mostrarAutor && (
           <p className="text-xs font-semibold text-texto-suave">{mensagem.autor_nome}</p>
         )}
-        <p className="whitespace-pre-wrap break-words text-sm text-texto">{mensagem.texto}</p>
-        <p className="mt-0.5 text-xs text-texto-fraco">{horaDaMensagem(mensagem.criada_em)}</p>
+        <div className="text-texto">{corpo}</div>
+        <p className="mt-0.5 text-xs text-texto-fraco">{rodape}</p>
+        {versoesDaBolha}
       </div>
     </div>
   )

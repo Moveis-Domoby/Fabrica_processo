@@ -619,6 +619,8 @@ comment on function public.plt_fn_chat_conversas(timestamptz, bigint, integer, b
 
 -- 7.2 · A página de mensagens: as 10 anteriores ao cursor (id), mais nova
 -- primeiro. Sem cursor = as 10 últimas.
+-- ↪️ SESSAO-31 (E-17): a migration 72 muda a forma da porta — drop antes do create.
+drop function if exists public.plt_fn_chat_mensagens(bigint, bigint, integer);
 create or replace function public.plt_fn_chat_mensagens(
   p_conversa_id bigint,
   p_antes_id    bigint  default null,

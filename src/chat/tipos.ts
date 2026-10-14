@@ -52,9 +52,15 @@ export interface MensagemChat {
   autor_id: string | null
   autor_nome: string
   autor_foto: string | null
-  tipo: 'texto' | 'aniversario'
-  texto: string
+  /** SESSAO-31 (§3): 'mencao' = o cartão "mencionou você no card" (com o card). */
+  tipo: 'texto' | 'aniversario' | 'mencao'
+  /** Nulo na apagada (o admin vê o texto — D-131). */
+  texto: string | null
   criada_em: string
+  card_id?: number | null
+  editada_em?: string | null
+  apagada_em?: string | null
+  editada_vezes?: number
 }
 
 /** O sinal pequeno do canal da pessoa: chegou mensagem numa conversa dela. */

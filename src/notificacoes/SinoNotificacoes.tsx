@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { ouvirCanal, topicoDaPessoa } from '@/chat/canais'
 import {
   apagarAviso,
   apagarLidas,
@@ -11,8 +12,10 @@ import {
   marcarAvisoLido,
   marcarTodosLidos,
 } from './api'
+import type { Aviso } from './api'
 
-const ATUALIZA_A_CADA = 30_000
+/** O sino guarda os 20 mais recentes (a página de Avisos tem o resto). */
+const NO_SINO = 20
 
 function quando(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -42,10 +45,50 @@ export function SinoNotificacoes({
   const navegar = useNavigate()
   const [aberto, setAberto] = useState(false)
 
+  // SESSAO-31 (Lei §4): sem relógio — o aviso novo chega pelo canal da pessoa
+  // (o mesmo do chat) e entra no cache; assina ANTES de ler; ao reconectar,
+  // uma releitura de recuperação.
+  const [ouvindo, setOuvindo] = useState(false)
+  useEffect(() => {
+    let caiu = false
+    const desistir = setTimeout(() => setOuvindo(true), 4000)
+    const parar = ouvirCanal(
+      topicoDaPessoa(usuarioId),
+      (evento, dados) => {
+        if (evento !== 'aviso') return
+        const novo = dados as unknown as Aviso
+        clienteQuery.setQueryData<Aviso[]>(['avisos', usuarioId], (atual) =>
+          atual && !atual.some((a) => a.id === novo.id)
+            ? [novo, ...atual].slice(0, NO_SINO)
+            : atual,
+        )
+        void clienteQuery.invalidateQueries({ queryKey: ['avisos', 'historico'] })
+      },
+      (status) => {
+        if (status === 'SUBSCRIBED') {
+          clearTimeout(desistir)
+          setOuvindo(true)
+          if (caiu) {
+            caiu = false
+            void clienteQuery.invalidateQueries({ queryKey: ['avisos', usuarioId] })
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          caiu = true
+        }
+      },
+    )
+    return () => {
+      clearTimeout(desistir)
+      parar()
+    }
+  }, [usuarioId, clienteQuery])
+
   const { data: avisos = [] } = useQuery({
     queryKey: ['avisos', usuarioId],
-    queryFn: () => buscarAvisos(usuarioId),
-    refetchInterval: ATUALIZA_A_CADA,
+    queryFn: () => buscarAvisos(usuarioId, NO_SINO),
+    enabled: ouvindo,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   })
   const naoLidos = avisos.filter((a) => a.lida_em === null)
 
