@@ -295,27 +295,34 @@ export async function listarProgramacao(parametros: {
   return (data ?? []) as PedidoProgramacao[]
 }
 
-/** Programar ou reprogramar (D-45): data + caminhão; o banco recusa depois de entregue. */
+/**
+ * Programar ou reprogramar (D-45): data + caminhão + rota (D-128 — sem rota,
+ * fica na que já está ou entra na última do caminhão); o banco recusa depois
+ * de entregue.
+ */
 export async function programarEntrega(parametros: {
   cardId: number
   data: string
   caminhaoId: number
+  rota?: number | null
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_programar_entrega', {
     p_card_id: parametros.cardId,
     p_data: parametros.data,
     p_caminhao_id: parametros.caminhaoId,
+    p_rota: parametros.rota ?? null,
   })
   if (error) throw new Error(`Não deu para programar: ${error.message}`)
 }
 
 /**
- * Programar a rota inteira numa chamada só (D-111): os pedidos no dia e
- * caminhão e, se vier, a ordem da rota do caminhão naquele dia. Tudo ou nada.
+ * Programar a rota inteira numa chamada só (D-111): os pedidos no dia,
+ * caminhão e ROTA (D-128) e, se vier, a ordem dessa rota. Tudo ou nada.
  */
 export async function programarRota(parametros: {
   data: string
   caminhaoId: number
+  rota: number
   cardIds: number[]
   ordem: number[] | null
 }): Promise<void> {
@@ -324,6 +331,7 @@ export async function programarRota(parametros: {
     p_caminhao_id: parametros.caminhaoId,
     p_card_ids: parametros.cardIds,
     p_ordem: parametros.ordem,
+    p_rota: parametros.rota,
   })
   if (error) throw new Error(`Não deu para programar: ${error.message}`)
 }
@@ -351,6 +359,8 @@ export interface PedidoProgramado {
   caminhao_id: number
   caminhao_nome: string | null
   caminhao_placa: string | null
+  /** SESSAO-31 (D-128): a rota do caminhão naquele dia (1, 2, 3…). */
+  rota: number
   ordem: number | null
   entregue_em: string | null
   /** SESSAO-30 (D-115): o detalhe da entrega escrito por quem programou. */
@@ -423,19 +433,22 @@ export async function geocodificar(
 }
 
 /**
- * "Salvar ordem" (D-109): a ordem das paradas de um caminhão num dia. Lista
- * vazia = volta à sugestão automática. O banco recusa se a rota mudou noutra
- * tela, se alguém já foi entregue ou se quem salva não é da logística.
+ * "Salvar ordem" (D-109): a ordem das paradas de UMA rota de um caminhão num
+ * dia (D-128). Lista vazia = volta à sugestão automática. O banco recusa se a
+ * rota mudou noutra tela, se alguém já foi entregue ou se quem salva não é da
+ * logística.
  */
 export async function ordenarRota(parametros: {
   data: string
   caminhaoId: number
+  rota: number
   cardIds: number[]
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_ordenar_rota', {
     p_data: parametros.data,
     p_caminhao_id: parametros.caminhaoId,
     p_card_ids: parametros.cardIds,
+    p_rota: parametros.rota,
   })
   if (error) throw new Error(`Não deu para salvar a ordem: ${error.message}`)
 }
@@ -564,8 +577,10 @@ export interface EntregaDoDia {
   comentarios: ComentarioEntrega[]
 }
 
+/** SESSAO-31 (D-128): um item por ROTA do dia (o caminhão + o número da rota). */
 export interface CaminhaoDoDia {
   id: number
+  rota: number
   nome: string
   placa: string | null
   foto: string | null
@@ -576,6 +591,7 @@ export interface CaminhaoDoDia {
 export interface EntregasDoDia {
   data: string
   caminhao_id: number | null
+  rota: number | null
   caminhoes: CaminhaoDoDia[]
   entregas: EntregaDoDia[]
   sou_logistica: boolean
@@ -583,11 +599,12 @@ export interface EntregasDoDia {
 
 /** A tela do entregador numa requisição só (Lei §2). */
 export async function entregasDoDia(
-  parametros: { data?: string | null; caminhaoId?: number | null } = {},
+  parametros: { data?: string | null; caminhaoId?: number | null; rota?: number | null } = {},
 ): Promise<EntregasDoDia> {
   const { data, error } = await supabase.rpc('plt_fn_entregas_do_dia', {
     p_data: parametros.data ?? null,
     p_caminhao_id: parametros.caminhaoId ?? null,
+    p_rota: parametros.rota ?? null,
   })
   if (error) throw new Error(`Não deu para carregar as entregas: ${error.message}`)
   return data as EntregasDoDia
@@ -696,27 +713,38 @@ export async function listarEntregadores(): Promise<PessoaEntregadora[]> {
   return (data ?? []) as PessoaEntregadora[]
 }
 
-export interface MembroEquipe {
+/** SESSAO-31 (D-128): uma rota do dia — o caminhão, o número, as entregas e a equipe. */
+export interface RotaDoDia {
   caminhao_id: number
-  usuario_id: string
-  nome: string
+  rota: number
+  entregas: number
+  entregues: number
+  equipe: { id: string; nome: string }[]
 }
 
-export async function equipesDoDia(dataIso: string): Promise<MembroEquipe[]> {
-  const { data, error } = await supabase.rpc('plt_fn_equipes_do_dia', { p_data: dataIso })
-  if (error) throw new Error(error.message)
-  return (data ?? []) as MembroEquipe[]
+/** As rotas de um dia (só ao abrir o modal que precisa — regra 17). */
+export async function rotasDoDia(dataIso: string): Promise<RotaDoDia[]> {
+  const { data, error } = await supabase.rpc('plt_fn_rotas_do_dia', { p_data: dataIso })
+  if (error) throw new Error(`Não deu para carregar as rotas do dia: ${error.message}`)
+  return (data ?? []) as RotaDoDia[]
+}
+
+/** "Rota 2" — o nome de gente da rota do caminhão no dia. */
+export function nomeDaRota(rota: number): string {
+  return `Rota ${rota}`
 }
 
 export async function definirEquipe(
   dataIso: string,
   caminhaoId: number,
   usuarios: string[],
+  rota: number,
 ): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_equipe_definir', {
     p_data: dataIso,
     p_caminhao_id: caminhaoId,
     p_usuarios: usuarios,
+    p_rota: rota,
   })
   if (error) throw new Error(error.message)
 }

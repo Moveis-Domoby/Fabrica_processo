@@ -63,15 +63,16 @@ const OPCOES_ORDEM: { valor: CriterioOrdem; rotulo: string }[] = [
  * ordem das paradas, onde se ARRASTA para mudar a ordem (a rota recalcula); o
  * resto fica embaixo, pelo dia de entrega mais perto (ou "mais perto" / número
  * — a setinha do "Ordenar"). Cada pedido mostra os seus móveis. Programar =
- * dia + caminhão, numa chamada só (o banco programa e salva a ordem junto).
+ * dia + caminhão + rota (D-128: o caminhão faz várias rotas no dia), numa
+ * chamada só (o banco programa e salva a ordem junto).
  */
 export function AbaProgramar({
   ativa,
   aoProgramar,
 }: {
   ativa: boolean
-  /** Programou: a tela vai para "Já programadas", no dia e caminhão. */
-  aoProgramar: (dia: string, caminhaoId: number) => void
+  /** Programou: a tela vai para "Já programadas", no dia, caminhão e rota. */
+  aoProgramar: (dia: string, caminhaoId: number, rota: number) => void
 }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -234,21 +235,26 @@ export function AbaProgramar({
     mutationFn: async (v: {
       data: string
       caminhaoId: number
+      rota: number
       cardIds: number[]
       ajustada: boolean
     }) => {
-      // D-109: a rota do caminhão naquele dia — quem já está nela fica na ordem
-      // dela e os novos entram no FIM; se nada estava salvo e a montagem não foi
-      // mexida, o banco fica com a sugestão de tudo (sem ordem salva).
-      const existentes = await listarProgramadas({
-        data: v.data,
-        caminhaoId: v.caminhaoId,
-        limite: 200,
-      })
+      // D-109: a rota escolhida do caminhão naquele dia (D-128) — quem já está
+      // nela fica na ordem dela e os novos entram no FIM; se nada estava salvo
+      // e a montagem não foi mexida, o banco fica com a sugestão de tudo.
+      const existentes = (
+        await listarProgramadas({ data: v.data, caminhaoId: v.caminhaoId, limite: 200 })
+      ).filter((p) => p.rota === v.rota)
       const temSalva = existentes.some((p) => typeof p.ordem === 'number')
       const ordem =
         temSalva || v.ajustada ? [...idsDe(ordemDaRota(existentes)), ...v.cardIds] : null
-      await programarRota({ data: v.data, caminhaoId: v.caminhaoId, cardIds: v.cardIds, ordem })
+      await programarRota({
+        data: v.data,
+        caminhaoId: v.caminhaoId,
+        rota: v.rota,
+        cardIds: v.cardIds,
+        ordem,
+      })
     },
     onSuccess: async (_d, v) => {
       notificar({
@@ -265,7 +271,7 @@ export function AbaProgramar({
         clienteQuery.invalidateQueries({ queryKey: ['programadas'] }),
         clienteQuery.invalidateQueries({ queryKey: ['rotas'] }),
       ])
-      aoProgramar(v.data, v.caminhaoId)
+      aoProgramar(v.data, v.caminhaoId, v.rota)
     },
     onError: (excecao) =>
       notificar({
@@ -471,17 +477,19 @@ export function AbaProgramar({
       {confirmando && (
         <ModalProgramar
           titulo={`Programar ${listaSelecionados.length} pedido(s)`}
-          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'} — entram no fim da rota do caminhão, se ele já tiver entregas no dia.`}
+          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'} — numa rota nova do caminhão, ou no fim de uma rota que ele já tem no dia.`}
           diaInicial={hojeIso()}
           caminhaoInicial={caminhaoId}
           opcoesCaminhao={opcoesCaminhao}
+          padraoRota="nova"
           carregando={programarMutacao.isPending}
           aoFechar={() => setConfirmando(false)}
-          aoConfirmar={(data, caminhao) => {
+          aoConfirmar={(data, caminhao, rota) => {
             setCaminhaoId(String(caminhao))
             programarMutacao.mutate({
               data,
               caminhaoId: caminhao,
+              rota,
               cardIds: idsMontando,
               ajustada,
             })

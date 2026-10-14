@@ -65,7 +65,9 @@ export async function buscarEtapasDoSetor(
 ): Promise<Etapa[]> {
   let consulta = supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao')
+    .select(
+      'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao',
+    )
     .eq('setor_id', setorId)
     .order('ordem')
     .order('id')
@@ -78,7 +80,9 @@ export async function buscarEtapasDoSetor(
 export async function buscarEtapasAtivas(): Promise<Etapa[]> {
   const { data, error } = await supabase
     .from('plt_etapas')
-    .select('id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao')
+    .select(
+      'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao',
+    )
     .eq('ativa', true)
     .order('setor_id')
     .order('ordem')
@@ -827,6 +831,8 @@ export interface DetalhePedido {
   }
   programacao: {
     data: string
+    /** SESSAO-31 (D-128): a rota do caminhão no dia. */
+    rota: number | null
     ordem: number | null
     detalhe: string | null
     caminhao: string | null

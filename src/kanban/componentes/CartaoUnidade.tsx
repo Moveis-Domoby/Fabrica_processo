@@ -96,9 +96,8 @@ export function CartaoUnidade({
   const cancelado = card.pedido_id !== null && pedidoCancelado(pedido?.situacao)
   // D-48: o tempo em PCP é do PEDIDO — da entrada até a liberação completa.
   const pcpMs = pedido?.entrou_pcp_em
-    ? (pedido.liberado_completo_em
-        ? new Date(pedido.liberado_completo_em).getTime()
-        : agora) - new Date(pedido.entrou_pcp_em).getTime()
+    ? (pedido.liberado_completo_em ? new Date(pedido.liberado_completo_em).getTime() : agora) -
+      new Date(pedido.entrou_pcp_em).getTime()
     : null
   const temRodape = aoLinhaTempo || aoFotos || (!terminal && aoConcluir)
 
@@ -114,10 +113,7 @@ export function CartaoUnidade({
     >
       <header className="flex items-baseline justify-between gap-2">
         <span
-          className={cn(
-            'font-semibold text-texto tabular-nums',
-            galpao ? 'text-base' : 'text-sm',
-          )}
+          className={cn('font-semibold text-texto tabular-nums', galpao ? 'text-base' : 'text-sm')}
         >
           {rotuloOrigemCard(card, pedido)}
         </span>
@@ -165,7 +161,9 @@ export function CartaoUnidade({
               </dd>
             </div>
           ))}
-          {campos.length > 3 && <div className="text-texto-fraco">+{campos.length - 3} no histórico</div>}
+          {campos.length > 3 && (
+            <div className="text-texto-fraco">+{campos.length - 3} no histórico</div>
+          )}
         </dl>
       )}
       {/* D-48: o tempo em PCP verdadeiro — do pedido, entrada → liberação completa. */}
@@ -220,9 +218,7 @@ export function CartaoUnidade({
           }
         >
           <Play aria-hidden className="size-4 text-perfeito-forte" />
-          <span className="font-medium">
-            {formatarDuracao(execucaoDesde ?? card.desde, agora)}
-          </span>
+          <span className="font-medium">{formatarDuracao(execucaoDesde ?? card.desde, agora)}</span>
           <span className="inline-flex items-center gap-1 text-texto-suave">
             <UserRound aria-hidden className="size-4" />
             {souExecutor ? 'você' : (executorNome ?? '…')}

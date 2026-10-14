@@ -48,9 +48,7 @@ export function Estrutura() {
   const [parametros] = useSearchParams()
 
   const souAdmin = perfil?.papel === 'admin'
-  const setoresLiderados = new Set(
-    vinculos.filter((v) => v.lider_do_setor).map((v) => v.setor_id),
-  )
+  const setoresLiderados = new Set(vinculos.filter((v) => v.lider_do_setor).map((v) => v.setor_id))
   const podeGerirEtapasDe = (setorId: number) => souAdmin || setoresLiderados.has(setorId)
 
   const { data: setores = [] } = useQuery({
@@ -98,8 +96,13 @@ export function Estrutura() {
   })
 
   const atualizarSetorMutacao = useMutation({
-    mutationFn: ({ id, mudancas }: { id: number; mudancas: Parameters<typeof atualizarSetor>[1] }) =>
-      atualizarSetor(id, mudancas),
+    mutationFn: ({
+      id,
+      mudancas,
+    }: {
+      id: number
+      mudancas: Parameters<typeof atualizarSetor>[1]
+    }) => atualizarSetor(id, mudancas),
     onSuccess: invalidarEstrutura,
     onError: aoErro,
   })
@@ -121,9 +124,8 @@ export function Estrutura() {
           <h1 className="text-2xl sm:text-3xl">Estrutura</h1>
           <p className="mt-1 max-w-2xl text-texto-suave">
             {/* D-14: toda etapa nasce com timer — código fora da tela (D-27). */}
-            Setores e as etapas internas de cada um. Toda etapa cadastrada já nasce contando
-            tempo — não existe timer para ligar. Nada aqui se apaga: desativar preserva o
-            histórico.
+            Setores e as etapas internas de cada um. Toda etapa cadastrada já nasce contando tempo —
+            não existe timer para ligar. Nada aqui se apaga: desativar preserva o histórico.
           </p>
         </div>
         {souAdmin && (
@@ -149,9 +151,7 @@ export function Estrutura() {
               podeGerirSetor={souAdmin}
               podeGerirEtapas={podeGerirEtapasDe(setor.id)}
               aoSubir={indice > 0 ? () => trocarOrdemSetor(indice, -1) : undefined}
-              aoDescer={
-                indice < setores.length - 1 ? () => trocarOrdemSetor(indice, 1) : undefined
-              }
+              aoDescer={indice < setores.length - 1 ? () => trocarOrdemSetor(indice, 1) : undefined}
               aoRenomear={() => {
                 setSetorEmEdicao(setor)
                 setNomeEditado(setor.nome)
@@ -461,7 +461,9 @@ function EstadoDaPeca(props: {
                 key={tipo.valor}
                 className={cn(
                   'toque-seguro flex min-h-toque-md cursor-pointer items-center gap-2 rounded-dm border px-3 text-sm',
-                  ligado ? 'border-acao-ativa bg-superficie-sutil text-texto' : 'border-borda text-texto-suave',
+                  ligado
+                    ? 'border-acao-ativa bg-superficie-sutil text-texto'
+                    : 'border-borda text-texto-suave',
                 )}
               >
                 <input
@@ -469,7 +471,9 @@ function EstadoDaPeca(props: {
                   className="size-5 accent-[var(--dm-acao)]"
                   checked={ligado}
                   onChange={() =>
-                    aoMudar(ligado ? valores.filter((v) => v !== tipo.valor) : [...valores, tipo.valor])
+                    aoMudar(
+                      ligado ? valores.filter((v) => v !== tipo.valor) : [...valores, tipo.valor],
+                    )
                   }
                 />
                 {tipo.rotulo}
@@ -606,7 +610,11 @@ function LimiteExecucoes(props: {
     // `|| null`: vazio/0 nunca é limite válido — vira "sem limite" (D-24).
     const limite = Number(texto) || null
     if (limite !== null && (!Number.isInteger(limite) || limite < 1)) {
-      props.aoErro(new Error('O limite precisa ser um número inteiro maior que zero — ou vazio para sem limite.'))
+      props.aoErro(
+        new Error(
+          'O limite precisa ser um número inteiro maior que zero — ou vazio para sem limite.',
+        ),
+      )
       return
     }
     salvarMutacao.mutate(limite)
@@ -699,8 +707,13 @@ function ListaEtapas(props: {
   })
 
   const atualizarMutacao = useMutation({
-    mutationFn: ({ id, mudancas }: { id: number; mudancas: Parameters<typeof atualizarEtapa>[1] }) =>
-      atualizarEtapa(id, mudancas),
+    mutationFn: ({
+      id,
+      mudancas,
+    }: {
+      id: number
+      mudancas: Parameters<typeof atualizarEtapa>[1]
+    }) => atualizarEtapa(id, mudancas),
     onSuccess: props.aoMudar,
     onError: props.aoErro,
   })
@@ -865,7 +878,12 @@ function ListaEtapas(props: {
               Tem nome de setor: soltar o card nela manda para {destinoPeloNome.nome}.
             </p>
           )}
-          <Botao type="submit" variante="secundaria" carregando={criarMutacao.isPending} icone={<Plus />}>
+          <Botao
+            type="submit"
+            variante="secundaria"
+            carregando={criarMutacao.isPending}
+            icone={<Plus />}
+          >
             Criar etapa
           </Botao>
         </form>

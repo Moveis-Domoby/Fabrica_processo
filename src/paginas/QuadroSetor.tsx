@@ -81,9 +81,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     queryFn: buscarNomesUsuarios,
     staleTime: 5 * 60_000,
   })
-  const execucoesPorCard = new Map<number, ExecucaoAberta>(
-    execucoes.map((e) => [e.card_id, e]),
-  )
+  const execucoesPorCard = new Map<number, ExecucaoAberta>(execucoes.map((e) => [e.card_id, e]))
 
   // SESSAO-24: o que o soltar precisa perguntar antes de ir ao banco.
   const [encaminhando, setEncaminhando] = useState<{ card: Card; etapa: Etapa } | null>(null)
@@ -235,7 +233,9 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         modo="concluir"
         card={concluindo?.card ?? null}
         pedido={
-          concluindo?.card.pedido_id != null ? pedidosPorId.get(concluindo.card.pedido_id) : undefined
+          concluindo?.card.pedido_id != null
+            ? pedidosPorId.get(concluindo.card.pedido_id)
+            : undefined
         }
         etapaDestino={concluindo?.etapa}
         executorNome={
@@ -256,7 +256,9 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
 
       <ModalParecer
         card={cardParecer}
-        pedido={cardParecer?.pedido_id != null ? pedidosPorId.get(cardParecer.pedido_id) : undefined}
+        pedido={
+          cardParecer?.pedido_id != null ? pedidosPorId.get(cardParecer.pedido_id) : undefined
+        }
         setores={setores}
         nomesUsuarios={nomesUsuarios}
         aoFechar={() => {

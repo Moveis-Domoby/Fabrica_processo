@@ -35,7 +35,9 @@ export function ModalDevolucoes({
       listarDevolucoes({ produtoTinyId: produto?.tinyId ?? null, antesId: pageParam, limite: 20 }),
     initialPageParam: null as number | null,
     getNextPageParam: (ultima) =>
-      ultima.length > 0 && ultima[ultima.length - 1].tem_mais ? ultima[ultima.length - 1].evento_id : undefined,
+      ultima.length > 0 && ultima[ultima.length - 1].tem_mais
+        ? ultima[ultima.length - 1].evento_id
+        : undefined,
     enabled: aberto,
     gcTime: 0,
   })
@@ -59,7 +61,8 @@ export function ModalDevolucoes({
               <span className="font-medium text-texto">Pedido {d.numero}</span>
               <span className="text-texto-suave"> · {d.cliente_nome || 'sem cliente'}</span>
               <span className="block text-xs text-texto-suave">
-                {d.pecas} {d.pecas === 1 ? 'peça' : 'peças'} · {d.motivo ?? 'sem motivo'} · {quando(d.quando)}
+                {d.pecas} {d.pecas === 1 ? 'peça' : 'peças'} · {d.motivo ?? 'sem motivo'} ·{' '}
+                {quando(d.quando)}
                 {d.quem ? ` · ${d.quem}` : ''}
               </span>
               {d.entregue && (

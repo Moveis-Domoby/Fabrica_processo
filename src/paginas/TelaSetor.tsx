@@ -74,8 +74,7 @@ export function TelaSetor() {
   // e os fins de linha também (o operador não trabalha neles).
   const idsVinculados = new Set(vinculos.map((v) => v.setor_id))
   const opcoes = setores.filter(
-    (s) =>
-      s.papel_no_fluxo === 'producao' && (souAdmin || idsVinculados.has(s.id)),
+    (s) => s.papel_no_fluxo === 'producao' && (souAdmin || idsVinculados.has(s.id)),
   )
 
   const [setorId, setSetorId] = useState<number | null>(() => {
@@ -384,7 +383,9 @@ export function TelaSetor() {
         modo="concluir"
         card={concluindo?.card ?? null}
         pedido={
-          concluindo?.card.pedido_id != null ? pedidosPorId.get(concluindo.card.pedido_id) : undefined
+          concluindo?.card.pedido_id != null
+            ? pedidosPorId.get(concluindo.card.pedido_id)
+            : undefined
         }
         executorNome={
           concluindo?.card.executor_atual_id

@@ -9233,8 +9233,8 @@ const estrutura54 = await um54(`
          (select data_type from information_schema.columns
            where table_schema = 'public' and table_name = 'plt_programacoes' and column_name = 'ordem') as ordem_tipo,
          (select pg_get_constraintdef(oid) from pg_constraint where conname = 'plt_programacoes_ordem_ck') as ordem_ck,
-         has_function_privilege('anon', 'public.plt_fn_ordenar_rota(date, bigint, bigint[])', 'execute') as ordenar_anon,
-         has_function_privilege('authenticated', 'public.plt_fn_ordenar_rota(date, bigint, bigint[])', 'execute') as ordenar_logado,
+         has_function_privilege('anon', 'public.plt_fn_ordenar_rota(date, bigint, bigint[], integer)', 'execute') as ordenar_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_ordenar_rota(date, bigint, bigint[], integer)', 'execute') as ordenar_logado,
          has_function_privilege('anon', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as porta_anon,
          has_function_privilege('authenticated', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as porta_logado,
          (select count(*)::int from pg_proc where proname = 'plt_fn_programacao') as sobrecargas`)
@@ -9515,8 +9515,8 @@ await deveRecusarExec(
 conferir(operador55.n === 0, 'quem não é da logística não vê as programações', JSON.stringify(operador55))
 const priv55 = await um55(`
   select has_function_privilege('anon', 'public.plt_fn_programadas(boolean, date, bigint, integer, integer)', 'execute') as prog_anon,
-         has_function_privilege('anon', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[])', 'execute') as rota_anon,
-         has_function_privilege('authenticated', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[])', 'execute') as rota_logado,
+         has_function_privilege('anon', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)', 'execute') as rota_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)', 'execute') as rota_logado,
          (select count(*)::int from pg_proc where proname = 'plt_fn_programacao') as sobrecargas`)
 conferir(
   !priv55.prog_anon && !priv55.rota_anon && priv55.rota_logado && priv55.sobrecargas === 1,
@@ -10697,8 +10697,8 @@ await como60('')
 const priv60 = await um60(`
   select has_table_privilege('authenticated', 'public.plt_anexos', 'select') as anexos_logado,
          has_table_privilege('authenticated', 'public.plt_programacao_equipes', 'select') as equipes_logado,
-         has_function_privilege('anon', 'public.plt_fn_entregas_do_dia(date, bigint)', 'execute') as dia_anon,
-         has_function_privilege('authenticated', 'public.plt_fn_entregas_do_dia(date, bigint)', 'execute') as dia_logado,
+         has_function_privilege('anon', 'public.plt_fn_entregas_do_dia(date, bigint, integer)', 'execute') as dia_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_entregas_do_dia(date, bigint, integer)', 'execute') as dia_logado,
          has_function_privilege('authenticated', 'plt_privado.fn_eh_entregador(uuid)', 'execute') as maquina`)
 conferir(!priv60.anexos_logado && !priv60.equipes_logado && !priv60.dia_anon && priv60.dia_logado && !priv60.maquina,
   'tabelas só pelas portas; a tela do dia só para quem está logado', JSON.stringify(priv60))
@@ -11507,6 +11507,159 @@ const priv67 = await um67(`
 conferir(!priv67.devolver_anon && !priv67.decidir_anon && !priv67.maquina && priv67.lista_sem_login === 0,
   'anônimo fora; a maquinaria fora da API; sem login a lista vem vazia', JSON.stringify({ priv67, tem67 }))
 } // fim do bloco 67
+
+// ============================================================================
+// SESSAO-31 · etapa C (migration 68 — D-128): várias rotas por dia no mesmo
+// caminhão — cada rota com a sua ordem e a sua equipe; o entregador vê só as
+// rotas em que está.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-31 · várias rotas por dia no mesmo caminhão: ordem e equipe de cada rota (D-128)')
+
+const um68 = async (sql) => (await bd.query(sql)).rows[0]
+const todos68 = async (sql) => (await bd.query(sql)).rows
+const como68 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const LOG = E40.logistica
+const MANHA = '00000000-0000-0000-0000-000000000681'
+const TARDE = '00000000-0000-0000-0000-000000000682'
+const DIA = `'2026-11-02'::date`
+await como68('')
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Motorista Manhã 68', 'manha68@teste.com', '68686868681', 'manha.68', 'operador', '${MANHA}', array['entregas']),
+    ('Motorista Tarde 68', 'tarde68@teste.com', '68686868682', 'tarde.68', 'operador', '${TARDE}', array['entregas']);
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (968001, 'S68A', 'Cômoda Rotas 68', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú 68', 'TST6E68');
+`)
+const manha = (await um68(`select id from public.plt_usuarios where usuario = 'manha.68'`)).id
+const tarde = (await um68(`select id from public.plt_usuarios where usuario = 'tarde.68'`)).id
+const cam68 = (await um68(`select id::int as id from public.plt_caminhoes where placa = 'TST6E68'`)).id
+const aguardo68 = (await um68(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+
+async function pedido68(numero) {
+  await como68('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id) values
+      (${numero}, (select id from public.clientes order by id limit 1), 'Enviado', 'webhook', ${numero}00);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), 1, 'S68A', 'Cômoda Rotas 68', 1);
+  `)
+  const pc = (await um68(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  await bd.exec(`
+    insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+      select 'unidade', p.id, ${pc}, 1, 'S68A', 'Cômoda Rotas 68', 1, 1 from public.pedidos p where p.numero = ${numero};
+    insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+      values ((select max(id) from public.plt_cards), 'card_criado', ${aguardo68}, 'api');
+  `)
+  await como68(LOG)
+  await bd.exec(`select public.plt_fn_lancar_rotas(${pc})`)
+  return pc
+}
+const [p1, p2, p3, p4, p5] = [await pedido68(968001), await pedido68(968002), await pedido68(968003),
+                              await pedido68(968004), await pedido68(968005)]
+const rotaDe = async (pc) => (await um68(`select rota::int as r, ordem from public.plt_programacoes where card_id = ${pc}`))
+
+// 1 · o que já existia virou a Rota 1; a equipe passou a ser por rota
+await como68('')
+const antes68 = await um68(`
+  select (select count(*) from public.plt_programacoes where rota <> 1)::int as fora_da_1,
+         (select array_length(c.conkey, 1) from pg_constraint c
+           where c.conrelid = 'public.plt_programacao_equipes'::regclass and c.contype = 'p') as chave_equipe`)
+conferir(antes68.fora_da_1 === 0 && antes68.chave_equipe === 4,
+  'tudo o que já estava programado é a Rota 1; a chave da equipe passou a ter a rota', JSON.stringify(antes68))
+
+// 2 · Rota 1 (sem rota dita, o caminhão sem nada no dia = Rota 1) e a equipe dela
+await como68(LOG)
+const n1 = (await um68(`select public.plt_fn_programar_rota(${DIA}, ${cam68}, array[${p1}, ${p2}]::bigint[]) as n`)).n
+await bd.exec(`select public.plt_fn_equipe_definir(${DIA}, ${cam68}, array['${manha}']::uuid[], 1)`)
+// 3 · Rota 2 com ordem: nasce com a equipe da Rota 1 (sugestão), deixando a trilha
+const n2 = (await um68(`select public.plt_fn_programar_rota(${DIA}, ${cam68}, array[${p3}, ${p4}]::bigint[], array[${p4}, ${p3}]::bigint[], 2) as n`)).n
+const herdou = await um68(`
+  select (select array_agg(eq.usuario_id::text) from public.plt_programacao_equipes eq
+           where eq.data_entrega = ${DIA} and eq.caminhao_id = ${cam68} and eq.rota = 2) as equipe2,
+         (select (contexto ->> 'herdada_da_rota')::int from public.plt_logs_atividade
+           where acao = 'equipe_caminhao_definida' and (contexto ->> 'caminhao_id')::int = ${cam68}
+             and (contexto ->> 'rota')::int = 2 order by id desc limit 1) as herdada_da`)
+const [r1, r2, r3, r4] = [await rotaDe(p1), await rotaDe(p2), await rotaDe(p3), await rotaDe(p4)]
+conferir(n1 === 2 && n2 === 2 && r1.r === 1 && r2.r === 1 && r3.r === 2 && r4.r === 2 && r4.ordem === 1 && r3.ordem === 2
+    && JSON.stringify(herdou.equipe2) === JSON.stringify([manha]) && herdou.herdada_da === 1,
+  'o mesmo caminhão no mesmo dia: Rota 1 e Rota 2, cada uma com a sua ordem; a rota nova já vem com a equipe da anterior (na trilha)',
+  JSON.stringify({ n1, n2, r1, r2, r3, r4, herdou }))
+
+// 4 · troca de turno: a Rota 2 é de outra pessoa; a Rota 1 não muda
+await bd.exec(`select public.plt_fn_equipe_definir(${DIA}, ${cam68}, array['${tarde}']::uuid[], 2)`)
+// 5 · sem rota dita, o pedido entra na ÚLTIMA rota do caminhão no dia (o "entra no fim" de antes)
+await bd.exec(`select public.plt_fn_programar_entrega(${p5}, ${DIA}, ${cam68})`)
+// 6 · a ordem é de cada rota: ordenar a Rota 1 não mexe na 2; pedido de outra rota é recusado
+await bd.exec(`select public.plt_fn_ordenar_rota(${DIA}, ${cam68}, array[${p2}, ${p1}]::bigint[], 1)`)
+await deveRecusarExec(`select public.plt_fn_ordenar_rota(${DIA}, ${cam68}, array[${p3}]::bigint[], 1)`,
+  'ordenar a Rota 1 com um pedido da Rota 2 é recusado', /não está mais nesta rota/i)
+const [s1, s2, s3, s4, s5] = [await rotaDe(p1), await rotaDe(p2), await rotaDe(p3), await rotaDe(p4), await rotaDe(p5)]
+conferir(s5.r === 2 && s5.ordem === null && s2.ordem === 1 && s1.ordem === 2 && s4.ordem === 1 && s3.ordem === 2,
+  'sem rota dita entra na última rota do caminhão; a ordem da Rota 1 não mexe na da Rota 2', JSON.stringify({ s1, s2, s3, s4, s5 }))
+
+// 7 · trocar de rota zera a ordem e fica na trilha; rota fora de 1…20 é recusada
+await bd.exec(`select public.plt_fn_programar_entrega(${p1}, ${DIA}, ${cam68}, 2)`)
+const troca = await um68(`select contexto from public.plt_logs_atividade
+                           where acao = 'entrega_reprogramada' and (contexto ->> 'card_id')::int = ${p1} order by id desc limit 1`)
+const t1 = await rotaDe(p1)
+await deveRecusarExec(`select public.plt_fn_programar_entrega(${p2}, ${DIA}, ${cam68}, 21)`, 'a rota vai de 1 a 20', /1 a 20/)
+conferir(t1.r === 2 && t1.ordem === null && troca?.contexto?.rota_antes === 1 && troca?.contexto?.rota_depois === 2,
+  'mudar o pedido para a Rota 2 zera a ordem dele e fica na trilha (rota antes → depois)', JSON.stringify({ t1, troca }))
+
+// 8 · as rotas do dia e "Já programadas" (dia → caminhão → rota → ordem)
+const rotas68 = await todos68(`select rota, entregas, entregues, equipe from public.plt_fn_rotas_do_dia(${DIA}) where caminhao_id = ${cam68}`)
+const prog68 = await todos68(`select card_id::int as id, rota from public.plt_fn_programadas(false, ${DIA}, ${cam68}, 50, 0)`)
+conferir(rotas68.length === 2 && rotas68[0].rota === 1 && rotas68[0].entregas === 1 && rotas68[0].equipe[0]?.nome === 'Motorista Manhã 68'
+    && rotas68[1].rota === 2 && rotas68[1].entregas === 4 && rotas68[1].equipe.length === 1 && rotas68[1].equipe[0].nome === 'Motorista Tarde 68'
+    && JSON.stringify(prog68.map((x) => x.id)) === JSON.stringify([p2, p4, p3, p1, p5])
+    && JSON.stringify(prog68.map((x) => x.rota)) === JSON.stringify([1, 2, 2, 2, 2]),
+  'as rotas do dia com as entregas e a equipe de cada uma; "Já programadas" vem por rota e na ordem de cada rota',
+  JSON.stringify({ rotas68, prog68 }))
+
+// 9 · o entregador vê só as rotas em que está — e só mexe nelas
+await como68(MANHA)
+const diaManha = (await um68(`select public.plt_fn_entregas_do_dia(${DIA}) as j`)).j
+const comentou = (await um68(`select public.plt_fn_card_comentar(${p2}, 'Rota da manhã ok') as id`)).id
+await deveRecusarExec(`select public.plt_fn_card_comentar(${p4}, 'oi')`, 'o da manhã não mexe na entrega da Rota 2', /entregador do caminhão/i)
+const rotasEntregador = (await um68(`select count(*)::int as n from public.plt_fn_rotas_do_dia(${DIA})`)).n
+await como68(TARDE)
+const diaTarde = (await um68(`select public.plt_fn_entregas_do_dia(${DIA}) as j`)).j
+const tardePedeA1 = (await um68(`select public.plt_fn_entregas_do_dia(${DIA}, ${cam68}, 1) as j`)).j
+conferir(diaManha.caminhoes.length === 1 && diaManha.caminhoes[0].rota === 1 && diaManha.rota === 1
+    && JSON.stringify(diaManha.entregas.map((e) => e.card_id)) === JSON.stringify([p2]) && comentou > 0
+    && diaTarde.caminhoes.length === 1 && diaTarde.rota === 2 && diaTarde.caminhoes[0].equipe[0] === 'Motorista Tarde 68'
+    && JSON.stringify(diaTarde.entregas.map((e) => e.card_id)) === JSON.stringify([p4, p3, p1, p5])
+    && tardePedeA1.caminhao_id === null && tardePedeA1.entregas.length === 0 && rotasEntregador === 0,
+  'troca de turno: cada entregador vê só a rota dele, na ordem; pedir a rota do outro não traz nada; as rotas do dia são da logística',
+  JSON.stringify({ diaManha: diaManha.caminhoes, diaTarde: diaTarde.caminhoes, tardePedeA1, rotasEntregador }))
+
+// 10 · a logística escolhe a rota; a janela do pedido no PCP diz a rota e a equipe DELA
+await como68(LOG)
+const diaLog = (await um68(`select public.plt_fn_entregas_do_dia(${DIA}, ${cam68}, 2) as j`)).j
+const det68 = (await um68(`select public.plt_fn_pcp_pedido_detalhe((select pedido_id from public.plt_cards where id = ${p4})) as d`)).d
+conferir(diaLog.sou_logistica && diaLog.rota === 2 && diaLog.entregas.length === 4
+    && diaLog.caminhoes.filter((c) => c.id === cam68).length === 2
+    && det68.programacao?.rota === 2 && JSON.stringify(det68.programacao?.equipe) === JSON.stringify(['Motorista Tarde 68']),
+  'a logística vê as duas rotas do caminhão e escolhe a 2; o PCP mostra a rota e a equipe dela',
+  JSON.stringify({ rotas: diaLog.caminhoes, det: det68.programacao }))
+
+// 11 · as portas antigas saíram; permissões
+await como68('')
+const priv68 = await um68(`
+  select to_regprocedure('public.plt_fn_equipes_do_dia(date)') is null as equipes_saiu,
+         to_regprocedure('public.plt_fn_programar_entrega(bigint, date, bigint)') is null as programar_velha_saiu,
+         to_regprocedure('public.plt_fn_ordenar_rota(date, bigint, bigint[])') is null as ordenar_velha_saiu,
+         has_function_privilege('anon', 'public.plt_fn_rotas_do_dia(date)', 'execute') as rotas_anon,
+         has_function_privilege('anon', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)', 'execute') as programar_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)', 'execute') as programar_logado,
+         has_function_privilege('authenticated', 'plt_privado.fn_equipe_herdar(date, bigint, integer, uuid)', 'execute') as maquina`)
+conferir(priv68.equipes_saiu && priv68.programar_velha_saiu && priv68.ordenar_velha_saiu && !priv68.rotas_anon
+    && !priv68.programar_anon && priv68.programar_logado && !priv68.maquina,
+  'as portas antigas saíram; anônimo fora; a maquinaria fora da API', JSON.stringify(priv68))
+} // fim do bloco 68
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

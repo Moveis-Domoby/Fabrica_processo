@@ -111,7 +111,10 @@ describe('as chaves do estado da peça (D-126)', () => {
   })
 
   it('ligado só para a peça de pedido: pergunta nela, não na de estoque', () => {
-    const setor = { papel_no_fluxo: 'producao' as const, qualidade_envio_tipos: ['peca_pedido' as const] }
+    const setor = {
+      papel_no_fluxo: 'producao' as const,
+      qualidade_envio_tipos: ['peca_pedido' as const],
+    }
     expect(pedeEstadoAoEnviar(setor, { tipo: 'unidade', pedido_id: 9 })).toBe(true)
     expect(pedeEstadoAoEnviar(setor, { tipo: 'unidade', pedido_id: null })).toBe(false)
   })

@@ -40,12 +40,15 @@ export async function listarDevolucoes(parametros: {
     p_antes_id: parametros.antesId ?? null,
     p_limite: parametros.limite ?? 20,
   })
-  return garantir(data as DevolucaoAberta[] | null, error, 'Não deu para carregar as devoluções').map(
-    (d) => ({ ...d, card_id: Number(d.card_id), evento_id: Number(d.evento_id) }),
-  )
+  return garantir(
+    data as DevolucaoAberta[] | null,
+    error,
+    'Não deu para carregar as devoluções',
+  ).map((d) => ({ ...d, card_id: Number(d.card_id), evento_id: Number(d.evento_id) }))
 }
 
-export type DecisaoDevolucao = 'reenviar' | 'estoque' | 'realocar' | 'danificados' | 'loja' | 'ajuste'
+export type DecisaoDevolucao =
+  'reenviar' | 'estoque' | 'realocar' | 'danificados' | 'loja' | 'ajuste'
 export type DestinoFinalAjuste = 'estoque' | 'pedido' | 'terceirizado' | 'loja' | 'danificados'
 
 export interface PecaDevolvida {
@@ -68,7 +71,12 @@ export interface DetalheDevolucao {
   numero: number
   situacao_tiny: string | null
   cancelado: boolean
-  cliente: { nome: string | null; telefone: string | null; cidade: string | null; bairro: string | null } | null
+  cliente: {
+    nome: string | null
+    telefone: string | null
+    cidade: string | null
+    bairro: string | null
+  } | null
   em_decisao: boolean
   devolucao: {
     evento_id: number
@@ -100,11 +108,15 @@ export interface OpcaoRealocar {
 
 /** Só no clique "Realocar": pedidos vivos no PCP com vaga da mesma peça. */
 export async function opcoesRealocar(pecaId: number): Promise<OpcaoRealocar[]> {
-  const { data, error } = await supabase.rpc('plt_fn_devolucao_realocar_opcoes', { p_peca_id: pecaId })
-  return garantir(data as OpcaoRealocar[] | null, error, 'Não deu para buscar os pedidos').map((o) => ({
-    ...o,
-    card_pedido_id: Number(o.card_pedido_id),
-  }))
+  const { data, error } = await supabase.rpc('plt_fn_devolucao_realocar_opcoes', {
+    p_peca_id: pecaId,
+  })
+  return garantir(data as OpcaoRealocar[] | null, error, 'Não deu para buscar os pedidos').map(
+    (o) => ({
+      ...o,
+      card_pedido_id: Number(o.card_pedido_id),
+    }),
+  )
 }
 
 export interface ResultadoDecisao {

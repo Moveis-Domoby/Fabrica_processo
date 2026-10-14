@@ -208,9 +208,18 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
   {
     valor: 'qualidade',
     rotulo: 'Qualidade',
-    acoes: ['qualidade_marcada', 'qualidade_parecer', 'divergencia_registrada', 'qualidade_setor_alterada'],
+    acoes: [
+      'qualidade_marcada',
+      'qualidade_parecer',
+      'divergencia_registrada',
+      'qualidade_setor_alterada',
+    ],
   },
-  { valor: 'pedidos', rotulo: 'Pedidos vindos do Tiny', acoes: ['pedido_atualizado', 'pedido_cancelado'] },
+  {
+    valor: 'pedidos',
+    rotulo: 'Pedidos vindos do Tiny',
+    acoes: ['pedido_atualizado', 'pedido_cancelado'],
+  },
   {
     valor: 'estoque',
     rotulo: 'Estoque',
@@ -222,7 +231,9 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
     valor: 'rotas',
     rotulo: 'ROTAS e caminhões',
     acoes: Object.keys(ROTULO_ACAO).filter(
-      (a) => a.startsWith('caminhao_') || [
+      (a) =>
+        a.startsWith('caminhao_') ||
+        [
           'entrega_programada',
           'entrega_reprogramada',
           'programacao_removida',
@@ -252,7 +263,11 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'usuario_excluido',
     ],
   },
-  { valor: 'chat', rotulo: 'Chat (sem as mensagens)', acoes: Object.keys(ROTULO_ACAO).filter((a) => a.startsWith('chat_')) },
+  {
+    valor: 'chat',
+    rotulo: 'Chat (sem as mensagens)',
+    acoes: Object.keys(ROTULO_ACAO).filter((a) => a.startsWith('chat_')),
+  },
   { valor: 'avisos', rotulo: 'Avisos do sino', acoes: ['notificacao_enviada'] },
   {
     valor: 'automacoes',
@@ -415,14 +430,23 @@ const CHAVES: Record<string, string> = {
 function ehChaveDeMaquina(chave: string): boolean {
   // automacao_excluida vira a etiqueta da linha, não um detalhe
   // card_ids (a ordem salva da rota — SESSAO-28) também é só da máquina
-  return chave === 'id' || chave.endsWith('_id') || chave.endsWith('_ids') || chave === 'lancamento_id' || chave === 'motivo' || chave === 'automacao_excluida'
+  return (
+    chave === 'id' ||
+    chave.endsWith('_id') ||
+    chave.endsWith('_ids') ||
+    chave === 'lancamento_id' ||
+    chave === 'motivo' ||
+    chave === 'automacao_excluida'
+  )
 }
 
 function textoDoValor(chave: string, valor: unknown): string {
   if (valor === null || valor === undefined) return '—'
-  if (chave === 'estado_qualidade' && typeof valor === 'string') return ESTADO_QUALIDADE[valor] ?? valor
+  if (chave === 'estado_qualidade' && typeof valor === 'string')
+    return ESTADO_QUALIDADE[valor] ?? valor
   if (chave === 'origem' && typeof valor === 'string') return ORIGEM[valor] ?? valor
-  if (Array.isArray(valor)) return valor.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
+  if (Array.isArray(valor))
+    return valor.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
   if (typeof valor === 'boolean') return valor ? 'sim' : 'não'
   if (typeof valor === 'object') return JSON.stringify(valor)
   const texto = String(valor)
@@ -430,11 +454,16 @@ function textoDoValor(chave: string, valor: unknown): string {
 }
 
 /** Os detalhes do registro em língua de gente (sem ids). */
-export function detalhesDoContexto(contexto: Record<string, unknown> | null): { rotulo: string; valor: string }[] {
+export function detalhesDoContexto(
+  contexto: Record<string, unknown> | null,
+): { rotulo: string; valor: string }[] {
   if (!contexto) return []
   return Object.entries(contexto)
     .filter(([chave]) => !ehChaveDeMaquina(chave))
-    .map(([chave, valor]) => ({ rotulo: CHAVES[chave] ?? humanizar(chave), valor: textoDoValor(chave, valor) }))
+    .map(([chave, valor]) => ({
+      rotulo: CHAVES[chave] ?? humanizar(chave),
+      valor: textoDoValor(chave, valor),
+    }))
 }
 
 /** O que mudou num pedido, na conferência com o Tiny. */

@@ -58,7 +58,12 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
     queryFn: resumoEstoque,
     enabled: ativo,
   })
-  const { data: linhas = [], isPending, isError, error } = useQuery({
+  const {
+    data: linhas = [],
+    isPending,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ['estoque', 'configuracoes', busca, pagina, topX],
     queryFn: () =>
       listarConfiguracoesEstoque({
@@ -91,7 +96,8 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
   const [coberturaTexto, setCoberturaTexto] = useState<string | null>(null)
   const coberturaPill = cobertura <= 3 && coberturaTexto === null ? String(cobertura) : 'outra'
   const coberturaDigitada = coberturaTexto === null ? cobertura : Number(coberturaTexto)
-  const coberturaValida = Number.isInteger(coberturaDigitada) && coberturaDigitada >= 1 && coberturaDigitada <= 8
+  const coberturaValida =
+    Number.isInteger(coberturaDigitada) && coberturaDigitada >= 1 && coberturaDigitada <= 8
 
   return (
     <div className="flex flex-col gap-5">
@@ -155,7 +161,11 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
                     />
                   </div>
                   {coberturaValida && coberturaDigitada !== cobertura && podeMexer && (
-                    <Botao type="submit" variante="secundaria" carregando={mudarCobertura.isPending}>
+                    <Botao
+                      type="submit"
+                      variante="secundaria"
+                      carregando={mudarCobertura.isPending}
+                    >
                       Salvar
                     </Botao>
                   )}
@@ -310,11 +320,14 @@ function LinhaConfiguracao({
 
   const salvar = useMutation({
     mutationFn: (acao: { tipo: 'travar'; minimo: number } | { tipo: 'automatico' }) =>
-      acao.tipo === 'travar' ? definirMinimo(linha.tiny_id, acao.minimo) : minimoAutomatico(linha.tiny_id),
+      acao.tipo === 'travar'
+        ? definirMinimo(linha.tiny_id, acao.minimo)
+        : minimoAutomatico(linha.tiny_id),
     onSuccess: async (_, acao) => {
       setTexto(null)
       notificar({
-        titulo: acao.tipo === 'travar' ? 'Mínimo travado neste valor' : 'Mínimo de volta ao automático',
+        titulo:
+          acao.tipo === 'travar' ? 'Mínimo travado neste valor' : 'Mínimo de volta ao automático',
         descricao: linha.descricao,
         tom: 'perfeito',
       })

@@ -8,6 +8,7 @@ import {
   dataLegivel,
   desprogramarEntrega,
   listarProgramadas,
+  nomeDaRota,
   ordenarRota,
   programarEntrega,
 } from './api'
@@ -43,7 +44,7 @@ const SEM_PONTOS: Ponto[] = []
 const idsDe = (lista: { card_id: number }[]) => lista.map((p) => p.card_id)
 const mesmaOrdem = (a: number[], b: number[]) =>
   a.length === b.length && a.every((id, i) => id === b[i])
-const chaveGrupo = (dia: string, caminhaoId: number) => `${dia}|${caminhaoId}`
+const chaveGrupo = (dia: string, caminhaoId: number, rota: number) => `${dia}|${caminhaoId}|${rota}`
 
 function diaPorExtenso(iso: string): string {
   const texto = new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', {
@@ -59,11 +60,19 @@ interface Grupo {
   chave: string
   dia: string
   caminhaoId: number
+  /** SESSAO-31 (D-128): a rota do caminhão no dia. */
+  rota: number
+  /** O caminhão tem mais de uma rota neste dia (o nome da rota aparece). */
+  variasRotas: boolean
   caminhaoNome: string
   caminhaoPlaca: string | null
   cor: string
   paradas: PedidoProgramado[]
 }
+
+/** "Baú 1" ou, com várias rotas no dia, "Baú 1 · Rota 2". */
+const nomeDoGrupo = (g: Grupo) =>
+  g.variasRotas ? `${g.caminhaoNome} · ${nomeDaRota(g.rota)}` : g.caminhaoNome
 
 /** Os pontos da rota de um grupo, na ordem salva (ou sugerida). */
 function pontosDoGrupo(g: Grupo): Ponto[] {
@@ -79,6 +88,8 @@ function pontosDoGrupo(g: Grupo): Ponto[] {
  * caminhão escolhido a ordem se ARRASTA e se salva. Paginada no servidor —
  * "Ver mais" busca a próxima página. ↪️ SESSAO-30 (D-120): o histórico de
  * entregues saiu daqui — o entregue mora no PCP → Todos os pedidos.
+ * ↪️ SESSAO-31 (D-128): o caminhão faz várias rotas no dia — o grupo é (dia,
+ * caminhão, ROTA), cada rota com a sua ordem e a sua equipe.
  */
 export function AbaJaProgramadas({
   ativa,
@@ -86,9 +97,9 @@ export function AbaJaProgramadas({
   aoFocar,
 }: {
   ativa: boolean
-  /** O caminhão/dia que veio do link (ex.: logo depois de programar). */
-  foco: { dia: string; caminhaoId: number } | null
-  aoFocar: (dia: string, caminhaoId: number) => void
+  /** A rota (dia, caminhão, rota) que veio do link (ex.: logo depois de programar). */
+  foco: { dia: string; caminhaoId: number; rota: number } | null
+  aoFocar: (dia: string, caminhaoId: number, rota: number) => void
 }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
@@ -97,11 +108,13 @@ export function AbaJaProgramadas({
   const [rascunhos, setRascunhos] = useState<Record<string, number[]>>({})
   const [trecho, setTrecho] = useState<number | null>(null)
   const [reprogramando, setReprogramando] = useState<PedidoProgramado | null>(null)
-  // SESSAO-30 (D-115): a equipe do caminhão no dia e o detalhe da entrega.
+  // SESSAO-30 (D-115): a equipe da rota no dia (D-128) e o detalhe da entrega.
   const [equipeDe, setEquipeDe] = useState<{
     dia: string
     caminhaoId: number
     caminhaoNome: string
+    rota: number
+    variasRotas: boolean
   } | null>(null)
   const [detalheDe, setDetalheDe] = useState<PedidoProgramado | null>(null)
 
@@ -128,15 +141,19 @@ export function AbaJaProgramadas({
   const linhas = useMemo(() => consulta.data?.pages.flat() ?? [], [consulta.data])
   const total = consulta.data?.pages[0]?.[0]?.contagem_total ?? 0
 
-  // Dia → caminhão → paradas, na ordem que o banco devolve.
+  // Dia → caminhão → rota → paradas, na ordem que o banco devolve.
   const grupos = useMemo(() => {
     const porChave = new Map<string, Grupo>()
+    const rotasPorCaminhao = new Map<string, Set<number>>()
     for (const p of linhas) {
-      const chave = chaveGrupo(p.programacao_data, p.caminhao_id)
+      const rota = p.rota ?? 1
+      const chave = chaveGrupo(p.programacao_data, p.caminhao_id, rota)
       const g = porChave.get(chave) ?? {
         chave,
         dia: p.programacao_data,
         caminhaoId: p.caminhao_id,
+        rota,
+        variasRotas: false,
         caminhaoNome: p.caminhao_nome ?? 'Caminhão',
         caminhaoPlaca: p.caminhao_placa,
         cor: corDoCaminhao(p.caminhao_id),
@@ -144,8 +161,13 @@ export function AbaJaProgramadas({
       }
       g.paradas.push(p)
       porChave.set(chave, g)
+      const doCaminhao = `${p.programacao_data}|${p.caminhao_id}`
+      rotasPorCaminhao.set(doCaminhao, (rotasPorCaminhao.get(doCaminhao) ?? new Set()).add(rota))
     }
-    return [...porChave.values()]
+    return [...porChave.values()].map((g) => ({
+      ...g,
+      variasRotas: (rotasPorCaminhao.get(`${g.dia}|${g.caminhaoId}`)?.size ?? 1) > 1 || g.rota > 1,
+    }))
   }, [linhas])
   const dias = useMemo(() => {
     const porDia = new Map<string, Grupo[]>()
@@ -153,9 +175,12 @@ export function AbaJaProgramadas({
     return [...porDia.entries()]
   }, [grupos])
 
-  // O caminhão escolhido: o do link, se está na lista; senão, o primeiro.
+  // A rota escolhida: a do link, se está na lista (senão a 1ª rota do caminhão
+  // do link); senão, a primeira.
   const escolhido =
-    (foco && grupos.find((g) => g.chave === chaveGrupo(foco.dia, foco.caminhaoId))) ||
+    (foco &&
+      (grupos.find((g) => g.chave === chaveGrupo(foco.dia, foco.caminhaoId, foco.rota)) ||
+        grupos.find((g) => g.dia === foco.dia && g.caminhaoId === foco.caminhaoId))) ||
     grupos[0] ||
     null
   const rascunho = escolhido ? (rascunhos[escolhido.chave] ?? null) : null
@@ -245,8 +270,8 @@ export function AbaJaProgramadas({
     : trechoValido !== null
       ? `Trecho ${nomeDoTrecho(trechoValido, numerosNoMapa)}: ${textoTrecho(trechos[trechoValido])}`
       : estadoRota.estado === 'pronta'
-        ? `${escolhido.caminhaoNome} · ${ordenadas.length} parada(s) · ${pecas} peças · ${formatarDistancia(estadoRota.rota.distancia_m / 1000)} · ${formatarDuracao(estadoRota.rota.duracao_s)}`
-        : `${escolhido.caminhaoNome} · ${ordenadas.length} parada(s) · ${pecas} peças`
+        ? `${nomeDoGrupo(escolhido)} · ${ordenadas.length} parada(s) · ${pecas} peças · ${formatarDistancia(estadoRota.rota.distancia_m / 1000)} · ${formatarDuracao(estadoRota.rota.duracao_s)}`
+        : `${nomeDoGrupo(escolhido)} · ${ordenadas.length} parada(s) · ${pecas} peças`
 
   // ---- gestos ------------------------------------------------------------
   const invalidar = () =>
@@ -259,7 +284,7 @@ export function AbaJaProgramadas({
   const focar = useCallback(
     (g: Grupo) => {
       setTrecho(null)
-      aoFocar(g.dia, g.caminhaoId)
+      aoFocar(g.dia, g.caminhaoId, g.rota)
     },
     [aoFocar],
   )
@@ -285,7 +310,12 @@ export function AbaJaProgramadas({
 
   const salvarOrdem = useMutation({
     mutationFn: (v: { grupo: Grupo; cardIds: number[] }) =>
-      ordenarRota({ data: v.grupo.dia, caminhaoId: v.grupo.caminhaoId, cardIds: v.cardIds }),
+      ordenarRota({
+        data: v.grupo.dia,
+        caminhaoId: v.grupo.caminhaoId,
+        rota: v.grupo.rota,
+        cardIds: v.cardIds,
+      }),
     onSuccess: async (_d, v) => {
       notificar({
         titulo:
@@ -309,7 +339,8 @@ export function AbaJaProgramadas({
   })
 
   const reprogramar = useMutation({
-    mutationFn: (v: { cardId: number; data: string; caminhaoId: number }) => programarEntrega(v),
+    mutationFn: (v: { cardId: number; data: string; caminhaoId: number; rota: number }) =>
+      programarEntrega(v),
     onSuccess: async () => {
       notificar({ titulo: 'Entrega reprogramada', tom: 'perfeito' })
       setReprogramando(null)
@@ -405,7 +436,7 @@ export function AbaJaProgramadas({
           <h2 className="text-lg">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">
-              o caminhão escolhido aceso, na cor dele · os outros do mesmo dia transparentes
+              a rota escolhida acesa, na cor do caminhão · as outras do mesmo dia transparentes
             </span>
           </h2>
           <MapaProgramacao
@@ -416,7 +447,7 @@ export function AbaJaProgramadas({
           />
           {escolhido && (
             <PainelRota
-              titulo={`Rota do ${escolhido.caminhaoNome} · ${dataLegivel(escolhido.dia)}`}
+              titulo={`Rota do ${nomeDoGrupo(escolhido)} · ${dataLegivel(escolhido.dia)}`}
               cor={escolhido.cor}
               paradas={ordenadas}
               estado={estadoRota}
@@ -471,7 +502,7 @@ export function AbaJaProgramadas({
                       ativo ? 'border-acao-ativa ring-1 ring-acao-ativa' : 'border-borda',
                     )}
                     style={{ borderLeft: `8px solid ${g.cor}` }}
-                    aria-label={`${g.caminhaoNome} em ${dataLegivel(g.dia)}`}
+                    aria-label={`${nomeDoGrupo(g)} em ${dataLegivel(g.dia)}`}
                   >
                     <div className="flex flex-wrap items-center gap-3">
                       {foto ? (
@@ -499,6 +530,11 @@ export function AbaJaProgramadas({
                           {g.caminhaoPlaca && (
                             <span className="text-sm font-normal text-texto-suave">
                               · {g.caminhaoPlaca}
+                            </span>
+                          )}
+                          {g.variasRotas && (
+                            <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-semibold text-texto ring-1 ring-borda">
+                              {nomeDaRota(g.rota)}
                             </span>
                           )}
                         </span>
@@ -552,6 +588,8 @@ export function AbaJaProgramadas({
                               dia: g.dia,
                               caminhaoId: g.caminhaoId,
                               caminhaoNome: g.caminhaoNome,
+                              rota: g.rota,
+                              variasRotas: g.variasRotas,
                             })
                           }
                         >
@@ -562,7 +600,7 @@ export function AbaJaProgramadas({
                     {ativo && !entregues ? (
                       <ListaArrastavel
                         ids={idsOrdenados}
-                        rotulo={`Paradas do ${g.caminhaoNome}, na ordem`}
+                        rotulo={`Paradas do ${nomeDoGrupo(g)}, na ordem`}
                         aoReordenar={reordenar}
                       >
                         {(id, indice) => {
@@ -596,7 +634,9 @@ export function AbaJaProgramadas({
         </section>
 
         <ModalEquipe
-          key={equipeDe ? `${equipeDe.dia}-${equipeDe.caminhaoId}` : 'equipe-fechada'}
+          key={
+            equipeDe ? `${equipeDe.dia}-${equipeDe.caminhaoId}-${equipeDe.rota}` : 'equipe-fechada'
+          }
           alvo={equipeDe}
           aoFechar={() => setEquipeDe(null)}
         />
@@ -613,10 +653,16 @@ export function AbaJaProgramadas({
             diaInicial={reprogramando.programacao_data}
             caminhaoInicial={String(reprogramando.caminhao_id)}
             opcoesCaminhao={opcoesCaminhao}
+            padraoRota="ultima"
+            rotaAtual={{
+              dia: reprogramando.programacao_data,
+              caminhaoId: reprogramando.caminhao_id,
+              rota: reprogramando.rota ?? 1,
+            }}
             carregando={reprogramar.isPending}
             aoFechar={() => setReprogramando(null)}
-            aoConfirmar={(data, caminhaoId) =>
-              reprogramar.mutate({ cardId: reprogramando.card_id, data, caminhaoId })
+            aoConfirmar={(data, caminhaoId, rota) =>
+              reprogramar.mutate({ cardId: reprogramando.card_id, data, caminhaoId, rota })
             }
           />
         )}

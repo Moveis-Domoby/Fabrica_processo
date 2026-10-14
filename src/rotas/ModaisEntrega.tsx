@@ -103,7 +103,12 @@ export function ModalMotivoEntrega({
   const confirmar = useMutation({
     mutationFn: () =>
       tipo === 'devolucao'
-        ? marcarDevolvido({ cardId: pedido!.card_id, motivoId: motivoId!, observacao, pecas: escolhidas })
+        ? marcarDevolvido({
+            cardId: pedido!.card_id,
+            motivoId: motivoId!,
+            observacao,
+            pecas: escolhidas,
+          })
         : textos.acao({ cardId: pedido!.card_id, motivoId: motivoId!, observacao }),
     onSuccess: async () => {
       notificar({ titulo: `Pedido ${pedido?.numero}: ${textos.feito}`, tom: 'perfeito' })
@@ -139,7 +144,10 @@ export function ModalMotivoEntrega({
           <fieldset className="flex flex-col gap-1">
             <legend className="mb-1 text-sm font-medium text-texto">Quais peças voltaram</legend>
             {pecas.map((p) => (
-              <label key={p.id} className="flex min-h-toque-md cursor-pointer items-center gap-2 text-sm text-texto">
+              <label
+                key={p.id}
+                className="flex min-h-toque-md cursor-pointer items-center gap-2 text-sm text-texto"
+              >
                 <input
                   type="checkbox"
                   className="size-5 accent-[var(--dm-acao)]"
@@ -186,7 +194,15 @@ export function ModalMotivoEntrega({
         <div className="flex flex-wrap gap-2">
           <Botao
             type="submit"
-            icone={tipo === 'nao_entregue' ? <RotateCcw /> : tipo === 'devolucao' ? <PackageX /> : <Undo2 />}
+            icone={
+              tipo === 'nao_entregue' ? (
+                <RotateCcw />
+              ) : tipo === 'devolucao' ? (
+                <PackageX />
+              ) : (
+                <Undo2 />
+              )
+            }
             disabled={motivoId === null || (pecas !== undefined && escolhidas.length === 0)}
             carregando={confirmar.isPending}
           >

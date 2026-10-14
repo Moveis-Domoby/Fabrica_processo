@@ -94,7 +94,8 @@ export function ModalMoverCard({
   const mutacao = useMutation({
     mutationFn: async (estado: Estado) => {
       if (!card) throw new Error('Card não encontrado.')
-      if (concluir && !etapaDestino) return concluirProducao({ card, estadoQualidade: estado, operadorId })
+      if (concluir && !etapaDestino)
+        return concluirProducao({ card, estadoQualidade: estado, operadorId })
       if (!etapaDestino) throw new Error('Etapa de destino não encontrada.')
       const resultado = await soltarCard({
         card,
@@ -143,7 +144,9 @@ export function ModalMoverCard({
       aoFechar={(aberto) => {
         if (!aberto) aoFechar()
       }}
-      titulo={concluir ? 'Concluir produção' : `Mandar para ${setorDestinoNome ?? 'o próximo setor'}`}
+      titulo={
+        concluir ? 'Concluir produção' : `Mandar para ${setorDestinoNome ?? 'o próximo setor'}`
+      }
       descricao={
         card
           ? `${card.item_descricao ?? 'Card'}${kn} · ${rotuloOrigemCard(card, pedido)}`
@@ -186,8 +189,8 @@ export function ModalMoverCard({
         {card?.executor_atual_id && (
           <p className="rounded-dm bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
             Este card está <strong>em execução{executorNome ? ` por ${executorNome}` : ''}</strong>.
-            {/* D-24: mandar adiante nunca bloqueia; encerra a execução aberta. */}
-            {' '}Mandar adiante encerra o tempo agora — ele conta até este momento.
+            {/* D-24: mandar adiante nunca bloqueia; encerra a execução aberta. */} Mandar adiante
+            encerra o tempo agora — ele conta até este momento.
           </p>
         )}
 

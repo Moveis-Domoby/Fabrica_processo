@@ -32,7 +32,8 @@ export const AJUSTES_PEDIDO: { valor: AcaoAjustePedido; rotulo: string; explica:
   {
     valor: 'entregue',
     rotulo: 'Entregue',
-    explica: 'Fecha tudo do pedido na plataforma: as peças saem de todas as contas e ficam no histórico.',
+    explica:
+      'Fecha tudo do pedido na plataforma: as peças saem de todas as contas e ficam no histórico.',
   },
 ]
 

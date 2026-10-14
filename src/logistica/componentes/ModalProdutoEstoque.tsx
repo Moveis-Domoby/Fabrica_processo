@@ -42,7 +42,9 @@ export function ModalProdutoEstoque({
         produto
           ? [
               produto.codigo ? `SKU ${produto.codigo}` : 'sem SKU',
-              produto.posicao !== null ? `${rotuloPosicao(produto.posicao)} mais vendido em 90 dias` : null,
+              produto.posicao !== null
+                ? `${rotuloPosicao(produto.posicao)} mais vendido em 90 dias`
+                : null,
             ]
               .filter(Boolean)
               .join(' · ')

@@ -236,7 +236,9 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
       />
       <ModalDevolucoes
         aberto={devolucoesDe !== null}
-        produto={devolucoesDe ? { tinyId: devolucoesDe.tiny_id, descricao: devolucoesDe.descricao } : null}
+        produto={
+          devolucoesDe ? { tinyId: devolucoesDe.tiny_id, descricao: devolucoesDe.descricao } : null
+        }
         aoFechar={() => setDevolucoesDe(null)}
         aoDecidir={(cardId) => {
           setDevolucoesDe(null)

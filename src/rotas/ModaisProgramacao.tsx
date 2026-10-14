@@ -2,18 +2,31 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, Users } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
-import { definirEquipe, equipesDoDia, listarEntregadores, salvarDetalheEntrega } from './api'
+import {
+  definirEquipe,
+  listarEntregadores,
+  nomeDaRota,
+  rotasDoDia,
+  salvarDetalheEntrega,
+} from './api'
 
 /**
- * A equipe do caminhão no dia (SESSAO-30 · D-115): quem programa escolhe um ou
- * mais entregadores; eles passam a ver as entregas desse caminhão na tela
+ * A equipe da rota (SESSAO-30 · D-115 → SESSAO-31 · D-128: cada rota do
+ * caminhão no dia tem a sua — troca de turno): quem programa escolhe um ou
+ * mais entregadores; eles passam a ver as entregas dessa rota na tela
  * "Entregas do dia". Só carrega ao abrir (regra 17).
  */
 export function ModalEquipe({
   alvo,
   aoFechar,
 }: {
-  alvo: { dia: string; caminhaoId: number; caminhaoNome: string } | null
+  alvo: {
+    dia: string
+    caminhaoId: number
+    caminhaoNome: string
+    rota: number
+    variasRotas: boolean
+  } | null
   aoFechar: () => void
 }) {
   const notificar = useNotificacao()
@@ -26,21 +39,26 @@ export function ModalEquipe({
     enabled: alvo !== null,
     staleTime: 5 * 60_000,
   })
-  const { data: equipe = [], isPending: carregandoEquipe } = useQuery({
-    queryKey: ['equipes-do-dia', alvo?.dia],
-    queryFn: () => equipesDoDia(alvo!.dia),
+  const { data: rotas = [], isPending: carregandoEquipe } = useQuery({
+    queryKey: ['rotas-do-dia', alvo?.dia],
+    queryFn: () => rotasDoDia(alvo!.dia),
     enabled: alvo !== null,
   })
   const atuais = new Set(
-    equipe.filter((m) => m.caminhao_id === alvo?.caminhaoId).map((m) => m.usuario_id),
+    rotas
+      .find((r) => r.caminhao_id === alvo?.caminhaoId && r.rota === alvo?.rota)
+      ?.equipe.map((m) => m.id) ?? [],
   )
   const marcados = escolhidos ?? atuais
+  const nomeAlvo = alvo
+    ? `${alvo.caminhaoNome}${alvo.variasRotas ? ` · ${nomeDaRota(alvo.rota)}` : ''}`
+    : 'caminhão'
 
   const salvar = useMutation({
-    mutationFn: () => definirEquipe(alvo!.dia, alvo!.caminhaoId, [...marcados]),
+    mutationFn: () => definirEquipe(alvo!.dia, alvo!.caminhaoId, [...marcados], alvo!.rota),
     onSuccess: async () => {
       notificar({
-        titulo: `Equipe do ${alvo?.caminhaoNome} salva`,
+        titulo: `Equipe do ${nomeAlvo} salva`,
         descricao:
           marcados.size === 0
             ? 'Ninguém escolhido.'
@@ -48,7 +66,7 @@ export function ModalEquipe({
         tom: 'perfeito',
       })
       aoFechar()
-      await clienteQuery.invalidateQueries({ queryKey: ['equipes-do-dia'] })
+      await clienteQuery.invalidateQueries({ queryKey: ['rotas-do-dia'] })
       await clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] })
     },
     onError: (erro) =>
@@ -70,12 +88,13 @@ export function ModalEquipe({
     <Modal
       aberto={alvo !== null}
       aoFechar={(v) => !v && aoFechar()}
-      titulo={`Quem leva o ${alvo?.caminhaoNome ?? 'caminhão'}`}
+      titulo={`Quem leva o ${nomeAlvo}`}
       descricao={alvo ? new Date(`${alvo.dia}T12:00:00`).toLocaleDateString('pt-BR') : undefined}
     >
       <div className="flex flex-col gap-3">
         <p className="text-sm text-texto-suave">
-          Quem for marcado vê as entregas deste caminhão neste dia, na tela "Entregas do dia".
+          Quem for marcado vê as entregas desta rota neste dia, na tela "Entregas do dia". Cada rota
+          do caminhão tem a sua equipe (troca de turno).
         </p>
         {(carregandoPessoas || carregandoEquipe) && (
           <p className="text-sm text-texto-fraco">Carregando…</p>

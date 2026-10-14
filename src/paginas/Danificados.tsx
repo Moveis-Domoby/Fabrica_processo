@@ -311,7 +311,9 @@ function CartaoDanificado({
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums">
           <Clock aria-hidden className="size-4" />
-          {arquivado ? `arquivada em ${dataHora(item.arquivado_em)}` : `parada há ${formatarDuracao(item.desde, agora)}`}
+          {arquivado
+            ? `arquivada em ${dataHora(item.arquivado_em)}`
+            : `parada há ${formatarDuracao(item.desde, agora)}`}
         </span>
         {acoes && <span className="ml-auto flex flex-wrap gap-2">{acoes}</span>}
       </div>
@@ -356,9 +358,7 @@ function ModalResolver({
   )
   const setorEscolhido = Number(setorId) || null
   const mesmoSetor = setorEscolhido === item.setor_id
-  const etapasDoDestino = etapas.filter(
-    (e) => e.setor_id === setorEscolhido && !e.eh_danificado,
-  )
+  const etapasDoDestino = etapas.filter((e) => e.setor_id === setorEscolhido && !e.eh_danificado)
   // SESSAO-22 (D-48): destino de produção com fila não tem mais "Chegada" —
   // a fila é o padrão (o banco resolve igual se a etapa vier vazia).
   const setorDestinoInfo = setores.find((s) => s.id === setorEscolhido)
@@ -366,9 +366,7 @@ function ModalResolver({
   // SESSAO-24, Pedidos em aguardo também. O banco recusa o resto; a tela nem oferece.
   const destinoEhEstoque =
     setorDestinoInfo?.codigo === 'estoque' || setorDestinoInfo?.codigo === 'aguardo'
-  const estadosPermitidos: readonly Estado[] = destinoEhEstoque
-    ? ['perfeito']
-    : ESTADOS_QUALIDADE
+  const estadosPermitidos: readonly Estado[] = destinoEhEstoque ? ['perfeito'] : ESTADOS_QUALIDADE
   const filaDoDestino = etapasDoDestino.find((e) => e.eh_fila)
   const producaoComFila =
     setorDestinoInfo?.papel_no_fluxo === 'producao' && filaDoDestino !== undefined

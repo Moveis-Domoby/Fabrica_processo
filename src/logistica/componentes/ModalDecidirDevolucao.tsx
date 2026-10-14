@@ -1,15 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Ban,
-  Boxes,
-  PackageCheck,
-  Replace,
-  Store,
-  Truck,
-  Undo2,
-  Wrench,
-} from 'lucide-react'
+import { Ban, Boxes, PackageCheck, Replace, Store, Truck, Undo2, Wrench } from 'lucide-react'
 import { BadgeEstado, Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { buscarSetores } from '@/kanban/api'
@@ -34,8 +25,10 @@ const ICONE_DECISAO: Record<DecisaoDevolucao, React.ReactNode> = {
 const EXPLICA_DECISAO: Record<DecisaoDevolucao, string> = {
   reenviar:
     'A peça volta para Pedidos em aguardo. Com o pedido todo pronto, ele volta sozinho para as ROTAS → Programar. Pedido já entregue: a entrega reabre só aqui (o Tiny não muda).',
-  estoque: 'A peça fica livre no ESTOQUE da fábrica, sem dono. O pedido passa a precisar dela de novo.',
-  realocar: 'A peça vira a unidade de outro pedido vivo do mesmo produto, pronta em Pedidos em aguardo.',
+  estoque:
+    'A peça fica livre no ESTOQUE da fábrica, sem dono. O pedido passa a precisar dela de novo.',
+  realocar:
+    'A peça vira a unidade de outro pedido vivo do mesmo produto, pronta em Pedidos em aguardo.',
   danificados: 'A peça vai para os Danificados — de lá a logística resolve ou arquiva.',
   loja: 'A peça sai das contas da fábrica e fica registrado que foi para a loja.',
   ajuste:
@@ -114,7 +107,9 @@ export function ModalDecidirDevolucao({
 
   const aplicar = useMutation({
     mutationFn: () => {
-      const escolhaVaga = opcoes.find((o) => `${o.card_pedido_id}:${o.item_seq}:${o.indice_unidade}` === vaga)
+      const escolhaVaga = opcoes.find(
+        (o) => `${o.card_pedido_id}:${o.item_seq}:${o.indice_unidade}` === vaga,
+      )
       return decidirDevolucao({
         pecas: marcadas,
         decisao: decisao!,
@@ -127,7 +122,11 @@ export function ModalDecidirDevolucao({
                 indice_unidade: escolhaVaga.indice_unidade,
               }
             : decisao === 'ajuste'
-              ? { setor_id: Number(setorAjuste), destino_final: destinoFinal, descricao: descricaoAjuste }
+              ? {
+                  setor_id: Number(setorAjuste),
+                  destino_final: destinoFinal,
+                  descricao: descricaoAjuste,
+                }
               : {},
       })
     },
@@ -147,10 +146,19 @@ export function ModalDecidirDevolucao({
       setObservacao('')
       setVaga('')
       await Promise.all(
-        [['devolucao'], ['devolucoes'], ['estoque'], ['pcp-todos'], ['pcp-pedido-completo'], ['rotas'],
-          ['programacao'], ['pedidos-aguardo'], ['aguardo-contagens'], ['danificados'], ['cards']].map(
-          (queryKey) => clienteQuery.invalidateQueries({ queryKey }),
-        ),
+        [
+          ['devolucao'],
+          ['devolucoes'],
+          ['estoque'],
+          ['pcp-todos'],
+          ['pcp-pedido-completo'],
+          ['rotas'],
+          ['programacao'],
+          ['pedidos-aguardo'],
+          ['aguardo-contagens'],
+          ['danificados'],
+          ['cards'],
+        ].map((queryKey) => clienteQuery.invalidateQueries({ queryKey })),
       )
     },
     onError: (e) =>
@@ -193,7 +201,8 @@ export function ModalDecidirDevolucao({
             {data.devolucao ? (
               <p className="text-texto">
                 <strong>{data.devolucao.quem ?? 'Alguém'}</strong> marcou devolvido em{' '}
-                {quando(data.devolucao.quando)} — <strong>{data.devolucao.motivo ?? 'sem motivo'}</strong>
+                {quando(data.devolucao.quando)} —{' '}
+                <strong>{data.devolucao.motivo ?? 'sem motivo'}</strong>
                 {data.devolucao.observacao ? `: ${data.devolucao.observacao}` : ''}.
               </p>
             ) : (
@@ -293,7 +302,9 @@ export function ModalDecidirDevolucao({
               {decisao === 'realocar' && (
                 <div className="flex flex-col gap-2">
                   {marcadas.length !== 1 ? (
-                    <p className="text-sm text-atencao-texto">Marque uma peça só — cada uma vai para uma vaga.</p>
+                    <p className="text-sm text-atencao-texto">
+                      Marque uma peça só — cada uma vai para uma vaga.
+                    </p>
                   ) : buscandoOpcoes ? (
                     <p className="text-sm text-texto-fraco">Buscando pedidos com vaga…</p>
                   ) : opcoes.length === 0 ? (
@@ -324,10 +335,12 @@ export function ModalDecidirDevolucao({
                   />
                   <Selecao
                     rotulo="Destino final (ao terminar)"
-                    opcoes={(Object.keys(ROTULO_DESTINO_FINAL) as DestinoFinalAjuste[]).map((d) => ({
-                      valor: d,
-                      rotulo: ROTULO_DESTINO_FINAL[d],
-                    }))}
+                    opcoes={(Object.keys(ROTULO_DESTINO_FINAL) as DestinoFinalAjuste[]).map(
+                      (d) => ({
+                        valor: d,
+                        rotulo: ROTULO_DESTINO_FINAL[d],
+                      }),
+                    )}
                     valor={destinoFinal}
                     aoMudar={(v) => setDestinoFinal(v as DestinoFinalAjuste)}
                   />
@@ -354,7 +367,11 @@ export function ModalDecidirDevolucao({
                 <Botao variante="secundaria" icone={<Undo2 />} onClick={aoFechar}>
                   Fechar
                 </Botao>
-                <Botao disabled={!pronto} carregando={aplicar.isPending} onClick={() => aplicar.mutate()}>
+                <Botao
+                  disabled={!pronto}
+                  carregando={aplicar.isPending}
+                  onClick={() => aplicar.mutate()}
+                >
                   Aplicar a decisão
                 </Botao>
               </div>

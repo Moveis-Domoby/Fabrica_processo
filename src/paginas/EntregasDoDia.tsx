@@ -60,19 +60,22 @@ function dataLonga(iso: string): string {
  * própria ficou só para o entregador.
  */
 export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
-  const [caminhaoId, setCaminhaoId] = useState<number | null>(null)
+  // SESSAO-31 (D-128): a rota escolhida (caminhão + nº da rota no dia).
+  const [escolha, setEscolha] = useState<{ caminhaoId: number; rota: number } | null>(null)
   // A logística pode olhar outro dia (o entregador vê sempre o de hoje).
   const [dia, setDia] = useState<string | null>(null)
   const [verMapa, setVerMapa] = useState(true)
-  const [comMotivo, setComMotivo] = useState<{ tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao'>; entrega: EntregaDoDia } | null>(
-    null,
-  )
+  const [comMotivo, setComMotivo] = useState<{
+    tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao'>
+    entrega: EntregaDoDia
+  } | null>(null)
   const [comentando, setComentando] = useState<EntregaDoDia | null>(null)
   const [anexando, setAnexando] = useState<EntregaDoDia | null>(null)
 
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ['entregas-do-dia', dia, caminhaoId],
-    queryFn: () => entregasDoDia({ data: dia, caminhaoId }),
+    queryKey: ['entregas-do-dia', dia, escolha?.caminhaoId ?? null, escolha?.rota ?? null],
+    queryFn: () =>
+      entregasDoDia({ data: dia, caminhaoId: escolha?.caminhaoId, rota: escolha?.rota }),
   })
   // A rota mudou (outro entregador marcou, a logística programou) → AO VIVO (Lei §4).
   useAoVivo('rotas', [['entregas-do-dia']])
@@ -84,7 +87,11 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   const entreguesHoje = entregas.filter((e) => e.entregue_em)
   const feitas = entreguesHoje.length
   const [verEntregues, setVerEntregues] = useState(false)
-  const caminhao = data?.caminhoes.find((c) => c.id === data.caminhao_id)
+  const caminhao = data?.caminhoes.find((c) => c.id === data.caminhao_id && c.rota === data.rota)
+  // O nome da rota só aparece quando o mesmo caminhão tem mais de uma no dia.
+  const rotasDoCaminhao = (id: number) => data?.caminhoes.filter((c) => c.id === id).length ?? 0
+  const nomeDaEscolha = (c: { id: number; nome: string; rota: number }) =>
+    rotasDoCaminhao(c.id) > 1 || c.rota > 1 ? `${c.nome} · Rota ${c.rota}` : c.nome
 
   return (
     <div className={cn('flex w-full max-w-3xl flex-col gap-4', !embutida && 'mx-auto')}>
@@ -112,7 +119,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
             value={dia ?? data.data}
             onChange={(e) => {
               setDia(e.target.value || null)
-              setCaminhaoId(null)
+              setEscolha(null)
             }}
           />
         </div>
@@ -134,29 +141,32 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
       )}
 
       {data && data.caminhoes.length > 1 && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Caminhão">
-          {data.caminhoes.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              aria-pressed={c.id === data.caminhao_id}
-              onClick={() => setCaminhaoId(c.id)}
-              className={cn(
-                'min-h-12 rounded-dm border px-4 text-sm font-medium',
-                c.id === data.caminhao_id
-                  ? 'border-acao-ativa bg-acao/15 text-texto'
-                  : 'border-borda bg-superficie text-texto-suave',
-              )}
-            >
-              {c.nome} · {c.entregas}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Rota">
+          {data.caminhoes.map((c) => {
+            const ativa = c.id === data.caminhao_id && c.rota === data.rota
+            return (
+              <button
+                key={`${c.id}-${c.rota}`}
+                type="button"
+                aria-pressed={ativa}
+                onClick={() => setEscolha({ caminhaoId: c.id, rota: c.rota })}
+                className={cn(
+                  'min-h-12 rounded-dm border px-4 text-sm font-medium',
+                  ativa
+                    ? 'border-acao-ativa bg-acao/15 text-texto'
+                    : 'border-borda bg-superficie text-texto-suave',
+                )}
+              >
+                {nomeDaEscolha(c)} · {c.entregas}
+              </button>
+            )
+          })}
         </div>
       )}
 
       {caminhao && (
         <p className="text-sm text-texto">
-          <span className="font-medium">{caminhao.nome}</span>
+          <span className="font-medium">{nomeDaEscolha(caminhao)}</span>
           {caminhao.placa && <span className="text-texto-suave"> · {caminhao.placa}</span>}
           {caminhao.equipe.length > 0 && (
             <span className="text-texto-suave"> · {caminhao.equipe.join(', ')}</span>

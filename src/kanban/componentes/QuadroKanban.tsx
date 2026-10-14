@@ -16,13 +16,7 @@ import { CartaoUnidade } from './CartaoUnidade'
 import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
-import type {
-  Card,
-  Etapa,
-  ExecucaoAberta,
-  PedidoResumo,
-  Setor,
-} from '../tipos'
+import type { Card, Etapa, ExecucaoAberta, PedidoResumo, Setor } from '../tipos'
 
 /** Id de coluna no drag-and-drop para cards ainda sem etapa (PCP/terminais). */
 const CHEGADA = 'chegada'
@@ -240,9 +234,7 @@ function CardArrastavel(props: CardArrastavelProps) {
         isDragging ? 'z-10 cursor-grabbing' : 'cursor-grab',
       )}
       style={
-        transform
-          ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-          : undefined
+        transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
       }
     >
       <CartaoUnidade {...props} arrastando={isDragging} />
@@ -381,24 +373,24 @@ export function QuadroKanban({
       {producao && !temFila && (
         <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">
           <TriangleAlert aria-hidden className="size-5 shrink-0" />
-          Este setor ainda não tem uma etapa de fila cadastrada — os cards chegam sem etapa.
-          Um líder do setor ou admin cadastra a fila em Setores e etapas; feito isso, todo
-          card que chegar cai direto nela.
+          Este setor ainda não tem uma etapa de fila cadastrada — os cards chegam sem etapa. Um
+          líder do setor ou admin cadastra a fila em Setores e etapas; feito isso, todo card que
+          chegar cai direto nela.
         </p>
       )}
       {producao && temFila && chegada.total > 0 && (
         <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">
           <TriangleAlert aria-hidden className="size-5 shrink-0" />
-          {chegada.total} card(s) ainda estão sem etapa — arraste cada um para a fila do setor
-          (a coluna Chegada some quando esvaziar).
+          {chegada.total} card(s) ainda estão sem etapa — arraste cada um para a fila do setor (a
+          coluna Chegada some quando esvaziar).
         </p>
       )}
       {etapas.length === 0 && !producao && (
         <p className="flex items-center gap-2 rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
           <Inbox aria-hidden className="size-5 shrink-0" />
-          Este setor ainda não tem etapas internas cadastradas — os cards ficam na Chegada. Um
-          líder do setor ou admin cadastra as etapas em Estrutura (cada etapa nova já nasce
-          contando tempo).
+          Este setor ainda não tem etapas internas cadastradas — os cards ficam na Chegada. Um líder
+          do setor ou admin cadastra as etapas em Estrutura (cada etapa nova já nasce contando
+          tempo).
         </p>
       )}
     </DndContext>

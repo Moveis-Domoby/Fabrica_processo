@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ClipboardList, ExternalLink, MessageCircle, PackageX, Paperclip, Undo2 } from 'lucide-react'
+import {
+  ClipboardList,
+  ExternalLink,
+  MessageCircle,
+  PackageX,
+  Paperclip,
+  Undo2,
+} from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { detalhePedidoPcp } from '@/kanban/api'
@@ -264,6 +271,7 @@ export function PedidoCompleto({ pedidoId }: { pedidoId: number }) {
               <p className="text-texto">
                 Programado para {data(d.programacao.data)}
                 {d.programacao.caminhao && ` · ${d.programacao.caminhao}`}
+                {d.programacao.rota != null && ` · Rota ${d.programacao.rota}`}
                 {d.programacao.ordem && ` · parada ${d.programacao.ordem}`}
               </p>
               {d.programacao.equipe.length > 0 && (

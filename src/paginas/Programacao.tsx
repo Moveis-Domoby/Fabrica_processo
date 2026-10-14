@@ -24,8 +24,9 @@ const ABAS: Aba<AbaProgramacao>[] = [
  *   trechos e totais, os móveis de cada pedido, e Programar = dia + caminhão.
  * - **Já programadas** — todas as programações não entregues (e as entregues,
  *   se pedir), por dia e por caminhão, cada caminhão com a sua cor; o caminhão
- *   escolhido (`?dia=&caminhao=`) acende no mapa e a ordem dele se arrasta e se
- *   salva. O "dia lá em cima" da versão anterior saiu: o dia agora se escolhe
+ *   escolhido (`?dia=&caminhao=&rota=`) acende no mapa e a ordem dele se
+ *   arrasta e se salva. ↪️ SESSAO-31 (D-128): o caminhão faz várias rotas no
+ *   dia — cada rota com a sua ordem e a sua equipe. O "dia lá em cima" da versão anterior saiu: o dia agora se escolhe
  *   ao programar, e as programações de todos os dias estão nesta aba.
  *
  * Cada aba só busca o que ela mostra, e só quando está aberta (regra 17).
@@ -36,10 +37,12 @@ export function Programacao() {
   const aba: AbaProgramacao = parametros.get('aba') === 'programadas' ? 'programadas' : 'programar'
   const diaFoco = parametros.get('dia')
   const caminhaoFoco = Number(parametros.get('caminhao'))
-  const foco = diaFoco && caminhaoFoco > 0 ? { dia: diaFoco, caminhaoId: caminhaoFoco } : null
+  const rotaFoco = Math.max(1, Number(parametros.get('rota')) || 1)
+  const foco =
+    diaFoco && caminhaoFoco > 0 ? { dia: diaFoco, caminhaoId: caminhaoFoco, rota: rotaFoco } : null
 
   const irPara = useCallback(
-    (proxima: AbaProgramacao, focoNovo?: { dia: string; caminhaoId: number }) => {
+    (proxima: AbaProgramacao, focoNovo?: { dia: string; caminhaoId: number; rota: number }) => {
       setParametros((atual) => {
         const novos = new URLSearchParams(atual)
         if (proxima === 'programar') novos.delete('aba')
@@ -47,6 +50,7 @@ export function Programacao() {
         if (focoNovo) {
           novos.set('dia', focoNovo.dia)
           novos.set('caminhao', String(focoNovo.caminhaoId))
+          novos.set('rota', String(focoNovo.rota))
         }
         return novos
       })
@@ -54,7 +58,8 @@ export function Programacao() {
     [setParametros],
   )
   const focar = useCallback(
-    (dia: string, caminhaoId: number) => irPara('programadas', { dia, caminhaoId }),
+    (dia: string, caminhaoId: number, rota: number) =>
+      irPara('programadas', { dia, caminhaoId, rota }),
     [irPara],
   )
 
@@ -71,8 +76,8 @@ export function Programacao() {
           </h1>
           <p className="mt-1 max-w-2xl text-texto-suave">
             {aba === 'programar'
-              ? 'Marque os pedidos que vão, arraste para acertar a ordem, veja a rota pelas ruas (é só sugestão — a decisão é sua) e confirme com o dia e o caminhão.'
-              : 'Tudo o que já está programado, por dia e por caminhão. Escolha um caminhão para ver a rota dele no mapa e acertar a ordem.'}
+              ? 'Marque os pedidos que vão, arraste para acertar a ordem, veja a rota pelas ruas (é só sugestão — a decisão é sua) e confirme com o dia, o caminhão e a rota.'
+              : 'Tudo o que já está programado, por dia, caminhão e rota. Escolha uma rota para ver no mapa e acertar a ordem.'}
           </p>
         </div>
         <Abas
