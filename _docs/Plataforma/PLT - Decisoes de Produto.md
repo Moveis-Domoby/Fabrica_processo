@@ -410,6 +410,8 @@ O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowor
 
 **↩️ revisada em 2026-09-27 (D-59):** a pausa do líder saiu dos quadros junto com os botões — arrastar para PARADO ou para a fila fecha o tempo. O limite de 1 por pessoa e o "iniciar na fila avança" continuam (agora pelo arrasto).
 
+**↩️ revisada em 2026-10-14 (D-125, SESSAO-31):** a pausa volta, **com motivo** (lista "Motivos de pausa" + "Outro"), na **janela do card** (Pausar / Retomar); o **próprio operador** pausa o card dele, o líder/admin o de qualquer um do setor. Soltar no PARADO um card em execução pergunta o motivo (o tempo fecha como antes). Pausado continua sem contar tempo e sem ocupar o limite; retomar com outra execução aberta continua recusado.
+
 **Decidido (respostas do dono no início da SESSAO-22):**
 
 - **Limite de execuções por pessoa: o padrão vira 1** em todos os setores (↩️ revisa a D-24, que nascia "sem limite"). Segue **configurável por setor** — e a edição passa a ser permitida a **líderes (do próprio setor) e admins**, nas configurações do setor.

@@ -182,6 +182,7 @@ Preferida ao `<select>` nativo: o nativo não aceita alvo de toque grande nem es
 - **No celular sobe do rodapé** (folha inferior), na zona alcançável pelo polegar; no tablet centraliza.
 - Modal é para **uma decisão curta**. Fluxo com mais de um passo merece tela própria.
 - Rodapé: no celular a ação primária fica **em cima** (`flex-col-reverse`), porque é a mais alcançável.
+- **↪️ SESSAO-31:** `tamanho="tela"` — a janela grande (a janela do card): ocupa a tela no celular, larga no computador, corpo em duas colunas (`lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]`) que rolam cada uma por si. É a exceção do "uma decisão curta": é uma ficha, com link próprio.
 
 ### `<BadgeEstado>`
 
@@ -287,6 +288,9 @@ SESSAO-05.
   valida tudo — o front só mostra a mensagem que voltar ("finalize a urgência antes…").
   **↪️ SESSAO-24 (D-59):** Pausar/Retomar saíram dos quadros junto com os botões (arrastar
   para PARADO ou para a fila fecha o tempo); o estado "Pausado há X" continua sendo mostrado.
+  **↪️ SESSAO-31 (D-125):** Pausar/Retomar voltam **na janela do card** (no tablet, com PIN) e
+  pedem o motivo; a frente mostra **"Pausado · motivo · há X"** e, no card solto na etapa que
+  pede o motivo, **"Parado · motivo · há X"** (`Pause` + `atencao-texto`, `break-words`).
 - **Tempo em PCP no card de unidade é do PEDIDO:** linha discreta "Pedido ficou X em PCP"
   (entrada → liberação completa; "ainda contando" enquanto houver unidade por liberar).
   A linha do tempo repete o número num bloco próprio e desconta as pausas de cada execução
@@ -700,6 +704,18 @@ SESSAO-05.
 - **↪️ Excluir automação (D-107):** lixeira fantasma (44px, `aria-label` "Excluir a automação") ao lado do arquivar, na barra do editor; o "tem certeza?" na própria barra com o botão **`perigo`** "Sim, excluir"; ao excluir, aviso "Automação excluída — o que ela fez continua na Auditoria" e volta à lista. **Na Auditoria**, linha de automação que já não existe ganha a pílula **"Automação excluída"** (`danificado-fundo/texto`, ícone de lixeira 12px, `text-[11px] font-semibold`) ao lado do título; a marca não aparece nos "Detalhes".
 - **Filtros de "ativas / arquivadas"** nas listas de Automações e de Utilitários: **`FiltroPill` "Mostrar"** (o mesmo dos painéis), nunca caixinha de marcar solta — pedido do dono: *"esse modal de select não está no padrão do sistema"*. Caixinha de marcar fica para campo de formulário.
 - **Tela das automações** (`/super-admin/automacoes`): a lista (cartões com o selo **Ligada** `perfeito-*` / **Desligada** `superficie-sutil`, a frase do QUANDO, última vez e disparos em 24 h, "Ligar/Desligar" com o "tem certeza?" na própria linha — dois toques, sem caixa do navegador) e o editor (`?a=<id>` ou `?a=nova`): nome + Salvar (desligado quando nada mudou) + Ligar (desligado com mudança não salva ou sem passo), o canvas em grade com o painel de 22rem ao lado (embaixo abaixo de `lg`), o aviso âmbar dos blocos soltos, e **Últimas execuções** (selo da situação com ícone + texto, o que disparou em língua de gente, a condição, cada passo numerado com o resultado, "Trazer de volta" quando a automação arquivou; paginado no servidor). No tablet: lista, liga/desliga e histórico.
+
+### Kanban completo (SESSAO-31 / D-125…D-131) — `src/kanban/{janela,lancamento}/`
+
+- **O quadro numa requisição:** `useQuadro(setorId)` (`src/kanban/useQuadro.ts`) é o padrão de quadro — assina o canal do setor **antes** de ler, 1 releitura por aviso, recuperação ao reconectar, `moverOtimista` no soltar, "Ver mais" por coluna (cursor). Quadro novo nasce com ele; nunca consulta por coluna nem relógio.
+- **Abrir um card de qualquer tela:** `useAbrirCard()` põe `?card=<id>` no endereço; `<JanelaDoCardNaUrl>` (montado na casca e no tablet com `modo="tablet"`) desenha a `<JanelaDoCard>` — um componente só. Clicar ≠ arrastar (o clique do fim do arrasto é ignorado); Enter abre, Espaço pega. No sino, o destino do aviso pode ser um card.
+- **A janela:** `Modal tamanho="tela"`; à esquerda o card (cabeçalho: onde está · nome · estado com ícone + texto · vínculo; propriedades em grade de 2 colunas com o lápis de quem pode editar; descrição; tempo e histórico **no clique**; anexos **no clique**); à direita a **conversa** (`colunaDireita`). No tablet só para ver e sem cliente (D-28), exceto Pausar/Retomar com PIN.
+- **Anexos** (`AnexosDoCard`, `GravadorDeAudio`): imagem com miniatura, PDF abre no navegador, áudio com `<audio>`; enviar por botão, arrastar e soltar, câmera (`capture`) e gravar (até 5 min, para sozinho); tirado = some, o admin vê com "Mostrar os tirados".
+- **Conversa do card** (`ConversaDoCard`): bolhas como o chat, 10 por página com "Ver anteriores", filtro de duas pílulas (`radiogroup` "Mostrar") **Só conversa | Tudo** (os fatos do card em língua de gente, `texto-suave` e menor), compositor com **@menção** (lista do servidor, espera 300 ms, 2 letras), "editada" / "Mensagem apagada" (o admin vê o texto, riscado). O **cartão de menção** no chat particular segue o desenho do cartão de aniversário: "📌 mencionou você no card …", o trecho e o botão **Abrir card**.
+- **Lançamento manual** (aba do PCP, pedaço próprio): `Novo card` primário; criação rápida (nome + Enter) com atalhos em pílula (responsável · datas · prioridade/etiqueta) e "Mais detalhes"; `FiltroPill` **Mostrar** A lançar · Em produção · Concluídos; seletores de pessoa e de etiqueta reaproveitáveis em `lancamento/Seletores.tsx`.
+- **Frente do card** (`CartaoUnidade`): só o que o card tem — título do avulso (até 2 linhas), `EtiquetasDoCard`, rostos dos responsáveis (até 3 + "+N", nome no texto acessível), vencimento com `CalendarClock`/`TriangleAlert` + texto ("Venceu em dd/mm — atrasado", "Vence hoje"), o botãozinho da descrição (`<Dica icone>` com `AlignLeft` — passar o mouse / tocar), vínculo em linha pequena, contadores `Paperclip`/`MessageSquare`, selo do ajuste (`Wrench` + "Ajuste · vai para …"). Tudo projetado no card — a frente nunca faz consulta.
+- **Motivo de pausa** (`ModalMotivoPausa`): a lista de Utilitários em **rádios grandes** (rótulo inteiro clicável, borda `acao-ativa` no escolhido; `galpao` no tablet) + "Outro" com campo; o detalhe é opcional com motivo da lista. Serve ao Pausar (janela) e ao Parar (soltar na etapa que pede o motivo).
+- **Setores e etapas:** as chaves do estado da peça (enviar/receber × tipo de card) e, na etapa, a rota "Conclui a produção" e a caixinha **"Parar aqui pede o motivo"**; pílulas de etapa: "manda para …", "conclui a produção" (`perfeito-*`), "pede o motivo" (`atencao-*`, `Pause`).
 
 ## 5. Regras de escrita da interface
 

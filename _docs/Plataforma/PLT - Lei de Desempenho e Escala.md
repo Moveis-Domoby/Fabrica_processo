@@ -211,10 +211,12 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Janela do card e conversa (telas novas):** abrir = 1 requisição (~2 ms no banco); histórico e anexos no clique; links dos anexos numa chamada só; a conversa pelo canal privado do card (sem releitura; 300 mensagens: 20 ms); a janela e a conversa são pedaços próprios (22,0 + 12,5 kB).
 - **#7 RLS dos cards:** `plt_cards_leitura` reescrita com as funções de sessão em `(select …)` (a permissão no token segue para a 32).
 - **Pacote:** a aba Lançamento manual é pedaço próprio (20,0 kB / 5,7 kB gz); JS principal 1.894,6 → 1.906,1 kB (516,2 → 519,4 kB gz) com o quadro novo e a frente do card.
+- **Fechamento (14/10, ~04:00):** o carregador antigo do quadro (uma consulta por coluna, com relógio) saiu do código. **Advisors:** nenhum item de tipo novo; as chaves estrangeiras criadas na sessão têm índice (as 33 sem índice são as antigas — #8); os índices "sem uso" subiram de 18 para 34 porque os desta sessão nasceram hoje (telas publicadas há horas). **Pacote do primeiro carregamento:** 1.862,5 kB / 507,1 kB gz (fim da 30) → **1.930,9 kB / 528,8 kB gz** (principal + Supabase + runtime) — a janela (23,7 kB), a conversa (12,5 kB) e o Lançamento manual (14,4 kB) são pedaços próprios; o resto é a dívida #4. **Registro de uso (`pg_stat_statements`):** nenhuma porta nova no topo; a porta do quadro do PCP (pedidos) tem média de 157 ms no histórico — dívida 16.
 
 | 13 | Portas do estoque montam a página a partir do catálogo inteiro (O(catálogo)) — ver o andamento acima | estoque | 32 |
 | ~~14~~ | ~~ROTAS → Entregas e "Já programadas" (entregues) por deslocamento~~ — ✔ paga pela D-120 (o entregue saiu da ROTAS; o histórico mora em "Todos os pedidos", por cursor) | ROTAS | 30 |
 | 15 | Estoque abre com 3 requisições e o PCP com várias — falta a porta de abertura de cada tela (Lei §2) | Estoque, PCP | 32 |
+| 16 | A porta do quadro do PCP (`plt_fn_pedidos_kanban`) com média de 157 ms (máx. 2,3 s) no registro de uso — acima do teto de 50 ms; a 31 tocou o PCP só com a aba nova (Lançamento manual, dentro da lei) | PCP | 32 |
 
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 

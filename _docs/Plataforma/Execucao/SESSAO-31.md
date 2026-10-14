@@ -73,9 +73,9 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - [x] G1 · Motivos de pausa em Utilitários (lista + "Outro"); arrastar para PARADO um card em execução pede o motivo; Pausar/Retomar na janela; quem pausa (D-125); motivo na frente e no histórico; regras da D-48 intactas
 
 **Fechamento**
-- [ ] H1 · Checklist final: `npm run test:banco` 2×, `npx tsc -b`, lint, testes, build, 375/768 px, advisors (segurança e desempenho), `pg_stat_statements`, checklist da lei (§12) com pacote antes/depois, critérios de aceite um a um
-- [ ] H2 · ClickUp: cada tarefa em FAZENDO ao começar, comentário ao terminar, nunca concluir; os 4 ajustes sem tarefa → handoff
-- [ ] H3 · Handoff + mapa + próximos passos + ordem das sessões + esquema do banco + lei (§14) + modelo de sistema
+- [x] H1 · Checklist final: `npm run test:banco` 2×, `npx tsc -b`, lint, testes, build, 375/768 px, advisors (segurança e desempenho), `pg_stat_statements`, checklist da lei (§12) com pacote antes/depois, critérios de aceite um a um
+- [x] H2 · ClickUp: cada tarefa em FAZENDO ao começar, comentário ao terminar, nunca concluir; os 4 ajustes sem tarefa → handoff
+- [x] H3 · Handoff + mapa + próximos passos + ordem das sessões + esquema do banco + lei (§14) + modelo de sistema
 
 ## Diário
 
@@ -149,3 +149,15 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - **Tela:** soltar no PARADO um card **em execução** abre "Por que parar?" (lista + "Outro"; no tablet, PIN antes e botões grandes); a janela do card tem **Pausar / Retomar** (pelas permissões que a própria janela traz; **no tablet, com PIN** — exceção à janela "só para ver"); a frente: **"Pausado · motivo · há X"** e **"Parado · motivo · há X"**; Utilitários → Motivos ganhou **"Motivos de pausa"** (cache longo, relê quando a lista muda); o histórico já mostrava a observação do fato — o motivo aparece lá.
 - **Harness:** **bloco 73** (7 verificações) + o teste antigo da pausa revisto (o próprio executor pausa). **970 verdes.** Tela: tsc, lint, **162 testes** (1 novo: o arrasto para o PARADO), build (a janela 23,7 kB; o principal + Supabase ≈ 1.919 kB).
 - **Banco real:** ensaio desfeito (pausar com motivo → na frente; retomar; parar no PARADO → tempo fechado, motivo no card; quadro da MONTAGEM 4,9 ms; janela 3,4 ms) → **73 aplicada**; conferido depois: só MONTAGEM · PARADO pede o motivo; anônimo fora.
+
+### 14/10 · Etapa H — fechamento (~04:10 Natal)
+
+- **Bateria do banco 2× (970 / 0), tsc, lint, 162 testes, build** — tudo verde. 375/768 px e aba Rede: **pendentes com o dono** (navegador do app sem login; o Claude não entra com senha).
+- **Código morto:** o carregador antigo do quadro (`useColunasPaginadas` + `buscarCardsDaEtapa` — uma consulta por coluna, com relógio) saiu; o Modelo de Sistema aponta para `useQuadro`.
+- **Advisors:** segurança — nada novo além do padrão da casa (portas `security definer` para logado; anônimo fora; `pg_net` no public, senha vazada desligada — antigos); desempenho — nenhum tipo novo; as 33 FKs sem índice são antigas; "sem uso" 18 → 34 (índices desta sessão, nascidos hoje).
+- **`pg_stat_statements`:** nenhuma porta nova no topo; a do quadro do PCP (pedidos) com média 157 ms → **dívida 16** da lei.
+- **Pacote do primeiro carregamento:** 1.862,5 / 507,1 kB gz (fim da 30) → 1.930,9 / 528,8 kB gz.
+- **Task list × demanda:** A1…G1 conferidos contra os §1–§4c/§4b e os critérios de aceite (tabela no handoff).
+- **ClickUp:** as 7 tarefas em FAZENDO, cada uma com comentário; nenhuma concluída. Os 4 ajustes não têm tarefa → handoff.
+- **Decisões:** ↩️ anotado na D-48 (a pausa volta com motivo; o próprio operador pausa).
+- **Handoff:** [[handoff_2026_10_14_sessao31_kanban_completo]]; mapa, próximos passos, ordem das sessões e o Resultado da demanda atualizados.
