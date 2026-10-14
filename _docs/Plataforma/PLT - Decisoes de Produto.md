@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-10-08
+atualizado: 2026-10-14
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -61,6 +61,9 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 **Decidido:** a plataforma nasce sobre o Supabase que já recebe os pedidos do Tiny (P15 — dupla escrita ativa). Card criado automaticamente quando o pedido entra; zero sincronização entre bancos. O schema cresce com as tabelas novas (etapas, eventos de movimentação, usuários, perfis, visualizações salvas). **Regra do cofre continua valendo:** antes de qualquer SQL, ler [[SUPA - Esquema do Banco]].
 
 ## D-09 · Qualidade em 3 estados em TODA transição, com dupla atestação (19/08/2026)
+
+**↩️ revisada em 2026-10-14 (D-126):** a marcação deixa de ser obrigatória — vira chave por setor, por tipo de card, no envio e no recebimento; nasce tudo desligado.
+
 
 **Decidido (pedido da equipe, trazido pelo dono):** o estado físico da peça impacta completamente o andamento entre setores — e **um setor pode dizer que algo está bom apenas para prejudicar o próximo**. Por isso a atestação é **dupla**: quem entrega marca, quem recebe confirma.
 
@@ -139,6 +142,9 @@ Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o in
 **Descartadas:** autocadastro com aprovação (porta a mais para vigiar, sem função com senha padrão + convite); tabela separada de "dados internos" (dificultaria a gestão futura, viola a intenção do dono); e-mail automático de convite (exigiria SMTP configurado; o link por WhatsApp resolve).
 
 ## D-22 · Kanban: liberação parcial, destino livre, PCP com visão completa (27/08/2026)
+
+**↩️ revisada em 2026-10-14 (D-125):** existe card de produção digitado à mão — o card avulso.
+
 
 **Decidido (respostas do dono no início da SESSAO-04):**
 
@@ -603,6 +609,9 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-59 · Quadros de produção só por arrasto; o único botão é "Concluir produção", na LIMPEZA E EMBALAGEM (27/09/2026) — ↩️ revisa a D-24, a D-48 e a D-03
 
+**↩️ revisada em 2026-10-14 (D-125/D-127):** o "Concluir produção" sai da LIMPEZA E EMBALAGEM (concluir = soltar na EXPEDIÇÃO); o botão "Concluir" fica só no card avulso; Pausar/Retomar voltam dentro da janela do card e arrastar para PARADO um card em execução pede o motivo.
+
+
 **Decidido (resposta a1 do dono, depois de um alinhamento com a equipe da fábrica):** *"um móvel só vira móvel na parte de montagem; até a montagem ele é um plano de corte dividido em várias peças de outros móveis até. Então, por enquanto, vamos remover todos os botões, eles preferem que tudo seja arrastando, é mais rápido. Se o cara mover de 'a montar' para 'montando', esse card já deve ser instantaneamente iniciado, não o contrário; se ele mover para 'montado', o card já deve ir para o próximo setor, que é limpeza e embalagem. O único lugar que terá o botão de concluir é no setor de limpeza e embalagem: todos os móveis que vão para estoque passam por ele e eles que movem para estoque, seja móvel para estoque de fato, ou móvel já reservado por algum pedido."* E: *"já existe a etapa de fila, início e conclusão em todos os setores."*
 
 - **Soltar o card na etapa de INÍCIO** (a próxima depois da fila — a mesma regra da D-48↪️) **inicia o tempo de quem arrastou**, na mesma hora. O limite de 1 por pessoa (D-48) e o parecer de quem recebe (D-09) continuam valendo.
@@ -663,6 +672,9 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 > Numeração: a SESSAO-24 (que rodou em paralelo com a 26) usou D-58…D-62; a D-63 é do ajuste do Frete (28/09); a D-64 ficou sem uso.
 
 ## D-65 · Chat interno: canais, particulares e Avisos gerais — quem cria, quem escreve, quem lê (27/09/2026)
+
+**↩️ revisada em 2026-10-14 (D-131):** a mensagem pode ser editada e apagada pelo autor; admin/super admin veem as apagadas nas conversas a que têm acesso (a particular dos outros continua fechada).
+
 
 **Decidido (respostas do dono no início da SESSAO-26):**
 
@@ -1004,6 +1016,9 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-101 · Utilitários: etiquetas (várias por card, só a automação põe e tira) e campos customizados (peças e pedidos; automação e admin preenchem) (01/10/2026)
 
+**↩️ revisada em 2026-10-14 (D-125):** quem pode editar o card põe e tira etiqueta; criar etiqueta é de líder e admin (nome repetido recusado); campo customizado vale também em card avulso.
+
+
 **Decidido (respostas 2 e 3 do dono e as escolhas de 01/10):** *"Crie uma aba na página de admin chamada Utilitários, lá dentro coloque para cadastrar etiquetas e campos customizados"*; etiquetas *"quantas eu quiser colocar, para tirar deve ter o nó de remover etiquetas"*; campos **nas peças, no card do pedido e nos pedidos**, preenchidos **pela automação e pelo admin**.
 
 - **Configurações → Utilitários** (só admin), em abas: **Etiquetas** (nome + uma de 6 cores da paleta das etiquetas — sem verde/âmbar/vermelho da qualidade nem o amarelo da ação) e **Campos customizados** (texto, número, data, lista de opções, sim/não; valem nas peças, nos pedidos ou nos dois). Usado não se exclui — arquiva (a história fica).
@@ -1109,6 +1124,9 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-111 · A Programação em duas abas — "Programar" e "Já programadas"; itens sempre à vista; ordenar a lista; marcou, sobe e se arrasta; cada caminhão com a sua cor; o trecho aceso (03/10/2026) — ↩️ revisa a D-109 (botões) e a D-110 (lugar)
 
+**↩️ revisada em 2026-10-14 (D-128):** o caminhão pode fazer várias rotas no mesmo dia, cada uma com ordem e equipe próprias.
+
+
 **Pedidos do dono depois de testar a rota com a carga de teste (03/10), com as respostas às dúvidas:**
 - *"coloque uma opção de ver todas as programações já realizadas"* + *"quando altero o dia lá em cima … troque isso para uma aba filha de programação que mora dentro da tela mesmo chamada 'Já programadas'"* → a tela ganha duas abas filhas (na URL): **Programar** e **Já programadas**. O "dia lá em cima" saiu — o dia se escolhe ao programar. Em "Já programadas": **só as não entregues** (por dia e por caminhão, o dia mais perto primeiro), com o botão **"Ver entregues"** (resposta: *"Apenas as não entregues, mas coloque o botão de ver entregues"*); paginada no servidor ("Ver mais").
 - *"se eu selecionar diferentes caminhões, eles ficam sem prioridade visual além da imagem e ficam separados"* → **cada caminhão tem a sua cor** (faixa do grupo, contorno das paradas, linha no mapa) e as entregas dele ficam **juntas, na ordem da rota**. Escolher um caminhão acende a rota dele; **os outros caminhões do mesmo dia ficam transparentes** no mapa.
@@ -1146,6 +1164,9 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-114 · Cancelado ou devolvido com o móvel pronto vai SOZINHO para o estoque — inclusive da ROTAS e do caminhão; o marcador "Devolvido" do Tiny vale como cancelamento (08/10/2026) — ↪️ D-61
 
+**↩️ revisada em 2026-10-14 (D-129):** o "Pedido devolvido" deixa de mandar ao estoque — as peças ficam "Em decisão pós devolução" e a logística decide; quem marca é a logística, não o entregador.
+
+
 **↩️ revisada em 2026-10-13 (D-124):** o marcador "Devolvido" do Tiny deixa de valer como cancelamento — a fábrica ainda tenta recuperar a venda (a remoção é da SESSAO-31). O cancelado continua indo sozinho ao estoque.
 
 **Decidido (respostas 2 e 1a/2 do dono, 08/10):** *"Se o pedido for cancelado ou devolvido e o móvel já estiver montado, não tem essa de logística confirmar, o produto automaticamente já deve ir para o estoque."*
@@ -1155,6 +1176,9 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **"Pedido devolvido" marcado pelo entregador** (D-115): o móvel volta ao ESTOQUE sem dono aqui e **o Tiny não muda** (resposta 1a — devolução mexe com dinheiro e nota fiscal; o comercial trata lá).
 
 ## D-115 · O entregador: usuário só de ROTAS, a tela das entregas do dia, a equipe de cada caminhão e o card com volumes (08/10/2026) — ↪️ D-39/D-109/D-111
+
+**↩️ revisada em 2026-10-14 (D-128/D-129):** o botão "Pedido devolvido" sai da tela do entregador; a equipe passa a ser de cada rota do dia.
+
 
 **Decidido (respostas 3 e 4 do dono, 08/10):**
 
@@ -1232,6 +1256,84 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Fica como está** (o resto da D-114): cancelado no Tiny com móvel pronto — inclusive na ROTAS e no caminhão — vai sozinho ao ESTOQUE.
 - **A conferir com o dono no início da SESSAO-31:** o botão **"Pedido devolvido"** do entregador (D-115) também deixa de mandar os móveis ao ESTOQUE sem dono (para a fábrica tentar recuperar a venda), ou continua como está?
 - **Confirmadas pelo dono na mesma resposta ("deixar apenas os outros do jeito que está"):** a ↩️ da D-63 (o PCP libera só para setor de produção; a peça pronta do estoque vai pela sugestão "usar?") e a D-119 (o ranking das vendas anda de madrugada).
+
+## D-125 · O card avulso: quem cria, como termina, vínculo, etiquetas, quem vê, quem edita, anexos e pausa (13–14/10/2026, respostas do dono no início da SESSAO-31) — ↩️ revisa a D-22, a D-59 e a D-101
+
+**Decidido (respostas às perguntas 1–10 da [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]]):**
+
+- **Quem cria card avulso:** o PCP/logística, os líderes e o admin (1).
+- **Como termina:** um botão **"Concluir"** que existe **só no card avulso**, em **qualquer setor** — vai para "Concluídos" (2). Os outros cards continuam como estão. **O vínculo é só referência:** o avulso nunca vira peça no estoque nem peça a mais do pedido — é trabalho registrado, com tempo (entra nos tempos por setor e por pessoa; fica fora de estoque, reservas, Top X e "peças concluídas"). Para produzir peça para o estoque, existe o reabastecimento. Exceção: o **ajuste de peça** (D-130).
+- **"Peça" no vínculo** = uma peça que já está no quadro; insumo e matéria-prima entram por "Produto" (o catálogo do Tiny da fábrica). **Um vínculo por card** (4).
+- **Etiquetas:** quem pode editar o card põe e tira; **criar etiqueta nova** (do card ou em Utilitários) só **líder e admin**; **nome repetido é recusado** — sem ligar para maiúsculas, acentos e espaços, contando também as arquivadas (5). ↩️ **D-101** ("só a automação põe e tira").
+- **Quem vê:** o **responsável** e quem foi **mencionado** passam a abrir **aquele card** (e conversar nele), mesmo fora do setor (6).
+- **Quem edita** descrição, datas, responsáveis e campos: no avulso, **quem criou, os responsáveis, o líder do setor onde ele está e o admin**; nos cards de pedido e de peça, **o PCP/logística, o líder e o admin** (7).
+- **Anexos:** até **25 MB** por arquivo; áudio até **5 minutos**; **gravar áudio pelo app**; o anexo removido **some para todos**, mas o arquivo **fica guardado** e só o admin vê (8).
+- **Pausa:** motivos de uma **lista cadastrada + "Outro"** com texto; **o próprio operador pausa o card dele**, e o **líder/admin pausa o de qualquer um do setor**; retomar: o próprio, o líder ou o admin (9). ↩️ **D-59/D-48**: Pausar/Retomar voltam, dentro da janela do card, e arrastar para PARADO um card em execução pede o motivo.
+- **Campo customizado** passa a poder valer em cards avulsos. ↩️ **D-101**.
+- ↩️ **D-22:** existe card de produção que não nasce de pedido nem de reposição — o avulso, digitado à mão pelo PCP/líder/admin.
+- **Mensagem pode ser editada e apagada** — ver D-131 (resposta 10).
+
+## D-126 · A marcação do estado da peça (perfeito/atenção/danificado) vira CONFIGURAÇÃO — por setor, por tipo de card, no envio e no recebimento; nasce tudo desligado (13–14/10/2026, pedido do dono) — ↩️ revisa a D-09, a D-25, a D-54 e a D-58
+
+**Pedido do dono:** *"remova essa marcação, deixe como uma opção de ligar e desligar e para quais tipos de card deve ser ligado ou desligado, para qual setor também"* · *"deve ter a opção de confirmar situação no envio e no recebimento, pode ser que eles queiram colocar para que um setor declare que a peça saiu em perfeito estado, mas que outro setor não precise confirmar o estado de chegada, então isso deve ser bem personalizado"*.
+
+- Cada setor tem **duas chaves**, cada uma com os **tipos de card** em que vale (peça de pedido, peça de reposição/estoque, avulso): **"Pedir o estado ao enviar"** (quem tira a peça do setor marca) e **"Pedir o estado ao receber"** (o setor confirma o estado na chegada, antes de começar). As duas são independentes: um setor pode declarar a saída sem que o próximo precise confirmar a chegada, e vice-versa.
+- **Tudo nasce desligado** (*"remover a solicitação de estado da peça"*): sem chave ligada, mover, encaminhar e concluir não perguntam nada.
+- Quando as duas pontas marcam, a divergência continua indo para a dashboard e o aviso aos líderes/admins (D-09/D-25) continua saindo para 🟡, 🔴 e divergência. Danificado continua indo para DANIFICADO.
+- **Os fins de linha** (ESTOQUE, Pedidos em aguardo) continuam recusando peça marcada 🟡 ou 🔴; **peça sem marcação entra normalmente** (antes, "só peça 🟢").
+- Quem configura: **admin** (Configurações → Setores e etapas) — decisão provisória do Claude (a qualidade entre setores é exatamente o ponto em que um setor pode prejudicar o outro — D-09; por isso não ficou com o líder do próprio setor).
+- ↩️ **D-09** (lei — "obrigatório marcar em TODA transição"): o dono revogou a obrigatoriedade; a dupla atestação passa a existir **onde ele ligar**.
+
+## D-127 · A LIMPEZA E EMBALAGEM conclui pela etapa EXPEDIÇÃO — o botão "Concluir produção" sai (13–14/10/2026, pedido do dono) — ↩️ revisa a D-59
+
+**Pedido do dono:** *"Setor de limpeza e embalagem não deve mais possuir o botão de concluir card, o concluir card do setor de limpeza e embalagem deve ser a movimentação para a etapa expedição."*
+
+- **Soltar a peça na EXPEDIÇÃO** (LIMPEZA E EMBALAGEM) faz o que o botão fazia: peça de pedido vivo → **Pedidos em aguardo**; peça sem pedido (reposição) ou de pedido cancelado → **ESTOQUE, sem dono**. Estado da peça só se a chave da D-126 estiver ligada para aquele setor e tipo.
+- É **dado** (a rota da etapa, editável em Setores e etapas — D-60): a EXPEDIÇÃO passa a "concluir a produção"; outra etapa pode receber a mesma rota.
+- **O "Concluir" fica só no card avulso** (D-125), em qualquer setor. No avulso, soltar na EXPEDIÇÃO só move (ele termina pelo "Concluir") — exceção: o **ajuste de peça** (D-130) aplica o destino final.
+- As **6 peças** que a equipe já tinha posto na EXPEDIÇÃO em 13/10 (pedidos 13177 e 13207) vão para Pedidos em aguardo quando a regra entra (resposta F).
+
+## D-128 · Várias rotas por dia no mesmo caminhão — cada rota com o seu dia, a sua ordem e a sua equipe (13–14/10/2026, pedido do dono) — ↩️ revisa a D-111 e a D-115
+
+**Pedido do dono:** *"deve ser possível programar mais de uma rota por dia, pois lá eles podem fazer 3, 4, ou até mais rotas em um único dia"* · *"cada programação será definida o próprio dia, a ordem e cada entregador, pode ser que tenha troca de turno no mesmo caminhão e a terceira rota seja outra pessoa"*.
+
+- O mesmo caminhão faz **várias viagens no dia** (sai da fábrica, entrega, volta, carrega de novo): **"Rota 1", "Rota 2"…** do caminhão naquele dia, cada uma com **mapa, ordem das paradas, distância e tempo próprios** (fábrica → paradas → fábrica).
+- **A equipe (entregadores) é de cada rota** — troca de turno no mesmo caminhão é normal; a rota nova já vem preenchida com a equipe da rota anterior do mesmo caminhão (só sugestão — decisão provisória do Claude), e se muda à vontade.
+- O entregador vê as rotas do dia em que está, na ordem.
+
+## D-129 · Devolução: o entregador não marca mais "Pedido devolvido"; a LOGÍSTICA marca, as peças ficam "Em decisão pós devolução" e a logística decide (13–14/10/2026, pedido do dono) — ↩️ revisa a D-114, a D-115 e a D-124
+
+**Pedido do dono:** *"remova o botão pedido devolvido, me contaram hoje que o entregador não pode ter esse controle nas mãos, uma vez que sempre que o pedido é devolvido, a fábrica não cadastra em estoque logo em seguida, primeiro o produto volta para a loja para tentar renegociar com o cliente"* · *"no estoque apareça mais uma linha caso o produto seja devolvido e esse produto fica aguardando decisão da logística … além da linha de reservado para produção, reservado para venda, será adicionada a linha de 'Em decisão pós devolução'"* · *"siga essa do botão para a logística, a própria recebe uma notificação e aparece uma telinha de 'Decidir situação' para que a logística apenas receba o mini relatório com o motivo … e decida o que fazer, devolver ao estoque, reenviar produto, realocar peça para outro pedido e opções do tipo"* · *"se chegou danificada, vai para danificados, devolução de peça já entregue pode ocorrer também"*.
+
+- **O entregador perde o botão "Pedido devolvido"** (a tela dele fica com Comentário · Entregue · Não entregue · Comprovante · WhatsApp · Mapa). O "Não entregue" fica como está.
+- **A logística (e o admin) marca "Pedido devolvido"**, com motivo (lista própria em Utilitários) e observação — em ROTAS → Entregas (pedido na ROTAS) e na janela completa do pedido no PCP (inclusive **pedido já entregue**). O Tiny não muda.
+- As peças do pedido ficam **"Em decisão pós devolução"** — continuam do pedido, saem da ROTAS e da programação, e aparecem no **Estoque** numa linha nova ao lado de "reservados em venda" e "reservados para produção". A logística recebe **um aviso no sino** que abre a telinha **"Decidir situação"**: o mini relatório (pedido, cliente, quem marcou e quando, o motivo, a observação, o histórico da entrega — não entregue com motivo, comentários do entregador, comprovantes — e as peças) e as decisões, peça por peça ou todas:
+  - **Reenviar ao cliente** — a peça volta com o pedido para "Programar" nas ROTAS (pedido já entregue: a entrega é reaberta só na plataforma; o Tiny não muda);
+  - **Devolver ao estoque** — vira peça livre no ESTOQUE da fábrica;
+  - **Realocar para outro pedido** — a peça passa a ser de outro pedido vivo do mesmo produto, pronta em Pedidos em aguardo;
+  - **Danificada → Danificados**;
+  - **Liberar para o estoque da loja** — sai das contas do galpão da fábrica, registrado "foi para a loja" (o Tiny não muda);
+  - **Mandar para ajuste** — abre um ajuste de peça (D-130).
+- **O marcador "Devolvido" do Tiny não faz nada** (D-124 mantida): quem marca a devolução na plataforma é a logística.
+- Cancelado no Tiny com móvel pronto continua indo **sozinho** ao ESTOQUE (D-114 nessa parte) — exceto a peça que já está em decisão: essa espera a decisão da logística.
+
+## D-130 · O ajuste de peça: um card avulso de "ajuste" que leva a peça de volta à produção com DESTINO FINAL definido pelo PCP (13–14/10/2026, pedido do dono) — ↪️ D-125/D-129
+
+**Pedido do dono:** *"deve ser criado dentro dos cards avulsos a possibilidade de um card para ajuste de peças, pode ser que a peça tenha ido mal acabada para o cliente e o cliente devolva para a fábrica ajustar ela, essa peça irá ou para limpeza e embalagem ou algo do tipo, isso é decisão do PCP … o PCP pode decidir o destino final após a limpeza e embalagem lançar na etapa expedição; na criação desse tipo de card, o PCP pode definir (vai para o estoque, vai para rotas, terceirizado, entre outros)"*.
+
+- No **Lançamento manual**, "Novo card" tem o tipo **"Ajuste de peça"**: escolhe-se a peça (a que está em decisão pós devolução, no estoque, no aguardo, ou a já entregue de um pedido), o **setor** para onde ela vai e o **destino final**. Também nasce da decisão "Mandar para ajuste" (D-129).
+- **A peça é uma só** (decisão do Claude — M-02/M-04): o ajuste não cria uma peça nova; a mesma peça (com a história dela) volta à produção, com o selo "Ajuste · destino: …", e aparece na aba Lançamento manual junto com os avulsos.
+- **Destino final**, aplicado quando a peça é solta na **EXPEDIÇÃO** da LIMPEZA E EMBALAGEM (D-127) — ou no "Concluir" do ajuste em qualquer setor: **ESTOQUE** (peça livre) · **volta ao pedido / ROTAS** (Pedidos em aguardo, ou direto para a ROTAS se o pedido já estava lançado; pedido já entregue: reentrega, a entrega reaberta só na plataforma) · **terceirizado** · **loja** (as duas: sai das contas do galpão, registrado) · **Danificados**.
+- Sem regra de estado da peça, a não ser a da D-126.
+
+## D-131 · Mensagens podem ser editadas e apagadas — no card e no chat; a história fica (13–14/10/2026, resposta 10 do dono) — ↩️ revisa a D-65 e a D-67
+
+**Decidido:** *"Pode, inclusive a do chat também deve poder, porém o apagar, o super admin e os admins ainda conseguem visualizar sabendo que foi apagada, a história não se apaga"* · *"o admin não vê as particulares, isso é invasão de privacidade, mas as que ele tem acesso, consegue ver normalmente"*.
+
+- **Cada um edita e apaga só a própria mensagem** (decisão provisória do Claude), na conversa do card e no chat.
+- Mensagem editada mostra **"editada"** para todos; mensagem apagada vira **"Mensagem apagada"** para todos.
+- **Admin e super admin** veem o **texto apagado** (com o aviso "apagada") e as **versões anteriores** de uma editada — **só nas conversas a que já têm acesso** (canais em que estão, Avisos gerais, as próprias particulares, e os cards que podem abrir). **A particular dos outros continua fechada** para todo mundo (D-65).
+- Nada se apaga de verdade: editar e apagar são registros novos (RNF-05).
 
 ## Ver também
 

@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-31 — Kanban completo: card avulso, janela do card, anexos, conversa e pausa com motivo"
 tipo: demanda
-status: 📐 pronta para code
+status: 🔨 em execução (14/10 — sessão noturna)
 data: 2026-10-07
-atualizado: 2026-10-13
+atualizado: 2026-10-14
 origem: pedido do dono em 06/10/2026 (com 3 prints do ClickUp como referência), mapeado no Cowork (leitura só de cofre, código, banco e ClickUp — nada alterado)
 plano: "[[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]]"
 depende: "[[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] (a base de anexos nasce lá)"
@@ -179,6 +179,18 @@ Lista **PRODUÇÃO** (DPTO TI). Ao começar cada uma → **FAZENDO**. **Nunca** 
 - [Kanban - Conversa do card com menções](https://app.clickup.com/t/17tya50fm3u) — §3
 - [Kanban - Pausa de um card com motivo de pausa](https://app.clickup.com/t/17tya50fc0c) — §4
 - [Desempenho - Quadros, tablet e sino ao vivo por websocket](https://app.clickup.com/t/17tya50fm44) — §4b
+
+## 11. 🆕 Respostas do dono e ajustes que entraram (13–14/10/2026)
+
+> As 11 perguntas do §6 foram respondidas e viraram **D-125…D-131**; o dono trouxe também **4 ajustes** da equipe, que entram nesta sessão. Ordem do dono (14/10): *"Você será uma sessão noturna, então não me pergunte nada, apenas valide e entregue, faça todos os testes necessários."*
+
+- **Perguntas 1–10 → D-125** (avulso: PCP/logística + líderes + admin criam; "Concluir" só no avulso, em qualquer setor; vínculo é referência; peça = peça do quadro, um vínculo; etiqueta: quem edita põe/tira, criar só líder/admin, nome repetido recusado; responsável e mencionado veem aquele card; quem edita como proposto; anexos 25 MB, áudio 5 min, gravar, removido guardado para o admin; pausa: lista + "Outro", o operador pausa o dele, líder/admin qualquer um do setor) e **D-131** (pergunta 10: editar e apagar mensagem, no card **e no chat**; admin vê as apagadas nas conversas a que tem acesso; particular dos outros fechada).
+- **Pergunta 3 → D-126:** a marcação do estado da peça vira **configuração por setor, por tipo de card, no envio e no recebimento — tudo nasce desligado** (ajuste 2 do dono).
+- **Ajuste 1 → D-127:** a LIMPEZA E EMBALAGEM **conclui pela etapa EXPEDIÇÃO**; o botão "Concluir produção" sai. As 6 peças já na EXPEDIÇÃO vão para Pedidos em aguardo.
+- **Ajuste 3 → D-128:** **várias rotas por dia** no mesmo caminhão, cada uma com dia, ordem e **equipe** próprios.
+- **Pergunta 11 + ajuste 4 → D-129:** o entregador perde o "Pedido devolvido"; a **logística** marca; as peças ficam **"Em decisão pós devolução"** (linha nova no Estoque); aviso à logística + telinha **"Decidir situação"** (reenviar, estoque, realocar para outro pedido, danificados, loja, ajuste). O marcador "Devolvido" do Tiny não faz nada (§4c).
+- **D-130:** o **ajuste de peça** (tipo de card no Lançamento manual): a mesma peça volta à produção com o **destino final** escolhido pelo PCP, aplicado na EXPEDIÇÃO.
+- **Fora do ClickUp:** os 4 ajustes não têm tarefa na lista PRODUÇÃO (regra 19 — o Claude não cria tarefa; registrado no handoff para o dono decidir).
 
 ## Resultado (preencher ao entregar)
 
