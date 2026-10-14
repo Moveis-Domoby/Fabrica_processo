@@ -46,8 +46,8 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - [x] B4 · Ajuste de peça: setor + destino final; aplicado na EXPEDIÇÃO (ou no Concluir do ajuste)
 
 **Etapa C — várias rotas por dia (D-128)**
-- [ ] C1 · Banco: rota nº por (dia, caminhão); equipe por rota; ordem por rota; portas da Programação, Já programadas, Entregas do dia e do entregador
-- [ ] C2 · Telas: Programar escolhe a rota; Já programadas e Entregas do dia mostram as rotas do dia (mapa e km por rota); equipe por rota
+- [x] C1 · Banco: rota nº por (dia, caminhão); equipe por rota; ordem por rota; portas da Programação, Já programadas, Entregas do dia e do entregador
+- [x] C2 · Telas: Programar escolhe a rota; Já programadas e Entregas do dia mostram as rotas do dia (mapa e km por rota); equipe por rota
 
 **Etapa D — card avulso + frente do card + etiquetas + quadro numa requisição (§1, §2, §4b)**
 - [ ] D1 · Tipo novo `avulso` em `plt_cards` (título, descrição, vínculo, datas, responsáveis, criador) + toda regra que filtra por tipo revista (o avulso só entra nos tempos)
@@ -99,3 +99,15 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - **Tela:** tsc, lint, testes (157), build ok. O sino e a página de Avisos abrem o destino do aviso ("Toque para abrir"); Auditoria com os fatos novos; a mensagem de "peça concluída" diz o destino do ajuste (terceirizado, loja, DANIFICADO). Pacote: 1.894,3 kB / 516,1 kB gz.
 - **Banco real:** ensaio desfeito com uma devolução DE VERDADE (pedido 13645, entregue): 1 peça → "Em decisão pós devolução", 4 avisados, toque repetido sem efeito, números do estoque e resumo com 1, lista e detalhe certos, "reenviar" reabriu a entrega e relançou para a ROTAS (peça em ROTAS, pedido sem programação, nada na fila do Tiny), recontagem 0 diferenças antes e depois; `plt_fn_devolucoes` 2,6 ms e o filtro do Estoque 15,7 ms → **migration 67 aplicada** (aplicador `--so`; integração idêntica; 11 setores, 46 etapas).
 - **Publicado:** `main` = c6f890a.
+
+### 14/10 · Etapa C — várias rotas por dia no mesmo caminhão (no ar ~01:55 Natal)
+
+- **Decisão técnica (Claude):** a rota é uma coluna da programação (`plt_programacoes.rota`, 1…20, padrão 1 — tudo o que existia virou a Rota 1, sem mexer em linha) e da equipe (`plt_programacao_equipes.rota`, chave passou a (dia, caminhão, rota, pessoa)). Nada de tabela de "rota" à parte: a rota existe enquanto tem pedido programado nela. Índice `(data_entrega, caminhao_id, rota)` no lugar do `(data_entrega, caminhao_id)`.
+- **Decisões provisórias (Claude):** (1) sem rota dita, o pedido fica na rota em que já está (mesmo dia e caminhão) ou entra na **última** rota do caminhão no dia — o "entra no fim da rota" de antes; (2) na aba **Programar** a rota que vem marcada é **"Nova rota"** quando o caminhão já tem rota no dia (montar a rota = uma viagem nova), e no **Reprogramar** é a rota em que o pedido já está (ou a última do caminhão); (3) a rota nova já vem com a **equipe da rota anterior** do mesmo caminhão (D-128 — só sugestão; fica na trilha); (4) o nome "Rota N" só aparece na tela quando o caminhão tem mais de uma rota no dia (a janela do pedido no PCP mostra sempre).
+- **Portas:** `plt_fn_programar_entrega` / `plt_fn_programar_rota` / `plt_fn_ordenar_rota` / `plt_fn_equipe_definir` / `plt_fn_entregas_do_dia` ganharam a rota (parâmetro integer com padrão — o site de antes continuou funcionando); `plt_fn_programadas` com a coluna `rota`; **`plt_fn_rotas_do_dia(dia)`** nova (cada caminhão+rota com entregas, entregues e equipe) no lugar de `plt_fn_equipes_do_dia` (apagada); `fn_pode_mexer_entrega` = a equipe DA ROTA; a janela do pedido no PCP com a rota e a equipe dela.
+- **Tela:** o modal de programar pergunta a rota (as do caminhão no dia, com entregas e equipe, + "Nova rota"; só busca as rotas do dia ao abrir); "Já programadas" agrupa por dia → caminhão → rota (mapa, ordem, "Salvar ordem" e "Equipe" por rota; o link `?rota=`); "Entregas do dia" com um botão por rota; a equipe se escolhe por rota ("troca de turno").
+- **Formatação:** as telas tocadas na sessão estavam fora do padrão de formatação da casa (as edições por script) — formatadas (o padrão já valia antes; o arquivo de Setores e etapas já estava fora antes da sessão).
+- **Harness:** **bloco 68** (11 verificações) + 3 assinaturas atualizadas nas conferências de permissão dos blocos 54, 55 e 60. **908 verdes.**
+- **Banco real:** ensaio desfeito — 19 programações viraram Rota 1, a equipe com a chave nova, as portas velhas fora; o único pedido a entregar foi programado num dia de teste e passado para a Rota 2 (as rotas do dia, "Já programadas" e "Entregas do dia" da Rota 2 certas); `plt_fn_programadas` 3,9 ms, `plt_fn_rotas_do_dia` 7,6 ms, `plt_fn_entregas_do_dia` 3,1 ms → **migration 68 aplicada** (`--so`, integração idêntica).
+- **E-93:** usei `cd` de novo para formatar arquivos (a terceira vez — E-74/E-91). O ambiente devolveu a pasta; nada mudou de lugar. Correção: o formatador roda com caminhos absolutos, sem `cd`.
+- **Publicado:** `main` = 1d2b982.
