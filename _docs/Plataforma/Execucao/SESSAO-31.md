@@ -161,3 +161,30 @@ Ver [[PLT - Decisoes de Produto]]. Resumo: D-125 (avulso), D-126 (marcação con
 - **ClickUp:** as 7 tarefas em FAZENDO, cada uma com comentário; nenhuma concluída. Os 4 ajustes não têm tarefa → handoff.
 - **Decisões:** ↩️ anotado na D-48 (a pausa volta com motivo; o próprio operador pausa).
 - **Handoff:** [[handoff_2026_10_14_sessao31_kanban_completo]]; mapa, próximos passos, ordem das sessões e o Resultado da demanda atualizados.
+
+## Ajustes do dono — 14/10 noite (depois da entrega)
+
+Pedido do dono (14/10 ~22:40, com vídeo e 7 imagens): *"Muita coisa está ruim ou mal feita, ajuste"*. Diagnóstico antes de codar (vídeo quadro a quadro + banco real, só leitura):
+- **Lançar do PCP e não ver no setor sem recarregar:** o banco avisa certo (`plt-aviso:setor_N` recebeu os avisos); o defeito é da tela — o quadro guarda a leitura da última visita (`staleTime: Infinity`) e só ouve o canal enquanto está aberto: o que mudou enquanto a pessoa estava fora nunca chega. `useAoVivo` tem o mesmo buraco (30 s de cache padrão).
+- **Mensagem vermelha piscando ao trocar de setor:** é o aviso "Este setor ainda não tem uma etapa de fila" — aparece enquanto `etapas` está vazio (carregando).
+- **Colunas esticadas:** o contêiner é `flex` com `align-items: stretch` — toda coluna ganha a altura da maior; o "Vazio"/"Solte aqui…" fica no meio.
+- **"Concluir" em todo card:** `QuadroKanban` passa `aoConcluir` para todo card (o filtro de avulso estava só no clique).
+- **PCP com pedido "recebido" no Tiny:** o "recebido" do Tiny é do PAGAMENTO; no banco, dos 23 aguardando liberação, 22 estão "Preparando envio" (o estado normal de pedido esperando produção aqui — 36 no total) e 1 "Faturado" (13623). A porta do PCP só tira entregue/não entregue/cancelado.
+- **Expedição desatualizada:** a porta lista todo pedido com card de pedido não arquivado (o card do pedido nunca se arquiva depois da liberação) — os entregues (13114, 13108, 13176…) aparecem no topo por previsão antiga.
+- **Duas rotas no mesmo dia:** banco e tela aceitam (a regra recebe a rota; nenhuma trava); as 3 entregas de 14/10 foram programadas às 07:52, ~6 h depois de a escolha de rota ir ao ar — a pessoa estava com a versão antiga aberta (não existe aviso de versão nova).
+- **Comprovante:** existe na janela do pedido do PCP, mas escondido dentro de "Pagamento".
+
+Lista (espelho do pedido):
+- [ ] I1 · "Concluir" só no card avulso
+- [ ] I2 · Quadro sem a mensagem piscando (esqueleto enquanto carrega)
+- [ ] I3 · Colunas: linha fina entre colunas, fundo mais transparente, cresce só a coluna com card, sem "Vazio"/"Solte aqui"
+- [ ] I4 · Ao vivo de verdade entre áreas: ao voltar a uma tela, relê o que mudou enquanto estava fora (quadro e telas ao vivo)
+- [ ] I5 · Janela do motivo de pausa no padrão da plataforma (botões de motivo como os da entrega; nome do card certo)
+- [ ] I6 · Utilitários: aba própria "Motivos de pausa" (sai de "Motivos da entrega")
+- [ ] I7 · Lançamento manual em cards comuns (grade, como os pedidos do PCP)
+- [ ] I8 · Menu: hierarquia clara (pai legível) e nomes padronizados em todos os grupos
+- [ ] J1 · PCP: pedido Faturado / Pronto para envio / Enviado no Tiny sai do PCP e segue o Tiny
+- [ ] J2 · Expedição: só pedidos vivos, previsão mais próxima primeiro, ao vivo (sem relógio)
+- [ ] J3 · Duas rotas no mesmo dia: validar no banco real e na tela; aviso de versão nova da plataforma
+- [ ] K1 · Pai "Pedidos" no menu da Fábrica: "Todos os pedidos" (sai do PCP) e "Cancelados" (a da Logística vem para cá, com o histórico inteiro)
+- [ ] K2 · Ficha do pedido com tudo — comercial, produção (quem fez cada peça, tempo por etapa e pessoa), entrega (dia e hora, comprovante), dados do Tiny — revelada aos poucos, por clique

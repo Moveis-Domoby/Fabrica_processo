@@ -41,6 +41,11 @@ const juntar = (a: JuntoDoQuadro, b: JuntoDoQuadro): JuntoDoQuadro => ({
  *   "mudou" (o banco avisa um por setor por transação) → UMA releitura do
  *   quadro. Assina ANTES de ler; ao reconectar, uma releitura de recuperação.
  *   Nada de relógio, nada de `postgres_changes`.
+ * - ↩️ **Voltar ao quadro** (ajuste do dono, 14/10 noite — "lanço do PCP e só
+ *   vejo no setor recarregando"): o canal só é ouvido com o quadro aberto; o
+ *   que o cache guardava da visita anterior pode ter mudado enquanto a pessoa
+ *   estava noutra tela. Então, ao assinar, a leitura guardada ANTES de abrir
+ *   a tela é relida uma vez (a tela mostra a guardada até a nova chegar).
  * - **"Ver mais"** = 1 requisição daquela coluna, por cursor. Quando o quadro
  *   relê, a coluna aberta relê o que já mostrava (1 requisição por coluna aberta).
  * - **Arrasto otimista**: o card muda de coluna na hora; o banco confirma (ou
@@ -69,8 +74,25 @@ export function useQuadro(setorId: number | undefined) {
         void clienteQuery.invalidateQueries({ queryKey: chaveDoQuadro(setorId) })
       }, ESPERA_MS)
     }
+    const abertoEm = Date.now()
+    let primeira = true
+    // A leitura guardada de antes desta tela abrir fica velha: relê UMA vez.
+    const conferirGuardada = () => {
+      if (!primeira) return
+      primeira = false
+      const estado = clienteQuery.getQueryState(chaveDoQuadro(setorId))
+      if (estado?.data !== undefined && estado.dataUpdatedAt < abertoEm) {
+        void clienteQuery.invalidateQueries({
+          queryKey: chaveDoQuadro(setorId),
+          refetchType: 'none', // a leitura sai quando a consulta liga (logo abaixo)
+        })
+      }
+    }
     // Se o websocket não responder, o quadro abre mesmo assim (sem ao vivo).
-    const desistir = setTimeout(() => setOuvindoSetor(setorId), 4000)
+    const desistir = setTimeout(() => {
+      conferirGuardada()
+      setOuvindoSetor(setorId)
+    }, 4000)
     const parar = ouvirCanal(
       `plt-aviso:setor_${setorId}`,
       (evento) => {
@@ -79,6 +101,7 @@ export function useQuadro(setorId: number | undefined) {
       (status) => {
         if (status === 'SUBSCRIBED') {
           clearTimeout(desistir)
+          conferirGuardada()
           setOuvindoSetor(setorId)
           setConectado(true)
           if (caiu) {

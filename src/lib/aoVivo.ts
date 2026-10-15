@@ -15,6 +15,11 @@ const ESPERA_MS = 400
  * marcadas para quando aparecerem. Vários avisos seguidos viram uma releitura
  * só; ao voltar a conexão (rede caiu, aba dormiu), uma releitura de
  * recuperação.
+ *
+ * ↩️ Ajuste do dono (14/10 noite): o canal só é ouvido com a tela aberta —
+ * ao VOLTAR a ela, a leitura guardada de antes (cache de até 30 s) pode não
+ * ter o que mudou enquanto a pessoa estava noutra tela. Ao assinar, cada
+ * consulta guardada antes de a tela abrir é relida uma vez.
  */
 export function useAoVivo(areas: AreaAoVivo | AreaAoVivo[], chaves: QueryKey[], ligado = true) {
   const clienteQuery = useQueryClient()
@@ -26,9 +31,26 @@ export function useAoVivo(areas: AreaAoVivo | AreaAoVivo[], chaves: QueryKey[], 
 
   useEffect(() => {
     if (!ligado) return
+    const abertaEm = Date.now()
     let espera: ReturnType<typeof setTimeout> | null = null
     let jaConectou = false
     let caiu = false
+    // A primeira assinatura: o que estava guardado de antes desta tela abrir
+    // (e não está sendo lido agora) é relido uma vez.
+    const conferirGuardadas = () => {
+      for (const queryKey of chavesRef.current) {
+        for (const consulta of clienteQuery.getQueryCache().findAll({ queryKey })) {
+          const estado = consulta.state
+          if (
+            estado.data !== undefined &&
+            estado.fetchStatus !== 'fetching' &&
+            estado.dataUpdatedAt < abertaEm
+          ) {
+            void clienteQuery.invalidateQueries({ queryKey: consulta.queryKey, exact: true })
+          }
+        }
+      }
+    }
     const reler = () => {
       if (espera) clearTimeout(espera)
       espera = setTimeout(() => {
@@ -39,6 +61,7 @@ export function useAoVivo(areas: AreaAoVivo | AreaAoVivo[], chaves: QueryKey[], 
     const aoStatus = (status: string) => {
       if (status === 'SUBSCRIBED') {
         if (jaConectou && caiu) reler() // recuperação: o que mudou enquanto estava fora
+        if (!jaConectou) conferirGuardadas()
         jaConectou = true
         caiu = false
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {

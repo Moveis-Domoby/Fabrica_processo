@@ -16,6 +16,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { cn } from '@/lib/cn'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { useAoVivo } from '@/lib/aoVivo'
 import { AvatarChat } from '@/chat/componentes/AvatarChat'
@@ -111,10 +112,10 @@ export function AbaLancamentoManual({ ativa }: { ativa: boolean }) {
         </p>
       )}
 
-      <ul className="flex flex-col gap-2">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {linhas.map((l) => (
           <li key={l.card_id}>
-            <LinhaDoAvulso
+            <CartaoDoAvulso
               linha={l}
               aoAbrir={() => abrirCard(l.card_id)}
               aoLancar={() => setLancando(l)}
@@ -157,7 +158,13 @@ export function AbaLancamentoManual({ ativa }: { ativa: boolean }) {
   )
 }
 
-function LinhaDoAvulso({
+/**
+ * ↩️ Ajuste do dono (14/10 noite — "o lançamento manual deve seguir o padrão de
+ * card, não ser uma linha completa"): o card comum da plataforma, como o do
+ * pedido no PCP — título e tempo em cima, o que o card tem no meio e o gesto
+ * (Lançar / Concluir) embaixo, na largura toda.
+ */
+function CartaoDoAvulso({
   linha: l,
   aoAbrir,
   aoLancar,
@@ -171,62 +178,71 @@ function LinhaDoAvulso({
   const hoje = hojeIso()
   const concluido = l.concluido_em !== null
   const atrasado = !concluido && l.vence_em !== null && l.vence_em < hoje
+  const aLancar =
+    l.tipo === 'avulso' && !concluido && l.etapa_nome === null && l.executor_nome === null
   return (
-    <article className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 sm:flex-row sm:items-start">
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <p className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={aoAbrir}
-            className="min-h-toque-md text-left font-medium text-texto underline-offset-2 hover:underline"
+    <article className="flex h-full flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4">
+      <header className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          onClick={aoAbrir}
+          className="min-h-toque-md min-w-0 text-left font-semibold text-texto underline-offset-2 hover:underline"
+          aria-label={`Abrir o card ${l.titulo}`}
+        >
+          <span className="line-clamp-2 break-words">{l.titulo}</span>
+        </button>
+        {l.vence_em && !concluido && (
+          <span
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1 pt-0.5 text-xs tabular-nums',
+              atrasado ? 'font-medium text-atencao-texto' : 'text-texto-suave',
+            )}
           >
-            {l.titulo}
-          </button>
-          {l.ajuste_destino && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
-              <Wrench aria-hidden className="size-3.5" />
-              Ajuste · vai para {ROTULO_DESTINO_FINAL[l.ajuste_destino].toLowerCase()}
-            </span>
-          )}
+            {atrasado ? (
+              <TriangleAlert aria-hidden className="size-3.5" />
+            ) : (
+              <CalendarClock aria-hidden className="size-3.5" />
+            )}
+            {atrasado ? `Venceu ${diaMes(l.vence_em)}` : `Vence ${diaMes(l.vence_em)}`}
+          </span>
+        )}
+      </header>
+
+      {l.ajuste_destino && (
+        <p>
+          <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
+            <Wrench aria-hidden className="size-3.5" />
+            Ajuste · vai para {ROTULO_DESTINO_FINAL[l.ajuste_destino].toLowerCase()}
+          </span>
         </p>
-        <EtiquetasDoCard ids={l.etiquetas} />
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-texto-suave">
-          {concluido ? (
-            <span className="inline-flex items-center gap-1 text-perfeito-texto">
-              <CircleCheckBig aria-hidden className="size-3.5" />
-              Concluído em {new Date(l.concluido_em!).toLocaleDateString('pt-BR')}
-            </span>
+      )}
+      <EtiquetasDoCard ids={l.etiquetas} />
+
+      <p className="text-sm text-texto-suave">
+        {concluido ? (
+          <span className="inline-flex items-center gap-1 text-perfeito-texto">
+            <CircleCheckBig aria-hidden className="size-4" />
+            Concluído em {new Date(l.concluido_em!).toLocaleDateString('pt-BR')}
+          </span>
+        ) : l.etapa_nome ? (
+          `${l.setor_nome} · ${l.etapa_nome}`
+        ) : (
+          'No PCP — a lançar'
+        )}
+      </p>
+      {!concluido && l.executor_nome && (
+        <p className="inline-flex items-center gap-1 text-sm text-texto">
+          {l.pausado_em ? (
+            <Pause aria-hidden className="size-4 text-atencao-texto" />
           ) : (
-            <span>{l.etapa_nome ? `${l.setor_nome} · ${l.etapa_nome}` : 'No PCP — a lançar'}</span>
+            <Play aria-hidden className="size-4 text-perfeito-forte" />
           )}
-          {!concluido && l.executor_nome && (
-            <span className="inline-flex items-center gap-1">
-              {l.pausado_em ? (
-                <Pause aria-hidden className="size-3.5" />
-              ) : (
-                <Play aria-hidden className="size-3.5" />
-              )}
-              {l.pausado_em ? 'pausado' : 'em execução'} · {l.executor_nome}
-            </span>
-          )}
-          {l.vence_em && (
-            <span
-              className={
-                atrasado
-                  ? 'inline-flex items-center gap-1 font-medium text-atencao-texto'
-                  : 'inline-flex items-center gap-1'
-              }
-            >
-              {atrasado ? (
-                <TriangleAlert aria-hidden className="size-3.5" />
-              ) : (
-                <CalendarClock aria-hidden className="size-3.5" />
-              )}
-              {atrasado
-                ? `Venceu em ${diaMes(l.vence_em)} — atrasado`
-                : `Vence ${diaMes(l.vence_em)}`}
-            </span>
-          )}
+          {l.pausado_em ? 'Pausado' : 'Em execução'} · {l.executor_nome}
+        </p>
+      )}
+
+      {(l.vinculo_rotulo && l.tipo === 'avulso') || l.anexos_qtd > 0 || l.mensagens_qtd > 0 ? (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-texto-suave">
           {l.vinculo_rotulo && l.tipo === 'avulso' && (
             <span className="inline-flex min-w-0 items-center gap-1">
               <Link2 aria-hidden className="size-3.5 shrink-0" />
@@ -252,33 +268,39 @@ function LinhaDoAvulso({
             </span>
           )}
         </p>
-        {l.responsaveis.length > 0 && (
-          <p className="flex flex-wrap items-center gap-2 text-xs text-texto-suave">
-            {l.responsaveis.map((p) => (
-              <span key={p.id} className="inline-flex items-center gap-1">
-                <AvatarChat nome={p.nome} foto={p.foto} tamanho="sm" />
-                {p.nome}
-              </span>
-            ))}
-          </p>
-        )}
-        <p className="text-xs text-texto-fraco">
-          Criado {l.criado_por ? `por ${l.criado_por} ` : ''}em{' '}
-          {new Date(l.criado_em).toLocaleDateString('pt-BR')}
+      ) : null}
+
+      {l.responsaveis.length > 0 && (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-texto-suave">
+          {l.responsaveis.map((p) => (
+            <span key={p.id} className="inline-flex items-center gap-1">
+              <AvatarChat nome={p.nome} foto={p.foto} tamanho="sm" />
+              {p.nome}
+            </span>
+          ))}
         </p>
-      </div>
-      <div className="flex flex-wrap gap-2 sm:flex-col">
-        {l.tipo === 'avulso' && !concluido && l.etapa_nome === null && l.executor_nome === null && (
-          <Botao icone={<Send />} onClick={aoLancar}>
-            Lançar
-          </Botao>
-        )}
-        {l.tipo === 'avulso' && !concluido && (
-          <Botao variante="secundaria" icone={<CircleCheckBig />} onClick={aoConcluir}>
-            Concluir
-          </Botao>
-        )}
-      </div>
+      )}
+
+      <p className="mt-auto text-xs text-texto-fraco">
+        Criado {l.criado_por ? `por ${l.criado_por} ` : ''}em{' '}
+        {new Date(l.criado_em).toLocaleDateString('pt-BR')}
+      </p>
+
+      {aLancar && (
+        <Botao icone={<Send />} larguraTotal onClick={aoLancar}>
+          Lançar para a produção
+        </Botao>
+      )}
+      {l.tipo === 'avulso' && !concluido && !aLancar && (
+        <Botao variante="secundaria" icone={<CircleCheckBig />} larguraTotal onClick={aoConcluir}>
+          Concluir
+        </Botao>
+      )}
+      {aLancar && (
+        <Botao variante="fantasma" tamanho="sm" icone={<CircleCheckBig />} onClick={aoConcluir}>
+          Concluir sem lançar
+        </Botao>
+      )}
     </article>
   )
 }

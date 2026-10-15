@@ -552,6 +552,7 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         key={pausando ? 'pausar-aberto' : 'pausar-fechado'}
         modo="pausar"
         card={pausando ? card : null}
+        pedidoNumero={dados.pedido?.numero ?? null}
         operadorId={pausando?.operadorId}
         tamanho={tablet ? 'galpao' : 'padrao'}
         aoFechar={() => setPausando(null)}

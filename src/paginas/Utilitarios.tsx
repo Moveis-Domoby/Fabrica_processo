@@ -7,6 +7,7 @@ import {
   ArchiveRestore,
   ListPlus,
   MessageSquareText,
+  Pause,
   Pencil,
   Plus,
   Tag,
@@ -32,7 +33,9 @@ import { PilulaEtiqueta } from '@/utilitarios/PilulaEtiqueta'
 import { CORES_ETIQUETA, ROTULO_COR, ROTULO_TIPO_CAMPO, TIPOS_CAMPO } from '@/utilitarios/tipos'
 import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utilitarios/tipos'
 
-type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos'
+// ↩️ Ajuste do dono (14/10 noite): os motivos de pausa ganharam aba própria —
+// "estão dentro de motivos de entrega, o que não faz sentido".
+type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101 — pedido do dono: "crie uma
@@ -43,7 +46,8 @@ type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos'
 export function Utilitarios() {
   const [parametros, setParametros] = useSearchParams()
   const pedida = parametros.get('aba')
-  const aba: AbaUtilitarios = pedida === 'campos' || pedida === 'motivos' ? pedida : 'etiquetas'
+  const aba: AbaUtilitarios =
+    pedida === 'campos' || pedida === 'motivos' || pedida === 'pausa' ? pedida : 'etiquetas'
 
   return (
     <div className="flex flex-col gap-5">
@@ -64,8 +68,12 @@ export function Utilitarios() {
               card.
             </span>
             <span>
-              Motivos são as frases curtas que o entregador escolhe ao marcar "não entregue" ou ao
-              desfazer uma entrega.
+              Motivos da entrega são as frases curtas escolhidas ao marcar "não entregue", ao
+              desfazer uma entrega ou ao marcar o pedido como devolvido.
+            </span>
+            <span>
+              Motivos de pausa são escolhidos ao pausar um card em execução ou ao soltá-lo numa
+              etapa de parada.
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
@@ -95,6 +103,11 @@ export function Utilitarios() {
             rotulo: 'Motivos da entrega',
             icone: <MessageSquareText aria-hidden className="size-4" />,
           },
+          {
+            valor: 'pausa',
+            rotulo: 'Motivos de pausa',
+            icone: <Pause aria-hidden className="size-4" />,
+          },
         ]}
       />
 
@@ -103,8 +116,10 @@ export function Utilitarios() {
           <PainelEtiquetas />
         ) : aba === 'campos' ? (
           <PainelCampos />
+        ) : aba === 'pausa' ? (
+          <PainelMotivos listas={MOTIVOS_PAUSA} />
         ) : (
-          <PainelMotivos />
+          <PainelMotivos listas={MOTIVOS_ENTREGA} />
         )}
       </div>
     </div>
@@ -673,7 +688,9 @@ function ModalCampo({
 // campos customizados")
 // ---------------------------------------------------------------------------
 
-const LISTAS_MOTIVO: { tipo: TipoMotivo; titulo: string; explica: string }[] = [
+type ListaDeMotivos = { tipo: TipoMotivo; titulo: string; explica: string }
+
+const MOTIVOS_ENTREGA: ListaDeMotivos[] = [
   {
     tipo: 'nao_entregue',
     titulo: 'Não entregue',
@@ -690,19 +707,22 @@ const LISTAS_MOTIVO: { tipo: TipoMotivo; titulo: string; explica: string }[] = [
     titulo: 'Pedido devolvido',
     explica: 'A logística escolhe um destes ao marcar o pedido como devolvido.',
   },
+]
+
+// SESSAO-31 (§4): pausar um card em execução — e parar na etapa que pede o motivo.
+const MOTIVOS_PAUSA: ListaDeMotivos[] = [
   {
-    // SESSAO-31 (§4): pausar um card em execução — e parar na etapa que pede o motivo.
     tipo: 'pausa',
     titulo: 'Motivos de pausa',
     explica:
-      'Escolhido ao pausar um card em execução ou ao soltá-lo numa etapa de parada (além de "Outro", escrito).',
+      'Escolhido ao pausar um card em execução ou ao soltá-lo numa etapa de parada. A opção "Outro", escrita na hora, sempre aparece junto.',
   },
 ]
 
-function PainelMotivos() {
+function PainelMotivos({ listas }: { listas: ListaDeMotivos[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {LISTAS_MOTIVO.map((l) => (
+      {listas.map((l) => (
         <ListaMotivos key={l.tipo} {...l} />
       ))}
     </div>

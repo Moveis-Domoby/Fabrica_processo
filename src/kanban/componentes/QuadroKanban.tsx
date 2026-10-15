@@ -111,6 +111,9 @@ function Coluna({
       : null
 
   return (
+    // ↩️ Ajuste do dono (14/10 noite): a coluna inteira (de cima a baixo) recebe
+    // o card, mas o painel só cresce com os cards — vazia, é só o cabeçalho. Entre
+    // as colunas, uma linha fina e clara marca a área (a borda à esquerda).
     <section
       ref={setNodeRef}
       aria-label={
@@ -121,112 +124,142 @@ function Coluna({
             : `Etapa ${titulo} com ${total} card(s)`
       }
       className={cn(
-        'flex shrink-0 snap-start flex-col rounded-dm-lg border bg-superficie-sutil',
+        'flex shrink-0 snap-start flex-col self-stretch px-1.5',
         tamanho === 'galpao' ? 'w-[85vw] max-w-sm sm:w-80' : 'w-[85vw] max-w-xs sm:w-72',
-        isOver ? 'border-acao-ativa ring-2 ring-acao' : 'border-borda',
-        (levaPara || conclui) && 'border-dashed',
       )}
     >
-      <header className="flex flex-col gap-1 border-b border-borda px-3 py-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-texto">{titulo}</h3>
-          <span className="flex items-center gap-2">
-            {ehFila && (
-              <span className="rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
-                fila
-              </span>
-            )}
-            {ehDanificado && (
-              <span className="rounded-full bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto">
-                🔴 dano
-              </span>
-            )}
-            {/* SESSAO-22: o contador é o TOTAL real do servidor, não só o carregado. */}
-            {!levaPara && (!conclui || total > 0) && (
-              <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-medium text-texto-suave tabular-nums">
-                {total}
-              </span>
-            )}
-          </span>
-        </div>
-        {/* SESSAO-24: o que soltar aqui faz — ícone + texto (M-12). */}
-        {ehInicio && (
-          <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
-            <Play aria-hidden className="size-3.5 text-perfeito-forte" />
-            soltar aqui começa o tempo
-          </span>
+      <div
+        className={cn(
+          'flex flex-col rounded-dm-lg border bg-superficie-sutil/40 transition-colors',
+          isOver ? 'border-acao-ativa bg-acao/5 ring-2 ring-acao' : 'border-borda/40',
+          (levaPara || conclui) && !isOver && 'border-dashed',
         )}
-        {levaPara && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
-            <ArrowRight aria-hidden className="size-3.5" />
-            leva para {levaPara}
-          </span>
-        )}
-        {conclui && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
-            <CircleCheckBig aria-hidden className="size-3.5 text-perfeito-forte" />
-            conclui a produção
-          </span>
-        )}
-      </header>
+      >
+        <header
+          className={cn(
+            'flex flex-col gap-1 px-3 py-2.5',
+            (cards.length > 0 || restantes > 0) && 'border-b border-borda/40',
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-texto">{titulo}</h3>
+            <span className="flex items-center gap-2">
+              {ehFila && (
+                <span className="rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
+                  fila
+                </span>
+              )}
+              {ehDanificado && (
+                <span className="rounded-full bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto">
+                  🔴 dano
+                </span>
+              )}
+              {/* SESSAO-22: o contador é o TOTAL real do servidor, não só o carregado. */}
+              {!levaPara && (!conclui || total > 0) && (
+                <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-medium text-texto-suave tabular-nums">
+                  {total}
+                </span>
+              )}
+            </span>
+          </div>
+          {/* SESSAO-24: o que soltar aqui faz — ícone + texto (M-12). */}
+          {ehInicio && (
+            <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
+              <Play aria-hidden className="size-3.5 text-perfeito-forte" />
+              soltar aqui começa o tempo
+            </span>
+          )}
+          {levaPara && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
+              <ArrowRight aria-hidden className="size-3.5" />
+              leva para {levaPara}
+            </span>
+          )}
+          {conclui && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
+              <CircleCheckBig aria-hidden className="size-3.5 text-perfeito-forte" />
+              conclui a produção
+            </span>
+          )}
+        </header>
 
-      <div className="flex min-h-28 flex-1 flex-col gap-2 p-2">
-        {cards.length === 0 && (
-          <p className="flex flex-1 items-center justify-center px-2 py-6 text-center text-sm text-texto-fraco">
-            {levaPara
-              ? `Solte aqui para mandar para ${levaPara}`
-              : conclui
-                ? 'Solte aqui a peça pronta: vai para Pedidos em aguardo (ou ESTOQUE, sem pedido). O card avulso solto aqui é concluído.'
-                : 'Vazio'}
-          </p>
-        )}
-        {cards.map((card) => {
-          const execucaoAberta = execucao.execucoesPorCard.get(card.id)
-          const comuns = {
-            card,
-            pedido: card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id),
-            agora,
-            terminal,
-            aoConcluir,
-            aoLinhaTempo: execucao.aoLinhaTempo,
-            aoFotos: execucao.aoFotos,
-            execucaoDesde: execucaoAberta?.iniciou_em,
-            executorNome: card.executor_atual_id
-              ? execucao.nomesUsuarios.get(card.executor_atual_id)
-              : undefined,
-            souExecutor: card.executor_atual_id === execucao.meuUsuarioId,
-            esperandoHaMaisTempo: card.id === maisAntigoEsperandoId,
-            gestoPendente: execucao.gestoPendente,
-            tamanho,
-            campos: camposPorCard.get(card.id),
-            pessoas: execucao.pessoas,
-            aoAbrir: execucao.aoAbrirCard
-              ? (c: Card) => {
-                  if (!acabouDeArrastar()) execucao.aoAbrirCard?.(c)
-                }
-              : undefined,
-          }
-          return arrastavel ? (
-            <CardArrastavel key={card.id} {...comuns} />
-          ) : (
-            <CartaoUnidade key={card.id} {...comuns} />
-          )
-        })}
+        {(cards.length > 0 || restantes > 0) && (
+          <div className="flex flex-col gap-2 p-2">
+            {cards.map((card) => {
+              const execucaoAberta = execucao.execucoesPorCard.get(card.id)
+              const comuns = {
+                card,
+                pedido: card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id),
+                agora,
+                terminal,
+                // ↩️ Ajuste do dono (14/10 noite): o "Concluir" é SÓ do card avulso
+                // (D-125) — a peça conclui na etapa que conclui (D-127).
+                aoConcluir: card.tipo === 'avulso' ? aoConcluir : undefined,
+                aoLinhaTempo: execucao.aoLinhaTempo,
+                aoFotos: execucao.aoFotos,
+                execucaoDesde: execucaoAberta?.iniciou_em,
+                executorNome: card.executor_atual_id
+                  ? execucao.nomesUsuarios.get(card.executor_atual_id)
+                  : undefined,
+                souExecutor: card.executor_atual_id === execucao.meuUsuarioId,
+                esperandoHaMaisTempo: card.id === maisAntigoEsperandoId,
+                gestoPendente: execucao.gestoPendente,
+                tamanho,
+                campos: camposPorCard.get(card.id),
+                pessoas: execucao.pessoas,
+                aoAbrir: execucao.aoAbrirCard
+                  ? (c: Card) => {
+                      if (!acabouDeArrastar()) execucao.aoAbrirCard?.(c)
+                    }
+                  : undefined,
+              }
+              return arrastavel ? (
+                <CardArrastavel key={card.id} {...comuns} />
+              ) : (
+                <CartaoUnidade key={card.id} {...comuns} />
+              )
+            })}
 
-        {restantes > 0 && dados.aoVerMais && (
-          <Botao
-            variante="fantasma"
-            tamanho="sm"
-            icone={<ChevronDown />}
-            className="min-h-toque-md"
-            carregando={dados.carregandoMais}
-            onClick={dados.aoVerMais}
-          >
-            Ver mais ({restantes})
-          </Botao>
+            {restantes > 0 && dados.aoVerMais && (
+              <Botao
+                variante="fantasma"
+                tamanho="sm"
+                icone={<ChevronDown />}
+                className="min-h-toque-md"
+                carregando={dados.carregandoMais}
+                onClick={dados.aoVerMais}
+              >
+                Ver mais ({restantes})
+              </Botao>
+            )}
+          </div>
         )}
       </div>
     </section>
+  )
+}
+
+/** O quadro ainda abrindo: o desenho das colunas, sem aviso nenhum (nada pisca). */
+function EsqueletoDoQuadro({ tamanho }: { tamanho: 'padrao' | 'galpao' }) {
+  return (
+    <div
+      className="flex divide-x divide-borda/40 overflow-hidden pb-3"
+      aria-busy="true"
+      aria-label="Abrindo o quadro"
+    >
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className={cn(
+            'flex shrink-0 flex-col gap-2 px-1.5',
+            tamanho === 'galpao' ? 'w-[85vw] max-w-sm sm:w-80' : 'w-[85vw] max-w-xs sm:w-72',
+          )}
+        >
+          <div className="h-11 animate-pulse rounded-dm-lg bg-superficie-sutil/60" />
+          {i === 0 && <div className="h-28 animate-pulse rounded-dm-lg bg-superficie-sutil/40" />}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -292,6 +325,12 @@ export interface QuadroKanbanProps {
    * requisição) — sem isto, o quadro pergunta à parte (o jeito antigo).
    */
   camposPorCard?: Map<number, CampoMostrado[]>
+  /**
+   * ↩️ Ajuste do dono (14/10 noite): o quadro ainda não chegou — mostra o
+   * esqueleto das colunas e NENHUM aviso (o "setor sem fila" piscava ao trocar
+   * de setor, porque as etapas ainda estavam vazias).
+   */
+  carregando?: boolean
 }
 
 /**
@@ -321,6 +360,7 @@ export function QuadroKanban({
   execucao,
   tamanho = 'padrao',
   camposPorCard: camposVindos,
+  carregando = false,
 }: QuadroKanbanProps) {
   const sensores = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -360,6 +400,8 @@ export function QuadroKanban({
     aoSoltarNaEtapa(card, etapaId)
   }
 
+  if (carregando && etapas.length === 0) return <EsqueletoDoQuadro tamanho={tamanho} />
+
   return (
     <DndContext
       sensors={sensores}
@@ -368,7 +410,7 @@ export function QuadroKanban({
       onDragEnd={aoSoltar}
     >
       <div
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 sm:snap-none"
+        className="flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto pb-3 sm:snap-none"
         aria-label={`Quadro do setor ${setor.nome}`}
       >
         {mostrarChegada && (

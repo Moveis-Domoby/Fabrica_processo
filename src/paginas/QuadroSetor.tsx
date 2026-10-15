@@ -169,7 +169,9 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             {/* D-13 (terminais) e D-02 (fila × execução) — código fora da tela (D-27). */}
             {terminal
               ? 'Unidade que chega aqui está concluída.'
-              : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
+              : quadro.carregando
+                ? 'Abrindo o quadro…'
+                : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
           </p>
         </div>
         {podeGerirEtapas && (
@@ -191,6 +193,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         aoSoltarNaEtapa={aoSoltarNaEtapa}
         aoAbrirConcluir={(card) => card.tipo === 'avulso' && setConcluindoAvulso(card)}
         camposPorCard={camposPorCard}
+        carregando={quadro.carregando}
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
@@ -219,6 +222,9 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         card={parando?.card ?? null}
         etapaId={parando?.etapa.id}
         etapaNome={parando?.etapa.nome}
+        pedidoNumero={
+          parando?.card.pedido_id != null ? pedidosPorId.get(parando.card.pedido_id)?.numero : null
+        }
         aoFechar={() => setParando(null)}
       />
 

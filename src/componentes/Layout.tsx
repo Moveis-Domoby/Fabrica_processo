@@ -31,7 +31,7 @@ import { ProvedorChat } from '@/chat/ProvedorChat'
 import { BalaoChat } from '@/chat/BalaoChat'
 import { JanelaDoCardNaUrl } from '@/kanban/janela/JanelaDoCardNaUrl'
 import { buscarSetores } from '@/kanban/api'
-import { rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
+import { nomeNoMenu, rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
 import { supabase } from '@/lib/supabase'
 
@@ -205,7 +205,8 @@ export function Layout({ children }: { children: ReactNode }) {
     // Operador comum não é do PCP: o quadro do PCP fica com admin/PCP.
     const filhosProducao = setoresDoMenu
       .filter((s) => (s.codigo === 'pcp' ? souAdmin || ehDoPcp : true))
-      .map((s) => ({ para: rotaDoSetor(s.codigo), rotulo: s.nome }))
+      // ↩️ Ajuste do dono (14/10 noite): o nome do setor no padrão do menu.
+      .map((s) => ({ para: rotaDoSetor(s.codigo), rotulo: nomeNoMenu(s.nome) }))
 
     const veLogistica = (souAdmin || ehDoPcp || ehDeTerminal) && !soEntregador
 
@@ -213,7 +214,7 @@ export function Layout({ children }: { children: ReactNode }) {
     // seções da barra 2 — os dashboards da produção ficam onde estão (Q-66).
     const secoesFabrica: SecaoMenu[] = [
       ...(filhosProducao.length > 0
-        ? [{ titulo: 'Controle de Produção', filhos: filhosProducao }]
+        ? [{ titulo: 'Controle de produção', filhos: filhosProducao }]
         : []),
       ...(veLogistica
         ? [
@@ -228,7 +229,7 @@ export function Layout({ children }: { children: ReactNode }) {
               ],
             },
             {
-              titulo: 'ROTAS',
+              titulo: 'Rotas',
               filhos: [
                 { para: '/fabrica/rotas/entregas', rotulo: 'Entregas' },
                 { para: '/fabrica/rotas/programacao', rotulo: 'Programação' },
@@ -278,9 +279,9 @@ export function Layout({ children }: { children: ReactNode }) {
               secoes: [
                 {
                   filhos: [
-                    { para: '/comercial/recompra', rotulo: 'Painel de Recompra' },
+                    { para: '/comercial/recompra', rotulo: 'Painel de recompra' },
                     { para: '/comercial/dashboard', rotulo: 'Dashboard' },
-                    { para: '/comercial/listas', rotulo: 'Listas de Disparo' },
+                    { para: '/comercial/listas', rotulo: 'Listas de disparo' },
                   ],
                 },
               ],
@@ -617,13 +618,16 @@ export function Layout({ children }: { children: ReactNode }) {
           return (
             <div key={secao.titulo ?? indice} className={cn(indice > 0 && 'mt-3')}>
               {secao.titulo && (
-                // O "pai" de seção (Controle de Produção, Logística, ROTAS):
+                // O "pai" de seção (Controle de produção, Logística, Rotas):
                 // recolhe/expande os filhos, com a setinha de dropdown (D-36).
+                // ↩️ Ajuste do dono (14/10 noite — "o nome da rota pai muito
+                // apagado"): o pai é legível (claro e em negrito, sem caixa
+                // alta miúda); os filhos ficam debaixo dele, numa linha-guia.
                 <button
                   type="button"
                   onClick={() => alternarSecao(secao.titulo!)}
                   aria-expanded={!recolhida}
-                  className="mb-0.5 flex w-full items-center gap-1 rounded-dm px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-grafite-400 transition-colors hover:text-grafite-200"
+                  className="mb-0.5 flex min-h-toque-md w-full items-center gap-1 rounded-dm px-3 text-sm font-semibold text-grafite-50 transition-colors hover:bg-grafite-600"
                 >
                   <span className="flex-1 text-left">{secao.titulo}</span>
                   <ChevronDown
@@ -636,7 +640,12 @@ export function Layout({ children }: { children: ReactNode }) {
                 </button>
               )}
               {!recolhida && (
-                <div className="flex flex-col gap-0.5">
+                <div
+                  className={cn(
+                    'flex flex-col gap-0.5',
+                    secao.titulo && 'ml-3 border-l border-grafite-600 pl-1.5',
+                  )}
+                >
                   {secao.filhos.map((filho) => (
                     <NavLink
                       key={filho.para}
@@ -644,13 +653,12 @@ export function Layout({ children }: { children: ReactNode }) {
                       onClick={() => setGavetaAberta(false)}
                       className={({ isActive }) =>
                         cn(
-                          'inline-flex min-h-toque-md items-center rounded-dm pr-3 text-sm font-medium transition-colors',
-                          // indentado quando a seção tem título: é o que mostra
-                          // a olho que o item é filho daquele agrupamento
-                          secao.titulo ? 'pl-6' : 'pl-3',
+                          'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm transition-colors',
+                          // o filho é um degrau abaixo do pai: peso normal,
+                          // um tom mais suave; o ativo ganha a cor do menu
                           isActive
-                            ? 'bg-menu-ativo text-menu-ativo-texto'
-                            : 'text-grafite-100 hover:bg-grafite-600 hover:text-grafite-50',
+                            ? 'bg-menu-ativo font-semibold text-menu-ativo-texto'
+                            : 'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50',
                         )
                       }
                     >

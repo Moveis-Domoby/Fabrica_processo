@@ -338,6 +338,7 @@ export function TelaSetor() {
             setGestoComPin({ tipo: 'concluir_avulso', card, rotulo: 'Concluir o card' })
           }
           camposPorCard={camposPorCard}
+          carregando={quadro.carregando}
           execucao={{
             execucoesPorCard,
             nomesUsuarios,
@@ -435,6 +436,9 @@ export function TelaSetor() {
         card={parando?.card ?? null}
         etapaId={parando?.acao.etapa.id}
         etapaNome={parando?.acao.etapa.nome}
+        pedidoNumero={
+          parando?.card.pedido_id != null ? pedidosPorId.get(parando.card.pedido_id)?.numero : null
+        }
         operadorId={parando?.operadorId}
         tamanho="galpao"
         aoFechar={() => setParando(null)}
