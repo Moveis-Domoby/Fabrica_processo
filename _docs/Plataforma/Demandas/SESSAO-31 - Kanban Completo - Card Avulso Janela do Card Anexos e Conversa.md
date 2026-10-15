@@ -180,6 +180,22 @@ Lista **PRODUÇÃO** (DPTO TI). Ao começar cada uma → **FAZENDO**. **Nunca** 
 - [Kanban - Pausa de um card com motivo de pausa](https://app.clickup.com/t/17tya50fc0c) — §4
 - [Desempenho - Quadros, tablet e sino ao vivo por websocket](https://app.clickup.com/t/17tya50fm44) — §4b
 
+**Ajustes do dono (14/10 noite) e validação no site (15/10)** — criadas em 15/10 com o OK do dono ("Sim"), já em **FAZENDO** e comentadas (entregue + como conferir); quem conclui é o dono. Detalhe no §10 do handoff e nas levas 1–4 do diário:
+- [Kanban - Atualização em tempo real entre as áreas](https://app.clickup.com/t/17tya50grjq)
+- [Kanban - Concluir só no card avulso](https://app.clickup.com/t/17tya50grjr)
+- [PCP - Pedido segue a situação do Tiny](https://app.clickup.com/t/17tya50grjt) — D-132
+- [Lançamento manual - Cards no padrão comum](https://app.clickup.com/t/17tya50grju)
+- [Pedidos - Área de pedidos com todos os dados](https://app.clickup.com/t/17tya50grjv) — D-134 (Todos os pedidos + Cancelados)
+- [Pedidos - Comprovante de entrega dentro do pedido](https://app.clickup.com/t/17tya50grjw) — imagem de teste no pedido 13622
+- [Kanban - Colunas mais leves e sem aviso piscando](https://app.clickup.com/t/17tya50grjx) — D-135
+- [Kanban - Janela de pausa no padrão da plataforma](https://app.clickup.com/t/17tya50grjy)
+- [Utilitários - Motivos de pausa em aba própria](https://app.clickup.com/t/17tya50grjz)
+- [Expedição - Só pedidos vivos, o mais urgente primeiro](https://app.clickup.com/t/17tya50grk0) — D-133
+- [Menu - Nomes e hierarquia padronizados](https://app.clickup.com/t/17tya50grk1)
+- [Rotas - Duas rotas no mesmo dia](https://app.clickup.com/t/17tya50grk2) — e o aviso de versão nova
+- [Kanban - Arrastar o quadro para o lado com a mãozinha](https://app.clickup.com/t/17tya50grk3)
+- [Plataforma - Revisão das telas (janelas, layout e dados)](https://app.clickup.com/t/17tya50grk4)
+
 ## 11. 🆕 Respostas do dono e ajustes que entraram (13–14/10/2026)
 
 > As 11 perguntas do §6 foram respondidas e viraram **D-125…D-131**; o dono trouxe também **4 ajustes** da equipe, que entram nesta sessão. Ordem do dono (14/10): *"Você será uma sessão noturna, então não me pergunte nada, apenas valide e entregue, faça todos os testes necessários."*

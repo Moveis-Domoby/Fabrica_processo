@@ -54,6 +54,7 @@ O §14 da lei, resumido: **35 relógios** de 15 a 60 s em 15 telas · **`postgre
 - **Estatísticas:** rodar `ANALYZE` e **descobrir por que** o planejador acha 4 linhas nos eventos e 106 nos logs (e impedir que volte).
 - **Limpeza do histórico do cron** (30 MB) com retenção; plano de crescimento das tabelas que só aumentam (índice por data; partição por mês quando passar de milhões; retenção do que é ruído).
 - `statement_timeout` próprio nas portas de tela.
+- **Área Pedidos — a busca e os Cancelados (dívida 17 da lei; anotado a pedido do dono em 15/10/2026: *"deixe anotado para a sessão 32 otimizar"*):** a busca por número, cliente ou vendedor (55 ms no banco real) e a lista de Cancelados (41 ms) em `plt_fn_pedidos_lista` varrem `pedidos`; com volume ×100 passam do teto de 50 ms. **Caminho:** índice parcial dos cancelados (pela situação normalizada) e índice de trigramas (`pg_trgm`) para a busca por nome — nas tabelas da **integração** (`pedidos`, `clientes`): o dono já mandou otimizar, mas índice e extensão nova em tabela da integração se confirmam com ele no (c) e a aplicação é pedida (regras 2, 3 e 10). Provar com `EXPLAIN ANALYZE` antes/depois e volume ×100; a porta devolve **o mesmo** (teste no harness).
 
 ### 1.7 Rotinas do banco por evento, sem relógio
 - As que acordam a cada minuto para ver se há trabalho — reservas do estoque, despacho de webhooks, disparo do comercial — e as fotos a cada 5 min passam a nascer **do fato** (gatilho → fila → chamada). Relógio só para o que é de calendário.

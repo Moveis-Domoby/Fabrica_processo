@@ -240,6 +240,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 
 - [2026-10-15] **A-63** (Claude Code, SESSAO-31, validação no site) · **No navegador do app em tamanho emulado (375 px), clicar por coordenada da imagem erra o alvo** (abriu o pedido de cima); clicar pela referência do elemento (`find` → `ref`) acerta. Em emulação, sempre `ref`. E gesto de arrastar que o navegador do app não faz (botão do meio) se prova com eventos de ponteiro disparados na página — sem soltar card em coluna nenhuma.
 
+- [2026-10-15] **A-64** (Claude Code, SESSAO-31, depois da validação) · **Teste em produção pedido pelo dono ("anexe um arquivo qualquer"):** (1) conferir antes QUEM escuta o fato que o teste gera (webhooks ativos, automações, avisos) — aqui nenhum webhook ouvia `anexo_adicionado`; (2) escolher o registro que menos confunde a equipe (o pedido da própria Loja Domoby, não o de um cliente); (3) arquivo que se anuncia como teste ("TESTE… pode apagar"); (4) conferir na tela que o teste mostrou o que devia; (5) dizer ao dono onde está e que se tira depois (o histórico guarda). Sem entrega pendente e com o card do pedido entregue arquivado, o caminho pela tela foi a janela do card de um pedido em produção.
+
 ## 🧠 Modelos mentais (M-NN)
 
 - **M-01** · **Automatizar consequências, não decisões** — o humano decide (PCP, destino, qualidade); o sistema executa o resto do clique (timer, contagem, notificação).

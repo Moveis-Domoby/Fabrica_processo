@@ -191,9 +191,9 @@ Pedido do dono (14/10, com vídeo e imagens): *"Muita coisa está ruim ou mal fe
 **Conferido pelo Claude no site** (com a conta do dono; celular 375 px e computador): todos os itens acima que não gravam nada — Cancelados, ficha, menu do celular, quadro (fundo arrastado e botão do meio sem pegar o card, nada foi ao banco), Setores e etapas, Utilitários, janela do card. O tablet (768 px) segue com o dono.
 
 **Pendente / para decidir:**
-- **Dívida 17 da lei:** a busca por nome na área Pedidos (55 ms) e a lista de Cancelados (41 ms) passam do teto com volume ×100 — o caminho é índice nas tabelas da integração do Tiny (**precisa do OK do dono**).
-- **Comprovante:** ainda não há nenhum anexado no banco; quando o entregador anexar, aparece em Pedidos → ficha → "Entrega e comprovante".
-- **ClickUp:** os ajustes da noite de 14/10 e de 15/10 **não têm tarefa** (o Claude não cria — regra 19); o dono decide se cria.
+- **Dívida 17 da lei:** a busca por nome na área Pedidos (55 ms) e a lista de Cancelados (41 ms) passam do teto com volume ×100 — o caminho é índice nas tabelas da integração do Tiny. **15/10 — dono: "deixe anotado para a sessão 32 otimizar"** → anotado no §1.6 da [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] e comentado na tarefa de banco dela.
+- **Comprovante:** ainda não há nenhum de entrega de verdade. **15/10 — dono: "anexe um arquivo qualquer para testar"** → como hoje não há entrega pendente programada (e o card do pedido entregue fica arquivado, sem anexo pela tela), a imagem de teste "TESTE - comprovante de exemplo.png" foi anexada pela janela do card do **pedido 13622** (da própria Loja Domoby, em produção) e aparece em Pedidos → 13622 → "Entrega e comprovante" (conferido: a imagem abre na ficha). Tirar quando o dono tiver visto (janela do card → Anexos → tirar — fica no histórico).
+- ~~**ClickUp:** os ajustes não têm tarefa~~ → **✅ 15/10:** o dono disse "Sim" — **14 tarefas** criadas na lista PRODUÇÃO, já em FAZENDO e comentadas (links na seção "Tarefas no ClickUp" da demanda); quem conclui é o dono.
 - Aprendizados: E-95…E-100, A-61…A-63 em [[PLT - Memoria de Aprendizado]].
 
 ## Ver também

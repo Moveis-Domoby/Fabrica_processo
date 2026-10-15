@@ -218,7 +218,7 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | ~~14~~ | ~~ROTAS → Entregas e "Já programadas" (entregues) por deslocamento~~ — ✔ paga pela D-120 (o entregue saiu da ROTAS; o histórico mora em "Todos os pedidos", por cursor) | ROTAS | 30 |
 | 15 | Estoque abre com 3 requisições e o PCP com várias — falta a porta de abertura de cada tela (Lei §2) | Estoque, PCP | 32 |
 | 16 | A porta do quadro do PCP (`plt_fn_pedidos_kanban`) com média de 157 ms (máx. 2,3 s) no registro de uso — acima do teto de 50 ms; a 31 tocou o PCP só com a aba nova (Lançamento manual, dentro da lei) | PCP | 32 |
-| 17 | Área Pedidos: a busca por nome/vendedor (55 ms) e a lista de Cancelados (41 ms) varrem `pedidos` — com ×100 ficam lentas. **Caminho:** índice parcial dos cancelados e índice de trigramas para a busca, nas tabelas da INTEGRAÇÃO (precisa do OK do dono — regra 10 e extensão nova) | Pedidos | 32 (com OK) |
+| 17 | Área Pedidos: a busca por nome/vendedor (55 ms) e a lista de Cancelados (41 ms) varrem `pedidos` — com ×100 ficam lentas. **Caminho:** índice parcial dos cancelados e índice de trigramas para a busca, nas tabelas da INTEGRAÇÃO (precisa do OK do dono — regra 10 e extensão nova). **Dono (15/10): "deixe anotado para a sessão 32 otimizar"** — está no §1.6 da SESSAO-32 | Pedidos | 32 |
 
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
