@@ -175,16 +175,40 @@ Pedido do dono (14/10 ~22:40, com vídeo e 7 imagens): *"Muita coisa está ruim 
 - **Comprovante:** existe na janela do pedido do PCP, mas escondido dentro de "Pagamento".
 
 Lista (espelho do pedido):
-- [ ] I1 · "Concluir" só no card avulso
-- [ ] I2 · Quadro sem a mensagem piscando (esqueleto enquanto carrega)
-- [ ] I3 · Colunas: linha fina entre colunas, fundo mais transparente, cresce só a coluna com card, sem "Vazio"/"Solte aqui"
-- [ ] I4 · Ao vivo de verdade entre áreas: ao voltar a uma tela, relê o que mudou enquanto estava fora (quadro e telas ao vivo)
-- [ ] I5 · Janela do motivo de pausa no padrão da plataforma (botões de motivo como os da entrega; nome do card certo)
-- [ ] I6 · Utilitários: aba própria "Motivos de pausa" (sai de "Motivos da entrega")
-- [ ] I7 · Lançamento manual em cards comuns (grade, como os pedidos do PCP)
-- [ ] I8 · Menu: hierarquia clara (pai legível) e nomes padronizados em todos os grupos
-- [ ] J1 · PCP: pedido Faturado / Pronto para envio / Enviado no Tiny sai do PCP e segue o Tiny
-- [ ] J2 · Expedição: só pedidos vivos, previsão mais próxima primeiro, ao vivo (sem relógio)
-- [ ] J3 · Duas rotas no mesmo dia: validar no banco real e na tela; aviso de versão nova da plataforma
-- [ ] K1 · Pai "Pedidos" no menu da Fábrica: "Todos os pedidos" (sai do PCP) e "Cancelados" (a da Logística vem para cá, com o histórico inteiro)
-- [ ] K2 · Ficha do pedido com tudo — comercial, produção (quem fez cada peça, tempo por etapa e pessoa), entrega (dia e hora, comprovante), dados do Tiny — revelada aos poucos, por clique
+- [x] I1 · "Concluir" só no card avulso
+- [x] I2 · Quadro sem a mensagem piscando (esqueleto enquanto carrega)
+- [x] I3 · Colunas: linha fina entre colunas, fundo mais transparente, cresce só a coluna com card, sem "Vazio"/"Solte aqui"
+- [x] I4 · Ao vivo de verdade entre áreas: ao voltar a uma tela, relê o que mudou enquanto estava fora (quadro e telas ao vivo)
+- [x] I5 · Janela do motivo de pausa no padrão da plataforma (botões de motivo como os da entrega; nome do card certo)
+- [x] I6 · Utilitários: aba própria "Motivos de pausa" (sai de "Motivos da entrega")
+- [x] I7 · Lançamento manual em cards comuns (grade, como os pedidos do PCP)
+- [x] I8 · Menu: hierarquia clara (pai legível) e nomes padronizados em todos os grupos
+- [x] J1 · PCP: pedido Faturado / Pronto para envio / Enviado no Tiny sai do PCP e segue o Tiny
+- [x] J2 · Expedição: só pedidos vivos, previsão mais próxima primeiro, ao vivo (sem relógio)
+- [x] J3 · Duas rotas no mesmo dia: validar no banco real e na tela; aviso de versão nova da plataforma
+- [x] K1 · Pai "Pedidos" no menu da Fábrica: "Todos os pedidos" (sai do PCP) e "Cancelados" (a da Logística vem para cá, com o histórico inteiro)
+- [x] K2 · Ficha do pedido com tudo — comercial, produção (quem fez cada peça, tempo por etapa e pessoa), entrega (dia e hora, comprovante), dados do Tiny — revelada aos poucos, por clique
+
+### 14/10 noite · Leva 1 — quadro, pausa, utilitários, lançamento manual, menu (no ar ~23:25 Natal; site 0fcc0c8)
+
+- `QuadroKanban`: `aoConcluir` só para `tipo === 'avulso'`; prop `carregando` → `EsqueletoDoQuadro` (nenhum aviso enquanto as etapas não chegaram); a coluna virou faixa de altura cheia (soltar em qualquer altura) com o **painel** que cresce só com card (`bg-superficie-sutil/40`, borda `/40`, tracejada quando leva/conclui); o contêiner usa `divide-x divide-borda/40` (a linha fina entre colunas); saíram "Vazio" e "Solte aqui…". Teste novo `QuadroKanban.test.tsx` (4).
+- **Ao vivo ao voltar:** `useQuadro` — na 1ª assinatura (ou na desistência de 4 s), se a leitura guardada é de ANTES de a tela abrir, `invalidateQueries(refetchType 'none')` e a consulta liga já velha → 1 releitura; `useAoVivo` — na 1ª assinatura, relê cada consulta guardada antes de a tela abrir (que não esteja lendo agora).
+- `ModalMotivoPausa` refeito no desenho do `ModalMotivoEntrega` (botões em grade, `aria-pressed`, ações no formulário; subtítulo = nome da peça (k/n) · Pedido N).
+- Utilitários: aba **"Motivos de pausa"** (`?aba=pausa`); "Motivos da entrega" fica com não entregue · desfazer · devolvido.
+- Lançamento manual: `CartaoDoAvulso` em grade `sm:grid-cols-2 lg:grid-cols-3` (Lançar na largura toda; Concluir).
+- Menu: `nomeNoMenu` (siglas PCP/SECC/CNC/MDF/API inteiras; o resto minúsculo com a 1ª maiúscula); seções "Controle de produção", "Rotas"; pai `text-sm font-semibold text-grafite-50`, filhos numa linha-guia (`border-l`); Comercial "Painel de recompra", "Listas de disparo".
+- Tela: tsc, lint, **167 testes**, build.
+
+### 14/10 noite · Leva 2 — o PCP segue o Tiny, Expedição viva, versão nova (no ar ~23:45; site bfd12c6)
+
+- **Migration 74** (`20261014200000_plt_pcp_segue_o_tiny.sql`, D-132/D-133): `plt_privado.fn_tiny_tirou_do_pcp(situacao)` (faturado, pronto para envio, enviado, entregue, não entregue, cancelado); `plt_fn_cards_pedido_pcp` e `plt_fn_dash_pcp_dia` leem dela (painel = quadro); `plt_fn_expedicao_kanban` só pedido vivo (`entrega_evento_id` nulo, não encerrado no Tiny; levado adiante só com peça liberada), previsão mais próxima primeiro. Harness **bloco 74** (4) — **974 verdes**.
+- Banco real: ensaio desfeito → PCP 23 → **22** (o 13623 Faturado saiu; painel = quadro = 22); Expedição 25 pedidos vivos, a partir dos que vencem hoje, **0 entregues**; tempos: quadro do PCP 26 ms, Expedição 4,6 ms, quadrinho 5,1 ms → **74 aplicada**.
+- Expedição: `useAoVivo(['pcp','aguardo','rotas'])` no lugar do `refetchInterval` de 30 s.
+- **Duas rotas no mesmo dia:** o banco aceita (bloco 68) e a tela também — teste novo `ModalProgramar.test.tsx` (a Rota 1 do caminhão feita → "Nova rota (Rota 2)" marcada → manda 2). A causa provável: as 3 entregas de 14/10 foram programadas às 07:52, com a versão antiga aberta desde antes da publicação. **Versão nova:** a montagem grava `__VERSAO_APP__` e `versao.json`; `useVersaoNova` confere no trocar de tela e ao voltar à aba (no máximo a cada 2 min — não é relógio) e, sabendo da nova, recarrega na próxima troca de tela; `AvisoVersaoNova` ("Saiu uma versão nova da plataforma · Atualizar") na casca e no tablet.
+
+### 14/10 noite · Leva 3 — a área Pedidos (no ar ~00:00 de 15/10; site 8afd82d)
+
+- **Migration 75** (`20261014210000_plt_pedidos_area.sql`, D-134): `plt_fn_pedidos_lista(busca, antes_numero, limite, cancelados)` (cursor por número; vendedor, valor, marcadores, peças, situação na plataforma + `tiny`/`cancelado`, entregue em/por/fonte, entregue no Tiny, cancelado em; total só na 1ª página, até 10.001); `plt_fn_pedido_producao(pedido)` (peças pelo `pedido_id` ou pelo `card_pai_id` — as que o cancelamento deixou sem dono —, execuções de `plt_vw_execucoes` com setor, etapa, pessoa, segundos e pausa; resumo por pessoa); `plt_fn_pedido_tiny(pedido)` (raw do pedido, do cliente, das notas e das contas). Harness **bloco 75** (6) — **980 verdes**.
+- Banco real: ensaio desfeito → 5.561 pedidos (1ª página 38,6 ms, seguinte 25,7 ms), 164 cancelados (40,9 ms), busca por nome 55,5 ms (acima do teto — dívida 17), produção do maior pedido 10,8 ms, Tiny 4,2 ms → **75 aplicada**.
+- Tela (pasta nova `src/pedidos/`, pedaço próprio 39,7 kB / 10,6 kB gz): `PaginaPedidos` (Todos/Cancelados; busca com espera; cursor ao rolar; `?pedido=N` abre direto; seleção do super admin), `FichaDoPedido` (nasceu do `PedidoCompleto` do PCP — resumo + 5 botões que revelam: Itens e pagamento · Produção · Entrega e comprovante · Dados do Tiny · Histórico; o comprovante abre ali mesmo, a imagem aparece na ficha), `ProducaoDoPedido`, `DadosDoTiny` (o registro inteiro, campos legíveis, vazio escondido, embrulhos do Tiny desfeitos), `AjustePedidos` (a barra do super admin, comum ao PCP). Saíram: a aba "Todos os pedidos" do PCP, `PedidoCompleto.tsx`, `Cancelados.tsx` (os links antigos levam à área nova). JS inicial **1.538 → 1.465 kB** (393,6 kB gz + Supabase 109,8 + runtime 4,3).
+- Tela: tsc, lint, **170 testes** (2 novos da área), build.

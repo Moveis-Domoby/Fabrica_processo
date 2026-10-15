@@ -1337,6 +1337,44 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Admin e super admin** veem o **texto apagado** (com o aviso "apagada") e as **versões anteriores** de uma editada — **só nas conversas a que já têm acesso** (canais em que estão, Avisos gerais, as próprias particulares, e os cards que podem abrir). **A particular dos outros continua fechada** para todo mundo (D-65).
 - Nada se apaga de verdade: editar e apagar são registros novos (RNF-05).
 
+## D-132 · O PCP segue o Tiny: pedido Faturado, Pronto para envio ou Enviado sai do PCP (14/10/2026, noite — pedido do dono) — ↩️ revisa a D-75 (o filtro do quadrinho) e o filtro da SESSAO-23
+
+**Pedido do dono:** *"No PCP, não faz sentido esses pedidos ainda estarem aqui, sendo que no Tiny eles já estão até como recebido, isso já deveria estar funcionando, sempre que um pedido é dado como entregue/recebido ou algo do tipo no Tiny, se ele ainda estiver em PCP, ele deve sumir e seguir a atualização do Tiny."*
+
+- O "recebido" que o Tiny mostra é do **pagamento**; quem anda é a **situação do pedido**: Em aberto → **Preparando envio** (o estado normal de pedido esperando produção aqui — 36 em 14/10) → Faturado → Pronto para envio → Enviado → Entregue.
+- O PCP já tirava Entregue, Não entregue e Cancelado; passa a tirar também **Faturado, Pronto para envio e Enviado** — o Tiny levou o pedido adiante, ele não espera liberação. **Preparando envio fica.**
+- É **leitura**, não arquivamento: se o Tiny voltar a situação, o pedido volta ao PCP. Na área Pedidos ele aparece como **"Segue no Tiny"**.
+- Uma regra só no banco (o quadro do PCP e o quadrinho da Visão do dia leem dela — painel = quadro, D-75).
+- Em 14/10 isso tirou **um** pedido (13623, Faturado); os outros 22 estavam "Preparando envio" no Tiny.
+
+## D-133 · A Expedição mostra só pedido vivo, a previsão mais próxima primeiro (14/10/2026, noite — pedido do dono)
+
+**Pedido do dono (imagem 6):** *"não faz sentido essa ordenação completamente desatualizada"* — apareciam no topo pedidos de agosto já entregues ("1 ainda no PCP").
+
+- A Expedição traz só o pedido **em andamento**: sem entrega registrada na plataforma, não encerrado no Tiny (entregue, não entregue, cancelado); o que o Tiny já levou adiante (D-132) só fica se a fábrica ainda tem peça dele nas mãos.
+- Ordem: a **previsão de entrega mais próxima** primeiro.
+- A tela fica **ao vivo** (sem o relógio de 30 s).
+
+## D-134 · A área PEDIDOS: "Todos os pedidos" sai do PCP e "Cancelados" sai da Logística (14/10/2026, noite — pedido do dono)
+
+**Pedido do dono:** *"Remova de PCP a aba de todos os pedidos e jogue essa aba como rota filha de um novo pai chamado 'Pedidos' … todos os pedidos com todos os dados, sem exceção, dados de produção, dados comerciais, quem fechou essa venda, quem produziu cada produto com tempo de execução em cada etapa e pessoa que participou, com o dia da entrega e o horário que foi dado como entregue … layout de extrema qualidade e LEVE PARA O VISUAL, com botões ocultando dados pesados que são revelados com cliques, porém revelados de forma gradativa. Vai também a rota filha 'Cancelados', que mostra todos os pedidos cancelados da história da empresa de forma paginada, com TODOS os dados fornecidos pelo Tiny também."* · *"Após o pedido entregue, onde é possível visualizar o comprovante anexado? … coloque para ver dentro da nova rota de pedidos."*
+
+- Menu da Fábrica: pai **Pedidos** com **Todos os pedidos** (`/fabrica/pedidos/todos`) e **Cancelados** (`/fabrica/pedidos/cancelados`). Quem vê: a logística (PCP, fins de linha) e o admin — o mesmo de antes.
+- **Cancelados** reúne a tela que era da Logística (decisão provisória do Claude: duas telas "Cancelados" confundiriam) e passa a ter **toda a história** (164 em 14/10), não só os que tinham card.
+- A **linha** é leve: número, data, situação no Tiny e na plataforma, cliente, **quem vendeu**, marcadores, valor, peças prontas — ou **entregue em (dia e hora) por quem**, ou cancelado em.
+- **Tocar** abre a ficha (1 requisição): o resumo — cliente, venda, valor, entrega. O resto, por **botões**, um de cada vez: **Itens e pagamento** · **Produção** (cada peça, cada etapa, quem trabalhou e quanto tempo — busca só no clique) · **Entrega e comprovante** (o comprovante abre ali mesmo) · **Dados do Tiny** (o registro inteiro que o Tiny mandou — busca só no clique) · **Histórico**.
+- A seleção do super admin (D-117) foi junto para "Todos os pedidos".
+
+## D-135 · Ajustes de tela do dono (14/10/2026, noite)
+
+- **"Concluir" só no card avulso** — a peça conclui soltando na etapa que conclui (D-127).
+- **Quadro:** sem a mensagem vermelha piscando ao trocar de setor (o quadro mostra o desenho das colunas enquanto abre); entre as colunas, uma **linha fina e clara**; o fundo da coluna mais transparente; **só a coluna com card cresce**; nada de "Vazio"/"Solte aqui" no meio — ficam só os textos do topo.
+- **Ao vivo entre áreas:** lançar do PCP aparece no setor sem recarregar — a tela que volta a abrir relê o que mudou enquanto a pessoa estava fora.
+- **Motivo da pausa** no mesmo desenho do motivo da entrega; **Configurações → Utilitários** ganhou a aba própria **"Motivos de pausa"** (saiu de "Motivos da entrega").
+- **Lançamento manual** em **cards comuns** (grade), como os pedidos do PCP.
+- **Menu:** um padrão só de nome (primeira letra maiúscula, siglas inteiras — "Limpeza e embalagem", "PCP"), o **pai** de cada seção legível e os filhos debaixo dele, em todos os grupos.
+- **Versão nova:** quem está com a plataforma aberta é avisado quando sai versão nova (e ela se atualiza na próxima troca de tela) — as "duas rotas no mesmo dia" não funcionavam por causa de uma versão velha aberta; a regra das rotas estava certa.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
