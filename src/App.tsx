@@ -33,7 +33,6 @@ import { MeuPerfil } from '@/paginas/MeuPerfil'
 import { Chat } from '@/paginas/Chat'
 import { Estoque } from '@/paginas/Estoque'
 import { PedidosAguardo } from '@/paginas/PedidosAguardo'
-import { Cancelados } from '@/paginas/Cancelados'
 import { Danificados } from '@/paginas/Danificados'
 import { Caminhoes } from '@/paginas/Caminhoes'
 import { ProducaoSetor, RedirecionarSetorAntigo } from '@/navegacao/ProducaoSetor'
@@ -51,6 +50,14 @@ const Programacao = lazy(() =>
 const EntregasDoDia = lazy(() =>
   import('@/paginas/EntregasDoDia').then((m) => ({ default: m.EntregasDoDia })),
 )
+// ↩️ 14/10 (D-134): a área Pedidos — pedaço próprio do pacote (Lei §9).
+const TodosOsPedidos = lazy(() =>
+  import('@/pedidos/PaginaPedidos').then((m) => ({ default: m.TodosOsPedidos })),
+)
+const PedidosCancelados = lazy(() =>
+  import('@/pedidos/PaginaPedidos').then((m) => ({ default: m.PedidosCancelados })),
+)
+const carregandoPedidos = <p className="text-sm text-texto-fraco">Carregando os pedidos…</p>
 
 /**
  * ↪️ D-121 (09/10, pedido do dono): para a logística, "Entregas do dia" virou
@@ -133,7 +140,28 @@ export function App() {
                 <Route path="/fabrica/logistica/estoque" element={<Estoque />} />
                 <Route path="/fabrica/logistica/pedidos-em-aguardo" element={<PedidosAguardo />} />
                 <Route path="/fabrica/logistica/danificados" element={<Danificados />} />
-                <Route path="/fabrica/logistica/cancelados" element={<Cancelados />} />
+                {/* ↩️ 14/10 (D-134): Cancelados mora na área Pedidos — o link antigo segue. */}
+                <Route
+                  path="/fabrica/logistica/cancelados"
+                  element={<Navigate to="/fabrica/pedidos/cancelados" replace />}
+                />
+                {/* ↩️ 14/10 (D-134): a área Pedidos — Todos os pedidos e Cancelados. */}
+                <Route
+                  path="/fabrica/pedidos/todos"
+                  element={
+                    <Suspense fallback={carregandoPedidos}>
+                      <TodosOsPedidos />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/fabrica/pedidos/cancelados"
+                  element={
+                    <Suspense fallback={carregandoPedidos}>
+                      <PedidosCancelados />
+                    </Suspense>
+                  }
+                />
                 <Route path="/fabrica/rotas/entregas" element={<Rotas />} />
                 <Route
                   path="/fabrica/rotas/programacao"
@@ -204,6 +232,10 @@ export function App() {
             <Route
               path="/fabrica/logistica"
               element={<Navigate to="/fabrica/logistica/expedicao" replace />}
+            />
+            <Route
+              path="/fabrica/pedidos"
+              element={<Navigate to="/fabrica/pedidos/todos" replace />}
             />
             <Route
               path="/fabrica/rotas"

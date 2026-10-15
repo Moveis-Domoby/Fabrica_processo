@@ -10,7 +10,6 @@ import type {
   ItemKanban,
   PaginaDeCards,
   PedidoResumo,
-  PedidoTodosPcp,
   ChegadaPendente,
   Setor,
   TipoQualidade,
@@ -156,24 +155,6 @@ export async function pedidosResumo(filtro: FiltroPedidos = {}): Promise<PedidoR
     p_deslocamento: filtro.deslocamento ?? 0,
   })
   return garantir(data as PedidoResumo[] | null, error, 'Não deu para carregar os pedidos')
-}
-
-/**
- * SESSAO-30 (regra 18): a aba "Todos os pedidos" do PCP por CURSOR — o número
- * do último pedido da página anterior (nulo = a primeira). A porta corta a
- * página antes de contar as unidades (a antiga levava 3,2 s na 1ª página).
- */
-export async function todosPedidosPcp(filtro: {
-  busca?: string
-  antesNumero?: number | null
-  limite?: number
-}): Promise<PedidoTodosPcp[]> {
-  const { data, error } = await supabase.rpc('plt_fn_pcp_todos_pedidos', {
-    p_busca: filtro.busca ?? null,
-    p_antes_numero: filtro.antesNumero ?? null,
-    p_limite: filtro.limite ?? 20,
-  })
-  return garantir(data as PedidoTodosPcp[] | null, error, 'Não deu para carregar os pedidos')
 }
 
 /** SESSAO-30 (D-117): o que o super admin faz com os pedidos marcados no PCP. */
@@ -452,36 +433,6 @@ export async function liberarNoPcp(
     p_unidades: unidades,
   })
   return garantir(data as ResultadoLiberacao | null, error, 'Não deu para liberar')
-}
-
-/** SESSAO-24 — a aba Cancelados do PCP (histórico, para sempre, paginado no servidor). */
-export interface PedidoCancelado {
-  card_id: number
-  pedido_id: number
-  numero: number
-  cliente_nome: string
-  data_pedido: string | null
-  cancelado_em: string | null
-  total_unidades: number
-  /** Peças que ainda carregam o pedido na produção — com a etiqueta "Pedido cancelado". */
-  em_producao: number
-  prontas: number
-  /** Peças que perderam o pedido e ficaram sem dono no estoque. */
-  no_estoque: number
-  contagem_total: number
-}
-
-export async function pedidosCancelados(parametros: {
-  busca?: string
-  limite?: number
-  deslocamento?: number
-}): Promise<PedidoCancelado[]> {
-  const { data, error } = await supabase.rpc('plt_fn_pedidos_cancelados', {
-    p_busca: parametros.busca || null,
-    p_limite: parametros.limite ?? 20,
-    p_deslocamento: parametros.deslocamento ?? 0,
-  })
-  return garantir(data as PedidoCancelado[] | null, error, 'Não deu para carregar os cancelados')
 }
 
 // ---------------------------------------------------------------------------

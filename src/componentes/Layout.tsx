@@ -222,6 +222,15 @@ export function Layout({ children }: { children: ReactNode }) {
         : []),
       ...(veLogistica
         ? [
+            // ↩️ 14/10 (D-134): o pai Pedidos — Todos os pedidos (saiu do PCP)
+            // e Cancelados (veio da Logística, com a história inteira).
+            {
+              titulo: 'Pedidos',
+              filhos: [
+                { para: '/fabrica/pedidos/todos', rotulo: 'Todos os pedidos' },
+                { para: '/fabrica/pedidos/cancelados', rotulo: 'Cancelados' },
+              ],
+            },
             {
               titulo: 'Logística',
               filhos: [
@@ -229,7 +238,6 @@ export function Layout({ children }: { children: ReactNode }) {
                 { para: '/fabrica/logistica/estoque', rotulo: 'Estoque' },
                 { para: '/fabrica/logistica/pedidos-em-aguardo', rotulo: 'Pedidos em aguardo' },
                 { para: '/fabrica/logistica/danificados', rotulo: 'Danificados' },
-                { para: '/fabrica/logistica/cancelados', rotulo: 'Cancelados' },
               ],
             },
             {

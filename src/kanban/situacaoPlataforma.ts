@@ -14,6 +14,9 @@ export const ROTULO_SITUACAO_PLATAFORMA: Record<SituacaoPlataforma, string> = {
   entregue: 'Entregue',
   arquivado: 'Arquivado',
   devolvido: 'Em decisão pós devolução',
+  // ↩️ 14/10 (D-132/D-134): o Tiny levou adiante sem nada liberado; e o cancelado.
+  tiny: 'Segue no Tiny',
+  cancelado: 'Cancelado',
 }
 
 /** O que cada ajuste do super admin faz — o texto da confirmação. */

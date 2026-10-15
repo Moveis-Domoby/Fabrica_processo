@@ -193,27 +193,10 @@ export type SituacaoPlataforma =
   | 'arquivado'
   /** SESSAO-31 (D-129): as peças voltaram e esperam a decisão da logística. */
   | 'devolvido'
-
-/**
- * Linha de plt_fn_pcp_todos_pedidos — a aba "Todos os pedidos" do PCP por
- * cursor (regra 18): `tem_mais` diz se há outra página; `contagem_total` só
- * vem na primeira (com teto de 10.000).
- */
-export interface PedidoTodosPcp {
-  pedido_id: number
-  numero: number
-  cliente_nome: string
-  data_pedido: string | null
-  data_prevista: string | null
-  situacao: string | null
-  total_unidades: number
-  unidades_liberadas: number
-  alterado_apos_liberacao: boolean
-  card_id: number | null
-  situacao_plataforma: SituacaoPlataforma
-  tem_mais: boolean
-  contagem_total: number | null
-}
+  /** 14/10 (D-132): o Tiny levou o pedido adiante (faturado…) sem nada liberado. */
+  | 'tiny'
+  /** 14/10 (D-134): cancelado no Tiny. */
+  | 'cancelado'
 
 /** Linha de plt_fn_pedido_itens_kanban — item já traduzido em unidades (k/n). */
 export interface ItemKanban {

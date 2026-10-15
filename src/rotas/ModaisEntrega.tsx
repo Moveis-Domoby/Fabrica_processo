@@ -20,8 +20,8 @@ const CHAVES_ENTREGA = [
   ['programadas'],
   ['entregas-do-dia'],
   ['estoque'],
-  ['pcp-todos'],
-  ['pcp-pedido-completo'],
+  ['pedidos-lista'],
+  ['pedido-ficha'],
   ['devolucoes'],
 ]
 

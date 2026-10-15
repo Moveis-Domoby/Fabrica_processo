@@ -12468,6 +12468,86 @@ conferir(!priv74.logado && !priv74.preparando && priv74.pronto && priv74.nao_ent
   JSON.stringify(priv74))
 } // fim do bloco 74
 
+// ============================================================================
+// Ajustes do dono (14/10 noite) · migration 75 — a área "Pedidos" (D-134):
+// a lista por cursor, a produção do pedido e os dados do Tiny, no clique.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajustes 14/10 · Pedidos: a lista por cursor, a produção de cada peça (quem, etapa, tempo) e os dados do Tiny')
+
+const um75 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const como75 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const LOG75 = '00000000-0000-0000-0000-000000000031'
+const OP75 = '00000000-0000-0000-0000-000000000732' // o colega do setor de teste do bloco 73 (o operador já tem 1 em andamento)
+await como75('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_prevista, total_pedido, vendedor, marcadores, raw)
+    values (997501, (select id from public.clientes order by id limit 1), 'Preparando envio', current_date + 2,
+            1234.50, 'Gessica', array['Online', 'Instagram'],
+            '{"numero": "997501", "nome_vendedor": "Gessica", "forma_pagamento": "PIX", "itens": [{"item": {"codigo": "075"}}]}'::jsonb),
+           (997502, (select id from public.clientes order by id limit 1), 'Cancelado', current_date, 10, null, '{}', '{}'::jsonb);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 997501), 1, '075', 'Cadeira Teste 75', 1),
+           ((select id from public.pedidos where numero = 997502), 1, '075', 'Cadeira Teste 75', 1);
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    values ('unidade', (select id from public.pedidos where numero = 997501),
+            (select c.id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id where p.numero = 997501 and c.tipo = 'pedido'),
+            1, '075', 'Cadeira Teste 75', 1, 1);
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(c.id) from public.plt_cards c join public.pedidos p on p.id = c.pedido_id where p.numero = 997501 and c.tipo = 'unidade'),
+            'card_criado', (select id from public.plt_setores where codigo = 'pz73'), 'interface');
+`)
+const P75 = (await um75(`select id::int as id from public.pedidos where numero = 997501`)).id
+const U75 = (await um75(`select id::int as id from public.plt_cards where pedido_id = ${P75} and tipo = 'unidade'`)).id
+const montando75 = (await um75(`select e.id::int as id from public.plt_etapas e join public.plt_setores s on s.id = e.setor_id where s.codigo = 'pz73' and e.nome = 'MONTANDO'`)).id
+await como75(OP75)
+await bd.exec(`select public.plt_fn_soltar_card(${U75}, ${montando75})`)
+
+// 1 · A lista: a linha traz o que mostra (valor, quem vendeu, situação, peças)
+await como75(LOG75)
+const linha = await um75(`select * from public.plt_fn_pedidos_lista(p_busca => '997501')`)
+const cancelados = await um75(`select count(*)::int as n, bool_and(plt_privado.fn_situacao_normalizada(situacao) = 'cancelado') as so_cancelados,
+                                      bool_or(numero = 997502) as tem_o_teste
+                                 from public.plt_fn_pedidos_lista(p_limite => 100, p_cancelados => true)`)
+conferir(linha?.numero === 997501 && Number(linha.total_pedido) === 1234.5 && linha.vendedor === 'Gessica'
+    && linha.situacao_plataforma === 'producao' && linha.unidades_liberadas === 1 && linha.contagem_total === 1
+    && cancelados.so_cancelados && cancelados.tem_o_teste,
+  'a lista traz valor, quem vendeu, a situação na plataforma e as peças; "Cancelados" só tem cancelado (e tem o do teste)',
+  JSON.stringify({ linha, cancelados }))
+
+// 2 · O cursor: a 2ª página começa depois do último número da 1ª
+const p1 = (await bd.query(`select numero, tem_mais from public.plt_fn_pedidos_lista(p_limite => 2)`)).rows
+const p2 = (await bd.query(`select numero from public.plt_fn_pedidos_lista(p_antes_numero => ${p1[1]?.numero ?? 0}, p_limite => 2)`)).rows
+conferir(p1.length === 2 && p1[0].tem_mais && p2.length > 0 && p2[0].numero < p1[1].numero,
+  'por cursor: 20 de cada vez, a página seguinte continua do último número',
+  JSON.stringify({ p1, p2 }))
+
+// 3 · A produção: a peça, a execução (setor, etapa, quem) e o resumo por pessoa
+const prod = (await um75(`select public.plt_fn_pedido_producao(${P75}) as j`)).j
+const exe = prod?.pecas?.[0]?.execucoes?.[0]
+conferir(prod?.pecas?.length === 1 && exe?.setor === 'PZ73 MONTAGEM' && exe?.etapa === 'MONTANDO'
+    && exe?.pessoa === 'Colega 73' && exe?.em_andamento === true && prod?.pessoas?.[0]?.nome === 'Colega 73',
+  'a produção do pedido: cada peça com cada execução (setor, etapa, quem, em andamento) e o resumo por pessoa',
+  JSON.stringify(prod))
+
+// 4 · Os dados do Tiny: o registro inteiro
+const tiny = (await um75(`select public.plt_fn_pedido_tiny(${P75}) as j`)).j
+conferir(tiny?.pedido?.nome_vendedor === 'Gessica' && tiny?.pedido?.forma_pagamento === 'PIX' && Array.isArray(tiny?.notas_fiscais),
+  'os dados do Tiny: o registro inteiro do pedido (e as notas e contas, quando há)', JSON.stringify(tiny))
+
+// 5 · Gate: o operador de produção não abre; anônimo fora
+await como75(OP75)
+await deveRecusarExec(`select public.plt_fn_pedido_producao(${P75})`, 'o operador de produção não abre a produção do pedido pela área Pedidos', /logística/i)
+const listaOp = await um75(`select count(*)::int as n from public.plt_fn_pedidos_lista(p_busca => '997501')`)
+await como75('')
+const priv75 = await um75(`
+  select has_function_privilege('anon', 'public.plt_fn_pedidos_lista(text, integer, integer, boolean)', 'execute') as anon_lista,
+         has_function_privilege('anon', 'public.plt_fn_pedido_tiny(bigint)', 'execute') as anon_tiny,
+         has_function_privilege('authenticated', 'public.plt_fn_pedido_producao(bigint)', 'execute') as logado`)
+conferir(listaOp.n === 0 && !priv75.anon_lista && !priv75.anon_tiny && priv75.logado,
+  'só a logística e o admin veem a área Pedidos; anônimo fora', JSON.stringify({ listaOp, priv75 }))
+} // fim do bloco 75
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

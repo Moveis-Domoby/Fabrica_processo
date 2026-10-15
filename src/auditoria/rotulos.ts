@@ -298,6 +298,8 @@ const TELAS: Record<string, string> = {
   '/fabrica/logistica/pedidos-em-aguardo': 'Logística · Pedidos em aguardo',
   '/fabrica/logistica/danificados': 'Logística · Danificados',
   '/fabrica/logistica/cancelados': 'Logística · Cancelados',
+  '/fabrica/pedidos/todos': 'Pedidos · Todos os pedidos',
+  '/fabrica/pedidos/cancelados': 'Pedidos · Cancelados',
   '/fabrica/rotas/entregas': 'ROTAS · Entregas',
   '/fabrica/rotas/programacao': 'ROTAS · Programação',
   '/dashboards/meu-desempenho': 'Dashboards · Meu desempenho',
