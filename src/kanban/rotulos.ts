@@ -22,10 +22,15 @@ export function ehDaReposicao(card: Pick<Card, 'tipo' | 'pedido_id'>): boolean {
   return card.tipo === 'reposicao' || card.pedido_id === null
 }
 
-/** O nome do card em língua de gente: o avulso pelo título; a peça pelo produto. */
+/**
+ * O nome do card em língua de gente: o avulso pelo título; a peça pelo
+ * produto; o card do PEDIDO não tem produto — é o pedido (a janela põe o
+ * número no título; aqui, sem o número, "Card do pedido" e não "Sem descrição").
+ */
 export function nomeDoCard(
   card: Pick<Card, 'tipo' | 'item_descricao'> & Partial<Pick<Card, 'titulo'>>,
 ): string {
   if (card.tipo === 'avulso') return card.titulo ?? 'Card avulso'
+  if (card.tipo === 'pedido') return card.item_descricao ?? 'Card do pedido'
   return card.item_descricao ?? 'Sem descrição'
 }

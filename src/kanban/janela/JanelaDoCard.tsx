@@ -74,14 +74,25 @@ export function JanelaDoCard({
     staleTime: 0,
   })
   const dados = consulta.data
-  const titulo = dados ? nomeDoCard(dados.card) : 'Card'
+  // O card do PEDIDO (o do PCP) não tem produto: o título é o pedido.
+  const doPedido = dados?.card.tipo === 'pedido'
+  const titulo = !dados
+    ? 'Card'
+    : doPedido
+      ? `Pedido ${dados.pedido?.numero ?? '…'}`
+      : nomeDoCard(dados.card)
+  const descricao = !dados
+    ? undefined
+    : doPedido
+      ? 'Card do pedido'
+      : rotuloOrigemCard(dados.card, dados.pedido)
 
   return (
     <Modal
       aberto
       aoFechar={(v) => !v && aoFechar()}
       titulo={titulo}
-      descricao={dados ? rotuloOrigemCard(dados.card, dados.pedido) : undefined}
+      descricao={descricao}
       tamanho="tela"
     >
       {consulta.isPending && <p className="p-5 text-sm text-texto-fraco">Abrindo o card…</p>}
