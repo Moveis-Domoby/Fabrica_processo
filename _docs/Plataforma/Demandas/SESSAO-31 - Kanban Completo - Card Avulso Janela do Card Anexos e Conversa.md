@@ -214,7 +214,7 @@ Lista **PRODUÇÃO** (DPTO TI). Ao começar cada uma → **FAZENDO**. **Nunca** 
 
 - **Feito:** as 7 etapas no ar, cada uma validada (bateria 848 → 970 verdes, testes da tela 152 → 162, ensaio desfeito no banco real) e aplicada + publicada num gesto só: (A) estado da peça configurável + EXPEDIÇÃO conclui + marcador "Devolvido" sem efeito; (B) devolução decidida pela logística + ajuste de peça; (C) várias rotas por dia; (D) card avulso, frente enxuta, etiquetas pelas pessoas e o quadro numa requisição ao vivo; (E) janela do card + anexos; (F) conversa, menções, sino ao vivo, editar/apagar; (G) pausa com motivo. Migrations 66–73.
 - **Mudou de rota:** a pergunta 10 virou editar/apagar mensagem (D-131 — revisa a imutabilidade do chat); entraram os 4 ajustes da equipe (D-126…D-130); a pausa voltou com o próprio operador pausando o card dele (↩️ D-48/D-59).
-- **Com o dono:** conferência visual a 375/768 px, as 6 decisões provisórias, tarefas para os 4 ajustes (não existem no ClickUp), concluir as 7 tarefas.
+- **Com o dono:** conferência visual a 375/768 px, as 6 decisões provisórias, tarefas para os 4 ajustes (não existem no ClickUp), concluir as 7 tarefas. **↪️ 15/10:** as 6 decisões **confirmadas** (D-136); 375 px conferido pelo Claude (Pedidos, menu, Setores e etapas); os ajustes da noite e da validação ganharam 14 tarefas; os 4 ajustes da equipe seguem sem tarefa; falta o tablet e concluir as tarefas.
 
 ## Ver também
 

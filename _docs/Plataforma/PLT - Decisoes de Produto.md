@@ -1300,7 +1300,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 **Pedido do dono:** *"deve ser possível programar mais de uma rota por dia, pois lá eles podem fazer 3, 4, ou até mais rotas em um único dia"* · *"cada programação será definida o próprio dia, a ordem e cada entregador, pode ser que tenha troca de turno no mesmo caminhão e a terceira rota seja outra pessoa"*.
 
 - O mesmo caminhão faz **várias viagens no dia** (sai da fábrica, entrega, volta, carrega de novo): **"Rota 1", "Rota 2"…** do caminhão naquele dia, cada uma com **mapa, ordem das paradas, distância e tempo próprios** (fábrica → paradas → fábrica).
-- **A equipe (entregadores) é de cada rota** — troca de turno no mesmo caminhão é normal; a rota nova já vem preenchida com a equipe da rota anterior do mesmo caminhão (só sugestão — decisão provisória do Claude), e se muda à vontade.
+- **A equipe (entregadores) é de cada rota** — troca de turno no mesmo caminhão é normal; a rota nova já vem preenchida com a equipe da rota anterior do mesmo caminhão (só sugestão — decisão provisória do Claude, **✅ confirmada pelo dono em 15/10 — D-136**), e se muda à vontade.
 - O entregador vê as rotas do dia em que está, na ordem.
 
 ## D-129 · Devolução: o entregador não marca mais "Pedido devolvido"; a LOGÍSTICA marca, as peças ficam "Em decisão pós devolução" e a logística decide (13–14/10/2026, pedido do dono) — ↩️ revisa a D-114, a D-115 e a D-124
@@ -1332,7 +1332,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Decidido:** *"Pode, inclusive a do chat também deve poder, porém o apagar, o super admin e os admins ainda conseguem visualizar sabendo que foi apagada, a história não se apaga"* · *"o admin não vê as particulares, isso é invasão de privacidade, mas as que ele tem acesso, consegue ver normalmente"*.
 
-- **Cada um edita e apaga só a própria mensagem** (decisão provisória do Claude), na conversa do card e no chat.
+- **Cada um edita e apaga só a própria mensagem** (decisão provisória do Claude — **✅ confirmada pelo dono em 15/10, D-136**), na conversa do card e no chat.
 - Mensagem editada mostra **"editada"** para todos; mensagem apagada vira **"Mensagem apagada"** para todos.
 - **Admin e super admin** veem o **texto apagado** (com o aviso "apagada") e as **versões anteriores** de uma editada — **só nas conversas a que já têm acesso** (canais em que estão, Avisos gerais, as próprias particulares, e os cards que podem abrir). **A particular dos outros continua fechada** para todo mundo (D-65).
 - Nada se apaga de verdade: editar e apagar são registros novos (RNF-05).
@@ -1375,6 +1375,17 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Menu:** um padrão só de nome (primeira letra maiúscula, siglas inteiras — "Limpeza e embalagem", "PCP"), o **pai** de cada seção legível e os filhos debaixo dele, em todos os grupos.
 - **Versão nova:** quem está com a plataforma aberta é avisado quando sai versão nova (e ela se atualiza na próxima troca de tela) — as "duas rotas no mesmo dia" não funcionavam por causa de uma versão velha aberta; a regra das rotas estava certa.
 - **↪️ 15/10 (validação no site + pedido do dono):** **mãozinha no quadro** — no computador, segurar o botão do meio em qualquer ponto, ou o esquerdo no fundo do quadro, e arrastar corre as colunas para o lado; o card só se arrasta com o botão esquerdo; no celular e no tablet, o dedo já corre. **Menu do celular:** com os itens de um grupo abertos, a coluna dos grupos vira só ícones e a dos itens fica mais larga (os nomes não quebram). **Pedidos:** a situação da plataforma só aparece quando é diferente da do Tiny; o cancelado depois de entregue diz isso, sem o verde de "entregue"; a forma de pagamento que o Tiny manda em código aparece como palavra. **Janela do card:** o nome uma vez só, no topo; mudar o nome é o botão "Renomear"; no card do pedido, o título é "Pedido N" (não "Sem descrição"). **Setores e etapas:** as etapas numa grade alinhada com cabeçalho.
+
+## D-136 · As 6 decisões provisórias da SESSAO-31 confirmadas pelo dono (15/10/2026)
+
+**Resposta do dono** às 6 escolhas do §6 do [[handoff_2026_10_14_sessao31_kanban_completo]], explicadas a ele em português: *"1 sim, 2 sim, 3 sim, 4 sim, 5 sim, 6 sim"*. Nada muda no sistema — as 6 já funcionam assim desde a entrega de 14/10; agora são regra.
+
+1. **Tablet:** a janela do card no tablet é **só para ver**, sem dado de cliente (D-28); mudar, anexar e conversar pelo computador ou pelo celular. **Exceção:** Pausar/Retomar, com o PIN de quem age.
+2. **Programar com várias rotas (↪️ D-128):** caminhão que já tem rota no dia → a rota marcada é **"Nova rota"**; no Reprogramar, a rota em que o pedido já está. A rota nova já vem com a **equipe da rota anterior** do mesmo caminhão (muda-se à vontade). **"Rota N"** só aparece quando o caminhão tem mais de uma rota no dia.
+3. **"Líder"** (para criar card avulso e etiqueta — D-125) = papel de líder **ou** marca de líder em algum setor; **quem trabalha no setor também conclui o avulso** (no tablet, com o PIN).
+4. **Busca de peça para o ajuste (D-130):** só peça **em decisão pós devolução**, no **ESTOQUE (não reservada)**, em **Pedidos em aguardo** ou **já entregue**.
+5. **Mensagens (↪️ D-131):** cada pessoa **edita e apaga só a própria**; a menção vale na hora de escrever (**editar não avisa de novo**).
+6. **Pausa (D-125, resposta 9):** "Parar aqui pede o motivo" nasce ligado **só no PARADO da MONTAGEM**; o admin liga em outras etapas (Configurações → Setores e etapas).
 
 ## Ver também
 

@@ -135,6 +135,8 @@ Todo o kanban numa sessão só: o **card avulso** (aba Lançamento manual do PCP
 
 ## 6. Decisões provisórias (o Claude escolheu o caminho conservador — dizer sim ou não)
 
+> [!success] ✅ Todas confirmadas pelo dono em 15/10/2026 — *"1 sim, 2 sim, 3 sim, 4 sim, 5 sim, 6 sim"* → **D-136**.
+
 1. **Tablet:** a janela do card é só para ver (sem dado de cliente); mudar, anexar e conversar pelo computador ou pelo celular. **Exceção:** Pausar/Retomar, com PIN.
 2. **Programar:** quando o caminhão já tem rota no dia, a rota marcada é "Nova rota"; no Reprogramar, a rota em que o pedido já está. A rota nova já vem com a **equipe da rota anterior** do mesmo caminhão. "Rota N" só aparece quando o caminhão tem mais de uma rota no dia.
 3. **"Líder"** (para criar card e etiqueta) = papel de líder ou marca de líder em algum setor; quem trabalha no setor também conclui o avulso (no tablet com PIN).
@@ -144,7 +146,7 @@ Todo o kanban numa sessão só: o **card avulso** (aba Lançamento manual do PCP
 
 ## 7. O que ficou pendente
 
-- **Conferência visual** no celular (375 px) e no tablet (768 px), a aba Rede e a fluidez no tablet — **com o dono** (o Claude não entra com senha).
+- **Conferência visual** no celular (375 px) e no tablet (768 px), a aba Rede e a fluidez no tablet — **com o dono** (o Claude não entra com senha). **↪️ 15/10:** com o dono logado no navegador do app, o Claude conferiu a 375 px a área Pedidos, o menu e Setores e etapas; o tablet (768 px) segue com o dono.
 - A **prévia** da conversa na lista do chat (e os 5 últimos comentários na tela do entregador) mostra o texto de antes de editar/apagar até chegar a próxima mensagem — a mensagem em si aparece certa.
 - **Os 4 ajustes da equipe** (D-126, D-127, D-128, D-129/D-130) **não têm tarefa** na lista PRODUÇÃO do ClickUp (o Claude não cria tarefa — regra 19): o dono decide se cria.
 - **Dívida 16** (porta do quadro do PCP) e o resto da lei: [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
