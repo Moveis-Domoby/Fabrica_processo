@@ -10,13 +10,22 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { useRef } from 'react'
-import { ArrowRight, ChevronDown, CircleCheckBig, Inbox, Play, TriangleAlert } from 'lucide-react'
+import {
+  ArrowRight,
+  ChevronDown,
+  CircleCheckBig,
+  Hand,
+  Inbox,
+  Play,
+  TriangleAlert,
+} from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
 import { CartaoUnidade } from './CartaoUnidade'
 import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
+import { useArrastarParaOLado } from './arrastarQuadro'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard, Setor } from '../tipos'
 
 /** Id de coluna no drag-and-drop para cards ainda sem etapa (PCP/terminais). */
@@ -390,6 +399,9 @@ export function QuadroKanban({
   ]
   const camposPerguntados = useCamposDasPecas(camposVindos ? [] : todosOsCards.map((c) => c.id))
   const camposPorCard = camposVindos ?? camposPerguntados
+  // Pedido do dono (15/10): a "mãozinha" — o quadro corre para o lado com o
+  // botão do meio do mouse, ou com o esquerdo no fundo vazio.
+  const { arrastando: correndoQuadro, propsDoQuadro } = useArrastarParaOLado()
 
   function aoSoltar(evento: DragEndEvent) {
     arrastouEm.current = Date.now()
@@ -410,7 +422,11 @@ export function QuadroKanban({
       onDragEnd={aoSoltar}
     >
       <div
-        className="flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto pb-3 sm:snap-none"
+        {...propsDoQuadro}
+        className={cn(
+          'flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto pb-3 sm:snap-none',
+          correndoQuadro ? 'cursor-grabbing select-none' : 'cursor-grab',
+        )}
         aria-label={`Quadro do setor ${setor.nome}`}
       >
         {mostrarChegada && (
@@ -456,6 +472,12 @@ export function QuadroKanban({
           />
         ))}
       </div>
+      {/* Só no mouse: como correr o quadro para o lado. */}
+      <p className="hidden items-center gap-1.5 text-xs text-texto-fraco [@media(pointer:fine)]:flex">
+        <Hand aria-hidden className="size-3.5" />
+        Para ver as outras colunas: segure o fundo do quadro (ou o botão do meio do mouse) e arraste
+        para o lado.
+      </p>
 
       {producao && !temFila && (
         <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">

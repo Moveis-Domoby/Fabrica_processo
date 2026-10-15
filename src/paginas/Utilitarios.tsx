@@ -720,8 +720,9 @@ const MOTIVOS_PAUSA: ListaDeMotivos[] = [
 ]
 
 function PainelMotivos({ listas }: { listas: ListaDeMotivos[] }) {
+  // Uma lista só (a de pausa) ocupa a largura toda, como as outras abas.
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className={cn('grid grid-cols-1 gap-4', listas.length > 1 && 'lg:grid-cols-2')}>
       {listas.map((l) => (
         <ListaMotivos key={l.tipo} {...l} />
       ))}

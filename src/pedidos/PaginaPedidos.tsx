@@ -250,19 +250,33 @@ function SituacaoTiny({ situacao }: { situacao: string | null }) {
 }
 
 /** O que a linha diz do andamento: entregue (dia e hora), cancelado ou as peças prontas. */
+/** "Entregue" no Tiny e na plataforma é a mesma informação — a pílula não se repete. */
+function mesmaSituacao(p: PedidoDaLista): boolean {
+  const tiny = (p.situacao ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  return (
+    (p.situacao_plataforma === 'entregue' && tiny === 'entregue') ||
+    (p.situacao_plataforma === 'cancelado' && tiny === 'cancelado')
+  )
+}
+
 function Andamento({ p }: { p: PedidoDaLista }) {
+  // Cancelado vem primeiro: um pedido pode ter sido entregue e cancelado DEPOIS
+  // (devolvido) — a linha diz as duas coisas, na ordem em que aconteceram.
+  if (p.situacao_plataforma === 'cancelado') {
+    return (
+      <span className="text-xs text-danificado-texto">
+        Cancelado{p.cancelado_em ? ` em ${data(p.cancelado_em)}` : ''}
+        {p.entregue_em && (
+          <span className="text-texto-suave"> · tinha sido entregue em {data(p.entregue_em)}</span>
+        )}
+      </span>
+    )
+  }
   if (p.entregue_em) {
     return (
       <span className="text-xs text-perfeito-texto">
         Entregue {diaEHora(p.entregue_em)}
         {p.entregue_por ? ` por ${p.entregue_por}` : p.entregue_fonte === 'tiny' ? ' (Tiny)' : ''}
-      </span>
-    )
-  }
-  if (p.situacao_plataforma === 'cancelado') {
-    return (
-      <span className="text-xs text-danificado-texto">
-        Cancelado{p.cancelado_em ? ` em ${data(p.cancelado_em)}` : ''}
       </span>
     )
   }
@@ -320,10 +334,12 @@ function LinhaDoPedido({
               <span className="font-semibold text-texto tabular-nums">Pedido {p.numero}</span>
               <span className="text-xs text-texto-fraco tabular-nums">{data(p.data_pedido)}</span>
               <SituacaoTiny situacao={p.situacao} />
-              <span className="rounded-full border border-borda/80 px-2 py-0.5 text-xs text-texto">
-                <span className="sr-only">Na plataforma: </span>
-                {ROTULO_SITUACAO_PLATAFORMA[p.situacao_plataforma] ?? p.situacao_plataforma}
-              </span>
+              {!mesmaSituacao(p) && (
+                <span className="rounded-full border border-borda/80 px-2 py-0.5 text-xs text-texto">
+                  <span className="sr-only">Na plataforma: </span>
+                  {ROTULO_SITUACAO_PLATAFORMA[p.situacao_plataforma] ?? p.situacao_plataforma}
+                </span>
+              )}
             </span>
             <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-texto-suave">
               <span className="min-w-0 truncate">{p.cliente_nome || 'Sem cliente'}</span>

@@ -21,6 +21,8 @@ export interface SelecaoProps {
   /** Use `galpao` quando o alvo for o dedo do operador em tablet. */
   tamanho?: 'md' | 'galpao'
   className?: string
+  /** Classes a mais do rótulo — ex.: `sm:sr-only` quando um cabeçalho de colunas já diz o que é. */
+  classeRotulo?: string
 }
 
 /**
@@ -38,6 +40,7 @@ export function Selecao({
   desabilitado,
   tamanho = 'md',
   className,
+  classeRotulo,
 }: SelecaoProps) {
   const id = useId()
   const idAjuda = `${id}-ajuda`
@@ -45,7 +48,7 @@ export function Selecao({
 
   return (
     <div className={cn('flex w-full flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-sm font-medium text-texto">
+      <label htmlFor={id} className={cn('text-sm font-medium text-texto', classeRotulo)}>
         {rotulo}
       </label>
 

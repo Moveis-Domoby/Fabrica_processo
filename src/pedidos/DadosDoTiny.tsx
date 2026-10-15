@@ -32,14 +32,19 @@ function desembrulhar(v: Valor): Valor {
   return v
 }
 
-const CAMPO_DINHEIRO = /(valor|total|preco|desconto|frete|despesas|saldo)/i
+/**
+ * Dinheiro só onde o campo É dinheiro ("valor_frete", "total_pedido", "preco") —
+ * nunca num código ("id_lista_preco" é o código da lista, não um preço).
+ */
+const CAMPO_DINHEIRO = /(^|_)(valor|total|preco|desconto|frete|despesas|saldo)(_|$)/i
+const ehCodigo = (chave: string) => /^(id|codigo)(_|$)/i.test(chave)
+const ehDinheiro = (chave: string) => CAMPO_DINHEIRO.test(chave) && !ehCodigo(chave)
 
 function textoDoValor(chave: string, v: Valor): string {
   if (typeof v === 'boolean') return v ? 'Sim' : 'Não'
-  if (typeof v === 'number')
-    return CAMPO_DINHEIRO.test(chave) ? moeda(v) : v.toLocaleString('pt-BR')
+  if (typeof v === 'number') return ehDinheiro(chave) ? moeda(v) : v.toLocaleString('pt-BR')
   const s = String(v)
-  if (CAMPO_DINHEIRO.test(chave) && /^-?\d+(\.\d+)?$/.test(s.trim())) return moeda(Number(s))
+  if (ehDinheiro(chave) && /^-?\d+(\.\d+)?$/.test(s.trim())) return moeda(Number(s))
   return s
 }
 

@@ -225,6 +225,20 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             </span>
           )}
           <span className="ml-auto flex flex-wrap items-center gap-2">
+            {/* O nome já está no topo da janela — aqui só o gesto de mudar. */}
+            {permissoes.editar_nome && !tablet && !editandoNome && (
+              <Botao
+                variante="fantasma"
+                tamanho="sm"
+                icone={<Pencil />}
+                onClick={() => {
+                  setNome(card.titulo ?? '')
+                  setEditandoNome(true)
+                }}
+              >
+                Renomear
+              </Botao>
+            )}
             {podePausar && (
               <Botao
                 variante="secundaria"
@@ -258,7 +272,7 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             )}
           </span>
         </div>
-        {editandoNome ? (
+        {editandoNome && (
           <form
             className="flex flex-wrap items-end gap-2"
             onSubmit={(e) => {
@@ -287,23 +301,6 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
               Cancelar
             </Botao>
           </form>
-        ) : (
-          <h2 className="flex items-start gap-2 text-xl font-semibold text-texto">
-            <span className="min-w-0 break-words">{nomeDoCard(card)}</span>
-            {permissoes.editar_nome && !tablet && (
-              <Botao
-                variante="fantasma"
-                tamanho="sm"
-                icone={<Pencil />}
-                aria-label="Mudar o nome do card"
-                className="shrink-0 px-2"
-                onClick={() => {
-                  setNome(card.titulo ?? '')
-                  setEditandoNome(true)
-                }}
-              />
-            )}
-          </h2>
         )}
         {/* O estado: na fila, em execução por quem, pausado (ícone + texto — M-12). */}
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-texto-suave tabular-nums">

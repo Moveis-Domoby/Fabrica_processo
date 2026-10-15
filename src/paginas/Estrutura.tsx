@@ -627,7 +627,7 @@ function LimiteExecucoes(props: {
         <Campo
           rotulo="Limite de cards em execução por pessoa"
           // D-24/D-48: limite configurável por setor — código fora da tela (D-27).
-          ajuda="Padrão da casa: 1 — uma pessoa, um pedido por vez. Vazio = sem limite. Execução pausada pelo líder não conta no teto."
+          ajuda="Padrão da casa: 1 — uma pessoa, um pedido por vez. Vazio = sem limite. Execução pausada não conta no teto."
           type="number"
           min={1}
           inputMode="numeric"
@@ -676,6 +676,10 @@ function ListaEtapas(props: {
   // EMBALAGEM) — Pedidos em aguardo ou ESTOQUE, o banco decide pela peça.
   const CONCLUI = 'concluir'
   const producao = setor.papel_no_fluxo === 'producao'
+  // No computador, as etapas do setor de produção viram uma grade alinhada
+  // (nome · para onde manda · motivo · ações) com cabeçalho; no celular,
+  // cada etapa empilha e cada controle diz o que é.
+  const comColunas = podeGerir && producao
 
   const [nomeNova, setNomeNova] = useState('')
   const [novaEhFila, setNovaEhFila] = useState(false)
@@ -738,138 +742,171 @@ function ListaEtapas(props: {
         </p>
       )}
 
-      <ul className="flex flex-col divide-y divide-borda">
-        {etapas.map((etapa, indice) => (
-          <li key={etapa.id} className="flex flex-wrap items-center gap-2 py-2">
-            <span
-              className={cn(
-                'flex-1 text-sm',
-                etapa.ativa ? 'text-texto' : 'text-texto-fraco line-through',
-              )}
-            >
-              {etapa.nome}
-              {etapa.eh_fila && (
-                <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto no-underline">
-                  fila
+      <div
+        className={cn(
+          comColunas && 'sm:grid sm:grid-cols-[minmax(0,1fr)_15rem_13rem_auto] sm:gap-x-3',
+        )}
+      >
+        {comColunas && etapas.length > 0 && (
+          <div
+            aria-hidden
+            className="hidden pb-1 text-xs font-medium text-texto-suave sm:col-span-full sm:grid sm:grid-cols-subgrid"
+          >
+            <span>Etapa</span>
+            <span>Soltar o card aqui manda para</span>
+            <span>Ao parar aqui</span>
+            <span />
+          </div>
+        )}
+        <ul
+          className={cn(
+            'flex flex-col divide-y divide-borda',
+            comColunas && 'sm:col-span-full sm:grid sm:grid-cols-subgrid',
+          )}
+        >
+          {etapas.map((etapa, indice) => {
+            const mandaPara = podeGerir && producao && !etapa.eh_fila && !etapa.eh_danificado
+            const pedeMotivo =
+              mandaPara && etapa.setor_destino_id === null && !etapa.conclui_producao
+            return (
+              <li
+                key={etapa.id}
+                className={cn(
+                  'flex flex-wrap items-center gap-2 py-2',
+                  comColunas && 'sm:col-span-full sm:grid sm:grid-cols-subgrid sm:gap-x-3',
+                )}
+              >
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 text-sm',
+                    etapa.ativa ? 'text-texto' : 'text-texto-fraco line-through',
+                  )}
+                >
+                  {etapa.nome}
+                  {etapa.eh_fila && (
+                    <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto no-underline">
+                      fila
+                    </span>
+                  )}
+                  {/* SESSAO-24: soltar o card nesta etapa o leva para outro setor. */}
+                  {etapa.setor_destino_id !== null && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto no-underline">
+                      <ArrowRight aria-hidden className="size-3" />
+                      manda para {nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor'}
+                    </span>
+                  )}
+                  {etapa.conclui_producao && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto no-underline">
+                      <CircleCheckBig aria-hidden className="size-3" />
+                      conclui a produção
+                    </span>
+                  )}
+                  {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo. */}
+                  {etapa.pede_motivo && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto no-underline">
+                      <Pause aria-hidden className="size-3" />
+                      pede o motivo
+                    </span>
+                  )}
                 </span>
-              )}
-              {/* SESSAO-24: soltar o card nesta etapa o leva para outro setor. */}
-              {etapa.setor_destino_id !== null && (
-                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto no-underline">
-                  <ArrowRight aria-hidden className="size-3" />
-                  manda para {nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor'}
-                </span>
-              )}
-              {etapa.conclui_producao && (
-                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto no-underline">
-                  <CircleCheckBig aria-hidden className="size-3" />
-                  conclui a produção
-                </span>
-              )}
-              {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo. */}
-              {etapa.pede_motivo && (
-                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto no-underline">
-                  <Pause aria-hidden className="size-3" />
-                  pede o motivo
-                </span>
-              )}
-            </span>
-            {podeGerir && producao && !etapa.eh_fila && !etapa.eh_danificado && (
-              <Selecao
-                rotulo={`Soltar o card em ${etapa.nome} manda para`}
-                className="w-full sm:w-56"
-                opcoes={[
-                  { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
-                  {
-                    valor: CONCLUI,
-                    rotulo: 'Conclui a produção (Pedidos em aguardo ou ESTOQUE)',
-                  },
-                  ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
-                ]}
-                valor={
-                  etapa.conclui_producao
-                    ? CONCLUI
-                    : etapa.setor_destino_id === null
-                      ? SEM_DESTINO
-                      : String(etapa.setor_destino_id)
-                }
-                aoMudar={(v) =>
-                  atualizarMutacao.mutate({
-                    id: etapa.id,
-                    mudancas:
-                      v === CONCLUI
-                        ? { setor_destino_id: null, conclui_producao: true }
-                        : {
-                            setor_destino_id: v === SEM_DESTINO ? null : Number(v),
-                            conclui_producao: false,
-                          },
-                  })
-                }
-              />
-            )}
-            {podeGerir &&
-              producao &&
-              !etapa.eh_fila &&
-              !etapa.eh_danificado &&
-              etapa.setor_destino_id === null &&
-              !etapa.conclui_producao && (
-                <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-marca-500"
-                    checked={etapa.pede_motivo}
-                    onChange={(ev) =>
+                {mandaPara ? (
+                  <Selecao
+                    rotulo={`Soltar o card em ${etapa.nome} manda para`}
+                    classeRotulo="sm:sr-only"
+                    className="w-full"
+                    opcoes={[
+                      { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
+                      {
+                        valor: CONCLUI,
+                        rotulo: 'Conclui a produção (Pedidos em aguardo ou ESTOQUE)',
+                      },
+                      ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
+                    ]}
+                    valor={
+                      etapa.conclui_producao
+                        ? CONCLUI
+                        : etapa.setor_destino_id === null
+                          ? SEM_DESTINO
+                          : String(etapa.setor_destino_id)
+                    }
+                    aoMudar={(v) =>
                       atualizarMutacao.mutate({
                         id: etapa.id,
-                        mudancas: { pede_motivo: ev.target.checked },
+                        mudancas:
+                          v === CONCLUI
+                            ? { setor_destino_id: null, conclui_producao: true }
+                            : {
+                                setor_destino_id: v === SEM_DESTINO ? null : Number(v),
+                                conclui_producao: false,
+                              },
                       })
                     }
                   />
-                  Parar aqui pede o motivo
-                </label>
-              )}
-            {podeGerir && (
-              <span className="flex items-center gap-1">
-                <Botao
-                  variante="fantasma"
-                  tamanho="sm"
-                  icone={<ArrowUp />}
-                  aria-label={`Subir ${etapa.nome}`}
-                  disabled={indice === 0}
-                  onClick={() => trocarOrdem(indice, -1)}
-                />
-                <Botao
-                  variante="fantasma"
-                  tamanho="sm"
-                  icone={<ArrowDown />}
-                  aria-label={`Descer ${etapa.nome}`}
-                  disabled={indice === etapas.length - 1}
-                  onClick={() => trocarOrdem(indice, 1)}
-                />
-                <Botao
-                  variante="fantasma"
-                  tamanho="sm"
-                  icone={<Pencil />}
-                  aria-label={`Renomear ${etapa.nome}`}
-                  onClick={() => {
-                    setEtapaEmEdicao(etapa)
-                    setNomeEditado(etapa.nome)
-                  }}
-                />
-                <Botao
-                  variante="fantasma"
-                  tamanho="sm"
-                  onClick={() =>
-                    atualizarMutacao.mutate({ id: etapa.id, mudancas: { ativa: !etapa.ativa } })
-                  }
-                >
-                  {etapa.ativa ? 'Desativar' : 'Reativar'}
-                </Botao>
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+                ) : (
+                  comColunas && <span aria-hidden className="hidden sm:block" />
+                )}
+                {pedeMotivo ? (
+                  <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
+                    <input
+                      type="checkbox"
+                      className="size-5 accent-marca-500"
+                      checked={etapa.pede_motivo}
+                      onChange={(ev) =>
+                        atualizarMutacao.mutate({
+                          id: etapa.id,
+                          mudancas: { pede_motivo: ev.target.checked },
+                        })
+                      }
+                    />
+                    Parar aqui pede o motivo
+                  </label>
+                ) : (
+                  comColunas && <span aria-hidden className="hidden sm:block" />
+                )}
+                {podeGerir && (
+                  <span className="flex items-center gap-1 sm:justify-end">
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      icone={<ArrowUp />}
+                      aria-label={`Subir ${etapa.nome}`}
+                      disabled={indice === 0}
+                      onClick={() => trocarOrdem(indice, -1)}
+                    />
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      icone={<ArrowDown />}
+                      aria-label={`Descer ${etapa.nome}`}
+                      disabled={indice === etapas.length - 1}
+                      onClick={() => trocarOrdem(indice, 1)}
+                    />
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      icone={<Pencil />}
+                      aria-label={`Renomear ${etapa.nome}`}
+                      onClick={() => {
+                        setEtapaEmEdicao(etapa)
+                        setNomeEditado(etapa.nome)
+                      }}
+                    />
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      onClick={() =>
+                        atualizarMutacao.mutate({ id: etapa.id, mudancas: { ativa: !etapa.ativa } })
+                      }
+                    >
+                      {etapa.ativa ? 'Desativar' : 'Reativar'}
+                    </Botao>
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
 
       {podeGerir && (
         <form

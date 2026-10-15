@@ -46,11 +46,47 @@ export function tempoDeTrabalho(segundos: number | null | undefined): string {
   return formatarDuracaoMs(segundos * 1000)
 }
 
-/**
- * O nome de um campo do Tiny em língua de gente: "nome_vendedor" → "Nome
- * vendedor", "cpf_cnpj" → "CPF/CNPJ". Sem tradução inventada: só arruma.
- */
-const SIGLAS_CAMPO: Record<string, string> = {
+/** Palavras que o Tiny manda sem acento — a tela mostra com. */
+const COM_ACENTO: Record<string, string> = {
+  descricao: 'descrição',
+  condicao: 'condição',
+  situacao: 'situação',
+  endereco: 'endereço',
+  codigo: 'código',
+  numero: 'número',
+  preco: 'preço',
+  deposito: 'depósito',
+  unitario: 'unitário',
+  operacao: 'operação',
+  emissao: 'emissão',
+  liquidacao: 'liquidação',
+  historico: 'histórico',
+  saida: 'saída',
+  inscricao: 'inscrição',
+  serie: 'série',
+  observacoes: 'observações',
+  integracao: 'integração',
+  ecommerce: 'e-commerce',
+  periodo: 'período',
+  orcamento: 'orçamento',
+  credito: 'crédito',
+  debito: 'débito',
+  cartao: 'cartão',
+  servico: 'serviço',
+  servicos: 'serviços',
+  razao: 'razão',
+  logradouro: 'logradouro',
+  municipio: 'município',
+  pais: 'país',
+  telefone: 'telefone',
+  celular: 'celular',
+  intermediador: 'intermediador',
+  percentual: 'percentual',
+  comissao: 'comissão',
+}
+
+/** Siglas e nomes inteiros que se escrevem de outro jeito. */
+const CAMPO_INTEIRO: Record<string, string> = {
   cpf: 'CPF',
   cnpj: 'CNPJ',
   cpf_cnpj: 'CPF/CNPJ',
@@ -60,22 +96,29 @@ const SIGLAS_CAMPO: Record<string, string> = {
   rg: 'RG',
   id: 'Código no Tiny',
   url: 'Link',
-  nf: 'Nota fiscal',
   obs: 'Observações',
+  obs_interna: 'Observações internas',
+  frete_por_conta: 'Frete por conta de',
+  nome_fantasia: 'Nome fantasia',
+  tipo_pessoa: 'Tipo de pessoa',
 }
+
+const SIGLAS = new Set(['cpf', 'cnpj', 'cep', 'uf', 'rg', 'nf', 'nfe', 'sku', 'url', 'id'])
+
+/**
+ * O nome de um campo do Tiny em língua de gente: "nome_vendedor" → "Nome
+ * vendedor", "descricao_lista_preco" → "Descrição lista preço", "cpf_cnpj" →
+ * "CPF/CNPJ", "id_nota_fiscal" → "Código de nota fiscal". Sem tradução
+ * inventada: só arruma a escrita (acento, sigla, espaço).
+ */
 export function rotuloDoCampo(chave: string): string {
-  if (SIGLAS_CAMPO[chave]) return SIGLAS_CAMPO[chave]
-  const palavras = chave
-    .replace(/([a-z])([A-Z])/g, '$1_$2')
-    .split(/[_\s]+/)
-    .filter(Boolean)
-    .map((p) => {
-      const m = p.toLowerCase()
-      if (SIGLAS_CAMPO[m] && m !== 'id' && m !== 'obs') return SIGLAS_CAMPO[m]
-      if (m === 'id') return 'código'
-      if (m === 'obs') return 'observações'
-      return m
-    })
-  const frase = palavras.join(' ')
+  const k = chave.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase()
+  if (CAMPO_INTEIRO[k]) return CAMPO_INTEIRO[k]
+  const partes = k.split(/[_\s]+/).filter(Boolean)
+  const comoCodigo = partes[0] === 'id' && partes.length > 1
+  const palavras = (comoCodigo ? partes.slice(1) : partes).map((p) =>
+    SIGLAS.has(p) ? p.toUpperCase() : (COM_ACENTO[p] ?? p),
+  )
+  const frase = (comoCodigo ? ['código', 'de', ...palavras] : palavras).join(' ')
   return frase.charAt(0).toLocaleUpperCase('pt-BR') + frase.slice(1)
 }

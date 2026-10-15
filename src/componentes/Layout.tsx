@@ -35,6 +35,7 @@ import { nomeNoMenu, rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
 import { supabase } from '@/lib/supabase'
 import { useVersaoNova } from '@/lib/versaoNova'
+import { useTelaPequena } from '@/lib/telaPequena'
 import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 
 interface FilhoMenu {
@@ -121,6 +122,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   // Ajuste do dono (14/10 noite): ninguém fica preso numa versão velha.
   const versaoNova = useVersaoNova()
+  const telaPequena = useTelaPequena()
   const [gavetaAberta, setGavetaAberta] = useState(false)
   const [recolhida, setRecolhida] = useState(() => lerGuardado(CHAVE_RECOLHIDA))
   const [painelRecolhido, setPainelRecolhido] = useState(() => lerGuardado(CHAVE_PAINEL))
@@ -462,16 +464,22 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const painelAberto = !painelRecolhido && grupoDoPainel !== undefined
 
+  // ↩️ Ajuste do dono (14/10 noite — menu do celular apertado): na gaveta do
+  // celular, com os itens do grupo abertos, a coluna dos grupos vira TRILHO
+  // de ícones — a coluna dos itens fica com o espaço (os nomes não quebram).
+  // No computador nada muda (o trilho lá é só o "recolher" lembrado).
+  const trilho = recolhida || (painelAberto && telaPequena)
+
   // BARRA 1 — os pais. Clicar seleciona/abre o painel de filhos; nunca navega.
   const barraPais = (
     <div
       className={cn(
         'menu-superficie flex h-full flex-col bg-grafite-700',
-        recolhida ? 'w-[4.5rem]' : 'w-60',
+        trilho ? 'w-[4.5rem]' : 'w-60',
       )}
     >
-      <div className={cn('flex items-center gap-1 p-3 pb-2', recolhida && 'flex-col')}>
-        {!recolhida && (
+      <div className={cn('flex items-center gap-1 p-3 pb-2', trilho && 'flex-col')}>
+        {!trilho && (
           <NavLink
             to={ROTA_INICIAL}
             className="min-w-0 flex-1 rounded-dm px-1"
@@ -504,7 +512,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <X aria-hidden className="size-5" />
         </button>
       </div>
-      {!recolhida && (
+      {!trilho && (
         <span className="px-4 pb-2 text-xs text-grafite-300">Plataforma de Produção</span>
       )}
 
@@ -522,17 +530,17 @@ export function Layout({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => escolherGrupo(grupo.id)}
               aria-expanded={mostrando}
-              title={recolhida ? grupo.rotulo : undefined}
+              title={trilho ? grupo.rotulo : undefined}
               className={cn(
                 'inline-flex min-h-toque-md items-center gap-3 rounded-dm px-3 text-sm font-semibold transition-colors [&>svg]:size-5 [&>svg]:shrink-0',
                 ativo ? 'text-menu-destaque' : 'text-grafite-100',
                 mostrando && 'bg-grafite-600',
                 'hover:bg-grafite-600',
-                recolhida && 'justify-center px-0',
+                trilho && 'justify-center px-0',
               )}
             >
               {grupo.icone}
-              {!recolhida && <span className="flex-1 text-left">{grupo.rotulo}</span>}
+              {!trilho && <span className="flex-1 text-left">{grupo.rotulo}</span>}
             </button>
           )
         })}
@@ -545,18 +553,18 @@ export function Layout({ children }: { children: ReactNode }) {
           <NavLink
             to="/tablet"
             onClick={() => setGavetaAberta(false)}
-            title={recolhida ? 'Modo tablet' : undefined}
+            title={trilho ? 'Modo tablet' : undefined}
             className={cn(
               'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
-              recolhida && 'justify-center px-0',
+              trilho && 'justify-center px-0',
             )}
           >
             <TabletSmartphone aria-hidden />
-            {!recolhida && 'Modo tablet'}
+            {!trilho && 'Modo tablet'}
           </NavLink>
         )}
 
-        <div className={cn('flex items-center gap-1 p-3', recolhida && 'flex-col')}>
+        <div className={cn('flex items-center gap-1 p-3', trilho && 'flex-col')}>
           {/* O bloco do usuário abre o Meu Perfil (D-41). */}
           <NavLink
             to="/inicio/meu-perfil"
@@ -564,7 +572,7 @@ export function Layout({ children }: { children: ReactNode }) {
             aria-label="Meu perfil"
             className={cn(
               'flex min-w-0 flex-1 items-center gap-2 rounded-dm px-2 py-1.5 transition-colors hover:bg-grafite-600',
-              recolhida && 'flex-none px-1',
+              trilho && 'flex-none px-1',
             )}
           >
             {fotoUrl ? (
@@ -581,7 +589,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 {iniciais}
               </span>
             )}
-            {!recolhida && (
+            {!trilho && (
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-medium text-grafite-100">{perfil.nome}</span>
                 <span className="text-xs text-grafite-300 tabular-nums">{perfil.matricula}</span>
@@ -591,7 +599,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* SESSAO-27 (D-100): a engrenagem virou o seletor de TEMA — as
               configurações pessoais e o perfil eram a mesma coisa. */}
-          <SeletorTemaRapido recolhida={recolhida} />
+          <SeletorTemaRapido recolhida={trilho} />
           <button
             type="button"
             onClick={() => void sair()}
@@ -605,9 +613,10 @@ export function Layout({ children }: { children: ReactNode }) {
     </div>
   )
 
-  // BARRA 2 — os filhos do grupo escolhido: um menu ao lado do menu.
+  // BARRA 2 — os filhos do grupo escolhido: um menu ao lado do menu. Na gaveta
+  // do celular ela fica mais larga (ao lado do trilho), para os nomes caberem.
   const barraFilhos = painelAberto && grupoDoPainel && (
-    <div className="menu-superficie flex h-full w-52 flex-col border-l border-grafite-600 bg-grafite-800">
+    <div className="menu-superficie flex h-full w-60 flex-col border-l border-grafite-600 bg-grafite-800 lg:w-52">
       <div className="flex min-h-toque-md items-center gap-2 px-3 pt-3">
         <span className="flex-1 truncate text-sm font-bold tracking-tight text-grafite-50">
           {grupoDoPainel.rotulo}

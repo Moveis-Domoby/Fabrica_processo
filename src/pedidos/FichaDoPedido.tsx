@@ -133,7 +133,7 @@ export function FichaDoPedido({ pedidoId }: { pedidoId: number }) {
 
   if (consulta.isPending) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-busy="true">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4" aria-busy="true">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="h-24 animate-pulse rounded-dm-lg bg-superficie-sutil/60" />
         ))}
@@ -210,9 +210,12 @@ function Resumo({ d }: { d: DetalhePedido }) {
           {d.devolucao.motivo ? ` · ${d.devolucao.motivo}` : ''} — veja em "Entrega e comprovante".
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Bloco titulo="Cliente">
-          <p className="truncate font-medium text-texto" title={c.nome ?? undefined}>
+          <p
+            className="line-clamp-2 font-medium break-words text-texto"
+            title={c.nome ?? undefined}
+          >
             {c.nome || 'Sem cliente'}
           </p>
           {cidade && <p className="text-sm text-texto-suave">{cidade}</p>}

@@ -179,7 +179,9 @@ describe('o nome dos campos do Tiny', () => {
   it('fica legível sem inventar tradução', () => {
     expect(rotuloDoCampo('nome_vendedor')).toBe('Nome vendedor')
     expect(rotuloDoCampo('cpf_cnpj')).toBe('CPF/CNPJ')
-    expect(rotuloDoCampo('id_nota_fiscal')).toBe('Código nota fiscal')
+    expect(rotuloDoCampo('id_nota_fiscal')).toBe('Código de nota fiscal')
+    expect(rotuloDoCampo('descricao_lista_preco')).toBe('Descrição lista preço')
+    expect(rotuloDoCampo('condicao_pagamento')).toBe('Condição pagamento')
     expect(rotuloDoCampo('obs')).toBe('Observações')
   })
 })

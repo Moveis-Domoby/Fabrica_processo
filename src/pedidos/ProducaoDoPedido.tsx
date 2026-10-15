@@ -72,7 +72,9 @@ export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
         </span>
         <span className="inline-flex items-center gap-1 text-texto">
           <Clock aria-hidden className="size-4 text-texto-suave" />
-          {tempoDeTrabalho(segundos)} de trabalho
+          {segundos > 0
+            ? `${tempoDeTrabalho(segundos)} de trabalho`
+            : 'Nenhum tempo de trabalho registrado na plataforma'}
         </span>
       </div>
 
@@ -140,7 +142,7 @@ export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
                   {onde.texto}
                 </span>
                 <span className="text-xs text-texto-suave tabular-nums">
-                  {tempoDeTrabalho(peca.segundos)}
+                  {peca.segundos > 0 ? tempoDeTrabalho(peca.segundos) : 'sem tempo registrado'}
                   {quem.length > 0 && ` · ${quem.join(', ')}`}
                 </span>
               </button>
