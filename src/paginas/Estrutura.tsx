@@ -771,17 +771,19 @@ function ListaEtapas(props: {
             return (
               <li
                 key={etapa.id}
-                // Estreito: nome e ações em cima, a seleção e a caixinha embaixo
-                // (lado a lado a partir do médio); largo (bloco ≥ 56rem): uma
-                // linha da grade alinhada, com o cabeçalho de colunas.
+                // Estreito (celular): empilhado — nome, a seleção, a caixinha e as
+                // ações por último, à direita. Médio: nome e ações em cima, a
+                // seleção e a caixinha embaixo (lado a lado a partir de @lg).
+                // Largo (bloco ≥ 56rem): uma linha da grade alinhada, com o
+                // cabeçalho de colunas.
                 className={cn(
-                  'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-2',
+                  'flex flex-col gap-2 py-2 @md:grid @md:grid-cols-[minmax(0,1fr)_auto] @md:items-center @md:gap-x-3',
                   comColunas && '@4xl:col-span-full @4xl:grid-cols-subgrid',
                 )}
               >
                 {/* O nome e as pílulas: cada pílula desce inteira para a linha de
                     baixo e, se não couber na coluna, termina em "…". */}
-                <span className="col-start-1 row-start-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm @md:col-start-1 @md:row-start-1">
                   <span
                     className={cn(
                       'min-w-0 break-words',
@@ -822,7 +824,7 @@ function ListaEtapas(props: {
                   <Selecao
                     rotulo={`Soltar o card em ${etapa.nome} manda para`}
                     classeRotulo="@4xl:sr-only"
-                    className="col-span-2 row-start-2 @lg:col-span-1 @lg:col-start-1 @4xl:col-start-2 @4xl:row-start-1"
+                    className="@md:col-span-2 @md:row-start-2 @lg:col-span-1 @lg:col-start-1 @4xl:col-start-2 @4xl:row-start-1"
                     opcoes={[
                       { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
                       {
@@ -853,7 +855,7 @@ function ListaEtapas(props: {
                   />
                 ) : null}
                 {pedeMotivo ? (
-                  <label className="col-span-2 row-start-3 inline-flex min-h-toque-md items-center gap-2 self-end text-sm text-texto @lg:col-span-1 @lg:col-start-2 @lg:row-start-2 @4xl:col-start-3 @4xl:row-start-1 @4xl:self-center">
+                  <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto @md:col-span-2 @md:row-start-3 @lg:col-span-1 @lg:col-start-2 @lg:row-start-2 @lg:self-end @4xl:col-start-3 @4xl:row-start-1 @4xl:self-center">
                     <input
                       type="checkbox"
                       className="size-5 accent-marca-500"
@@ -869,7 +871,7 @@ function ListaEtapas(props: {
                   </label>
                 ) : null}
                 {podeGerir && (
-                  <span className="col-start-2 row-start-1 flex items-center justify-end gap-1 @4xl:col-start-4">
+                  <span className="flex items-center justify-end gap-1 self-end @md:col-start-2 @md:row-start-1 @md:self-center @4xl:col-start-4">
                     <Botao
                       variante="fantasma"
                       tamanho="sm"
