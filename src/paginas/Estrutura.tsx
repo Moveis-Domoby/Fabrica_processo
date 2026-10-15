@@ -734,7 +734,7 @@ function ListaEtapas(props: {
   }
 
   return (
-    <div className="border-t border-borda px-3 py-3 sm:px-4">
+    <div className="@container border-t border-borda px-3 py-3 sm:px-4">
       {isPending && <p className="text-sm text-texto-fraco">Carregando etapas…</p>}
       {!isPending && etapas.length === 0 && (
         <p className="text-sm text-texto-suave">
@@ -744,13 +744,13 @@ function ListaEtapas(props: {
 
       <div
         className={cn(
-          comColunas && 'sm:grid sm:grid-cols-[minmax(0,1fr)_16rem_13rem_auto] sm:gap-x-3',
+          comColunas && '@4xl:grid @4xl:grid-cols-[minmax(0,1fr)_16rem_13rem_auto] @4xl:gap-x-3',
         )}
       >
         {comColunas && etapas.length > 0 && (
           <div
             aria-hidden
-            className="hidden pb-1 text-xs font-medium text-texto-suave sm:col-span-full sm:grid sm:grid-cols-subgrid"
+            className="hidden pb-1 text-xs font-medium text-texto-suave @4xl:col-span-full @4xl:grid @4xl:grid-cols-subgrid"
           >
             <span>Etapa</span>
             <span>Soltar o card aqui manda para</span>
@@ -761,7 +761,7 @@ function ListaEtapas(props: {
         <ul
           className={cn(
             'flex flex-col divide-y divide-borda',
-            comColunas && 'sm:col-span-full sm:grid sm:grid-cols-subgrid',
+            comColunas && '@4xl:col-span-full @4xl:grid @4xl:grid-cols-subgrid',
           )}
         >
           {etapas.map((etapa, indice) => {
@@ -771,14 +771,17 @@ function ListaEtapas(props: {
             return (
               <li
                 key={etapa.id}
+                // Estreito: nome e ações em cima, a seleção e a caixinha embaixo
+                // (lado a lado a partir do médio); largo (bloco ≥ 56rem): uma
+                // linha da grade alinhada, com o cabeçalho de colunas.
                 className={cn(
-                  'flex flex-wrap items-center gap-2 py-2',
-                  comColunas && 'sm:col-span-full sm:grid sm:grid-cols-subgrid sm:gap-x-3',
+                  'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-2',
+                  comColunas && '@4xl:col-span-full @4xl:grid-cols-subgrid',
                 )}
               >
                 <span
                   className={cn(
-                    'min-w-0 flex-1 text-sm',
+                    'col-start-1 row-start-1 min-w-0 text-sm',
                     etapa.ativa ? 'text-texto' : 'text-texto-fraco line-through',
                   )}
                 >
@@ -812,8 +815,8 @@ function ListaEtapas(props: {
                 {mandaPara ? (
                   <Selecao
                     rotulo={`Soltar o card em ${etapa.nome} manda para`}
-                    classeRotulo="sm:sr-only"
-                    className="w-full"
+                    classeRotulo="@4xl:sr-only"
+                    className="col-span-2 row-start-2 @lg:col-span-1 @lg:col-start-1 @4xl:col-start-2 @4xl:row-start-1"
                     opcoes={[
                       { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
                       {
@@ -842,11 +845,9 @@ function ListaEtapas(props: {
                       })
                     }
                   />
-                ) : (
-                  comColunas && <span aria-hidden className="hidden sm:block" />
-                )}
+                ) : null}
                 {pedeMotivo ? (
-                  <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
+                  <label className="col-span-2 row-start-3 inline-flex min-h-toque-md items-center gap-2 self-end text-sm text-texto @lg:col-span-1 @lg:col-start-2 @lg:row-start-2 @4xl:col-start-3 @4xl:row-start-1 @4xl:self-center">
                     <input
                       type="checkbox"
                       className="size-5 accent-marca-500"
@@ -860,11 +861,9 @@ function ListaEtapas(props: {
                     />
                     Parar aqui pede o motivo
                   </label>
-                ) : (
-                  comColunas && <span aria-hidden className="hidden sm:block" />
-                )}
+                ) : null}
                 {podeGerir && (
-                  <span className="flex items-center gap-1 sm:justify-end">
+                  <span className="col-start-2 row-start-1 flex items-center justify-end gap-1 @4xl:col-start-4">
                     <Botao
                       variante="fantasma"
                       tamanho="sm"
