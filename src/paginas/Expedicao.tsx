@@ -9,9 +9,9 @@ import { buscarSetores, expedicaoResumo, unidadesDoPedido } from '@/kanban/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
 import type { ExpedicaoLinha } from '@/kanban/tipos'
+import { useAoVivo } from '@/lib/aoVivo'
 
 const POR_PAGINA = 20
-const ATUALIZA_A_CADA = 30_000
 
 function formatarData(iso: string | null): string {
   return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
@@ -21,6 +21,11 @@ function formatarData(iso: string | null): string {
  * Expedição/reagrupamento (D-01/D-13): as unidades se "juntam" de novo no fim
  * de linha — pedido completo = todas as unidades em ESTOQUE ou ROTAS. Quem vê:
  * admin, gente do PCP (que também é a logística — D-22) e dos terminais.
+ *
+ * ↩️ Ajuste do dono (14/10 noite — "ordenação completamente desatualizada"):
+ * só pedido VIVO (o banco tira o entregue, o encerrado no Tiny e o que o Tiny
+ * já levou adiante sem peça na fábrica), a previsão mais próxima primeiro; ao
+ * vivo pelo aviso do PCP, do aguardo e da ROTAS — saiu o relógio de 30 s.
  */
 export function Expedicao() {
   const { perfil, vinculos, carregando } = useSessao()
@@ -49,8 +54,8 @@ export function Expedicao() {
         deslocamento: (pagina - 1) * POR_PAGINA,
       }),
     enabled: tenhoAcesso,
-    refetchInterval: ATUALIZA_A_CADA,
   })
+  useAoVivo(['pcp', 'aguardo', 'rotas'], [['expedicao'], ['pedido-unidades']], tenhoAcesso)
   const totalItens = Number(linhas[0]?.contagem_total ?? 0)
 
   const { data: unidades = [], isPending: carregandoUnidades } = useQuery({
@@ -68,8 +73,8 @@ export function Expedicao() {
       <div>
         <h1 className="text-2xl sm:text-3xl">Expedição</h1>
         <p className="mt-1 max-w-2xl text-texto-suave">
-          O reagrupamento do pedido: completo quando todas as unidades chegam ao fim de linha
-          (ESTOQUE ou ROTAS).
+          Os pedidos ainda em andamento, a previsão mais próxima primeiro: o pedido fica completo
+          quando todas as unidades chegam ao fim de linha (ESTOQUE ou ROTAS).
         </p>
       </div>
 
@@ -89,7 +94,7 @@ export function Expedicao() {
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {!isPending && linhas.length === 0 && (
         <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-          Nenhum pedido no kanban{busca ? ' para esta busca' : ' ainda'}.
+          Nenhum pedido em andamento{busca ? ' para esta busca' : ''}.
         </p>
       )}
 
@@ -138,7 +143,8 @@ export function Expedicao() {
                   )}
                 </div>
                 <p className="line-clamp-1 text-sm text-texto-suave">
-                  {linha.cliente_nome || 'Sem cliente'} · previsão {formatarData(linha.data_prevista)}
+                  {linha.cliente_nome || 'Sem cliente'} · previsão{' '}
+                  {formatarData(linha.data_prevista)}
                   {linha.unidades_liberadas < linha.total_unidades && (
                     <> · {linha.total_unidades - linha.unidades_liberadas} ainda no PCP</>
                   )}

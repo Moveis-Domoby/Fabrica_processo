@@ -12371,6 +12371,103 @@ const priv73 = await um73(`
 conferir(!priv73.anon_p && priv73.logado_parar, 'anônimo fora', JSON.stringify(priv73))
 } // fim do bloco 73
 
+// ============================================================================
+// Ajustes do dono (14/10 noite) · migration 74 — o PCP segue o Tiny (D-132) e a
+// Expedição só mostra pedido vivo (D-133).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajustes 14/10 · o PCP segue o Tiny (faturado em diante sai) e a Expedição só mostra pedido vivo')
+
+const um74 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const como74 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const ADMIN74 = '00000000-0000-0000-0000-000000000001'
+const LOG74 = '00000000-0000-0000-0000-000000000031'
+await como74('')
+await bd.exec(`
+  insert into public.pedidos (numero, cliente_id, situacao, data_prevista)
+    values (997401, (select id from public.clientes order by id limit 1), 'Preparando envio', current_date + 3);
+  insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+    values ((select id from public.pedidos where numero = 997401), 1, '074', 'Mesa Teste 74', 2);
+`)
+const P74 = (await um74(`select id::int as id from public.pedidos where numero = 997401`)).id
+const card74 = await um74(`select id::int as id from public.plt_cards where pedido_id = ${P74} and tipo = 'pedido'`)
+const naPcp = async () => {
+  await como74(ADMIN74)
+  const r = await um74(`select count(*)::int as n from public.plt_fn_cards_pedido_pcp(100, 0) where pedido_id = ${P74}`)
+  return r.n === 1
+}
+const painelIgualQuadro = async () => {
+  await como74(ADMIN74)
+  return um74(`select (select pedidos_a_liberar from public.plt_fn_dash_pcp_dia()) as painel,
+                      (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0)) as quadro`)
+}
+const situacao74 = (s) => bd.exec(`update public.pedidos set situacao = '${s}' where id = ${P74}`)
+
+// 1 · Preparando envio (o normal daqui) fica no PCP; Faturado, Pronto para envio
+//     e Enviado saem; voltar a situação traz de volta (é leitura, nada se arquiva).
+const antes = await naPcp()
+await situacao74('Faturado')
+const faturado = await naPcp()
+const painelFaturado = await painelIgualQuadro()
+await situacao74('Pronto para envio')
+const pronto = await naPcp()
+await situacao74('Enviado')
+const enviado = await naPcp()
+await situacao74('Preparando envio')
+const voltou = await naPcp()
+const arquivado = (await um74(`select arquivado_em is not null as a from public.plt_cards where id = ${card74?.id ?? 0}`))?.a
+conferir(card74 !== undefined && antes && !faturado && !pronto && !enviado && voltou && arquivado === false
+    && painelFaturado.painel === painelFaturado.quadro,
+  'o pedido "Preparando envio" fica no PCP; Faturado, Pronto para envio e Enviado no Tiny tiram do PCP (e do quadrinho da Visão do dia); o Tiny voltando, o pedido volta — nada se arquiva',
+  JSON.stringify({ card: card74, antes, faturado, pronto, enviado, voltou, arquivado, painelFaturado }))
+
+// 2 · Expedição: o pedido vivo aparece; faturado sem peça liberada sai; com
+//     peça liberada (a fábrica tem nas mãos) fica.
+await como74(LOG74)
+const naExpedicao = async () =>
+  (await um74(`select count(*)::int as n from public.plt_fn_expedicao_kanban(p_busca => '997401')`)).n === 1
+const vivo = await naExpedicao()
+await situacao74('Faturado')
+await como74(LOG74)
+const faturadoSemPeca = await naExpedicao()
+await como74('')
+await bd.exec(`
+  insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    values ('unidade', ${P74}, 1, '074', 'Mesa Teste 74', 1, 2);
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    values ((select max(id) from public.plt_cards where pedido_id = ${P74} and tipo = 'unidade'), 'card_criado',
+            (select id from public.plt_setores where papel_no_fluxo = 'producao' order by ordem limit 1), 'interface');
+`)
+await como74(LOG74)
+const faturadoComPeca = await naExpedicao()
+conferir(vivo && !faturadoSemPeca && faturadoComPeca,
+  'Expedição: pedido vivo aparece; faturado no Tiny sem peça liberada sai; com peça liberada (a fábrica tem nas mãos) fica',
+  JSON.stringify({ vivo, faturadoSemPeca, faturadoComPeca }))
+
+// 3 · Nenhum pedido entregue (na plataforma ou no Tiny) nem cancelado na Expedição.
+const sujos = await um74(`
+  select count(*)::int as n
+    from public.plt_fn_expedicao_kanban(p_limite => 100) x
+    join public.plt_cards pc on pc.pedido_id = x.pedido_id and pc.tipo = 'pedido'
+   where pc.entrega_evento_id is not null
+      or plt_privado.fn_situacao_normalizada(x.situacao) in ('entregue', 'nao_entregue', 'cancelado')`)
+const entreguesNoBanco = await um74(`select count(*)::int as n from public.plt_cards where tipo = 'pedido' and entrega_evento_id is not null`)
+conferir(sujos.n === 0 && entreguesNoBanco.n > 0,
+  'a Expedição não traz pedido entregue (na plataforma ou no Tiny) nem cancelado — os de agosto saem do topo',
+  JSON.stringify({ sujos, entreguesNoBanco }))
+
+// 4 · A regra é uma só e é do banco (ninguém de fora chama).
+await como74('')
+const priv74 = await um74(`
+  select has_function_privilege('authenticated', 'plt_privado.fn_tiny_tirou_do_pcp(text)', 'execute') as logado,
+         plt_privado.fn_tiny_tirou_do_pcp('Preparando envio') as preparando,
+         plt_privado.fn_tiny_tirou_do_pcp('Pronto para envio') as pronto,
+         plt_privado.fn_tiny_tirou_do_pcp('Não entregue') as nao_entregue`)
+conferir(!priv74.logado && !priv74.preparando && priv74.pronto && priv74.nao_entregue,
+  'a regra "o Tiny já levou adiante" é uma só, interna (Preparando envio fica; Pronto para envio e Não entregue saem)',
+  JSON.stringify(priv74))
+} // fim do bloco 74
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

@@ -23,6 +23,8 @@ import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
 import { prepararSom, tocarSomChegada } from '@/tablet/som'
+import { useVersaoNova } from '@/lib/versaoNova'
+import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 
 const CHAVE_SETOR = 'plt-tela-setor-id'
 
@@ -63,6 +65,8 @@ export function TelaSetor() {
   const clienteQuery = useQueryClient()
   const agora = useAgora()
   const abrirCard = useAbrirCard()
+  // Ajuste do dono (14/10 noite): o tablet fica o dia todo aberto — avisa versão nova.
+  const versaoNova = useVersaoNova()
 
   const souAdmin = perfil?.papel === 'admin'
 
@@ -429,6 +433,7 @@ export function TelaSetor() {
 
       {/* SESSAO-31: a janela do card no tablet — só para ver, sem dado de cliente (D-28). */}
       <JanelaDoCardNaUrl modo="tablet" />
+      <AvisoVersaoNova nova={versaoNova} />
 
       <ModalMotivoPausa
         key={parando ? `parar-${parando.card.id}` : 'parar-fechado'}

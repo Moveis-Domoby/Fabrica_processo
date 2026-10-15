@@ -34,6 +34,8 @@ import { buscarSetores } from '@/kanban/api'
 import { nomeNoMenu, rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
 import { supabase } from '@/lib/supabase'
+import { useVersaoNova } from '@/lib/versaoNova'
+import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 
 interface FilhoMenu {
   para: string
@@ -117,6 +119,8 @@ function BotaoVoltar() {
 export function Layout({ children }: { children: ReactNode }) {
   const { perfil, vinculos, ehLider, sair } = useSessao()
   const location = useLocation()
+  // Ajuste do dono (14/10 noite): ninguém fica preso numa versão velha.
+  const versaoNova = useVersaoNova()
   const [gavetaAberta, setGavetaAberta] = useState(false)
   const [recolhida, setRecolhida] = useState(() => lerGuardado(CHAVE_RECOLHIDA))
   const [painelRecolhido, setPainelRecolhido] = useState(() => lerGuardado(CHAVE_PAINEL))
@@ -758,6 +762,7 @@ export function Layout({ children }: { children: ReactNode }) {
         {!modoFoco && !soEntregador && <BalaoChat />}
         {/* SESSAO-31 (§3): a janela do card — qualquer tela abre pondo ?card= no endereço. */}
         {!soEntregador && <JanelaDoCardNaUrl />}
+        <AvisoVersaoNova nova={versaoNova} />
       </div>
     </ProvedorChat>
   )
