@@ -232,3 +232,10 @@ Lista (espelho do pedido):
 - **Dívida 17 → SESSAO-32:** anotada no §1.6 da demanda da 32 (com o caminho e o lembrete do OK na hora de aplicar) e na linha 17 da lei; comentário humanizado na tarefa "Desempenho - Banco: índices, políticas de acesso e estatísticas".
 - **ClickUp ("Sim"):** 14 tarefas criadas na lista PRODUÇÃO (Área - Item, descrição em tópicos, atribuídas ao dono), já em FAZENDO (o trabalho estava feito) e cada uma com o comentário "Entregue e no ar … Como conferir"; nenhuma concluída. Links na seção "Tarefas no ClickUp" da demanda.
 - **"Quais sao?"** — as 6 decisões provisórias do §6 do handoff, explicadas ao dono em português. **Resposta: "1 sim, 2 sim, 3 sim, 4 sim, 5 sim, 6 sim" → D-136** (nada muda no sistema; anotado nas D-128/D-131, no handoff §6, nos próximos passos, no mapa e na ordem das sessões).
+
+### 15/10 · Encerramento (pedido do dono: *"Vamos finalizar por aqui mesmo, me forneça o prompt para a sessao 32 e encerre a sua"*)
+
+- Os 4 ajustes da equipe do começo da sessão (estado da peça configurável, EXPEDIÇÃO conclui, várias rotas por dia, devolução decidida pela logística) **ficam sem tarefa** no ClickUp — o dono encerrou sem responder; segue anotado nos próximos passos.
+- Ficam com o dono: conferir no tablet; concluir no ClickUp as 7 tarefas da sessão e as 14 dos ajustes; ver a imagem de teste no pedido 13622 (sai só se ele pedir).
+- Prompt da SESSAO-32 atualizado em [[PROMPT - Bloco 6 (Sessoes 30 a 32)]] e entregue ao dono. Pasta principal deixada na `main` atualizada.
+- **Sessão encerrada.**

@@ -2,7 +2,7 @@
 titulo: "PROMPT — Bloco 6 (Sessões 30→32) para o Claude Code"
 tipo: prompt
 data: 2026-10-07
-atualizado: 2026-10-07
+atualizado: 2026-10-15
 tags: [plataforma, prompt, claude-code, bloco6]
 ---
 
@@ -44,10 +44,21 @@ Na conversa da **31**, troque o bloco "Agora" por:
 SESSAO-30 já entregue. Agora: SESSAO-31 — _docs\Plataforma\Demandas\SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa.md (leia antes o handoff da 30). Branch: sessao-31-kanban-completo.
 ```
 
-Na da **32**:
+Na da **32** — **↪️ 15/10: prompt completo** (a 31 foi encerrada pelo dono em 15/10, depois dos ajustes e da validação no site; conversa nova, pasta principal):
 
 ```
-SESSAO-31 já entregue. Agora: SESSAO-32 — _docs\Plataforma\Demandas\SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma.md (leia antes os handoffs da 30 e da 31 e refaça o retrato do §14 da lei). Branch: sessao-32-desempenho-escala.
+Leia e siga: C:\Users\wccau\Domoby\Domoby - fabrica\_docs\Plataforma\CLAUDE - Regras do Claude Code (repo).md
+Trabalhe na pasta principal "Domoby - fabrica" (sem worktree nova): atualize a main com o GitHub e crie a branch sessao-32-desempenho-escala.
+
+SESSAO-31 já entregue e encerrada (15/10), com os ajustes do dono e a validação no site. Agora: SESSAO-32 — _docs\Plataforma\Demandas\SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma.md
+
+Antes de codar:
+1. Leia a demanda duas vezes, a Lei de Desempenho e Escala inteira e os handoffs da 30 e da 31 (na 31, o §10: os ajustes de 14–15/10 e as decisões que confirmei). Refaça o retrato de partida (§0 da demanda / §14 da lei) com os números de hoje — a 30 e a 31 já adequaram o que tocaram.
+2. Entrou no §1.6, a meu pedido: deixar rápidas a busca por nome em Pedidos e a lista de Cancelados (índice nas tabelas do Tiny — me confirme antes de aplicar).
+3. Tarefas do ClickUp (lista no fim da demanda): mova cada uma para FAZENDO quando começar; nunca para concluído — ao terminar cada uma, me avise e comente na tarefa o que foi entregue e como conferir (texto humanizado).
+4. Me traga: o entendimento em até 15 linhas, as 5 perguntas do §3 da demanda e as decisões técnicas — em português de gente, sem código. Só codar com o meu OK.
+
+A imagem de teste do comprovante no pedido 13622 só sai se eu pedir.
 ```
 
 Os itens 2 a 4 (ler duas vezes, ClickUp em FAZENDO sem concluir, entendimento + perguntas antes de codar) valem para as três.
