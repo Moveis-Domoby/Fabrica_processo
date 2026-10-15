@@ -779,36 +779,42 @@ function ListaEtapas(props: {
                   comColunas && '@4xl:col-span-full @4xl:grid-cols-subgrid',
                 )}
               >
-                <span
-                  className={cn(
-                    'col-start-1 row-start-1 min-w-0 text-sm',
-                    etapa.ativa ? 'text-texto' : 'text-texto-fraco line-through',
-                  )}
-                >
-                  {etapa.nome}
+                {/* O nome e as pílulas: cada pílula desce inteira para a linha de
+                    baixo e, se não couber na coluna, termina em "…". */}
+                <span className="col-start-1 row-start-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                  <span
+                    className={cn(
+                      'min-w-0 break-words',
+                      etapa.ativa ? 'text-texto' : 'text-texto-fraco line-through',
+                    )}
+                  >
+                    {etapa.nome}
+                  </span>
                   {etapa.eh_fila && (
-                    <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto no-underline">
+                    <span className="rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
                       fila
                     </span>
                   )}
                   {/* SESSAO-24: soltar o card nesta etapa o leva para outro setor. */}
                   {etapa.setor_destino_id !== null && (
-                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto no-underline">
-                      <ArrowRight aria-hidden className="size-3" />
-                      manda para {nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor'}
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto">
+                      <ArrowRight aria-hidden className="size-3 shrink-0" />
+                      <span className="truncate">
+                        manda para {nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor'}
+                      </span>
                     </span>
                   )}
                   {etapa.conclui_producao && (
-                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto no-underline">
-                      <CircleCheckBig aria-hidden className="size-3" />
-                      conclui a produção
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto">
+                      <CircleCheckBig aria-hidden className="size-3 shrink-0" />
+                      <span className="truncate">conclui a produção</span>
                     </span>
                   )}
                   {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo. */}
                   {etapa.pede_motivo && (
-                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto no-underline">
-                      <Pause aria-hidden className="size-3" />
-                      pede o motivo
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
+                      <Pause aria-hidden className="size-3 shrink-0" />
+                      <span className="truncate">pede o motivo</span>
                     </span>
                   )}
                 </span>
