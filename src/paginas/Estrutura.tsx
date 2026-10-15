@@ -744,7 +744,7 @@ function ListaEtapas(props: {
 
       <div
         className={cn(
-          comColunas && 'sm:grid sm:grid-cols-[minmax(0,1fr)_15rem_13rem_auto] sm:gap-x-3',
+          comColunas && 'sm:grid sm:grid-cols-[minmax(0,1fr)_16rem_13rem_auto] sm:gap-x-3',
         )}
       >
         {comColunas && etapas.length > 0 && (
