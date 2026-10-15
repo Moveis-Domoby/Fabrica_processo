@@ -2,7 +2,7 @@
 titulo: Handoff — 2026-10-14 · SESSAO-31 · Kanban completo (card avulso, janela do card, anexos, conversa e pausa com motivo)
 tipo: handoff
 data: 2026-10-14
-atualizado: 2026-10-14
+atualizado: 2026-10-15
 tags: [handoff, sessao, sessao-31, bloco-6, kanban, pcp, card-avulso, anexos, conversa, mencoes, pausa, rotas, devolucao, desempenho]
 ---
 
@@ -10,6 +10,8 @@ tags: [handoff, sessao, sessao-31, bloco-6, kanban, pcp, card-avulso, anexos, co
 
 > [!success] Entregue — as 7 etapas no ar (sessão noturna)
 > Ordem do dono (14/10): *"Você será uma sessão noturna, então não me pergunte nada, apenas valide e entregue, faça todos os testes necessários."* Cada etapa foi validada inteira (bateria do banco, tipos, revisão de estilo, testes, montagem e ensaio desfeito no banco real), depois **aplicada e publicada num gesto só** (E-73). O que faltou decidir virou **decisão provisória** (§6). **Falta só o que é do dono:** olhar as telas no celular e no tablet (o navegador do app não está logado e o Claude não entra com senha) e dizer sim/não às decisões provisórias. Memória técnica completa: [[SESSAO-31]] (`Plataforma/Execucao/SESSAO-31.md`).
+>
+> **↪️ Atualizado em 15/10:** os **ajustes do dono da noite de 14/10** (PCP segue o Tiny, área Pedidos, quadro, pausa, menu, versão nova) e a **validação navegando no site** em 15/10 (com a mãozinha do quadro) — **§10**.
 
 **Branch:** `sessao-31-kanban-completo` (cada etapa foi à `main` por avanço direto — D-20). **Demanda:** [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]]. **Plano:** [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]]. **Banco:** migrations **66 a 73** + a manutenção `2026-10-14_expedicao_conclui.sql` (integração do Tiny idêntica em todas — `e2109f3a…`). **Bateria do banco:** 848 → **970 verificações, tudo verde** (rodada 2× no fechamento); testes da tela 152 → **162**. **Decisões:** D-125…D-131.
 
@@ -158,6 +160,41 @@ As 7 tarefas da demanda estão em **FAZENDO**, cada uma com o comentário do que
 - **Front:** `src/kanban/{useQuadro,quadro,avulso,pausa,arrasto}.ts` · `src/kanban/janela/*` (janela, anexos, gravador, conversa) · `src/kanban/lancamento/*` · `src/kanban/componentes/{CartaoUnidade,QuadroKanban,ModalConcluirAvulso,ModalMotivoPausa}.tsx` · `src/paginas/{QuadroSetor,TelaSetor,PCP,Estrutura,Utilitarios,Programacao,EntregasDoDia}.tsx` · `src/rotas/*` · `src/logistica/devolucao*` · `src/chat/*` · `src/notificacoes/*`.
 - **Harness:** blocos 66–73 em `supabase/testes/testar-migrations.mjs`.
 - **Aprendizados:** E-92 (parêntese a mais numa manutenção — o ensaio pegou) e E-93 (`cd` de novo — formatador e bateria por caminho absoluto) em [[PLT - Memoria de Aprendizado]].
+
+## 10. Ajustes do dono (14/10 noite) e validação no site (15/10)
+
+Pedido do dono (14/10, com vídeo e imagens): *"Muita coisa está ruim ou mal feita, ajuste"* — e, no fim, *"valide tudo navegando no front e corrigindo erros de modais, utilizações, layout quebrado, dados errados ou conflitantes"*. No meio da validação: *"um botão para arrastar para o lado no kanban, clicando com o mouse no meio, no estilo de mãozinha"*. Decisões **D-132…D-135**; diário nas levas 1–4 de [[SESSAO-31]].
+
+**O que mudou:**
+- **O PCP segue o Tiny (D-132):** pedido Faturado, Pronto para envio, Enviado, Entregue, Não entregue ou Cancelado no Tiny sai do PCP; o painel e o quadro contam igual. O "recebido" das imagens era do **pagamento** — no banco, dos 23 pedidos parados no PCP, 22 estavam "Preparando envio" (o normal de quem espera produção) e 1 "Faturado" (saiu).
+- **Expedição (D-133):** só pedido vivo, previsão mais próxima primeiro, ao vivo (saiu o relógio de 30 s).
+- **Ao vivo entre áreas:** voltar a uma tela relê o que mudou enquanto a pessoa estava fora — lançar do PCP aparece no setor sem recarregar.
+- **Quadro (D-135):** sem a mensagem vermelha piscando na troca de setor; só a coluna com card cresce; linha fina entre colunas; nada de "Vazio"; "Concluir" só no avulso; **mãozinha** — no computador, segurar o fundo do quadro (ou o botão do meio do mouse) e arrastar corre as colunas; o card só se arrasta com o botão esquerdo (a biblioteca pegava também o do meio — achado e corrigido na validação, E-99).
+- **Pausa** no desenho do motivo da entrega; **Utilitários** com a aba "Motivos de pausa"; **Lançamento manual** em cards comuns.
+- **Menu:** hierarquia clara e um padrão só de nome; no celular, a coluna dos grupos vira ícones quando os itens abrem (os nomes não quebram).
+- **Área Pedidos (D-134):** "Todos os pedidos" (saiu do PCP) e "Cancelados" (saiu da Logística, com o histórico inteiro — 164) — lista leve por cursor e ficha com revelação gradual (Itens e pagamento · Produção · Entrega e comprovante · Dados do Tiny · Histórico). O **comprovante** aparece na ficha (imagem ali mesmo, PDF noutra aba).
+- **Versão nova:** quem está com a plataforma aberta é avisado; a próxima troca de tela atualiza. **Duas rotas no mesmo dia:** a regra estava certa no banco e na tela (teste novo); a causa provável era uma versão velha aberta.
+- **Validação de 15/10:** textos do Tiny legíveis na ficha ("Crédito"; cancelado depois de entregue diz isso, sem o verde), janela do card sem o nome repetido, Setores e etapas numa grade que segue a largura do bloco, Motivos de pausa na largura toda, ficha em 2 colunas no celular.
+
+**Banco:** migrations **74** (`20261014200000_plt_pcp_segue_o_tiny`) e **75** (`20261014210000_plt_pedidos_area`), cada uma ensaiada e desfeita no banco real antes de aplicar; bateria **980 verdes**; 15/10 foi só tela. **Testes da tela:** 162 → **176**. **Pacote:** principal 1.536 → **1.468 kB** (a área Pedidos é pedaço próprio).
+
+**Como testar (para o dono):**
+1. **PCP:** um pedido que o Tiny já marcou como Faturado, Enviado ou Entregue não aparece; os números do painel batem com o quadro.
+2. **Ao vivo:** abra a MONTAGEM, vá ao PCP, lance um pedido para a MONTAGEM e volte pelo menu — o card está lá sem recarregar.
+3. **Quadro:** troque de setor várias vezes — nada pisca; coluna vazia é só o título. No computador: segure o fundo do quadro (ou o botão do meio) e arraste para o lado.
+4. **Pausa:** janela de um card em execução → Pausar → o motivo nos botões grandes. Configurações → Utilitários → Motivos de pausa.
+5. **Pedidos → Todos os pedidos:** busque um número, toque no pedido e abra os botões um a um (cada um só carrega quando abre). **Pedidos → Cancelados:** o 13525 diz "tinha sido entregue em 08/10/2026".
+6. **Expedição:** só pedidos que ainda vão sair, o mais urgente primeiro.
+7. **Programação:** num caminhão com a Rota 1 feita no dia, "Nova rota (Rota 2)" programa a segunda.
+8. **Celular:** abra o menu e toque num grupo — os nomes cabem numa linha.
+
+**Conferido pelo Claude no site** (com a conta do dono; celular 375 px e computador): todos os itens acima que não gravam nada — Cancelados, ficha, menu do celular, quadro (fundo arrastado e botão do meio sem pegar o card, nada foi ao banco), Setores e etapas, Utilitários, janela do card. O tablet (768 px) segue com o dono.
+
+**Pendente / para decidir:**
+- **Dívida 17 da lei:** a busca por nome na área Pedidos (55 ms) e a lista de Cancelados (41 ms) passam do teto com volume ×100 — o caminho é índice nas tabelas da integração do Tiny (**precisa do OK do dono**).
+- **Comprovante:** ainda não há nenhum anexado no banco; quando o entregador anexar, aparece em Pedidos → ficha → "Entrega e comprovante".
+- **ClickUp:** os ajustes da noite de 14/10 e de 15/10 **não têm tarefa** (o Claude não cria — regra 19); o dono decide se cria.
+- Aprendizados: E-95…E-100, A-61…A-63 em [[PLT - Memoria de Aprendizado]].
 
 ## Ver também
 
