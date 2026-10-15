@@ -83,6 +83,7 @@ const COM_ACENTO: Record<string, string> = {
   intermediador: 'intermediador',
   percentual: 'percentual',
   comissao: 'comissão',
+  multiplas: 'múltiplas',
 }
 
 /** Siglas e nomes inteiros que se escrevem de outro jeito. */
@@ -121,4 +122,14 @@ export function rotuloDoCampo(chave: string): string {
   )
   const frase = (comoCodigo ? ['código', 'de', ...palavras] : palavras).join(' ')
   return frase.charAt(0).toLocaleUpperCase('pt-BR') + frase.slice(1)
+}
+
+/**
+ * Um valor que o Tiny manda em código ("credito", "multiplas") em língua de
+ * gente ("Crédito", "Múltiplas"); o que já vem escrito à mão ("Pix -
+ * terceiros", "CARTÃO - JAMAD - 10X") fica como está.
+ */
+export function valorDoTiny(v: string | null | undefined): string | null {
+  if (!v) return null
+  return /^[a-z_]+$/.test(v) ? rotuloDoCampo(v) : v
 }

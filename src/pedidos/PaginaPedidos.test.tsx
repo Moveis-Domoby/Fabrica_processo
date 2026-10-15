@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { TodosOsPedidos } from './PaginaPedidos'
-import { rotuloDoCampo } from './formato'
+import { rotuloDoCampo, valorDoTiny } from './formato'
 import * as api from './api'
 import * as kanbanApi from '@/kanban/api'
 
@@ -183,5 +183,14 @@ describe('o nome dos campos do Tiny', () => {
     expect(rotuloDoCampo('descricao_lista_preco')).toBe('Descrição lista preço')
     expect(rotuloDoCampo('condicao_pagamento')).toBe('Condição pagamento')
     expect(rotuloDoCampo('obs')).toBe('Observações')
+  })
+
+  it('o valor em código vira palavra; o escrito à mão fica como está', () => {
+    expect(valorDoTiny('credito')).toBe('Crédito')
+    expect(valorDoTiny('multiplas')).toBe('Múltiplas')
+    expect(valorDoTiny('pix')).toBe('Pix')
+    expect(valorDoTiny('Pix - terceiros')).toBe('Pix - terceiros')
+    expect(valorDoTiny('CARTÃO - JAMAD - 10X')).toBe('CARTÃO - JAMAD - 10X')
+    expect(valorDoTiny(null)).toBeNull()
   })
 })

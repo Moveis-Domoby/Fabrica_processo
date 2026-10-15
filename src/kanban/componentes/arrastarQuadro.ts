@@ -1,9 +1,29 @@
 import { useRef, useState } from 'react'
 import type { MouseEvent as EventoMouse, PointerEvent as EventoPonteiro } from 'react'
+import { MouseSensor } from '@dnd-kit/core'
+import type { MouseSensorOptions } from '@dnd-kit/core'
 
 /** O que não pode virar "arrastar o quadro": o card, botão, campo, link. */
 const NAO_ARRASTA =
   '[aria-roledescription="card arrastável"], button, a, input, textarea, select, label, [role="button"], [role="radio"], [contenteditable="true"]'
+
+/**
+ * O arrasto do CARD pelo mouse só com o botão ESQUERDO. O sensor padrão da
+ * biblioteca pega qualquer botão menos o direito — com o botão do meio sendo
+ * a mãozinha, o card sairia andando junto com o quadro (e cairia noutra coluna).
+ */
+export class SensorDoMouse extends MouseSensor {
+  static activators = [
+    {
+      eventName: 'onMouseDown' as const,
+      handler: ({ nativeEvent: evento }: EventoMouse, { onActivation }: MouseSensorOptions) => {
+        if (evento.button !== 0) return false
+        onActivation?.({ event: evento })
+        return true
+      },
+    },
+  ]
+}
 
 /**
  * Arrastar o QUADRO para o lado com a "mãozinha" (pedido do dono, 15/10:

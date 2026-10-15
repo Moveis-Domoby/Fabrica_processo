@@ -28,7 +28,7 @@ import { ModalDecidirDevolucao } from '@/logistica/componentes/ModalDecidirDevol
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
 import { DadosDoTinyPainel } from './DadosDoTiny'
 import { ProducaoDoPedidoPainel } from './ProducaoDoPedido'
-import { data, diaEHora, moeda } from './formato'
+import { data, diaEHora, moeda, valorDoTiny } from './formato'
 
 /** A situação da conta a receber como o Tiny manda → como a gente fala. */
 const SITUACAO_CONTA: Record<string, string> = {
@@ -201,6 +201,8 @@ function Resumo({ d }: { d: DetalhePedido }) {
   const { pedido: p, cliente: c } = d
   const whatsapp = linkWhatsApp(c.fone)
   const cidade = [c.cidade, c.uf].filter(Boolean).join(' - ')
+  // O Tiny grava a situação como rótulo ("Cancelado") — compara sem caixa.
+  const cancelado = p.situacao?.trim().toLowerCase() === 'cancelado'
   return (
     <div className="flex flex-col gap-3">
       {d.devolucao && (
@@ -240,8 +242,11 @@ function Resumo({ d }: { d: DetalhePedido }) {
           </p>
           <p className="text-sm text-texto-suave">Pedido de {data(p.data_pedido)}</p>
           {p.forma_pagamento && (
-            <p className="truncate text-sm text-texto-suave" title={p.forma_pagamento}>
-              {p.forma_pagamento}
+            <p
+              className="truncate text-sm text-texto-suave"
+              title={valorDoTiny(p.forma_pagamento) ?? undefined}
+            >
+              {valorDoTiny(p.forma_pagamento)}
             </p>
           )}
         </Bloco>
@@ -255,7 +260,10 @@ function Resumo({ d }: { d: DetalhePedido }) {
         <Bloco titulo="Entrega">
           {d.entrega ? (
             <>
-              <p className="font-medium text-perfeito-texto">Entregue</p>
+              {/* Cancelado depois de entregue (devolvido): o fato fica, sem o verde de "deu certo". */}
+              <p className={cn('font-medium', cancelado ? 'text-texto' : 'text-perfeito-texto')}>
+                {cancelado ? 'Foi entregue, depois cancelado' : 'Entregue'}
+              </p>
               <p className="text-sm text-texto">{diaEHora(d.entrega.em)}</p>
               <p className="text-sm text-texto-suave">
                 {d.entrega.por
@@ -264,6 +272,11 @@ function Resumo({ d }: { d: DetalhePedido }) {
                     ? 'marcado no Tiny'
                     : ''}
               </p>
+            </>
+          ) : cancelado ? (
+            <>
+              <p className="font-medium text-texto">Não vai para entrega</p>
+              <p className="text-sm text-texto-suave">O pedido foi cancelado no Tiny</p>
             </>
           ) : d.programacao ? (
             <>
@@ -312,8 +325,8 @@ function PainelItens({ d }: { d: DetalhePedido }) {
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-medium text-texto-suave">Pagamento</p>
-          <Linha rotulo="Forma" valor={p.forma_pagamento} />
-          <Linha rotulo="Meio" valor={p.meio_pagamento} />
+          <Linha rotulo="Forma" valor={valorDoTiny(p.forma_pagamento)} />
+          <Linha rotulo="Meio" valor={valorDoTiny(p.meio_pagamento)} />
           {/* O Tiny manda "0" quando não há condição — não diz nada a quem lê. */}
           <Linha
             rotulo="Condição"

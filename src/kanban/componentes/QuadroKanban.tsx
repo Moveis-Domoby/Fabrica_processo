@@ -1,7 +1,6 @@
 import {
   DndContext,
   KeyboardSensor,
-  MouseSensor,
   TouchSensor,
   useDraggable,
   useDroppable,
@@ -25,7 +24,7 @@ import { CartaoUnidade } from './CartaoUnidade'
 import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
-import { useArrastarParaOLado } from './arrastarQuadro'
+import { SensorDoMouse, useArrastarParaOLado } from './arrastarQuadro'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard, Setor } from '../tipos'
 
 /** Id de coluna no drag-and-drop para cards ainda sem etapa (PCP/terminais). */
@@ -372,7 +371,8 @@ export function QuadroKanban({
   carregando = false,
 }: QuadroKanbanProps) {
   const sensores = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    // Só o botão esquerdo pega o card — o do meio é da mãozinha (arrastarQuadro).
+    useSensor(SensorDoMouse, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     // SESSAO-31: só o Espaço pega o card (o Enter abre a janela).
     useSensor(KeyboardSensor, {

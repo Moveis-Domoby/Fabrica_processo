@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { useArrastarParaOLado } from './arrastarQuadro'
+import { SensorDoMouse, useArrastarParaOLado } from './arrastarQuadro'
 
 /**
  * A "mãozinha" do quadro (pedido do dono, 15/10): o botão do meio em qualquer
@@ -69,5 +69,17 @@ describe('arrastar o quadro para o lado', () => {
     arrastar(quadro, quadro, 0, 'touch')
     expect(quadro.scrollLeft).toBe(300)
     expect(quadro).toHaveAttribute('data-arrastando', 'false')
+  })
+})
+
+describe('o arrasto do card pelo mouse', () => {
+  const [ativador] = SensorDoMouse.activators
+  const apertar = (botao: number) =>
+    ativador.handler({ nativeEvent: { button: botao } } as never, {})
+
+  it('só o botão esquerdo pega o card (o do meio é da mãozinha)', () => {
+    expect(apertar(0)).toBe(true)
+    expect(apertar(1)).toBe(false)
+    expect(apertar(2)).toBe(false)
   })
 })
