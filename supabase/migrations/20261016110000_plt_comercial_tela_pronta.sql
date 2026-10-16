@@ -640,6 +640,8 @@ declare
     v_spend_type text;
     v_spend_mode text;
     v_digitos text;
+    v_ini timestamp with time zone;
+    v_fim timestamp with time zone;
 begin
     perform plt_privado.fn_negar_sem_modulo('comercial');
     v_search_query := p_filters->>'searchQuery';
@@ -681,6 +683,12 @@ begin
     v_spend_type := p_filters->>'spendType';
     v_spend_mode := p_filters->>'spendMode';
     v_digitos := regexp_replace(coalesce(v_search_query, ''), '\D', '', 'g');
+    -- os limites de data resolvidos uma vez: o MESMO recorte do "ou" de 5 ramos de
+    -- sempre, escrito de um jeito que o índice da data enxerga ("todo o período" = sem limite)
+    if not (v_date_filter = 'all' or v_date_filter is null) then
+        v_ini := v_custom_start;
+        v_fim := v_custom_end;
+    end if;
 
     -- O período inteiro sem busca nem produto: a tela já está pronta — a vida
     -- de cada cliente É o recorte (mesmos números de sempre, sem somar nada).
@@ -722,13 +730,8 @@ begin
     with period_records as (
         select v.cid, v.nome_cliente, v.telefone_cliente, v.valor_pedido, v.numero_itens, v.data_compra
           from public.plt_comercial_vendas v
-         where (
-                (v_date_filter = 'all' or v_date_filter is null) or
-                (v_custom_start is null and v_custom_end is null) or
-                (v_custom_start is not null and v_custom_end is null and v.data_compra >= v_custom_start) or
-                (v_custom_start is null and v_custom_end is not null and v.data_compra <= v_custom_end) or
-                (v_custom_start is not null and v_custom_end is not null and v.data_compra between v_custom_start and v_custom_end)
-               )
+         where ((v.data_compra >= coalesce(v_ini, '-infinity'::timestamptz) and v.data_compra <= coalesce(v_fim, 'infinity'::timestamptz))
+                or (v_ini is null and v_fim is null and v.data_compra is null))
            and (v_search_query is null or v_search_query = '' or
                 v.nome_cliente ilike '%' || v_search_query || '%' or
                 (v_digitos <> '' and v.telefone_digitos ilike '%' || v_digitos || '%'))
@@ -796,6 +799,8 @@ declare
     v_spend_type text;
     v_spend_mode text;
     v_digitos text;
+    v_ini timestamp with time zone;
+    v_fim timestamp with time zone;
     v_total_revenue numeric;
     v_total_orders integer;
     v_total_clients integer;
@@ -843,6 +848,12 @@ begin
     v_spend_type := p_filters->>'spendType';
     v_spend_mode := p_filters->>'spendMode';
     v_digitos := regexp_replace(coalesce(v_search_query, ''), '\D', '', 'g');
+    -- os limites de data resolvidos uma vez: o MESMO recorte do "ou" de 5 ramos de
+    -- sempre, escrito de um jeito que o índice da data enxerga ("todo o período" = sem limite)
+    if not (v_date_filter = 'all' or v_date_filter is null) then
+        v_ini := v_custom_start;
+        v_fim := v_custom_end;
+    end if;
 
     if ((v_date_filter = 'all' or v_date_filter is null) or (v_custom_start is null and v_custom_end is null))
        and coalesce(v_search_query, '') = '' and v_selected_items is null then
@@ -876,13 +887,8 @@ begin
         with period_records as (
             select v.cid, v.valor_pedido
               from public.plt_comercial_vendas v
-             where (
-                    (v_date_filter = 'all' or v_date_filter is null) or
-                    (v_custom_start is null and v_custom_end is null) or
-                    (v_custom_start is not null and v_custom_end is null and v.data_compra >= v_custom_start) or
-                    (v_custom_start is null and v_custom_end is not null and v.data_compra <= v_custom_end) or
-                    (v_custom_start is not null and v_custom_end is not null and v.data_compra between v_custom_start and v_custom_end)
-                   )
+             where ((v.data_compra >= coalesce(v_ini, '-infinity'::timestamptz) and v.data_compra <= coalesce(v_fim, 'infinity'::timestamptz))
+                or (v_ini is null and v_fim is null and v.data_compra is null))
                and (v_search_query is null or v_search_query = '' or
                     v.nome_cliente ilike '%' || v_search_query || '%' or
                     (v_digitos <> '' and v.telefone_digitos ilike '%' || v_digitos || '%'))
@@ -969,8 +975,8 @@ begin
     return query
     select v.mes, sum(v.valor_pedido), count(*)::integer
       from public.plt_comercial_vendas v
-     where (p_start is null or v.data_compra >= p_start)
-       and (p_end is null or v.data_compra <= p_end)
+     where (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null))
      group by v.mes
      order by v.mes asc;
 end;
@@ -1011,8 +1017,8 @@ begin
     select n, count(*)::integer as q
       from public.plt_comercial_vendas v
      cross join lateral unnest(v.item_nomes) as n
-     where (p_start is null or v.data_compra >= p_start)
-       and (p_end is null or v.data_compra <= p_end)
+     where (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null))
      group by n
      order by q desc, n;
 end;
@@ -1053,8 +1059,8 @@ begin
     select v.mes, n, count(*)::integer as q
       from public.plt_comercial_vendas v
      cross join lateral unnest(v.item_nomes) as n
-     where (p_start is null or v.data_compra >= p_start)
-       and (p_end is null or v.data_compra <= p_end)
+     where (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null))
      group by v.mes, n
      order by v.mes asc, q desc, n;
 end;
@@ -1091,8 +1097,8 @@ begin
     with client_period_stats as (
         select v.cid as client_id, count(*) as qtd_pedidos, sum(v.valor_pedido) as faturamento
           from public.plt_comercial_vendas v
-         where (p_start is null or v.data_compra >= p_start)
-           and (p_end is null or v.data_compra <= p_end)
+         where (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null))
          group by v.cid
     )
     select qtd_pedidos::integer, sum(faturamento), count(client_id)::integer
@@ -1117,8 +1123,8 @@ begin
            count(distinct v.cid)::integer
       from public.plt_comercial_vendas v
      where v.ordem_cliente > 1
-       and (p_start is null or v.data_compra >= p_start)
-       and (p_end is null or v.data_compra <= p_end)
+       and (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null))
      group by v.ordem_cliente
      order by v.ordem_cliente asc;
 end;
@@ -1139,8 +1145,8 @@ begin
            v.data_compra
       from public.plt_comercial_vendas v
      where v.ordem_cliente = p_purchase_number
-       and (p_start is null or v.data_compra >= p_start)
-       and (p_end is null or v.data_compra <= p_end)
+       and (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null))
      order by dias asc, v.data_compra, v.pedido_id
      limit p_limit offset p_offset;
 end;
@@ -1158,8 +1164,8 @@ begin
     select v.cid, v.ordem_cliente, extract(day from (v.data_compra - v.data_anterior))::integer
       from public.plt_comercial_vendas v
      where v.ordem_cliente > 1
-       and (p_start is null or v.data_compra >= p_start)
-       and (p_end is null or v.data_compra <= p_end);
+       and (v.data_compra >= coalesce(p_start, '-infinity'::timestamptz) and v.data_compra <= coalesce(p_end, 'infinity'::timestamptz)
+            or (p_start is null and p_end is null and v.data_compra is null));
 end;
 $function$;
 
