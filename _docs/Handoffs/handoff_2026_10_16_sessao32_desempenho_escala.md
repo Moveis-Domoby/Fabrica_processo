@@ -57,6 +57,7 @@ Dois insumos cadastrados como "simples" no Tiny com saldo enorme (fita de borda 
 - **Abre no mês atual:** Painel de Recompra em "Do mês"; no Dashboard, o que abria em "Tudo" abre no mês atual (números do topo, frequência de compra, top de produtos). "Todo o período" a um toque.
 - **"Todo o período" quase instantâneo:** a tela fica pronta no banco (os pedidos já desmontados, a vida de cada cliente e as contas do mês), atualizada a cada pedido que o n8n grava — à prova de falha: se der erro ali, o pedido grava normalmente e a tela se corrige na próxima gravação.
 - **Números:** no banco real, Painel no mês atual 1,9 ms e no período inteiro 3 ms (antes 1,5–2,5 s); números 1,3–1,6 ms; top de produtos 2,9 ms (antes 220 ms); maiores clientes 0,6 ms (antes 149 ms).
+- **No site (conta do dono):** o painel abre no mês atual com a tela inteira em ~1 s (antes ~3,6 s); "Todo o período" volta em ~0,2 s depois da troca (antes ~2,4 s); o Dashboard inteiro em ~1,2 s (antes ~2,1 s).
 - **Mesmos números de antes:** bateria (24 filtros do painel, 8 períodos do dashboard, gravações acompanhadas) e banco real numa transação desfeita (0 diferença em 21 filtros e 7 períodos, 42.658 linhas).
 
 ### Frente I — prova de carga ✅
