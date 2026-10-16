@@ -982,3 +982,36 @@ grant  execute on function public.fn_backfill_falha(bigint, text, boolean) to se
 --   fechamento da gravação; o "zz" o faz rodar depois do plt_pedidos_reagir.
 --   Aplicada em 02/10/2026 03:13 UTC e reaplicada 04:11 UTC (o "Se… senão"),
 --   impressão digital da integração idêntica: e2109f3a0ab69112b6a48baadbbba876.
+
+-- ---------------------------------------------------------------------------
+-- 12 · ÍNDICES DA PLATAFORMA NAS TABELAS DA INTEGRAÇÃO e COLUNAS DA PLATAFORMA
+--      EM produtos — SESSAO-32, 16/10/2026, com o OK do dono (D-138). Só
+--      índices e colunas próprias: nenhuma coluna da integração muda e o n8n
+--      grava igual (impressão digital idêntica: e2109f3a0ab69112b6a48baadbbba876).
+--      Em produção foram criados com CREATE INDEX CONCURRENTLY (sem travar).
+-- ---------------------------------------------------------------------------
+-- migration 83 (20261016080000_plt_pedidos_busca_indices.sql): a busca de
+-- Pedidos por nome e vendedor por trigramas; o índice parcial dos cancelados
+-- (pedidos_cancelados_numero_idx) usa plt_privado.fn_situacao_normalizada e
+-- mora só na migration.
+create extension if not exists pg_trgm with schema extensions;
+create index if not exists clientes_nome_trgm_idx
+  on public.clientes using gin (nome extensions.gin_trgm_ops);
+create index if not exists pedidos_vendedor_trgm_idx
+  on public.pedidos using gin (vendedor extensions.gin_trgm_ops);
+
+-- migration 84 (20261016090000_plt_indices_copias_tiny_e_repetidos.sql): as
+-- chaves das cópias do Tiny.
+create index if not exists contas_receber_cliente_id_idx on public.contas_receber (cliente_id);
+create index if not exists contas_receber_pedido_id_idx  on public.contas_receber (pedido_id);
+create index if not exists notas_fiscais_cliente_id_idx  on public.notas_fiscais (cliente_id);
+create index if not exists notas_fiscais_pedido_id_idx   on public.notas_fiscais (pedido_id);
+
+-- migration 85 (20261016100000_plt_estoque_movel_insumo_peca.sql): o tipo de
+-- cada produto no estoque — tipo_estoque (à mão, admin) e tipo_estoque_efetivo
+-- (gerada e guardada: o à mão, senão o automático pelo cadastro do Tiny). O
+-- DDL completo (com a função plt_privado.fn_tipo_estoque_automatico) mora na
+-- migration; o fn_upsert_produto acima não muda (grava a lista dele, e a
+-- coluna gerada se refaz sozinha). Como minimo_plataforma, imagem_caminho,
+-- imagem_tiny e minimo_travado (migrations 40, 44 e 45), são colunas DA
+-- PLATAFORMA dentro de produtos.

@@ -178,6 +178,7 @@ Cada troca de tela grava também 1 registro de navegação (a trilha — D-40); 
 - `2026-10-16_pedidos_1_porta_por_caminhos.sql` + `2026-10-16_pedidos_2_indices.sql` (entram juntos): a lista de Pedidos por caminhos separados (provada igual — bloco 83: 9 casos/121 linhas; banco real desfeito: 9 casos com páginas seguintes, 325 linhas, 0 diferença) + `pg_trgm` e os índices (cancelados parcial; trigramas em `clientes.nome` e `pedidos.vendedor`). Sem os índices a porta nova fica 20–60 ms mais lenta na busca (por isso não subiu sozinha — A-68). E-106 pego na prova do banco real.
 - `2026-10-16_indices_copias_tiny_e_repetidos.sql`: os 4 índices das chaves das cópias do Tiny e a retirada dos 2 repetidos (`idx_membros_lista`, `plt_cards_pedido_uq`).
 - `2026-10-16_gancho_do_token.sql`: o gancho do token (com o dono, no painel).
+- **→ 16/10 ~03:05–03:15 UTC: os dois primeiros aplicados com o OK do dono (D-138) — migrations 83 e 84 (seção abaixo). Fica só o gancho do token.**
 
 ## Ensaio ×100 de Pedidos (banco LOCAL — PGlite; nunca no real) — `scratchpad/ensaio-pedidos-x100.mjs`
 
@@ -194,6 +195,19 @@ Volume: 556.800 pedidos, 1.080.000 clientes, 16.376 cancelados (×100 de hoje). 
 
 - **1ª versão da porta (só caminhos com índice):** o termo comum piorava (1,1–1,4 s — juntava todos os milhares de candidatos antes de ordenar) → **versão combinada:** primeiro os 5.000 números mais recentes do jeito de sempre (se a página enche ali, é exatamente a de antes — todo outro pedido que casa tem número menor); se não enche (termo raro), os caminhos com índice. Provada igual: bateria (bloco 83, 9 casos) e banco real desfeito (9 casos com páginas seguintes, 325 linhas, 0 diferença, duas rodadas).
 - Criar os 3 índices no ×100 local: ~31 s (no real, ~5 mil pedidos e ~11 mil clientes: segundos, `CONCURRENTLY`).
+
+## Depois do OK do dono (16/10 ~00:05–00:55 de Natal = 03:05–03:55 UTC) → D-138
+
+- **Dono:** *"Pode aplicar e continue trabalhando de onde você parou"* + a regra dos insumos (palavras exatas na D-138).
+- **Índices de Pedidos e das cópias do Tiny (migrations 83 e 84, `324b2ea`):** criados antes com `CREATE INDEX CONCURRENTLY` (fora de transação) e depois os arquivos `--so` com `IF NOT EXISTS`; integração idêntica. Banco real: Cancelados 42 → 3–5 ms; busca por nome 30 → 10 ms; por número 28 → 5 ms. A bateria ganhou `pg_trgm` no PGlite e o esquema `extensions`; o bloco 83 compara a porta de antes (75) com a da 83.
+- **Insumos — perguntas ao dono** (como separar o "simples"; o que fazer com as peças de insumo no quadro) → *"Faça pelo código fiscal, porém crie também uma tela em configurações…"* e *"Elas ficam no quadro de estoque, porém na aba de matéria prima e insumos contando normalmente…"* (D-138).
+- **Migration 85 + tela nova (`59d9424`):** mapeadas no banco real as 14 funções com a regra `classe in ('F','S','V')` (`scratchpad/baixar-funcoes.mjs`) e recriadas por inteiro trocando a regra pela coluna guardada `tipo_estoque_efetivo` (`montar-85.py` — E-24); `plt_fn_estoque_produtos` drop + create com `tipo_estoque` (a aba de insumos diz insumo/peça); portas `plt_fn_produtos_classificacao` e `plt_fn_produto_definir_tipo`; a fila do Tiny só de móvel; o ranking das vendas refeito na aplicação (senão só de madrugada). Bloco 85 na bateria (tipos automáticos, contas separadas, cartões antigos ficam, fila só de móvel, tela do admin, operador barrado, privilégios) — verde. Front: `/configuracoes/produtos` (`ClassificacaoProdutos.tsx`, `logistica/classificacao.ts`), menu, pré-carregamento, rótulo na auditoria; `PainelInsumos` mostra peça/kit/matéria-prima/insumo.
+- **Antes de aplicar:** quem grava `produtos` (`scratchpad/upsert-produto.mjs`) — só o `fn_upsert_produto`, com a lista explícita de colunas → a coluna calculada convive com o n8n sem mudança.
+- **Achado da foto de antes (`conferir-85.mjs antes`):** a fila do Tiny seguia transformando insumo em cartões no ESTOQUE (≈4.765 no começo da noite → **5.090**; 19 insumos na fila).
+- **Aplicada a 85 (~03:42 UTC, `--so`, integração idêntica `e2109f3a…`) e o site no mesmo gesto (E-73; Vercel ok).** Foto depois (`conferir-85.mjs depois`): regra = coluna em todos os produtos; 201 móveis · 240 insumos · 63 peças ativos; móveis em estoque 4.895 → 130; peças (un.) 210.613 → 241.795,05; m² 25 = 25; aba dos móveis 269 → 201; insumos 235 → 303; Top 30 ocupado só por móvel; fila sem insumo (7 móveis). Operador: a lista do admin volta vazia e a troca é recusada. Tempo no servidor (`tempo-85b.mjs`, 7 rodadas, como o dono): lista do admin 2–3 ms; abas do estoque ~24 ms; resumo ~15 ms.
+- **No site (conta do dono):** Configurações → Móveis, insumos e peças: 504 produtos; filtro Peça = 63; busca "bucha niveladora" = 1; trocada para Peça (aviso "Agora é peça") e voltada ao automático (aviso "Voltou ao automático") — 2 linhas na trilha em nome do dono (teste). Estoque → Matéria-prima e insumos: 303, com a unidade; Galpão: Móveis em estoque 130. Ajuste depois do teste: "Voltar ao automático (insumo)" com o tipo no próprio texto (no tablet não existe passar o mouse).
+- **Avisos da Supabase depois:** desempenho só com "sem uso" (60, informativo) — chaves sem índice 0, repetidos 0, permissivas 0; segurança sem tipo novo ("definer executável por logado" 175 → 177: as 2 portas novas, com a guarda de admin por dentro).
+- Testes de tela 191 ✔; montagem: a tela nova é um pedaço de 2,6 KB; o pacote inicial não mudou.
 
 ## Task list (espelho da demanda) — ordem proposta (§6 da demanda), uma frente por vez, publicada e conferida com o dono antes da próxima
 

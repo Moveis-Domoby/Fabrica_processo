@@ -11,7 +11,11 @@ import {
   definirTipoProduto,
   listarClassificacao,
 } from '@/logistica/classificacao'
-import type { FiltrosClassificacao, ProdutoClassificado, TipoEstoque } from '@/logistica/classificacao'
+import type {
+  FiltrosClassificacao,
+  ProdutoClassificado,
+  TipoEstoque,
+} from '@/logistica/classificacao'
 
 const TIPOS: TipoEstoque[] = ['movel', 'insumo', 'peca']
 
@@ -53,7 +57,8 @@ export function ClassificacaoProdutos() {
       definirTipoProduto(produto.tiny_id, novo),
     onSuccess: async (vale, { produto, novo }) => {
       notificar({
-        titulo: novo === null ? 'Voltou ao automático' : `Agora é ${ROTULO_TIPO[vale].toLowerCase()}`,
+        titulo:
+          novo === null ? 'Voltou ao automático' : `Agora é ${ROTULO_TIPO[vale].toLowerCase()}`,
         descricao: produto.descricao,
         tom: 'perfeito',
       })
@@ -140,7 +145,9 @@ export function ClassificacaoProdutos() {
 
       {consulta.isError ? (
         <p className="rounded-dm-lg border border-danificado-forte bg-superficie p-4 text-sm text-danificado-forte">
-          {consulta.error instanceof Error ? consulta.error.message : 'Não deu para carregar os produtos.'}
+          {consulta.error instanceof Error
+            ? consulta.error.message
+            : 'Não deu para carregar os produtos.'}
         </p>
       ) : consulta.isPending ? (
         <p className="text-sm text-texto-fraco">Carregando…</p>
@@ -178,7 +185,11 @@ export function ClassificacaoProdutos() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <div role="radiogroup" aria-label={`Tipo de ${p.descricao}`} className="inline-flex overflow-hidden rounded-dm border border-borda-forte">
+                    <div
+                      role="radiogroup"
+                      aria-label={`Tipo de ${p.descricao}`}
+                      className="inline-flex overflow-hidden rounded-dm border border-borda-forte"
+                    >
                       {TIPOS.map((t) => (
                         <button
                           key={t}
@@ -201,15 +212,18 @@ export function ClassificacaoProdutos() {
                       ))}
                     </div>
                     {p.definido_a_mao ? (
-                      <Botao
-                        variante="fantasma"
-                        icone={<RotateCcw />}
-                        carregando={ocupado}
-                        onClick={() => trocar.mutate({ produto: p, novo: null })}
-                        title={`O automático seria: ${ROTULO_TIPO[p.tipo_automatico].toLowerCase()}`}
-                      >
-                        À mão · voltar ao automático
-                      </Botao>
+                      <>
+                        <span className="text-xs font-medium text-texto-suave">definido à mão</span>
+                        {/* o tipo automático no próprio texto — no tablet não há "passar o mouse" */}
+                        <Botao
+                          variante="fantasma"
+                          icone={<RotateCcw />}
+                          carregando={ocupado}
+                          onClick={() => trocar.mutate({ produto: p, novo: null })}
+                        >
+                          Voltar ao automático ({ROTULO_TIPO[p.tipo_automatico].toLowerCase()})
+                        </Botao>
+                      </>
                     ) : (
                       <span className="text-xs text-texto-fraco">automático</span>
                     )}

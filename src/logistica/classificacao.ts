@@ -72,7 +72,10 @@ export async function listarClassificacao(
 }
 
 /** O admin define o tipo (ou volta ao automático, com `null`); devolve o tipo que passou a valer. */
-export async function definirTipoProduto(tinyId: number, tipo: TipoEstoque | null): Promise<TipoEstoque> {
+export async function definirTipoProduto(
+  tinyId: number,
+  tipo: TipoEstoque | null,
+): Promise<TipoEstoque> {
   const { data, error } = await supabase.rpc('plt_fn_produto_definir_tipo', {
     p_tiny_id: tinyId,
     p_tipo: tipo,
