@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Query, QueryKey } from '@tanstack/react-query'
-import { ouvirCanal, topicoDaPessoa } from '@/chat/canais'
+import { canalAberto, horaDoServidor, ouvirCanal, pedirReprise, topicoDaPessoa } from '@/chat/canais'
 
 /**
  * As áreas que o banco avisa (SESSAO-30 — migration 61; SESSAO-31 — o quadro
@@ -27,6 +27,11 @@ export interface OpcoesAoVivo {
 }
 
 const ESPERA_MS = 400
+/**
+ * Até quanto tempo atrás o guardado da tela se confere por REPRISE (o servidor
+ * guarda as mensagens dos avisos por uns 3 dias; o cache vive 5 min).
+ */
+const REPRISE_ATE_MS = 10 * 60_000
 
 /**
  * Tela AO VIVO por websocket (Lei §4 — no lugar dos relógios de 20–30 s): o
@@ -40,6 +45,13 @@ const ESPERA_MS = 400
  * ao VOLTAR a ela, a leitura guardada de antes (cache de até 30 s) pode não
  * ter o que mudou enquanto a pessoa estava noutra tela. Ao assinar, cada
  * consulta guardada antes de a tela abrir é relida uma vez.
+ *
+ * SESSAO-32 (Lei §2 — a abertura é 1 requisição): quando o guardado é recente
+ * e o canal está entrando agora, em vez de reler "por via das dúvidas" o canal
+ * entra pedindo ao servidor a REPRISE dos avisos desde a leitura mais antiga
+ * da tela — só relê se algo mudou de fato (os dados que vieram na abertura não
+ * são pedidos de novo). Guardado antigo, ou canal já aberto por outra tela:
+ * relê como antes. A reprise também cobre o vão entre a 1ª leitura e o canal.
  */
 export function useAoVivo(
   areas: AreaAoVivo | AreaAoVivo[],
@@ -62,6 +74,26 @@ export function useAoVivo(
     let espera: ReturnType<typeof setTimeout> | null = null
     let jaConectou = false
     let caiu = false
+    const topicos = lista.split(',').map((area) => `plt-aviso:${area}`)
+    let maisAntiga = abertaEm
+    for (const queryKey of chavesRef.current) {
+      for (const consulta of clienteQuery.getQueryCache().findAll({ queryKey })) {
+        const estado = consulta.state
+        if (estado.data !== undefined && estado.dataUpdatedAt < maisAntiga) maisAntiga = estado.dataUpdatedAt
+      }
+    }
+    // Sem a hora do banco (abertura pelo caminho de reserva) não há como pedir
+    // "desde quando" com segurança: relê como antes.
+    const desde = horaDoServidor(maisAntiga)
+    const comReprise =
+      desde !== null &&
+      abertaEm - maisAntiga <= REPRISE_ATE_MS &&
+      topicos.every((topico) => !canalAberto(topico))
+    if (comReprise) {
+      // 3 s de folga: a leitura aconteceu no banco um pouco antes de chegar
+      // (rede lenta do galpão); reprisar a mais só custa uma releitura.
+      for (const topico of topicos) pedirReprise(topico, desde - 3_000)
+    }
     // A primeira assinatura: o que estava guardado de antes desta tela abrir
     // (e não está sendo lido agora) é relido uma vez.
     const conferirGuardadas = () => {
@@ -89,18 +121,16 @@ export function useAoVivo(
     const aoStatus = (status: string) => {
       if (status === 'SUBSCRIBED') {
         if (jaConectou && caiu) reler() // recuperação: o que mudou enquanto estava fora
-        if (!jaConectou) conferirGuardadas()
+        if (!jaConectou && !comReprise) conferirGuardadas()
         jaConectou = true
         caiu = false
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         caiu = true
       }
     }
-    const paradas = lista
-      .split(',')
-      .map((area) =>
-        ouvirCanal(`plt-aviso:${area}`, (evento) => queremos.has(evento) && reler(), aoStatus),
-      )
+    const paradas = topicos.map((topico) =>
+      ouvirCanal(topico, (evento) => queremos.has(evento) && reler(), aoStatus),
+    )
     return () => {
       if (espera) clearTimeout(espera)
       for (const parar of paradas) parar()

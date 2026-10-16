@@ -39,6 +39,25 @@ const reprises = new Map<string, number>()
 export function pedirReprise(topico: string, desdeMs: number) {
   reprises.set(topico, desdeMs)
 }
+/** O servidor reprisa no máximo 25 mensagens por entrada (documentação do Supabase). */
+const REPRISE_LIMITE = 25
+
+/** O tópico já está aberto (ou abrindo)? A reprise só vale para quem entra agora. */
+export const canalAberto = (topico: string) => registro.has(topico)
+
+/**
+ * A hora do SERVIDOR (SESSAO-32): a reprise pede "desde quando" no relógio do
+ * banco, e o relógio do tablet pode estar adiantado ou atrasado. A abertura
+ * traz a hora do banco; daqui sai a diferença (a demora da resposta só deixa a
+ * conta um pouco para trás — reprisar a mais é inofensivo, a menos não).
+ */
+let desvioDoServidorMs: number | null = null
+export function acertarRelogio(agoraServidorMs: number) {
+  desvioDoServidorMs = agoraServidorMs - Date.now()
+}
+/** null enquanto a hora do banco não chegou (abertura pelo caminho de reserva). */
+export const horaDoServidor = (msLocal: number): number | null =>
+  desvioDoServidorMs === null ? null : msLocal + desvioDoServidorMs
 
 /**
  * "Ao vivo pausado" (Lei §10): a conexão de algum canal caiu e não voltou —
@@ -82,7 +101,7 @@ async function conectar(topico: string, entrada: Entrada) {
     config:
       desde === undefined
         ? { private: true }
-        : { private: true, broadcast: { replay: { since: desde, limit: 100 } } },
+        : { private: true, broadcast: { replay: { since: desde, limit: REPRISE_LIMITE } } },
   })
   canal.on('broadcast', { event: '*' }, (mensagem) => {
     const dados = (mensagem.payload ?? {}) as Record<string, unknown>

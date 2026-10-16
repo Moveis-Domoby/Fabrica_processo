@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { pedirReprise, topicoDaPessoa } from '@/chat/canais'
+import { acertarRelogio, pedirReprise, topicoDaPessoa } from '@/chat/canais'
 import { chaveConversas } from '@/chat/consultas'
 import { montarPaginaConversas } from '@/chat/api'
 import type { ConversaResumo } from '@/chat/tipos'
@@ -70,6 +70,7 @@ export async function abrirPlataforma(primeira: boolean): Promise<Abertura> {
 
 /** Cada pedaço da abertura no cache, com a chave e o formato que a tela usa. */
 export function semearCache(clienteQuery: QueryClient, abertura: Abertura, primeira: boolean) {
+  acertarRelogio(abertura.agora_ms)
   const eu = abertura.perfil?.id
   if (!eu) return
   if (abertura.setores) clienteQuery.setQueryData(['setores'], abertura.setores)
