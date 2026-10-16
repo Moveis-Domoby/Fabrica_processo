@@ -40,6 +40,7 @@ import { useTelaPequena } from '@/lib/telaPequena'
 import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 import { AvisoAoVivoPausado } from '@/componentes/AvisoAoVivoPausado'
 import { preCarregar } from '@/navegacao/pedacos'
+import { medirNaNavegacao } from '@/lib/medicao'
 
 interface FilhoMenu {
   para: string
@@ -186,6 +187,7 @@ export function Layout({ children }: { children: ReactNode }) {
   // (tema, nome) não é navegação — o efeito segue o id, não o objeto.
   const perfilId = perfil?.id ?? null
   useEffect(() => {
+    medirNaNavegacao(location.pathname)
     if (!perfilId || navegacaoJaRegistrada(location.pathname)) return
     registrarAtividade('navegacao', location.pathname)
   }, [perfilId, location.pathname])

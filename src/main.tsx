@@ -13,6 +13,7 @@ import './estilos/global.css'
 import { App } from './App'
 import { aplicarTema, temaGuardado } from './perfil/tema'
 import { preCarregar } from './navegacao/pedacos'
+import { iniciarMedicao } from './lib/medicao'
 
 // O último tema usado neste navegador entra ANTES do primeiro quadro pintado —
 // sem isso a tela pisca clara até o perfil chegar. O perfil confirma depois.
@@ -25,6 +26,9 @@ preCarregar(
     ? '/inicio/meu-painel'
     : window.location.pathname,
 )
+
+// SESSAO-32 (D-137): a plataforma mede a própria velocidade em cada abertura.
+iniciarMedicao()
 
 const clienteQuery = new QueryClient({
   defaultOptions: {

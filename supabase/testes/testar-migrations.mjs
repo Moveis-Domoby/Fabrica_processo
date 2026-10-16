@@ -12877,6 +12877,62 @@ conferir(!priv78.anon_abertura && priv78.logado_abertura && priv78.logado_execuc
 await como78('')
 } // fim do bloco 78
 
+// ============================================================================
+// SESSAO-32 — migration 79: a plataforma mede a própria velocidade (D-137 —
+// "pode ser a própria plataforma mesmo"). Como o navegador chama: papel
+// authenticated (as permissões padrão do Supabase já imitadas no bloco 78).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · a medida de velocidade de cada abertura: em nome de quem está logado, só o dono lê')
+const um79 = async (sql) => (await bd.query(sql)).rows[0]
+const como79 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const carga79 = '7a7a7a7a-0000-4000-8000-000000000079'
+const lixoCarga79 = '7a7a7a7a-0000-4000-8000-000000000080'
+const comoLogado79 = async (auth, sql) => {
+  await como79(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const op79 = await um79(`select id::text as id from public.plt_usuarios where auth_user_id = '${E40.operador}'`)
+// a 1ª medida da abertura (tela apareceu) e a 2ª (o toque, ao sair da aba)
+await comoLogado79(E40.operador, `select public.plt_fn_medir_tela('${carga79}', '/tablet', 'tablet', true, 1800, null, 0.02, 900, 300, 0, 'abc', '4g')`)
+await comoLogado79(E40.operador, `select public.plt_fn_medir_tela('${carga79}', '/tablet', 'tablet', true, null, 120, 0.05, null, null, 7, 'abc', '4g')`)
+const operadorLe79 = (await comoLogado79(E40.operador, `select count(*)::int as n from public.plt_medicoes_web`))[0].n
+// outra pessoa tenta sobrescrever a mesma abertura; lixo do navegador
+await comoLogado79(E40.logistica, `select public.plt_fn_medir_tela('${carga79}', '/x', 'computador', false, 99999, 99999, 9, 1, 1, 99, 'zzz', 'wifi')`)
+await comoLogado79(E40.logistica, `select public.plt_fn_medir_tela('${lixoCarga79}', '', 'geladeira', null, -5, 9999999, 500, null, null, -3, null, null)`)
+await como79('')
+const linha79 = await um79(`select usuario_id::text as u, lcp_ms, inp_ms, cls::text as cls, fcp_ms, ttfb_ms, interacoes, modo_tablet, rota
+                              from public.plt_medicoes_web where carga_id = '${carga79}'`)
+const lixo79 = await um79(`select rota, aparelho, lcp_ms, inp_ms, cls, interacoes from public.plt_medicoes_web where carga_id = '${lixoCarga79}'`)
+conferir(
+  linha79.u === op79.id && linha79.rota === '/tablet' && linha79.lcp_ms === 1800 && linha79.inp_ms === 120
+    && linha79.cls === '0.0500' && linha79.fcp_ms === 900 && linha79.ttfb_ms === 300 && linha79.interacoes === 7
+    && linha79.modo_tablet === true && operadorLe79 === 0
+    && lixo79.rota === '/' && lixo79.aparelho === 'computador' && lixo79.lcp_ms === null && lixo79.inp_ms === null
+    && lixo79.cls === null && lixo79.interacoes === 0,
+  'a abertura grava e completa a própria medida; o operador não lê a tabela; outra pessoa não sobrescreve; número fora da faixa vira vazio',
+  JSON.stringify({ linha79, operadorLe79, lixo79 }),
+)
+const donoLe79 = (await comoLogado79(E40.admin, `select count(*)::int as n from public.plt_medicoes_web`))[0].n
+const resumo79 = await comoLogado79(E40.admin, `select aparelho, modo_tablet, aberturas::int as n, lcp_p75_ms, inp_p75_ms from public.plt_fn_medicoes_web_resumo(7)`)
+const priv79 = await um79(`
+  select has_function_privilege('anon', 'public.plt_fn_medir_tela(uuid, text, text, boolean, integer, integer, numeric, integer, integer, integer, text, text)', 'execute') as anon_medir,
+         has_function_privilege('authenticated', 'public.plt_fn_medir_tela(uuid, text, text, boolean, integer, integer, numeric, integer, integer, integer, text, text)', 'execute') as logado_medir,
+         has_table_privilege('authenticated', 'public.plt_medicoes_web', 'insert') as logado_insere,
+         has_table_privilege('anon', 'public.plt_medicoes_web', 'select') as anon_le`)
+conferir(
+  donoLe79 === 2 && resumo79.some((r) => r.aparelho === 'tablet' && r.modo_tablet === true && r.n === 1 && r.lcp_p75_ms === 1800 && r.inp_p75_ms === 120)
+    && !priv79.anon_medir && priv79.logado_medir && !priv79.logado_insere && !priv79.anon_le,
+  'o dono lê tudo e o resumo dá o p75 por aparelho; gravar só pela porta (sem insert direto), anônimo fora',
+  JSON.stringify({ donoLe79, resumo79, priv79 }),
+)
+} // fim do bloco 79
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
