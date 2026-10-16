@@ -119,17 +119,13 @@ comment on function public.plt_fn_dash_visao_do_dia() is
 -- ----------------------------------------------------------------------------
 -- 3 · A porta de abertura
 -- ----------------------------------------------------------------------------
--- "Visto agora" (a presença — D-34): carimbo no gesto, nunca relógio.
-create or replace function plt_privado.fn_carimbar_presenca(p_usuario uuid)
-returns void
-language sql
-security definer
-set search_path = public, pg_temp
-as $$
-  insert into public.plt_presencas (usuario_id, visto_em)
-    select p_usuario, now() where p_usuario is not null
-  on conflict (usuario_id) do update set visto_em = excluded.visto_em;
-$$;
+-- "Visto agora" (a presença — D-34) é carimbada no GESTO, nunca por relógio:
+-- plt_fn_registrar_log (cada navegação) e fn_avisar_eventos (cada fato com
+-- autor). Um ajudante separado (fn_carimbar_presenca) chegou a nascer aqui e
+-- saiu no mesmo dia: a abertura roda como quem chama e não podia chamá-lo — a
+-- releitura do perfil dava "permission denied" (achado na conferência do banco
+-- real, pessoa por pessoa, como authenticated).
+drop function if exists plt_privado.fn_carimbar_presenca(uuid);
 
 create or replace function public.plt_fn_abertura(p_rota text default null, p_meu_painel boolean default false)
 returns jsonb
@@ -236,11 +232,11 @@ begin
   end if;
 
   -- O gesto de abrir: o registro da navegação da 1ª rota (que já carimba a
-  -- presença) — o que a casca gravava em duas requisições a mais.
+  -- presença) — o que a casca gravava em duas requisições a mais. Sem rota é a
+  -- releitura do perfil depois de um gesto (editar o perfil, o tema): nada a
+  -- gravar — a presença já veio do próprio gesto.
   if p_rota is not null and length(btrim(p_rota)) > 0 then
     perform public.plt_fn_registrar_log('navegacao', p_rota, '{}'::jsonb);
-  else
-    perform plt_privado.fn_carimbar_presenca(v_id);
   end if;
 
   return v_ret;
@@ -595,7 +591,6 @@ grant execute on function public.plt_fn_minhas_execucoes()          to authentic
 grant execute on function public.plt_fn_dash_visao_do_dia()         to authenticated;
 grant execute on function public.plt_fn_abertura(text, boolean)     to authenticated;
 
-revoke all on function plt_privado.fn_carimbar_presenca(uuid)       from public, anon, authenticated;
 revoke all on function plt_privado.fn_avisar_pessoa(uuid, text)     from public, anon, authenticated;
 revoke all on function plt_privado.fn_avisar_evento(text, text)     from public, anon, authenticated;
 revoke all on function plt_privado.fn_avisar_cards_pessoas()        from public, anon, authenticated;

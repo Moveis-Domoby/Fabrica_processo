@@ -12757,6 +12757,49 @@ conferir(
   JSON.stringify({ chaves: Object.keys(semPainel78), ninguem78 }),
 )
 
+// Como o navegador chama DE VERDADE: papel authenticated (não o dono do banco)
+// — privilégio de função e grant de coluna de plt_usuarios valem aqui. Achado
+// no banco real (16/10): a releitura do perfil (sem rota) chamava um ajudante
+// fechado para o papel e dava "permission denied" — o harness chamava como dono.
+// O que o Supabase dá ao papel por padrão (o PGlite não dá): o esquema auth
+// (auth.uid()) e a leitura das tabelas e visões de public — MENOS plt_usuarios,
+// que no banco real é lida por coluna (E-50/D-68: valem os grants das migrations).
+await bd.exec(`
+  grant usage on schema auth to authenticated;
+  grant execute on all functions in schema auth to authenticated;
+  do $g78$ declare t text; begin
+    for t in select table_name from information_schema.tables
+              where table_schema = 'public' and table_name <> 'plt_usuarios' loop
+      execute format('grant select on public.%I to authenticated', t);
+    end loop;
+  end $g78$;
+`)
+const falhasPapel78 = []
+for (const p of pessoas78) {
+  await como78(p.auth)
+  for (const [nome, sql] of [
+    ['abertura com rota', `select public.plt_fn_abertura('/inicio/meu-painel', true) as a`],
+    ['releitura sem rota', `select public.plt_fn_abertura(null, false) as a`],
+    ['visão do dia', `select public.plt_fn_dash_visao_do_dia() as a`],
+    ['bolinha', `select count(*)::int as a from public.plt_fn_minhas_execucoes()`],
+  ]) {
+    try {
+      await bd.exec('set role authenticated')
+      await bd.query(sql)
+    } catch (e) {
+      falhasPapel78.push(`${nome} (${p.id}): ${String(e.message).slice(0, 90)}`)
+    } finally {
+      await bd.exec('reset role')
+    }
+  }
+}
+await como78(E40.operador)
+conferir(
+  falhasPapel78.length === 0,
+  `como o navegador chama (papel authenticated), as portas novas abrem para as ${pessoas78.length} pessoas — com rota, sem rota, Visão do dia e bolinha`,
+  falhasPapel78.slice(0, 6).join(' | '),
+)
+
 titulo('SESSAO-32 · ao vivo sem relógio: o painel, a pessoa, as tarefas do setor, a fila do Tiny e quem ouve')
 await como78('')
 await bd.exec(`delete from realtime.messages`)
