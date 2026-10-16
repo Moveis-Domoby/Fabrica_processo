@@ -12548,6 +12548,109 @@ conferir(listaOp.n === 0 && !priv75.anon_lista && !priv75.anon_tiny && priv75.lo
   'só a logística e o admin veem a área Pedidos; anônimo fora', JSON.stringify({ listaOp, priv75 }))
 } // fim do bloco 75
 
+// ============================================================================
+// SESSAO-32 · migration 76 — a fila do estoque com o Tiny não gira mais sem fim:
+// o teto de peças por leitura (insumo com saldo enorme para na fila com o
+// motivo, sem criar peça) e a reserva vencida sem resposta conta como falha.
+// O achado (15/10): 22.878 m de fita de borda viravam 22.878 peças numa
+// transação que estourava o tempo, era desfeita e voltava a cada 10 minutos.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · fila do Tiny: saldo enorme para com o motivo (sem criar peça) e a reserva sem resposta conta')
+
+const um76 = async (sql) => (await bd.query(sql)).rows[0]
+const jsonb76 = (obj) => `'${JSON.stringify(obj).split("'").join("''")}'::jsonb`
+const leitura76 = (id, sku, saldo, unidade) => ({
+  retorno: { status: 'OK', produto: { id, codigo: sku, nome: 'Produto ' + sku, unidade, saldo, saldoReservado: 0, depositos: [] } },
+})
+const ler76 = async (id, saldo, unidade = 'UN') => {
+  const f = await um76(`select versao from public.plt_tiny_estoque_fila where produto_tiny_id = ${id}`)
+  return (await um76(`select public.plt_fn_tiny_estoque_leitura(${id}, ${f.versao}, ${jsonb76(leitura76(id, 'S76' + id, saldo, unidade))}) as r`)).r
+}
+const fila76 = async (id) =>
+  await um76(`select tentativas, parado_em is not null as parado, reservado_em is not null as reservado, ultimo_erro
+                from public.plt_tiny_estoque_fila where produto_tiny_id = ${id}`)
+const pecas76 = async (id) =>
+  (await um76(`select count(*)::int as n from public.plt_cards where produto_tiny_id = ${id} and arquivado_em is null`)).n
+const leituras76 = async (id) =>
+  (await um76(`select count(*)::int as n from public.eventos where tipo = 'estoque_fabrica' and tiny_id = ${id}`)).n
+
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = now() where codigo = 'estoque'`)
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+    (976001, 'S76A', 'Fita de borda Teste 76', 'S', 'A', 'm'),
+    (976002, 'S76B', 'Estante Teste 76', 'F', 'A', 'un'),
+    (976003, 'S76C', 'Nicho Teste 76', 'F', 'A', 'un'),
+    (976004, 'S76D', 'Suporte Teste 76', 'S', 'A', 'un')
+  on conflict (tiny_id) do nothing;
+  select plt_privado.fn_tiny_estoque_enfileirar(976001, false, 'teste 76');
+  select plt_privado.fn_tiny_estoque_enfileirar(976002, false, 'teste 76');
+  select plt_privado.fn_tiny_estoque_enfileirar(976004, false, 'teste 76', true);
+`)
+
+const antes76 = await leituras76(976001)
+const r76a = await ler76(976001, 22878.58, 'M')
+const f76a = await fila76(976001)
+const logs76 = (await um76(`select count(*)::int as n from public.plt_logs_atividade
+                              where acao = 'estoque_tiny_falha' and contexto ->> 'produto_tiny_id' = '976001'`)).n
+conferir(
+  r76a.motivo === 'saldo_grande_demais' && (await pecas76(976001)) === 0
+    && f76a.parado && f76a.tentativas === 5 && !f76a.reservado
+    && /alto demais para virar peças \(22\.878,58 m\).*insumo/.test(f76a.ultimo_erro)
+    && (await leituras76(976001)) === antes76 + 1
+    && logs76 === 1,
+  'saldo de 22.878,58 m no Tiny: nenhuma peça criada, o produto PARA na fila com o motivo em língua de gente (a leitura fica registrada)',
+  JSON.stringify({ r76a, f76a, logs76 }),
+)
+
+const r76b = await ler76(976002, 3)
+conferir(
+  r76b.motivo === 'subiu' && r76b.entraram === 3 && (await pecas76(976002)) === 3
+    && (await um76(`select count(*)::int as n from public.plt_tiny_estoque_fila where produto_tiny_id = 976002`)).n === 0,
+  'saldo normal (3): sobe como sempre — 3 peças, e o produto sai da fila',
+  JSON.stringify(r76b),
+)
+
+const r76d = await ler76(976004, 3660)
+const f76d = await fila76(976004)
+conferir(
+  r76d.motivo === 'saldo_grande_demais' && (await pecas76(976004)) === 0 && f76d.parado
+    && /\(3\.660 un\)/.test(f76d.ultimo_erro),
+  'ponto de partida (copiar) com 3.660 no Tiny: também para, sem copiar nenhuma peça',
+  JSON.stringify({ r76d, f76d }),
+)
+
+// A reserva que vence sem resposta conta como falha (antes: voltava sem contar e girava sem fim).
+await bd.exec(`select plt_privado.fn_tiny_estoque_enfileirar(976003, false, 'teste 76')`)
+const pegos76 = []
+for (let i = 1; i <= 6; i++) {
+  const lote = (await bd.query(`select produto_tiny_id::int as id from public.plt_fn_tiny_estoque_proximos(50)`)).rows.map((x) => x.id)
+  pegos76.push(lote.includes(976003))
+  await bd.exec(`update public.plt_tiny_estoque_fila set reservado_em = now() - interval '11 minutes'
+                  where produto_tiny_id = 976003 and reservado_em is not null`)
+}
+const f76c = await fila76(976003)
+conferir(
+  pegos76.slice(0, 5).every(Boolean) && pegos76[5] === false
+    && f76c.parado && f76c.tentativas === 5 && /não respondeu a tempo/.test(f76c.ultimo_erro),
+  'a reserva que vence sem resposta (10 min) conta como falha: depois de 5, o produto PARA e o n8n não o recebe mais',
+  JSON.stringify({ pegos76, f76c }),
+)
+
+const priv76 = await um76(`
+  select has_function_privilege('authenticated', 'plt_privado.fn_tiny_estoque_parar(bigint, text)', 'execute') as parar,
+         has_function_privilege('authenticated', 'plt_privado.fn_estoque_teto_pecas()', 'execute') as teto,
+         has_function_privilege('authenticated', 'public.plt_fn_tiny_estoque_proximos(integer)', 'execute') as proximos,
+         has_function_privilege('authenticated', 'public.plt_fn_tiny_estoque_leitura(bigint, integer, jsonb)', 'execute') as leitura`)
+conferir(!priv76.parar && !priv76.teto && !priv76.proximos && !priv76.leitura,
+  'a maquinaria nova e as portas do n8n seguem fora do alcance de quem está logado', JSON.stringify(priv76))
+
+await bd.exec(`delete from public.plt_tiny_estoque_fila`)
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = null where codigo = 'estoque'`)
+} // fim do bloco 76
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
