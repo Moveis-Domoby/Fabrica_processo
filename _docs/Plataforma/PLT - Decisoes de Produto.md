@@ -1399,6 +1399,15 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Ordem do dono (15/10, ~21:10 de Natal):** *"Vou sair agora, abre logo o navegador aqui pra que eu possa logar pra você e você testa tudo e me entrega apenas o resultado final após finalizar"* — a sessão segue sozinha, como as noturnas da 30 e da 31: cada frente testada inteira é aplicada e publicada no mesmo gesto (E-73); o que o dono reservou para si (acima) fica pronto e esperando.
 
+## D-138 · SESSAO-32: o OK dos índices e os insumos separados dos móveis no estoque (16/10/2026)
+
+**Respostas do dono ao fim da noite (16/10, ~03:05 UTC):**
+
+1. **Os pendentes:** *"Pode aplicar"* — os índices da busca por nome e da lista de Cancelados em Pedidos (com a porta nova por caminhos, que entra junto), os 4 índices das cópias do Tiny (contas a receber e notas fiscais) e a retirada dos 2 índices repetidos.
+2. **Os insumos:** *"eles devem contar como estoque, mas eles não devem mais contabilizar como estoque de móveis, mas sim de peças e insumos, logo mais iremos trabalhar com eles, então sim, eles devem continuar sendo utilizados e contabilizados, porém ajuste para que seja da forma correta, tenha em mente que insumo não é móvel, móvel não é peça, peças são insumos e móveis são produtos finais, então as contas devem ser separadas, mesmo que no setor de estoque"*.
+   - **Regra:** **móvel = produto final**; **peça é insumo**; as contas de **móveis** e de **peças e insumos** são **separadas**, mesmo dentro do ESTOQUE. Insumo continua contado e usado — só sai da conta dos móveis.
+   - Revisa a leitura da D-57/D-70 em que "S simples/revenda" contava como acabado: no Tiny da fábrica, a classe S mistura revenda (cadeira, base…) e insumos (fita, cola, parafuso, luva, thinner…).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

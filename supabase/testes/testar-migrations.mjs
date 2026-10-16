@@ -18,6 +18,7 @@
  * Equivalente em Docker (Postgres oficial): supabase/testes/testar-migrations.sh
  */
 import { PGlite } from '@electric-sql/pglite'
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
 import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -44,7 +45,7 @@ function titulo(t) {
   console.log(`\n${negrito(`== ${t} ==`)}`)
 }
 
-const bd = new PGlite()
+const bd = new PGlite({ extensions: { pg_trgm } })
 
 titulo('Simulando o ambiente Supabase (papéis e auth.uid)')
 // O Supabase traz estes papéis e o schema auth de fábrica. Num Postgres cru não
@@ -58,6 +59,7 @@ await bd.exec(`
   end;
   $$;
   create schema if not exists auth;
+  create schema if not exists extensions;
   create or replace function auth.uid() returns uuid
     language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 `)
@@ -13110,14 +13112,14 @@ conferir(
 } // fim do bloco 82
 
 // ============================================================================
-// SESSAO-32 — bloco 83: a lista de Pedidos por caminhos separados (o jeito que
-// os índices propostos usam — PENDENTE, entra junto com eles, OK do dono).
+// SESSAO-32 — bloco 83 (migration 83, OK do dono — D-138): a lista de Pedidos
+// por caminhos separados, com os índices de trigramas e o dos cancelados.
 // "Mudar o caminho, nunca o resultado": a versão da migration 75 e a do pacote
 // são criadas aqui com outros nomes e comparadas, linha a linha, em todos os
 // casos (como o navegador chama).
 // ============================================================================
 { // escopo próprio (E-70)
-titulo('SESSAO-32 · a lista de Pedidos por caminhos separados (pendente) = a de antes, em todos os casos')
+titulo('SESSAO-32 · a lista de Pedidos por caminhos (com os índices) = a de antes, em todos os casos')
 const copiar83 = async (arquivo, nome) => {
   const fonte = await readFile(arquivo, 'utf8')
   const ini = fonte.indexOf('create or replace function public.plt_fn_pedidos_lista(')
@@ -13129,11 +13131,8 @@ grant execute on function public.${nome}(text, integer, integer, boolean) to aut
   )
 }
 await copiar83(path.join(RAIZ, 'supabase/migrations/20261014210000_plt_pedidos_area.sql'), 'plt_fn_pedidos_lista_v75')
-const arquivosPacote83 = (await readdir(path.join(RAIZ, 'supabase/pendentes')).catch(() => []))
-  .filter((a) => a.includes('pedidos_1_porta_por_caminhos'))
-  .map((a) => path.join(RAIZ, 'supabase/pendentes', a))
-// promovida: a migration nova traz o mesmo corpo (a porta do ar já é a nova)
-await copiar83(arquivosPacote83[0] ?? path.join(RAIZ, 'supabase/migrations/20261014210000_plt_pedidos_area.sql'), 'plt_fn_pedidos_lista_v83')
+// a porta do ar (migration 83 — por caminhos, com os índices) sob outro nome
+await copiar83(path.join(RAIZ, 'supabase/migrations/20261016080000_plt_pedidos_busca_indices.sql'), 'plt_fn_pedidos_lista_v83')
 const como83 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
 const comoLogado83 = async (auth, sql) => {
   await como83(auth)
@@ -13180,7 +13179,7 @@ await como83('')
 await bd.exec(`drop function public.plt_fn_pedidos_lista_v75(text, integer, integer, boolean); drop function public.plt_fn_pedidos_lista_v83(text, integer, integer, boolean)`)
 conferir(
   difs83.length === 0 && linhas83 > 0 && opVelha[0].n === opNova[0].n,
-  `${casos83.length} casos (todos, cancelados, busca por nome, vendedor e número, com e sem cancelados, páginas seguintes): ${linhas83} linhas iguais às da versão de antes; quem não vê a logística segue sem nada (${arquivosPacote83.length ? 'pacote pendente' : 'já promovida'})`,
+  `${casos83.length} casos (todos, cancelados, busca por nome, vendedor e número, com e sem cancelados, páginas seguintes): ${linhas83} linhas iguais às da versão de antes; quem não vê a logística segue sem nada`,
   JSON.stringify({ amostra83, difs: difs83.slice(0, 5), opVelha, opNova }),
 )
 } // fim do bloco 83

@@ -1,33 +1,38 @@
 -- ============================================================================
--- ⏸️ PENDENTE — entra JUNTO com 2026-10-16_pedidos_2_indices.sql, só com o OK
--- do dono (sem os índices, a busca fica 20–60 ms mais lenta: três varreduras
--- em vez de uma — medido no banco real em 16/10). Mesmo resultado provado:
--- bateria do banco (bloco 83: 9 casos, 121 linhas) e banco real numa transação
--- desfeita (9 casos com páginas seguintes, 325 linhas, 0 diferença).
--- Ao promover: vira a migration da vez em supabase/migrations (o bloco 83 da
--- bateria procura o arquivo aqui e lá).
+-- PLATAFORMA DE PRODUÇÃO DOMOBY · migration 83 — PEDIDOS: A BUSCA POR NOME E OS
+-- CANCELADOS PELO ÍNDICE (SESSAO-32 · §1.6 · dívida 17 da lei · D-138: "Pode
+-- aplicar" — o dono, 16/10/2026)
 --
--- PLATAFORMA DE PRODUÇÃO DOMOBY — A LISTA DE PEDIDOS POR CAMINHOS SEPARADOS
--- (SESSAO-32 · §1.6 · dívida 17 da lei)
---
--- O dono (15/10): deixar rápidas a busca por nome em Pedidos e a lista de
--- Cancelados. Esta migration muda SÓ O CAMINHO da porta da lista — o resultado
--- é o mesmo (prova no harness e no banco real): a página passa a ser achada
--- por um caminho para cada caso, cada um do jeito que um índice consegue usar:
---   · sem busca, todos: pelo número (como sempre);
---   · sem busca, cancelados: só os cancelados (o índice parcial proposto);
---   · com busca: primeiro os 5.000 pedidos mais recentes do jeito de sempre
---     (termo comum acha a página aí e para cedo); se a página não encher (termo
---     raro — o caso de quem procura um cliente), os pedidos cujo número começa
---     com o texto (faixas de número — o índice que já existe), os dos clientes
---     cujo nome contém o texto e os dos vendedores que contêm o texto — cada
---     caminho separado (os índices de trigramas propostos), juntos no fim.
--- OS ÍNDICES em si (nas tabelas da integração + a extensão pg_trgm) ficam em
--- supabase/pendentes/ — só com o OK do dono. Sem eles a porta funciona igual
--- (os caminhos varrem, como hoje); com eles, a lista anda pelo índice.
--- A projeção (o que cada linha mostra) é a de sempre, palavra por palavra.
--- Nada nas tabelas da integração.
+-- 1. pg_trgm (extensão oficial do Postgres, no esquema extensions) e 3 índices
+--    nas tabelas da INTEGRAÇÃO (só índice: nenhuma coluna, nenhum dado muda —
+--    o n8n grava igual): cancelados (parcial, por número), trigramas no nome do
+--    cliente e no vendedor do pedido. Em produção foram criados ANTES, com
+--    CREATE INDEX CONCURRENTLY (sem travar); aqui ficam com IF NOT EXISTS para a
+--    reaplicação e a bateria.
+-- 2. A porta da lista (plt_fn_pedidos_lista) por caminhos: todos pelo número;
+--    cancelados só entre os cancelados (o índice parcial); busca: primeiro os
+--    5.000 pedidos mais recentes do jeito de sempre (termo comum para cedo) e,
+--    se a página não encher (termo raro), número que começa com o texto (faixas
+--    — o índice do número) ∪ clientes cujo nome contém (trigramas) ∪ vendedor
+--    que contém (trigramas). Mesmo resultado — bloco 83 da bateria e banco real
+--    numa transação desfeita (9 casos com páginas seguintes, 325 linhas, 0
+--    diferença). Ensaio ×100 local: busca de um cliente 5,6 s → ~45 ms; total
+--    dos Cancelados 2,8 s → 11 ms; termo comum igual.
 -- ============================================================================
+
+create extension if not exists pg_trgm with schema extensions;
+
+set local lock_timeout = '5s';
+
+create index if not exists pedidos_cancelados_numero_idx
+  on public.pedidos (numero desc)
+  where plt_privado.fn_situacao_normalizada(situacao) = 'cancelado';
+
+create index if not exists clientes_nome_trgm_idx
+  on public.clientes using gin (nome extensions.gin_trgm_ops);
+
+create index if not exists pedidos_vendedor_trgm_idx
+  on public.pedidos using gin (vendedor extensions.gin_trgm_ops);
 
 create or replace function public.plt_fn_pedidos_lista(
   p_busca        text    default null,
