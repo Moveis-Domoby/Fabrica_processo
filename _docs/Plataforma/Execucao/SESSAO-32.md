@@ -159,6 +159,42 @@ Cada troca de tela grava também 1 registro de navegação (a trilha — D-40); 
 - **O quadro do PCP numa leitura (migration 82, `6a2bdb5`):** `plt_fn_pcp_quadro` = a mesma página de `plt_fn_cards_pedido_pcp` + etiquetas + o resumo de `plt_fn_pedidos_kanban` (uma chamada para os pedidos da página); a porta antiga fica para a Visão do dia. Provado igual linha a linha no harness (44 linhas, 33 com pedido) e **no banco real para as 6 pessoas (0 diferença)**. No site: abrir direto no PCP = abertura + quadro (**6 → 2 leituras**), pedidos e clientes aparecendo.
 - **Visualizações salvas dos painéis** lidas uma vez por abertura (só mudam pelo gesto da própria pessoa, que invalida).
 
+## Teste de carga DEPOIS (16/10 ~02:20–02:40 UTC) — `scratchpad/carga-nova.mjs`
+
+- **Como:** o mesmo roteiro e as mesmas pessoas reais do teste de antes (só leitura, papel `authenticated`, pooler em modo transação, um card mudando a cada 10 s), agora com o comportamento PUBLICADO: abertura numa chamada (sem rota — nada gravado), cada tela a sua porta, releitura só no aviso (tablet: quadro do setor; Meu Painel: metas no aviso do painel e o trabalho da pessoa em 1 de 10 mudanças; Visão do dia: a porta única; PCP: o quadro numa leitura; chat: abrir uma conversa). Nenhum relógio.
+- **40 pessoas (30 tablets + 10 escritório):** **301 requisições (1,4/s) — antes 1.265 (6/s), 4,2× menos**; **0 erro**; servidor p50 12 ms · **p95 164 ms** (antes, depois do `ANALYZE`: 384 ms; no começo da noite: 3,8 s com 6% de erro) · p99 1,1 s. A parede (p95 922 ms) é dominada pela abertura de conexões do próprio gerador (espera p95 ~650 ms) — o PostgREST mantém as conexões abertas.
+- **400 pessoas (×10), 1ª rodada:** **3.331 requisições (13/s) — antes 13.269 (48/s)**; erros **13 (0,4%) — antes 314 (2,4%)**; servidor p50 50 ms · **p95 627 ms (antes 2.013 ms)** · p99 3,2 s. O que pesou: a **manada** — a cada card que muda, as 20 Visões do dia e os 20 PCPs relíam no mesmo instante (Visão do dia p50 417 ms/p95 2,4 s; PCP p50 2,6 s).
+- **Correção da manada (commit `9331bc9`):** cada tela espera mais um sorteio antes de reler (`espalharMs` no `useAoVivo`: painel até 4 s, PCP 1,5 s, expedição/pedidos 1 s; quadro do setor 0,7 s) — A-67.
+- **400 pessoas, 2ª rodada (com o sorteio), 10 min depois da 1ª:** **ABORTADA pelo vigia aos 88 s, ainda na abertura** (erros 21/53, p95 7,7 s): PCP p50 5 s, Visão do dia 6,8 s, metas p95 6,4 s — até a abertura (5 ms na mediana) teve p99 6,4 s. O comportamento das telas na abertura é o mesmo da 1ª rodada (que passou) — o que mudou foi o fôlego do banco depois de três rodadas seguidas: o processador compartilhado da máquina gratuita (0,5 GB) não sustenta ×10 por muito tempo (dívida 19 — decisão de custo do dono). Logo depois, parado: abertura p50 14 ms, máx. 350 ms.
+- Arquivos (scratchpad): `carga-nova-completo.{json,log}`, `carga-nova-fase2-espalhada.{json,log}`, `carga-nova-ensaio.json`.
+
+## Avisos da Supabase no fim (16/10 ~02:33 UTC)
+
+- **Desempenho:** chaves sem índice **4** (as cópias do Tiny — pendente do OK), **duplicados 2** (pendente), "sem uso" 57 (a maioria nasceu nesta semana), **nenhuma política permissiva dobrada e nenhum aviso de função de sessão sem `(select …)`**.
+- **Segurança:** nenhum tipo novo; "função definer executável por logado" 173 → **175** (as portas novas `plt_fn_medir_tela` e `plt_fn_pcp_quadro` — portas da API de propósito, com a guarda por dentro); `rls_enabled_no_policy` 21, `extension_in_public` 1 e a proteção de senha vazada (recurso do plano pago) seguem como antes.
+
+## Pendentes prontos para o OK do dono — `supabase/pendentes/`
+
+- `2026-10-16_pedidos_1_porta_por_caminhos.sql` + `2026-10-16_pedidos_2_indices.sql` (entram juntos): a lista de Pedidos por caminhos separados (provada igual — bloco 83: 9 casos/121 linhas; banco real desfeito: 9 casos com páginas seguintes, 325 linhas, 0 diferença) + `pg_trgm` e os índices (cancelados parcial; trigramas em `clientes.nome` e `pedidos.vendedor`). Sem os índices a porta nova fica 20–60 ms mais lenta na busca (por isso não subiu sozinha — A-68). E-106 pego na prova do banco real.
+- `2026-10-16_indices_copias_tiny_e_repetidos.sql`: os 4 índices das chaves das cópias do Tiny e a retirada dos 2 repetidos (`idx_membros_lista`, `plt_cards_pedido_uq`).
+- `2026-10-16_gancho_do_token.sql`: o gancho do token (com o dono, no painel).
+
+## Ensaio ×100 de Pedidos (banco LOCAL — PGlite; nunca no real) — `scratchpad/ensaio-pedidos-x100.mjs`
+
+Volume: 556.800 pedidos, 1.080.000 clientes, 16.376 cancelados (×100 de hoje). Tempos do banco local (comparar entre si, não com o real):
+
+| Caso | Hoje | Com os índices + a porta por caminhos |
+|---|---|---|
+| Cancelados — página | 12–23 ms | **2–7 ms** |
+| Cancelados — total (até 10.001) | **2,7–2,9 s** | **11–44 ms** |
+| Busca de UM cliente (nome raro) — página | **5,3–5,9 s** | **35–44 ms** (+ ~5 ms da janela dos recentes) |
+| Busca de UM cliente — total | 3,8–3,9 s | 36–42 ms |
+| Termo muito comum (milhares de pedidos) — página | 5–8 ms | 5–8 ms (resolve na janela dos 5.000 recentes, do jeito de hoje) |
+| Termo muito comum — total | 0,5–0,6 s | 0,5–0,6 s |
+
+- **1ª versão da porta (só caminhos com índice):** o termo comum piorava (1,1–1,4 s — juntava todos os milhares de candidatos antes de ordenar) → **versão combinada:** primeiro os 5.000 números mais recentes do jeito de sempre (se a página enche ali, é exatamente a de antes — todo outro pedido que casa tem número menor); se não enche (termo raro), os caminhos com índice. Provada igual: bateria (bloco 83, 9 casos) e banco real desfeito (9 casos com páginas seguintes, 325 linhas, 0 diferença, duas rodadas).
+- Criar os 3 índices no ×100 local: ~31 s (no real, ~5 mil pedidos e ~11 mil clientes: segundos, `CONCURRENTLY`).
+
 ## Task list (espelho da demanda) — ordem proposta (§6 da demanda), uma frente por vez, publicada e conferida com o dono antes da próxima
 
 **Frente A — banco (§1.6) · ClickUp "Banco: índices, políticas de acesso e estatísticas"**

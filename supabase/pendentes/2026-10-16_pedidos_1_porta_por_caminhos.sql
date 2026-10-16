@@ -16,10 +16,12 @@
 -- por um caminho para cada caso, cada um do jeito que um índice consegue usar:
 --   · sem busca, todos: pelo número (como sempre);
 --   · sem busca, cancelados: só os cancelados (o índice parcial proposto);
---   · com busca: os pedidos cujo número começa com o texto (faixas de número
---     — o índice que já existe), os dos clientes cujo nome contém o texto e os
---     dos vendedores que contêm o texto — cada caminho separado (os índices de
---     trigramas propostos), juntos no fim.
+--   · com busca: primeiro os 5.000 pedidos mais recentes do jeito de sempre
+--     (termo comum acha a página aí e para cedo); se a página não encher (termo
+--     raro — o caso de quem procura um cliente), os pedidos cujo número começa
+--     com o texto (faixas de número — o índice que já existe), os dos clientes
+--     cujo nome contém o texto e os dos vendedores que contêm o texto — cada
+--     caminho separado (os índices de trigramas propostos), juntos no fim.
 -- OS ÍNDICES em si (nas tabelas da integração + a extensão pg_trgm) ficam em
 -- supabase/pendentes/ — só com o OK do dono. Sem eles a porta funciona igual
 -- (os caminhos varrem, como hoje); com eles, a lista anda pelo índice.
@@ -71,6 +73,7 @@ declare
                           then btrim(p_busca)::bigint end;
   v_ids   bigint[];
   v_total integer;
+  v_teto  bigint;
 begin
   if plt_privado.fn_usuario_atual() is null or not plt_privado.fn_pode_ver_expedicao() then
     return;  -- como antes: sem acesso, lista vazia
@@ -89,6 +92,25 @@ begin
          and (p_antes_numero is null or p.numero < p_antes_numero)
        order by p.numero desc limit v_lim + 1) x;
   else
+    -- 1ª tentativa: só os 5.000 números mais recentes, do jeito de sempre (o
+    -- filtro com OU, parando na página cheia) — termo COMUM acha a página aí e
+    -- para cedo. Achou a página inteira (limite + 1) → é exatamente a de antes:
+    -- qualquer outro pedido que case tem número menor que todos da janela.
+    v_teto := coalesce(p_antes_numero, (select max(pm.numero) from public.pedidos pm) + 1);
+    select coalesce(array_agg(x.id order by x.numero desc), '{}') into v_ids from (
+      select p.id, p.numero
+        from public.pedidos p
+        left join public.clientes c on c.id = p.cliente_id
+       where p.numero >= v_teto - 5000
+         and p.numero < v_teto
+         and (p.numero::text like v_busca || '%'
+              or c.nome ilike '%' || v_busca || '%'
+              or p.vendedor ilike '%' || v_busca || '%')
+         and (not v_canc or plt_privado.fn_situacao_normalizada(p.situacao) = 'cancelado')
+       order by p.numero desc limit v_lim + 1) x;
+  end if;
+  -- termo RARO (a janela não encheu a página): os caminhos que os índices usam
+  if v_busca is not null and cardinality(v_ids) <= v_lim then
     select coalesce(array_agg(x.id order by x.numero desc), '{}') into v_ids from (
       select p.id, p.numero
         from (-- o número que começa com o texto: só dígitos (sem zero na frente) viram

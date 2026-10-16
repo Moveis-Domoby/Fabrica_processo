@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-32 — Desempenho e escala: adequação de toda a plataforma"
 tipo: demanda
-status: 📐 pronta para code
+status: ✅ entregue (16/10/2026 — sessão noturna; o reservado ao dono pronto em supabase/pendentes)
 data: 2026-10-07
-atualizado: 2026-10-07
+atualizado: 2026-10-16
 origem: pedido do dono em 07/10/2026 ("TODAS as rotas devem estar otimizadas ao EXTREMO"), pesquisado e auditado no Cowork (código e banco, só leitura)
 plano: "[[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]]"
 depende: "[[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]] e [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] (ordem do dono: esta roda DEPOIS das duas)"
@@ -126,7 +126,11 @@ Lista **PRODUÇÃO** (DPTO TI). Ao começar cada uma → **FAZENDO**. **Nunca** 
 
 ## Resultado (preencher ao entregar)
 
-*O que foi feito, o que mudou de rota, link do handoff.*
+**✅ Entregue em 16/10/2026 (sessão noturna, ordem do dono — D-137).** Handoff: [[handoff_2026_10_16_sessao32_desempenho_escala]] · memória: [[SESSAO-32]].
+
+- **O que foi feito:** laço da fila do estoque com o Tiny achado e parado (causa das estatísticas erradas — migration 76); banco arrumado (77); abertura em 1 requisição e tudo ao vivo sem relógio (78, 80); medição da velocidade e tempo parado (79); listas que crescem por cursor (81); PCP numa leitura (82); pacote 505 → 218 KB com teto; Comercial sem cascata; prova de carga (40 pessoas: p95 164 ms, 0 erro; ×10: p95 627 ms).
+- **O que mudou de rota:** a lista de Pedidos por caminhos separados ficou **pendente junto com os índices** (sozinha deixaria a busca 20–60 ms mais lenta); o gancho do token e as funções de sessão lendo do token esperam o dono ligar o painel; as rotinas de minuto em minuto viraram **proposta** (mexem no n8n e no disparo — regra 3).
+- **Sobrou para a próxima (lei §14):** dívidas 13 (estoque × catálogo), 15 (Estoque com 3 leituras), 16 (a página do PCP 100–200 ms), 18 (telas com 2–3 leituras), 19 (máquina do banco — decisão do dono), 20 (o aviso do trabalho da pessoa relê 3 consultas), a #5 do Comercial (gráficos, filtro de clientes, gravação do pedido do Tiny) e a #6 (rotinas → fato).
 
 ## Ver também
 

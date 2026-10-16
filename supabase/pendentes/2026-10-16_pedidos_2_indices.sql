@@ -16,8 +16,9 @@
 -- Sem travar a tabela: CREATE INDEX CONCURRENTLY (fora de transação — rodar
 -- comando a comando, não pelo aplicador, que abre transação).
 --
--- Ensaio ×100 (banco local, 556.800 pedidos e 1.080.000 clientes): ver o
--- handoff da SESSAO-32 (§ "Pedidos — para o seu OK").
+-- Ensaio ×100 (banco local, 556.800 pedidos e 1.080.000 clientes), com a porta
+-- por caminhos: busca de um cliente 5,6 s → ~45 ms; total dos Cancelados
+-- 2,8 s → 11 ms; termo muito comum igual a hoje (diário da SESSAO-32).
 --
 -- Desfazer: DROP INDEX CONCURRENTLY de cada um (a porta segue funcionando —
 -- só volta a varrer).
