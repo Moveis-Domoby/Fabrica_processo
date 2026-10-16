@@ -39,6 +39,7 @@ import { useVersaoNova } from '@/lib/versaoNova'
 import { useTelaPequena } from '@/lib/telaPequena'
 import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 import { AvisoAoVivoPausado } from '@/componentes/AvisoAoVivoPausado'
+import { preCarregar } from '@/navegacao/pedacos'
 
 interface FilhoMenu {
   para: string
@@ -559,6 +560,9 @@ export function Layout({ children }: { children: ReactNode }) {
           <NavLink
             to="/tablet"
             onClick={() => setGavetaAberta(false)}
+            onMouseEnter={() => preCarregar('/tablet')}
+            onFocus={() => preCarregar('/tablet')}
+            onTouchStart={() => preCarregar('/tablet')}
             title={trilho ? 'Modo tablet' : undefined}
             className={cn(
               'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
@@ -678,6 +682,9 @@ export function Layout({ children }: { children: ReactNode }) {
                       key={filho.para}
                       to={filho.para}
                       onClick={() => setGavetaAberta(false)}
+                      onMouseEnter={() => preCarregar(filho.para)}
+                      onFocus={() => preCarregar(filho.para)}
+                      onTouchStart={() => preCarregar(filho.para)}
                       className={({ isActive }) =>
                         cn(
                           'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm transition-colors',
