@@ -2,7 +2,7 @@
 titulo: "PLT — Lei de Desempenho e Escala"
 tipo: regras
 data: 2026-10-07
-atualizado: 2026-10-07
+atualizado: 2026-10-16
 origem: pedido do dono em 07/10/2026 — "TODAS as rotas devem estar otimizadas ao EXTREMO", pesquisado no Cowork (práticas de plataformas de grande escala + documentação oficial da Supabase, web.dev, TanStack, Stripe, AWS) e auditado no código e no banco (só leitura)
 tags: [plataforma, regras, desempenho, escala, banco, front, tempo-real, claude-code]
 ---
@@ -219,6 +219,24 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | 15 | Estoque abre com 3 requisições e o PCP com várias — falta a porta de abertura de cada tela (Lei §2) | Estoque, PCP | 32 |
 | 16 | A porta do quadro do PCP (`plt_fn_pedidos_kanban`) com média de 157 ms (máx. 2,3 s) no registro de uso — acima do teto de 50 ms; a 31 tocou o PCP só com a aba nova (Lançamento manual, dentro da lei) | PCP | 32 |
 | 17 | Área Pedidos: a busca por nome/vendedor (55 ms) e a lista de Cancelados (41 ms) varrem `pedidos` — com ×100 ficam lentas. **Caminho:** índice parcial dos cancelados e índice de trigramas para a busca, nas tabelas da INTEGRAÇÃO (precisa do OK do dono — regra 10 e extensão nova). **Dono (15/10): "deixe anotado para a sessão 32 otimizar"** — está no §1.6 da SESSAO-32 | Pedidos | 32 |
+
+**Andamento (SESSAO-32, 15–16/10 — noturna; detalhes em [[SESSAO-32]] e no handoff):**
+- **#9 estatísticas — paga, com a causa:** um LAÇO na fila do estoque com o Tiny (dois insumos "simples" com saldo enorme criavam uma peça por unidade, estouravam 8 s, desfaziam e voltavam a cada 10 min — ~14,5 milhões de linhas desfeitas em cards/eventos/registros). Parado, impedido de voltar (teto de 500 peças + reserva vencida conta como falha — migration 76) e `ANALYZE`. Teste de carga com 40 pessoas: p95 no servidor **3,8 s (6% de erro) → 384 ms (0 erro)**.
+- **#8 — paga em parte (migration 77):** 29 índices de chave estrangeira; as 9 duplas de regras de acesso unidas; `(select …)` em todas as funções de sessão das regras; regras de storage e realtime embrulhadas. **Restam (OK do dono):** 4 chaves das cópias do Tiny (contas a receber ×2, notas fiscais ×2), 2 índices repetidos e os sem uso antigos. **#10 — paga:** histórico do cron com limpeza diária (guarda 7 dias).
+- **#3 — paga:** a primeira abertura é **1 requisição** (`plt_fn_abertura` — perfil, vínculos, setores, sino, chat, bolinha, catálogos de etiquetas e campos e, na 1ª tela Meu Painel, os dados dele; ~10 ms no servidor, ~10 KB). Conferido no site: 1 requisição de dados, nada mais. Caminho de reserva (as leituras de antes) se a porta falhar.
+- **#1 e #2 — pagos:** nenhum relógio buscando dado e nenhum `postgres_changes` no código; `plt_cards` fora da publicação do Realtime. Avisos novos por canal privado: painel, danificados, trabalho da pessoa (no canal dela), tarefas do setor, fila do Tiny (evento próprio) e cada lista do Comercial; reprise do servidor ao entrar no canal (o que veio na abertura não é relido); "ao vivo pausado" + Atualizar quando o canal cai. **#12 — paga:** presença marcada no gesto (navegação e fatos).
+- **#4 — paga:** cada tela é pedaço próprio; **JS inicial 505,7 → 218 KB comprimidos** (14 arquivos); **teto de 250 KB na montagem** (falha acima); pré-carregamento na intenção (mouse/foco/dedo no menu); `/assets` com cache de 1 ano. No site: 1ª abertura LCP 1,9 s, 2ª abertura **LCP 0,8 s** (JS todo do cache).
+- **#11 — paga nas listas que crescem:** a trilha da Auditoria e o histórico das automações por cursor (antes: deslocamento + contagem da lista inteira a cada página). As outras 22 portas por deslocamento são de listas limitadas (o que está vivo, catálogos) — **deslocamento justificado**; todas com teto no banco (100/200), exceto `plt_fn_meu_tempo_tarefas` (limitada pelo período) e as duas do Comercial (teto global da API, 1.000).
+- **#15/#16 PCP — pago em parte:** o quadro do PCP numa leitura (`plt_fn_pcp_quadro`: a página + etiquetas + o resumo do pedido; abrir direto no PCP **6 → 2** requisições). A porta da página ainda leva **100–200 ms** no servidor (a conta das peças do estoque por card) — fica na dívida 16. Estoque segue com 3 (dívida 15).
+- **#5 Comercial — pago em parte:** o painel não pede mais as vendas de cada um dos 20 maiores clientes uma a uma (lista de telefones numa leitura; **~29 → ~10** requisições). Seguem: os 8 gráficos do painel, clientes consolidados/filtro de clientes e a gravação do pedido do Tiny (dívida #5).
+- **#6 — medido, não pago:** o trabalho de fundo custa ~0,35% de um núcleo (relógio do estoque ~95 ms/min, webhooks ~28 ms/min, fotos ~250 ms/5 min). Trocar por "nasce do fato" mexe no n8n e no disparo do Comercial — **proposta ao dono** (regra 3).
+- **#7 — preparado:** o gancho do token (`supabase/pendentes/2026-10-16_gancho_do_token.sql`) espera o dono ligar a chave assimétrica e o gancho no painel; as funções de sessão lendo do token vêm depois, com ele.
+- **#17 Pedidos — preparado:** índices propostos + ensaio ×100 no handoff; aplicar só com o OK do dono (tabelas da integração + extensão nova).
+- **Medir para não adivinhar (§11):** a plataforma mede a própria velocidade em cada abertura (LCP/INP/CLS/FCP/TTFB por aparelho — `plt_medicoes_web`, p75 por `plt_fn_medicoes_web_resumo`); tempo parado: 12 h no modo tablet, 8 h no escritório (sem relógio).
+
+| 18 | Telas que ainda abrem com 2–3 leituras (em paralelo): Pessoas, Qualidade, Tempo por setor, Meu desempenho, Pedidos em aguardo, Programação, Equipe, Config. do estoque, API e integrações, Controle de tempo, Caminhões, Automações; Comercial (~10, os gráficos) — falta a porta de cada tela (Lei §2) | painéis, configurações, Comercial | 33 |
+| 19 | **A máquina do banco** (plano gratuito: 0,5 GB, processador compartilhado) dá picos de segundos mesmo parada (a lista de Pedidos: 2,6 s numa chamada, 15–36 ms nas seguintes; 0 leitura de disco, JIT desligado) — decisão de custo do dono | infraestrutura | dono |
+| 20 | O aviso do trabalho da pessoa relê 3 consultas (tarefas, bolinha, cards delegados) — juntar numa porta | Meu Painel, Afazeres | 33 |
 
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 

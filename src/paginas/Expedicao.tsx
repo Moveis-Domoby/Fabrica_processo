@@ -55,7 +55,10 @@ export function Expedicao() {
       }),
     enabled: tenhoAcesso,
   })
-  useAoVivo(['pcp', 'aguardo', 'rotas'], [['expedicao'], ['pedido-unidades']], tenhoAcesso)
+  useAoVivo(['pcp', 'aguardo', 'rotas'], [['expedicao'], ['pedido-unidades']], {
+    ligado: tenhoAcesso,
+    espalharMs: 1_000,
+  })
   const totalItens = Number(linhas[0]?.contagem_total ?? 0)
 
   const { data: unidades = [], isPending: carregandoUnidades } = useQuery({

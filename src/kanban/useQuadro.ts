@@ -14,6 +14,12 @@ const CHEGADA = 'chegada'
 const chaveDaColuna = (etapaId: number | null) => (etapaId === null ? CHEGADA : String(etapaId))
 /** Vários fatos de uma vez (um arrasto = mover + iniciar) viram UMA releitura. */
 const ESPERA_MS = 150
+/**
+ * SESSAO-32 (teste de carga): os tablets do mesmo setor relíam no mesmo
+ * instante a cada aviso — cada um espera mais um sorteio de até 0,7 s (quem fez
+ * o gesto já vê na hora: a própria tela relê ao fazer).
+ */
+const ESPALHAR_MS = 700
 const SEM_DADOS: Etapa[] = []
 
 export const chaveDoQuadro = (setorId: number | undefined) => ['quadro', setorId ?? null] as const
@@ -69,10 +75,13 @@ export function useQuadro(setorId: number | undefined) {
     let caiu = false
     const reler = () => {
       if (espera) clearTimeout(espera)
-      espera = setTimeout(() => {
-        espera = null
-        void clienteQuery.invalidateQueries({ queryKey: chaveDoQuadro(setorId) })
-      }, ESPERA_MS)
+      espera = setTimeout(
+        () => {
+          espera = null
+          void clienteQuery.invalidateQueries({ queryKey: chaveDoQuadro(setorId) })
+        },
+        ESPERA_MS + Math.random() * ESPALHAR_MS,
+      )
     }
     const abertoEm = Date.now()
     let primeira = true

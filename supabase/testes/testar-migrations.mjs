@@ -13109,6 +13109,82 @@ conferir(
 )
 } // fim do bloco 82
 
+// ============================================================================
+// SESSAO-32 — bloco 83: a lista de Pedidos por caminhos separados (o jeito que
+// os índices propostos usam — PENDENTE, entra junto com eles, OK do dono).
+// "Mudar o caminho, nunca o resultado": a versão da migration 75 e a do pacote
+// são criadas aqui com outros nomes e comparadas, linha a linha, em todos os
+// casos (como o navegador chama).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · a lista de Pedidos por caminhos separados (pendente) = a de antes, em todos os casos')
+const copiar83 = async (arquivo, nome) => {
+  const fonte = await readFile(arquivo, 'utf8')
+  const ini = fonte.indexOf('create or replace function public.plt_fn_pedidos_lista(')
+  const fim = fonte.indexOf('$$;', ini) + 3
+  await bd.exec(
+    fonte.slice(ini, fim).replace('public.plt_fn_pedidos_lista(', `public.${nome}(`) +
+      `
+grant execute on function public.${nome}(text, integer, integer, boolean) to authenticated;`,
+  )
+}
+await copiar83(path.join(RAIZ, 'supabase/migrations/20261014210000_plt_pedidos_area.sql'), 'plt_fn_pedidos_lista_v75')
+const arquivosPacote83 = (await readdir(path.join(RAIZ, 'supabase/pendentes')).catch(() => []))
+  .filter((a) => a.includes('pedidos_1_porta_por_caminhos'))
+  .map((a) => path.join(RAIZ, 'supabase/pendentes', a))
+// promovida: a migration nova traz o mesmo corpo (a porta do ar já é a nova)
+await copiar83(arquivosPacote83[0] ?? path.join(RAIZ, 'supabase/migrations/20261014210000_plt_pedidos_area.sql'), 'plt_fn_pedidos_lista_v83')
+const como83 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const comoLogado83 = async (auth, sql) => {
+  await como83(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+// termos de busca tirados dos próprios dados: pedaço de nome de cliente, de vendedor e começo de número
+const amostra83 = (await bd.query(`
+  select (select substr(c.nome, 2, 4) from public.pedidos p join public.clientes c on c.id = p.cliente_id
+           where length(c.nome) > 6 order by p.numero desc limit 1) as nome,
+         (select substr(p.vendedor, 1, 3) from public.pedidos p where coalesce(p.vendedor, '') <> '' order by p.numero limit 1) as vendedor,
+         (select left(p.numero::text, 3) from public.pedidos p order by p.numero desc limit 1) as numero,
+         (select count(*)::int from public.pedidos) as total`)).rows[0]
+const casos83 = [
+  { busca: null, canc: false }, { busca: null, canc: true },
+  { busca: amostra83.nome, canc: false }, { busca: amostra83.nome, canc: true },
+  { busca: amostra83.vendedor, canc: false }, { busca: amostra83.numero, canc: false },
+  { busca: amostra83.numero, canc: true }, { busca: 'zzzz-nada', canc: false }, { busca: '  ', canc: false },
+].filter((c) => c.busca !== undefined)
+const difs83 = []
+let linhas83 = 0
+for (const c of casos83) {
+  const b = c.busca === null ? 'null' : `'${String(c.busca).replace(/'/g, "''")}'`
+  // 1ª página e a seguinte (cursor), de 7 em 7
+  let antes = 'null'
+  for (let pag = 0; pag < 3; pag += 1) {
+    const args = `${b}, ${antes}, 7, ${c.canc}`
+    const velha = await comoLogado83(E40.logistica, `select * from public.plt_fn_pedidos_lista_v75(${args})`)
+    const nova = await comoLogado83(E40.logistica, `select * from public.plt_fn_pedidos_lista_v83(${args})`)
+    linhas83 += nova.length
+    if (JSON.stringify(velha) !== JSON.stringify(nova)) difs83.push({ ...c, pag, velha: velha.length, nova: nova.length })
+    if (!nova.length || !nova[0].tem_mais) break
+    antes = String(nova[nova.length - 1].numero)
+  }
+}
+// quem não vê a logística: as duas devolvem vazio
+const opVelha = await comoLogado83(E40.operador, `select count(*)::int as n from public.plt_fn_pedidos_lista_v75(null, null, 20, false)`)
+const opNova = await comoLogado83(E40.operador, `select count(*)::int as n from public.plt_fn_pedidos_lista_v83(null, null, 20, false)`)
+await como83('')
+await bd.exec(`drop function public.plt_fn_pedidos_lista_v75(text, integer, integer, boolean); drop function public.plt_fn_pedidos_lista_v83(text, integer, integer, boolean)`)
+conferir(
+  difs83.length === 0 && linhas83 > 0 && opVelha[0].n === opNova[0].n,
+  `${casos83.length} casos (todos, cancelados, busca por nome, vendedor e número, com e sem cancelados, páginas seguintes): ${linhas83} linhas iguais às da versão de antes; quem não vê a logística segue sem nada (${arquivosPacote83.length ? 'pacote pendente' : 'já promovida'})`,
+  JSON.stringify({ amostra83, difs: difs83.slice(0, 5), opVelha, opNova }),
+)
+} // fim do bloco 83
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

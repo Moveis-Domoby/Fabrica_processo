@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Query, QueryKey } from '@tanstack/react-query'
-import { canalAberto, horaDoServidor, ouvirCanal, pedirReprise, topicoDaPessoa } from '@/chat/canais'
+import {
+  canalAberto,
+  horaDoServidor,
+  ouvirCanal,
+  pedirReprise,
+  topicoDaPessoa,
+} from '@/chat/canais'
 
 /**
  * As áreas que o banco avisa (SESSAO-30 — migration 61; SESSAO-31 — o quadro
@@ -24,6 +30,12 @@ export interface OpcoesAoVivo {
   eventos?: string[]
   /** Quanto esperar parado antes de reler (padrão 400 ms) — junta rajadas. */
   esperaMs?: number
+  /**
+   * SESSAO-32 (teste de carga): um aviso que muita gente ouve (o painel, o PCP)
+   * fazia TODAS as telas abertas relerem no mesmo instante — a "manada". Cada
+   * tela espera mais um sorteio de 0 a N ms: a mesma releitura, espalhada.
+   */
+  espalharMs?: number
 }
 
 const ESPERA_MS = 400
@@ -58,8 +70,12 @@ export function useAoVivo(
   chaves: QueryKey[],
   opcoes: boolean | OpcoesAoVivo = true,
 ) {
-  const { ligado = true, eventos = ['mudou'], esperaMs = ESPERA_MS } =
-    typeof opcoes === 'boolean' ? { ligado: opcoes } : opcoes
+  const {
+    ligado = true,
+    eventos = ['mudou'],
+    esperaMs = ESPERA_MS,
+    espalharMs = 0,
+  } = typeof opcoes === 'boolean' ? { ligado: opcoes } : opcoes
   const clienteQuery = useQueryClient()
   const chavesRef = useRef(chaves)
   useEffect(() => {
@@ -79,7 +95,8 @@ export function useAoVivo(
     for (const queryKey of chavesRef.current) {
       for (const consulta of clienteQuery.getQueryCache().findAll({ queryKey })) {
         const estado = consulta.state
-        if (estado.data !== undefined && estado.dataUpdatedAt < maisAntiga) maisAntiga = estado.dataUpdatedAt
+        if (estado.data !== undefined && estado.dataUpdatedAt < maisAntiga)
+          maisAntiga = estado.dataUpdatedAt
       }
     }
     // Sem a hora do banco (abertura pelo caminho de reserva) não há como pedir
@@ -112,10 +129,14 @@ export function useAoVivo(
     }
     const reler = () => {
       if (espera) clearTimeout(espera)
-      espera = setTimeout(() => {
-        espera = null
-        for (const queryKey of chavesRef.current) void clienteQuery.invalidateQueries({ queryKey })
-      }, esperaMs)
+      espera = setTimeout(
+        () => {
+          espera = null
+          for (const queryKey of chavesRef.current)
+            void clienteQuery.invalidateQueries({ queryKey })
+        },
+        esperaMs + Math.random() * espalharMs,
+      )
     }
     const queremos = new Set(listaEventos.split(','))
     const aoStatus = (status: string) => {
@@ -135,7 +156,7 @@ export function useAoVivo(
       if (espera) clearTimeout(espera)
       for (const parar of paradas) parar()
     }
-  }, [lista, listaEventos, esperaMs, ligado, clienteQuery])
+  }, [lista, listaEventos, esperaMs, espalharMs, ligado, clienteQuery])
 }
 
 /**

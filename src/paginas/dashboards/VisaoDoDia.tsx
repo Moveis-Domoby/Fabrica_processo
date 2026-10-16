@@ -52,7 +52,7 @@ export function VisaoDoDia() {
     queryFn: dashVisaoDoDia,
     staleTime: Infinity,
   })
-  useAoVivo('painel', [['dash', 'visao-do-dia']], { esperaMs: 2_000 })
+  useAoVivo('painel', [['dash', 'visao-do-dia']], { esperaMs: 2_000, espalharMs: 4_000 })
   const relogio = useAgora()
   const passado = visao ? Math.max(0, relogio - new Date(visao.lido_em).getTime()) : 0
   const agora = useMemo(

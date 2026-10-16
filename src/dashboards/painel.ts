@@ -23,10 +23,14 @@ export function usePainelDash(tela: TelaDash) {
   const navigate = useNavigate()
   const [parametros, definirParametros] = useSearchParams()
 
+  // SESSAO-32 (Lei §3): as visualizações salvas são da própria pessoa e só
+  // mudam pelo gesto dela (salvar/excluir invalida) — lidas uma vez por
+  // abertura, não a cada painel que abre.
   const { data: visualizacoes = [] } = useQuery({
     queryKey: ['visualizacoes', perfil?.id],
     queryFn: () => listarVisualizacoes(perfil!.id),
     enabled: perfil !== null,
+    staleTime: Infinity,
   })
 
   const idSelecionada = parametros.get('v') ?? ''

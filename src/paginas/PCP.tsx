@@ -111,7 +111,7 @@ export function PCP() {
   // SESSAO-30 (Lei §3 e §4): cada aba só pede o que ela mostra (antes o quadro
   // e as solicitações rodavam em qualquer aba) e as mudanças chegam AO VIVO
   // pelo websocket do PCP — sem o relógio de 20 s.
-  useAoVivo('pcp', [['cards'], ['reposicoes-resumo']])
+  useAoVivo('pcp', [['cards'], ['reposicoes-resumo']], { espalharMs: 1_500 })
 
   // SESSAO-22: pedidos ABERTOS filtrados e paginados no SERVIDOR — pedido 100%
   // liberado sai do quadro lá (projeção liberado_completo_em, D-22/D-48), e a

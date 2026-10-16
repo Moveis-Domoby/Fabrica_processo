@@ -222,7 +222,7 @@ export function MeuPainel() {
   })
   // O andamento das metas muda com os fatos da produção: o aviso do painel
   // (um por transação) relê só as metas — rajadas viram uma releitura.
-  useAoVivo('painel', [['metas']], { esperaMs: 2_000 })
+  useAoVivo('painel', [['metas']], { esperaMs: 2_000, espalharMs: 4_000 })
   const totalMetas = metas[0]?.contagem_total ?? 0
 
   const [modalAberta, setModalAberta] = useState(false)

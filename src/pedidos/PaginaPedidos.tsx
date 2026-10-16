@@ -70,7 +70,10 @@ function PaginaPedidos({ modo }: { modo: 'todos' | 'cancelados' }) {
     placeholderData: keepPreviousData,
     enabled: !semAcesso,
   })
-  useAoVivo(['pcp', 'aguardo', 'rotas'], [['pedidos-lista']], !semAcesso)
+  useAoVivo(['pcp', 'aguardo', 'rotas'], [['pedidos-lista']], {
+    ligado: !semAcesso,
+    espalharMs: 1_000,
+  })
   const linhas = useMemo(() => consulta.data?.pages.flat() ?? [], [consulta.data])
   const total = consulta.data?.pages[0]?.[0]?.contagem_total ?? null
 
