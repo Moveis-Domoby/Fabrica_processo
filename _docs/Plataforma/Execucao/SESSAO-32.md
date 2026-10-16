@@ -122,6 +122,34 @@ Prova da variação no registro real (papel `authenticated`, mínimo · média �
 - **No site (aba do dono, logada):** 1ª versão — abertura = 1 requisição, mas as metas eram relidas ~2 s depois (a tela ao vivo conferia o guardado de antes de abrir). Correção publicada: guardado recente + canal entrando → o canal pede a REPRISE dos avisos desde a leitura (hora do banco acertada pela abertura; reprise limitada a 25, o máximo da documentação) e só relê se algo mudou (5 testes novos). Depois: **abertura = 1 requisição de dados, nada mais** (sem conferida de versão, sem "ao vivo pausado"). Ponta a ponta: aviso `meu_trabalho` mandado do banco → a tela releu só as 3 consultas da pessoa em ~0,5 s; aviso `painel` → as metas releram em ~2 s.
 - Commits: `7a5bae6` (site + 78), `9801501` (correção da 78), `20ecdbb` (reprise). Publicados na `main` → Vercel `success`. Aplicação: `banco:aplicar -- --confirmar --so 20261016030000_plt_abertura_e_ao_vivo.sql` (duas vezes — a 2ª com a correção), integração idêntica.
 
+## Levantamento tela × requisições no site (16/10 ~01:35 UTC, aba do dono, navegação dentro do app)
+
+Cada troca de tela grava também 1 registro de navegação (a trilha — D-40); os números abaixo são as leituras de DADOS da tela (sem as fotos):
+- **0** (vêm do cache semeado pela abertura ou ao vivo): Meu Painel, Meus afazeres, Afazeres do time, Chat, Meu perfil, Danificados, Utilitários.
+- **1**: Avisos, Visão do dia (+1 das visualizações salvas — ver), Todos os pedidos, Cancelados (uma leitura de **2,5 s** — a busca/lista que espera o índice do dono), Expedição, Entregas, Setores e etapas, Auditoria.
+- **2**: Pedidos em aguardo, Programação, Gestão da equipe, Caminhões.
+- **3**: Pessoas, Qualidade, Tempo por setor, Meu desempenho, Estoque, PCP, Config. do estoque, API e integrações, Controle de tempo, Automações.
+- **19**: Dashboard do Comercial (a porta de vendas do cliente chamada 11 vezes, uma por cliente da tabela — leitura em cascata).
+- Console sem erro nas 35 telas.
+
+## Frente E — pacote dividido por tela (16/10 ~01:45–02:05 UTC)
+
+- **As 34 telas viraram pedaços próprios** (`React.lazy`, um `Suspense` em volta das rotas — a casca fica); no pacote inicial: casca (menu, sino, chat, bolinha) + login. **JS inicial: ~505 KB → 218 KB comprimidos (14 arquivos)**.
+- **Teto no build** (`vite.config.ts`, plugin `teto-do-pacote-inicial`): soma a entrada + o que ela importa direto (gzip) e **falha a montagem acima de 250 KB**.
+- **Pré-carregamento na intenção** (`src/navegacao/pedacos.ts`): mouse/foco/dedo no item do menu baixa o pedaço; o pedaço da 1ª tela começa a baixar junto com a casca (`main.tsx`).
+- **`vite:preloadError`** → recarrega a página uma vez (10 s de guarda): pedaço que sumiu depois de uma atualização.
+- **Vercel:** `/assets/*` com `Cache-Control: public, max-age=31536000, immutable` (antes `max-age=0, must-revalidate` — cada abertura revalidava cada arquivo); a regra de SPA não pega mais `/assets/` (arquivo inexistente dá 404 em vez do `index.html`).
+- **No site:** 1ª abertura (cache vazio) — 1 requisição de dados, 14 + 5 arquivos de JS, DCL 0,83 s, **LCP 1,9 s**; 2ª abertura — JS todo do cache (1 KB pela rede), DCL 0,11 s, **LCP 0,8 s**. As 32 telas percorridas carregaram o próprio pedaço e mostraram conteúdo; console sem erro. Commit `2d36b8f`.
+
+## Tempo parado — 12 h tablet / 8 h escritório (D-137 item 1; 16/10 ~02:10 UTC)
+
+- `src/autenticacao/inatividade.ts` + `ProvedorSessao`: o último gesto (toque/tecla) fica no aparelho (no máximo 1 gravação/min); a conta é feita **ao abrir, a cada gesto e ao voltar à aba** — sem relógio. "Tablet" = último gesto no modo tablet. Passou → `plt_fn_registrar_log('saiu', …, {motivo: 'ficou parado mais de N h'})` + signOut; ao sair o registro some (a próxima entrada começa do zero). 6 testes. No site: sessão do dono seguiu normal; registro gravado. Não testado o "derrubar" no site (derrubaria a sessão do dono — não posso entrar com a senha dele). Commit `e12e95b`.
+
+## Medição de velocidade pela própria plataforma (D-137 item 2; migration 79; 16/10 ~02:20 UTC)
+
+- **Banco (79 — `20261016040000_plt_medicao_web.sql`):** `plt_medicoes_web` (uma linha por abertura: LCP/INP/CLS/FCP/TTFB, aparelho, modo tablet, versão, conexão; índices por data e pessoa; RLS: só o super admin lê; sem insert direto) + `plt_fn_medir_tela(...)` (definer, em nome de quem está logado; a mesma abertura é completada, a de outra pessoa nunca) + `plt_fn_medicoes_web_resumo(dias)` (p75 por aparelho). Bloco 79 no harness (como o navegador chama). Conferido no banco real: 6/6 sem erro, só o dono enxerga, nada ficou gravado (transação desfeita).
+- **Site (`src/lib/medicao.ts`):** `PerformanceObserver` (LCP até o 1º toque, FCP, TTFB, CLS por janelas de 1 s/5 s, INP = o toque mais lento ignorando 1 a cada 50); manda ao sair da aba / fechar (`fetch keepalive`), e na troca de tela se a última medida tem mais de 5 min (tablet que nunca sai da tela). Nunca junto da abertura. Commit `71eaac7`.
+
 ## Task list (espelho da demanda) — ordem proposta (§6 da demanda), uma frente por vez, publicada e conferida com o dono antes da próxima
 
 **Frente A — banco (§1.6) · ClickUp "Banco: índices, políticas de acesso e estatísticas"**
