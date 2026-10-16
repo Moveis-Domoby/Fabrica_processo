@@ -113,17 +113,29 @@ export interface ConferenciaEmAndamento {
 }
 
 export interface Conferencias {
+  /** Só na 1ª página (as seguintes, pedidas ao rolar, vêm nulas). */
   em_andamento: ConferenciaEmAndamento | null
-  /** A conferência das 3h está agendada? (nulo = ambiente sem relógio). */
+  /** A conferência das 3h está agendada? (nulo = ambiente sem relógio, ou página seguinte). */
   agendada: boolean | null
-  total: number
+  /** Só na 1ª página. */
+  total: number | null
+  /** Há rodadas mais antigas depois desta página? */
+  tem_mais: boolean
   rodadas: RodadaConferencia[]
 }
 
-export async function buscarConferencias(pagina: number, porPagina: number): Promise<Conferencias> {
+/**
+ * As rodadas da conferência por CURSOR (SESSAO-33 · migration 88 · D-141 —
+ * "carrega mais ao rolar, sem números de página"): `antesId` = a última
+ * rodada mostrada; nulo = 1ª página.
+ */
+export async function buscarConferencias(
+  antesId: number | null,
+  porPagina: number,
+): Promise<Conferencias> {
   const { data, error } = await supabase.rpc('plt_fn_auditoria_conferencias', {
     p_limite: porPagina,
-    p_deslocamento: (pagina - 1) * porPagina,
+    p_antes_id: antesId,
   })
   if (error) throw new Error(`Não deu para carregar as conferências com o Tiny: ${error.message}`)
   if (!data)

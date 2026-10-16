@@ -8637,10 +8637,34 @@ conferir(
   'a rodada mostra QUAIS pedidos estavam diferentes do Tiny e o QUÊ (o 990105: as observações)',
   JSON.stringify(comMudanca?.pedidos ?? null),
 )
+// SESSAO-33 (migration 88 · D-141): por ROLAGEM — cursor pela última rodada
+// mostrada; o total, a rodada em andamento e o "agendada" só na 1ª página; a
+// chamada antiga por deslocamento (a tela publicada antes) segue funcionando
+const todas88 = (await um50(`select public.plt_fn_auditoria_conferencias(p_limite => 50) as r`)).r.rodadas.map((r) => r.id)
+const vistas88 = []
+let pagina88 = (await um50(`select public.plt_fn_auditoria_conferencias(p_limite => 1) as r`)).r
+const primeira88 = pagina88
+let seguintes88 = []
+for (let i = 0; i < 100; i++) {
+  vistas88.push(...pagina88.rodadas.map((r) => r.id))
+  if (!pagina88.tem_mais) break
+  const ultima = pagina88.rodadas[pagina88.rodadas.length - 1].id
+  pagina88 = (await um50(`select public.plt_fn_auditoria_conferencias(p_limite => 1, p_antes_id => ${ultima}) as r`)).r
+  seguintes88.push(pagina88)
+}
+const antiga88 = (await um50(`select public.plt_fn_auditoria_conferencias(p_limite => 1, p_deslocamento => 1) as r`)).r
+conferir(
+  todas88.length >= 2 && JSON.stringify(vistas88) === JSON.stringify(todas88) && pagina88.tem_mais === false
+    && primeira88.total === todas88.length && primeira88.tem_mais === true
+    && seguintes88.length >= 1 && seguintes88.every((p) => p.total === null && p.em_andamento === null && p.agendada === null)
+    && antiga88.rodadas.length === 1 && antiga88.rodadas[0].id === todas88[1] && antiga88.total === todas88.length,
+  'conferências por rolagem: de 1 em 1, pelo cursor, a lista inteira na mesma ordem, sem repetir nem pular; o total só na 1ª página; a chamada antiga por deslocamento ainda serve',
+  JSON.stringify({ todas88, vistas88, ultima: { tem_mais: pagina88.tem_mais }, primeira: { total: primeira88.total, tem_mais: primeira88.tem_mais }, antiga: antiga88.rodadas.map((r) => r.id) }),
+)
 const priv50 = await um50(`
   select has_function_privilege('anon', 'public.plt_fn_auditoria(integer, timestamptz, bigint, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as anon,
          has_function_privilege('authenticated', 'public.plt_fn_auditoria(integer, timestamptz, bigint, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as logado,
-         has_function_privilege('anon', 'public.plt_fn_auditoria_conferencias(integer, integer)', 'execute') as conf_anon`)
+         has_function_privilege('anon', 'public.plt_fn_auditoria_conferencias(integer, integer, bigint)', 'execute') as conf_anon`)
 conferir(!priv50.anon && priv50.logado && !priv50.conf_anon, 'anônimo fora; logado entra na porta e o gate de admin decide por dentro', JSON.stringify(priv50))
 await como50('')
 } // fim do bloco 50

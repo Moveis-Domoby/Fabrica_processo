@@ -22,7 +22,7 @@ import {
   Users,
   Workflow,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Dica, Paginacao, Selecao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Dica, Selecao } from '@/componentes/ui'
 import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { buscarNomesUsuarios, buscarSetores } from '@/kanban/api'
 import {
@@ -377,12 +377,24 @@ function ItemAtividade({
 // ---------------------------------------------------------------------------
 
 function PainelConferencias() {
-  const [pagina, setPagina] = useState(1)
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: ['auditoria', 'conferencias', pagina],
-    queryFn: () => buscarConferencias(pagina, RODADAS_POR_PAGINA),
-    placeholderData: (anterior) => anterior,
+  // SESSAO-33 (migration 88 · D-141): as rodadas crescem uma por noite — por
+  // CURSOR, a próxima página ao rolar (sem números de página); o total, a rodada
+  // em andamento e o "agendada" vêm só na 1ª.
+  const consulta = useInfiniteQuery({
+    queryKey: ['auditoria', 'conferencias'],
+    queryFn: ({ pageParam }) => buscarConferencias(pageParam, RODADAS_POR_PAGINA),
+    initialPageParam: null as number | null,
+    getNextPageParam: (ultima) => {
+      const derradeira = ultima.rodadas[ultima.rodadas.length - 1]
+      return ultima.tem_mais && derradeira ? derradeira.id : undefined
+    },
   })
+  const { isPending, isError, error } = consulta
+  const primeira = consulta.data?.pages[0]
+  const rodadas = useMemo(
+    () => (consulta.data?.pages ?? []).flatMap((p) => p.rodadas),
+    [consulta.data],
+  )
 
   if (isError) {
     return (
@@ -391,9 +403,9 @@ function PainelConferencias() {
       </p>
     )
   }
-  if (isPending || !data) return <p className="text-sm text-texto-suave">Carregando…</p>
+  if (isPending || !primeira) return <p className="text-sm text-texto-suave">Carregando…</p>
 
-  const agora = data.em_andamento
+  const agora = primeira.em_andamento
   return (
     <div className="flex flex-col gap-4">
       <section
@@ -415,21 +427,21 @@ function PainelConferencias() {
         ) : (
           <p className="flex items-center gap-2 text-sm text-texto">
             <CircleCheck aria-hidden className="size-4 text-perfeito-forte" />
-            {data.agendada === false
+            {primeira.agendada === false
               ? 'Nenhuma conferência rodando — e a conferência da madrugada está desligada.'
               : 'Nenhuma conferência rodando agora. A próxima é às 3h da madrugada.'}
           </p>
         )}
       </section>
 
-      {data.total === 0 ? (
+      {rodadas.length === 0 ? (
         <p className="rounded-dm-lg border border-borda bg-superficie p-5 text-sm text-texto-suave">
           Nenhuma conferência terminou ainda. A primeira aparece aqui assim que acabar.
         </p>
       ) : (
         <>
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
-            {data.rodadas.map((r) => (
+            {rodadas.map((r) => (
               <li
                 key={r.id}
                 className="flex flex-col gap-1 border-b border-borda px-4 py-3 last:border-b-0"
@@ -487,16 +499,13 @@ function PainelConferencias() {
               </li>
             ))}
           </ul>
-          {data.total > RODADAS_POR_PAGINA && (
-            <Paginacao
-              paginaAtual={pagina}
-              totalPaginas={Math.ceil(data.total / RODADAS_POR_PAGINA)}
-              totalItens={data.total}
-              porPagina={RODADAS_POR_PAGINA}
-              aoMudarPagina={setPagina}
-              className="rounded-dm-lg border border-borda bg-superficie"
-            />
-          )}
+          <MaisAoRolar
+            temMais={consulta.hasNextPage}
+            carregando={consulta.isFetchingNextPage}
+            aoChegar={() => {
+              if (!consulta.isFetchingNextPage) void consulta.fetchNextPage()
+            }}
+          />
         </>
       )}
     </div>

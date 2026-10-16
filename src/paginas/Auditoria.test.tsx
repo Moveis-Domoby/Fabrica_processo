@@ -72,6 +72,7 @@ vi.mock('@/auditoria/api', () => ({
     em_andamento: null,
     agendada: true,
     total: 1,
+    tem_mais: false,
     rodadas: [
       {
         id: 50,
@@ -200,6 +201,8 @@ describe('Painel admin → Auditoria', () => {
     expect(screen.getByText('Pedido 13429')).toBeInTheDocument()
     expect(screen.getByText(/situação/)).toBeInTheDocument()
     expect(screen.getByText(/observação interna/)).toBeInTheDocument()
-    expect(buscarConferencias).toHaveBeenCalledWith(1, 10)
+    // por cursor (D-141): a 1ª página sem cursor; nada de números de página
+    expect(buscarConferencias).toHaveBeenCalledWith(null, 10)
+    expect(screen.queryByRole('navigation', { name: /pagina/i })).not.toBeInTheDocument()
   })
 })
