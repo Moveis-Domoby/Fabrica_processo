@@ -7,6 +7,7 @@ import { aplicarTema, ehTema } from '@/perfil/tema'
 import { ContextoSessao } from './sessao-contexto'
 import { abrirPlataforma, semearCache } from './abertura'
 import { COLUNAS_PERFIL } from './tipos'
+import { ehModoTablet, esquecerAtividade, marcarAtividade, passouDoTempo } from './inatividade'
 import type { Perfil, VinculoSetor } from './tipos'
 
 interface PerfilCarregado {
@@ -63,6 +64,7 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
       if (evento === 'SIGNED_OUT') {
         abertoPara.current = null
         clienteQuery.clear()
+        esquecerAtividade()
       }
       setSessao(novaSessao)
       setSessaoResolvida(true)
@@ -107,12 +109,16 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
     if (temaPerfil && ehTema(temaPerfil)) aplicarTema(temaPerfil)
   }, [temaPerfil])
 
-  const sair = useCallback(async () => {
+  const encerrar = useCallback(async (contexto: Record<string, string>) => {
     // A saída também fica na trilha (SESSAO-29 · D-95 — a auditoria): registra
     // ANTES do signOut, enquanto a sessão existe. Sair nunca espera mais que 2 s.
     try {
       await Promise.race([
-        supabase.rpc('plt_fn_registrar_log', { p_acao: 'saiu', p_rota: null, p_contexto: {} }),
+        supabase.rpc('plt_fn_registrar_log', {
+          p_acao: 'saiu',
+          p_rota: null,
+          p_contexto: contexto,
+        }),
         new Promise((resolver) => setTimeout(resolver, 2000)),
       ])
     } catch {
@@ -120,6 +126,39 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
     }
     await supabase.auth.signOut()
   }, [])
+  const sair = useCallback(() => encerrar({}), [encerrar])
+
+  // Tempo parado (SESSAO-32 · D-137): 12 h no modo tablet, 8 h no escritório —
+  // passou, entra de novo. Sem relógio: a conta é feita ao abrir, a cada gesto
+  // (toque, tecla) e ao voltar à aba; o gesto guarda o "agora" no aparelho.
+  useEffect(() => {
+    if (!idAuth) return
+    let saindo = false
+    const conferir = () => {
+      if (saindo) return true
+      const { passou, limiteH } = passouDoTempo()
+      if (!passou) return false
+      saindo = true
+      void encerrar({ motivo: `ficou parado mais de ${limiteH} h` })
+      return true
+    }
+    if (conferir()) return
+    marcarAtividade(ehModoTablet())
+    const aoGesto = () => {
+      if (!conferir()) marcarAtividade(ehModoTablet())
+    }
+    const aoVoltar = () => {
+      if (document.visibilityState === 'visible') conferir()
+    }
+    window.addEventListener('pointerdown', aoGesto, { capture: true, passive: true })
+    window.addEventListener('keydown', aoGesto, { capture: true })
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => {
+      window.removeEventListener('pointerdown', aoGesto, { capture: true })
+      window.removeEventListener('keydown', aoGesto, { capture: true })
+      document.removeEventListener('visibilitychange', aoVoltar)
+    }
+  }, [idAuth, encerrar])
 
   const valor = useMemo(() => {
     const perfil = consultaPerfil.data?.perfil ?? null
@@ -138,7 +177,14 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
       recarregarPerfil,
       sair,
     }
-  }, [sessaoResolvida, sessao, consultaPerfil.data, consultaPerfil.isPending, recarregarPerfil, sair])
+  }, [
+    sessaoResolvida,
+    sessao,
+    consultaPerfil.data,
+    consultaPerfil.isPending,
+    recarregarPerfil,
+    sair,
+  ])
 
   return <ContextoSessao.Provider value={valor}>{children}</ContextoSessao.Provider>
 }
