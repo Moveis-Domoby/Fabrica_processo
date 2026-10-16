@@ -13691,6 +13691,60 @@ conferir(
   JSON.stringify({ cartoesAntes87, listaAntes87, aplic: aplic87.r, cartoesDepois87, listaDepois87, motivos: motivos87.n, notifAntes87, notif87, vendaSumiu: vendaSumiu87.n, conf87c, notif87b, eventos87b }))
 } // fim do bloco 87
 
+// ============================================================================
+// SESSAO-33 — o gancho do token (PENDENTE — liga com o dono no painel; D-141):
+// a pessoa DESATIVADA é recusada já ao emitir/renovar o token, com a mensagem
+// clara (a mesma frase da função de login — as duas amarradas aqui); a ativa
+// ganha as permissões no token; conta do Auth sem cadastro segue sem acesso.
+// O arquivo mora em supabase/pendentes/ (nada o aplica sozinho): a prova roda
+// numa transação desfeita, sem deixar nada para os blocos seguintes (A-68).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-33 · o gancho do token (pendente) recusa a pessoa desativada no login')
+const GANCHO33 = path.join(RAIZ, 'supabase/pendentes/2026-10-16_gancho_do_token.sql')
+const LOGIN33 = path.join(RAIZ, 'supabase/functions/autenticacao/index.ts')
+const frase33 = /const DESATIVADO =\s*'([^']+)'/.exec(await readFile(LOGIN33, 'utf8'))?.[1] ?? null
+await bd.exec(`
+  do $$ begin
+    if not exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then create role supabase_auth_admin nologin; end if;
+  end $$;
+`)
+const um33 = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec('begin')
+let ativa33, inativa33, semCadastro33, priv33
+try {
+  await bd.exec(await readFile(GANCHO33, 'utf8'))
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id)
+      values ('Pessoa Ativa 33', 'ativa33@teste.com', '33300000001', 'ativa.33', 'operador', '33333333-0000-0000-0000-000000000001'),
+             ('Pessoa Inativa 33', 'inativa33@teste.com', '33300000002', 'inativa.33', 'operador', '33333333-0000-0000-0000-000000000002');
+    update public.plt_usuarios set ativo = false where usuario = 'inativa.33';
+  `)
+  const chamar33 = (uid) => um33(`select public.plt_fn_gancho_token(jsonb_build_object(
+    'user_id', '${uid}', 'claims', jsonb_build_object('sub', '${uid}', 'role', 'authenticated'))) as r`)
+  ativa33 = (await chamar33('33333333-0000-0000-0000-000000000001')).r
+  inativa33 = (await chamar33('33333333-0000-0000-0000-000000000002')).r
+  semCadastro33 = (await chamar33('33333333-0000-0000-0000-0000000000ff')).r
+  priv33 = await um33(`
+    select has_function_privilege('authenticated', 'public.plt_fn_gancho_token(jsonb)', 'execute') as exec_auth,
+           has_function_privilege('anon', 'public.plt_fn_gancho_token(jsonb)', 'execute') as exec_anon,
+           has_function_privilege('supabase_auth_admin', 'public.plt_fn_gancho_token(jsonb)', 'execute') as exec_gancho`)
+} finally {
+  await bd.exec('rollback')
+}
+const sobrou33 = await um33(`select count(*)::int as n from public.plt_usuarios where usuario in ('ativa.33', 'inativa.33')`)
+conferir(
+  ativa33?.claims?.plt_ativo === true && ativa33?.claims?.plt_papel === 'operador' && /^[0-9a-f-]{36}$/.test(ativa33?.claims?.plt_id ?? '')
+    && Array.isArray(ativa33?.claims?.plt_setores) && ativa33?.claims?.sub === '33333333-0000-0000-0000-000000000001'
+    && inativa33?.error?.http_code === 403 && typeof frase33 === 'string' && inativa33?.error?.message === frase33
+    && inativa33?.claims === undefined
+    && semCadastro33?.claims?.plt_ativo === false && semCadastro33?.error === undefined
+    && priv33?.exec_auth === false && priv33?.exec_anon === false && priv33?.exec_gancho === true
+    && sobrou33.n === 0,
+  'gancho do token: a pessoa ativa ganha as permissões no token; a desativada é recusada (403) com a MESMA frase da função de login; conta sem cadastro segue sem acesso; só o Auth executa; nada fica no banco',
+  JSON.stringify({ ativa: ativa33?.claims, inativa: inativa33, semCadastro: semCadastro33?.claims, frase33, priv33, sobrou33 }))
+} // fim do bloco do gancho (SESSAO-33)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

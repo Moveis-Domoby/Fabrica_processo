@@ -12,11 +12,17 @@
 -- fn_eh_super_admin) podem ler do token em vez de consultar plt_usuarios a cada
 -- linha — o passo seguinte (B3), que vem num arquivo próprio e só depois deste.
 --
--- Decisão provisória (para o dono): a pessoa INATIVA não é recusada no login
--- (hoje ela entra no Auth e vê a tela "conta sem aprovação"); o token sai com
--- plt_ativo = false e as regras de acesso negam tudo, como hoje. Se o dono
--- preferir recusar no próprio login, troca-se o bloco marcado (RECUSAR) —
--- a mensagem aparece na tela de entrar.
+-- ↪️ Decisão do dono (16/10/2026, D-141 — revisa a escolha provisória da
+-- SESSAO-32): a pessoa DESATIVADA é RECUSADA já no login, com mensagem clara —
+-- não entra para depois ter tudo negado. O gancho devolve o erro (403) ao
+-- emitir E ao renovar o token: quem foi desativado com a sessão aberta perde a
+-- sessão na próxima renovação e cai na tela de entrar. O Auth só chama o gancho
+-- DEPOIS de conferir a senha — quem erra a senha continua vendo "usuário ou
+-- senha incorretos" (não se confirma se a conta existe). A função de login
+-- (`autenticacao`, ação entrar) repassa a mensagem do gancho e, enquanto o
+-- gancho não estiver ligado, faz a mesma recusa por conta própria (SESSAO-33).
+-- Conta do Auth SEM cadastro na plataforma: segue como antes (token sem acesso:
+-- plt_ativo = false; as regras de acesso negam tudo).
 --
 -- Como ligar (com o dono, no painel):
 --   1. aplicar este arquivo (banco:aplicar -- --confirmar --so <arquivo>,
@@ -24,7 +30,11 @@
 --   2. Authentication → Hooks → Custom Access Token → Postgres →
 --      schema public, função plt_fn_gancho_token → Ativar;
 --   3. sair e entrar de novo: o token novo traz plt_id/plt_papel/… (conferir
---      no site: nada muda para a pessoa — é só o caminho).
+--      no site: nada muda para a pessoa — é só o caminho);
+--   4. com uma pessoa de TESTE desativada: senha certa → "Seu acesso à
+--      plataforma está desativado…"; senha errada → "Usuário ou senha
+--      incorretos." (a função de login publicada com a SESSAO-33 mostra a
+--      mensagem do gancho).
 -- Desfazer: desligar o gancho no painel (o token volta ao de antes no próximo
 -- login/renovação); a função pode ficar.
 -- ============================================================================
@@ -50,12 +60,14 @@ begin
     return jsonb_set(event, '{claims}', v_claims || jsonb_build_object('plt_ativo', false));
   end if;
 
-  -- (RECUSAR) para recusar a pessoa inativa no próprio login, trocar o
-  -- "plt_ativo" abaixo por:
-  --   if not v_usuario.ativo then
-  --     return jsonb_build_object('error', jsonb_build_object(
-  --       'http_code', 403, 'message', 'Seu acesso à plataforma está desativado. Fale com o administrador.'));
-  --   end if;
+  -- D-141: pessoa desativada é recusada já no login (e na renovação do token).
+  -- O texto é o mesmo que a função de login mostra (supabase/functions/
+  -- autenticacao, DESATIVADO) — mudar um, mudar o outro.
+  if not coalesce(v_usuario.ativo, false) then
+    return jsonb_build_object('error', jsonb_build_object(
+      'http_code', 403,
+      'message', 'Seu acesso à plataforma está desativado. Fale com a liderança para voltar a entrar.'));
+  end if;
 
   select coalesce(jsonb_agg(jsonb_build_object('id', us.setor_id, 'lider', us.lider_do_setor) order by us.setor_id), '[]'::jsonb)
     into v_setores
@@ -75,7 +87,7 @@ end;
 $$;
 
 comment on function public.plt_fn_gancho_token(jsonb) is
-  'SESSAO-32 (Lei §5): o gancho do token (Custom Access Token Hook) — põe no token o id do cadastro, o papel, super admin, ativo, módulos e setores (com liderança). Nada pessoal (D-68). Só o supabase_auth_admin executa.';
+  'SESSAO-32 (Lei §5): o gancho do token (Custom Access Token Hook) — põe no token o id do cadastro, o papel, super admin, ativo, módulos e setores (com liderança). Nada pessoal (D-68). SESSAO-33 (D-141): recusa a pessoa desativada ao emitir e ao renovar o token (403, mensagem clara). Só o supabase_auth_admin executa.';
 
 grant usage on schema public to supabase_auth_admin;
 grant execute on function public.plt_fn_gancho_token(jsonb) to supabase_auth_admin;

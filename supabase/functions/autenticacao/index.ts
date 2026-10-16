@@ -131,8 +131,14 @@ async function setoresLiderados(pessoaId: string): Promise<number[]> {
 
 // ----------------------------------------------------------------------------
 // entrar — nome de usuário OU e-mail + senha (D-21)
-// Erro sempre genérico: não confirmamos se o usuário existe.
+// Erro genérico para quem erra: não confirmamos se o usuário existe.
+// Pessoa DESATIVADA que acerta a senha ouve que o acesso está desativado
+// (D-141, 16/10/2026) — a mesma frase do gancho do token
+// (supabase/pendentes/2026-10-16_gancho_do_token.sql): mudar um, mudar o outro.
 // ----------------------------------------------------------------------------
+const DESATIVADO =
+  'Seu acesso à plataforma está desativado. Fale com a liderança para voltar a entrar.'
+
 async function entrar(corpo: Json): Promise<Response> {
   const identificador = String(corpo.identificador ?? '').trim().toLowerCase()
   const senha = String(corpo.senha ?? '')
@@ -147,17 +153,35 @@ async function entrar(corpo: Json): Promise<Response> {
     .eq(coluna, identificador)
     .maybeSingle()
 
-  // Sem cadastro na plataforma (ou desativado) não existe login — mesmo que
-  // alguém tenha criado uma conta de auth por fora, ela não entra.
-  if (!linha || !linha.ativo) return erro(401, NEGADO)
+  // Sem cadastro na plataforma não existe login — mesmo que alguém tenha
+  // criado uma conta de auth por fora, ela não entra.
+  if (!linha) return erro(401, NEGADO)
 
   const tentativa = await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: CHAVE_ANON },
     body: JSON.stringify({ email: linha.email, password: senha }),
   })
-  if (!tentativa.ok) return erro(401, NEGADO)
+  if (!tentativa.ok) {
+    // Com o gancho do token ligado, o Auth só o chama DEPOIS de conferir a
+    // senha: a recusa dele (a frase DESATIVADO) prova que a senha estava certa.
+    if (!linha.ativo && (await tentativa.text()).includes(DESATIVADO)) {
+      return erro(403, DESATIVADO)
+    }
+    return erro(401, NEGADO)
+  }
   const sessao = await tentativa.json()
+
+  // Sem o gancho ligado, o Auth ainda abre a sessão de quem está desativado:
+  // a senha conferiu, mas a plataforma não entrega a sessão — encerra-a na
+  // hora (melhor esforço) e diz o porquê. Quem errou a senha nunca chega aqui.
+  if (!linha.ativo) {
+    await fetch(`${URL_SUPABASE}/auth/v1/logout?scope=local`, {
+      method: 'POST',
+      headers: { apikey: CHAVE_ANON, Authorization: `Bearer ${sessao.access_token}` },
+    }).catch(() => {})
+    return erro(403, DESATIVADO)
+  }
 
   // Toda atividade gera registro (SESSAO-13): o login entra na trilha.
   await servidor
