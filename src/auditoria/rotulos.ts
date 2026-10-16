@@ -38,6 +38,8 @@ export const ROTULO_ACAO: Record<string, string> = {
   // pedidos vindos do Tiny
   pedido_atualizado: 'Pedido alterado no Tiny',
   pedido_cancelado: 'Pedido cancelado no Tiny',
+  pedido_excluido_no_tiny: 'Pedido excluído no Tiny (a conferência não o achou)',
+  pedido_voltou_no_tiny: 'Pedido achado de novo no Tiny',
   // estoque
   peca_reservada: 'Peça do estoque reservada para uma venda',
   peca_reserva_desfeita: 'Reserva de peça desfeita',
@@ -219,7 +221,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
   {
     valor: 'pedidos',
     rotulo: 'Pedidos vindos do Tiny',
-    acoes: ['pedido_atualizado', 'pedido_cancelado'],
+    acoes: ['pedido_atualizado', 'pedido_cancelado', 'pedido_excluido_no_tiny', 'pedido_voltou_no_tiny'],
   },
   {
     valor: 'estoque',

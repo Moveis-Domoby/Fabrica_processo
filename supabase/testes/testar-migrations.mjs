@@ -13582,6 +13582,115 @@ for (const nome of PORTAS86) {
 await bd.exec(`drop view public.vw_clientes_consolidados_v26; drop view public.vendas_marketing_v26;`)
 } // fim do bloco 86
 
+// ============================================================================
+// SESSAO-32 — migration 87 (D-140): o pedido que o Tiny diz que não existe mais
+// ("codigo 32: Pedido não localizado" na releitura da conferência) sai das
+// contas do Comercial; achado de novo, volta. O fechamento da rodada aplica.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · pedido excluído no Tiny sai das contas do Comercial (e volta se for achado)')
+const um87 = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec(`
+  insert into public.clientes (nome, fone, raw) values ('Cliente 87 Excluido', '(84) 98787-8787', '{}'::jsonb);
+  insert into public.pedidos (numero, tiny_id, cliente_id, situacao, data_pedido, total_pedido, raw)
+  values (987001, 98700100, (select id from public.clientes where nome = 'Cliente 87 Excluido'), 'Em aberto', '2034-03-05', 1000.00,
+          '{"cliente": {"nome": "Cliente 87 Excluido"}, "itens": [{"item": {"descricao": "Produto 87", "quantidade": "1.00", "valor_unitario": "1000.00"}}]}'::jsonb),
+         (987002, 98700200, (select id from public.clientes where nome = 'Cliente 87 Excluido'), 'Entregue', '2034-03-20', 500.00,
+          '{"cliente": {"nome": "Cliente 87 Excluido"}, "itens": [{"item": {"descricao": "Produto 87", "quantidade": "1.00", "valor_unitario": "500.00"}}]}'::jsonb);
+  insert into public.tiny_fila (recurso, chave, referencia, status, erro, tentativas, params)
+  values ('pedido', '98700100', '987001', 'vazio', 'codigo 32: Pedido não localizado', 1, '{"rodada": "teste-87"}'::jsonb),
+         ('pedido', '98700200', '987002', 'ok', null, 1, '{"rodada": "teste-87"}'::jsonb);
+`)
+const mes87 = `'{"dateFilter":"specificMonth","specificMonth":"2034-03"}'::jsonb`
+const antes87 = await um87(`select total_revenue::text as r, total_orders as n from public.fn_dashboard_scorecards(${mes87})`)
+// o fechamento da rodada aplica o veredito e conta no resumo
+const resumo87 = (await um87(`select plt_privado.fn_tiny_pente_fino_resumir('teste-87', 'concluida') as r`)).r
+const depois87 = await um87(`select total_revenue::text as r, total_orders as n from public.fn_dashboard_scorecards(${mes87})`)
+const marcado87 = await um87(`select count(*)::int as n from public.plt_pedidos_excluidos_tiny where numero = 987001`)
+const log87 = await um87(`select count(*)::int as n from public.plt_logs_atividade where acao = 'pedido_excluido_no_tiny' and contexto->'pedidos' @> '[987001]'`)
+const conf87a = Object.fromEntries((await bd.query(`select parte, diferencas::int as d from plt_privado.fn_comercial_conferir()`)).rows.map((r) => [r.parte, r.d]))
+// a conferência seguinte acha o pedido: ele volta para as contas
+await bd.exec(`update public.tiny_fila set status = 'ok', erro = null where chave = '98700100' and recurso = 'pedido'`)
+const volta87 = await um87(`select plt_privado.fn_pedidos_excluidos_aplicar() as r`)
+const voltou87 = await um87(`select total_revenue::text as r, total_orders as n from public.fn_dashboard_scorecards(${mes87})`)
+const conf87b = Object.fromEntries((await bd.query(`select parte, diferencas::int as d from plt_privado.fn_comercial_conferir()`)).rows.map((r) => [r.parte, r.d]))
+// outro erro terminal (não é "não localizado") não marca
+await bd.exec(`update public.tiny_fila set status = 'vazio', erro = 'codigo 20: outra coisa' where chave = '98700100' and recurso = 'pedido'`)
+await bd.exec(`select plt_privado.fn_pedidos_excluidos_aplicar()`)
+const outroErro87 = await um87(`select count(*)::int as n from public.plt_pedidos_excluidos_tiny where numero = 987001`)
+const priv87 = await um87(`
+  select (select relrowsecurity from pg_class where relname = 'plt_pedidos_excluidos_tiny') as rls,
+         (select count(*)::int from pg_policies where tablename = 'plt_pedidos_excluidos_tiny') as regras,
+         has_function_privilege('authenticated', 'plt_privado.fn_pedidos_excluidos_aplicar()', 'execute') as exec_auth`)
+const zerado87 = (c) => Object.values(c).every((d) => d === 0)
+conferir(
+  antes87.n === 2 && antes87.r === '1500.00'
+    && depois87.n === 1 && depois87.r === '500.00' && marcado87.n === 1 && log87.n === 1
+    && JSON.stringify(resumo87?.excluidos_no_tiny?.pedidos ?? []).includes('987001') && zerado87(conf87a)
+    && volta87.r.voltaram === 1 && voltou87.n === 2 && voltou87.r === '1500.00' && zerado87(conf87b)
+    && outroErro87.n === 0 && priv87.rls === true && priv87.regras === 0 && priv87.exec_auth === false,
+  'o pedido "não localizado" no Tiny sai do Comercial ao fechar a rodada (fica no resumo e na trilha), a tela pronta segue igual aos pedidos; achado de novo, volta; outro erro não marca; tabela e função fechadas',
+  JSON.stringify({ antes87, depois87, marcado87, log87, resumo: resumo87?.excluidos_no_tiny, conf87a, volta87: volta87.r, voltou87, conf87b, outroErro87, priv87 }))
+
+// D-140 inteiro: "se o pedido não existe mais, ele não deve aparecer em nenhum
+// módulo" — um pedido com cartões na produção some dos quadros, da lista de
+// Pedidos e das contas; os admins ficam sabendo
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec(`
+  insert into public.pedidos (numero, tiny_id, cliente_id, situacao, data_pedido, total_pedido, origem, raw)
+  values (987003, 98700300, (select id from public.clientes where nome = 'Cliente 87 Excluido'), 'Em aberto', '2034-04-02', 700.00, 'webhook',
+          '{"cliente": {"nome": "Cliente 87 Excluido"}, "itens": [{"item": {"descricao": "Produto 87", "quantidade": "2.00", "valor_unitario": "350.00"}}]}'::jsonb);
+  insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+    select 'unidade', p.id, c.id, 1, '087', 'Produto 87', k, 2
+      from public.pedidos p join public.plt_cards c on c.pedido_id = p.id and c.tipo = 'pedido'
+     cross join generate_series(1, 2) as k
+     where p.numero = 987003;
+  insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+    select cu.id, 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'interface'
+      from public.plt_cards cu join public.pedidos p on p.id = cu.pedido_id where p.numero = 987003 and cu.tipo = 'unidade';
+  insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
+    select cu.id, 'movimentacao_setor', (select id from public.plt_setores where codigo = 'pcp'),
+           (select id from public.plt_setores where codigo = 'montagem'), 'interface'
+      from public.plt_cards cu join public.pedidos p on p.id = cu.pedido_id where p.numero = 987003 and cu.tipo = 'unidade' and cu.indice_unidade = 1;
+  insert into public.tiny_fila (recurso, chave, referencia, status, erro, tentativas, params)
+  values ('pedido', '98700300', '987003', 'ok', null, 1, '{"rodada": "teste-87b"}'::jsonb);
+`)
+const vivos87 = async () => (await um87(`select count(*)::int as n from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+  where p.numero = 987003 and c.arquivado_em is null`)).n
+const naLista87 = async () => {
+  await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.admin}', false)`)
+  const n = (await bd.query(`select count(*)::int as n from public.plt_fn_pedidos_lista('987003', null, 20, false)`)).rows[0].n
+  const todos = (await bd.query(`select count(*)::int as n from public.plt_fn_pedidos_lista(null, null, 100, false) where numero = 987003`)).rows[0].n
+  await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+  return n + todos
+}
+const cartoesAntes87 = await vivos87()
+const listaAntes87 = await naLista87()
+const notifAntes87 = (await um87(`select count(*)::int as n from public.plt_notificacoes where tipo = 'pedido_excluido_no_tiny'`)).n
+// o Tiny passa a dizer que ele não existe; a conferência fecha a rodada
+await bd.exec(`update public.tiny_fila set status = 'vazio', erro = 'codigo 32: Pedido não localizado' where chave = '98700300' and recurso = 'pedido'`)
+const aplic87 = await um87(`select plt_privado.fn_pedidos_excluidos_aplicar() as r`)
+const cartoesDepois87 = await vivos87()
+const listaDepois87 = await naLista87()
+const motivos87 = await um87(`select count(*)::int as n from public.plt_eventos e join public.plt_cards c on c.id = e.card_id join public.pedidos p on p.id = c.pedido_id
+  where p.numero = 987003 and e.tipo = 'card_arquivado' and e.dados->>'motivo' = 'pedido_excluido_no_tiny'`)
+const notif87 = (await um87(`select count(*)::int as n from public.plt_notificacoes where tipo = 'pedido_excluido_no_tiny'`)).n
+const vendaSumiu87 = await um87(`select count(*)::int as n from public.plt_comercial_vendas where numero_pedido = '987003'`)
+const conf87c = Object.fromEntries((await bd.query(`select parte, diferencas::int as d from plt_privado.fn_comercial_conferir()`)).rows.map((r) => [r.parte, r.d]))
+// uma 2ª rodada não arquiva de novo nem avisa de novo
+await bd.exec(`select plt_privado.fn_pedidos_excluidos_aplicar()`)
+const notif87b = (await um87(`select count(*)::int as n from public.plt_notificacoes where tipo = 'pedido_excluido_no_tiny'`)).n
+const eventos87b = (await um87(`select count(*)::int as n from public.plt_eventos e join public.plt_cards c on c.id = e.card_id join public.pedidos p on p.id = c.pedido_id
+  where p.numero = 987003 and e.tipo = 'card_arquivado'`)).n
+conferir(
+  cartoesAntes87 === 3 && listaAntes87 === 2 && aplic87.r.novos === 1
+    && cartoesDepois87 === 0 && listaDepois87 === 0 && motivos87.n === 3 && notif87 > notifAntes87
+    && vendaSumiu87.n === 0 && zerado87(conf87c) && notif87b === notif87 && eventos87b === 3,
+  'pedido excluído no Tiny com produção: os 3 cartões saem dos quadros (evento com o motivo), some da lista e da busca de Pedidos e do Comercial, admins avisados; a rodada seguinte não repete nada',
+  JSON.stringify({ cartoesAntes87, listaAntes87, aplic: aplic87.r, cartoesDepois87, listaDepois87, motivos: motivos87.n, notifAntes87, notif87, vendaSumiu: vendaSumiu87.n, conf87c, notif87b, eventos87b }))
+} // fim do bloco 87
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
