@@ -55,7 +55,9 @@ interface ScorecardsRowProps {
 }
 
 export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
-  const { period, setPeriod, customStart, setCustomStart, customEnd, setCustomEnd, cutoff, endCutoff } = usePeriodFilter('all');
+  // SESSAO-32 (pedido do dono, 16/10): a primeira leitura é do mês atual — o
+  // período inteiro fica a um toque em "Tudo" (e vem pronto do banco).
+  const { period, setPeriod, customStart, setCustomStart, customEnd, setCustomEnd, cutoff, endCutoff } = usePeriodFilter('1m');
 
   // [DT-F1/DT-F3] fn_dashboard_scorecards agora recebe um p_filters jsonb
   // (mesmo shape usado na tabela de clientes) em vez de (start, end) soltos.

@@ -30,7 +30,8 @@ interface PurchaseFrequencyChartProps {
 }
 
 export function PurchaseFrequencyChart({ mounted }: PurchaseFrequencyChartProps) {
-  const { period, setPeriod, customStart, setCustomStart, customEnd, setCustomEnd, cutoff, endCutoff } = usePeriodFilter('all');
+  // SESSAO-32 (pedido do dono, 16/10): abre no mês atual; "Tudo" a um toque.
+  const { period, setPeriod, customStart, setCustomStart, customEnd, setCustomEnd, cutoff, endCutoff } = usePeriodFilter('1m');
 
   const { data: rawFreqData } = usePurchaseFrequencyData(cutoff, endCutoff);
 

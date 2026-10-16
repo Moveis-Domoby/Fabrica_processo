@@ -31,8 +31,11 @@ export function PainelRecompra() {
   const { disparosMap } = useDisparosData()
   const { availableItems, availablePurchaseCounts } = useFilterOptions()
 
+  // SESSAO-32 (pedido do dono, 16/10): "a busca inicial seja apenas para o mês
+  // atual, não para todo o período" — o painel abre em "Do mês" (o atual); o
+  // "Todo o período" vem pronto do banco, quase instantâneo.
   const [filters, setFilters] = useState<FilterState>({
-    dateFilter: 'all',
+    dateFilter: 'specificMonth',
     customDateStart: '',
     customDateEnd: '',
     selectedItems: ['all'],

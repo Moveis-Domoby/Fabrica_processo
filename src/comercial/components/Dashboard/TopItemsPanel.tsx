@@ -10,7 +10,8 @@ interface TopItemsPanelProps {
 }
 
 export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
-  const [topItemsMonth, setTopItemsMonth] = useState('all');
+  // SESSAO-32 (pedido do dono, 16/10): abre no mês atual; "todo o período" a um toque.
+  const [topItemsMonth, setTopItemsMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [removedBottomItems, setRemovedBottomItems] = useState<Set<string>>(new Set());
 
   // Converte o selectedMonth em start e end dates para o RPC

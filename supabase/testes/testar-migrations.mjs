@@ -13313,6 +13313,275 @@ conferir(
 )
 } // fim do bloco 85
 
+// ============================================================================
+// SESSAO-32 — migration 86: o Comercial com a TELA PRONTA no banco. A porta
+// antiga (as versões da migration 27 sobre a view da 26, com outro nome) × a
+// porta nova (as tabelas prontas), num conjunto variado de pedidos e em
+// dezenas de filtros; e a tela pronta acompanhando cada gravação (gatilho),
+// sem nunca derrubar a gravação do pedido.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · Comercial: a tela pronta = a porta antiga em todos os filtros, e acompanha cada gravação')
+const linhas86 = async (sql) => (await bd.query(sql)).rows
+const um86 = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`) // máquina: o gate deixa passar
+
+// 1 · A view antiga (26) e as portas antigas (27), com outro nome
+const m26 = await readFile(path.join(RAIZ, 'supabase/migrations/20260915120000_plt_comercial_banco.sql'), 'utf8')
+const m27 = await readFile(path.join(RAIZ, 'supabase/migrations/20260915180000_plt_comercial_gate_negacao_temas.sql'), 'utf8')
+const trecho86 = (texto, inicio, fim) => {
+  const i = texto.indexOf(inicio)
+  const j = texto.indexOf(fim, i)
+  if (i < 0 || j < 0) throw new Error(`trecho não achado: ${inicio}`)
+  return texto.slice(i, j + fim.length)
+}
+const renomear86 = (sql) => sql
+  .replace(/\bvendas_marketing\b(?!:)/g, 'vendas_marketing_v26')
+  .replace(/\bvw_clientes_consolidados\b/g, 'vw_clientes_consolidados_v26')
+await bd.exec(renomear86(trecho86(m26, 'create view public.vendas_marketing as', "where plt_privado.fn_tem_modulo('comercial');")))
+await bd.exec(renomear86(trecho86(m26, 'create view public.vw_clientes_consolidados', 'group by coalesce(nullif(trim(both from telefone_cliente), \'\'::text), nome_cliente::text);')))
+const PORTAS86 = ['fn_filter_customers', 'fn_dashboard_scorecards', 'fn_dashboard_revenue_chart', 'fn_dashboard_purchase_frequency',
+  'fn_dashboard_items', 'fn_dashboard_top_items_overall', 'fn_dashboard_transitions', 'fn_dashboard_transitions_summary',
+  'fn_dashboard_transition_clients', 'fn_vendas_disparo_por_telefone', 'fn_clientes_consolidados']
+for (const nome of PORTAS86) {
+  const def = trecho86(m27, `create or replace function public.${nome}(`, '$function$;')
+  await bd.exec(renomear86(def).replace(`public.${nome}(`, `public.${nome}_v27(`))
+}
+
+// 2 · Pedidos variados: telefone, só celular, sem telefone (vale o nome),
+// +55, dois cadastros com o MESMO telefone, nome com espaço no fim, aspas e
+// item sem nome, compras no mesmo dia, 2 anos de datas
+await bd.exec(`
+  insert into public.clientes (nome, fone, raw)
+  select 'Cliente 86 #' || g,
+         case when g in (11, 12) then '(84) 98011-1212'
+              when g % 5 = 0 then null
+              when g % 7 = 0 then '+55 (84) 9' || lpad(g::text, 4, '0') || '-0000'
+              else '(84) 98' || lpad(g::text, 3, '0') || '-' || lpad((g * 7)::text, 4, '0') end,
+         case when g % 5 = 0 and g % 2 = 0 then jsonb_build_object('celular', '(84) 97' || lpad(g::text, 3, '0') || '-1111')
+              else '{}'::jsonb end
+    from generate_series(1, 60) g;
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido, total_pedido, total_produtos, raw)
+  select 986000 + g,
+         (select c.id from public.clientes c where c.nome = 'Cliente 86 #' || (1 + (g * 37) % 60)),
+         'Entregue',
+         date '2032-01-01' + ((g * 53) % 700) - case when g % 17 = 0 then (g * 53) % 700 - ((g - 1) * 53) % 700 else 0 end,
+         round(((g * 97) % 3000 + 99.9)::numeric, 2),
+         round(((g * 97) % 3000 + 99.9)::numeric, 2),
+         jsonb_build_object(
+           'cliente', jsonb_build_object('nome', 'Cliente 86 #' || (1 + (g * 37) % 60) || case when g % 9 = 0 then ' ' else '' end),
+           'itens', (select jsonb_agg(jsonb_build_object('item', jsonb_build_object(
+                       'descricao', case when k = 3 and g % 11 = 0 then null
+                                         else 'Produto 86 ' || chr(65 + ((g + k) % 8)) || case when g % 13 = 0 then ' "especial"' else '' end end,
+                       'quantidade', '1.00', 'valor_unitario', '10.00')))
+                       from generate_series(1, 1 + g % 3) k))
+    from generate_series(1, 400) g;
+  -- empates de data: o mesmo cliente comprando duas vezes no mesmo dia (inclusive na 1ª compra)
+  insert into public.clientes (nome, fone, raw) values ('Cliente 86 #61', '(84) 98061-6161', '{}'::jsonb);
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido, total_pedido, raw)
+  select 986400 + k, (select id from public.clientes where nome = case when k <= 3 then 'Cliente 86 #61' else 'Cliente 86 #2' end),
+         'Entregue', case when k <= 2 then date '2032-05-05' when k = 3 then date '2032-06-01' else date '2032-07-07' end, 100 + k,
+         jsonb_build_object('cliente', jsonb_build_object('nome', case when k <= 3 then 'Cliente 86 #61' else 'Cliente 86 #2' end),
+                            'itens', '[{"item": {"descricao": "Produto 86 A", "quantidade": "1.00", "valor_unitario": "10.00"}}]'::jsonb)
+    from generate_series(1, 6) k;
+`)
+
+// 3 · A tela pronta acompanhou as 400 gravações (o gatilho) — e a view de
+// sempre devolve exatamente o que a antiga devolvia
+const conf86 = async () => Object.fromEntries((await linhas86(`select parte, diferencas::int as d from plt_privado.fn_comercial_conferir()`)).map((r) => [r.parte, r.d]))
+const zerado86 = (c) => Object.values(c).every((d) => d === 0)
+const c0 = await conf86()
+const viewIgual = await um86(`
+  select (select count(*) from (select * from public.vendas_marketing except all select * from public.vendas_marketing_v26) x)::int as a,
+         (select count(*) from (select * from public.vendas_marketing_v26 except all select * from public.vendas_marketing) x)::int as b,
+         (select count(*) from public.vendas_marketing)::int as n,
+         (select count(*) from (select * from public.vw_clientes_consolidados except all select * from public.vw_clientes_consolidados_v26) x)::int as ca,
+         (select count(*) from (select * from public.vw_clientes_consolidados_v26 except all select * from public.vw_clientes_consolidados) x)::int as cb`)
+conferir(zerado86(c0) && viewIgual.a === 0 && viewIgual.b === 0 && viewIgual.n >= 400 && viewIgual.ca === 0 && viewIgual.cb === 0,
+  'a tela pronta acompanhou as 400 gravações (0 diferença) e as views de sempre devolvem linha a linha o mesmo que as antigas',
+  JSON.stringify({ c0, viewIgual }))
+
+// 4 · Porta antiga × nova: Painel de Recompra (tabela e números) em 24 filtros
+const FILTROS86 = [
+  {}, { dateFilter: 'all' }, { dateFilter: 'all', selectedItems: ['all'], purchaseCount: ['all'] },
+  { dateFilter: 'specificMonth', specificMonth: '2032-03' }, { dateFilter: 'specificYear', specificYear: '2032' },
+  { dateFilter: 'specificDay', specificDay: '2032-03-10' },
+  { dateFilter: 'custom', customDateStart: '2032-02-01', customDateEnd: '2032-06-30' },
+  { dateFilter: 'custom', customDateStart: '2032-02-01' }, { dateFilter: 'custom', customDateEnd: '2032-06-30' },
+  { dateFilter: 'custom' },
+  { dateFilter: 'all', searchQuery: 'Cliente 86 #1' }, { dateFilter: 'all', searchQuery: '98011' },
+  { dateFilter: 'all', searchQuery: '   ' }, { dateFilter: 'all', selectedItems: ['Produto 86 A', 'Produto 86 C'] },
+  { dateFilter: 'all', selectedItems: ['Produto 86 B \\"especial\\"'] },
+  { dateFilter: 'all', purchaseCount: ['2', '3'] }, { dateFilter: 'all', purchaseCount: ['10+'] },
+  { dateFilter: 'all', inactiveBeforeDate: '2033-01-01' }, { dateFilter: 'all', recompraMinDays: '10', recompraMaxDays: '200' },
+  { dateFilter: 'all', spendAmount: '3000', spendType: 'total', spendMode: 'above' },
+  { dateFilter: 'all', spendAmount: '1500', spendType: 'avg', spendMode: 'around' },
+  { dateFilter: 'specificMonth', specificMonth: '2032-03', purchaseCount: ['1'], searchQuery: 'Cliente' },
+  { dateFilter: 'custom', customDateStart: '2032-01-01', customDateEnd: '2032-12-31', selectedItems: ['Produto 86 B'], spendAmount: '500', spendType: 'total', spendMode: 'below' },
+  { dateFilter: 'all', recompraMaxDays: '0' },
+]
+const ordenar86 = (rows) => rows.map((r) => JSON.stringify(r)).sort()
+const difsPainel = []
+let linhasPainel = 0
+for (const f of FILTROS86) {
+  const j = JSON.stringify(f).replace(/'/g, "''")
+  const antiga = await linhas86(`select nome_cliente, telefone_cliente, quantidade_pedidos, faturamento_total::text as fat, total_itens,
+      data_primeira_compra, ultima_compra, pedidos_vida, is_recorrente, total_count::int as total
+      from public.fn_filter_customers_v27('${j}'::jsonb, 100000, 0)`)
+  const nova = await linhas86(`select nome_cliente, telefone_cliente, quantidade_pedidos, faturamento_total::text as fat, total_itens,
+      data_primeira_compra, ultima_compra, pedidos_vida, is_recorrente, total_count::int as total
+      from public.fn_filter_customers('${j}'::jsonb, 100000, 0)`)
+  const sa = await um86(`select row_to_json(t)::text as r from public.fn_dashboard_scorecards_v27('${j}'::jsonb) t`)
+  const sn = await um86(`select row_to_json(t)::text as r from public.fn_dashboard_scorecards('${j}'::jsonb) t`)
+  const emOrdem = nova.every((r, i) => i === 0 || new Date(nova[i - 1].ultima_compra) >= new Date(r.ultima_compra))
+  linhasPainel += nova.length
+  if (JSON.stringify(ordenar86(antiga)) !== JSON.stringify(ordenar86(nova)) || sa.r !== sn.r || !emOrdem) {
+    difsPainel.push({ f, antiga: antiga.length, nova: nova.length, sa: sa.r, sn: sn.r, emOrdem })
+  }
+}
+conferir(difsPainel.length === 0 && linhasPainel > 400,
+  `Painel de Recompra: tabela e números da porta nova = os da antiga nos ${FILTROS86.length} filtros (${linhasPainel} linhas), em ordem de última compra`,
+  JSON.stringify(difsPainel).slice(0, 1500))
+
+// a página por página da porta nova = a lista inteira (o desempate é fixo agora)
+const inteira86 = (await linhas86(`select nome_cliente, telefone_cliente from public.fn_filter_customers('{}'::jsonb, 100000, 0)`)).map((r) => JSON.stringify(r))
+const paginas86 = []
+for (let o = 0; o < inteira86.length + 7; o += 7) {
+  paginas86.push(...(await linhas86(`select nome_cliente, telefone_cliente from public.fn_filter_customers('{}'::jsonb, 7, ${o})`)).map((r) => JSON.stringify(r)))
+}
+conferir(JSON.stringify(paginas86) === JSON.stringify(inteira86),
+  `de 7 em 7, as páginas da porta nova = a lista inteira, sem repetir nem pular (${inteira86.length} clientes)`)
+
+// 5 · Porta antiga × nova: o Dashboard em vários períodos (inteiro, meses
+// inteiros — como o navegador de São Paulo manda —, meia-noite UTC e quebrados)
+const PERIODOS86 = [
+  ['null', 'null'], [`'2032-03-01 00:00-03'`, 'null'], [`'2032-03-01 00:00-03'`, `'2032-05-31 23:59:59-03'`],
+  [`'2032-01-01 00:00-03'`, `'2032-12-31 23:59:59-03'`], [`'2032-03-01 00:00+00'`, `'2032-04-01 00:00+00'`],
+  [`'2032-03-10'`, `'2032-07-20'`], ['null', `'2032-06-30 23:59:59-03'`], [`'2033-06-15 12:00-03'`, 'null'],
+]
+const DASH86 = [
+  ['fn_dashboard_revenue_chart', 'month_str, revenue::text as revenue, orders'],
+  ['fn_dashboard_top_items_overall', 'item_name, quantidade'],
+  ['fn_dashboard_items', 'month_str, item_name, quantidade'],
+  ['fn_dashboard_purchase_frequency', 'pedidos_count, faturamento_total::text as fat, clientes_count'],
+  ['fn_dashboard_transitions_summary', 'purchase_number, avg_days::text as media, client_count'],
+  ['fn_dashboard_transitions', 'client_id, purchase_number, days_since_last'],
+]
+const difsDash = []
+let linhasDash = 0
+for (const [ini, fim] of PERIODOS86) {
+  for (const [porta, cols] of DASH86) {
+    const a = await linhas86(`select ${cols} from public.${porta}_v27(${ini}, ${fim})`)
+    const n = await linhas86(`select ${cols} from public.${porta}(${ini}, ${fim})`)
+    linhasDash += n.length
+    if (JSON.stringify(ordenar86(a)) !== JSON.stringify(ordenar86(n))) difsDash.push({ porta, ini, fim, a: a.length, n: n.length })
+  }
+  // a k-ª compra de quem comprou duas vezes no MESMO dia era sorteio na porta
+  // antiga (o nome escrito naquele pedido pode variar); compara-se o CLIENTE
+  // (a chave dele) com os dias e as datas — exatos
+  const doCliente86 = (fn, k) => `select (select v.cid from public.plt_comercial_vendas v
+      where v.data_compra = t.curr_date
+        and coalesce(nullif(trim(v.nome_cliente), ''), v.telefone_cliente::text) is not distinct from t.client_id
+      order by v.pedido_id limit 1) as cliente, t.days_since_last, t.prev_date, t.curr_date
+    from public.${fn}(${k}, ${ini}, ${fim}, 100000, 0) t`
+  for (const k of [2, 3]) {
+    const a = await linhas86(doCliente86('fn_dashboard_transition_clients_v27', k))
+    const n = await linhas86(doCliente86('fn_dashboard_transition_clients', k))
+    linhasDash += n.length
+    if (JSON.stringify(ordenar86(a)) !== JSON.stringify(ordenar86(n))) {
+      const sa = new Set(ordenar86(a)); const sn = new Set(ordenar86(n))
+      difsDash.push({ porta: 'transition_clients', k, ini, fim, a: a.length, n: n.length,
+        so_antiga: [...sa].filter((x) => !sn.has(x)).slice(0, 3), so_nova: [...sn].filter((x) => !sa.has(x)).slice(0, 3) })
+    }
+  }
+}
+// a ordem do gráfico de faturamento e dos itens é a de sempre (mês; quantidade)
+const ordemGrafico = await linhas86(`select month_str from public.fn_dashboard_revenue_chart(null, null)`)
+const ordemItens = await linhas86(`select quantidade from public.fn_dashboard_top_items_overall(null, null)`)
+conferir(difsDash.length === 0 && linhasDash > 1000
+    // (os pedidos sem data formam o "mês" vazio, por último — como sempre foi)
+    && ordemGrafico.every((r, i) => i === 0 || r.month_str === null || ordemGrafico[i - 1].month_str < r.month_str)
+    && ordemItens.every((r, i) => i === 0 || ordemItens[i - 1].quantidade >= r.quantidade),
+  `Dashboard: as 7 portas novas = as antigas em ${PERIODOS86.length} períodos (${linhasDash} linhas) — período inteiro e meses inteiros saem das contas prontas`,
+  JSON.stringify(difsDash).slice(0, 1500))
+
+// 6 · Os maiores clientes e a atribuição do disparo
+const difsTop = []
+for (const [min, ordem, lim] of [['null', `'pedidos'`, 1000], ['2', `'pedidos'`, 50], ['null', `'faturamento'`, 20], ['null', 'null', 30]]) {
+  const a = await linhas86(`select id_cliente, total_pedidos::int as p, faturamento_total::text as f, total_itens::int as i, primeira_compra, ultima_compra
+      from public.fn_clientes_consolidados_v27(${min}, ${ordem}, ${lim})`)
+  const n = await linhas86(`select id_cliente, total_pedidos::int as p, faturamento_total::text as f, total_itens::int as i, primeira_compra, ultima_compra
+      from public.fn_clientes_consolidados(${min}, ${ordem}, ${lim})`)
+  const chave = (r) => (ordem === `'faturamento'` ? `${r.f}|${r.p}` : `${r.p}|${r.f}`)
+  // a mesma sequência de chaves de ordenação; o conjunto igual quando o corte não cai num empate
+  if (JSON.stringify(a.map(chave)) !== JSON.stringify(n.map(chave))
+      || (lim === 1000 && JSON.stringify(ordenar86(a)) !== JSON.stringify(ordenar86(n)))) difsTop.push({ min, ordem, lim, a: a.length, n: n.length })
+}
+const disparo86 = []
+for (const fone of ['84980111212', '84980070049', '8497010' + '1111', '84900160000']) {
+  const a = await linhas86(`select numero_pedido, data_compra, valor_pedido::text as v from public.fn_vendas_disparo_por_telefone_v27('${fone}', '2032-01-01', '2034-01-01')`)
+  const n = await linhas86(`select numero_pedido, data_compra, valor_pedido::text as v from public.fn_vendas_disparo_por_telefone('${fone}', '2032-01-01', '2034-01-01')`)
+  if (JSON.stringify(ordenar86(a)) !== JSON.stringify(ordenar86(n))) disparo86.push({ fone, a: a.length, n: n.length })
+}
+conferir(difsTop.length === 0 && disparo86.length === 0,
+  'maiores clientes (recompradores e recordes) e a venda achada pelo telefone do disparo: iguais aos da porta antiga',
+  JSON.stringify({ difsTop, disparo86 }))
+
+// 7 · A tela acompanha cada gravação — e nunca derruba o pedido
+await bd.exec(`
+  update public.pedidos set total_pedido = total_pedido + 10,
+         raw = jsonb_set(raw, '{itens}', raw->'itens' || '[{"item": {"descricao": "Produto 86 Z", "quantidade": "1.00", "valor_unitario": "10.00"}}]'::jsonb)
+   where numero between 986001 and 986020;
+  update public.clientes set fone = '(84) 98000-8686' where nome = 'Cliente 86 #3';
+  update public.clientes set fone = null, raw = '{"celular": "(84) 97777-0000"}'::jsonb where nome = 'Cliente 86 #4';
+  update public.pedidos set cliente_id = (select id from public.clientes where nome = 'Cliente 86 #8')
+   where numero = 986030;
+  insert into public.pedidos (numero, cliente_id, situacao, data_pedido, total_pedido, raw)
+  values (986999, (select id from public.clientes where nome = 'Cliente 86 #8'), 'Entregue', '2031-12-01', 77.70,
+          '{"cliente": {"nome": "Cliente 86 #8"}, "itens": [{"item": {"descricao": "Produto 86 A", "quantidade": "1.00", "valor_unitario": "77.70"}}]}'::jsonb);
+  update public.pedidos set obs = 'só uma observação' where numero = 986040;
+  delete from public.pedidos where numero = 986050;
+`)
+const c1 = await conf86()
+const oitoAntes = await um86(`select ordem_cliente from public.plt_comercial_vendas where numero_pedido = '986999'`)
+// um pedido com itens quebrados (não é lista): o pedido GRAVA e a tela anota para refazer
+await bd.exec(`insert into public.pedidos (numero, cliente_id, situacao, data_pedido, total_pedido, raw)
+  values (986998, (select id from public.clientes where nome = 'Cliente 86 #9'), 'Entregue', '2032-02-02', 50.00,
+          '{"cliente": {"nome": "Cliente 86 #9"}, "itens": {"quebrado": true}}'::jsonb)`)
+const gravou = await um86(`select count(*)::int as n from public.pedidos where numero = 986998`)
+const pend = await um86(`select count(*)::int as n from public.plt_comercial_pendentes
+  where pedido_id = (select id from public.pedidos where numero = 986998)`)
+// consertado na origem: a próxima gravação refaz e a anotação some
+await bd.exec(`update public.pedidos set raw = '{"cliente": {"nome": "Cliente 86 #9"}, "itens": [{"item": {"descricao": "Produto 86 D", "quantidade": "1.00", "valor_unitario": "50.00"}}]}'::jsonb
+  where numero = 986998`)
+const c2 = await conf86()
+conferir(zerado86(c1) && oitoAntes?.ordem_cliente === 1 && gravou.n === 1 && pend.n === 1 && zerado86(c2),
+  'mudar valor e itens, trocar o telefone (fone e celular), mudar o pedido de cliente, gravar uma compra mais antiga (vira a 1ª), apagar: a tela pronta acompanha (0 diferença); item quebrado não derruba a gravação — fica anotado e a próxima gravação refaz',
+  JSON.stringify({ c1, oitoAntes, gravou, pend, c2 }))
+
+// 8 · Ninguém lê nem executa a maquinaria de fora; as portas seguem DEFINER
+const priv86 = await um86(`
+  select (select count(*)::int from pg_class where relname in ('plt_comercial_vendas', 'plt_comercial_clientes', 'plt_comercial_mes',
+            'plt_comercial_itens_mes', 'plt_comercial_pendentes') and relkind = 'r' and relrowsecurity) as com_rls,
+         (select count(*)::int from pg_policies where tablename in ('plt_comercial_vendas', 'plt_comercial_clientes', 'plt_comercial_mes',
+            'plt_comercial_itens_mes', 'plt_comercial_pendentes')) as regras,
+         has_table_privilege('anon', 'public.plt_comercial_clientes', 'select') as c_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_comercial_reconstruir()', 'execute') as reconstruir,
+         has_function_privilege('authenticated', 'plt_privado.fn_comercial_refazer_pedido(bigint)', 'execute') as refazer,
+         (select count(*)::int from pg_trigger where tgname in ('plt_pedidos_comercial_ins_del', 'plt_pedidos_comercial_upd', 'plt_clientes_comercial')) as gatilhos`)
+conferir(priv86.com_rls === 5 && priv86.regras === 0 && !priv86.c_anon && !priv86.reconstruir && !priv86.refazer && priv86.gatilhos === 3,
+  'as 5 tabelas prontas com RLS ligado e NENHUMA regra (o navegador não lê nada delas; a migration ainda revoga o acesso) e a maquinaria fechada; os 3 gatilhos no lugar',
+  JSON.stringify(priv86))
+
+// limpeza do cenário (as próximas checagens não veem as cópias antigas)
+for (const nome of PORTAS86) {
+  const assinatura = (await um86(`select pg_get_function_identity_arguments(p.oid) as a from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = '${nome}_v27'`)).a
+  await bd.exec(`drop function public.${nome}_v27(${assinatura})`)
+}
+await bd.exec(`drop view public.vw_clientes_consolidados_v26; drop view public.vendas_marketing_v26;`)
+} // fim do bloco 86
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
