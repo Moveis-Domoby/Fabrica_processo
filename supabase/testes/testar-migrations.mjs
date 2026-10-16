@@ -12933,6 +12933,42 @@ conferir(
 )
 } // fim do bloco 79
 
+// ============================================================================
+// SESSAO-32 — migration 80: a abertura traz os catálogos de etiquetas e campos
+// (mesmo recorte e ordem das leituras soltas — como o navegador chama).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · a abertura traz as etiquetas e os campos iguais às leituras soltas')
+const como80 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const resultados80 = []
+for (const auth of [E40.admin, E40.operador, E40.logistica]) {
+  await como80(auth)
+  try {
+    await bd.exec('set role authenticated')
+    const ab = (await bd.query(`select public.plt_fn_abertura(null, false) as a`)).rows[0].a
+    const et = (await bd.query(`select coalesce(json_agg(id order by nome), '[]'::json)::text as ids from public.plt_etiquetas`)).rows[0].ids
+    const ca = (await bd.query(`select coalesce(json_agg(id order by nome), '[]'::json)::text as ids from public.plt_campos`)).rows[0].ids
+    resultados80.push({
+      auth,
+      etiquetas: JSON.stringify((ab.etiquetas ?? []).map((e) => e.id)) === JSON.stringify(JSON.parse(et)),
+      campos: JSON.stringify((ab.campos ?? []).map((c) => c.id)) === JSON.stringify(JSON.parse(ca)),
+      nEt: (ab.etiquetas ?? []).length,
+      nCa: (ab.campos ?? []).length,
+      chavesCampo: Object.keys((ab.campos ?? [])[0] ?? {}).sort().join(','),
+    })
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+await como80('')
+conferir(
+  resultados80.every((r) => r.etiquetas && r.campos) && resultados80.some((r) => r.nEt > 0 && r.nCa > 0)
+    && resultados80.every((r) => r.nCa === 0 || r.chavesCampo === 'arquivado_em,em_avulsos,em_pecas,em_pedidos,id,nome,opcoes,tipo'),
+  'admin, operador e logística: as etiquetas e os campos da abertura = as leituras soltas (mesma ordem, mesmas colunas)',
+  JSON.stringify(resultados80),
+)
+} // fim do bloco 80
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

@@ -8,6 +8,8 @@ import type { Aviso } from '@/notificacoes/api'
 import type { Tarefa } from '@/afazeres/api'
 import type { MetaPainel } from '@/metas/api'
 import type { Card, ExecucaoAberta, Setor } from '@/kanban/tipos'
+import { ehCorEtiqueta } from '@/utilitarios/tipos'
+import type { CampoCustomizado, Etiqueta } from '@/utilitarios/tipos'
 import type { Perfil, VinculoSetor } from './tipos'
 
 /**
@@ -31,6 +33,9 @@ export interface Abertura {
   conversas?: ConversaResumo[]
   tarefas?: Tarefa[]
   execucoes?: ExecucaoAberta[]
+  /** migration 80: os catálogos dos quadros, do PCP, dos pedidos e da janela do card. */
+  etiquetas?: Etiqueta[]
+  campos?: CampoCustomizado[]
   meu_painel?: {
     cards: Card[]
     setores_chave: string
@@ -83,6 +88,14 @@ export function semearCache(clienteQuery: QueryClient, abertura: Abertura, prime
   }
   if (abertura.tarefas) clienteQuery.setQueryData(['afazeres', 'tarefas', eu], abertura.tarefas)
   if (abertura.execucoes) clienteQuery.setQueryData(['meu-painel', 'execucoes', eu], abertura.execucoes)
+  // o mesmo acerto de cor de buscarEtiquetas (cor desconhecida vira cinza)
+  if (abertura.etiquetas) {
+    clienteQuery.setQueryData(
+      ['etiquetas'],
+      abertura.etiquetas.map((e) => ({ ...e, cor: ehCorEtiqueta(e.cor) ? e.cor : 'cinza' })),
+    )
+  }
+  if (abertura.campos) clienteQuery.setQueryData(['campos'], abertura.campos)
   const painel = abertura.meu_painel
   if (painel) {
     clienteQuery.setQueryData(['meu-painel', 'delegados', eu], painel.cards)
