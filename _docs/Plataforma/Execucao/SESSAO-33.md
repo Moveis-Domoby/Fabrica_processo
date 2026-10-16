@@ -78,3 +78,10 @@ Enquanto isso: o §1 e o inventário do que já temos (banco e n8n) — este, pe
 - **Tela:** `src/paginas/Auditoria.tsx` (aba das conferências com `useInfiniteQuery` + `MaisAoRolar`, sem `Paginacao`) · `src/auditoria/api.ts` (`buscarConferencias(antesId, porPagina)`, tipos `total | null` e `tem_mais`) · `src/paginas/Auditoria.test.tsx` (1ª página sem cursor; nenhuma navegação de páginas).
 - **Provas:** tipos (`tsc -b`) ✔ · estilo (eslint e prettier nos arquivos tocados) ✔ · testes de tela **191/191** ✔ (2 arquivos precisam do `.env.local` que esta nuvem não tem — rodados com valores de mentira para a URL e a chave, sem rede) · montagem com o teto de 250 KB ✔ · bateria do banco **1.019 verdes** (bloco 50: de 1 em 1 pelo cursor = a lista inteira na mesma ordem; total só na 1ª; a chamada antiga por deslocamento segue servindo; assinatura nova fechada para anônimo).
 - Nota do esquema: entrada da 88 marcada ⏸️ "escrita, não aplicada". O `supabase-fabrica-schema.sql` só muda quando a 88 for aplicada (ela não toca coluna da integração; o índice entra no retrato nessa hora).
+
+### 16/10 ~20:37 UTC — §1: a imagem de teste do comprovante no pedido 13622 — tarefa 5 (montada; espera o "pode")
+
+- Só leitura no banco real: o pedido 13622 tem **um** anexo — id 1, "TESTE - comprovante de exemplo.png" (PNG, 37 KB), enviado pelo dono em 15/10 05:40 UTC no cartão do pedido (cartão arquivado desde a D-140). Ninguém escuta `anexo_removido` (4 webhooks ativos, nenhum desse fato; nenhum gatilho de automação de anexo).
+- Caminho normal = a porta do botão "Tirar" (`plt_fn_anexo_remover`) em nome de quem enviou (o dono): `removido_em/removido_por` + fato novo `anexo_removido` (regra 5); o arquivo fica guardado, só o admin vê.
+- **Ensaio desfeito (A-11)** como o dono (`set_config('role','authenticated')` + o `sub` = `auth_user_id`): `tirado`, `removido_por` = o dono, 1 fato, 0 anexos visíveis; conferido depois que nada ficou (removido_em nulo, 0 fatos).
+- Pronto para rodar UMA vez com o "pode": `supabase/manutencao/2026-10-16_tirar_imagem_teste_13622.sql`.
