@@ -1015,3 +1015,19 @@ create index if not exists notas_fiscais_pedido_id_idx   on public.notas_fiscais
 -- coluna gerada se refaz sozinha). Como minimo_plataforma, imagem_caminho,
 -- imagem_tiny e minimo_travado (migrations 40, 44 e 45), são colunas DA
 -- PLATAFORMA dentro de produtos.
+
+-- ---------------------------------------------------------------------------
+-- 13 · GATILHOS DO COMERCIAL EM pedidos E clientes (tabelas da integração) —
+--      SESSAO-32, 16/10/2026, migration 86 (20261016110000_plt_comercial_tela_pronta.sql),
+--      com o OK do dono (D-139). A "tela pronta" do Comercial (plt_comercial_*)
+--      se refaz no fato; À PROVA DE FALHA como os da seção 11: um erro aqui
+--      NUNCA derruba a gravação do Tiny (o pedido fica em plt_comercial_pendentes
+--      e a próxima gravação refaz). O DDL completo mora na migration.
+-- ---------------------------------------------------------------------------
+-- plt_pedidos_comercial_ins_del — after insert or delete on pedidos
+-- plt_pedidos_comercial_upd     — after update on pedidos, só quando muda número,
+--                                 cliente, data, total, criação, o nome do cliente
+--                                 no pedido ou os itens
+-- plt_clientes_comercial        — after update on clientes, só quando muda o
+--                                 telefone (fone ou o celular do cadastro)
+-- Impressão digital da integração idêntica: e2109f3a0ab69112b6a48baadbbba876.

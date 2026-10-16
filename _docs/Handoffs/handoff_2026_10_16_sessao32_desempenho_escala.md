@@ -11,7 +11,7 @@ tags: [handoff, sessao, sessao-32, bloco-6, desempenho, escala, banco, websocket
 > [!success] Entregue em modo noturno — o que dependia só do Claude está no ar; o que é do dono está pronto e esperando
 > Ordem do dono (15/10, ~21:10 de Natal): *"Vou sair agora, abre logo o navegador aqui pra que eu possa logar pra você e você testa tudo e me entrega apenas o resultado final após finalizar"* → *"Vá lá"*. Cada frente foi testada inteira (bateria do banco, tipos, estilo, testes de tela, montagem com teto, conferência no banco real pessoa por pessoa como `authenticated`, navegação no site com a conta do dono) e então **aplicada e publicada no mesmo gesto** (E-73). O reservado ao dono (D-137) ficou em `supabase/pendentes/`, com prova e números. Memória técnica completa: [[SESSAO-32]] (`Plataforma/Execucao/SESSAO-32.md`).
 
-**Branch:** `sessao-32-desempenho-escala` (cada frente foi à `main` por avanço direto — D-20). **Demanda:** [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]]. **Banco:** migrations **76 a 85** (83–85 depois do OK do dono — D-138) + a manutenção `2026-10-16_parar_fila_tiny_saldos_gigantes.sql` (integração do Tiny idêntica em todas — `e2109f3a…`). **Bateria do banco:** 970 → **1.013 verificações, tudo verde** (+ o bloco 85 da separação dos insumos, verde); testes de tela 162 → **191**. **Decisões:** D-137 e D-138.
+**Branch:** `sessao-32-desempenho-escala` (cada frente foi à `main` por avanço direto — D-20). **Demanda:** [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]]. **Banco:** migrations **76 a 86** (83–86 depois do OK do dono — D-138 e D-139) + a manutenção `2026-10-16_parar_fila_tiny_saldos_gigantes.sql` (integração do Tiny idêntica em todas — `e2109f3a…`). **Bateria do banco:** 970 → **1.013 verificações, tudo verde** (+ o bloco 85 da separação dos insumos, verde); testes de tela 162 → **191**. **Decisões:** D-137, D-138 e D-139.
 
 ## 1. Objetivo da sessão
 
@@ -53,6 +53,12 @@ Dois insumos cadastrados como "simples" no Tiny com saldo enorme (fita de borda 
   - **Achado na foto de antes:** a fila do Tiny continuava criando cartões de insumo (≈4.765 no começo da noite → **5.090** na hora de aplicar; 19 insumos na fila) — a fila agora só aceita móvel e os 19 saíram dela.
   - Tempo no servidor: a lista do admin 2–3 ms; as abas do estoque ~24 ms; o retrato do galpão ~15 ms.
 
+### Comercial: a tela pronta no banco ✅ (migration 86 — D-139, pedido do dono)
+- **Abre no mês atual:** Painel de Recompra em "Do mês"; no Dashboard, o que abria em "Tudo" abre no mês atual (números do topo, frequência de compra, top de produtos). "Todo o período" a um toque.
+- **"Todo o período" quase instantâneo:** a tela fica pronta no banco (os pedidos já desmontados, a vida de cada cliente e as contas do mês), atualizada a cada pedido que o n8n grava — à prova de falha: se der erro ali, o pedido grava normalmente e a tela se corrige na próxima gravação.
+- **Números:** no banco real, Painel no mês atual 1,9 ms e no período inteiro 3 ms (antes 1,5–2,5 s); números 1,3–1,6 ms; top de produtos 2,9 ms (antes 220 ms); maiores clientes 0,6 ms (antes 149 ms).
+- **Mesmos números de antes:** bateria (24 filtros do painel, 8 períodos do dashboard, gravações acompanhadas) e banco real numa transação desfeita (0 diferença em 21 filtros e 7 períodos, 42.658 linhas).
+
 ### Frente I — prova de carga ✅
 | | Antes (15/10, começo da noite) | Antes, depois do `ANALYZE` | **Depois (16/10)** |
 |---|---|---|---|
@@ -77,6 +83,7 @@ A 1ª rodada ×10 mostrou a **manada** (todas as Visões do dia e PCPs relendo n
 8. **Tablet (768 px) e celular (375 px):** nada mudou na aparência; confira se tudo segue igual.
 9. **Móveis, insumos e peças (admin):** Configurações → Móveis, insumos e peças. Busque um produto (ex.: "bucha"), filtre por Peça (63), troque um produto de tipo e depois toque em "Voltar ao automático" — o aviso confirma cada troca e ela aparece na auditoria.
 10. **Estoque → Matéria-prima e insumos:** os insumos e as peças com a quantidade na unidade de cada um (un., m², m…) e o que cada um é (insumo, peça, kit, matéria-prima).
+12. **Comercial → Painel de Recompra:** abre em "Do mês" (o atual), na hora. Troque "Data da Compra" para "Todo o período" — a tabela e os números voltam quase instantâneos. No Dashboard, toque em "Tudo" em qualquer cartão.
 11. **Estoque → Configurações → Galpão:** "Móveis em estoque" conta só móvel (130 na hora da aplicação — antes 4.895, com os insumos).
 
 ## 4. Critérios de aceite — um a um
@@ -95,7 +102,7 @@ A 1ª rodada ×10 mostrou a **manada** (todas as Visões do dia e PCPs relendo n
 | Listas que crescem por cursor; teto no banco | ✔ Auditoria e automações por cursor; as outras 22 são limitadas, com teto |
 | Teste de carga 40 e ×10 | ✔ §2 |
 | Core Web Vitals p75 dos tablets | a medição está no ar; os números chegam com o uso |
-| Integração do Tiny idêntica a cada atualização | ✔ em todas (76 a 85) |
+| Integração do Tiny idêntica a cada atualização | ✔ em todas (76 a 86) |
 | §14 da lei atualizado | ✔ andamento da SESSAO-32 + dívidas 18 a 20 |
 | ClickUp em FAZENDO, nunca concluído, dono avisado | ✔ §8 |
 
@@ -139,17 +146,18 @@ Em **FAZENDO**, nenhuma concluída (quem conclui é o dono):
 - [Pacote dividido por tela](https://app.clickup.com/t/17tya50fm3y) — **entregue** (comentário).
 - [Primeira abertura em uma requisição](https://app.clickup.com/t/17tya50fm3v) — abertura entregue; telas com 2–3 leituras seguem (dívida 18).
 - [Banco: índices, políticas de acesso e estatísticas](https://app.clickup.com/t/17tya50fm40) — **entregue**, com os índices que esperavam o OK aplicados (D-138; comentário com o que foi feito e como conferir).
+- [Telas lentas do comercial e gravação do pedido do Tiny](https://app.clickup.com/t/17tya50fm3z) — **em FAZENDO**: o Comercial entregue (comentário com o que foi feito e como conferir); a gravação do pedido do Tiny segue.
 - A separação de **móvel, insumo e peça** e a tela de Configurações **não têm tarefa no ClickUp** — o dono decide se cria (regra 19).
 - [Listas por cursor](https://app.clickup.com/t/17tya50fm42) — as que crescem entregues; carga no §2.
-- Ficam em A FAZER (dependem do dono ou da próxima sessão): [Permissões no token](https://app.clickup.com/t/17tya50fm3x) · [Telas lentas do comercial e gravação do pedido do Tiny](https://app.clickup.com/t/17tya50fm3z) · [Rotinas do banco por evento](https://app.clickup.com/t/17tya50fm41).
+- Ficam em A FAZER (dependem do dono ou da próxima sessão): [Permissões no token](https://app.clickup.com/t/17tya50fm3x) · [Rotinas do banco por evento](https://app.clickup.com/t/17tya50fm41).
 
 ## 9. Para a máquina — onde está cada coisa
 
-- **Migrations:** 76 `20261016010000_plt_estoque_tiny_teto_e_tentativa` · 77 `…020000_plt_banco_indices_politicas` · 78 `…030000_plt_abertura_e_ao_vivo` · 79 `…040000_plt_medicao_web` · 80 `…050000_plt_abertura_catalogos` · 81 `…060000_plt_listas_por_cursor` · 82 `…070000_plt_pcp_quadro_numa_leitura` · 83 `…080000_plt_pedidos_busca_indices` · 84 `…090000_plt_indices_copias_tiny_e_repetidos` · 85 `…100000_plt_estoque_movel_insumo_peca` — detalhe em [[SUPA - Esquema do Banco]]. Manutenção: `supabase/manutencao/2026-10-16_parar_fila_tiny_saldos_gigantes.sql`. **Pendente:** só o gancho do token em `supabase/pendentes/` (README).
+- **Migrations:** 76 `20261016010000_plt_estoque_tiny_teto_e_tentativa` · 77 `…020000_plt_banco_indices_politicas` · 78 `…030000_plt_abertura_e_ao_vivo` · 79 `…040000_plt_medicao_web` · 80 `…050000_plt_abertura_catalogos` · 81 `…060000_plt_listas_por_cursor` · 82 `…070000_plt_pcp_quadro_numa_leitura` · 83 `…080000_plt_pedidos_busca_indices` · 84 `…090000_plt_indices_copias_tiny_e_repetidos` · 85 `…100000_plt_estoque_movel_insumo_peca` · 86 `…110000_plt_comercial_tela_pronta` — detalhe em [[SUPA - Esquema do Banco]]. Manutenção: `supabase/manutencao/2026-10-16_parar_fila_tiny_saldos_gigantes.sql`. **Pendente:** só o gancho do token em `supabase/pendentes/` (README).
 - **Front:** `src/autenticacao/{abertura,inatividade}.ts` · `ProvedorSessao.tsx` · `src/lib/{aoVivo,medicao,versaoNova}.ts` · `src/chat/canais.ts` · `src/navegacao/pedacos.ts` · `src/App.tsx` (telas sob demanda) · `vite.config.ts` (teto) · `vercel.json` (cache) · `src/componentes/AvisoAoVivoPausado.tsx` · telas: Meu Painel, Afazeres, Afazeres do time, Visão do dia, Danificados, Config. do estoque, API, PCP, Auditoria, Automações, lista do Comercial, painel do Comercial · **móvel/insumo/peça:** `src/paginas/ClassificacaoProdutos.tsx`, `src/logistica/classificacao.ts`, `src/logistica/componentes/PainelInsumos.tsx` (o tipo na aba de insumos), rota `/configuracoes/produtos` (App, menu, pré-carregamento, auditoria).
-- **Bateria:** blocos 76, 78–83 e 85 em `supabase/testes/testar-migrations.mjs` (o 83 compara a porta de Pedidos de antes com a da migration 83; o PGlite carrega `pg_trgm`).
-- **Scripts de prova (scratchpad da sessão):** `conferir-78/79/81/82/83/85.mjs`, `tempo-85b.mjs`, `upsert-produto.mjs`, `carga.mjs`/`carga-nova.mjs`, `visibilidade.mjs`, `medir-pedidos.mjs`, `ensaio-pedidos-x100.mjs`, `foto-pss.mjs`.
-- **Aprendizados:** E-101 a E-106 e A-65 a A-69 em [[PLT - Memoria de Aprendizado]].
+- **Bateria:** blocos 76, 78–83, 85 e 86 em `supabase/testes/testar-migrations.mjs` (o 83 compara a porta de Pedidos de antes com a da migration 83; o PGlite carrega `pg_trgm`).
+- **Scripts de prova (scratchpad da sessão):** `conferir-78/79/81/82/83/85/86.mjs`, `tempo-85b.mjs`, `upsert-produto.mjs`, `baixar-comercial.mjs`, `plano-mes-86.mjs`, `carga.mjs`/`carga-nova.mjs`, `visibilidade.mjs`, `medir-pedidos.mjs`, `ensaio-pedidos-x100.mjs`, `foto-pss.mjs`.
+- **Aprendizados:** E-101 a E-107 e A-65 a A-70 em [[PLT - Memoria de Aprendizado]].
 
 ## Ver também
 
