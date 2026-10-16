@@ -8636,8 +8636,8 @@ conferir(
   JSON.stringify(comMudanca?.pedidos ?? null),
 )
 const priv50 = await um50(`
-  select has_function_privilege('anon', 'public.plt_fn_auditoria(integer, integer, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as anon,
-         has_function_privilege('authenticated', 'public.plt_fn_auditoria(integer, integer, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as logado,
+  select has_function_privilege('anon', 'public.plt_fn_auditoria(integer, timestamptz, bigint, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_auditoria(integer, timestamptz, bigint, uuid, text[], timestamptz, timestamptz, text, boolean)', 'execute') as logado,
          has_function_privilege('anon', 'public.plt_fn_auditoria_conferencias(integer, integer)', 'execute') as conf_anon`)
 conferir(!priv50.anon && priv50.logado && !priv50.conf_anon, 'anônimo fora; logado entra na porta e o gate de admin decide por dentro', JSON.stringify(priv50))
 await como50('')
@@ -9110,7 +9110,7 @@ conferir(
 await ligar51(a14, false)
 
 const lista51 = await todos51(`select * from public.plt_fn_automacoes(p_limite => 50)`)
-const execPorta = await todos51(`select * from public.plt_fn_automacao_execucoes(${a1}, 1, 0)`)
+const execPorta = await todos51(`select * from public.plt_fn_automacao_execucoes(${a1}, 1)`) // SESSAO-32: cursor (migration 81)
 const exemplos = lista51.filter((a) => a.nome.startsWith('Exemplo · '))
 conferir(
   lista51.length > 0 && Number(lista51[0].contagem_total) === lista51.length && exemplos.length === 2 && exemplos.every((a) => !a.ligada)
@@ -12968,6 +12968,79 @@ conferir(
   JSON.stringify(resultados80),
 )
 } // fim do bloco 80
+
+// ============================================================================
+// SESSAO-32 — migration 81: a trilha e o histórico das automações POR CURSOR.
+// "Mudar o caminho, nunca o resultado": percorrer todas as páginas pelo cursor
+// = a lista inteira, na mesma ordem, sem repetir; total só na 1ª página.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · a trilha e as execuções por cursor: todas as páginas = a lista inteira, na ordem')
+const como81 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const linhas81 = async (sql) => (await bd.query(sql)).rows
+await como81(E40.admin)
+// percorre a trilha de navegação de 7 em 7 pelo cursor
+const percorrer81 = async (filtro, tamanho) => {
+  const ids = []
+  let cursor = null
+  let total = null
+  let paginas = 0
+  for (;;) {
+    const args = cursor
+      ? `p_limite => ${tamanho}, p_antes_em => '${cursor.em}'::timestamptz, p_antes_id => ${cursor.id}, ${filtro}`
+      : `p_limite => ${tamanho}, ${filtro}`
+    const pag = await linhas81(`select id::text as id, criado_em::text as em, tem_mais, contagem_total from public.plt_fn_auditoria(${args})`)
+    paginas += 1
+    if (paginas === 1) total = pag[0]?.contagem_total ?? 0
+    else if (pag.some((l) => l.contagem_total !== null)) total = 'contou de novo'
+    ids.push(...pag.map((l) => l.id))
+    if (!pag.length || !pag[0].tem_mais) break
+    cursor = { em: pag[pag.length - 1].em, id: pag[pag.length - 1].id }
+    if (paginas > 500) break
+  }
+  return { ids, total: total === null ? null : String(total), paginas }
+}
+const nav7 = await percorrer81(`p_acoes => array['navegacao']`, 7)
+const nav100 = await percorrer81(`p_acoes => array['navegacao']`, 100)
+const direto81 = (await linhas81(`select id::text as id from public.plt_logs_atividade where acao = 'navegacao' order by criado_em desc, id desc`)).map((l) => l.id)
+const pessoas7 = await percorrer81(`p_sistema => false`, 9)
+const pessoas100 = await percorrer81(`p_sistema => false`, 100)
+conferir(
+  nav7.paginas > 1 && JSON.stringify(nav7.ids) === JSON.stringify(direto81) && JSON.stringify(nav100.ids) === JSON.stringify(direto81)
+    && nav7.total === String(direto81.length)
+    && JSON.stringify(pessoas7.ids) === JSON.stringify(pessoas100.ids) && new Set(pessoas7.ids).size === pessoas7.ids.length
+    && pessoas7.total === String(pessoas7.ids.length),
+  `a trilha de 7 em 7 pelo cursor = a lista inteira, na ordem (${direto81.length} navegações em ${nav7.paginas} páginas); o total só na 1ª página`,
+  JSON.stringify({ nav7: { n: nav7.ids.length, p: nav7.paginas, t: nav7.total }, direto: direto81.length, pessoas7: { n: pessoas7.ids.length, t: pessoas7.total }, pessoas100: pessoas100.ids.length }),
+)
+// as execuções de uma automação: a que tem mais execuções, de 1 em 1
+const auto81 = (await linhas81(`select automacao_id::text as a, count(*)::int as n from public.plt_automacao_execucoes group by 1 order by 2 desc, 1 limit 1`))[0]
+let execIds = []
+let execTotal = null
+if (auto81) {
+  let antes = null
+  for (let i = 0; i < 200; i += 1) {
+    const pag = await linhas81(`select id::text as id, tem_mais, contagem_total from public.plt_fn_automacao_execucoes(${auto81.a}, 1${antes ? `, ${antes}` : ''})`)
+    if (i === 0) execTotal = pag[0]?.contagem_total
+    execIds.push(...pag.map((l) => l.id))
+    if (!pag.length || !pag[0].tem_mais) break
+    antes = pag[pag.length - 1].id
+  }
+}
+const execDireto = auto81 ? (await linhas81(`select id::text as id from public.plt_automacao_execucoes where automacao_id = ${auto81.a} order by id desc`)).map((l) => l.id) : []
+const priv81 = (await linhas81(`
+  select has_function_privilege('anon', 'public.plt_fn_automacao_execucoes(bigint, integer, bigint)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_automacao_execucoes(bigint, integer, bigint)', 'execute') as logado,
+         to_regprocedure('public.plt_fn_auditoria(integer, integer, uuid, text[], timestamptz, timestamptz, text, boolean)') is null as velha_auditoria_saiu,
+         to_regprocedure('public.plt_fn_automacao_execucoes(bigint, integer, integer)') is null as velha_execucoes_saiu`))[0]
+conferir(
+  auto81 && execIds.length === auto81.n && JSON.stringify(execIds) === JSON.stringify(execDireto) && String(execTotal) === String(auto81.n)
+    && !priv81.anon && priv81.logado && priv81.velha_auditoria_saiu && priv81.velha_execucoes_saiu,
+  'as execuções de 1 em 1 pelo cursor = todas, na ordem; as portas antigas (por deslocamento) saíram; anônimo fora',
+  JSON.stringify({ auto81, execIds: execIds.length, execTotal, priv81 }),
+)
+await como81('')
+} // fim do bloco 81
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

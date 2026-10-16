@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
  * Camada de dados da AUDITORIA (SESSAO-29 · D-95 ↪️ D-40): duas portas de
  * leitura, só do admin (o gate mora no banco), paginadas no servidor — a tela
  * pede uma página por vez e o total vem na mesma consulta (regra 17).
+ * SESSAO-32 (migration 81): a trilha cresce sem fim — vai por CURSOR (a próxima
+ * página começa depois da última linha mostrada) e o total vem só na 1ª.
  */
 
 /** Uma linha da trilha de atividade, já traduzida pelo banco (nome, pedido, setores, porquê). */
@@ -22,7 +24,15 @@ export interface LinhaAuditoria {
   etapa_origem: string | null
   etapa_destino: string | null
   motivo: string | null
-  contagem_total: number
+  tem_mais: boolean
+  /** Só na 1ª página (até 10.001 — a tela mostra "10.000+"). */
+  contagem_total: number | null
+}
+
+/** O cursor da trilha: a última linha mostrada. */
+export interface CursorAuditoria {
+  em: string
+  id: number
 }
 
 export interface FiltrosAuditoria {
@@ -40,12 +50,13 @@ export interface FiltrosAuditoria {
 
 export async function buscarAuditoria(
   filtros: FiltrosAuditoria,
-  pagina: number,
+  cursor: CursorAuditoria | null,
   porPagina: number,
-): Promise<{ linhas: LinhaAuditoria[]; total: number }> {
+): Promise<{ linhas: LinhaAuditoria[]; total: number | null; temMais: boolean }> {
   const { data, error } = await supabase.rpc('plt_fn_auditoria', {
     p_limite: porPagina,
-    p_deslocamento: (pagina - 1) * porPagina,
+    p_antes_em: cursor?.em ?? null,
+    p_antes_id: cursor?.id ?? null,
     p_usuario: filtros.usuarioId,
     p_acoes: filtros.acoes,
     p_desde: filtros.desde,
@@ -55,7 +66,11 @@ export async function buscarAuditoria(
   })
   if (error) throw new Error(`Não deu para carregar a auditoria: ${error.message}`)
   const linhas = (data ?? []) as LinhaAuditoria[]
-  return { linhas, total: Number(linhas[0]?.contagem_total ?? 0) }
+  return {
+    linhas,
+    total: cursor ? null : Number(linhas[0]?.contagem_total ?? 0),
+    temMais: linhas[0]?.tem_mais ?? false,
+  }
 }
 
 /** O resumo de uma rodada da conferência diária com o Tiny (o pente-fino). */

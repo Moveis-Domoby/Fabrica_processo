@@ -117,7 +117,10 @@ export async function ligarAutomacao(id: number, ligar: boolean): Promise<void> 
 }
 
 export async function arquivarAutomacao(id: number, arquivar: boolean): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_automacao_arquivar', { p_id: id, p_arquivar: arquivar })
+  const { error } = await supabase.rpc('plt_fn_automacao_arquivar', {
+    p_id: id,
+    p_arquivar: arquivar,
+  })
   if (error) throw new Error(error.message)
 }
 
@@ -129,16 +132,21 @@ export async function excluirAutomacao(id: number): Promise<void> {
 
 export async function listarExecucoes(
   automacaoId: number,
-  pagina: number,
-): Promise<{ linhas: Execucao[]; total: number }> {
+  /** O cursor (SESSAO-32 · migration 81): a última execução mostrada; nulo = 1ª página. */
+  antesId: number | null,
+): Promise<{ linhas: Execucao[]; total: number | null; temMais: boolean }> {
   const { data, error } = await supabase.rpc('plt_fn_automacao_execucoes', {
     p_automacao_id: automacaoId,
     p_limite: POR_PAGINA_EXECUCOES,
-    p_deslocamento: (pagina - 1) * POR_PAGINA_EXECUCOES,
+    p_antes_id: antesId,
   })
   if (error) throw new Error(`Não deu para carregar as execuções: ${error.message}`)
-  const linhas = (data ?? []) as (Execucao & { contagem_total: number })[]
-  return { linhas, total: Number(linhas[0]?.contagem_total ?? 0) }
+  const linhas = (data ?? []) as (Execucao & { contagem_total: number | null; tem_mais: boolean })[]
+  return {
+    linhas,
+    total: antesId === null ? Number(linhas[0]?.contagem_total ?? 0) : null,
+    temMais: linhas[0]?.tem_mais ?? false,
+  }
 }
 
 /** O endereço da chamada de fora desta automação (a Edge Function `api`). */

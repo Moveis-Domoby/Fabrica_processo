@@ -13,7 +13,13 @@ import { buscarAuditoria, buscarConferencias } from '@/auditoria/api'
  */
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
 vi.mock('@/kanban/api', () => ({
-  buscarNomesUsuarios: vi.fn(async () => new Map([['u1', 'Wallace'], ['u2', 'Guilherme']])),
+  buscarNomesUsuarios: vi.fn(
+    async () =>
+      new Map([
+        ['u1', 'Wallace'],
+        ['u2', 'Guilherme'],
+      ]),
+  ),
   buscarSetores: vi.fn(async () => [
     { id: 1, codigo: 'secc', nome: 'SECC' },
     { id: 2, codigo: 'furacao', nome: 'FURAÇÃO' },
@@ -22,6 +28,7 @@ vi.mock('@/kanban/api', () => ({
 vi.mock('@/auditoria/api', () => ({
   buscarAuditoria: vi.fn(async () => ({
     total: 2,
+    temMais: false,
     linhas: [
       {
         id: 2,
@@ -38,6 +45,7 @@ vi.mock('@/auditoria/api', () => ({
         etapa_origem: null,
         etapa_destino: null,
         motivo: 'peça pronta para furar',
+        tem_mais: false,
         contagem_total: 2,
       },
       {
@@ -55,6 +63,7 @@ vi.mock('@/auditoria/api', () => ({
         etapa_origem: null,
         etapa_destino: null,
         motivo: 'Pedido cancelado no Tiny.',
+        tem_mais: false,
         contagem_total: 2,
       },
     ],
@@ -91,7 +100,9 @@ vi.mock('@/auditoria/api', () => ({
 
 function renderizar() {
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <MemoryRouter initialEntries={['/super-admin/auditoria']}>
         <ProvedorNotificacao>
           <Auditoria />
@@ -106,7 +117,9 @@ describe('Painel admin → Auditoria', () => {
 
   it('mostra a trilha em língua de gente: o quê, o pedido, quem, onde e o porquê; o Sistema tem nome', async () => {
     renderizar()
-    const movimento = (await screen.findByText('Moveu o card de setor')).closest('li') as HTMLElement
+    const movimento = (await screen.findByText('Moveu o card de setor')).closest(
+      'li',
+    ) as HTMLElement
     expect(within(movimento).getByText(/pedido 13429/)).toBeInTheDocument()
     expect(within(movimento).getByText('Guilherme')).toBeInTheDocument()
     expect(within(movimento).getByText(/SECC → FURAÇÃO/)).toBeInTheDocument()
@@ -116,9 +129,9 @@ describe('Painel admin → Auditoria', () => {
     expect(within(cancelado).getByText(/pedido 13500/)).toBeInTheDocument()
     // nenhum código interno na tela
     expect(screen.queryByText(/movimentacao_setor|pedido_cancelado|card_id|evento_id/)).toBeNull()
-    // a 1ª consulta: uma página, últimos 7 dias, sem filtro de pessoa nem de tipo
-    const [filtros, pagina, porPagina] = vi.mocked(buscarAuditoria).mock.calls[0]
-    expect(pagina).toBe(1)
+    // a 1ª consulta: a 1ª página (sem cursor), últimos 7 dias, sem filtro de pessoa nem de tipo
+    const [filtros, cursor, porPagina] = vi.mocked(buscarAuditoria).mock.calls[0]
+    expect(cursor).toBeNull()
     expect(porPagina).toBe(30)
     expect(filtros.usuarioId).toBeNull()
     expect(filtros.acoes).toBeNull()
@@ -130,6 +143,7 @@ describe('Painel admin → Auditoria', () => {
   it('linha de uma automação que já foi excluída ganha a etiqueta "Automação excluída" (o histórico fica)', async () => {
     vi.mocked(buscarAuditoria).mockResolvedValueOnce({
       total: 1,
+      temMais: false,
       linhas: [
         {
           id: 3,
@@ -138,7 +152,12 @@ describe('Painel admin → Auditoria', () => {
           usuario_nome: 'Guilherme',
           acao: 'automacao_excluida',
           rota: null,
-          contexto: { automacao_id: 10, automacao: 'Teste — etiqueta posta arquiva', execucoes: 2, automacao_excluida: true },
+          contexto: {
+            automacao_id: 10,
+            automacao: 'Teste — etiqueta posta arquiva',
+            execucoes: 2,
+            automacao_excluida: true,
+          },
           pedido_numero: null,
           card_tipo: null,
           setor_origem: null,
@@ -146,6 +165,7 @@ describe('Painel admin → Auditoria', () => {
           etapa_origem: null,
           etapa_destino: null,
           motivo: 'Automação "Teste — etiqueta posta arquiva" excluída',
+          tem_mais: false,
           contagem_total: 1,
         },
       ],
@@ -158,16 +178,16 @@ describe('Painel admin → Auditoria', () => {
     expect(within(linha).getByText('Execuções no histórico')).toBeInTheDocument()
   })
 
-  it('a busca (nº do pedido) só vai ao servidor no Enter/botão, na página 1', async () => {
+  it('a busca (nº do pedido) só vai ao servidor no Enter/botão, da 1ª página', async () => {
     renderizar()
     await screen.findByText('Moveu o card de setor')
     fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: ' 13429 ' } })
     expect(buscarAuditoria).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Fazer a busca' }))
     await waitFor(() => expect(buscarAuditoria).toHaveBeenCalledTimes(2))
-    const [filtros, pagina] = vi.mocked(buscarAuditoria).mock.calls[1]
+    const [filtros, cursor] = vi.mocked(buscarAuditoria).mock.calls[1]
     expect(filtros.busca).toBe('13429')
-    expect(pagina).toBe(1)
+    expect(cursor).toBeNull()
   })
 
   it('a aba das conferências com o Tiny: a próxima às 3h e quais pedidos estavam diferentes', async () => {

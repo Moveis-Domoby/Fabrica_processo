@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import {
   Activity,
   ArrowRightLeft,
@@ -23,6 +23,7 @@ import {
   Workflow,
 } from 'lucide-react'
 import { Abas, Botao, Campo, Dica, Paginacao, Selecao } from '@/componentes/ui'
+import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { buscarNomesUsuarios, buscarSetores } from '@/kanban/api'
 import {
   buscarAuditoria,
@@ -30,6 +31,7 @@ import {
   type FiltrosAuditoria,
   type LinhaAuditoria,
 } from '@/auditoria/api'
+import type { CursorAuditoria } from '@/auditoria/api'
 import {
   GRUPOS_ACAO,
   detalhesDoContexto,
@@ -164,7 +166,6 @@ function PainelAtividade() {
   const [desde, setDesde] = useState<string | null>(() => desdeDoPeriodo('7d'))
   const [textoBusca, setTextoBusca] = useState('')
   const [busca, setBusca] = useState<string | null>(null)
-  const [pagina, setPagina] = useState(1)
 
   const { data: nomes } = useQuery({
     queryKey: ['usuarios', 'nomes'],
@@ -184,13 +185,26 @@ function PainelAtividade() {
     [quem, tipo, desde, busca],
   )
 
-  const { data, isPending, isError, error, isFetching } = useQuery({
-    queryKey: ['auditoria', 'atividade', filtros, pagina],
-    queryFn: () => buscarAuditoria(filtros, pagina, POR_PAGINA),
-    placeholderData: (anterior) => anterior,
+  // SESSAO-32 (migration 81): a trilha cresce sem fim — por CURSOR, a próxima
+  // página ao rolar ("Ver mais" sozinho), o total só na 1ª.
+  const consulta = useInfiniteQuery({
+    queryKey: ['auditoria', 'atividade', filtros],
+    queryFn: ({ pageParam }) => buscarAuditoria(filtros, pageParam, POR_PAGINA),
+    initialPageParam: null as CursorAuditoria | null,
+    getNextPageParam: (ultima) => {
+      const derradeira = ultima.linhas[ultima.linhas.length - 1]
+      return ultima.temMais && derradeira
+        ? { em: derradeira.criado_em, id: derradeira.id }
+        : undefined
+    },
+    placeholderData: keepPreviousData,
   })
-  const linhas = data?.linhas ?? []
-  const total = data?.total ?? 0
+  const { isPending, isError, error, isFetching } = consulta
+  const linhas = useMemo(
+    () => (consulta.data?.pages ?? []).flatMap((p) => p.linhas),
+    [consulta.data],
+  )
+  const total = consulta.data?.pages[0]?.total ?? 0
 
   const opcoesQuem = useMemo(
     () => [
@@ -207,7 +221,6 @@ function PainelAtividade() {
     evento.preventDefault()
     const texto = textoBusca.trim()
     setBusca(texto ? texto : null)
-    setPagina(1)
   }
 
   return (
@@ -216,15 +229,7 @@ function PainelAtividade() {
         onSubmit={buscar}
         className="grid grid-cols-1 gap-3 rounded-dm-lg border border-borda bg-superficie p-4 sm:grid-cols-2 lg:grid-cols-4"
       >
-        <Selecao
-          rotulo="Quem"
-          opcoes={opcoesQuem}
-          valor={quem}
-          aoMudar={(v) => {
-            setQuem(v)
-            setPagina(1)
-          }}
-        />
+        <Selecao rotulo="Quem" opcoes={opcoesQuem} valor={quem} aoMudar={setQuem} />
         <Selecao
           rotulo="Tipo"
           opcoes={[
@@ -232,10 +237,7 @@ function PainelAtividade() {
             ...GRUPOS_ACAO.map((g) => ({ valor: g.valor, rotulo: g.rotulo })),
           ]}
           valor={tipo}
-          aoMudar={(v) => {
-            setTipo(v as 'tudo' | GrupoAcao)
-            setPagina(1)
-          }}
+          aoMudar={(v) => setTipo(v as 'tudo' | GrupoAcao)}
         />
         <Selecao
           rotulo="Período"
@@ -244,7 +246,6 @@ function PainelAtividade() {
           aoMudar={(v) => {
             setPeriodo(v as Periodo)
             setDesde(desdeDoPeriodo(v as Periodo))
-            setPagina(1)
           }}
         />
         <div className="flex items-end gap-2">
@@ -279,25 +280,24 @@ function PainelAtividade() {
       ) : (
         <>
           <p className="text-sm text-texto-suave" aria-live="polite">
-            <strong className="text-texto tabular-nums">{total.toLocaleString('pt-BR')}</strong>{' '}
+            <strong className="text-texto tabular-nums">
+              {total > 10_000 ? '10.000+' : total.toLocaleString('pt-BR')}
+            </strong>{' '}
             {total === 1 ? 'registro' : 'registros'}
-            {isFetching ? ' · atualizando…' : ''}
+            {isFetching && !consulta.isFetchingNextPage ? ' · atualizando…' : ''}
           </p>
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
             {linhas.map((linha) => (
               <ItemAtividade key={linha.id} linha={linha} setores={setores} />
             ))}
           </ul>
-          {total > POR_PAGINA && (
-            <Paginacao
-              paginaAtual={pagina}
-              totalPaginas={Math.ceil(total / POR_PAGINA)}
-              totalItens={total}
-              porPagina={POR_PAGINA}
-              aoMudarPagina={setPagina}
-              className="rounded-dm-lg border border-borda bg-superficie"
-            />
-          )}
+          <MaisAoRolar
+            temMais={consulta.hasNextPage}
+            carregando={consulta.isFetchingNextPage}
+            aoChegar={() => {
+              if (!consulta.isFetchingNextPage) void consulta.fetchNextPage()
+            }}
+          />
         </>
       )}
     </div>
