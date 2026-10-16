@@ -355,6 +355,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       ? [
                           { para: '/configuracoes/tempo', rotulo: 'Controle de tempo' },
                           { para: '/configuracoes/estoque', rotulo: 'Estoque' },
+                          { para: '/configuracoes/produtos', rotulo: 'Móveis, insumos e peças' },
                           { para: '/configuracoes/api', rotulo: 'API e integrações' },
                           { para: '/configuracoes/caminhoes', rotulo: 'Caminhões' },
                           { para: '/configuracoes/utilitarios', rotulo: 'Utilitários' },

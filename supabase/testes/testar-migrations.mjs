@@ -6224,7 +6224,7 @@ await deveRecusarExec(`select public.plt_fn_estoque_movimentar(940001, 'entrada'
 await deveRecusarExec(`select public.plt_fn_estoque_movimentar(940001, 'sumir', 1, null)`,
   'operação desconhecida é recusada', /entrada, baixa ou contagem/i)
 await deveRecusarExec(`select public.plt_fn_estoque_movimentar(940004, 'entrada', 1, null)`,
-  'matéria-prima não entra pela contagem daqui (segue pelo Tiny)', /matéria-prima e insumo/i)
+  'matéria-prima não entra pela contagem daqui (segue pelo Tiny)', /matéria-prima, insumo e peça/i) // D-138: o texto fala de móvel
 await deveRecusarExec(`select public.plt_fn_estoque_movimentar(940005, 'entrada', 1, null)`,
   'produto inativo no Tiny não entra no estoque', /inativo/i)
 await deveRecusarExec(`select public.plt_fn_estoque_movimentar(949999, 'entrada', 1, null)`,
@@ -12584,11 +12584,13 @@ await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 await bd.exec(`delete from public.plt_tiny_estoque_fila`)
 await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = now() where codigo = 'estoque'`)
 await bd.exec(`
-  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
-    (976001, 'S76A', 'Fita de borda Teste 76', 'S', 'A', 'm'),
-    (976002, 'S76B', 'Estante Teste 76', 'F', 'A', 'un'),
-    (976003, 'S76C', 'Nicho Teste 76', 'F', 'A', 'un'),
-    (976004, 'S76D', 'Suporte Teste 76', 'S', 'A', 'un')
+  -- (D-138: o teto protege o MÓVEL — os "simples" daqui levam o código fiscal de
+  -- móvel; simples sem ele é insumo e nem entra nesta fila — bloco 85)
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw) values
+    (976001, 'S76A', 'Fita de borda Teste 76', 'S', 'A', 'm', '{"ncm": "9403.60.00"}'),
+    (976002, 'S76B', 'Estante Teste 76', 'F', 'A', 'un', '{}'),
+    (976003, 'S76C', 'Nicho Teste 76', 'F', 'A', 'un', '{}'),
+    (976004, 'S76D', 'Suporte Teste 76', 'S', 'A', 'un', '{"ncm": "9403.60.00"}')
   on conflict (tiny_id) do nothing;
   select plt_privado.fn_tiny_estoque_enfileirar(976001, false, 'teste 76');
   select plt_privado.fn_tiny_estoque_enfileirar(976002, false, 'teste 76');
@@ -13183,6 +13185,133 @@ conferir(
   JSON.stringify({ amostra83, difs: difs83.slice(0, 5), opVelha, opNova }),
 )
 } // fim do bloco 83
+
+// ============================================================================
+// SESSAO-32 — migration 85 (D-138): móvel, insumo e peça — as contas separadas
+// no estoque. Automático pelo Tiny (código fiscal de móvel nos "simples"), à
+// mão pelo admin; as peças de insumo que já estão no ESTOQUE ficam no quadro e
+// saem da conta dos móveis.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · móvel, insumo e peça: o tipo automático pelo Tiny e as contas separadas no estoque')
+const um85 = async (sql) => (await bd.query(sql)).rows[0]
+const linhas85 = async (sql) => (await bd.query(sql)).rows
+const como85 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+await como85('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade, raw) values
+    (985001, 'S85A', 'Cadeira Teste 85 revenda', 'S', 'A', 'un', '{"ncm": "9401.71.00"}'),
+    (985002, 'S85B', 'Bucha Teste 85', 'S', 'A', 'un', '{}'),
+    (985003, 'S85C', 'Fita adesiva Teste 85', 'S', 'A', 'm', '{"ncm": "3919.10.00"}'),
+    (985004, 'S85D', 'Peca cortada Teste 85 - 100 x 346 x 15,5', 'M', 'A', 'pc', '{}'),
+    (985005, 'S85E', 'Chapa Teste 85', 'M', 'A', 'm2', '{}'),
+    (985006, 'S85F', 'Caixa de parafusos Teste 85', 'K', 'A', 'cx', '{}'),
+    (985007, 'S85G', 'Mesa Teste 85', 'F', 'A', 'un', '{}'),
+    (985008, 'S85H', 'Mesa com variacao Teste 85', 'V', 'A', 'un', '{}')
+  on conflict (tiny_id) do nothing;
+`)
+const tipos85 = Object.fromEntries((await linhas85(`select tiny_id::text as id, tipo_estoque_efetivo as t
+  from public.produtos where tiny_id between 985001 and 985008`)).map((r) => [r.id, r.t]))
+conferir(
+  tipos85['985001'] === 'movel' && tipos85['985002'] === 'insumo' && tipos85['985003'] === 'insumo'
+    && tipos85['985004'] === 'peca' && tipos85['985005'] === 'insumo' && tipos85['985006'] === 'insumo'
+    && tipos85['985007'] === 'movel' && tipos85['985008'] === 'movel',
+  'automático pelo Tiny: fabricado e com variação = móvel; simples = móvel só com o código fiscal de móvel; matéria-prima por peça = peça; o resto = insumo',
+  JSON.stringify(tipos85),
+)
+
+// O passado: peças de um insumo que a sincronização antiga criou no ESTOQUE
+// (simulado: o produto era móvel quando as 5 peças entraram).
+await bd.exec(`update public.produtos set tipo_estoque = 'movel' where tiny_id = 985002`)
+await como85(E40.logistica)
+await bd.exec(`select public.plt_fn_estoque_movimentar(985002, 'entrada', 5, 'teste 85 — peças antigas de insumo')`)
+const resumoMovel85 = await um85(`select moveis_estoque, pecas_unidades from public.plt_fn_estoque_resumo()`)
+await como85('')
+await bd.exec(`update public.produtos set tipo_estoque = null where tiny_id = 985002`)
+await bd.exec(`insert into public.plt_estoque_numeros (produto_tiny_id) values (985002) on conflict (produto_tiny_id) do nothing;
+               update public.plt_estoque_numeros set saldo_tiny = 1489 where produto_tiny_id = 985002`)
+await como85(E40.logistica)
+const resumoInsumo85 = await um85(`select moveis_estoque, pecas_unidades from public.plt_fn_estoque_resumo()`)
+const acabados85 = (await linhas85(`select tiny_id::text as id from public.plt_fn_estoque_produtos('acabados', 'Teste 85', null, 50, 0)`)).map((r) => r.id).sort()
+const insumos85 = (await linhas85(`select tiny_id::text as id, em_estoque, tipo_estoque from public.plt_fn_estoque_produtos('insumos', 'Teste 85', null, 50, 0)`))
+let recusa85 = null
+try {
+  await bd.query(`select public.plt_fn_estoque_movimentar(985002, 'entrada', 1, 'teste 85 — insumo não entra por aqui')`)
+} catch (e) {
+  recusa85 = String(e.message)
+}
+await como85('')
+const noQuadro85 = (await um85(`select count(*)::int as n from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id
+  where c.produto_tiny_id = 985002 and s.codigo = 'estoque' and c.arquivado_em is null`)).n
+const contados85 = await um85(`select plt_privado.fn_eh_acabado_contado(985002) as insumo, plt_privado.fn_eh_acabado_contado(985001) as movel`)
+const bucha85 = insumos85.find((r) => r.id === '985002')
+conferir(
+  JSON.stringify(acabados85) === JSON.stringify(['985001', '985007', '985008'])
+    && ['985002', '985003', '985004', '985005', '985006'].every((id) => insumos85.some((r) => r.id === id))
+    && Number(bucha85?.em_estoque) === 1489 && bucha85?.tipo_estoque === 'insumo'
+    && insumos85.find((r) => r.id === '985004')?.tipo_estoque === 'peca'
+    && resumoInsumo85.moveis_estoque === resumoMovel85.moveis_estoque - 5
+    && Number(resumoInsumo85.pecas_unidades) >= Number(resumoMovel85.pecas_unidades) + 1489
+    && noQuadro85 === 5
+    && /é de móvel/.test(recusa85 ?? '')
+    && contados85.insumo === false && contados85.movel === true,
+  'a aba dos móveis só tem móvel; insumo e peça vão para a aba de insumos (contados pelo Tiny, na unidade do produto, dizendo se é insumo ou peça); as 5 peças antigas FICAM no quadro do ESTOQUE e saem da conta dos móveis; a contagem da logística recusa insumo',
+  JSON.stringify({ acabados85, insumos85, resumoMovel85, resumoInsumo85, noQuadro85, recusa85, contados85 }),
+)
+
+// A fila de conciliação peça a peça com o Tiny é só de móvel
+await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = coalesce(tiny_sincronizado_desde, now()) where codigo = 'estoque'`)
+const enf85 = await um85(`select plt_privado.fn_tiny_estoque_enfileirar(985002, false, 'teste 85') as insumo,
+                                 plt_privado.fn_tiny_estoque_enfileirar(985001, false, 'teste 85') as movel`)
+await bd.exec(`delete from public.plt_tiny_estoque_fila where produto_tiny_id in (985001, 985002)`)
+conferir(enf85.insumo === false && enf85.movel === true,
+  'a fila de conciliação peça a peça com o Tiny só aceita móvel (insumo nunca mais vira peça por unidade)', JSON.stringify(enf85))
+
+// A tela de Configurações: a lista com filtros e a troca à mão (só o admin)
+await como85(E40.admin)
+const lista85 = await linhas85(`select tiny_id::text as id, tipo, tipo_automatico, definido_a_mao, contagem_total
+  from public.plt_fn_produtos_classificacao('Teste 85', null, null, null, 'A', 30, 0)`)
+const pecas85 = await linhas85(`select tiny_id::text as id from public.plt_fn_produtos_classificacao('Teste 85', 'peca', null, null, 'A', 30, 0)`)
+const simples85 = await linhas85(`select tiny_id::text as id from public.plt_fn_produtos_classificacao('Teste 85', null, 'S', null, 'A', 30, 0)`)
+const virou85 = (await um85(`select public.plt_fn_produto_definir_tipo(985005, 'peca') as t`)).t
+const manual85 = await linhas85(`select tiny_id::text as id, tipo, tipo_automatico, definido_a_mao
+  from public.plt_fn_produtos_classificacao('Teste 85', null, null, 'manual', 'A', 30, 0)`)
+const log85 = (await um85(`select count(*)::int as n from public.plt_logs_atividade
+  where acao = 'produto_tipo_definido' and contexto ->> 'tiny_id' = '985005' and contexto ->> 'para' = 'peca'`)).n
+const voltou85 = (await um85(`select public.plt_fn_produto_definir_tipo(985005, null) as t`)).t
+let invalido85 = null
+try {
+  await bd.query(`select public.plt_fn_produto_definir_tipo(985005, 'gaveta')`)
+} catch (e) {
+  invalido85 = String(e.message)
+}
+await como85(E40.operador)
+let operador85 = null
+try {
+  await bd.query(`select public.plt_fn_produto_definir_tipo(985005, 'movel')`)
+} catch (e) {
+  operador85 = String(e.message)
+}
+const operadorLista85 = (await linhas85(`select tiny_id from public.plt_fn_produtos_classificacao('Teste 85', null, null, null, 'A', 30, 0)`)).length
+await como85('')
+const priv85 = await um85(`
+  select has_function_privilege('anon', 'public.plt_fn_produto_definir_tipo(bigint, text)', 'execute') as anon_definir,
+         has_function_privilege('authenticated', 'public.plt_fn_produto_definir_tipo(bigint, text)', 'execute') as logado_definir,
+         has_function_privilege('anon', 'public.plt_fn_produtos_classificacao(text, text, text, text, text, integer, integer)', 'execute') as anon_lista,
+         has_function_privilege('authenticated', 'plt_privado.fn_tipo_estoque_automatico(text, text, jsonb)', 'execute') as maquinaria`)
+conferir(
+  lista85.length === 8 && Number(lista85[0].contagem_total) === 8
+    && JSON.stringify(pecas85.map((r) => r.id)) === JSON.stringify(['985004'])
+    && simples85.length === 3
+    && virou85 === 'peca' && manual85.length === 1 && manual85[0].id === '985005' && manual85[0].tipo === 'peca'
+    && manual85[0].tipo_automatico === 'insumo' && manual85[0].definido_a_mao === true && log85 === 1
+    && voltou85 === 'insumo' && /móvel, insumo ou peça/.test(invalido85 ?? '')
+    && /Só o admin/.test(operador85 ?? '') && operadorLista85 === 0
+    && !priv85.anon_definir && priv85.logado_definir && !priv85.anon_lista && !priv85.maquinaria,
+  'Configurações → Móveis, insumos e peças: lista paginada com filtros (tipo, classe, à mão); o admin troca e volta ao automático (fica na trilha); operador não vê nem troca; anônimo fora',
+  JSON.stringify({ lista: lista85.length, pecas85, simples: simples85.length, virou85, manual85, log85, voltou85, invalido85, operador85, operadorLista85, priv85 }),
+)
+} // fim do bloco 85
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

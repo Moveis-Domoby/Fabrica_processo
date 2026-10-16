@@ -60,6 +60,7 @@ export const ROTULO_ACAO: Record<string, string> = {
   estoque_tiny_desligado: 'Desligou o sincronismo do estoque com o Tiny',
   estoque_tiny_ajustado: 'Estoque ajustado no Tiny',
   estoque_tiny_falha: 'Não deu para ajustar o estoque no Tiny',
+  produto_tipo_definido: 'Mudou o tipo do produto (móvel, insumo ou peça)',
   // ROTAS e caminhões
   entrega_programada: 'Programou a entrega',
   entrega_reprogramada: 'Reprogramou a entrega',
@@ -224,7 +225,9 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
     valor: 'estoque',
     rotulo: 'Estoque',
     acoes: Object.keys(ROTULO_ACAO).filter(
-      (a) => a.startsWith('estoque_') || a === 'peca_reservada' || a === 'peca_reserva_desfeita',
+      (a) =>
+        a.startsWith('estoque_') ||
+        ['peca_reservada', 'peca_reserva_desfeita', 'produto_tipo_definido'].includes(a),
     ),
   },
   {
@@ -317,6 +320,7 @@ const TELAS: Record<string, string> = {
   '/configuracoes/setores-e-etapas': 'Configurações · Setores e etapas',
   '/configuracoes/tempo': 'Configurações · Controle de tempo',
   '/configuracoes/estoque': 'Configurações · Estoque',
+  '/configuracoes/produtos': 'Configurações · Móveis, insumos e peças',
   '/configuracoes/api': 'Configurações · API e integrações',
   '/configuracoes/caminhoes': 'Configurações · Caminhões',
   '/configuracoes/utilitarios': 'Configurações · Utilitários',

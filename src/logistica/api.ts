@@ -48,6 +48,8 @@ export interface LinhaEstoqueProduto {
   descricao: string
   classe: string | null
   unidade: string | null
+  /** SESSAO-32 (D-138): móvel, insumo ou peça — o tipo no estoque (com a troca à mão do admin). */
+  tipo_estoque?: 'movel' | 'insumo' | 'peca' | null
   /** Foto (capa) do produto no bucket — a mesma biblioteca por SKU do tablet. */
   imagem_caminho: string | null
   /** Rank de vendas dos últimos 90 dias (1 = o mais vendido). Nulo = não vendeu. */

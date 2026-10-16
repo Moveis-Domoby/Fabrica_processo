@@ -107,6 +107,18 @@ export function PainelInsumos({ ativo }: { ativo: boolean }) {
   )
 }
 
+/**
+ * SESSAO-32 (D-138): "peças são insumos" — a aba junta os dois e diz qual é
+ * qual (o tipo já vem com a troca à mão do admin); dentro do insumo, o que o
+ * Tiny chama de kit ou de matéria-prima continua dito assim.
+ */
+function rotuloInsumo(linha: LinhaEstoqueProduto): string {
+  if (linha.tipo_estoque === 'peca') return 'peça'
+  if (linha.classe === 'K') return 'kit'
+  if (linha.classe === 'M') return 'matéria-prima'
+  return 'insumo'
+}
+
 function CartaoInsumo({ linha, agora }: { linha: LinhaEstoqueProduto; agora: number }) {
   const idade = idadeDaLeitura(linha.lido_em, agora)
   return (
@@ -115,7 +127,7 @@ function CartaoInsumo({ linha, agora }: { linha: LinhaEstoqueProduto; agora: num
         <p className="text-sm font-medium text-texto">{linha.descricao || 'Sem descrição'}</p>
         <p className="text-xs text-texto-suave tabular-nums">
           {linha.codigo ? `SKU ${linha.codigo}` : 'sem SKU'}
-          {linha.classe === 'K' ? ' · kit' : ' · matéria-prima'}
+          {` · ${rotuloInsumo(linha)}`}
           {linha.minimo !== null &&
             linha.minimo > 0 &&
             ` · mínimo ${formatarQuantidade(linha.minimo)}`}

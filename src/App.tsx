@@ -36,6 +36,10 @@ const Afazeres = pagina(() => import('@/paginas/Afazeres'), 'Afazeres')
 const AfazeresDoTime = pagina(() => import('@/paginas/AfazeresDoTime'), 'AfazeresDoTime')
 const AdminApi = pagina(() => import('@/paginas/AdminApi'), 'AdminApi')
 const AdminEstoque = pagina(() => import('@/paginas/AdminEstoque'), 'AdminEstoque')
+const ClassificacaoProdutos = pagina(
+  () => import('@/paginas/ClassificacaoProdutos'),
+  'ClassificacaoProdutos',
+)
 const Auditoria = pagina(() => import('@/paginas/Auditoria'), 'Auditoria')
 const Automacoes = pagina(() => import('@/paginas/Automacoes'), 'Automacoes')
 const Utilitarios = pagina(() => import('@/paginas/Utilitarios'), 'Utilitarios')
@@ -234,6 +238,8 @@ export function App() {
               <Route element={<RotaProtegida nivel="admin" />}>
                 <Route path="/configuracoes/tempo" element={<ControleTempo />} />
                 <Route path="/configuracoes/estoque" element={<AdminEstoque />} />
+                {/* SESSAO-32 (D-138): móvel, insumo e peça — o tipo de cada produto */}
+                <Route path="/configuracoes/produtos" element={<ClassificacaoProdutos />} />
                 <Route path="/configuracoes/api" element={<AdminApi />} />
                 <Route path="/configuracoes/caminhoes" element={<Caminhoes />} />
                 {/* SESSAO-27 (D-101): etiquetas e campos customizados */}
