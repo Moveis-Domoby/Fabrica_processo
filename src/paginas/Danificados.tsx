@@ -21,9 +21,9 @@ import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { useAcessoLogistica } from '@/logistica/acesso'
 import { arquivarCard, listarDanificados, resolverDanificado } from '@/logistica/api'
 import type { Danificado } from '@/logistica/api'
+import { useAoVivo } from '@/lib/aoVivo'
 
 const POR_PAGINA = 20
-const ATUALIZA_A_CADA = 30_000
 
 function dataHora(iso: string | null): string {
   return iso
@@ -62,8 +62,10 @@ export function Danificados() {
     queryFn: () =>
       listarDanificados({ busca, limite: POR_PAGINA, deslocamento: (pagina - 1) * POR_PAGINA }),
     enabled: tenhoAcesso,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
+  // SESSAO-32 (Lei §4): ao vivo pelo aviso dos danificados — o relógio de 30 s saiu.
+  useAoVivo('danificados', [['danificados']], tenhoAcesso)
   const total = Number(linhas[0]?.contagem_total ?? 0)
 
   // D-45: os arquivados só saem do banco quando o botão é clicado.

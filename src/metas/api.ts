@@ -147,14 +147,14 @@ export async function usuariosAtivos(): Promise<{ id: string; nome: string }[]> 
   return (data ?? []) as { id: string; nome: string }[]
 }
 
-/** As execuções em andamento DESTA pessoa — "o que estou fazendo agora". */
-export async function minhasExecucoesAbertas(usuarioId: string): Promise<ExecucaoAberta[]> {
-  const { data, error } = await supabase
-    .from('plt_vw_execucoes')
-    .select('evento_inicio_id, card_id, usuario_inicio_id, iniciou_em')
-    .eq('usuario_inicio_id', usuarioId)
-    .eq('em_andamento', true)
-    .order('iniciou_em', { ascending: true })
+/**
+ * As execuções abertas de quem está logado (a bolinha) — "o que estou fazendo
+ * agora". SESSAO-32: pela porta que lê a posição projetada no card — o mesmo
+ * conjunto da visão plt_vw_execucoes, sem recalcular o histórico inteiro (ia a
+ * 1,9 s no teste de carga). A pessoa vem do token; a chave do cache leva o id.
+ */
+export async function minhasExecucoesAbertas(): Promise<ExecucaoAberta[]> {
+  const { data, error } = await supabase.rpc('plt_fn_minhas_execucoes')
   if (error) throw new Error(`Não deu para carregar suas execuções: ${error.message}`)
   return (data ?? []) as ExecucaoAberta[]
 }

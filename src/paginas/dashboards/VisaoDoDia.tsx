@@ -1,29 +1,18 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Navigate } from 'react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ArrowDown, ArrowUp, Clock, Hourglass, Play } from 'lucide-react'
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cn } from '@/lib/cn'
-import { supabase } from '@/lib/supabase'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { formatarDuracaoMs } from '@/kanban/tempo'
-import {
-  dashAgora,
-  dashDanificadosDia,
-  dashDia,
-  dashEstoque,
-  dashFimDeLinha,
-  dashPcpDia,
-  dashProducaoHora,
-} from '@/dashboards/api'
-import { msDeIntervalo } from '@/dashboards/intervalo'
+import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
+import { dashVisaoDoDia } from '@/dashboards/api'
+import { envelhecerIntervalo, msDeIntervalo } from '@/dashboards/intervalo'
+import { useAoVivo } from '@/lib/aoVivo'
 import { usePainelDash } from '@/dashboards/painel'
 import { Heroi } from '@/dashboards/componentes/Heroi'
 import { TooltipGrafico } from '@/dashboards/componentes/TooltipGrafico'
 import { Visualizacoes } from '@/dashboards/componentes/Visualizacoes'
-
-/** A cada quanto tempo o andon se atualiza sozinho (rede de segurança do realtime). */
-const ATUALIZA_A_CADA = 60_000
 
 const ROTULO_DESTINO: Record<string, string> = {
   rotas: 'Expedição / ROTAS',
@@ -50,60 +39,52 @@ function esperaLegivel(intervalo: string | null): string {
  */
 export function VisaoDoDia() {
   const { perfil, ehLider, carregando } = useSessao()
-  const clienteQuery = useQueryClient()
   const { config, visualizacoes, selecionada, aplicarVisualizacao } = usePainelDash('visao-do-dia')
 
   const souAdmin = perfil?.papel === 'admin'
 
-  const { data: agora = [], dataUpdatedAt } = useQuery({
-    queryKey: ['dash', 'agora'],
-    queryFn: dashAgora,
-    refetchInterval: ATUALIZA_A_CADA,
+  // SESSAO-32 (Lei §2/§4): a tela inteira numa requisição e ao vivo pelo aviso
+  // do painel (um por transação; rajadas viram uma releitura) — sem o relógio
+  // de 60 s e sem escutar a tabela de cards inteira. As esperas continuam
+  // crescendo na tela desde a leitura (o relógio daqui é só de mostrador).
+  const { data: visao, dataUpdatedAt } = useQuery({
+    queryKey: ['dash', 'visao-do-dia'],
+    queryFn: dashVisaoDoDia,
+    staleTime: Infinity,
   })
-  const { data: pcp } = useQuery({
-    queryKey: ['dash', 'pcp-dia'],
-    queryFn: dashPcpDia,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const { data: dia } = useQuery({
-    queryKey: ['dash', 'dia'],
-    queryFn: dashDia,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const { data: porHora = [] } = useQuery({
-    queryKey: ['dash', 'producao-hora'],
-    queryFn: dashProducaoHora,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const { data: fimDeLinha = [] } = useQuery({
-    queryKey: ['dash', 'fim-de-linha'],
-    queryFn: dashFimDeLinha,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const { data: danificadosDia = [] } = useQuery({
-    queryKey: ['dash', 'danificados-dia'],
-    queryFn: dashDanificadosDia,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-  const { data: estoque } = useQuery({
-    queryKey: ['dash', 'estoque'],
-    queryFn: dashEstoque,
-    refetchInterval: ATUALIZA_A_CADA,
-  })
-
-  // Tempo real: qualquer mudança nos cards invalida o retrato (o polling acima
-  // continua como rede de segurança — mesmo padrão do tablet/Meu Painel).
-  useEffect(() => {
-    const canal = supabase
-      .channel('dash-visao-do-dia')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'plt_cards' }, () => {
-        void clienteQuery.invalidateQueries({ queryKey: ['dash'] })
-      })
-      .subscribe()
-    return () => {
-      void supabase.removeChannel(canal)
-    }
-  }, [clienteQuery])
+  useAoVivo('painel', [['dash', 'visao-do-dia']], { esperaMs: 2_000 })
+  const relogio = useAgora()
+  const passado = visao ? Math.max(0, relogio - new Date(visao.lido_em).getTime()) : 0
+  const agora = useMemo(
+    () =>
+      (visao?.agora ?? []).map((s) => ({
+        ...s,
+        espera_mais_antiga: envelhecerIntervalo(s.espera_mais_antiga, passado),
+      })),
+    [visao, passado],
+  )
+  const pcp = useMemo(
+    () =>
+      visao?.pcp_dia
+        ? { ...visao.pcp_dia, espera_mais_antiga: envelhecerIntervalo(visao.pcp_dia.espera_mais_antiga, passado) }
+        : undefined,
+    [visao, passado],
+  )
+  const dia = visao?.dia ?? undefined
+  const porHora = useMemo(() => visao?.producao_hora ?? [], [visao])
+  const fimDeLinha = useMemo(() => visao?.fim_de_linha ?? [], [visao])
+  const danificadosDia = useMemo(() => visao?.danificados_dia ?? [], [visao])
+  const estoque = useMemo(
+    () =>
+      visao?.estoque && visao.estoque.cards_parados > 0
+        ? {
+            ...visao.estoque,
+            tempo_medio: envelhecerIntervalo(visao.estoque.tempo_medio, passado),
+            tempo_maximo: envelhecerIntervalo(visao.estoque.tempo_maximo, passado),
+          }
+        : (visao?.estoque ?? undefined),
+    [visao, passado],
+  )
 
   const total = agora.find((s) => s.setor_id === null)
   const setores = useMemo(() => agora.filter((s) => s.setor_id !== null), [agora])

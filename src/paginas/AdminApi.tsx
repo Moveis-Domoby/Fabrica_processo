@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound, Plus, Webhook as WebhookIcon, XCircle } from 'lucide-react'
+import { Copy, KeyRound, Plus, RefreshCw, Webhook as WebhookIcon, XCircle } from 'lucide-react'
 import { Botao, Campo, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -41,7 +41,8 @@ export function AdminApi() {
   const { data: entregas = [] } = useQuery({
     queryKey: ['webhook-entregas'],
     queryFn: entregasRecentes,
-    refetchInterval: 30_000,
+    // SESSAO-32 (Lei §4): sem relógio — a lista lê ao abrir e no "Atualizar".
+    staleTime: Infinity,
   })
 
   function aoErro(titulo: string) {
@@ -348,7 +349,17 @@ export function AdminApi() {
 
         {entregas.length > 0 && (
           <div className="flex flex-col gap-2">
-            <h3 className="text-base">Últimas entregas da fila</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base">Últimas entregas da fila</h3>
+              <Botao
+                tamanho="sm"
+                variante="secundaria"
+                icone={<RefreshCw />}
+                onClick={() => void clienteQuery.invalidateQueries({ queryKey: ['webhook-entregas'] })}
+              >
+                Atualizar
+              </Botao>
+            </div>
             <ul className="flex flex-col gap-1.5">
               {entregas.map((e) => (
                 <li

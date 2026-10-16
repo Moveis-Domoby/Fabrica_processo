@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { Botao, Paginacao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { supabase } from '@/lib/supabase'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
@@ -40,8 +39,8 @@ import type { Tarefa } from '@/afazeres/api'
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
 import { ModalMeta } from '@/metas/ModalMeta'
 import { CartaoMeta } from '@/metas/CartaoMeta'
+import { useAoVivo, useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
 
-const ATUALIZA_A_CADA = 15_000
 const METAS_POR_PAGINA = 20
 
 interface ItemFila {
@@ -75,28 +74,34 @@ export function MeuPainel() {
   const meusSetorIds = useMemo(() => vinculos.map((v) => v.setor_id), [vinculos])
 
   // ----- as três filas -----
+  // SESSAO-32 (Lei §2/§4): as filas chegam na abertura do app (mesmas chaves)
+  // e ficam ao vivo pelo canal da pessoa — sem os relógios de 15 s e sem
+  // escutar a tabela de cards inteira. As tarefas usam a chave da bolinha
+  // (E-22: o mesmo dado, uma chave — antes eram duas leituras iguais).
+  useMeuTrabalhoAoVivo(perfil?.id)
   const { data: cardsDelegados = [] } = useQuery({
     queryKey: ['meu-painel', 'delegados', perfil?.id],
     queryFn: () => meusCards(perfil!.id),
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const { data: tarefas = [] } = useQuery({
-    queryKey: ['meu-painel', 'tarefas', perfil?.id],
+    queryKey: ['afazeres', 'tarefas', perfil?.id],
     queryFn: () => minhasTarefas(perfil!.id),
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const { data: tarefasSistema = [] } = useQuery({
     queryKey: ['meu-painel', 'tarefas-sistema', meusSetorIds.join(',')],
     queryFn: () => tarefasDoSistema(meusSetorIds),
     enabled: meusSetorIds.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const { data: ordemSalva = [] } = useQuery({
     queryKey: ['fila-prioridade', perfil?.id],
     queryFn: () => buscarFilaPrioridade(perfil!.id),
     enabled: perfil !== null,
+    staleTime: Infinity,
   })
 
   const tarefasDelegadas = useMemo(
@@ -213,8 +218,11 @@ export function MeuPainel() {
         deslocamento: (paginaMetas - 1) * METAS_POR_PAGINA,
       }),
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
+  // O andamento das metas muda com os fatos da produção: o aviso do painel
+  // (um por transação) relê só as metas — rajadas viram uma releitura.
+  useAoVivo('painel', [['metas']], { esperaMs: 2_000 })
   const totalMetas = metas[0]?.contagem_total ?? 0
 
   const [modalAberta, setModalAberta] = useState(false)
@@ -244,20 +252,6 @@ export function MeuPainel() {
       }),
   })
 
-  // Tempo real: mudança em card (mover/iniciar/finalizar) mexe em filas e
-  // metas — invalida na hora; o polling de 15s segue como rede de segurança.
-  useEffect(() => {
-    const canal = supabase
-      .channel('meu-painel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'plt_cards' }, () => {
-        void clienteQuery.invalidateQueries({ queryKey: ['meu-painel'] })
-        void clienteQuery.invalidateQueries({ queryKey: ['metas'] })
-      })
-      .subscribe()
-    return () => {
-      void supabase.removeChannel(canal)
-    }
-  }, [clienteQuery])
 
   if (!perfil) return null // a guarda já cuidou; isto só acalma o TypeScript
 

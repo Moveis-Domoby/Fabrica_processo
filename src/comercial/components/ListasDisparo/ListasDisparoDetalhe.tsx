@@ -9,6 +9,7 @@ import { AuditoriaModal } from './AuditoriaModal';
 import { DispararModal } from './DispararModal';
 import { MembroAuditoriaModal } from './MembroAuditoriaModal';
 import { DISPARO_LIBERADO, MOTIVO_DISPARO_TRAVADO } from '../../travas';
+import { ouvirCanal } from '@/chat/canais';
 
 interface ListasDisparoDetalheProps {
   listaId: string;
@@ -66,12 +67,25 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
     fetchData();
   }, [fetchData]);
 
-  // Polling silencioso a cada 8s enquanto a lista estiver disparando ou em_andamento
+  // SESSAO-32 (Lei §4): enquanto a lista dispara, o andamento chega pelo aviso
+  // DELA (o banco avisa quando o disparo atualiza um membro) — o relógio de 8 s
+  // saiu. Rajadas viram uma releitura só.
   useEffect(() => {
     if (lista?.status !== 'disparando' && lista?.status !== 'em_andamento') return;
-    const interval = setInterval(fetchDataSilent, 8000);
-    return () => clearInterval(interval);
-  }, [lista?.status, fetchDataSilent]);
+    let espera: ReturnType<typeof setTimeout> | null = null;
+    const parar = ouvirCanal(`plt-aviso:lista_${listaId.replace(/-/g, '')}`, (evento) => {
+      if (evento !== 'mudou') return;
+      if (espera) clearTimeout(espera);
+      espera = setTimeout(() => {
+        espera = null;
+        void fetchDataSilent();
+      }, 1000);
+    });
+    return () => {
+      if (espera) clearTimeout(espera);
+      parar();
+    };
+  }, [lista?.status, listaId, fetchDataSilent]);
 
   const handleIniciarEdicaoNome = () => {
     setNomeEditado(lista?.nome ?? '');

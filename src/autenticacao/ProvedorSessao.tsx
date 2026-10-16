@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { aplicarTema, ehTema } from '@/perfil/tema'
 import { ContextoSessao } from './sessao-contexto'
+import { abrirPlataforma, semearCache } from './abertura'
 import { COLUNAS_PERFIL } from './tipos'
 import type { Perfil, VinculoSetor } from './tipos'
 
@@ -13,24 +14,26 @@ interface PerfilCarregado {
   vinculos: VinculoSetor[]
 }
 
-async function buscarPerfil(idAuth: string | null): Promise<PerfilCarregado> {
-  if (!idAuth) return { perfil: null, vinculos: [] }
-
-  const { data: linha } = await supabase
+/**
+ * O caminho de RESERVA (as duas leituras de antes da SESSAO-32): só quando a
+ * porta de abertura falha — um defeito numa parte secundária dela (o chat, as
+ * metas…) nunca pode trancar a pessoa fora da plataforma. As telas, então,
+ * leem o que é delas como sempre.
+ */
+async function buscarPerfilReserva(idAuth: string): Promise<PerfilCarregado> {
+  const { data: linha, error } = await supabase
     .from('plt_usuarios')
     .select(COLUNAS_PERFIL)
     .eq('auth_user_id', idAuth)
     .eq('ativo', true)
     .maybeSingle()
-
+  if (error) throw new Error(`Não deu para carregar o seu perfil: ${error.message}`)
   const perfil = (linha as Perfil | null) ?? null
   if (!perfil) return { perfil: null, vinculos: [] }
-
   const { data: linhas } = await supabase
     .from('plt_usuario_setores')
     .select('setor_id, lider_do_setor, setor:plt_setores(id, nome, codigo)')
     .eq('usuario_id', perfil.id)
-
   return { perfil, vinculos: (linhas as unknown as VinculoSetor[]) ?? [] }
 }
 
@@ -42,47 +45,60 @@ async function buscarPerfil(idAuth: string | null): Promise<PerfilCarregado> {
 export function ProvedorSessao({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Session | null>(null)
   const [sessaoResolvida, setSessaoResolvida] = useState(false)
+  const clienteQuery = useQueryClient()
+  // A 1ª leitura de cada login é a ABERTURA (SESSAO-32 · Lei §2): tudo o que a
+  // 1ª tela mostra numa requisição, semeado no cache com as chaves das telas.
+  // As seguintes (recarregar o perfil depois de editar) não repetem a rota.
+  const abertoPara = useRef<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSessao(data.session)
       setSessaoResolvida(true)
     })
-    const { data: escuta } = supabase.auth.onAuthStateChange((_evento, novaSessao) => {
+    const { data: escuta } = supabase.auth.onAuthStateChange((evento, novaSessao) => {
+      // Saiu (ou a sessão venceu): nada guardado de quem saiu fica para quem
+      // entrar depois no mesmo aparelho, e a próxima entrada é abertura de novo
+      // (o perfil é guardado sem prazo — SESSAO-32).
+      if (evento === 'SIGNED_OUT') {
+        abertoPara.current = null
+        clienteQuery.clear()
+      }
       setSessao(novaSessao)
       setSessaoResolvida(true)
     })
     return () => escuta.subscription.unsubscribe()
-  }, [])
+  }, [clienteQuery])
 
   const idAuth = sessao?.user.id ?? null
 
   const consultaPerfil = useQuery({
     queryKey: ['perfil', idAuth],
-    queryFn: () => buscarPerfil(idAuth),
+    queryFn: async (): Promise<PerfilCarregado> => {
+      if (!idAuth) return { perfil: null, vinculos: [] }
+      const primeira = abertoPara.current !== idAuth
+      abertoPara.current = idAuth
+      try {
+        const abertura = await abrirPlataforma(primeira)
+        semearCache(clienteQuery, abertura, primeira)
+        return { perfil: abertura.perfil ?? null, vinculos: abertura.vinculos ?? [] }
+      } catch (erro) {
+        console.error(erro)
+        return buscarPerfilReserva(idAuth)
+      }
+    },
     enabled: sessaoResolvida,
+    // O perfil só muda por gesto (Meu Perfil, tema) — quem muda relê.
+    staleTime: Infinity,
+    refetchOnReconnect: false,
   })
 
   const recarregarPerfil = useCallback(async () => {
     await consultaPerfil.refetch()
   }, [consultaPerfil])
 
-  // Heartbeat de presença (SESSAO-12/D-34): "logado agora" é quem foi visto
-  // nos últimos minutos — é a base do sorteio de delegação. Grava no perfil
-  // carregado e a cada 5 min; falha em silêncio (presença é conveniência).
-  const perfilId = consultaPerfil.data?.perfil?.id ?? null
-  useEffect(() => {
-    if (!perfilId) return
-    const marcar = () => {
-      void supabase
-        .from('plt_presencas')
-        .upsert({ usuario_id: perfilId, visto_em: new Date().toISOString() })
-        .then(() => {})
-    }
-    marcar()
-    const timer = setInterval(marcar, 5 * 60_000)
-    return () => clearInterval(timer)
-  }, [perfilId])
+  // A presença ("logado agora" — D-34) deixou de ser relógio (SESSAO-32 · Lei
+  // §4): a abertura, cada navegação e cada gesto com fato carimbam no banco.
 
   // O tema escolhido no Meu Perfil (SESSAO-13) segue a pessoa: quando o perfil
   // chega, ele manda — inclusive num navegador que nunca a viu.

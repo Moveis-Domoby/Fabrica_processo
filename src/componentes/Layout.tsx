@@ -33,10 +33,12 @@ import { JanelaDoCardNaUrl } from '@/kanban/janela/JanelaDoCardNaUrl'
 import { buscarSetores } from '@/kanban/api'
 import { nomeNoMenu, rotaDoSetor, ROTA_INICIAL } from '@/navegacao/rotas'
 import { registrarAtividade } from '@/logs/registro'
+import { navegacaoJaRegistrada } from '@/autenticacao/abertura'
 import { supabase } from '@/lib/supabase'
 import { useVersaoNova } from '@/lib/versaoNova'
 import { useTelaPequena } from '@/lib/telaPequena'
 import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
+import { AvisoAoVivoPausado } from '@/componentes/AvisoAoVivoPausado'
 
 interface FilhoMenu {
   para: string
@@ -178,10 +180,14 @@ export function Layout({ children }: { children: ReactNode }) {
     enabled: perfil !== null,
   })
 
-  // Toda atividade gera registro no banco — a navegação entra aqui.
+  // Toda atividade gera registro no banco — a navegação entra aqui. A da 1ª
+  // tela já foi gravada pela abertura do app (SESSAO-32); recarregar o perfil
+  // (tema, nome) não é navegação — o efeito segue o id, não o objeto.
+  const perfilId = perfil?.id ?? null
   useEffect(() => {
-    if (perfil) registrarAtividade('navegacao', location.pathname)
-  }, [perfil, location.pathname])
+    if (!perfilId || navegacaoJaRegistrada(location.pathname)) return
+    registrarAtividade('navegacao', location.pathname)
+  }, [perfilId, location.pathname])
 
   // Módulos por pessoa (SESSAO-20/D-46): sem `fabrica`, somem Fábrica,
   // Dashboards e o botão Modo tablet; sem `comercial`, some o Comercial.
@@ -780,6 +786,8 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* SESSAO-31 (§3): a janela do card — qualquer tela abre pondo ?card= no endereço. */}
         {!soEntregador && <JanelaDoCardNaUrl />}
         <AvisoVersaoNova nova={versaoNova} />
+        {/* SESSAO-32 (Lei §10): a conexão ao vivo caiu — avisa e oferece atualizar. */}
+        {!versaoNova && <AvisoAoVivoPausado />}
       </div>
     </ProvedorChat>
   )

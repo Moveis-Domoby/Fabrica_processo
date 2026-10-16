@@ -31,11 +31,19 @@ export async function buscarConversas(cursor: CursorConversas | null): Promise<P
     p_limite: POR_PAGINA_CONVERSAS,
   })
   if (error) throw falha(error)
-  const itens = (data ?? []) as ConversaResumo[]
+  return montarPaginaConversas((data ?? []) as ConversaResumo[], cursor === null)
+}
+
+/**
+ * A página da lista a partir das linhas (uma regra só — a busca e a abertura
+ * do app, que já traz a 1ª página, usam esta): a 1ª página leva o total de não
+ * lidas; página cheia tem próxima.
+ */
+export function montarPaginaConversas(itens: ConversaResumo[], primeira: boolean): PaginaConversas {
   const ultima = itens[itens.length - 1]
   return {
     itens,
-    totalNaoLidas: cursor ? null : (itens[0]?.total_nao_lidas ?? 0),
+    totalNaoLidas: primeira ? (itens[0]?.total_nao_lidas ?? 0) : null,
     proximo:
       itens.length === POR_PAGINA_CONVERSAS && ultima
         ? { em: ultima.atividade_em, id: ultima.conversa_id }

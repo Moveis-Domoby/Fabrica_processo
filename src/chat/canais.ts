@@ -29,6 +29,36 @@ interface Entrada {
 const registro = new Map<string, Entrada>()
 const ESPERA_ANTES_DE_SAIR = 1500
 
+/**
+ * SESSAO-32 (Lei §2): a abertura do app lê tudo numa requisição ANTES de o
+ * canal pessoal existir. Para nada escapar entre ler e ouvir, o canal entra
+ * pedindo ao servidor a REPRISE do que saiu desde a leitura (Broadcast replay
+ * dos canais privados). Usado uma vez, na 1ª conexão do tópico.
+ */
+const reprises = new Map<string, number>()
+export function pedirReprise(topico: string, desdeMs: number) {
+  reprises.set(topico, desdeMs)
+}
+
+/**
+ * "Ao vivo pausado" (Lei §10): a conexão de algum canal caiu e não voltou —
+ * a tela avisa e oferece "atualizar" (nunca liga relógio). Fica ligado
+ * enquanto houver canal fora do ar.
+ */
+const fora = new Set<string>()
+const ouvintesPausa = new Set<() => void>()
+function marcarSituacao(topico: string, status: string) {
+  const antes = fora.size
+  if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') fora.add(topico)
+  else if (status === 'SUBSCRIBED') fora.delete(topico)
+  if (fora.size !== antes) for (const avisar of ouvintesPausa) avisar()
+}
+export function assinarPausa(avisar: () => void): () => void {
+  ouvintesPausa.add(avisar)
+  return () => ouvintesPausa.delete(avisar)
+}
+export const aoVivoPausado = () => fora.size > 0
+
 async function aguardarCanalAntigoSair(topico: string) {
   const alvo = `realtime:${topico}`
   for (let tentativa = 0; tentativa < 60; tentativa++) {
@@ -37,21 +67,29 @@ async function aguardarCanalAntigoSair(topico: string) {
   }
 }
 
-function avisarStatus(entrada: Entrada, status: string) {
+function avisarStatus(topico: string, entrada: Entrada, status: string) {
   entrada.status = status
+  if (registro.get(topico) === entrada) marcarSituacao(topico, status)
   for (const ouvinte of entrada.ouvintesStatus) ouvinte(status)
 }
 
 async function conectar(topico: string, entrada: Entrada) {
   await aguardarCanalAntigoSair(topico)
   if (registro.get(topico) !== entrada || entrada.ouvintes.size === 0) return
-  const canal = supabase.channel(topico, { config: { private: true } })
+  const desde = reprises.get(topico)
+  reprises.delete(topico)
+  const canal = supabase.channel(topico, {
+    config:
+      desde === undefined
+        ? { private: true }
+        : { private: true, broadcast: { replay: { since: desde, limit: 100 } } },
+  })
   canal.on('broadcast', { event: '*' }, (mensagem) => {
     const dados = (mensagem.payload ?? {}) as Record<string, unknown>
     for (const ouvinte of entrada.ouvintes) ouvinte(String(mensagem.event), dados)
   })
   entrada.canal = canal
-  canal.subscribe((status) => avisarStatus(entrada, status))
+  canal.subscribe((status) => avisarStatus(topico, entrada, status))
 }
 
 /** Ouve um tópico enquanto precisar; devolve a função de parar de ouvir. */
@@ -93,6 +131,7 @@ export function ouvirCanal(
       minha.saida = null
       if (minha.ouvintes.size > 0) return
       registro.delete(topico)
+      marcarSituacao(topico, 'SUBSCRIBED') // saiu de propósito: não conta como queda
       if (minha.canal) void supabase.removeChannel(minha.canal)
     }, ESPERA_ANTES_DE_SAIR)
   }

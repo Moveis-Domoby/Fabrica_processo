@@ -10716,8 +10716,11 @@ titulo('SESSAO-30 · avisos ao vivo: um por área por transação, só para quem
 
 const um61 = async (sql) => (await bd.query(sql)).rows[0]
 const como61 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// SESSAO-32 (migration 78): todo fato de card também avisa o painel
+// ('plt-aviso:painel' — Visão do dia e metas); aqui conta-se só as áreas.
 const avisos61 = async () => (await bd.query(`select topic, count(*)::int as n from realtime.messages
-                                                where topic like 'plt-aviso:%' group by 1 order by 1`)).rows
+                                                where topic like 'plt-aviso:%' and topic <> 'plt-aviso:painel'
+                                                group by 1 order by 1`)).rows
 const limpar61 = () => bd.exec(`delete from realtime.messages where topic like 'plt-aviso:%'`)
 await como61('')
 await bd.exec(`
@@ -12650,6 +12653,186 @@ conferir(!priv76.parar && !priv76.teto && !priv76.proximos && !priv76.leitura,
 await bd.exec(`delete from public.plt_tiny_estoque_fila`)
 await bd.exec(`update public.plt_setores set tiny_sincronizado_desde = null where codigo = 'estoque'`)
 } // fim do bloco 76
+
+// ============================================================================
+// SESSAO-32 · migration 78 — abrir numa chamada e o resto ao vivo (Lei §2/§4):
+// a bolinha pela posição do card, a Visão do dia numa chamada, a porta de
+// abertura, os avisos no lugar dos relógios e a presença pelo gesto.
+// "Mudar o caminho, nunca o resultado": cada porta nova comparada à antiga.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · a bolinha pela posição do card: o mesmo conjunto de plt_vw_execucoes, pessoa por pessoa')
+
+const um78 = async (sql) => (await bd.query(sql)).rows[0]
+const linhas78 = async (sql) => (await bd.query(sql)).rows
+const como78 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+
+const pessoas78 = await linhas78(`select id::text as id, auth_user_id::text as auth from public.plt_usuarios
+                                   where auth_user_id is not null and ativo order by id`)
+const difs78 = []
+let comExecucao78 = 0
+for (const p of pessoas78) {
+  await como78(p.auth)
+  const view = await linhas78(`select evento_inicio_id::text as e, card_id::text as c, usuario_inicio_id::text as u, iniciou_em::text as i
+                                 from public.plt_vw_execucoes where em_andamento and usuario_inicio_id = '${p.id}' order by 1`)
+  const porta = await linhas78(`select evento_inicio_id::text as e, card_id::text as c, usuario_inicio_id::text as u, iniciou_em::text as i
+                                  from public.plt_fn_minhas_execucoes() order by 1`)
+  if (view.length) comExecucao78 += 1
+  if (JSON.stringify(view) !== JSON.stringify(porta)) difs78.push({ p: p.id, view, porta })
+}
+await como78('')
+const abertasNoBanco78 = (await um78(`select count(*)::int as n from public.plt_vw_execucoes where em_andamento`)).n
+conferir(
+  difs78.length === 0 && comExecucao78 >= 1,
+  `as execuções abertas de cada pessoa saem iguais às da visão antiga (${pessoas78.length} pessoas, ${comExecucao78} com execução aberta, ${abertasNoBanco78} abertas no banco)`,
+  JSON.stringify(difs78).slice(0, 800),
+)
+
+titulo('SESSAO-32 · a Visão do dia numa chamada = as 7 portas de sempre')
+await como78(E40.admin)
+const vd78 = await um78(`select public.plt_fn_dash_visao_do_dia() as v,
+   coalesce((select jsonb_agg(to_jsonb(x)) from public.plt_fn_dash_agora() x), '[]'::jsonb) as agora,
+   (select to_jsonb(x) from public.plt_fn_dash_pcp_dia() x limit 1) as pcp_dia,
+   (select to_jsonb(x) from public.plt_fn_dash_dia() x limit 1) as dia,
+   coalesce((select jsonb_agg(to_jsonb(x)) from public.plt_fn_dash_producao_hora() x), '[]'::jsonb) as producao_hora,
+   coalesce((select jsonb_agg(to_jsonb(x)) from public.plt_fn_dash_fim_de_linha() x), '[]'::jsonb) as fim_de_linha,
+   coalesce((select jsonb_agg(to_jsonb(x)) from public.plt_fn_dash_danificados_dia() x), '[]'::jsonb) as danificados_dia,
+   (select to_jsonb(x) from public.plt_fn_dash_estoque() x limit 1) as estoque`)
+const partes78 = ['agora', 'pcp_dia', 'dia', 'producao_hora', 'fim_de_linha', 'danificados_dia', 'estoque']
+const diferentes78 = partes78.filter((k) => JSON.stringify(vd78.v[k]) !== JSON.stringify(vd78[k]))
+conferir(
+  diferentes78.length === 0 && typeof vd78.v.lido_em === 'string' && Array.isArray(vd78.v.agora) && vd78.v.agora.length > 0,
+  'admin: as 7 partes saem iguais às portas soltas (na mesma leitura), com o instante da leitura',
+  JSON.stringify({ diferentes78 }),
+)
+await como78(E40.operador)
+const vdOp78 = (await um78(`select public.plt_fn_dash_visao_do_dia() as v`)).v
+conferir(
+  partes78.every((k) => k in vdOp78),
+  'o operador abre a porta sem erro — a parte que ele não pode ver volta vazia, como antes',
+  JSON.stringify(Object.keys(vdOp78)),
+)
+
+titulo('SESSAO-32 · a abertura numa chamada: o que a casca e o Meu Painel liam, numa requisição')
+const op78 = await um78(`select id::text as id from public.plt_usuarios where auth_user_id = '${E40.operador}'`)
+await como78(E40.operador)
+await bd.exec(`delete from public.plt_presencas where usuario_id = '${op78.id}'`)
+const logsAntes78 = (await um78(`select count(*)::int as n from public.plt_logs_atividade
+                                  where usuario_id = '${op78.id}' and acao = 'navegacao' and rota = '/inicio/meu-painel'`)).n
+const ab78 = (await um78(`select public.plt_fn_abertura('/inicio/meu-painel', true) as a`)).a
+const direto78 = await um78(`select
+   (select count(*)::int from public.plt_usuario_setores where usuario_id = '${op78.id}') as vinculos,
+   (select count(*)::int from public.plt_setores where ativo) as setores,
+   (select coalesce(json_agg(id order by criada_em, id), '[]'::json)::text from public.plt_tarefas
+     where responsavel_id = '${op78.id}' and situacao <> 'concluida' and tarefa_mae_id is null) as tarefas,
+   (select coalesce(json_agg(evento_inicio_id order by iniciou_em, evento_inicio_id), '[]'::json)::text from public.plt_fn_minhas_execucoes()) as execucoes,
+   (select coalesce(json_agg(id order by desde nulls last, id), '[]'::json)::text from public.plt_cards
+     where responsavel_id = '${op78.id}' and concluido_em is null and arquivado_em is null) as cards,
+   (select count(*)::int from public.plt_notificacoes where destinatario_id = '${op78.id}') as avisos,
+   (select count(*)::int from public.plt_presencas where usuario_id = '${op78.id}' and visto_em > now() - interval '1 minute') as presenca,
+   (select count(*)::int from public.plt_logs_atividade
+     where usuario_id = '${op78.id}' and acao = 'navegacao' and rota = '/inicio/meu-painel') as logs`)
+const ids78 = (lista) => JSON.stringify((lista ?? []).map((x) => x.id))
+conferir(
+  ab78.perfil?.id === op78.id
+    && ab78.vinculos.length === direto78.vinculos
+    && ab78.setores.length === direto78.setores
+    && ids78(ab78.tarefas) === JSON.stringify(JSON.parse(direto78.tarefas))
+    && JSON.stringify((ab78.execucoes ?? []).map((x) => x.evento_inicio_id)) === JSON.stringify(JSON.parse(direto78.execucoes))
+    && ab78.avisos.length === Math.min(20, direto78.avisos)
+    && Array.isArray(ab78.conversas)
+    && typeof ab78.agora_ms === 'number'
+    && ab78.meu_painel && ids78(ab78.meu_painel.cards) === JSON.stringify(JSON.parse(direto78.cards))
+    && Array.isArray(ab78.meu_painel.metas) && Array.isArray(ab78.meu_painel.fila_prioridade)
+    && direto78.presenca === 1 && direto78.logs === logsAntes78 + 1,
+  'perfil, vínculos, setores, tarefas, a bolinha, o sino, o chat e o Meu Painel numa resposta — e a presença e o registro da navegação no mesmo gesto',
+  JSON.stringify({ perfil: ab78.perfil?.id, direto78, chaves: Object.keys(ab78) }).slice(0, 800),
+)
+const semPainel78 = (await um78(`select public.plt_fn_abertura(null, false) as a`)).a
+await como78('00000000-0000-0000-0000-00000000dead')
+const ninguem78 = (await um78(`select public.plt_fn_abertura('/inicio/meu-painel', true) as a`)).a
+conferir(
+  !('meu_painel' in semPainel78) && semPainel78.perfil?.id === op78.id && ninguem78.perfil === null,
+  'sem pedir o Meu Painel ele não vem; quem não tem cadastro ativo recebe perfil vazio (e nada é gravado)',
+  JSON.stringify({ chaves: Object.keys(semPainel78), ninguem78 }),
+)
+
+titulo('SESSAO-32 · ao vivo sem relógio: o painel, a pessoa, as tarefas do setor, a fila do Tiny e quem ouve')
+await como78('')
+await bd.exec(`delete from realtime.messages`)
+const tarefa78 = await um78(`select t.id::int as id, t.responsavel_id::text as resp, t.setor_id::int as setor
+                               from public.plt_tarefas t
+                              where t.origem = 'pessoa' and t.responsavel_id is not null and t.setor_id is not null
+                              order by t.id limit 1`)
+await bd.exec(`update public.plt_tarefas set titulo = titulo || '.' where id = ${tarefa78.id}`)
+const msgsTarefa78 = await linhas78(`select topic, event from realtime.messages order by topic, event`)
+conferir(
+  msgsTarefa78.some((m) => m.topic === `plt-chat-u:${tarefa78.resp}` && m.event === 'meu_trabalho')
+    && msgsTarefa78.some((m) => m.topic === `plt-aviso:setor_${tarefa78.setor}` && m.event === 'tarefas')
+    && !msgsTarefa78.some((m) => m.topic === `plt-aviso:setor_${tarefa78.setor}` && m.event === 'mudou'),
+  'tarefa mudou: o sinal da responsável no canal dela e "tarefas" no tópico do setor (o quadro, que só ouve "mudou", não relê)',
+  JSON.stringify(msgsTarefa78),
+)
+await bd.exec(`delete from realtime.messages`)
+await como78(E40.logistica)
+await bd.exec(`insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+               values (978001, 'S78A', 'Estante Teste 78', 'F', 'A', 'un') on conflict (tiny_id) do nothing`)
+await bd.exec(`select public.plt_fn_estoque_movimentar(978001, 'entrada', 2, 'teste 78')`)
+const msgsFato78 = await linhas78(`select topic, count(*)::int as n from realtime.messages group by topic order by topic`)
+conferir(
+  msgsFato78.find((m) => m.topic === 'plt-aviso:painel')?.n === 1,
+  'um gesto com vários fatos de card = UM aviso do painel (Visão do dia e metas releem uma vez)',
+  JSON.stringify(msgsFato78),
+)
+await como78('')
+await bd.exec(`delete from realtime.messages`)
+await bd.exec(`insert into public.plt_tiny_estoque_fila (produto_tiny_id, motivo) values (978001, 'teste 78')
+               on conflict (produto_tiny_id) do nothing`)
+await bd.exec(`delete from public.plt_tiny_estoque_fila where produto_tiny_id = 978001`)
+const msgsTiny78 = await linhas78(`select topic, event, count(*)::int as n from realtime.messages group by 1, 2`)
+conferir(
+  msgsTiny78.some((m) => m.topic === 'plt-aviso:estoque' && m.event === 'tiny')
+    && !msgsTiny78.some((m) => m.topic === 'plt-aviso:estoque' && m.event === 'mudou'),
+  'a fila do Tiny avisa com evento próprio ("tiny") — as telas do estoque não releem por causa dela',
+  JSON.stringify(msgsTiny78),
+)
+const ouve78 = async (auth, topico) => { await como78(auth); return (await um78(`select plt_privado.fn_aviso_pode_ouvir('${topico}') as p`)).p }
+const regras78 = {
+  painel_operador: await ouve78(E40.operador, 'plt-aviso:painel'),
+  painel_anonimo: await ouve78('', 'plt-aviso:painel'),
+  danificados_logistica: await ouve78(E40.logistica, 'plt-aviso:danificados'),
+  danificados_operador: await ouve78(E40.operador, 'plt-aviso:danificados'),
+  lista_admin: await ouve78(E40.admin, 'plt-aviso:lista_0123456789abcdef0123456789abcdef'),
+  lista_operador: await ouve78(E40.operador, 'plt-aviso:lista_0123456789abcdef0123456789abcdef'),
+}
+conferir(
+  regras78.painel_operador && !regras78.painel_anonimo && regras78.danificados_logistica && !regras78.danificados_operador
+    && regras78.lista_admin && !regras78.lista_operador,
+  'quem ouve: o painel, quem está logado; os danificados, a logística; a lista do Comercial, quem tem o módulo',
+  JSON.stringify(regras78),
+)
+
+titulo('SESSAO-32 · presença pelo gesto: navegar e fazer carimbam "visto agora" (sem relógio)')
+await como78(E40.logistica)
+const log78 = await um78(`select id::text as id from public.plt_usuarios where auth_user_id = '${E40.logistica}'`)
+await bd.exec(`delete from public.plt_presencas where usuario_id = '${log78.id}'`)
+await bd.exec(`select public.plt_fn_registrar_log('navegacao', '/fabrica/logistica/estoque', '{}'::jsonb)`)
+const pres1 = (await um78(`select count(*)::int as n from public.plt_presencas where usuario_id = '${log78.id}'`)).n
+await bd.exec(`delete from public.plt_presencas where usuario_id = '${log78.id}'`)
+await bd.exec(`select public.plt_fn_estoque_movimentar(978001, 'entrada', 1, 'teste 78 — presença')`)
+const pres2 = (await um78(`select count(*)::int as n from public.plt_presencas where usuario_id = '${log78.id}'`)).n
+conferir(pres1 === 1 && pres2 === 1, 'navegar carimba a presença; um gesto com fato também', JSON.stringify({ pres1, pres2 }))
+
+const priv78 = await um78(`
+  select has_function_privilege('anon', 'public.plt_fn_abertura(text, boolean)', 'execute') as anon_abertura,
+         has_function_privilege('authenticated', 'public.plt_fn_abertura(text, boolean)', 'execute') as logado_abertura,
+         has_function_privilege('authenticated', 'public.plt_fn_minhas_execucoes()', 'execute') as logado_execucoes,
+         has_function_privilege('authenticated', 'public.plt_fn_dash_visao_do_dia()', 'execute') as logado_visao,
+         has_function_privilege('authenticated', 'plt_privado.fn_avisar_pessoa(uuid, text)', 'execute') as maquinaria`)
+conferir(!priv78.anon_abertura && priv78.logado_abertura && priv78.logado_execucoes && priv78.logado_visao && !priv78.maquinaria,
+  'as portas novas são de quem está logado (anônimo fora); a maquinaria dos avisos fora da API', JSON.stringify(priv78))
+await como78('')
+} // fim do bloco 78
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

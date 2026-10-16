@@ -10,8 +10,8 @@ import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { membrosDoSetor } from '@/tablet/api'
 import { afazeresDoSetor, criarTarefa } from '@/afazeres/api'
 import { rotuloOrigemCard } from '@/kanban/rotulos'
+import { useAoVivo } from '@/lib/aoVivo'
 
-const ATUALIZA_A_CADA = 15_000
 const SEM_DONO = 'sem-dono'
 
 /**
@@ -40,7 +40,13 @@ export function AfazeresDoTime() {
     queryKey: ['afazeres', 'time', setorTimeId],
     queryFn: () => afazeresDoSetor(setorTimeId!),
     enabled: ehLider && setorTimeId !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
+  })
+  // SESSAO-32 (Lei §4): ao vivo pelo canal do setor — as tarefas ('tarefas') e
+  // os cards ('mudou'); o relógio de 15 s saiu.
+  useAoVivo(`setor_${setorTimeId ?? 0}`, [['afazeres', 'time', setorTimeId]], {
+    ligado: ehLider && setorTimeId !== null,
+    eventos: ['tarefas', 'mudou'],
   })
   const { data: pedidosDoTime = new Map() } = usePedidosDosCards(doTime?.cards ?? [])
   const { data: membrosDoTime = [] } = useQuery({

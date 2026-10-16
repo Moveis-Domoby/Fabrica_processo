@@ -23,6 +23,22 @@ export function msDeIntervalo(valor: string | null | undefined): number {
   return Math.round(total)
 }
 
+/**
+ * SESSAO-32 (Lei §4 — sem relógio de releitura): uma espera lida do banco às
+ * HH:MM continua crescendo na tela. Soma o tempo passado desde a leitura e
+ * devolve no mesmo formato de interval ("HH:MM:SS", horas sem teto). Espera
+ * zero/vazia fica como veio (nada esperando não começa a esperar sozinho).
+ */
+export function envelhecerIntervalo(valor: string | null, passadoMs: number): string | null {
+  const ms = msDeIntervalo(valor)
+  if (ms <= 0 || passadoMs <= 0) return valor
+  const total = Math.round((ms + passadoMs) / 1000)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
 /** Interval do banco → "3h 05min" (mesmo mostrador da linha do tempo). */
 export function duracaoLegivel(valor: string | null | undefined): string {
   return formatarDuracaoMs(msDeIntervalo(valor))

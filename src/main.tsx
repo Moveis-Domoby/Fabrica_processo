@@ -27,6 +27,10 @@ const clienteQuery = new QueryClient({
     },
   },
 })
+// SESSAO-32 (Lei §3): os setores chegam na abertura do app e quase nunca mudam
+// — nenhuma tela relê a lista por ter passado 30 s. Quem edita um setor
+// invalida a chave e a lista nova vem na hora.
+clienteQuery.setQueryDefaults(['setores'], { staleTime: Infinity })
 
 const raiz = document.getElementById('root')
 if (!raiz) throw new Error('Elemento #root não encontrado no index.html')

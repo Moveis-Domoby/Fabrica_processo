@@ -153,6 +153,42 @@ export async function dashEstoque(): Promise<ResumoEstoque | null> {
 }
 
 // ---------------------------------------------------------------------------
+// SESSAO-32 (Lei §2): a Visão do dia numa requisição — as 7 portas abaixo,
+// juntas no banco (plt_fn_dash_visao_do_dia), com o instante da leitura.
+// ---------------------------------------------------------------------------
+export interface VisaoDoDiaDados {
+  lido_em: string
+  agora: SetorAgora[]
+  pcp_dia: PcpDia | null
+  dia: NumerosDia | null
+  producao_hora: ProducaoHora[]
+  fim_de_linha: DestinoFimDeLinha[]
+  danificados_dia: DanificadoDia[]
+  estoque: ResumoEstoque | null
+}
+
+export async function dashVisaoDoDia(): Promise<VisaoDoDiaDados> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_visao_do_dia')
+  if (error) throw new Error(`Não deu para carregar a Visão do dia: ${error.message}`)
+  const v = data as VisaoDoDiaDados
+  return {
+    ...v,
+    agora: v.agora ?? [],
+    // o mesmo acerto das portas soltas (numeric → número)
+    dia: v.dia
+      ? {
+          ...v.dia,
+          media_concluidas_4sem:
+            v.dia.media_concluidas_4sem === null ? null : Number(v.dia.media_concluidas_4sem),
+        }
+      : null,
+    producao_hora: (v.producao_hora ?? []).map((l) => ({ ...l, media_4sem: Number(l.media_4sem) })),
+    fim_de_linha: v.fim_de_linha ?? [],
+    danificados_dia: v.danificados_dia ?? [],
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Portas novas da SESSAO-16 (migration 28) — o retrato de agora e os números
 // do dia da Visão do dia, danificados e a tendência semanal. Todas gateadas
 // no banco por fn_setores_dashboard (D-32): quem não mede, recebe vazio.

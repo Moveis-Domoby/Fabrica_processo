@@ -3,7 +3,10 @@ import { useLocation } from 'react-router'
 
 /** No máximo uma conferida a cada 2 minutos — é um arquivo pequeno, mas não é relógio. */
 const INTERVALO_MINIMO_MS = 2 * 60_000
-let ultimaConferida = 0
+// SESSAO-32 (Lei §3 — a abertura é 1 requisição): quem acabou de abrir a
+// plataforma já está na versão do ar; a primeira conferida fica para o
+// primeiro gesto depois de 2 minutos.
+let ultimaConferida = Date.now()
 
 async function versaoPublicada(): Promise<string | null> {
   try {

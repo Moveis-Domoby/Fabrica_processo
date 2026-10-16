@@ -26,6 +26,7 @@ import {
 } from '@/logistica/api'
 import { formatarQuantidade, idadeDaLeitura } from '@/logistica/estoque'
 import { ReservasPresasTiny } from '@/logistica/componentes/ReservasPresasTiny'
+import { useAoVivo } from '@/lib/aoVivo'
 
 /**
  * Painel admin → Estoque (Ajuste Estoque 2 — D-83/D-87; rodada do dono 30/09):
@@ -41,8 +42,10 @@ export function AdminEstoque() {
   const { data: situacao, isPending } = useQuery({
     queryKey: ['estoque', 'reposicao-situacao'],
     queryFn: situacaoReposicao,
-    refetchInterval: 30_000,
+    staleTime: Infinity,
   })
+  // SESSAO-32 (Lei §4): ao vivo pelo aviso do estoque — o relógio de 30 s saiu.
+  useAoVivo('estoque', [['estoque', 'reposicao-situacao']])
   const ligada = Boolean(situacao?.ligada)
 
   const { data: config } = useQuery({ queryKey: ['estoque', 'config'], queryFn: configEstoque })
@@ -321,8 +324,11 @@ function CartaoTiny() {
   const { data: situacao, isPending } = useQuery({
     queryKey: ['estoque', 'tiny'],
     queryFn: situacaoTiny,
-    refetchInterval: 30_000,
+    staleTime: Infinity,
   })
+  // SESSAO-32 (Lei §4): a fila do Tiny avisa com evento próprio ('tiny') — o
+  // relógio de 30 s saiu; as telas do estoque não releem por causa dela.
+  useAoVivo('estoque', [['estoque', 'tiny']], { eventos: ['tiny'] })
   const ligado = Boolean(situacao?.ligado_desde)
 
   const chave = useMutation({

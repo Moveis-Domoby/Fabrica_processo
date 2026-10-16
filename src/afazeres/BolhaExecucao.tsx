@@ -9,6 +9,7 @@ import { buscarSetores } from '@/kanban/api'
 import { formatarDuracao, formatarDuracaoMs, useAgora } from '@/kanban/tempo'
 import { rotaDoSetor } from '@/navegacao/rotas'
 import { minhasExecucoesAbertas } from '@/metas/api'
+import { useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
 import {
   cardsPorIds,
   concluirTarefa,
@@ -18,8 +19,6 @@ import {
   tarefaRodando,
 } from './api'
 import { ModalTarefa } from './ModalTarefa'
-
-const ATUALIZA_A_CADA = 30_000
 
 /**
  * A bolinha flutuante do "em execução agora" (pedido do dono, 23/09): ela
@@ -37,18 +36,21 @@ export function BolhaExecucao() {
   const [tarefaAbertaId, setTarefaAbertaId] = useState<number | null>(null)
 
   // Mesmos fetchers das telas (E-22: uma chave, um fetcher) — a bolha não
-  // inventa consulta nova, só reaproveita o que o painel já usa.
+  // inventa consulta nova, só reaproveita o que o painel já usa. SESSAO-32:
+  // as duas chegam na abertura do app e ficam ao vivo pelo canal da pessoa
+  // (o relógio de 30 s saiu).
+  useMeuTrabalhoAoVivo(perfil?.id)
   const { data: tarefas = [] } = useQuery({
     queryKey: ['afazeres', 'tarefas', perfil?.id],
     queryFn: () => minhasTarefas(perfil!.id),
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const { data: execucoes = [] } = useQuery({
     queryKey: ['meu-painel', 'execucoes', perfil?.id],
-    queryFn: () => minhasExecucoesAbertas(perfil!.id),
+    queryFn: minhasExecucoesAbertas,
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const rodando = useMemo(() => tarefas.filter(tarefaRodando), [tarefas])
   const idsCards = useMemo(() => execucoes.map((e) => e.card_id), [execucoes])

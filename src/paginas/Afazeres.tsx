@@ -20,8 +20,7 @@ import {
 } from '@/afazeres/api'
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
 import { rotuloOrigemCard } from '@/kanban/rotulos'
-
-const ATUALIZA_A_CADA = 15_000
+import { useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
 
 /**
  * Meus afazeres (SESSAO-12/D-34 · SESSAO-23): cards COMPACTOS — clicar na
@@ -39,17 +38,19 @@ export function Afazeres() {
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
 
+  // SESSAO-32 (Lei §4): ao vivo pelo canal da pessoa — os relógios de 15 s saíram.
+  useMeuTrabalhoAoVivo(perfil?.id)
   const { data: cards = [] } = useQuery({
     queryKey: ['afazeres', 'cards', perfil?.id],
     queryFn: () => meusCards(perfil!.id),
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const { data: tarefas = [] } = useQuery({
     queryKey: ['afazeres', 'tarefas', perfil?.id],
     queryFn: () => minhasTarefas(perfil!.id),
     enabled: perfil !== null,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const { data: pedidosPorId = new Map() } = usePedidosDosCards(cards)
 
@@ -59,7 +60,7 @@ export function Afazeres() {
     queryKey: ['afazeres', 'subtarefas', idsTarefas.join(',')],
     queryFn: () => subtarefasDe(idsTarefas),
     enabled: idsTarefas.length > 0,
-    refetchInterval: ATUALIZA_A_CADA,
+    staleTime: Infinity,
   })
   const contadorPorMae = useMemo(() => {
     const mapa = new Map<number, { total: number; feitas: number }>()

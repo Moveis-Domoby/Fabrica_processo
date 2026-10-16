@@ -1,10 +1,30 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { QueryKey } from '@tanstack/react-query'
-import { ouvirCanal } from '@/chat/canais'
+import type { Query, QueryKey } from '@tanstack/react-query'
+import { ouvirCanal, topicoDaPessoa } from '@/chat/canais'
 
-/** As áreas que o banco avisa (SESSAO-30 — migration 61). */
-export type AreaAoVivo = 'estoque' | 'aguardo' | 'pcp' | 'rotas'
+/**
+ * As áreas que o banco avisa (SESSAO-30 — migration 61; SESSAO-31 — o quadro
+ * de cada setor; SESSAO-32 — migration 78: o painel, os danificados e as
+ * listas do Comercial).
+ */
+export type AreaAoVivo =
+  | 'estoque'
+  | 'aguardo'
+  | 'pcp'
+  | 'rotas'
+  | 'painel'
+  | 'danificados'
+  | `setor_${number}`
+  | `lista_${string}`
+
+export interface OpcoesAoVivo {
+  ligado?: boolean
+  /** Os eventos que fazem reler (padrão: 'mudou'). */
+  eventos?: string[]
+  /** Quanto esperar parado antes de reler (padrão 400 ms) — junta rajadas. */
+  esperaMs?: number
+}
 
 const ESPERA_MS = 400
 
@@ -21,13 +41,20 @@ const ESPERA_MS = 400
  * ter o que mudou enquanto a pessoa estava noutra tela. Ao assinar, cada
  * consulta guardada antes de a tela abrir é relida uma vez.
  */
-export function useAoVivo(areas: AreaAoVivo | AreaAoVivo[], chaves: QueryKey[], ligado = true) {
+export function useAoVivo(
+  areas: AreaAoVivo | AreaAoVivo[],
+  chaves: QueryKey[],
+  opcoes: boolean | OpcoesAoVivo = true,
+) {
+  const { ligado = true, eventos = ['mudou'], esperaMs = ESPERA_MS } =
+    typeof opcoes === 'boolean' ? { ligado: opcoes } : opcoes
   const clienteQuery = useQueryClient()
   const chavesRef = useRef(chaves)
   useEffect(() => {
     chavesRef.current = chaves
   })
   const lista = (Array.isArray(areas) ? areas : [areas]).join(',')
+  const listaEventos = eventos.join(',')
 
   useEffect(() => {
     if (!ligado) return
@@ -56,8 +83,9 @@ export function useAoVivo(areas: AreaAoVivo | AreaAoVivo[], chaves: QueryKey[], 
       espera = setTimeout(() => {
         espera = null
         for (const queryKey of chavesRef.current) void clienteQuery.invalidateQueries({ queryKey })
-      }, ESPERA_MS)
+      }, esperaMs)
     }
+    const queremos = new Set(listaEventos.split(','))
     const aoStatus = (status: string) => {
       if (status === 'SUBSCRIBED') {
         if (jaConectou && caiu) reler() // recuperação: o que mudou enquanto estava fora
@@ -71,11 +99,56 @@ export function useAoVivo(areas: AreaAoVivo | AreaAoVivo[], chaves: QueryKey[], 
     const paradas = lista
       .split(',')
       .map((area) =>
-        ouvirCanal(`plt-aviso:${area}`, (evento) => evento === 'mudou' && reler(), aoStatus),
+        ouvirCanal(`plt-aviso:${area}`, (evento) => queremos.has(evento) && reler(), aoStatus),
       )
     return () => {
       if (espera) clearTimeout(espera)
       for (const parar of paradas) parar()
     }
-  }, [lista, ligado, clienteQuery])
+  }, [lista, listaEventos, esperaMs, ligado, clienteQuery])
+}
+
+/**
+ * O trabalho DA PESSOA ao vivo (SESSAO-32 · migration 78): o banco avisa no
+ * canal dela ('meu_trabalho') quando muda um card, uma execução ou uma tarefa
+ * que é dela — a bolinha, o Meu Painel e Meus afazeres releem só as consultas
+ * da pessoa. Sem relógio; ao voltar a conexão, uma releitura de recuperação.
+ */
+export function useMeuTrabalhoAoVivo(usuarioId: string | null | undefined) {
+  const clienteQuery = useQueryClient()
+  useEffect(() => {
+    if (!usuarioId) return
+    let espera: ReturnType<typeof setTimeout> | null = null
+    let jaConectou = false
+    let caiu = false
+    // E-53: o gesto da própria pessoa já relê na tela — o sinal que volta dele
+    // não relê de novo o que acabou de chegar (ou está chegando).
+    const podeReler = (q: Query) =>
+      q.state.fetchStatus !== 'fetching' && Date.now() - q.state.dataUpdatedAt > 1_500
+    const reler = () => {
+      if (espera) clearTimeout(espera)
+      espera = setTimeout(() => {
+        espera = null
+        void clienteQuery.invalidateQueries({ queryKey: ['afazeres'], predicate: podeReler })
+        void clienteQuery.invalidateQueries({ queryKey: ['meu-painel'], predicate: podeReler })
+      }, ESPERA_MS)
+    }
+    const parar = ouvirCanal(
+      topicoDaPessoa(usuarioId),
+      (evento) => evento === 'meu_trabalho' && reler(),
+      (status) => {
+        if (status === 'SUBSCRIBED') {
+          if (jaConectou && caiu) reler()
+          jaConectou = true
+          caiu = false
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          caiu = true
+        }
+      },
+    )
+    return () => {
+      if (espera) clearTimeout(espera)
+      parar()
+    }
+  }, [usuarioId, clienteQuery])
 }
