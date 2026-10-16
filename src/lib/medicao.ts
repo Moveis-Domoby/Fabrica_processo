@@ -33,7 +33,8 @@ const medida = {
   interacoes: 0,
 }
 let carga = ''
-let rotaInicial = '/'
+/** A 1ª tela de verdade (depois dos redirecionamentos: '/' vira o Meu Painel). */
+let rotaInicial = ''
 let modoTablet = false
 let token: string | null = null
 let enviadaEm = 0
@@ -58,15 +59,17 @@ function observar(
   tipo: string,
   aoChegar: (entradas: PerformanceEntry[]) => void,
   extra: Record<string, unknown> = {},
-) {
+): boolean {
   try {
     new PerformanceObserver((lista) => aoChegar(lista.getEntries())).observe({
       type: tipo,
       buffered: true,
       ...extra,
     } as PerformanceObserverInit)
+    return true
   } catch {
     // navegador sem esta medida: fica vazia
+    return false
   }
 }
 
@@ -76,7 +79,7 @@ function enviar() {
   if (!url || !chave || !token || (medida.lcp === undefined && medida.fcp === undefined)) return
   const corpo = JSON.stringify({
     p_carga: carga,
-    p_rota: rotaInicial,
+    p_rota: rotaInicial || window.location.pathname,
     p_aparelho: aparelho(),
     p_modo_tablet: modoTablet,
     p_lcp_ms: ms(medida.lcp),
@@ -114,8 +117,7 @@ export function iniciarMedicao() {
   carga = novaCarga()
   // a 1ª medida sai quando a pessoa deixa a aba — nunca junto da abertura
   enviadaEm = Date.now()
-  rotaInicial = window.location.pathname
-  modoTablet = rotaInicial.startsWith('/tablet')
+  modoTablet = window.location.pathname.startsWith('/tablet')
   supabase.auth.onAuthStateChange((_evento, sessao) => {
     token = sessao?.access_token ?? null
   })
@@ -136,7 +138,8 @@ export function iniciarMedicao() {
   let janela = 0
   let inicio = 0
   let ultimo = 0
-  observar('layout-shift', (es) => {
+  // tela que não pulou nada vale 0 (não vazio) — quando o navegador mede
+  const medeDeslocamento = observar('layout-shift', (es) => {
     for (const e of es as EntradaDeslocamento[]) {
       if (e.hadRecentInput) continue
       if (janela && e.startTime - ultimo < 1000 && e.startTime - inicio < 5000) janela += e.value
@@ -148,6 +151,7 @@ export function iniciarMedicao() {
       medida.cls = Math.max(medida.cls ?? 0, janela)
     }
   })
+  if (medeDeslocamento && medida.cls === undefined) medida.cls = 0
   // o toque mais lento (com muitos toques, ignora 1 a cada 50 — como a Google)
   const porInteracao = new Map<number, number>()
   observar(
@@ -176,6 +180,10 @@ export function iniciarMedicao() {
 
 /** Troca de tela: entra no modo tablet? E manda o que tem se faz tempo (sem relógio). */
 export function medirNaNavegacao(rota: string) {
+  // '/', '/inicio', '/fabrica'… só redirecionam: a 1ª tela é a seguinte
+  const telaDeVerdade =
+    rota === '/tablet' || rota === '/entrar' || rota.split('/').filter(Boolean).length >= 2
+  if (!rotaInicial && telaDeVerdade) rotaInicial = rota
   if (rota.startsWith('/tablet')) modoTablet = true
   if (carga && Date.now() - enviadaEm > REENVIO_NA_NAVEGACAO_MS) enviar()
 }
