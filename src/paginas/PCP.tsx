@@ -38,11 +38,10 @@ const AbaLancamentoManual = lazy(() =>
 import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
-import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
-import type { Card } from '@/kanban/tipos'
-import { useCamposDosPedidos, useEtiquetasDosCards } from '@/utilitarios/consultas'
+import type { Card, PedidoResumo } from '@/kanban/tipos'
+import { useCamposDosPedidos } from '@/utilitarios/consultas'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 
 /**
@@ -236,9 +235,20 @@ export function PCP() {
     () => [...cardsPedidoAbertos, ...(cardDoLink ? [cardDoLink] : [])],
     [cardsPedidoAbertos, cardDoLink],
   )
-  const { data: pedidosPorId = new Map() } = usePedidosDosCards(todosOsCards)
+  // SESSAO-32 (Lei §3, dívida 15): o resumo do pedido e as etiquetas vêm na
+  // própria página do quadro (plt_fn_pcp_quadro) — sem leitura em fila.
+  const pedidosPorId = useMemo(() => {
+    const mapa = new Map<number, PedidoResumo>()
+    for (const c of todosOsCards) {
+      if (c.pedido_id !== null && c.pedido_resumo) mapa.set(c.pedido_id, c.pedido_resumo)
+    }
+    return mapa
+  }, [todosOsCards])
   // SESSAO-27 (D-101): etiquetas e campos do pedido — só dos cards mostrados.
-  const etiquetasPorCard = useEtiquetasDosCards(todosOsCards.map((c) => c.id))
+  const etiquetasPorCard = useMemo(
+    () => new Map(todosOsCards.map((c) => [c.id, c.etiquetas ?? []])),
+    [todosOsCards],
+  )
   const camposPorPedido = useCamposDosPedidos(
     todosOsCards.map((c) => c.pedido_id).filter((id): id is number => id !== null),
   )

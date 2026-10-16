@@ -98,6 +98,11 @@ export interface Card {
    */
   etiquetas?: number[]
   /**
+   * SESSAO-32 (dívida 15): o resumo do pedido, quando a porta já traz junto
+   * (o quadro do PCP — plt_fn_pcp_quadro) — nada de segunda leitura em fila.
+   */
+  pedido_resumo?: PedidoResumo | null
+  /**
    * SESSAO-31 (D-126): a chegada que o setor ainda precisa confirmar (a
    * marcação de quem entregou ou a própria chegada). Nula = nada a confirmar.
    * Projeção do banco — a tela não pergunta mais à parte.

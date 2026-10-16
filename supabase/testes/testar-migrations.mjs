@@ -13042,6 +13042,73 @@ conferir(
 await como81('')
 } // fim do bloco 81
 
+// ============================================================================
+// SESSAO-32 — migration 82: o quadro do PCP numa leitura (a página de sempre +
+// as etiquetas + o resumo do pedido). Igual, linha a linha, às 3 leituras.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-32 · o quadro do PCP numa leitura = a página de sempre + etiquetas + o resumo do pedido')
+const como82 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const comoLogado82 = async (auth, sql) => {
+  await como82(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const COLS82 = `id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades,
+  setor_atual_id, etapa_atual_id, desde, executor_atual_id, responsavel_id, delegado_em, qualidade_atual,
+  concluido_em, pausado_em, liberado_completo_em, pecas_estoque, contagem_total`
+const difs82 = []
+let linhasVistas82 = 0
+let comPedido82 = 0
+for (const grupo of ['pedido', 'reposicao', null]) {
+  for (const desloc of [0, 10]) {
+    const g = grupo === null ? 'null' : `'${grupo}'`
+    const velha = await comoLogado82(E40.admin, `select ${COLS82} from public.plt_fn_cards_pedido_pcp(10, ${desloc}, ${g})`)
+    const nova = await comoLogado82(E40.admin, `select ${COLS82}, etiquetas, pedido_resumo from public.plt_fn_pcp_quadro(10, ${desloc}, ${g})`)
+    linhasVistas82 += nova.length
+    const base = nova.map((l) => Object.fromEntries(Object.entries(l).filter(([k]) => k !== 'etiquetas' && k !== 'pedido_resumo')))
+    if (JSON.stringify(base) !== JSON.stringify(velha)) difs82.push({ grupo, desloc, motivo: 'página diferente' })
+    const ids = nova.map((l) => l.id)
+    const pedidosIds = [...new Set(nova.map((l) => l.pedido_id).filter((x) => x !== null))]
+    const etq = ids.length
+      ? await comoLogado82(E40.admin, `select id, coalesce(etiquetas, '{}') as etiquetas from public.plt_cards where id = any (array[${ids.join(',')}]::bigint[])`)
+      : []
+    const etqPor = new Map(etq.map((l) => [String(l.id), JSON.stringify(l.etiquetas)]))
+    const res = pedidosIds.length
+      ? await comoLogado82(E40.admin, `select pedido_id, to_jsonb(k) - 'contagem_total' as r from public.plt_fn_pedidos_kanban(null, false, array[${pedidosIds.join(',')}]::bigint[], 100, 0) k`)
+      : []
+    const resPor = new Map(res.map((l) => [String(l.pedido_id), JSON.stringify(l.r)]))
+    for (const l of nova) {
+      if (JSON.stringify(l.etiquetas) !== etqPor.get(String(l.id))) difs82.push({ grupo, id: l.id, motivo: 'etiquetas' })
+      const esperado = l.pedido_id === null ? undefined : resPor.get(String(l.pedido_id))
+      const veio = l.pedido_resumo === null ? undefined : JSON.stringify(l.pedido_resumo)
+      if (veio !== esperado) difs82.push({ grupo, id: l.id, motivo: 'resumo do pedido' })
+      if (veio) comPedido82 += 1
+    }
+  }
+}
+const priv82 = (await bd.query(`
+  select has_function_privilege('anon', 'public.plt_fn_pcp_quadro(integer, integer, text)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_pcp_quadro(integer, integer, text)', 'execute') as logado`)).rows[0]
+let operador82 = null
+try {
+  operador82 = (await comoLogado82(E40.operador, `select count(*)::int as n from public.plt_fn_pcp_quadro(10, 0, null)`))[0].n
+} catch (e) {
+  operador82 = 'erro: ' + String(e.message).slice(0, 60)
+}
+const operadorVelha82 = (await comoLogado82(E40.operador, `select count(*)::int as n from public.plt_fn_cards_pedido_pcp(10, 0, null)`))[0].n
+await como82('')
+conferir(
+  difs82.length === 0 && linhasVistas82 > 0 && comPedido82 > 0 && !priv82.anon && priv82.logado && operador82 === operadorVelha82,
+  `a página, as etiquetas e o resumo do pedido = as 3 leituras de antes, linha a linha (${linhasVistas82} linhas, ${comPedido82} com pedido); o operador vê o mesmo que via antes`,
+  JSON.stringify({ difs: difs82.slice(0, 5), linhasVistas82, comPedido82, priv82, operador82, operadorVelha82 }),
+)
+} // fim do bloco 82
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

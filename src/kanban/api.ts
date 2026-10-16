@@ -124,7 +124,9 @@ export async function buscarCardsPedidoPcp(parametros: {
 }): Promise<PaginaDeCards> {
   const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
   const inicio = parametros.pagina * porPagina
-  const { data, error } = await supabase.rpc('plt_fn_cards_pedido_pcp', {
+  // SESSAO-32 (Lei §3, dívida 15): a mesma página com as etiquetas e o resumo
+  // do pedido de cada card — antes eram mais 2 leituras em fila.
+  const { data, error } = await supabase.rpc('plt_fn_pcp_quadro', {
     p_limite: porPagina,
     p_deslocamento: inicio,
     p_grupo: parametros.grupo ?? null,
