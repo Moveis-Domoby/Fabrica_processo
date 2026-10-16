@@ -11,7 +11,7 @@ tags: [handoff, sessao, sessao-32, bloco-6, desempenho, escala, banco, websocket
 > [!success] Entregue em modo noturno — o que dependia só do Claude está no ar; o que é do dono está pronto e esperando
 > Ordem do dono (15/10, ~21:10 de Natal): *"Vou sair agora, abre logo o navegador aqui pra que eu possa logar pra você e você testa tudo e me entrega apenas o resultado final após finalizar"* → *"Vá lá"*. Cada frente foi testada inteira (bateria do banco, tipos, estilo, testes de tela, montagem com teto, conferência no banco real pessoa por pessoa como `authenticated`, navegação no site com a conta do dono) e então **aplicada e publicada no mesmo gesto** (E-73). O reservado ao dono (D-137) ficou em `supabase/pendentes/`, com prova e números. Memória técnica completa: [[SESSAO-32]] (`Plataforma/Execucao/SESSAO-32.md`).
 
-**Branch:** `sessao-32-desempenho-escala` (cada frente foi à `main` por avanço direto — D-20). **Demanda:** [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]]. **Banco:** migrations **76 a 86** (83–86 depois do OK do dono — D-138 e D-139) + a manutenção `2026-10-16_parar_fila_tiny_saldos_gigantes.sql` (integração do Tiny idêntica em todas — `e2109f3a…`). **Bateria do banco:** 970 → **1.013 verificações, tudo verde** (+ o bloco 85 da separação dos insumos, verde); testes de tela 162 → **191**. **Decisões:** D-137, D-138 e D-139.
+**Branch:** `sessao-32-desempenho-escala` (cada frente foi à `main` por avanço direto — D-20). **Demanda:** [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]]. **Banco:** migrations **76 a 87** (83–87 depois do OK do dono — D-138 a D-140) + a manutenção `2026-10-16_parar_fila_tiny_saldos_gigantes.sql` (integração do Tiny idêntica em todas — `e2109f3a…`). **Bateria do banco:** 970 → **1.013 verificações, tudo verde** (+ o bloco 85 da separação dos insumos, verde); testes de tela 162 → **191**. **Decisões:** D-137 a D-140.
 
 ## 1. Objetivo da sessão
 
@@ -60,6 +60,11 @@ Dois insumos cadastrados como "simples" no Tiny com saldo enorme (fita de borda 
 - **No site (conta do dono):** o painel abre no mês atual com a tela inteira em ~1 s (antes ~3,6 s); "Todo o período" volta em ~0,2 s depois da troca (antes ~2,4 s); o Dashboard inteiro em ~1,2 s (antes ~2,1 s).
 - **Mesmos números de antes:** bateria (24 filtros do painel, 8 períodos do dashboard, gravações acompanhadas) e banco real numa transação desfeita (0 diferença em 21 filtros e 7 períodos, 42.658 linhas).
 
+### Outubro igual ao Tiny: pedido excluído no Tiny some de todos os módulos ✅ (migration 87 — D-140)
+- **Causa:** o pedido 13622 (Loja Domoby, R$ 14.051,90, de 08/10) foi excluído no Tiny; o Tiny não avisa exclusão e a conferência da madrugada só contava "não encontrado". Ele seguia no Comercial (outubro 128 · R$ 149.047,80 × Tiny 127 · R$ 134.995,90), na lista de Pedidos e com 32 cartões na produção.
+- **Agora (regra do dono: "se o pedido não existe mais, ele não deve aparecer em nenhum módulo"):** a conferência marca sozinha o pedido que o Tiny diz que não existe (e desmarca se ele voltar); os cartões saem dos quadros (histórico guardado, peças reservadas liberadas) com aviso aos admins; Pedidos, PCP, estoque e Comercial não o enxergam mais.
+- **No ar:** outubro = 127 pedidos · R$ 134.995,90 (igual ao Tiny); busca "13622" em Pedidos = nenhum pedido.
+
 ### Frente I — prova de carga ✅
 | | Antes (15/10, começo da noite) | Antes, depois do `ANALYZE` | **Depois (16/10)** |
 |---|---|---|---|
@@ -84,6 +89,7 @@ A 1ª rodada ×10 mostrou a **manada** (todas as Visões do dia e PCPs relendo n
 8. **Tablet (768 px) e celular (375 px):** nada mudou na aparência; confira se tudo segue igual.
 9. **Móveis, insumos e peças (admin):** Configurações → Móveis, insumos e peças. Busque um produto (ex.: "bucha"), filtre por Peça (63), troque um produto de tipo e depois toque em "Voltar ao automático" — o aviso confirma cada troca e ela aparece na auditoria.
 10. **Estoque → Matéria-prima e insumos:** os insumos e as peças com a quantidade na unidade de cada um (un., m², m…) e o que cada um é (insumo, peça, kit, matéria-prima).
+13. **Outubro igual ao Tiny:** Comercial → Painel de Recompra em "Do mês" (out/2026) = 127 pedidos e R$ 134.995,90 — o mesmo total da lista do Tiny em outubro. Pedidos → Todos os pedidos → buscar "13622": nenhum pedido. O sino dos admins tem o aviso "Pedido 13622 excluído no Tiny".
 12. **Comercial → Painel de Recompra:** abre em "Do mês" (o atual), na hora. Troque "Data da Compra" para "Todo o período" — a tabela e os números voltam quase instantâneos. No Dashboard, toque em "Tudo" em qualquer cartão.
 11. **Estoque → Configurações → Galpão:** "Móveis em estoque" conta só móvel (130 na hora da aplicação — antes 4.895, com os insumos).
 
@@ -103,7 +109,7 @@ A 1ª rodada ×10 mostrou a **manada** (todas as Visões do dia e PCPs relendo n
 | Listas que crescem por cursor; teto no banco | ✔ Auditoria e automações por cursor; as outras 22 são limitadas, com teto |
 | Teste de carga 40 e ×10 | ✔ §2 |
 | Core Web Vitals p75 dos tablets | a medição está no ar; os números chegam com o uso |
-| Integração do Tiny idêntica a cada atualização | ✔ em todas (76 a 86) |
+| Integração do Tiny idêntica a cada atualização | ✔ em todas (76 a 87) |
 | §14 da lei atualizado | ✔ andamento da SESSAO-32 + dívidas 18 a 20 |
 | ClickUp em FAZENDO, nunca concluído, dono avisado | ✔ §8 |
 
@@ -154,11 +160,11 @@ Em **FAZENDO**, nenhuma concluída (quem conclui é o dono):
 
 ## 9. Para a máquina — onde está cada coisa
 
-- **Migrations:** 76 `20261016010000_plt_estoque_tiny_teto_e_tentativa` · 77 `…020000_plt_banco_indices_politicas` · 78 `…030000_plt_abertura_e_ao_vivo` · 79 `…040000_plt_medicao_web` · 80 `…050000_plt_abertura_catalogos` · 81 `…060000_plt_listas_por_cursor` · 82 `…070000_plt_pcp_quadro_numa_leitura` · 83 `…080000_plt_pedidos_busca_indices` · 84 `…090000_plt_indices_copias_tiny_e_repetidos` · 85 `…100000_plt_estoque_movel_insumo_peca` · 86 `…110000_plt_comercial_tela_pronta` — detalhe em [[SUPA - Esquema do Banco]]. Manutenção: `supabase/manutencao/2026-10-16_parar_fila_tiny_saldos_gigantes.sql`. **Pendente:** só o gancho do token em `supabase/pendentes/` (README).
+- **Migrations:** 76 `20261016010000_plt_estoque_tiny_teto_e_tentativa` · 77 `…020000_plt_banco_indices_politicas` · 78 `…030000_plt_abertura_e_ao_vivo` · 79 `…040000_plt_medicao_web` · 80 `…050000_plt_abertura_catalogos` · 81 `…060000_plt_listas_por_cursor` · 82 `…070000_plt_pcp_quadro_numa_leitura` · 83 `…080000_plt_pedidos_busca_indices` · 84 `…090000_plt_indices_copias_tiny_e_repetidos` · 85 `…100000_plt_estoque_movel_insumo_peca` · 86 `…110000_plt_comercial_tela_pronta` · 87 `…120000_plt_pedido_excluido_no_tiny` — detalhe em [[SUPA - Esquema do Banco]]. Manutenção: `supabase/manutencao/2026-10-16_parar_fila_tiny_saldos_gigantes.sql`. **Pendente:** só o gancho do token em `supabase/pendentes/` (README).
 - **Front:** `src/autenticacao/{abertura,inatividade}.ts` · `ProvedorSessao.tsx` · `src/lib/{aoVivo,medicao,versaoNova}.ts` · `src/chat/canais.ts` · `src/navegacao/pedacos.ts` · `src/App.tsx` (telas sob demanda) · `vite.config.ts` (teto) · `vercel.json` (cache) · `src/componentes/AvisoAoVivoPausado.tsx` · telas: Meu Painel, Afazeres, Afazeres do time, Visão do dia, Danificados, Config. do estoque, API, PCP, Auditoria, Automações, lista do Comercial, painel do Comercial · **móvel/insumo/peça:** `src/paginas/ClassificacaoProdutos.tsx`, `src/logistica/classificacao.ts`, `src/logistica/componentes/PainelInsumos.tsx` (o tipo na aba de insumos), rota `/configuracoes/produtos` (App, menu, pré-carregamento, auditoria).
-- **Bateria:** blocos 76, 78–83, 85 e 86 em `supabase/testes/testar-migrations.mjs` (o 83 compara a porta de Pedidos de antes com a da migration 83; o PGlite carrega `pg_trgm`).
+- **Bateria:** blocos 76, 78–83 e 85–87 em `supabase/testes/testar-migrations.mjs` (o 83 compara a porta de Pedidos de antes com a da migration 83; o PGlite carrega `pg_trgm`).
 - **Scripts de prova (scratchpad da sessão):** `conferir-78/79/81/82/83/85/86.mjs`, `tempo-85b.mjs`, `upsert-produto.mjs`, `baixar-comercial.mjs`, `plano-mes-86.mjs`, `carga.mjs`/`carga-nova.mjs`, `visibilidade.mjs`, `medir-pedidos.mjs`, `ensaio-pedidos-x100.mjs`, `foto-pss.mjs`.
-- **Aprendizados:** E-101 a E-107 e A-65 a A-70 em [[PLT - Memoria de Aprendizado]].
+- **Aprendizados:** E-101 a E-107 e A-65 a A-71 em [[PLT - Memoria de Aprendizado]].
 
 ## Ver também
 

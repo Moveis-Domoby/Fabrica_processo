@@ -1421,6 +1421,17 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 3. **Mesmos números.** Provado porta antiga × nova na bateria e no banco real (transação desfeita): 0 diferença em 21 filtros do Painel de Recompra (25.517 linhas) e 7 períodos do Dashboard (17.141 linhas), views idênticas linha a linha, a tela pronta = os pedidos (conferência 0), transação desfeita.
 4. **Como ficou:** aplicada em 16/10 ~05:30 UTC + site publicado no mesmo gesto. No banco real, como o dono: Painel de Recompra no mês atual 1,9 ms (126 clientes) e no período inteiro 3 ms (4.264 clientes; antes 1,5–2,5 s); números do período inteiro 1,3 ms (antes 66 ms–2,3 s); top de produtos 2,9 ms (antes 220 ms); maiores clientes 0,6 ms (antes 149 ms). A tela pronta = os 5.568 pedidos (conferência 0); o gatilho testado numa transação desfeita (valor e telefone acompanhados na hora); quem não tem o módulo segue barrado.
 
+## D-140 · SESSAO-32: pedido excluído no Tiny não existe em nenhum módulo — uma verdade só para fábrica e comercial (16/10/2026)
+
+**Pedido do dono (16/10, ~06:00 UTC, com print do Tiny × Painel de Recompra):** *"Os valores de outubro no tiny e na plataforma estão diferentes, investigue o motivo e resolva"*. **A causa:** outubro na plataforma 128 pedidos / R$ 149.047,80; no Tiny 127 / R$ 134.995,90 — a diferença é EXATAMENTE o pedido 13622 (Loja Domoby, 29 itens, R$ 14.051,90, "Em aberto", de 08/10), excluído no Tiny entre 08/10 18:08 e 09/10 03:39 UTC. O Tiny não avisa exclusão; a conferência da madrugada pedia o pedido ao Tiny toda noite e ouvia "codigo 32: Pedido não localizado", mas só contava "não encontrados" — o pedido seguia vivo no Comercial, na lista de Pedidos, no PCP e na produção (32 cartões: o do pedido, 8 unidades prontas em aguardo, 21 a montar e 2 paradas na montagem).
+
+**A regra do dono (ao ser perguntado o que fazer com os cartões):** *"Entenda que fábrica e comercial devem reagir às mesmas tabelas, aos mesmos dados e tudo mais, a única diferença é apenas como eles aparecem no front, então se o pedido não existe mais, ele não deve aparecer em nenhum módulo"*. **OK para aplicar:** *"Pode aplicar"*.
+
+1. **Uma verdade só:** a conferência da madrugada marca o pedido que o Tiny diz que não existe mais (e desmarca se uma conferência seguinte o achar). Todos os módulos leem a mesma marcação — nada se apaga dos pedidos.
+2. **Some de tudo:** os cartões do pedido saem de todos os quadros (arquivados pela integração, com o motivo no histórico, o tempo aberto fechado, as peças do estoque reservadas para ele liberadas e fora da programação do caminhão); os admins recebem um aviso ("se alguma peça já existe de verdade, dê entrada dela no estoque"); a lista e a busca de Pedidos, o "Todos os pedidos" do PCP, a reserva do estoque pelo vendido, o ranking e os cortes das vendas, o detalhe do pedido, a busca de vínculo, as reservas presas do Tiny e o Comercial não o enxergam mais.
+3. **Cancelado ≠ excluído:** o cancelado segue como sempre (aparece em Cancelados, as peças prontas voltam ao estoque sem dono — D-124/D-129); o Tiny também conta o cancelado no total da lista dele (o 13559, R$ 850, está nos 127).
+4. **Como ficou (16/10 ~06:22 UTC, migration 87 + site):** outubro 127 pedidos · R$ 134.995,90 · 125 clientes = Tiny; o 13622 marcado, os 32 cartões fora dos quadros, 4 admins avisados; busca "13622" em Pedidos = nenhum pedido.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
