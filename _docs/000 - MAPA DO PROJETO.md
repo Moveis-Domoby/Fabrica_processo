@@ -1,7 +1,7 @@
 ---
 titulo: Mapa do Cofre — Domoby (Fábrica + Comercial)
 tipo: MOC
-atualizado: 2026-10-03
+atualizado: 2026-10-16
 tags: [moc, indice, fabrica, comercial]
 ---
 
@@ -187,6 +187,8 @@ Telas, integração e dívidas:
 > A IA registra o técnico (o que mudou, por quê, o que quebrou). **O dono registra o de negócio** — o que a equipe reclamou, o que mudou de prioridade, como o processo físico funciona de verdade. Isso a IA não tem como saber, e é o que mais falta neste cofre hoje: o detalhe real de cada setor.
 
 ## Estado atual em uma linha
+
+**↪️ 16/10/2026 (respostas do dono + nasce a SESSAO-33):** as pendências da SESSAO-32 e as antigas foram passadas a limpo (**D-141**): a pessoa desativada passa a ser recusada já no login (o gancho pendente foi ajustado e liga em casa, com a chave nova), Auditoria e automações por rolagem, rotinas de minuto em minuto aprovadas para "nascer do fato", máquina do banco no plano gratuito, projeto de testes liberado para ensaios, e a **publicação no ar fechada como entregue** (o site já está no ar). As 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]] viraram a **D-142** (API nova na conta da fábrica com renovador próprio; estruturas ligadas na plataforma; o liga/desliga de reduzir insumos por etapa nascendo desligado; lista das unidades fora do padrão). **Em execução:** [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]] — todos os dados do Tiny, pelo n8n, melhorando a automação que já existe, e atualizados quando algo muda lá.
 
 **↪️ 07/10/2026 (Lei de Desempenho e Escala + ClickUp):** o dono mandou que toda solução seja a mais otimizada do mercado, mesmo quando mais difícil — virou a regra 18 e a [[PLT - Lei de Desempenho e Escala]]; a auditoria de 07/10 achou 35 relógios em 15 telas, 3 telas relendo tudo a cada mudança de card, ~13 requisições na abertura, pacote de 1,8 MB e estoque de 1 a 4 s no banco → [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] (depois da 31; a 30 e a 31 já seguem a lei no que tocam). Regra 19: o mapeado no Cowork vira tarefa no ClickUp; o Claude Code move para FAZENDO e o dono conclui.
 

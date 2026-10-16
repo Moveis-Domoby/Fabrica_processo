@@ -2,7 +2,7 @@
 titulo: "PLANO — Integração COMPLETA com o Tiny da fábrica (peças, insumos, estrutura e corte)"
 tipo: plano
 data: 2026-09-27
-atualizado: 2026-09-27
+atualizado: 2026-10-16
 tags: [planejamento, tiny, integracao, estoque, pecas, insumos, cnc, plano-de-corte, api]
 ---
 
@@ -114,6 +114,9 @@ Com isso, "estoque de peças" e "estoque de insumos" **não são módulos novos*
 - ⚠️ Esta onda é a de maior incerteza: depende do modelo da CNC, do software que a alimenta e do que o plugin exporta.
 
 ## 5. O que precisa de você (dono)
+
+> [!success] ↪️ 16/10/2026 — as 6 respondidas pelo dono (D-142)
+> **1.** API nova (v3) na conta da fábrica **liberada**, com renovador próprio (um por credencial). **2.** A baixa de peça e insumo é **da plataforma**, como nos móveis montados (D-77): entrada, baixa e contagem aqui deixam o Tiny igual. **3.** As estruturas **não estão completas** no Tiny; as que existem ficam ligadas na plataforma (móvel → peças → insumos) + o liga/desliga em Configurações **"Reduzir os insumos de acordo com a conclusão dos setores de produção?"** (nasce desligado; amarrar cada insumo à etapa/setor que o consome — a trazer ao dono no plano). **4.** O plugin do SketchUp não tem nome conhecido; **a CNC lê um JSON do plano de corte** — fica para a parte de corte. **5.** Peça cortada **entra no estoque** como matéria-prima/peça/insumo (não como móvel — D-138). **6.** Unidades fora do padrão: **uma lista em Configurações** para a equipe padronizar no Tiny; a plataforma não converte. Execução: [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]]. O texto abaixo é o original.
 
 1. **v3 na conta da fábrica:** posso criar o aplicativo (scopes de produtos e estoque) e montar o renovador próprio? É o que destrava as ondas 1, 2 e 3 de forma limpa. Alternativa: instalar a extensão paga e ficar na v2 — quanto custa na sua conta?
 2. **Quem é o dono da baixa de estoque de peça/insumo**: a Ordem de Produção do Tiny (como hoje) ou a plataforma? Isso decide a onda 4 e é o que hoje causa o saldo negativo.

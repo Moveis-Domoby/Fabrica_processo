@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-10-14
+atualizado: 2026-10-16
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -1431,6 +1431,43 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 2. **Some de tudo:** os cartões do pedido saem de todos os quadros (arquivados pela integração, com o motivo no histórico, o tempo aberto fechado, as peças do estoque reservadas para ele liberadas e fora da programação do caminhão); os admins recebem um aviso ("se alguma peça já existe de verdade, dê entrada dela no estoque"); a lista e a busca de Pedidos, o "Todos os pedidos" do PCP, a reserva do estoque pelo vendido, o ranking e os cortes das vendas, o detalhe do pedido, a busca de vínculo, as reservas presas do Tiny e o Comercial não o enxergam mais.
 3. **Cancelado ≠ excluído:** o cancelado segue como sempre (aparece em Cancelados, as peças prontas voltam ao estoque sem dono — D-124/D-129); o Tiny também conta o cancelado no total da lista dele (o 13559, R$ 850, está nos 127).
 4. **Como ficou (16/10 ~06:22 UTC, migration 87 + site):** outubro 127 pedidos · R$ 134.995,90 · 125 clientes = Tiny; o 13622 marcado, os 32 cartões fora dos quadros, 4 admins avisados; busca "13622" em Pedidos = nenhum pedido.
+
+## D-141 · As respostas do dono sobre o que ficou da SESSAO-32 e as pendências antigas (16/10/2026) — ↪️ D-137, D-30
+
+**Respostas do dono (16/10, trazidas no início da [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]], com o dono fora de casa, pelo celular):**
+
+1. **A chave nova do login e o gancho do token no painel da Supabase** → o dono faz quando chegar em casa (segue pendente com ele; o Claude guia — D-137).
+2. **As rotinas que acordam de minuto em minuto passarem a rodar só quando algo acontece** (reservas do estoque, envio de avisos, disparo do Comercial, fotos do Tiny) → **aprovado**. Vira trabalho de sessão — na SESSAO-33 só se couber no fim (§4 da demanda); o disparo do Comercial nunca roda em dois lugares.
+3. **A máquina do banco** → **fica no plano gratuito por enquanto**. Sai da lista de pendências (a dívida 19 da [[PLT - Lei de Desempenho e Escala]] fica registrada como escolha de custo do dono).
+4. **O projeto de testes pausado na Supabase ("Sistema Domoby - Staging")** → **liberado para os ensaios pesados** (carga, volume ×100).
+5. **As 6 escolhas provisórias da SESSAO-32** (§6 do [[handoff_2026_10_16_sessao32_desempenho_escala]]):
+   1. Tempo de sessão — tablet 12 h / escritório 8 h → **confirmado**.
+   2. Medição de velocidade — uma linha por abertura, só o dono vê → **confirmado**.
+   3. Pessoa desativada → **MUDOU: recusar já no login, com mensagem clara** (não deixar entrar e negar tudo depois). O gancho do token em `supabase/pendentes/` passa a recusar a pessoa inativa ao emitir ou renovar o token, com a mensagem em português de gente; **continua só ligando quando o dono fizer os cliques em casa**. O login da plataforma (que hoje responde "usuário ou senha incorretos" também para quem está desativado) passa a dizer, **só para quem acertou a senha**, que o acesso está desativado — quem erra a senha continua sem saber se a conta existe.
+   4. Releituras espalhadas — painel 4 s, PCP 1,5 s, logística 1 s, quadro 0,7 s → **confirmado**.
+   5. Busca de Pedidos por caminhos junto com os índices → **confirmado** (já aplicada — D-138).
+   6. Auditoria e histórico das automações → **paginação por rolagem**: carrega mais ao rolar, sem números de página, por cursor (regra 18).
+6. **Tarefas entregues no ClickUp** → já **concluídas pelo Cowork em 16/10** (25 tarefas: as 7 do kanban completo, os 14 ajustes de 15/10, e tempo real, pacote dividido, banco e listas por cursor). Ficaram abertas: primeira abertura (telas com 2–3 leituras), comercial/gravação do pedido do Tiny e permissões no token.
+
+**Pendências antigas:**
+- **Olhar o kanban no tablet** → o dono vê depois (mantém).
+- **A imagem de teste do comprovante no pedido 13622** → o dono **autorizou tirar**. É dado de produção: sai pelo caminho normal da plataforma (anexo/comprovante; se for evento, a correção é evento novo — nunca apagar evento, regra 5), mostrando ao dono exatamente o que sai e só executando com o "pode" dele na conversa.
+- **Contagem inicial do estoque** → o dono acredita que foi feita, mas **mantém como pendência** (conferir no banco).
+- **Publicação no ar** → **já está publicada** (o site está no ar e as sessões publicam nele desde setembro). A [[SESSAO-08 - Publicacao no Ar]] fecha como **entregue** e sai de toda lista de pendências e de "em espera" (↪️ revisa a D-30).
+- **Cartões de insumo parados no quadro do ESTOQUE** (D-138) → **mantém**; o destino deles volta quando entrar a parte da linha de produção que consome insumo e atualiza o estoque em tempo real.
+
+## D-142 · Integração completa com o Tiny: as 6 perguntas do plano respondidas (16/10/2026) — ↪️ [[003 - PLANO - Integracao Completa Tiny da Fabrica]], D-77, D-138
+
+**Respostas do dono (16/10)** às perguntas do §5 do plano 003, para o plano da Etapa B da [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]]:
+
+1. **API nova (v3) na conta da fábrica** → **liberada**: pode criar o aplicativo na conta da fábrica, **com o renovador próprio** — um renovador por credencial, sempre (E-07, A-18). O renovador da conta da loja continua o único dela.
+2. **Quem dá baixa de peça e insumo** → **do mesmo jeito que funciona para os móveis montados** (D-77): a plataforma registra entrada, baixa e contagem e deixa o Tiny igual.
+3. **As estruturas dos móveis no Tiny** → **não estão completas**. As que já existem no Tiny ficam **ligadas na plataforma** (móvel → peças → insumos). Em **Configurações** nasce um liga/desliga com o texto **"Reduzir os insumos de acordo com a conclusão dos setores de produção?"** — ligado: quando um setor conclui a sua etapa, a plataforma baixa os insumos daquela etapa pela estrutura; desligado: nada acontece. **Nasce desligado.** Ao desenhar, o Claude traz ao dono **como amarrar cada insumo à etapa/setor que o consome** (a estrutura do Tiny na API nova tem etapas — conferir na pesquisa).
+4. **Plano de corte** → o dono não sabe o nome do plugin do SketchUp; **a CNC lê um JSON do plano de corte e executa**. Fica para a parte de corte (não na SESSAO-33); o que a pesquisa achar de útil vai anotado.
+5. **Peça cortada entra no estoque** → **sim, como matéria-prima / peça / insumo** (não como móvel) — usa as contas separadas de móvel × insumo × peça que já existem (D-138).
+6. **Insumos com unidade fora do padrão** → uma **lista em Configurações** com os insumos de unidade fora do padrão (e os sem unidade), para a equipe padronizar depois no Tiny. **A plataforma não converte por conta própria.**
+
+**Escopo da SESSAO-33 para estas respostas:** a ligação das estruturas que já existem (é dado do Tiny — entra na carga completa) e a lista das unidades em Configurações. O liga/desliga de reduzir insumos e a baixa por etapa entram **se o dono aprovar no plano da Etapa B**; se não couberem, ficam escritos como a próxima sessão.
 
 ## Ver também
 

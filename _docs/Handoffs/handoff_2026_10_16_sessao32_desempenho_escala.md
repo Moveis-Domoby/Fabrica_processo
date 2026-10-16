@@ -135,16 +135,19 @@ A 1ª rodada ×10 mostrou a **manada** (todas as Visões do dia e PCPs relendo n
 5. **Lista de Pedidos por caminhos:** só sobe **junto** com os índices (sozinha deixaria a busca 20–60 ms mais lenta).
 6. **Auditoria e histórico das automações:** "Ver mais" ao rolar (sem números de página); acima de 10 mil mostra "10.000+".
 
+> [!note] ↪️ 16/10/2026 — respostas do dono às 6 (D-141)
+> **1, 2, 4 e 5: confirmadas.** **3 MUDOU:** a pessoa desativada é **recusada já no login, com mensagem clara** — o gancho em `supabase/pendentes/` foi ajustado (recusa ao emitir e ao renovar o token) e o login da plataforma diz "acesso desativado" só a quem acertou a senha; tudo continua ligando só quando o dono fizer os cliques em casa. **6: por rolagem** (carrega mais ao rolar, sem números de página, por cursor) — conferido na SESSAO-33.
+
 ## 7. Para o OK do dono (o que sobrou está em `supabase/pendentes/`)
 
 - ✅ **Aplicado com o OK do dono (16/10, D-138) —** **Pedidos — busca por nome e Cancelados:** a porta por caminhos (provada igual: bateria 9 casos/121 linhas; banco real 325 linhas, 0 diferença) + a extensão `pg_trgm` + 3 índices (cancelados parcial; trigramas em `clientes.nome` e `pedidos.vendedor`). Ensaio ×100 (556.800 pedidos, 1.080.000 clientes — banco local): **busca de um cliente 5,6 s → ~45 ms**, **total dos Cancelados 2,8 s → 11 ms**, página dos Cancelados 12–23 → 2–7 ms; termo muito comum fica igual a hoje (a porta olha primeiro os 5.000 pedidos mais recentes). Hoje, com o volume atual, tudo fica parecido (±20–100 ms) — o ganho é para quando crescer. Detalhe: [[SESSAO-32]] § "Ensaio ×100 de Pedidos".
 - ✅ **Aplicado (D-138) —** **Cópias do Tiny e repetidos:** 4 índices (contas a receber e notas fiscais por cliente e por pedido) + retirada de `idx_membros_lista` e `plt_cards_pedido_uq`.
-- **Login com as permissões no token:** no painel — chave assimétrica como atual (a antiga fica como "usada antes"; nunca revogar: n8n e rotinas usam) e o gancho do token; depois, as funções de sessão lendo do token (próxima sessão, com ele).
-- **Rotinas de minuto em minuto → "nascer do fato":** reservas do estoque, despacho de webhooks, disparo do Comercial e fotos do Tiny. Custam pouco (~0,35% de um núcleo), mas a lei pede. Mexe no n8n e no disparo → decisão do dono.
+- **Login com as permissões no token:** no painel — chave assimétrica como atual (a antiga fica como "usada antes"; nunca revogar: n8n e rotinas usam) e o gancho do token; depois, as funções de sessão lendo do token (próxima sessão, com ele). ↪️ **16/10: o dono liga em casa (D-141).**
+- **Rotinas de minuto em minuto → "nascer do fato":** reservas do estoque, despacho de webhooks, disparo do Comercial e fotos do Tiny. Custam pouco (~0,35% de um núcleo), mas a lei pede. Mexe no n8n e no disparo → decisão do dono. ↪️ **16/10: aprovado (D-141)** — vira trabalho de sessão (na SESSAO-33 só se couber no fim).
 - ✅ **Respondida e aplicada (D-138) —** os insumos saíram da conta dos móveis: contas separadas de móvel × insumo e peça e a tela de Configurações para o admin corrigir o tipo (§2).
-- **Para quando chegar a vez dos insumos:** os 5.090 cartões de insumo no quadro do ESTOQUE ficaram parados (o número que vale é o do Tiny, na aba de insumos) — decidir se saem do quadro ou viram outra coisa.
-- **Máquina do banco:** os picos de segundos vêm da máquina gratuita (0,5 GB, processador compartilhado) — mesmo parada. Subir de máquina é custo — decisão do dono.
-- **Projeto "Sistema Domoby - Staging"** (pausado na Supabase): é seu e pode ser usado para os ensaios pesados?
+- **Para quando chegar a vez dos insumos:** os 5.090 cartões de insumo no quadro do ESTOQUE ficaram parados (o número que vale é o do Tiny, na aba de insumos) — decidir se saem do quadro ou viram outra coisa. ↪️ **16/10: mantém (D-141)** — volta quando entrar a parte da linha de produção que consome insumo e atualiza o estoque em tempo real.
+- **Máquina do banco:** os picos de segundos vêm da máquina gratuita (0,5 GB, processador compartilhado) — mesmo parada. Subir de máquina é custo — decisão do dono. ↪️ **16/10: fica no plano gratuito por enquanto (D-141)** — saiu da lista de pendências.
+- **Projeto "Sistema Domoby - Staging"** (pausado na Supabase): é seu e pode ser usado para os ensaios pesados? ↪️ **16/10: liberado para os ensaios pesados (D-141).**
 
 ## 8. ClickUp (regra 19)
 
@@ -157,6 +160,9 @@ Em **FAZENDO**, nenhuma concluída (quem conclui é o dono):
 - A separação de **móvel, insumo e peça** e a tela de Configurações **não têm tarefa no ClickUp** — o dono decide se cria (regra 19).
 - [Listas por cursor](https://app.clickup.com/t/17tya50fm42) — as que crescem entregues; carga no §2.
 - Ficam em A FAZER (dependem do dono ou da próxima sessão): [Permissões no token](https://app.clickup.com/t/17tya50fm3x) · [Rotinas do banco por evento](https://app.clickup.com/t/17tya50fm41).
+
+> [!note] ↪️ 16/10/2026 — o Cowork concluiu as entregues (D-141)
+> 25 tarefas concluídas no ClickUp em 16/10 (as 7 do kanban completo, os 14 ajustes de 15/10, e tempo real, pacote dividido, banco e listas por cursor). Ficaram abertas: primeira abertura (telas com 2–3 leituras), comercial/gravação do pedido do Tiny e permissões no token.
 
 ## 9. Para a máquina — onde está cada coisa
 

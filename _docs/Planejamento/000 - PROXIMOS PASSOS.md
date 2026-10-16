@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-10-07
+atualizado: 2026-10-16
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -11,7 +11,13 @@ tags: [planejamento, roadmap, indice]
 > A leitura única de planejamento do projeto: **onde estamos, qual é o próximo passo, o que vem depois e o que está esperando você**. Ela não substitui as demandas — resume e aponta. Detalhe de execução vive em [[000 - ORDEM DAS SESSOES]]; o novo bloco em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]; ideias de longo prazo em [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]].
 > **Regra de manutenção:** toda sessão entregue ou decisão nova atualiza esta nota junto com o mapa.
 
-## ▶️ Agora (07/10): Bloco 6 — produção de ponta a ponta e kanban completo
+## ▶️ Agora (16/10): SESSAO-33 — o Tiny completo, atualizado quando algo acontece
+
+O dono pediu (16/10) **todos os dados do Tiny, sem exceção** — clientes, peças, insumos, produtos, valores, contas a pagar, contas a receber e o resto —, trazidos **pelo n8n, melhorando a automação que já pega os dados do Tiny** (não outra paralela), e depois **mantidos em dia quando algo muda lá**, sem perguntar ao Tiny de minuto em minuto. Começa por uma **pesquisa aprofundada da API e dos dados** (o que o Tiny avisa sozinho e o que não avisa), segue com o **plano para o OK do dono** e só então a construção. Demanda: [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]] (sessão na nuvem, com o dono fora de casa: o que precisar do n8n ou do banco sai pronto em arquivo, "para ligar em casa").
+
+↪️ **16/10 — respostas do dono:** sobre o que ficou da SESSAO-32 e as pendências antigas → **D-141** (a pessoa desativada é recusada já no login; Auditoria e automações por rolagem; rotinas de minuto em minuto aprovadas para "nascer do fato"; máquina do banco fica no plano gratuito; projeto de testes liberado; a publicação no ar está entregue). As 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]] → **D-142** (API nova na conta da fábrica com renovador próprio; a plataforma dá baixa de peça e insumo como faz com os móveis; estruturas ligadas na plataforma + o liga/desliga "Reduzir os insumos de acordo com a conclusão dos setores de produção?" nascendo desligado; plano de corte fica para depois — a CNC lê um JSON; peça cortada entra no estoque como peça/insumo; lista das unidades fora do padrão em Configurações).
+
+## (anterior) 07/10: Bloco 6 — produção de ponta a ponta e kanban completo
 
 O dono pediu em 06/10 o setor de produção funcionando por completo. Mapeado no Cowork em [[004 - PLANO - Bloco 6 - Producao de Ponta a Ponta e Kanban Completo]] e dividido em **duas sessões**, nesta ordem:
 
@@ -79,27 +85,27 @@ O **Bloco 5 está FECHADO** (02/10): entregues as SESSÕES 22, 23, 25, 24, 26, 2
 
 ## ⏸️ Em espera (decisão sua)
 
-- [[SESSAO-08 - Publicacao no Ar]] — **você avisa quando quer lançar (D-30).** ↪️ 01/10: o dono vai **revisar se a demanda ainda faz sentido** antes de qualquer coisa.
+- ~~[[SESSAO-08 - Publicacao no Ar]] — **você avisa quando quer lançar (D-30).** ↪️ 01/10: o dono vai **revisar se a demanda ainda faz sentido** antes de qualquer coisa.~~ → ✅ **fechada como entregue em 16/10 (D-141)**: o site já está no ar e as sessões publicam nele desde setembro.
 - [[SESSAO-18 - Painel Admin Completo]] — standby desde a D-35. (A antiga 17 foi absorvida pela 27.)
 - Ajustes herdados da loja no módulo Comercial — triagem em [[PLT - Comercial - Legado e Cutover]].
 
 ## 🧭 Depois do Bloco 5 (o horizonte)
 
-- 🆕 **[[003 - PLANO - Integracao Completa Tiny da Fabrica]] (27/09)** — o pedido do dono de enxergar a fábrica **no nível de peça e insumo** (a CNC não conhece "penteadeira", corta peças). Levantamento da API feito: a **v3 tem filtro por data de ALTERAÇÃO**, traz a **estrutura com etapas** e tem **logs de movimentação com autor e origem**; a v2 dá a estrutura e o **saldo por depósito/empresa**. Plano em 5 ondas (alterações em minutos → estrutura/BOM → estoque com movimento → produção por peça → plano de corte SketchUp/CNC). **6 perguntas esperando o dono** (levadas a ele de novo em 01/10) — a primeira (app v3 na conta da fábrica) destrava as três primeiras ondas.
+- 🆕 **[[003 - PLANO - Integracao Completa Tiny da Fabrica]] (27/09)** — o pedido do dono de enxergar a fábrica **no nível de peça e insumo** (a CNC não conhece "penteadeira", corta peças). Levantamento da API feito: a **v3 tem filtro por data de ALTERAÇÃO**, traz a **estrutura com etapas** e tem **logs de movimentação com autor e origem**; a v2 dá a estrutura e o **saldo por depósito/empresa**. Plano em 5 ondas (alterações em minutos → estrutura/BOM → estoque com movimento → produção por peça → plano de corte SketchUp/CNC). **6 perguntas esperando o dono** (levadas a ele de novo em 01/10) — a primeira (app v3 na conta da fábrica) destrava as três primeiras ondas. ↪️ **16/10: as 6 respondidas (D-142)** — viram o plano da [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]].
 
 - BOM/insumos (chapas MDF) e custo real por móvel · migração dos **cards vivos** do ClickUp (Q-25) · **app/fluxo do motorista** · central de notificações com preferências.
 - Banco de ideias completo: [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]] · perguntas sem resposta: [[PLT - Perguntas em Aberto]].
 
 ## 🙋 Pendências que estão com VOCÊ (o dono) — revisada em 01/10/2026
 
-0b. 🔶 **SESSAO-32 (entregue em 16/10, sessão noturna):** (a) ~~dar o OK aos pendentes~~ ✅ aplicados em 16/10 (D-138); (b) **ligar no painel da Supabase**, com o Claude guiando, a chave assimétrica como atual e o gancho do token (depois vêm as funções de sessão lendo do token); (c) decidir as **rotinas de minuto em minuto** (reservas do estoque, webhooks, disparo, fotos) virarem "nascer do fato" — mexe no n8n e no disparo; (d) ~~a pergunta dos insumos "simples"~~ ✅ respondida e aplicada (D-138: contas separadas + tela em Configurações; os cartões de insumo ficam no quadro — destino deles quando chegar a vez dos insumos); (e) a **máquina do banco** (o plano gratuito dá picos de segundos — subir é custo); (f) o projeto **Staging** pausado serve para ensaios?; (g) dizer sim/não às 6 decisões provisórias do handoff; (h) concluir no ClickUp as tarefas entregues (tempo real e pacote).
-0a. 🔶 **SESSAO-31 (entregue em 14/10; ajustes do dono 14/10 noite e validação no site 15/10):** (a) olhar no **tablet** o quadro, a janela do card e o Lançamento manual (o celular o Claude conferiu em 15/10, com o dono logado); (b) ✅ **as 6 decisões provisórias confirmadas em 15/10** (D-136); (c) os **4 ajustes da equipe** do começo da sessão (estado da peça configurável, EXPEDIÇÃO conclui, várias rotas por dia, devolução decidida pela logística) seguem **sem tarefa** no ClickUp — os ajustes da noite e da validação ganharam **14 tarefas** em 15/10; (d) concluir no ClickUp as 7 tarefas da sessão e as 14 dos ajustes (em FAZENDO, comentadas); (e) ver a imagem de **teste** do comprovante no pedido 13622 (Pedidos → 13622 → Entrega e comprovante) e pedir para tirar.
+0b. 🔶 **SESSAO-32 (entregue em 16/10, sessão noturna):** (a) ~~dar o OK aos pendentes~~ ✅ aplicados em 16/10 (D-138); (b) **ligar no painel da Supabase**, com o Claude guiando, a chave assimétrica como atual e o gancho do token (depois vêm as funções de sessão lendo do token) — ↪️ **16/10: o dono faz em casa (D-141)**; o gancho agora recusa a pessoa desativada já no login; (c) ~~decidir as **rotinas de minuto em minuto** (reservas do estoque, webhooks, disparo, fotos) virarem "nascer do fato" — mexe no n8n e no disparo~~ ✅ **aprovado em 16/10 (D-141)** — vira trabalho de sessão; (d) ~~a pergunta dos insumos "simples"~~ ✅ respondida e aplicada (D-138: contas separadas + tela em Configurações; os cartões de insumo ficam no quadro — destino deles quando chegar a parte da linha de produção que consome insumo, D-141); (e) ~~a **máquina do banco** (o plano gratuito dá picos de segundos — subir é custo)~~ ✅ **fica no plano gratuito por enquanto (D-141)** — saiu da lista; (f) ~~o projeto **Staging** pausado serve para ensaios?~~ ✅ **liberado para os ensaios pesados (D-141)**; (g) ~~dizer sim/não às 6 decisões provisórias do handoff~~ ✅ **respondidas (D-141)** — confirmadas, menos a 3 (recusar no login) e a 6 (rolagem); (h) ~~concluir no ClickUp as tarefas entregues (tempo real e pacote)~~ ✅ **o Cowork concluiu 25 tarefas em 16/10**; seguem abertas: primeira abertura (telas com 2–3 leituras), comercial/gravação do pedido do Tiny e permissões no token.
+0a. 🔶 **SESSAO-31 (entregue em 14/10; ajustes do dono 14/10 noite e validação no site 15/10):** (a) olhar no **tablet** o quadro, a janela do card e o Lançamento manual (o celular o Claude conferiu em 15/10, com o dono logado); (b) ✅ **as 6 decisões provisórias confirmadas em 15/10** (D-136); (c) os **4 ajustes da equipe** do começo da sessão (estado da peça configurável, EXPEDIÇÃO conclui, várias rotas por dia, devolução decidida pela logística) seguem **sem tarefa** no ClickUp — os ajustes da noite e da validação ganharam **14 tarefas** em 15/10; (d) ~~concluir no ClickUp as 7 tarefas da sessão e as 14 dos ajustes (em FAZENDO, comentadas)~~ ✅ concluídas pelo Cowork em 16/10; (e) ~~ver a imagem de **teste** do comprovante no pedido 13622 (Pedidos → 13622 → Entrega e comprovante) e pedir para tirar~~ ↪️ **16/10: o dono autorizou tirar (D-141)** — sai pelo caminho normal da plataforma, mostrando antes o que sai e só com o "pode" dele. ↪️ (a) **16/10:** o tablet o dono olha depois (mantém).
 0. ✅ **SESSAO-30 — nada mais com o dono (13/10):** a chave do Tiny ficou desligada por escolha dele; a tela do entregador e o fluxo do ClickUp, sem pendência; as revisões confirmadas; o marcador "Devolvido" deixa de ser cancelamento — vai na SESSAO-31 (D-124); as 7 tarefas do ClickUp concluídas.
 1. 🔶 **SESSAO-29 (entregue em 01/10):** (a) ✅ fluxo de vendas do n8n passando o número do cadastro do cliente — **colado e publicado em 01/10, 23:20**; (b) dizer se a **Auditoria** (Painel admin → Auditoria — você já viu) pode ir ao site — [[handoff_2026_10_01_sessao29_reconciliacao_tiny]].
-2. 🔶 **Contagem inicial da logística — confirmar.** Você acredita que foi feita em 30/09; a leitura do banco em 01/10 00:30 não achou contagem lançada pela plataforma (52 peças no ESTOQUE, 25 produtos — 46 delas vieram da cópia inicial do Tiny às 01:00 de 30/09). Se a equipe contou no papel, falta lançar.
-3. **Responder as 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]]** (a 1ª — app v3 na conta da fábrica — destrava as ondas 1–3).
+2. 🔶 **Contagem inicial da logística — confirmar.** Você acredita que foi feita em 30/09; a leitura do banco em 01/10 00:30 não achou contagem lançada pela plataforma (52 peças no ESTOQUE, 25 produtos — 46 delas vieram da cópia inicial do Tiny às 01:00 de 30/09). Se a equipe contou no papel, falta lançar. ↪️ **16/10:** o dono acredita que foi feita, mas **mantém como pendência** (D-141).
+3. ~~**Responder as 6 perguntas do [[003 - PLANO - Integracao Completa Tiny da Fabrica]]** (a 1ª — app v3 na conta da fábrica — destrava as ondas 1–3).~~ ✅ **respondidas em 16/10 (D-142)** → [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]].
 4. **Cutover (SESSAO-21):** excluir o projeto antigo em **06/10** — tudo no [[handoff_2026_09_22_sessao21_cutover]].
-5. **Revisar a [[SESSAO-08 - Publicacao no Ar]]** — se ainda faz sentido e como fica.
+5. ~~**Revisar a [[SESSAO-08 - Publicacao no Ar]]** — se ainda faz sentido e como fica.~~ ✅ **fechada como entregue em 16/10 (D-141)** — o site já está no ar.
 6. **Confirmar as decisões provisórias que sobraram** (handoffs 13, 15 e 19): Configurações → Meu Perfil; presença de 5 em 5 min fora da trilha; raio de 5 km fixo; `tiny_auth` fechada até para admin.
 7. **Contas dos tablets e delegação por setor** — você vai mexer na lógica disso depois.
 8. **Responder as perguntas de produto que restam:** Q-21 (card que se divide), Q-22 (terceirizados), Q-30/Q-64 (visual), Q-42 (onde chegam os alertas) — em [[PLT - Perguntas em Aberto]].
@@ -123,7 +129,7 @@ O **Bloco 5 está FECHADO** (02/10): entregues as SESSÕES 22, 23, 25, 24, 26, 2
 ## 🔧 Pendências técnicas vivas (fora das sessões)
 
 - ✅ ~~**P17** — o webhook de vendas não cobre marcador, contato renomeado nem campo limpo: deriva silenciosa Tiny × banco~~ — **resolvido em 2026-10-01** (SESSAO-29: conferência diária às 3h; o fluxo de vendas passa o número do cadastro desde 01/10 23:20).
-- **P1** — não existe alerta de erro nas automações do n8n (a SESSAO-25 propõe resolver junto). **P4** — token do Tiny v2 em texto puro no workflow. Lista completa: [[N8N - Pendencias e Riscos]].
+- **P1** — não existe alerta de erro nas automações do n8n (a SESSAO-25 propõe resolver junto). ↪️ **16/10:** a [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]] resolve junto, se couber. **P4** — token do Tiny v2 em texto puro no workflow. Lista completa: [[N8N - Pendencias e Riscos]].
 - Débito técnico do módulo Comercial: [[PLT - Comercial - Debito Tecnico]].
 - O raio-x do estoque (Q-72) — 10 achados, sem correção.
 - ↪️ **01/10:** o dono decidiu tratar as pendências técnicas **depois** — nenhuma entra antes da SESSAO-29.

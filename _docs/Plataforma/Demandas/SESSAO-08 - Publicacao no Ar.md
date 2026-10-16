@@ -1,13 +1,16 @@
 ---
 titulo: "SESSAO-08 — Publicação no Ar"
 tipo: demanda
-status: rascunho
+status: entregue
 data: 2026-08-27
-atualizado: 2026-08-27
+atualizado: 2026-10-16
 tags: [plataforma, demanda, sessao, deploy, infraestrutura]
 ---
 
 # 🎯 SESSAO-08 — Publicação no Ar
+
+> [!success] ✅ ENTREGUE — fechada em 16/10/2026 (D-141, resposta do dono)
+> *"Publicação no ar → já está publicado."* A plataforma está no ar (Vercel, publicada a cada sessão desde setembro — E-33), acessível do galpão e dos celulares, com o processo de publicação repetível que as sessões usam (aplicar banco e publicar telas no mesmo gesto — E-73). A demanda sai de toda lista de pendências e de "em espera". O texto abaixo é o histórico, mantido como estava. Hoje o banco de produção só recebe mudança com o OK do dono na conversa (regra crítica 2) — o que esta sessão encerraria da D-19 já vale na prática.
 
 > [!warning] ⏸️ ADIADA em 28/08/2026 (D-30 — palavras do dono no aval do bloco noturno)
 > *"Tudo que envolver deploy, hospedagem ou coisa do tipo pode jogar para sessões futuras, não iremos lançar ela agora e quando eu for fazer o deploy eu falo."* Esta sessão saiu do bloco noturno (que virou 07 → 09 → 10 → 11 → 12) e será executada quando o dono pedir o lançamento. O conteúdo abaixo continua valendo para essa hora.

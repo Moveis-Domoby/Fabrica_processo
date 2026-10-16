@@ -237,7 +237,7 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Medir para não adivinhar (§11):** a plataforma mede a própria velocidade em cada abertura (LCP/INP/CLS/FCP/TTFB por aparelho — `plt_medicoes_web`, p75 por `plt_fn_medicoes_web_resumo`); tempo parado: 12 h no modo tablet, 8 h no escritório (sem relógio).
 
 | 18 | Telas que ainda abrem com 2–3 leituras (em paralelo): Pessoas, Qualidade, Tempo por setor, Meu desempenho, Pedidos em aguardo, Programação, Equipe, Config. do estoque, API e integrações, Controle de tempo, Caminhões, Automações; Comercial (~10, os gráficos) — falta a porta de cada tela (Lei §2) | painéis, configurações, Comercial | 33 |
-| 19 | **A máquina do banco** (plano gratuito: 0,5 GB, processador compartilhado) dá picos de segundos mesmo parada (a lista de Pedidos: 2,6 s numa chamada, 15–36 ms nas seguintes; 0 leitura de disco, JIT desligado) — decisão de custo do dono | infraestrutura | dono |
+| 19 | **A máquina do banco** (plano gratuito: 0,5 GB, processador compartilhado) dá picos de segundos mesmo parada (a lista de Pedidos: 2,6 s numa chamada, 15–36 ms nas seguintes; 0 leitura de disco, JIT desligado) — decisão de custo do dono. ↪️ **16/10 (D-141): fica no plano gratuito por enquanto** — escolha de custo registrada, fora da lista de pendências | infraestrutura | dono |
 | 20 | O aviso do trabalho da pessoa relê 3 consultas (tarefas, bolinha, cards delegados) — juntar numa porta | Meu Painel, Afazeres | 33 |
 
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].

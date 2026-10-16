@@ -2,7 +2,7 @@
 titulo: Plataforma — Memória de Aprendizado (Claude Code + Cowork)
 tipo: memoria-aprendizado
 data: 2026-08-19
-atualizado: 2026-10-08
+atualizado: 2026-10-16
 tags: [plataforma, memoria, aprendizado, erros, acertos]
 ---
 
@@ -265,6 +265,8 @@ tags: [plataforma, memoria, aprendizado, erros, acertos]
 - [2026-10-16] **A-70** (Claude Code, SESSAO-32, Comercial) · **View sobre o JSON bruto é custo pago a cada leitura — a tela pronta se mantém no fato; e filtro de data em "ou" de ramos esconde o índice.** `vendas_marketing` desmontava os 5.568 pedidos do Tiny a cada leitura (3,3 s); a projeção (`plt_comercial_*`) é refeita por gatilho à prova de falha só para o pedido/cliente que mudou, com reconstrução e conferência (`fn_comercial_conferir` = 0) e pendentes refeitos na próxima gravação — nada de relógio. Prova: porta antiga com outro nome × nova, na bateria e no banco real desfeito. E o filtro `(modo = all) or (ini is null and fim is null) or (ini and data >= ini) or …` faz o planejador varrer a tabela (20–40 ms); resolver os limites uma vez e escrever `data >= coalesce(ini, -infinity) and data <= coalesce(fim, infinity) or (sem limites and data is null)` dá o MESMO recorte com o índice (3 ms) — inclusive no plano genérico.
 
 - [2026-10-16] **A-71** (Claude Code, SESSAO-32, D-140) · **Uma verdade só para todos os módulos — e conferência que só CONTA o que não achou esconde divergência.** O Tiny não avisa exclusão; a conferência da madrugada ouvia "Pedido não localizado" do 13622 toda noite e só somava em "não encontrados" — o pedido ficou 8 dias vivo no Comercial (outubro R$ 14.051,90 a mais que o Tiny), na lista de Pedidos e com 32 cartões na produção. **Padrão:** todo veredito da conferência vira fato aplicado (marcação + reação), e a marcação é uma só, lida por todos os módulos (o dono: "fábrica e comercial devem reagir às mesmas tabelas, aos mesmos dados"). **Receita da diferença:** valor do Tiny × plataforma por mês → a diferença bate com a soma de quais pedidos? (aqui, um só, ao centavo) → a fila da conferência guarda a resposta do Tiny para cada um. E bloco à prova de falha que engole erro precisa de prova na bateria do efeito (o arquivamento falhava em silêncio por causa da origem — `fn_validar_api`).
+
+- [2026-10-16] **A-72** (Claude Code, SESSAO-33) · **Sessão na nuvem com os sites oficiais do Tiny bloqueados (403 da política de rede): o Swagger oficial da v3 tem espelho público no GitHub, e o GitHub passa.** `github.com/opastorello/olist-mcp-server` guarda o `swagger.json` ("Olist ERP API v3", versão 3.1, 28/02/2026, baixado da URL oficial do Swagger) — clonado só para leitura, fora do repositório; somado ao que o cofre já conferiu e aos dados reais que o banco guarda (o `raw` de cada cópia do Tiny), dá fonte para cada linha sem inventar. **Não contornar a política** (nada de buscar a internet por outro serviço, nem pelo banco); avisar o dono do endereço bloqueado e de como liberar (menu do ambiente → Editar → Acesso à rede). De quebra: essa versão não tem logs de movimentação, depósitos nem orçamentos — afirmação do plano 003 a reconferir.
 
 ## 🧠 Modelos mentais (M-NN)
 

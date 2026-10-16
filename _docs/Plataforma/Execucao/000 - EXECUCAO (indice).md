@@ -1,7 +1,7 @@
 ---
 titulo: Execução — memórias de sessão do Claude Code
 tipo: indice
-atualizado: 2026-10-03
+atualizado: 2026-10-16
 tags: [plataforma, execucao, indice]
 ---
 
@@ -21,8 +21,10 @@ tags: [plataforma, execucao, indice]
 - [[SESSAO-16]] (dashboards) · [[SESSAO-21]] (cutover — fecha a União)
 - [[SESSAO-22]] · [[SESSAO-23]] · [[SESSAO-25]] · [[SESSAO-24]] · [[SESSAO-26]] · [[SESSAO-27]] · [[SESSAO-28]] — o **Bloco 5** (a 25 rodou antes da 24 — D-53; a 28, rota calculada no mapa, fecha o bloco)
 - [[SESSAO-29]] — conferência diária com o Tiny (fora do bloco)
+- [[SESSAO-30]] · [[SESSAO-31]] — o **Bloco 6** (produção de ponta a ponta e kanban completo) · [[SESSAO-32]] — desempenho e escala
+- [[SESSAO-33]] — o Tiny completo, atualizado quando algo acontece (sessão na nuvem, 16/10)
 
-*(Não existe SESSAO-08, 17 nem 18 aqui: a 08 (publicação) aguarda o dono (D-30), a 17 foi absorvida pela 27 e a 18 está em standby. Ver [[000 - ORDEM DAS SESSOES]].)*
+*(Não existe SESSAO-08, 17 nem 18 aqui: a 08 (publicação) aguarda o dono (D-30), a 17 foi absorvida pela 27 e a 18 está em standby. Ver [[000 - ORDEM DAS SESSOES]].)* ↪️ *16/10: a 08 foi fechada como entregue sem sessão de código (D-141 — o site já está no ar).*
 
 ## Ajustes fora de sessão
 
