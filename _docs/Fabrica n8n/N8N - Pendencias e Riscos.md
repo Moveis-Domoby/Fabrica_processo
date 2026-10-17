@@ -12,7 +12,8 @@ tags: [pendencias, riscos, n8n, debito-tecnico]
 
 ## 🔴 Prioridade alta
 
-### P1 · Alerta de erro — NÃO EXISTE
+### P1 · Alerta de erro — NÃO EXISTE · ✅ resolvido em 2026-10-17
+**✅ 17/10/2026 — no ar:** o fluxo `Domoby · alerta de erro das automações` (`PWB9rkXQgLlKEWqN`) publicado e ligado como fluxo de erro na fila do Tiny (`Rzm3N1bKnhsgGfav`), no fluxo da fábrica (`gJNYde20T921AY6l`) e no de vendas (`80NbZ4CUl664NYlc`) — o aviso chega no sino do dono e na Auditoria → Atividade ([[SESSAO-33]]).
 Nenhum workflow tem Error Workflow configurado. O incidente de 11/08 ([[N8N - Incidente Credencial Google]]) foi descoberto ~2h depois, por acaso. Hoje são **4 integrações** que podem falhar em silêncio (Sheets, ClickUp, Trello, Tiny) — e falha significa pedido sem card de produção/rota.
 **Fazer:** workflow `ALERTA - Erro n8n` com node **Error Trigger** → notificação (Telegram sugerido; e-mail exige SMTP). Depois, em cada workflow: ⋯ → Settings → Error Workflow. *Adiado a pedido do usuário em 12/08.*
 **↪️ 17/10/2026 (SESSAO-33) — pronto para ligar em casa:** o aviso vai para o **sino do dono na plataforma** (sem Telegram nem e-mail) e fica na Auditoria → Atividade (grupo das automações), sem repetir o mesmo aviso em 30 min por fluxo. Fluxo `domoby-alerta-erro-automacoes.json` (Error Trigger → "Montar aviso" → `plt_fn_automacao_erro`) e o programa `supabase/manutencao/2026-10-17_n8n_fila_tiny_completo.mjs --alerta` (cria/publica o fluxo e liga o "Error Workflow" na fila do Tiny, no fluxo da fábrica e no das vendas). Item da fila do Tiny que desiste (4ª falha) também avisa. Vale quando o banco (migration 89) e o programa rodarem — ver o handoff da SESSAO-33.
@@ -54,7 +55,8 @@ Projetada em 17/08, workflow pronto (`domoby-clickup-tiny-entregue.json` na past
 
 ## 🟡 Prioridade média
 
-### P5 · Desligar toggle "Receber notificações de pedidos enviados" no Tiny
+### P5 · Desligar toggle "Receber notificações de pedidos enviados" no Tiny · ✅ resolvido em 2026-10-17
+**✅ 17/10/2026 — no ar:** o webhook "avisos do Tiny (notas e envios)" escuta o caminho `5b0fc553…` dentro do fluxo da fila — o toggle fica ligado. Falta o dono ligar "notas fiscais autorizadas" no Tiny da loja apontando para o mesmo endereço (passo 8 do [[handoff_2026_10_17_sessao33_tiny_completo]]).
 Path `5b0fc553…` sem workflow escutando → 404 × 10 reenvios por evento. Religar quando existir fluxo de rastreio.
 **↪️ 17/10/2026 (SESSAO-33) — resolvido no arquivo, vale em casa:** o fluxo da fila melhorado (`domoby-fila-tiny-completo.json`) ganha o webhook **"avisos do Tiny (notas e envios)" exatamente nesse caminho** — o aviso de pedido enviado (e o de nota autorizada, que se liga no Tiny apontando para o mesmo endereço) é guardado cru (`plt_fn_tiny_aviso` → `eventos` tipo `aviso_tiny`) e a nota entra na fila. Não precisa desligar a chave do Tiny: quando o fluxo novo for publicado, o 404 acaba.
 

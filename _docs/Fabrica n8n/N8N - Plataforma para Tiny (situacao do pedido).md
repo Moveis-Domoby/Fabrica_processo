@@ -7,6 +7,8 @@ tags: [n8n, tiny, rotas, entregue, plataforma, sessao-30]
 
 # n8n · Plataforma → Tiny (situação do pedido)
 
+> ↪️ **17/10/2026 (SESSAO-33):** a 1ª parte do fluxo (a fila do Tiny) foi trocada pela versão das duas contas; **esta 2ª parte ficou intacta** (mesmos nós e o mesmo webhook) e o fluxo ganhou o fluxo de erro `PWB9rkXQgLlKEWqN` (alerta no sino). Cópia do fluxo de antes em `.n8n-backups/` no computador do dono.
+
 **Criado em:** 08/10/2026 (SESSAO-30, etapa 4 — D-113). **Status: NO AR desde 09/10/2026 ~01:15 (Natal) — DENTRO da automação existente "subir banco de dados --- tiny -> supabase" (`Rzm3N1bKnhsgGfav`), como uma 2ª parte com gatilho próprio (D-123).** A chave "Entregue vai ao Tiny" continua **desligada** — ligar e a prova com 1 pedido real são do dono.
 **Arquivo de referência:** `domoby-plataforma-tiny-situacao.json` (nesta pasta — **sem segredo nenhum**: o token do Tiny vem da variável **`TINY_TOKEN`** do n8n — a conta 1, da **loja** Domoby, onde moram os pedidos de venda; o Supabase, de `SUPABASE_FABRICA_URL`/`SUPABASE_FABRICA_KEY`).
 

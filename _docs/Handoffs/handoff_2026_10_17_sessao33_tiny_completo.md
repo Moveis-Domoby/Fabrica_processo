@@ -26,10 +26,10 @@ tags: [handoff, sessao, sessao-33, tiny, n8n, integracao, api-v2, api-v3, webhoo
    ```
 4. ✅ *(17/10 ~22:56–22:58 UTC — as 4 com a integração idêntica e as mesmas contagens; nenhuma porta do site publicado muda, então o site sobe depois sem quebrar a tela de hoje — conferido)* **As 4 atualizações do banco, uma por vez, no mesmo gesto do site** (E-73):
    `npm run banco:aplicar -- --confirmar --so 20261017010000_plt_tiny_fila_duas_contas.sql` → `…20261017020000_plt_tiny_cascata_avisos_carga.sql` → `…20261017030000_plt_tiny_api_nova_fabrica.sql` → `…20261017040000_plt_produtos_estrutura_unidades.sql`. **Conferir:** integração idêntica (a impressão digital que o aplicador mostra); `select count(*) from tiny_fila where conta = 'loja'` = o total de antes (26.731 em 17/10); o fluxo antigo do n8n continua rodando a conferência das 3h normalmente (ele só pega o que sabe montar: a loja, os 8 tipos de sempre e as linhas sem a marca de origem). ⚠️ **Fazer o passo 7 (n8n) logo em seguida:** as linhas novas (a cascata da venda, com o filtro do CPF e da origem da conta) esperam o fluxo novo — até lá o relógio da fila acorda o fluxo antigo a cada minuto à toa.
-5. **O site:** juntar na `main` → a Vercel publica. **Conferir:** Super admin → Auditoria → aba **"Carga do Tiny"** abre (vazia, "Ainda não houve contagem"); Configurações → Móveis, insumos e peças → botão **"Estrutura"** em cada produto e **"Unidades fora do padrão" → "Ver a lista"**; Configurações → API e integrações → seção **"API nova do Tiny da fábrica"** (só para o dono).
-6. **As duas funções novas** (com `verify_jwt` desligado — a ponte confere a chave pelo banco; a volta do Tiny não traz login):
+5. ✅ *(17/10 23:15 UTC — `main` dc13cf9, Vercel "success"; as três telas conferidas nos arquivos publicados)* **O site:** juntar na `main` → a Vercel publica. **Conferir:** Super admin → Auditoria → aba **"Carga do Tiny"** abre (vazia, "Ainda não houve contagem"); Configurações → Móveis, insumos e peças → botão **"Estrutura"** em cada produto e **"Unidades fora do padrão" → "Ver a lista"**; Configurações → API e integrações → seção **"API nova do Tiny da fábrica"** (só para o dono).
+6. ✅ *(17/10 ~23:05 UTC, pelo conector — v1, `verify_jwt` desligado; texto idêntico ao do repositório; fumaça de fora ok)* **As duas funções novas** (com `verify_jwt` desligado — a ponte confere a chave pelo banco; a volta do Tiny não traz login):
    `npx supabase functions deploy tiny-v3 --no-verify-jwt` · `npx supabase functions deploy tiny-fabrica-token --no-verify-jwt`.
-7. **O n8n** (no computador de casa, onde está o `.env.n8n`):
+7. ✅ *(17/10 23:14 UTC — a fila NO AR com 23 nós; o alerta `PWB9rkXQgLlKEWqN` publicado e ligado na fila, na fábrica e nas vendas; os três sem rascunho pendente antes da troca)* **O n8n** (no computador de casa, onde está o `.env.n8n`):
    - `node supabase/manutencao/2026-10-17_n8n_fila_tiny_completo.mjs` — **só mostra** o que muda no fluxo "subir banco de dados — tiny → supabase" (a 1ª parte troca; a 2ª — situação do pedido — e o endereço da fila ficam iguais). Conferir que o fluxo do ar é o mesmo do cofre (A-44).
    - `… --aplicar` — guarda cópia em `.n8n-backups/`, troca a 1ª parte, **publica** e confere que a versão publicada é a nova (A-53).
    - `… --alerta` — cria e publica o fluxo do alerta de erro e liga o "fluxo de erro" na fila do Tiny, no fluxo da fábrica e no das vendas.
@@ -60,7 +60,7 @@ Todos os dados do Tiny, das duas contas (loja e fábrica), **sem exceção** —
 - **91 — a API nova da fábrica:** `tiny_auth` com a linha 2 e o **renovador próprio** (um por credencial — A-18); **92 — Configurações:** a estrutura de cada produto e as unidades fora do padrão.
 - **Bateria: 1.042 verdes** (o bloco "Tiny completo" inteiro, inclusive o código dos nós do JSON do n8n contra o banco de ponta a ponta).
 
-### Edge Functions (não publicadas)
+### Edge Functions (publicadas em 17/10 ~23:05 UTC, em casa — v1)
 - **`tiny-v3`** — a ponte segura para a API nova: só leitura, só a lista de caminhos, o token lido no banco com a chave de quem chama (o n8n nunca vê o token), 30 s de tempo limite, nunca renova.
 - **`tiny-fabrica-token`** — autorizar (pelo botão do site; `state` assinado de 15 min) e renovar (só pelo relógio próprio de 3 em 3 h, com a vez reservada; falha → aviso ao dono). A volta do Tiny sempre devolve o dono ao site com o motivo.
 
@@ -95,7 +95,7 @@ Todos os dados do Tiny, das duas contas (loja e fábrica), **sem exceção** —
 ## 4. Bugs
 
 ### Resolvidos
-- P1 (alerta de erro inexistente) e P5 (endereço morto dos pedidos enviados) — resolvidos em arquivo; valem quando o passo 7 rodar ([[N8N - Pendencias e Riscos]]).
+- P1 (alerta de erro inexistente) e P5 (endereço morto dos pedidos enviados) — resolvidos em arquivo; valem quando o passo 7 rodar. ↪️ **17/10 23:14 UTC: passo 7 rodado — no ar** ([[N8N - Pendencias e Riscos]]).
 
 ### Descobertos
 - **E-108:** pelo conector da Supabase, comando com `DROP` fica esperando confirmação e estoura em 60 s — aplicar pelo conector é sem `DROP`.
@@ -113,8 +113,8 @@ supabase/migrations/20261017030000_plt_tiny_api_nova_fabrica.sql               (
 supabase/migrations/20261017040000_plt_produtos_estrutura_unidades.sql         (92)
 supabase/testes/testar-migrations.mjs
 supabase/functions/autenticacao/index.ts        (v11 — publicada)
-supabase/functions/tiny-v3/index.ts             (nova — não publicada)
-supabase/functions/tiny-fabrica-token/index.ts  (nova — não publicada)
+supabase/functions/tiny-v3/index.ts             (nova — publicada em 17/10)
+supabase/functions/tiny-fabrica-token/index.ts  (nova — publicada em 17/10)
 supabase/manutencao/2026-10-16_tirar_imagem_teste_13622.sql (a retirada da imagem de teste — rodada com o "pode")
 supabase/manutencao/2026-10-17_n8n_fila_tiny_completo.mjs
 _docs/Fabrica n8n/domoby-fila-tiny-completo.json · domoby-alerta-erro-automacoes.json
