@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -150,7 +151,9 @@ export async function criarChaveApi(parametros: {
   const bytes = crypto.getRandomValues(new Uint8Array(24))
   const valor = `pltk_${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
   const hashBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(valor))
-  const hash = Array.from(new Uint8Array(hashBytes), (b) => b.toString(16).padStart(2, '0')).join('')
+  const hash = Array.from(new Uint8Array(hashBytes), (b) => b.toString(16).padStart(2, '0')).join(
+    '',
+  )
   const { error } = await supabase.from('plt_chaves_api').insert({
     nome: parametros.nome.trim(),
     hash,
@@ -243,4 +246,32 @@ export async function entregasRecentes(): Promise<EntregaWebhook[]> {
     .limit(20)
   if (error) throw new Error(`Não deu para carregar as entregas: ${error.message}`)
   return (data ?? []) as EntregaWebhook[]
+}
+
+/**
+ * SESSAO-33 (D-142): "Ligar a API nova da fábrica" — o dono pede ao renovador
+ * próprio da fábrica (Edge Function `tiny-fabrica-token`) o endereço de
+ * autorização do Tiny e o navegador vai para lá; na volta, o Tiny devolve o
+ * dono a `volta` com `?tiny_fabrica=ligada` (ou `erro`). Nenhum token passa
+ * pelo navegador — ele fica no banco, e só a ponte do n8n o lê.
+ */
+export async function iniciarApiNovaFabrica(volta: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('tiny-fabrica-token', {
+    body: { acao: 'iniciar', volta },
+  })
+  if (error) {
+    let mensagem = 'Não deu para falar com o Tiny agora. Tente de novo em instantes.'
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const corpo = (await error.context.json()) as { erro?: string }
+        if (corpo.erro) mensagem = corpo.erro
+      } catch {
+        // corpo não era JSON — fica a mensagem genérica
+      }
+    }
+    throw new Error(mensagem)
+  }
+  const url = (data as { url?: string } | null)?.url
+  if (!url) throw new Error('O Tiny não devolveu o endereço de autorização.')
+  return url
 }

@@ -1,15 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound, Plus, RefreshCw, Webhook as WebhookIcon, XCircle } from 'lucide-react'
+import {
+  Copy,
+  Factory,
+  KeyRound,
+  Plus,
+  RefreshCw,
+  Webhook as WebhookIcon,
+  XCircle,
+} from 'lucide-react'
 import { Botao, Campo, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { ehSuperAdmin } from '@/autenticacao/tipos'
 import {
   EVENTOS_WEBHOOK,
   alternarWebhook,
   criarChaveApi,
   criarWebhook,
   entregasRecentes,
+  iniciarApiNovaFabrica,
   listarChavesApi,
   listarWebhooks,
   revogarChaveApi,
@@ -26,6 +37,16 @@ function quando(iso: string | null): string {
     : '—'
 }
 
+/** Por que a ligação da API nova da fábrica não deu certo, em língua de gente. */
+const MOTIVO_API_NOVA: Record<string, string> = {
+  autorizacao_vencida: 'A autorização demorou mais de 15 minutos. Toque no botão de novo.',
+  recusada_no_tiny: 'O acesso não foi permitido na tela do Tiny.',
+  sem_codigo: 'O Tiny não devolveu a autorização. Toque no botão de novo.',
+  tiny_recusou: 'O Tiny não aceitou a autorização. Confira o aplicativo da fábrica no Tiny.',
+  tiny_nao_respondeu: 'O Tiny não respondeu a tempo. Toque no botão de novo.',
+  nao_gravou: 'O Tiny autorizou, mas o banco não guardou o acesso. Toque no botão de novo.',
+}
+
 /**
  * Gestão da API aberta (SESSAO-11 / Q-50 / RF-52 — só admin):
  * chaves (o valor aparece UMA vez; revogar corta na hora) e webhooks de
@@ -35,6 +56,47 @@ export function AdminApi() {
   const { perfil } = useSessao()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
+  const [parametros, setParametros] = useSearchParams()
+
+  // SESSAO-33 (D-142): a volta da autorização do Tiny da fábrica
+  const voltaTiny = parametros.get('tiny_fabrica')
+  const motivoTiny = parametros.get('motivo') ?? ''
+  useEffect(() => {
+    if (!voltaTiny) return
+    notificar(
+      voltaTiny === 'ligada'
+        ? {
+            titulo: 'API nova da fábrica ligada',
+            descricao: 'O acesso se renova sozinho. A carga do Tiny já pode usar a API nova.',
+            tom: 'perfeito',
+          }
+        : {
+            titulo: 'A API nova da fábrica não foi ligada',
+            descricao: MOTIVO_API_NOVA[motivoTiny] ?? 'Toque no botão de novo.',
+            tom: 'danificado',
+          },
+    )
+    setParametros(
+      (atuais) => {
+        const novos = new URLSearchParams(atuais)
+        novos.delete('tiny_fabrica')
+        novos.delete('motivo')
+        return novos
+      },
+      { replace: true },
+    )
+  }, [voltaTiny, motivoTiny, notificar, setParametros])
+
+  const ligarApiNova = useMutation({
+    mutationFn: () => iniciarApiNovaFabrica(`${window.location.origin}${window.location.pathname}`),
+    onSuccess: (url) => window.location.assign(url),
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para ligar a API nova da fábrica',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
 
   const { data: chaves = [] } = useQuery({ queryKey: ['chaves-api'], queryFn: listarChavesApi })
   const { data: webhooks = [] } = useQuery({ queryKey: ['webhooks'], queryFn: listarWebhooks })
@@ -121,6 +183,35 @@ export function AdminApi() {
           exemplos está em <code className="text-texto">docs/api.md</code> no repositório.
         </p>
       </div>
+
+      {/* ---------------- API nova do Tiny da fábrica (SESSAO-33 · D-142) ---------------- */}
+      {ehSuperAdmin(perfil) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg">
+            <Factory aria-hidden className="size-5 text-texto-suave" />
+            API nova do Tiny da fábrica
+          </h2>
+          <div className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4">
+            <p className="max-w-2xl text-sm text-texto-suave">
+              A API nova do Tiny traz o que a antiga não dá: depósitos, pedidos de compra, marcas,
+              categorias financeiras e a produção de cada fabricado. Toque no botão, entre no Tiny
+              com o usuário da fábrica e permita o acesso — você volta para cá. Depois disso o
+              acesso se renova sozinho; se algum dia ele cair, chega um aviso no sino. Se o Tiny
+              pedir, o aplicativo da fábrica precisa estar criado lá antes.
+            </p>
+            <div>
+              <Botao
+                variante="primaria"
+                icone={<Factory aria-hidden />}
+                carregando={ligarApiNova.isPending}
+                onClick={() => ligarApiNova.mutate()}
+              >
+                Ligar a API nova da fábrica
+              </Botao>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ---------------- Chaves ---------------- */}
       <section className="flex flex-col gap-4">
@@ -249,8 +340,7 @@ export function AdminApi() {
         </h2>
         <p className="text-sm text-texto-suave">
           Quando um evento assinado acontece, a plataforma faz um POST na URL — é assim que o n8n
-          (ou qualquer sistema) reage ao que acontece aqui. A fila tenta até 5 vezes, a cada
-          minuto.
+          (ou qualquer sistema) reage ao que acontece aqui. A fila tenta até 5 vezes, a cada minuto.
         </p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -304,7 +394,11 @@ export function AdminApi() {
         <div>
           <Botao
             icone={<Plus />}
-            disabled={!nomeWebhook.trim() || !/^https?:\/\//.test(urlWebhook) || eventosEscolhidos.length === 0}
+            disabled={
+              !nomeWebhook.trim() ||
+              !/^https?:\/\//.test(urlWebhook) ||
+              eventosEscolhidos.length === 0
+            }
             carregando={criarWebhookMutacao.isPending}
             onClick={() => criarWebhookMutacao.mutate()}
           >
@@ -355,7 +449,9 @@ export function AdminApi() {
                 tamanho="sm"
                 variante="secundaria"
                 icone={<RefreshCw />}
-                onClick={() => void clienteQuery.invalidateQueries({ queryKey: ['webhook-entregas'] })}
+                onClick={() =>
+                  void clienteQuery.invalidateQueries({ queryKey: ['webhook-entregas'] })
+                }
               >
                 Atualizar
               </Botao>
