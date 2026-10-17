@@ -509,13 +509,17 @@ declare
   v_erros  jsonb;
   v_mud    jsonb;
   v_api    jsonb;
+  v_ligada boolean;
 begin
   if plt_privado.fn_usuario_atual() is null or not plt_privado.fn_eh_super_admin() then
     raise exception 'A carga do Tiny é do super admin.' using errcode = 'insufficient_privilege';
   end if;
 
-  select max(f.params->>'censo') into v_censo from public.tiny_fila f where f.params ? 'censo';
-  select max(f.params->>'carga') into v_carga from public.tiny_fila f where f.params ? 'carga';
+  -- a contagem e a carga mais recentes: a última linha posta (não o maior rótulo)
+  select f.params->>'censo' into v_censo from public.tiny_fila f
+   where f.params ? 'censo' order by f.criado_em desc, f.id desc limit 1;
+  select f.params->>'carga' into v_carga from public.tiny_fila f
+   where f.params ? 'carga' order by f.criado_em desc, f.id desc limit 1;
 
   -- quantos no Tiny × quantos aqui, por janela da contagem mais recente
   with janelas as (
@@ -629,9 +633,12 @@ begin
     from (select * from public.tiny_fila f where f.status = 'erro'
            order by f.processado_em desc nulls last limit 10) e;
 
+  -- (o relógio só é lido se o agendador existe — sem ele, a consulta nem compila)
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    select exists (select 1 from cron.job where jobname = 'plt-tiny-mudancas') into v_ligada;
+  end if;
   v_mud := jsonb_build_object(
-    'ligada', case when exists (select 1 from pg_extension where extname = 'pg_cron')
-                   then exists (select 1 from cron.job where jobname = 'plt-tiny-mudancas') end,
+    'ligada', v_ligada,
     'ultima', (select max(f.processado_em) from public.tiny_fila f
                 where f.chave like 'mudancas:%' and f.status = 'ok'));
 

@@ -13773,6 +13773,610 @@ conferir(
   JSON.stringify({ ativa: ativa33?.claims, inativa: inativa33, semCadastro: semCadastro33?.claims, frase33, priv33, sobrou33 }))
 } // fim do bloco do gancho (SESSAO-33)
 
+// ============================================================================
+// SESSAO-33 — o Tiny completo (migrations 89–92, D-142/D-143): a fila das duas
+// contas e da API nova, a resposta do Tiny entendida no banco (a conferência
+// das 3h pelas MESMAS rotinas de antes), a cascata da venda, os avisos de nota,
+// o que mudou de hora em hora, a contagem, a carga, a conferência "bateu com o
+// Tiny", o alerta de erro, a API nova da fábrica com o renovador próprio e as
+// portas da estrutura e das unidades. Tudo numa transação desfeita (A-68).
+// ============================================================================
+{ // escopo próprio (E-70)
+const um33t = async (sql) => (await bd.query(sql)).rows[0]
+const todos33t = async (sql) => (await bd.query(sql)).rows
+const j33 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const SUPER33 = '00000000-0000-0000-0000-000000000330'
+const ADMIN33 = '00000000-0000-0000-0000-000000000331'
+const OPER33 = '00000000-0000-0000-0000-000000000332'
+const como33 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const fila33 = async (conta, recurso, chave, params = {}, prioridade = 5, referencia = null) =>
+  (await um33t(`insert into public.tiny_fila (conta, recurso, chave, prioridade, params, referencia)
+                values ('${conta}', '${recurso}', '${chave}', ${prioridade}, ${j33(params)}, ${referencia === null ? 'null' : `'${referencia}'`})
+                returning id::int as id`)).id
+const reservar33 = (id) => bd.exec(`update public.tiny_fila set status = 'processando', reservado_em = now() where id = ${id}`)
+const responder33 = async (id, resposta) => (await um33t(`select public.fn_tiny_fila_resposta(${id}, ${j33(resposta)}) as r`)).r
+const linha33 = (id) => um33t(`select id::int as id, conta, recurso, chave, status, tentativas::int as tentativas, erro,
+                                      extract(epoch from (nao_antes - now()))::int as espera_s, prioridade::int as prioridade, referencia, params
+                                 from public.tiny_fila where id = ${id}`)
+const achar33 = (conta, recurso, chave) => um33t(`select id::int as id, status, prioridade::int as prioridade, referencia, params
+                                                    from public.tiny_fila where conta = '${conta}' and recurso = '${recurso}' and chave = '${chave}'`)
+const v2t = (retorno) => ({ api: 'v2', corpo: { retorno } })
+const recusa33 = async (sql) => {
+  await bd.exec('savepoint s33')
+  try {
+    await bd.exec(sql)
+    await bd.exec('release savepoint s33')
+    return null
+  } catch (erro) {
+    await bd.exec('rollback to savepoint s33')
+    return erro.message
+  }
+}
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+      ('Dono 33', 'dono33@teste.com', '33300000330', 'dono.33', 'admin', '${SUPER33}'),
+      ('Admin 33', 'admin33@teste.com', '33300000331', 'admin.33', 'admin', '${ADMIN33}'),
+      ('Operador 33', 'oper33@teste.com', '33300000332', 'oper.33', 'operador', '${OPER33}');
+    update public.plt_usuarios set super_admin = true where usuario = 'dono.33';
+  `)
+
+  titulo('SESSAO-33 · a fila do Tiny para as duas contas: a conta, a espera, os tipos novos e o único por conta')
+
+  const est33 = await um33t(`
+    select (select column_default from information_schema.columns
+             where table_schema = 'public' and table_name = 'tiny_fila' and column_name = 'conta') as conta_padrao,
+           exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'tiny_fila_conta_chave_uq') as unico_novo,
+           not exists (select 1 from pg_constraint where conname = 'tiny_fila_chave_uq') as unico_velho_saiu,
+           (select count(*)::int from plt_privado.fn_tiny_recursos()) as catalogo`)
+  const ck33 = (await um33t(`select pg_get_constraintdef(oid) as d from pg_constraint where conname = 'tiny_fila_recurso_ck'`)).d
+  const nomesCk33 = [...ck33.matchAll(/'([a-z0-9_]+)'::text/g)].map((m) => m[1]).sort()
+  const nomesCat33 = (await todos33t(`select recurso from plt_privado.fn_tiny_recursos()`)).map((r) => r.recurso).sort()
+  const bogus33 = await recusa33(`insert into public.tiny_fila (recurso, chave) values ('inventado', 'x')`)
+  const outra33 = await recusa33(`insert into public.tiny_fila (conta, recurso, chave) values ('outra', 'contato', 'x')`)
+  const duasA = await fila33('loja', 'contato', '999001', { origem: 'teste' })
+  const duasB = await fila33('fabrica', 'contato', '999001', { origem: 'teste' })
+  const repetida33 = await recusa33(`insert into public.tiny_fila (conta, recurso, chave) values ('loja', 'contato', '999001')`)
+  conferir(
+    /'loja'/.test(est33.conta_padrao ?? '') && est33.unico_novo && est33.unico_velho_saiu && est33.catalogo === 29
+      && JSON.stringify(nomesCk33) === JSON.stringify(nomesCat33)
+      && bogus33 !== null && outra33 !== null && duasA !== duasB && repetida33 !== null,
+    'a fila nasce na conta da loja (o que já existe não muda); cada tipo aceito tem a sua chamada no catálogo; a mesma chave nas duas contas são linhas diferentes; repetida na mesma conta, não',
+    JSON.stringify({ est33, nomesCk33: nomesCk33.length, nomesCat33: nomesCat33.length, bogus33, outra33, repetida33 }),
+  )
+
+  titulo('SESSAO-33 · o banco monta a chamada: v2 com os filtros da linha (sem as marcas internas), v3 com o caminho')
+
+  const reqLeg = await fila33('loja', 'pedidos_pesquisa', 'teste33:p1', {
+    dataInicial: '01/09/2026', dataFinal: '30/09/2026', pagina: 1, janela: 'teste33', rodada: 'R33', motivo: 'teste', inicio: '2026-10-17',
+  }, 1)
+  const reqEst = await fila33('fabrica', 'estrutura', '555', { origem: 'teste' })
+  const reqOc = await fila33('fabrica', 'v3_ordem_compra', '77', { origem: 'teste' })
+  const reqDep = await fila33('loja', 'v3_depositos', 'carga:v3_depositos', { janela: 'carga:v3_depositos', origem: 'carga', carga: 'R' })
+  const reqCont = await fila33('loja', 'contatos_pesquisa', 'teste33-cont', { pesquisa: '', cpf_cnpj: '123', pagina: 1, janela: 'teste33-cont', origem: 'cascata', reabrir: true, pedido: 1 })
+  const req33 = Object.fromEntries((await todos33t(`
+    select f.id::int as id, plt_privado.fn_tiny_requisicao(f) as r from public.tiny_fila f
+     where f.id in (${reqLeg}, ${reqEst}, ${reqOc}, ${reqDep}, ${reqCont})`)).map((x) => [x.id, x.r]))
+  conferir(
+    req33[reqLeg].api === 'v2' && req33[reqLeg].url === 'https://api.tiny.com.br/api2/pedidos.pesquisa.php'
+      && JSON.stringify(req33[reqLeg].campos) === JSON.stringify({ pagina: 1, formato: 'JSON', dataFinal: '30/09/2026', dataInicial: '01/09/2026' })
+      && req33[reqEst].url === 'https://api.tiny.com.br/api2/produto.obter.estrutura.php'
+      && req33[reqEst].campos.id === '555' && req33[reqEst].campos.formato === 'JSON' && req33[reqEst].conta === 'fabrica'
+      && req33[reqOc].api === 'v3' && req33[reqOc].caminho === '/ordem-compra/77' && req33[reqOc].url === null
+      && req33[reqDep].campos.limit === 100 && req33[reqDep].campos.offset === 0 && req33[reqDep].campos.origem === undefined
+      && req33[reqCont].campos.pesquisa === '' && req33[reqCont].campos.cpf_cnpj === '123'
+      && req33[reqCont].campos.reabrir === undefined && req33[reqCont].campos.pedido === undefined,
+    'a chamada pronta: a busca de sempre leva só os filtros do Tiny (nada de rodada, janela, motivo); o detalhe leva o id; a API nova leva o caminho (com o id) e a página; a pesquisa vazia vai (o Tiny exige)',
+    JSON.stringify(req33),
+  )
+
+  titulo('SESSAO-33 · o lote: o fluxo antigo só pega o que sabe fazer; o novo pega tudo o que está pronto')
+
+  await bd.exec(`update public.tiny_fila set status = 'ok' where status in ('pendente', 'processando')`)
+  const lojaLeg33 = await fila33('loja', 'contato', '999101', {})
+  const espera33 = await fila33('loja', 'contato', '999102', {})
+  await bd.exec(`update public.tiny_fila set nao_antes = now() + interval '5 minutes' where id = ${espera33}`)
+  const fab33 = await fila33('fabrica', 'contato', '999103', { origem: 'teste' })
+  const novo33 = await fila33('loja', 'cp_pesquisa', 'teste33-cp-loja', { origem: 'teste', pagina: 1, janela: 'teste33-cp-loja' })
+  const antigos33 = (await todos33t(`select id::int as id from public.fn_fila_proximos(50)`)).map((r) => r.id).sort((a, b) => a - b)
+  await bd.exec(`update public.tiny_fila set status = 'pendente', reservado_em = null where id in (${lojaLeg33}, ${fab33}, ${novo33})`)
+  const varredura33 = (await um33t(`select plt_privado.fn_tiny_fabrica_em_varredura() as v`)).v
+  const lote33 = (await um33t(`select public.fn_tiny_fila_lote(50) as l`)).l
+  const idsLote33 = lote33.map((x) => x.id).sort((a, b) => a - b)
+  const esperado33 = [lojaLeg33, novo33, ...(varredura33 ? [] : [fab33])].sort((a, b) => a - b)
+  conferir(
+    JSON.stringify(antigos33) === JSON.stringify([lojaLeg33])
+      && JSON.stringify(idsLote33) === JSON.stringify(esperado33)
+      && lote33.every((x) => x.api && x.campos && (x.url || x.caminho))
+      && lote33.find((x) => x.id === lojaLeg33)?.campos?.id === '999101',
+    'o fluxo antigo (até o novo ser importado) só recebe a conta da loja nos 8 tipos de sempre; o lote novo traz a fábrica e os tipos novos (com a chamada montada); a linha que espera não sai em nenhum',
+    JSON.stringify({ antigos33, idsLote33, esperado33, varredura33 }),
+  )
+
+  titulo('SESSAO-33 · a resposta: a busca nova enfileira o detalhe de cada registro e a próxima página; a carga vai atrás de tudo')
+
+  const cp33 = await fila33('fabrica', 'cp_pesquisa', 'carga33:cp:2025-01', {
+    data_ini_emissao: '01/01/2025', data_fim_emissao: '31/01/2025', pagina: 1, janela: 'carga33:cp:2025-01', origem: 'carga', carga: 'R33', reabrir: false,
+  }, 9, '2025-01')
+  await reservar33(cp33)
+  const rcp33 = await responder33(cp33, v2t({
+    status: 'OK', status_processamento: '3', pagina: 1, numero_paginas: 2,
+    contas: [{ conta: { id: '5001', valor: '10.50' } }, { conta: { id: '5002', valor: '5.00' } }],
+  }))
+  const filhos33 = await todos33t(`select chave, prioridade::int as prioridade, params from public.tiny_fila
+                                    where conta = 'fabrica' and recurso = 'conta_pagar' and chave in ('5001', '5002') order by chave`)
+  const prox33 = await achar33('fabrica', 'cp_pesquisa', 'carga33:cp:2025-01:p2')
+  const lcp33 = await linha33(cp33)
+  conferir(
+    rcp33?.ok === true && filhos33.length === 2
+      && filhos33.every((f) => f.prioridade === 9 && f.params.origem === 'carga' && f.params.carga === 'R33')
+      && prox33?.params?.pagina === 2 && prox33?.params?.data_ini_emissao === '01/01/2025'
+      && lcp33.status === 'ok' && lcp33.params.registros === 2 && Number(lcp33.params.soma) === 15.5,
+    'busca das contas a pagar da fábrica: o detalhe de cada conta entra na fila (prioridade da carga), a página 2 também; a linha guarda quantos vieram e a soma (para a conferência)',
+    JSON.stringify({ rcp33, filhos33, prox33, lcp33 }),
+  )
+
+  const id5001 = (await achar33('fabrica', 'conta_pagar', '5001')).id
+  const det5001 = { id: '5001', valor: '10.50', data: '05/01/2025', situacao: 'aberto' }
+  await reservar33(id5001)
+  await responder33(id5001, v2t({ status: 'OK', status_processamento: '3', conta: det5001 }))
+  const reg1 = await um33t(`select raw from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'conta_pagar' and chave = '5001'`)
+  await bd.exec(`update public.plt_tiny_registros set gravado_em = gravado_em - interval '1 day' where conta = 'fabrica' and tipo = 'conta_pagar' and chave = '5001'`)
+  await reservar33(id5001)
+  await responder33(id5001, v2t({ status: 'OK', conta: det5001 }))
+  const reg2 = await um33t(`select gravado_em < now() - interval '23 hours' as velho from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'conta_pagar' and chave = '5001'`)
+  await reservar33(id5001)
+  await responder33(id5001, v2t({ status: 'OK', conta: { ...det5001, situacao: 'pago' } }))
+  const reg3 = await um33t(`select raw->>'situacao' as s, gravado_em >= now() as novo from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'conta_pagar' and chave = '5001'`)
+  conferir(
+    reg1?.raw?.valor === '10.50' && reg2?.velho === true && reg3?.s === 'pago' && reg3?.novo === true
+      && (await linha33(id5001)).status === 'ok',
+    'o detalhe da conta a pagar vai para o guarda-tudo como o Tiny mandou; a mesma resposta não regrava; a que mudou regrava (D-50)',
+    JSON.stringify({ reg1, reg2, reg3 }),
+  )
+
+  titulo('SESSAO-33 · os erros do Tiny: vazio não é erro, limite espera sem gastar tentativa, "não existe" encerra, o resto tenta de novo esperando mais')
+
+  const vazio33 = await fila33('loja', 'cp_pesquisa', 'teste33-vazio', { origem: 'teste', janela: 'teste33-vazio', pagina: 1 })
+  await reservar33(vazio33)
+  await responder33(vazio33, v2t({ status: 'Erro', status_processamento: '2', codigo_erro: '20', erros: [{ erro: 'A consulta não retornou registros' }] }))
+  const lvazio33 = await linha33(vazio33)
+  const lim33 = await fila33('loja', 'cp_pesquisa', 'teste33-limite', { origem: 'teste', janela: 'teste33-limite', pagina: 1 })
+  await reservar33(lim33)
+  await responder33(lim33, v2t({ status: 'Erro', codigo_erro: '6', erros: [{ erro: 'API Bloqueada - Excedido o número de acessos a API' }] }))
+  const llim1 = await linha33(lim33)
+  await reservar33(lim33)
+  await responder33(lim33, v2t({ status: 'Erro', codigo_erro: '6', erros: [{ erro: 'API Bloqueada' }] }))
+  const llim2 = await linha33(lim33)
+  const nao33 = await fila33('fabrica', 'nota_fiscal', 'teste33-nf', { origem: 'teste' })
+  await reservar33(nao33)
+  await responder33(nao33, v2t({ status: 'Erro', codigo_erro: '32', erros: [{ erro: 'Nota fiscal não localizada' }] }))
+  const lnao33 = await linha33(nao33)
+  conferir(
+    lvazio33.status === 'ok' && lvazio33.params.registros === 0
+      && llim1.status === 'pendente' && llim1.tentativas === 0 && llim1.params.limite_n === 1 && llim1.espera_s === 60
+      && llim2.tentativas === 0 && llim2.params.limite_n === 2 && llim2.espera_s === 120
+      && lnao33.status === 'vazio' && /^codigo 32: Nota fiscal não localizada/.test(lnao33.erro ?? ''),
+    'janela vazia (código 20) fecha a busca; limite do minuto (código 6) espera 1 min, depois 2 min, sem gastar tentativa; "não localizada" (32) encerra a linha',
+    JSON.stringify({ lvazio33, llim1, llim2, lnao33 }),
+  )
+
+  await como33('')
+  const avisosAntes33 = (await um33t(`select count(*)::int as n from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+                                       where u.auth_user_id = '${SUPER33}' and n.tipo = 'automacao_erro'`)).n
+  const ruim33 = await fila33('fabrica', 'conta_pagar', 'teste33-ruim', { origem: 'teste' }, 8, 'conta teste')
+  const esperas33 = []
+  for (let i = 0; i < 4; i++) {
+    await reservar33(ruim33)
+    await responder33(ruim33, v2t({ status: 'Erro', codigo_erro: '99', erros: [{ erro: 'falha de teste' }] }))
+    esperas33.push((await linha33(ruim33)).espera_s)
+  }
+  const lruim33 = await linha33(ruim33)
+  const avisos1 = (await um33t(`select count(*)::int as n from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+                                 where u.auth_user_id = '${SUPER33}' and n.tipo = 'automacao_erro'`)).n
+  const ruim33b = await fila33('fabrica', 'conta_pagar', 'teste33-ruim2', { origem: 'teste' })
+  for (let i = 0; i < 4; i++) {
+    await reservar33(ruim33b)
+    await responder33(ruim33b, v2t({ status: 'Erro', codigo_erro: '99', erros: [{ erro: 'falha de teste 2' }] }))
+  }
+  const avisos2 = (await um33t(`select count(*)::int as n from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+                                 where u.auth_user_id = '${SUPER33}' and n.tipo = 'automacao_erro'`)).n
+  const trilha33 = (await um33t(`select count(*)::int as n from public.plt_logs_atividade
+                                  where acao = 'automacao_erro' and contexto->>'chave' = 'fila:fabrica:conta_pagar'`)).n
+  conferir(
+    JSON.stringify(esperas33) === JSON.stringify([120, 240, 480, null]) && lruim33.status === 'erro' && lruim33.tentativas === 4
+      && avisos1 === avisosAntes33 + 1 && avisos2 === avisos1 && trilha33 === 2,
+    'falha de verdade: tenta de novo em 2, 4 e 8 min; na 4ª desiste e AVISA o dono (sino) e a Auditoria; outra desistência do mesmo tipo na mesma hora vai só para a Auditoria (sem repetir o aviso)',
+    JSON.stringify({ esperas33, lruim33, avisosAntes33, avisos1, avisos2, trilha33 }),
+  )
+
+  titulo('SESSAO-33 · a conferência das 3h (sem origem) segue pelas MESMAS rotinas, com a mesma resposta de antes')
+
+  const leg33 = await fila33('loja', 'pedidos_pesquisa', 'teste33-leg:p1', { dataInicial: '01/09/2026', dataFinal: '30/09/2026', pagina: 1, janela: 'teste33-leg' }, 1)
+  await reservar33(leg33)
+  await responder33(leg33, v2t({
+    status: 'OK', pagina: 1, numero_paginas: 2,
+    pedidos: [{ pedido: { id: '8800001', numero: '880001' } }, { pedido: { id: '8800002', numero: '880002' } }],
+  }))
+  const legFilhos33 = await todos33t(`select chave, prioridade::int as prioridade, referencia, conta, params from public.tiny_fila
+                                       where recurso = 'pedido' and chave in ('8800001', '8800002') order by chave`)
+  const legProx33 = await achar33('loja', 'pedidos_pesquisa', 'teste33-leg:p2')
+  const legPed33 = legFilhos33.length ? (await achar33('loja', 'pedido', '8800001')).id : null
+  if (legPed33) {
+    await reservar33(legPed33)
+    await responder33(legPed33, v2t({ status: 'Erro', codigo_erro: '32', erros: [{ erro: 'Pedido não localizado' }] }))
+  }
+  const legNao33 = legPed33 ? await linha33(legPed33) : null
+  conferir(
+    legFilhos33.length === 2 && legFilhos33.every((f) => f.conta === 'loja' && f.prioridade === 2 && JSON.stringify(f.params) === '{}')
+      && legFilhos33[0].referencia === '880001'
+      && legProx33?.prioridade === 1 && legProx33?.params?.pagina === 2 && legProx33?.params?.janela === 'teste33-leg'
+      && legNao33?.status === 'vazio' && legNao33?.erro === 'codigo 32: Pedido não localizado',
+    'a busca de sempre: os pedidos achados entram como antes (prioridade 2, com o número); a página 2 com o rótulo de sempre; o "não localizado" sai com o MESMO texto que o veredito dos pedidos excluídos procura (D-140)',
+    JSON.stringify({ legFilhos33, legProx33, legNao33 }),
+  )
+
+  titulo('SESSAO-33 · listas que já trazem o registro inteiro, a lista de preço com as exceções, e a contagem')
+
+  const vend33 = await fila33('loja', 'vendedores_pesquisa', 'teste33-vend', { pesquisa: '', pagina: 1, janela: 'teste33-vend', origem: 'carga', carga: 'R33' })
+  await reservar33(vend33)
+  await responder33(vend33, v2t({ status: 'OK', pagina: 1, numero_paginas: 1, vendedores: [{ vendedor: { id: '71', nome: 'Ana', situacao: 'Ativo' } }] }))
+  const regVend33 = await um33t(`select raw->>'nome' as nome from public.plt_tiny_registros where conta = 'loja' and tipo = 'vendedor' and chave = '71'`)
+  const lp33 = await fila33('fabrica', 'listas_precos', 'teste33-lp', { pagina: 1, janela: 'teste33-lp', origem: 'carga', carga: 'R33', reabrir: true })
+  await reservar33(lp33)
+  await responder33(lp33, v2t({ status: 'OK', pagina: 1, numero_paginas: 1, registros: [{ registro: { id: '81', descricao: 'Atacado' } }] }))
+  const regLp33 = await um33t(`select raw->>'descricao' as d from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'lista_preco' and chave = '81'`)
+  const exc33 = await achar33('fabrica', 'lista_preco_excecoes', '81')
+  const reqExc33 = (await um33t(`select plt_privado.fn_tiny_requisicao(f) as r from public.tiny_fila f where f.id = ${exc33?.id ?? 0}`))?.r
+  conferir(
+    regVend33?.nome === 'Ana' && regLp33?.d === 'Atacado' && exc33?.params?.idListaPreco === '81'
+      && reqExc33?.campos?.idListaPreco === '81' && reqExc33?.campos?.pagina === 1 && reqExc33?.url?.endsWith('listas.precos.excecoes.php'),
+    'a lista de vendedores e a de listas de preço são guardadas direto (o registro já vem inteiro); cada lista de preço põe na fila a busca das exceções dela',
+    JSON.stringify({ regVend33, regLp33, exc33, reqExc33 }),
+  )
+
+  const cen33 = await fila33('loja', 'nf_pesquisa', 'censo:nf_pesquisa:2026-09', {
+    dataInicial: '01/09/2026', dataFinal: '30/09/2026', pagina: 1, janela: 'censo:nf_pesquisa:2026-09', origem: 'censo', censo: 'C33',
+  }, 9, '2026-09')
+  await reservar33(cen33)
+  const cem33 = Array.from({ length: 100 }, (_, i) => ({ nota_fiscal: { id: String(9900000 + i), valor: '1.00' } }))
+  await responder33(cen33, v2t({ status: 'OK', pagina: 1, numero_paginas: 3, notas_fiscais: cem33 }))
+  const ult33 = await achar33('loja', 'nf_pesquisa', 'censo:nf_pesquisa:2026-09:ultima')
+  const detCenso33 = (await um33t(`select count(*)::int as n from public.tiny_fila where recurso = 'nota_fiscal' and chave like '99000%'`)).n
+  await reservar33(ult33.id)
+  await responder33(ult33.id, v2t({ status: 'OK', pagina: 3, numero_paginas: 3, notas_fiscais: cem33.slice(0, 42) }))
+  await como33(SUPER33)
+  const painel33 = (await um33t(`select public.plt_fn_tiny_carga_painel() as r`)).r
+  const linhaCenso33 = painel33.censo.linhas.find((l) => l.conta === 'loja' && l.recurso === 'nf_pesquisa' && l.janela === '2026-09')
+  conferir(
+    ult33?.params?.pagina === 3 && ult33?.params?.ultima === true && detCenso33 === 0
+      && painel33.censo.rodada === 'C33' && linhaCenso33?.tiny === 242 && linhaCenso33?.lido === true && typeof linhaCenso33?.aqui === 'number',
+    'a contagem lê só a 1ª e a última página (nenhum detalhe): 3 páginas = 2 × 100 + 42 = 242 no Tiny, ao lado de quantas notas temos naquele mês',
+    JSON.stringify({ ult33, detCenso33, linhaCenso33 }),
+  )
+  await como33('')
+
+  titulo('SESSAO-33 · a API nova (v3) pela ponte: a página, o detalhe, o limite, a conta sem a API ligada')
+
+  const oc33 = await fila33('fabrica', 'v3_ordens_compra', 'carga33:v3_ordens_compra', { janela: 'carga33:v3_ordens_compra', origem: 'carga', carga: 'R33', reabrir: true }, 9)
+  await reservar33(oc33)
+  await responder33(oc33, { api: 'v3', status: 200, corpo: { itens: [{ id: 11, numero: 'OC-1' }, { id: 12, numero: 'OC-2' }], paginacao: { limit: 2, offset: 0, total: 3 } } })
+  const oc11 = await achar33('fabrica', 'v3_ordem_compra', '11')
+  const oc12 = await achar33('fabrica', 'v3_ordem_compra', '12')
+  const ocProx = await achar33('fabrica', 'v3_ordens_compra', 'carga33:v3_ordens_compra:o2')
+  await reservar33(oc11.id)
+  await responder33(oc11.id, { api: 'v3', status: 200, corpo: { id: 11, numero: 'OC-1', situacao: 0 } })
+  const regOc33 = await um33t(`select raw->>'numero' as n from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'ordem_compra' and chave = '11'`)
+  await reservar33(oc12.id)
+  await responder33(oc12.id, { api: 'v3', status: 429, corpo: {} })
+  const l12a = await linha33(oc12.id)
+  await reservar33(oc12.id)
+  await responder33(oc12.id, { api: 'v3', status: 0, erro: 'sem_token' })
+  const l12b = await linha33(oc12.id)
+  conferir(
+    oc11?.prioridade === 9 && oc12 && ocProx?.params?.offset === 2 && ocProx?.params?.limit === 2
+      && regOc33?.n === 'OC-1' && l12a.status === 'pendente' && l12a.tentativas === 0 && l12a.espera_s === 60
+      && l12b.status === 'vazio' && /ainda não foi ligada/.test(l12b.erro ?? ''),
+    'pedidos de compra pela API nova: cada um entra na fila, a próxima página pelo deslocamento; o detalhe vai para o guarda-tudo; limite (429) espera; conta sem a API nova ligada encerra a linha com o aviso',
+    JSON.stringify({ oc11, ocProx, regOc33, l12a, l12b }),
+  )
+
+  titulo('SESSAO-33 · a estrutura dos móveis (móvel → peças → insumos) e o produto novo da fábrica')
+
+  for (const p of [
+    { id: '3300001', codigo: 'M33', nome: 'Mesa 33', classe_produto: 'F', unidade: 'UN', situacao: 'A' },
+    { id: '3300002', codigo: 'PAR33', nome: 'Parafuso 33', classe_produto: 'M', unidade: 'Pç', situacao: 'A' },
+    { id: '3300003', codigo: 'FIT33', nome: 'Fita 33', classe_produto: 'M', unidade: 'M', situacao: 'A' },
+  ]) await bd.exec(`select public.fn_upsert_produto(${j33(p)})`)
+  const est1 = await fila33('fabrica', 'estrutura', '3300001', { origem: 'carga', carga: 'R33' }, 9, 'M33')
+  await reservar33(est1)
+  await responder33(est1, v2t({
+    status: 'OK', produto: {
+      id: '3300001', nome: 'Mesa 33', codigo: 'M33', estrutura: [
+        { item: { id_componente: '3300002', codigo: 'PAR33', nome: 'Parafuso 33', quantidade: '2.0000' } },
+        { item: { id_componente: '3300003', quantidade: '1.5' } },
+        { item: { id_componente: '3300002', quantidade: '1' } },
+        { item: { id_componente: '3399999', codigo: 'FORA', nome: 'Fora do catálogo 33', quantidade: '4' } },
+      ],
+    },
+  }))
+  const comps1 = await todos33t(`select componente_tiny_id::text as c, quantidade::float as q from public.plt_produto_componentes
+                                  where produto_tiny_id = 3300001 order by componente_tiny_id`)
+  await reservar33(est1)
+  await responder33(est1, v2t({ status: 'OK', produto: { id: '3300001', estrutura: [
+    { item: { id_componente: '3300002', quantidade: '3' } }, { item: { id_componente: '3399999', codigo: 'FORA', nome: 'Fora do catálogo 33', quantidade: '4' } },
+  ] } }))
+  const comps2 = await todos33t(`select componente_tiny_id::text as c from public.plt_produto_componentes where produto_tiny_id = 3300001 order by 1`)
+  const prodNovo33 = await fila33('fabrica', 'produto', '3300004', { origem: 'mudancas' })
+  await reservar33(prodNovo33)
+  await responder33(prodNovo33, v2t({ status: 'OK', produto: { id: '3300004', codigo: 'NOVO33', nome: 'Produto novo 33', classe_produto: 'M', unidade: 'Und', situacao: 'A' } }))
+  const novoCat33 = await um33t(`select descricao, unidade from public.produtos where tiny_id = 3300004`)
+  const prodLoja33 = await fila33('loja', 'produto', '4400001', { origem: 'carga' })
+  await reservar33(prodLoja33)
+  await responder33(prodLoja33, v2t({ status: 'OK', produto: { id: '4400001', codigo: 'M33', nome: 'Mesa 33 (loja)' } }))
+  const regLoja33 = await um33t(`select raw->>'codigo' as codigo from public.plt_tiny_registros where conta = 'loja' and tipo = 'produto' and chave = '4400001'`)
+  conferir(
+    JSON.stringify(comps1) === JSON.stringify([{ c: '3300002', q: 3 }, { c: '3300003', q: 1.5 }, { c: '3399999', q: 4 }])
+      && JSON.stringify(comps2.map((x) => x.c)) === JSON.stringify(['3300002', '3399999'])
+      && novoCat33?.descricao === 'Produto novo 33' && novoCat33?.unidade === 'un' && regLoja33?.codigo === 'M33',
+    'a estrutura do Tiny liga o móvel aos componentes (o que aparece duas vezes soma; o fora do catálogo fica com o SKU e o nome); relida, o que saiu no Tiny sai daqui; produto da fábrica entra no catálogo pelo cadastro de sempre; o da loja vai para o guarda-tudo',
+    JSON.stringify({ comps1, comps2, novoCat33, regLoja33 }),
+  )
+
+  titulo('SESSAO-33 · na hora, a partir da venda: o cliente pelo CPF, a nota e as contas do pedido entram na fila')
+
+  const ped33 = (extra = {}) => ({
+    id: '7330001', numero: '733001', data_pedido: '16/10/2026', situacao: 'Em aberto', total_pedido: '100.00', total_produtos: '100.00',
+    valor_frete: '0.00', parcelas: [], marcadores: [], itens: [], obs: '', obs_interna: '', id_nota_fiscal: '',
+    cliente: { codigo: '', nome: 'Cliente 33', tipo_pessoa: 'F', cpf_cnpj: '123.456.789-09', fone: '', email: '', endereco: '', numero: '', complemento: '', bairro: '', cep: '', cidade: '', uf: '' },
+    ...extra,
+  })
+  const gravar33 = (p, tipo) => bd.exec(`select public.fn_upsert_pedido(p => ${j33(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'backfill')`)
+  await gravar33(ped33(), 'inclusao_pedido')
+  const cpf33 = await achar33('loja', 'contatos_pesquisa', 'cascata-cpf:12345678909')
+  await gravar33(ped33({ situacao: 'Faturado', id_nota_fiscal: '7770001' }), 'atualizacao_pedido')
+  const nf33 = await achar33('loja', 'nota_fiscal', '7770001')
+  const crNf33 = await achar33('loja', 'cr_pesquisa', 'cascata-nf:7770001')
+  const crPed33 = await achar33('loja', 'cr_pesquisa', 'cascata-pedido:7330001')
+  await bd.exec(`update public.tiny_fila set status = 'ok' where conta = 'loja' and (chave like 'cascata-%' or (recurso = 'nota_fiscal' and chave = '7770001'))`)
+  await gravar33(ped33({ situacao: 'Faturado', id_nota_fiscal: '7770001' }), 'atualizacao_pedido')
+  const reabertas33 = (await um33t(`select count(*)::int as n from public.tiny_fila where conta = 'loja' and status = 'pendente'
+                                     and (chave like 'cascata-%' or (recurso = 'nota_fiscal' and chave = '7770001'))`)).n
+  await bd.exec(`set domoby.sem_cascata = 'on'`)
+  await gravar33(ped33({ id: '7330002', numero: '733002', cliente: { ...ped33().cliente, cpf_cnpj: '987.654.321-00', nome: 'Cliente 33 B' } }), 'inclusao_pedido')
+  await bd.exec(`reset domoby.sem_cascata`)
+  const semCascata33 = await achar33('loja', 'contatos_pesquisa', 'cascata-cpf:98765432100')
+  conferir(
+    cpf33?.params?.cpf_cnpj === '123.456.789-09' && cpf33?.params?.pesquisa === '' && cpf33?.params?.reabrir === true && cpf33?.prioridade === 4
+      && nf33?.status === 'pendente' && nf33?.prioridade === 3 && nf33?.params?.origem === 'cascata'
+      && crNf33?.params?.id_origem === '7770001' && crPed33?.params?.id_origem === '7330001'
+      && reabertas33 === 0 && semCascata33 === undefined,
+    'pedido novo: o cadastro do cliente pela busca do CPF; faturou: a nota e as contas (pela nota e pelo pedido); a mesma gravação de novo não repete nada; manutenção em massa desliga a cascata',
+    JSON.stringify({ cpf33, nf33, crNf33, crPed33, reabertas33, semCascata33 }),
+  )
+
+  titulo('SESSAO-33 · os avisos de nota autorizada e de pedido enviado: guardados crus; a nota entra na fila')
+
+  const av1 = (await um33t(`select public.plt_fn_tiny_aviso(${j33({ versao: '1.0.0', cnpj: '27.556.613/0001-66', tipo: 'nota_fiscal_autorizada', dados: { id: '8880001', numero: '1234' } })}) as r`)).r
+  const av2 = (await um33t(`select public.plt_fn_tiny_aviso(${j33({ cnpj: '27556613000247', tipo: 'pedido_enviado', dados: { id: '7330001', codigoRastreamento: 'X33' } })}) as r`)).r
+  const av3 = (await um33t(`select public.plt_fn_tiny_aviso(${j33({ cnpj: '00000000000100', tipo: 'nota_fiscal_autorizada', dados: { idNotaFiscal: '8880009' } })}) as r`)).r
+  const evAv33 = await todos33t(`select tipo, payload->>'tipo' as t from public.eventos where id in (${av1.evento}, ${av2.evento}, ${av3.evento}) order by id`)
+  const nfAv33 = await achar33('fabrica', 'nota_fiscal', '8880001')
+  const priv33a = await um33t(`select has_function_privilege('anon', 'public.plt_fn_tiny_aviso(jsonb)', 'execute') as anon,
+                                      has_function_privilege('authenticated', 'public.plt_fn_tiny_aviso(jsonb)', 'execute') as logado`)
+  conferir(
+    av1.conta === 'fabrica' && av1.enfileirados === 1 && nfAv33?.params?.origem === 'aviso'
+      && av2.conta === 'loja' && av2.enfileirados === 0 && av3.conta === null && av3.enfileirados === 0
+      && evAv33.length === 3 && evAv33.every((e) => e.tipo === 'aviso_tiny')
+      && !priv33a.anon && !priv33a.logado,
+    'nota autorizada da fábrica: guardada crua e a nota entra na fila; pedido enviado: só guardado (o pedido já vem pelo aviso de venda); CNPJ de fora: guardado e mais nada; só a chave de serviço chama',
+    JSON.stringify({ av1, av2, av3, evAv33, nfAv33, priv33a }),
+  )
+
+  titulo('SESSAO-33 · o que o Tiny não avisa: "o que mudou desde a última vez" (D-143), sem empilhar')
+
+  const mudar33 = () => um33t(`select plt_privado.fn_tiny_mudanca_enfileirar('loja', 'contatos_pesquisa', 'dataMinimaAtualizacao',
+                                 'DD/MM/YYYY HH24:MI:SS', '{"pesquisa": "", "pagina": 1}'::jsonb) as n`)
+  const m1 = (await mudar33()).n
+  const ml1 = await achar33('loja', 'contatos_pesquisa', 'mudancas:contatos_pesquisa')
+  const m2 = (await mudar33()).n
+  await bd.exec(`update public.tiny_fila set status = 'ok', params = params || '{"inicio": "2026-10-17T10:00:00+00:00"}'::jsonb
+                  where conta = 'loja' and recurso = 'contatos_pesquisa' and chave = 'mudancas:contatos_pesquisa'`)
+  const m3 = (await mudar33()).n
+  const ml3 = await achar33('loja', 'contatos_pesquisa', 'mudancas:contatos_pesquisa')
+  await bd.exec(`update public.tiny_fila set status = 'erro' where conta = 'loja' and recurso = 'contatos_pesquisa' and chave = 'mudancas:contatos_pesquisa'`)
+  const m4 = (await mudar33()).n
+  const ml4 = await achar33('loja', 'contatos_pesquisa', 'mudancas:contatos_pesquisa')
+  const fora33 = (await um33t(`select plt_privado.fn_tiny_mudancas() as r`)).r
+  await como33(OPER33)
+  const ligarOper33 = await recusa33(`select public.plt_fn_tiny_mudancas_ligar(true)`)
+  await como33(SUPER33)
+  const ligar33 = (await um33t(`select public.plt_fn_tiny_mudancas_ligar(true) as r`)).r
+  await como33('')
+  conferir(
+    m1 === 1 && /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/.test(ml1?.params?.dataMinimaAtualizacao ?? '') && ml1?.params?.origem === 'mudancas'
+      && m2 === 0
+      && m3 === 1 && new Date(ml3?.params?.desde).toISOString() === '2026-10-17T09:50:00.000Z'
+      && ml3?.params?.dataMinimaAtualizacao === '17/10/2026 06:50:00'
+      && m4 === 1 && ml4?.params?.desde === ml3?.params?.desde
+      && fora33 && (fora33.fora_do_horario === true || typeof fora33.enfileirados === 'number')
+      && ligarOper33 !== null && ligar33?.ligada === true,
+    'a 1ª pergunta olha a última hora; a anterior não terminou → não empilha; deu certo → a próxima pergunta desde o início dela, com 10 min de folga (no horário da fábrica); deu errado → repete a mesma janela; ligar é gesto do dono',
+    JSON.stringify({ m1, ml1: ml1?.params, m2, m3, ml3: ml3?.params, m4, ml4: ml4?.params, fora33, ligarOper33, ligar33 }),
+  )
+
+  titulo('SESSAO-33 · a contagem e a carga: gesto do dono, a carga com a prioridade mais baixa, pausar e retomar')
+
+  await como33(ADMIN33)
+  const naoDono33 = await recusa33(`select public.plt_fn_tiny_carga('contar')`)
+  await como33(SUPER33)
+  const cont33 = (await um33t(`select public.plt_fn_tiny_carga('contar') as r`)).r
+  const meses33 = (await um33t(`select count(*)::int as n from plt_privado.fn_tiny_janelas(date '2025-01-01')`)).n
+  const porTipo33 = Object.fromEntries((await todos33t(`
+    select conta || ':' || recurso as k, count(*)::int as n from public.tiny_fila
+     where params->>'censo' = '${cont33.rodada}' group by 1`)).map((r) => [r.k, r.n]))
+  const carr33 = (await um33t(`select public.plt_fn_tiny_carga('carregar') as r`)).r
+  const fabricados33 = (await um33t(`select count(*)::int as n from public.produtos where classe = 'F'`)).n
+  const produtos33 = (await um33t(`select count(*)::int as n from public.produtos`)).n
+  const estCarga33 = (await um33t(`select count(*)::int as n from public.tiny_fila where conta = 'fabrica' and recurso = 'estrutura' and params->>'carga' = '${carr33.rodada}'`)).n
+  const estoqueCarga33 = (await um33t(`select count(*)::int as n from public.tiny_fila where conta = 'fabrica' and recurso = 'estoque' and params->>'carga' = '${carr33.rodada}'`)).n
+  const prioCarga33 = (await um33t(`select min(prioridade)::int as minp from public.tiny_fila where params->>'carga' = '${carr33.rodada}' and recurso in ('estrutura', 'estoque', 'cp_pesquisa', 'vendedores_pesquisa') and chave <> '3300001'`)).minp
+  const cpCarga33 = (await um33t(`select count(distinct conta)::int as n from public.tiny_fila where recurso = 'cp_pesquisa' and params->>'carga' = '${carr33.rodada}'`)).n
+  const alterados33 = await achar33('loja', 'contatos_pesquisa', 'carga:contatos:alterados')
+  const pausa33 = (await um33t(`select public.plt_fn_tiny_carga('pausar') as r`)).r
+  const pausadas33 = (await um33t(`select count(*)::int as n from public.tiny_fila where nao_antes = 'infinity'`)).n
+  const retoma33 = (await um33t(`select public.plt_fn_tiny_carga('retomar') as r`)).r
+  const sobraPausa33 = (await um33t(`select count(*)::int as n from public.tiny_fila where nao_antes = 'infinity'`)).n
+  const trilhaCarga33 = (await um33t(`select count(*)::int as n from public.plt_logs_atividade where acao = 'tiny_carga'`)).n
+  await como33('')
+  conferir(
+    naoDono33 !== null
+      && porTipo33['loja:pedidos_pesquisa'] === meses33 && porTipo33['loja:nf_pesquisa'] === meses33 && porTipo33['loja:cr_pesquisa'] === meses33
+      && porTipo33['loja:cp_pesquisa'] === 1 && porTipo33['fabrica:cp_pesquisa'] === 1
+      && porTipo33['loja:contatos_pesquisa'] === 1 && porTipo33['fabrica:produtos_pesquisa'] === 1 && porTipo33['fabrica:pedidos_pesquisa'] === 1
+      && estCarga33 === fabricados33 && estoqueCarga33 === produtos33 && prioCarga33 === 9 && cpCarga33 === 2
+      && alterados33?.params?.dataMinimaAtualizacao === '08/09/2026 00:00:00' && alterados33?.params?.reabrir === true
+      && pausa33.linhas > 0 && pausadas33 === pausa33.linhas && retoma33.linhas === pausa33.linhas && sobraPausa33 === 0
+      && trilhaCarga33 >= 4,
+    'só o dono conta e carrega; a contagem da loja vai mês a mês (pedidos, notas, contas a receber) e o resto numa busca só; a carga traz a estrutura de cada fabricado, o estoque de cada produto, as contas a pagar das duas contas e os clientes alterados desde 08/09 — tudo com a prioridade mais baixa; pausar e retomar; cada gesto na trilha',
+    JSON.stringify({ naoDono33, porTipo33, meses33, estCarga33, fabricados33, estoqueCarga33, produtos33, prioCarga33, cpCarga33, alterados: alterados33?.params, pausa33, pausadas33, retoma33, sobraPausa33, trilhaCarga33 }),
+  )
+
+  titulo('SESSAO-33 · a conferência da madrugada fecha quando as linhas DELA acabam (a carga não segura o resumo)')
+
+  await bd.exec(`
+    insert into public.tiny_fila (conta, recurso, chave, prioridade, params, status)
+    values ('loja', 'pedidos_pesquisa', 'pente-fino:p1', 1,
+            jsonb_build_object('rodada', 'R33P', 'janela', 'pente-fino', 'inicio', now(), 'motivo', 'teste'), 'ok')
+    on conflict (conta, recurso, chave) do update
+       set status = 'ok', params = excluded.params`)
+  const rel33 = (await um33t(`select plt_privado.fn_tiny_fila_relogio() as r`)).r
+  const resumoRel33 = (await um33t(`select count(*)::int as n from public.eventos where tipo = 'pente_fino' and payload->>'rodada' = 'R33P'`)).n
+  conferir(
+    rel33.resumo === true && rel33.fila === 'com_trabalho' && resumoRel33 === 1,
+    'a rodada da conferência sem nada dela por ler ganha o resumo mesmo com a carga ainda na fila — e o relógio segue chamando o n8n para a carga',
+    JSON.stringify({ rel33, resumoRel33 }),
+  )
+
+  titulo('SESSAO-33 · o painel da carga (uma requisição): a fila, os erros, a API nova — só o dono')
+
+  await como33(OPER33)
+  const painelOper33 = await recusa33(`select public.plt_fn_tiny_carga_painel()`)
+  await como33(SUPER33)
+  const painel33b = (await um33t(`select public.plt_fn_tiny_carga_painel() as r`)).r
+  await como33('')
+  conferir(
+    painelOper33 !== null && painel33b.carga.rodada === carr33.rodada && painel33b.carga.por_recurso.length > 0
+      && typeof painel33b.fila.pendentes === 'number' && painel33b.erros.some((e) => e.referencia === 'conta teste')
+      && painel33b.api_nova.fabrica.ligada === false && painel33b.mudancas !== null,
+    'o painel mostra a carga por tipo, a fila agora, os últimos erros (com o item) e se a API nova está ligada em cada conta; quem não é o dono não abre',
+    JSON.stringify({ painelOper33, carga: painel33b.carga.por_recurso.length, rodadas: [painel33b.carga.rodada, carr33.rodada], fila: painel33b.fila, erros: painel33b.erros, api: painel33b.api_nova }),
+  )
+
+  titulo('SESSAO-33 · a API nova da fábrica: a linha 2, o renovador próprio que pega a vez, o aviso quando perde o acesso')
+
+  const terceira33 = await recusa33(`insert into public.tiny_auth (id, access_token, refresh_token, updated_at) values (3, 'a', 'b', now())`)
+  const grava33 = (await um33t(`select public.plt_fn_tiny_fabrica_token_gravar('acesso-teste-33', 'renova-teste-33', 'autorizacao',
+                                  'https://exemplo.invalid/functions/v1/tiny-fabrica-token') as r`)).r
+  const ler33 = (await um33t(`select public.plt_fn_tiny_token_ler('fabrica') as t`)).t
+  const res1 = (await um33t(`select public.plt_fn_tiny_fabrica_renovacao_reservar() as t`)).t
+  await bd.exec(`update public.tiny_auth set updated_at = now() - interval '3 hours' where id = 2`)
+  const res2 = (await um33t(`select public.plt_fn_tiny_fabrica_renovacao_reservar() as t`)).t
+  const res3 = (await um33t(`select public.plt_fn_tiny_fabrica_renovacao_reservar() as t`)).t
+  const ligada33 = (await um33t(`select plt_privado.fn_tiny_api_nova_ligada('fabrica') as l`)).l
+  const falha33 = (await um33t(`select public.plt_fn_tiny_fabrica_falha('invalid_grant: Token is not active') as r`)).r
+  const avisoToken33 = await um33t(`select n.titulo from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+                                     where u.auth_user_id = '${SUPER33}' and n.titulo like 'A API nova da fábrica%' order by n.id desc limit 1`)
+  const priv33t = await um33t(`
+    select has_function_privilege('authenticated', 'public.plt_fn_tiny_token_ler(text)', 'execute') as ler_logado,
+           has_function_privilege('anon', 'public.plt_fn_tiny_token_ler(text)', 'execute') as ler_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_tiny_fabrica_token_gravar(text, text, text, text)', 'execute') as gravar_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_tiny_fabrica_renovacao_reservar()', 'execute') as reservar_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_tiny_fabrica_autorizar_preparar()', 'execute') as preparar_logado,
+           has_function_privilege('anon', 'public.plt_fn_tiny_fabrica_autorizar_preparar()', 'execute') as preparar_anon`)
+  await como33(ADMIN33)
+  const prepAdmin33 = await recusa33(`select public.plt_fn_tiny_fabrica_autorizar_preparar()`)
+  await como33(SUPER33)
+  const prepDono33 = (await um33t(`select public.plt_fn_tiny_fabrica_autorizar_preparar() as r`)).r
+  await como33('')
+  conferir(
+    terceira33 !== null && grava33.ok === true && ler33 === 'acesso-teste-33'
+      && res1 === null && res2 === 'renova-teste-33' && res3 === null && ligada33 === true
+      && falha33.avisado === true && avisoToken33?.titulo === 'A API nova da fábrica precisa ser ligada de novo'
+      && !priv33t.ler_logado && !priv33t.ler_anon && !priv33t.gravar_logado && !priv33t.reservar_logado
+      && priv33t.preparar_logado && !priv33t.preparar_anon && prepAdmin33 !== null && prepDono33?.ok === true,
+    'a tabela aceita só a loja (1) e a fábrica (2); a fábrica grava e a ponte lê; o renovador só pega a vez depois de 2 h e uma vez (duas chamadas juntas: só uma); perdeu o acesso → o dono é avisado para ligar de novo; tokens só para a chave de serviço; começar a ligar é gesto do dono',
+    JSON.stringify({ terceira33, grava33, ler33, res1, res2, res3, ligada33, falha33, avisoToken33, priv33t, prepAdmin33, prepDono33 }),
+  )
+
+  titulo('SESSAO-33 · Configurações: a estrutura de cada produto (no clique) e as unidades fora do padrão')
+
+  for (const p of [
+    { id: '3310001', codigo: 'UN1', nome: 'Insumo UN 1', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+    { id: '3310002', codigo: 'UN2', nome: 'Insumo UN 2', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+    { id: '3310003', codigo: 'UN3', nome: 'Insumo UN 3', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+    { id: '3310004', codigo: 'UN4', nome: 'Insumo UN 4', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+    { id: '3310005', codigo: 'UN5', nome: 'Insumo UN 5', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+    { id: '3310006', codigo: 'UND', nome: 'Insumo Und 33', classe_produto: 'M', unidade: 'Und', situacao: 'A' },
+    { id: '3310007', codigo: 'SEMUN', nome: 'Insumo sem unidade 33', classe_produto: 'M', unidade: '', situacao: 'A' },
+    { id: '3310008', codigo: 'CENTO', nome: 'Insumo Cento 33', classe_produto: 'M', unidade: 'Cento', situacao: 'A' },
+    { id: '3310009', codigo: 'MOVUND', nome: 'Móvel Und 33', classe_produto: 'F', unidade: 'Und', situacao: 'A' },
+    { id: '3310010', codigo: 'INATIVO', nome: 'Insumo inativo 33', classe_produto: 'M', unidade: '', situacao: 'I' },
+  ]) await bd.exec(`select public.fn_upsert_produto(${j33(p)})`)
+  await como33(OPER33)
+  const estOper33 = await recusa33(`select public.plt_fn_produto_estrutura(3300001)`)
+  const uniOper33 = await recusa33(`select * from public.plt_fn_produtos_unidades(100, 0)`)
+  await como33(ADMIN33)
+  const estMesa33 = (await um33t(`select public.plt_fn_produto_estrutura(3300001) as r`)).r
+  const estPar33 = (await um33t(`select public.plt_fn_produto_estrutura(3300002) as r`)).r
+  const uni33 = await todos33t(`select codigo, unidade_tiny, unidade_padrao, motivo, contagem_total::int as total from public.plt_fn_produtos_unidades(100, 0)`)
+  await como33('')
+  const porCodigo33 = Object.fromEntries(uni33.map((u) => [u.codigo, u]))
+  conferir(
+    estOper33 !== null && uniOper33 !== null
+      && estMesa33.produto.codigo === 'M33' && estMesa33.componentes.length === 2
+      && estMesa33.componentes.some((c) => c.tiny_id === 3300002 && Number(c.quantidade) === 3 && c.no_catalogo === true && c.descricao === 'Parafuso 33')
+      && estMesa33.componentes.some((c) => c.tiny_id === 3399999 && c.no_catalogo === false && c.descricao === 'Fora do catálogo 33' && c.codigo === 'FORA')
+      && estPar33.usado_em_total === 1 && estPar33.usado_em[0]?.codigo === 'M33' && Number(estPar33.usado_em[0]?.quantidade) === 3
+      && porCodigo33.UND?.motivo === 'grafia' && porCodigo33.UND?.unidade_padrao !== 'Und' && porCodigo33.UND?.unidade_padrao
+      && porCodigo33.SEMUN?.motivo === 'sem_unidade' && porCodigo33.CENTO?.motivo === 'desconhecida'
+      && porCodigo33.MOVUND === undefined && porCodigo33.INATIVO === undefined && porCodigo33.UN1 === undefined
+      && uni33.every((u) => u.total === uni33.length),
+    'a estrutura: do que o móvel é feito (o fora do catálogo com o SKU e o nome do Tiny) e onde o parafuso é usado; as unidades: o insumo "Und" (o padrão é a grafia mais usada), o sem unidade e a unidade desconhecida aparecem; móvel, inativo e quem está no padrão, não; só o admin',
+    JSON.stringify({ estOper33, uniOper33, estMesa33: estMesa33.componentes, estPar33: estPar33.usado_em, uni33 }),
+  )
+
+  titulo('SESSAO-33 · o alerta das automações do n8n (pendência P1) e as portas fora da API')
+
+  const n8n1 = (await um33t(`select public.plt_fn_automacao_erro(${j33({ fluxo: 'Principal - Tiny', no: 'Tiny · pedido.obter', mensagem: 'timeout', execucao: '123' })}) as r`)).r
+  const n8n2 = (await um33t(`select public.plt_fn_automacao_erro(${j33({ fluxo: 'Principal - Tiny', no: 'Tiny · pedido.obter', mensagem: 'timeout de novo' })}) as r`)).r
+  const n8n3 = (await um33t(`select public.plt_fn_automacao_erro(${j33({ fluxo: 'Outro fluxo', mensagem: 'erro' })}) as r`)).r
+  const trilhaN8n33 = (await um33t(`select count(*)::int as n from public.plt_logs_atividade where acao = 'automacao_erro' and contexto->>'origem' = 'n8n'`)).n
+  const priv33f = await um33t(`
+    select has_function_privilege('authenticated', 'public.fn_tiny_fila_lote(integer)', 'execute') as lote_logado,
+           has_function_privilege('anon', 'public.fn_tiny_fila_resposta(bigint, jsonb)', 'execute') as resposta_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_automacao_erro(jsonb)', 'execute') as erro_logado,
+           has_function_privilege('service_role', 'public.fn_tiny_fila_lote(integer)', 'execute') as lote_servico,
+           has_function_privilege('service_role', 'public.fn_backfill_aplicar(bigint, text, jsonb)', 'execute') as aplicar_servico,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_enfileirar(text, text, text, text, integer, jsonb, boolean)', 'execute') as enfileirar_logado,
+           (select relrowsecurity from pg_class where oid = 'public.plt_tiny_registros'::regclass) as rls_registros,
+           (select relrowsecurity from pg_class where oid = 'public.plt_produto_componentes'::regclass) as rls_componentes,
+           (select count(*)::int from pg_policies where tablename in ('plt_tiny_registros', 'plt_produto_componentes')) as politicas`)
+  conferir(
+    n8n1.avisado === true && n8n2.avisado === false && n8n3.avisado === true && trilhaN8n33 === 3
+      && !priv33f.lote_logado && !priv33f.resposta_anon && !priv33f.erro_logado && priv33f.lote_servico && priv33f.aplicar_servico
+      && !priv33f.enfileirar_logado && priv33f.rls_registros && priv33f.rls_componentes && priv33f.politicas === 0,
+    'erro de uma automação do n8n: aviso no sino (uma vez a cada 30 min por automação) e linha na Auditoria SEMPRE; a fila, a resposta e o guarda-tudo só para a chave de serviço',
+    JSON.stringify({ n8n1, n8n2, n8n3, trilhaN8n33, priv33f }),
+  )
+} finally {
+  await bd.exec('rollback')
+  await como33('')
+}
+} // fim do bloco do Tiny completo (SESSAO-33)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
