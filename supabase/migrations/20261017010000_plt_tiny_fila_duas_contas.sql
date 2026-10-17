@@ -1119,8 +1119,11 @@ comment on function public.fn_tiny_fila_resposta(bigint, jsonb) is
 -- ----------------------------------------------------------------------------
 -- 9 · O fluxo ANTIGO continua funcionando (até o novo ser importado em casa)
 -- ----------------------------------------------------------------------------
--- só entrega o que ele sabe fazer: a conta da loja e os 8 tipos de sempre — e
--- respeita a espera
+-- só entrega o que ele sabe fazer: a conta da loja, os 8 tipos de sempre e as
+-- linhas SEM a marca de origem (a conferência das 3h e as da carga antiga) — as
+-- novas (cascata, aviso, carga, contagem, "o que mudou") levam filtros que ele
+-- não monta (o CPF, a origem da conta) e esperam o fluxo novo; respeita a espera
+-- e a pausa
 create or replace function public.fn_fila_proximos(p_limite integer default 30)
 returns table(id bigint, recurso text, chave text, referencia text, params jsonb)
 language plpgsql
@@ -1140,6 +1143,7 @@ begin
      where f.status = 'pendente' and f.tentativas < 4
        and f.conta = 'loja'
        and f.prioridade <= plt_privado.fn_tiny_fila_teto()
+       and not (f.params ? 'origem')
        and f.recurso = any (array['pedidos_pesquisa', 'pedido', 'contatos_pesquisa', 'contato',
                                   'nf_pesquisa', 'nota_fiscal', 'cr_pesquisa', 'conta_receber'])
        and (f.nao_antes is null or f.nao_antes <= now())

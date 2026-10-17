@@ -13880,18 +13880,22 @@ try {
   await bd.exec(`update public.tiny_fila set nao_antes = now() + interval '5 minutes' where id = ${espera33}`)
   const fab33 = await fila33('fabrica', 'contato', '999103', { origem: 'teste' })
   const novo33 = await fila33('loja', 'cp_pesquisa', 'teste33-cp-loja', { origem: 'teste', pagina: 1, janela: 'teste33-cp-loja' })
+  // a busca da cascata é de um tipo de sempre, mas leva o filtro do CPF que o fluxo antigo não monta
+  const casc33 = await fila33('loja', 'contatos_pesquisa', 'cascata-cpf:33300000999', {
+    pesquisa: '', cpf_cnpj: '333.000.009-99', pagina: 1, janela: 'cascata-cpf:33300000999', origem: 'cascata', reabrir: true }, 4)
   const antigos33 = (await todos33t(`select id::int as id from public.fn_fila_proximos(50)`)).map((r) => r.id).sort((a, b) => a - b)
-  await bd.exec(`update public.tiny_fila set status = 'pendente', reservado_em = null where id in (${lojaLeg33}, ${fab33}, ${novo33})`)
+  await bd.exec(`update public.tiny_fila set status = 'pendente', reservado_em = null where id in (${lojaLeg33}, ${fab33}, ${novo33}, ${casc33})`)
   const varredura33 = (await um33t(`select plt_privado.fn_tiny_fabrica_em_varredura() as v`)).v
   const lote33 = (await um33t(`select public.fn_tiny_fila_lote(50) as l`)).l
   const idsLote33 = lote33.map((x) => x.id).sort((a, b) => a - b)
-  const esperado33 = [lojaLeg33, novo33, ...(varredura33 ? [] : [fab33])].sort((a, b) => a - b)
+  const esperado33 = [lojaLeg33, novo33, casc33, ...(varredura33 ? [] : [fab33])].sort((a, b) => a - b)
   conferir(
     JSON.stringify(antigos33) === JSON.stringify([lojaLeg33])
       && JSON.stringify(idsLote33) === JSON.stringify(esperado33)
       && lote33.every((x) => x.api && x.campos && (x.url || x.caminho))
-      && lote33.find((x) => x.id === lojaLeg33)?.campos?.id === '999101',
-    'o fluxo antigo (até o novo ser importado) só recebe a conta da loja nos 8 tipos de sempre; o lote novo traz a fábrica e os tipos novos (com a chamada montada); a linha que espera não sai em nenhum',
+      && lote33.find((x) => x.id === lojaLeg33)?.campos?.id === '999101'
+      && lote33.find((x) => x.id === casc33)?.campos?.cpf_cnpj === '333.000.009-99',
+    'o fluxo antigo (até o novo ser importado) só recebe a conta da loja nos 8 tipos de sempre e sem a marca de origem (a busca da cascata, com o filtro do CPF, espera o fluxo novo); o lote novo traz a fábrica, os tipos novos e a cascata (com a chamada montada); a linha que espera não sai em nenhum',
     JSON.stringify({ antigos33, idsLote33, esperado33, varredura33 }),
   )
 
