@@ -1031,3 +1031,29 @@ create index if not exists notas_fiscais_pedido_id_idx   on public.notas_fiscais
 -- plt_clientes_comercial        — after update on clientes, só quando muda o
 --                                 telefone (fone ou o celular do cadastro)
 -- Impressão digital da integração idêntica: e2109f3a0ab69112b6a48baadbbba876.
+
+-- ---------------------------------------------------------------------------
+-- 14 · A FILA DO TINY DE TUDO, NAS DUAS CONTAS (tiny_fila), A CASCATA EM
+--      pedidos E A tiny_auth COM DUAS LINHAS — SESSAO-33, migrations 89–92
+--      (20261017010000…20261017040000), aplicadas em 17/10/2026 ~22:56–22:58 UTC
+--      com o OK do dono (D-142/D-143). O DDL completo mora nas migrations;
+--      aqui, o que mudou nas tabelas da integração.
+-- ---------------------------------------------------------------------------
+-- tiny_fila (seção 10) — colunas novas:
+--   conta     text not null default 'loja'  -- tiny_fila_conta_ck: conta in ('loja', 'fabrica')
+--   nao_antes timestamptz                   -- só volta a ser pega depois (nova tentativa / limite do Tiny)
+-- tiny_fila_recurso_ck — 29 tipos (a lista está na migration 89)
+-- único: tiny_fila_conta_chave_uq (conta, recurso, chave) — criado antes com
+--   CONCURRENTLY; sai tiny_fila_chave_uq (recurso, chave)
+-- índices: tiny_fila_trabalho_conta_idx (conta, prioridade, id) where status = 'pendente'
+--   (sai tiny_fila_trabalho_idx) · tiny_fila_erro_idx · tiny_fila_espera_idx ·
+--   tiny_fila_cp_carga_idx · tiny_fila_censo_idx · tiny_fila_rodada_idx (migration 90)
+-- gatilhos: plt_tiny_fila_carga_novos / plt_tiny_fila_carga_mudanca /
+--   plt_tiny_fila_carga_apagados (as contas prontas da carga em plt_tiny_carga_contagem)
+-- pedidos — gatilho novo plt_pedidos_tiny_cascata (after insert or update of raw,
+--   situacao → plt_privado.fn_tiny_cascata_pedido): a nota, as contas a receber e o
+--   cliente entram na fila na hora; À PROVA DE FALHA como os da seção 11.
+-- tiny_auth — até 2 linhas: tiny_auth_contas_ck check (id in (1, 2)) no lugar de
+--   single_row (1 = loja, renovada SÓ pelo tiny-auth-refresh-cron; 2 = fábrica,
+--   renovada SÓ pelo tiny-fabrica-token — nasce na autorização).
+-- Impressão digital da integração idêntica: e2109f3a0ab69112b6a48baadbbba876.
