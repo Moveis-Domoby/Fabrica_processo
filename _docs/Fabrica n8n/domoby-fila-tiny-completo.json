@@ -1,0 +1,826 @@
+{
+  "name": "subir banco de dados --- tiny -> supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "a9564e90-bdf4-4e46-b425-ea668cb7a22e",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "cda211ea-8fa2-5a4b-95d6-0f5578e51ff6",
+      "name": "Webhook · processar a fila do Tiny",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        300
+      ],
+      "webhookId": "a9564e90-bdf4-4e46-b425-ea668cb7a22e"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "limite",
+              "value": 25,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "697af041-d2d0-54d2-a78c-51cb7273317b",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        40,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/fn_tiny_fila_lote",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limite: $json.limite }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "16c3d772-af28-5c81-aa91-8542fbf22379",
+      "name": "Fila · reservar lote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// A RPC devolve a lista das linhas reservadas (já com a chamada montada pelo\n// banco). Dependendo da versão, o node HTTP entrega como 1 item com array,\n// como array solto, ou já dividido em itens: aqui os três viram 1 item por linha.\n// Lote vazio -> [] e o resto do fluxo simplesmente não roda.\nconst linhas = [];\nfor (const it of $input.all()) {\n  const j = it.json;\n  if (Array.isArray(j))            linhas.push(...j);\n  else if (Array.isArray(j.data))  linhas.push(...j.data);\n  else if (j && j.id && j.recurso) linhas.push(j);\n}\nreturn linhas.map((l) => ({ json: l }));"
+      },
+      "id": "4c64e4a2-a5c5-5254-8bfd-4facfd92749d",
+      "name": "Normalizar lote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// SESSAO-33: o BANCO já disse o que pedir para cada linha (fn_tiny_fila_lote:\n// conta, api, url ou caminho, campos). Aqui só vira o corpo da chamada.\n// O token NÃO entra aqui (P4): na API v2 quem junta o token DA CONTA da linha\n// é a expressão do node \"Tiny · API v2\", na hora do envio; na API nova (v3) o\n// token nem passa pelo n8n — a ponte tiny-v3 lê no banco.\n// NÃO renomear este node: \"Interpretar resposta\" o procura pelo nome.\nconst enc = (o) => Object.entries(o || {})\n  .filter(([, v]) => v !== undefined && v !== null)\n  .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v)))\n  .join('&');\n\nconst saida = [];\nfor (const it of $input.all()) {\n  const j = it.json;\n  if (!j || !j.id) continue;\n  if (j.api === 'v3') {\n    saida.push({ json: {\n      fila_id: j.id, api: 'v3', conta: j.conta, recurso: j.recurso, chave: j.chave,\n      ponte: { conta: j.conta, caminho: j.caminho, consulta: j.campos || {} },\n    } });\n  } else {\n    saida.push({ json: {\n      fila_id: j.id, api: 'v2', conta: j.conta, recurso: j.recurso, chave: j.chave,\n      url: j.url, corpo: enc(j.campos),\n    } });\n  }\n}\nreturn saida;"
+      },
+      "id": "fff13cc7-9fd9-5f34-996b-a9a89e27a99e",
+      "name": "Montar requisicao Tiny",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.api }}",
+              "rightValue": "v3",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8d054926-d6fa-541c-bd62-95f9a0f31d49",
+      "name": "API nova?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "string",
+        "body": "=token={{ $json.conta === 'fabrica' ? $env.TINY_FABRICA_TOKEN : $env.TINY_TOKEN }}&{{ $json.corpo }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "064b31bc-9285-5b64-aa89-d9b8709b8c26",
+      "name": "Tiny · API v2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        400
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/functions/v1/tiny-v3",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.ponte) }}",
+        "options": {
+          "timeout": 40000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "968d8c5b-1a41-5fa0-ac5f-585310f7762b",
+      "name": "Tiny · API nova (ponte)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// SESSAO-33: devolve ao banco a resposta CRUA de cada chamada — quem entende é\n// o banco (fn_tiny_fila_resposta: erro, página vazia, limite, próxima página,\n// detalhe de cada registro, gravação). Uma chamada de RPC por linha da fila.\n// NÃO renomear o node \"Montar requisicao Tiny\" — a referência é pelo nome.\nconst saida = [];\nconst itens = $input.all();\nfor (let i = 0; i < itens.length; i++) {\n  const req = $('Montar requisicao Tiny').itemMatching(i).json;\n  const resp = itens[i].json || {};\n  const resposta = req.api === 'v3'\n    ? { api: 'v3', status: resp.status ?? 0, corpo: resp.corpo ?? null, erro: resp.erro ?? (resp.error ? String(resp.error.message || resp.error) : null) }\n    : { api: 'v2', corpo: resp };\n  saida.push({ json: { rpc: 'fn_tiny_fila_resposta', body: { p_fila_id: req.fila_id, p_resposta: resposta } } });\n}\nreturn saida;"
+      },
+      "id": "cad00360-ba42-5740-a508-f070c85158df",
+      "name": "Interpretar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/{{ $json.rpc }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "23f3cbcc-0e07-5bea-bed8-472dd33b2fb9",
+      "name": "Supabase · gravar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5b0fc553-894d-4dec-bee8-e033b5b844a8",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "fbebb8b8-3ce1-56cd-b1f9-ff338ab5c808",
+      "name": "Webhook · avisos do Tiny (notas e envios)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        620
+      ],
+      "webhookId": "5b0fc553-894d-4dec-bee8-e033b5b844a8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_aviso",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.body }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "da28ba2c-e7e9-5f31-a436-81832df005d4",
+      "name": "Supabase · guardar aviso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        40,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Fila do Tiny — as duas contas e a API nova (SESSAO-33)\n**1ª parte (esta):** o banco acorda o fluxo só quando há trabalho. O lote já vem com a chamada montada pelo banco; o fluxo só pede ao Tiny e devolve a resposta crua — o banco entende (erro, página, detalhe, gravação).\n- **Loja ou fábrica:** o token da v2 é o da conta da linha (`TINY_TOKEN` · `TINY_FABRICA_TOKEN`).\n- **API nova (v3):** pela ponte `tiny-v3` da Supabase — o token nunca passa pelo n8n.\n- **Ritmo:** 1 chamada a cada 2 s (≤ 30/min — metade da cota de uma conta).\n- **Avisos de nota autorizada e pedido enviado:** o webhook de baixo guarda o aviso cru no banco; a nota entra na fila.\n**2ª parte (abaixo):** plataforma → Tiny \"Entregue\" (D-123) — intocada.\nNão renomear \"Montar requisicao Tiny\" (o \"Interpretar resposta\" acha pelo nome).",
+        "height": 360,
+        "width": 560,
+        "color": 4
+      },
+      "id": "5aa7c88d-1177-5208-8fef-6d9fc87bd930",
+      "name": "Nota · fila do Tiny",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        -120
+      ]
+    },
+    {
+      "id": "56174c61-f677-429a-91cb-f1b2a87432b1",
+      "name": "Webhook · situação do pedido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1000
+      ],
+      "webhookId": "b948cd1b-c336-4b5a-aa29-bb05e1829346",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "11118300-48bf-416f-be4d-95a58d0a106b",
+        "options": {}
+      }
+    },
+    {
+      "id": "15917607-e3f4-4a98-a4f9-7f2ed6d7d8ca",
+      "name": "Validar pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1000
+      ],
+      "parameters": {
+        "jsCode": "// O banco da plataforma chama aqui quando o Tiny precisa mudar a situação do pedido\n// (D-113): \"entregue\" quando a entrega é registrada; a situação de antes quando é desfeita.\nconst PERMITIDAS = ['aberto', 'aprovado', 'preparando_envio', 'faturado', 'pronto_envio', 'enviado', 'entregue', 'nao_entregue'];\nconst out = [];\nfor (const item of $input.all()) {\n  const b = item.json.body ?? item.json;\n  const situacao = String(b.situacao ?? '').trim();\n  if (!b.pedido_id || !b.numero || !PERMITIDAS.includes(situacao)) continue; // pedido malformado: ignora\n  out.push({ json: { pedido_id: Number(b.pedido_id), numero: String(b.numero), tiny_id: b.tiny_id ? String(b.tiny_id) : null,\n                     situacao, versao: Number(b.versao ?? 0) } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "a346123a-d50e-4d81-831a-ca4dfe643ad2",
+      "name": "Tem o id do Tiny?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1000
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tiny_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedidos.pesquisa.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY_TOKEN }}"
+            },
+            {
+              "name": "numero",
+              "value": "={{ $('Validar pedido').item.json.numero }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "63f6c5ac-f391-42ae-988e-048d20e384aa",
+      "name": "Tiny · pedidos.pesquisa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        1120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "927fe738-d9c9-4431-a6e3-4f5ffb101350",
+      "name": "Achar o id pelo número",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        1120
+      ],
+      "parameters": {
+        "jsCode": "// Sem o id interno: acha pelo número (o mesmo jeito do fluxo do ClickUp). NÃO renomear 'Validar pedido'.\nconst alvo = $('Validar pedido').first().json;\nconst ret = $input.first().json?.retorno ?? {};\nconst lista = Array.isArray(ret.pedidos) ? ret.pedidos : (ret.pedidos ? [ret.pedidos] : []);\nconst p = lista.map((x) => x.pedido || x).find((x) => String(x.numero) === String(alvo.numero));\nif (!p) return [{ json: { ...alvo, tiny_id: null, erro: 'Pedido ' + alvo.numero + ' não encontrado no Tiny: ' + JSON.stringify(ret.erros ?? ret.codigo_erro ?? ret.status ?? $input.first().json?.error ?? 'sem retorno').slice(0, 300) } }];\nreturn [{ json: { ...alvo, tiny_id: String(p.id) } }];"
+      }
+    },
+    {
+      "id": "95d895ef-7286-47e7-9930-f57b8cd7bd26",
+      "name": "Achou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        1300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tiny_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tiny.com.br/api2/pedido.alterar.situacao",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.TINY_TOKEN }}"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.tiny_id }}"
+            },
+            {
+              "name": "situacao",
+              "value": "={{ $('Validar pedido').item.json.situacao }}"
+            },
+            {
+              "name": "formato",
+              "value": "JSON"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "1e2bb855-613e-437e-901f-0acfc97bebdb",
+      "name": "Tiny · pedido.alterar.situacao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        1000
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5c549118-88c6-4ec1-8a9b-a2f66f6e534d",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        1000
+      ],
+      "parameters": {
+        "jsCode": "const alvo = $('Validar pedido').first().json;\nconst j = $input.first().json ?? {};\nconst ret = j.retorno ?? {};\nconst ok = ret.status === 'OK';\nconst erro = ok ? null : (j.erro ?? JSON.stringify(ret.erros ?? ret.codigo_erro ?? j.error ?? j.message ?? 'Tiny sem resposta')).slice(0, 400);\nreturn [{ json: { p_pedido_id: alvo.pedido_id, p_versao: alvo.versao, p_ok: ok, p_erro: erro } }];"
+      }
+    },
+    {
+      "id": "852ec7e7-777f-4a48-a897-9ca93301bff3",
+      "name": "Supabase · resultado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        1000
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_tiny_pedido_resultado",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook · processar a fila do Tiny": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Fila · reservar lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fila · reservar lote": {
+      "main": [
+        [
+          {
+            "node": "Normalizar lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar lote": {
+      "main": [
+        [
+          {
+            "node": "Montar requisicao Tiny",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar requisicao Tiny": {
+      "main": [
+        [
+          {
+            "node": "API nova?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API nova?": {
+      "main": [
+        [
+          {
+            "node": "Tiny · API nova (ponte)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tiny · API v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · API v2": {
+      "main": [
+        [
+          {
+            "node": "Interpretar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · API nova (ponte)": {
+      "main": [
+        [
+          {
+            "node": "Interpretar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar resposta": {
+      "main": [
+        [
+          {
+            "node": "Supabase · gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook · avisos do Tiny (notas e envios)": {
+      "main": [
+        [
+          {
+            "node": "Supabase · guardar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook · situação do pedido": {
+      "main": [
+        [
+          {
+            "node": "Validar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar pedido": {
+      "main": [
+        [
+          {
+            "node": "Tem o id do Tiny?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem o id do Tiny?": {
+      "main": [
+        [
+          {
+            "node": "Tiny · pedido.alterar.situacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tiny · pedidos.pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · pedidos.pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Achar o id pelo número",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Achar o id pelo número": {
+      "main": [
+        [
+          {
+            "node": "Achou?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Achou?": {
+      "main": [
+        [
+          {
+            "node": "Tiny · pedido.alterar.situacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiny · pedido.alterar.situacao": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resposta": {
+      "main": [
+        [
+          {
+            "node": "Supabase · resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": false,
+    "executionTimeout": 900
+  },
+  "meta": {
+    "sessao": "SESSAO-33",
+    "parte1": [
+      "API nova?",
+      "Config",
+      "Fila · reservar lote",
+      "Interpretar resposta",
+      "Montar requisicao Tiny",
+      "Normalizar lote",
+      "Nota · fila do Tiny",
+      "Supabase · gravar",
+      "Supabase · guardar aviso",
+      "Tiny · API nova (ponte)",
+      "Tiny · API v2",
+      "Webhook · avisos do Tiny (notas e envios)",
+      "Webhook · processar a fila do Tiny"
+    ],
+    "parte2_de": "domoby-plataforma-tiny-situacao.json"
+  }
+}

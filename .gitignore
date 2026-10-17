@@ -28,3 +28,6 @@ coverage/
 
 # ferramentas locais do agente
 .claude/
+
+# SESSAO-33: cópias dos fluxos vivos do n8n antes de trocar (podem ter dado de produção)
+.n8n-backups/

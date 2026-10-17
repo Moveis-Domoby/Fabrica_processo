@@ -1,0 +1,108 @@
+{
+  "name": "Domoby · alerta de erro das automações",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a36ee8cf-69dc-5110-8187-539876ce180b",
+      "name": "Erro numa automação",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// O gatilho de erro do n8n traz o fluxo, o passo e a mensagem. Nada de dado\n// pessoal sai daqui: só o nome do fluxo, do passo e o texto do erro (cortado).\nreturn $input.all().map((it) => {\n  const e = it.json || {};\n  const exec = e.execution || {};\n  const erro = exec.error || {};\n  return { json: { p: {\n    fluxo: (e.workflow && e.workflow.name) || 'automação sem nome',\n    no: exec.lastNodeExecuted || '',\n    mensagem: String(erro.message || erro.description || 'erro sem descrição').slice(0, 400),\n    execucao: String(exec.id || ''),\n  } } };\n});"
+      },
+      "id": "b36d7c27-497b-545d-b361-fac14b02c63f",
+      "name": "Montar aviso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_FABRICA_URL }}/rest/v1/rpc/plt_fn_automacao_erro",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_FABRICA_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_FABRICA_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.p }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "a989c576-8323-552e-9ada-201e88b9a41c",
+      "name": "Supabase · avisar o dono",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Alerta de erro das automações (SESSAO-33 · pendência P1)\nQualquer fluxo que tenha ESTE como \"fluxo de erro\" (Configurações do fluxo → Error workflow) avisa o dono no sino da plataforma e deixa uma linha na Auditoria. O mesmo fluxo repetindo o erro avisa no máximo 1 vez a cada 30 min (a Auditoria registra todas).",
+        "height": 200,
+        "width": 520,
+        "color": 3
+      },
+      "id": "42b2ec36-e18d-53ed-8875-06249ac3c74e",
+      "name": "Nota · alerta",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        40
+      ]
+    }
+  ],
+  "connections": {
+    "Erro numa automação": {
+      "main": [
+        [
+          {
+            "node": "Montar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar aviso": {
+      "main": [
+        [
+          {
+            "node": "Supabase · avisar o dono",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  }
+}

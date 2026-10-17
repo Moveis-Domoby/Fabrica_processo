@@ -14371,6 +14371,47 @@ try {
     'erro de uma automação do n8n: aviso no sino (uma vez a cada 30 min por automação) e linha na Auditoria SEMPRE; a fila, a resposta e o guarda-tudo só para a chave de serviço',
     JSON.stringify({ n8n1, n8n2, n8n3, trilhaN8n33, priv33f }),
   )
+
+  titulo('SESSAO-33 · o fluxo do n8n (o código do JSON versionado) conversa com o banco de ponta a ponta')
+
+  const fluxo33 = JSON.parse(await readFile(path.join(RAIZ, '_docs/Fabrica n8n/domoby-fila-tiny-completo.json'), 'utf8'))
+  const codigo33 = (nome) => fluxo33.nodes.find((n) => n.name === nome)?.parameters?.jsCode
+  // o nó de código do n8n roda como função: $input.all() e $('Nó').itemMatching(i)
+  const rodar33 = (nome, entrada, anteriores = {}) =>
+    new Function('$input', '$', codigo33(nome))(
+      { all: () => entrada.map((json) => ({ json })) },
+      (outro) => ({ itemMatching: (i) => anteriores[outro][i] }),
+    )
+  await bd.exec(`update public.tiny_fila set status = 'ok' where status in ('pendente', 'processando')`)
+  const e2eV2 = await fila33('fabrica', 'contatos_pesquisa', 'e2e33', { pesquisa: '', pagina: 1, janela: 'e2e33', origem: 'carga', carga: 'E2E' })
+  const e2eV3 = await fila33('loja', 'v3_marcas', 'e2e33-marcas', { janela: 'e2e33-marcas', origem: 'carga', carga: 'E2E' })
+  const lote33e = (await um33t(`select public.fn_tiny_fila_lote(10) as l`)).l.filter((x) => [e2eV2, e2eV3].includes(x.id))
+  const normal33 = rodar33('Normalizar lote', [lote33e]).map((x) => x.json)
+  const montado33 = rodar33('Montar requisicao Tiny', normal33)
+  const v2m = montado33.find((x) => x.json.api === 'v2')?.json
+  const v3m = montado33.find((x) => x.json.api === 'v3')?.json
+  // o que o Tiny responderia a cada uma (v2: o envelope; v3: o que a ponte devolve)
+  const respostas33 = montado33.map((x) => x.json.api === 'v3'
+    ? { status: 200, corpo: { itens: [{ id: 501, descricao: 'Marca 33' }], paginacao: { limit: 100, offset: 0, total: 1 } } }
+    : { retorno: { status: 'OK', pagina: 1, numero_paginas: 1, contatos: [{ contato: { id: '6601', nome: 'Fornecedor 33' } }] } })
+  const interpretado33 = rodar33('Interpretar resposta', respostas33, { 'Montar requisicao Tiny': montado33 })
+  for (const it of interpretado33) {
+    await bd.exec(`select public.${it.json.rpc}(${it.json.body.p_fila_id}, ${j33(it.json.body.p_resposta)})`)
+  }
+  const fimV2 = await linha33(e2eV2)
+  const fimV3 = await linha33(e2eV3)
+  const contato33 = await achar33('fabrica', 'contato', '6601')
+  const marca33 = await um33t(`select raw->>'descricao' as d from public.plt_tiny_registros where conta = 'loja' and tipo = 'marca' and chave = '501'`)
+  conferir(
+    normal33.length === 2 && v2m?.url?.endsWith('contatos.pesquisa.php') && v2m?.conta === 'fabrica'
+      && /(^|&)formato=JSON(&|$)/.test(v2m?.corpo ?? '') && /(^|&)pesquisa=(&|$)/.test(v2m?.corpo ?? '') && !/token=/.test(v2m?.corpo ?? '')
+      && v3m?.ponte?.caminho === '/marcas' && v3m?.ponte?.conta === 'loja' && v3m?.ponte?.consulta?.limit === 100
+      && interpretado33.every((x) => x.json.rpc === 'fn_tiny_fila_resposta')
+      && fimV2.status === 'ok' && fimV3.status === 'ok' && contato33?.params?.origem === 'carga' && marca33?.d === 'Marca 33'
+      && /TINY_FABRICA_TOKEN/.test(fluxo33.nodes.find((n) => n.name === 'Tiny · API v2')?.parameters?.body ?? ''),
+    'o lote do banco → o código do fluxo monta a chamada (v2 sem o token no corpo, a pesquisa vazia vai; v3 pela ponte) → a resposta crua volta ao banco → o fornecedor da fábrica entra na fila e a marca é guardada; o token da v2 é o da conta da linha',
+    JSON.stringify({ v2m, v3m, interpretado: interpretado33.map((x) => x.json.body.p_resposta.api), fimV2: fimV2.status, fimV3: fimV3.status, contato33, marca33 }),
+  )
 } finally {
   await bd.exec('rollback')
   await como33('')
