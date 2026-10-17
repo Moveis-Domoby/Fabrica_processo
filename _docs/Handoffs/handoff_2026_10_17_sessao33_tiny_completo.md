@@ -26,7 +26,7 @@ tags: [handoff, sessao, sessao-33, tiny, n8n, integracao, api-v2, api-v3, webhoo
    ```
 4. ✅ *(17/10 ~22:56–22:58 UTC — as 4 com a integração idêntica e as mesmas contagens; nenhuma porta do site publicado muda, então o site sobe depois sem quebrar a tela de hoje — conferido)* **As 4 atualizações do banco, uma por vez, no mesmo gesto do site** (E-73):
    `npm run banco:aplicar -- --confirmar --so 20261017010000_plt_tiny_fila_duas_contas.sql` → `…20261017020000_plt_tiny_cascata_avisos_carga.sql` → `…20261017030000_plt_tiny_api_nova_fabrica.sql` → `…20261017040000_plt_produtos_estrutura_unidades.sql`. **Conferir:** integração idêntica (a impressão digital que o aplicador mostra); `select count(*) from tiny_fila where conta = 'loja'` = o total de antes (26.731 em 17/10); o fluxo antigo do n8n continua rodando a conferência das 3h normalmente (ele só pega o que sabe montar: a loja, os 8 tipos de sempre e as linhas sem a marca de origem). ⚠️ **Fazer o passo 7 (n8n) logo em seguida:** as linhas novas (a cascata da venda, com o filtro do CPF e da origem da conta) esperam o fluxo novo — até lá o relógio da fila acorda o fluxo antigo a cada minuto à toa.
-5. ✅ *(17/10 23:15 UTC — `main` dc13cf9, Vercel "success"; as três telas conferidas nos arquivos publicados)* **O site:** juntar na `main` → a Vercel publica. **Conferir:** Super admin → Auditoria → aba **"Carga do Tiny"** abre (vazia, "Ainda não houve contagem"); Configurações → Móveis, insumos e peças → botão **"Estrutura"** em cada produto e **"Unidades fora do padrão" → "Ver a lista"**; Configurações → API e integrações → seção **"API nova do Tiny da fábrica"** (só para o dono).
+5. ✅ *(17/10 23:15 UTC — `main` dc13cf9, Vercel "success"; as três telas conferidas nos arquivos publicados e abertas no site como o dono — fotos abaixo)* **O site:** juntar na `main` → a Vercel publica. **Conferir:** Super admin → Auditoria → aba **"Carga do Tiny"** abre (vazia, "Ainda não houve contagem"); Configurações → Móveis, insumos e peças → botão **"Estrutura"** em cada produto e **"Unidades fora do padrão" → "Ver a lista"**; Configurações → API e integrações → seção **"API nova do Tiny da fábrica"** (só para o dono).
 6. ✅ *(17/10 ~23:05 UTC, pelo conector — v1, `verify_jwt` desligado; texto idêntico ao do repositório; fumaça de fora ok)* **As duas funções novas** (com `verify_jwt` desligado — a ponte confere a chave pelo banco; a volta do Tiny não traz login):
    `npx supabase functions deploy tiny-v3 --no-verify-jwt` · `npx supabase functions deploy tiny-fabrica-token --no-verify-jwt`.
 7. ✅ *(17/10 23:14 UTC — a fila NO AR com 23 nós; o alerta `PWB9rkXQgLlKEWqN` publicado e ligado na fila, na fábrica e nas vendas; os três sem rascunho pendente antes da troca)* **O n8n** (no computador de casa, onde está o `.env.n8n`):
@@ -36,9 +36,27 @@ tags: [handoff, sessao, sessao-33, tiny, n8n, integracao, api-v2, api-v3, webhoo
    - **Conferir no n8n:** as variáveis `SUPABASE_FABRICA_URL`, `SUPABASE_FABRICA_KEY`, `TINY_TOKEN` e `TINY_FABRICA_TOKEN` existem (os fluxos de hoje já usam). Uma execução de teste do alerta (forçar um erro num fluxo de teste) → aviso no sino.
 8. **No Tiny da loja** (Configurações → Webhooks/Notificações): ligar **"notas fiscais autorizadas"** apontando para o MESMO endereço que já está em "pedidos enviados" (`…/webhook/5b0fc553-894d-4dec-bee8-e033b5b844a8`). A partir do fluxo novo, esse endereço passa a responder (o 404 de hoje acaba — pendência P5). **Conferir:** emitir uma nota → `select tipo, payload from eventos where tipo = 'aviso_tiny' order by id desc limit 1` (o 1º aviso de cada tipo mostra o formato real — F-05).
 9. **A carga (Auditoria → Carga do Tiny):** **"Contar no Tiny"** → em alguns minutos "Atualizar": cada tipo com "no Tiny × aqui" (a loja mês a mês desde 2025). → **"Começar a carga"** (leva horas; vai sempre atrás das vendas e da conferência; "Pausar"/"Retomar" quando quiser). → Quando a fila esvaziar, **"Contar no Tiny" de novo** → "bateu"? As contas a pagar aparecem com a soma mês a mês. → **"Ligar a consulta de hora em hora"** (8h às 20h — D-143).
-10. **A API nova da fábrica:** no Tiny da FÁBRICA → Configurações → Aplicativos (API v3) → criar o aplicativo com o endereço de volta `https://axnzldwgwsmepukdiljx.supabase.co/functions/v1/tiny-fabrica-token`; no painel da Supabase → Edge Functions → Secrets: `TINY_FABRICA_CLIENT_ID` e `TINY_FABRICA_CLIENT_SECRET` (o dono digita lá — **nunca no chat**, regra 4). Então Configurações → API e integrações → **"Ligar a API nova da fábrica"** → entrar no Tiny com o usuário da fábrica → permitir → volta com "API nova da fábrica ligada". **Conferir:** a aba Carga do Tiny mostra "fábrica: ligada"; daí em diante a contagem e a carga incluem depósitos, pedidos de compra, marcas, categorias financeiras, formas de pagamento e as etapas de produção.
+10. ✔️ *(conferido em 17/10: todo mundo que lê a tabela do token — as funções publicadas, as do banco, os relógios — pega a conta pelo número, então a linha da fábrica não atrapalha a da loja. Cuidados: nunca rodar de novo a carga do comercial de 15/09, que apaga a tabela inteira; e o modo de teste manual do renovador da loja grava sempre na linha da loja — nunca mandar a ele o token da fábrica)* **A API nova da fábrica:** no Tiny da FÁBRICA → Configurações → Aplicativos (API v3) → criar o aplicativo com o endereço de volta `https://axnzldwgwsmepukdiljx.supabase.co/functions/v1/tiny-fabrica-token`; no painel da Supabase → Edge Functions → Secrets: `TINY_FABRICA_CLIENT_ID` e `TINY_FABRICA_CLIENT_SECRET` (o dono digita lá — **nunca no chat**, regra 4). Então Configurações → API e integrações → **"Ligar a API nova da fábrica"** → entrar no Tiny com o usuário da fábrica → permitir → volta com "API nova da fábrica ligada". **Conferir:** a aba Carga do Tiny mostra "fábrica: ligada"; daí em diante a contagem e a carga incluem depósitos, pedidos de compra, marcas, categorias financeiras, formas de pagamento e as etapas de produção.
 11. **Depois de a consulta de hora em hora rodar com a API nova:** desligar o nó "a cada 15 min" do fluxo da fábrica (dívida 21 da lei) — a varredura das 03:15 fica como rede.
 12. **Pendências antigas que seguem com o dono:** testar o login com uma pessoa desativada de teste (a mensagem clara só aparece para quem acertou a senha); o gancho do token (`supabase/pendentes/2026-10-16_gancho_do_token.sql` — ligar a chave assimétrica e o gancho no painel).
+
+## Telas no ar (17/10, em casa — abertas pelo dono no Chrome)
+
+**Auditoria → Carga do Tiny** (a fila vazia, ainda sem contagem, a consulta de hora em hora desligada; a API nova: loja ligada, fábrica desligada):
+
+![[sessao33_carga_do_tiny.jpg]]
+
+**Configurações → Móveis, insumos e peças → Unidades fora do padrão** (40 para padronizar no Tiny, com páginas):
+
+![[sessao33_unidades_fora_do_padrao.jpg]]
+
+**Configurações → Móveis, insumos e peças → Estrutura** (antes da carga, o aviso de que a estrutura chega com ela):
+
+![[sessao33_estrutura_do_produto.jpg]]
+
+**Configurações → API e integrações → API nova do Tiny da fábrica** (o botão, só para o dono — não tocado):
+
+![[sessao33_api_nova_fabrica.jpg]]
 
 ## 1. Objetivo da sessão
 
