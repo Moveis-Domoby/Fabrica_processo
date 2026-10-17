@@ -213,13 +213,20 @@ async function aVolta(url: URL): Promise<Response> {
   const codigo = url.searchParams.get('code') ?? ''
   if (!codigo) return voltar(destino, 'erro', 'sem_codigo')
 
-  const troca = await pedirTokens({
-    grant_type: 'authorization_code',
-    client_id: CLIENTE_ID,
-    client_secret: CLIENTE_SEGREDO,
-    redirect_uri: ENDERECO_DESTA,
-    code: codigo,
-  })
+  // o navegador do dono está esperando: qualquer falha daqui em diante volta
+  // para o site com o motivo (nunca uma página de erro crua)
+  let troca: Awaited<ReturnType<typeof pedirTokens>>
+  try {
+    troca = await pedirTokens({
+      grant_type: 'authorization_code',
+      client_id: CLIENTE_ID,
+      client_secret: CLIENTE_SEGREDO,
+      redirect_uri: ENDERECO_DESTA,
+      code: codigo,
+    })
+  } catch {
+    return voltar(destino, 'erro', 'tiny_nao_respondeu')
+  }
   const acesso = String(troca.dados?.access_token ?? '')
   const renovacao = String(troca.dados?.refresh_token ?? '')
   if (!troca.ok || !acesso || !renovacao) {
@@ -228,12 +235,16 @@ async function aVolta(url: URL): Promise<Response> {
     }).catch(() => {})
     return voltar(destino, 'erro', 'tiny_recusou')
   }
-  await rpc('plt_fn_tiny_fabrica_token_gravar', {
-    p_access: acesso,
-    p_refresh: renovacao,
-    p_origem: 'autorizacao',
-    p_renovador_url: ENDERECO_DESTA,
-  })
+  try {
+    await rpc('plt_fn_tiny_fabrica_token_gravar', {
+      p_access: acesso,
+      p_refresh: renovacao,
+      p_origem: 'autorizacao',
+      p_renovador_url: ENDERECO_DESTA,
+    })
+  } catch {
+    return voltar(destino, 'erro', 'nao_gravou')
+  }
   return voltar(destino, 'ligada')
 }
 
