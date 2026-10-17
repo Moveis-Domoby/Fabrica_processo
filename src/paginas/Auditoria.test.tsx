@@ -145,8 +145,7 @@ vi.mock('@/auditoria/api', () => ({
           recurso: 'estrutura',
           rotulo: 'estrutura do móvel',
           pendentes: 10,
-          esperando: 0,
-          pausados: 5,
+          em_andamento: 0,
           lidos: 40,
           nao_existem: 1,
           erros: 0,
@@ -163,7 +162,8 @@ vi.mock('@/auditoria/api', () => ({
         },
       ],
     },
-    fila: { pendentes: 10, esperando: 0, pausados: 5, em_andamento: 1, erros: 1 },
+    pausada: true,
+    fila: { pendentes: 10000, esperando: 0, pausados: 5, em_andamento: 1, erros: 1, teto: 10000 },
     erros: [
       {
         conta: 'fabrica',
@@ -180,7 +180,7 @@ vi.mock('@/auditoria/api', () => ({
       fabrica: { ligada: false, renovada_em: null },
     },
   })),
-  fazerCargaTiny: vi.fn(async () => ({ linhas: 1234 })),
+  fazerCargaTiny: vi.fn(async () => ({ linhas: 1234, pausada: false })),
   ligarMudancasTiny: vi.fn(async () => ({ resultado: 'ligada' })),
 }))
 
@@ -309,16 +309,17 @@ describe('Painel admin → Auditoria', () => {
     expect(screen.getByText(/incluem fornecedores e transportadoras/)).toBeInTheDocument()
     // as somas das contas a pagar, a carga por tipo e o último erro (com o item)
     expect(screen.getByText(/R\$\s?1\.500,50 · aqui R\$\s?1\.500,50/)).toBeInTheDocument()
-    expect(
-      screen.getByText(/40 lidos · 10 por ler · 5 pausados · 1 não existem no Tiny/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/40 lidos · 10 por ler · 1 não existem no Tiny/)).toBeInTheDocument()
+    // os números da fila param no teto do banco: "mais de 10.000"
+    expect(screen.getByText('mais de 10.000')).toBeInTheDocument()
     expect(screen.getByText('o Tiny não respondeu')).toBeInTheDocument()
     expect(screen.getByText(/NF 123/)).toBeInTheDocument()
     // a API nova: a da fábrica ainda desligada, com o caminho para ligar
     expect(screen.getByText(/desligada — ligue em Configurações/)).toBeInTheDocument()
-    // pausados → "Retomar"; ainda andando → "Pausar"
+    // pausada → só "Retomar" (o "Pausar" volta quando ela andar de novo)
     expect(screen.getByRole('button', { name: 'Retomar' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pausar' })).toBeNull()
+    expect(screen.getByText(/carga pausada/)).toBeInTheDocument()
     // nenhum nome de máquina na tela
     expect(
       screen.queryByText(

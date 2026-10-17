@@ -161,7 +161,8 @@ export interface LinhaCensoTiny {
   janela: string | null
   /** Quantos o Tiny tem (nulo enquanto a contagem não terminou). */
   tiny: number | null
-  aqui: number
+  /** Quantos a plataforma tinha quando a contagem chegou (nulo enquanto não chegou). */
+  aqui: number | null
   lido: boolean
 }
 
@@ -170,9 +171,7 @@ export interface LinhaCargaTiny {
   recurso: string
   rotulo: string | null
   pendentes: number
-  /** Esperando a vez depois de um erro ou do limite do minuto. */
-  esperando: number
-  pausados: number
+  em_andamento: number
   lidos: number
   nao_existem: number
   erros: number
@@ -199,12 +198,17 @@ export interface ErroTiny {
 export interface DadosCargaTiny {
   censo: { rodada: string | null; linhas: LinhaCensoTiny[] }
   carga: { rodada: string | null; por_recurso: LinhaCargaTiny[]; somas: SomaCargaTiny[] }
+  /** O gesto "Pausar": a fila não pega a contagem nem a carga (a venda passa). */
+  pausada: boolean
+  /** A fila agora — cada número para em `teto` (a tela mostra "mais de"). */
   fila: {
     pendentes: number
+    /** Esperando a nova tentativa depois de um erro ou do limite do minuto. */
     esperando: number
     pausados: number
     em_andamento: number
     erros: number
+    teto: number
   }
   erros: ErroTiny[]
   mudancas: { ligada: boolean | null; ultima: string | null }
@@ -219,10 +223,12 @@ export async function buscarCargaTiny(): Promise<DadosCargaTiny> {
 
 export type AcaoCargaTiny = 'contar' | 'carregar' | 'pausar' | 'retomar'
 
-export async function fazerCargaTiny(acao: AcaoCargaTiny): Promise<{ linhas: number }> {
+export async function fazerCargaTiny(
+  acao: AcaoCargaTiny,
+): Promise<{ linhas: number; pausada: boolean }> {
   const { data, error } = await supabase.rpc('plt_fn_tiny_carga', { p_acao: acao })
   if (error) throw new Error(error.message)
-  return data as { linhas: number }
+  return data as { linhas: number; pausada: boolean }
 }
 
 export async function ligarMudancasTiny(ligar: boolean): Promise<{ resultado: string }> {

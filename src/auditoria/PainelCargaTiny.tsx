@@ -33,12 +33,21 @@ const GESTO: Record<AcaoCargaTiny, { titulo: string; depois: (n: number) => stri
     depois: (n) =>
       `${n} itens na fila, com a vez mais baixa: as vendas e a conferência passam na frente. Leva algumas horas.`,
   },
-  pausar: { titulo: 'Carga pausada', depois: (n) => `${n} itens esperando. Retome quando quiser.` },
-  retomar: { titulo: 'Carga retomada', depois: (n) => `${n} itens voltaram para a fila.` },
+  pausar: {
+    titulo: 'Carga pausada',
+    depois: () =>
+      'As vendas e a conferência da madrugada continuam passando. Retome quando quiser.',
+  },
+  retomar: { titulo: 'Carga retomada', depois: () => 'A fila volta a buscar o que falta.' },
 }
 
 function numero(n: number | null | undefined): string {
   return n === null || n === undefined ? '—' : n.toLocaleString('pt-BR')
+}
+
+/** Os números da fila param no teto (o banco não varre o resto): "mais de 10.000". */
+function numeroFila(n: number, teto: number): string {
+  return n >= teto ? `mais de ${teto.toLocaleString('pt-BR')}` : n.toLocaleString('pt-BR')
 }
 
 function dinheiro(n: number | null | undefined): string {
@@ -70,7 +79,7 @@ interface GrupoConferencia {
   conta: ContaTiny
   rotulo: string
   tiny: number | null
-  aqui: number
+  aqui: number | null
   contando: boolean
   meses: LinhaCensoTiny[]
 }
@@ -89,11 +98,11 @@ function agrupar(linhas: LinhaCensoTiny[]): GrupoConferencia[] {
       meses: [],
     }
     g.meses.push(l)
-    if (!l.lido || l.tiny === null) g.contando = true
+    if (!l.lido || l.tiny === null || l.aqui === null) g.contando = true
     g.tiny = g.contando ? null : (g.tiny ?? 0) + (l.tiny ?? 0)
     // só pedidos, notas e contas a receber da loja vão mês a mês, e o "aqui"
     // deles é do mês; o resto é uma janela só (o cadastro inteiro)
-    g.aqui += l.aqui
+    g.aqui = g.contando ? null : (g.aqui ?? 0) + (l.aqui ?? 0)
     grupos.set(chave, g)
   }
   return [...grupos.values()]
@@ -105,10 +114,10 @@ function Situacao({
   contando,
 }: {
   tiny: number | null
-  aqui: number
+  aqui: number | null
   contando: boolean
 }) {
-  if (contando || tiny === null)
+  if (contando || tiny === null || aqui === null)
     return (
       <span className="inline-flex items-center gap-1 text-texto-suave">
         <CircleDashed aria-hidden className="size-4" /> contando…
@@ -191,7 +200,12 @@ export function PainelCargaTiny() {
   if (consulta.isPending || !painel) return <p className="text-sm text-texto-suave">Carregando…</p>
 
   const ocupado = gesto.isPending
-  const cargaAndando = painel.carga.por_recurso.some((r) => r.pendentes + r.esperando > 0)
+  const { teto } = painel.fila
+  // há o que pausar: a carga ou a contagem ainda têm o que ler
+  const cargaAndando =
+    !painel.pausada &&
+    (painel.carga.por_recurso.some((r) => r.pendentes + r.em_andamento > 0) ||
+      painel.censo.linhas.some((l) => !l.lido))
   return (
     <div className="flex flex-col gap-4">
       <section
@@ -199,22 +213,28 @@ export function PainelCargaTiny() {
         className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-dm-lg border border-borda bg-superficie p-4 text-sm"
       >
         <span className="text-texto">
-          Na fila agora: <strong className="tabular-nums">{numero(painel.fila.pendentes)}</strong>{' '}
-          por ler
+          Na fila agora:{' '}
+          <strong className="tabular-nums">{numeroFila(painel.fila.pendentes, teto)}</strong> por
+          ler
           {' · '}
-          <strong className="tabular-nums">{numero(painel.fila.esperando)}</strong> esperando a vez
+          <strong className="tabular-nums">{numeroFila(painel.fila.esperando, teto)}</strong>{' '}
+          esperando a nova tentativa
           {' · '}
           <strong className="tabular-nums">{numero(painel.fila.em_andamento)}</strong> em andamento
-          {painel.fila.pausados > 0 && (
-            <>
-              {' · '}
-              <strong className="tabular-nums">{numero(painel.fila.pausados)}</strong> pausados
-            </>
+          {painel.pausada && (
+            <span className="text-atencao-forte">
+              {' · carga pausada: '}
+              <strong className="tabular-nums">
+                {numeroFila(painel.fila.pausados, teto)}
+              </strong>{' '}
+              esperando o "Retomar"
+            </span>
           )}
           {painel.fila.erros > 0 && (
             <span className="text-danificado-forte">
               {' · '}
-              <strong className="tabular-nums">{numero(painel.fila.erros)}</strong> com erro
+              <strong className="tabular-nums">{numeroFila(painel.fila.erros, teto)}</strong> com
+              erro
             </span>
           )}
         </span>
@@ -270,7 +290,7 @@ export function PainelCargaTiny() {
               Pausar
             </Botao>
           )}
-          {painel.fila.pausados > 0 && (
+          {painel.pausada && (
             <Botao
               variante="fantasma"
               icone={<Play aria-hidden />}
@@ -334,8 +354,9 @@ export function PainelCargaTiny() {
           </ul>
         )}
         <p className="text-xs text-texto-fraco">
-          Os contatos do Tiny incluem fornecedores e transportadoras; "aqui" conta os clientes que
-          já têm o cadastro do Tiny.
+          A contagem compara o Tiny e a plataforma no momento em que foi feita — depois da carga,
+          conte de novo. Os contatos do Tiny incluem fornecedores e transportadoras; "aqui" conta os
+          clientes que já têm o cadastro do Tiny.
         </p>
       </section>
 
@@ -387,8 +408,7 @@ export function PainelCargaTiny() {
                 <span className="ml-auto text-texto-suave tabular-nums">
                   {numero(r.lidos)} lidos
                   {r.pendentes > 0 ? ` · ${numero(r.pendentes)} por ler` : ''}
-                  {r.esperando > 0 ? ` · ${numero(r.esperando)} esperando a vez` : ''}
-                  {r.pausados > 0 ? ` · ${numero(r.pausados)} pausados` : ''}
+                  {r.em_andamento > 0 ? ` · ${numero(r.em_andamento)} em andamento` : ''}
                   {r.nao_existem > 0 ? ` · ${numero(r.nao_existem)} não existem no Tiny` : ''}
                   {r.erros > 0 ? ` · ${numero(r.erros)} com erro` : ''}
                 </span>
