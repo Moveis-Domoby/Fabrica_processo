@@ -83,3 +83,74 @@ export async function definirTipoProduto(
   if (error) throw new Error(error.message)
   return data as TipoEstoque
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-33 (D-142, respostas 3 e 6) — no clique: do que o produto é feito e
+// onde é usado (a estrutura do Tiny, que chega pela carga); e os insumos e as
+// peças com a unidade fora do padrão, para a equipe padronizar no Tiny (a
+// plataforma não converte nada).
+// ---------------------------------------------------------------------------
+
+export interface ComponenteDaEstrutura {
+  tiny_id: number
+  codigo: string | null
+  descricao: string
+  tipo: TipoEstoque | null
+  unidade: string | null
+  quantidade: number
+  /** false = o Tiny mandou um componente que ainda não está no catálogo daqui. */
+  no_catalogo: boolean
+}
+
+export interface UsoNaEstrutura {
+  tiny_id: number
+  codigo: string | null
+  descricao: string
+  tipo: TipoEstoque | null
+  quantidade: number
+}
+
+export interface EstruturaDoProduto {
+  produto: { tiny_id: number; codigo: string | null; descricao: string; tipo: TipoEstoque | null }
+  componentes: ComponenteDaEstrutura[]
+  /** Até 50 — o total vem em `usado_em_total`. */
+  usado_em: UsoNaEstrutura[]
+  usado_em_total: number
+  lido_em: string | null
+}
+
+export async function buscarEstruturaDoProduto(tinyId: number): Promise<EstruturaDoProduto> {
+  const { data, error } = await supabase.rpc('plt_fn_produto_estrutura', { p_tiny_id: tinyId })
+  if (error) throw new Error(`Não deu para carregar a estrutura: ${error.message}`)
+  return data as EstruturaDoProduto
+}
+
+export type MotivoUnidade = 'sem_unidade' | 'desconhecida' | 'grafia'
+
+export interface UnidadeForaDoPadrao {
+  tiny_id: number
+  codigo: string | null
+  descricao: string
+  tipo: TipoEstoque | null
+  /** A unidade como está escrita no Tiny. */
+  unidade_tiny: string
+  /** A grafia mais usada daquela unidade no catálogo (só quando o motivo é a grafia). */
+  unidade_padrao: string | null
+  motivo: MotivoUnidade
+  contagem_total: number
+}
+
+export const POR_PAGINA_UNIDADES = 20
+
+/** Uma página dos insumos e peças ativos com a unidade fora do padrão (catálogo limitado — página numerada). */
+export async function listarUnidadesForaDoPadrao(
+  pagina: number,
+): Promise<{ linhas: UnidadeForaDoPadrao[]; total: number }> {
+  const { data, error } = await supabase.rpc('plt_fn_produtos_unidades', {
+    p_limite: POR_PAGINA_UNIDADES,
+    p_deslocamento: (pagina - 1) * POR_PAGINA_UNIDADES,
+  })
+  if (error) throw new Error(`Não deu para carregar as unidades: ${error.message}`)
+  const linhas = (data ?? []) as UnidadeForaDoPadrao[]
+  return { linhas, total: Number(linhas[0]?.contagem_total ?? 0) }
+}

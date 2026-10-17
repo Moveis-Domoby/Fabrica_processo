@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Boxes, RotateCcw } from 'lucide-react'
+import { Boxes, ChevronUp, ListTree, RotateCcw, Ruler } from 'lucide-react'
 import { Botao, Campo, Paginacao, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
+import { EstruturaDoProduto } from '@/logistica/componentes/EstruturaDoProduto'
+import { UnidadesForaDoPadrao } from '@/logistica/componentes/UnidadesForaDoPadrao'
 import {
   POR_PAGINA_CLASSIFICACAO,
   ROTULO_CLASSE_TINY,
@@ -25,6 +27,8 @@ const TIPOS: TipoEstoque[] = ['movel', 'insumo', 'peca']
  * estoque. O automático vem do cadastro do Tiny; aqui o admin troca o que
  * nascer errado, sem precisar mexer em código. Uma requisição por página
  * (lista limitada ao catálogo — página numerada), filtros no servidor.
+ * SESSAO-33 (D-142, respostas 3 e 6): a estrutura de cada produto e as
+ * unidades fora do padrão — as duas só no clique (Lei §3).
  */
 export function ClassificacaoProdutos() {
   const notificar = useNotificacao()
@@ -36,6 +40,8 @@ export function ClassificacaoProdutos() {
   const [origem, setOrigem] = useState<'todas' | 'automatico' | 'manual'>('todas')
   const [situacao, setSituacao] = useState<'A' | 'I' | 'todas'>('A')
   const [pagina, setPagina] = useState(1)
+  const [estruturaDe, setEstruturaDe] = useState<number | null>(null)
+  const [verUnidades, setVerUnidades] = useState(false)
 
   const filtros: FiltrosClassificacao = {
     busca,
@@ -95,6 +101,28 @@ export function ClassificacaoProdutos() {
           Tiny. O automático vem do cadastro do Tiny — troque aqui o que nascer errado.
         </p>
       </div>
+
+      <section
+        aria-label="Unidades fora do padrão"
+        className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4"
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="min-w-0 flex-1 text-sm text-texto-suave">
+            <strong className="text-texto">Unidades fora do padrão:</strong> os insumos e as peças
+            ativos sem unidade ou com a unidade escrita diferente da mais usada (ex.: "Und" e "UN").
+            A plataforma não converte nada — a correção é feita no cadastro do Tiny.
+          </p>
+          <Botao
+            variante="secundaria"
+            icone={verUnidades ? <ChevronUp aria-hidden /> : <Ruler aria-hidden />}
+            aria-expanded={verUnidades}
+            onClick={() => setVerUnidades((v) => !v)}
+          >
+            {verUnidades ? 'Esconder a lista' : 'Ver a lista'}
+          </Botao>
+        </div>
+        {verUnidades && <UnidadesForaDoPadrao />}
+      </section>
 
       <div className="grid grid-cols-1 gap-3 rounded-dm-lg border border-borda bg-superficie p-4 sm:grid-cols-2 lg:grid-cols-5">
         <Campo
@@ -165,69 +193,87 @@ export function ClassificacaoProdutos() {
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie">
             {linhas.map((p) => {
               const ocupado = trocar.isPending && trocar.variables?.produto.tiny_id === p.tiny_id
+              const comEstrutura = estruturaDe === p.tiny_id
               return (
                 <li
                   key={p.tiny_id}
-                  className="flex flex-col gap-3 border-b border-borda px-4 py-3 last:border-b-0 lg:flex-row lg:items-center"
+                  className="flex flex-col gap-3 border-b border-borda px-4 py-3 last:border-b-0"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium break-words text-texto">{p.descricao}</p>
-                    <p className="mt-0.5 text-xs text-texto-suave">
-                      {[
-                        p.codigo ? `SKU ${p.codigo}` : 'sem SKU',
-                        p.classe ? (ROTULO_CLASSE_TINY[p.classe] ?? p.classe) : null,
-                        p.unidade ? `unidade: ${p.unidade}` : null,
-                        p.ncm ? `código fiscal ${p.ncm}` : 'sem código fiscal',
-                        p.situacao === 'I' ? 'inativo no Tiny' : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div
-                      role="radiogroup"
-                      aria-label={`Tipo de ${p.descricao}`}
-                      className="inline-flex overflow-hidden rounded-dm border border-borda-forte"
-                    >
-                      {TIPOS.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          role="radio"
-                          aria-checked={p.tipo === t}
-                          disabled={ocupado}
-                          onClick={() => {
-                            if (p.tipo !== t) trocar.mutate({ produto: p, novo: t })
-                          }}
-                          className={cn(
-                            'min-h-toque-md min-w-20 px-3 text-sm font-medium transition-colors',
-                            p.tipo === t
-                              ? 'bg-acao text-acao-texto'
-                              : 'bg-superficie text-texto hover:bg-superficie-sutil',
-                          )}
-                        >
-                          {ROTULO_TIPO[t]}
-                        </button>
-                      ))}
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium break-words text-texto">{p.descricao}</p>
+                      <p className="mt-0.5 text-xs text-texto-suave">
+                        {[
+                          p.codigo ? `SKU ${p.codigo}` : 'sem SKU',
+                          p.classe ? (ROTULO_CLASSE_TINY[p.classe] ?? p.classe) : null,
+                          p.unidade ? `unidade: ${p.unidade}` : null,
+                          p.ncm ? `código fiscal ${p.ncm}` : 'sem código fiscal',
+                          p.situacao === 'I' ? 'inativo no Tiny' : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
                     </div>
-                    {p.definido_a_mao ? (
-                      <>
-                        <span className="text-xs font-medium text-texto-suave">definido à mão</span>
-                        {/* o tipo automático no próprio texto — no tablet não há "passar o mouse" */}
-                        <Botao
-                          variante="fantasma"
-                          icone={<RotateCcw />}
-                          carregando={ocupado}
-                          onClick={() => trocar.mutate({ produto: p, novo: null })}
-                        >
-                          Voltar ao automático ({ROTULO_TIPO[p.tipo_automatico].toLowerCase()})
-                        </Botao>
-                      </>
-                    ) : (
-                      <span className="text-xs text-texto-fraco">automático</span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div
+                        role="radiogroup"
+                        aria-label={`Tipo de ${p.descricao}`}
+                        className="inline-flex overflow-hidden rounded-dm border border-borda-forte"
+                      >
+                        {TIPOS.map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            role="radio"
+                            aria-checked={p.tipo === t}
+                            disabled={ocupado}
+                            onClick={() => {
+                              if (p.tipo !== t) trocar.mutate({ produto: p, novo: t })
+                            }}
+                            className={cn(
+                              'min-h-toque-md min-w-20 px-3 text-sm font-medium transition-colors',
+                              p.tipo === t
+                                ? 'bg-acao text-acao-texto'
+                                : 'bg-superficie text-texto hover:bg-superficie-sutil',
+                            )}
+                          >
+                            {ROTULO_TIPO[t]}
+                          </button>
+                        ))}
+                      </div>
+                      {p.definido_a_mao ? (
+                        <>
+                          <span className="text-xs font-medium text-texto-suave">
+                            definido à mão
+                          </span>
+                          {/* o tipo automático no próprio texto — no tablet não há "passar o mouse" */}
+                          <Botao
+                            variante="fantasma"
+                            icone={<RotateCcw />}
+                            carregando={ocupado}
+                            onClick={() => trocar.mutate({ produto: p, novo: null })}
+                          >
+                            Voltar ao automático ({ROTULO_TIPO[p.tipo_automatico].toLowerCase()})
+                          </Botao>
+                        </>
+                      ) : (
+                        <span className="text-xs text-texto-fraco">automático</span>
+                      )}
+                      <Botao
+                        variante="fantasma"
+                        icone={comEstrutura ? <ChevronUp aria-hidden /> : <ListTree aria-hidden />}
+                        aria-expanded={comEstrutura}
+                        onClick={() => setEstruturaDe(comEstrutura ? null : p.tiny_id)}
+                      >
+                        Estrutura
+                      </Botao>
+                    </div>
                   </div>
+                  {comEstrutura && (
+                    <div className="rounded-dm border border-borda bg-superficie-sutil p-3">
+                      <EstruturaDoProduto tinyId={p.tiny_id} />
+                    </div>
+                  )}
                 </li>
               )
             })}
