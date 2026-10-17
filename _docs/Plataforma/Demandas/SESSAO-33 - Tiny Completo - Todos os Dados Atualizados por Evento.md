@@ -1,9 +1,9 @@
 ---
 titulo: "SESSAO-33 — Tiny completo: todos os dados, atualizados quando algo acontece"
 tipo: demanda
-status: 🔨 em execução (16/10/2026 — sessão na nuvem, com o dono fora de casa)
+status: 📦 entregue em arquivo (17/10/2026) — o que dependia do OK já está no ar; o resto liga em casa pelo handoff
 data: 2026-10-16
-atualizado: 2026-10-16
+atualizado: 2026-10-17
 origem: pedido do dono em 16/10/2026 (prompt da sessão remota), com as respostas de 16/10 (D-141, D-142)
 plano: "[[003 - PLANO - Integracao Completa Tiny da Fabrica]]"
 depende: "[[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] (entregue) · [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (a conferência diária que esta sessão estende)"
@@ -107,7 +107,13 @@ Lista **PRODUÇÃO** (DPTO TI). Ao começar cada uma → **FAZENDO**. **Nunca** 
 
 ## Resultado (preencher ao entregar)
 
-*(a preencher)*
+**Entregue em 17/10/2026** — [[handoff_2026_10_17_sessao33_tiny_completo]] (com o passo a passo **"Para ligar em casa"**) · execução em [[SESSAO-33]].
+
+- **No ar (com o OK do dono):** a imagem de teste do 13622 retirada; as conferências com o Tiny por rolagem (migration 88); o login que recusa a pessoa desativada com mensagem clara (função `autenticacao` v11).
+- **Pronto em arquivo, liga em casa:** o banco (migrations 89–92 — a fila de tudo nas duas contas, a cascata da venda, os avisos, a consulta de hora em hora 8h–20h, a contagem e a carga com o painel "bateu com o Tiny?", a API nova da fábrica com renovador próprio, a estrutura e as unidades fora do padrão), as funções `tiny-v3` e `tiny-fabrica-token`, o fluxo do n8n melhorado + o alerta de erro + o programa que aplica, e as telas (Auditoria → Carga do Tiny; Configurações → estrutura e unidades; Integrações → ligar a API nova da fábrica). A branch espera o GitHub voltar (o envio foi recusado nesta sessão).
+- **Provas:** bateria **1.042 verdes**; testes de tela verdes; montagem com o JS inicial igual ao da `main` (219,6 KB); **ensaio com 100× o volume e 3 milhões de linhas da carga na fila** — o caminho da fila em milissegundos (três pontos que falhariam foram corrigidos antes de subir); dívidas registradas na lei: as unidades fora do padrão com o catálogo ×100 (13) e o "Começar a carga" ×100 (22).
+- **Critérios de aceite:** ✅ o mapa com fonte por linha e o que conferir em casa · ✅ "na hora" × "com atraso", em português · ✅ o tempo da carga · ✅ o plano aprovado antes de construir (D-143) · ✅ o construído (banco em arquivo com a bateria verde — integração intacta, a `tiny_fila` mudando só no que o plano aprovou —, o fluxo melhorando o que existe, um renovador por credencial, a conferência "bateu com o Tiny", o alerta de erro, o passo a passo de ligar) · ✅ estruturas e unidades em Configurações · ✅ ClickUp (pesquisa e as duas tarefas da carga em FAZENDO, comentário ao entregar, nenhuma concluída) · ✅ memória, aprendizados, handoff, mapa, ordem e próximos passos.
+- **§4 (rotinas de minuto em minuto → nascer do fato):** não coube — registrada como próxima sessão, junto com a baixa dos insumos por setor (D-143). Qual vem primeiro é do dono.
 
 ## Ver também
 

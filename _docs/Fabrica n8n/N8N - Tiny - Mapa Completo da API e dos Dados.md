@@ -2,7 +2,7 @@
 titulo: n8n — Tiny — Mapa completo da API e dos dados (v2, v3, avisos, cota, o que temos e o que fazer)
 tipo: referencia
 data: 2026-10-16
-atualizado: 2026-10-16
+atualizado: 2026-10-17
 origem: SESSAO-33, Etapa A (pesquisa em paralelo + inventário do banco, só leitura)
 tags: [tiny, api, v2, v3, webhooks, cota, integracao, carga, conferencia, referencia, sessao-33]
 ---
@@ -185,6 +185,12 @@ Legenda das colunas: **API** (onde existe) · **Buscar tudo** (como e quanto cus
 | Alerta de erro | **não existe** (P1) | nasce: qualquer erro de qualquer fluxo → aviso no sino do dono + linha na Auditoria |
 
 ---
+
+> [!success] ↪️ 17/10/2026 — construído (SESSAO-33 — 📄 pronto em arquivo, liga em casa)
+> - **A fila** passou a ser o trabalhador de tudo, nas duas contas, sem fluxo paralelo: `domoby-fila-tiny-completo.json` (o banco monta a chamada e entende a resposta — migrations 89/90) + a ponte `tiny-v3` para a API nova + o webhook dos avisos (notas autorizadas e pedidos enviados) no caminho `5b0fc553…` que o Tiny já chama. O programa `supabase/manutencao/2026-10-17_n8n_fila_tiny_completo.mjs` troca só a 1ª parte do fluxo de hoje e publica (a 2ª parte, a da situação do pedido, fica idêntica).
+> - **O alerta de erro** nasceu: `domoby-alerta-erro-automacoes.json` (Error Trigger → sino do dono + Auditoria), ligado nos fluxos da fila, da fábrica e das vendas pelo mesmo programa (`--alerta`).
+> - **O fluxo de vendas não muda.** O da fábrica também não, por enquanto: o "a cada 15 min" sai quando a API nova da fábrica ligar e a consulta de hora em hora assumir (dívida 21 da lei).
+> - **A escala** foi provada antes de subir (ensaio com 100× o volume de hoje e 3 milhões de linhas da carga na fila): o caminho da fila em milissegundos, "Pausar" como interruptor, o painel lendo contas prontas. Detalhe em [[SESSAO-33]] e no handoff.
 
 ## 8. Para conferir em casa (a documentação oficial bloqueada aqui resolve)
 

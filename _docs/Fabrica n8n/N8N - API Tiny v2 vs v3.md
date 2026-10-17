@@ -1,7 +1,7 @@
 ---
 titulo: n8n — API Tiny v2 vs v3 (decisão)
 tipo: decisao
-atualizado: 2026-09-22
+atualizado: 2026-10-17
 tags: [tiny, api, v2, v3, oauth, decisao]
 ---
 
@@ -9,6 +9,11 @@ tags: [tiny, api, v2, v3, oauth, decisao]
 
 > [!abstract] Decisão (12/08/2026)
 > **Os workflows do n8n permanecem na API v2.** Reavaliar se a Olist publicar data de descontinuação ou se aparecerem 401/403 em massa nas Executions.
+
+> [!important] ↪️ 17/10/2026 — a API nova também na conta da FÁBRICA, com renovador próprio (SESSAO-33 · D-143 — 📄 vale quando a atualização 91 for aplicada e o dono ligar pelo botão)
+> - A `tiny_auth` passa a ter **duas linhas**: 1 = loja (renovada SÓ pelo `tiny-auth-refresh-cron`, como hoje) · 2 = fábrica (renovada SÓ pelo `tiny-fabrica-token-cron`, a cada 3 h, pela função `tiny-fabrica-token`). **Uma credencial, um renovador** — continua valendo tudo o que está abaixo.
+> - Quem usa a API nova é a **fila do Tiny**, pela ponte `tiny-v3` (Edge Function): o n8n manda o caminho, a ponte lê o token no banco e chama o Tiny — **o token nunca passa pelo n8n**, e a ponte **nunca renova** (um 401 volta como 401). O fluxo das vendas segue na v2.
+> - Ligar: o dono cria o aplicativo no Tiny da fábrica e põe os segredos no painel da Supabase (nunca no chat); depois o botão "Ligar a API nova da fábrica" em Configurações → API e integrações. Detalhe: [[N8N - Tiny - Mapa Completo da API e dos Dados]] e o handoff da SESSAO-33.
 
 > [!success] Atualização 22/09/2026 — o renovador mudou de casa (SESSAO-21)
 > O `tiny-auth-refresh-cron` agora roda **só no Supabase da fábrica** (1ª renovação 22/09 21:20 UTC; o do projeto antigo foi desligado às 20:28 UTC e o refresh de lá morreu na rotação). A regra do dono único continua absoluta — só mudou o dono. Atenção descoberta no cutover (A-18): **função que renova ao receber 401 também é renovador** — os syncs do projeto antigo faziam isso.

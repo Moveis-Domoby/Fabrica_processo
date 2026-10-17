@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-10-16
+atualizado: 2026-10-17
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -11,7 +11,15 @@ tags: [planejamento, roadmap, indice]
 > A leitura única de planejamento do projeto: **onde estamos, qual é o próximo passo, o que vem depois e o que está esperando você**. Ela não substitui as demandas — resume e aponta. Detalhe de execução vive em [[000 - ORDEM DAS SESSOES]]; o novo bloco em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]; ideias de longo prazo em [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]].
 > **Regra de manutenção:** toda sessão entregue ou decisão nova atualiza esta nota junto com o mapa.
 
-## ▶️ Agora (16/10): SESSAO-33 — o Tiny completo, atualizado quando algo acontece
+## ▶️ Agora (17/10): ligar o Tiny completo em casa — e escolher a próxima
+
+**A SESSAO-33 foi entregue em arquivo** ([[handoff_2026_10_17_sessao33_tiny_completo]]): no ar com o OK do dono, a imagem de teste do 13622 retirada, a rolagem das conferências e o login que recusa a pessoa desativada; **pronto para ligar em casa**, o resto — a fila do Tiny para todos os dados das duas contas (melhorando a automação que já existe), a venda puxando na hora a nota, as contas e o cliente, os avisos de nota e de pedido enviado, a consulta de hora em hora das 8h às 20h, a carga com o painel "bateu com o Tiny?", a API nova da fábrica com renovador próprio, a estrutura dos produtos e as unidades fora do padrão em Configurações, e o alerta de erro das automações. **O que fazer, em ordem:** a seção "Para ligar em casa" do handoff (começa por devolver o acesso ao GitHub — o envio foi recusado nesta sessão).
+
+**Depois — duas sessões que o dono chamou de "a próxima" (ele escolhe a ordem):**
+1. *(34)* **Rotinas do banco por evento, sem relógio** — reservas do estoque, envio de avisos, disparo do Comercial, fotos e o relógio da fila do Tiny só quando algo acontece (aprovado na D-141; o disparo nunca em dois lugares).
+2. *(35)* **Baixa dos insumos por etapa** — cada insumo amarrado ao setor que o consome; a etapa concluída baixa pela estrutura do móvel (D-143).
+
+## (anterior) 16/10: SESSAO-33 — o Tiny completo, atualizado quando algo acontece
 
 O dono pediu (16/10) **todos os dados do Tiny, sem exceção** — clientes, peças, insumos, produtos, valores, contas a pagar, contas a receber e o resto —, trazidos **pelo n8n, melhorando a automação que já pega os dados do Tiny** (não outra paralela), e depois **mantidos em dia quando algo muda lá**, sem perguntar ao Tiny de minuto em minuto. Começa por uma **pesquisa aprofundada da API e dos dados** (o que o Tiny avisa sozinho e o que não avisa), segue com o **plano para o OK do dono** e só então a construção. Demanda: [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]] (sessão na nuvem, com o dono fora de casa: o que precisar do n8n ou do banco sai pronto em arquivo, "para ligar em casa").
 

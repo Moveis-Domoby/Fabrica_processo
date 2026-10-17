@@ -1,7 +1,7 @@
 ---
 titulo: SUPA — Comercial — Cron e Rotinas
 tipo: nota
-atualizado: 2026-09-22
+atualizado: 2026-10-17
 tags: [comercial, supabase, cron, pg_net, automacao, cutover]
 ---
 
@@ -34,7 +34,9 @@ Na fábrica, `pg_cron` e `pg_net` já estão habilitadas desde a SESSAO-11 (o de
 | Job | Cron | Domínio |
 |---|---|---|
 | `plt-webhooks-despachar` | a cada minuto | **plataforma** (não é do comercial) — despacho da fila `plt_webhook_entregas` via `plt_privado.fn_despachar_webhooks` |
-| `tiny-auth-refresh-cron` | `0 */3 * * *` | 🔴 comercial — **o único renovador do token Tiny v3 da casa** |
+| `tiny-auth-refresh-cron` | `0 */3 * * *` | 🔴 comercial — **o único renovador do token Tiny v3 da LOJA** (linha 1 da `tiny_auth`) |
+| `tiny-fabrica-token-cron` *(📄 SESSAO-33 — nasce quando o dono ligar a API nova da fábrica)* | `30 */3 * * *` | 🔴 integração — **o único renovador do token Tiny v3 da FÁBRICA** (linha 2) → `/functions/v1/tiny-fabrica-token` `{"acao":"renovar"}`; agendado pela própria gravação do token |
+| `plt-tiny-mudancas` *(📄 SESSAO-33 — liga pelo botão na Auditoria → Carga do Tiny)* | `17 11-23 * * *` (UTC = 8h17–20h17 de Natal) | integração — a consulta "o que mudou" do Tiny de hora em hora, só das 8h às 20h (D-143 — a exceção registrada na lei) |
 | `enviar-proximo-disparo-cron` | `* * * * *` | comercial — motor da fila de disparo |
 | `processar-timers-disparo-cron` | `0 * * * *` | comercial — expira `aguardando_resposta` |
 | `verificar-vendas-disparo-cron` | `30 * * * *` | comercial — atribuição de venda |

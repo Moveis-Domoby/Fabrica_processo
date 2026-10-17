@@ -16,17 +16,17 @@ tags: [execucao, sessao-33, tiny, n8n, integracao, api-v2, api-v3, webhooks, car
 ## Lista de tarefas (espelho do pedido do dono, item a item)
 
 1. Leitura obrigatória do cofre (CLAUDE.md, memória, decisões, lei de desempenho, ordem das sessões, handoff de 16/10, esquema, plano 003, notas `N8N - *Tiny*`, `N8N - API Tiny v2 vs v3`, `N8N - Pendencias e Riscos`, `SUPA - Comercial - Cron e Rotinas`). ✅
-2. §1 — registrar as respostas do dono de 16/10 (próximos passos, mapa, ordem das sessões, decisão nova, handoff de 16/10 com ↪️) → commit e push só disso.
-3. §1 — o gancho do token (pendente) recusa a pessoa desativada já no login, com mensagem clara.
-4. §1 — Auditoria e histórico das automações por rolagem (cursor): conferir; colocar onde faltar.
-5. §1 — a imagem de teste do comprovante no pedido 13622: montar a retirada pelo caminho normal, mostrar ao dono, executar só com o "pode".
-6. §2 — escrever a demanda SESSAO-33 (template da casa, com "Tarefas no ClickUp") e linkar na ordem das sessões.
-7. §2 Etapa A — a pesquisa aprofundada (agentes em paralelo + web) → `Fabrica n8n/N8N - Tiny - Mapa Completo da API e dos Dados.md`.
-8. §2 Etapa B — o plano ao dono ((a) entendimento, (b) dúvidas, (c) decisões técnicas) → só construir com o OK.
-9. §2 Etapa C — construir o que der daqui (banco em arquivo, fluxos do n8n em JSON, conferência "bateu com o Tiny", alerta de erro).
-10. §3 — ClickUp: cada tarefa em FAZENDO ao começar; comentário humanizado ao entregar; nunca concluir.
-11. §4 — (só com OK) rotinas de minuto em minuto → nascer do fato; senão, escrito como próxima sessão.
-12. §5 — fechamento: esta memória, aprendizados, handoff com "Para ligar em casa", mapa/ordem/próximos passos, push.
+2. §1 — registrar as respostas do dono de 16/10 (próximos passos, mapa, ordem das sessões, decisão nova, handoff de 16/10 com ↪️) → commit e push só disso. ✅
+3. §1 — o gancho do token (pendente) recusa a pessoa desativada já no login, com mensagem clara. ✅ (login v11 no ar; o gancho em arquivo)
+4. §1 — Auditoria e histórico das automações por rolagem (cursor): conferir; colocar onde faltar. ✅ (88 no ar)
+5. §1 — a imagem de teste do comprovante no pedido 13622: montar a retirada pelo caminho normal, mostrar ao dono, executar só com o "pode". ✅ (retirada com o "pode")
+6. §2 — escrever a demanda SESSAO-33 (template da casa, com "Tarefas no ClickUp") e linkar na ordem das sessões. ✅
+7. §2 Etapa A — a pesquisa aprofundada (agentes em paralelo + web) → `Fabrica n8n/N8N - Tiny - Mapa Completo da API e dos Dados.md`. ✅
+8. §2 Etapa B — o plano ao dono ((a) entendimento, (b) dúvidas, (c) decisões técnicas) → só construir com o OK. ✅ (D-143)
+9. §2 Etapa C — construir o que der daqui (banco em arquivo, fluxos do n8n em JSON, conferência "bateu com o Tiny", alerta de erro). ✅ em arquivo (89–92, funções, n8n, telas; ensaio ×100)
+10. §3 — ClickUp: cada tarefa em FAZENDO ao começar; comentário humanizado ao entregar; nunca concluir. ✅ (nenhuma concluída)
+11. §4 — (só com OK) rotinas de minuto em minuto → nascer do fato; senão, escrito como próxima sessão. ➡️ não coube — registrada como próxima sessão (34), com a baixa dos insumos (35)
+12. §5 — fechamento: esta memória, aprendizados, handoff com "Para ligar em casa", mapa/ordem/próximos passos, push. ✅ (o envio ao GitHub segue recusado — cópia em pacote ao dono)
 
 ## Diário
 
