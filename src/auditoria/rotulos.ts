@@ -138,6 +138,12 @@ export const ROTULO_ACAO: Record<string, string> = {
   campo_excluido: 'Excluiu um campo customizado',
   campo_preenchido: 'Preencheu um campo customizado',
   campo_limpo: 'Limpou um campo customizado',
+  // SESSAO-33: o Tiny completo e o alerta de erro das automações (D-142/D-143)
+  automacao_erro: 'Erro numa automação',
+  tiny_carga: 'Mexeu na carga do Tiny',
+  tiny_mudancas_ligada: 'Ligou a consulta de hora em hora ao Tiny',
+  tiny_mudancas_desligada: 'Desligou a consulta de hora em hora ao Tiny',
+  tiny_fabrica_autorizacao: 'API nova do Tiny da fábrica',
 }
 
 /** Código sem rótulo vira frase: "algo_novo" → "Algo novo". */
@@ -221,7 +227,12 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
   {
     valor: 'pedidos',
     rotulo: 'Pedidos vindos do Tiny',
-    acoes: ['pedido_atualizado', 'pedido_cancelado', 'pedido_excluido_no_tiny', 'pedido_voltou_no_tiny'],
+    acoes: [
+      'pedido_atualizado',
+      'pedido_cancelado',
+      'pedido_excluido_no_tiny',
+      'pedido_voltou_no_tiny',
+    ],
   },
   {
     valor: 'estoque',
@@ -278,7 +289,11 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
     valor: 'automacoes',
     rotulo: 'Automações, etiquetas e campos',
     acoes: Object.keys(ROTULO_ACAO).filter(
-      (a) => a.startsWith('automacao_') || a.startsWith('etiqueta_') || a.startsWith('campo_'),
+      (a) =>
+        a.startsWith('automacao_') ||
+        a.startsWith('etiqueta_') ||
+        a.startsWith('campo_') ||
+        a.startsWith('tiny_'),
     ),
   },
 ]
@@ -380,6 +395,10 @@ export const ORIGEM: Record<string, string> = {
   interface: 'Pela tela',
   api: 'Pela integração',
   automacao: 'Automático',
+  // SESSAO-33: de onde veio o alerta de erro
+  fila_tiny: 'Fila do Tiny',
+  n8n: 'Automação do n8n',
+  tiny_fabrica_token: 'Renovação da API nova da fábrica',
 }
 const CHAVES: Record<string, string> = {
   sku: 'SKU',
@@ -433,6 +452,30 @@ const CHAVES: Record<string, string> = {
   feitos: 'Feitos',
   nao_feitos: 'Não feitos',
   observacao: 'Observação',
+  // SESSAO-33: o Tiny completo e o alerta de erro
+  titulo: 'Aviso',
+  corpo: 'O que aconteceu',
+  fluxo: 'Automação',
+  no: 'Passo',
+  mensagem: 'Erro',
+  erro: 'Erro',
+  execucao: 'Execução no n8n',
+  tipo_de_dado: 'O que era lido',
+  item: 'Item',
+  acao: 'O quê',
+  rodada: 'Rodada',
+  linhas: 'Itens na fila',
+  resultado: 'Resultado',
+  etapa: 'Etapa',
+  relogio: 'Relógio da renovação',
+}
+/** As duas contas do Tiny e os gestos da carga (SESSAO-33). */
+const CONTA_TINY: Record<string, string> = { loja: 'Loja', fabrica: 'Fábrica' }
+const ACAO_CARGA: Record<string, string> = {
+  contar: 'Contou no Tiny',
+  carregar: 'Começou a carga',
+  pausar: 'Pausou a carga',
+  retomar: 'Retomou a carga',
 }
 /** Chaves que só servem à máquina (ids) — não vão para a tela. */
 function ehChaveDeMaquina(chave: string): boolean {
@@ -453,6 +496,8 @@ function textoDoValor(chave: string, valor: unknown): string {
   if (chave === 'estado_qualidade' && typeof valor === 'string')
     return ESTADO_QUALIDADE[valor] ?? valor
   if (chave === 'origem' && typeof valor === 'string') return ORIGEM[valor] ?? valor
+  if (chave === 'conta' && typeof valor === 'string') return CONTA_TINY[valor] ?? valor
+  if (chave === 'acao' && typeof valor === 'string') return ACAO_CARGA[valor] ?? valor
   if (Array.isArray(valor))
     return valor.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
   if (typeof valor === 'boolean') return valor ? 'sim' : 'não'

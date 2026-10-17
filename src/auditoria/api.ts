@@ -144,3 +144,89 @@ export async function buscarConferencias(
     )
   return data as Conferencias
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-33 — a carga do Tiny (D-142/D-143): a contagem, a carga, a
+// conferência "bateu com o Tiny" e a consulta de hora em hora. A aba inteira
+// numa requisição (plt_fn_tiny_carga_painel); os gestos são do dono — o banco
+// confere. Nada aqui traz token: a API nova aparece só como ligada ou não.
+// ---------------------------------------------------------------------------
+export type ContaTiny = 'loja' | 'fabrica'
+
+export interface LinhaCensoTiny {
+  conta: ContaTiny
+  recurso: string
+  rotulo: string | null
+  /** O mês ("2026-09"), "antes" ou "tudo". */
+  janela: string | null
+  /** Quantos o Tiny tem (nulo enquanto a contagem não terminou). */
+  tiny: number | null
+  aqui: number
+  lido: boolean
+}
+
+export interface LinhaCargaTiny {
+  conta: ContaTiny
+  recurso: string
+  rotulo: string | null
+  pendentes: number
+  /** Esperando a vez depois de um erro ou do limite do minuto. */
+  esperando: number
+  pausados: number
+  lidos: number
+  nao_existem: number
+  erros: number
+}
+
+export interface SomaCargaTiny {
+  conta: ContaTiny
+  recurso: string
+  janela: string | null
+  tiny: number | null
+  aqui: number | null
+  lido: boolean
+}
+
+export interface ErroTiny {
+  conta: ContaTiny
+  recurso: string
+  rotulo: string | null
+  referencia: string
+  erro: string | null
+  quando: string | null
+}
+
+export interface DadosCargaTiny {
+  censo: { rodada: string | null; linhas: LinhaCensoTiny[] }
+  carga: { rodada: string | null; por_recurso: LinhaCargaTiny[]; somas: SomaCargaTiny[] }
+  fila: {
+    pendentes: number
+    esperando: number
+    pausados: number
+    em_andamento: number
+    erros: number
+  }
+  erros: ErroTiny[]
+  mudancas: { ligada: boolean | null; ultima: string | null }
+  api_nova: Record<ContaTiny, { ligada: boolean; renovada_em: string | null }>
+}
+
+export async function buscarCargaTiny(): Promise<DadosCargaTiny> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_carga_painel')
+  if (error) throw new Error(`Não deu para carregar a carga do Tiny: ${error.message}`)
+  return data as DadosCargaTiny
+}
+
+export type AcaoCargaTiny = 'contar' | 'carregar' | 'pausar' | 'retomar'
+
+export async function fazerCargaTiny(acao: AcaoCargaTiny): Promise<{ linhas: number }> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_carga', { p_acao: acao })
+  if (error) throw new Error(error.message)
+  return data as { linhas: number }
+}
+
+export async function ligarMudancasTiny(ligar: boolean): Promise<{ resultado: string }> {
+  const { data, error } = await supabase.rpc('plt_fn_tiny_mudancas_ligar', { p_ligar: ligar })
+  if (error) throw new Error(error.message)
+  return data as { resultado: string }
+}

@@ -4,7 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { Auditoria } from './Auditoria'
-import { buscarAuditoria, buscarConferencias } from '@/auditoria/api'
+import {
+  buscarAuditoria,
+  buscarCargaTiny,
+  buscarConferencias,
+  fazerCargaTiny,
+  ligarMudancasTiny,
+} from '@/auditoria/api'
 
 /**
  * Painel admin → Auditoria (SESSAO-29 · D-95): a trilha de tudo em língua de
@@ -97,6 +103,85 @@ vi.mock('@/auditoria/api', () => ({
       },
     ],
   })),
+  // SESSAO-33: a carga do Tiny — a aba inteira numa requisição
+  buscarCargaTiny: vi.fn(async () => ({
+    censo: {
+      rodada: '2026-10-17T10:00:00',
+      linhas: [
+        {
+          conta: 'loja',
+          recurso: 'pedidos_pesquisa',
+          rotulo: 'pedidos de venda',
+          janela: '2026-09',
+          tiny: 120,
+          aqui: 120,
+          lido: true,
+        },
+        {
+          conta: 'loja',
+          recurso: 'pedidos_pesquisa',
+          rotulo: 'pedidos de venda',
+          janela: '2026-10',
+          tiny: 80,
+          aqui: 78,
+          lido: true,
+        },
+        {
+          conta: 'fabrica',
+          recurso: 'contatos_pesquisa',
+          rotulo: 'clientes e fornecedores',
+          janela: 'tudo',
+          tiny: null,
+          aqui: 0,
+          lido: false,
+        },
+      ],
+    },
+    carga: {
+      rodada: '2026-10-17T10:05:00',
+      por_recurso: [
+        {
+          conta: 'fabrica',
+          recurso: 'estrutura',
+          rotulo: 'estrutura do móvel',
+          pendentes: 10,
+          esperando: 0,
+          pausados: 5,
+          lidos: 40,
+          nao_existem: 1,
+          erros: 0,
+        },
+      ],
+      somas: [
+        {
+          conta: 'fabrica',
+          recurso: 'cp_pesquisa',
+          janela: '2026-09',
+          tiny: 1500.5,
+          aqui: 1500.5,
+          lido: true,
+        },
+      ],
+    },
+    fila: { pendentes: 10, esperando: 0, pausados: 5, em_andamento: 1, erros: 1 },
+    erros: [
+      {
+        conta: 'fabrica',
+        recurso: 'conta_pagar',
+        rotulo: 'conta a pagar',
+        referencia: 'NF 123',
+        erro: 'o Tiny não respondeu',
+        quando: '2026-10-17T13:00:00Z',
+      },
+    ],
+    mudancas: { ligada: false, ultima: null },
+    api_nova: {
+      loja: { ligada: true, renovada_em: '2026-10-17T12:00:00Z' },
+      fabrica: { ligada: false, renovada_em: null },
+    },
+  })),
+  fazerCargaTiny: vi.fn(async () => ({ linhas: 1234 })),
+  ligarMudancasTiny: vi.fn(async () => ({ resultado: 'ligada' })),
 }))
 
 function renderizar() {
@@ -139,6 +224,7 @@ describe('Painel admin → Auditoria', () => {
     expect(filtros.desde).not.toBeNull()
     // a aba das conferências NÃO foi pedida (regra 17)
     expect(buscarConferencias).not.toHaveBeenCalled()
+    expect(buscarCargaTiny).not.toHaveBeenCalled()
   })
 
   it('linha de uma automação que já foi excluída ganha a etiqueta "Automação excluída" (o histórico fica)', async () => {
@@ -204,5 +290,49 @@ describe('Painel admin → Auditoria', () => {
     // por cursor (D-141): a 1ª página sem cursor; nada de números de página
     expect(buscarConferencias).toHaveBeenCalledWith(null, 10)
     expect(screen.queryByRole('navigation', { name: /pagina/i })).not.toBeInTheDocument()
+  })
+
+  it('a aba da carga do Tiny: bateu ou não, mês a mês, a fila, os erros e os gestos do dono — sem códigos na tela', async () => {
+    renderizar()
+    fireEvent.click(await screen.findByRole('tab', { name: /Carga do Tiny/ }))
+    expect(await screen.findByRole('heading', { name: 'Bateu com o Tiny?' })).toBeInTheDocument()
+    expect(buscarCargaTiny).toHaveBeenCalledTimes(1)
+    // os pedidos da loja: 200 no Tiny × 198 aqui (somando os meses), com o mês a mês dentro
+    const pedidos = screen.getByText('pedidos de venda').closest('li') as HTMLElement
+    // no total e no mês que não bateu (10/2026)
+    expect(within(pedidos).getAllByText('faltam 2 aqui')).toHaveLength(2)
+    expect(within(pedidos).getByText('Ver mês a mês')).toBeInTheDocument()
+    expect(within(pedidos).getByText('09/2026')).toBeInTheDocument()
+    // a contagem que não terminou não "bate" nem "falta"
+    const contatos = screen.getByText('clientes e fornecedores').closest('li') as HTMLElement
+    expect(within(contatos).getByText(/contando/)).toBeInTheDocument()
+    expect(screen.getByText(/incluem fornecedores e transportadoras/)).toBeInTheDocument()
+    // as somas das contas a pagar, a carga por tipo e o último erro (com o item)
+    expect(screen.getByText(/R\$\s?1\.500,50 · aqui R\$\s?1\.500,50/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/40 lidos · 10 por ler · 5 pausados · 1 não existem no Tiny/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('o Tiny não respondeu')).toBeInTheDocument()
+    expect(screen.getByText(/NF 123/)).toBeInTheDocument()
+    // a API nova: a da fábrica ainda desligada, com o caminho para ligar
+    expect(screen.getByText(/desligada — ligue em Configurações/)).toBeInTheDocument()
+    // pausados → "Retomar"; ainda andando → "Pausar"
+    expect(screen.getByRole('button', { name: 'Retomar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+    // nenhum nome de máquina na tela
+    expect(
+      screen.queryByText(
+        /pedidos_pesquisa|contatos_pesquisa|cp_pesquisa|conta_pagar|censo|fabrica\b/,
+      ),
+    ).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Começar a carga' }))
+    await waitFor(() => expect(fazerCargaTiny).toHaveBeenCalledWith('carregar'))
+    expect(await screen.findByText('A carga começou')).toBeInTheDocument()
+    // depois do gesto, uma leitura nova do painel (sem relógio na tela)
+    await waitFor(() => expect(buscarCargaTiny).toHaveBeenCalledTimes(2))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ligar a consulta de hora em hora' }))
+    await waitFor(() => expect(ligarMudancasTiny).toHaveBeenCalledWith(true))
   })
 })

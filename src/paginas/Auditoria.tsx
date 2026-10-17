@@ -7,6 +7,7 @@ import {
   CircleCheck,
   CircleDashed,
   ClipboardList,
+  CloudDownload,
   Eye,
   LogIn,
   MessageSquare,
@@ -32,6 +33,7 @@ import {
   type LinhaAuditoria,
 } from '@/auditoria/api'
 import type { CursorAuditoria } from '@/auditoria/api'
+import { PainelCargaTiny } from '@/auditoria/PainelCargaTiny'
 import {
   GRUPOS_ACAO,
   detalhesDoContexto,
@@ -46,7 +48,7 @@ import {
 const POR_PAGINA = 30
 const RODADAS_POR_PAGINA = 10
 
-type Aba = 'atividade' | 'conferencias'
+type Aba = 'atividade' | 'conferencias' | 'carga'
 type Periodo = 'hoje' | '7d' | '30d' | 'tudo'
 
 const PERIODOS: { valor: Periodo; rotulo: string }[] = [
@@ -100,7 +102,8 @@ const ICONE_GRUPO: Record<GrupoAcao, ReactNode> = {
  * Painel admin → Auditoria (SESSAO-29 · D-95 ↪️ D-40): o rastro de tudo o que
  * acontece na plataforma — quem, quando, onde, o quê e porquê — e a conferência
  * diária com o Tiny. Cada aba pede ao servidor só a página que mostra (regra 17);
- * a aba das conferências só carrega quando é aberta.
+ * a aba das conferências só carrega quando é aberta. SESSAO-33 (D-142/D-143): a
+ * aba "Carga do Tiny" — contar, carregar, conferir e a consulta de hora em hora.
  */
 export function Auditoria() {
   const [aba, setAba] = useState<Aba>('atividade')
@@ -121,8 +124,12 @@ export function Auditoria() {
             </span>
             <span>
               Em "Conferências com o Tiny" fica a conferência de toda madrugada: quantos pedidos
-              foram relidos e quais estavam diferentes do Tiny. Os erros das automações (n8n) vão
-              aparecer ali também, numa próxima etapa.
+              foram relidos e quais estavam diferentes do Tiny.
+            </span>
+            <span>
+              Em "Carga do Tiny" você conta quantos há de cada coisa no Tiny, traz tudo o que falta
+              das duas contas e confere se bateu. Quando uma automação para com erro, você recebe um
+              aviso no sino e o erro fica em "Atividade", no grupo das automações.
             </span>
             <span>Tarefa pessoal privada não aparece aqui — só para quem a criou.</span>
           </span>
@@ -145,11 +152,18 @@ export function Auditoria() {
             rotulo: 'Conferências com o Tiny',
             icone: <RefreshCw aria-hidden className="size-4" />,
           },
+          {
+            valor: 'carga',
+            rotulo: 'Carga do Tiny',
+            icone: <CloudDownload aria-hidden className="size-4" />,
+          },
         ]}
       />
 
       <div role="tabpanel" id="auditoria-painel" aria-labelledby={`auditoria-aba-${aba}`}>
-        {aba === 'atividade' ? <PainelAtividade /> : <PainelConferencias />}
+        {aba === 'atividade' && <PainelAtividade />}
+        {aba === 'conferencias' && <PainelConferencias />}
+        {aba === 'carga' && <PainelCargaTiny />}
       </div>
     </div>
   )
