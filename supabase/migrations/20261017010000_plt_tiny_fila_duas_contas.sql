@@ -315,7 +315,8 @@ as $$
 $$;
 
 -- o alerta (P1): uma linha na Auditoria SEMPRE; o aviso no sino do dono só se
--- não houve o mesmo aviso (a mesma chave) dentro do intervalo
+-- não houve o mesmo aviso (a mesma chave, guardada como aviso_id — a tela da
+-- Auditoria não mostra o que termina em _id) dentro do intervalo
 create or replace function plt_privado.fn_tiny_alertar(
   p_chave text, p_titulo text, p_corpo text, p_contexto jsonb,
   p_intervalo interval default interval '1 hour')
@@ -330,13 +331,13 @@ begin
   select exists (select 1 from public.plt_logs_atividade l
                   where l.acao = 'automacao_erro'
                     and l.criado_em > now() - p_intervalo
-                    and l.contexto->>'chave' = p_chave)
+                    and l.contexto->>'aviso_id' = p_chave)
     into v_ja;
 
   insert into public.plt_logs_atividade (usuario_id, acao, contexto)
   values (null, 'automacao_erro',
           coalesce(p_contexto, '{}'::jsonb)
-          || jsonb_build_object('chave', p_chave, 'titulo', p_titulo, 'corpo', left(p_corpo, 600)));
+          || jsonb_build_object('aviso_id', p_chave, 'titulo', p_titulo, 'corpo', left(p_corpo, 600)));
 
   if not v_ja then
     insert into public.plt_notificacoes (destinatario_id, tipo, titulo, corpo)
@@ -363,8 +364,9 @@ as $$
       ' (conta ' || case p_fila.conta when 'fabrica' then 'da fábrica' else 'da loja' end || ', ' ||
       coalesce(p_fila.referencia, p_fila.chave) || '): ' || coalesce(p_fila.erro, 'sem descrição') ||
       '. Os outros itens seguem; este fica na Auditoria → Carga do Tiny.',
-    jsonb_build_object('origem', 'fila_tiny', 'conta', p_fila.conta, 'recurso', p_fila.recurso,
-                       'chave', p_fila.chave, 'erro', p_fila.erro),
+    jsonb_build_object('origem', 'fila_tiny', 'conta', p_fila.conta,
+                       'tipo_de_dado', coalesce((select x.rotulo from plt_privado.fn_tiny_recursos() x where x.recurso = p_fila.recurso), p_fila.recurso),
+                       'item', coalesce(p_fila.referencia, p_fila.chave), 'erro', p_fila.erro, 'fila_id', p_fila.id),
     interval '1 hour');
 $$;
 

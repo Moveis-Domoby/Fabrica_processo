@@ -578,13 +578,14 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object(
            'conta', g.conta, 'recurso', g.recurso,
            'rotulo', (select x.rotulo from plt_privado.fn_tiny_recursos() x where x.recurso = g.recurso),
-           'pendentes', g.pendentes, 'esperando', g.esperando, 'lidos', g.lidos,
-           'nao_existem', g.vazios, 'erros', g.erros)
+           'pendentes', g.pendentes, 'esperando', g.esperando, 'pausados', g.pausados,
+           'lidos', g.lidos, 'nao_existem', g.vazios, 'erros', g.erros)
          order by g.conta, g.recurso), '[]'::jsonb)
     into v_carga_resumo
     from (select f.conta, f.recurso,
                  count(*) filter (where f.status in ('pendente', 'processando') and (f.nao_antes is null or f.nao_antes <= now())) as pendentes,
-                 count(*) filter (where f.status = 'pendente' and f.nao_antes > now()) as esperando,
+                 count(*) filter (where f.status = 'pendente' and f.nao_antes > now() and f.nao_antes <> 'infinity') as esperando,
+                 count(*) filter (where f.status = 'pendente' and f.nao_antes = 'infinity') as pausados,
                  count(*) filter (where f.status = 'ok') as lidos,
                  count(*) filter (where f.status = 'vazio') as vazios,
                  count(*) filter (where f.status = 'erro') as erros
@@ -617,7 +618,8 @@ begin
 
   select jsonb_build_object(
            'pendentes',  count(*) filter (where f.status = 'pendente' and (f.nao_antes is null or f.nao_antes <= now())),
-           'esperando',  count(*) filter (where f.status = 'pendente' and f.nao_antes > now()),
+           'esperando',  count(*) filter (where f.status = 'pendente' and f.nao_antes > now() and f.nao_antes <> 'infinity'),
+           'pausados',   count(*) filter (where f.status = 'pendente' and f.nao_antes = 'infinity'),
            'em_andamento', count(*) filter (where f.status = 'processando'),
            'erros',      count(*) filter (where f.status = 'erro'))
     into v_fila
