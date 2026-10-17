@@ -1,7 +1,7 @@
 ---
 titulo: n8n — Pendências e Riscos
 tipo: indice
-atualizado: 2026-10-01
+atualizado: 2026-10-17
 tags: [pendencias, riscos, n8n, debito-tecnico]
 ---
 
@@ -15,6 +15,7 @@ tags: [pendencias, riscos, n8n, debito-tecnico]
 ### P1 · Alerta de erro — NÃO EXISTE
 Nenhum workflow tem Error Workflow configurado. O incidente de 11/08 ([[N8N - Incidente Credencial Google]]) foi descoberto ~2h depois, por acaso. Hoje são **4 integrações** que podem falhar em silêncio (Sheets, ClickUp, Trello, Tiny) — e falha significa pedido sem card de produção/rota.
 **Fazer:** workflow `ALERTA - Erro n8n` com node **Error Trigger** → notificação (Telegram sugerido; e-mail exige SMTP). Depois, em cada workflow: ⋯ → Settings → Error Workflow. *Adiado a pedido do usuário em 12/08.*
+**↪️ 17/10/2026 (SESSAO-33) — pronto para ligar em casa:** o aviso vai para o **sino do dono na plataforma** (sem Telegram nem e-mail) e fica na Auditoria → Atividade (grupo das automações), sem repetir o mesmo aviso em 30 min por fluxo. Fluxo `domoby-alerta-erro-automacoes.json` (Error Trigger → "Montar aviso" → `plt_fn_automacao_erro`) e o programa `supabase/manutencao/2026-10-17_n8n_fila_tiny_completo.mjs --alerta` (cria/publica o fluxo e liga o "Error Workflow" na fila do Tiny, no fluxo da fábrica e no das vendas). Item da fila do Tiny que desiste (4ª falha) também avisa. Vale quando o banco (migration 89) e o programa rodarem — ver o handoff da SESSAO-33.
 
 ### P2 · Migração 5 — cadastro de cliente
 **↪️ 03/09: desbloqueada e construída.** O CSV foi lido direto do Drive (806 respostas). Workflow em `domoby-formulario-cliente-tiny.json` (15 nodes), planilha preparada, **primeiro cadastro real gravado no Tiny em 03/09**. Falta o teste do CPF inválido e publicar. ⚠️ **O Pluga não existe mais há mais de um mês** — então o cadastro de cliente está simplesmente parado desde então, não há automação antiga rodando em paralelo. Ver [[N8N - Cadastro de Cliente]].
@@ -55,6 +56,7 @@ Projetada em 17/08, workflow pronto (`domoby-clickup-tiny-entregue.json` na past
 
 ### P5 · Desligar toggle "Receber notificações de pedidos enviados" no Tiny
 Path `5b0fc553…` sem workflow escutando → 404 × 10 reenvios por evento. Religar quando existir fluxo de rastreio.
+**↪️ 17/10/2026 (SESSAO-33) — resolvido no arquivo, vale em casa:** o fluxo da fila melhorado (`domoby-fila-tiny-completo.json`) ganha o webhook **"avisos do Tiny (notas e envios)" exatamente nesse caminho** — o aviso de pedido enviado (e o de nota autorizada, que se liga no Tiny apontando para o mesmo endereço) é guardado cru (`plt_fn_tiny_aviso` → `eventos` tipo `aviso_tiny`) e a nota entra na fila. Não precisa desligar a chave do Tiny: quando o fluxo novo for publicado, o 404 acaba.
 
 ### P6 · Proteger a linha 1 da aba COMPLETO
 `appendOrUpdate` casa por **nome exato de cabeçalho**. Renomear (7 têm acento) quebra em silêncio; renomear `PEDIDO tiny` faz o node **anexar** em vez de atualizar. Dados → Proteger intervalos → `COMPLETO!1:1`.

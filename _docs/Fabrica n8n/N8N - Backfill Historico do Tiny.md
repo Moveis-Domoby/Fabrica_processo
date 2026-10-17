@@ -1,7 +1,7 @@
 ---
 titulo: Backfill histórico do Tiny → Supabase
 tipo: automacao
-atualizado: 2026-10-01
+atualizado: 2026-10-17
 tags: [n8n, tiny, supabase, backfill, historico]
 ---
 
@@ -14,6 +14,13 @@ tags: [n8n, tiny, supabase, backfill, historico]
 > - Detalhe: [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] · [[SUPA - Esquema do Banco]] (migration 49).
 > - ↪️ **09/10/2026 (D-122):** a conferência das 3h traz também as **contas a receber** — a busca `cr_pesquisa` das emitidas nos últimos 60 dias (`data_ini_emissao`/`data_fim_emissao`) + a releitura das que não estão pagas nem canceladas. O fluxo do n8n **não mudou** (os filtros vão da fila, palavra por palavra). Migration 64.
 > - ↪️ **09/10/2026 (D-123):** esta automação ganhou uma **2ª parte, com gatilho próprio**: [[N8N - Plataforma para Tiny (situacao do pedido)]] (a plataforma → Tiny "Entregue"/desfazer). A 1ª parte (a fila) ficou idêntica.
+
+> [!important] ↪️ 17/10/2026 — a fila vira o trabalhador de TUDO do Tiny, nas duas contas (SESSAO-33 — 📄 pronto em arquivo, liga em casa)
+> - **Mesma automação, sem fluxo paralelo** (pedido do dono): a 1ª parte do "subir banco de dados — tiny → supabase" passa a ser genérica — **o banco monta a chamada** (`fn_tiny_fila_lote`: API v2 ou nova, conta, endereço, campos) e **o banco entende a resposta** (`fn_tiny_fila_resposta`); o n8n só pede ao Tiny (1 chamada a cada 2 s), escolhe o token pela conta (`TINY_TOKEN` loja · `TINY_FABRICA_TOKEN` fábrica) e devolve a resposta crua. A API nova passa pela ponte `tiny-v3` (o token nunca aparece no n8n). Os nós `Normalizar evento` e `Tiny · pedido.obter` da 2ª parte ficam como estão.
+> - **Tudo:** pedidos, contatos, notas, contas a receber **e a pagar**, produtos, estrutura dos fabricados, estoque por depósito, vendedores, formas de recebimento/envio, listas de preço (com exceções), categorias, dados da empresa e, com a API nova, depósitos, pedidos de compra, categorias financeiras, formas de pagamento, marcas, etapas de produção e produtos alterados. O que já tinha casa fica nela; o resto em `plt_tiny_registros`.
+> - **Na hora, a partir do fato:** a venda gravada põe na fila a nota, as contas a receber e o cliente (cascata); o aviso de nota autorizada / pedido enviado entra pelo webhook novo no mesmo fluxo. **O que o Tiny não avisa** (produtos e clientes alterados): uma consulta por hora, só das 8h às 20h (D-143).
+> - **A carga completa** é gesto do dono na Auditoria → Carga do Tiny (Contar no Tiny → Começar a carga → conferir → Pausar/Retomar), sempre atrás da venda, da cascata e da conferência das 3h (prioridade 9).
+> - **Compatível:** até o fluxo novo ser importado, o antigo continua pegando só o que sabe (loja, os 8 tipos de sempre). Detalhe: [[N8N - Tiny - Mapa Completo da API e dos Dados]] · [[SUPA - Esquema do Banco]] (migrations 89–92) · o handoff da SESSAO-33.
 
 > [!abstract] Em uma frase
 > Trazer **todo o histórico da Domoby desde 12/03/2025** — pedidos, contatos,
