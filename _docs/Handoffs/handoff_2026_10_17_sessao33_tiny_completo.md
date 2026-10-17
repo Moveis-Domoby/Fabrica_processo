@@ -73,7 +73,7 @@ Todos os dados do Tiny, das duas contas (loja e fábrica), **sem exceção** —
 - **Auditoria → "Carga do Tiny"** (nova aba): a fila agora + "Atualizar"; Contar no Tiny / Começar a carga / Pausar / Retomar; "Bateu com o Tiny?" por conta e tipo, com o mês a mês; as somas das contas a pagar; a carga tipo por tipo; os últimos erros; a consulta de hora em hora (ligar/desligar); a API nova de cada conta.
 - **Configurações → Móveis, insumos e peças:** "Estrutura" por produto (do que é feito e onde é usado) e "Unidades fora do padrão" (com páginas) — as duas só no clique.
 - **Configurações → API e integrações:** "Ligar a API nova da fábrica" (só o dono) e o aviso na volta do Tiny.
-- Testes de tela novos (Auditoria com a aba da carga; Configurações; Integrações). **36 arquivos de teste verdes.**
+- Testes de tela novos (Auditoria com a aba da carga; Configurações; Integrações). **36 arquivos, 199 testes verdes** (eram 34/191); tipos e estilo limpos.
 
 ### Desempenho (regra 18) — ensaio ×100 antes de subir
 - Banco local com as 92 atualizações e **100× o volume de hoje + 3 milhões de linhas da carga na fila**. A 1ª versão já falhava no volume de hoje em três pontos (pausar linha a linha, a fila varrendo as pausadas, o painel contando a fila) — **corrigido antes de subir** (índice por conta e vez, pausar = interruptor, contas prontas, resumo do mês, "quantos aqui" calculado quando a contagem chega).
