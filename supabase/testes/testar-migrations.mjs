@@ -8104,6 +8104,9 @@ await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 // contato é renomeado, e cada rodada deixa UMA linha no log com o que mudou.
 // ============================================================================
 {
+// SESSAO-33: a cascata da venda (migration 90) tem bloco próprio — aqui a
+// conferência é provada sozinha, como sempre foi
+await bd.exec(`set domoby.sem_cascata = 'on'`)
 titulo('SESSAO-29 · a porta dos pedidos: uma assinatura só (a nova), só para a chave de serviço')
 
 const um49 = async (sql) => (await bd.query(sql)).rows[0]
@@ -8532,6 +8535,7 @@ conferir(
 )
 const nomeLimpo = (await um49(`select count(*)::int as n from public.clientes where nome like '%&#39;%'`)).n
 conferir(nomeLimpo === 0, 'nenhum cliente fica com entidade HTML no nome (correção única da migration)', String(nomeLimpo))
+await bd.exec(`reset domoby.sem_cascata`)
 } // fim do bloco 49
 
 // ============================================================================
