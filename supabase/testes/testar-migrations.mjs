@@ -14047,6 +14047,7 @@ try {
   const detCenso33 = (await um33t(`select count(*)::int as n from public.tiny_fila where recurso = 'nota_fiscal' and chave like '99000%'`)).n
   await reservar33(ult33.id)
   await responder33(ult33.id, v2t({ status: 'OK', pagina: 3, numero_paginas: 3, notas_fiscais: cem33.slice(0, 42) }))
+  await bd.exec(`update public.plt_tiny_controle set ultima_contagem = 'C33' where id = 1`)
   await como33(SUPER33)
   const painel33 = (await um33t(`select public.plt_fn_tiny_carga_painel() as r`)).r
   const linhaCenso33 = painel33.censo.linhas.find((l) => l.conta === 'loja' && l.recurso === 'nf_pesquisa' && l.janela === '2026-09')
@@ -14225,12 +14226,24 @@ try {
   const prioCarga33 = (await um33t(`select min(prioridade)::int as minp from public.tiny_fila where params->>'carga' = '${carr33.rodada}' and recurso in ('estrutura', 'estoque', 'cp_pesquisa', 'vendedores_pesquisa') and chave <> '3300001'`)).minp
   const cpCarga33 = (await um33t(`select count(distinct conta)::int as n from public.tiny_fila where recurso = 'cp_pesquisa' and params->>'carga' = '${carr33.rodada}'`)).n
   const alterados33 = await achar33('loja', 'contatos_pesquisa', 'carga:contatos:alterados')
+  // pausar é o interruptor: nenhuma linha da fila muda; o lote deixa de pegar a prioridade 9
+  const antesPausa33 = (await um33t(`select count(*)::int as n, max(nao_antes) as na from public.tiny_fila where status = 'pendente'`))
   const pausa33 = (await um33t(`select public.plt_fn_tiny_carga('pausar') as r`)).r
-  const pausadas33 = (await um33t(`select count(*)::int as n from public.tiny_fila where nao_antes = 'infinity'`)).n
+  const depoisPausa33 = (await um33t(`select count(*)::int as n, max(nao_antes) as na from public.tiny_fila where status = 'pendente'`))
+  const pausadas33 = (await um33t(`select carga_pausada as p from public.plt_tiny_controle where id = 1`)).p
   const painelPausa33 = (await um33t(`select public.plt_fn_tiny_carga_painel() as r`)).r
-  const pausadosCarga33 = painelPausa33.carga.por_recurso.reduce((s, r) => s + Number(r.pausados), 0)
+  const pendCarga33 = painelPausa33.carga.por_recurso.reduce((s, r) => s + Number(r.pendentes), 0)
+  await bd.exec('savepoint lote33p')
+  await bd.exec(`select public.fn_tiny_fila_lote(100)`)
+  const lotePausa33 = (await um33t(`select count(*) filter (where prioridade = 9)::int as nove, count(*)::int as n
+                                      from public.tiny_fila where status = 'processando'`))
+  await bd.exec('rollback to savepoint lote33p')
   const retoma33 = (await um33t(`select public.plt_fn_tiny_carga('retomar') as r`)).r
-  const sobraPausa33 = (await um33t(`select count(*)::int as n from public.tiny_fila where nao_antes = 'infinity'`)).n
+  const sobraPausa33 = (await um33t(`select carga_pausada as p from public.plt_tiny_controle where id = 1`)).p
+  await bd.exec('savepoint lote33r')
+  await bd.exec(`select public.fn_tiny_fila_lote(100)`)
+  const loteRetoma33 = (await um33t(`select count(*) filter (where prioridade = 9)::int as nove from public.tiny_fila where status = 'processando'`))
+  await bd.exec('rollback to savepoint lote33r')
   const trilhaCarga33 = (await um33t(`select count(*)::int as n from public.plt_logs_atividade where acao = 'tiny_carga'`)).n
   await como33('')
   conferir(
@@ -14240,11 +14253,58 @@ try {
       && porTipo33['loja:contatos_pesquisa'] === 1 && porTipo33['fabrica:produtos_pesquisa'] === 1 && porTipo33['fabrica:pedidos_pesquisa'] === 1
       && estCarga33 === fabricados33 && estoqueCarga33 === produtos33 && prioCarga33 === 9 && cpCarga33 === 2
       && alterados33?.params?.dataMinimaAtualizacao === '08/09/2026 00:00:00' && alterados33?.params?.reabrir === true
-      && pausa33.linhas > 0 && pausadas33 === pausa33.linhas && retoma33.linhas === pausa33.linhas && sobraPausa33 === 0
-      && painelPausa33.fila.pausados === pausa33.linhas && pausadosCarga33 > 0 && pausadosCarga33 <= pausa33.linhas
+      && pausa33.linhas === 1 && pausa33.pausada === true && pausadas33 === true
+      && antesPausa33.n === depoisPausa33.n && String(antesPausa33.na) === String(depoisPausa33.na)
+      && painelPausa33.pausada === true && painelPausa33.fila.pausados > 0 && pendCarga33 > 0
+      && lotePausa33.nove === 0 && retoma33.linhas === 1 && retoma33.pausada === false && sobraPausa33 === false
+      && loteRetoma33.nove > 0
       && trilhaCarga33 >= 4,
-    'só o dono conta e carrega; a contagem da loja vai mês a mês (pedidos, notas, contas a receber) e o resto numa busca só; a carga traz a estrutura de cada fabricado, o estoque de cada produto, as contas a pagar das duas contas e os clientes alterados desde 08/09 — tudo com a prioridade mais baixa; pausar e retomar (o painel conta os pausados à parte); cada gesto na trilha',
-    JSON.stringify({ naoDono33, porTipo33, meses33, estCarga33, fabricados33, estoqueCarga33, produtos33, prioCarga33, cpCarga33, alterados: alterados33?.params, pausa33, pausadas33, painelPausa33: painelPausa33.fila, pausadosCarga33, retoma33, sobraPausa33, trilhaCarga33 }),
+    'só o dono conta e carrega; a contagem da loja vai mês a mês (pedidos, notas, contas a receber) e o resto numa busca só; a carga traz a estrutura de cada fabricado, o estoque de cada produto, as contas a pagar das duas contas e os clientes alterados desde 08/09 — tudo com a prioridade mais baixa; pausar é um interruptor (nenhuma linha muda; o lote deixa de pegar a carga) e retomar volta a pegar; o andamento sai das contas prontas; cada gesto na trilha',
+    JSON.stringify({ naoDono33, porTipo33, meses33, estCarga33, fabricados33, estoqueCarga33, produtos33, prioCarga33, cpCarga33, alterados: alterados33?.params, pausa33, pausadas33, antesPausa33, depoisPausa33, painelPausa33: { pausada: painelPausa33.pausada, fila: painelPausa33.fila }, pendCarga33, lotePausa33, retoma33, sobraPausa33, loteRetoma33, trilhaCarga33 }),
+  )
+
+  titulo('SESSAO-33 · a escala (Lei §6/§7): contas prontas da carga, resumo do mês das contas a pagar, relógio que não acorda pela carga pausada')
+
+  // as contas prontas batem com a fila, linha a linha, depois de tudo o que este bloco mexeu
+  const contaFila33 = await todos33t(`
+    select params->>'carga' as rodada, conta, recurso, status, count(*)::int as n
+      from public.tiny_fila where params ? 'carga' group by 1, 2, 3, 4 order by 1, 2, 3, 4`)
+  const contaPronta33 = await todos33t(`
+    select rodada, conta, recurso, status, n::int as n
+      from public.plt_tiny_carga_contagem where n <> 0 order by 1, 2, 3, 4`)
+  // o resumo do mês: entra, não muda com o mesmo conteúdo, troca de mês quando o Tiny muda
+  await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'conta_pagar', 'cp33-mes', '{"valor":"100,50","data":"10/08/2026"}'::jsonb)`)
+  const mes1 = await todos33t(`select to_char(mes, 'YYYY-MM') as mes, n::int as n, soma::numeric as soma from public.plt_tiny_registros_mes
+                                where conta = 'fabrica' and tipo = 'conta_pagar' and mes in ('2026-08-01', '2026-09-01') order by mes`)
+  await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'conta_pagar', 'cp33-mes', '{"valor":"100,50","data":"10/08/2026"}'::jsonb)`)
+  const mes2 = await todos33t(`select to_char(mes, 'YYYY-MM') as mes, n::int as n, soma::numeric as soma from public.plt_tiny_registros_mes
+                                where conta = 'fabrica' and tipo = 'conta_pagar' and mes in ('2026-08-01', '2026-09-01') order by mes`)
+  await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'conta_pagar', 'cp33-mes', '{"valor":"80,00","data":"02/09/2026"}'::jsonb)`)
+  const mes3 = await todos33t(`select to_char(mes, 'YYYY-MM') as mes, n::int as n, soma::numeric as soma from public.plt_tiny_registros_mes
+                                where conta = 'fabrica' and tipo = 'conta_pagar' and mes in ('2026-08-01', '2026-09-01') order by mes`)
+  await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'conta_pagar', 'cp33-sem-data', '{"valor":"5,00","data":"sem data"}'::jsonb)`)
+  const semData33 = (await um33t(`select count(*)::int as n from public.plt_tiny_registros where chave = 'cp33-sem-data'`)).n
+  const m = (l, k) => l.find((x) => x.mes === k)
+  // o relógio: só a carga pausada na fila → desliga (quem acorda é o "Retomar")
+  await bd.exec('savepoint relogio33')
+  await bd.exec(`update public.tiny_fila set status = 'ok' where status in ('pendente', 'processando') and prioridade < 9`)
+  await bd.exec(`update public.tiny_fila set nao_antes = null where status = 'pendente'`)
+  await bd.exec(`update public.plt_tiny_controle set carga_pausada = true where id = 1`)
+  const precisaPausa33 = (await um33t(`select plt_privado.fn_tiny_fila_precisa_chamar() as p`)).p
+  const relPausa33 = (await um33t(`select plt_privado.fn_tiny_fila_relogio() as r`)).r
+  await bd.exec(`update public.plt_tiny_controle set carga_pausada = false where id = 1`)
+  const precisaVolta33 = (await um33t(`select plt_privado.fn_tiny_fila_precisa_chamar() as p`)).p
+  await bd.exec('rollback to savepoint relogio33')
+  conferir(
+    JSON.stringify(contaFila33) === JSON.stringify(contaPronta33) && contaPronta33.length > 0
+      && Number(m(mes1, '2026-08')?.n) === 1 && Number(m(mes1, '2026-08')?.soma) === 100.5
+      && JSON.stringify(mes2) === JSON.stringify(mes1)
+      && Number(m(mes3, '2026-08')?.n ?? 0) === 0 && Number(m(mes3, '2026-08')?.soma ?? 0) === 0
+      && Number(m(mes3, '2026-09')?.n) === 1 && Number(m(mes3, '2026-09')?.soma) === 80
+      && semData33 === 1
+      && precisaPausa33 === false && relPausa33?.fila === 'vazia' && precisaVolta33 === true,
+    'as contas prontas da carga = a fila contada linha a linha; o resumo do mês soma, não repete o mesmo conteúdo e troca de mês quando o Tiny muda (sem data: guarda o registro, fora do resumo); com só a carga pausada o relógio se desliga e, retomada, há trabalho de novo',
+    JSON.stringify({ contaFila33, contaPronta33, mes1, mes2, mes3, semData33, precisaPausa33, relPausa33, precisaVolta33 }),
   )
 
   titulo('SESSAO-33 · a conferência da madrugada fecha quando as linhas DELA acabam (a carga não segura o resumo)')

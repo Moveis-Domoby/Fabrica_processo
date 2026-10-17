@@ -340,9 +340,10 @@ declare
   v_hoje   date := (now() at time zone 'America/Fortaleza')::date;
   v_n      integer := 0;
   c        text;
-  x        record;
   v_rec    text;
   v_simples jsonb := jsonb_build_object('pesquisa', '');
+  v_marca  jsonb := jsonb_build_object('origem', 'carga', 'carga', v_rodada);
+  v_api_fabrica boolean;
 begin
   if v_quem is null or not plt_privado.fn_eh_super_admin() then
     raise exception 'A carga do Tiny é gesto do dono.' using errcode = 'insufficient_privilege';
@@ -377,37 +378,47 @@ begin
     v_n := v_n + plt_privado.fn_tiny_enfileirar('fabrica', 'cr_pesquisa', 'censo:cr_pesquisa:tudo', 'tudo', 9,
              jsonb_build_object('data_ini_emissao', '01/01/2015', 'data_fim_emissao', to_char(v_hoje, 'DD/MM/YYYY'),
                                 'pagina', 1, 'janela', 'censo:cr_pesquisa:tudo', 'origem', 'censo', 'censo', v_rodada), true);
+    -- a rodada nova é a que o painel mostra; contar de novo destrava a pausa
+    update public.plt_tiny_controle
+       set ultima_contagem = v_rodada, carga_pausada = false, atualizado_em = now()
+     where id = 1;
 
   elsif p_acao = 'carregar' then
+    -- (as listas grandes vão numa instrução só — fn_tiny_enfileirar_varios — para
+    -- o gesto caber no tempo da requisição com o volume ×100; Lei §7)
     -- LOJA — o que falta (os pedidos e as contas a receber estão completos e
     -- conferidos toda noite; o resto chega agora)
     -- clientes alterados desde a carga do histórico (08/09) — relê os que mudaram
     v_n := v_n + plt_privado.fn_tiny_enfileirar('loja', 'contatos_pesquisa', 'carga:contatos:alterados', 'alterados desde 08/09', 9,
              jsonb_build_object('pesquisa', '', 'dataMinimaAtualizacao', '08/09/2026 00:00:00', 'pagina', 1,
                                 'janela', 'carga:contatos:alterados', 'origem', 'carga', 'carga', v_rodada, 'reabrir', true), true);
-    -- clientes que nasceram só do pedido (sem o cadastro do Tiny)
-    for x in select c.tiny_id_contato, c.cpf_cnpj from public.clientes c where c.raw is null loop
-      if x.tiny_id_contato is not null then
-        v_n := v_n + plt_privado.fn_tiny_enfileirar('loja', 'contato', x.tiny_id_contato::text, null, 9,
-                 jsonb_build_object('origem', 'carga', 'carga', v_rodada), true);
-      elsif nullif(regexp_replace(coalesce(x.cpf_cnpj, ''), '\D', '', 'g'), '') is not null then
-        v_n := v_n + plt_privado.fn_tiny_enfileirar('loja', 'contatos_pesquisa',
-                 'carga-cpf:' || regexp_replace(x.cpf_cnpj, '\D', '', 'g'), null, 9,
-                 jsonb_build_object('pesquisa', '', 'cpf_cnpj', x.cpf_cnpj, 'pagina', 1,
-                                    'janela', 'carga-cpf:' || regexp_replace(x.cpf_cnpj, '\D', '', 'g'),
-                                    'origem', 'carga', 'carga', v_rodada, 'reabrir', true), true);
-      end if;
-    end loop;
+    -- clientes que nasceram só do pedido (sem o cadastro do Tiny): pelo id do
+    -- contato quando há; senão, a busca pelo CPF/CNPJ
+    v_n := v_n + plt_privado.fn_tiny_enfileirar_varios((
+      select jsonb_agg(jsonb_build_object('conta', 'loja', 'recurso', 'contato',
+                                          'chave', c.tiny_id_contato::text, 'prioridade', 9, 'params', v_marca))
+        from public.clientes c
+       where c.raw is null and c.tiny_id_contato is not null));
+    v_n := v_n + plt_privado.fn_tiny_enfileirar_varios((
+      select jsonb_agg(jsonb_build_object('conta', 'loja', 'recurso', 'contatos_pesquisa',
+                                          'chave', 'carga-cpf:' || d.cpf, 'prioridade', 9,
+                                          'params', v_marca || jsonb_build_object(
+                                            'pesquisa', '', 'cpf_cnpj', d.cpf_cnpj, 'pagina', 1,
+                                            'janela', 'carga-cpf:' || d.cpf, 'reabrir', true)))
+        from (select distinct on (regexp_replace(c.cpf_cnpj, '\D', '', 'g'))
+                     regexp_replace(c.cpf_cnpj, '\D', '', 'g') as cpf, c.cpf_cnpj
+                from public.clientes c
+               where c.raw is null and c.tiny_id_contato is null
+                 and nullif(regexp_replace(coalesce(c.cpf_cnpj, ''), '\D', '', 'g'), '') is not null) d));
     -- as notas que pararam em 08/09: as de setembro em diante e as que algum pedido aponta
     v_n := v_n + plt_privado.fn_tiny_enfileirar_janelas('loja', 'nf_pesquisa', date '2026-09-01', 'dataInicial', 'dataFinal', 'carga', v_rodada, null, false);
-    for x in select distinct regexp_replace(p.raw->>'id_nota_fiscal', '\D', '', 'g') as nf
-               from public.pedidos p
-              where nullif(nullif(regexp_replace(coalesce(p.raw->>'id_nota_fiscal', ''), '\D', '', 'g'), ''), '0') is not null
-                and not exists (select 1 from public.notas_fiscais n
-                                 where n.tiny_id::text = regexp_replace(p.raw->>'id_nota_fiscal', '\D', '', 'g')) loop
-      v_n := v_n + plt_privado.fn_tiny_enfileirar('loja', 'nota_fiscal', x.nf, null, 9,
-               jsonb_build_object('origem', 'carga', 'carga', v_rodada), true);
-    end loop;
+    v_n := v_n + plt_privado.fn_tiny_enfileirar_varios((
+      select jsonb_agg(jsonb_build_object('conta', 'loja', 'recurso', 'nota_fiscal',
+                                          'chave', x.nf::text, 'prioridade', 9, 'params', v_marca))
+        from (select distinct nullif(regexp_replace(coalesce(p.raw->>'id_nota_fiscal', ''), '\D', '', 'g'), '')::bigint as nf
+                from public.pedidos p
+               where nullif(nullif(regexp_replace(coalesce(p.raw->>'id_nota_fiscal', ''), '\D', '', 'g'), ''), '0') is not null) x
+       where not exists (select 1 from public.notas_fiscais n where n.tiny_id = x.nf)));
     -- o catálogo da loja (os móveis vendidos, pelo SKU — a ponte entre as contas, A-22)
     v_n := v_n + plt_privado.fn_tiny_enfileirar('loja', 'produtos_pesquisa', 'carga:produtos:tudo', 'tudo', 9,
              v_simples || jsonb_build_object('pagina', 1, 'janela', 'carga:produtos:tudo', 'origem', 'carga', 'carga', v_rodada), true);
@@ -423,19 +434,17 @@ begin
                                 'janela', 'carga:cr_pesquisa:tudo', 'origem', 'carga', 'carga', v_rodada), true);
     v_n := v_n + plt_privado.fn_tiny_enfileirar('fabrica', 'contatos_pesquisa', 'carga:contatos:tudo', 'tudo', 9,
              v_simples || jsonb_build_object('pagina', 1, 'janela', 'carga:contatos:tudo', 'origem', 'carga', 'carga', v_rodada), true);
-    -- a estrutura de cada fabricado e o estoque de cada produto, por depósito
-    for x in select p.tiny_id, p.codigo, p.classe from public.produtos p loop
-      if x.classe = 'F' then
-        v_n := v_n + plt_privado.fn_tiny_enfileirar('fabrica', 'estrutura', x.tiny_id::text, x.codigo, 9,
-                 jsonb_build_object('origem', 'carga', 'carga', v_rodada), true);
-        if plt_privado.fn_tiny_api_nova_ligada('fabrica') then
-          v_n := v_n + plt_privado.fn_tiny_enfileirar('fabrica', 'v3_producao', x.tiny_id::text, x.codigo, 9,
-                   jsonb_build_object('origem', 'carga', 'carga', v_rodada), true);
-        end if;
-      end if;
-      v_n := v_n + plt_privado.fn_tiny_enfileirar('fabrica', 'estoque', x.tiny_id::text, x.codigo, 9,
-               jsonb_build_object('origem', 'carga', 'carga', v_rodada), true);
-    end loop;
+    -- a estrutura de cada fabricado (e as etapas, com a API nova) e o estoque
+    -- de cada produto, por depósito
+    v_api_fabrica := plt_privado.fn_tiny_api_nova_ligada('fabrica');
+    v_n := v_n + plt_privado.fn_tiny_enfileirar_varios((
+      select jsonb_agg(jsonb_build_object('conta', 'fabrica', 'recurso', r.recurso, 'chave', p.tiny_id::text,
+                                          'referencia', p.codigo, 'prioridade', 9, 'params', v_marca))
+        from public.produtos p
+        cross join lateral (values ('estrutura'), ('v3_producao'), ('estoque')) r(recurso)
+       where (r.recurso = 'estoque')
+          or (p.classe = 'F' and r.recurso = 'estrutura')
+          or (p.classe = 'F' and r.recurso = 'v3_producao' and v_api_fabrica)));
 
     -- AS DUAS CONTAS — contas a pagar (mês a mês: as somas se conferem por mês)
     -- e os cadastros pequenos
@@ -462,15 +471,17 @@ begin
       end if;
     end loop;
 
-  elsif p_acao = 'pausar' then
-    update public.tiny_fila f
-       set nao_antes = 'infinity'
-     where f.status = 'pendente' and (f.params ? 'carga' or f.params ? 'censo');
-    get diagnostics v_n = row_count;
-  elsif p_acao = 'retomar' then
-    update public.tiny_fila f
-       set nao_antes = null
-     where f.status = 'pendente' and f.nao_antes = 'infinity';
+    update public.plt_tiny_controle
+       set ultima_carga = v_rodada, carga_pausada = false, atualizado_em = now()
+     where id = 1;
+
+  elsif p_acao in ('pausar', 'retomar') then
+    -- o interruptor (Lei §7 — sem mexer em linha nenhuma da fila): pausada, a
+    -- fila não pega a prioridade 9 (a contagem e a carga); o que a venda, a
+    -- cascata e a conferência da madrugada pedem continua passando
+    update public.plt_tiny_controle
+       set carga_pausada = (p_acao = 'pausar'), atualizado_em = now()
+     where id = 1 and carga_pausada is distinct from (p_acao = 'pausar');
     get diagnostics v_n = row_count;
   else
     raise exception 'Ação desconhecida: %', p_acao using errcode = 'invalid_parameter_value';
@@ -482,12 +493,13 @@ begin
   if p_acao in ('contar', 'carregar', 'retomar') and v_n > 0 then
     perform plt_privado.fn_tiny_fila_acordar();
   end if;
-  return jsonb_build_object('acao', p_acao, 'rodada', v_rodada, 'linhas', v_n);
+  return jsonb_build_object('acao', p_acao, 'rodada', v_rodada, 'linhas', v_n,
+                            'pausada', (select c.carga_pausada from public.plt_tiny_controle c where c.id = 1));
 end;
 $$;
 
 comment on function public.plt_fn_tiny_carga(text) is
-  'SESSAO-33 (D-142/D-143): o gesto do dono na Auditoria → Carga do Tiny. contar = pergunta ao Tiny quantos há (1ª e última página de cada busca; a loja mês a mês desde 2025 nos pedidos, notas e contas a receber); carregar = traz tudo o que falta, com a prioridade mais baixa da fila (a venda, a cascata e a conferência passam na frente) — loja: clientes alterados desde 08/09 + os sem cadastro, notas desde 09/2026 + as que algum pedido aponta, catálogo; fábrica: pedidos, notas, contas a receber, contatos, a estrutura de cada fabricado e o estoque de cada produto; as duas: contas a pagar mês a mês desde 2025 + antes, vendedores, formas, listas de preço, categorias, dados da empresa e, com a API nova, depósitos, categorias financeiras, formas de pagamento, marcas e pedidos de compra; pausar/retomar. Só o super admin.';
+  'SESSAO-33 (D-142/D-143): o gesto do dono na Auditoria → Carga do Tiny. contar = pergunta ao Tiny quantos há (1ª e última página de cada busca; a loja mês a mês desde 2025 nos pedidos, notas e contas a receber); carregar = traz tudo o que falta, com a prioridade mais baixa da fila (a venda, a cascata e a conferência passam na frente) — loja: clientes alterados desde 08/09 + os sem cadastro, notas desde 09/2026 + as que algum pedido aponta, catálogo; fábrica: pedidos, notas, contas a receber, contatos, a estrutura de cada fabricado e o estoque de cada produto; as duas: contas a pagar mês a mês desde 2025 + antes, vendedores, formas, listas de preço, categorias, dados da empresa e, com a API nova, depósitos, categorias financeiras, formas de pagamento, marcas e pedidos de compra — as listas grandes numa instrução só; pausar/retomar = o interruptor (a fila deixa de pegar a prioridade 9, sem mexer nas linhas — Lei §7). Só o super admin.';
 
 -- ----------------------------------------------------------------------------
 -- 5 · A conferência: bateu com o Tiny? (uma requisição — a aba da Auditoria)
@@ -499,9 +511,13 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
+-- Lei §6 (ensaio ×100): o painel só LÊ o que já está pronto — a contagem traz o
+-- "quantos aqui" de quando chegou; o andamento da carga vem das contas mantidas
+-- pelos gatilhos da fila; as somas das contas a pagar, do resumo do mês; os
+-- números da fila agora param em 10 mil (a tela mostra "mais de 10 mil").
 declare
-  v_censo  text;
-  v_carga  text;
+  v_ctl    public.plt_tiny_controle;
+  v_teto   smallint := plt_privado.fn_tiny_fila_teto();
   v_linhas jsonb;
   v_carga_resumo jsonb;
   v_somas  jsonb;
@@ -515,22 +531,19 @@ begin
     raise exception 'A carga do Tiny é do super admin.' using errcode = 'insufficient_privilege';
   end if;
 
-  -- a contagem e a carga mais recentes: a última linha posta (não o maior rótulo)
-  select f.params->>'censo' into v_censo from public.tiny_fila f
-   where f.params ? 'censo' order by f.criado_em desc, f.id desc limit 1;
-  select f.params->>'carga' into v_carga from public.tiny_fila f
-   where f.params ? 'carga' order by f.criado_em desc, f.id desc limit 1;
+  select * into v_ctl from public.plt_tiny_controle c where c.id = 1;
 
   -- quantos no Tiny × quantos aqui, por janela da contagem mais recente
   with janelas as (
     select f.conta, f.recurso, f.params->>'janela' as janela, f.referencia as rotulo, f.status, f.params
       from public.tiny_fila f
-     where f.params->>'censo' = v_censo
+     where f.params ? 'censo' and f.params->>'censo' = v_ctl.ultima_contagem
        and not coalesce((f.params->>'ultima')::boolean, false)
   ), ultimas as (
     select f.conta, f.recurso, f.params->>'janela' as janela, f.status, (f.params->>'registros')::integer as registros
       from public.tiny_fila f
-     where f.params->>'censo' = v_censo and coalesce((f.params->>'ultima')::boolean, false)
+     where f.params ? 'censo' and f.params->>'censo' = v_ctl.ultima_contagem
+       and coalesce((f.params->>'ultima')::boolean, false)
   ), contas as (
     select j.*,
            case
@@ -539,8 +552,7 @@ begin
              when coalesce((j.params->>'numero_paginas')::integer, 1) <= 1 then (j.params->>'registros')::integer
              when u.status = 'ok' then ((j.params->>'numero_paginas')::integer - 1) * 100 + u.registros
            end as tiny,
-           to_date(coalesce(j.params->>'dataInicial', j.params->>'data_ini_emissao'), 'DD/MM/YYYY') as ini,
-           to_date(coalesce(j.params->>'dataFinal', j.params->>'data_fim_emissao'), 'DD/MM/YYYY') as fim
+           coalesce(to_date(coalesce(j.params->>'dataInicial', j.params->>'data_ini_emissao'), 'DD/MM/YYYY'), date '2015-01-01') as ini
       from janelas j
       left join ultimas u on u.conta = j.conta and u.recurso = j.recurso and u.janela = j.janela
   )
@@ -548,89 +560,86 @@ begin
            'conta', c.conta, 'recurso', c.recurso,
            'rotulo', (select x.rotulo from plt_privado.fn_tiny_recursos() x where x.recurso = c.recurso),
            'janela', c.rotulo, 'tiny', c.tiny,
-           'aqui', case
-             when c.conta = 'loja' and c.recurso = 'pedidos_pesquisa' then
-               (select count(*) from public.pedidos p
-                 where p.data_pedido between c.ini and c.fim
-                   and not exists (select 1 from public.plt_pedidos_excluidos_tiny x where x.pedido_id = p.id))
-             when c.conta = 'loja' and c.recurso = 'nf_pesquisa' then
-               (select count(*) from public.notas_fiscais n where n.data_emissao between c.ini and c.fim)
-             when c.conta = 'loja' and c.recurso = 'cr_pesquisa' then
-               (select count(*) from public.contas_receber cr where cr.data_emissao between c.ini and c.fim)
-             when c.conta = 'loja' and c.recurso = 'contatos_pesquisa' then
-               (select count(*) from public.clientes cl where cl.tiny_id_contato is not null)
-             when c.conta = 'fabrica' and c.recurso = 'produtos_pesquisa' then
-               (select count(*) from public.produtos)
-             else
-               (select count(*) from public.plt_tiny_registros t
-                 where t.conta = c.conta
-                   and t.tipo = (select coalesce(d.registro, x.registro)
-                                   from plt_privado.fn_tiny_recursos() x
-                                   left join plt_privado.fn_tiny_recursos() d on d.recurso = x.detalhe
-                                  where x.recurso = c.recurso))
-           end,
+           'aqui', (c.params->>'aqui')::bigint,
            'lido', c.status = 'ok')
-         order by c.conta, c.recurso, c.ini nulls first), '[]'::jsonb)
+         order by c.conta, c.recurso, c.ini), '[]'::jsonb)
     into v_linhas
     from contas c;
 
-  -- o andamento da carga mais recente, por tipo de dado
+  -- o andamento da carga mais recente, por tipo de dado (as contas prontas)
   select coalesce(jsonb_agg(jsonb_build_object(
            'conta', g.conta, 'recurso', g.recurso,
            'rotulo', (select x.rotulo from plt_privado.fn_tiny_recursos() x where x.recurso = g.recurso),
-           'pendentes', g.pendentes, 'esperando', g.esperando, 'pausados', g.pausados,
-           'lidos', g.lidos, 'nao_existem', g.vazios, 'erros', g.erros)
+           'pendentes', g.pendentes, 'em_andamento', g.em_andamento, 'lidos', g.lidos,
+           'nao_existem', g.vazios, 'erros', g.erros)
          order by g.conta, g.recurso), '[]'::jsonb)
     into v_carga_resumo
-    from (select f.conta, f.recurso,
-                 count(*) filter (where f.status in ('pendente', 'processando') and (f.nao_antes is null or f.nao_antes <= now())) as pendentes,
-                 count(*) filter (where f.status = 'pendente' and f.nao_antes > now() and f.nao_antes <> 'infinity') as esperando,
-                 count(*) filter (where f.status = 'pendente' and f.nao_antes = 'infinity') as pausados,
-                 count(*) filter (where f.status = 'ok') as lidos,
-                 count(*) filter (where f.status = 'vazio') as vazios,
-                 count(*) filter (where f.status = 'erro') as erros
-            from public.tiny_fila f
-           where f.params->>'carga' = v_carga
-           group by f.conta, f.recurso) g;
+    from (select c.conta, c.recurso,
+                 coalesce(sum(c.n) filter (where c.status = 'pendente'), 0) as pendentes,
+                 coalesce(sum(c.n) filter (where c.status = 'processando'), 0) as em_andamento,
+                 coalesce(sum(c.n) filter (where c.status = 'ok'), 0) as lidos,
+                 coalesce(sum(c.n) filter (where c.status = 'vazio'), 0) as vazios,
+                 coalesce(sum(c.n) filter (where c.status = 'erro'), 0) as erros
+            from public.plt_tiny_carga_contagem c
+           where c.rodada = v_ctl.ultima_carga
+           group by c.conta, c.recurso) g;
 
-  -- as somas do que a carga leu (contas a pagar, mês a mês): no Tiny (a lista
-  -- da busca) × aqui (o detalhe guardado)
+  -- as somas das contas a pagar, mês a mês: no Tiny (as páginas que a carga
+  -- leu) × aqui (o resumo do mês dos registros guardados)
   with paginas as (
-    select f.conta, f.recurso, regexp_replace(f.params->>'janela', ':p[0-9]+$', '') as janela,
+    select f.conta, regexp_replace(f.params->>'janela', ':p[0-9]+$', '') as janela,
            max(f.referencia) as rotulo,
            to_date(max(f.params->>'data_ini_emissao'), 'DD/MM/YYYY') as ini,
            to_date(max(f.params->>'data_fim_emissao'), 'DD/MM/YYYY') as fim,
            sum((f.params->>'soma')::numeric) as tiny,
            bool_and(f.status = 'ok') as lido
       from public.tiny_fila f
-     where f.params->>'carga' = v_carga and f.recurso = 'cp_pesquisa'
-     group by 1, 2, 3
+     where f.recurso = 'cp_pesquisa' and f.params ? 'carga' and f.params->>'carga' = v_ctl.ultima_carga
+     group by 1, 2
   )
   select coalesce(jsonb_agg(jsonb_build_object(
-           'conta', p.conta, 'recurso', p.recurso, 'janela', p.rotulo, 'tiny', p.tiny, 'lido', p.lido,
-           'aqui', (select coalesce(sum(plt_privado.fn_tiny_numero(t.raw->>'valor')), 0)
-                      from public.plt_tiny_registros t
-                     where t.conta = p.conta and t.tipo = 'conta_pagar'
-                       and to_date(nullif(t.raw->>'data', ''), 'DD/MM/YYYY') between p.ini and p.fim))
+           'conta', p.conta, 'recurso', 'cp_pesquisa', 'janela', p.rotulo, 'tiny', p.tiny, 'lido', p.lido,
+           'aqui', (select coalesce(sum(m.soma), 0) from public.plt_tiny_registros_mes m
+                     where m.conta = p.conta and m.tipo = 'conta_pagar'
+                       and m.mes between date_trunc('month', p.ini)::date and p.fim))
          order by p.conta, p.ini nulls first), '[]'::jsonb)
     into v_somas
     from paginas p;
 
-  select jsonb_build_object(
-           'pendentes',  count(*) filter (where f.status = 'pendente' and (f.nao_antes is null or f.nao_antes <= now())),
-           'esperando',  count(*) filter (where f.status = 'pendente' and f.nao_antes > now() and f.nao_antes <> 'infinity'),
-           'pausados',   count(*) filter (where f.status = 'pendente' and f.nao_antes = 'infinity'),
-           'em_andamento', count(*) filter (where f.status = 'processando'),
-           'erros',      count(*) filter (where f.status = 'erro'))
-    into v_fila
-    from public.tiny_fila f
-   where f.status in ('pendente', 'processando', 'erro');
+  -- a fila agora (cada número para em 10 mil — o índice não varre o resto)
+  -- (conta a conta, na ordem do índice: com a carga pausada, a contagem do que
+  -- passa para no fim da prioridade 8)
+  v_fila := jsonb_build_object(
+    'pendentes', least(10000,
+                   (select count(*) from (select 1 from public.tiny_fila f
+                      where f.conta = 'loja' and f.status = 'pendente' and f.prioridade <= v_teto
+                        and (f.nao_antes is null or f.nao_antes <= now())
+                      order by f.prioridade, f.id limit 10000) x)
+                 + (select count(*) from (select 1 from public.tiny_fila f
+                      where f.conta = 'fabrica' and f.status = 'pendente' and f.prioridade <= v_teto
+                        and (f.nao_antes is null or f.nao_antes <= now())
+                      order by f.prioridade, f.id limit 10000) x)),
+    'esperando', (select count(*) from (select 1 from public.tiny_fila f
+                    where f.status = 'pendente' and f.nao_antes is not null and f.nao_antes > now()
+                      and f.prioridade <= v_teto limit 10000) x),
+    'pausados', case when v_ctl.carga_pausada
+                     then least(10000,
+                            (select count(*) from (select 1 from public.tiny_fila f
+                               where f.conta = 'loja' and f.status = 'pendente' and f.prioridade = 9
+                               order by f.prioridade, f.id limit 10000) x)
+                          + (select count(*) from (select 1 from public.tiny_fila f
+                               where f.conta = 'fabrica' and f.status = 'pendente' and f.prioridade = 9
+                               order by f.prioridade, f.id limit 10000) x))
+                     else 0 end,
+    'em_andamento', (select count(*) from public.tiny_fila f where f.status = 'processando'),
+    'erros', (select count(*) from (select 1 from public.tiny_fila f where f.status = 'erro' limit 10000) x),
+    'teto', 10000);
 
   select coalesce(jsonb_agg(jsonb_build_object(
            'conta', e.conta, 'recurso', e.recurso,
            'rotulo', (select x.rotulo from plt_privado.fn_tiny_recursos() x where x.recurso = e.recurso),
            'referencia', coalesce(e.referencia, e.chave), 'erro', e.erro, 'quando', e.processado_em)
-         order by e.processado_em desc), '[]'::jsonb)
+         order by e.processado_em desc nulls last), '[]'::jsonb)
     into v_erros
     from (select * from public.tiny_fila f where f.status = 'erro'
            order by f.processado_em desc nulls last limit 10) e;
@@ -642,7 +651,12 @@ begin
   v_mud := jsonb_build_object(
     'ligada', v_ligada,
     'ultima', (select max(f.processado_em) from public.tiny_fila f
-                where f.chave like 'mudancas:%' and f.status = 'ok'));
+                where f.status = 'ok'
+                  and (f.conta, f.recurso, f.chave) in (
+                        ('loja', 'contatos_pesquisa', 'mudancas:contatos_pesquisa'),
+                        ('fabrica', 'contatos_pesquisa', 'mudancas:contatos_pesquisa'),
+                        ('loja', 'v3_produtos_alterados', 'mudancas:v3_produtos_alterados'),
+                        ('fabrica', 'v3_produtos_alterados', 'mudancas:v3_produtos_alterados'))));
 
   v_api := jsonb_build_object(
     'loja',    jsonb_build_object('ligada', plt_privado.fn_tiny_api_nova_ligada('loja'),
@@ -651,8 +665,9 @@ begin
                                   'renovada_em', (select a.updated_at from public.tiny_auth a where a.id = 2)));
 
   return jsonb_build_object(
-    'censo',    jsonb_build_object('rodada', v_censo, 'linhas', v_linhas),
-    'carga',    jsonb_build_object('rodada', v_carga, 'por_recurso', v_carga_resumo, 'somas', v_somas),
+    'censo',    jsonb_build_object('rodada', v_ctl.ultima_contagem, 'linhas', v_linhas),
+    'carga',    jsonb_build_object('rodada', v_ctl.ultima_carga, 'por_recurso', v_carga_resumo, 'somas', v_somas),
+    'pausada',  coalesce(v_ctl.carga_pausada, false),
     'fila',     v_fila,
     'erros',    v_erros,
     'mudancas', v_mud,
@@ -701,14 +716,30 @@ begin
     v_resumo := plt_privado.fn_tiny_pente_fino_resumir(v_busca->>'rodada', 'concluida');
   end if;
 
-  if exists (select 1 from public.tiny_fila f where f.status = 'pendente' and f.tentativas < 4)
-     or exists (select 1 from public.tiny_fila f where f.status = 'processando') then
+  -- há o que pegar agora: chama o n8n
+  if plt_privado.fn_tiny_fila_precisa_chamar() then
     begin
       v_chamada := plt_privado.fn_tiny_fila_chamar_n8n();
     exception when others then
       v_chamada := 'erro: ' || left(sqlerrm, 200);
     end;
     return jsonb_build_object('n8n', v_chamada, 'fila', 'com_trabalho', 'resumo', v_resumo is not null);
+  end if;
+  -- nada para pegar agora, mas ainda há o que esperar (uma nova tentativa
+  -- marcada, o lote em andamento, a fábrica na madrugada dela): o relógio fica,
+  -- sem chamar ninguém. A carga pausada NÃO segura o relógio — "Retomar" acorda.
+  -- (tudo pelos índices: as que esperam são poucas — Lei §7.2)
+  if exists (select 1 from public.tiny_fila f
+              where f.status = 'pendente' and f.nao_antes is not null and f.nao_antes > now()
+                and f.tentativas < 4 and f.prioridade <= plt_privado.fn_tiny_fila_teto())
+     or exists (select 1 from public.tiny_fila f where f.status = 'processando')
+     or (plt_privado.fn_tiny_fabrica_em_varredura()
+         and exists (select 1 from (select f.id from public.tiny_fila f
+                                     where f.conta = 'fabrica' and f.status = 'pendente'
+                                       and f.prioridade <= plt_privado.fn_tiny_fila_teto() and f.tentativas < 4
+                                     order by f.prioridade, f.id
+                                     limit 1) x)) then
+    return jsonb_build_object('n8n', 'nada_a_fazer', 'fila', 'com_trabalho', 'resumo', v_resumo is not null);
   end if;
 
   -- nada na fila: o relógio se desliga
@@ -723,6 +754,40 @@ begin
 end;
 $function$;
 
+-- a chamada ao n8n (migration 49), com o número de pendentes que vai junto
+-- parando em mil — antes contava a fila inteira a cada chamada (Lei §7.2)
+create or replace function plt_privado.fn_tiny_fila_chamar_n8n()
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_url       text;
+  v_pendentes integer;
+begin
+  if not plt_privado.fn_tiny_fila_precisa_chamar() then
+    return 'nada_a_fazer';
+  end if;
+  select w.url into v_url from public.plt_webhooks w
+   where w.ativo and 'tiny_fila' = any (w.eventos)
+   order by w.id limit 1;
+  if v_url is null then
+    return 'sem_endereco';
+  end if;
+  if to_regproc('net.http_post') is null then
+    return 'sem_pg_net';   -- ambiente de teste
+  end if;
+  select count(*) into v_pendentes
+    from (select 1 from public.tiny_fila f where f.status = 'pendente' limit 1000) x;
+  perform net.http_post(
+    url     := v_url,
+    body    := jsonb_build_object('motivo', 'fila_do_tiny', 'pendentes', v_pendentes, 'em', now()),
+    headers := jsonb_build_object('Content-Type', 'application/json'));
+  return 'chamado';
+end;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 7 · Permissões
 -- ----------------------------------------------------------------------------
@@ -733,6 +798,7 @@ revoke all on function plt_privado.fn_tiny_janelas(date) from public, anon, auth
 revoke all on function plt_privado.fn_tiny_enfileirar_janelas(text, text, date, text, text, text, text, jsonb, boolean) from public, anon, authenticated;
 revoke all on function plt_privado.fn_tiny_api_nova_ligada(text) from public, anon, authenticated;
 revoke all on function plt_privado.fn_tiny_fila_relogio() from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_fila_chamar_n8n() from public, anon, authenticated;
 
 revoke all on function public.plt_fn_tiny_aviso(jsonb) from public, anon, authenticated;
 revoke all on function public.plt_fn_tiny_mudancas_ligar(boolean) from public, anon;

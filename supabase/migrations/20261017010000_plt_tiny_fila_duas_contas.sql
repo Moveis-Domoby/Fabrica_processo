@@ -88,9 +88,25 @@ create unique index if not exists tiny_fila_conta_chave_uq
   on public.tiny_fila (conta, recurso, chave);
 alter table public.tiny_fila drop constraint if exists tiny_fila_chave_uq;
 
--- a contagem e a carga leem as suas linhas sem varrer a fila (Lei §7.2)
-create index if not exists tiny_fila_censo_idx on public.tiny_fila ((params->>'censo')) where params ? 'censo';
-create index if not exists tiny_fila_carga_idx on public.tiny_fila ((params->>'carga')) where params ? 'carga';
+-- o trabalho conta a conta, na ordem da vez: o lote e o "tem trabalho?" andam
+-- no índice — a fábrica fica de fora inteira na madrugada dela e a carga
+-- pausada (a prioridade 9) fica fora pelo teto, sem varrer o que espera (Lei
+-- §7.2; ensaio ×100 com 3 milhões de linhas da carga na fila)
+create index if not exists tiny_fila_trabalho_conta_idx
+  on public.tiny_fila (conta, prioridade, id) where status = 'pendente';
+drop index if exists public.tiny_fila_trabalho_idx;  -- o de antes, sem a conta
+-- os últimos erros e as páginas das contas a pagar da carga (as somas mês a
+-- mês) sem varrer a fila; a contagem lê as suas linhas pelo próprio índice
+create index if not exists tiny_fila_erro_idx
+  on public.tiny_fila (processado_em desc nulls last) where status = 'erro';
+-- as que esperam a nova tentativa (poucas): o relógio sabe se ainda há o que
+-- esperar sem varrer a fila
+create index if not exists tiny_fila_espera_idx
+  on public.tiny_fila (nao_antes) where status = 'pendente' and nao_antes is not null;
+create index if not exists tiny_fila_cp_carga_idx
+  on public.tiny_fila ((params->>'carga')) where recurso = 'cp_pesquisa' and params ? 'carga';
+create index if not exists tiny_fila_censo_idx
+  on public.tiny_fila ((params->>'censo')) where params ? 'censo';
 
 -- ----------------------------------------------------------------------------
 -- 2 · Onde mora o que não tem casa: plt_tiny_registros (uma tabela só — D-47)
@@ -114,6 +130,152 @@ comment on column public.plt_tiny_registros.gravado_em is
 
 alter table public.plt_tiny_registros enable row level security;
 revoke all on public.plt_tiny_registros from public, anon, authenticated;
+
+-- o resumo do mês do que tem data e valor (as contas a pagar), mantido no mesmo
+-- gesto que grava o registro (fn_tiny_registrar): o painel da carga confere as
+-- somas mês a mês sem varrer os registros (Lei §6 — projeção para leitura)
+create table if not exists public.plt_tiny_registros_mes (
+  conta text    not null,
+  tipo  text    not null,
+  mes   date    not null,
+  n     bigint  not null default 0,
+  soma  numeric not null default 0,
+  primary key (conta, tipo, mes)
+);
+
+comment on table public.plt_tiny_registros_mes is
+  'SESSAO-33 (Lei de desempenho §6): quantos registros e quanto somam, por conta, tipo e mês (pela data do registro) — hoje só as contas a pagar. Mantido por fn_tiny_registrar no mesmo gesto (entra o novo, sai o antigo quando o Tiny mudou o registro). Lido pelo painel da carga ("bateu com o Tiny?").';
+
+alter table public.plt_tiny_registros_mes enable row level security;
+revoke all on public.plt_tiny_registros_mes from public, anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 2b · A carga do dono: o interruptor e as contas prontas (Lei §6/§7 — ensaio
+--      ×100: pausar 3 milhões de linhas uma a uma estourava o tempo da
+--      requisição; contar o andamento a cada abertura do painel também)
+-- ----------------------------------------------------------------------------
+create table if not exists public.plt_tiny_controle (
+  id              smallint primary key default 1 check (id = 1),
+  carga_pausada   boolean not null default false,
+  ultima_contagem text,
+  ultima_carga    text,
+  atualizado_em   timestamptz not null default now()
+);
+insert into public.plt_tiny_controle (id) values (1) on conflict (id) do nothing;
+
+comment on table public.plt_tiny_controle is
+  'SESSAO-33: uma linha só. carga_pausada = o gesto "Pausar" do dono — a fila deixa de pegar a prioridade 9 (a contagem e a carga; o que a venda e a conferência pedem sempre passa), sem mexer em linha nenhuma da fila. ultima_contagem/ultima_carga = a rodada mais recente de cada gesto (o painel lê por aqui).';
+
+alter table public.plt_tiny_controle enable row level security;
+revoke all on public.plt_tiny_controle from public, anon, authenticated;
+
+create table if not exists public.plt_tiny_carga_contagem (
+  rodada  text   not null,
+  conta   text   not null,
+  recurso text   not null,
+  status  text   not null,
+  n       bigint not null default 0,
+  primary key (rodada, conta, recurso, status)
+);
+
+comment on table public.plt_tiny_carga_contagem is
+  'SESSAO-33 (Lei de desempenho §6): quantas linhas de cada rodada da carga estão em cada situação, por conta e tipo de dado — mantido pelos gatilhos da tiny_fila no mesmo gesto (entra, muda de situação, sai). O painel da carga lê daqui em vez de contar a fila.';
+
+alter table public.plt_tiny_carga_contagem enable row level security;
+revoke all on public.plt_tiny_carga_contagem from public, anon, authenticated;
+
+-- a prioridade mais alta que a fila pega agora: 9 (tudo) ou 8 (carga pausada)
+create or replace function plt_privado.fn_tiny_fila_teto()
+returns smallint
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select case when coalesce((select c.carga_pausada from public.plt_tiny_controle c where c.id = 1), false)
+              then 8 else 9 end::smallint
+$$;
+
+-- as contas da carga, no mesmo gesto que mexe na fila
+create or replace function plt_privado.fn_tiny_carga_contar_novos()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  insert into public.plt_tiny_carga_contagem as c (rodada, conta, recurso, status, n)
+  select x.params->>'carga', x.conta, x.recurso, x.status, count(*)
+    from novos x
+   where x.params ? 'carga'
+   group by 1, 2, 3, 4
+  on conflict (rodada, conta, recurso, status) do update set n = c.n + excluded.n;
+  return null;
+end;
+$$;
+
+create or replace function plt_privado.fn_tiny_carga_contar_mudanca()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if old.params ? 'carga' then
+    update public.plt_tiny_carga_contagem c
+       set n = c.n - 1
+     where c.rodada = old.params->>'carga' and c.conta = old.conta
+       and c.recurso = old.recurso and c.status = old.status;
+  end if;
+  if new.params ? 'carga' then
+    insert into public.plt_tiny_carga_contagem as c (rodada, conta, recurso, status, n)
+    values (new.params->>'carga', new.conta, new.recurso, new.status, 1)
+    on conflict (rodada, conta, recurso, status) do update set n = c.n + 1;
+  end if;
+  return null;
+end;
+$$;
+
+create or replace function plt_privado.fn_tiny_carga_contar_apagados()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  update public.plt_tiny_carga_contagem c
+     set n = c.n - x.k
+    from (select v.params->>'carga' as rodada, v.conta, v.recurso, v.status, count(*) as k
+            from velhos v
+           where v.params ? 'carga'
+           group by 1, 2, 3, 4) x
+   where c.rodada = x.rodada and c.conta = x.conta and c.recurso = x.recurso and c.status = x.status;
+  return null;
+end;
+$$;
+
+drop trigger if exists plt_tiny_fila_carga_novos on public.tiny_fila;
+create trigger plt_tiny_fila_carga_novos
+  after insert on public.tiny_fila
+  referencing new table as novos
+  for each statement execute function plt_privado.fn_tiny_carga_contar_novos();
+
+drop trigger if exists plt_tiny_fila_carga_mudanca on public.tiny_fila;
+create trigger plt_tiny_fila_carga_mudanca
+  after update on public.tiny_fila
+  for each row
+  when ((old.params ? 'carga' or new.params ? 'carga')
+        and (old.status is distinct from new.status
+             or (old.params->>'carga') is distinct from (new.params->>'carga')
+             or old.conta is distinct from new.conta
+             or old.recurso is distinct from new.recurso))
+  execute function plt_privado.fn_tiny_carga_contar_mudanca();
+
+drop trigger if exists plt_tiny_fila_carga_apagados on public.tiny_fila;
+create trigger plt_tiny_fila_carga_apagados
+  after delete on public.tiny_fila
+  referencing old table as velhos
+  for each statement execute function plt_privado.fn_tiny_carga_contar_apagados();
 
 -- ----------------------------------------------------------------------------
 -- 3 · A estrutura dos móveis: plt_produto_componentes (móvel → peças → insumos)
@@ -203,7 +365,7 @@ as $$
          - array['janela', 'rodada', 'motivo', 'inicio', 'censo', 'carga', 'reabrir',
                  'origem', 'registros', 'soma', 'resumo_em', 'numero_paginas', 'ultima',
                  'mudanca', 'desde', 'limite_n', 'total', 'pedido', 'mudou', 'nova',
-                 'situacao_antes']::text[]
+                 'situacao_antes', 'aqui', 'aqui_em']::text[]
 $$;
 
 -- a chamada pronta de uma linha (o n8n só junta o token da conta e manda)
@@ -300,18 +462,107 @@ begin
 end;
 $$;
 
-create or replace function plt_privado.fn_tiny_registrar(
-  p_conta text, p_tipo text, p_chave text, p_raw jsonb)
-returns void
-language sql
+-- o mesmo, para muitas linhas numa instrução só (a carga — Lei §7: uma linha
+-- por vez, à mão, estoura o tempo da requisição com o catálogo ×100).
+-- p_linhas: [{conta, recurso, chave, referencia, prioridade, params}, …]
+create or replace function plt_privado.fn_tiny_enfileirar_varios(
+  p_linhas jsonb, p_reabrir boolean default true)
+returns integer
+language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v integer;
+begin
+  insert into public.tiny_fila as f (conta, recurso, chave, referencia, prioridade, params)
+  select distinct on (x.conta, x.recurso, trim(x.chave))
+         x.conta, x.recurso, trim(x.chave), nullif(trim(coalesce(x.referencia, '')), ''),
+         coalesce(x.prioridade, 5)::smallint, coalesce(x.params, '{}'::jsonb)
+    from jsonb_to_recordset(coalesce(p_linhas, '[]'::jsonb))
+           as x(conta text, recurso text, chave text, referencia text, prioridade integer, params jsonb)
+   where nullif(trim(coalesce(x.chave, '')), '') is not null
+   order by x.conta, x.recurso, trim(x.chave)
+  on conflict (conta, recurso, chave) do update
+     set status        = 'pendente',
+         tentativas    = 0,
+         erro          = null,
+         reservado_em  = null,
+         processado_em = null,
+         nao_antes     = null,
+         referencia    = coalesce(excluded.referencia, f.referencia),
+         prioridade    = least(f.prioridade, excluded.prioridade),
+         params        = excluded.params
+   where p_reabrir and f.status <> 'processando';
+  get diagnostics v = row_count;
+  return v;
+end;
+$$;
+
+-- o resumo do mês (plt_tiny_registros_mes): soma (p_sinal = 1) ou tira (-1) um
+-- registro do mês da data dele; data que não é data não entra (nunca derruba a
+-- gravação do registro)
+create or replace function plt_privado.fn_tiny_registros_mes_somar(
+  p_conta text, p_tipo text, p_raw jsonb, p_sinal integer)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_mes date;
+begin
+  if coalesce(p_raw->>'data', '') !~ '^\d{2}/\d{2}/\d{4}$' then
+    return;
+  end if;
+  begin
+    v_mes := date_trunc('month', to_date(p_raw->>'data', 'DD/MM/YYYY'))::date;
+  exception when others then
+    return;
+  end;
+  insert into public.plt_tiny_registros_mes as m (conta, tipo, mes, n, soma)
+  values (p_conta, p_tipo, v_mes, p_sinal,
+          p_sinal * coalesce(plt_privado.fn_tiny_numero(p_raw->>'valor'), 0))
+  on conflict (conta, tipo, mes) do update
+     set n = m.n + excluded.n, soma = m.soma + excluded.soma;
+end;
+$$;
+
+create or replace function plt_privado.fn_tiny_registrar(
+  p_conta text, p_tipo text, p_chave text, p_raw jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_hash  text := md5(p_raw::text);
+  v_velho public.plt_tiny_registros;
+begin
+  if p_tipo <> 'conta_pagar' then
+    insert into public.plt_tiny_registros as t (conta, tipo, chave, raw, hash)
+    values (p_conta, p_tipo, p_chave, p_raw, v_hash)
+    on conflict (conta, tipo, chave) do update
+       set raw = excluded.raw, hash = excluded.hash, gravado_em = now()
+     where t.hash is distinct from excluded.hash;
+    return;
+  end if;
+  -- as contas a pagar levam o resumo do mês junto (sai o antigo, entra o novo)
+  select * into v_velho from public.plt_tiny_registros t
+   where t.conta = p_conta and t.tipo = p_tipo and t.chave = p_chave
+     for update;
+  if found and v_velho.hash = v_hash then
+    return;
+  end if;
   insert into public.plt_tiny_registros as t (conta, tipo, chave, raw, hash)
-  values (p_conta, p_tipo, p_chave, p_raw, md5(p_raw::text))
+  values (p_conta, p_tipo, p_chave, p_raw, v_hash)
   on conflict (conta, tipo, chave) do update
-     set raw = excluded.raw, hash = excluded.hash, gravado_em = now()
-   where t.hash is distinct from excluded.hash
+     set raw = excluded.raw, hash = excluded.hash, gravado_em = now();
+  if v_velho.chave is not null then
+    perform plt_privado.fn_tiny_registros_mes_somar(p_conta, p_tipo, v_velho.raw, -1);
+  end if;
+  perform plt_privado.fn_tiny_registros_mes_somar(p_conta, p_tipo, p_raw, 1);
+end;
 $$;
 
 -- o alerta (P1): uma linha na Auditoria SEMPRE; o aviso no sino do dono só se
@@ -522,7 +773,10 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_lote jsonb;
+  v_lote    jsonb;
+  v_lim     integer;
+  v_teto    smallint;
+  v_fabrica boolean;
 begin
   -- o lote que travou (pego há mais de 15 min) volta para a fila
   update public.tiny_fila f
@@ -530,14 +784,32 @@ begin
    where f.status = 'processando'
      and f.reservado_em < now() - interval '15 minutes';
 
-  with proximos as (
+  v_lim := least(greatest(coalesce(p_limite, 30), 0), 100);
+  v_teto := plt_privado.fn_tiny_fila_teto();
+  v_fabrica := not plt_privado.fn_tiny_fabrica_em_varredura();
+
+  -- os candidatos de cada conta saem do índice na ordem da vez (a fábrica fica
+  -- de fora inteira na madrugada dela; a carga pausada, pelo teto); depois,
+  -- só os que ninguém pegou no meio do caminho
+  with candidatos as (
+    (select f.id, f.prioridade from public.tiny_fila f
+      where f.conta = 'loja' and f.status = 'pendente' and f.prioridade <= v_teto
+        and f.tentativas < 4 and (f.nao_antes is null or f.nao_antes <= now())
+      order by f.prioridade, f.id
+      limit v_lim)
+    union all
+    (select f.id, f.prioridade from public.tiny_fila f
+      where v_fabrica and f.conta = 'fabrica' and f.status = 'pendente' and f.prioridade <= v_teto
+        and f.tentativas < 4 and (f.nao_antes is null or f.nao_antes <= now())
+      order by f.prioridade, f.id
+      limit v_lim)
+  ), escolhidos as (
+    select c.id from candidatos c order by c.prioridade, c.id limit v_lim
+  ), proximos as (
     select f.id
       from public.tiny_fila f
-     where f.status = 'pendente' and f.tentativas < 4
-       and (f.nao_antes is null or f.nao_antes <= now())
-       and not (f.conta = 'fabrica' and plt_privado.fn_tiny_fabrica_em_varredura())
-     order by f.prioridade, f.id
-     limit least(greatest(coalesce(p_limite, 30), 0), 100)
+     where f.id in (select e.id from escolhidos e)
+       and f.status = 'pendente'
        for update skip locked
   ), reservados as (
     update public.tiny_fila f
@@ -558,6 +830,45 @@ $$;
 
 comment on function public.fn_tiny_fila_lote(integer) is
   'SESSAO-33: o lote do fluxo novo do n8n — reserva até p_limite linhas prontas (pendentes, sem espera, a fábrica fora das varreduras da madrugada dela) e devolve cada uma com a chamada montada: conta, api (v2 | v3), url ou caminho e os campos. O n8n junta o token da conta (v2) ou chama a ponte (v3) e devolve a resposta crua em fn_tiny_fila_resposta.';
+
+-- ----------------------------------------------------------------------------
+-- 7b · "Quantos aqui?" — calculado UMA vez, quando a contagem do Tiny chega
+--      (o painel só lê; Lei §6). Os que vão mês a mês (pedidos, notas e contas
+--      a receber da loja) contam o mês; o resto conta o que já está guardado.
+-- ----------------------------------------------------------------------------
+create or replace function plt_privado.fn_tiny_aqui(p_conta text, p_recurso text, p_ini date, p_fim date)
+returns bigint
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_tipo text;
+begin
+  if p_conta = 'loja' and p_recurso = 'pedidos_pesquisa' and p_ini is not null then
+    return (select count(*) from public.pedidos p
+             where p.data_pedido between p_ini and p_fim
+               and not exists (select 1 from public.plt_pedidos_excluidos_tiny x where x.pedido_id = p.id));
+  elsif p_conta = 'loja' and p_recurso = 'nf_pesquisa' and p_ini is not null then
+    return (select count(*) from public.notas_fiscais n where n.data_emissao between p_ini and p_fim);
+  elsif p_conta = 'loja' and p_recurso = 'cr_pesquisa' and p_ini is not null then
+    return (select count(*) from public.contas_receber cr where cr.data_emissao between p_ini and p_fim);
+  elsif p_conta = 'loja' and p_recurso = 'contatos_pesquisa' then
+    return (select count(*) from public.clientes cl where cl.tiny_id_contato is not null);
+  elsif p_conta = 'fabrica' and p_recurso = 'produtos_pesquisa' then
+    return (select count(*) from public.produtos);
+  end if;
+  select coalesce(d.registro, x.registro) into v_tipo
+    from plt_privado.fn_tiny_recursos() x
+    left join plt_privado.fn_tiny_recursos() d on d.recurso = x.detalhe
+   where x.recurso = p_recurso;
+  if v_tipo is null then
+    return null;
+  end if;
+  return (select count(*) from public.plt_tiny_registros t where t.conta = p_conta and t.tipo = v_tipo);
+end;
+$$;
 
 -- ----------------------------------------------------------------------------
 -- 8 · A resposta: o banco entende o que o Tiny devolveu
@@ -711,6 +1022,13 @@ begin
       update public.tiny_fila
          set status = 'ok', processado_em = now(), erro = null, nao_antes = null,
              params = params || jsonb_build_object('registros', v_n, 'numero_paginas', v_total, 'total', v_tot)
+                      -- o "quantos aqui" do mesmo instante (a 1ª página; a última só completa o total)
+                      || case when coalesce((f.params->>'ultima')::boolean, false) then '{}'::jsonb
+                              else jsonb_build_object('aqui', plt_privado.fn_tiny_aqui(
+                                     f.conta, f.recurso,
+                                     to_date(coalesce(f.params->>'dataInicial', f.params->>'data_ini_emissao'), 'DD/MM/YYYY'),
+                                     to_date(coalesce(f.params->>'dataFinal', f.params->>'data_fim_emissao'), 'DD/MM/YYYY')),
+                                   'aqui_em', now()) end
        where id = f.id;
       return jsonb_build_object('ok', true, 'censo', true, 'registros', v_n, 'paginas', v_total, 'total', v_tot);
     end if;
@@ -821,6 +1139,7 @@ begin
       from public.tiny_fila f
      where f.status = 'pendente' and f.tentativas < 4
        and f.conta = 'loja'
+       and f.prioridade <= plt_privado.fn_tiny_fila_teto()
        and f.recurso = any (array['pedidos_pesquisa', 'pedido', 'contatos_pesquisa', 'contato',
                                   'nf_pesquisa', 'nota_fiscal', 'cr_pesquisa', 'conta_receber'])
        and (f.nao_antes is null or f.nao_antes <= now())
@@ -868,17 +1187,34 @@ $function$;
 -- chamar o n8n só quando há linha que ele PODE pegar agora (a que espera não conta)
 create or replace function plt_privado.fn_tiny_fila_precisa_chamar()
 returns boolean
-language sql
+language plpgsql
 stable security definer
 set search_path to 'public', 'pg_temp'
 as $function$
-  select exists (select 1 from public.tiny_fila f
-                  where f.status = 'pendente' and f.tentativas < 4
-                    and (f.nao_antes is null or f.nao_antes <= now())
-                    and not (f.conta = 'fabrica' and plt_privado.fn_tiny_fabrica_em_varredura()))
-     and not exists (select 1 from public.tiny_fila f
-                      where f.status = 'processando'
-                        and f.reservado_em >= now() - interval '15 minutes');
+-- conta a conta, na ordem do índice (o teto e a madrugada da fábrica resolvidos
+-- uma vez): com a carga pausada, a busca para no fim da prioridade 8 em vez de
+-- varrer as linhas da carga (ensaio ×100)
+declare
+  v_teto    smallint := plt_privado.fn_tiny_fila_teto();
+  v_fabrica boolean  := not plt_privado.fn_tiny_fabrica_em_varredura();
+begin
+  if exists (select 1 from public.tiny_fila f
+              where f.status = 'processando'
+                and f.reservado_em >= now() - interval '15 minutes') then
+    return false;
+  end if;
+  return exists (select 1 from (select f.id from public.tiny_fila f
+                                 where f.conta = 'loja' and f.status = 'pendente' and f.prioridade <= v_teto
+                                   and f.tentativas < 4 and (f.nao_antes is null or f.nao_antes <= now())
+                                 order by f.prioridade, f.id
+                                 limit 1) x)
+      or (v_fabrica
+          and exists (select 1 from (select f.id from public.tiny_fila f
+                                      where f.conta = 'fabrica' and f.status = 'pendente' and f.prioridade <= v_teto
+                                        and f.tentativas < 4 and (f.nao_antes is null or f.nao_antes <= now())
+                                      order by f.prioridade, f.id
+                                      limit 1) x));
+end;
 $function$;
 
 -- as funções de sempre, recriadas a partir das versões vivas (migration 64)
@@ -1278,6 +1614,13 @@ revoke all on function plt_privado.fn_tiny_v2_lista(jsonb) from public, anon, au
 revoke all on function plt_privado.fn_tiny_v2_detalhe(jsonb) from public, anon, authenticated;
 revoke all on function plt_privado.fn_tiny_estrutura_gravar(text, bigint, jsonb) from public, anon, authenticated;
 revoke all on function plt_privado.fn_tiny_fila_precisa_chamar() from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_fila_teto() from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_carga_contar_novos() from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_carga_contar_mudanca() from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_carga_contar_apagados() from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_registros_mes_somar(text, text, jsonb, integer) from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_enfileirar_varios(jsonb, boolean) from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_aqui(text, text, date, date) from public, anon, authenticated;
 
 revoke all on function public.fn_tiny_fila_lote(integer) from public, anon, authenticated;
 revoke all on function public.fn_tiny_fila_resposta(bigint, jsonb) from public, anon, authenticated;
