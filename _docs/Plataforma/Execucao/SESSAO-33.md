@@ -120,3 +120,25 @@ Enquanto isso: o §1 e o inventário do que já temos (banco e n8n) — este, pe
 10. **Ritmo:** 1 chamada a cada 2 s (≤ 30/min — metade da cota de uma conta), a conferência e a cascata passam na frente da carga, a fábrica não roda nas varreduras da madrugada dela; carga começa quando o dono mandar.
 
 **Para o dono decidir:** o ritmo do que o Tiny não avisa (de hora em hora × só de madrugada); a baixa por etapa (agora × próxima; por insumo → setor × por móvel e peça); as liberações pendentes (imagem do 13622, rolagem das conferências, login com a mensagem de desativado). **§4** (rotinas de minuto em minuto): proposta de virar a próxima sessão.
+
+### 16/10 ~23:30 UTC — o plano apresentado; as respostas do dono (D-143)
+
+- Plano em português na conversa + 4 perguntas de toque. **Respostas:** plano **inteiro** (as duas partes: o que a v2 já dá e a API nova da fábrica); o que o Tiny não avisa (produtos e clientes alterados) → **uma vez por hora, mas só entre 8h e 20h**; a baixa dos insumos por etapa → **próxima sessão, amarrando cada insumo ao setor que o consome**; liberou as três: tirar a imagem de teste, aplicar a rolagem das conferências, publicar o login com a mensagem de desativado. §4 (rotinas de minuto em minuto) fica para a próxima (proposto no plano, não contestado).
+- **Pedido do dono, logo depois:** *"para de me perguntar, só faz, eu não tô em casa"* → **daqui até o fim, nenhuma pergunta**: o que precisa de banco/n8n novo sai pronto em arquivo; aplicar em produção, só o que ele já liberou.
+
+### 16/10 ~23:41 UTC — a imagem de teste do 13622 saiu (tarefa 5 ✅)
+
+- Rodado o `supabase/manutencao/2026-10-16_tirar_imagem_teste_13622.sql` (UMA vez) pelo conector: `removido_em` 23:41:14 UTC, `removido_por` = o cadastro do dono (conferido: mesmo `auth_user_id`), **1 fato `anexo_removido`**, 0 anexos visíveis no cartão. O arquivo segue guardado (só o admin vê).
+
+### 16/10 ~23:45–00:20 UTC — a rolagem das conferências no banco (migration 88 aplicada)
+
+- Retrato antes: integração `e2109f3a…` (65 colunas) · clientes 10.809 · pedidos 5.578 · itens 8.379 · eventos 18.791 · gp 1.
+- Índice `eventos_pente_fino_idx` criado antes com `CREATE INDEX CONCURRENTLY` (fora de transação).
+- **E-108 (achado):** pelo conector da Supabase, **todo comando com `DROP` fica esperando uma confirmação do dono e estoura em 60 s** (3 tentativas: `begin…commit`, `apply_migration`, e até um `drop` dentro de transação desfeita com `statement_timeout`) — nada roda, nada fica pela metade (conferido: assinatura antiga intacta, nenhuma sessão presa, nenhuma trava esperando). `REVOKE` e `ALTER … RENAME` passam. → **Aplicada a 88 sem o `DROP`:** a assinatura antiga `(integer, integer)` foi **renomeada e movida** para `plt_privado.plt_fn_auditoria_conferencias_antiga` (fora da API, execute revogado de todos) e a nova criada; o `drop` de verdade vai na próxima atualização aplicada em casa pelo aplicador (que roda `DROP` normalmente).
+- Retrato depois: integração **idêntica** (`e2109f3a…`, as mesmas contagens). Assinaturas: nova em `public` (anon ✗, authenticated ✓), antiga só em `plt_privado` (executável por ninguém).
+- **Conferido como o dono** (transação desfeita): total 18 · 1ª página 10 + `tem_mais` · 2ª página (pelo cursor) 8, sem mais, sem total · a chamada antiga por deslocamento devolve a mesma rodada que o cursor (a tela publicada segue funcionando até o site novo subir).
+
+### 17/10 ~00:25 UTC — o login com a mensagem de desativado publicado (tarefa do §1 ✅)
+
+- O que estava no ar (versão 10, de 24/09) = o arquivo da `main` (o arquivo entrou no repositório em 14/10 copiado do ar) — conferido função por função; a única diferença é a mudança desta sessão.
+- **Publicada a versão 11** da função `autenticacao` (mesma configuração: exige o JWT do app). Daqui não dá para chamá-la (o proxy desta nuvem recusa o endereço da Supabase) — o teste de ponta a ponta fica para casa (uma pessoa desativada de teste tentando entrar).

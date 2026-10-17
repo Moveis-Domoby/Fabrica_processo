@@ -177,6 +177,8 @@ Esta lei é **leitura obrigatória em toda sessão** (regra 18 do [[CLAUDE - Reg
 
 Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com o motivo e a sessão que vai pagar a dívida. Nunca em silêncio. **"É mais difícil" não é motivo.**
 
+- ↪️ **16/10/2026 (D-143) — a consulta "o que mudou" do Tiny, de hora em hora, só das 8h às 20h.** O Tiny não avisa produtos nem clientes alterados (só vendas e estoque têm aviso); a consulta pergunta "o que mudou desde a última vez" e custa **uma chamada quando nada mudou**; fora do horário nada roda. Dura até o Tiny ter aviso desses dados. Substitui a consulta de 15 em 15 minutos do catálogo da fábrica quando a API nova ligar (dívida 21).
+
 ## 14. Retrato de 07/10/2026 — as dívidas de hoje (lido no código e no banco, só leitura)
 
 | # | Dívida | Onde | Quem paga |
@@ -239,6 +241,7 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | 18 | Telas que ainda abrem com 2–3 leituras (em paralelo): Pessoas, Qualidade, Tempo por setor, Meu desempenho, Pedidos em aguardo, Programação, Equipe, Config. do estoque, API e integrações, Controle de tempo, Caminhões, Automações; Comercial (~10, os gráficos) — falta a porta de cada tela (Lei §2) | painéis, configurações, Comercial | 33 |
 | 19 | **A máquina do banco** (plano gratuito: 0,5 GB, processador compartilhado) dá picos de segundos mesmo parada (a lista de Pedidos: 2,6 s numa chamada, 15–36 ms nas seguintes; 0 leitura de disco, JIT desligado) — decisão de custo do dono. ↪️ **16/10 (D-141): fica no plano gratuito por enquanto** — escolha de custo registrada, fora da lista de pendências | infraestrutura | dono |
 | 20 | O aviso do trabalho da pessoa relê 3 consultas (tarefas, bolinha, cards delegados) — juntar numa porta | Meu Painel, Afazeres | 33 |
+| 21 | O fluxo da fábrica no n8n ainda **pergunta ao Tiny a cada 15 min** pelos produtos criados (relógio do n8n, de antes da lei) — sai quando a API nova da fábrica ligar e a consulta de hora em hora (D-143) assumir; a varredura das 03:15 fica como rede de segurança | integração Tiny (fábrica) | 33 → ligar em casa |
 
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
