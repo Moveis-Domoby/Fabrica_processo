@@ -179,3 +179,7 @@ Enquanto isso: o §1 e o inventário do que já temos (banco e n8n) — este, pe
 ### 17/10 ~02:10 UTC — revisão final: o fluxo antigo não pode montar as buscas novas
 
 - Relendo o espelho do fluxo antigo (`domoby-backfill-tiny.json`): ele monta cada chamada por uma lista fixa de campos (a busca de contatos só com a página; a de contas a receber com outras datas). As buscas que a cascata da venda cria são dos tipos de sempre, mas com filtros que ele não monta (o CPF, a origem da conta) — no intervalo entre aplicar o banco e importar o fluxo novo, ele faria a busca **sem o filtro** (todos os clientes do Tiny a cada venda). **Correção (89):** `fn_fila_proximos` entrega só as linhas **sem a marca de origem** (a conferência das 3h e as da carga antiga); as novas esperam o fluxo novo. Bateria: a busca da cascata não sai no lote antigo e sai no novo com o CPF (1.042 verdes). No handoff: fazer o n8n logo depois do banco (o relógio acorda o fluxo antigo à toa nesse intervalo).
+
+### 17/10 ~22:20 UTC — o dono em casa: o acesso ao GitHub liberado e a branch enviada
+
+- O dono liberou o aplicativo do Claude na organização do GitHub; o envio passou na hora (a branch inteira, 26 commits, base = a `main` de 16/10, que segue igual no GitHub). Os passos de casa (banco, n8n, site, funções) ficam com a sessão do computador do dono — a da nuvem não alcança o n8n nem o aplicador do banco de lá; o banco e o n8n vão um logo depois do outro (o relógio da fila acordaria o fluxo antigo à toa no meio).
