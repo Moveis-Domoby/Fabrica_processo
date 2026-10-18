@@ -162,6 +162,10 @@ src/paginas/AdminApi.tsx · AdminApi.test.tsx (novo) · src/admin/api.ts
 - **Duas coisas ficaram como "a próxima sessão"** pelo dono: (a) as rotinas do banco de minuto em minuto passarem a nascer do fato (o §4 do pedido de 16/10 — já aprovado na D-141; o disparo nunca pode rodar em dois lugares) e (b) a baixa dos insumos por etapa, amarrando cada insumo ao setor que o consome (D-143). **Qual vem primeiro é do dono.**
 - **O que conferir em casa sobre o Tiny** (a documentação oficial é bloqueada nesta nuvem): a lista do §8 do [[N8N - Tiny - Mapa Completo da API e dos Dados]] — a especificação v3 de hoje, as chaves de aviso de cada conta, as extensões instaladas, o limite real de cada conta.
 
+### Achado na 1ª contagem (18/10, em casa) — a corrigir com o OK do dono
+- O plano do Tiny da **loja** só aceita datas dos **últimos 2 anos** (código 31 — "a partir de 18/10/2024"): as janelas "antes de 2025" da contagem da loja falham. A fábrica aceita 2015. Correção: começar no piso do plano e tratar o código 31 como resposta final.
+- O aplicativo da API nova da **loja** (o do Comercial) não tem "Ordem de Compra" (403): pedir compras pela API nova só na fábrica e tratar o 403 como "sem permissão", sem insistir. (Dar a permissão ao aplicativo da loja exigiria reautorizá-lo — mexe no Comercial.)
+
 ### Próximo passo sugerido
 - Os passos "Para ligar em casa" (acima), na ordem. Depois da carga e de "bateu", a próxima sessão escolhida pelo dono.
 
