@@ -1,0 +1,119 @@
+== montando o banco em disco (fila ×100: 2.673.100 lidas + 3.000.000 da carga) ==
+  93 migrations aplicadas (a última: 20261018010000_plt_tiny_piso_do_plano.sql) (11 s)
+  as portas de antes criadas com o sufixo _antes
+  fila lida 2.673.100 (110 s)
+  carga 3.000.000 pendentes (282 s)
+  banco 1478 MB · fila 5.674.275 (290 s) · analyze feito
+
+== o lote do n8n (a cada 2 s, enquanto há trabalho) — antes × depois, no mesmo banco ==
+  ANTES  lote de 25 — a carga da loja com data (não acertava)            mediana     19.0 ms · máx     40.6 ms
+  DEPOIS lote de 25 — a carga da loja um dia antes do piso (acerta as 25) mediana     30.4 ms · máx     31.8 ms
+  ANTES  lote de 25 — a carga sem data                                   mediana     24.2 ms · máx     27.3 ms
+  DEPOIS lote de 25 — a carga sem data (nada a acertar)                  mediana     23.0 ms · máx     27.1 ms
+
+== a aba Carga do Tiny (1 requisição) — antes × depois ==
+  ANTES  painel da carga                                                 mediana     67.8 ms · máx    167.5 ms
+  DEPOIS painel da carga (sem as janelas que o Tiny não conta + os motivos) mediana     57.6 ms · máx     64.9 ms
+  CONTAR no Tiny (gesto do dono)                                         mediana     49.2 ms · máx     66.0 ms
+
+== o acerto do que já estava na fila (uma vez, na aplicação) ==
+  fn_tiny_fila_limites_acertar (1.000 erros, 200 pelo plano ou permissão) mediana    103.8 ms · máx    119.4 ms
+
+== planos (as partes novas) ==
+  --- plano: os últimos erros + o que a contagem não contou (o painel)
+      Limit (actual rows=10.00 loops=1)
+        Buffers: shared hit=16
+        ->  Merge Append (actual rows=10.00 loops=1)
+              Sort Key: f.processado_em DESC NULLS LAST
+              Buffers: shared hit=16
+              ->  Limit (actual rows=7.00 loops=1)
+                    Buffers: shared hit=9
+                    ->  Index Scan using tiny_fila_erro_idx on tiny_fila f (actual rows=7.00 loops=1)
+                          Index Searches: 1
+                          Buffers: shared hit=9
+              ->  Limit (actual rows=4.00 loops=1)
+                    Buffers: shared hit=7
+                    ->  Sort (actual rows=4.00 loops=1)
+                          Sort Key: f_1.processado_em DESC NULLS LAST
+                          Sort Method: quicksort  Memory: 19kB
+                          Buffers: shared hit=7
+                          ->  Index Scan using tiny_fila_censo_idx on tiny_fila f_1 (actual rows=10.00 loops=1)
+                                Index Cond: ((params ->> 'censo'::text) = 'C'::text)
+                                Filter: (status = 'vazio'::text)
+                                Rows Removed by Filter: 140
+                                Index Searches: 1
+                                Buffers: shared hit=7
+      Planning:
+        Buffers: shared hit=2
+      Planning Time: 1.142 ms
+      Execution Time: 0.499 ms
+  --- plano: as janelas da contagem sem as que o Tiny não conta (o painel)
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=7
+        ->  Index Scan using tiny_fila_censo_idx on tiny_fila f (actual rows=140.00 loops=1)
+              Index Cond: ((params ->> 'censo'::text) = 'C'::text)
+              Filter: ((status <> 'vazio'::text) AND (NOT COALESCE(((params ->> 'ultima'::text))::boolean, false)))
+              Rows Removed by Filter: 10
+              Index Searches: 1
+              Buffers: shared hit=7
+      Planning:
+        Buffers: shared hit=1
+      Planning Time: 0.491 ms
+      Execution Time: 0.381 ms
+  --- plano: o acerto da data na reserva (o lote — 25 pelo id)
+      Index Scan using tiny_fila_pkey on tiny_fila t (actual rows=0.00 loops=1)
+        Index Cond: (id = ANY ((InitPlan 1).col1))
+        Filter: ((params ? 'dataInicial'::text) OR (params ? 'data_ini_emissao'::text))
+        Rows Removed by Filter: 25
+        Index Searches: 1
+        Buffers: shared hit=23
+        InitPlan 1
+          ->  Limit (actual rows=25.00 loops=1)
+                Buffers: shared hit=5
+                ->  Index Only Scan using tiny_fila_trabalho_conta_idx on tiny_fila f (actual rows=25.00 loops=1)
+                      Index Cond: ((conta = 'loja'::text) AND (prioridade <= 9))
+                      Heap Fetches: 25
+                      Index Searches: 1
+                      Buffers: shared hit=5
+      Planning:
+        Buffers: shared hit=2
+      Planning Time: 1.523 ms
+      Execution Time: 0.469 ms
+  --- plano: o acerto da fila: a carga pelo plano (erros + as que esperam)
+      Unique (actual rows=100.00 loops=1)
+        Buffers: shared hit=1009
+        ->  Sort (actual rows=100.00 loops=1)
+              Sort Key: f.id
+              Sort Method: quicksort  Memory: 17kB
+              Buffers: shared hit=1009
+              ->  Append (actual rows=100.00 loops=1)
+                    Buffers: shared hit=1009
+                    ->  Index Scan using tiny_fila_erro_idx on tiny_fila f (actual rows=100.00 loops=1)
+                          Filter: ((params ? 'carga'::text) AND (erro ~~ 'codigo 31:%'::text))
+                          Rows Removed by Filter: 904
+                          Index Searches: 1
+                          Buffers: shared hit=1008
+                    ->  Index Scan using tiny_fila_espera_idx on tiny_fila f_1 (actual rows=0.00 loops=1)
+                          Filter: ((params ? 'carga'::text) AND (erro ~~ 'codigo 31:%'::text))
+                          Index Searches: 1
+                          Buffers: shared hit=1
+      Planning:
+        Buffers: shared hit=2
+      Planning Time: 1.229 ms
+      Execution Time: 2.245 ms
+  --- plano: o acerto da fila: o pedido de compra da loja que espera
+      Bitmap Heap Scan on tiny_fila f (actual rows=0.00 loops=1)
+        Recheck Cond: ((conta = 'loja'::text) AND (recurso = ANY ('{v3_ordens_compra,v3_ordem_compra}'::text[])))
+        Filter: (status = 'pendente'::text)
+        Buffers: shared hit=4
+        ->  Bitmap Index Scan on tiny_fila_conta_chave_uq (actual rows=0.00 loops=1)
+              Index Cond: ((conta = 'loja'::text) AND (recurso = ANY ('{v3_ordens_compra,v3_ordem_compra}'::text[])))
+              Index Searches: 1
+              Buffers: shared hit=4
+      Planning:
+        Buffers: shared hit=1
+      Planning Time: 0.975 ms
+      Execution Time: 0.124 ms
+
+fim
+saida: 0
