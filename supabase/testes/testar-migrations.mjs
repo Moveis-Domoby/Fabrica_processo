@@ -14218,7 +14218,8 @@ try {
   const naoDono33 = await recusa33(`select public.plt_fn_tiny_carga('contar')`)
   await como33(SUPER33)
   const cont33 = (await um33t(`select public.plt_fn_tiny_carga('contar') as r`)).r
-  const meses33 = (await um33t(`select count(*)::int as n from plt_privado.fn_tiny_janelas(date '2025-01-01')`)).n
+  // (migration 93: a loja só enfileira as janelas que chegam ao piso do plano dela)
+  const meses33 = (await um33t(`select count(*)::int as n from plt_privado.fn_tiny_janelas(date '2025-01-01') where fim >= plt_privado.fn_tiny_piso('loja')`)).n
   const porTipo33 = Object.fromEntries((await todos33t(`
     select conta || ':' || recurso as k, count(*)::int as n from public.tiny_fila
      where params->>'censo' = '${cont33.rodada}' group by 1`)).map((r) => [r.k, r.n]))
@@ -14484,6 +14485,297 @@ try {
   await como33('')
 }
 } // fim do bloco do Tiny completo (SESSAO-33)
+
+// ============================================================================
+// SESSAO-33 — bloco 93 (migration 93, A-78): o que a 1ª contagem achou. O piso
+// do plano do Tiny (a loja só filtra os últimos 2 anos — código 31; a fábrica,
+// desde 2015), as respostas finais (o 31 e o 403 da API nova: sem nova
+// tentativa nem aviso no sino), o pedido de compra só na fábrica, o painel sem
+// "contando…" para sempre e o acerto do que já estava na fila. Tudo numa
+// transação desfeita (A-68).
+// ============================================================================
+{ // escopo próprio (E-70)
+const um93 = async (sql) => (await bd.query(sql)).rows[0]
+const todos93 = async (sql) => (await bd.query(sql)).rows
+const j93 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const SUPER93 = '00000000-0000-0000-0000-000000000930'
+const como93 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const txt93 = (v) => (v === null ? 'null' : `'${String(v).replace(/'/g, "''")}'`)
+const fila93 = async (conta, recurso, chave, params = {}, { prioridade = 9, status = 'pendente', tentativas = 0, erro = null, espera = null, referencia = null } = {}) =>
+  (await um93(`insert into public.tiny_fila (conta, recurso, chave, prioridade, params, referencia, status, tentativas, erro, nao_antes, processado_em)
+               values ('${conta}', '${recurso}', '${chave}', ${prioridade}, ${j93(params)}, ${txt93(referencia)}, '${status}', ${tentativas},
+                       ${txt93(erro)}, ${espera === null ? 'null' : `now() + interval '${espera}'`}, ${status === 'pendente' && tentativas === 0 ? 'null' : 'now()'})
+               returning id::int as id`)).id
+const reservar93 = (id) => bd.exec(`update public.tiny_fila set status = 'processando', reservado_em = now() where id = ${id}`)
+const responder93 = async (id, resposta) => (await um93(`select public.fn_tiny_fila_resposta(${id}, ${j93(resposta)}) as r`)).r
+const linha93 = (id) => um93(`select status, tentativas::int as tentativas, erro, extract(epoch from (nao_antes - now()))::int as espera_s, params
+                                from public.tiny_fila where id = ${id}`)
+const v2e93 = (retorno) => ({ api: 'v2', corpo: { retorno } })
+// datas em ISO (AAAA-MM-DD) e no formato do Tiny (DD/MM/AAAA)
+const dia93 = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10)
+const br93 = (iso) => iso.split('-').reverse().join('/')
+const MSG31 = 'A data informada no filtro (01/01/2015) está fora do período permitido pelo plano (a partir de 18/10/2024).'
+const MOTIVO31 = 'fora do período do plano: o Tiny da loja só deixa pedir a partir de 18/10/2024'
+const MOTIVO403 = 'sem permissão no aplicativo: o aplicativo da API nova da loja não tem acesso a pedidos de compra'
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id)
+    values ('Dono 93', 'dono93@teste.com', '93300000930', 'dono.93', 'admin', '${SUPER93}');
+    update public.plt_usuarios set super_admin = true where usuario = 'dono.93';
+    insert into public.tiny_auth (id, access_token, refresh_token, updated_at)
+    values (1, 'acesso-loja-93', 'renova-loja-93', now()), (2, 'acesso-fabrica-93', 'renova-fabrica-93', now())
+    on conflict (id) do update set access_token = excluded.access_token, refresh_token = excluded.refresh_token;
+  `)
+
+  titulo('SESSAO-33 · bloco 93 · o piso do plano: a loja só os últimos 2 anos (hoje em Fortaleza − 2 anos + 1 dia); a fábrica desde 2015')
+
+  const piso93 = await um93(`
+    select to_char(plt_privado.fn_tiny_piso('loja'), 'YYYY-MM-DD') as loja,
+           to_char(plt_privado.fn_tiny_piso('fabrica'), 'YYYY-MM-DD') as fabrica,
+           -- a mesma conta na hora em que o Tiny respondeu (22h50 de 17/10 em Fortaleza): "a partir de 18/10/2024"
+           to_char(((timestamptz '2026-10-18 01:50:00+00' at time zone 'America/Fortaleza')::date - interval '2 years')::date + 1, 'YYYY-MM-DD') as observado`)
+  const fort93 = new Date(Date.now() - 3 * 3600 * 1000) // Fortaleza: UTC−3 o ano todo
+  const [anoP, mesP, diaP] = [fort93.getUTCFullYear() - 2, fort93.getUTCMonth(), fort93.getUTCDate()]
+  const esperadoPiso93 = dia93(new Date(Date.UTC(anoP, mesP, mesP === 1 && diaP === 29 ? 28 : diaP)).toISOString().slice(0, 10), 1)
+  conferir(
+    piso93.loja === esperadoPiso93 && piso93.fabrica === '2015-01-01' && piso93.observado === '2024-10-18',
+    'o piso da loja é hoje em Fortaleza menos 2 anos, mais 1 dia (na hora da 1ª contagem dava 18/10/2024 — o mesmo dia que o Tiny disse); o da fábrica fica em 2015',
+    JSON.stringify({ piso93, esperadoPiso93 }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · as janelas começam no piso da conta (a que fica inteira antes dele nem entra)')
+
+  const n93 = await um93(`
+    select plt_privado.fn_tiny_enfileirar_janelas('loja', 'pedidos_pesquisa', plt_privado.fn_tiny_piso('loja') - 140,
+             'dataInicial', 'dataFinal', 'teste93', 'R93', null, true) as loja,
+           plt_privado.fn_tiny_enfileirar_janelas('fabrica', 'pedidos_pesquisa', plt_privado.fn_tiny_piso('loja') - 140,
+             'dataInicial', 'dataFinal', 'teste93', 'R93', null, true) as fabrica`)
+  const jan93 = await todos93(`
+    select conta, chave, to_char(to_date(params->>'dataInicial', 'DD/MM/YYYY'), 'YYYY-MM-DD') as ini,
+           to_char(to_date(params->>'dataFinal', 'DD/MM/YYYY'), 'YYYY-MM-DD') as fim
+      from public.tiny_fila where recurso = 'pedidos_pesquisa' and chave like 'teste93:pedidos_pesquisa:%'
+     order by conta, ini`)
+  const meses93 = await um93(`
+    select (select count(*)::int from generate_series(date_trunc('month', plt_privado.fn_tiny_piso('loja')::timestamp),
+                                                      date_trunc('month', now() at time zone 'America/Fortaleza'), interval '1 month')) as loja,
+           (select count(*)::int from generate_series(date_trunc('month', (plt_privado.fn_tiny_piso('loja') - 140)::timestamp),
+                                                      date_trunc('month', now() at time zone 'America/Fortaleza'), interval '1 month')) as fabrica`)
+  const jLoja93 = jan93.filter((x) => x.conta === 'loja')
+  const jFab93 = jan93.filter((x) => x.conta === 'fabrica')
+  conferir(
+    n93.loja === meses93.loja && jLoja93.length === meses93.loja
+      && !jLoja93.some((x) => x.chave.endsWith(':antes')) && jLoja93[0]?.ini === piso93.loja
+      && jLoja93.every((x) => x.ini >= piso93.loja && x.fim >= x.ini)
+      && n93.fabrica === meses93.fabrica + 1 && jFab93.some((x) => x.chave.endsWith(':antes') && x.ini === '2015-01-01'),
+    'na loja, o mês do piso começa no dia do piso e o que fica inteiro antes dele (a janela "antes" e os meses velhos) nem entra; na fábrica, a janela "antes" segue desde 2015',
+    JSON.stringify({ n93, meses93, jLoja93: jLoja93.slice(0, 3), jFab93: jFab93.slice(0, 2) }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · contar e carregar: a loja no piso, a fábrica desde 2015, o pedido de compra pela API nova só na fábrica')
+
+  await como93(SUPER93)
+  const cont93 = (await um93(`select public.plt_fn_tiny_carga('contar') as r`)).r
+  const carr93 = (await um93(`select public.plt_fn_tiny_carga('carregar') as r`)).r
+  await como93('')
+  const datas93 = await todos93(`
+    select conta, recurso, chave, case when params ? 'censo' then 'censo' else 'carga' end as gesto,
+           coalesce(params->>'dataInicial', params->>'data_ini_emissao') as ini_br,
+           to_char(to_date(coalesce(params->>'dataInicial', params->>'data_ini_emissao'), 'DD/MM/YYYY'), 'YYYY-MM-DD') as ini
+      from public.tiny_fila
+     where (params->>'censo' = '${cont93.rodada}' or params->>'carga' = '${carr93.rodada}')
+       and (params ? 'dataInicial' or params ? 'data_ini_emissao')`)
+  const v3g93 = await todos93(`
+    select conta || ':' || recurso || ':' || case when params ? 'censo' then 'censo' else 'carga' end as k
+      from public.tiny_fila
+     where (params->>'censo' = '${cont93.rodada}' or params->>'carga' = '${carr93.rodada}')
+       and recurso like 'v3\\_%' and recurso <> 'v3_producao'`)
+  const k93 = new Set(v3g93.map((x) => x.k))
+  const achar93 = (conta, chave) => datas93.find((x) => x.conta === conta && x.chave === chave)
+  const lojaD93 = datas93.filter((x) => x.conta === 'loja')
+  const cpLoja93 = achar93('loja', 'censo:cp_pesquisa:tudo')
+  const antesLoja93 = achar93('loja', 'censo:pedidos_pesquisa:antes')
+  const nfCargaLoja93 = achar93('loja', 'carga:nf_pesquisa:antes')
+  const tudoFab93 = datas93.filter((x) => x.conta === 'fabrica' && (x.chave.endsWith(':tudo') || x.chave === 'carga:cp_pesquisa:antes'))
+  conferir(
+    lojaD93.length > 0 && lojaD93.every((x) => x.ini >= piso93.loja)
+      && cpLoja93?.ini_br === br93(piso93.loja)
+      && (antesLoja93 === undefined ? piso93.loja > '2024-12-31' : antesLoja93.ini === piso93.loja)
+      && (nfCargaLoja93 === undefined ? piso93.loja > '2026-08-31' : nfCargaLoja93.ini === piso93.loja)
+      && tudoFab93.length === 8 && tudoFab93.every((x) => x.ini_br === '01/01/2015')
+      && !k93.has('loja:v3_ordens_compra:censo') && !k93.has('loja:v3_ordens_compra:carga')
+      && k93.has('fabrica:v3_ordens_compra:censo') && k93.has('fabrica:v3_ordens_compra:carga')
+      && ['v3_depositos', 'v3_categorias_financeiras', 'v3_formas_pagamento', 'v3_marcas'].every((r) => k93.has(`loja:${r}:carga`)),
+    'toda data que a contagem e a carga pedem à loja começa no piso (a janela "antes", a busca única das contas a pagar, as notas da carga); a fábrica segue desde 2015; o pedido de compra pela API nova sai só na fábrica (o resto da API nova da loja continua)',
+    JSON.stringify({ lojaD93: lojaD93.filter((x) => x.chave.includes('antes') || x.chave.includes('tudo')), tudoFab93, v3: [...k93] }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · o lote: a linha que esperou de um dia para o outro pede a partir do piso de hoje (e fica gravado)')
+
+  await bd.exec(`update public.tiny_fila set status = 'ok' where status in ('pendente', 'processando')`)
+  const fimJan93 = br93(dia93(piso93.loja, 60))
+  const ontem93 = await fila93('loja', 'cp_pesquisa', 'teste93-ontem', {
+    data_ini_emissao: br93(dia93(piso93.loja, -1)), data_fim_emissao: fimJan93, pagina: 1, janela: 'teste93-ontem', origem: 'carga', carga: 'K93' })
+  const fab93 = await fila93('fabrica', 'cp_pesquisa', 'teste93-fab', {
+    data_ini_emissao: '01/01/2015', data_fim_emissao: fimJan93, pagina: 1, janela: 'teste93-fab', origem: 'carga', carga: 'K93' })
+  const velha93 = await fila93('loja', 'nf_pesquisa', 'teste93-velha', {
+    dataInicial: '01/01/2015', dataFinal: br93(dia93(piso93.loja, -10)), pagina: 1, janela: 'teste93-velha', origem: 'carga', carga: 'K93' })
+  const nova93 = await fila93('loja', 'pedidos_pesquisa', 'teste93-nova', {
+    dataInicial: br93(dia93(piso93.loja, 5)), dataFinal: fimJan93, pagina: 1, janela: 'teste93-nova', origem: 'carga', carga: 'K93' })
+  const varredura93 = (await um93(`select plt_privado.fn_tiny_fabrica_em_varredura() as v`)).v
+  const lote93 = (await um93(`select public.fn_tiny_fila_lote(50) as l`)).l
+  const chamada93 = (id) => lote93.find((x) => x.id === id)?.campos
+  const gravada93 = async (id) => (await um93(`select params from public.tiny_fila where id = ${id}`)).params
+  const gOntem93 = await gravada93(ontem93)
+  const gVelha93 = await gravada93(velha93)
+  conferir(
+    chamada93(ontem93)?.data_ini_emissao === br93(piso93.loja) && chamada93(ontem93)?.data_fim_emissao === fimJan93
+      && gOntem93.data_ini_emissao === br93(piso93.loja) && gOntem93.carga === 'K93'
+      && (varredura93 || chamada93(fab93)?.data_ini_emissao === '01/01/2015')
+      && chamada93(velha93)?.dataInicial === '01/01/2015' && gVelha93.dataInicial === '01/01/2015'
+      && chamada93(nova93)?.dataInicial === br93(dia93(piso93.loja, 5)),
+    'na reserva, a data de início da loja que ficou um dia antes do piso sobe até o piso — na chamada e gravada na linha (a página seguinte lê a mesma janela); a fábrica e a data já dentro do plano não mudam; a janela inteira antes do piso vai como está (o Tiny recusa e a linha encerra)',
+    JSON.stringify({ ontem: chamada93(ontem93), gOntem93, fab: chamada93(fab93), velha: chamada93(velha93), nova: chamada93(nova93), varredura93 }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · "fora do período do plano" (31) e "sem permissão no aplicativo" (403): resposta final, sem nova tentativa nem aviso no sino')
+
+  const avisos93 = async () => (await um93(`
+    select (select count(*)::int from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+             where u.auth_user_id = '${SUPER93}' and n.tipo = 'automacao_erro') as sino,
+           (select count(*)::int from public.plt_logs_atividade where acao = 'automacao_erro' and contexto->>'aviso_id' like 'fila:%') as trilha`))
+  const antesAv93 = await avisos93()
+  const cen31a = await fila93('loja', 'pedidos_pesquisa', 'c93:pedidos_pesquisa:antes', {
+    dataInicial: br93(piso93.loja), dataFinal: '31/12/2024', pagina: 1, janela: 'c93:pedidos_pesquisa:antes', origem: 'censo', censo: 'C93' }, { referencia: 'antes' })
+  const cen31b = await fila93('loja', 'cp_pesquisa', 'c93:cp_pesquisa:tudo', {
+    data_ini_emissao: br93(piso93.loja), data_fim_emissao: fimJan93, pagina: 1, janela: 'c93:cp_pesquisa:tudo', origem: 'censo', censo: 'C93' }, { referencia: 'tudo' })
+  const leg31 = await fila93('loja', 'pedidos_pesquisa', 'teste93-leg:p1', {
+    dataInicial: '01/09/2026', dataFinal: '30/09/2026', pagina: 1, janela: 'teste93-leg' }, { prioridade: 1 })
+  const oc403 = await fila93('loja', 'v3_ordens_compra', 'c93:v3_ordens_compra:tudo', {
+    limit: 1, offset: 0, janela: 'c93:v3_ordens_compra:tudo', origem: 'censo', censo: 'C93' }, { referencia: 'tudo' })
+  const dep401 = await fila93('fabrica', 'v3_depositos', 'teste93-401', { janela: 'teste93-401', origem: 'carga', carga: 'K93' })
+  for (const id of [cen31a, cen31b, leg31, oc403, dep401]) await reservar93(id)
+  // as duas formas que o Tiny usou na 1ª contagem: a mensagem solta e a mensagem dentro de uma lista
+  await responder93(cen31a, v2e93({ status: 'Erro', status_processamento: '2', codigo_erro: '31', erros: [{ erro: MSG31 }] }))
+  await responder93(cen31b, v2e93({ status: 'Erro', codigo_erro: '31', erros: [{ erro: [{ erro: MSG31 }] }] }))
+  await responder93(leg31, v2e93({ status: 'Erro', codigo_erro: '31', erros: [{ erro: MSG31 }] }))
+  await responder93(oc403, { api: 'v3', status: 403, corpo: null })
+  await responder93(dep401, { api: 'v3', status: 401, corpo: { mensagem: 'token expirado' } })
+  const l31a = await linha93(cen31a)
+  const l31b = await linha93(cen31b)
+  const lLeg31 = await linha93(leg31)
+  const l403 = await linha93(oc403)
+  const l401 = await linha93(dep401)
+  const depoisAv93 = await avisos93()
+  conferir(
+    [l31a, l31b, lLeg31].every((l) => l.status === 'vazio' && l.tentativas === 1 && l.espera_s === null && l.erro === MOTIVO31)
+      && l403.status === 'vazio' && l403.tentativas === 1 && l403.espera_s === null && l403.erro === MOTIVO403
+      && l401.status === 'pendente' && l401.tentativas === 1 && l401.espera_s === 120
+      && depoisAv93.sino === antesAv93.sino && depoisAv93.trilha === antesAv93.trilha,
+    'o código 31 (nas duas formas de mensagem, e também na conferência das 3h) e o 403 da API nova encerram a linha na 1ª resposta, com o motivo em língua de gente (a data do piso tirada da mensagem do Tiny); nenhum aviso no sino nem na trilha; o 401 (token vencido) continua tentando de novo',
+    JSON.stringify({ l31a, l31b, lLeg31, l403, l401, antesAv93, depoisAv93 }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · o painel: a janela que o Tiny não conta sai do "bateu com o Tiny?" e o motivo aparece nos últimos erros')
+
+  await fila93('loja', 'pedidos_pesquisa', 'c93:pedidos_pesquisa:2025-01', {
+    dataInicial: '01/01/2025', dataFinal: '31/01/2025', pagina: 1, janela: 'c93:pedidos_pesquisa:2025-01', origem: 'censo', censo: 'C93',
+    registros: 5, numero_paginas: 1, aqui: 5 }, { status: 'ok', referencia: '2025-01' })
+  await fila93('loja', 'nf_pesquisa', 'c93:nf_pesquisa:2025-02', {
+    dataInicial: '01/02/2025', dataFinal: '28/02/2025', pagina: 1, janela: 'c93:nf_pesquisa:2025-02', origem: 'censo', censo: 'C93' },
+  { status: 'erro', tentativas: 4, erro: 'codigo 99: falha de teste 93', referencia: '2025-02' })
+  await bd.exec(`update public.plt_tiny_controle set ultima_contagem = 'C93' where id = 1`)
+  await como93(SUPER93)
+  const painel93 = (await um93(`select public.plt_fn_tiny_carga_painel() as r`)).r
+  await como93('')
+  const lin93 = painel93.censo.linhas
+  const temLinha93 = (conta, recurso, janela) => lin93.some((l) => l.conta === conta && l.recurso === recurso && l.janela === janela)
+  const ok2501 = lin93.find((l) => l.conta === 'loja' && l.recurso === 'pedidos_pesquisa' && l.janela === '2025-01')
+  const err2502 = lin93.find((l) => l.conta === 'loja' && l.recurso === 'nf_pesquisa' && l.janela === '2025-02')
+  const motivos93 = painel93.erros.map((e) => `${e.conta}:${e.recurso}:${e.referencia}:${e.erro}`)
+  conferir(
+    ok2501?.lido === true && ok2501?.tiny === 5 && ok2501?.aqui === 5
+      && !temLinha93('loja', 'pedidos_pesquisa', 'antes') && !temLinha93('loja', 'cp_pesquisa', 'tudo') && !temLinha93('loja', 'v3_ordens_compra', 'tudo')
+      && err2502?.lido === false
+      && motivos93.includes(`loja:pedidos_pesquisa:antes:${MOTIVO31}`) && motivos93.includes(`loja:cp_pesquisa:tudo:${MOTIVO31}`)
+      && motivos93.includes(`loja:v3_ordens_compra:tudo:${MOTIVO403}`)
+      && motivos93.includes('loja:nf_pesquisa:2025-02:codigo 99: falha de teste 93') && painel93.erros.length <= 10,
+    'o mês que o Tiny contou aparece ao lado do "aqui"; a janela fora do plano e o pedido de compra sem permissão saem da comparação (nem zero, nem "contando…") e o motivo vai para os últimos erros, junto dos erros de verdade (o erro de verdade continua como antes)',
+    JSON.stringify({ lin93, erros: painel93.erros }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · o acerto do que já estava na fila: a carga volta no piso, o resto encerra com o motivo (rodar de novo não muda nada)')
+
+  const fim30 = br93(dia93(piso93.loja, 30))
+  const aC = await fila93('loja', 'cp_pesquisa', 'k93b:cp_pesquisa:antes', {
+    data_ini_emissao: '01/01/2015', data_fim_emissao: fim30, pagina: 1, janela: 'k93b:cp_pesquisa:antes', origem: 'carga', carga: 'K93b' },
+  { status: 'erro', tentativas: 4, erro: `codigo 31: [{"erro": "${MSG31}"}]`, referencia: 'antes' })
+  const bN = await fila93('loja', 'nf_pesquisa', 'k93b:nf_pesquisa:antes', {
+    dataInicial: '01/01/2015', dataFinal: br93(dia93(piso93.loja, 300)), pagina: 1, janela: 'k93b:nf_pesquisa:antes', origem: 'carga', carga: 'K93b' },
+  { tentativas: 2, espera: '4 minutes', erro: `codigo 31: ${MSG31}`, referencia: 'antes' })
+  const cR = await fila93('loja', 'cr_pesquisa', 'c93x:cr_pesquisa:antes', {
+    data_ini_emissao: '01/01/2015', data_fim_emissao: fim30, pagina: 1, janela: 'c93x:cr_pesquisa:antes', origem: 'censo', censo: 'C93x' },
+  { status: 'erro', tentativas: 4, erro: `codigo 31: ${MSG31}`, referencia: 'antes' })
+  const dO = await fila93('loja', 'v3_ordens_compra', 'teste93:oc:tudo', { limit: 1, offset: 0, janela: 'teste93:oc:tudo', origem: 'censo', censo: 'C93x' },
+    { status: 'erro', tentativas: 4, erro: 'a API nova respondeu 403: null', referencia: 'tudo' })
+  const eO = await fila93('loja', 'v3_ordens_compra', 'k93b:v3_ordens_compra', { janela: 'k93b:v3_ordens_compra', origem: 'carga', carga: 'K93b' })
+  const fO = await fila93('loja', 'v3_ordens_compra', 'k93b:v3_ordens_compra:o100', { janela: 'k93b:v3_ordens_compra', offset: 100, origem: 'carga', carga: 'K93b' })
+  await reservar93(fO)
+  const gF = await fila93('fabrica', 'conta_pagar', 'teste93-outra', { origem: 'carga', carga: 'K93b' },
+    { status: 'erro', tentativas: 4, erro: 'codigo 99: falha de teste' })
+  const hV = await fila93('loja', 'cp_pesquisa', 'k93b:cp_pesquisa:velha', {
+    data_ini_emissao: '01/01/2015', data_fim_emissao: br93(dia93(piso93.loja, -5)), pagina: 1, janela: 'k93b:cp_pesquisa:velha', origem: 'carga', carga: 'K93b' },
+  { status: 'erro', tentativas: 4, erro: `codigo 31: ${MSG31}`, referencia: 'velha' })
+  const acerto1 = (await um93(`select plt_privado.fn_tiny_fila_limites_acertar() as r`)).r
+  const acerto2 = (await um93(`select plt_privado.fn_tiny_fila_limites_acertar() as r`)).r
+  const [la, lb, lc, ld, le, lf, lg, lh] = await Promise.all([aC, bN, cR, dO, eO, fO, gF, hV].map((id) => linha93(id)))
+  const contaFila93 = await todos93(`
+    select conta, recurso, status, count(*)::int as n from public.tiny_fila where params->>'carga' = 'K93b' group by 1, 2, 3 order by 1, 2, 3`)
+  const contaPronta93 = await todos93(`
+    select conta, recurso, status, n::int as n from public.plt_tiny_carga_contagem where rodada = 'K93b' and n <> 0 order by 1, 2, 3`)
+  conferir(
+    JSON.stringify(acerto1) === JSON.stringify({ carga_no_piso: 2, fora_do_plano: 2, sem_permissao: 1, compras_da_loja: 1 })
+      && JSON.stringify(acerto2) === JSON.stringify({ carga_no_piso: 0, fora_do_plano: 0, sem_permissao: 0, compras_da_loja: 0 })
+      && [la, lb].every((l) => l.status === 'pendente' && l.tentativas === 0 && l.erro === null && l.espera_s === null)
+      && la.params.data_ini_emissao === br93(piso93.loja) && la.params.data_fim_emissao === fim30
+      && lb.params.dataInicial === br93(piso93.loja)
+      && lc.status === 'vazio' && lc.erro === MOTIVO31 && lh.status === 'vazio' && lh.erro === MOTIVO31
+      && ld.status === 'vazio' && ld.erro === MOTIVO403 && le.status === 'vazio' && le.erro === MOTIVO403
+      && lf.status === 'processando' && lg.status === 'erro' && lg.erro === 'codigo 99: falha de teste'
+      && JSON.stringify(contaFila93) === JSON.stringify(contaPronta93),
+    'a carga que esbarrou no piso (a que desistiu e a que esperava a nova tentativa) volta para a fila já no piso; a contagem velha e a janela inteira antes do piso encerram com o motivo; o 403 e o pedido de compra da loja que esperava a vez encerram sem perguntar de novo; o que está em andamento e o erro de outra coisa ficam; as contas prontas da carga continuam batendo com a fila',
+    JSON.stringify({ acerto1, acerto2, la, lb, lc, ld, le, lf: lf.status, lg: lg.status, lh, contaFila93, contaPronta93 }),
+  )
+
+  titulo('SESSAO-33 · bloco 93 · as peças novas fora da API; as portas com as permissões de sempre')
+
+  const priv93 = await um93(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_tiny_piso(text)', 'execute') as piso_logado,
+           has_function_privilege('anon', 'plt_privado.fn_tiny_params_no_piso(text, jsonb)', 'execute') as no_piso_anon,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_motivo_final(text, text, text, text)', 'execute') as motivo_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_fila_limites_acertar()', 'execute') as acertar_logado,
+           has_function_privilege('service_role', 'plt_privado.fn_tiny_fila_limites_acertar()', 'execute') as acertar_servico,
+           has_function_privilege('authenticated', 'public.fn_tiny_fila_lote(integer)', 'execute') as lote_logado,
+           has_function_privilege('service_role', 'public.fn_tiny_fila_lote(integer)', 'execute') as lote_servico,
+           has_function_privilege('service_role', 'public.fn_tiny_fila_resposta(bigint, jsonb)', 'execute') as resposta_servico,
+           has_function_privilege('anon', 'public.fn_tiny_fila_resposta(bigint, jsonb)', 'execute') as resposta_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_tiny_carga(text)', 'execute') as carga_logado,
+           has_function_privilege('anon', 'public.plt_fn_tiny_carga(text)', 'execute') as carga_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_tiny_carga_painel()', 'execute') as painel_logado,
+           has_function_privilege('anon', 'public.plt_fn_tiny_carga_painel()', 'execute') as painel_anon`)
+  conferir(
+    !priv93.piso_logado && !priv93.no_piso_anon && !priv93.motivo_logado && !priv93.acertar_logado && !priv93.acertar_servico
+      && !priv93.lote_logado && priv93.lote_servico && priv93.resposta_servico && !priv93.resposta_anon
+      && priv93.carga_logado && !priv93.carga_anon && priv93.painel_logado && !priv93.painel_anon,
+    'o piso, o motivo e o acerto não são porta de ninguém; o lote e a resposta só para a chave de serviço; a carga e o painel só para quem está logado (e, por dentro, só o dono)',
+    JSON.stringify(priv93),
+  )
+} finally {
+  await bd.exec('rollback')
+  await como93('')
+}
+} // fim do bloco 93 (SESSAO-33)
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
