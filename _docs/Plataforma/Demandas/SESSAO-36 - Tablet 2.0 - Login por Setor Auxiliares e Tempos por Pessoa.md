@@ -135,4 +135,4 @@ Criadas pelo Cowork na lista PRODUÇÃO do DPTO TI, em A FAZER — mover para FA
 
 ## Resultado (preencher ao entregar)
 
-*…*
+📦 **Entregue na branch em 18/10/2026** (MODO AUTÔNOMO — nada na main, nada no banco de produção, nada publicado): [[handoff_2026_10_18_sessao36_tablet_2_0]], com o passo a passo do dono. Banco em arquivo (atualizações 95–97 — PIN do setor + busca por PIN, auxílio com tempo próprio, presença trabalhando/ausente/à deriva com agregado diário, portas da dashboard); função de autenticação v12 no repositório (tablet-entrar, pin-identificar, setor-pin-definir, entrar-pin, travas de tentativa); front completo (login com modo tablet e e-mail+PIN, ação só pelo PIN, Auxiliar no quadro/tablet/janela, ícone das pessoas com Pausar/Sair/Entrar, dashboard Tempos por pessoa, PIN do setor em Setores e etapas, "pode auxiliar" e foto na Equipe, aba Motivos de saída, avatar único). Provas: bateria 1.075 verdes (2×, com ensaio ×100: scorecards 22 ms, detalhe 6 ms), telas 205 verdes, tipos/lint limpos, JS inicial 222 KB (teto 250). As respostas provisórias do §3 + 9 extras = **D-146 (provisória — confirmar)**. Execução: [[SESSAO-36]].

@@ -1510,6 +1510,9 @@ O aplicativo da API nova da loja é o do Comercial e não tem o módulo Produtos
 4. A deriva é do chão de fábrica: nasce da SAÍDA de setor sem entrada em outro; sair da conta no PC não gera deriva; quem nunca deu entrada não conta tempo nenhum.
 5. No PC o quadro segue como hoje (a sessão logada é o autor; sem PIN); o PIN como identificador é do modo tablet. O botão Auxiliar existe também na janela do card no PC, agindo pela própria sessão.
 6. O tempo por pessoa soma execuções (como dono do card) + auxílios; o tempo do card e as views existentes não mudam de significado.
+7. **A entrada automática no setor acontece ao INICIAR, RETOMAR ou AUXILIAR um card** (o gesto de trabalhar); mover um card sozinho não dá entrada — o líder que organiza o quadro de outro setor não "entra" nele.
+8. **Ausente e à deriva têm teto de 12 h por trecho** (o mesmo teto da sessão do tablet): ninguém fica "ausente" a noite inteira na conta — o horário de funcionamento por setor pode refinar isso no futuro.
+9. **A pausa do card pausa os auxílios junto** (com o mesmo motivo) e a retomada devolve só quem foi pausado junto com o card; mover, concluir ou arquivar o card encerra os auxílios (resposta 8).
 
 ## Ver também
 

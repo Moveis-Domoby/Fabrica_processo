@@ -66,16 +66,25 @@ As 13 respostas do §3 da demanda foram adotadas tal como escritas (ver a demand
   - `AvatarPessoa` (componente único da casa, foto → iniciais) em `componentes/ui` — usado no painel de pessoas e no PIN duplicado; **falta espalhar** pelos lugares antigos (executor do card, Equipe, ModalPin…, dashboards, Layout, MeuPerfil).
   - Tipo de motivo `saida` no front (Excludes ajustados em ModaisEntrega/EntregasDoDia/Rotas).
 
-## ⏸️ ONDE PAROU (limite de uso da conta, 18/10 ~23h30 UTC) — retomar daqui
+## Front, parte 2 (retomada depois do limite de uso — 18/10, noite)
 
-O banco (95–97), a bateria (1.074 verdes), a função de autenticação v12 e a parte 1 do front estão COMMITADOS e no GitHub (branch `sessao-36-tablet-login-setor`). **Falta, nesta ordem:**
-1. **Janela do card**: botões Auxiliar / "Sair do auxílio" (permissões `auxiliar`/`sair_auxilio` que a porta já devolve) + a lista dos auxílios com tempo; no tablet com PIN.
-2. **Dashboard de tempos por pessoa**: tela nova `/dashboards/tempos-pessoas` (scorecard por pessoa lendo `plt_fn_tempos_pessoas`; detalhe no clique com `plt_fn_tempos_pessoa_detalhe`; `useAoVivo` com a área nova `tempos` — somar `tempos` ao tipo `AreaAoVivo` em `src/lib/aoVivo.ts`), rota em `App.tsx` + item no menu (`Layout.tsx`, grupo dashboards, visível a todos — o banco gateia) + `pedacos.ts`.
-3. **Configurações**: Setores e etapas → bloco "PIN do setor" em `SecaoSetor` (`Estrutura.tsx`, só admin, chama `setorPinDefinir`); Equipe → ação "pode auxiliar" (porta `plt_fn_usuario_pode_auxiliar`) e foto pelo admin; Utilitários → aba "Motivos de saída" (padrão das abas de motivos que já existem).
-4. **Foto em todos os ícones**: trocar os `UserRound`/iniciais à mão por `AvatarPessoa` (executor no `CartaoUnidade`, `Equipe.tsx`, `ProducaoDoPedido.tsx`, `Layout.tsx` bloco do usuário, `MeuPerfil.tsx`, dashboards Pessoas; o chat pode continuar com o `AvatarChat`).
-5. **Testes de tela** (novos: Entrar 3 modos, PainelPessoasSetor, ModalPinOperador novo, dashboard) + `npm run lint` + `npm test` + `npm run build` (teto do pacote) + `grep` de mojibake.
-6. **Checklist de desempenho** (rede: tablet segue 1 requisição; dashboard = 1 por tela; zero relógio novo) + **ensaio ×100** das portas novas (PGlite em disco, padrão da 33) — anexar números.
-7. **Handoff** em `_docs/Handoffs/` ("Para o dono quando voltar": revisar/mesclar, aplicar 95→96→97 uma a uma com a integração conferida, publicar a função de autenticação, testar os fluxos, confirmar as decisões provisórias D-146) + ORDEM/MAPA/PRÓXIMOS PASSOS + Resultado na demanda + ClickUp (comentar as 8 tarefas em FAZENDO, sem concluir).
-8. Registrar na memória de aprendizado o que a sessão ensinou (o grant em massa do harness e o 25P02 do `begin` com recusas já estão contados acima — avaliar se viram E/A).
+- **Janela do card**: botões **Auxiliar** / **Sair do auxílio** (PC pela sessão; tablet com PIN — `pinPara` ganhou os dois gestos), a linha "fulano ajudando há X" por auxílio aberto e o tipo da janela com `auxilios` + permissões novas.
+- **Dashboard** `/dashboards/tempos-por-pessoa` (`TemposPessoas.tsx`): um scorecard por pessoa (foto, estado com texto — M-12 —, produção/ausente/fora de setor no período, produção por setor) e o **detalhe no clique** (1 requisição: dia a dia, por setor, cards com execuções e auxílios); período em pílulas (hoje/7/30/90); **ao vivo** pela área nova `tempos` (`AreaAoVivo`); rota visível a todos (o banco devolve só o próprio ao operador — resposta 12); menu + pedaço próprio (2,4 KB gz).
+- **Configurações**: Setores e etapas → bloco **"PIN de entrada do tablet"** por setor de produção (só admin; o valor nunca volta); Equipe → **avatar na lista**, botão **"Pode auxiliar?"** (porta própria com trilha) e **foto pelo admin** (reduzida no aparelho, 512 px); Utilitários → aba **"Motivos de saída"**.
+- **Foto nos ícones**: `AvatarPessoa` no executor do card (quadro/tablet), na Equipe, no painel de pessoas do setor e no PIN duplicado; o bloco do usuário do menu e o Meu Perfil já mostravam a foto; o chat segue com o avatar próprio (mesma lógica). Pessoas/ProducaoDoPedido ficam para quando as portas levarem a foto (anotado no handoff).
 
-**Armadilhas para quem retomar:** nada foi aplicado no banco de produção; nada publicado; a função de autenticação v12 exige a atualização 95 aplicada ANTES de ser publicada (ela lê o segredo e as tabelas novas). A numeração combinada com a sessão paralela: migration 95–97 usadas, D-146 usada; próxima livre: 98 / D-147 / E-114 / A-80.
+## Fechamento (checklists)
+
+- **Tipos** limpos · **lint** limpo · **testes de tela 205 verdes em 38 arquivos** (novos: a entrada com os 3 modos e a dashboard de tempos) · **bateria do banco 1.075 verdes** (reaplica tudo 2×; blocos 95–97 + ensaio ×100) · **build** ok.
+- **Mojibake**: `grep -E 'Ã§|Ã£|…'` no src = nada (E-34).
+- **Checklist da Lei de Desempenho (§12):**
+  - Requisições: tablet segue abrindo em 1 requisição (o quadro numa chamada — as presenças e os auxílios vêm NELA); a dashboard nova = 1 requisição (detalhe só no clique); a tela de entrada não toca o banco antes do gesto. Zero releitura por relógio (tudo pelo websocket: setor e o tópico novo `tempos`).
+  - Busca no código: nenhum `refetchInterval`/`setInterval` buscando dado/`postgres_changes` novo.
+  - **Ensaio ×100** (PGlite, na bateria): agregado com ~98 mil linhas (90 pessoas × 365 dias × 3 estados) → **scorecards de 30 dias: 22 ms · detalhe de 1 pessoa: 6 ms** — lendo só o agregado diário e o segmento aberto (os tetos reais são 150/50 ms, e o banco real é mais rápido que o PGlite).
+  - Índices: agregado por (usuario, dia, estado, setor) + (dia); segmentos por (usuario, inicio) e único parcial do aberto; auxílios por card/usuário parciais.
+  - Listas: scorecards limitados às pessoas da casa (deslocamento justificado, teto 100); detalhe limitado a 100 cards por tipo.
+  - Pacote: JS inicial **219,6 → 222,0 KB** comprimidos (teto 250; os modos novos da tela de entrada + o avatar); pedaços: TelaSetor 6,1 KB gz · JanelaDoCard 8,0 · TemposPessoas 2,4.
+  - Escrita idempotente: auxílio repetido recusado pelo único parcial; entrada repetida no mesmo setor é silenciosa; pausar-tudo idempotente por card.
+  - Advisors: nada foi aplicado em produção — conferir DEPOIS da aplicação (passo do dono no handoff).
+- **O que NÃO foi feito (e por quê):** aplicar as atualizações 95–97 no banco (regra 2), publicar a função de autenticação v12 (ela depende da 95 aplicada — ordem no handoff), mesclar na main (regra 1), testar logado no site (nada publicado); a foto nos painéis "Pessoas" e na produção do pedido espera as portas levarem a foto (anotado).
+- **Numeração usada:** migrations 95–97, D-146, A-80; próxima livre: 98 / D-147 / E-114 / A-81.
