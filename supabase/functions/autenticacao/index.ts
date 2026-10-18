@@ -9,8 +9,14 @@
 //   trocar-senha     → troca obrigatória da senha padrão no primeiro login
 //   atualizar-perfil → (SESSAO-13) a própria pessoa troca nome, login, e-mail, fone
 //   alterar-senha    → (SESSAO-13) troca de senha do Meu Perfil, com a senha atual
-//   pin-definir      → admin/líder define o PIN de tablet de alguém
+//   pin-definir      → admin/líder define o PIN de tablet de alguém (único — SESSAO-36)
 //   pin-verificar    → o tablet identifica o operador pela matrícula/usuário + PIN
+//   pin-identificar  → (SESSAO-36) identifica a pessoa SÓ pelo PIN (sem clicar no nome)
+//   tablet-entrar    → (SESSAO-36) a tela de login no modo tablet: o PIN do SETOR
+//                      abre a sessão da conta de tablet daquele setor
+//   setor-pin-definir→ (SESSAO-36) o admin dá/troca o PIN de entrada de um setor
+//   entrar-pin       → (SESSAO-36) no PC: e-mail + PIN para quem nunca criou senha
+//                      (cai na troca obrigatória; depois da senha, deixa de valer)
 //
 // Por que Edge Function e não RPC em `public`: função em `public` vira
 // endpoint sem ninguém pedir (E-11), e resolver "usuário → e-mail" no
@@ -89,6 +95,112 @@ async function conferirPin(pin: string, guardado: string): Promise<boolean> {
   let diferenca = 0
   for (let i = 0; i < esperado.length; i += 1) diferenca |= esperado[i] ^ obtido[i]
   return diferenca === 0
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-36 · a BUSCA pelo PIN: um hash determinístico (HMAC-SHA256) com um
+// segredo que NASCE NO BANCO (plt_webhooks, marcador pin_chave — o padrão da
+// cópia de fotos do Tiny): acha a pessoa/setor pelo PIN digitado num índice,
+// sem comparar PBKDF2 contra todo mundo. A CONFERÊNCIA continua pelo PBKDF2.
+// ----------------------------------------------------------------------------
+let chaveBuscaCache: string | null = null
+
+async function chaveBusca(): Promise<string> {
+  if (chaveBuscaCache) return chaveBuscaCache
+  const { data } = await servidor
+    .from('plt_webhooks')
+    .select('segredo')
+    .contains('eventos', ['pin_chave'])
+    .maybeSingle()
+  if (!data?.segredo) throw new Error('A chave de busca do PIN não está no banco (atualização 95).')
+  chaveBuscaCache = data.segredo
+  return chaveBuscaCache
+}
+
+async function buscaDoPin(pin: string): Promise<string> {
+  const chave = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(await chaveBusca()),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const assinatura = await crypto.subtle.sign('HMAC', chave, new TextEncoder().encode(pin))
+  return Array.from(new Uint8Array(assinatura)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+// O PIN digitado já está em uso por alguém (pessoa ou setor)?
+async function pinJaUsado(busca: string, ignorarUsuario?: string, ignorarSetor?: number): Promise<boolean> {
+  const { data: pessoa } = await servidor
+    .from('plt_usuarios')
+    .select('id')
+    .eq('pin_busca', busca)
+    .maybeSingle()
+  if (pessoa && pessoa.id !== ignorarUsuario) return true
+  const { data: setor } = await servidor
+    .from('plt_setor_pins')
+    .select('setor_id')
+    .eq('pin_busca', busca)
+    .maybeSingle()
+  if (setor && Number(setor.setor_id) !== ignorarSetor) return true
+  return false
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-36 · trava de tentativa e erro (plt_pin_tentativas): 5 erros na
+// janela de 15 min bloqueiam por 1 min (e o bloqueio dobra a cada erro a mais,
+// até 15 min). A trava vale por ORIGEM: o aparelho (IP) na tela de entrada, a
+// sessão do tablet nas ações por PIN, o e-mail no entrar com e-mail + PIN.
+// ----------------------------------------------------------------------------
+const TRAVA_JANELA_MS = 15 * 60 * 1000
+const TRAVA_ERROS = 5
+
+function origemDaChamada(req: Request): string {
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
+  return ip || 'desconhecida'
+}
+
+async function travaBloqueada(chave: string): Promise<number> {
+  const { data } = await servidor
+    .from('plt_pin_tentativas')
+    .select('bloqueado_ate')
+    .eq('chave', chave)
+    .maybeSingle()
+  if (!data?.bloqueado_ate) return 0
+  const falta = new Date(data.bloqueado_ate).getTime() - Date.now()
+  return falta > 0 ? Math.ceil(falta / 1000) : 0
+}
+
+async function travaErrou(chave: string): Promise<void> {
+  const { data } = await servidor
+    .from('plt_pin_tentativas')
+    .select('erros, janela_inicio')
+    .eq('chave', chave)
+    .maybeSingle()
+  const dentroDaJanela =
+    data?.janela_inicio && Date.now() - new Date(data.janela_inicio).getTime() < TRAVA_JANELA_MS
+  const erros = dentroDaJanela ? Number(data?.erros ?? 0) + 1 : 1
+  const bloqueio =
+    erros >= TRAVA_ERROS
+      ? new Date(Date.now() + Math.min(60_000 * 2 ** (erros - TRAVA_ERROS), TRAVA_JANELA_MS)).toISOString()
+      : null
+  await servidor.from('plt_pin_tentativas').upsert({
+    chave,
+    erros,
+    janela_inicio: dentroDaJanela ? data?.janela_inicio : new Date().toISOString(),
+    bloqueado_ate: bloqueio,
+  })
+}
+
+async function travaLimpar(chave: string): Promise<void> {
+  await servidor.from('plt_pin_tentativas').delete().eq('chave', chave)
+}
+
+const TRAVADO = (s: number) =>
+  `Muitas tentativas erradas. Espere ${Math.max(1, Math.ceil(s / 60))} minuto(s) e tente de novo.`
+
+function senhaAleatoria(): string {
+  return paraB64(crypto.getRandomValues(new Uint8Array(32)))
 }
 
 // ----------------------------------------------------------------------------
@@ -343,6 +455,11 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
       return erro(403, 'Líder só cadastra gente nos setores em que é líder.')
   }
 
+  // SESSAO-36 (D-146 resposta 2): o PIN do cadastro também é único.
+  const buscaDoNovoPin = pin ? await buscaDoPin(pin) : null
+  if (buscaDoNovoPin && (await pinJaUsado(buscaDoNovoPin)))
+    return erro(409, 'Este PIN já está em uso (por outra pessoa ou por um setor) — escolha outro.')
+
   // 1 · conta de auth com a senha padrão, e-mail já confirmado (convite é por
   //     WhatsApp — nenhum e-mail automático é enviado)
   const criada = await servidor.auth.admin.createUser({
@@ -370,6 +487,7 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
       telefone,
       papel,
       pin_hash: pin ? await gerarHashPin(pin) : null,
+      pin_busca: buscaDoNovoPin,
       modulos: ['fabrica'],
     })
     .select('id, matricula, convite_token')
@@ -477,9 +595,15 @@ async function pinDefinir(req: Request, corpo: Json): Promise<Response> {
     if (!alcancavel) return erro(403, 'Líder só define PIN de gente dos setores em que é líder.')
   }
 
+  // SESSAO-36 (D-146 resposta 2): PIN único daqui em diante — não pode já ser
+  // de outra pessoa nem de um setor. A busca entra junto com o hash.
+  const busca = await buscaDoPin(pin)
+  if (await pinJaUsado(busca, usuarioId))
+    return erro(409, 'Este PIN já está em uso (por outra pessoa ou por um setor) — escolha outro.')
+
   const { error: erroPin } = await servidor
     .from('plt_usuarios')
-    .update({ pin_hash: await gerarHashPin(pin) })
+    .update({ pin_hash: await gerarHashPin(pin), pin_busca: busca })
     .eq('id', usuarioId)
   if (erroPin) return erro(500, 'Não consegui gravar o PIN. Tente de novo.')
   return resposta(200, { ok: true })
@@ -506,8 +630,28 @@ async function pinVerificar(req: Request, corpo: Json): Promise<Response> {
     .eq(coluna, coluna === 'matricula' ? identificador.toUpperCase() : identificador)
     .maybeSingle()
 
-  if (!alvo || !alvo.ativo || !alvo.pin_hash) return erro(401, NEGADO)
-  if (!(await conferirPin(pin, alvo.pin_hash))) return erro(401, NEGADO)
+  // SESSAO-36: trava de tentativa e erro por sessão (antes não havia nenhuma)
+  const trava = `sessao:${quem.id}`
+  const bloqueado = await travaBloqueada(trava)
+  if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
+
+  if (!alvo || !alvo.ativo || !alvo.pin_hash) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
+  if (!(await conferirPin(pin, alvo.pin_hash))) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
+  await travaLimpar(trava)
+
+  // SESSAO-36: o acerto preenche a busca de quem definiu o PIN antes da regra
+  await servidor
+    .from('plt_usuarios')
+    .update({ pin_busca: await buscaDoPin(pin) })
+    .eq('id', alvo.id)
+    .is('pin_busca', null)
+    .then(() => {})
 
   return resposta(200, {
     usuario_id: alvo.id,
@@ -515,6 +659,285 @@ async function pinVerificar(req: Request, corpo: Json): Promise<Response> {
     matricula: alvo.matricula,
     papel: alvo.papel,
   })
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-36 · setor-pin-definir — o admin dá (ou troca) o PIN de entrada do
+// tablet de um setor de produção. Nunca em texto puro; a mudança fica na
+// trilha (D-40), sem o valor.
+// ----------------------------------------------------------------------------
+async function setorPinDefinir(req: Request, corpo: Json): Promise<Response> {
+  const quem = await pessoaDoToken(req)
+  if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
+  if (quem.papel !== 'admin') return erro(403, 'O PIN do setor é gesto de admin.')
+
+  const setorId = Number(corpo.setor_id ?? 0)
+  const pin = String(corpo.pin ?? '')
+  if (!setorId) return erro(400, 'Diga de qual setor é o PIN.')
+  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+
+  const { data: setor } = await servidor
+    .from('plt_setores')
+    .select('id, nome, papel_no_fluxo, ativo')
+    .eq('id', setorId)
+    .maybeSingle()
+  if (!setor || !setor.ativo || setor.papel_no_fluxo !== 'producao')
+    return erro(400, 'O PIN de entrada é de setor de produção ativo.')
+
+  const busca = await buscaDoPin(pin)
+  if (await pinJaUsado(busca, undefined, setorId))
+    return erro(409, 'Este PIN já está em uso (por uma pessoa ou por outro setor) — escolha outro.')
+
+  const { error: erroGravar } = await servidor.from('plt_setor_pins').upsert({
+    setor_id: setorId,
+    pin_hash: await gerarHashPin(pin),
+    pin_busca: busca,
+    alterado_por: quem.id,
+    alterado_em: new Date().toISOString(),
+  })
+  if (erroGravar) return erro(500, 'Não consegui gravar o PIN do setor. Tente de novo.')
+
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: quem.id, acao: 'setor_pin_alterado', contexto: { setor_id: setorId, setor: setor.nome } })
+    .then(() => {})
+  return resposta(200, { ok: true })
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-36 · tablet-entrar — a tela de login no modo tablet: o PIN DO SETOR
+// abre a sessão da CONTA DE TABLET daquele setor (criada sozinha na primeira
+// entrada). PIN de pessoa aqui não faz nada (D-146 resposta 3). Sem sessão —
+// a trava é pelo aparelho (IP).
+// ----------------------------------------------------------------------------
+async function tabletEntrar(req: Request, corpo: Json): Promise<Response> {
+  const pin = String(corpo.pin ?? '')
+  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+
+  const trava = `ip:${origemDaChamada(req)}`
+  const bloqueado = await travaBloqueada(trava)
+  if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
+
+  const NEGADO = 'PIN não encontrado. A entrada do tablet usa o PIN do setor.'
+  const busca = await buscaDoPin(pin)
+  const { data: linha } = await servidor
+    .from('plt_setor_pins')
+    .select('setor_id, pin_hash')
+    .eq('pin_busca', busca)
+    .maybeSingle()
+  if (!linha || !(await conferirPin(pin, linha.pin_hash))) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
+  await travaLimpar(trava)
+
+  const { data: setor } = await servidor
+    .from('plt_setores')
+    .select('id, nome, codigo, papel_no_fluxo, ativo')
+    .eq('id', linha.setor_id)
+    .maybeSingle()
+  if (!setor || !setor.ativo) return erro(401, NEGADO)
+
+  // a conta de tablet do setor (uma por setor; nasce aqui na primeira entrada)
+  const usuarioTablet = `tablet-s${setor.id}`
+  const emailTablet = `tablet-s${setor.id}@tablet.domoby.local`
+  let { data: conta } = await servidor
+    .from('plt_usuarios')
+    .select('id, auth_user_id, ativo')
+    .eq('usuario', usuarioTablet)
+    .eq('conta_tablet', true)
+    .maybeSingle()
+
+  if (!conta) {
+    const criada = await servidor.auth.admin.createUser({
+      email: emailTablet,
+      password: senhaAleatoria(),
+      email_confirm: true,
+    })
+    if (criada.error) return erro(500, 'Não consegui preparar a conta do tablet. Tente de novo.')
+    const { data: pessoa, error: erroPessoa } = await servidor
+      .from('plt_usuarios')
+      .insert({
+        auth_user_id: criada.data.user.id,
+        nome: `Tablet · ${setor.nome}`,
+        email: emailTablet,
+        usuario: usuarioTablet,
+        papel: 'operador',
+        conta_tablet: true,
+        senha_padrao: false,
+        modulos: ['fabrica'],
+      })
+      .select('id, auth_user_id, ativo')
+      .single()
+    if (erroPessoa || !pessoa) {
+      await servidor.auth.admin.deleteUser(criada.data.user.id)
+      return erro(500, 'Não consegui preparar a conta do tablet. Tente de novo.')
+    }
+    const { error: erroVinculo } = await servidor
+      .from('plt_usuario_setores')
+      .insert({ usuario_id: pessoa.id, setor_id: setor.id, lider_do_setor: false })
+    if (erroVinculo) {
+      await servidor.from('plt_usuarios').delete().eq('id', pessoa.id)
+      await servidor.auth.admin.deleteUser(criada.data.user.id)
+      return erro(500, 'Não consegui preparar a conta do tablet. Tente de novo.')
+    }
+    conta = pessoa
+  }
+  if (!conta.ativo) return erro(403, 'A conta do tablet deste setor está desativada. Fale com a liderança.')
+
+  // a sessão: uma senha nova a cada entrada (as sessões já abertas não caem)
+  const senha = senhaAleatoria()
+  const trocada = await servidor.auth.admin.updateUserById(conta.auth_user_id, { password: senha })
+  if (trocada.error) return erro(500, 'Não consegui abrir a sessão do tablet. Tente de novo.')
+  const tentativa = await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: CHAVE_ANON },
+    body: JSON.stringify({ email: emailTablet, password: senha }),
+  })
+  if (!tentativa.ok) return erro(500, 'Não consegui abrir a sessão do tablet. Tente de novo.')
+  const sessao = await tentativa.json()
+
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: conta.id, acao: 'tablet_entrou', contexto: { setor_id: setor.id, setor: setor.nome } })
+    .then(() => {})
+
+  return resposta(200, {
+    access_token: sessao.access_token,
+    refresh_token: sessao.refresh_token,
+    setor: { id: setor.id, nome: setor.nome, codigo: setor.codigo },
+  })
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-36 · pin-identificar — "quem é você?" SÓ pelo PIN (sem clicar no
+// nome). Acha pela busca; quem definiu o PIN antes desta sessão (sem a busca
+// gravada) é conferido um a um e a busca é preenchida no primeiro acerto.
+// PIN repetido de antes da regra (D-146 resposta 2): devolve os nomes para a
+// pessoa confirmar o seu, e a duplicata fica registrada na trilha.
+// ----------------------------------------------------------------------------
+async function pinIdentificar(req: Request, corpo: Json): Promise<Response> {
+  const quem = await pessoaDoToken(req)
+  if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
+
+  const pin = String(corpo.pin ?? '')
+  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+
+  const trava = `sessao:${quem.id}`
+  const bloqueado = await travaBloqueada(trava)
+  if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
+
+  const NEGADO = 'PIN não encontrado.'
+  const busca = await buscaDoPin(pin)
+  const encontrados: { id: string; nome: string; matricula: string; papel: string; foto_caminho: string | null; pin_hash: string }[] = []
+
+  const { data: direto } = await servidor
+    .from('plt_usuarios')
+    .select('id, nome, matricula, papel, foto_caminho, pin_hash')
+    .eq('pin_busca', busca)
+    .eq('ativo', true)
+    .eq('conta_tablet', false)
+    .maybeSingle()
+  if (direto) encontrados.push(direto)
+
+  // quem definiu o PIN antes da busca existir: confere um a um e preenche
+  const { data: antigos } = await servidor
+    .from('plt_usuarios')
+    .select('id, nome, matricula, papel, foto_caminho, pin_hash')
+    .is('pin_busca', null)
+    .not('pin_hash', 'is', null)
+    .eq('ativo', true)
+    .eq('conta_tablet', false)
+  for (const u of antigos ?? []) {
+    if (await conferirPin(pin, u.pin_hash)) encontrados.push(u)
+  }
+
+  if (encontrados.length === 0) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
+  await travaLimpar(trava)
+
+  if (encontrados.length === 1) {
+    const u = encontrados[0]
+    if (!(await conferirPin(pin, u.pin_hash))) return erro(401, NEGADO)
+    // preenche a busca de quem ainda não tinha (o PIN veio de antes da regra)
+    await servidor.from('plt_usuarios').update({ pin_busca: busca }).eq('id', u.id).is('pin_busca', null)
+    return resposta(200, {
+      usuario_id: u.id,
+      nome: u.nome,
+      matricula: u.matricula,
+      papel: u.papel,
+      foto_caminho: u.foto_caminho,
+    })
+  }
+
+  // PIN duplicado histórico: só nesses casos a ação pede confirmar o nome
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({
+      usuario_id: quem.id,
+      acao: 'pin_duplicado',
+      contexto: { matriculas: encontrados.map((u) => u.matricula) },
+    })
+    .then(() => {})
+  return resposta(200, {
+    duplicado: encontrados.map((u) => ({ usuario_id: u.id, nome: u.nome, matricula: u.matricula, foto_caminho: u.foto_caminho })),
+  })
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-36 · entrar-pin — no COMPUTADOR: quem tem PIN e nunca criou senha
+// entra com e-mail + PIN e cai na troca obrigatória de senha. Depois de criar
+// a senha, este caminho deixa de valer (D-146 resposta 11).
+// ----------------------------------------------------------------------------
+async function entrarPin(req: Request, corpo: Json): Promise<Response> {
+  const email = String(corpo.email ?? '').trim().toLowerCase()
+  const pin = String(corpo.pin ?? '')
+  if (!email || !/^[0-9]{4,6}$/.test(pin)) return erro(400, 'Informe o e-mail e o PIN (4 a 6 dígitos).')
+
+  const trava = `email:${email}`
+  const bloqueado = await travaBloqueada(trava)
+  if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
+
+  const NEGADO = 'E-mail ou PIN incorretos — ou esta conta já tem senha (entre com ela).'
+  const { data: linha } = await servidor
+    .from('plt_usuarios')
+    .select('id, email, ativo, senha_padrao, pin_hash, conta_tablet')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (!linha || linha.conta_tablet || !linha.pin_hash || !(await conferirPin(pin, linha.pin_hash))) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
+  await travaLimpar(trava)
+
+  // D-141: pessoa desativada é recusada já no login, com a mensagem clara —
+  // só para quem acertou o PIN (quem erra continua no genérico).
+  if (!linha.ativo) return erro(403, DESATIVADO)
+  // D-146 resposta 11: depois da senha criada, o e-mail + PIN deixa de valer.
+  if (!linha.senha_padrao) return erro(401, NEGADO)
+
+  const senhaPadrao = Deno.env.get('PLT_SENHA_PADRAO')
+  if (!senhaPadrao)
+    return erro(500, 'Segredo PLT_SENHA_PADRAO não configurado no painel do Supabase.')
+
+  const tentativa = await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: CHAVE_ANON },
+    body: JSON.stringify({ email: linha.email, password: senhaPadrao }),
+  })
+  if (!tentativa.ok) return erro(401, NEGADO)
+  const sessao = await tentativa.json()
+
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: linha.id, acao: 'entrou', contexto: { via: 'email_pin' } })
+    .then(() => {})
+
+  // a guarda do front leva direto à troca obrigatória (senha_padrao = true)
+  return resposta(200, { access_token: sessao.access_token, refresh_token: sessao.refresh_token })
 }
 
 // ----------------------------------------------------------------------------
@@ -547,6 +970,14 @@ Deno.serve(async (req) => {
         return await pinDefinir(req, corpo)
       case 'pin-verificar':
         return await pinVerificar(req, corpo)
+      case 'pin-identificar':
+        return await pinIdentificar(req, corpo)
+      case 'tablet-entrar':
+        return await tabletEntrar(req, corpo)
+      case 'setor-pin-definir':
+        return await setorPinDefinir(req, corpo)
+      case 'entrar-pin':
+        return await entrarPin(req, corpo)
       default:
         return erro(400, 'Ação desconhecida.')
     }
