@@ -7,6 +7,7 @@ import {
   ArchiveRestore,
   ListPlus,
   MessageSquareText,
+  DoorOpen,
   Pause,
   Pencil,
   Plus,
@@ -35,7 +36,8 @@ import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utili
 
 // ↩️ Ajuste do dono (14/10 noite): os motivos de pausa ganharam aba própria —
 // "estão dentro de motivos de entrega, o que não faz sentido".
-type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa'
+// SESSAO-36 (D-146 resposta 6): + os motivos de SAÍDA do setor (lista própria).
+type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101 — pedido do dono: "crie uma
@@ -47,7 +49,9 @@ export function Utilitarios() {
   const [parametros, setParametros] = useSearchParams()
   const pedida = parametros.get('aba')
   const aba: AbaUtilitarios =
-    pedida === 'campos' || pedida === 'motivos' || pedida === 'pausa' ? pedida : 'etiquetas'
+    pedida === 'campos' || pedida === 'motivos' || pedida === 'pausa' || pedida === 'saida'
+      ? pedida
+      : 'etiquetas'
 
   return (
     <div className="flex flex-col gap-5">
@@ -108,6 +112,11 @@ export function Utilitarios() {
             rotulo: 'Motivos de pausa',
             icone: <Pause aria-hidden className="size-4" />,
           },
+          {
+            valor: 'saida',
+            rotulo: 'Motivos de saída',
+            icone: <DoorOpen aria-hidden className="size-4" />,
+          },
         ]}
       />
 
@@ -118,6 +127,8 @@ export function Utilitarios() {
           <PainelCampos />
         ) : aba === 'pausa' ? (
           <PainelMotivos listas={MOTIVOS_PAUSA} />
+        ) : aba === 'saida' ? (
+          <PainelMotivos listas={MOTIVOS_SAIDA} />
         ) : (
           <PainelMotivos listas={MOTIVOS_ENTREGA} />
         )}
@@ -716,6 +727,17 @@ const MOTIVOS_PAUSA: ListaDeMotivos[] = [
     titulo: 'Motivos de pausa',
     explica:
       'Escolhido ao pausar um card em execução ou ao soltá-lo numa etapa de parada. A opção "Outro", escrita na hora, sempre aparece junto.',
+  },
+]
+
+// SESSAO-36 (D-146 resposta 6): sair do setor pede o motivo, como a pausa —
+// mas a lista é OUTRA (pausa e saída não se misturam).
+const MOTIVOS_SAIDA: ListaDeMotivos[] = [
+  {
+    tipo: 'saida',
+    titulo: 'Motivos de saída do setor',
+    explica:
+      'Escolhido quando a pessoa SAI do setor pelo ícone do tablet (os cards dela pausam juntos). A opção "Outro", escrita na hora, sempre aparece junto.',
   },
 ]
 

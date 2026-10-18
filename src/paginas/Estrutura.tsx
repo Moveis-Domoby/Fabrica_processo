@@ -13,10 +13,12 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Save,
 } from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { setorPinDefinir } from '@/autenticacao/api'
 import {
   atualizarEtapa,
   atualizarSetor,
@@ -385,6 +387,10 @@ function SecaoSetor(props: {
           {props.podeGerirSetor && setor.papel_no_fluxo === 'producao' && (
             <EstadoDaPeca setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
           )}
+          {/* SESSAO-36 (D-146): o PIN de entrada do tablet do setor — só admin. */}
+          {props.podeGerirSetor && setor.papel_no_fluxo === 'producao' && setor.ativo && (
+            <PinDoSetor setor={setor} aoErro={props.aoErro} />
+          )}
           <ListaEtapas
             setor={setor}
             setores={props.setores}
@@ -399,6 +405,68 @@ function SecaoSetor(props: {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * SESSAO-36 (D-146 resposta 1): o PIN de entrada do tablet do setor — 4 a 6
+ * dígitos, cadastrado/trocado pelo admin. O valor nunca volta do servidor
+ * (só hash no banco) e a troca fica na trilha. Quem digita esse PIN na tela de
+ * login abre o tablet DESTE setor.
+ */
+function PinDoSetor(props: { setor: Setor; aoErro: (excecao: unknown) => void }) {
+  const notificar = useNotificacao()
+  const [pin, setPin] = useState('')
+  const gravar = useMutation({
+    mutationFn: () => setorPinDefinir(props.setor.id, pin),
+    onSuccess: () => {
+      setPin('')
+      notificar({
+        titulo: `PIN do setor ${props.setor.nome} gravado`,
+        descricao: 'A tela de login (Modo tablet) já aceita o PIN novo.',
+        tom: 'perfeito',
+      })
+    },
+    onError: props.aoErro,
+  })
+
+  return (
+    <div className="border-t border-borda px-3 py-3 sm:px-4">
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (/^[0-9]{4,6}$/.test(pin)) gravar.mutate()
+        }}
+      >
+        <div className="w-44">
+          <Campo
+            rotulo="PIN de entrada do tablet"
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="4 a 6 dígitos"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          />
+        </div>
+        <Botao
+          type="submit"
+          tamanho="sm"
+          variante="secundaria"
+          icone={<Save />}
+          carregando={gravar.isPending}
+          disabled={!/^[0-9]{4,6}$/.test(pin)}
+        >
+          Gravar PIN
+        </Botao>
+        <p className="w-full text-xs text-texto-fraco sm:w-auto sm:flex-1">
+          É com este PIN que o tablet entra no setor pela tela de login. Ele não pode repetir o PIN
+          de nenhuma pessoa nem de outro setor; o valor não é mostrado depois — para trocar, grave
+          um novo.
+        </p>
+      </form>
+    </div>
+  )
+}
 
 const TIPOS_QUALIDADE: { valor: TipoQualidade; rotulo: string }[] = [
   { valor: 'peca_pedido', rotulo: 'Peça de pedido' },

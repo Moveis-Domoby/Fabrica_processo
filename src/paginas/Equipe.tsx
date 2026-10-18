@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
   Cake,
   Check,
   Copy,
+  Handshake,
+  ImageUp,
   KeyRound,
   MessageCircle,
   RotateCcw,
@@ -12,7 +14,7 @@ import {
   Truck,
   UserRoundPlus,
 } from 'lucide-react'
-import { Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
+import { AvatarPessoa, Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
 import type { ColunaTabela } from '@/componentes/ui'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -28,7 +30,8 @@ import { COLUNAS_PERFIL, ehSoEntregador, ROTULO_PAPEL } from '@/autenticacao/tip
 import { definirEntregador } from '@/rotas/api'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
-import { definirNascimento, lerNascimento } from '@/perfil/api'
+import { definirNascimento, enviarFotoPerfil, lerNascimento } from '@/perfil/api'
+import { reduzirImagem } from '@/lib/imagem'
 
 interface LinhaEquipe extends Perfil {
   setores: string
@@ -319,6 +322,57 @@ export function Equipe() {
   }
 
   // SESSAO-30 (D-115): tornar (ou deixar de ser) entregador — só "Entregas do dia".
+  // SESSAO-36 (D-146 resposta 7): o liga/desliga "pode auxiliar" — só admin,
+  // por porta própria (com trilha no banco).
+  const auxiliarMutacao = useMutation({
+    mutationFn: async (p: LinhaEquipe) => {
+      const { error } = await supabase.rpc('plt_fn_usuario_pode_auxiliar', {
+        p_usuario: p.id,
+        p_pode: !p.pode_auxiliar,
+      })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: async (_d, p) => {
+      notificar({
+        titulo: p.pode_auxiliar
+          ? `${p.nome} deixa de auxiliar em outros setores`
+          : `${p.nome} agora pode auxiliar em qualquer setor`,
+        tom: 'perfeito',
+      })
+      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu certo',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
+  // SESSAO-36 (resposta 10): o admin cadastra a foto de qualquer pessoa —
+  // reduzida no aparelho antes de subir (rede do galpão).
+  const [alvoFoto, setAlvoFoto] = useState<LinhaEquipe | null>(null)
+  const entradaFotoRef = useRef<HTMLInputElement>(null)
+  const fotoMutacao = useMutation({
+    mutationFn: async ({ pessoa, arquivo }: { pessoa: LinhaEquipe; arquivo: File }) => {
+      const reduzida = await reduzirImagem(arquivo, 512)
+      const arquivoFinal = new File([reduzida.dados], `foto.${reduzida.extensao}`, {
+        type: reduzida.dados.type || arquivo.type,
+      })
+      await enviarFotoPerfil(pessoa.id, arquivoFinal, pessoa.foto_caminho)
+    },
+    onSuccess: async (_d, { pessoa }) => {
+      notificar({ titulo: `Foto de ${pessoa.nome} gravada`, tom: 'perfeito' })
+      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu para gravar a foto',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
   const entregadorMutacao = useMutation({
     mutationFn: (p: LinhaEquipe) => definirEntregador(p.id, !ehSoEntregador(p)),
     onSuccess: async (_d, p) => {
@@ -347,7 +401,18 @@ export function Equipe() {
       cabecalho: 'Matrícula',
       celula: (p) => <span className="tabular-nums">{p.matricula}</span>,
     },
-    { chave: 'nome', cabecalho: 'Nome', celula: (p) => p.nome, ocultarNoCelular: true },
+    {
+      chave: 'nome',
+      cabecalho: 'Nome',
+      // SESSAO-36 (D-146): a foto do cadastro em todo ícone de pessoa.
+      celula: (p) => (
+        <span className="flex items-center gap-2">
+          <AvatarPessoa nome={p.nome} foto={p.foto_caminho} tamanho="sm" />
+          <span className="min-w-0 truncate">{p.nome}</span>
+        </span>
+      ),
+      ocultarNoCelular: true,
+    },
     { chave: 'usuario', cabecalho: 'Usuário', celula: (p) => p.usuario },
     {
       chave: 'papel',
@@ -414,6 +479,33 @@ export function Equipe() {
               {ehSoEntregador(p) ? 'Tirar de entregador' : 'Entregador'}
             </Botao>
           )}
+          {/* SESSAO-36 (D-146): setores sem fronteira — o liga/desliga do auxílio. */}
+          {souAdmin && !p.arquivado_em && !p.conta_tablet && (
+            <Botao
+              variante={p.pode_auxiliar ? 'primaria' : 'secundaria'}
+              tamanho="sm"
+              icone={<Handshake />}
+              carregando={auxiliarMutacao.isPending && auxiliarMutacao.variables?.id === p.id}
+              onClick={() => auxiliarMutacao.mutate(p)}
+            >
+              {p.pode_auxiliar ? 'Auxilia em todo setor' : 'Pode auxiliar?'}
+            </Botao>
+          )}
+          {/* SESSAO-36 (resposta 10): a foto do cadastro, pelo admin. */}
+          {souAdmin && !p.arquivado_em && !p.conta_tablet && (
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<ImageUp />}
+              aria-label={`Foto de ${p.nome}`}
+              className="toque-seguro px-2"
+              carregando={fotoMutacao.isPending && fotoMutacao.variables?.pessoa.id === p.id}
+              onClick={() => {
+                setAlvoFoto(p)
+                entradaFotoRef.current?.click()
+              }}
+            />
+          )}
           {/* Arquivar/excluir é gesto de admin (o banco confere de novo — D-49). */}
           {souAdmin &&
             p.id !== perfil?.id &&
@@ -459,6 +551,20 @@ export function Equipe() {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* SESSAO-36: o seletor de arquivo da foto (escondido — abre pelo botão da linha). */}
+      <input
+        ref={entradaFotoRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const arquivo = e.target.files?.[0]
+          const pessoa = alvoFoto
+          e.target.value = ''
+          if (arquivo && pessoa) fotoMutacao.mutate({ pessoa, arquivo })
+          setAlvoFoto(null)
+        }}
+      />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl">Equipe</h1>

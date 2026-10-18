@@ -17,11 +17,11 @@ import {
   Pause,
   Play,
   TriangleAlert,
-  UserRound,
   Wrench,
 } from 'lucide-react'
 import { BadgeEstado, Botao, Dica } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
+import { AvatarPessoa } from '@/componentes/ui'
 import { urlDaFoto } from '@/perfil/api'
 import { iniciais } from '@/chat/formato'
 import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
@@ -382,7 +382,12 @@ export function CartaoUnidade({
             {formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
           </span>
           <span className="inline-flex items-center gap-1 font-normal text-texto-suave">
-            <UserRound aria-hidden className="size-4" />
+            {/* SESSAO-36 (D-146): a foto do cadastro em todo ícone de pessoa. */}
+            <AvatarPessoa
+              nome={executorNome ?? null}
+              foto={card.executor_atual_id ? pessoas?.get(card.executor_atual_id)?.foto : null}
+              tamanho="xs"
+            />
             {souExecutor ? 'você' : (executorNome ?? '…')}
           </span>
         </p>
@@ -401,7 +406,11 @@ export function CartaoUnidade({
           <Play aria-hidden className="size-4 text-perfeito-forte" />
           <span className="font-medium">{formatarDuracao(execucaoDesde ?? card.desde, agora)}</span>
           <span className="inline-flex items-center gap-1 text-texto-suave">
-            <UserRound aria-hidden className="size-4" />
+            <AvatarPessoa
+              nome={executorNome ?? null}
+              foto={card.executor_atual_id ? pessoas?.get(card.executor_atual_id)?.foto : null}
+              tamanho="xs"
+            />
             {souExecutor ? 'você' : (executorNome ?? '…')}
           </span>
         </p>
