@@ -281,3 +281,33 @@ revoke all on function public.plt_fn_tempos_pessoas(date, date, integer, integer
 revoke all on function public.plt_fn_tempos_pessoa_detalhe(uuid, date, date) from public, anon;
 grant execute on function public.plt_fn_tempos_pessoas(date, date, integer, integer) to authenticated;
 grant execute on function public.plt_fn_tempos_pessoa_detalhe(uuid, date, date) to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- O liga/desliga "pode auxiliar" (D-146 resposta 7) é gesto de ADMIN, com
+-- trilha — por porta própria (a coluna não ganha update direto: o grant por
+-- coluna não distingue a própria linha, e ninguém se autopromove).
+-- ----------------------------------------------------------------------------
+create or replace function public.plt_fn_usuario_pode_auxiliar(p_usuario uuid, p_pode boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not plt_privado.fn_eh_admin() then
+    raise exception 'Permitir auxiliar em outros setores é gesto de admin.' using errcode = 'insufficient_privilege';
+  end if;
+  update public.plt_usuarios
+     set pode_auxiliar = coalesce(p_pode, false)
+   where id = p_usuario and not conta_tablet;
+  if not found then
+    raise exception 'Pessoa não encontrada.' using errcode = 'no_data_found';
+  end if;
+  insert into public.plt_logs_atividade (usuario_id, acao, contexto)
+    values (plt_privado.fn_usuario_atual(), 'pode_auxiliar_alterado',
+            jsonb_build_object('usuario_id', p_usuario, 'pode', coalesce(p_pode, false)));
+end;
+$$;
+
+revoke all on function public.plt_fn_usuario_pode_auxiliar(uuid, boolean) from public, anon;
+grant execute on function public.plt_fn_usuario_pode_auxiliar(uuid, boolean) to authenticated;
