@@ -15189,6 +15189,46 @@ try {
     JSON.stringify({ ouvir96, naoOuve96 }),
   )
 
+  titulo('SESSAO-36 · bloco 97 · ensaio ×100 (regra 18): a dashboard lê o agregado — nunca os eventos')
+
+  // Volume de "um ano de fábrica ×3": 90 pessoas × 365 dias × 3 estados no
+  // agregado (~98 mil linhas) + 90 segmentos abertos. O scorecard e o detalhe
+  // têm que continuar lendo só o pronto (índices do agregado), nada de varrer.
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel)
+      select 'Carga ' || n, 'carga96.' || n || '@teste.com',
+             lpad((96800000000 + n)::text, 11, '0'), 'carga96.' || n, 'operador'
+        from generate_series(1, 90) n;
+    insert into public.plt_tempos_pessoa_dia (usuario_id, dia, estado, setor_id, segundos)
+      select u.id, (current_date - d), e.estado,
+             case when e.estado = 'trabalhando' then (select id from public.plt_setores where codigo = 'secc') end,
+             1800 + (d % 7) * 600
+        from public.plt_usuarios u
+        cross join generate_series(0, 364) d
+        cross join (values ('trabalhando'), ('ausente'), ('deriva')) e(estado)
+       where u.usuario like 'carga96.%';
+    insert into public.plt_presenca_segmentos (usuario_id, estado, setor_id, inicio)
+      select u.id, 'ausente', (select id from public.plt_setores where codigo = 'secc'), now() - interval '1 hour'
+        from public.plt_usuarios u where u.usuario like 'carga96.%';
+  `)
+  await como96(AUTH96.lider)
+  // aquece uma vez (plano frio engana — A-75) e mede a segunda
+  await bd.query(`select count(*) from public.plt_fn_tempos_pessoas(current_date - 29, current_date, 100, 0)`)
+  let t96 = performance.now()
+  const linhas96 = (await bd.query(`select usuario_id from public.plt_fn_tempos_pessoas(current_date - 29, current_date, 100, 0)`)).rows.length
+  const msScore96 = Math.round(performance.now() - t96)
+  const alvo96 = (await um96(`select id from public.plt_usuarios where usuario = 'carga96.1'`)).id
+  await bd.query(`select public.plt_fn_tempos_pessoa_detalhe('${alvo96}', current_date - 29, current_date)`)
+  t96 = performance.now()
+  await bd.query(`select public.plt_fn_tempos_pessoa_detalhe('${alvo96}', current_date - 29, current_date)`)
+  const msDetalhe96 = Math.round(performance.now() - t96)
+  console.log(`  ensaio ×100 — scorecards (30 dias, ${linhas96} pessoas): ${msScore96} ms · detalhe de 1 pessoa: ${msDetalhe96} ms (PGlite; o banco real é mais rápido)`)
+  conferir(
+    linhas96 >= 90 && msScore96 < 1500 && msDetalhe96 < 1500,
+    'com ~98 mil linhas de agregado, o scorecard e o detalhe continuam no pronto (tempo de PGlite, longe de varrer eventos)',
+    JSON.stringify({ linhas96, msScore96, msDetalhe96 }),
+  )
+
   // o quadro numa requisição traz as presenças do setor e os auxílios
   await como96(AUTH96.lider)
   const quadro96 = (await um96(`

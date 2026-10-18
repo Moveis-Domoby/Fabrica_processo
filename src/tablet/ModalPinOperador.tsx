@@ -29,7 +29,6 @@ export interface ModalPinOperadorProps {
  */
 export function ModalPinOperador({
   acao,
-  setorId: _setorId,
   aoFechar,
   aoIdentificado,
   esperadoId,
