@@ -14847,6 +14847,365 @@ try {
 }
 } // fim do bloco 93 (SESSAO-33)
 
+{ // escopo próprio (E-70)
+// ============================================================================
+// SESSAO-36 · blocos 95–97 — Tablet 2.0: PIN do setor, auxiliares e presença
+// ============================================================================
+const um96 = async (sql) => (await bd.query(sql)).rows[0]
+const como96 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const AUTH96 = {
+  exec: '00000000-0000-0000-0000-000000000961',
+  fora: '00000000-0000-0000-0000-000000000962',
+  nao: '00000000-0000-0000-0000-000000000963',
+  lider: '00000000-0000-0000-0000-000000000964',
+  admin: '00000000-0000-0000-0000-000000000965',
+}
+const id96 = async (usuario) =>
+  (await um96(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+
+// sem begin/rollback: as recusas esperadas (deveRecusarExec) abortariam a
+// transação inteira (25P02) — como nos blocos antigos, os dados do cenário
+// ficam, com prefixo próprio (96) para não colidir com os outros blocos.
+try {
+  titulo('SESSAO-36 · bloco 95 · o PIN do setor e as colunas novas ficam FORA do alcance do navegador (E-50)')
+
+  // ⚠️ o harness imita o grant padrão do Supabase em TODAS as tabelas de public
+  // (bloco 78) — a prova de "tabela fechada" aqui é RLS ligada SEM política
+  // (zero linhas para o papel); no banco real o revoke das migrations completa.
+  const priv95 = await um96(`
+    with fechadas as (
+      select c.relname,
+             c.relrowsecurity as rls,
+             (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname) as politicas
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+       where c.relname in ('plt_setor_pins', 'plt_pin_tentativas', 'plt_auxilios',
+                           'plt_presenca_eventos', 'plt_presenca_atual',
+                           'plt_presenca_segmentos', 'plt_tempos_pessoa_dia'))
+    select (select count(*)::int from fechadas) as tabelas,
+           (select bool_and(rls and politicas = 0) from fechadas) as fechadas_ok,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'pin_busca', 'select') as pin_busca,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'conta_tablet', 'select') as conta_tablet,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'pode_auxiliar', 'select') as pode_auxiliar,
+           (select length(segredo) >= 32 from public.plt_webhooks where eventos = '{pin_chave}'::text[]) as segredo_ok`)
+  conferir(
+    priv95.tabelas === 7 && priv95.fechadas_ok === true && !priv95.pin_busca
+      && priv95.conta_tablet && priv95.pode_auxiliar && priv95.segredo_ok === true,
+    'as 7 tabelas novas são fechadas (RLS sem política — só as portas), pin_busca não tem grant, conta_tablet/pode_auxiliar têm, e o segredo da busca do PIN nasceu no banco',
+    JSON.stringify(priv95),
+  )
+
+  titulo('SESSAO-36 · bloco 95 · conta de tablet sem CPF ganha matrícula 000; pessoa comum continua exigindo CPF; PIN de busca é único')
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, usuario, papel, conta_tablet, senha_padrao)
+      values ('Tablet · SECC', 'tablet-s1@tablet.teste', 'tablet.s96', 'operador', true, false);
+  `)
+  const tab96 = await um96(`select matricula, cpf from public.plt_usuarios where usuario = 'tablet.s96'`)
+  conferir(
+    /^MDM-000-\d{3,}$/.test(tab96.matricula ?? '') && tab96.cpf === null,
+    'a conta de tablet nasce sem CPF e com matrícula de prefixo 000',
+    JSON.stringify(tab96),
+  )
+  await deveRecusarExec(
+    `insert into public.plt_usuarios (nome, email, usuario, papel)
+       values ('Sem Cpf', 'semcpf96@teste.com', 'sem.cpf96', 'operador')`,
+    'pessoa comum sem CPF continua recusada (a matrícula depende dele)',
+    /CPF é obrigatório/i,
+  )
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, pin_busca)
+      values ('Pin A', 'pina96@teste.com', '96100000961', 'pin.a96', 'operador', 'busca-igual-96');
+  `)
+  await deveRecusarExec(
+    `insert into public.plt_usuarios (nome, email, cpf, usuario, papel, pin_busca)
+       values ('Pin B', 'pinb96@teste.com', '96200000962', 'pin.b96', 'operador', 'busca-igual-96')`,
+    'dois PINs de busca iguais não convivem (PIN único por pessoa — D-146 resposta 2)',
+    /duplicate key|pin_busca/i,
+  )
+
+  titulo('SESSAO-36 · bloco 96 · o auxílio: quem pode, tempo próprio, limite, a pausa e o fim do card levam o auxílio junto')
+
+  // gente do cenário (auth_user_id para as portas DEFINER via claim)
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, pode_auxiliar) values
+      ('Aux Exec', 'aux.exec96@teste.com', '96300000963', 'aux.exec96', 'operador', '${AUTH96.exec}', false),
+      ('Aux Fora', 'aux.fora96@teste.com', '96400000964', 'aux.fora96', 'operador', '${AUTH96.fora}', true),
+      ('Aux Nao', 'aux.nao96@teste.com', '96500000965', 'aux.nao96', 'operador', '${AUTH96.nao}', false),
+      ('Aux Lider', 'aux.lider96@teste.com', '96600000966', 'aux.lider96', 'lider', '${AUTH96.lider}', false),
+      ('Aux Admin', 'aux.admin96@teste.com', '96700000967', 'aux.admin96', 'admin', '${AUTH96.admin}', false);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+      ((select id from public.plt_usuarios where usuario = 'aux.exec96'),
+       (select id from public.plt_setores where codigo = 'secc'), false),
+      ((select id from public.plt_usuarios where usuario = 'aux.lider96'),
+       (select id from public.plt_setores where codigo = 'secc'), true),
+      ((select id from public.plt_usuarios where usuario = 'aux.fora96'),
+       (select id from public.plt_setores where codigo = 'montagem'), false),
+      ((select id from public.plt_usuarios where usuario = 'aux.nao96'),
+       (select id from public.plt_setores where codigo = 'montagem'), false);
+    update public.plt_setores set limite_execucoes_por_pessoa = 1
+     where codigo = 'secc';
+    -- blocos anteriores podem ter ligado as chaves do estado da peça (D-126);
+    -- este cenário não é de qualidade — desliga para o mover não pedir estado
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}'
+     where codigo in ('secc', 'montagem');
+    insert into public.pedidos (numero, situacao) values (999936, 'preparando_envio');
+  `)
+
+  const novoCard96 = async (rotulo, indice) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, 1, '961', '${rotulo}', ${indice}, 9
+          from public.pedidos p where p.numero = 999936;
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'card_criado',
+                (select id from public.plt_setores where codigo = 'pcp'), 'interface', now() - interval '3 hours');
+      insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+                (select id from public.plt_setores where codigo = 'pcp'),
+                (select id from public.plt_setores where codigo = 'secc'),
+                (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface', now() - interval '2 hours');
+    `)
+    return (await um96(`select max(id)::int as id from public.plt_cards`)).id
+  }
+
+  const cardX = await novoCard96('Mesa Tablet X', 1)
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+      values (${cardX}, 'execucao_iniciada',
+              (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface', now() - interval '100 minutes');
+  `)
+
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+       values (${cardX}, 'auxilio_iniciado', (select id from public.plt_usuarios where usuario = 'aux.nao96'), 'interface')`,
+    'quem não trabalha no setor e não pode auxiliar é recusado no auxílio',
+    /não trabalha neste setor/i,
+  )
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+       values (${cardX}, 'auxilio_iniciado', (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface')`,
+    'quem executa o card não vira auxiliar dele',
+    /já executa/i,
+  )
+
+  // aux.fora entra (pode_auxiliar) — tempos retrodatados para a conta do tempo próprio
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+      values (${cardX}, 'auxilio_iniciado',
+              (select id from public.plt_usuarios where usuario = 'aux.fora96'), 'interface', now() - interval '30 minutes');
+  `)
+  const aux96 = await um96(`
+    select (select count(*)::int from public.plt_auxilios a
+             where a.card_id = ${cardX} and a.encerrado_em is null) as abertos,
+           (select array_length(c.auxiliares, 1) from public.plt_cards c where c.id = ${cardX}) as no_card,
+           (select setor_id from public.plt_presenca_atual
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.fora96'))
+             = (select id from public.plt_setores where codigo = 'secc') as entrou_no_setor`)
+  conferir(
+    aux96.abertos === 1 && aux96.no_card === 1 && aux96.entrou_no_setor === true,
+    'o auxílio abre com tempo próprio, aparece no card e a primeira ação no setor JÁ dá a entrada da pessoa (D-146/§3)',
+    JSON.stringify(aux96),
+  )
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+       values (${cardX}, 'auxilio_iniciado', (select id from public.plt_usuarios where usuario = 'aux.fora96'), 'interface')`,
+    'a mesma pessoa não auxilia o mesmo card duas vezes',
+    /já está auxiliando/i,
+  )
+
+  // o limite do setor conta o auxílio: aux.fora (limite 1 na SECC) não inicia outro card lá
+  const cardY = await novoCard96('Mesa Tablet Y', 2)
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+       values (${cardY}, 'execucao_iniciada', (select id from public.plt_usuarios where usuario = 'aux.fora96'), 'interface')`,
+    'o limite por pessoa (D-48) conta também o auxílio aberto',
+    /Limite do setor atingido/i,
+  )
+
+  // a pausa do card (com motivo) pausa o auxílio junto; a retomada devolve
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, dados)
+      values (${cardX}, 'execucao_pausada',
+              (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface',
+              now() - interval '20 minutes', '{"motivo": "Falta de material"}'::jsonb);
+  `)
+  const pausa96 = await um96(`
+    select a.pausado_em is not null as pausado, a.segundos::int as segundos, a.pausa_motivo
+      from public.plt_auxilios a where a.card_id = ${cardX} and a.usuario_id =
+           (select id from public.plt_usuarios where usuario = 'aux.fora96')`)
+  conferir(
+    pausa96.pausado === true && pausa96.segundos >= 590 && pausa96.segundos <= 610
+      && /Falta de material/.test(pausa96.pausa_motivo ?? ''),
+    'pausar o card pausa o auxílio junto, com o mesmo motivo, somando o trecho trabalhado (10 min)',
+    JSON.stringify(pausa96),
+  )
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+      values (${cardX}, 'execucao_retomada',
+              (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface', now() - interval '10 minutes');
+  `)
+  // mover o card fecha a execução E o auxílio (resposta 8)
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, etapa_origem_id, setor_destino_id, usuario_id, origem)
+      values (${cardX}, 'movimentacao_setor',
+              (select id from public.plt_setores where codigo = 'secc'), null,
+              (select id from public.plt_setores where codigo = 'montagem'),
+              (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface');
+  `)
+  const fim96 = await um96(`
+    select a.encerrado_em is not null as encerrado, a.encerramento, a.segundos::int as segundos,
+           (select coalesce(array_length(c.auxiliares, 1), 0) from public.plt_cards c where c.id = ${cardX}) as no_card
+      from public.plt_auxilios a where a.card_id = ${cardX}`)
+  conferir(
+    fim96.encerrado === true && fim96.encerramento === 'movimentacao'
+      && fim96.segundos >= 1190 && fim96.segundos <= 1210 && fim96.no_card === 0,
+    'mover o card encerra o auxílio com o tempo próprio fechado (10 + 10 min) e tira a pessoa do card',
+    JSON.stringify(fim96),
+  )
+
+  titulo('SESSAO-36 · bloco 96 · as portas da pessoa: auxiliar, sair do auxílio, pausar tudo (ausente), sair (à deriva), entrar')
+
+  // aux.exec inicia o card Y (ele ficou livre ao mover o X)
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+      values (${cardY}, 'execucao_iniciada',
+              (select id from public.plt_usuarios where usuario = 'aux.exec96'), 'interface');
+  `)
+  await como96(AUTH96.fora)
+  await bd.exec(`select public.plt_fn_card_auxiliar(${cardY})`)
+  await bd.exec(`select public.plt_fn_auxilio_encerrar(${cardY})`)
+  const saiu96 = await um96(`
+    select a.encerramento, (select count(*)::int from public.plt_cards c
+             where c.id = ${cardY} and c.executor_atual_id is not null) as exec_segue
+      from public.plt_auxilios a
+     where a.card_id = ${cardY} and a.usuario_id = (select id from public.plt_usuarios where usuario = 'aux.fora96')`)
+  conferir(
+    saiu96.encerramento === 'gesto' && saiu96.exec_segue === 1,
+    'as portas de auxiliar e de sair do auxílio funcionam pela sessão — e o card segue intacto para quem ficou',
+    JSON.stringify(saiu96),
+  )
+
+  await como96(AUTH96.exec)
+  const motivoPausa96 = (await um96(`select id from public.plt_motivos where tipo = 'pausa' and ativo order by ordem limit 1`)).id
+  const nPausados96 = (await um96(`select public.plt_fn_pessoa_pausar(${motivoPausa96}, null, null) as n`)).n
+  const ausente96 = await um96(`
+    select s.estado, s.setor_id = (select id from public.plt_setores where codigo = 'secc') as na_secc
+      from public.plt_presenca_segmentos s
+     where s.usuario_id = (select id from public.plt_usuarios where usuario = 'aux.exec96') and s.fim is null`)
+  conferir(
+    nPausados96 >= 1 && ausente96?.estado === 'ausente' && ausente96?.na_secc === true,
+    'pausar tudo pausa os cards da pessoa com UM motivo e ela fica AUSENTE (mantém a entrada no setor)',
+    JSON.stringify({ nPausados96, ausente96 }),
+  )
+
+  const motivoSaida96 = (await um96(`select id from public.plt_motivos where tipo = 'saida' and ativo order by ordem limit 1`)).id
+  await bd.exec(`select public.plt_fn_pessoa_sair(${motivoSaida96}, null, null)`)
+  const deriva96 = await um96(`
+    select (select setor_id from public.plt_presenca_atual
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.exec96')) as setor,
+           (select estado from public.plt_presenca_segmentos
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.exec96') and fim is null) as estado,
+           (select motivo from public.plt_presenca_eventos
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.exec96') and tipo = 'saida'
+             order by id desc limit 1) as motivo,
+           (select count(*)::int from public.plt_logs_atividade
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.exec96')
+               and acao = 'setor_saida') as na_trilha`)
+  conferir(
+    deriva96.setor === null && deriva96.estado === 'deriva'
+      && (deriva96.motivo ?? '').length > 0 && deriva96.na_trilha >= 1,
+    'sair do setor pede o motivo da lista própria, deixa a pessoa À DERIVA e fica na trilha (D-40)',
+    JSON.stringify(deriva96),
+  )
+
+  await bd.exec(`select public.plt_fn_pessoa_entrar((select id from public.plt_setores where codigo = 'secc'), null)`)
+  const voltou96 = await um96(`
+    select estado from public.plt_presenca_segmentos
+     where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.exec96') and fim is null`)
+  conferir(voltou96?.estado === 'ausente', 'o Entrar devolve a pessoa ao setor (ausente até trabalhar)', JSON.stringify(voltou96))
+  await deveRecusarExec(
+    `select public.plt_fn_pessoa_sair(null, null, null)`,
+    'sair sem motivo é recusado (a saída sempre tem motivo — D-146 resposta 6)',
+    /Diga o motivo/i,
+  )
+
+  titulo('SESSAO-36 · bloco 96 · o agregado diário: divide por dia em Fortaleza e o ausente/à deriva tem teto de 12 h')
+
+  await bd.exec(`
+    select plt_privado.fn_tempos_dia_somar(
+      (select id from public.plt_usuarios where usuario = 'aux.nao96'), 'trabalhando',
+      (select id from public.plt_setores where codigo = 'montagem'),
+      (date_trunc('day', now() at time zone 'America/Fortaleza')::timestamp at time zone 'America/Fortaleza') - interval '30 minutes',
+      (date_trunc('day', now() at time zone 'America/Fortaleza')::timestamp at time zone 'America/Fortaleza') + interval '30 minutes');
+    select plt_privado.fn_tempos_dia_somar(
+      (select id from public.plt_usuarios where usuario = 'aux.nao96'), 'deriva', null,
+      now() - interval '20 hours', now());
+  `)
+  const agg96 = await um96(`
+    select (select count(*)::int from public.plt_tempos_pessoa_dia
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.nao96')
+               and estado = 'trabalhando' and segundos = 1800) as metades,
+           (select sum(segundos)::int from public.plt_tempos_pessoa_dia
+             where usuario_id = (select id from public.plt_usuarios where usuario = 'aux.nao96')
+               and estado = 'deriva') as deriva_s`)
+  conferir(
+    agg96.metades === 2 && agg96.deriva_s >= 12 * 3600 - 2 && agg96.deriva_s <= 12 * 3600,
+    'o segmento que cruza a meia-noite vira 30 min em cada dia; 20 h à deriva valem só 12 h (o teto; o corte por dia pode comer ~1 s de fração)',
+    JSON.stringify(agg96),
+  )
+
+  titulo('SESSAO-36 · bloco 97 · a dashboard de tempos: líder/admin veem todos, o funcionário só o próprio; o detalhe no clique')
+
+  await como96(AUTH96.lider)
+  const todosLider96 = (await bd.query(`select usuario_id from public.plt_fn_tempos_pessoas(null, null, 50, 0)`)).rows.length
+  await como96(AUTH96.nao)
+  const soEu96 = (await bd.query(`select usuario_id, nome from public.plt_fn_tempos_pessoas(null, null, 50, 0)`)).rows
+  conferir(
+    todosLider96 >= 4 && soEu96.length === 1 && soEu96[0].nome === 'Aux Nao',
+    'o líder vê todo mundo; o funcionário vê só o próprio scorecard (D-146 resposta 12)',
+    JSON.stringify({ todosLider96, soEu96 }),
+  )
+  await deveRecusarExec(
+    `select public.plt_fn_tempos_pessoa_detalhe((select id from public.plt_usuarios where usuario = 'aux.exec96'), null, null)`,
+    'o funcionário não abre o detalhe de outra pessoa',
+    /visão da liderança/i,
+  )
+  const detalhe96 = (await um96(`
+    select public.plt_fn_tempos_pessoa_detalhe((select id from public.plt_usuarios where usuario = 'aux.nao96'), null, null) as d`)).d
+  conferir(
+    detalhe96 && detalhe96.usuario?.nome === 'Aux Nao' && Array.isArray(detalhe96.dias)
+      && detalhe96.dias.reduce((s, x) => s + (x.deriva_s ?? 0), 0) >= 12 * 3600 - 2,
+    'o detalhe do próprio vem com o dia a dia do agregado',
+    JSON.stringify({ dias: detalhe96?.dias?.length, usuario: detalhe96?.usuario?.nome }),
+  )
+  await como96(AUTH96.exec)
+  const ouvir96 = await um96(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:tempos') as ouve`)
+  await como96('')
+  const naoOuve96 = await um96(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:tempos') as ouve`)
+  conferir(
+    ouvir96.ouve === true && naoOuve96.ouve === false,
+    'o canal da dashboard de tempos é privado: logado ouve, anônimo não',
+    JSON.stringify({ ouvir96, naoOuve96 }),
+  )
+
+  // o quadro numa requisição traz as presenças do setor e os auxílios
+  await como96(AUTH96.lider)
+  const quadro96 = (await um96(`
+    select public.plt_fn_quadro_setor((select id from public.plt_setores where codigo = 'secc'), 10) as q`)).q
+  conferir(
+    Array.isArray(quadro96.presencas)
+      && quadro96.presencas.some((p) => p.nome === 'Aux Exec' && p.estado === 'ausente')
+      && Array.isArray(quadro96.auxilios),
+    'o quadro numa requisição diz quem está presente no setor (o ícone do tablet) e traz os auxílios',
+    JSON.stringify({ presencas: quadro96.presencas, auxilios: quadro96.auxilios?.length }),
+  )
+  await como96('')
+} finally {
+  await como96('')
+}
+} // fim dos blocos 95–97 (SESSAO-36)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
