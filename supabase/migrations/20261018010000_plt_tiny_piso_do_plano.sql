@@ -1,6 +1,7 @@
 -- ============================================================================
 -- SESSAO-33 · migration 93 — O PISO DO PLANO DO TINY E AS RESPOSTAS FINAIS
 -- (A-78 — o que a 1ª contagem do Tiny completo achou, 18/10/2026 ~01:50 UTC)
+-- + a estrutura dos móveis e a árvore de categorias no formato real (E-112)
 --
 -- Nada quebrou, mas 5 perguntas da LOJA tentaram 4 vezes e avisaram no sino:
 --   1. O plano do Tiny da LOJA só aceita filtro de data dos últimos 2 anos —
@@ -37,11 +38,21 @@
 --      volta para a fila já no piso; as perguntas que desistiram pelo plano ou
 --      pela permissão encerram com o motivo; o pedido de compra da loja que
 --      ainda esperava a vez sai da fila com o motivo.
+--   5. (pedido do dono, 18/10 — achados da carga) A ESTRUTURA DOS MÓVEIS no
+--      formato que o Tiny manda de verdade: os componentes vêm numa lista solta
+--      no retorno (a fila guarda {"lista": [...]}) e só se lia {"estrutura":
+--      [...]} — as 186 estruturas chegaram e nenhum componente foi ligado. Agora
+--      as duas formas valem, e as já guardadas se ligam no acerto do item 4,
+--      sem perguntar ao Tiny de novo.
+--   6. (idem) A ÁRVORE DE CATEGORIAS vem como lista DENTRO do retorno
+--      ({"retorno": [...]}) e caía em "sem envelope retorno" nas duas contas:
+--      agora é entendida, e as duas linhas voltam para a fila no acerto.
 --
 -- Recriadas a partir do que está no banco (E-24 — o texto de cada uma conferido
 -- igual ao do banco em 18/10, antes de mudar), com as MESMAS assinaturas:
 -- `fn_tiny_fila_lote`, `fn_tiny_fila_resposta`, `plt_fn_tiny_carga`,
--- `plt_fn_tiny_carga_painel` e `plt_privado.fn_tiny_enfileirar_janelas`
+-- `plt_fn_tiny_carga_painel`, `plt_privado.fn_tiny_enfileirar_janelas` e
+-- `plt_privado.fn_tiny_estrutura_gravar`
 -- (`fn_tiny_janelas` fica igual: não sabe a conta — quem enfileira põe o piso).
 -- Nenhuma tabela nem coluna muda; as portas do site publicado devolvem as
 -- mesmas chaves (E-73: o banco pode subir antes ou depois do site).
@@ -316,9 +327,13 @@ begin
         'a API nova respondeu ' || v_status || ': ' || left(coalesce(v_corpo::text, p_resposta->>'erro', ''), 300), false);
     end if;
   else
-    -- a árvore de categorias da v2 pode vir como lista solta
+    -- a árvore de categorias da v2 pode vir como lista solta — e vem, de
+    -- verdade (18/10, as duas contas), como lista DENTRO do retorno:
+    -- {"retorno": [...]} (migration 93; antes caía em "sem envelope retorno")
     if jsonb_typeof(v_corpo) = 'array' then
       v_ret := jsonb_build_object('status', 'OK', 'lista', v_corpo);
+    elsif jsonb_typeof(v_corpo->'retorno') = 'array' then
+      v_ret := jsonb_build_object('status', 'OK', 'lista', v_corpo->'retorno');
     else
       v_ret := coalesce(v_corpo->'retorno', v_corpo);
     end if;
@@ -498,7 +513,68 @@ end;
 $$;
 
 comment on function public.fn_tiny_fila_resposta(bigint, jsonb) is
-  'SESSAO-33: a resposta do Tiny (crua, do n8n) entendida no banco — erro (vazio = não é erro; não existe = encerra; limite = espera sem gastar tentativa; o resto = nova tentativa com espera crescente, e na 4ª o alerta), busca (detalhe de cada registro + próxima página), lista (guarda cada registro), contagem (só a 1ª e a última página) e detalhe (loja: pedidos/clientes/notas/contas a receber pelas rotinas de sempre; fábrica: produtos pelo fn_upsert_produto e a estrutura; o resto em plt_tiny_registros). A conferência das 3h passa pelas mesmas rotinas do fluxo antigo. Migration 93: "fora do período do plano" (código 31 da v2) e "sem permissão no aplicativo" (403 da API nova) encerram a linha com o motivo, sem nova tentativa nem aviso no sino.';
+  'SESSAO-33: a resposta do Tiny (crua, do n8n) entendida no banco — erro (vazio = não é erro; não existe = encerra; limite = espera sem gastar tentativa; o resto = nova tentativa com espera crescente, e na 4ª o alerta), busca (detalhe de cada registro + próxima página), lista (guarda cada registro), contagem (só a 1ª e a última página) e detalhe (loja: pedidos/clientes/notas/contas a receber pelas rotinas de sempre; fábrica: produtos pelo fn_upsert_produto e a estrutura; o resto em plt_tiny_registros). A conferência das 3h passa pelas mesmas rotinas do fluxo antigo. Migration 93: "fora do período do plano" (código 31 da v2) e "sem permissão no aplicativo" (403 da API nova) encerram a linha com o motivo, sem nova tentativa nem aviso no sino; a árvore de categorias que vem como lista dentro do retorno ({"retorno": [...]}) é entendida.';
+
+-- ----------------------------------------------------------------------------
+-- 4b · A estrutura dos móveis no formato que o Tiny manda de verdade
+--      (recriada — base: a do banco = migration 89). A carga de 18/10 trouxe as
+--      186 estruturas da fábrica (122 com componentes, 1.137 itens), mas o Tiny
+--      manda os componentes numa lista solta no retorno — a resposta da fila
+--      guarda {"lista": [...]} e aqui só se lia {"estrutura": [...]}: nenhum
+--      componente ligado. Agora as duas formas valem; as já guardadas se ligam
+--      no acerto do item 7, sem perguntar ao Tiny de novo.
+-- ----------------------------------------------------------------------------
+create or replace function plt_privado.fn_tiny_estrutura_gravar(p_conta text, p_produto bigint, p_reg jsonb)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_n integer := 0;
+begin
+  if p_conta <> 'fabrica' or p_produto is null
+     or not exists (select 1 from public.produtos p where p.tiny_id = p_produto) then
+    return 0;
+  end if;
+
+  -- um componente que aparece em duas linhas da estrutura soma as quantidades
+  with itens as (
+    select coalesce(x->'item', x->'componente', x) as i
+      from jsonb_array_elements(case when jsonb_typeof(p_reg->'estrutura') = 'array' then p_reg->'estrutura'
+                                     -- o formato que o Tiny manda de verdade (18/10): a lista solta
+                                     -- no retorno, que a resposta da fila guarda como {"lista": [...]}
+                                     when jsonb_typeof(p_reg->'lista') = 'array' then p_reg->'lista'
+                                     else '[]'::jsonb end) x
+  ), novos as (
+    select c.componente, sum(coalesce(c.quantidade, 0)) as quantidade, max(c.codigo) as codigo, max(c.nome) as nome
+      from (select nullif(regexp_replace(coalesce(i->>'id_componente', i->>'idComponente', i->>'id', ''), '\D', '', 'g'), '')::bigint as componente,
+                   plt_privado.fn_tiny_numero(i->>'quantidade') as quantidade,
+                   nullif(trim(coalesce(i->>'codigo', '')), '') as codigo,
+                   nullif(trim(coalesce(i->>'nome', i->>'descricao', '')), '') as nome
+              from itens) c
+     where c.componente is not null
+     group by c.componente
+  ), sairam as (
+    delete from public.plt_produto_componentes pc
+     where pc.produto_tiny_id = p_produto
+       and not exists (select 1 from novos n where n.componente = pc.componente_tiny_id)
+    returning 1
+  )
+  insert into public.plt_produto_componentes as pc
+         (produto_tiny_id, componente_tiny_id, quantidade, codigo, nome, lido_em)
+  select p_produto, n.componente, n.quantidade, n.codigo, n.nome, now()
+    from novos n
+  on conflict (produto_tiny_id, componente_tiny_id) do update
+     set quantidade = excluded.quantidade, codigo = excluded.codigo,
+         nome = excluded.nome, lido_em = now();
+  get diagnostics v_n = row_count;
+  return v_n;
+end;
+$$;
+
+comment on function plt_privado.fn_tiny_estrutura_gravar(text, bigint, jsonb) is
+  'SESSAO-33 (D-142, resposta 3): a estrutura de um produto da fábrica, relida inteira (o que saiu no Tiny sai daqui; o componente que aparece duas vezes soma). Migration 93: aceita os componentes em {"estrutura": [...]} e na lista solta que o Tiny manda de verdade ({"lista": [...]}).';
 
 -- ----------------------------------------------------------------------------
 -- 5 · A contagem e a carga: as datas no piso de cada conta; o pedido de compra
@@ -886,10 +962,13 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_carga     integer := 0;
-  v_plano     integer := 0;
-  v_permissao integer := 0;
-  v_compras   integer := 0;
+  v_carga       integer := 0;
+  v_plano       integer := 0;
+  v_permissao   integer := 0;
+  v_compras     integer := 0;
+  v_estruturas  integer := 0;
+  v_categorias  integer := 0;
+  r             record;
 begin
   -- (a) a CARGA que esbarrou no piso do plano (desistiu ou espera a nova
   -- tentativa) volta para a fila já no piso — a janela inteira antes dele, não
@@ -955,13 +1034,52 @@ begin
      and f.status = 'pendente';
   get diagnostics v_compras = row_count;
 
+  -- (e) as estruturas que a carga já trouxe (guardadas como o Tiny mandou) e
+  -- não se ligaram aos produtos: liga agora, sem perguntar ao Tiny de novo —
+  -- só as que ainda não têm nenhum componente ligado (rodar de novo = 0)
+  for r in
+    select t.raw, case when t.chave ~ '^\d{1,18}$' then t.chave::bigint end as produto
+      from public.plt_tiny_registros t
+     where t.conta = 'fabrica' and t.tipo = 'estrutura'
+  loop
+    continue when r.produto is null
+               or exists (select 1 from public.plt_produto_componentes pc where pc.produto_tiny_id = r.produto);
+    if plt_privado.fn_tiny_estrutura_gravar('fabrica', r.produto, r.raw) > 0 then
+      v_estruturas := v_estruturas + 1;
+    end if;
+  end loop;
+
+  -- (f) a árvore de categorias que o Tiny mandou como lista dentro do retorno e
+  -- caiu em "sem envelope retorno": volta para a fila (agora ela é entendida)
+  with alvo as (
+    select f.id from public.tiny_fila f
+     where f.status = 'erro' and f.recurso = 'categorias_produto'
+       and f.erro like 'sem envelope retorno: {"retorno": [%'
+    union
+    select f.id from public.tiny_fila f
+     where f.status = 'pendente' and f.nao_antes is not null and f.recurso = 'categorias_produto'
+       and f.erro like 'sem envelope retorno: {"retorno": [%'
+  )
+  update public.tiny_fila f
+     set status = 'pendente', tentativas = 0, erro = null, reservado_em = null,
+         processado_em = null, nao_antes = null
+    from alvo a
+   where f.id = a.id;
+  get diagnostics v_categorias = row_count;
+
+  -- o que voltou para a fila precisa do trabalhador acordado
+  if v_carga + v_categorias > 0 then
+    perform plt_privado.fn_tiny_fila_acordar();
+  end if;
+
   return jsonb_build_object('carga_no_piso', v_carga, 'fora_do_plano', v_plano,
-                            'sem_permissao', v_permissao, 'compras_da_loja', v_compras);
+                            'sem_permissao', v_permissao, 'compras_da_loja', v_compras,
+                            'estruturas_ligadas', v_estruturas, 'categorias_de_novo', v_categorias);
 end;
 $$;
 
 comment on function plt_privado.fn_tiny_fila_limites_acertar() is
-  'SESSAO-33 (migration 93): acerta o que já estava na fila antes do piso do plano — a carga que esbarrou no código 31 volta já no piso; o resto que desistiu pelo plano (31) ou pela permissão do aplicativo (403) encerra (vazio) com o motivo em língua de gente; o pedido de compra da loja que esperava a vez sai com o motivo. Rodar de novo não muda nada.';
+  'SESSAO-33 (migration 93): acerta o que já estava na fila — a carga que esbarrou no código 31 volta já no piso; o resto que desistiu pelo plano (31) ou pela permissão do aplicativo (403) encerra (vazio) com o motivo em língua de gente; o pedido de compra da loja que esperava a vez sai com o motivo; as estruturas que a carga já guardou se ligam aos produtos (sem perguntar ao Tiny); a árvore de categorias que caiu em "sem envelope" volta para a fila. Rodar de novo não muda nada.';
 
 select plt_privado.fn_tiny_fila_limites_acertar();
 
@@ -973,6 +1091,7 @@ revoke all on function plt_privado.fn_tiny_params_no_piso(text, jsonb) from publ
 revoke all on function plt_privado.fn_tiny_motivo_final(text, text, text, text) from public, anon, authenticated;
 revoke all on function plt_privado.fn_tiny_fila_limites_acertar() from public, anon, authenticated;
 revoke all on function plt_privado.fn_tiny_enfileirar_janelas(text, text, date, text, text, text, text, jsonb, boolean) from public, anon, authenticated;
+revoke all on function plt_privado.fn_tiny_estrutura_gravar(text, bigint, jsonb) from public, anon, authenticated;
 
 revoke all on function public.fn_tiny_fila_lote(integer) from public, anon, authenticated;
 revoke all on function public.fn_tiny_fila_resposta(bigint, jsonb) from public, anon, authenticated;

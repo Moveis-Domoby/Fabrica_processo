@@ -14677,6 +14677,46 @@ try {
     JSON.stringify({ l31a, l31b, lLeg31, l403, l401, antesAv93, depoisAv93 }),
   )
 
+  titulo('SESSAO-33 · bloco 93 · a estrutura dos móveis e a árvore de categorias no formato que o Tiny manda de verdade (achados da carga de 18/10)')
+
+  for (const p of [
+    { id: '9300001', codigo: 'M93', nome: 'Mesa 93', classe_produto: 'F', unidade: 'UN', situacao: 'A' },
+    { id: '9300002', codigo: 'ROD93', nome: 'Rodízio 93', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+    { id: '9300003', codigo: 'MDF93', nome: 'MDF 93', classe_produto: 'M', unidade: 'M2', situacao: 'A' },
+    { id: '9300004', codigo: 'A93', nome: 'Aparador 93', classe_produto: 'F', unidade: 'UN', situacao: 'A' },
+  ]) await bd.exec(`select public.fn_upsert_produto(${j93(p)})`)
+  // a estrutura: os componentes numa lista solta no retorno (o número da quantidade vem como número)
+  const est93 = await fila93('fabrica', 'estrutura', '9300001', { origem: 'carga', carga: 'K93' }, { referencia: 'M93' })
+  await reservar93(est93)
+  await responder93(est93, v2e93({
+    status_processamento: '3', status: 'OK', produto: [
+      { item: { id_componente: '9300002', nome: 'RODIZIO 93', codigo: '', quantidade: 6 } },
+      { item: { id_componente: '9300003', nome: 'MDF 93', codigo: '', quantidade: 3.97 } },
+    ],
+  }))
+  const comps93 = await todos93(`select componente_tiny_id::text as c, quantidade::float as q, nome from public.plt_produto_componentes
+                                  where produto_tiny_id = 9300001 order by componente_tiny_id`)
+  const regEst93 = await um93(`select jsonb_typeof(raw->'lista') as t from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'estrutura' and chave = '9300001'`)
+  // a árvore de categorias: a lista DENTRO do retorno (loja) e a lista solta (como antes — fábrica)
+  const catL93 = await fila93('loja', 'categorias_produto', 'a93:arvore', { origem: 'carga', carga: 'K93' }, { referencia: 'categorias' })
+  const catF93 = await fila93('fabrica', 'categorias_produto', 'a93:arvore', { origem: 'carga', carga: 'K93' }, { referencia: 'categorias' })
+  await reservar93(catL93)
+  await reservar93(catF93)
+  await responder93(catL93, { api: 'v2', corpo: { retorno: [{ id: '1044579713', nodes: [], descricao: 'Móveis' }] } })
+  await responder93(catF93, { api: 'v2', corpo: [{ id: '915717023', nodes: [{ id: '1', descricao: 'Buffet' }], descricao: 'Aparador' }] })
+  const lCatL93 = await linha93(catL93)
+  const lCatF93 = await linha93(catF93)
+  const regCat93 = await todos93(`select conta, raw->'lista'->0->>'descricao' as d from public.plt_tiny_registros
+                                   where tipo = 'categorias_produto' and chave = 'a93:arvore' order by conta`)
+  conferir(
+    JSON.stringify(comps93.map((x) => [x.c, x.q])) === JSON.stringify([['9300002', 6], ['9300003', 3.97]])
+      && comps93[0]?.nome === 'RODIZIO 93' && regEst93?.t === 'array' && (await linha93(est93)).status === 'ok'
+      && lCatL93.status === 'ok' && lCatF93.status === 'ok'
+      && JSON.stringify(regCat93) === JSON.stringify([{ conta: 'fabrica', d: 'Aparador' }, { conta: 'loja', d: 'Móveis' }]),
+    'a estrutura que vem como lista solta liga o móvel aos componentes (com a quantidade que vem como número); a árvore de categorias que vem como lista dentro do retorno é guardada (e a que vem solta, como antes)',
+    JSON.stringify({ comps93, regEst93, lCatL93, lCatF93, regCat93 }),
+  )
+
   titulo('SESSAO-33 · bloco 93 · o painel: a janela que o Tiny não conta sai do "bateu com o Tiny?" e o motivo aparece nos últimos erros')
 
   await fila93('loja', 'pedidos_pesquisa', 'c93:pedidos_pesquisa:2025-01', {
@@ -14727,16 +14767,26 @@ try {
   const hV = await fila93('loja', 'cp_pesquisa', 'k93b:cp_pesquisa:velha', {
     data_ini_emissao: '01/01/2015', data_fim_emissao: br93(dia93(piso93.loja, -5)), pagina: 1, janela: 'k93b:cp_pesquisa:velha', origem: 'carga', carga: 'K93b' },
   { status: 'erro', tentativas: 4, erro: `codigo 31: ${MSG31}`, referencia: 'velha' })
+  // a estrutura que a carga guardou e não se ligou (como as 186 de 18/10) e a árvore de categorias em "sem envelope"
+  await bd.exec(`insert into public.plt_tiny_registros (conta, tipo, chave, raw, hash)
+                 values ('fabrica', 'estrutura', '9300004',
+                         '{"lista": [{"item": {"id_componente": "9300002", "nome": "RODIZIO 93", "codigo": "", "quantidade": 4}}]}'::jsonb, 'h93')`)
+  const iC = await fila93('fabrica', 'categorias_produto', 'k93b:arvore', { origem: 'carga', carga: 'K93b' },
+    { status: 'erro', tentativas: 4, erro: 'sem envelope retorno: {"retorno": [{"id": "915717023", "nodes": [], "descricao": "Aparador"}]}', referencia: 'categorias' })
   const acerto1 = (await um93(`select plt_privado.fn_tiny_fila_limites_acertar() as r`)).r
   const acerto2 = (await um93(`select plt_privado.fn_tiny_fila_limites_acertar() as r`)).r
-  const [la, lb, lc, ld, le, lf, lg, lh] = await Promise.all([aC, bN, cR, dO, eO, fO, gF, hV].map((id) => linha93(id)))
+  const [la, lb, lc, ld, le, lf, lg, lh, li] = await Promise.all([aC, bN, cR, dO, eO, fO, gF, hV, iC].map((id) => linha93(id)))
+  const compsA93 = await todos93(`select componente_tiny_id::text as c, quantidade::float as q from public.plt_produto_componentes where produto_tiny_id = 9300004`)
   const contaFila93 = await todos93(`
     select conta, recurso, status, count(*)::int as n from public.tiny_fila where params->>'carga' = 'K93b' group by 1, 2, 3 order by 1, 2, 3`)
   const contaPronta93 = await todos93(`
     select conta, recurso, status, n::int as n from public.plt_tiny_carga_contagem where rodada = 'K93b' and n <> 0 order by 1, 2, 3`)
+  const igual93 = (a, b) => Object.keys(a ?? {}).length === Object.keys(b).length && Object.entries(b).every(([k, v]) => a?.[k] === v)
   conferir(
-    JSON.stringify(acerto1) === JSON.stringify({ carga_no_piso: 2, fora_do_plano: 2, sem_permissao: 1, compras_da_loja: 1 })
-      && JSON.stringify(acerto2) === JSON.stringify({ carga_no_piso: 0, fora_do_plano: 0, sem_permissao: 0, compras_da_loja: 0 })
+    igual93(acerto1, { carga_no_piso: 2, fora_do_plano: 2, sem_permissao: 1, compras_da_loja: 1, estruturas_ligadas: 1, categorias_de_novo: 1 })
+      && igual93(acerto2, { carga_no_piso: 0, fora_do_plano: 0, sem_permissao: 0, compras_da_loja: 0, estruturas_ligadas: 0, categorias_de_novo: 0 })
+      && JSON.stringify(compsA93) === JSON.stringify([{ c: '9300002', q: 4 }])
+      && li.status === 'pendente' && li.tentativas === 0 && li.erro === null && li.espera_s === null
       && [la, lb].every((l) => l.status === 'pendente' && l.tentativas === 0 && l.erro === null && l.espera_s === null)
       && la.params.data_ini_emissao === br93(piso93.loja) && la.params.data_fim_emissao === fim30
       && lb.params.dataInicial === br93(piso93.loja)
@@ -14744,8 +14794,8 @@ try {
       && ld.status === 'vazio' && ld.erro === MOTIVO403 && le.status === 'vazio' && le.erro === MOTIVO403
       && lf.status === 'processando' && lg.status === 'erro' && lg.erro === 'codigo 99: falha de teste'
       && JSON.stringify(contaFila93) === JSON.stringify(contaPronta93),
-    'a carga que esbarrou no piso (a que desistiu e a que esperava a nova tentativa) volta para a fila já no piso; a contagem velha e a janela inteira antes do piso encerram com o motivo; o 403 e o pedido de compra da loja que esperava a vez encerram sem perguntar de novo; o que está em andamento e o erro de outra coisa ficam; as contas prontas da carga continuam batendo com a fila',
-    JSON.stringify({ acerto1, acerto2, la, lb, lc, ld, le, lf: lf.status, lg: lg.status, lh, contaFila93, contaPronta93 }),
+    'a carga que esbarrou no piso (a que desistiu e a que esperava a nova tentativa) volta para a fila já no piso; a contagem velha e a janela inteira antes do piso encerram com o motivo; o 403 e o pedido de compra da loja que esperava a vez encerram sem perguntar de novo; a estrutura já guardada se liga ao móvel sem perguntar ao Tiny; a árvore de categorias em "sem envelope" volta para a fila; o que está em andamento e o erro de outra coisa ficam; as contas prontas da carga continuam batendo com a fila',
+    JSON.stringify({ acerto1, acerto2, compsA93, li, la, lb, lc, ld, le, lf: lf.status, lg: lg.status, lh, contaFila93, contaPronta93 }),
   )
 
   titulo('SESSAO-33 · bloco 93 · as peças novas fora da API; as portas com as permissões de sempre')
