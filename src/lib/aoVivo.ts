@@ -21,6 +21,8 @@ export type AreaAoVivo =
   | 'rotas'
   | 'painel'
   | 'danificados'
+  /** SESSAO-36 (D-146): a dashboard de tempos por pessoa — o aviso não leva dado. */
+  | 'tempos'
   | `setor_${number}`
   | `lista_${string}`
 

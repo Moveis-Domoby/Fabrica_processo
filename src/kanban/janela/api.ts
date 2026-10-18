@@ -20,6 +20,15 @@ export interface JanelaDoCard {
   } | null
   etapa: { id: number; nome: string; eh_fila: boolean } | null
   execucao: { usuario_id: string; iniciou_em: string } | null
+  /** SESSAO-36 (D-146): os auxílios abertos — o tempo próprio de cada pessoa no card. */
+  auxilios: {
+    usuario_id: string
+    iniciado_em: string
+    pausado_em: string | null
+    pausa_motivo: string | null
+    segundos: number
+    ultimo_inicio: string | null
+  }[]
   pessoas: Record<string, { nome: string; foto: string | null }>
   pedido: {
     pedido_id: number
@@ -36,9 +45,13 @@ export interface JanelaDoCard {
     concluir: boolean
     anexar: boolean
     ver_removidos: boolean
-    /** SESSAO-31 (§4): o próprio executor, o líder do setor, o admin. */
+    /** SESSAO-31 (§4): o próprio executor, o líder do setor, o admin — e quem auxilia (SESSAO-36). */
     pausar: boolean
     retomar: boolean
+    /** SESSAO-36 (D-146): o card está em execução — dá para entrar como auxiliar. */
+    auxiliar: boolean
+    /** SESSAO-36: quem olha a tela está no card como auxiliar (pode sair). */
+    sair_auxilio: boolean
   }
 }
 

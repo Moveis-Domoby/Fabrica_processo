@@ -6,6 +6,8 @@ import {
   CalendarClock,
   CircleCheckBig,
   Clock,
+  DoorOpen,
+  Handshake,
   History,
   Link2,
   Pause,
@@ -30,6 +32,7 @@ import type { PessoaMini } from '../avulso'
 import { ModalConcluirAvulso } from '../componentes/ModalConcluirAvulso'
 import { ModalMotivoPausa } from '../componentes/ModalMotivoPausa'
 import { retomarCard } from '../pausa'
+import { auxilioEncerrar, cardAuxiliar } from '@/tablet/api'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { HistoricoDoCard } from '../componentes/ModalLinhaTempo'
 import { SeletorEtiquetas, SeletorPessoas } from '../lancamento/Seletores'
@@ -133,8 +136,11 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   const [verHistorico, setVerHistorico] = useState(false)
   const [concluindo, setConcluindo] = useState(false)
   // SESSAO-31 (§4): Pausar (com o motivo) / Retomar. No tablet, o PIN antes.
+  // SESSAO-36 (D-146): Auxiliar / Sair do auxílio — idem.
   const [pausando, setPausando] = useState<{ operadorId?: string } | null>(null)
-  const [pinPara, setPinPara] = useState<'pausar' | 'retomar' | null>(null)
+  const [pinPara, setPinPara] = useState<'pausar' | 'retomar' | 'auxiliar' | 'sair_auxilio' | null>(
+    null,
+  )
 
   const releituras = async () => {
     await Promise.all([
@@ -213,6 +219,34 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
     },
     onError: falhou('Não deu para retomar'),
   })
+  // SESSAO-36 (D-146): entrar no card como AUXILIAR (tempo próprio) e sair dele.
+  const auxilios = dados.auxilios ?? []
+  const auxiliar = useMutation({
+    mutationFn: (operadorId?: string) => cardAuxiliar(card.id, operadorId),
+    onSuccess: async () => {
+      notificar({ titulo: 'Entrou no card — o tempo próprio começou', tom: 'perfeito' })
+      await Promise.all([
+        releituras(),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
+      ])
+    },
+    onError: falhou('Não deu para auxiliar'),
+  })
+  const sairAuxilio = useMutation({
+    mutationFn: (operadorId?: string) => auxilioEncerrar(card.id, operadorId),
+    onSuccess: async () => {
+      notificar({ titulo: 'Saiu do auxílio — o card segue para quem ficou', tom: 'perfeito' })
+      await Promise.all([
+        releituras(),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
+      ])
+    },
+    onError: falhou('Não deu para sair do auxílio'),
+  })
+  const podeAuxiliar = tablet
+    ? vivo && card.executor_atual_id !== null && !pausado
+    : permissoes.auxiliar && !permissoes.sair_auxilio
+  const podeSairAuxilio = tablet ? vivo && auxilios.length > 0 : permissoes.sair_auxilio
   const hoje = hojeIso(agora)
   const atrasado = card.vence_em != null && card.vence_em < hoje && !dados.arquivado_em
   const ondeEsta = dados.arquivado_em
@@ -269,6 +303,28 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
                 onClick={() => (tablet ? setPinPara('retomar') : retomar.mutate(undefined))}
               >
                 Retomar
+              </Botao>
+            )}
+            {podeAuxiliar && (
+              <Botao
+                variante="secundaria"
+                tamanho={tablet ? 'lg' : 'sm'}
+                icone={<Handshake />}
+                carregando={auxiliar.isPending}
+                onClick={() => (tablet ? setPinPara('auxiliar') : auxiliar.mutate(undefined))}
+              >
+                Auxiliar
+              </Botao>
+            )}
+            {podeSairAuxilio && (
+              <Botao
+                variante="secundaria"
+                tamanho={tablet ? 'lg' : 'sm'}
+                icone={<DoorOpen />}
+                carregando={sairAuxilio.isPending}
+                onClick={() => (tablet ? setPinPara('sair_auxilio') : sairAuxilio.mutate(undefined))}
+              >
+                Sair do auxílio
               </Botao>
             )}
             {permissoes.concluir && !tablet && (
@@ -345,6 +401,23 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
               </span>
             )
           )}
+          {/* SESSAO-36 (D-146): quem está no card como AUXILIAR, com o tempo próprio. */}
+          {auxilios.map((a) => (
+            <span
+              key={a.usuario_id}
+              className="inline-flex min-w-0 items-center gap-1 text-texto-suave"
+            >
+              <Handshake aria-hidden className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">
+                {pessoas[a.usuario_id]?.nome ?? 'alguém'} ajudando
+                {a.pausado_em
+                  ? ` (pausado${a.pausa_motivo ? ` · ${a.pausa_motivo}` : ''})`
+                  : a.ultimo_inicio
+                    ? ` há ${formatarDuracao(a.ultimo_inicio, agora)}`
+                    : ''}
+              </span>
+            </span>
+          ))}
           {card.vinculo_rotulo && (
             <span className="inline-flex min-w-0 items-center gap-1">
               <Link2 aria-hidden className="size-4 shrink-0" />
@@ -569,7 +642,15 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
       {tablet && card.setor_atual_id !== null && (
         <ModalPinOperador
           acao={
-            pinPara === 'pausar' ? 'Pausar o card' : pinPara === 'retomar' ? 'Retomar o card' : null
+            pinPara === 'pausar'
+              ? 'Pausar o card'
+              : pinPara === 'retomar'
+                ? 'Retomar o card'
+                : pinPara === 'auxiliar'
+                  ? 'Auxiliar no card'
+                  : pinPara === 'sair_auxilio'
+                    ? 'Sair do auxílio'
+                    : null
           }
           setorId={card.setor_atual_id}
           aoFechar={() => setPinPara(null)}
@@ -578,6 +659,9 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             setPinPara(null)
             if (gesto === 'pausar') setPausando({ operadorId: operador.usuario_id })
             if (gesto === 'retomar') retomar.mutate(operador.usuario_id)
+            // SESSAO-36 (D-146): o PIN diz quem entra/sai do auxílio.
+            if (gesto === 'auxiliar') auxiliar.mutate(operador.usuario_id)
+            if (gesto === 'sair_auxilio') sairAuxilio.mutate(operador.usuario_id)
           }}
         />
       )}

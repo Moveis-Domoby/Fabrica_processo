@@ -26,6 +26,7 @@ const TelaSetor = pagina(() => import('@/paginas/TelaSetor'), 'TelaSetor')
 const ControleTempo = pagina(() => import('@/paginas/ControleTempo'), 'ControleTempo')
 const VisaoDoDia = pagina(() => import('@/paginas/dashboards/VisaoDoDia'), 'VisaoDoDia')
 const MeuDesempenho = pagina(() => import('@/paginas/dashboards/MeuDesempenho'), 'MeuDesempenho')
+const TemposPessoas = pagina(() => import('@/paginas/dashboards/TemposPessoas'), 'TemposPessoas')
 const Avisos = pagina(() => import('@/paginas/Avisos'), 'Avisos')
 const TempoPorSetor = pagina(() => import('@/paginas/dashboards/TempoPorSetor'), 'TempoPorSetor')
 const Pessoas = pagina(() => import('@/paginas/dashboards/Pessoas'), 'Pessoas')
@@ -208,6 +209,9 @@ export function App() {
                   cada um — qualquer papel logado; o banco só devolve o próprio */}
                 <Route element={<RotaModulo modulo="fabrica" />}>
                   <Route path="/dashboards/meu-desempenho" element={<MeuDesempenho />} />
+                  {/* SESSAO-36 (D-146 resp. 12): todos veem a tela; o banco devolve
+                    todo mundo ao líder/admin e só o próprio ao funcionário */}
+                  <Route path="/dashboards/tempos-por-pessoa" element={<TemposPessoas />} />
                 </Route>
 
                 {/* Comercial (D-46) — o Painel de Recompra dentro da plataforma */}

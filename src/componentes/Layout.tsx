@@ -324,6 +324,9 @@ export function Layout({ children }: { children: ReactNode }) {
                 {
                   filhos: [
                     { para: '/dashboards/meu-desempenho', rotulo: 'Meu desempenho' },
+                    // SESSAO-36 (D-146): todos veem a tela — o banco devolve
+                    // todo mundo ao líder/admin e só o próprio ao funcionário.
+                    { para: '/dashboards/tempos-por-pessoa', rotulo: 'Tempos por pessoa' },
                     ...(ehLider
                       ? [
                           { para: '/dashboards/visao-do-dia', rotulo: 'Visão do dia' },

@@ -376,6 +376,84 @@ export async function meuDesempenho(periodo: PeriodoDash): Promise<MeuDesempenho
 }
 
 // ---------------------------------------------------------------------------
+// SESSAO-36 (D-146): tempos por pessoa — produção · ausente · à deriva, do
+// agregado diário (o banco nunca varre eventos para o scorecard). Líder/admin
+// veem todos; o funcionário recebe só o próprio (o gate vive na porta).
+// ---------------------------------------------------------------------------
+
+export type EstadoPessoa = 'trabalhando' | 'ausente' | 'deriva'
+
+export interface TempoPessoa {
+  usuario_id: string
+  nome: string
+  foto_caminho: string | null
+  papel: string
+  estado: EstadoPessoa | null
+  estado_desde: string | null
+  estado_setor_id: number | null
+  producao_s: number
+  ausente_s: number
+  deriva_s: number
+  por_setor: { setor_id: number; nome: string; segundos: number }[]
+  contagem_total: number
+}
+
+export async function temposPessoas(parametros: {
+  de?: string | null
+  ate?: string | null
+  limite?: number
+  deslocamento?: number
+}): Promise<TempoPessoa[]> {
+  const { data, error } = await supabase.rpc('plt_fn_tempos_pessoas', {
+    p_de: parametros.de ?? null,
+    p_ate: parametros.ate ?? null,
+    p_limite: parametros.limite ?? 50,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  if (error) throw new Error(`Não deu para carregar os tempos: ${error.message}`)
+  return (data ?? []) as TempoPessoa[]
+}
+
+export interface TempoPessoaDetalhe {
+  usuario: { id: string; nome: string; foto_caminho: string | null; papel: string } | null
+  estado: { estado: EstadoPessoa; desde: string; setor_id: number | null } | null
+  dias: { dia: string; producao_s: number; ausente_s: number; deriva_s: number }[]
+  aberto: { estado: EstadoPessoa; setor_id: number | null; segundos: number }[]
+  por_setor: { setor_id: number; nome: string; segundos: number }[]
+  execucoes: {
+    card_id: number
+    setor_id: number | null
+    etapa_id: number | null
+    iniciou_em: string
+    finalizou_em: string | null
+    em_andamento: boolean
+    segundos: number
+    rotulo: string | null
+  }[]
+  auxilios: {
+    card_id: number
+    setor_id: number | null
+    iniciado_em: string
+    encerrado_em: string | null
+    segundos: number
+    rotulo: string | null
+  }[]
+}
+
+export async function tempoPessoaDetalhe(
+  usuarioId: string,
+  periodo: { de?: string | null; ate?: string | null },
+): Promise<TempoPessoaDetalhe> {
+  const { data, error } = await supabase.rpc('plt_fn_tempos_pessoa_detalhe', {
+    p_usuario: usuarioId,
+    p_de: periodo.de ?? null,
+    p_ate: periodo.ate ?? null,
+  })
+  if (error) throw new Error(`Não deu para carregar o detalhe: ${error.message}`)
+  return data as TempoPessoaDetalhe
+}
+
+// ---------------------------------------------------------------------------
 // Visualizações salvas (RF-32/RF-33 — plt_visualizacoes, RLS por dono)
 //
 // SESSAO-16: a configuração passou a guardar TELA + filtros (as 4 telas-filhas

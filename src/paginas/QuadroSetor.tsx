@@ -5,6 +5,7 @@ import { Flag, ListChecks } from 'lucide-react'
 import { Botao, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores, soltarCard } from '@/kanban/api'
+import { cardAuxiliar } from '@/tablet/api'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
@@ -108,6 +109,22 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     },
   })
 
+  // SESSAO-36 (D-146): entrar no card em execução como auxiliar, pela sessão.
+  const mutacaoAuxiliar = useMutation({
+    mutationFn: (cardId: number) => cardAuxiliar(cardId),
+    onSuccess: async () => {
+      notificar({ titulo: 'Você entrou no card — o seu tempo começou', tom: 'perfeito' })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para auxiliar',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+
   if (!carregando && !souAdmin && !vinculoAqui) return <Navigate to="/" replace />
   if (!perfil) return null
   if (!carregandoSetores && setores.length > 0 && !setor) return <Navigate to="/" replace />
@@ -202,6 +219,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
           meuUsuarioId: perfil.id,
           gestoPendente: mutacaoSoltar.isPending,
           aoLinhaTempo: setCardLinhaTempo,
+          // SESSAO-36 (D-146): no computador o Auxiliar age pela própria sessão.
+          aoAuxiliar: (card) => mutacaoAuxiliar.mutate(card.id),
         }}
       />
       {quadro.erro && (
