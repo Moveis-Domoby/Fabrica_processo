@@ -1497,6 +1497,20 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 O aplicativo da API nova da loja é o do Comercial e não tem o módulo Produtos; a pergunta levava 403 toda hora. Desde a 93 ela terminava calada, mas era uma chamada inútil por hora. Dar o módulo exigiria autorizar de novo o aplicativo do Comercial, ou seja, mexer no que funciona. Os produtos da plataforma vêm da fábrica (o catálogo, desde 23/09), e o catálogo da loja segue pela API v2 na carga. Os **contatos** alterados continuam sendo perguntados nas duas contas. Aplicado como a atualização **94**, com o OK do dono na conversa.
 
+## D-146 · ⏳ PROVISÓRIA (confirmar com o dono) — Tablet 2.0: as 13 respostas provisórias da SESSAO-36 + as escolhas extras do Claude (18/10/2026)
+
+**Contexto:** sessão em MODO AUTÔNOMO (ordem do dono, 18/10 — ele está fora e não responde). A demanda [[SESSAO-36 - Tablet 2.0 - Login por Setor Auxiliares e Tempos por Pessoa]] mandou adotar as respostas provisórias do §3 dela sem perguntar e registrá-las aqui. **Nada disto está confirmado pelo dono** — ele confirma (ou corrige) quando voltar, pelo handoff.
+
+**Adotadas tal como escritas no §3 da demanda (1–13):** PIN do setor pelo admin no cadastro do setor (4–6 dígitos, nunca em texto puro no cliente, mudança com log) · PIN de usuário único e sem colidir com setor (duplicados históricos NÃO são corrigidos à revelia: listados na pendência; só nesses casos a ação pede confirmar o nome) · na tela de entrada do tablet só vale PIN de setor · card rodando em setor anterior segue contando (nenhuma pausa automática sem motivo) · "Entrar" do ícone = dar entrada no setor da tela · Sair pede motivo (lista própria, separada da de pausa) · "pode auxiliar" é liga/desliga geral no cadastro · conclusão por qualquer executor fecha o tempo de todos no card · o ícone do canto mostra as pessoas ativas do setor e cada gesto pede o PIN da própria pessoa · foto: admin cadastra e a própria pessoa troca a sua, comprimida com miniatura · email+PIN deixa de valer depois de criar senha · dashboard de tempos: líder/admin veem todos, o funcionário só o próprio · "à deriva" aparece só na dashboard.
+
+**Extras decididos pelo Claude (conservadores, a confirmar junto):**
+1. A entrada pelo PIN do setor abre a sessão de uma **conta de tablet do setor** (criada sozinha na primeira entrada; papel operador, vínculo só àquele setor, marcada como conta de tablet) — preserva gates por vínculo, RLS e o gancho do token; o tempo de 12 h de inatividade do modo tablet (D-137) segue valendo para a sessão do aparelho.
+2. "Pausar/Sair" do ícone pede **um** motivo e aplica a todos os cards da pessoa.
+3. "Card em produção" (para o estado trabalhando/ausente) = execução ou auxílio aberto e não pausado.
+4. A deriva é do chão de fábrica: nasce da SAÍDA de setor sem entrada em outro; sair da conta no PC não gera deriva; quem nunca deu entrada não conta tempo nenhum.
+5. No PC o quadro segue como hoje (a sessão logada é o autor; sem PIN); o PIN como identificador é do modo tablet. O botão Auxiliar existe também na janela do card no PC, agindo pela própria sessão.
+6. O tempo por pessoa soma execuções (como dono do card) + auxílios; o tempo do card e as views existentes não mudam de significado.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
