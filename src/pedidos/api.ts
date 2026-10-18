@@ -59,6 +59,8 @@ export interface ExecucaoDaPeca {
   setor: string | null
   etapa: string | null
   pessoa: string | null
+  /** SESSAO-36 (D-146): a foto de quem trabalhou. */
+  foto?: string | null
   iniciou_em: string
   finalizou_em: string | null
   em_andamento: boolean
@@ -91,7 +93,7 @@ export interface PecaDoPedido {
 
 export interface ProducaoDoPedido {
   pecas: PecaDoPedido[]
-  pessoas: { nome: string; segundos: number; execucoes: number }[]
+  pessoas: { nome: string; foto?: string | null; segundos: number; execucoes: number }[]
   segundos: number
 }
 

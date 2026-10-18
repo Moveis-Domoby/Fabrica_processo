@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Target } from 'lucide-react'
-import { Botao, Paginacao, Tabela, useNotificacao } from '@/componentes/ui'
+import { AvatarPessoa, Botao, Paginacao, Tabela, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
 import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
@@ -165,9 +165,13 @@ export function Pessoas() {
                   className="grid grid-cols-[minmax(6rem,10rem)_1fr_auto] items-center gap-x-3 gap-y-0.5"
                   title={`${p.usuario_nome}: ${p.cards_atendidos} peças em ${p.execucoes} execuções · tempo total ${formatarDuracaoMs(p.tempoMs)}`}
                 >
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">{p.usuario_nome}</span>
-                    <span className="truncate text-xs text-texto-fraco">{p.matricula}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    {/* SESSAO-36 (D-146): a foto do cadastro em todo ícone de pessoa. */}
+                    <AvatarPessoa nome={p.usuario_nome} foto={p.foto_caminho} tamanho="sm" />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold">{p.usuario_nome}</span>
+                      <span className="truncate text-xs text-texto-fraco">{p.matricula}</span>
+                    </span>
                   </span>
                   <span className="flex items-center gap-2">
                     <span

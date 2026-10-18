@@ -95,7 +95,7 @@ tags: [handoff, sessao, sessao-36, tablet, pin, auxiliares, presenca, tempos, da
 | Ícone com foto no canto superior direito; Pausar/Sair pausam tudo; auxiliar sai sem afetar o card | ✔ bateria + telas; cada gesto pede o PIN da própria pessoa |
 | Pausa pede motivo; sem card restante → ausente; sair sem entrar noutro → à deriva; motivos de saída em Configurações | ✔ bateria (estados + motivo obrigatório) + aba nova |
 | Rota filha de Dashboards com scorecard e detalhe; tempos batem com os fatos | ✔ porta do agregado (incrementado no fechamento de cada trecho) + testes de tela |
-| Foto no cadastro e nos ícones | ✔ admin cadastra; avatar único nos lugares principais (Pessoas/produção do pedido esperam as portas levarem a foto — anotado) |
+| Foto no cadastro e nos ícones | ✔ admin cadastra; avatar único em TODOS os lugares — inclusive o painel Pessoas e a produção do pedido (as duas portas passaram a levar a foto) |
 | PC: e-mail + PIN com troca obrigatória; inativo recusado no login | ✔ função v12 + testes da tela de entrar |
 | Tempo real por websocket, zero polling; tablet em 1 requisição | ✔ presenças e auxílios vêm NA requisição do quadro; tópico novo para a dashboard; nenhum relógio |
 | Toda configuração com log; eventos append-only | ✔ trilha (PIN do setor, pode auxiliar, entrada/saída); fatos imutáveis por gatilho |
@@ -137,7 +137,7 @@ As 8 tarefas da demanda estão em **FAZENDO**, cada uma comentada com o que foi 
 - **Front:** `src/paginas/{Entrar,TelaSetor,QuadroSetor,Estrutura,Equipe,Utilitarios}.tsx` · `src/paginas/dashboards/TemposPessoas.tsx` · `src/tablet/{TecladoPin,ModalPinOperador,PainelPessoasSetor,api}.ts(x)` · `src/kanban/{quadro,useQuadro,tipos}.ts` · `src/kanban/componentes/{CartaoUnidade,QuadroKanban}.tsx` · `src/kanban/janela/{JanelaDoCard,api}.ts(x)` · `src/componentes/ui/Avatar.tsx` · `src/autenticacao/{api,tipos,guardas}.ts(x)` · `src/dashboards/api.ts` · `src/lib/aoVivo.ts`.
 - **Bateria:** blocos 95–97 (+ ensaio ×100) em `supabase/testes/testar-migrations.mjs`. **Testes de tela novos:** `Entrar.test.tsx`, `dashboards/TemposPessoas.test.tsx`.
 - **Aprendizados:** A-80 em [[PLT - Memoria de Aprendizado]] (as três regras do harness para blocos novos).
-- **Pendências técnicas anotadas (não desta sessão):** foto nos painéis "Pessoas" e na produção do pedido (as portas antigas não levam a foto); o PIN duplicado histórico se revela no uso (hash com sal não denuncia duplicata parada).
+- **Pendências técnicas anotadas (não desta sessão):** o PIN duplicado histórico se revela no uso (hash com sal não denuncia duplicata parada). ~~Foto nas portas antigas~~ → resolvida ainda na sessão: a 97 recria a porta dos tempos por pessoa do dashboard (coluna `foto_caminho`) e a da produção do pedido (chave `foto` nas execuções e no resumo por pessoa); `Pessoas.tsx` e `ProducaoDoPedido.tsx` mostram o avatar.
 
 ## Ver também
 

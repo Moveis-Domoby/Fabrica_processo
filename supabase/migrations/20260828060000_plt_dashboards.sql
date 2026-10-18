@@ -200,6 +200,9 @@ comment on function public.plt_fn_dash_tempos_setor(timestamptz, timestamptz) is
 -- ----------------------------------------------------------------------------
 -- 4 · Tempo por PESSOA (execução — o tempo que tem dono)
 -- ----------------------------------------------------------------------------
+-- A SESSAO-36 mudou a forma desta função (coluna foto_caminho): o drop aqui é
+-- obrigatório para a migration reaplicar por cima da forma nova (E-17/A-12).
+drop function if exists public.plt_fn_dash_tempos_pessoa(timestamptz, timestamptz, bigint);
 create or replace function public.plt_fn_dash_tempos_pessoa(
   p_de       timestamptz,
   p_ate      timestamptz,

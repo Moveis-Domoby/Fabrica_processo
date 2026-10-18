@@ -855,6 +855,9 @@ $$;
 comment on function public.plt_fn_dash_tempos_setor(timestamptz, timestamptz) is
   'Dashboard (D-02): fila (do setor) vs execução (da pessoa), bruto e útil (D-29), clipado ao período e descontando pausas (D-48). Gate por setor do dashboard.';
 
+-- A SESSAO-36 mudou a forma desta função (coluna foto_caminho): o drop aqui é
+-- obrigatório para a migration reaplicar por cima da forma nova (E-17/A-12).
+drop function if exists public.plt_fn_dash_tempos_pessoa(timestamptz, timestamptz, bigint);
 create or replace function public.plt_fn_dash_tempos_pessoa(
   p_de       timestamptz,
   p_ate      timestamptz,

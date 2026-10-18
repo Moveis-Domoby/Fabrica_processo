@@ -7,7 +7,7 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { useAoVivo } from '@/lib/aoVivo'
 import { formatarDuracaoMs } from '@/kanban/tempo'
 import { tempoPessoaDetalhe, temposPessoas } from '@/dashboards/api'
-import type { EstadoPessoa, TempoPessoa } from '@/dashboards/api'
+import type { EstadoPessoa, PessoaTempos } from '@/dashboards/api'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { OPCOES_PERIODO } from '@/dashboards/opcoes'
 
@@ -51,7 +51,7 @@ function PilulaEstado({ estado }: { estado: EstadoPessoa | null }) {
 export function TemposPessoas() {
   const { perfil, carregando } = useSessao()
   const [dias, setDias] = useState(7)
-  const [detalheDe, setDetalheDe] = useState<TempoPessoa | null>(null)
+  const [detalheDe, setDetalheDe] = useState<PessoaTempos | null>(null)
 
   const periodo = useMemo(
     () => ({ de: diaIso(dias - 1), ate: diaIso(0) }),

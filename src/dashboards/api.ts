@@ -84,6 +84,8 @@ export interface TempoPessoa {
   usuario_id: string
   usuario_nome: string
   matricula: string
+  /** SESSAO-36 (D-146): a foto do cadastro — a porta traz junto (Lei: 1 requisição). */
+  foto_caminho: string | null
   execucoes: number
   cards_atendidos: number
   tempo_bruto: string
@@ -383,7 +385,7 @@ export async function meuDesempenho(periodo: PeriodoDash): Promise<MeuDesempenho
 
 export type EstadoPessoa = 'trabalhando' | 'ausente' | 'deriva'
 
-export interface TempoPessoa {
+export interface PessoaTempos {
   usuario_id: string
   nome: string
   foto_caminho: string | null
@@ -403,7 +405,7 @@ export async function temposPessoas(parametros: {
   ate?: string | null
   limite?: number
   deslocamento?: number
-}): Promise<TempoPessoa[]> {
+}): Promise<PessoaTempos[]> {
   const { data, error } = await supabase.rpc('plt_fn_tempos_pessoas', {
     p_de: parametros.de ?? null,
     p_ate: parametros.ate ?? null,
@@ -411,7 +413,7 @@ export async function temposPessoas(parametros: {
     p_deslocamento: parametros.deslocamento ?? 0,
   })
   if (error) throw new Error(`Não deu para carregar os tempos: ${error.message}`)
-  return (data ?? []) as TempoPessoa[]
+  return (data ?? []) as PessoaTempos[]
 }
 
 export interface TempoPessoaDetalhe {

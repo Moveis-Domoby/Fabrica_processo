@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, CircleCheckBig, Clock, Play, UserRound } from 'lucide-react'
+import { ChevronRight, CircleCheckBig, Clock, Play } from 'lucide-react'
+import { AvatarPessoa } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { producaoDoPedido } from './api'
 import type { PecaDoPedido } from './api'
@@ -87,7 +88,7 @@ export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
                 key={p.nome}
                 className="inline-flex items-center gap-1.5 rounded-full bg-superficie-sutil/70 px-3 py-1 text-sm text-texto"
               >
-                <UserRound aria-hidden className="size-3.5 text-texto-suave" />
+                <AvatarPessoa nome={p.nome} foto={p.foto} tamanho="xs" />
                 {p.nome}
                 <span className="text-texto-suave tabular-nums">{tempoDeTrabalho(p.segundos)}</span>
               </li>
@@ -163,7 +164,7 @@ export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
                             {[e.setor, e.etapa].filter(Boolean).join(' · ') || '—'}
                           </span>
                           <span className="inline-flex min-w-0 items-center gap-1 text-texto-suave">
-                            <UserRound aria-hidden className="size-3.5 shrink-0" />
+                            <AvatarPessoa nome={e.pessoa} foto={e.foto} tamanho="xs" />
                             <span className="truncate">{e.pessoa ?? '—'}</span>
                           </span>
                           <span className="text-texto-suave tabular-nums">
