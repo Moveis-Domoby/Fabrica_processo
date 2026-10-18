@@ -95,7 +95,8 @@ $$;
 -- ----------------------------------------------------------------------------
 alter table public.plt_motivos drop constraint if exists plt_motivos_tipo_ck;
 alter table public.plt_motivos add constraint plt_motivos_tipo_ck
-  check (tipo in ('nao_entregue', 'desfazer_entrega', 'devolucao', 'pausa'));
+  check (tipo in ('nao_entregue', 'desfazer_entrega', 'devolucao', 'pausa'))
+  not valid; -- E-19: o banco pode já ter tipos de migrations futuras (ex.: saída, SESSAO-36) — quem valida é a migration mais nova do check
 
 insert into public.plt_motivos (tipo, texto, ordem)
 select x.tipo, x.texto, x.ordem
@@ -2540,8 +2541,8 @@ revoke all on function public.plt_fn_concluir_producao(bigint, text, text, uuid)
 grant execute on function public.plt_fn_concluir_producao(bigint, text, text, uuid)          to authenticated;
 
 -- ----------------------------------------------------------------------------
--- 21 · Os números do estoque recontados pela regra nova (em_devolucao) e o
---      check de tipos validado aqui (E-19: o mais novo valida)
+-- 21 · Os números do estoque recontados pela regra nova (em_devolucao)
+--      (E-19: o validate do check de tipos MUDOU DE CASA — quem valida é
+--      sempre a migration mais nova do check, hoje a dos auxiliares/presença)
 -- ----------------------------------------------------------------------------
 select plt_privado.fn_estoque_numeros_recontar();
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
