@@ -1491,6 +1491,12 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 **Para quem codar:** nenhuma porta do Comercial ou da Produção lê `plt_tiny_registros` com `conta = 'fabrica'`; a ponte entre as contas continua só pelo produto (SKU — A-22).
 
+## D-145 · A consulta de hora em hora pergunta os produtos alterados SÓ à fábrica (18/10/2026) — ↪️ D-143, D-144
+
+**Pedido do dono (18/10):** *"Pode tirar a loja da consulta de produtos alterados de hora em hora. Os produtos vêm da fábrica."*
+
+O aplicativo da API nova da loja é o do Comercial e não tem o módulo Produtos; a pergunta levava 403 toda hora. Desde a 93 ela terminava calada, mas era uma chamada inútil por hora. Dar o módulo exigiria autorizar de novo o aplicativo do Comercial, ou seja, mexer no que funciona. Os produtos da plataforma vêm da fábrica (o catálogo, desde 23/09), e o catálogo da loja segue pela API v2 na carga. Os **contatos** alterados continuam sendo perguntados nas duas contas. Aplicado como a atualização **94**, com o OK do dono na conversa.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

@@ -14212,6 +14212,26 @@ try {
     JSON.stringify({ m1, ml1: ml1?.params, m2, m3, ml3: ml3?.params, m4, ml4: ml4?.params, fora33, ligarOper33, ligar33 }),
   )
 
+  titulo('SESSAO-33 · D-145: os produtos alterados só da fábrica — o aplicativo da loja não tem o módulo Produtos')
+
+  await bd.exec('savepoint s145')
+  await bd.exec(`insert into public.tiny_auth (id, access_token, refresh_token, updated_at)
+                   values (1, 'acesso-loja', 'renova-loja', now()), (2, 'acesso-fabrica', 'renova-fabrica', now())
+                 on conflict (id) do update set access_token = excluded.access_token, refresh_token = excluded.refresh_token`)
+  await bd.exec(`delete from public.tiny_fila where recurso = 'v3_produtos_alterados'`)
+  const mud145 = (await um33t(`select plt_privado.fn_tiny_mudancas() as r`)).r
+  const v3_145 = Object.fromEntries((await todos33t(`select conta, count(*)::int as n from public.tiny_fila
+                                                      where recurso = 'v3_produtos_alterados' group by conta`)).map((r) => [r.conta, r.n]))
+  const cont145 = Object.fromEntries((await todos33t(`select conta, count(*)::int as n from public.tiny_fila
+                                                       where recurso = 'contatos_pesquisa' and chave = 'mudancas:contatos_pesquisa' group by conta`)).map((r) => [r.conta, r.n]))
+  await bd.exec('rollback to savepoint s145')
+  conferir(
+    mud145?.fora_do_horario === true
+      || ((v3_145.loja ?? 0) === 0 && v3_145.fabrica === 1 && cont145.loja === 1 && cont145.fabrica === 1),
+    'com a API nova ligada nas duas contas, a pergunta dos produtos alterados vai SÓ para a fábrica; os contatos alterados seguem nas duas (fora do horário a função não enfileira nada)',
+    JSON.stringify({ mud145, v3_145, cont145 }),
+  )
+
   titulo('SESSAO-33 · a contagem e a carga: gesto do dono, a carga com a prioridade mais baixa, pausar e retomar')
 
   await como33(ADMIN33)
