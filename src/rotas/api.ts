@@ -70,8 +70,8 @@ export async function registrarEntrega(parametros: {
 // SESSAO-30 (D-113/D-114/D-116): o que acontece na entrega além do "Entregue"
 // ---------------------------------------------------------------------------
 
-/** SESSAO-31: + 'devolucao' (D-129 — o "Pedido devolvido" da logística) e 'pausa' (D-125). */
-export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pausa'
+/** SESSAO-31: + 'devolucao' (D-129) e 'pausa' (D-125). SESSAO-36: + 'saida' (D-146 resp. 6). */
+export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pausa' | 'saida'
 
 export interface Motivo {
   id: number

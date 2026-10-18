@@ -89,7 +89,7 @@ export function Rotas() {
   const [pagina, setPagina] = useState(0)
   const [entregando, setEntregando] = useState<Entrega | null>(null)
   const [comMotivo, setComMotivo] = useState<{
-    tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao'>
+    tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao' | 'saida'>
     entrega: Entrega
   } | null>(null)
   const [devolvendo, setDevolvendo] = useState<Entrega | null>(null)

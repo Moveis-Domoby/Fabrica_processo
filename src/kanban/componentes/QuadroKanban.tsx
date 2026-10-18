@@ -60,6 +60,8 @@ export interface ContextoExecucao {
   pessoas?: Map<string, { nome: string; foto: string | null }>
   /** SESSAO-31 (§3): clicar no card (sem arrastar) abre a janela dele. */
   aoAbrirCard?: (card: Card) => void
+  /** SESSAO-36 (D-146): entrar no card em execução como AUXILIAR (tempo próprio). */
+  aoAuxiliar?: (card: Card) => void
 }
 
 interface ColunaProps {
@@ -205,6 +207,7 @@ function Coluna({
                 aoConcluir: card.tipo === 'avulso' ? aoConcluir : undefined,
                 aoLinhaTempo: execucao.aoLinhaTempo,
                 aoFotos: execucao.aoFotos,
+                aoAuxiliar: execucao.aoAuxiliar,
                 execucaoDesde: execucaoAberta?.iniciou_em,
                 executorNome: card.executor_atual_id
                   ? execucao.nomesUsuarios.get(card.executor_atual_id)

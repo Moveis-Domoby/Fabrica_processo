@@ -5,7 +5,7 @@ import type { CampoMostrado } from '@/utilitarios/consultas'
 import { ehCorEtiqueta, textoDoValorCampo } from '@/utilitarios/tipos'
 import type { Etiqueta } from '@/utilitarios/tipos'
 import { CARDS_POR_COLUNA, quadroColuna, quadroSetor } from './quadro'
-import type { DadosDoQuadro, JuntoDoQuadro, PessoaDoQuadro } from './quadro'
+import type { AuxilioAberto, DadosDoQuadro, JuntoDoQuadro, PessoaDoQuadro } from './quadro'
 import type { ColunaPaginada } from './componentes/QuadroKanban'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
 
@@ -32,6 +32,7 @@ interface Extra {
 
 const juntar = (a: JuntoDoQuadro, b: JuntoDoQuadro): JuntoDoQuadro => ({
   execucoes: [...a.execucoes, ...b.execucoes],
+  auxilios: [...(a.auxilios ?? []), ...(b.auxilios ?? [])],
   pessoas: { ...a.pessoas, ...b.pessoas },
   pedidos: { ...a.pedidos, ...b.pedidos },
   valores: [...a.valores, ...b.valores],
@@ -232,7 +233,13 @@ export function useQuadro(setorId: number | undefined) {
   const montado = useMemo(() => {
     const colunas = new Map<string, ColunaPaginada>()
     const cards: Card[] = []
-    let junto: JuntoDoQuadro = dados ?? { execucoes: [], pessoas: {}, pedidos: {}, valores: [] }
+    let junto: JuntoDoQuadro = dados ?? {
+      execucoes: [],
+      auxilios: [],
+      pessoas: {},
+      pedidos: {},
+      valores: [],
+    }
     for (const coluna of dados?.colunas ?? []) {
       const colunaChave = chaveDaColuna(coluna.etapa_id)
       const extra = extras[colunaChave]
@@ -251,6 +258,13 @@ export function useQuadro(setorId: number | undefined) {
     const execucoesPorCard = new Map<number, ExecucaoAberta>(
       junto.execucoes.map((e) => [e.card_id, e]),
     )
+    // SESSAO-36: os auxílios abertos por card (tempo próprio de cada pessoa)
+    const auxiliosPorCard = new Map<number, AuxilioAberto[]>()
+    for (const a of junto.auxilios ?? []) {
+      const lista = auxiliosPorCard.get(a.card_id) ?? []
+      lista.push(a)
+      auxiliosPorCard.set(a.card_id, lista)
+    }
     const pessoas = new Map<string, PessoaDoQuadro>(Object.entries(junto.pessoas))
     const nomesUsuarios = new Map<string, string>([...pessoas].map(([id, p]) => [id, p.nome]))
     const pedidosPorId = new Map<number, PedidoDoCard>(
@@ -274,7 +288,16 @@ export function useQuadro(setorId: number | undefined) {
     }
     for (const lista of camposPorCard.values())
       lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-    return { colunas, cards, execucoesPorCard, pessoas, nomesUsuarios, pedidosPorId, camposPorCard }
+    return {
+      colunas,
+      cards,
+      execucoesPorCard,
+      auxiliosPorCard,
+      pessoas,
+      nomesUsuarios,
+      pedidosPorId,
+      camposPorCard,
+    }
   }, [dados, extras, verMais])
 
   /** O card muda de coluna na hora (o banco confirma; se recusar, a releitura desfaz). */
@@ -318,6 +341,8 @@ export function useQuadro(setorId: number | undefined) {
 
   return {
     etapas: dados?.etapas ?? SEM_DADOS,
+    // SESSAO-36: quem está presente no setor (o ícone do canto superior direito)
+    presencas: dados?.presencas ?? [],
     carregando: consulta.isPending,
     erro: consulta.error,
     conectado,

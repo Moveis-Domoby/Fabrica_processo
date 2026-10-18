@@ -130,6 +130,8 @@ export interface Card {
    * na etapa que pede o motivo) — projeção do banco; some ao retomar.
    */
   pausa_motivo?: string | null
+  /** SESSAO-36 (D-146): quem está no card como AUXILIAR agora (projeção). */
+  auxiliares?: string[]
 }
 
 /**

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, House, Layers } from 'lucide-react'
-import { Botao, useNotificacao } from '@/componentes/ui'
+import { ArrowLeftRight, House, Layers, UsersRound } from 'lucide-react'
+import { AvatarPessoa, Botao, Modal, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import type { OperadorIdentificado } from '@/autenticacao/api'
 import { buscarSetores, soltarCard } from '@/kanban/api'
@@ -22,6 +22,10 @@ import type { Card } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
+import { PainelPessoasSetor } from '@/tablet/PainelPessoasSetor'
+import { TecladoPin } from '@/tablet/TecladoPin'
+import { cardAuxiliar } from '@/tablet/api'
+import { tabletEntrar } from '@/autenticacao/api'
 import { prepararSom, tocarSomChegada } from '@/tablet/som'
 import { useVersaoNova } from '@/lib/versaoNova'
 import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
@@ -38,6 +42,8 @@ type GestoComPin =
       rotulo: string
     }
   | { tipo: 'concluir_avulso'; card: Card; rotulo: string }
+  /** SESSAO-36 (D-146): entrar no card em execução como AUXILIAR (tempo próprio). */
+  | { tipo: 'auxiliar'; card: Card; rotulo: string }
 
 /**
  * A TELA DO SETOR (SESSAO-07 / D-06 / D-28): o que o chão de fábrica vê o dia
@@ -69,6 +75,8 @@ export function TelaSetor() {
   const versaoNova = useVersaoNova()
 
   const souAdmin = perfil?.papel === 'admin'
+  // SESSAO-36 (D-146): a conta de dispositivo do setor — entrou pelo PIN do setor.
+  const contaTablet = perfil?.conta_tablet === true
 
   const { data: setores = [] } = useQuery({
     queryKey: ['setores'],
@@ -122,6 +130,7 @@ export function TelaSetor() {
     nomesUsuarios,
     pessoas,
     camposPorCard,
+    presencas,
   } = quadro
   const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
 
@@ -167,6 +176,13 @@ export function TelaSetor() {
     acao: Extract<AcaoAoSoltar, { tipo: 'parar' }>
     operadorId: string
   } | null>(null)
+  // SESSAO-36: o painel das pessoas do setor (o ícone do canto superior direito)
+  const [painelPessoas, setPainelPessoas] = useState(false)
+  // SESSAO-36: trocar de setor na conta de tablet = o PIN do setor de destino
+  const [trocandoSetor, setTrocandoSetor] = useState(false)
+  const [pinTroca, setPinTroca] = useState('')
+  const [erroTroca, setErroTroca] = useState('')
+  const [trocando, setTrocando] = useState(false)
 
   // Com o websocket conectado, o aviso do setor relê o quadro; sem ele, a tela relê.
   async function invalidarQuadro(forcar = false) {
@@ -197,11 +213,32 @@ export function TelaSetor() {
     },
   })
 
+  const mutacaoAuxiliar = useMutation({
+    mutationFn: ({ cardId, operadorId }: { cardId: number; operadorId: string }) =>
+      cardAuxiliar(cardId, operadorId),
+    onSuccess: async () => {
+      notificar({ titulo: 'Você entrou no card — o seu tempo começou', tom: 'perfeito' })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para auxiliar',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+
   function aoOperadorIdentificado(operador: OperadorIdentificado) {
     const gesto = gestoComPin
     if (!gesto) return
     setGestoComPin(null)
     notificar({ titulo: `${operador.nome} identificado`, tom: 'perfeito' })
+    if (gesto.tipo === 'auxiliar') {
+      // SESSAO-36: o PIN identifica quem entra no card como auxiliar.
+      mutacaoAuxiliar.mutate({ cardId: gesto.card.id, operadorId: operador.usuario_id })
+      return
+    }
     if (gesto.tipo === 'concluir_avulso') {
       setConcluindoAvulso({ card: gesto.card, operadorId: operador.usuario_id })
       return
@@ -303,23 +340,58 @@ export function TelaSetor() {
         </span>
         <span className="ml-auto flex items-center gap-1">
           {/* SESSAO-24 (F-07): alvo de toque de 44px também no cabeçalho do tablet (D-06). */}
-          {opcoes.length > 1 && (
+          {(contaTablet || opcoes.length > 1) && (
             <Botao
               variante="fantasma"
               icone={<ArrowLeftRight />}
               className="text-grafite-100 hover:bg-grafite-600"
-              onClick={() => escolherSetor(null)}
+              onClick={() => {
+                // SESSAO-36 (D-146): na conta do tablet, trocar de setor pede o
+                // PIN do setor de DESTINO, sempre.
+                if (contaTablet) {
+                  setPinTroca('')
+                  setErroTroca('')
+                  setTrocandoSetor(true)
+                } else {
+                  escolherSetor(null)
+                }
+              }}
             >
               Trocar setor
             </Botao>
           )}
-          <Link to="/" aria-label="Sair da tela do setor">
-            <Botao
-              variante="fantasma"
-              icone={<House />}
-              className="text-grafite-100 hover:bg-grafite-600"
-            />
-          </Link>
+          {/* SESSAO-36 (D-146 resp. 9): as pessoas ativas no setor, com foto. */}
+          <button
+            type="button"
+            aria-label="Pessoas no setor — Pausar, Sair e Entrar"
+            onClick={() => setPainelPessoas(true)}
+            className="flex min-h-toque-md items-center gap-1 rounded-dm px-2 py-1 hover:bg-grafite-600"
+          >
+            {presencas.length === 0 ? (
+              <UsersRound aria-hidden className="size-6 text-grafite-100" />
+            ) : (
+              <span className="flex items-center -space-x-2">
+                {presencas.slice(0, 3).map((p) => (
+                  <AvatarPessoa key={p.usuario_id} nome={p.nome} foto={p.foto} tamanho="sm" />
+                ))}
+              </span>
+            )}
+            {presencas.length > 0 && (
+              <span className="text-sm font-medium text-grafite-100 tabular-nums">
+                {presencas.length}
+              </span>
+            )}
+          </button>
+          {/* A conta do tablet vive só aqui — o "casa" é das pessoas logadas. */}
+          {!contaTablet && (
+            <Link to="/" aria-label="Sair da tela do setor">
+              <Botao
+                variante="fantasma"
+                icone={<House />}
+                className="text-grafite-100 hover:bg-grafite-600"
+              />
+            </Link>
+          )}
         </span>
       </header>
 
@@ -353,6 +425,9 @@ export function TelaSetor() {
             gestoPendente: mutacaoSoltar.isPending,
             aoLinhaTempo: setCardHistorico,
             aoFotos: setCardFotos,
+            // SESSAO-36 (D-146): o Auxiliar no card em execução — o PIN diz quem entra.
+            aoAuxiliar: (card) =>
+              setGestoComPin({ tipo: 'auxiliar', card, rotulo: 'Auxiliar no card' }),
           }}
         />
       </main>
@@ -430,6 +505,62 @@ export function TelaSetor() {
           }
         }}
       />
+
+      {/* SESSAO-36 (D-146 resp. 9): as pessoas do setor — Pausar · Sair · Entrar, cada
+          gesto com o PIN da própria pessoa. */}
+      <PainelPessoasSetor
+        aberto={painelPessoas}
+        aoFechar={() => setPainelPessoas(false)}
+        setorId={setor.id}
+        setorNome={setor.nome}
+        presencas={presencas}
+        aoFeito={() => void invalidarQuadro()}
+      />
+
+      {/* SESSAO-36: trocar de setor na conta do tablet = o PIN do setor de destino. */}
+      <Modal
+        aberto={trocandoSetor}
+        aoFechar={(estaAberto) => {
+          if (!estaAberto) setTrocandoSetor(false)
+        }}
+        titulo="Trocar de setor"
+        descricao="Digite o PIN do setor de DESTINO — o tablet passa a mostrar só ele."
+      >
+        <div className="flex flex-col gap-3">
+          <TecladoPin
+            pin={pinTroca}
+            aoMudar={(p) => {
+              setErroTroca('')
+              setPinTroca(p)
+            }}
+            aoConfirmar={(p) => {
+              setTrocando(true)
+              setErroTroca('')
+              tabletEntrar(p)
+                .then(() => {
+                  setTrocandoSetor(false)
+                  escolherSetor(null)
+                  // a sessão nova é da conta do setor de destino; o perfil recarrega
+                  // pelo provedor e o quadro abre no setor novo
+                  window.location.reload()
+                })
+                .catch((excecao: unknown) => {
+                  setPinTroca('')
+                  setErroTroca(
+                    excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.',
+                  )
+                })
+                .finally(() => setTrocando(false))
+            }}
+            conferindo={trocando}
+          />
+          {erroTroca && (
+            <p className="text-center text-sm text-danificado-forte" role="alert">
+              {erroTroca}
+            </p>
+          )}
+        </div>
+      </Modal>
 
       {/* SESSAO-31: a janela do card no tablet — só para ver, sem dado de cliente (D-28). */}
       <JanelaDoCardNaUrl modo="tablet" />

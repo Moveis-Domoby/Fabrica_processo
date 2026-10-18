@@ -15,9 +15,33 @@ export interface PessoaDoQuadro {
   foto: string | null
 }
 
+/** SESSAO-36 (D-146): um auxílio aberto num card — o tempo PRÓPRIO da pessoa. */
+export interface AuxilioAberto {
+  card_id: number
+  usuario_id: string
+  iniciado_em: string
+  pausado_em: string | null
+  pausa_motivo: string | null
+  /** o tempo já fechado (sem pausas), em segundos */
+  segundos: number
+  /** o começo do trecho aberto de agora; nulo = pausado */
+  ultimo_inicio: string | null
+}
+
+/** SESSAO-36: quem está presente no setor (o ícone do canto superior direito). */
+export interface PresencaDoSetor {
+  usuario_id: string
+  nome: string
+  foto: string | null
+  estado: 'trabalhando' | 'ausente' | 'deriva'
+  desde: string
+}
+
 /** O que vem junto com uma página de cards. */
 export interface JuntoDoQuadro {
   execucoes: ExecucaoAberta[]
+  /** SESSAO-36: os auxílios abertos dos cards da página. */
+  auxilios: AuxilioAberto[]
   pessoas: Record<string, PessoaDoQuadro>
   pedidos: Record<string, PedidoDoCard>
   valores: { campo_id: number; card_id: number; valor: ValorCampo }[]
@@ -37,6 +61,8 @@ export interface DadosDoQuadro extends JuntoDoQuadro {
   colunas: ColunaDoQuadro[]
   etiquetas: Etiqueta[]
   campos: CampoCustomizado[]
+  /** SESSAO-36: as pessoas presentes no setor (trabalhando/ausente). */
+  presencas: PresencaDoSetor[]
 }
 
 export interface PaginaDaColuna extends JuntoDoQuadro {

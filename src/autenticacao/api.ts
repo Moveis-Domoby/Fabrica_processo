@@ -79,10 +79,57 @@ export interface OperadorIdentificado {
   nome: string
   matricula: string
   papel: Papel
+  foto_caminho?: string | null
 }
 
 export function pinVerificar(identificador: string, pin: string): Promise<OperadorIdentificado> {
   return chamar<OperadorIdentificado>('pin-verificar', { identificador, pin })
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-36 (D-146) — o PIN identifica sozinho; o tablet entra pelo setor
+// ---------------------------------------------------------------------------
+
+/** PIN duplicado de antes da regra: a ação pede confirmar o nome (resposta 2). */
+export interface PinDuplicado {
+  duplicado: { usuario_id: string; nome: string; matricula: string; foto_caminho: string | null }[]
+}
+
+/** Identifica a pessoa SÓ pelo PIN (sem clicar no nome). */
+export function pinIdentificar(pin: string): Promise<OperadorIdentificado | PinDuplicado> {
+  return chamar<OperadorIdentificado | PinDuplicado>('pin-identificar', { pin })
+}
+
+/** A entrada do modo tablet: o PIN do SETOR abre a sessão da conta do tablet. */
+export async function tabletEntrar(
+  pin: string,
+): Promise<{ setor: { id: number; nome: string; codigo: string } }> {
+  const resposta = await chamar<{
+    access_token: string
+    refresh_token: string
+    setor: { id: number; nome: string; codigo: string }
+  }>('tablet-entrar', { pin })
+  const { error } = await supabase.auth.setSession({
+    access_token: resposta.access_token,
+    refresh_token: resposta.refresh_token,
+  })
+  if (error) throw new Error('Não consegui abrir a sessão do tablet. Tente de novo.')
+  return { setor: resposta.setor }
+}
+
+/** O admin dá (ou troca) o PIN de entrada do tablet de um setor. */
+export function setorPinDefinir(setorId: number, pin: string): Promise<{ ok: boolean }> {
+  return chamar<{ ok: boolean }>('setor-pin-definir', { setor_id: setorId, pin })
+}
+
+/** No computador: e-mail + PIN para quem nunca criou senha (cai na troca obrigatória). */
+export async function entrarPin(email: string, pin: string): Promise<void> {
+  const tokens = await chamar<{ access_token: string; refresh_token: string }>('entrar-pin', {
+    email,
+    pin,
+  })
+  const { error } = await supabase.auth.setSession(tokens)
+  if (error) throw new Error('Não consegui abrir a sessão. Tente de novo.')
 }
 
 // ---------------------------------------------------------------------------

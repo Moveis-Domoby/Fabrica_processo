@@ -55,6 +55,9 @@ export function RotaProtegida({ nivel }: { nivel?: 'lider' | 'admin' | 'super' }
   if (!perfil) return <ContaSemAcesso />
   if (perfil.senha_padrao && local.pathname !== '/trocar-senha')
     return <Navigate to="/trocar-senha" replace />
+  // SESSAO-36 (D-146): a conta de tablet de um setor vive SÓ no modo tablet —
+  // o botão "casa" e toda URL direta levam de volta ao /tablet.
+  if (perfil.conta_tablet && local.pathname !== '/tablet') return <Navigate to="/tablet" replace />
   // SESSAO-30 (D-115): o entregador só vê as entregas do dia — o resto leva para lá.
   if (ehSoEntregador(perfil) && !ROTAS_DO_ENTREGADOR.has(local.pathname))
     return <Navigate to={ROTA_ENTREGADOR} replace />

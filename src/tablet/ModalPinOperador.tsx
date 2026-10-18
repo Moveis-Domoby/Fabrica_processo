@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Delete, Fingerprint, UserRound } from 'lucide-react'
-import { Botao, Campo, Modal } from '@/componentes/ui'
+import { Modal } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { pinVerificar } from '@/autenticacao/api'
-import type { OperadorIdentificado } from '@/autenticacao/api'
-import { membrosDoSetor } from './api'
+import { pinIdentificar, pinVerificar } from '@/autenticacao/api'
+import type { OperadorIdentificado, PinDuplicado } from '@/autenticacao/api'
+import { AvatarPessoa } from '@/componentes/ui/Avatar'
+import { TecladoPin } from './TecladoPin'
 
 export interface ModalPinOperadorProps {
   /** null = fechado; o texto diz qual gesto o PIN vai liberar ("Iniciar", "Mover"…). */
@@ -13,51 +12,59 @@ export interface ModalPinOperadorProps {
   setorId: number
   aoFechar: () => void
   aoIdentificado: (operador: OperadorIdentificado) => void
+  /**
+   * SESSAO-36 (D-146 resposta 9): quando o gesto é de UMA pessoa específica
+   * (Pausar/Sair/Entrar do ícone), o PIN tem que ser DELA — outro PIN é recusado.
+   */
+  esperadoId?: string
+  esperadoNome?: string
 }
 
 /**
- * O "quem é você?" do tablet compartilhado (D-06/RF-25): o operador toca no
- * PRÓPRIO NOME e digita o PIN num teclado na tela — nenhum teclado do sistema
- * (a demanda pede o ciclo inteiro só com toques). A conferência acontece na
- * Edge Function (o navegador nunca vê hash); o resultado identifica o AUTOR
- * do gesto — a sessão continua sendo a do dispositivo.
- *
- * Se a lista de membros não vier (RLS/vínculos), o campo de matrícula/usuário
- * fica disponível como caminho alternativo.
+ * O "quem é você?" do tablet compartilhado — SESSAO-36 (D-146): SÓ o PIN
+ * identifica a pessoa, sem clicar no nome. A conferência acontece na função de
+ * autenticação (o navegador nunca vê hash) e tem trava de tentativa e erro.
+ * PIN repetido de antes da regra: só nesses casos aparecem os nomes para a
+ * pessoa confirmar o seu (resposta 2).
  */
-export function ModalPinOperador({ acao, setorId, aoFechar, aoIdentificado }: ModalPinOperadorProps) {
+export function ModalPinOperador({
+  acao,
+  setorId: _setorId,
+  aoFechar,
+  aoIdentificado,
+  esperadoId,
+  esperadoNome,
+}: ModalPinOperadorProps) {
   const aberto = acao !== null
 
-  const { data: membros = [] } = useQuery({
-    queryKey: ['membros-setor', setorId],
-    queryFn: () => membrosDoSetor(setorId),
-    enabled: aberto && Number.isFinite(setorId),
-    staleTime: 5 * 60_000,
-  })
-
-  const [escolhido, setEscolhido] = useState<string>('') // usuario do membro tocado
-  const [identificador, setIdentificador] = useState('')
   const [pin, setPin] = useState('')
   const [erro, setErro] = useState('')
   const [conferindo, setConferindo] = useState(false)
+  const [duplicados, setDuplicados] = useState<PinDuplicado['duplicado'] | null>(null)
+  const [pinConfirmado, setPinConfirmado] = useState('')
 
   // Reabriu para outra ação → tudo limpo (ajuste durante o render, sem effect).
   const [acaoAnterior, setAcaoAnterior] = useState<string | null>(null)
   if (acao !== acaoAnterior) {
     setAcaoAnterior(acao)
-    setEscolhido('')
-    setIdentificador('')
     setPin('')
     setErro('')
+    setDuplicados(null)
+    setPinConfirmado('')
   }
 
-  const quem = escolhido || identificador.trim()
-
-  async function confirmar(pinFinal: string) {
-    if (!quem) {
-      setErro('Toque no seu nome (ou informe matrícula/usuário).')
+  function entregar(operador: OperadorIdentificado) {
+    if (esperadoId && operador.usuario_id !== esperadoId) {
+      setErro(`Este PIN não é de ${esperadoNome ?? 'quem você escolheu'} — cada um usa o próprio PIN.`)
       return
     }
+    setPin('')
+    setDuplicados(null)
+    setPinConfirmado('')
+    aoIdentificado(operador)
+  }
+
+  async function confirmar(pinFinal: string) {
     if (pinFinal.length < 4) {
       setErro('PIN: 4 a 6 dígitos.')
       return
@@ -65,10 +72,15 @@ export function ModalPinOperador({ acao, setorId, aoFechar, aoIdentificado }: Mo
     setErro('')
     setConferindo(true)
     try {
-      const operador = await pinVerificar(quem, pinFinal)
-      setPin('')
-      setEscolhido('')
-      aoIdentificado(operador)
+      const resultado = await pinIdentificar(pinFinal)
+      if ('duplicado' in resultado) {
+        // PIN repetido de antes da regra: confirmar o nome (D-146 resposta 2)
+        setDuplicados(resultado.duplicado)
+        setPinConfirmado(pinFinal)
+        setPin('')
+        return
+      }
+      entregar(resultado)
     } catch (excecao) {
       setPin('')
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
@@ -77,11 +89,18 @@ export function ModalPinOperador({ acao, setorId, aoFechar, aoIdentificado }: Mo
     }
   }
 
-  function digito(d: string) {
+  async function confirmarNome(d: PinDuplicado['duplicado'][number]) {
     setErro('')
-    if (pin.length >= 6) return
-    const novo = pin + d
-    setPin(novo)
+    setConferindo(true)
+    try {
+      // a identificação final continua conferindo o PIN contra A pessoa escolhida
+      const operador = await pinVerificar(d.matricula.toLowerCase(), pinConfirmado)
+      entregar(operador)
+    } catch (excecao) {
+      setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
+    } finally {
+      setConferindo(false)
+    }
   }
 
   return (
@@ -90,102 +109,53 @@ export function ModalPinOperador({ acao, setorId, aoFechar, aoIdentificado }: Mo
       aoFechar={(estaAberto) => {
         if (!estaAberto) aoFechar()
       }}
-      titulo={acao ? `${acao} — quem é você?` : 'Quem é você?'}
-      descricao="A ação sai registrada no SEU nome."
+      titulo={acao ? `${acao} — digite o seu PIN` : 'Digite o seu PIN'}
+      descricao={
+        esperadoNome
+          ? `O gesto é de ${esperadoNome}: o PIN precisa ser o dela(e).`
+          : 'O PIN identifica você — a ação sai registrada no SEU nome.'
+      }
     >
       <div className="flex flex-col gap-4">
-        {membros.length > 0 && (
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Escolha seu nome">
-            {membros.map((m) => (
-              <button
-                key={m.usuario_id}
-                type="button"
-                role="radio"
-                aria-checked={escolhido === m.usuario}
-                onClick={() => {
-                  setEscolhido(m.usuario)
-                  setIdentificador('')
-                  setErro('')
-                }}
-                className={cn(
-                  'flex min-h-toque-lg items-center gap-2 rounded-dm border-2 px-3 py-2 text-left',
-                  escolhido === m.usuario
-                    ? 'border-acao-ativa bg-superficie-sutil'
-                    : 'border-borda bg-superficie',
-                )}
-              >
-                <UserRound aria-hidden className="size-5 shrink-0 text-texto-suave" />
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium text-texto">{m.nome}</span>
-                  <span className="text-xs text-texto-fraco tabular-nums">{m.matricula}</span>
-                </span>
-              </button>
-            ))}
+        {duplicados ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-texto-suave">
+              Este PIN está cadastrado para mais de uma pessoa — toque no SEU nome para confirmar
+              (avise a liderança para trocar um dos PINs):
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Confirme seu nome">
+              {duplicados.map((d) => (
+                <button
+                  key={d.usuario_id}
+                  type="button"
+                  role="radio"
+                  aria-checked={false}
+                  disabled={conferindo}
+                  onClick={() => void confirmarNome(d)}
+                  className={cn(
+                    'flex min-h-toque-lg items-center gap-2 rounded-dm border-2 border-borda bg-superficie px-3 py-2 text-left',
+                  )}
+                >
+                  <AvatarPessoa nome={d.nome} foto={d.foto_caminho} tamanho="md" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-medium text-texto">{d.nome}</span>
+                    <span className="text-xs text-texto-fraco tabular-nums">{d.matricula}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-
-        {membros.length === 0 && (
-          /* autocomplete desligado de propósito: o navegador do tablet NUNCA
-             preenche aqui a credencial da sessão do setor. */
-          <Campo
-            rotulo="Matrícula ou usuário"
-            prefixo={<Fingerprint />}
-            autoCapitalize="none"
-            autoComplete="off"
-            name="identificacao-operador"
-            placeholder="MDM-000-000"
-            value={identificador}
-            onChange={(e) => setIdentificador(e.target.value)}
+        ) : (
+          <TecladoPin
+            pin={pin}
+            aoMudar={(p) => {
+              setErro('')
+              setPin(p)
+            }}
+            aoConfirmar={(p) => void confirmar(p)}
+            conferindo={conferindo}
           />
         )}
-
-        {/* O PIN digitado, sem teclado do sistema: pontos + teclado na tela. */}
-        <div className="flex flex-col items-center gap-3">
-          <div aria-label={`PIN: ${pin.length} dígito(s)`} className="flex h-6 items-center gap-2">
-            {Array.from({ length: 6 }, (_, i) => (
-              <span
-                key={i}
-                aria-hidden
-                className={cn(
-                  'size-3 rounded-full border border-borda-forte',
-                  i < pin.length && 'bg-texto',
-                )}
-              />
-            ))}
-          </div>
-
-          <div className="grid w-full max-w-xs grid-cols-3 gap-2">
-            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-              <Botao
-                key={d}
-                variante="secundaria"
-                tamanho="lg"
-                onClick={() => digito(d)}
-                aria-label={`Dígito ${d}`}
-              >
-                {d}
-              </Botao>
-            ))}
-            <Botao
-              variante="fantasma"
-              tamanho="lg"
-              icone={<Delete />}
-              aria-label="Apagar dígito"
-              onClick={() => setPin(pin.slice(0, -1))}
-            />
-            <Botao variante="secundaria" tamanho="lg" onClick={() => digito('0')} aria-label="Dígito 0">
-              0
-            </Botao>
-            <Botao
-              tamanho="lg"
-              carregando={conferindo}
-              disabled={pin.length < 4 || !quem}
-              onClick={() => void confirmar(pin)}
-            >
-              OK
-            </Botao>
-          </div>
-        </div>
 
         {erro && (
           <p className="text-center text-sm text-danificado-forte" role="alert">

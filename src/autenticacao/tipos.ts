@@ -31,6 +31,10 @@ export interface Perfil {
   modulos: Modulo[]
   /** SESSAO-27 (D-100): abre o Painel super admin (Automações e Auditoria). Só o dono, por ora. */
   super_admin?: boolean
+  /** SESSAO-36 (D-146): a conta de dispositivo do tablet de um setor — vive só no /tablet. */
+  conta_tablet?: boolean
+  /** SESSAO-36 (D-146 resposta 7): a pessoa pode auxiliar em cards de outros setores. */
+  pode_auxiliar?: boolean
 }
 
 export type Modulo = 'fabrica' | 'comercial' | 'entregas'
@@ -72,7 +76,7 @@ export interface VinculoSetor {
 /** Colunas de plt_usuarios que o front pode ler. NUNCA usar select('*') aqui:
  *  cpf/convite_token/pin_hash são revogados e derrubariam a consulta inteira. */
 export const COLUNAS_PERFIL =
-  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, arquivado_em, tema, foto_caminho, modulos, super_admin'
+  'id, nome, usuario, email, telefone, matricula, papel, senha_padrao, ativo, arquivado_em, tema, foto_caminho, modulos, super_admin, conta_tablet, pode_auxiliar'
 
 /** O gate do Painel super admin no front (espelho de plt_privado.fn_eh_super_admin). */
 export function ehSuperAdmin(perfil: Perfil | null): boolean {

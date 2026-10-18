@@ -26,7 +26,7 @@ const CHAVES_ENTREGA = [
 ]
 
 const TEXTOS: Record<
-  Exclude<TipoMotivo, 'pausa'>,
+  Exclude<TipoMotivo, 'pausa' | 'saida'>,
   {
     titulo: string
     explica: string
@@ -77,7 +77,7 @@ export function ModalMotivoEntrega({
   pecas,
   aoFechar,
 }: {
-  tipo: Exclude<TipoMotivo, 'pausa'>
+  tipo: Exclude<TipoMotivo, 'pausa' | 'saida'>
   pedido: PedidoDaEntrega | null
   /**
    * SESSAO-31 (D-129): pedido já entregue — quais peças voltaram (todas

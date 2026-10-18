@@ -40,6 +40,68 @@ export async function membrosDoSetor(setorId: number): Promise<MembroSetor[]> {
 }
 
 // ---------------------------------------------------------------------------
+// SESSAO-36 (D-146): auxílio e presença — as portas do banco fazem as regras;
+// a tela só mostra a mensagem que voltar.
+// ---------------------------------------------------------------------------
+
+/** Entrar num card em execução como AUXILIAR (tempo próprio da pessoa). */
+export async function cardAuxiliar(cardId: number, operadorId?: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_card_auxiliar', {
+    p_card_id: cardId,
+    p_operador_id: operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Sair do auxílio — o card segue intacto para quem ficou. */
+export async function auxilioEncerrar(cardId: number, operadorId?: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_auxilio_encerrar', {
+    p_card_id: cardId,
+    p_operador_id: operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** O "Entrar" do ícone: dar entrada no setor (volta da ausência e da deriva). */
+export async function pessoaEntrar(setorId: number, operadorId?: string): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_pessoa_entrar', {
+    p_setor_id: setorId,
+    p_operador_id: operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** O "Pausar" do ícone: pausa TODOS os cards da pessoa (um motivo) — fica ausente. */
+export async function pessoaPausar(
+  motivoId: number | null,
+  texto: string | null,
+  operadorId?: string,
+): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_pessoa_pausar', {
+    p_motivo_id: motivoId,
+    p_texto: texto,
+    p_operador_id: operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return Number(data ?? 0)
+}
+
+/** O "Sair" do ícone: pausa tudo + encerra a entrada (motivo da lista de saída). */
+export async function pessoaSair(
+  motivoId: number | null,
+  texto: string | null,
+  operadorId?: string,
+): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_pessoa_sair', {
+    p_motivo_id: motivoId,
+    p_texto: texto,
+    p_operador_id: operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return Number(data ?? 0)
+}
+
+// ---------------------------------------------------------------------------
 // Imagens por produto (D-28)
 // ---------------------------------------------------------------------------
 

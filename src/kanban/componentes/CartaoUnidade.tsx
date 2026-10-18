@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Flag,
   GripVertical,
+  Handshake,
   History,
   Hourglass,
   Images,
@@ -99,6 +100,8 @@ export interface CartaoUnidadeProps {
   aoLinhaTempo?: (card: Card) => void
   /** Tablet (D-28): o espaço de imagens da peça. */
   aoFotos?: (card: Card) => void
+  /** SESSAO-36 (D-146): entrar no card em execução como AUXILIAR, com tempo próprio. */
+  aoAuxiliar?: (card: Card) => void
   /** Desde quando a execução aberta corre (vem de plt_vw_execucoes). */
   execucaoDesde?: string
   /** Nome de quem está executando agora. */
@@ -140,6 +143,7 @@ export function CartaoUnidade({
   aoConcluir,
   aoLinhaTempo,
   aoFotos,
+  aoAuxiliar,
   execucaoDesde,
   executorNome,
   souExecutor = false,
@@ -172,7 +176,10 @@ export function CartaoUnidade({
     ? (pedido.liberado_completo_em ? new Date(pedido.liberado_completo_em).getTime() : agora) -
       new Date(pedido.entrou_pcp_em).getTime()
     : null
-  const temRodape = aoLinhaTempo || aoFotos || (!terminal && aoConcluir)
+  // SESSAO-36 (D-146): o Auxiliar só existe no card EM EXECUÇÃO (não pausado).
+  const podeAuxiliar = Boolean(aoAuxiliar) && emExecucao && !pausado && !terminal
+  const auxiliares = card.auxiliares ?? []
+  const temRodape = aoLinhaTempo || aoFotos || (!terminal && aoConcluir) || podeAuxiliar
   // SESSAO-31 (D-125 / §2): a frente enxuta — só o que o card tem.
   const avulso = card.tipo === 'avulso'
   const responsaveis = card.responsaveis ?? []
@@ -438,6 +445,17 @@ export function CartaoUnidade({
         </p>
       )}
 
+      {/* SESSAO-36 (D-146): quem está no card como AUXILIAR, com tempo próprio. */}
+      {auxiliares.length > 0 && (
+        <p className="inline-flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-texto-suave">
+          <Handshake aria-hidden className="size-4 shrink-0" />
+          <span className="min-w-0 break-words">
+            Com ajuda de{' '}
+            {auxiliares.map((id) => pessoas?.get(id)?.nome ?? '…').join(', ')}
+          </span>
+        </p>
+      )}
+
       {/* SESSAO-31 (D-126): o setor pede o estado na chegada — a confirmação
           vem antes do trabalho (o card já traz a pendência, projetada no banco). */}
       {!terminal && card.parecer_pendente_id != null && (
@@ -484,6 +502,22 @@ export function CartaoUnidade({
                 aoFotos(card)
               }}
             />
+          )}
+          {podeAuxiliar && aoAuxiliar && (
+            <Botao
+              variante="secundaria"
+              tamanho={galpao ? 'lg' : 'sm'}
+              icone={<Handshake />}
+              className="min-h-toque-md min-w-0 flex-1 px-2"
+              disabled={gestoPendente}
+              onKeyDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                aoAuxiliar(card)
+              }}
+            >
+              Auxiliar
+            </Botao>
           )}
           {!terminal && aoConcluir && (
             <Botao

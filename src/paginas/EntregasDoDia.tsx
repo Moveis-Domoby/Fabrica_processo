@@ -66,7 +66,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   const [dia, setDia] = useState<string | null>(null)
   const [verMapa, setVerMapa] = useState(true)
   const [comMotivo, setComMotivo] = useState<{
-    tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao'>
+    tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao' | 'saida'>
     entrega: EntregaDoDia
   } | null>(null)
   const [comentando, setComentando] = useState<EntregaDoDia | null>(null)
