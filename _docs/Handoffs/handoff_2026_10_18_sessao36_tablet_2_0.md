@@ -69,6 +69,10 @@ tags: [handoff, sessao, sessao-36, tablet, pin, auxiliares, presenca, tempos, da
 ### Computador: e-mail + PIN
 - Quem tem PIN e **nunca criou senha** entra com **e-mail + PIN** ("Entrar com e-mail e PIN" na tela de login) e cai direto na **troca obrigatória de senha**. Depois de criar a senha, esse caminho deixa de valer. Pessoa desativada é recusada já no login, com a mensagem clara (como decidido em 16/10) — também no caminho do PIN.
 
+> [!check] ↪️ Teste ao vivo em 18/10 à noite (dono presente; OK dado na conversa)
+> As **três migrations foram aplicadas** (aplicador `--so`, 95→96→97; integração do Tiny conferida intacta) e a **função `autenticacao` publicada** (deploy nº 13; fumaça: PIN inexistente → recusa limpa 401). No site **local** (branch), com o login do dono: PIN do SECC gravado (provisório — **o dono troca**), `pode_auxiliar` ligado no `teste21` (porta com toast), aba Motivos de saída com as 5 sementes, dashboard Tempos por pessoa com as 6 pessoas + detalhe no clique; modo tablet entrou no SECC pelo PIN do setor (conta de tablet criada sozinha), painel de pessoas: **Entrar** pelo PIN do `teste21` → "Ausente"; **Sair** pediu o PIN dele + motivo ("Fim do turno") → saiu; o agregado contou **51 s ausente no SECC** — fatos → trechos → agregado funcionando em produção. "Trocar setor" pede o PIN do destino. PIN do `teste21` também é provisório.
+> **Ficam para o dono** (passos abaixo): gestos de card (iniciar/auxiliar com card real), foto (upload), e-mail + PIN, tempo real em duas telas — e o **merge na main** (o site publicado ainda não tem as telas novas).
+
 ## 2. Como testar — passo a passo (depois dos passos 1–7 do dono)
 
 1. **PIN do setor:** Configurações → Setores e etapas → MONTAGEM → "PIN de entrada do tablet" → grave um PIN (ex.: 4 dígitos). Tente gravar o MESMO PIN noutro setor → recusa ("já está em uso").

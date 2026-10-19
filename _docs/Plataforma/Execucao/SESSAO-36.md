@@ -95,3 +95,11 @@ As 13 respostas do §3 da demanda foram adotadas tal como escritas (ver a demand
   - Advisors: nada foi aplicado em produção — conferir DEPOIS da aplicação (passo do dono no handoff).
 - **O que NÃO foi feito (e por quê):** aplicar as atualizações 95–97 no banco (regra 2), publicar a função de autenticação v12 (ela depende da 95 aplicada — ordem no handoff), mesclar na main (regra 1), testar logado no site (nada publicado). ~~Foto nas portas antigas~~ → entregue na fatia extra (seção acima).
 - **Numeração usada:** migrations 95–97, D-146, A-80; próxima livre: 98 / D-147 / E-114 / A-81.
+
+## Teste ao vivo — 18/10 à noite (dono presente)
+
+- **OK do dono na conversa** → migrations 95→96→97 aplicadas pelo aplicador `--so` (integração intacta nas três) e `autenticacao` publicada (deploy nº 13). Fumaça por curl: `tablet-entrar` com PIN inexistente → 401 limpo (a função leu a chave de busca do banco e usou a trava).
+- **Site local (branch), login do dono:** dashboard Tempos por pessoa com as 6 pessoas e detalhe no clique; PIN do SECC gravado pela tela (conferido em `plt_setor_pins`, trilha com o autor); `pode_auxiliar` ligado no `teste21` (toast "agora pode auxiliar em qualquer setor"); aba Motivos de saída com as 5 sementes; PIN do `teste21` definido pela Equipe (busca preenchida).
+- **Modo tablet de ponta a ponta:** saiu da conta → "Modo tablet do setor" → PIN do SECC → quadro do SECC (conta `tablet-s2` nasceu sozinha); painel de pessoas → **Entrar** com o PIN do `teste21` → "entrou no setor", estado **Ausente** (sem execução — correto); **Sair** → pediu o PIN DELE → lista de motivos de saída → "Fim do turno" → "saiu do setor". Banco: `plt_tempos_pessoa_dia` = 51 s `ausente` no setor 2 — **fatos → segmentos → agregado rodando em produção**. "Trocar setor" abre o teclado pedindo o PIN do destino.
+- **Não coberto no teste (fica com o dono, roteiro do handoff):** gestos de card (iniciar/auxiliar em card real — SECC estava com 0 cards e não criei carga em produção), upload de foto, e-mail + PIN, tempo real em duas telas, celular/tablet físicos.
+- **PINs provisórios** (SECC e teste21) — o dono troca pelos definitivos nas mesmas telas. Sessão do navegador devolvida à tela de entrar.
