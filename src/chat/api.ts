@@ -218,6 +218,7 @@ export async function buscarPessoas(parametros: {
     .from('plt_usuarios')
     .select('id, nome, foto_caminho', { count: 'exact' })
     .eq('ativo', true)
+    .eq('conta_tablet', false) // a chave do tablet do setor não é gente
     .neq('id', parametros.exceto)
     .order('nome')
     .range(de, de + POR_PAGINA_PESSOAS - 1)

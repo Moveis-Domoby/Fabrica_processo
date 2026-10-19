@@ -142,6 +142,7 @@ export async function usuariosAtivos(): Promise<{ id: string; nome: string }[]> 
     .from('plt_usuarios')
     .select('id, nome')
     .eq('ativo', true)
+    .eq('conta_tablet', false) // a chave do tablet do setor não é gente
     .order('nome')
   if (error) throw new Error(`Não deu para carregar as pessoas: ${error.message}`)
   return (data ?? []) as { id: string; nome: string }[]

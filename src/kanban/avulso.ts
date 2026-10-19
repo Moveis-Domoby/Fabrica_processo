@@ -160,6 +160,7 @@ export async function buscarPessoasAtivas(busca: string): Promise<PessoaMini[]> 
     .from('plt_usuarios')
     .select('id, nome, foto_caminho')
     .eq('ativo', true)
+    .eq('conta_tablet', false) // a chave do tablet do setor não é gente
     .order('nome')
     .limit(10)
   if (termo) consulta = consulta.ilike('nome', `%${termo}%`)

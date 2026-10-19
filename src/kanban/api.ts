@@ -505,7 +505,11 @@ export async function registrarParecer(parametros: {
 
 /** Nomes de todo mundo (id → nome) — para o card dizer QUEM está executando. */
 export async function buscarNomesUsuarios(): Promise<Map<string, string>> {
-  const { data, error } = await supabase.from('plt_usuarios').select('id, nome')
+  // a chave do tablet do setor não é gente (nunca executa nem aparece em lista)
+  const { data, error } = await supabase
+    .from('plt_usuarios')
+    .select('id, nome')
+    .eq('conta_tablet', false)
   const linhas = garantir(
     data as { id: string; nome: string }[] | null,
     error,
