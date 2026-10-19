@@ -33,3 +33,10 @@
 ## Verificação
 
 Bateria **1.084 verdes** (reaplica 2×; bloco 98 novo) · telas **205 verdes** (38 arquivos) · tipos/lint/build limpos · fumaça da função no ar · site publicado conferido no navegador. Pacote inicial inalterado (os pedaços novos são pequenos).
+
+## Tarde de 19/10 — "o tablet da CNC diz conta desativada"
+
+- **Sintoma (dono, print):** PIN 02 no modo tablet → "A conta do tablet deste setor está desativada". O PIN estava certo.
+- **Causa:** as contas de tablet (uma por setor, nascidas na 1ª entrada) apareciam na **Equipe** como pessoas, com o botão de arquivar; três foram arquivadas por engano por um admin (SECC 11h10, CNC e FITAMENTO 13h41, horário de Fortaleza). Falha da SESSAO-36: conta de aparelho não podia aparecer na lista de pessoas.
+- **Correção (OK do dono):** (1) reativadas as 3 por SQL, do mesmo jeito do "Reativar" da casa (ativo + sem arquivo) e com a trilha `usuario_reativado` no nome do dono; (2) a Equipe deixou de listar `conta_tablet`; (3) **migration 99** — gatilho que recusa arquivar/desativar/excluir conta de tablet por qualquer caminho, com chave de manutenção. Bateria 1.087 verdes (bloco 99 novo), telas 205, conferência no banco real dentro de bloco que desfaz (a trava recusou, a CNC seguiu ativa). Main 80be377.
+- **Lição (E-114):** toda conta "de máquina" que mora na tabela de pessoas precisa sair das listas de pessoas E ganhar trava no banco no MESMO dia em que nasce.
