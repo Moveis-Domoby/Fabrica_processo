@@ -3,9 +3,12 @@ import { Loader2, ShieldAlert } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import { useSessao } from './sessao-contexto'
 import {
+  ehLinhaDeProducao,
+  ehNivelLogistica,
   ehSoEntregador,
   ehSuperAdmin,
   ROTA_ENTREGADOR,
+  ROTAS_DA_PRODUCAO,
   ROTAS_DO_ENTREGADOR,
   temModulo,
 } from './tipos'
@@ -61,6 +64,21 @@ export function RotaProtegida({ nivel }: { nivel?: 'lider' | 'admin' | 'super' }
   // SESSAO-30 (D-115): o entregador só vê as entregas do dia — o resto leva para lá.
   if (ehSoEntregador(perfil) && !ROTAS_DO_ENTREGADOR.has(local.pathname))
     return <Navigate to={ROTA_ENTREGADOR} replace />
+  // SESSAO-37 (D-147): a LINHA DE PRODUÇÃO navega só nos setores de produção
+  // (o do PCP fica de fora — é a entrada), no chat e nos afazeres dela.
+  if (
+    ehLinhaDeProducao(perfil) &&
+    !ROTAS_DA_PRODUCAO.has(local.pathname) &&
+    !(local.pathname.startsWith('/fabrica/producao/') && local.pathname !== '/fabrica/producao/pcp')
+  )
+    return <Navigate to="/inicio/afazeres" replace />
+  // SESSAO-37 (D-147): o nível LOGÍSTICA não abre dashboards nem o comercial —
+  // o dele é a produção (só olhando), a logística e o painel pessoal.
+  if (
+    ehNivelLogistica(perfil) &&
+    (local.pathname.startsWith('/dashboards') || local.pathname.startsWith('/comercial'))
+  )
+    return <Navigate to="/inicio/meu-painel" replace />
   if (nivel === 'admin' && perfil.papel !== 'admin') return <Navigate to="/" replace />
   if (nivel === 'super' && !ehSuperAdmin(perfil)) return <Navigate to="/" replace />
   if (nivel === 'lider' && !ehLider) return <Navigate to="/" replace />

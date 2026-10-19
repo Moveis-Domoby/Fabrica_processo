@@ -15246,6 +15246,205 @@ try {
 }
 } // fim dos blocos 95–97 (SESSAO-36)
 
+{ // escopo próprio (E-70)
+// ============================================================================
+// SESSAO-37 · bloco 98 — níveis novos, pausa da pessoa e o ajudar geral
+// ============================================================================
+const um98 = async (sql) => (await bd.query(sql)).rows[0]
+const como98 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const AUTH98 = {
+  execA: '00000000-0000-0000-0000-000000000981',
+  execB: '00000000-0000-0000-0000-000000000982',
+  ajud: '00000000-0000-0000-0000-000000000983',
+  log: '00000000-0000-0000-0000-000000000984',
+}
+const id98 = async (usuario) =>
+  (await um98(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+
+try {
+  titulo('SESSAO-37 · bloco 98 · os níveis novos: linha de produção e logística (que só olha)')
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+      ('Exec98 A', 'exec98a@teste.com', '98100000981', 'exec98a', 'producao', '${AUTH98.execA}'),
+      ('Exec98 B', 'exec98b@teste.com', '98200000982', 'exec98b', 'operador', '${AUTH98.execB}'),
+      ('Ajud98', 'ajud98@teste.com', '98300000983', 'ajud98', 'operador', '${AUTH98.ajud}'),
+      ('Log98', 'log98@teste.com', '98400000984', 'log98', 'logistica', '${AUTH98.log}');
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, (select id from public.plt_setores where codigo = 'montagem'), false
+        from public.plt_usuarios u where u.usuario in ('exec98a', 'exec98b', 'ajud98');
+  `)
+
+  await deveRecusarExec(
+    `insert into public.plt_usuarios (nome, email, cpf, usuario, papel) values
+       ('Papel Torto', 'torto98@teste.com', '98500000985', 'torto98', 'gerente')`,
+    'um nível inventado é recusado no cadastro',
+    /plt_usuarios_papel_check/i,
+  )
+
+  const niveis98 = await um98(`
+    select plt_privado.fn_eh_logistica((select id from public.plt_usuarios where usuario = 'log98')) as log_eh,
+           (select count(*)::int from public.plt_usuarios where papel in ('producao', 'logistica')) as criados`)
+  conferir(
+    niveis98.log_eh === true && niveis98.criados >= 2,
+    'os níveis novos existem e o nível logística É logística por definição (sem depender de setor)',
+    JSON.stringify(niveis98),
+  )
+
+  await como98(AUTH98.log)
+  const exped98 = await um98(`select plt_privado.fn_pode_ver_expedicao() as ve`)
+  conferir(exped98.ve === true, 'o nível logística vê a expedição', JSON.stringify(exped98))
+  await deveRecusarExec(
+    `select plt_privado.fn_autor_do_gesto((select id from public.plt_setores where codigo = 'montagem'), null)`,
+    'a logística não move card — acompanha só olhando',
+    /só olhando/i,
+  )
+  await como98('')
+
+  titulo('SESSAO-37 · bloco 98 · o ajudar em tudo (sem esbarrar no limite) e a pausa da PESSOA que não derruba o card')
+
+  // dois cards em execução na MONTAGEM (limite padrão 1 por pessoa)
+  const novoCard98 = async (rotulo, indice, executor) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, 1, '981', '${rotulo}', ${indice}, 9
+          from public.pedidos p where p.numero = 999936;
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'card_criado',
+                (select id from public.plt_setores where codigo = 'pcp'), 'interface', now() - interval '3 hours');
+      insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+                (select id from public.plt_setores where codigo = 'pcp'),
+                (select id from public.plt_setores where codigo = 'montagem'),
+                (select id from public.plt_usuarios where usuario = '${executor}'), 'interface', now() - interval '2 hours');
+      insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'execucao_iniciada',
+                (select id from public.plt_usuarios where usuario = '${executor}'), 'interface', now() - interval '90 minutes');
+    `)
+    return (await um98(`select max(id)::int as id from public.plt_cards`)).id
+  }
+  const cardM1 = await novoCard98('Rack 98 Um', 7, 'exec98a')
+  const cardM2 = await novoCard98('Rack 98 Dois', 8, 'exec98b')
+
+  // o ajudar em tudo: a pessoa do gesto entra nos DOIS cards de uma vez —
+  // o limite do setor (1) não barra o auxílio (D-147, decisão provisória)
+  await como98(AUTH98.execB)
+  const todos98 = await um98(`
+    select public.plt_fn_setor_auxiliar_todos(
+             (select id from public.plt_setores where codigo = 'montagem'),
+             (select id from public.plt_usuarios where usuario = 'ajud98')) as n`)
+  await como98('')
+  const abertos98 = await um98(`
+    select count(*)::int as nos_dois from public.plt_auxilios a
+     where a.usuario_id = (select id from public.plt_usuarios where usuario = 'ajud98')
+       and a.card_id in (${cardM1}, ${cardM2})
+       and a.encerrado_em is null and a.pausado_em is null`)
+  conferir(
+    // o setor pode ter cards de blocos anteriores em execução — o que importa:
+    // entrou nos DOIS deste cenário de uma vez, sem o limite barrar
+    todos98.n >= 2 && abertos98.nos_dois === 2,
+    'o AJUDAR EM TUDO entra nos 2 cards em execução do setor de uma vez — o limite não barra o auxílio',
+    JSON.stringify({ entrou: todos98.n, nos_dois: abertos98.nos_dois }),
+  )
+
+  // a pausa da PESSOA (pausa geral): quem iniciou se pausa, a ajuda NÃO pausa
+  // junto — o card segue com quem ficou
+  await como98(AUTH98.execA)
+  await bd.exec(`select public.plt_fn_pessoa_pausar(null, 'Hora do almoço', null)`)
+  await como98('')
+  const pessoal98 = await um98(`
+    select (select c.pausado_em is not null from public.plt_cards c where c.id = ${cardM1}) as card_pausado,
+           (select a.pausado_em is null from public.plt_auxilios a
+             where a.card_id = ${cardM1}
+               and a.usuario_id = (select id from public.plt_usuarios where usuario = 'ajud98')
+               and a.encerrado_em is null) as ajuda_segue,
+           (select s.estado from public.plt_presenca_segmentos s
+             where s.usuario_id = (select id from public.plt_usuarios where usuario = 'exec98a')
+               and s.fim is null) as estado_exec`)
+  conferir(
+    pessoal98.card_pausado === true && pessoal98.ajuda_segue === true
+      && pessoal98.estado_exec === 'ausente',
+    'a pausa geral pausa SÓ a parte de quem iniciou (fica ausente) — a ajuda segue ativa no card',
+    JSON.stringify(pessoal98),
+  )
+
+  // a pausa DO CARD (gesto no card, sem o marcador) continua levando a ajuda junto
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+      values (${cardM2}, 'execucao_pausada',
+              (select id from public.plt_usuarios where usuario = 'exec98b'), 'interface',
+              '{"motivo": "Falta de material"}'::jsonb);
+  `)
+  const cascata98 = await um98(`
+    select a.pausado_em is not null as ajuda_pausou, a.pausa_motivo
+      from public.plt_auxilios a
+     where a.card_id = ${cardM2}
+       and a.usuario_id = (select id from public.plt_usuarios where usuario = 'ajud98')
+       and a.encerrado_em is null`)
+  conferir(
+    cascata98.ajuda_pausou === true && /Falta de material/.test(cascata98.pausa_motivo ?? ''),
+    'a pausa DO CARD continua pausando a ajuda junto, com o mesmo motivo (como era)',
+    JSON.stringify(cascata98),
+  )
+
+  // a dashboard detalhada: o scorecard traz produção × ausente POR SETOR e os
+  // móveis trabalhados (com o tempo parado e os motivos) na MESMA requisição
+  // (como o admin do bloco 96, que vê todo mundo)
+  // o relógio do teste: os trechos de presença abrem e fecham no MESMO instante
+  // (0 s) — semeia o agregado do dia como se o Exec98 A tivesse produzido 20 min
+  // na MONTAGEM (o caminho fato→agregado já foi provado no bloco 96)
+  await bd.exec(`
+    do $seme$
+    declare
+      v_u uuid := (select id from public.plt_usuarios where usuario = 'exec98a');
+      v_s bigint := (select id from public.plt_setores where codigo = 'montagem');
+      v_d date := (now() at time zone 'America/Fortaleza')::date;
+    begin
+      update public.plt_tempos_pessoa_dia
+         set segundos = segundos + 1200
+       where usuario_id = v_u and dia = v_d and estado = 'trabalhando'
+         and coalesce(setor_id, 0) = v_s;
+      if not found then
+        insert into public.plt_tempos_pessoa_dia (usuario_id, dia, estado, setor_id, segundos)
+          values (v_u, v_d, 'trabalhando', v_s, 1200);
+      end if;
+    end
+    $seme$;
+  `)
+  await como98('00000000-0000-0000-0000-000000000965')
+  // a bateria tem mais de 100 usuários — desloca até a página do Exec98 A
+  const pos98 = await um98(`
+    select count(*)::int as n from public.plt_usuarios u
+     where u.ativo and not u.conta_tablet and u.nome < 'Exec98 A'`)
+  const score98 = (await bd.query(`
+    select por_setor from public.plt_fn_tempos_pessoas(null, null, 100, ${pos98.n})
+     where nome = 'Exec98 A'`)).rows[0]
+  const setor98 = (score98?.por_setor ?? []).find((s) => s.nome === 'MONTAGEM')
+  conferir(
+    Boolean(setor98) && typeof setor98.producao_s === 'number' && typeof setor98.ausente_s === 'number'
+      && Array.isArray(setor98.cards)
+      && setor98.cards.some((c) => /Rack 98 Um/.test(c.rotulo ?? '') && c.segundos > 0),
+    'o scorecard abre os números por setor (produção × ausente) e os móveis trabalhados, numa requisição',
+    JSON.stringify(setor98 ?? score98),
+  )
+
+  const detalhe98 = (await bd.query(`
+    select public.plt_fn_tempos_pessoa_detalhe(
+             (select id from public.plt_usuarios where usuario = 'exec98b'), null, null) as d`)).rows[0].d
+  await como98('')
+  conferir(
+    Array.isArray(detalhe98.por_setor)
+      && detalhe98.execucoes.some((e) => /Rack 98 Dois/.test(e.rotulo ?? '')
+           && typeof e.pausado_s === 'number' && Array.isArray(e.motivos)
+           && e.motivos.includes('Falta de material')),
+    'o detalhe traz o tempo parado e os MOTIVOS de cada móvel (segunda visualização)',
+    JSON.stringify({ por_setor: detalhe98.por_setor?.length, exec: detalhe98.execucoes?.length }),
+  )
+} finally {
+  await como98('')
+}
+} // fim do bloco 98 (SESSAO-37)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

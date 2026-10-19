@@ -21,10 +21,11 @@ import { ModalMotivoPausa } from '@/kanban/componentes/ModalMotivoPausa'
 import type { Card } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
+import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
 import { PainelPessoasSetor } from '@/tablet/PainelPessoasSetor'
 import { TecladoPin } from '@/tablet/TecladoPin'
-import { cardAuxiliar } from '@/tablet/api'
+import { cardAuxiliar, setorAuxiliarTodos } from '@/tablet/api'
 import { tabletEntrar } from '@/autenticacao/api'
 import { prepararSom, tocarSomChegada } from '@/tablet/som'
 import { useVersaoNova } from '@/lib/versaoNova'
@@ -44,6 +45,10 @@ type GestoComPin =
   | { tipo: 'concluir_avulso'; card: Card; rotulo: string }
   /** SESSAO-36 (D-146): entrar no card em execução como AUXILIAR (tempo próprio). */
   | { tipo: 'auxiliar'; card: Card; rotulo: string }
+  /** SESSAO-37 (D-147): ajudar em TODOS os cards em execução do setor de uma vez. */
+  | { tipo: 'auxiliar_todos'; rotulo: string }
+  /** SESSAO-37 (D-147): a pessoa se pausa em tudo (o card segue com quem ficou). */
+  | { tipo: 'pausar_geral'; rotulo: string }
 
 /**
  * A TELA DO SETOR (SESSAO-07 / D-06 / D-28): o que o chão de fábrica vê o dia
@@ -131,8 +136,15 @@ export function TelaSetor() {
     pessoas,
     camposPorCard,
     presencas,
+    auxiliosPorCard,
   } = quadro
   const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
+  // SESSAO-37 (D-147): cards com ajuda ATIVA agora — o dono pausado não os derruba.
+  const cardsComAjudaAtiva = new Set(
+    [...auxiliosPorCard.entries()]
+      .filter(([, lista]) => lista.some((a) => a.pausado_em === null))
+      .map(([id]) => id),
+  )
 
   // Som discreto quando um card NOVO aparece no setor (D-28) — nunca na
   // primeira carga nem ao trocar de setor.
@@ -229,6 +241,27 @@ export function TelaSetor() {
     },
   })
 
+  // SESSAO-37 (D-147): o AJUDAR EM TUDO no nome de quem digitou o PIN, e o
+  // PAUSAR GERAL (o motivo vem no modal, depois do PIN).
+  const mutacaoAuxiliarTodos = useMutation({
+    mutationFn: (operadorId: string) => setorAuxiliarTodos(setorId!, operadorId),
+    onSuccess: async (quantos) => {
+      notificar({
+        titulo: `Entrou em ${quantos} card${quantos === 1 ? '' : 's'} — o tempo começou em cada um`,
+        tom: 'perfeito',
+      })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para ajudar em tudo',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+  const [pausarGeralDe, setPausarGeralDe] = useState<OperadorIdentificado | null>(null)
+
   function aoOperadorIdentificado(operador: OperadorIdentificado) {
     const gesto = gestoComPin
     if (!gesto) return
@@ -237,6 +270,14 @@ export function TelaSetor() {
     if (gesto.tipo === 'auxiliar') {
       // SESSAO-36: o PIN identifica quem entra no card como auxiliar.
       mutacaoAuxiliar.mutate({ cardId: gesto.card.id, operadorId: operador.usuario_id })
+      return
+    }
+    if (gesto.tipo === 'auxiliar_todos') {
+      mutacaoAuxiliarTodos.mutate(operador.usuario_id)
+      return
+    }
+    if (gesto.tipo === 'pausar_geral') {
+      setPausarGeralDe(operador)
       return
     }
     if (gesto.tipo === 'concluir_avulso') {
@@ -422,12 +463,18 @@ export function TelaSetor() {
             aoAbrirCard: (card) => abrirCard(card.id),
             // Tablet compartilhado: ninguém é "você" — o PIN diz quem agiu.
             meuUsuarioId: '',
-            gestoPendente: mutacaoSoltar.isPending,
+            gestoPendente: mutacaoSoltar.isPending || mutacaoAuxiliarTodos.isPending,
             aoLinhaTempo: setCardHistorico,
             aoFotos: setCardFotos,
+            cardsComAjudaAtiva,
             // SESSAO-36 (D-146): o Auxiliar no card em execução — o PIN diz quem entra.
             aoAuxiliar: (card) =>
               setGestoComPin({ tipo: 'auxiliar', card, rotulo: 'Auxiliar no card' }),
+            // SESSAO-37 (D-147): o topo da coluna — ajudar em TODOS de uma vez
+            // e o pausar geral; o PIN diz de quem é o gesto.
+            aoAuxiliarTodos: () =>
+              setGestoComPin({ tipo: 'auxiliar_todos', rotulo: 'Ajudar em tudo' }),
+            aoPausarGeral: () => setGestoComPin({ tipo: 'pausar_geral', rotulo: 'Pausar geral' }),
           }}
         />
       </main>
@@ -438,6 +485,15 @@ export function TelaSetor() {
         setorId={setor.id}
         aoFechar={() => setGestoComPin(null)}
         aoIdentificado={aoOperadorIdentificado}
+      />
+
+      {/* SESSAO-37 (D-147): o motivo do pausar geral, no nome de quem digitou o PIN. */}
+      <ModalPausarGeral
+        aberto={pausarGeralDe !== null}
+        operadorId={pausarGeralDe?.usuario_id}
+        operadorNome={pausarGeralDe?.nome}
+        aoFechar={() => setPausarGeralDe(null)}
+        aoPausado={() => void invalidarQuadro()}
       />
 
       <ModalMoverCard

@@ -64,8 +64,8 @@ export function ModalPinOperador({
   }
 
   async function confirmar(pinFinal: string) {
-    if (pinFinal.length < 4) {
-      setErro('PIN: 4 a 6 dígitos.')
+    if (pinFinal.length < 2) {
+      setErro('PIN: 2 a 4 dígitos.')
       return
     }
     setErro('')

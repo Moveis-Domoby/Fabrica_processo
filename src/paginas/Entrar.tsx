@@ -44,8 +44,8 @@ export function Entrar() {
         return
       }
     } else if (modo === 'pin') {
-      if (!email.trim() || !/^[0-9]{4,6}$/.test(pinPessoa)) {
-        setErro('Preencha o e-mail e o PIN (4 a 6 dígitos).')
+      if (!email.trim() || !/^[0-9]{2,4}$/.test(pinPessoa)) {
+        setErro('Preencha o e-mail e o PIN (2 a 4 dígitos).')
         return
       }
     }
@@ -105,6 +105,9 @@ export function Entrar() {
                     }}
                     aoConfirmar={(p) => void aoEntrarTablet(p)}
                     conferindo={enviando}
+                    // SESSAO-37: o PIN do setor tem exatamente 2 dígitos.
+                    minimo={2}
+                    maximo={2}
                   />
                 </div>
               </>
@@ -150,13 +153,13 @@ export function Entrar() {
                         onChange={(e) => setEmail(e.target.value)}
                       />
                       <Campo
-                        rotulo="PIN (4 a 6 dígitos)"
+                        rotulo="PIN (2 a 4 dígitos)"
                         type="password"
                         inputMode="numeric"
                         prefixo={<Fingerprint />}
                         autoComplete="off"
                         value={pinPessoa}
-                        onChange={(e) => setPinPessoa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onChange={(e) => setPinPessoa(e.target.value.replace(/\D/g, '').slice(0, 4))}
                         erro={erro || undefined}
                       />
                     </>

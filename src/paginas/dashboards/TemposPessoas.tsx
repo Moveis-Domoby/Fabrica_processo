@@ -144,14 +144,36 @@ export function TemposPessoas() {
                     </dd>
                   </div>
                 </dl>
+                {/* SESSAO-37 (pedido do dono, 19/10): os números POR SETOR já na
+                    primeira visualização — produção × ausente e os móveis
+                    trabalhados, com o tempo parado e o motivo. */}
                 {p.por_setor.length > 0 && (
-                  <p className="truncate text-xs text-texto-suave">
-                    {p.por_setor
-                      .slice(0, 2)
-                      .map((s) => `${s.nome}: ${seg(s.segundos)}`)
-                      .join(' · ')}
-                    {p.por_setor.length > 2 ? ' · …' : ''}
-                  </p>
+                  <div className="flex flex-col gap-2 border-t border-borda/60 pt-2">
+                    {p.por_setor.map((s) => (
+                      <div key={s.setor_id} className="flex flex-col gap-0.5">
+                        <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                          <span className="font-semibold text-texto">{s.nome}</span>
+                          <span className="text-texto-suave tabular-nums">
+                            produção {seg(s.producao_s)}
+                            {s.ausente_s > 0 ? ` · ausente ${seg(s.ausente_s)}` : ''}
+                          </span>
+                        </p>
+                        {(s.cards ?? []).map((c) => (
+                          <p
+                            key={`${c.card_id}-${c.auxiliar ? 'a' : 'e'}`}
+                            className="truncate pl-2 text-xs text-texto-suave"
+                          >
+                            {c.rotulo ?? `Card ${c.card_id}`}
+                            {c.auxiliar ? ' (ajudando)' : ''}: {seg(c.segundos)}
+                            {c.em_andamento ? ' (contando)' : ''}
+                            {c.pausado_s > 0 ? ` · parado ${seg(c.pausado_s)}` : ''}
+                            {c.motivos.length > 0 ? ` — ${c.motivos.slice(0, 2).join(' · ')}` : ''}
+                            {c.motivos.length > 2 ? ' · …' : ''}
+                          </p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </button>
             </li>
@@ -183,12 +205,16 @@ export function TemposPessoas() {
 
             {detalhe.por_setor.length > 0 && (
               <section>
-                <h3 className="mb-1 text-sm font-semibold text-texto">Produção por setor</h3>
+                <h3 className="mb-1 text-sm font-semibold text-texto">Tempo por setor</h3>
                 <ul className="flex flex-col gap-1">
                   {detalhe.por_setor.map((s) => (
-                    <li key={s.setor_id} className="flex justify-between text-sm">
+                    <li key={s.setor_id} className="flex flex-wrap justify-between gap-x-3 text-sm">
                       <span className="text-texto">{s.nome}</span>
-                      <span className="font-medium text-texto tabular-nums">{seg(s.segundos)}</span>
+                      <span className="text-texto-suave tabular-nums">
+                        produção{' '}
+                        <span className="font-medium text-texto">{seg(s.producao_s)}</span>
+                        {s.ausente_s > 0 ? <> · ausente {seg(s.ausente_s)}</> : null}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -225,16 +251,27 @@ export function TemposPessoas() {
                   {detalhe.execucoes.map((e) => (
                     <li
                       key={`e-${e.card_id}-${e.iniciou_em}`}
-                      className="flex flex-wrap items-center justify-between gap-x-3 text-sm"
+                      className="flex flex-col gap-0.5 text-sm"
                     >
-                      <span className="inline-flex min-w-0 items-center gap-1 text-texto">
-                        <Play aria-hidden className="size-3.5 shrink-0 text-perfeito-forte" />
-                        <span className="truncate">{e.rotulo ?? `Card ${e.card_id}`}</span>
+                      <span className="flex flex-wrap items-center justify-between gap-x-3">
+                        <span className="inline-flex min-w-0 items-center gap-1 text-texto">
+                          <Play aria-hidden className="size-3.5 shrink-0 text-perfeito-forte" />
+                          <span className="truncate">
+                            {e.rotulo ?? `Card ${e.card_id}`}
+                            {e.setor ? ` · ${e.setor}` : ''}
+                          </span>
+                        </span>
+                        <span className="text-texto-suave tabular-nums">
+                          {seg(e.segundos)}
+                          {e.em_andamento ? ' (contando)' : ''}
+                          {e.pausado_s > 0 ? ` · parado ${seg(e.pausado_s)}` : ''}
+                        </span>
                       </span>
-                      <span className="text-texto-suave tabular-nums">
-                        {seg(e.segundos)}
-                        {e.em_andamento ? ' (contando)' : ''}
-                      </span>
+                      {e.motivos.length > 0 && (
+                        <span className="pl-5 text-xs text-texto-suave">
+                          Parado por: {e.motivos.join(' · ')}
+                        </span>
+                      )}
                     </li>
                   ))}
                   {detalhe.auxilios.map((a) => (
@@ -245,12 +282,14 @@ export function TemposPessoas() {
                       <span className="inline-flex min-w-0 items-center gap-1 text-texto">
                         <Handshake aria-hidden className="size-3.5 shrink-0 text-texto-suave" />
                         <span className="truncate">
-                          {a.rotulo ?? `Card ${a.card_id}`} (como auxiliar)
+                          {a.rotulo ?? `Card ${a.card_id}`}
+                          {a.setor ? ` · ${a.setor}` : ''} (como auxiliar)
                         </span>
                       </span>
                       <span className="text-texto-suave tabular-nums">
                         {seg(a.segundos)}
                         {a.encerrado_em === null ? ' (contando)' : ''}
+                        {a.motivo ? ` · pausa: ${a.motivo}` : ''}
                       </span>
                     </li>
                   ))}

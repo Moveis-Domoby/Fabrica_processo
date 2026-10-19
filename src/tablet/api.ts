@@ -53,6 +53,19 @@ export async function cardAuxiliar(cardId: number, operadorId?: string): Promise
   if (error) throw new Error(error.message)
 }
 
+/**
+ * SESSAO-37 (D-147): o "ajudar em tudo" — entra como auxiliar em TODOS os
+ * cards em execução do setor de uma vez. Devolve em quantos entrou.
+ */
+export async function setorAuxiliarTodos(setorId: number, operadorId?: string): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_setor_auxiliar_todos', {
+    p_setor_id: setorId,
+    p_operador_id: operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return Number(data ?? 0)
+}
+
 /** Sair do auxílio — o card segue intacto para quem ficou. */
 export async function auxilioEncerrar(cardId: number, operadorId?: string): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_auxilio_encerrar', {

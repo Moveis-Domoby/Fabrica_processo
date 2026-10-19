@@ -245,10 +245,11 @@ export function Equipe() {
     const rotas = setores.find((s) => s.codigo === 'rotas')
     const vinculos = new Map(setoresEscolhidos)
     if (entregador && rotas) vinculos.set(rotas.id, false)
-    if (papelFinal !== 'admin' && vinculos.size === 0)
+    // SESSAO-37 (D-147): a logística também pode nascer sem setor — o nível já dá o acesso.
+    if (!['admin', 'logistica'].includes(papelFinal) && vinculos.size === 0)
       return setErroFormulario('Escolha pelo menos um setor.')
-    if (dados.pin && !/^[0-9]{4,6}$/.test(dados.pin))
-      return setErroFormulario('PIN: 4 a 6 dígitos, só números.')
+    if (dados.pin && !/^[0-9]{2,4}$/.test(dados.pin))
+      return setErroFormulario('PIN: 2 a 4 dígitos, só números.')
 
     setErroFormulario('')
     setEnviando(true)
@@ -303,8 +304,8 @@ export function Equipe() {
 
   async function aoSalvarPin() {
     if (!alvoPin) return
-    if (!/^[0-9]{4,6}$/.test(pinNovo)) {
-      setErroPin('PIN: 4 a 6 dígitos, só números.')
+    if (!/^[0-9]{2,4}$/.test(pinNovo)) {
+      setErroPin('PIN: 2 a 4 dígitos, só números.')
       return
     }
     setErroPin('')
@@ -661,6 +662,10 @@ export function Equipe() {
               rotulo="Papel"
               opcoes={[
                 { valor: 'operador', rotulo: 'Operador' },
+                // SESSAO-37 (D-147): só os setores de produção, chat e afazeres.
+                { valor: 'producao', rotulo: 'Linha de produção' },
+                // SESSAO-37 (D-147): produção só de olhar + módulo de logística.
+                { valor: 'logistica', rotulo: 'Logística' },
                 { valor: 'lider', rotulo: 'Líder' },
                 { valor: 'admin', rotulo: 'Admin' },
                 // SESSAO-30 (D-115): vê só "Entregas do dia".
@@ -681,7 +686,7 @@ export function Equipe() {
           <Campo
             rotulo="PIN do tablet (opcional)"
             inputMode="numeric"
-            ajuda="4 a 6 dígitos. Identifica a pessoa no tablet do setor."
+            ajuda="2 a 4 dígitos. Identifica a pessoa no tablet do setor."
             value={formulario.pin}
             onChange={(e) => setFormulario({ ...formulario, pin: e.target.value })}
           />
@@ -807,7 +812,7 @@ export function Equipe() {
           rotulo="PIN novo"
           inputMode="numeric"
           type="password"
-          ajuda="4 a 6 dígitos, só números."
+          ajuda="2 a 4 dígitos, só números."
           value={pinNovo}
           onChange={(e) => setPinNovo(e.target.value)}
           erro={erroPin || undefined}

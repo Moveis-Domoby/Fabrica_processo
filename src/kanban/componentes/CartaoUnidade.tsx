@@ -123,6 +123,8 @@ export interface CartaoUnidadeProps {
   pessoas?: Map<string, { nome: string; foto: string | null }>
   /** SESSAO-31 (§3): clicar no card abre a janela dele. */
   aoAbrir?: (card: Card) => void
+  /** SESSAO-37 (D-147): tem ajuda ATIVA agora — com o dono pausado, o card segue rodando. */
+  ajudaAtiva?: boolean
 }
 
 /**
@@ -155,6 +157,7 @@ export function CartaoUnidade({
   campos,
   pessoas,
   aoAbrir,
+  ajudaAtiva = false,
 }: CartaoUnidadeProps) {
   const galpao = tamanho === 'galpao'
   const kn =
@@ -163,7 +166,9 @@ export function CartaoUnidade({
       : ''
   const emExecucao = card.executor_atual_id !== null
   // SESSAO-22 (D-48): pausado não conta tempo nem ocupa o limite.
-  const pausado = emExecucao && card.pausado_em !== null
+  // SESSAO-37 (D-147): a pausa é da pessoa — com ajuda ATIVA, o card não cai
+  // para Pausado: segue em execução com quem ficou.
+  const pausado = emExecucao && card.pausado_em !== null && !ajudaAtiva
   // SESSAO-31 (§4): o motivo da pausa — ou da parada (solto no PARADO, sem execução).
   const motivo = card.pausa_motivo ?? null
   const parado = !emExecucao && motivo !== null
@@ -461,6 +466,7 @@ export function CartaoUnidade({
           <span className="min-w-0 break-words">
             Com ajuda de{' '}
             {auxiliares.map((id) => pessoas?.get(id)?.nome ?? '…').join(', ')}
+            {card.pausado_em !== null && ajudaAtiva ? ' — quem iniciou está pausado' : ''}
           </span>
         </p>
       )}

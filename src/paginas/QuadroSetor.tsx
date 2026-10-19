@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Flag, ListChecks } from 'lucide-react'
-import { Botao, useNotificacao } from '@/componentes/ui'
+import { Flag, KeyRound, ListChecks } from 'lucide-react'
+import { Botao, Campo, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { setorPinConferir } from '@/autenticacao/api'
 import { buscarSetores, soltarCard } from '@/kanban/api'
-import { cardAuxiliar } from '@/tablet/api'
+import { cardAuxiliar, setorAuxiliarTodos } from '@/tablet/api'
+import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
@@ -37,6 +39,9 @@ import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
  * (D-125) anda igual e tem o botão "Concluir". Soltar o card em execução no
  * PARADO (a etapa que pede o motivo — §4) pergunta o motivo antes.
  */
+/** SESSAO-37 (D-147): setores que a linha de produção destravou pelo PIN nesta visita. */
+const setoresDestravados = new Set<number>()
+
 export function QuadroSetor({ setorId }: { setorId: number }) {
   const { perfil, vinculos, carregando } = useSessao()
   const notificar = useNotificacao()
@@ -45,6 +50,12 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   const abrirCard = useAbrirCard()
 
   const souAdmin = perfil?.papel === 'admin'
+  // SESSAO-37 (D-147): os níveis novos — logística vê tudo só olhando; a linha
+  // de produção abre os setores dela livre e os outros pelo PIN do setor.
+  const souLogistica = perfil?.papel === 'logistica'
+  const souProducao = perfil?.papel === 'producao'
+  const [, marcarDestravado] = useState(0)
+  const destravadoAqui = setoresDestravados.has(setorId)
   const vinculoAqui = vinculos.find((v) => v.setor_id === setorId)
 
   const { data: setores = [], isPending: carregandoSetores } = useQuery({
@@ -55,8 +66,22 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
 
   // SESSAO-31: o quadro inteiro numa requisição e ao vivo pelo websocket do setor.
   const quadro = useQuadro(Number.isFinite(setorId) ? setorId : undefined)
-  const { etapas, colunas, pedidosPorId, execucoesPorCard, nomesUsuarios, pessoas, camposPorCard } =
-    quadro
+  const {
+    etapas,
+    colunas,
+    pedidosPorId,
+    execucoesPorCard,
+    nomesUsuarios,
+    pessoas,
+    camposPorCard,
+    auxiliosPorCard,
+  } = quadro
+  // SESSAO-37 (D-147): cards com ajuda ATIVA agora — o dono pausado não os derruba.
+  const cardsComAjudaAtiva = new Set(
+    [...auxiliosPorCard.entries()]
+      .filter(([, lista]) => lista.some((a) => a.pausado_em === null))
+      .map(([id]) => id),
+  )
   const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
 
   // SESSAO-24: o que o soltar precisa perguntar antes de ir ao banco.
@@ -125,18 +150,124 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     },
   })
 
-  if (!carregando && !souAdmin && !vinculoAqui) return <Navigate to="/" replace />
+  // SESSAO-37 (D-147): o AJUDAR EM TUDO — entra em todos os cards em execução
+  // do setor de uma vez; e o PAUSAR GERAL (modal com o motivo).
+  const mutacaoAuxiliarTodos = useMutation({
+    mutationFn: () => setorAuxiliarTodos(setorId),
+    onSuccess: async (quantos) => {
+      notificar({
+        titulo: `Você entrou em ${quantos} card${quantos === 1 ? '' : 's'} — o seu tempo começou em cada um`,
+        tom: 'perfeito',
+      })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para ajudar em tudo',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+  const [pausarGeralAberto, setPausarGeralAberto] = useState(false)
+
+  // SESSAO-37 (D-147): a conferência do PIN do setor para a linha de produção.
+  const [pinSetor, setPinSetor] = useState('')
+  const mutacaoDestravar = useMutation({
+    mutationFn: () => setorPinConferir(pinSetor),
+    onSuccess: (resultado) => {
+      setPinSetor('')
+      if (resultado.setor.id !== setorId) {
+        notificar({
+          titulo: `Esse PIN é do setor ${resultado.setor.nome}`,
+          descricao: 'Digite o PIN de entrada DESTE setor para abrir a tela dele.',
+          tom: 'atencao',
+        })
+        return
+      }
+      setoresDestravados.add(setorId)
+      marcarDestravado((x) => x + 1)
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'PIN não confere',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+
+  if (
+    !carregando &&
+    !souAdmin &&
+    !vinculoAqui &&
+    !souLogistica &&
+    // a linha de produção chega até aqui para a tela do PIN decidir
+    !souProducao
+  )
+    return <Navigate to="/" replace />
   if (!perfil) return null
   if (!carregandoSetores && setores.length > 0 && !setor) return <Navigate to="/" replace />
   // O PCP tem quadro próprio, com a liberação de pedidos.
   if (setor?.codigo === 'pcp') return <Navigate to="/producao/pcp" replace />
   if (!setor) return null
 
+  // SESSAO-37 (D-147): a linha de produção abre livre os setores DELA; outro
+  // setor só depois do PIN de entrada daquele setor (conferido no servidor).
+  if (souProducao && !vinculoAqui && !destravadoAqui) {
+    return (
+      <div className="mx-auto flex max-w-sm flex-col items-center gap-4 py-16 text-center">
+        <KeyRound aria-hidden className="size-10 text-texto-fraco" />
+        <h1 className="text-2xl">{setor.nome}</h1>
+        <p className="text-sm text-texto-suave">
+          Este setor não é o seu. Para dar uma olhada nele, digite o PIN de entrada DESTE setor
+          (o mesmo que abre o tablet dele).
+        </p>
+        <form
+          className="flex items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (/^[0-9]{2}$/.test(pinSetor)) mutacaoDestravar.mutate()
+          }}
+        >
+          <div className="w-36">
+            <Campo
+              rotulo="PIN do setor"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="2 dígitos"
+              value={pinSetor}
+              onChange={(e) => setPinSetor(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            />
+          </div>
+          <Botao
+            type="submit"
+            carregando={mutacaoDestravar.isPending}
+            disabled={!/^[0-9]{2}$/.test(pinSetor)}
+          >
+            Abrir
+          </Botao>
+        </form>
+      </div>
+    )
+  }
+
   const terminal = setor.papel_no_fluxo === 'terminal'
   const podeGerirEtapas = souAdmin || vinculoAqui?.lider_do_setor === true
   const setorAtual = setor
 
   function aoSoltarNaEtapa(card: Card, etapaId: number | null) {
+    // SESSAO-37 (D-147): o nível logística acompanha só olhando (o banco
+    // recusa de todo jeito — aqui a tela poupa o gesto).
+    if (souLogistica) {
+      notificar({
+        titulo: 'A logística acompanha a produção só olhando',
+        descricao: 'Mover e executar é gesto do pessoal da produção.',
+        tom: 'atencao',
+      })
+      return
+    }
     const acao = acaoAoSoltar({ setor: setorAtual, etapas, card, etapaDestinoId: etapaId })
     // SESSAO-31 (D-126): o estado da peça só é perguntado quando o setor pede ao enviar.
     if (acao.tipo === 'encaminhar' && pedeEstadoAoEnviar(setorAtual, card)) {
@@ -217,11 +348,25 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
           pessoas,
           aoAbrirCard: (card) => abrirCard(card.id),
           meuUsuarioId: perfil.id,
-          gestoPendente: mutacaoSoltar.isPending,
+          gestoPendente: mutacaoSoltar.isPending || mutacaoAuxiliarTodos.isPending,
           aoLinhaTempo: setCardLinhaTempo,
+          cardsComAjudaAtiva,
           // SESSAO-36 (D-146): no computador o Auxiliar age pela própria sessão.
-          aoAuxiliar: (card) => mutacaoAuxiliar.mutate(card.id),
+          // SESSAO-37 (D-147): a logística só olha — sem gesto nenhum.
+          ...(souLogistica
+            ? {}
+            : {
+                aoAuxiliar: (card: Card) => mutacaoAuxiliar.mutate(card.id),
+                aoAuxiliarTodos: () => mutacaoAuxiliarTodos.mutate(),
+                aoPausarGeral: () => setPausarGeralAberto(true),
+              }),
         }}
+      />
+
+      <ModalPausarGeral
+        aberto={pausarGeralAberto}
+        aoFechar={() => setPausarGeralAberto(false)}
+        aoPausado={() => void invalidarQuadro()}
       />
       {quadro.erro && (
         <p className="rounded-dm border border-danificado-borda bg-danificado-fundo p-3 text-sm text-danificado-texto">

@@ -15,8 +15,13 @@
 //   tablet-entrar    → (SESSAO-36) a tela de login no modo tablet: o PIN do SETOR
 //                      abre a sessão da conta de tablet daquele setor
 //   setor-pin-definir→ (SESSAO-36) o admin dá/troca o PIN de entrada de um setor
+//   setor-pin-conferir→ (SESSAO-37) confere o PIN de um setor SEM abrir sessão —
+//                      o nível "linha de produção" usa para espiar outro setor
 //   entrar-pin       → (SESSAO-36) no PC: e-mail + PIN para quem nunca criou senha
 //                      (cai na troca obrigatória; depois da senha, deixa de valer)
+//
+// Tamanhos (SESSAO-37, pedido do dono): PIN de SETOR = exatamente 2 dígitos;
+// PIN de PESSOA = 2 a 4 dígitos. A trava de tentativas segue valendo.
 //
 // Por que Edge Function e não RPC em `public`: função em `public` vira
 // endpoint sem ninguém pedir (E-11), e resolver "usuário → e-mail" no
@@ -440,11 +445,13 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
   if (!/^[a-z0-9._-]{3,32}$/.test(usuario))
     return erro(400, 'Nome de usuário: 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen ou underline.')
   if (!/^[0-9]{11}$/.test(cpf)) return erro(400, 'Informe o CPF completo (11 dígitos) — a matrícula depende dele.')
-  if (!['operador', 'lider', 'admin'].includes(papel)) return erro(400, 'Papel inválido.')
-  if (pin && !/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+  // SESSAO-37 (D-147): os níveis novos — linha de produção e logística.
+  if (!['operador', 'lider', 'admin', 'producao', 'logistica'].includes(papel))
+    return erro(400, 'Papel inválido.')
+  if (pin && !/^[0-9]{2,4}$/.test(pin)) return erro(400, 'PIN: 2 a 4 dígitos.')
   // D-52 (23/09): admin tem permissão total — o vínculo de setor é opcional
-  // para ele. Líder e operador continuam precisando de pelo menos um.
-  if (papel !== 'admin' && setores.length === 0)
+  // para ele. A logística também pode nascer sem setor (o nível já dá o acesso).
+  if (!['admin', 'logistica'].includes(papel) && setores.length === 0)
     return erro(400, 'Vincule a pessoa a pelo menos um setor.')
 
   if (quem.papel === 'lider') {
@@ -583,7 +590,7 @@ async function pinDefinir(req: Request, corpo: Json): Promise<Response> {
   const usuarioId = String(corpo.usuario_id ?? '')
   const pin = String(corpo.pin ?? '')
   if (!usuarioId) return erro(400, 'Informe de quem é o PIN.')
-  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+  if (!/^[0-9]{2,4}$/.test(pin)) return erro(400, 'PIN: 2 a 4 dígitos.')
 
   if (quem.papel === 'lider') {
     const meus = await setoresLiderados(quem.id)
@@ -674,7 +681,7 @@ async function setorPinDefinir(req: Request, corpo: Json): Promise<Response> {
   const setorId = Number(corpo.setor_id ?? 0)
   const pin = String(corpo.pin ?? '')
   if (!setorId) return erro(400, 'Diga de qual setor é o PIN.')
-  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+  if (!/^[0-9]{2}$/.test(pin)) return erro(400, 'PIN do setor: exatamente 2 dígitos.')
 
   const { data: setor } = await servidor
     .from('plt_setores')
@@ -705,6 +712,50 @@ async function setorPinDefinir(req: Request, corpo: Json): Promise<Response> {
 }
 
 // ----------------------------------------------------------------------------
+// SESSAO-37 · setor-pin-conferir — confere o PIN de um setor SEM abrir sessão:
+// o nível "linha de produção" digita o PIN do setor que quer espiar e, se
+// confere, a tela daquele setor abre (só a navegação — os gestos continuam
+// gateados no banco). Trava por sessão.
+// ----------------------------------------------------------------------------
+async function setorPinConferir(req: Request, corpo: Json): Promise<Response> {
+  const quem = await pessoaDoToken(req)
+  if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
+
+  const pin = String(corpo.pin ?? '')
+  if (!/^[0-9]{2}$/.test(pin)) return erro(400, 'PIN do setor: exatamente 2 dígitos.')
+
+  const trava = `sessao:${quem.id}`
+  const bloqueado = await travaBloqueada(trava)
+  if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
+
+  const NEGADO = 'PIN não confere — é o PIN de entrada do setor que você quer abrir.'
+  const busca = await buscaDoPin(pin)
+  const { data: linha } = await servidor
+    .from('plt_setor_pins')
+    .select('setor_id, pin_hash')
+    .eq('pin_busca', busca)
+    .maybeSingle()
+  if (!linha || !(await conferirPin(pin, linha.pin_hash))) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
+  await travaLimpar(trava)
+
+  const { data: setor } = await servidor
+    .from('plt_setores')
+    .select('id, nome, codigo, ativo')
+    .eq('id', linha.setor_id)
+    .maybeSingle()
+  if (!setor || !setor.ativo) return erro(401, NEGADO)
+
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: quem.id, acao: 'setor_aberto_por_pin', contexto: { setor_id: setor.id, setor: setor.nome } })
+    .then(() => {})
+  return resposta(200, { setor: { id: setor.id, nome: setor.nome, codigo: setor.codigo } })
+}
+
+// ----------------------------------------------------------------------------
 // SESSAO-36 · tablet-entrar — a tela de login no modo tablet: o PIN DO SETOR
 // abre a sessão da CONTA DE TABLET daquele setor (criada sozinha na primeira
 // entrada). PIN de pessoa aqui não faz nada (D-146 resposta 3). Sem sessão —
@@ -712,7 +763,7 @@ async function setorPinDefinir(req: Request, corpo: Json): Promise<Response> {
 // ----------------------------------------------------------------------------
 async function tabletEntrar(req: Request, corpo: Json): Promise<Response> {
   const pin = String(corpo.pin ?? '')
-  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+  if (!/^[0-9]{2}$/.test(pin)) return erro(400, 'PIN do setor: exatamente 2 dígitos.')
 
   const trava = `ip:${origemDaChamada(req)}`
   const bloqueado = await travaBloqueada(trava)
@@ -821,7 +872,7 @@ async function pinIdentificar(req: Request, corpo: Json): Promise<Response> {
   if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
 
   const pin = String(corpo.pin ?? '')
-  if (!/^[0-9]{4,6}$/.test(pin)) return erro(400, 'PIN: 4 a 6 dígitos.')
+  if (!/^[0-9]{2,4}$/.test(pin)) return erro(400, 'PIN: 2 a 4 dígitos.')
 
   const trava = `sessao:${quem.id}`
   const bloqueado = await travaBloqueada(trava)
@@ -894,7 +945,7 @@ async function pinIdentificar(req: Request, corpo: Json): Promise<Response> {
 async function entrarPin(req: Request, corpo: Json): Promise<Response> {
   const email = String(corpo.email ?? '').trim().toLowerCase()
   const pin = String(corpo.pin ?? '')
-  if (!email || !/^[0-9]{4,6}$/.test(pin)) return erro(400, 'Informe o e-mail e o PIN (4 a 6 dígitos).')
+  if (!email || !/^[0-9]{2,4}$/.test(pin)) return erro(400, 'Informe o e-mail e o PIN (2 a 4 dígitos).')
 
   const trava = `email:${email}`
   const bloqueado = await travaBloqueada(trava)
@@ -976,6 +1027,8 @@ Deno.serve(async (req) => {
         return await tabletEntrar(req, corpo)
       case 'setor-pin-definir':
         return await setorPinDefinir(req, corpo)
+      case 'setor-pin-conferir':
+        return await setorPinConferir(req, corpo)
       case 'entrar-pin':
         return await entrarPin(req, corpo)
       default:

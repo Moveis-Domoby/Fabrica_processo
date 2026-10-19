@@ -1,10 +1,39 @@
-export type Papel = 'operador' | 'lider' | 'admin'
+export type Papel = 'operador' | 'lider' | 'admin' | 'producao' | 'logistica'
 
 export const ROTULO_PAPEL: Record<Papel, string> = {
   operador: 'Operador',
   lider: 'Líder',
   admin: 'Admin',
+  // SESSAO-37 (D-147): os níveis novos pedidos pelo dono.
+  producao: 'Linha de produção',
+  logistica: 'Logística',
 }
+
+/**
+ * SESSAO-37 (D-147): a pessoa da LINHA DE PRODUÇÃO — navega só nos setores de
+ * produção (os dela livres; outro setor pede o PIN daquele setor), no chat e
+ * nos afazeres dela. O resto da plataforma não aparece.
+ */
+export function ehLinhaDeProducao(perfil: Perfil | null): boolean {
+  return perfil !== null && perfil.papel === 'producao'
+}
+
+/**
+ * SESSAO-37 (D-147): o nível LOGÍSTICA — acompanha a produção só olhando
+ * (nenhum gesto de card), com o módulo de logística e o painel pessoal.
+ */
+export function ehNivelLogistica(perfil: Perfil | null): boolean {
+  return perfil !== null && perfil.papel === 'logistica'
+}
+
+/** As rotas que a linha de produção pode abrir fora dos setores de produção. */
+export const ROTAS_DA_PRODUCAO = new Set([
+  '/inicio/afazeres',
+  '/inicio/chat',
+  '/inicio/avisos',
+  '/inicio/meu-perfil',
+  '/trocar-senha',
+])
 
 /**
  * A pessoa logada, como o front a enxerga.

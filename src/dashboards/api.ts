@@ -385,6 +385,26 @@ export async function meuDesempenho(periodo: PeriodoDash): Promise<MeuDesempenho
 
 export type EstadoPessoa = 'trabalhando' | 'ausente' | 'deriva'
 
+/** SESSAO-37 (pedido do dono, 19/10): um móvel trabalhado no setor — tempo, tempo parado e motivos. */
+export interface CardDeTempo {
+  card_id: number
+  rotulo: string | null
+  segundos: number
+  pausado_s: number
+  em_andamento: boolean
+  auxiliar: boolean
+  motivos: string[]
+}
+
+/** O detalhe por setor que vem DENTRO do scorecard (mesma requisição — Lei §2). */
+export interface SetorDeTempo {
+  setor_id: number
+  nome: string
+  producao_s: number
+  ausente_s: number
+  cards: CardDeTempo[]
+}
+
 export interface PessoaTempos {
   usuario_id: string
   nome: string
@@ -396,7 +416,7 @@ export interface PessoaTempos {
   producao_s: number
   ausente_s: number
   deriva_s: number
-  por_setor: { setor_id: number; nome: string; segundos: number }[]
+  por_setor: SetorDeTempo[]
   contagem_total: number
 }
 
@@ -421,23 +441,28 @@ export interface TempoPessoaDetalhe {
   estado: { estado: EstadoPessoa; desde: string; setor_id: number | null } | null
   dias: { dia: string; producao_s: number; ausente_s: number; deriva_s: number }[]
   aberto: { estado: EstadoPessoa; setor_id: number | null; segundos: number }[]
-  por_setor: { setor_id: number; nome: string; segundos: number }[]
+  por_setor: { setor_id: number; nome: string; producao_s: number; ausente_s: number }[]
   execucoes: {
     card_id: number
     setor_id: number | null
     etapa_id: number | null
+    setor: string | null
     iniciou_em: string
     finalizou_em: string | null
     em_andamento: boolean
     segundos: number
+    pausado_s: number
+    motivos: string[]
     rotulo: string | null
   }[]
   auxilios: {
     card_id: number
     setor_id: number | null
+    setor: string | null
     iniciado_em: string
     encerrado_em: string | null
     segundos: number
+    motivo: string | null
     rotulo: string | null
   }[]
 }

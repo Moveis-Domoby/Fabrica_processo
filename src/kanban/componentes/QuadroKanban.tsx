@@ -14,7 +14,9 @@ import {
   ChevronDown,
   CircleCheckBig,
   Hand,
+  Handshake,
   Inbox,
+  Pause,
   Play,
   TriangleAlert,
 } from 'lucide-react'
@@ -62,6 +64,12 @@ export interface ContextoExecucao {
   aoAbrirCard?: (card: Card) => void
   /** SESSAO-36 (D-146): entrar no card em execução como AUXILIAR (tempo próprio). */
   aoAuxiliar?: (card: Card) => void
+  /** SESSAO-37 (D-147): cards com ajuda ATIVA agora (o dono pausado não derruba o card). */
+  cardsComAjudaAtiva?: Set<number>
+  /** SESSAO-37 (D-147): o topo da coluna em execução — ajudar em TODOS os cards de uma vez. */
+  aoAuxiliarTodos?: () => void
+  /** SESSAO-37 (D-147): o pausar geral — a PESSOA se pausa em todos os cards (o card segue com quem ficou). */
+  aoPausarGeral?: () => void
 }
 
 interface ColunaProps {
@@ -191,6 +199,36 @@ function Coluna({
               conclui a produção
             </span>
           )}
+          {/* SESSAO-37 (D-147): a coluna com card em execução ganha o AJUDAR EM
+              TUDO (entra como auxiliar em todos de uma vez) e o PAUSAR GERAL
+              (a pessoa se pausa em tudo — o card segue com quem ficou). */}
+          {cards.some((c) => c.executor_atual_id !== null) &&
+            (execucao.aoAuxiliarTodos || execucao.aoPausarGeral) && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {execucao.aoAuxiliarTodos && (
+                  <Botao
+                    tamanho="sm"
+                    variante="secundaria"
+                    icone={<Handshake />}
+                    disabled={execucao.gestoPendente}
+                    onClick={execucao.aoAuxiliarTodos}
+                  >
+                    Ajudar em tudo
+                  </Botao>
+                )}
+                {execucao.aoPausarGeral && (
+                  <Botao
+                    tamanho="sm"
+                    variante="fantasma"
+                    icone={<Pause />}
+                    disabled={execucao.gestoPendente}
+                    onClick={execucao.aoPausarGeral}
+                  >
+                    Pausar geral
+                  </Botao>
+                )}
+              </div>
+            )}
         </header>
 
         {(cards.length > 0 || restantes > 0) && (
@@ -218,6 +256,8 @@ function Coluna({
                 tamanho,
                 campos: camposPorCard.get(card.id),
                 pessoas: execucao.pessoas,
+                // SESSAO-37 (D-147): com ajuda ativa, o dono pausado não derruba o card.
+                ajudaAtiva: execucao.cardsComAjudaAtiva?.has(card.id) ?? false,
                 aoAbrir: execucao.aoAbrirCard
                   ? (c: Card) => {
                       if (!acabouDeArrastar()) execucao.aoAbrirCard?.(c)

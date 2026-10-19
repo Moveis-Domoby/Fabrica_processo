@@ -122,6 +122,18 @@ export function setorPinDefinir(setorId: number, pin: string): Promise<{ ok: boo
   return chamar<{ ok: boolean }>('setor-pin-definir', { setor_id: setorId, pin })
 }
 
+/**
+ * SESSAO-37 (D-147): confere o PIN de um setor SEM abrir sessão — a pessoa da
+ * linha de produção digita o PIN do setor que quer espiar e a tela abre.
+ */
+export function setorPinConferir(
+  pin: string,
+): Promise<{ setor: { id: number; nome: string; codigo: string } }> {
+  return chamar<{ setor: { id: number; nome: string; codigo: string } }>('setor-pin-conferir', {
+    pin,
+  })
+}
+
 /** No computador: e-mail + PIN para quem nunca criou senha (cai na troca obrigatória). */
 export async function entrarPin(email: string, pin: string): Promise<void> {
   const tokens = await chamar<{ access_token: string; refresh_token: string }>('entrar-pin', {

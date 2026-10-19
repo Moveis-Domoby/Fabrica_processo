@@ -198,6 +198,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const veFabrica = temModulo(perfil, 'fabrica')
   const veComercial = temModulo(perfil, 'comercial')
 
+  const souProducao = perfil?.papel === 'producao'
+  const souLogistica = perfil?.papel === 'logistica'
+
   const grupos: GrupoMenu[] = useMemo(() => {
     if (!perfil) return []
     if (soEntregador) {
@@ -211,11 +214,46 @@ export function Layout({ children }: { children: ReactNode }) {
       ]
     }
 
+    // SESSAO-37 (D-147): a LINHA DE PRODUÇÃO vê os setores de produção (os
+    // dela abrem livre; os outros pedem o PIN do setor na tela), o chat e os
+    // afazeres dela — e mais nada.
+    if (souProducao) {
+      const filhosSetores = setores
+        .filter((s) => s.papel_no_fluxo === 'producao')
+        .map((s) => ({ para: rotaDoSetor(s.codigo), rotulo: nomeNoMenu(s.nome) }))
+      return [
+        {
+          id: 'inicio',
+          rotulo: 'Início',
+          icone: <House aria-hidden />,
+          secoes: [
+            {
+              filhos: [
+                { para: '/inicio/afazeres', rotulo: 'Meus afazeres' },
+                { para: '/inicio/chat', rotulo: 'Chat' },
+              ],
+            },
+          ],
+        },
+        ...(filhosSetores.length > 0
+          ? [
+              {
+                id: 'fabrica',
+                rotulo: 'Fábrica',
+                icone: <Factory aria-hidden />,
+                secoes: [{ titulo: 'Controle de produção', filhos: filhosSetores }],
+              },
+            ]
+          : []),
+      ]
+    }
+
     const idsVinculados = new Set(vinculos.map((v) => v.setor_id))
     const setoresDoMenu = setores.filter(
       (s) =>
         s.papel_no_fluxo !== 'terminal' &&
-        (souAdmin || ehDoPcp ? true : idsVinculados.has(s.id) || s.codigo === 'pcp'),
+        // SESSAO-37 (D-147): o nível logística vê TODOS os setores de produção (só olhando).
+        (souAdmin || ehDoPcp || souLogistica ? true : idsVinculados.has(s.id) || s.codigo === 'pcp'),
     )
     // Operador comum não é do PCP: o quadro do PCP fica com admin/PCP.
     const filhosProducao = setoresDoMenu
@@ -223,7 +261,8 @@ export function Layout({ children }: { children: ReactNode }) {
       // ↩️ Ajuste do dono (14/10 noite): o nome do setor no padrão do menu.
       .map((s) => ({ para: rotaDoSetor(s.codigo), rotulo: nomeNoMenu(s.nome) }))
 
-    const veLogistica = (souAdmin || ehDoPcp || ehDeTerminal) && !soEntregador
+    // SESSAO-37 (D-147): o nível logística recebe o módulo inteiro por definição.
+    const veLogistica = (souAdmin || ehDoPcp || ehDeTerminal || souLogistica) && !soEntregador
 
     // O pai Fábrica (D-46): Controle de Produção, Logística e ROTAS viraram
     // seções da barra 2 — os dashboards da produção ficam onde estão (Q-66).
@@ -293,7 +332,7 @@ export function Layout({ children }: { children: ReactNode }) {
             },
           ]
         : []),
-      ...(veComercial
+      ...(veComercial && !souLogistica
         ? [
             {
               id: 'comercial',
@@ -311,7 +350,7 @@ export function Layout({ children }: { children: ReactNode }) {
             },
           ]
         : []),
-      ...(veFabrica
+      ...(veFabrica && !souLogistica
         ? [
             {
               id: 'dashboards',
@@ -401,6 +440,8 @@ export function Layout({ children }: { children: ReactNode }) {
     ehLider,
     veFabrica,
     veComercial,
+    souProducao,
+    souLogistica,
   ])
 
   const grupoAtivo = grupos.find((g) =>

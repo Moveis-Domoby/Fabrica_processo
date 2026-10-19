@@ -46,12 +46,12 @@ describe('Entrar (SESSAO-36)', () => {
     desenhar()
     fireEvent.click(screen.getByRole('button', { name: /modo tablet do setor/i }))
     expect(screen.getByText(/digite o pin do setor/i)).toBeInTheDocument()
-    // digita 2-4-6-8 no teclado da tela e confirma
-    for (const d of ['2', '4', '6', '8']) {
+    // SESSAO-37: o PIN do setor tem exatamente 2 dígitos — digita 2-4 e confirma
+    for (const d of ['2', '4']) {
       fireEvent.click(screen.getByRole('button', { name: `Dígito ${d}` }))
     }
     fireEvent.click(screen.getByRole('button', { name: /^ok$/i }))
-    await waitFor(() => expect(tabletEntrar).toHaveBeenCalledWith('2468'))
+    await waitFor(() => expect(tabletEntrar).toHaveBeenCalledWith('24'))
   })
 
   it('o e-mail + PIN entra por quem nunca criou senha (D-146 resposta 11)', async () => {
@@ -65,11 +65,11 @@ describe('Entrar (SESSAO-36)', () => {
     await waitFor(() => expect(entrarPin).toHaveBeenCalledWith('pessoa@teste.com', '1234'))
   })
 
-  it('o PIN do e-mail + PIN só aceita dígitos (4 a 6)', () => {
+  it('o PIN do e-mail + PIN só aceita dígitos (2 a 4 — SESSAO-37)', () => {
     desenhar()
     fireEvent.click(screen.getByRole('button', { name: /entrar com e-mail e pin/i }))
     const pin = screen.getByLabelText(/pin/i)
     fireEvent.change(pin, { target: { value: 'abc12345678' } })
-    expect((pin as HTMLInputElement).value).toBe('123456')
+    expect((pin as HTMLInputElement).value).toBe('1234')
   })
 })

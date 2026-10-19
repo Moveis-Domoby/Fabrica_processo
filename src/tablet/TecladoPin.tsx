@@ -8,24 +8,35 @@ export interface TecladoPinProps {
   aoConfirmar: (pin: string) => void
   conferindo?: boolean
   desabilitado?: boolean
+  /** SESSAO-37: quantos dígitos valem — setor = exatamente 2; pessoa = 2 a 4. */
+  minimo?: number
+  maximo?: number
 }
 
 /**
  * SESSAO-36: o teclado de PIN na tela — pontos + dígitos + OK, sem teclado do
  * sistema (D-06: o ciclo inteiro só com toques). Reaproveitado pela tela de
  * entrada do tablet (PIN do setor) e pelo "quem é você?" das ações (PIN da
- * pessoa).
+ * pessoa). SESSAO-37: os tamanhos encurtaram — setor 2; pessoa 2 a 4.
  */
-export function TecladoPin({ pin, aoMudar, aoConfirmar, conferindo, desabilitado }: TecladoPinProps) {
+export function TecladoPin({
+  pin,
+  aoMudar,
+  aoConfirmar,
+  conferindo,
+  desabilitado,
+  minimo = 2,
+  maximo = 4,
+}: TecladoPinProps) {
   function digito(d: string) {
-    if (pin.length >= 6) return
+    if (pin.length >= maximo) return
     aoMudar(pin + d)
   }
 
   return (
     <div className="flex flex-col items-center gap-3">
       <div aria-label={`PIN: ${pin.length} dígito(s)`} className="flex h-6 items-center gap-2">
-        {Array.from({ length: 6 }, (_, i) => (
+        {Array.from({ length: maximo }, (_, i) => (
           <span
             key={i}
             aria-hidden
@@ -53,7 +64,7 @@ export function TecladoPin({ pin, aoMudar, aoConfirmar, conferindo, desabilitado
         <Botao
           tamanho="lg"
           carregando={conferindo}
-          disabled={pin.length < 4 || desabilitado}
+          disabled={pin.length < minimo || desabilitado}
           onClick={() => aoConfirmar(pin)}
         >
           OK

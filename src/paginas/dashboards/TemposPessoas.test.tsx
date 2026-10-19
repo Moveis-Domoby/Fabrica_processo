@@ -33,7 +33,7 @@ vi.mock('@/dashboards/api', async (original) => {
         producao_s: 3600,
         ausente_s: 600,
         deriva_s: 0,
-        por_setor: [{ setor_id: 2, nome: 'SECC', segundos: 3600 }],
+        por_setor: [{ setor_id: 2, nome: 'SECC', producao_s: 3600, ausente_s: 600, cards: [{ card_id: 9, rotulo: 'Mesa de canto', segundos: 3600, pausado_s: 600, em_andamento: false, auxiliar: false, motivos: ['Falta de material'] }] }],
         contagem_total: 2,
       },
       {
@@ -56,16 +56,19 @@ vi.mock('@/dashboards/api', async (original) => {
       estado: { estado: 'trabalhando', desde: '2026-10-18T12:00:00Z', setor_id: 2 },
       dias: [{ dia: '2026-10-18', producao_s: 3600, ausente_s: 600, deriva_s: 0 }],
       aberto: [],
-      por_setor: [{ setor_id: 2, nome: 'SECC', segundos: 3600 }],
+      por_setor: [{ setor_id: 2, nome: 'SECC', producao_s: 3600, ausente_s: 0 }],
       execucoes: [
         {
           card_id: 77,
           setor_id: 2,
           etapa_id: null,
+          setor: 'SECC',
           iniciou_em: '2026-10-18T12:00:00Z',
           finalizou_em: null,
           em_andamento: true,
           segundos: 3600,
+          pausado_s: 0,
+          motivos: [],
           rotulo: 'Mesa Lille (1/2)',
         },
       ],
@@ -92,7 +95,10 @@ describe('Dashboards → Tempos por pessoa (SESSAO-36)', () => {
     expect(screen.getByText('Trabalhando')).toBeInTheDocument()
     expect(screen.getAllByText('Fora de setor').length).toBeGreaterThan(0)
     // a produção por setor aparece resumida no cartão
-    expect(screen.getByText(/SECC: 1h/)).toBeInTheDocument()
+    expect(screen.getByText('SECC')).toBeInTheDocument()
+    // SESSAO-37: o card abre produção × ausente do setor e os móveis com o parado
+    expect(screen.getByText(/produção 1h/)).toBeInTheDocument()
+    expect(screen.getByText(/Mesa de canto.*parado 10min.*Falta de material/)).toBeInTheDocument()
   })
 
   it('o detalhe da pessoa só é pedido no clique (Lei §3)', async () => {

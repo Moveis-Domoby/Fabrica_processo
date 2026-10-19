@@ -407,8 +407,8 @@ function SecaoSetor(props: {
 // ---------------------------------------------------------------------------
 
 /**
- * SESSAO-36 (D-146 resposta 1): o PIN de entrada do tablet do setor — 4 a 6
- * dígitos, cadastrado/trocado pelo admin. O valor nunca volta do servidor
+ * SESSAO-36 (D-146 resposta 1): o PIN de entrada do tablet do setor — exatamente
+ * 2 dígitos (SESSAO-37), cadastrado/trocado pelo admin. O valor nunca volta do servidor
  * (só hash no banco) e a troca fica na trilha. Quem digita esse PIN na tela de
  * login abre o tablet DESTE setor.
  */
@@ -434,7 +434,7 @@ function PinDoSetor(props: { setor: Setor; aoErro: (excecao: unknown) => void })
         className="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          if (/^[0-9]{4,6}$/.test(pin)) gravar.mutate()
+          if (/^[0-9]{2}$/.test(pin)) gravar.mutate()
         }}
       >
         <div className="w-44">
@@ -443,9 +443,9 @@ function PinDoSetor(props: { setor: Setor; aoErro: (excecao: unknown) => void })
             type="password"
             inputMode="numeric"
             autoComplete="off"
-            placeholder="4 a 6 dígitos"
+            placeholder="2 dígitos"
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 2))}
           />
         </div>
         <Botao
@@ -454,7 +454,7 @@ function PinDoSetor(props: { setor: Setor; aoErro: (excecao: unknown) => void })
           variante="secundaria"
           icone={<Save />}
           carregando={gravar.isPending}
-          disabled={!/^[0-9]{4,6}$/.test(pin)}
+          disabled={!/^[0-9]{2}$/.test(pin)}
         >
           Gravar PIN
         </Botao>
