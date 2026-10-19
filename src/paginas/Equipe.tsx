@@ -39,7 +39,9 @@ interface LinhaEquipe extends Perfil {
 
 async function buscarEquipe(): Promise<LinhaEquipe[]> {
   const [pessoas, vinculos] = await Promise.all([
-    supabase.from('plt_usuarios').select(COLUNAS_PERFIL).order('nome'),
+    // A conta do tablet de cada setor é do APARELHO, não de uma pessoa: fica
+    // fora da Equipe (arquivá-la por engano trava o tablet do setor).
+    supabase.from('plt_usuarios').select(COLUNAS_PERFIL).eq('conta_tablet', false).order('nome'),
     supabase
       .from('plt_usuario_setores')
       .select('usuario_id, lider_do_setor, setor:plt_setores(nome)'),

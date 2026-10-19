@@ -15440,6 +15440,39 @@ try {
     'o detalhe traz o tempo parado e os MOTIVOS de cada móvel (segunda visualização)',
     JSON.stringify({ por_setor: detalhe98.por_setor?.length, exec: detalhe98.execucoes?.length }),
   )
+
+  titulo('SESSAO-37 · bloco 99 · a conta do tablet de um setor não se arquiva, desativa nem exclui')
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, usuario, papel, conta_tablet, senha_padrao)
+      values ('Tablet · Teste 99', 'tablet-t99@tablet.domoby.local', 'tablet-t99', 'operador', true, false);
+  `)
+  await deveRecusarExec(
+    `update public.plt_usuarios set ativo = false, arquivado_em = now() where usuario = 'tablet-t99'`,
+    'arquivar a conta do tablet é recusado (sem ela o tablet do setor não entra)',
+    /não se arquiva/i,
+  )
+  await deveRecusarExec(
+    `delete from public.plt_usuarios where usuario = 'tablet-t99'`,
+    'excluir a conta do tablet é recusado',
+    /não se exclui/i,
+  )
+  // pessoa comum segue arquivável; e a manutenção consciente passa pela chave
+  await bd.exec(`
+    update public.plt_usuarios set ativo = false, arquivado_em = now() where usuario = 'log98';
+    update public.plt_usuarios set ativo = true, arquivado_em = null where usuario = 'log98';
+    select set_config('plt.ajuste_conta_tablet', 'on', false);
+    update public.plt_usuarios set nome = 'Tablet · Teste 99 (ajustado)' where usuario = 'tablet-t99';
+    select set_config('plt.ajuste_conta_tablet', '', false);
+  `)
+  const trava99 = await um98(`
+    select u.ativo, u.arquivado_em is null as sem_arquivo, u.nome
+      from public.plt_usuarios u where u.usuario = 'tablet-t99'`)
+  conferir(
+    trava99.ativo === true && trava99.sem_arquivo === true && /ajustado/.test(trava99.nome),
+    'a conta do tablet segue ativa; pessoa comum continua arquivável; a chave de manutenção libera o ajuste consciente',
+    JSON.stringify(trava99),
+  )
 } finally {
   await como98('')
 }
