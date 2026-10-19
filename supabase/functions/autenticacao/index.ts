@@ -5,6 +5,8 @@
 //
 //   entrar           → login com nome de usuário OU e-mail + senha
 //   criar-usuario    → admin/líder cadastra alguém (senha padrão + convite)
+//   editar-usuario   → (SESSAO-37) o admin edita o cadastro de alguém: dados,
+//                      nível e setores (a caneta da Equipe)
 //   convite-info     → resolve o token do link de convite (nome + usuário)
 //   trocar-senha     → troca obrigatória da senha padrão no primeiro login
 //   atualizar-perfil → (SESSAO-13) a própria pessoa troca nome, login, e-mail, fone
@@ -533,6 +535,137 @@ async function criarUsuario(req: Request, corpo: Json): Promise<Response> {
 }
 
 // ----------------------------------------------------------------------------
+// SESSAO-37 · editar-usuario — pedido do dono (19/10): a caneta da Equipe
+// edita TUDO de uma pessoa já cadastrada — nome, login, e-mail, telefone,
+// nível e setores (com quem é líder). Só admin. O e-mail também muda na conta
+// de acesso. Os vínculos de setor são trocados pela lista nova. Na trilha vão
+// os NOMES dos campos alterados, nunca os valores.
+// ----------------------------------------------------------------------------
+async function editarUsuario(req: Request, corpo: Json): Promise<Response> {
+  const quem = await pessoaDoToken(req)
+  if (!quem) return erro(401, 'Sessão inválida. Entre de novo.')
+  if (quem.papel !== 'admin') return erro(403, 'Editar o cadastro de outra pessoa é gesto de admin.')
+
+  const usuarioId = String(corpo.usuario_id ?? '')
+  const nome = String(corpo.nome ?? '').trim()
+  const usuario = String(corpo.usuario ?? '').trim().toLowerCase()
+  const email = String(corpo.email ?? '').trim().toLowerCase()
+  const telefone = String(corpo.telefone ?? '').trim() || null
+  const papel = String(corpo.papel ?? '')
+  const setores = Array.isArray(corpo.setores)
+    ? (corpo.setores as { setor_id: number; lider?: boolean }[])
+    : []
+
+  if (!usuarioId) return erro(400, 'Diga quem você está editando.')
+  if (!nome) return erro(400, 'Informe o nome.')
+  if (!/^[a-z0-9._-]{3,32}$/.test(usuario))
+    return erro(400, 'Nome de usuário: 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen ou underline.')
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro(400, 'Informe um e-mail válido.')
+  if (!['operador', 'lider', 'admin', 'producao', 'logistica'].includes(papel))
+    return erro(400, 'Nível de acesso inválido.')
+  if (!['admin', 'logistica'].includes(papel) && setores.length === 0)
+    return erro(400, 'Vincule a pessoa a pelo menos um setor.')
+
+  const { data: alvo } = await servidor
+    .from('plt_usuarios')
+    .select('id, auth_user_id, nome, usuario, email, telefone, papel, ativo, conta_tablet')
+    .eq('id', usuarioId)
+    .maybeSingle()
+  if (!alvo) return erro(404, 'Pessoa não encontrada.')
+  if (alvo.conta_tablet) return erro(400, 'A conta do tablet de um setor não se edita por aqui.')
+
+  // ninguém tira o próprio admin (evita ficar trancado do lado de fora)
+  if (alvo.id === quem.id && papel !== 'admin')
+    return erro(400, 'Você não pode tirar o seu próprio nível de admin — peça a outro admin.')
+  // a plataforma nunca fica sem admin ativo
+  if (alvo.papel === 'admin' && papel !== 'admin' && alvo.ativo) {
+    const { count } = await servidor
+      .from('plt_usuarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('papel', 'admin')
+      .eq('ativo', true)
+      .neq('id', alvo.id)
+    if (!count) return erro(400, 'Esta é a última pessoa admin ativa — a plataforma não pode ficar sem admin.')
+  }
+
+  // 1 · o e-mail também é o login da conta de acesso: muda lá primeiro
+  const emailMudou = alvo.email !== email
+  if (emailMudou && alvo.auth_user_id) {
+    const alterada = await servidor.auth.admin.updateUserById(alvo.auth_user_id, {
+      email,
+      email_confirm: true,
+    })
+    if (alterada.error) {
+      const ja = /already|registered|exists/i.test(alterada.error.message)
+      return erro(ja ? 409 : 500, ja ? 'Este e-mail já tem conta.' : 'Não consegui trocar o e-mail. Tente de novo.')
+    }
+  }
+
+  // 2 · o cadastro
+  const { error: erroGravar } = await servidor
+    .from('plt_usuarios')
+    .update({ nome, usuario, email, telefone, papel })
+    .eq('id', alvo.id)
+  if (erroGravar) {
+    if (emailMudou && alvo.auth_user_id) {
+      await servidor.auth.admin.updateUserById(alvo.auth_user_id, { email: alvo.email, email_confirm: true })
+    }
+    const m = erroGravar.message
+    if (/usuario_uq/.test(m)) return erro(409, 'Este nome de usuário já existe.')
+    if (/email_uq/.test(m)) return erro(409, 'Este e-mail já está cadastrado.')
+    return erro(500, 'Não consegui gravar as alterações. Tente de novo.')
+  }
+
+  // 3 · os setores: a lista nova manda (sai quem não está; entra/atualiza o resto)
+  const novos = new Map(setores.map((s) => [Number(s.setor_id), Boolean(s.lider)]))
+  const { data: atuais } = await servidor
+    .from('plt_usuario_setores')
+    .select('setor_id, lider_do_setor')
+    .eq('usuario_id', alvo.id)
+  const sair = (atuais ?? []).filter((v) => !novos.has(Number(v.setor_id))).map((v) => Number(v.setor_id))
+  if (sair.length > 0) {
+    const { error: erroSair } = await servidor
+      .from('plt_usuario_setores')
+      .delete()
+      .eq('usuario_id', alvo.id)
+      .in('setor_id', sair)
+    if (erroSair) return erro(500, 'Não consegui tirar a pessoa dos setores antigos. Tente de novo.')
+  }
+  if (novos.size > 0) {
+    const { error: erroVinculo } = await servidor.from('plt_usuario_setores').upsert(
+      [...novos.entries()].map(([setor_id, lider]) => ({
+        usuario_id: alvo.id,
+        setor_id,
+        lider_do_setor: lider,
+      })),
+      { onConflict: 'usuario_id,setor_id' },
+    )
+    if (erroVinculo) return erro(500, 'Não consegui gravar os setores. Tente de novo.')
+  }
+
+  // 4 · a trilha (os nomes dos campos, nunca os valores)
+  const vinculosMudaram =
+    sair.length > 0 ||
+    [...novos.entries()].some(
+      ([id, lider]) => !(atuais ?? []).some((v) => Number(v.setor_id) === id && v.lider_do_setor === lider),
+    )
+  const campos = [
+    alvo.nome !== nome && 'nome',
+    alvo.usuario !== usuario && 'usuario',
+    emailMudou && 'email',
+    (alvo.telefone ?? null) !== telefone && 'telefone',
+    alvo.papel !== papel && 'nivel',
+    vinculosMudaram && 'setores',
+  ].filter(Boolean)
+  await servidor
+    .from('plt_logs_atividade')
+    .insert({ usuario_id: quem.id, acao: 'usuario_editado', contexto: { usuario_id: alvo.id, campos } })
+    .then(() => {})
+
+  return resposta(200, { ok: true, campos })
+}
+
+// ----------------------------------------------------------------------------
 // convite-info — o link do WhatsApp abre a tela de boas-vindas com o nome e o
 // usuário preenchidos. Token usado ou inexistente não revela nada.
 // ----------------------------------------------------------------------------
@@ -1009,6 +1142,8 @@ Deno.serve(async (req) => {
         return await entrar(corpo)
       case 'criar-usuario':
         return await criarUsuario(req, corpo)
+      case 'editar-usuario':
+        return await editarUsuario(req, corpo)
       case 'convite-info':
         return await conviteInfo(corpo)
       case 'trocar-senha':

@@ -15473,6 +15473,35 @@ try {
     'a conta do tablet segue ativa; pessoa comum continua arquivável; a chave de manutenção libera o ajuste consciente',
     JSON.stringify(trava99),
   )
+
+  titulo('SESSAO-37 · bloco 100 · a equipe da rota chega no card da programação (na mesma consulta)')
+
+  const prog100 = await um98(`
+    select pr.data_entrega::text as dia, pr.caminhao_id, pr.rota
+      from public.plt_programacoes pr
+      join public.plt_cards c on c.id = pr.card_id and c.arquivado_em is null
+     where c.entrega_evento_id is null
+     limit 1`)
+  if (!prog100) {
+    conferir(false, 'a bateria precisa de uma programação viva para provar a equipe no card', 'nenhuma')
+  } else {
+    await bd.exec(`
+      insert into public.plt_programacao_equipes (data_entrega, caminhao_id, usuario_id, rota)
+        values ('${prog100.dia}', ${prog100.caminhao_id},
+                (select id from public.plt_usuarios where usuario = 'log98'), ${prog100.rota})
+      on conflict do nothing;
+    `)
+    await como98('00000000-0000-0000-0000-000000000965')
+    const linha100 = await um98(`
+      select equipe from public.plt_fn_programadas(false, '${prog100.dia}', ${prog100.caminhao_id}, 200, 0)
+       where rota = ${prog100.rota} limit 1`)
+    await como98('')
+    conferir(
+      Array.isArray(linha100?.equipe) && linha100.equipe.includes('Log98'),
+      'a lista da programação traz os nomes da equipe da rota (dia + caminhão + rota)',
+      JSON.stringify(linha100),
+    )
+  }
 } finally {
   await como98('')
 }

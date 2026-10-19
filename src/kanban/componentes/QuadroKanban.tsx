@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
+import type { DragEndEvent, Modifier } from '@dnd-kit/core'
 import { useRef } from 'react'
 import {
   ArrowRight,
@@ -316,6 +316,29 @@ function EsqueletoDoQuadro({ tamanho }: { tamanho: 'padrao' | 'galpao' }) {
 
 type CardArrastavelProps = Parameters<typeof CartaoUnidade>[0]
 
+/**
+ * Pedido do dono (19/10): o card arrastado ficava "infinito" — ao passar da
+ * borda, ele esticava a área do quadro e a rolagem automática corria atrás,
+ * sem fim. O card agora fica PRESO à parte visível do quadro (e da tela): a
+ * rolagem lateral ainda acontece perto da borda, mas para no fim das colunas.
+ */
+const presoAoQuadro: Modifier = ({ transform, draggingNodeRect, scrollableAncestorRects, windowRect }) => {
+  if (!draggingNodeRect) return transform
+  const quadro = scrollableAncestorRects[0] ?? windowRect
+  if (!quadro) return transform
+  const limiteTopo = Math.max(quadro.top, windowRect?.top ?? quadro.top)
+  const limiteBase = Math.min(quadro.bottom, windowRect?.bottom ?? quadro.bottom)
+  const minX = quadro.left - draggingNodeRect.left
+  const maxX = quadro.right - draggingNodeRect.right
+  const minY = limiteTopo - draggingNodeRect.top
+  const maxY = limiteBase - draggingNodeRect.bottom
+  return {
+    ...transform,
+    x: Math.min(Math.max(transform.x, minX), Math.max(minX, maxX)),
+    y: Math.min(Math.max(transform.y, minY), Math.max(minY, maxY)),
+  }
+}
+
 function CardArrastavel(props: CardArrastavelProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: props.card.id,
@@ -460,6 +483,9 @@ export function QuadroKanban({
   return (
     <DndContext
       sensors={sensores}
+      modifiers={[presoAoQuadro]}
+      // Só rola para os lados (as colunas), devagar, e nunca a página para baixo.
+      autoScroll={{ threshold: { x: 0.12, y: 0 }, acceleration: 6, layoutShiftCompensation: false }}
       onDragStart={() => (arrastouEm.current = Date.now())}
       onDragCancel={() => (arrastouEm.current = Date.now())}
       onDragEnd={aoSoltar}

@@ -1825,6 +1825,9 @@ as $$
 $$;
 
 -- public.plt_fn_programadas — da migration 20261004130000_plt_rotas_programadas_itens.sql: "existe entrega?" → a entrega vigente.
+-- A SESSAO-37 mudou a forma desta função (coluna equipe): o drop aqui é
+-- obrigatório para a migration reaplicar por cima da forma nova (E-17/A-12).
+drop function if exists public.plt_fn_programadas(boolean, date, bigint, integer, integer);
 create or replace function public.plt_fn_programadas(
   p_entregues    boolean default false,
   p_data         date    default null,

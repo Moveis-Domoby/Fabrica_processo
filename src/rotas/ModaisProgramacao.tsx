@@ -68,6 +68,8 @@ export function ModalEquipe({
       aoFechar()
       await clienteQuery.invalidateQueries({ queryKey: ['rotas-do-dia'] })
       await clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] })
+      // SESSAO-37: a equipe aparece no card da programação — relê a lista
+      await clienteQuery.invalidateQueries({ queryKey: ['programadas'] })
     },
     onError: (erro) =>
       notificar({

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, House, Layers, UsersRound } from 'lucide-react'
+import { ArrowLeftRight, House, Layers, LogOut, UsersRound } from 'lucide-react'
 import { AvatarPessoa, Botao, Modal, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import type { OperadorIdentificado } from '@/autenticacao/api'
@@ -71,7 +71,9 @@ type GestoComPin =
  * o card em execução no PARADO (§4): o PIN, depois o motivo.
  */
 export function TelaSetor() {
-  const { perfil, vinculos, ehLider, carregando } = useSessao()
+  const { perfil, vinculos, ehLider, carregando, sair } = useSessao()
+  // Pedido do dono (19/10): o tablet aberto pelo PIN do setor ganha o "Sair".
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false)
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora()
@@ -423,6 +425,17 @@ export function TelaSetor() {
               </span>
             )}
           </button>
+          {/* Pedido do dono (19/10): sair do modo tablet volta à tela de entrar. */}
+          {contaTablet && (
+            <Botao
+              variante="fantasma"
+              icone={<LogOut />}
+              className="text-grafite-100 hover:bg-grafite-600"
+              onClick={() => setConfirmandoSaida(true)}
+            >
+              Sair
+            </Botao>
+          )}
           {/* A conta do tablet vive só aqui — o "casa" é das pessoas logadas. */}
           {!contaTablet && (
             <Link to="/" aria-label="Sair da tela do setor">
@@ -478,6 +491,24 @@ export function TelaSetor() {
           }}
         />
       </main>
+
+      {/* Sair do modo tablet (pedido do dono, 19/10) — com confirmação, para
+          ninguém fechar o tablet do setor sem querer. */}
+      <Modal
+        aberto={confirmandoSaida}
+        aoFechar={(v) => !v && setConfirmandoSaida(false)}
+        titulo="Sair do modo tablet?"
+        descricao={`O tablet volta para a tela de entrar. Para abrir de novo, digite o PIN do setor ${setor.nome}.`}
+      >
+        <div className="flex justify-end gap-2">
+          <Botao variante="secundaria" onClick={() => setConfirmandoSaida(false)}>
+            Ficar
+          </Botao>
+          <Botao icone={<LogOut />} onClick={() => void sair()}>
+            Sair do tablet
+          </Botao>
+        </div>
+      </Modal>
 
       {/* Quem é você? — o PIN antes de qualquer gesto (D-06). */}
       <ModalPinOperador

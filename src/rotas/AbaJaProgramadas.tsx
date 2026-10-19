@@ -494,6 +494,8 @@ export function AbaJaProgramadas({
                 const foto = urlFotoCaminhao(caminhao?.foto_caminho ?? null)
                 const lista = ativo ? ordenadas : ordemDaRota(g.paradas)
                 const pecasDoGrupo = somarPecas(g.paradas)
+                // SESSAO-37 (pedido do dono, 19/10): a equipe da rota no card.
+                const equipeDoGrupo = g.paradas[0]?.equipe ?? []
                 return (
                   <section
                     key={g.chave}
@@ -548,6 +550,17 @@ export function AbaJaProgramadas({
                               {formatarDuracao(estadoRota.rota.duracao_s)} dirigindo
                             </>
                           )}
+                        </span>
+                        <span
+                          className={cn(
+                            'flex items-center gap-1 text-sm',
+                            equipeDoGrupo.length > 0 ? 'text-texto' : 'text-texto-fraco',
+                          )}
+                        >
+                          <Users aria-hidden className="size-3.5 shrink-0" />
+                          {equipeDoGrupo.length > 0
+                            ? `Equipe: ${equipeDoGrupo.join(', ')}`
+                            : 'Sem equipe definida'}
                         </span>
                       </span>
                       {ativo ? (

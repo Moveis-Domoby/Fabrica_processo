@@ -81,6 +81,18 @@ export function ControleTempo() {
   const [horaInicio, setHoraInicio] = useState('07:00')
   const [horaFim, setHoraFim] = useState('17:00')
 
+  // Pedido do dono (19/10): o botão ficava apagado sem dizer por quê — quase
+  // sempre faltava escolher, no bloco de cima, DE QUEM é o horário.
+  const faltaNoHorario = !alvoEscolhido
+    ? escopo === 'setor'
+      ? 'Escolha o setor lá em cima, em "De quem é o tempo?".'
+      : 'Escolha a pessoa lá em cima, em "De quem é o tempo?".'
+    : diasEscolhidos.length === 0
+      ? 'Marque pelo menos um dia da semana.'
+      : horaFim <= horaInicio
+        ? 'O horário de término precisa ser depois do começo.'
+        : null
+
   const criarHorarioMutacao = useMutation({
     mutationFn: () =>
       criarHorarios({ ...alvoParametros, dias: diasEscolhidos, horaInicio, horaFim }),
@@ -295,14 +307,30 @@ export function ControleTempo() {
           />
           <div className="flex items-end">
             <Botao
-              disabled={!alvoEscolhido || diasEscolhidos.length === 0 || horaFim <= horaInicio}
               carregando={criarHorarioMutacao.isPending}
-              onClick={() => criarHorarioMutacao.mutate()}
+              onClick={() => {
+                if (faltaNoHorario) {
+                  notificar({ titulo: 'Falta um detalhe', descricao: faltaNoHorario, tom: 'atencao' })
+                  return
+                }
+                criarHorarioMutacao.mutate()
+              }}
             >
               Salvar horário
             </Botao>
           </div>
         </div>
+        {faltaNoHorario ? (
+          <p className="text-sm text-atencao-texto">{faltaNoHorario}</p>
+        ) : (
+          <p className="text-sm text-texto-suave">
+            Vai valer para{' '}
+            <strong className="text-texto">
+              {nomeDoAlvo(escopo, setorAlvo ? Number(setorAlvo) : null, usuarioAlvo || null)}
+            </strong>
+            .
+          </p>
+        )}
 
         {horarios.length > 0 && (
           <ul className="mt-2 flex flex-col gap-1.5">

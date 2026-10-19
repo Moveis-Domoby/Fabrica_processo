@@ -362,6 +362,8 @@ export interface PedidoProgramado {
   /** SESSAO-31 (D-128): a rota do caminhão naquele dia (1, 2, 3…). */
   rota: number
   ordem: number | null
+  /** SESSAO-37 (pedido do dono, 19/10): os nomes da equipe da rota — aparece no card. */
+  equipe?: string[]
   entregue_em: string | null
   /** SESSAO-30 (D-115): o detalhe da entrega escrito por quem programou. */
   detalhe: string | null

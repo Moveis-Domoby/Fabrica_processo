@@ -1,19 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Archive,
-  Cake,
-  Check,
-  Copy,
-  Handshake,
-  ImageUp,
-  KeyRound,
-  MessageCircle,
-  RotateCcw,
-  Trash2,
-  Truck,
-  UserRoundPlus,
-} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Archive, Check, Copy, MessageCircle, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { AvatarPessoa, Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
 import type { ColunaTabela } from '@/componentes/ui'
 import { supabase } from '@/lib/supabase'
@@ -23,19 +10,16 @@ import {
   criarUsuario,
   desarquivarUsuario,
   excluirUsuario,
-  pinDefinir,
 } from '@/autenticacao/api'
 import type { UsuarioCriado } from '@/autenticacao/api'
 import { COLUNAS_PERFIL, ehSoEntregador, ROTULO_PAPEL } from '@/autenticacao/tipos'
 import { definirEntregador } from '@/rotas/api'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
-import { definirNascimento, enviarFotoPerfil, lerNascimento } from '@/perfil/api'
-import { reduzirImagem } from '@/lib/imagem'
+import { EditarUsuario } from './equipe/EditarUsuario'
+import type { PessoaDaEquipe } from './equipe/EditarUsuario'
 
-interface LinhaEquipe extends Perfil {
-  setores: string
-}
+type LinhaEquipe = PessoaDaEquipe
 
 async function buscarEquipe(): Promise<LinhaEquipe[]> {
   const [pessoas, vinculos] = await Promise.all([
@@ -44,21 +28,27 @@ async function buscarEquipe(): Promise<LinhaEquipe[]> {
     supabase.from('plt_usuarios').select(COLUNAS_PERFIL).eq('conta_tablet', false).order('nome'),
     supabase
       .from('plt_usuario_setores')
-      .select('usuario_id, lider_do_setor, setor:plt_setores(nome)'),
+      .select('usuario_id, setor_id, lider_do_setor, setor:plt_setores(nome)'),
   ])
   const setoresPorPessoa = new Map<string, string[]>()
+  const vinculosPorPessoa = new Map<string, { setor_id: number; lider: boolean }[]>()
   for (const v of (vinculos.data ?? []) as unknown as {
     usuario_id: string
+    setor_id: number
     lider_do_setor: boolean
     setor: { nome: string }
   }[]) {
     const lista = setoresPorPessoa.get(v.usuario_id) ?? []
     lista.push(v.lider_do_setor ? `${v.setor.nome} (líder)` : v.setor.nome)
     setoresPorPessoa.set(v.usuario_id, lista)
+    const ids = vinculosPorPessoa.get(v.usuario_id) ?? []
+    ids.push({ setor_id: Number(v.setor_id), lider: v.lider_do_setor })
+    vinculosPorPessoa.set(v.usuario_id, ids)
   }
   return ((pessoas.data ?? []) as Perfil[]).map((p) => ({
     ...p,
     setores: (setoresPorPessoa.get(p.id) ?? []).join(' · ') || '—',
+    vinculos: vinculosPorPessoa.get(p.id) ?? [],
   }))
 }
 
@@ -109,45 +99,14 @@ export function Equipe() {
   const [criado, setCriado] = useState<(UsuarioCriado & { nome: string }) | null>(null)
   const [linkCopiado, setLinkCopiado] = useState(false)
 
-  const [alvoPin, setAlvoPin] = useState<LinhaEquipe | null>(null)
-  const [pinNovo, setPinNovo] = useState('')
-  const [erroPin, setErroPin] = useState('')
-  const [salvandoPin, setSalvandoPin] = useState(false)
+  // Pedido do dono (19/10): UMA caneta por pessoa — edita tudo num lugar só.
+  const [alvoEdicao, setAlvoEdicao] = useState<LinhaEquipe | null>(null)
 
   // Arquivar / excluir (SESSAO-22 / D-49) — modais da casa, nada do navegador.
   const [alvoArquivar, setAlvoArquivar] = useState<LinhaEquipe | null>(null)
   const [alvoExcluir, setAlvoExcluir] = useState<LinhaEquipe | null>(null)
   const [erroDestino, setErroDestino] = useState('')
   const [processando, setProcessando] = useState(false)
-
-  // Data de nascimento (SESSAO-26): o admin cadastra/corrige a de qualquer
-  // pessoa — o chat publica os parabéns no dia. Lida só ao abrir o modal.
-  const [alvoNascimento, setAlvoNascimento] = useState<LinhaEquipe | null>(null)
-  const [nascimentoEditado, setNascimentoEditado] = useState<string | null>(null)
-  const nascimento = useQuery({
-    queryKey: ['equipe', 'nascimento', alvoNascimento?.id],
-    queryFn: () => lerNascimento(alvoNascimento!.id),
-    enabled: alvoNascimento !== null,
-    gcTime: 0,
-  })
-  const valorNascimento = nascimentoEditado ?? nascimento.data ?? ''
-  const salvarNascimento = useMutation({
-    mutationFn: () => definirNascimento(alvoNascimento!.id, valorNascimento || null),
-    onSuccess: () => {
-      notificar({
-        titulo: `Data de nascimento de ${alvoNascimento?.nome ?? ''} salva`,
-        tom: 'perfeito',
-      })
-      setAlvoNascimento(null)
-      setNascimentoEditado(null)
-    },
-    onError: (excecao) =>
-      notificar({
-        titulo: 'Não deu para salvar a data',
-        descricao: excecao instanceof Error ? excecao.message : undefined,
-        tom: 'danificado',
-      }),
-  })
 
   async function aoArquivar() {
     if (!alvoArquivar) return
@@ -304,100 +263,6 @@ export function Equipe() {
     }
   }
 
-  async function aoSalvarPin() {
-    if (!alvoPin) return
-    if (!/^[0-9]{2,4}$/.test(pinNovo)) {
-      setErroPin('PIN: 2 a 4 dígitos, só números.')
-      return
-    }
-    setErroPin('')
-    setSalvandoPin(true)
-    try {
-      await pinDefinir(alvoPin.id, pinNovo)
-      notificar({ titulo: `PIN de ${alvoPin.nome} definido`, tom: 'perfeito' })
-      setAlvoPin(null)
-      setPinNovo('')
-    } catch (excecao) {
-      setErroPin(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
-    } finally {
-      setSalvandoPin(false)
-    }
-  }
-
-  // SESSAO-30 (D-115): tornar (ou deixar de ser) entregador — só "Entregas do dia".
-  // SESSAO-36 (D-146 resposta 7): o liga/desliga "pode auxiliar" — só admin,
-  // por porta própria (com trilha no banco).
-  const auxiliarMutacao = useMutation({
-    mutationFn: async (p: LinhaEquipe) => {
-      const { error } = await supabase.rpc('plt_fn_usuario_pode_auxiliar', {
-        p_usuario: p.id,
-        p_pode: !p.pode_auxiliar,
-      })
-      if (error) throw new Error(error.message)
-    },
-    onSuccess: async (_d, p) => {
-      notificar({
-        titulo: p.pode_auxiliar
-          ? `${p.nome} deixa de auxiliar em outros setores`
-          : `${p.nome} agora pode auxiliar em qualquer setor`,
-        tom: 'perfeito',
-      })
-      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
-    },
-    onError: (erro) =>
-      notificar({
-        titulo: 'Não deu certo',
-        descricao: erro instanceof Error ? erro.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-
-  // SESSAO-36 (resposta 10): o admin cadastra a foto de qualquer pessoa —
-  // reduzida no aparelho antes de subir (rede do galpão).
-  const [alvoFoto, setAlvoFoto] = useState<LinhaEquipe | null>(null)
-  const entradaFotoRef = useRef<HTMLInputElement>(null)
-  const fotoMutacao = useMutation({
-    mutationFn: async ({ pessoa, arquivo }: { pessoa: LinhaEquipe; arquivo: File }) => {
-      const reduzida = await reduzirImagem(arquivo, 512)
-      const arquivoFinal = new File([reduzida.dados], `foto.${reduzida.extensao}`, {
-        type: reduzida.dados.type || arquivo.type,
-      })
-      await enviarFotoPerfil(pessoa.id, arquivoFinal, pessoa.foto_caminho)
-    },
-    onSuccess: async (_d, { pessoa }) => {
-      notificar({ titulo: `Foto de ${pessoa.nome} gravada`, tom: 'perfeito' })
-      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
-    },
-    onError: (erro) =>
-      notificar({
-        titulo: 'Não deu para gravar a foto',
-        descricao: erro instanceof Error ? erro.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-
-  const entregadorMutacao = useMutation({
-    mutationFn: (p: LinhaEquipe) => definirEntregador(p.id, !ehSoEntregador(p)),
-    onSuccess: async (_d, p) => {
-      notificar({
-        titulo: ehSoEntregador(p)
-          ? `${p.nome} voltou a ver a fábrica`
-          : `${p.nome} agora é entregador`,
-        descricao: ehSoEntregador(p)
-          ? undefined
-          : 'Vê só "Entregas do dia" — do caminhão em que for escolhido.',
-        tom: 'perfeito',
-      })
-      await clienteQuery.invalidateQueries({ queryKey: ['equipe'] })
-    },
-    onError: (erro) =>
-      notificar({
-        titulo: 'Não deu certo',
-        descricao: erro instanceof Error ? erro.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-
   const colunas: ColunaTabela<LinhaEquipe>[] = [
     {
       chave: 'matricula',
@@ -440,134 +305,22 @@ export function Equipe() {
     },
     {
       chave: 'acoes',
-      cabecalho: 'Ações',
+      cabecalho: 'Editar',
       celula: (p) => (
-        <span className="flex flex-wrap items-center gap-1.5">
-          {!p.arquivado_em && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<KeyRound />}
-              onClick={() => {
-                setAlvoPin(p)
-                setPinNovo('')
-                setErroPin('')
-              }}
-            >
-              PIN
-            </Botao>
-          )}
-          {/* Data de nascimento: só o admin (e a própria pessoa, no Meu Perfil). */}
-          {souAdmin && !p.arquivado_em && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<Cake />}
-              aria-label={`Data de nascimento de ${p.nome}`}
-              className="toque-seguro px-2"
-              onClick={() => {
-                setNascimentoEditado(null)
-                setAlvoNascimento(p)
-              }}
-            />
-          )}
-          {souAdmin && !p.arquivado_em && p.papel !== 'admin' && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<Truck />}
-              carregando={entregadorMutacao.isPending && entregadorMutacao.variables?.id === p.id}
-              onClick={() => entregadorMutacao.mutate(p)}
-            >
-              {ehSoEntregador(p) ? 'Tirar de entregador' : 'Entregador'}
-            </Botao>
-          )}
-          {/* SESSAO-36 (D-146): setores sem fronteira — o liga/desliga do auxílio. */}
-          {souAdmin && !p.arquivado_em && !p.conta_tablet && (
-            <Botao
-              variante={p.pode_auxiliar ? 'primaria' : 'secundaria'}
-              tamanho="sm"
-              icone={<Handshake />}
-              carregando={auxiliarMutacao.isPending && auxiliarMutacao.variables?.id === p.id}
-              onClick={() => auxiliarMutacao.mutate(p)}
-            >
-              {p.pode_auxiliar ? 'Auxilia em todo setor' : 'Pode auxiliar?'}
-            </Botao>
-          )}
-          {/* SESSAO-36 (resposta 10): a foto do cadastro, pelo admin. */}
-          {souAdmin && !p.arquivado_em && !p.conta_tablet && (
-            <Botao
-              variante="secundaria"
-              tamanho="sm"
-              icone={<ImageUp />}
-              aria-label={`Foto de ${p.nome}`}
-              className="toque-seguro px-2"
-              carregando={fotoMutacao.isPending && fotoMutacao.variables?.pessoa.id === p.id}
-              onClick={() => {
-                setAlvoFoto(p)
-                entradaFotoRef.current?.click()
-              }}
-            />
-          )}
-          {/* Arquivar/excluir é gesto de admin (o banco confere de novo — D-49). */}
-          {souAdmin &&
-            p.id !== perfil?.id &&
-            (p.arquivado_em ? (
-              <Botao
-                variante="secundaria"
-                tamanho="sm"
-                icone={<RotateCcw />}
-                onClick={() => void aoReativar(p)}
-              >
-                Reativar
-              </Botao>
-            ) : (
-              <>
-                <Botao
-                  variante="secundaria"
-                  tamanho="sm"
-                  icone={<Archive />}
-                  aria-label={`Arquivar ${p.nome}`}
-                  className="toque-seguro px-2"
-                  onClick={() => {
-                    setErroDestino('')
-                    setAlvoArquivar(p)
-                  }}
-                />
-                <Botao
-                  variante="perigo"
-                  tamanho="sm"
-                  icone={<Trash2 />}
-                  aria-label={`Excluir ${p.nome}`}
-                  className="toque-seguro px-2"
-                  onClick={() => {
-                    setErroDestino('')
-                    setAlvoExcluir(p)
-                  }}
-                />
-              </>
-            ))}
-        </span>
+        <Botao
+          variante="secundaria"
+          tamanho="sm"
+          icone={<Pencil />}
+          aria-label={`Editar ${p.nome}`}
+          className="toque-seguro px-2"
+          onClick={() => setAlvoEdicao(p)}
+        />
       ),
     },
   ]
 
   return (
     <div className="flex flex-col gap-5">
-      {/* SESSAO-36: o seletor de arquivo da foto (escondido — abre pelo botão da linha). */}
-      <input
-        ref={entradaFotoRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const arquivo = e.target.files?.[0]
-          const pessoa = alvoFoto
-          e.target.value = ''
-          if (arquivo && pessoa) fotoMutacao.mutate({ pessoa, arquivo })
-          setAlvoFoto(null)
-        }}
-      />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl">Equipe</h1>
@@ -791,72 +544,31 @@ export function Equipe() {
         </div>
       </Modal>
 
-      {/* ---------- Definir PIN ---------- */}
-      <Modal
-        aberto={alvoPin !== null}
-        aoFechar={(aberto) => {
-          if (!aberto) setAlvoPin(null)
-        }}
-        titulo={alvoPin ? `PIN de ${alvoPin.nome}` : 'PIN'}
-        descricao="O PIN identifica a pessoa no tablet compartilhado do setor. Ele é guardado protegido — ninguém consegue lê-lo depois."
-        rodape={
-          <>
-            <Botao variante="secundaria" onClick={() => setAlvoPin(null)}>
-              Cancelar
-            </Botao>
-            <Botao carregando={salvandoPin} onClick={() => void aoSalvarPin()}>
-              Salvar PIN
-            </Botao>
-          </>
-        }
-      >
-        <Campo
-          rotulo="PIN novo"
-          inputMode="numeric"
-          type="password"
-          ajuda="2 a 4 dígitos, só números."
-          value={pinNovo}
-          onChange={(e) => setPinNovo(e.target.value)}
-          erro={erroPin || undefined}
+      {/* ---------- A caneta: editar tudo da pessoa (pedido do dono, 19/10) ---------- */}
+      {alvoEdicao && (
+        <EditarUsuario
+          key={alvoEdicao.id}
+          pessoa={alvoEdicao}
+          setores={souAdmin ? setores : setoresDisponiveis}
+          souAdmin={souAdmin}
+          meuId={perfil?.id}
+          aoFechar={() => setAlvoEdicao(null)}
+          aoArquivar={(p) => {
+            setAlvoEdicao(null)
+            setErroDestino('')
+            setAlvoArquivar(p)
+          }}
+          aoExcluir={(p) => {
+            setAlvoEdicao(null)
+            setErroDestino('')
+            setAlvoExcluir(p)
+          }}
+          aoReativar={(p) => {
+            setAlvoEdicao(null)
+            void aoReativar(p)
+          }}
         />
-      </Modal>
-
-      {/* ---------- Data de nascimento (SESSAO-26) ---------- */}
-      <Modal
-        aberto={alvoNascimento !== null}
-        aoFechar={(aberto) => {
-          if (!aberto) setAlvoNascimento(null)
-        }}
-        titulo={alvoNascimento ? `Aniversário de ${alvoNascimento.nome}` : 'Aniversário'}
-        descricao="No dia, o chat publica os parabéns nos Avisos gerais. Só a pessoa e o admin veem esta data."
-        rodape={
-          <>
-            <Botao variante="secundaria" onClick={() => setAlvoNascimento(null)}>
-              Cancelar
-            </Botao>
-            <Botao
-              icone={<Check />}
-              carregando={salvarNascimento.isPending}
-              disabled={nascimentoEditado === null}
-              onClick={() => salvarNascimento.mutate()}
-            >
-              Salvar data
-            </Botao>
-          </>
-        }
-      >
-        <Campo
-          rotulo="Data de nascimento"
-          type="date"
-          prefixo={<Cake />}
-          min="1900-01-01"
-          max={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' })}
-          value={valorNascimento}
-          disabled={nascimento.isPending}
-          ajuda="Deixe em branco e salve para apagar a data."
-          onChange={(e) => setNascimentoEditado(e.target.value)}
-        />
-      </Modal>
+      )}
 
       {/* ---------- Arquivar usuário (D-49) ---------- */}
       <Modal

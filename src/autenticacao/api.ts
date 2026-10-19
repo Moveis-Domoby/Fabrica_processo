@@ -70,6 +70,21 @@ export function criarUsuario(dados: DadosNovoUsuario): Promise<UsuarioCriado> {
   return chamar<UsuarioCriado>('criar-usuario', { ...dados })
 }
 
+/** SESSAO-37 (pedido do dono, 19/10): a caneta da Equipe — o admin edita o cadastro de alguém. */
+export interface DadosEdicaoUsuario {
+  usuario_id: string
+  nome: string
+  usuario: string
+  email: string
+  telefone?: string
+  papel: Papel
+  setores: { setor_id: number; lider: boolean }[]
+}
+
+export function editarUsuario(dados: DadosEdicaoUsuario): Promise<{ ok: boolean; campos: string[] }> {
+  return chamar<{ ok: boolean; campos: string[] }>('editar-usuario', { ...dados })
+}
+
 export function pinDefinir(usuarioId: string, pin: string): Promise<{ ok: boolean }> {
   return chamar<{ ok: boolean }>('pin-definir', { usuario_id: usuarioId, pin })
 }
