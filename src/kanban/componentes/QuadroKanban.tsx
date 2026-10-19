@@ -1,5 +1,6 @@
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   TouchSensor,
   useDraggable,
@@ -9,6 +10,7 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent, Modifier } from '@dnd-kit/core'
 import { useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowRight,
   ChevronDown,
@@ -317,21 +319,18 @@ function EsqueletoDoQuadro({ tamanho }: { tamanho: 'padrao' | 'galpao' }) {
 type CardArrastavelProps = Parameters<typeof CartaoUnidade>[0]
 
 /**
- * Pedido do dono (19/10): o card arrastado ficava "infinito" — ao passar da
- * borda, ele esticava a área do quadro e a rolagem automática corria atrás,
- * sem fim. O card agora fica PRESO à parte visível do quadro (e da tela): a
- * rolagem lateral ainda acontece perto da borda, mas para no fim das colunas.
+ * Pedido do dono (19/10): o card arrastado ia "infinito" — o card de verdade
+ * andava DENTRO do quadro, esticava a área de rolagem e a rolagem automática
+ * corria atrás dele sem fim. Agora quem anda é uma CÓPIA flutuante por cima
+ * da tela (fora do quadro): o quadro nunca estica, a rolagem lateral para no
+ * fim das colunas, e a cópia fica presa à janela.
  */
-const presoAoQuadro: Modifier = ({ transform, draggingNodeRect, scrollableAncestorRects, windowRect }) => {
-  if (!draggingNodeRect) return transform
-  const quadro = scrollableAncestorRects[0] ?? windowRect
-  if (!quadro) return transform
-  const limiteTopo = Math.max(quadro.top, windowRect?.top ?? quadro.top)
-  const limiteBase = Math.min(quadro.bottom, windowRect?.bottom ?? quadro.bottom)
-  const minX = quadro.left - draggingNodeRect.left
-  const maxX = quadro.right - draggingNodeRect.right
-  const minY = limiteTopo - draggingNodeRect.top
-  const maxY = limiteBase - draggingNodeRect.bottom
+const presoNaJanela: Modifier = ({ transform, draggingNodeRect, windowRect }) => {
+  if (!draggingNodeRect || !windowRect) return transform
+  const minX = windowRect.left - draggingNodeRect.left
+  const maxX = windowRect.right - draggingNodeRect.right
+  const minY = windowRect.top - draggingNodeRect.top
+  const maxY = windowRect.bottom - draggingNodeRect.bottom
   return {
     ...transform,
     x: Math.min(Math.max(transform.x, minX), Math.max(minX, maxX)),
@@ -340,36 +339,47 @@ const presoAoQuadro: Modifier = ({ transform, draggingNodeRect, scrollableAncest
 }
 
 function CardArrastavel(props: CardArrastavelProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: props.card.id,
   })
 
   return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      // SESSAO-31: Enter abre a janela do card; Espaço segue pegando para arrastar.
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && props.aoAbrir) {
-          e.preventDefault()
-          props.aoAbrir(props.card)
-          return
+    <>
+      <div
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
+        // SESSAO-31: Enter abre a janela do card; Espaço segue pegando para arrastar.
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && props.aoAbrir) {
+            e.preventDefault()
+            props.aoAbrir(props.card)
+            return
+          }
+          listeners?.onKeyDown?.(e)
+        }}
+        aria-roledescription="card arrastável"
+        aria-description={
+          props.aoAbrir ? 'Enter abre o card; Espaço pega para arrastar.' : undefined
         }
-        listeners?.onKeyDown?.(e)
-      }}
-      aria-roledescription="card arrastável"
-      aria-description={props.aoAbrir ? 'Enter abre o card; Espaço pega para arrastar.' : undefined}
-      className={cn(
-        'touch-manipulation rounded-dm',
-        isDragging ? 'z-10 cursor-grabbing' : 'cursor-grab',
-      )}
-      style={
-        transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
-      }
-    >
-      <CartaoUnidade {...props} arrastando={isDragging} />
-    </div>
+        // o card fica no lugar, apagado, enquanto a cópia flutua (não estica o quadro)
+        className={cn(
+          'touch-manipulation rounded-dm',
+          isDragging ? 'cursor-grabbing opacity-40' : 'cursor-grab',
+        )}
+      >
+        <CartaoUnidade {...props} />
+      </div>
+      {isDragging &&
+        createPortal(
+          <DragOverlay modifiers={[presoNaJanela]} dropAnimation={null} zIndex={60}>
+            <div className="cursor-grabbing rounded-dm shadow-lg">
+              <CartaoUnidade {...props} arrastando />
+            </div>
+          </DragOverlay>,
+          document.body,
+        )}
+    </>
   )
 }
 
@@ -483,7 +493,6 @@ export function QuadroKanban({
   return (
     <DndContext
       sensors={sensores}
-      modifiers={[presoAoQuadro]}
       // Só rola para os lados (as colunas), devagar, e nunca a página para baixo.
       autoScroll={{ threshold: { x: 0.12, y: 0 }, acceleration: 6, layoutShiftCompensation: false }}
       onDragStart={() => (arrastouEm.current = Date.now())}
