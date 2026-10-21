@@ -104,7 +104,8 @@ begin
     )) not valid;
 end;
 $$;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- ↩️ SESSAO-38 (F5, E-19): o validate mudou para a migration do stand-by
+-- (20261022050010 — a mais nova do check).
 
 -- ----------------------------------------------------------------------------
 -- 3 · As chaves de ordem de cada card (visão — embutida pelo planejador)
