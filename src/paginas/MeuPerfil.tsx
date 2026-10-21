@@ -5,6 +5,7 @@ import { AtSign, Cake, Camera, Check, IdCard, KeyRound, Phone, Trash2, UserRound
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { lembrarLogin, lerUltimoLogin } from '@/autenticacao/ultimoLogin'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
 import {
   alterarSenha,
@@ -50,6 +51,11 @@ export function MeuPerfil() {
         telefone: telefone.trim(),
       }),
     onSuccess: async () => {
+      // SESSAO-38: trocou o nome de usuário → o aparelho passa a lembrar o novo
+      // (senão a próxima entrada viria preenchida com o antigo).
+      const novo = usuario.trim().toLowerCase()
+      const lembrado = lerUltimoLogin()
+      if (lembrado && (lembrado === perfil?.usuario || lembrado === perfil?.email)) lembrarLogin(novo)
       await recarregarPerfil()
       notificar({ titulo: 'Dados atualizados', tom: 'perfeito' })
     },
@@ -265,7 +271,7 @@ export function MeuPerfil() {
             prefixo={<UserRound />}
             autoComplete="username"
             autoCapitalize="none"
-            ajuda="3 a 32 caracteres: letras minúsculas, números, ponto, hífen ou underline."
+            ajuda="É com ele que você entra na plataforma, no lugar do e-mail. 3 a 32 caracteres: letras minúsculas, números, ponto, hífen ou underline."
             value={usuario}
             onChange={(e) => setUsuario(e.target.value)}
           />
