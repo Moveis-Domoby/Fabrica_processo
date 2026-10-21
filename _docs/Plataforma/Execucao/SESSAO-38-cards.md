@@ -51,6 +51,8 @@ Conferência no banco real como `authenticated` (bloco `DO` terminado em `RAISE`
 | `plt_fn_card_janela` | 5,9–11,2 ms |
 | `plt_fn_pcp_quadro` (entrega) | 13,2 ms (operador sem PCP: 0 linhas, 4,2 ms) |
 
+Gesto de prioridade no banco real (admin, numa peça da MONTAGEM, bloco desfeito pelo `RAISE`): 4 toques seguidos 22 / 11 / 3,7 / 3,5 ms (o 1º de todos, frio, 201 ms); com o pedido urgente, a 1ª peça da coluna em ordem alfabética passou a ser do pedido urgente; o responsável de setor gravou (`posto`) e o quadro do setor recebeu o aviso. Nada ficou gravado.
+
 `EXPLAIN (ANALYZE, BUFFERS)` da coluna maior (MONTAGEM, 51 peças) antes de aplicar, com o corpo inline: índice `plt_cards_quadro_idx` + PK de `pedidos` + `plt_cards_pedido_unico` + PK da reposição; ordenação top-N em memória (26 kB); 17 ms frio. Advisors depois: segurança +2 avisos esperados (as 2 portas novas, de propósito); desempenho sem item novo.
 
 ## 4. Telas
