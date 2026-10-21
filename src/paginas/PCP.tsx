@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import {
   keepPreviousData,
@@ -18,10 +19,12 @@ import {
   PackageOpen,
   PackagePlus,
   PackageX,
+  PanelRightOpen,
   Plus,
   SquarePen,
 } from 'lucide-react'
 import { Abas, Botao, Dica, useNotificacao } from '@/componentes/ui'
+import { cn } from '@/lib/cn'
 import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSuperAdmin } from '@/autenticacao/tipos'
@@ -42,7 +45,17 @@ import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
 import type { Card, PedidoResumo } from '@/kanban/tipos'
 import { useCamposDosPedidos } from '@/utilitarios/consultas'
+import type { CampoMostrado } from '@/utilitarios/consultas'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
+import { useAbrirCard } from '@/kanban/janela/abrirCard'
+import {
+  BotaoOrdemFila,
+  ChipPrazo,
+  PontoPrioridade,
+  SeletorPrioridade,
+} from '@/kanban/componentes/MarcasDoCard'
+import { definirPrioridade, prioridadeDe, useOrdemDaFila } from '@/kanban/prioridade'
+import type { Prioridade } from '@/kanban/prioridade'
 
 /**
  * O quadro do PCP (D-01): um card por PEDIDO. O PCP enxerga o pedido inteiro,
@@ -65,6 +78,7 @@ export function PCP() {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora()
+  const abrirCard = useAbrirCard()
 
   const souAdmin = perfil?.papel === 'admin'
   const souDoPcp = vinculos.some((v) => v.setor.codigo === 'pcp')
@@ -118,11 +132,21 @@ export function PCP() {
   // tela só requisita as páginas que mostra (10 + "Ver mais").
   // SESSAO-23 (ajuste do dono): pedido encerrado no Tiny também fica de fora —
   // o filtro vive na porta plt_fn_cards_pedido_pcp.
+  // SESSAO-38 (D-154): a ordem da fila — o servidor ordena (o urgente sempre
+  // primeiro); trocar de ordem recomeça da 1ª página.
+  const [ordemFila, mudarOrdemFila] = useOrdemDaFila('pcp')
+  const [ordemDasPaginas, setOrdemDasPaginas] = useState(ordemFila)
   const [paginasPedidos, setPaginasPedidos] = useState(1)
+  const [paginasSolicitacoes, setPaginasSolicitacoes] = useState(1)
+  if (ordemDasPaginas !== ordemFila) {
+    setOrdemDasPaginas(ordemFila)
+    setPaginasPedidos(1)
+    setPaginasSolicitacoes(1)
+  }
   const consultasPedidos = useQueries({
     queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
-      queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'pedido' }),
+      queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, ordemFila, pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'pedido', ordem: ordemFila }),
       enabled: setorPcp !== undefined && aba === 'quadro',
       placeholderData: keepPreviousData,
     })),
@@ -141,11 +165,10 @@ export function PCP() {
   // Rodada de 30/09: as SOLICITAÇÕES DE ESTOQUE (reposição) ganharam aba
   // própria — lançada à mão ou pela automática, ela aparece aqui na hora, sem
   // se perder atrás dos pedidos na paginação.
-  const [paginasSolicitacoes, setPaginasSolicitacoes] = useState(1)
   const consultasSolicitacoes = useQueries({
     queries: Array.from({ length: paginasSolicitacoes }, (_, pagina) => ({
-      queryKey: ['cards', 'pcp-solicitacoes', setorPcp?.id, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'reposicao' }),
+      queryKey: ['cards', 'pcp-solicitacoes', setorPcp?.id, ordemFila, pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'reposicao', ordem: ordemFila }),
       enabled: setorPcp !== undefined && aba === 'solicitacoes',
       placeholderData: keepPreviousData,
     })),
@@ -182,6 +205,22 @@ export function PCP() {
     onError: (excecao) =>
       notificar({
         titulo: 'Não deu para arquivar a reposição',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
+
+  // SESSAO-38 (D-151): o PCP muda a prioridade direto no card (a do pedido
+  // vale para todas as peças dele, em todos os setores).
+  const priorizar = useMutation({
+    mutationFn: ({ cardId, prioridade }: { cardId: number; prioridade: Prioridade }) =>
+      definirPrioridade(cardId, prioridade),
+    onSuccess: async () => {
+      await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para mudar a prioridade',
         descricao: excecao instanceof Error ? excecao.message : undefined,
         tom: 'danificado',
       }),
@@ -322,10 +361,13 @@ export function PCP() {
       {aba === 'solicitacoes' && (
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-solicitacoes">
           <section aria-label="Reabastecimento" className="flex flex-col gap-3">
-            <h2 className="text-lg">
-              Reabastecimento{' '}
-              <span className="text-texto-suave tabular-nums">({totalSolicitacoes})</span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg">
+                Reabastecimento{' '}
+                <span className="text-texto-suave tabular-nums">({totalSolicitacoes})</span>
+              </h2>
+              <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+            </div>
             {carregandoSolicitacoes && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
@@ -333,11 +375,13 @@ export function PCP() {
                 mínimo (pela automática ou pelo lançamento da logística).
               </p>
             )}
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {cardsSolicitacoes.map((card) => (
                 <CartaoReposicaoPcp
                   key={card.id}
                   card={card}
+                  aoPriorizar={(p) => priorizar.mutate({ cardId: card.id, prioridade: p })}
+                  priorizando={priorizar.isPending && priorizar.variables?.cardId === card.id}
                   resumo={reposicoesPorId.get(card.id)}
                   agora={agora}
                   confirmandoArquivar={arquivandoId === card.id}
@@ -379,25 +423,28 @@ export function PCP() {
                 Aguardando liberação{' '}
                 <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
               </h2>
-              {selecionando && cardsPedidoAbertos.length > 0 && (
-                <Botao
-                  variante="fantasma"
-                  tamanho="sm"
-                  icone={<CheckSquare />}
-                  onClick={() =>
-                    marcarVarios(
-                      cardsPedidoAbertos
-                        .filter((c) => c.pedido_id !== null)
-                        .map((c) => ({
-                          pedidoId: c.pedido_id as number,
-                          numero: pedidosPorId.get(c.pedido_id as number)?.numero ?? 0,
-                        })),
-                    )
-                  }
-                >
-                  Marcar os {cardsPedidoAbertos.length} da tela
-                </Botao>
-              )}
+              <span className="flex flex-wrap items-center gap-2">
+                {selecionando && cardsPedidoAbertos.length > 0 && (
+                  <Botao
+                    variante="fantasma"
+                    tamanho="sm"
+                    icone={<CheckSquare />}
+                    onClick={() =>
+                      marcarVarios(
+                        cardsPedidoAbertos
+                          .filter((c) => c.pedido_id !== null)
+                          .map((c) => ({
+                            pedidoId: c.pedido_id as number,
+                            numero: pedidosPorId.get(c.pedido_id as number)?.numero ?? 0,
+                          })),
+                      )
+                    }
+                  >
+                    Marcar os {cardsPedidoAbertos.length} da tela
+                  </Botao>
+                )}
+                <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+              </span>
             </div>
 
             {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
@@ -408,116 +455,29 @@ export function PCP() {
               </p>
             )}
 
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {cardsPedidoAbertos.map((card) => {
-                const resumo =
-                  card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)
-                const liberadas = resumo?.unidades_liberadas ?? 0
-                const total = resumo?.total_unidades ?? 0
-                return (
-                  <li
-                    key={card.id}
-                    className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4"
-                  >
-                    <header className="flex items-baseline justify-between gap-2">
-                      <span className="flex items-center gap-1 font-semibold text-texto tabular-nums">
-                        {selecionando && card.pedido_id !== null && (
-                          <CaixaSelecao
-                            marcado={selecionados.has(card.pedido_id)}
-                            rotulo={`Selecionar o pedido ${resumo?.numero ?? ''}`}
-                            aoAlternar={() =>
-                              alternarSelecao(card.pedido_id as number, resumo?.numero ?? 0)
-                            }
-                          />
-                        )}
-                        Pedido {resumo?.numero ?? '…'}
-                      </span>
-                      <span
-                        className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums"
-                        title={
-                          card.desde
-                            ? `No PCP desde ${new Date(card.desde).toLocaleString('pt-BR')}`
-                            : undefined
-                        }
-                      >
-                        <Clock aria-hidden className="size-4" />
-                        {formatarDuracao(card.desde, agora)}
-                      </span>
-                    </header>
-
-                    <p className="line-clamp-1 text-sm text-texto-suave">
-                      {resumo?.cliente_nome || '…'}
-                    </p>
-
-                    {/* SESSAO-27 (D-101): etiquetas e campos customizados do pedido. */}
-                    <EtiquetasDoCard ids={etiquetasPorCard.get(card.id)} />
-                    {card.pedido_id !== null &&
-                      (camposPorPedido.get(card.pedido_id)?.length ?? 0) > 0 && (
-                        <dl className="flex flex-col gap-0.5 text-xs">
-                          {camposPorPedido.get(card.pedido_id)!.map((c) => (
-                            <div key={c.campoId} className="flex min-w-0 gap-1">
-                              <dt className="shrink-0 text-texto-suave">{c.nome}:</dt>
-                              <dd className="truncate font-medium text-texto" title={c.texto}>
-                                {c.texto}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      )}
-
-                    {/* Rodada de 30/09 (migration 48 — D-62): há peça no galpão
-                    que atende este pedido — o sinal visual que o dono pediu. */}
-                    {(card.pecas_estoque ?? 0) > 0 && (
-                      <p className="flex flex-wrap gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-0.5 text-xs font-medium text-perfeito-texto">
-                          <Boxes aria-hidden className="size-3.5" />
-                          {card.pecas_estoque === 1
-                            ? '1 peça no estoque — dá para usar'
-                            : `${card.pecas_estoque} peças no estoque — dá para usar`}
-                        </span>
-                      </p>
-                    )}
-
-                    {/* SESSAO-09 (D-31): o que o Tiny fez com o pedido fica visível. */}
-                    {(pedidoCancelado(resumo?.situacao) || resumo?.alterado_apos_liberacao) && (
-                      <p className="flex flex-wrap gap-1.5">
-                        {pedidoCancelado(resumo?.situacao) && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
-                            <Ban aria-hidden className="size-3.5" />
-                            Cancelado no Tiny
-                          </span>
-                        )}
-                        {resumo?.alterado_apos_liberacao && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
-                            <AlertTriangle aria-hidden className="size-3.5" />
-                            Alterado no Tiny após a liberação — confira
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    <p className="text-sm text-texto tabular-nums">
-                      {total > 0 ? (
-                        <>
-                          {liberadas} de {total} unidade{total === 1 ? '' : 's'} liberada
-                          {liberadas === 1 ? '' : 's'}
-                        </>
-                      ) : (
-                        'Sem itens com quantidade a produzir'
-                      )}
-                    </p>
-
-                    <Botao
-                      variante={liberadas > 0 ? 'secundaria' : 'primaria'}
-                      icone={<PackageOpen />}
-                      larguraTotal
-                      disabled={total === 0}
-                      onClick={() => setCardParaLiberar(card)}
-                    >
-                      {liberadas > 0 ? 'Continuar liberação' : 'Liberar unidades'}
-                    </Botao>
-                  </li>
-                )
-              })}
+            {/* SESSAO-38 (item 5 do dono): cards do mesmo tamanho na grade
+                (auto-rows-fr), o aviso do estoque compacto e o lado direito com
+                o prazo, a prioridade e as ações. */}
+            <ul className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {cardsPedidoAbertos.map((card) => (
+                <CartaoPedidoPcp
+                  key={card.id}
+                  card={card}
+                  resumo={card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)}
+                  agora={agora}
+                  etiquetas={etiquetasPorCard.get(card.id)}
+                  campos={card.pedido_id === null ? undefined : camposPorPedido.get(card.pedido_id)}
+                  selecionando={selecionando}
+                  selecionado={card.pedido_id !== null && selecionados.has(card.pedido_id)}
+                  aoSelecionar={(numero) =>
+                    card.pedido_id !== null && alternarSelecao(card.pedido_id, numero)
+                  }
+                  aoLiberar={() => setCardParaLiberar(card)}
+                  aoAbrir={() => abrirCard(card.id)}
+                  aoPriorizar={(p) => priorizar.mutate({ cardId: card.id, prioridade: p })}
+                  priorizando={priorizar.isPending && priorizar.variables?.cardId === card.id}
+                />
+              ))}
             </ul>
 
             <MaisAoRolar
@@ -584,10 +544,15 @@ function CartaoReposicaoPcp({
   aoPedirArquivar,
   aoCancelarArquivar,
   aoArquivar,
+  aoPriorizar,
+  priorizando,
 }: {
   card: Card
   resumo?: ReposicaoResumo
   agora: number
+  /** SESSAO-38 (D-150): a reposição tem a própria prioridade (vale para as peças dela). */
+  aoPriorizar: (p: Prioridade) => void
+  priorizando: boolean
   confirmandoArquivar: boolean
   arquivando: boolean
   aoLiberar: () => void
@@ -599,9 +564,17 @@ function CartaoReposicaoPcp({
   const liberadas = resumo?.liberadas ?? 0
   const extrema = resumo ? Math.max(resumo.extrema_agora, resumo.extrema_na_criacao) : 0
   return (
-    <li className="flex flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie p-4">
+    <li
+      className={cn(
+        'flex h-full flex-col gap-2 rounded-dm-lg bg-superficie p-4',
+        prioridadeDe(card.prioridade) === 'urgente'
+          ? 'border-2 border-danificado-forte'
+          : 'border border-acao-ativa',
+      )}
+    >
       <header className="flex items-baseline justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 font-semibold text-texto">
+          <PontoPrioridade prioridade={prioridadeDe(card.prioridade)} comTexto />
           <PackagePlus aria-hidden className="size-4 shrink-0" />
           Reposição de estoque
         </span>
@@ -635,10 +608,18 @@ function CartaoReposicaoPcp({
           </span>
         </p>
       )}
-      <p className="text-sm text-texto tabular-nums">
-        Repor {total} unidade{total === 1 ? '' : 's'} · {liberadas} liberada
-        {liberadas === 1 ? '' : 's'}
-      </p>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-texto tabular-nums">
+          Repor {total} {total === 1 ? 'unidade' : 'unidades'} · {liberadas}{' '}
+          {liberadas === 1 ? 'liberada' : 'liberadas'}
+        </p>
+        <SeletorPrioridade
+          valor={prioridadeDe(card.prioridade)}
+          aoMudar={aoPriorizar}
+          desabilitado={priorizando}
+          compacto
+        />
+      </div>
 
       {confirmandoArquivar ? (
         <div className="flex flex-col gap-2 rounded-dm bg-superficie-sutil p-2">
@@ -668,6 +649,189 @@ function CartaoReposicaoPcp({
           </Botao>
         </div>
       )}
+    </li>
+  )
+}
+
+/**
+ * SESSAO-38 (item 5 do dono): o card do PEDIDO no PCP, refeito — todos do
+ * mesmo tamanho (a grade iguala as linhas; o rodapé vai para baixo), o aviso
+ * de peça no estoque virou um chip pequeno (antes esticava só aquele card), e
+ * o lado direito ganhou o prazo (a data de entrega do Tiny), a prioridade e as
+ * ações. `acoesExtras` é o lugar reservado para mais um botão (o "stand-by",
+ * que outra frente traz depois).
+ */
+function CartaoPedidoPcp({
+  card,
+  resumo,
+  agora,
+  etiquetas,
+  campos,
+  selecionando,
+  selecionado,
+  aoSelecionar,
+  aoLiberar,
+  aoAbrir,
+  aoPriorizar,
+  priorizando,
+  acoesExtras,
+}: {
+  card: Card
+  resumo?: PedidoResumo
+  agora: number
+  etiquetas?: number[]
+  campos?: CampoMostrado[]
+  selecionando: boolean
+  selecionado: boolean
+  aoSelecionar: (numero: number) => void
+  aoLiberar: () => void
+  aoAbrir: () => void
+  aoPriorizar: (p: Prioridade) => void
+  priorizando: boolean
+  acoesExtras?: ReactNode
+}) {
+  const liberadas = resumo?.unidades_liberadas ?? 0
+  const total = resumo?.total_unidades ?? 0
+  const prioridade = prioridadeDe(card.prioridade)
+  const noEstoque = card.pecas_estoque ?? 0
+  const cancelado = pedidoCancelado(resumo?.situacao)
+  return (
+    <li
+      className={cn(
+        'flex h-full min-w-0 flex-col gap-3 rounded-dm-lg bg-superficie p-4',
+        prioridade === 'urgente' ? 'border-2 border-danificado-forte' : 'border border-borda',
+      )}
+    >
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex min-w-0 flex-wrap items-center gap-1.5 font-semibold text-texto tabular-nums">
+            {selecionando && card.pedido_id !== null && (
+              <CaixaSelecao
+                marcado={selecionado}
+                rotulo={`Selecionar o pedido ${resumo?.numero ?? ''}`}
+                aoAlternar={() => aoSelecionar(resumo?.numero ?? 0)}
+              />
+            )}
+            <PontoPrioridade prioridade={prioridade} comTexto />
+            Pedido {resumo?.numero ?? '…'}
+          </span>
+          <p className="line-clamp-1 text-sm text-texto-suave" title={resumo?.cliente_nome}>
+            {resumo?.cliente_nome || '…'}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <ChipPrazo data={resumo?.data_prevista} agora={agora} />
+          <span
+            className="inline-flex items-center gap-1 text-xs text-texto-suave tabular-nums"
+            title={
+              card.desde
+                ? `No PCP desde ${new Date(card.desde).toLocaleString('pt-BR')}`
+                : undefined
+            }
+          >
+            <Clock aria-hidden className="size-3.5" />
+            {formatarDuracao(card.desde, agora)}
+          </span>
+        </div>
+      </header>
+
+      {/* Os avisos, todos do mesmo tamanho pequeno — nenhum estica o card sozinho. */}
+      {(noEstoque > 0 ||
+        cancelado ||
+        resumo?.alterado_apos_liberacao ||
+        (etiquetas?.length ?? 0) > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Rodada de 30/09 (D-62): há peça no galpão que atende este pedido. */}
+          {noEstoque > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto tabular-nums"
+              title={
+                noEstoque === 1
+                  ? '1 peça no estoque atende este pedido — dá para usar'
+                  : `${noEstoque} peças no estoque atendem este pedido — dá para usar`
+              }
+            >
+              <Boxes aria-hidden className="size-3.5" />
+              {noEstoque} no estoque
+            </span>
+          )}
+          {cancelado && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto">
+              <Ban aria-hidden className="size-3.5" />
+              Cancelado no Tiny
+            </span>
+          )}
+          {resumo?.alterado_apos_liberacao && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto"
+              title="Alterado no Tiny depois da liberação — confira"
+            >
+              <AlertTriangle aria-hidden className="size-3.5" />
+              Alterado no Tiny
+            </span>
+          )}
+          <EtiquetasDoCard ids={etiquetas} />
+        </div>
+      )}
+
+      {/* SESSAO-27 (D-101): os campos customizados do pedido. */}
+      {campos && campos.length > 0 && (
+        <dl className="flex flex-col gap-0.5 text-xs">
+          {campos.slice(0, 2).map((c) => (
+            <div key={c.campoId} className="flex min-w-0 gap-1">
+              <dt className="shrink-0 text-texto-suave">{c.nome}:</dt>
+              <dd className="truncate font-medium text-texto" title={c.texto}>
+                {c.texto}
+              </dd>
+            </div>
+          ))}
+          {campos.length > 2 && (
+            <div className="text-texto-fraco">+{campos.length - 2} no card</div>
+          )}
+        </dl>
+      )}
+
+      <footer className="mt-auto flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-texto tabular-nums">
+            {total > 0 ? (
+              <>
+                {liberadas} de {total} {total === 1 ? 'unidade liberada' : 'unidades liberadas'}
+              </>
+            ) : (
+              'Sem itens a produzir'
+            )}
+          </p>
+          <div className="flex items-center gap-1">
+            <SeletorPrioridade
+              valor={prioridade}
+              aoMudar={aoPriorizar}
+              desabilitado={priorizando}
+              compacto
+            />
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              icone={<PanelRightOpen />}
+              className="min-h-toque-md px-2"
+              aria-label={`Abrir o card do pedido ${resumo?.numero ?? ''}`}
+              title="Abrir o card"
+              onClick={aoAbrir}
+            />
+            {/* o lugar do próximo botão (stand-by — outra frente) */}
+            {acoesExtras}
+          </div>
+        </div>
+        <Botao
+          variante={liberadas > 0 ? 'secundaria' : 'primaria'}
+          icone={<PackageOpen />}
+          larguraTotal
+          disabled={total === 0}
+          onClick={aoLiberar}
+        >
+          {liberadas > 0 ? 'Continuar liberação' : 'Liberar unidades'}
+        </Botao>
+      </footer>
     </li>
   )
 }

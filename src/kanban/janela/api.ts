@@ -36,7 +36,18 @@ export interface JanelaDoCard {
     cliente_nome: string
     situacao: string | null
     data_prevista: string | null
+    /** SESSAO-38: a data do pedido no Tiny (o Início do card do pedido). */
+    data_pedido?: string | null
   } | null
+  /**
+   * SESSAO-38 (D-150): o prazo — do pedido no Tiny (início = a data do pedido,
+   * vencimento = a data de entrega do vendedor) ou, sem pedido, o do card.
+   */
+  prazo?: { inicio: string | null; vencimento: string | null; do_pedido: boolean }
+  /** SESSAO-38 (D-150): a prioridade efetiva (na peça, a do pedido). */
+  prioridade?: { valor: 'urgente' | 'atencao' | 'comum'; do_pedido: boolean; da_reposicao: boolean }
+  /** SESSAO-38 (D-152): quem pegou o card em cada setor e quem foi definido para os próximos. */
+  responsaveis_por_setor?: ResponsaveisDoSetor[]
   campos: (CampoCustomizado & { valor: ValorCampo | null })[]
   etiquetas: Etiqueta[]
   permissoes: {
@@ -52,7 +63,43 @@ export interface JanelaDoCard {
     auxiliar: boolean
     /** SESSAO-36: quem olha a tela está no card como auxiliar (pode sair). */
     sair_auxilio: boolean
+    /** SESSAO-38 (D-151): mudar a prioridade (na peça, muda a do pedido). */
+    priorizar?: boolean
+    /** SESSAO-38: as datas se editam só no card sem pedido (as do pedido vêm do Tiny). */
+    editar_datas?: boolean
   }
+}
+
+/** SESSAO-38 (D-152): uma linha da seção Responsáveis (um setor de produção). */
+export interface ResponsaveisDoSetor {
+  setor_id: number
+  setor_nome: string
+  ordem: number
+  /** quem pegou o card neste setor (início de execução) — da história, só leitura */
+  executaram: string[]
+  /** quem ajudou (auxílio) sem ter pegado */
+  auxiliaram: string[]
+  /** quem foi definido para quando o card chegar aqui */
+  planejados: string[]
+  executado: boolean
+  atual: boolean
+  pode_planejar: boolean
+}
+
+export async function definirResponsavelDoSetor(parametros: {
+  cardId: number
+  setorId: number
+  usuarioId: string
+  por: boolean
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('plt_fn_card_responsavel_setor', {
+    p_card_id: parametros.cardId,
+    p_setor_id: parametros.setorId,
+    p_usuario_id: parametros.usuarioId,
+    p_por: parametros.por,
+  })
+  if (error) throw new Error(error.message)
+  return data as string
 }
 
 export async function abrirJanela(cardId: number): Promise<JanelaDoCard> {

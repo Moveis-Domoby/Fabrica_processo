@@ -59,6 +59,9 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   responsavel_removido: 'Responsável tirado',
   anexo_adicionado: 'Anexo posto',
   anexo_removido: 'Anexo tirado',
+  // SESSAO-38 (D-150/D-152): a prioridade e o responsável de um setor.
+  prioridade_definida: 'Prioridade mudada',
+  responsavel_setor_definido: 'Responsável do setor definido',
 }
 
 function hora(iso: string): string {

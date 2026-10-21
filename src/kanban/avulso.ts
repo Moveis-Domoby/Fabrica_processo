@@ -35,6 +35,8 @@ export interface NovoCardAvulso {
   setorId?: number | null
   /** A chave do gesto: o mesmo toque (clique duplo, rede que volta) = um card só. */
   chave: string
+  /** SESSAO-38 (D-150): a prioridade já na criação (urgente · atenção · comum). */
+  prioridade?: 'urgente' | 'atencao' | 'comum'
 }
 
 export async function criarCardAvulso(
@@ -51,6 +53,7 @@ export async function criarCardAvulso(
     p_vinculo_id: novo.vinculo?.id ?? null,
     p_setor_id: novo.setorId ?? null,
     p_chave: novo.chave,
+    p_prioridade: novo.prioridade ?? 'comum',
   })
   if (error) throw new Error(error.message)
   return data as { card_id: number; repetido: boolean }

@@ -25,6 +25,8 @@ import {
 import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
 import { CartaoUnidade } from './CartaoUnidade'
+import { BotaoOrdemFila } from './MarcasDoCard'
+import type { OrdemDaFila } from '../prioridade'
 import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
@@ -415,6 +417,12 @@ export interface QuadroKanbanProps {
    * de setor, porque as etapas ainda estavam vazias).
    */
   carregando?: boolean
+  /**
+   * SESSAO-38 (D-154): a ordem da fila — o servidor ordena as colunas; o botão
+   * (só o ícone) passa para a próxima ordem. Sem `aoMudarOrdem`, sem botão.
+   */
+  ordem?: OrdemDaFila
+  aoMudarOrdem?: (ordem: OrdemDaFila) => void
 }
 
 /**
@@ -445,6 +453,8 @@ export function QuadroKanban({
   tamanho = 'padrao',
   camposPorCard: camposVindos,
   carregando = false,
+  ordem = 'prioridade',
+  aoMudarOrdem,
 }: QuadroKanbanProps) {
   const sensores = useSensors(
     // Só o botão esquerdo pega o card — o do meio é da mãozinha (arrastarQuadro).
@@ -488,7 +498,19 @@ export function QuadroKanban({
     aoSoltarNaEtapa(card, etapaId)
   }
 
-  if (carregando && etapas.length === 0) return <EsqueletoDoQuadro tamanho={tamanho} />
+  const barraDaOrdem = aoMudarOrdem && (
+    <div className="flex items-center justify-end pb-2">
+      <BotaoOrdemFila ordem={ordem} aoMudar={aoMudarOrdem} />
+    </div>
+  )
+
+  if (carregando && etapas.length === 0)
+    return (
+      <>
+        {barraDaOrdem}
+        <EsqueletoDoQuadro tamanho={tamanho} />
+      </>
+    )
 
   return (
     <DndContext
@@ -499,6 +521,7 @@ export function QuadroKanban({
       onDragCancel={() => (arrastouEm.current = Date.now())}
       onDragEnd={aoSoltar}
     >
+      {barraDaOrdem}
       <div
         {...propsDoQuadro}
         className={cn(
