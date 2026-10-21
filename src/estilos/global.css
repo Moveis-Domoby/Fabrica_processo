@@ -62,6 +62,12 @@
   --color-danificado-borda: var(--dm-danificado-borda);
   --color-danificado-forte: var(--dm-danificado-forte);
   --color-danificado-texto: var(--dm-danificado-texto);
+  /* SESSAO-38 (D-150): o amarelo do prazo e da prioridade (não é a atenção da qualidade) */
+  --color-prazo-amarelo-fundo: var(--dm-prazo-amarelo-fundo);
+  --color-prazo-amarelo-borda: var(--dm-prazo-amarelo-borda);
+  --color-prazo-amarelo-texto: var(--dm-prazo-amarelo-texto);
+  --color-prioridade-amarelo: var(--dm-prioridade-amarelo);
+  --color-prioridade-amarelo-anel: var(--dm-prioridade-amarelo-anel);
   --color-info-fundo: var(--dm-info-fundo);
   --color-info-borda: var(--dm-info-borda);
   --color-info-forte: var(--dm-info-forte);

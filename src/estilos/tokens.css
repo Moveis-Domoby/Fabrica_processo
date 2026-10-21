@@ -54,6 +54,17 @@
   --dm-danificado-forte: #dc2626;
   --dm-danificado-texto: #7f1d1d;
 
+  /* --- Prazo e prioridade do card (SESSAO-38 · D-150) --------------------
+     O dono pediu AMARELO de verdade para "faltam 2–3 dias" e para a bolinha
+     de "Atenção" — não o âmbar-laranja da qualidade (que segue igual acima).
+     Distinto do amarelo de AÇÃO da marca pela forma (bolinha/selo, nunca
+     botão cheio) e pelo tom (amarelo-limão com contorno). */
+  --dm-prazo-amarelo-fundo: #fef9c3;
+  --dm-prazo-amarelo-borda: #eab308;
+  --dm-prazo-amarelo-texto: #854d0e;
+  --dm-prioridade-amarelo: #facc15;
+  --dm-prioridade-amarelo-anel: #a16207;
+
   /* --- Informativo (neutro de sistema, não é estado de qualidade) -------- */
   --dm-info-fundo: #dbeafe;
   --dm-info-borda: #93c5fd;
@@ -435,6 +446,12 @@
   --dm-danificado-borda: #991b1b;
   --dm-danificado-texto: #fecaca;
 
+  /* SESSAO-38: o amarelo do prazo/prioridade na versão escura */
+  --dm-prazo-amarelo-fundo: #3d3500;
+  --dm-prazo-amarelo-borda: #ca8a04;
+  --dm-prazo-amarelo-texto: #fde047;
+  --dm-prioridade-amarelo-anel: #fef08a;
+
   --dm-info-fundo: #172554;
   --dm-info-borda: #1e40af;
   --dm-info-texto: #bfdbfe;
@@ -494,6 +511,12 @@
   --dm-danificado-fundo: #450a0a;
   --dm-danificado-borda: #991b1b;
   --dm-danificado-texto: #fecaca;
+
+  /* SESSAO-38: o amarelo do prazo/prioridade na versão escura */
+  --dm-prazo-amarelo-fundo: #3d3500;
+  --dm-prazo-amarelo-borda: #ca8a04;
+  --dm-prazo-amarelo-texto: #fde047;
+  --dm-prioridade-amarelo-anel: #fef08a;
 
   --dm-info-fundo: #172554;
   --dm-info-borda: #1e40af;
