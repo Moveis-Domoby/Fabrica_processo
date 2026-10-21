@@ -15837,11 +15837,11 @@ const um38 = async (sql) => (await bd.query(sql)).rows[0]
 const todos38 = async (sql) => (await bd.query(sql)).rows
 const como38 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
 const AUTH38 = {
-  pcp: '00000000-0000-0000-0000-000000003801',
-  lider: '00000000-0000-0000-0000-000000003802',
-  op: '00000000-0000-0000-0000-000000003803',
-  fora: '00000000-0000-0000-0000-000000003804',
-  mont: '00000000-0000-0000-0000-000000003805',
+  pcp: '00000000-0000-0000-0000-000000003811',
+  lider: '00000000-0000-0000-0000-000000003812',
+  op: '00000000-0000-0000-0000-000000003813',
+  fora: '00000000-0000-0000-0000-000000003814',
+  mont: '00000000-0000-0000-0000-000000003815',
 }
 const id38 = async (usuario) => (await um38(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
 
