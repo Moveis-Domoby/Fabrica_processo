@@ -93,16 +93,22 @@ export async function registrarEntrega(parametros: {
 /** SESSAO-31: + 'devolucao' (D-129) e 'pausa' (D-125). SESSAO-36: + 'saida' (D-146 resp. 6). */
 export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pausa' | 'saida'
 
+/**
+ * SESSAO-38 (D-169): + os motivos de STAND-BY do PCP. Tipo à parte (os modais
+ * da entrega fazem um registro por TipoMotivo — o stand-by não é da entrega).
+ */
+export type TipoMotivoComStandby = TipoMotivo | 'standby'
+
 export interface Motivo {
   id: number
-  tipo: TipoMotivo
+  tipo: TipoMotivoComStandby
   texto: string
   ordem: number
   ativo: boolean
 }
 
 /** Os motivos de uma lista (Configurações → Utilitários). `todos` = com os desligados (só admin). */
-export async function listarMotivos(tipo: TipoMotivo, todos = false): Promise<Motivo[]> {
+export async function listarMotivos(tipo: TipoMotivoComStandby, todos = false): Promise<Motivo[]> {
   const { data, error } = await supabase.rpc('plt_fn_motivos', { p_tipo: tipo, p_todos: todos })
   if (error) throw new Error(`Não deu para carregar os motivos: ${error.message}`)
   return (data ?? []) as Motivo[]
@@ -110,7 +116,7 @@ export async function listarMotivos(tipo: TipoMotivo, todos = false): Promise<Mo
 
 export async function salvarMotivo(parametros: {
   id: number | null
-  tipo: TipoMotivo
+  tipo: TipoMotivoComStandby
   texto: string
   ordem?: number | null
   ativo?: boolean

@@ -1,16 +1,29 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, ClipboardCheck, Hourglass, Play, RotateCcw, Undo2 } from 'lucide-react'
-import { BadgeEstado, Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
+import {
+  ArrowRight,
+  CirclePause,
+  ClipboardCheck,
+  Clock,
+  Hourglass,
+  Play,
+  RotateCcw,
+  Undo2,
+} from 'lucide-react'
+import { BadgeEstado, Botao, Campo, Dica, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { estornarEvento, linhaTempoCard } from '../api'
 import { eventoEstornavel, montarSegmentos } from '../linha-tempo'
 import { formatarDuracaoMs, useAgora } from '../tempo'
+import { formatarTempoUtil } from '../tempoUtil'
+import type { TempoDoPedidoNoPcp } from '../tempoUtil'
+import { useReguaTempo } from '../useReguaTempo'
 import type { Card, EventoLinhaTempo, PedidoDoCard } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
 import { ORIGEM } from '@/auditoria/rotulos'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
+import { nomeDoLugar } from '@/logistica/lugar'
 
 export interface ModalLinhaTempoProps {
   card: Card | null
@@ -62,6 +75,14 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   // SESSAO-38 (D-150/D-152): a prioridade e o responsável de um setor.
   prioridade_definida: 'Prioridade mudada',
   responsavel_setor_definido: 'Responsável do setor definido',
+  // SESSAO-38 (D-169): o stand-by do pedido no PCP.
+  pedido_standby_entrou: 'Pedido em stand-by',
+  pedido_standby_saiu: 'Pedido saiu do stand-by',
+  // SESSAO-36 (D-146): o auxílio.
+  auxilio_iniciado: 'Ajuda iniciada',
+  auxilio_pausado: 'Ajuda pausada',
+  auxilio_retomado: 'Ajuda retomada',
+  auxilio_encerrado: 'Ajuda encerrada',
 }
 
 function hora(iso: string): string {
@@ -118,7 +139,8 @@ export function HistoricoDoCard({
   alturaLimitada = true,
 }: {
   card: Card | null
-  pedido?: PedidoDoCard
+  /** O pedido do card — basta o que o relógio do PCP precisa (SESSAO-38 · F5). */
+  pedido?: (Partial<PedidoDoCard> & TempoDoPedidoNoPcp) | null
   /** Os campos customizados no topo (a janela do card mostra os dela). */
   comCampos?: boolean
   alturaLimitada?: boolean
@@ -127,6 +149,9 @@ export function HistoricoDoCard({
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora(30_000)
+  const regua = useReguaTempo()
+  // SESSAO-38 (F5): com a régua, o tempo útil em horas; sem ela, o de sempre.
+  const ver = (ms: number) => (regua ? formatarTempoUtil(ms) : formatarDuracaoMs(ms))
 
   const [mostrarEventos, setMostrarEventos] = useState(false)
   const [estornando, setEstornando] = useState(false)
@@ -149,7 +174,7 @@ export function HistoricoDoCard({
     enabled: card !== null,
   })
 
-  const segmentos = montarSegmentos(eventos, agora)
+  const segmentos = montarSegmentos(eventos, agora, { regua, pedido: pedido ?? null })
   const estornavel = eventoEstornavel(eventos)
   const podeEstornar =
     perfil?.papel === 'admin' ||
@@ -183,24 +208,21 @@ export function HistoricoDoCard({
     >
       {isPending && <p className="text-sm text-texto-fraco">Carregando a história do card…</p>}
 
-      {/* D-48 (SESSAO-22): o tempo em PCP é do PEDIDO — da entrada até a
-            liberação da última unidade. É o número verdadeiro, não o instante
-            em que ESTA unidade nasceu e saiu. */}
-      {card?.tipo === 'unidade' && pedido?.entrou_pcp_em && (
-        <p className="rounded-dm bg-superficie-sutil px-3 py-2 text-sm text-texto tabular-nums">
-          Pedido no PCP:{' '}
-          <strong>
-            {formatarDuracaoMs(
-              (pedido.liberado_completo_em
-                ? new Date(pedido.liberado_completo_em).getTime()
-                : agora) - new Date(pedido.entrou_pcp_em).getTime(),
-            )}
-          </strong>{' '}
-          <span className="text-texto-suave">
-            {pedido.liberado_completo_em
-              ? '— da entrada à liberação da última unidade.'
-              : '— ainda contando: o pedido tem unidade por liberar.'}
-          </span>
+      {/* D-48 (SESSAO-22): o tempo em PCP é do PEDIDO — e, desde a SESSAO-38
+          (F5), aparece no próprio bloco do PCP como "Tempo útil em PCP" (o
+          PCP não tem fila). O balão explica a régua do tempo útil. */}
+      {regua && segmentos.length > 0 && (
+        <p className="relative flex items-center gap-1 text-xs text-texto-suave">
+          Tempos úteis: só o horário de expediente de cada setor
+          <Dica rotulo="Como o tempo é contado">
+            <span className="flex flex-col gap-2">
+              <span>
+                Fora do horário de expediente do setor o tempo não anda — nem na fila. Quem trabalha
+                fora do horário (hora extra) conta.
+              </span>
+              <span>O tempo em stand-by não conta.</span>
+            </span>
+          </Dica>
         </p>
       )}
 
@@ -268,44 +290,73 @@ export function HistoricoDoCard({
               </div>
             )}
 
-            <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
-              <div className="flex items-center gap-2">
-                <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                <dt className="text-texto-suave">Fila (do setor):</dt>
-                <dd className="font-medium text-texto">{formatarDuracaoMs(s.filaMs)}</dd>
-              </div>
-
-              {s.execucoes.map((e) => (
-                <div key={e.inicioEventoId} className="flex flex-wrap items-center gap-2">
-                  <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
-                  <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
-                  <dd className="font-medium text-texto">{formatarDuracaoMs(e.duracaoMs)}</dd>
-                  <dd className="text-xs text-texto-fraco">
-                    {e.encerramento === null && !e.pausada && '· em andamento'}
-                    {/* D-48: pausado não conta — o desconto já está na duração. */}
-                    {e.pausada && '· pausada agora (o tempo não conta)'}
-                    {e.encerramento === 'finalizada' &&
-                      (e.autorFim && e.autorFim !== e.autorInicio
-                        ? `· finalizada por ${e.autorFim}`
-                        : '· finalizada')}
-                    {e.encerramento === 'transferencia' &&
-                      '· transferida (assumida por outra pessoa)'}
-                    {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
-                    {e.pausaMs > 0 && ` · ${formatarDuracaoMs(e.pausaMs)} de pausa descontados`}
+            {s.papel === 'entrada' || s.papel === 'terminal' ? (
+              // SESSAO-38 (F5 · pedido do dono): o PCP — e os fins de linha — não
+              // têm fila: ninguém "inicia" ali. Só o tempo útil.
+              <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Clock aria-hidden className="size-4 shrink-0 text-texto-suave" />
+                  <dt className="text-texto-suave">Tempo útil em {s.setorNome}:</dt>
+                  <dd className="font-semibold text-texto">
+                    {ver(s.papel === 'entrada' ? (s.pcpUtilMs ?? s.totalUtilMs) : s.totalUtilMs)}
                   </dd>
                 </div>
-              ))}
-              {s.execucoes.length === 0 && (
-                <p className="text-xs text-texto-fraco">
-                  Ninguém iniciou aqui — o tempo foi todo de fila.
-                </p>
-              )}
+                {s.papel === 'entrada' && s.pcpUtilMs !== null && pedido?.entrou_pcp_em && (
+                  <p className="text-xs text-texto-fraco">
+                    {pedido.liberado_completo_em
+                      ? 'Do pedido: da entrada no PCP à liberação da última unidade.'
+                      : 'Do pedido: ainda contando — há unidade por liberar.'}
+                  </p>
+                )}
+                {(s.standbyMs > 0 || (s.papel === 'entrada' && pedido?.standby_desde)) && (
+                  <p className="inline-flex items-center gap-1 text-xs text-atencao-texto">
+                    <CirclePause aria-hidden className="size-3.5 shrink-0" />
+                    {pedido?.standby_desde
+                      ? 'Em stand-by agora — o tempo está parado.'
+                      : `${ver(s.standbyMs)} em stand-by, fora da conta.`}
+                  </p>
+                )}
+              </dl>
+            ) : (
+              <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
+                <div className="flex items-center gap-2">
+                  <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
+                  <dt className="text-texto-suave">Fila (do setor):</dt>
+                  <dd className="font-medium text-texto">{ver(s.filaUtilMs)}</dd>
+                </div>
 
-              <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
-                <dt className="text-texto-suave">Total na etapa:</dt>
-                <dd className="font-semibold text-texto">{formatarDuracaoMs(s.totalMs)}</dd>
-              </div>
-            </dl>
+                {s.execucoes.map((e) => (
+                  <div key={e.inicioEventoId} className="flex flex-wrap items-center gap-2">
+                    <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+                    <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
+                    <dd className="font-medium text-texto">{ver(e.duracaoMs)}</dd>
+                    <dd className="text-xs text-texto-fraco">
+                      {e.encerramento === null && !e.pausada && '· em andamento'}
+                      {/* D-48: pausado não conta — o desconto já está na duração. */}
+                      {e.pausada && '· pausada agora (o tempo não conta)'}
+                      {e.encerramento === 'finalizada' &&
+                        (e.autorFim && e.autorFim !== e.autorInicio
+                          ? `· finalizada por ${e.autorFim}`
+                          : '· finalizada')}
+                      {e.encerramento === 'transferencia' &&
+                        '· transferida (assumida por outra pessoa)'}
+                      {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
+                      {e.pausaMs > 0 && ` · ${ver(e.pausaMs)} de pausa descontados`}
+                    </dd>
+                  </div>
+                ))}
+                {s.execucoes.length === 0 && (
+                  <p className="text-xs text-texto-fraco">
+                    Ninguém iniciou aqui — o tempo foi todo de fila.
+                  </p>
+                )}
+
+                <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
+                  <dt className="text-texto-suave">Total na etapa:</dt>
+                  <dd className="font-semibold text-texto">{ver(s.totalUtilMs)}</dd>
+                </div>
+              </dl>
+            )}
           </li>
         ))}
       </ol>
@@ -393,9 +444,9 @@ export function HistoricoDoCard({
                   {e.estado_qualidade && <BadgeEstado estado={e.estado_qualidade} tamanho="sm" />}
                   {e.tipo.startsWith('movimentacao') && (
                     <span className="inline-flex items-center gap-1">
-                      {e.setor_origem_nome}
+                      {nomeDoLugar(e.setor_origem_nome)}
                       <ArrowRight aria-hidden className="size-3" />
-                      {e.setor_destino_nome}
+                      {nomeDoLugar(e.setor_destino_nome)}
                       {e.etapa_destino_nome && ` (${e.etapa_destino_nome})`}
                     </span>
                   )}

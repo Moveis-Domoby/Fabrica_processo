@@ -38,6 +38,12 @@ export interface JanelaDoCard {
     data_prevista: string | null
     /** SESSAO-38: a data do pedido no Tiny (o Início do card do pedido). */
     data_pedido?: string | null
+    /** SESSAO-38 (F5 · D-167): o relógio do PCP do pedido — a entrada, a liberação e o stand-by. */
+    entrou_pcp_em?: string | null
+    liberado_completo_em?: string | null
+    standby_desde?: string | null
+    standby_motivo?: string | null
+    standby_periodos?: { ini: string; fim: string }[] | null
   } | null
   /**
    * SESSAO-38 (D-150): o prazo — do pedido no Tiny (início = a data do pedido,

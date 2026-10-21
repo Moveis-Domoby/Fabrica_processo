@@ -8,6 +8,7 @@ import type { Aviso } from '@/notificacoes/api'
 import type { Tarefa } from '@/afazeres/api'
 import type { MetaPainel } from '@/metas/api'
 import type { Card, ExecucaoAberta, Setor } from '@/kanban/tipos'
+import type { ReguaTempo } from '@/kanban/tempoUtil'
 import { ehCorEtiqueta } from '@/utilitarios/tipos'
 import type { CampoCustomizado, Etiqueta } from '@/utilitarios/tipos'
 import type { Perfil, VinculoSetor } from './tipos'
@@ -36,6 +37,8 @@ export interface Abertura {
   /** migration 80: os catálogos dos quadros, do PCP, dos pedidos e da janela do card. */
   etiquetas?: Etiqueta[]
   campos?: CampoCustomizado[]
+  /** SESSAO-38 (D-172): a régua do tempo útil (o horário de cada setor) — o card conta só o expediente. */
+  regua_tempo?: ReguaTempo | null
   meu_painel?: {
     cards: Card[]
     setores_chave: string
@@ -87,7 +90,8 @@ export function semearCache(clienteQuery: QueryClient, abertura: Abertura, prime
     })
   }
   if (abertura.tarefas) clienteQuery.setQueryData(['afazeres', 'tarefas', eu], abertura.tarefas)
-  if (abertura.execucoes) clienteQuery.setQueryData(['meu-painel', 'execucoes', eu], abertura.execucoes)
+  if (abertura.execucoes)
+    clienteQuery.setQueryData(['meu-painel', 'execucoes', eu], abertura.execucoes)
   // o mesmo acerto de cor de buscarEtiquetas (cor desconhecida vira cinza)
   if (abertura.etiquetas) {
     clienteQuery.setQueryData(
@@ -96,11 +100,15 @@ export function semearCache(clienteQuery: QueryClient, abertura: Abertura, prime
     )
   }
   if (abertura.campos) clienteQuery.setQueryData(['campos'], abertura.campos)
+  if (abertura.regua_tempo) clienteQuery.setQueryData(['regua-tempo'], abertura.regua_tempo)
   const painel = abertura.meu_painel
   if (painel) {
     clienteQuery.setQueryData(['meu-painel', 'delegados', eu], painel.cards)
     if (painel.setores_chave) {
-      clienteQuery.setQueryData(['meu-painel', 'tarefas-sistema', painel.setores_chave], painel.tarefas_sistema)
+      clienteQuery.setQueryData(
+        ['meu-painel', 'tarefas-sistema', painel.setores_chave],
+        painel.tarefas_sistema,
+      )
     }
     const fila = Array.isArray(painel.fila_prioridade)
       ? painel.fila_prioridade.filter((c): c is string => typeof c === 'string')

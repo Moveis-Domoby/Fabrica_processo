@@ -20,6 +20,9 @@ export const ROTULO_ACAO: Record<string, string> = {
   delegacao: 'Delegou o card',
   estorno: 'Desfez um gesto (estorno)',
   pedido_lancado_rotas: 'Lançou o pedido para as ROTAS',
+  // SESSAO-38 (D-169): o stand-by do pedido no PCP — o motivo vai no "por quê"
+  pedido_standby_entrou: 'Pôs o pedido em stand-by',
+  pedido_standby_saiu: 'Tirou o pedido do stand-by',
   pedido_entregue: 'Registrou a entrega do pedido',
   unidade_desvinculada: 'A peça ficou sem pedido',
   peca_alocada: 'Usou uma peça do estoque no pedido',
@@ -192,6 +195,8 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'id_producao_definido',
       'card_desarquivado',
       'pcp_pedidos_ajustados',
+      'pedido_standby_entrou',
+      'pedido_standby_saiu',
       'ajuste_aberto',
       'ajuste_concluido',
       'avulso_concluido',
@@ -315,7 +320,8 @@ const TELAS: Record<string, string> = {
   '/trocar-senha': 'Troca de senha',
   '/fabrica/logistica/expedicao': 'Logística · Expedição',
   '/fabrica/logistica/estoque': 'Logística · Estoque',
-  '/fabrica/logistica/pedidos-em-aguardo': 'Logística · Pedidos em aguardo',
+  // SESSAO-38: a tela "Pedidos em aguardo" virou a Expedição (o endereço antigo leva lá)
+  '/fabrica/logistica/pedidos-em-aguardo': 'Logística · Expedição',
   '/fabrica/logistica/danificados': 'Logística · Danificados',
   '/fabrica/logistica/cancelados': 'Logística · Cancelados',
   '/fabrica/pedidos/todos': 'Pedidos · Todos os pedidos',

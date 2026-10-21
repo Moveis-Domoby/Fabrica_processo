@@ -76,8 +76,7 @@ $$;
 alter table public.plt_motivos drop constraint if exists plt_motivos_tipo_ck;
 alter table public.plt_motivos add constraint plt_motivos_tipo_ck
   check (tipo in ('nao_entregue', 'desfazer_entrega', 'devolucao', 'pausa', 'saida'))
-  not valid; -- E-19: recriado not valid; o validate fica no fim desta migration (a mais nova do check)
-alter table public.plt_motivos validate constraint plt_motivos_tipo_ck;
+  not valid; -- E-19: recriado not valid; ↩️ SESSAO-38 (F5): o validate mudou para a migration do stand-by (20261022050010 — a mais nova do check)
 
 insert into public.plt_motivos (tipo, texto, ordem)
 select x.tipo, x.texto, x.ordem

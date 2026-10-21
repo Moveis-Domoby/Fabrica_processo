@@ -13,6 +13,7 @@ import {
   Ban,
   Boxes,
   CheckSquare,
+  CirclePause,
   Clock,
   ListChecks,
   OctagonAlert,
@@ -22,6 +23,8 @@ import {
   PanelRightOpen,
   Plus,
   SquarePen,
+  Truck,
+  Undo2,
 } from 'lucide-react'
 import { Abas, Botao, Dica, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
@@ -29,7 +32,7 @@ import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSuperAdmin } from '@/autenticacao/tipos'
 import { useAoVivo } from '@/lib/aoVivo'
-import { buscarCardsPedidoPcp, buscarSetores, reposicoesResumo } from '@/kanban/api'
+import { buscarCardsPedidoPcp, buscarSetores, reposicoesResumo, tirarDoStandby } from '@/kanban/api'
 import type { ReposicaoResumo } from '@/kanban/api'
 import { BarraAjustePedidos, CaixaSelecao } from '@/pedidos/AjustePedidos'
 // SESSAO-31 (Lei §9): a aba Lançamento manual é pedaço próprio — carrega no 1º clique.
@@ -40,6 +43,9 @@ const AbaLancamentoManual = lazy(() =>
 )
 import { arquivarCard } from '@/logistica/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
+import { duracaoUtilDesde, formatarTempoUtil, noExpediente, tempoPcpMs } from '@/kanban/tempoUtil'
+import { useReguaTempo } from '@/kanban/useReguaTempo'
+import { ModalStandby } from '@/kanban/componentes/ModalStandby'
 import { pedidoCancelado } from '@/kanban/situacao'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
@@ -112,12 +118,15 @@ export function PCP() {
   // ?aba=todos (e o antigo ?aba=cancelados) levam para lá.
   const [parametros, setParametros] = useSearchParams()
   const abaParam = parametros.get('aba')
-  const aba: 'solicitacoes' | 'quadro' | 'lancamento' =
+  // SESSAO-38 (D-169): + a aba Stand-by (os pedidos segurados pelo PCP).
+  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'lancamento' =
     abaParam === 'solicitacoes'
       ? 'solicitacoes'
       : abaParam === 'lancamento'
         ? 'lancamento'
-        : 'quadro'
+        : abaParam === 'standby'
+          ? 'standby'
+          : 'quadro'
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPcp = setores.find((s) => s.codigo === 'pcp')
@@ -138,10 +147,12 @@ export function PCP() {
   const [ordemDasPaginas, setOrdemDasPaginas] = useState(ordemFila)
   const [paginasPedidos, setPaginasPedidos] = useState(1)
   const [paginasSolicitacoes, setPaginasSolicitacoes] = useState(1)
+  const [paginasStandby, setPaginasStandby] = useState(1)
   if (ordemDasPaginas !== ordemFila) {
     setOrdemDasPaginas(ordemFila)
     setPaginasPedidos(1)
     setPaginasSolicitacoes(1)
+    setPaginasStandby(1)
   }
   const consultasPedidos = useQueries({
     queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
@@ -184,6 +195,51 @@ export function PCP() {
   const carregandoSolicitacoes = consultasSolicitacoes.some((c) => c.isPending)
   const carregandoMaisSolicitacoes =
     consultasSolicitacoes[consultasSolicitacoes.length - 1]?.isFetching ?? false
+
+  // SESSAO-38 (D-169): a aba Stand-by — a mesma porta do quadro, com o grupo
+  // 'standby' (paginada no servidor, só pedida com a aba aberta — Lei §3).
+  const consultasStandby = useQueries({
+    queries: Array.from({ length: paginasStandby }, (_, pagina) => ({
+      queryKey: ['cards', 'pcp-standby', setorPcp?.id, ordemFila, pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'standby', ordem: ordemFila }),
+      enabled: setorPcp !== undefined && aba === 'standby',
+      placeholderData: keepPreviousData,
+    })),
+  })
+  const cardsStandby = useMemo(
+    () => consultasStandby.flatMap((c) => c.data?.cards ?? []),
+    [consultasStandby],
+  )
+  const totalStandby =
+    consultasStandby[consultasStandby.length - 1]?.data?.total ??
+    consultasStandby[0]?.data?.total ??
+    0
+  const carregandoStandby = consultasStandby.some((c) => c.isPending)
+  const carregandoMaisStandby = consultasStandby[consultasStandby.length - 1]?.isFetching ?? false
+  const [paraStandby, setParaStandby] = useState<{ cardId: number; numero: number | null } | null>(
+    null,
+  )
+  const [lancandoId, setLancandoId] = useState<number | null>(null)
+  const sairDoStandby = useMutation({
+    mutationFn: tirarDoStandby,
+    onSuccess: async (_, v) => {
+      notificar({
+        titulo:
+          v.destino === 'entregas'
+            ? 'Lançado para as entregas — as peças estão prontas na Expedição'
+            : 'Devolvido para aguardando liberação',
+        tom: 'perfeito',
+      })
+      setLancandoId(null)
+      await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para tirar do stand-by',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
 
   // SESSAO-25: o card de reposição não tem pedido — o resumo vem da porta dele.
   const idsReposicao = cardsSolicitacoes.map((c) => c.id).sort((a, b) => a - b)
@@ -271,8 +327,8 @@ export function PCP() {
   }, [idLiberar, buscouLiberar, cardDoLink])
 
   const todosOsCards = useMemo(
-    () => [...cardsPedidoAbertos, ...(cardDoLink ? [cardDoLink] : [])],
-    [cardsPedidoAbertos, cardDoLink],
+    () => [...cardsPedidoAbertos, ...cardsStandby, ...(cardDoLink ? [cardDoLink] : [])],
+    [cardsPedidoAbertos, cardsStandby, cardDoLink],
   )
   // SESSAO-32 (Lei §3, dívida 15): o resumo do pedido e as etiquetas vêm na
   // própria página do quadro (plt_fn_pcp_quadro) — sem leitura em fila.
@@ -347,6 +403,7 @@ export function PCP() {
             rotulo: 'Pedidos aguardando liberação',
             icone: <PackageOpen aria-hidden />,
           },
+          { valor: 'standby', rotulo: 'Stand-by', icone: <CirclePause aria-hidden /> },
           { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
         ]}
         valor={aba}
@@ -476,6 +533,26 @@ export function PCP() {
                   aoAbrir={() => abrirCard(card.id)}
                   aoPriorizar={(p) => priorizar.mutate({ cardId: card.id, prioridade: p })}
                   priorizando={priorizar.isPending && priorizar.variables?.cardId === card.id}
+                  acoesExtras={
+                    // SESSAO-38 (D-169): segurar o pedido — o motivo é obrigatório.
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      icone={<CirclePause />}
+                      className="min-h-toque-md px-2"
+                      aria-label={`Pôr o pedido ${pedidosPorId.get(card.pedido_id ?? 0)?.numero ?? ''} em stand-by`}
+                      title="Pôr em stand-by"
+                      onClick={() =>
+                        setParaStandby({
+                          cardId: card.id,
+                          numero:
+                            card.pedido_id === null
+                              ? null
+                              : (pedidosPorId.get(card.pedido_id)?.numero ?? null),
+                        })
+                      }
+                    />
+                  }
                 />
               ))}
             </ul>
@@ -488,6 +565,57 @@ export function PCP() {
           </section>
         </div>
       )}
+
+      {aba === 'standby' && (
+        <div
+          role="tabpanel"
+          id="pcp-painel"
+          aria-labelledby="pcp-aba-standby"
+          className="flex flex-col gap-3"
+        >
+          <section aria-label="Pedidos em stand-by" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg">
+                Em stand-by <span className="text-texto-suave tabular-nums">({totalStandby})</span>
+              </h2>
+              <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+            </div>
+            {carregandoStandby && <p className="text-sm text-texto-fraco">Carregando…</p>}
+            {!carregandoStandby && cardsStandby.length === 0 && (
+              <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+                Nenhum pedido em stand-by. Para segurar um pedido, use o botão de stand-by no card
+                dele em "Aguardando liberação".
+              </p>
+            )}
+            <ul className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {cardsStandby.map((card) => (
+                <CartaoStandbyPcp
+                  key={card.id}
+                  card={card}
+                  resumo={card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)}
+                  agora={agora}
+                  confirmandoLancar={lancandoId === card.id}
+                  ocupado={sairDoStandby.isPending && sairDoStandby.variables?.cardId === card.id}
+                  aoAbrir={() => abrirCard(card.id)}
+                  aoPedirLancar={() => setLancandoId(card.id)}
+                  aoCancelarLancar={() => setLancandoId(null)}
+                  aoLancar={() => sairDoStandby.mutate({ cardId: card.id, destino: 'entregas' })}
+                  aoDevolver={() =>
+                    sairDoStandby.mutate({ cardId: card.id, destino: 'aguardando' })
+                  }
+                />
+              ))}
+            </ul>
+            <MaisAoRolar
+              temMais={cardsStandby.length < totalStandby}
+              carregando={carregandoMaisStandby}
+              aoChegar={() => setPaginasStandby((p) => p + 1)}
+            />
+          </section>
+        </div>
+      )}
+
+      <ModalStandby pedido={paraStandby} aoFechar={() => setParaStandby(null)} />
 
       {souSuperAdmin && selecionando && (
         <BarraAjustePedidos
@@ -560,6 +688,7 @@ function CartaoReposicaoPcp({
   aoCancelarArquivar: () => void
   aoArquivar: () => void
 }) {
+  const regua = useReguaTempo()
   const total = card.total_unidades ?? 0
   const liberadas = resumo?.liberadas ?? 0
   const extrema = resumo ? Math.max(resumo.extrema_agora, resumo.extrema_na_criacao) : 0
@@ -585,7 +714,10 @@ function CartaoReposicaoPcp({
           }
         >
           <Clock aria-hidden className="size-4" />
-          {formatarDuracao(card.desde, agora)}
+          {/* SESSAO-38 (D-167): só o expediente do PCP conta */}
+          {regua
+            ? duracaoUtilDesde(card.desde, agora, regua.pcp_setor_id, regua)
+            : formatarDuracao(card.desde, agora)}
         </span>
       </header>
 
@@ -695,6 +827,21 @@ function CartaoPedidoPcp({
   const prioridade = prioridadeDe(card.prioridade)
   const noEstoque = card.pecas_estoque ?? 0
   const cancelado = pedidoCancelado(resumo?.situacao)
+  // SESSAO-38 (D-167): o tempo do pedido no PCP conta só o expediente do PCP
+  // (e nunca o stand-by) — o relógio para à noite e no fim de semana.
+  const regua = useReguaTempo()
+  const pcpMs = regua
+    ? tempoPcpMs(
+        {
+          entrou_pcp_em: resumo?.entrou_pcp_em ?? card.desde,
+          standby_desde: resumo?.standby_desde,
+          standby_periodos: resumo?.standby_periodos,
+        },
+        regua,
+        agora,
+      )
+    : null
+  const foraDoExpediente = regua !== null && !noExpediente(agora, regua.pcp_setor_id, regua)
   return (
     <li
       className={cn(
@@ -725,12 +872,13 @@ function CartaoPedidoPcp({
             className="inline-flex items-center gap-1 text-xs text-texto-suave tabular-nums"
             title={
               card.desde
-                ? `No PCP desde ${new Date(card.desde).toLocaleString('pt-BR')}`
+                ? `No PCP desde ${new Date(card.desde).toLocaleString('pt-BR')} — conta só o horário de expediente do PCP${foraDoExpediente ? ' (agora está fora do expediente: o tempo não anda)' : ''}`
                 : undefined
             }
           >
             <Clock aria-hidden className="size-3.5" />
-            {formatarDuracao(card.desde, agora)}
+            {pcpMs !== null ? formatarTempoUtil(pcpMs) : formatarDuracao(card.desde, agora)}
+            {foraDoExpediente && <span className="sr-only"> — fora do expediente, parado</span>}
           </span>
         </div>
       </header>
@@ -834,4 +982,140 @@ function CartaoPedidoPcp({
       </footer>
     </li>
   )
+}
+
+/**
+ * SESSAO-38 (D-169/D-170 ⏳): o card do pedido EM STAND-BY — o motivo, desde
+ * quando e quem pôs, o tempo útil no PCP (parado: o stand-by não conta) e os
+ * dois caminhos: lançar direto para as entregas (as peças que faltam ficam
+ * prontas na Expedição, pulando a produção — dois toques) ou devolver para
+ * aguardar liberação.
+ */
+function CartaoStandbyPcp({
+  card,
+  resumo,
+  agora,
+  confirmandoLancar,
+  ocupado,
+  aoAbrir,
+  aoPedirLancar,
+  aoCancelarLancar,
+  aoLancar,
+  aoDevolver,
+}: {
+  card: Card
+  resumo?: PedidoResumo
+  agora: number
+  confirmandoLancar: boolean
+  ocupado: boolean
+  aoAbrir: () => void
+  aoPedirLancar: () => void
+  aoCancelarLancar: () => void
+  aoLancar: () => void
+  aoDevolver: () => void
+}) {
+  const regua = useReguaTempo()
+  const liberadas = resumo?.unidades_liberadas ?? 0
+  const total = resumo?.total_unidades ?? 0
+  const faltam = Math.max(total - liberadas, 0)
+  const pcpMs = tempoPcpMs(
+    {
+      entrou_pcp_em: resumo?.entrou_pcp_em ?? card.desde,
+      standby_desde: resumo?.standby_desde,
+      standby_periodos: resumo?.standby_periodos,
+    },
+    regua,
+    agora,
+  )
+  const desde = resumo?.standby_desde ? new Date(resumo.standby_desde) : null
+  return (
+    <li className="flex h-full min-w-0 flex-col gap-3 rounded-dm-lg border border-atencao-forte bg-superficie p-4">
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="font-semibold text-texto tabular-nums">
+            Pedido {resumo?.numero ?? '…'}
+          </span>
+          <p className="line-clamp-1 text-sm text-texto-suave" title={resumo?.cliente_nome}>
+            {resumo?.cliente_nome || '…'}
+          </p>
+        </div>
+        <Botao
+          variante="fantasma"
+          tamanho="sm"
+          icone={<PanelRightOpen />}
+          className="min-h-toque-md px-2"
+          aria-label={`Abrir o card do pedido ${resumo?.numero ?? ''}`}
+          title="Abrir o card"
+          onClick={aoAbrir}
+        />
+      </header>
+
+      <div className="flex flex-col gap-1">
+        <p>
+          <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
+            <CirclePause aria-hidden className="size-3.5 shrink-0" />
+            <span className="break-words">Stand-by · {resumo?.standby_motivo ?? '…'}</span>
+          </span>
+        </p>
+        <p className="text-xs text-texto-suave tabular-nums">
+          {desde ? `Desde ${desde.toLocaleString('pt-BR', DIA_E_HORA)}` : 'Em stand-by'}
+          {resumo?.standby_por ? ` · por ${resumo.standby_por}` : ''}
+        </p>
+        <p
+          className="inline-flex items-center gap-1 text-xs text-texto-suave tabular-nums"
+          title="O tempo útil do pedido no PCP fica parado enquanto ele está em stand-by."
+        >
+          <Clock aria-hidden className="size-3.5" />
+          Tempo útil no PCP: {pcpMs !== null ? formatarTempoUtil(pcpMs) : '—'} (parado)
+        </p>
+        <p className="text-sm text-texto tabular-nums">
+          {total > 0
+            ? `${liberadas} de ${total} ${total === 1 ? 'unidade liberada' : 'unidades liberadas'}`
+            : 'Sem itens a produzir'}
+        </p>
+      </div>
+
+      <footer className="mt-auto flex flex-col gap-2">
+        {confirmandoLancar ? (
+          <div className="flex flex-col gap-2 rounded-dm bg-superficie-sutil p-2">
+            <p className="text-sm text-texto">
+              {faltam === 1
+                ? 'A peça que falta fica pronta na Expedição sem passar pela produção, e o pedido entra nas rotas. Confirma?'
+                : `As ${faltam} peças que faltam ficam prontas na Expedição sem passar pela produção, e o pedido entra nas rotas. Confirma?`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Botao icone={<Truck />} carregando={ocupado} onClick={aoLancar}>
+                Sim, lançar
+              </Botao>
+              <Botao variante="fantasma" onClick={aoCancelarLancar}>
+                Voltar
+              </Botao>
+            </div>
+          </div>
+        ) : (
+          <>
+            <Botao icone={<Truck />} larguraTotal disabled={ocupado} onClick={aoPedirLancar}>
+              Lançar para as entregas
+            </Botao>
+            <Botao
+              variante="secundaria"
+              icone={<Undo2 />}
+              larguraTotal
+              carregando={ocupado}
+              onClick={aoDevolver}
+            >
+              Devolver para aguardando liberação
+            </Botao>
+          </>
+        )}
+      </footer>
+    </li>
+  )
+}
+
+const DIA_E_HORA: Intl.DateTimeFormatOptions = {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
 }

@@ -265,3 +265,64 @@ describe('eventoEstornavel', () => {
     expect(eventoEstornavel(eventos)).toBeNull()
   })
 })
+
+describe('montarSegmentos com o tempo útil (SESSAO-38 · F5)', () => {
+  // seg 19/10/2026 07:30 em Natal = 10:30 UTC; os setores 07:30–18:00, seg–sex
+  const SEG = Date.parse('2026-10-19T10:30:00Z')
+  const H = 3_600_000
+  const quando = (horas: number) => new Date(SEG + horas * H).toISOString()
+  const janelas = [1, 2, 3, 4, 5].flatMap((d) =>
+    [1, 3, 235].map((s) => [s, d, '07:30:00', '18:00:00'] as [number, number, string, string]),
+  )
+  const regua = {
+    fuso_min: -180,
+    pcp_setor_id: 1,
+    papeis: { '1': 'entrada', '3': 'producao', '235': 'terminal' } as Record<
+      string,
+      'entrada' | 'producao' | 'terminal'
+    >,
+    janelas,
+    pausas: [] as [number, string, string | null][],
+  }
+
+  it('o PCP não tem fila: o bloco é o tempo útil do pedido; a fila do setor para de noite; hora extra conta', () => {
+    const eventos: EventoLinhaTempo[] = [
+      evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: quando(0), setor_destino_id: 1, setor_destino_nome: 'PCP' }),
+      // liberada no fim da tarde para o CNC (fila a noite toda)
+      evento({ evento_id: 2, tipo: 'movimentacao_setor', ocorrido_em: quando(10), setor_destino_id: 3, setor_destino_nome: 'CNC' }),
+      // terça 08:30: iniciou; 19:30 (hora extra) finalizou
+      evento({ evento_id: 3, tipo: 'execucao_iniciada', ocorrido_em: quando(25), usuario_nome: 'Ana' }),
+      evento({ evento_id: 4, tipo: 'execucao_finalizada', ocorrido_em: quando(36), usuario_nome: 'Ana' }),
+      evento({ evento_id: 5, tipo: 'movimentacao_setor', ocorrido_em: quando(36), setor_destino_id: 235, setor_destino_nome: 'PEDIDOS EM AGUARDO' }),
+    ]
+    const pedido = {
+      entrou_pcp_em: quando(-2), // seg 05:30 — antes do expediente
+      liberado_completo_em: quando(10),
+      standby_periodos: [{ ini: quando(1), fim: quando(3) }],
+    }
+    const [pcp, cnc, fim] = montarSegmentos(eventos, SEG + 40 * H, { regua, pedido })
+
+    expect(pcp.papel).toBe('entrada')
+    // do pedido: 07:30–17:30 = 10 h de expediente, menos 2 h de stand-by
+    expect(pcp.pcpUtilMs).toBe(8 * H)
+    // CNC: fila seg 17:30 → ter 08:30 = 30 min (seg) + 1 h (ter)
+    expect(cnc.filaMs).toBe(15 * H)
+    expect(cnc.filaUtilMs).toBe(1.5 * H)
+    // total: a fila útil + a execução inteira (das 08:30 às 19:30 — a hora extra conta)
+    expect(cnc.totalUtilMs).toBe(1.5 * H + 11 * H)
+    // o fim de linha também não tem fila — e se chama Expedição na tela
+    expect(fim.papel).toBe('terminal')
+    expect(fim.setorNome).toBe('Expedição')
+  })
+
+  it('o stand-by no próprio card do pedido (os fatos dele) sai da conta', () => {
+    const eventos: EventoLinhaTempo[] = [
+      evento({ evento_id: 1, tipo: 'card_criado', ocorrido_em: quando(0), setor_destino_id: 1, setor_destino_nome: 'PCP' }),
+      evento({ evento_id: 2, tipo: 'pedido_standby_entrou', ocorrido_em: quando(2) }),
+      evento({ evento_id: 3, tipo: 'pedido_standby_saiu', ocorrido_em: quando(5), evento_referencia_id: 2 }),
+    ]
+    const [pcp] = montarSegmentos(eventos, SEG + 8 * H, { regua })
+    expect(pcp.standbyMs).toBe(3 * H)
+    expect(pcp.pcpUtilMs).toBe(5 * H)
+  })
+})

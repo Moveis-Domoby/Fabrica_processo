@@ -13118,7 +13118,10 @@ for (const grupo of ['pedido', 'reposicao', null]) {
     for (const l of nova) {
       if (JSON.stringify(l.etiquetas) !== etqPor.get(String(l.id))) difs82.push({ grupo, id: l.id, motivo: 'etiquetas' })
       const esperado = l.pedido_id === null ? undefined : resPor.get(String(l.pedido_id))
-      const veio = l.pedido_resumo === null ? undefined : JSON.stringify(l.pedido_resumo)
+      // SESSAO-38 (F5): o resumo ganhou o stand-by do pedido (standby_*) — fora da comparação
+      const semStandby82 = l.pedido_resumo === null ? null
+        : Object.fromEntries(Object.entries(l.pedido_resumo).filter(([k]) => !k.startsWith('standby_')))
+      const veio = semStandby82 === null ? undefined : JSON.stringify(semStandby82)
       if (veio !== esperado) difs82.push({ grupo, id: l.id, motivo: 'resumo do pedido' })
       if (veio) comPedido82 += 1
     }
@@ -16147,6 +16150,9 @@ try {
   `)
   // a migration de novo (idempotente) — agora com a etiqueta em uso
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261022010000_plt_card_prioridade_prazo_ordem.sql'), 'utf8'))
+  // E-81: a migration do stand-by (F5) recria portas e o check desta — reaplicar
+  // as duas na ordem de produção, senão os blocos seguintes testam a versão velha
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261022050010_plt_tempo_util_standby.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -16459,7 +16465,264 @@ conferir(!priv38.exp_anon && priv38.exp_logado && !priv38.prog_anon && !priv38.r
   'portas só para quem está logado; as visões da regra ficam fora da API', JSON.stringify(priv38))
 } // fim do bloco F2 (SESSAO-38)
 
-titulo('Resumo')
+// ============================================================================
+// SESSAO-38 · F5 (migration 20261022050010 — D-167…D-172): o STAND-BY no PCP
+// e a régua do tempo útil (o horário do PCP semeado uma vez).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-38 · F5 · o cenário: uma pessoa do PCP, uma da SECC e quatro pedidos no PCP')
+
+const um5 = async (sql) => (await bd.query(sql)).rows[0]
+const todos5 = async (sql) => (await bd.query(sql)).rows
+const como5 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// E-103: as portas se provam como o navegador chama (papel authenticated)
+const logado5 = async (auth, sql) => {
+  await como5(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const recusa5 = async (auth, sql, descricao, padrao) => {
+  await como5(auth)
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const F5 = {
+  pcp: '00000000-0000-0000-0000-000000003851',
+  secc: '00000000-0000-0000-0000-000000003852',
+}
+await como5('')
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+    ('PCP F5', 'pcp.f5@teste.com', '38500000051', 'pcp.f5', 'operador', '${F5.pcp}'),
+    ('SECC F5', 'secc.f5@teste.com', '38500000052', 'secc.f5', 'operador', '${F5.secc}');
+  insert into public.plt_usuario_setores (usuario_id, setor_id) values
+    ((select id from public.plt_usuarios where usuario = 'pcp.f5'), (select id from public.plt_setores where codigo = 'pcp')),
+    ((select id from public.plt_usuarios where usuario = 'secc.f5'), (select id from public.plt_setores where codigo = 'secc'));
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (938501, 'S38F5', 'Painel Teste F5', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú F5 38', 'TSTF538');
+`)
+const cam5 = (await um5(`select id::int as id from public.plt_caminhoes where placa = 'TSTF538'`)).id
+const secc5 = (await um5(`select id::int as id from public.plt_setores where codigo = 'secc'`)).id
+const pcpSetor5 = (await um5(`select id::int as id from public.plt_setores where codigo = 'pcp'`)).id
+
+async function pedido5(numero, { itens = 2, emProducao = 0 } = {}) {
+  await como5('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+      (${numero}, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', ${numero}00, '2026-11-20');
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), 1, 'S38F5', 'Painel Teste F5', ${itens});
+  `)
+  const pc = (await um5(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                          where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  for (let k = 1; k <= emProducao; k++) {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, ${pc}, 1, 'S38F5', 'Painel Teste F5', ${k}, ${itens} from public.pedidos p where p.numero = ${numero};
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${secc5}, 'api');
+    `)
+  }
+  return pc
+}
+const pA = await pedido5(938501)                    // stand-by → devolver
+const pB = await pedido5(938502)                    // stand-by → lançar para as entregas
+const pC = await pedido5(938503, { emProducao: 1 }) // parcial: 1 peça na SECC
+const pD = await pedido5(938504)                    // programado (não entra em stand-by)
+const motivo5 = (await um5(`select id::int as id from public.plt_motivos where tipo = 'standby' and texto = 'Aguardando pagamento'`)).id
+conferir(pA > 0 && pB > 0 && pC > 0 && pD > 0 && motivo5 > 0,
+  'os quatro pedidos nasceram com card no PCP e os motivos de stand-by vieram semeados', JSON.stringify({ pA, pB, pC, pD, motivo5 }))
+
+titulo('SESSAO-38 · F5 · pôr em stand-by: o motivo é obrigatório, quem pode, o mesmo toque não repete')
+
+await recusa5(F5.pcp, `select public.plt_fn_pcp_standby(${pA}, null, '  ')`,
+  'sem motivo o stand-by é recusado', /Diga o motivo/)
+await recusa5(F5.secc, `select public.plt_fn_pcp_standby(${pA}, ${motivo5}, null)`,
+  'quem é só da SECC não põe pedido em stand-by', /gesto do PCP/)
+const ent5 = (await logado5(F5.pcp, `select public.plt_fn_pcp_standby(${pA}, ${motivo5}, 'cliente avisou') as r`))[0].r
+const repete5 = (await logado5(F5.pcp, `select public.plt_fn_pcp_standby(${pA}, ${motivo5}, null) as r`))[0].r
+await como5('')
+const cardA5 = await um5(`select standby_desde is not null as em, standby_motivo, standby_evento_id::int as ev,
+                                 jsonb_array_length(standby_periodos)::int as fechados from public.plt_cards where id = ${pA}`)
+const fatosA5 = await um5(`select count(*)::int as n,
+                                  (select count(*)::int from public.plt_logs_atividade l
+                                    where l.acao = 'pedido_standby_entrou' and (l.contexto->>'card_id')::bigint = ${pA}) as trilha
+                             from public.plt_eventos where card_id = ${pA} and tipo = 'pedido_standby_entrou'`)
+conferir(
+  ent5.feito === true && repete5.feito === false && cardA5.em && cardA5.standby_motivo === 'Aguardando pagamento — cliente avisou'
+    && cardA5.ev > 0 && cardA5.fechados === 0 && fatosA5.n === 1 && fatosA5.trilha === 1,
+  'a pessoa do PCP pôs em stand-by com o motivo da lista (+ o detalhe): o card guarda desde quando e o motivo; o mesmo toque de novo não grava; a trilha da Auditoria tem a linha',
+  JSON.stringify({ ent5, repete5, cardA5, fatosA5 }),
+)
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, observacao)
+                         values (${pB}, 'pedido_standby_saiu', null, 'api', 'por fora')`,
+  'por fora da porta: sair do stand-by de um pedido que não está em stand-by é recusado (guarda para todo escritor)', /não está em stand-by/)
+await deveRecusarExec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+                         values (${pB}, 'pedido_standby_entrou', (select id from public.plt_usuarios where usuario = 'pcp.f5'), 'interface')`,
+  'por fora da porta: stand-by sem motivo é recusado', /pede o motivo/)
+
+titulo('SESSAO-38 · F5 · o stand-by sai de "Aguardando liberação" e do quadrinho; mora na aba nova; fica na Expedição; sai das rotas')
+
+const idsDe5 = (linhas) => linhas.map((l) => Number(l.id)).filter((id) => [pA, pB, pC, pD].includes(id)).sort()
+const aguard5 = idsDe5(await logado5(F5.pcp, `select id from public.plt_fn_pcp_quadro(100, 0, 'pedido')`))
+const aba5 = idsDe5(await logado5(F5.pcp, `select id from public.plt_fn_pcp_quadro(100, 0, 'standby')`))
+const abaVelha5 = idsDe5(await logado5(F5.pcp, `select id from public.plt_fn_cards_pedido_pcp(100, 0, 'standby')`))
+const resumo5 = (await logado5(F5.pcp, `select pedido_resumo as r from public.plt_fn_pcp_quadro(100, 0, 'standby') where id = ${pA}`))[0]?.r
+// D-75 (painel = quadro): o quadrinho conta o MESMO conjunto do quadro antigo com tudo (grupo nulo)
+await como5(E40.admin)
+const painel5 = await um5(`select (select pedidos_a_liberar from public.plt_fn_dash_pcp_dia(null)) as painel,
+                                  (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0, null)) as quadro,
+                                  (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0, null) where id = ${pA}) as a_no_quadro`)
+const exp5 = (await logado5(F5.pcp, `select public.plt_fn_expedicao('todos', '938501', 20, 0) as e`))[0].e
+const itemExp5 = exp5.itens.find((i) => Number(i.card_id) === pA)
+const prog5 = (await logado5(F5.pcp, `select count(*)::int as n from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${pA}`))[0].n
+conferir(
+  !aguard5.includes(pA) && aguard5.includes(pB) && aba5.join() === String(pA) && abaVelha5.join() === String(pA)
+    && resumo5?.standby_motivo === 'Aguardando pagamento — cliente avisou' && resumo5?.standby_por === 'PCP F5'
+    && resumo5?.numero === 938501,
+  '"Aguardando liberação" sem o pedido em stand-by; a aba Stand-by só com ele (nas duas portas do PCP), com o motivo e quem pôs no resumo',
+  JSON.stringify({ aguard5, aba5, abaVelha5, resumo5 }),
+)
+conferir(painel5.painel === painel5.quadro && painel5.a_no_quadro === 0,
+  'o quadrinho da Visão do dia conta o mesmo conjunto do quadro — o stand-by fora dos dois', JSON.stringify(painel5))
+conferir(itemExp5?.standby?.motivo === 'Aguardando pagamento — cliente avisou' && prog5 === 0,
+  'a Expedição continua com o pedido (com a marca e o motivo); a Programação não o oferece mais', JSON.stringify({ itemExp5, prog5 }))
+await recusa5(F5.pcp, `select public.plt_fn_programar_entrega(${pA}, '2026-12-02', ${cam5})`,
+  'programar o pedido em stand-by é recusado (não é candidato de rota)', /.+/)
+
+titulo('SESSAO-38 · F5 · o programado não entra em stand-by; devolver volta a aguardar liberação e às rotas')
+
+await logado5(F5.pcp, `select public.plt_fn_programar_entrega(${pD}, '2026-12-02', ${cam5})`)
+await recusa5(F5.pcp, `select public.plt_fn_pcp_standby(${pD}, ${motivo5}, null)`,
+  'o pedido programado precisa sair da programação antes do stand-by', /está programado para a entrega de 02\/12/)
+await recusa5(F5.pcp, `select public.plt_fn_pcp_standby_sair(${pB}, 'aguardando', null)`,
+  'tirar do stand-by quem não está é recusado', /não está em stand-by/)
+const dev5 = (await logado5(F5.pcp, `select public.plt_fn_pcp_standby_sair(${pA}, 'aguardando', null) as r`))[0].r
+await como5('')
+const cardA5b = await um5(`select standby_desde is null as fora, standby_evento_id is null as sem_ev,
+                                  jsonb_array_length(standby_periodos)::int as fechados,
+                                  (standby_periodos->0->>'ini') is not null and (standby_periodos->0->>'fim') is not null as periodo_ok
+                             from public.plt_cards where id = ${pA}`)
+const saiu5 = await um5(`select e.observacao, e.dados->>'destino' as destino, e.evento_referencia_id = ${cardA5.ev} as aponta
+                           from public.plt_eventos e where e.card_id = ${pA} and e.tipo = 'pedido_standby_saiu'`)
+const aguard5b = idsDe5(await logado5(F5.pcp, `select id from public.plt_fn_pcp_quadro(100, 0, 'pedido')`))
+const prog5b = (await logado5(F5.pcp, `select count(*)::int as n from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${pA}`))[0].n
+conferir(
+  dev5.feito === true && cardA5b.fora && cardA5b.sem_ev && cardA5b.fechados === 1 && cardA5b.periodo_ok
+    && saiu5.destino === 'aguardando' && saiu5.aponta && /aguardando liberação/.test(saiu5.observacao)
+    && aguard5b.includes(pA) && prog5b === 1,
+  'devolvido: o período fechado fica guardado (o relógio do PCP desconta), o fato aponta o stand-by aberto, o pedido volta a "Aguardando liberação" e à Programação',
+  JSON.stringify({ dev5, cardA5b, saiu5, aguard5b, prog5b }),
+)
+
+titulo('SESSAO-38 · F5 · lançar direto para as entregas: as peças nascem prontas na Expedição (pulam a produção); com peça na produção, não')
+
+await logado5(F5.pcp, `select public.plt_fn_pcp_standby(${pC}, null, 'Esperando o cliente decidir a cor')`)
+await recusa5(F5.pcp, `select public.plt_fn_pcp_standby_sair(${pC}, 'entregas', null)`,
+  'com uma peça na produção, "lançar para as entregas" é recusado (a peça não é arrancada de lá)', /1 peça deste pedido está na produção/)
+const cardC5 = await um5(`select standby_desde is not null as em from public.plt_cards where id = ${pC}`)
+conferir(cardC5.em, 'a recusa não grava nada: o pedido parcial segue em stand-by', JSON.stringify(cardC5))
+
+await logado5(F5.pcp, `select public.plt_fn_pcp_standby(${pB}, ${motivo5}, null)`)
+const lanc5 = (await logado5(F5.pcp, `select public.plt_fn_pcp_standby_sair(${pB}, 'entregas', null) as r`))[0].r
+await como5('')
+const depoisB5 = await um5(`
+  select c.standby_desde is null as fora, c.liberado_completo_em is not null as liberado,
+         (select count(*)::int from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id
+           where u.pedido_id = c.pedido_id and u.tipo = 'unidade' and u.arquivado_em is null and s.codigo = 'aguardo') as no_aguardo,
+         (select estado from plt_privado.vw_pedido_prontidao pp where pp.card_id = c.id) as estado,
+         (select count(*)::int from public.plt_eventos e join public.plt_cards u on u.id = e.card_id
+           where u.pedido_id = c.pedido_id and e.tipo = 'card_criado' and u.tipo = 'unidade') as fatos_standby,
+         (select e.dados->>'destino' from public.plt_eventos e
+           where e.card_id = c.id and e.tipo = 'pedido_standby_saiu' order by e.id desc limit 1) as destino
+    from public.plt_cards c where c.id = ${pB}`)
+const progB5 = (await logado5(F5.pcp, `select estado from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${pB}`))[0]
+const aguardB5 = idsDe5(await logado5(F5.pcp, `select id from public.plt_fn_pcp_quadro(100, 0, null)`))
+conferir(
+  lanc5.feito === true && lanc5.destino === 'entregas' && lanc5.concluido === true && depoisB5.fora && depoisB5.liberado
+    && depoisB5.no_aguardo === 2 && depoisB5.estado === 'pronto' && depoisB5.fatos_standby === 2
+    && depoisB5.destino === 'entregas'
+    && progB5?.estado === 'pronto' && !aguardB5.includes(pB),
+  'a pessoa do PCP (não é super admin) lançou: as 2 peças nasceram prontas na Expedição com a história do stand-by, o pedido saiu do PCP, está "pronto" e é candidato de rota',
+  JSON.stringify({ lanc5, depoisB5, progB5 }),
+)
+
+titulo('SESSAO-38 · F5 · o tempo do PCP chega à janela e ao quadro do setor; a régua do tempo; o horário do PCP')
+
+await como5(E40.admin)
+const jan5 = (await um5(`select public.plt_fn_card_janela(${pA}) as j`)).j
+const quadro5 = (await um5(`select public.plt_fn_quadro_setor(${secc5}, 50) as q`)).q
+const pedC5 = quadro5.pedidos?.[String((await um5(`select pedido_id::int as id from public.plt_cards where id = ${pC}`)).id)]
+conferir(
+  jan5.pedido?.entrou_pcp_em && Array.isArray(jan5.pedido?.standby_periodos) && jan5.pedido.standby_periodos.length === 1
+    && pedC5?.standby_desde && Array.isArray(pedC5?.standby_periodos),
+  'a janela do card traz a entrada no PCP e os períodos de stand-by; o quadro do setor traz o stand-by do pedido da peça',
+  JSON.stringify({ pedido: jan5.pedido, pedC5 }),
+)
+const regua5 = (await logado5(F5.pcp, `select public.plt_fn_regua_tempo() as r`))[0].r
+const reguaAnon5 = (await logado5('', `select public.plt_fn_regua_tempo() as r`))[0].r
+const abre5 = (await logado5(F5.pcp, `select public.plt_fn_abertura(null, false) as a`))[0].a
+conferir(regua5?.fuso_min === -180 && Array.isArray(regua5?.janelas) && Array.isArray(regua5?.pausas)
+    && reguaAnon5 === null && JSON.stringify(abre5.regua_tempo) === JSON.stringify(regua5),
+  'a régua do tempo: só para quem está logado, e a MESMA vem na abertura do app', JSON.stringify({ regua5, reguaAnon5 }))
+
+// O horário do PCP (D-168): a migration semeia uma vez o do 1º setor de produção, só se o PCP não tiver nenhum.
+await como5('')
+const mig5 = await readFile(path.join(MIGRATIONS, '20261022050010_plt_tempo_util_standby.sql'), 'utf8')
+const semear5 = mig5.slice(mig5.indexOf('insert into public.plt_horarios_funcionamento'), mig5.indexOf('-- 11 · Os candidatos'))
+const ref5 = (await um5(`select id::int as id from public.plt_setores where papel_no_fluxo = 'producao' and ativo order by ordem, id limit 1`)).id
+await bd.exec(`
+  delete from public.plt_horarios_funcionamento where escopo = 'setor' and setor_id in (${ref5}, ${pcpSetor5});
+  insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
+    select 'setor', ${ref5}, d, '07:30', '18:00' from generate_series(1, 5) d;
+`)
+await bd.exec(semear5)
+await bd.exec(semear5) // a 2ª vez não faz nada
+const pcpHor5 = await um5(`select count(*)::int as n, min(hora_inicio)::text as ini, max(hora_fim)::text as fim
+                             from public.plt_horarios_funcionamento where escopo = 'setor' and setor_id = ${pcpSetor5}`)
+const reguaPcp5 = (await logado5(F5.pcp, `select public.plt_fn_regua_tempo() as r`))[0].r.janelas.filter((j) => Number(j[0]) === pcpSetor5)
+conferir(pcpHor5.n === 5 && pcpHor5.ini === '07:30:00' && pcpHor5.fim === '18:00:00' && reguaPcp5.length === 5,
+  'o PCP sem horário ganha o do 1º setor de produção (seg–sex 07:30–18:00), uma vez só; e a régua já o traz',
+  JSON.stringify({ pcpHor5, reguaPcp5 }))
+await bd.exec(`delete from public.plt_horarios_funcionamento where escopo = 'setor' and setor_id in (${ref5}, ${pcpSetor5})`)
+
+titulo('SESSAO-38 · F5 · os motivos de stand-by em Utilitários (nunca especiais), os checks validados e as portas fora da API')
+
+await como5(E40.admin)
+const novoMot5 = (await um5(`select public.plt_fn_motivo_salvar(null, 'standby', 'Teste F5 motivo', 70, true, null) as id`)).id
+await deveRecusarExec(`select public.plt_fn_motivo_salvar(null, 'standby', 'Teste F5 especial', 80, true, true)`,
+  'motivo de stand-by nunca é especial', /Só motivo de pausa pode ser especial/)
+const listaMot5 = await todos5(`select texto from public.plt_fn_motivos('standby', false)`)
+await como5('')
+const checks5 = await todos5(`select conname, convalidated from pg_constraint
+                               where conname in ('plt_eventos_tipo_check', 'plt_motivos_tipo_ck') order by conname`)
+const priv5 = await um5(`
+  select has_function_privilege('anon', 'public.plt_fn_pcp_standby(bigint, bigint, text)', 'execute') as entra_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_pcp_standby(bigint, bigint, text)', 'execute') as entra_logado,
+         has_function_privilege('anon', 'public.plt_fn_pcp_standby_sair(bigint, text, text)', 'execute') as sai_anon,
+         has_function_privilege('anon', 'public.plt_fn_regua_tempo()', 'execute') as regua_anon,
+         has_function_privilege('authenticated', 'plt_privado.fn_pcp_tempo_do_pedido(bigint)', 'execute') as tempo_logado,
+         has_function_privilege('authenticated', 'plt_privado.fn_concluir_pedido(bigint, uuid)', 'execute') as concluir_logado`)
+conferir(Number(novoMot5) > 0 && listaMot5.length >= 7 && listaMot5.some((m) => m.texto === 'Teste F5 motivo'),
+  'o admin cadastra motivo de stand-by e ele aparece na lista do dia a dia', JSON.stringify(listaMot5))
+conferir(checks5.length === 2 && checks5.every((c) => c.convalidated),
+  'os dois checks (tipos de evento e de motivo) validados nesta migration — a mais nova (E-19)', JSON.stringify(checks5))
+conferir(!priv5.entra_anon && priv5.entra_logado && !priv5.sai_anon && !priv5.regua_anon && !priv5.tempo_logado && !priv5.concluir_logado,
+  'as portas do stand-by e a régua só para quem está logado; os ajudantes fora da API', JSON.stringify(priv5))
+} // fim do bloco F5 (SESSAO-38)
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(
