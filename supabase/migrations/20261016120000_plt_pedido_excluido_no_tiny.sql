@@ -367,6 +367,8 @@ revoke all on function plt_privado.fn_comercial_vendas_de(bigint[]) from public,
 -- ----------------------------------------------------------------------------
 -- public.plt_fn_pedidos_lista — recriada POR INTEIRO a partir da versão viva de 16/10 (E-24); 15 leitura(s) de pedidos
 -- passam a ver só o pedido que existe no Tiny
+-- SESSAO-38 (E-17): a 20261022020100 muda a forma da lista (colunas da programação) — drop antes.
+drop function if exists public.plt_fn_pedidos_lista(text, integer, integer, boolean);
 CREATE OR REPLACE FUNCTION public.plt_fn_pedidos_lista(p_busca text DEFAULT NULL::text, p_antes_numero integer DEFAULT NULL::integer, p_limite integer DEFAULT 20, p_cancelados boolean DEFAULT false)
  RETURNS TABLE(pedido_id bigint, numero integer, cliente_nome text, data_pedido date, data_prevista date, situacao text, total_pedido numeric, vendedor text, marcadores text[], total_unidades integer, unidades_liberadas integer, unidades_prontas integer, card_id bigint, situacao_plataforma text, entregue_em timestamp with time zone, entregue_por text, entregue_fonte text, entregue_tiny text, cancelado_em timestamp with time zone, tem_mais boolean, contagem_total integer)
  LANGUAGE plpgsql
