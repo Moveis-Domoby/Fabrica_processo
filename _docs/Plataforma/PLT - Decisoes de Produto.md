@@ -1526,11 +1526,11 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 6. **Botão "Ajudar em tudo"** no topo da coluna em execução (tablet e PC): um gesto entra como auxiliar em TODOS os cards em execução do setor; e o "Pausar geral" ao lado. ⏳ PROVISÓRIA: para isso o limite por pessoa (D-48) deixou de barrar o AUXÍLIO — ele segue contando as ajudas abertas ao INICIAR um card próprio.
 7. **Dashboard de tempos detalhada** (pedido na mesma conversa): o card de cada pessoa abre os números POR SETOR (produção × ausente) e a produção por móvel — tempo, tempo parado e os motivos — na mesma requisição; o clique aprofunda (dia a dia, por setor, cada card com pausas e motivos).
 
-## D-161 · O grupo "Pedidos" do menu mora logo abaixo de "Rotas" (22/10/2026, pedido do dono) — ↪️ D-134
+## D-161 · O grupo "Pedidos" do menu mora logo abaixo de "Rotas" (21/10/2026, pedido do dono) — ↪️ D-134
 
 **Pedido do dono (lote noturno da SESSAO-38):** mover o pai **Pedidos** (Todos os pedidos · Cancelados) para ficar logo **abaixo** do grupo **Rotas** (Entregas · Programação). Ordem da Fábrica agora: Controle de produção → Logística → Rotas → **Pedidos**. Nada mais muda: o pai continua sem rota própria, os filhos seguem `/fabrica/pedidos/…` e quem vê é o mesmo de antes (D-134).
 
-## D-162 · As notificações fecham com qualquer toque fora do painel (22/10/2026, pedido do dono)
+## D-162 · As notificações fecham com qualquer toque fora do painel (21/10/2026, pedido do dono)
 
 **Pedido do dono:** o painel de notificações ficava aberto por cima da tela enquanto a pessoa clicava em outras coisas — qualquer toque/clique em qualquer lugar da plataforma, fora do painel, tem de fechá-lo na hora.
 
@@ -1538,7 +1538,7 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 - **O toque que fecha não se perde:** o botão, o mapa ou o card tocado recebe o clique normalmente (antes, um fundo invisível "comia" o clique — e só cobria a própria barra lateral).
 - ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono): trocar de tela também fecha o painel (não estava no pedido; é o comportamento esperado de um menu suspenso).
 
-## D-163 · Entrar sem digitar o e-mail: o aparelho lembra o nome de usuário, e o PIN aceita usuário (22/10/2026, pedido do dono) — ↪️ D-21, D-146
+## D-163 · Entrar sem digitar o e-mail: o aparelho lembra o nome de usuário, e o PIN aceita usuário (21/10/2026, pedido do dono) — ↪️ D-21, D-146
 
 **Pedido do dono:** *"digitar o e-mail toda vez é um saco"* — poder entrar com nome de usuário e senha.
 
@@ -1669,7 +1669,7 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 2. **No painel da rota:** a ida e a volta lado a lado, cada uma com distância e tempo; as linhas das paradas mostram o trecho de cada uma (sem toque para acender — o toque saiu com o trecho aceso).
 3. **"Programar":** a coluna da esquerda é uma pilha só — "Na rota" só aparece com pedido marcado e cresce na medida em que "Sem programação" encolhe; o "Ordenar por" fica no cabeçalho da lista. Nenhuma altura reservada.
 
-## D-167 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O TEMPO ÚTIL do card: só o expediente do setor; o PCP não tem fila (21–22/10/2026, pedido do dono) — ↪️ D-29, D-48
+## D-167 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O TEMPO ÚTIL do card: só o expediente do setor; o PCP não tem fila (21/10/2026, pedido do dono) — ↪️ D-29, D-48
 
 **Pedido do dono:** *"esses avisos de fila em PCP não fazem sentido na parte de tempo e histórico, já que PCP NÃO tem fila — deve ser só: Tempo útil em PCP. Lembrando que esse card deve sempre respeitar o horário do SETOR: se estiver fora do expediente e ninguém fizer hora extra, ele para de contar o tempo, até na fila — tem que contar só as horas úteis."*
 
@@ -1680,11 +1680,11 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 - Regra igual à das dashboards (sem horário cadastrado = conta o tempo todo; a pausa do setor desconta), calculada no aparelho a partir da régua que vem na abertura (D-172).
 - **Fica como está (registrado):** as dashboards seguem com a conta de sempre — elas descontam também a execução fora do horário (o card agora conta essa hora extra). O horário por pessoa não entra na fila do card (a fila é do setor).
 
-## D-168 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O PCP ganha horário de expediente (22/10/2026)
+## D-168 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O PCP ganha horário de expediente (21/10/2026)
 
 O PCP não tinha horário cadastrado — pela regra de sempre, ele contaria 24 h × 7. Na atualização do banco, o PCP recebeu **uma vez** o horário do primeiro setor de produção (o SECC: **segunda a sexta, 07:30–18:00**, o mesmo de todos os setores hoje). O admin muda em **Configurações → Controle de tempo**, como qualquer setor. Efeito junto: a dashboard de filas do PCP também passa a contar só o expediente.
 
-## D-169 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O STAND-BY no PCP (21–22/10/2026, pedido do dono)
+## D-169 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O STAND-BY no PCP (21/10/2026, pedido do dono)
 
 **Pedido do dono:** *"Na tela inicial do PCP, TODO card deve ter a opção de colocar em STAND-BY, selecionando um MOTIVO (os motivos são criados nas configurações também; motivo obrigatório para colocar em stand-by, e vai para a minha AUDITORIA). PCP ganha também uma nova SUB-ABA para manter esses pedidos em stand-by; de lá eles devem poder ser LANÇADOS DIRETO PARA AS ENTREGAS, ou VOLTAR para aguardando liberação (só volta a aparecer nas rotas se não estiver em stand-by). Pedidos em stand-by também NÃO contam tempo."*
 
@@ -1697,18 +1697,18 @@ O PCP não tinha horário cadastrado — pela regra de sempre, ele contaria 24 h
 - **Não conta tempo:** o tempo útil do pedido no PCP desconta todos os períodos de stand-by (os fechados ficam guardados no card).
 - O Tiny continua mandando (D-132): se ele levar o pedido adiante, o pedido sai também da aba Stand-by.
 
-## D-170 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — "Lançar direto para as entregas" e "Devolver" (22/10/2026)
+## D-170 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — "Lançar direto para as entregas" e "Devolver" (21/10/2026)
 
 - **Lançar para as entregas** = sair do stand-by e **as peças que ainda faltam ficam prontas na Expedição, sem passar pela produção** (a peça do estoque reservada pela venda é usada quando há) — a mesma maquinaria do "Concluído" do super admin (D-117). O pedido fica "Pronto" e entra nos candidatos de rota (Programação). Pede confirmação (dois toques).
 - **Recusado com peça na produção:** se alguma peça do pedido está num setor de produção, o lançar é recusado com a frase "N peças deste pedido estão na produção — espere ficarem prontas ou devolva o pedido para aguardando liberação" (a peça não é arrancada da produção).
 - **Devolver para aguardando liberação** = sair do stand-by e voltar ao quadro de sempre (e às rotas).
 
-## D-171 · ⏳ PROVISÓRIA (escolha do Claude — ajustada pelo supervisor) — Onde o pedido em stand-by aparece (22/10/2026)
+## D-171 · ⏳ PROVISÓRIA (escolha do Claude — ajustada pelo supervisor) — Onde o pedido em stand-by aparece (21/10/2026)
 
 - **Expedição: continua** em todos os filtros ("todos os pedidos não entregues" é literalmente todos menos os entregues), com a marca **"Stand-by · motivo"** (o motivo no balão) e sem o convite "Sem rota — programar".
 - **Fora dos candidatos de rota** (Programação, ROTAS, programar) e de "Aguardando liberação" (mora na aba nova). O quadrinho do PCP na Visão do dia conta o mesmo conjunto do quadro (D-75) — sem o stand-by.
 
-## D-172 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A régua do tempo útil vem na abertura do app (22/10/2026) — Lei §2/§8
+## D-172 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A régua do tempo útil vem na abertura do app (21/10/2026) — Lei §2/§8
 
 O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias) vêm prontos na **abertura do app** — nenhuma requisição a mais por tela; o aparelho calcula o tempo útil de cada card. O admin que muda um horário vê na hora; **as outras pessoas recebem o horário novo na próxima vez que abrirem a plataforma** (mudança de horário é rara; nada de relógio).
 

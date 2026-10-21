@@ -2,7 +2,7 @@
 titulo: Ordem das Sessões de Construção
 tipo: indice
 data: 2026-08-19
-atualizado: 2026-10-18
+atualizado: 2026-10-21
 tags: [plataforma, demandas, sessoes, roadmap]
 ---
 
@@ -59,6 +59,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 35º 🆕 | *(a mapear com o dono)* Baixa dos insumos por etapa | Cada insumo amarrado ao setor que o consome; a etapa concluída baixa o insumo pela estrutura do móvel (a estrutura do Tiny já chega pela 33) — D-143 ("próxima sessão, insumo → setor") | 33 | 📝 a mapear — **ordem com a 34 a definir pelo dono** |
 | 36º 🆕⏫ | [[SESSAO-36 - Tablet 2.0 - Login por Setor Auxiliares e Tempos por Pessoa]] | **Tablet 2.0**: modo tablet na tela de login com **PIN próprio por setor** (um tablet atende o setor inteiro), pessoa identificada **só pelo PIN** em toda ação (sem clicar no nome), botão **"Auxiliar"** em card de outro (tempo individual por pessoa), ícone com foto e Pausar/Sair/Entrar, estados **ausente/à deriva** com motivos de saída, **dashboard de tempos por pessoa**, foto de usuário em todo ícone, e **email + PIN** no PC com troca obrigatória de senha — tudo em tempo real por websocket (regra 18) | 31, 32 | ✅ **ENTREGUE E NO AR (18/10 à noite, com o dono)** — [[handoff_2026_10_18_sessao36_tablet_2_0]]: bateria 1.075 verdes, telas 205, ensaio ×100 dentro da lei; 95–97 aplicadas, `autenticacao` publicada (nº 13), teste ao vivo de ponta a ponta no SECC e **merge na main** com o OK do dono. **Esperam o dono**: PINs definitivos (setor e pessoas), confirmar a D-146 (provisória) e o resto do roteiro de teste do handoff. As 34/35 seguem a mapear |
 | 37º ⚡ | *(sem arquivo — ditada ao vivo pelo dono, 19/10)* | **A arrumação para entrar em produção**: limpa geral (quadro, tempos, rotas — PCP repovoado com os 51 pedidos vivos), PINs curtos (setor 2 dígitos, pessoa 2–4, todos zerados), níveis **Linha de produção** e **Logística**, **pausa por pessoa** (o card segue com quem ficou) e **Ajudar em tudo** no topo da coluna; dashboard de tempos aberta por setor e por móvel | 36 | ✅ **ENTREGUE E NO AR na mesma madrugada** — [[handoff_2026_10_19_sessao37_limpa_niveis]]; bateria 1.084, telas 205; decisões na D-147 (duas provisórias a confirmar) |
+| 38º ⚡ | [[SESSAO-38 - Bateria de Ajustes - Cards Rotas Expedicao Stand-by e Login]] | **Bateria de 13 ajustes do dono, numa noite e sem perguntas** — 5 frentes em paralelo com supervisor: prazo colorido e prioridade (urgente sempre primeiro) no card, janela do card preenchida, responsáveis por setor, organizador da fila por ícone, card do PCP refeito, tempo útil (só expediente; PCP sem fila), stand-by no PCP com motivo, rotas para qualquer pedido + mapa só ida/só volta, Expedição com 5 filtros (fim de Pedidos em aguardo), equipe só de entregador, pausas especiais que não contam, notificações fecham com qualquer clique, menu com Pedidos abaixo de Rotas, login lembra o usuário | 37 | ✅ **ENTREGUE E NO AR (21/10, ~11h40)** — [[handoff_2026_10_21_sessao38_bateria_ajustes]]: 6 migrations aplicadas, `autenticacao` v16, main publicada; decisões D-150…D-172 provisórias para o dono confirmar |
 
 **Depois:** BOM/insumos (chapas MDF) e custo por móvel · migração dos cards vivos (Q-25) · app/fluxo do motorista (↪️ a tela do entregador entra na SESSAO-30) · central de notificações com preferências (o resto da antiga 17).
 
