@@ -11941,7 +11941,7 @@ conferir(bPed.some((x) => x.id === pedido69 && x.rotulo === 'Pedido 969001') && 
 
 // 12 · permissões
 const priv69 = await um69(`
-  select has_function_privilege('anon', 'public.plt_fn_avulso_criar(text, text, date, date, uuid[], bigint[], text, bigint, bigint, uuid)', 'execute') as criar_anon,
+  select has_function_privilege('anon', 'public.plt_fn_avulso_criar(text, text, date, date, uuid[], bigint[], text, bigint, bigint, uuid, text)', 'execute') as criar_anon,
          has_function_privilege('authenticated', 'public.plt_fn_avulsos(text, text, bigint, integer)', 'execute') as lista_logado,
          has_function_privilege('authenticated', 'plt_privado.fn_avulso_concluir(bigint, uuid, text)', 'execute') as maquina,
          to_regprocedure('public.plt_fn_campo_salvar(bigint, text, text, text[], boolean, boolean)') is null as campo_velha_saiu`)
@@ -12059,8 +12059,8 @@ conferir(avisos.length === 2 && avisos.every((a) => a.n === 1)
 
 // 6 · permissões
 const priv70 = await um70(`
-  select has_function_privilege('anon', 'public.plt_fn_quadro_setor(bigint, integer)', 'execute') as anon_q,
-         has_function_privilege('authenticated', 'public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer)', 'execute') as logado_c,
+  select has_function_privilege('anon', 'public.plt_fn_quadro_setor(bigint, integer, text)', 'execute') as anon_q,
+         has_function_privilege('authenticated', 'public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer, text)', 'execute') as logado_c,
          has_function_privilege('authenticated', 'plt_privado.fn_quadro_cards(bigint[])', 'execute') as maquina`)
 conferir(!priv70.anon_q && priv70.logado_c && !priv70.maquina, 'anônimo fora; a maquinaria fora da API', JSON.stringify(priv70))
 } // fim do bloco 70
@@ -13124,8 +13124,8 @@ for (const grupo of ['pedido', 'reposicao', null]) {
   }
 }
 const priv82 = (await bd.query(`
-  select has_function_privilege('anon', 'public.plt_fn_pcp_quadro(integer, integer, text)', 'execute') as anon,
-         has_function_privilege('authenticated', 'public.plt_fn_pcp_quadro(integer, integer, text)', 'execute') as logado`)).rows[0]
+  select has_function_privilege('anon', 'public.plt_fn_pcp_quadro(integer, integer, text, text)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_pcp_quadro(integer, integer, text, text)', 'execute') as logado`)).rows[0]
 let operador82 = null
 try {
   operador82 = (await comoLogado82(E40.operador, `select count(*)::int as n from public.plt_fn_pcp_quadro(10, 0, null)`))[0].n
@@ -15506,6 +15506,350 @@ try {
   await como98('')
 }
 } // fim do bloco 98 (SESSAO-37)
+
+{ // escopo próprio (E-70)
+// ============================================================================
+// SESSAO-38 · bloco 38-cards — prazo, prioridade, responsáveis por setor e a
+// ordem da fila no servidor (migration 20261022010000)
+// ============================================================================
+const um38 = async (sql) => (await bd.query(sql)).rows[0]
+const todos38 = async (sql) => (await bd.query(sql)).rows
+const como38 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const AUTH38 = {
+  pcp: '00000000-0000-0000-0000-000000003801',
+  lider: '00000000-0000-0000-0000-000000003802',
+  op: '00000000-0000-0000-0000-000000003803',
+  fora: '00000000-0000-0000-0000-000000003804',
+  mont: '00000000-0000-0000-0000-000000003805',
+}
+const id38 = async (usuario) => (await um38(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+
+try {
+  titulo('SESSAO-38 · bloco 38 · o cenário: um setor de teste, três pedidos com datas diferentes, peças e um avulso')
+
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('teste38', 'TESTE 38', 'producao', 95)
+      on conflict do nothing;
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo = 'teste38';
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+      ('Pcp38', 'pcp38@teste.com', '38100003801', 'pcp38', 'operador', '${AUTH38.pcp}'),
+      ('Lider38', 'lider38@teste.com', '38200003802', 'lider38', 'lider', '${AUTH38.lider}'),
+      ('Op38', 'op38@teste.com', '38300003803', 'op38', 'operador', '${AUTH38.op}'),
+      ('Fora38', 'fora38@teste.com', '38400003804', 'fora38', 'operador', '${AUTH38.fora}'),
+      ('Mont38', 'mont38@teste.com', '38500003805', 'mont38', 'operador', '${AUTH38.mont}');
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+      ((select id from public.plt_usuarios where usuario = 'pcp38'), (select id from public.plt_setores where codigo = 'pcp'), false),
+      ((select id from public.plt_usuarios where usuario = 'lider38'), (select id from public.plt_setores where codigo = 'teste38'), true),
+      ((select id from public.plt_usuarios where usuario = 'op38'), (select id from public.plt_setores where codigo = 'teste38'), false),
+      ((select id from public.plt_usuarios where usuario = 'fora38'), (select id from public.plt_setores where codigo = 'secc'), false),
+      ((select id from public.plt_usuarios where usuario = 'mont38'), (select id from public.plt_setores where codigo = 'montagem'), false);
+    insert into public.pedidos (numero, cliente_id, situacao, data_pedido, data_prevista) values
+      (380001, (select id from public.clientes order by id limit 1), 'preparando_envio', current_date - 5, current_date + 10),
+      (380002, (select id from public.clientes order by id limit 1), 'preparando_envio', current_date - 4, current_date + 2),
+      (380003, (select id from public.clientes order by id limit 1), 'preparando_envio', current_date - 3, null);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      select p.id, 1, 'X38', 'Móvel 38', 3 from public.pedidos p where p.numero in (380001, 380002, 380003);
+  `)
+  // o card do pedido no PCP (o gatilho da integração cria; se não criou, nasce aqui)
+  for (const numero of [380001, 380002, 380003]) {
+    const tem = await um38(`select count(*)::int as n from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                             where p.numero = ${numero} and c.tipo = 'pedido'`)
+    if (tem.n === 0) {
+      await bd.exec(`
+        insert into public.plt_cards (tipo, pedido_id) select 'pedido', p.id from public.pedidos p where p.numero = ${numero};
+        insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+          values ((select max(id) from public.plt_cards), 'card_criado', (select id from public.plt_setores where codigo = 'pcp'), 'api');
+      `)
+    }
+  }
+  const pedidoCard38 = async (numero) =>
+    (await um38(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                  where p.numero = ${numero} and c.tipo = 'pedido'`)).id
+  const P1 = await pedidoCard38(380001)
+  const P2 = await pedidoCard38(380002)
+  const P3 = await pedidoCard38(380003)
+
+  const novaPeca38 = async (numero, descricao, indice, horas) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, 1, 'X38', '${descricao}', ${indice}, 3 from public.pedidos p where p.numero = ${numero};
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'card_criado',
+                (select id from public.plt_setores where codigo = 'pcp'), 'api', now() - interval '${horas + 1} hours');
+      insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+                (select id from public.plt_setores where codigo = 'pcp'),
+                (select id from public.plt_setores where codigo = 'teste38'), 'api', now() - interval '${horas} hours');
+    `)
+    return (await um38(`select max(id)::int as id from public.plt_cards`)).id
+  }
+  const u1 = await novaPeca38(380001, 'Zebra rack', 1, 9)
+  const u2 = await novaPeca38(380002, 'Armário alto', 1, 8)
+  const u3 = await novaPeca38(380003, '9 gavetas', 1, 7)
+  const u4 = await novaPeca38(380001, '😀 especial', 2, 6)
+
+  // o avulso nasce já com a prioridade "atenção", lançado direto para o setor
+  await como38(AUTH38.pcp)
+  const criado38 = await um38(`
+    select public.plt_fn_avulso_criar('Banco de apoio', null, null, current_date + 1, null, null, null, null,
+             (select id from public.plt_setores where codigo = 'teste38'), null, 'atencao') as r`)
+  await como38('')
+  const a1 = Number(criado38.r.card_id)
+  const prioA1 = await um38(`select prioridade from public.plt_cards where id = ${a1}`)
+  conferir(prioA1.prioridade === 'atencao',
+    'o card avulso nasce com a prioridade escolhida na criação (atenção)', JSON.stringify(prioA1))
+
+  const setor38 = (await um38(`select id::int as id from public.plt_setores where codigo = 'teste38'`)).id
+  const ordemDe = async (modo, porColuna = 10) => {
+    await como38(AUTH38.lider)
+    const q = await um38(`select public.plt_fn_quadro_setor(${setor38}, ${porColuna}, ${modo ? `'${modo}'` : 'null'}) as q`)
+    await como38('')
+    const chegada = q.q.colunas.find((c) => c.etapa_id === null)
+    return { ids: chegada.cards.map((c) => Number(c.id)), quadro: q.q, chegada }
+  }
+
+  titulo('SESSAO-38 · bloco 38 · a ordem da fila no servidor (prioridade · entrega · alfabética) e o urgente primeiro')
+
+  const ini = await ordemDe(null)
+  conferir(JSON.stringify(ini.ids) === JSON.stringify([a1, u1, u2, u3, u4]) && ini.quadro.ordem === 'prioridade',
+    'sem ordem pedida vale a prioridade: o de atenção primeiro, os comuns pelo mais antigo na etapa',
+    JSON.stringify({ ids: ini.ids, esperado: [a1, u1, u2, u3, u4], ordem: ini.quadro.ordem }))
+
+  // a prioridade se muda na PEÇA, mas vale para o PEDIDO inteiro
+  const avisosAntes = await um38(`select count(*)::int as n from realtime.messages where topic = 'plt-aviso:setor_${setor38}'`)
+  await como38(AUTH38.lider)
+  const r2 = await um38(`select public.plt_fn_card_prioridade(${u2}, 'urgente') as r`)
+  await como38('')
+  const avisosDepois = await um38(`select count(*)::int as n from realtime.messages where topic = 'plt-aviso:setor_${setor38}'`)
+  const prio2 = await um38(`select (select prioridade from public.plt_cards where id = ${P2}) as pedido,
+                                   (select prioridade from public.plt_cards where id = ${u2}) as peca`)
+  conferir(Number(r2.r.card_id) === P2 && r2.r.do_pedido === true && r2.r.mudou === true
+      && prio2.pedido === 'urgente' && prio2.peca === null,
+    'o líder do setor muda a prioridade pela peça: grava no card do PEDIDO (a peça não guarda a própria)',
+    JSON.stringify({ r: r2.r, prio2, P2 }))
+  conferir(avisosDepois.n > avisosAntes.n,
+    'a mudança de prioridade avisa ao vivo o quadro do setor onde a peça está (websocket do setor)',
+    JSON.stringify({ avisosAntes, avisosDepois }))
+
+  const urg = await ordemDe('prioridade')
+  conferir(JSON.stringify(urg.ids) === JSON.stringify([u2, a1, u1, u3, u4]),
+    'prioridade: urgente → atenção → comum (o mais antigo primeiro)', JSON.stringify(urg.ids))
+  const ent = await ordemDe('entrega')
+  conferir(JSON.stringify(ent.ids) === JSON.stringify([u2, a1, u1, u4, u3]),
+    'entrega: o urgente primeiro; depois a data de entrega mais próxima (o avulso pelo vencimento); sem data no fim',
+    JSON.stringify(ent.ids))
+  const alf = await ordemDe('alfabetica')
+  conferir(JSON.stringify(alf.ids) === JSON.stringify([u2, a1, u1, u3, u4]),
+    'alfabética: o urgente primeiro; depois letras (sem acento/maiúscula), números e por fim o resto (emoji)',
+    JSON.stringify(alf.ids))
+  const lixo = await ordemDe('qualquer')
+  conferir(lixo.quadro.ordem === 'prioridade' && JSON.stringify(lixo.ids) === JSON.stringify(urg.ids),
+    'ordem desconhecida vira a padrão (prioridade)', JSON.stringify(lixo.quadro.ordem))
+
+  // "Ver mais" por cursor, na mesma ordem
+  const pag1 = await ordemDe('alfabetica', 2)
+  await como38(AUTH38.lider)
+  const pag2 = await um38(`select public.plt_fn_quadro_coluna(${setor38}, null, null, ${pag1.ids[1]}, 2, 'alfabetica') as p`)
+  const pag3 = await um38(`select public.plt_fn_quadro_coluna(${setor38}, null, null,
+                                   ${Number(pag2.p.cards[1].id)}, 2, 'alfabetica') as p`)
+  // o site publicado chama sem a ordem (os nomes de parâmetro de sempre)
+  const antigo = await um38(`select public.plt_fn_quadro_coluna(p_setor_id => ${setor38}, p_etapa_id => null,
+                                   p_depois_desde => null, p_depois_id => ${pag1.ids[1]}, p_limite => 2) as p`)
+  await como38('')
+  const ids2 = pag2.p.cards.map((c) => Number(c.id))
+  const ids3 = pag3.p.cards.map((c) => Number(c.id))
+  conferir(JSON.stringify([...pag1.ids, ...ids2, ...ids3]) === JSON.stringify([u2, a1, u1, u3, u4])
+      && pag1.chegada.total === 5,
+    '"Ver mais" por cursor continua a mesma ordem, sem repetir nem pular (2 + 2 + 1), com o total certo',
+    JSON.stringify({ pag1: pag1.ids, ids2, ids3, total: pag1.chegada.total }))
+  conferir(Array.isArray(antigo.p.cards) && antigo.p.cards.length === 2,
+    'a porta do "Ver mais" segue respondendo à chamada do site publicado (sem a ordem)', JSON.stringify(antigo.p.cards?.length))
+
+  titulo('SESSAO-38 · bloco 38 · o card traz a prioridade herdada e a data de entrega lida AO VIVO; sem o nome do cliente')
+
+  const c2 = urg.chegada.cards.find((c) => Number(c.id) === u2)
+  const dataP2 = await um38(`select data_prevista::text as d from public.pedidos where numero = 380002`)
+  const pedidoNoQuadro = urg.quadro.pedidos[String((await um38(`select id from public.pedidos where numero = 380002`)).id)]
+  conferir(c2.prioridade === 'urgente' && c2.prioridade_herdada === true && c2.data_entrega === dataP2.d
+      && pedidoNoQuadro && !('cliente_nome' in pedidoNoQuadro) && pedidoNoQuadro.data_prevista === dataP2.d,
+    'a peça vem com a prioridade do pedido, a data de entrega do Tiny e o pedido sem o nome do cliente',
+    JSON.stringify({ c2: { p: c2.prioridade, h: c2.prioridade_herdada, d: c2.data_entrega }, dataP2, pedidoNoQuadro }))
+
+  // o Tiny muda a data → o card segue (nada copiado)
+  await bd.exec(`update public.pedidos set data_prevista = current_date + 30 where numero = 380002`)
+  const depoisTiny = await ordemDe('entrega')
+  const c2b = depoisTiny.chegada.cards.find((c) => Number(c.id) === u2)
+  const nova2 = await um38(`select (current_date + 30)::text as d`)
+  conferir(c2b.data_entrega === nova2.d,
+    'o Tiny mudou a data de entrega: o card mostra a data nova na hora (lida ao vivo)', JSON.stringify(c2b.data_entrega))
+
+  // a peça que nasce DEPOIS herda a prioridade do pedido
+  const u5 = await novaPeca38(380002, 'Armário alto', 2, 1)
+  const c5 = (await ordemDe('prioridade')).chegada.cards.find((c) => Number(c.id) === u5)
+  conferir(c5?.prioridade === 'urgente',
+    'a peça liberada depois herda a prioridade do pedido (sem copiar nada)', JSON.stringify(c5?.prioridade))
+
+  titulo('SESSAO-38 · bloco 38 · quem muda a prioridade; o mesmo toque não repete; ninguém grava por fora da porta')
+
+  await como38(AUTH38.op)
+  await deveRecusarExec(`select public.plt_fn_card_prioridade(${u1}, 'urgente')`,
+    'o operador do setor não muda a prioridade', /PCP, da liderança e do admin/i)
+  await como38(AUTH38.fora)
+  await deveRecusarExec(`select public.plt_fn_card_prioridade(${u1}, 'urgente')`,
+    'quem é de outro setor não muda a prioridade', /PCP, da liderança e do admin/i)
+  await como38(AUTH38.pcp)
+  await deveRecusarExec(`select public.plt_fn_card_prioridade(${u1}, 'altissima')`,
+    'prioridade inventada é recusada', /urgente, atenção ou comum/i)
+  const nEv = await um38(`select count(*)::int as n from public.plt_eventos where card_id = ${P2} and tipo = 'prioridade_definida'`)
+  const rep = await um38(`select public.plt_fn_card_prioridade(${P2}, 'urgente') as r`)
+  const nEv2 = await um38(`select count(*)::int as n from public.plt_eventos where card_id = ${P2} and tipo = 'prioridade_definida'`)
+  await como38('')
+  conferir(rep.r.mudou === false && nEv.n === nEv2.n,
+    'o PCP repete o mesmo toque no card do pedido: nenhum fato novo (Lei §10)', JSON.stringify({ rep: rep.r, nEv, nEv2 }))
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+       values (${P1}, 'prioridade_definida', (select id from public.plt_usuarios where usuario = 'pcp38'), 'interface',
+               '{"antes":"comum","depois":"urgente"}')`,
+    'prioridade direto na tabela (sem a porta) é recusada', /janela do card/i)
+  await deveRecusarExec(
+    `select set_config('plt.card_maquinaria', 'on', false);
+     insert into public.plt_eventos (card_id, tipo, origem, dados)
+       values (${u1}, 'prioridade_definida', 'api', '{"antes":"comum","depois":"urgente"}')`,
+    'a peça nunca guarda a prioridade própria (ela é do pedido)', /mude no pedido/i)
+  await bd.exec(`select set_config('plt.card_maquinaria', '', false)`)
+
+  titulo('SESSAO-38 · bloco 38 · o PCP: o MESMO conjunto do quadro antigo, na ordem pedida, com a prioridade')
+
+  await como38(AUTH38.pcp)
+  const velho = await todos38(`select id::int as id from public.plt_fn_cards_pedido_pcp(100, 0, 'pedido')`)
+  const novo = await todos38(`select id::int as id, prioridade, contagem_total::int as total from public.plt_fn_pcp_quadro(100, 0, 'pedido', 'prioridade')`)
+  const novoEnt = await todos38(`select id::int as id from public.plt_fn_pcp_quadro(100, 0, 'pedido', 'entrega')`)
+  const novoAlf = await todos38(`select id::int as id from public.plt_fn_pcp_quadro(100, 0, 'pedido', 'alfabetica')`)
+  const semOrdem = await todos38(`select id::int as id from public.plt_fn_pcp_quadro(p_limite => 100, p_deslocamento => 0, p_grupo => 'pedido')`)
+  const pagina2 = await todos38(`select id::int as id from public.plt_fn_pcp_quadro(2, 2, 'pedido', 'entrega')`)
+  await como38('')
+  const ord = (l) => l.map((x) => x.id)
+  const mesmoConjunto = JSON.stringify(ord(velho).sort((a, b) => a - b)) === JSON.stringify(ord(novo).sort((a, b) => a - b))
+  const pos = (l, id) => ord(l).indexOf(id)
+  conferir(mesmoConjunto && novo.length > 0 && novo[0].total === velho.length,
+    'o PCP mostra exatamente os mesmos pedidos do quadro antigo (o painel do dia segue batendo)',
+    JSON.stringify({ velho: velho.length, novo: novo.length, total: novo[0]?.total }))
+  conferir(novo[0].id === P2 && novo[0].prioridade === 'urgente' && novoEnt[0].id === P2 && novoAlf[0].id === P2,
+    'no PCP o pedido urgente vem primeiro em toda ordem, com a prioridade no card', JSON.stringify({ p: ord(novo).slice(0, 3), P2 }))
+  conferir(pos(novoEnt, P1) >= 0 && pos(novoEnt, P1) < pos(novoEnt, P3),
+    'no PCP por entrega: a data mais próxima antes, sem data no fim', JSON.stringify({ P1: pos(novoEnt, P1), P3: pos(novoEnt, P3) }))
+  conferir(JSON.stringify(ord(semOrdem)) === JSON.stringify(ord(novo)) && JSON.stringify(ord(pagina2)) === JSON.stringify(ord(novoEnt).slice(2, 4)),
+    'o PCP segue respondendo ao site publicado (sem a ordem) e pagina no servidor na ordem pedida',
+    JSON.stringify({ pagina2: ord(pagina2), esperado: ord(novoEnt).slice(2, 4) }))
+
+  titulo('SESSAO-38 · bloco 38 · a janela: prazo do Tiny, prioridade, responsáveis por setor (o passado não se muda)')
+
+  // op38 pega a peça u1 no setor de teste (o fato de execução)
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+      values (${u1}, 'execucao_iniciada', (select id from public.plt_usuarios where usuario = 'op38'), 'interface');
+  `)
+  await como38(AUTH38.lider)
+  const j1 = (await um38(`select public.plt_fn_card_janela(${u1}) as j`)).j
+  await como38(AUTH38.op)
+  const j1op = (await um38(`select public.plt_fn_card_janela(${u1}) as j`)).j
+  await como38('')
+  const datasP1 = await um38(`select data_pedido::text as ini, data_prevista::text as ven from public.pedidos where numero = 380001`)
+  const linhaTeste = j1.responsaveis_por_setor.find((s) => Number(s.setor_id) === setor38)
+  const op38 = await id38('op38')
+  conferir(j1.prazo.inicio === datasP1.ini && j1.prazo.vencimento === datasP1.ven && j1.prazo.do_pedido === true
+      && j1.permissoes.editar_datas === false,
+    'a janela da peça: Início = a data do pedido no Tiny, Vencimento = a data de entrega; as datas do pedido não se editam ali',
+    JSON.stringify({ prazo: j1.prazo, datasP1 }))
+  conferir(j1.prioridade.valor === 'comum' && j1.prioridade.do_pedido === true && j1.permissoes.priorizar === true
+      && j1op.permissoes.priorizar === false,
+    'a janela diz a prioridade (a do pedido) e quem pode mudar (o líder sim, o operador não)',
+    JSON.stringify({ p: j1.prioridade, lider: j1.permissoes.priorizar, op: j1op.permissoes.priorizar }))
+  conferir(linhaTeste && linhaTeste.executado === true && linhaTeste.executaram.includes(op38)
+      && linhaTeste.pode_planejar === false && j1.pessoas[op38]?.nome === 'Op38',
+    'os responsáveis por setor saem da história: quem pegou o card no setor aparece, e esse setor não se muda mais',
+    JSON.stringify(linhaTeste))
+
+  const montagem38 = (await um38(`select id::int as id from public.plt_setores where codigo = 'montagem'`)).id
+  const mont38 = await id38('mont38')
+  await como38(AUTH38.lider)
+  const posto = await um38(`select public.plt_fn_card_responsavel_setor(${u1}, ${montagem38}, '${mont38}', true) as r`)
+  const de_novo = await um38(`select public.plt_fn_card_responsavel_setor(${u1}, ${montagem38}, '${mont38}', true) as r`)
+  await deveRecusarExec(`select public.plt_fn_card_responsavel_setor(${u1}, ${setor38}, '${mont38}', true)`,
+    'o setor em que o card já foi trabalhado não muda de responsável (o passado é só leitura)', /já foi trabalhado/i)
+  await deveRecusarExec(`select public.plt_fn_card_responsavel_setor(${u1}, ${montagem38}, '${await id38('fora38')}', true)`,
+    'quem não trabalha no setor escolhido (e não pode ajudar em outros) não vira responsável dele', /não trabalha em/i)
+  const j2 = (await um38(`select public.plt_fn_card_janela(${u1}) as j`)).j
+  await como38(AUTH38.op)
+  await deveRecusarExec(`select public.plt_fn_card_responsavel_setor(${u1}, ${montagem38}, '${mont38}', false)`,
+    'o operador não define o responsável dos próximos setores', /liderança, do PCP e do admin/i)
+  await como38('')
+  const linhaMont = j2.responsaveis_por_setor.find((s) => Number(s.setor_id) === montagem38)
+  const aviso38 = await um38(`select count(*)::int as n from public.plt_notificacoes n
+                               where n.destinatario_id = '${mont38}' and n.card_id = ${u1} and n.tipo = 'card_responsavel'`)
+  const part38 = await um38(`select '${mont38}'::uuid = any (participantes) as ve from public.plt_cards where id = ${u1}`)
+  conferir(posto.r === 'posto' && de_novo.r === 'ja_estava' && linhaMont.planejados.includes(mont38)
+      && linhaMont.pode_planejar === true && aviso38.n === 1 && part38.ve === true,
+    'o líder define quem pega o card no PRÓXIMO setor: aparece na janela, a pessoa é avisada no sino e passa a ver o card; repetir não repete',
+    JSON.stringify({ posto, de_novo, linhaMont, aviso38, part38 }))
+  await como38(AUTH38.lider)
+  const tirado = await um38(`select public.plt_fn_card_responsavel_setor(${u1}, ${montagem38}, '${mont38}', false) as r`)
+  const j3 = (await um38(`select public.plt_fn_card_janela(${u1}) as j`)).j
+  await como38('')
+  const linhaMont3 = j3.responsaveis_por_setor.find((s) => Number(s.setor_id) === montagem38)
+  conferir(tirado.r === 'tirado' && linhaMont3.planejados.length === 0,
+    'tirar o responsável definido (setor ainda não trabalhado) é um fato novo; a janela fica sem ele', JSON.stringify({ tirado, linhaMont3 }))
+  await deveRecusarExec(
+    `insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+       values (${u1}, 'responsavel_setor_definido', '${mont38}', 'interface',
+               '{"setor_id": ${montagem38}, "responsavel_id": "${mont38}", "por": true}')`,
+    'responsável de setor direto na tabela (sem a porta) é recusado', /janela do card/i)
+
+  // a janela do card do PEDIDO junta quem trabalhou nas peças dele
+  await como38(AUTH38.pcp)
+  const jp = (await um38(`select public.plt_fn_card_janela(${P1}) as j`)).j
+  await como38('')
+  const linhaP = jp.responsaveis_por_setor.find((s) => Number(s.setor_id) === setor38)
+  conferir(linhaP?.executaram.includes(op38) && linhaP.pode_planejar === false && jp.prazo.do_pedido === true
+      && jp.pedido.data_pedido === datasP1.ini,
+    'no card do pedido a janela junta quem pegou as peças em cada setor (só leitura)', JSON.stringify(linhaP))
+
+  titulo('SESSAO-38 · bloco 38 · a etiqueta que fazia o papel de prioridade vira a prioridade e é arquivada (nada se apaga)')
+
+  await bd.exec(`
+    insert into public.plt_etiquetas (nome, cor) values ('URGENTE 38', 'violeta');
+    select set_config('plt.card_maquinaria', 'on', false);
+    insert into public.plt_eventos (card_id, tipo, origem, dados)
+      values (${u3}, 'etiqueta_adicionada', 'api', jsonb_build_object('etiqueta_id', (select id from public.plt_etiquetas where nome = 'URGENTE 38')));
+    select set_config('plt.card_maquinaria', '', false);
+  `)
+  // a migration de novo (idempotente) — agora com a etiqueta em uso
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261022010000_plt_card_prioridade_prazo_ordem.sql'), 'utf8'))
+  const conv = await um38(`
+    select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
+           (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
+           (select count(*)::int from public.plt_etiquetas where nome = 'URGENTE 38') as ainda_existe,
+           (select (select id from public.plt_etiquetas where nome = 'URGENTE 38') = any (etiquetas) from public.plt_cards where id = ${u3}) as no_card`)
+  conferir(conv.pedido3 === 'urgente' && conv.arquivada === true && conv.ainda_existe === 1 && conv.no_card === true,
+    'a peça com a etiqueta "URGENTE": o pedido dela vira urgente, a etiqueta é arquivada e nada se apaga (a migration roda de novo sem erro)',
+    JSON.stringify(conv))
+
+  titulo('SESSAO-38 · bloco 38 · permissões')
+  const priv38 = await um38(`
+    select has_function_privilege('anon', 'public.plt_fn_card_prioridade(bigint, text)', 'execute') as prio_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_card_prioridade(bigint, text)', 'execute') as prio_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_card_responsavel_setor(bigint, bigint, uuid, boolean)', 'execute') as resp_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text)', 'execute') as maquina,
+           to_regprocedure('public.plt_fn_quadro_setor(bigint, integer)') is null as quadro_velho_saiu,
+           to_regprocedure('public.plt_fn_pcp_quadro(integer, integer, text)') is null as pcp_velho_saiu`)
+  conferir(!priv38.prio_anon && priv38.prio_logado && priv38.resp_logado && !priv38.maquina
+      && priv38.quadro_velho_saiu && priv38.pcp_velho_saiu,
+    'anônimo fora; as portas novas para quem está logado; a maquinaria fora da API; uma assinatura só por porta',
+    JSON.stringify(priv38))
+} finally {
+  await como38('')
+}
+} // fim do bloco 38 (SESSAO-38, frente dos cards)
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

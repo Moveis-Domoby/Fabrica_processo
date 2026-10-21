@@ -1777,7 +1777,8 @@ comment on function public.plt_fn_abertura(text, boolean) is
   'SESSAO-32 (Lei §2): a primeira abertura do app numa requisição — perfil, vínculos, setores, os 20 avisos do sino, a 1ª página do chat, a bolinha, os catálogos de etiquetas e campos e (p_meu_painel) os dados do Meu Painel. SESSAO-36: o perfil diz se a sessão é a conta de tablet e se a pessoa pode auxiliar.';
 
 -- ----------------------------------------------------------------------------
--- 15 · O check novo valida tudo (E-19: o validate mora SEMPRE na migration
---      mais nova do check — saiu da migration da devolução)
+-- 15 · ↩️ SESSAO-38: o validate do check SAIU daqui (E-19: mora SEMPRE na
+--      migration mais nova do check — agora a da prioridade do card,
+--      20261022010000). Reaplicar esta num banco que já tem os tipos novos
+--      quebraria se validasse aqui.
 -- ----------------------------------------------------------------------------
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
