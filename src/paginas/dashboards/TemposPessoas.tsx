@@ -9,6 +9,7 @@ import { formatarDuracaoMs } from '@/kanban/tempo'
 import { tempoPessoaDetalhe, temposPessoas } from '@/dashboards/api'
 import type { EstadoPessoa, PessoaTempos } from '@/dashboards/api'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
+import { motivosComMarca, trechoNaoConta } from '@/dashboards/pausaEspecial'
 import { OPCOES_PERIODO } from '@/dashboards/opcoes'
 
 const ROTULO_ESTADO: Record<EstadoPessoa, string> = {
@@ -25,18 +26,27 @@ function diaIso(deslocamentoDias = 0): string {
 
 const seg = (s: number) => formatarDuracaoMs(s * 1000)
 
-function PilulaEstado({ estado }: { estado: EstadoPessoa | null }) {
+function PilulaEstado({
+  estado,
+  naoConta = false,
+}: {
+  estado: EstadoPessoa | null
+  /** SESSAO-38 (D-165): ausente por motivo especial — só chega verdadeiro para líder/admin. */
+  naoConta?: boolean
+}) {
+  const especial = estado === 'ausente' && naoConta
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
         estado === 'trabalhando' && 'bg-perfeito-fundo text-perfeito-texto',
-        estado === 'ausente' && 'bg-atencao-fundo text-atencao-texto',
-        (estado === 'deriva' || estado === null) && 'bg-superficie-sutil text-texto-suave',
+        estado === 'ausente' && !especial && 'bg-atencao-fundo text-atencao-texto',
+        (estado === 'deriva' || estado === null || especial) &&
+          'bg-superficie-sutil text-texto-suave',
       )}
     >
       {estado === 'trabalhando' && <Play aria-hidden className="size-3" />}
-      {estado ? ROTULO_ESTADO[estado] : 'Fora'}
+      {especial ? 'Parado · não conta' : estado ? ROTULO_ESTADO[estado] : 'Fora'}
     </span>
   )
 }
@@ -53,10 +63,7 @@ export function TemposPessoas() {
   const [dias, setDias] = useState(7)
   const [detalheDe, setDetalheDe] = useState<PessoaTempos | null>(null)
 
-  const periodo = useMemo(
-    () => ({ de: diaIso(dias - 1), ate: diaIso(0) }),
-    [dias],
-  )
+  const periodo = useMemo(() => ({ de: diaIso(dias - 1), ate: diaIso(0) }), [dias])
 
   const chave = ['tempos-pessoas', periodo] as const
   useAoVivo('tempos', [[...chave]], { esperaMs: 2_000, espalharMs: 4_000 })
@@ -120,7 +127,7 @@ export function TemposPessoas() {
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-medium text-texto">{p.nome}</span>
                     <span className="mt-0.5">
-                      <PilulaEstado estado={p.estado} />
+                      <PilulaEstado estado={p.estado} naoConta={p.estado_especial === true} />
                     </span>
                   </span>
                 </span>
@@ -144,6 +151,13 @@ export function TemposPessoas() {
                     </dd>
                   </div>
                 </dl>
+                {/* SESSAO-38 (D-165): o parado por motivo especial fica fora do
+                    ausente — só o líder/admin recebe este número (> 0). */}
+                {(p.especial_s ?? 0) > 0 && (
+                  <p className="-mt-1 text-xs text-texto-suave tabular-nums">
+                    Parado por motivo especial (não conta): {seg(p.especial_s ?? 0)}
+                  </p>
+                )}
                 {/* SESSAO-37 (pedido do dono, 19/10): os números POR SETOR já na
                     primeira visualização — produção × ausente e os móveis
                     trabalhados, com o tempo parado e o motivo. */}
@@ -156,21 +170,28 @@ export function TemposPessoas() {
                           <span className="text-texto-suave tabular-nums">
                             produção {seg(s.producao_s)}
                             {s.ausente_s > 0 ? ` · ausente ${seg(s.ausente_s)}` : ''}
+                            {trechoNaoConta(s.especial_s, seg)}
                           </span>
                         </p>
-                        {(s.cards ?? []).map((c) => (
-                          <p
-                            key={`${c.card_id}-${c.auxiliar ? 'a' : 'e'}`}
-                            className="truncate pl-2 text-xs text-texto-suave"
-                          >
-                            {c.rotulo ?? `Card ${c.card_id}`}
-                            {c.auxiliar ? ' (ajudando)' : ''}: {seg(c.segundos)}
-                            {c.em_andamento ? ' (contando)' : ''}
-                            {c.pausado_s > 0 ? ` · parado ${seg(c.pausado_s)}` : ''}
-                            {c.motivos.length > 0 ? ` — ${c.motivos.slice(0, 2).join(' · ')}` : ''}
-                            {c.motivos.length > 2 ? ' · …' : ''}
-                          </p>
-                        ))}
+                        {(s.cards ?? []).map((c) => {
+                          const motivos = motivosComMarca(c.motivos, c.motivos_especiais)
+                          return (
+                            <p
+                              key={`${c.card_id}-${c.auxiliar ? 'a' : 'e'}`}
+                              className="truncate pl-2 text-xs text-texto-suave"
+                            >
+                              {c.rotulo ?? `Card ${c.card_id}`}
+                              {c.auxiliar ? ' (ajudando)' : ''}: {seg(c.segundos)}
+                              {c.em_andamento ? ' (contando)' : ''}
+                              {c.pausado_s > 0 ? ` · parado ${seg(c.pausado_s)}` : ''}
+                              {(c.especial_s ?? 0) > 0
+                                ? ` (não conta ${seg(c.especial_s ?? 0)})`
+                                : ''}
+                              {motivos.length > 0 ? ` — ${motivos.slice(0, 2).join(' · ')}` : ''}
+                              {motivos.length > 2 ? ' · …' : ''}
+                            </p>
+                          )
+                        })}
                       </div>
                     ))}
                   </div>
@@ -196,7 +217,10 @@ export function TemposPessoas() {
           <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
             {detalhe.estado && (
               <p className="flex items-center gap-2 text-sm text-texto">
-                <PilulaEstado estado={detalhe.estado.estado} />
+                <PilulaEstado
+                  estado={detalhe.estado.estado}
+                  naoConta={detalhe.estado.especial === true}
+                />
                 <span className="text-texto-suave">
                   desde {new Date(detalhe.estado.desde).toLocaleString('pt-BR')}
                 </span>
@@ -211,9 +235,9 @@ export function TemposPessoas() {
                     <li key={s.setor_id} className="flex flex-wrap justify-between gap-x-3 text-sm">
                       <span className="text-texto">{s.nome}</span>
                       <span className="text-texto-suave tabular-nums">
-                        produção{' '}
-                        <span className="font-medium text-texto">{seg(s.producao_s)}</span>
+                        produção <span className="font-medium text-texto">{seg(s.producao_s)}</span>
                         {s.ausente_s > 0 ? <> · ausente {seg(s.ausente_s)}</> : null}
+                        {trechoNaoConta(s.especial_s, seg)}
                       </span>
                     </li>
                   ))}
@@ -235,6 +259,7 @@ export function TemposPessoas() {
                       <span className="text-texto-suave tabular-nums">
                         produção {seg(d.producao_s)} · ausente {seg(d.ausente_s)} · fora{' '}
                         {seg(d.deriva_s)}
+                        {trechoNaoConta(d.especial_s, seg)}
                       </span>
                     </li>
                   ))}
@@ -265,11 +290,12 @@ export function TemposPessoas() {
                           {seg(e.segundos)}
                           {e.em_andamento ? ' (contando)' : ''}
                           {e.pausado_s > 0 ? ` · parado ${seg(e.pausado_s)}` : ''}
+                          {(e.especial_s ?? 0) > 0 ? ` (não conta ${seg(e.especial_s ?? 0)})` : ''}
                         </span>
                       </span>
                       {e.motivos.length > 0 && (
                         <span className="pl-5 text-xs text-texto-suave">
-                          Parado por: {e.motivos.join(' · ')}
+                          Parado por: {motivosComMarca(e.motivos, e.motivos_especiais).join(' · ')}
                         </span>
                       )}
                     </li>
@@ -290,6 +316,7 @@ export function TemposPessoas() {
                         {seg(a.segundos)}
                         {a.encerrado_em === null ? ' (contando)' : ''}
                         {a.motivo ? ` · pausa: ${a.motivo}` : ''}
+                        {a.motivo && a.motivo_especial ? ' (não conta)' : ''}
                       </span>
                     </li>
                   ))}

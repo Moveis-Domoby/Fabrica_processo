@@ -63,6 +63,9 @@ revoke all on function plt_privado.fn_tempos_aberto(uuid, timestamptz, timestamp
 -- ----------------------------------------------------------------------------
 -- O scorecard por pessoa
 -- ----------------------------------------------------------------------------
+-- SESSAO-38 (E-17): a migration da pausa especial muda a FORMA desta porta —
+-- o drop aqui deixa a 2ª rodada (e a reaplicação completa) recriar sem erro.
+drop function if exists public.plt_fn_tempos_pessoas(date, date, integer, integer);
 create or replace function public.plt_fn_tempos_pessoas(
   p_de           date default null,   -- dia inicial (Fortaleza); nulo = hoje − 6
   p_ate          date default null,   -- dia final; nulo = hoje

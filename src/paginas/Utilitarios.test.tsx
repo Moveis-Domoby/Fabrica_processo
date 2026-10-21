@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { Utilitarios } from './Utilitarios'
-import { salvarCampo, salvarEtiqueta } from '@/utilitarios/api'
+import { salvarCampo, salvarEtiqueta, salvarMotivoComMarca } from '@/utilitarios/api'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101): etiquetas (nome + cor da
@@ -30,6 +30,16 @@ vi.mock('@/utilitarios/api', () => ({
   salvarCampo: vi.fn(async () => 4),
   arquivarCampo: vi.fn(async () => undefined),
   excluirCampo: vi.fn(async () => undefined),
+  // SESSAO-38 (D-164): a lista de pausa com a marca "especial"
+  listarMotivosComMarca: vi.fn(async () => [
+    { id: 60, tipo: 'pausa', texto: 'Falta de material', ordem: 10, ativo: true, especial: false },
+    { id: 81, tipo: 'pausa', texto: 'Máquina quebrou', ordem: 80, ativo: true, especial: true },
+  ]),
+  salvarMotivoComMarca: vi.fn(async () => 99),
+}))
+vi.mock('@/rotas/api', () => ({
+  listarMotivos: vi.fn(async () => []),
+  salvarMotivo: vi.fn(async () => 1),
 }))
 
 function renderizar(rota = '/configuracoes/utilitarios') {
@@ -82,6 +92,43 @@ describe('Configurações → Utilitários', () => {
         emPecas: true,
         emPedidos: true,
         emAvulsos: false,
+      }),
+    )
+  })
+
+  it('SESSAO-38: motivos de pausa mostram a marca especial, e o novo é salvo com a caixinha', async () => {
+    renderizar('/configuracoes/utilitarios?aba=pausa')
+    expect(await screen.findByText('Máquina quebrou')).toBeInTheDocument()
+    expect(screen.getAllByText('Especial · não conta o tempo')).toHaveLength(1)
+    expect(screen.getByText(/enquanto a pessoa estiver parada por este motivo/)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Novo motivo'), { target: { value: 'Faltou energia' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Especial/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }))
+    await waitFor(() =>
+      expect(salvarMotivoComMarca).toHaveBeenCalledWith({
+        id: null,
+        texto: 'Faltou energia',
+        especial: true,
+        tipo: 'pausa',
+      }),
+    )
+  })
+
+  it('SESSAO-38: editar um motivo especial leva a marca junto; desmarcar salva sem ela', async () => {
+    renderizar('/configuracoes/utilitarios?aba=pausa')
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar "Máquina quebrou"' }))
+    // a caixinha da edição vem antes da do cadastro novo
+    const caixa = screen.getAllByRole('checkbox', { name: /Especial/ })[0]!
+    expect(caixa).toBeChecked()
+    fireEvent.click(caixa)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() =>
+      expect(salvarMotivoComMarca).toHaveBeenCalledWith({
+        id: 81,
+        texto: 'Máquina quebrou',
+        ativo: true,
+        especial: false,
+        tipo: 'pausa',
       }),
     )
   })
