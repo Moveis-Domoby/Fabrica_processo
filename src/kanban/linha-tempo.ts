@@ -1,4 +1,26 @@
 import type { EventoLinhaTempo } from './tipos'
+import {
+  intersecao,
+  periodosStandby,
+  somar,
+  subtrair,
+  tempoPcpMs,
+  tempoUtilMs,
+} from './tempoUtil'
+import type { Intervalo, ReguaTempo, TempoDoPedidoNoPcp } from './tempoUtil'
+
+/**
+ * SESSAO-38 · F5 (D-167 ⏳): o contexto do tempo ÚTIL — a régua do expediente
+ * de cada setor e, quando a tela sabe, o pedido (o relógio do PCP é do
+ * PEDIDO — D-48 — e desconta o stand-by). Sem contexto, a montagem é a de
+ * sempre (relógio corrido).
+ */
+export interface ContextoTempo {
+  regua?: ReguaTempo | null
+  pedido?: TempoDoPedidoNoPcp | null
+}
+
+export type PapelDoSetor = 'entrada' | 'producao' | 'terminal'
 
 /**
  * Montagem da linha do tempo do card (SESSAO-05 / D-02).
@@ -34,6 +56,8 @@ export interface ExecucaoSegmento {
   pausaMs: number
   /** SESSAO-22: pausada AGORA (execução aberta com pausa sem retomada). */
   pausada: boolean
+  /** SESSAO-38 (F5): os trechos em que alguém trabalhou de fato (sem as pausas) — hora extra conta. */
+  trabalho: Intervalo[]
   /** De quem a execução foi assumida, quando foi transferência (D-24). */
   transferidoDe: string | null
 }
@@ -58,6 +82,17 @@ export interface PermanenciaSegmento {
   saiuEm: number | null
   totalMs: number
   filaMs: number
+  /** SESSAO-38 (F5): o setor da permanência e o papel dele (o PCP e os fins de linha não têm fila). */
+  setorId: number | null
+  papel: PapelDoSetor | null
+  /** SESSAO-38 (F5): a fila só no expediente do setor (= filaMs sem régua). */
+  filaUtilMs: number
+  /** SESSAO-38 (F5): o total só no expediente + o trabalho fora dele (= totalMs sem régua). */
+  totalUtilMs: number
+  /** SESSAO-38 (F5): no PCP, o tempo útil do PEDIDO (D-48), sem o stand-by; nulo fora do PCP. */
+  pcpUtilMs: number | null
+  /** SESSAO-38 (F5): quanto do relógio corrido foi stand-by (fora da conta). */
+  standbyMs: number
   execucoes: ExecucaoSegmento[]
   /** null quando a chegada não teve marcação (saída do PCP, API — D-25). */
   qualidade: QualidadeSegmento | null
@@ -65,15 +100,39 @@ export interface PermanenciaSegmento {
 
 const TIPOS_POSICAO = new Set(['card_criado', 'movimentacao_setor', 'movimentacao_etapa'])
 
+/**
+ * Os períodos de stand-by escritos nos fatos do próprio card (o card do
+ * pedido): cada "entrou" até a "saiu" que aponta para ele (ou até sempre).
+ */
+function standbyDosEventos(ordenados: EventoLinhaTempo[]): Intervalo[] {
+  const saida: Intervalo[] = []
+  for (const e of ordenados) {
+    if (e.tipo !== 'pedido_standby_entrou') continue
+    const fim = ordenados.find(
+      (s) => s.tipo === 'pedido_standby_saiu' && s.evento_referencia_id === e.evento_id,
+    )
+    saida.push([
+      new Date(e.ocorrido_em).getTime(),
+      fim ? new Date(fim.ocorrido_em).getTime() : Infinity,
+    ])
+  }
+  return saida
+}
+
 export function montarSegmentos(
   eventos: EventoLinhaTempo[],
   agora = Date.now(),
+  contexto: ContextoTempo = {},
 ): PermanenciaSegmento[] {
   const ordenados = [...eventos].sort(
     (a, b) =>
       new Date(a.ocorrido_em).getTime() - new Date(b.ocorrido_em).getTime() ||
       a.evento_id - b.evento_id,
   )
+  const regua = contexto.regua ?? null
+  const pcpDoPedido = contexto.pedido ? tempoPcpMs(contexto.pedido, regua, agora) : null
+  // o stand-by do card (os fatos dele) ou, na peça, o do pedido
+  const standby = [...standbyDosEventos(ordenados), ...periodosStandby(contexto.pedido)]
 
   const posicoes = ordenados.filter(
     (e) => TIPOS_POSICAO.has(e.tipo) && e.setor_destino_id !== null,
@@ -130,6 +189,7 @@ export function montarSegmentos(
       const fimExecucao = finalizouEm ?? agora
       let pausaMs = 0
       let pausada = false
+      const pausas: Intervalo[] = []
       for (const pausa of ordenados) {
         if (pausa.tipo !== 'execucao_pausada') continue
         if (pausa.evento_referencia_id !== gesto.evento_id) continue
@@ -142,6 +202,7 @@ export function montarSegmentos(
           ? Math.min(new Date(retomada.ocorrido_em).getTime(), fimExecucao)
           : fimExecucao
         pausaMs += Math.max(voltouEm - pausouEm, 0)
+        pausas.push([pausouEm, voltouEm])
         if (!retomada && finalizouEm === null) pausada = true
       }
 
@@ -155,6 +216,7 @@ export function montarSegmentos(
         duracaoMs: (finalizouEm ?? agora) - iniciouEm - pausaMs,
         pausaMs,
         pausada,
+        trabalho: subtrair([[iniciouEm, fimExecucao]], pausas),
         transferidoDe:
           typeof gesto.dados?.transferido_de === 'string' ? gesto.dados.transferido_de : null,
       })
@@ -163,6 +225,17 @@ export function montarSegmentos(
     // D-02: a fila vai da chegada até o PRIMEIRO iniciar. Sem iniciar, é toda fila.
     const primeiroInicio = execucoes[0]?.iniciouEm ?? null
     const filaMs = (primeiroInicio ?? fim) - entrouEm
+
+    // SESSAO-38 (F5 · D-167): só o expediente do setor conta — a fila inteira
+    // e o total; quem trabalhou fora do horário (hora extra) conta; o stand-by
+    // não. No PCP vale o relógio do PEDIDO (D-48), quando a tela o conhece.
+    const setorId = entrada.setor_destino_id
+    const papel = (regua?.papeis?.[String(setorId)] as PapelDoSetor | undefined) ?? null
+    const trabalho = execucoes.flatMap((e) => e.trabalho)
+    const filaUtilMs = tempoUtilMs(entrouEm, primeiroInicio ?? fim, setorId, regua, { excluir: standby })
+    const totalUtilMs = tempoUtilMs(entrouEm, fim, setorId, regua, { trabalho, excluir: standby })
+    const standbyMs = somar(intersecao(standby, [[entrouEm, fim]]))
+    const pcpUtilMs = papel === 'entrada' ? (pcpDoPedido ?? totalUtilMs) : null
 
     // SESSAO-06 (D-09): a chegada entre setores pode carregar a marcação de
     // quem entregou (evento_referencia_id) e o parecer de quem recebeu.
@@ -198,6 +271,12 @@ export function montarSegmentos(
       saiuEm,
       totalMs: fim - entrouEm,
       filaMs,
+      setorId,
+      papel,
+      filaUtilMs,
+      totalUtilMs,
+      pcpUtilMs,
+      standbyMs,
       execucoes,
       qualidade,
     }

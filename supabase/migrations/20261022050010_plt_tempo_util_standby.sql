@@ -251,6 +251,10 @@ set search_path = public, pg_temp
 as $$
   select case when plt_privado.fn_usuario_atual() is null then null else jsonb_build_object(
     'fuso_min', -180,
+    -- o PCP (o relógio do pedido) e o papel de cada setor (a linha do tempo
+    -- não fala em fila onde ninguém "inicia": a entrada e os fins de linha)
+    'pcp_setor_id', (select s.id from public.plt_setores s where s.codigo = 'pcp' limit 1),
+    'papeis', coalesce((select jsonb_object_agg(s.id::text, s.papel_no_fluxo) from public.plt_setores s), '{}'::jsonb),
     'janelas', coalesce((
       select jsonb_agg(jsonb_build_array(h.setor_id, h.dia_semana,
                                          to_char(h.hora_inicio, 'HH24:MI:SS'), to_char(h.hora_fim, 'HH24:MI:SS'))
@@ -268,7 +272,7 @@ as $$
 $$;
 
 comment on function public.plt_fn_regua_tempo() is
-  'SESSAO-38 (D-167/D-172): a régua do tempo útil — janelas de cada setor [setor, dia (0 = domingo), início, fim] e pausas de setor [setor, início, fim|nulo] dos últimos 120 dias, fuso −180 min. Vem na abertura (plt_fn_abertura → regua_tempo); esta porta é a releitura.';
+  'SESSAO-38 (D-167/D-172): a régua do tempo útil — o setor do PCP, o papel de cada setor, as janelas de cada setor [setor, dia (0 = domingo), início, fim] e pausas de setor [setor, início, fim|nulo] dos últimos 120 dias, fuso −180 min. Vem na abertura (plt_fn_abertura → regua_tempo); esta porta é a releitura.';
 
 -- ----------------------------------------------------------------------------
 -- 8 · O gesto: pôr em stand-by (motivo obrigatório — da lista ou "Outro")

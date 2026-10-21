@@ -156,6 +156,17 @@ export type PedidoDoCard = Pick<
    */
   cliente_nome?: string
   data_pedido?: string | null
+} & StandbyDoPedido
+
+/**
+ * SESSAO-38 (D-169): o stand-by do pedido no PCP — o aberto (desde quando, o
+ * motivo, quem pôs) e os períodos já fechados. O relógio do PCP desconta todos.
+ */
+export interface StandbyDoPedido {
+  standby_desde?: string | null
+  standby_motivo?: string | null
+  standby_por?: string | null
+  standby_periodos?: { ini: string; fim: string }[] | null
 }
 
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
@@ -193,6 +204,11 @@ export interface PedidoResumo {
   /** SESSAO-22 (D-48): quando a última unidade foi liberada — o fim do tempo em PCP. */
   liberado_completo_em: string | null
   contagem_total: number
+  /** SESSAO-38 (D-169): o stand-by do pedido — vem no resumo do quadro do PCP. */
+  standby_desde?: string | null
+  standby_motivo?: string | null
+  standby_por?: string | null
+  standby_periodos?: { ini: string; fim: string }[] | null
 }
 
 /**
@@ -336,6 +352,14 @@ export interface EventoLinhaTempo {
     // SESSAO-38 (D-150/D-152): a prioridade e o responsável de um setor.
     | 'prioridade_definida'
     | 'responsavel_setor_definido'
+    // SESSAO-38 (D-169): o stand-by do pedido no PCP.
+    | 'pedido_standby_entrou'
+    | 'pedido_standby_saiu'
+    // SESSAO-36 (D-146): o auxílio (vem na história do card).
+    | 'auxilio_iniciado'
+    | 'auxilio_pausado'
+    | 'auxilio_retomado'
+    | 'auxilio_encerrado'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null
