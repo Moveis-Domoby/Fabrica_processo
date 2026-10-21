@@ -556,50 +556,86 @@ export async function baixarPecaPersonalizada(cardId: number, observacao: string
 }
 
 // ---------------------------------------------------------------------------
-// Pedidos em aguardo (D-38/D-45): unidades prontas esperando o pedido completar
+// Expedição (SESSAO-38 · D-157): a tela que absorveu "Pedidos em aguardo" —
+// os pedidos VIVOS (a mesma regra das rotas), com os números dos filtros na
+// MESMA requisição da página (Lei §2/§6: paginação e filtro no servidor).
 // ---------------------------------------------------------------------------
 
-export interface PedidoAguardo {
+/** Os filtros da Expedição (os quadradinhos do topo). */
+export type FiltroExpedicao = 'todos' | 'com_rota' | 'sem_rota' | 'prontos' | 'em_producao'
+
+/** pronto · em produção (alguma peça liberada) · no PCP (nada liberado ainda). */
+export type EstadoPedidoVivo = 'pronto' | 'em_producao' | 'no_pcp'
+
+export interface PedidoExpedicao {
   card_id: number
   pedido_id: number
   numero: number
   cliente_nome: string
   data_prevista: string | null
   situacao: string | null
+  /** As peças do pedido (o frete não conta — D-63). */
   total_unidades: number
+  /** O que falta entregar (na reentrega, só o que voltou — D-130). */
+  a_entregar: number
   unidades_liberadas: number
+  /** No fim de linha (Pedidos em aguardo ou ROTAS). */
   unidades_prontas: number
-  completo: boolean
-  alterado_apos_liberacao: boolean
-  /** SESSAO-22 (D-48): quando a PRIMEIRA unidade ficou pronta (chegou em terminal). */
+  pronto: boolean
+  estado: EstadoPedidoVivo
+  /** Quando a 1ª peça ficou pronta (D-48). */
   primeira_pronta_em: string | null
-  /** SESSAO-22 (D-48): quando o pedido ficou COMPLETO — é daqui que o tempo de
-   *  aguardo total conta (insumo futuro do cálculo de tempo de entrega). */
+  /** Quando o pedido ficou completo. */
   completo_em: string | null
-  contagem_total: number
+  /** Lançado para ROTAS no jeito antigo (as peças estão na ROTAS). */
+  lancado: boolean
+  /** As peças voltaram e esperam a decisão da logística (D-129). */
+  em_devolucao: boolean
+  alterado_apos_liberacao: boolean
+  programacao: {
+    data: string
+    caminhao_id: number
+    caminhao_nome: string | null
+    caminhao_placa: string | null
+    rota: number
+  } | null
 }
 
-export async function listarPedidosAguardo(parametros: {
+export interface ContagensExpedicao {
+  todos: number
+  com_rota: number
+  sem_rota: number
+  prontos: number
+  em_producao: number
+}
+
+export interface PaginaExpedicao {
+  filtro: FiltroExpedicao
+  contagens: ContagensExpedicao
+  /** Quantos o filtro (com a busca) tem — para a paginação. */
+  total: number
+  itens: PedidoExpedicao[]
+}
+
+export async function listarExpedicao(parametros: {
+  filtro: FiltroExpedicao
   busca?: string
   limite?: number
   deslocamento?: number
-}): Promise<PedidoAguardo[]> {
-  const { data, error } = await supabase.rpc('plt_fn_pedidos_aguardo', {
-    p_busca: parametros.busca || null,
+}): Promise<PaginaExpedicao> {
+  const { data, error } = await supabase.rpc('plt_fn_expedicao', {
+    p_filtro: parametros.filtro,
+    p_busca: parametros.busca?.trim() || null,
     p_limite: parametros.limite ?? 20,
     p_deslocamento: parametros.deslocamento ?? 0,
   })
-  return garantir(
-    data as PedidoAguardo[] | null,
-    error,
-    'Não deu para carregar os pedidos em aguardo',
-  )
+  return garantir(data as PaginaExpedicao | null, error, 'Não deu para carregar a Expedição')
 }
 
 /**
- * SESSAO-24 — a aba "Produtos reservados" de Pedidos em aguardo (a2 do dono):
- * cada peça pronta de pedido, com o pedido, o produto e o tempo em aguardo.
- * Mesma base da aba "Pedidos" no banco — os contadores batem.
+ * SESSAO-24 — "Produtos reservados" (a2 do dono), que veio de Pedidos em
+ * aguardo para a Expedição (SESSAO-38): cada peça pronta de pedido, com o
+ * pedido, o produto e o tempo esperando a entrega.
  */
 export interface ProdutoReservado {
   card_id: number
@@ -640,32 +676,9 @@ export async function listarProdutosReservados(parametros: {
   )
 }
 
-/** SESSAO-24: os números das abas de Pedidos em aguardo (agregado barato — regra 17). */
-export interface ContagensAguardo {
-  pedidos: number
-  pedidos_completos: number
-  produtos: number
-}
-
-export async function contagensAguardo(): Promise<ContagensAguardo> {
-  const { data, error } = await supabase.rpc('plt_fn_aguardo_contagens')
-  const linhas = garantir(
-    data as ContagensAguardo[] | null,
-    error,
-    'Não deu para carregar as contagens do aguardo',
-  )
-  return linhas[0] ?? { pedidos: 0, pedidos_completos: 0, produtos: 0 }
-}
-
-/**
- * Lançar para ROTAS (D-45): evento no card do pedido + as unidades saem de
- * Pedidos em aguardo (antes: do ESTOQUE) para o setor ROTAS numa transação.
- * O banco recusa pedido incompleto.
- */
-export async function lancarParaRotas(cardPedidoId: number): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_lancar_rotas', { p_card_id: cardPedidoId })
-  if (error) throw new Error(`Não deu para lançar: ${error.message}`)
-}
+// ↩️ SESSAO-38 (D-156): "Lançar para ROTAS" deixou de ser passo — qualquer
+// pedido vivo se programa direto na Programação; as contagens das abas do
+// aguardo viraram os números dos filtros da Expedição.
 
 // ---------------------------------------------------------------------------
 // Danificados (D-38/D-45)

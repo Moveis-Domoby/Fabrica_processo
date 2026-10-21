@@ -277,7 +277,6 @@ export function Layout({ children }: { children: ReactNode }) {
               filhos: [
                 { para: '/fabrica/logistica/expedicao', rotulo: 'Expedição' },
                 { para: '/fabrica/logistica/estoque', rotulo: 'Estoque' },
-                { para: '/fabrica/logistica/pedidos-em-aguardo', rotulo: 'Pedidos em aguardo' },
                 { para: '/fabrica/logistica/danificados', rotulo: 'Danificados' },
               ],
             },

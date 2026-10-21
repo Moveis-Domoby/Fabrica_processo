@@ -1575,8 +1575,9 @@ conferir(
 
 await deveRecusarExec(
   `select public.plt_fn_registrar_entrega(${cardRotas})`,
-  'entrega recusada sem lançamento — "lance pelos Pedidos em aguardo"',
-  /ainda não foi lançado/i,
+  // ↩️ SESSAO-38 (D-156): o "lançado" deixou de ser exigência — a recusa agora é por não estar pronto.
+  'entrega recusada com o pedido incompleto — "a entrega sai com o pedido pronto"',
+  /pedido pronto: 1 de 2/i,
 )
 await deveRecusarExec(
   `select public.plt_fn_lancar_rotas(${cardRotas})`,
@@ -10545,7 +10546,7 @@ conferir(
   'devolvido pela logística: as 2 peças continuam do pedido, em decisão (não vão ao ESTOQUE), saem do caminhão e o Tiny não muda',
   JSON.stringify({ devolveu, depoisG, progG, emDecisaoG }),
 )
-await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcG})`, 'pedido em decisão pós devolução não se entrega (saiu da ROTAS)', /não foi lançado/i)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${pcG})`, 'pedido em decisão pós devolução não se entrega (saiu da ROTAS)', /decisão pós devolução/i) // ↩️ SESSAO-38: a mensagem diz o porquê
 
 const pcH = await pedidoNaRota(959008)
 await como59('')
@@ -16171,6 +16172,245 @@ try {
   await como38('')
 }
 } // fim do bloco 38 (SESSAO-38, frente dos cards)
+
+// ============================================================================
+// SESSAO-38 · F2 (migration 20261022020000 — D-156…D-158): a rota para QUALQUER
+// pedido vivo (pronto, em produção ou no PCP), sem o "Lançar para ROTAS"; a
+// Expedição numa porta só com os números dos filtros; a equipe só de entregador.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-38 · F2 · a rota aceita qualquer pedido vivo — pronto, em produção ou no PCP')
+
+const um38 = async (sql) => (await bd.query(sql)).rows[0]
+const todos38 = async (sql) => (await bd.query(sql)).rows
+const como38 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const LOG38 = E40.logistica
+const DIA38 = '2026-12-01'
+await como38('')
+await bd.exec(`
+  insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+  values (938001, 'S38A', 'Rack Teste F2 38', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+  insert into public.plt_caminhoes (nome, placa) values ('Baú F2 38', 'TSTF238');
+`)
+const cam38 = (await um38(`select id::int as id from public.plt_caminhoes where placa = 'TSTF238'`)).id
+const setor38 = async (codigo) => (await um38(`select id::int as id from public.plt_setores where codigo = '${codigo}'`)).id
+const aguardo38 = await setor38('aguardo')
+const secc38 = await setor38('secc')
+
+// Um pedido de teste com `itens` móveis; `prontas` peças no aguardo e `emProducao` na SECC.
+async function pedido38(numero, { situacao = 'Preparando envio', itens = 2, prontas = 0, emProducao = 0 } = {}) {
+  await como38('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+      (${numero}, (select id from public.clientes order by id limit 1), '${situacao}', 'webhook', ${numero}00,
+       '2026-11-${String(10 + (numero % 20)).padStart(2, '0')}');
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), 1, 'S38A', 'Rack Teste F2 38', ${itens});
+  `)
+  const pc = (await um38(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = ${numero}`))?.id
+  let k = 0
+  for (const [n, setor] of [[prontas, aguardo38], [emProducao, secc38]]) {
+    for (let i = 0; i < n; i++) {
+      k += 1
+      await bd.exec(`
+        insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+          select 'unidade', p.id, ${pc}, 1, 'S38A', 'Rack Teste F2 38', ${k}, ${itens} from public.pedidos p where p.numero = ${numero};
+        insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+          values ((select max(id) from public.plt_cards), 'card_criado', ${setor}, 'api');
+      `)
+    }
+  }
+  return pc
+}
+
+const noPcp = await pedido38(938001)                                    // nada liberado
+const emProd = await pedido38(938002, { prontas: 1, emProducao: 1 })    // 1 de 2 pronta
+const pronto = await pedido38(938003, { prontas: 2 })                   // pronto, sem lançar
+const cancelado = await pedido38(938004)                                // vivo, depois cancelado no Tiny
+await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 938004`)
+const faturado = await pedido38(938005, { situacao: 'Faturado' })       // o Tiny levou adiante, sem peça aqui
+const excluido = await pedido38(938006)                                 // excluído no Tiny (D-140)
+const prontoEntrega = await pedido38(938007, { itens: 1, prontas: 1 })  // para a entrega de ponta a ponta
+await bd.exec(`insert into public.plt_pedidos_excluidos_tiny (pedido_id, numero, erro)
+                 select id, numero, 'teste 38' from public.pedidos where numero = 938006`)
+
+await como38(LOG38)
+const cand38 = await todos38(`
+  select numero, estado, unidades_prontas, unidades_liberadas, lancado_em is null as sem_lancar
+    from public.plt_fn_programacao(null, 200, 0, true) where numero between 938001 and 938007 order by numero`)
+const porNumero38 = Object.fromEntries(cand38.map((c) => [c.numero, c]))
+conferir(
+  porNumero38[938001]?.estado === 'no_pcp' && porNumero38[938002]?.estado === 'em_producao'
+    && porNumero38[938002]?.unidades_prontas === 1 && porNumero38[938003]?.estado === 'pronto'
+    && porNumero38[938003]?.sem_lancar === true && porNumero38[938007]?.estado === 'pronto',
+  '"Sem programação" traz o pedido no PCP, o em produção (1 de 2) e o pronto que NUNCA foi lançado — cada um com o seu estado',
+  JSON.stringify(cand38),
+)
+conferir(
+  !porNumero38[938004] && !porNumero38[938005] && !porNumero38[938006],
+  'o cancelado no Tiny, o levado adiante pelo Tiny sem peça na fábrica (D-133) e o excluído no Tiny (D-140) não entram',
+  JSON.stringify(Object.keys(porNumero38)),
+)
+
+titulo('SESSAO-38 · F2 · programar o pedido ainda no PCP; ele sai de "Sem programação" e aparece só em "Já programadas"')
+
+await bd.exec(`select public.plt_fn_programar_entrega(${noPcp}, '${DIA38}', ${cam38})`)
+const semProg38 = await um38(`select count(*)::int as n from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${noPcp}`)
+const jaProg38 = await um38(`select estado, rota from public.plt_fn_programadas(false, '${DIA38}', ${cam38}, 200, 0) where card_id = ${noPcp}`)
+const aEntregar38 = await todos38(`select numero, estado from public.plt_fn_rotas('pronta', null, 100, 0) where numero between 938001 and 938007`)
+conferir(
+  semProg38.n === 0 && jaProg38?.estado === 'no_pcp' && jaProg38?.rota === 1,
+  'programado no PCP: some de "Sem programação" e aparece em "Já programadas" dizendo que ainda está no PCP',
+  JSON.stringify({ semProg38, jaProg38 }),
+)
+const aEntregarNum = aEntregar38.map((r) => r.numero).sort()
+conferir(
+  aEntregarNum.includes(938001) && aEntregarNum.includes(938003) && aEntregarNum.includes(938007)
+    && !aEntregarNum.includes(938002) && !aEntregarNum.includes(938004),
+  'ROTAS → "A entregar": o programado (mesmo no PCP) e o pronto sem programação; o em produção sem programação fica de fora',
+  JSON.stringify(aEntregar38),
+)
+await deveRecusarExec(`select public.plt_fn_programar_entrega(${cancelado}, '${DIA38}', ${cam38})`,
+  'o cancelado no Tiny não se programa', /cancelado no Tiny|não existe/i)
+await deveRecusarExec(`select public.plt_fn_programar_entrega(${faturado}, '${DIA38}', ${cam38})`,
+  'o pedido que não está mais em andamento não se programa', /não está mais em andamento/i)
+
+// "Tirar" devolve para "Sem programação" — as rotas ficam como estavam
+await bd.exec(`select public.plt_fn_desprogramar_entrega(${noPcp})`)
+const voltou38 = await um38(`select estado from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${noPcp}`)
+const progVazia38 = await um38(`select count(*)::int as n from public.plt_programacoes where card_id = ${noPcp}`)
+conferir(voltou38?.estado === 'no_pcp' && progVazia38.n === 0, '"Tirar" devolve o pedido para "Sem programação" (nenhuma programação sobra)', JSON.stringify({ voltou38, progVazia38 }))
+
+titulo('SESSAO-38 · F2 · "Entregue": só com o pedido pronto; o programado sem lançar fecha tudo e ainda se desfaz')
+
+await bd.exec(`select public.plt_fn_programar_rota('${DIA38}', ${cam38}, array[${emProd}, ${prontoEntrega}]::bigint[], null, 1)`)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${emProd})`,
+  'o programado ainda em produção não se marca entregue (1 de 2 prontas)', /pedido pronto: 1 de 2/i)
+const ent38 = (await um38(`select public.plt_fn_registrar_entrega(${prontoEntrega}, 'teste F2') as e`)).e
+const depoisEnt38 = await um38(`
+  select (select arquivado_em is null from public.plt_cards where id = ${prontoEntrega}) as card_fica,
+         (select count(*) from public.plt_cards u where u.card_pai_id = ${prontoEntrega} and u.tipo = 'unidade' and u.arquivado_em is null)::int as pecas_vivas`)
+const doDia38 = await um38(`select public.plt_fn_entregas_do_dia('${DIA38}', ${cam38}, 1) as d`)
+const paradas38 = doDia38.d.entregas
+const paradaEnt = paradas38.find((e) => Number(e.card_id) === prontoEntrega)
+const paradaProd = paradas38.find((e) => Number(e.card_id) === emProd)
+conferir(
+  Number(ent38) > 0 && depoisEnt38.card_fica === true && depoisEnt38.pecas_vivas === 0
+    && paradaEnt?.entregue_em && paradaProd?.estado === 'em_producao' && paradaProd?.pronto === false
+    && paradaProd?.prontas === 1,
+  'entregue sem lançar: a peça sai de toda conta, o card do pedido PROGRAMADO fica (o entregador vê e desfaz no dia) e a parada em produção diz "1 pronta"',
+  JSON.stringify({ ent38, depoisEnt38, paradaEnt: paradaEnt && { entregue: !!paradaEnt.entregue_em }, paradaProd }),
+)
+const entregues38 = await um38(`select count(*)::int as n from public.plt_fn_programadas(true, '${DIA38}', ${cam38}, 200, 0) where card_id = ${prontoEntrega}`)
+conferir(entregues38.n === 1, '"Ver entregues" da Programação mostra a entrega do pedido que nunca foi lançado', JSON.stringify(entregues38))
+const motivoDesfazer38 = (await um38(`select id::int as id from public.plt_motivos where tipo = 'desfazer_entrega' and ativo order by id limit 1`)).id
+await bd.exec(`select public.plt_fn_entrega_desfazer(${prontoEntrega}, ${motivoDesfazer38}, 'teste F2')`)
+const desfeito38 = await um38(`
+  select (select entrega_evento_id is null from public.plt_cards where id = ${prontoEntrega}) as sem_entrega,
+         (select count(*) from public.plt_cards u join public.plt_setores s on s.id = u.setor_atual_id and s.codigo = 'aguardo'
+           where u.card_pai_id = ${prontoEntrega} and u.tipo = 'unidade' and u.arquivado_em is null)::int as no_aguardo`)
+conferir(desfeito38.sem_entrega === true && desfeito38.no_aguardo === 1,
+  'desfazer no mesmo dia: a peça volta para Pedidos em aguardo e o pedido volta a ser entrega a fazer', JSON.stringify(desfeito38))
+
+// "Não entregue" e "Pedido devolvido" valem para o programado que nunca foi lançado
+const motivoNao38 = (await um38(`select id::int as id from public.plt_motivos where tipo = 'nao_entregue' and ativo order by id limit 1`)).id
+await bd.exec(`select public.plt_fn_entrega_nao_realizada(${prontoEntrega}, ${motivoNao38}, 'teste F2')`)
+const naoEnt38 = await um38(`select count(*)::int as n from public.plt_programacoes where card_id = ${prontoEntrega}`)
+conferir(naoEnt38.n === 0, '"Não entregue" no programado sem lançar: volta para "Sem programação"', JSON.stringify(naoEnt38))
+await bd.exec(`select public.plt_fn_programar_entrega(${pronto}, '${DIA38}', ${cam38})`)
+const motivoDev38 = (await um38(`select id::int as id from public.plt_motivos where tipo = 'devolucao' and ativo order by id limit 1`)).id
+const dev38 = (await um38(`select public.plt_fn_pedido_devolver(${pronto}, ${motivoDev38}, 'teste F2') as r`)).r
+const depoisDev38 = await um38(`
+  select (select count(*) from public.plt_programacoes where card_id = ${pronto})::int as prog,
+         (select count(*) from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${pronto})::int as candidato`)
+conferir(dev38.pecas === 2 && depoisDev38.prog === 0 && depoisDev38.candidato === 0,
+  '"Pedido devolvido" antes da entrega: as peças saem do aguardo para a decisão, o pedido sai da rota e não volta a ser candidato até a decisão',
+  JSON.stringify({ dev38, depoisDev38 }))
+await deveRecusarExec(`select public.plt_fn_programar_entrega(${pronto}, '${DIA38}', ${cam38})`,
+  'em decisão pós devolução não se programa', /decisão pós devolução/i)
+
+titulo('SESSAO-38 · F2 · a Expedição numa requisição: a página e os números dos filtros batem')
+
+const exp38 = async (filtro, busca = null, limite = 100) =>
+  (await um38(`select public.plt_fn_expedicao('${filtro}', ${busca ? `'${busca}'` : 'null'}, ${limite}, 0) as e`)).e
+const todosExp = await exp38('todos')
+const c38 = todosExp.contagens
+conferir(
+  c38.todos === c38.com_rota + c38.sem_rota && c38.todos === c38.prontos + c38.em_producao
+    && todosExp.total === c38.todos && todosExp.itens.length === Math.min(100, c38.todos),
+  'os números dos filtros fecham: todos = com rota + sem rota = prontos + em produção',
+  JSON.stringify(c38),
+)
+const nums = (e) => e.itens.map((i) => i.numero)
+const comRota38 = await exp38('com_rota', '9380')
+const semRota38 = await exp38('sem_rota', '9380')
+const prontos38 = await exp38('prontos', '9380')
+const emProd38 = await exp38('em_producao', '9380')
+conferir(
+  nums(comRota38).join() === '938002' && nums(semRota38).sort().join() === '938001,938003,938007'
+    && nums(prontos38).sort().join() === '938007' && nums(emProd38).sort().join() === '938001,938002,938003',
+  'cada filtro traz o conjunto certo (com/sem rota, prontos, ainda em produção — o em decisão pós devolução conta como não pronto)',
+  JSON.stringify({ com: nums(comRota38), sem: nums(semRota38), prontos: nums(prontos38), prod: nums(emProd38) }),
+)
+const item002 = comRota38.itens[0]
+const vistos38 = nums(todosExp)
+conferir(
+  item002?.programacao?.caminhao_nome === 'Baú F2 38' && item002?.estado === 'em_producao'
+    && item002?.unidades_prontas === 1 && !vistos38.includes(938004) && !vistos38.includes(938005) && !vistos38.includes(938006),
+  'o item diz o caminhão e o dia da rota e o estado; cancelado, levado adiante sem peça e excluído no Tiny ficam de fora',
+  JSON.stringify(item002),
+)
+const pag38 = await exp38('todos', null, 1)
+conferir(pag38.itens.length === 1 && pag38.total === c38.todos, 'a página é cortada no servidor (o total continua o do filtro)', JSON.stringify({ n: pag38.itens.length, total: pag38.total }))
+await deveRecusarExec(`select public.plt_fn_expedicao('qualquer')`, 'filtro desconhecido é recusado', /desconhecido/i)
+await como38(E40.operador)
+await deveRecusarExec(`select public.plt_fn_expedicao('todos')`, 'quem não é da logística não abre a Expedição', /logística/i)
+
+titulo('SESSAO-38 · F2 · a equipe da rota: só entregador (quem já estava pode ser desmarcado)')
+
+await como38('')
+const ENTREG38 = '00000000-0000-0000-0000-000000000938'
+await bd.exec(`
+  insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+    ('Entregador F2 38', 'entregador38@teste.com', '38383838381', 'entregador.38', 'operador', '${ENTREG38}', array['entregas']),
+    ('Rotas Sem Ser Entregador 38', 'naoentrega38@teste.com', '38383838382', 'naoentrega.38', 'operador', null, array['fabrica']);
+  insert into public.plt_usuario_setores (usuario_id, setor_id)
+    select u.id, s.id from public.plt_usuarios u, public.plt_setores s
+     where u.usuario in ('entregador.38', 'naoentrega.38') and s.codigo = 'rotas';
+`)
+const ent38id = (await um38(`select id from public.plt_usuarios where usuario = 'entregador.38'`)).id
+const nao38id = (await um38(`select id from public.plt_usuarios where usuario = 'naoentrega.38'`)).id
+await como38(LOG38)
+const lista38 = await todos38(`select id, entregador from public.plt_fn_entregadores()`)
+conferir(
+  lista38.some((p) => p.id === ent38id) && !lista38.some((p) => p.id === nao38id) && lista38.every((p) => p.entregador),
+  'a lista da equipe traz só quem é entregador — o "da ROTAS" que não é entregador saiu',
+  JSON.stringify({ n: lista38.length }),
+)
+await deveRecusarExec(`select public.plt_fn_equipe_definir('${DIA38}', ${cam38}, array['${ent38id}', '${nao38id}']::uuid[], 1)`,
+  'pôr na equipe quem não é entregador é recusado', /Só entregador/i)
+// quem JÁ estava na equipe (de antes da regra) pode ficar e sair
+await como38('')
+await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id)
+                 values ('${DIA38}', ${cam38}, 1, '${nao38id}') on conflict do nothing`)
+await como38(LOG38)
+const fica38 = (await um38(`select public.plt_fn_equipe_definir('${DIA38}', ${cam38}, array['${ent38id}', '${nao38id}']::uuid[], 1) as n`)).n
+const sai38 = (await um38(`select public.plt_fn_equipe_definir('${DIA38}', ${cam38}, array['${ent38id}']::uuid[], 1) as n`)).n
+conferir(fica38 === 2 && sai38 === 1, 'quem já estava na equipe e não é entregador fica até ser desmarcado; desmarcado, sai', JSON.stringify({ fica38, sai38 }))
+
+titulo('SESSAO-38 · F2 · as portas e as visões fora da API')
+
+await como38('')
+const priv38 = await um38(`
+  select has_function_privilege('anon', 'public.plt_fn_expedicao(text, text, integer, integer)', 'execute') as exp_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_expedicao(text, text, integer, integer)', 'execute') as exp_logado,
+         has_function_privilege('anon', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as prog_anon,
+         has_function_privilege('anon', 'public.plt_fn_rotas(text, text, integer, integer)', 'execute') as rotas_anon,
+         has_table_privilege('authenticated', 'plt_privado.vw_pedidos_para_rota', 'select') as vw_logado`)
+conferir(!priv38.exp_anon && priv38.exp_logado && !priv38.prog_anon && !priv38.rotas_anon && !priv38.vw_logado,
+  'portas só para quem está logado; as visões da regra ficam fora da API', JSON.stringify(priv38))
+} // fim do bloco F2 (SESSAO-38)
 
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

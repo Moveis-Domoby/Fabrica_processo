@@ -1723,6 +1723,9 @@ as $$
 $$;
 
 -- public.plt_fn_programacao — da migration 20261004130000_plt_rotas_programadas_itens.sql: "existe entrega?" → a entrega vigente.
+-- SESSAO-38 (E-17): a 20261022020000 muda a forma (colunas novas) — o drop
+-- deixa esta reaplicação (2ª rodada da bateria) recriar a forma antiga.
+drop function if exists public.plt_fn_programacao(date, integer, integer, boolean);
 create or replace function public.plt_fn_programacao(
   p_data               date    default null,
   p_limite             integer default 100,
@@ -1995,6 +1998,8 @@ end;
 $$;
 
 -- public.plt_fn_rotas — da migration 20260928120000_plt_itens_fora_da_producao.sql: "existe entrega?" → a entrega vigente.
+-- SESSAO-38 (E-17): a 20261022020000 muda a forma (colunas novas) — drop antes.
+drop function if exists public.plt_fn_rotas(text, text, integer, integer);
 create or replace function public.plt_fn_rotas(
   p_situacao      text default null, -- 'pronta' | 'entregue'
   p_busca         text default null,

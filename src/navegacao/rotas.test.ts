@@ -13,7 +13,7 @@ describe('rotaDoSetor sob o pai Fábrica (D-46/D-36)', () => {
   it('os terminais têm casa própria dentro da Fábrica', () => {
     expect(rotaDoSetor('estoque')).toBe('/fabrica/logistica/estoque')
     expect(rotaDoSetor('rotas')).toBe('/fabrica/rotas/entregas')
-    expect(rotaDoSetor('aguardo')).toBe('/fabrica/logistica/pedidos-em-aguardo')
+    expect(rotaDoSetor('aguardo')).toBe('/fabrica/logistica/expedicao')
   })
 })
 

@@ -251,6 +251,11 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | 21 | O fluxo da fábrica no n8n ainda **pergunta ao Tiny a cada 15 min** pelos produtos criados (relógio do n8n, de antes da lei) — sai quando a API nova da fábrica ligar e a consulta de hora em hora (D-143) assumir; a varredura das 03:15 fica como rede de segurança. ↪️ ✅ **resolvida em 2026-10-18** (18:03 UTC, com o OK do dono): a consulta de hora em hora rodou com a API nova da fábrica e o gatilho "A cada 15 min" foi desligado no n8n (só ele; a varredura das 03:15 e os avisos do estoque seguem) — [[SESSAO-33]] | integração Tiny (fábrica) | ✅ 33 |
 | 22 | **"Começar a carga" do Tiny** (Auditoria → Carga do Tiny — `plt_fn_tiny_carga('carregar')`): hoje 50 ms; com o volume ×100 (55 mil produtos, 1 milhão de clientes, 557 mil pedidos) **4,5 s** no banco local — gesto único de escrita do dono, dentro do tempo da requisição (8 s), não é porta de tela. **Caminho, se o catálogo crescer:** a carga semeia um item só e a própria fila o expande em partes | Auditoria | quando crescer |
 
+**Andamento (SESSAO-38 · Logística, 21/10 — D-156…D-159):**
+- **Expedição numa requisição** (`plt_fn_expedicao`: a página + os números dos 5 filtros; filtro e página no servidor; deslocamento limitado — o conjunto é o que está em andamento, teto 100). Banco real como `authenticated`, 41 pedidos vivos: 1ª chamada fria 116 ms, depois **~10 ms**. A tela "Pedidos em aguardo" (2 leituras — dívida 18) **saiu**; a visão "Peça por peça" só pede no clique.
+- **Programação:** `plt_fn_programacao` ~32 ms e `plt_fn_rotas` ~24 ms (antes da regra nova: 2–12 ms com só os lançados — agora o conjunto são todos os pedidos vivos e a prontidão por pedido; dentro do teto de 50 ms). Índice parcial novo dos pedidos vivos (`plt_cards_pedido_vivo_idx`). Nenhum relógio, nenhum `postgres_changes` (ao vivo pelos avisos de sempre).
+- **Pacote:** JS inicial 222,2 KB comprimidos (teto 250) — a frente só tirou uma linha do menu; Expedição 12,9 kB (4,0 kB gz), Programação 54,6 kB (16,9 kB gz), ROTAS 9,1 kB, Entregas do dia 15,3 kB — pedaços próprios.
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes
