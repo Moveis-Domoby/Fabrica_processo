@@ -15507,6 +15507,327 @@ try {
 }
 } // fim do bloco 98 (SESSAO-37)
 
+{ // escopo próprio (E-70)
+// ============================================================================
+// SESSAO-38 · F4 — motivos de pausa ESPECIAIS: o tempo parado não conta
+// contra o funcionário (D-164…D-166)
+// ============================================================================
+const um38 = async (sql) => (await bd.query(sql)).rows[0]
+const como38 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const ADMIN38 = '00000000-0000-0000-0000-000000000965' // o admin do bloco 96
+const AUTH38 = {
+  um: '00000000-0000-0000-0000-000000003801',
+  dois: '00000000-0000-0000-0000-000000003802',
+  aux: '00000000-0000-0000-0000-000000003803',
+}
+const idDe38 = async (usuario) => (await um38(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+const motivo38 = async (texto) =>
+  (await um38(`select id::int as id from public.plt_motivos where tipo = 'pausa' and texto = '${texto}'`)).id
+// o segmento aberto da pessoa
+const seg38 = (usuario) => um38(`
+  select s.estado, s.especial from public.plt_presenca_segmentos s
+   where s.usuario_id = (select id from public.plt_usuarios where usuario = '${usuario}') and s.fim is null`)
+// o relógio do teste abre e fecha trechos no mesmo instante (A-81): recua o
+// começo do trecho ABERTO para o fechamento somar minutos de verdade
+const recuar38 = (usuario, minutos) => bd.exec(`
+  update public.plt_presenca_segmentos set inicio = now() - interval '${minutos} minutes'
+   where usuario_id = (select id from public.plt_usuarios where usuario = '${usuario}') and fim is null`)
+const dia38 = (usuario) => um38(`
+  select coalesce(sum(t.segundos) filter (where t.estado = 'ausente'), 0)::int as ausente,
+         coalesce(sum(t.segundos) filter (where t.estado = 'especial'), 0)::int as especial
+    from public.plt_tempos_pessoa_dia t
+   where t.usuario_id = (select id from public.plt_usuarios where usuario = '${usuario}')`)
+
+try {
+  titulo('SESSAO-38 · F4 · os motivos especiais: a marca, os três do dono e a lista do funcionário sem a marca')
+
+  const sem38 = await um38(`
+    select (select count(*)::int from public.plt_motivos
+             where tipo = 'pausa' and especial
+               and texto in ('Faltou peça', 'Máquina quebrou', 'Pausa solicitada por um líder')) as tres,
+           (select count(*)::int from public.plt_motivos where tipo = 'pausa' and especial) as especiais,
+           (select especial from public.plt_motivos where tipo = 'pausa' and texto = 'Falta de material') as falta_material`)
+  conferir(
+    sem38.tres === 3 && sem38.especiais === 3 && sem38.falta_material === false,
+    'os três motivos do dono nascem especiais (sem duplicar na 2ª rodada) e os de antes continuam comuns',
+    JSON.stringify(sem38),
+  )
+  await deveRecusarExec(
+    `update public.plt_motivos set especial = true where tipo = 'saida' and texto = 'Almoço'`,
+    'só motivo de PAUSA pode ser especial (a trava é do banco)',
+    /plt_motivos_especial_so_pausa_ck/i,
+  )
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id) values
+      ('Pausa38 Um', 'pausa38um@teste.com', '38100000381', 'pausa38um', 'operador', '${AUTH38.um}'),
+      ('Pausa38 Dois', 'pausa38dois@teste.com', '38200000382', 'pausa38dois', 'operador', '${AUTH38.dois}'),
+      ('Pausa38 Aux', 'pausa38aux@teste.com', '38300000383', 'pausa38aux', 'operador', '${AUTH38.aux}');
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, (select id from public.plt_setores where codigo = 'montagem'), false
+        from public.plt_usuarios u where u.usuario in ('pausa38um', 'pausa38dois', 'pausa38aux');
+  `)
+
+  // a lista do dia a dia (a do funcionário) NÃO leva a marca
+  await como38(AUTH38.um)
+  const lista38 = (await bd.query(`select * from public.plt_fn_motivos('pausa')`)).rows
+  await deveRecusarExec(
+    `select * from public.plt_fn_motivos_config('pausa')`,
+    'a lista COM a marca é só do admin',
+    /só do admin|é do admin/i,
+  )
+  await como38(ADMIN38)
+  const config38 = (await bd.query(`select * from public.plt_fn_motivos_config('pausa')`)).rows
+  conferir(
+    lista38.length >= 3 && lista38.every((m) => !('especial' in m))
+      && lista38.some((m) => m.texto === 'Máquina quebrou')
+      && config38.some((m) => m.texto === 'Máquina quebrou' && m.especial === true)
+      && config38.some((m) => m.texto === 'Falta de material' && m.especial === false),
+    'o funcionário recebe os especiais como motivos comuns (sem a marca); o admin vê a marca em Utilitários',
+    JSON.stringify({ funcionario: lista38.length, admin: config38.length }),
+  )
+
+  // salvar com a marca; o salvar ANTIGO (5 nomes — o site publicado) segue valendo e não mexe na marca
+  const novo38 = (await um38(`select public.plt_fn_motivo_salvar(null, 'pausa', 'Teste especial 38', 95, true, true) as id`)).id
+  await bd.exec(`select public.plt_fn_motivo_salvar(p_id => ${novo38}, p_tipo => 'pausa', p_texto => 'Teste especial 38 editado', p_ordem => null, p_ativo => true)`)
+  const marca38 = await um38(`select texto, especial from public.plt_motivos where id = ${novo38}`)
+  await bd.exec(`select public.plt_fn_motivo_salvar(${novo38}, 'pausa', 'Teste especial 38 editado', null, false, false)`)
+  const desm38 = await um38(`select especial, ativo from public.plt_motivos where id = ${novo38}`)
+  await deveRecusarExec(
+    `select public.plt_fn_motivo_salvar(null, 'saida', 'Saída especial 38', 99, true, true)`,
+    'o salvar recusa marcar como especial um motivo que não é de pausa',
+    /Só motivo de pausa/i,
+  )
+  await como38('')
+  conferir(
+    marca38.texto === 'Teste especial 38 editado' && marca38.especial === true
+      && desm38.especial === false && desm38.ativo === false,
+    'criar com a marca, editar pelo jeito antigo (a marca fica) e desmarcar funcionam',
+    JSON.stringify({ marca38, desm38 }),
+  )
+
+  titulo('SESSAO-38 · F4 · card pausado por motivo ESPECIAL: o tempo parado não vira "ausente"; o comum segue como antes')
+
+  const novoCard38 = async (rotulo, indice, executor) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        select 'unidade', p.id, 38, '938', '${rotulo}', ${indice}, 9
+          from public.pedidos p where p.numero = 999936;
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'card_criado',
+                (select id from public.plt_setores where codigo = 'pcp'), 'interface', now() - interval '3 hours');
+      insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, usuario_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'movimentacao_setor',
+                (select id from public.plt_setores where codigo = 'pcp'),
+                (select id from public.plt_setores where codigo = 'montagem'),
+                (select id from public.plt_usuarios where usuario = '${executor}'), 'interface', now() - interval '2 hours');
+      insert into public.plt_eventos (card_id, tipo, usuario_id, origem)
+        values ((select max(id) from public.plt_cards), 'execucao_iniciada',
+                (select id from public.plt_usuarios where usuario = '${executor}'), 'interface');
+    `)
+    return (await um38(`select max(id)::int as id from public.plt_cards`)).id
+  }
+  const cardE = await novoCard38('Painel 38 Especial', 1, 'pausa38um')
+  const cardN = await novoCard38('Painel 38 Comum', 2, 'pausa38dois')
+  const maquina = await motivo38('Máquina quebrou')
+  const faltaMaterial = await motivo38('Falta de material')
+
+  // o próprio funcionário pausa pela janela do card — a porta de sempre
+  await como38(AUTH38.um)
+  await bd.exec(`select public.plt_fn_card_pausar(${cardE}, ${maquina}, null, null)`)
+  await como38(AUTH38.dois)
+  await bd.exec(`select public.plt_fn_card_pausar(${cardN}, ${faltaMaterial}, null, null)`)
+  await como38('')
+  const segE = await seg38('pausa38um')
+  const segN = await seg38('pausa38dois')
+  const parada38 = await um38(`
+    select h.origem, h.especial, h.fim is null as aberta
+      from public.plt_pessoa_pausas h
+     where h.card_id = ${cardE} and h.usuario_id = (select id from public.plt_usuarios where usuario = 'pausa38um')`)
+  conferir(
+    segE?.estado === 'ausente' && segE?.especial === true && segN?.estado === 'ausente' && segN?.especial === false
+      && parada38?.origem === 'execucao' && parada38?.especial === true && parada38?.aberta === true,
+    'pausar com "Máquina quebrou" deixa a pessoa ausente ESPECIAL (a parada é dela, a executora); com "Falta de material", ausente comum',
+    JSON.stringify({ segE, segN, parada38 }),
+  )
+
+  // o tablet (o quadro do setor) continua vendo "ausente" — nada diferente para o funcionário
+  await como38(ADMIN38)
+  const quadro38 = (await um38(`
+    select public.plt_fn_quadro_setor((select id from public.plt_setores where codigo = 'montagem'), 10) as q`)).q
+  await como38('')
+  const pres38 = (quadro38.presencas ?? []).find((p) => p.nome === 'Pausa38 Um')
+  conferir(
+    pres38?.estado === 'ausente' && !('especial' in (pres38 ?? {})),
+    'no quadro/tablet a pessoa aparece "Ausente", como em qualquer pausa (sem marca)',
+    JSON.stringify(pres38),
+  )
+
+  // 30 min parado por cada motivo, e retoma
+  await recuar38('pausa38um', 30)
+  await recuar38('pausa38dois', 30)
+  await como38(AUTH38.um)
+  await bd.exec(`select public.plt_fn_card_retomar(${cardE}, null)`)
+  await como38(AUTH38.dois)
+  await bd.exec(`select public.plt_fn_card_retomar(${cardN}, null)`)
+  await como38('')
+  const diaE = await dia38('pausa38um')
+  const diaN = await dia38('pausa38dois')
+  const voltou38 = await seg38('pausa38um')
+  conferir(
+    diaE.ausente === 0 && diaE.especial >= 1795 && diaE.especial <= 1805
+      && diaN.ausente >= 1795 && diaN.ausente <= 1805 && diaN.especial === 0
+      && voltou38?.estado === 'trabalhando',
+    'os 30 min por "Máquina quebrou" ficam FORA do ausente (estado especial); os 30 min por "Falta de material" contam como ausente, como antes',
+    JSON.stringify({ diaE, diaN, voltou38 }),
+  )
+
+  titulo('SESSAO-38 · F4 · a dashboard: o "não conta" só para líder/admin; o funcionário vê o próprio sem nada especial')
+
+  await como38(ADMIN38)
+  const pos38 = await um38(`
+    select count(*)::int as n from public.plt_usuarios u
+     where u.ativo and not u.conta_tablet and u.nome < 'Pausa38 Um'`)
+  const lider38 = await um38(`
+    select ausente_s::int as ausente, especial_s::int as especial, por_setor
+      from public.plt_fn_tempos_pessoas(null, null, 100, ${pos38.n}) where nome = 'Pausa38 Um'`)
+  const detLider38 = (await um38(`
+    select public.plt_fn_tempos_pessoa_detalhe((select id from public.plt_usuarios where usuario = 'pausa38um'), null, null) as d`)).d
+  await como38(AUTH38.um)
+  const proprio38 = await um38(`
+    select ausente_s::int as ausente, especial_s::int as especial, estado_especial, por_setor
+      from public.plt_fn_tempos_pessoas(null, null, 100, 0)`)
+  const detProprio38 = (await um38(`
+    select public.plt_fn_tempos_pessoa_detalhe((select id from public.plt_usuarios where usuario = 'pausa38um'), null, null) as d`)).d
+  await como38('')
+  const setorLider38 = (lider38?.por_setor ?? []).find((s) => s.nome === 'MONTAGEM')
+  const cardLider38 = (setorLider38?.cards ?? []).find((c) => /Painel 38 Especial/.test(c.rotulo ?? ''))
+  const execLider38 = (detLider38?.execucoes ?? []).find((e) => /Painel 38 Especial/.test(e.rotulo ?? ''))
+  conferir(
+    lider38?.ausente === 0 && lider38?.especial >= 1795 && setorLider38?.especial_s >= 1795
+      && Array.isArray(cardLider38?.motivos_especiais) && cardLider38.motivos_especiais.includes('Máquina quebrou')
+      && (detLider38?.dias ?? []).some((d) => d.especial_s >= 1795)
+      && execLider38?.motivos_especiais?.includes('Máquina quebrou'),
+    'o líder/admin vê o tempo "não conta" à parte (no total, no setor, no dia e no móvel com o motivo)',
+    JSON.stringify({ ausente: lider38?.ausente, especial: lider38?.especial, setor: setorLider38?.especial_s }),
+  )
+  const setorProprio38 = (proprio38?.por_setor ?? []).find((s) => s.nome === 'MONTAGEM')
+  const cardProprio38 = (setorProprio38?.cards ?? []).find((c) => /Painel 38 Especial/.test(c.rotulo ?? ''))
+  conferir(
+    proprio38?.ausente === 0 && proprio38?.especial === 0 && proprio38?.estado_especial === false
+      && (setorProprio38?.especial_s ?? 0) === 0 && (cardProprio38?.motivos_especiais ?? []).length === 0
+      && (cardProprio38?.motivos ?? []).includes('Máquina quebrou')
+      && (detProprio38?.dias ?? []).every((d) => d.especial_s === 0),
+    'o próprio funcionário: o tempo parado não conta como ausente, e nada "especial" aparece (o motivo é um como outro qualquer)',
+    JSON.stringify({ proprio: { ausente: proprio38?.ausente, especial: proprio38?.especial } }),
+  )
+
+  titulo('SESSAO-38 · F4 · o líder pausa o card (com a ajuda junto), a pausa geral e o PARADO honram a marca')
+
+  // auxiliar no card especial; o admin pausa o card com "Pausa solicitada por um líder"
+  await como38(AUTH38.aux)
+  await bd.exec(`select public.plt_fn_card_auxiliar(${cardE}, null)`)
+  await como38(ADMIN38)
+  const lider = await motivo38('Pausa solicitada por um líder')
+  await bd.exec(`select public.plt_fn_card_pausar(${cardE}, ${lider}, null, null)`)
+  await como38('')
+  const segExec38 = await seg38('pausa38um')
+  const segAux38 = await seg38('pausa38aux')
+  conferir(
+    segExec38?.estado === 'ausente' && segExec38?.especial === true
+      && segAux38?.estado === 'ausente' && segAux38?.especial === true,
+    'o líder pausa o card por "Pausa solicitada por um líder": quem executa E quem ajudava (pausado junto) ficam fora do ausente',
+    JSON.stringify({ segExec38, segAux38 }),
+  )
+  await como38(ADMIN38)
+  await bd.exec(`select public.plt_fn_card_retomar(${cardE}, null)`)
+  await como38('')
+  const devolta38 = { exec: await seg38('pausa38um'), aux: await seg38('pausa38aux') }
+  conferir(
+    devolta38.exec?.estado === 'trabalhando' && devolta38.aux?.estado === 'trabalhando',
+    'retomar devolve os dois ao "trabalhando"',
+    JSON.stringify(devolta38),
+  )
+
+  // a pausa geral (a pessoa se pausa em tudo) com motivo especial — no auxílio também
+  await como38(AUTH38.aux)
+  await bd.exec(`select public.plt_fn_pessoa_pausar(${maquina}, null, null)`)
+  await como38('')
+  const geral38 = await seg38('pausa38aux')
+  const auxParada38 = await um38(`
+    select h.especial, h.motivo_id::int as motivo_id from public.plt_pessoa_pausas h
+     where h.card_id = ${cardE} and h.origem = 'auxilio' and h.fim is null
+       and h.usuario_id = (select id from public.plt_usuarios where usuario = 'pausa38aux')`)
+  conferir(
+    geral38?.estado === 'ausente' && geral38?.especial === true && auxParada38?.especial === true
+      && auxParada38?.motivo_id === maquina,
+    'a pausa geral por "Máquina quebrou" (a pessoa só ajudava) também não conta como ausente',
+    JSON.stringify({ geral38, auxParada38 }),
+  )
+  // sair do setor encerra as paradas da pessoa (vira "fora de setor", como sempre)
+  await como38(AUTH38.aux)
+  await bd.exec(`select public.plt_fn_pessoa_sair(null, 'Fim do turno 38', null)`)
+  await como38('')
+  const saiu38 = await um38(`
+    select (select count(*)::int from public.plt_pessoa_pausas h
+             where h.usuario_id = (select id from public.plt_usuarios where usuario = 'pausa38aux') and h.fim is null) as abertas,
+           (select s.estado from public.plt_presenca_segmentos s
+             where s.usuario_id = (select id from public.plt_usuarios where usuario = 'pausa38aux') and s.fim is null) as estado`)
+  conferir(
+    saiu38.abertas === 0 && saiu38.estado === 'deriva',
+    'sair do setor encerra as paradas da pessoa — fora de setor conta como sempre',
+    JSON.stringify(saiu38),
+  )
+
+  // o PARADO (soltar o card em execução na etapa que pede o motivo) com "Faltou peça"
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, pede_motivo)
+      values ((select id from public.plt_setores where codigo = 'montagem'), 'Parado 38', 938, true),
+             ((select id from public.plt_setores where codigo = 'montagem'), 'Bancada 38', 939, false)
+    on conflict (setor_id, nome) do nothing;
+  `)
+  const etParado = (await um38(`select id::int as id from public.plt_etapas where nome = 'Parado 38'`)).id
+  const etBancada = (await um38(`select id::int as id from public.plt_etapas where nome = 'Bancada 38'`)).id
+  const faltouPeca = await motivo38('Faltou peça')
+  await como38(AUTH38.um)
+  await bd.exec(`select public.plt_fn_card_parar(${cardE}, ${etParado}, ${faltouPeca}, null, null)`)
+  await como38('')
+  const parado38 = await seg38('pausa38um')
+  const paradaH38 = await um38(`
+    select h.origem, h.especial from public.plt_pessoa_pausas h
+     where h.card_id = ${cardE} and h.fim is null
+       and h.usuario_id = (select id from public.plt_usuarios where usuario = 'pausa38um')`)
+  conferir(
+    parado38?.estado === 'ausente' && parado38?.especial === true && paradaH38?.origem === 'parada' && paradaH38?.especial === true,
+    'soltar no PARADO com "Faltou peça": o tempo do card fecha como sempre e a pessoa que executava fica fora do ausente',
+    JSON.stringify({ parado38, paradaH38 }),
+  )
+  // o card sai do PARADO (outra pessoa o move): a parada acaba e o ausente volta a contar
+  await bd.exec(`
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, etapa_origem_id, setor_destino_id, etapa_destino_id, usuario_id, origem)
+      values (${cardE}, 'movimentacao_etapa',
+              (select id from public.plt_setores where codigo = 'montagem'), ${etParado},
+              (select id from public.plt_setores where codigo = 'montagem'), ${etBancada},
+              (select id from public.plt_usuarios where usuario = 'pausa38dois'), 'interface');
+  `)
+  const fora38 = await seg38('pausa38um')
+  conferir(
+    fora38?.estado === 'ausente' && fora38?.especial === false,
+    'o card saiu do PARADO: a parada acaba e o ausente da pessoa volta a contar normalmente',
+    JSON.stringify(fora38),
+  )
+  const tipos38 = await um38(`
+    select count(*)::int as n from public.plt_eventos
+     where tipo not in (select unnest(array['card_criado','movimentacao_setor','movimentacao_etapa',
+       'execucao_iniciada','execucao_finalizada','execucao_pausada','execucao_retomada',
+       'auxilio_iniciado','auxilio_pausado','auxilio_retomado','auxilio_encerrado']))
+       and card_id in (${cardE}, ${cardN})`)
+  conferir(tipos38.n === 0, 'nenhum tipo de evento novo — a pausa especial usa só os fatos que já existiam', JSON.stringify(tipos38))
+} finally {
+  await como38('')
+}
+} // fim do bloco da pausa especial (SESSAO-38 · F4)
+
 titulo('Resumo')
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
