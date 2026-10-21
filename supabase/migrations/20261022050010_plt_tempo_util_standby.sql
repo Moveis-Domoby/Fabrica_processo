@@ -372,7 +372,6 @@ declare
   v_producao integer;
   v_obs      text := nullif(left(btrim(coalesce(p_observacao, '')), 200), '');
   v_res      jsonb := '{}'::jsonb;
-  v_marca    text;
 begin
   if v_eu is null then
     raise exception 'Só usuário ativo da plataforma tira pedido do stand-by.' using errcode = 'insufficient_privilege';
@@ -422,11 +421,10 @@ begin
             jsonb_build_object('destino', p_destino, 'numero', v_numero,
                                'motivo_do_standby', v_card.standby_motivo));
 
+  -- D-170: a MESMA maquinaria do "Concluído" (chamada, não recriada): as peças
+  -- que faltam nascem prontas na Expedição (a reservada pela venda é usada).
   if p_destino = 'entregas' then
-    v_marca := current_setting('plt.concluir_standby', true);
-    perform set_config('plt.concluir_standby', 'on', true);
     v_res := plt_privado.fn_concluir_pedido(v_card.id, v_eu);
-    perform set_config('plt.concluir_standby', coalesce(v_marca, ''), true);
   end if;
 
   return jsonb_build_object('feito', true, 'destino', p_destino, 'numero', v_numero) || v_res;
@@ -1259,156 +1257,6 @@ exception when unique_violation then
 end;
 $$;
 
--- 12i · fn_concluir_pedido (viva: migration 59) — o texto da história quando vem do stand-by
-create or replace function plt_privado.fn_concluir_pedido(p_card_pedido_id bigint, p_usuario uuid)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_card    public.plt_cards%rowtype;
-  v_numero  integer;
-  v_aguardo bigint;
-  v_total   integer;
-  v_u       public.plt_cards%rowtype;
-  v_peca    public.plt_cards%rowtype;
-  v_novo    bigint;
-  v_produto bigint;
-  v_ja      integer := 0;
-  v_movidas integer := 0;
-  v_criadas integer := 0;
-  v_usadas  integer := 0;
-  v_pulados integer := 0;
-  v_marca_m text;
-  v_marca_a text;
-  -- SESSAO-38 (D-170): o "lançar para as entregas" do stand-by usa a mesma
-  -- maquinaria — só o texto da história muda
-  v_standby boolean := coalesce(current_setting('plt.concluir_standby', true), '') = 'on';
-  it        record;
-  k         integer;
-begin
-  select * into v_card from public.plt_cards
-   where id = p_card_pedido_id and tipo = 'pedido'
-   for update;
-  if not found then
-    raise exception 'Card de pedido % não existe.', p_card_pedido_id using errcode = 'no_data_found';
-  end if;
-  if v_card.arquivado_em is not null then
-    raise exception 'Este pedido está arquivado.' using errcode = 'check_violation';
-  end if;
-  if plt_privado.fn_entregue(v_card.id) then
-    raise exception 'Este pedido já foi entregue.' using errcode = 'check_violation';
-  end if;
-  if v_card.lancado_rotas_em is not null then
-    return jsonb_build_object('concluido', false, 'motivo', 'ja_em_rota');
-  end if;
-  if plt_privado.fn_pedido_cancelado(v_card.pedido_id) then
-    raise exception 'Este pedido foi cancelado no Tiny — não dá para concluir.' using errcode = 'check_violation';
-  end if;
-
-  select p.numero into v_numero from public.pedidos p where p.id = v_card.pedido_id;
-  select s.id into v_aguardo from public.plt_setores s where s.codigo = 'aguardo' and s.ativo;
-  if v_aguardo is null then
-    raise exception 'Pedidos em aguardo não está cadastrado — fale com o admin.' using errcode = 'no_data_found';
-  end if;
-
-  v_total := plt_privado.fn_unidades_do_pedido(v_card.pedido_id);
-  if v_total = 0 then
-    return jsonb_build_object('concluido', true, 'motivo', 'sem_producao');
-  end if;
-
-  v_marca_m := current_setting('plt.estoque_maquinaria', true);
-  v_marca_a := current_setting('plt.ajuste_super_admin', true);
-  perform set_config('plt.estoque_maquinaria', 'on', true);
-  -- SESSAO-30 (raio-x 1): o ajuste do super admin (D-117) passa pela regra
-  -- dos fins de linha — ele decide que a peça está pronta.
-  perform set_config('plt.ajuste_super_admin', 'on', true);
-
-  for it in
-    select v.seq, v.codigo, v.descricao, v.unidades
-      from plt_privado.vw_itens_producao v
-     where v.pedido_id = v_card.pedido_id and v.unidades >= 1
-     order by v.seq
-  loop
-    for k in 1 .. it.unidades loop
-      select * into v_u from public.plt_cards u
-       where u.pedido_id = v_card.pedido_id and u.tipo = 'unidade'
-         and u.item_seq = it.seq and u.indice_unidade = k
-       for update;
-      if found then
-        if v_u.arquivado_em is not null then
-          v_pulados := v_pulados + 1;
-          continue;
-        end if;
-        if v_u.setor_atual_id = v_aguardo then
-          v_ja := v_ja + 1;
-          continue;
-        end if;
-        perform plt_privado.fn_fechar_tempo_aberto(v_u.id, (case when v_standby then 'Lançado para as entregas a partir do stand-by: o tempo aberto fecha antes.' else 'Concluído pelo super admin: o tempo aberto fecha antes.' end));
-        select * into v_u from public.plt_cards where id = v_u.id;
-        insert into public.plt_eventos
-            (card_id, tipo, usuario_id, origem, setor_origem_id, etapa_origem_id,
-             setor_destino_id, etapa_destino_id, observacao, dados)
-          values
-            (v_u.id, 'movimentacao_setor', p_usuario, 'api', v_u.setor_atual_id, v_u.etapa_atual_id,
-             v_aguardo, null, (case when v_standby then 'Lançado para as entregas a partir do stand-by (pulou a produção).' else 'Concluído pelo super admin (ajuste da plataforma).' end),
-             jsonb_build_object(case when v_standby then 'standby_entregas' else 'ajuste_super_admin' end, true, 'numero', v_numero));
-        v_movidas := v_movidas + 1;
-      else
-        -- A peça do estoque reservada pela venda para ESTA unidade: usa ela.
-        select * into v_peca from public.plt_cards c
-         where c.reservada_pedido_id = v_card.pedido_id and c.reservada_item_seq = it.seq
-           and c.reservada_indice = k and c.arquivado_em is null
-         limit 1
-           for update;
-        v_produto := case when found then v_peca.produto_tiny_id
-                          else plt_privado.fn_produto_do_item(it.codigo, it.descricao) end;
-
-        insert into public.plt_cards
-            (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao,
-             indice_unidade, total_unidades, produto_tiny_id, setor_atual_id)
-          values
-            ('unidade', v_card.pedido_id, v_card.id, it.seq, it.codigo, it.descricao,
-             k, it.unidades, v_produto, v_aguardo)
-          returning id into v_novo;
-
-        insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_destino_id, observacao, dados)
-          values (v_novo, 'card_criado', p_usuario, 'api', v_aguardo,
-                  case when v_peca.id is not null
-                       then (case when v_standby then 'Lançado para as entregas a partir do stand-by — usou a peça do estoque reservada para o pedido.' else 'Concluído pelo super admin — usou a peça do estoque reservada para o pedido.' end)
-                       else (case when v_standby then 'Lançado para as entregas a partir do stand-by — a peça nasce pronta (pulou a produção).' else 'Concluído pelo super admin — a peça nasce pronta (ajuste da plataforma).' end) end,
-                  jsonb_build_object(case when v_standby then 'standby_entregas' else 'ajuste_super_admin' end, true, 'numero', v_numero)
-                  || case when v_peca.id is not null
-                          then jsonb_build_object('alocada_de', v_peca.id, 'reservada', true)
-                          else '{}'::jsonb end);
-
-        if v_peca.id is not null then
-          insert into public.plt_eventos (card_id, tipo, usuario_id, origem, setor_origem_id, observacao, dados)
-            values (v_peca.id, 'peca_alocada', p_usuario, 'api', v_peca.setor_atual_id,
-                    'Usada pelo pedido ' || coalesce(v_numero::text, '')
-                      || format((case when v_standby then ' (%s/%s) — lançado para as entregas a partir do stand-by.' else ' (%s/%s) — concluído pelo super admin.' end), k, it.unidades),
-                    jsonb_build_object('pedido_id', v_card.pedido_id, 'numero', v_numero,
-                                       'card_pedido_id', v_card.id, 'unidade_card_id', v_novo,
-                                       'item_seq', it.seq, 'indice_unidade', k, 'reservada', true));
-          v_usadas := v_usadas + 1;
-        else
-          v_criadas := v_criadas + 1;
-        end if;
-      end if;
-    end loop;
-  end loop;
-
-  perform plt_privado.fn_recalcular_liberacao(v_card.pedido_id);
-  perform set_config('plt.estoque_maquinaria', coalesce(v_marca_m, ''), true);
-  perform set_config('plt.ajuste_super_admin', coalesce(v_marca_a, ''), true);
-
-  return jsonb_build_object('concluido', true, 'numero', v_numero, 'ja_prontas', v_ja,
-                            'movidas', v_movidas, 'criadas', v_criadas,
-                            'pecas_do_estoque', v_usadas, 'arquivadas_puladas', v_pulados);
-end;
-$$;
-
 -- ----------------------------------------------------------------------------
 -- 13 · Os checks novos validam tudo (E-19: o validate mora SEMPRE na migration
 --      mais nova do check — saiu da dos cards e da da presença)
@@ -1422,7 +1270,6 @@ alter table public.plt_motivos validate constraint plt_motivos_tipo_ck;
 revoke all on function plt_privado.fn_validar_standby()            from public, anon, authenticated;
 revoke all on function plt_privado.fn_projetar_standby()           from public, anon, authenticated;
 revoke all on function plt_privado.fn_pcp_tempo_do_pedido(bigint)  from public, anon, authenticated;
-revoke all on function plt_privado.fn_concluir_pedido(bigint, uuid) from public, anon, authenticated;
 revoke all on function plt_privado.fn_quadro_junto(bigint[])       from public, anon, authenticated;
 
 revoke all on function public.plt_fn_regua_tempo()                          from public, anon;

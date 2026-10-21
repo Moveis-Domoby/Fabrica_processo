@@ -16644,14 +16644,16 @@ const depoisB5 = await um5(`
            where u.pedido_id = c.pedido_id and u.tipo = 'unidade' and u.arquivado_em is null and s.codigo = 'aguardo') as no_aguardo,
          (select estado from plt_privado.vw_pedido_prontidao pp where pp.card_id = c.id) as estado,
          (select count(*)::int from public.plt_eventos e join public.plt_cards u on u.id = e.card_id
-           where u.pedido_id = c.pedido_id and e.tipo = 'card_criado' and u.tipo = 'unidade'
-             and e.observacao like '%stand-by%' and (e.dados ? 'standby_entregas') and not (e.dados ? 'ajuste_super_admin')) as fatos_standby
+           where u.pedido_id = c.pedido_id and e.tipo = 'card_criado' and u.tipo = 'unidade') as fatos_standby,
+         (select e.dados->>'destino' from public.plt_eventos e
+           where e.card_id = c.id and e.tipo = 'pedido_standby_saiu' order by e.id desc limit 1) as destino
     from public.plt_cards c where c.id = ${pB}`)
 const progB5 = (await logado5(F5.pcp, `select estado from public.plt_fn_programacao(null, 200, 0, true) where card_id = ${pB}`))[0]
 const aguardB5 = idsDe5(await logado5(F5.pcp, `select id from public.plt_fn_pcp_quadro(100, 0, null)`))
 conferir(
   lanc5.feito === true && lanc5.destino === 'entregas' && lanc5.concluido === true && depoisB5.fora && depoisB5.liberado
     && depoisB5.no_aguardo === 2 && depoisB5.estado === 'pronto' && depoisB5.fatos_standby === 2
+    && depoisB5.destino === 'entregas'
     && progB5?.estado === 'pronto' && !aguardB5.includes(pB),
   'a pessoa do PCP (não é super admin) lançou: as 2 peças nasceram prontas na Expedição com a história do stand-by, o pedido saiu do PCP, está "pronto" e é candidato de rota',
   JSON.stringify({ lanc5, depoisB5, progB5 }),
