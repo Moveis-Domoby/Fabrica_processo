@@ -27,6 +27,8 @@ import {
 } from '@/rotas/api'
 import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { SeloEstado } from '@/rotas/SeloEstado'
+import { prontoParaEntregar } from '@/rotas/estadoPedido'
 import { useAoVivo } from '@/lib/aoVivo'
 
 const MiniMapa = lazy(() => import('@/rotas/MiniMapaEntregas'))
@@ -297,6 +299,9 @@ function CartaoEntrega({
   const whatsapp = linkWhatsApp(entrega.telefone)
   const mapa = linkMapaEntrega(entrega)
   const entregue = entrega.entregue_em !== null
+  // SESSAO-38 (D-156): a rota aceita pedido ainda em produção — o card avisa e o
+  // "Entregue" só libera com o pedido pronto (o banco confere de novo).
+  const pronto = prontoParaEntregar(entrega.estado)
 
   return (
     <li
@@ -332,6 +337,14 @@ function CartaoEntrega({
             {entrega.volumes !== entrega.unidades &&
               ` (${entrega.unidades} móve${entrega.unidades === 1 ? 'l' : 'is'})`}
           </p>
+          {!entregue && !pronto && (
+            <SeloEstado
+              estado={entrega.estado}
+              prontas={entrega.prontas}
+              total={entrega.a_entregar ?? entrega.unidades}
+              className="self-start"
+            />
+          )}
         </div>
         {entregue && (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-1 text-sm font-medium text-perfeito-texto">
@@ -433,13 +446,20 @@ function CartaoEntrega({
         </Botao>
       </div>
 
+      {!entregue && !pronto && (
+        <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
+          Este pedido ainda não está pronto na fábrica — o "Entregue" libera quando todas as peças
+          ficarem prontas. Na dúvida, fale com a logística.
+        </p>
+      )}
+
       {!entregue ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Botao
             tamanho="lg"
             icone={<CheckCircle2 />}
             onClick={() => setEntregando(true)}
-            disabled={entregando}
+            disabled={entregando || !pronto}
           >
             Entregue
           </Botao>
