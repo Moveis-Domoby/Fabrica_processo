@@ -272,15 +272,6 @@ export function Layout({ children }: { children: ReactNode }) {
         : []),
       ...(veLogistica
         ? [
-            // ↩️ 14/10 (D-134): o pai Pedidos — Todos os pedidos (saiu do PCP)
-            // e Cancelados (veio da Logística, com a história inteira).
-            {
-              titulo: 'Pedidos',
-              filhos: [
-                { para: '/fabrica/pedidos/todos', rotulo: 'Todos os pedidos' },
-                { para: '/fabrica/pedidos/cancelados', rotulo: 'Cancelados' },
-              ],
-            },
             {
               titulo: 'Logística',
               filhos: [
@@ -296,6 +287,16 @@ export function Layout({ children }: { children: ReactNode }) {
                 { para: '/fabrica/rotas/entregas', rotulo: 'Entregas' },
                 { para: '/fabrica/rotas/programacao', rotulo: 'Programação' },
                 // ↪️ D-121: "Entregas do dia" é aba de Entregas — não é filho no menu.
+              ],
+            },
+            // ↩️ 14/10 (D-134): o pai Pedidos — Todos os pedidos (saiu do PCP)
+            // e Cancelados (veio da Logística, com a história inteira).
+            // ↩️ 22/10 (D-161, pedido do dono): Pedidos mora logo abaixo de Rotas.
+            {
+              titulo: 'Pedidos',
+              filhos: [
+                { para: '/fabrica/pedidos/todos', rotulo: 'Todos os pedidos' },
+                { para: '/fabrica/pedidos/cancelados', rotulo: 'Cancelados' },
               ],
             },
           ]
