@@ -110,7 +110,7 @@ export function ModalMoverCard({
       notificar({
         titulo: concluir
           ? destino === 'aguardo'
-            ? `Peça concluída — está em Pedidos em aguardo (${rotuloOrigemCard(card!, pedido)})`
+            ? `Peça concluída — está na Expedição (${rotuloOrigemCard(card!, pedido)})`
             : textoPecaConcluida(destino)
           : `Card mandado para ${setorDestinoNome ?? 'o próximo setor'}`,
         descricao: concluir
@@ -179,9 +179,9 @@ export function ModalMoverCard({
               </>
             ) : (
               <>
-                A peça está pronta: vai para <strong>Pedidos em aguardo</strong>, reservada para o
-                pedido. Quando todas as unidades estiverem prontas, a logística lança o pedido para
-                as ROTAS.
+                A peça está pronta: vai para a <strong>Expedição</strong>, reservada para o pedido.
+                Quando todas as unidades estiverem prontas, o pedido está pronto para a entrega (a
+                rota se programa na Programação).
               </>
             )}{' '}
             Só sai peça em perfeito estado — com defeito, arraste para o DANIFICADO do setor.
@@ -201,7 +201,7 @@ export function ModalMoverCard({
           </legend>
           <p className="text-xs text-texto-suave">
             {concluir
-              ? 'Este setor pede o estado ao concluir. Pedidos em aguardo e ESTOQUE só recebem peça em perfeito estado.'
+              ? 'Este setor pede o estado ao concluir. A Expedição e o ESTOQUE só recebem peça em perfeito estado.'
               : 'Este setor pede o estado da peça ao mandar adiante.'}
           </p>
           {estadosPermitidos.map((estado) => (

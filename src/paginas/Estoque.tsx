@@ -74,7 +74,7 @@ export function Estoque() {
                   quando o PCP usa a peça num pedido.
                 </span>
                 <span>
-                  Peça com pedido fica em Pedidos em aguardo e não soma aqui: ela conta como{' '}
+                  Peça com pedido fica na Expedição e não soma aqui: ela conta como{' '}
                   <strong>reservada em venda</strong> desde que fica pronta até o pedido ser
                   entregue — inclusive lançada para ROTAS ou já no caminhão. O Tiny vale só para a
                   matéria-prima e os insumos.

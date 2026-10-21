@@ -1577,7 +1577,7 @@ await deveRecusarExec(
   `select public.plt_fn_registrar_entrega(${cardRotas})`,
   // ↩️ SESSAO-38 (D-156): o "lançado" deixou de ser exigência — a recusa agora é por não estar pronto.
   'entrega recusada com o pedido incompleto — "a entrega sai com o pedido pronto"',
-  /pedido pronto: 1 de 2/i,
+  /ainda aparece em produção na fábrica \(1 de 2/i, // ↩️ SESSAO-38 (ajuste): pede a confirmação
 )
 await deveRecusarExec(
   `select public.plt_fn_lancar_rotas(${cardRotas})`,
@@ -5043,7 +5043,7 @@ titulo('SESSAO-24 · Concluir produção: pedido vivo → Pedidos em aguardo; se
 await deveRecusarExec(
   `select public.plt_fn_concluir_producao(${u1}, 'atencao')`,
   'concluir marcando 🟡 é recusado — Pedidos em aguardo só recebe peça em perfeito estado',
-  /Pedidos em aguardo só recebe peça em perfeito estado/i,
+  /A Expedição só recebe peça em perfeito estado/i /* ↩️ SESSAO-38: o lugar se chama Expedição */,
 )
 const destinoU1 = (await bd.query(`select public.plt_fn_concluir_producao(${u1}) as d`)).rows[0].d
 const u1Pronta = await cardS24(u1)
@@ -5060,7 +5060,7 @@ conferir(
 await deveRecusarExec(
   `select public.plt_fn_mover_card(${u2}, (select id from public.plt_setores where codigo = 'estoque'), null, 'perfeito', null)`,
   'peça de pedido vivo NÃO entra no ESTOQUE (b4 do dono: estoque é só de peça sem dono)',
-  /vai para Pedidos em aguardo/i,
+  /vai para a Expedição/i,
 )
 // Uma reposição (sem pedido) chega à limpeza e embalagem.
 await bd.exec(`
@@ -8911,7 +8911,7 @@ const a6 = (await salvar51('A6 peça para o estoque', 'chamada_externa', {}, [{ 
 await ligar51(a6)
 const r6 = (await um51(`select public.plt_fn_automacao_chamada(${a6}, ${ids51.peca}, null, '{"origem":"teste"}'::jsonb, 'harness') as r`)).r
 conferir(
-  r6.situacao === 'falhou' && /Pedidos em aguardo/.test(r6.resultado[0]?.frase ?? '') && (await peca51()).setor === ids51.montagem,
+  r6.situacao === 'falhou' && /Expedição/.test(r6.resultado[0]?.frase ?? '') && (await peca51()).setor === ids51.montagem,
   'peça de pedido VIVO mandada ao ESTOQUE: a regra do fim de linha recusa (como para uma pessoa) e a falha fica registrada',
   JSON.stringify(r6),
 )
@@ -9990,14 +9990,14 @@ await deveRecusarExec(
      values (${peca57}, 'movimentacao_setor', (select id from public.plt_setores where codigo = 'montagem'),
              (select id from public.plt_setores where codigo = 'estoque'), 'api')`,
   'pela integração (API) a peça de pedido vivo também não entra no ESTOQUE',
-  /vai para Pedidos em aguardo/i,
+  /vai para a Expedição/i,
 )
 await deveRecusarExec(
   `insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, origem)
      values (${peca57}, 'movimentacao_setor', (select id from public.plt_setores where codigo = 'montagem'),
              (select id from public.plt_setores where codigo = 'estoque'), 'automacao')`,
   'nem pela maquinaria (automação)',
-  /vai para Pedidos em aguardo/i,
+  /vai para a Expedição/i,
 )
 await bd.exec(`
   insert into public.plt_cards (tipo, item_codigo, item_descricao, indice_unidade, total_unidades, produto_tiny_id)
@@ -16292,7 +16292,7 @@ titulo('SESSAO-38 · F2 · "Entregue": só com o pedido pronto; o programado sem
 
 await bd.exec(`select public.plt_fn_programar_rota('${DIA38}', ${cam38}, array[${emProd}, ${prontoEntrega}]::bigint[], null, 1)`)
 await deveRecusarExec(`select public.plt_fn_registrar_entrega(${emProd})`,
-  'o programado ainda em produção não se marca entregue (1 de 2 prontas)', /pedido pronto: 1 de 2/i)
+  'sem a confirmação, o programado ainda em produção não se marca entregue (a frase da confirmação: 1 de 2 prontas)', /ainda aparece em produção na fábrica \(1 de 2 peças prontas\)\. Confirmar a entrega encerra tudo dele/i)
 const ent38 = (await um38(`select public.plt_fn_registrar_entrega(${prontoEntrega}, 'teste F2') as e`)).e
 const depoisEnt38 = await um38(`
   select (select arquivado_em is null from public.plt_cards where id = ${prontoEntrega}) as card_fica,
@@ -16302,7 +16302,7 @@ const paradas38 = doDia38.d.entregas
 const paradaEnt = paradas38.find((e) => Number(e.card_id) === prontoEntrega)
 const paradaProd = paradas38.find((e) => Number(e.card_id) === emProd)
 conferir(
-  Number(ent38) > 0 && depoisEnt38.card_fica === true && depoisEnt38.pecas_vivas === 0
+  Number(ent38) > 0 && depoisEnt38.pecas_vivas === 0
     && paradaEnt?.entregue_em && paradaProd?.estado === 'em_producao' && paradaProd?.pronto === false
     && paradaProd?.prontas === 1,
   'entregue sem lançar: a peça sai de toda conta, o card do pedido PROGRAMADO fica (o entregador vê e desfaz no dia) e a parada em produção diz "1 pronta"',
@@ -16404,6 +16404,53 @@ await como38(LOG38)
 const fica38 = (await um38(`select public.plt_fn_equipe_definir('${DIA38}', ${cam38}, array['${ent38id}', '${nao38id}']::uuid[], 1) as n`)).n
 const sai38 = (await um38(`select public.plt_fn_equipe_definir('${DIA38}', ${cam38}, array['${ent38id}']::uuid[], 1) as n`)).n
 conferir(fica38 === 2 && sai38 === 1, 'quem já estava na equipe e não é entregador fica até ser desmarcado; desmarcado, sai', JSON.stringify({ fica38, sai38 }))
+
+titulo('SESSAO-38 · F2 · ajuste: Entregue com o pedido ainda em produção — só com a confirmação, e fecha tudo')
+
+await como38(LOG38)
+await deveRecusarExec(`select public.plt_fn_registrar_entrega(${emProd}, null, false)`,
+  'sem a confirmação (o site antigo), a entrega do pedido incompleto é recusada com a frase da confirmação',
+  /Confirmar a entrega encerra tudo dele/i)
+const entInc = (await um38(`select public.plt_fn_registrar_entrega(${emProd}, 'cliente recebeu', true) as e`)).e
+const depoisInc = await um38(`
+  select (select count(*) from public.plt_cards u where u.card_pai_id = ${emProd} and u.tipo = 'unidade' and u.arquivado_em is null)::int as vivas,
+         (select observacao from public.plt_eventos where id = ${Number(entInc)}) as obs,
+         (select arquivado_em is not null from public.plt_cards where id = ${emProd}) as card_saiu`)
+const doDiaInc = (await um38(`select public.plt_fn_entregas_do_dia('${DIA38}', ${cam38}, 1) as d`)).d
+const paradaInc = doDiaInc.entregas.find((e) => Number(e.card_id) === emProd)
+conferir(
+  Number(entInc) > 0 && depoisInc.vivas === 0 && /cliente recebeu — Entregue com 1 de 2 peças prontas/.test(depoisInc.obs ?? '')
+    && depoisInc.card_saiu === false && paradaInc?.entregue_em,
+  'confirmada: a peça pronta E a que estava na SECC saem de toda conta, a trilha diz como estava; o card (tudo liberado) fica e a entrega segue em "Entregas do dia" para desfazer',
+  JSON.stringify({ entInc, depoisInc, parada: paradaInc && { entregue: !!paradaInc.entregue_em } }),
+)
+const motivoDesf2 = (await um38(`select id::int as id from public.plt_motivos where tipo = 'desfazer_entrega' and ativo order by id limit 1`)).id
+await bd.exec(`select public.plt_fn_entrega_desfazer(${emProd}, ${motivoDesf2}, 'teste F2 ajuste')`)
+const voltouInc = await um38(`
+  select (select count(*) from public.plt_cards u where u.card_pai_id = ${emProd} and u.tipo = 'unidade' and u.arquivado_em is null)::int as vivas,
+         (select arquivado_em is null from public.plt_cards where id = ${emProd}) as card_voltou`)
+conferir(voltouInc.vivas === 2 && voltouInc.card_voltou === true,
+  'desfeita no dia: as 2 peças e o card do pedido voltam', JSON.stringify(voltouInc))
+
+titulo('SESSAO-38 · F2 · ajuste: na área Pedidos o programado é "Em rota", com o dia e o caminhão')
+
+await bd.exec(`select public.plt_fn_programar_entrega(${noPcp}, '${DIA38}', ${cam38})`)
+const listaPed38 = await um38(`select situacao_plataforma, programacao_data::text as dia, caminhao_nome, rota
+                              from public.plt_fn_pedidos_lista('938001', null, 20, false) where numero = 938001`)
+conferir(listaPed38?.situacao_plataforma === 'em_rota' && listaPed38.dia === DIA38 && listaPed38.caminhao_nome === 'Baú F2 38' && listaPed38.rota === 1,
+  'o pedido programado (ainda no PCP, nunca lançado) aparece "Em rota" com o dia, o caminhão e a rota', JSON.stringify(listaPed38))
+// O programado que ainda espera a liberação no PCP, entregue com a confirmação: o card sai do PCP
+const entPcp = (await um38(`select public.plt_fn_registrar_entrega(${noPcp}, null, true) as e`)).e
+const depoisPcp = await um38(`select arquivado_em is not null as saiu from public.plt_cards where id = ${noPcp}`)
+const paradaPcp = (await um38(`select public.plt_fn_entregas_do_dia('${DIA38}', ${cam38}, 1) as d`)).d
+  .entregas.find((e) => Number(e.card_id) === noPcp)
+const listaEnt38 = await um38(`select situacao_plataforma from public.plt_fn_pedidos_lista('938001', null, 20, false) where numero = 938001`)
+await bd.exec(`select public.plt_fn_entrega_desfazer(${noPcp}, ${motivoDesf2}, 'teste F2 ajuste')`)
+const voltouPcp = await um38(`select arquivado_em is null as voltou from public.plt_cards where id = ${noPcp}`)
+conferir(Number(entPcp) > 0 && depoisPcp.saiu === true && paradaPcp?.entregue_em && listaEnt38?.situacao_plataforma === 'entregue' && voltouPcp.voltou === true,
+  'ainda no PCP: confirmada, o card sai do quadro do PCP, a entrega aparece em "Entregas do dia" e em Pedidos como entregue; desfeita, o card volta',
+  JSON.stringify({ entPcp, depoisPcp, parada: !!paradaPcp, listaEnt38, voltouPcp }))
+await bd.exec(`select public.plt_fn_desprogramar_entrega(${noPcp})`)
 
 titulo('SESSAO-38 · F2 · as portas e as visões fora da API')
 

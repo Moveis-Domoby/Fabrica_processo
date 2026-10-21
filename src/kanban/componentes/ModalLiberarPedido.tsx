@@ -198,7 +198,7 @@ export function ModalLiberarPedido({
           ? `${liberadas} unidade${liberadas === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
           : null,
         alocadas > 0
-          ? `${alocadas} do estoque — já pronta${alocadas === 1 ? '' : 's'} em Pedidos em aguardo`
+          ? `${alocadas} do estoque — já pronta${alocadas === 1 ? '' : 's'} na Expedição`
           : null,
         ja_liberadas > 0
           ? `${ja_liberadas} já ${ja_liberadas === 1 ? 'tinha' : 'tinham'} sido liberada${ja_liberadas === 1 ? '' : 's'}`
@@ -397,7 +397,7 @@ export function ModalLiberarPedido({
                                 // logística (sem card pai) — o rótulo diz a origem certa.
                                 'Veio da entrada manual da logística.'}{' '}
                         {usandoEstoque
-                          ? 'Vai direto, pronta, para Pedidos em aguardo — não passa pela produção.'
+                          ? 'Vai direto, pronta, para a Expedição — não passa pela produção.'
                           : sugestao.reservada
                             ? 'Sem marcar, a unidade vai para a produção e a peça volta a ficar livre no estoque.'
                             : 'Marque para usar; sem marcar, a unidade vai para a produção.'}

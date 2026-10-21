@@ -347,7 +347,7 @@ export function PainelPasso({
             aoMudar={(s, e) => mudar({ setor_id: s, etapa_id: e })}
           />
           <p className="text-xs text-texto-suave">
-            Valem as regras de sempre: o estoque só recebe peça perfeita e sem dono, Pedidos em aguardo só peça de
+            Valem as regras de sempre: o estoque só recebe peça perfeita e sem dono, a Expedição só peça de
             pedido vivo, e o card do pedido não sai do PCP. Etapa que "manda para" outro setor leva o card até lá.
             Para as ROTAS, só pelo "Lançar para ROTAS".
           </p>

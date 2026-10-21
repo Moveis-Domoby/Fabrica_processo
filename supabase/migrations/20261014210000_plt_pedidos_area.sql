@@ -37,6 +37,8 @@ set local lock_timeout = '5s';
 -- ----------------------------------------------------------------------------
 -- 1 · A lista (Todos os pedidos · Cancelados), por cursor
 -- ----------------------------------------------------------------------------
+-- SESSAO-38 (E-17): a 20261022020100 muda a forma da lista (colunas da programação) — drop antes.
+drop function if exists public.plt_fn_pedidos_lista(text, integer, integer, boolean);
 create or replace function public.plt_fn_pedidos_lista(
   p_busca        text    default null,
   p_antes_numero integer default null,
