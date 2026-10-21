@@ -7,7 +7,7 @@ describe('situação do pedido na plataforma (SESSAO-30 · D-117)', () => {
       expect(rotulo, codigo).not.toMatch(/_/)
       expect(rotulo.length, codigo).toBeGreaterThan(2)
     }
-    expect(ROTULO_SITUACAO_PLATAFORMA.aguardo).toBe('Pronto no aguardo')
+    expect(ROTULO_SITUACAO_PLATAFORMA.aguardo).toBe('Pronto na Expedição')
   })
 
   it('os três ajustes do seletor, na ordem do dono (entregue, em rota, concluído — mostrados do começo ao fim do caminho)', () => {

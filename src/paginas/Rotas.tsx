@@ -27,7 +27,11 @@ import {
 import type { Entrega, TipoMotivo } from '@/rotas/api'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { SeloEstado } from '@/rotas/SeloEstado'
-import { prontoParaEntregar } from '@/rotas/estadoPedido'
+import {
+  fraseEntregaIncompleta,
+  pedeConfirmacaoDeEntrega,
+  prontoParaEntregar,
+} from '@/rotas/estadoPedido'
 
 const POR_PAGINA = 20
 
@@ -81,6 +85,9 @@ export function Rotas() {
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(0)
   const [entregando, setEntregando] = useState<Entrega | null>(null)
+  // ↩️ SESSAO-38 (ajuste): o pedido que ainda aparece em produção pede a
+  // confirmação explícita (o banco pede de novo se a tela estava velha).
+  const [confirmarIncompleto, setConfirmarIncompleto] = useState(false)
   const [comMotivo, setComMotivo] = useState<{
     tipo: Exclude<TipoMotivo, 'pausa' | 'devolucao' | 'saida'>
     entrega: Entrega
@@ -103,18 +110,25 @@ export function Rotas() {
   const total = Number(entregas[0]?.contagem_total ?? 0)
 
   const entregarMutacao = useMutation({
-    mutationFn: (entrega: Entrega) => registrarEntrega({ cardId: entrega.card_id }),
-    onSuccess: async (_dados, entrega) => {
-      notificar({ titulo: `Pedido ${entrega.numero} entregue`, tom: 'perfeito' })
+    mutationFn: (v: { entrega: Entrega; confirmar: boolean }) =>
+      registrarEntrega({ cardId: v.entrega.card_id, confirmarIncompleto: v.confirmar }),
+    onSuccess: async (_dados, v) => {
+      notificar({ titulo: `Pedido ${v.entrega.numero} entregue`, tom: 'perfeito' })
       setEntregando(null)
+      setConfirmarIncompleto(false)
       await clienteQuery.invalidateQueries({ queryKey: ['rotas'] })
     },
-    onError: (excecao) =>
+    onError: (excecao) => {
+      if (pedeConfirmacaoDeEntrega(excecao)) {
+        setConfirmarIncompleto(true)
+        return
+      }
       notificar({
         titulo: 'Não deu para registrar a entrega',
         descricao: excecao instanceof Error ? excecao.message : undefined,
         tom: 'danificado',
-      }),
+      })
+    },
   })
 
   if (semAcesso) return <Navigate to="/" replace />
@@ -291,21 +305,43 @@ export function Rotas() {
                       <span className="ml-auto">
                         {entrega.situacao_entrega === 'pronta' &&
                           (entregando?.card_id === entrega.card_id ? (
-                            <span className="flex items-center gap-2">
-                              <span className="text-sm text-texto-suave">
-                                Confirmar a entrega do pedido inteiro?
-                              </span>
+                            <span className="flex flex-wrap items-center justify-end gap-2">
+                              {!podeEntregar || confirmarIncompleto ? (
+                                <span
+                                  role="alert"
+                                  className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto"
+                                >
+                                  {fraseEntregaIncompleta(
+                                    entrega.unidades_prontas ?? 0,
+                                    entrega.total_unidades,
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-texto-suave">
+                                  Confirmar a entrega do pedido inteiro?
+                                </span>
+                              )}
                               <Botao
                                 tamanho="sm"
                                 carregando={entregarMutacao.isPending}
-                                onClick={() => entregarMutacao.mutate(entrega)}
+                                onClick={() =>
+                                  entregarMutacao.mutate({
+                                    entrega,
+                                    confirmar: !podeEntregar || confirmarIncompleto,
+                                  })
+                                }
                               >
-                                Sim, entregue
+                                {!podeEntregar || confirmarIncompleto
+                                  ? 'Sim, entregar mesmo assim'
+                                  : 'Sim, entregue'}
                               </Botao>
                               <Botao
                                 variante="fantasma"
                                 tamanho="sm"
-                                onClick={() => setEntregando(null)}
+                                onClick={() => {
+                                  setEntregando(null)
+                                  setConfirmarIncompleto(false)
+                                }}
                               >
                                 Ainda não
                               </Botao>
@@ -330,13 +366,10 @@ export function Rotas() {
                               </Botao>
                               <Botao
                                 icone={<CheckCircle2 />}
-                                onClick={() => setEntregando(entrega)}
-                                disabled={!podeEntregar}
-                                title={
-                                  podeEntregar
-                                    ? undefined
-                                    : 'O pedido ainda não está pronto — a entrega sai com todas as peças prontas.'
-                                }
+                                onClick={() => {
+                                  setConfirmarIncompleto(false)
+                                  setEntregando(entrega)
+                                }}
                               >
                                 Entregue
                               </Botao>

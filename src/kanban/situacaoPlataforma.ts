@@ -9,7 +9,7 @@ export const ROTULO_SITUACAO_PLATAFORMA: Record<SituacaoPlataforma, string> = {
   sem_card: 'Fora da plataforma',
   pcp: 'No PCP',
   producao: 'Em produção',
-  aguardo: 'Pronto no aguardo',
+  aguardo: 'Pronto na Expedição',
   em_rota: 'Em rota',
   entregue: 'Entregue',
   arquivado: 'Arquivado',
@@ -25,7 +25,7 @@ export const AJUSTES_PEDIDO: { valor: AcaoAjustePedido; rotulo: string; explica:
     valor: 'concluido',
     rotulo: 'Concluído',
     explica:
-      'As peças ficam prontas e o pedido vai para Pedidos em aguardo — a que estava em produção vai até lá, a que faltava nasce pronta.',
+      'As peças ficam prontas e o pedido vai para a Expedição — a que estava em produção vai até lá, a que faltava nasce pronta.',
   },
   {
     valor: 'em_rota',
@@ -64,6 +64,6 @@ export function textoPecaConcluida(destino: DestinoConclusao | null | undefined)
     case 'danificados':
       return 'Ajuste concluído — a peça foi para DANIFICADO'
     default:
-      return 'Peça concluída — está em Pedidos em aguardo'
+      return 'Peça concluída — está na Expedição'
   }
 }

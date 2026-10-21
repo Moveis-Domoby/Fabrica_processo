@@ -324,7 +324,7 @@ export function ModalNovoCardAvulso({
               <span className="text-sm font-medium text-texto">A peça</span>
               <SeletorVinculo escolhido={vinculo} aoMudar={setVinculo} paraAjuste />
               <p className="text-xs text-texto-suave">
-                Vale a peça em decisão pós devolução, no ESTOQUE, em Pedidos em aguardo ou já
+                Vale a peça em decisão pós devolução, no ESTOQUE, na Expedição ou já
                 entregue. A mesma peça volta à produção — a história dela continua.
               </p>
             </div>

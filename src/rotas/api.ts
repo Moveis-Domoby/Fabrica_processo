@@ -68,14 +68,20 @@ export async function listarEntregas(parametros: {
   return (data ?? []) as Entrega[]
 }
 
-/** Marca o pedido COMPLETO como entregue (evento append-only; o banco valida). */
+/**
+ * Marca o pedido como entregue (evento append-only; o banco valida). ↩️
+ * SESSAO-38 (ajuste): pedido que ainda aparece em produção só com
+ * `confirmarIncompleto` (a tela pergunta antes) — fecha tudo dele, como o Tiny.
+ */
 export async function registrarEntrega(parametros: {
   cardId: number
   observacao?: string
+  confirmarIncompleto?: boolean
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_registrar_entrega', {
     p_card_id: parametros.cardId,
     p_observacao: parametros.observacao?.trim() || null,
+    p_confirmar_incompleto: parametros.confirmarIncompleto ?? false,
   })
   if (error) throw new Error(`Não deu para registrar a entrega: ${error.message}`)
 }
