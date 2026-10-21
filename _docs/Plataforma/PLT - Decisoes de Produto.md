@@ -1526,6 +1526,36 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 6. **Botão "Ajudar em tudo"** no topo da coluna em execução (tablet e PC): um gesto entra como auxiliar em TODOS os cards em execução do setor; e o "Pausar geral" ao lado. ⏳ PROVISÓRIA: para isso o limite por pessoa (D-48) deixou de barrar o AUXÍLIO — ele segue contando as ajudas abertas ao INICIAR um card próprio.
 7. **Dashboard de tempos detalhada** (pedido na mesma conversa): o card de cada pessoa abre os números POR SETOR (produção × ausente) e a produção por móvel — tempo, tempo parado e os motivos — na mesma requisição; o clique aprofunda (dia a dia, por setor, cada card com pausas e motivos).
 
+## D-161 · O grupo "Pedidos" do menu mora logo abaixo de "Rotas" (22/10/2026, pedido do dono) — ↪️ D-134
+
+**Pedido do dono (lote noturno da SESSAO-38):** mover o pai **Pedidos** (Todos os pedidos · Cancelados) para ficar logo **abaixo** do grupo **Rotas** (Entregas · Programação). Ordem da Fábrica agora: Controle de produção → Logística → Rotas → **Pedidos**. Nada mais muda: o pai continua sem rota própria, os filhos seguem `/fabrica/pedidos/…` e quem vê é o mesmo de antes (D-134).
+
+## D-162 · As notificações fecham com qualquer toque fora do painel (22/10/2026, pedido do dono)
+
+**Pedido do dono:** o painel de notificações ficava aberto por cima da tela enquanto a pessoa clicava em outras coisas — qualquer toque/clique em qualquer lugar da plataforma, fora do painel, tem de fechá-lo na hora.
+
+- Fecha com toque ou clique em **qualquer** lugar fora dele: barra lateral, página, mapa, balão do chat, janelas abertas. Dentro do painel tudo segue funcionando (marcar como lida, apagar, "Ver todos"); o sino abre e fecha; **Esc** fecha; trocar de tela fecha.
+- **O toque que fecha não se perde:** o botão, o mapa ou o card tocado recebe o clique normalmente (antes, um fundo invisível "comia" o clique — e só cobria a própria barra lateral).
+- ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono): trocar de tela também fecha o painel (não estava no pedido; é o comportamento esperado de um menu suspenso).
+
+## D-163 · Entrar sem digitar o e-mail: o aparelho lembra o nome de usuário, e o PIN aceita usuário (22/10/2026, pedido do dono) — ↪️ D-21, D-146
+
+**Pedido do dono:** *"digitar o e-mail toda vez é um saco"* — poder entrar com nome de usuário e senha.
+
+**O que já existia (D-21, SESSAO-03):** a entrada por **nome de usuário OU e-mail** + senha está no ar desde a SESSAO-03 — todos os 16 cadastros ativos têm nome de usuário (único, sem acento, minúsculo; o do dono é `wallace`), visível e editável no Meu Perfil e na Equipe.
+
+**Por que o dono ainda digitava o e-mail (a causa):** (1) a tela de entrada **não lembrava de ninguém** — com o tempo parado de 8 h (D-137) a sessão cai e cada entrada começava do campo vazio (o dono entrou 19 vezes em 7 dias); (2) os campos não tinham `name`, e o gerenciador de senhas do navegador guardava/preenchia mal; (3) o "Entrar com e-mail e PIN" (D-146) **só aceitava e-mail**; (4) nada na tela ensinava o próprio nome de usuário a quem sempre entrou pelo e-mail.
+
+**Decidido (escolhas do Claude, ⏳ PROVISÓRIA — confirmar com o dono):**
+1. **O aparelho lembra o nome de usuário** de quem entrou por último (só neste navegador; nunca senha nem PIN). O servidor devolve o nome de usuário de quem acabou de acertar a senha — quem entrava pelo e-mail passa a ver o próprio usuário já preenchido. Na próxima entrada o cursor já vai para a senha. O link de convite continua vencendo.
+2. Os campos levam `name`/`autocomplete` padrão (`username`, `current-password`) para o navegador lembrar e preencher.
+3. **"Entrar com usuário e PIN"**: o caminho do PIN para quem nunca criou senha aceita usuário **ou** e-mail (mesma trava de tentativas; o site antigo segue funcionando).
+4. O campo de entrada aceita o usuário **com maiúscula, acento e espaço** ("João Lucas" acha `joaolucas`).
+5. **Segurança mantida e reforçada:** nenhuma consulta pública de usuário → e-mail (tudo no servidor); a mesma mensagem para "não existe" e "senha errada"; a **senha errada passa pela mesma trava do PIN** (5 erros em 15 min → espera de 1 min, dobrando até 15) — contada pelo que foi digitado, exista ou não a pessoa (o "muitas tentativas" não entrega quem tem cadastro); a conta de tablet de cada setor **não entra por senha** (só pelo PIN do setor); pessoa desativada continua recusada (D-141); a troca obrigatória de senha e o PIN seguem iguais; toda entrada vai para a trilha **com o caminho usado** (usuário ou e-mail — sem guardar o que foi digitado).
+6. Sem coluna nova nem atualização do banco (banco enxuto): a coluna de nome de usuário já existia e estava preenchida para todos.
+
+**Risco aceito (a confirmar):** alguém que digite errado a senha de outra pessoa 5 vezes trava a entrada dela por 1 minuto (padrão de mercado; o bloqueio cresce só enquanto os erros continuam).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

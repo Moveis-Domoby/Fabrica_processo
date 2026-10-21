@@ -25,14 +25,25 @@ async function chamar<T>(acao: string, dados: Record<string, unknown>): Promise<
   return data as T
 }
 
-/** Login com nome de usuário OU e-mail (D-21). Abre a sessão no navegador. */
-export async function entrar(identificador: string, senha: string): Promise<void> {
-  const tokens = await chamar<{ access_token: string; refresh_token: string }>('entrar', {
-    identificador,
-    senha,
+/** O que o servidor devolve ao abrir a sessão (SESSAO-38: + o nome de usuário). */
+interface SessaoAberta {
+  access_token: string
+  refresh_token: string
+  usuario?: string
+}
+
+/**
+ * Login com nome de usuário OU e-mail (D-21). Abre a sessão no navegador e
+ * devolve o nome de usuário de quem entrou (SESSAO-38 — o aparelho lembra).
+ */
+export async function entrar(identificador: string, senha: string): Promise<{ usuario?: string }> {
+  const resposta = await chamar<SessaoAberta>('entrar', { identificador, senha })
+  const { error } = await supabase.auth.setSession({
+    access_token: resposta.access_token,
+    refresh_token: resposta.refresh_token,
   })
-  const { error } = await supabase.auth.setSession(tokens)
   if (error) throw new Error('Não consegui abrir a sessão. Tente de novo.')
+  return { usuario: resposta.usuario }
 }
 
 export interface InfoConvite {
@@ -149,14 +160,23 @@ export function setorPinConferir(
   })
 }
 
-/** No computador: e-mail + PIN para quem nunca criou senha (cai na troca obrigatória). */
-export async function entrarPin(email: string, pin: string): Promise<void> {
-  const tokens = await chamar<{ access_token: string; refresh_token: string }>('entrar-pin', {
-    email,
+/**
+ * No computador: usuário (ou e-mail) + PIN para quem nunca criou senha (cai na
+ * troca obrigatória). SESSAO-38: aceita o nome de usuário — `email` vai junto
+ * só para a versão anterior do servidor (que lia apenas ele) seguir valendo.
+ */
+export async function entrarPin(identificador: string, pin: string): Promise<{ usuario?: string }> {
+  const resposta = await chamar<SessaoAberta>('entrar-pin', {
+    identificador,
+    email: identificador,
     pin,
   })
-  const { error } = await supabase.auth.setSession(tokens)
+  const { error } = await supabase.auth.setSession({
+    access_token: resposta.access_token,
+    refresh_token: resposta.refresh_token,
+  })
   if (error) throw new Error('Não consegui abrir a sessão. Tente de novo.')
+  return { usuario: resposta.usuario }
 }
 
 // ---------------------------------------------------------------------------

@@ -239,6 +239,7 @@ export function EditarUsuario({
               <Campo
                 rotulo="Nome de usuário"
                 autoCapitalize="none"
+                ajuda="É com ele que a pessoa entra (ou com o e-mail)."
                 value={usuario}
                 onChange={(e) => setUsuario(e.target.value)}
               />

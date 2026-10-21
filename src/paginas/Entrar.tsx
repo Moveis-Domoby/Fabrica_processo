@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
-import { ArrowLeft, Fingerprint, KeyRound, LogIn, Mail, TabletSmartphone, UserRound } from 'lucide-react'
+import { ArrowLeft, Fingerprint, KeyRound, LogIn, TabletSmartphone, UserRound } from 'lucide-react'
 import { Botao, Campo } from '@/componentes/ui'
 import { Marca } from '@/componentes/Marca'
 import { entrar, entrarPin, tabletEntrar } from '@/autenticacao/api'
+import { lembrarLogin, lerUltimoLogin } from '@/autenticacao/ultimoLogin'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTA_INICIAL } from '@/navegacao/rotas'
 import { TecladoPin } from '@/tablet/TecladoPin'
@@ -19,15 +20,24 @@ type ModoEntrada = 'senha' | 'pin' | 'tablet'
  * SESSAO-36 (D-146): o MODO TABLET mora aqui — o PIN do SETOR abre o tablet
  * daquele setor (um tablet atende o setor inteiro). E quem tem PIN mas nunca
  * criou senha entra com E-MAIL + PIN (cai na troca obrigatória de senha).
+ *
+ * SESSAO-38 (D-163): o dono ainda digitava o e-mail toda vez — a tela não
+ * lembrava de ninguém (a sessão vence com o tempo parado e cada entrada
+ * começava do zero) e o campo do PIN só aceitava e-mail. Agora: o aparelho
+ * lembra o NOME DE USUÁRIO de quem entrou (o servidor devolve; quem entrava
+ * pelo e-mail passa a ver o próprio usuário), o campo já abre preenchido com
+ * o cursor na senha, os campos levam `name`/`autocomplete` para o gerenciador
+ * de senhas do navegador preencher, e o PIN aceita usuário ou e-mail.
  */
 export function Entrar() {
   const { sessao, carregando: carregandoSessao } = useSessao()
   const navegar = useNavigate()
   const [parametros] = useSearchParams()
   const [modo, setModo] = useState<ModoEntrada>('senha')
-  const [identificador, setIdentificador] = useState(parametros.get('u') ?? '')
+  // O link de convite (?u=) vence; senão, quem entrou por último neste aparelho.
+  const [identificadorInicial] = useState(() => parametros.get('u') ?? lerUltimoLogin())
+  const [identificador, setIdentificador] = useState(identificadorInicial)
   const [senha, setSenha] = useState('')
-  const [email, setEmail] = useState('')
   const [pinPessoa, setPinPessoa] = useState('')
   const [pinSetor, setPinSetor] = useState('')
   const [erro, setErro] = useState('')
@@ -44,15 +54,17 @@ export function Entrar() {
         return
       }
     } else if (modo === 'pin') {
-      if (!email.trim() || !/^[0-9]{2,4}$/.test(pinPessoa)) {
-        setErro('Preencha o e-mail e o PIN (2 a 4 dígitos).')
+      if (!identificador.trim() || !/^[0-9]{2,4}$/.test(pinPessoa)) {
+        setErro('Preencha usuário (ou e-mail) e o PIN (2 a 4 dígitos).')
         return
       }
     }
     setEnviando(true)
     try {
-      if (modo === 'senha') await entrar(identificador.trim(), senha)
-      else await entrarPin(email.trim(), pinPessoa)
+      const digitado = identificador.trim()
+      const { usuario } =
+        modo === 'senha' ? await entrar(digitado, senha) : await entrarPin(digitado, pinPessoa)
+      lembrarLogin(usuario ?? digitado)
       // a sessão muda no provedor e a rota da casa assume
     } catch (excecao) {
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
@@ -117,52 +129,48 @@ export function Entrar() {
                 <p className="mt-1 text-sm text-texto-suave">
                   {modo === 'senha'
                     ? 'Use seu nome de usuário ou seu e-mail. Não tem acesso? Peça à liderança — o cadastro só nasce por convite.'
-                    : 'Para quem tem PIN e ainda não criou a própria senha: entre com o e-mail e o PIN — você vai criar a senha em seguida.'}
+                    : 'Para quem tem PIN e ainda não criou a própria senha: entre com o seu usuário (ou e-mail) e o PIN — você vai criar a senha em seguida.'}
                 </p>
 
                 <form onSubmit={aoEnviar} className="mt-5 flex flex-col gap-4" noValidate>
+                  {/* O mesmo campo nos dois jeitos (senha ou PIN) — com `name` e
+                      `autocomplete` para o navegador lembrar e preencher. */}
+                  <Campo
+                    rotulo="Usuário ou e-mail"
+                    name="username"
+                    prefixo={<UserRound />}
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    value={identificador}
+                    onChange={(e) => setIdentificador(e.target.value)}
+                  />
                   {modo === 'senha' ? (
-                    <>
-                      <Campo
-                        rotulo="Usuário ou e-mail"
-                        prefixo={<UserRound />}
-                        autoComplete="username"
-                        autoCapitalize="none"
-                        value={identificador}
-                        onChange={(e) => setIdentificador(e.target.value)}
-                      />
-                      <Campo
-                        rotulo="Senha"
-                        type="password"
-                        prefixo={<KeyRound />}
-                        autoComplete="current-password"
-                        value={senha}
-                        onChange={(e) => setSenha(e.target.value)}
-                        erro={erro || undefined}
-                      />
-                    </>
+                    <Campo
+                      rotulo="Senha"
+                      name="password"
+                      type="password"
+                      prefixo={<KeyRound />}
+                      autoComplete="current-password"
+                      // Já veio com o usuário lembrado: o cursor vai direto à senha.
+                      autoFocus={identificadorInicial !== ''}
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      erro={erro || undefined}
+                    />
                   ) : (
-                    <>
-                      <Campo
-                        rotulo="E-mail"
-                        type="email"
-                        prefixo={<Mail />}
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                      <Campo
-                        rotulo="PIN (2 a 4 dígitos)"
-                        type="password"
-                        inputMode="numeric"
-                        prefixo={<Fingerprint />}
-                        autoComplete="off"
-                        value={pinPessoa}
-                        onChange={(e) => setPinPessoa(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        erro={erro || undefined}
-                      />
-                    </>
+                    <Campo
+                      rotulo="PIN (2 a 4 dígitos)"
+                      name="pin"
+                      type="password"
+                      inputMode="numeric"
+                      prefixo={<Fingerprint />}
+                      autoComplete="off"
+                      value={pinPessoa}
+                      onChange={(e) => setPinPessoa(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      erro={erro || undefined}
+                    />
                   )}
                   <Botao type="submit" tamanho="lg" larguraTotal carregando={enviando} icone={<LogIn />}>
                     Entrar
@@ -202,7 +210,7 @@ export function Entrar() {
                   setModo('pin')
                 }}
               >
-                Entrar com e-mail e PIN
+                Entrar com usuário e PIN
               </Botao>
             )}
             {modo !== 'senha' && (
