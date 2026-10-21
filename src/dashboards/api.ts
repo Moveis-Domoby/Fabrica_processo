@@ -236,7 +236,11 @@ export async function dashDia(): Promise<NumerosDia | null> {
   if (error) throw new Error(`Não deu para carregar os números do dia: ${error.message}`)
   const linha = ((data ?? []) as NumerosDia[])[0] ?? null
   return linha
-    ? { ...linha, media_concluidas_4sem: linha.media_concluidas_4sem === null ? null : Number(linha.media_concluidas_4sem) }
+    ? {
+        ...linha,
+        media_concluidas_4sem:
+          linha.media_concluidas_4sem === null ? null : Number(linha.media_concluidas_4sem),
+      }
     : null
 }
 
@@ -274,7 +278,11 @@ export interface DanificadoDia {
 
 export async function dashDanificadosDia(): Promise<DanificadoDia[]> {
   const { data, error } = await supabase.rpc('plt_fn_dash_danificados_dia')
-  return garantir(data as DanificadoDia[] | null, error, 'Não deu para carregar os danificados do dia')
+  return garantir(
+    data as DanificadoDia[] | null,
+    error,
+    'Não deu para carregar os danificados do dia',
+  )
 }
 
 export interface DanificadoAberto {
@@ -394,6 +402,13 @@ export interface CardDeTempo {
   em_andamento: boolean
   auxiliar: boolean
   motivos: string[]
+  /**
+   * SESSAO-38 (D-165): do tempo parado, o que foi por motivo ESPECIAL (não
+   * conta contra a pessoa) e quais motivos — só chegam preenchidos para quem
+   * vê todos (líder/admin); para o próprio funcionário vêm zerados.
+   */
+  especial_s?: number
+  motivos_especiais?: string[]
 }
 
 /** O detalhe por setor que vem DENTRO do scorecard (mesma requisição — Lei §2). */
@@ -401,7 +416,10 @@ export interface SetorDeTempo {
   setor_id: number
   nome: string
   producao_s: number
+  /** Só o ausente que conta (sem o parado por motivo especial). */
   ausente_s: number
+  /** SESSAO-38: parado por motivo especial (0 para quem não vê todos). */
+  especial_s?: number
   cards: CardDeTempo[]
 }
 
@@ -418,6 +436,10 @@ export interface PessoaTempos {
   deriva_s: number
   por_setor: SetorDeTempo[]
   contagem_total: number
+  /** SESSAO-38 (D-165): parado por motivo especial — fora do ausente (0 para quem não vê todos). */
+  especial_s?: number
+  /** SESSAO-38: o ausente de agora é por motivo especial (falso para quem não vê todos). */
+  estado_especial?: boolean
 }
 
 export async function temposPessoas(parametros: {
@@ -438,10 +460,28 @@ export async function temposPessoas(parametros: {
 
 export interface TempoPessoaDetalhe {
   usuario: { id: string; nome: string; foto_caminho: string | null; papel: string } | null
-  estado: { estado: EstadoPessoa; desde: string; setor_id: number | null } | null
-  dias: { dia: string; producao_s: number; ausente_s: number; deriva_s: number }[]
-  aberto: { estado: EstadoPessoa; setor_id: number | null; segundos: number }[]
-  por_setor: { setor_id: number; nome: string; producao_s: number; ausente_s: number }[]
+  // SESSAO-38 (D-165): os campos "especial" só vêm preenchidos para líder/admin.
+  estado: {
+    estado: EstadoPessoa
+    desde: string
+    setor_id: number | null
+    especial?: boolean
+  } | null
+  dias: {
+    dia: string
+    producao_s: number
+    ausente_s: number
+    deriva_s: number
+    especial_s?: number
+  }[]
+  aberto: { estado: EstadoPessoa | 'especial'; setor_id: number | null; segundos: number }[]
+  por_setor: {
+    setor_id: number
+    nome: string
+    producao_s: number
+    ausente_s: number
+    especial_s?: number
+  }[]
   execucoes: {
     card_id: number
     setor_id: number | null
@@ -453,6 +493,8 @@ export interface TempoPessoaDetalhe {
     segundos: number
     pausado_s: number
     motivos: string[]
+    especial_s?: number
+    motivos_especiais?: string[]
     rotulo: string | null
   }[]
   auxilios: {
@@ -463,6 +505,7 @@ export interface TempoPessoaDetalhe {
     encerrado_em: string | null
     segundos: number
     motivo: string | null
+    motivo_especial?: boolean
     rotulo: string | null
   }[]
 }
@@ -536,8 +579,7 @@ export function normalizarConfiguracao(bruta: unknown): ConfiguracaoPainel {
   }
   const widgets = Array.isArray(cfg.widgets) ? cfg.widgets : []
   const soQualidade = widgets.length > 0 && widgets.every((w) => w === 'qualidade')
-  const soPessoas =
-    widgets.length > 0 && widgets.every((w) => w === 'pessoas' || w === 'execucoes')
+  const soPessoas = widgets.length > 0 && widgets.every((w) => w === 'pessoas' || w === 'execucoes')
   return {
     tela: soQualidade ? 'qualidade' : soPessoas ? 'pessoas' : 'tempo-por-setor',
     periodoDias,
@@ -583,10 +625,7 @@ export async function atualizarVisualizacao(
   id: number,
   configuracao: ConfiguracaoPainel,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('plt_visualizacoes')
-    .update({ configuracao })
-    .eq('id', id)
+  const { error } = await supabase.from('plt_visualizacoes').update({ configuracao }).eq('id', id)
   if (error) throw new Error(`Não deu para atualizar a visualização: ${error.message}`)
 }
 

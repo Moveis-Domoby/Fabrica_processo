@@ -33,7 +33,25 @@ vi.mock('@/dashboards/api', async (original) => {
         producao_s: 3600,
         ausente_s: 600,
         deriva_s: 0,
-        por_setor: [{ setor_id: 2, nome: 'SECC', producao_s: 3600, ausente_s: 600, cards: [{ card_id: 9, rotulo: 'Mesa de canto', segundos: 3600, pausado_s: 600, em_andamento: false, auxiliar: false, motivos: ['Falta de material'] }] }],
+        por_setor: [
+          {
+            setor_id: 2,
+            nome: 'SECC',
+            producao_s: 3600,
+            ausente_s: 600,
+            cards: [
+              {
+                card_id: 9,
+                rotulo: 'Mesa de canto',
+                segundos: 3600,
+                pausado_s: 600,
+                em_andamento: false,
+                auxiliar: false,
+                motivos: ['Falta de material'],
+              },
+            ],
+          },
+        ],
         contagem_total: 2,
       },
       {
@@ -49,6 +67,44 @@ vi.mock('@/dashboards/api', async (original) => {
         deriva_s: 1800,
         por_setor: [],
         contagem_total: 2,
+      },
+      {
+        // SESSAO-38: parada por motivo especial — o líder vê o "não conta" à parte
+        usuario_id: 'u-3',
+        nome: 'Caio Montador',
+        foto_caminho: null,
+        papel: 'operador',
+        estado: 'ausente',
+        estado_desde: '2026-10-18T14:00:00Z',
+        estado_setor_id: 5,
+        producao_s: 1200,
+        ausente_s: 0,
+        deriva_s: 0,
+        especial_s: 1800,
+        estado_especial: true,
+        por_setor: [
+          {
+            setor_id: 5,
+            nome: 'MONTAGEM',
+            producao_s: 1200,
+            ausente_s: 0,
+            especial_s: 1800,
+            cards: [
+              {
+                card_id: 11,
+                rotulo: 'Rack baixo',
+                segundos: 1200,
+                pausado_s: 1800,
+                em_andamento: true,
+                auxiliar: false,
+                motivos: ['Máquina quebrou'],
+                especial_s: 1800,
+                motivos_especiais: ['Máquina quebrou'],
+              },
+            ],
+          },
+        ],
+        contagem_total: 3,
       },
     ]),
     tempoPessoaDetalhe: vi.fn(async () => ({
@@ -99,6 +155,21 @@ describe('Dashboards → Tempos por pessoa (SESSAO-36)', () => {
     // SESSAO-37: o card abre produção × ausente do setor e os móveis com o parado
     expect(screen.getByText(/produção 1h/)).toBeInTheDocument()
     expect(screen.getByText(/Mesa de canto.*parado 10min.*Falta de material/)).toBeInTheDocument()
+  })
+
+  it('SESSAO-38: o parado por motivo especial aparece à parte, marcado "não conta"', async () => {
+    desenhar()
+    expect(await screen.findByText('Caio Montador')).toBeInTheDocument()
+    expect(screen.getByText('Parado · não conta')).toBeInTheDocument()
+    expect(screen.getByText(/Parado por motivo especial \(não conta\): 30min/)).toBeInTheDocument()
+    expect(screen.getByText(/produção 20min · não conta 30min/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Rack baixo.*parado 30min \(não conta 30min\).*Máquina quebrou \(não conta\)/,
+      ),
+    ).toBeInTheDocument()
+    // quem não tem parada especial não ganha nada a mais
+    expect(screen.queryByText(/Mesa de canto.*não conta/)).not.toBeInTheDocument()
   })
 
   it('o detalhe da pessoa só é pedido no clique (Lei §3)', async () => {
