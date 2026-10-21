@@ -10,6 +10,7 @@ import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import type { AcaoAoSoltar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
+import { useOrdemDaFila } from '@/kanban/prioridade'
 import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { JanelaDoCardNaUrl } from '@/kanban/janela/JanelaDoCardNaUrl'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
@@ -127,7 +128,9 @@ export function TelaSetor() {
   // O quadro numa requisição, ao vivo pelo websocket do setor (SESSAO-31) —
   // a mesma chave de cache do quadro do setor.
   // ------------------------------------------------------------------
-  const quadro = useQuadro(setor?.id)
+  // SESSAO-38 (D-154): a ordem da fila (o servidor ordena; lembrada no aparelho).
+  const [ordemFila, mudarOrdemFila] = useOrdemDaFila('quadro')
+  const quadro = useQuadro(setor?.id, ordemFila)
   const {
     etapas,
     colunas,
@@ -469,6 +472,8 @@ export function TelaSetor() {
           }
           camposPorCard={camposPorCard}
           carregando={quadro.carregando}
+          ordem={ordemFila}
+          aoMudarOrdem={mudarOrdemFila}
           execucao={{
             execucoesPorCard,
             nomesUsuarios,

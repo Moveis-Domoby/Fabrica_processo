@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { CampoCustomizado, Etiqueta, ValorCampo } from '@/utilitarios/tipos'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
+import type { OrdemDaFila } from './prioridade'
 
 /**
  * SESSAO-31 (Lei de Desempenho §2/§6 — regra 18): o quadro do setor (e o
@@ -63,6 +64,8 @@ export interface DadosDoQuadro extends JuntoDoQuadro {
   campos: CampoCustomizado[]
   /** SESSAO-36: as pessoas presentes no setor (trabalhando/ausente). */
   presencas: PresencaDoSetor[]
+  /** SESSAO-38 (D-154): a ordem em que o servidor montou as colunas. */
+  ordem?: OrdemDaFila
 }
 
 export interface PaginaDaColuna extends JuntoDoQuadro {
@@ -73,10 +76,13 @@ export interface PaginaDaColuna extends JuntoDoQuadro {
 export async function quadroSetor(
   setorId: number,
   porColuna = CARDS_POR_COLUNA,
+  ordem: OrdemDaFila = 'prioridade',
 ): Promise<DadosDoQuadro> {
+  // SESSAO-38 (D-154): a ordem da fila é do servidor (as colunas paginam lá).
   const { data, error } = await supabase.rpc('plt_fn_quadro_setor', {
     p_setor_id: setorId,
     p_por_coluna: porColuna,
+    p_ordem: ordem,
   })
   if (error) throw new Error(`Não deu para carregar o quadro: ${error.message}`)
   return data as DadosDoQuadro
@@ -88,6 +94,8 @@ export async function quadroColuna(parametros: {
   etapaId: number | null
   depoisDe: Pick<Card, 'id' | 'desde'> | undefined
   limite?: number
+  /** SESSAO-38 (D-154): a mesma ordem do quadro — o cursor é o último card mostrado. */
+  ordem?: OrdemDaFila
 }): Promise<PaginaDaColuna> {
   const { data, error } = await supabase.rpc('plt_fn_quadro_coluna', {
     p_setor_id: parametros.setorId,
@@ -95,6 +103,7 @@ export async function quadroColuna(parametros: {
     p_depois_desde: parametros.depoisDe?.desde ?? null,
     p_depois_id: parametros.depoisDe?.id ?? 0,
     p_limite: parametros.limite ?? CARDS_POR_COLUNA,
+    p_ordem: parametros.ordem ?? 'prioridade',
   })
   if (error) throw new Error(`Não deu para carregar mais cards: ${error.message}`)
   return data as PaginaDaColuna

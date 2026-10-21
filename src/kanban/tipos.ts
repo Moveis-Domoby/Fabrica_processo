@@ -132,6 +132,14 @@ export interface Card {
   pausa_motivo?: string | null
   /** SESSAO-36 (D-146): quem está no card como AUXILIAR agora (projeção). */
   auxiliares?: string[]
+  /**
+   * SESSAO-38 (D-150): a prioridade do card ('urgente' | 'atencao' | nulo =
+   * comum). Na peça é a do PEDIDO (herdada — `prioridade_herdada`).
+   */
+  prioridade?: 'urgente' | 'atencao' | null
+  prioridade_herdada?: boolean
+  /** SESSAO-38 (D-150): a data de entrega — a do pedido no Tiny (ao vivo); no avulso, o vencimento. */
+  data_entrega?: string | null
 }
 
 /**
@@ -140,14 +148,15 @@ export interface Card {
  */
 export type PedidoDoCard = Pick<
   PedidoResumo,
-  | 'pedido_id'
-  | 'numero'
-  | 'cliente_nome'
-  | 'situacao'
-  | 'data_prevista'
-  | 'entrou_pcp_em'
-  | 'liberado_completo_em'
->
+  'pedido_id' | 'numero' | 'situacao' | 'data_prevista' | 'entrou_pcp_em' | 'liberado_completo_em'
+> & {
+  /**
+   * ↩️ SESSAO-38 (item 3 do dono, D-28): o quadro do setor NÃO manda mais o
+   * nome do cliente (o card do setor não mostra); quem ainda traz é o PCP.
+   */
+  cliente_nome?: string
+  data_pedido?: string | null
+}
 
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
 export const COLUNAS_CARD =
@@ -324,6 +333,9 @@ export interface EventoLinhaTempo {
     | 'responsavel_removido'
     | 'anexo_adicionado'
     | 'anexo_removido'
+    // SESSAO-38 (D-150/D-152): a prioridade e o responsável de um setor.
+    | 'prioridade_definida'
+    | 'responsavel_setor_definido'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

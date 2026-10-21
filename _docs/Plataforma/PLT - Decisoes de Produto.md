@@ -1578,6 +1578,54 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 
 - A linha do tempo do card e a seção "Tempo e histórico" da janela **não mudaram** (outra frente vai refazer o tempo do card). Hoje o tempo de execução do card já desconta toda pausa; a pausa especial aparece na história como qualquer pausa, com o motivo.
 - **Recomendação para a frente do tempo do card:** mostrar a pausa por motivo especial como "parada por causa externa" (máquina, peça, pedido do líder) separada das pausas comuns no total "parado" do card — é tempo que o card esperou por algo de fora, útil para achar gargalo de máquina/abastecimento. A marca está em `plt_motivos.especial` (o motivo do fato está em `dados.motivo_id`); a do momento do gesto está em `plt_pessoa_pausas.especial`.
+## D-150 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O prazo e a PRIORIDADE do card de produção (21/10/2026, pedido do dono) — ↩️ revisa a D-101 (a prioridade não é mais etiqueta) e a D-125 (as datas do card de pedido)
+
+**Pedido do dono:** todo card de pedido mostra a data de entrega que o vendedor pôs no Tiny — só a data, com a cor dizendo quanto falta; a janela do card traz Início (o dia do pedido no Tiny) e Vencimento (a entrega); a prioridade deixa de ser etiqueta e vira marca própria, que o PCP põe a qualquer momento, inclusive ao criar o card: **Urgente** (sempre o primeiro, "a urgência tem que ser urgente"), **Atenção** (bolinha amarela) e **Comum** (bolinha verde).
+
+- **A data é LIDA do pedido, ao vivo** (nada copiado): o Tiny mudou a data → o card mostra a nova; o quadro de cada setor com peça do pedido é avisado na hora quando o Tiny atualiza o pedido.
+- **A cor:** verde com mais de 3 dias; amarelo com 2 ou 3; **vermelho forte, cheio e pulsando devagar** com 1 dia, no dia da entrega ou atrasado (quem pediu menos movimento no aparelho vê sem o pulso). O texto escondido diz quanto falta (a cor nunca vai sozinha).
+- **No card avulso** a data é o vencimento digitado (as datas continuam manuais); no card de pedido e nas peças dele as datas vêm do Tiny e **não se editam na janela**.
+- **Onde a prioridade mora (um dono por dado):** no **card do pedido** — vale para **todas as peças dele, em todos os setores**, inclusive as liberadas depois (cada peça LÊ a do pedido; nenhuma guarda a própria). A reposição de estoque tem a dela (vale para as peças que ela gerou) e o avulso a dele. Mudar pela peça muda a do pedido (a janela avisa: "vale para todas as peças do pedido").
+- O urgente aparece **escrito** ("URGENTE"), com a bolinha vermelha e a borda grossa vermelha no card; atenção e comum, só a bolinha.
+
+## D-151 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — Quem muda a prioridade (21/10/2026)
+
+- **O PCP/logística, o líder do setor onde o card está e o admin** — as mesmas pessoas que editam o card de pedido hoje (D-125 resposta 7); no avulso, também quem pode editá-lo (quem criou, os responsáveis).
+- O nível **"Logística"** (D-147) **muda** a prioridade: é uma propriedade do card (como etiqueta e descrição), não um gesto de mover ou executar.
+- O operador não muda. O mesmo toque duas vezes não grava nada novo.
+
+## D-152 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — Os RESPONSÁVEIS do card, por setor (21/10/2026, pedido do dono) — ↩️ revisa a D-125 (responsáveis)
+
+**Pedido do dono:** os responsáveis se preenchem sozinhos com quem pegou o card em cada setor; o líder ou o admin define o responsável dos próximos setores; o que já foi executado ninguém muda.
+
+- **Quem pegou** sai da história do card (quem iniciou o trabalho e quem ajudou, em cada setor — nada copiado); é **só leitura para todos**. No card do pedido (e no de reposição) a janela junta quem pegou as peças dele.
+- **Quem vai pegar nos próximos setores** se define **na peça (ou no card avulso)** — é ela que anda pelos setores; no card do pedido, a seção é só para ver.
+- **Quem define:** o admin, o PCP/logística, o **líder do setor onde o card está** ou o **líder do setor escolhido**. Só para setor de produção **ainda não trabalhado** naquele card — o banco recusa o setor já executado.
+- **Quem pode ser definido:** gente ativa daquele setor, ou quem tem no cadastro "pode ajudar em outros setores"; nunca a conta do tablet nem o nível Logística. Até 5 por setor.
+- A pessoa definida **é avisada no sino** e **passa a ver o card**. **Não vira delegação automática** (o afazer do Meu Painel continua sendo a delegação de sempre) — se o dono quiser que, ao chegar no setor, o card caia direto para a pessoa, é um passo seguinte.
+- Os "responsáveis do card todo" do avulso (escolhidos ao criar) continuam existindo, abaixo da lista por setor.
+
+## D-153 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A etiqueta que fazia o papel de prioridade (21/10/2026)
+
+- Etiqueta cujo nome começa com prioridade/prioritário/urgente/urgência/atenção: o card **vivo** que a tem ganha a prioridade nova (atenção para "atenção", urgente para as outras — no card do pedido, se for peça), e a etiqueta é **arquivada** (nada se apaga; a história fica).
+- Em produção, em 21/10: a etiqueta **"PRIORIDADE"** estava em **nenhum card vivo** — só foi arquivada. Para voltar, o admin a reativa em Utilitários.
+
+## D-154 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O organizador da fila: entrega, prioridade, alfabética (21/10/2026, pedido do dono)
+
+**Pedido do dono:** em todos os quadros (computador e tablet) e no PCP, um organizador da fila por data de entrega, por prioridade e alfabético; troca-se por cliques num botão com o ícone do estilo atual, sem texto.
+
+- **Um botão só, com o ícone** (bandeira = prioridade · calendário = entrega · A-Z = alfabética); cada toque passa para a próxima. O nome vai para o leitor de tela e para a dica do mouse.
+- **O urgente vem sempre primeiro**, em qualquer ordem.
+- **Prioridade** (a padrão): urgente → atenção → comum; dentro de cada uma, o mais antigo na etapa primeiro (a ordem de sempre).
+- **Entrega:** a data de entrega mais próxima primeiro (o avulso pelo vencimento), depois o número do pedido e o mais antigo; **sem data vai para o fim**.
+- **Alfabética:** letras primeiro (sem ligar para maiúscula e acento), depois números, depois o resto (símbolo, emoji); no quadro, pelo nome do produto (ou do avulso); **no PCP, pelo nome do cliente** (é o que o card do PCP mostra).
+- **Quem ordena é o servidor** (as colunas paginam lá); "Ver mais" continua a mesma ordem. A escolha fica **lembrada no aparelho**, uma para os quadros e outra para o PCP.
+
+## D-155 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O card do setor sem o cliente e o card do PCP refeito (21/10/2026, pedido do dono) — ↪️ D-28
+
+- **O card do setor não mostra o nome do cliente** — nem no computador (no tablet já não mostrava, D-28); o quadro do setor nem recebe mais o nome. Quem precisa vê na **janela do card** (fora do tablet) e no **PCP**.
+- **O card do PCP:** todos do **mesmo tamanho** na grade; o aviso de peça no estoque virou um **selo pequeno** ("3 no estoque", com a explicação na dica), como os outros avisos — não estica mais o card; o lado direito tem o **prazo** e o tempo no PCP; no rodapé, as unidades liberadas, a **prioridade** (três bolinhas), o botão de **abrir o card** e o lugar reservado para **mais um botão** (o "stand-by", que vem em outra entrega); a liberação continua igual.
+- **Campos** vazios na janela: "Sem campos personalizados." (sem cara de erro; o admin cria campos em Utilitários).
 
 ## Ver também
 

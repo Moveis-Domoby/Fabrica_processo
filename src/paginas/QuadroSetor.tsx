@@ -11,6 +11,7 @@ import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
+import { useOrdemDaFila } from '@/kanban/prioridade'
 import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
 import { ModalMoverCard } from '@/kanban/componentes/ModalMoverCard'
@@ -65,7 +66,9 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   const setor = setores.find((s) => s.id === setorId)
 
   // SESSAO-31: o quadro inteiro numa requisição e ao vivo pelo websocket do setor.
-  const quadro = useQuadro(Number.isFinite(setorId) ? setorId : undefined)
+  // SESSAO-38 (D-154): a ordem da fila (o servidor ordena; lembrada no aparelho).
+  const [ordemFila, mudarOrdemFila] = useOrdemDaFila('quadro')
+  const quadro = useQuadro(Number.isFinite(setorId) ? setorId : undefined, ordemFila)
   const {
     etapas,
     colunas,
@@ -220,8 +223,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         <KeyRound aria-hidden className="size-10 text-texto-fraco" />
         <h1 className="text-2xl">{setor.nome}</h1>
         <p className="text-sm text-texto-suave">
-          Este setor não é o seu. Para dar uma olhada nele, digite o PIN de entrada DESTE setor
-          (o mesmo que abre o tablet dele).
+          Este setor não é o seu. Para dar uma olhada nele, digite o PIN de entrada DESTE setor (o
+          mesmo que abre o tablet dele).
         </p>
         <form
           className="flex items-end gap-2"
@@ -342,6 +345,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         aoAbrirConcluir={(card) => card.tipo === 'avulso' && setConcluindoAvulso(card)}
         camposPorCard={camposPorCard}
         carregando={quadro.carregando}
+        ordem={ordemFila}
+        aoMudarOrdem={mudarOrdemFila}
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
