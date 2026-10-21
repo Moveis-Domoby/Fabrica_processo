@@ -1526,6 +1526,30 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 6. **Botão "Ajudar em tudo"** no topo da coluna em execução (tablet e PC): um gesto entra como auxiliar em TODOS os cards em execução do setor; e o "Pausar geral" ao lado. ⏳ PROVISÓRIA: para isso o limite por pessoa (D-48) deixou de barrar o AUXÍLIO — ele segue contando as ajudas abertas ao INICIAR um card próprio.
 7. **Dashboard de tempos detalhada** (pedido na mesma conversa): o card de cada pessoa abre os números POR SETOR (produção × ausente) e a produção por móvel — tempo, tempo parado e os motivos — na mesma requisição; o clique aprofunda (dia a dia, por setor, cada card com pausas e motivos).
 
+## D-164 · Motivos de pausa ESPECIAIS: "Faltou peça", "Máquina quebrou" e "Pausa solicitada por um líder" — o funcionário não vê diferença (21/10/2026, pedido do dono; SESSAO-38 · frente F4)
+
+**Pedido do dono (traduzido):** *"na parte de PARAR um card, crie motivos ESPECIAIS que param de contar o tempo para o funcionário quando selecionados. Não mostre nenhum aviso para o funcionário — para ele é um motivo como outro qualquer. São eles: 'Faltou peça', 'Máquina quebrou', 'Pausa solicitada por um líder'. Por enquanto só esses; depois eu crio outros nos motivos de pausa. Coloque lá um 'especial ou não' para quem cria ou edita saber disso."*
+
+- Os motivos de pausa ganham a marca **especial** (Configurações → Utilitários → Motivos de pausa): uma caixinha "Especial" no cadastro e na edição, com a explicação para quem configura, e a pílula "Especial · não conta o tempo" na lista. Só motivo de **pausa** pode ser especial (trava no banco).
+- Os três do dono nasceram especiais. Nenhum motivo existente tinha o mesmo nome (comparado sem maiúsculas, acentos e espaços) — "Falta de material", "Manutenção da máquina" e "Conferir com o líder" seguem **comuns** (sentido parecido, mas não o mesmo; o admin marca se quiser).
+- **O funcionário não vê nada:** a lista que ele recebe ao pausar (janela do card, PARADO, pausar geral, tablet) é a mesma de sempre e **não traz a marca**; no quadro/tablet ele continua "Ausente"; na própria dashboard de tempos nada "especial" aparece.
+
+## D-165 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O que "não contar o tempo" quer dizer, com precisão (21/10/2026, SESSAO-38 · F4)
+
+**O tempo do funcionário neste sistema** (o que conta contra ele) é a PRESENÇA da SESSAO-36: **em produção** (execução ou ajuda rodando), **ausente** (deu entrada no setor e nada rodando) e **fora de setor** (saiu sem entrar em outro) — somados por dia. O tempo de execução (as dashboards Pessoas / Meu desempenho / tempo do card) **já descontava toda pausa**, especial ou não — não muda. O que pesa contra a pessoa é o **ausente**.
+
+1. **Enquanto a pessoa está parada por motivo especial, o trecho NÃO é ausente:** vai para um balde próprio ("não conta"), fora do ausente e fora da produção. Exemplo: Ana trabalha 1 h, pausa por "Máquina quebrou" 30 min, retoma e trabalha mais 1 h → produção 2 h, **ausente 0**, não conta 30 min. Se o motivo fosse "Falta de material" (comum): produção 2 h, ausente 30 min — exatamente como antes.
+2. **Quem fica "não conta":** quem EXECUTA o card pausado (mesmo que o líder tenha pausado); quem ajudava e foi pausado junto com o card; quem se pausa pelo "pausar geral" com motivo especial (também na ajuda); e quem executava o card que foi solto no PARADO com motivo especial.
+3. **Vale a parada MAIS RECENTE da pessoa:** se depois ela parar outro card por motivo comum, volta a contar como ausente. O PARADO especial acaba quando o card sai do PARADO; qualquer parada acaba quando a pessoa **entra em outro setor ou sai do setor** (ela seguiu em frente; o que a prendia não vale para o próximo setor nem para o dia seguinte). O teto de 12 h por trecho do ausente vale igual.
+4. **A marca vale do gesto em diante:** o trecho guarda se o motivo era especial NO MOMENTO da pausa; ligar/desligar a marca depois não reescreve o que já foi somado (histórico: não havia nenhuma pausa com esses motivos — a lista era nova; conferido no banco em 21/10: uma pausa só em toda a produção, "Fim do turno").
+5. **Quem vê o "não conta":** só líder e admin, na dashboard Tempos por pessoa — discreto: "Parado · não conta" no estado, a linha "Parado por motivo especial (não conta)" no cartão, "não conta X" por setor, por dia e por móvel, e o motivo marcado "(não conta)". O próprio funcionário vê o ausente sem esse trecho e nenhuma marca.
+6. **Auxílio no PARADO:** soltar no PARADO encerra as ajudas (como sempre — D-146 resposta 8); quem ajudava fica ausente comum (só quem executava ganha o "não conta"). Escolha conservadora.
+
+## D-166 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O tempo do CARD não muda com a pausa especial (21/10/2026, SESSAO-38 · F4)
+
+- A linha do tempo do card e a seção "Tempo e histórico" da janela **não mudaram** (outra frente vai refazer o tempo do card). Hoje o tempo de execução do card já desconta toda pausa; a pausa especial aparece na história como qualquer pausa, com o motivo.
+- **Recomendação para a frente do tempo do card:** mostrar a pausa por motivo especial como "parada por causa externa" (máquina, peça, pedido do líder) separada das pausas comuns no total "parado" do card — é tempo que o card esperou por algo de fora, útil para achar gargalo de máquina/abastecimento. A marca está em `plt_motivos.especial` (o motivo do fato está em `dados.motivo_id`); a do momento do gesto está em `plt_pessoa_pausas.especial`.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
