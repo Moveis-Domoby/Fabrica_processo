@@ -3,13 +3,27 @@ import { supabase } from '@/lib/supabase'
 
 /**
  * Camada de dados do módulo de ROTAS (SESSAO-11 / D-33, revista na SESSAO-15 /
- * D-39 / D-45): a entrega é por PEDIDO COMPLETO e SÓ o pedido lançado pelos
- * Pedidos em aguardo aparece aqui. O gate (logística: admin, PCP, terminais)
+ * D-39 / D-45): a entrega é por PEDIDO COMPLETO. ↪️ SESSAO-38 (D-156): a rota
+ * aceita QUALQUER pedido vivo (pronto, em produção ou ainda no PCP) — o
+ * "Lançar para ROTAS" deixou de ser passo; cada pedido diz o seu `estado`. O gate (logística: admin, PCP, terminais)
  * vive nas funções do banco. Endereço e contato aparecem de propósito — é o
  * que o entregador precisa (o mesmo que o card do ClickUp mostrava).
  */
 
-export interface Entrega {
+/**
+ * SESSAO-38 (D-156): pronto (todas as peças no fim de linha) · em produção
+ * (alguma peça liberada) · no PCP (nada liberado ainda) · entregue.
+ */
+export type EstadoPedido = 'pronto' | 'em_producao' | 'no_pcp' | 'entregue'
+
+/** O que a prontidão de um pedido traz (as portas da rota devolvem as três). */
+export interface Prontidao {
+  estado?: EstadoPedido | null
+  unidades_prontas?: number
+  unidades_liberadas?: number
+}
+
+export interface Entrega extends Prontidao {
   card_id: number
   pedido_id: number
   numero: number
@@ -241,7 +255,7 @@ export interface ItemPedido {
   quantidade: number
 }
 
-export interface PedidoProgramacao {
+export interface PedidoProgramacao extends Prontidao {
   card_id: number
   pedido_id: number
   numero: number
@@ -337,7 +351,7 @@ export async function programarRota(parametros: {
 }
 
 /** Uma entrega já programada (aba "Já programadas" — D-111). */
-export interface PedidoProgramado {
+export interface PedidoProgramado extends Prontidao {
   card_id: number
   pedido_id: number
   numero: number
@@ -577,6 +591,11 @@ export interface EntregaDoDia {
   entregue_por_gente: boolean
   comprovantes: number
   comentarios: ComentarioEntrega[]
+  /** SESSAO-38 (D-156): o programado pode ainda estar em produção. */
+  estado?: EstadoPedido | null
+  pronto?: boolean
+  prontas?: number
+  a_entregar?: number
 }
 
 /** SESSAO-31 (D-128): um item por ROTA do dia (o caminhão + o número da rota). */
@@ -706,6 +725,7 @@ export interface PessoaEntregadora {
   id: string
   nome: string
   foto_caminho: string | null
+  /** SESSAO-38 (D-158): a lista só traz entregador — sempre true. */
   entregador: boolean
 }
 

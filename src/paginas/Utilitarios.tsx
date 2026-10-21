@@ -28,8 +28,10 @@ import {
   salvarEtiqueta,
 } from '@/utilitarios/api'
 import { useCampos, useEtiquetas } from '@/utilitarios/consultas'
+import { listarMotivosComMarca, salvarMotivoComMarca } from '@/utilitarios/api'
+import type { MotivoComMarca } from '@/utilitarios/api'
 import { listarMotivos, salvarMotivo } from '@/rotas/api'
-import type { Motivo, TipoMotivo } from '@/rotas/api'
+import type { TipoMotivo } from '@/rotas/api'
 import { PilulaEtiqueta } from '@/utilitarios/PilulaEtiqueta'
 import { CORES_ETIQUETA, ROTULO_COR, ROTULO_TIPO_CAMPO, TIPOS_CAMPO } from '@/utilitarios/tipos'
 import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utilitarios/tipos'
@@ -77,7 +79,8 @@ export function Utilitarios() {
             </span>
             <span>
               Motivos de pausa são escolhidos ao pausar um card em execução ou ao soltá-lo numa
-              etapa de parada.
+              etapa de parada. O motivo marcado como especial não conta o tempo parado contra o
+              funcionário (quem pausa não vê a marca).
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
@@ -699,7 +702,13 @@ function ModalCampo({
 // campos customizados")
 // ---------------------------------------------------------------------------
 
-type ListaDeMotivos = { tipo: TipoMotivo; titulo: string; explica: string }
+type ListaDeMotivos = {
+  tipo: TipoMotivo
+  titulo: string
+  explica: string
+  /** SESSAO-38 (D-164): a lista de pausa tem a marca "especial". */
+  comMarca?: boolean
+}
 
 const MOTIVOS_ENTREGA: ListaDeMotivos[] = [
   {
@@ -727,8 +736,13 @@ const MOTIVOS_PAUSA: ListaDeMotivos[] = [
     titulo: 'Motivos de pausa',
     explica:
       'Escolhido ao pausar um card em execução ou ao soltá-lo numa etapa de parada. A opção "Outro", escrita na hora, sempre aparece junto.',
+    // SESSAO-38 (D-164): o motivo especial não conta o tempo do funcionário.
+    comMarca: true,
   },
 ]
+
+const EXPLICA_ESPECIAL =
+  'Especial: enquanto a pessoa estiver parada por este motivo, o tempo não conta para ela — não entra como ausente nos tempos por pessoa. Quem pausa não vê diferença nenhuma: para o funcionário é um motivo como outro qualquer.'
 
 // SESSAO-36 (D-146 resposta 6): sair do setor pede o motivo, como a pausa —
 // mas a lista é OUTRA (pausa e saída não se misturam).
@@ -752,30 +766,70 @@ function PainelMotivos({ listas }: { listas: ListaDeMotivos[] }) {
   )
 }
 
+/** A caixinha "Especial" (SESSAO-38 · D-164) — no cadastro e na edição do motivo de pausa. */
+function CaixaEspecial({
+  marcada,
+  aoMudar,
+}: {
+  marcada: boolean
+  aoMudar: (marcada: boolean) => void
+}) {
+  return (
+    <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
+      <input
+        type="checkbox"
+        className="size-5 accent-marca-500"
+        checked={marcada}
+        onChange={(e) => aoMudar(e.target.checked)}
+      />
+      Especial (o tempo parado não conta para o funcionário)
+    </label>
+  )
+}
+
 function ListaMotivos({
   tipo,
   titulo,
   explica,
+  comMarca = false,
 }: {
   tipo: TipoMotivo
   titulo: string
   explica: string
+  comMarca?: boolean
 }) {
   const notificar = useNotificacao()
   const aoErro = useErro()
   const clienteQuery = useQueryClient()
   const [novo, setNovo] = useState('')
-  const [editando, setEditando] = useState<{ id: number; texto: string } | null>(null)
-  const { data: motivos = [], isPending } = useQuery({
-    queryKey: ['motivos', tipo, 'todos'],
-    queryFn: () => listarMotivos(tipo, true),
+  const [novoEspecial, setNovoEspecial] = useState(false)
+  const [editando, setEditando] = useState<{ id: number; texto: string; especial: boolean } | null>(
+    null,
+  )
+  // A lista de pausa vem pela porta do admin, que traz a marca (a lista do
+  // funcionário não a traz). As outras listas seguem como sempre.
+  const { data: motivos = [], isPending } = useQuery<MotivoComMarca[]>({
+    queryKey: ['motivos', tipo, comMarca ? 'com-marca' : 'todos'],
+    queryFn: async () =>
+      comMarca
+        ? listarMotivosComMarca(tipo)
+        : (await listarMotivos(tipo, true)).map((m) => ({ ...m, especial: false })),
   })
   const salvar = useMutation({
-    mutationFn: (m: { id: number | null; texto: string; ordem?: number | null; ativo?: boolean }) =>
-      salvarMotivo({ ...m, tipo }),
+    mutationFn: (m: {
+      id: number | null
+      texto: string
+      ordem?: number | null
+      ativo?: boolean
+      especial?: boolean
+    }) =>
+      comMarca
+        ? salvarMotivoComMarca({ ...m, tipo })
+        : salvarMotivo({ id: m.id, texto: m.texto, ordem: m.ordem, ativo: m.ativo, tipo }),
     onSuccess: async (_d, m) => {
       notificar({ titulo: m.id === null ? 'Motivo cadastrado' : 'Motivo salvo', tom: 'perfeito' })
       setNovo('')
+      setNovoEspecial(false)
       setEditando(null)
       await clienteQuery.invalidateQueries({ queryKey: ['motivos', tipo] })
     },
@@ -784,7 +838,8 @@ function ListaMotivos({
 
   function aoCadastrar(e: FormEvent) {
     e.preventDefault()
-    if (novo.trim().length >= 2) salvar.mutate({ id: null, texto: novo })
+    if (novo.trim().length >= 2)
+      salvar.mutate({ id: null, texto: novo, ...(comMarca ? { especial: novoEspecial } : {}) })
   }
 
   return (
@@ -795,17 +850,23 @@ function ListaMotivos({
       <div>
         <h2 className="text-lg font-semibold text-texto">{titulo}</h2>
         <p className="text-sm text-texto-suave">{explica}</p>
+        {comMarca && <p className="mt-1 text-sm text-texto-suave">{EXPLICA_ESPECIAL}</p>}
       </div>
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       <ul className="flex flex-col divide-y divide-borda">
-        {motivos.map((m: Motivo) => (
+        {motivos.map((m: MotivoComMarca) => (
           <li key={m.id} className="flex flex-wrap items-center gap-2 py-2">
             {editando?.id === m.id ? (
               <form
                 className="flex flex-1 flex-wrap items-end gap-2"
                 onSubmit={(e) => {
                   e.preventDefault()
-                  salvar.mutate({ id: m.id, texto: editando.texto, ativo: m.ativo })
+                  salvar.mutate({
+                    id: m.id,
+                    texto: editando.texto,
+                    ativo: m.ativo,
+                    ...(comMarca ? { especial: editando.especial } : {}),
+                  })
                 }}
               >
                 <div className="min-w-48 flex-1">
@@ -813,9 +874,15 @@ function ListaMotivos({
                     rotulo="Motivo"
                     value={editando.texto}
                     maxLength={80}
-                    onChange={(e) => setEditando({ id: m.id, texto: e.target.value })}
+                    onChange={(e) => setEditando({ ...editando, texto: e.target.value })}
                   />
                 </div>
+                {comMarca && (
+                  <CaixaEspecial
+                    marcada={editando.especial}
+                    aoMudar={(especial) => setEditando({ ...editando, especial })}
+                  />
+                )}
                 <Botao type="submit" tamanho="sm" carregando={salvar.isPending}>
                   Salvar
                 </Botao>
@@ -838,13 +905,18 @@ function ListaMotivos({
                   )}
                 >
                   {m.texto}
+                  {comMarca && m.especial && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto-suave">
+                      Especial · não conta o tempo
+                    </span>
+                  )}
                 </span>
                 <Botao
                   variante="fantasma"
                   tamanho="sm"
                   icone={<Pencil />}
                   aria-label={`Editar "${m.texto}"`}
-                  onClick={() => setEditando({ id: m.id, texto: m.texto })}
+                  onClick={() => setEditando({ id: m.id, texto: m.texto, especial: m.especial })}
                 />
                 <Botao
                   variante="fantasma"
@@ -870,6 +942,7 @@ function ListaMotivos({
             onChange={(e) => setNovo(e.target.value)}
           />
         </div>
+        {comMarca && <CaixaEspecial marcada={novoEspecial} aoMudar={setNovoEspecial} />}
         <Botao
           type="submit"
           icone={<Plus />}

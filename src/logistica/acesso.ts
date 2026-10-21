@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
+import { ehNivelLogistica } from '@/autenticacao/tipos'
 
 /**
  * Quem é a logística nas telas (D-22/D-25/D-45): admin, gente do PCP (a
@@ -19,7 +20,10 @@ export function useAcessoLogistica() {
   const setoresDaLogistica = new Set(
     setores.filter((s) => s.papel_no_fluxo !== 'producao').map((s) => s.id),
   )
-  const tenhoAcesso = souAdmin || vinculos.some((v) => setoresDaLogistica.has(v.setor_id))
+  // SESSAO-38 (D-147): o nível "Logística" é logística por definição — pode
+  // nascer sem vínculo de setor (o banco já o deixa ver: fn_pode_ver_expedicao).
+  const tenhoAcesso =
+    souAdmin || ehNivelLogistica(perfil) || vinculos.some((v) => setoresDaLogistica.has(v.setor_id))
   // Só afirma "sem acesso" quando já se sabe quem é e quais setores existem.
   const semAcesso = !carregando && !isPending && setores.length > 0 && !tenhoAcesso
   return { perfil, souAdmin, tenhoAcesso, semAcesso, setores }

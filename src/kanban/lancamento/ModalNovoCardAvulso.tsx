@@ -1,7 +1,16 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronDown, ChevronUp, Save, Tag, UserPlus, Wrench } from 'lucide-react'
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Flag,
+  Save,
+  Tag,
+  UserPlus,
+  Wrench,
+} from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { buscarSetores } from '../api'
@@ -11,14 +20,17 @@ import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
 import type { DestinoFinalAjuste } from '@/logistica/devolucao'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import { SeletorEtiquetas, SeletorPessoas, SeletorVinculo } from './Seletores'
+import { PontoPrioridade, SeletorPrioridade } from '../componentes/MarcasDoCard'
+import { ROTULO_PRIORIDADE } from '../prioridade'
+import type { Prioridade } from '../prioridade'
 
 type Tipo = 'avulso' | 'ajuste'
-type Aberto = 'responsaveis' | 'datas' | 'etiquetas' | null
+type Aberto = 'responsaveis' | 'datas' | 'prioridade' | 'etiquetas' | null
 
 /**
  * "Novo card" do Lançamento manual (D-125 / §1 — a criação rápida do ClickUp):
  * o NOME e Salvar (Enter); embaixo, os atalhos opcionais — responsável, datas,
- * prioridade/etiqueta — e "Mais detalhes" (descrição, vínculo, lançar já para
+ * prioridade (↩️ SESSAO-38: própria, não é mais etiqueta — D-150), etiqueta — e "Mais detalhes" (descrição, vínculo, lançar já para
  * um setor). O tipo "Ajuste de peça" (D-130) leva a peça de volta à produção
  * com o destino final.
  */
@@ -36,6 +48,7 @@ export function ModalNovoCardAvulso({
   const [titulo, setTitulo] = useState('')
   const [responsaveis, setResponsaveis] = useState<PessoaMini[]>([])
   const [etiquetas, setEtiquetas] = useState<number[]>([])
+  const [prioridade, setPrioridade] = useState<Prioridade>('comum')
   const [inicio, setInicio] = useState('')
   const [vence, setVence] = useState('')
   const [aberta, setAberta] = useState<Aberto>(null)
@@ -60,6 +73,7 @@ export function ModalNovoCardAvulso({
     setTitulo('')
     setResponsaveis([])
     setEtiquetas([])
+    setPrioridade('comum')
     setInicio('')
     setVence('')
     setDescricao('')
@@ -78,6 +92,7 @@ export function ModalNovoCardAvulso({
         vence,
         responsaveis: responsaveis.map((p) => p.id),
         etiquetas,
+        prioridade,
         vinculo: vinculo ? { tipo: vinculo.tipo, id: vinculo.id } : null,
         setorId: setorId ? Number(setorId) : null,
         chave,
@@ -215,12 +230,23 @@ export function ModalNovoCardAvulso({
               </Botao>
               <Botao
                 type="button"
+                variante={aberta === 'prioridade' ? 'secundaria' : 'fantasma'}
+                tamanho="sm"
+                icone={
+                  prioridade === 'comum' ? <Flag /> : <PontoPrioridade prioridade={prioridade} />
+                }
+                onClick={() => atalho('prioridade')}
+              >
+                {prioridade === 'comum' ? 'Prioridade' : ROTULO_PRIORIDADE[prioridade]}
+              </Botao>
+              <Botao
+                type="button"
                 variante={aberta === 'etiquetas' ? 'secundaria' : 'fantasma'}
                 tamanho="sm"
                 icone={<Tag />}
                 onClick={() => atalho('etiquetas')}
               >
-                {etiquetas.length > 0 ? `Etiquetas (${etiquetas.length})` : 'Prioridade / etiqueta'}
+                {etiquetas.length > 0 ? `Etiquetas (${etiquetas.length})` : 'Etiqueta'}
               </Botao>
             </div>
             {responsaveis.length > 0 && aberta !== 'responsaveis' && (
@@ -247,6 +273,9 @@ export function ModalNovoCardAvulso({
                   onChange={(e) => setVence(e.target.value)}
                 />
               </div>
+            )}
+            {aberta === 'prioridade' && (
+              <SeletorPrioridade valor={prioridade} aoMudar={setPrioridade} />
             )}
             {aberta === 'etiquetas' && (
               <SeletorEtiquetas escolhidas={etiquetas} aoMudar={setEtiquetas} />

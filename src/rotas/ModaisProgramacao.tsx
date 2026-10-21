@@ -15,6 +15,11 @@ import {
  * caminhão no dia tem a sua — troca de turno): quem programa escolhe um ou
  * mais entregadores; eles passam a ver as entregas dessa rota na tela
  * "Entregas do dia". Só carrega ao abrir (regra 17).
+ *
+ * ↪️ SESSAO-38 (D-158, pedido do dono): a lista mostra SÓ quem é entregador (o
+ * tipo "Entregador (só ROTAS)" do cadastro). Quem já estava na equipe sem ser
+ * entregador aparece só para ser desmarcado — o banco não deixa entrar ninguém
+ * novo que não seja entregador.
  */
 export function ModalEquipe({
   alvo,
@@ -44,12 +49,13 @@ export function ModalEquipe({
     queryFn: () => rotasDoDia(alvo!.dia),
     enabled: alvo !== null,
   })
-  const atuais = new Set(
-    rotas
-      .find((r) => r.caminhao_id === alvo?.caminhaoId && r.rota === alvo?.rota)
-      ?.equipe.map((m) => m.id) ?? [],
-  )
+  const equipeAtual =
+    rotas.find((r) => r.caminhao_id === alvo?.caminhaoId && r.rota === alvo?.rota)?.equipe ?? []
+  const atuais = new Set(equipeAtual.map((m) => m.id))
   const marcados = escolhidos ?? atuais
+  // Quem está na equipe e não é entregador: fica visível só para ser desmarcado.
+  const idsEntregadores = new Set(pessoas.map((p) => p.id))
+  const deFora = equipeAtual.filter((m) => !idsEntregadores.has(m.id))
   const nomeAlvo = alvo
     ? `${alvo.caminhaoNome}${alvo.variasRotas ? ` · ${nomeDaRota(alvo.rota)}` : ''}`
     : 'caminhão'
@@ -62,7 +68,9 @@ export function ModalEquipe({
         descricao:
           marcados.size === 0
             ? 'Ninguém escolhido.'
-            : `${marcados.size} pessoa(s) veem estas entregas.`,
+            : marcados.size === 1
+              ? '1 pessoa vê estas entregas.'
+              : `${marcados.size} pessoas veem estas entregas.`,
         tom: 'perfeito',
       })
       aoFechar()
@@ -101,7 +109,7 @@ export function ModalEquipe({
         {(carregandoPessoas || carregandoEquipe) && (
           <p className="text-sm text-texto-fraco">Carregando…</p>
         )}
-        {!carregandoPessoas && pessoas.length === 0 && (
+        {!carregandoPessoas && pessoas.length === 0 && deFora.length === 0 && (
           <p className="text-sm text-texto-suave">
             Ninguém cadastrado como entregador ainda — em Configurações → Gestão da equipe, use
             "Entregador".
@@ -118,10 +126,24 @@ export function ModalEquipe({
                   onChange={() => alternar(p.id)}
                 />
                 <span className="flex-1 text-texto">{p.nome}</span>
-                {!p.entregador && <span className="text-xs text-texto-fraco">da ROTAS</span>}
               </label>
             </li>
           ))}
+          {!carregandoPessoas &&
+            deFora.map((m) => (
+              <li key={m.id}>
+                <label className="flex min-h-toque-md cursor-pointer items-center gap-3 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-[var(--dm-acao)]"
+                    checked={marcados.has(m.id)}
+                    onChange={() => alternar(m.id)}
+                  />
+                  <span className="flex-1 text-texto">{m.nome}</span>
+                  <span className="text-xs text-atencao-texto">não é entregador — desmarque</span>
+                </label>
+              </li>
+            ))}
         </ul>
         <div className="flex flex-wrap gap-2">
           <Botao icone={<Users />} carregando={salvar.isPending} onClick={() => salvar.mutate()}>

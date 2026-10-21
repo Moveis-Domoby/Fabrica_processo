@@ -34,7 +34,8 @@ import {
   somarPecas,
   trechosEmLinhaReta,
 } from './rotaRuas'
-import { nomeDoTrecho, textoTrecho, trechosDaRota } from './trechos'
+import { resumoDoTrajeto, trechosDaRota } from './trechos'
+import type { Trajeto } from './trechos'
 import { useRotaPelasRuas, useRotasPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
 
@@ -90,6 +91,8 @@ function pontosDoGrupo(g: Grupo): Ponto[] {
  * entregues saiu daqui — o entregue mora no PCP → Todos os pedidos.
  * ↪️ SESSAO-31 (D-128): o caminhão faz várias rotas no dia — o grupo é (dia,
  * caminhão, ROTA), cada rota com a sua ordem e a sua equipe.
+ * ↪️ SESSAO-38 (D-156): o programado pode ainda estar em produção ou no PCP —
+ * cada parada diz o estado; o mapa mostra a rota inteira, só a ida ou só a volta.
  */
 export function AbaJaProgramadas({
   ativa,
@@ -106,7 +109,7 @@ export function AbaJaProgramadas({
   // SESSAO-30 (D-120): só o que falta entregar (o entregue mora no PCP).
   const entregues = false
   const [rascunhos, setRascunhos] = useState<Record<string, number[]>>({})
-  const [trecho, setTrecho] = useState<number | null>(null)
+  const [trajeto, setTrajeto] = useState<Trajeto>('inteira')
   const [reprogramando, setReprogramando] = useState<PedidoProgramado | null>(null)
   // SESSAO-30 (D-115): a equipe da rota no dia (D-128) e o detalhe da entrega.
   const [equipeDe, setEquipeDe] = useState<{
@@ -230,7 +233,6 @@ export function AbaJaProgramadas({
     () => trechosDaRota(estadoRota, trechosEmLinhaReta(pontosRota)),
     [estadoRota, pontosRota],
   )
-  const trechoValido = pronta && trecho !== null && trecho < trechos.length ? trecho : null
 
   const geometriasOutros = estadosOutros.map((e) =>
     e.estado === 'pronta' ? e.rota.geometria : null,
@@ -265,10 +267,11 @@ export function AbaJaProgramadas({
     [ordenadas],
   )
   const pecas = somarPecas(ordenadas)
+  const resumoTrajeto = resumoDoTrajeto(trajeto, trechos, numerosNoMapa)
   const resumoMapa = !escolhido
     ? null
-    : trechoValido !== null
-      ? `Trecho ${nomeDoTrecho(trechoValido, numerosNoMapa)}: ${textoTrecho(trechos[trechoValido])}`
+    : resumoTrajeto !== null
+      ? `${nomeDoGrupo(escolhido)} · ${resumoTrajeto}`
       : estadoRota.estado === 'pronta'
         ? `${nomeDoGrupo(escolhido)} · ${ordenadas.length} parada(s) · ${pecas} peças · ${formatarDistancia(estadoRota.rota.distancia_m / 1000)} · ${formatarDuracao(estadoRota.rota.duracao_s)}`
         : `${nomeDoGrupo(escolhido)} · ${ordenadas.length} parada(s) · ${pecas} peças`
@@ -283,7 +286,7 @@ export function AbaJaProgramadas({
 
   const focar = useCallback(
     (g: Grupo) => {
-      setTrecho(null)
+      setTrajeto('inteira')
       aoFocar(g.dia, g.caminhaoId, g.rota)
     },
     [aoFocar],
@@ -292,7 +295,6 @@ export function AbaJaProgramadas({
     (novos: number[]) => {
       if (!escolhido) return
       setRascunhos((atual) => ({ ...atual, [escolhido.chave]: novos }))
-      setTrecho(null)
     },
     [escolhido],
   )
@@ -441,8 +443,8 @@ export function AbaJaProgramadas({
           </h2>
           <MapaProgramacao
             rotas={rotasNoMapa}
-            trechoSelecionado={trechoValido}
-            aoSelecionarTrecho={setTrecho}
+            trajeto={trajeto}
+            aoMudarTrajeto={setTrajeto}
             resumo={resumoMapa}
           />
           {escolhido && (
@@ -452,8 +454,7 @@ export function AbaJaProgramadas({
               paradas={ordenadas}
               estado={estadoRota}
               trechos={trechos}
-              trechoSelecionado={trechoValido}
-              aoSelecionarTrecho={setTrecho}
+              trajeto={trajeto}
               ajustada={!entregues && ajustada}
               aoVoltarSugestao={voltarSugestao}
               salvar={salvar}

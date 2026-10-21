@@ -35,7 +35,8 @@ import {
   trechosEmLinhaReta,
 } from './rotaRuas'
 import type { CriterioOrdem } from './rotaRuas'
-import { nomeDoTrecho, textoTrecho, trechosDaRota } from './trechos'
+import { resumoDoTrajeto, trechosDaRota } from './trechos'
+import type { Trajeto } from './trechos'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
 
@@ -65,6 +66,12 @@ const OPCOES_ORDEM: { valor: CriterioOrdem; rotulo: string }[] = [
  * — a setinha do "Ordenar"). Cada pedido mostra os seus móveis. Programar =
  * dia + caminhão + rota (D-128: o caminhão faz várias rotas no dia), numa
  * chamada só (o banco programa e salva a ordem junto).
+ *
+ * ↪️ SESSAO-38 (D-156, pedido do dono): a lista traz TODO pedido vivo — pronto,
+ * em produção ou ainda no PCP (cada cartão diz qual); não depende mais do
+ * "Lançar para ROTAS". O mapa mostra a rota inteira, só a ida ou só a volta. O
+ * bloco "Na rota" só existe com pedido marcado e fica colado à lista (sem
+ * espaço reservado).
  */
 export function AbaProgramar({
   ativa,
@@ -83,13 +90,14 @@ export function AbaProgramar({
   const [criterio, setCriterio] = useState<CriterioOrdem>('entrega')
   const [confirmando, setConfirmando] = useState(false)
   const [caminhaoId, setCaminhaoId] = useState('')
-  const [trecho, setTrecho] = useState<number | null>(null)
+  const [trajeto, setTrajeto] = useState<Trajeto>('inteira')
 
   const { data: pedidos = [], isPending } = useQuery({
     queryKey: ['programacao', 'sem-programacao'],
     queryFn: () => listarProgramacao({ soSemProgramacao: true, limite: 200 }),
     enabled: ativa,
   })
+  const totalCandidatos = Number(pedidos[0]?.contagem_total ?? 0)
   // SESSAO-30 (Lei §4): pedido lançado/programado/"não entregue" → AO VIVO, sem relógio.
   useAoVivo('rotas', [['programacao']], ativa)
   const { data: caminhoes = [] } = useQuery({
@@ -175,7 +183,6 @@ export function AbaProgramar({
     () => trechosDaRota(estadoRota, trechosEmLinhaReta(pontosRota)),
     [estadoRota, pontosRota],
   )
-  const trechoValido = pronta && trecho !== null && trecho < trechos.length ? trecho : null
 
   const paradasNoMapa: ParadaNoMapa[] = useMemo(
     () => ordemMontando.flatMap((p, i) => (temPonto(p) ? [{ parada: p, numero: i + 1 }] : [])),
@@ -196,11 +203,12 @@ export function AbaProgramar({
   const numerosNoMapa = useMemo(() => paradasNoMapa.map((p) => p.numero), [paradasNoMapa])
   const pecas = somarPecas(listaSelecionados)
   const kmTotal = trechos.reduce((s, t) => s + t.km, 0)
+  const resumoTrajeto = resumoDoTrajeto(trajeto, trechos, numerosNoMapa)
   const resumoMapa =
     ordemMontando.length === 0
       ? null
-      : trechoValido !== null
-        ? `Trecho ${nomeDoTrecho(trechoValido, numerosNoMapa)}: ${textoTrecho(trechos[trechoValido])}`
+      : resumoTrajeto !== null
+        ? resumoTrajeto
         : estadoRota.estado === 'pronta'
           ? `${ordemMontando.length} parada(s) · ${pecas} peças · ${formatarDistancia(estadoRota.rota.distancia_m / 1000)} · ${formatarDuracao(estadoRota.rota.duracao_s)} dirigindo`
           : estadoRota.estado === 'calculando'
@@ -217,18 +225,14 @@ export function AbaProgramar({
       else novo.add(cardId)
       return novo
     })
-    setTrecho(null)
   }, [])
   const escolherSugestao = useCallback((p: PedidoProgramacao) => alternar(p.card_id), [alternar])
-  const reordenar = useCallback((novos: number[]) => {
-    setRascunho(novos)
-    setTrecho(null)
-  }, [])
+  const reordenar = useCallback((novos: number[]) => setRascunho(novos), [])
   const voltarSugestao = useCallback(() => setRascunho(null), [])
   function limpar() {
     setSelecionados(new Set())
     setRascunho(null)
-    setTrecho(null)
+    setTrajeto('inteira')
   }
 
   const programarMutacao = useMutation({
@@ -291,12 +295,18 @@ export function AbaProgramar({
     // duas colunas só quando a ÁREA da tela tem espaço (container, não janela — E-30):
     // com os dois menus abertos numa tela de 1024, a lista ficava com 221 px. Numa
     // coluna só: "Na rota" → mapa → a lista; em duas: o mapa à direita, fixo.
+    // ↩️ SESSAO-38 (pedido do dono, imagem 3): a coluna da esquerda é UMA pilha
+    // ("Na rota" + "Sem programação") — antes eram duas linhas de grade e a linha
+    // de cima esticava até a altura do mapa, deixando um vão entre "Na rota" e a
+    // lista. Agora "Na rota" só existe com pedido marcado e cresce na medida em
+    // que a lista encolhe; o "Ordenar por" fica no cabeçalho da lista.
     <div className="@container flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section className="flex min-w-0 flex-col gap-4 empty:hidden @3xl:col-start-1 @3xl:row-start-1">
+      <div className="flex flex-col gap-5 @3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @3xl:items-start">
+        {/* Numa coluna só esta pilha "some" (contents) e cada parte vai para a sua vez (order). */}
+        <div className="contents @3xl:col-start-1 @3xl:row-start-1 @3xl:flex @3xl:min-w-0 @3xl:flex-col @3xl:gap-5">
           {/* Na rota: os marcados sobem, numerados, e se arrastam (D-111). */}
           {ordemMontando.length > 0 && (
-            <div className="flex flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie-sutil p-3">
+            <section className="order-1 flex min-w-0 flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie-sutil p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-lg">
                   <Route aria-hidden className="size-5 text-texto-suave" />
@@ -341,54 +351,10 @@ export function AbaProgramar({
                   )
                 }}
               </ListaArrastavel>
-            </div>
+            </section>
           )}
-        </section>
 
-        <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1 @3xl:self-start">
-          <h2 className="text-lg">
-            Mapa{' '}
-            <span className="text-sm font-normal text-texto-suave">
-              F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · âmbar = pedidos
-              próximos (até {RAIO_SUGESTAO_KM} km)
-            </span>
-          </h2>
-          <MapaProgramacao
-            rotas={rotasNoMapa}
-            trechoSelecionado={trechoValido}
-            aoSelecionarTrecho={setTrecho}
-            resumo={resumoMapa}
-            sugestoes={sugestoes}
-            aoEscolherSugestao={escolherSugestao}
-          />
-          {ordemMontando.length > 0 ? (
-            <PainelRota
-              titulo="Rota que você está montando"
-              cor={COR_MONTAGEM}
-              paradas={ordemMontando}
-              estado={estadoRota}
-              trechos={trechos}
-              trechoSelecionado={trechoValido}
-              aoSelecionarTrecho={setTrecho}
-              ajustada={ajustada}
-              aoVoltarSugestao={voltarSugestao}
-            />
-          ) : (
-            <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-              Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas entregas
-              e volta.
-            </p>
-          )}
-          {paradasNoMapa.length > MAXIMO_PARADAS && (
-            <p className="text-xs text-atencao-texto">
-              Mais de {MAXIMO_PARADAS} paradas no mapa: a rota pelas ruas não é calculada —
-              mostrando em linha reta.
-            </p>
-          )}
-        </section>
-
-        <section className="flex min-w-0 flex-col gap-3 @3xl:col-start-1 @3xl:row-start-2">
-          <div className="flex flex-col gap-3">
+          <section className="order-3 flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <h2 className="text-lg">
                 Sem programação{' '}
@@ -405,10 +371,19 @@ export function AbaProgramar({
                 />
               </div>
             </div>
+            <p className="text-xs text-texto-suave">
+              Todos os pedidos em andamento ainda sem rota — prontos, em produção ou ainda no PCP.
+              Programado, o pedido passa para "Já programadas".
+            </p>
             {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!isPending && pedidos.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-                Nenhum pedido lançado esperando programação.
+                Nenhum pedido em andamento sem programação.
+              </p>
+            )}
+            {totalCandidatos > pedidos.length && (
+              <p className="text-xs text-atencao-texto tabular-nums">
+                Mostrando os {pedidos.length} de previsão mais próxima, de {totalCandidatos}.
               </p>
             )}
             <ul className="flex flex-col gap-2">
@@ -444,7 +419,48 @@ export function AbaProgramar({
                 )
               })}
             </ul>
-          </div>
+          </section>
+        </div>
+
+        <section className="order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start">
+          <h2 className="text-lg">
+            Mapa{' '}
+            <span className="text-sm font-normal text-texto-suave">
+              F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · âmbar = pedidos
+              próximos (até {RAIO_SUGESTAO_KM} km)
+            </span>
+          </h2>
+          <MapaProgramacao
+            rotas={rotasNoMapa}
+            trajeto={trajeto}
+            aoMudarTrajeto={setTrajeto}
+            resumo={resumoMapa}
+            sugestoes={sugestoes}
+            aoEscolherSugestao={escolherSugestao}
+          />
+          {ordemMontando.length > 0 ? (
+            <PainelRota
+              titulo="Rota que você está montando"
+              cor={COR_MONTAGEM}
+              paradas={ordemMontando}
+              estado={estadoRota}
+              trechos={trechos}
+              trajeto={trajeto}
+              ajustada={ajustada}
+              aoVoltarSugestao={voltarSugestao}
+            />
+          ) : (
+            <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+              Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas entregas
+              e volta.
+            </p>
+          )}
+          {paradasNoMapa.length > MAXIMO_PARADAS && (
+            <p className="text-xs text-atencao-texto">
+              Mais de {MAXIMO_PARADAS} paradas no mapa: a rota pelas ruas não é calculada —
+              mostrando em linha reta.
+            </p>
+          )}
         </section>
       </div>
 

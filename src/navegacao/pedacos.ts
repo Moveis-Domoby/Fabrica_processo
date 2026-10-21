@@ -17,7 +17,6 @@ const PEDACOS: [prefixo: string, carregar: () => Promise<unknown>][] = [
   ['/fabrica/pedidos/', () => import('@/pedidos/PaginaPedidos')],
   ['/fabrica/logistica/expedicao', () => import('@/paginas/Expedicao')],
   ['/fabrica/logistica/estoque', () => import('@/paginas/Estoque')],
-  ['/fabrica/logistica/pedidos-em-aguardo', () => import('@/paginas/PedidosAguardo')],
   ['/fabrica/logistica/danificados', () => import('@/paginas/Danificados')],
   ['/fabrica/rotas/entregas', () => import('@/paginas/Rotas')],
   ['/fabrica/rotas/programacao', () => import('@/paginas/Programacao')],

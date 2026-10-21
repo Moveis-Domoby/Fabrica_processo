@@ -15,8 +15,7 @@ import { Abas, Botao, Campo, useNotificacao } from '@/componentes/ui'
 import type { Aba } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useAoVivo } from '@/lib/aoVivo'
-import { useSessao } from '@/autenticacao/sessao-contexto'
-import { buscarSetores } from '@/kanban/api'
+import { useAcessoLogistica } from '@/logistica/acesso'
 import { urlFotoCaminhao } from '@/admin/caminhoes'
 import {
   enderecoLegivel,
@@ -27,6 +26,8 @@ import {
 } from '@/rotas/api'
 import type { Entrega, TipoMotivo } from '@/rotas/api'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { SeloEstado } from '@/rotas/SeloEstado'
+import { prontoParaEntregar } from '@/rotas/estadoPedido'
 
 const POR_PAGINA = 20
 
@@ -44,9 +45,10 @@ const ABAS: Aba<AbaEntregas>[] = [
   { valor: 'do-dia', rotulo: 'Entregas do dia', icone: <CalendarDays /> },
 ]
 
-// D-45: só o pedido LANÇADO pelos Pedidos em aguardo chega aqui — não existe
-// mais "aguardando completar" nas ROTAS. ↪️ SESSAO-30 (D-120): e só o que FALTA
-// entregar — o entregue sai da ROTAS e mora no PCP → Todos os pedidos.
+// ↩️ SESSAO-38 (D-156): "A entregar" = o pedido PROGRAMADO (pronto ou ainda em
+// produção — o cartão diz) + o pronto ainda sem programação; o "Lançar para
+// ROTAS" deixou de ser passo. ↪️ SESSAO-30 (D-120): só o que FALTA entregar —
+// o entregue sai da ROTAS e mora em Pedidos → Todos os pedidos.
 
 function dataLegivel(iso: string | null): string {
   return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
@@ -67,19 +69,10 @@ function dataLegivel(iso: string | null): string {
  * leva os móveis ao ESTOQUE sem dono (D-114). O fluxo do ClickUp segue vivo.
  */
 export function Rotas() {
-  const { perfil, vinculos, carregando } = useSessao()
+  // SESSAO-38: o mesmo gate da logística das outras telas (inclui o nível Logística — D-147).
+  const { perfil, tenhoAcesso, semAcesso } = useAcessoLogistica()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
-
-  const souAdmin = perfil?.papel === 'admin'
-  const { data: setores = [], isPending: carregandoSetores } = useQuery({
-    queryKey: ['setores'],
-    queryFn: () => buscarSetores(),
-  })
-  const setoresComAcesso = new Set(
-    setores.filter((s) => s.papel_no_fluxo !== 'producao').map((s) => s.id),
-  )
-  const tenhoAcesso = souAdmin || vinculos.some((v) => setoresComAcesso.has(v.setor_id))
   const [parametros, setParametros] = useSearchParams()
   const aba: AbaEntregas = parametros.get('aba') === 'do-dia' ? 'do-dia' : 'a-entregar'
   // Cada aba só pede o que mostra (regra 17): a lista só com "A entregar" aberta.
@@ -124,8 +117,7 @@ export function Rotas() {
       }),
   })
 
-  if (!carregando && !carregandoSetores && setores.length > 0 && !tenhoAcesso)
-    return <Navigate to="/" replace />
+  if (semAcesso) return <Navigate to="/" replace />
   if (!perfil) return null
 
   return (
@@ -138,8 +130,8 @@ export function Rotas() {
           </h1>
           {aba === 'a-entregar' ? (
             <p className="mt-1 max-w-2xl text-texto-suave">
-              As entregas da fábrica, por pedido completo — só o que foi lançado pelos Pedidos em
-              aguardo chega aqui. Programe o dia e o caminhão em{' '}
+              As entregas da fábrica, por pedido completo: o que já tem rota (pronto ou ainda em
+              produção) e o pronto que ainda espera rota. Programe o dia e o caminhão em{' '}
               <Link to="/rotas/programacao" className="font-medium text-texto underline">
                 Programação
               </Link>
@@ -198,7 +190,7 @@ export function Rotas() {
             {!isPending && entregas.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
                 Nenhuma entrega por aqui{busca ? ' para esta busca' : ' ainda'} — o pedido aparece
-                quando é lançado pelos Pedidos em aguardo.
+                quando ganha rota na Programação ou quando fica pronto.
               </p>
             )}
 
@@ -206,6 +198,7 @@ export function Rotas() {
               {entregas.map((entrega) => {
                 const whatsapp = linkWhatsApp(entrega.telefone)
                 const mapa = linkMapa(entrega)
+                const podeEntregar = prontoParaEntregar(entrega.estado)
                 return (
                   <li
                     key={entrega.card_id}
@@ -218,9 +211,17 @@ export function Rotas() {
                       <span className="text-lg font-semibold text-texto tabular-nums">
                         Pedido {entrega.numero}
                       </span>
-                      <span className="rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto">
-                        pronta para entrega
-                      </span>
+                      {entrega.estado ? (
+                        <SeloEstado
+                          estado={entrega.estado}
+                          prontas={entrega.unidades_prontas}
+                          total={entrega.total_unidades}
+                        />
+                      ) : (
+                        <span className="rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto">
+                          pronta para entrega
+                        </span>
+                      )}
                       <span className="ml-auto text-sm text-texto-suave tabular-nums">
                         previsão {dataLegivel(entrega.data_prevista)}
                       </span>
@@ -330,6 +331,12 @@ export function Rotas() {
                               <Botao
                                 icone={<CheckCircle2 />}
                                 onClick={() => setEntregando(entrega)}
+                                disabled={!podeEntregar}
+                                title={
+                                  podeEntregar
+                                    ? undefined
+                                    : 'O pedido ainda não está pronto — a entrega sai com todas as peças prontas.'
+                                }
                               >
                                 Entregue
                               </Botao>

@@ -48,7 +48,6 @@ const Estrutura = pagina(() => import('@/paginas/Estrutura'), 'Estrutura')
 const MeuPerfil = pagina(() => import('@/paginas/MeuPerfil'), 'MeuPerfil')
 const Chat = pagina(() => import('@/paginas/Chat'), 'Chat')
 const Estoque = pagina(() => import('@/paginas/Estoque'), 'Estoque')
-const PedidosAguardo = pagina(() => import('@/paginas/PedidosAguardo'), 'PedidosAguardo')
 const Danificados = pagina(() => import('@/paginas/Danificados'), 'Danificados')
 const Caminhoes = pagina(() => import('@/paginas/Caminhoes'), 'Caminhoes')
 const ProducaoSetor = pagina(() => import('@/navegacao/ProducaoSetor'), 'ProducaoSetor')
@@ -165,9 +164,10 @@ export function App() {
                   <Route path="/fabrica/producao/:codigo" element={<ProducaoSetor />} />
                   <Route path="/fabrica/logistica/expedicao" element={<Expedicao />} />
                   <Route path="/fabrica/logistica/estoque" element={<Estoque />} />
+                  {/* ↩️ SESSAO-38 (D-157): "Pedidos em aguardo" virou a Expedição — o link antigo segue. */}
                   <Route
                     path="/fabrica/logistica/pedidos-em-aguardo"
-                    element={<PedidosAguardo />}
+                    element={<Navigate to="/fabrica/logistica/expedicao" replace />}
                   />
                   <Route path="/fabrica/logistica/danificados" element={<Danificados />} />
                   {/* ↩️ 14/10 (D-134): Cancelados mora na área Pedidos — o link antigo segue. */}

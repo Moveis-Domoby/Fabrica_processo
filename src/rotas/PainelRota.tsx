@@ -5,18 +5,19 @@ import { cn } from '@/lib/cn'
 import type { PedidoProgramacao, PedidoProgramado } from './api'
 import { formatarDistancia, temPonto } from './proximidade'
 import { FABRICA, formatarDuracao, somarPecas } from './rotaRuas'
-import { textoTrecho } from './trechos'
-import type { Trecho } from './trechos'
+import { somarTrechos, textoTrecho, trechosDoTrajeto } from './trechos'
+import type { Trajeto, Trecho } from './trechos'
 import type { EstadoRota } from './useRotaPelasRuas'
 
 type Parada = PedidoProgramacao | PedidoProgramado
 
 /**
- * As paradas da rota com o trecho de cada uma e os totais (D-108), e o trecho
- * aceso (ajustes de 03/10 — D-111): tocar numa linha acende no mapa o trecho
- * que CHEGA àquela parada (a volta à fábrica é o último); tocar de novo volta à
- * rota inteira. A ordem não se muda aqui — arrasta-se na lista (D-111 ↩️ os
- * botões de subir/descer). "Salvar ordem" só na rota de um caminhão.
+ * As paradas da rota com o trecho de cada uma e os totais (D-108). ↩️ SESSAO-38
+ * (pedido do dono): no lugar de acender UM trecho, a rota se lê em IDA (da
+ * fábrica à última parada) e VOLTA (da última parada à fábrica), cada uma com
+ * a sua distância e o seu tempo; o trajeto escolhido no mapa ("Só a ida" /
+ * "Só a volta") deixa em destaque as linhas dele. A ordem não se muda aqui —
+ * arrasta-se na lista (D-111). "Salvar ordem" só na rota de um caminhão.
  */
 export const PainelRota = memo(function PainelRota({
   titulo,
@@ -24,8 +25,7 @@ export const PainelRota = memo(function PainelRota({
   paradas,
   estado,
   trechos,
-  trechoSelecionado,
-  aoSelecionarTrecho,
+  trajeto = 'inteira',
   ajustada,
   aoVoltarSugestao,
   salvar,
@@ -36,8 +36,8 @@ export const PainelRota = memo(function PainelRota({
   paradas: Parada[]
   estado: EstadoRota
   trechos: Trecho[]
-  trechoSelecionado: number | null
-  aoSelecionarTrecho: (indice: number | null) => void
+  /** O trajeto escolhido no mapa — as linhas dele ficam em destaque. */
+  trajeto?: Trajeto
   /** A ordem na tela é diferente da sugestão do mais perto. */
   ajustada: boolean
   aoVoltarSugestao?: () => void
@@ -55,32 +55,28 @@ export const PainelRota = memo(function PainelRota({
   }
   const indiceVolta = indicePlotada > 0 ? indicePlotada : null
   const primeiraNoMapa = paradas.find((p) => temPonto(p))?.card_id
+  const doTrajeto = new Set(trechosDoTrajeto(trechos.length, trajeto))
+  const ida = somarTrechos(trechos, trechosDoTrajeto(trechos.length, 'ida'))
+  const volta = somarTrechos(trechos, trechosDoTrajeto(trechos.length, 'volta'))
 
-  const linhaDeTrecho = (indice: number | undefined, conteudo: ReactNode, chave: string | number) => {
-    const ativo = indice !== undefined && trechoSelecionado === indice
-    return indice === undefined ? (
-      <div key={chave} className="flex items-center gap-3 rounded-dm border border-borda bg-superficie p-2 sm:p-3">
-        {conteudo}
-      </div>
-    ) : (
-      <button
-        key={chave}
-        type="button"
-        onClick={() => aoSelecionarTrecho(ativo ? null : indice)}
-        aria-pressed={ativo}
-        className={cn(
-          'flex min-h-toque-md w-full items-center gap-3 rounded-dm border bg-superficie p-2 text-left transition-colors hover:bg-superficie-sutil sm:p-3',
-          ativo ? 'border-acao-ativa ring-1 ring-acao-ativa' : 'border-borda',
-        )}
-      >
-        {conteudo}
-      </button>
-    )
-  }
+  const linha = (indice: number | undefined, conteudo: ReactNode, chave: string | number) => (
+    <div
+      key={chave}
+      className={cn(
+        'flex min-h-toque-md items-center gap-3 rounded-dm border bg-superficie p-2 transition-opacity sm:p-3',
+        indice !== undefined && trajeto !== 'inteira' && doTrajeto.has(indice)
+          ? 'border-acao-ativa'
+          : 'border-borda',
+        indice !== undefined && trajeto !== 'inteira' && !doTrajeto.has(indice) && 'opacity-50',
+      )}
+    >
+      {conteudo}
+    </div>
+  )
 
   return (
     <section
-      className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-3 sm:p-4"
+      className="@container flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-3 sm:p-4"
       style={{ borderLeft: `6px solid ${cor}` }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -98,12 +94,38 @@ export const PainelRota = memo(function PainelRota({
         </span>
       </div>
 
+      {/* SESSAO-38: a ida e a volta, cada uma com a sua distância e o seu tempo. */}
+      {indiceVolta !== null && ida && volta && (
+        <div className="grid grid-cols-1 gap-2 @md:grid-cols-2">
+          <p
+            className={cn(
+              'rounded-dm border px-3 py-2 text-sm tabular-nums',
+              trajeto === 'ida' ? 'border-acao-ativa bg-superficie-sutil' : 'border-borda',
+            )}
+          >
+            <span className="font-medium text-texto">Ida</span>{' '}
+            <span className="text-texto-suave">(fábrica → última parada):</span>{' '}
+            <strong className="text-texto">{textoTrecho(ida)}</strong>
+          </p>
+          <p
+            className={cn(
+              'rounded-dm border px-3 py-2 text-sm tabular-nums',
+              trajeto === 'volta' ? 'border-acao-ativa bg-superficie-sutil' : 'border-borda',
+            )}
+          >
+            <span className="font-medium text-texto">Volta</span>{' '}
+            <span className="text-texto-suave">(última parada → fábrica):</span>{' '}
+            <strong className="text-texto">{textoTrecho(volta)}</strong>
+          </p>
+        </div>
+      )}
+
       {/* Honestidade da sugestão (D-108): curta, sempre à vista. */}
       <p className="flex items-start gap-2 rounded-dm bg-superficie-sutil px-3 py-2 text-xs text-texto-suave">
         <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
         <span>
           Sugestão inicial: sem trânsito ao vivo nem interdições do dia. O tempo é só dirigindo, sem as paradas
-          das entregas. Toque num trecho para vê-lo sozinho no mapa.
+          das entregas. No mapa, "Só a ida" e "Só a volta" mostram cada parte sozinha.
         </span>
       </p>
       {estado.estado === 'calculando' && (
@@ -135,7 +157,7 @@ export const PainelRota = memo(function PainelRota({
         {paradas.map((p, i) => {
           const indice = trechoDe.get(p.card_id)
           const comPonto = indice !== undefined
-          return linhaDeTrecho(
+          return linha(
             indice,
             <>
               <span
@@ -168,7 +190,7 @@ export const PainelRota = memo(function PainelRota({
           )
         })}
         {indiceVolta !== null &&
-          linhaDeTrecho(
+          linha(
             indiceVolta,
             <>
               <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-grafite-900 text-xs font-bold text-white">
@@ -182,13 +204,8 @@ export const PainelRota = memo(function PainelRota({
           )}
       </div>
 
-      {(trechoSelecionado !== null || ajustada || salvar?.pendente) && (
+      {(ajustada || salvar?.pendente) && (
         <div className="flex flex-wrap justify-end gap-2">
-          {trechoSelecionado !== null && (
-            <Botao variante="fantasma" onClick={() => aoSelecionarTrecho(null)}>
-              Ver a rota inteira
-            </Botao>
-          )}
           {ajustada && aoVoltarSugestao && (
             <Botao variante="fantasma" icone={<RotateCcw />} onClick={aoVoltarSugestao}>
               Voltar à sugestão

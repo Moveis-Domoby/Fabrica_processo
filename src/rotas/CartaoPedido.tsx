@@ -1,7 +1,8 @@
 import { memo, type ReactNode } from 'react'
 import { MapPinOff, Package } from 'lucide-react'
 import { dataLegivel, enderecoLegivel } from './api'
-import type { ItemPedido } from './api'
+import type { EstadoPedido, ItemPedido } from './api'
+import { SeloEstado } from './SeloEstado'
 
 export interface DadosCartaoPedido {
   numero: number
@@ -16,13 +17,18 @@ export interface DadosCartaoPedido {
   data_prevista: string | null
   geo_chave: string | null
   geo_resolvido: boolean | null
+  /** SESSAO-38 (D-156): pronto, em produção ou ainda no PCP. */
+  estado?: EstadoPedido | null
+  unidades_prontas?: number
 }
 
 /**
  * O pedido na Programação (D-111): número, previsão, cliente, endereço e
  * SEMPRE os móveis com a quantidade — "se eu não sei quantos itens vão no
  * caminhão, não faz sentido montar um caminhão". O frete nunca aparece (D-63).
- * `selo` (sugestão, distância…) é da tela que usa o cartão.
+ * `selo` (sugestão, distância…) é da tela que usa o cartão. ↪️ SESSAO-38
+ * (D-156): o cartão diz se o pedido está pronto, em produção ou ainda no PCP —
+ * agora todos entram na rota.
  */
 export const CartaoPedido = memo(function CartaoPedido({
   pedido,
@@ -36,6 +42,11 @@ export const CartaoPedido = memo(function CartaoPedido({
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <span className="font-semibold text-texto tabular-nums">Pedido {pedido.numero}</span>
+        <SeloEstado
+          estado={pedido.estado}
+          prontas={pedido.unidades_prontas}
+          total={pedido.total_unidades}
+        />
         <span className="text-sm text-texto-suave tabular-nums">
           {pedido.total_unidades} {pedido.total_unidades === 1 ? 'peça' : 'peças'} · previsão{' '}
           {dataLegivel(pedido.data_prevista)}

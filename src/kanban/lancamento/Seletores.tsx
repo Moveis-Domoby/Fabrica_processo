@@ -82,8 +82,9 @@ export function SeletorPessoas({
 }
 
 /**
- * Escolher etiquetas (a prioridade é uma etiqueta — palavras do dono). Criar
- * etiqueta nova aqui: só líder e admin (D-125 resp. 5); nome repetido o banco recusa.
+ * Escolher etiquetas. ↩️ SESSAO-38 (D-150): a prioridade NÃO é mais etiqueta —
+ * tem seletor próprio (SeletorPrioridade). Criar etiqueta nova aqui: só líder
+ * e admin (D-125 resp. 5); nome repetido o banco recusa.
  */
 export function SeletorEtiquetas({
   escolhidas,

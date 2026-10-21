@@ -11,12 +11,13 @@ import {
   History,
   Link2,
   Pause,
+  Flag,
   Pencil,
   Play,
   Save,
+  SlidersHorizontal,
   Tag,
   TriangleAlert,
-  UserRound,
   Users,
   Wrench,
 } from 'lucide-react'
@@ -41,6 +42,10 @@ import { formatarDuracao, useAgora } from '../tempo'
 import { abrirJanela } from './api'
 import type { JanelaDoCard as DadosJanela } from './api'
 import { AnexosDoCard } from './AnexosDoCard'
+import { ResponsaveisPorSetor } from './ResponsaveisPorSetor'
+import { ChipPrazo, PontoPrioridade, SeletorPrioridade } from '../componentes/MarcasDoCard'
+import { ROTULO_PRIORIDADE, definirPrioridade, prioridadeDe } from '../prioridade'
+import type { Prioridade } from '../prioridade'
 
 const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
 function hojeIso(agora: number): string {
@@ -185,6 +190,29 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
     onSuccess: releituras,
     onError: falhou('Não deu para mudar os responsáveis'),
   })
+  // ---- prioridade (SESSAO-38 · D-150/D-151): na peça, muda a do pedido ------
+  const prioridadeAtual: Prioridade = dados.prioridade
+    ? dados.prioridade.valor
+    : prioridadeDe(card.prioridade)
+  const podePriorizar = (permissoes.priorizar ?? false) && !tablet
+  const priorizar = useMutation({
+    mutationFn: (p: Prioridade) => definirPrioridade(card.id, p),
+    onSuccess: async (r) => {
+      notificar({
+        titulo: r.do_pedido
+          ? `Prioridade ${ROTULO_PRIORIDADE[r.prioridade].toLowerCase()} — vale para todas as peças do pedido`
+          : `Prioridade ${ROTULO_PRIORIDADE[r.prioridade].toLowerCase()}`,
+        tom: 'perfeito',
+      })
+      await Promise.all([
+        releituras(),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['cards'] }),
+      ])
+    },
+    onError: falhou('Não deu para mudar a prioridade'),
+  })
+
   const trocarEtiquetas = useMutation({
     mutationFn: async (novas: number[]) => {
       const antes = new Set(card.etiquetas ?? [])
@@ -225,10 +253,7 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
     mutationFn: (operadorId?: string) => cardAuxiliar(card.id, operadorId),
     onSuccess: async () => {
       notificar({ titulo: 'Entrou no card — o tempo próprio começou', tom: 'perfeito' })
-      await Promise.all([
-        releituras(),
-        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
-      ])
+      await Promise.all([releituras(), clienteQuery.invalidateQueries({ queryKey: ['quadro'] })])
     },
     onError: falhou('Não deu para auxiliar'),
   })
@@ -236,10 +261,7 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
     mutationFn: (operadorId?: string) => auxilioEncerrar(card.id, operadorId),
     onSuccess: async () => {
       notificar({ titulo: 'Saiu do auxílio — o card segue para quem ficou', tom: 'perfeito' })
-      await Promise.all([
-        releituras(),
-        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
-      ])
+      await Promise.all([releituras(), clienteQuery.invalidateQueries({ queryKey: ['quadro'] })])
     },
     onError: falhou('Não deu para sair do auxílio'),
   })
@@ -248,7 +270,15 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
     : permissoes.auxiliar && !permissoes.sair_auxilio
   const podeSairAuxilio = tablet ? vivo && auxilios.length > 0 : permissoes.sair_auxilio
   const hoje = hojeIso(agora)
-  const atrasado = card.vence_em != null && card.vence_em < hoje && !dados.arquivado_em
+  // SESSAO-38 (D-150): no card de pedido as datas vêm do Tiny (início = a data
+  // do pedido, vencimento = a data de entrega) e não se editam aqui.
+  const prazo = dados.prazo ?? {
+    inicio: card.inicio_em ?? null,
+    vencimento: card.vence_em ?? null,
+    do_pedido: false,
+  }
+  const podeEditarDatas = (permissoes.editar_datas ?? !prazo.do_pedido) && podeEditar
+  const atrasado = prazo.vencimento != null && prazo.vencimento < hoje && !dados.arquivado_em
   const ondeEsta = dados.arquivado_em
     ? card.concluido_em && card.tipo === 'avulso'
       ? 'Concluído'
@@ -322,7 +352,9 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
                 tamanho={tablet ? 'lg' : 'sm'}
                 icone={<DoorOpen />}
                 carregando={sairAuxilio.isPending}
-                onClick={() => (tablet ? setPinPara('sair_auxilio') : sairAuxilio.mutate(undefined))}
+                onClick={() =>
+                  tablet ? setPinPara('sair_auxilio') : sairAuxilio.mutate(undefined)
+                }
               >
                 Sair do auxílio
               </Botao>
@@ -433,69 +465,130 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
 
       {/* ---------- propriedades ---------- */}
       <section aria-label="Propriedades" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Propriedade
-          icone={<Users aria-hidden className="size-4" />}
-          rotulo="Responsáveis"
-          podeEditar={podeEditar}
-          editando={editandoResponsaveis}
-          aoEditar={() => setEditandoResponsaveis((v) => !v)}
-        >
-          {editandoResponsaveis ? (
-            <SeletorPessoas
-              escolhidas={responsaveis}
-              aoMudar={(novos) => trocarResponsaveis.mutate(novos)}
-            />
-          ) : responsaveis.length === 0 ? (
-            <span className="text-sm text-texto-fraco">Ninguém</span>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {responsaveis.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 text-sm text-texto">
-                  <AvatarChat nome={p.nome} foto={p.foto} tamanho="sm" />
-                  {p.nome}
-                </li>
-              ))}
-            </ul>
+        {/* SESSAO-38 (item 2.4 — D-152): quem pegou o card em cada setor (da
+            história, só leitura) e quem vai pegar nos próximos. */}
+        <Propriedade icone={<Users aria-hidden className="size-4" />} rotulo="Responsáveis" largo>
+          <ResponsaveisPorSetor
+            cardId={card.id}
+            setores={dados.responsaveis_por_setor ?? []}
+            pessoas={pessoas}
+            somenteVer={tablet}
+          />
+          {/* Os responsáveis do card como um todo (o avulso nasce com eles). */}
+          {(responsaveis.length > 0 || (podeEditar && card.tipo === 'avulso')) && (
+            <div className="mt-2 flex flex-col gap-1.5 border-t border-borda pt-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-texto-suave">
+                Do card todo
+                {podeEditar && (
+                  <Botao
+                    variante="fantasma"
+                    tamanho="sm"
+                    className="ml-auto"
+                    onClick={() => setEditandoResponsaveis((v) => !v)}
+                  >
+                    {editandoResponsaveis ? 'Pronto' : 'Editar'}
+                  </Botao>
+                )}
+              </div>
+              {editandoResponsaveis ? (
+                <SeletorPessoas
+                  escolhidas={responsaveis}
+                  aoMudar={(novos) => trocarResponsaveis.mutate(novos)}
+                />
+              ) : responsaveis.length === 0 ? (
+                <span className="text-sm text-texto-fraco">Ninguém</span>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {responsaveis.map((p) => (
+                    <li key={p.id} className="flex items-center gap-2 text-sm text-texto">
+                      <AvatarChat nome={p.nome} foto={p.foto} tamanho="sm" />
+                      {p.nome}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </Propriedade>
 
-        <Propriedade
-          icone={<CalendarClock aria-hidden className="size-4" />}
-          rotulo="Datas"
-          podeEditar={false}
-        >
-          {podeEditar ? (
+        <Propriedade icone={<CalendarClock aria-hidden className="size-4" />} rotulo="Datas">
+          {podeEditarDatas ? (
             <div className="grid grid-cols-2 gap-2">
               <Campo
                 rotulo="Início"
                 type="date"
-                value={card.inicio_em ?? ''}
+                value={prazo.inicio ?? ''}
                 onChange={(e) => editar.mutate({ inicio_em: e.target.value || null })}
               />
               <Campo
                 rotulo="Vencimento"
                 type="date"
-                value={card.vence_em ?? ''}
+                value={prazo.vencimento ?? ''}
                 onChange={(e) => editar.mutate({ vence_em: e.target.value || null })}
               />
             </div>
           ) : (
-            <p className="text-sm text-texto">
-              {card.inicio_em ? `Início ${diaMes(card.inicio_em)}` : 'Sem início'} ·{' '}
-              {card.vence_em ? `Vence ${diaMes(card.vence_em)}` : 'Sem vencimento'}
-            </p>
+            <dl className="flex flex-col gap-1 text-sm">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <dt className="text-texto-suave">Início:</dt>
+                <dd className="text-texto tabular-nums">
+                  {prazo.inicio ? diaMes(prazo.inicio) : '—'}
+                </dd>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <dt className="text-texto-suave">Vencimento:</dt>
+                <dd className="flex items-center gap-1.5 text-texto tabular-nums">
+                  {prazo.vencimento ? (
+                    <>
+                      <ChipPrazo data={prazo.vencimento} agora={agora} />
+                      {diaMes(prazo.vencimento)}
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </dd>
+              </div>
+              {prazo.do_pedido && (
+                <p className="text-xs text-texto-fraco">
+                  Do pedido no Tiny: o início é o dia do pedido; o vencimento, a entrega combinada
+                  pelo vendedor.
+                </p>
+              )}
+            </dl>
           )}
           {atrasado && (
-            <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-atencao-texto">
+            <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-danificado-texto">
               <TriangleAlert aria-hidden className="size-4" />
               Atrasado
             </p>
           )}
         </Propriedade>
 
+        {/* SESSAO-38 (item 2.3 — D-150): a prioridade deixou de ser etiqueta. */}
+        <Propriedade icone={<Flag aria-hidden className="size-4" />} rotulo="Prioridade">
+          {podePriorizar ? (
+            <SeletorPrioridade
+              valor={prioridadeAtual}
+              aoMudar={(p) => priorizar.mutate(p)}
+              desabilitado={priorizar.isPending}
+            />
+          ) : (
+            <span className="inline-flex items-center gap-2 text-sm text-texto">
+              <PontoPrioridade prioridade={prioridadeAtual} />
+              {ROTULO_PRIORIDADE[prioridadeAtual]}
+            </span>
+          )}
+          {(dados.prioridade?.do_pedido || card.tipo === 'pedido') && (
+            <p className="mt-1 text-xs text-texto-fraco">Vale para todas as peças do pedido.</p>
+          )}
+          {dados.prioridade?.da_reposicao && (
+            <p className="mt-1 text-xs text-texto-fraco">Vale para as peças desta reposição.</p>
+          )}
+        </Propriedade>
+
         <Propriedade
           icone={<Tag aria-hidden className="size-4" />}
-          rotulo="Prioridade e etiquetas"
+          rotulo="Etiquetas"
           podeEditar={podeEditar}
           editando={editandoEtiquetas}
           aoEditar={() => setEditandoEtiquetas((v) => !v)}
@@ -513,12 +606,13 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         </Propriedade>
 
         <Propriedade
-          icone={<UserRound aria-hidden className="size-4" />}
+          icone={<SlidersHorizontal aria-hidden className="size-4" />}
           rotulo="Campos"
           podeEditar={false}
         >
+          {/* SESSAO-38 (item 2.5): vazio fica limpo — o admin cria campos em Utilitários. */}
           {dados.campos.length === 0 ? (
-            <span className="text-sm text-texto-fraco">Nenhum campo vale neste card.</span>
+            <span className="text-sm text-texto-fraco">Sem campos personalizados.</span>
           ) : podeEditar ? (
             <CamposDoCard card={card} podeEditar />
           ) : (
@@ -681,20 +775,28 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
 function Propriedade({
   icone,
   rotulo,
-  podeEditar,
+  podeEditar = false,
   editando = false,
   aoEditar,
+  largo = false,
   children,
 }: {
   icone: ReactNode
   rotulo: string
-  podeEditar: boolean
+  podeEditar?: boolean
   editando?: boolean
   aoEditar?: () => void
+  /** ocupa as duas colunas (a seção dos responsáveis por setor) */
+  largo?: boolean
   children: ReactNode
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1.5 rounded-dm border border-borda p-3">
+    <div
+      className={cn(
+        'flex min-w-0 flex-col gap-1.5 rounded-dm border border-borda p-3',
+        largo && 'sm:col-span-2',
+      )}
+    >
       <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-texto-suave uppercase">
         {icone}
         {rotulo}

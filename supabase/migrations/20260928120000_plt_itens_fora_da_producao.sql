@@ -967,6 +967,8 @@ begin
 end;
 $$;
 
+-- SESSAO-38 (E-17): a 20261022020000 muda a forma (colunas novas) — drop antes.
+drop function if exists public.plt_fn_rotas(text, text, integer, integer);
 create or replace function public.plt_fn_rotas(
   p_situacao      text default null, -- 'pronta' | 'entregue'
   p_busca         text default null,

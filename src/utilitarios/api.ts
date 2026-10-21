@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Motivo, TipoMotivo } from '@/rotas/api'
 import { ehCorEtiqueta } from './tipos'
 import type { CampoCustomizado, Etiqueta, TipoCampo, ValorCampo, ValorDeCampo } from './tipos'
 
@@ -135,6 +136,45 @@ export async function definirCampo(parametros: {
     p_valor: parametros.valor,
   })
   if (error) throw new Error(error.message)
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-38 (D-164): os motivos de pausa ESPECIAIS — enquanto a pessoa está
+// parada por um deles, o tempo não conta contra ela. A marca só existe aqui,
+// em Configurações → Utilitários (só admin): a lista que o funcionário recebe
+// ao pausar (plt_fn_motivos) não traz a marca — para ele é um motivo comum.
+// ---------------------------------------------------------------------------
+
+export interface MotivoComMarca extends Motivo {
+  especial: boolean
+}
+
+/** Os motivos de uma lista com os desligados e a marca "especial" (só admin). */
+export async function listarMotivosComMarca(tipo: TipoMotivo): Promise<MotivoComMarca[]> {
+  const { data, error } = await supabase.rpc('plt_fn_motivos_config', { p_tipo: tipo })
+  if (error) throw new Error(`Não deu para carregar os motivos: ${error.message}`)
+  return ((data ?? []) as MotivoComMarca[]).map((m) => ({ ...m, especial: Boolean(m.especial) }))
+}
+
+/** Salvar um motivo de pausa com a marca (nulo = não mexe na marca). */
+export async function salvarMotivoComMarca(parametros: {
+  id: number | null
+  tipo: TipoMotivo
+  texto: string
+  ordem?: number | null
+  ativo?: boolean
+  especial?: boolean | null
+}): Promise<number> {
+  const { data, error } = await supabase.rpc('plt_fn_motivo_salvar', {
+    p_id: parametros.id,
+    p_tipo: parametros.tipo,
+    p_texto: parametros.texto.trim(),
+    p_ordem: parametros.ordem ?? null,
+    p_ativo: parametros.ativo ?? true,
+    p_especial: parametros.especial ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return Number(data)
 }
 
 /** O admin traz de volta um card arquivado (evento "trazido de volta"). */

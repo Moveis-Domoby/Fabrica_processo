@@ -8,6 +8,7 @@ import { CARDS_POR_COLUNA, quadroColuna, quadroSetor } from './quadro'
 import type { AuxilioAberto, DadosDoQuadro, JuntoDoQuadro, PessoaDoQuadro } from './quadro'
 import type { ColunaPaginada } from './componentes/QuadroKanban'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
+import type { OrdemDaFila } from './prioridade'
 
 /** A coluna sem etapa (a "Chegada") — a mesma chave do QuadroKanban. */
 const CHEGADA = 'chegada'
@@ -22,7 +23,11 @@ const ESPERA_MS = 150
 const ESPALHAR_MS = 700
 const SEM_DADOS: Etapa[] = []
 
-export const chaveDoQuadro = (setorId: number | undefined) => ['quadro', setorId ?? null] as const
+/** Todas as leituras do quadro de um setor (qualquer ordem) — o que o aviso relê. */
+export const chaveDoSetor = (setorId: number | undefined) => ['quadro', setorId ?? null] as const
+/** SESSAO-38 (D-154): a leitura de uma ordem da fila (o servidor ordena). */
+export const chaveDoQuadro = (setorId: number | undefined, ordem: OrdemDaFila = 'prioridade') =>
+  ['quadro', setorId ?? null, ordem] as const
 
 interface Extra {
   cards: Card[]
@@ -58,12 +63,13 @@ const juntar = (a: JuntoDoQuadro, b: JuntoDoQuadro): JuntoDoQuadro => ({
  * - **Arrasto otimista**: o card muda de coluna na hora; o banco confirma (ou
  *   desfaz, relendo).
  */
-export function useQuadro(setorId: number | undefined) {
+export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'prioridade') {
   const clienteQuery = useQueryClient()
   const [extras, setExtras] = useState<Record<string, Extra>>({})
-  const [setorAnterior, setSetorAnterior] = useState(setorId)
-  if (setorAnterior !== setorId) {
-    setSetorAnterior(setorId)
+  // SESSAO-38: trocar de setor OU de ordem recomeça o "Ver mais" das colunas.
+  const [setorAnterior, setSetorAnterior] = useState(`${setorId}|${ordem}`)
+  if (setorAnterior !== `${setorId}|${ordem}`) {
+    setSetorAnterior(`${setorId}|${ordem}`)
     setExtras({})
   }
 
@@ -79,7 +85,7 @@ export function useQuadro(setorId: number | undefined) {
       espera = setTimeout(
         () => {
           espera = null
-          void clienteQuery.invalidateQueries({ queryKey: chaveDoQuadro(setorId) })
+          void clienteQuery.invalidateQueries({ queryKey: chaveDoSetor(setorId) })
         },
         ESPERA_MS + Math.random() * ESPALHAR_MS,
       )
@@ -90,13 +96,12 @@ export function useQuadro(setorId: number | undefined) {
     const conferirGuardada = () => {
       if (!primeira) return
       primeira = false
-      const estado = clienteQuery.getQueryState(chaveDoQuadro(setorId))
-      if (estado?.data !== undefined && estado.dataUpdatedAt < abertoEm) {
-        void clienteQuery.invalidateQueries({
-          queryKey: chaveDoQuadro(setorId),
-          refetchType: 'none', // a leitura sai quando a consulta liga (logo abaixo)
-        })
-      }
+      // (qualquer ordem guardada — SESSAO-38)
+      void clienteQuery.invalidateQueries({
+        queryKey: chaveDoSetor(setorId),
+        refetchType: 'none', // a leitura sai quando a consulta liga (logo abaixo)
+        predicate: (q) => q.state.data !== undefined && q.state.dataUpdatedAt < abertoEm,
+      })
     }
     // Se o websocket não responder, o quadro abre mesmo assim (sem ao vivo).
     const desistir = setTimeout(() => {
@@ -133,8 +138,8 @@ export function useQuadro(setorId: number | undefined) {
 
   // ---- a leitura -----------------------------------------------------------
   const consulta = useQuery({
-    queryKey: chaveDoQuadro(setorId),
-    queryFn: () => quadroSetor(setorId!, CARDS_POR_COLUNA),
+    queryKey: chaveDoQuadro(setorId, ordem),
+    queryFn: () => quadroSetor(setorId!, CARDS_POR_COLUNA, ordem),
     enabled: setorId !== undefined && ouvindoSetor === setorId,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -173,6 +178,7 @@ export function useQuadro(setorId: number | undefined) {
         etapaId: coluna.etapa_id,
         depoisDe: coluna.cards[coluna.cards.length - 1],
         limite: Math.min(50, extra.cards.length),
+        ordem,
       }).then(
         (pagina) => {
           if (versao !== versaoRef.current) return
@@ -184,7 +190,7 @@ export function useQuadro(setorId: number | undefined) {
         () => undefined,
       )
     }
-  }, [atualizadoEm, dados, setorId])
+  }, [atualizadoEm, dados, setorId, ordem])
 
   const verMais = useCallback(
     async (colunaChave: string) => {
@@ -207,7 +213,12 @@ export function useQuadro(setorId: number | undefined) {
         },
       }))
       try {
-        const pagina = await quadroColuna({ setorId, etapaId: coluna.etapa_id, depoisDe: ultimo })
+        const pagina = await quadroColuna({
+          setorId,
+          etapaId: coluna.etapa_id,
+          depoisDe: ultimo,
+          ordem,
+        })
         setExtras((atual) => {
           const anterior = atual[colunaChave]
           return {
@@ -226,7 +237,7 @@ export function useQuadro(setorId: number | undefined) {
         }))
       }
     },
-    [dados, setorId, extras],
+    [dados, setorId, extras, ordem],
   )
 
   // ---- o que a tela mostra -------------------------------------------------
@@ -303,7 +314,7 @@ export function useQuadro(setorId: number | undefined) {
   /** O card muda de coluna na hora (o banco confirma; se recusar, a releitura desfaz). */
   const moverOtimista = useCallback(
     (card: Card, etapaId: number | null) => {
-      clienteQuery.setQueryData<DadosDoQuadro>(chaveDoQuadro(setorId), (atual) => {
+      clienteQuery.setQueryData<DadosDoQuadro>(chaveDoQuadro(setorId, ordem), (atual) => {
         if (!atual) return atual
         const destino = atual.colunas.find((c) => c.etapa_id === etapaId)
         if (!destino) return atual
@@ -330,12 +341,12 @@ export function useQuadro(setorId: number | undefined) {
         }
       })
     },
-    [clienteQuery, setorId],
+    [clienteQuery, setorId, ordem],
   )
 
   /** Releitura feita pela própria tela (gesto sem o websocket conectado). */
   const reler = useCallback(
-    () => clienteQuery.invalidateQueries({ queryKey: chaveDoQuadro(setorId) }),
+    () => clienteQuery.invalidateQueries({ queryKey: chaveDoSetor(setorId) }),
     [clienteQuery, setorId],
   )
 

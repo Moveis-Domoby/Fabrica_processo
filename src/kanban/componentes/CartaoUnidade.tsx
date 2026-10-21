@@ -1,7 +1,6 @@
 import {
   AlignLeft,
   Ban,
-  CalendarClock,
   CircleCheckBig,
   Clock,
   ClipboardCheck,
@@ -16,7 +15,6 @@ import {
   Paperclip,
   Pause,
   Play,
-  TriangleAlert,
   Wrench,
 } from 'lucide-react'
 import { BadgeEstado, Botao, Dica } from '@/componentes/ui'
@@ -31,13 +29,8 @@ import type { Card, PedidoDoCard } from '../tipos'
 import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import type { CampoMostrado } from '@/utilitarios/consultas'
-
-/** A data local de hoje (aaaa-mm-dd) — o vencimento é do calendário de Natal. */
-function hojeLocal(agora: number): string {
-  const d = new Date(agora)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+import { prioridadeDe } from '../prioridade'
+import { ChipPrazo, PontoPrioridade } from './MarcasDoCard'
 
 /** Os rostos dos responsáveis (até 3 + "+N") — o nome vai no texto acessível. */
 function Responsaveis({
@@ -188,10 +181,14 @@ export function CartaoUnidade({
   // SESSAO-31 (D-125 / §2): a frente enxuta — só o que o card tem.
   const avulso = card.tipo === 'avulso'
   const responsaveis = card.responsaveis ?? []
-  const hoje = hojeLocal(agora)
-  const vence = card.vence_em ?? null
-  const atrasado = vence !== null && !terminal && vence < hoje
-  const venceHoje = vence !== null && !terminal && vence === hoje
+  // SESSAO-38 (item 1 do dono — D-150): o prazo é a data de entrega do pedido
+  // no Tiny (lida ao vivo pelo servidor); no avulso, o vencimento digitado.
+  const entrega = terminal
+    ? null
+    : (card.data_entrega ?? pedido?.data_prevista ?? (avulso ? card.vence_em : null) ?? null)
+  // SESSAO-38 (D-150): a prioridade (a peça mostra a do pedido).
+  const prioridade = prioridadeDe(card.prioridade)
+  const urgente = prioridade === 'urgente'
   const anexos = card.anexos_qtd ?? 0
   const mensagens = card.mensagens_qtd ?? 0
   const temIndicadores =
@@ -200,9 +197,14 @@ export function CartaoUnidade({
   return (
     <article
       className={cn(
-        'relative flex flex-col gap-2 rounded-dm border bg-superficie',
+        'relative flex flex-col gap-2 overflow-hidden rounded-dm border bg-superficie',
         galpao ? 'p-4' : 'p-3',
-        emExecucao ? 'border-acao-ativa' : 'border-borda',
+        // urgência tem de ser urgente (pedido do dono): a borda grossa vermelha
+        urgente
+          ? 'border-2 border-danificado-forte'
+          : emExecucao
+            ? 'border-acao-ativa'
+            : 'border-borda',
         arrastando && 'opacity-60 shadow-lg',
         aoAbrir && 'cursor-pointer hover:border-borda-forte',
       )}
@@ -213,13 +215,23 @@ export function CartaoUnidade({
           : `Unidade ${kn} — ${rotuloOrigemCard(card, pedido)}`
       }
     >
-      <header className="flex items-baseline justify-between gap-2">
-        <span
-          className={cn('font-semibold text-texto tabular-nums', galpao ? 'text-base' : 'text-sm')}
-        >
-          {rotuloOrigemCard(card, pedido)}
+      {urgente && (
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-danificado-forte" />
+      )}
+      <header className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <PontoPrioridade prioridade={prioridade} tamanho={tamanho} comTexto />
+          <span
+            className={cn(
+              'font-semibold text-texto tabular-nums',
+              galpao ? 'text-base' : 'text-sm',
+            )}
+          >
+            {rotuloOrigemCard(card, pedido)}
+          </span>
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex shrink-0 items-center gap-1">
+          <ChipPrazo data={entrega} agora={agora} tamanho={tamanho} />
           {kn && (
             <span
               className={cn(
@@ -254,10 +266,9 @@ export function CartaoUnidade({
           </span>
         </p>
       )}
-      {/* D-28: a tela do galpão não mostra dado de cliente. */}
-      {!galpao && pedido?.cliente_nome && (
-        <p className="line-clamp-1 text-xs text-texto-fraco">{pedido.cliente_nome}</p>
-      )}
+      {/* ↩️ SESSAO-38 (item 3 do dono): o card do setor não mostra o nome do
+          cliente — nem no computador (D-28 já valia no tablet). Quem precisa vê
+          na janela do card e no PCP. */}
       {cancelado && (
         // M-12: estado com ícone + texto, nunca só cor.
         <p>
@@ -269,31 +280,7 @@ export function CartaoUnidade({
       )}
       {/* SESSAO-27 (D-101): etiquetas e campos customizados — também no tablet. */}
       <EtiquetasDoCard ids={card.etiquetas} tamanho={galpao ? 'galpao' : 'sm'} />
-      {/* SESSAO-31 (§2): vencimento — atrasado é ícone + texto, nunca só cor (M-12). */}
-      {vence && (
-        <p
-          className={cn(
-            'inline-flex items-center gap-1 tabular-nums',
-            galpao ? 'text-sm' : 'text-xs',
-            atrasado
-              ? 'font-medium text-atencao-texto'
-              : venceHoje
-                ? 'font-medium text-texto'
-                : 'text-texto-suave',
-          )}
-        >
-          {atrasado ? (
-            <TriangleAlert aria-hidden className="size-3.5" />
-          ) : (
-            <CalendarClock aria-hidden className="size-3.5" />
-          )}
-          {atrasado
-            ? `Venceu em ${diaMes(vence)} — atrasado`
-            : venceHoje
-              ? 'Vence hoje'
-              : `Vence ${diaMes(vence)}`}
-        </p>
-      )}
+      {/* ↩️ SESSAO-38: o vencimento virou o chip do prazo, no topo do card. */}
       {temIndicadores && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {responsaveis.length > 0 && <Responsaveis ids={responsaveis} pessoas={pessoas} />}
@@ -464,8 +451,7 @@ export function CartaoUnidade({
         <p className="inline-flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-texto-suave">
           <Handshake aria-hidden className="size-4 shrink-0" />
           <span className="min-w-0 break-words">
-            Com ajuda de{' '}
-            {auxiliares.map((id) => pessoas?.get(id)?.nome ?? '…').join(', ')}
+            Com ajuda de {auxiliares.map((id) => pessoas?.get(id)?.nome ?? '…').join(', ')}
             {card.pausado_em !== null && ajudaAtiva ? ' — quem iniciou está pausado' : ''}
           </span>
         </p>

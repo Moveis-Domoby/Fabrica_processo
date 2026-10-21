@@ -388,7 +388,11 @@ $$;
 --     (Lei §2 — a tela não volta ao banco para desenhar o card).
 --     A forma das portas não muda (o detalhe vive dentro do jsonb por_setor):
 --     create or replace, sem drop — o site no ar não quebra.
+--     ↪️ SESSAO-38 (E-17): a migration da pausa especial muda a FORMA desta
+--     porta — o drop aqui deixa a 2ª rodada (e a reaplicação completa)
+--     recriar sem erro; os grants são refeitos logo abaixo.
 -- ----------------------------------------------------------------------------
+drop function if exists public.plt_fn_tempos_pessoas(date, date, integer, integer);
 create or replace function public.plt_fn_tempos_pessoas(
   p_de           date default null,   -- dia inicial (Fortaleza); nulo = hoje − 6
   p_ate          date default null,   -- dia final; nulo = hoje
@@ -558,6 +562,8 @@ $$;
 
 comment on function public.plt_fn_tempos_pessoas(date, date, integer, integer) is
   'SESSAO-36/37: o scorecard de tempos por pessoa — estado de agora + produção/ausente/à deriva, e (pedido do dono, 19/10) o detalhe POR SETOR no próprio card: produção × ausente e a produção por móvel com tempo parado e motivos (teto de 30 cards; o resto no detalhe). Tudo numa requisição. Líder/admin veem todos; o funcionário só o próprio.';
+revoke all on function public.plt_fn_tempos_pessoas(date, date, integer, integer) from public, anon;
+grant execute on function public.plt_fn_tempos_pessoas(date, date, integer, integer) to authenticated;
 
 -- O detalhe da pessoa (segunda visualização): por_setor ganha ausente_s e os
 -- cards com pausa/motivos; execuções e auxílios ganham o tempo parado.

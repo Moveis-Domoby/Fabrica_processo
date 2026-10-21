@@ -1526,6 +1526,145 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 6. **Botão "Ajudar em tudo"** no topo da coluna em execução (tablet e PC): um gesto entra como auxiliar em TODOS os cards em execução do setor; e o "Pausar geral" ao lado. ⏳ PROVISÓRIA: para isso o limite por pessoa (D-48) deixou de barrar o AUXÍLIO — ele segue contando as ajudas abertas ao INICIAR um card próprio.
 7. **Dashboard de tempos detalhada** (pedido na mesma conversa): o card de cada pessoa abre os números POR SETOR (produção × ausente) e a produção por móvel — tempo, tempo parado e os motivos — na mesma requisição; o clique aprofunda (dia a dia, por setor, cada card com pausas e motivos).
 
+## D-161 · O grupo "Pedidos" do menu mora logo abaixo de "Rotas" (22/10/2026, pedido do dono) — ↪️ D-134
+
+**Pedido do dono (lote noturno da SESSAO-38):** mover o pai **Pedidos** (Todos os pedidos · Cancelados) para ficar logo **abaixo** do grupo **Rotas** (Entregas · Programação). Ordem da Fábrica agora: Controle de produção → Logística → Rotas → **Pedidos**. Nada mais muda: o pai continua sem rota própria, os filhos seguem `/fabrica/pedidos/…` e quem vê é o mesmo de antes (D-134).
+
+## D-162 · As notificações fecham com qualquer toque fora do painel (22/10/2026, pedido do dono)
+
+**Pedido do dono:** o painel de notificações ficava aberto por cima da tela enquanto a pessoa clicava em outras coisas — qualquer toque/clique em qualquer lugar da plataforma, fora do painel, tem de fechá-lo na hora.
+
+- Fecha com toque ou clique em **qualquer** lugar fora dele: barra lateral, página, mapa, balão do chat, janelas abertas. Dentro do painel tudo segue funcionando (marcar como lida, apagar, "Ver todos"); o sino abre e fecha; **Esc** fecha; trocar de tela fecha.
+- **O toque que fecha não se perde:** o botão, o mapa ou o card tocado recebe o clique normalmente (antes, um fundo invisível "comia" o clique — e só cobria a própria barra lateral).
+- ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono): trocar de tela também fecha o painel (não estava no pedido; é o comportamento esperado de um menu suspenso).
+
+## D-163 · Entrar sem digitar o e-mail: o aparelho lembra o nome de usuário, e o PIN aceita usuário (22/10/2026, pedido do dono) — ↪️ D-21, D-146
+
+**Pedido do dono:** *"digitar o e-mail toda vez é um saco"* — poder entrar com nome de usuário e senha.
+
+**O que já existia (D-21, SESSAO-03):** a entrada por **nome de usuário OU e-mail** + senha está no ar desde a SESSAO-03 — todos os 16 cadastros ativos têm nome de usuário (único, sem acento, minúsculo; o do dono é `wallace`), visível e editável no Meu Perfil e na Equipe.
+
+**Por que o dono ainda digitava o e-mail (a causa):** (1) a tela de entrada **não lembrava de ninguém** — com o tempo parado de 8 h (D-137) a sessão cai e cada entrada começava do campo vazio (o dono entrou 19 vezes em 7 dias); (2) os campos não tinham `name`, e o gerenciador de senhas do navegador guardava/preenchia mal; (3) o "Entrar com e-mail e PIN" (D-146) **só aceitava e-mail**; (4) nada na tela ensinava o próprio nome de usuário a quem sempre entrou pelo e-mail.
+
+**Decidido (escolhas do Claude, ⏳ PROVISÓRIA — confirmar com o dono):**
+1. **O aparelho lembra o nome de usuário** de quem entrou por último (só neste navegador; nunca senha nem PIN). O servidor devolve o nome de usuário de quem acabou de acertar a senha — quem entrava pelo e-mail passa a ver o próprio usuário já preenchido. Na próxima entrada o cursor já vai para a senha. O link de convite continua vencendo.
+2. Os campos levam `name`/`autocomplete` padrão (`username`, `current-password`) para o navegador lembrar e preencher.
+3. **"Entrar com usuário e PIN"**: o caminho do PIN para quem nunca criou senha aceita usuário **ou** e-mail (mesma trava de tentativas; o site antigo segue funcionando).
+4. O campo de entrada aceita o usuário **com maiúscula, acento e espaço** ("João Lucas" acha `joaolucas`).
+5. **Segurança mantida e reforçada:** nenhuma consulta pública de usuário → e-mail (tudo no servidor); a mesma mensagem para "não existe" e "senha errada"; a **senha errada passa pela mesma trava do PIN** (5 erros em 15 min → espera de 1 min, dobrando até 15) — contada pelo que foi digitado, exista ou não a pessoa (o "muitas tentativas" não entrega quem tem cadastro); a conta de tablet de cada setor **não entra por senha** (só pelo PIN do setor); pessoa desativada continua recusada (D-141); a troca obrigatória de senha e o PIN seguem iguais; toda entrada vai para a trilha **com o caminho usado** (usuário ou e-mail — sem guardar o que foi digitado).
+6. Sem coluna nova nem atualização do banco (banco enxuto): a coluna de nome de usuário já existia e estava preenchida para todos.
+
+**Risco aceito (a confirmar):** alguém que digite errado a senha de outra pessoa 5 vezes trava a entrada dela por 1 minuto (padrão de mercado; o bloqueio cresce só enquanto os erros continuam).
+## D-164 · Motivos de pausa ESPECIAIS: "Faltou peça", "Máquina quebrou" e "Pausa solicitada por um líder" — o funcionário não vê diferença (21/10/2026, pedido do dono; SESSAO-38 · frente F4)
+
+**Pedido do dono (traduzido):** *"na parte de PARAR um card, crie motivos ESPECIAIS que param de contar o tempo para o funcionário quando selecionados. Não mostre nenhum aviso para o funcionário — para ele é um motivo como outro qualquer. São eles: 'Faltou peça', 'Máquina quebrou', 'Pausa solicitada por um líder'. Por enquanto só esses; depois eu crio outros nos motivos de pausa. Coloque lá um 'especial ou não' para quem cria ou edita saber disso."*
+
+- Os motivos de pausa ganham a marca **especial** (Configurações → Utilitários → Motivos de pausa): uma caixinha "Especial" no cadastro e na edição, com a explicação para quem configura, e a pílula "Especial · não conta o tempo" na lista. Só motivo de **pausa** pode ser especial (trava no banco).
+- Os três do dono nasceram especiais. Nenhum motivo existente tinha o mesmo nome (comparado sem maiúsculas, acentos e espaços) — "Falta de material", "Manutenção da máquina" e "Conferir com o líder" seguem **comuns** (sentido parecido, mas não o mesmo; o admin marca se quiser).
+- **O funcionário não vê nada:** a lista que ele recebe ao pausar (janela do card, PARADO, pausar geral, tablet) é a mesma de sempre e **não traz a marca**; no quadro/tablet ele continua "Ausente"; na própria dashboard de tempos nada "especial" aparece.
+
+## D-165 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O que "não contar o tempo" quer dizer, com precisão (21/10/2026, SESSAO-38 · F4)
+
+**O tempo do funcionário neste sistema** (o que conta contra ele) é a PRESENÇA da SESSAO-36: **em produção** (execução ou ajuda rodando), **ausente** (deu entrada no setor e nada rodando) e **fora de setor** (saiu sem entrar em outro) — somados por dia. O tempo de execução (as dashboards Pessoas / Meu desempenho / tempo do card) **já descontava toda pausa**, especial ou não — não muda. O que pesa contra a pessoa é o **ausente**.
+
+1. **Enquanto a pessoa está parada por motivo especial, o trecho NÃO é ausente:** vai para um balde próprio ("não conta"), fora do ausente e fora da produção. Exemplo: Ana trabalha 1 h, pausa por "Máquina quebrou" 30 min, retoma e trabalha mais 1 h → produção 2 h, **ausente 0**, não conta 30 min. Se o motivo fosse "Falta de material" (comum): produção 2 h, ausente 30 min — exatamente como antes.
+2. **Quem fica "não conta":** quem EXECUTA o card pausado (mesmo que o líder tenha pausado); quem ajudava e foi pausado junto com o card; quem se pausa pelo "pausar geral" com motivo especial (também na ajuda); e quem executava o card que foi solto no PARADO com motivo especial.
+3. **Vale a parada MAIS RECENTE da pessoa:** se depois ela parar outro card por motivo comum, volta a contar como ausente. O PARADO especial acaba quando o card sai do PARADO; qualquer parada acaba quando a pessoa **entra em outro setor ou sai do setor** (ela seguiu em frente; o que a prendia não vale para o próximo setor nem para o dia seguinte). O teto de 12 h por trecho do ausente vale igual.
+4. **A marca vale do gesto em diante:** o trecho guarda se o motivo era especial NO MOMENTO da pausa; ligar/desligar a marca depois não reescreve o que já foi somado (histórico: não havia nenhuma pausa com esses motivos — a lista era nova; conferido no banco em 21/10: uma pausa só em toda a produção, "Fim do turno").
+5. **Quem vê o "não conta":** só líder e admin, na dashboard Tempos por pessoa — discreto: "Parado · não conta" no estado, a linha "Parado por motivo especial (não conta)" no cartão, "não conta X" por setor, por dia e por móvel, e o motivo marcado "(não conta)". O próprio funcionário vê o ausente sem esse trecho e nenhuma marca.
+6. **Auxílio no PARADO:** soltar no PARADO encerra as ajudas (como sempre — D-146 resposta 8); quem ajudava fica ausente comum (só quem executava ganha o "não conta"). Escolha conservadora.
+
+## D-166 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O tempo do CARD não muda com a pausa especial (21/10/2026, SESSAO-38 · F4)
+
+- A linha do tempo do card e a seção "Tempo e histórico" da janela **não mudaram** (outra frente vai refazer o tempo do card). Hoje o tempo de execução do card já desconta toda pausa; a pausa especial aparece na história como qualquer pausa, com o motivo.
+- **Recomendação para a frente do tempo do card:** mostrar a pausa por motivo especial como "parada por causa externa" (máquina, peça, pedido do líder) separada das pausas comuns no total "parado" do card — é tempo que o card esperou por algo de fora, útil para achar gargalo de máquina/abastecimento. A marca está em `plt_motivos.especial` (o motivo do fato está em `dados.motivo_id`); a do momento do gesto está em `plt_pessoa_pausas.especial`.
+## D-150 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O prazo e a PRIORIDADE do card de produção (21/10/2026, pedido do dono) — ↩️ revisa a D-101 (a prioridade não é mais etiqueta) e a D-125 (as datas do card de pedido)
+
+**Pedido do dono:** todo card de pedido mostra a data de entrega que o vendedor pôs no Tiny — só a data, com a cor dizendo quanto falta; a janela do card traz Início (o dia do pedido no Tiny) e Vencimento (a entrega); a prioridade deixa de ser etiqueta e vira marca própria, que o PCP põe a qualquer momento, inclusive ao criar o card: **Urgente** (sempre o primeiro, "a urgência tem que ser urgente"), **Atenção** (bolinha amarela) e **Comum** (bolinha verde).
+
+- **A data é LIDA do pedido, ao vivo** (nada copiado): o Tiny mudou a data → o card mostra a nova; o quadro de cada setor com peça do pedido é avisado na hora quando o Tiny atualiza o pedido.
+- **A cor:** verde com mais de 3 dias; amarelo com 2 ou 3; **vermelho forte, cheio e pulsando devagar** com 1 dia, no dia da entrega ou atrasado (quem pediu menos movimento no aparelho vê sem o pulso). O texto escondido diz quanto falta (a cor nunca vai sozinha).
+- **No card avulso** a data é o vencimento digitado (as datas continuam manuais); no card de pedido e nas peças dele as datas vêm do Tiny e **não se editam na janela**.
+- **Onde a prioridade mora (um dono por dado):** no **card do pedido** — vale para **todas as peças dele, em todos os setores**, inclusive as liberadas depois (cada peça LÊ a do pedido; nenhuma guarda a própria). A reposição de estoque tem a dela (vale para as peças que ela gerou) e o avulso a dele. Mudar pela peça muda a do pedido (a janela avisa: "vale para todas as peças do pedido").
+- O urgente aparece **escrito** ("URGENTE"), com a bolinha vermelha e a borda grossa vermelha no card; atenção e comum, só a bolinha.
+
+## D-151 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — Quem muda a prioridade (21/10/2026)
+
+- **O PCP/logística, o líder do setor onde o card está e o admin** — as mesmas pessoas que editam o card de pedido hoje (D-125 resposta 7); no avulso, também quem pode editá-lo (quem criou, os responsáveis).
+- O nível **"Logística"** (D-147) **muda** a prioridade: é uma propriedade do card (como etiqueta e descrição), não um gesto de mover ou executar.
+- O operador não muda. O mesmo toque duas vezes não grava nada novo.
+
+## D-152 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — Os RESPONSÁVEIS do card, por setor (21/10/2026, pedido do dono) — ↩️ revisa a D-125 (responsáveis)
+
+**Pedido do dono:** os responsáveis se preenchem sozinhos com quem pegou o card em cada setor; o líder ou o admin define o responsável dos próximos setores; o que já foi executado ninguém muda.
+
+- **Quem pegou** sai da história do card (quem iniciou o trabalho e quem ajudou, em cada setor — nada copiado); é **só leitura para todos**. No card do pedido (e no de reposição) a janela junta quem pegou as peças dele.
+- **Quem vai pegar nos próximos setores** se define **na peça (ou no card avulso)** — é ela que anda pelos setores; no card do pedido, a seção é só para ver.
+- **Quem define:** o admin, o PCP/logística, o **líder do setor onde o card está** ou o **líder do setor escolhido**. Só para setor de produção **ainda não trabalhado** naquele card — o banco recusa o setor já executado.
+- **Quem pode ser definido:** gente ativa daquele setor, ou quem tem no cadastro "pode ajudar em outros setores"; nunca a conta do tablet nem o nível Logística. Até 5 por setor.
+- A pessoa definida **é avisada no sino** e **passa a ver o card**. **Não vira delegação automática** (o afazer do Meu Painel continua sendo a delegação de sempre) — se o dono quiser que, ao chegar no setor, o card caia direto para a pessoa, é um passo seguinte.
+- Os "responsáveis do card todo" do avulso (escolhidos ao criar) continuam existindo, abaixo da lista por setor.
+
+## D-153 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A etiqueta que fazia o papel de prioridade (21/10/2026)
+
+- Etiqueta cujo nome começa com prioridade/prioritário/urgente/urgência/atenção: o card **vivo** que a tem ganha a prioridade nova (atenção para "atenção", urgente para as outras — no card do pedido, se for peça), e a etiqueta é **arquivada** (nada se apaga; a história fica).
+- Em produção, em 21/10: a etiqueta **"PRIORIDADE"** estava em **nenhum card vivo** — só foi arquivada. Para voltar, o admin a reativa em Utilitários.
+
+## D-154 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O organizador da fila: entrega, prioridade, alfabética (21/10/2026, pedido do dono)
+
+**Pedido do dono:** em todos os quadros (computador e tablet) e no PCP, um organizador da fila por data de entrega, por prioridade e alfabético; troca-se por cliques num botão com o ícone do estilo atual, sem texto.
+
+- **Um botão só, com o ícone** (bandeira = prioridade · calendário = entrega · A-Z = alfabética); cada toque passa para a próxima. O nome vai para o leitor de tela e para a dica do mouse.
+- **O urgente vem sempre primeiro**, em qualquer ordem.
+- **Prioridade** (a padrão): urgente → atenção → comum; dentro de cada uma, o mais antigo na etapa primeiro (a ordem de sempre).
+- **Entrega:** a data de entrega mais próxima primeiro (o avulso pelo vencimento), depois o número do pedido e o mais antigo; **sem data vai para o fim**.
+- **Alfabética:** letras primeiro (sem ligar para maiúscula e acento), depois números, depois o resto (símbolo, emoji); no quadro, pelo nome do produto (ou do avulso); **no PCP, pelo nome do cliente** (é o que o card do PCP mostra).
+- **Quem ordena é o servidor** (as colunas paginam lá); "Ver mais" continua a mesma ordem. A escolha fica **lembrada no aparelho**, uma para os quadros e outra para o PCP.
+
+## D-155 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O card do setor sem o cliente e o card do PCP refeito (21/10/2026, pedido do dono) — ↪️ D-28
+
+- **O card do setor não mostra o nome do cliente** — nem no computador (no tablet já não mostrava, D-28); o quadro do setor nem recebe mais o nome. Quem precisa vê na **janela do card** (fora do tablet) e no **PCP**.
+- **O card do PCP:** todos do **mesmo tamanho** na grade; o aviso de peça no estoque virou um **selo pequeno** ("3 no estoque", com a explicação na dica), como os outros avisos — não estica mais o card; o lado direito tem o **prazo** e o tempo no PCP; no rodapé, as unidades liberadas, a **prioridade** (três bolinhas), o botão de **abrir o card** e o lugar reservado para **mais um botão** (o "stand-by", que vem em outra entrega); a liberação continua igual.
+- **Campos** vazios na janela: "Sem campos personalizados." (sem cara de erro; o admin cria campos em Utilitários).
+## D-156 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A rota aceita QUALQUER pedido vivo; o "Lançar para ROTAS" deixa de ser passo (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-38, a D-39, a D-45 e a D-58 (o lançamento)
+
+**Pedido do dono (bateria da SESSAO-38):** a qualquer momento ele cadastra numa rota qualquer pedido — pronto, em produção ou ainda no PCP; assim que o pedido chega à plataforma ele pode ser programado; programado, aparece SÓ em "Já programadas". As rotas não dependem mais de "Pedidos em aguardo": respondem direto a todos os pedidos, prontos ou não. Cada cartão de "Sem programação" diz se o pedido está pronto ou ainda em produção/PCP.
+
+1. **Pedido vivo = uma regra só** para a Expedição e as rotas: card do pedido não arquivado, sem entrega registrada na plataforma, não encerrado no Tiny (entregue, não entregue, cancelado), o que o Tiny já levou adiante (faturado, pronto para envio, enviado) só fica com peça dele na fábrica (D-132/D-133), nunca o excluído no Tiny (D-140). **Candidato da rota** = o vivo que não está em decisão pós devolução (D-129). *(Para quem codar: `plt_privado.vw_pedidos_vivos` e `plt_privado.vw_pedidos_para_rota` — o "stand-by" de outra frente entra como UMA condição nesta última.)*
+2. **Estado de cada pedido:** **pronto** (todas as peças a entregar no fim de linha — Pedidos em aguardo ou ROTAS), **em produção** (alguma peça liberada; o cartão diz "1 de 3 prontas") ou **ainda no PCP** (nada liberado). Só frete = pronto desde que nasceu (D-63).
+3. **O que substitui o "Lançar para ROTAS" (escolha do Claude):** nada precisa ser lançado. A peça pronta fica no lugar de sempre ("Pedidos em aguardo" — continua sendo o nome do lugar onde a peça pronta espera; a TELA saiu — D-157) até a entrega; programar é direto na Programação. O botão antigo continua funcionando no banco só para o site antigo, até a publicação.
+4. **"Entregue" pede o pedido pronto** (escolha conservadora do Claude): o entregador e a logística só marcam "Entregue" com todas as peças a entregar prontas; antes disso o cartão avisa e o botão fica apagado (o banco confere de novo). Pedido em decisão pós devolução não se entrega. A entrega pelo Tiny continua fechando tudo onde a peça estiver (D-113, sem mudança).
+5. **ROTAS → Entregas → "A entregar"** = o programado (pronto ou não — o cartão diz), o pronto que ainda espera rota e o lançado do jeito antigo. O em produção sem rota fica só na Expedição.
+6. **O card do pedido programado fica como registro da entrega** (como o lançado ficava): o entregador vê em "Entregues hoje" e desfaz no mesmo dia; a Programação mostra nos entregues. "Não entregue" e "Pedido devolvido" (antes da entrega) valem para o programado, lançado ou não — as peças prontas saem do aguardo ou da ROTAS.
+7. ↩️ **D-39** ("ROTAS lista apenas pedidos prontos lançados pelos Pedidos em aguardo"), **D-45** ("lançar para ROTAS move de verdade; só o lançado aparece nas ROTAS"), **D-58** ("de lá o pedido completo é lançado para as ROTAS") e **D-38** (o "completo → lançar para ROTAS"): o lançamento deixa de ser exigência; a entrega continua por pedido completo (D-33).
+
+**Descartadas:** lançar sozinho quando a última peça chega ao aguardo (mexeria na maquinaria do arrasto do quadro, de outra frente); deixar marcar "Entregue" com peça ainda em produção (fecharia peça viva na fábrica pelo gesto de uma pessoa — só o Tiny faz isso, D-113).
+
+## D-157 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A Expedição absorve "Pedidos em aguardo": os filtros em quadradinhos e o fim da tela do aguardo (21/10/2026, SESSAO-38 · frente da Logística) — ↪️ D-133, D-147
+
+**Pedido do dono (imagens 6/7):** "Pedidos em aguardo" pertence à Expedição; a Expedição ganha filtros visuais (quadradinhos com número grande e nome, o ativo contornado, que respondem ao clique): todos os não entregues · com rota programada · sem rota programada · prontos · ainda em produção. A tela "Pedidos em aguardo" deixa de existir.
+
+1. **Os 5 quadradinhos** — os números vêm do banco na MESMA requisição da página (todos = com rota + sem rota = prontos + em produção); o filtro e a paginação são no servidor; o filtro vive no endereço (`?filtro=`), o Voltar funciona. Ordem: a previsão mais próxima primeiro (D-133). Ao vivo como antes.
+2. **O que veio do aguardo (escolha do Claude):** a visão **"Peça por peça"** (a antiga aba "Produtos reservados": cada peça pronta com SKU, pedido e há quanto tempo está pronta), o **"Ver unidades"**, o relógio **"1ª peça pronta há / completo há"**, os avisos "Alterado no Tiny após a liberação" e "Em decisão pós devolução", e o atalho **"Abrir o pedido"** (a ficha em Pedidos → Todos os pedidos). Cada pedido mostra o caminhão e o dia da rota ou "Sem rota — programar". O "Lançar para ROTAS" saiu (D-156).
+3. **Menu e endereço:** "Pedidos em aguardo" sai do menu da Logística; o endereço antigo leva à Expedição (lei de navegação — nenhuma rota órfã). A peça pronta continua no lugar interno "Pedidos em aguardo" (é o nome do lugar, ainda citado nos quadros e no Estoque).
+4. **Quem vê:** a logística de sempre (admin, PCP, fins de linha) **e o nível "Logística"** sem vínculo de setor (D-147) — antes, a tela da Expedição o mandava embora sem vínculo; corrigido para todas as telas da logística que usam o mesmo gate.
+5. **Achado da prova no banco (21/10):** a Expedição antiga mostrava o pedido 13622, excluído no Tiny (D-140); a nova não mostra (42 → 41).
+
+## D-158 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A equipe da rota: só entregador (21/10/2026, SESSAO-38 · frente da Logística) — ↪️ D-115, D-128
+
+**Pedido do dono (imagem 4 — "Quem leva o Hyundai HR"):** a lista da equipe misturava gente marcada "da ROTAS" (vínculo com o setor, sem ser entregador) com os entregadores; deve mostrar só quem é entregador de verdade.
+
+1. **Entregador = o tipo "Entregador (só ROTAS)" do cadastro** (módulo "entregas" — D-115). Admin/logística/operador que só tem vínculo com o setor ROTAS sai da lista (em 21/10: 4 entregadores ficam, 6 pessoas "da ROTAS" saem).
+2. **Quem já estava numa equipe e não é entregador** aparece no fim da lista, marcado, com "não é entregador — desmarque" — só para poder sair (escolha do Claude). O banco recusa pôr na equipe alguém novo que não seja entregador; quem já estava pode ficar até ser desmarcado.
+
+## D-159 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O mapa da rota: "Só a ida" e "Só a volta"; o "Programar" sem espaço vazio (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-111 (o trecho aceso)
+
+**Pedido do dono (imagem 3):** no lugar de escolher UM trecho entre duas paradas ("Trecho 1ª parada → fábrica"), escolher **só a ida** (fábrica → … → última parada) ou **só a volta** (última parada → fábrica), para o mapa não ficar poluído pela linha da volta e medir cada uma (distância e tempo). A rota inteira continua o padrão. E tirar o espaço vazio entre "Na rota" e "Sem programação".
+
+1. **No mapa** (Programar e Já programadas — é o mesmo mapa), três botões grandes no canto de baixo: **Rota inteira · Só a ida · Só a volta**. Escolhida a ida, a volta **não se desenha** (e vice-versa); o canto de cima diz "Só a ida (fábrica → 3ª parada): 12,3 km · 25 min". Sem o serviço de rotas, vale o mesmo em linha reta (tracejada), com a distância em linha reta.
+2. **No painel da rota:** a ida e a volta lado a lado, cada uma com distância e tempo; as linhas das paradas mostram o trecho de cada uma (sem toque para acender — o toque saiu com o trecho aceso).
+3. **"Programar":** a coluna da esquerda é uma pilha só — "Na rota" só aparece com pedido marcado e cresce na medida em que "Sem programação" encolhe; o "Ordenar por" fica no cabeçalho da lista. Nenhuma altura reservada.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
