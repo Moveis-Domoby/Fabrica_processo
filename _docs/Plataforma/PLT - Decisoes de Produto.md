@@ -1526,6 +1526,45 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 6. **Botão "Ajudar em tudo"** no topo da coluna em execução (tablet e PC): um gesto entra como auxiliar em TODOS os cards em execução do setor; e o "Pausar geral" ao lado. ⏳ PROVISÓRIA: para isso o limite por pessoa (D-48) deixou de barrar o AUXÍLIO — ele segue contando as ajudas abertas ao INICIAR um card próprio.
 7. **Dashboard de tempos detalhada** (pedido na mesma conversa): o card de cada pessoa abre os números POR SETOR (produção × ausente) e a produção por móvel — tempo, tempo parado e os motivos — na mesma requisição; o clique aprofunda (dia a dia, por setor, cada card com pausas e motivos).
 
+## D-156 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A rota aceita QUALQUER pedido vivo; o "Lançar para ROTAS" deixa de ser passo (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-38, a D-39, a D-45 e a D-58 (o lançamento)
+
+**Pedido do dono (bateria da SESSAO-38):** a qualquer momento ele cadastra numa rota qualquer pedido — pronto, em produção ou ainda no PCP; assim que o pedido chega à plataforma ele pode ser programado; programado, aparece SÓ em "Já programadas". As rotas não dependem mais de "Pedidos em aguardo": respondem direto a todos os pedidos, prontos ou não. Cada cartão de "Sem programação" diz se o pedido está pronto ou ainda em produção/PCP.
+
+1. **Pedido vivo = uma regra só** para a Expedição e as rotas: card do pedido não arquivado, sem entrega registrada na plataforma, não encerrado no Tiny (entregue, não entregue, cancelado), o que o Tiny já levou adiante (faturado, pronto para envio, enviado) só fica com peça dele na fábrica (D-132/D-133), nunca o excluído no Tiny (D-140). **Candidato da rota** = o vivo que não está em decisão pós devolução (D-129). *(Para quem codar: `plt_privado.vw_pedidos_vivos` e `plt_privado.vw_pedidos_para_rota` — o "stand-by" de outra frente entra como UMA condição nesta última.)*
+2. **Estado de cada pedido:** **pronto** (todas as peças a entregar no fim de linha — Pedidos em aguardo ou ROTAS), **em produção** (alguma peça liberada; o cartão diz "1 de 3 prontas") ou **ainda no PCP** (nada liberado). Só frete = pronto desde que nasceu (D-63).
+3. **O que substitui o "Lançar para ROTAS" (escolha do Claude):** nada precisa ser lançado. A peça pronta fica no lugar de sempre ("Pedidos em aguardo" — continua sendo o nome do lugar onde a peça pronta espera; a TELA saiu — D-157) até a entrega; programar é direto na Programação. O botão antigo continua funcionando no banco só para o site antigo, até a publicação.
+4. **"Entregue" pede o pedido pronto** (escolha conservadora do Claude): o entregador e a logística só marcam "Entregue" com todas as peças a entregar prontas; antes disso o cartão avisa e o botão fica apagado (o banco confere de novo). Pedido em decisão pós devolução não se entrega. A entrega pelo Tiny continua fechando tudo onde a peça estiver (D-113, sem mudança).
+5. **ROTAS → Entregas → "A entregar"** = o programado (pronto ou não — o cartão diz), o pronto que ainda espera rota e o lançado do jeito antigo. O em produção sem rota fica só na Expedição.
+6. **O card do pedido programado fica como registro da entrega** (como o lançado ficava): o entregador vê em "Entregues hoje" e desfaz no mesmo dia; a Programação mostra nos entregues. "Não entregue" e "Pedido devolvido" (antes da entrega) valem para o programado, lançado ou não — as peças prontas saem do aguardo ou da ROTAS.
+7. ↩️ **D-39** ("ROTAS lista apenas pedidos prontos lançados pelos Pedidos em aguardo"), **D-45** ("lançar para ROTAS move de verdade; só o lançado aparece nas ROTAS"), **D-58** ("de lá o pedido completo é lançado para as ROTAS") e **D-38** (o "completo → lançar para ROTAS"): o lançamento deixa de ser exigência; a entrega continua por pedido completo (D-33).
+
+**Descartadas:** lançar sozinho quando a última peça chega ao aguardo (mexeria na maquinaria do arrasto do quadro, de outra frente); deixar marcar "Entregue" com peça ainda em produção (fecharia peça viva na fábrica pelo gesto de uma pessoa — só o Tiny faz isso, D-113).
+
+## D-157 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A Expedição absorve "Pedidos em aguardo": os filtros em quadradinhos e o fim da tela do aguardo (21/10/2026, SESSAO-38 · frente da Logística) — ↪️ D-133, D-147
+
+**Pedido do dono (imagens 6/7):** "Pedidos em aguardo" pertence à Expedição; a Expedição ganha filtros visuais (quadradinhos com número grande e nome, o ativo contornado, que respondem ao clique): todos os não entregues · com rota programada · sem rota programada · prontos · ainda em produção. A tela "Pedidos em aguardo" deixa de existir.
+
+1. **Os 5 quadradinhos** — os números vêm do banco na MESMA requisição da página (todos = com rota + sem rota = prontos + em produção); o filtro e a paginação são no servidor; o filtro vive no endereço (`?filtro=`), o Voltar funciona. Ordem: a previsão mais próxima primeiro (D-133). Ao vivo como antes.
+2. **O que veio do aguardo (escolha do Claude):** a visão **"Peça por peça"** (a antiga aba "Produtos reservados": cada peça pronta com SKU, pedido e há quanto tempo está pronta), o **"Ver unidades"**, o relógio **"1ª peça pronta há / completo há"**, os avisos "Alterado no Tiny após a liberação" e "Em decisão pós devolução", e o atalho **"Abrir o pedido"** (a ficha em Pedidos → Todos os pedidos). Cada pedido mostra o caminhão e o dia da rota ou "Sem rota — programar". O "Lançar para ROTAS" saiu (D-156).
+3. **Menu e endereço:** "Pedidos em aguardo" sai do menu da Logística; o endereço antigo leva à Expedição (lei de navegação — nenhuma rota órfã). A peça pronta continua no lugar interno "Pedidos em aguardo" (é o nome do lugar, ainda citado nos quadros e no Estoque).
+4. **Quem vê:** a logística de sempre (admin, PCP, fins de linha) **e o nível "Logística"** sem vínculo de setor (D-147) — antes, a tela da Expedição o mandava embora sem vínculo; corrigido para todas as telas da logística que usam o mesmo gate.
+5. **Achado da prova no banco (21/10):** a Expedição antiga mostrava o pedido 13622, excluído no Tiny (D-140); a nova não mostra (42 → 41).
+
+## D-158 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A equipe da rota: só entregador (21/10/2026, SESSAO-38 · frente da Logística) — ↪️ D-115, D-128
+
+**Pedido do dono (imagem 4 — "Quem leva o Hyundai HR"):** a lista da equipe misturava gente marcada "da ROTAS" (vínculo com o setor, sem ser entregador) com os entregadores; deve mostrar só quem é entregador de verdade.
+
+1. **Entregador = o tipo "Entregador (só ROTAS)" do cadastro** (módulo "entregas" — D-115). Admin/logística/operador que só tem vínculo com o setor ROTAS sai da lista (em 21/10: 4 entregadores ficam, 6 pessoas "da ROTAS" saem).
+2. **Quem já estava numa equipe e não é entregador** aparece no fim da lista, marcado, com "não é entregador — desmarque" — só para poder sair (escolha do Claude). O banco recusa pôr na equipe alguém novo que não seja entregador; quem já estava pode ficar até ser desmarcado.
+
+## D-159 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O mapa da rota: "Só a ida" e "Só a volta"; o "Programar" sem espaço vazio (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-111 (o trecho aceso)
+
+**Pedido do dono (imagem 3):** no lugar de escolher UM trecho entre duas paradas ("Trecho 1ª parada → fábrica"), escolher **só a ida** (fábrica → … → última parada) ou **só a volta** (última parada → fábrica), para o mapa não ficar poluído pela linha da volta e medir cada uma (distância e tempo). A rota inteira continua o padrão. E tirar o espaço vazio entre "Na rota" e "Sem programação".
+
+1. **No mapa** (Programar e Já programadas — é o mesmo mapa), três botões grandes no canto de baixo: **Rota inteira · Só a ida · Só a volta**. Escolhida a ida, a volta **não se desenha** (e vice-versa); o canto de cima diz "Só a ida (fábrica → 3ª parada): 12,3 km · 25 min". Sem o serviço de rotas, vale o mesmo em linha reta (tracejada), com a distância em linha reta.
+2. **No painel da rota:** a ida e a volta lado a lado, cada uma com distância e tempo; as linhas das paradas mostram o trecho de cada uma (sem toque para acender — o toque saiu com o trecho aceso).
+3. **"Programar":** a coluna da esquerda é uma pilha só — "Na rota" só aparece com pedido marcado e cresce na medida em que "Sem programação" encolhe; o "Ordenar por" fica no cabeçalho da lista. Nenhuma altura reservada.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
