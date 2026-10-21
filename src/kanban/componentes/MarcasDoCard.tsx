@@ -12,7 +12,8 @@ import type { OrdemDaFila, Prioridade } from '../prioridade'
 
 const FUNDO_PRAZO = {
   verde: 'border-perfeito-borda bg-perfeito-fundo text-perfeito-texto',
-  amarelo: 'border-atencao-borda bg-atencao-fundo text-atencao-texto',
+  // amarelo de verdade (pedido do dono) — tokens próprios, não a atenção da qualidade
+  amarelo: 'border-prazo-amarelo-borda bg-prazo-amarelo-fundo text-prazo-amarelo-texto',
   // vermelho forte e chamativo: fundo cheio + pulso suave (só para quem não
   // pediu menos movimento no aparelho)
   vermelho: 'border-danificado-forte bg-danificado-forte text-white motion-safe:animate-pulse',
@@ -51,7 +52,7 @@ export function ChipPrazo({
 
 const COR_PONTO: Record<Prioridade, string> = {
   urgente: 'bg-danificado-forte ring-2 ring-danificado-borda',
-  atencao: 'bg-atencao-forte',
+  atencao: 'bg-prioridade-amarelo ring-1 ring-prioridade-amarelo-anel',
   comum: 'bg-perfeito-forte',
 }
 
