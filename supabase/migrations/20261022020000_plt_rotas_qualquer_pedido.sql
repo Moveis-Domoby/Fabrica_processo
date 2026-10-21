@@ -26,6 +26,12 @@
 
 set local lock_timeout = '5s';
 
+-- Lei §7.2: o filtro dos pedidos vivos (card do pedido não arquivado e sem
+-- entrega) com índice próprio — o card de pedido entregue/arquivado só cresce.
+create index if not exists plt_cards_pedido_vivo_idx
+  on public.plt_cards (pedido_id)
+  where tipo = 'pedido' and arquivado_em is null and entrega_evento_id is null;
+
 -- ----------------------------------------------------------------------------
 -- 1 · A prontidão do pedido — uma regra só
 -- ----------------------------------------------------------------------------
