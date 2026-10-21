@@ -51,3 +51,5 @@ Bateria **1.084 verdes** (reaplica 2×; bloco 98 novo) · telas **205 verdes** (
 7. **Equipe no card da programação:** migration 100 — a lista das programadas traz os nomes da equipe da rota; o card do caminhão mostra "Equipe: …" (ou "Sem equipe definida"); salvar a equipe relê a lista.
 
 Verificação: bateria **1.088 verdes** (blocos 99 e 100 novos), telas 205, tipos/lint/build limpos; conferência no site local com o login do dono (caneta + painel, horário, lista sem tablets). O arrasto não pôde ser testado por mim (quadros vazios / card real) — fica com o dono. Aplicado/publicado/mesclado com o OK dele (main dec5ee1, Vercel verde).
+
+- **↪️ 21/10:** o dono testou o arrasto por cópia flutuante com card real — **aprovado** ("ficou okay"). Sessão encerrada por ele.
