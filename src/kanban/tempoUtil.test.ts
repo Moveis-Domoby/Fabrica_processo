@@ -97,10 +97,27 @@ describe('a régua do tempo útil', () => {
   })
 
   it('as contas de intervalo não mexem no que receberam', () => {
-    const lista: [number, number][] = [[0, 10], [5, 20]]
+    const lista: [number, number][] = [
+      [0, 10],
+      [5, 20],
+    ]
     expect(unir(lista)).toEqual([[0, 20]])
-    expect(lista).toEqual([[0, 10], [5, 20]])
-    expect(subtrair([[0, 100]], [[10, 20], [50, 200]])).toEqual([[0, 10], [20, 50]])
+    expect(lista).toEqual([
+      [0, 10],
+      [5, 20],
+    ])
+    expect(
+      subtrair(
+        [[0, 100]],
+        [
+          [10, 20],
+          [50, 200],
+        ],
+      ),
+    ).toEqual([
+      [0, 10],
+      [20, 50],
+    ])
     expect(intervalosUteis(10, 5, SECC, regua)).toEqual([])
   })
 })

@@ -12,6 +12,7 @@ import {
   Images,
   Link2,
   MessageSquare,
+  Moon,
   Paperclip,
   Pause,
   Play,
@@ -24,6 +25,8 @@ import { urlDaFoto } from '@/perfil/api'
 import { iniciais } from '@/chat/formato'
 import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
+import { duracaoUtilDesde, formatarTempoUtil, noExpediente, tempoPcpMs } from '../tempoUtil'
+import { useReguaTempo } from '../useReguaTempo'
 import { pedidoCancelado } from '../situacao'
 import type { Card, PedidoDoCard } from '../tipos'
 import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
@@ -170,10 +173,22 @@ export function CartaoUnidade({
   // do evento de cancelamento — nada guardado para dessincronizar).
   const cancelado = card.pedido_id !== null && pedidoCancelado(pedido?.situacao)
   // D-48: o tempo em PCP é do PEDIDO — da entrada até a liberação completa.
-  const pcpMs = pedido?.entrou_pcp_em
-    ? (pedido.liberado_completo_em ? new Date(pedido.liberado_completo_em).getTime() : agora) -
-      new Date(pedido.entrou_pcp_em).getTime()
-    : null
+  // SESSAO-38 (F5 · D-167 ⏳): todo relógio do card conta só o expediente do
+  // setor (sem a régua — banco antigo — o relógio corrido de sempre); o do PCP
+  // também não conta o stand-by. A execução segue corrida: quem trabalha fora
+  // do horário está em hora extra — conta.
+  const regua = useReguaTempo()
+  const pcpMs = regua
+    ? tempoPcpMs(pedido, regua, agora)
+    : pedido?.entrou_pcp_em
+      ? (pedido.liberado_completo_em ? new Date(pedido.liberado_completo_em).getTime() : agora) -
+        new Date(pedido.entrou_pcp_em).getTime()
+      : null
+  const verPcp = (ms: number) => (regua ? formatarTempoUtil(ms) : formatarDuracaoMs(ms))
+  const setorDoCard = card.setor_atual_id
+  const desdeUtil = (iso: string | null | undefined) =>
+    regua ? duracaoUtilDesde(iso, agora, setorDoCard, regua) : formatarDuracao(iso, agora)
+  const foraDoExpediente = regua !== null && !noExpediente(agora, setorDoCard, regua)
   // SESSAO-36 (D-146): o Auxiliar só existe no card EM EXECUÇÃO (não pausado).
   const podeAuxiliar = Boolean(aoAuxiliar) && emExecucao && !pausado && !terminal
   const auxiliares = card.auxiliares ?? []
@@ -341,11 +356,11 @@ export function CartaoUnidade({
           className="text-xs text-texto-fraco tabular-nums"
           title={
             pedido?.liberado_completo_em
-              ? 'Tempo que o pedido esperou no PCP, da entrada até a liberação da última unidade.'
-              : 'O pedido ainda tem unidade por liberar — o tempo em PCP segue contando.'
+              ? 'Tempo útil que o pedido esperou no PCP (só o expediente; o stand-by não conta), da entrada até a liberação da última unidade.'
+              : 'O pedido ainda tem unidade por liberar — o tempo útil em PCP segue contando.'
           }
         >
-          Pedido ficou {formatarDuracaoMs(pcpMs)} em PCP
+          Pedido ficou {verPcp(pcpMs)} em PCP
           {!pedido?.liberado_completo_em && ' (ainda contando)'}
         </p>
       )}
@@ -354,7 +369,7 @@ export function CartaoUnidade({
       {terminal ? (
         <p className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums">
           <Flag aria-hidden className="size-4 text-perfeito-forte" />
-          {formatarDuracao(card.desde, agora)}
+          {desdeUtil(card.desde)}
           <span className="sr-only">desde a chegada ao fim de linha</span>
         </p>
       ) : pausado ? (
@@ -371,7 +386,9 @@ export function CartaoUnidade({
           {/* SESSAO-31 (§4): "Pausado · Falta de material · há 2 h". */}
           <span className="min-w-0 break-words">
             Pausado{motivo ? ` · ${motivo} ·` : ''} há{' '}
-            {formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
+            {regua
+              ? desdeUtil(card.pausado_em)
+              : formatarDuracaoMs(agora - new Date(card.pausado_em ?? 0).getTime())}
           </span>
           <span className="inline-flex items-center gap-1 font-normal text-texto-suave">
             {/* SESSAO-36 (D-146): a foto do cadastro em todo ícone de pessoa. */}
@@ -420,7 +437,9 @@ export function CartaoUnidade({
           <Pause aria-hidden className="size-4 shrink-0" />
           <span className="min-w-0 break-words">
             Parado · {motivo} · há{' '}
-            {formatarDuracaoMs(agora - new Date(card.desde ?? agora).getTime())}
+            {regua
+              ? desdeUtil(card.desde)
+              : formatarDuracaoMs(agora - new Date(card.desde ?? agora).getTime())}
           </span>
         </p>
       ) : (
@@ -432,17 +451,22 @@ export function CartaoUnidade({
           )}
           title={
             card.desde
-              ? `Esperando alguém pegar desde ${new Date(card.desde).toLocaleString('pt-BR')}`
+              ? `Esperando alguém pegar desde ${new Date(card.desde).toLocaleString('pt-BR')}${regua ? ' — conta só o horário de expediente do setor' : ''}`
               : undefined
           }
         >
           {esperandoHaMaisTempo ? (
             <Hourglass aria-hidden className="size-4" />
+          ) : foraDoExpediente ? (
+            <Moon aria-hidden className="size-4" />
           ) : (
             <Clock aria-hidden className="size-4" />
           )}
-          {formatarDuracao(card.desde, agora)} na fila
+          {desdeUtil(card.desde)} na fila
           {esperandoHaMaisTempo && <span> · há mais tempo esperando</span>}
+          {foraDoExpediente && !esperandoHaMaisTempo && (
+            <span className="text-xs"> · fora do expediente</span>
+          )}
         </p>
       )}
 

@@ -1,13 +1,7 @@
 import type { EventoLinhaTempo } from './tipos'
-import {
-  intersecao,
-  periodosStandby,
-  somar,
-  subtrair,
-  tempoPcpMs,
-  tempoUtilMs,
-} from './tempoUtil'
+import { intersecao, periodosStandby, somar, subtrair, tempoPcpMs, tempoUtilMs } from './tempoUtil'
 import type { Intervalo, ReguaTempo, TempoDoPedidoNoPcp } from './tempoUtil'
+import { nomeDoLugar } from '@/logistica/lugar'
 
 /**
  * SESSAO-38 · F5 (D-167 ⏳): o contexto do tempo ÚTIL — a régua do expediente
@@ -134,9 +128,7 @@ export function montarSegmentos(
   // o stand-by do card (os fatos dele) ou, na peça, o do pedido
   const standby = [...standbyDosEventos(ordenados), ...periodosStandby(contexto.pedido)]
 
-  const posicoes = ordenados.filter(
-    (e) => TIPOS_POSICAO.has(e.tipo) && e.setor_destino_id !== null,
-  )
+  const posicoes = ordenados.filter((e) => TIPOS_POSICAO.has(e.tipo) && e.setor_destino_id !== null)
 
   return posicoes.map((entrada, indice) => {
     const proxima = posicoes[indice + 1]
@@ -232,7 +224,9 @@ export function montarSegmentos(
     const setorId = entrada.setor_destino_id
     const papel = (regua?.papeis?.[String(setorId)] as PapelDoSetor | undefined) ?? null
     const trabalho = execucoes.flatMap((e) => e.trabalho)
-    const filaUtilMs = tempoUtilMs(entrouEm, primeiroInicio ?? fim, setorId, regua, { excluir: standby })
+    const filaUtilMs = tempoUtilMs(entrouEm, primeiroInicio ?? fim, setorId, regua, {
+      excluir: standby,
+    })
     const totalUtilMs = tempoUtilMs(entrouEm, fim, setorId, regua, { trabalho, excluir: standby })
     const standbyMs = somar(intersecao(standby, [[entrouEm, fim]]))
     const pcpUtilMs = papel === 'entrada' ? (pcpDoPedido ?? totalUtilMs) : null
@@ -251,7 +245,7 @@ export function montarSegmentos(
         qualidade = {
           estadoRemetente: marcacao.estado_qualidade,
           remetenteNome: marcacao.usuario_nome,
-          setorRemetenteNome: marcacao.setor_origem_nome,
+          setorRemetenteNome: nomeDoLugar(marcacao.setor_origem_nome),
           estadoRecebedor: parecer?.estado_qualidade ?? null,
           recebedorNome: parecer?.usuario_nome ?? null,
           divergente:
@@ -264,7 +258,8 @@ export function montarSegmentos(
 
     return {
       eventoEntradaId: entrada.evento_id,
-      setorNome: entrada.setor_destino_nome ?? '—',
+      // SESSAO-38: o lugar interno "Pedidos em aguardo" se chama Expedição na tela
+      setorNome: nomeDoLugar(entrada.setor_destino_nome) ?? '—',
       etapaNome: entrada.etapa_destino_nome,
       ehFila: entrada.etapa_destino_eh_fila,
       entrouEm,
@@ -290,8 +285,7 @@ export function montarSegmentos(
 export function eventoEstornavel(eventos: EventoLinhaTempo[]): EventoLinhaTempo | null {
   const candidatos = eventos
     .filter(
-      (e) =>
-        (e.tipo === 'execucao_iniciada' || e.tipo === 'execucao_finalizada') && !e.estornado,
+      (e) => (e.tipo === 'execucao_iniciada' || e.tipo === 'execucao_finalizada') && !e.estornado,
     )
     .sort(
       (a, b) =>

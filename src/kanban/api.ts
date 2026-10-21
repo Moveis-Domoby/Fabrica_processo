@@ -119,8 +119,11 @@ export async function buscarCardsDoSetor(
 export async function buscarCardsPedidoPcp(parametros: {
   pagina: number
   porPagina?: number
-  /** Rodada de 30/09 (migration 47): a aba — 'pedido' | 'reposicao'; nulo = tudo. */
-  grupo?: 'pedido' | 'reposicao'
+  /**
+   * Rodada de 30/09 (migration 47): a aba — 'pedido' | 'reposicao'; nulo = tudo.
+   * SESSAO-38 (D-169): 'standby' = os pedidos em stand-by (fora das outras).
+   */
+  grupo?: 'pedido' | 'reposicao' | 'standby'
   /** SESSAO-38 (D-154): a ordem da fila (o servidor ordena; o urgente sempre primeiro). */
   ordem?: 'prioridade' | 'entrega' | 'alfabetica'
 }): Promise<PaginaDeCards> {
@@ -137,6 +140,41 @@ export async function buscarCardsPedidoPcp(parametros: {
   if (error) throw new Error(`Não deu para carregar os pedidos do PCP: ${error.message}`)
   const linhas = (data ?? []) as (Card & { contagem_total: number })[]
   return { cards: linhas as unknown as Card[], total: linhas[0]?.contagem_total ?? 0 }
+}
+
+/**
+ * SESSAO-38 (D-169): pôr o pedido do PCP em stand-by — o motivo é obrigatório
+ * (da lista de Configurações → Utilitários, ou "Outro" escrito). O banco
+ * confere quem pode e se o pedido ainda aguarda no PCP.
+ */
+export async function porEmStandby(parametros: {
+  cardId: number
+  motivoId: number | null
+  texto: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_pcp_standby', {
+    p_card_id: parametros.cardId,
+    p_motivo_id: parametros.motivoId,
+    p_texto: parametros.texto.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * SESSAO-38 (D-170): tirar do stand-by — 'aguardando' volta a aguardar
+ * liberação; 'entregas' deixa as peças que faltam prontas na Expedição
+ * (pulando a produção) e o pedido entra nas rotas.
+ */
+export async function tirarDoStandby(parametros: {
+  cardId: number
+  destino: 'aguardando' | 'entregas'
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_pcp_standby_sair', {
+    p_card_id: parametros.cardId,
+    p_destino: parametros.destino,
+    p_observacao: null,
+  })
+  if (error) throw new Error(error.message)
 }
 
 // ---------------------------------------------------------------------------

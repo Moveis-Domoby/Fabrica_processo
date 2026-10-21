@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
   ArchiveRestore,
+  CirclePause,
   ListPlus,
   MessageSquareText,
   DoorOpen,
@@ -31,7 +32,7 @@ import { useCampos, useEtiquetas } from '@/utilitarios/consultas'
 import { listarMotivosComMarca, salvarMotivoComMarca } from '@/utilitarios/api'
 import type { MotivoComMarca } from '@/utilitarios/api'
 import { listarMotivos, salvarMotivo } from '@/rotas/api'
-import type { TipoMotivo } from '@/rotas/api'
+import type { TipoMotivo, TipoMotivoComStandby } from '@/rotas/api'
 import { PilulaEtiqueta } from '@/utilitarios/PilulaEtiqueta'
 import { CORES_ETIQUETA, ROTULO_COR, ROTULO_TIPO_CAMPO, TIPOS_CAMPO } from '@/utilitarios/tipos'
 import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utilitarios/tipos'
@@ -39,7 +40,8 @@ import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utili
 // ↩️ Ajuste do dono (14/10 noite): os motivos de pausa ganharam aba própria —
 // "estão dentro de motivos de entrega, o que não faz sentido".
 // SESSAO-36 (D-146 resposta 6): + os motivos de SAÍDA do setor (lista própria).
-type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida'
+// SESSAO-38 (D-169): + os motivos de STAND-BY do PCP.
+type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida' | 'standby'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101 — pedido do dono: "crie uma
@@ -51,7 +53,11 @@ export function Utilitarios() {
   const [parametros, setParametros] = useSearchParams()
   const pedida = parametros.get('aba')
   const aba: AbaUtilitarios =
-    pedida === 'campos' || pedida === 'motivos' || pedida === 'pausa' || pedida === 'saida'
+    pedida === 'campos' ||
+    pedida === 'motivos' ||
+    pedida === 'pausa' ||
+    pedida === 'saida' ||
+    pedida === 'standby'
       ? pedida
       : 'etiquetas'
 
@@ -81,6 +87,10 @@ export function Utilitarios() {
               Motivos de pausa são escolhidos ao pausar um card em execução ou ao soltá-lo numa
               etapa de parada. O motivo marcado como especial não conta o tempo parado contra o
               funcionário (quem pausa não vê a marca).
+            </span>
+            <span>
+              Motivos de stand-by são escolhidos pelo PCP ao segurar um pedido (o pedido para de
+              contar tempo e sai das rotas até voltar).
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
@@ -120,6 +130,11 @@ export function Utilitarios() {
             rotulo: 'Motivos de saída',
             icone: <DoorOpen aria-hidden className="size-4" />,
           },
+          {
+            valor: 'standby',
+            rotulo: 'Motivos de stand-by',
+            icone: <CirclePause aria-hidden className="size-4" />,
+          },
         ]}
       />
 
@@ -132,6 +147,8 @@ export function Utilitarios() {
           <PainelMotivos listas={MOTIVOS_PAUSA} />
         ) : aba === 'saida' ? (
           <PainelMotivos listas={MOTIVOS_SAIDA} />
+        ) : aba === 'standby' ? (
+          <PainelMotivos listas={MOTIVOS_STANDBY} />
         ) : (
           <PainelMotivos listas={MOTIVOS_ENTREGA} />
         )}
@@ -703,7 +720,7 @@ function ModalCampo({
 // ---------------------------------------------------------------------------
 
 type ListaDeMotivos = {
-  tipo: TipoMotivo
+  tipo: TipoMotivoComStandby
   titulo: string
   explica: string
   /** SESSAO-38 (D-164): a lista de pausa tem a marca "especial". */
@@ -755,6 +772,16 @@ const MOTIVOS_SAIDA: ListaDeMotivos[] = [
   },
 ]
 
+// SESSAO-38 (D-169): segurar um pedido no PCP pede o motivo — ele vai para a auditoria.
+const MOTIVOS_STANDBY: ListaDeMotivos[] = [
+  {
+    tipo: 'standby',
+    titulo: 'Motivos de stand-by',
+    explica:
+      'Escolhido pelo PCP ao pôr um pedido em stand-by (o motivo é obrigatório e fica na auditoria). A opção "Outro", escrita na hora, sempre aparece junto.',
+  },
+]
+
 function PainelMotivos({ listas }: { listas: ListaDeMotivos[] }) {
   // Uma lista só (a de pausa) ocupa a largura toda, como as outras abas.
   return (
@@ -793,7 +820,7 @@ function ListaMotivos({
   explica,
   comMarca = false,
 }: {
-  tipo: TipoMotivo
+  tipo: TipoMotivoComStandby
   titulo: string
   explica: string
   comMarca?: boolean
@@ -812,7 +839,8 @@ function ListaMotivos({
     queryKey: ['motivos', tipo, comMarca ? 'com-marca' : 'todos'],
     queryFn: async () =>
       comMarca
-        ? listarMotivosComMarca(tipo)
+        ? // a lista com a marca é só a de pausa (o stand-by nunca é especial)
+          listarMotivosComMarca(tipo as TipoMotivo)
         : (await listarMotivos(tipo, true)).map((m) => ({ ...m, especial: false })),
   })
   const salvar = useMutation({
@@ -824,7 +852,7 @@ function ListaMotivos({
       especial?: boolean
     }) =>
       comMarca
-        ? salvarMotivoComMarca({ ...m, tipo })
+        ? salvarMotivoComMarca({ ...m, tipo: tipo as TipoMotivo })
         : salvarMotivo({ id: m.id, texto: m.texto, ordem: m.ordem, ativo: m.ativo, tipo }),
     onSuccess: async (_d, m) => {
       notificar({ titulo: m.id === null ? 'Motivo cadastrado' : 'Motivo salvo', tom: 'perfeito' })

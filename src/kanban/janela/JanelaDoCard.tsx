@@ -5,6 +5,7 @@ import {
   AlignLeft,
   CalendarClock,
   CircleCheckBig,
+  CirclePause,
   Clock,
   DoorOpen,
   Handshake,
@@ -39,6 +40,8 @@ import { HistoricoDoCard } from '../componentes/ModalLinhaTempo'
 import { SeletorEtiquetas, SeletorPessoas } from '../lancamento/Seletores'
 import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
 import { formatarDuracao, useAgora } from '../tempo'
+import { duracaoUtilDesde, formatarTempoUtil, tempoPcpMs } from '../tempoUtil'
+import { useReguaTempo } from '../useReguaTempo'
 import { abrirJanela } from './api'
 import type { JanelaDoCard as DadosJanela } from './api'
 import { AnexosDoCard } from './AnexosDoCard'
@@ -132,6 +135,9 @@ export function JanelaDoCard({
 
 function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tablet' }) {
   const agora = useAgora(30_000)
+  // SESSAO-38 (F5 · D-167): os relógios de espera contam só o expediente do
+  // setor; o card do pedido conta o tempo útil no PCP (sem o stand-by).
+  const regua = useReguaTempo()
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const { card, permissoes } = dados
@@ -407,7 +413,10 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
               <Pause aria-hidden className="size-4 shrink-0" />
               <span className="min-w-0 break-words">
-                Pausado{motivo ? ` · ${motivo}` : ''} · há {formatarDuracao(card.pausado_em, agora)}{' '}
+                Pausado{motivo ? ` · ${motivo}` : ''} · há{' '}
+                {regua
+                  ? duracaoUtilDesde(card.pausado_em, agora, card.setor_atual_id, regua)
+                  : formatarDuracao(card.pausado_em, agora)}{' '}
                 · {executor ?? '…'}
               </span>
             </span>
@@ -422,16 +431,37 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
               <Pause aria-hidden className="size-4 shrink-0" />
               <span className="min-w-0 break-words">
-                Parado · {motivo} · há {formatarDuracao(card.desde, agora)}
+                Parado · {motivo} · há{' '}
+                {regua
+                  ? duracaoUtilDesde(card.desde, agora, card.setor_atual_id, regua)
+                  : formatarDuracao(card.desde, agora)}
               </span>
             </span>
           ) : (
-            vivo && (
+            vivo &&
+            (card.tipo === 'pedido' && dados.pedido?.standby_desde ? (
+              // SESSAO-38 (D-169): o pedido segurado pelo PCP — o tempo não anda.
+              <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
+                <CirclePause aria-hidden className="size-4 shrink-0" />
+                <span className="min-w-0 break-words">
+                  Em stand-by
+                  {dados.pedido.standby_motivo ? ` · ${dados.pedido.standby_motivo}` : ''}
+                </span>
+              </span>
+            ) : card.tipo === 'pedido' && regua && dados.pedido?.entrou_pcp_em ? (
               <span className="inline-flex items-center gap-1">
                 <Clock aria-hidden className="size-4" />
-                Esperando há {formatarDuracao(card.desde, agora)}
+                Tempo útil no PCP: {formatarTempoUtil(tempoPcpMs(dados.pedido, regua, agora) ?? 0)}
               </span>
-            )
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <Clock aria-hidden className="size-4" />
+                Esperando há{' '}
+                {regua
+                  ? duracaoUtilDesde(card.desde, agora, card.setor_atual_id, regua)
+                  : formatarDuracao(card.desde, agora)}
+              </span>
+            ))
           )}
           {/* SESSAO-36 (D-146): quem está no card como AUXILIAR, com o tempo próprio. */}
           {auxilios.map((a) => (
@@ -702,7 +732,12 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
           Tempo e histórico
         </h3>
         {verHistorico ? (
-          <HistoricoDoCard card={card} comCampos={false} alturaLimitada={false} />
+          <HistoricoDoCard
+            card={card}
+            pedido={dados.pedido}
+            comCampos={false}
+            alturaLimitada={false}
+          />
         ) : (
           <Botao
             variante="secundaria"

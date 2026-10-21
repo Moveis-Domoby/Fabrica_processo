@@ -47,8 +47,13 @@ export function ControleTempo() {
   const { data: horarios = [] } = useQuery({ queryKey: ['horarios'], queryFn: listarHorarios })
   const { data: pausas = [] } = useQuery({ queryKey: ['pausas'], queryFn: listarPausas })
 
+  // SESSAO-38 (D-172): mudou horário ou pausa de setor → a régua do tempo útil
+  // dos cards (em cache desde a abertura) é relida também.
   const invalidar = (chave: string) => () =>
-    clienteQuery.invalidateQueries({ queryKey: [chave] })
+    Promise.all([
+      clienteQuery.invalidateQueries({ queryKey: [chave] }),
+      clienteQuery.invalidateQueries({ queryKey: ['regua-tempo'] }),
+    ])
 
   function aoErro(titulo: string) {
     return (excecao: unknown) =>
@@ -310,7 +315,11 @@ export function ControleTempo() {
               carregando={criarHorarioMutacao.isPending}
               onClick={() => {
                 if (faltaNoHorario) {
-                  notificar({ titulo: 'Falta um detalhe', descricao: faltaNoHorario, tom: 'atencao' })
+                  notificar({
+                    titulo: 'Falta um detalhe',
+                    descricao: faltaNoHorario,
+                    tom: 'atencao',
+                  })
                   return
                 }
                 criarHorarioMutacao.mutate()
@@ -367,8 +376,8 @@ export function ControleTempo() {
         </h2>
         <p className="text-sm text-texto-suave">
           Para o "esqueci de desligar": marque um período passado em que o setor/pessoa escolhido
-          acima <strong className="text-texto">não funcionou</strong>. O período deixa de contar
-          nas métricas — e nada do que foi registrado se altera.
+          acima <strong className="text-texto">não funcionou</strong>. O período deixa de contar nas
+          métricas — e nada do que foi registrado se altera.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo
