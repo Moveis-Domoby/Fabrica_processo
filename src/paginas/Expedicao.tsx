@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
   CheckCircle2,
+  CirclePause,
   ClipboardList,
   ExternalLink,
   Eye,
@@ -342,6 +343,18 @@ function CartaoExpedicao({
               Em decisão pós devolução
             </span>
           )}
+          {linha.standby && (
+            // SESSAO-38 (D-171): o PCP segurou o pedido — ele não entra nas rotas até voltar.
+            <span
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto"
+              title={`Em stand-by no PCP${linha.standby.motivo ? `: ${linha.standby.motivo}` : ''} — não entra nas rotas até voltar.`}
+            >
+              <CirclePause aria-hidden className="size-3.5 shrink-0" />
+              <span className="break-words">
+                Stand-by{linha.standby.motivo ? ` · ${linha.standby.motivo}` : ''}
+              </span>
+            </span>
+          )}
           {linha.alterado_apos_liberacao && (
             <span className="inline-flex items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
               <AlertTriangle aria-hidden className="size-3.5" />
@@ -366,7 +379,8 @@ function CartaoExpedicao({
             </span>
           </p>
         ) : (
-          !linha.em_devolucao && (
+          !linha.em_devolucao &&
+          !linha.standby && (
             <p className="text-sm text-texto-suave">
               Sem rota —{' '}
               <Link to="/fabrica/rotas/programacao" className="font-medium text-texto underline">

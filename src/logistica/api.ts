@@ -591,6 +591,8 @@ export interface PedidoExpedicao {
   lancado: boolean
   /** As peças voltaram e esperam a decisão da logística (D-129). */
   em_devolucao: boolean
+  /** SESSAO-38 (D-171): segurado pelo PCP — fica na Expedição com a marca, fora das rotas. */
+  standby?: { desde: string; motivo: string | null } | null
   alterado_apos_liberacao: boolean
   programacao: {
     data: string
