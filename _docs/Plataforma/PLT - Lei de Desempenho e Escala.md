@@ -256,6 +256,13 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Programação:** `plt_fn_programacao` ~32 ms e `plt_fn_rotas` ~24 ms (antes da regra nova: 2–12 ms com só os lançados — agora o conjunto são todos os pedidos vivos e a prontidão por pedido; dentro do teto de 50 ms). Índice parcial novo dos pedidos vivos (`plt_cards_pedido_vivo_idx`). Nenhum relógio, nenhum `postgres_changes` (ao vivo pelos avisos de sempre).
 - **Pacote:** JS inicial 222,2 KB comprimidos (teto 250) — a frente só tirou uma linha do menu; Expedição 12,9 kB (4,0 kB gz), Programação 54,6 kB (16,9 kB gz), ROTAS 9,1 kB, Entregas do dia 15,3 kB — pedaços próprios.
 
+**Andamento (SESSAO-38 · F5 — tempo útil e stand-by, 22/10 — D-167…D-172):**
+- **Nenhuma requisição nova por tela:** a régua do tempo útil vem na abertura (`regua_tempo`, ~2–4 KB) e o tempo útil é calculado no aparelho (motor puro, O(dias) por card, sem rede); a aba Stand-by é a MESMA porta do quadro do PCP (grupo `'standby'`), paginada no servidor e só pedida com a aba aberta; o modal do motivo pede a lista no clique (cache de 10 min). Ao vivo pelo aviso do PCP que já existia (o fato no card do pedido avisa `pcp`; a Expedição ouve `pcp`) — nenhum gatilho de aviso novo, nenhum relógio.
+- **Banco real (tempo do servidor, como a pessoa do PCP, 5× cada, quente):** quadro do PCP (10 da aba) ~21 ms · aba Stand-by ~8 ms · Expedição ~13 ms · Programação (50) ~22 ms · régua 0,5 ms · abertura ~7 ms · quadrinho da Visão do dia 3,4 ms (a 1ª chamada fria: 76–564 ms). O filtro novo é uma coluna da linha que a porta já lê; a aba Stand-by tem índice parcial próprio; os candidatos de rota ganham um `exists` pela chave primária.
+- **×100 não medido nesta frente** (a bateria prova os conjuntos; o volume ×100 do PCP é a dívida 16, que segue com a frente que tocar a porta do quadro do PCP).
+- **Pacote:** JS inicial **222,5 KB** comprimidos (teto 250; antes 222,2) — o motor do tempo útil entra nos pedaços do quadro, do PCP e da janela.
+- **Advisors:** nenhum tipo novo (as portas novas no mesmo padrão das outras; os dois índices novos aparecem como "sem uso" porque nasceram agora).
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes

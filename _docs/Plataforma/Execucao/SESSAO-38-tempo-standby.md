@@ -3,7 +3,7 @@ titulo: SESSAO-38 · Frente F5 — Tempo útil do card + Stand-by no PCP (memór
 tipo: execucao
 data: 2026-10-21
 branch: sessao-38-tempo-standby
-fase: A (pesquisa e desenho — nenhum código/migration alterado)
+fase: B entregue (21–22/10) — desenho da fase A abaixo, com os ajustes do supervisor no §10
 ---
 
 # SESSAO-38 · F5 — Tempo útil do card (PCP sem fila, só expediente) + Stand-by no PCP
@@ -378,3 +378,23 @@ horário semeado), duas rodadas. Prova no banco real sem gravar (bloco `DO` +
   ao vivo, dos utilitários e da auditoria.
 - Consultas de leitura em produção: setores, horários, pausas, tipos de motivo,
   check de eventos, índices de `plt_cards`, contagens, assinaturas das portas.
+
+## 10. Fase B — o que foi feito (21–22/10, madrugada)
+
+**Ajustes do supervisor ao desenho (valem por cima dos §4.4/§4.6):**
+1. O stand-by **fica na Expedição** (todos os filtros) com a marca "Stand-by · motivo"; sai só dos candidatos de rota (`vw_pedidos_para_rota`) e de "Aguardando liberação" (D-171 ajustada).
+2. "Lançar para as entregas": não existe mais o "lançar para ROTAS" (frente da logística) — é sair do stand-by + `fn_concluir_pedido` (CHAMADA, não recriada — a frente da logística a recriou com "Expedição" no texto): as peças que faltam nascem prontas na Expedição, o pedido fica "Pronto" e vira candidato de rota. Recusado com peça na produção.
+3. `plt_fn_motivo_salvar` recriada a partir da versão da pausa especial (com `p_especial`); stand-by nunca especial (o check da frente F4 já barra).
+4. Texto "Pedidos em aguardo" nos meus arquivos: só comentários; o rótulo da Auditoria do endereço antigo virou "Logística · Expedição"; na linha do tempo o lugar aparece como "Expedição" (`nomeDoLugar` da logística).
+5. Migration com prefixo `202610220500xx` — `20261022050010_plt_tempo_util_standby.sql`.
+
+**Linha do tempo da fase B:**
+- merge da `sessao-38-integracao` (2×: a segunda trouxe a rodada de ajustes da logística, migration 20261022020100). md5 do corpo vivo × arquivo de cada porta recriada conferido ANTES (iguais) e DEPOIS de aplicar (iguais ao meu arquivo).
+- Migration montada por EXTRAÇÃO (gerador no scratchpad — A-97): parte própria + 8 portas recriadas com trocas conferidas (1 ocorrência cada).
+- E-19: os `validate` do check de eventos (migration dos cards) e do de motivos (migration da presença) mudaram para esta.
+- Bateria: bloco F5 (24 verificações, como `authenticated` — E-103) + o bloco 82 compara o resumo sem as chaves `standby_*` + o bloco dos cards reaplica a minha depois da dela (E-136). Resultado: tudo verde menos "SESSAO-33 · o fluxo do n8n … ponta a ponta" — falha também na integração sem a F5 (conferido rodando a bateria da integração numa cópia); depende do horário (a conta da fábrica fica fora da varredura de madrugada) — o supervisor mandou ignorar.
+- Ensaio no banco real (transação desfeita): migration 982 ms; a pessoa do PCP pôs o pedido 13215 em stand-by (sumiu de "Aguardando" 16 → 15, apareceu na aba com o motivo e o nome, ficou na Expedição com a marca, saiu da Programação), lançou para as entregas (5 peças nasceram prontas na Expedição, liberado, "pronto"); as 21 pessoas ativas abriram o app sem erro e com a régua. Desfeito (conferido: a coluna nova não existia depois). ⚠️ E-137: durou ~15 s com a trava da DDL.
+- **Aplicada** 21/10 ~06:51 UTC (`--so`), integração idêntica. Checks validados; PCP com 5 janelas; 6 motivos.
+- Medidas no banco real (bloco DO, como a pessoa do PCP, quente): quadro do PCP ~21 ms, aba Stand-by ~8 ms, Expedição ~13 ms, Programação ~22 ms, régua 0,5 ms, abertura ~7 ms, quadrinho 3,4 ms.
+- Front: motor `src/kanban/tempoUtil.ts` (+ testes), `useReguaTempo.ts`, linha do tempo com o contexto (+ testes), `ModalLinhaTempo` (bloco do PCP e dos fins de linha só com "Tempo útil em …"; os outros no tempo útil; balão explicando), `CartaoUnidade` (fila/parado/pausado/fim de linha/"Pedido ficou X em PCP" no tempo útil; "fora do expediente"), `JanelaDoCard` (estado no tempo útil; o pedido em stand-by; o histórico recebe o pedido), `PCP.tsx` (aba Stand-by, botão no card, card do stand-by com lançar/devolver, relógios no tempo útil do PCP), `ModalStandby.tsx`, `abertura.ts` (semeia a régua), `ControleTempo.tsx` (relê a régua), `Utilitarios.tsx` (aba "Motivos de stand-by"), `rotas/api.ts` (tipo à parte `TipoMotivoComStandby` — os modais da entrega intocados), `auditoria/rotulos.ts`, `Expedicao.tsx` + `logistica/api.ts` (a marca).
+- build ✓ · lint ✓ · test 46 arquivos / 260 testes ✓ · test:banco ✓ (fora o do horário) · mojibake vazio · JS inicial 222,5 KB.

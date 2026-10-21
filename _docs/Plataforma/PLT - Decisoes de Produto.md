@@ -1669,6 +1669,49 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 2. **No painel da rota:** a ida e a volta lado a lado, cada uma com distância e tempo; as linhas das paradas mostram o trecho de cada uma (sem toque para acender — o toque saiu com o trecho aceso).
 3. **"Programar":** a coluna da esquerda é uma pilha só — "Na rota" só aparece com pedido marcado e cresce na medida em que "Sem programação" encolhe; o "Ordenar por" fica no cabeçalho da lista. Nenhuma altura reservada.
 
+## D-167 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O TEMPO ÚTIL do card: só o expediente do setor; o PCP não tem fila (21–22/10/2026, pedido do dono) — ↪️ D-29, D-48
+
+**Pedido do dono:** *"esses avisos de fila em PCP não fazem sentido na parte de tempo e histórico, já que PCP NÃO tem fila — deve ser só: Tempo útil em PCP. Lembrando que esse card deve sempre respeitar o horário do SETOR: se estiver fora do expediente e ninguém fizer hora extra, ele para de contar o tempo, até na fila — tem que contar só as horas úteis."*
+
+- **Todo relógio de espera do card** conta só o horário de expediente do setor onde ele está: a fila ("X na fila"), o "Parado · motivo · há X", o "Pausado há X", o tempo no fim de linha, o card do pedido no PCP e o "Pedido ficou X em PCP". Fora do horário o relógio para (a frente do card diz "fora do expediente", com ícone).
+- **Hora extra conta:** a execução em andamento segue o relógio corrido (quem trabalha fora do horário está trabalhando), e na linha do tempo o "Total na etapa" soma o expediente com o trabalho feito fora dele.
+- **Linha do tempo ("Tempo e histórico"):** o bloco do PCP mostra só **"Tempo útil em PCP"** — o do PEDIDO (D-48: da entrada à liberação da última unidade), sem o stand-by; os fins de linha (Expedição, Estoque, ROTAS, devolução) também mostram só "Tempo útil em <lugar>" (ninguém "inicia" ali). Os setores de produção seguem com "Fila (do setor)", as execuções e o total — todos no tempo útil.
+- **O mostrador do tempo útil é em horas** ("29h 10min"), sem "dias": um dia de 24 h úteis seriam mais de dois dias de galpão.
+- Regra igual à das dashboards (sem horário cadastrado = conta o tempo todo; a pausa do setor desconta), calculada no aparelho a partir da régua que vem na abertura (D-172).
+- **Fica como está (registrado):** as dashboards seguem com a conta de sempre — elas descontam também a execução fora do horário (o card agora conta essa hora extra). O horário por pessoa não entra na fila do card (a fila é do setor).
+
+## D-168 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O PCP ganha horário de expediente (22/10/2026)
+
+O PCP não tinha horário cadastrado — pela regra de sempre, ele contaria 24 h × 7. Na atualização do banco, o PCP recebeu **uma vez** o horário do primeiro setor de produção (o SECC: **segunda a sexta, 07:30–18:00**, o mesmo de todos os setores hoje). O admin muda em **Configurações → Controle de tempo**, como qualquer setor. Efeito junto: a dashboard de filas do PCP também passa a contar só o expediente.
+
+## D-169 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O STAND-BY no PCP (21–22/10/2026, pedido do dono)
+
+**Pedido do dono:** *"Na tela inicial do PCP, TODO card deve ter a opção de colocar em STAND-BY, selecionando um MOTIVO (os motivos são criados nas configurações também; motivo obrigatório para colocar em stand-by, e vai para a minha AUDITORIA). PCP ganha também uma nova SUB-ABA para manter esses pedidos em stand-by; de lá eles devem poder ser LANÇADOS DIRETO PARA AS ENTREGAS, ou VOLTAR para aguardando liberação (só volta a aparecer nas rotas se não estiver em stand-by). Pedidos em stand-by também NÃO contam tempo."*
+
+- **Onde:** o botão de stand-by fica em cada card de **"Aguardando liberação"** (ícone de pausa redondo, ao lado de abrir o card). A reposição de estoque não tem stand-by (tem o "Não produzir").
+- **Motivo obrigatório:** da lista **Configurações → Utilitários → Motivos de stand-by** (nasceram seis: aguardando pagamento, cliente pediu para segurar, aguardando confirmação do cliente, aguardando medidas ou projeto, produto já pronto no estoque, entrega a combinar) **ou "Outro", escrito**. Nunca "especial" (isso é só da pausa). O motivo vai para a **Auditoria** (o "por quê" da linha "Pôs o pedido em stand-by").
+- **Quem:** quem edita o card do pedido — PCP/logística, o líder e o admin (D-125 item 7).
+- **A aba nova "Stand-by"** do PCP (`?aba=standby`) mostra cada pedido segurado com o motivo, desde quando, quem pôs, o tempo útil no PCP (parado) e os dois caminhos.
+- **Pedido parcialmente liberado** também entra: sai de "Aguardando liberação" e o relógio do PCP para; **as peças já liberadas seguem na produção** normalmente.
+- **Pedido programado para uma entrega não entra** em stand-by sem antes sair da programação (nada some calado de "Já programadas").
+- **Não conta tempo:** o tempo útil do pedido no PCP desconta todos os períodos de stand-by (os fechados ficam guardados no card).
+- O Tiny continua mandando (D-132): se ele levar o pedido adiante, o pedido sai também da aba Stand-by.
+
+## D-170 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — "Lançar direto para as entregas" e "Devolver" (22/10/2026)
+
+- **Lançar para as entregas** = sair do stand-by e **as peças que ainda faltam ficam prontas na Expedição, sem passar pela produção** (a peça do estoque reservada pela venda é usada quando há) — a mesma maquinaria do "Concluído" do super admin (D-117). O pedido fica "Pronto" e entra nos candidatos de rota (Programação). Pede confirmação (dois toques).
+- **Recusado com peça na produção:** se alguma peça do pedido está num setor de produção, o lançar é recusado com a frase "N peças deste pedido estão na produção — espere ficarem prontas ou devolva o pedido para aguardando liberação" (a peça não é arrancada da produção).
+- **Devolver para aguardando liberação** = sair do stand-by e voltar ao quadro de sempre (e às rotas).
+
+## D-171 · ⏳ PROVISÓRIA (escolha do Claude — ajustada pelo supervisor) — Onde o pedido em stand-by aparece (22/10/2026)
+
+- **Expedição: continua** em todos os filtros ("todos os pedidos não entregues" é literalmente todos menos os entregues), com a marca **"Stand-by · motivo"** (o motivo no balão) e sem o convite "Sem rota — programar".
+- **Fora dos candidatos de rota** (Programação, ROTAS, programar) e de "Aguardando liberação" (mora na aba nova). O quadrinho do PCP na Visão do dia conta o mesmo conjunto do quadro (D-75) — sem o stand-by.
+
+## D-172 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A régua do tempo útil vem na abertura do app (22/10/2026) — Lei §2/§8
+
+O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias) vêm prontos na **abertura do app** — nenhuma requisição a mais por tela; o aparelho calcula o tempo útil de cada card. O admin que muda um horário vê na hora; **as outras pessoas recebem o horário novo na próxima vez que abrirem a plataforma** (mudança de horário é rara; nada de relógio).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
