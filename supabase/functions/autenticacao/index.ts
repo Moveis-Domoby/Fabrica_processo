@@ -21,6 +21,12 @@
 //                      o nível "linha de produção" usa para espiar outro setor
 //   entrar-pin       → (SESSAO-36) no PC: e-mail + PIN para quem nunca criou senha
 //                      (cai na troca obrigatória; depois da senha, deixa de valer)
+//                      ↪️ SESSAO-38: aceita também o nome de usuário
+//
+// SESSAO-38 (D-163): o "entrar" e o "entrar-pin" leem o identificador do mesmo
+// jeito (lerIdentificador — sem acento, sem espaço, minúsculo), a senha errada
+// passa pela mesma trava do PIN, a conta de tablet não entra por senha, e os
+// dois devolvem o nome de usuário de quem entrou (o aparelho lembra).
 //
 // Tamanhos (SESSAO-37, pedido do dono): PIN de SETOR = exatamente 2 dígitos;
 // PIN de PESSOA = 2 a 4 dígitos. A trava de tentativas segue valendo.
@@ -258,23 +264,57 @@ async function setoresLiderados(pessoaId: string): Promise<number[]> {
 const DESATIVADO =
   'Seu acesso à plataforma está desativado. Fale com a liderança para voltar a entrar.'
 
+// ----------------------------------------------------------------------------
+// SESSAO-38 (D-163): o que a pessoa digita no campo "Usuário ou e-mail" vira
+// a chave de busca. Com "@" é e-mail (só sem espaços nas pontas e minúsculo);
+// sem "@" é o nome de usuário — minúsculo, sem acento e sem espaço (o nome de
+// usuário nunca tem nenhum dos dois: o banco só aceita a-z, 0-9, ponto, hífen e
+// underline), então "João Lucas" acha "joaolucas". O acento sai pelo código do
+// caractere (faixa dos acentos combinantes), nunca por escape (E-15/E-84).
+// ----------------------------------------------------------------------------
+type Identificador = { coluna: 'email' | 'usuario'; valor: string }
+
+function lerIdentificador(bruto: unknown): Identificador {
+  const texto = String(bruto ?? '').trim().toLowerCase()
+  if (texto.includes('@')) return { coluna: 'email', valor: texto }
+  let valor = ''
+  for (const c of texto.normalize('NFD')) {
+    const codigo = c.charCodeAt(0)
+    if (codigo >= 0x300 && codigo <= 0x36f) continue
+    if (c === ' ') continue
+    valor += c
+  }
+  return { coluna: 'usuario', valor }
+}
+
 async function entrar(corpo: Json): Promise<Response> {
-  const identificador = String(corpo.identificador ?? '').trim().toLowerCase()
+  const { coluna, valor } = lerIdentificador(corpo.identificador)
   const senha = String(corpo.senha ?? '')
-  if (!identificador || !senha) return erro(400, 'Informe usuário (ou e-mail) e senha.')
+  if (!valor || !senha) return erro(400, 'Informe usuário (ou e-mail) e senha.')
 
   const NEGADO = 'Usuário ou senha incorretos.'
 
-  const coluna = identificador.includes('@') ? 'email' : 'usuario'
+  // SESSAO-38 (D-163): a trava de tentativa e erro (a mesma do PIN) passa a
+  // valer também para a senha — pela CHAVE DIGITADA, exista ou não a pessoa:
+  // o "muitas tentativas" aparece igual para quem existe e para quem não
+  // existe (não entrega quem tem cadastro).
+  const trava = `login:${coluna}:${valor}`
+  const bloqueado = await travaBloqueada(trava)
+  if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
+
   const { data: linha } = await servidor
     .from('plt_usuarios')
-    .select('id, email, ativo')
-    .eq(coluna, identificador)
+    .select('id, email, usuario, ativo, conta_tablet')
+    .eq(coluna, valor)
     .maybeSingle()
 
   // Sem cadastro na plataforma não existe login — mesmo que alguém tenha
-  // criado uma conta de auth por fora, ela não entra.
-  if (!linha) return erro(401, NEGADO)
+  // criado uma conta de auth por fora, ela não entra. A conta de tablet de
+  // cada setor (SESSAO-36) só entra pelo PIN do setor — nunca por senha.
+  if (!linha || linha.conta_tablet) {
+    await travaErrou(trava)
+    return erro(401, NEGADO)
+  }
 
   const tentativa = await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
     method: 'POST',
@@ -287,8 +327,10 @@ async function entrar(corpo: Json): Promise<Response> {
     if (!linha.ativo && (await tentativa.text()).includes(DESATIVADO)) {
       return erro(403, DESATIVADO)
     }
+    await travaErrou(trava)
     return erro(401, NEGADO)
   }
+  await travaLimpar(trava)
   const sessao = await tentativa.json()
 
   // Sem o gancho ligado, o Auth ainda abre a sessão de quem está desativado:
@@ -303,12 +345,21 @@ async function entrar(corpo: Json): Promise<Response> {
   }
 
   // Toda atividade gera registro (SESSAO-13): o login entra na trilha.
+  // SESSAO-38: com o caminho usado (usuário ou e-mail) — mede se o nome de
+  // usuário pegou, sem guardar o que foi digitado.
   await servidor
     .from('plt_logs_atividade')
-    .insert({ usuario_id: linha.id, acao: 'entrou' })
+    .insert({ usuario_id: linha.id, acao: 'entrou', contexto: { via: coluna } })
     .then(() => {})
 
-  return resposta(200, { access_token: sessao.access_token, refresh_token: sessao.refresh_token })
+  // SESSAO-38 (D-163): devolve o nome de usuário de quem ACABOU de provar a
+  // senha — o aparelho guarda e a próxima entrada já vem com ele preenchido
+  // (quem entrava pelo e-mail passa a ver o próprio usuário).
+  return resposta(200, {
+    access_token: sessao.access_token,
+    refresh_token: sessao.refresh_token,
+    usuario: linha.usuario,
+  })
 }
 
 // ----------------------------------------------------------------------------
@@ -1076,19 +1127,23 @@ async function pinIdentificar(req: Request, corpo: Json): Promise<Response> {
 // a senha, este caminho deixa de valer (D-146 resposta 11).
 // ----------------------------------------------------------------------------
 async function entrarPin(req: Request, corpo: Json): Promise<Response> {
-  const email = String(corpo.email ?? '').trim().toLowerCase()
+  // SESSAO-38 (D-163): aceita o nome de usuário OU o e-mail (antes só o
+  // e-mail). O site antigo manda `email`; o novo manda `identificador`.
+  const { coluna, valor } = lerIdentificador(corpo.identificador ?? corpo.email)
   const pin = String(corpo.pin ?? '')
-  if (!email || !/^[0-9]{2,4}$/.test(pin)) return erro(400, 'Informe o e-mail e o PIN (2 a 4 dígitos).')
+  if (!valor || !/^[0-9]{2,4}$/.test(pin))
+    return erro(400, 'Informe o usuário (ou e-mail) e o PIN (2 a 4 dígitos).')
 
-  const trava = `email:${email}`
+  // A chave do e-mail continua a mesma de antes (`email:`); a do usuário é nova.
+  const trava = coluna === 'email' ? `email:${valor}` : `usuario:${valor}`
   const bloqueado = await travaBloqueada(trava)
   if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
 
-  const NEGADO = 'E-mail ou PIN incorretos — ou esta conta já tem senha (entre com ela).'
+  const NEGADO = 'Usuário (ou e-mail) ou PIN incorretos — ou esta conta já tem senha (entre com ela).'
   const { data: linha } = await servidor
     .from('plt_usuarios')
-    .select('id, email, ativo, senha_padrao, pin_hash, conta_tablet')
-    .eq('email', email)
+    .select('id, email, usuario, ativo, senha_padrao, pin_hash, conta_tablet')
+    .eq(coluna, valor)
     .maybeSingle()
 
   if (!linha || linha.conta_tablet || !linha.pin_hash || !(await conferirPin(pin, linha.pin_hash))) {
@@ -1117,11 +1172,19 @@ async function entrarPin(req: Request, corpo: Json): Promise<Response> {
 
   await servidor
     .from('plt_logs_atividade')
-    .insert({ usuario_id: linha.id, acao: 'entrou', contexto: { via: 'email_pin' } })
+    .insert({
+      usuario_id: linha.id,
+      acao: 'entrou',
+      contexto: { via: coluna === 'email' ? 'email_pin' : 'usuario_pin' },
+    })
     .then(() => {})
 
   // a guarda do front leva direto à troca obrigatória (senha_padrao = true)
-  return resposta(200, { access_token: sessao.access_token, refresh_token: sessao.refresh_token })
+  return resposta(200, {
+    access_token: sessao.access_token,
+    refresh_token: sessao.refresh_token,
+    usuario: linha.usuario,
+  })
 }
 
 // ----------------------------------------------------------------------------
