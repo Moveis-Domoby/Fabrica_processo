@@ -17,7 +17,7 @@ import { Visualizacoes } from '@/dashboards/componentes/Visualizacoes'
 const ROTULO_DESTINO: Record<string, string> = {
   rotas: 'Expedição / ROTAS',
   // SESSAO-24: a peça pronta de pedido mora em Pedidos em aguardo; o ESTOQUE é só sem dono.
-  aguardo: 'Pedidos em aguardo',
+  aguardo: 'Expedição',
   estoque: 'Estoque',
   danificado: 'Danificado',
 }

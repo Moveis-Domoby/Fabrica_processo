@@ -22,6 +22,7 @@ import { useAcessoLogistica } from '@/logistica/acesso'
 import { listarExpedicao } from '@/logistica/api'
 import type { ContagensExpedicao, FiltroExpedicao, PedidoExpedicao } from '@/logistica/api'
 import { PecasProntas } from '@/logistica/componentes/PecasProntas'
+import { nomeDoLugar } from '@/logistica/lugar'
 import { SeloEstado } from '@/rotas/SeloEstado'
 import { nomeDaRota } from '@/rotas/api'
 import { useAoVivo } from '@/lib/aoVivo'
@@ -232,7 +233,7 @@ export function Expedicao() {
                   </span>
                 </span>
                 <span className="text-xs text-texto-fraco tabular-nums">
-                  {u.setor_nome ?? '—'}
+                  {nomeDoLugar(u.setor_nome) ?? '—'}
                   {u.etapa_nome ? ` · ${u.etapa_nome}` : ''} · há {formatarDuracao(u.desde, agora)}
                 </span>
               </span>

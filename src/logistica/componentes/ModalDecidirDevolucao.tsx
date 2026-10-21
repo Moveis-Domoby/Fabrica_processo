@@ -24,11 +24,11 @@ const ICONE_DECISAO: Record<DecisaoDevolucao, React.ReactNode> = {
 
 const EXPLICA_DECISAO: Record<DecisaoDevolucao, string> = {
   reenviar:
-    'A peça volta para Pedidos em aguardo. Com o pedido todo pronto, ele volta sozinho para as ROTAS → Programar. Pedido já entregue: a entrega reabre só aqui (o Tiny não muda).',
+    'A peça volta para a Expedição. Com o pedido todo pronto, ele volta sozinho para as ROTAS → Programar. Pedido já entregue: a entrega reabre só aqui (o Tiny não muda).',
   estoque:
     'A peça fica livre no ESTOQUE da fábrica, sem dono. O pedido passa a precisar dela de novo.',
   realocar:
-    'A peça vira a unidade de outro pedido vivo do mesmo produto, pronta em Pedidos em aguardo.',
+    'A peça vira a unidade de outro pedido vivo do mesmo produto, pronta na Expedição.',
   danificados: 'A peça vai para os Danificados — de lá a logística resolve ou arquiva.',
   loja: 'A peça sai das contas da fábrica e fica registrado que foi para a loja.',
   ajuste:

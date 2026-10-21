@@ -341,6 +341,15 @@ function LinhaDoPedido({
                 <span className="rounded-full border border-borda/80 px-2 py-0.5 text-xs text-texto">
                   <span className="sr-only">Na plataforma: </span>
                   {ROTULO_SITUACAO_PLATAFORMA[p.situacao_plataforma] ?? p.situacao_plataforma}
+                  {/* SESSAO-38 (ajuste 3): o programado mostra o dia e o caminhão da rota. */}
+                  {p.situacao_plataforma === 'em_rota' && p.programacao_data && (
+                    <span className="tabular-nums">
+                      {' '}
+                      · {data(p.programacao_data)}
+                      {p.caminhao_nome ? ` · ${p.caminhao_nome}` : ''}
+                      {p.rota && p.rota > 1 ? ` · Rota ${p.rota}` : ''}
+                    </span>
+                  )}
                 </span>
               )}
             </span>

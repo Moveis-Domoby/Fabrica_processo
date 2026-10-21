@@ -897,7 +897,7 @@ function ListaEtapas(props: {
                       { valor: SEM_DESTINO, rotulo: 'Fica no setor (não manda)' },
                       {
                         valor: CONCLUI,
-                        rotulo: 'Conclui a produção (Pedidos em aguardo ou ESTOQUE)',
+                        rotulo: 'Conclui a produção (Expedição ou ESTOQUE)',
                       },
                       ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
                     ]}

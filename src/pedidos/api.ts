@@ -37,6 +37,10 @@ export interface PedidoDaLista {
   tem_mais: boolean
   /** Só na primeira página (até 10.001). */
   contagem_total: number | null
+  /** SESSAO-38: o pedido programado ("Em rota") — o dia, o caminhão e a rota. */
+  programacao_data?: string | null
+  caminhao_nome?: string | null
+  rota?: number | null
 }
 
 export async function listarPedidos(parametros: {

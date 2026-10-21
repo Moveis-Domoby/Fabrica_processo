@@ -455,7 +455,7 @@ function ModalResolver({
             {destinoEhEstoque && (
               <p className="text-sm text-texto-suave">
                 {setorDestinoInfo?.codigo === 'aguardo'
-                  ? 'Pedidos em aguardo só recebe peça de pedido em perfeito estado.'
+                  ? 'A Expedição só recebe peça de pedido em perfeito estado.'
                   : 'O ESTOQUE só recebe peça sem dono em perfeito estado.'}{' '}
                 Se ela ainda tem defeito, mande para um setor de produção.
               </p>

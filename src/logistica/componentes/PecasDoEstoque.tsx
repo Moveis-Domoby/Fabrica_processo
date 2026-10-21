@@ -35,7 +35,7 @@ export function LinhaPeca({ peca, agora }: { peca: PecaEstoque; agora: number })
               )}
               {/* SESSAO-24: a peça pronta de pedido mora em Pedidos em aguardo. */}
               {peca.local === 'aguardo' && (
-                <span className="text-texto-suave"> · em Pedidos em aguardo</span>
+                <span className="text-texto-suave"> · na Expedição</span>
               )}
             </>
           ) : peca.reservada_numero !== null ? (

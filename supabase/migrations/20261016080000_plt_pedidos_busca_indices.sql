@@ -34,6 +34,8 @@ create index if not exists clientes_nome_trgm_idx
 create index if not exists pedidos_vendedor_trgm_idx
   on public.pedidos using gin (vendedor extensions.gin_trgm_ops);
 
+-- SESSAO-38 (E-17): a 20261022020100 muda a forma da lista (colunas da programação) — drop antes.
+drop function if exists public.plt_fn_pedidos_lista(text, integer, integer, boolean);
 create or replace function public.plt_fn_pedidos_lista(
   p_busca        text    default null,
   p_antes_numero integer default null,

@@ -28,7 +28,11 @@ import {
 import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { SeloEstado } from '@/rotas/SeloEstado'
-import { prontoParaEntregar } from '@/rotas/estadoPedido'
+import {
+  fraseEntregaIncompleta,
+  pedeConfirmacaoDeEntrega,
+  prontoParaEntregar,
+} from '@/rotas/estadoPedido'
 import { useAoVivo } from '@/lib/aoVivo'
 
 const MiniMapa = lazy(() => import('@/rotas/MiniMapaEntregas'))
@@ -299,8 +303,8 @@ function CartaoEntrega({
   const whatsapp = linkWhatsApp(entrega.telefone)
   const mapa = linkMapaEntrega(entrega)
   const entregue = entrega.entregue_em !== null
-  // SESSAO-38 (D-156): a rota aceita pedido ainda em produção — o card avisa e o
-  // "Entregue" só libera com o pedido pronto (o banco confere de novo).
+  // SESSAO-38 (D-156): a rota aceita pedido ainda em produção — o card avisa; o
+  // "Entregue" ↩️ (ajuste) não trava: pede a confirmação no painel da entrega.
   const pronto = prontoParaEntregar(entrega.estado)
 
   return (
@@ -446,12 +450,6 @@ function CartaoEntrega({
         </Botao>
       </div>
 
-      {!entregue && !pronto && (
-        <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
-          Este pedido ainda não está pronto na fábrica — o "Entregue" libera quando todas as peças
-          ficarem prontas. Na dúvida, fale com a logística.
-        </p>
-      )}
 
       {!entregue ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -459,7 +457,7 @@ function CartaoEntrega({
             tamanho="lg"
             icone={<CheckCircle2 />}
             onClick={() => setEntregando(true)}
-            disabled={entregando || !pronto}
+            disabled={entregando}
           >
             Entregue
           </Botao>
@@ -490,10 +488,17 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
   const arquivoRef = useRef<HTMLInputElement>(null)
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [observacao, setObservacao] = useState('')
+  // ↩️ SESSAO-38 (ajuste): o pedido que ainda aparece em produção pede a
+  // confirmação explícita; se a tela estava velha, o banco pede e ela aparece.
+  const [incompleto, setIncompleto] = useState(!prontoParaEntregar(entrega.estado))
 
   const confirmar = useMutation({
     mutationFn: async () => {
-      await registrarEntrega({ cardId: entrega.card_id, observacao })
+      await registrarEntrega({
+        cardId: entrega.card_id,
+        observacao,
+        confirmarIncompleto: incompleto,
+      })
       if (arquivo) {
         try {
           await anexarComprovante(entrega.card_id, arquivo)
@@ -514,12 +519,17 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
       aoFechar()
       await clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] })
     },
-    onError: (erro) =>
+    onError: (erro) => {
+      if (pedeConfirmacaoDeEntrega(erro)) {
+        setIncompleto(true)
+        return
+      }
       notificar({
         titulo: 'Não deu para registrar a entrega',
         descricao: erro instanceof Error ? erro.message : undefined,
         tom: 'danificado',
-      }),
+      })
+    },
   })
 
   return (
@@ -533,6 +543,14 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
       <p className="text-sm font-medium text-texto">
         Confirmar a entrega do pedido {entrega.numero}
       </p>
+      {incompleto && (
+        <p
+          role="alert"
+          className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto"
+        >
+          {fraseEntregaIncompleta(entrega.prontas ?? 0, entrega.a_entregar ?? entrega.unidades)}
+        </p>
+      )}
       <div className="flex flex-col gap-1">
         <input
           ref={arquivoRef}
@@ -559,7 +577,7 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
       />
       <div className="grid grid-cols-2 gap-2">
         <Botao type="submit" tamanho="lg" icone={<CheckCircle2 />} carregando={confirmar.isPending}>
-          Confirmar
+          {incompleto ? 'Confirmar mesmo assim' : 'Confirmar'}
         </Botao>
         <Botao
           type="button"

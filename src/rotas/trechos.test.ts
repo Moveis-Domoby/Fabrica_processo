@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { resumoDoTrajeto, somarTrechos, trechosDoTrajeto } from './trechos'
 import type { Trecho } from './trechos'
-import { prontoParaEntregar, textoDoEstado } from './estadoPedido'
+import {
+  fraseEntregaIncompleta,
+  pedeConfirmacaoDeEntrega,
+  prontoParaEntregar,
+  textoDoEstado,
+} from './estadoPedido'
+import { nomeDoLugar } from '@/logistica/lugar'
 
 /**
  * SESSAO-38 (pedido do dono, imagem 3): no lugar de escolher UM trecho, o mapa
@@ -57,10 +63,31 @@ describe('o estado do pedido na rota (agora entram os ainda em produção)', () 
     expect(textoDoEstado(null)).toBeNull()
   })
 
-  it('"Entregue" só libera com o pedido pronto (sem estado, o banco decide)', () => {
+  it('pronto para entregar só com o pedido pronto (sem estado, o banco decide)', () => {
     expect(prontoParaEntregar('pronto')).toBe(true)
     expect(prontoParaEntregar('em_producao')).toBe(false)
     expect(prontoParaEntregar('no_pcp')).toBe(false)
     expect(prontoParaEntregar(undefined)).toBe(true)
+  })
+
+  it('o não pronto não trava: a frase da confirmação e o pedido de confirmação do banco', () => {
+    expect(fraseEntregaIncompleta(1, 6)).toBe(
+      'Este pedido ainda aparece em produção na fábrica (1 de 6 peças prontas). Confirmar a entrega encerra tudo dele.',
+    )
+    expect(fraseEntregaIncompleta(0, 1)).toContain('(0 de 1 peça pronta)')
+    expect(
+      pedeConfirmacaoDeEntrega(
+        new Error(
+          'Este pedido ainda aparece em produção na fábrica (1 de 2 peças prontas). Confirmar a entrega encerra tudo dele.',
+        ),
+      ),
+    ).toBe(true)
+    expect(pedeConfirmacaoDeEntrega(new Error('Este pedido já foi registrado como entregue.'))).toBe(false)
+  })
+
+  it('o lugar da peça pronta se chama Expedição na tela (o dado não muda)', () => {
+    expect(nomeDoLugar('PEDIDOS EM AGUARDO')).toBe('Expedição')
+    expect(nomeDoLugar('MONTAGEM')).toBe('MONTAGEM')
+    expect(nomeDoLugar(null)).toBeNull()
   })
 })
