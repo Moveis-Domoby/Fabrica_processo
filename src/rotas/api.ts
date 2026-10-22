@@ -825,6 +825,8 @@ export interface ItemCalendario {
   situacao: SituacaoCalendario
   /** O card do pedido (abre a janela do card). */
   card_id: number
+  /** O pedido (a ficha do pedido, no clique). */
+  pedido_id: number
   numero: number
   bairro: string | null
   /** A previsão de entrega (a do vendedor no Tiny). */
