@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-10-16
+atualizado: 2026-10-22
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -612,6 +612,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 ## D-59 · Quadros de produção só por arrasto; o único botão é "Concluir produção", na LIMPEZA E EMBALAGEM (27/09/2026) — ↩️ revisa a D-24, a D-48 e a D-03
 
 **↩️ revisada em 2026-10-14 (D-125/D-127):** o "Concluir produção" sai da LIMPEZA E EMBALAGEM (concluir = soltar na EXPEDIÇÃO); o botão "Concluir" fica só no card avulso; Pausar/Retomar voltam dentro da janela do card e arrastar para PARADO um card em execução pede o motivo.
+
+**↩️ revisada em 2026-10-21 (D-173):** o **Mover** volta — só para a liderança (líder de qualquer setor, admin, super admin), na janela do card, para a FILA de qualquer setor de produção, com motivo obrigatório. O arrasto continua sendo o gesto da equipe.
 
 
 **Decidido (resposta a1 do dono, depois de um alinhamento com a equipe da fábrica):** *"um móvel só vira móvel na parte de montagem; até a montagem ele é um plano de corte dividido em várias peças de outros móveis até. Então, por enquanto, vamos remover todos os botões, eles preferem que tudo seja arrastando, é mais rápido. Se o cara mover de 'a montar' para 'montando', esse card já deve ser instantaneamente iniciado, não o contrário; se ele mover para 'montado', o card já deve ir para o próximo setor, que é limpeza e embalagem. O único lugar que terá o botão de concluir é no setor de limpeza e embalagem: todos os móveis que vão para estoque passam por ele e eles que movem para estoque, seja móvel para estoque de fato, ou móvel já reservado por algum pedido."* E: *"já existe a etapa de fila, início e conclusão em todos os setores."*
@@ -1726,6 +1728,76 @@ O PCP não tinha horário cadastrado — pela regra de sempre, ele contaria 24 h
 ## D-172 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A régua do tempo útil vem na abertura do app (21/10/2026) — Lei §2/§8
 
 O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias) vêm prontos na **abertura do app** — nenhuma requisição a mais por tela; o aparelho calcula o tempo útil de cada card. O admin que muda um horário vê na hora; **as outras pessoas recebem o horário novo na próxima vez que abrirem a plataforma** (mudança de horário é rara; nada de relógio).
+
+## D-173 · O botão MOVER do card: a liderança manda qualquer card de produção para a FILA de qualquer setor, com motivo obrigatório (21/10/2026, pedido do dono — SESSAO-39) — ↩️ revisa a D-59 (o "Mover" tinha saído dos quadros) para a liderança
+
+**Pedido do dono:** *"Dentro de todos os cards de produção, coloque a possibilidade de dentro dele ter um botão de mover, esse mover pode ser movido para a FILA de qualquer setor a qualquer momento por um líder, admin ou super admin."* **Respostas (21/10, na conversa):** líder de **qualquer** setor (não só do setor que lidera) move qualquer card de produção; o **motivo é obrigatório**, de uma lista própria em Configurações → Utilitários (+ "Outro", escrito), e entra no painel de motivos.
+
+- **Onde:** na janela do card, em todo card de produção (a peça e o card avulso) que está num setor de produção. Não vale para o card do pedido (ele segue pelo PCP), nem para o que já está num fim de linha (Expedição, ESTOQUE, Danificados, ROTAS).
+- **Para onde:** a **etapa de fila** de qualquer setor de produção — inclusive o próprio setor ("volta para a fila daqui"), se o card não estiver nela. Setor sem etapa de fila recusa, com o caminho para cadastrar.
+- **Quem:** admin (o super admin é admin), o papel líder ou a marca de líder em qualquer setor. O nível logística nunca move (D-147: só olha). O operador comum não vê o botão.
+- **Motivo:** obrigatório — "Motivos do Mover" (aba própria em Utilitários) ou "Outro", escrito; o detalhe opcional entra junto. O motivo fica na observação do fato (o histórico do card mostra) e o id do motivo nos dados (o painel conta).
+- **⏳ PROVISÓRIAS (escolhas do Claude, ditas ao dono na conversa sem objeção — confirmar):**
+  1. **Os quatro motivos que nascem:** "Retrabalho", "Foi para o setor errado", "Mudança no planejamento", "Peça com defeito" (o admin edita, desliga e cria outros).
+  2. **Com alguém trabalhando no card:** o tempo dele fecha na hora (a mesma regra do arrasto — D-24) e quem ajudava sai junto.
+  3. **A marcação do estado da peça** (perfeito/atenção/danificado) segue a regra do arrasto (D-126): só quando o setor de onde a peça sai pede ao enviar.
+  4. **No tablet:** o botão aparece e pede o PIN; o banco aceita só o PIN de líder ou de admin (o fato sai em nome de quem digitou).
+- **Os fatos:** os de sempre — movimentação para outro setor (com a marcação, quando houver) ou de etapa (no mesmo setor), com `dados.como = 'mover_para_fila'`. Nada novo no tipo de evento.
+
+**Descartadas:** só o líder do setor do card (o dono quis qualquer líder); motivo opcional ou sem motivo (o dono quis obrigatório); um tipo de evento novo (a movimentação de sempre já fecha o tempo e as ajudas — um dono por regra).
+
+## D-174 · A rota no GOOGLE MAPS e no WAZE: o link oficial, sem custo, na ordem da plataforma; o entregador vê a mesma ordem da logística (21/10/2026, pedido do dono — SESSAO-39) — ↪️ D-108/D-109/D-115
+
+**Pedido do dono:** *"Em rotas, precisamos também levar a rota já montada para o google maps ou para o waze, analise se é possível encontrar uma api gratuita ou se é possível apenas colocar um botão com link de redirecionamento com rota montada exatamente como foi feito na plataforma."*
+
+- **O que existe (pesquisado na documentação oficial, 21/10):** o Google Maps tem um **link oficial** ("Maps URLs") que abre a rota com origem, destino e paradas **na ordem dada**, **sem chave e sem custo**; limite de **9 paradas intermediárias por link** (3 no navegador do celular, sem o aplicativo). As APIs de rota do Google são pagas e não são necessárias para isto. O **Waze aceita UM destino por link** (várias paradas dá erro, segundo a própria documentação).
+- **Decidido (levado ao dono na conversa, sem objeção):**
+  1. **"Abrir a rota no Google Maps"** na rota escolhida de "Já programadas" (sai da fábrica, as paradas na ordem DA TELA — com o rascunho, se houver — e volta à fábrica) e na tela do entregador (**de onde o aparelho está**, as entregas que faltam, na ordem, e a volta à fábrica).
+  2. **Rota com mais de 9 paradas sai em partes equilibradas** ("Paradas 1 a 6", "Paradas 7 a 10 e a volta"), cada parte começando onde a anterior terminou — nunca uma parte só com a volta.
+  3. **Em cada entrega, "Google Maps" e "Waze"** já navegando até ela (no lugar do antigo "Mapa", que só mostrava o ponto).
+  4. A parada vai pela **coordenada** que a plataforma usou; a sem ponto no mapa, pelo **endereço escrito**.
+  5. **A mesma ordem para todos:** antes, sem ordem salva, o entregador via as paradas pela numeração do pedido — e o Google abriria noutra ordem. Agora as entregas do dia trazem a ordem salva e a tela numera como "Já programadas" (a salva ou, sem ela, a sugestão do mais perto a partir da fábrica).
+- **Conferido em 21/10:** o link aberto no Google Maps montou "Fábrica Domoby → 4 paradas na ordem → Fábrica Domoby" (57 min de carro). **A conferir no celular do entregador:** o limite de 9 paradas vale no aplicativo; sem o aplicativo, o navegador do celular aceita 3.
+
+**Descartadas:** a API paga de rotas do Google (desnecessária para abrir a rota); o Waze com a rota inteira (não existe); otimizar a ordem pelo Google (a ordem é a da plataforma — a decisão é humana, D-39/D-109).
+
+## D-175 · O CALENDÁRIO da programação: um modo de ver dentro de Rotas → Programação, no formato do calendário da lista ROTAS do ClickUp (21/10/2026, pedido do dono com vídeo — SESSAO-39) — ↪️ D-111/D-128/D-169
+
+**Pedido do dono:** *"Para as rotas, coloque uma visualização de calendário para visualizar a programação, analise o vídeo para entender o formato e coloque como um modo de visualização dentro de rotas."* **O vídeo** (celular filmando o monitor, 21/10 15:42): o calendário da lista ROTAS do ClickUp, visão **Semana** (domingo → sábado), "Hoje", setas ‹ ›, o título com o intervalo; uma **barra por pedido** ("nº - bairro - data", às vezes com recado: "ENTRE 13:30 AS 17:00"); a **cor da barra é a situação** (conferido na lista do ClickUp, só leitura: cinza a fazer · azul 1ª/2ª/3ª rota · amarelo rota terceirizada · verde entregue · vermelho cancelado · rosa parado · roxo retirada).
+
+- **Onde:** uma terceira aba de Rotas → Programação: **Programar · Já programadas · Calendário** (`?aba=calendario`; o modo `?ver=mes` e o dia de referência `?ref=` também no endereço).
+- **Cada pedido no seu dia, pela regra que as outras telas já usam (⏳ PROVISÓRIA — a tradução do ClickUp para a plataforma, escolha do Claude):**
+  - **Na rota** (azul — o "1ª/2ª/3ª rota" do ClickUp): o programado, no dia da programação, com o caminhão e a rota;
+  - **Entregue** (verde): o programado e entregue, no dia da rota;
+  - **Não entregue** (vermelho — no lugar do "cancelado"): o "não entregue" daquele dia de rota, com o motivo (o pedido volta para "Programar");
+  - **Sem rota** (cinza — o "a fazer"): o pedido vivo sem programação, no dia da **previsão de entrega** do vendedor;
+  - **Stand-by** (rosa — o "parado"): o pedido segurado pelo PCP, no dia da previsão.
+  - Rota terceirizada e retirada **não existem na plataforma** — ficaram fora.
+- **Na barra (↩️↩️ 22/10, 2ª volta — pedido do dono: *"Essa visualização está muito redonda e confusa, altere novamente o layout e deixe a possibilidade de ver mais detalhes do pedido caso eu clique no mesmo"*):** a grade é **reta**, como a do ClickUp — sete colunas iguais com linhas finas, o cabeçalho do dia numa linha só ("SEG 19 out", o hoje na cor de ação), **sem** grupos por rota, círculos nem pílulas. **Uma barra de uma linha por pedido: "13704 · Pitimbu"** (o bairro encurta se não couber; o texto inteiro no passar do mouse), no tom claro da situação com a **faixa forte à esquerda**, cantos quase retos. A legenda vira quadradinhos de cor com o nome e o total — **continua filtrando** (tocar esconde/mostra). **Tocar no pedido abre o DETALHE dele** (todas as situações): em cima, na hora, o que o calendário já sabe — situação, dia da rota (ou a previsão, para sem rota e stand-by), a previsão do vendedor, o caminhão (na cor dele), a rota e a parada, o recado da programação e o motivo (não entregue/stand-by); embaixo, **a ficha do pedido** da área Pedidos (D-134 — cliente com WhatsApp, venda, valor, entrega; e, atrás de botões, itens e pagamento, produção, entrega e comprovante, dados do Tiny e histórico), que pede tudo numa requisição só, no clique. Do detalhe: **"Ver a rota"** (o programado — abre a rota em "Já programadas") e **"Abrir a janela do pedido"**. *(A 1ª volta, de 22/10 de manhã — barra em duas linhas, grupos por rota com a bolinha do caminhão, número do dia em círculo, fim de semana estreito, legenda em pílulas —, foi achada "redonda e confusa" pelo dono e saiu.)*
+- **Semana e mês (⏳ escolha do Claude):** a semana como o vídeo (até 30 barras por dia; o resto num "+N" que busca o dia no clique) e o **mês** (a grade de 6 semanas, 3 barras por dia; tocar no dia abre a semana dele) — o ClickUp do vídeo tinha o seletor de visão. No celular, os dias empilham.
+- **Fora do calendário, mas avisado:** os pedidos sem rota com a previsão já vencida e os sem previsão — um aviso com "Ver em Programar".
+- **Uma requisição por tela** (o período inteiro, até 6 semanas), ao vivo pelos avisos das rotas e do PCP (Lei §1/§4).
+
+**Descartadas:** arrastar o pedido de um dia para outro no calendário (o vídeo não mostra; seria outra forma de reprogramar — fica para o dono pedir); mostrar só os programados (o ClickUp do vídeo mostra também o "a fazer"); a cor pela situação do ClickUp ao pé da letra (terceirizado/retirada/cancelado não existem aqui); o detalhe num desenho novo (a ficha do pedido já existe e é a mesma da área Pedidos — um lugar só para mudar); a rota/caminhão dentro da barra (foi o que deixou a 1ª volta confusa — fica no detalhe).
+
+## D-176 · O PAINEL DE MOTIVOS: os maiores problemas da fábrica e das rotas, do maior para o menor (21/10/2026, pedido do dono — SESSAO-39) — ↪️ D-32/D-42/D-164/D-169/D-116
+
+**Pedido do dono:** *"Em dashboards, crie uma dash para medir as questões da fábrica e rotas, motivos de não entregas, motivos de pausa e todos os motivos dessa forma, é uma medição para metrificar quais são os maiores problemas em cada um desses pontos."* **Resposta (21/10):** entram **Produção** (pausas, paradas e saídas do setor), **PCP** (stand-by), **Rotas** (não entrega, devolução, entrega desfeita) e **Qualidade** (atenção/danificado).
+
+- **Onde:** Dashboards → **Motivos** (`/dashboards/motivos`), com o filtro de período (Hoje/7/30/90 dias), o de setor e as visualizações salvas, como os outros painéis.
+- **Quem vê (D-32):** líder (os setores de produção que lidera) e admin (tudo). O PCP e as rotas aparecem para quem vê esses setores no painel (o admin; o líder do PCP/das ROTAS). Com um setor de produção escolhido no filtro, o PCP e as rotas saem.
+- **O que mede (⏳ PROVISÓRIAS — escolhas do Claude):**
+  1. **Pausas e paradas:** vezes = os gestos; **tempo = o tempo ÚTIL parado de cada pessoa** (só o expediente do setor — a mesma régua dos outros painéis; quem ajudava conta também — horas-pessoa paradas). Por motivo, por setor e por pessoa. O motivo especial (D-164) aparece marcado "especial · não conta para a pessoa".
+  2. **Saídas do setor (tablet):** por motivo (sem o detalhe), com o tempo útil até a pessoa entrar de novo ("Fim do turno" fica perto de zero — a noite está fora do expediente).
+  3. **Mover (D-173):** por motivo e "de onde para onde".
+  4. **Stand-by:** por motivo, com o tempo útil segurado (os que ainda estão contam até agora) e quantos estão segurados agora. *(O tempo útil de cada stand-by encerrado vem no próprio registro da saída, escrito na hora em que o pedido sai — o painel só soma; como o de cada pausa e de cada saída do setor, guardado quando termina. Lei de desempenho.)*
+  5. **Rotas:** não entrega por motivo, por caminhão e por quem marcou (com "X% de N tentativas" — entregues + não entregues no período); devolução e entrega desfeita por motivo.
+  6. **Qualidade:** por setor de origem, as peças com atenção e danificadas e as divergências (quem recebeu discordou).
+  7. O "Outro" escrito na hora fica num grupo só ("Outro (escrito na hora)"); o detalhe mostra cada texto.
+- **O clique num motivo** abre cada vez que ele aconteceu (quando, quem, onde, o card, o motivo escrito, o tempo), 20 por vez com "Ver mais" (cursor); o card abre a janela dele.
+- **Desenho (D-42):** números-herói no topo (mais tempo parado, em stand-by agora, não entregues, peças com problema), ranking com barra de um matiz só (o azul de espera), rótulo direto, o maior problema primeiro.
+
+**Descartadas:** gráficos de pizza (proibidos pela régua dos painéis); um painel por área (o dono pediu "uma dash"); contar só as vezes (o tempo parado é a medida que mostra o tamanho do problema).
 
 ## Ver também
 
