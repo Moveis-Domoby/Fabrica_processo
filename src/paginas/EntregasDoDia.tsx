@@ -1,10 +1,9 @@
-import { Suspense, lazy, useRef, useState } from 'react'
+import { Suspense, lazy, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  MapPin,
   MessageCircle,
   MessageSquarePlus,
   Paperclip,
@@ -20,13 +19,14 @@ import {
   enderecoLegivel,
   entregasDoDia,
   entregueHoje,
-  linkMapaEntrega,
   linkWhatsApp,
   registrarEntrega,
   TIPOS_COMPROVANTE,
 } from '@/rotas/api'
 import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { BotaoRotaGoogleMaps, BotoesParada } from '@/rotas/BotoesNavegacao'
+import { naOrdemDaRota } from '@/rotas/rotaRuas'
 import { SeloEstado } from '@/rotas/SeloEstado'
 import {
   fraseEntregaIncompleta,
@@ -86,7 +86,8 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   // A rota mudou (outro entregador marcou, a logística programou) → AO VIVO (Lei §4).
   useAoVivo('rotas', [['entregas-do-dia']])
 
-  const entregas = data?.entregas ?? []
+  // SESSAO-39 (D-174): a mesma ordem de "Já programadas" (a salva ou a sugestão).
+  const entregas = useMemo(() => naOrdemDaRota(data?.entregas ?? []), [data?.entregas])
   // SESSAO-30 (D-120): o entregue sai da rota (lista e mapa) e mora no PCP; o do
   // dia fica recolhido aqui só para o entregador poder desfazer (D-113).
   const aEntregar = entregas.filter((e) => !e.entregue_em)
@@ -203,6 +204,18 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         </section>
       )}
 
+      {aEntregar.length > 0 && (
+        // SESSAO-39 (D-174): o que falta da rota, na ordem, de onde o aparelho está.
+        <div className="flex flex-wrap gap-2">
+          <BotaoRotaGoogleMaps
+            paradas={aEntregar}
+            origem="aqui"
+            posicoes={aEntregar.map((e) => e.posicao)}
+            tamanho="lg"
+          />
+        </div>
+      )}
+
       {data && entregas.length > 0 && aEntregar.length === 0 && (
         <p className="rounded-dm-lg border border-perfeito-borda bg-perfeito-fundo p-4 text-perfeito-texto">
           Todas as entregas do dia foram feitas.
@@ -301,7 +314,6 @@ function CartaoEntrega({
   const [entregando, setEntregando] = useState(false)
   const [verItens, setVerItens] = useState(false)
   const whatsapp = linkWhatsApp(entrega.telefone)
-  const mapa = linkMapaEntrega(entrega)
   const entregue = entrega.entregue_em !== null
   // SESSAO-38 (D-156): a rota aceita pedido ainda em produção — o card avisa; o
   // "Entregue" ↩️ (ajuste) não trava: pede a confirmação no painel da entrega.
@@ -422,7 +434,7 @@ function CartaoEntrega({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {whatsapp && (
           <a href={whatsapp} target="_blank" rel="noreferrer" className="contents">
             <Botao variante="secundaria" icone={<MessageCircle />} className="w-full">
@@ -430,13 +442,8 @@ function CartaoEntrega({
             </Botao>
           </a>
         )}
-        {mapa && (
-          <a href={mapa} target="_blank" rel="noreferrer" className="contents">
-            <Botao variante="secundaria" icone={<MapPin />} className="w-full">
-              Mapa
-            </Botao>
-          </a>
-        )}
+        {/* SESSAO-39 (D-174): no lugar do "Mapa", já navegando até esta entrega. */}
+        <BotoesParada parada={entrega} />
         <Botao
           variante="secundaria"
           icone={<MessageSquarePlus />}
@@ -449,7 +456,6 @@ function CartaoEntrega({
           Comprovante
         </Botao>
       </div>
-
 
       {!entregue ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

@@ -13,6 +13,7 @@ import {
   programarEntrega,
 } from './api'
 import type { PedidoProgramado } from './api'
+import { BotaoRotaGoogleMaps } from './BotoesNavegacao'
 import { CartaoPedido } from './CartaoPedido'
 import { ListaArrastavel } from './ListaArrastavel'
 import { MapaProgramacao } from './MapaProgramacao'
@@ -587,6 +588,8 @@ export function AbaJaProgramadas({
                           {!salvar?.pendente && (
                             <span className="text-xs font-medium text-texto-suave">no mapa</span>
                           )}
+                          {/* SESSAO-39 (D-174): a rota como está na tela, no Google Maps. */}
+                          <BotaoRotaGoogleMaps paradas={ordenadas} />
                         </span>
                       ) : (
                         <Botao variante="secundaria" icone={<MapPin />} onClick={() => focar(g)}>

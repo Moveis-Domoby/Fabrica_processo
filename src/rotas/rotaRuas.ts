@@ -123,7 +123,24 @@ export function ordemDaRota<T extends ComPonto & { ordem?: number | null }>(
       .sort((a, b) => (a.ordem as number) - (b.ordem as number) || a.card_id - b.card_id)
   }
   const naBase = new Set(base.map((p) => p.card_id))
-  return continuarSugestao(base, paradas.filter((p) => !naBase.has(p.card_id)), origem)
+  return continuarSugestao(
+    base,
+    paradas.filter((p) => !naBase.has(p.card_id)),
+    origem,
+  )
+}
+
+/**
+ * SESSAO-39 (D-174): a ordem do ENTREGADOR é a mesma da logística ("Já
+ * programadas"): a ordem salva ou, sem ela, a sugestão do mais perto a partir
+ * da fábrica — antes, sem ordem salva, ele via pela numeração do pedido.
+ * Sem a ordem no dado (o banco de antes desta sessão), fica a numeração que veio.
+ */
+export function naOrdemDaRota<T extends ComPonto & { ordem?: number | null; posicao: number }>(
+  paradas: T[],
+): T[] {
+  if (paradas.length === 0 || paradas.some((p) => p.ordem === undefined)) return paradas
+  return ordemDaRota(paradas).map((p, i) => ({ ...p, posicao: i + 1 }))
 }
 
 /** Sobe (−1) ou desce (+1) uma parada na lista de ids; fora dos limites, nada muda. */
@@ -137,7 +154,10 @@ export function moverParada(ids: number[], cardId: number, delta: -1 | 1): numbe
 }
 
 /** Os pontos que vão ao serviço: fábrica → paradas com ponto, na ordem → fábrica. */
-export function pontosDaRota<T extends ComPonto>(paradasEmOrdem: T[], origem: Ponto = FABRICA): Ponto[] {
+export function pontosDaRota<T extends ComPonto>(
+  paradasEmOrdem: T[],
+  origem: Ponto = FABRICA,
+): Ponto[] {
   const comPonto = paradasEmOrdem.filter(temPonto)
   if (comPonto.length === 0) return []
   const ida = { latitude: origem.latitude, longitude: origem.longitude }
@@ -168,7 +188,14 @@ export function formatarDuracao(segundos: number): string {
  * caminhão, fora das cores de estado (verde/âmbar/vermelho) e do amarelo das
  * paradas. Hex de propósito — o Leaflet desenha a linha com o valor literal.
  */
-export const CORES_CAMINHAO = ['#2563EB', '#7C3AED', '#DB2777', '#0891B2', '#92400E', '#4F46E5'] as const
+export const CORES_CAMINHAO = [
+  '#2563EB',
+  '#7C3AED',
+  '#DB2777',
+  '#0891B2',
+  '#92400E',
+  '#4F46E5',
+] as const
 
 export function corDoCaminhao(caminhaoId: number): string {
   return CORES_CAMINHAO[Math.abs(caminhaoId) % CORES_CAMINHAO.length]
@@ -211,7 +238,9 @@ export function ordenarCandidatos<T extends Candidato>(
   const distancia = (p: T) =>
     temPonto(p) ? Math.min(...alvos.map((a) => distanciaKm(a, p))) : Number.POSITIVE_INFINITY
   const medida = new Map(copia.map((p) => [p.card_id, distancia(p)]))
-  return copia.sort((a, b) => medida.get(a.card_id)! - medida.get(b.card_id)! || a.numero - b.numero)
+  return copia.sort(
+    (a, b) => medida.get(a.card_id)! - medida.get(b.card_id)! || a.numero - b.numero,
+  )
 }
 
 /** Total de peças de uma lista de pedidos (frete não conta — vem do banco). */

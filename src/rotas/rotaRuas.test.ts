@@ -6,6 +6,7 @@ import {
   decodificarLinha,
   formatarDuracao,
   moverParada,
+  naOrdemDaRota,
   ordemDaRota,
   ordemSugerida,
   ordenarCandidatos,
@@ -101,7 +102,9 @@ describe('a ordem que vale na tela', () => {
   })
 
   it('rascunho com pedido que saiu da rota: ele some; o que entrou vai para o fim', () => {
-    expect(ids(ordemDaRota([centro, zonaNorte, parnamirim], { rascunho: [6, 99, 1] }))).toEqual([6, 1, 4])
+    expect(ids(ordemDaRota([centro, zonaNorte, parnamirim], { rascunho: [6, 99, 1] }))).toEqual([
+      6, 1, 4,
+    ])
   })
 })
 
@@ -165,7 +168,9 @@ describe('ajustes de 03/10: a ordem da lista sem programação', () => {
 
   it('"mais perto" com pedido na rota: do mais perto DELE até o mais longe', () => {
     // na rota: um ponto na Zona Norte → a Zona Norte, depois o Centro, Parnamirim por último
-    expect(numeros(ordenarCandidatos([a, b, d], 'perto', [{ latitude: -5.75, longitude: -35.25 }]))).toEqual([30, 10, 40])
+    expect(
+      numeros(ordenarCandidatos([a, b, d], 'perto', [{ latitude: -5.75, longitude: -35.25 }])),
+    ).toEqual([30, 10, 40])
   })
 
   it('por número do pedido', () => {
@@ -220,5 +225,46 @@ describe('ajustes de 03/10: cor do caminhão, peças e trechos', () => {
 
   it('sem linha suficiente, nada a cortar', () => {
     expect(separarTrechos([], [FABRICA, FABRICA])).toEqual([])
+  })
+})
+
+describe('naOrdemDaRota — o entregador vê a ordem da logística (SESSAO-39)', () => {
+  const p = (
+    card_id: number,
+    longitude: number,
+    ordem: number | null | undefined,
+    posicao: number,
+  ) => ({
+    card_id,
+    latitude: FABRICA.latitude,
+    longitude,
+    ordem,
+    posicao,
+  })
+
+  it('sem ordem salva: a sugestão do mais perto a partir da fábrica, renumerada (não o número do pedido)', () => {
+    // o banco numerou pelo pedido (posição 1 = o mais longe); a sugestão começa pelo mais perto
+    const longe = p(1, FABRICA.longitude + 0.2, null, 1)
+    const perto = p(2, FABRICA.longitude + 0.01, null, 2)
+    const meio = p(3, FABRICA.longitude + 0.1, null, 3)
+    const r = naOrdemDaRota([longe, perto, meio])
+    expect(r.map((x) => x.card_id)).toEqual([2, 3, 1])
+    expect(r.map((x) => x.posicao)).toEqual([1, 2, 3])
+  })
+
+  it('com ordem salva, vale a ordem salva', () => {
+    const r = naOrdemDaRota([
+      p(1, FABRICA.longitude + 0.01, 2, 1),
+      p(2, FABRICA.longitude + 0.2, 1, 2),
+    ])
+    expect(r.map((x) => x.card_id)).toEqual([2, 1])
+  })
+
+  it('o dado sem a ordem (banco antigo) fica como veio', () => {
+    const veio = [
+      p(1, FABRICA.longitude + 0.2, undefined, 1),
+      p(2, FABRICA.longitude + 0.01, undefined, 2),
+    ]
+    expect(naOrdemDaRota(veio)).toBe(veio)
   })
 })

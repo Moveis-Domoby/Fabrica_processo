@@ -578,6 +578,11 @@ export interface ComentarioEntrega {
 
 export interface EntregaDoDia {
   posicao: number
+  /**
+   * SESSAO-39 (D-174): a ordem salva da rota (nula = vale a sugestão). Com ela a
+   * tela numera como "Já programadas"; ausente = o banco de antes desta sessão.
+   */
+  ordem?: number | null
   card_id: number
   pedido_id: number
   numero: number
