@@ -152,6 +152,9 @@ Legenda das colunas: **API** (onde existe) · **Buscar tudo** (como e quanto cus
 | **Com atraso de até 1 dia** (a conferência da madrugada) | **contas a pagar** · contas a receber pagas sem venda nova · notas antigas que mudaram · **estrutura dos móveis** · pedidos de compra · movimentações de estoque · cadastros pequenos (vendedores, formas, categorias, listas de preço, depósitos) | o Tiny não avisa **nem** diz o que mudou: é preciso reler uma janela — de madrugada, sem atrapalhar ninguém |
 | **Não dá** | **ordens de produção** (o Tiny não deixa listar) · **exclusões** (só a conferência descobre que sumiu — como o pedido 13622, D-140) | limite do próprio Tiny |
 
+> [!success] ↪️ 22/10/2026 — construído e no ar (D-148, migration 107)
+> **A conferência dos registros** nasce da conferência da madrugada que já existia (nenhum relógio novo): a lista **completa** de cada tipo, do piso do plano até hoje — da FÁBRICA, pedidos de venda, notas, contas a receber, pedidos de compra (API nova) e o catálogo; das DUAS contas, as contas a pagar mês a mês. Cada item da lista é comparado com o resumo guardado (hash do item): só o novo, o mudado e o que tinha sumido voltam a ser lidos. **Exclusões:** o que temos e a lista completa não trouxe é perguntado um a um — "não localizado" (v2, código 32) ou 404 (API nova) marca **apagado no Tiny** (nada se apaga; visto de novo, volta); o que o Tiny tem mas a lista não mostra fica **fora da lista**. Trava: lista com menos da metade do que temos não marca nada e avisa o dono. **O produto apagado no Tiny some de todas as telas** (como o pedido apagado). Ficam de fora (anotado): os contatos que nunca compraram, os produtos da loja (D-145), as contas a receber da loja (a conferência das 3h de sempre) — [[SESSAO-33]], [[PLT - Decisoes de Produto]] D-148.
+
 ---
 
 ## 6. A carga inicial — tempo, ritmo e como provar que bateu
