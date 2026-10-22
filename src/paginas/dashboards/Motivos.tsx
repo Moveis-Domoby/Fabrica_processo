@@ -27,7 +27,15 @@ import { Visualizacoes } from '@/dashboards/componentes/Visualizacoes'
 import { FiltroPill, FiltroSetor } from '@/dashboards/componentes/Filtros'
 import { OPCOES_PERIODO } from '@/dashboards/opcoes'
 
-const tempo = (segundos: number | null | undefined) => formatarDuracaoMs((segundos ?? 0) * 1000)
+// Tempo de parada: em minutos inteiros (menos de 1 min = "0min" — o "45s" não diz nada aqui).
+const tempo = (segundos: number | null | undefined) =>
+  (segundos ?? 0) < 60 ? '0min' : formatarDuracaoMs((segundos ?? 0) * 1000)
+/** No número-herói, o jeito curto dos mockups dos painéis: "6h40", "38min". */
+const tempoCurto = (segundos: number) => {
+  const minutos = Math.floor(segundos / 60)
+  const horas = Math.floor(minutos / 60)
+  return horas > 0 ? `${horas}h${String(minutos % 60).padStart(2, '0')}` : `${minutos}min`
+}
 const vezes = (n: number) => `${n} ${n === 1 ? 'vez' : 'vezes'}`
 const pct = (parte: number, todo: number) =>
   todo > 0 ? `${Math.round((parte / todo) * 100)}%` : '—'
@@ -147,7 +155,7 @@ export function Motivos() {
               <Heroi
                 rotulo="Mais tempo parado"
                 icone={<Pause aria-hidden className="size-4" />}
-                valor={topoPausa ? tempo(topoPausa.segundos) : '—'}
+                valor={topoPausa ? tempoCurto(topoPausa.segundos ?? 0) : '—'}
                 detalhe={
                   topoPausa
                     ? `${topoPausa.motivo} · ${vezes(topoPausa.vezes)} · ${rotuloPeriodo.toLowerCase()}`

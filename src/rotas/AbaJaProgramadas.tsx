@@ -588,8 +588,6 @@ export function AbaJaProgramadas({
                           {!salvar?.pendente && (
                             <span className="text-xs font-medium text-texto-suave">no mapa</span>
                           )}
-                          {/* SESSAO-39 (D-174): a rota como está na tela, no Google Maps. */}
-                          <BotaoRotaGoogleMaps paradas={ordenadas} />
                         </span>
                       ) : (
                         <Botao variante="secundaria" icone={<MapPin />} onClick={() => focar(g)}>
@@ -614,6 +612,13 @@ export function AbaJaProgramadas({
                         </Botao>
                       )}
                     </div>
+                    {/* SESSAO-39 (D-174): a rota como está na tela (com o rascunho), no
+                        Google Maps — numa linha própria, para o cabeçalho não espremer. */}
+                    {ativo && (
+                      <div className="flex flex-wrap gap-2">
+                        <BotaoRotaGoogleMaps paradas={ordenadas} tamanho="sm" />
+                      </div>
+                    )}
                     {ativo && !entregues ? (
                       <ListaArrastavel
                         ids={idsOrdenados}
