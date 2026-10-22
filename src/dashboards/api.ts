@@ -537,6 +537,8 @@ export const TELAS_DASH = [
   { chave: 'tempo-por-setor', rotulo: 'Tempo por setor' },
   { chave: 'pessoas', rotulo: 'Pessoas' },
   { chave: 'qualidade', rotulo: 'Qualidade' },
+  // SESSAO-39 (D-176): os maiores problemas — pausas, stand-by, não entregas…
+  { chave: 'motivos', rotulo: 'Motivos' },
 ] as const
 
 export type TelaDash = (typeof TELAS_DASH)[number]['chave']
@@ -632,4 +634,108 @@ export async function atualizarVisualizacao(
 export async function excluirVisualizacao(id: number): Promise<void> {
   const { error } = await supabase.from('plt_visualizacoes').delete().eq('id', id)
   if (error) throw new Error(`Não deu para excluir a visualização: ${error.message}`)
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-39 (D-176): o PAINEL DE MOTIVOS — a tela numa requisição; o clique
+// num motivo traz as ocorrências por cursor.
+// ---------------------------------------------------------------------------
+
+/** Um motivo no ranking: a chave ('id:12', 'outro', 'txt:…', 'tiny', 'reentrega'). */
+export interface MotivoContado {
+  chave: string
+  motivo: string
+  vezes: number
+  /** O tempo útil que o motivo custou (só no expediente) — nas áreas que medem tempo. */
+  segundos?: number
+  /** Pausa: algum gesto com o motivo marcado "especial" (não conta para a pessoa). */
+  especial?: boolean
+  /** Stand-by: quantos ainda estão segurados. */
+  agora?: number
+}
+
+export interface PainelMotivos {
+  de: string
+  ate: string
+  setor_id: number | null
+  /** null = a pessoa não vê nenhum setor de produção no recorte. */
+  producao: {
+    pausas: MotivoContado[]
+    pausas_por_setor: { setor_id: number; setor: string; vezes: number; segundos: number }[]
+    pausas_por_pessoa: { usuario_id: string; nome: string; vezes: number; segundos: number }[]
+    saidas: MotivoContado[]
+    mover: MotivoContado[]
+    mover_caminhos: { de: string; para: string; vezes: number }[]
+  } | null
+  qualidade: {
+    por_setor: {
+      setor_id: number
+      setor: string
+      marcadas: number
+      atencao: number
+      danificado: number
+      divergencias: number
+    }[]
+  } | null
+  /** null = a pessoa não vê o PCP (ou escolheu um setor de produção). */
+  pcp: { standby: MotivoContado[]; em_standby_agora: number } | null
+  /** null = a pessoa não vê as rotas (ou escolheu um setor de produção). */
+  rotas: {
+    nao_entregue: MotivoContado[]
+    devolucao: MotivoContado[]
+    desfeita: MotivoContado[]
+    por_caminhao: { caminhao_id: number; caminhao: string; vezes: number }[]
+    por_pessoa: { usuario_id: string; nome: string; vezes: number }[]
+    entregues: number
+  } | null
+}
+
+export async function dashMotivos(
+  periodo: PeriodoDash,
+  setorId: number | null,
+): Promise<PainelMotivos> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_motivos', {
+    p_de: periodo.de,
+    p_ate: periodo.ate,
+    p_setor_id: setorId,
+  })
+  return garantir(data as PainelMotivos | null, error, 'Não deu para carregar o painel de motivos')
+}
+
+export type AreaMotivo =
+  'pausa' | 'saida' | 'mover' | 'standby' | 'nao_entregue' | 'devolucao' | 'desfeita' | 'qualidade'
+
+export interface OcorrenciaMotivo {
+  id: number
+  quando: string
+  pessoa: string | null
+  /** O setor, o caminhão ou "de → para" (o Mover). */
+  onde: string | null
+  /** "Pedido 13704 · Armário (1/2)" ou o título do card avulso. */
+  o_que: string | null
+  /** O motivo como foi escrito (com o detalhe). */
+  motivo: string | null
+  segundos: number | null
+  card_id: number | null
+}
+
+export async function dashMotivosDetalhe(parametros: {
+  area: AreaMotivo
+  chave: string
+  periodo: PeriodoDash
+  setorId: number | null
+  limite?: number
+  antes?: { em: string; id: number } | null
+}): Promise<OcorrenciaMotivo[]> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_motivos_detalhe', {
+    p_area: parametros.area,
+    p_chave: parametros.chave,
+    p_de: parametros.periodo.de,
+    p_ate: parametros.periodo.ate,
+    p_setor_id: parametros.setorId,
+    p_limite: parametros.limite ?? 20,
+    p_antes_em: parametros.antes?.em ?? null,
+    p_antes_id: parametros.antes?.id ?? null,
+  })
+  return garantir(data as OcorrenciaMotivo[] | null, error, 'Não deu para carregar as ocorrências')
 }

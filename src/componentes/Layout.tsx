@@ -372,6 +372,8 @@ export function Layout({ children }: { children: ReactNode }) {
                           { para: '/dashboards/tempo-por-setor', rotulo: 'Tempo por setor' },
                           { para: '/dashboards/pessoas', rotulo: 'Pessoas' },
                           { para: '/dashboards/qualidade', rotulo: 'Qualidade' },
+                          // SESSAO-39 (D-176): os maiores problemas, por motivo
+                          { para: '/dashboards/motivos', rotulo: 'Motivos' },
                         ]
                       : []),
                   ],

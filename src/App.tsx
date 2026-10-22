@@ -31,6 +31,8 @@ const Avisos = pagina(() => import('@/paginas/Avisos'), 'Avisos')
 const TempoPorSetor = pagina(() => import('@/paginas/dashboards/TempoPorSetor'), 'TempoPorSetor')
 const Pessoas = pagina(() => import('@/paginas/dashboards/Pessoas'), 'Pessoas')
 const Qualidade = pagina(() => import('@/paginas/dashboards/Qualidade'), 'Qualidade')
+// SESSAO-39 (D-176): o painel de motivos
+const Motivos = pagina(() => import('@/paginas/dashboards/Motivos'), 'Motivos')
 const Expedicao = pagina(() => import('@/paginas/Expedicao'), 'Expedicao')
 const Rotas = pagina(() => import('@/paginas/Rotas'), 'Rotas')
 const Afazeres = pagina(() => import('@/paginas/Afazeres'), 'Afazeres')
@@ -232,6 +234,7 @@ export function App() {
                   <Route path="/dashboards/tempo-por-setor" element={<TempoPorSetor />} />
                   <Route path="/dashboards/pessoas" element={<Pessoas />} />
                   <Route path="/dashboards/qualidade" element={<Qualidade />} />
+                  <Route path="/dashboards/motivos" element={<Motivos />} />
                 </Route>
                 {/* SESSAO-27 (D-100): o antigo "Painel admin" virou CONFIGURAÇÕES */}
                 <Route path="/configuracoes/equipe" element={<Equipe />} />

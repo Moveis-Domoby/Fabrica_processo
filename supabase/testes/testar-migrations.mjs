@@ -17403,6 +17403,182 @@ try {
 }
 } // fim do bloco Rotas (SESSAO-39)
 
+// ============================================================================
+// SESSAO-39 · Painel de motivos (migration 20261023030000 — D-176): a tela
+// inteira numa requisição (produção, qualidade, PCP, rotas) e o clique num
+// motivo (as ocorrências, por cursor). Quem vê: D-32. Transação desfeita.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-39 · Motivos · o cenário: um setor com líder, uma pausa, uma saída, um Mover, uma peça danificada, um stand-by e uma não entrega')
+
+const um39m = async (sql) => (await bd.query(sql)).rows[0]
+const como39m = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado39m = async (auth, sql) => {
+  await como39m(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const recusa39m = async (auth, sql, descricao, padrao) => {
+  await como39m(auth)
+  await bd.exec('savepoint s39m')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s39m')
+    await bd.exec('reset role')
+  }
+}
+const M39 = {
+  op: '00000000-0000-0000-0000-000000003921',
+  lider: '00000000-0000-0000-0000-000000003922',
+}
+await como39m('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('mt39a', 'MT39 CORTE', 'producao', 993), ('mt39b', 'MT39 MONTAGEM', 'producao', 994);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo like 'mt39%';
+  `)
+  const A = (await um39m(`select id::int as id from public.plt_setores where codigo = 'mt39a'`)).id
+  const B = (await um39m(`select id::int as id from public.plt_setores where codigo = 'mt39b'`)).id
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      (${A}, 'A CORTAR', 10, true), (${A}, 'CORTANDO', 20, false), (${B}, 'A MONTAR', 10, true);
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Operador M39', 'opm39@teste.com', '39390000021', 'opm.39', 'operador', '${M39.op}', array['fabrica']),
+      ('Líder M39', 'lidm39@teste.com', '39390000022', 'lidm.39', 'operador', '${M39.lider}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+      ((select id from public.plt_usuarios where usuario = 'opm.39'), ${A}, false),
+      ((select id from public.plt_usuarios where usuario = 'lidm.39'), ${A}, true);
+  `)
+  const opId = (await um39m(`select id from public.plt_usuarios where usuario = 'opm.39'`)).id
+  const CORTANDO = (await um39m(`select id::int as id from public.plt_etapas where setor_id = ${A} and nome = 'CORTANDO'`)).id
+  const maquina = (await um39m(`select id::int as id from public.plt_motivos where tipo = 'pausa' and texto = 'Máquina quebrou'`)).id
+  const retrabalho = (await um39m(`select id::int as id from public.plt_motivos where tipo = 'mover' and texto = 'Retrabalho'`)).id
+
+  // a pausa: o operador pega o card, pausa por "Máquina quebrou" e retoma (1 hora parado)
+  await como39m(E40.admin)
+  const card = (await um39m(`select (public.plt_fn_avulso_criar('Lateral MT39', p_setor_id => ${A}) ->> 'card_id')::int as id`)).id
+  await logado39m(M39.op, `select public.plt_fn_soltar_card(${card}, ${CORTANDO})`)
+  await logado39m(M39.op, `select public.plt_fn_card_pausar(${card}, ${maquina}, null, null)`)
+  await logado39m(M39.op, `select public.plt_fn_card_retomar(${card}, null)`)
+  await como39m('')
+  await bd.exec(`update public.plt_pessoa_pausas set inicio = now() - interval '2 hours', fim = now() - interval '1 hour'
+                  where card_id = ${card}`)
+  // a saída do setor pelo tablet: "Médico", de volta 1 hora depois
+  await bd.exec(`
+    insert into public.plt_presenca_eventos (usuario_id, tipo, setor_id, ocorrido_em) values ('${opId}', 'entrada', ${A}, now() - interval '5 hours');
+    insert into public.plt_presenca_eventos (usuario_id, tipo, setor_id, motivo, ocorrido_em) values ('${opId}', 'saida', ${A}, 'Médico — consulta', now() - interval '4 hours');
+    insert into public.plt_presenca_eventos (usuario_id, tipo, setor_id, ocorrido_em) values ('${opId}', 'entrada', ${A}, now() - interval '3 hours');
+  `)
+  // o Mover com a peça danificada (o MT39 CORTE pede o estado ao enviar)
+  await bd.exec(`update public.plt_setores set qualidade_envio_tipos = '{avulso}' where id = ${A}`)
+  await logado39m(M39.lider, `select public.plt_fn_card_mover_para_fila(${card}, ${B}, ${retrabalho}, null, 'danificado', null)`)
+  // o stand-by e a não entrega (motivos próprios do teste — nada se mistura com os outros blocos)
+  await bd.exec(`
+    insert into public.plt_motivos (tipo, texto, ordem) values ('standby', 'Stand-by do painel 39', 990), ('nao_entregue', 'Não entrega do painel 39', 990);
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+    values (939101, 'S39M', 'Estante Teste M39', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_caminhoes (nome, placa) values ('Baú M39', 'TST3921');
+  `)
+  const motSb = (await um39m(`select id::int as id from public.plt_motivos where texto = 'Stand-by do painel 39'`)).id
+  const motNe = (await um39m(`select id::int as id from public.plt_motivos where texto = 'Não entrega do painel 39'`)).id
+  const cam = (await um39m(`select id::int as id from public.plt_caminhoes where placa = 'TST3921'`)).id
+  const ped = async (numero) => {
+    await bd.exec(`
+      insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+        (${numero}, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', ${numero}00, '2027-02-10');
+      insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+        ((select id from public.pedidos where numero = ${numero}), 1, 'S39M', 'Estante Teste M39', 1);
+    `)
+    return (await um39m(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                          where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  }
+  const pSb = await ped(939101)
+  const pNe = await ped(939102)
+  await logado39m(E40.admin, `select public.plt_fn_pcp_standby(${pSb}, ${motSb}, null)`)
+  await logado39m(E40.logistica, `select public.plt_fn_programar_rota('2027-02-10', ${cam}, array[${pNe}]::bigint[], null, 1)`)
+  await logado39m(E40.logistica, `select public.plt_fn_entrega_nao_realizada(${pNe}, ${motNe}, 'teste')`)
+  conferir(card > 0 && pSb > 0 && pNe > 0, 'o cenário montado: pausa, saída, Mover com peça danificada, stand-by e não entrega')
+
+  const periodo = `now() - interval '1 day', now() + interval '1 minute'`
+
+  titulo('SESSAO-39 · Motivos · o líder do setor vê a produção e a qualidade dele — o tempo útil parado, do maior problema para o menor')
+
+  const l = (await logado39m(M39.lider, `select public.plt_fn_dash_motivos(${periodo}) as r`))[0].r
+  const achar = (lista, chave) => (lista ?? []).find((x) => x.chave === chave)
+  const pausa = achar(l.producao?.pausas, `id:${maquina}`)
+  conferir(pausa && pausa.vezes === 1 && Math.abs(pausa.segundos - 3600) <= 5 && pausa.especial === true,
+    'a pausa "Máquina quebrou": 1 vez, 1 hora parado, marcada especial', JSON.stringify(pausa))
+  conferir((l.producao?.pausas_por_setor ?? []).some((x) => x.setor_id === A && x.vezes === 1)
+      && (l.producao?.pausas_por_pessoa ?? []).some((x) => x.nome === 'Operador M39'),
+    'a pausa aparece por setor e por pessoa', JSON.stringify([l.producao?.pausas_por_setor, l.producao?.pausas_por_pessoa]))
+  const saida = achar(l.producao?.saidas, 'txt:médico')
+  conferir(saida && saida.vezes === 1 && Math.abs(saida.segundos - 3600) <= 5 && saida.motivo === 'Médico',
+    'a saída do setor: o motivo sem o detalhe, 1 vez, 1 hora fora', JSON.stringify(l.producao?.saidas))
+  const mv = achar(l.producao?.mover, `id:${retrabalho}`)
+  conferir(mv?.vezes === 1 && (l.producao?.mover_caminhos ?? []).some((c) => c.de === 'MT39 CORTE' && c.para === 'MT39 MONTAGEM'),
+    'o Mover: "Retrabalho" 1 vez, de MT39 CORTE para MT39 MONTAGEM', JSON.stringify([l.producao?.mover, l.producao?.mover_caminhos]))
+  const q = (l.qualidade?.por_setor ?? []).find((x) => x.setor_id === A)
+  conferir(q?.danificado === 1 && q.marcadas === 1, 'a qualidade: a peça saiu danificada do MT39 CORTE', JSON.stringify(l.qualidade))
+  conferir(l.pcp === null && l.rotas === null, 'o líder de um setor de produção não vê o PCP nem as rotas', JSON.stringify({ pcp: l.pcp, rotas: l.rotas }))
+
+  titulo('SESSAO-39 · Motivos · o admin vê também o PCP (stand-by) e as rotas (não entrega por caminhão)')
+
+  const ad = (await logado39m(E40.admin, `select public.plt_fn_dash_motivos(${periodo}) as r`))[0].r
+  const sb = achar(ad.pcp?.standby, `id:${motSb}`)
+  const ne = achar(ad.rotas?.nao_entregue, `id:${motNe}`)
+  conferir(sb?.vezes === 1 && sb.agora === 1 && ad.pcp.em_standby_agora >= 1,
+    'o stand-by do período, ainda segurado', JSON.stringify(ad.pcp))
+  conferir(ne?.vezes === 1 && (ad.rotas?.por_caminhao ?? []).some((c) => c.caminhao === 'Baú M39' && c.vezes === 1),
+    'a não entrega por motivo e por caminhão', JSON.stringify(ad.rotas))
+  const filtrado = (await logado39m(E40.admin, `select public.plt_fn_dash_motivos(${periodo}, ${B}) as r`))[0].r
+  conferir(!achar(filtrado.producao?.pausas, `id:${maquina}`) && filtrado.pcp === null && filtrado.rotas === null,
+    'com o MT39 MONTAGEM escolhido: a pausa do CORTE some, e o PCP e as rotas saem do painel', JSON.stringify(filtrado))
+
+  titulo('SESSAO-39 · Motivos · o clique num motivo: as ocorrências, por cursor')
+
+  const det = await logado39m(M39.lider, `select * from public.plt_fn_dash_motivos_detalhe('pausa', 'id:${maquina}', ${periodo})`)
+  conferir(det.length === 1 && det[0].pessoa === 'Operador M39' && det[0].o_que === 'Lateral MT39' && det[0].onde === 'MT39 CORTE'
+      && Math.abs(Number(det[0].segundos) - 3600) <= 5,
+    'a pausa: quem, onde, qual card e quanto tempo', JSON.stringify(det))
+  const detSaida = await logado39m(M39.lider, `select * from public.plt_fn_dash_motivos_detalhe('saida', 'txt:médico', ${periodo})`)
+  conferir(detSaida.length === 1 && detSaida[0].motivo === 'Médico — consulta', 'a saída: o motivo escrito inteiro', JSON.stringify(detSaida))
+  const detNe = await logado39m(E40.admin, `select * from public.plt_fn_dash_motivos_detalhe('nao_entregue', 'id:${motNe}', ${periodo}, null, 1)`)
+  const depois = await logado39m(E40.admin, `select * from public.plt_fn_dash_motivos_detalhe('nao_entregue', 'id:${motNe}', ${periodo}, null, 1,
+                                                '${new Date(detNe[0]?.quando ?? Date.now()).toISOString()}', ${detNe[0]?.id ?? 0})`)
+  conferir(detNe.length === 1 && detNe[0].onde === 'Baú M39' && /^Pedido 939102/.test(detNe[0].o_que ?? '') && depois.length === 0,
+    'a não entrega: o caminhão e o pedido; a página seguinte (cursor) vem vazia', JSON.stringify({ detNe, depois }))
+  const detRotasLider = await logado39m(M39.lider, `select * from public.plt_fn_dash_motivos_detalhe('nao_entregue', 'id:${motNe}', ${periodo})`)
+  conferir(detRotasLider.length === 0, 'o líder de produção não lê o detalhe das rotas', JSON.stringify(detRotasLider))
+
+  titulo('SESSAO-39 · Motivos · quem não é líder não abre; período com teto; portas só para quem está logado')
+
+  await recusa39m(M39.op, `select public.plt_fn_dash_motivos(${periodo})`, 'o operador não abre o painel de motivos', /líderes e do admin/)
+  await recusa39m(M39.lider, `select public.plt_fn_dash_motivos(now() - interval '2 years', now())`, 'mais de um ano: recusado', /no máximo um ano/)
+  await recusa39m(M39.lider, `select * from public.plt_fn_dash_motivos_detalhe('xyz', 'outro', ${periodo})`, 'área desconhecida: recusada', /Área desconhecida/)
+  const priv = await um39m(`
+    select has_function_privilege('anon', 'public.plt_fn_dash_motivos(timestamptz, timestamptz, bigint)', 'execute') as anon,
+           has_function_privilege('authenticated', 'public.plt_fn_dash_motivos(timestamptz, timestamptz, bigint)', 'execute') as logado,
+           has_function_privilege('anon', 'public.plt_fn_dash_motivos_detalhe(text, text, timestamptz, timestamptz, bigint, integer, timestamptz, bigint)', 'execute') as det_anon,
+           has_function_privilege('authenticated', 'plt_privado.fn_motivos_alcance(bigint)', 'execute') as alcance`)
+  conferir(!priv.anon && priv.logado && !priv.det_anon && !priv.alcance,
+    'as portas só para quem está logado; a regra do alcance fora da API', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como39m('')
+}
+} // fim do bloco Motivos (SESSAO-39)
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(
