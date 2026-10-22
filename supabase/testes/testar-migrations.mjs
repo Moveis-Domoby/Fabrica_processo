@@ -17380,6 +17380,31 @@ try {
     'o pedido em stand-by aparece no dia da previsão, na cor do stand-by', JSON.stringify(doDia('2027-01-15')))
   conferir(sem.fora.sem_previsao >= 1 && sem.fora.atrasados_sem_rota >= 1,
     'o que não cabe em dia nenhum vem contado: sem previsão e sem rota com a previsão vencida', JSON.stringify(sem.fora))
+  // ↪️ 22/10 (2ª volta do calendário): tocar no pedido abre a ficha — o item traz o pedido
+  const pedidoDe = await um39r(`select (select pedido_id::int from public.plt_cards where id = ${p1}) as p1,
+                                       (select pedido_id::int from public.plt_cards where id = ${p4}) as p4`)
+  const itensSem = sem.dias.flatMap((d) => d.itens)
+  conferir(itensSem.every((i) => Number.isInteger(i.pedido_id))
+      && itensSem.find((i) => i.card_id === p1)?.pedido_id === pedidoDe.p1
+      && doDia('2027-01-14').itens.find((i) => i.card_id === p4)?.pedido_id === pedidoDe.p4,
+    'cada barra traz o pedido (a ficha abre no clique) — o sem rota e o não entregue também', JSON.stringify({ pedidoDe, itensSem }))
+  // A regra do vivo em duas partes (1b): a regra sozinha e a regra + prontidão dão o MESMO conjunto
+  const regra = await um39r(`
+    select (select count(*)::int from plt_privado.vw_pedidos_vivos) as vivos,
+           (select count(*)::int from (select card_id from plt_privado.vw_pedidos_vivos_regra
+                                       except select card_id from plt_privado.vw_pedidos_vivos) x) as so_na_regra,
+           (select count(*)::int from (select card_id from plt_privado.vw_pedidos_vivos
+                                       except select card_id from plt_privado.vw_pedidos_vivos_regra) x) as so_na_inteira,
+           (select count(*)::int from (select card_id, pedido_id, numero, cliente_id, data_prevista, situacao,
+                                              lancado_rotas_em, devolucao_evento_id, programacao_data, caminhao_id, rota, ordem, detalhe
+                                         from plt_privado.vw_pedidos_vivos
+                                       except select card_id, pedido_id, numero, cliente_id, data_prevista, situacao,
+                                              lancado_rotas_em, devolucao_evento_id, programacao_data, caminhao_id, rota, ordem, detalhe
+                                         from plt_privado.vw_pedidos_vivos_regra) x) as colunas_diferentes,
+           has_table_privilege('authenticated', 'plt_privado.vw_pedidos_vivos_regra', 'select') as aberta`)
+  conferir(regra.vivos > 0 && regra.so_na_regra === 0 && regra.so_na_inteira === 0 && regra.colunas_diferentes === 0 && !regra.aberta,
+    'a regra do pedido vivo sem a prontidão dá o mesmo conjunto (e as mesmas colunas) que a regra inteira — fechada ao navegador',
+    JSON.stringify(regra))
 
   titulo('SESSAO-39 · Rotas · o calendário pagina por dia, tem teto de período e é só da logística')
 
@@ -17387,6 +17412,9 @@ try {
   const prox = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-13', '2027-01-13', 1, 1) as r`))[0].r.dias[0]
   conferir(so1.total === 2 && so1.itens.length === 1 && prox.itens.length === 1 && so1.itens[0].card_id !== prox.itens[0].card_id,
     'com 1 por dia vem uma barra e o total 2; o "Ver mais" do dia traz a outra', JSON.stringify({ so1, prox }))
+  const proxFora = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-10', '2027-01-16', 30, 1) as r`))[0].r.fora
+  conferir(proxFora.atrasados_sem_rota === 0 && proxFora.sem_previsao === 0,
+    'o "Ver mais" de um dia não refaz a conta do aviso (a tela não mostra)', JSON.stringify(proxFora))
   await recusa39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-01', '2027-03-01')`,
     'mais de 6 semanas de uma vez: recusado', /no máximo 6 semanas/)
   await recusa39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-10', '2027-01-01')`,
@@ -17522,6 +17550,18 @@ try {
   conferir((l.producao?.pausas_por_setor ?? []).some((x) => x.setor_id === A && x.vezes === 1)
       && (l.producao?.pausas_por_pessoa ?? []).some((x) => x.nome === 'Operador M39'),
     'a pausa aparece por setor e por pessoa', JSON.stringify([l.producao?.pausas_por_setor, l.producao?.pausas_por_pessoa]))
+  const proj = await um39m(`
+    select (select segundos_uteis from public.plt_pessoa_pausas where card_id = ${card}) as pausa_util,
+           (select setor_id::int from public.plt_pessoa_pausas where card_id = ${card}) as pausa_setor,
+           (select jsonb_build_object('fim', fim is not null, 'seg', segundos_uteis, 'motivo', motivo)
+              from public.plt_presenca_saidas where usuario_id = '${opId}') as saida,
+           (select relrowsecurity from pg_class where oid = 'public.plt_presenca_saidas'::regclass) as rls,
+           (select count(*)::int from pg_policies where tablename = 'plt_presenca_saidas') as regras`)
+  conferir(Math.abs(Number(proj.pausa_util) - 3600) <= 5 && proj.pausa_setor === A
+      && proj.saida?.fim === true && Math.abs(Number(proj.saida?.seg) - 3600) <= 5 && proj.saida?.motivo === 'Médico — consulta'
+      && proj.rls && proj.regras === 0,
+    'as projeções: a pausa guarda o setor e o tempo útil ao terminar; a saída abre na saída e fecha na volta, com o tempo útil fora (tabela fechada)',
+    JSON.stringify(proj))
   const saida = achar(l.producao?.saidas, 'txt:médico')
   conferir(saida && saida.vezes === 1 && Math.abs(saida.segundos - 3600) <= 5 && saida.motivo === 'Médico',
     'a saída do setor: o motivo sem o detalhe, 1 vez, 1 hora fora', JSON.stringify(l.producao?.saidas))
@@ -17539,6 +17579,22 @@ try {
   const ne = achar(ad.rotas?.nao_entregue, `id:${motNe}`)
   conferir(sb?.vezes === 1 && sb.agora === 1 && ad.pcp.em_standby_agora >= 1,
     'o stand-by do período, ainda segurado', JSON.stringify(ad.pcp))
+  // A saída do stand-by nasce com o tempo útil segurado (1d); o painel soma o guardado
+  await logado39m(E40.admin, `select public.plt_fn_pcp_standby_sair(${pSb}, 'aguardando', null)`)
+  const sbSaiu = await um39m(`
+    select (s.dados ? 'segundos_uteis') as tem,
+           (s.dados ->> 'segundos_uteis')::bigint as guardado,
+           extract(epoch from plt_privado.fn_tempo_util(e.ocorrido_em, s.ocorrido_em,
+                   (select id from public.plt_setores where codigo = 'pcp'), null))::bigint as conta,
+           s.dados ->> 'destino' as destino
+      from public.plt_eventos s join public.plt_eventos e on e.id = s.evento_referencia_id
+     where s.card_id = ${pSb} and s.tipo = 'pedido_standby_saiu'`)
+  const ad2 = (await logado39m(E40.admin, `select public.plt_fn_dash_motivos(${periodo}) as r`))[0].r
+  const sb2 = achar(ad2.pcp?.standby, `id:${motSb}`)
+  conferir(sbSaiu.tem && Number(sbSaiu.guardado) === Number(sbSaiu.conta) && sbSaiu.destino === 'aguardando'
+      && sb2?.vezes === 1 && sb2.agora === 0 && Number(sb2.segundos) === Number(sbSaiu.guardado),
+    'a saída do stand-by nasce com o tempo útil segurado (o mesmo da conta) e o painel soma o guardado',
+    JSON.stringify({ sbSaiu, sb2 }))
   conferir(ne?.vezes === 1 && (ad.rotas?.por_caminhao ?? []).some((c) => c.caminhao === 'Baú M39' && c.vezes === 1),
     'a não entrega por motivo e por caminhão', JSON.stringify(ad.rotas))
   const filtrado = (await logado39m(E40.admin, `select public.plt_fn_dash_motivos(${periodo}, ${B}) as r`))[0].r

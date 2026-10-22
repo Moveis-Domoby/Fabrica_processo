@@ -11,7 +11,11 @@
 --    do corpo vivo conferido = d7047a66229431031646b7ebd3e9f075.)
 -- 2. O calendário da programação (D-175): plt_fn_rotas_calendario — uma
 --    requisição por semana ou por mês, cada pedido no seu dia na cor da
---    situação — + o índice parcial do "não entregue" pelo dia da rota.
+--    situação (com o pedido_id: tocar no pedido abre a ficha dele) — + o
+--    índice parcial do "não entregue" pelo dia da rota.
+-- 1b. A regra do pedido vivo em duas partes (Lei §8): vw_pedidos_vivos_regra
+--    (só o "é vivo?") e vw_pedidos_vivos = a regra + a prontidão, mesmas
+--    colunas — o calendário lê só a regra (ensaio ×100: ~343 → ~35 ms).
 --
 -- Nada aqui toca as tabelas da integração. Aditiva e compatível com o site
 -- publicado (a chave nova no JSON é ignorada pela tela antiga). Idempotente.
@@ -150,6 +154,82 @@ create index if not exists plt_eventos_nao_entregue_dia_idx
   where tipo = 'entrega_nao_realizada';
 
 -- ----------------------------------------------------------------------------
+-- 1b · A REGRA DO PEDIDO VIVO EM DUAS PARTES (Lei §8 — ensaio ×100, 5.000
+--      vivos: a regra inteira custava ~343 ms, e ~95% disso é a PRONTIDÃO —
+--      peças liberadas/prontas de cada pedido, que o calendário nem mostra).
+--      vw_pedidos_vivos_regra = SÓ o "é vivo?" (D-133 + D-140), sem a
+--      prontidão; vw_pedidos_vivos = a regra + a prontidão, com as MESMAS
+--      colunas na mesma ordem (Expedição, Programação, ROTAS e Entregas não
+--      mudam nada). A regra continua tendo um dono só (M-04): esta view.
+--      "Tem peça na fábrica" = existe card de peça não arquivado do pedido —
+--      a mesma conta de `unidades_liberadas > 0` da prontidão.
+--      Semana do calendário no ensaio: a parte dos sem rota 343 → ~35 ms.
+-- ----------------------------------------------------------------------------
+create or replace view plt_privado.vw_pedidos_vivos_regra as
+select pc.id                    as card_id,
+       p.id                     as pedido_id,
+       p.numero,
+       p.cliente_id,
+       p.data_prevista,
+       p.situacao,
+       pc.lancado_rotas_em,
+       pc.devolucao_evento_id,
+       pr.data_entrega          as programacao_data,
+       pr.caminhao_id,
+       pr.rota::int             as rota,
+       pr.ordem,
+       pr.detalhe
+  from public.plt_cards pc
+  join public.pedidos p on p.id = pc.pedido_id
+  left join public.plt_programacoes pr on pr.card_id = pc.id
+ where pc.tipo = 'pedido'
+   and pc.arquivado_em is null
+   -- sem entrega registrada na plataforma
+   and pc.entrega_evento_id is null
+   -- não encerrado no Tiny (entregue, não entregue, cancelado)
+   and plt_privado.fn_situacao_normalizada(p.situacao) not in ('entregue', 'nao_entregue', 'cancelado')
+   -- D-132/D-133: o que o Tiny já levou adiante só fica com peça dele na fábrica
+   and (not plt_privado.fn_tiny_tirou_do_pcp(p.situacao)
+        or exists (select 1 from public.plt_cards cu
+                    where cu.pedido_id = p.id and cu.tipo = 'unidade' and cu.arquivado_em is null))
+   -- D-140: excluído no Tiny não existe em módulo nenhum
+   and not exists (select 1 from public.plt_pedidos_excluidos_tiny x where x.pedido_id = p.id);
+
+comment on view plt_privado.vw_pedidos_vivos_regra is
+  'SESSAO-39 (Lei §8): a REGRA do pedido vivo, sem a prontidão — card do pedido não arquivado, sem entrega, não encerrado no Tiny, o levado adiante pelo Tiny só com peça na fábrica (D-133), nunca o excluído no Tiny (D-140); com a programação. Dono único da regra: vw_pedidos_vivos = esta + vw_pedido_prontidao. Quem não mostra prontidão (o calendário) lê daqui.';
+
+create or replace view plt_privado.vw_pedidos_vivos as
+select r.card_id,
+       r.pedido_id,
+       r.numero,
+       r.cliente_id,
+       r.data_prevista,
+       r.situacao,
+       r.lancado_rotas_em,
+       r.devolucao_evento_id,
+       pp.total_unidades,
+       pp.a_entregar,
+       pp.unidades_liberadas,
+       pp.unidades_prontas,
+       pp.primeira_pronta_em,
+       pp.ultima_pronta_em,
+       pp.pronto,
+       pp.estado,
+       r.programacao_data,
+       r.caminhao_id,
+       r.rota,
+       r.ordem,
+       r.detalhe
+  from plt_privado.vw_pedidos_vivos_regra r
+  join plt_privado.vw_pedido_prontidao pp on pp.card_id = r.card_id;
+
+comment on view plt_privado.vw_pedidos_vivos is
+  'SESSAO-38 (D-156) · SESSAO-39: o pedido VIVO — a regra (vw_pedidos_vivos_regra: não arquivado, sem entrega, não encerrado no Tiny, o levado adiante pelo Tiny só com peça na fábrica — D-133, nunca o excluído no Tiny — D-140) + a prontidão (vw_pedido_prontidao) e a programação. A Expedição lê daqui.';
+
+revoke all on plt_privado.vw_pedidos_vivos_regra, plt_privado.vw_pedidos_vivos
+  from public, anon, authenticated;
+
+-- ----------------------------------------------------------------------------
 -- 2 · O CALENDÁRIO da programação (D-175) — o modo "Calendário" de Rotas →
 --     Programação, no formato do calendário da lista ROTAS do ClickUp que o
 --     dono mostrou (semana de domingo a sábado; uma barra por pedido, na cor
@@ -199,6 +279,7 @@ begin
     select pr.data_entrega                                   as dia,
            case when pc.entrega_evento_id is not null then 'entregue' else 'na_rota' end as situacao,
            pc.id                                             as card_id,
+           p.id                                              as pedido_id,
            p.numero,
            coalesce(nullif(btrim(c.bairro), ''), nullif(btrim(c.cidade), '')) as bairro,
            p.data_prevista,
@@ -221,6 +302,7 @@ begin
     select (e.dados ->> 'data_entrega')::date,
            'nao_entregue',
            e.card_id,
+           p.id,
            p.numero,
            coalesce(nullif(btrim(c.bairro), ''), nullif(btrim(c.cidade), '')),
            p.data_prevista,
@@ -242,6 +324,7 @@ begin
     select v.data_prevista,
            case when pc.standby_desde is not null then 'standby' else 'sem_rota' end,
            v.card_id,
+           v.pedido_id,
            v.numero,
            coalesce(nullif(btrim(c.bairro), ''), nullif(btrim(c.cidade), '')),
            v.data_prevista,
@@ -251,7 +334,8 @@ begin
            null,
            null,
            pc.standby_motivo
-      from plt_privado.vw_pedidos_vivos v
+      -- a REGRA do vivo, sem a prontidão (o calendário não mostra peça pronta — 1b)
+      from plt_privado.vw_pedidos_vivos_regra v
       join public.plt_cards pc on pc.id = v.card_id
       left join public.clientes c on c.id = v.cliente_id
      where v.programacao_data is null
@@ -277,7 +361,8 @@ begin
              'standby',      count(*) filter (where n.situacao = 'standby')
            ) as contagem,
            coalesce(jsonb_agg(jsonb_build_object(
-                      'situacao', n.situacao, 'card_id', n.card_id, 'numero', n.numero,
+                      'situacao', n.situacao, 'card_id', n.card_id, 'pedido_id', n.pedido_id,
+                      'numero', n.numero,
                       'bairro', n.bairro, 'previsao', n.data_prevista, 'detalhe', n.detalhe,
                       'caminhao_id', n.caminhao_id, 'caminhao_nome', n.caminhao_nome,
                       'rota', n.rota, 'ordem', n.ordem, 'motivo', n.motivo)
@@ -292,16 +377,23 @@ begin
     into v_dias
     from por_dia d;
 
-  -- O que não cabe em dia nenhum da tela: sem rota com a previsão vencida e sem previsão.
-  select jsonb_build_object(
-           'atrasados_sem_rota', count(*) filter (where v.data_prevista < v_hoje),
-           'sem_previsao',       count(*) filter (where v.data_prevista is null))
-    into v_resumo
-    from plt_privado.vw_pedidos_vivos v
-    join public.plt_cards pc on pc.id = v.card_id
-   where v.programacao_data is null
-     and v.devolucao_evento_id is null
-     and pc.standby_desde is null;
+  -- O que não cabe em dia nenhum da tela: sem rota com a previsão vencida e sem
+  -- previsão. O "+N" de um dia (deslocamento > 0) não mostra o aviso — não conta.
+  if v_desloc > 0 then
+    v_resumo := jsonb_build_object('atrasados_sem_rota', 0, 'sem_previsao', 0);
+  else
+    select jsonb_build_object(
+             'atrasados_sem_rota', count(*) filter (where v.data_prevista < v_hoje),
+             'sem_previsao',       count(*) filter (where v.data_prevista is null))
+      into v_resumo
+      from plt_privado.vw_pedidos_vivos_regra v
+      join public.plt_cards pc on pc.id = v.card_id
+     where v.programacao_data is null
+       and v.devolucao_evento_id is null
+       and pc.standby_desde is null
+       -- só os que contam (o filtro desce até os pedidos)
+       and (v.data_prevista < v_hoje or v.data_prevista is null);
+  end if;
 
   return jsonb_build_object('de', p_de, 'ate', p_ate, 'hoje', v_hoje,
                             'por_dia', v_por_dia, 'dias', v_dias, 'fora', v_resumo);
