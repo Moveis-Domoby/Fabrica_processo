@@ -8451,6 +8451,10 @@ conferir(
 
 titulo('SESSAO-29 · a fila vazia fecha a rodada: UMA linha no log com o que mudou, e o relógio se desliga')
 
+// (migration 107 — D-148: a mesma madrugada põe na fila a conferência dos
+// registros que o Tiny não avisa; aqui ela não é o assunto — o bloco 107 a prova)
+await bd.exec(`update public.tiny_fila set status = 'ok', processado_em = now()
+                where params ? 'conferencia' and status in ('pendente', 'processando')`)
 const fim1 = (await um49(`select plt_privado.fn_tiny_fila_relogio() as r`)).r
 const resumo1 = await todos49(`select payload from public.eventos where tipo = 'pente_fino' and payload->>'rodada' = '${ini1.rodada}'`)
 const r1 = resumo1[0]?.payload
@@ -16722,6 +16726,370 @@ conferir(checks5.length === 2 && checks5.every((c) => c.convalidated),
 conferir(!priv5.entra_anon && priv5.entra_logado && !priv5.sai_anon && !priv5.regua_anon && !priv5.tempo_logado && !priv5.concluir_logado,
   'as portas do stand-by e a régua só para quem está logado; os ajudantes fora da API', JSON.stringify(priv5))
 } // fim do bloco F5 (SESSAO-38)
+
+{ // escopo próprio (E-70)
+// ============================================================================
+// SESSAO-33 (frente de 21/10) — bloco 107 (migration 107, D-148): o que o Tiny
+// não avisa fica em dia pela conferência da madrugada (a lista completa; só
+// relê o que mudou; o que sumiu é conferido um a um e marcado — nunca apagado),
+// o produto apagado no Tiny some de todas as telas, o painel confere as somas
+// com a leitura mais nova e a renovação da fábrica tem a vez de 30 min.
+// Tudo numa transação desfeita (A-68); as recusas só por has_function_privilege.
+// ============================================================================
+const um101 = async (sql) => (await bd.query(sql)).rows[0]
+const todos101 = async (sql) => (await bd.query(sql)).rows
+const j101 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const SUPER101 = '00000000-0000-0000-0000-000000001010'
+const como101 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const reservar101 = (id) => bd.exec(`update public.tiny_fila set status = 'processando', reservado_em = now() where id = ${id}`)
+const responder101 = async (id, resposta) => {
+  await reservar101(id)
+  return (await um101(`select public.fn_tiny_fila_resposta(${id}, ${j101(resposta)}) as r`)).r
+}
+const v2e101 = (retorno) => ({ api: 'v2', corpo: { retorno: { status: 'OK', ...retorno } } })
+const v2nao101 = (msg) => ({ api: 'v2', corpo: { retorno: { status: 'Erro', codigo_erro: '32', erros: [{ erro: msg }] } } })
+const linha101 = (conta, recurso, chave) =>
+  um101(`select id::int as id, status, prioridade::int as prioridade, params, erro from public.tiny_fila
+          where conta = '${conta}' and recurso = '${recurso}' and chave = '${chave}'`)
+const reg101 = (conta, tipo, chave) =>
+  um101(`select chave, resumo_hash, to_char(data, 'YYYY-MM-DD') as data, sumiu_em is not null as sumiu, sumiu_motivo, raw
+           from public.plt_tiny_registros where conta = '${conta}' and tipo = '${tipo}' and chave = '${chave}'`)
+const md5101 = async (o) => (await um101(`select md5(${j101(o)}::text) as h`)).h
+const mes101 = () => um101(`select coalesce(sum(n), 0)::int as n, coalesce(sum(soma), 0)::numeric as soma
+                              from public.plt_tiny_registros_mes
+                             where conta = 'fabrica' and tipo = 'conta_pagar' and mes = date '2026-03-01'`)
+const P = { movel: 1010001, peca: 1010002, insumo: 1010003, mesa: 1010004, vivo: 1010005 }
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    update public.tiny_fila set status = 'ok' where status in ('pendente', 'processando');
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id)
+    values ('Dono 101', 'dono101@teste.com', '10100000101', 'dono.101', 'admin', '${SUPER101}');
+    update public.plt_usuarios set super_admin = true where usuario = 'dono.101';
+    insert into public.tiny_auth (id, access_token, refresh_token, updated_at)
+    values (1, 'acesso-loja-101', 'renova-loja-101', now()), (2, 'acesso-fabrica-101', 'renova-fabrica-101', now())
+    on conflict (id) do update set access_token = excluded.access_token, refresh_token = excluded.refresh_token,
+                                   updated_at = excluded.updated_at;
+  `)
+  const foto = (n) => [{ anexo: `https://s3.amazonaws.com/tiny-anexos-1/teste101/${n}.jpg` }]
+  for (const p of [
+    { id: String(P.movel), codigo: 'M101', nome: 'AAA Teste 101 cadeira apagada', classe_produto: 'F', unidade: 'UN', situacao: 'A', anexos: foto('m') },
+    { id: String(P.peca), codigo: 'PC101', nome: 'AAA Teste 101 peça apagada', classe_produto: 'M', unidade: '', situacao: 'A', anexos: foto('p') },
+    { id: String(P.insumo), codigo: 'IN101', nome: 'AAA Teste 101 insumo vivo', classe_produto: 'M', unidade: '', situacao: 'A', anexos: foto('i') },
+    { id: String(P.mesa), codigo: 'ME101', nome: 'AAA Teste 101 mesa viva', classe_produto: 'F', unidade: 'UN', situacao: 'A', anexos: foto('me') },
+    { id: String(P.vivo), codigo: 'VI101', nome: 'AAA Teste 101 vai sumir', classe_produto: 'M', unidade: 'UN', situacao: 'A' },
+  ]) await bd.exec(`select public.fn_upsert_produto(${j101(p)})`)
+
+  titulo('SESSAO-33 · bloco 107 · na aplicação: os produtos que o Tiny já disse que não existem saem das telas e da fila do estoque com o Tiny; as datas dos registros (de novo = zeros)')
+
+  await bd.exec(`
+    insert into public.tiny_fila (conta, recurso, chave, status, erro, params, processado_em) values
+      ('fabrica', 'estoque', '${P.movel}', 'vazio', 'codigo 32: Produto não localizado', '{"origem":"carga","carga":"K101"}', now()),
+      ('fabrica', 'estoque', '${P.peca}', 'vazio', 'codigo 32: Produto não localizado', '{"origem":"carga","carga":"K101"}', now()),
+      ('fabrica', 'estoque', '${P.insumo}', 'ok', null, '{"origem":"carga","carga":"K101"}', now())
+    on conflict (conta, recurso, chave) do update set status = excluded.status, erro = excluded.erro;
+    insert into public.plt_tiny_estoque_fila (produto_tiny_id, motivo) values (${P.movel}, 'varredura'), (${P.mesa}, 'varredura')
+    on conflict (produto_tiny_id) do nothing;
+    insert into public.plt_tiny_registros (conta, tipo, chave, raw, hash)
+    values ('fabrica', 'conta_pagar', 'cp101-sem-data', '{"id":"cp101-sem-data","data":"07/04/2026","valor":"1"}', 'h101');
+  `)
+  const ac1 = (await um101(`select plt_privado.fn_tiny_conferencia_acertar() as r`)).r
+  const ac2 = (await um101(`select plt_privado.fn_tiny_conferencia_acertar() as r`)).r
+  const excl1 = await todos101(`select tiny_id::bigint as id from public.plt_produtos_excluidos_tiny where tiny_id between 1010001 and 1010005 order by 1`)
+  const fe1 = await todos101(`select produto_tiny_id::bigint as id from public.plt_tiny_estoque_fila where produto_tiny_id in (${P.movel}, ${P.mesa}) order by 1`)
+  const semData = await reg101('fabrica', 'conta_pagar', 'cp101-sem-data')
+  conferir(
+    ac1.produtos_excluidos >= 2 && ac1.datas >= 1 && ac2.produtos_excluidos === 0 && ac2.datas === 0
+      && JSON.stringify(excl1.map((x) => Number(x.id))) === JSON.stringify([P.movel, P.peca])
+      && JSON.stringify(fe1.map((x) => Number(x.id))) === JSON.stringify([P.mesa])
+      && semData.data === '2026-04-07',
+    'o acerto marca os produtos que a leitura do estoque achou "não localizado" (o lido não), tira da fila do estoque com o Tiny só o apagado, dá a data aos registros — e rodar de novo não muda nada',
+    JSON.stringify({ ac1, ac2, excl1, fe1, semData }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · o produto apagado no Tiny some de todas as telas (como o pedido apagado — D-148) e não se pergunta mais ao Tiny por ele')
+
+  await bd.exec(`
+    insert into public.plt_produto_componentes (produto_tiny_id, componente_tiny_id, quantidade, codigo, nome) values
+      (${P.mesa}, ${P.peca}, 4, 'PC101', 'peça apagada'), (${P.mesa}, ${P.insumo}, 2, 'IN101', 'insumo vivo'),
+      (${P.movel}, ${P.insumo}, 1, 'IN101', 'insumo vivo')
+    on conflict do nothing;
+  `)
+  await como101(SUPER101)
+  const clas = await todos101(`select tiny_id::bigint as id from public.plt_fn_produtos_classificacao('AAA Teste 101', null, null, null, null, 100, 0)`)
+  const est = (await um101(`select public.plt_fn_produto_estrutura(${P.mesa}) as r`)).r
+  const usado = (await um101(`select public.plt_fn_produto_estrutura(${P.insumo}) as r`)).r
+  await bd.exec('savepoint s101a')
+  let estApagado = null
+  try { await um101(`select public.plt_fn_produto_estrutura(${P.peca}) as r`) } catch (e) { estApagado = e.message }
+  await bd.exec('rollback to savepoint s101a')
+  const vinc = await todos101(`select id::bigint as id from public.plt_fn_vinculo_buscar('produto', 'AAA Teste 101', false, 20)`)
+  let unid = []
+  for (let pg = 0; pg < 30; pg++) {
+    const pag = await todos101(`select tiny_id::bigint as id from public.plt_fn_produtos_unidades(100, ${pg * 100})`)
+    unid = unid.concat(pag.map((x) => Number(x.id)))
+    if (pag.length < 100) break
+  }
+  await como101('')
+  const porProduto = await todos101(`select tiny_id::bigint as id from plt_privado.fn_estoque_por_produto() where tiny_id between 1010001 and 1010005 order by 1`)
+  const contado = await um101(`select plt_privado.fn_eh_acabado_contado(${P.movel}) as apagado, plt_privado.fn_eh_acabado_contado(${P.mesa}) as vivo`)
+  const fotos = await todos101(`select produto_tiny_id::bigint as id from public.plt_fn_fotos_tiny_pendentes(20)`)
+  const ids = (l) => l.map((x) => Number(x.id ?? x.tiny_id))
+  const comps = (est?.componentes ?? []).map((c) => Number(c.tiny_id))
+  conferir(
+    !ids(clas).includes(P.movel) && !ids(clas).includes(P.peca) && ids(clas).includes(P.insumo) && ids(clas).includes(P.mesa)
+      && JSON.stringify(comps) === JSON.stringify([P.insumo])
+      && usado.usado_em_total === 1 && (usado.usado_em ?? []).every((u) => Number(u.tiny_id) === P.mesa)
+      && /Produto não encontrado/.test(estApagado ?? '')
+      && !ids(vinc).includes(P.movel) && !ids(vinc).includes(P.peca) && ids(vinc).includes(P.mesa)
+      && !unid.includes(P.peca) && unid.includes(P.insumo)
+      && !ids(porProduto).includes(P.movel) && !ids(porProduto).includes(P.peca) && ids(porProduto).includes(P.mesa)
+      && contado.apagado === false && contado.vivo === true
+      && !ids(fotos).includes(P.movel) && !ids(fotos).includes(P.peca),
+    'o apagado sai de Configurações (móveis, insumos e peças; unidades fora do padrão; a estrutura — do que é feito e onde é usado), da busca de vínculo, do estoque e das fotos do Tiny, e não se conta nem se pergunta ao Tiny; o vivo segue em tudo',
+    JSON.stringify({ clas: ids(clas), comps, usado, estApagado, vinc: ids(vinc), unidTem: [P.peca, P.insumo].map((p) => unid.includes(p)), porProduto, contado, fotos: ids(fotos) }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · a conferência começa pela madrugada (sem relógio novo): a lista completa de cada tipo, prioridade 8, as contas a pagar mês a mês do piso de cada conta')
+
+  const ini = (await um101(`select plt_privado.fn_tiny_conferencia_iniciar('teste101') as r`)).r
+  const conf = await todos101(`
+    select conta, recurso, chave, prioridade::int as prioridade, params
+      from public.tiny_fila where params ? 'conferencia' and params->>'conferencia' = '${ini.rodada}' order by conta, recurso, chave`)
+  const meses = await um101(`
+    select (select count(*)::int from plt_privado.fn_tiny_janelas(date '2025-01-01') w where w.fim >= plt_privado.fn_tiny_piso('loja')) as loja,
+           (select count(*)::int from plt_privado.fn_tiny_janelas(date '2025-01-01')) as fabrica,
+           to_char(plt_privado.fn_tiny_piso('loja'), 'DD/MM/YYYY') as piso_loja,
+           (select ultima_conferencia from public.plt_tiny_controle where id = 1) as ultima`)
+  const de = (conta, recurso) => conf.filter((x) => x.conta === conta && x.recurso === recurso)
+  const cpLoja = de('loja', 'cp_pesquisa')
+  const unicas = ['pedidos_pesquisa', 'nf_pesquisa', 'cr_pesquisa'].map((r) => de('fabrica', r)[0])
+  conferir(
+    conf.length > 0 && conf.every((x) => x.prioridade === 8 && x.params.origem === 'conferencia')
+      && unicas.every((u) => u && u.chave.endsWith(':tudo')
+        && (u.params.dataInicial ?? u.params.data_ini_emissao) === '01/01/2015')
+      && de('fabrica', 'v3_ordens_compra').length === 1 && de('fabrica', 'produtos_pesquisa').length === 1
+      && de('loja', 'pedidos_pesquisa').length === 0 && de('loja', 'produtos_pesquisa').length === 0
+      && cpLoja.length === meses.loja && de('fabrica', 'cp_pesquisa').length === meses.fabrica
+      && cpLoja.every((x) => x.params.data_ini_emissao >= '' ) && cpLoja.some((x) => x.params.data_ini_emissao === meses.piso_loja || meses.loja === 0)
+      && meses.ultima === ini.rodada && ini.linhas === conf.length,
+    'fábrica: pedidos, notas e contas a receber (uma janela desde 2015), pedidos de compra e o catálogo; as duas contas: as contas a pagar mês a mês, a loja a partir do piso do plano; tudo na prioridade 8 (fora do interruptor da carga) e a rodada no controle',
+    JSON.stringify({ ini, n: conf.length, meses, unicas: unicas.map((u) => u?.chave), cpLoja: cpLoja.slice(0, 2).map((x) => x.params) }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · uma janela das contas a pagar: só relê o novo, o mudado e o que tinha sumido; guarda os ids; a página seguinte não leva as marcas ao Tiny')
+
+  const L = {
+    cp1: { id: 'cp101-1', data_emissao: '05/03/2026', valor: '100', situacao: 'aberto' },
+    cp2: { id: 'cp101-2', data_emissao: '10/03/2026', valor: '200', situacao: 'aberto' },
+    cp4: { id: 'cp101-4', data_emissao: '20/03/2026', valor: '40', situacao: 'aberto' },
+    cp5: { id: 'cp101-5', data_emissao: '25/03/2026', valor: '50', situacao: 'aberto' },
+  }
+  const mesAntes = await mes101()
+  for (const [chave, data, valor] of [['cp101-1', '05/03/2026', '100'], ['cp101-2', '10/03/2026', '150'], ['cp101-3', '15/03/2026', '30'],
+                                      ['cp101-4', '20/03/2026', '40'], ['cp101-6', '28/03/2026', '60'], ['cp101-9', '03/04/2026', '9']]) {
+    await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'conta_pagar', '${chave}', ${j101({ id: chave, data, valor, situacao: 'aberto' })})`)
+  }
+  await bd.exec(`
+    update public.plt_tiny_registros set resumo_hash = '${await md5101(L.cp1)}' where conta = 'fabrica' and tipo = 'conta_pagar' and chave = 'cp101-1';
+    update public.plt_tiny_registros set resumo_hash = 'velho' where conta = 'fabrica' and tipo = 'conta_pagar' and chave = 'cp101-2';
+    select plt_privado.fn_tiny_registro_sumir('fabrica', 'conta_pagar', 'cp101-4', 'fora_da_lista');
+  `)
+  const p1 = await linha101('fabrica', 'cp_pesquisa', 'conferencia:cp_pesquisa:2026-03')
+  const r1 = await responder101(p1.id, v2e101({ pagina: 1, numero_paginas: 2, contas: [{ conta: L.cp1 }, { conta: L.cp2 }] }))
+  const det = async (chave) => linha101('fabrica', 'conta_pagar', chave)
+  const d1 = await det('cp101-1')
+  const d2 = await det('cp101-2')
+  const p1depois = await linha101('fabrica', 'cp_pesquisa', 'conferencia:cp_pesquisa:2026-03')
+  const p2 = await linha101('fabrica', 'cp_pesquisa', 'conferencia:cp_pesquisa:2026-03:p2')
+  const camposP2 = (await um101(`select plt_privado.fn_tiny_requisicao(f) as r from public.tiny_fila f where id = ${p2.id}`)).r.campos
+  conferir(
+    r1.ok === true && r1.conferencia === undefined
+      && (d1 === undefined || d1.params?.conferencia !== ini.rodada)
+      && d2?.status === 'pendente' && d2.prioridade === 8 && d2.params.resumo_hash === await md5101(L.cp2)
+      && JSON.stringify([...p1depois.params.ids].sort()) === JSON.stringify(['cp101-1', 'cp101-2'])
+      && p2?.status === 'pendente' && !('ids' in p2.params) && p2.params.pagina === 2 && p2.params.conferencia === ini.rodada
+      && camposP2.pagina === 2 && ['conferencia', 'ids', 'origem', 'janela', 'motivo'].every((k) => !(k in camposP2)),
+    'na 1ª página: o igual ao resumo guardado não é relido, o mudado é (prioridade 8, com o resumo novo); a página guarda os ids que trouxe; a seguinte nasce sem eles e o pedido ao Tiny só leva os filtros',
+    JSON.stringify({ r1, d1: d1?.params, d2, ids: p1depois.params.ids, p2: p2?.params, camposP2 }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · a última página fecha a janela: o que temos com a data no mês e a lista não trouxe é conferido um a um')
+
+  const r2 = await responder101(p2.id, v2e101({ pagina: 2, numero_paginas: 2, contas: [{ conta: L.cp4 }, { conta: L.cp5 }] }))
+  const d4 = await det('cp101-4')
+  const d5 = await det('cp101-5')
+  const c3 = await det('cp101-3')
+  const c6 = await det('cp101-6')
+  const c9 = await det('cp101-9')
+  conferir(
+    r2.conferencia?.vistos === 4 && r2.conferencia?.guardados === 4 && r2.conferencia?.candidatos === 2
+      && d4?.status === 'pendente' && d5?.status === 'pendente' && d4.params.resumo_hash && d5.params.resumo_hash
+      && c3?.status === 'pendente' && c3.params.confirmar === true && c3.prioridade === 8
+      && c6?.status === 'pendente' && c6.params.confirmar === true
+      && (c9 === undefined || c9.params?.confirmar !== true),
+    'a lista trouxe 4; temos 4 no mês sem contar o sumido (1, 2, 3 e 6): o sumido que voltou e o novo são relidos, o 3 e o 6 vão para a confirmação; o de abril (outra janela) não',
+    JSON.stringify({ r2, d4: d4?.params, d5: d5?.params, c3: c3?.params, c6: c6?.params, c9: c9?.params }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · as respostas: "não localizado" marca apagado; o Tiny tem mas a lista não mostra = fora da lista; o que voltou deixa de estar sumido — e o resumo do mês acompanha')
+
+  await responder101(d2.id, v2e101({ conta: { ...L.cp2, data: '10/03/2026' } }))
+  await responder101(d4.id, v2e101({ conta: { id: 'cp101-4', data: '20/03/2026', valor: '40', situacao: 'aberto' } }))
+  await responder101(d5.id, v2e101({ conta: { id: 'cp101-5', data: '25/03/2026', valor: '50', situacao: 'aberto' } }))
+  await responder101(c3.id, v2nao101('Conta não localizada'))
+  await responder101(c6.id, v2e101({ conta: { id: 'cp101-6', data: '28/03/2026', valor: '60', situacao: 'cancelada' } }))
+  const g2 = await reg101('fabrica', 'conta_pagar', 'cp101-2')
+  const g3 = await reg101('fabrica', 'conta_pagar', 'cp101-3')
+  const g4 = await reg101('fabrica', 'conta_pagar', 'cp101-4')
+  const g5 = await reg101('fabrica', 'conta_pagar', 'cp101-5')
+  const g6 = await reg101('fabrica', 'conta_pagar', 'cp101-6')
+  const l3 = await det('cp101-3')
+  const mesDepois = await mes101()
+  conferir(
+    g2.resumo_hash === await md5101(L.cp2) && g2.raw.valor === '200' && !g2.sumiu
+      && g3.sumiu && g3.sumiu_motivo === 'apagado' && l3.status === 'vazio'
+      && !g4.sumiu && g4.sumiu_motivo === null && g5 && !g5.sumiu && g5.data === '2026-03-25'
+      && g6.sumiu && g6.sumiu_motivo === 'fora_da_lista' && g6.raw.situacao === 'cancelada'
+      && mesDepois.n - mesAntes.n === 4 && Number(mesDepois.soma) - Number(mesAntes.soma) === 390,
+    'o 3 (o Tiny disse que não existe) fica sumido: apagado — nada se apaga; o 6 (existe, cancelado, a lista não mostra) fica fora da lista; o 4 voltou; o 2 guardou o resumo novo; o mês conta 1, 2, 4 e 5 (R$ 390) — o 3 e o 6 saíram dele',
+    JSON.stringify({ g2: g2.resumo_hash, g3, g4: g4.sumiu, g5: g5?.data, g6: g6.sumiu_motivo, mesAntes, mesDepois }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · a trava: lista que vem com menos da metade do que temos não marca nada e avisa o dono')
+
+  for (let i = 1; i <= 25; i++) {
+    await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'nota_fiscal', 'nf101-${i}', ${j101({ id: `nf101-${i}`, data_emissao: '02/02/2026', situacao: '6' })})`)
+  }
+  const avAntes = (await um101(`select count(*)::int as n from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+                                  where u.auth_user_id = '${SUPER101}' and n.titulo = 'A lista do Tiny veio incompleta'`)).n
+  const pn = await linha101('fabrica', 'nf_pesquisa', 'conferencia:nf_pesquisa:tudo')
+  const rn = await responder101(pn.id, v2e101({ pagina: 1, numero_paginas: 1,
+    notas_fiscais: [1, 2, 3].map((i) => ({ nota_fiscal: { id: `nf101-${i}`, situacao: '6' } })) }))
+  const confNf = (await um101(`select count(*)::int as n from public.tiny_fila where conta = 'fabrica' and recurso = 'nota_fiscal'
+                                and chave like 'nf101-%' and params->>'confirmar' = 'true'`)).n
+  const avDepois = (await um101(`select count(*)::int as n from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+                                   where u.auth_user_id = '${SUPER101}' and n.titulo = 'A lista do Tiny veio incompleta'`)).n
+  const pnDepois = await linha101('fabrica', 'nf_pesquisa', 'conferencia:nf_pesquisa:tudo')
+  conferir(
+    rn.conferencia?.trava === true && confNf === 0 && avDepois === avAntes + 1 && pnDepois.params.trava === true
+      && rn.conferencia.vistos === 3 && rn.conferencia.guardados >= 25,
+    'a lista trouxe 3 de 25 ou mais: nenhuma confirmação, um aviso no sino do dono e a marca na janela',
+    JSON.stringify({ rn, confNf, avAntes, avDepois }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · o catálogo da fábrica: o que voltou a aparecer volta às telas; o que sumiu é confirmado e, "não localizado", sai das telas')
+
+  const todosProdutos = await todos101(`select tiny_id::text as id from public.produtos where tiny_id <> ${P.vivo}
+                                          and not exists (select 1 from public.plt_produtos_excluidos_tiny x where x.tiny_id = produtos.tiny_id and x.tiny_id <> ${P.peca})`)
+  const pp = await linha101('fabrica', 'produtos_pesquisa', 'conferencia:produtos_pesquisa:tudo')
+  const rp = await responder101(pp.id, v2e101({ pagina: 1, numero_paginas: 1, produtos: todosProdutos.map((p) => ({ produto: { id: p.id } })) }))
+  const voltou = (await um101(`select not exists (select 1 from public.plt_produtos_excluidos_tiny where tiny_id = ${P.peca}) as v`)).v
+  const confVivo = await linha101('fabrica', 'produto', String(P.vivo))
+  const detalheDeOutro = (await um101(`select count(*)::int as n from public.tiny_fila where conta = 'fabrica' and recurso = 'produto'
+                                         and params->>'conferencia' = '${ini.rodada}' and coalesce(params->>'confirmar', '') <> 'true'`)).n
+  await responder101(confVivo.id, v2nao101('Produto não localizado'))
+  const sumiu = (await um101(`select exists (select 1 from public.plt_produtos_excluidos_tiny where tiny_id = ${P.vivo}) as v`)).v
+  const aquiProd = (await um101(`select plt_privado.fn_tiny_aqui('fabrica', 'produtos_pesquisa', null, null)::int as aqui,
+                                         (select count(*)::int from public.produtos p where not exists
+                                            (select 1 from public.plt_produtos_excluidos_tiny x where x.tiny_id = p.tiny_id)) as vivos`))
+  conferir(
+    rp.conferencia?.candidatos === 1 && voltou === true && confVivo?.params?.confirmar === true && detalheDeOutro === 0
+      && sumiu === true && aquiProd.aqui === aquiProd.vivos,
+    'a peça apagada que apareceu de novo na lista volta às telas; o produto que não veio é confirmado e, "não localizado", vai para os apagados; a lista do catálogo não relê produto nenhum (a consulta de hora em hora cuida dos mudados); o "quantos aqui" conta só os vivos',
+    JSON.stringify({ rp, voltou, confVivo: confVivo?.params, detalheDeOutro, sumiu, aquiProd }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · os pedidos de compra (API nova, sem data): o mudado é relido; o que sumiu, 404, fica apagado')
+
+  await bd.exec(`select plt_privado.fn_tiny_registrar('fabrica', 'ordem_compra', 'oc101-1', ${j101({ id: 101001, situacao: 0 })});
+                 select plt_privado.fn_tiny_registrar('fabrica', 'ordem_compra', 'oc101-2', ${j101({ id: 101002, situacao: 0 })});`)
+  const po = await linha101('fabrica', 'v3_ordens_compra', 'conferencia:v3_ordens_compra:tudo')
+  const ro = await responder101(po.id, { api: 'v3', status: 200, corpo: {
+    itens: [{ id: 'oc101-1', situacao: 1 }, { id: 'oc101-3', situacao: 0 }], paginacao: { total: 2, limit: 100, offset: 0 } } })
+  const oc1 = await linha101('fabrica', 'v3_ordem_compra', 'oc101-1')
+  const oc3 = await linha101('fabrica', 'v3_ordem_compra', 'oc101-3')
+  const oc2 = await linha101('fabrica', 'v3_ordem_compra', 'oc101-2')
+  await responder101(oc2.id, { api: 'v3', status: 404, corpo: null })
+  const g_oc2 = await reg101('fabrica', 'ordem_compra', 'oc101-2')
+  conferir(
+    ro.conferencia?.vistos === 2 && oc1?.params?.resumo_hash && oc3?.params?.resumo_hash
+      && oc2?.params?.confirmar === true && g_oc2.sumiu && g_oc2.sumiu_motivo === 'apagado',
+    'a lista sem data compara tudo o que temos do tipo: os dois listados são relidos (resumo novo), o que não veio é confirmado e o 404 o deixa sumido: apagado',
+    JSON.stringify({ ro, oc1: oc1?.params, oc3: oc3?.params, oc2: oc2?.params, g_oc2 }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · o "quantos aqui" e o painel: só o que não sumiu; as somas das contas a pagar vêm da conferência quando ela é mais nova que a carga')
+
+  const aquiCp = await um101(`select plt_privado.fn_tiny_aqui('fabrica', 'cp_pesquisa', null, null)::int as aqui,
+                                     (select count(*)::int from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'conta_pagar' and sumiu_em is null) as vivos,
+                                     (select count(*)::int from public.plt_tiny_registros where conta = 'fabrica' and tipo = 'conta_pagar') as todos`)
+  await bd.exec(`update public.plt_tiny_controle set ultima_carga = '2000-01-01T00:00:00' where id = 1`)
+  await como101(SUPER101)
+  const painel = (await um101(`select public.plt_fn_tiny_carga_painel() as r`)).r
+  await como101('')
+  const marco = (painel.carga.somas ?? []).find((s) => s.conta === 'fabrica' && s.janela === '2026-03')
+  conferir(
+    aquiCp.aqui === aquiCp.vivos && aquiCp.todos > aquiCp.vivos
+      && painel.carga.somas_de === 'conferencia' && painel.conferencia?.rodada === ini.rodada
+      && marco && Number(marco.tiny) === 390 && marco.lido === true && Number(marco.aqui) === Number(mesDepois.soma),
+    'o "quantos aqui" deixa de fora o que sumiu; o painel compara a soma de março que a conferência leu no Tiny (R$ 390) com o resumo do mês — as mesmas chaves de sempre, mais de onde vieram as somas',
+    JSON.stringify({ aquiCp, somas_de: painel.carga.somas_de, marco, conferencia: painel.conferencia }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · a madrugada de sempre chama a conferência dos registros — e um erro nela não derruba a de sempre')
+
+  const pf = (await um101(`select plt_privado.fn_tiny_pente_fino_iniciar('teste101') as r`)).r
+  await bd.exec('savepoint s101b')
+  await bd.exec(`create or replace function plt_privado.fn_tiny_conferencia_iniciar(p_motivo text default 'madrugada')
+                 returns jsonb language plpgsql as $f$ begin raise exception 'quebrou de propósito'; end $f$`)
+  const pfQuebrada = (await um101(`select plt_privado.fn_tiny_pente_fino_iniciar('teste101b') as r`)).r
+  await bd.exec('rollback to savepoint s101b')
+  conferir(
+    pf.conferencia?.rodada && pf.conferencia.linhas > 0 && pf.rodada
+      && pfQuebrada.rodada && /quebrou de propósito/.test(pfQuebrada.conferencia?.erro ?? ''),
+    'a conferência das 3h põe na fila também a dos registros; se ela quebrar, a de sempre segue e o motivo fica na resposta',
+    JSON.stringify({ pf: pf.conferencia, pfQuebrada: pfQuebrada.conferencia }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · a renovação da API nova da fábrica: a vez abre com 30 min (era 2 h — E-116)')
+
+  await bd.exec(`update public.tiny_auth set updated_at = now() - interval '45 minutes' where id = 2`)
+  const vez45 = (await um101(`select public.plt_fn_tiny_fabrica_renovacao_reservar() as r`)).r
+  await bd.exec(`update public.tiny_auth set updated_at = now() - interval '20 minutes' where id = 2`)
+  const vez20 = (await um101(`select public.plt_fn_tiny_fabrica_renovacao_reservar() as r`)).r
+  conferir(
+    vez45 === 'renova-fabrica-101' && vez20 === null,
+    'com 45 min desde a última renovação o renovador pega a vez; com 20 min, não — com o relógio de 3 em 3 h o acesso nunca passa de 3h30',
+    JSON.stringify({ vez45, vez20 }),
+  )
+
+  titulo('SESSAO-33 · bloco 107 · as peças novas fora da API; a tabela dos apagados fechada')
+
+  const priv = await um101(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_tiny_conferencia_iniciar(text)', 'execute') as iniciar,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_conferencia_fechar(bigint)', 'execute') as fechar,
+           has_function_privilege('anon', 'plt_privado.fn_tiny_conferencia_acertar()', 'execute') as acertar,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_registro_sumir(text, text, text, text)', 'execute') as sumir,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_produto_excluir(bigint, text)', 'execute') as excluir,
+           has_function_privilege('authenticated', 'plt_privado.fn_tiny_marcar_inexistente(public.tiny_fila, text)', 'execute') as marcar,
+           has_function_privilege('authenticated', 'public.fn_tiny_fila_resposta(bigint, jsonb)', 'execute') as resposta,
+           has_function_privilege('authenticated', 'public.plt_fn_tiny_fabrica_renovacao_reservar()', 'execute') as renovar,
+           has_function_privilege('authenticated', 'public.plt_fn_produtos_classificacao(text, text, text, text, text, integer, integer)', 'execute') as classificacao,
+           (select relrowsecurity from pg_class where oid = 'public.plt_produtos_excluidos_tiny'::regclass) as rls,
+           (select count(*)::int from pg_policies where tablename = 'plt_produtos_excluidos_tiny') as politicas`)
+  conferir(
+    !priv.iniciar && !priv.fechar && !priv.acertar && !priv.sumir && !priv.excluir && !priv.marcar && !priv.resposta && !priv.renovar
+      && priv.classificacao && priv.rls && priv.politicas === 0,
+    'a conferência, o sumir, o apagar produto e o acerto não são porta de ninguém; a resposta e a renovação seguem só da chave de serviço; a tela de Configurações segue para quem está logado; a tabela dos apagados com RLS e nenhuma regra',
+    JSON.stringify(priv),
+  )
+} finally {
+  await bd.exec('rollback')
+  await como101('')
+}
+} // fim do bloco 107 (SESSAO-33, frente de 21/10)
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

@@ -1,0 +1,128 @@
+== montando o banco em disco (×100: fila 4.333.500 · produtos 56.100 · contas a pagar da fábrica 382.800) ==
+  101 migrations aplicadas (a última: 20261021060000_plt_tiny_conferencia_sem_aviso.sql) (8 s)
+  11 portas de antes criadas (8 s)
+  catálogo 56.100 (apagados 1 em 5) e estruturas (13 s)
+  registros 1.429.500 (69 s)
+  banco 1313 MB · fila 4.337.793 (rodada RX: 4.293 páginas) · registros 1.429.500 (236 s) · analyze feito
+  o mês 2026-03 da fábrica tem 149 páginas
+
+== a resposta de uma página da conferência (o n8n, 1 a cada 2 s) — antes × depois ==
+  ANTES  página de 100 contas a pagar (pedia o detalhe de TODAS)                 mediana     54.5 ms · máx     65.6 ms
+  DEPOIS página de 100 (5 mudaram: só esses 5 voltam a ser lidos)                mediana     11.6 ms · máx     18.2 ms
+
+== a última página de um mês (fecha a janela: guardados × vistos) ==
+  DEPOIS última página do mês 2026-03 (149 páginas, fecha a janela)              mediana     96.0 ms · máx    120.8 ms
+      → {"vistos":14818,"guardados":14818,"candidatos":0,"enfileirados":0}
+  DEPOIS fechar o catálogo inteiro (56 mil produtos × os vistos)                 mediana    176.2 ms · máx    191.5 ms
+      → {"vistos":44880,"guardados":44880,"candidatos":0,"enfileirados":0}
+
+== começar (uma vez por madrugada) ==
+  fn_tiny_conferencia_iniciar (as janelas das duas contas)                       mediana     37.6 ms · máx     63.9 ms
+
+== a aba Carga do Tiny (1 requisição) — antes × depois ==
+  ANTES  painel da carga (somas da carga)                                        mediana     13.0 ms · máx     29.7 ms
+  DEPOIS painel da carga (somas da conferência RX, mais nova)                    mediana     78.3 ms · máx     87.8 ms
+
+== as telas dos produtos (1 requisição cada) — antes × depois ==
+  ANTES  Configurações → móveis, insumos e peças (1ª página)                     mediana    257.4 ms · máx    264.2 ms
+  DEPOIS Configurações → móveis, insumos e peças (1ª página)                     mediana    239.6 ms · máx    247.1 ms
+  ANTES  … com busca                                                             mediana    266.0 ms · máx    276.5 ms
+  DEPOIS … com busca                                                             mediana    280.5 ms · máx    291.5 ms
+  ANTES  unidades fora do padrão (dívida 13 — o catálogo ×100)                   mediana    193.1 ms · máx    205.4 ms
+  DEPOIS unidades fora do padrão                                                 mediana    202.5 ms · máx    216.9 ms
+  ANTES  estrutura de um móvel                                                   mediana      4.4 ms · máx      8.0 ms
+  DEPOIS estrutura de um móvel                                                   mediana      6.3 ms · máx      7.4 ms
+  ANTES  busca de vínculo (produto)                                              mediana    187.3 ms · máx    189.5 ms
+  DEPOIS busca de vínculo (produto)                                              mediana    196.9 ms · máx    199.5 ms
+  ANTES  configurações do estoque (1ª página)                                    mediana    116.0 ms · máx    126.2 ms
+  DEPOIS configurações do estoque (1ª página)                                    mediana    131.3 ms · máx    133.8 ms
+  ANTES  estoque — resumo (o catálogo inteiro)                                   mediana   1186.5 ms · máx   1246.1 ms
+  DEPOIS estoque — resumo                                                        mediana    804.0 ms · máx   1054.4 ms
+  ANTES  estoque — insumos (1ª página)                                           mediana   1048.1 ms · máx   1279.2 ms
+  DEPOIS estoque — insumos (1ª página)                                           mediana    733.4 ms · máx    831.7 ms
+  ANTES  fotos do Tiny a copiar (o relógio de 5 min)                             mediana   1379.2 ms · máx   1590.7 ms
+  DEPOIS fotos do Tiny a copiar                                                  mediana   1594.6 ms · máx   1678.5 ms
+  "quantos aqui" — contas a pagar da fábrica (na contagem, 1 vez por janela)     mediana    157.8 ms · máx    178.1 ms
+  "quantos aqui" — o catálogo da fábrica                                         mediana     31.3 ms · máx     32.1 ms
+
+== planos (as partes novas) ==
+  --- plano: fechar: o que temos no mês (o índice da data, sem os sumidos)
+      Index Scan using plt_tiny_registros_data_idx on plt_tiny_registros t (actual rows=14818.00 loops=1)
+        Index Cond: ((conta = 'fabrica'::text) AND (tipo = 'conta_pagar'::text) AND (data >= '2026-03-01'::date) AND (data <= '2026-03-31'::date))
+        Index Searches: 1
+        Buffers: shared hit=14836
+      Planning Time: 0.456 ms
+      Execution Time: 20.034 ms
+  --- plano: fechar: o que a lista trouxe na janela (o índice da rodada)
+      HashAggregate (actual rows=14818.00 loops=1)
+        Group Key: i.id
+        Batches: 1  Memory Usage: 945kB
+        Buffers: shared hit=968
+        ->  Nested Loop (actual rows=14818.00 loops=1)
+              Buffers: shared hit=968
+              ->  Index Scan using tiny_fila_conferencia_idx on tiny_fila p (actual rows=149.00 loops=1)
+                    Index Cond: ((params ->> 'conferencia'::text) = 'RX'::text)
+                    Filter: ((conta = 'fabrica'::text) AND (recurso = 'cp_pesquisa'::text) AND (status = 'ok'::text) AND ((params ->> 'janela'::text) = 'conferencia:cp_pesquisa:2026-03'::text))
+                    Rows Removed by Filter: 4144
+                    Index Searches: 1
+                    Buffers: shared hit=968
+              ->  Function Scan on jsonb_array_elements_text i (actual rows=99.45 loops=149)
+      Planning:
+        Buffers: shared hit=4
+      Planning Time: 0.815 ms
+      Execution Time: 30.706 ms
+  --- plano: a página: o item da lista × o guardado (100 pela chave)
+      Nested Loop Left Join (actual rows=0.00 loops=1)
+        Filter: ((t.chave IS NULL) OR (t.resumo_hash IS DISTINCT FROM md5((x.value)::text)) OR (t.sumiu_em IS NOT NULL))
+        Rows Removed by Filter: 100
+        Buffers: shared hit=400
+        ->  Function Scan on jsonb_array_elements x (actual rows=100.00 loops=1)
+        ->  Index Scan using plt_tiny_registros_pkey on plt_tiny_registros t (actual rows=1.00 loops=100)
+              Index Cond: ((conta = 'fabrica'::text) AND (tipo = 'conta_pagar'::text) AND (chave = (x.value ->> 'id'::text)))
+              Index Searches: 100
+              Buffers: shared hit=400
+      Planning Time: 0.495 ms
+      Execution Time: 1.603 ms
+  --- plano: o painel: as páginas da conferência das contas a pagar
+      GroupAggregate (actual rows=27.00 loops=1)
+        Group Key: conta, (regexp_replace((params ->> 'janela'::text), ':p[0-9]+$'::text, ''::text))
+        Buffers: shared hit=968, temp read=739 written=740
+        ->  Sort (actual rows=3844.00 loops=1)
+              Sort Key: conta, (regexp_replace((params ->> 'janela'::text), ':p[0-9]+$'::text, ''::text))
+              Sort Method: external merge  Disk: 5912kB
+              Buffers: shared hit=968, temp read=739 written=740
+              ->  Index Scan using tiny_fila_conferencia_idx on tiny_fila f (actual rows=3844.00 loops=1)
+                    Index Cond: ((params ->> 'conferencia'::text) = 'RX'::text)
+                    Filter: (recurso = 'cp_pesquisa'::text)
+                    Rows Removed by Filter: 449
+                    Index Searches: 1
+                    Buffers: shared hit=968
+      Planning:
+        Buffers: shared hit=4
+      Planning Time: 0.566 ms
+      Execution Time: 64.120 ms
+  --- plano: Configurações: a 1ª página sem os apagados
+      Limit (actual rows=30.00 loops=1)
+        Buffers: shared hit=1473
+        ->  Sort (actual rows=30.00 loops=1)
+              Sort Key: pr.descricao, pr.tiny_id
+              Sort Method: top-N heapsort  Memory: 19kB
+              Buffers: shared hit=1473
+              ->  Hash Anti Join (actual rows=41140.00 loops=1)
+                    Hash Cond: (pr.tiny_id = xp.tiny_id)
+                    Buffers: shared hit=1473
+                    ->  Seq Scan on produtos pr (actual rows=51425.00 loops=1)
+                          Filter: (situacao = 'A'::text)
+                          Rows Removed by Filter: 4675
+                          Buffers: shared hit=1302
+                    ->  Hash (actual rows=11220.00 loops=1)
+                          Buckets: 16384  Batches: 1  Memory Usage: 415kB
+                          Buffers: shared hit=171
+                          ->  Seq Scan on plt_produtos_excluidos_tiny xp (actual rows=11220.00 loops=1)
+                                Buffers: shared hit=171
+      Planning:
+        Buffers: shared hit=12
+      Planning Time: 0.633 ms
+      Execution Time: 64.317 ms
+
+fim
