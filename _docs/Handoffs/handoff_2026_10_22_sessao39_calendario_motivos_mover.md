@@ -14,7 +14,7 @@ tags: [handoff, sessao, sessao-39, rotas, calendario, dashboards, motivos, kanba
 
 Os quatro pedidos do dono: (1) o **calendário** da programação como modo de ver dentro de Rotas, no formato do vídeo; (2) um **painel dos motivos** (pausas, não entregas e todos os outros) para achar os maiores problemas; (3) levar a **rota montada ao Google Maps ou ao Waze** — pesquisar se há API gratuita ou se basta um link; (4) o botão **Mover** dentro de todo card de produção, para a fila de qualquer setor, por líder, admin ou super admin.
 
-## 2. O que foi feito (na branch — **nada aplicado no banco, nada publicado**)
+## 2. O que foi feito (**✅ no ar em 22/10/2026, com o OK do dono** — banco e site)
 
 **Mover (D-173):** botão na janela do card (peça e card avulso num setor de produção), só para líder de qualquer setor, admin e super admin (no tablet, pede o PIN e só aceita o de líder/admin). A janela escolhe o setor (a fila dele; o próprio setor = "volta para a fila daqui"), o motivo obrigatório (lista nova "Motivos do Mover" em Configurações → Utilitários, 4 motivos iniciais, ou "Outro" escrito) e, quando o setor de onde a peça sai pede, o estado da peça. O tempo de quem trabalhava fecha na hora, quem ajudava sai junto; o motivo fica no histórico do card.
 
@@ -24,7 +24,7 @@ Os quatro pedidos do dono: (1) o **calendário** da programação como modo de v
 
 **Painel de motivos (D-176):** Dashboards → **Motivos** (só liderança). Números-herói no topo; depois: **por que a produção para** (pausas e paradas por motivo — vezes e o **tempo útil parado**, só no expediente — por setor e por pessoa; o especial marcado), **por que as pessoas saem do setor** (tablet), **por que os cards foram movidos** (Mover — e de onde para onde), **por que o PCP segura pedidos** (stand-by, com o tempo segurado e quantos ainda estão), **por que a entrega não acontece** (não entrega por motivo, caminhão e quem marcou, com "% de N tentativas"; devoluções e entregas desfeitas) e **onde a peça sai com problema** (atenção, danificada, divergência por setor). Tocar num motivo abre cada vez que ele aconteceu (20 por vez).
 
-**Banco — 3 atualizações EM ARQUIVO (esperam o OK do dono; nenhuma toca a integração do Tiny):**
+**Banco — 3 atualizações ✅ APLICADAS em 22/10 (~04:00 UTC), uma a uma e na ordem, com o OK do dono; o Tiny intacto nas três (nenhuma toca a integração):**
 - `20261023010000_plt_mover_para_fila.sql` — o tipo de motivo "mover" + 4 motivos, a regra de quem move e a porta do gesto; salvar motivo aceita o tipo novo.
 - `20261023020000_plt_rotas_ordem_e_calendario.sql` — as entregas do dia trazem a ordem salva; a porta do calendário (cada barra com o pedido, para a ficha abrir no toque); índice do "não entregue" pelo dia da rota; **a regra do pedido vivo em duas partes** (`vw_pedidos_vivos_regra` + `vw_pedidos_vivos` recriada com as mesmas colunas — o calendário lê só a regra; as outras telas não mudam).
 - `20261023030000_plt_painel_motivos.sql` — as duas portas do painel; o tempo útil de cada pausa guardado quando ela termina (duas colunas novas em `plt_pessoa_pausas` + gatilho), a projeção nova `plt_presenca_saidas` (cada saída do setor com o tempo fora) e **o registro de saída do stand-by nascendo com o tempo útil segurado** (gatilho novo, ao lado da guarda do stand-by); índices.
@@ -81,7 +81,7 @@ Ver `git log 1c67151..sessao-39-calendario-motivos-mover`. Principais: `src/kanb
 
 ## 9. Ficou pendente
 
-- **O OK do dono** para aplicar as 3 atualizações do banco e publicar o site (um gesto só — E-73).
+- ~~O OK do dono para aplicar e publicar~~ — ✅ dado em 22/10: banco aplicado e site publicado (Vercel conferido servindo o calendário novo e o painel). **No banco real, como o dono:** calendário semana ~8 ms (32 pedidos em 6 dias, todos com o pedido para a ficha), mês ~9 ms, painel de motivos 30/90 dias ~5 ms, entregas do dia ~6 ms, Expedição ~9 ms (igual); 4 motivos do Mover; a regra do vivo nas duas formas = 34 pedidos; 3 gatilhos novos; 3 saídas do setor projetadas; avisos de segurança sem tipo novo.
 - Confirmar as provisórias (seção 3).
 - Conferir o link do Google Maps no celular de um entregador (o limite de paradas depende do aplicativo).
 - As dívidas 24–26 da lei (só aparecem com ~100 vezes o volume de hoje); a 24 pede a decisão do dono sobre a trava de segurança de duas funções internas.
