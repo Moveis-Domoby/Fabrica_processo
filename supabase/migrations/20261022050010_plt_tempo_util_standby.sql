@@ -1262,7 +1262,8 @@ $$;
 --      mais nova do check — saiu da dos cards e da da presença)
 -- ----------------------------------------------------------------------------
 alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
-alter table public.plt_motivos validate constraint plt_motivos_tipo_ck;
+-- ↪️ SESSAO-39 (E-19): o validate de plt_motivos_tipo_ck mudou para a migration
+-- do Mover (20261023010000), que recria o check com o tipo 'mover'.
 
 -- ----------------------------------------------------------------------------
 -- 14 · Permissões (E-11: plt_privado fora da API)

@@ -16157,6 +16157,9 @@ try {
   // E-81: a migration do stand-by (F5) recria portas e o check desta — reaplicar
   // as duas na ordem de produção, senão os blocos seguintes testam a versão velha
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261022050010_plt_tempo_util_standby.sql'), 'utf8'))
+  // ↪️ SESSAO-39 (E-136): a do Mover recria o check dos motivos (com o 'mover') e
+  // o valida — vem depois da do stand-by, como em produção
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261023010000_plt_mover_para_fila.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -16722,7 +16725,7 @@ const priv5 = await um5(`
 conferir(Number(novoMot5) > 0 && listaMot5.length >= 7 && listaMot5.some((m) => m.texto === 'Teste F5 motivo'),
   'o admin cadastra motivo de stand-by e ele aparece na lista do dia a dia', JSON.stringify(listaMot5))
 conferir(checks5.length === 2 && checks5.every((c) => c.convalidated),
-  'os dois checks (tipos de evento e de motivo) validados nesta migration — a mais nova (E-19)', JSON.stringify(checks5))
+  'os dois checks (tipos de evento e de motivo) validados — cada um pela migration mais nova dele (E-19; o de motivo, desde a SESSAO-39, pela do Mover)', JSON.stringify(checks5))
 conferir(!priv5.entra_anon && priv5.entra_logado && !priv5.sai_anon && !priv5.regua_anon && !priv5.tempo_logado && !priv5.concluir_logado,
   'as portas do stand-by e a régua só para quem está logado; os ajudantes fora da API', JSON.stringify(priv5))
 } // fim do bloco F5 (SESSAO-38)
@@ -17090,6 +17093,190 @@ try {
   await como101('')
 }
 } // fim do bloco 107 (SESSAO-33, frente de 21/10)
+
+// ============================================================================
+// SESSAO-39 · Mover (migration 20261023010000 — D-173): o botão Mover da
+// janela do card manda a peça ou o card avulso de um setor de produção para a
+// FILA de qualquer setor de produção, com motivo obrigatório; só líder (de
+// qualquer setor) e admin — no tablet, quem digita o PIN. Tudo numa
+// transação desfeita no fim (os outros blocos não veem nada).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-39 · Mover · o cenário: dois setores com fila, um sem fila, um líder de OUTRO setor, um operador, a logística')
+
+const um39 = async (sql) => (await bd.query(sql)).rows[0]
+const como39 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// E-103: as portas se provam como o navegador chama (papel authenticated)
+const logado39 = async (auth, sql) => {
+  await como39(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const recusa39 = async (auth, sql, descricao, padrao) => {
+  await como39(auth)
+  await bd.exec('savepoint s39')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    // a volta ao ponto salvo desfaz também o papel (e sai do estado de erro)
+    await bd.exec('rollback to savepoint s39')
+    await bd.exec('reset role')
+  }
+}
+const P39 = {
+  op: '00000000-0000-0000-0000-000000003901',
+  lider: '00000000-0000-0000-0000-000000003902',
+  adm: '00000000-0000-0000-0000-000000003903',
+  log: '00000000-0000-0000-0000-000000003904',
+  liderLog: '00000000-0000-0000-0000-000000003905',
+}
+await como39('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('mv39a', 'MV39 CORTE', 'producao', 996), ('mv39b', 'MV39 MONTAGEM', 'producao', 997),
+      ('mv39c', 'MV39 SEM FILA', 'producao', 998);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo like 'mv39%';
+  `)
+  const A = (await um39(`select id::int as id from public.plt_setores where codigo = 'mv39a'`)).id
+  const B = (await um39(`select id::int as id from public.plt_setores where codigo = 'mv39b'`)).id
+  const C = (await um39(`select id::int as id from public.plt_setores where codigo = 'mv39c'`)).id
+  const ESTOQUE = (await um39(`select id::int as id from public.plt_setores where codigo = 'estoque'`)).id
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      (${A}, 'A CORTAR', 10, true), (${A}, 'CORTANDO', 20, false),
+      (${B}, 'A MONTAR', 10, true), (${B}, 'MONTANDO', 20, false),
+      (${C}, 'TRABALHO', 10, false);
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Operador 39', 'op39@teste.com', '39390000001', 'op.39', 'operador', '${P39.op}', array['fabrica']),
+      ('Líder 39', 'lid39@teste.com', '39390000002', 'lid.39', 'operador', '${P39.lider}', array['fabrica']),
+      ('Admin 39', 'adm39@teste.com', '39390000003', 'adm.39', 'admin', '${P39.adm}', array['fabrica']),
+      ('Logística 39', 'log39@teste.com', '39390000004', 'log.39', 'logistica', '${P39.log}', array['fabrica']),
+      ('Logística líder 39', 'loglid39@teste.com', '39390000005', 'loglid.39', 'logistica', '${P39.liderLog}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+      ((select id from public.plt_usuarios where usuario = 'op.39'), ${A}, false),
+      ((select id from public.plt_usuarios where usuario = 'lid.39'), ${B}, true),
+      ((select id from public.plt_usuarios where usuario = 'loglid.39'), ${B}, true);
+  `)
+  const etapa39 = async (setor, nome) =>
+    (await um39(`select id::int as id from public.plt_etapas where setor_id = ${setor} and nome = '${nome}'`)).id
+  const [FILA_A, CORTANDO, FILA_B, MONTANDO] = [
+    await etapa39(A, 'A CORTAR'), await etapa39(A, 'CORTANDO'),
+    await etapa39(B, 'A MONTAR'), await etapa39(B, 'MONTANDO'),
+  ]
+  const idDe39 = async (u) => (await um39(`select id from public.plt_usuarios where usuario = '${u}'`)).id
+  const [op39, lid39] = [await idDe39('op.39'), await idDe39('lid.39')]
+  const retrabalho = (await um39(`select id::int as id from public.plt_motivos where tipo = 'mover' and texto = 'Retrabalho'`))?.id
+  conferir(retrabalho > 0, 'os motivos do Mover vieram semeados (Retrabalho, Foi para o setor errado, Mudança no planejamento, Peça com defeito)')
+
+  await como39(P39.adm)
+  const card = (await um39(`select (public.plt_fn_avulso_criar('Gabarito MV39', p_setor_id => ${A}) ->> 'card_id')::int as id`)).id
+  await logado39(P39.op, `select public.plt_fn_soltar_card(${card}, ${CORTANDO})`)
+  const est39 = () => um39(`select setor_atual_id::int as setor, etapa_atual_id::int as etapa,
+                                   executor_atual_id is not null as executando
+                              from public.plt_cards where id = ${card}`)
+  const antes = await est39()
+  conferir(antes.setor === A && antes.etapa === CORTANDO && antes.executando,
+    'o card avulso nasceu no MV39 CORTE e o operador o pegou (em execução)', JSON.stringify(antes))
+
+  titulo('SESSAO-39 · Mover · quem pode: líder de qualquer setor e admin; o operador e a logística não')
+
+  const mover = (setor, motivo = retrabalho, texto = null, estado = null, operador = null) =>
+    `select public.plt_fn_card_mover_para_fila(${card}, ${setor}, ${motivo ?? 'null'}, ${texto === null ? 'null' : `'${texto}'`},
+                                                ${estado === null ? 'null' : `'${estado}'`}, ${operador === null ? 'null' : `'${operador}'`}) as r`
+  await recusa39(P39.op, mover(B), 'o operador (sem marca de líder) não usa o Mover', /líder ou de admin/)
+  await recusa39(P39.log, mover(B), 'o nível logística não move card (só olha — D-147)', /líder ou de admin/)
+  await recusa39(P39.liderLog, mover(B), 'nem a logística com a marca de líder', /líder ou de admin/)
+
+  titulo('SESSAO-39 · Mover · o motivo é obrigatório; só setor de produção com fila; o pedido não se move por aqui')
+
+  await recusa39(P39.lider, mover(B, null, '  '), 'sem motivo, recusado', /Diga o motivo/)
+  await recusa39(P39.lider, mover(C), 'setor sem etapa de fila: recusado, com o caminho para cadastrar', /não tem uma etapa de fila/)
+  await recusa39(P39.lider, mover(ESTOQUE), 'fim de linha não é destino do Mover', /Escolha um setor de produção/)
+  const pedidoQualquer = (await um39(`select id::int as id from public.plt_cards where tipo = 'pedido' and arquivado_em is null order by id limit 1`))?.id
+  if (pedidoQualquer) {
+    await recusa39(P39.lider,
+      `select public.plt_fn_card_mover_para_fila(${pedidoQualquer}, ${B}, ${retrabalho}, null, null, null)`,
+      'o card do pedido não se move por aqui (segue pelo PCP)', /Só a peça e o card avulso/)
+  }
+
+  titulo('SESSAO-39 · Mover · o líder de OUTRO setor move: o card vai para a fila, o tempo de quem fazia fecha, o motivo fica no fato')
+
+  const r1 = (await logado39(P39.lider, mover(B, retrabalho, 'borda descolou')))[0].r
+  const depois = await est39()
+  const fato = await um39(`select e.tipo, e.usuario_id = '${lid39}' as do_lider, e.observacao, e.dados ->> 'motivo_id' as motivo_id,
+                                  e.dados ->> 'como' as como, e.etapa_destino_id::int as etapa
+                             from public.plt_eventos e where e.id = ${r1.evento_id}`)
+  const execucao = await um39(`select count(*)::int as abertas from public.plt_vw_execucoes
+                                where card_id = ${card} and finalizou_em is null`)
+  conferir(depois.setor === B && depois.etapa === FILA_B && !depois.executando && r1.setor_nome === 'MV39 MONTAGEM',
+    'o card está na FILA do MV39 MONTAGEM e ninguém mais executa', JSON.stringify({ depois, r1 }))
+  conferir(fato.tipo === 'movimentacao_setor' && fato.do_lider && fato.observacao === 'Retrabalho — borda descolou'
+      && Number(fato.motivo_id) === retrabalho && fato.como === 'mover_para_fila' && fato.etapa === FILA_B,
+    'o fato é a movimentação de sempre, em nome do líder, com o motivo na observação e o id do motivo nos dados', JSON.stringify(fato))
+  conferir(execucao.abertas === 0, 'a execução do operador fechou no instante do Mover (D-24)', JSON.stringify(execucao))
+  await recusa39(P39.lider, mover(B), 'o mesmo toque de novo não move duas vezes — "já está na fila"', /já está na fila/)
+
+  titulo('SESSAO-39 · Mover · de volta para a fila do próprio setor (admin, "Outro" escrito)')
+
+  await logado39(P39.adm, `select public.plt_fn_soltar_card(${card}, ${MONTANDO})`)
+  const r2 = (await logado39(P39.adm, mover(B, null, 'Montagem errada, refazer')))[0].r
+  const volta = await est39()
+  const fato2 = await um39(`select tipo, observacao, dados ->> 'motivo_id' as motivo_id from public.plt_eventos where id = ${r2.evento_id}`)
+  conferir(volta.setor === B && volta.etapa === FILA_B && !volta.executando
+      && fato2.tipo === 'movimentacao_etapa' && fato2.observacao === 'Montagem errada, refazer' && fato2.motivo_id === null,
+    'o admin devolveu o card à fila do mesmo setor com "Outro" escrito; o tempo dele fechou', JSON.stringify({ volta, fato2 }))
+
+  titulo('SESSAO-39 · Mover · o estado da peça segue a regra do arrasto (só quando o setor de origem pede)')
+
+  await bd.exec(`update public.plt_setores set qualidade_envio_tipos = '{avulso}' where id = ${B}`)
+  await recusa39(P39.lider, mover(A), 'o MV39 MONTAGEM pede o estado ao enviar: sem marcar, recusado', /marcar o estado da peça/)
+  const r3 = (await logado39(P39.lider, mover(A, retrabalho, null, 'atencao')))[0].r
+  const marc = await um39(`select m.tipo, m.estado_qualidade from public.plt_eventos e
+                             join public.plt_eventos m on m.id = e.evento_referencia_id where e.id = ${r3.evento_id}`)
+  conferir(marc?.tipo === 'qualidade_marcada' && marc.estado_qualidade === 'atencao' && (await est39()).etapa === FILA_A,
+    'com o estado marcado o card vai, e a movimentação aponta a marcação (a dupla atestação segue valendo)', JSON.stringify(marc))
+
+  titulo('SESSAO-39 · Mover · no tablet do setor: quem digita o PIN é o autor — e tem de ser líder ou admin')
+
+  await recusa39(P39.op, mover(B, retrabalho, null, null, op39), 'no tablet, o PIN do operador comum é recusado', /líder ou de admin/)
+  const r4 = (await logado39(P39.op, mover(B, retrabalho, null, null, lid39)))[0].r
+  const autor4 = await um39(`select usuario_id = '${lid39}' as do_lider from public.plt_eventos where id = ${r4.evento_id}`)
+  conferir(autor4.do_lider && (await est39()).setor === B,
+    'com o PIN do líder, o aparelho do setor move — e o fato sai em nome do líder', JSON.stringify(autor4))
+
+  titulo('SESSAO-39 · Mover · Utilitários (motivos do Mover), o check validado e as portas')
+
+  const novo = (await logado39(P39.adm, `select public.plt_fn_motivo_salvar(null, 'mover', 'Medida errada') as id`))[0].id
+  const lista = await logado39(P39.lider, `select count(*)::int as n from public.plt_fn_motivos('mover')`)
+  await recusa39(P39.lider, `select public.plt_fn_motivo_salvar(null, 'mover', 'Outro qualquer')`,
+    'cadastrar motivo do Mover é gesto de admin', /gesto de admin/)
+  const check = await um39(`select convalidated as validado,
+                                   pg_get_constraintdef(oid) like '%mover%' as tem_mover
+                              from pg_constraint where conname = 'plt_motivos_tipo_ck'`)
+  const priv = await um39(`
+    select has_function_privilege('anon', 'public.plt_fn_card_mover_para_fila(bigint, bigint, bigint, text, text, uuid)', 'execute') as anon,
+           has_function_privilege('authenticated', 'public.plt_fn_card_mover_para_fila(bigint, bigint, bigint, text, text, uuid)', 'execute') as logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_pode_mover_para_fila(uuid)', 'execute') as regra`)
+  conferir(Number(novo) > 0 && lista[0].n === 5,
+    'o admin cadastra um motivo do Mover e ele aparece na lista de quem move (4 semeados + 1)', JSON.stringify({ novo, lista }))
+  conferir(check.validado && check.tem_mover, 'o check dos tipos de motivo tem o "mover" e está validado (E-19)', JSON.stringify(check))
+  conferir(!priv.anon && priv.logado && !priv.regra,
+    'a porta é só de quem está logado; a regra de quem move fica fora da API', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como39('')
+}
+} // fim do bloco Mover (SESSAO-39)
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

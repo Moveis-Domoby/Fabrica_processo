@@ -96,8 +96,9 @@ export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pa
 /**
  * SESSAO-38 (D-169): + os motivos de STAND-BY do PCP. Tipo à parte (os modais
  * da entrega fazem um registro por TipoMotivo — o stand-by não é da entrega).
+ * SESSAO-39 (D-173): + os motivos do botão MOVER, pelo mesmo motivo.
  */
-export type TipoMotivoComStandby = TipoMotivo | 'standby'
+export type TipoMotivoComStandby = TipoMotivo | 'standby' | 'mover'
 
 export interface Motivo {
   id: number

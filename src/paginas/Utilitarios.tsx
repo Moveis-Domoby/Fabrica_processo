@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
   ArchiveRestore,
+  ArrowRightLeft,
   CirclePause,
   ListPlus,
   MessageSquareText,
@@ -41,7 +42,8 @@ import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utili
 // "estão dentro de motivos de entrega, o que não faz sentido".
 // SESSAO-36 (D-146 resposta 6): + os motivos de SAÍDA do setor (lista própria).
 // SESSAO-38 (D-169): + os motivos de STAND-BY do PCP.
-type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida' | 'standby'
+// SESSAO-39 (D-173): + os motivos do botão MOVER.
+type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida' | 'standby' | 'mover'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101 — pedido do dono: "crie uma
@@ -57,7 +59,8 @@ export function Utilitarios() {
     pedida === 'motivos' ||
     pedida === 'pausa' ||
     pedida === 'saida' ||
-    pedida === 'standby'
+    pedida === 'standby' ||
+    pedida === 'mover'
       ? pedida
       : 'etiquetas'
 
@@ -91,6 +94,10 @@ export function Utilitarios() {
             <span>
               Motivos de stand-by são escolhidos pelo PCP ao segurar um pedido (o pedido para de
               contar tempo e sai das rotas até voltar).
+            </span>
+            <span>
+              Motivos do Mover são escolhidos pelo líder ou admin ao mandar um card para a fila de
+              outro setor pelo botão Mover.
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
@@ -135,6 +142,11 @@ export function Utilitarios() {
             rotulo: 'Motivos de stand-by',
             icone: <CirclePause aria-hidden className="size-4" />,
           },
+          {
+            valor: 'mover',
+            rotulo: 'Motivos do Mover',
+            icone: <ArrowRightLeft aria-hidden className="size-4" />,
+          },
         ]}
       />
 
@@ -149,6 +161,8 @@ export function Utilitarios() {
           <PainelMotivos listas={MOTIVOS_SAIDA} />
         ) : aba === 'standby' ? (
           <PainelMotivos listas={MOTIVOS_STANDBY} />
+        ) : aba === 'mover' ? (
+          <PainelMotivos listas={MOTIVOS_MOVER} />
         ) : (
           <PainelMotivos listas={MOTIVOS_ENTREGA} />
         )}
@@ -779,6 +793,16 @@ const MOTIVOS_STANDBY: ListaDeMotivos[] = [
     titulo: 'Motivos de stand-by',
     explica:
       'Escolhido pelo PCP ao pôr um pedido em stand-by (o motivo é obrigatório e fica na auditoria). A opção "Outro", escrita na hora, sempre aparece junto.',
+  },
+]
+
+// SESSAO-39 (D-173): o botão Mover pede o motivo — ele entra no painel de motivos.
+const MOTIVOS_MOVER: ListaDeMotivos[] = [
+  {
+    tipo: 'mover',
+    titulo: 'Motivos do Mover',
+    explica:
+      'Escolhido pelo líder ou admin ao mandar um card para a fila de outro setor pelo botão Mover (o motivo é obrigatório e aparece no histórico do card e no painel de motivos). A opção "Outro", escrita na hora, sempre aparece junto.',
   },
 ]
 

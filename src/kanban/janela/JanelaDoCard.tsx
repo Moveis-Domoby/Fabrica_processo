@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlignLeft,
+  ArrowRightLeft,
   CalendarClock,
   CircleCheckBig,
   CirclePause,
@@ -23,6 +24,8 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
+import { useSessao } from '@/autenticacao/sessao-contexto'
+import { ehNivelLogistica } from '@/autenticacao/tipos'
 import { cn } from '@/lib/cn'
 import { AvatarChat } from '@/chat/componentes/AvatarChat'
 import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
@@ -33,6 +36,8 @@ import { definirEtiquetaDoCard, definirResponsavel, editarCard } from '../avulso
 import type { PessoaMini } from '../avulso'
 import { ModalConcluirAvulso } from '../componentes/ModalConcluirAvulso'
 import { ModalMotivoPausa } from '../componentes/ModalMotivoPausa'
+import { ModalMoverParaFila } from '../componentes/ModalMoverParaFila'
+import { mostraMover } from '../mover'
 import { retomarCard } from '../pausa'
 import { auxilioEncerrar, cardAuxiliar } from '@/tablet/api'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
@@ -149,9 +154,12 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   // SESSAO-31 (§4): Pausar (com o motivo) / Retomar. No tablet, o PIN antes.
   // SESSAO-36 (D-146): Auxiliar / Sair do auxílio — idem.
   const [pausando, setPausando] = useState<{ operadorId?: string } | null>(null)
-  const [pinPara, setPinPara] = useState<'pausar' | 'retomar' | 'auxiliar' | 'sair_auxilio' | null>(
-    null,
-  )
+  const [pinPara, setPinPara] = useState<
+    'pausar' | 'retomar' | 'auxiliar' | 'sair_auxilio' | 'mover' | null
+  >(null)
+  // SESSAO-39 (D-173): o botão Mover — líder (de qualquer setor) e admin; no tablet, o PIN antes.
+  const [movendo, setMovendo] = useState<{ operadorId?: string } | null>(null)
+  const { perfil, ehLider } = useSessao()
 
   const releituras = async () => {
     await Promise.all([
@@ -275,6 +283,14 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
     ? vivo && card.executor_atual_id !== null && !pausado
     : permissoes.auxiliar && !permissoes.sair_auxilio
   const podeSairAuxilio = tablet ? vivo && auxilios.length > 0 : permissoes.sair_auxilio
+  const podeMover = mostraMover({
+    card,
+    vivo,
+    papelDoSetor: dados.setor?.papel_no_fluxo,
+    tablet,
+    ehLider,
+    nivelLogistica: ehNivelLogistica(perfil),
+  })
   const hoje = hojeIso(agora)
   // SESSAO-38 (D-150): no card de pedido as datas vêm do Tiny (início = a data
   // do pedido, vencimento = a data de entrega) e não se editam aqui.
@@ -363,6 +379,16 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
                 }
               >
                 Sair do auxílio
+              </Botao>
+            )}
+            {podeMover && (
+              <Botao
+                variante="secundaria"
+                tamanho={tablet ? 'lg' : 'sm'}
+                icone={<ArrowRightLeft />}
+                onClick={() => (tablet ? setPinPara('mover') : setMovendo({}))}
+              >
+                Mover
               </Botao>
             )}
             {permissoes.concluir && !tablet && (
@@ -753,8 +779,8 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
 
       {tablet && (
         <p className={cn('rounded-dm bg-superficie-sutil px-3 py-2 text-xs text-texto-suave')}>
-          No tablet a janela é só para ver (pausar e retomar pedem o seu PIN). Para mudar o card,
-          anexar ou conversar, use o computador ou o celular.
+          No tablet a janela é só para ver (pausar, retomar e mover pedem o seu PIN). Para mudar o
+          card, anexar ou conversar, use o computador ou o celular.
         </p>
       )}
 
@@ -768,6 +794,17 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         aoFechar={() => setPausando(null)}
       />
 
+      <ModalMoverParaFila
+        key={movendo ? 'mover-aberto' : 'mover-fechado'}
+        card={movendo ? card : null}
+        naFila={dados.etapa?.eh_fila ?? false}
+        executorNome={executor}
+        pedidoNumero={dados.pedido?.numero ?? null}
+        operadorId={movendo?.operadorId}
+        tamanho={tablet ? 'galpao' : 'padrao'}
+        aoFechar={() => setMovendo(null)}
+      />
+
       {tablet && card.setor_atual_id !== null && (
         <ModalPinOperador
           acao={
@@ -779,7 +816,9 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
                   ? 'Auxiliar no card'
                   : pinPara === 'sair_auxilio'
                     ? 'Sair do auxílio'
-                    : null
+                    : pinPara === 'mover'
+                      ? 'Mover o card'
+                      : null
           }
           setorId={card.setor_atual_id}
           aoFechar={() => setPinPara(null)}
@@ -791,6 +830,8 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             // SESSAO-36 (D-146): o PIN diz quem entra/sai do auxílio.
             if (gesto === 'auxiliar') auxiliar.mutate(operador.usuario_id)
             if (gesto === 'sair_auxilio') sairAuxilio.mutate(operador.usuario_id)
+            // SESSAO-39 (D-173): o PIN diz quem move — o banco aceita só líder ou admin.
+            if (gesto === 'mover') setMovendo({ operadorId: operador.usuario_id })
           }}
         />
       )}
