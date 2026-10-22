@@ -1,8 +1,15 @@
 import { Suspense, lazy, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, ExternalLink, Route, TriangleAlert } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Columns3,
+  ExternalLink,
+  Route,
+  TriangleAlert,
+} from 'lucide-react'
 import { Botao, Modal } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useAoVivo } from '@/lib/aoVivo'
@@ -22,6 +29,8 @@ import {
   tituloDoPeriodo,
 } from './calendario'
 import type { ModoCalendario, SituacaoCalendario } from './calendario'
+import { useLargurasDasColunas } from './larguraColunas'
+import type { LargurasDasColunas } from './larguraColunas'
 import { corDoCaminhao } from './rotaRuas'
 
 // A ficha do pedido só baixa quando alguém toca num pedido (Lei §3/§7).
@@ -108,6 +117,11 @@ function descricaoDoItem(i: ItemCalendario): string {
  * DETALHE (o que o calendário já sabe na hora + a ficha do pedido, que pede
  * o resto numa requisição só, no clique), com "Ver a rota" e "Abrir a janela
  * do pedido".
+ * ↪️ 22/10, 3º pedido do dono ("estender a coluna no estilo do Sheets e do
+ * Excel … clicar duas vezes na divisória e ela se ajustar ao tamanho exato do
+ * maior texto"): a divisória no cabeçalho de cada dia arrasta a largura da
+ * coluna; dois cliques ajustam ao maior texto; "Colunas iguais" desfaz.
+ * Semana e mês guardam as suas larguras no aparelho (`larguraColunas.ts`).
  */
 export function AbaCalendario({
   ativa,
@@ -195,13 +209,20 @@ export function AbaCalendario({
   const [aberto, setAberto] = useState<{ dia: string; item: ItemCalendario } | null>(null)
   const abrirCard = useAbrirCard()
 
+  // A largura de cada coluna, como numa planilha (guardada no aparelho, por modo).
+  const colunasSemana = useLargurasDasColunas('domoby.calendario.colunas.semana')
+  const colunasMes = useLargurasDasColunas('domoby.calendario.colunas.mes')
+  const colunas = modo === 'semana' ? colunasSemana : colunasMes
+
   const passo = (sentido: -1 | 1) =>
     mudar({
       ref: modo === 'semana' ? somarDias(referencia, 7 * sentido) : somarMeses(referencia, sentido),
     })
 
   return (
-    <div className="flex flex-col gap-3">
+    // A área do calendário é o "container": a dica das colunas aparece na mesma
+    // largura em que as colunas viram grade (semana @4xl, mês @3xl — E-30).
+    <div className="@container flex flex-col gap-3">
       {/* ---------- a barra do calendário (como o ClickUp: Hoje · ‹ › · o período) ---------- */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex items-center gap-1">
@@ -251,34 +272,60 @@ export function AbaCalendario({
         </div>
       </div>
 
-      {/* ---------- a legenda (tocar numa cor esconde/mostra) ---------- */}
-      <div
-        className="flex flex-wrap items-center gap-x-4 gap-y-1"
-        role="group"
-        aria-label="Mostrar no calendário (toque para esconder ou mostrar)"
-      >
-        {SITUACOES.map((s) => {
-          const ligado = visivel(s.valor)
-          return (
+      {/* ---------- a legenda (tocar numa cor esconde/mostra) e as colunas ---------- */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-1"
+          role="group"
+          aria-label="Mostrar no calendário (toque para esconder ou mostrar)"
+        >
+          {SITUACOES.map((s) => {
+            const ligado = visivel(s.valor)
+            return (
+              <button
+                key={s.valor}
+                type="button"
+                aria-pressed={ligado}
+                onClick={() => alternar(s.valor)}
+                title={
+                  ligado
+                    ? `Esconder: ${s.rotulo.toLowerCase()}`
+                    : `Mostrar: ${s.rotulo.toLowerCase()}`
+                }
+                className={cn(
+                  'inline-flex min-h-8 items-center gap-1.5 text-sm text-texto transition-opacity hover:underline',
+                  !ligado && 'line-through opacity-40',
+                )}
+              >
+                <span aria-hidden className={cn('size-3 shrink-0', ESTILO[s.valor].quadrado)} />
+                {s.rotulo}
+                <span className="text-texto-suave tabular-nums">{totais[s.valor]}</span>
+              </button>
+            )
+          })}
+        </div>
+        {/* As colunas como numa planilha: a dica, ou o "desfazer" depois de mexer. */}
+        <div
+          className={cn(
+            'ml-auto hidden items-center text-xs text-texto-fraco',
+            modo === 'semana' ? '@4xl:flex' : '@3xl:flex',
+          )}
+        >
+          {colunas.personalizadas ? (
             <button
-              key={s.valor}
               type="button"
-              aria-pressed={ligado}
-              onClick={() => alternar(s.valor)}
-              title={
-                ligado ? `Esconder: ${s.rotulo.toLowerCase()}` : `Mostrar: ${s.rotulo.toLowerCase()}`
-              }
-              className={cn(
-                'inline-flex min-h-8 items-center gap-1.5 text-sm text-texto transition-opacity hover:underline',
-                !ligado && 'line-through opacity-40',
-              )}
+              onClick={colunas.restaurar}
+              className="inline-flex min-h-8 items-center gap-1.5 font-semibold text-texto-suave hover:text-texto hover:underline"
             >
-              <span aria-hidden className={cn('size-3 shrink-0', ESTILO[s.valor].quadrado)} />
-              {s.rotulo}
-              <span className="text-texto-suave tabular-nums">{totais[s.valor]}</span>
+              <Columns3 aria-hidden className="size-3.5" />
+              Colunas iguais
             </button>
-          )
-        })}
+          ) : (
+            <span>
+              Arraste a divisória entre os dias para alargar · dois cliques ajustam ao maior texto
+            </span>
+          )}
+        </div>
       </div>
 
       {dados && (dados.fora.atrasados_sem_rota > 0 || dados.fora.sem_previsao > 0) && (
@@ -324,6 +371,7 @@ export function AbaCalendario({
           carregandoDia={verMais.isPending ? verMais.variables?.dia : undefined}
           aoVerMais={(dia, jaTem) => verMais.mutate({ dia, jaTem })}
           aoTocar={(dia, item) => setAberto({ dia, item })}
+          colunas={colunasSemana}
         />
       )}
       {dados && modo === 'mes' && (
@@ -333,6 +381,7 @@ export function AbaCalendario({
           hoje={hoje}
           porData={porData}
           visivel={visivel}
+          colunas={colunasMes}
           aoAbrirDia={(dia) => mudar({ modo: 'semana', ref: dia })}
           aoTocar={(dia, item) => setAberto({ dia, item })}
         />
@@ -351,6 +400,38 @@ export function AbaCalendario({
         }}
       />
     </div>
+  )
+}
+
+/**
+ * A DIVISÓRIA da coluna, no cabeçalho do dia (como a das planilhas): arrastar
+ * muda a largura, dois cliques ajustam ao maior texto, setas ←/→ (Shift = 3×)
+ * e Enter pelo teclado. A linha acende ao passar o mouse e ao focar.
+ */
+function Divisoria({
+  gestos,
+  rotulo,
+  ultima,
+  className,
+}: {
+  gestos: ReturnType<LargurasDasColunas['divisoria']>
+  rotulo: string
+  ultima: boolean
+  className: string
+}) {
+  return (
+    <div
+      {...gestos}
+      aria-label={rotulo}
+      title="Arraste para mudar a largura · dois cliques ajustam ao maior texto"
+      className={cn(
+        'absolute inset-y-0 z-10 w-3 cursor-col-resize touch-none outline-none select-none',
+        'after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:bg-transparent after:transition-colors',
+        'hover:after:bg-info-forte focus-visible:after:bg-info-forte active:after:bg-info-forte',
+        ultima ? 'right-0' : '-right-1.5',
+        className,
+      )}
+    />
   )
 }
 
@@ -398,6 +479,7 @@ function Semana({
   carregandoDia,
   aoVerMais,
   aoTocar,
+  colunas,
 }: {
   dias: string[]
   hoje: string
@@ -407,73 +489,92 @@ function Semana({
   carregandoDia?: string
   aoVerMais: (dia: string, jaTem: number) => void
   aoTocar: (dia: string, item: ItemCalendario) => void
+  colunas: LargurasDasColunas
 }) {
   return (
-    // Sete colunas iguais só quando a ÁREA tem espaço (container, não janela —
-    // E-30); estreito, os dias viram uma lista (o celular rola).
+    // Sete colunas só quando a ÁREA tem espaço (container, não janela — E-30),
+    // iguais até alguém mexer na divisória (aí cada uma tem a sua largura e a
+    // grade pode rolar para o lado); estreito, os dias viram uma lista.
     <div className="@container">
-      <div className="grid grid-cols-1 border border-borda bg-superficie @4xl:grid-cols-7">
-        {dias.map((dia, i) => {
-          const doDia = porData.get(dia)
-          const carregados = [...(doDia?.itens ?? []), ...(extras[dia] ?? [])]
-          const itens = carregados.filter((x) => visivel(x.situacao))
-          const total = totalVisivel(doDia, visivel)
-          const faltam = Math.max(0, total - itens.length)
-          const ehHoje = dia === hoje
-          return (
-            <section
-              key={dia}
-              aria-label={`${DIAS_DA_SEMANA[i]}, ${diaCurto(dia)}${ehHoje ? ' (hoje)' : ''} — ${total} ${total === 1 ? 'pedido' : 'pedidos'}`}
-              className={cn(
-                'flex min-w-0 flex-col border-borda not-last:border-b @4xl:min-h-96 @4xl:not-last:border-r @4xl:not-last:border-b-0',
-                ehHoje && 'bg-acao/5',
-              )}
-            >
-              {/* Uma linha só, sempre; o hoje é a coluna na cor de ação (o leitor de tela ouve "hoje"). */}
-              <header
+      <div className="@4xl:overflow-x-auto">
+        <div
+          style={{ '--colunas': colunas.modelo } as CSSProperties}
+          className={cn(
+            'grid grid-cols-1 border border-borda bg-superficie @4xl:grid-cols-(--colunas)',
+            colunas.personalizadas && '@4xl:w-max',
+          )}
+        >
+          {dias.map((dia, i) => {
+            const doDia = porData.get(dia)
+            const carregados = [...(doDia?.itens ?? []), ...(extras[dia] ?? [])]
+            const itens = carregados.filter((x) => visivel(x.situacao))
+            const total = totalVisivel(doDia, visivel)
+            const faltam = Math.max(0, total - itens.length)
+            const ehHoje = dia === hoje
+            return (
+              <section
+                key={dia}
+                ref={colunas.refColuna(i)}
+                aria-label={`${DIAS_DA_SEMANA[i]}, ${diaCurto(dia)}${ehHoje ? ' (hoje)' : ''} — ${total} ${total === 1 ? 'pedido' : 'pedidos'}`}
                 className={cn(
-                  'flex items-baseline gap-1.5 overflow-hidden border-b border-borda px-2 py-1.5 whitespace-nowrap',
-                  ehHoje ? 'bg-acao text-acao-texto' : 'bg-superficie-sutil text-texto-suave',
+                  'flex min-w-0 flex-col border-borda not-last:border-b @4xl:min-h-96 @4xl:not-last:border-r @4xl:not-last:border-b-0',
+                  ehHoje && 'bg-acao/5',
                 )}
               >
-                <span className="text-xs font-semibold tracking-wide">{DIA_CURTO[i]}</span>
-                <span
-                  className={cn('text-sm font-semibold tabular-nums', !ehHoje && 'text-texto')}
-                >
-                  {diaCurto(dia)}
-                </span>
-                {ehHoje && <span className="text-xs @4xl:sr-only">· hoje</span>}
-                {total > 0 && <span className="ml-auto text-xs tabular-nums">{total}</span>}
-              </header>
-              <div className="flex flex-col gap-1 p-1">
-                {itens.length === 0 && (
-                  <span className="px-1 py-1 text-xs text-texto-fraco @4xl:hidden">
-                    Nada neste dia
-                  </span>
-                )}
-                {itens.map((item) => (
-                  <Barra
-                    key={`${item.situacao}-${item.card_id}`}
-                    item={item}
-                    aoTocar={() => aoTocar(dia, item)}
-                  />
-                ))}
-                {faltam > 0 && (
-                  <button
-                    type="button"
-                    disabled={carregandoDia === dia}
-                    onClick={() => aoVerMais(dia, carregados.length)}
-                    className="min-h-8 px-1.5 text-left text-xs font-semibold text-texto-suave hover:text-texto hover:underline disabled:opacity-60"
+                <div className="relative">
+                  {/* Uma linha só, sempre; o hoje é a coluna na cor de ação (o leitor de tela ouve "hoje"). */}
+                  <header
+                    className={cn(
+                      'flex items-baseline gap-1.5 overflow-hidden border-b border-borda px-2 py-1.5 whitespace-nowrap',
+                      ehHoje ? 'bg-acao text-acao-texto' : 'bg-superficie-sutil text-texto-suave',
+                    )}
                   >
-                    {carregandoDia === dia
-                      ? 'Carregando…'
-                      : `+ ${faltam} ${faltam === 1 ? 'pedido' : 'pedidos'}`}
-                  </button>
-                )}
-              </div>
-            </section>
-          )
-        })}
+                    <span className="text-xs font-semibold tracking-wide">{DIA_CURTO[i]}</span>
+                    <span
+                      className={cn('text-sm font-semibold tabular-nums', !ehHoje && 'text-texto')}
+                    >
+                      {diaCurto(dia)}
+                    </span>
+                    {ehHoje && <span className="text-xs @4xl:sr-only">· hoje</span>}
+                    {total > 0 && <span className="ml-auto text-xs tabular-nums">{total}</span>}
+                  </header>
+                  <Divisoria
+                    gestos={colunas.divisoria(i)}
+                    rotulo={`Largura da coluna de ${DIAS_DA_SEMANA[i]}`}
+                    ultima={i === dias.length - 1}
+                    className="hidden @4xl:block"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 p-1">
+                  {itens.length === 0 && (
+                    <span className="px-1 py-1 text-xs text-texto-fraco @4xl:hidden">
+                      Nada neste dia
+                    </span>
+                  )}
+                  {itens.map((item) => (
+                    <Barra
+                      key={`${item.situacao}-${item.card_id}`}
+                      item={item}
+                      aoTocar={() => aoTocar(dia, item)}
+                    />
+                  ))}
+                  {faltam > 0 && (
+                    <button
+                      type="button"
+                      disabled={carregandoDia === dia}
+                      onClick={() => aoVerMais(dia, carregados.length)}
+                      className="min-h-8 px-1.5 text-left text-xs font-semibold text-texto-suave hover:text-texto hover:underline disabled:opacity-60"
+                    >
+                      {carregandoDia === dia
+                        ? 'Carregando…'
+                        : `+ ${faltam} ${faltam === 1 ? 'pedido' : 'pedidos'}`}
+                    </button>
+                  )}
+                </div>
+              </section>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -485,6 +586,7 @@ function Mes({
   hoje,
   porData,
   visivel,
+  colunas,
   aoAbrirDia,
   aoTocar,
 }: {
@@ -493,80 +595,96 @@ function Mes({
   hoje: string
   porData: Map<string, DiaCalendario>
   visivel: (s: SituacaoCalendario) => boolean
+  colunas: LargurasDasColunas
   aoAbrirDia: (dia: string) => void
   aoTocar: (dia: string, item: ItemCalendario) => void
 }) {
   return (
     <div className="@container">
-      <div className="grid grid-cols-7 border-t border-l border-borda bg-superficie">
-        {DIA_CURTO.map((d) => (
-          <span
-            key={d}
-            className="border-r border-b border-borda bg-superficie-sutil px-1.5 py-1 text-[0.7rem] font-semibold tracking-wide text-texto-suave"
-          >
-            {d}
-          </span>
-        ))}
-        {dias.map((dia) => {
-          const doDia = porData.get(dia)
-          const total = totalVisivel(doDia, visivel)
-          const itens = (doDia?.itens ?? []).filter((x) => visivel(x.situacao))
-          const ehHoje = dia === hoje
-          const doMes = mesmoMes(dia, referencia)
-          return (
-            <div
-              key={dia}
-              className={cn(
-                'flex min-h-20 min-w-0 flex-col gap-0.5 border-r border-b border-borda p-1 @3xl:min-h-32',
-                !doMes && 'bg-superficie-sutil/60',
-                ehHoje && 'bg-acao/5 shadow-[inset_0_2px_0_0_var(--color-acao)]',
-              )}
+      <div className="@3xl:overflow-x-auto">
+        <div
+          style={{ '--colunas': colunas.modelo } as CSSProperties}
+          className={cn(
+            'grid grid-cols-7 border-t border-l border-borda bg-superficie @3xl:grid-cols-(--colunas)',
+            colunas.personalizadas && '@3xl:w-max',
+          )}
+        >
+          {DIA_CURTO.map((d, i) => (
+            <span
+              key={d}
+              ref={colunas.refColuna(i)}
+              className="relative border-r border-b border-borda bg-superficie-sutil px-1.5 py-1 text-[0.7rem] font-semibold tracking-wide whitespace-nowrap text-texto-suave"
             >
-              <button
-                type="button"
-                onClick={() => aoAbrirDia(dia)}
-                aria-label={`Ver a semana de ${diaCurto(dia)}${total ? ` — ${total} ${total === 1 ? 'pedido' : 'pedidos'}` : ''}`}
+              {d}
+              <Divisoria
+                gestos={colunas.divisoria(i)}
+                rotulo={`Largura da coluna de ${DIAS_DA_SEMANA[i]}`}
+                ultima={i === DIA_CURTO.length - 1}
+                className="hidden @3xl:block"
+              />
+            </span>
+          ))}
+          {dias.map((dia) => {
+            const doDia = porData.get(dia)
+            const total = totalVisivel(doDia, visivel)
+            const itens = (doDia?.itens ?? []).filter((x) => visivel(x.situacao))
+            const ehHoje = dia === hoje
+            const doMes = mesmoMes(dia, referencia)
+            return (
+              <div
+                key={dia}
                 className={cn(
-                  'self-start px-0.5 text-xs font-semibold tabular-nums hover:underline',
-                  ehHoje ? 'text-acao' : doMes ? 'text-texto' : 'text-texto-fraco',
+                  'flex min-h-20 min-w-0 flex-col gap-0.5 border-r border-b border-borda p-1 @3xl:min-h-32',
+                  !doMes && 'bg-superficie-sutil/60',
+                  ehHoje && 'bg-acao/5 shadow-[inset_0_2px_0_0_var(--color-acao)]',
                 )}
               >
-                {Number(dia.slice(8, 10))}
-                {ehHoje && <span className="font-normal"> · hoje</span>}
-              </button>
-              {/* Largo: as primeiras barras; estreito: os quadradinhos e o número. */}
-              <div className="hidden min-w-0 flex-col gap-0.5 @3xl:flex">
-                {itens.map((item) => (
-                  <Barra
-                    key={`${item.situacao}-${item.card_id}`}
-                    item={item}
-                    compacta
-                    aoTocar={() => aoTocar(dia, item)}
-                  />
-                ))}
-              </div>
-              {total > 0 && (
-                <span className="flex flex-wrap items-center gap-0.5 @3xl:hidden" aria-hidden>
-                  {SITUACOES.filter(
-                    (s) => visivel(s.valor) && (doDia?.contagem?.[s.valor] ?? 0) > 0,
-                  ).map((s) => (
-                    <span key={s.valor} className={cn('size-2', ESTILO[s.valor].quadrado)} />
-                  ))}
-                  <span className="text-[0.65rem] text-texto-suave tabular-nums">{total}</span>
-                </span>
-              )}
-              {total > itens.length && (
                 <button
                   type="button"
                   onClick={() => aoAbrirDia(dia)}
-                  className="hidden self-start px-0.5 text-[0.7rem] font-semibold text-texto-suave hover:text-texto hover:underline @3xl:inline"
+                  aria-label={`Ver a semana de ${diaCurto(dia)}${total ? ` — ${total} ${total === 1 ? 'pedido' : 'pedidos'}` : ''}`}
+                  className={cn(
+                    'self-start px-0.5 text-xs font-semibold tabular-nums hover:underline',
+                    ehHoje ? 'text-acao' : doMes ? 'text-texto' : 'text-texto-fraco',
+                  )}
                 >
-                  + {total - itens.length} {total - itens.length === 1 ? 'pedido' : 'pedidos'}
+                  {Number(dia.slice(8, 10))}
+                  {ehHoje && <span className="font-normal"> · hoje</span>}
                 </button>
-              )}
-            </div>
-          )
-        })}
+                {/* Largo: as primeiras barras; estreito: os quadradinhos e o número. */}
+                <div className="hidden min-w-0 flex-col gap-0.5 @3xl:flex">
+                  {itens.map((item) => (
+                    <Barra
+                      key={`${item.situacao}-${item.card_id}`}
+                      item={item}
+                      compacta
+                      aoTocar={() => aoTocar(dia, item)}
+                    />
+                  ))}
+                </div>
+                {total > 0 && (
+                  <span className="flex flex-wrap items-center gap-0.5 @3xl:hidden" aria-hidden>
+                    {SITUACOES.filter(
+                      (s) => visivel(s.valor) && (doDia?.contagem?.[s.valor] ?? 0) > 0,
+                    ).map((s) => (
+                      <span key={s.valor} className={cn('size-2', ESTILO[s.valor].quadrado)} />
+                    ))}
+                    <span className="text-[0.65rem] text-texto-suave tabular-nums">{total}</span>
+                  </span>
+                )}
+                {total > itens.length && (
+                  <button
+                    type="button"
+                    onClick={() => aoAbrirDia(dia)}
+                    className="hidden self-start px-0.5 text-[0.7rem] font-semibold text-texto-suave hover:text-texto hover:underline @3xl:inline"
+                  >
+                    + {total - itens.length} {total - itens.length === 1 ? 'pedido' : 'pedidos'}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -611,7 +729,9 @@ function DetalheDoPedido({
         if (!a) aoFechar()
       }}
       titulo={item ? `Pedido ${item.numero}` : 'Pedido'}
-      descricao={item ? [item.bairro, ROTULO[item.situacao]].filter(Boolean).join(' · ') : undefined}
+      descricao={
+        item ? [item.bairro, ROTULO[item.situacao]].filter(Boolean).join(' · ') : undefined
+      }
       tamanho="galpao"
       rodape={
         item && (
@@ -679,17 +799,13 @@ function DetalheDoPedido({
             )}
             {item.motivo && (
               <div className="col-span-2 sm:col-span-4">
-                <Dado
-                  rotulo={item.situacao === 'standby' ? 'Por que está em stand-by' : 'Motivo'}
-                >
+                <Dado rotulo={item.situacao === 'standby' ? 'Por que está em stand-by' : 'Motivo'}>
                   {item.motivo}
                 </Dado>
               </div>
             )}
           </dl>
-          <Suspense
-            fallback={<p className="text-sm text-texto-fraco">Carregando o pedido…</p>}
-          >
+          <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando o pedido…</p>}>
             <FichaDoPedido pedidoId={item.pedido_id} />
           </Suspense>
         </div>
