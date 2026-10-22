@@ -17278,6 +17278,131 @@ try {
 }
 } // fim do bloco Mover (SESSAO-39)
 
+// ============================================================================
+// SESSAO-39 · Rotas (migration 20261023020000 — D-174/D-175): as entregas do
+// dia trazem a ordem salva (o entregador numera como a logística) e o
+// CALENDÁRIO da programação — cada pedido no seu dia, na cor da situação.
+// Tudo numa transação desfeita no fim.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-39 · Rotas · o cenário: sete pedidos numa semana de janeiro de 2027')
+
+const um39r = async (sql) => (await bd.query(sql)).rows[0]
+const como39r = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado39r = async (auth, sql) => {
+  await como39r(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const recusa39r = async (auth, sql, descricao, padrao) => {
+  await como39r(auth)
+  await bd.exec('savepoint s39r')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s39r')
+    await bd.exec('reset role')
+  }
+}
+const OP39R = '00000000-0000-0000-0000-000000003911'
+await como39r('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+    values (939001, 'S39R', 'Cômoda Teste 39', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 39', 'TST3901');
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Operador SECC 39', 'opsecc39@teste.com', '39390000011', 'opsecc.39', 'operador', '${OP39R}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id) values
+      ((select id from public.plt_usuarios where usuario = 'opsecc.39'), (select id from public.plt_setores where codigo = 'secc'));
+  `)
+  const cam = (await um39r(`select id::int as id from public.plt_caminhoes where placa = 'TST3901'`)).id
+  async function pedido39(numero, previsao) {
+    await como39r('')
+    await bd.exec(`
+      insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+        (${numero}, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', ${numero}00,
+         ${previsao ? `'${previsao}'` : 'null'});
+      insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+        ((select id from public.pedidos where numero = ${numero}), 1, 'S39R', 'Cômoda Teste 39', 1);
+    `)
+    return (await um39r(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                          where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  }
+  const p1 = await pedido39(939001, '2027-01-12') // sem rota, no dia da previsão
+  const p2 = await pedido39(939002, '2027-01-12') // programado no dia 13 (não aparece no 12)
+  const p3 = await pedido39(939003, '2027-01-13') // programado no 13 e entregue
+  const p4 = await pedido39(939004, '2027-01-15') // programado no 14, não entregue → volta sem rota no 15
+  const p5 = await pedido39(939005, '2027-01-15') // stand-by no 15
+  const p6 = await pedido39(939006, null)         // sem previsão
+  const p7 = await pedido39(939007, '2026-01-02') // sem rota com a previsão vencida
+  const LOG = E40.logistica
+  await logado39r(LOG, `select public.plt_fn_programar_rota('2027-01-13', ${cam}, array[${p3}, ${p2}]::bigint[], array[${p3}, ${p2}]::bigint[], 1)`)
+  await logado39r(LOG, `select public.plt_fn_programar_rota('2027-01-14', ${cam}, array[${p4}]::bigint[], null, 1)`)
+  await logado39r(LOG, `select public.plt_fn_registrar_entrega(${p3}, 'teste 39', true)`)
+  const { id: motivoNE, texto: textoNE } = await um39r(`select id::int as id, texto from public.plt_motivos where tipo = 'nao_entregue' and ativo order by ordem, id limit 1`)
+  await logado39r(LOG, `select public.plt_fn_entrega_nao_realizada(${p4}, ${motivoNE}, 'portão fechado')`)
+  const motivoSB = (await um39r(`select id::int as id from public.plt_motivos where tipo = 'standby' and ativo order by ordem, id limit 1`)).id
+  await logado39r(E40.admin, `select public.plt_fn_pcp_standby(${p5}, ${motivoSB}, null)`)
+  conferir([p1, p2, p3, p4, p5, p6, p7].every((x) => x > 0), 'os sete pedidos nasceram com card no PCP; programar, entregar, não entregar e stand-by passaram')
+
+  titulo('SESSAO-39 · Rotas · as entregas do dia trazem a ordem salva (o entregador numera como a logística)')
+
+  const dia13 = (await logado39r(LOG, `select public.plt_fn_entregas_do_dia('2027-01-13', ${cam}, 1) as r`))[0].r
+  const ordens = dia13.entregas.map((e) => [e.card_id, e.ordem])
+  conferir(dia13.entregas.length === 2 && dia13.entregas.every((e) => 'ordem' in e)
+      && JSON.stringify(ordens) === JSON.stringify([[p3, 1], [p2, 2]]),
+    'cada parada vem com a ordem salva da rota (1 e 2, na ordem em que foi programada)', JSON.stringify(ordens))
+
+  titulo('SESSAO-39 · Rotas · o calendário: cada pedido no seu dia, na situação certa')
+
+  const sem = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-10', '2027-01-16') as r`))[0].r
+  const doDia = (dia) => sem.dias.find((d) => d.dia === dia) ?? { total: 0, itens: [], contagem: {} }
+  const sit = (dia, card) => doDia(dia).itens.find((i) => i.card_id === card)?.situacao ?? null
+  conferir(sit('2027-01-12', p1) === 'sem_rota' && sit('2027-01-12', p2) === null,
+    'sem rota: no dia da previsão; o programado não aparece no dia da previsão', JSON.stringify(doDia('2027-01-12')))
+  conferir(sit('2027-01-13', p2) === 'na_rota' && sit('2027-01-13', p3) === 'entregue'
+      && doDia('2027-01-13').itens[0].caminhao_nome === 'Baú 39' && doDia('2027-01-13').itens[0].rota === 1,
+    'no dia da rota: o programado "na rota" (com o caminhão e a rota) e o entregue', JSON.stringify(doDia('2027-01-13')))
+  conferir(sit('2027-01-14', p4) === 'nao_entregue' && (doDia('2027-01-14').itens[0].motivo ?? '').startsWith(textoNE)
+      && sit('2027-01-15', p4) === 'sem_rota',
+    'o não entregue fica no dia da rota, com o motivo; e o pedido volta "sem rota" no dia da previsão', JSON.stringify([doDia('2027-01-14'), doDia('2027-01-15')]))
+  conferir(sit('2027-01-15', p5) === 'standby' && doDia('2027-01-15').contagem.standby === 1,
+    'o pedido em stand-by aparece no dia da previsão, na cor do stand-by', JSON.stringify(doDia('2027-01-15')))
+  conferir(sem.fora.sem_previsao >= 1 && sem.fora.atrasados_sem_rota >= 1,
+    'o que não cabe em dia nenhum vem contado: sem previsão e sem rota com a previsão vencida', JSON.stringify(sem.fora))
+
+  titulo('SESSAO-39 · Rotas · o calendário pagina por dia, tem teto de período e é só da logística')
+
+  const so1 = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-13', '2027-01-13', 1) as r`))[0].r.dias[0]
+  const prox = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-13', '2027-01-13', 1, 1) as r`))[0].r.dias[0]
+  conferir(so1.total === 2 && so1.itens.length === 1 && prox.itens.length === 1 && so1.itens[0].card_id !== prox.itens[0].card_id,
+    'com 1 por dia vem uma barra e o total 2; o "Ver mais" do dia traz a outra', JSON.stringify({ so1, prox }))
+  await recusa39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-01', '2027-03-01')`,
+    'mais de 6 semanas de uma vez: recusado', /no máximo 6 semanas/)
+  await recusa39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-10', '2027-01-01')`,
+    'período ao contrário: recusado', /Diga o período/)
+  await recusa39r(OP39R, `select public.plt_fn_rotas_calendario('2027-01-10', '2027-01-16')`,
+    'o operador da produção não abre o calendário das rotas', /da logística/)
+  const priv = await um39r(`
+    select has_function_privilege('anon', 'public.plt_fn_rotas_calendario(date, date, integer, integer)', 'execute') as anon,
+           has_function_privilege('authenticated', 'public.plt_fn_rotas_calendario(date, date, integer, integer)', 'execute') as logado`)
+  conferir(!priv.anon && priv.logado, 'a porta do calendário é só de quem está logado', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como39r('')
+}
+} // fim do bloco Rotas (SESSAO-39)
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(

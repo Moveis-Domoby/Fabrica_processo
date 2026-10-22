@@ -1,5 +1,6 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import type { SituacaoCalendario } from './calendario'
 
 /**
  * Camada de dados do módulo de ROTAS (SESSAO-11 / D-33, revista na SESSAO-15 /
@@ -814,4 +815,60 @@ export function linkMapaEntrega(e: EntregaDoDia): string | null {
     .filter(Boolean)
     .join(', ')
   return endereco ? `https://www.google.com/maps/search/${encodeURIComponent(endereco)}` : null
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-39 (D-175): o CALENDÁRIO da programação — uma requisição por tela
+// ---------------------------------------------------------------------------
+
+export interface ItemCalendario {
+  situacao: SituacaoCalendario
+  /** O card do pedido (abre a janela do card). */
+  card_id: number
+  numero: number
+  bairro: string | null
+  /** A previsão de entrega (a do vendedor no Tiny). */
+  previsao: string | null
+  /** O detalhe escrito por quem programou ("entre 13:30 e 17:00"). */
+  detalhe: string | null
+  caminhao_id: number | null
+  caminhao_nome: string | null
+  rota: number | null
+  ordem: number | null
+  /** O motivo do "não entregue" ou do stand-by. */
+  motivo: string | null
+}
+
+export interface DiaCalendario {
+  dia: string
+  total: number
+  contagem: Record<SituacaoCalendario, number>
+  itens: ItemCalendario[]
+}
+
+export interface CalendarioRotas {
+  de: string
+  ate: string
+  hoje: string
+  por_dia: number
+  /** Só os dias que têm alguma coisa. */
+  dias: DiaCalendario[]
+  /** O que não cabe em dia nenhum: sem rota com a previsão vencida e sem previsão. */
+  fora: { atrasados_sem_rota: number; sem_previsao: number }
+}
+
+export async function calendarioRotas(parametros: {
+  de: string
+  ate: string
+  porDia?: number
+  deslocamento?: number
+}): Promise<CalendarioRotas> {
+  const { data, error } = await supabase.rpc('plt_fn_rotas_calendario', {
+    p_de: parametros.de,
+    p_ate: parametros.ate,
+    p_por_dia: parametros.porDia ?? 30,
+    p_deslocamento: parametros.deslocamento ?? 0,
+  })
+  if (error) throw new Error(`Não deu para carregar o calendário: ${error.message}`)
+  return data as CalendarioRotas
 }
