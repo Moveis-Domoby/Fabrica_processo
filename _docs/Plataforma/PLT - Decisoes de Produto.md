@@ -1801,6 +1801,40 @@ O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias)
 
 **Descartadas:** gráficos de pizza (proibidos pela régua dos painéis); um painel por área (o dono pediu "uma dash"); contar só as vezes (o tempo parado é a medida que mostra o tamanho do problema).
 
+## D-186 · LANÇAR QUALQUER MÓVEL PARA PRODUÇÃO, A QUALQUER MOMENTO — o mesmo ícone da fábrica em todo cartão do Estoque (23/10/2026, pedido do dono — SESSAO-40) — ↩️ revisa a D-87 e a D-89 (o botão só com a automática desligada e o produto em necessidade) e a regra "uma reposição aberta por produto" da D-54 para o gesto da logística
+
+**Pedido do dono:** *"Na parte de estoque, coloque um botão para lançar para produção mesmo estando com o estoque mínimo já suprido, coloque para lançar qualquer produto a qualquer momento, pode ser da mesma maneira do ícone vermelho."*
+
+- **O ícone:** o MESMO da fábrica ao lado do "Mínimo", em **todo** móvel da aba dos acabados, para quem mexe no estoque (logística e admin): **vermelho pulando** quando falta peça e a reposição automática está desligada (o chamado da produção, como antes); **discreto** (cinza) no resto — no mínimo, fora do Top X, sem mínimo, com a automática ligada. No detalhe do produto (tocar na foto), o botão por extenso **"Lançar para produção"** ao lado de Entrada/Baixa/Contagem.
+- **O lançamento:** o mesmo de antes (quantidade de 1 a 500, nasce no PCP → Reabastecimento, o PCP decide, parada 2 dias úteis sai sozinha — D-85). A quantidade proposta é o que falta para o mínimo; sem falta, **1**. O texto diz quando nada falta ("a reposição nasce no PCP do mesmo jeito").
+- **⏳ PROVISÓRIA (escolha do Claude):** se o produto **já tem uma reposição esperando no PCP**, a nova nasce **ao lado** (outro card de reabastecimento) — "a qualquer momento" vale também aí. A automática segue com UMA aberta por produto (ela não cria outra enquanto houver qualquer reposição aberta). O clique duplo (ou a rede que cai e volta) **não** cria duas: cada abertura do lançamento leva uma chave do gesto (Lei §10) e o mesmo toque devolve o card já criado.
+- **Compatível:** sem a chave (o site de antes), a regra antiga (uma aberta por produto) continua.
+
+**Descartadas:** somar as unidades na reposição que já está no PCP (mudaria o prazo de 2 dias úteis da parte antiga e exigiria um fato novo de "ampliar"); um botão grande por extenso em cada cartão (o dono pediu "da mesma maneira do ícone vermelho").
+
+## D-187 · O FILTRO DOS QUADROS: o número do pedido ou o nome do móvel, em todo quadro de setor, no tablet e no PCP (23/10/2026, pedido do dono com o vídeo do Trello — SESSAO-40)
+
+**Pedido do dono (vídeo do quadro LOGÍSTICA do Trello, filtro por "13722"):** *"Isso facilitaria muito aqui dentro da limpeza e embalagem. Em todos os setores você pode colocar isso, esse filtro."*
+
+- **Onde:** no topo de **todo quadro de setor de produção** (SECC, CNC, FITAMENTO, FURAÇÃO, MONTAGEM, LIMPEZA E EMBALAGEM), no **modo tablet** e no **PCP** (abas Reabastecimento, Aguardando liberação e Stand-by), à esquerda do botão da ordem da fila. Os fins de linha já tinham busca (Estoque, Expedição, Rotas).
+- **O que bate (⏳ PROVISÓRIA — escolha do Claude):** só números (ou "pedido 13722", "#13722") = o **pedido cujo número começa** com eles; letras = o **nome que contém** o texto (o móvel; o card avulso; no PCP, o cliente do pedido ou o móvel da reposição), sem acento, sem maiúscula e sem espaço. Menos de 2 caracteres não filtra. Espera 300 ms parado (Lei §3).
+- **No SERVIDOR:** cada coluna vem só com os cards que batem e diz **quantos batem** ("3 cards batem com o filtro" — o "N cartões correspondem aos filtros" do Trello); "Ver mais" com o mesmo filtro; o ao vivo continua. O filtro vive no endereço (`?filtro=`) — o Voltar e o link funcionam, e a busca geral abre o quadro já filtrado. O "x" ou o Esc limpa.
+
+**Descartadas:** filtrar só os 10 cards já carregados na tela (esconderia os da página seguinte — Lei §3 / regra 17); filtro por pessoa, etiqueta e data (o vídeo usa só a palavra-chave).
+
+## D-188 · A BUSCA GERAL: a lupa ao lado do sino acha os cards de TODOS os setores e diz onde cada um está (23/10/2026, pedido do dono com o vídeo do Trello — SESSAO-40)
+
+**Pedido do dono (vídeo da pesquisa do Trello, "13721" → "9 - LOGISTICA: ENTREGUE"):** *"Tem também essa ferramenta aqui que eu posso colocar qualquer coisa que ele busca em todos os quadros… e diz que está no quadro Logística Entregue. Se tivesse também aqui, facilitaria muito para a rastreabilidade dos cards."*
+
+- **Onde:** a **lupa ao lado do sino** (no menu do computador e na barra do celular) e **Ctrl+K** (⌘K no Mac) de qualquer tela. Não aparece para quem é só entregador nem no modo tablet.
+- **O que acha (a mesma régua do filtro — D-187):** o **card do pedido** (o pedido no PCP — vivo ou já entregue), as **peças** vivas e as **peças de pedido já entregues/arquivadas** (a rastreabilidade), a **reposição** ainda no PCP e o **card avulso** (vivo ou concluído). **⏳ PROVISÓRIA:** fica de fora a peça sem pedido que já saiu do estoque (contagem, baixa) — não é rastro de pedido e só encheria a lista.
+- **Onde está, em língua de galpão:** "LIMPEZA E EMBALAGEM · A LIMPAR · com Ana", "PCP · aguardando liberação", "Pronta, na Expedição · na rota de 24/10 — Baú 1", "No ESTOQUE", "Nas ROTAS", "Entregue em 17/10", "Concluído em …"; o pedido cancelado no Tiny ganha o selo "Pedido cancelado".
+- **Tocar** abre a janela do card; o ícone ao lado (só setor de produção e PCP) **abre o quadro do setor já filtrado** pelo pedido.
+- **Quem vê o quê:** só o que a pessoa já pode ver na janela do card (admin e logística/PCP: tudo; o resto: o setor dela, o que ela executa ou participa).
+- **⏳ PROVISÓRIA — a ordem:** pelo **número**, o pedido mais novo primeiro (entregue ou não) e, dentro do pedido, o card do pedido e as peças na ordem dos itens; pelo **nome**, o vivo primeiro e o card mais novo primeiro. 20 por vez com "Ver mais" (cursor). Uma requisição por busca; o resultado é esquecido ao fechar. **Mínimo:** 2 números ou 3 letras (o índice do nome precisa de 3 — no ensaio ×100, 2 letras levavam 1,9 s).
+
+**Descartadas:** buscar também dentro da conversa e dos anexos do card (o vídeo busca o nome do cartão); a busca dentro de cada tela só (o dono pediu "em todos os quadros").
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
