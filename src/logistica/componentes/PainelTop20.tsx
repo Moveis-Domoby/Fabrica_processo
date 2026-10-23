@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Factory, PackagePlus, Search } from 'lucide-react'
@@ -286,6 +286,8 @@ function ModalLancarReposicao({
   const proposta = Math.min(Math.max(produto?.repor_sugerido ?? 1, 1), 500)
   const [texto, setTexto] = useState<string | null>(null)
   const [chave] = useState(chaveDoGesto)
+  // o clique duplo manda um pedido só (o banco já devolveria o mesmo card pela chave)
+  const enviando = useRef(false)
   const quantidade = texto === null ? proposta : Number(texto)
   const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= 500
   const faltaPeca = produto?.em_necessidade === true
@@ -302,12 +304,14 @@ function ModalLancarReposicao({
       await clienteQuery.invalidateQueries({ queryKey: ['estoque'] })
       await clienteQuery.invalidateQueries({ queryKey: ['cards'] })
     },
-    onError: (erro) =>
+    onError: (erro) => {
+      enviando.current = false
       notificar({
         titulo: 'Não deu para lançar a reposição',
         descricao: erro instanceof Error ? erro.message : undefined,
         tom: 'danificado',
-      }),
+      })
+    },
   })
 
   return (
@@ -326,7 +330,9 @@ function ModalLancarReposicao({
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault()
-            if (valida) lancar.mutate()
+            if (!valida || enviando.current) return
+            enviando.current = true
+            lancar.mutate()
           }}
         >
           <p className="text-sm text-texto-suave tabular-nums">

@@ -122,3 +122,21 @@ describe('o texto que vale a busca (a régua do banco)', () => {
     expect(termoDaBusca('est')).toBe('est')
   })
 })
+
+describe('o atalho do quadro no card do pedido', () => {
+  it('só enquanto o pedido espera no PCP (todo liberado, ele já saiu do quadro)', () => {
+    const pedido = {
+      ...base,
+      tipo: 'pedido' as const,
+      setor_codigo: 'pcp',
+      setor_papel: 'entrada' as const,
+    }
+    expect(rotaDoQuadroFiltrado(pedido)).toBe('/fabrica/producao/pcp?filtro=13721')
+    expect(
+      rotaDoQuadroFiltrado({ ...pedido, liberado_completo_em: '2026-10-20T10:00:00Z' }),
+    ).toBeNull()
+    expect(rotaDoQuadroFiltrado({ ...pedido, standby: true })).toBe(
+      '/fabrica/producao/pcp?aba=standby&filtro=13721',
+    )
+  })
+})

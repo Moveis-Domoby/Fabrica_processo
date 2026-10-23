@@ -331,9 +331,10 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
               : quadro.carregando
                 ? 'Abrindo o quadro…'
                 : quadro.filtroAplicado
-                  ? totalNoSetor === 1
-                    ? `1 card bate com o filtro "${quadro.filtroAplicado}".`
-                    : `${totalNoSetor} cards batem com o filtro "${quadro.filtroAplicado}".`
+                  ? // o texto como foi digitado (o servidor devolve a régua: sem acento/espaço)
+                    totalNoSetor === 1
+                    ? `1 card bate com o filtro "${filtroQuadro.aplicado ?? quadro.filtroAplicado}".`
+                    : `${totalNoSetor} cards batem com o filtro "${filtroQuadro.aplicado ?? quadro.filtroAplicado}".`
                   : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
           </p>
         </div>

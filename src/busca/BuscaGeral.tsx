@@ -91,7 +91,8 @@ export default function BuscaGeral({
       tamanho="galpao"
     >
       <div className="flex min-h-0 flex-col gap-3">
-        <div className="relative">
+        {/* o campo fica preso no topo enquanto a lista rola */}
+        <div className="sticky top-0 z-10 bg-superficie pb-1">
           <Campo
             rotulo="Buscar card"
             rotuloOculto

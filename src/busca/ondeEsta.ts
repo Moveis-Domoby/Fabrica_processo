@@ -78,7 +78,7 @@ export function origemDoItem(item: ItemDaBusca): string {
 
 /** O nome do card, com o (k/n) da peça. */
 export function nomeDoItem(item: ItemDaBusca): string {
-  if (item.tipo === 'pedido') return 'O pedido no PCP (todas as peças)'
+  if (item.tipo === 'pedido') return 'O card do pedido (o PCP libera as peças dele)'
   const nome = item.titulo?.trim() || 'Sem nome'
   if (item.tipo === 'reposicao') return `${nome} — repor ${item.total ?? 0}`
   return item.indice && item.total ? `${nome} (${item.indice}/${item.total})` : nome
@@ -96,6 +96,8 @@ export function itemDePedidoCancelado(item: ItemDaBusca): boolean {
 export function rotaDoQuadroFiltrado(item: ItemDaBusca): string | null {
   if (item.arquivado_em || !item.setor_codigo) return null
   if (item.setor_papel !== 'producao' && item.setor_codigo !== 'pcp') return null
+  // o pedido todo liberado já saiu do quadro do PCP (as peças estão nos setores)
+  if (item.tipo === 'pedido' && item.liberado_completo_em && !item.standby) return null
   const filtro = item.pedido_numero !== null ? String(item.pedido_numero) : (item.titulo ?? '')
   const base = `/fabrica/producao/${item.setor_codigo}`
   const aba = item.setor_codigo === 'pcp' && item.tipo === 'reposicao' ? 'aba=solicitacoes&' : ''
