@@ -25,7 +25,7 @@ import { urlDaFoto } from '@/perfil/api'
 import { iniciais } from '@/chat/formato'
 import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
-import { duracaoUtilDesde, formatarTempoUtil, noExpediente, tempoPcpMs } from '../tempoUtil'
+import { duracaoUtilDesde, noExpediente } from '../tempoUtil'
 import { useReguaTempo } from '../useReguaTempo'
 import { pedidoCancelado } from '../situacao'
 import type { Card, PedidoDoCard } from '../tipos'
@@ -172,19 +172,10 @@ export function CartaoUnidade({
   // ela vai para o estoque sem dono. Lido da situação do pedido (a mesma fonte
   // do evento de cancelamento — nada guardado para dessincronizar).
   const cancelado = card.pedido_id !== null && pedidoCancelado(pedido?.situacao)
-  // D-48: o tempo em PCP é do PEDIDO — da entrada até a liberação completa.
   // SESSAO-38 (F5 · D-167 ⏳): todo relógio do card conta só o expediente do
-  // setor (sem a régua — banco antigo — o relógio corrido de sempre); o do PCP
-  // também não conta o stand-by. A execução segue corrida: quem trabalha fora
-  // do horário está em hora extra — conta.
+  // setor (sem a régua — banco antigo — o relógio corrido de sempre). A execução
+  // segue corrida: quem trabalha fora do horário está em hora extra — conta.
   const regua = useReguaTempo()
-  const pcpMs = regua
-    ? tempoPcpMs(pedido, regua, agora)
-    : pedido?.entrou_pcp_em
-      ? (pedido.liberado_completo_em ? new Date(pedido.liberado_completo_em).getTime() : agora) -
-        new Date(pedido.entrou_pcp_em).getTime()
-      : null
-  const verPcp = (ms: number) => (regua ? formatarTempoUtil(ms) : formatarDuracaoMs(ms))
   const setorDoCard = card.setor_atual_id
   const desdeUtil = (iso: string | null | undefined) =>
     regua ? duracaoUtilDesde(iso, agora, setorDoCard, regua) : formatarDuracao(iso, agora)
@@ -350,20 +341,9 @@ export function CartaoUnidade({
           )}
         </dl>
       )}
-      {/* D-48: o tempo em PCP verdadeiro — do pedido, entrada → liberação completa. */}
-      {!galpao && pcpMs !== null && (
-        <p
-          className="text-xs text-texto-fraco tabular-nums"
-          title={
-            pedido?.liberado_completo_em
-              ? 'Tempo útil que o pedido esperou no PCP (só o expediente; o stand-by não conta), da entrada até a liberação da última unidade.'
-              : 'O pedido ainda tem unidade por liberar — o tempo útil em PCP segue contando.'
-          }
-        >
-          Pedido ficou {verPcp(pcpMs)} em PCP
-          {!pedido?.liberado_completo_em && ' (ainda contando)'}
-        </p>
-      )}
+      {/* ↩️ 21/10 (pedido do dono): o "Pedido ficou X em PCP" saiu do card do
+          setor — para a produção trabalhar isso não importa. O tempo em PCP
+          segue na janela do card (Tempo e histórico) e no próprio PCP. */}
 
       {/* O tempo, como a D-02 manda: fila é do setor, execução é da pessoa. */}
       {terminal ? (
