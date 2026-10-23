@@ -110,3 +110,15 @@ describe('onde o card está (busca geral — SESSAO-40)', () => {
     ).toBe('/fabrica/producao/pcp?aba=solicitacoes&filtro=Estante%20Basic%205%20nichos')
   })
 })
+
+describe('o texto que vale a busca (a régua do banco)', () => {
+  it('número com 2 dígitos ou mais; nome com 3 letras ou mais', async () => {
+    const { termoDaBusca } = await import('./api')
+    expect(termoDaBusca('13721')).toBe('13721')
+    expect(termoDaBusca(' Pedido 13721 ')).toBe('Pedido 13721')
+    expect(termoDaBusca('#12')).toBe('#12')
+    expect(termoDaBusca('9')).toBeNull()
+    expect(termoDaBusca('ar')).toBeNull()
+    expect(termoDaBusca('est')).toBe('est')
+  })
+})

@@ -46,6 +46,17 @@ export interface PaginaDaBusca {
 
 export const ITENS_POR_PAGINA = 20
 
+/**
+ * O texto que vale a busca (a mesma régua do banco): o número do pedido com 2
+ * números ou mais (também "pedido 13721", "#13721"), ou o nome com 3 letras ou
+ * mais (o índice de trigramas precisa de 3). Senão, nulo — nada é pedido.
+ */
+export function termoDaBusca(texto: string): string | null {
+  const t = texto.trim()
+  if (/^(pedido|ped[.]?|#)? *[0-9]{2,}$/i.test(t)) return t
+  return t.replace(/ /g, '').length >= 3 ? t : null
+}
+
 export async function buscarCards(
   texto: string,
   depoisId: number | null = null,

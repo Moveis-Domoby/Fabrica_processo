@@ -16,9 +16,8 @@ import {
 import { Botao, Campo, Modal } from '@/componentes/ui'
 import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
 import { useAbrirCard } from '@/kanban/janela/abrirCard'
-import { filtroAplicavel } from '@/kanban/filtroQuadro'
 import { cn } from '@/lib/cn'
-import { buscarCards } from './api'
+import { buscarCards, termoDaBusca } from './api'
 import type { ItemDaBusca } from './api'
 import {
   itemDePedidoCancelado,
@@ -61,7 +60,7 @@ export default function BuscaGeral({
   aoFechar: () => void
 }) {
   const [texto, setTexto] = useState('')
-  const termo = filtroAplicavel(useDebouncedValue(texto, 300))
+  const termo = termoDaBusca(useDebouncedValue(texto, 300))
   const abrirCard = useAbrirCard()
 
   const consulta = useInfiniteQuery({
@@ -76,7 +75,7 @@ export default function BuscaGeral({
   })
   const itens = consulta.data?.pages.flatMap((p) => p.itens) ?? []
   const esperando =
-    texto.trim().length >= 2 && (termo !== filtroAplicavel(texto) || consulta.isPending)
+    termoDaBusca(texto) !== null && (termo !== termoDaBusca(texto) || consulta.isPending)
 
   function fechar() {
     setTexto('')
@@ -127,10 +126,10 @@ export default function BuscaGeral({
             : ''}
         </div>
 
-        {texto.trim().length < 2 && (
+        {termoDaBusca(texto) === null && (
           <p className="text-sm text-texto-suave">
-            Digite ao menos 2 caracteres. Só números = o pedido que começa com eles; letras = o nome
-            do móvel ou do card avulso.
+            Digite o número do pedido (2 números ou mais — acha os pedidos que começam com eles) ou
+            o nome do móvel ou do card avulso (3 letras ou mais).
           </p>
         )}
         {esperando && <p className="text-sm text-texto-fraco">Buscando…</p>}
