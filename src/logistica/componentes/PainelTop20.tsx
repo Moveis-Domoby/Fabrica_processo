@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Factory, PackagePlus, Search } from 'lucide-react'
 import { Botao, Campo, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
+import { chaveDoGesto } from '@/kanban/avulso'
 import { useAgora } from '@/kanban/tempo'
 import {
   configEstoque,
@@ -75,13 +76,15 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
   })
   const topX = config?.top_x ?? 20
 
-  // Desligada, o cartão em necessidade ganha o botão manual (resposta 4).
+  // Desligada, o cartão em necessidade chama a produção (o ícone vermelho
+  // pulando — resposta 4). SESSAO-40 (D-186, pedido do dono 23/10): o lançar
+  // vale para QUALQUER móvel, a qualquer momento — o ícone fica discreto no resto.
   const { data: reposicao } = useQuery({
     queryKey: ['estoque', 'reposicao-situacao'],
     queryFn: situacaoReposicao,
     enabled: ativo && podeMexer,
   })
-  const podeLancar = podeMexer && reposicao !== undefined && !reposicao.ligada
+  const automaticaDesligada = reposicao !== undefined && !reposicao.ligada
 
   const buscando = busca.trim() !== ''
   const filtroServidor: FiltroEstoque | null = buscando || filtro === 'todos' ? null : filtro
@@ -182,7 +185,8 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
             key={linha.tiny_id}
             linha={linha}
             podeMexer={podeMexer}
-            podeLancar={podeLancar}
+            podeLancar={podeMexer}
+            pedeProducao={podeMexer && automaticaDesligada && linha.em_necessidade}
             aoMovimentar={(operacao) => movimentar(linha, operacao)}
             aoAbrir={() => setAberto(linha)}
             aoLancar={() => setLancando(linha)}
@@ -228,6 +232,15 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
         podeMexer={podeMexer}
         aoFechar={() => setAberto(null)}
         aoMovimentar={(operacao) => produtoAberto && movimentar(produtoAberto, operacao)}
+        aoLancar={
+          podeMexer
+            ? () => {
+                if (!produtoAberto) return
+                setAberto(null)
+                setLancando(produtoAberto)
+              }
+            : undefined
+        }
       />
       <ModalLancarReposicao
         key={lancando?.tiny_id ?? 'lancar-fechado'}
@@ -255,9 +268,11 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
 }
 
 /**
- * "Lançar para produção" (D-87): com a automática desligada, a logística cria
- * a reposição no PCP à mão. A quantidade proposta = o que falta para o mínimo,
- * já descontando o que vem para o estoque — editável.
+ * "Lançar para produção" (D-87): a logística cria a reposição no PCP à mão. A
+ * quantidade proposta = o que falta para o mínimo, já descontando o que vem
+ * para o estoque — editável. SESSAO-40 (D-186): qualquer móvel, a qualquer
+ * momento — sem falta, a proposta é 1; uma chave por abertura (o clique duplo
+ * devolve o mesmo card).
  */
 function ModalLancarReposicao({
   produto,
@@ -270,11 +285,13 @@ function ModalLancarReposicao({
   const clienteQuery = useQueryClient()
   const proposta = Math.min(Math.max(produto?.repor_sugerido ?? 1, 1), 500)
   const [texto, setTexto] = useState<string | null>(null)
+  const [chave] = useState(chaveDoGesto)
   const quantidade = texto === null ? proposta : Number(texto)
   const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= 500
+  const faltaPeca = produto?.em_necessidade === true
 
   const lancar = useMutation({
-    mutationFn: () => lancarReposicao(produto!.tiny_id, quantidade),
+    mutationFn: () => lancarReposicao(produto!.tiny_id, quantidade, chave),
     onSuccess: async () => {
       notificar({
         titulo: 'Reposição lançada ao PCP',
@@ -336,7 +353,9 @@ function ModalLancarReposicao({
             />
           </div>
           <p className="text-sm text-texto-suave">
-            A reposição nasce no PCP, que decide o rumo. Parada 2 dias úteis lá, ela sai sozinha.
+            {faltaPeca
+              ? 'A reposição nasce no PCP, que decide o rumo. Parada 2 dias úteis lá, ela sai sozinha.'
+              : 'Nada falta para o mínimo agora — a reposição nasce no PCP do mesmo jeito, e o PCP decide o rumo. Parada 2 dias úteis lá, ela sai sozinha.'}
           </p>
           <div className="flex flex-wrap gap-2">
             <Botao

@@ -325,11 +325,20 @@ export async function desligarReposicao(): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-/** "Lançar para produção" (manual, com a automática desligada): cria a reposição no PCP. */
-export async function lancarReposicao(produtoTinyId: number, quantidade: number): Promise<number> {
+/**
+ * "Lançar para produção": cria a reposição no PCP à mão. SESSAO-40 (D-186):
+ * qualquer móvel, a qualquer momento — a `chave` do gesto (uma por abertura do
+ * lançamento) faz o clique duplo ou a rede que volta devolverem o mesmo card.
+ */
+export async function lancarReposicao(
+  produtoTinyId: number,
+  quantidade: number,
+  chave: string,
+): Promise<number> {
   const { data, error } = await supabase.rpc('plt_fn_estoque_lancar_reposicao', {
     p_produto_tiny_id: produtoTinyId,
     p_quantidade: quantidade,
+    p_chave: chave,
   })
   if (error) throw new Error(error.message)
   return Number(data ?? 0)

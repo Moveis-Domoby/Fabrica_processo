@@ -12064,8 +12064,9 @@ conferir(avisos.length === 2 && avisos.every((a) => a.n === 1)
 
 // 6 · permissões
 const priv70 = await um70(`
-  select has_function_privilege('anon', 'public.plt_fn_quadro_setor(bigint, integer, text)', 'execute') as anon_q,
-         has_function_privilege('authenticated', 'public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer, text)', 'execute') as logado_c,
+  -- ↩️ SESSAO-40 (E-120): as portas ganharam o filtro (p_filtro) — a assinatura nova
+  select has_function_privilege('anon', 'public.plt_fn_quadro_setor(bigint, integer, text, text)', 'execute') as anon_q,
+         has_function_privilege('authenticated', 'public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer, text, text)', 'execute') as logado_c,
          has_function_privilege('authenticated', 'plt_privado.fn_quadro_cards(bigint[])', 'execute') as maquina`)
 conferir(!priv70.anon_q && priv70.logado_c && !priv70.maquina, 'anônimo fora; a maquinaria fora da API', JSON.stringify(priv70))
 } // fim do bloco 70
@@ -13132,8 +13133,9 @@ for (const grupo of ['pedido', 'reposicao', null]) {
   }
 }
 const priv82 = (await bd.query(`
-  select has_function_privilege('anon', 'public.plt_fn_pcp_quadro(integer, integer, text, text)', 'execute') as anon,
-         has_function_privilege('authenticated', 'public.plt_fn_pcp_quadro(integer, integer, text, text)', 'execute') as logado`)).rows[0]
+  select has_function_privilege('anon', 'public.plt_fn_pcp_quadro(integer, integer, text, text, text)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_pcp_quadro(integer, integer, text, text, text)', 'execute') as logado`)).rows[0]
+  // ↩️ SESSAO-40 (E-120): + p_filtro na porta do PCP
 let operador82 = null
 try {
   operador82 = (await comoLogado82(E40.operador, `select count(*)::int as n from public.plt_fn_pcp_quadro(10, 0, null)`))[0].n
@@ -16160,6 +16162,10 @@ try {
   // ↪️ SESSAO-39 (E-136): a do Mover recria o check dos motivos (com o 'mover') e
   // o valida — vem depois da do stand-by, como em produção
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261023010000_plt_mover_para_fila.sql'), 'utf8'))
+  // ↪️ SESSAO-40 (E-144): a do filtro e da busca recria as portas do quadro e do
+  // PCP (com p_filtro) e tira as assinaturas que as duas de cima acabaram de
+  // recriar — vem por último, como em produção
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261024010000_plt_lancar_filtro_busca.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -16174,7 +16180,7 @@ try {
     select has_function_privilege('anon', 'public.plt_fn_card_prioridade(bigint, text)', 'execute') as prio_anon,
            has_function_privilege('authenticated', 'public.plt_fn_card_prioridade(bigint, text)', 'execute') as prio_logado,
            has_function_privilege('authenticated', 'public.plt_fn_card_responsavel_setor(bigint, bigint, uuid, boolean)', 'execute') as resp_logado,
-           has_function_privilege('authenticated', 'plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text)', 'execute') as maquina,
+           has_function_privilege('authenticated', 'plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, text)', 'execute') as maquina,
            to_regprocedure('public.plt_fn_quadro_setor(bigint, integer)') is null as quadro_velho_saiu,
            to_regprocedure('public.plt_fn_pcp_quadro(integer, integer, text)') is null as pcp_velho_saiu`)
   conferir(!priv38.prio_anon && priv38.prio_logado && priv38.resp_logado && !priv38.maquina
@@ -17634,6 +17640,248 @@ try {
   await como39m('')
 }
 } // fim do bloco Motivos (SESSAO-39)
+
+// ============================================================================
+// SESSAO-40 (migration 20261024010000 — D-186…D-188): lançar QUALQUER móvel
+// para produção a qualquer momento (a chave do gesto); o FILTRO dos quadros
+// (setor, "Ver mais" e PCP) pelo número do pedido ou pelo nome; a BUSCA GERAL
+// dos cards com onde cada um está. Tudo numa transação desfeita no fim.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-40 · o cenário: um setor com fila, três pedidos (dois liberados), um avulso, um operador de dentro e um de fora')
+
+const um40 = async (sql) => (await bd.query(sql)).rows[0]
+const como40s = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j40 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+// E-103: as portas se provam como o navegador chama (papel authenticated)
+const logado40 = async (auth, sql) => {
+  await como40s(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows
+  } finally {
+    await bd.exec('reset role')
+  }
+}
+const recusa40 = async (auth, sql, descricao, padrao) => {
+  await como40s(auth)
+  await bd.exec('savepoint s40')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s40')
+    await bd.exec('reset role')
+  }
+}
+// E-142: faixa própria de ids de teste (...4001–4049)
+const P40 = {
+  op: '00000000-0000-0000-0000-000000004001',
+  fora: '00000000-0000-0000-0000-000000004002',
+}
+await como40s('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (1940401, 'SX40A', 'Estante Teste 40 - Branca', 'F', 'A', 'un'),
+      (1940402, 'SX40B', 'Mesa Escrivaninha Teste 40', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('ft40', 'FT40 LIMPEZA', 'producao', 995);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo = 'ft40';
+  `)
+  const A = (await um40(`select id::int as id from public.plt_setores where codigo = 'ft40'`)).id
+  const SECC = (await um40(`select id::int as id from public.plt_setores where codigo = 'secc'`)).id
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${A}, 'A LIMPAR', 10, true), (${A}, 'LIMPANDO', 20, false);
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Operador 40', 'op40@teste.com', '40400000001', 'op.40', 'operador', '${P40.op}', array['fabrica']),
+      ('Operador fora 40', 'fora40@teste.com', '40400000002', 'fora.40', 'operador', '${P40.fora}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor) values
+      ((select id from public.plt_usuarios where usuario = 'op.40'), ${A}, false),
+      ((select id from public.plt_usuarios where usuario = 'fora.40'), ${SECC}, false);
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id) values
+      (940701, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94070100),
+      (940702, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94070200),
+      (940703, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94070300);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = 940701), 1, 'SX40A', 'Estante Teste 40 - Branca', 2),
+      ((select id from public.pedidos where numero = 940701), 2, 'SX40B', 'Mesa Escrivaninha Teste 40', 1),
+      ((select id from public.pedidos where numero = 940702), 1, 'SX40A', 'Estante Teste 40 - Branca', 1),
+      ((select id from public.pedidos where numero = 940703), 1, 'SX40B', 'Mesa Escrivaninha Teste 40', 1);
+  `)
+  const FILA = (await um40(`select id::int as id from public.plt_etapas where setor_id = ${A} and nome = 'A LIMPAR'`)).id
+  const pcard = async (numero) => (await um40(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                                 where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  const [pc1, pc2, pc3] = [await pcard(940701), await pcard(940702), await pcard(940703)]
+  await como40s(E40.logistica)
+  await bd.exec(`select public.plt_fn_pcp_liberar(${pc1}, ${j40([
+    { item_seq: 1, indice_unidade: 1, setor_id: A }, { item_seq: 1, indice_unidade: 2, setor_id: A },
+    { item_seq: 2, indice_unidade: 1, setor_id: A }])})`)
+  await bd.exec(`select public.plt_fn_pcp_liberar(${pc2}, ${j40([{ item_seq: 1, indice_unidade: 1, setor_id: A }])})`)
+  await como40s(E40.admin)
+  const avulso = (await um40(`select (public.plt_fn_avulso_criar('Gabarito da ÉSTANTE FT40', p_setor_id => ${A}) ->> 'card_id')::int as id`)).id
+  const naFila = await um40(`select count(*)::int as n from public.plt_cards where setor_atual_id = ${A} and etapa_atual_id = ${FILA} and arquivado_em is null`)
+  conferir(pc1 > 0 && pc2 > 0 && pc3 > 0 && avulso > 0 && naFila.n === 5,
+    'os três pedidos nasceram no PCP; 940701 (3 peças) e 940702 (1 peça) liberados para a FT40 LIMPEZA, mais o avulso — 5 na fila',
+    JSON.stringify(naFila))
+
+  titulo('SESSAO-40 · o filtro do quadro do setor: nº do pedido que começa com, nome que contém, total por coluna')
+
+  const quadro = async (filtro, porColuna = 10) =>
+    (await logado40(P40.op, `select public.plt_fn_quadro_setor(${A}, ${porColuna}, null, ${filtro === null ? 'null' : `'${filtro}'`}) as q`))[0].q
+  const fila = (q) => q.colunas.find((c) => c.etapa_id === FILA)
+  const numeros = (q) => fila(q).cards.map((c) => q.pedidos[String(c.pedido_id)]?.numero ?? 'avulso')
+  const semFiltro = await quadro(null)
+  const f1 = await quadro('940701')
+  const f1b = await quadro('Pedido 940701')
+  const f1c = await quadro('#940701')
+  conferir(fila(semFiltro).total === 5 && semFiltro.filtro === null
+      && fila(f1).total === 3 && fila(f1).cards.length === 3 && numeros(f1).every((n) => n === 940701)
+      && f1.filtro === '940701' && fila(f1b).total === 3 && fila(f1c).total === 3,
+    'sem filtro: as 5; com "940701" (ou "Pedido 940701", "#940701"): só as 3 peças do pedido, e o total da coluna conta só elas',
+    JSON.stringify({ sem: fila(semFiltro).total, f1: numeros(f1), filtro: f1.filtro }))
+  const prefixo = await quadro('9407')
+  conferir(fila(prefixo).total === 4 && !numeros(prefixo).includes('avulso'),
+    'o número que COMEÇA com "9407": as peças dos dois pedidos liberados (o avulso não tem pedido)', JSON.stringify(numeros(prefixo)))
+  const nome = await quadro('estante')
+  const nomeAcento = await quadro('  ÉSTANTE teste ')
+  conferir(fila(nome).total === 4 && numeros(nome).filter((n) => n === 'avulso').length === 1
+      && fila(nomeAcento).total === 3,
+    'o nome que CONTÉM "estante" (sem acento, sem maiúscula): as 3 estantes e o avulso; "ÉSTANTE teste" (sem espaço na régua) acha só as 3 estantes',
+    JSON.stringify({ nome: numeros(nome), acento: fila(nomeAcento).total }))
+  const curto = await quadro('e')
+  const nada = await quadro('zzz40')
+  conferir(fila(curto).total === 5 && curto.filtro === null && fila(nada).total === 0 && fila(nada).cards.length === 0,
+    'menos de 2 caracteres não filtra; o que não bate deixa a coluna com 0 (como o "0 cartão corresponde aos filtros" do Trello)')
+
+  titulo('SESSAO-40 · o "Ver mais" com o mesmo filtro, por cursor, sem repetir')
+
+  const pag1 = await quadro('940701', 1)
+  const ultimo = fila(pag1).cards[0]
+  const resto = (await logado40(P40.op, `select public.plt_fn_quadro_coluna(${A}, ${FILA}, null, ${ultimo.id}, 10, null, '940701') as c`))[0].c
+  const ids = [ultimo.id, ...resto.cards.map((c) => c.id)]
+  conferir(fila(pag1).total === 3 && fila(pag1).cards.length === 1 && resto.cards.length === 2
+      && new Set(ids).size === 3 && resto.cards.every((c) => resto.pedidos[String(c.pedido_id)]?.numero === 940701),
+    'com 1 por coluna: a 1ª página traz 1 (total 3) e o "Ver mais" traz as outras 2 do mesmo pedido, sem repetir', JSON.stringify(ids))
+
+  titulo('SESSAO-40 · o filtro do PCP: o pedido (nº que começa com) e o total que bate')
+
+  const pcp = async (filtro, grupo = 'null') =>
+    logado40(E40.admin, `select id::int as id, contagem_total::int as total from public.plt_fn_pcp_quadro(10, 0, ${grupo}, null, ${filtro === null ? 'null' : `'${filtro}'`})`)
+  const pcpTodos = await pcp(null)
+  const pcp3 = await pcp('940703')
+  const pcpNada = await pcp('zzz40')
+  conferir(pcpTodos.length > 0 && pcp3.length === 1 && pcp3[0].id === pc3 && pcp3[0].total === 1 && pcpNada.length === 0,
+    'o PCP com "940703": só o card do pedido que ainda espera liberação, com o total 1; o que não bate, nada', JSON.stringify(pcp3))
+
+  titulo('SESSAO-40 · lançar QUALQUER móvel a QUALQUER momento (D-186) — a chave do gesto')
+
+  const lancar = (produto, qtd, chave) =>
+    `select public.plt_fn_estoque_lancar_reposicao(${produto}, ${qtd}${chave ? `, '${chave}'` : ''}) as id`
+  const reposAbertas = async (produto) => (await um40(`select count(*)::int as n from public.plt_cards
+     where tipo = 'reposicao' and produto_tiny_id = ${produto} and arquivado_em is null and liberado_completo_em is null`)).n
+  const K1 = '00000000-0000-0000-0000-00000000a401'
+  const K2 = '00000000-0000-0000-0000-00000000a402'
+  const r1 = (await logado40(E40.logistica, lancar(1940402, 3, K1)))[0].id
+  const r1b = (await logado40(E40.logistica, lancar(1940402, 3, K1)))[0].id
+  const depois1 = await reposAbertas(1940402)
+  const r2 = (await logado40(E40.logistica, lancar(1940402, 2, K2)))[0].id
+  const ev = await um40(`select e.origem, e.usuario_id is not null as com_pessoa, e.dados ->> 'motivo' as motivo,
+                                (e.dados ? 'em_estoque') as com_numero
+                           from public.plt_eventos e where e.card_id = ${r2} and e.tipo = 'card_criado'`)
+  conferir(r1 > 0 && r1b === r1 && depois1 === 1 && r2 > 0 && r2 !== r1 && (await reposAbertas(1940402)) === 2
+      && ev.origem === 'interface' && ev.com_pessoa && ev.motivo === 'reposicao_manual' && ev.com_numero,
+    'fora do Top X e sem mínimo, o móvel é lançado; o mesmo toque (a mesma chave) devolve o mesmo card; outra chave cria a 2ª reposição ao lado da 1ª — com autor, motivo e o número de quando lançou',
+    JSON.stringify({ r1, r1b, r2, ev }))
+  await recusa40(E40.logistica, lancar(1940402, 1, null),
+    'sem a chave (o site de antes), a regra de antes: uma reposição aberta por produto', /já tem uma reposição aberta/i)
+  const auto = (await um40(`select plt_privado.fn_gerar_reposicoes() as n`)).n
+  conferir((await reposAbertas(1940402)) === 2 && auto >= 0,
+    'a automática não cria mais uma para o produto que já tem reposição aberta (a conta dela não muda)')
+  await recusa40(P40.op, lancar(1940401, 1, '00000000-0000-0000-0000-00000000a403'),
+    'o operador não lança (gesto da logística ou de admin)', /logística ou de admin/)
+  const reservados = await um40(`select para_estoque, pcp_pendentes from plt_privado.fn_reservados_producao() where tiny_id = 1940402`)
+  conferir(reservados?.pcp_pendentes === 5 && reservados?.para_estoque === 5,
+    'as duas reposições abertas somam nos reservados para produção (3 + 2)', JSON.stringify(reservados))
+
+  titulo('SESSAO-40 · a busca geral (D-188): o pedido e as peças, onde cada um está; por cursor')
+
+  const busca = async (auth, texto, depois = null, limite = 20) =>
+    (await logado40(auth, `select public.plt_fn_busca_cards('${texto}', ${depois ?? 'null'}, ${limite}) as b`))[0].b
+  const b1 = await busca(E40.logistica, '940701')
+  conferir(b1.itens.length === 4 && b1.itens[0].tipo === 'pedido' && b1.itens[0].id === pc1 && b1.itens[0].setor_codigo === 'pcp'
+      && b1.itens.slice(1).every((i) => i.tipo === 'unidade' && i.pedido_numero === 940701 && i.setor_nome === 'FT40 LIMPEZA' && i.etapa_nome === 'A LIMPAR')
+      && b1.tem_mais === false && b1.numero === 940701,
+    '"940701": o card do pedido (no PCP) e as 3 peças, cada uma com o setor e a etapa onde está', JSON.stringify(b1.itens.map((i) => [i.tipo, i.setor_nome, i.etapa_nome])))
+  const b2 = await busca(E40.logistica, '9407')
+  const ordem2 = b2.itens.map((i) => `${i.pedido_numero}:${i.tipo}`)
+  conferir(ordem2[0] === '940703:pedido' && ordem2[1] === '940702:pedido' && ordem2[2] === '940702:unidade' && ordem2[3] === '940701:pedido' && b2.itens.length === 7,
+    '"9407": o pedido mais novo primeiro; em cada pedido, o card do pedido e depois as peças', JSON.stringify(ordem2))
+  const pag = []
+  let depois = null
+  for (let volta = 0; volta < 10; volta++) {
+    const b = await busca(E40.logistica, '9407', depois, 3)
+    pag.push(...b.itens.map((i) => i.id))
+    if (!b.tem_mais) break
+    depois = b.itens.at(-1).id
+  }
+  conferir(pag.length === 7 && new Set(pag).size === 7 && pag.join() === b2.itens.map((i) => i.id).join(),
+    'de 3 em 3, por cursor: as mesmas 7, na mesma ordem, sem repetir', JSON.stringify(pag))
+  const bNome = await busca(P40.op, 'estante')
+  conferir(bNome.itens.length === 4 && bNome.itens.every((i) => i.tipo !== 'pedido' && i.setor_id === A)
+      && bNome.itens.some((i) => i.tipo === 'avulso' && i.id === avulso),
+    'o operador da FT40 busca "estante": as 3 estantes e o avulso do setor dele — o card do pedido (no PCP) ele não vê', JSON.stringify(bNome.itens.map((i) => i.tipo)))
+  const bFora = await busca(P40.fora, '940701')
+  conferir(bFora.itens.length === 0, 'quem é de outro setor não vê o que não é dele (a mesma régua da janela do card)', JSON.stringify(bFora))
+  const bCurto = await busca(E40.logistica, '9')
+  const bNada = await busca(E40.logistica, 'zzz40')
+  const bLetra = await busca(E40.logistica, 'e')
+  conferir(bCurto.itens.length === 0 && bLetra.itens.length === 0,
+    'um dígito ou uma letra só não busca (mínimo de 2 caracteres — Lei §3)')
+  conferir(bNada.itens.length === 0 && bNada.tem_mais === false, 'o que não existe volta vazio')
+
+  titulo('SESSAO-40 · a busca geral: o pedido entregue continua achável, dizendo "entregue"')
+
+  await logado40(E40.logistica, `select public.plt_fn_registrar_entrega(${pc2}, 'teste 40', true)`)
+  const b3 = await busca(E40.logistica, '940702')
+  const pedidoEnt = b3.itens.find((i) => i.tipo === 'pedido')
+  const pecaEnt = b3.itens.find((i) => i.tipo === 'unidade')
+  conferir(b3.itens.length === 2 && pedidoEnt?.arquivado_em && pecaEnt?.arquivado_em
+      && pecaEnt?.arquivado_motivo === 'entregue',
+    'entregue o 940702: o pedido e a peça seguem na busca, arquivados, com o motivo "entregue" (a rastreabilidade)', JSON.stringify(b3.itens.map((i) => [i.tipo, i.arquivado_motivo])))
+  const b4 = await busca(E40.logistica, '9407')
+  const posEnt = b4.itens.findIndex((i) => i.pedido_numero === 940702)
+  conferir(posEnt > b4.itens.findIndex((i) => i.pedido_numero === 940701),
+    'o vivo vem antes do arquivado (o 940701 vivo antes do 940702 entregue)', JSON.stringify(b4.itens.map((i) => i.pedido_numero)))
+
+  titulo('SESSAO-40 · portas só para quem está logado; a maquinaria fora da API; uma assinatura só por porta')
+
+  await recusa40('', `select public.plt_fn_busca_cards('9407')`, 'sem entrar na plataforma, a busca recusa', /Entre na plataforma/)
+  const priv = await um40(`
+    select has_function_privilege('anon', 'public.plt_fn_busca_cards(text, bigint, integer)', 'execute') as busca_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_busca_cards(text, bigint, integer)', 'execute') as busca_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_estoque_lancar_reposicao(bigint, integer, uuid)', 'execute') as lancar,
+           has_function_privilege('authenticated', 'plt_privado.fn_filtro_do_quadro(text)', 'execute') as filtro_maquina,
+           has_function_privilege('authenticated', 'plt_privado.fn_quadro_total(bigint, bigint, text)', 'execute') as total_maquina,
+           to_regprocedure('public.plt_fn_quadro_setor(bigint, integer, text)') is null as setor_velho_saiu,
+           to_regprocedure('public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer, text)') is null as coluna_velha_saiu,
+           to_regprocedure('public.plt_fn_pcp_quadro(integer, integer, text, text)') is null as pcp_velho_saiu,
+           to_regprocedure('public.plt_fn_estoque_lancar_reposicao(bigint, integer)') is null as lancar_velho_saiu,
+           to_regprocedure('plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text)') is null as pagina_velha_saiu,
+           to_regprocedure('plt_privado.fn_quadro_total(bigint, bigint)') is null as total_velho_saiu`)
+  conferir(!priv.busca_anon && priv.busca_logado && priv.lancar && !priv.filtro_maquina && !priv.total_maquina
+      && priv.setor_velho_saiu && priv.coluna_velha_saiu && priv.pcp_velho_saiu && priv.lancar_velho_saiu
+      && priv.pagina_velha_saiu && priv.total_velho_saiu,
+    'as portas para quem está logado (anônimo fora); a régua do filtro e o total fora da API; as assinaturas antigas saíram', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como40s('')
+}
+} // fim do bloco SESSAO-40
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

@@ -25,9 +25,16 @@ const SEM_DADOS: Etapa[] = []
 
 /** Todas as leituras do quadro de um setor (qualquer ordem) — o que o aviso relê. */
 export const chaveDoSetor = (setorId: number | undefined) => ['quadro', setorId ?? null] as const
-/** SESSAO-38 (D-154): a leitura de uma ordem da fila (o servidor ordena). */
-export const chaveDoQuadro = (setorId: number | undefined, ordem: OrdemDaFila = 'prioridade') =>
-  ['quadro', setorId ?? null, ordem] as const
+/**
+ * SESSAO-38 (D-154): a leitura de uma ordem da fila (o servidor ordena).
+ * SESSAO-40 (D-187): e de um filtro (o servidor filtra) — o aviso do setor
+ * relê todas pela chave de cima.
+ */
+export const chaveDoQuadro = (
+  setorId: number | undefined,
+  ordem: OrdemDaFila = 'prioridade',
+  filtro: string | null = null,
+) => ['quadro', setorId ?? null, ordem, filtro ?? ''] as const
 
 interface Extra {
   cards: Card[]
@@ -63,13 +70,18 @@ const juntar = (a: JuntoDoQuadro, b: JuntoDoQuadro): JuntoDoQuadro => ({
  * - **Arrasto otimista**: o card muda de coluna na hora; o banco confirma (ou
  *   desfaz, relendo).
  */
-export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'prioridade') {
+export function useQuadro(
+  setorId: number | undefined,
+  ordem: OrdemDaFila = 'prioridade',
+  filtro: string | null = null,
+) {
   const clienteQuery = useQueryClient()
   const [extras, setExtras] = useState<Record<string, Extra>>({})
   // SESSAO-38: trocar de setor OU de ordem recomeça o "Ver mais" das colunas.
-  const [setorAnterior, setSetorAnterior] = useState(`${setorId}|${ordem}`)
-  if (setorAnterior !== `${setorId}|${ordem}`) {
-    setSetorAnterior(`${setorId}|${ordem}`)
+  // SESSAO-40: e trocar o filtro também.
+  const [setorAnterior, setSetorAnterior] = useState(`${setorId}|${ordem}|${filtro}`)
+  if (setorAnterior !== `${setorId}|${ordem}|${filtro}`) {
+    setSetorAnterior(`${setorId}|${ordem}|${filtro}`)
     setExtras({})
   }
 
@@ -138,12 +150,17 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
 
   // ---- a leitura -----------------------------------------------------------
   const consulta = useQuery({
-    queryKey: chaveDoQuadro(setorId, ordem),
-    queryFn: () => quadroSetor(setorId!, CARDS_POR_COLUNA, ordem),
+    queryKey: chaveDoQuadro(setorId, ordem, filtro),
+    queryFn: () => quadroSetor(setorId!, CARDS_POR_COLUNA, ordem, filtro),
     enabled: setorId !== undefined && ouvindoSetor === setorId,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    // SESSAO-40: trocar o filtro (ou a ordem) no MESMO setor mantém o quadro de
+    // antes na tela até o novo chegar (nada vira esqueleto a cada letra); trocar
+    // de setor começa do zero (nada de quadro de outro setor na tela — E-96).
+    placeholderData: (anterior, consultaAnterior) =>
+      consultaAnterior?.queryKey[1] === (setorId ?? null) ? anterior : undefined,
   })
   const dados: DadosDoQuadro | undefined = consulta.data
 
@@ -179,6 +196,7 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
         depoisDe: coluna.cards[coluna.cards.length - 1],
         limite: Math.min(50, extra.cards.length),
         ordem,
+        filtro,
       }).then(
         (pagina) => {
           if (versao !== versaoRef.current) return
@@ -190,7 +208,7 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
         () => undefined,
       )
     }
-  }, [atualizadoEm, dados, setorId, ordem])
+  }, [atualizadoEm, dados, setorId, ordem, filtro])
 
   const verMais = useCallback(
     async (colunaChave: string) => {
@@ -218,6 +236,7 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
           etapaId: coluna.etapa_id,
           depoisDe: ultimo,
           ordem,
+          filtro,
         })
         setExtras((atual) => {
           const anterior = atual[colunaChave]
@@ -237,7 +256,7 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
         }))
       }
     },
-    [dados, setorId, extras, ordem],
+    [dados, setorId, extras, ordem, filtro],
   )
 
   // ---- o que a tela mostra -------------------------------------------------
@@ -314,7 +333,7 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
   /** O card muda de coluna na hora (o banco confirma; se recusar, a releitura desfaz). */
   const moverOtimista = useCallback(
     (card: Card, etapaId: number | null) => {
-      clienteQuery.setQueryData<DadosDoQuadro>(chaveDoQuadro(setorId, ordem), (atual) => {
+      clienteQuery.setQueryData<DadosDoQuadro>(chaveDoQuadro(setorId, ordem, filtro), (atual) => {
         if (!atual) return atual
         const destino = atual.colunas.find((c) => c.etapa_id === etapaId)
         if (!destino) return atual
@@ -341,7 +360,7 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
         }
       })
     },
-    [clienteQuery, setorId, ordem],
+    [clienteQuery, setorId, ordem, filtro],
   )
 
   /** Releitura feita pela própria tela (gesto sem o websocket conectado). */
@@ -356,6 +375,11 @@ export function useQuadro(setorId: number | undefined, ordem: OrdemDaFila = 'pri
     presencas: dados?.presencas ?? [],
     carregando: consulta.isPending,
     erro: consulta.error,
+    /** SESSAO-40 (D-187): o filtro que o servidor aplicou (nulo = o quadro inteiro). */
+    // (indefinido enquanto o quadro desse filtro não chegou)
+    filtroAplicado: consulta.isPlaceholderData || !dados ? undefined : (dados.filtro ?? null),
+    /** SESSAO-40: o quadro de antes na tela enquanto o do filtro novo chega. */
+    atualizando: consulta.isPlaceholderData,
     conectado,
     moverOtimista,
     reler,

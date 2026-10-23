@@ -66,6 +66,12 @@ export interface DadosDoQuadro extends JuntoDoQuadro {
   presencas: PresencaDoSetor[]
   /** SESSAO-38 (D-154): a ordem em que o servidor montou as colunas. */
   ordem?: OrdemDaFila
+  /**
+   * SESSAO-40 (D-187): o filtro que o servidor aplicou (o nº do pedido ou o
+   * nome, já lido); nulo = o quadro inteiro. Os totais das colunas contam só o
+   * que bate.
+   */
+  filtro?: string | null
 }
 
 export interface PaginaDaColuna extends JuntoDoQuadro {
@@ -77,12 +83,15 @@ export async function quadroSetor(
   setorId: number,
   porColuna = CARDS_POR_COLUNA,
   ordem: OrdemDaFila = 'prioridade',
+  filtro: string | null = null,
 ): Promise<DadosDoQuadro> {
   // SESSAO-38 (D-154): a ordem da fila é do servidor (as colunas paginam lá).
+  // SESSAO-40 (D-187): o filtro também (cada coluna só com o que bate).
   const { data, error } = await supabase.rpc('plt_fn_quadro_setor', {
     p_setor_id: setorId,
     p_por_coluna: porColuna,
     p_ordem: ordem,
+    p_filtro: filtro,
   })
   if (error) throw new Error(`Não deu para carregar o quadro: ${error.message}`)
   return data as DadosDoQuadro
@@ -96,6 +105,8 @@ export async function quadroColuna(parametros: {
   limite?: number
   /** SESSAO-38 (D-154): a mesma ordem do quadro — o cursor é o último card mostrado. */
   ordem?: OrdemDaFila
+  /** SESSAO-40 (D-187): o mesmo filtro do quadro. */
+  filtro?: string | null
 }): Promise<PaginaDaColuna> {
   const { data, error } = await supabase.rpc('plt_fn_quadro_coluna', {
     p_setor_id: parametros.setorId,
@@ -104,6 +115,7 @@ export async function quadroColuna(parametros: {
     p_depois_id: parametros.depoisDe?.id ?? 0,
     p_limite: parametros.limite ?? CARDS_POR_COLUNA,
     p_ordem: parametros.ordem ?? 'prioridade',
+    p_filtro: parametros.filtro ?? null,
   })
   if (error) throw new Error(`Não deu para carregar mais cards: ${error.message}`)
   return data as PaginaDaColuna

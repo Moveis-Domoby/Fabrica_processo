@@ -1,5 +1,6 @@
 import { Factory, Minus, Plus, Undo2 } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
+import { cn } from '@/lib/cn'
 import type { LinhaEstoqueProduto, OperacaoEstoque } from '@/logistica/api'
 import { formatarQuantidade, rotuloPosicao, textoCorte } from '@/logistica/estoque'
 import { FotoProduto } from './FotoProduto'
@@ -8,8 +9,13 @@ export interface CartaoProdutoEstoqueProps {
   linha: LinhaEstoqueProduto
   /** Logística/admin: foto, entrada e baixa. */
   podeMexer: boolean
-  /** Com a reposição automática DESLIGADA: o "Lançar para produção" (D-87). */
+  /** SESSAO-40 (D-186): a logística/admin lança QUALQUER móvel, a qualquer momento. */
   podeLancar: boolean
+  /**
+   * O chamado da produção (D-87/D-89): com a reposição automática DESLIGADA e o
+   * produto em necessidade, o ícone fica vermelho e pulando.
+   */
+  pedeProducao: boolean
   aoMovimentar: (operacao: OperacaoEstoque) => void
   aoAbrir: () => void
   aoLancar: () => void
@@ -30,6 +36,7 @@ export function CartaoProdutoEstoque({
   linha,
   podeMexer,
   podeLancar,
+  pedeProducao,
   aoMovimentar,
   aoAbrir,
   aoLancar,
@@ -109,17 +116,35 @@ export function CartaoProdutoEstoque({
                 ? formatarQuantidade(linha.minimo)
                 : '—'}
             </p>
-            {podeLancar && linha.em_necessidade && (
+            {podeLancar && (
               // O chamado da produção (pedido do dono, 30/09): ícone pequeno,
               // vermelho, pulando — tocar abre o lançamento (alvo de toque cheio).
+              // SESSAO-40 (D-186, pedido do dono 23/10): o MESMO ícone em todo
+              // móvel, a qualquer momento — discreto quando nada falta.
               <button
                 type="button"
                 onClick={aoLancar}
-                aria-label={`${linha.descricao} precisa de produção — lançar para produção`}
-                title="Precisa de produção — tocar lança para produção"
-                className="-my-3 -mr-2 flex size-11 shrink-0 items-center justify-center"
+                aria-label={
+                  pedeProducao
+                    ? `${linha.descricao} precisa de produção — lançar para produção`
+                    : `Lançar ${linha.descricao} para produção`
+                }
+                title={
+                  pedeProducao
+                    ? 'Precisa de produção — tocar lança para produção'
+                    : 'Lançar para produção'
+                }
+                className="group -my-3 -mr-2 flex size-11 shrink-0 items-center justify-center"
               >
-                <Factory aria-hidden className="size-4 animate-bounce text-danificado-forte" />
+                <Factory
+                  aria-hidden
+                  className={cn(
+                    'size-4',
+                    pedeProducao
+                      ? 'animate-bounce text-danificado-forte'
+                      : 'text-texto-fraco transition-colors group-hover:text-texto group-focus-visible:text-texto',
+                  )}
+                />
               </button>
             )}
           </div>

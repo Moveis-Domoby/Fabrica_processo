@@ -10,6 +10,7 @@ import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import type { AcaoAoSoltar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
+import { useFiltroDoQuadro } from '@/kanban/filtroQuadro'
 import { useOrdemDaFila } from '@/kanban/prioridade'
 import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { JanelaDoCardNaUrl } from '@/kanban/janela/JanelaDoCardNaUrl'
@@ -130,7 +131,9 @@ export function TelaSetor() {
   // ------------------------------------------------------------------
   // SESSAO-38 (D-154): a ordem da fila (o servidor ordena; lembrada no aparelho).
   const [ordemFila, mudarOrdemFila] = useOrdemDaFila('quadro')
-  const quadro = useQuadro(setor?.id, ordemFila)
+  // SESSAO-40 (D-187): o filtro pelo nº do pedido ou nome (o servidor filtra).
+  const filtroQuadro = useFiltroDoQuadro()
+  const quadro = useQuadro(setor?.id, ordemFila, filtroQuadro.aplicado)
   const {
     etapas,
     colunas,
@@ -153,15 +156,28 @@ export function TelaSetor() {
 
   // Som discreto quando um card NOVO aparece no setor (D-28) — nunca na
   // primeira carga nem ao trocar de setor.
-  const vistos = useRef<{ setorId: number | null; ids: Set<number> } | null>(null)
+  // SESSAO-40: trocar ou limpar o filtro também não toca (os cards "novos" são
+  // só os que o filtro escondia).
+  const filtroDaTela = quadro.filtroAplicado
+  const vistos = useRef<{
+    setorId: number | null
+    filtro: string | null | undefined
+    ids: Set<number>
+  } | null>(null)
   useEffect(() => {
+    if (filtroDaTela === undefined) return // o quadro do filtro novo ainda não chegou
     const atuais = new Set(cards.map((c) => c.id))
     const base = vistos.current
-    if (base && base.setorId === setorId && [...atuais].some((id) => !base.ids.has(id))) {
+    if (
+      base &&
+      base.setorId === setorId &&
+      base.filtro === filtroDaTela &&
+      [...atuais].some((id) => !base.ids.has(id))
+    ) {
       tocarSomChegada()
     }
-    vistos.current = { setorId, ids: atuais }
-  }, [cards, setorId])
+    vistos.current = { setorId, filtro: filtroDaTela, ids: atuais }
+  }, [cards, setorId, filtroDaTela])
 
   // ------------------------------------------------------------------
   // Gestos com PIN (D-06): soltar o card pede o PIN; o resto vem depois.
@@ -474,6 +490,8 @@ export function TelaSetor() {
           carregando={quadro.carregando}
           ordem={ordemFila}
           aoMudarOrdem={mudarOrdemFila}
+          filtro={{ texto: filtroQuadro.texto, aoMudar: filtroQuadro.mudar }}
+          filtrando={Boolean(quadro.filtroAplicado)}
           execucao={{
             execucoesPorCard,
             nomesUsuarios,

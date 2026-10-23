@@ -18,6 +18,7 @@ import {
   Hand,
   Handshake,
   Inbox,
+  ListFilter,
   Pause,
   Play,
   TriangleAlert,
@@ -26,6 +27,7 @@ import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
 import { CartaoUnidade } from './CartaoUnidade'
 import { BotaoOrdemFila } from './MarcasDoCard'
+import { FiltroDoQuadro } from './FiltroDoQuadro'
 import type { OrdemDaFila } from '../prioridade'
 import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
@@ -99,6 +101,8 @@ interface ColunaProps {
   camposPorCard: Map<number, CampoMostrado[]>
   /** true logo depois de um arrasto — o clique que vem junto não abre a janela. */
   acabouDeArrastar: () => boolean
+  /** SESSAO-40 (D-187): o quadro está filtrado — a coluna diz quantos batem. */
+  filtrando?: boolean
 }
 
 function Coluna({
@@ -119,6 +123,7 @@ function Coluna({
   tamanho,
   camposPorCard,
   acabouDeArrastar,
+  filtrando = false,
 }: ColunaProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const { cards, total } = dados
@@ -184,6 +189,18 @@ function Coluna({
               )}
             </span>
           </div>
+          {/* SESSAO-40 (D-187): filtrado, quantos cards desta coluna batem (o
+              "N cartões correspondem aos filtros" do Trello do vídeo). */}
+          {filtrando && !levaPara && (
+            <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
+              <ListFilter aria-hidden className="size-3.5" />
+              {total === 0
+                ? 'nenhum card bate com o filtro'
+                : total === 1
+                  ? '1 card bate com o filtro'
+                  : `${total} cards batem com o filtro`}
+            </span>
+          )}
           {/* SESSAO-24: o que soltar aqui faz — ícone + texto (M-12). */}
           {ehInicio && (
             <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
@@ -423,6 +440,13 @@ export interface QuadroKanbanProps {
    */
   ordem?: OrdemDaFila
   aoMudarOrdem?: (ordem: OrdemDaFila) => void
+  /**
+   * SESSAO-40 (D-187 — o filtro do Trello do vídeo do dono): o campo de filtro
+   * do topo (o texto e quem o muda) e se o servidor está filtrando agora —
+   * filtrando, cada coluna diz quantos cards batem. Sem `filtro`, sem campo.
+   */
+  filtro?: { texto: string; aoMudar: (texto: string) => void }
+  filtrando?: boolean
 }
 
 /**
@@ -455,6 +479,8 @@ export function QuadroKanban({
   carregando = false,
   ordem = 'prioridade',
   aoMudarOrdem,
+  filtro,
+  filtrando = false,
 }: QuadroKanbanProps) {
   const sensores = useSensors(
     // Só o botão esquerdo pega o card — o do meio é da mãozinha (arrastarQuadro).
@@ -498,111 +524,126 @@ export function QuadroKanban({
     aoSoltarNaEtapa(card, etapaId)
   }
 
-  const barraDaOrdem = aoMudarOrdem && (
-    <div className="flex items-center justify-end pb-2">
-      <BotaoOrdemFila ordem={ordem} aoMudar={aoMudarOrdem} />
+  // SESSAO-40: o filtro à esquerda, a ordem à direita. A barra fica na MESMA
+  // posição com o quadro abrindo ou aberto — o campo não perde o foco enquanto
+  // o quadro do filtro novo chega.
+  const barraDoTopo = (aoMudarOrdem || filtro) && (
+    <div className="flex items-center justify-end gap-2 pb-2">
+      {filtro && (
+        <FiltroDoQuadro
+          texto={filtro.texto}
+          aoMudar={filtro.aoMudar}
+          tamanho={tamanho}
+          className="mr-auto"
+        />
+      )}
+      {aoMudarOrdem && <BotaoOrdemFila ordem={ordem} aoMudar={aoMudarOrdem} />}
     </div>
   )
 
-  if (carregando && etapas.length === 0)
-    return (
-      <>
-        {barraDaOrdem}
-        <EsqueletoDoQuadro tamanho={tamanho} />
-      </>
-    )
-
   return (
-    <DndContext
-      sensors={sensores}
-      // Só rola para os lados (as colunas), devagar, e nunca a página para baixo.
-      autoScroll={{ threshold: { x: 0.12, y: 0 }, acceleration: 6, layoutShiftCompensation: false }}
-      onDragStart={() => (arrastouEm.current = Date.now())}
-      onDragCancel={() => (arrastouEm.current = Date.now())}
-      onDragEnd={aoSoltar}
-    >
-      {barraDaOrdem}
-      <div
-        {...propsDoQuadro}
-        className={cn(
-          'flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto pb-3 sm:snap-none',
-          correndoQuadro ? 'cursor-grabbing select-none' : 'cursor-grab',
-        )}
-        aria-label={`Quadro do setor ${setor.nome}`}
-      >
-        {mostrarChegada && (
-          <Coluna
-            id={CHEGADA}
-            titulo="Chegada"
-            dados={chegada}
-            pedidosPorId={pedidosPorId}
-            agora={agora}
-            terminal={terminal}
-            aoConcluir={aoAbrirConcluir}
-            arrastavel={etapas.length > 0}
-            execucao={execucao}
-            camposPorCard={camposPorCard}
-            acabouDeArrastar={acabouDeArrastar}
-            tamanho={tamanho}
-          />
-        )}
-        {etapas.map((etapa) => (
-          <Coluna
-            key={etapa.id}
-            id={String(etapa.id)}
-            titulo={etapa.nome}
-            ehFila={etapa.eh_fila}
-            ehDanificado={etapa.eh_danificado}
-            ehInicio={etapa.id === inicioId}
-            levaPara={
-              etapa.setor_destino_id !== null
-                ? (nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor')
-                : undefined
-            }
-            conclui={etapa.conclui_producao}
-            dados={dadosDe(String(etapa.id))}
-            pedidosPorId={pedidosPorId}
-            agora={agora}
-            terminal={terminal}
-            aoConcluir={aoAbrirConcluir}
-            arrastavel
-            execucao={execucao}
-            camposPorCard={camposPorCard}
-            acabouDeArrastar={acabouDeArrastar}
-            tamanho={tamanho}
-          />
-        ))}
-      </div>
-      {/* Só no mouse: como correr o quadro para o lado. */}
-      <p className="hidden items-center gap-1.5 text-xs text-texto-fraco [@media(pointer:fine)]:flex">
-        <Hand aria-hidden className="size-3.5" />
-        Para ver as outras colunas: segure o fundo do quadro (ou o botão do meio do mouse) e arraste
-        para o lado.
-      </p>
+    <>
+      {barraDoTopo}
+      {carregando && etapas.length === 0 ? (
+        <EsqueletoDoQuadro tamanho={tamanho} />
+      ) : (
+        <DndContext
+          sensors={sensores}
+          // Só rola para os lados (as colunas), devagar, e nunca a página para baixo.
+          autoScroll={{
+            threshold: { x: 0.12, y: 0 },
+            acceleration: 6,
+            layoutShiftCompensation: false,
+          }}
+          onDragStart={() => (arrastouEm.current = Date.now())}
+          onDragCancel={() => (arrastouEm.current = Date.now())}
+          onDragEnd={aoSoltar}
+        >
+          <div
+            {...propsDoQuadro}
+            className={cn(
+              'flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto pb-3 sm:snap-none',
+              correndoQuadro ? 'cursor-grabbing select-none' : 'cursor-grab',
+            )}
+            aria-label={`Quadro do setor ${setor.nome}`}
+          >
+            {mostrarChegada && (
+              <Coluna
+                id={CHEGADA}
+                titulo="Chegada"
+                dados={chegada}
+                pedidosPorId={pedidosPorId}
+                agora={agora}
+                terminal={terminal}
+                aoConcluir={aoAbrirConcluir}
+                arrastavel={etapas.length > 0}
+                execucao={execucao}
+                camposPorCard={camposPorCard}
+                acabouDeArrastar={acabouDeArrastar}
+                tamanho={tamanho}
+                filtrando={filtrando}
+              />
+            )}
+            {etapas.map((etapa) => (
+              <Coluna
+                key={etapa.id}
+                id={String(etapa.id)}
+                titulo={etapa.nome}
+                ehFila={etapa.eh_fila}
+                ehDanificado={etapa.eh_danificado}
+                ehInicio={etapa.id === inicioId}
+                levaPara={
+                  etapa.setor_destino_id !== null
+                    ? (nomeDoSetor.get(etapa.setor_destino_id) ?? 'outro setor')
+                    : undefined
+                }
+                conclui={etapa.conclui_producao}
+                dados={dadosDe(String(etapa.id))}
+                pedidosPorId={pedidosPorId}
+                agora={agora}
+                terminal={terminal}
+                aoConcluir={aoAbrirConcluir}
+                arrastavel
+                execucao={execucao}
+                camposPorCard={camposPorCard}
+                acabouDeArrastar={acabouDeArrastar}
+                tamanho={tamanho}
+                filtrando={filtrando}
+              />
+            ))}
+          </div>
+          {/* Só no mouse: como correr o quadro para o lado. */}
+          <p className="hidden items-center gap-1.5 text-xs text-texto-fraco [@media(pointer:fine)]:flex">
+            <Hand aria-hidden className="size-3.5" />
+            Para ver as outras colunas: segure o fundo do quadro (ou o botão do meio do mouse) e
+            arraste para o lado.
+          </p>
 
-      {producao && !temFila && (
-        <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">
-          <TriangleAlert aria-hidden className="size-5 shrink-0" />
-          Este setor ainda não tem uma etapa de fila cadastrada — os cards chegam sem etapa. Um
-          líder do setor ou admin cadastra a fila em Setores e etapas; feito isso, todo card que
-          chegar cai direto nela.
-        </p>
+          {producao && !temFila && (
+            <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">
+              <TriangleAlert aria-hidden className="size-5 shrink-0" />
+              Este setor ainda não tem uma etapa de fila cadastrada — os cards chegam sem etapa. Um
+              líder do setor ou admin cadastra a fila em Setores e etapas; feito isso, todo card que
+              chegar cai direto nela.
+            </p>
+          )}
+          {producao && temFila && chegada.total > 0 && (
+            <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">
+              <TriangleAlert aria-hidden className="size-5 shrink-0" />
+              {chegada.total} card(s) ainda estão sem etapa — arraste cada um para a fila do setor
+              (a coluna Chegada some quando esvaziar).
+            </p>
+          )}
+          {etapas.length === 0 && !producao && (
+            <p className="flex items-center gap-2 rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
+              <Inbox aria-hidden className="size-5 shrink-0" />
+              Este setor ainda não tem etapas internas cadastradas — os cards ficam na Chegada. Um
+              líder do setor ou admin cadastra as etapas em Estrutura (cada etapa nova já nasce
+              contando tempo).
+            </p>
+          )}
+        </DndContext>
       )}
-      {producao && temFila && chegada.total > 0 && (
-        <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">
-          <TriangleAlert aria-hidden className="size-5 shrink-0" />
-          {chegada.total} card(s) ainda estão sem etapa — arraste cada um para a fila do setor (a
-          coluna Chegada some quando esvaziar).
-        </p>
-      )}
-      {etapas.length === 0 && !producao && (
-        <p className="flex items-center gap-2 rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-          <Inbox aria-hidden className="size-5 shrink-0" />
-          Este setor ainda não tem etapas internas cadastradas — os cards ficam na Chegada. Um líder
-          do setor ou admin cadastra as etapas em Estrutura (cada etapa nova já nasce contando
-          tempo).
-        </p>
-      )}
-    </DndContext>
+    </>
   )
 }

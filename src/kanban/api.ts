@@ -126,6 +126,8 @@ export async function buscarCardsPedidoPcp(parametros: {
   grupo?: 'pedido' | 'reposicao' | 'standby'
   /** SESSAO-38 (D-154): a ordem da fila (o servidor ordena; o urgente sempre primeiro). */
   ordem?: 'prioridade' | 'entrega' | 'alfabetica'
+  /** SESSAO-40 (D-187): o filtro (nº do pedido que começa com · nome que contém); o servidor filtra. */
+  filtro?: string | null
 }): Promise<PaginaDeCards> {
   const porPagina = parametros.porPagina ?? CARDS_POR_PAGINA
   const inicio = parametros.pagina * porPagina
@@ -136,6 +138,7 @@ export async function buscarCardsPedidoPcp(parametros: {
     p_deslocamento: inicio,
     p_grupo: parametros.grupo ?? null,
     p_ordem: parametros.ordem ?? 'prioridade',
+    p_filtro: parametros.filtro ?? null,
   })
   if (error) throw new Error(`Não deu para carregar os pedidos do PCP: ${error.message}`)
   const linhas = (data ?? []) as (Card & { contagem_total: number })[]

@@ -1,4 +1,4 @@
-import { ClipboardCheck, Minus, Plus } from 'lucide-react'
+import { ClipboardCheck, Factory, Minus, Plus } from 'lucide-react'
 import { Botao, Modal } from '@/componentes/ui'
 import { useAgora } from '@/kanban/tempo'
 import type { LinhaEstoqueProduto, OperacaoEstoque } from '@/logistica/api'
@@ -16,6 +16,8 @@ export interface ModalProdutoEstoqueProps {
   podeMexer: boolean
   aoFechar: () => void
   aoMovimentar: (operacao: OperacaoEstoque) => void
+  /** SESSAO-40 (D-186): lançar este móvel para produção (qualquer um, a qualquer momento). */
+  aoLancar?: () => void
 }
 
 /**
@@ -28,6 +30,7 @@ export function ModalProdutoEstoque({
   podeMexer,
   aoFechar,
   aoMovimentar,
+  aoLancar,
 }: ModalProdutoEstoqueProps) {
   const agora = useAgora()
   const reposicao = produto ? textoReposicao(produto.reposicao_estado) : undefined
@@ -126,6 +129,16 @@ export function ModalProdutoEstoque({
               >
                 Contagem
               </Botao>
+              {aoLancar && (
+                <Botao
+                  variante="secundaria"
+                  icone={<Factory />}
+                  onClick={aoLancar}
+                  className="sm:col-span-3"
+                >
+                  Lançar para produção
+                </Botao>
+              )}
             </div>
           )}
 

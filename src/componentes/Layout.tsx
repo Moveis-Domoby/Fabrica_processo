@@ -41,6 +41,7 @@ import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 import { AvisoAoVivoPausado } from '@/componentes/AvisoAoVivoPausado'
 import { preCarregar } from '@/navegacao/pedacos'
 import { medirNaNavegacao } from '@/lib/medicao'
+import { BotaoBuscaGeral } from '@/busca/BotaoBuscaGeral'
 
 interface FilhoMenu {
   para: string
@@ -253,7 +254,9 @@ export function Layout({ children }: { children: ReactNode }) {
       (s) =>
         s.papel_no_fluxo !== 'terminal' &&
         // SESSAO-37 (D-147): o nível logística vê TODOS os setores de produção (só olhando).
-        (souAdmin || ehDoPcp || souLogistica ? true : idsVinculados.has(s.id) || s.codigo === 'pcp'),
+        (souAdmin || ehDoPcp || souLogistica
+          ? true
+          : idsVinculados.has(s.id) || s.codigo === 'pcp'),
     )
     // Operador comum não é do PCP: o quadro do PCP fica com admin/PCP.
     const filhosProducao = setoresDoMenu
@@ -545,6 +548,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <Marca tamanho="sm" />
           </NavLink>
         )}
+        {/* SESSAO-40 (D-188): a busca geral dos cards, ao lado do sino (Ctrl+K). */}
+        {veFabrica && <BotaoBuscaGeral atalho />}
         {/* O sino no topo, junto à logo (D-36). */}
         <SinoNotificacoes usuarioId={perfil.id} painelLado="esquerda" />
         <button
@@ -776,7 +781,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <NavLink to={ROTA_INICIAL} className="rounded-dm" aria-label="Domoby — início">
               <Marca tamanho="sm" />
             </NavLink>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-1">
+              {veFabrica && <BotaoBuscaGeral />}
               <SinoNotificacoes usuarioId={perfil.id} />
             </div>
           </div>

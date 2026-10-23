@@ -61,6 +61,8 @@ import {
   SeletorPrioridade,
 } from '@/kanban/componentes/MarcasDoCard'
 import { definirPrioridade, prioridadeDe, useOrdemDaFila } from '@/kanban/prioridade'
+import { useFiltroDoQuadro } from '@/kanban/filtroQuadro'
+import { FiltroDoQuadro, NadaBateComOFiltro } from '@/kanban/componentes/FiltroDoQuadro'
 import type { Prioridade } from '@/kanban/prioridade'
 
 /**
@@ -144,20 +146,24 @@ export function PCP() {
   // SESSAO-38 (D-154): a ordem da fila — o servidor ordena (o urgente sempre
   // primeiro); trocar de ordem recomeça da 1ª página.
   const [ordemFila, mudarOrdemFila] = useOrdemDaFila('pcp')
-  const [ordemDasPaginas, setOrdemDasPaginas] = useState(ordemFila)
+  // SESSAO-40 (D-187): o filtro pelo nº do pedido ou pelo nome (o cliente no
+  // pedido, o móvel na reposição) — o servidor filtra; trocar recomeça da 1ª página.
+  const filtroPcp = useFiltroDoQuadro()
+  const filtro = filtroPcp.aplicado
+  const [ordemDasPaginas, setOrdemDasPaginas] = useState(`${ordemFila}|${filtro}`)
   const [paginasPedidos, setPaginasPedidos] = useState(1)
   const [paginasSolicitacoes, setPaginasSolicitacoes] = useState(1)
   const [paginasStandby, setPaginasStandby] = useState(1)
-  if (ordemDasPaginas !== ordemFila) {
-    setOrdemDasPaginas(ordemFila)
+  if (ordemDasPaginas !== `${ordemFila}|${filtro}`) {
+    setOrdemDasPaginas(`${ordemFila}|${filtro}`)
     setPaginasPedidos(1)
     setPaginasSolicitacoes(1)
     setPaginasStandby(1)
   }
   const consultasPedidos = useQueries({
     queries: Array.from({ length: paginasPedidos }, (_, pagina) => ({
-      queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, ordemFila, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'pedido', ordem: ordemFila }),
+      queryKey: ['cards', 'pcp-pedidos', setorPcp?.id, ordemFila, filtro ?? '', pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'pedido', ordem: ordemFila, filtro }),
       enabled: setorPcp !== undefined && aba === 'quadro',
       placeholderData: keepPreviousData,
     })),
@@ -178,8 +184,8 @@ export function PCP() {
   // se perder atrás dos pedidos na paginação.
   const consultasSolicitacoes = useQueries({
     queries: Array.from({ length: paginasSolicitacoes }, (_, pagina) => ({
-      queryKey: ['cards', 'pcp-solicitacoes', setorPcp?.id, ordemFila, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'reposicao', ordem: ordemFila }),
+      queryKey: ['cards', 'pcp-solicitacoes', setorPcp?.id, ordemFila, filtro ?? '', pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'reposicao', ordem: ordemFila, filtro }),
       enabled: setorPcp !== undefined && aba === 'solicitacoes',
       placeholderData: keepPreviousData,
     })),
@@ -200,8 +206,8 @@ export function PCP() {
   // 'standby' (paginada no servidor, só pedida com a aba aberta — Lei §3).
   const consultasStandby = useQueries({
     queries: Array.from({ length: paginasStandby }, (_, pagina) => ({
-      queryKey: ['cards', 'pcp-standby', setorPcp?.id, ordemFila, pagina],
-      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'standby', ordem: ordemFila }),
+      queryKey: ['cards', 'pcp-standby', setorPcp?.id, ordemFila, filtro ?? '', pagina],
+      queryFn: () => buscarCardsPedidoPcp({ pagina, grupo: 'standby', ordem: ordemFila, filtro }),
       enabled: setorPcp !== undefined && aba === 'standby',
       placeholderData: keepPreviousData,
     })),
@@ -423,10 +429,16 @@ export function PCP() {
                 Reabastecimento{' '}
                 <span className="text-texto-suave tabular-nums">({totalSolicitacoes})</span>
               </h2>
-              <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+              <span className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                <FiltroDoQuadro texto={filtroPcp.texto} aoMudar={filtroPcp.mudar} />
+                <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+              </span>
             </div>
             {carregandoSolicitacoes && <p className="text-sm text-texto-fraco">Carregando…</p>}
-            {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && (
+            {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && filtro && (
+              <NadaBateComOFiltro filtro={filtro} />
+            )}
+            {!carregandoSolicitacoes && cardsSolicitacoes.length === 0 && !filtro && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
                 Nenhum reabastecimento agora — ele nasce quando um produto do Top X fica abaixo do
                 mínimo (pela automática ou pelo lançamento da logística).
@@ -500,12 +512,16 @@ export function PCP() {
                     Marcar os {cardsPedidoAbertos.length} da tela
                   </Botao>
                 )}
+                <FiltroDoQuadro texto={filtroPcp.texto} aoMudar={filtroPcp.mudar} />
                 <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
               </span>
             </div>
 
             {carregandoPedidos && <p className="text-sm text-texto-fraco">Carregando…</p>}
-            {!carregandoPedidos && cardsPedidoAbertos.length === 0 && (
+            {!carregandoPedidos && cardsPedidoAbertos.length === 0 && filtro && (
+              <NadaBateComOFiltro filtro={filtro} />
+            )}
+            {!carregandoPedidos && cardsPedidoAbertos.length === 0 && !filtro && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
                 Nenhum pedido aguardando. Pedido novo do Tiny entra aqui sozinho — o botão serve
                 para trazer algum antigo que ficou de fora.
@@ -578,10 +594,16 @@ export function PCP() {
               <h2 className="text-lg">
                 Em stand-by <span className="text-texto-suave tabular-nums">({totalStandby})</span>
               </h2>
-              <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+              <span className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                <FiltroDoQuadro texto={filtroPcp.texto} aoMudar={filtroPcp.mudar} />
+                <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+              </span>
             </div>
             {carregandoStandby && <p className="text-sm text-texto-fraco">Carregando…</p>}
-            {!carregandoStandby && cardsStandby.length === 0 && (
+            {!carregandoStandby && cardsStandby.length === 0 && filtro && (
+              <NadaBateComOFiltro filtro={filtro} />
+            )}
+            {!carregandoStandby && cardsStandby.length === 0 && !filtro && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
                 Nenhum pedido em stand-by. Para segurar um pedido, use o botão de stand-by no card
                 dele em "Aguardando liberação".

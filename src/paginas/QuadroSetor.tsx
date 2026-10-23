@@ -11,6 +11,7 @@ import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
 import { useQuadro } from '@/kanban/useQuadro'
+import { useFiltroDoQuadro } from '@/kanban/filtroQuadro'
 import { useOrdemDaFila } from '@/kanban/prioridade'
 import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { QuadroKanban } from '@/kanban/componentes/QuadroKanban'
@@ -68,7 +69,14 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   // SESSAO-31: o quadro inteiro numa requisição e ao vivo pelo websocket do setor.
   // SESSAO-38 (D-154): a ordem da fila (o servidor ordena; lembrada no aparelho).
   const [ordemFila, mudarOrdemFila] = useOrdemDaFila('quadro')
-  const quadro = useQuadro(Number.isFinite(setorId) ? setorId : undefined, ordemFila)
+  // SESSAO-40 (D-187 — pedido do dono com o vídeo do Trello): o filtro pelo nº
+  // do pedido ou pelo nome do móvel; o servidor filtra cada coluna.
+  const filtroQuadro = useFiltroDoQuadro()
+  const quadro = useQuadro(
+    Number.isFinite(setorId) ? setorId : undefined,
+    ordemFila,
+    filtroQuadro.aplicado,
+  )
   const {
     etapas,
     colunas,
@@ -322,7 +330,11 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
               ? 'Unidade que chega aqui está concluída.'
               : quadro.carregando
                 ? 'Abrindo o quadro…'
-                : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
+                : quadro.filtroAplicado
+                  ? totalNoSetor === 1
+                    ? `1 card bate com o filtro "${quadro.filtroAplicado}".`
+                    : `${totalNoSetor} cards batem com o filtro "${quadro.filtroAplicado}".`
+                  : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
           </p>
         </div>
         {podeGerirEtapas && (
@@ -347,6 +359,8 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         carregando={quadro.carregando}
         ordem={ordemFila}
         aoMudarOrdem={mudarOrdemFila}
+        filtro={{ texto: filtroQuadro.texto, aoMudar: filtroQuadro.mudar }}
+        filtrando={Boolean(quadro.filtroAplicado)}
         execucao={{
           execucoesPorCard,
           nomesUsuarios,
