@@ -38,6 +38,28 @@ comment on index public.plt_cards_reposicao_aberta_uq is
   'SESSAO-25 · SESSAO-40 (D-186): uma reposição ABERTA por produto para a maquinaria (a automática e o lançamento sem chave) — a lançada à mão pela tela (com a chave do gesto) pode nascer ao lado de outra.';
 
 -- ----------------------------------------------------------------------------
+-- 1b · O nome do card já normalizado, GUARDADO (D-187/D-188): o filtro dos
+--      quadros e a busca geral comparam o texto sem acento, sem maiúscula e sem
+--      espaço (a régua de fn_nome_comparavel — uma regra só). Calcular a régua
+--      a cada leitura custava ~180 ms para 7 mil cards no ensaio ×100 (função
+--      com SET por linha — E-65); guardada no card (coluna gerada), a leitura
+--      só compara, e o índice de trigramas anda nela. Toda escrita em plt_cards
+--      lista as colunas (conferido — A-69), e a coluna gerada não se escreve.
+-- ----------------------------------------------------------------------------
+alter table public.plt_cards
+  add column if not exists nome_busca text
+  generated always as (plt_privado.fn_nome_comparavel(coalesce(titulo, item_descricao))) stored;
+
+comment on column public.plt_cards.nome_busca is
+  'SESSAO-40 (D-187/D-188): o nome do card (o título do avulso ou o móvel) sem acento, sem maiúscula e sem espaço — a régua de fn_nome_comparavel, guardada (coluna gerada). Lida pelo filtro dos quadros e pela busca geral.';
+
+create index if not exists plt_cards_nome_busca_trgm
+  on public.plt_cards using gin (nome_busca extensions.gin_trgm_ops);
+
+comment on index public.plt_cards_nome_busca_trgm is
+  'SESSAO-40 (D-188): a busca geral e o filtro dos quadros pelo nome do card — trigramas na coluna guardada.';
+
+-- ----------------------------------------------------------------------------
 -- 2 · O lançamento manual (recriado por EXTRAÇÃO da versão viva — md5 conferido;
 --     assinatura nova = drop + create, A-12): + p_chave (a chave do gesto).
 -- ----------------------------------------------------------------------------
@@ -167,10 +189,37 @@ $$;
 comment on function plt_privado.fn_filtro_do_quadro(text) is
   'SESSAO-40 (D-187): lê o texto do filtro dos quadros — só dígitos (ou "pedido N", "#N") = número do pedido que começa com eles; senão o nome que contém (sem acento, maiúscula e espaço); menos de 2 caracteres = sem filtro.';
 
+
+-- Os cards vivos do setor (peça e avulso) que batem com o filtro — resolvidos
+-- UMA vez por quadro (no ensaio ×100, a regra rodando coluna por coluna levava
+-- o quadro de 200 para 300–900 ms). Nulo = sem filtro; vazio = nada bate. O
+-- número pelo pedido (que começa com); o nome pela coluna guardada (que contém).
+create or replace function plt_privado.fn_quadro_filtrados(p_setor_id bigint, p_filtro text)
+returns bigint[]
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  with f as (select * from plt_privado.fn_filtro_do_quadro(p_filtro))
+  select case when (select ativo from f) then coalesce((
+    select array_agg(c.id)
+      from public.plt_cards c
+      left join public.pedidos p on p.id = c.pedido_id
+     where c.setor_atual_id = p_setor_id
+       and c.arquivado_em is null and c.tipo in ('unidade', 'avulso')
+       and case when (select numero from f) is not null
+                then p.numero::text like (select numero from f) || '%'
+                else c.nome_busca like '%' || (select nome from f) || '%' end), '{}'::bigint[]) end;
+$$;
+
+comment on function plt_privado.fn_quadro_filtrados(bigint, text) is
+  'SESSAO-40 (D-187): os cards vivos do setor que batem com o filtro dos quadros (nulo = sem filtro; vazio = nada bate) — o número do pedido que começa com o texto, ou o nome guardado que o contém.';
+
 drop function if exists plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text);
 create or replace function plt_privado.fn_quadro_pagina(
   p_setor_id bigint, p_etapa_id bigint, p_corte_desde timestamptz, p_corte_id bigint, p_n integer,
-  p_ordem text default null, p_filtro text default null)
+  p_ordem text default null, p_so_ids bigint[] default null)
 returns bigint[]
 language sql
 stable
@@ -178,8 +227,6 @@ security definer
 set search_path = public, pg_temp
 as $$
   with m as (select plt_privado.fn_ordem_do_quadro(p_ordem) as modo),
-  -- SESSAO-40 (D-187): o filtro do quadro (nº do pedido que começa com · nome que contém)
-  f as (select * from plt_privado.fn_filtro_do_quadro(p_filtro)),
   col as (
     select v.id,
            case (select modo from m) when 'prioridade' then v.rank_prioridade else v.rank_urgente end as k1,
@@ -191,11 +238,9 @@ as $$
      where v.setor_atual_id = p_setor_id
        and (case when p_etapa_id is null then v.etapa_atual_id is null else v.etapa_atual_id = p_etapa_id end)
        and v.arquivado_em is null and v.tipo in ('unidade', 'avulso')
-       and (not (select ativo from f)
-              or case when (select numero from f) is not null
-                      then v.pedido_numero::text like (select numero from f) || '%'
-                      else translate(substr(v.chave_nome, 2), ' ' || chr(9) || chr(10) || chr(13), '')
-                             like '%' || (select nome from f) || '%' end)
+       -- SESSAO-40 (D-187): com o filtro, só os cards que bateram (o conjunto
+       -- vem resolvido UMA vez por quadro — fn_quadro_filtrados)
+       and (p_so_ids is null or v.id = any (p_so_ids))
   ),
   corte as (
     select case (select modo from m) when 'prioridade' then v.rank_prioridade else v.rank_urgente end as k1,
@@ -216,11 +261,11 @@ as $$
            limit greatest(coalesce(p_n, 10), 1)) x;
 $$;
 
-comment on function plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, text) is
+comment on function plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, bigint[]) is
   'SESSAO-38 (D-154) · SESSAO-40 (D-187): uma página de uma coluna na ordem pedida (o urgente sempre primeiro), por cursor (depois do card p_corte_id), só com os cards que batem com o filtro (p_filtro nulo = todos).';
 
 drop function if exists plt_privado.fn_quadro_total(bigint, bigint);
-create or replace function plt_privado.fn_quadro_total(p_setor_id bigint, p_etapa_id bigint, p_filtro text default null)
+create or replace function plt_privado.fn_quadro_total(p_setor_id bigint, p_etapa_id bigint, p_so_ids bigint[] default null)
 returns integer
 language plpgsql
 stable
@@ -230,20 +275,12 @@ as $$
 declare
   v_n integer;
 begin
-  -- SESSAO-40 (D-187): com filtro, a contagem segue a MESMA regra da página
-  -- (fn_quadro_pagina) — a bateria amarra as duas.
-  if (select ativo from plt_privado.fn_filtro_do_quadro(p_filtro)) then
-    with f as (select * from plt_privado.fn_filtro_do_quadro(p_filtro))
+  -- SESSAO-40 (D-187): com o filtro, conta só os que bateram (pela chave)
+  if p_so_ids is not null then
     select count(*)::int into v_n
-      from plt_privado.vw_card_ordem v
-     where v.setor_atual_id = p_setor_id
-       and (case when p_etapa_id is null then v.etapa_atual_id is null else v.etapa_atual_id = p_etapa_id end)
-       and v.arquivado_em is null and v.tipo in ('unidade', 'avulso')
-       and (not (select ativo from f)
-              or case when (select numero from f) is not null
-                      then v.pedido_numero::text like (select numero from f) || '%'
-                      else translate(substr(v.chave_nome, 2), ' ' || chr(9) || chr(10) || chr(13), '')
-                             like '%' || (select nome from f) || '%' end);
+      from public.plt_cards c
+     where c.id = any (p_so_ids)
+       and (case when p_etapa_id is null then c.etapa_atual_id is null else c.etapa_atual_id = p_etapa_id end);
     return v_n;
   end if;
   if p_etapa_id is null then
@@ -259,7 +296,7 @@ begin
 end;
 $$;
 
-comment on function plt_privado.fn_quadro_total(bigint, bigint, text) is
+comment on function plt_privado.fn_quadro_total(bigint, bigint, bigint[]) is
   'SESSAO-31 · SESSAO-40 (D-187): quantos cards vivos (peça/avulso) há numa coluna do quadro — com filtro, só os que batem (a mesma regra da página).';
 
 drop function if exists public.plt_fn_quadro_setor(bigint, integer, text);
@@ -279,10 +316,14 @@ declare
   v_pagina  bigint[];
   v_total   integer;
   r         record;
+  v_so      bigint[];
 begin
   if not plt_privado.fn_pode_ver_quadro(p_setor_id) then
     raise exception 'Você não vê o quadro deste setor.' using errcode = 'insufficient_privilege';
   end if;
+  -- SESSAO-40 (D-187): os cards do setor que batem com o filtro — UMA vez
+  -- (nulo = sem filtro; vazio = nada bate)
+  v_so := plt_privado.fn_quadro_filtrados(p_setor_id, p_filtro);
 
   for r in
     select null::bigint as etapa_id, -1 as ordem, 0::bigint as id
@@ -290,8 +331,8 @@ begin
     select e.id, e.ordem, e.id from public.plt_etapas e where e.setor_id = p_setor_id and e.ativa
     order by 2, 3
   loop
-    v_pagina := plt_privado.fn_quadro_pagina(p_setor_id, r.etapa_id, null, null, v_n, v_ordem, p_filtro);
-    v_total := plt_privado.fn_quadro_total(p_setor_id, r.etapa_id, p_filtro);
+    v_pagina := plt_privado.fn_quadro_pagina(p_setor_id, r.etapa_id, null, null, v_n, v_ordem, v_so);
+    v_total := plt_privado.fn_quadro_total(p_setor_id, r.etapa_id, v_so);
     v_colunas := v_colunas || jsonb_build_array(jsonb_build_object(
                    'etapa_id', r.etapa_id, 'total', v_total, 'cards', plt_privado.fn_quadro_cards(v_pagina)));
     v_ids := v_ids || v_pagina;
@@ -358,7 +399,8 @@ begin
   if not plt_privado.fn_pode_ver_quadro(p_setor_id) then
     raise exception 'Você não vê o quadro deste setor.' using errcode = 'insufficient_privilege';
   end if;
-  v_pagina := plt_privado.fn_quadro_pagina(p_setor_id, p_etapa_id, p_depois_desde, p_depois_id, v_n, p_ordem, p_filtro);
+  v_pagina := plt_privado.fn_quadro_pagina(p_setor_id, p_etapa_id, p_depois_desde, p_depois_id, v_n, p_ordem,
+                                           plt_privado.fn_quadro_filtrados(p_setor_id, p_filtro));
   return jsonb_build_object('etapa_id', p_etapa_id, 'cards', plt_privado.fn_quadro_cards(v_pagina))
          || plt_privado.fn_quadro_junto(v_pagina);
 end;
@@ -534,19 +576,19 @@ comment on function public.plt_fn_pcp_quadro(integer, integer, text, text, text)
 --     Fica de fora a peça sem pedido que já saiu do estoque (contagem, baixa,
 --     venda) — não é rastro de pedido nenhum e só encheria a lista.
 --
---     Ordem: o vivo primeiro; depois o pedido mais novo; no pedido, o card do
---     pedido, a reposição, as peças pela ordem dos itens; por cursor (o cliente
---     manda o id do último; o banco recalcula as chaves dele — A-85).
---     Caminhos que o índice anda: o número por FAIXAS de pedidos.numero (o
---     índice da busca da área Pedidos — migration 83); o nome por trigramas
---     (índice novo, abaixo).
+--     Os dois caminhos (ensaio ×100 — Lei §1/§7):
+--       · NÚMERO: o pedido mais novo primeiro; no pedido, o card do pedido, a
+--         reposição, as peças pela ordem dos itens. As faixas do número
+--         ([x·10^k, (x+1)·10^k) — o índice de pedidos.numero) são andadas da
+--         maior para a menor, cada uma de trás para a frente, juntando os cards
+--         pelo índice de plt_cards.pedido_id — e PARA quando a página enche
+--         (sem montar todos os pedidos que começam com o texto).
+--       · NOME (3 letras ou mais — o trigrama precisa de 3): o vivo primeiro,
+--         o card mais novo primeiro, pelo índice de trigramas da coluna
+--         guardada (nome_busca).
+--     Por cursor (o cliente manda o id do último; o banco recalcula as chaves
+--     dele — A-85), até 50 por vez.
 -- ----------------------------------------------------------------------------
-create index if not exists plt_cards_nome_busca_trgm
-  on public.plt_cards using gin (plt_privado.fn_nome_comparavel(coalesce(titulo, item_descricao)) extensions.gin_trgm_ops);
-
-comment on index public.plt_cards_nome_busca_trgm is
-  'SESSAO-40 (D-188): a busca geral pelo nome do card (o do avulso ou o do móvel), sem acento, maiúscula e espaço — trigramas.';
-
 create or replace function public.plt_fn_busca_cards(
   p_texto     text,
   p_depois_id bigint  default null,
@@ -565,8 +607,18 @@ declare
   v_filtro  record;
   v_numb    bigint;
   v_lim     integer := least(greatest(coalesce(p_limite, 20), 1), 50);
-  v_ids     bigint[];
+  v_ids     bigint[] := '{}';
+  v_parte   bigint[];
   v_mais    boolean;
+  v_e       integer;
+  v_ini     bigint;
+  v_fim     bigint;
+  -- o corte (o último mostrado)
+  v_c_num   bigint;
+  v_c_k3    integer;
+  v_c_k4    integer;
+  v_c_k5    integer;
+  v_c_arq   boolean;
 begin
   if v_eu is null then
     raise exception 'Entre na plataforma para buscar.' using errcode = 'insufficient_privilege';
@@ -578,65 +630,72 @@ begin
 
   -- A mesma leitura do texto do filtro dos quadros (D-187).
   select * into v_filtro from plt_privado.fn_filtro_do_quadro(p_texto);
-  if not coalesce(v_filtro.ativo, false) then
-    return jsonb_build_object('itens', '[]'::jsonb, 'tem_mais', false);
-  end if;
   -- E-106: a conversão calculada uma vez, só quando casa.
   v_numb := case when v_filtro.numero ~ '^[1-9][0-9]{0,8}$' then v_filtro.numero::bigint end;
+  if v_numb is null and coalesce(length(v_filtro.nome), 0) < 3 then
+    return jsonb_build_object('itens', '[]'::jsonb, 'tem_mais', false, 'numero', null);
+  end if;
 
-  with cand as (
-    select c.id
-      from public.plt_cards c
-     where v_numb is not null
-       and c.pedido_id in (
-         select p1.id
-           from generate_series(0, greatest(0, 10 - length(v_filtro.numero))) as k(e)
-           join public.pedidos p1
-             on p1.numero >= v_numb * (10::bigint ^ k.e)::bigint
-            and p1.numero <  (v_numb + 1) * (10::bigint ^ k.e)::bigint)
-    union
-    select c.id
-      from public.plt_cards c
-     where v_numb is null
-       and plt_privado.fn_nome_comparavel(coalesce(c.titulo, c.item_descricao)) like '%' || v_filtro.nome || '%'
-  ),
-  base as (
-    select c.id,
-           case when c.arquivado_em is null then 0 else 1 end            as k1,
-           -coalesce(p.numero, 0)::bigint                                 as k2,
-           case c.tipo when 'pedido' then 0 when 'reposicao' then 1 when 'unidade' then 2 else 3 end as k3,
-           coalesce(c.item_seq, 0)                                        as k4,
-           coalesce(c.indice_unidade, 0)                                  as k5
-      from cand x
-      join public.plt_cards c on c.id = x.id
-      left join public.pedidos p on p.id = c.pedido_id
-     where (c.tipo in ('pedido', 'avulso')
-            or (c.tipo = 'unidade' and (c.arquivado_em is null or c.pedido_id is not null))
-            or (c.tipo = 'reposicao' and c.arquivado_em is null and c.liberado_completo_em is null))
-       and (v_tudo
-            or c.setor_atual_id = any (v_setores)
-            or c.executor_atual_id = v_eu
-            or v_eu = any (c.participantes))
-  ),
-  corte as (
-    select case when c.arquivado_em is null then 0 else 1 end            as k1,
-           -coalesce(p.numero, 0)::bigint                                 as k2,
-           case c.tipo when 'pedido' then 0 when 'reposicao' then 1 when 'unidade' then 2 else 3 end as k3,
-           coalesce(c.item_seq, 0)                                        as k4,
-           coalesce(c.indice_unidade, 0)                                  as k5,
-           c.id
+  if coalesce(p_depois_id, 0) > 0 then
+    select coalesce(p.numero, 0),
+           case c.tipo when 'pedido' then 0 when 'reposicao' then 1 when 'unidade' then 2 else 3 end,
+           coalesce(c.item_seq, 0), coalesce(c.indice_unidade, 0), c.arquivado_em is not null
+      into v_c_num, v_c_k3, v_c_k4, v_c_k5, v_c_arq
       from public.plt_cards c
       left join public.pedidos p on p.id = c.pedido_id
-     where coalesce(p_depois_id, 0) > 0 and c.id = p_depois_id
-  )
-  select coalesce(array_agg(x.id order by x.k1, x.k2, x.k3, x.k4, x.k5, x.id), '{}')
-    into v_ids
-    from (select b.*
-            from base b
-           where not exists (select 1 from corte)
-              or (b.k1, b.k2, b.k3, b.k4, b.k5, b.id) > (select k.k1, k.k2, k.k3, k.k4, k.k5, k.id from corte k)
-           order by b.k1, b.k2, b.k3, b.k4, b.k5, b.id
-           limit v_lim + 1) x;
+     where c.id = p_depois_id;
+  end if;
+
+  if v_numb is not null then
+    -- o NÚMERO: as faixas da maior para a menor; cada uma de trás para a frente
+    for v_e in reverse greatest(0, 10 - length(v_filtro.numero)) .. 0 loop
+      v_ini := v_numb * (10::bigint ^ v_e)::bigint;
+      v_fim := (v_numb + 1) * (10::bigint ^ v_e)::bigint;
+      continue when v_c_num is not null and v_ini > v_c_num;  -- faixa toda antes do corte
+      select coalesce(array_agg(x.id order by x.numero desc, x.k3, x.k4, x.k5, x.id), '{}')
+        into v_parte
+        from (select c.id, p.numero,
+                     case c.tipo when 'pedido' then 0 when 'reposicao' then 1 when 'unidade' then 2 else 3 end as k3,
+                     coalesce(c.item_seq, 0) as k4, coalesce(c.indice_unidade, 0) as k5
+                from public.pedidos p
+                join public.plt_cards c on c.pedido_id = p.id
+               where p.numero >= v_ini and p.numero < v_fim
+                 and (v_c_num is null
+                      or (-p.numero::bigint,
+                          case c.tipo when 'pedido' then 0 when 'reposicao' then 1 when 'unidade' then 2 else 3 end,
+                          coalesce(c.item_seq, 0), coalesce(c.indice_unidade, 0), c.id)
+                         > (-v_c_num, v_c_k3, v_c_k4, v_c_k5, p_depois_id))
+                 and (c.tipo in ('pedido', 'avulso')
+                      or (c.tipo = 'unidade' and (c.arquivado_em is null or c.pedido_id is not null))
+                      or (c.tipo = 'reposicao' and c.arquivado_em is null and c.liberado_completo_em is null))
+                 and (v_tudo
+                      or c.setor_atual_id = any (v_setores)
+                      or c.executor_atual_id = v_eu
+                      or v_eu = any (c.participantes))
+               order by p.numero desc, k3, k4, k5, c.id
+               limit v_lim + 1 - cardinality(v_ids)) x;
+      v_ids := v_ids || v_parte;
+      exit when cardinality(v_ids) > v_lim;
+    end loop;
+  else
+    -- o NOME: o vivo primeiro, o card mais novo primeiro (trigramas)
+    select coalesce(array_agg(x.id order by x.arq, x.id desc), '{}')
+      into v_ids
+      from (select c.id, c.arquivado_em is not null as arq
+              from public.plt_cards c
+             where c.nome_busca like '%' || v_filtro.nome || '%'
+               and (p_depois_id is null or v_c_arq is null
+                    or (c.arquivado_em is not null, -c.id) > (v_c_arq, -p_depois_id))
+               and (c.tipo in ('pedido', 'avulso')
+                    or (c.tipo = 'unidade' and (c.arquivado_em is null or c.pedido_id is not null))
+                    or (c.tipo = 'reposicao' and c.arquivado_em is null and c.liberado_completo_em is null))
+               and (v_tudo
+                    or c.setor_atual_id = any (v_setores)
+                    or c.executor_atual_id = v_eu
+                    or v_eu = any (c.participantes))
+             order by c.arquivado_em is not null, c.id desc
+             limit v_lim + 1) x;
+  end if;
 
   v_mais := cardinality(v_ids) > v_lim;
   if v_mais then
@@ -688,14 +747,15 @@ end;
 $$;
 
 comment on function public.plt_fn_busca_cards(text, bigint, integer) is
-  'SESSAO-40 (D-188): a busca geral — os cards de todos os setores pelo número do pedido (que começa com) ou pelo nome (que contém), com onde cada um está (setor, etapa, arquivado e por quê, rota programada). Só o que a pessoa vê (admin, logística/PCP, o setor dela, o que executa ou participa). Vivo primeiro, pedido mais novo; por cursor (p_depois_id = o último mostrado), até 50 por vez.';
+  'SESSAO-40 (D-188): a busca geral — os cards de todos os setores pelo número do pedido (que começa com — o pedido mais novo primeiro, as faixas do índice andadas até encher a página) ou pelo nome com 3 letras ou mais (que contém — o vivo e o mais novo primeiro, trigramas), com onde cada um está (setor, etapa, arquivado e por quê, rota programada). Só o que a pessoa vê (admin, logística/PCP, o setor dela, o que executa ou participa). Por cursor (p_depois_id = o último mostrado), até 50 por vez.';
 
 -- ----------------------------------------------------------------------------
 -- 6 · Permissões — as portas para quem está logado; a maquinaria fora da API
 -- ----------------------------------------------------------------------------
 revoke all on function plt_privado.fn_filtro_do_quadro(text)                                       from public, anon, authenticated;
-revoke all on function plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, text) from public, anon, authenticated;
-revoke all on function plt_privado.fn_quadro_total(bigint, bigint, text)                           from public, anon, authenticated;
+revoke all on function plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, bigint[]) from public, anon, authenticated;
+revoke all on function plt_privado.fn_quadro_filtrados(bigint, text)                              from public, anon, authenticated;
+revoke all on function plt_privado.fn_quadro_total(bigint, bigint, bigint[])                        from public, anon, authenticated;
 revoke all on function public.plt_fn_estoque_lancar_reposicao(bigint, integer, uuid)               from public, anon;
 revoke all on function public.plt_fn_quadro_setor(bigint, integer, text, text)                     from public, anon;
 revoke all on function public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer, text, text) from public, anon;

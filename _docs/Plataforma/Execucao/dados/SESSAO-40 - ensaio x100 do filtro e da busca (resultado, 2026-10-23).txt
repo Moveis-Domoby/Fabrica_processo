@@ -1,0 +1,92 @@
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  111 migrations aplicadas (a última: 20261024010000_plt_lancar_filtro_busca.sql) (8 s)
+  pedidos 562.700 (28 s)
+  peças vivas 20.400 e arquivadas 45.500 (38 s)
+  cards 95.169 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 (42 s)
+
+== o quadro do setor (LIMPEZA E EMBALAGEM, 7.700 vivos) — sem filtro = a porta de antes ==
+  quadro sem filtro (a porta de antes, 10 por coluna)                                  mediana    137.3 ms · máx    241.9 ms · 7700 no quadro
+  quadro filtrado pelo nº "14694"                                                      mediana     58.7 ms · máx     97.3 ms · 3 no quadro
+  quadro filtrado pelo prefixo "146"                                                   mediana     64.7 ms · máx     74.9 ms · 45 no quadro
+  quadro filtrado pelo nome "estante"                                                  mediana    141.9 ms · máx    151.9 ms · 770 no quadro
+  quadro filtrado pelo nome "armario aereo" (sem acento)                               mediana    139.5 ms · máx    153.0 ms · 385 no quadro
+  quadro filtrado por "zz" (nada bate)                                                 mediana     57.3 ms · máx     66.9 ms · 0 no quadro
+  "Ver mais" da fila sem filtro                                                        mediana     15.8 ms · máx     16.5 ms
+  "Ver mais" da fila com o filtro "estante"                                            mediana     40.7 ms · máx     41.2 ms
+
+== o quadro do PCP (3.700 pedidos aguardando + 2.200 reposições) ==
+  PCP "aguardando liberação" sem filtro (a porta de antes)                             mediana    120.7 ms · máx    125.1 ms · 3416 batem
+  PCP com o nº "559001"                                                                mediana     98.3 ms · máx    112.1 ms · 1 batem
+  PCP com o prefixo "559"                                                              mediana    101.9 ms · máx    119.9 ms · 923 batem
+  PCP reabastecimento com o nome "estante"                                             mediana     59.7 ms · máx     60.6 ms · 220 batem
+
+== a busca geral (todos os setores, vivos e arquivados) ==
+  busca o nº "14694" (admin)                                                           mediana     14.8 ms · máx     29.2 ms · 8 itens
+  busca o prefixo "146" (admin)                                                        mediana     10.5 ms · máx     15.9 ms · 20 itens + mais
+  busca o prefixo "12" (admin — o pior número: 11 mil pedidos começam com 12)          mediana     10.6 ms · máx     10.8 ms · 20 itens + mais
+  busca "12" — a 2ª página (cursor)                                                    mediana      5.3 ms · máx      6.2 ms · 20 itens + mais
+  busca o nome "estante" (admin)                                                       mediana     18.7 ms · máx     27.6 ms · 20 itens + mais
+  busca o nome "armário aéreo" (admin)                                                 mediana     14.1 ms · máx     15.5 ms · 20 itens + mais
+  busca o nome "ar" (2 letras — recusado: o nome pede 3)                               mediana      1.0 ms · máx      1.0 ms · 0 itens
+  busca o nome "arm" (3 letras — o mais largo)                                         mediana     21.7 ms · máx     21.9 ms · 20 itens + mais
+  busca "zzz" (nada)                                                                   mediana      1.7 ms · máx      2.1 ms · 0 itens
+  busca "estante" — a 2ª página (cursor)                                               mediana     19.4 ms · máx     26.5 ms · 20 itens + mais
+  busca o nome "estante" (operador da LIMPEZA — só o setor dele)                       mediana     23.1 ms · máx     26.7 ms · 20 itens + mais
+  busca o prefixo "146" (operador)                                                     mediana     55.7 ms · máx     57.8 ms · 20 itens + mais
+
+== o lançamento da reposição (gesto) ==
+  lançar a reposição de um móvel que já tem outra aberta (com a chave)                 mediana     11.6 ms · máx     50.3 ms
+
+== os planos ==
+  --- plano: a página filtrada pelo prefixo "146"
+      Result (actual rows=1.00 loops=1)
+        Buffers: shared hit=25745
+      Planning Time: 0.082 ms
+      Execution Time: 27.392 ms
+  --- plano: o total filtrado pelo nome "estante"
+      Result (actual rows=1.00 loops=1)
+        Buffers: shared hit=25667
+      Planning Time: 0.046 ms
+      Execution Time: 26.148 ms
+  --- plano: os candidatos pelo número "146" (faixas do índice do número)
+      Hash Right Semi Join (actual rows=632.00 loops=1)
+        Hash Cond: (p1.id = c.pedido_id)
+        Buffers: shared hit=2656
+        ->  Nested Loop (actual rows=1111.00 loops=1)
+              Buffers: shared hit=47
+              ->  Function Scan on generate_series k (actual rows=8.00 loops=1)
+              ->  Index Scan using pedidos_numero_key on pedidos p1 (actual rows=138.88 loops=8)
+                    Index Cond: ((numero >= (146 * (('10'::double precision ^ (k.e)::double precision))::bigint)) AND (numero < (147 * (('10'::double precision ^ (k.e)::double precision))::bigint)))
+                    Index Searches: 8
+                    Buffers: shared hit=47
+        ->  Hash (actual rows=91569.00 loops=1)
+              Buckets: 131072  Batches: 1  Memory Usage: 4089kB
+              Buffers: shared hit=2609
+              ->  Seq Scan on plt_cards c (actual rows=95169.00 loops=1)
+                    Buffers: shared hit=2609
+      Planning:
+        Buffers: shared hit=29
+      Planning Time: 1.080 ms
+      Execution Time: 39.245 ms
+  --- plano: os candidatos pelo nome "estante" (trigramas)
+      Limit (actual rows=21.00 loops=1)
+        Buffers: shared hit=1789
+        ->  Sort (actual rows=21.00 loops=1)
+              Sort Key: ((arquivado_em IS NOT NULL)), id DESC
+              Sort Method: top-N heapsort  Memory: 18kB
+              Buffers: shared hit=1789
+              ->  Bitmap Heap Scan on plt_cards c (actual rows=6949.00 loops=1)
+                    Recheck Cond: (nome_busca ~~ '%estante%'::text)
+                    Heap Blocks: exact=1606
+                    Buffers: shared hit=1789
+                    ->  Bitmap Index Scan on plt_cards_nome_busca_trgm (actual rows=6949.00 loops=1)
+                          Index Cond: (nome_busca ~~ '%estante%'::text)
+                          Index Searches: 1
+                          Buffers: shared hit=183
+      Planning:
+        Buffers: shared hit=15
+      Planning Time: 0.675 ms
+      Execution Time: 13.581 ms
+
+fim (51 s)
+saida=0

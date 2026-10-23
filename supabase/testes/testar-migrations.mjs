@@ -16180,7 +16180,7 @@ try {
     select has_function_privilege('anon', 'public.plt_fn_card_prioridade(bigint, text)', 'execute') as prio_anon,
            has_function_privilege('authenticated', 'public.plt_fn_card_prioridade(bigint, text)', 'execute') as prio_logado,
            has_function_privilege('authenticated', 'public.plt_fn_card_responsavel_setor(bigint, bigint, uuid, boolean)', 'execute') as resp_logado,
-           has_function_privilege('authenticated', 'plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, text)', 'execute') as maquina,
+           has_function_privilege('authenticated', 'plt_privado.fn_quadro_pagina(bigint, bigint, timestamptz, bigint, integer, text, bigint[])', 'execute') as maquina,
            to_regprocedure('public.plt_fn_quadro_setor(bigint, integer)') is null as quadro_velho_saiu,
            to_regprocedure('public.plt_fn_pcp_quadro(integer, integer, text)') is null as pcp_velho_saiu`)
   conferir(!priv38.prio_anon && priv38.prio_logado && priv38.resp_logado && !priv38.maquina
@@ -17687,7 +17687,7 @@ await bd.exec('begin')
 try {
   await bd.exec(`
     insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
-      (1940401, 'SX40A', 'Estante Teste 40 - Branca', 'F', 'A', 'un'),
+      (1940401, 'SX40A', 'Estante Trello 40 - Branca', 'F', 'A', 'un'),
       (1940402, 'SX40B', 'Mesa Escrivaninha Teste 40', 'F', 'A', 'un')
     on conflict (tiny_id) do nothing;
     insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('ft40', 'FT40 LIMPEZA', 'producao', 995);
@@ -17708,9 +17708,9 @@ try {
       (940702, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94070200),
       (940703, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94070300);
     insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
-      ((select id from public.pedidos where numero = 940701), 1, 'SX40A', 'Estante Teste 40 - Branca', 2),
+      ((select id from public.pedidos where numero = 940701), 1, 'SX40A', 'Estante Trello 40 - Branca', 2),
       ((select id from public.pedidos where numero = 940701), 2, 'SX40B', 'Mesa Escrivaninha Teste 40', 1),
-      ((select id from public.pedidos where numero = 940702), 1, 'SX40A', 'Estante Teste 40 - Branca', 1),
+      ((select id from public.pedidos where numero = 940702), 1, 'SX40A', 'Estante Trello 40 - Branca', 1),
       ((select id from public.pedidos where numero = 940703), 1, 'SX40B', 'Mesa Escrivaninha Teste 40', 1);
   `)
   const FILA = (await um40(`select id::int as id from public.plt_etapas where setor_id = ${A} and nome = 'A LIMPAR'`)).id
@@ -17748,10 +17748,10 @@ try {
   conferir(fila(prefixo).total === 4 && !numeros(prefixo).includes('avulso'),
     'o número que COMEÇA com "9407": as peças dos dois pedidos liberados (o avulso não tem pedido)', JSON.stringify(numeros(prefixo)))
   const nome = await quadro('estante')
-  const nomeAcento = await quadro('  ÉSTANTE teste ')
+  const nomeAcento = await quadro('  ÉSTANTE trello ')
   conferir(fila(nome).total === 4 && numeros(nome).filter((n) => n === 'avulso').length === 1
       && fila(nomeAcento).total === 3,
-    'o nome que CONTÉM "estante" (sem acento, sem maiúscula): as 3 estantes e o avulso; "ÉSTANTE teste" (sem espaço na régua) acha só as 3 estantes',
+    'o nome que CONTÉM "estante" (sem acento, sem maiúscula): as 3 estantes e o avulso; "ÉSTANTE trello" (sem espaço na régua) acha só as 3 estantes',
     JSON.stringify({ nome: numeros(nome), acento: fila(nomeAcento).total }))
   const curto = await quadro('e')
   const nada = await quadro('zzz40')
@@ -17840,8 +17840,9 @@ try {
   const bCurto = await busca(E40.logistica, '9')
   const bNada = await busca(E40.logistica, 'zzz40')
   const bLetra = await busca(E40.logistica, 'e')
-  conferir(bCurto.itens.length === 0 && bLetra.itens.length === 0,
-    'um dígito ou uma letra só não busca (mínimo de 2 caracteres — Lei §3)')
+  const bDuas = await busca(E40.logistica, 'es')
+  conferir(bCurto.itens.length === 0 && bLetra.itens.length === 0 && bDuas.itens.length === 0,
+    'um dígito só ou menos de 3 letras não busca (o nome pede 3 letras — o trigrama; o número, 2 dígitos)')
   conferir(bNada.itens.length === 0 && bNada.tem_mais === false, 'o que não existe volta vazio')
 
   titulo('SESSAO-40 · a busca geral: o pedido entregue continua achável, dizendo "entregue"')
@@ -17853,10 +17854,15 @@ try {
   conferir(b3.itens.length === 2 && pedidoEnt?.arquivado_em && pecaEnt?.arquivado_em
       && pecaEnt?.arquivado_motivo === 'entregue',
     'entregue o 940702: o pedido e a peça seguem na busca, arquivados, com o motivo "entregue" (a rastreabilidade)', JSON.stringify(b3.itens.map((i) => [i.tipo, i.arquivado_motivo])))
+  // pelo número: o pedido mais novo primeiro, entregue ou não (o 940702 antes do 940701)
   const b4 = await busca(E40.logistica, '9407')
-  const posEnt = b4.itens.findIndex((i) => i.pedido_numero === 940702)
-  conferir(posEnt > b4.itens.findIndex((i) => i.pedido_numero === 940701),
-    'o vivo vem antes do arquivado (o 940701 vivo antes do 940702 entregue)', JSON.stringify(b4.itens.map((i) => i.pedido_numero)))
+  conferir(b4.itens.findIndex((i) => i.pedido_numero === 940702) < b4.itens.findIndex((i) => i.pedido_numero === 940701),
+    'pelo número, o pedido mais novo primeiro — entregue ou não', JSON.stringify(b4.itens.map((i) => i.pedido_numero)))
+  // pelo nome: o vivo primeiro (as estantes do 940701 e o avulso antes da estante entregue do 940702)
+  const b5 = await busca(E40.logistica, 'estante trello')
+  const primeiroArquivado = b5.itens.findIndex((i) => i.arquivado_em)
+  conferir(b5.itens.length === 3 && primeiroArquivado === 2 && b5.itens[2].pedido_numero === 940702,
+    'pelo nome, o vivo vem antes do arquivado (as 2 estantes vivas do 940701 antes da entregue do 940702)', JSON.stringify(b5.itens.map((i) => [i.pedido_numero, i.arquivado_em !== null])))
 
   titulo('SESSAO-40 · portas só para quem está logado; a maquinaria fora da API; uma assinatura só por porta')
 
@@ -17866,7 +17872,7 @@ try {
            has_function_privilege('authenticated', 'public.plt_fn_busca_cards(text, bigint, integer)', 'execute') as busca_logado,
            has_function_privilege('authenticated', 'public.plt_fn_estoque_lancar_reposicao(bigint, integer, uuid)', 'execute') as lancar,
            has_function_privilege('authenticated', 'plt_privado.fn_filtro_do_quadro(text)', 'execute') as filtro_maquina,
-           has_function_privilege('authenticated', 'plt_privado.fn_quadro_total(bigint, bigint, text)', 'execute') as total_maquina,
+           has_function_privilege('authenticated', 'plt_privado.fn_quadro_total(bigint, bigint, bigint[])', 'execute') as total_maquina,
            to_regprocedure('public.plt_fn_quadro_setor(bigint, integer, text)') is null as setor_velho_saiu,
            to_regprocedure('public.plt_fn_quadro_coluna(bigint, bigint, timestamptz, bigint, integer, text)') is null as coluna_velha_saiu,
            to_regprocedure('public.plt_fn_pcp_quadro(integer, integer, text, text)') is null as pcp_velho_saiu,
