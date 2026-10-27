@@ -3,13 +3,16 @@ import { Info, MapPinOff, RotateCcw, Save, TriangleAlert } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import type { PedidoProgramacao, PedidoProgramado } from './api'
+import { ativaNaRota, ehAvulsa, paradaSalva } from './paradasAvulsas'
+import type { ItemAvulsa } from './paradasAvulsas'
 import { formatarDistancia, temPonto } from './proximidade'
 import { FABRICA, formatarDuracao, somarPecas } from './rotaRuas'
 import { somarTrechos, textoTrecho, trechosDoTrajeto } from './trechos'
 import type { Trajeto, Trecho } from './trechos'
 import type { EstadoRota } from './useRotaPelasRuas'
 
-type Parada = PedidoProgramacao | PedidoProgramado
+/** SESSAO-41 (D-196): + a parada avulsa, misturada aos pedidos pela ordem da rota. */
+type Parada = PedidoProgramacao | PedidoProgramado | ItemAvulsa
 
 /**
  * As paradas da rota com o trecho de cada uma e os totais (D-108). ↩️ SESSAO-38
@@ -48,13 +51,15 @@ export const PainelRota = memo(function PainelRota({
   const pecas = somarPecas(paradas)
 
   // O trecho que CHEGA a cada parada com ponto (o 1º sai da fábrica); a volta é o último.
+  // SESSAO-41 (D-196): a parada avulsa já marcada sai do caminho (fica na lista, sem trecho).
+  const noCaminho = (p: Parada) => temPonto(p) && ativaNaRota(p)
   let indicePlotada = 0
   const trechoDe = new Map<number, number>()
   for (const p of paradas) {
-    if (temPonto(p)) trechoDe.set(p.card_id, indicePlotada++)
+    if (noCaminho(p)) trechoDe.set(p.card_id, indicePlotada++)
   }
   const indiceVolta = indicePlotada > 0 ? indicePlotada : null
-  const primeiraNoMapa = paradas.find((p) => temPonto(p))?.card_id
+  const primeiraNoMapa = paradas.find(noCaminho)?.card_id
   const doTrajeto = new Set(trechosDoTrajeto(trechos.length, trajeto))
   const ida = somarTrechos(trechos, trechosDoTrajeto(trechos.length, 'ida'))
   const volta = somarTrechos(trechos, trechosDoTrajeto(trechos.length, 'volta'))
@@ -88,7 +93,9 @@ export const PainelRota = memo(function PainelRota({
             <>
               {' '}
               · <strong>{formatarDistancia(totalKm)}</strong>
-              {pelasRuas ? ` · ${formatarDuracao(estado.rota.duracao_s)} dirigindo` : ' em linha reta'}
+              {pelasRuas
+                ? ` · ${formatarDuracao(estado.rota.duracao_s)} dirigindo`
+                : ' em linha reta'}
             </>
           )}
         </span>
@@ -124,8 +131,8 @@ export const PainelRota = memo(function PainelRota({
       <p className="flex items-start gap-2 rounded-dm bg-superficie-sutil px-3 py-2 text-xs text-texto-suave">
         <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
         <span>
-          Sugestão inicial: sem trânsito ao vivo nem interdições do dia. O tempo é só dirigindo, sem as paradas
-          das entregas. No mapa, "Só a ida" e "Só a volta" mostram cada parte sozinha.
+          Sugestão inicial: sem trânsito ao vivo nem interdições do dia. O tempo é só dirigindo, sem
+          as paradas das entregas. No mapa, "Só a ida" e "Só a volta" mostram cada parte sozinha.
         </span>
       </p>
       {estado.estado === 'calculando' && (
@@ -134,16 +141,23 @@ export const PainelRota = memo(function PainelRota({
         </p>
       )}
       {estado.estado === 'fora_do_ar' && (
-        <p className="flex items-start gap-2 rounded-dm bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto" role="status">
-          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-          O serviço de rotas não respondeu agora — o mapa mostra a linha reta (tracejada) e as distâncias em linha
-          reta. Tente de novo mais tarde.
+        <p
+          className="flex items-start gap-2 rounded-dm bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto"
+          role="status"
+        >
+          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />O serviço de rotas não
+          respondeu agora — o mapa mostra a linha reta (tracejada) e as distâncias em linha reta.
+          Tente de novo mais tarde.
         </p>
       )}
       {estado.estado === 'sem_caminho' && (
-        <p className="flex items-start gap-2 rounded-dm bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto" role="status">
+        <p
+          className="flex items-start gap-2 rounded-dm bg-atencao-fundo px-3 py-2 text-xs text-atencao-texto"
+          role="status"
+        >
           <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-          Não deu para traçar pelas ruas (algum ponto ficou fora de rua no mapa) — mostrando em linha reta.
+          Não deu para traçar pelas ruas (algum ponto ficou fora de rua no mapa) — mostrando em
+          linha reta.
         </p>
       )}
 
@@ -157,12 +171,19 @@ export const PainelRota = memo(function PainelRota({
         {paradas.map((p, i) => {
           const indice = trechoDe.get(p.card_id)
           const comPonto = indice !== undefined
+          const avulsa = ehAvulsa(p) ? p.avulsa : null
+          const situacao = avulsa && paradaSalva(avulsa) ? avulsa.situacao : 'pendente'
+          const nome = ehAvulsa(p)
+            ? `Parada avulsa: ${p.avulsa.titulo}`
+            : `Pedido ${p.numero} · ${p.total_unidades} ${p.total_unidades === 1 ? 'peça' : 'peças'}`
           return linha(
             indice,
             <>
               <span
                 className={cn(
-                  'inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums',
+                  'inline-flex size-7 shrink-0 items-center justify-center text-xs font-bold tabular-nums',
+                  // a parada avulsa é QUADRADA (como no mapa); o pedido, redondo
+                  avulsa ? 'rounded-dm' : 'rounded-full',
                   comPonto ? 'bg-acao text-acao-texto' : 'bg-superficie-sutil text-texto-suave',
                 )}
                 aria-hidden
@@ -171,9 +192,13 @@ export const PainelRota = memo(function PainelRota({
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-medium text-texto tabular-nums">
-                  {i + 1}ª parada · Pedido {p.numero} · {p.total_unidades} {p.total_unidades === 1 ? 'peça' : 'peças'}
+                  {i + 1}ª parada · {nome}
                 </span>
-                {comPonto ? (
+                {situacao !== 'pendente' ? (
+                  <span className="text-xs text-texto-suave">
+                    {situacao === 'feita' ? 'feita' : 'não feita'} — fora da conta da rota
+                  </span>
+                ) : comPonto ? (
                   <span className="text-xs text-texto-suave tabular-nums">
                     {p.card_id === primeiraNoMapa ? 'da fábrica' : 'da parada anterior'}:{' '}
                     {textoTrecho(trechos[indice]) ?? '—'}

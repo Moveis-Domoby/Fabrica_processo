@@ -2,6 +2,7 @@ import { Fragment, memo, useEffect, useRef, useState } from 'react'
 import {
   CircleMarker,
   MapContainer,
+  Marker,
   Polyline,
   Popup,
   TileLayer,
@@ -17,6 +18,7 @@ import { cn } from '@/lib/cn'
 import type { PedidoProgramacao } from './api'
 import type { Ponto, Sugestao } from './proximidade'
 import { formatarDistancia, temPonto } from './proximidade'
+import { iconeParadaAvulsa } from './iconeAvulsa'
 import { FABRICA } from './rotaRuas'
 import { OPCOES_TRAJETO, trechosDoTrajeto } from './trechos'
 import type { Trajeto } from './trechos'
@@ -62,12 +64,20 @@ function Enquadrar({ pontos, expandido }: { pontos: [number, number][]; expandid
 }
 
 /** O que o mapa precisa de uma parada (serve ao pedido sem programação e ao já programado). */
-export type ParadaMinima = Pick<PedidoProgramacao, 'card_id' | 'numero' | 'cliente_nome' | 'total_unidades'>
+export type ParadaMinima = Pick<
+  PedidoProgramacao,
+  'card_id' | 'numero' | 'cliente_nome' | 'total_unidades'
+>
 
 export interface ParadaNoMapa {
   parada: ParadaMinima & Ponto
   /** A posição da parada na rota (a mesma da lista). */
   numero: number
+  /**
+   * SESSAO-41 (D-196): é uma PARADA AVULSA (não um pedido) — marcador próprio
+   * (quadrado "A"), com o título e o endereço que a pessoa escreveu.
+   */
+  avulsa?: { titulo: string; endereco: string }
 }
 
 export interface RotaNoMapa {
@@ -86,7 +96,9 @@ export interface RotaNoMapa {
 const PONTO_FABRICA: [number, number] = [FABRICA.latitude, FABRICA.longitude]
 
 function LinhaDaRota({ rota, trajeto }: { rota: RotaNoMapa; trajeto: Trajeto }) {
-  const pontos = rota.paradas.map(({ parada }) => [parada.latitude, parada.longitude] as [number, number])
+  const pontos = rota.paradas.map(
+    ({ parada }) => [parada.latitude, parada.longitude] as [number, number],
+  )
   if (!rota.trechos || rota.trechos.length === 0) {
     if (pontos.length === 0) return null
     // Linha reta (serviço fora ou calculando): a ida é fábrica → … → última
@@ -102,7 +114,12 @@ function LinhaDaRota({ rota, trajeto }: { rota: RotaNoMapa; trajeto: Trajeto }) 
       <Polyline
         key={`reta-${rota.id}-${trajeto}`}
         positions={posicoes}
-        pathOptions={{ color: rota.cor, weight: 3, opacity: rota.esmaecida ? 0.25 : 0.8, dashArray: '6 8' }}
+        pathOptions={{
+          color: rota.cor,
+          weight: 3,
+          opacity: rota.esmaecida ? 0.25 : 0.8,
+          dashArray: '6 8',
+        }}
       />
     )
   }
@@ -189,7 +206,9 @@ export const MapaProgramacao = memo(function MapaProgramacao({
   const temRota = (principal?.paradas.length ?? 0) > 0
   const pontos: [number, number][] = [
     PONTO_FABRICA,
-    ...rotas.flatMap((r) => r.paradas.map(({ parada }) => [parada.latitude, parada.longitude] as [number, number])),
+    ...rotas.flatMap((r) =>
+      r.paradas.map(({ parada }) => [parada.latitude, parada.longitude] as [number, number]),
+    ),
     ...sugestoes
       .filter((s) => temPonto(s.item))
       .map((s) => [s.item.latitude!, s.item.longitude!] as [number, number]),
@@ -252,7 +271,12 @@ export const MapaProgramacao = memo(function MapaProgramacao({
         </div>
       )}
 
-      <MapContainer center={PONTO_FABRICA} zoom={12} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+      <MapContainer
+        center={PONTO_FABRICA}
+        zoom={12}
+        scrollWheelZoom
+        style={{ height: '100%', width: '100%' }}
+      >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -288,20 +312,41 @@ export const MapaProgramacao = memo(function MapaProgramacao({
         </CircleMarker>
 
         {rotas.map((rota) =>
-          rota.paradas.map(({ parada: p, numero }) =>
+          rota.paradas.map(({ parada: p, numero, avulsa }) =>
             rota.esmaecida ? (
               <CircleMarker
                 key={`esm-${rota.id}-${p.card_id}`}
                 center={[p.latitude, p.longitude]}
                 radius={6}
-                pathOptions={{ color: rota.cor, fillColor: rota.cor, fillOpacity: 0.35, opacity: 0.5, weight: 2 }}
+                pathOptions={{
+                  color: rota.cor,
+                  fillColor: rota.cor,
+                  fillOpacity: 0.35,
+                  opacity: 0.5,
+                  weight: 2,
+                }}
               >
                 <Popup>
-                  Pedido {p.numero} · outro caminhão
+                  {avulsa ? 'Parada avulsa' : `Pedido ${p.numero}`} · outro caminhão
                   <br />
-                  {p.cliente_nome}
+                  {avulsa ? avulsa.titulo : p.cliente_nome}
                 </Popup>
               </CircleMarker>
+            ) : avulsa ? (
+              // SESSAO-41 (D-196): a parada avulsa — quadrado "A", a mesma numeração dos pedidos
+              <Marker
+                key={`avu-${rota.id}-${p.card_id}`}
+                position={[p.latitude, p.longitude]}
+                icon={iconeParadaAvulsa(numero, rota.cor)}
+              >
+                <Popup>
+                  <strong>{numero}ª parada · Parada avulsa</strong>
+                  <br />
+                  {avulsa.titulo}
+                  <br />
+                  {avulsa.endereco}
+                </Popup>
+              </Marker>
             ) : (
               <CircleMarker
                 key={`sel-${rota.id}-${p.card_id}`}
@@ -333,7 +378,9 @@ export const MapaProgramacao = memo(function MapaProgramacao({
               center={[item.latitude, item.longitude]}
               radius={8}
               pathOptions={{ color: '#9A5B00', fillColor: '#F59E0B', fillOpacity: 0.9, weight: 2 }}
-              eventHandlers={aoEscolherSugestao ? { click: () => aoEscolherSugestao(item) } : undefined}
+              eventHandlers={
+                aoEscolherSugestao ? { click: () => aoEscolherSugestao(item) } : undefined
+              }
             >
               <Popup>
                 <strong>Pedido {item.numero}</strong> · sugestão

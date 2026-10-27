@@ -689,6 +689,12 @@ export interface EntregasDoDia {
   rota: number | null
   caminhoes: CaminhaoDoDia[]
   entregas: EntregaDoDia[]
+  /**
+   * SESSAO-41 (D-196): as paradas avulsas da rota escolhida, na ordem (a mesma
+   * sequência das entregas — `ordem` dividida). Ausente = o banco de antes
+   * desta sessão (a tela trata como nenhuma).
+   */
+  paradas_avulsas?: ParadaAvulsa[]
   sou_logistica: boolean
 }
 
@@ -928,4 +934,217 @@ export async function calendarioRotas(parametros: {
   })
   if (error) throw new Error(`Não deu para carregar o calendário: ${error.message}`)
   return data as CalendarioRotas
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-41 (D-196): a PARADA AVULSA da rota — buscar material, levar uma peça,
+// passar num endereço. Não é pedido (sem card, estoque, Tiny ou Expedição):
+// mora na rota (dia + caminhão + rota) e divide a ORDEM com os pedidos.
+// ---------------------------------------------------------------------------
+
+export type SituacaoParadaAvulsa = 'pendente' | 'feita' | 'nao_feita'
+
+export interface ParadaAvulsa {
+  id: number
+  data: string
+  caminhao_id: number
+  rota: number
+  /** A posição na rota — a mesma sequência dos pedidos (nula = ainda sem lugar salvo). */
+  ordem: number | null
+  titulo: string
+  endereco: string
+  /** O pino (ajustável); sem ele, a navegação vai pelo endereço escrito. */
+  latitude: number | null
+  longitude: number | null
+  observacao: string | null
+  situacao: SituacaoParadaAvulsa
+  /** O nome de quem pôs a parada. */
+  criada_por: string | null
+  /** Fui eu quem pôs — o entregador só muda o lugar (e tira) a parada dele, enquanto pendente. */
+  sou_autor: boolean
+  concluida_em: string | null
+  nao_feita_motivo: string | null
+}
+
+/** Um item da ORDEM da rota como o banco recebe: pedido (card) ou parada avulsa. */
+export type ItemDaOrdem = { t: 'p'; id: number } | { t: 'a'; id: number }
+
+/** Na aba Programar: o pedido (card) ou a parada nova, pela chave da tela. */
+export type ItemDaMontagem = { t: 'p'; id: number } | { t: 'n'; k: string }
+
+/** O que a pessoa escreve na parada (a janela "Parada avulsa"). */
+export interface DadosParadaAvulsa {
+  titulo: string
+  endereco: string
+  latitude: number | null
+  longitude: number | null
+  observacao: string | null
+}
+
+/**
+ * Põe (sem `id`) ou edita a parada. `ordem` = a ordem INTEIRA da rota com
+ * `{ t: 'nova' }` no lugar da parada nova (sem ela, vai para o fim). `chave` =
+ * o gesto (o toque repetido devolve a mesma parada). A logística põe em
+ * qualquer rota; o entregador, só na rota de HOJE em que está na equipe.
+ */
+export async function salvarParadaAvulsa(
+  parametros: DadosParadaAvulsa & {
+    id?: number | null
+    data: string
+    caminhaoId: number
+    rota: number
+    ordem?: (ItemDaOrdem | { t: 'nova' })[] | null
+    chave?: string | null
+  },
+): Promise<{ id: number; repetido: boolean }> {
+  const { data, error } = await supabase.rpc('plt_fn_parada_avulsa_salvar', {
+    p_id: parametros.id ?? null,
+    p_data: parametros.data,
+    p_caminhao_id: parametros.caminhaoId,
+    p_rota: parametros.rota,
+    p_titulo: parametros.titulo.trim(),
+    p_endereco: parametros.endereco.trim(),
+    p_latitude: parametros.latitude,
+    p_longitude: parametros.longitude,
+    p_observacao: parametros.observacao?.trim() || null,
+    p_ordem: parametros.ordem ?? null,
+    p_chave: parametros.chave ?? null,
+  })
+  if (error) throw new Error(error.message)
+  const resposta = data as { id: number | string; repetido?: boolean }
+  return { id: Number(resposta.id), repetido: Boolean(resposta.repetido) }
+}
+
+/**
+ * A ordem da rota com pedidos E paradas: TODOS os itens (pedidos ainda não
+ * entregues + paradas não removidas, as feitas também). Faltou ou sobrou item
+ * → o banco recusa ("a rota mudou noutra tela"). O entregador só muda o lugar
+ * das paradas que ele pôs e que estão pendentes (o banco confere).
+ */
+export async function ordenarRotaComParadas(parametros: {
+  data: string
+  caminhaoId: number
+  rota: number
+  itens: ItemDaOrdem[]
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_rota_ordenar', {
+    p_data: parametros.data,
+    p_caminhao_id: parametros.caminhaoId,
+    p_rota: parametros.rota,
+    p_itens: parametros.itens,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Feita (`true`), Não feita (`false`, motivo opcional) ou desfazer (`null` — volta a pendente). */
+export async function concluirParadaAvulsa(
+  id: number,
+  feita: boolean | null,
+  motivo?: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_parada_avulsa_concluir', {
+    p_id: id,
+    p_feita: feita,
+    p_motivo: motivo?.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Tira a parada da rota (nada se apaga — fica registrada como removida). */
+export async function removerParadaAvulsa(id: number): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_parada_avulsa_remover', { p_id: id })
+  if (error) throw new Error(error.message)
+}
+
+/** As paradas de um período (só a logística; até dois meses por vez). */
+export async function listarParadasAvulsas(parametros: {
+  de: string
+  ate: string
+}): Promise<ParadaAvulsa[]> {
+  const { data, error } = await supabase.rpc('plt_fn_paradas_avulsas', {
+    p_de: parametros.de,
+    p_ate: parametros.ate,
+  })
+  if (error) throw new Error(`Não deu para carregar as paradas avulsas: ${error.message}`)
+  return (data ?? []) as ParadaAvulsa[]
+}
+
+/**
+ * A aba Programar com parada avulsa: programa os pedidos (como
+ * `programarRota`), põe as paradas novas e salva a ordem da tela, numa
+ * transação. O que a rota já tinha vai DEPOIS da ordem da tela. Devolve o id
+ * de cada parada nova pela chave da tela.
+ */
+export async function programarRotaComParadas(parametros: {
+  data: string
+  caminhaoId: number
+  rota: number
+  cardIds: number[]
+  paradas: (DadosParadaAvulsa & { chave: string })[]
+  ordem: ItemDaMontagem[] | null
+}): Promise<Record<string, number>> {
+  const { data, error } = await supabase.rpc('plt_fn_programar_rota_paradas', {
+    p_data: parametros.data,
+    p_caminhao_id: parametros.caminhaoId,
+    p_rota: parametros.rota,
+    p_card_ids: parametros.cardIds,
+    p_paradas: parametros.paradas.map((p) => ({
+      k: p.chave,
+      titulo: p.titulo.trim(),
+      endereco: p.endereco.trim(),
+      latitude: p.latitude,
+      longitude: p.longitude,
+      observacao: p.observacao?.trim() || null,
+    })),
+    p_ordem: parametros.ordem,
+  })
+  if (error) throw new Error(`Não deu para programar: ${error.message}`)
+  const mapa = (data as { paradas?: Record<string, number | string> } | null)?.paradas ?? {}
+  return Object.fromEntries(Object.entries(mapa).map(([k, id]) => [k, Number(id)]))
+}
+
+/**
+ * A chave do cache do mapa para o endereço DIGITADO da parada avulsa:
+ * 'avulsa:' + sha256 do endereço normalizado (sem espaço nas pontas, em
+ * minúsculas) — separada da chave dos pedidos (md5 calculado no banco).
+ */
+export async function chaveGeoDaParada(endereco: string): Promise<string> {
+  const normalizado = endereco.trim().toLowerCase()
+  const bytes = new TextEncoder().encode(normalizado)
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const hash = await crypto.subtle.digest('SHA-256', bytes)
+    const hex = Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('')
+    return `avulsa:${hex}`
+  }
+  // navegador sem a criptografia da página (fora do https): um resumo simples, estável
+  let h1 = 0x811c9dc5
+  let h2 = 0x01000193
+  for (const b of bytes) {
+    h1 = Math.imul(h1 ^ b, 0x01000193) >>> 0
+    h2 = Math.imul(h2 ^ b, 0x811c9dc5) >>> 0
+  }
+  return `avulsa:${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`
+}
+
+/** O ponto de um endereço digitado (pela mesma função `geocodificar` — e o mesmo cache). */
+export async function acharPontoDoEndereco(
+  endereco: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  const texto = endereco.trim()
+  if (texto.length < 3) return null
+  const chave = await chaveGeoDaParada(texto)
+  const [resultado] = await geocodificar([{ chave, endereco: texto }])
+  if (!resultado?.resolvido || resultado.latitude === null || resultado.longitude === null)
+    return null
+  return { latitude: resultado.latitude, longitude: resultado.longitude }
+}
+
+/** Uma chave nova por gesto (o toque repetido não dobra a parada). */
+export function chaveDoGesto(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  // navegador antigo do tablet: um uuid v4 do mesmo jeito
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
 }

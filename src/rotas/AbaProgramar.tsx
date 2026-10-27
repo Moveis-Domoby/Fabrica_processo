@@ -1,24 +1,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Route, Truck } from 'lucide-react'
+import { MapPinPlus, Route, Truck, X } from 'lucide-react'
 import { Botao, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { listarCaminhoes } from '@/admin/caminhoes'
 import {
   GEOCODIFICAR_POR_CHAMADA,
+  chaveDoGesto,
   geocodificar,
+  listarParadasAvulsas,
   listarProgramacao,
   listarProgramadas,
+  ordenarRotaComParadas,
   precisaGeocodificar,
   programarRota,
+  programarRotaComParadas,
 } from './api'
-import type { PedidoProgramacao } from './api'
+import type { DadosParadaAvulsa, PedidoProgramacao } from './api'
+import { CartaoParadaAvulsa, NumeroParadaAvulsa } from './CartaoParadaAvulsa'
 import { CartaoPedido } from './CartaoPedido'
 import { ListaArrastavel } from './ListaArrastavel'
 import { MapaProgramacao } from './MapaProgramacao'
 import type { ParadaNoMapa, RotaNoMapa } from './MapaProgramacao'
+import { ModalParadaAvulsa } from './ModalParadaAvulsa'
 import { ModalProgramar } from './ModalProgramar'
 import { PainelRota } from './PainelRota'
+import {
+  ehAvulsa,
+  itemDoRascunho,
+  marcadoresDaRota,
+  misturarNaOrdem,
+  ordemComONovoNoFim,
+  paradaSalva,
+  refDaMontagem,
+  refDoItem,
+} from './paradasAvulsas'
+import type { ItemAvulsa, RascunhoParada } from './paradasAvulsas'
 import { formatarDistancia, sugerirProximos, temPonto } from './proximidade'
 import type { Ponto } from './proximidade'
 import {
@@ -42,6 +59,11 @@ import { useAoVivo } from '@/lib/aoVivo'
 
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
+
+/** SESSAO-41 (D-196): a rota em montagem tem pedidos E paradas avulsas (ainda não salvas). */
+type ItemMontagem = PedidoProgramacao | ItemAvulsa
+
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`
 
 const idsDe = (lista: { card_id: number }[]) => lista.map((p) => p.card_id)
 const mesmaOrdem = (a: number[], b: number[]) =>
@@ -72,6 +94,13 @@ const OPCOES_ORDEM: { valor: CriterioOrdem; rotulo: string }[] = [
  * "Lançar para ROTAS". O mapa mostra a rota inteira, só a ida ou só a volta. O
  * bloco "Na rota" só existe com pedido marcado e fica colado à lista (sem
  * espaço reservado).
+ *
+ * ↪️ SESSAO-41 (D-196, pedido do dono): o bloco "Na rota" virou "Rota
+ * programada" e aceita PARADA AVULSA (título, endereço com o pino no mapa,
+ * observação) — entra na lista junto com os pedidos (arrasta igual), aparece
+ * pinada no mapa (quadrado "A") e é programada junto, numa transação. Sem
+ * parada nenhuma (nem nesta montagem, nem na rota escolhida), o caminho é o
+ * de antes.
  */
 export function AbaProgramar({
   ativa,
@@ -91,6 +120,11 @@ export function AbaProgramar({
   const [confirmando, setConfirmando] = useState(false)
   const [caminhaoId, setCaminhaoId] = useState('')
   const [trajeto, setTrajeto] = useState<Trajeto>('inteira')
+  // SESSAO-41 (D-196): as paradas avulsas da montagem (ids negativos, só da tela)
+  const [avulsas, setAvulsas] = useState<ItemAvulsa[]>([])
+  const proximoIdAvulsa = useRef(-1)
+  // a janela da parada aberta (o número muda a cada abertura — a janela começa limpa)
+  const [janelaParada, setJanelaParada] = useState<number | null>(null)
 
   const { data: pedidos = [], isPending } = useQuery({
     queryKey: ['programacao', 'sem-programacao'],
@@ -132,17 +166,19 @@ export function AbaProgramar({
     () => pedidos.filter((p) => selecionados.has(p.card_id)),
     [pedidos, selecionados],
   )
+  const itensMontando = useMemo<ItemMontagem[]>(
+    () => [...listaSelecionados, ...avulsas],
+    [listaSelecionados, avulsas],
+  )
   const ordemMontando = useMemo(
-    () => ordemDaRota(listaSelecionados, { rascunho }),
-    [listaSelecionados, rascunho],
+    () => ordemDaRota(itensMontando, { rascunho }),
+    [itensMontando, rascunho],
   )
   const idsMontando = useMemo(() => idsDe(ordemMontando), [ordemMontando])
-  const ordemDaSugestao = useMemo(
-    () => idsDe(ordemSugerida(listaSelecionados)),
-    [listaSelecionados],
-  )
+  const ordemDaSugestao = useMemo(() => idsDe(ordemSugerida(itensMontando)), [itensMontando])
   const ajustada = !mesmaOrdem(idsMontando, ordemDaSugestao)
   const porId = useMemo(() => new Map(pedidos.map((p) => [p.card_id, p])), [pedidos])
+  const avulsaPorId = useMemo(() => new Map(avulsas.map((a) => [a.card_id, a])), [avulsas])
 
   const naoSelecionados = useMemo(
     () => pedidos.filter((p) => !selecionados.has(p.card_id)),
@@ -184,8 +220,9 @@ export function AbaProgramar({
     [estadoRota, pontosRota],
   )
 
+  // SESSAO-41 (D-196): a parada avulsa com o marcador próprio, na mesma numeração
   const paradasNoMapa: ParadaNoMapa[] = useMemo(
-    () => ordemMontando.flatMap((p, i) => (temPonto(p) ? [{ parada: p, numero: i + 1 }] : [])),
+    () => marcadoresDaRota(ordemMontando),
     [ordemMontando],
   )
   const rotasNoMapa: RotaNoMapa[] = useMemo(
@@ -233,40 +270,102 @@ export function AbaProgramar({
     setSelecionados(new Set())
     setRascunho(null)
     setTrajeto('inteira')
+    setAvulsas([])
   }
+
+  // SESSAO-41 (D-196): a parada avulsa entra na montagem — arrastou antes, ela vai para o fim
+  function porAvulsa(dados: DadosParadaAvulsa) {
+    const id = proximoIdAvulsa.current
+    proximoIdAvulsa.current -= 1
+    const rascunhoParada: RascunhoParada = { ...dados, chave: chaveDoGesto() }
+    setAvulsas((atual) => [...atual, itemDoRascunho(rascunhoParada, id)])
+    setRascunho((atual) => (atual ? [...atual, id] : atual))
+    setJanelaParada(null)
+  }
+  const tirarAvulsa = useCallback((id: number) => {
+    setAvulsas((atual) => atual.filter((a) => a.card_id !== id))
+    setRascunho((atual) => (atual ? atual.filter((x) => x !== id) : atual))
+  }, [])
 
   const programarMutacao = useMutation({
     mutationFn: async (v: {
       data: string
       caminhaoId: number
       rota: number
-      cardIds: number[]
+      /** A montagem NA ORDEM da tela: pedidos e paradas avulsas novas. */
+      montagem: ItemMontagem[]
       ajustada: boolean
-    }) => {
+    }): Promise<{ ordemSalva: boolean }> => {
+      const cardIds = v.montagem.filter((p) => !ehAvulsa(p)).map((p) => p.card_id)
+      const novas = v.montagem.flatMap((p) =>
+        ehAvulsa(p) && !paradaSalva(p.avulsa) ? [p.avulsa] : [],
+      )
       // D-109: a rota escolhida do caminhão naquele dia (D-128) — quem já está
       // nela fica na ordem dela e os novos entram no FIM; se nada estava salvo
       // e a montagem não foi mexida, o banco fica com a sugestão de tudo.
-      const existentes = (
-        await listarProgramadas({ data: v.data, caminhaoId: v.caminhaoId, limite: 200 })
-      ).filter((p) => p.rota === v.rota)
-      const temSalva = existentes.some((p) => typeof p.ordem === 'number')
-      const ordem =
-        temSalva || v.ajustada ? [...idsDe(ordemDaRota(existentes)), ...v.cardIds] : null
-      await programarRota({
-        data: v.data,
-        caminhaoId: v.caminhaoId,
-        rota: v.rota,
-        cardIds: v.cardIds,
-        ordem,
-      })
+      // SESSAO-41 (D-196): a rota pode já ter parada avulsa (posta em "Já
+      // programadas" ou pelo entregador) — elas dividem a ordem com os pedidos.
+      const [programadas, paradasDoDia] = await Promise.all([
+        listarProgramadas({ data: v.data, caminhaoId: v.caminhaoId, limite: 200 }),
+        listarParadasAvulsas({ de: v.data, ate: v.data }).catch((erro: unknown) => {
+          // sem parada nova, a leitura das paradas não pode travar o programar de sempre
+          if (novas.length === 0) return []
+          throw erro
+        }),
+      ])
+      const existentes = programadas.filter((p) => p.rota === v.rota)
+      const paradasExistentes = paradasDoDia.filter(
+        (p) => p.caminhao_id === v.caminhaoId && p.rota === v.rota,
+      )
+      if (novas.length === 0 && paradasExistentes.length === 0) {
+        const temSalva = existentes.some((p) => typeof p.ordem === 'number')
+        const ordem =
+          temSalva || v.ajustada ? [...idsDe(ordemDaRota(existentes)), ...cardIds] : null
+        await programarRota({
+          data: v.data,
+          caminhaoId: v.caminhaoId,
+          rota: v.rota,
+          cardIds,
+          ordem,
+        })
+        return { ordemSalva: true }
+      }
+
+      // Com parada: tudo numa transação (pedidos + paradas + a ordem da tela).
+      const tela = v.montagem.map(refDaMontagem)
+      const jaNaRota = misturarNaOrdem(existentes, paradasExistentes).map(refDoItem)
+      const base = { data: v.data, caminhaoId: v.caminhaoId, rota: v.rota, cardIds, paradas: novas }
+      if (jaNaRota.length === 0) {
+        await programarRotaComParadas({ ...base, ordem: tela })
+        return { ordemSalva: true }
+      }
+      // A rota já tinha itens: o banco põe a ordem da tela ANTES do que já estava
+      // — programa sem ordem e, em seguida, salva o que já estava primeiro e o
+      // novo no FIM (como sempre foi). Se só a ordem falhar, a programação fica.
+      const ids = await programarRotaComParadas({ ...base, ordem: null })
+      try {
+        await ordenarRotaComParadas({
+          data: v.data,
+          caminhaoId: v.caminhaoId,
+          rota: v.rota,
+          itens: ordemComONovoNoFim(jaNaRota, tela, ids),
+        })
+        return { ordemSalva: true }
+      } catch {
+        return { ordemSalva: false }
+      }
     },
-    onSuccess: async (_d, v) => {
+    onSuccess: async (resultado, v) => {
+      const nPedidos = v.montagem.filter((p) => !ehAvulsa(p)).length
+      const nParadas = v.montagem.length - nPedidos
       notificar({
         titulo:
-          v.cardIds.length === 1
-            ? 'Entrega programada'
-            : `${v.cardIds.length} entregas programadas`,
-        tom: 'perfeito',
+          (nPedidos === 1 ? 'Entrega programada' : `${nPedidos} entregas programadas`) +
+          (nParadas > 0 ? ` · ${plural(nParadas, 'parada avulsa', 'paradas avulsas')}` : ''),
+        descricao: resultado.ordemSalva
+          ? undefined
+          : 'A ordem não ficou salva (a rota mudou noutra tela) — confira e salve em "Já programadas".',
+        tom: resultado.ordemSalva ? 'perfeito' : 'atencao',
       })
       limpar()
       setConfirmando(false)
@@ -274,6 +373,8 @@ export function AbaProgramar({
         clienteQuery.invalidateQueries({ queryKey: ['programacao'] }),
         clienteQuery.invalidateQueries({ queryKey: ['programadas'] }),
         clienteQuery.invalidateQueries({ queryKey: ['rotas'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['paradas-avulsas'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] }),
       ])
       aoProgramar(v.data, v.caminhaoId, v.rota)
     },
@@ -289,7 +390,18 @@ export function AbaProgramar({
     valor: String(c.id),
     rotulo: c.placa ? `${c.nome} · ${c.placa}` : c.nome,
   }))
-  const semPonto = listaSelecionados.filter((p) => !temPonto(p)).length
+  const semPonto = ordemMontando.filter((p) => !temPonto(p)).length
+  const nAvulsas = avulsas.length
+  const botaoParada = (
+    <Botao
+      variante="secundaria"
+      tamanho="sm"
+      icone={<MapPinPlus />}
+      onClick={() => setJanelaParada(Date.now())}
+    >
+      Adicionar parada avulsa
+    </Botao>
+  )
 
   return (
     // duas colunas só quando a ÁREA da tela tem espaço (container, não janela — E-30):
@@ -304,30 +416,51 @@ export function AbaProgramar({
       <div className="flex flex-col gap-5 @3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @3xl:items-start">
         {/* Numa coluna só esta pilha "some" (contents) e cada parte vai para a sua vez (order). */}
         <div className="contents @3xl:col-start-1 @3xl:row-start-1 @3xl:flex @3xl:min-w-0 @3xl:flex-col @3xl:gap-5">
-          {/* Na rota: os marcados sobem, numerados, e se arrastam (D-111). */}
+          {/* Rota programada (↩️ SESSAO-41, era "Na rota"): os marcados sobem,
+              numerados, e se arrastam (D-111) — com as paradas avulsas no meio. */}
           {ordemMontando.length > 0 && (
             <section className="order-1 flex min-w-0 flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie-sutil p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-lg">
                   <Route aria-hidden className="size-5 text-texto-suave" />
-                  Na rota{' '}
+                  Rota programada{' '}
                   <span className="text-sm font-normal text-texto-suave tabular-nums">
                     ({ordemMontando.length} · {pecas} {pecas === 1 ? 'peça' : 'peças'})
                   </span>
                 </h2>
-                <span className="text-xs text-texto-suave">
-                  {ajustada
-                    ? 'Ordem ajustada à mão'
-                    : 'Ordem sugerida: o mais perto, a partir da fábrica'}{' '}
-                  · arraste para mudar
-                </span>
+                {botaoParada}
               </div>
+              <p className="text-xs text-texto-suave">
+                {ajustada
+                  ? 'Ordem ajustada à mão'
+                  : 'Ordem sugerida: o mais perto, a partir da fábrica'}{' '}
+                · arraste para mudar
+              </p>
               <ListaArrastavel
                 ids={idsMontando}
-                rotulo="Pedidos na rota, na ordem das paradas"
+                rotulo="Pedidos e paradas na rota, na ordem"
                 aoReordenar={reordenar}
               >
                 {(id, indice) => {
+                  const a = avulsaPorId.get(id)
+                  if (a) {
+                    return (
+                      <div className="flex min-h-toque-lg items-start gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3">
+                        <NumeroParadaAvulsa numero={indice + 1} />
+                        <CartaoParadaAvulsa parada={a.avulsa} />
+                        <Botao
+                          variante="fantasma"
+                          tamanho="sm"
+                          icone={<X />}
+                          className="shrink-0"
+                          aria-label={`Tirar a parada "${a.avulsa.titulo}" da rota`}
+                          onClick={() => tirarAvulsa(id)}
+                        >
+                          Tirar
+                        </Botao>
+                      </div>
+                    )
+                  }
                   const p = porId.get(id)
                   if (!p) return null
                   return (
@@ -426,8 +559,8 @@ export function AbaProgramar({
           <h2 className="text-lg">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">
-              F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · âmbar = pedidos
-              próximos (até {RAIO_SUGESTAO_KM} km)
+              F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · quadrado "A" =
+              parada avulsa · âmbar = pedidos próximos (até {RAIO_SUGESTAO_KM} km)
             </span>
           </h2>
           <MapaProgramacao
@@ -450,10 +583,14 @@ export function AbaProgramar({
               aoVoltarSugestao={voltarSugestao}
             />
           ) : (
-            <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-              Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas entregas
-              e volta.
-            </p>
+            <div className="flex flex-col items-start gap-3 rounded-dm border border-borda bg-superficie p-4">
+              <p className="text-sm text-texto-suave">
+                Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas
+                entregas e volta. Dá para pôr também uma parada avulsa (buscar material, passar num
+                endereço).
+              </p>
+              {botaoParada}
+            </div>
           )}
           {paradasNoMapa.length > MAXIMO_PARADAS && (
             <p className="text-xs text-atencao-texto">
@@ -464,10 +601,11 @@ export function AbaProgramar({
         </section>
       </div>
 
-      {listaSelecionados.length > 0 && (
+      {ordemMontando.length > 0 && (
         <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3 shadow-lg">
           <span className="text-sm text-texto tabular-nums">
             {listaSelecionados.length} pedido(s) · {pecas} {pecas === 1 ? 'peça' : 'peças'}
+            {nAvulsas > 0 && ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}`}
             {estadoRota.estado === 'pronta' && (
               <span className="text-texto-suave">
                 {' '}
@@ -478,12 +616,22 @@ export function AbaProgramar({
             {semPonto > 0 && (
               <span className="text-texto-suave"> · {semPonto} sem ponto no mapa</span>
             )}
+            {listaSelecionados.length === 0 && (
+              <span className="text-atencao-texto">
+                {' '}
+                · marque ao menos um pedido para programar
+              </span>
+            )}
           </span>
           <span className="ml-auto flex gap-2">
             <Botao variante="fantasma" onClick={limpar}>
               Limpar
             </Botao>
-            <Botao icone={<Truck />} onClick={() => setConfirmando(true)}>
+            <Botao
+              icone={<Truck />}
+              onClick={() => setConfirmando(true)}
+              disabled={listaSelecionados.length === 0}
+            >
               Programar
             </Botao>
           </span>
@@ -493,7 +641,7 @@ export function AbaProgramar({
       {confirmando && (
         <ModalProgramar
           titulo={`Programar ${listaSelecionados.length} pedido(s)`}
-          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'} — numa rota nova do caminhão, ou no fim de uma rota que ele já tem no dia.`}
+          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'}${nAvulsas > 0 ? ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}` : ''} — numa rota nova do caminhão, ou no fim de uma rota que ele já tem no dia.`}
           diaInicial={hojeIso()}
           caminhaoInicial={caminhaoId}
           opcoesCaminhao={opcoesCaminhao}
@@ -506,12 +654,20 @@ export function AbaProgramar({
               data,
               caminhaoId: caminhao,
               rota,
-              cardIds: idsMontando,
+              montagem: ordemMontando,
               ajustada,
             })
           }}
         />
       )}
+
+      <ModalParadaAvulsa
+        key={janelaParada ?? 'parada-fechada'}
+        aberto={janelaParada !== null}
+        descricao="Buscar material, levar uma peça, passar num endereço — a parada entra na rota que você está montando e é programada junto."
+        aoFechar={() => setJanelaParada(null)}
+        aoSalvar={porAvulsa}
+      />
     </div>
   )
 }

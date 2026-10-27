@@ -1,11 +1,32 @@
 import { useEffect } from 'react'
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from 'react-leaflet'
 import { latLngBounds } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { EntregaDoDia } from './api'
+import { iconeParadaAvulsa } from './iconeAvulsa'
 import { FABRICA } from './rotaRuas'
 
 type Coord = [number, number]
+
+/** SESSAO-41 (D-196): um ponto do mini mapa — a entrega ou a parada avulsa, na ordem da rota. */
+export interface PontoDoMiniMapa {
+  chave: string
+  latitude: number | null
+  longitude: number | null
+  /** O número da parada na rota (o mesmo da lista). */
+  posicao: number
+  /** Já feita (a parada marcada): aparece apagada e fora da linha. */
+  apagada: boolean
+  /** Parada avulsa (marcador quadrado "A"). */
+  avulsa: boolean
+}
 
 function Enquadrar({ pontos }: { pontos: Coord[] }) {
   const mapa = useMap()
@@ -21,12 +42,17 @@ function Enquadrar({ pontos }: { pontos: Coord[] }) {
 /**
  * O mini mapa do entregador (D-115): a fábrica e as paradas do dia na ORDEM da
  * rota (o número da parada), a entregue apagada. Pedaço próprio do pacote —
- * só baixa quando a tela das entregas abre (Lei §9).
+ * só baixa quando a tela das entregas abre (Lei §9). ↪️ SESSAO-41 (D-196): a
+ * parada avulsa entra na mesma linha, com o marcador próprio (quadrado "A").
  */
-export default function MiniMapaEntregas({ entregas }: { entregas: EntregaDoDia[] }) {
-  const comPonto = entregas.filter((e) => e.latitude !== null && e.longitude !== null)
+export default function MiniMapaEntregas({ pontos }: { pontos: PontoDoMiniMapa[] }) {
+  const comPonto = pontos.filter((e) => e.latitude !== null && e.longitude !== null)
   const fabrica: Coord = [FABRICA.latitude, FABRICA.longitude]
-  const linha: Coord[] = [fabrica, ...comPonto.map((e) => [e.latitude!, e.longitude!] as Coord)]
+  const linha: Coord[] = [
+    fabrica,
+    ...comPonto.filter((e) => !e.apagada).map((e) => [e.latitude!, e.longitude!] as Coord),
+  ]
+  const enquadrar: Coord[] = [fabrica, ...comPonto.map((e) => [e.latitude!, e.longitude!] as Coord)]
   return (
     <MapContainer
       center={fabrica}
@@ -38,7 +64,7 @@ export default function MiniMapaEntregas({ entregas }: { entregas: EntregaDoDia[
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Enquadrar pontos={linha} />
+      <Enquadrar pontos={enquadrar} />
       <Polyline positions={linha} pathOptions={{ color: '#6b7280', weight: 2, dashArray: '6 6' }} />
       <CircleMarker
         center={fabrica}
@@ -47,32 +73,40 @@ export default function MiniMapaEntregas({ entregas }: { entregas: EntregaDoDia[
       >
         <Tooltip>{FABRICA.nome}</Tooltip>
       </CircleMarker>
-      {comPonto.map((e) => (
-        <CircleMarker
-          key={e.card_id}
-          center={[e.latitude!, e.longitude!]}
-          radius={12}
-          pathOptions={{
-            color: e.entregue_em ? '#9ca3af' : '#1d4ed8',
-            fillColor: e.entregue_em ? '#e5e7eb' : '#3b82f6',
-            fillOpacity: 0.9,
-          }}
-        >
-          <Tooltip
-            permanent
-            direction="center"
-            className="!border-0 !bg-transparent !p-0 !shadow-none"
+      {comPonto.map((e) =>
+        e.avulsa ? (
+          <Marker
+            key={e.chave}
+            position={[e.latitude!, e.longitude!]}
+            icon={iconeParadaAvulsa(e.posicao, '#1d4ed8', e.apagada)}
+          />
+        ) : (
+          <CircleMarker
+            key={e.chave}
+            center={[e.latitude!, e.longitude!]}
+            radius={12}
+            pathOptions={{
+              color: e.apagada ? '#9ca3af' : '#1d4ed8',
+              fillColor: e.apagada ? '#e5e7eb' : '#3b82f6',
+              fillOpacity: 0.9,
+            }}
           >
-            <span
-              className={
-                e.entregue_em ? 'text-xs font-bold text-gray-500' : 'text-xs font-bold text-white'
-              }
+            <Tooltip
+              permanent
+              direction="center"
+              className="!border-0 !bg-transparent !p-0 !shadow-none"
             >
-              {e.posicao}
-            </span>
-          </Tooltip>
-        </CircleMarker>
-      ))}
+              <span
+                className={
+                  e.apagada ? 'text-xs font-bold text-gray-500' : 'text-xs font-bold text-white'
+                }
+              >
+                {e.posicao}
+              </span>
+            </Tooltip>
+          </CircleMarker>
+        ),
+      )}
     </MapContainer>
   )
 }

@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  MapPinPlus,
   MessageCircle,
   MessageSquarePlus,
   PackageCheck,
@@ -16,19 +17,30 @@ import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import {
   anexarComprovante,
+  chaveDoGesto,
   comentarNoCard,
   enderecoLegivel,
   entregasDoDia,
   entregueHoje,
   linkWhatsApp,
   registrarEntrega,
+  salvarParadaAvulsa,
   TIPOS_COMPROVANTE,
 } from '@/rotas/api'
-import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
+import type { DadosParadaAvulsa, EntregaDoDia, ItemDaOrdem, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalEntregaParcial } from '@/rotas/ModalEntregaParcial'
+import { ModalParadaAvulsa } from '@/rotas/ModalParadaAvulsa'
 import { BotaoRotaGoogleMaps, BotoesParada } from '@/rotas/BotoesNavegacao'
-import { naOrdemDaRota } from '@/rotas/rotaRuas'
+import type { PontoDoMiniMapa } from '@/rotas/MiniMapaEntregas'
+import { CartaoParadaDoDia } from '@/rotas/ParadaAvulsaDoDia'
+import {
+  CHAVES_PARADA_AVULSA,
+  lugarDaAvulsa,
+  ordemDoDiaParaOBanco,
+  pendenteNoDia,
+  rotaDoDia,
+} from '@/rotas/paradasAvulsas'
 import { SeloEstado } from '@/rotas/SeloEstado'
 import {
   fraseEntregaIncompleta,
@@ -38,6 +50,8 @@ import {
 import { useAoVivo } from '@/lib/aoVivo'
 
 const MiniMapa = lazy(() => import('@/rotas/MiniMapaEntregas'))
+// SESSAO-41 (D-196): a lista que se arrasta só baixa quando a janela do "momento" abre
+const ModalMomentoParada = lazy(() => import('@/rotas/ModalMomentoParada'))
 
 function horaCurta(iso: string | null): string {
   return iso
@@ -66,6 +80,12 @@ function dataLonga(iso: string): string {
  * ↪️ D-121 (09/10, pedido do dono): para a logística, é uma ABA de ROTAS →
  * Entregas (`embutida` — a aba já diz o nome, sem título próprio); a rota
  * própria ficou só para o entregador.
+ *
+ * ↪️ SESSAO-41 (D-196, pedido do dono): a PARADA AVULSA — o entregador (na
+ * rota de hoje) ou a logística põe uma parada a qualquer momento; ela aparece
+ * MISTURADA às entregas pela ordem da rota (no mapa e no Google Maps também),
+ * com "Feita" / "Não feita". Depois de pôr, a pessoa escolhe o momento dela
+ * arrastando — só a parada que ela pôs se mexe; o resto é da logística.
  */
 export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   // SESSAO-31 (D-128): a rota escolhida (caminhão + nº da rota no dia).
@@ -81,6 +101,11 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   // SESSAO-41 (D-195): a entrega parcial — o entregador marca o que foi entregue.
   const [parcial, setParcial] = useState<EntregaDoDia | null>(null)
   const [anexando, setAnexando] = useState<EntregaDoDia | null>(null)
+  // SESSAO-41 (D-196): a janela da parada avulsa (a chave do gesto) e a do "momento"
+  const [janelaParada, setJanelaParada] = useState<string | null>(null)
+  const [momento, setMomento] = useState<{ destaque: number | null; vez: number } | null>(null)
+  const notificar = useNotificacao()
+  const clienteQuery = useQueryClient()
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['entregas-do-dia', dia, escolha?.caminhaoId ?? null, escolha?.rota ?? null],
@@ -91,18 +116,103 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   useAoVivo('rotas', [['entregas-do-dia']])
 
   // SESSAO-39 (D-174): a mesma ordem de "Já programadas" (a salva ou a sugestão).
-  const entregas = useMemo(() => naOrdemDaRota(data?.entregas ?? []), [data?.entregas])
+  // SESSAO-41 (D-196): com as paradas avulsas MISTURADAS pela ordem (numeradas de novo).
+  const itens = useMemo(
+    () => rotaDoDia(data?.entregas ?? [], data?.paradas_avulsas ?? []),
+    [data?.entregas, data?.paradas_avulsas],
+  )
+  const entregas = useMemo(
+    () => itens.flatMap((i) => (i.tipo === 'pedido' ? [i.entrega] : [])),
+    [itens],
+  )
   // SESSAO-30 (D-120): o entregue sai da rota (lista e mapa) e mora no PCP; o do
   // dia fica recolhido aqui só para o entregador poder desfazer (D-113).
-  const aEntregar = entregas.filter((e) => !e.entregue_em)
   const entreguesHoje = entregas.filter((e) => e.entregue_em)
   const feitas = entreguesHoje.length
+  // A lista: o que falta entregar e as paradas avulsas (a marcada fica, com "Desfazer").
+  const naLista = useMemo(
+    () => itens.filter((i) => i.tipo === 'avulsa' || !i.entrega.entregue_em),
+    [itens],
+  )
+  // O que ainda está para fazer (a linha do mapa e o Google Maps).
+  const pendentes = useMemo(() => itens.filter(pendenteNoDia), [itens])
+  const pontosDoMapa = useMemo(
+    (): PontoDoMiniMapa[] =>
+      naLista.map((i) =>
+        i.tipo === 'pedido'
+          ? {
+              chave: `p${i.entrega.card_id}`,
+              latitude: i.entrega.latitude,
+              longitude: i.entrega.longitude,
+              posicao: i.posicao,
+              apagada: false,
+              avulsa: false,
+            }
+          : {
+              chave: `a${i.parada.id}`,
+              latitude: i.parada.latitude,
+              longitude: i.parada.longitude,
+              posicao: i.posicao,
+              apagada: i.parada.situacao !== 'pendente',
+              avulsa: true,
+            },
+      ),
+    [naLista],
+  )
+  const lugaresPendentes = useMemo(
+    () => pendentes.map((i) => (i.tipo === 'pedido' ? i.entrega : lugarDaAvulsa(i.parada))),
+    [pendentes],
+  )
+  const posicoesPendentes = useMemo(() => pendentes.map((i) => i.posicao), [pendentes])
   const [verEntregues, setVerEntregues] = useState(false)
   const caminhao = data?.caminhoes.find((c) => c.id === data.caminhao_id && c.rota === data.rota)
   // O nome da rota só aparece quando o mesmo caminhão tem mais de uma no dia.
   const rotasDoCaminhao = (id: number) => data?.caminhoes.filter((c) => c.id === id).length ?? 0
   const nomeDaEscolha = (c: { id: number; nome: string; rota: number }) =>
     rotasDoCaminhao(c.id) > 1 || c.rota > 1 ? `${c.nome} · Rota ${c.rota}` : c.nome
+  // SESSAO-41 (D-196): pôr parada exige uma rota escolhida (o banco confere quem pode).
+  const rotaAtual =
+    data && data.caminhao_id !== null && data.rota !== null
+      ? { data: data.data, caminhaoId: data.caminhao_id, rota: data.rota }
+      : null
+
+  const porParada = useMutation({
+    mutationFn: async (v: {
+      dados: DadosParadaAvulsa
+      chave: string
+      alvo: { data: string; caminhaoId: number; rota: number }
+      ordemAtual: ItemDaOrdem[]
+    }) => {
+      const base = { ...v.dados, ...v.alvo, chave: v.chave }
+      try {
+        // no FIM da rota como está na tela (a ordem fica salva para todos)
+        return await salvarParadaAvulsa({ ...base, ordem: [...v.ordemAtual, { t: 'nova' }] })
+      } catch (erro) {
+        // a rota mudou noutra tela: sem a ordem, o banco põe no fim do que está salvo
+        if (erro instanceof Error && /rota mudou/i.test(erro.message))
+          return salvarParadaAvulsa(base)
+        throw erro
+      }
+    },
+    onSuccess: async (r) => {
+      notificar({
+        titulo: r.repetido ? 'A parada já estava na rota' : 'Parada avulsa na rota',
+        descricao: 'Agora arraste para o momento em que o caminhão vai parar nela.',
+        tom: 'perfeito',
+      })
+      setJanelaParada(null)
+      await Promise.all(
+        CHAVES_PARADA_AVULSA.map((queryKey) => clienteQuery.invalidateQueries({ queryKey })),
+      )
+      setMomento({ destaque: r.id, vez: Date.now() })
+    },
+    onError: (erro) =>
+      notificar({
+        titulo: 'Não deu para pôr a parada',
+        descricao: erro instanceof Error ? erro.message : undefined,
+        tom: 'danificado',
+      }),
+  })
 
   return (
     <div className={cn('flex w-full max-w-3xl flex-col gap-4', !embutida && 'mx-auto')}>
@@ -185,7 +295,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         </p>
       )}
 
-      {aEntregar.length > 0 && (
+      {naLista.length > 0 && (
         <section aria-label="Mapa da rota" className="flex flex-col gap-2">
           <Botao
             variante="fantasma"
@@ -201,43 +311,69 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
               <Suspense
                 fallback={<p className="p-3 text-sm text-texto-fraco">Carregando o mapa…</p>}
               >
-                <MiniMapa entregas={aEntregar} />
+                <MiniMapa pontos={pontosDoMapa} />
               </Suspense>
             </div>
           )}
         </section>
       )}
 
-      {aEntregar.length > 0 && (
+      {(pendentes.length > 0 || rotaAtual) && (
         // SESSAO-39 (D-174): o que falta da rota, na ordem, de onde o aparelho está.
+        // SESSAO-41 (D-196): com as paradas avulsas pendentes; + pôr parada avulsa.
         <div className="flex flex-wrap gap-2">
-          <BotaoRotaGoogleMaps
-            paradas={aEntregar}
-            origem="aqui"
-            posicoes={aEntregar.map((e) => e.posicao)}
-            tamanho="lg"
-          />
+          {pendentes.length > 0 && (
+            <BotaoRotaGoogleMaps
+              paradas={lugaresPendentes}
+              origem="aqui"
+              posicoes={posicoesPendentes}
+              tamanho="lg"
+            />
+          )}
+          {rotaAtual && (
+            <Botao
+              tamanho="lg"
+              variante="secundaria"
+              icone={<MapPinPlus />}
+              onClick={() => setJanelaParada(chaveDoGesto())}
+            >
+              Adicionar parada avulsa
+            </Botao>
+          )}
         </div>
       )}
 
-      {data && entregas.length > 0 && aEntregar.length === 0 && (
+      {data && entregas.length > 0 && pendentes.length === 0 && (
         <p className="rounded-dm-lg border border-perfeito-borda bg-perfeito-fundo p-4 text-perfeito-texto">
           Todas as entregas do dia foram feitas.
         </p>
       )}
 
       <ol className="flex flex-col gap-3">
-        {aEntregar.map((entrega) => (
-          <CartaoEntrega
-            key={entrega.card_id}
-            entrega={entrega}
-            aoNaoEntregue={() => setComMotivo({ tipo: 'nao_entregue', entrega })}
-            aoParcial={() => setParcial(entrega)}
-            aoDesfazer={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
-            aoComentar={() => setComentando(entrega)}
-            aoAnexar={() => setAnexando(entrega)}
-          />
-        ))}
+        {naLista.map((item) => {
+          if (item.tipo === 'avulsa')
+            return (
+              <CartaoParadaDoDia
+                key={`avulsa-${item.parada.id}`}
+                parada={item.parada}
+                posicao={item.posicao}
+                souLogistica={data?.sou_logistica ?? false}
+                aoMudarMomento={() => setMomento({ destaque: item.parada.id, vez: Date.now() })}
+              />
+            )
+          const entrega = item.entrega
+          return (
+            <CartaoEntrega
+              key={entrega.card_id}
+              entrega={entrega}
+              aoNaoEntregue={() => setComMotivo({ tipo: 'nao_entregue', entrega })}
+              aoParcial={() => setParcial(entrega)}
+              aoDesfazer={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
+              aoComentar={() => setComentando(entrega)}
+              aoAnexar={() => setAnexando(entrega)}
+            />
+          )
+        })}
       </ol>
 
       {entreguesHoje.length > 0 && (
@@ -309,6 +445,37 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         entrega={anexando}
         aoFechar={() => setAnexando(null)}
       />
+      <ModalParadaAvulsa
+        key={janelaParada ?? 'parada-fechada'}
+        aberto={janelaParada !== null && rotaAtual !== null}
+        titulo={caminhao ? `Parada avulsa — ${nomeDaEscolha(caminhao)}` : undefined}
+        descricao="Buscar material, levar uma peça, passar num endereço. Depois de salvar, você escolhe o momento dela na rota."
+        carregando={porParada.isPending}
+        aoFechar={() => setJanelaParada(null)}
+        aoSalvar={(dados) => {
+          if (janelaParada && rotaAtual)
+            porParada.mutate({
+              dados,
+              chave: janelaParada,
+              alvo: rotaAtual,
+              ordemAtual: ordemDoDiaParaOBanco(itens),
+            })
+        }}
+      />
+      {rotaAtual && momento && (
+        <Suspense fallback={null}>
+          <ModalMomentoParada
+            key={`momento-${momento.vez}`}
+            aberto
+            itens={itens}
+            destaque={momento.destaque}
+            data={rotaAtual.data}
+            caminhaoId={rotaAtual.caminhaoId}
+            rota={rotaAtual.rota}
+            aoFechar={() => setMomento(null)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
