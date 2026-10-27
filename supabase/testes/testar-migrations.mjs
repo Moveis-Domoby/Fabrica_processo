@@ -9550,8 +9550,9 @@ await deveRecusarExec(
   /logística/i,
 )
 conferir(operador55.n === 0, 'quem não é da logística não vê as programações', JSON.stringify(operador55))
+// ↪️ SESSAO-41 · filtros (D-199): "Já programadas" ganhou a busca (`p_busca text`)
 const priv55 = await um55(`
-  select has_function_privilege('anon', 'public.plt_fn_programadas(boolean, date, bigint, integer, integer)', 'execute') as prog_anon,
+  select has_function_privilege('anon', 'public.plt_fn_programadas(boolean, date, bigint, integer, integer, text)', 'execute') as prog_anon,
          has_function_privilege('anon', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)', 'execute') as rota_anon,
          has_function_privilege('authenticated', 'public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)', 'execute') as rota_logado,
          (select count(*)::int from pg_proc where proname = 'plt_fn_programacao') as sobrecargas`)
@@ -16182,6 +16183,9 @@ try {
   // ↪️ SESSAO-41 · ajuste (D-197/D-198): a carência de 5 min na conta, o card
   // esquecido e o quadro com `esquecidos` — recria o que a do tablet recriou
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027070000_plt_carencia_5min_card_esquecido.sql'), 'utf8'))
+  // ↪️ SESSAO-41 · filtros (D-199): a das rotas acima recria "Já programadas" sem
+  // a busca (a assinatura de antes) — a dos filtros vem depois e deixa uma só
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261027080000_plt_programacao_filtros.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -18789,6 +18793,173 @@ try {
   await como41e('')
 }
 } // fim do bloco SESSAO-41 · ajuste
+
+// ============================================================================
+// SESSAO-41 · filtros da Programação (migration 20261027080000 — D-199): a aba
+// Programar filtra e ordena NO SERVIDOR (busca, situação, cidade, bairro,
+// previsão; cliente A–Z/Z–A, mais peças, mais novo/antigo) e devolve as opções
+// dos filtros na mesma requisição; "Já programadas" ganha a busca, que acha a
+// ROTA inteira. Tudo numa transação desfeita no fim.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-41 · filtros · o cenário: três pedidos sem rota, em cidades, bairros, previsões e tamanhos diferentes')
+
+const um41f = async (sql) => (await bd.query(sql)).rows[0]
+const como41f = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado41f = async (auth, sql) => {
+  await como41f(auth)
+  await bd.exec('savepoint l41f')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l41f')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l41f')
+    await bd.exec('reset role')
+    throw new Error(`logado41f: ${erro.message}`)
+  }
+}
+// faixa própria de ids de teste (...4151)
+const OP41F = '00000000-0000-0000-0000-000000004151'
+await como41f('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
+      values ('Operador Filtros 41', 'op.filtros41@teste.com', '41800000001', 'op.filtros41', 'operador', '${OP41F}', array['fabrica']);
+    insert into public.plt_caminhoes (nome, placa) values ('Baú F41', 'TST4151');
+    insert into public.clientes (nome, endereco, numero, bairro, cidade, uf, cep) values
+      ('Ábaco Móveis F41', 'Rua Presidente Bandeira', '10', 'ALECRIM', 'Natal', 'RN', '59031-200'),
+      ('Zélia Souza F41', 'Avenida Ayrton Senna', '200', 'Nova Parnamirim', 'Parnamirim', 'RN', '59151-600'),
+      ('maria clara F41', 'Rua Praia de Ponta Negra', '30', 'Ponta Negra', 'NATAL', 'RN', '59090-000');
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_pedido, data_prevista) values
+      (941201, (select id from public.clientes where nome = 'Ábaco Móveis F41'), 'Preparando envio', 'webhook', 94120100,
+       '2026-10-01', (now() at time zone 'America/Fortaleza')::date - 2),
+      (941202, (select id from public.clientes where nome = 'Zélia Souza F41'), 'Preparando envio', 'webhook', 94120200,
+       '2026-10-20', (now() at time zone 'America/Fortaleza')::date),
+      (941203, (select id from public.clientes where nome = 'maria clara F41'), 'Preparando envio', 'webhook', 94120300,
+       '2026-10-10', null);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = 941201), 1, 'S41F1', 'Rack Paris F41', 1),
+      ((select id from public.pedidos where numero = 941202), 1, 'S41F2', 'Mesa Lyon F41', 4),
+      ((select id from public.pedidos where numero = 941203), 1, 'S41F3', 'Cômoda Roma F41', 2);
+  `)
+  const card = async (n) => (await um41f(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                           where c.tipo = 'pedido' and p.numero = ${n}`)).id
+  const [K1, K2, K3] = [await card(941201), await card(941202), await card(941203)]
+  const CAM = (await um41f(`select id::int as id from public.plt_caminhoes where placa = 'TST4151'`)).id
+  const HOJE = (await um41f(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+  // a porta da aba Programar, como a logística; devolve o jsonb inteiro
+  const cand = async (args, auth = E40.logistica) =>
+    (await logado41f(auth, `select public.plt_fn_programacao_candidatos(${args}) as r`))[0].r
+  const numeros = (r) => (r.itens ?? []).map((i) => i.numero).filter((n) => n >= 941201 && n <= 941203)
+  const todos = await cand(`p_busca => 'f41'`)
+  conferir(K1 > 0 && K3 > 0 && CAM > 0 && todos.total === 3 && numeros(todos).length === 3,
+    'a busca "f41" acha os três pedidos de teste (sem programação ainda)', JSON.stringify({ total: todos.total, n: numeros(todos) }))
+
+  titulo('SESSAO-41 · filtros · as ordens: cliente de A a Z e de Z a A (sem acento, sem maiúscula), mais peças, mais novo e mais antigo')
+
+  const ordem = async (o) => numeros(await cand(`p_busca => 'f41', p_ordem => '${o}'`))
+  const az = await ordem('cliente_az')
+  const za = await ordem('cliente_za')
+  const pecas = await ordem('pecas')
+  const novo = await ordem('mais_novo')
+  const antigo = await ordem('mais_antigo')
+  const entrega = await ordem('entrega')
+  conferir(JSON.stringify(az) === '[941201,941203,941202]' && JSON.stringify(za) === '[941202,941203,941201]',
+    'Ábaco, maria clara, Zélia — e o contrário (o acento e a minúscula não mudam a ordem)', JSON.stringify({ az, za }))
+  conferir(JSON.stringify(pecas) === '[941202,941203,941201]',
+    'mais peças primeiro: 4, 2, 1', JSON.stringify(pecas))
+  conferir(JSON.stringify(novo) === '[941202,941203,941201]' && JSON.stringify(antigo) === '[941201,941203,941202]',
+    'pela data do pedido: 20/10, 10/10, 01/10 — e o contrário', JSON.stringify({ novo, antigo }))
+  conferir(JSON.stringify(entrega) === '[941201,941202,941203]',
+    'o de sempre: o dia de entrega mais perto (o atrasado primeiro, sem previsão no fim)', JSON.stringify(entrega))
+
+  titulo('SESSAO-41 · filtros · a busca: nº do pedido que começa com; cliente, móvel, bairro e cidade que contém, sem acento')
+
+  const busca = async (t) => numeros(await cand(`p_busca => '${t}'`))
+  const b1 = await busca('94120')
+  const b2 = await busca('rack paris')
+  const b3 = await busca('ponta negra')
+  const b4 = await busca('zelia')
+  const b5 = await busca('pedido 941203')
+  const b6 = await busca('comoda')
+  conferir(b1.length === 3 && JSON.stringify(b2) === '[941201]' && JSON.stringify(b3) === '[941203]'
+      && JSON.stringify(b4) === '[941202]' && JSON.stringify(b5) === '[941203]' && JSON.stringify(b6) === '[941203]',
+    'número (e "pedido N"), o móvel, o bairro e o cliente sem acento acham o pedido certo', JSON.stringify({ b1, b2, b3, b4, b5, b6 }))
+
+  titulo('SESSAO-41 · filtros · cidade, bairro, previsão e situação — e as opções vêm na mesma resposta')
+
+  const parn = numeros(await cand(`p_busca => 'f41', p_cidade => 'parnamirim'`))
+  const natal = numeros(await cand(`p_busca => 'f41', p_cidade => 'Natal'`))
+  const alecrim = numeros(await cand(`p_busca => 'f41', p_bairro => 'Alecrim'`))
+  conferir(JSON.stringify(parn) === '[941202]' && natal.length === 2 && natal.includes(941203)
+      && JSON.stringify(alecrim) === '[941201]',
+    'a cidade e o bairro batem sem olhar maiúscula ("NATAL" e "Natal" são a mesma)', JSON.stringify({ parn, natal, alecrim }))
+  const prev = async (p) => numeros(await cand(`p_busca => 'f41', p_previsao => '${p}'`))
+  const [atr, hoje, sem, quinze, semana] = [await prev('atrasados'), await prev('hoje'), await prev('sem'), await prev('quinze'), await prev('semana')]
+  conferir(JSON.stringify(atr) === '[941201]' && JSON.stringify(hoje) === '[941202]' && JSON.stringify(sem) === '[941203]'
+      && JSON.stringify(quinze) === '[941202]' && semana.includes(941202) && !semana.includes(941203),
+    'atrasados, hoje, sem previsão, próximos 15 dias e esta semana (domingo a sábado)', JSON.stringify({ atr, hoje, sem, quinze, semana }))
+  const estado = (await cand(`p_busca => 'f41'`)).itens.find((i) => i.numero === 941201)?.estado
+  const doEstado = numeros(await cand(`p_busca => 'f41', p_estado => '${estado}'`))
+  const outroEstado = numeros(await cand(`p_busca => 'f41', p_estado => '${estado === 'pronto' ? 'no_pcp' : 'pronto'}'`))
+  conferir(typeof estado === 'string' && doEstado.length === 3 && outroEstado.length === 0,
+    'a situação filtra pelo estado do pedido', JSON.stringify({ estado, doEstado, outroEstado }))
+  const opcoes = await cand(`p_cidade => 'Parnamirim'`)
+  const cidades = opcoes.cidades ?? []
+  const bairros = opcoes.bairros ?? []
+  conferir(cidades.some((c) => c.cidade === 'Parnamirim' && c.n >= 1) && cidades.some((c) => /natal/i.test(c.cidade) && c.n >= 2)
+      && bairros.length >= 1 && bairros.every((b) => b.cidade === 'Parnamirim')
+      && opcoes.contagens?.hoje >= 1 && opcoes.contagens?.atrasados >= 1 && opcoes.contagens?.sem >= 1
+      && opcoes.total_geral >= todos.total,
+    'as cidades (todas), os bairros da cidade escolhida e as contagens vêm junto', JSON.stringify({ cidades, bairros, c: opcoes.contagens }))
+  const um = await cand(`p_busca => 'f41', p_limite => 1`)
+  conferir(um.itens.length === 1 && um.total === 3, 'a página respeita o limite e o total conta todos os que batem', JSON.stringify({ n: um.itens.length, total: um.total }))
+
+  titulo('SESSAO-41 · filtros · o mesmo conjunto da porta de antes; o operador da produção não vê; fora da API sem login')
+
+  const antes = (await logado41f(E40.logistica, `select array_agg(card_id order by card_id) as ids from public.plt_fn_programacao(null, 200, 0, true)`))[0].ids ?? []
+  const agora = await cand(`p_limite => 200`)
+  const idsAgora = agora.itens.map((i) => Number(i.card_id)).sort((a, b) => a - b)
+  conferir(agora.total_geral === antes.length && JSON.stringify(idsAgora) === JSON.stringify(antes.map(Number).slice(0, 200)),
+    'sem filtro: exatamente os pedidos da aba Programar de antes', JSON.stringify({ antes: antes.length, agora: agora.total_geral }))
+  const operador = await cand(`p_busca => 'f41'`, OP41F)
+  const priv = await um41f(`select has_function_privilege('anon', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as anon,
+                                   has_function_privilege('authenticated', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as logado`)
+  conferir(operador.total === 0 && operador.itens.length === 0 && priv.anon === false && priv.logado === true,
+    'quem não vê a expedição recebe a lista vazia; a porta não abre sem login', JSON.stringify({ t: operador.total, priv }))
+
+  titulo('SESSAO-41 · filtros · "Já programadas": a busca acha a rota inteira (pedido ou parada avulsa); sem busca, igual a antes')
+
+  await logado41f(E40.logistica, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K2}]::bigint[], null, 1)`)
+  await logado41f(E40.logistica, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K3}]::bigint[], null, 2)`)
+  await logado41f(E40.logistica, `select public.plt_fn_parada_avulsa_salvar(null, '${HOJE}', ${CAM}, 2,
+      'Buscar MDF na Leroy', 'Av. Senador Salgado Filho, 1, Natal', -5.8, -35.2, null)`)
+  const prog = async (busca) => (await logado41f(E40.logistica, `select numero, rota from public.plt_fn_programadas(false, '${HOJE}', ${CAM}, 200, 0${busca === undefined ? '' : `, '${busca}'`}) order by rota, numero`))
+  const sem41 = await prog()
+  const rack = await prog('rack paris')
+  const num = await prog('941203')
+  const leroy = await prog('leroy')
+  const nada = await prog('nao existe f41')
+  const nomes = await logado41f(E40.logistica, `select count(*)::int as n from public.plt_fn_programadas(p_entregues => false, p_data => '${HOJE}',
+      p_caminhao_id => ${CAM}, p_limite => 200, p_deslocamento => 0)`)
+  conferir(sem41.length === 3 && nomes[0].n === 3
+      && JSON.stringify(rack.map((r) => r.numero)) === '[941201,941202]'
+      && JSON.stringify(num.map((r) => r.numero)) === '[941203]'
+      && JSON.stringify(leroy.map((r) => r.numero)) === '[941203]' && nada.length === 0,
+    'o móvel de um pedido traz a rota 1 inteira (os dois pedidos); o número e a parada avulsa trazem a rota 2; sem busca, as três (também chamando pelos nomes, como o site de antes)',
+    JSON.stringify({ sem: sem41.length, rack, num, leroy, nada: nada.length, nomes: nomes[0].n }))
+  const assinaturas = await um41f(`select count(*)::int as n from pg_proc where proname = 'plt_fn_programadas'`)
+  const privP = await um41f(`select has_function_privilege('anon', 'public.plt_fn_programadas(boolean, date, bigint, integer, integer, text)', 'execute') as anon`)
+  conferir(assinaturas.n === 1 && privP.anon === false, 'uma porta "Já programadas" só (a de antes saiu), fechada sem login', JSON.stringify({ assinaturas, privP }))
+} finally {
+  await bd.exec('rollback')
+  await como41f('')
+}
+} // fim do bloco SESSAO-41 · filtros
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
