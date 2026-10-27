@@ -16177,6 +16177,11 @@ try {
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027040000_plt_rotas_endereco_data_parcial.sql'), 'utf8'))
   // ↪️ SESSAO-41 (D-196): a das paradas recria as entregas do dia (com as paradas) — depois da das rotas
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027050000_plt_paradas_avulsas.sql'), 'utf8'))
+  // ↪️ SESSAO-41 (D-196): a ordem da rota sem os pedidos arquivados — depois da das paradas
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261027060000_plt_paradas_ordem_sem_arquivados.sql'), 'utf8'))
+  // ↪️ SESSAO-41 · ajuste (D-197/D-198): a carência de 5 min na conta, o card
+  // esquecido e o quadro com `esquecidos` — recria o que a do tablet recriou
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261027070000_plt_carencia_5min_card_esquecido.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -17986,7 +17991,7 @@ try {
                          where usuario_id = '${admin.id}' and setor_id = ${A} and tipo = 'entrada'`)).n <= 1,
     'no computador a regra de antes vale: só iniciar/retomar/auxiliar dá entrada (mover sozinho não)')
 
-  titulo('SESSAO-41 · F1 · a régua: carência de 15 min, ausente, saída com 1 h; as partes do tempo')
+  titulo('SESSAO-41 · F1 · a régua: na tela, carência de 15 min, ausente, saída com 1 h; na conta, só 5 min de carência (↩️ D-197)')
 
   const ef = async (estado, carencia, min) => (await um41(`select plt_privado.fn_presenca_estado_efetivo('${estado}', ${carencia},
       '2026-10-27 10:00:00+00'::timestamptz, '2026-10-27 10:00:00+00'::timestamptz + interval '${min} minutes') as e`)).e
@@ -18004,8 +18009,9 @@ try {
   const pb = await partes('ausente', true, false, 90)
   const pc = await partes('ausente', false, true, 10)
   const pd = await partes('deriva', false, false, 800)
-  conferir(pa === 'trabalhando:15,ausente:45' && pb === 'especial:60' && pc === 'trabalhando:10' && pd === 'deriva:720',
-    'as partes: 90 min sem card = 15 trabalhando + 45 ausente; o especial vai até 1 h; 10 min sem card = 10 trabalhando; à deriva até 12 h',
+  // ↩️ D-197 (ajuste do dono, 27/10): na CONTA só os 5 primeiros minutos sem card valem como trabalho
+  conferir(pa === 'trabalhando:5,ausente:55' && pb === 'especial:60' && pc === 'trabalhando:5,ausente:5' && pd === 'deriva:720',
+    'as partes: 90 min sem card = 5 trabalhando + 55 ausente; o especial vai até 1 h; 10 min sem card = 5 trabalhando + 5 ausente; à deriva até 12 h',
     JSON.stringify({ pa, pb, pc, pd }))
 
   titulo('SESSAO-41 · F1 · sem card: a carência aparece como trabalhando; com 1 h some do quadro e a saída fica gravada')
@@ -18036,8 +18042,8 @@ try {
       (select count(*)::int from public.plt_presenca_saidas where usuario_id = '${SEM}') as no_painel`)
   conferir(saida.n === 1 && saida.no_instante_certo && depois.abertos === 0 && depois.atual === 0
       // (± 2 s: o trecho que cruza a meia-noite é somado em dois pedaços, cada um arredondado para baixo)
-      && Math.abs(depois.trab - 900) <= 2 && Math.abs(depois.aus - 2700) <= 2 && depois.no_painel === 0,
-    'o próximo fato grava a saída automática no instante de 1 h (no passado); a pessoa fica fora (nem à deriva); contou 15 min trabalhando + 45 ausente; fora do painel de motivos',
+      && Math.abs(depois.trab - 300) <= 2 && Math.abs(depois.aus - 3300) <= 2 && depois.no_painel === 0,
+    'o próximo fato grava a saída automática no instante de 1 h (no passado); a pessoa fica fora (nem à deriva); contou 5 min trabalhando + 55 ausente (D-197); fora do painel de motivos',
     JSON.stringify({ saida, depois }))
   conferir(estadoAntes === null,
     'a dashboard de tempos já mostrava a pessoa "fora" antes da gravação (a mesma régua)', JSON.stringify(estadoAntes))
@@ -18589,6 +18595,200 @@ try {
   await como41p('')
 }
 } // fim do bloco SESSAO-41 · F5
+
+// ============================================================================
+// SESSAO-41 · ajuste do dono (migration 20261027070000 — D-197/D-198): o CARD
+// ESQUECIDO — no setor com prazo (a MONTAGEM, 2 h), o card rodando sem parar
+// pergunta "ainda tem alguém?" a quem está nele e aos administradores; "Sim"
+// segue, "Não" pausa NO INSTANTE DO AVISO (o tempo depois não conta). O tempo
+// "passa" mexendo só no prazo e no trecho de presença (o resto do banco não
+// muda). Tudo numa transação desfeita no fim.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-41 · ajuste · o cenário: um setor com prazo de 2 h, o tablet dele, duas pessoas no card e um colega de fora')
+
+const um41e = async (sql) => (await bd.query(sql)).rows[0]
+const como41e = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado41e = async (auth, sql) => {
+  await como41e(auth)
+  await bd.exec('savepoint l41e')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l41e')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l41e')
+    await bd.exec('reset role')
+    throw new Error(`logado41e: ${erro.message}`)
+  }
+}
+// faixa própria de ids de teste (...4141–4144)
+const Q41 = {
+  tablet: '00000000-0000-0000-0000-000000004141',
+  op: '00000000-0000-0000-0000-000000004142',
+  outro: '00000000-0000-0000-0000-000000004143',
+  op2: '00000000-0000-0000-0000-000000004144',
+}
+await como41e('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('ft41e', 'FT41E MONTAGEM', 'producao', 995);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}', aviso_esquecido_min = 120
+     where codigo = 'ft41e';
+  `)
+  const A = (await um41e(`select id::int as id from public.plt_setores where codigo = 'ft41e'`)).id
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${A}, 'A MONTAR', 10, true), (${A}, 'MONTANDO', 20, false);
+    insert into public.plt_usuarios (nome, email, usuario, papel, conta_tablet, senha_padrao, auth_user_id, modulos)
+      values ('Tablet · FT41E', 'tablet-s41e@tablet.teste', 'tablet.s41e', 'operador', true, false, '${Q41.tablet}', array['fabrica']);
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Op 41e', 'op41e@teste.com', '41400000011', 'op.41e', 'operador', '${Q41.op}', array['fabrica']),
+      ('Outro 41e', 'outro41e@teste.com', '41400000012', 'outro.41e', 'operador', '${Q41.outro}', array['fabrica']),
+      ('Op2 41e', 'op241e@teste.com', '41400000013', 'op2.41e', 'operador', '${Q41.op2}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, ${A}, false from public.plt_usuarios u where u.usuario in ('tablet.s41e', 'op.41e', 'outro.41e', 'op2.41e');
+  `)
+  const id41e = async (usuario) => (await um41e(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+  const [OP, OUTRO, OP2] = [await id41e('op.41e'), await id41e('outro.41e'), await id41e('op2.41e')]
+  const ADMIN = (await um41e(`select id from public.plt_usuarios where auth_user_id = '${E40.admin}'`)).id
+  const MONTANDO = (await um41e(`select id::int as id from public.plt_etapas where setor_id = ${A} and nome = 'MONTANDO'`)).id
+  await como41e(E40.admin)
+  const novo = async (nome) =>
+    (await um41e(`select (public.plt_fn_avulso_criar('${nome}', p_setor_id => ${A}) ->> 'card_id')::int as id`)).id
+  const [c1, c2, c3, c4] = [await novo('Rack FT41E um'), await novo('Rack FT41E dois'), await novo('Rack FT41E tres'), await novo('Rack FT41E quatro')]
+  const motivo = (await um41e(`select id::int as id from public.plt_motivos where tipo = 'pausa' and not especial order by id limit 1`)).id
+  const prazo = async (card) => um41e(`select esquecido_vence_em = now() + interval '120 minutes' as de_2h,
+      esquecido_vence_em is null as sem_prazo, esquecido_aviso_em is null as sem_pergunta,
+      pausado_em is null as rodando from public.plt_cards where id = ${card}`)
+  conferir(c1 > 0 && c4 > 0 && motivo > 0, 'quatro avulsos na fila da FT41E (prazo de 2 h) e um motivo de pausa')
+
+  titulo('SESSAO-41 · ajuste · iniciar arma o prazo de 2 h; pausar tira; retomar arma de novo (o prazo conta SEM PARAR)')
+
+  await logado41e(Q41.tablet, `select public.plt_fn_soltar_card(${c1}, ${MONTANDO}, p_operador_id => '${OP}')`)
+  const v1 = await prazo(c1)
+  await logado41e(Q41.tablet, `select public.plt_fn_card_pausar(${c1}, ${motivo}, 'teste 41e', p_operador_id => '${OP}')`)
+  const v2 = await prazo(c1)
+  await logado41e(Q41.tablet, `select public.plt_fn_card_retomar(${c1}, p_operador_id => '${OP}')`)
+  const v3 = await prazo(c1)
+  conferir(v1.de_2h && v1.sem_pergunta && v2.sem_prazo && v3.de_2h && v3.rodando,
+    'iniciar = prazo daqui a 2 h; pausado = sem prazo; retomar = o prazo recomeça', JSON.stringify({ v1, v2, v3 }))
+
+  titulo('SESSAO-41 · ajuste · o despertador: o prazo vencido abre a pergunta no instante do prazo e avisa quem está no card e os administradores — uma vez só')
+
+  // o tempo passa: o prazo venceu há 10 min e o Op 41e está no card há 130 min
+  await bd.exec(`
+    update public.plt_cards set esquecido_vence_em = now() - interval '10 minutes' where id = ${c1};
+    update public.plt_presenca_segmentos set inicio = now() - interval '130 minutes' where usuario_id = '${OP}' and fim is null;
+  `)
+  const n1 = (await um41e(`select plt_privado.fn_card_esquecido_disparar() as n`)).n
+  const n2 = (await um41e(`select plt_privado.fn_card_esquecido_disparar() as n`)).n
+  const aberta = await um41e(`select esquecido_aviso_em = now() - interval '10 minutes' as no_prazo from public.plt_cards where id = ${c1}`)
+  const avisos1 = await um41e(`select count(*) filter (where destinatario_id = '${OP}')::int as op,
+      count(*) filter (where destinatario_id = '${ADMIN}')::int as admin,
+      count(*) filter (where destinatario_id = '${OUTRO}')::int as outro,
+      bool_and(lida_em is null) as nao_lidas, min(corpo) as corpo
+      from public.plt_notificacoes where card_id = ${c1} and tipo = 'card_esquecido'`)
+  conferir(n1 >= 1 && n2 === 0 && aberta.no_prazo && avisos1.op === 1 && avisos1.admin === 1 && avisos1.outro === 0
+      && avisos1.nao_lidas && /2 h sem parar na FT41E MONTAGEM, com Op 41e/.test(avisos1.corpo),
+    'um aviso para quem executa e um para cada administrador (o colega de fora do card não); a pergunta abre no instante do prazo; o segundo disparo não repete',
+    JSON.stringify({ n1, n2, aberta, avisos1 }))
+  const doQuadro = (await logado41e(Q41.tablet, `select public.plt_fn_quadro_setor(${A}) as q`))[0].q.esquecidos ?? []
+  const noQuadro = doQuadro.find((x) => x.card_id === c1)
+  conferir(noQuadro?.executor === 'Op 41e' && noQuadro?.nome === 'Rack FT41E um' && Boolean(noQuadro?.aviso_em),
+    'o quadro do setor (o tablet) traz a pergunta, com o card e quem executa', JSON.stringify(doQuadro))
+
+  titulo('SESSAO-41 · ajuste · só quem está no card, o líder do setor ou o admin respondem')
+
+  let recusa = ''
+  try {
+    await logado41e(Q41.tablet, `select public.plt_fn_card_esquecido_responder(${c1}, true, p_operador_id => '${OUTRO}')`)
+  } catch (erro) {
+    recusa = erro.message
+  }
+  conferir(/quem está no card/.test(recusa), 'o colega de fora do card não responde pela pessoa', recusa)
+
+  titulo('SESSAO-41 · ajuste · "Sim, ainda tem gente": segue rodando, a pergunta sai do sino de todos e o próximo prazo é daqui a 2 h')
+
+  const sim = (await logado41e(Q41.tablet, `select public.plt_fn_card_esquecido_responder(${c1}, true, p_operador_id => '${OP}') as r`))[0].r
+  const v4 = await prazo(c1)
+  const lidas = await um41e(`select bool_and(lida_em is not null) as todas from public.plt_notificacoes where card_id = ${c1} and tipo = 'card_esquecido'`)
+  const deNovo = (await logado41e(Q41.tablet, `select public.plt_fn_card_esquecido_responder(${c1}, true, p_operador_id => '${OP}') as r`))[0].r
+  conferir(sim.situacao === 'seguiu' && v4.de_2h && v4.sem_pergunta && v4.rodando && lidas.todas && deNovo.situacao === 'respondido',
+    'Sim: o card segue, o prazo recomeça, os avisos ficam lidos; responder de novo (noutra tela) não faz nada',
+    JSON.stringify({ sim, v4, lidas, deNovo }))
+
+  titulo('SESSAO-41 · ajuste · "Não, pausar o card": a pausa vale no instante do aviso; o trabalho de quem estava no card fecha ali, sem carência')
+
+  await bd.exec(`update public.plt_cards set esquecido_vence_em = now() - interval '10 minutes' where id = ${c1}`)
+  await bd.exec(`select plt_privado.fn_card_esquecido_disparar()`)
+  const nao = (await logado41e(E40.admin, `select public.plt_fn_card_esquecido_responder(${c1}, false) as r`))[0].r
+  const pausa = await um41e(`select e.ocorrido_em = now() - interval '10 minutes' as no_aviso,
+      (e.dados ->> 'card_esquecido')::boolean as marcada, e.usuario_id = '${ADMIN}' as do_admin,
+      (select pausado_em = now() - interval '10 minutes' from public.plt_cards where id = ${c1}) as card_no_aviso,
+      (select esquecido_aviso_em is null and esquecido_vence_em is null from public.plt_cards where id = ${c1}) as limpo
+      from public.plt_eventos e where e.card_id = ${c1} and e.tipo = 'execucao_pausada' order by e.id desc limit 1`)
+  const pres = await um41e(`select
+      exists (select 1 from public.plt_presenca_segmentos where usuario_id = '${OP}' and estado = 'trabalhando'
+               and fim = now() - interval '10 minutes') as trabalho_fechou_no_aviso,
+      (select estado || ':' || carencia || ':' || (inicio = now() - interval '10 minutes')
+         from public.plt_presenca_segmentos where usuario_id = '${OP}' and fim is null) as agora`)
+  conferir(nao.situacao === 'pausado' && pausa.no_aviso && pausa.marcada && pausa.do_admin && pausa.card_no_aviso && pausa.limpo
+      && pres.trabalho_fechou_no_aviso && pres.agora === 'ausente:false:true',
+    'Não (pelo admin): o fato da pausa vale no instante do aviso; o trecho "trabalhando" do Op 41e fecha ali e o que vem depois é ausente, sem carência',
+    JSON.stringify({ nao, pausa, pres }))
+
+  titulo('SESSAO-41 · ajuste · avisado há mais de 1 h: o "Não" também tira a pessoa do setor no instante certo')
+
+  await logado41e(Q41.tablet, `select public.plt_fn_soltar_card(${c2}, ${MONTANDO}, p_operador_id => '${OP2}')`)
+  await bd.exec(`
+    update public.plt_cards set esquecido_vence_em = now() - interval '70 minutes' where id = ${c2};
+    update public.plt_presenca_segmentos set inicio = now() - interval '200 minutes' where usuario_id = '${OP2}' and fim is null;
+  `)
+  await bd.exec(`select plt_privado.fn_card_esquecido_disparar()`)
+  // responde o admin, do computador (pelo tablet, com o PIN, a pessoa está ali
+  // — o gesto a põe de volta no setor, D-189)
+  await logado41e(E40.admin, `select public.plt_fn_card_esquecido_responder(${c2}, false)`)
+  const saiu = await um41e(`select
+      (select count(*)::int from public.plt_presenca_eventos where usuario_id = '${OP2}' and tipo = 'saida_automatica'
+          and ocorrido_em = now() - interval '10 minutes') as saida_no_instante,
+      (select count(*)::int from public.plt_presenca_atual where usuario_id = '${OP2}') as atual,
+      (select count(*)::int from public.plt_presenca_segmentos where usuario_id = '${OP2}' and fim is null) as abertos`)
+  conferir(saiu.saida_no_instante === 1 && saiu.atual === 0 && saiu.abertos === 0,
+    'aviso há 70 min e "Não": a pessoa ficou ausente desde o aviso e saiu do setor 1 h depois dele', JSON.stringify(saiu))
+
+  titulo('SESSAO-41 · ajuste · o card que para de rodar com a pergunta aberta tira a pergunta do sino; setor sem prazo não pergunta')
+
+  await logado41e(Q41.tablet, `select public.plt_fn_soltar_card(${c3}, ${MONTANDO}, p_operador_id => '${OP}')`)
+  await bd.exec(`update public.plt_cards set esquecido_vence_em = now() - interval '5 minutes' where id = ${c3}`)
+  await bd.exec(`select plt_privado.fn_card_esquecido_disparar()`)
+  await logado41e(Q41.tablet, `select public.plt_fn_card_pausar(${c3}, ${motivo}, 'parou sozinho', p_operador_id => '${OP}')`)
+  const parou = await um41e(`select (select esquecido_aviso_em is null from public.plt_cards where id = ${c3}) as sem_pergunta,
+      (select bool_and(lida_em is not null) from public.plt_notificacoes where card_id = ${c3} and tipo = 'card_esquecido') as lidas,
+      (select count(*)::int from public.plt_notificacoes where card_id = ${c3} and tipo = 'card_esquecido') as avisos`)
+  await bd.exec(`update public.plt_setores set aviso_esquecido_min = null where id = ${A}`)
+  await logado41e(Q41.tablet, `select public.plt_fn_soltar_card(${c4}, ${MONTANDO}, p_operador_id => '${OUTRO}')`)
+  const semPrazo = await prazo(c4)
+  conferir(parou.sem_pergunta && parou.lidas && parou.avisos >= 2 && semPrazo.sem_prazo && semPrazo.rodando,
+    'pausar com a pergunta aberta: a pergunta some e os avisos ficam lidos; no setor sem prazo o card roda sem prazo',
+    JSON.stringify({ parou, semPrazo }))
+
+  titulo('SESSAO-41 · ajuste · a maquinaria fora da API; a resposta é de quem está logado')
+
+  const priv = await um41e(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_card_esquecido_disparar(timestamptz)', 'execute') as disparar,
+           has_function_privilege('authenticated', 'plt_privado.fn_card_esquecido_armar()', 'execute') as armar,
+           has_function_privilege('authenticated', 'public.plt_fn_card_esquecido_responder(bigint, boolean, uuid)', 'execute') as responder,
+           has_function_privilege('anon', 'public.plt_fn_card_esquecido_responder(bigint, boolean, uuid)', 'execute') as anon`)
+  conferir(!priv.disparar && !priv.armar && priv.responder && !priv.anon,
+    'o despertador fora da API; a resposta só para quem tem login', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como41e('')
+}
+} // fim do bloco SESSAO-41 · ajuste
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
