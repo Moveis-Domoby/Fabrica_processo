@@ -35,7 +35,7 @@ tags: [handoff, sessao, sessao-41, tablet, kanban, senha, seguranca, rotas, entr
 | O quê | Ficou | Confirmar |
 |---|---|---|
 | Pausa da PESSOA (com motivo) | ausente na hora, sem a carência de 15 min; sai com 1 h também | ok? |
-| A carência de 15 min na dashboard | conta como "trabalhando" (o intervalo entre um card e outro) | ok? |
+| A carência de 15 min na dashboard | ↩️ **o dono respondeu (27/10): só 5 min contam** — a tela segue mostrando 15 | ✅ D-197 |
 | Depois da saída automática de 1 h | o tempo não conta (nem ausente, nem fora de setor) | ok? |
 | Desfazer a entrega parcial | não pelo "Desfazer" — as peças que voltaram já estão com a logística | ok? |
 | Pedido com peça reservada do estoque | não aceita entrega parcial (0 hoje) — vai pela logística | ok? |
@@ -116,4 +116,21 @@ tags: [handoff, sessao, sessao-41, tablet, kanban, senha, seguranca, rotas, entr
 
 ## 8. Numeração usada
 
-D-189…D-196 · E-158…E-161 · A-115…A-119 · migrations `20261027010000`…`20261027060000` · ids de teste `...4101–4149`, pedidos de teste `9410xx`/`9411xx`. **Seguinte: D-197 · E-162 · A-120.**
+D-189…D-198 · E-158…E-163 · A-115…A-121 · migrations `20261027010000`…`20261027070000` · ids de teste `...4101–4149`, pedidos de teste `9410xx`/`9411xx`. **Seguinte: D-199 · E-164 · A-122.**
+
+## 9. Ajuste do dono (27/10, de manhã) — a conta dos 5 minutos e o card esquecido
+
+**Pedido:** só 5 min sem card contam como trabalho; card de MONTAGEM com mais de 2 h rodando pergunta, urgente, se ainda tem alguém nele. Decisões D-197 e D-198 (respostas do dono nelas).
+
+**Como testar**
+1. **A conta dos 5 min:** num dia de teste, uma pessoa termina um card e fica 10 min sem pegar outro. O ícone do setor mostra "Trabalhando" até 15 min (como antes); em Tempos, a pessoa ganha só 5 min de trabalho por esse intervalo, o resto conta como ausente.
+2. **O card esquecido:** na MONTAGEM, inicie um card e deixe rodando 2 h sem pausar. Na hora: (a) no tablet da MONTAGEM aparece no alto do quadro **"Ainda tem alguém neste card?"** com **Sim, ainda tem gente** e **Não, pausar o card** (pede o PIN); (b) no computador do administrador (e de quem está no card, se estiver logado) abre sozinho o aviso **"Urgente: ainda tem alguém neste card?"** — também pelo sino.
+3. **Sim:** o card segue; a pergunta some para todos; volta se rodar mais 2 h sem parar.
+4. **Não:** o card fica pausado **na hora do aviso** (a linha do tempo do card mostra a pausa nesse horário, com "Ninguém no card — aviso de card esquecido"); o tempo depois do aviso não conta como trabalho.
+5. Pausar o card antes de responder também tira a pergunta.
+
+**Verificação:** bateria 1.364 verdes (10 novas; 1 falha conhecida e alheia — a fila do Tiny de madrugada); testes de tela 318; tipos/lint limpos; JS inicial 230,8 KB; os dois avisos conferidos numa vitrine (tablet 768×1024 e o aviso urgente).
+
+**Desempenho:** nenhuma requisição nova na abertura nem por tela (a pergunta vem no MESMO pedido do quadro; o aviso urgente lê o cache do sino); o despertador é UM agendamento no minuto do próximo prazo — nada acorda para ver; as consultas novas andam por índice parcial.
+
+**Subida:** ⏳ espera o OK do dono — a atualização do banco e o site.

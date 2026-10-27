@@ -1844,7 +1844,7 @@ O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias)
 - **A sessão do aparelho:** a senha da conta de tablet passa a ser DERIVADA no servidor (HMAC da chave de serviço com o id da conta — ninguém a vê, não fica guardada, não muda); cada aparelho ganha a sua sessão e nenhum derruba o outro. "Sair" encerra só aquele aparelho (no PC também). **O tablet nunca sai por tempo** (o escritório segue com 8 h — D-137).
 - **A pessoa:** sem card em execução em nenhum setor, os **15 primeiros minutos contam como trabalhando** (a carência entre um card e outro); depois, **ausente**; com **1 h**, **sai do setor sozinha** — o fato `saida_automatica` (sem motivo de lista; não entra no painel de motivos de saída) e o tempo depois dela não conta (nem como "fora de setor"). Derivado na leitura e gravado no próximo fato da pessoa — sem relógio (Lei §4).
 - **O gesto com PIN no tablet** (mover, iniciar, pausar, auxiliar… qualquer um) põe a pessoa no setor DO TABLET. No computador vale a regra de antes (só iniciar/retomar/auxiliar dá entrada — o líder que organiza outro quadro não "entra" nele).
-- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a pausa DA PESSOA (gesto com motivo) não tem carência — ausente na hora, como antes; a saída de 1 h vale para as duas; (b) a carência conta como "trabalhando" na dashboard de tempos (é o intervalo entre um card e outro); (c) depois da saída automática o tempo não conta nem como ausente nem como fora de setor.
+- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a pausa DA PESSOA (gesto com motivo) não tem carência — ausente na hora, como antes; a saída de 1 h vale para as duas; (b) ~~a carência conta como "trabalhando" na dashboard de tempos~~ → ↩️ **resolvida pelo dono na D-197: só 5 min contam**; (c) depois da saída automática o tempo não conta nem como ausente nem como fora de setor.
 
 ## D-190 · O QUADRO COM ROLAGEM SÓ DENTRO DA COLUNA, como no Trello (27/10/2026, pedido do dono com vídeo — SESSAO-41)
 
@@ -1899,6 +1899,24 @@ O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias)
 - A parada **não é pedido** (sem card, estoque, Tiny ou Expedição): mora na rota (dia + caminhão + rota) e **divide a ordem** com os pedidos. Pino no mapa (ajustável), na lista da rota, no Google Maps da rota e no Waze.
 - **Logística/admin:** põe e reordena em qualquer rota (Programar — o quadro passa a se chamar **"Rota programada"** — e Já programadas), tira da rota. **Entregador:** põe na rota **de hoje** em que está na equipe, arrasta **só a parada que ele pôs** (o banco confere) e marca **Feita / Não feita** (com o porquê) em qualquer parada da rota.
 - ⏳ **PROVISÓRIAS:** (a) o entregador só põe parada na rota do dia (não nas futuras); (b) a parada removida fica registrada (nada se apaga); (c) "Já programadas" lê as paradas numa requisição à parte (dívida 28 da Lei — a porta das programadas é uma tabela paginada).
+
+## D-197 · SEM CARD, SÓ 5 MINUTOS CONTAM COMO TRABALHO — a tela segue mostrando "trabalhando" até 15 (27/10/2026, ajuste do dono — SESSAO-41) — ↩️ revisa a D-189 (provisória b)
+
+**Pedido do dono:** *"15 minutos sem card não deve contar como tempo de trabalho, tempo de trabalho é apenas tempo de execução de um card, libere apenas 5 minutos sem card para contar como trabalho ainda, outra coisa é limitar intervalos de esquecimento, se um card de montagem demorar mais de 2 horas para montar (apenas para os que já foram iniciados), deve ser lançada uma notificação para a pessoa e para o admin perguntando se ainda tem alguém nesse card, uma notificação urgente"* · resposta à pergunta "depois dos 5 minutos a pessoa já aparece ausente?": *"Aparece trabalhando até 15 min"*.
+
+- **Na conta do tempo** (dashboard de tempos, scorecards): sem card em execução, só os **5 primeiros minutos** valem como trabalhando; dos 5 em diante, **ausente**, até a saída de 1 h. Tempo de trabalho é tempo de execução de card (+ esses 5 min de intervalo).
+- **Na tela** (o ícone das pessoas do setor, o tablet) nada muda: "trabalhando" até 15 min sem card, depois "ausente", com 1 h fora.
+- Responde e substitui a provisória (b) da D-189.
+
+## D-198 · O CARD ESQUECIDO: na MONTAGEM, 2 h rodando sem parar perguntam "ainda tem alguém neste card?" — urgente, para quem está no card e os administradores; o "Não" pausa no instante do aviso (27/10/2026, ajuste do dono — SESSAO-41)
+
+**Pedido do dono:** o mesmo da D-197 · respostas: só a **MONTAGEM**, **2 h**; contam **rodando sem parar** (desde o último iniciar/retomar — pausar zera); **"Sim, ainda tem gente"** segue e pergunta de novo em mais 2 h; **"Não, pausar o card"** pausa, e o **tempo depois do aviso não conta** como trabalho.
+
+- **Para quem:** quem executa e quem auxilia o card, e todos os administradores — aviso URGENTE na tela (abre sozinho, como o da troca de senha) e no sino. No **tablet** do setor, a pergunta aparece no alto do quadro e quem responde digita o PIN.
+- **Quem responde:** quem está no card, o líder do setor ou um administrador. Respondida por um, some para todos; responder de novo não faz nada.
+- **"Não":** o card fica pausado **no instante do aviso** (o fato da pausa é gravado na hora da resposta, valendo no instante do aviso — nada se apaga nem se edita); o trabalho de quem estava no card fecha ali e o que vem depois é ausente (sem os 5 min); avisado há mais de 1 h, a pessoa sai do setor 1 h depois do aviso. Respondido do **tablet** com o PIN, a pessoa está ali — o gesto a põe de volta no setor (D-189).
+- **Sem relógio que acorda para ver (Lei §4):** o banco marca **um** agendamento para o minuto em que o próximo card completa as 2 h, remarcado no fato (iniciar, retomar, pausar, finalizar, mover, responder); sem card rodando com prazo, ele não existe.
+- O prazo é **do setor** (um número por setor, em minutos): só a MONTAGEM tem (120). Ligar em outro setor é mudar esse número (ainda sem tela — pedir ao Claude).
 
 ## Ver também
 
