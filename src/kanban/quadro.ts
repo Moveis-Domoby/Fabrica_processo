@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { CampoCustomizado, Etiqueta, ValorCampo } from '@/utilitarios/tipos'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
 import type { OrdemDaFila } from './prioridade'
+import type { CardEsquecido } from './cardEsquecido'
 
 /**
  * SESSAO-31 (Lei de Desempenho §2/§6 — regra 18): o quadro do setor (e o
@@ -69,6 +70,11 @@ export interface DadosDoQuadro extends JuntoDoQuadro {
   campos: CampoCustomizado[]
   /** SESSAO-36: as pessoas presentes no setor (trabalhando/ausente). */
   presencas: PresencaDoSetor[]
+  /**
+   * SESSAO-41 · ajuste (D-198): os cards do setor com a pergunta "ainda tem
+   * alguém?" aberta (2 h rodando sem parar). Ausente no banco de antes.
+   */
+  esquecidos?: CardEsquecido[]
   /** SESSAO-38 (D-154): a ordem em que o servidor montou as colunas. */
   ordem?: OrdemDaFila
   /**

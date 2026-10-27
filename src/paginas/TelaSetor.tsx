@@ -24,6 +24,9 @@ import type { Card } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
+import { AvisoCardsEsquecidos } from '@/kanban/componentes/AvisoCardsEsquecidos'
+import { responderCardEsquecido, textoDaResposta } from '@/kanban/cardEsquecido'
+import type { CardEsquecido } from '@/kanban/cardEsquecido'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
 import { PainelPessoasSetor } from '@/tablet/PainelPessoasSetor'
 import { presencaDeAgora } from '@/tablet/presenca'
@@ -53,6 +56,8 @@ type GestoComPin =
   | { tipo: 'auxiliar_todos'; rotulo: string }
   /** SESSAO-37 (D-147): a pessoa se pausa em tudo (o card segue com quem ficou). */
   | { tipo: 'pausar_geral'; rotulo: string }
+  /** SESSAO-41 · ajuste (D-198): a resposta ao "ainda tem alguém?" do card esquecido. */
+  | { tipo: 'card_esquecido'; item: CardEsquecido; aindaTem: boolean; rotulo: string }
 
 /**
  * A TELA DO SETOR (SESSAO-07 / D-06 / D-28): o que o chão de fábrica vê o dia
@@ -147,6 +152,7 @@ export function TelaSetor() {
     camposPorCard,
     presencas: presencasLidas,
     auxiliosPorCard,
+    esquecidos,
   } = quadro
   // SESSAO-41 (D-189): quem está no setor AGORA — a carência de 15 min e a
   // saída de 1 h andam com o relógio da tela (nada é buscado de novo).
@@ -294,11 +300,39 @@ export function TelaSetor() {
   })
   const [pausarGeralDe, setPausarGeralDe] = useState<OperadorIdentificado | null>(null)
 
+  // SESSAO-41 · ajuste (D-198): a resposta ao card esquecido, no nome de quem
+  // digitou o PIN (quem está no card, o líder ou o admin — a trava é do banco).
+  const mutacaoEsquecido = useMutation({
+    mutationFn: responderCardEsquecido,
+    onSuccess: async (resposta) => {
+      notificar({
+        titulo: textoDaResposta(resposta),
+        tom: resposta.situacao === 'respondido' ? 'informativo' : 'perfeito',
+      })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para responder',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+
   function aoOperadorIdentificado(operador: OperadorIdentificado) {
     const gesto = gestoComPin
     if (!gesto) return
     setGestoComPin(null)
     notificar({ titulo: `${operador.nome} identificado`, tom: 'perfeito' })
+    if (gesto.tipo === 'card_esquecido') {
+      mutacaoEsquecido.mutate({
+        cardId: gesto.item.card_id,
+        aindaTem: gesto.aindaTem,
+        operadorId: operador.usuario_id,
+      })
+      return
+    }
     if (gesto.tipo === 'auxiliar') {
       // SESSAO-36: o PIN identifica quem entra no card como auxiliar.
       mutacaoAuxiliar.mutate({ cardId: gesto.card.id, operadorId: operador.usuario_id })
@@ -480,6 +514,19 @@ export function TelaSetor() {
       </header>
 
       <main className="flex-1 p-4">
+        {/* SESSAO-41 · ajuste (D-198): "ainda tem alguém neste card?" — o PIN diz quem responde. */}
+        <AvisoCardsEsquecidos
+          itens={esquecidos}
+          ocupado={mutacaoEsquecido.isPending}
+          aoResponder={(item, aindaTem) =>
+            setGestoComPin({
+              tipo: 'card_esquecido',
+              item,
+              aindaTem,
+              rotulo: aindaTem ? 'Ainda tem gente no card' : 'Pausar o card esquecido',
+            })
+          }
+        />
         <p className="mb-3 text-sm text-texto-suave">
           Segure o card e arraste: na etapa de trabalho o seu tempo começa; nas etapas que levam a
           outro setor, ele segue para lá. Cada gesto pede o seu PIN.

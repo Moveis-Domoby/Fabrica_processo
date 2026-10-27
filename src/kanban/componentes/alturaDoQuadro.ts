@@ -34,6 +34,10 @@ export function useAlturaAteOFim(
     window.addEventListener('resize', medir)
     const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(medir)
     if (el.parentElement) observador?.observe(el.parentElement)
+    // ↪️ ajuste de 27/10: um aviso que aparece ACIMA do quadro, fora dele (a
+    // pergunta do card esquecido no tablet), empurra o topo — a página muda de
+    // tamanho e o quadro mede de novo (a mesma altura não redesenha nada)
+    observador?.observe(document.body)
     return () => {
       window.removeEventListener('resize', medir)
       observador?.disconnect()

@@ -10,6 +10,10 @@ import type { PresencaDoSetor } from '@/kanban/quadro'
  *
  * O banco manda o estado do momento da leitura; a tela anda com o relógio de
  * tela (`useAgora`) — nada é buscado de novo (Lei §4: sem relógio de dados).
+ *
+ * ↩️ Ajuste do dono (27/10 — D-197): isto é só o que a TELA mostra. Na CONTA do
+ * tempo, só os 5 primeiros minutos sem card valem como trabalho (o banco faz a
+ * conta — `fn_presenca_partes`).
  */
 export const CARENCIA_MS = 15 * 60_000
 export const SAIDA_MS = 60 * 60_000

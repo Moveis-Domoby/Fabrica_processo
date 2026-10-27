@@ -9,6 +9,7 @@ import type { AuxilioAberto, DadosDoQuadro, JuntoDoQuadro, PessoaDoQuadro } from
 import type { ColunaPaginada } from './componentes/QuadroKanban'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
 import type { OrdemDaFila } from './prioridade'
+import type { CardEsquecido } from './cardEsquecido'
 
 /** A coluna sem etapa (a "Chegada") — a mesma chave do QuadroKanban. */
 const CHEGADA = 'chegada'
@@ -22,6 +23,7 @@ const ESPERA_MS = 150
  */
 const ESPALHAR_MS = 700
 const SEM_DADOS: Etapa[] = []
+const SEM_ESQUECIDOS: CardEsquecido[] = []
 
 /** Todas as leituras do quadro de um setor (qualquer ordem) — o que o aviso relê. */
 export const chaveDoSetor = (setorId: number | undefined) => ['quadro', setorId ?? null] as const
@@ -373,6 +375,8 @@ export function useQuadro(
     etapas: dados?.etapas ?? SEM_DADOS,
     // SESSAO-36: quem está presente no setor (o ícone do canto superior direito)
     presencas: dados?.presencas ?? [],
+    // SESSAO-41 · ajuste (D-198): a pergunta "ainda tem alguém?" dos cards esquecidos
+    esquecidos: dados?.esquecidos ?? SEM_ESQUECIDOS,
     carregando: consulta.isPending,
     erro: consulta.error,
     /** SESSAO-40 (D-187): o filtro que o servidor aplicou (nulo = o quadro inteiro). */
