@@ -979,6 +979,8 @@ begin
       left join plt_privado.vw_endereco_entrega ee on ee.pedido_id = v.pedido_id
      where v.programacao_data is null
        and v.devolucao_evento_id is null
+       and v.pedido_id in (select px.id from public.pedidos px where px.data_prevista between p_de and p_ate
+                           union all select d.pedido_id from public.plt_pedido_datas d)
        and v.data_prevista between p_de and p_ate
   ), numerados as (
     select i.*,
@@ -1031,6 +1033,8 @@ begin
        and v.devolucao_evento_id is null
        and pc.standby_desde is null
        -- só os que contam (o filtro desce até os pedidos)
+       and v.pedido_id in (select px.id from public.pedidos px where px.data_prevista < v_hoje or px.data_prevista is null
+                           union all select d.pedido_id from public.plt_pedido_datas d)
        and (v.data_prevista < v_hoje or v.data_prevista is null);
   end if;
 

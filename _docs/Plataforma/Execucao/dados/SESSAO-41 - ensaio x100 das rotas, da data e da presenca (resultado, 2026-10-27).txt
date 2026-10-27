@@ -1,0 +1,119 @@
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  111 migrations aplicadas (a última: 20261024010000_plt_lancar_filtro_busca.sql) (9 s)
+  pedidos 562.700 (38 s)
+  peças vivas 20.400 e arquivadas 45.500 (52 s)
+  cards 95.169 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 (56 s)
+
+== ANTES (até a SESSAO-40) ==
+  quadro do setor sem filtro (LIMPEZA, 10 por coluna)                                  mediana    170.8 ms · máx    324.6 ms · 7700 no quadro
+  quadro do setor na ordem pela ENTREGA                                                mediana    149.1 ms · máx    164.3 ms · 7700 no quadro
+  PCP "aguardando liberação" (10)                                                      mediana    186.5 ms · máx    210.8 ms · 3416
+  Programação — sem programação (200)                                                  mediana   5424.6 ms · máx   6565.4 ms · 200 linhas · total 23418
+  Já programadas (50)                                                                  mediana     78.0 ms · máx     87.6 ms · 50 linhas
+  Expedição (todos, 20)                                                                mediana   4211.2 ms · máx   4396.2 ms
+  calendário da semana                                                                 mediana    206.3 ms · máx    218.6 ms
+  Pedidos — a lista (20)                                                               mediana    117.3 ms · máx    127.9 ms · 20 linhas
+  entregas do dia (1 caminhão, rota 1)                                                 mediana     15.7 ms · máx     22.2 ms
+
+  5 migrations da SESSAO-41 aplicadas: 20261027010000_plt_tablet_presenca_pin.sql, 20261027020000_plt_senha_pedidos.sql, 20261027030000_plt_seguranca_permissoes.sql, 20261027040000_plt_rotas_endereco_data_parcial.sql, 20261027050000_plt_paradas_avulsas.sql
+
+== DEPOIS (as migrations da SESSAO-41) ==
+  quadro do setor sem filtro (LIMPEZA, 10 por coluna)                                  mediana    165.3 ms · máx    251.0 ms · 7700 no quadro
+  quadro do setor na ordem pela ENTREGA                                                mediana    175.0 ms · máx    197.3 ms · 7700 no quadro
+  PCP "aguardando liberação" (10)                                                      mediana    155.2 ms · máx    176.6 ms · 3416
+  Programação — sem programação (200)                                                  mediana   5414.7 ms · máx   5910.3 ms · 200 linhas · total 23418
+  Já programadas (50)                                                                  mediana     83.6 ms · máx     89.9 ms · 50 linhas
+  Expedição (todos, 20)                                                                mediana   3981.4 ms · máx   4708.2 ms
+  calendário da semana                                                                 mediana   1514.3 ms · máx   1540.3 ms
+  Pedidos — a lista (20)                                                               mediana    113.8 ms · máx    114.8 ms · 20 linhas
+  entregas do dia (1 caminhão, rota 1)                                                 mediana     16.6 ms · máx     23.1 ms
+  paradas avulsas do período (7 dias)                                                  mediana      7.6 ms · máx      8.8 ms
+  ficha do pedido (com o endereço de entrega)                                          mediana     10.4 ms · máx     14.9 ms
+  --- plano: a regra do pedido vivo com a data que vale
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=103809
+        ->  Nested Loop Anti Join (actual rows=23695.00 loops=1)
+              Join Filter: (x.pedido_id = p.id)
+              Buffers: shared hit=103809
+              ->  Nested Loop (actual rows=23695.00 loops=1)
+                    Buffers: shared hit=103809
+                    ->  Bitmap Heap Scan on plt_cards pc (actual rows=25669.00 loops=1)
+                          Recheck Cond: ((tipo = 'pedido'::text) AND (arquivado_em IS NULL) AND (entrega_evento_id IS NULL))
+                          Heap Blocks: exact=1054
+                          Buffers: shared hit=1133
+                          ->  Bitmap Index Scan on plt_cards_pedido_vivo_idx (actual rows=25669.00 loops=1)
+                                Index Searches: 1
+                                Buffers: shared hit=79
+                    ->  Memoize (actual rows=0.92 loops=25669)
+                          Cache Key: pc.pedido_id
+                          Cache Mode: logical
+                          Hits: 0  Misses: 25669  Evictions: 0  Overflows: 0  Memory Usage: 2137kB
+                          Buffers: shared hit=102676
+                          ->  Index Scan using pedidos_pkey on pedidos p (actual rows=0.92 loops=25669)
+                                Index Cond: (id = pc.pedido_id)
+                                Filter: ((plt_privado.fn_situacao_normalizada(situacao) <> ALL ('{entregue,nao_entregue,cancelado}'::text[])) AND ((NOT plt_privado.fn_tiny_tirou_do_pcp(situacao)) OR EXISTS(SubPlan 1)))
+                                Rows Removed by Filter: 0
+                                Index Searches: 25669
+                                Buffers: shared hit=102676
+                                SubPlan 1
+                                  ->  Index Scan using plt_cards_unidade_uq on plt_cards cu (never executed)
+                                        Index Cond: (pedido_id = p.id)
+                                        Filter: (arquivado_em IS NULL)
+                                        Index Searches: 0
+              ->  Seq Scan on plt_pedidos_excluidos_tiny x (actual rows=0.00 loops=23695)
+      Planning:
+        Buffers: shared hit=59
+      Planning Time: 3.022 ms
+      Execution Time: 1326.832 ms
+  --- plano: a ordem do quadro com a data que vale (LIMPEZA)
+      Limit (actual rows=10.00 loops=1)
+        Buffers: shared hit=8302 read=1897 written=98
+        ->  Sort (actual rows=10.00 loops=1)
+              Sort Key: (to_char((COALESCE(CASE WHEN (c.tipo = 'avulso'::text) THEN c.vence_em WHEN (pdx.pedido_id IS NOT NULL) THEN pdx.data ELSE p.data_prevista END, '9999-12-31'::date))::timestamp with time zone, 'YYYYMMDD'::text))
+              Sort Method: still in progress  Memory: 0kB
+              Buffers: shared hit=8302 read=1897 written=98
+              ->  Hash Left Join (actual rows=7700.00 loops=1)
+                    Hash Cond: (p.id = pdx.pedido_id)
+                    Join Filter: (NOT (pdx.tiny_data IS DISTINCT FROM p.data_prevista))
+                    Buffers: shared hit=8302 read=1897 written=98
+                    ->  Hash Right Join (actual rows=7700.00 loops=1)
+                          Hash Cond: (p.id = c.pedido_id)
+                          Buffers: shared hit=8266 read=1897 written=98
+                          ->  Seq Scan on pedidos p (actual rows=562700.00 loops=1)
+                                Buffers: shared hit=6896 read=1897 written=98
+                          ->  Hash (actual rows=7700.00 loops=1)
+                                Buckets: 8192 (originally 4096)  Batches: 1 (originally 1)  Memory Usage: 321kB
+                                Buffers: shared hit=1370
+                                ->  Hash Right Join (actual rows=7700.00 loops=1)
+                                      Hash Cond: (pc.pedido_id = c.pedido_id)
+                                      Join Filter: (c.tipo = 'unidade'::text)
+                                      Buffers: shared hit=1370
+                                      ->  Bitmap Heap Scan on plt_cards pc (actual rows=25669.00 loops=1)
+                                            Recheck Cond: (tipo = 'pedido'::text)
+                                            Heap Blocks: exact=1054
+                                            Buffers: shared hit=1133
+                                            ->  Bitmap Index Scan on plt_cards_pedido_unico (actual rows=25669.00 loops=1)
+                                                  Index Searches: 1
+                                                  Buffers: shared hit=79
+                                      ->  Hash (actual rows=7700.00 loops=1)
+                                            Buckets: 8192 (originally 4096)  Batches: 1 (originally 1)  Memory Usage: 321kB
+                                            Buffers: shared hit=237
+                                            ->  Bitmap Heap Scan on plt_cards c (actual rows=7700.00 loops=1)
+                                                  Recheck Cond: ((setor_atual_id = 7) AND (arquivado_em IS NULL))
+                                                  Heap Blocks: exact=229
+                                                  Buffers: shared hit=237
+                                                  ->  Bitmap Index Scan on plt_cards_arquivado_idx (actual rows=7700.00 loops=1)
+                                                        Index Cond: (setor_atual_id = 7)
+                                                        Index Searches: 1
+                                                        Buffers: shared hit=8
+                    ->  Hash (actual rows=5627.00 loops=1)
+                          Buckets: 8192  Batches: 1  Memory Usage: 252kB
+                          Buffers: shared hit=36
+                          ->  Seq Scan on plt_pedido_datas pdx (actual rows=5627.00 loops=1)
+                                Buffers: shared hit=36
+      Planning:
+        Buffers: shared hit=90
+      Planning Time: 3.091 ms
+      Execution Time: 172.542 ms
+
+fim (155 s)
