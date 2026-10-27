@@ -24,3 +24,9 @@ Demanda: [[SESSAO-41 - Rotas Entrega Parcial Parada Avulsa Senha Tablet e Quadro
 - Front: `signOut({ scope: 'local' })`; o tablet nunca sai por tempo (`inatividade.ts` + `ProvedorSessao` pela `conta_tablet`); `src/tablet/presenca.ts` (a régua na tela, com o relógio de tela) + testes.
 - Função `autenticacao`: `senhaDoTablet` = HMAC-SHA256(chave de serviço, `tablet-sessao-v1:<auth id>`); entra com ela; só se falhar grava uma vez e tenta de novo.
 - Erros no caminho: o 1º teste escondia o erro real atrás de "transação abortada" (corrigido com ponto de volta no `logado41`); a 40 reaplicada no meio da bateria desfazia o quadro novo (E-144 de novo — reaplicar a 41 depois); 899 × 900 s (o trecho que cruza a meia-noite soma em dois pedaços arredondados — tolerância de 2 s).
+
+## F2 — Quadro com rolagem na coluna (D-190)
+
+- `src/kanban/componentes/alturaDoQuadro.ts` (`useAlturaAteOFim`): o quadro mede o próprio topo e vai até o pé da janela (menos 52 px no computador — a dica da mãozinha e o respiro da página —, 20 px no tablet); mínimo 320 px; de novo no `resize` e quando o pai muda de tamanho (`ResizeObserver`). Usa a MESMA referência do arrasto para o lado (`propsDoQuadro.ref` — a 1ª versão criava outra e o `ref` sobrescrevia o da mãozinha) e só mede com as colunas desenhadas (o esqueleto não tem a referência).
+- `QuadroKanban`: a seção `min-h-0`, o painel `max-h-full min-h-0`, o cabeçalho `shrink-0` e a lista de cards `overflow-y-auto overscroll-contain` (com `aria-label` "Cards da etapa X"); o quadro `overflow-y-hidden` com a altura medida. Vale para o quadro do setor no computador e para o tablet (mesmo componente).
+- Conferido numa vitrine TEMPORÁRIA (60 cards, sem login, sem banco — apagada): no computador a página tem a altura da janela (768 = 768), a coluna A MONTAR rola por dentro (5.048 px de lista em 566 visíveis) com o "Ver mais" no fim dela; no celular 375 × 812 idem, sem rolagem lateral da página. Testes de tela do quadro: 79 verdes.

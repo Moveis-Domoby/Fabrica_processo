@@ -33,6 +33,7 @@ import { useCamposDasPecas } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
 import { SensorDoMouse, useArrastarParaOLado } from './arrastarQuadro'
+import { useAlturaAteOFim } from './alturaDoQuadro'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard, Setor } from '../tipos'
 
 /** Id de coluna no drag-and-drop para cards ainda sem etapa (PCP/terminais). */
@@ -150,21 +151,23 @@ function Coluna({
             ? `Etapa ${titulo}: solte aqui a peça pronta para concluir a produção`
             : `Etapa ${titulo} com ${total} card(s)`
       }
+      // SESSAO-41 (D-190): a coluna tem a altura do quadro e rola POR DENTRO —
+      // o cabeçalho fica parado, só a lista de cards anda.
       className={cn(
-        'flex shrink-0 snap-start flex-col self-stretch px-1.5',
+        'flex min-h-0 shrink-0 snap-start flex-col self-stretch px-1.5',
         tamanho === 'galpao' ? 'w-[85vw] max-w-sm sm:w-80' : 'w-[85vw] max-w-xs sm:w-72',
       )}
     >
       <div
         className={cn(
-          'flex flex-col rounded-dm-lg border bg-superficie-sutil/40 transition-colors',
+          'flex max-h-full min-h-0 flex-col rounded-dm-lg border bg-superficie-sutil/40 transition-colors',
           isOver ? 'border-acao-ativa bg-acao/5 ring-2 ring-acao' : 'border-borda/40',
           (levaPara || conclui) && !isOver && 'border-dashed',
         )}
       >
         <header
           className={cn(
-            'flex flex-col gap-1 px-3 py-2.5',
+            'flex shrink-0 flex-col gap-1 px-3 py-2.5',
             (cards.length > 0 || restantes > 0) && 'border-b border-borda/40',
           )}
         >
@@ -253,7 +256,10 @@ function Coluna({
         </header>
 
         {(cards.length > 0 || restantes > 0) && (
-          <div className="flex flex-col gap-2 p-2">
+          <div
+            className="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain p-2"
+            aria-label={`Cards da etapa ${titulo}`}
+          >
             {cards.map((card) => {
               const execucaoAberta = execucao.execucoesPorCard.get(card.id)
               const comuns = {
@@ -514,6 +520,13 @@ export function QuadroKanban({
   // Pedido do dono (15/10): a "mãozinha" — o quadro corre para o lado com o
   // botão do meio do mouse, ou com o esquerdo no fundo vazio.
   const { arrastando: correndoQuadro, propsDoQuadro } = useArrastarParaOLado()
+  // SESSAO-41 (D-190): o quadro vai até o pé da janela; as colunas rolam por
+  // dentro. Embaixo dele: a dica da mãozinha (só no mouse) e o respiro da página.
+  const alturaQuadro = useAlturaAteOFim(
+    propsDoQuadro.ref,
+    tamanho === 'galpao' ? 20 : 52,
+    !(carregando && etapas.length === 0),
+  )
 
   function aoSoltar(evento: DragEndEvent) {
     arrastouEm.current = Date.now()
@@ -561,8 +574,9 @@ export function QuadroKanban({
         >
           <div
             {...propsDoQuadro}
+            style={alturaQuadro === null ? undefined : { height: alturaQuadro }}
             className={cn(
-              'flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto pb-3 sm:snap-none',
+              'flex snap-x snap-mandatory divide-x divide-borda/40 overflow-x-auto overflow-y-hidden pb-3 sm:snap-none',
               correndoQuadro ? 'cursor-grabbing select-none' : 'cursor-grab',
             )}
             aria-label={`Quadro do setor ${setor.nome}`}
