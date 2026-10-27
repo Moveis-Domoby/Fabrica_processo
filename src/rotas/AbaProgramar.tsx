@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPinPlus, Route, Truck, X } from 'lucide-react'
-import { Botao, Selecao, useNotificacao } from '@/componentes/ui'
+import { Botao, useNotificacao } from '@/componentes/ui'
+import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
+import { filtroAplicavel } from '@/kanban/filtroQuadro'
 import { cn } from '@/lib/cn'
 import { listarCaminhoes } from '@/admin/caminhoes'
 import {
   GEOCODIFICAR_POR_CHAMADA,
   chaveDoGesto,
   geocodificar,
+  listarCandidatos,
   listarParadasAvulsas,
-  listarProgramacao,
   listarProgramadas,
   ordenarRotaComParadas,
   precisaGeocodificar,
@@ -19,6 +21,9 @@ import {
 import type { DadosParadaAvulsa, PedidoProgramacao } from './api'
 import { CartaoParadaAvulsa, NumeroParadaAvulsa } from './CartaoParadaAvulsa'
 import { CartaoPedido } from './CartaoPedido'
+import { FiltrosProgramar } from './FiltrosProgramar'
+import { SEM_FILTROS, filtrosDoServidor, marcadosVivos, temFiltro } from './filtrosProgramacao'
+import type { EscolhaDosFiltros } from './filtrosProgramacao'
 import { ListaArrastavel } from './ListaArrastavel'
 import { MapaProgramacao } from './MapaProgramacao'
 import type { ParadaNoMapa, RotaNoMapa } from './MapaProgramacao'
@@ -51,7 +56,6 @@ import {
   somarPecas,
   trechosEmLinhaReta,
 } from './rotaRuas'
-import type { CriterioOrdem } from './rotaRuas'
 import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
@@ -59,6 +63,7 @@ import { useAoVivo } from '@/lib/aoVivo'
 
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
+const SEM_PEDIDOS: PedidoProgramacao[] = []
 
 /** SESSAO-41 (D-196): a rota em montagem tem pedidos E paradas avulsas (ainda não salvas). */
 type ItemMontagem = PedidoProgramacao | ItemAvulsa
@@ -73,12 +78,6 @@ function hojeIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-
-const OPCOES_ORDEM: { valor: CriterioOrdem; rotulo: string }[] = [
-  { valor: 'entrega', rotulo: 'Dia de entrega mais perto' },
-  { valor: 'perto', rotulo: 'Mais perto (da rota ou da fábrica)' },
-  { valor: 'numero', rotulo: 'Número do pedido' },
-]
 
 /**
  * A aba "Programar" (SESSAO-15 → SESSAO-28 → ajustes de 03/10, D-111): os
@@ -101,6 +100,12 @@ const OPCOES_ORDEM: { valor: CriterioOrdem; rotulo: string }[] = [
  * pinada no mapa (quadrado "A") e é programada junto, numa transação. Sem
  * parada nenhuma (nem nesta montagem, nem na rota escolhida), o caminho é o
  * de antes.
+ *
+ * ↪️ SESSAO-41 (D-199, pedido do dono): a lista "Sem programação" ganhou
+ * filtros (busca, situação, previsão, cidade, bairro) e ordens novas (cliente
+ * A–Z/Z–A, mais peças, mais novo/antigo) — quem filtra e ordena é o SERVIDOR,
+ * numa requisição só com as opções. O pedido marcado para a rota NÃO sai dela
+ * quando um filtro o esconde da lista.
  */
 export function AbaProgramar({
   ativa,
@@ -113,10 +118,12 @@ export function AbaProgramar({
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
 
-  const [selecionados, setSelecionados] = useState<Set<number>>(() => new Set())
+  // Os marcados para a rota, com os dados de quando foram marcados (D-199: o filtro
+  // pode tirá-los da lista — da rota, não).
+  const [marcados, setMarcados] = useState<Map<number, PedidoProgramacao>>(() => new Map())
   // A ordem que a pessoa arrastou (D-111); null = a sugestão do mais perto.
   const [rascunho, setRascunho] = useState<number[] | null>(null)
-  const [criterio, setCriterio] = useState<CriterioOrdem>('entrega')
+  const [escolha, setEscolha] = useState<EscolhaDosFiltros>(SEM_FILTROS)
   const [confirmando, setConfirmando] = useState(false)
   const [caminhaoId, setCaminhaoId] = useState('')
   const [trajeto, setTrajeto] = useState<Trajeto>('inteira')
@@ -126,12 +133,27 @@ export function AbaProgramar({
   // a janela da parada aberta (o número muda a cada abertura — a janela começa limpa)
   const [janelaParada, setJanelaParada] = useState<number | null>(null)
 
-  const { data: pedidos = [], isPending } = useQuery({
-    queryKey: ['programacao', 'sem-programacao'],
-    queryFn: () => listarProgramacao({ soSemProgramacao: true, limite: 200 }),
+  // SESSAO-41 (D-199): a busca vai ao servidor depois de 300 ms parada, com 2+ letras
+  const buscaAplicada = filtroAplicavel(useDebouncedValue(escolha.busca, 300))
+  const filtros = useMemo(() => filtrosDoServidor(escolha, buscaAplicada), [escolha, buscaAplicada])
+  const {
+    data: dados,
+    isPending,
+    isFetching,
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: ['programacao', 'candidatos', filtros],
+    queryFn: () => listarCandidatos(filtros),
     enabled: ativa,
+    // trocar o filtro mantém a lista de antes até a nova chegar (sem piscar)
+    placeholderData: keepPreviousData,
   })
-  const totalCandidatos = Number(pedidos[0]?.contagem_total ?? 0)
+  const pedidos = dados?.itens ?? SEM_PEDIDOS
+  const totalCandidatos = dados?.total ?? 0
+  const filtrando = temFiltro(escolha)
+  // só a lista SEM filtro e inteira diz que um marcado sumiu de verdade
+  const listaCompletaSemFiltro =
+    !filtrando && !isPlaceholderData && dados !== undefined && dados.total <= dados.itens.length
   // SESSAO-30 (Lei §4): pedido lançado/programado/"não entregue" → AO VIVO, sem relógio.
   useAoVivo('rotas', [['programacao']], ativa)
   const { data: caminhoes = [] } = useQuery({
@@ -162,9 +184,10 @@ export function AbaProgramar({
   }, [pedidos, geocodificarMutacao])
 
   // ---- a rota que se está montando ----------------------------------------
+  const naLista = useMemo(() => new Map(pedidos.map((p) => [p.card_id, p])), [pedidos])
   const listaSelecionados = useMemo(
-    () => pedidos.filter((p) => selecionados.has(p.card_id)),
-    [pedidos, selecionados],
+    () => marcadosVivos(marcados, naLista, listaCompletaSemFiltro),
+    [marcados, naLista, listaCompletaSemFiltro],
   )
   const itensMontando = useMemo<ItemMontagem[]>(
     () => [...listaSelecionados, ...avulsas],
@@ -177,17 +200,24 @@ export function AbaProgramar({
   const idsMontando = useMemo(() => idsDe(ordemMontando), [ordemMontando])
   const ordemDaSugestao = useMemo(() => idsDe(ordemSugerida(itensMontando)), [itensMontando])
   const ajustada = !mesmaOrdem(idsMontando, ordemDaSugestao)
-  const porId = useMemo(() => new Map(pedidos.map((p) => [p.card_id, p])), [pedidos])
+  const porId = useMemo(
+    () => new Map(listaSelecionados.map((p) => [p.card_id, p])),
+    [listaSelecionados],
+  )
   const avulsaPorId = useMemo(() => new Map(avulsas.map((a) => [a.card_id, a])), [avulsas])
 
   const naoSelecionados = useMemo(
-    () => pedidos.filter((p) => !selecionados.has(p.card_id)),
-    [pedidos, selecionados],
+    () => pedidos.filter((p) => !marcados.has(p.card_id)),
+    [pedidos, marcados],
   )
   const referencia = useMemo(() => ordemMontando.filter(temPonto) as Ponto[], [ordemMontando])
+  // a ordem é a do servidor; só "mais perto" se calcula aqui (depende da rota montada)
   const listaOrdenada = useMemo(
-    () => ordenarCandidatos(naoSelecionados, criterio, referencia),
-    [naoSelecionados, criterio, referencia],
+    () =>
+      escolha.ordem === 'perto'
+        ? ordenarCandidatos(naoSelecionados, 'perto', referencia)
+        : naoSelecionados,
+    [naoSelecionados, escolha.ordem, referencia],
   )
   const sugestoes = useMemo(
     () => sugerirProximos(listaSelecionados, pedidos, RAIO_SUGESTAO_KM),
@@ -255,19 +285,19 @@ export function AbaProgramar({
               : `${ordemMontando.length} parada(s) · nenhuma no mapa`
 
   // ---- gestos ------------------------------------------------------------
-  const alternar = useCallback((cardId: number) => {
-    setSelecionados((atual) => {
-      const novo = new Set(atual)
-      if (novo.has(cardId)) novo.delete(cardId)
-      else novo.add(cardId)
+  const alternar = useCallback((p: PedidoProgramacao) => {
+    setMarcados((atual) => {
+      const novo = new Map(atual)
+      if (novo.has(p.card_id)) novo.delete(p.card_id)
+      else novo.set(p.card_id, p)
       return novo
     })
   }, [])
-  const escolherSugestao = useCallback((p: PedidoProgramacao) => alternar(p.card_id), [alternar])
+  const escolherSugestao = alternar
   const reordenar = useCallback((novos: number[]) => setRascunho(novos), [])
   const voltarSugestao = useCallback(() => setRascunho(null), [])
   function limpar() {
-    setSelecionados(new Set())
+    setMarcados(new Map())
     setRascunho(null)
     setTrajeto('inteira')
     setAvulsas([])
@@ -470,7 +500,7 @@ export function AbaProgramar({
                         type="checkbox"
                         className="mt-1 size-5 shrink-0 accent-marca-500"
                         checked
-                        onChange={() => alternar(id)}
+                        onChange={() => alternar(p)}
                         aria-label={`Tirar o pedido ${p.numero} da rota`}
                       />
                       <span
@@ -488,35 +518,37 @@ export function AbaProgramar({
           )}
 
           <section className="order-3 flex min-w-0 flex-col gap-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 className="text-lg">
-                Sem programação{' '}
-                <span className="text-sm font-normal text-texto-suave tabular-nums">
-                  ({naoSelecionados.length})
-                </span>
-              </h2>
-              <div className="w-full max-w-xs sm:w-auto sm:min-w-64">
-                <Selecao
-                  rotulo="Ordenar por"
-                  opcoes={OPCOES_ORDEM}
-                  valor={criterio}
-                  aoMudar={(v) => setCriterio(v as CriterioOrdem)}
-                />
-              </div>
-            </div>
+            <h2 className="text-lg">
+              Sem programação{' '}
+              <span className="text-sm font-normal text-texto-suave tabular-nums">
+                ({dados?.total_geral ?? 0})
+              </span>
+            </h2>
             <p className="text-xs text-texto-suave">
               Todos os pedidos em andamento ainda sem rota — prontos, em produção ou ainda no PCP.
               Programado, o pedido passa para "Já programadas".
             </p>
+            <FiltrosProgramar escolha={escolha} aoMudar={setEscolha} dados={dados} />
+            {filtrando && dados && (
+              <p className="text-sm text-texto-suave tabular-nums" aria-live="polite">
+                {totalCandidatos === 1
+                  ? '1 pedido bate com os filtros'
+                  : `${totalCandidatos} pedidos batem com os filtros`}
+                {isFetching && ' · atualizando…'}
+              </p>
+            )}
             {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!isPending && pedidos.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-                Nenhum pedido em andamento sem programação.
+                {filtrando
+                  ? 'Nenhum pedido bate com os filtros. Limpe os filtros para ver todos.'
+                  : 'Nenhum pedido em andamento sem programação.'}
               </p>
             )}
             {totalCandidatos > pedidos.length && (
               <p className="text-xs text-atencao-texto tabular-nums">
-                Mostrando os {pedidos.length} de previsão mais próxima, de {totalCandidatos}.
+                Mostrando os {pedidos.length} primeiros de {totalCandidatos} — use a busca e os
+                filtros para achar os outros.
               </p>
             )}
             <ul className="flex flex-col gap-2">
@@ -534,7 +566,7 @@ export function AbaProgramar({
                         type="checkbox"
                         className="mt-1 size-5 shrink-0 accent-marca-500"
                         checked={false}
-                        onChange={() => alternar(p.card_id)}
+                        onChange={() => alternar(p)}
                         aria-label={`Selecionar o pedido ${p.numero}`}
                       />
                       <CartaoPedido

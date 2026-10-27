@@ -22,23 +22,28 @@ export function FiltroDoQuadro({
   aoMudar,
   tamanho = 'padrao',
   className,
+  rotulo = 'Filtrar o quadro',
+  placeholder = 'Filtrar: nº do pedido ou nome do móvel',
 }: {
   texto: string
   aoMudar: (texto: string) => void
   tamanho?: 'padrao' | 'galpao'
   className?: string
+  /** ↪️ SESSAO-41 (D-199): a Programação usa o mesmo campo com o rótulo dela. */
+  rotulo?: string
+  placeholder?: string
 }) {
   return (
     <div className={cn('relative w-full min-w-0 sm:w-80', className)}>
       <Campo
-        rotulo="Filtrar o quadro"
+        rotulo={rotulo}
         rotuloOculto
         type="search"
         enterKeyHint="search"
         autoComplete="off"
         spellCheck={false}
         prefixo={<ListFilter />}
-        placeholder="Filtrar: nº do pedido ou nome do móvel"
+        placeholder={placeholder}
         value={texto}
         onChange={(e) => aoMudar(e.target.value)}
         onKeyDown={(e) => {

@@ -65,8 +65,11 @@ export function Selecao({
             tamanho === 'galpao' ? 'h-toque-galpao text-xl' : 'h-toque-md text-base',
           )}
         >
-          {/* Uma linha só: o texto longo termina em "…" (a lista mostra inteiro). */}
-          <RadixSelect.Value placeholder={placeholder} className="min-w-0 truncate" />
+          {/* Uma linha só: o texto longo termina em "…" (a lista mostra inteiro).
+              ↪️ SESSAO-41: o Value do Radix não repassa a classe — o corte mora num invólucro. */}
+          <span className="min-w-0 flex-1 truncate">
+            <RadixSelect.Value placeholder={placeholder} />
+          </span>
           <RadixSelect.Icon>
             <ChevronDown aria-hidden className="size-5 text-texto-suave" />
           </RadixSelect.Icon>

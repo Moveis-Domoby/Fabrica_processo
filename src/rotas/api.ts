@@ -364,6 +364,64 @@ export async function listarProgramacao(parametros: {
   return (data ?? []) as PedidoProgramacao[]
 }
 
+/** SESSAO-41 (D-199): a situação do pedido que o filtro da aba Programar aceita. */
+export type EstadoFiltro = 'pronto' | 'em_producao' | 'no_pcp'
+/** A previsão de entrega: a semana é a do calendário (domingo a sábado). */
+export type PrevisaoFiltro = 'atrasados' | 'hoje' | 'semana' | 'quinze' | 'sem'
+/** A ordem que o SERVIDOR aplica ("mais perto" é da tela — depende da rota montada). */
+export type OrdemCandidatos =
+  | 'entrega'
+  | 'numero'
+  | 'cliente_az'
+  | 'cliente_za'
+  | 'pecas'
+  | 'mais_novo'
+  | 'mais_antigo'
+
+export interface FiltrosCandidatos {
+  busca: string | null
+  estado: EstadoFiltro | null
+  cidade: string | null
+  bairro: string | null
+  previsao: PrevisaoFiltro | null
+  ordem: OrdemCandidatos
+}
+
+export interface CandidatosProgramacao {
+  itens: PedidoProgramacao[]
+  /** Quantos batem com os filtros (a lista mostra até 200). */
+  total: number
+  /** Quantos estão sem programação, sem filtro nenhum. */
+  total_geral: number
+  /** Quantos há de cada situação e previsão (sobre todos os sem programação). */
+  contagens: Record<EstadoFiltro | PrevisaoFiltro, number>
+  cidades: { cidade: string; uf: string | null; n: number }[]
+  /** Os bairros da cidade escolhida (ou de todas), cada um com a sua cidade. */
+  bairros: { bairro: string; cidade: string; n: number }[]
+}
+
+/**
+ * SESSAO-41 (D-199, pedido do dono): os pedidos sem programação da aba
+ * Programar, filtrados e ordenados NO SERVIDOR — com o total, as contagens e as
+ * cidades/bairros (as opções dos filtros) na mesma requisição (Lei §2).
+ */
+export async function listarCandidatos(
+  filtros: FiltrosCandidatos,
+  limite = 200,
+): Promise<CandidatosProgramacao> {
+  const { data, error } = await supabase.rpc('plt_fn_programacao_candidatos', {
+    p_busca: filtros.busca,
+    p_estado: filtros.estado,
+    p_cidade: filtros.cidade,
+    p_bairro: filtros.bairro,
+    p_previsao: filtros.previsao,
+    p_ordem: filtros.ordem,
+    p_limite: limite,
+  })
+  if (error) throw new Error(`Não deu para carregar os pedidos sem programação: ${error.message}`)
+  return data as CandidatosProgramacao
+}
+
 /**
  * Programar ou reprogramar (D-45): data + caminhão + rota (D-128 — sem rota,
  * fica na que já está ou entra na última do caminhão); o banco recusa depois
@@ -455,6 +513,8 @@ export async function listarProgramadas(parametros: {
   caminhaoId?: number | null
   limite?: number
   deslocamento?: number
+  /** SESSAO-41 (D-199): a busca acha a ROTA inteira (pedido ou parada avulsa que bate). */
+  busca?: string | null
 }): Promise<PedidoProgramado[]> {
   const { data, error } = await supabase.rpc('plt_fn_programadas', {
     p_entregues: parametros.entregues ?? false,
@@ -462,6 +522,7 @@ export async function listarProgramadas(parametros: {
     p_caminhao_id: parametros.caminhaoId ?? null,
     p_limite: parametros.limite ?? 50,
     p_deslocamento: parametros.deslocamento ?? 0,
+    p_busca: parametros.busca ?? null,
   })
   if (error) throw new Error(`Não deu para carregar as programações: ${error.message}`)
   return (data ?? []) as PedidoProgramado[]

@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import {
   CalendarDays,
   MapPin,
@@ -11,7 +17,10 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { Botao, useNotificacao } from '@/componentes/ui'
+import { Botao, Campo, Selecao, useNotificacao } from '@/componentes/ui'
+import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
+import { FiltroDoQuadro } from '@/kanban/componentes/FiltroDoQuadro'
+import { filtroAplicavel } from '@/kanban/filtroQuadro'
 import { cn } from '@/lib/cn'
 import { listarCaminhoes, urlFotoCaminhao } from '@/admin/caminhoes'
 import {
@@ -114,6 +123,9 @@ interface Grupo {
 
 const itensDo = (g: Grupo): ItemRota[] => [...g.pedidos, ...g.avulsas]
 
+/** "Todos" no filtro de caminhão (a Selecao do Radix não aceita valor vazio). */
+const TODOS_CAMINHOES = 'todos'
+
 /** "Baú 1" ou, com várias rotas no dia, "Baú 1 · Rota 2". */
 const nomeDoGrupo = (g: Grupo) =>
   g.variasRotas ? `${g.caminhaoNome} · ${nomeDaRota(g.rota)}` : g.caminhaoNome
@@ -160,6 +172,9 @@ async function ordemDaRotaNoBanco(
  * e as PARADAS AVULSAS pela ordem (na lista, no painel e no mapa — o quadrado
  * "A"); na rota escolhida dá para pôr parada, tirar, arrastar tudo e salvar a
  * ordem inteira. A parada mostra a situação (Feita / Não feita com o motivo).
+ * ↪️ SESSAO-41 (D-199, pedido do dono): filtros — a busca (acha a ROTA inteira
+ * que tem o pedido ou a parada que bate: o mapa e a ordem não se quebram), o
+ * caminhão e o dia. No servidor, na mesma requisição da página.
  */
 export function AbaJaProgramadas({
   ativa,
@@ -189,12 +204,30 @@ export function AbaJaProgramadas({
   const [detalheDe, setDetalheDe] = useState<PedidoProgramado | null>(null)
   // SESSAO-41 (D-196): a janela da parada avulsa (a rota e a chave do gesto)
   const [janelaParada, setJanelaParada] = useState<{ grupo: Grupo; chave: string } | null>(null)
+  // SESSAO-41 (D-199): os filtros — a busca vai ao servidor parada há 300 ms, com 2+ letras
+  const [busca, setBusca] = useState('')
+  const [caminhaoFiltro, setCaminhaoFiltro] = useState(TODOS_CAMINHOES)
+  const [diaFiltro, setDiaFiltro] = useState('')
+  const buscaAplicada = filtroAplicavel(useDebouncedValue(busca, 300))
+  const filtros = {
+    busca: buscaAplicada,
+    data: diaFiltro || null,
+    caminhaoId: caminhaoFiltro === TODOS_CAMINHOES ? null : Number(caminhaoFiltro),
+  }
+  const filtrando = busca.trim() !== '' || caminhaoFiltro !== TODOS_CAMINHOES || diaFiltro !== ''
+  function limparFiltros() {
+    setBusca('')
+    setCaminhaoFiltro(TODOS_CAMINHOES)
+    setDiaFiltro('')
+  }
 
   const consulta = useInfiniteQuery({
-    queryKey: ['programadas', entregues],
+    queryKey: ['programadas', entregues, filtros],
     queryFn: ({ pageParam }) =>
-      listarProgramadas({ entregues, limite: POR_PAGINA, deslocamento: pageParam }),
+      listarProgramadas({ entregues, limite: POR_PAGINA, deslocamento: pageParam, ...filtros }),
     initialPageParam: 0,
+    // trocar o filtro mantém a lista de antes até a nova chegar (sem piscar)
+    placeholderData: keepPreviousData,
     getNextPageParam: (ultima, todas) => {
       const carregadas = todas.reduce((s, p) => s + p.length, 0)
       const total = ultima[0]?.contagem_total ?? 0
@@ -703,6 +736,42 @@ export function AbaJaProgramadas({
             )}
           </div>
 
+          {/* SESSAO-41 (D-199): os filtros — a busca traz a rota inteira que tem o que bate */}
+          <div className="@container/filtros flex flex-col gap-3">
+            <FiltroDoQuadro
+              texto={busca}
+              aoMudar={setBusca}
+              rotulo="Buscar rota"
+              placeholder="Buscar: cliente, nº do pedido, bairro, móvel ou parada"
+              className="sm:w-full"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Selecao
+                rotulo="Caminhão"
+                opcoes={[{ valor: TODOS_CAMINHOES, rotulo: 'Todos' }, ...opcoesCaminhao]}
+                valor={caminhaoFiltro}
+                aoMudar={setCaminhaoFiltro}
+              />
+              <Campo
+                rotulo="Dia"
+                type="date"
+                value={diaFiltro}
+                onChange={(e) => setDiaFiltro(e.target.value)}
+              />
+            </div>
+            {filtrando && (
+              <Botao
+                variante="fantasma"
+                tamanho="sm"
+                icone={<X />}
+                className="self-start"
+                onClick={limparFiltros}
+              >
+                Limpar filtros
+              </Botao>
+            )}
+          </div>
+
           {consulta.isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
           {consultaParadas.isError && (
             <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
@@ -711,9 +780,11 @@ export function AbaJaProgramadas({
           )}
           {!consulta.isPending && grupos.length === 0 && (
             <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">
-              {entregues
-                ? 'Nenhuma entrega programada foi entregue ainda.'
-                : 'Nada programado ainda — monte a rota na aba "Programar".'}
+              {filtrando
+                ? 'Nenhuma rota bate com os filtros. Limpe os filtros para ver todas.'
+                : entregues
+                  ? 'Nenhuma entrega programada foi entregue ainda.'
+                  : 'Nada programado ainda — monte a rota na aba "Programar".'}
             </p>
           )}
 
