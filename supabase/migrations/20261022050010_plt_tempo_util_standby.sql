@@ -1261,7 +1261,8 @@ $$;
 -- 13 · Os checks novos validam tudo (E-19: o validate mora SEMPRE na migration
 --      mais nova do check — saiu da dos cards e da da presença)
 -- ----------------------------------------------------------------------------
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- ↪️ SESSAO-41 (E-19): o validate de plt_eventos_tipo_check mudou para a
+-- migration 20261027040000 (o tipo 'data_entrega_alterada').
 -- ↪️ SESSAO-39 (E-19): o validate de plt_motivos_tipo_ck mudou para a migration
 -- do Mover (20261023010000), que recria o check com o tipo 'mover'.
 

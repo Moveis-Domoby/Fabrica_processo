@@ -281,4 +281,5 @@ $$;
 -- 5 · O check novo valida tudo (E-19: o validate mora SEMPRE na migration mais
 --     nova do check — saiu da migration do stand-by)
 -- ----------------------------------------------------------------------------
-alter table public.plt_motivos validate constraint plt_motivos_tipo_ck;
+-- ↪️ SESSAO-41 (E-19): o validate mudou para a migration 20261027040000 (o tipo
+-- 'entrega_parcial').

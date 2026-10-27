@@ -16171,6 +16171,10 @@ try {
   // ↪️ SESSAO-41 (D-189): a do tablet recria o quadro do setor (as pessoas pela
   // régua da carência e da saída de 1 h) — vem depois da 40, como em produção
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027010000_plt_tablet_presenca_pin.sql'), 'utf8'))
+  // ↪️ SESSAO-41 (E-19): a das rotas recria os checks dos tipos de evento e de
+  // motivo e os VALIDA (o validate saiu das do stand-by e do Mover) — e recria as
+  // portas das rotas com o endereço de entrega e a data que vale
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261027040000_plt_rotas_endereco_data_parcial.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -18255,6 +18259,186 @@ try {
   await como41s('')
 }
 } // fim do bloco SESSAO-41 · F3
+
+// ============================================================================
+// SESSAO-41 · F4/F6 (migration 20261027040000 — D-193…D-195): o ENDEREÇO DE
+// ENTREGA do Tiny nas rotas (inteiro; sem ele, o do cadastro), a DATA DE
+// ENTREGA mudada/removida só na plataforma (o Tiny mudando, vale o Tiny) e a
+// ENTREGA PARCIAL (as que voltaram vão para "Em decisão pós devolução").
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-41 · F6 · o endereço de entrega: o do Tiny quando existe, inteiro; senão, o do cadastro')
+
+const um41r = async (sql) => (await bd.query(sql)).rows[0]
+const como41r = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const recusa41r = async (auth, sql, descricao, padrao) => {
+  await como41r(auth)
+  await bd.exec('savepoint s41r')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s41r')
+    await bd.exec('reset role')
+  }
+}
+const logado41r = async (auth, sql) => {
+  await como41r(auth)
+  await bd.exec('savepoint l41r')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l41r')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l41r')
+    await bd.exec('reset role')
+    throw new Error(`logado41r: ${erro.message}`)
+  }
+}
+const OP41R = '00000000-0000-0000-0000-000000004121'
+await como41r('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
+      values ('Operador Rotas 41', 'op.rotas41@teste.com', '41600000001', 'op.rotas41', 'operador', '${OP41R}', array['fabrica']);
+    insert into public.clientes (nome, endereco, numero, bairro, cidade, uf, cep)
+      values ('Cliente Entrega 41', 'Rua Doutor Manoel Miranda', '10', 'Alecrim', 'Natal', 'RN', '59052-250');
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista, endereco_entrega) values
+      (941001, (select max(id) from public.clientes), 'Preparando envio', 'webhook', 94100100, '2026-11-20',
+       '{"endereco": "Avenida Petra Kelly", "numero": "", "bairro": "Nova Parnamirim", "cidade": "Parnamirim", "uf": "RN", "cep": "59152-330"}'::jsonb),
+      (941002, (select max(id) from public.clientes), 'Preparando envio', 'webhook', 94100200, '2026-11-21', '{}'::jsonb);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = 941001), 1, 'S41A', 'Rack Teste 41', 3),
+      ((select id from public.pedidos where numero = 941002), 1, 'S41A', 'Rack Teste 41', 1);
+  `)
+  const ped = async (n) => (await um41r(`select id::int as id from public.pedidos where numero = ${n}`)).id
+  const [P1, P2] = [await ped(941001), await ped(941002)]
+  const card = async (n) => (await um41r(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                           where c.tipo = 'pedido' and p.numero = ${n}`)).id
+  const [C1, C2] = [await card(941001), await card(941002)]
+  const ee = await um41r(`select (select to_jsonb(e) from plt_privado.vw_endereco_entrega e where e.pedido_id = ${P1}) as um,
+                                 (select to_jsonb(e) from plt_privado.vw_endereco_entrega e where e.pedido_id = ${P2}) as dois`)
+  conferir(ee.um.de_entrega === true && ee.um.endereco === 'Avenida Petra Kelly' && ee.um.bairro === 'Nova Parnamirim'
+      && ee.um.cidade === 'Parnamirim' && ee.um.numero === null
+      && ee.dois.de_entrega === false && ee.dois.endereco === 'Rua Doutor Manoel Miranda' && ee.dois.numero === '10',
+    'com endereço de entrega: Nova Parnamirim (inteiro — o número do cadastro não se mistura); sem ele: o do cadastro (Alecrim)',
+    JSON.stringify(ee))
+  const prog = (await logado41r(E40.logistica, `select numero, endereco, bairro, cidade, endereco_geocodificavel
+      from public.plt_fn_programacao(null, 200, 0, false) where numero in (941001, 941002) order by numero`))
+  conferir(prog.length === 2 && prog[0].bairro === 'Nova Parnamirim' && prog[0].cidade === 'Parnamirim'
+      && /Petra Kelly/.test(prog[0].endereco_geocodificavel ?? '') && prog[1].bairro === 'Alecrim',
+    'a Programação monta o ponto do mapa pelo endereço de entrega (o 941001 em Parnamirim, o 941002 no Alecrim)', JSON.stringify(prog))
+  const ficha = (await logado41r(E40.logistica, `select public.plt_fn_pcp_pedido_detalhe(${P1}) as f`))[0].f
+  conferir(ficha.endereco_entrega?.bairro === 'Nova Parnamirim' && ficha.endereco_entrega?.de_entrega === true
+      && ficha.cliente?.bairro === 'Alecrim',
+    'a ficha do pedido mostra onde entregar e mantém o endereço do cadastro do cliente', JSON.stringify({ e: ficha.endereco_entrega, c: ficha.cliente?.bairro }))
+
+  titulo('SESSAO-41 · F6 · a data de entrega mudada ou removida SÓ na plataforma; o Tiny mudando, vale o Tiny')
+
+  const vale = async () => (await um41r(`select plt_privado.fn_data_entrega(id, data_prevista)::text as d from public.pedidos where id = ${P1}`)).d
+  await recusa41r(OP41R, `select public.plt_fn_pedido_data_entrega(${P1}, '2026-11-25', false)`,
+    'o operador da produção não muda a data de entrega', /logística, do PCP ou de admin/)
+  const r1 = (await logado41r(E40.logistica, `select public.plt_fn_pedido_data_entrega(${P1}, '2026-11-25', false) as r`))[0].r
+  const tiny1 = (await um41r(`select data_prevista::text as d from public.pedidos where id = ${P1}`)).d
+  const fato = await um41r(`select count(*)::int as n, min(dados ->> 'depois') as depois from public.plt_eventos
+                             where card_id = ${C1} and tipo = 'data_entrega_alterada'`)
+  const ficha2 = (await logado41r(E40.logistica, `select public.plt_fn_pcp_pedido_detalhe(${P1}) as f`))[0].f
+  conferir(r1.mudou === true && await vale() === '2026-11-25' && tiny1 === '2026-11-20' && fato.n === 1 && fato.depois === '2026-11-25'
+      && ficha2.pedido?.data_prevista === '2026-11-25' && ficha2.pedido?.data_prevista_tiny === '2026-11-20' && ficha2.pedido?.data_alterada === true,
+    'a logística muda para 25/11: vale 25/11 na plataforma, o Tiny segue 20/11, fica o fato e a ficha diz as duas',
+    JSON.stringify({ r1, tiny1, fato, d: ficha2.pedido?.data_prevista }))
+  const regra = await um41r(`select data_prevista::text as d from plt_privado.vw_pedidos_vivos_regra where pedido_id = ${P1}`)
+  conferir(regra?.d === '2026-11-25', 'a regra do pedido vivo (Expedição, Programação, calendário) já lê a data que vale', JSON.stringify(regra))
+  const r2 = (await logado41r(E40.logistica, `select public.plt_fn_pedido_data_entrega(${P1}, null, true) as r`))[0].r
+  conferir(r2.mudou === true && await vale() === null, 'remover a data: a plataforma fica sem data (o Tiny não muda)', JSON.stringify(r2))
+  const r3 = (await logado41r(E40.logistica, `select public.plt_fn_pedido_data_entrega(${P1}, null, true) as r`))[0].r
+  conferir(r3.mudou === false, 'o toque repetido não muda nada')
+  await bd.exec(`update public.pedidos set data_prevista = '2026-12-01' where id = ${P1}`)
+  conferir(await vale() === '2026-12-01', 'o Tiny mudou a data depois: vale a do Tiny de novo (a da plataforma deixa de valer sozinha)')
+  await logado41r(E40.logistica, `select public.plt_fn_pedido_data_entrega(${P1}, '2026-12-01', false)`)
+  conferir((await um41r(`select count(*)::int as n from public.plt_pedido_datas where pedido_id = ${P1}`)).n === 0,
+    'escolher a mesma data do Tiny apaga a da plataforma (nada fica guardado à toa)')
+
+  titulo('SESSAO-41 · F4 · a entrega parcial: as entregues saem; as que voltaram vão para a decisão da logística; o Tiny não muda')
+
+  const aguardo = (await um41r(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+  for (let k = 1; k <= 3; k++) {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${P1}, ${C1}, 1, 'S41A', 'Rack Teste 41', ${k}, 3);
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${aguardo}, 'api');
+    `)
+  }
+  const pecas = (await bd.query(`select id::int as id from public.plt_cards where pedido_id = ${P1} and tipo = 'unidade' order by id`)).rows.map((r) => r.id)
+  const motivo = (await um41r(`select id::int as id from public.plt_motivos where tipo = 'entrega_parcial' and texto = 'Móvel chegou avariado'`)).id
+  const filaTinyAntes = (await um41r(`select count(*)::int as n from public.plt_tiny_pedido_fila where pedido_id = ${P1}`)).n
+  await recusa41r(OP41R, `select public.plt_fn_entrega_parcial(${C1}, array[${pecas[0]}]::bigint[], ${motivo}, null)`,
+    'quem não é da logística nem da equipe do caminhão não registra entrega', /logística|entregador/)
+  await recusa41r(E40.logistica, `select public.plt_fn_entrega_parcial(${C1}, array[${pecas[0]}, ${pecas[1]}]::bigint[], null, '  ')`,
+    'sem motivo e sem observação: recusado (diga por que foi parcial)', /motivo ou escreva uma observação/)
+  await recusa41r(E40.logistica, `select public.plt_fn_entrega_parcial(${C1}, array[${pecas.join(',')}]::bigint[], ${motivo}, null)`,
+    'todas marcadas: recusado (é o "Entregue")', /use "Entregue"/)
+  await recusa41r(E40.logistica, `select public.plt_fn_entrega_parcial(${C1}, '{}'::bigint[], ${motivo}, null)`,
+    'nenhuma marcada: recusado (é o "Não entregue")', /Não entregue/)
+  const res = (await logado41r(E40.logistica,
+    `select public.plt_fn_entrega_parcial(${C1}, array[${pecas[0]}, ${pecas[1]}]::bigint[], ${motivo}, 'a lateral rachou') as r`))[0].r
+  const rep = (await logado41r(E40.logistica,
+    `select public.plt_fn_entrega_parcial(${C1}, array[${pecas[0]}, ${pecas[1]}]::bigint[], ${motivo}, 'a lateral rachou') as r`))[0].r
+  const depois = await um41r(`select
+      (select entrega_evento_id is not null from public.plt_cards where id = ${C1}) as entregue,
+      (select devolucao_evento_id is not null from public.plt_cards where id = ${C1}) as em_decisao,
+      (select count(*)::int from public.plt_cards where id in (${pecas[0]}, ${pecas[1]}) and arquivado_em is not null) as saiu,
+      (select s.codigo from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id where c.id = ${pecas[2]}) as onde_voltou,
+      (select arquivado_em is null from public.plt_cards where id = ${pecas[2]}) as voltou_viva,
+      (select (dados ->> 'parcial')::boolean from public.plt_eventos where id = (select entrega_evento_id from public.plt_cards where id = ${C1})) as parcial,
+      (select count(*)::int from public.plt_tiny_pedido_fila where pedido_id = ${P1}) as fila_tiny,
+      (select count(*)::int from public.plt_notificacoes where tipo = 'devolucao_decidir' and card_id = ${C1}) as avisos`)
+  conferir(res.entregues === 2 && res.voltaram === 1 && rep.repetido === true && depois.entregue && depois.em_decisao
+      && depois.saiu === 2 && depois.onde_voltou === 'devolucao' && depois.voltou_viva && depois.parcial === true
+      && depois.fila_tiny === filaTinyAntes && depois.avisos >= 1,
+    '2 de 3 entregues: o pedido fica entregue EM PARTE, as 2 saem de toda conta, a 3ª vai para "Em decisão pós devolução" com aviso à logística; o Tiny não é chamado; o toque repetido não duplica',
+    JSON.stringify({ res, rep, depois }))
+  const fichaP = (await logado41r(E40.logistica, `select public.plt_fn_pcp_pedido_detalhe(${P1}) as f`))[0].f
+  const decisao = (await logado41r(E40.logistica, `select public.plt_fn_devolucao_detalhe(${C1}) as d`))[0].d
+  conferir(fichaP.entrega?.parcial === true && fichaP.entrega?.pecas_entregues === 2 && fichaP.entrega?.pecas_voltaram === 1
+      && decisao?.em_decisao === true && decisao?.cliente?.bairro === 'Nova Parnamirim',
+    'a ficha diz "entregue em parte (2 de 3)"; a telinha "Decidir situação" abre com a peça que voltou (e o bairro da entrega)',
+    JSON.stringify({ e: fichaP.entrega, d: decisao?.cliente }))
+  const desf = (await um41r(`select id::int as id from public.plt_motivos where tipo = 'desfazer_entrega' order by id limit 1`))?.id
+  if (desf) {
+    await recusa41r(E40.logistica, `select public.plt_fn_entrega_desfazer(${C1}, ${desf}, null)`,
+      'a entrega parcial não se desfaz pelo "Desfazer" (as peças que voltaram já estão com a logística)', /entrega parcial não se desfaz/)
+  }
+  const reenviar = (await logado41r(E40.logistica,
+    `select public.plt_fn_devolucao_decidir(array[${pecas[2]}]::bigint[], 'reenviar', '{}'::jsonb, 'reentregar na sexta') as r`))[0].r
+  const volta = await um41r(`select (select entrega_evento_id is null from public.plt_cards where id = ${C1}) as reaberta,
+      (select devolucao_evento_id is null from public.plt_cards where id = ${C1}) as decidida,
+      (select count(*)::int from plt_privado.vw_pedidos_vivos_regra where pedido_id = ${P1}) as vivo`)
+  conferir(reenviar !== null && volta.reaberta && volta.decidida && volta.vivo === 1,
+    '"Reenviar ao cliente": a entrega é reaberta só na plataforma e o pedido volta a ser programado (com a peça que faltou)',
+    JSON.stringify({ reenviar, volta }))
+  conferir((await um41r(`select count(*)::int as n from public.plt_motivos where tipo = 'entrega_parcial' and ativo`)).n >= 5,
+    'a lista de motivos de entrega parcial nasce com 5 (e se edita em Utilitários)')
+  const priv = await um41r(`
+    select has_function_privilege('authenticated', 'public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean)', 'execute') as parcial,
+           has_function_privilege('anon', 'public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean)', 'execute') as parcial_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pedido_data_entrega(bigint, date, boolean)', 'execute') as data,
+           has_function_privilege('authenticated', 'plt_privado.fn_data_entrega(bigint, date)', 'execute') as regra_data`)
+  conferir(priv.parcial && !priv.parcial_anon && priv.data && !priv.regra_data,
+    'as portas novas para quem está logado (o banco confere quem); a régua da data fora da API', JSON.stringify(priv))
+  void C2
+} finally {
+  await bd.exec('rollback')
+  await como41r('')
+}
+} // fim do bloco SESSAO-41 · F4/F6
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
