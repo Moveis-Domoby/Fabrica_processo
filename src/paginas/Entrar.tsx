@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
-import { ArrowLeft, Fingerprint, KeyRound, LogIn, TabletSmartphone, UserRound } from 'lucide-react'
+import { ArrowLeft, Fingerprint, KeyRound, LifeBuoy, LogIn, TabletSmartphone, UserRound } from 'lucide-react'
 import { Botao, Campo } from '@/componentes/ui'
 import { Marca } from '@/componentes/Marca'
 import { entrar, entrarPin, tabletEntrar } from '@/autenticacao/api'
@@ -9,8 +9,9 @@ import { lembrarLogin, lerUltimoLogin } from '@/autenticacao/ultimoLogin'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTA_INICIAL } from '@/navegacao/rotas'
 import { TecladoPin } from '@/tablet/TecladoPin'
+import { RecuperarSenha } from '@/autenticacao/RecuperarSenha'
 
-type ModoEntrada = 'senha' | 'pin' | 'tablet'
+type ModoEntrada = 'senha' | 'pin' | 'tablet' | 'recuperar'
 
 /**
  * Login (SESSAO-13, D-41): tela dividida — logo Domoby grande em tom metálico
@@ -28,6 +29,9 @@ type ModoEntrada = 'senha' | 'pin' | 'tablet'
  * pelo e-mail passa a ver o próprio usuário), o campo já abre preenchido com
  * o cursor na senha, os campos levam `name`/`autocomplete` para o gerenciador
  * de senhas do navegador preencher, e o PIN aceita usuário ou e-mail.
+ *
+ * SESSAO-41 (D-191): "Esqueci minha senha" — a troca liberada por um
+ * administrador (2 h, uma vez, só neste aparelho), sem e-mail.
  */
 export function Entrar() {
   const { sessao, carregando: carregandoSessao } = useSessao()
@@ -101,7 +105,9 @@ export function Entrar() {
       <div className="flex flex-1 items-start justify-center px-4 py-8 lg:items-center lg:py-0">
         <div className="flex w-full max-w-sm flex-col gap-6">
           <div className="w-full rounded-dm-lg border border-borda bg-superficie p-5 sm:p-6">
-            {modo === 'tablet' ? (
+            {modo === 'recuperar' ? (
+              <RecuperarSenha />
+            ) : modo === 'tablet' ? (
               <>
                 <h1 className="text-xl">Modo tablet do setor</h1>
                 <p className="mt-1 text-sm text-texto-suave">
@@ -199,6 +205,18 @@ export function Entrar() {
                 }}
               >
                 Modo tablet do setor
+              </Botao>
+            )}
+            {modo === 'senha' && (
+              <Botao
+                variante="fantasma"
+                icone={<LifeBuoy />}
+                onClick={() => {
+                  setErro('')
+                  setModo('recuperar')
+                }}
+              >
+                Esqueci minha senha
               </Botao>
             )}
             {modo === 'senha' && (

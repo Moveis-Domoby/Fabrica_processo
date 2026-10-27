@@ -25,6 +25,9 @@ async function chamar<T>(acao: string, dados: Record<string, unknown>): Promise<
   return data as T
 }
 
+/** SESSAO-41: a mesma porta para quem ainda não entrou (a troca de senha liberada). */
+export const chamarAutenticacao = chamar
+
 /** O que o servidor devolve ao abrir a sessão (SESSAO-38: + o nome de usuário). */
 interface SessaoAberta {
   access_token: string

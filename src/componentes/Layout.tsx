@@ -26,6 +26,7 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSoEntregador, ehSuperAdmin, ROTA_ENTREGADOR, temModulo } from '@/autenticacao/tipos'
 import { SeletorTemaRapido } from '@/perfil/SeletorTemaRapido'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
+import { AlertaTrocaSenha } from '@/notificacoes/AlertaTrocaSenha'
 import { BolhaExecucao } from '@/afazeres/BolhaExecucao'
 import { ProvedorChat } from '@/chat/ProvedorChat'
 import { BalaoChat } from '@/chat/BalaoChat'
@@ -847,6 +848,8 @@ export function Layout({ children }: { children: ReactNode }) {
         {!modoFoco && !soEntregador && <BalaoChat />}
         {/* SESSAO-31 (§3): a janela do card — qualquer tela abre pondo ?card= no endereço. */}
         {!soEntregador && <JanelaDoCardNaUrl />}
+        {/* SESSAO-41 (D-191): o pedido de troca de senha, urgente, na tela do administrador. */}
+        {perfil.papel === 'admin' && <AlertaTrocaSenha usuarioId={perfil.id} />}
         <AvisoVersaoNova nova={versaoNova} />
         {/* SESSAO-32 (Lei §10): a conexão ao vivo caiu — avisa e oferece atualizar. */}
         {!versaoNova && <AvisoAoVivoPausado />}

@@ -22,6 +22,12 @@
 //   entrar-pin       → (SESSAO-36) no PC: e-mail + PIN para quem nunca criou senha
 //                      (cai na troca obrigatória; depois da senha, deixa de valer)
 //                      ↪️ SESSAO-38: aceita também o nome de usuário
+//   senha-solicitar  → (SESSAO-41) "Esqueci minha senha": registra o pedido e avisa
+//                      os administradores — a resposta é SEMPRE a mesma
+//   senha-situacao   → (SESSAO-41) o aparelho que pediu já foi liberado? (liberado
+//                      ou "não liberado" — nunca diz se o e-mail existe)
+//   senha-trocar     → (SESSAO-41) troca a senha com a liberação (2 h, uma vez,
+//                      só no aparelho que pediu)
 //
 // SESSAO-38 (D-163): o "entrar" e o "entrar-pin" leem o identificador do mesmo
 // jeito (lerIdentificador — sem acento, sem espaço, minúsculo), a senha errada
@@ -184,7 +190,7 @@ async function travaBloqueada(chave: string): Promise<number> {
   return falta > 0 ? Math.ceil(falta / 1000) : 0
 }
 
-async function travaErrou(chave: string): Promise<void> {
+async function travaErrou(chave: string, limite = TRAVA_ERROS): Promise<void> {
   const { data } = await servidor
     .from('plt_pin_tentativas')
     .select('erros, janela_inicio')
@@ -194,8 +200,8 @@ async function travaErrou(chave: string): Promise<void> {
     data?.janela_inicio && Date.now() - new Date(data.janela_inicio).getTime() < TRAVA_JANELA_MS
   const erros = dentroDaJanela ? Number(data?.erros ?? 0) + 1 : 1
   const bloqueio =
-    erros >= TRAVA_ERROS
-      ? new Date(Date.now() + Math.min(60_000 * 2 ** (erros - TRAVA_ERROS), TRAVA_JANELA_MS)).toISOString()
+    erros >= limite
+      ? new Date(Date.now() + Math.min(60_000 * 2 ** (erros - limite), TRAVA_JANELA_MS)).toISOString()
       : null
   await servidor.from('plt_pin_tentativas').upsert({
     chave,
@@ -208,6 +214,8 @@ async function travaErrou(chave: string): Promise<void> {
 async function travaLimpar(chave: string): Promise<void> {
   await servidor.from('plt_pin_tentativas').delete().eq('chave', chave)
 }
+
+const TRAVA_TABLET_GERAL = 'tablet:geral'
 
 const TRAVADO = (s: number) =>
   `Muitas tentativas erradas. Espere ${Math.max(1, Math.ceil(s / 60))} minuto(s) e tente de novo.`
@@ -323,6 +331,9 @@ async function entrar(corpo: Json): Promise<Response> {
   if (!valor || !senha) return erro(400, 'Informe usuário (ou e-mail) e senha.')
 
   const NEGADO = 'Usuário ou senha incorretos.'
+  // SESSAO-41 (D-192): texto fora de qualquer tamanho real nem chega ao banco
+  // (o e-mail tem até 254; a senha, até 72 — o limite do servidor de login).
+  if (valor.length > 254 || senha.length > 72) return erro(401, NEGADO)
 
   // SESSAO-38 (D-163): a trava de tentativa e erro (a mesma do PIN) passa a
   // valer também para a senha — pela CHAVE DIGITADA, exista ou não a pessoa:
@@ -980,7 +991,7 @@ async function tabletEntrar(req: Request, corpo: Json): Promise<Response> {
   if (!/^[0-9]{2}$/.test(pin)) return erro(400, 'PIN do setor: exatamente 2 dígitos.')
 
   const trava = `ip:${origemDaChamada(req)}`
-  const bloqueado = await travaBloqueada(trava)
+  const bloqueado = Math.max(await travaBloqueada(trava), await travaBloqueada(TRAVA_TABLET_GERAL))
   if (bloqueado > 0) return erro(429, TRAVADO(bloqueado))
 
   const NEGADO = 'PIN não encontrado. A entrada do tablet usa o PIN do setor.'
@@ -992,6 +1003,11 @@ async function tabletEntrar(req: Request, corpo: Json): Promise<Response> {
     .maybeSingle()
   if (!linha || !(await conferirPin(pin, linha.pin_hash))) {
     await travaErrou(trava)
+    // SESSAO-41 (D-192): a trava do aparelho é pelo endereço de internet, que
+    // dá para disfarçar — e o PIN do setor tem 2 dígitos. A trava GERAL conta
+    // todos os erros de todos os aparelhos: 30 em 15 min fecham a entrada por
+    // PIN de setor por um tempo (os tablets que já estão dentro não caem).
+    await travaErrou(TRAVA_TABLET_GERAL, 30)
     return erro(401, NEGADO)
   }
   await travaLimpar(trava)
@@ -1074,6 +1090,91 @@ async function tabletEntrar(req: Request, corpo: Json): Promise<Response> {
     refresh_token: sessao.refresh_token,
     setor: { id: setor.id, nome: setor.nome, codigo: setor.codigo },
   })
+}
+
+// ----------------------------------------------------------------------------
+// SESSAO-41 · "Esqueci minha senha" (D-191): a troca é LIBERADA por um
+// administrador (sem e-mail). O aparelho que pede cria um segredo só dele
+// (32 bytes aleatórios) e manda junto; o banco guarda só o resumo (SHA-256).
+// A liberação vale 2 h, uma troca, e SÓ para o aparelho que tem o segredo.
+// As respostas nunca dizem se o e-mail tem cadastro.
+// ----------------------------------------------------------------------------
+const PEDIDO_ENVIADO =
+  'Pedido enviado. Se este e-mail tiver cadastro, a liderança recebe o aviso agora. Quando liberarem, volte aqui NESTE aparelho e toque em "Trocar minha senha" — a liberação vale por 2 horas.'
+
+function lerEmail(bruto: unknown): string | null {
+  const email = String(bruto ?? '').trim().toLowerCase()
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null
+}
+
+async function resumoDoSegredo(bruto: unknown): Promise<string | null> {
+  const segredo = String(bruto ?? '')
+  if (!/^[A-Za-z0-9_-]{40,100}$/.test(segredo)) return null
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(segredo))
+  return paraB64(new Uint8Array(bytes))
+}
+
+async function senhaSolicitar(req: Request, corpo: Json): Promise<Response> {
+  const email = lerEmail(corpo.email)
+  const resumo = await resumoDoSegredo(corpo.segredo)
+  if (!email) return erro(400, 'Confira o e-mail digitado.')
+  if (!resumo) return erro(400, 'Atualize a página e tente de novo.')
+  // a trava conta CADA pedido (não só erro): 5 por 15 min por aparelho e por
+  // e-mail — ninguém enche o sino dos administradores de pedidos
+  const travas = [`senha-ip:${origemDaChamada(req)}`, `senha-email:${email}`]
+  for (const t of travas) {
+    const b = await travaBloqueada(t)
+    if (b > 0) return erro(429, TRAVADO(b))
+  }
+  for (const t of travas) await travaErrou(t)
+  const { error } = await servidor.rpc('plt_fn_senha_solicitar', { p_email: email, p_segredo_hash: resumo })
+  if (error) {
+    console.error('senha-solicitar', error.message)
+    return erro(500, 'Não consegui registrar o pedido. Tente de novo.')
+  }
+  return resposta(200, { ok: true, mensagem: PEDIDO_ENVIADO })
+}
+
+async function senhaSituacao(req: Request, corpo: Json): Promise<Response> {
+  const email = lerEmail(corpo.email)
+  const resumo = await resumoDoSegredo(corpo.segredo)
+  if (!email || !resumo) return resposta(200, { situacao: 'nao_liberado' })
+  const b = await travaBloqueada(`senha-ip:${origemDaChamada(req)}`)
+  if (b > 0) return erro(429, TRAVADO(b))
+  const { data, error } = await servidor.rpc('plt_fn_senha_situacao', { p_email: email, p_segredo_hash: resumo })
+  if (error) return erro(500, 'Não consegui conferir agora. Tente de novo.')
+  return resposta(200, { situacao: data === 'liberado' ? 'liberado' : 'nao_liberado' })
+}
+
+async function senhaTrocar(req: Request, corpo: Json): Promise<Response> {
+  const email = lerEmail(corpo.email)
+  const resumo = await resumoDoSegredo(corpo.segredo)
+  const nova = String(corpo.senha_nova ?? '')
+  if (nova.length < 8 || nova.length > 72) return erro(400, 'A senha nova precisa ter de 8 a 72 caracteres.')
+  const senhaPadrao = Deno.env.get('PLT_SENHA_PADRAO')
+  if (senhaPadrao && nova === senhaPadrao) return erro(400, 'A senha nova não pode ser a senha padrão.')
+  const NAO_LIBERADO = 'A troca não está liberada para este aparelho. Toque em "Solicitar troca".'
+  if (!email || !resumo) return erro(403, NAO_LIBERADO)
+  const trava = `senha-troca:${origemDaChamada(req)}`
+  const b = await travaBloqueada(trava)
+  if (b > 0) return erro(429, TRAVADO(b))
+
+  const { data: liberacao, error } = await servidor.rpc('plt_fn_senha_conferir', {
+    p_email: email,
+    p_segredo_hash: resumo,
+  })
+  if (error) return erro(500, 'Não consegui trocar a senha. Tente de novo.')
+  const conf = liberacao as { pedido_id: number; auth_user_id: string } | null
+  if (!conf?.auth_user_id) {
+    await travaErrou(trava)
+    return erro(403, NAO_LIBERADO)
+  }
+  const alterada = await servidor.auth.admin.updateUserById(conf.auth_user_id, { password: nova })
+  if (alterada.error) return erro(500, 'Não consegui trocar a senha. Tente de novo.')
+  // A senha em si nunca vai para log — só o fato (no banco, com o pedido).
+  await servidor.rpc('plt_fn_senha_usado', { p_pedido_id: conf.pedido_id })
+  await travaLimpar(trava)
+  return resposta(200, { ok: true })
 }
 
 // ----------------------------------------------------------------------------
@@ -1261,6 +1362,12 @@ Deno.serve(async (req) => {
         return await setorPinConferir(req, corpo)
       case 'entrar-pin':
         return await entrarPin(req, corpo)
+      case 'senha-solicitar':
+        return await senhaSolicitar(req, corpo)
+      case 'senha-situacao':
+        return await senhaSituacao(req, corpo)
+      case 'senha-trocar':
+        return await senhaTrocar(req, corpo)
       default:
         return erro(400, 'Ação desconhecida.')
     }

@@ -18067,6 +18067,195 @@ try {
 }
 } // fim do bloco SESSAO-41 · F1
 
+// ============================================================================
+// SESSAO-41 · F3 (migrations 20261027020000 e 20261027030000 — D-191/D-192):
+// "Esqueci minha senha" liberado por um administrador (2 h, uma troca, só no
+// aparelho que pediu; a mesma resposta para quem tem e quem não tem cadastro)
+// e a segunda camada de permissões (o visitante não grava; ninguém do
+// navegador esvazia tabela; ninguém muda o próprio nível de acesso).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-41 · F3 · o pedido de troca de senha: só a função de login chama; e-mail sem cadastro não faz nada')
+
+const um41s = async (sql) => (await bd.query(sql)).rows[0]
+const como41s = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const recusa41s = async (auth, sql, descricao, padrao) => {
+  await como41s(auth)
+  await bd.exec('savepoint s41s')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s41s')
+    await bd.exec('reset role')
+  }
+}
+const logado41s = async (auth, sql) => {
+  await como41s(auth)
+  await bd.exec('savepoint l41s')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l41s')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l41s')
+    await bd.exec('reset role')
+    throw new Error(`logado41s: ${erro.message}`)
+  }
+}
+const S41 = {
+  admin: '00000000-0000-0000-0000-000000004111',
+  pessoa: '00000000-0000-0000-0000-000000004112',
+  tablet: '00000000-0000-0000-0000-000000004113',
+}
+const H1 = 'a'.repeat(43) + '=' // o resumo do segredo do aparelho 1
+const H2 = 'b'.repeat(43) + '=' // o de outro aparelho
+await como41s('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Admin Senha 41', 'admin.senha41@teste.com', '41500000001', 'admin.senha41', 'admin', '${S41.admin}', array['fabrica']),
+      ('Pessoa Senha 41', 'pessoa.senha41@teste.com', '41500000002', 'pessoa.senha41', 'operador', '${S41.pessoa}', array['fabrica']);
+    update public.plt_usuarios set senha_padrao = true where usuario = 'pessoa.senha41';
+    insert into public.plt_usuarios (nome, email, usuario, papel, conta_tablet, senha_padrao, auth_user_id)
+      values ('Tablet · S41', 'tablet-s41s@tablet.teste', 'tablet.s41s', 'operador', true, false, '${S41.tablet}');
+  `)
+  const PESSOA = (await um41s(`select id from public.plt_usuarios where usuario = 'pessoa.senha41'`)).id
+  const ADMIN = (await um41s(`select id from public.plt_usuarios where usuario = 'admin.senha41'`)).id
+  const nAdmins = (await um41s(`select count(*)::int as n from public.plt_usuarios
+                                 where papel = 'admin' and ativo and arquivado_em is null and not conta_tablet`)).n
+  const priv = await um41s(`
+    select has_function_privilege('anon', 'public.plt_fn_senha_solicitar(text, text)', 'execute') as anon_pede,
+           has_function_privilege('authenticated', 'public.plt_fn_senha_solicitar(text, text)', 'execute') as logado_pede,
+           has_function_privilege('authenticated', 'public.plt_fn_senha_conferir(text, text)', 'execute') as logado_confere,
+           has_function_privilege('service_role', 'public.plt_fn_senha_solicitar(text, text)', 'execute') as servico_pede,
+           has_function_privilege('service_role', 'public.plt_fn_senha_usado(bigint)', 'execute') as servico_usa,
+           has_function_privilege('authenticated', 'public.plt_fn_senha_decidir(bigint, boolean)', 'execute') as logado_decide,
+           has_table_privilege('authenticated', 'public.plt_senha_pedidos', 'select') as logado_le_tabela`)
+  conferir(!priv.anon_pede && !priv.logado_pede && !priv.logado_confere && priv.servico_pede && priv.servico_usa
+      && priv.logado_decide,
+    // (a leitura da tabela fechada se confere no banco real: a bateria imita as
+    // permissões padrão da Supabase dando leitura de TODA tabela de public — bloco 78)
+    'as portas do pedido só para a chave de serviço (a função de login); decidir, para quem está logado (o banco confere se é admin)',
+    JSON.stringify(priv))
+
+  const avisosAntes = (await um41s(`select count(*)::int as n from public.plt_notificacoes where tipo = 'senha_pedido'`)).n
+  await bd.exec(`select public.plt_fn_senha_solicitar('ninguem.41@teste.com', '${H1}')`)
+  await bd.exec(`select public.plt_fn_senha_solicitar('tablet-s41s@tablet.teste', '${H1}')`)
+  const nada = await um41s(`select (select count(*)::int from public.plt_senha_pedidos) as pedidos,
+      (select count(*)::int from public.plt_notificacoes where tipo = 'senha_pedido') - ${avisosAntes} as avisos`)
+  conferir(nada.pedidos === 0 && nada.avisos === 0,
+    'e-mail sem cadastro (e a conta de tablet) não gera pedido nem aviso — e a resposta da função é a mesma', JSON.stringify(nada))
+
+  await bd.exec(`select public.plt_fn_senha_solicitar('  Pessoa.Senha41@TESTE.com ', '${H1}')`)
+  const p1 = await um41s(`select id::int as id, situacao from public.plt_senha_pedidos where usuario_id = '${PESSOA}'`)
+  const av = await um41s(`select count(*)::int as n, min(titulo) as titulo, bool_and(corpo like 'Pessoa Senha 41 (pessoa.senha41)%') as corpo_ok
+      from public.plt_notificacoes where tipo = 'senha_pedido'`)
+  conferir(p1?.situacao === 'pendente' && av.n - avisosAntes === nAdmins && av.titulo === 'Pedido urgente: troca de senha' && av.corpo_ok,
+    'o e-mail cadastrado (sem ligar para maiúscula e espaço) gera o pedido pendente e o aviso urgente para cada administrador',
+    JSON.stringify({ p1, av, nAdmins }))
+
+  titulo('SESSAO-41 · F3 · liberar: só o administrador; só o aparelho que pediu; 2 h; uma troca')
+
+  const situacao = async (email, hash) => (await um41s(`select public.plt_fn_senha_situacao('${email}', '${hash}') as s`)).s
+  conferir(await situacao('pessoa.senha41@teste.com', H1) === 'nao_liberado', 'antes da decisão: não liberado')
+  await recusa41s(S41.pessoa, `select public.plt_fn_senha_decidir(${p1.id}, true)`,
+    'a própria pessoa (ou qualquer um que não é admin) não libera', /Só um administrador/)
+  await recusa41s(S41.pessoa, `select public.plt_fn_senha_pedidos()`, 'nem vê os pedidos', /Só um administrador/)
+  const lista = (await logado41s(S41.admin, `select public.plt_fn_senha_pedidos() as l`))[0].l
+  conferir(Array.isArray(lista) && lista[0]?.id === p1.id && lista[0]?.pessoa?.usuario === 'pessoa.senha41',
+    'o administrador vê o pedido pendente, com a pessoa', JSON.stringify(lista?.[0] ?? null))
+  const dec = (await logado41s(S41.admin, `select public.plt_fn_senha_decidir(${p1.id}, true) as d`))[0].d
+  const dec2 = (await logado41s(S41.admin, `select public.plt_fn_senha_decidir(${p1.id}, false) as d`))[0].d
+  const ate = await um41s(`select extract(epoch from liberado_ate - decidido_em)::int as s, decidido_por from public.plt_senha_pedidos where id = ${p1.id}`)
+  const lidos = await um41s(`select count(*)::int as n from public.plt_notificacoes where tipo = 'senha_pedido' and lida_em is null`)
+  conferir(dec.situacao === 'liberado' && dec.mudou === true && dec2.situacao === 'liberado' && dec2.mudou === false
+      && ate.s === 7200 && ate.decidido_por === ADMIN && lidos.n === 0,
+    'liberado por 2 h; o segundo toque (ou outro admin) não muda nada; sem pendentes, o aviso sai de todos os administradores',
+    JSON.stringify({ dec, dec2, ate, lidos }))
+  conferir(await situacao('pessoa.senha41@teste.com', H1) === 'liberado' && await situacao('pessoa.senha41@teste.com', H2) === 'nao_liberado'
+      && await situacao('ninguem.41@teste.com', H1) === 'nao_liberado',
+    'liberado SÓ para o aparelho que pediu; outro aparelho e e-mail sem cadastro ouvem o mesmo "não liberado"')
+
+  const conf = (await um41s(`select public.plt_fn_senha_conferir('pessoa.senha41@teste.com', '${H1}') as c`)).c
+  const confOutro = (await um41s(`select public.plt_fn_senha_conferir('pessoa.senha41@teste.com', '${H2}') as c`)).c
+  await bd.exec(`select public.plt_fn_senha_usado(${conf.pedido_id})`)
+  const usado = await um41s(`select p.situacao, p.usado_em is not null as usado, u.senha_padrao,
+      (select count(*)::int from public.plt_logs_atividade l where l.usuario_id = u.id and l.acao in ('senha_pedido', 'senha_trocada_por_pedido')) as trilha
+      from public.plt_senha_pedidos p join public.plt_usuarios u on u.id = p.usuario_id where p.id = ${p1.id}`)
+  conferir(conf?.auth_user_id === S41.pessoa && confOutro === null && usado.situacao === 'usado' && usado.usado
+      && usado.senha_padrao === false && usado.trilha === 2 && await situacao('pessoa.senha41@teste.com', H1) === 'nao_liberado',
+    'a troca usa a liberação UMA vez (a pessoa sai da senha padrão), e fica na trilha', JSON.stringify({ conf, confOutro, usado }))
+
+  titulo('SESSAO-41 · F3 · pedir de novo substitui (um aparelho novo nunca herda a liberação); a liberação vence em 2 h')
+
+  await bd.exec(`select public.plt_fn_senha_solicitar('pessoa.senha41@teste.com', '${H1}')`)
+  const p2 = await um41s(`select max(id)::int as id from public.plt_senha_pedidos where usuario_id = '${PESSOA}'`)
+  await logado41s(S41.admin, `select public.plt_fn_senha_decidir(${p2.id}, true)`)
+  await bd.exec(`select public.plt_fn_senha_solicitar('pessoa.senha41@teste.com', '${H2}')`)
+  const subst = await um41s(`select (select situacao from public.plt_senha_pedidos where id = ${p2.id}) as antigo,
+      (select count(*)::int from public.plt_senha_pedidos where usuario_id = '${PESSOA}' and situacao = 'pendente') as pendentes`)
+  conferir(subst.antigo === 'substituido' && subst.pendentes === 1 && await situacao('pessoa.senha41@teste.com', H1) === 'nao_liberado'
+      && await situacao('pessoa.senha41@teste.com', H2) === 'nao_liberado',
+    'o pedido de outro aparelho derruba a liberação anterior e volta a esperar um administrador', JSON.stringify(subst))
+  const p3 = await um41s(`select max(id)::int as id from public.plt_senha_pedidos where usuario_id = '${PESSOA}'`)
+  await logado41s(S41.admin, `select public.plt_fn_senha_decidir(${p3.id}, true)`)
+  await bd.exec(`update public.plt_senha_pedidos set liberado_ate = now() - interval '1 minute' where id = ${p3.id}`)
+  conferir(await situacao('pessoa.senha41@teste.com', H2) === 'nao_liberado'
+      && (await um41s(`select public.plt_fn_senha_conferir('pessoa.senha41@teste.com', '${H2}') as c`)).c === null,
+    'passadas as 2 h, a liberação não vale mais')
+  await bd.exec(`select public.plt_fn_senha_solicitar('pessoa.senha41@teste.com', '${H1}')`)
+  const p4 = await um41s(`select max(id)::int as id from public.plt_senha_pedidos where usuario_id = '${PESSOA}'`)
+  const naoLib = (await logado41s(S41.admin, `select public.plt_fn_senha_decidir(${p4.id}, false) as d`))[0].d
+  conferir(naoLib.situacao === 'recusado' && await situacao('pessoa.senha41@teste.com', H1) === 'nao_liberado',
+    '"Não liberar": o pedido fica recusado e a tela continua dizendo só "não liberado"', JSON.stringify(naoLib))
+
+  titulo('SESSAO-41 · F3 · a segunda camada de permissões: o visitante não grava; ninguém esvazia tabela; ninguém muda o próprio acesso')
+
+  const camada = await um41s(`
+    select has_table_privilege('anon', 'public.plt_usuarios', 'insert') as anon_ins_usuarios,
+           has_column_privilege('anon', 'public.plt_usuarios', 'papel', 'update') as anon_papel,
+           has_table_privilege('anon', 'public.pedidos', 'insert') as anon_pedidos,
+           has_table_privilege('anon', 'public.plt_cards', 'delete') as anon_cards,
+           has_table_privilege('anon', 'public.plt_eventos', 'insert') as anon_eventos,
+           has_table_privilege('authenticated', 'public.plt_cards', 'truncate') as logado_trunca_cards,
+           has_table_privilege('authenticated', 'public.pedidos', 'truncate') as logado_trunca_pedidos,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'papel', 'update') as logado_papel,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'super_admin', 'update') as logado_super,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'modulos', 'update') as logado_modulos,
+           has_column_privilege('authenticated', 'public.plt_usuarios', 'nome', 'update') as logado_nome,
+           has_table_privilege('authenticated', 'public.plt_cards', 'insert') as logado_cria_card,
+           has_table_privilege('anon', 'public.plt_setores', 'select') as anon_le_setores`)
+  conferir(!camada.anon_ins_usuarios && !camada.anon_papel && !camada.anon_pedidos && !camada.anon_cards && !camada.anon_eventos
+      && !camada.logado_trunca_cards && !camada.logado_trunca_pedidos
+      && !camada.logado_papel && !camada.logado_super && !camada.logado_modulos
+      && camada.logado_nome,
+    // (o "o que as telas gravam continua" — criar card, gravar evento — se confere
+    // no banco real: a bateria não imita as escritas padrão da Supabase)
+    'visitante sem escrita nenhuma; ninguém do navegador esvazia tabela; o logado muda só o próprio nome/telefone/foto/tema (nunca papel, super admin ou módulos)',
+    JSON.stringify(camada))
+  await recusa41s(S41.pessoa, `update public.plt_usuarios set papel = 'admin' where auth_user_id = '${S41.pessoa}'`,
+    'a pessoa tentando virar admin pela API: recusado', /permission denied|permissão negada/i)
+  await recusa41s(S41.pessoa, `update public.plt_usuarios set super_admin = true where auth_user_id = '${S41.pessoa}'`,
+    'nem super admin', /permission denied|permissão negada/i)
+  await recusa41s(S41.pessoa, `insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      values ('${PESSOA}', (select id from public.plt_setores order by id limit 1), true)`,
+    'nem se pôr como líder de um setor', /row-level security|permission denied|viola/i)
+  await recusa41s(S41.pessoa, `truncate public.plt_logs_atividade`, 'nem apagar a trilha de uma vez', /permission denied|permissão negada/i)
+  await recusa41s('', `insert into public.plt_eventos (card_id, tipo) values (1, 'card_criado')`,
+    'o visitante não grava evento', /permission denied|permissão negada/i)
+} finally {
+  await bd.exec('rollback')
+  await como41s('')
+}
+} // fim do bloco SESSAO-41 · F3
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(
