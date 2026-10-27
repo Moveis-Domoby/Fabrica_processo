@@ -1,0 +1,35 @@
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  118 migrations aplicadas (a última: 20261027070000_plt_carencia_5min_card_esquecido.sql) (8 s)
+  pedidos 562.700 (33 s)
+  peças vivas 20.400 e arquivadas 45.500 (45 s)
+  cards 95.169 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 (50 s)
+
+== ANTES (até o ajuste do card esquecido) ==
+  Programação — a porta de antes, sem programação (200)                                mediana   5965.9 ms · máx   6041.9 ms · 200 linhas · total 23418
+  Já programadas (50)                                                                  mediana     82.0 ms · máx    105.8 ms · 50 linhas · total 300
+
+  1 migration(s) dos filtros aplicada(s): 20261027080000_plt_programacao_filtros.sql
+
+== DEPOIS (os filtros da Programação) ==
+  Programação — a porta de antes, sem programação (200)                                mediana   6503.1 ms · máx   6770.6 ms · 200 linhas · total 23418
+  Já programadas (50)                                                                  mediana    108.5 ms · máx    116.9 ms · 50 linhas · total 300
+  Programar — sem filtro (200, com contagens, cidades e bairros)                       mediana   8103.2 ms · máx   8136.7 ms · 200 itens · total 23418 de 23418
+  Programar — busca pelo nome do cliente ("cliente 12")                                mediana   7907.1 ms · máx  16680.5 ms · 200 itens · total 540 de 23418
+  Programar — busca pelo número ("12345")                                              mediana   7005.6 ms · máx   7305.0 ms · 1 itens · total 1 de 23418
+  Programar — busca pelo móvel ("estante")                                             mediana   7813.9 ms · máx   8285.6 ms · 200 itens · total 3416 de 23418
+  Programar — cidade Parnamirim                                                        mediana   6766.1 ms · máx   7103.5 ms · 200 itens · total 711 de 23418
+  Programar — bairro de Natal                                                          mediana   6727.6 ms · máx   7437.2 ms · 200 itens · total 455 de 23418
+  Programar — previsão próximos 15 dias                                                mediana   7150.4 ms · máx   7508.1 ms · 200 itens · total 5741 de 23418
+  Programar — cliente de A a Z                                                         mediana   6827.1 ms · máx   7232.1 ms · 200 itens · total 23418 de 23418
+  Programar — mais novo primeiro                                                       mediana   7062.2 ms · máx   7267.9 ms · 200 itens · total 23418 de 23418
+  Programar — tudo junto (Natal, em produção, 15 dias, mais peças)                     mediana   6701.1 ms · máx   6941.9 ms · 0 itens · total 0 de 23418
+  Já programadas — busca pelo cliente ("cliente 1")                                    mediana    108.1 ms · máx    114.2 ms · 50 linhas · total 300
+  Já programadas — busca pela parada ("parada 1")                                      mediana     97.8 ms · máx    102.9 ms · 50 linhas · total 110
+  Já programadas — caminhão + dia + busca                                              mediana     10.6 ms · máx     15.2 ms · 20 linhas · total 20
+  --- plano: Programar — busca pelo nome do cliente
+      Result (actual rows=1.00 loops=1)
+        Buffers: shared hit=1045539, temp read=2456 written=614
+      Planning Time: 0.074 ms
+      Execution Time: 7989.280 ms
+
+fim (506 s)

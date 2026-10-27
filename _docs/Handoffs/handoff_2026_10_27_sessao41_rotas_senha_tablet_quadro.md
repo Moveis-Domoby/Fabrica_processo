@@ -110,13 +110,13 @@ tags: [handoff, sessao, sessao-41, tablet, kanban, senha, seguranca, rotas, entr
 - ✅ **Subiu tudo em 27/10** com o OK do dono (*"Pode subir tudo de uma vez ja direto, vou dormir"*): as 6 atualizações do banco (uma a uma), a função de login (versão 17) e o site.
 - **Primeira entrada de cada tablet depois da subida:** os outros aparelhos do MESMO setor saem **uma última vez** (a senha da conta do setor é gravada uma única vez). Depois disso, nunca mais.
 - **Cliques do dono no painel da Supabase** (o Claude não mexe em configuração de acesso): **Authentication → Sign In / Providers → "Allow new users to sign up" DESLIGADO** (o cadastro é só pela plataforma; criar pessoa pela Equipe continua funcionando) e, em **Email**, **"Minimum password length" = 8**.
-- **Confirmar as provisórias** da seção 3.
+- **Confirmar as provisórias** da seção 3 e as três da D-199 (filtros — seção 10).
 - **Dívidas 28 e 29** da lei (Já programadas numa requisição só; o calendário ×100).
 - **ClickUp:** esta demanda não tem tarefas — o dono decide se cria (regra 19).
 
 ## 8. Numeração usada
 
-D-189…D-198 · E-158…E-163 · A-115…A-121 · migrations `20261027010000`…`20261027070000` · ids de teste `...4101–4149`, pedidos de teste `9410xx`/`9411xx`. **Seguinte: D-199 · E-164 · A-122.**
+D-189…D-199 · E-158…E-165 · A-115…A-122 · migrations `20261027010000`…`20261027080000` · ids de teste `...4101–4151`, pedidos de teste `9410xx`/`9411xx`/`9412xx`. **Seguinte: D-200 · E-166 · A-123.**
 
 ## 9. Ajuste do dono (27/10, de manhã) — a conta dos 5 minutos e o card esquecido
 
@@ -133,4 +133,22 @@ D-189…D-198 · E-158…E-163 · A-115…A-121 · migrations `20261027010000`�
 
 **Desempenho:** nenhuma requisição nova na abertura nem por tela (a pergunta vem no MESMO pedido do quadro; o aviso urgente lê o cache do sino); o despertador é UM agendamento no minuto do próximo prazo — nada acorda para ver; as consultas novas andam por índice parcial.
 
-**Subida:** ⏳ espera o OK do dono — a atualização do banco e o site.
+**Subida:** ✅ o banco em 27/10 ~16:36 UTC (com o OK do dono); o site junto com os filtros (seção 10).
+
+## 10. Filtros da Programação de caminhão (27/10, tarde) — D-199
+
+**Pedido:** filtros variados e ordem alfabética na Programação de caminhão. Respostas do dono na D-199.
+
+**Como testar (em produção)**
+1. **ROTAS → Programação → aba Programar.** Abaixo de "Sem programação" estão: **Buscar pedido**, **Situação**, **Previsão de entrega**, **Cidade**, **Bairro** e **Ordenar por**. Cada opção mostra quantos pedidos tem.
+2. **Busca:** digite parte do nome do cliente (sem acento serve), o número do pedido, o bairro ou o nome do móvel — a lista mostra só os que batem e diz "N pedidos batem com os filtros".
+3. **Ordenar por:** Cliente de A a Z, de Z a A, Mais peças primeiro, Pedido mais novo / mais antigo — além das de antes.
+4. **Marque 2 pedidos para a rota** e depois filtre por outra cidade: os marcados **continuam na rota** ("Rota programada" e o mapa), mesmo sumindo da lista. "Limpar filtros" volta tudo.
+5. **Aba Já programadas:** **Buscar rota**, **Caminhão** e **Dia**. Buscar um cliente traz a **rota inteira** em que ele está (com o mapa); buscar o título de uma parada avulsa também acha a rota.
+6. Pelo celular: os filtros ficam em duas colunas; o texto longo das opções termina em "…".
+
+**Verificação:** bateria 1.380 verdes (13 novas); testes de tela 322; tipos/lint limpos; JS inicial 231,4 KB.
+
+**Desempenho:** nenhuma requisição nova na abertura: a lista para programar continua 1 requisição (agora com as opções e os "quantos" junto) e Já programadas continua 1 + a das paradas (dívida 28); trocar filtro = 1 requisição, a busca só depois de 300 ms parada e com 2+ letras; a lista de antes fica na tela até a nova chegar. Banco real (17 sem rota): a porta nova ~8 ms (a antiga 16 ms), Já programadas ~8 ms com ou sem busca. ×100: ~7–8 s, herdando o custo da regra do vivo (a porta antiga ~6 s) — **dívida 30** da lei.
+
+**Subida:** ✅ banco em 27/10/2026 17:17 UTC (`--so`, integração idêntica; conferido em produção como admin: 17 sem rota = os mesmos da porta de antes, cidades Natal 9 · Parnamirim 5 · Extremoz 2, A–Z com acento certo, Já programadas igual chamando pelos nomes); site na `main` `42547da` (avanço rápido — leva junto o ajuste do card esquecido), Vercel **success**, o pacote publicado tem "Buscar rota", "Cliente de A a Z", "batem com os filtros" e o aviso urgente. Avisos de segurança: só o de sempre (porta com trava interna, aberta a quem tem login).
