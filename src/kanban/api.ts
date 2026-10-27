@@ -750,7 +750,11 @@ export interface DetalhePedido {
     situacao: string | null
     origem: string | null
     data_pedido: string | null
+    /** SESSAO-41 (D-194): a data que VALE (a da plataforma, se mudada e o Tiny não mudou depois). */
     data_prevista: string | null
+    /** SESSAO-41 (D-194): a data do Tiny e se a da plataforma está valendo. */
+    data_prevista_tiny?: string | null
+    data_alterada?: boolean
     data_faturamento: string | null
     data_envio: string | null
     data_entrega_tiny: string | null
@@ -790,6 +794,20 @@ export interface DetalhePedido {
     uf: string | null
     cep: string | null
   }
+  /**
+   * SESSAO-41 (D-193): ONDE ENTREGAR — o endereço de entrega do pedido no Tiny
+   * (de_entrega), inteiro; sem ele, o do cadastro do cliente.
+   */
+  endereco_entrega?: {
+    de_entrega: boolean
+    endereco: string | null
+    numero: string | null
+    complemento: string | null
+    bairro: string | null
+    cidade: string | null
+    uf: string | null
+    cep: string | null
+  } | null
   /** SESSAO-31 (D-129): a devolução em decisão (nula quando não há). */
   devolucao: {
     evento_id: number
@@ -822,6 +840,10 @@ export interface DetalhePedido {
     por_gente: boolean
     observacao: string | null
     fonte: string
+    /** SESSAO-41 (D-195): a entrega foi parcial (as que voltaram foram para a decisão da logística). */
+    parcial?: boolean
+    pecas_entregues?: number
+    pecas_voltaram?: number
   } | null
   itens: {
     seq: number

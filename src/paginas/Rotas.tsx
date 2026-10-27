@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   MapPin,
   MessageCircle,
+  PackageCheck,
   PackageX,
   RotateCcw,
   Search,
@@ -26,6 +27,7 @@ import {
 } from '@/rotas/api'
 import type { Entrega, TipoMotivo } from '@/rotas/api'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { ModalEntregaParcial } from '@/rotas/ModalEntregaParcial'
 import { SeloEstado } from '@/rotas/SeloEstado'
 import {
   fraseEntregaIncompleta,
@@ -93,6 +95,8 @@ export function Rotas() {
     entrega: Entrega
   } | null>(null)
   const [devolvendo, setDevolvendo] = useState<Entrega | null>(null)
+  // SESSAO-41 (D-195): a entrega parcial — a logística também marca.
+  const [parcial, setParcial] = useState<Entrega | null>(null)
 
   const { data: entregas = [], isPending } = useQuery({
     queryKey: ['rotas', 'pronta', busca, pagina],
@@ -365,6 +369,14 @@ export function Rotas() {
                                 Pedido devolvido
                               </Botao>
                               <Botao
+                                variante="secundaria"
+                                tamanho="sm"
+                                icone={<PackageCheck />}
+                                onClick={() => setParcial(entrega)}
+                              >
+                                Entrega parcial
+                              </Botao>
+                              <Botao
                                 icone={<CheckCircle2 />}
                                 onClick={() => {
                                   setConfirmarIncompleto(false)
@@ -392,6 +404,11 @@ export function Rotas() {
               key={devolvendo ? `devolvido-${devolvendo.card_id}` : 'devolvido-fechado'}
               pedido={devolvendo}
               aoFechar={() => setDevolvendo(null)}
+            />
+            <ModalEntregaParcial
+              key={parcial ? `parcial-${parcial.card_id}` : 'parcial-fechado'}
+              pedido={parcial}
+              aoFechar={() => setParcial(null)}
             />
 
             {total > POR_PAGINA && (

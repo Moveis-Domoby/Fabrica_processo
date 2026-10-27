@@ -472,6 +472,44 @@ comment on function public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text
 revoke all on function public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean) from public, anon;
 grant execute on function public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean) to authenticated;
 
+-- as peças do pedido para a tela da entrega parcial (só no clique — Lei §3)
+create or replace function public.plt_fn_entrega_pecas(p_card_id bigint)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_pedido bigint;
+begin
+  if plt_privado.fn_usuario_atual() is null or not plt_privado.fn_pode_mexer_entrega(p_card_id) then
+    raise exception 'Ver as peças da entrega é da logística, do entregador do caminhão ou de admin.'
+      using errcode = 'insufficient_privilege';
+  end if;
+  select pc.pedido_id into v_pedido from public.plt_cards pc where pc.id = p_card_id and pc.tipo = 'pedido';
+  if v_pedido is null then
+    raise exception 'Card de pedido % não existe.', p_card_id using errcode = 'no_data_found';
+  end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'id', u.id, 'descricao', u.item_descricao, 'item_seq', u.item_seq,
+             'indice', u.indice_unidade, 'total', u.total_unidades,
+             'pronta', coalesce(s.papel_no_fluxo = 'terminal' and s.codigo <> 'devolucao', false),
+             'onde', s.nome)
+           order by u.item_seq, u.indice_unidade, u.id)
+      from public.plt_cards u
+      left join public.plt_setores s on s.id = u.setor_atual_id
+     where u.pedido_id = v_pedido and u.tipo = 'unidade' and u.arquivado_em is null), '[]'::jsonb);
+end;
+$$;
+
+comment on function public.plt_fn_entrega_pecas(bigint) is
+  'SESSAO-41 (D-195): as peças vivas do pedido (o que está para entregar), com "pronta" (no fim de linha) — para marcar a entrega parcial. Só no clique.';
+
+revoke all on function public.plt_fn_entrega_pecas(bigint) from public, anon;
+grant execute on function public.plt_fn_entrega_pecas(bigint) to authenticated;
+
 -- ----------------------------------------------------------------------------
 -- 6 · As portas das rotas — recriadas da versão viva: o ENDEREÇO DE ENTREGA
 --     (vw_endereco_entrega) e a DATA QUE VALE (fn_data_entrega); as entregas do

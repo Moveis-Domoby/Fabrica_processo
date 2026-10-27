@@ -16,6 +16,7 @@ import type { PedidoProgramado } from './api'
 import { BotaoRotaGoogleMaps } from './BotoesNavegacao'
 import { CartaoPedido } from './CartaoPedido'
 import { ListaArrastavel } from './ListaArrastavel'
+import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { MapaProgramacao } from './MapaProgramacao'
 import type { ParadaNoMapa, RotaNoMapa } from './MapaProgramacao'
 import { ModalProgramar } from './ModalProgramar'
@@ -143,6 +144,8 @@ export function AbaJaProgramadas({
   })
 
   const linhas = useMemo(() => consulta.data?.pages.flat() ?? [], [consulta.data])
+  // SESSAO-41 (D-193): o ponto do endereço de entrega que ainda falta, aqui mesmo.
+  useGeocodificarFaltantes(linhas, ['programadas'], ativa && !entregues)
   const total = consulta.data?.pages[0]?.[0]?.contagem_total ?? 0
 
   // Dia → caminhão → rota → paradas, na ordem que o banco devolve.

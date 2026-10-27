@@ -66,7 +66,11 @@ export async function solicitarTrocaDeSenha(email: string): Promise<string> {
   try {
     localStorage.setItem(
       CHAVE,
-      JSON.stringify({ email: normalizar(email), segredo, em: Date.now() } satisfies PedidoGuardado),
+      JSON.stringify({
+        email: normalizar(email),
+        segredo,
+        em: Date.now(),
+      } satisfies PedidoGuardado),
     )
   } catch {
     // sem armazenamento (aba privada): a troca não vai poder ser feita aqui
@@ -88,7 +92,8 @@ export async function trocaLiberada(email: string): Promise<boolean> {
 /** Troca a senha com a liberação deste aparelho (uma vez). */
 export async function trocarSenhaLiberada(email: string, senhaNova: string): Promise<void> {
   const segredo = segredoPara(email)
-  if (!segredo) throw new Error('A troca não está liberada para este aparelho. Toque em "Solicitar troca".')
+  if (!segredo)
+    throw new Error('A troca não está liberada para este aparelho. Toque em "Solicitar troca".')
   await chamarAutenticacao<{ ok: boolean }>('senha-trocar', {
     email: normalizar(email),
     segredo,

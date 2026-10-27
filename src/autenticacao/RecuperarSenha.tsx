@@ -146,7 +146,13 @@ export function RecuperarSenha() {
             </Botao>
           </form>
         ) : etapa === 'nao_liberado' ? (
-          <Botao tamanho="lg" larguraTotal icone={<Send />} carregando={enviando} onClick={() => void solicitar()}>
+          <Botao
+            tamanho="lg"
+            larguraTotal
+            icone={<Send />}
+            carregando={enviando}
+            onClick={() => void solicitar()}
+          >
             Solicitar troca
           </Botao>
         ) : (

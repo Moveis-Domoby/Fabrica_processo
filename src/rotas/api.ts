@@ -87,6 +87,47 @@ export async function registrarEntrega(parametros: {
   if (error) throw new Error(`Não deu para registrar a entrega: ${error.message}`)
 }
 
+/** SESSAO-41 (D-195): uma peça viva do pedido, para marcar a entrega parcial. */
+export interface PecaDaEntrega {
+  id: number
+  descricao: string | null
+  item_seq: number | null
+  indice: number | null
+  total: number | null
+  /** No fim de linha (Expedição ou ROTAS) — senão, a plataforma ainda a vê em produção. */
+  pronta: boolean
+  onde: string | null
+}
+
+/** As peças do pedido — só quando a janela da entrega parcial abre (Lei §3). */
+export async function listarPecasDaEntrega(cardId: number): Promise<PecaDaEntrega[]> {
+  const { data, error } = await supabase.rpc('plt_fn_entrega_pecas', { p_card_id: cardId })
+  if (error) throw new Error(`Não deu para carregar as peças: ${error.message}`)
+  return (data ?? []) as PecaDaEntrega[]
+}
+
+/**
+ * SESSAO-41 (D-195): a ENTREGA PARCIAL — as peças entregues saem; as que
+ * voltaram vão para "Em decisão pós devolução" (a logística decide). O Tiny
+ * não muda. Motivo da lista e/ou observação (pelo menos um).
+ */
+export async function registrarEntregaParcial(parametros: {
+  cardId: number
+  entregues: number[]
+  motivoId: number | null
+  observacao?: string
+  confirmarIncompleto?: boolean
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_entrega_parcial', {
+    p_card_id: parametros.cardId,
+    p_entregues: parametros.entregues,
+    p_motivo_id: parametros.motivoId,
+    p_observacao: parametros.observacao?.trim() || null,
+    p_confirmar_incompleto: parametros.confirmarIncompleto ?? false,
+  })
+  if (error) throw new Error(error.message)
+}
+
 // ---------------------------------------------------------------------------
 // SESSAO-30 (D-113/D-114/D-116): o que acontece na entrega além do "Entregue"
 // ---------------------------------------------------------------------------
@@ -99,7 +140,7 @@ export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pa
  * da entrega fazem um registro por TipoMotivo — o stand-by não é da entrega).
  * SESSAO-39 (D-173): + os motivos do botão MOVER, pelo mesmo motivo.
  */
-export type TipoMotivoComStandby = TipoMotivo | 'standby' | 'mover'
+export type TipoMotivoComStandby = TipoMotivo | 'standby' | 'mover' | 'entrega_parcial'
 
 export interface Motivo {
   id: number
@@ -380,6 +421,12 @@ export interface PedidoProgramado extends Prontidao {
   latitude: number | null
   longitude: number | null
   geo_resolvido: boolean | null
+  /**
+   * SESSAO-41 (D-193): o endereço (de entrega, quando há) montado no banco e
+   * quando o ponto foi procurado — para achar o ponto que falta também aqui.
+   */
+  endereco_geocodificavel?: string | null
+  geo_consultado_em?: string | null
   total_unidades: number
   itens: ItemPedido[]
   data_prevista: string | null
@@ -552,7 +599,13 @@ export async function buscarRotaPelasRuas(
 const RETENTAR_APOS_MS = 7 * 24 * 60 * 60 * 1000
 
 /** Quem ainda precisa ir ao geocodificador. */
-export function precisaGeocodificar(p: PedidoProgramacao, agora = Date.now()): boolean {
+export function precisaGeocodificar(
+  p: Pick<PedidoProgramacao, 'geo_chave' | 'geo_resolvido'> & {
+    endereco_geocodificavel?: string | null
+    geo_consultado_em?: string | null
+  },
+  agora = Date.now(),
+): boolean {
   if (!p.geo_chave || !p.endereco_geocodificavel) return false
   if (p.geo_resolvido === true) return false
   if (p.geo_resolvido === null) return true
@@ -608,6 +661,8 @@ export interface EntregaDoDia {
   entregue_em: string | null
   entregue_por: string | null
   entregue_por_gente: boolean
+  /** SESSAO-41 (D-195): a entrega foi parcial (as que voltaram estão com a logística). */
+  entrega_parcial?: boolean
   comprovantes: number
   comentarios: ComentarioEntrega[]
   /** SESSAO-38 (D-156): o programado pode ainda estar em produção. */

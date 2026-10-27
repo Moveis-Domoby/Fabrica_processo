@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
-import { ArrowLeft, Fingerprint, KeyRound, LifeBuoy, LogIn, TabletSmartphone, UserRound } from 'lucide-react'
+import {
+  ArrowLeft,
+  Fingerprint,
+  KeyRound,
+  LifeBuoy,
+  LogIn,
+  TabletSmartphone,
+  UserRound,
+} from 'lucide-react'
 import { Botao, Campo } from '@/componentes/ui'
 import { Marca } from '@/componentes/Marca'
 import { entrar, entrarPin, tabletEntrar } from '@/autenticacao/api'
@@ -111,8 +119,8 @@ export function Entrar() {
               <>
                 <h1 className="text-xl">Modo tablet do setor</h1>
                 <p className="mt-1 text-sm text-texto-suave">
-                  Digite o PIN do SETOR para abrir o tablet dele — qualquer pessoa do setor usa
-                  este aparelho depois, se identificando pelo próprio PIN a cada ação.
+                  Digite o PIN do SETOR para abrir o tablet dele — qualquer pessoa do setor usa este
+                  aparelho depois, se identificando pelo próprio PIN a cada ação.
                 </p>
                 <div className="mt-5">
                   <TecladoPin
@@ -178,7 +186,13 @@ export function Entrar() {
                       erro={erro || undefined}
                     />
                   )}
-                  <Botao type="submit" tamanho="lg" larguraTotal carregando={enviando} icone={<LogIn />}>
+                  <Botao
+                    type="submit"
+                    tamanho="lg"
+                    larguraTotal
+                    carregando={enviando}
+                    icone={<LogIn />}
+                  >
                     Entrar
                   </Botao>
                 </form>
@@ -245,8 +259,8 @@ export function Entrar() {
             )}
             {modo === 'senha' && (
               <p className="text-center text-sm text-texto-fraco">
-                Primeiro acesso? Entre com a senha padrão que a liderança te passou — você vai
-                criar a sua própria senha em seguida.
+                Primeiro acesso? Entre com a senha padrão que a liderança te passou — você vai criar
+                a sua própria senha em seguida.
               </p>
             )}
           </div>

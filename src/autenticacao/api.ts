@@ -95,7 +95,9 @@ export interface DadosEdicaoUsuario {
   setores: { setor_id: number; lider: boolean }[]
 }
 
-export function editarUsuario(dados: DadosEdicaoUsuario): Promise<{ ok: boolean; campos: string[] }> {
+export function editarUsuario(
+  dados: DadosEdicaoUsuario,
+): Promise<{ ok: boolean; campos: string[] }> {
   return chamar<{ ok: boolean; campos: string[] }>('editar-usuario', { ...dados })
 }
 
@@ -225,9 +227,7 @@ export async function excluirUsuario(usuarioId: string): Promise<void> {
     const pasta = `perfis/${usuarioId}`
     const { data: arquivos } = await supabase.storage.from('plt-imagens').list(pasta)
     if (arquivos && arquivos.length > 0) {
-      await supabase.storage
-        .from('plt-imagens')
-        .remove(arquivos.map((a) => `${pasta}/${a.name}`))
+      await supabase.storage.from('plt-imagens').remove(arquivos.map((a) => `${pasta}/${a.name}`))
     }
   } catch {
     // sem foto, ou sem permissão de storage — a exclusão do cadastro segue

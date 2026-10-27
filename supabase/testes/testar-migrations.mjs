@@ -18378,6 +18378,10 @@ try {
   }
   const pecas = (await bd.query(`select id::int as id from public.plt_cards where pedido_id = ${P1} and tipo = 'unidade' order by id`)).rows.map((r) => r.id)
   const motivo = (await um41r(`select id::int as id from public.plt_motivos where tipo = 'entrega_parcial' and texto = 'Móvel chegou avariado'`)).id
+  const lista = (await logado41r(E40.logistica, `select public.plt_fn_entrega_pecas(${C1}) as l`))[0].l
+  conferir(Array.isArray(lista) && lista.length === 3 && lista.every((x) => x.pronta === true && x.descricao === 'Rack Teste 41'),
+    'a tela da entrega parcial recebe as 3 peças do pedido (todas prontas), só no clique', JSON.stringify(lista))
+  await recusa41r(OP41R, `select public.plt_fn_entrega_pecas(${C1})`, 'quem não é da entrega não vê as peças', /logística|entregador/)
   const filaTinyAntes = (await um41r(`select count(*)::int as n from public.plt_tiny_pedido_fila where pedido_id = ${P1}`)).n
   await recusa41r(OP41R, `select public.plt_fn_entrega_parcial(${C1}, array[${pecas[0]}]::bigint[], ${motivo}, null)`,
     'quem não é da logística nem da equipe do caminhão não registra entrega', /logística|entregador/)

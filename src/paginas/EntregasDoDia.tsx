@@ -6,6 +6,7 @@ import {
   ChevronUp,
   MessageCircle,
   MessageSquarePlus,
+  PackageCheck,
   Paperclip,
   RotateCcw,
   Truck,
@@ -25,6 +26,7 @@ import {
 } from '@/rotas/api'
 import type { EntregaDoDia, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { ModalEntregaParcial } from '@/rotas/ModalEntregaParcial'
 import { BotaoRotaGoogleMaps, BotoesParada } from '@/rotas/BotoesNavegacao'
 import { naOrdemDaRota } from '@/rotas/rotaRuas'
 import { SeloEstado } from '@/rotas/SeloEstado'
@@ -76,6 +78,8 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
     entrega: EntregaDoDia
   } | null>(null)
   const [comentando, setComentando] = useState<EntregaDoDia | null>(null)
+  // SESSAO-41 (D-195): a entrega parcial — o entregador marca o que foi entregue.
+  const [parcial, setParcial] = useState<EntregaDoDia | null>(null)
   const [anexando, setAnexando] = useState<EntregaDoDia | null>(null)
 
   const { data, isPending, isError, error } = useQuery({
@@ -228,6 +232,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
             key={entrega.card_id}
             entrega={entrega}
             aoNaoEntregue={() => setComMotivo({ tipo: 'nao_entregue', entrega })}
+            aoParcial={() => setParcial(entrega)}
             aoDesfazer={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
             aoComentar={() => setComentando(entrega)}
             aoAnexar={() => setAnexando(entrega)}
@@ -260,7 +265,13 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                       {e.entregue_por ? ` · ${e.entregue_por}` : ''}
                     </span>
                   </span>
-                  {e.entregue_por_gente && entregueHoje(e.entregue_em) && (
+                  {e.entrega_parcial && (
+                    <span className="shrink-0 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
+                      em parte
+                    </span>
+                  )}
+                  {/* SESSAO-41 (D-195): a parcial não se desfaz (as que voltaram já estão com a logística). */}
+                  {e.entregue_por_gente && !e.entrega_parcial && entregueHoje(e.entregue_em) && (
                     <Botao
                       variante="secundaria"
                       tamanho="sm"
@@ -283,6 +294,11 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         pedido={comMotivo?.entrega ?? null}
         aoFechar={() => setComMotivo(null)}
       />
+      <ModalEntregaParcial
+        key={parcial ? `parcial-${parcial.card_id}` : 'parcial-fechado'}
+        pedido={parcial}
+        aoFechar={() => setParcial(null)}
+      />
       <ModalComentario
         key={comentando ? `comentario-${comentando.card_id}` : 'comentario-fechado'}
         entrega={comentando}
@@ -301,12 +317,15 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
 function CartaoEntrega({
   entrega,
   aoNaoEntregue,
+  aoParcial,
   aoDesfazer,
   aoComentar,
   aoAnexar,
 }: {
   entrega: EntregaDoDia
   aoNaoEntregue: () => void
+  /** SESSAO-41 (D-195): marcar o que foi entregue (o resto volta para a fábrica). */
+  aoParcial: () => void
   aoDesfazer: () => void
   aoComentar: () => void
   aoAnexar: () => void
@@ -427,8 +446,8 @@ function CartaoEntrega({
 
       {entregue && (
         <p className="text-sm text-texto-suave">
-          Entregue por {entrega.entregue_por ?? 'Sistema (Tiny)'} às{' '}
-          {horaCurta(entrega.entregue_em)}
+          {entrega.entrega_parcial ? 'Entregue EM PARTE' : 'Entregue'} por{' '}
+          {entrega.entregue_por ?? 'Sistema (Tiny)'} às {horaCurta(entrega.entregue_em)}
           {entrega.comprovantes > 0 &&
             ` · ${entrega.comprovantes} comprovante${entrega.comprovantes === 1 ? '' : 's'}`}
         </p>
@@ -470,9 +489,19 @@ function CartaoEntrega({
           <Botao tamanho="lg" variante="secundaria" icone={<RotateCcw />} onClick={aoNaoEntregue}>
             Não entregue
           </Botao>
+          <Botao
+            tamanho="lg"
+            variante="secundaria"
+            icone={<PackageCheck />}
+            className="sm:col-span-2"
+            onClick={aoParcial}
+          >
+            Entrega parcial
+          </Botao>
         </div>
       ) : (
         entrega.entregue_por_gente &&
+        !entrega.entrega_parcial &&
         entregueHoje(entrega.entregue_em) && (
           <Botao variante="fantasma" icone={<Undo2 />} className="self-start" onClick={aoDesfazer}>
             Desfazer a entrega

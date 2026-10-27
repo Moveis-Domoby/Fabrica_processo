@@ -119,7 +119,10 @@ export function AlertaTrocaSenha({ usuarioId }: { usuarioId: string }) {
                         {hora(p.pedido_em)}
                       </p>
                     </div>
-                    <ShieldAlert aria-hidden className="ml-auto size-5 shrink-0 text-atencao-texto" />
+                    <ShieldAlert
+                      aria-hidden
+                      className="ml-auto size-5 shrink-0 text-atencao-texto"
+                    />
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Botao

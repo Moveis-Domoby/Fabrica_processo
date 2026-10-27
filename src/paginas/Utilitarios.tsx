@@ -758,6 +758,13 @@ const MOTIVOS_ENTREGA: ListaDeMotivos[] = [
     titulo: 'Pedido devolvido',
     explica: 'A logística escolhe um destes ao marcar o pedido como devolvido.',
   },
+  {
+    // SESSAO-41 (D-195): a entrega parcial — o entregador ou a logística.
+    tipo: 'entrega_parcial',
+    titulo: 'Entrega parcial',
+    explica:
+      'Escolhido ao marcar uma entrega parcial (parte dos móveis voltou para a fábrica). Também dá para escrever uma observação no lugar.',
+  },
 ]
 
 // SESSAO-31 (§4): pausar um card em execução — e parar na etapa que pede o motivo.

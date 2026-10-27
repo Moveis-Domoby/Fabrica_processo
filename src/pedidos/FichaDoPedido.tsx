@@ -26,6 +26,7 @@ import { entregueHoje, linkDoAnexo, linkWhatsApp } from '@/rotas/api'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalDecidirDevolucao } from '@/logistica/componentes/ModalDecidirDevolucao'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
+import { DataDeEntrega } from './DataDeEntrega'
 import { DadosDoTinyPainel } from './DadosDoTiny'
 import { ProducaoDoPedidoPainel } from './ProducaoDoPedido'
 import { data, diaEHora, moeda, valorDoTiny } from './formato'
@@ -262,7 +263,11 @@ function Resumo({ d }: { d: DetalhePedido }) {
             <>
               {/* Cancelado depois de entregue (devolvido): o fato fica, sem o verde de "deu certo". */}
               <p className={cn('font-medium', cancelado ? 'text-texto' : 'text-perfeito-texto')}>
-                {cancelado ? 'Foi entregue, depois cancelado' : 'Entregue'}
+                {cancelado
+                  ? 'Foi entregue, depois cancelado'
+                  : d.entrega.parcial
+                    ? `Entregue em parte (${d.entrega.pecas_entregues} de ${(d.entrega.pecas_entregues ?? 0) + (d.entrega.pecas_voltaram ?? 0)})`
+                    : 'Entregue'}
               </p>
               <p className="text-sm text-texto">{diaEHora(d.entrega.em)}</p>
               <p className="text-sm text-texto-suave">
@@ -293,7 +298,10 @@ function Resumo({ d }: { d: DetalhePedido }) {
           ) : (
             <>
               <p className="font-medium text-texto">Ainda não programado</p>
-              <p className="text-sm text-texto-suave">Previsão {data(p.data_prevista)}</p>
+              <p className="text-sm text-texto-suave">
+                {p.data_prevista ? `Previsão ${data(p.data_prevista)}` : 'Sem data de entrega'}
+                {p.data_alterada ? ' (mudada na plataforma)' : ''}
+              </p>
             </>
           )}
         </Bloco>
@@ -468,13 +476,25 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
       }),
   })
   const { pedido: p, cliente: c } = d
-  const endereco = [
-    [c.endereco, c.numero].filter(Boolean).join(', '),
-    c.bairro,
-    [c.cidade, c.uf].filter(Boolean).join('-'),
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  // SESSAO-41 (D-193): onde entregar — o endereço de entrega do Tiny, quando há.
+  const onde = d.endereco_entrega ?? { ...c, de_entrega: false }
+  const juntar = (e: {
+    endereco: string | null
+    numero: string | null
+    bairro: string | null
+    cidade: string | null
+    uf: string | null
+  }) =>
+    [
+      [e.endereco, e.numero].filter(Boolean).join(', '),
+      e.bairro,
+      [e.cidade, e.uf].filter(Boolean).join('-'),
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  const endereco = juntar(onde)
+  const enderecoCadastro = onde.de_entrega ? juntar(c) : ''
+
   const podeDesfazer =
     d.entrega?.por_gente && entregueHoje(d.entrega.em) && d.plataforma.card_id !== null
 
@@ -482,16 +502,23 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
     <Painel titulo="Entrega e comprovante">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-medium text-texto-suave">Para onde</p>
+          <p className="text-xs font-medium text-texto-suave">
+            Para onde{onde.de_entrega ? ' — endereço de entrega do pedido' : ''}
+          </p>
           {endereco ? (
             <p className="text-sm text-texto">{endereco}</p>
           ) : (
             <p className="text-sm text-texto-suave">Sem endereço no cadastro do Tiny.</p>
           )}
-          {c.complemento && (
-            <p className="text-sm text-texto-suave">Complemento: {c.complemento}</p>
+          {onde.complemento && (
+            <p className="text-sm text-texto-suave">Complemento: {onde.complemento}</p>
           )}
-          <Linha rotulo="CEP" valor={c.cep} />
+          <Linha rotulo="CEP" valor={onde.cep} />
+          {enderecoCadastro && (
+            <p className="text-xs text-texto-suave">Cadastro do cliente: {enderecoCadastro}</p>
+          )}
+          {/* SESSAO-41 (D-194): a data de entrega — mudar ou remover SÓ na plataforma. */}
+          {p.id && <DataDeEntrega pedido={p} aoMudar={aoMudar} />}
           <Linha rotulo="E-mail" valor={c.email} />
           <Linha rotulo="CPF/CNPJ" valor={c.documento} />
           <Linha
@@ -545,7 +572,12 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
           {d.entrega && (
             <div className="flex flex-col gap-1 rounded-dm border border-perfeito-borda bg-perfeito-fundo p-2 text-sm text-perfeito-texto">
               <p>
-                <span className="font-medium">Entregue</span> em {diaEHora(d.entrega.em)}
+                <span className="font-medium">
+                  {d.entrega.parcial
+                    ? `Entregue em parte — ${d.entrega.pecas_entregues} entregue(s), ${d.entrega.pecas_voltaram} voltaram`
+                    : 'Entregue'}
+                </span>{' '}
+                em {diaEHora(d.entrega.em)}
                 {d.entrega.por
                   ? ` por ${d.entrega.por}`
                   : d.entrega.fonte === 'tiny'
