@@ -16175,6 +16175,8 @@ try {
   // motivo e os VALIDA (o validate saiu das do stand-by e do Mover) — e recria as
   // portas das rotas com o endereço de entrega e a data que vale
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027040000_plt_rotas_endereco_data_parcial.sql'), 'utf8'))
+  // ↪️ SESSAO-41 (D-196): a das paradas recria as entregas do dia (com as paradas) — depois da das rotas
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261027050000_plt_paradas_avulsas.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -18443,6 +18445,150 @@ try {
   await como41r('')
 }
 } // fim do bloco SESSAO-41 · F4/F6
+
+// ============================================================================
+// SESSAO-41 · F5 (migration 20261027050000 — D-196): a PARADA AVULSA da rota —
+// a logística põe e ordena em qualquer rota; o entregador põe na rota de hoje
+// em que está e só muda o lugar da parada DELE; Feita / Não feita; a ordem
+// dividida com os pedidos; aparece nas entregas do dia.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-41 · F5 · a parada avulsa: a logística põe; vai para o fim ou para o lugar escolhido')
+
+const um41p = async (sql) => (await bd.query(sql)).rows[0]
+const como41p = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado41p = async (auth, sql) => {
+  await como41p(auth)
+  await bd.exec('savepoint l41p')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l41p')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l41p')
+    await bd.exec('reset role')
+    throw new Error(`logado41p: ${erro.message}`)
+  }
+}
+const recusa41p = async (auth, sql, descricao, padrao) => {
+  await como41p(auth)
+  await bd.exec('savepoint s41p')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s41p')
+    await bd.exec('reset role')
+  }
+}
+const ENT41 = '00000000-0000-0000-0000-000000004131'
+await como41p('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
+      values ('Entregador 41', 'ent41@teste.com', '41700000001', 'ent.41', 'operador', '${ENT41}', array['entregas']);
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 41', 'TST4141');
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+      (941101, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94110100, current_date),
+      (941102, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94110200, current_date),
+      (941103, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', 94110300, current_date);
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      select p.id, 1, 'S41P', 'Mesa Teste 41', 1 from public.pedidos p where p.numero in (941101, 941102, 941103);
+  `)
+  const CAM = (await um41p(`select id::int as id from public.plt_caminhoes where placa = 'TST4141'`)).id
+  const HOJE = (await um41p(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+  const card = async (n) => (await um41p(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                           where c.tipo = 'pedido' and p.numero = ${n}`)).id
+  const [K1, K2, K3] = [await card(941101), await card(941102), await card(941103)]
+  await logado41p(E40.logistica, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K2}]::bigint[], array[${K1}, ${K2}]::bigint[], 1)`)
+  const ENTID = (await um41p(`select id from public.plt_usuarios where usuario = 'ent.41'`)).id
+  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id)
+                 values ('${HOJE}', ${CAM}, 1, '${ENTID}')`)
+  const ordem = async () => (await bd.query(`
+      select k from (
+        select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr where pr.data_entrega = '${HOJE}' and pr.caminhao_id = ${CAM} and pr.rota = 1
+        union all
+        select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa where pa.data_entrega = '${HOJE}' and pa.caminhao_id = ${CAM} and pa.rota = 1 and pa.removida_em is null
+      ) x order by o, k`)).rows.map((r) => r.k)
+  const salvar = (auth, extra = '') => logado41p(auth, `select public.plt_fn_parada_avulsa_salvar(null, '${HOJE}', ${CAM}, 1,
+      'Buscar ferragem na loja', 'Av. Prudente de Morais, 1000, Natal', -5.8, -35.2, 'pegar 2 caixas'${extra}) as r`)
+  const a1 = (await salvar(E40.logistica))[0].r.id
+  conferir(JSON.stringify(await ordem()) === JSON.stringify([`p${K1}`, `p${K2}`, `a${a1}`]),
+    'a parada da logística sem lugar escolhido vai para o fim da rota', JSON.stringify(await ordem()))
+  const a2 = (await salvar(E40.logistica, `, '[{"t":"nova"},{"t":"p","id":${K1}},{"t":"p","id":${K2}},{"t":"a","id":${a1}}]'::jsonb`))[0].r.id
+  conferir(JSON.stringify(await ordem()) === JSON.stringify([`a${a2}`, `p${K1}`, `p${K2}`, `a${a1}`]),
+    'com o lugar escolhido, a parada entra ali e a ordem é dividida com os pedidos', JSON.stringify(await ordem()))
+  const chave = '00000000-0000-0000-0000-00000000a141'
+  const r1 = (await salvar(E40.logistica, `, null, '${chave}'`))[0].r
+  const r2 = (await salvar(E40.logistica, `, null, '${chave}'`))[0].r
+  conferir(r1.id === r2.id && r2.repetido === true, 'o mesmo toque repetido (a rede que volta) não põe parada dobrada')
+  await logado41p(E40.logistica, `select public.plt_fn_parada_avulsa_remover(${r1.id})`)
+
+  titulo('SESSAO-41 · F5 · o entregador: põe na rota de hoje dele e só muda o lugar da parada DELE')
+
+  await recusa41p(ENT41, `select public.plt_fn_parada_avulsa_salvar(null, '${HOJE}'::date + 1, ${CAM}, 1, 'Outra', 'Rua X, 1', null, null, null)`,
+    'na rota de outro dia (ou de que não é da equipe): recusado', /equipe dessa rota|rota de hoje/)
+  const a3 = (await salvar(ENT41))[0].r.id
+  const atual = await ordem()
+  const outra = [...atual].reverse()
+  await recusa41p(ENT41, `select public.plt_fn_rota_ordenar('${HOJE}', ${CAM}, 1, '${JSON.stringify(outra.map((k) => ({ t: k[0], id: Number(k.slice(1)) })))}'::jsonb)`,
+    'mexer na ordem dos pedidos: recusado (é da logística)', /só muda o lugar da parada/)
+  const minha = [atual[0], `a${a3}`, ...atual.slice(1).filter((k) => k !== `a${a3}`)]
+  await logado41p(ENT41, `select public.plt_fn_rota_ordenar('${HOJE}', ${CAM}, 1, '${JSON.stringify(minha.map((k) => ({ t: k[0], id: Number(k.slice(1)) })))}'::jsonb)`)
+  conferir(JSON.stringify(await ordem()) === JSON.stringify(minha),
+    'arrastar a parada que ele pôs para o momento exato: aceito, o resto da ordem não muda', JSON.stringify(await ordem()))
+  await recusa41p(ENT41, `select public.plt_fn_rota_ordenar('${HOJE}', ${CAM}, 1, '${JSON.stringify(minha.slice(1).map((k) => ({ t: k[0], id: Number(k.slice(1)) })))}'::jsonb)`,
+    'ordem com item faltando (a rota mudou noutra tela): recusado', /rota mudou/)
+
+  titulo('SESSAO-41 · F5 · Feita / Não feita; tirar da rota; aparece nas entregas do dia do entregador')
+
+  await logado41p(ENT41, `select public.plt_fn_parada_avulsa_concluir(${a3}, true)`)
+  await logado41p(ENT41, `select public.plt_fn_parada_avulsa_concluir(${a1}, false, 'loja fechada')`)
+  const sit = await um41p(`select (select situacao from public.plt_paradas_avulsas where id = ${a3}) as a3,
+      (select situacao || ':' || nao_feita_motivo from public.plt_paradas_avulsas where id = ${a1}) as a1`)
+  conferir(sit.a3 === 'feita' && sit.a1 === 'nao_feita:loja fechada', 'a equipe marca Feita e Não feita (com o porquê)', JSON.stringify(sit))
+  await recusa41p(ENT41, `select public.plt_fn_parada_avulsa_remover(${a3})`,
+    'o entregador não tira da rota a parada já feita', /Só a logística/)
+  await recusa41p(ENT41, `select public.plt_fn_parada_avulsa_remover(${a2})`,
+    'nem a parada que outra pessoa pôs', /Só a logística/)
+  const dia = (await logado41p(ENT41, `select public.plt_fn_entregas_do_dia('${HOJE}', ${CAM}, 1) as d`))[0].d
+  const minhaNaTela = dia.paradas_avulsas?.find((p) => p.id === a3)
+  conferir(Array.isArray(dia.paradas_avulsas) && dia.paradas_avulsas.length === 3 && minhaNaTela?.sou_autor === true
+      && minhaNaTela?.situacao === 'feita' && dia.entregas.length === 2,
+    'as entregas do dia trazem as paradas da rota, na ordem, dizendo quais o entregador pôs (numa requisição só)',
+    JSON.stringify(dia.paradas_avulsas?.map((p) => [p.id, p.ordem, p.situacao, p.sou_autor])))
+  const periodo = (await logado41p(E40.logistica, `select public.plt_fn_paradas_avulsas('${HOJE}', '${HOJE}') as l`))[0].l
+  conferir(periodo.length === 3, '"Já programadas" lê as paradas do período (a logística)', JSON.stringify(periodo.length))
+  await recusa41p(ENT41, `select public.plt_fn_paradas_avulsas('${HOJE}', '${HOJE}')`, 'o entregador não lê as paradas de todas as rotas', /logística/)
+
+  titulo('SESSAO-41 · F5 · Programar com parada: os pedidos, as paradas novas e a ordem da tela, numa transação')
+
+  const res = (await logado41p(E40.logistica, `select public.plt_fn_programar_rota_paradas('${HOJE}', ${CAM}, 2,
+      array[${K3}]::bigint[], '[{"k":"x1","titulo":"Levar peça ao terceiro","endereco":"Rua Y, 20, Parnamirim","latitude":-5.9,"longitude":-35.2}]'::jsonb,
+      '[{"t":"n","k":"x1"},{"t":"p","id":${K3}}]'::jsonb) as r`))[0].r
+  const nova = Number(res.paradas.x1)
+  const rota2 = (await bd.query(`select k from (
+      select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr where pr.data_entrega = '${HOJE}' and pr.caminhao_id = ${CAM} and pr.rota = 2
+      union all select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa where pa.data_entrega = '${HOJE}' and pa.caminhao_id = ${CAM} and pa.rota = 2
+    ) x order by o`)).rows.map((r) => r.k)
+  conferir(nova > 0 && JSON.stringify(rota2) === JSON.stringify([`a${nova}`, `p${K3}`]),
+    'a rota 2 nasce com a parada primeiro e o pedido depois, como a tela mostrou', JSON.stringify(rota2))
+  const priv = await um41p(`
+    select has_function_privilege('anon', 'public.plt_fn_rota_ordenar(date, bigint, integer, jsonb)', 'execute') as anon_ordena,
+           has_function_privilege('authenticated', 'public.plt_fn_rota_ordenar(date, bigint, integer, jsonb)', 'execute') as ordena,
+           has_function_privilege('authenticated', 'plt_privado.fn_rota_aplicar_ordem(date, bigint, integer, jsonb)', 'execute') as maquina`)
+  conferir(!priv.anon_ordena && priv.ordena && !priv.maquina, 'as portas para quem está logado (o banco confere quem); a maquinaria fora da API', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como41p('')
+}
+} // fim do bloco SESSAO-41 · F5
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
