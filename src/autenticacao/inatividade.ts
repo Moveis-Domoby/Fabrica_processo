@@ -1,15 +1,17 @@
 /**
  * TEMPO PARADO (SESSAO-32 · D-137, resposta do dono: "pode ser"): quem fica
- * parado mais de 12 h num tablet do galpão (um turno) ou 8 h no escritório
- * entra de novo. No plano gratuito da Supabase o ajuste nativo não existe — a
- * plataforma faz por conta própria, SEM relógio (Lei §4): o último gesto fica
- * guardado no aparelho e a conta é feita no próximo gesto, ao voltar à aba e ao
- * abrir a plataforma.
+ * parado mais de 8 h no escritório entra de novo. No plano gratuito da Supabase
+ * o ajuste nativo não existe — a plataforma faz por conta própria, SEM relógio
+ * (Lei §4): o último gesto fica guardado no aparelho e a conta é feita no
+ * próximo gesto, ao voltar à aba e ao abrir a plataforma.
  *
- * "Tablet" é o aparelho cujo último gesto foi no modo tablet (/tablet).
+ * ↩️ SESSAO-41 (D-189, o dono: "o próprio tablet não deve deslogar nunca da
+ * conta do setor"): o TABLET não sai mais por tempo parado — quem sai do setor
+ * por tempo são as PESSOAS (15 min sem card = ausente; 1 h = fora do setor,
+ * regra do banco). "Tablet" é o aparelho cujo último gesto foi no modo tablet
+ * (/tablet) — ou a conta de tablet de um setor, que nunca sai por tempo.
  */
 const CHAVE = 'domoby:ultima-atividade'
-export const LIMITE_TABLET_MS = 12 * 3_600_000
 export const LIMITE_ESCRITORIO_MS = 8 * 3_600_000
 /** Gesto frequente não vira gravação frequente: no máximo uma por minuto. */
 const INTERVALO_GRAVACAO_MS = 60_000
@@ -30,11 +32,15 @@ function ler(): Registro | null {
   }
 }
 
-/** Passou do tempo parado? Sem registro (aparelho novo, armazenamento bloqueado): não. */
+/**
+ * Passou do tempo parado? Sem registro (aparelho novo, armazenamento bloqueado):
+ * não. No modo tablet: nunca (SESSAO-41).
+ */
 export function passouDoTempo(agora = Date.now()): { passou: boolean; limiteH: number } {
   const r = ler()
-  const limite = r?.tablet ? LIMITE_TABLET_MS : LIMITE_ESCRITORIO_MS
-  return { passou: r !== null && agora - r.em > limite, limiteH: limite / 3_600_000 }
+  const limiteH = LIMITE_ESCRITORIO_MS / 3_600_000
+  if (r === null || r.tablet) return { passou: false, limiteH }
+  return { passou: agora - r.em > LIMITE_ESCRITORIO_MS, limiteH }
 }
 
 /** Guarda o gesto de agora (no máximo uma gravação por minuto, salvo troca de modo). */

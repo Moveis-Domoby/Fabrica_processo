@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, House, Layers, LogOut, UsersRound } from 'lucide-react'
@@ -26,6 +26,8 @@ import { ModalPinOperador } from '@/tablet/ModalPinOperador'
 import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { ModalImagensProduto } from '@/tablet/ModalImagensProduto'
 import { PainelPessoasSetor } from '@/tablet/PainelPessoasSetor'
+import { presencaDeAgora } from '@/tablet/presenca'
+import type { PresencaDoSetor } from '@/kanban/quadro'
 import { TecladoPin } from '@/tablet/TecladoPin'
 import { cardAuxiliar, setorAuxiliarTodos } from '@/tablet/api'
 import { tabletEntrar } from '@/autenticacao/api'
@@ -143,9 +145,18 @@ export function TelaSetor() {
     nomesUsuarios,
     pessoas,
     camposPorCard,
-    presencas,
+    presencas: presencasLidas,
     auxiliosPorCard,
   } = quadro
+  // SESSAO-41 (D-189): quem está no setor AGORA — a carência de 15 min e a
+  // saída de 1 h andam com o relógio da tela (nada é buscado de novo).
+  const presencas = useMemo(
+    () =>
+      presencasLidas
+        .map((p) => presencaDeAgora(p, agora))
+        .filter((p): p is PresencaDoSetor => p !== null),
+    [presencasLidas, agora],
+  )
   const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
   // SESSAO-37 (D-147): cards com ajuda ATIVA agora — o dono pausado não os derruba.
   const cardsComAjudaAtiva = new Set(

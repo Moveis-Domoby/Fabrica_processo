@@ -216,6 +216,36 @@ function senhaAleatoria(): string {
   return paraB64(crypto.getRandomValues(new Uint8Array(32)))
 }
 
+// SESSAO-41 (D-189): a senha da CONTA DE TABLET de um setor é DERIVADA aqui —
+// HMAC da chave de serviço (que só esta função tem) com o id da conta. Não fica
+// guardada em lugar nenhum, não muda a cada entrada e ninguém a conhece. Antes,
+// cada entrada trocava a senha — e o servidor de login derruba as sessões
+// abertas quando a senha muda: entrar num tablet tirava os outros do mesmo
+// setor ("a sessão do tablet está sempre expirando").
+async function senhaDoTablet(authUserId: string): Promise<string> {
+  const chave = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(CHAVE_SERVICO),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const assinatura = await crypto.subtle.sign(
+    'HMAC',
+    chave,
+    new TextEncoder().encode(`tablet-sessao-v1:${authUserId}`),
+  )
+  return paraB64(new Uint8Array(assinatura))
+}
+
+async function entrarComSenha(email: string, senha: string): Promise<Response> {
+  return await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: CHAVE_ANON },
+    body: JSON.stringify({ email, password: senha }),
+  })
+}
+
 // ----------------------------------------------------------------------------
 // Quem está chamando? Traduz o JWT do Authorization para a pessoa da
 // plataforma. Devolve null para token inválido, conta sem vínculo ou inativa —
@@ -1020,15 +1050,17 @@ async function tabletEntrar(req: Request, corpo: Json): Promise<Response> {
   }
   if (!conta.ativo) return erro(403, 'A conta do tablet deste setor está desativada. Fale com a liderança.')
 
-  // a sessão: uma senha nova a cada entrada (as sessões já abertas não caem)
-  const senha = senhaAleatoria()
-  const trocada = await servidor.auth.admin.updateUserById(conta.auth_user_id, { password: senha })
-  if (trocada.error) return erro(500, 'Não consegui abrir a sessão do tablet. Tente de novo.')
-  const tentativa = await fetch(`${URL_SUPABASE}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: CHAVE_ANON },
-    body: JSON.stringify({ email: emailTablet, password: senha }),
-  })
+  // a sessão (SESSAO-41 · D-189): a senha DERIVADA da conta — a mesma em toda
+  // entrada, então cada aparelho ganha a sua sessão e nenhum derruba o outro.
+  // Só na 1ª entrada depois desta mudança (ou se a chave de serviço mudar) a
+  // senha é gravada — e só ali as sessões antigas daquela conta caem, uma vez.
+  const senha = await senhaDoTablet(conta.auth_user_id)
+  let tentativa = await entrarComSenha(emailTablet, senha)
+  if (!tentativa.ok) {
+    const gravada = await servidor.auth.admin.updateUserById(conta.auth_user_id, { password: senha })
+    if (gravada.error) return erro(500, 'Não consegui abrir a sessão do tablet. Tente de novo.')
+    tentativa = await entrarComSenha(emailTablet, senha)
+  }
   if (!tentativa.ok) return erro(500, 'Não consegui abrir a sessão do tablet. Tente de novo.')
   const sessao = await tentativa.json()
 

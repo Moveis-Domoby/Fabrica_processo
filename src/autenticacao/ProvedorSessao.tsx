@@ -124,15 +124,20 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
     } catch {
       // registrar nunca impede a pessoa de sair
     }
-    await supabase.auth.signOut()
+    // SESSAO-41 (D-189): sair encerra SÓ este aparelho. O padrão da biblioteca
+    // ("global") derrubava a conta em todos — o "Sair" de um tablet do setor
+    // tirava os outros tablets do mesmo setor.
+    await supabase.auth.signOut({ scope: 'local' })
   }, [])
   const sair = useCallback(() => encerrar({}), [encerrar])
 
-  // Tempo parado (SESSAO-32 · D-137): 12 h no modo tablet, 8 h no escritório —
-  // passou, entra de novo. Sem relógio: a conta é feita ao abrir, a cada gesto
-  // (toque, tecla) e ao voltar à aba; o gesto guarda o "agora" no aparelho.
+  // Tempo parado (SESSAO-32 · D-137): 8 h no escritório — passou, entra de
+  // novo. Sem relógio: a conta é feita ao abrir, a cada gesto (toque, tecla) e
+  // ao voltar à aba; o gesto guarda o "agora" no aparelho. ↩️ SESSAO-41 (D-189):
+  // a conta de tablet de um setor nunca sai por tempo.
+  const contaTablet = consultaPerfil.data?.perfil?.conta_tablet === true
   useEffect(() => {
-    if (!idAuth) return
+    if (!idAuth || contaTablet) return
     let saindo = false
     const conferir = () => {
       if (saindo) return true
@@ -158,7 +163,7 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
       window.removeEventListener('keydown', aoGesto, { capture: true })
       document.removeEventListener('visibilitychange', aoVoltar)
     }
-  }, [idAuth, encerrar])
+  }, [idAuth, contaTablet, encerrar])
 
   const valor = useMemo(() => {
     const perfil = consultaPerfil.data?.perfil ?? null

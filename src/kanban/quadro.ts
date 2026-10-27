@@ -36,6 +36,11 @@ export interface PresencaDoSetor {
   foto: string | null
   estado: 'trabalhando' | 'ausente' | 'deriva'
   desde: string
+  /**
+   * SESSAO-41 (D-189): o trecho é "sem card nenhum" — os 15 primeiros minutos
+   * aparecem como trabalhando; com 1 h a pessoa sai do setor (`presencaDeAgora`).
+   */
+  carencia?: boolean
 }
 
 /** O que vem junto com uma página de cards. */
