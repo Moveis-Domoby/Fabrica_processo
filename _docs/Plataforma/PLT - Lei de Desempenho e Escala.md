@@ -289,6 +289,16 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 
 | 27 | **O quadro do setor SEM filtro no ×100: ~140–190 ms** (7.700 vivos num setor, 7 etapas — hoje, 63 vivos: 11 ms). A ordem da fila (D-154) calcula as chaves (prioridade herdada do pedido/reposição, entrega, nome) de TODOS os cards de cada coluna pela `vw_card_ordem` antes de cortar a página. Medida pela SESSAO-40, que não muda a ordem. **Caminho:** as chaves de ordem guardadas no card (projeção mantida nos gestos de prioridade e pelo aviso do pedido) e um índice por (setor, etapa, chaves) — a página vira um corte de índice | quadro do setor e tablet | a próxima que tocar a ordem da fila |
 
+
+**Andamento (SESSAO-41 · tablet, quadro, senha, entrega parcial, parada avulsa, endereço e data de entrega, 27/10 — D-189…D-196):**
+
+- **Ensaio ×100** (`Execucao/dados/SESSAO-41 - ensaio x100 das rotas, da data e da presenca`; 562.700 pedidos, 95 mil cards, ~23 mil pedidos vivos candidatos à rota; ANTES = migrations até a 40, DEPOIS = as 5 da 41, no mesmo banco): quadro do setor 171 → 165 ms (dívida 27, igual); pela entrega 149 → 175 ms; PCP 187 → 155 ms; Já programadas 78 → 84 ms; Pedidos 117 → 114 ms; entregas do dia 16 → 17 ms; paradas do período 8 ms; ficha do pedido 10 ms; Programação 5,4 s → 5,4 s e Expedição 4,2 s → 4,0 s (dívidas 24/25, iguais). **Calendário 206 ms → ~900 ms** (dívida 29, abaixo) — a 1ª versão era 1,5 s; os pré-filtros pela data do Tiny ∪ pedidos com data da plataforma desceram o aviso "fora do calendário" (725 → ~180 ms).
+- **Banco real:** a medir na subida (como `authenticated`), com o OK do dono.
+- **Requisições:** nada novo na abertura; a entrega parcial pede as peças só no clique; o aviso urgente do admin lê o MESMO cache do sino (a lista dos pedidos só com o aviso aberto); a troca de senha = 1 requisição por toque; a régua das pessoas no tablet anda com o relógio de tela (sem buscar de novo); nenhum relógio de dados, nenhum `postgres_changes`.
+
+| 28 | **"Já programadas" lê as paradas avulsas numa 2ª requisição** (`plt_fn_paradas_avulsas`, 8 ms ×100) — a porta das programadas é uma tabela paginada por deslocamento e a parada não é pedido. **Caminho:** a porta das programadas por cursor devolvendo pedidos e paradas como itens de um tipo só (ou um jsonb por rota) | Rotas → Já programadas | a próxima que tocar a Programação |
+| 29 | **O calendário ×100: 206 → ~900 ms** (SESSAO-41). A data de entrega que vale (D-194) é uma expressão sobre a junção com `plt_pedido_datas` na visão do vivo — o filtro por data não desce mais até `pedidos`, e a regra do vivo (`fn_situacao_normalizada`, `fn_tiny_tirou_do_pcp`, a peça viva) roda para TODOS os vivos antes do filtro. Hoje (36 vivos): poucos ms. **Caminho (Lei §7.1):** a data que vale como PROJEÇÃO na linha do card do pedido (mantida no gesto da porta de data e no aviso `pedido_atualizado` do Tiny) + índice parcial (vivo, data) — o calendário, a Expedição e a Programação filtram e ordenam por índice; resolve junto as dívidas 24/25 | calendário (e Expedição/Programação) | a próxima que tocar a Programação ou a Expedição |
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes

@@ -2,7 +2,7 @@
 titulo: Plataforma — Decisões de Produto
 tipo: decisoes
 data: 2026-08-19
-atualizado: 2026-10-22
+atualizado: 2026-10-27
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -1834,6 +1834,71 @@ O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias)
 - **⏳ PROVISÓRIA — a ordem:** pelo **número**, o pedido mais novo primeiro (entregue ou não) e, dentro do pedido, o card do pedido e as peças na ordem dos itens; pelo **nome**, o vivo primeiro e o card mais novo primeiro. 20 por vez com "Ver mais" (cursor). Uma requisição por busca; o resultado é esquecido ao fechar. **Mínimo:** 2 números ou 3 letras (o índice do nome precisa de 3 — no ensaio ×100, 2 letras levavam 1,9 s).
 
 **Descartadas:** buscar também dentro da conversa e dos anexos do card (o vídeo busca o nome do cartão); a busca dentro de cada tela só (o dono pediu "em todos os quadros").
+
+## D-189 · O TABLET NÃO CAI: cada aparelho com a sua sessão; quem sai do setor por tempo são as PESSOAS (15 min sem card = ausente; 1 h = fora); qualquer gesto com o PIN põe a pessoa no setor do tablet (27/10/2026, pedido do dono — SESSAO-41) — ↩️ revisa a D-137 (12 h no tablet), a D-146 itens 1, 7 e 8
+
+**Pedido do dono:** *"A sessão no modo tablet nos setores estão sempre 'expirando'… remova a expiração por inatividade, coloque para uma hora, antes disso, ele apenas fica ausente se não estiver com nenhum card em nenhum setor sendo executado em um intervalo de 15 minutos"* · resposta 10: *"o próprio tablet não deve deslogar nunca da conta do setor, ele deve apenas deslogar as pessoas que estão dentro do setor naquele momento depois do tempo informado… ela não deve ter que logar novamente para movimentar os cards, elas apenas movimentam e colocam o pin dela, assim que o pin for digitado, o sistema já deve reconhecer quem é a pessoa, movimentar o card e logar ela no setor"*.
+
+**A causa achada (registro do servidor, 26/10):** não era tempo parado — a entrada pelo PIN do setor trocava a senha da conta do tablet a cada entrada, e o servidor de login derruba as sessões abertas quando a senha muda: um aparelho entrando derrubava os outros do mesmo setor (MONTAGEM: 18 entradas no dia, de minutos em minutos); e o "Sair" do site encerrava a conta em todos os aparelhos.
+
+- **A sessão do aparelho:** a senha da conta de tablet passa a ser DERIVADA no servidor (HMAC da chave de serviço com o id da conta — ninguém a vê, não fica guardada, não muda); cada aparelho ganha a sua sessão e nenhum derruba o outro. "Sair" encerra só aquele aparelho (no PC também). **O tablet nunca sai por tempo** (o escritório segue com 8 h — D-137).
+- **A pessoa:** sem card em execução em nenhum setor, os **15 primeiros minutos contam como trabalhando** (a carência entre um card e outro); depois, **ausente**; com **1 h**, **sai do setor sozinha** — o fato `saida_automatica` (sem motivo de lista; não entra no painel de motivos de saída) e o tempo depois dela não conta (nem como "fora de setor"). Derivado na leitura e gravado no próximo fato da pessoa — sem relógio (Lei §4).
+- **O gesto com PIN no tablet** (mover, iniciar, pausar, auxiliar… qualquer um) põe a pessoa no setor DO TABLET. No computador vale a regra de antes (só iniciar/retomar/auxiliar dá entrada — o líder que organiza outro quadro não "entra" nele).
+- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a pausa DA PESSOA (gesto com motivo) não tem carência — ausente na hora, como antes; a saída de 1 h vale para as duas; (b) a carência conta como "trabalhando" na dashboard de tempos (é o intervalo entre um card e outro); (c) depois da saída automática o tempo não conta nem como ausente nem como fora de setor.
+
+## D-190 · O QUADRO COM ROLAGEM SÓ DENTRO DA COLUNA, como no Trello (27/10/2026, pedido do dono com vídeo — SESSAO-41)
+
+**Pedido do dono:** *"Lista do kanban estática com rolagem apenas dentro da própria lista, não no quadro todo"* — no vídeo: *"aqui no Trello a lista fica estática, e a rolagem é só na lista; então eu não consigo visualizar para qual lista eu vou mover… aqui a rolagem é na tela completa"*.
+
+- O quadro do setor (computador e tablet) tem a altura da tela, do ponto onde começa até o pé da janela; **cada coluna rola por dentro**, o cabeçalho das colunas fica sempre à vista (também durante o arrasto); "Ver mais" no fim da própria coluna. A página não rola mais por causa do quadro.
+
+## D-191 · "ESQUECI MINHA SENHA" LIBERADO POR UM ADMINISTRADOR: aviso urgente na tela, 2 h, uma troca, só no aparelho que pediu, a mesma resposta para quem tem e quem não tem cadastro (27/10/2026, pedido do dono — SESSAO-41)
+
+**Pedido do dono:** *"Botão de recuperar minha senha na tela de login, esse botão deve enviar uma notificação para um admin, notificação de urgência, um aviso na tela mesmo com um botão de liberar troca, ou de não liberar, se liberar troca para aquele email, a pessoa clica em trocar minha senha, digita o email dela e já direto consegue trocar, se não estiver liberado para troca de senha, aparece apenas o botão de solicitar, se o email não estiver cadastrado no banco, aparece apenas uma mensagem genérica."* Respostas: quem libera = administradores e super admin (7); **2 horas** (8); a mesma resposta para todos (9).
+
+- Tela de entrada → **"Esqueci minha senha"** → e-mail → **"Trocar minha senha"**: liberado para ESTE aparelho → cria a senha nova e já entra; não liberado → aparece só **"Solicitar troca"**; ao solicitar, a mensagem é SEMPRE a mesma ("se este e-mail tiver cadastro, a liderança recebe o aviso…").
+- O aparelho que pede cria um **segredo só dele** (32 bytes; o banco guarda só o resumo); a liberação vale **2 h, uma troca, só para esse aparelho**. Pedir de novo substitui o pedido aberto — **um aparelho novo nunca herda a liberação** de outro (precisa de outra decisão).
+- Cada administrador recebe o **aviso no sino** e o **aviso urgente na tela** (qualquer tela), com **"Liberar troca" / "Não liberar"** e a pessoa (nome, usuário, a hora); sem pedido pendente, o aviso sai de todos. Pendente que passa de 24 h já não aparece para decidir.
+- E-mail sem cadastro, conta de tablet e pessoa desativada: nada acontece (e a tela diz o mesmo). Trava: 5 pedidos por 15 min por aparelho e por e-mail; senha nova de 8 a 72 caracteres e diferente da senha padrão. Tudo na trilha.
+
+## D-192 · A REVISÃO DE SEGURANÇA: a segunda camada de permissões, a trava geral do PIN de setor e os limites do login (27/10/2026, pedido do dono — SESSAO-41)
+
+**Pedido do dono:** *"revisar políticas de segurança para bloquear testes comuns que hackers e pessoas mal-intencionadas fazem, seja bloquear injeção de sql no login, teste de força bruta, edição de acesso via api e coisas do tipo"*.
+
+- **Achado e mantido (auditoria no banco real, só leitura):** toda regra de escrita das tabelas é para quem está logado e confere a pessoa; quem está logado só muda o próprio nome/telefone/foto/tema/fila em `plt_usuarios` — **nunca papel, super admin, módulos, ativo** (testado na bateria: "virar admin pela API" é recusado); nenhuma porta monta SQL com texto digitado (as 2 que montam usam `%L`/`USING`); o login procura por `.eq` (sem injeção); nenhuma função privilegiada aberta ao visitante.
+- **Corrigido:** (1) o visitante (sem login) perde TODA escrita (insert/update/delete/truncate) em todas as tabelas e visões — antes só as regras de linha seguravam; (2) ninguém do navegador "esvazia tabela" (TRUNCATE não passa pelas regras de linha); o mesmo para tabela nova; (3) **trava GERAL do PIN de setor**: 30 erros em 15 min, de qualquer aparelho, fecham a entrada por PIN de setor por um tempo (a trava por aparelho usa o endereço de internet, que dá para disfarçar, e o PIN de setor tem 2 dígitos — D-147); (4) o login recusa texto acima de 254/72 caracteres sem ir ao banco.
+- **Para o dono clicar no painel da Supabase (o Claude guia):** desligar o **cadastro público** de contas (hoje qualquer um cria uma conta de login por fora — não enxerga nada, mas é porta aberta; os cadastros da plataforma continuam pela Equipe) e a **senha mínima de 8**.
+- ⏳ Fica para depois (custa ou depende do dono): CAPTCHA no login (Turnstile, gratuito, chave do dono), proteção contra senha vazada (plano pago da Supabase).
+
+## D-193 · O ENDEREÇO DE ENTREGA DO PEDIDO vale na logística, inteiro; sem ele, o do cadastro (27/10/2026, pedido do dono com vídeo — SESSAO-41)
+
+**Pedido do dono (vídeo do pedido 13660):** *"o que importa para a logística é o endereço de entrega e não o endereço de cadastro… quando não tiver endereço diferente do endereço do cadastro você usa esse endereço como o endereço de entrega; caso tenha endereço de entrega você usa esse endereço aqui"*.
+
+- O Tiny já mandava o endereço de entrega (`pedidos.endereco_entrega`, 191 pedidos — todos com cidade e estado); nenhuma tela o usava. Agora a Programação (o ponto do mapa), Já programadas, as entregas do dia, a lista da ROTAS, o calendário, a decisão da devolução e a ficha do pedido usam **o endereço de entrega INTEIRO** quando ele existe (nunca misturado com o número/bairro do cadastro); sem ele, o do cadastro. A ficha mostra os dois.
+- O ponto no mapa do endereço novo é procurado sozinho também em "Já programadas" (o pedido já programado que passou a usar o endereço de entrega).
+
+## D-194 · A DATA DE ENTREGA MUDADA OU REMOVIDA SÓ NA PLATAFORMA; o Tiny mudando a data, vale o Tiny (27/10/2026, pedido do dono — SESSAO-41) — ↩️ revisa a D-150 ("no card de pedido as datas vêm do Tiny e não se editam")
+
+**Pedido do dono:** *"coloque também a possibilidade de alterar a data de entrega de um pedido, ou até mesmo de remover essa data, mas isso não deve afetar o Tiny, apenas a plataforma mesmo, porém se mudar no Tiny, muda na plataforma também"*.
+
+- Na **ficha do pedido** (Pedidos, o detalhe do calendário, "Abrir o pedido"): **"Mudar a data de entrega"** (nova data, ou **"Remover a data"**) — logística, PCP e admin. A data mudada vale no card de produção (a cor do prazo e a ordem pela entrega), na Expedição, na Programação, no calendário e nas rotas; a ficha diz "mudada na plataforma (no Tiny: …)". Fica o fato na linha do tempo do pedido.
+- **Se o Tiny mudar a data depois**, vale a do Tiny (a da plataforma guarda a data do Tiny daquele momento e deixa de valer sozinha). Escolher de novo a data do Tiny apaga a da plataforma.
+
+## D-195 · A ENTREGA PARCIAL: o entregador (ou a logística) marca o que foi entregue; o resto volta para a decisão da logística; o Tiny não muda (27/10/2026, pedido do dono — SESSAO-41) — ↪️ D-129
+
+**Pedido do dono:** *"um botão de opção de entrega parcial (adicionando o que foi entregue do referente pedido e campo de observação)… foi entregue apenas 3 deles e um retornou à fábrica, deve contabilizar o pedido como entregue parcialmente e o produto que retornou deve ficar para decisão do mesmo setor que trata os pedidos devolvidos"* · respostas: *"o próprio entregador pode marcar entregue parcialmente e selecionar um motivo pré-criado em utilitários ou adicionar um campo de observação"* (1); observação obrigatória quando algo volta — "Perfeito" (2); o Tiny não muda (3).
+
+- Botão **"Entrega parcial"** na tela do entregador e em ROTAS → Entregas: as peças do pedido (todas marcadas de início — o comum é desmarcar o que voltou); **motivo da lista (Utilitários → Entrega parcial) e/ou observação — pelo menos um**. Marcadas = entregues (saem de toda conta, como no Entregue); desmarcadas = **voltam para "Em decisão pós devolução"**, com o aviso à logística e a mesma telinha **"Decidir situação"** (reenviar, estoque, realocar, danificados, loja, ajuste).
+- O pedido fica **"Entregue em parte (N de M)"** (ficha, entregas do dia). **O Tiny não é chamado.** "Reenviar ao cliente" a peça que voltou reabre a entrega só na plataforma e o pedido volta a ser programado.
+- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a entrega parcial **não se desfaz** pelo "Desfazer" (as peças que voltaram já estão com a logística — para corrigir, a logística usa a decisão ou "Pedido devolvido"); (b) peça que a plataforma ainda vê em produção pede a confirmação, como no Entregue; (c) pedido com peça reservada do estoque não aceita entrega parcial (0 hoje) — vai pela logística.
+
+## D-196 · A PARADA AVULSA NA ROTA: título, endereço com pino, observação, Feita/Não feita; a ordem dividida com os pedidos; o entregador põe a dele e só muda o lugar dela (27/10/2026, pedido do dono — SESSAO-41)
+
+**Pedido do dono:** *"Adicionar parada avulsa na rota durante a hora da programação, ou até mesmo quando estiver em rota, o próprio entregador, ou a pessoa responsável por controlar as rotas… coloque a opção de digitar um endereço também e ele aparece pinado no mapa e no quadrinho dos pedidos programados também, que agora não será mais pedidos programados, mas sim rota programada"* · respostas: 4 (título, endereço, observação, Feita/Não feita), 5 (*"Eles podem arrastar assim que adicionar a nova parada avulsa e deixar o momento exato em que eles irão parar nela, o resto dos pedidos eles não devem conseguir mexer, apenas a pessoa responsável pelas rotas no computador e os admins/super admin"*), 6 ("rota programada" = o quadro "Na rota" do Programar e a lista de Já programadas).
+
+- A parada **não é pedido** (sem card, estoque, Tiny ou Expedição): mora na rota (dia + caminhão + rota) e **divide a ordem** com os pedidos. Pino no mapa (ajustável), na lista da rota, no Google Maps da rota e no Waze.
+- **Logística/admin:** põe e reordena em qualquer rota (Programar — o quadro passa a se chamar **"Rota programada"** — e Já programadas), tira da rota. **Entregador:** põe na rota **de hoje** em que está na equipe, arrasta **só a parada que ele pôs** (o banco confere) e marca **Feita / Não feita** (com o porquê) em qualquer parada da rota.
+- ⏳ **PROVISÓRIAS:** (a) o entregador só põe parada na rota do dia (não nas futuras); (b) a parada removida fica registrada (nada se apaga); (c) "Já programadas" lê as paradas numa requisição à parte (dívida 28 da Lei — a porta das programadas é uma tabela paginada).
 
 ## Ver também
 

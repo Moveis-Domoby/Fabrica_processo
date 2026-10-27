@@ -47,3 +47,32 @@ Demanda: [[SESSAO-41 - Rotas Entrega Parcial Parada Avulsa Senha Tablet e Quadro
 - Bateria: bloco SESSAO-41 · F4/F6 (22 conferências, inclusive o "Reenviar ao cliente" da peça que voltou reabrindo a entrega). **1.340 verdes.**
 - Front: `ModalEntregaParcial` (todas marcadas de início; desmarca o que voltou; motivo e/ou observação; a confirmação de "ainda em produção" como no Entregue) no entregador e na lista da logística; "em parte" e sem Desfazer na parcial; motivos em Utilitários; ficha do pedido com "Para onde — endereço de entrega do pedido" (+ o do cadastro), `DataDeEntrega` (mudar / remover, para quem tem a logística) e "Entregue em parte"; `useGeocodificarFaltantes` também em "Já programadas". Testes de tela 294 verdes, lint limpo, `tsc` limpo, prettier nos arquivos de tela da sessão.
 - Lição do caminho (E-158): `python -I -` com heredoc VAZIO abre o Python interativo e segura o comando até o tempo-limite (saída de 500 KB) — nunca deixar o heredoc vazio.
+
+## F5 — Parada avulsa (D-196)
+
+- Migration `20261027050000_plt_paradas_avulsas.sql`: tabela `plt_paradas_avulsas` (a rota = dia + caminhão + rota; a `ordem` é a mesma sequência de `plt_programacoes.ordem`); `fn_na_equipe_da_rota`, `fn_rota_aplicar_ordem` (o conjunto tem de ser o da rota — senão "a rota mudou noutra tela"; o entregador só muda o lugar das paradas DELE: a subsequência dos outros itens com ordem salva tem de ficar igual), `fn_parada_json`; portas `plt_fn_parada_avulsa_salvar` (criar/editar; `p_ordem` com `{"t":"nova"}`; chave do gesto), `plt_fn_rota_ordenar`, `plt_fn_parada_avulsa_concluir` (Feita/Não feita/desfazer), `plt_fn_parada_avulsa_remover` (fica registrada), `plt_fn_paradas_avulsas(de, ate)` (logística), `plt_fn_programar_rota_paradas` (Programar com paradas numa transação); `plt_fn_entregas_do_dia` (extraída da 040000) + `paradas_avulsas`. Montada por script (`montar_b.py` — a função das entregas do dia vem do ARQUIVO da 040000, não do banco).
+- Bateria: bloco SESSAO-41 · F5 (16 conferências — inclusive o entregador tentando mexer na ordem dos pedidos e a rota que mudou noutra tela); a 050000 entrou na cadeia do bloco 38 depois da 040000 (as entregas do dia sem as paradas — E-159). **1.355 verdes.**
+- A tela foi feita por um ajudante (subagente) com o contrato acima, enquanto o cofre era atualizado — revisada e testada antes do commit (ver abaixo).
+
+## Ensaio ×100 (Lei §1/§7.2)
+
+- Script e resultado em `Execucao/dados/SESSAO-41 - ensaio x100 das rotas, da data e da presenca`: o banco da 40 (562.700 pedidos, 95 mil cards, 7.700 vivos na LIMPEZA, ~23 mil pedidos candidatos à rota) medido ANTES (até a 40) e DEPOIS (as 5 da 41) no mesmo banco.
+- **A 1ª rodada achou uma regressão minha:** o calendário foi de 230 ms a 1,6 s — a data que vale é uma expressão sobre a junção com `plt_pedido_datas`, e o filtro da semana deixou de descer até os pedidos (todos os vivos eram montados antes de filtrar). Correção: pré-filtro `v.pedido_id in (pedidos com a data do Tiny na semana ∪ pedidos com data da plataforma)`. A 1ª tentativa (uma coluna nova no fim da visão do vivo) quebrou a reaplicação das migrations antigas ("cannot drop columns from view") — desfeita.
+- Resultado final (antes → depois): quadro do setor 171 → 165 ms; pela entrega 149 → 175 ms; PCP 187 → 155 ms; Já programadas 78 → 84 ms; Pedidos 117 → 114 ms; entregas do dia 16 → 17 ms; paradas do período 8 ms; ficha 10 ms; Programação 5,4 s e Expedição 4,0–4,2 s iguais (dívidas 24/25). **Calendário 206 → ~900 ms** com o pré-filtro (o aviso fora do calendário 725 → ~180 ms); o resto virou a **dívida 29** da lei (a data que vale como projeção no card). Commit do ensaio + pré-filtro separado.
+
+## F5 — a tela (ajudante) e a revisão
+
+- Feita por um subagente com o contrato da migration: `paradasAvulsas.ts` (+22 testes), `ModalParadaAvulsa`, `MapaPinoParada`, `iconeAvulsa`, `CartaoParadaAvulsa`, `ParadaAvulsaDoDia`, `ModalMomentoParada`; mexidas em `ListaArrastavel` (arrastável por item), `MapaProgramacao`, `PainelRota`, `MiniMapaEntregas`, `AbaProgramar` ("Na rota" → **"Rota programada"**), `AbaJaProgramadas`, `EntregasDoDia`.
+- Revisão: o ajudante apontou um risco real — o pedido programado cujo card foi ARQUIVADO entrava na conta da ordem da rota ("a rota mudou noutra tela" sem ter mudado). Correção no banco: **`20261027060000_plt_paradas_ordem_sem_arquivados.sql`** (`fn_rota_aplicar_ordem` e `plt_fn_programar_rota_paradas` só contam o card vivo). Bateria 1.355 verdes; testes de tela 316; tipos/lint limpos; build JS inicial 226,3 KB.
+
+## Subida em produção (27/10 — *"Pode subir tudo de uma vez ja direto, vou dormir"*)
+
+1. **Banco:** as 6 migrations, uma a uma (`banco:aplicar -- --confirmar --so <arquivo>`), na ordem 010000 → 060000. Conferido como o dono, só leitura: 13660 em Nova Parnamirim; portas novas respondendo; permissões (anon sem escrita, `authenticated` mantém só o de antes, tabelas novas fechadas, portas de senha só `service_role`); 5 motivos `entrega_parcial`; `fn_rota_aplicar_ordem` sem arquivados; índices em todas as chaves estrangeiras das 3 tabelas novas. (O aplicador não grava em `supabase_migrations.schema_migrations` — o que vale é o efeito conferido.)
+2. **Função `autenticacao` → versão 17** (pelo MCP de deploy, o arquivo inteiro; sem token de CLI na máquina). Conferida no ar com chamadas que não gravam nada: `senha-situacao` sem liberação → `nao_liberado`; `senha-trocar` com senha curta → 400 e sem liberação → 403; `entrar` com senha de 80 caracteres → 401 genérico; `tablet-entrar` com 1 dígito → 400; ação desconhecida → 400.
+3. **Site:** ramo empurrado para a `main` (avanço rápido) — o Vercel publica sozinho; conferido pelo status do commit.
+- **Efeito de uma vez só:** na 1ª entrada de cada tablet depois da subida, a senha derivada é gravada e as sessões antigas daquela conta caem (os outros tablets do mesmo setor saem uma última vez).
+- **Ficou com o dono:** desligar o cadastro público e senha mínima 8 no painel da Supabase; confirmar as provisórias D-189…D-196; ClickUp sem tarefas desta demanda.
+
+## Conferência final (task list × demanda)
+
+- Tablet que não cai ✅ · quadro com rolagem na coluna ✅ · Esqueci minha senha + revisão de segurança ✅ (falta só o clique do dono no painel) · entrega parcial ✅ · parada avulsa ✅ · endereço de entrega ✅ · data de entrega ✅ · ensaio ×100 + checklist da lei ✅ (dívidas 28 e 29) · handoff ✅ · subida ✅.
