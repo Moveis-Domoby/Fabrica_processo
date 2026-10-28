@@ -1,0 +1,64 @@
+# 1ª versão (a regra do cancelado peça a peça):
+== ANTES (até os filtros da Programação) ==
+  Janela de liberação do pedido (o mais antigo)                                        mediana     13.4 ms · máx     28.6 ms · 1 itens · 0 do estoque · 0 em produção
+  Janela de liberação do pedido (um do meio)                                           mediana      2.4 ms · máx      2.9 ms · 1 itens · 0 do estoque · 0 em produção
+  Janela de liberação da reposição                                                     mediana      2.0 ms · máx      2.5 ms · 3 já liberadas
+
+  2 migration(s) do ajuste aplicada(s): 20261028010000_plt_senha_sem_cadastro_ao_vivo.sql, 20261028020000_plt_pcp_peca_em_producao.sql
+
+== DEPOIS (o ajuste de 28/10) ==
+  Janela de liberação do pedido (o mais antigo)                                        mediana     44.2 ms · máx     79.9 ms · 1 itens · 0 do estoque · 2 em produção
+  Janela de liberação do pedido (um do meio)                                           mediana     35.7 ms · máx     39.8 ms · 1 itens · 0 do estoque · 2 em produção
+  Janela de liberação da reposição                                                     mediana      3.0 ms · máx      4.6 ms · 3 já liberadas
+  (ligação: {"cards":[97189],"alocadas":0,"liberadas":0,"vinculadas":1,"ja_liberadas":0} · a peça estava em MONTAGEM · reposicao)
+  Liberar ligando 1 peça em produção (o gesto inteiro, numa transação)                 mediana     18.2 ms · máx     51.1 ms
+  --- plano: A conta das peças em produção, sozinha
+      Function Scan on fn_sugestoes_em_producao (actual rows=2.00 loops=1)
+        Buffers: shared hit=4794
+      Planning Time: 0.096 ms
+      Execution Time: 30.722 ms
+
+
+# 2ª versão (junção com os pedidos — o planejador foi pelos 11 mil cancelados):
+
+== DEPOIS (o ajuste de 28/10) ==
+  Janela de liberação do pedido (o mais antigo)                                        mediana     49.3 ms · máx     87.4 ms · 1 itens · 0 do estoque · 2 em produção
+  Janela de liberação do pedido (um do meio)                                           mediana     40.4 ms · máx     55.5 ms · 1 itens · 0 do estoque · 2 em produção
+  Janela de liberação da reposição                                                     mediana      2.8 ms · máx      5.2 ms · 3 já liberadas
+  (ligação: {"cards":[97189],"alocadas":0,"liberadas":0,"vinculadas":1,"ja_liberadas":0} · a peça estava em MONTAGEM · reposicao)
+  Liberar ligando 1 peça em produção (o gesto inteiro, numa transação)                 mediana     17.0 ms · máx     55.8 ms
+  --- plano: A conta das peças em produção, sozinha
+      Function Scan on fn_sugestoes_em_producao (actual rows=2.00 loops=1)
+        Buffers: shared hit=35672
+      Planning Time: 0.092 ms
+      Execution Time: 36.710 ms
+
+
+# versão final (o pedido de cada peça do mesmo SKU, a comparação barata antes):
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  119 migrations aplicadas (a última: 20261027080000_plt_programacao_filtros.sql) (8 s)
+  pedidos 562.700 (29 s)
+  peças vivas 20.400 e arquivadas 45.500 (40 s)
+  cards 99.209 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 · peças sem dono 3.030 · do SKU1 em pedido cancelado 0 (46 s)
+
+== ANTES (até os filtros da Programação) ==
+  Janela de liberação do pedido (o mais antigo)                                        mediana     13.3 ms · máx     24.4 ms · 1 itens · 0 do estoque · 0 em produção
+  Janela de liberação do pedido (um do meio)                                           mediana      2.3 ms · máx      3.0 ms · 1 itens · 0 do estoque · 0 em produção
+  Janela de liberação da reposição                                                     mediana      1.5 ms · máx      2.3 ms · 3 já liberadas
+
+  2 migration(s) do ajuste aplicada(s): 20261028010000_plt_senha_sem_cadastro_ao_vivo.sql, 20261028020000_plt_pcp_peca_em_producao.sql
+
+== DEPOIS (o ajuste de 28/10) ==
+  Janela de liberação do pedido (o mais antigo)                                        mediana     24.4 ms · máx     58.9 ms · 1 itens · 0 do estoque · 2 em produção
+  Janela de liberação do pedido (um do meio)                                           mediana     10.8 ms · máx     14.4 ms · 1 itens · 0 do estoque · 2 em produção
+  Janela de liberação da reposição                                                     mediana      2.9 ms · máx      5.2 ms · 3 já liberadas
+  (ligação: {"cards":[97189],"alocadas":0,"liberadas":0,"vinculadas":1,"ja_liberadas":0} · a peça estava em MONTAGEM · reposicao)
+  Liberar ligando 1 peça em produção (o gesto inteiro, numa transação)                 mediana     16.6 ms · máx     51.5 ms
+  --- plano: A conta das peças em produção, sozinha
+      Function Scan on fn_sugestoes_em_producao (actual rows=2.00 loops=1)
+        Buffers: shared hit=4735
+      Planning Time: 0.117 ms
+      Execution Time: 7.924 ms
+
+fim (53 s)
+saida=0
