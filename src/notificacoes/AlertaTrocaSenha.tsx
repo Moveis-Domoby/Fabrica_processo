@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react'
 import { AvatarPessoa, Botao, Modal, useNotificacao } from '@/componentes/ui'
+import { ouvirCanal, topicoDaPessoa } from '@/chat/canais'
 import { buscarAvisos } from './api'
 import type { Aviso } from './api'
 import { buscarPedidosSenha, decidirPedidoSenha } from './pedidosSenha'
@@ -36,11 +37,35 @@ export function AlertaTrocaSenha({ usuarioId }: { usuarioId: string }) {
   const urgentes = avisos.filter((a) => a.tipo === 'senha_pedido' && a.lida_em === null)
   const aberto = pedidoNoEndereco || urgentes.some((a) => !dispensados.has(a.id))
 
+  // D-200 (28/10): quando OUTRO administrador (ou esta pessoa em outra aba)
+  // decide, o banco avisa no canal pessoal — o aviso sai e a lista relê na hora
+  // (antes ficava o pedido antigo na tela até sair e entrar).
+  useEffect(
+    () =>
+      ouvirCanal(topicoDaPessoa(usuarioId), (evento, dados) => {
+        if (evento !== 'senha_decidida') return
+        if (dados.sem_pendentes === true) {
+          const lidaEm =
+            typeof dados.lida_em === 'string' ? dados.lida_em : new Date().toISOString()
+          clienteQuery.setQueryData<Aviso[]>(['avisos', usuarioId], (atual) =>
+            atual?.map((a) =>
+              a.tipo === 'senha_pedido' && a.lida_em === null ? { ...a, lida_em: lidaEm } : a,
+            ),
+          )
+        }
+        void clienteQuery.invalidateQueries({ queryKey: ['senha-pedidos'] })
+      }),
+    [usuarioId, clienteQuery],
+  )
+
+  // O pedido que chega com a janela já aberta entra na lista (a chave muda com o aviso novo).
+  const ultimoUrgente = urgentes.reduce((maior, a) => Math.max(maior, a.id), 0)
   const pedidos = useQuery({
-    queryKey: ['senha-pedidos'],
+    queryKey: ['senha-pedidos', ultimoUrgente],
     queryFn: buscarPedidosSenha,
     enabled: aberto,
     staleTime: 0,
+    placeholderData: keepPreviousData,
   })
   const pendentes = (pedidos.data ?? []).filter((p) => p.situacao === 'pendente')
   const decididos = (pedidos.data ?? []).filter((p) => p.situacao !== 'pendente').slice(0, 5)

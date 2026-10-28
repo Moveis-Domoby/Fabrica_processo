@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, PackageCheck } from 'lucide-react'
+import { CheckCircle2, Factory, PackageCheck } from 'lucide-react'
 import { Botao, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarEtapasAtivas, janelaLiberacao, liberarNoPcp } from '../api'
-import type { ReposicaoResumo, SugestaoAlocacao, UnidadeLiberacao } from '../api'
+import type { ReposicaoResumo, SugestaoAlocacao, SugestaoProducao, UnidadeLiberacao } from '../api'
 import type { Card, Etapa, ItemKanban, PedidoResumo, Setor } from '../tipos'
 
 const CHEGADA = 'chegada'
@@ -23,6 +23,8 @@ interface LinhaLiberacao {
   etapaId: string
   /** SESSAO-24: usar a peça igual sem dono do estoque (a unidade nasce pronta). */
   usarEstoque: boolean
+  /** D-201: usar a peça igual sem dono que já está em produção (passa a ser deste pedido). */
+  usarProducao: boolean
 }
 
 export interface ModalLiberarPedidoProps {
@@ -54,6 +56,12 @@ export interface ModalLiberarPedidoProps {
  * reservada … mas deve aparecer no PCP ainda para ele liberar; se ele não
  * liberar, a peça volta para o estoque". Desmarcar e liberar para a produção
  * desfaz a reserva (o banco devolve a peça e o Tiny recebe de volta).
+ *
+ * D-201 (28/10, pedido do dono): a vaga que o estoque não cobre pode usar a
+ * peça igual SEM DONO que ainda está em produção — da reposição de estoque ou
+ * de pedido cancelado. Usar = a peça passa a ser deste pedido onde está
+ * (setor, etapa, quem trabalha e o tempo seguem); a reposição só perde a peça.
+ * Vem desmarcada, como a do estoque (a sugestão nunca decide sozinha).
  */
 export function ModalLiberarPedido({
   cardPedido,
@@ -85,6 +93,13 @@ export function ModalLiberarPedido({
         sugestoes.map((s) => [`${s.item_seq}:${s.indice_unidade}`, s]),
       ),
     [sugestoes],
+  )
+  const producaoPorChave = useMemo(
+    () =>
+      new Map<string, SugestaoProducao>(
+        (janela?.em_producao ?? []).map((s) => [`${s.item_seq}:${s.indice_unidade}`, s]),
+      ),
+    [janela],
   )
   const itens: ItemKanban[] = useMemo(() => janela?.itens ?? [], [janela])
   const unidadesExistentes = useMemo(() => janela?.ja_liberadas ?? [], [janela])
@@ -134,6 +149,7 @@ export function ModalLiberarPedido({
           setorId: '',
           etapaId: CHEGADA,
           usarEstoque: false,
+          usarProducao: false,
         })
       }
     }
@@ -162,6 +178,8 @@ export function ModalLiberarPedido({
   }))
   const pendentes = linhas.filter((l) => !l.jaLiberada)
   const selecionadas = pendentes.filter((l) => l.selecionada)
+  // D-201: o banco só sugere a peça em produção para a vaga que o estoque não cobre.
+  const usaProducao = (l: LinhaLiberacao) => l.usarProducao && producaoPorChave.has(l.chave)
 
   function mudarLinha(chave: string, mudancas: Partial<LinhaLiberacao>) {
     setAjustes((atuais) => {
@@ -192,13 +210,16 @@ export function ModalLiberarPedido({
   // duplica).
   const mutacao = useMutation({
     mutationFn: (unidades: UnidadeLiberacao[]) => liberarNoPcp(cardPedido!.id, unidades),
-    onSuccess: async ({ alocadas, liberadas, ja_liberadas }) => {
+    onSuccess: async ({ alocadas, liberadas, vinculadas = 0, ja_liberadas }) => {
       const partes = [
         liberadas > 0
           ? `${liberadas} unidade${liberadas === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
           : null,
         alocadas > 0
           ? `${alocadas} do estoque — já pronta${alocadas === 1 ? '' : 's'} na Expedição`
+          : null,
+        vinculadas > 0
+          ? `${vinculadas} que já ${vinculadas === 1 ? 'estava' : 'estavam'} em produção`
           : null,
         ja_liberadas > 0
           ? `${ja_liberadas} já ${ja_liberadas === 1 ? 'tinha' : 'tinham'} sido liberada${ja_liberadas === 1 ? '' : 's'}`
@@ -242,7 +263,10 @@ export function ModalLiberarPedido({
       return
     }
     const semDestino = selecionadas.filter(
-      (l) => l.setorId === '' && !(l.usarEstoque && sugestaoPorChave.has(l.chave)),
+      (l) =>
+        l.setorId === '' &&
+        !(l.usarEstoque && sugestaoPorChave.has(l.chave)) &&
+        !(usaProducao(l) && producaoPorChave.has(l.chave)),
     )
     if (semDestino.length > 0) {
       setErro(
@@ -254,18 +278,25 @@ export function ModalLiberarPedido({
     mutacao.mutate(
       selecionadas.map((l): UnidadeLiberacao => {
         const sugestao = l.usarEstoque ? sugestaoPorChave.get(l.chave) : undefined
+        const emProducao = usaProducao(l) ? producaoPorChave.get(l.chave) : undefined
         return sugestao
           ? {
               item_seq: l.item_seq,
               indice_unidade: l.indice_unidade,
               peca_card_id: sugestao.peca_card_id,
             }
-          : {
-              item_seq: l.item_seq,
-              indice_unidade: l.indice_unidade,
-              setor_id: Number(l.setorId),
-              etapa_id: l.etapaId === CHEGADA ? null : Number(l.etapaId),
-            }
+          : emProducao
+            ? {
+                item_seq: l.item_seq,
+                indice_unidade: l.indice_unidade,
+                peca_producao_id: emProducao.peca_card_id,
+              }
+            : {
+                item_seq: l.item_seq,
+                indice_unidade: l.indice_unidade,
+                setor_id: Number(l.setorId),
+                etapa_id: l.etapaId === CHEGADA ? null : Number(l.etapaId),
+              }
       }),
     )
   }
@@ -339,6 +370,10 @@ export function ModalLiberarPedido({
             // SESSAO-24: peça igual sem dono no estoque para esta unidade.
             const sugestao = linha.jaLiberada ? undefined : sugestaoPorChave.get(linha.chave)
             const usandoEstoque = sugestao !== undefined && linha.usarEstoque
+            // D-201: peça igual sem dono que ainda está em produção (o estoque não cobre).
+            const emProducao =
+              linha.jaLiberada || sugestao ? undefined : producaoPorChave.get(linha.chave)
+            const usandoProducao = emProducao !== undefined && linha.usarProducao
             return (
               <li key={linha.chave} className="flex flex-col gap-2 px-3 py-3">
                 <div className="flex items-center justify-between gap-3">
@@ -406,7 +441,44 @@ export function ModalLiberarPedido({
                   </label>
                 )}
 
-                {!linha.jaLiberada && linha.selecionada && !usandoEstoque && (
+                {emProducao && linha.selecionada && (
+                  <label
+                    className={cn(
+                      'ml-8 flex min-h-toque-md cursor-pointer items-center gap-3 rounded-dm border px-3 py-2 text-sm',
+                      usandoProducao
+                        ? 'border-acao-ativa bg-superficie-sutil'
+                        : 'border-info-borda bg-info-fundo',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-5 shrink-0 accent-[var(--dm-acao)]"
+                      checked={linha.usarProducao}
+                      onChange={() =>
+                        mudarLinha(linha.chave, { usarProducao: !linha.usarProducao })
+                      }
+                    />
+                    <Factory aria-hidden className="size-5 shrink-0 text-info-texto" />
+                    <span className="flex flex-col">
+                      <span className="font-medium text-texto">
+                        Há {emProducao.pecas_iguais} igual
+                        {emProducao.pecas_iguais === 1 ? '' : 'is'} em produção, sem dono — usar?
+                      </span>
+                      <span className="text-xs text-texto-suave">
+                        Em {emProducao.setor_nome}
+                        {emProducao.etapa_nome ? ` · ${emProducao.etapa_nome}` : ''} ·{' '}
+                        {emProducao.peca_origem === 'cancelamento' && emProducao.peca_origem_numero
+                          ? `era do pedido ${emProducao.peca_origem_numero}, cancelado.`
+                          : 'era da reposição de estoque.'}{' '}
+                        {usandoProducao
+                          ? 'Passa a ser deste pedido onde está e segue a produção de lá.'
+                          : 'Marque para usar; sem marcar, a unidade vai para a produção.'}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                {!linha.jaLiberada && linha.selecionada && !usandoEstoque && !usandoProducao && (
                   <div className="grid grid-cols-1 gap-2 pl-8 sm:grid-cols-2">
                     <Selecao
                       rotulo="Setor de destino"

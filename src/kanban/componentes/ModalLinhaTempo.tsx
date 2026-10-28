@@ -55,6 +55,8 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   // SESSAO-24: a peça que perdeu o pedido e a peça do estoque usada por um pedido.
   unidade_desvinculada: 'Ficou sem dono (pedido cancelado)',
   peca_alocada: 'Usada por um pedido',
+  // D-201: a peça sem dono em produção passou a ser de um pedido (pelo PCP).
+  peca_vinculada: 'Passou a ser de um pedido',
   // SESSAO-27: etiquetas (as automações põem e tiram) e o "trazer de volta".
   etiqueta_adicionada: 'Etiqueta posta',
   etiqueta_removida: 'Etiqueta tirada',

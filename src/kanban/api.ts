@@ -434,15 +434,35 @@ export interface SugestaoAlocacao {
 }
 
 /**
+ * D-201 (28/10): a peça igual SEM DONO que ainda está em produção (reposição
+ * de estoque, ou pedido cancelado que segue em produção) — a mais adiantada,
+ * para a vaga que o estoque não cobre. Usar = a peça passa a ser do pedido
+ * onde está (setor, etapa, quem trabalha e o tempo seguem).
+ */
+export interface SugestaoProducao {
+  item_seq: number
+  indice_unidade: number
+  total_unidades: number
+  peca_card_id: number
+  setor_nome: string
+  etapa_nome: string | null
+  peca_origem: 'reposicao' | 'cancelamento'
+  peca_origem_numero: number | null
+  pecas_iguais: number
+}
+
+/**
  * SESSAO-30 (Lei de Desempenho — 1 requisição por janela): o que a janela de
  * liberação mostra, numa chamada — os itens em unidades (sem frete — D-63), as
  * unidades já liberadas e as sugestões do estoque (D-62/D-78). Pedido ou
- * reposição.
+ * reposição. D-201: + as peças sem dono em produção (o banco de antes não
+ * manda — vira lista vazia).
  */
 export interface JanelaLiberacao {
   itens: ItemKanban[]
   ja_liberadas: { item_seq: number; indice_unidade: number }[]
   sugestoes: SugestaoAlocacao[]
+  em_producao?: SugestaoProducao[]
 }
 
 export async function janelaLiberacao(cardId: number): Promise<JanelaLiberacao> {
@@ -450,9 +470,13 @@ export async function janelaLiberacao(cardId: number): Promise<JanelaLiberacao> 
   return garantir(data as JanelaLiberacao | null, error, 'Não deu para carregar o que liberar')
 }
 
-/** Uma unidade da liberação: usar a peça do estoque OU ir para um setor de produção. */
+/**
+ * Uma unidade da liberação: usar a peça do estoque, usar a peça sem dono que
+ * já está em produção (D-201) OU ir para um setor de produção.
+ */
 export type UnidadeLiberacao =
   | { item_seq: number; indice_unidade: number; peca_card_id: number }
+  | { item_seq: number; indice_unidade: number; peca_producao_id: number }
   | { item_seq: number; indice_unidade: number; setor_id: number; etapa_id: number | null }
 
 export interface ResultadoLiberacao {
@@ -460,6 +484,8 @@ export interface ResultadoLiberacao {
   alocadas: number
   /** Foram para o setor de produção escolhido. */
   liberadas: number
+  /** D-201: usaram a peça sem dono que já estava em produção (o banco de antes não manda). */
+  vinculadas?: number
   /** Já tinham sido liberadas (o toque repetido não duplica). */
   ja_liberadas: number
   cards: number[]

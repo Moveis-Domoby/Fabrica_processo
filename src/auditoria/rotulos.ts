@@ -26,6 +26,7 @@ export const ROTULO_ACAO: Record<string, string> = {
   pedido_entregue: 'Registrou a entrega do pedido',
   unidade_desvinculada: 'A peça ficou sem pedido',
   peca_alocada: 'Usou uma peça do estoque no pedido',
+  peca_vinculada: 'Usou no pedido uma peça sem dono que estava em produção',
   id_producao_definido: 'Definiu o ID de produção',
   // execução
   execucao_iniciada: 'Iniciou a execução',
@@ -192,6 +193,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'pedido_entregue',
       'unidade_desvinculada',
       'peca_alocada',
+      'peca_vinculada',
       'id_producao_definido',
       'card_desarquivado',
       'pcp_pedidos_ajustados',

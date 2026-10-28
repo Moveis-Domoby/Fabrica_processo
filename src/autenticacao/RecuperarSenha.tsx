@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { KeyRound, Mail, Send, ShieldCheck } from 'lucide-react'
+import { KeyRound, Mail, Send, ShieldCheck, SpellCheck } from 'lucide-react'
 import { Botao, Campo } from '@/componentes/ui'
 import { entrar } from './api'
 import { lembrarLogin } from './ultimoLogin'
+import { sugerirEmail } from './sugestaoEmail'
 import {
   emailDoPedidoGuardado,
   solicitarTrocaDeSenha,
@@ -30,6 +31,8 @@ export function RecuperarSenha() {
   const [enviando, setEnviando] = useState(false)
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  // D-200: o erro comum no fim do e-mail ("@gmai.com") ganha a sugestão do certo.
+  const sugestao = emailValido ? sugerirEmail(email) : null
 
   async function trabalhar(gesto: () => Promise<void>) {
     setErro('')
@@ -101,6 +104,26 @@ export function RecuperarSenha() {
           }}
           erro={etapa !== 'liberado' ? erro || undefined : undefined}
         />
+        {sugestao && etapa !== 'liberado' && (
+          <button
+            type="button"
+            onClick={() => {
+              setEmail(sugestao)
+              setEtapa('inicio')
+              setErro('')
+            }}
+            className="-mt-2 flex min-h-toque-md items-center gap-2 self-start rounded-dm px-1 text-left text-sm text-texto-suave hover:text-texto"
+          >
+            <SpellCheck aria-hidden className="size-4 shrink-0 text-atencao-forte" />
+            <span>
+              Você quis dizer{' '}
+              <span className="font-medium text-acao-ativa underline underline-offset-2">
+                {sugestao}
+              </span>
+              ?
+            </span>
+          </button>
+        )}
 
         {etapa === 'nao_liberado' && (
           <p className="rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">

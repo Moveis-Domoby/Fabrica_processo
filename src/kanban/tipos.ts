@@ -332,6 +332,8 @@ export interface EventoLinhaTempo {
     // SESSAO-24: a peça que perdeu o pedido (cancelado) e a peça livre usada por um pedido.
     | 'unidade_desvinculada'
     | 'peca_alocada'
+    // D-201: a peça sem dono em produção passou a ser de um pedido.
+    | 'peca_vinculada'
     // SESSAO-27 (D-101/D-102): etiquetas e o "trazer de volta".
     | 'etiqueta_adicionada'
     | 'etiqueta_removida'
