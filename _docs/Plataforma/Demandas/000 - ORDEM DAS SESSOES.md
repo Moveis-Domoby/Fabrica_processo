@@ -66,7 +66,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 
 **Depois:** BOM/insumos (chapas MDF) e custo por móvel · migração dos cards vivos (Q-25) · app/fluxo do motorista (↪️ a tela do entregador entra na SESSAO-30) · central de notificações com preferências (o resto da antiga 17).
 
-**Ajustes fora da numeração:** [[AJUSTE - Estoque 2 - Top X, necessidade de producao e sugestao por dias uteis]] — ✅ entregue e publicado em 30/09/2026 ([[handoff_2026_09_30_ajuste_estoque_2]]; migrations 45/47/48; D-83…D-89, revisando D-71/D-72 e o fluxo da reposição da D-54; reposição automática DESLIGADA até a contagem inicial).
+**Ajustes fora da numeração:** ajuste de 28/10 (sem arquivo — ditado ao vivo pelo dono) — ✅ entregue e publicado em 28/10/2026 ([[handoff_2026_10_28_ajuste_senha_reposicao]]; diário [[AJUSTE-2026-10-28]]; migrations 20261028010000/020000; D-200 o aviso da troca de senha, D-201 a peça em produção ligada ao pedido novo pelo PCP) · [[AJUSTE - Estoque 2 - Top X, necessidade de producao e sugestao por dias uteis]] — ✅ entregue e publicado em 30/09/2026 ([[handoff_2026_09_30_ajuste_estoque_2]]; migrations 45/47/48; D-83…D-89, revisando D-71/D-72 e o fluxo da reposição da D-54; reposição automática DESLIGADA até a contagem inicial).
 
 ## Regras deste índice
 
