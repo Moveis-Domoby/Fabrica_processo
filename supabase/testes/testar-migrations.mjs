@@ -16186,6 +16186,9 @@ try {
   // ↪️ SESSAO-41 · filtros (D-199): a das rotas acima recria "Já programadas" sem
   // a busca (a assinatura de antes) — a dos filtros vem depois e deixa uma só
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027080000_plt_programacao_filtros.sql'), 'utf8'))
+  // ↪️ Ajuste 28/10 (D-201): a das rotas acima recria o check dos tipos de evento
+  // sem o 'peca_vinculada' — a da peça em produção vem depois e o devolve
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261028020000_plt_pcp_peca_em_producao.sql'), 'utf8'))
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -18166,8 +18169,11 @@ try {
   await bd.exec(`select public.plt_fn_senha_solicitar('tablet-s41s@tablet.teste', '${H1}')`)
   const nada = await um41s(`select (select count(*)::int from public.plt_senha_pedidos) as pedidos,
       (select count(*)::int from public.plt_notificacoes where tipo = 'senha_pedido') - ${avisosAntes} as avisos`)
+  // ↩️ D-200 (28/10): o e-mail sem cadastro passou a avisar os administradores no
+  // sino (tipo próprio, sem pedido) — o bloco do ajuste de 28/10 confere; aqui
+  // segue valendo: nenhum pedido e nenhum aviso URGENTE.
   conferir(nada.pedidos === 0 && nada.avisos === 0,
-    'e-mail sem cadastro (e a conta de tablet) não gera pedido nem aviso — e a resposta da função é a mesma', JSON.stringify(nada))
+    'e-mail sem cadastro (e a conta de tablet) não gera pedido nem aviso urgente — e a resposta da função é a mesma', JSON.stringify(nada))
 
   await bd.exec(`select public.plt_fn_senha_solicitar('  Pessoa.Senha41@TESTE.com ', '${H1}')`)
   const p1 = await um41s(`select id::int as id, situacao from public.plt_senha_pedidos where usuario_id = '${PESSOA}'`)
@@ -18960,6 +18966,250 @@ try {
   await como41f('')
 }
 } // fim do bloco SESSAO-41 · filtros
+
+// ============================================================================
+// Ajuste de 28/10/2026 (migrations 20261028010000 e 20261028020000):
+//   D-200 — o pedido de senha para e-mail sem cadastro avisa os administradores
+//           (uma vez por e-mail ainda não lido); decidir avisa as outras telas;
+//   D-201 — o pedido novo usa, pelo PCP, a peça sem dono que já está em
+//           produção (reposição de estoque ou pedido cancelado).
+// Faixas só deste bloco: pessoas ...4281–4284, produtos 1942801–1942803,
+// SKUs SX28A–SX28C, pedidos 942801–942804, móveis "… Ajuste 28".
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajuste 28/10 · D-200: e-mail sem cadastro avisa os administradores no sino, uma vez; quem pediu não vê diferença')
+
+const um28 = async (sql) => (await bd.query(sql)).rows[0]
+const linhas28 = async (sql) => (await bd.query(sql)).rows
+const como28 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j28 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha28 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f28')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f28')
+  }
+}
+const P28 = {
+  admin: '00000000-0000-0000-0000-000000004281',
+  pessoa: '00000000-0000-0000-0000-000000004282',
+}
+const H28 = 'c'.repeat(43) + '='
+await como28('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Admin Ajuste 28', 'admin.ajuste28@teste.com', '42800000001', 'admin.ajuste28', 'admin', '${P28.admin}', array['fabrica']),
+      ('Pessoa Ajuste 28', 'pessoa.ajuste28@teste.com', '42800000002', 'pessoa.ajuste28', 'operador', '${P28.pessoa}', array['fabrica']);
+  `)
+  const ADMIN = (await um28(`select id from public.plt_usuarios where usuario = 'admin.ajuste28'`)).id
+  const nAdmins = (await um28(`select count(*)::int as n from public.plt_usuarios
+                                where papel = 'admin' and ativo and arquivado_em is null and not conta_tablet`)).n
+  const semCad = async () => um28(`
+    select count(*)::int as n, min(titulo) as titulo,
+           bool_and(corpo like '%anderson.ajuste28@gmai.com%') as corpo_ok,
+           count(*) filter (where destinatario_id = '${ADMIN}')::int as do_admin
+      from public.plt_notificacoes where tipo = 'senha_sem_cadastro'`)
+  const antes = await semCad()
+  const pedidosAntes = (await um28(`select count(*)::int as n from public.plt_senha_pedidos`)).n
+  await bd.exec(`select public.plt_fn_senha_solicitar('anderson.ajuste28@gmai.com', '${H28}')`)
+  const um = await semCad()
+  await bd.exec(`select public.plt_fn_senha_solicitar('  Anderson.Ajuste28@GMAI.com ', '${H28}')`)
+  const dois = await semCad()
+  const pedidosDepois = (await um28(`select count(*)::int as n from public.plt_senha_pedidos`)).n
+  conferir(um.n - antes.n === nAdmins && um.titulo === 'Troca de senha: e-mail sem cadastro' && um.corpo_ok
+      && dois.n === um.n && pedidosDepois === pedidosAntes,
+    'o e-mail sem cadastro avisa cada administrador no sino (com o e-mail digitado); o mesmo e-mail de novo, ainda não lido, não repete; nenhum pedido nasce',
+    JSON.stringify({ antes, um, dois, nAdmins, pedidosAntes, pedidosDepois }))
+  await bd.exec(`update public.plt_notificacoes set lida_em = now()
+                  where tipo = 'senha_sem_cadastro' and destinatario_id = '${ADMIN}'`)
+  await bd.exec(`select public.plt_fn_senha_solicitar('anderson.ajuste28@gmai.com', '${H28}')`)
+  const tres = await semCad()
+  conferir(tres.n === dois.n + 1 && tres.do_admin === 2,
+    'depois de lido, o mesmo e-mail volta a avisar (só quem já tinha lido)', JSON.stringify({ dois, tres }))
+
+  titulo('Ajuste 28/10 · D-200: decidir tira o aviso de todos os administradores (pela caixa de cada um)')
+  await bd.exec(`select public.plt_fn_senha_solicitar('pessoa.ajuste28@teste.com', '${H28}')`)
+  const pedido = (await um28(`select p.id::int as id from public.plt_senha_pedidos p
+                                join public.plt_usuarios u on u.id = p.usuario_id where u.usuario = 'pessoa.ajuste28'`)).id
+  await como28(P28.admin)
+  const dec = (await um28(`select public.plt_fn_senha_decidir(${pedido}, false) as d`)).d
+  await como28('')
+  const restam = await um28(`select count(*) filter (where tipo = 'senha_pedido' and lida_em is null)::int as urgentes,
+                                    count(*) filter (where tipo = 'senha_sem_cadastro' and lida_em is null)::int as sem_cadastro
+                               from public.plt_notificacoes`)
+  conferir(dec.situacao === 'recusado' && dec.mudou === true && restam.urgentes === 0 && restam.sem_cadastro > 0,
+    'não liberado: sem pendentes, o aviso urgente sai de todos (o de e-mail sem cadastro fica — não é decisão)',
+    JSON.stringify({ dec, restam }))
+  const priv28 = await um28(`select has_function_privilege('anon', 'public.plt_fn_senha_solicitar(text, text)', 'execute') as anon,
+      has_function_privilege('authenticated', 'public.plt_fn_senha_solicitar(text, text)', 'execute') as logado,
+      has_function_privilege('authenticated', 'public.plt_fn_senha_decidir(bigint, boolean)', 'execute') as decide`)
+  conferir(!priv28.anon && !priv28.logado && priv28.decide, 'as permissões das duas portas não mudaram', JSON.stringify(priv28))
+} finally {
+  await bd.exec('rollback')
+  await como28('')
+}
+
+titulo('Ajuste 28/10 · D-201: o pedido novo usa a peça sem dono que já está em produção (a mais adiantada)')
+
+const setor28 = async (codigo) => (await um28(`select id::int as id from public.plt_setores where codigo = '${codigo}'`)).id
+await bd.exec(`alter table public.plt_eventos enable trigger plt_eventos_validar_saida_pcp`)
+await bd.exec('begin')
+try {
+  const [pcp, secc, montagem] = await Promise.all(['pcp', 'secc', 'montagem'].map(setor28))
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (1942801, 'SX28A', 'Estante Ajuste 28 - Freijó', 'F', 'A', 'un'),
+      (1942802, 'SX28B', 'Mesa Ajuste 28 - Preto',     'F', 'A', 'un'),
+      (1942803, 'SX28C', 'Banco Ajuste 28 - Off',      'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;
+    insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
+      values ('reposicao', 1942801, 'SX28A', 'Estante Ajuste 28 - Freijó', 3, ${pcp});
+    insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id)
+      values ((select max(id) from public.plt_cards where tipo = 'reposicao'), 'card_criado', 'automacao', ${pcp});
+    insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, total_unidades, setor_atual_id)
+      values ('reposicao', 1942803, 'SX28C', 'Banco Ajuste 28 - Off', 1, ${pcp});
+    insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id)
+      values ((select max(id) from public.plt_cards where tipo = 'reposicao'), 'card_criado', 'automacao', ${pcp});
+    insert into public.pedidos (numero, cliente_id, situacao, origem) values
+      (942801, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook'),
+      (942802, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook'),
+      (942803, (select id from public.clientes order by id limit 1), 'aprovado', 'webhook');
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = 942801), 1, 'SX28A', 'Estante Ajuste 28 - Freijó', 2),
+      ((select id from public.pedidos where numero = 942801), 2, 'SX28B', 'Mesa Ajuste 28 - Preto', 1),
+      ((select id from public.pedidos where numero = 942802), 1, 'SX28B', 'Mesa Ajuste 28 - Preto', 1),
+      ((select id from public.pedidos where numero = 942803), 1, 'SX28A', 'Estante Ajuste 28 - Freijó', 1);
+  `)
+  const rep = (await um28(`select id::int as id from public.plt_cards where tipo = 'reposicao' and produto_tiny_id = 1942801`)).id
+  const repC = (await um28(`select id::int as id from public.plt_cards where tipo = 'reposicao' and produto_tiny_id = 1942803`)).id
+  const cardDo = async (numero) => (await um28(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                                 where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+  const [pc1, pc2, pc3] = [await cardDo(942801), await cardDo(942802), await cardDo(942803)]
+
+  await como28(E40.logistica)
+  // a reposição: 1/3 na MONTAGEM (a mais adiantada), 2/3 na SECC, 3/3 fica no PCP
+  await bd.exec(`select public.plt_fn_pcp_liberar(${rep}, ${j28([
+    { item_seq: 1, indice_unidade: 1, setor_id: montagem }, { item_seq: 1, indice_unidade: 2, setor_id: secc }])})`)
+  await bd.exec(`select public.plt_fn_pcp_liberar(${repC}, ${j28([{ item_seq: 1, indice_unidade: 1, setor_id: secc }])})`)
+  // o pedido 942802 libera a mesa para a SECC e é cancelado no Tiny: a peça segue em produção
+  await bd.exec(`select public.plt_fn_pcp_liberar(${pc2}, ${j28([{ item_seq: 1, indice_unidade: 1, setor_id: secc }])})`)
+  await como28('')
+  await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 942802`)
+  const unid = async (filtro) => um28(`select u.id::int as id, u.pedido_id, u.card_pai_id::int as pai, u.item_seq, u.indice_unidade,
+      u.total_unidades, u.item_codigo, u.setor_atual_id::int as setor, u.etapa_atual_id::int as etapa, u.desde, u.executor_atual_id
+      from public.plt_cards u where u.tipo = 'unidade' and ${filtro}`)
+  const repMont = await unid(`u.card_pai_id = ${rep} and u.indice_unidade = 1`)
+  const repSecc = await unid(`u.card_pai_id = ${rep} and u.indice_unidade = 2`)
+  const cancelada = await unid(`u.pedido_id = (select id from public.pedidos where numero = 942802)`)
+  const numerosAntes = await um28(`select producao_sem_dono, producao_de_pedido from public.plt_estoque_numeros where produto_tiny_id = 1942801`)
+  const pcpAntes = await um28(`select pcp_pendentes from plt_privado.fn_reservados_producao() where tiny_id = 1942801`)
+
+  await como28(E40.logistica)
+  const jan = (await um28(`select public.plt_fn_pcp_liberacao(${pc1}) as j`)).j
+  const ep = jan.em_producao ?? []
+  const e11 = ep.find((s) => s.item_seq === 1 && s.indice_unidade === 1)
+  const e12 = ep.find((s) => s.item_seq === 1 && s.indice_unidade === 2)
+  const e21 = ep.find((s) => s.item_seq === 2 && s.indice_unidade === 1)
+  conferir(jan.sugestoes.length === 0 && ep.length === 3
+      && e11?.peca_card_id === repMont.id && e11?.setor_nome === 'MONTAGEM' && e11?.peca_origem === 'reposicao' && e11?.pecas_iguais === 2
+      && e12?.peca_card_id === repSecc.id
+      && e21?.peca_card_id === cancelada.id && e21?.peca_origem === 'cancelamento' && e21?.peca_origem_numero === 942802,
+    'a janela (na mesma requisição) traz as peças sem dono em produção: a da MONTAGEM primeiro, depois a da SECC; e a mesa do pedido cancelado',
+    JSON.stringify(ep))
+
+  const lib = (await um28(`select public.plt_fn_pcp_liberar(${pc1}, ${j28([
+    { item_seq: 1, indice_unidade: 1, peca_producao_id: repMont.id },
+    { item_seq: 2, indice_unidade: 1, peca_producao_id: cancelada.id },
+    { item_seq: 1, indice_unidade: 2, setor_id: secc }])}) as r`)).r
+  const lib2 = (await um28(`select public.plt_fn_pcp_liberar(${pc1}, ${j28([
+    { item_seq: 1, indice_unidade: 1, peca_producao_id: repMont.id }])}) as r`)).r
+  await como28('')
+  const ped1 = (await um28(`select id from public.pedidos where numero = 942801`)).id
+  const ligada = await unid(`u.id = ${repMont.id}`)
+  const ligadaC = await unid(`u.id = ${cancelada.id}`)
+  conferir(lib.vinculadas === 2 && lib.liberadas === 1 && lib.alocadas === 0 && lib2.ja_liberadas === 1 && lib2.vinculadas === 0,
+    'numa transação: 2 peças em produção passam a ser do pedido e 1 vai para a SECC; o toque repetido não duplica',
+    JSON.stringify({ lib, lib2 }))
+  conferir(ligada.pedido_id === ped1 && ligada.item_seq === 1 && ligada.indice_unidade === 1 && ligada.total_unidades === 2
+      && ligada.pai === rep && ligada.setor === repMont.setor && ligada.etapa === repMont.etapa
+      && String(ligada.desde) === String(repMont.desde) && ligada.executor_atual_id === repMont.executor_atual_id,
+    'a peça da reposição vira a 1/2 do pedido ONDE ESTÁ (setor, etapa e o tempo iguais) e guarda a reposição como pai',
+    JSON.stringify({ repMont, ligada }))
+  conferir(ligadaC.pedido_id === ped1 && ligadaC.item_seq === 2 && ligadaC.pai === pc1 && ligadaC.item_codigo === 'SX28B',
+    'a mesa do pedido cancelado vira a 2ª linha do pedido novo (o pedido novo passa a ser o pai)', JSON.stringify(ligadaC))
+
+  const fatos = await linhas28(`select e.card_id::int as card, e.usuario_id, e.dados ->> 'origem' as origem,
+      (e.dados ->> 'vaga_reposicao')::int as vaga, e.observacao
+      from public.plt_eventos e where e.tipo = 'peca_vinculada' and e.card_id in (${repMont.id}, ${cancelada.id}) order by e.id`)
+  const logistica = (await um28(`select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'`)).id
+  conferir(fatos.length === 2 && fatos.every((f) => f.usuario_id === logistica)
+      && fatos[0].origem === 'reposicao' && fatos[0].vaga === 1 && /Passou a ser do pedido 942801 \(1\/2\) em MONTAGEM/.test(fatos[0].observacao)
+      && fatos[1].origem === 'cancelamento' && /era do pedido 942802, cancelado/.test(fatos[1].observacao),
+    'cada ligação é um fato na história da peça, com quem fez e de onde a peça veio', JSON.stringify(fatos))
+
+  const card1 = await um28(`select c.liberado_completo_em >= (select max(e.ocorrido_em) from public.plt_eventos e
+                                     where e.tipo = 'peca_vinculada' and e.card_id = ${repMont.id}) as depois_da_ligacao,
+                                   c.liberado_completo_em is not null as completo
+                              from public.plt_cards c where c.id = ${pc1}`)
+  conferir(card1.completo && card1.depois_da_ligacao,
+    'o pedido fica 100% liberado e o fim do tempo em PCP é a ligação (não a criação antiga da peça)', JSON.stringify(card1))
+
+  const numerosDepois = await um28(`select producao_sem_dono, producao_de_pedido from public.plt_estoque_numeros where produto_tiny_id = 1942801`)
+  const pcpDepois = await um28(`select pcp_pendentes from plt_privado.fn_reservados_producao() where tiny_id = 1942801`)
+  await como28(E40.logistica)
+  const janRep = (await um28(`select public.plt_fn_pcp_liberacao(${rep}) as j`)).j
+  const repDeNovo = (await um28(`select public.plt_fn_pcp_liberar(${rep}, ${j28([{ item_seq: 1, indice_unidade: 1, setor_id: secc }])}) as r`)).r
+  await como28('')
+  const vagas = janRep.ja_liberadas.map((v) => v.indice_unidade).sort()
+  conferir(numerosAntes.producao_sem_dono - numerosDepois.producao_sem_dono === 1
+      && numerosDepois.producao_de_pedido - numerosAntes.producao_de_pedido === 2
+      && pcpAntes.pcp_pendentes === 1 && pcpDepois.pcp_pendentes === 1
+      && JSON.stringify(vagas) === '[1,2]' && repDeNovo.liberadas === 0 && repDeNovo.ja_liberadas === 1,
+    'a reposição só perde a peça: o estoque espera 1 a menos (a peça virou de pedido); a vaga dela segue ocupada — a janela não oferece de novo e liberar de novo é pulado',
+    JSON.stringify({ numerosAntes, numerosDepois, pcpAntes, pcpDepois, vagas, repDeNovo }))
+
+  titulo('Ajuste 28/10 · D-201: o que não pode — peça de outro pedido, móvel diferente, danificada, quem não é do PCP')
+  await como28(E40.logistica)
+  await falha28(`select public.plt_fn_pcp_liberar(${pc3}, ${j28([{ item_seq: 1, indice_unidade: 1, peca_producao_id: repMont.id }])})`,
+    'a peça que já virou de um pedido vivo não serve para outro', /já é de outro pedido/)
+  const bancoSecc = (await um28(`select id::int as id from public.plt_cards where card_pai_id = ${repC} and tipo = 'unidade'`)).id
+  await falha28(`select public.plt_fn_pcp_liberar(${pc3}, ${j28([{ item_seq: 1, indice_unidade: 1, peca_producao_id: bancoSecc }])})`,
+    'móvel diferente do item é recusado', /não é igual ao item/)
+  const jan3 = (await um28(`select public.plt_fn_pcp_liberacao(${pc3}) as j`)).j
+  await como28('')
+  await bd.exec(`update public.plt_cards set qualidade_atual = 'danificado' where id = ${repSecc.id}`)
+  await como28(E40.logistica)
+  const jan3d = (await um28(`select public.plt_fn_pcp_liberacao(${pc3}) as j`)).j
+  await falha28(`select public.plt_fn_pcp_liberar(${pc3}, ${j28([{ item_seq: 1, indice_unidade: 1, peca_producao_id: repSecc.id }])})`,
+    'a peça danificada não vai para um pedido', /danificada/)
+  await falha28(`select public.plt_fn_pcp_liberar(${repC}, ${j28([{ item_seq: 1, indice_unidade: 1, peca_producao_id: repSecc.id }])})`,
+    'a reposição não usa peça que já está em produção', /reposição não usa/)
+  await como28(E40.operador)
+  await falha28(`select public.plt_fn_pcp_liberar(${pc3}, ${j28([{ item_seq: 1, indice_unidade: 1, peca_producao_id: repSecc.id }])})`,
+    'quem não é do PCP/logística não liga peça', /gesto do PCP/)
+  await como28('')
+  conferir((jan3.em_producao ?? []).length === 1 && jan3.em_producao[0].peca_card_id === repSecc.id
+      && (jan3d.em_producao ?? []).length === 0,
+    'a janela de outro pedido só sugere a peça que sobrou sem dono; danificada, não sugere',
+    JSON.stringify({ antes: jan3.em_producao, depois: jan3d.em_producao }))
+  const priv = await um28(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_sugestoes_em_producao(bigint, jsonb)', 'execute') as sug,
+           has_function_privilege('authenticated', 'plt_privado.fn_vincular_peca_producao(public.plt_cards, integer, integer, bigint, uuid)', 'execute') as vinc,
+           has_function_privilege('anon', 'public.plt_fn_pcp_liberar(bigint, jsonb)', 'execute') as lib_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_liberar(bigint, jsonb)', 'execute') as lib_logado`)
+  conferir(!priv.sug && !priv.vinc && !priv.lib_anon && priv.lib_logado,
+    'a maquinaria fica fora da API; a liberação continua só para quem tem login (o banco confere o PCP)', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+  await como28('')
+}
+} // fim do bloco Ajuste 28/10
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
