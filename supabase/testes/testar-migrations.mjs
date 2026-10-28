@@ -19211,6 +19211,193 @@ try {
 }
 } // fim do bloco Ajuste 28/10
 
+// ============================================================================
+// Ajuste de 28/10/2026 · avisos (migration 20261028030000 — D-202): cada pessoa
+// escolhe os avisos (o administrador, de qualquer uma); o aviso desligado não
+// nasce; os urgentes não desligam; os erros vão aos administradores, ligados
+// por padrão só para o super admin; os três erros novos nascem do fato; a troca
+// de senha de um administrador não avisa a ele mesmo nem é decidida por ele.
+// Faixas só deste bloco: pessoas ...4291–4294, produto 1942901, pedido 942901,
+// automação "Automação Avisos 28", webhook "Webhook Avisos 28".
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajuste 28/10 · D-202: o aviso desligado não nasce; o urgente e o tipo desconhecido passam')
+
+const um29 = async (sql) => (await bd.query(sql)).rows[0]
+const como29 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const falha29 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f29')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f29')
+  }
+}
+const P29 = {
+  dono: '00000000-0000-0000-0000-000000004291',
+  admin: '00000000-0000-0000-0000-000000004292',
+  operador: '00000000-0000-0000-0000-000000004293',
+}
+await como29('')
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos, super_admin) values
+      ('Dono Avisos 29', 'dono.avisos29@teste.com', '42900000001', 'dono.avisos29', 'admin', '${P29.dono}', array['fabrica'], true),
+      ('Admin Avisos 29', 'admin.avisos29@teste.com', '42900000002', 'admin.avisos29', 'admin', '${P29.admin}', array['fabrica'], false),
+      ('Operador Avisos 29', 'op.avisos29@teste.com', '42900000003', 'op.avisos29', 'operador', '${P29.operador}', array['fabrica'], false);
+  `)
+  const id29 = async (usuario) => (await um29(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+  const [DONO, ADMIN, OPER] = [await id29('dono.avisos29'), await id29('admin.avisos29'), await id29('op.avisos29')]
+  const avisar = (pessoa, tipo) => bd.exec(`insert into public.plt_notificacoes (destinatario_id, tipo, titulo, corpo)
+                                            values ('${pessoa}', '${tipo}', 'Teste 29', 'corpo 29 ${tipo}')`)
+  const quantos = async (pessoa, tipo) => (await um29(`select count(*)::int as n from public.plt_notificacoes
+                                                      where destinatario_id = '${pessoa}' and tipo = '${tipo}' and corpo like 'corpo 29%'`)).n
+
+  await avisar(ADMIN, 'chegada_aguardo')
+  await como29(P29.admin)
+  const def1 = (await um29(`select public.plt_fn_aviso_definir('chegada_aguardo', false) as r`)).r
+  await como29('')
+  await avisar(ADMIN, 'chegada_aguardo')
+  await avisar(DONO, 'chegada_aguardo')
+  const pref1 = (await um29(`select avisos from public.plt_usuarios where id = '${ADMIN}'`)).avisos
+  conferir(def1.ligado === false && (await quantos(ADMIN, 'chegada_aguardo')) === 1 && (await quantos(DONO, 'chegada_aguardo')) === 1
+      && pref1?.chegada_aguardo === false,
+    'desligou "peça pronta na Expedição": o próximo aviso não nasce para ele (para o outro, sim); a escolha fica no cadastro',
+    JSON.stringify({ def1, pref1 }))
+  await como29(P29.admin)
+  await bd.exec(`select public.plt_fn_aviso_definir('chegada_aguardo', true)`)
+  await como29('')
+  const pref2 = (await um29(`select avisos from public.plt_usuarios where id = '${ADMIN}'`)).avisos
+  await avisar(ADMIN, 'chegada_aguardo')
+  conferir(pref2 === null && (await quantos(ADMIN, 'chegada_aguardo')) === 2,
+    'ligou de novo (= o padrão): a escolha some do cadastro e o aviso volta a chegar', JSON.stringify(pref2))
+
+  await bd.exec(`update public.plt_usuarios set avisos = '{"senha_pedido": false, "card_esquecido": false}'::jsonb where id = '${ADMIN}'`)
+  await avisar(ADMIN, 'senha_pedido')
+  await avisar(ADMIN, 'card_esquecido')
+  await avisar(ADMIN, 'tipo_que_nao_existe_29')
+  await bd.exec(`update public.plt_usuarios set avisos = null where id = '${ADMIN}'`)
+  conferir((await quantos(ADMIN, 'senha_pedido')) === 1 && (await quantos(ADMIN, 'card_esquecido')) === 1
+      && (await quantos(ADMIN, 'tipo_que_nao_existe_29')) === 1,
+    'os urgentes chegam mesmo com "desligado" gravado; o aviso fora do catálogo passa (nada some sem querer)')
+  await como29(P29.admin)
+  await falha29(`select public.plt_fn_aviso_definir('senha_pedido', false)`, 'o urgente não desliga pela tela', /sempre ligado/)
+  await falha29(`select public.plt_fn_aviso_definir('tipo_que_nao_existe_29', false)`, 'aviso desconhecido é recusado', /desconhecido/)
+  await como29(P29.operador)
+  await falha29(`select public.plt_fn_aviso_definir('chegada_aguardo', false)`, 'aviso que não chega para a pessoa não se escolhe', /não chega para esta pessoa/)
+  await falha29(`select public.plt_fn_aviso_definir('delegacao', false, '${ADMIN}')`, 'só o administrador escolhe os avisos de outra pessoa', /Só um administrador/)
+  await falha29(`select public.plt_fn_avisos('${ADMIN}')`, 'nem vê os de outra pessoa', /Só um administrador/)
+  await como29('')
+
+  titulo('Ajuste 28/10 · D-202: a tela — o que cada um pode receber, o padrão e o administrador escolhendo por outra pessoa')
+  await como29(P29.operador)
+  const telaOp = (await um29(`select public.plt_fn_avisos() as t`)).t
+  await como29(P29.dono)
+  const telaDono = (await um29(`select public.plt_fn_avisos() as t`)).t
+  const telaAdm = (await um29(`select public.plt_fn_avisos('${ADMIN}') as t`)).t
+  await bd.exec(`select public.plt_fn_aviso_definir('delegacao', false, '${OPER}')`)
+  await como29('')
+  const tiposOp = telaOp.avisos.map((a) => a.tipo)
+  const erroDono = telaDono.avisos.find((a) => a.tipo === 'automacao_erro')
+  const erroAdm = telaAdm.avisos.find((a) => a.tipo === 'automacao_erro')
+  const senhaAdm = telaAdm.avisos.find((a) => a.tipo === 'senha_pedido')
+  const prefOp = (await um29(`select avisos from public.plt_usuarios where id = '${OPER}'`)).avisos
+  const trilha = (await um29(`select count(*)::int as n from public.plt_logs_atividade
+                               where acao = 'aviso_escolhido' and contexto->>'alvo_id' = '${OPER}'`)).n
+  conferir(tiposOp.includes('delegacao') && tiposOp.includes('card_mencao') && !tiposOp.includes('chegada_aguardo')
+      && !tiposOp.includes('automacao_erro') && telaOp.pessoas === null
+      && erroDono?.ligado === true && erroDono?.padrao === true && erroAdm?.ligado === false && erroAdm?.padrao === false
+      && senhaAdm?.obrigatorio === true && telaAdm.pessoa.id === ADMIN && Array.isArray(telaDono.pessoas)
+      && prefOp?.delegacao === false && trilha === 1,
+    'o operador vê só os avisos dele (sem a lista de pessoas); erro ligado para o super admin e desligado para o outro admin; o admin escolhe pelo operador (fica na trilha)',
+    JSON.stringify({ tiposOp, erroDono, erroAdm, prefOp, trilha }))
+
+  titulo('Ajuste 28/10 · D-202: os erros vão aos administradores; o padrão é só o super admin; os três erros novos nascem do fato')
+  await bd.exec(`select plt_privado.fn_tiny_alertar('teste29:a', 'Erro de teste 29', 'corpo 29 erro', '{}'::jsonb)`)
+  const erro1 = { dono: await quantos(DONO, 'automacao_erro'), admin: await quantos(ADMIN, 'automacao_erro') }
+  await como29(P29.admin)
+  await bd.exec(`select public.plt_fn_aviso_definir('automacao_erro', true)`)
+  await como29('')
+  await bd.exec(`select plt_privado.fn_tiny_alertar('teste29:b', 'Erro de teste 29', 'corpo 29 erro b', '{}'::jsonb)`)
+  await bd.exec(`select plt_privado.fn_tiny_alertar('teste29:b', 'Erro de teste 29', 'corpo 29 erro b', '{}'::jsonb)`)
+  const erro2 = { dono: await quantos(DONO, 'automacao_erro'), admin: await quantos(ADMIN, 'automacao_erro') }
+  const trilhaErro = (await um29(`select count(*)::int as n from public.plt_logs_atividade
+                                   where acao = 'automacao_erro' and contexto->>'aviso_id' = 'teste29:b'`)).n
+  conferir(erro1.dono === 1 && erro1.admin === 0 && erro2.dono === 2 && erro2.admin === 1 && trilhaErro === 2,
+    'o erro chega ao super admin; o outro admin só depois de ligar; o mesmo erro na mesma hora não repete o aviso (a Auditoria registra os dois)',
+    JSON.stringify({ erro1, erro2, trilhaErro }))
+
+  await bd.exec(`
+    insert into public.plt_automacoes (nome, gatilho) values ('Automação Avisos 28', 'pedido_novo');
+    insert into public.plt_automacao_execucoes (automacao_id, automacao_nome, gatilho, situacao, resultado)
+      values ((select id from public.plt_automacoes where nome = 'Automação Avisos 28'), 'Automação Avisos 28', 'pedido_novo', 'rodando', '[]'::jsonb);
+    update public.plt_automacao_execucoes
+       set situacao = 'falhou',
+           resultado = '[{"n": 1, "tipo": "mover", "resultado": "falhou", "frase": "a peça não sai do PCP"}]'::jsonb
+     where automacao_nome = 'Automação Avisos 28';
+    update public.plt_automacao_execucoes set avaliacao = 'de novo' where automacao_nome = 'Automação Avisos 28';
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (1942901, 'SX29A', 'Estante Avisos 28', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_tiny_estoque_fila (produto_tiny_id, enviar, tentativas, ultimo_erro)
+      values (1942901, true, 4, 'saldo recusado');
+    update public.plt_tiny_estoque_fila set tentativas = 5, parado_em = now() where produto_tiny_id = 1942901;
+    update public.plt_tiny_estoque_fila set ultimo_erro = 'de novo' where produto_tiny_id = 1942901;
+    insert into public.plt_webhooks (nome, url, eventos) values ('Webhook Avisos 28', 'https://exemplo.invalid/29', '{}');
+    insert into public.plt_webhook_entregas (webhook_id, evento_id, payload, tentativas)
+      values ((select id from public.plt_webhooks where nome = 'Webhook Avisos 28'), (select min(id) from public.plt_eventos), '{}'::jsonb, 4);
+    update public.plt_webhook_entregas set situacao = 'falha', tentativas = 5, ultimo_erro = 'conexão recusada'
+     where webhook_id = (select id from public.plt_webhooks where nome = 'Webhook Avisos 28');
+  `)
+  const novos = await um29(`
+    select count(*) filter (where tipo = 'automacao_falhou' and corpo like '%Automação Avisos 28%a peça não sai do PCP%')::int as automacao,
+           count(*) filter (where tipo = 'estoque_tiny_parado' and corpo like '%Estante Avisos 28%saldo recusado%')::int as estoque,
+           count(*) filter (where tipo = 'webhook_falhou' and corpo like '%Webhook Avisos 28%conexão recusada%')::int as webhook
+      from public.plt_notificacoes where destinatario_id = '${DONO}'`)
+  const novosAdm = (await um29(`select count(*)::int as n from public.plt_notificacoes
+                                 where destinatario_id = '${ADMIN}' and tipo in ('automacao_falhou', 'estoque_tiny_parado', 'webhook_falhou')`)).n
+  conferir(novos.automacao === 1 && novos.estoque === 1 && novos.webhook === 1 && novosAdm === 0,
+    'a automação que falhou, o estoque que parou de ir ao Tiny e o aviso não entregue avisam o super admin uma vez cada (mexer de novo na linha não repete); o outro admin, com o padrão, não recebe',
+    JSON.stringify({ novos, novosAdm }))
+
+  titulo('Ajuste 28/10 · D-202: o administrador que pede a troca de senha não recebe o próprio aviso nem decide o próprio pedido')
+  const H29 = 'd'.repeat(43) + '='
+  await bd.exec(`select public.plt_fn_senha_solicitar('admin.avisos29@teste.com', '${H29}')`)
+  const pedido = (await um29(`select id::int as id from public.plt_senha_pedidos where usuario_id = '${ADMIN}' and situacao = 'pendente'`)).id
+  // o '1' é o aviso do teste do urgente, lá em cima — o pedido de agora não avisou a ele
+  const avisoProprio = (await um29(`select count(*)::int as n from public.plt_notificacoes
+                                     where destinatario_id = '${ADMIN}' and tipo = 'senha_pedido'`)).n
+  const avisoDono = (await um29(`select count(*)::int as n from public.plt_notificacoes
+                                  where destinatario_id = '${DONO}' and tipo = 'senha_pedido'`)).n
+  await como29(P29.admin)
+  const listaPropria = (await um29(`select public.plt_fn_senha_pedidos() as l`)).l
+  await falha29(`select public.plt_fn_senha_decidir(${pedido}, true)`, 'ninguém libera a própria troca de senha', /outro administrador/)
+  await como29(P29.dono)
+  const listaDono = (await um29(`select public.plt_fn_senha_pedidos() as l`)).l
+  const dec = (await um29(`select public.plt_fn_senha_decidir(${pedido}, false) as d`)).d
+  await como29('')
+  conferir(avisoProprio === 1 && avisoDono === 1 && !listaPropria.some((p) => p.id === pedido)
+      && listaDono.some((p) => p.id === pedido) && dec.mudou === true,
+    'o pedido de um administrador avisa os outros (não a ele), não aparece na lista dele e outro administrador decide',
+    JSON.stringify({ avisoProprio, avisoDono, listaPropria: listaPropria.map((p) => p.id), dec }))
+
+  const priv29 = await um29(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_aviso_ligado(text, uuid)', 'execute') as maquinaria,
+           has_function_privilege('anon', 'public.plt_fn_avisos(uuid)', 'execute') as tela_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_avisos(uuid)', 'execute') as tela_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_aviso_definir(text, boolean, uuid)', 'execute') as definir_logado`)
+  conferir(!priv29.maquinaria && !priv29.tela_anon && priv29.tela_logado && priv29.definir_logado,
+    'a maquinaria fora da API; as duas portas para quem tem login',
+    JSON.stringify(priv29))
+} finally {
+  await bd.exec('rollback')
+  await como29('')
+}
+} // fim do bloco Ajuste 28/10 · avisos
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(
