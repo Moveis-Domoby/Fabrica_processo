@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, CheckCheck, Trash2 } from 'lucide-react'
+import { Bell, CheckCheck, Settings2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ouvirCanal, topicoDaPessoa } from '@/chat/canais'
 import {
@@ -36,8 +36,11 @@ function quando(iso: string): string {
 export function SinoNotificacoes({
   usuarioId,
   painelLado = 'direita',
+  linkAvisos = false,
 }: {
   usuarioId: string
+  /** D-202: quem vê Configurações tem, no painel, o atalho para escolher os avisos. */
+  linkAvisos?: boolean
   /** De que borda da PÁGINA o painel abre — nunca ancorado no próprio sino (o
    *  sino agora vive no topo da sidebar; ancorar nele estouraria a tela). */
   painelLado?: 'esquerda' | 'direita'
@@ -201,7 +204,7 @@ export function SinoNotificacoes({
               )}
             </header>
 
-            <ul className="min-h-0 flex-1 overflow-y-auto">
+            <ul className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
               {avisos.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-texto-fraco">
                   Nenhum aviso por aqui.
@@ -287,6 +290,18 @@ export function SinoNotificacoes({
               >
                 Ver todos
               </Link>
+              {/* D-202: o atalho para escolher os avisos (quem vê Configurações). */}
+              {linkAvisos && (
+                <Link
+                  to="/configuracoes/avisos"
+                  onClick={() => setAberto(false)}
+                  aria-label="Escolher os avisos"
+                  title="Escolher os avisos"
+                  className="flex min-h-toque-md w-12 shrink-0 items-center justify-center border-l border-borda text-texto-suave hover:bg-superficie-sutil hover:text-texto"
+                >
+                  <Settings2 aria-hidden className="size-4" />
+                </Link>
+              )}
             </div>
           </div>,
           document.body,

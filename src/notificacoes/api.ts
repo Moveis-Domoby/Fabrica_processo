@@ -27,6 +27,9 @@ export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'>): string |
   }
   // SESSAO-41 (D-191): o pedido de troca de senha abre o aviso urgente (Liberar / Não liberar).
   if (aviso.tipo === 'senha_pedido') return '?senhas=1'
+  // D-202 (28/10): os erros novos levam à tela onde se resolve (só admin chega lá).
+  if (aviso.tipo === 'estoque_tiny_parado') return '/configuracoes/estoque'
+  if (aviso.tipo === 'webhook_falhou') return '/configuracoes/api'
   // SESSAO-41 · ajuste (D-198): o card esquecido abre a pergunta urgente (Sim / Não).
   if (aviso.tipo === 'card_esquecido') return '?esquecidos=1'
   // SESSAO-31 (§3): responsável e menção abrem a janela do card, ali mesmo.

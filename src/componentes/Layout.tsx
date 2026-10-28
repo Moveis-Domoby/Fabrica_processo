@@ -400,6 +400,8 @@ export function Layout({ children }: { children: ReactNode }) {
                   filhos: [
                     { para: '/configuracoes/equipe', rotulo: 'Gestão da equipe' },
                     { para: '/configuracoes/setores-e-etapas', rotulo: 'Setores e etapas' },
+                    // D-202 (28/10): os avisos que cada um recebe (o admin, de qualquer pessoa)
+                    { para: '/configuracoes/avisos', rotulo: 'Avisos' },
                     ...(souAdmin
                       ? [
                           { para: '/configuracoes/tempo', rotulo: 'Controle de tempo' },
@@ -553,7 +555,7 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* SESSAO-40 (D-188): a busca geral dos cards, ao lado do sino (Ctrl+K). */}
         {veFabrica && <BotaoBuscaGeral atalho />}
         {/* O sino no topo, junto à logo (D-36). */}
-        <SinoNotificacoes usuarioId={perfil.id} painelLado="esquerda" />
+        <SinoNotificacoes usuarioId={perfil.id} painelLado="esquerda" linkAvisos={ehLider} />
         <button
           type="button"
           onClick={alternarRecolhida}
@@ -785,7 +787,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </NavLink>
             <div className="ml-auto flex items-center gap-1">
               {veFabrica && <BotaoBuscaGeral />}
-              <SinoNotificacoes usuarioId={perfil.id} />
+              <SinoNotificacoes usuarioId={perfil.id} linkAvisos={ehLider} />
             </div>
           </div>
         </header>

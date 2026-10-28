@@ -32,6 +32,7 @@ const PEDACOS: [prefixo: string, carregar: () => Promise<unknown>][] = [
   ['/dashboards/motivos', () => import('@/paginas/dashboards/Motivos')],
   ['/configuracoes/equipe', () => import('@/paginas/Equipe')],
   ['/configuracoes/setores-e-etapas', () => import('@/paginas/Estrutura')],
+  ['/configuracoes/avisos', () => import('@/paginas/ConfigAvisos')],
   ['/configuracoes/tempo', () => import('@/paginas/ControleTempo')],
   ['/configuracoes/estoque', () => import('@/paginas/AdminEstoque')],
   ['/configuracoes/produtos', () => import('@/paginas/ClassificacaoProdutos')],

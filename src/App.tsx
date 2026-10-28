@@ -47,6 +47,8 @@ const Auditoria = pagina(() => import('@/paginas/Auditoria'), 'Auditoria')
 const Automacoes = pagina(() => import('@/paginas/Automacoes'), 'Automacoes')
 const Utilitarios = pagina(() => import('@/paginas/Utilitarios'), 'Utilitarios')
 const Estrutura = pagina(() => import('@/paginas/Estrutura'), 'Estrutura')
+// D-202 (28/10): os avisos que cada pessoa recebe.
+const ConfigAvisos = pagina(() => import('@/paginas/ConfigAvisos'), 'ConfigAvisos')
 const MeuPerfil = pagina(() => import('@/paginas/MeuPerfil'), 'MeuPerfil')
 const Chat = pagina(() => import('@/paginas/Chat'), 'Chat')
 const Estoque = pagina(() => import('@/paginas/Estoque'), 'Estoque')
@@ -239,6 +241,7 @@ export function App() {
                 {/* SESSAO-27 (D-100): o antigo "Painel admin" virou CONFIGURAÇÕES */}
                 <Route path="/configuracoes/equipe" element={<Equipe />} />
                 <Route path="/configuracoes/setores-e-etapas" element={<Estrutura />} />
+                <Route path="/configuracoes/avisos" element={<ConfigAvisos />} />
               </Route>
 
               {/* só admin */}
