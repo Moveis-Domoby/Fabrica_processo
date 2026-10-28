@@ -76,3 +76,26 @@ tags: [handoff, ajuste, senha, notificacao, pcp, reposicao, estoque]
 ## 8. Numeração usada
 
 D-200 · D-201 · E-166 · A-123…A-125 · migrations `20261028010000` e `20261028020000` · ids de teste `...4281–4282`, produtos `1942801–1942803`, pedidos `942801–942803`. **Seguinte: D-202 · E-167 · A-126.**
+
+## 9. Parte 2 (28/10) — os avisos que cada um recebe + os dois achados (D-202)
+
+**Pedido do dono:** corrigir os dois achados e criar em Configurações uma tela com todos os avisos, para cada um escolher os que recebe — tirar os desnecessários e ter os de erro de automação. Respostas: cada um escolhe os próprios **e o administrador os de qualquer pessoa**; os urgentes (troca de senha e card esquecido) **sempre ligados**; os erros novos: **automação da plataforma que falhou, estoque que parou de ir para o Tiny, aviso para integração não entregue**; os erros **ligados por padrão só para o super admin**.
+
+**O que mudou**
+1. **Configurações → Avisos** (e o atalho ⚙ no rodapé do sino): os avisos por assunto, cada um com liga/desliga, a frase e quantos chegaram nos últimos 30 dias. "De quem" (só administrador) escolhe a pessoa. Desligado, o aviso não nasce para ela.
+2. **Erros de automação e integrações:** os de antes (Tiny e n8n) + os 3 novos, para os administradores — ligados para o super admin; os outros ligam se quiserem. O mesmo erro não repete dentro de 1 hora (o do estoque, 1 dia).
+3. **O sino** não tem mais a barrinha de rolagem lateral.
+4. **Troca de senha de um administrador:** ele não recebe o próprio aviso, não vê o próprio pedido e não consegue liberá-lo — outro administrador decide.
+
+**Como testar**
+1. Configurações → **Avisos**: veja os assuntos; "Peça pronta na Expedição" mostra quantos chegaram em 30 dias (hoje, 263).
+2. Desligue **Peça pronta na Expedição** → quando a próxima peça ficar pronta, o seu sino não recebe (os outros administradores, sim).
+3. Os dois urgentes aparecem com o cadeado **"Sempre ligado"**.
+4. Em **De quem**, escolha outra pessoa → os avisos dela; mude um → vale para ela.
+5. Em **Erros de automação e integrações**, os 5 aparecem ligados para você; para outro administrador, desligados.
+6. Abra o sino: sem barrinha lateral; o ⚙ no rodapé leva à tela.
+7. (Com um administrador de teste) peça a troca da senha dele: o aviso chega aos outros administradores, não a ele.
+
+**Verificação:** bateria 1.412 verdes (14 novas: o filtro, o urgente, o tipo desconhecido, a escolha que volta ao padrão, quem pode escolher o quê, a tela por pessoa, o erro só para o super admin e depois de ligar, os 3 erros novos uma vez cada, a troca de senha do próprio admin, as permissões); testes de tela 330 verdes (4 novos da tela); lint limpo; JS inicial 228,0 KB; vitrine conferida no computador e no celular.
+
+**Numeração:** D-202 · E-167 · A-126…A-127 · migration `20261028030000` · ids de teste `...4291–4293`, produto `1942901`. **Seguinte: D-203 · E-168 · A-128.**
