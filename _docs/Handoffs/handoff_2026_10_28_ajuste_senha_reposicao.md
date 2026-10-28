@@ -98,4 +98,6 @@ D-200 · D-201 · E-166 · A-123…A-125 · migrations `20261028010000` e `20261
 
 **Verificação:** bateria 1.412 verdes (14 novas: o filtro, o urgente, o tipo desconhecido, a escolha que volta ao padrão, quem pode escolher o quê, a tela por pessoa, o erro só para o super admin e depois de ligar, os 3 erros novos uma vez cada, a troca de senha do próprio admin, as permissões); testes de tela 330 verdes (4 novos da tela); lint limpo; JS inicial 228,0 KB; vitrine conferida no computador e no celular.
 
+**Subida:** ✅ 28/10 com o OK do dono (*"Subir agora"*): a atualização do banco (`--so`, integração do Tiny idêntica) e o site (main `607b665`, Vercel success; o pacote publicado tem a tela). Conferido em produção (leitura, como o dono): os 4 gatilhos, o índice e a coluna no lugar; a coluna e a maquinaria fora da API; a tela do dono traz os 22 avisos, 16 pessoas e os 5 erros ligados; a porta ~21 ms.
+
 **Numeração:** D-202 · E-167 · A-126…A-127 · migration `20261028030000` · ids de teste `...4291–4293`, produto `1942901`. **Seguinte: D-203 · E-168 · A-128.**
