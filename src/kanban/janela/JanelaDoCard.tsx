@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlignLeft,
   ArrowRightLeft,
+  BellOff,
   CalendarClock,
   CircleCheckBig,
   CirclePause,
@@ -12,6 +13,7 @@ import {
   Handshake,
   History,
   Link2,
+  Moon,
   Pause,
   Flag,
   Pencil,
@@ -45,7 +47,8 @@ import { HistoricoDoCard } from '../componentes/ModalLinhaTempo'
 import { SeletorEtiquetas, SeletorPessoas } from '../lancamento/Seletores'
 import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
 import { formatarDuracao, useAgora } from '../tempo'
-import { duracaoUtilDesde, formatarTempoUtil, tempoPcpMs } from '../tempoUtil'
+import { duracaoUtilDesde, formatarTempoUtil, tempoPcpMs, textoTempoDoMovel } from '../tempoUtil'
+import { TEXTO_PAUSA_AUTOMATICA, pausaAutomatica } from '../pausa'
 import { useReguaTempo } from '../useReguaTempo'
 import { abrirJanela } from './api'
 import type { JanelaDoCard as DadosJanela } from './api'
@@ -242,6 +245,8 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   const executor = card.executor_atual_id ? pessoas[card.executor_atual_id]?.nome : null
   const pausado = card.executor_atual_id !== null && card.pausado_em !== null
   const motivo = card.pausa_motivo ?? null
+  // SESSAO-42: a pausa que o sistema fez sozinho (fim do expediente / sem resposta ao aviso)
+  const automatica = pausado ? pausaAutomatica(motivo) : null
   // No tablet a conta é do dispositivo: o botão aparece pelo estado e o banco
   // decide com o PIN (o próprio executor, o líder, o admin).
   const vivo = !dados.arquivado_em
@@ -435,7 +440,19 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         )}
         {/* O estado: na fila, em execução por quem, pausado (ícone + texto — M-12). */}
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-texto-suave tabular-nums">
-          {pausado ? (
+          {pausado && automatica ? (
+            // SESSAO-42: a pausa que o sistema fez sozinho — ícone + texto próprios.
+            <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
+              {automatica === 'fim_expediente' ? (
+                <Moon aria-hidden className="size-4 shrink-0" />
+              ) : (
+                <BellOff aria-hidden className="size-4 shrink-0" />
+              )}
+              <span className="min-w-0 break-words">
+                Pausado · {TEXTO_PAUSA_AUTOMATICA[automatica]} · {executor ?? '…'}
+              </span>
+            </span>
+          ) : pausado ? (
             <span className="inline-flex min-w-0 items-center gap-1 font-medium text-atencao-texto">
               <Pause aria-hidden className="size-4 shrink-0" />
               <span className="min-w-0 break-words">
@@ -449,8 +466,20 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
           ) : executor ? (
             <span className="inline-flex items-center gap-1 text-texto">
               <Play aria-hidden className="size-4 text-perfeito-forte" />
-              Em execução por {executor} há{' '}
-              {formatarDuracao(dados.execucao?.iniciou_em ?? card.desde, agora)}
+              {dados.tempo ? (
+                // SESSAO-42 (F4): o TEMPO DO MÓVEL no setor (o mesmo do card no
+                // quadro) — só o expediente conta, parando no fim do expediente.
+                <span title="Tempo do móvel neste setor — conta só o expediente (o almoço e a noite não contam)">
+                  Em execução por {executor} · {textoTempoDoMovel(dados.tempo, regua, agora)} no
+                  setor
+                  {dados.tempo.lote ? ' · montado junto com outros' : ''}
+                </span>
+              ) : (
+                <>
+                  Em execução por {executor} há{' '}
+                  {formatarDuracao(dados.execucao?.iniciou_em ?? card.desde, agora)}
+                </>
+              )}
             </span>
           ) : motivo && vivo ? (
             // SESSAO-31 (§4): solto no PARADO com o motivo.
@@ -761,6 +790,7 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
           <HistoricoDoCard
             card={card}
             pedido={dados.pedido}
+            tempoVivo={dados.tempo ?? undefined}
             comCampos={false}
             alturaLimitada={false}
           />

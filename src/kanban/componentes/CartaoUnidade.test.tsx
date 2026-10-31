@@ -58,7 +58,11 @@ describe('o card de produção (SESSAO-38)', () => {
 
   it('mostra a data de entrega (a do servidor primeiro) com a cor do que falta', () => {
     render(
-      <CartaoUnidade card={{ ...peca, data_entrega: '2026-10-30' }} pedido={pedido} agora={AGORA} />,
+      <CartaoUnidade
+        card={{ ...peca, data_entrega: '2026-10-30' }}
+        pedido={pedido}
+        agora={AGORA}
+      />,
     )
     const chip = screen.getByRole('img', { name: /faltam 9 dias/ })
     expect(chip.textContent).toBe('30/10')
@@ -84,5 +88,71 @@ describe('o card de produção (SESSAO-38)', () => {
   it('no fim de linha não há prazo', () => {
     render(<CartaoUnidade card={peca} pedido={pedido} agora={AGORA} terminal />)
     expect(screen.queryByRole('img', { name: /Entrega/ })).toBeNull()
+  })
+})
+
+describe('o tempo do móvel no card (SESSAO-42)', () => {
+  const rodando = {
+    ...peca,
+    executor_atual_id: 'u1',
+    etapa_atual_id: 30,
+  }
+
+  it('em execução mostra o tempo do móvel que veio do banco, não o relógio desde o início', () => {
+    render(
+      <CartaoUnidade
+        card={rodando}
+        pedido={pedido}
+        agora={AGORA}
+        executorNome="Franklin"
+        execucaoDesde={new Date(AGORA - 5 * 3_600_000).toISOString()}
+        tempoVivo={{
+          setor_id: 6,
+          fechado_s: 600,
+          fila_s: 0,
+          desde: new Date(AGORA - 30 * 60_000).toISOString(),
+          corte: null,
+          dividir: 1,
+          usuario_id: 'u1',
+          lote: 'lote-1',
+        }}
+      />,
+    )
+    // 10 min fechados + 30 min rodando (sem a régua, o relógio)
+    expect(screen.getByText('40min')).toBeTruthy()
+    expect(screen.queryByText(/5h/)).toBeNull()
+    expect(screen.getByText('em lote')).toBeTruthy()
+  })
+
+  it('pausado sozinho no fim do expediente diz isso (ícone + texto)', () => {
+    render(
+      <CartaoUnidade
+        card={{
+          ...rodando,
+          pausado_em: new Date(AGORA - 60_000).toISOString(),
+          pausa_motivo: 'Fim do expediente',
+        }}
+        pedido={pedido}
+        agora={AGORA}
+        executorNome="Franklin"
+      />,
+    )
+    expect(screen.getByText('Pausado · fim do expediente')).toBeTruthy()
+  })
+
+  it('pausado sem resposta ao aviso diz isso', () => {
+    render(
+      <CartaoUnidade
+        card={{
+          ...rodando,
+          pausado_em: new Date(AGORA - 60_000).toISOString(),
+          pausa_motivo: 'Sem resposta ao aviso',
+        }}
+        pedido={pedido}
+        agora={AGORA}
+        executorNome="Franklin"
+      />,
+    )
+    expect(screen.getByText('Pausado · sem resposta ao aviso')).toBeTruthy()
   })
 })

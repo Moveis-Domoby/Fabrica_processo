@@ -9,6 +9,27 @@ import { supabase } from '@/lib/supabase'
  * tempo como sempre (D-59), com o motivo no fato e na frente do card.
  */
 
+/**
+ * SESSAO-42 (regra 2 e o card esquecido): as pausas que o SISTEMA faz sozinho
+ * — no fim do expediente do setor ("Fim do expediente") e na pergunta "ainda
+ * tem alguém?" sem resposta ("Sem resposta ao aviso"). O card mostra cada uma
+ * com ícone e texto próprios.
+ */
+export type PausaAutomatica = 'fim_expediente' | 'sem_resposta'
+
+export const TEXTO_PAUSA_AUTOMATICA: Record<PausaAutomatica, string> = {
+  fim_expediente: 'fim do expediente',
+  sem_resposta: 'sem resposta ao aviso',
+}
+
+/** O motivo da pausa é uma pausa do sistema? (nulo = pausa de gente, com o motivo dela) */
+export function pausaAutomatica(motivo: string | null | undefined): PausaAutomatica | null {
+  const texto = (motivo ?? '').trim().toLowerCase()
+  if (texto.startsWith('fim do expediente')) return 'fim_expediente'
+  if (texto.startsWith('sem resposta ao aviso')) return 'sem_resposta'
+  return null
+}
+
 export interface EscolhaDeMotivo {
   /** Um motivo da lista; nulo = "Outro" (o texto é o motivo). */
   motivoId: number | null

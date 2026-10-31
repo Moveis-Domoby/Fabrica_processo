@@ -10,6 +10,7 @@ import type { ColunaPaginada } from './componentes/QuadroKanban'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
 import type { OrdemDaFila } from './prioridade'
 import type { CardEsquecido } from './cardEsquecido'
+import type { TempoVivo } from './tempoUtil'
 
 /** A coluna sem etapa (a "Chegada") — a mesma chave do QuadroKanban. */
 const CHEGADA = 'chegada'
@@ -50,6 +51,7 @@ const juntar = (a: JuntoDoQuadro, b: JuntoDoQuadro): JuntoDoQuadro => ({
   pessoas: { ...a.pessoas, ...b.pessoas },
   pedidos: { ...a.pedidos, ...b.pedidos },
   valores: [...a.valores, ...b.valores],
+  tempos: { ...(a.tempos ?? {}), ...(b.tempos ?? {}) },
 })
 
 /**
@@ -297,6 +299,10 @@ export function useQuadro(
       lista.push(a)
       auxiliosPorCard.set(a.card_id, lista)
     }
+    // SESSAO-42 (F4): o tempo do móvel no setor de cada card (o fechado + o vivo)
+    const temposPorCard = new Map<number, TempoVivo>(
+      Object.entries(junto.tempos ?? {}).map(([id, t]) => [Number(id), t]),
+    )
     const pessoas = new Map<string, PessoaDoQuadro>(Object.entries(junto.pessoas))
     const nomesUsuarios = new Map<string, string>([...pessoas].map(([id, p]) => [id, p.nome]))
     const pedidosPorId = new Map<number, PedidoDoCard>(
@@ -325,6 +331,7 @@ export function useQuadro(
       cards,
       execucoesPorCard,
       auxiliosPorCard,
+      temposPorCard,
       pessoas,
       nomesUsuarios,
       pedidosPorId,

@@ -5,7 +5,7 @@ import { ArrowLeftRight, House, Layers, LogOut, UsersRound } from 'lucide-react'
 import { AvatarPessoa, Botao, Modal, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import type { OperadorIdentificado } from '@/autenticacao/api'
-import { buscarSetores, soltarCard } from '@/kanban/api'
+import { buscarSetores, montarJuntos, soltarCardOuLote } from '@/kanban/api'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
 import type { AcaoAoSoltar } from '@/kanban/arrasto'
 import { useAgora } from '@/kanban/tempo'
@@ -20,6 +20,8 @@ import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
 import { ModalConcluirAvulso } from '@/kanban/componentes/ModalConcluirAvulso'
 import { ModalMotivoPausa } from '@/kanban/componentes/ModalMotivoPausa'
+import { ModalLevarLote } from '@/kanban/componentes/ModalLevarLote'
+import { acaoLevaOLote, outrosDoLote } from '@/kanban/lote'
 import type { Card } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
@@ -48,8 +50,12 @@ type GestoComPin =
       etapaId: number | null
       acao: AcaoAoSoltar
       rotulo: string
+      /** SESSAO-42 ("Concluir o lote"): levar o lote inteiro junto. */
+      lote: boolean
     }
   | { tipo: 'concluir_avulso'; card: Card; rotulo: string }
+  /** SESSAO-42 ("Montar juntos"): iniciar de uma vez os cards marcados na fila — o PIN diz quem monta. */
+  | { tipo: 'montar_juntos'; cards: Card[]; rotulo: string }
   /** SESSAO-36 (D-146): entrar no card em execução como AUXILIAR (tempo próprio). */
   | { tipo: 'auxiliar'; card: Card; rotulo: string }
   /** SESSAO-37 (D-147): ajudar em TODOS os cards em execução do setor de uma vez. */
@@ -153,6 +159,7 @@ export function TelaSetor() {
     presencas: presencasLidas,
     auxiliosPorCard,
     esquecidos,
+    temposPorCard,
   } = quadro
   // SESSAO-41 (D-189): quem está no setor AGORA — a carência de 15 min e a
   // saída de 1 h andam com o relógio da tela (nada é buscado de novo).
@@ -204,11 +211,20 @@ export function TelaSetor() {
     card: Card
     acao: Extract<AcaoAoSoltar, { tipo: 'encaminhar' }>
     operador: OperadorIdentificado
+    lote: boolean
   } | null>(null)
   const [concluindo, setConcluindo] = useState<{
     card: Card
     acao: Extract<AcaoAoSoltar, { tipo: 'concluir' }>
     operador: OperadorIdentificado
+    lote: boolean
+  } | null>(null)
+  // SESSAO-42 ("Concluir o lote"): a pergunta "só este ou o lote todo?" vem antes do PIN.
+  const [perguntaLote, setPerguntaLote] = useState<{
+    card: Card
+    etapaId: number | null
+    quantos: number
+    destino: string
   } | null>(null)
   const [contextoParecer, setContextoParecer] = useState<{
     card: Card
@@ -243,9 +259,15 @@ export function TelaSetor() {
   }
 
   const mutacaoSoltar = useMutation({
-    mutationFn: soltarCard,
+    mutationFn: soltarCardOuLote,
     onSuccess: async (resultado) => {
       if (resultado.acao === 'iniciado') notificar({ titulo: 'Tempo começou', tom: 'perfeito' })
+      // SESSAO-42: "O lote todo" — quantos foram juntos.
+      if (resultado.acao === 'lote')
+        notificar({
+          titulo: `${resultado.cards ?? 0} cards do lote levados juntos`,
+          tom: 'perfeito',
+        })
       if (resultado.acao === 'concluido')
         notificar({
           titulo: textoPecaConcluida(resultado.destino),
@@ -300,6 +322,26 @@ export function TelaSetor() {
   })
   const [pausarGeralDe, setPausarGeralDe] = useState<OperadorIdentificado | null>(null)
 
+  // SESSAO-42 ("Montar juntos"): no nome de quem digitou o PIN.
+  const mutacaoMontar = useMutation({
+    mutationFn: ({ cards, operadorId }: { cards: Card[]; operadorId: string }) =>
+      montarJuntos({ cardIds: cards.map((c) => c.id), operadorId }),
+    onSuccess: async (resposta) => {
+      notificar({
+        titulo: `${resposta.cards.length} cards montando juntos — o tempo começou e se divide entre eles`,
+        tom: 'perfeito',
+      })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para montar juntos',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
+
   // SESSAO-41 · ajuste (D-198): a resposta ao card esquecido, no nome de quem
   // digitou o PIN (quem está no card, o líder ou o admin — a trava é do banco).
   const mutacaoEsquecido = useMutation({
@@ -346,21 +388,25 @@ export function TelaSetor() {
       setPausarGeralDe(operador)
       return
     }
+    if (gesto.tipo === 'montar_juntos') {
+      mutacaoMontar.mutate({ cards: gesto.cards, operadorId: operador.usuario_id })
+      return
+    }
     if (gesto.tipo === 'concluir_avulso') {
       setConcluindoAvulso({ card: gesto.card, operadorId: operador.usuario_id })
       return
     }
-    const { card, etapaId, acao } = gesto
+    const { card, etapaId, acao, lote } = gesto
     // SESSAO-31 (D-126): o estado só é perguntado quando o setor pede ao enviar.
     if (acao.tipo === 'encaminhar' && setor && pedeEstadoAoEnviar(setor, card)) {
-      setEncaminhando({ card, acao, operador })
+      setEncaminhando({ card, acao, operador, lote })
     } else if (
       acao.tipo === 'concluir' &&
       card.tipo === 'unidade' &&
       setor &&
       pedeEstadoAoEnviar(setor, card)
     ) {
-      setConcluindo({ card, acao, operador })
+      setConcluindo({ card, acao, operador, lote })
     } else if (acao.tipo === 'parar') {
       // SESSAO-31 (§4): o motivo da parada, no nome de quem digitou o PIN.
       setParando({ card, acao, operadorId: operador.usuario_id })
@@ -371,7 +417,7 @@ export function TelaSetor() {
       if ((acao.tipo === 'mover' || acao.tipo === 'iniciar') && etapaId !== null) {
         quadro.moverOtimista(card, etapaId)
       }
-      mutacaoSoltar.mutate({ card, etapaId, operadorId: operador.usuario_id })
+      mutacaoSoltar.mutate({ card, etapaId, operadorId: operador.usuario_id, lote })
     }
   }
 
@@ -418,12 +464,31 @@ export function TelaSetor() {
   }
 
   const setorAtual = setor
-  function aoSoltarNaEtapa(card: Card, etapaId: number | null) {
+  function aoSoltarNaEtapa(card: Card, etapaId: number | null, loteTodo: boolean | null = null) {
     const acao = acaoAoSoltar({ setor: setorAtual, etapas, card, etapaDestinoId: etapaId })
     const destinoNome =
       acao.tipo === 'encaminhar' ? setores.find((s) => s.id === acao.setorDestinoId)?.nome : null
-    const rotulo =
-      acao.tipo === 'encaminhar'
+    // SESSAO-42 ("Concluir o lote"): o card montado junto com outros que ainda
+    // rodam, solto numa etapa que leva adiante — só ele ou o lote? (antes do PIN)
+    if (loteTodo === null && acaoLevaOLote(acao)) {
+      const outros = outrosDoLote(card.id, temposPorCard)
+      if (outros.length > 0) {
+        setPerguntaLote({
+          card,
+          etapaId,
+          quantos: outros.length + 1,
+          destino:
+            acao.tipo === 'encaminhar'
+              ? `Vai para ${destinoNome ?? 'o próximo setor'}.`
+              : 'A produção dele termina aqui.',
+        })
+        return
+      }
+    }
+    const lote = loteTodo === true
+    const rotulo = lote
+      ? 'Levar o lote todo'
+      : acao.tipo === 'encaminhar'
         ? `Mandar para ${destinoNome ?? 'o próximo setor'}`
         : acao.tipo === 'concluir'
           ? card.tipo === 'avulso'
@@ -434,7 +499,7 @@ export function TelaSetor() {
             : acao.tipo === 'parar'
               ? 'Parar o card'
               : 'Mover'
-    setGestoComPin({ tipo: 'soltar', card, etapaId, acao, rotulo })
+    setGestoComPin({ tipo: 'soltar', card, etapaId, acao, rotulo, lote })
   }
 
   return (
@@ -539,7 +604,12 @@ export function TelaSetor() {
           agora={agora}
           setores={setores}
           tamanho="galpao"
-          aoSoltarNaEtapa={aoSoltarNaEtapa}
+          aoSoltarNaEtapa={(card, etapaId) => aoSoltarNaEtapa(card, etapaId)}
+          // SESSAO-42 ("Montar juntos"): o PIN diz quem monta (só no setor que monta em lote).
+          aoMontarJuntos={(cardsDoLote) =>
+            setGestoComPin({ tipo: 'montar_juntos', cards: cardsDoLote, rotulo: 'Montar juntos' })
+          }
+          montandoJuntos={mutacaoMontar.isPending}
           aoAbrirConcluir={(card) =>
             card.tipo === 'avulso' &&
             setGestoComPin({ tipo: 'concluir_avulso', card, rotulo: 'Concluir o card' })
@@ -561,6 +631,7 @@ export function TelaSetor() {
             aoLinhaTempo: setCardHistorico,
             aoFotos: setCardFotos,
             cardsComAjudaAtiva,
+            temposPorCard,
             // SESSAO-36 (D-146): o Auxiliar no card em execução — o PIN diz quem entra.
             aoAuxiliar: (card) =>
               setGestoComPin({ tipo: 'auxiliar', card, rotulo: 'Auxiliar no card' }),
@@ -628,6 +699,7 @@ export function TelaSetor() {
             : undefined
         }
         operadorId={encaminhando?.operador.usuario_id}
+        lote={encaminhando?.lote}
         aoFechar={() => setEncaminhando(null)}
       />
 
@@ -646,7 +718,20 @@ export function TelaSetor() {
         }
         etapaDestino={concluindo?.acao.etapa}
         operadorId={concluindo?.operador.usuario_id}
+        lote={concluindo?.lote}
         aoFechar={() => setConcluindo(null)}
+      />
+
+      {/* SESSAO-42 ("Concluir o lote"): só este card ou o lote inteiro? (o PIN vem depois) */}
+      <ModalLevarLote
+        tamanho="galpao"
+        pergunta={perguntaLote}
+        aoFechar={() => setPerguntaLote(null)}
+        aoEscolher={(loteTodo) => {
+          const pendente = perguntaLote
+          setPerguntaLote(null)
+          if (pendente) aoSoltarNaEtapa(pendente.card, pendente.etapaId, loteTodo)
+        }}
       />
 
       <ModalParecer
@@ -767,6 +852,7 @@ export function TelaSetor() {
         pedido={
           cardHistorico?.pedido_id != null ? pedidosPorId.get(cardHistorico.pedido_id) : undefined
         }
+        tempoVivo={cardHistorico ? temposPorCard.get(cardHistorico.id) : undefined}
         aoFechar={() => setCardHistorico(null)}
       />
     </div>

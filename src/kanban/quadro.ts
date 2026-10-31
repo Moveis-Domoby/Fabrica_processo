@@ -3,6 +3,7 @@ import type { CampoCustomizado, Etiqueta, ValorCampo } from '@/utilitarios/tipos
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard } from './tipos'
 import type { OrdemDaFila } from './prioridade'
 import type { CardEsquecido } from './cardEsquecido'
+import type { TempoVivo } from './tempoUtil'
 
 /**
  * SESSAO-31 (Lei de Desempenho §2/§6 — regra 18): o quadro do setor (e o
@@ -52,6 +53,12 @@ export interface JuntoDoQuadro {
   pessoas: Record<string, PessoaDoQuadro>
   pedidos: Record<string, PedidoDoCard>
   valores: { campo_id: number; card_id: number; valor: ValorCampo }[]
+  /**
+   * SESSAO-42 (F4): o tempo do móvel no setor de cada card com passagem aberta
+   * num setor de produção (id do card → o fechado + o trecho aberto). O
+   * aparelho soma o vivo pela régua. Ausente no banco de antes.
+   */
+  tempos?: Record<string, TempoVivo>
 }
 
 export interface ColunaDoQuadro {

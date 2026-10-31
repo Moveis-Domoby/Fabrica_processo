@@ -5,7 +5,7 @@ import { Flag, KeyRound, ListChecks } from 'lucide-react'
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { setorPinConferir } from '@/autenticacao/api'
-import { buscarSetores, soltarCard } from '@/kanban/api'
+import { buscarSetores, montarJuntos, soltarCardOuLote } from '@/kanban/api'
 import { cardAuxiliar, setorAuxiliarTodos } from '@/tablet/api'
 import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { acaoAoSoltar, pedeEstadoAoEnviar } from '@/kanban/arrasto'
@@ -20,6 +20,8 @@ import { ModalLinhaTempo } from '@/kanban/componentes/ModalLinhaTempo'
 import { ModalParecer } from '@/kanban/componentes/ModalParecer'
 import { ModalConcluirAvulso } from '@/kanban/componentes/ModalConcluirAvulso'
 import { ModalMotivoPausa } from '@/kanban/componentes/ModalMotivoPausa'
+import { ModalLevarLote } from '@/kanban/componentes/ModalLevarLote'
+import { acaoLevaOLote, outrosDoLote } from '@/kanban/lote'
 import type { Card, Etapa } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 
@@ -86,6 +88,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     pessoas,
     camposPorCard,
     auxiliosPorCard,
+    temposPorCard,
   } = quadro
   // SESSAO-37 (D-147): cards com ajuda ATIVA agora — o dono pausado não os derruba.
   const cardsComAjudaAtiva = new Set(
@@ -96,8 +99,21 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   const totalNoSetor = [...colunas.values()].reduce((soma, c) => soma + c.total, 0)
 
   // SESSAO-24: o que o soltar precisa perguntar antes de ir ao banco.
-  const [encaminhando, setEncaminhando] = useState<{ card: Card; etapa: Etapa } | null>(null)
-  const [concluindo, setConcluindo] = useState<{ card: Card; etapa: Etapa } | null>(null)
+  // SESSAO-42 ("Concluir o lote"): `lote` = levar o lote inteiro junto.
+  const [encaminhando, setEncaminhando] = useState<{
+    card: Card
+    etapa: Etapa
+    lote: boolean
+  } | null>(null)
+  const [concluindo, setConcluindo] = useState<{ card: Card; etapa: Etapa; lote: boolean } | null>(
+    null,
+  )
+  const [perguntaLote, setPerguntaLote] = useState<{
+    card: Card
+    etapaId: number | null
+    quantos: number
+    destino: string
+  } | null>(null)
   const [cardParecer, setCardParecer] = useState<Card | null>(null)
   const [inicioDepoisDoParecer, setInicioDepoisDoParecer] = useState<{
     card: Card
@@ -117,8 +133,15 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   }
 
   const mutacaoSoltar = useMutation({
-    mutationFn: soltarCard,
+    mutationFn: soltarCardOuLote,
     onSuccess: async (resultado) => {
+      // SESSAO-42: "O lote todo" — quantos foram juntos.
+      if (resultado.acao === 'lote') {
+        notificar({
+          titulo: `${resultado.cards ?? 0} cards do lote levados juntos`,
+          tom: 'perfeito',
+        })
+      }
       // SESSAO-31 (D-127): a EXPEDIÇÃO concluiu — diz para onde a peça foi.
       if (resultado.acao === 'concluido') {
         notificar({
@@ -181,6 +204,25 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     },
   })
   const [pausarGeralAberto, setPausarGeralAberto] = useState(false)
+
+  // SESSAO-42 ("Montar juntos"): no computador, quem monta é a própria sessão.
+  const mutacaoMontar = useMutation({
+    mutationFn: (cards: Card[]) => montarJuntos({ cardIds: cards.map((c) => c.id) }),
+    onSuccess: async (resposta) => {
+      notificar({
+        titulo: `${resposta.cards.length} cards montando juntos — o tempo começou e se divide entre eles`,
+        tom: 'perfeito',
+      })
+      await invalidarQuadro()
+    },
+    onError: (excecao) => {
+      notificar({
+        titulo: 'Não deu para montar juntos',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      })
+    },
+  })
 
   // SESSAO-37 (D-147): a conferência do PIN do setor para a linha de produção.
   const [pinSetor, setPinSetor] = useState('')
@@ -268,7 +310,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   const podeGerirEtapas = souAdmin || vinculoAqui?.lider_do_setor === true
   const setorAtual = setor
 
-  function aoSoltarNaEtapa(card: Card, etapaId: number | null) {
+  function aoSoltarNaEtapa(card: Card, etapaId: number | null, loteTodo: boolean | null = null) {
     // SESSAO-37 (D-147): o nível logística acompanha só olhando (o banco
     // recusa de todo jeito — aqui a tela poupa o gesto).
     if (souLogistica) {
@@ -280,9 +322,27 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       return
     }
     const acao = acaoAoSoltar({ setor: setorAtual, etapas, card, etapaDestinoId: etapaId })
+    // SESSAO-42 ("Concluir o lote"): o card montado junto com outros que ainda
+    // rodam, solto numa etapa que leva adiante — pergunta antes: só ele ou o lote?
+    if (loteTodo === null && acaoLevaOLote(acao)) {
+      const outros = outrosDoLote(card.id, temposPorCard)
+      if (outros.length > 0) {
+        setPerguntaLote({
+          card,
+          etapaId,
+          quantos: outros.length + 1,
+          destino:
+            acao.tipo === 'encaminhar'
+              ? `Vai para ${setores.find((s) => s.id === acao.setorDestinoId)?.nome ?? 'o próximo setor'}.`
+              : 'A produção dele termina aqui.',
+        })
+        return
+      }
+    }
+    const lote = loteTodo === true
     // SESSAO-31 (D-126): o estado da peça só é perguntado quando o setor pede ao enviar.
     if (acao.tipo === 'encaminhar' && pedeEstadoAoEnviar(setorAtual, card)) {
-      setEncaminhando({ card, etapa: acao.etapa })
+      setEncaminhando({ card, etapa: acao.etapa, lote })
       return
     }
     if (
@@ -290,7 +350,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
       card.tipo === 'unidade' &&
       pedeEstadoAoEnviar(setorAtual, card)
     ) {
-      setConcluindo({ card, etapa: acao.etapa })
+      setConcluindo({ card, etapa: acao.etapa, lote })
       return
     }
     // SESSAO-31 (§4): parar o card em execução pede o motivo.
@@ -308,7 +368,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
     if ((acao.tipo === 'mover' || acao.tipo === 'iniciar') && etapaId !== null) {
       quadro.moverOtimista(card, etapaId)
     }
-    mutacaoSoltar.mutate({ card, etapaId })
+    mutacaoSoltar.mutate({ card, etapaId, lote })
   }
 
   return (
@@ -354,8 +414,11 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         pedidosPorId={pedidosPorId}
         agora={agora}
         setores={setores}
-        aoSoltarNaEtapa={aoSoltarNaEtapa}
+        aoSoltarNaEtapa={(card, etapaId) => aoSoltarNaEtapa(card, etapaId)}
         aoAbrirConcluir={(card) => card.tipo === 'avulso' && setConcluindoAvulso(card)}
+        // SESSAO-42 ("Montar juntos"): só no setor que monta em lote (o quadro decide pela régua).
+        aoMontarJuntos={souLogistica ? undefined : (cards) => mutacaoMontar.mutate(cards)}
+        montandoJuntos={mutacaoMontar.isPending}
         camposPorCard={camposPorCard}
         carregando={quadro.carregando}
         ordem={ordemFila}
@@ -371,6 +434,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
           gestoPendente: mutacaoSoltar.isPending || mutacaoAuxiliarTodos.isPending,
           aoLinhaTempo: setCardLinhaTempo,
           cardsComAjudaAtiva,
+          temposPorCard,
           // SESSAO-36 (D-146): no computador o Auxiliar age pela própria sessão.
           // SESSAO-37 (D-147): a logística só olha — sem gesto nenhum.
           ...(souLogistica
@@ -431,6 +495,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             ? nomesUsuarios.get(encaminhando.card.executor_atual_id)
             : undefined
         }
+        lote={encaminhando?.lote}
         aoFechar={() => setEncaminhando(null)}
       />
 
@@ -448,7 +513,19 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             ? nomesUsuarios.get(concluindo.card.executor_atual_id)
             : undefined
         }
+        lote={concluindo?.lote}
         aoFechar={() => setConcluindo(null)}
+      />
+
+      {/* SESSAO-42 ("Concluir o lote"): só este card ou o lote inteiro? */}
+      <ModalLevarLote
+        pergunta={perguntaLote}
+        aoFechar={() => setPerguntaLote(null)}
+        aoEscolher={(loteTodo) => {
+          const pendente = perguntaLote
+          setPerguntaLote(null)
+          if (pendente) aoSoltarNaEtapa(pendente.card, pendente.etapaId, loteTodo)
+        }}
       />
 
       <ModalLinhaTempo
@@ -456,6 +533,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         pedido={
           cardLinhaTempo?.pedido_id != null ? pedidosPorId.get(cardLinhaTempo.pedido_id) : undefined
         }
+        tempoVivo={cardLinhaTempo ? temposPorCard.get(cardLinhaTempo.id) : undefined}
         aoFechar={() => setCardLinhaTempo(null)}
       />
 

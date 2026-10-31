@@ -11,7 +11,7 @@ import {
 } from '@/componentes/ui'
 import type { Estado } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { concluirProducao, soltarCard } from '../api'
+import { concluirProducao, soltarCardOuLote } from '../api'
 import { pedidoCancelado } from '../situacao'
 import type { Card, Etapa, PedidoDoCard } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
@@ -38,6 +38,11 @@ export interface ModalMoverCardProps {
   executorNome?: string
   /** Tablet compartilhado (SESSAO-07): o gesto sai em nome do operador do PIN. */
   operadorId?: string
+  /**
+   * SESSAO-42 ("Concluir o lote"): a pessoa escolheu levar o LOTE INTEIRO —
+   * a mesma marcação vale para todos os cards do lote que ainda rodam.
+   */
+  lote?: boolean
   aoFechar: () => void
 }
 
@@ -55,6 +60,7 @@ export function ModalMoverCard({
   setorDestinoNome,
   executorNome,
   operadorId,
+  lote = false,
   aoFechar,
 }: ModalMoverCardProps) {
   const concluir = modo === 'concluir'
@@ -95,24 +101,30 @@ export function ModalMoverCard({
   const mutacao = useMutation({
     mutationFn: async (estado: Estado) => {
       if (!card) throw new Error('Card não encontrado.')
-      if (concluir && !etapaDestino)
-        return concluirProducao({ card, estadoQualidade: estado, operadorId })
+      if (concluir && !etapaDestino) {
+        const destino = await concluirProducao({ card, estadoQualidade: estado, operadorId })
+        return { destino, levados: null }
+      }
       if (!etapaDestino) throw new Error('Etapa de destino não encontrada.')
-      const resultado = await soltarCard({
+      // SESSAO-42: "O lote todo" leva os cards do lote juntos (mesma marcação).
+      const resultado = await soltarCardOuLote({
         card,
         etapaId: etapaDestino.id,
         estadoQualidade: estado,
         operadorId,
+        lote,
       })
-      return resultado.destino ?? null
+      return { destino: resultado.destino ?? null, levados: resultado.cards ?? null }
     },
-    onSuccess: async (destino, estado) => {
+    onSuccess: async ({ destino, levados }, estado) => {
       notificar({
-        titulo: concluir
-          ? destino === 'aguardo'
-            ? `Peça concluída — está na Expedição (${rotuloOrigemCard(card!, pedido)})`
-            : textoPecaConcluida(destino)
-          : `Card mandado para ${setorDestinoNome ?? 'o próximo setor'}`,
+        titulo: levados
+          ? `${levados} cards do lote ${concluir ? 'concluídos' : `mandados para ${setorDestinoNome ?? 'o próximo setor'}`}`
+          : concluir
+            ? destino === 'aguardo'
+              ? `Peça concluída — está na Expedição (${rotuloOrigemCard(card!, pedido)})`
+              : textoPecaConcluida(destino)
+            : `Card mandado para ${setorDestinoNome ?? 'o próximo setor'}`,
         descricao: concluir
           ? undefined
           : `Peça entregue como ${ROTULO_ESTADO[estado].toLowerCase()}.`,

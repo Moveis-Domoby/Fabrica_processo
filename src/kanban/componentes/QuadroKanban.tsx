@@ -9,7 +9,8 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, Modifier } from '@dnd-kit/core'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowRight,
@@ -18,10 +19,14 @@ import {
   Hand,
   Handshake,
   Inbox,
+  Layers,
   ListFilter,
   Pause,
   Play,
+  Square,
+  SquareCheckBig,
   TriangleAlert,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Botao } from '@/componentes/ui'
@@ -34,7 +39,19 @@ import type { CampoMostrado } from '@/utilitarios/consultas'
 import { etapaDeInicio } from '../arrasto'
 import { SensorDoMouse, useArrastarParaOLado } from './arrastarQuadro'
 import { useAlturaAteOFim } from './alturaDoQuadro'
+import { useReguaTempo } from '../useReguaTempo'
+import type { TempoVivo } from '../tempoUtil'
 import type { Card, Etapa, ExecucaoAberta, PedidoDoCard, Setor } from '../tipos'
+
+/** SESSAO-42: o banco aceita de 2 a 20 cards no "Montar juntos". */
+const LOTE_MAXIMO = 20
+
+/**
+ * O instante do fim do arrasto (só no evento de soltar — nunca no desenho).
+ * Fora do componente: com o "Montar juntos", o compilador do React passou a
+ * desconfiar do `onDragEnd` e acusar o relógio como se fosse chamado no render.
+ */
+const instanteAgora = () => Date.now()
 
 /** Id de coluna no drag-and-drop para cards ainda sem etapa (PCP/terminais). */
 const CHEGADA = 'chegada'
@@ -77,6 +94,25 @@ export interface ContextoExecucao {
   aoAuxiliarTodos?: () => void
   /** SESSAO-37 (D-147): o pausar geral — a PESSOA se pausa em todos os cards (o card segue com quem ficou). */
   aoPausarGeral?: () => void
+  /**
+   * SESSAO-42 (F4): o tempo do móvel no setor de cada card (vem com o quadro
+   * — `tempos`). Em execução, o card mostra este tempo, não o relógio corrido.
+   */
+  temposPorCard?: Map<number, TempoVivo>
+}
+
+/**
+ * SESSAO-42 ("Montar juntos"): o modo de seleção da coluna da FILA — os cards
+ * marcados e o que fazer com eles. Só existe no setor que monta em lote.
+ */
+interface SelecaoDoLote {
+  /** null = fora do modo de seleção (só o botão "Montar juntos"). */
+  marcados: Set<number> | null
+  aoEntrar: () => void
+  aoAlternar: (card: Card) => void
+  aoCancelar: () => void
+  aoConfirmar: () => void
+  pendente: boolean
 }
 
 interface ColunaProps {
@@ -104,6 +140,59 @@ interface ColunaProps {
   acabouDeArrastar: () => boolean
   /** SESSAO-40 (D-187): o quadro está filtrado — a coluna diz quantos batem. */
   filtrando?: boolean
+  /** SESSAO-42: a coluna da FILA no setor que monta em lote — o "Montar juntos". */
+  lote?: SelecaoDoLote
+}
+
+/**
+ * SESSAO-42 ("Montar juntos"): o card da fila no modo de seleção — tocar no
+ * card marca/desmarca (caixinha grande à esquerda; o estado também em texto
+ * acessível). Não arrasta nem abre a janela enquanto o modo está ligado.
+ */
+function CardSelecionavel({
+  marcado,
+  bloqueado,
+  aoAlternar,
+  children,
+}: {
+  marcado: boolean
+  bloqueado: boolean
+  aoAlternar: () => void
+  children: ReactNode
+}) {
+  return (
+    <div
+      role="checkbox"
+      aria-checked={marcado}
+      aria-disabled={bloqueado}
+      aria-label={marcado ? 'Marcado para montar junto' : 'Marcar para montar junto'}
+      tabIndex={0}
+      onClick={() => !bloqueado && aoAlternar()}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          if (!bloqueado) aoAlternar()
+        }
+      }}
+      className={cn(
+        'flex items-stretch gap-2 rounded-dm outline-none focus-visible:ring-2 focus-visible:ring-acao',
+        bloqueado ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'flex w-11 shrink-0 items-center justify-center rounded-dm border-2',
+          marcado ? 'border-acao-ativa bg-acao/10 text-acao-ativa' : 'border-borda bg-superficie',
+        )}
+      >
+        {marcado ? <SquareCheckBig className="size-6" /> : <Square className="size-6" />}
+      </span>
+      <div className={cn('min-w-0 flex-1 rounded-dm', marcado && 'ring-2 ring-acao')}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 function Coluna({
@@ -125,8 +214,10 @@ function Coluna({
   camposPorCard,
   acabouDeArrastar,
   filtrando = false,
+  lote,
 }: ColunaProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
+  const marcados = lote?.marcados ?? null
   const { cards, total } = dados
   const restantes = total - cards.length
 
@@ -253,6 +344,53 @@ function Coluna({
                 )}
               </div>
             )}
+          {/* SESSAO-42 ("Montar juntos"): no setor que monta em lote, a FILA
+              inicia vários cards do mesmo modelo de uma vez (o tempo se divide). */}
+          {lote && !marcados && cards.some((c) => c.executor_atual_id === null) && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <Botao
+                tamanho="sm"
+                variante="secundaria"
+                icone={<Layers />}
+                className="min-h-toque-md"
+                disabled={execucao.gestoPendente || lote.pendente}
+                onClick={lote.aoEntrar}
+              >
+                Montar juntos
+              </Botao>
+            </div>
+          )}
+          {lote && marcados && (
+            <div className="mt-1 flex flex-col gap-1.5">
+              <p className="text-xs text-texto-suave" aria-live="polite">
+                {marcados.size < 2
+                  ? 'Toque nos cards do mesmo modelo para montar juntos (a cor pode mudar).'
+                  : `${marcados.size} cards marcados.`}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {marcados.size >= 2 && (
+                  <Botao
+                    tamanho="sm"
+                    icone={<Layers />}
+                    className="min-h-toque-md"
+                    carregando={lote.pendente}
+                    onClick={lote.aoConfirmar}
+                  >
+                    Montar juntos ({marcados.size})
+                  </Botao>
+                )}
+                <Botao
+                  tamanho="sm"
+                  variante="fantasma"
+                  icone={<X />}
+                  className="min-h-toque-md"
+                  onClick={lote.aoCancelar}
+                >
+                  Cancelar
+                </Botao>
+              </div>
+            </div>
+          )}
         </header>
 
         {(cards.length > 0 || restantes > 0) && (
@@ -290,6 +428,24 @@ function Coluna({
                       if (!acabouDeArrastar()) execucao.aoAbrirCard?.(c)
                     }
                   : undefined,
+                // SESSAO-42 (F4): o tempo do móvel no setor (o fechado + o vivo)
+                tempoVivo: execucao.temposPorCard?.get(card.id),
+              }
+              if (lote && marcados) {
+                // SESSAO-42: no modo "Montar juntos", tocar no card marca (sem arrastar nem abrir).
+                const marcado = marcados.has(card.id)
+                return (
+                  <CardSelecionavel
+                    key={card.id}
+                    marcado={marcado}
+                    bloqueado={
+                      card.executor_atual_id !== null || (!marcado && marcados.size >= LOTE_MAXIMO)
+                    }
+                    aoAlternar={() => lote.aoAlternar(card)}
+                  >
+                    <CartaoUnidade {...comuns} aoAbrir={undefined} />
+                  </CardSelecionavel>
+                )
               }
               return arrastavel ? (
                 <CardArrastavel key={card.id} {...comuns} />
@@ -453,6 +609,13 @@ export interface QuadroKanbanProps {
    */
   filtro?: { texto: string; aoMudar: (texto: string) => void }
   filtrando?: boolean
+  /**
+   * SESSAO-42 ("Montar juntos"): iniciar de uma vez os cards marcados na FILA
+   * (quem chama pede o PIN no tablet e manda ao banco). Só aparece no setor que
+   * monta em lote (a régua diz — `lotes`). Sem a função, sem botão.
+   */
+  aoMontarJuntos?: (cards: Card[]) => void
+  montandoJuntos?: boolean
 }
 
 /**
@@ -487,6 +650,8 @@ export function QuadroKanban({
   aoMudarOrdem,
   filtro,
   filtrando = false,
+  aoMontarJuntos,
+  montandoJuntos = false,
 }: QuadroKanbanProps) {
   const sensores = useSensors(
     // Só o botão esquerdo pega o card — o do meio é da mãozinha (arrastarQuadro).
@@ -505,6 +670,36 @@ export function QuadroKanban({
   const temFila = etapas.some((e) => e.eh_fila)
   const inicioId = producao ? etapaDeInicio(etapas)?.id : undefined
   const nomeDoSetor = new Map(setores.map((s) => [s.id, s.nome]))
+
+  // SESSAO-42 ("Montar juntos"): só no setor de produção que monta em lote (a
+  // régua diz). A seleção vive aqui; trocar de setor a esquece.
+  const regua = useReguaTempo()
+  const montaEmLote =
+    producao && Boolean(aoMontarJuntos) && regua?.lotes?.[String(setor.id)] === true
+  const [selecao, setSelecao] = useState<{ setorId: number; marcados: Set<number> } | null>(null)
+  const marcados = selecao?.setorId === setor.id ? selecao.marcados : null
+  const loteDaFila = (etapa: Etapa): SelecaoDoLote | undefined =>
+    montaEmLote && etapa.eh_fila
+      ? {
+          marcados,
+          pendente: montandoJuntos,
+          aoEntrar: () => setSelecao({ setorId: setor.id, marcados: new Set() }),
+          aoCancelar: () => setSelecao(null),
+          aoAlternar: (card) =>
+            setSelecao((atual) => {
+              const lista = new Set(atual?.setorId === setor.id ? atual.marcados : [])
+              if (lista.has(card.id)) lista.delete(card.id)
+              else lista.add(card.id)
+              return { setorId: setor.id, marcados: lista }
+            }),
+          aoConfirmar: () => {
+            if (!marcados || marcados.size < 2) return
+            const escolhidos = dadosDe(String(etapa.id)).cards.filter((c) => marcados.has(c.id))
+            setSelecao(null)
+            aoMontarJuntos?.(escolhidos)
+          },
+        }
+      : undefined
 
   const dadosDe = (chave: string) => colunas.get(chave) ?? COLUNA_VAZIA
   const chegada = dadosDe(CHEGADA)
@@ -529,7 +724,7 @@ export function QuadroKanban({
   )
 
   function aoSoltar(evento: DragEndEvent) {
-    arrastouEm.current = Date.now()
+    arrastouEm.current = instanteAgora()
     const card = todosOsCards.find((c) => c.id === evento.active.id)
     if (!card || evento.over === null) return
     const etapaId = evento.over.id === CHEGADA ? null : Number(evento.over.id)
@@ -612,6 +807,7 @@ export function QuadroKanban({
                     : undefined
                 }
                 conclui={etapa.conclui_producao}
+                lote={loteDaFila(etapa)}
                 dados={dadosDe(String(etapa.id))}
                 pedidosPorId={pedidosPorId}
                 agora={agora}

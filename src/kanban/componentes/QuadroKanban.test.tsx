@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { QuadroKanban } from './QuadroKanban'
 import type { ColunaPaginada } from './QuadroKanban'
@@ -138,5 +138,89 @@ describe('QuadroKanban — ajustes do dono (14/10 noite)', () => {
     // o que fica é o texto do topo
     expect(screen.getByText(/leva para LIMPEZA E EMBALAGEM/)).toBeInTheDocument()
     expect(screen.getByText(/soltar aqui começa o tempo/)).toBeInTheDocument()
+  })
+})
+
+/**
+ * SESSAO-42 ("Montar juntos"): só no setor que monta em lote (a régua diz), a
+ * FILA ganha o botão; tocar nos cards marca; com 2+ marcados, confirma.
+ */
+describe('QuadroKanban — Montar juntos (SESSAO-42)', () => {
+  function desenharComRegua(lotes: Record<string, boolean>, aoMontarJuntos = vi.fn()) {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    cliente.setQueryData(['regua-tempo'], {
+      fuso_min: -180,
+      pcp_setor_id: null,
+      papeis: { '6': 'producao' },
+      janelas: [],
+      pausas: [],
+      lotes,
+    })
+    const colunas = new Map<string, ColunaPaginada>([
+      [
+        '29',
+        {
+          cards: [
+            card({ id: 1, tipo: 'unidade', item_descricao: 'Closet A' }),
+            card({ id: 2, tipo: 'unidade', item_descricao: 'Closet B' }),
+            card({ id: 3, tipo: 'unidade', item_descricao: 'Closet C' }),
+          ],
+          total: 3,
+        },
+      ],
+      ['28', { cards: [], total: 0 }],
+      ['26', { cards: [], total: 0 }],
+    ])
+    render(
+      <QueryClientProvider client={cliente}>
+        <QuadroKanban
+          setor={setor}
+          etapas={ETAPAS}
+          colunas={colunas}
+          pedidosPorId={new Map()}
+          agora={Date.now()}
+          aoSoltarNaEtapa={() => {}}
+          camposPorCard={new Map()}
+          aoMontarJuntos={aoMontarJuntos}
+          execucao={{
+            execucoesPorCard: new Map(),
+            nomesUsuarios: new Map(),
+            meuUsuarioId: 'u1',
+            gestoPendente: false,
+          }}
+        />
+      </QueryClientProvider>,
+    )
+    return aoMontarJuntos
+  }
+
+  it('setor que não monta em lote: sem o botão', () => {
+    desenharComRegua({ '6': false })
+    expect(screen.queryByRole('button', { name: /Montar juntos/ })).not.toBeInTheDocument()
+  })
+
+  it('marca 2 cards da fila e manda os dois', () => {
+    const aoMontarJuntos = desenharComRegua({ '6': true })
+    fireEvent.click(screen.getByRole('button', { name: /Montar juntos/ }))
+    const caixas = screen.getAllByRole('checkbox')
+    expect(caixas).toHaveLength(3)
+    // com 1 marcado ainda não dá para confirmar
+    fireEvent.click(caixas[0])
+    expect(screen.queryByRole('button', { name: /Montar juntos \(/ })).not.toBeInTheDocument()
+    fireEvent.click(caixas[2])
+    expect(caixas[2]).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Montar juntos (2)' }))
+    expect(aoMontarJuntos).toHaveBeenCalledTimes(1)
+    expect(aoMontarJuntos.mock.calls[0][0].map((c: Card) => c.id)).toEqual([1, 3])
+    // confirmou: o modo de seleção acaba
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+  })
+
+  it('Cancelar sai do modo sem mandar nada', () => {
+    const aoMontarJuntos = desenharComRegua({ '6': true })
+    fireEvent.click(screen.getByRole('button', { name: /Montar juntos/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+    expect(aoMontarJuntos).not.toHaveBeenCalled()
   })
 })

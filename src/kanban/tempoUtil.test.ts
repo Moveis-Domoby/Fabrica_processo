@@ -3,17 +3,20 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
 
 import {
+  corteMs,
   duracaoUtilDesde,
   formatarTempoUtil,
   intervalosUteis,
   noExpediente,
   periodosStandby,
   subtrair,
+  tempoDoMovelMs,
   tempoPcpMs,
   tempoUtilMs,
+  textoTempoDoMovel,
   unir,
 } from './tempoUtil'
-import type { ReguaTempo } from './tempoUtil'
+import type { ReguaTempo, TempoVivo } from './tempoUtil'
 
 /**
  * O motor do tempo útil (SESSAO-38 · F5) — os mesmos cenários da
@@ -165,5 +168,162 @@ describe('o mostrador', () => {
     expect(duracaoUtilDesde(desde, seg0730 + 14 * H, SECC, regua)).toBe('30min')
     expect(duracaoUtilDesde(desde, seg0730 + 24.5 * H, SECC, regua)).toBe('1h')
     expect(duracaoUtilDesde(null, seg0730, SECC, regua)).toBe('—')
+  })
+})
+
+/**
+ * SESSAO-42 — a régua do aparelho espelha fn_tempo_janelas / fn_tempo_corte:
+ * o expediente em faixas (o almoço 12–13 não conta), o calendário (feriado,
+ * dia trabalhado), a hora extra AUTORIZADA e o corte do fim do expediente.
+ */
+describe('a régua do calendário (SESSAO-42)', () => {
+  // o relógio de Natal (UTC−3)
+  const natal = (dia: string, hora: string) => Date.parse(`${dia}T${hora}:00-03:00`)
+  const iso = (dia: string, hora: string) => new Date(natal(dia, hora)).toISOString()
+  const MONTAGEM = 5
+  const SEM_CORTE = 6
+  const FRANKLIN = 'u-franklin'
+  const faixas = (setor: number) =>
+    [1, 2, 3, 4, 5].flatMap((d) => [
+      [setor, d, '07:30:00', '12:00:00'] as [number, number, string, string],
+      [setor, d, '13:00:00', '18:00:00'] as [number, number, string, string],
+    ])
+  const reguaNova: ReguaTempo = {
+    fuso_min: -180,
+    pcp_setor_id: null,
+    papeis: { '5': 'producao', '6': 'producao' },
+    janelas: [...faixas(MONTAGEM), ...faixas(SEM_CORTE)],
+    pausas: [],
+    excecoes: [
+      [null, '2026-11-02', 'feriado', []],
+      [MONTAGEM, '2026-10-31', 'trabalhado', [['08:00', '12:00']]],
+      // a da fábrica perde para a do setor no mesmo dia
+      [null, '2026-11-20', 'feriado', []],
+      [MONTAGEM, '2026-11-20', 'trabalhado', [['07:30', '12:00']]],
+    ],
+    extras: [
+      [MONTAGEM, null, iso('2026-10-28', '18:00'), iso('2026-10-28', '20:00')],
+      [MONTAGEM, FRANKLIN, iso('2026-10-29', '18:00'), iso('2026-10-29', '19:00')],
+    ],
+    cortes: { '5': true, '6': false },
+    lotes: { '5': true },
+  }
+
+  it('o almoço não conta: 11:10 → 13:57 num dia útil = 1h 47min', () => {
+    const ms = tempoUtilMs(
+      natal('2026-10-27', '11:10'),
+      natal('2026-10-27', '13:57'),
+      MONTAGEM,
+      reguaNova,
+    )
+    expect(ms).toBe(107 * MIN)
+    expect(formatarTempoUtil(ms)).toBe('1h 47min')
+  })
+
+  it('o feriado da fábrica não conta nada', () => {
+    expect(
+      tempoUtilMs(natal('2026-11-02', '07:00'), natal('2026-11-02', '19:00'), MONTAGEM, reguaNova),
+    ).toBe(0)
+  })
+
+  it('o sábado trabalhado conta só as faixas dele', () => {
+    const ini = natal('2026-10-31', '07:00')
+    const fim = natal('2026-10-31', '13:00')
+    expect(tempoUtilMs(ini, fim, MONTAGEM, reguaNova)).toBe(4 * H)
+    // o outro setor não trabalhou no sábado
+    expect(tempoUtilMs(ini, fim, SEM_CORTE, reguaNova)).toBe(0)
+  })
+
+  it('a exceção do setor vence a da fábrica no mesmo dia', () => {
+    const ini = natal('2026-11-20', '07:00')
+    const fim = natal('2026-11-20', '18:00')
+    expect(tempoUtilMs(ini, fim, MONTAGEM, reguaNova)).toBe(4.5 * H)
+    expect(tempoUtilMs(ini, fim, SEM_CORTE, reguaNova)).toBe(0)
+  })
+
+  it('a hora extra autorizada conta (a do setor para todos; a da pessoa só para ela)', () => {
+    expect(
+      tempoUtilMs(natal('2026-10-28', '17:00'), natal('2026-10-28', '21:00'), MONTAGEM, reguaNova),
+    ).toBe(3 * H)
+    const ini = natal('2026-10-29', '17:00')
+    const fim = natal('2026-10-29', '21:00')
+    expect(tempoUtilMs(ini, fim, MONTAGEM, reguaNova)).toBe(H)
+    expect(tempoUtilMs(ini, fim, MONTAGEM, reguaNova, { usuarioId: FRANKLIN })).toBe(2 * H)
+  })
+
+  it('o corte é o fim da última janela do dia em que começou', () => {
+    expect(corteMs(MONTAGEM, natal('2026-10-27', '15:00'), reguaNova)).toBe(
+      natal('2026-10-27', '18:00'),
+    )
+    // começou no almoço: a tarde ainda é o mesmo dia
+    expect(corteMs(MONTAGEM, natal('2026-10-27', '12:30'), reguaNova)).toBe(
+      natal('2026-10-27', '18:00'),
+    )
+    // com a hora extra do setor, o corte vai para o fim dela
+    expect(corteMs(MONTAGEM, natal('2026-10-28', '15:00'), reguaNova)).toBe(
+      natal('2026-10-28', '20:00'),
+    )
+    // começou depois do expediente: corta já no começo da próxima janela
+    expect(corteMs(MONTAGEM, natal('2026-10-27', '19:00'), reguaNova)).toBe(
+      natal('2026-10-28', '07:30'),
+    )
+    // setor que não pausa sozinho, ou régua velha: sem corte
+    expect(corteMs(SEM_CORTE, natal('2026-10-27', '15:00'), reguaNova)).toBeNull()
+    expect(corteMs(MONTAGEM, natal('2026-10-27', '15:00'), regua)).toBeNull()
+  })
+
+  const vivo = (parcial: Partial<TempoVivo>): TempoVivo => ({
+    setor_id: MONTAGEM,
+    fechado_s: 0,
+    fila_s: 0,
+    desde: null,
+    corte: null,
+    dividir: 1,
+    usuario_id: null,
+    lote: null,
+    ...parcial,
+  })
+
+  it('o tempo do móvel para no corte das 18:00 (não é mais relógio corrido)', () => {
+    const v = vivo({ desde: iso('2026-10-27', '16:00') })
+    expect(tempoDoMovelMs(v, reguaNova, natal('2026-10-27', '17:00'))).toBe(H)
+    expect(tempoDoMovelMs(v, reguaNova, natal('2026-10-27', '22:00'))).toBe(2 * H)
+    // na manhã seguinte o trecho velho não volta a contar
+    expect(tempoDoMovelMs(v, reguaNova, natal('2026-10-28', '09:00'))).toBe(2 * H)
+  })
+
+  it('começou às 19:00 (fora do expediente, sem hora extra) = 0', () => {
+    const v = vivo({ desde: iso('2026-10-27', '19:00') })
+    expect(tempoDoMovelMs(v, reguaNova, natal('2026-10-27', '21:00'))).toBe(0)
+    expect(tempoDoMovelMs(v, reguaNova, natal('2026-10-28', '09:00'))).toBe(0)
+  })
+
+  it('o fechado vem do banco; o vivo se divide no lote e respeita o corte que veio pronto', () => {
+    const v = vivo({
+      fechado_s: 1800,
+      desde: iso('2026-10-27', '14:00'),
+      corte: iso('2026-10-27', '16:00'),
+      dividir: 2,
+      lote: 'lote-1',
+    })
+    // 30 min fechados + (14:00 → 16:00 = 2 h) / 2
+    expect(tempoDoMovelMs(v, reguaNova, natal('2026-10-27', '17:00'))).toBe(30 * MIN + H)
+    expect(tempoDoMovelMs(vivo({ fechado_s: 600 }), reguaNova, natal('2026-10-27', '17:00'))).toBe(
+      10 * MIN,
+    )
+  })
+
+  it('o mostrador: "agora" no 1º minuto de um trecho novo', () => {
+    const agora = natal('2026-10-27', '10:00')
+    expect(
+      textoTempoDoMovel(vivo({ desde: new Date(agora - 20_000).toISOString() }), reguaNova, agora),
+    ).toBe('agora')
+    expect(
+      textoTempoDoMovel(
+        vivo({ desde: iso('2026-10-27', '11:10') }),
+        reguaNova,
+        natal('2026-10-27', '13:57'),
+      ),
+    ).toBe('1h 47min')
   })
 })

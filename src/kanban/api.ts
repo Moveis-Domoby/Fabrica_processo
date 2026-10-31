@@ -7,6 +7,7 @@ import type {
   EventoLinhaTempo,
   ExecucaoAberta,
   ExpedicaoLinha,
+  HistoricoDoCardDados,
   ItemKanban,
   PaginaDeCards,
   PedidoResumo,
@@ -356,10 +357,13 @@ export async function criarCardPedido(parametros: {
 export type DestinoConclusao = 'aguardo' | 'estoque' | 'terceirizado' | 'loja' | 'danificados'
 
 export interface ResultadoSoltar {
-  acao: 'iniciado' | 'encaminhado' | 'movido' | 'concluido'
+  /** SESSAO-42: 'lote' = o lote inteiro foi levado junto (`plt_fn_lote_soltar`). */
+  acao: 'iniciado' | 'encaminhado' | 'movido' | 'concluido' | 'lote'
   setor_destino_id?: number
   /** SESSAO-31 (D-127/D-130): a etapa que conclui — para onde a peça foi. */
   destino?: DestinoConclusao
+  /** SESSAO-42: quantos cards do lote foram levados. */
+  cards?: number
 }
 
 /**
@@ -389,6 +393,57 @@ export async function soltarCard(parametros: {
   })
   if (error) throw new Error(error.message)
   return data as ResultadoSoltar
+}
+
+/**
+ * SESSAO-42 (F1 · "Concluir o lote"): o mesmo arrasto de sempre, para o lote
+ * inteiro — leva para a mesma etapa (com a mesma marcação de estado) todos os
+ * cards do lote do card que ainda estão rodando no setor
+ * (`plt_fn_lote_soltar`). O banco faz um soltar por card, na mesma transação.
+ */
+export async function soltarLote(parametros: {
+  card: Card
+  etapaId: number | null
+  estadoQualidade?: Estado | null
+  observacao?: string
+  operadorId?: string | null
+}): Promise<ResultadoSoltar> {
+  const { data, error } = await supabase.rpc('plt_fn_lote_soltar', {
+    p_card_id: parametros.card.id,
+    p_etapa_destino_id: parametros.etapaId || null,
+    p_estado_qualidade: parametros.estadoQualidade ?? null,
+    p_observacao: parametros.observacao?.trim() || null,
+    p_operador_id: parametros.operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  const resposta = data as { lote: string; cards: number }
+  return { acao: 'lote', cards: resposta.cards }
+}
+
+/** O soltar do quadro: o card sozinho, ou — escolhido "O lote todo" — o lote inteiro. */
+export function soltarCardOuLote(
+  parametros: Parameters<typeof soltarCard>[0] & { lote?: boolean },
+): Promise<ResultadoSoltar> {
+  const { lote, ...resto } = parametros
+  return lote ? soltarLote(resto) : soltarCard(resto)
+}
+
+/**
+ * SESSAO-42 (F1 · "Montar juntos"): inicia de uma vez 2 a 20 cards do MESMO
+ * modelo (a cor pode mudar) que estão na fila de um setor que monta em lote.
+ * No tablet, `operadorId` é quem digitou o PIN; no computador, a sessão. O
+ * banco recusa com a mensagem já em português (modelos diferentes etc.).
+ */
+export async function montarJuntos(parametros: {
+  cardIds: number[]
+  operadorId?: string | null
+}): Promise<{ lote: string; cards: number[]; quem: string }> {
+  const { data, error } = await supabase.rpc('plt_fn_montar_juntos', {
+    p_card_ids: parametros.cardIds,
+    p_operador_id: parametros.operadorId ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return data as { lote: string; cards: number[]; quem: string }
 }
 
 /**
@@ -618,6 +673,25 @@ export async function delegarCard(parametros: {
     dados: { responsavel_id: parametros.responsavelId, modo: 'direta' },
   })
   if (error) throw new Error(`Não deu para delegar: ${error.message}`)
+}
+
+/**
+ * SESSAO-42 (F4): "Tempo e histórico" numa requisição — os fatos (as mesmas
+ * linhas de `plt_fn_linha_tempo_card`) + as passagens e os trechos do cálculo
+ * único (os números de cada setor de produção vêm do banco). Banco de antes
+ * (a porta nova falha): cai na porta antiga, só com os fatos.
+ */
+export async function historicoDoCard(cardId: number): Promise<HistoricoDoCardDados> {
+  const { data, error } = await supabase.rpc('plt_fn_card_historico', { p_card_id: cardId })
+  if (error || !data) {
+    return { eventos: await linhaTempoCard(cardId), passagens: [], trechos: [] }
+  }
+  const resposta = data as Partial<HistoricoDoCardDados>
+  return {
+    eventos: resposta.eventos ?? [],
+    passagens: resposta.passagens ?? [],
+    trechos: resposta.trechos ?? [],
+  }
 }
 
 /** A história completa do card, com nomes — a linha do tempo (SESSAO-05). */

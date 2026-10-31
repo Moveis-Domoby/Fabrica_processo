@@ -33,8 +33,11 @@ export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'>): string |
   // SESSAO-41 · ajuste (D-198): o card esquecido abre a pergunta urgente (Sim / Não).
   if (aviso.tipo === 'card_esquecido') return '?esquecidos=1'
   // SESSAO-31 (§3): responsável e menção abrem a janela do card, ali mesmo.
+  // SESSAO-42: "Móvel pulou a montagem" (saiu do setor sem ninguém iniciar) também.
   if (
-    (aviso.tipo === 'card_responsavel' || aviso.tipo === 'card_mencao') &&
+    (aviso.tipo === 'card_responsavel' ||
+      aviso.tipo === 'card_mencao' ||
+      aviso.tipo === 'execucao_pulada') &&
     aviso.card_id !== null
   ) {
     return `?card=${aviso.card_id}`

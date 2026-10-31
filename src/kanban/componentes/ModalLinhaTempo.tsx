@@ -5,19 +5,28 @@ import {
   CirclePause,
   ClipboardCheck,
   Clock,
+  Handshake,
   Hourglass,
+  Layers,
   Play,
   RotateCcw,
+  TriangleAlert,
   Undo2,
 } from 'lucide-react'
 import { BadgeEstado, Botao, Campo, Dica, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { estornarEvento, linhaTempoCard } from '../api'
-import { eventoEstornavel, montarSegmentos } from '../linha-tempo'
+import { estornarEvento, historicoDoCard } from '../api'
+import {
+  eventoEstornavel,
+  montarBlocos,
+  montarSegmentos,
+  textoDecisaoDoTempo,
+} from '../linha-tempo'
+import type { BlocoPassagem, ExecucaoSegmento, PermanenciaSegmento } from '../linha-tempo'
 import { formatarDuracaoMs, useAgora } from '../tempo'
 import { formatarTempoUtil } from '../tempoUtil'
-import type { TempoDoPedidoNoPcp } from '../tempoUtil'
+import type { TempoDoPedidoNoPcp, TempoVivo } from '../tempoUtil'
 import { useReguaTempo } from '../useReguaTempo'
 import type { Card, EventoLinhaTempo, PedidoDoCard } from '../tipos'
 import { rotuloOrigemCard } from '../rotulos'
@@ -28,6 +37,8 @@ import { nomeDoLugar } from '@/logistica/lugar'
 export interface ModalLinhaTempoProps {
   card: Card | null
   pedido?: PedidoDoCard
+  /** SESSAO-42 (F4): o tempo do móvel que o quadro já tem — a passagem aberta bate com o card. */
+  tempoVivo?: TempoVivo
   aoFechar: () => void
 }
 
@@ -69,6 +80,8 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   ajuste_aberto: 'Mandada para ajuste',
   ajuste_concluido: 'Ajuste concluído',
   avulso_concluido: 'Card concluído',
+  // SESSAO-42 (regra 14): a decisão manual sobre o tempo de uma passagem.
+  tempo_decisao: 'Decidiu o tempo',
   card_editado: 'Card editado',
   responsavel_adicionado: 'Responsável posto',
   responsavel_removido: 'Responsável tirado',
@@ -87,6 +100,8 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   auxilio_encerrado: 'Ajuda encerrada',
 }
 
+const SEM_EVENTOS: EventoLinhaTempo[] = []
+
 function hora(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -101,7 +116,7 @@ function hora(iso: string): string {
  * SESSAO-31: o conteúdo é o <HistoricoDoCard>, que também mora dentro da
  * janela do card.
  */
-export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps) {
+export function ModalLinhaTempo({ card, pedido, tempoVivo, aoFechar }: ModalLinhaTempoProps) {
   const kn =
     card && card.indice_unidade !== null ? ` (${card.indice_unidade}/${card.total_unidades})` : ''
   return (
@@ -122,7 +137,7 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
         </Botao>
       }
     >
-      <HistoricoDoCard card={card} pedido={pedido} />
+      <HistoricoDoCard card={card} pedido={pedido} tempoVivo={tempoVivo} />
     </Modal>
   )
 }
@@ -133,12 +148,19 @@ export function ModalLinhaTempo({ card, pedido, aoFechar }: ModalLinhaTempoProps
  * riscados (histórico nunca some — RNF-05). O estorno é o gesto do líder do
  * setor ou do admin (D-24), sempre do último gesto para trás. Busca só quando
  * aparece (na janela do card, no clique — Lei §3).
+ *
+ * ↪️ SESSAO-42 (F4): UMA requisição (`plt_fn_card_historico`) traz os fatos e
+ * os números do cálculo único. A linha do tempo continua montada pelos fatos,
+ * mas cada setor de produção vira a PASSAGEM do banco (fila útil, tempo do
+ * móvel, parado, total, situação; cada execução com o tempo dos trechos).
+ * Banco de antes: a porta antiga e a conta de sempre.
  */
 export function HistoricoDoCard({
   card,
   pedido,
   comCampos = true,
   alturaLimitada = true,
+  tempoVivo,
 }: {
   card: Card | null
   /** O pedido do card — basta o que o relógio do PCP precisa (SESSAO-38 · F5). */
@@ -146,6 +168,8 @@ export function HistoricoDoCard({
   /** Os campos customizados no topo (a janela do card mostra os dela). */
   comCampos?: boolean
   alturaLimitada?: boolean
+  /** SESSAO-42: o tempo do móvel que a tela já tem (o quadro ou a janela). */
+  tempoVivo?: TempoVivo
 }) {
   const { perfil, vinculos } = useSessao()
   const notificar = useNotificacao()
@@ -170,13 +194,21 @@ export function HistoricoDoCard({
     setErro('')
   }
 
-  const { data: eventos = [], isPending } = useQuery({
+  const { data: historico, isPending } = useQuery({
     queryKey: ['linha-tempo', card?.id ?? 0],
-    queryFn: () => linhaTempoCard(card!.id),
+    queryFn: () => historicoDoCard(card!.id),
     enabled: card !== null,
   })
+  const eventos = historico?.eventos ?? SEM_EVENTOS
 
   const segmentos = montarSegmentos(eventos, agora, { regua, pedido: pedido ?? null })
+  const blocos = montarBlocos(
+    segmentos,
+    historico ?? { eventos: SEM_EVENTOS, passagens: [], trechos: [] },
+    agora,
+    regua,
+    tempoVivo ?? null,
+  )
   const estornavel = eventoEstornavel(eventos)
   const podeEstornar =
     perfil?.papel === 'admin' ||
@@ -219,8 +251,13 @@ export function HistoricoDoCard({
           <Dica rotulo="Como o tempo é contado">
             <span className="flex flex-col gap-2">
               <span>
-                Fora do horário de expediente do setor o tempo não anda — nem na fila. Quem trabalha
-                fora do horário (hora extra) conta.
+                Fora do horário de expediente do setor o tempo não anda — nem na fila. O almoço, os
+                feriados e os dias parados não contam. Fora do horário, só a hora extra autorizada
+                conta.
+              </span>
+              <span>
+                O trabalho no card para sozinho no fim do expediente do dia em que começou. Quem
+                monta vários móveis juntos tem o tempo dividido entre eles.
               </span>
               <span>O tempo em stand-by não conta.</span>
             </span>
@@ -237,130 +274,18 @@ export function HistoricoDoCard({
 
       {/* ------- O resumo que a demanda pede: etapa a etapa ------- */}
       <ol className="flex flex-col gap-3">
-        {segmentos.map((s) => (
-          <li
-            key={s.eventoEntradaId}
-            className="rounded-dm border border-borda bg-superficie-sutil p-3"
-          >
-            <header className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-sm font-semibold text-texto">
-                {s.setorNome}
-                {s.etapaNome && <span className="text-texto-suave"> · {s.etapaNome}</span>}
-                {s.ehFila && (
-                  <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
-                    fila
-                  </span>
-                )}
-              </span>
-              <span className="text-xs text-texto-fraco tabular-nums">
-                {hora(new Date(s.entrouEm).toISOString())}
-                {s.saiuEm === null ? ' → agora' : ` → ${hora(new Date(s.saiuEm).toISOString())}`}
-              </span>
-            </header>
-
-            {/* SESSAO-06 (D-09): a dupla atestação desta chegada. */}
-            {s.qualidade && (
-              <div className="mt-2 flex flex-col gap-1 rounded-dm bg-superficie px-2 py-1.5 text-xs">
-                <span className="flex flex-wrap items-center gap-1.5 text-texto">
-                  <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                  Entrega de {s.qualidade.setorRemetenteNome ?? 'setor anterior'}
-                  {s.qualidade.remetenteNome ? ` (${s.qualidade.remetenteNome})` : ''}:
-                  <BadgeEstado estado={s.qualidade.estadoRemetente} tamanho="sm" />
-                </span>
-                {s.qualidade.estadoRecebedor ? (
-                  <span className="flex flex-wrap items-center gap-1.5 text-texto">
-                    <span className="w-4 shrink-0" aria-hidden />
-                    Recebimento
-                    {s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
-                    <BadgeEstado estado={s.qualidade.estadoRecebedor} tamanho="sm" />
-                    {s.qualidade.divergente && (
-                      <span className="rounded-full bg-atencao-fundo px-2 py-0.5 font-medium text-atencao-texto">
-                        divergência — liderança avisada
-                      </span>
-                    )}
-                    {s.qualidade.observacaoRecebedor && (
-                      <span className="italic text-texto-suave">
-                        “{s.qualidade.observacaoRecebedor}”
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="pl-5 text-texto-fraco">
-                    Recebimento ainda sem parecer — exigido antes do primeiro Iniciar.
-                  </span>
-                )}
-              </div>
-            )}
-
-            {s.papel === 'entrada' || s.papel === 'terminal' ? (
-              // SESSAO-38 (F5 · pedido do dono): o PCP — e os fins de linha — não
-              // têm fila: ninguém "inicia" ali. Só o tempo útil.
-              <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Clock aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                  <dt className="text-texto-suave">Tempo útil em {s.setorNome}:</dt>
-                  <dd className="font-semibold text-texto">
-                    {ver(s.papel === 'entrada' ? (s.pcpUtilMs ?? s.totalUtilMs) : s.totalUtilMs)}
-                  </dd>
-                </div>
-                {s.papel === 'entrada' && s.pcpUtilMs !== null && pedido?.entrou_pcp_em && (
-                  <p className="text-xs text-texto-fraco">
-                    {pedido.liberado_completo_em
-                      ? 'Do pedido: da entrada no PCP à liberação da última unidade.'
-                      : 'Do pedido: ainda contando — há unidade por liberar.'}
-                  </p>
-                )}
-                {(s.standbyMs > 0 || (s.papel === 'entrada' && pedido?.standby_desde)) && (
-                  <p className="inline-flex items-center gap-1 text-xs text-atencao-texto">
-                    <CirclePause aria-hidden className="size-3.5 shrink-0" />
-                    {pedido?.standby_desde
-                      ? 'Em stand-by agora — o tempo está parado.'
-                      : `${ver(s.standbyMs)} em stand-by, fora da conta.`}
-                  </p>
-                )}
-              </dl>
-            ) : (
-              <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
-                <div className="flex items-center gap-2">
-                  <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                  <dt className="text-texto-suave">Fila (do setor):</dt>
-                  <dd className="font-medium text-texto">{ver(s.filaUtilMs)}</dd>
-                </div>
-
-                {s.execucoes.map((e) => (
-                  <div key={e.inicioEventoId} className="flex flex-wrap items-center gap-2">
-                    <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
-                    <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
-                    <dd className="font-medium text-texto">{ver(e.duracaoMs)}</dd>
-                    <dd className="text-xs text-texto-fraco">
-                      {e.encerramento === null && !e.pausada && '· em andamento'}
-                      {/* D-48: pausado não conta — o desconto já está na duração. */}
-                      {e.pausada && '· pausada agora (o tempo não conta)'}
-                      {e.encerramento === 'finalizada' &&
-                        (e.autorFim && e.autorFim !== e.autorInicio
-                          ? `· finalizada por ${e.autorFim}`
-                          : '· finalizada')}
-                      {e.encerramento === 'transferencia' &&
-                        '· transferida (assumida por outra pessoa)'}
-                      {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
-                      {e.pausaMs > 0 && ` · ${ver(e.pausaMs)} de pausa descontados`}
-                    </dd>
-                  </div>
-                ))}
-                {s.execucoes.length === 0 && (
-                  <p className="text-xs text-texto-fraco">
-                    Ninguém iniciou aqui — o tempo foi todo de fila.
-                  </p>
-                )}
-
-                <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
-                  <dt className="text-texto-suave">Total na etapa:</dt>
-                  <dd className="font-semibold text-texto">{ver(s.totalUtilMs)}</dd>
-                </div>
-              </dl>
-            )}
-          </li>
-        ))}
+        {blocos.map((bloco) =>
+          bloco.tipo === 'passagem' ? (
+            <BlocoDaPassagem key={`p-${bloco.passagem.id}`} bloco={bloco} ver={ver} />
+          ) : (
+            <SegmentoSolto
+              key={bloco.segmento.eventoEntradaId}
+              s={bloco.segmento}
+              ver={ver}
+              pedido={pedido}
+            />
+          ),
+        )}
       </ol>
 
       {/* ------- Estorno (líder do setor / admin — D-24) ------- */}
@@ -441,7 +366,12 @@ export function HistoricoDoCard({
                   )}
                 >
                   <span className="tabular-nums">{hora(e.ocorrido_em)}</span>
-                  <span className="font-medium">{ROTULO_TIPO[e.tipo] ?? e.tipo}</span>
+                  <span className="font-medium">
+                    {/* SESSAO-42 (regra 14): a decisão manual sobre o tempo, com o motivo. */}
+                    {e.tipo === 'tempo_decisao'
+                      ? textoDecisaoDoTempo(e.dados)
+                      : (ROTULO_TIPO[e.tipo] ?? e.tipo)}
+                  </span>
                   {e.usuario_nome && <span>· {e.usuario_nome}</span>}
                   {e.estado_qualidade && <BadgeEstado estado={e.estado_qualidade} tamanho="sm" />}
                   {e.tipo.startsWith('movimentacao') && (
@@ -454,7 +384,9 @@ export function HistoricoDoCard({
                   )}
                   {(e.tipo === 'etiqueta_adicionada' || e.tipo === 'etiqueta_removida') &&
                     typeof e.dados?.etiqueta === 'string' && <span>“{e.dados.etiqueta}”</span>}
-                  {e.observacao && <span className="italic">“{e.observacao}”</span>}
+                  {e.observacao && e.tipo !== 'tempo_decisao' && (
+                    <span className="italic">“{e.observacao}”</span>
+                  )}
                   {/* SESSAO-27: a origem em língua de gente ("Automático", "Pela integração"). */}
                   {e.origem !== 'interface' && <span>· {ORIGEM[e.origem] ?? e.origem}</span>}
                 </li>
@@ -464,5 +396,281 @@ export function HistoricoDoCard({
         </div>
       )}
     </div>
+  )
+}
+
+/** SESSAO-06 (D-09): a dupla atestação de uma chegada. */
+function QualidadeDaChegada({ s }: { s: PermanenciaSegmento }) {
+  if (!s.qualidade) return null
+  return (
+    <div className="mt-2 flex flex-col gap-1 rounded-dm bg-superficie px-2 py-1.5 text-xs">
+      <span className="flex flex-wrap items-center gap-1.5 text-texto">
+        <ClipboardCheck aria-hidden className="size-4 shrink-0 text-texto-suave" />
+        Entrega de {s.qualidade.setorRemetenteNome ?? 'setor anterior'}
+        {s.qualidade.remetenteNome ? ` (${s.qualidade.remetenteNome})` : ''}:
+        <BadgeEstado estado={s.qualidade.estadoRemetente} tamanho="sm" />
+      </span>
+      {s.qualidade.estadoRecebedor ? (
+        <span className="flex flex-wrap items-center gap-1.5 text-texto">
+          <span className="w-4 shrink-0" aria-hidden />
+          Recebimento
+          {s.qualidade.recebedorNome ? ` de ${s.qualidade.recebedorNome}` : ''}:
+          <BadgeEstado estado={s.qualidade.estadoRecebedor} tamanho="sm" />
+          {s.qualidade.divergente && (
+            <span className="rounded-full bg-atencao-fundo px-2 py-0.5 font-medium text-atencao-texto">
+              divergência — liderança avisada
+            </span>
+          )}
+          {s.qualidade.observacaoRecebedor && (
+            <span className="italic text-texto-suave">“{s.qualidade.observacaoRecebedor}”</span>
+          )}
+        </span>
+      ) : (
+        <span className="pl-5 text-texto-fraco">
+          Recebimento ainda sem parecer — exigido antes do primeiro Iniciar.
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** O cabeçalho de uma etapa: o nome (e o selo de fila) e de quando a quando. */
+function CabecalhoDaEtapa({ s, comSetor = true }: { s: PermanenciaSegmento; comSetor?: boolean }) {
+  return (
+    <header className="flex flex-wrap items-baseline justify-between gap-2">
+      <span className={cn('text-sm text-texto', comSetor && 'font-semibold')}>
+        {comSetor && s.setorNome}
+        {s.etapaNome && (
+          <span className={comSetor ? 'text-texto-suave' : 'font-medium'}>
+            {comSetor ? ' · ' : ''}
+            {s.etapaNome}
+          </span>
+        )}
+        {s.ehFila && (
+          <span className="ml-2 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">
+            fila
+          </span>
+        )}
+      </span>
+      <span className="text-xs text-texto-fraco tabular-nums">
+        {hora(new Date(s.entrouEm).toISOString())}
+        {s.saiuEm === null ? ' → agora' : ` → ${hora(new Date(s.saiuEm).toISOString())}`}
+      </span>
+    </header>
+  )
+}
+
+/** Como a execução terminou (ou que está andando) — o complemento da linha. */
+function fimDaExecucao(e: ExecucaoSegmento): string {
+  if (e.pausada) return '· pausada agora (o tempo não conta)'
+  if (e.encerramento === null) return '· em andamento'
+  if (e.encerramento === 'finalizada')
+    return e.autorFim && e.autorFim !== e.autorInicio
+      ? `· finalizada por ${e.autorFim}`
+      : '· finalizada'
+  if (e.encerramento === 'transferencia') return '· transferida (assumida por outra pessoa)'
+  return '· encerrada ao mover o card'
+}
+
+/**
+ * SESSAO-42 (F4): a PASSAGEM do card por um setor de produção — os números
+ * vêm do banco (o cálculo único): a fila útil, o tempo do móvel, o parado, o
+ * total; cada execução com o tempo dos trechos dela; a situação quando está
+ * fora da média. As etapas por onde o card andou ficam dentro, como antes.
+ */
+function BlocoDaPassagem({ bloco, ver }: { bloco: BlocoPassagem; ver: (ms: number) => string }) {
+  const primeira = bloco.segmentos[0]
+  const ultima = bloco.segmentos[bloco.segmentos.length - 1]
+  const temExecucao = bloco.segmentos.some((s) => s.execucoes.length > 0)
+  return (
+    <li className="rounded-dm border border-borda bg-superficie-sutil p-3">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold text-texto">{primeira.setorNome}</span>
+        <span className="text-xs text-texto-fraco tabular-nums">
+          {hora(new Date(primeira.entrouEm).toISOString())}
+          {ultima.saiuEm === null
+            ? ' → agora'
+            : ` → ${hora(new Date(ultima.saiuEm).toISOString())}`}
+        </span>
+      </header>
+
+      {/* a situação da passagem quando está fora da média (ícone + texto — M-12) */}
+      {bloco.situacao && (
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto">
+          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+          {bloco.situacao}
+        </p>
+      )}
+
+      <QualidadeDaChegada s={primeira} />
+
+      <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
+        <div className="flex items-center gap-2">
+          <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
+          <dt className="text-texto-suave">Fila (do setor):</dt>
+          <dd className="font-medium text-texto">{ver(bloco.filaMs)}</dd>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+          <dt className="text-texto-suave">Tempo do móvel:</dt>
+          <dd className="font-semibold text-texto">{ver(bloco.movelMs)}</dd>
+          {bloco.passagem.lote && (
+            <dd className="inline-flex items-center gap-1 text-xs text-texto-fraco">
+              <Layers aria-hidden className="size-3.5" />
+              montado junto com outros (o tempo se divide)
+            </dd>
+          )}
+        </div>
+        {bloco.paradoMs > 0 && (
+          <div className="flex items-center gap-2">
+            <CirclePause aria-hidden className="size-4 shrink-0 text-texto-suave" />
+            <dt className="text-texto-suave">Parado (sem ninguém no card):</dt>
+            <dd className="font-medium text-texto">{ver(bloco.paradoMs)}</dd>
+          </div>
+        )}
+        {bloco.ajudas.map((a) => (
+          <div key={a.usuarioId} className="flex flex-wrap items-center gap-2">
+            <Handshake aria-hidden className="size-4 shrink-0 text-texto-suave" />
+            <dt className="text-texto-suave">Ajuda de {a.nome}:</dt>
+            <dd className="font-medium text-texto">{ver(a.ms)}</dd>
+          </div>
+        ))}
+        {bloco.totalMs !== null && (
+          <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
+            <dt className="text-texto-suave">Total no setor:</dt>
+            <dd className="font-semibold text-texto">{ver(bloco.totalMs)}</dd>
+          </div>
+        )}
+        {bloco.aberta && !temExecucao && (
+          <p className="text-xs text-texto-fraco">Ninguém iniciou ainda — o tempo é de fila.</p>
+        )}
+      </dl>
+
+      {/* a decisão manual sobre o tempo desta passagem */}
+      {bloco.decisao && (
+        <p className="mt-2 text-xs text-texto-suave">
+          {textoDecisaoDoTempo({ decisao: bloco.decisao.decisao, motivo: bloco.decisao.motivo })}
+          {bloco.decisao.quem ? ` (${bloco.decisao.quem}, ${hora(bloco.decisao.em)})` : ''}
+        </p>
+      )}
+
+      {/* as etapas por onde o card andou no setor, com as execuções */}
+      <ol className="mt-2 flex flex-col gap-2 border-t border-borda pt-2">
+        {bloco.segmentos.map((s) => (
+          <li key={s.eventoEntradaId} className="flex flex-col gap-1">
+            <CabecalhoDaEtapa s={s} comSetor={false} />
+            {s.execucoes.map((e) => {
+              const doBanco = bloco.execucoes.get(e.inicioEventoId)
+              const descartada = doBanco?.descartado ?? false
+              return (
+                <div
+                  key={e.inicioEventoId}
+                  className={cn(
+                    'flex flex-wrap items-center gap-x-2 text-sm tabular-nums',
+                    descartada && 'text-texto-fraco line-through',
+                  )}
+                >
+                  <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+                  <span className="text-texto-suave">Execução de {e.autorInicio}:</span>
+                  <span className="font-medium text-texto">
+                    {ver(doBanco ? doBanco.ms : e.duracaoMs)}
+                  </span>
+                  <span className="text-xs text-texto-fraco">
+                    {descartada ? '· clique errado (não conta)' : fimDaExecucao(e)}
+                    {!descartada && doBanco?.fimDoExpediente && ' · pausado no fim do expediente'}
+                    {!descartada && doBanco?.semResposta && ' · pausado sem resposta ao aviso'}
+                  </span>
+                </div>
+              )
+            })}
+          </li>
+        ))}
+      </ol>
+    </li>
+  )
+}
+
+/** Uma permanência fora de passagem (o PCP, os fins de linha, ou o banco de antes). */
+function SegmentoSolto({
+  s,
+  ver,
+  pedido,
+}: {
+  s: PermanenciaSegmento
+  ver: (ms: number) => string
+  pedido?: (Partial<PedidoDoCard> & TempoDoPedidoNoPcp) | null
+}) {
+  return (
+    <li className="rounded-dm border border-borda bg-superficie-sutil p-3">
+      <CabecalhoDaEtapa s={s} />
+      <QualidadeDaChegada s={s} />
+
+      {s.papel === 'entrada' || s.papel === 'terminal' ? (
+        // SESSAO-38 (F5 · pedido do dono): o PCP — e os fins de linha — não
+        // têm fila: ninguém "inicia" ali. Só o tempo útil.
+        <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
+          <div className="flex flex-wrap items-center gap-2">
+            <Clock aria-hidden className="size-4 shrink-0 text-texto-suave" />
+            <dt className="text-texto-suave">Tempo útil em {s.setorNome}:</dt>
+            <dd className="font-semibold text-texto">
+              {ver(s.papel === 'entrada' ? (s.pcpUtilMs ?? s.totalUtilMs) : s.totalUtilMs)}
+            </dd>
+          </div>
+          {s.papel === 'entrada' && s.pcpUtilMs !== null && pedido?.entrou_pcp_em && (
+            <p className="text-xs text-texto-fraco">
+              {pedido.liberado_completo_em
+                ? 'Do pedido: da entrada no PCP à liberação da última unidade.'
+                : 'Do pedido: ainda contando — há unidade por liberar.'}
+            </p>
+          )}
+          {(s.standbyMs > 0 || (s.papel === 'entrada' && pedido?.standby_desde)) && (
+            <p className="inline-flex items-center gap-1 text-xs text-atencao-texto">
+              <CirclePause aria-hidden className="size-3.5 shrink-0" />
+              {pedido?.standby_desde
+                ? 'Em stand-by agora — o tempo está parado.'
+                : `${ver(s.standbyMs)} em stand-by, fora da conta.`}
+            </p>
+          )}
+        </dl>
+      ) : (
+        <dl className="mt-2 flex flex-col gap-1 text-sm tabular-nums">
+          <div className="flex items-center gap-2">
+            <Hourglass aria-hidden className="size-4 shrink-0 text-texto-suave" />
+            <dt className="text-texto-suave">Fila (do setor):</dt>
+            <dd className="font-medium text-texto">{ver(s.filaUtilMs)}</dd>
+          </div>
+
+          {s.execucoes.map((e) => (
+            <div key={e.inicioEventoId} className="flex flex-wrap items-center gap-2">
+              <Play aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+              <dt className="text-texto-suave">Execução de {e.autorInicio}:</dt>
+              <dd className="font-medium text-texto">{ver(e.duracaoMs)}</dd>
+              <dd className="text-xs text-texto-fraco">
+                {e.encerramento === null && !e.pausada && '· em andamento'}
+                {/* D-48: pausado não conta — o desconto já está na duração. */}
+                {e.pausada && '· pausada agora (o tempo não conta)'}
+                {e.encerramento === 'finalizada' &&
+                  (e.autorFim && e.autorFim !== e.autorInicio
+                    ? `· finalizada por ${e.autorFim}`
+                    : '· finalizada')}
+                {e.encerramento === 'transferencia' && '· transferida (assumida por outra pessoa)'}
+                {e.encerramento === 'movimentacao' && '· encerrada ao mover o card'}
+                {e.pausaMs > 0 && ` · ${ver(e.pausaMs)} de pausa descontados`}
+              </dd>
+            </div>
+          ))}
+          {s.execucoes.length === 0 && (
+            <p className="text-xs text-texto-fraco">
+              Ninguém iniciou aqui — o tempo foi todo de fila.
+            </p>
+          )}
+
+          <div className="mt-1 flex items-center gap-2 border-t border-borda pt-1">
+            <dt className="text-texto-suave">Total na etapa:</dt>
+            <dd className="font-semibold text-texto">{ver(s.totalUtilMs)}</dd>
+          </div>
+        </dl>
+      )}
+    </li>
   )
 }

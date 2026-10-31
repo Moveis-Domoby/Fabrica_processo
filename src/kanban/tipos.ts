@@ -362,6 +362,8 @@ export interface EventoLinhaTempo {
     | 'auxilio_pausado'
     | 'auxilio_retomado'
     | 'auxilio_encerrado'
+    // SESSAO-42 (regra 14): a decisão manual sobre o tempo de uma passagem.
+    | 'tempo_decisao'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null
@@ -378,4 +380,85 @@ export interface EventoLinhaTempo {
   evento_referencia_id: number | null
   estornado: boolean
   dados: Record<string, unknown>
+}
+
+/**
+ * SESSAO-42 (F4): a situação da passagem no cálculo único — aberta (o card
+ * ainda está no setor), válida (entra na média) ou fora da média (conferir,
+ * retrabalho, gesto de administrador, sem registro, antes da data oficial,
+ * descartada à mão).
+ */
+export type SituacaoPassagem =
+  | 'aberta'
+  | 'valida'
+  | 'conferir'
+  | 'retrabalho'
+  | 'admin'
+  | 'sem_registro'
+  | 'teste'
+  | 'descartada'
+
+/**
+ * SESSAO-42 (F4): a estadia do card num setor de produção, como o banco
+ * calculou (plt_fn_card_historico). `id` é o fato da entrada no setor. Os
+ * tempos em segundos, já pela régua (só o que conta).
+ */
+export interface PassagemDoCard {
+  id: number
+  setor_id: number
+  entrada_em: string
+  saida_em: string | null
+  fila_s: number
+  /** o TEMPO DO MÓVEL: a união dos trechos, com a divisão do trabalho simultâneo */
+  execucao_s: number
+  /** o mesmo, só dos trechos que já fecharam (o aberto o aparelho soma) */
+  execucao_fechada_s: number
+  parado_s: number
+  total_s: number
+  esforco_s: number
+  situacao: SituacaoPassagem
+  motivo: string | null
+  desfecho: 'aberta' | 'concluida' | 'retrabalho' | 'saiu'
+  lote: boolean
+  modelo: string | null
+}
+
+/**
+ * SESSAO-42 (F3/F4): um trecho — o período contínuo em que uma pessoa ficou
+ * com o card rodando (execução ou ajuda). `id` é o fato que abriu o trecho
+ * (o iniciar, a retomada ou o início da ajuda).
+ */
+export interface TrechoDoCard {
+  id: number
+  passagem_id: number
+  usuario_id: string
+  papel: 'execucao' | 'auxilio'
+  inicio: string
+  fim: string | null
+  fim_tipo:
+    | 'pausa'
+    | 'fim_expediente'
+    | 'sem_resposta'
+    | 'esquecido'
+    | 'movimento'
+    | 'volta'
+    | 'setor'
+    | 'transferencia'
+    | 'finalizado'
+    | 'arquivado'
+    | null
+  /** o fim do expediente do dia em que começou; nulo = o setor não corta */
+  corte: string | null
+  /** os segundos que contam, depois da divisão (o esforço da pessoa) */
+  segundos: number
+  util_s: number
+  /** o clique errado (volta rápida para a fila) — não conta */
+  descartado: boolean
+}
+
+/** SESSAO-42 (F4): "Tempo e histórico" numa requisição — os fatos + os números do banco. */
+export interface HistoricoDoCardDados {
+  eventos: EventoLinhaTempo[]
+  passagens: PassagemDoCard[]
+  trechos: TrechoDoCard[]
 }

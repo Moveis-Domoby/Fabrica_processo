@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { reduzirSeForFoto } from '@/rotas/api'
 import type { CampoCustomizado, Etiqueta, ValorCampo } from '@/utilitarios/tipos'
 import type { Card } from '../tipos'
+import type { TempoVivo } from '../tempoUtil'
 
 /**
  * SESSAO-31 (§3 · Lei §2/§3): a JANELA DO CARD — para todo card. Abrir = 1
@@ -20,6 +21,12 @@ export interface JanelaDoCard {
   } | null
   etapa: { id: number; nome: string; eh_fila: boolean } | null
   execucao: { usuario_id: string; iniciou_em: string } | null
+  /**
+   * SESSAO-42 (F4): o tempo do móvel no setor (o fechado do cálculo único + o
+   * trecho aberto — o aparelho soma o vivo pela régua). Nulo fora de setor de
+   * produção; ausente no banco de antes.
+   */
+  tempo?: TempoVivo | null
   /** SESSAO-36 (D-146): os auxílios abertos — o tempo próprio de cada pessoa no card. */
   auxilios: {
     usuario_id: string

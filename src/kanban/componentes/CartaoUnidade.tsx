@@ -1,6 +1,7 @@
 import {
   AlignLeft,
   Ban,
+  BellOff,
   CircleCheckBig,
   Clock,
   ClipboardCheck,
@@ -10,6 +11,7 @@ import {
   History,
   Hourglass,
   Images,
+  Layers,
   Link2,
   MessageSquare,
   Moon,
@@ -25,7 +27,9 @@ import { urlDaFoto } from '@/perfil/api'
 import { iniciais } from '@/chat/formato'
 import { ROTULO_DESTINO_FINAL } from '@/logistica/devolucao'
 import { formatarDuracao, formatarDuracaoMs } from '../tempo'
-import { duracaoUtilDesde, noExpediente } from '../tempoUtil'
+import { duracaoUtilDesde, noExpediente, textoTempoDoMovel } from '../tempoUtil'
+import type { TempoVivo } from '../tempoUtil'
+import { TEXTO_PAUSA_AUTOMATICA, pausaAutomatica } from '../pausa'
 import { useReguaTempo } from '../useReguaTempo'
 import { pedidoCancelado } from '../situacao'
 import type { Card, PedidoDoCard } from '../tipos'
@@ -121,6 +125,13 @@ export interface CartaoUnidadeProps {
   aoAbrir?: (card: Card) => void
   /** SESSAO-37 (D-147): tem ajuda ATIVA agora — com o dono pausado, o card segue rodando. */
   ajudaAtiva?: boolean
+  /**
+   * SESSAO-42 (F4): o tempo do móvel no setor, como o banco mandou (o fechado
+   * + o trecho aberto). Em execução, o card mostra ESTE tempo — só o que conta
+   * pela régua (sem o almoço, sem a noite, parando no fim do expediente).
+   * Ausente (banco de antes): o relógio desde o início, como sempre.
+   */
+  tempoVivo?: TempoVivo
 }
 
 /**
@@ -154,6 +165,7 @@ export function CartaoUnidade({
   pessoas,
   aoAbrir,
   ajudaAtiva = false,
+  tempoVivo,
 }: CartaoUnidadeProps) {
   const galpao = tamanho === 'galpao'
   const kn =
@@ -168,13 +180,17 @@ export function CartaoUnidade({
   // SESSAO-31 (§4): o motivo da pausa — ou da parada (solto no PARADO, sem execução).
   const motivo = card.pausa_motivo ?? null
   const parado = !emExecucao && motivo !== null
+  // SESSAO-42: a pausa que o sistema fez sozinho (fim do expediente / sem resposta ao aviso)
+  const automatica = pausado ? pausaAutomatica(motivo) : null
   // SESSAO-24: a peça segue na produção com o pedido cancelado — ao concluir,
   // ela vai para o estoque sem dono. Lido da situação do pedido (a mesma fonte
   // do evento de cancelamento — nada guardado para dessincronizar).
   const cancelado = card.pedido_id !== null && pedidoCancelado(pedido?.situacao)
   // SESSAO-38 (F5 · D-167 ⏳): todo relógio do card conta só o expediente do
-  // setor (sem a régua — banco antigo — o relógio corrido de sempre). A execução
-  // segue corrida: quem trabalha fora do horário está em hora extra — conta.
+  // setor (sem a régua — banco antigo — o relógio corrido de sempre).
+  // ↪️ SESSAO-42: a execução também — o card mostra o TEMPO DO MÓVEL no setor
+  // (o que o banco já fechou + o trecho aberto pela régua, até o fim do
+  // expediente); só a hora extra autorizada conta fora do horário.
   const regua = useReguaTempo()
   const setorDoCard = card.setor_atual_id
   const desdeUtil = (iso: string | null | undefined) =>
@@ -352,6 +368,33 @@ export function CartaoUnidade({
           {desdeUtil(card.desde)}
           <span className="sr-only">desde a chegada ao fim de linha</span>
         </p>
+      ) : pausado && automatica ? (
+        // SESSAO-42: a pausa que o sistema fez sozinho — ícone + texto próprios (M-12).
+        <p
+          className="inline-flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-medium text-atencao-texto"
+          title={
+            card.pausado_em
+              ? `Pausado sozinho em ${new Date(card.pausado_em).toLocaleString('pt-BR')} — o tempo não conta enquanto pausado.`
+              : undefined
+          }
+        >
+          {automatica === 'fim_expediente' ? (
+            <Moon aria-hidden className="size-4 shrink-0" />
+          ) : (
+            <BellOff aria-hidden className="size-4 shrink-0" />
+          )}
+          <span className="min-w-0 break-words">
+            Pausado · {TEXTO_PAUSA_AUTOMATICA[automatica]}
+          </span>
+          <span className="inline-flex items-center gap-1 font-normal text-texto-suave">
+            <AvatarPessoa
+              nome={executorNome ?? null}
+              foto={card.executor_atual_id ? pessoas?.get(card.executor_atual_id)?.foto : null}
+              tamanho="xs"
+            />
+            {souExecutor ? 'você' : (executorNome ?? '…')}
+          </span>
+        </p>
       ) : pausado ? (
         // SESSAO-22 (D-48): pausado é estado com ícone + texto, nunca só cor (M-12).
         <p
@@ -387,13 +430,26 @@ export function CartaoUnidade({
             galpao ? 'text-base' : 'text-sm',
           )}
           title={
-            execucaoDesde
-              ? `Em execução desde ${new Date(execucaoDesde).toLocaleString('pt-BR')}`
-              : undefined
+            tempoVivo
+              ? `Tempo do móvel neste setor — conta só o expediente (o almoço e a noite não contam; para no fim do expediente)${tempoVivo.lote ? '. Montado junto com outros: o tempo se divide entre eles' : ''}`
+              : execucaoDesde
+                ? `Em execução desde ${new Date(execucaoDesde).toLocaleString('pt-BR')}`
+                : undefined
           }
         >
           <Play aria-hidden className="size-4 text-perfeito-forte" />
-          <span className="font-medium">{formatarDuracao(execucaoDesde ?? card.desde, agora)}</span>
+          <span className="font-medium">
+            {tempoVivo
+              ? textoTempoDoMovel(tempoVivo, regua, agora)
+              : formatarDuracao(execucaoDesde ?? card.desde, agora)}
+          </span>
+          {/* SESSAO-42: montado junto com outros (o "Montar juntos") — ícone + texto. */}
+          {tempoVivo?.lote && (
+            <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
+              <Layers aria-hidden className="size-3.5" />
+              em lote
+            </span>
+          )}
           <span className="inline-flex items-center gap-1 text-texto-suave">
             <AvatarPessoa
               nome={executorNome ?? null}
