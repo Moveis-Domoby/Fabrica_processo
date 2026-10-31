@@ -903,6 +903,19 @@ begin
         v_exc := v_exc - v_corta;
       end loop;
     end loop;
+    -- ainda sobra (presença antiga sobreposta aos trechos): sai a carência —
+    -- os trechos ficam (já são só dentro das janelas e divididos)
+    for v_linha in
+      select r.setor_id, r.carencia_s as v from public.plt_tempo_resumo_pessoa_dia r
+       where r.dia = p_dia and r.usuario_id = p_usuario_id and r.carencia_s > 0
+    loop
+      exit when v_exc <= 0;
+      v_corta := least(v_linha.v, v_exc);
+      update public.plt_tempo_resumo_pessoa_dia
+         set carencia_s = carencia_s - v_corta, trabalhando_s = trabalhando_s - v_corta
+       where dia = p_dia and usuario_id = p_usuario_id and setor_id is not distinct from v_linha.setor_id;
+      v_exc := v_exc - v_corta;
+    end loop;
   end if;
   delete from public.plt_tempo_resumo_pessoa_dia r
    where r.dia = p_dia and r.usuario_id = p_usuario_id
@@ -910,7 +923,7 @@ begin
 end;
 $$;
 comment on function plt_privado.fn_tempo_pessoa_dia_refazer(uuid, date) is
-  'SESSAO-42 (F4): refaz o resumo de uma pessoa num dia — trabalhando = o esforço dos trechos FECHADOS (dividido, conta uma vez só) + a carência de 5 min (D-197); ausente, parado especial e à deriva da presença FECHADA, só dentro das janelas do setor (a deriva, nas da fábrica); o que passar da jornada (janelas + hora extra) sai do que não é trabalho. O aberto soma na leitura.';
+  'SESSAO-42 (F4): refaz o resumo de uma pessoa num dia — trabalhando = o esforço dos trechos FECHADOS (dividido, conta uma vez só) + a carência de 5 min (D-197); ausente, parado especial e à deriva da presença FECHADA, só dentro das janelas do setor (a deriva, nas da fábrica); o que passar da jornada (janelas + hora extra) sai do que não é trabalho (à deriva, ausente, especial e, por último, a carência). O aberto soma na leitura.';
 revoke all on function plt_privado.fn_tempo_pessoa_dia_refazer(uuid, date) from public, anon, authenticated;
 
 -- ----------------------------------------------------------------------------
