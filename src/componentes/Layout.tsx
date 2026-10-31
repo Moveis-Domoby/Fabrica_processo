@@ -402,9 +402,10 @@ export function Layout({ children }: { children: ReactNode }) {
                     { para: '/configuracoes/setores-e-etapas', rotulo: 'Setores e etapas' },
                     // D-202 (28/10): os avisos que cada um recebe (o admin, de qualquer pessoa)
                     { para: '/configuracoes/avisos', rotulo: 'Avisos' },
+                    // SESSAO-42: o líder também entra — só na aba Hora extra
+                    { para: '/configuracoes/tempo', rotulo: 'Controle de tempo' },
                     ...(souAdmin
                       ? [
-                          { para: '/configuracoes/tempo', rotulo: 'Controle de tempo' },
                           { para: '/configuracoes/estoque', rotulo: 'Estoque' },
                           { para: '/configuracoes/produtos', rotulo: 'Móveis, insumos e peças' },
                           { para: '/configuracoes/api', rotulo: 'API e integrações' },

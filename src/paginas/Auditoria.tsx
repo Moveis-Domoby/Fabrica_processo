@@ -7,6 +7,7 @@ import {
   CircleCheck,
   CircleDashed,
   ClipboardList,
+  Clock,
   CloudDownload,
   Eye,
   LogIn,
@@ -96,6 +97,7 @@ const ICONE_GRUPO: Record<GrupoAcao, ReactNode> = {
   chat: <MessageSquare aria-hidden className="size-4" />,
   avisos: <Bell aria-hidden className="size-4" />,
   automacoes: <Workflow aria-hidden className="size-4" />,
+  tempo: <Clock aria-hidden className="size-4" />,
 }
 
 /**

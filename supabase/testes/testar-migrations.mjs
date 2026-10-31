@@ -19712,8 +19712,13 @@ try {
 
   titulo('SESSAO-42 · as telas leem o cálculo único: o mesmo móvel com o mesmo tempo em todas, e ninguém passa da jornada')
   await como42(Q42.adm)
-  const tp = await linhas42(`select nome, producao_s from public.plt_fn_tempos_pessoas('2026-10-26', '2026-10-26', 100, 0) where nome in ('Franklin S42', 'Alisson S42')`)
-  const fr = tp.find((x) => x.nome === 'Franklin S42'), al = tp.find((x) => x.nome === 'Alisson S42')
+  // a bateria tem mais de 100 pessoas — cada uma na página dela (ordem por nome)
+  const pagina42 = async (nome) => {
+    const pos = (await um42(`select count(*)::int as n from public.plt_usuarios u where u.ativo and not u.conta_tablet and u.nome < '${nome}'`)).n
+    return (await linhas42(`select nome, producao_s from public.plt_fn_tempos_pessoas('2026-10-26', '2026-10-26', 1, ${pos})`))[0]
+  }
+  const fr = await pagina42('Franklin S42'), al = await pagina42('Alisson S42')
+  const tp = [fr, al]
   const pes = await linhas42(`select usuario_nome, extract(epoch from tempo_util)::int as s from public.plt_fn_dash_tempos_pessoa('2026-10-26 00:00-03', '2026-10-27 00:00-03', ${S42.m42})`)
   const hist = await um42(`select public.plt_fn_card_historico(${c1}) as h`)
   conferir(Number(fr?.producao_s) === 47 * 60 && Number(al?.producao_s) === 107 * 60

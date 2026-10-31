@@ -64,7 +64,9 @@ describe('Configurações → API e integrações · a API nova do Tiny da fábr
       `${window.location.origin}${window.location.pathname}`,
     )
     expect(await screen.findByText('Não deu para ligar a API nova da fábrica')).toBeInTheDocument()
-    expect(screen.getByText(/Faltam os segredos do aplicativo/)).toBeInTheDocument()
+    // o aviso (Radix) pode estar duas vezes na tela por um instante: a caixa e a
+    // cópia que o leitor de tela anuncia — basta aparecer
+    expect(screen.getAllByText(/Faltam os segredos do aplicativo/).length).toBeGreaterThan(0)
   })
 
   it('a volta do Tiny: ligada vira aviso de sucesso', async () => {

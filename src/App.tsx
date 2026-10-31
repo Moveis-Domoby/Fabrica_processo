@@ -242,11 +242,13 @@ export function App() {
                 <Route path="/configuracoes/equipe" element={<Equipe />} />
                 <Route path="/configuracoes/setores-e-etapas" element={<Estrutura />} />
                 <Route path="/configuracoes/avisos" element={<ConfigAvisos />} />
+                {/* SESSAO-42: o líder de setor entra só na aba Hora extra (a tela
+                  esconde as outras e as portas do banco recusam) */}
+                <Route path="/configuracoes/tempo" element={<ControleTempo />} />
               </Route>
 
               {/* só admin */}
               <Route element={<RotaProtegida nivel="admin" />}>
-                <Route path="/configuracoes/tempo" element={<ControleTempo />} />
                 <Route path="/configuracoes/estoque" element={<AdminEstoque />} />
                 {/* SESSAO-32 (D-138): móvel, insumo e peça — o tipo de cada produto */}
                 <Route path="/configuracoes/produtos" element={<ClassificacaoProdutos />} />

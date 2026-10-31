@@ -148,6 +148,17 @@ export const ROTULO_ACAO: Record<string, string> = {
   tiny_mudancas_ligada: 'Ligou a consulta de hora em hora ao Tiny',
   tiny_mudancas_desligada: 'Desligou a consulta de hora em hora ao Tiny',
   tiny_fabrica_autorizacao: 'API nova do Tiny da fábrica',
+  // SESSAO-42: o controle de tempo (Configurações → Controle de tempo) e o lote
+  tempo_expediente_alterado: 'Mudou o expediente',
+  tempo_calendario_alterado: 'Mudou o calendário',
+  tempo_hora_extra_registrada: 'Registrou uma hora extra',
+  tempo_hora_extra_cancelada: 'Cancelou uma hora extra',
+  tempo_regras_alteradas: 'Mudou as regras de tempo',
+  tempo_equipe_alterada: 'Mudou a equipe do painel de tempos',
+  tempo_modelo_alterado: 'Mudou os modelos de móvel',
+  tempo_recalculo_pedido: 'Pediu o recálculo dos tempos',
+  tempo_decisao: 'Decidiu o tempo de uma passagem',
+  montar_juntos: 'Montou cards juntos (em lote)',
 }
 
 /** Código sem rótulo vira frase: "algo_novo" → "Algo novo". */
@@ -174,6 +185,7 @@ export type GrupoAcao =
   | 'chat'
   | 'avisos'
   | 'automacoes'
+  | 'tempo'
 
 /** Os tipos do filtro — cada um manda ao servidor a lista das ações dele. */
 export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[] = [
@@ -302,6 +314,11 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
         a.startsWith('campo_') ||
         a.startsWith('tiny_'),
     ),
+  },
+  {
+    valor: 'tempo',
+    rotulo: 'Controle de tempo',
+    acoes: Object.keys(ROTULO_ACAO).filter((a) => a.startsWith('tempo_') || a === 'montar_juntos'),
   },
 ]
 
