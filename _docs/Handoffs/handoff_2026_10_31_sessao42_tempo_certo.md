@@ -7,7 +7,7 @@ tags: [handoff, sessao-42, tempo, montagem, calendario, configuracoes, dashboard
 
 # 📋 Handoff — SESSAO-42 · O tempo certo (31/10/2026)
 
-Demanda: [[SESSAO-42 - Tempo Certo - Calendario Regras e Calculo Unico]] · diário: [[SESSAO-42]] · decisões: D-203 (as 17 respostas do dono) e D-204…D-211 (provisórias, ⏳ para o dono confirmar). Ramo `sessao-42-tempo-certo` (enviado ao GitHub; **nada na `main`, nada no banco de produção, nada publicado** — esperando o OK do dono).
+Demanda: [[SESSAO-42 - Tempo Certo - Calendario Regras e Calculo Unico]] · diário: [[SESSAO-42]] · decisões: D-203 (as 17 respostas do dono) e D-204…D-211 (provisórias, ⏳ para o dono confirmar). Ramo `sessao-42-tempo-certo`. ✅ **No ar em 31/10** com o OK do dono (*"Ler e subir tudo"*): as 4 atualizações do banco e o site (`main` `4051c08`).
 
 ## 1. Objetivo
 
@@ -61,12 +61,12 @@ Os tempos estavam todos errados: três relógios diferentes (o mesmo armário da
 ## 6. Antes × depois dos tempos por setor
 
 - **O que já está provado** (com os dados do raio-x reproduzidos na bateria): o armário esquecido **876 min → 47 min**; o card do almoço **2h47 → 1h47**; o Fitamento esquecido rodando **sem fim → 1h33**; Alisson em 28/10 **18,9 h → ~5 h**; os testes do admin de 21/10 **na média → teste (fora)**; nenhum dia-pessoa acima da jornada (**15 de 41 → 0**).
-- **Por setor com os dados reais:** o comparador está pronto (copia em modo SÓ LEITURA as tabelas de tempo do banco real para o banco local, mede como as telas contam hoje, aplica as 4 atualizações e mede de novo — nada é gravado no banco real). **Falta o OK do dono para a leitura**, que o controle de segurança barrou.
+- **Por setor com os dados reais** (cópia só de leitura, 31/10 — tabela completa em [[SESSAO-42 - antes e depois dos tempos]]): Montagem 90,2 h no card / 76,7 h nas dashboards / 96,0 h em Tempos por pessoa → **62,9 h** de tempo do móvel nas 83 passagens válidas (mediana **40 min**); Fitamento 59,7 / 19,2 / 64,8 → **11,1 h** (mediana 11 min); SECC 32,7 / 19,2 / 32,4 → **12,3 h** (18 min); CNC 21,6 / 8,1 / 22,5 → **7,0 h** (31 min); Furação 16,3 / 16,3 / 6,6 → **4,6 h** (7 min); Limpeza 88,7 / 54,5 / 85,1 → **45,2 h** (28 min). Dias-pessoa acima da jornada: **16 de 46 → 0 de 44**. Os casos com o dado real: 168 → **108 min**, 876 → **46 min**, Fitamento → **93 min**.
 
 ## 7. Pendências e próximos passos
 
-- **Subir (com o OK do dono):** as 4 atualizações do banco, uma a uma, pelo aplicador `--so` (a 2ª recalcula desde 19/10 — segundos); conferir a integração idêntica, os advisors e as portas como o dono; depois o site (merge na `main`).
-- **A leitura do banco real** para o antes × depois por setor (pode ser antes da subida).
+- ✅ **Subiu em 31/10** (~01:20 de Natal, OK do dono): as 4 atualizações uma a uma (`--so`; integração do Tiny idêntica em todas), depois o site (`main` `4051c08`). Conferido no banco real (leitura, como o dono): 609 passagens recalculadas (233 válidas, 17 a conferir, 42 retrabalho, 91 sem registro, 4 de admin, 131 teste, 122 ainda no setor), 373 trechos, 137 modelos sugeridos, os casos da demanda batendo, nenhum dia acima da jornada, o despertador marcado para o próximo fim de expediente (1 card rodando — terça 07:30, depois de Finados), a fila de recálculo vazia, o check dos tipos de evento validado, as portas respondendo (~5–100 ms + a rede).
+- **No primeiro dia útil (terça, 03/11):** conferir às 18:00 os cards pausados sozinhos; cadastrar os feriados de Natal/RN; confirmar os 137 modelos sugeridos.
 - **Confirmar as provisórias** D-204…D-211 (o "fim do expediente" de quem começa depois do horário; a divisão do trabalho simultâneo; o retrabalho; o gesto de admin; a data oficial só nas médias; os dias da conta; o modelo pelo nome; as escolhas da tela).
 - **ClickUp:** as 9 tarefas propostas pela demanda ainda não existem — criar com o OK do dono (regra 19).
 - **Revisão em 2 semanas de dado limpo** (resposta 7): mínimo, teto e o fator.
