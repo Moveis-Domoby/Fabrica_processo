@@ -71,7 +71,10 @@ revoke all on function plt_privado.fn_tempo_pessoa_estados(uuid, date, date) fro
 
 -- o trabalho da pessoa por card e setor no período (execução e auxílio), com o
 -- parado e os motivos da pausa da PESSOA (plt_pessoa_pausas, útil guardado)
-create or replace function plt_privado.fn_tempo_trabalho_da_pessoa(p_usuario uuid, p_de date, p_ate date)
+create or replace function plt_privado.fn_tempo_trabalho_da_pessoa(
+  p_usuario uuid, p_de date, p_ate date,
+  p_limite integer default null, p_auxiliar boolean default null, p_por_tempo boolean default false
+)
 returns table (passagem_id bigint, card_id bigint, setor_id bigint, etapa_id bigint, auxiliar boolean,
                iniciou_em timestamptz, finalizou_em timestamptz, em_andamento boolean, segundos bigint,
                pausado_s bigint, motivos jsonb, especial_s bigint, motivos_especiais jsonb, motivo_aberto text,
@@ -82,7 +85,7 @@ security definer
 set search_path = public, pg_temp
 as $$
   with t as (
-    select t.*, plt_privado.fn_tempo_trecho_agora_s(t) as s
+    select t.*, (case when t.fim is not null then t.segundos else plt_privado.fn_tempo_trecho_agora_s(t) end) as s
       from public.plt_tempo_trechos t
      where t.usuario_id = p_usuario and t.dia between p_de and p_ate and not t.descartado
   ),
@@ -92,10 +95,17 @@ as $$
            bool_or(t.fim is null) as andamento, floor(sum(t.s))::bigint as seg
       from t
      group by t.passagem_id, t.card_id, t.setor_id
+  ),
+  -- só a página que a tela mostra (os mais novos, ou os de mais tempo) ganha o parado e os motivos
+  gl as (
+    select g.* from g
+     where p_auxiliar is null or g.auxiliar = p_auxiliar
+     order by case when p_por_tempo then g.seg end desc nulls last, g.ini desc
+     limit p_limite
   )
   select g.passagem_id, g.card_id, g.setor_id, g.etapa_id, g.auxiliar, g.ini, g.fim, g.andamento, g.seg,
          pz.pausado_s, pz.motivos, pz.especial_s, pz.motivos_especiais, pz.motivo_aberto, pz.especial_aberto
-    from g
+    from gl g
     cross join lateral (
       select coalesce(floor(sum(coalesce(pp.segundos_uteis, extract(epoch from now() - pp.inicio)))), 0)::bigint as pausado_s,
              coalesce(jsonb_agg(distinct coalesce(nullif(e.dados ->> 'motivo', ''), m.texto))
@@ -108,13 +118,14 @@ as $$
         left join public.plt_eventos e on e.id = pp.evento_id
         left join public.plt_motivos m on m.id = pp.motivo_id
        where pp.usuario_id = p_usuario and pp.card_id = g.card_id
-         and pp.inicio >= g.ini and pp.inicio < coalesce(g.fim, now())
+         -- a pausa que fechou o último trecho também é do card (inicio = fim)
+         and pp.inicio >= g.ini and pp.inicio <= coalesce(g.fim, now())
          and (pp.setor_id is null or pp.setor_id = g.setor_id)
     ) pz;
 $$;
-comment on function plt_privado.fn_tempo_trabalho_da_pessoa(uuid, date, date) is
+comment on function plt_privado.fn_tempo_trabalho_da_pessoa(uuid, date, date, integer, boolean, boolean) is
   'SESSAO-42 (F4): o trabalho de uma pessoa no período, por card e setor (a passagem) — o esforço (trechos divididos, o aberto até agora), se foi só auxílio, de quando a quando, e o parado dela no card com os motivos (o especial à parte).';
-revoke all on function plt_privado.fn_tempo_trabalho_da_pessoa(uuid, date, date) from public, anon, authenticated;
+revoke all on function plt_privado.fn_tempo_trabalho_da_pessoa(uuid, date, date, integer, boolean, boolean) from public, anon, authenticated;
 
 -- ----------------------------------------------------------------------------
 -- 2 · fn_tempos_aberto — mesma assinatura; o trecho de presença ABERTO só nas
@@ -140,7 +151,7 @@ as $$
    where s.usuario_id = p_usuario and s.fim is null and s.estado <> 'trabalhando'
      and w.b > w.a
   union all
-  select 'trabalhando', t.setor_id, floor(plt_privado.fn_tempo_trecho_agora_s(t))::bigint
+  select 'trabalhando', t.setor_id, floor((case when t.fim is not null then t.segundos else plt_privado.fn_tempo_trecho_agora_s(t) end))::bigint
     from public.plt_tempo_trechos t
    where t.usuario_id = p_usuario and t.fim is null and not t.descartado
      and t.inicio < p_ate and t.inicio >= p_de;
@@ -229,7 +240,7 @@ begin
     select p.id as usuario_id, w.setor_id, w.card_id, w.segundos, w.pausado_s, w.em_andamento, w.auxiliar,
            w.motivos, w.especial_s, w.motivos_especiais
       from pessoas p
-      cross join lateral plt_privado.fn_tempo_trabalho_da_pessoa(p.id, v_de, v_ate) w
+      cross join lateral plt_privado.fn_tempo_trabalho_da_pessoa(p.id, v_de, v_ate, 30, null, true) w
   ),
   cards_por_setor as (
     select c.usuario_id, c.setor_id,
@@ -374,8 +385,7 @@ begin
                'motivos_especiais', case when v_todos then w.motivos_especiais else '[]'::jsonb end,
                'rotulo', plt_privado.fn_card_rotulo(w.card_id))
              order by w.iniciou_em desc)
-        from (select * from plt_privado.fn_tempo_trabalho_da_pessoa(p_usuario, v_de, v_ate) x
-               where not x.auxiliar order by x.iniciou_em desc limit 100) w), '[]'::jsonb),
+        from plt_privado.fn_tempo_trabalho_da_pessoa(p_usuario, v_de, v_ate, 100, false, false) w), '[]'::jsonb),
     'auxilios', coalesce((
       select jsonb_agg(jsonb_build_object(
                'card_id', w.card_id, 'setor_id', w.setor_id,
@@ -386,8 +396,7 @@ begin
                'motivo_especial', v_todos and w.especial_aberto,
                'rotulo', plt_privado.fn_card_rotulo(w.card_id))
              order by w.iniciou_em desc)
-        from (select * from plt_privado.fn_tempo_trabalho_da_pessoa(p_usuario, v_de, v_ate) x
-               where x.auxiliar order by x.iniciou_em desc limit 100) w), '[]'::jsonb)
+        from plt_privado.fn_tempo_trabalho_da_pessoa(p_usuario, v_de, v_ate, 100, true, false) w), '[]'::jsonb)
   );
 end;
 $function$;
@@ -416,29 +425,50 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select u.id                                   as usuario_id,
-         u.nome                                 as usuario_nome,
-         u.matricula,
-         u.foto_caminho,
-         count(distinct t.passagem_id)::int     as execucoes,
-         count(distinct t.card_id)::int         as cards_atendidos,
-         make_interval(secs => sum(extract(epoch from
-           greatest(t.inicio, least(coalesce(t.fim, now()), coalesce(t.corte, 'infinity'::timestamptz))) - t.inicio))::double precision)
-                                                as tempo_bruto,
-         make_interval(secs => sum(plt_privado.fn_tempo_trecho_agora_s(t))::double precision)
-                                                as tempo_util
-    from public.plt_tempo_trechos t
-    join public.plt_usuarios u on u.id = t.usuario_id
-    join public.plt_tempo_passagens ps on ps.id = t.passagem_id
-   where t.setor_id in (select plt_privado.fn_setores_dashboard())
-     and (p_setor_id is null or t.setor_id = p_setor_id)
-     and t.inicio >= p_de and t.inicio < p_ate
-     and not t.descartado and ps.situacao <> 'descartada'
-   group by u.id, u.nome, u.matricula, u.foto_caminho
-   order by tempo_util desc nulls last;
+  with dias as (
+    select (p_de at time zone 'America/Fortaleza')::date as d0,
+           ((p_ate - interval '1 microsecond') at time zone 'America/Fortaleza')::date as d1
+  ),
+  -- o fechado: o resumo por dia do cálculo único
+  fechado as (
+    select r.usuario_id, sum(r.passagens_n) as n, sum(r.esforco_s) as esforco, sum(r.bruto_s) as bruto
+      from public.plt_tempo_resumo_pessoa_dia r, dias
+     where r.dia between dias.d0 and dias.d1
+       and r.setor_id in (select plt_privado.fn_setores_dashboard())
+       and (p_setor_id is null or r.setor_id = p_setor_id)
+     group by r.usuario_id
+  ),
+  -- o que está rodando agora (poucos — índice dos abertos)
+  aberto as (
+    select t.usuario_id, count(distinct t.passagem_id) as n,
+           sum((case when t.fim is not null then t.segundos else plt_privado.fn_tempo_trecho_agora_s(t) end)) as esforco,
+           sum(extract(epoch from greatest(t.inicio, least(now(), coalesce(t.corte, 'infinity'::timestamptz))) - t.inicio)) as bruto
+      from public.plt_tempo_trechos t
+     where t.fim is null and not t.descartado
+       and t.inicio >= p_de and t.inicio < p_ate
+       and t.setor_id in (select plt_privado.fn_setores_dashboard())
+       and (p_setor_id is null or t.setor_id = p_setor_id)
+     group by t.usuario_id
+  ),
+  tudo as (
+    select coalesce(f.usuario_id, a.usuario_id) as usuario_id,
+           coalesce(f.n, 0) + coalesce(a.n, 0) as n,
+           coalesce(f.esforco, 0) + coalesce(a.esforco, 0) as esforco,
+           coalesce(f.bruto, 0) + coalesce(a.bruto, 0) as bruto
+      from fechado f full join aberto a on a.usuario_id = f.usuario_id
+  )
+  select u.id, u.nome, u.matricula, u.foto_caminho,
+         x.n::int as execucoes,
+         x.n::int as cards_atendidos,
+         make_interval(secs => x.bruto::double precision) as tempo_bruto,
+         make_interval(secs => x.esforco::double precision) as tempo_util
+    from tudo x
+    join public.plt_usuarios u on u.id = x.usuario_id
+   where x.n > 0 or x.esforco > 0
+   order by x.esforco desc, u.nome;
 $$;
 comment on function public.plt_fn_dash_tempos_pessoa(timestamptz, timestamptz, bigint) is
-  'SESSAO-42 (F4): Pessoas — por pessoa, nos setores que quem pergunta vê: passagens em que trabalhou, cards, o relógio até o corte (bruto) e o ESFORÇO do cálculo único (útil — dividido, o aberto até agora).';
+  'SESSAO-42 (F4): Pessoas — por pessoa, nos setores que quem pergunta vê, nos DIAS do período: as passagens em que trabalhou (= os móveis atendidos), o relógio até o corte (bruto) e o ESFORÇO do cálculo único (útil — dividido). O fechado vem do resumo por dia; o que roda agora soma na leitura.';
 
 create or replace function public.plt_fn_dash_execucoes(
   p_de           timestamptz,
@@ -474,48 +504,80 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select t.inicio_evento_id,
-         t.card_id,
+  -- uma linha por EXECUÇÃO (o iniciar e as retomadas dela — os trechos), como
+  -- antes: a PÁGINA primeiro (os inícios do período, do mais novo), depois os
+  -- trechos de cada uma (índice da execução)
+  with total as (
+    -- quantas no período, contadas até 1.001 ("mais de mil" — Lei §6)
+    select count(*) as n from (
+      select 1 from public.plt_tempo_trechos t
+       where t.papel = 'execucao' and t.inicio_evento_id = t.execucao_id
+         and t.inicio >= p_de and t.inicio < p_ate
+         and t.setor_id in (select plt_privado.fn_setores_dashboard())
+         and (p_setor_id is null or t.setor_id = p_setor_id)
+         and (p_usuario_id is null or t.usuario_id = p_usuario_id)
+       limit 1001) z
+  ),
+  ini as (
+    select t.execucao_id, t.inicio, (select n from total) as total
+      from public.plt_tempo_trechos t
+     where t.papel = 'execucao' and t.inicio_evento_id = t.execucao_id
+       and t.inicio >= p_de and t.inicio < p_ate
+       and t.setor_id in (select plt_privado.fn_setores_dashboard())
+       and (p_setor_id is null or t.setor_id = p_setor_id)
+       and (p_usuario_id is null or t.usuario_id = p_usuario_id)
+     order by t.inicio desc
+     limit least(greatest(coalesce(p_limite, 20), 1), 100)
+    offset greatest(coalesce(p_deslocamento, 0), 0)
+  ),
+  x as (
+    select ini.execucao_id, min(ini.total) as total, min(t.card_id) as card_id, min(t.setor_id) as setor_id,
+           max(t.etapa_id) as etapa_id, min(t.usuario_id::text)::uuid as usuario_id, min(t.inicio) as iniciou_em,
+           case when bool_or(t.fim is null) then null else max(t.fim) end as finalizou_em,
+           bool_or(t.fim is null) as em_andamento,
+           (array_agg(t.fim_tipo order by t.inicio desc))[1] as fim_tipo,
+           (array_agg(t.fim_evento_id order by t.inicio desc))[1] as fim_evento_id,
+           sum(greatest(t.inicio, least(coalesce(t.fim, now()), coalesce(t.corte, 'infinity'::timestamptz))) - t.inicio)
+             filter (where not t.descartado) as bruta,
+           coalesce(sum((case when t.fim is not null then t.segundos else plt_privado.fn_tempo_trecho_agora_s(t) end)) filter (where not t.descartado), 0) as util_s
+      from ini
+      join public.plt_tempo_trechos t on t.execucao_id = ini.execucao_id
+     group by ini.execucao_id
+  )
+  select x.execucao_id,
+         x.card_id,
          p.numero                          as pedido_numero,
          c.item_codigo,
          c.item_descricao,
          c.indice_unidade,
          c.total_unidades,
-         t.setor_id,
+         x.setor_id,
          s.nome                            as setor_nome,
          e.nome                            as etapa_nome,
          ui.nome                           as executor_nome,
          uf.nome                           as finalizador_nome,
-         t.inicio                          as iniciou_em,
-         t.fim                             as finalizou_em,
-         t.fim is null                     as em_andamento,
-         case t.fim_tipo when 'finalizado' then 'finalizada' when 'transferencia' then 'transferencia'
-                         when 'pausa' then 'pausa' when 'fim_expediente' then 'fim_expediente'
-                         when 'sem_resposta' then 'sem_resposta' when 'esquecido' then 'pausa'
+         x.iniciou_em,
+         x.finalizou_em,
+         x.em_andamento,
+         case x.fim_tipo when 'finalizado' then 'finalizada' when 'transferencia' then 'transferencia'
+                         when 'fim_expediente' then 'fim_expediente' when 'sem_resposta' then 'sem_resposta'
+                         when 'pausa' then 'pausa' when 'esquecido' then 'pausa'
                          else 'movimentacao' end as encerramento,
-         greatest(t.inicio, least(coalesce(t.fim, now()), coalesce(t.corte, 'infinity'::timestamptz))) - t.inicio
-                                           as duracao_bruta,
-         make_interval(secs => plt_privado.fn_tempo_trecho_agora_s(t)::double precision) as duracao_util,
-         count(*) over ()                  as contagem_total
-    from public.plt_tempo_trechos t
-    join public.plt_cards c on c.id = t.card_id
+         coalesce(x.bruta, interval '0')   as duracao_bruta,
+         make_interval(secs => x.util_s::double precision) as duracao_util,
+         x.total                           as contagem_total
+    from x
+    join public.plt_cards c on c.id = x.card_id
     left join public.pedidos p on p.id = c.pedido_id
-    left join public.plt_setores s on s.id = t.setor_id
-    left join public.plt_etapas  e on e.id = t.etapa_id
-    left join public.plt_usuarios ui on ui.id = t.usuario_id
-    left join public.plt_eventos fe on fe.id = t.fim_evento_id
+    left join public.plt_setores s on s.id = x.setor_id
+    left join public.plt_etapas  e on e.id = x.etapa_id
+    left join public.plt_usuarios ui on ui.id = x.usuario_id
+    left join public.plt_eventos fe on fe.id = x.fim_evento_id
     left join public.plt_usuarios uf on uf.id = fe.usuario_id
-   where t.papel = 'execucao' and not t.descartado
-     and t.setor_id in (select plt_privado.fn_setores_dashboard())
-     and (p_setor_id is null or t.setor_id = p_setor_id)
-     and (p_usuario_id is null or t.usuario_id = p_usuario_id)
-     and t.inicio >= p_de and t.inicio < p_ate
-   order by t.inicio desc
-   limit least(greatest(coalesce(p_limite, 20), 1), 100)
-  offset greatest(coalesce(p_deslocamento, 0), 0);
+   order by x.iniciou_em desc;
 $$;
 comment on function public.plt_fn_dash_execucoes(timestamptz, timestamptz, bigint, uuid, integer, integer) is
-  'SESSAO-42 (F4): as execuções (os trechos de execução do cálculo único — o clique errado fica de fora), da mais nova; útil = o esforço (dividido, o aberto até agora); o encerramento diz como o trecho terminou (inclusive o fim do expediente).';
+  'SESSAO-42 (F4): as execuções (o iniciar e as retomadas — os trechos de execução do cálculo único, sem o clique errado), da mais nova; bruta = o relógio sem as pausas até o corte; útil = o esforço (dividido, o aberto até agora); o encerramento diz como terminou (inclusive o fim do expediente).';
 
 -- ----------------------------------------------------------------------------
 -- 6 · MEU DESEMPENHO — mesma assinatura; a execução dos trechos da pessoa
@@ -545,7 +607,7 @@ as $$
   exec as (
     select count(distinct t.passagem_id)::int as execucoes,
            count(distinct t.passagem_id) filter (where ps.desfecho = 'concluida')::int as finalizadas,
-           make_interval(secs => coalesce(sum(plt_privado.fn_tempo_trecho_agora_s(t)), 0)::double precision) as tempo,
+           make_interval(secs => coalesce(sum((case when t.fim is not null then t.segundos else plt_privado.fn_tempo_trecho_agora_s(t) end)), 0)::double precision) as tempo,
            count(distinct t.card_id)::int as cards
       from public.plt_tempo_trechos t
       join public.plt_tempo_passagens ps on ps.id = t.passagem_id, eu
@@ -882,7 +944,7 @@ as $$
                or (m.setor_id   is not null and t.setor_id = m.setor_id))), 0)
         else coalesce((
           -- SESSAO-42: o esforço do cálculo único (trechos; o aberto até agora)
-          select round((sum(plt_privado.fn_tempo_trecho_agora_s(t)) / 3600)::numeric, 2)
+          select round((sum((case when t.fim is not null then t.segundos else plt_privado.fn_tempo_trecho_agora_s(t) end)) / 3600)::numeric, 2)
             from public.plt_tempo_trechos t
            where t.inicio >= j.inicio and t.inicio < j.fim and not t.descartado
              and ((m.usuario_id is not null and t.usuario_id = m.usuario_id)

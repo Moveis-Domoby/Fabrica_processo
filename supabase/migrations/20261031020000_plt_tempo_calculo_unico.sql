@@ -69,6 +69,7 @@ create table if not exists public.plt_tempo_trechos (
   usuario_id       uuid not null references public.plt_usuarios(id),
   papel            text not null check (papel in ('execucao', 'auxilio')),
   lote             text,                          -- "Montar juntos" (o mesmo valor nos cards do lote)
+  execucao_id      bigint,                        -- o iniciar (execução) ou o auxilio_iniciado de que o trecho faz parte
   inicio           timestamptz not null,
   fim              timestamptz,                   -- nulo = rodando
   fim_evento_id    bigint,
@@ -90,6 +91,12 @@ create index if not exists plt_tempo_trechos_setor_dia_idx on public.plt_tempo_t
 create index if not exists plt_tempo_trechos_dia_idx on public.plt_tempo_trechos (dia, usuario_id);
 create index if not exists plt_tempo_trechos_abertos_idx on public.plt_tempo_trechos (usuario_id) where fim is null;
 create index if not exists plt_tempo_trechos_etapa_idx on public.plt_tempo_trechos (etapa_id);
+alter table public.plt_tempo_trechos add column if not exists execucao_id bigint;
+create index if not exists plt_tempo_trechos_execucao_idx on public.plt_tempo_trechos (execucao_id);
+create index if not exists plt_tempo_trechos_inicio_idx on public.plt_tempo_trechos (inicio);
+-- a lista de execuções (a 1ª página do período, da mais nova)
+create index if not exists plt_tempo_trechos_execucoes_idx on public.plt_tempo_trechos (inicio desc)
+  where papel = 'execucao' and inicio_evento_id = execucao_id;
 comment on table public.plt_tempo_trechos is
   'SESSAO-42 (F3): PROJEÇÃO — cada período contínuo em que uma pessoa ficou com um card rodando (execução ou auxílio) num setor de produção, já com a régua: até onde conta (o fim do expediente do dia — regra 2), as janelas que contam, os segundos (antes e depois da divisão do trabalho simultâneo — regra 6) e o descarte do clique errado (regra 9). Escrita só pelo cálculo (fn_tempo_card_refazer).';
 
@@ -192,8 +199,12 @@ create table if not exists public.plt_tempo_resumo_pessoa_dia (
   especial_s   numeric not null default 0,
   deriva_s     numeric not null default 0,
   trechos_n    integer not null default 0,
-  passagens_n  integer not null default 0
+  passagens_n  integer not null default 0,
+  esforco_s    numeric not null default 0,   -- só os trechos (sem a carência) — Pessoas
+  bruto_s      numeric not null default 0    -- o relógio dos trechos até o corte — Pessoas
 );
+alter table public.plt_tempo_resumo_pessoa_dia add column if not exists esforco_s numeric not null default 0;
+alter table public.plt_tempo_resumo_pessoa_dia add column if not exists bruto_s numeric not null default 0;
 create unique index if not exists plt_tempo_resumo_pessoa_dia_uk
   on public.plt_tempo_resumo_pessoa_dia (dia, usuario_id, coalesce(setor_id, 0));
 create index if not exists plt_tempo_resumo_pessoa_dia_pessoa_idx
@@ -259,6 +270,8 @@ declare
   v_setor_ant  bigint;           -- de onde o card veio
   v_exec       bigint;           -- o trecho de execução aberto
   v_exec_quem  uuid;             -- quem executa (continua na pausa)
+  v_exec_ini   bigint;           -- o iniciar da execução (as retomadas fazem parte dela)
+  v_aux_ini    jsonb := '{}';    -- pessoa → o auxilio_iniciado
   v_lote       text;
   v_aux        jsonb := '{}';    -- pessoa → trecho de auxílio aberto
   v_tipo_fim   text;
@@ -376,18 +389,23 @@ begin
     if v_pass is not null and e.usuario_id is not null then
       if e.tipo = 'execucao_iniciada' then
         v_exec_quem := e.usuario_id;
+        v_exec_ini := e.id;
         v_lote := nullif(e.dados ->> 'lote', '');
+      end if;
+      if e.tipo = 'auxilio_iniciado' then
+        v_aux_ini := v_aux_ini || jsonb_build_object(e.usuario_id::text, e.id);
       end if;
       if e.tipo = 'execucao_iniciada' or (e.tipo = 'execucao_retomada' and v_exec_quem is not null and v_exec is null) then
         insert into public.plt_tempo_trechos (inicio_evento_id, card_id, setor_id, etapa_id, passagem_id, usuario_id,
-                                             papel, lote, inicio, fim_conta, dia)
-          values (e.id, p_card_id, v_setor, v_etapa, v_pass, v_exec_quem, 'execucao', v_lote, e.ocorrido_em,
+                                             papel, lote, execucao_id, inicio, fim_conta, dia)
+          values (e.id, p_card_id, v_setor, v_etapa, v_pass, v_exec_quem, 'execucao', v_lote, coalesce(v_exec_ini, e.id), e.ocorrido_em,
                   e.ocorrido_em, (e.ocorrido_em at time zone 'America/Fortaleza')::date);
         v_exec := e.id;
       elsif e.tipo in ('auxilio_iniciado', 'auxilio_retomado') and not (v_aux ? e.usuario_id::text) then
         insert into public.plt_tempo_trechos (inicio_evento_id, card_id, setor_id, etapa_id, passagem_id, usuario_id,
-                                             papel, inicio, fim_conta, dia)
-          values (e.id, p_card_id, v_setor, v_etapa, v_pass, e.usuario_id, 'auxilio', e.ocorrido_em,
+                                             papel, execucao_id, inicio, fim_conta, dia)
+          values (e.id, p_card_id, v_setor, v_etapa, v_pass, e.usuario_id, 'auxilio',
+                  coalesce((v_aux_ini ->> e.usuario_id::text)::bigint, e.id), e.ocorrido_em,
                   e.ocorrido_em, (e.ocorrido_em at time zone 'America/Fortaleza')::date);
         v_aux := v_aux || jsonb_build_object(e.usuario_id::text, e.id);
       elsif e.tipo in ('auxilio_pausado', 'auxilio_encerrado') and v_aux ? e.usuario_id::text then
@@ -818,8 +836,10 @@ begin
   end if;
 
   -- o trabalho: os trechos fechados que começaram no dia (fora o clique errado e o descartado à mão)
-  insert into public.plt_tempo_resumo_pessoa_dia (dia, usuario_id, setor_id, trabalhando_s, trechos_n, passagens_n)
-  select p_dia, p_usuario_id, t.setor_id, coalesce(sum(t.segundos), 0), count(*), count(distinct t.passagem_id)
+  insert into public.plt_tempo_resumo_pessoa_dia (dia, usuario_id, setor_id, trabalhando_s, trechos_n, passagens_n,
+                                                  esforco_s, bruto_s)
+  select p_dia, p_usuario_id, t.setor_id, coalesce(sum(t.segundos), 0), count(*), count(distinct t.passagem_id),
+         coalesce(sum(t.segundos), 0), coalesce(sum(extract(epoch from t.fim_conta - t.inicio)), 0)
     from public.plt_tempo_trechos t
     join public.plt_tempo_passagens ps on ps.id = t.passagem_id
    where t.usuario_id = p_usuario_id and t.dia = p_dia and t.fim is not null and not t.descartado
@@ -994,8 +1014,6 @@ begin
                 || ' — o tempo dele não entra na média.');
     end loop;
   end loop;
-
-  perform plt_privado.fn_avisar('tempos');
 end;
 $$;
 comment on function plt_privado.fn_tempo_card_refazer(bigint, boolean) is
@@ -1014,14 +1032,16 @@ set search_path = public, pg_temp
 as $$
 declare
   v_feitos jsonb := coalesce(nullif(current_setting('plt.tempo_cards', true), '')::jsonb, '{}'::jsonb);
-  v_max    bigint;
+  v_n      bigint;
 begin
-  -- já refeito nesta transação com este fato (ou um mais novo) incluído
-  if coalesce((v_feitos ->> new.card_id::text)::bigint, 0) >= new.id then
+  -- já refeito nesta transação com TODOS os fatos que o card tem agora (a
+  -- contagem — não o maior número: o movimento automático do iniciar nasce
+  -- com número MAIOR que o próprio iniciar; E-174)
+  select count(*) into v_n from public.plt_eventos e where e.card_id = new.card_id;
+  if (v_feitos ->> new.card_id::text)::bigint = v_n then
     return null;
   end if;
-  select max(e.id) into v_max from public.plt_eventos e where e.card_id = new.card_id;
-  perform set_config('plt.tempo_cards', (v_feitos || jsonb_build_object(new.card_id::text, v_max))::text, true);
+  perform set_config('plt.tempo_cards', (v_feitos || jsonb_build_object(new.card_id::text, v_n))::text, true);
   perform plt_privado.fn_tempo_card_refazer(new.card_id);
   return null;
 end;
@@ -1071,10 +1091,11 @@ end;
 $$;
 revoke all on function plt_privado.fn_tempo_presenca_fato() from public, anon, authenticated;
 
+-- imediato (o trecho fecha uma vez por pessoa no gesto; os trechos que mudarem
+-- depois refazem o dia de novo, pelo card)
 drop trigger if exists plt_presenca_segmentos_zz_tempo on public.plt_presenca_segmentos;
-create constraint trigger plt_presenca_segmentos_zz_tempo
+create trigger plt_presenca_segmentos_zz_tempo
   after insert or update on public.plt_presenca_segmentos
-  deferrable initially deferred
   for each row
   when (new.fim is not null)
   execute function plt_privado.fn_tempo_presenca_fato();
@@ -1263,7 +1284,7 @@ begin
             jsonb_build_object('passagem_id', p.id, 'setor_id', p.setor_id, 'decisao', p_decisao,
                                'motivo', left(v_motivo, 300), 'situacao_antes', p.situacao));
   -- refaz agora (a resposta já traz a situação nova) e marca o card como feito
-  select max(e.id) into v_max from public.plt_eventos e where e.card_id = p.card_id;
+  select count(*) into v_max from public.plt_eventos e where e.card_id = p.card_id;
   perform set_config('plt.tempo_cards',
     (coalesce(nullif(current_setting('plt.tempo_cards', true), '')::jsonb, '{}'::jsonb)
      || jsonb_build_object(p.card_id::text, v_max))::text, true);

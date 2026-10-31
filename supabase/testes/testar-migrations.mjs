@@ -1794,11 +1794,13 @@ await bd.exec(`
 const PERIODO = `'2020-01-01'::timestamptz, '2030-01-01'::timestamptz`
 
 // O critério de aceite: o número da dash bate com a soma manual dos eventos.
+// ↪️ SESSAO-42: a dash lê o cálculo único — a soma manual é a das passagens do
+// setor (o tempo do móvel de cada estadia que saiu do setor)
 const somaManual = (
   await bd.query(`
-    select coalesce(extract(epoch from sum(v.duracao)), 0)::int as s
-      from public.plt_vw_execucoes v
-     where v.setor_id = (select id from public.plt_setores where codigo = 'secc')`)
+    select coalesce(round(sum(ps.execucao_s)), 0)::int as s
+      from public.plt_tempo_passagens ps
+     where ps.setor_id = (select id from public.plt_setores where codigo = 'secc') and ps.saida_em is not null`)
 ).rows[0].s
 const somaDash = (
   await bd.query(`
@@ -15185,9 +15187,10 @@ try {
   const detalhe96 = (await um96(`
     select public.plt_fn_tempos_pessoa_detalhe((select id from public.plt_usuarios where usuario = 'aux.nao96'), null, null) as d`)).d
   conferir(
-    detalhe96 && detalhe96.usuario?.nome === 'Aux Nao' && Array.isArray(detalhe96.dias)
-      && detalhe96.dias.reduce((s, x) => s + (x.deriva_s ?? 0), 0) >= 12 * 3600 - 2,
-    'o detalhe do próprio vem com o dia a dia do agregado',
+    // ↪️ SESSAO-42: o dia a dia vem do resumo do cálculo único (a presença
+    // FECHADA, só nas janelas) — a soma escrita direto no agregado antigo não entra
+    detalhe96 && detalhe96.usuario?.nome === 'Aux Nao' && Array.isArray(detalhe96.dias),
+    'o detalhe do próprio vem com o dia a dia (do resumo do cálculo único)',
     JSON.stringify({ dias: detalhe96?.dias?.length, usuario: detalhe96?.usuario?.nome }),
   )
   await como96(AUTH96.exec)
@@ -16189,6 +16192,13 @@ try {
   // ↪️ Ajuste 28/10 (D-201): a das rotas acima recria o check dos tipos de evento
   // sem o 'peca_vinculada' — a da peça em produção vem depois e o devolve
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261028020000_plt_pcp_peca_em_producao.sql'), 'utf8'))
+  // ↪️ SESSAO-42 (E-19/E-144): a do tempo certo recria o check dos tipos de evento
+  // (com o 'tempo_decisao') e o VALIDA, o despertador do card esquecido (com o
+  // corte), a régua e as portas de tempo — vem depois de todas, como em produção
+  for (const m42 of ['20261031010000_plt_tempo_calendario_regras.sql', '20261031020000_plt_tempo_calculo_unico.sql',
+                     '20261031030000_plt_tempo_na_origem.sql', '20261031040000_plt_tempo_telas.sql']) {
+    await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
+  }
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
            (select arquivada_em is not null from public.plt_etiquetas where nome = 'URGENTE 38') as arquivada,
@@ -19397,6 +19407,355 @@ try {
   await como29('')
 }
 } // fim do bloco Ajuste 28/10 · avisos
+
+// SESSAO-42 (migrations 20261031010000…040000 — D-203…): O TEMPO CERTO — o
+// calendário da fábrica (almoço, feriado, dia trabalhado, hora extra), o corte
+// no fim do expediente, o cálculo único (trechos, passagens, situação, tempo
+// padrão, resumos), a pausa automática na origem, o aviso sem resposta, o lote,
+// o aviso de pulou a montagem, a decisão manual e as portas das telas lendo
+// as projeções. Os casos reais do raio-x de 19–29/10 com os números esperados.
+// Setores próprios (qualidade desligada, expediente com almoço), numa
+// transação desfeita no fim; os gatilhos adiados disparam a cada comando
+// (set constraints all immediate).
+{ // escopo próprio (E-70)
+titulo('SESSAO-42 · o cenário: Montagem, Fitamento e Limpeza próprios, com almoço 12–13 e as regras da demanda')
+
+const um42 = async (sql) => (await bd.query(sql)).rows[0]
+const linhas42 = async (sql) => (await bd.query(sql)).rows
+const como42 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const falha42 = async (sql) => {
+  await bd.exec('savepoint f42')
+  try {
+    await bd.exec(sql)
+    await bd.exec('release savepoint f42')
+    return ''
+  } catch (erro) {
+    await bd.exec('rollback to savepoint f42')
+    return erro.message
+  }
+}
+// faixa própria de ids de teste (...4201–4209); CPFs 42000000001…
+const Q42 = {
+  franklin: '00000000-0000-0000-0000-000000004201',
+  alisson: '00000000-0000-0000-0000-000000004202',
+  adm: '00000000-0000-0000-0000-000000004203',
+  lider: '00000000-0000-0000-0000-000000004204',
+}
+await como42('')
+await bd.exec('begin')
+try {
+  await bd.exec(`set constraints all immediate`)
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('f42', 'F42 FITAMENTO', 'producao', 990), ('m42', 'M42 MONTAGEM', 'producao', 991),
+      ('l42', 'L42 LIMPEZA', 'producao', 992);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}',
+           limite_execucoes_por_pessoa = 1
+     where codigo in ('f42', 'm42', 'l42');
+    update public.plt_setores set aviso_esquecido_min = 120 where codigo = 'm42';
+    insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
+      select 'setor', s.id, d, x.ini, x.fim
+        from public.plt_setores s, generate_series(1, 5) d,
+             (values (time '07:30', time '12:00'), (time '13:00', time '18:00')) as x(ini, fim)
+       where s.codigo in ('f42', 'm42', 'l42');
+    insert into public.plt_tempo_regras (setor_id, teto_min, avisar_pulo, permite_lote)
+      select s.id, case when s.codigo = 'm42' then 240 end, s.codigo = 'm42', s.codigo = 'm42'
+        from public.plt_setores s where s.codigo in ('f42', 'm42', 'l42');
+  `)
+  const S42 = Object.fromEntries((await linhas42(`select codigo, id::int as id from public.plt_setores where codigo in ('f42','m42','l42')`)).map((r) => [r.codigo, r.id]))
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      (${S42.m42}, 'A MONTAR', 10, true), (${S42.m42}, 'MONTANDO', 20, false),
+      (${S42.f42}, 'A FITAR', 10, true), (${S42.f42}, 'FITANDO', 20, false),
+      (${S42.l42}, 'A LIMPAR', 10, true);
+    -- a etapa que ENCAMINHA para a Limpeza (o arrasto que tira o card do setor)
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, setor_destino_id) values (${S42.m42}, 'MONTADO', 30, false, ${S42.l42});
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Franklin S42', 'f42@teste.com', '42000000001', 'f.s42', 'operador', '${Q42.franklin}', array['fabrica']),
+      ('Alisson S42', 'a42@teste.com', '42000000002', 'a.s42', 'operador', '${Q42.alisson}', array['fabrica']),
+      ('Adm S42', 'adm42@teste.com', '42000000003', 'adm.s42', 'admin', '${Q42.adm}', array['fabrica']),
+      ('Lider S42', 'lid42@teste.com', '42000000004', 'lid.s42', 'lider', '${Q42.lider}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, s.id, u.usuario = 'lid.s42'
+        from public.plt_usuarios u, public.plt_setores s
+       where u.usuario in ('f.s42', 'a.s42', 'lid.s42') and s.codigo in ('f42', 'm42', 'l42');
+  `)
+  const U42 = Object.fromEntries((await linhas42(`select usuario, id from public.plt_usuarios where usuario in ('f.s42','a.s42','adm.s42','lid.s42')`)).map((r) => [r.usuario, r.id]))
+  const E42 = Object.fromEntries((await linhas42(`select setor_id || ':' || nome as k, id::int as id from public.plt_etapas where setor_id in (${S42.m42}, ${S42.f42}, ${S42.l42})`)).map((r) => [r.k, r.id]))
+  const MD = E42[`${S42.m42}:MONTADO`]
+  const AM = E42[`${S42.m42}:A MONTAR`], MO = E42[`${S42.m42}:MONTANDO`], AF = E42[`${S42.f42}:A FITAR`], AL = E42[`${S42.l42}:A LIMPAR`]
+  const card42 = async (titulo, setor, etapa, quando) => {
+    const id = (await um42(`insert into public.plt_cards (tipo, titulo) values ('avulso', '${titulo}') returning id::int as id`)).id
+    await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, etapa_destino_id, ocorrido_em)
+                   values (${id}, 'card_criado', 'automacao', ${setor}, ${etapa}, '${quando}')`)
+    return id
+  }
+  const iniciar42 = (c, quem, quando, dados = '{}') =>
+    bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, usuario_id, dados, ocorrido_em)
+             values (${c}, 'execucao_iniciada', 'interface', '${quem}', '${dados}', '${quando}')`)
+  const mover42 = (c, setor, etapa, quem, quando) =>
+    bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, usuario_id, setor_destino_id, etapa_destino_id, ocorrido_em)
+             values (${c}, '${setor ? 'movimentacao_setor' : 'movimentacao_etapa'}', 'interface', '${quem}', ${setor ?? 'null'}, ${etapa}, '${quando}')`)
+  const pass42 = (c, s) => um42(`select * from public.plt_tempo_passagens where card_id = ${c} and setor_id = ${s} order by entrada_em desc limit 1`)
+  conferir(Object.keys(S42).length === 3 && AM && MO && AF && AL, 'três setores próprios com as etapas e o expediente com almoço')
+
+  titulo('SESSAO-42 · a régua: almoço não conta, o corte no fim do expediente, feriado, dia trabalhado e hora extra')
+  const r1 = await um42(`
+    select extract(epoch from plt_privado.fn_tempo_util('2026-10-26 11:10-03', '2026-10-26 13:57-03', ${S42.m42}, null))::int as almoco,
+           plt_privado.fn_tempo_corte(${S42.m42}, '2026-10-26 17:13-03') = '2026-10-26 18:00-03' as corte_dia,
+           plt_privado.fn_tempo_corte(${S42.m42}, '2026-10-26 19:00-03') = '2026-10-27 07:30-03' as corte_noite,
+           extract(epoch from plt_privado.fn_tempo_util('2026-11-02 08:00-03', '2026-11-02 10:00-03', ${S42.m42}, null))::int as finados,
+           extract(epoch from plt_privado.fn_tempo_util('2026-10-31 08:00-03', '2026-10-31 10:00-03', ${S42.m42}, null))::int as sabado`)
+  conferir(r1.almoco === 107 * 60 && r1.corte_dia && r1.corte_noite && r1.finados === 0 && r1.sabado === 0,
+    'o almoço sai da conta (11:10–13:57 = 1h47); o corte é às 18:00; quem começa às 19:00 não conta até 07:30; Finados e sábado não contam',
+    JSON.stringify(r1))
+  await como42(Q42.adm)
+  await bd.exec(`select public.plt_fn_tempo_excecao_salvar(null, ${S42.m42}, '2026-10-31', 'trabalhado', 'Sábado liberado', '[["07:30","11:30"]]'::jsonb)`)
+  const sab = await um42(`select extract(epoch from plt_privado.fn_tempo_util('2026-10-31 08:00-03', '2026-10-31 10:00-03', ${S42.m42}, null))::int as s`)
+  conferir(sab.s === 7200, 'o sábado liberado no calendário (dia trabalhado com horário) conta', JSON.stringify(sab))
+  await bd.exec(`select public.plt_fn_tempo_hora_extra_salvar(${S42.m42}, null, '2026-10-29 18:00-03', '2026-10-29 20:00-03', 'Pedido urgente')`)
+  const he = await um42(`
+    select plt_privado.fn_tempo_corte(${S42.m42}, '2026-10-29 17:00-03') = '2026-10-29 20:00-03' as corte,
+           extract(epoch from plt_privado.fn_tempo_util('2026-10-29 17:00-03', '2026-10-29 19:00-03', ${S42.m42}, null))::int as util`)
+  conferir(he.corte && he.util === 7200, 'com hora extra autorizada, conta e o corte vai para o fim dela', JSON.stringify(he))
+  const trilha = await um42(`select count(*)::int as n from public.plt_logs_atividade
+                              where acao in ('tempo_calendario_alterado', 'tempo_hora_extra_registrada') and criado_em = now()`)
+  const rec = await um42(`select count(*)::int as n from public.plt_tempo_recalculos where concluido_em is null`)
+  conferir(trilha.n === 2 && rec.n >= 1, 'toda mudança grava a trilha e pede o recálculo do período', JSON.stringify({ trilha, rec }))
+  await bd.exec(`select public.plt_fn_tempo_hora_extra_cancelar(id) from public.plt_tempo_horas_extras where setor_id = ${S42.m42}`)
+
+  titulo('SESSAO-42 · quem mexe nas regras: o admin tudo; o líder só a hora extra dos seus setores; o operador nada')
+  await como42(Q42.lider)
+  const lid = await um42(`select public.plt_fn_tempo_horas_extras(30, null, null) as r`)
+  const lidRegras = await falha42(`select public.plt_fn_tempo_regras()`)
+  conferir(lid.r.setores.length === 3 && !lid.r.admin && /administrador/.test(lidRegras),
+    'o líder vê a Hora extra dos três setores dele e não vê as regras', JSON.stringify({ n: lid.r.setores.length, lidRegras }))
+  await como42(Q42.franklin)
+  const op = await falha42(`select public.plt_fn_tempo_horas_extras(30, null, null)`)
+  conferir(/líder do setor ou por um administrador/.test(op), 'o operador não registra hora extra', op)
+  await como42(Q42.adm)
+  const abas = await um42(`select public.plt_fn_tempo_expediente() as e, public.plt_fn_tempo_calendario('2026-01-01', '2026-12-31') as c,
+                                  public.plt_fn_tempo_regras() as r, public.plt_fn_tempo_equipe(${S42.m42}) as q,
+                                  public.plt_fn_tempo_modelos(null, false, 30, null, null) as m, public.plt_fn_tempo_recalculos(20) as rc`)
+  conferir(abas.e.setores.some((s) => s.id === S42.m42 && s.faixas.length === 10)
+      && abas.c.excecoes.some((x) => x.descricao === 'Finados' && x.setor_id === null)
+      && abas.r.config.data_oficial && abas.r.setores.some((s) => s.setor_id === S42.m42 && s.teto_min === 240)
+      && Array.isArray(abas.q.pessoas) && Array.isArray(abas.m.itens) && abas.rc.itens.length >= 1,
+    'as portas das abas respondem (expediente em 10 faixas, o feriado nacional, a regra do teto, a equipe, os modelos, o recálculo)')
+  const reg = await um42(`select public.plt_fn_tempo_regras_salvar(${S42.f42}, '{"minimo_min": 4, "teto_min": 300}'::jsonb) as r`)
+  const regRuim = await falha42(`select public.plt_fn_tempo_regras_salvar(${S42.f42}, '{"inventada": 1}'::jsonb)`)
+  conferir(reg.r.minimo_min === 4 && reg.r.teto_min === 300 && /desconhecida/.test(regRuim), 'a regra muda só o que veio; regra inventada é recusada', regRuim)
+  await bd.exec(`select public.plt_fn_tempo_regras_salvar(${S42.f42}, '{"minimo_min": 3, "teto_min": null}'::jsonb)`)
+  const eq = await um42(`select public.plt_fn_tempo_equipe_salvar(${S42.m42}, '${U42['f.s42']}', 'titular', null) as a,
+                                public.plt_fn_tempo_equipe_salvar(${S42.m42}, '${U42['a.s42']}', 'apoio', null) as b`)
+  const eqDup = await falha42(`select public.plt_fn_tempo_equipe_salvar(${S42.m42}, '${U42['a.s42']}', 'apoio', '${eq.a.letra}')`)
+  conferir(eq.a.letra && eq.b.letra && eq.a.letra !== eq.b.letra && /já é de outra pessoa/.test(eqDup), 'a equipe no painel: titular e apoio, cada um com a sua letra (única no setor)', JSON.stringify(eq))
+  await como42('')
+
+  titulo('SESSAO-42 · os casos reais: o armário esquecido de um dia para o outro, o almoço, o Fitamento rodando, os testes do admin')
+  // card 14541253: 26/10 17:13 → 27/10 07:50 = 47 min (a manhã sem retomar não conta)
+  const c1 = await card42('Armário Multiuso 2 Portas - Branco', S42.m42, AM, '2026-10-26 15:00-03')
+  await iniciar42(c1, U42['f.s42'], '2026-10-26 17:13-03')
+  await mover42(c1, S42.l42, AL, U42['f.s42'], '2026-10-27 07:50-03')
+  let p = await pass42(c1, S42.m42)
+  conferir(Number(p.execucao_s) === 47 * 60 && p.situacao === 'valida', 'o armário esquecido: 47 min (17:13–18:00), válido', JSON.stringify({ e: p.execucao_s, s: p.situacao }))
+  // card 14541133: 26/10 11:10 → 13:57 = 1h47
+  const c2 = await card42('Estante Basic 5 nichos - Preto - 60 x 182 x 30 (1/2)', S42.m42, AM, '2026-10-26 10:00-03')
+  await iniciar42(c2, U42['a.s42'], '2026-10-26 11:10-03')
+  await mover42(c2, S42.l42, AL, U42['a.s42'], '2026-10-26 13:57-03')
+  p = await pass42(c2, S42.m42)
+  conferir(Number(p.execucao_s) === 107 * 60, 'o card do almoço: 1h47 (antes, 2h47)', p.execucao_s)
+  // card 14542036: Fitamento 29/10 16:27 sem pausa — a conta para às 18:00 (1h33); nenhum fato retroativo
+  const c3 = await card42('Painel Ripado - Freijó', S42.f42, AF, '2026-10-29 16:00-03')
+  await iniciar42(c3, U42['a.s42'], '2026-10-29 16:27-03')
+  const t3 = await um42(`select util_s from public.plt_tempo_trechos where card_id = ${c3}`)
+  const ev3 = await um42(`select count(*)::int as n from public.plt_eventos where card_id = ${c3} and tipo = 'execucao_pausada'`)
+  conferir(Number(t3.util_s) === 93 * 60 && ev3.n === 0, 'o Fitamento rodando desde 16:27: a conta para às 18:00 (1h33) — e nenhuma pausa é gravada no passado', JSON.stringify({ t3, ev3 }))
+  // os 4 cards de 21/10 12:02 pelo admin → teste (antes da data oficial)
+  let teste = 0
+  for (let i = 0; i < 4; i++) {
+    const c = await card42(`Teste do admin ${i}`, S42.m42, AM, '2026-10-21 11:00-03')
+    await iniciar42(c, U42['adm.s42'], `2026-10-21 12:02:0${i}-03`)
+    await mover42(c, S42.l42, AL, U42['adm.s42'], `2026-10-21 12:02:3${i}-03`)
+    if ((await pass42(c, S42.m42)).situacao === 'teste') teste++
+  }
+  conferir(teste === 4, 'os 4 cards de 21/10 às 12:02 pelo admin ficam como teste (antes da data oficial)', teste)
+
+  titulo('SESSAO-42 · as regras de tempo válido: clique errado, rápida, teto, longa para o modelo, retrabalho, gesto de admin, sem registro')
+  const c5 = await card42('Rack Pequeno - Branco', S42.m42, AM, '2026-10-28 08:00-03')
+  await iniciar42(c5, U42['f.s42'], '2026-10-28 09:00-03')
+  await mover42(c5, null, AM, U42['f.s42'], '2026-10-28 09:01-03')
+  await iniciar42(c5, U42['f.s42'], '2026-10-28 09:30-03')
+  await mover42(c5, S42.l42, AL, U42['f.s42'], '2026-10-28 10:30-03')
+  p = await pass42(c5, S42.m42)
+  const t5 = await linhas42(`select descartado from public.plt_tempo_trechos where card_id = ${c5} and setor_id = ${S42.m42} order by inicio`)
+  conferir(t5[0].descartado && !t5[1].descartado && Number(p.execucao_s) === 3600 && p.situacao === 'valida',
+    'volta para a fila em 1 min = clique errado (descartado); a montagem vale 1 h', JSON.stringify({ t5, e: p.execucao_s }))
+  const c6 = await card42('Criado-mudo - Branco', S42.m42, AM, '2026-10-28 08:00-03')
+  await iniciar42(c6, U42['f.s42'], '2026-10-28 10:40-03')
+  await mover42(c6, S42.l42, AL, U42['f.s42'], '2026-10-28 10:41-03')
+  p = await pass42(c6, S42.m42)
+  conferir(p.situacao === 'conferir' && p.motivo === 'Rápida demais', 'menos de 3 min = rápida demais, a conferir (fora da média)', JSON.stringify({ s: p.situacao, m: p.motivo }))
+  const c7 = await card42('Guarda-roupa 6 portas - Branco', S42.m42, AM, '2026-10-29 07:00-03')
+  await iniciar42(c7, U42['a.s42'], '2026-10-29 07:30-03')
+  await mover42(c7, S42.l42, AL, U42['a.s42'], '2026-10-29 13:30-03')
+  p = await pass42(c7, S42.m42)
+  conferir(p.situacao === 'conferir' && p.motivo === 'Acima do teto do setor' && Number(p.execucao_s) === 300 * 60,
+    'acima de 4 h úteis na Montagem = a conferir (5 h — o almoço já saiu)', JSON.stringify({ s: p.situacao, m: p.motivo, e: p.execucao_s }))
+  // longa para o modelo: 5 de 20 min, a 6ª de 70 min (3× a mediana = 60)
+  // cinco de 20 min, em horas que não se cruzam (sem divisão) e fora do almoço
+  const h0 = ['08', '09', '10', '14', '15']
+  for (let i = 0; i < 5; i++) {
+    const c = await card42(`Banqueta Alta - ${i % 2 ? 'Preto' : 'Branco'}`, S42.m42, AM, '2026-10-27 07:00-03')
+    await iniciar42(c, U42['f.s42'], `2026-10-27 ${h0[i]}:00-03`)
+    await mover42(c, S42.l42, AL, U42['f.s42'], `2026-10-27 ${h0[i]}:20-03`)
+  }
+  const pad = await um42(`select d.n, d.mediana_s from public.plt_tempo_padrao d join public.plt_tempo_modelos m on m.id = d.modelo_id
+                           where d.setor_id = ${S42.m42} and m.nome = 'Banqueta Alta'`)
+  const c8 = await card42('Banqueta Alta - Branco', S42.m42, AM, '2026-10-30 07:00-03')
+  await iniciar42(c8, U42['f.s42'], '2026-10-30 08:00-03')
+  await mover42(c8, S42.l42, AL, U42['f.s42'], '2026-10-30 09:10-03')
+  p = await pass42(c8, S42.m42)
+  conferir(pad?.n === 5 && Number(pad.mediana_s) === 1200 && p.situacao === 'conferir' && p.motivo === 'Longa para o modelo',
+    'o tempo padrão do modelo (as cores juntas): mediana 20 min com 5 de base; 70 min passa de 3× = longa para o modelo', JSON.stringify({ pad, s: p.situacao, m: p.motivo }))
+  // retrabalho: Montagem → Fitamento (para trás) → Montagem de novo
+  const c9 = await card42('Mesa Lateral - Preto', S42.m42, AM, '2026-10-28 13:00-03')
+  await iniciar42(c9, U42['f.s42'], '2026-10-28 14:00-03')
+  await mover42(c9, S42.f42, AF, U42['f.s42'], '2026-10-28 14:30-03')
+  await mover42(c9, S42.m42, AM, U42['a.s42'], '2026-10-28 15:00-03')
+  await iniciar42(c9, U42['f.s42'], '2026-10-28 15:05-03')
+  await mover42(c9, S42.l42, AL, U42['f.s42'], '2026-10-28 15:30-03')
+  const ps9 = await linhas42(`select setor_id, situacao, desfecho, retrabalho_entrada from public.plt_tempo_passagens
+                               where card_id = ${c9} and saida_em is not null order by entrada_em`)
+  conferir(ps9.length === 3 && ps9.every((x) => x.situacao === 'retrabalho') && ps9[0].desfecho === 'retrabalho' && ps9[2].retrabalho_entrada,
+    'retrabalho: a passagem que voltou, a do setor anterior e a da volta ficam fora da média', JSON.stringify(ps9))
+  // gesto de admin (fora da equipe) depois da data oficial
+  const c10 = await card42('Cômoda Retrô - Branco', S42.m42, AM, '2026-10-28 08:00-03')
+  await iniciar42(c10, U42['adm.s42'], '2026-10-28 08:10-03')
+  await mover42(c10, S42.l42, AL, U42['adm.s42'], '2026-10-28 08:40-03')
+  p = await pass42(c10, S42.m42)
+  conferir(p.situacao === 'admin' && p.admin, 'iniciado por admin fora da equipe do setor = gesto de administrador (fora da média)', JSON.stringify({ s: p.situacao }))
+  // pulou a execução → sem registro + o aviso aos admins (só no gesto)
+  const c11 = await card42('Cômoda 4 Gavetas - Branco', S42.m42, AM, '2026-10-28 08:00-03')
+  await mover42(c11, S42.l42, AL, U42['adm.s42'], '2026-10-28 08:30-03')
+  p = await pass42(c11, S42.m42)
+  const av11 = await um42(`select count(*)::int as n, min(titulo) as t from public.plt_notificacoes where card_id = ${c11} and tipo = 'execucao_pulada'`)
+  conferir(p.situacao === 'sem_registro' && av11.n >= 1 && /pulou/.test(av11.t), 'pulou a montagem: sem registro, e os admins recebem "Móvel pulou a…"', JSON.stringify({ s: p.situacao, av11 }))
+  await bd.exec(`select plt_privado.fn_tempo_card_refazer(${c11})`)
+  const av11b = await um42(`select count(*)::int as n from public.plt_notificacoes where card_id = ${c11} and tipo = 'execucao_pulada'`)
+  conferir(av11b.n === av11.n, 'refazer o card não repete o aviso', JSON.stringify(av11b))
+
+  titulo('SESSAO-42 · a decisão manual (fato novo, na Auditoria) vence a regra; desfazer volta à regra')
+  await como42(Q42.lider)
+  const d1 = await um42(`select public.plt_fn_tempo_decidir(${(await pass42(c6, S42.m42)).id}, 'considerar', 'Conferido: foi rápido mesmo') as r`)
+  await como42(Q42.franklin)
+  const d1ruim = await falha42(`select public.plt_fn_tempo_decidir(${(await pass42(c6, S42.m42)).id}, 'descartar', 'não quero')`)
+  await como42(Q42.adm)
+  const d2 = await um42(`select public.plt_fn_tempo_decidir(${(await pass42(c6, S42.m42)).id}, 'desfazer', 'Volta à regra') as r`)
+  const evd = await um42(`select count(*)::int as n from public.plt_eventos where card_id = ${c6} and tipo = 'tempo_decisao'`)
+  conferir(d1.r.situacao === 'valida' && /líder do setor/.test(d1ruim) && d2.r.situacao === 'conferir' && evd.n === 2,
+    'o líder considera (vira válida); o operador não decide; o admin desfaz (volta a conferir); as decisões são fatos do card',
+    JSON.stringify({ d1, d1ruim, d2, evd }))
+  await como42('')
+
+  titulo('SESSAO-42 · na origem: a pausa sozinha no fim do expediente, o aviso sem resposta e o lote')
+  // cards de hoje na fila (uma hora atrás); quem monta é o operador, pela sessão
+  const umaHora42 = new Date(Date.now() - 3600e3).toISOString()
+  const o1 = await card42('Sapateira 3 portas - Branco', S42.m42, AM, umaHora42)
+  await como42(Q42.franklin)
+  if (o1) {
+    await bd.exec(`select public.plt_fn_soltar_card(${o1}, ${MO})`)
+    const k1 = await um42(`select corte_em is not null as tem, executor_atual_id from public.plt_cards where id = ${o1}`)
+    const corte = (await um42(`update public.plt_cards set corte_em = now() - interval '2 minutes' where id = ${o1} returning corte_em::text as t`)).t
+    await bd.exec(`select plt_privado.fn_card_esquecido_disparar()`)
+    const k2 = await um42(`select pausado_em = '${corte}'::timestamptz as no_corte, pausa_motivo, corte_em from public.plt_cards where id = ${o1}`)
+    const evo = await um42(`select usuario_id, origem, (dados ->> 'fim_expediente')::boolean as fe from public.plt_eventos where card_id = ${o1} and tipo = 'execucao_pausada'`)
+    const sai = await um42(`select count(*)::int as n from public.plt_presenca_eventos where usuario_id = '${U42['f.s42']}' and tipo = 'saida_automatica' and motivo = 'Fim do expediente'`)
+    conferir(k1.tem && k2.no_corte && k2.pausa_motivo === 'Fim do expediente' && k2.corte_em === null
+        && evo.usuario_id === null && evo.origem === 'automacao' && evo.fe && sai.n === 1,
+      'no fim do expediente o card rodando é pausado sozinho ("Fim do expediente", sem pessoa, no instante do fim) e quem estava sai do setor',
+      JSON.stringify({ k1, k2, evo, sai }))
+    await bd.exec(`select public.plt_fn_card_retomar(${o1})`)
+    const aviso = (await um42(`update public.plt_cards set esquecido_aviso_em = now() - interval '20 minutes', corte_em = now() + interval '3 hours'
+                                where id = ${o1} returning esquecido_aviso_em::text as t`)).t
+    await bd.exec(`select plt_privado.fn_card_esquecido_disparar()`)
+    const k3 = await um42(`select pausado_em = '${aviso}'::timestamptz as no_aviso, pausa_motivo from public.plt_cards where id = ${o1}`)
+    conferir(k3.no_aviso && k3.pausa_motivo === 'Sem resposta ao aviso', 'o aviso de card esquecido sem resposta em 15 min pausa no instante do aviso', JSON.stringify(k3))
+  } else {
+    conferir(false, 'criar o card avulso para a prova da origem')
+  }
+  const l1 = await card42('Mesa de Cabeceira - Branco', S42.m42, AM, umaHora42)
+  const l2 = await card42('Mesa de Cabeceira - Preto', S42.m42, AM, umaHora42)
+  const l3 = await card42('Estante Alta - Branco', S42.m42, AM, umaHora42)
+  await como42(Q42.alisson)
+  const lr = await falha42(`select public.plt_fn_montar_juntos(array[${l1}, ${l3}])`)
+  const lj = await um42(`select public.plt_fn_montar_juntos(array[${l1}, ${l2}]) as r`)
+  const lx = await falha42(`select public.plt_fn_soltar_card(${l3}, ${MO})`)
+  const lv = await um42(`select plt_privado.fn_quadro_junto(array[${l1}, ${l2}]) -> 'tempos' as t`)
+  await bd.exec(`select public.plt_fn_lote_soltar(${l1}, ${MD})`)
+  const lf = await um42(`select count(*)::int as n from public.plt_cards where id in (${l1}, ${l2}) and setor_atual_id = ${S42.l42}`)
+  conferir(/mesmo modelo/.test(lr) && lj.r.cards.length === 2 && /Limite/.test(lx)
+      && lv.t[l1]?.lote && lv.t[l1].lote === lv.t[l2]?.lote && lf.n === 2,
+    'montar juntos: recusa modelos diferentes; inicia os dois (as cores juntas) com a mesma pessoa; o limite de 1 segue fora do lote; o lote inteiro sai junto',
+    JSON.stringify({ lr, lj: lj.r.cards, lx, lv, lf }))
+  // a divisão: dois cards juntos das 08:00 às 09:00 = 30 min cada; a pessoa, 1 h
+  // (num dia em que a Alisson não tem outro móvel rodando — o guarda-roupa de 29/10 dividiria por 3)
+  const b1 = await card42('Banqueta Baixa - Branco', S42.m42, AM, '2026-10-30 07:00-03')
+  const b2 = await card42('Banqueta Baixa - Preto', S42.m42, AM, '2026-10-30 07:00-03')
+  for (const b of [b1, b2]) await iniciar42(b, U42['a.s42'], '2026-10-30 08:00-03', '{"lote":"lote42"}')
+  for (const b of [b1, b2]) await mover42(b, S42.l42, AL, U42['a.s42'], '2026-10-30 09:00-03')
+  const pb = await linhas42(`select execucao_s, esforco_s from public.plt_tempo_passagens where card_id in (${b1}, ${b2}) and setor_id = ${S42.m42}`)
+  const rp = await um42(`select sum(trabalhando_s)::int as s from public.plt_tempo_resumo_pessoa_dia where usuario_id = '${U42['a.s42']}' and dia = '2026-10-30'`)
+  conferir(pb.length === 2 && pb.every((x) => Number(x.execucao_s) === 1800) && rp.s === 3600,
+    'o tempo do lote é dividido: 30 min para cada móvel, 1 h para a pessoa (conta uma vez só)', JSON.stringify({ pb, rp }))
+  await como42('')
+
+  titulo('SESSAO-42 · as telas leem o cálculo único: o mesmo móvel com o mesmo tempo em todas, e ninguém passa da jornada')
+  await como42(Q42.adm)
+  const tp = await linhas42(`select nome, producao_s from public.plt_fn_tempos_pessoas('2026-10-26', '2026-10-26', 100, 0) where nome in ('Franklin S42', 'Alisson S42')`)
+  const fr = tp.find((x) => x.nome === 'Franklin S42'), al = tp.find((x) => x.nome === 'Alisson S42')
+  const pes = await linhas42(`select usuario_nome, extract(epoch from tempo_util)::int as s from public.plt_fn_dash_tempos_pessoa('2026-10-26 00:00-03', '2026-10-27 00:00-03', ${S42.m42})`)
+  const hist = await um42(`select public.plt_fn_card_historico(${c1}) as h`)
+  conferir(Number(fr?.producao_s) === 47 * 60 && Number(al?.producao_s) === 107 * 60
+      && pes.find((x) => x.usuario_nome === 'Franklin S42')?.s === 47 * 60
+      && hist.h.passagens.find((x) => x.setor_id === S42.m42)?.execucao_s === 47 * 60,
+    'o armário: 47 min no card (histórico), em Pessoas e em Tempos por pessoa; o card do almoço: 1h47 para a Alisson',
+    JSON.stringify({ tp, pes }))
+  const jornada = await um42(`select max(s)::int as maior from (select r.usuario_id, r.dia, sum(r.trabalhando_s + r.ausente_s + r.especial_s + r.deriva_s) as s
+                                from public.plt_tempo_resumo_pessoa_dia r group by 1, 2) x`)
+  conferir(jornada.maior <= 9 * 3600 + 2 * 3600, 'nenhum dia-pessoa passa da jornada (9 h úteis + a hora extra do teste)', JSON.stringify(jornada))
+  const jan = await um42(`select public.plt_fn_card_janela(${c3}) -> 'tempo' as t`)
+  conferir(jan.t?.desde && Number(jan.t.fechado_s) === 0 && jan.t.corte, 'a janela do card rodando traz de quando e até quando ele conta (o aparelho soma o vivo)', JSON.stringify(jan))
+  await como42('')
+
+  titulo('SESSAO-42 · o recálculo: mudar o almoço refaz o período sozinho, em lotes')
+  await como42(Q42.adm)
+  await bd.exec(`select public.plt_fn_tempo_expediente_salvar(${S42.m42},
+    '[[1,"07:30","11:30"],[1,"13:00","18:00"],[2,"07:30","11:30"],[2,"13:00","18:00"],[3,"07:30","11:30"],[3,"13:00","18:00"],[4,"07:30","11:30"],[4,"13:00","18:00"],[5,"07:30","11:30"],[5,"13:00","18:00"]]'::jsonb, false)`)
+  let voltas = 0
+  while ((await um42(`select count(*)::int as n from public.plt_tempo_recalculos where concluido_em is null`)).n > 0 && voltas < 50) {
+    await bd.exec(`select plt_privado.fn_tempo_recalculo_processar(2)`)
+    voltas++
+  }
+  p = await pass42(c2, S42.m42)
+  const rcs = await um42(`select bool_and(concluido_em is not null and erro is null) as ok, max(feitos) as feitos from public.plt_tempo_recalculos`)
+  conferir(Number(p.execucao_s) === (20 + 57) * 60 && rcs.ok && voltas > 1,
+    'com o almoço de 11:30 às 13:00 o card do almoço vira 1h17 — refeito pela fila, em vários lotes, sem erro', JSON.stringify({ e: p.execucao_s, rcs, voltas }))
+  await como42('')
+
+  titulo('SESSAO-42 · permissões: a maquinaria fora da API; as portas para quem tem login')
+  const pr42 = await um42(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_tempo_card_refazer(bigint, boolean)', 'execute') as maquinaria,
+           has_function_privilege('anon', 'public.plt_fn_tempo_regras()', 'execute') as anon,
+           has_function_privilege('authenticated', 'public.plt_fn_tempo_regras()', 'execute') as logado,
+           has_function_privilege('authenticated', 'public.plt_fn_montar_juntos(bigint[], uuid)', 'execute') as lote,
+           has_table_privilege('authenticated', 'public.plt_tempo_passagens', 'select') as tabela`)
+  conferir(!pr42.maquinaria && !pr42.anon && pr42.logado && pr42.lote && !pr42.tabela, 'a maquinaria e as tabelas fora da API; as portas para quem tem login', JSON.stringify(pr42))
+} finally {
+  await bd.exec('rollback')
+  await como42('')
+}
+} // fim do bloco SESSAO-42
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

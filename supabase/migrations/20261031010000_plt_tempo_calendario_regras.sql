@@ -252,7 +252,8 @@ revoke all on public.plt_tempo_config, public.plt_tempo_regras, public.plt_tempo
 -- ----------------------------------------------------------------------------
 -- 5 · O expediente da semana em faixas (dado — com o OK do dono): a faixa única
 --     07:30–18:00 de hoje vira 07:30–12:00 e 13:00–18:00 (almoço 12–13 —
---     resposta 1). Setor de produção (ou o PCP) sem horário ganha o mesmo.
+--     resposta 1). Setor SEM horário continua contando o dia inteiro (D-29) —
+--     em produção todos os setores já têm o horário.
 -- ----------------------------------------------------------------------------
 insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
 select 'setor', h.setor_id, h.dia_semana, x.ini, x.fim
@@ -261,13 +262,6 @@ select 'setor', h.setor_id, h.dia_semana, x.ini, x.fim
  where h.escopo = 'setor' and h.hora_inicio = time '07:30' and h.hora_fim = time '18:00';
 delete from public.plt_horarios_funcionamento h
  where h.escopo = 'setor' and h.hora_inicio = time '07:30' and h.hora_fim = time '18:00';
-insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
-select 'setor', s.id, d.dia, x.ini, x.fim
-  from public.plt_setores s
-  cross join generate_series(1, 5) as d(dia)
-  cross join (values (time '07:30', time '12:00'), (time '13:00', time '18:00')) as x(ini, fim)
- where s.ativo and s.papel_no_fluxo in ('producao', 'entrada')
-   and not exists (select 1 from public.plt_horarios_funcionamento h where h.escopo = 'setor' and h.setor_id = s.id);
 
 -- ----------------------------------------------------------------------------
 -- 6 · As regras lidas com os padrões (setor sem linha = os padrões da demanda)
@@ -389,9 +383,9 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select coalesce(range_agg(r), '{}'::tstzmultirange)
+  select coalesce(range_agg(j.r), '{}'::tstzmultirange)
     from public.plt_setores s
-    cross join lateral unnest(plt_privado.fn_tempo_janelas(s.id, p_de, p_ate, p_usuario_id)) as r
+    cross join lateral unnest(plt_privado.fn_tempo_janelas(s.id, p_de, p_ate, p_usuario_id)) as j(r)
    where s.ativo and s.papel_no_fluxo = 'producao';
 $$;
 revoke all on function plt_privado.fn_tempo_janelas_fabrica(timestamptz, timestamptz, uuid) from public, anon, authenticated;
