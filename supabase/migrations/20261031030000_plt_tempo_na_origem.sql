@@ -932,7 +932,11 @@ as $$
     -- SESSAO-42: os setores que pausam sozinhos no fim do expediente
     'cortes', coalesce((
       select jsonb_object_agg(s.id::text, (plt_privado.fn_tempo_regra(s.id)).pausar_fim_expediente)
+        from public.plt_setores s where s.papel_no_fluxo = 'producao'), '{}'::jsonb),
+    -- SESSAO-42: os setores que montam em lote ("Montar juntos")
+    'lotes', coalesce((
+      select jsonb_object_agg(s.id::text, (plt_privado.fn_tempo_regra(s.id)).permite_lote)
         from public.plt_setores s where s.papel_no_fluxo = 'producao'), '{}'::jsonb)) end;
 $$;
 comment on function public.plt_fn_regua_tempo() is
-  'SESSAO-38 (D-172) ↪️ SESSAO-42: a régua do tempo útil para o aparelho, na abertura do app — fuso, PCP, papel de cada setor, as faixas da semana, as pausas de setor (120 dias), as exceções do calendário (120 dias para trás, 60 para a frente), as horas extras (120 dias) e quais setores pausam sozinhos no fim do expediente.';
+  'SESSAO-38 (D-172) ↪️ SESSAO-42: a régua do tempo útil para o aparelho, na abertura do app — fuso, PCP, papel de cada setor, as faixas da semana, as pausas de setor (120 dias), as exceções do calendário (120 dias para trás, 60 para a frente), as horas extras (120 dias), quais setores pausam sozinhos no fim do expediente e quais montam em lote.';

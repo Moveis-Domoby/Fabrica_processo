@@ -917,10 +917,10 @@ as $$
            'corte', ab.corte,
            'dividir', greatest(1, coalesce(ab.n, 1)),
            'usuario_id', ab.usuario_id,
-           'lote', ps.lote)
+           'lote', ab.lote)
     from public.plt_tempo_passagens ps
     left join lateral (
-      select t.inicio as desde, t.corte, t.usuario_id,
+      select t.inicio as desde, t.corte, t.usuario_id, t.lote,
              (select count(*) from public.plt_tempo_trechos x
                where x.usuario_id = t.usuario_id and x.fim is null and not x.descartado) as n
         from public.plt_tempo_trechos t
@@ -933,7 +933,7 @@ as $$
    limit 1;
 $$;
 comment on function plt_privado.fn_tempo_card_vivo(bigint) is
-  'SESSAO-42 (F4): o tempo do móvel no setor para o card e a janela — fechado_s (os trechos que já fecharam, com a divisão), e do trecho de execução aberto: desde, corte (o fim do expediente) e por quanto dividir (os trechos abertos da pessoa). O aparelho soma útil(desde → agora, até o corte) / dividir.';
+  'SESSAO-42 (F4): o tempo do móvel no setor para o card e a janela — fechado_s (os trechos que já fecharam, com a divisão), e do trecho de execução aberto: desde, corte (o fim do expediente) por quanto dividir (os trechos abertos da pessoa) e o lote (o mesmo valor nos cards montados juntos). O aparelho soma útil(desde → agora, até o corte) / dividir.';
 revoke all on function plt_privado.fn_tempo_card_vivo(bigint) from public, anon, authenticated;
 
 -- fn_quadro_junto — recriada da versão viva (20261027040000_plt_rotas_endereco_data_parcial.sql) + 'tempos'
