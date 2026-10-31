@@ -37,7 +37,7 @@ set local lock_timeout = '5s';
 
 -- ----------------------------------------------------------------------------
 -- 1 · O tipo do fato (recriado com a lista de 20261027040000 + 'peca_vinculada';
---     só esta migration valida — E-19)
+--     quem valida é a última que recria — hoje a 20261031020000, E-19)
 -- ----------------------------------------------------------------------------
 alter table public.plt_eventos drop constraint if exists plt_eventos_tipo_check;
 alter table public.plt_eventos add constraint plt_eventos_tipo_check check (tipo = any (array[
@@ -54,7 +54,7 @@ alter table public.plt_eventos add constraint plt_eventos_tipo_check check (tipo
   'data_entrega_alterada',
   'peca_vinculada'  -- D-201: a peça sem dono em produção passou a ser de um pedido
 ]::text[])) not valid;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- SESSAO-42: o validate mudou para a 20261031020000 (E-19 — só a última que recria valida)
 
 -- ----------------------------------------------------------------------------
 -- 2 · A projeção do fato: o dono novo da peça (o resto do card não muda)
