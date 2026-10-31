@@ -417,7 +417,7 @@ begin
          janelas = x.janelas,
          util_s = plt_privado.fn_tempo_segundos(x.janelas),
          segundos = plt_privado.fn_tempo_segundos(x.janelas),
-         descartado = t.fim_tipo = 'volta'
+         descartado = coalesce(t.fim_tipo = 'volta', false)
                       and plt_privado.fn_tempo_segundos(x.janelas) <= (plt_privado.fn_tempo_regra(t.setor_id)).volta_rapida_min * 60,
          calculado_em = now()
     from (select y.inicio_evento_id, y.corte, y.fim_conta,
