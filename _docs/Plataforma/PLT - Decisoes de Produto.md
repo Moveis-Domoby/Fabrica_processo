@@ -1689,6 +1689,8 @@ O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE V
 
 ## D-167 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O TEMPO ÚTIL do card: só o expediente do setor; o PCP não tem fila (21/10/2026, pedido do dono) — ↪️ D-29, D-48
 
+**↩️ revisada em 2026-10-30 (D-203, SESSAO-42):** a execução fora do expediente **deixa de contar** (resposta 3 do dono: hora extra só quando o líder autoriza); o card rodando é pausado sozinho no fim do expediente; o tempo de cada setor vem pronto do cálculo único.
+
 **Pedido do dono:** *"esses avisos de fila em PCP não fazem sentido na parte de tempo e histórico, já que PCP NÃO tem fila — deve ser só: Tempo útil em PCP. Lembrando que esse card deve sempre respeitar o horário do SETOR: se estiver fora do expediente e ninguém fizer hora extra, ele para de contar o tempo, até na fila — tem que contar só as horas úteis."*
 
 - **Todo relógio de espera do card** conta só o horário de expediente do setor onde ele está: a fila ("X na fila"), o "Parado · motivo · há X", o "Pausado há X", o tempo no fim de linha, o card do pedido no PCP e o "Pedido ficou X em PCP". Fora do horário o relógio para (a frente do card diz "fora do expediente", com ícone).
@@ -1979,6 +1981,69 @@ O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias)
 **Como ficou (técnico):** migration `20261028030000` — `plt_usuarios.avisos jsonb` (a escolha; nula = padrão; fora da API); `plt_privado.fn_avisos_catalogo()` (o catálogo: tipo, assunto, nome, frase, público, obrigatório, erro — aviso novo = uma linha); `fn_aviso_publico_de`, `fn_aviso_ligado`; o gatilho **`plt_notificacoes_filtrar`** (antes de gravar — vale para todo produtor de aviso); `fn_alertar_erro` (o corpo de `fn_tiny_alertar`, com o tipo e para os administradores — `fn_tiny_alertar` virou um caso dele); `plt_fn_tiny_pedido_resultado` (o laço do aviso para os administradores); os gatilhos de fato `plt_automacao_execucoes_falhou`, `plt_tiny_estoque_fila_parou`, `plt_webhook_entregas_falhou`; `plt_fn_senha_solicitar/pedidos/decidir` (a própria troca); as portas `plt_fn_avisos(pessoa)` e `plt_fn_aviso_definir(tipo, ligado, pessoa)`; o índice `plt_notificacoes_destinatario_idx`. Tela: `src/paginas/ConfigAvisos.tsx`, `src/notificacoes/preferencias.ts`, o sino (atalho e sem rolagem lateral), o destino dos erros novos (estoque → Configurações → Estoque; integração → API e integrações).
 
 **Descartadas:** filtrar no sino (o aviso nasceria e contaria no banco — e o urgente da tela abriria igual); uma tabela de preferências (a escolha cabe no cadastro da pessoa — "nada de tabela nova"); deixar desligar os urgentes (ninguém responderia).
+
+## D-203 · O TEMPO CERTO: o calendário da fábrica, a pausa sozinha no fim do expediente, as regras de tempo válido e um cálculo único para todas as telas (30/10/2026 — as 17 respostas do dono; SESSAO-42) — ↩️ revisa a D-167 (a hora extra não autorizada deixa de contar), ↪️ D-29, D-48, D-165, D-197, D-198, D-202
+
+**Pedido do dono (29/10):** um painel de revisão do tempo de montagem e dos tempos de cada setor, com as regras controladas em Configurações — *"atualmente os dados estão todos errados"*; tratar o card esquecido de um dia para o outro, as idas e voltas, e os dados irreais que já estão no banco. As respostas (30/10, no relatório do plano), todas "de acordo" com a recomendação, menos as com texto do dono:
+
+1. **Almoço** 12:00–13:00 em todos os setores; o café não sai da conta.
+2. **Sábado** fora do expediente — liberado dia a dia no calendário.
+3. **Hora extra** só conta quando o líder (ou o admin) autoriza.
+4. **Pausa sozinha no fim do expediente**, em todos os setores, motivo "Fim do expediente".
+5. De manhã, o card arrastado para a frente **sem retomar**: os minutos da manhã não contam.
+6. O aviso de card esquecido **sem resposta em 15 min** vira pausa no instante do aviso.
+7. Mínimo de **3 min**, teto de **4 h** na Montagem, "**3 vezes a mediana** do modelo" (com pelo menos 5 de base) — revistos depois de 2 semanas de dado limpo.
+8. Volta para a fila em até **5 min** = clique errado; volta para setor anterior = **retrabalho**, fora da média.
+9. O operador **pode pular** a execução — *"mas isso envia uma notificação aos admins, essa notificação deve poder ser desligada"*.
+10. **Gestos de administrador** fora das médias.
+11. **Dados oficiais a partir de 26/10/2026.**
+12. **Montar em lote** (2+ iguais juntos, tempo dividido): só na Montagem e só com o mesmo modelo.
+13. **As cores do mesmo móvel** são o mesmo modelo no tempo padrão.
+14. **Mediana** no lugar da média; "na média" = até 10%.
+15–17. (SESSAO-43) histórico do Trello importado e marcado; a TV fica como está (só tema e organização); o Modo TV em paralelo, com permissão própria.
+
+**Como ficou:** Configurações → Controle de tempo em 7 abas (Expediente e intervalos · Calendário · Hora extra · Regras por setor · Equipe no painel · Modelos · Recálculo); o card rodando é pausado sozinho no fim da janela do setor (ou da hora extra) e quem estava nele sai do setor; o aviso sem resposta pausa; "Montar juntos" na fila da Montagem; o aviso "Móvel pulou a montagem" em Configurações → Avisos; e o **cálculo único** (trechos, passagens, tempo padrão por modelo, resumos por dia) que o card, a janela, Tempos por pessoa, Pessoas, Meu desempenho, as metas e Tempo por setor passam a ler — recalculado desde 19/10. Técnico: migrations `20261031010000…040000`; ver [[SUPA - Esquema do Banco]] e o diário [[SESSAO-42]].
+
+## D-204 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O que é o "fim do expediente" de um trecho (31/10/2026, SESSAO-42)
+
+- É o fim da **última janela do dia** em que a pessoa começou (ou retomou): o almoço **não** corta (quem monta das 11:10 às 13:57 conta 1h47, sem pausa); a hora extra autorizada colada ou mais tarde no mesmo dia **empurra** o fim.
+- Começou **depois** do expediente do dia, sem hora extra: nada conta até a próxima janela; ao vivo, o card é pausado com "Fim do expediente" no **começo** da próxima janela (ninguém trabalha "de graça" a noite toda no relógio).
+- **No passado é só conta** (nenhum fato retroativo): os cards que já estavam rodando quando a regra subiu ganham a pausa no **próximo** fim de expediente.
+
+## D-205 · ⏳ PROVISÓRIA — O trabalho simultâneo da mesma pessoa é dividido (a forma geral da resposta 12) (31/10/2026)
+
+Se a pessoa tem N cards rodando ao mesmo tempo (lote na Montagem, ou o limite maior dos outros setores), **cada minuto vale 1/N para cada card** no tempo do móvel e **conta uma vez só** no tempo da pessoa. O tempo do móvel é o relógio enquanto pelo menos uma pessoa trabalhou nele, cada pedaço valendo o maior 1/N de quem estava; o **esforço** é a soma de pessoa × tempo. (A demanda pediu para registrar como provisória.)
+
+## D-206 · ⏳ PROVISÓRIA — Retrabalho: quais passagens saem da média (31/10/2026)
+
+Ficam fora (situação "retrabalho"): a passagem que **saiu para um setor anterior**; a passagem no setor anterior que **recebeu** o card de um setor posterior (é o conserto); e a **volta** do card ao setor de onde saiu para trás. Contam no indicador de retrabalho do setor. A volta ao PCP não é retrabalho — a passagem fecha como "saiu".
+
+## D-207 · ⏳ PROVISÓRIA — Gesto de administrador (31/10/2026)
+
+É a passagem em que um **administrador iniciou a execução** sem ser do setor (sem vínculo) e sem estar na equipe do painel daquele setor. O admin que ajuda (auxílio) não muda a passagem. Fica fora das médias (com a regra ligada no setor).
+
+## D-208 · ⏳ PROVISÓRIA — A data oficial tira só das MÉDIAS; o tempo da pessoa conta (31/10/2026)
+
+As passagens que saíram antes de 26/10 ficam como **teste** — guardadas, fora das médias, do tempo padrão e dos painéis do móvel. O **tempo da pessoa** (Tempos por pessoa, Pessoas, Meu desempenho, metas) conta o trabalho desses dias (a presença foi real). Não contam: o clique errado (volta em até 5 min) e a passagem descartada à mão.
+
+## D-209 · ⏳ PROVISÓRIA — Os dias da conta (31/10/2026)
+
+O trecho conta no dia em que **começou** (para a pessoa); a passagem, no dia em que **saiu** do setor (regra 15). A presença "à deriva" (fora de setor) só conta dentro das janelas da fábrica (a união dos setores de produção). Ninguém passa da jornada do dia (janelas + hora extra): o que sobrar sai primeiro de "à deriva", depois de "ausente", depois de "especial".
+
+## D-210 · ⏳ PROVISÓRIA — O modelo sugerido pelo nome (31/10/2026)
+
+O sistema sugere o modelo pelo **nome do móvel** (o do item do pedido ou o título do card): tira o número do pedido, o "(n/m)", o que está entre parênteses e o pedaço que é **só cor** (lista de cores: branco, preto, freijó, carvalho, off white…). Nome novo nasce como modelo **a confirmar**; o admin confirma, junta ou separa em Configurações → Controle de tempo → Modelos.
+
+## D-211 · ⏳ PROVISÓRIA — Pequenas escolhas da tela e da regra (31/10/2026)
+
+1. **Setor sem horário** continua contando o dia inteiro (D-29); na subida, só o 07:30–18:00 de cada setor vira duas faixas (07:30–12:00 e 13:00–18:00) — nenhum setor ganha horário novo.
+2. **Hora extra:** até 16 h por registro; do setor inteiro ou de uma pessoa; o líder registra só nos setores que lidera; cancelar não apaga (fica na trilha).
+3. **"Desligar o tempo agora", a correção retroativa e o horário por pessoa** continuam, recolhidos dentro da aba Expediente.
+4. **Tempo por setor** (até a SESSAO-43): execução útil = o tempo do móvel das passagens **válidas**; a coluna "finalizadas" passa a contar as **válidas**. **Pessoas:** "execuções" e "móveis atendidos" = as passagens em que a pessoa trabalhou. A lista de execuções diz "mais de mil" acima de 1.000.
+5. **O card arquivado** dentro do setor fecha a passagem como "saiu" (sem aviso de pulo).
+6. **O aviso "Móvel pulou a montagem"** vai para os administradores (como a resposta 9), só no gesto (o recálculo nunca avisa), uma vez por saída; desligável em Configurações → Avisos.
+7. **Montar juntos:** de 2 a 20 cards, só na fila e sem ninguém neles; "Concluir o lote" leva todos os que ainda rodam com o mesmo lote para a mesma etapa.
+8. **A decisão manual** só vale para passagem que já saiu do setor; motivo obrigatório; quem decide: líder do setor ou admin.
 
 ## Ver também
 
