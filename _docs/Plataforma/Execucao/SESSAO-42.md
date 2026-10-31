@@ -57,3 +57,16 @@ Quatro migrations, todas aplicadas DUAS vezes sem erro no banco de desenvolvimen
 - E-172: a lista de execuções contava o período inteiro (`count(*) over ()` sobre 160 mil trechos) e agrupava antes de paginar: 8,7 s no ×100. Correção: a página primeiro (índice parcial dos inícios), os trechos dela pelo índice da execução, e o total contado até 1.001 ("mais de mil"). Pessoas passou a ler o resumo por dia (1 s → 6 ms); a soma do fechado sem chamar função por linha (detalhe 0,6 s → 91 ms).
 - E-173: um `python -` com heredoc VAZIO abriu o interpretador interativo em segundo plano e escreveu 64 MB de erro antes de ser parado. Correção: parado e o arquivo apagado; não juntar dois `python -` num comando.
 - A bateria antiga com a regra nova: 12 vermelhos na 1ª rodada — 3 do semear (E-171), 1 do aviso "tempos" a cada card (tirado do refazer — o tópico do setor já avisa), 1 do check validado (as migrations da 42 entraram na sequência de reaplicação do meio da bateria — E-144), 1 da execução partida em trechos (a linha volta a ser a EXECUÇÃO: `execucao_id`), 5 do detalhe/scorecards (a presença passou a gatilho imediato; a pausa que fecha o último trecho entra no card — `<=`), 1 da dash por setor (o teste compara com a soma das passagens — mudança de propósito). 2ª rodada: 1.422 verdes, 2 vermelhos (o detalhe antigo esperava a soma escrita direto no agregado velho — teste ajustado — e o motivo da última pausa).
+
+## Telas (31/10)
+
+- Duas frentes em paralelo (subagentes, mesma pasta, arquivos separados, sem commit — revisadas e commitadas por mim): **Controle de tempo em 7 abas** (`src/paginas/ControleTempo.tsx` + `src/paginas/controleTempo/*`; rota e menu liberados ao líder, que vê só a Hora extra; rótulos da trilha na Auditoria) e **quadro/tablet/janela** (`tempoUtil.ts` espelha `fn_tempo_janelas`/`fn_tempo_corte`; `tempoDoMovelMs`; o card e a janela com o tempo do móvel e a pausa automática; "Tempo e histórico" por `plt_fn_card_historico` com os números das passagens; Montar juntos e Concluir o lote — `lote.ts`, `ModalLevarLote.tsx`; o aviso `execucao_pulada` leva ao card).
+- Verificação: tipos e lint limpos; **360 testes de tela** (30 novos); build ok; **JS inicial 228,0 → 232,4 KB** (teto 250).
+- Vitrine temporária (A-117 — `vitrine42.html` + `src/vitrine42.tsx`, apagadas): as 7 abas no computador; no celular 375 px sem rolagem lateral e sem botão abaixo de 40 px. Fotos em `Handoffs/imagens/sessao42-*.jpg`.
+
+## Fechamento (31/10)
+
+- **Bateria final: 1.444 verdes, TUDO VERDE** (o bloco novo com 32 conferências; os antigos ajustados à regra nova).
+- **Leitura do banco real** (o antes × depois por setor): barrada pelo controle de segurança ("leitura de produção") — o comparador está pronto no rascunho (`copiar-real.mjs` lê em sessão só-leitura; `comparar-real.mjs` carrega no PGlite com as migrations de produção, mede como as telas contam hoje, aplica as 4 da 42 e mede de novo; provado com dado de mentira). Fica para o OK do dono.
+- **Nada aplicado, nada publicado, nada na `main`** — esperando o OK do dono. ClickUp: as 9 tarefas da demanda pedem o OK do dono para nascer.
+- Handoff: [[handoff_2026_10_31_sessao42_tempo_certo]].
