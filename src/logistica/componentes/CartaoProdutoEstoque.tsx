@@ -107,7 +107,12 @@ export function CartaoProdutoEstoque({
             <span className="text-3xl font-bold text-texto tabular-nums">
               {formatarQuantidade(emEstoque)}
             </span>
-            <span className="text-xs text-texto-suave">em estoque</span>
+            {/* SESSAO-45 (vídeo do dono — "o PCP mentindo"): o número grande é o que está
+                LIVRE; a peça que a venda já reservou continua no galpão e aparece logo
+                abaixo — as mesmas palavras do chip do PCP. */}
+            <span className="text-xs text-texto-suave">
+              {linha.reservadas_estoque > 0 ? 'livres no estoque' : 'em estoque'}
+            </span>
           </p>
           <div className="flex items-center justify-end gap-0.5">
             <p className="text-right text-xs text-texto-suave tabular-nums">
@@ -163,6 +168,13 @@ export function CartaoProdutoEstoque({
           </button>
         )}
 
+        {linha.reservadas_estoque > 0 && (
+          <p className="text-xs font-medium text-texto tabular-nums">
+            + {formatarQuantidade(linha.reservadas_estoque)} no estoque{' '}
+            {linha.reservadas_estoque === 1 ? 'reservada' : 'reservadas'} para venda
+            {linha.pendente_pedido_numero !== null ? ` (pedido ${linha.pendente_pedido_numero}${linha.reservadas_estoque > 1 ? '…' : ''})` : ''}
+          </p>
+        )}
         {(linha.reservados_producao > 0 || linha.reservados_venda > 0) && (
           <p className="text-xs text-texto-suave tabular-nums">
             {linha.reservados_producao > 0 && (

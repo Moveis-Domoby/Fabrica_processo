@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
+  ArrowRightLeft,
   CheckCircle2,
   CirclePause,
   ClipboardList,
@@ -22,6 +23,7 @@ import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { useAcessoLogistica } from '@/logistica/acesso'
 import { listarExpedicao } from '@/logistica/api'
 import type { ContagensExpedicao, FiltroExpedicao, PedidoExpedicao } from '@/logistica/api'
+import { ModalLiberarPeca } from '@/logistica/componentes/ModalLiberarPeca'
 import { PecasProntas } from '@/logistica/componentes/PecasProntas'
 import { nomeDoLugar } from '@/logistica/lugar'
 import { SeloEstado } from '@/rotas/SeloEstado'
@@ -78,6 +80,8 @@ export function Expedicao() {
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(1)
   const [pedidoAberto, setPedidoAberto] = useState<PedidoExpedicao | null>(null)
+  // SESSAO-45 (pedido do dono): liberar a peça pronta deste pedido para outro
+  const [liberandoDe, setLiberandoDe] = useState<PedidoExpedicao | null>(null)
 
   const listaAberta = tenhoAcesso && visao === 'pedidos'
   const { data, isPending } = useQuery({
@@ -183,6 +187,7 @@ export function Expedicao() {
                   linha={linha}
                   agora={agora}
                   aoVerUnidades={() => setPedidoAberto(linha)}
+                  aoLiberarPeca={() => setLiberandoDe(linha)}
                 />
               ))}
             </ul>
@@ -199,6 +204,12 @@ export function Expedicao() {
           </div>
         )}
       </div>
+
+      <ModalLiberarPeca
+        key={liberandoDe ? `liberar-${liberandoDe.card_id}` : 'liberar-fechado'}
+        pedido={liberandoDe}
+        aoFechar={() => setLiberandoDe(null)}
+      />
 
       <Modal
         aberto={pedidoAberto !== null}
@@ -302,10 +313,12 @@ function CartaoExpedicao({
   linha,
   agora,
   aoVerUnidades,
+  aoLiberarPeca,
 }: {
   linha: PedidoExpedicao
   agora: number
   aoVerUnidades: () => void
+  aoLiberarPeca: () => void
 }) {
   const alvo = Math.max(linha.a_entregar, 0)
   const progresso =
@@ -428,6 +441,13 @@ function CartaoExpedicao({
         {!nadaAProduzir && (
           <Botao variante="secundaria" icone={<Eye />} onClick={aoVerUnidades}>
             Ver unidades
+          </Botao>
+        )}
+        {linha.unidades_prontas > 0 && !linha.em_devolucao && (
+          // SESSAO-45 (pedido do dono): a peça pronta foi para outro pedido mais urgente
+          // (ou saiu por outro motivo) — este pedido volta ao PCP com o produto que saiu.
+          <Botao variante="secundaria" icone={<ArrowRightLeft />} onClick={aoLiberarPeca}>
+            Liberar para outro pedido
           </Botao>
         )}
         <Link

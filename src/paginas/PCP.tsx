@@ -848,6 +848,17 @@ function CartaoPedidoPcp({
   const total = resumo?.total_unidades ?? 0
   const prioridade = prioridadeDe(card.prioridade)
   const noEstoque = card.pecas_estoque ?? 0
+  // SESSAO-45 (vídeo do dono, 04/11 — "o PCP mentindo sobre o estoque"): o chip fala
+  // como o cartão do Estoque — RESERVADA para este pedido × LIVRE no estoque — e conta
+  // só o que o pedido ainda precisa (o banco limita ao que falta liberar).
+  const reservadas = Math.min(resumo?.pecas_reservadas ?? 0, noEstoque)
+  const livres = noEstoque - reservadas
+  const textoEstoque = [
+    reservadas > 0 ? `${reservadas} reservada${reservadas === 1 ? '' : 's'}` : null,
+    livres > 0 ? `${livres} livre${livres === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' + ')
   const cancelado = pedidoCancelado(resumo?.situacao)
   // SESSAO-38 (D-167): o tempo do pedido no PCP conta só o expediente do PCP
   // (e nunca o stand-by) — o relógio para à noite e no fim de semana.
@@ -915,14 +926,19 @@ function CartaoPedidoPcp({
           {noEstoque > 0 && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto tabular-nums"
-              title={
-                noEstoque === 1
-                  ? '1 peça no estoque atende este pedido — dá para usar'
-                  : `${noEstoque} peças no estoque atendem este pedido — dá para usar`
-              }
+              title={[
+                reservadas > 0
+                  ? `${reservadas} peça${reservadas === 1 ? '' : 's'} do estoque separada${reservadas === 1 ? '' : 's'} para este pedido quando a venda chegou (no Estoque elas aparecem em "reservados em venda", não em "livres")`
+                  : null,
+                livres > 0
+                  ? `${livres} peça${livres === 1 ? '' : 's'} livre${livres === 1 ? '' : 's'} no estoque serve${livres === 1 ? '' : 'm'} a este pedido — dá para usar`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             >
               <Boxes aria-hidden className="size-3.5" />
-              {noEstoque} no estoque
+              {textoEstoque} no estoque
             </span>
           )}
           {cancelado && (

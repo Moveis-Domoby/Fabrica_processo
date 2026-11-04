@@ -209,6 +209,11 @@ export interface PedidoResumo {
   standby_motivo?: string | null
   standby_por?: string | null
   standby_periodos?: { ini: string; fim: string }[] | null
+  /**
+   * SESSAO-45: quantas das peças do estoque que atendem o pedido já estão
+   * RESERVADAS para ele (o resto, de `pecas_estoque`, está livre).
+   */
+  pecas_reservadas?: number
 }
 
 /**

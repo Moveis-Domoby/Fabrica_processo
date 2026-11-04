@@ -68,7 +68,10 @@ export function ModalProdutoEstoque({
               <span className="text-2xl font-semibold text-texto tabular-nums">
                 {formatarQuantidade(produto.em_estoque ?? 0)}
               </span>
-              <span className="text-sm text-texto-suave">em estoque</span>
+              <span className="text-sm text-texto-suave">
+                {/* SESSAO-45: o número é o LIVRE; a reservada pela venda aparece ao lado */}
+                {(produto.reservadas_estoque ?? 0) > 0 ? 'livres no estoque' : 'em estoque'}
+              </span>
             </p>
             <p className="text-sm text-texto-suave tabular-nums">
               Mínimo{' '}
@@ -88,6 +91,12 @@ export function ModalProdutoEstoque({
                 {produto.reservados_producao === 1
                   ? '1 reservado p/ produção'
                   : `${produto.reservados_producao} reservados p/ produção`}
+              </p>
+            )}
+            {(produto.reservadas_estoque ?? 0) > 0 && (
+              <p className="text-sm font-medium text-texto tabular-nums">
+                + {produto.reservadas_estoque} no estoque{' '}
+                {produto.reservadas_estoque === 1 ? 'reservada' : 'reservadas'} para venda
               </p>
             )}
             {produto.reservados_venda > 0 && (

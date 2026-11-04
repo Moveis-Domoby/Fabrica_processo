@@ -768,3 +768,68 @@ export async function arquivarCard(cardId: number, observacao?: string): Promise
   })
   if (error) throw new Error(`Não deu para arquivar: ${error.message}`)
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-45 (pedido do dono): a peça PRONTA de um pedido liberada para outro
+// ---------------------------------------------------------------------------
+
+/** A conferência da janela: a peça e, com o número, o pedido de destino e a vaga — ou o motivo de não dar. */
+export type DestinoLiberacao =
+  | { ok: false; motivo: string }
+  | {
+      ok: true
+      peca_id: number
+      descricao: string | null
+      numero_origem: number
+      numero_destino?: number
+      cliente_destino?: string
+      data_prevista_destino?: string | null
+      vaga?: { item_seq: number; indice_unidade: number; total: number; descricao: string | null }
+      tinha_reserva?: boolean
+    }
+
+export async function conferirDestinoLiberacao(
+  pecaId: number,
+  numero: number | null,
+): Promise<DestinoLiberacao> {
+  const { data, error } = await supabase.rpc('plt_fn_liberar_peca_destino', {
+    p_peca_id: pecaId,
+    p_numero: numero,
+  })
+  if (error) throw new Error(error.message)
+  return data as DestinoLiberacao
+}
+
+export interface ResultadoLiberacao {
+  feito: boolean
+  repetido?: boolean
+  numero_origem?: number
+  numero_destino?: number | null
+  standby?: boolean
+  /** O Tiny já levou o pedido de origem adiante (faturado…): ele não aparece no quadro do PCP. */
+  tiny_adiante?: boolean
+}
+
+/**
+ * Libera a peça pronta para outro pedido (`paraNumero`) ou registra que ela saiu
+ * por substituição (`motivo`). `relancar`: o pedido de origem volta ao PCP para
+ * produzir de novo (sim) ou fica em stand-by (não). `chave`: a do toque (o
+ * toque repetido não faz nada duas vezes).
+ */
+export async function liberarPecaParaOutroPedido(parametros: {
+  pecaId: number
+  paraNumero: number | null
+  motivo: string | null
+  relancar: boolean
+  chave: string
+}): Promise<ResultadoLiberacao> {
+  const { data, error } = await supabase.rpc('plt_fn_liberar_peca', {
+    p_peca_id: parametros.pecaId,
+    p_para_numero: parametros.paraNumero,
+    p_motivo: parametros.motivo?.trim() || null,
+    p_relancar: parametros.relancar,
+    p_chave: parametros.chave,
+  })
+  if (error) throw new Error(error.message)
+  return data as ResultadoLiberacao
+}
