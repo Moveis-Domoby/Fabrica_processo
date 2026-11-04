@@ -485,6 +485,9 @@ export interface PedidoProgramado extends Prontidao {
    */
   endereco_geocodificavel?: string | null
   geo_consultado_em?: string | null
+  /** SESSAO-45: o CEP do endereço (vai ao Google Maps) e se o ponto foi marcado à mão. */
+  cep?: string | null
+  geo_manual?: boolean
   total_unidades: number
   itens: ItemPedido[]
   data_prevista: string | null
@@ -659,6 +662,15 @@ export async function buscarRotaPelasRuas(
 /** Falha de geocodificação vale por 7 dias (a Edge Function também não insiste). */
 const RETENTAR_APOS_MS = 7 * 24 * 60 * 60 * 1000
 
+/**
+ * SESSAO-45: o ponto que a busca ANTIGA gravou antes deste instante é procurado
+ * de novo uma vez (a busca nova confere o bairro e o CEP e não aceita rua de mesmo
+ * nome noutro bairro). O MESMO instante mora na Edge Function `geocodificar`
+ * (VERSAO_BUSCA) — os dois andam juntos. O ponto marcado à mão é gravado depois
+ * dele e nunca volta à busca.
+ */
+export const VERSAO_BUSCA = Date.parse('2026-11-05T00:00:00Z')
+
 /** Quem ainda precisa ir ao geocodificador. */
 export function precisaGeocodificar(
   p: Pick<PedidoProgramacao, 'geo_chave' | 'geo_resolvido'> & {
@@ -668,9 +680,10 @@ export function precisaGeocodificar(
   agora = Date.now(),
 ): boolean {
   if (!p.geo_chave || !p.endereco_geocodificavel) return false
-  if (p.geo_resolvido === true) return false
   if (p.geo_resolvido === null) return true
   const consultado = p.geo_consultado_em ? new Date(p.geo_consultado_em).getTime() : 0
+  if (consultado < VERSAO_BUSCA) return true
+  if (p.geo_resolvido === true) return false
   return agora - consultado > RETENTAR_APOS_MS
 }
 
@@ -711,6 +724,9 @@ export interface EntregaDoDia {
   uf: string | null
   latitude: number | null
   longitude: number | null
+  /** SESSAO-45: o CEP (vai ao Google Maps/Waze) e se o ponto foi marcado à mão. */
+  cep?: string | null
+  geo_manual?: boolean
   obs: string | null
   /** O detalhe escrito por quem programou ("só depois das 10h"). */
   detalhe: string | null
@@ -1208,4 +1224,26 @@ export function chaveDoGesto(): string {
     const r = (Math.random() * 16) | 0
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
   })
+}
+
+/**
+ * SESSAO-45 (pedido do dono — "endereço não encontrado no mapa"): a logística
+ * marca à mão o ponto do endereço de um pedido (ou acerta o que a busca pôs no
+ * lugar errado). O ponto marcado à mão nunca é trocado pela busca automática e
+ * é ele que vai ao Google Maps/Waze. Latitude e longitude nulas = desmarcar
+ * (volta à busca automática).
+ */
+export async function marcarPontoNoMapa(parametros: {
+  chave: string
+  endereco: string
+  latitude: number | null
+  longitude: number | null
+}): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_geo_marcar', {
+    p_chave: parametros.chave,
+    p_endereco: parametros.endereco,
+    p_latitude: parametros.latitude,
+    p_longitude: parametros.longitude,
+  })
+  if (error) throw new Error(error.message)
 }

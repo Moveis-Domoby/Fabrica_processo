@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  LINK_MAXIMO,
   PARADAS_POR_LINK,
   linkGoogleMapsParada,
   linkWaze,
   linksGoogleMaps,
   lugarDaParada,
+  paradaNavegavel,
   rotuloDaParte,
 } from './navegacao'
 import { FABRICA } from './rotaRuas'
@@ -76,6 +78,68 @@ describe('linksGoogleMaps — a rota da plataforma no Google Maps (SESSAO-39)', 
     const partes = linksGoogleMaps([parada(1), nada, semPonto])
     expect(params(partes[0].url).get('waypoints')).toBe('-5.81,-35.21|Rua A, 10, Tirol, Natal, RN')
     expect(linksGoogleMaps([nada])).toEqual([])
+  })
+})
+
+describe('SESSAO-45 — o Google acha a casa pelo ENDEREÇO do pedido; o ponto só manda se alguém o marcou', () => {
+  const pedido = {
+    latitude: -5.780046,
+    longitude: -35.1994011,
+    endereco: 'Rua Desembargador Lins Bahia',
+    numero_endereco: '173',
+    bairro: 'Rocas',
+    cidade: 'Natal',
+    uf: 'RN',
+    cep: '59.010-190',
+  }
+
+  it('o 13784: vai o endereço escrito com o CEP (antes ia o meio da rua e o Google mostrava outro número)', () => {
+    const p = paradaNavegavel(pedido)
+    expect(p.endereco).toBe('Rua Desembargador Lins Bahia, 173 - Rocas, Natal - RN, 59010-190')
+    expect(lugarDaParada(p)).toBe('Rua Desembargador Lins Bahia, 173 - Rocas, Natal - RN, 59010-190')
+    const [parte] = linksGoogleMaps([p])
+    expect(params(parte.url).get('waypoints')).toBe(
+      'Rua Desembargador Lins Bahia, 173 - Rocas, Natal - RN, 59010-190',
+    )
+    expect(params(parte.url).get('destination')).toBe(fabrica)
+    expect(params(parte.url).get('origin')).toBe(fabrica)
+    expect(linkWaze(p)).toBe(
+      `https://waze.com/ul?q=${encodeURIComponent('Rua Desembargador Lins Bahia, 173 - Rocas, Natal - RN, 59010-190')}&navigate=yes`,
+    )
+  })
+
+  it('o ponto marcado à mão pela logística manda (o lugar exato que alguém conferiu)', () => {
+    const p = paradaNavegavel({ ...pedido, geo_manual: true })
+    expect(lugarDaParada(p)).toBe('-5.780046,-35.199401')
+    expect(linkWaze(p)).toBe('https://waze.com/ul?ll=-5.780046,-35.199401&navigate=yes')
+  })
+
+  it('a parada avulsa com pino vai pelo pino; sem rua no cadastro, vai o ponto (o texto levaria ao centro da cidade)', () => {
+    expect(
+      lugarDaParada(
+        paradaNavegavel({ latitude: -5.81, longitude: -35.22, endereco: 'Casa do bizotê', numero_endereco: null, bairro: null, cidade: null, uf: null, ponto_confirmado: true }),
+      ),
+    ).toBe('-5.81,-35.22')
+    expect(
+      lugarDaParada(
+        paradaNavegavel({ latitude: -5.9, longitude: -35.3, endereco: null, numero_endereco: null, bairro: 'Centro', cidade: 'Macaíba', uf: 'RN' }),
+      ),
+    ).toBe('-5.9,-35.3')
+  })
+
+  it('endereços compridos: as partes encolhem para nenhum link passar do tamanho que o Google aceita', () => {
+    const longo = (i: number) =>
+      paradaNavegavel({
+        ...pedido,
+        endereco: `Avenida Senador Doutor Fulano de Tal e Coisa Comprida Número ${i}`,
+        bairro: 'Residencial Jardins do Bosque das Colinas Verdes',
+        cidade: 'São Gonçalo do Amarante',
+      })
+    const partes = linksGoogleMaps(Array.from({ length: 12 }, (_, i) => longo(i + 1)))
+    for (const x of partes) expect(x.url.length).toBeLessThanOrEqual(LINK_MAXIMO)
+    expect(partes[0].primeira).toBe(1)
+    expect(partes[partes.length - 1].ultima).toBe(12)
+    expect(partes[partes.length - 1].comVolta).toBe(true)
   })
 })
 

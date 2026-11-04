@@ -28,6 +28,8 @@ import { ListaArrastavel } from './ListaArrastavel'
 import { MapaProgramacao } from './MapaProgramacao'
 import type { ParadaNoMapa, RotaNoMapa } from './MapaProgramacao'
 import { ModalParadaAvulsa } from './ModalParadaAvulsa'
+import { ModalPontoNoMapa } from './ModalPontoNoMapa'
+import type { PedidoParaMarcar } from './ModalPontoNoMapa'
 import { ModalProgramar } from './ModalProgramar'
 import { PainelRota } from './PainelRota'
 import {
@@ -132,6 +134,8 @@ export function AbaProgramar({
   const proximoIdAvulsa = useRef(-1)
   // a janela da parada aberta (o número muda a cada abertura — a janela começa limpa)
   const [janelaParada, setJanelaParada] = useState<number | null>(null)
+  // SESSAO-45: a janela de marcar/acertar o ponto do endereço no mapa
+  const [pontoDe, setPontoDe] = useState<PedidoParaMarcar | null>(null)
 
   // SESSAO-41 (D-199): a busca vai ao servidor depois de 300 ms parada, com 2+ letras
   const buscaAplicada = filtroAplicavel(useDebouncedValue(escolha.busca, 300))
@@ -509,7 +513,10 @@ export function AbaProgramar({
                       >
                         {indice + 1}
                       </span>
-                      <CartaoPedido pedido={p} />
+                      <CartaoPedido
+                        pedido={p}
+                        aoMarcarNoMapa={p.geo_chave ? () => setPontoDe(p) : undefined}
+                      />
                     </div>
                   )
                 }}
@@ -571,6 +578,7 @@ export function AbaProgramar({
                       />
                       <CartaoPedido
                         pedido={p}
+                        aoMarcarNoMapa={p.geo_chave ? () => setPontoDe(p) : undefined}
                         selo={
                           distancia !== undefined ? (
                             <span className="rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
@@ -693,6 +701,11 @@ export function AbaProgramar({
         />
       )}
 
+      <ModalPontoNoMapa
+        key={pontoDe ? `ponto-${pontoDe.numero}` : 'ponto-fechado'}
+        pedido={pontoDe}
+        aoFechar={() => setPontoDe(null)}
+      />
       <ModalParadaAvulsa
         key={janelaParada ?? 'parada-fechada'}
         aberto={janelaParada !== null}

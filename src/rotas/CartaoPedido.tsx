@@ -1,5 +1,5 @@
-import { memo, type ReactNode } from 'react'
-import { MapPinOff, Package } from 'lucide-react'
+import { memo, type MouseEvent, type ReactNode } from 'react'
+import { MapPin, MapPinCheck, MapPinOff, Package } from 'lucide-react'
 import { dataLegivel, enderecoLegivel } from './api'
 import type { EstadoPedido, ItemPedido } from './api'
 import { SeloEstado } from './SeloEstado'
@@ -17,6 +17,8 @@ export interface DadosCartaoPedido {
   data_prevista: string | null
   geo_chave: string | null
   geo_resolvido: boolean | null
+  /** SESSAO-45: o ponto foi marcado à mão pela logística. */
+  geo_manual?: boolean
   /** SESSAO-38 (D-156): pronto, em produção ou ainda no PCP. */
   estado?: EstadoPedido | null
   unidades_prontas?: number
@@ -33,10 +35,24 @@ export interface DadosCartaoPedido {
 export const CartaoPedido = memo(function CartaoPedido({
   pedido,
   selo,
+  aoMarcarNoMapa,
 }: {
   pedido: DadosCartaoPedido
   selo?: ReactNode
+  /**
+   * SESSAO-45 (pedido do dono): abre a janela de marcar/acertar o ponto do
+   * endereço no mapa — só a logística (quem vê a Programação) recebe.
+   */
+  aoMarcarNoMapa?: () => void
 }) {
+  const marcar = aoMarcarNoMapa
+    ? (e: MouseEvent<HTMLButtonElement>) => {
+        // o cartão mora dentro do rótulo da seleção (aba Programar): o toque não marca o pedido
+        e.preventDefault()
+        e.stopPropagation()
+        aoMarcarNoMapa()
+      }
+    : undefined
   const itens = pedido.itens ?? []
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -70,10 +86,41 @@ export const CartaoPedido = memo(function CartaoPedido({
         <span className="text-xs text-texto-fraco">Sem móveis no pedido (só frete ou serviço)</span>
       )}
       {pedido.geo_resolvido === false && (
-        <span className="inline-flex items-center gap-1 text-xs text-atencao-texto">
-          <MapPinOff aria-hidden className="size-3.5" />
-          Endereço não encontrado no mapa — entra na programação, só não plota
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-atencao-texto">
+          <span className="inline-flex items-center gap-1">
+            <MapPinOff aria-hidden className="size-3.5 shrink-0" />
+            Endereço não encontrado no mapa — entra na programação, só não plota
+          </span>
+          {marcar && (
+            <button
+              type="button"
+              onClick={marcar}
+              className="inline-flex min-h-toque-md items-center gap-1 rounded-dm border border-atencao-borda bg-atencao-fundo px-2.5 font-semibold text-atencao-texto hover:brightness-95"
+            >
+              <MapPin aria-hidden className="size-3.5" />
+              Marcar no mapa
+            </button>
+          )}
         </span>
+      )}
+      {pedido.geo_resolvido === true && marcar && (
+        <button
+          type="button"
+          onClick={marcar}
+          className="inline-flex min-h-toque-md items-center gap-1 self-start text-xs font-medium text-texto-suave underline-offset-2 hover:text-texto hover:underline"
+          title={
+            pedido.geo_manual
+              ? 'O ponto foi marcado à mão — é ele que vai para o Google Maps e o Waze'
+              : 'O ponto veio da busca automática — se estiver no lugar errado, acerte aqui'
+          }
+        >
+          {pedido.geo_manual ? (
+            <MapPinCheck aria-hidden className="size-3.5 text-perfeito-forte" />
+          ) : (
+            <MapPin aria-hidden className="size-3.5" />
+          )}
+          {pedido.geo_manual ? 'Ponto marcado à mão · acertar' : 'Acertar o ponto no mapa'}
+        </button>
       )}
       {pedido.geo_resolvido === null && pedido.geo_chave && (
         <span className="text-xs text-texto-fraco">procurando no mapa…</span>

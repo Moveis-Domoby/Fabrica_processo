@@ -45,6 +45,8 @@ import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { MapaProgramacao } from './MapaProgramacao'
 import type { RotaNoMapa } from './MapaProgramacao'
 import { ModalParadaAvulsa } from './ModalParadaAvulsa'
+import { ModalPontoNoMapa } from './ModalPontoNoMapa'
+import type { PedidoParaMarcar } from './ModalPontoNoMapa'
 import { ModalProgramar } from './ModalProgramar'
 import { ModalDetalheEntrega, ModalEquipe } from './ModaisProgramacao'
 import { PainelRota } from './PainelRota'
@@ -204,6 +206,8 @@ export function AbaJaProgramadas({
   const [detalheDe, setDetalheDe] = useState<PedidoProgramado | null>(null)
   // SESSAO-41 (D-196): a janela da parada avulsa (a rota e a chave do gesto)
   const [janelaParada, setJanelaParada] = useState<{ grupo: Grupo; chave: string } | null>(null)
+  // SESSAO-45: a janela de marcar/acertar o ponto do endereço no mapa
+  const [pontoDe, setPontoDe] = useState<PedidoParaMarcar | null>(null)
   // SESSAO-41 (D-199): os filtros — a busca vai ao servidor parada há 300 ms, com 2+ letras
   const [busca, setBusca] = useState('')
   const [caminhaoFiltro, setCaminhaoFiltro] = useState(TODOS_CAMINHOES)
@@ -625,17 +629,20 @@ export function AbaJaProgramadas({
     return (
       <div
         className={cn(
-          'flex flex-wrap items-start gap-3 rounded-dm-lg border border-dashed bg-superficie p-3',
+          'flex min-w-0 flex-col gap-2 rounded-dm-lg border border-dashed bg-superficie p-3',
           concluida ? 'border-borda opacity-80' : 'border-borda-forte',
         )}
       >
-        <NumeroParadaAvulsa numero={numero} cor={cor} apagado={concluida} />
-        <CartaoParadaAvulsa parada={p} />
+        <div className="flex min-w-0 items-start gap-3">
+          <NumeroParadaAvulsa numero={numero} cor={cor} apagado={concluida} />
+          <CartaoParadaAvulsa parada={p} />
+        </div>
         <Botao
           variante="fantasma"
           icone={<X />}
           onClick={() => tirarParada.mutate(p)}
           carregando={tirarParada.isPending && tirarParada.variables?.id === p.id}
+          className="self-end"
         >
           Tirar da rota
         </Botao>
@@ -647,28 +654,37 @@ export function AbaJaProgramadas({
     if (ehAvulsa(item)) return linhaAvulsa(item, numero, cor)
     const p = item
     return (
-      <div className="flex flex-wrap items-start gap-3 rounded-dm-lg border border-borda bg-superficie p-3">
-        <span
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2 bg-acao text-xs font-bold text-acao-texto tabular-nums"
-          style={{ borderColor: cor }}
-          aria-label={`${numero}ª parada`}
-        >
-          {numero}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <CartaoPedido pedido={p} />
-          {p.detalhe && (
-            <span className="rounded-dm border border-atencao-borda bg-atencao-fundo px-2 py-1 text-sm text-atencao-texto">
-              {p.detalhe}
-            </span>
-          )}
-        </span>
+      // SESSAO-45 (pedido do dono, 04/11 — "o layout das rotas já programadas está
+      // quebrado"): os botões ficavam AO LADO do cartão, no mesmo flex, e o cartão
+      // (min-w-0) encolhia até uma palavra por linha. Agora o cartão ocupa a largura
+      // toda e os botões vão numa linha própria, embaixo — em qualquer largura.
+      <div className="flex min-w-0 flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2 bg-acao text-xs font-bold text-acao-texto tabular-nums"
+            style={{ borderColor: cor }}
+            aria-label={`${numero}ª parada`}
+          >
+            {numero}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <CartaoPedido
+              pedido={p}
+              aoMarcarNoMapa={entregues || !p.geo_chave ? undefined : () => setPontoDe(p)}
+            />
+            {p.detalhe && (
+              <span className="rounded-dm border border-atencao-borda bg-atencao-fundo px-2 py-1 text-sm text-atencao-texto">
+                {p.detalhe}
+              </span>
+            )}
+          </span>
+        </div>
         {entregues ? (
-          <span className="text-xs text-texto-suave tabular-nums">
+          <span className="self-end text-xs text-texto-suave tabular-nums">
             entregue em {p.entregue_em ? new Date(p.entregue_em).toLocaleDateString('pt-BR') : '—'}
           </span>
         ) : (
-          <span className="flex flex-wrap gap-2">
+          <span className="flex flex-wrap justify-end gap-2">
             <Botao variante="secundaria" icone={<NotebookPen />} onClick={() => setDetalheDe(p)}>
               Detalhe
             </Botao>
@@ -983,6 +999,11 @@ export function AbaJaProgramadas({
           }
           alvo={equipeDe}
           aoFechar={() => setEquipeDe(null)}
+        />
+        <ModalPontoNoMapa
+          key={pontoDe ? `ponto-${pontoDe.numero}` : 'ponto-fechado'}
+          pedido={pontoDe}
+          aoFechar={() => setPontoDe(null)}
         />
         <ModalDetalheEntrega
           key={detalheDe ? `detalhe-${detalheDe.card_id}` : 'detalhe-fechado'}
