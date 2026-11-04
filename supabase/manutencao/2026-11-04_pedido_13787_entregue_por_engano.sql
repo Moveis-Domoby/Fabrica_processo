@@ -19,9 +19,9 @@
 --   3. os itens 1 e 3 (567 e 566) ficam no PCP, para a equipe liberar;
 --   4. os dois avulsos viram peças do pedido: nasce a peça de cada item (2 e 4)
 --      PRONTA em Pedidos em aguardo (a Expedição), com a referência ao avulso;
---      o avulso sai do quadro (arquivado, com a referência à peça) e fica na
---      história — o tempo e a meta do trabalho continuam dele, uma vez só (a
---      peça nova não tem tempo). Exceção só deste acerto: a regra "avulso
+--      o avulso já saiu do quadro sozinho no Concluir (o Concluir arquiva) e
+--      fica na história — o tempo e a meta do trabalho continuam dele, uma vez
+--      só (a peça nova não tem tempo). Exceção só deste acerto: a regra "avulso
 --      nunca vira peça" segue valendo, e não existe botão de conversão.
 --   5. confere no fim: 4 vagas, 2 prontas na Expedição, 2 no PCP.
 -- Idempotente: com a entrega já reaberta e as peças já criadas, não grava nada.
@@ -89,9 +89,12 @@ begin
   end if;
   for i in 1 .. 2 loop
     select * into v_av from public.plt_cards where id = v_avulsos[i];
-    if not found or v_av.tipo <> 'avulso' or v_av.arquivado_em is not null or v_av.concluido_em is null
+    -- (o Concluir do avulso também o arquiva — reconferido no banco em 04/11)
+    if not found or v_av.tipo <> 'avulso' or v_av.concluido_em is null
+       or not exists (select 1 from public.plt_eventos e where e.card_id = v_av.id and e.tipo = 'avulso_concluido')
+       or exists (select 1 from public.plt_eventos e where e.card_id = v_av.id and e.tipo = 'card_desarquivado')
        or position('13787' in coalesce(v_av.titulo, '')) = 0 then
-      raise exception 'Parei: o avulso % não está como no raio-x (concluído, no quadro, do 13787).', v_avulsos[i];
+      raise exception 'Parei: o avulso % não está como no raio-x (concluído, do 13787).', v_avulsos[i];
     end if;
   end loop;
 
@@ -130,12 +133,6 @@ begin
               jsonb_build_object('manutencao', '2026-11-04_pedido_13787_entregue_por_engano',
                                  'avulso_card_id', v_av.id, 'pedido_id', v_pedido_id, 'numero', 13787,
                                  'item_seq', v_it.seq, 'excecao', 'avulso_vira_peca_so_neste_acerto'));
-    insert into public.plt_eventos (card_id, tipo, origem, observacao, dados)
-      values (v_av.id, 'card_arquivado', 'api',
-              format('Virou a peça %s do pedido 13787 (item %s) — o trabalho feito fica neste card.', v_novo, v_it.seq),
-              jsonb_build_object('manutencao', '2026-11-04_pedido_13787_entregue_por_engano',
-                                 'motivo', 'virou_peca_do_pedido', 'unidade_card_id', v_novo,
-                                 'pedido_id', v_pedido_id, 'numero', 13787));
     raise notice 'Avulso % → peça % (item %).', v_av.id, v_novo, v_it.seq;
   end loop;
 
