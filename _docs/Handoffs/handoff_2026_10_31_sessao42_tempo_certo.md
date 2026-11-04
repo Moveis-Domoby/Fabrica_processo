@@ -68,7 +68,7 @@ Os tempos estavam todos errados: três relógios diferentes (o mesmo armário da
 - ✅ **Subiu em 31/10** (~01:20 de Natal, OK do dono): as 4 atualizações uma a uma (`--so`; integração do Tiny idêntica em todas), depois o site (`main` `4051c08`). Conferido no banco real (leitura, como o dono): 609 passagens recalculadas (233 válidas, 17 a conferir, 42 retrabalho, 91 sem registro, 4 de admin, 131 teste, 122 ainda no setor), 373 trechos, 137 modelos sugeridos, os casos da demanda batendo, nenhum dia acima da jornada, o despertador marcado para o próximo fim de expediente (1 card rodando — terça 07:30, depois de Finados), a fila de recálculo vazia, o check dos tipos de evento validado, as portas respondendo (~5–100 ms + a rede).
 - **No primeiro dia útil (terça, 03/11):** conferir às 18:00 os cards pausados sozinhos; cadastrar os feriados de Natal/RN; confirmar os 137 modelos sugeridos.
 - **Confirmar as provisórias** D-204…D-211 (o "fim do expediente" de quem começa depois do horário; a divisão do trabalho simultâneo; o retrabalho; o gesto de admin; a data oficial só nas médias; os dias da conta; o modelo pelo nome; as escolhas da tela).
-- **ClickUp:** as 9 tarefas propostas pela demanda ainda não existem — criar com o OK do dono (regra 19).
+- ✅ **ClickUp (03/11, OK do dono):** as 9 tarefas criadas na lista PRODUÇÃO do DPTO TI, em FAZENDO, com o comentário de entrega — os links estão na demanda; **quem conclui é o dono**.
 - **Revisão em 2 semanas de dado limpo** (resposta 7): mínimo, teto e o fator.
 - **SESSAO-43** pode começar depois da subida (a tela de tempos, o Modo TV, o histórico do Trello).
 

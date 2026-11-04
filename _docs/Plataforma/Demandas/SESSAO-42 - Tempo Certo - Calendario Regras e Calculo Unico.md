@@ -1,7 +1,7 @@
 ---
 titulo: SESSAO-42 — O tempo certo: calendário da fábrica, regras de tempo válido em Configurações, corte na origem e um cálculo único para todas as telas
 tipo: demanda
-status: 📐 pronta para code (30/10/2026)
+status: ✅ no ar (31/10/2026)
 data: 2026-10-30
 atualizado: 2026-10-30
 tags: [plataforma, demandas, tempo, montagem, calendario, configuracoes, dashboards, kanban, tablet]
@@ -143,16 +143,16 @@ A tela **Dashboards → Tempos de produção** (abas Dia, Período, Móveis, Mon
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
 
-Propostas pelo Cowork, **a criar com o OK do dono** (regra 19):
-- Tempo - Pausa automática no fim do expediente
-- Tempo - Aviso de card esquecido sem resposta vira pausa
-- Tempo - Calendário da fábrica com almoço, sábados, feriados e hora extra
-- Tempo - Regras de tempo válido por setor em Configurações
-- Tempo - Cálculo único dos tempos de produção e recálculo desde 19/10
-- Kanban - Montar em lote na Montagem
-- Avisos - Móvel que pulou a montagem
-- Dashboards - Tempos por pessoa, Pessoas e Meu desempenho com o tempo certo
-- Kanban - Tempo do card e da janela do card com o tempo certo
+Criadas com o OK do dono em 03/11/2026 (regra 19), em FAZENDO, atribuídas ao dono, com o comentário de entrega — **quem conclui é o dono**:
+- [Tempo - Pausa automática no fim do expediente](https://app.clickup.com/t/17tya50pgua)
+- [Tempo - Aviso de card esquecido sem resposta vira pausa](https://app.clickup.com/t/17tya50pgub)
+- [Tempo - Calendário da fábrica com almoço, sábados, feriados e hora extra](https://app.clickup.com/t/17tya50pguc)
+- [Tempo - Regras de tempo válido por setor em Configurações](https://app.clickup.com/t/17tya50pgud)
+- [Tempo - Cálculo único dos tempos de produção e recálculo desde 19/10](https://app.clickup.com/t/17tya50pguf)
+- [Kanban - Montar em lote na Montagem](https://app.clickup.com/t/17tya50pgug)
+- [Avisos - Móvel que pulou a montagem](https://app.clickup.com/t/17tya50pguh)
+- [Dashboards - Tempos por pessoa, Pessoas e Meu desempenho com o tempo certo](https://app.clickup.com/t/17tya50pguj)
+- [Kanban - Tempo do card e da janela do card com o tempo certo](https://app.clickup.com/t/17tya50pguk)
 
 ## Numeração reservada
 
@@ -160,4 +160,4 @@ D-203…D-224 · E-170…E-189 · A-128…A-142 · migrations com o prefixo da d
 
 ## Resultado (preencher ao entregar)
 
-*O que foi feito, o que mudou de rota, link do handoff da sessão.*
+✅ **No ar em 31/10/2026** (banco e site, com o OK do dono). As 4 frentes entregues; o antes × depois com os dados reais em [[SESSAO-42 - antes e depois dos tempos]]. Mudou de rota: a lista de execuções e Pessoas passaram a ler o resumo por dia (o ensaio ×100 mostrou 8,7 s e 1 s); setor sem horário segue contando o dia todo (não foi semeado). Provisórias D-204…D-211 para o dono confirmar. Handoff: [[handoff_2026_10_31_sessao42_tempo_certo]].
