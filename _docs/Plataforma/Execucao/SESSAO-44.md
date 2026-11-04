@@ -51,3 +51,10 @@ tags: [plataforma, execucao, sessao-44]
 - Handoff escrito (`_docs/Handoffs/handoff_2026_11_04_sessao44_entrega_tiny_itens_novos.md`); a linha da ordem das sessões em "em andamento".
 - Cópia da main do rascunho removida (junção tirada antes).
 - **Espera o dono:** subir o banco, publicar o site, rodar o 13787 (ensaio antes), criar as tarefas do ClickUp.
+
+### 04/11 ~00:50 (Natal) — a atualização do banco NO AR (OK do dono: "Pode subir")
+- Antes: a main sem mudança; as 15 funções recriadas iguais no banco ao que foi copiado (nenhuma frente mexeu).
+- `npm run banco:aplicar -- --confirmar --so 20261104010000_plt_itens_novos_reabrir_entrega.sql`: ✔; integração do Tiny idêntica (`e2109f3a…`, 65 colunas, linhas idênticas).
+- Conferido no banco real: gatilho `plt_pedidos_zz_itens` adiado, índice `plt_cards_unidade_vaga_uq` (o velho saiu), check com `pedido_itens_alterados`; 13797 = vagas 1–3 com as peças de sempre e 4–6 livres; janela como admin (rollback) igual; 13787 = 4 vagas sem peça (ainda entregue — espera o acerto); **nenhum** pedido marcado completo com vaga sem peça.
+- Advisors (segurança e desempenho): nada novo desta atualização.
+- Esquema atualizado. Falta: site, acerto do 13787 (ensaio antes), ClickUp.
