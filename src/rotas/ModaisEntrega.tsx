@@ -48,7 +48,7 @@ const TEXTOS: Record<
   desfazer_entrega: {
     titulo: 'Desfazer a entrega',
     explica:
-      'Só a entrega de hoje se desfaz. Os móveis voltam para a ROTAS e o Tiny volta para a situação de antes.',
+      'Só a entrega de hoje se desfaz. Os móveis voltam para a ROTAS e o Tiny volta para a situação de antes (se ainda estiver "Entregue").',
     botao: 'Desfazer a entrega',
     feito: 'entrega desfeita',
     erro: 'Não deu para desfazer a entrega',
@@ -71,13 +71,29 @@ const TEXTOS: Record<
  * lista curta (Configurações → Utilitários) e, se quiser, escrever um detalhe.
  * Os botões de motivo são grandes — o entregador usa no celular (D-06).
  */
+/**
+ * SESSAO-44 (D-213): o mesmo gesto do desfazer, no nome do administrador —
+ * entrega de outro dia ou a que veio do Tiny.
+ */
+const TEXTOS_REABRIR = {
+  titulo: 'Reabrir entrega',
+  explica:
+    'Só o administrador reabre a entrega de outro dia ou a que veio do Tiny. O pedido e os móveis voltam; a peça do estoque volta reservada para o pedido. O Tiny só volta para a situação de antes se ainda estiver "Entregue".',
+  botao: 'Reabrir entrega',
+  feito: 'entrega reaberta',
+  erro: 'Não deu para reabrir a entrega',
+}
+
 export function ModalMotivoEntrega({
   tipo,
+  reabrir = false,
   pedido,
   pecas,
   aoFechar,
 }: {
   tipo: Exclude<TipoMotivo, 'pausa' | 'saida'>
+  /** SESSAO-44: o desfazer como "Reabrir entrega" do administrador (só os textos mudam). */
+  reabrir?: boolean
   pedido: PedidoDaEntrega | null
   /**
    * SESSAO-31 (D-129): pedido já entregue — quais peças voltaram (todas
@@ -88,7 +104,8 @@ export function ModalMotivoEntrega({
 }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
-  const textos = TEXTOS[tipo]
+  const textos =
+    reabrir && tipo === 'desfazer_entrega' ? { ...TEXTOS[tipo], ...TEXTOS_REABRIR } : TEXTOS[tipo]
   const [motivoId, setMotivoId] = useState<number | null>(null)
   const [observacao, setObservacao] = useState('')
   const [escolhidas, setEscolhidas] = useState<number[]>(() => (pecas ?? []).map((p) => p.id))

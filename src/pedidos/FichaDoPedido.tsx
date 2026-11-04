@@ -454,6 +454,7 @@ function PainelItens({ d }: { d: DetalhePedido }) {
 /** A entrega: programação, quando e por quem, o comprovante e os gestos da logística. */
 function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }) {
   const notificar = useNotificacao()
+  const souAdmin = useSessao().perfil?.papel === 'admin'
   const [desfazendo, setDesfazendo] = useState(false)
   const [devolvendo, setDevolvendo] = useState(false)
   const [decidindo, setDecidindo] = useState(false)
@@ -495,8 +496,23 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
   const endereco = juntar(onde)
   const enderecoCadastro = onde.de_entrega ? juntar(c) : ''
 
-  const podeDesfazer =
-    d.entrega?.por_gente && entregueHoje(d.entrega.em) && d.plataforma.card_id !== null
+  // SESSAO-44 (D-213): o desfazer do dia (entrega feita aqui, hoje) é de todos
+  // os que mexem na entrega; fora disso, só o administrador reabre — e a ficha
+  // explica o porquê em vez de esconder o botão. A parcial segue recusada.
+  const entrega = d.entrega
+  const temCard = d.plataforma.card_id !== null
+  const doDia = !!entrega?.por_gente && entregueHoje(entrega.em)
+  const podeDesfazer = !!entrega && !entrega.parcial && doDia && temCard
+  const podeReabrir = !!entrega && !entrega.parcial && !doDia && temCard && souAdmin
+  const semDesfazer = !entrega
+    ? null
+    : entrega.parcial
+      ? 'A entrega parcial não se desfaz por aqui: as peças que voltaram já estão com a logística (Decidir situação).'
+      : podeDesfazer || podeReabrir || !temCard
+        ? null
+        : !entrega.por_gente
+          ? 'Esta entrega veio do Tiny. Para reabrir, peça a um administrador.'
+          : 'A entrega foi em outro dia. Para reabrir, peça a um administrador.'
 
   return (
     <Painel titulo="Entrega e comprovante">
@@ -606,15 +622,16 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
               </Botao>
             </div>
           )}
+          {semDesfazer && <p className="text-xs text-texto-suave">{semDesfazer}</p>}
           <div className="flex flex-wrap gap-2">
-            {podeDesfazer && (
+            {(podeDesfazer || podeReabrir) && (
               <Botao
                 variante="secundaria"
                 tamanho="sm"
                 icone={<Undo2 />}
                 onClick={() => setDesfazendo(true)}
               >
-                Desfazer a entrega
+                {podeReabrir ? 'Reabrir entrega' : 'Desfazer a entrega'}
               </Botao>
             )}
             {/* SESSAO-31 (D-129): "devolução de peça já entregue pode ocorrer também". */}
@@ -678,6 +695,7 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
       <ModalMotivoEntrega
         key={desfazendo ? 'desfazer-aberto' : 'desfazer-fechado'}
         tipo="desfazer_entrega"
+        reabrir={podeReabrir}
         pedido={
           desfazendo && d.plataforma.card_id !== null
             ? { card_id: d.plataforma.card_id, numero: p.numero, cliente_nome: c.nome }

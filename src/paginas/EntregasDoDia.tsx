@@ -407,7 +407,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                     </span>
                   )}
                   {/* SESSAO-41 (D-195): a parcial não se desfaz (as que voltaram já estão com a logística). */}
-                  {e.entregue_por_gente && !e.entrega_parcial && entregueHoje(e.entregue_em) && (
+                  {e.entregue_por_gente && !e.entrega_parcial && entregueHoje(e.entregue_em) ? (
                     <Botao
                       variante="secundaria"
                       tamanho="sm"
@@ -416,6 +416,9 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                     >
                       Desfazer
                     </Botao>
+                  ) : (
+                    // SESSAO-44 (D-213): explica em vez de esconder o desfazer
+                    <span className="shrink-0 text-xs text-texto-suave">{porQueNaoDesfaz(e)}</span>
                   )}
                 </li>
               ))}
@@ -669,14 +672,29 @@ function CartaoEntrega({
       ) : (
         entrega.entregue_por_gente &&
         !entrega.entrega_parcial &&
-        entregueHoje(entrega.entregue_em) && (
+        entregueHoje(entrega.entregue_em) ? (
           <Botao variante="fantasma" icone={<Undo2 />} className="self-start" onClick={aoDesfazer}>
             Desfazer a entrega
           </Botao>
+        ) : (
+          entrega.entregue_em && (
+            <p className="text-xs text-texto-suave">{porQueNaoDesfaz(entrega)}</p>
+          )
         )
       )}
     </li>
   )
+}
+
+/**
+ * SESSAO-44 (D-213): por que a entrega não se desfaz aqui — a parcial vai pela
+ * decisão da logística; a do Tiny e a de outro dia, só o administrador reabre
+ * (na ficha do pedido).
+ */
+function porQueNaoDesfaz(e: Pick<EntregaDoDia, 'entregue_por_gente' | 'entrega_parcial'>): string {
+  if (e.entrega_parcial) return 'Entrega parcial: as peças que voltaram seguem pela decisão da logística.'
+  if (!e.entregue_por_gente) return 'Veio do Tiny: só um administrador reabre, na ficha do pedido.'
+  return 'Foi em outro dia: só um administrador reabre, na ficha do pedido.'
 }
 
 /**
