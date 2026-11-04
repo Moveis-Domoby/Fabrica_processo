@@ -234,6 +234,10 @@ grant execute on function public.plt_fn_programacao_candidatos(text, text, text,
 --     e a ordem das paradas não se quebram); caminhão e dia já eram filtros
 -- ----------------------------------------------------------------------------
 drop function if exists public.plt_fn_programadas(boolean, date, bigint, integer, integer);
+-- ↪️ SESSAO-45 (E-178): a de 6 argumentos também — a 20261105010000 mudou o retorno dela (+ CEP e
+-- ponto marcado à mão); sem isto, reaplicar esta (a bateria reaplica) quebraria. Em produção a
+-- ordem é esta → a 20261105010000, que derruba e recria a de 6 de novo.
+drop function if exists public.plt_fn_programadas(boolean, date, bigint, integer, integer, text);
 CREATE OR REPLACE FUNCTION public.plt_fn_programadas(p_entregues boolean DEFAULT false, p_data date DEFAULT NULL::date, p_caminhao_id bigint DEFAULT NULL::bigint, p_limite integer DEFAULT 50, p_deslocamento integer DEFAULT 0, p_busca text DEFAULT NULL::text)
  RETURNS TABLE(card_id bigint, pedido_id bigint, numero integer, cliente_nome text, endereco text, numero_endereco text, complemento text, bairro text, cidade text, uf text, geo_chave text, latitude double precision, longitude double precision, geo_resolvido boolean, endereco_geocodificavel text, geo_consultado_em timestamp with time zone, total_unidades integer, itens jsonb, data_prevista date, programacao_data date, caminhao_id bigint, caminhao_nome text, caminhao_placa text, rota integer, ordem integer, entregue_em timestamp with time zone, detalhe text, equipe text[], estado text, unidades_prontas integer, unidades_liberadas integer, contagem_total bigint)
  LANGUAGE sql

@@ -13111,8 +13111,14 @@ for (const grupo of ['pedido', 'reposicao', null]) {
     const velha = await comoLogado82(E40.admin, `select ${COLS82} from public.plt_fn_cards_pedido_pcp(10, ${desloc}, ${g})`)
     const nova = await comoLogado82(E40.admin, `select ${COLS82}, etiquetas, pedido_resumo from public.plt_fn_pcp_quadro(10, ${desloc}, ${g})`)
     linhasVistas82 += nova.length
-    const base = nova.map((l) => Object.fromEntries(Object.entries(l).filter(([k]) => k !== 'etiquetas' && k !== 'pedido_resumo')))
-    if (JSON.stringify(base) !== JSON.stringify(velha)) difs82.push({ grupo, desloc, motivo: 'página diferente' })
+    // ↪️ SESSAO-45: a conta das peças do estoque mudou DE PROPÓSITO (só o que falta liberar,
+    // não toda peça livre do SKU) — fora da comparação; a nova nunca passa da antiga
+    const semPecas82 = (l) => Object.fromEntries(Object.entries(l).filter(([k]) => k !== 'etiquetas' && k !== 'pedido_resumo' && k !== 'pecas_estoque'))
+    const base = nova.map(semPecas82)
+    if (JSON.stringify(base) !== JSON.stringify(velha.map(semPecas82))) difs82.push({ grupo, desloc, motivo: 'página diferente' })
+    nova.forEach((l, i) => {
+      if (velha[i] && l.id === velha[i].id && l.pecas_estoque > velha[i].pecas_estoque) difs82.push({ grupo, id: l.id, motivo: 'peças do estoque a mais' })
+    })
     const ids = nova.map((l) => l.id)
     const pedidosIds = [...new Set(nova.map((l) => l.pedido_id).filter((x) => x !== null))]
     const etq = ids.length
@@ -13128,7 +13134,7 @@ for (const grupo of ['pedido', 'reposicao', null]) {
       const esperado = l.pedido_id === null ? undefined : resPor.get(String(l.pedido_id))
       // SESSAO-38 (F5): o resumo ganhou o stand-by do pedido (standby_*) — fora da comparação
       const semStandby82 = l.pedido_resumo === null ? null
-        : Object.fromEntries(Object.entries(l.pedido_resumo).filter(([k]) => !k.startsWith('standby_')))
+        : Object.fromEntries(Object.entries(l.pedido_resumo).filter(([k]) => !k.startsWith('standby_') && k !== 'pecas_reservadas'))
       const veio = semStandby82 === null ? undefined : JSON.stringify(semStandby82)
       if (veio !== esperado) difs82.push({ grupo, id: l.id, motivo: 'resumo do pedido' })
       if (veio) comPedido82 += 1
@@ -16199,7 +16205,10 @@ try {
                      '20261031030000_plt_tempo_na_origem.sql', '20261031040000_plt_tempo_telas.sql',
                      // ↪️ SESSAO-44 (E-81): recria o check dos tipos (com 'pedido_itens_alterados'),
                      // a view de itens, a reação ao pedido e as portas da vaga pelo produto
-                     '20261104010000_plt_itens_novos_reabrir_entrega.sql']) {
+                     '20261104010000_plt_itens_novos_reabrir_entrega.sql',
+                     // ↪️ SESSAO-45: recria Já programadas (com o CEP e o ponto marcado à mão), as entregas
+                     // do dia, o quadro do PCP e o catálogo de avisos — vem por último, como em produção
+                     '20261105010000_plt_rotas_mapa_expedicao_pcp.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -19999,6 +20008,201 @@ try {
   await como44('')
 }
 } // fim do bloco SESSAO-44
+
+{ // SESSAO-45 (bloco em escopo próprio — E-70)
+titulo('SESSAO-45 · a peça pronta liberada para outro pedido, o ponto marcado à mão e o PCP honesto sobre o estoque')
+
+const um45 = async (sql) => (await bd.query(sql)).rows[0]
+const como45 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j45 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha45 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f45')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f45')
+  }
+}
+const item45 = (codigo, descricao, qtd = '1.00') =>
+  ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } })
+const pedido45 = (numero, situacao, itens) => ({
+  id: String(7945000 + (numero % 1000)), numero: String(numero), data_pedido: '02/11/2026', data_prevista: '25/11/2026', situacao,
+  total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 45',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: `Cliente Teste ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste 45', numero: '45', complemento: '', bairro: 'Centro', cep: '59000-450', cidade: 'Natal',
+             uf: 'RN', fone: '84999994545', email: '' },
+  itens,
+})
+const gravar45 = async (p) => {
+  const id = (await um45(`select public.fn_upsert_pedido(p => ${j45(p)}, p_tipo => 'inclusao_pedido', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const MESA45 = item45('SX45M', 'Mesa Teste 45 - Branco')
+const NICHO45 = item45('SX45N', 'Nicho Teste 45 - Preto')
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (945101, 'SX45M', 'Mesa Teste 45 - Branco', 'F', 'A', 'un'),
+      (945102, 'SX45N', 'Nicho Teste 45 - Preto', 'F', 'A', 'un'),
+      (945103, 'SX45Z', 'Banco Teste 45 - Natural', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;`)
+  const aguardo = (await um45(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+  const estoque = (await um45(`select id::int as id from public.plt_setores where codigo = 'estoque'`)).id
+  const cardDe = async (pedidoId) => (await um45(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  // a peça PRONTA do pedido, na Expedição (como a produção deixa)
+  const pronta = async (pedidoId, card, seq, k, n, codigo, descricao) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pedidoId}, ${card}, ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${aguardo}, 'api');`)
+    return (await um45(`select max(id)::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'unidade'`)).id
+  }
+  const retrato = (card) => um45(`select c.liberado_completo_em is not null as completo, c.standby_desde is not null as standby,
+      (select coalesce(jsonb_agg(jsonb_build_object('cod', u.item_codigo, 'vivo', u.arquivado_em is null, 'setor', s.codigo,
+                                                    'pronta', u.concluido_em is not null) order by u.id), '[]')
+         from public.plt_cards u left join public.plt_setores s on s.id = u.setor_atual_id
+        where u.pedido_id = c.pedido_id and u.tipo = 'unidade') as pecas,
+      (select coalesce(jsonb_object_agg(t.tipo, t.n), '{}') from (select n.tipo, count(*)::int as n from public.plt_notificacoes n
+         where n.card_id = c.id group by n.tipo) t) as avisos
+    from public.plt_cards c where c.id = ${card}`)
+
+  // A (pronto na Expedição) e B (chegou depois, com a mesma mesa, ainda no PCP)
+  const idA = await gravar45(pedido45(945001, 'Preparando envio', [MESA45]))
+  const cardA = await cardDe(idA)
+  const pecaA = await pronta(idA, cardA, 1, 1, 1, 'SX45M', 'Mesa Teste 45 - Branco')
+  const idB = await gravar45(pedido45(945002, 'Aprovado', [NICHO45, MESA45]))
+  const cardB = await cardDe(idB)
+  await gravar45(pedido45(945003, 'Aprovado', [NICHO45]))
+  const a0 = await retrato(cardA)
+
+  await como45(E40.logistica)
+  const prev = (await um45(`select public.plt_fn_liberar_peca_destino(${pecaA}, 945002) as r`)).r
+  const prevMesmo = (await um45(`select public.plt_fn_liberar_peca_destino(${pecaA}, 945001) as r`)).r
+  const prevSem = (await um45(`select public.plt_fn_liberar_peca_destino(${pecaA}, 945003) as r`)).r
+  const prevNada = (await um45(`select public.plt_fn_liberar_peca_destino(${pecaA}, 945999) as r`)).r
+  await como45('')
+  conferir(a0.completo && prev.ok && prev.numero_origem === 945001 && prev.numero_destino === 945002
+      && prev.vaga.item_seq === 2 && prev.vaga.indice_unidade === 1
+      && !prevMesmo.ok && !prevSem.ok && /não tem esse móvel/.test(prevSem.motivo) && !prevNada.ok && /Não achei/.test(prevNada.motivo),
+    'a conferência acha a vaga do pedido de destino que espera a MESMA mesa (item 2) e explica por que não dá: mesmo pedido, outro móvel, pedido que não existe',
+    JSON.stringify({ prev, prevMesmo, prevSem, prevNada }))
+
+  await como45(E40.operador)
+  await falha45(`select public.plt_fn_liberar_peca(${pecaA}, 945002, null, true, 'chave-teste-45-op')`,
+    'quem não é da logística não libera peça', /logística ou de admin/)
+  await como45(E40.logistica)
+  await falha45(`select public.plt_fn_liberar_peca(${pecaA}, null, '  ', true, 'chave-teste-45-sm')`,
+    'sem pedido de destino, o motivo da substituição é obrigatório', /motivo da substituição/)
+  const feito = (await um45(`select public.plt_fn_liberar_peca(${pecaA}, 945002, null, true, 'chave-teste-45-a') as r`)).r
+  const repetido = (await um45(`select public.plt_fn_liberar_peca(${pecaA}, 945002, null, true, 'chave-teste-45-a') as r`)).r
+  await como45('')
+  const a1 = await retrato(cardA)
+  const b1 = await retrato(cardB)
+  const pecaAntiga = await um45(`select pedido_id, arquivado_em is not null as arquivada from public.plt_cards where id = ${pecaA}`)
+  conferir(feito.feito && feito.numero_destino === 945002 && repetido.repetido === true
+      && pecaAntiga.arquivada && pecaAntiga.pedido_id === null
+      && !a1.completo && a1.pecas.length === 0 && (a1.avisos.pedido_peca_liberada ?? 0) >= 1
+      && b1.pecas.length === 1 && b1.pecas[0].cod === 'SX45M' && b1.pecas[0].setor === 'aguardo' && b1.pecas[0].pronta && !b1.completo,
+    'liberada para o 945002: o pedido de origem volta ao PCP (vaga aberta) e o PCP é avisado; o destino ganha a mesa PRONTA na Expedição, na vaga dela; a peça antiga sai das contas; o toque repetido não faz nada',
+    JSON.stringify({ feito, repetido, a1, b1, pecaAntiga }))
+
+  // a janela de liberação do PCP oferece de novo a mesa ao pedido de origem; ao destino, só o nicho
+  await como45(E40.logistica)
+  const janA = (await um45(`select public.plt_fn_pcp_liberacao(${cardA}) as j`)).j
+  const janB = (await um45(`select public.plt_fn_pcp_liberacao(${cardB}) as j`)).j
+  await como45('')
+  conferir(janA.ja_liberadas.length === 0 && JSON.stringify(janB.ja_liberadas) === JSON.stringify([{ item_seq: 2, indice_unidade: 1 }]),
+    'a janela do PCP: o pedido de origem libera a mesa de novo; o de destino só o que falta (o nicho)',
+    JSON.stringify({ a: janA.ja_liberadas, b: janB.ja_liberadas }))
+
+  // substituição sem pedido de destino, sem nova produção agora = stand-by no PCP
+  const idD = await gravar45(pedido45(945004, 'Preparando envio', [NICHO45]))
+  const cardD = await cardDe(idD)
+  const pecaD = await pronta(idD, cardD, 1, 1, 1, 'SX45N', 'Nicho Teste 45 - Preto')
+  await como45(E40.logistica)
+  const sub = (await um45(`select public.plt_fn_liberar_peca(${pecaD}, null, 'Foi para a vitrine da loja', false, 'chave-teste-45-d') as r`)).r
+  await como45('')
+  const d1 = await retrato(cardD)
+  const fatoD = await um45(`select e.observacao, e.dados from public.plt_eventos e where e.card_id = ${pecaD} and e.tipo = 'unidade_desvinculada'`)
+  conferir(sub.feito && sub.standby && d1.standby && !d1.completo && d1.pecas.length === 0
+      && fatoD.dados.motivo === 'substituida' && /vitrine/.test(fatoD.observacao),
+    'substituição com motivo e "não produzir agora": a peça sai, o pedido volta ao PCP em stand-by, e o motivo fica no fato',
+    JSON.stringify({ sub, d1, fatoD }))
+
+  // programado + "não produzir agora" = recusa explicada (a rota não leva pedido em stand-by)
+  const idE = await gravar45(pedido45(945005, 'Preparando envio', [NICHO45]))
+  const cardE = await cardDe(idE)
+  const pecaE = await pronta(idE, cardE, 1, 1, 1, 'SX45N', 'Nicho Teste 45 - Preto')
+  const cam45 = (await um45(`select id::int as id from public.plt_caminhoes where arquivado_em is null order by id limit 1`)).id
+  await como45(E40.logistica)
+  await bd.exec(`select public.plt_fn_programar_entrega(${cardE}, '2026-11-20', ${cam45})`)
+  await falha45(`select public.plt_fn_liberar_peca(${pecaE}, null, 'Foi para a vitrine', false, 'chave-teste-45-e')`,
+    'pedido programado não vai para stand-by: a recusa diz o que fazer', /programado para a entrega.*tire-o da programação/)
+  await como45('')
+
+  // ---------------- o ponto marcado à mão ----------------
+  const end45 = (await um45(`select ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep,
+      plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep) as texto
+      from plt_privado.vw_endereco_entrega ee where ee.pedido_id = ${idE}`)).texto
+  const chave45 = (await um45(`select md5(lower('${end45}')) as k`)).k
+  await como45(E40.operador)
+  await falha45(`select public.plt_fn_geo_marcar('${chave45}', '${end45}', -5.8, -35.2)`, 'operador não marca ponto no mapa', /logística ou de admin/)
+  await como45(E40.logistica)
+  await falha45(`select public.plt_fn_geo_marcar('${chave45}', 'outro endereço', -5.8, -35.2)`, 'a chave precisa ser a do endereço', /não confere/)
+  await falha45(`select public.plt_fn_geo_marcar('${chave45}', '${end45}', 40.7, -74.0)`, 'ponto fora do Brasil é recusado', /fora do Brasil/)
+  const logsAntes = (await um45(`select count(*)::int as n from public.plt_logs_atividade where acao like 'mapa_ponto_%'`)).n
+  await bd.exec(`select public.plt_fn_geo_marcar('${chave45}', '${end45}', -5.79, -35.21)`)
+  const g1 = await um45(`select resolvido, fonte, latitude from public.plt_geocache where chave = '${chave45}'`)
+  const prog45 = await um45(`select geo_manual, cep, latitude from public.plt_fn_programadas(false, '2026-11-20', ${cam45}, 200, 0) where card_id = ${cardE}`)
+  await bd.exec(`select public.plt_fn_geo_marcar('${chave45}', '${end45}', null, null)`)
+  const g2 = await um45(`select count(*)::int as n from public.plt_geocache where chave = '${chave45}'`)
+  const logsDepois = (await um45(`select count(*)::int as n from public.plt_logs_atividade where acao like 'mapa_ponto_%'`)).n
+  await como45('')
+  conferir(g1.resolvido && g1.fonte === 'manual' && g1.latitude === -5.79
+      && prog45?.geo_manual === true && prog45?.cep === '59000-450' && prog45?.latitude === -5.79
+      && g2.n === 0 && logsDepois === logsAntes + 2,
+    'a logística marca o ponto (fonte manual), "Já programadas" devolve o ponto, o CEP e que ele foi marcado à mão; desmarcar volta à busca automática; os dois gestos ficam registrados',
+    JSON.stringify({ end45, g1, prog45, g2, logsAntes, logsDepois }))
+
+  // ---------------- o PCP honesto: o que falta, não o estoque inteiro ----------------
+  for (let i = 0; i < 3; i++) {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, item_codigo, item_descricao, indice_unidade, total_unidades, produto_tiny_id)
+        values ('unidade', 'SX45Z', 'Banco Teste 45 - Natural', 1, 1, 945103);
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${estoque}, 'api');`)
+  }
+  const idF = await gravar45(pedido45(945006, 'Aprovado', [item45('SX45Z', 'Banco Teste 45 - Natural')]))
+  const cardF = await cardDe(idF)
+  await como45(E40.admin)
+  const qF = await um45(`select q.pecas_estoque, q.pedido_resumo ->> 'pecas_reservadas' as reservadas
+                           from public.plt_fn_pcp_quadro(100, 0, null, null, '945006') q where q.id = ${cardF}`)
+  await como45('')
+  conferir(qF?.pecas_estoque === 1 && qF?.reservadas === '0',
+    'o PCP diz "1 livre no estoque" para o pedido que precisa de 1 — não as 3 livres do estoque inteiro; reservadas à parte (0)',
+    JSON.stringify(qF))
+
+  const pr45 = await um45(`
+    select has_function_privilege('anon', 'public.plt_fn_liberar_peca(bigint, integer, text, boolean, text)', 'execute') as anon_lib,
+           has_function_privilege('anon', 'public.plt_fn_geo_marcar(text, text, double precision, double precision)', 'execute') as anon_geo,
+           has_function_privilege('authenticated', 'plt_privado.fn_liberar_peca_avaliar(bigint, integer)', 'execute') as avaliar,
+           has_function_privilege('authenticated', 'public.plt_fn_liberar_peca_destino(bigint, integer)', 'execute') as logado`)
+  conferir(!pr45.anon_lib && !pr45.anon_geo && !pr45.avaliar && pr45.logado,
+    'as portas novas só para quem tem login; a regra da liberação fora da API', JSON.stringify(pr45))
+} finally {
+  await bd.exec('rollback')
+  await como45('')
+}
+} // fim do bloco SESSAO-45
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
