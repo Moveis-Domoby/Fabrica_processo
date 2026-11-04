@@ -16196,7 +16196,10 @@ try {
   // (com o 'tempo_decisao') e o VALIDA, o despertador do card esquecido (com o
   // corte), a régua e as portas de tempo — vem depois de todas, como em produção
   for (const m42 of ['20261031010000_plt_tempo_calendario_regras.sql', '20261031020000_plt_tempo_calculo_unico.sql',
-                     '20261031030000_plt_tempo_na_origem.sql', '20261031040000_plt_tempo_telas.sql']) {
+                     '20261031030000_plt_tempo_na_origem.sql', '20261031040000_plt_tempo_telas.sql',
+                     // ↪️ SESSAO-44 (E-81): recria o check dos tipos (com 'pedido_itens_alterados'),
+                     // a view de itens, a reação ao pedido e as portas da vaga pelo produto
+                     '20261104010000_plt_itens_novos_reabrir_entrega.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -19761,6 +19764,241 @@ try {
   await como42('')
 }
 } // fim do bloco SESSAO-42
+
+{ // SESSAO-44 (bloco em escopo próprio — E-70)
+titulo('SESSAO-44 · itens novos no Tiny, a peça ligada ao produto, reabrir a entrega e a volta do Tiny')
+
+const um44 = async (sql) => (await bd.query(sql)).rows[0]
+const como44 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j44 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha44 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f44')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f44')
+  }
+}
+const item44 = (codigo, descricao, qtd = '1.00', valor = '100.00') =>
+  ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: valor } })
+const pedido44 = (tinyId, numero, situacao, itens) => ({
+  id: String(tinyId), numero: String(numero), data_pedido: '01/11/2026', data_prevista: '20/11/2026', situacao,
+  total_produtos: '300.00', total_pedido: '300.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 44',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: 'Cliente Teste 44', nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste', numero: '44', complemento: '', bairro: 'Centro', cep: '59000-000', cidade: 'Natal',
+             uf: 'RN', fone: '84999994444', email: '' },
+  itens,
+})
+// O gatilho dos itens é ADIADO: no banco ele roda no COMMIT, depois de a gravação
+// regravar os itens. Aqui (tudo numa transação que se desfaz no fim), o "set
+// constraints … immediate" dispara o que ficou pendente — o mesmo ponto do COMMIT.
+// (Ligado "immediate" ANTES da gravação, ele rodaria no meio dela, com os itens
+// antigos — não é o que acontece no banco.)
+const gravar44 = async (p, tipo = 'atualizacao_pedido') => {
+  const id = (await um44(`select public.fn_upsert_pedido(p => ${j44(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const A44 = item44('SX44A', 'Mesa Teste 44 - Branco')
+const B44 = item44('SX44B', 'Balcão Teste 44 - Branco')
+const C44 = item44('SX44C', 'Aéreo Teste 44 - Branco')
+const D44 = item44('SX44D', 'Nicho Teste 44 - Branco')
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (944401, 'SX44A', 'Mesa Teste 44 - Branco', 'F', 'A', 'un'),
+      (944402, 'SX44B', 'Balcão Teste 44 - Branco', 'F', 'A', 'un'),
+      (944403, 'SX44C', 'Aéreo Teste 44 - Branco', 'F', 'A', 'un'),
+      (944404, 'SX44D', 'Nicho Teste 44 - Branco', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;`)
+  const secc = (await um44(`select id::int as id from public.plt_setores where codigo = 'secc'`)).id
+  const logId = (await um44(`select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'`)).id
+  const cardDe = async (pedidoId) => (await um44(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  const liberar = async (card, vagas) => {
+    await como44(E40.logistica)
+    await bd.exec(`select public.plt_fn_pcp_liberar(${card}, ${j44(vagas.map(([s, k]) => ({ item_seq: s, indice_unidade: k, setor_id: secc })))})`)
+    await como44('')
+  }
+  const retrato = (card) => um44(`select c.liberado_completo_em is not null as completo, c.arquivado_em is not null as arquivado,
+      c.entrega_evento_id is not null as entregue,
+      (select count(*)::int from public.plt_eventos e where e.card_id = c.id and e.tipo = 'pedido_itens_alterados') as fatos,
+      (select e.dados from public.plt_eventos e where e.card_id = c.id and e.tipo = 'pedido_itens_alterados' order by e.id desc limit 1) as fato,
+      (select count(*)::int from public.plt_eventos e where e.card_id = c.id and e.tipo = 'entrega_desfeita') as desfeitas,
+      (select coalesce(jsonb_agg(jsonb_build_object('seq', u.item_seq, 'cod', u.item_codigo, 'vivo', u.arquivado_em is null) order by u.id), '[]')
+         from public.plt_cards u where u.pedido_id = c.pedido_id and u.tipo = 'unidade') as pecas,
+      (select coalesce(jsonb_object_agg(t.tipo, t.n), '{}') from (select n.tipo, count(*)::int as n from public.plt_notificacoes n
+         where n.card_id = c.id group by n.tipo) t) as avisos
+    from public.plt_cards c where c.id = ${card}`)
+  const janela = async (card) => {
+    await como44(E40.logistica)
+    const j = (await um44(`select public.plt_fn_pcp_liberacao(${card}) as j`)).j
+    await como44('')
+    return j
+  }
+
+  // ---------------- Frente 2/3: o item inserido no MEIO da lista ----------------
+  const pA = (sit, itens) => pedido44(7944001, 944001, sit, itens)
+  const idA = await gravar44(pA('Aprovado', [A44, B44]), 'inclusao_pedido')
+  const cardA = await cardDe(idA)
+  await liberar(cardA, [[1, 1], [2, 1]])
+  const a0 = await retrato(cardA)
+  await gravar44(pA('Aprovado', [A44, C44, B44]))
+  const a1 = await retrato(cardA)
+  const janA = await janela(cardA)
+  conferir(a0.completo && !a1.completo && a1.fatos === 1 && a1.fato.fluxo === 'producao'
+      && a1.fato.entrou.length === 1 && a1.fato.entrou[0].codigo === 'SX44C' && a1.fato.saiu.length === 0
+      && a1.pecas.map((p) => `${p.seq}:${p.cod}:${p.vivo}`).join(',') === '1:SX44A:true,2:SX44B:true'
+      && (a1.avisos.pedido_itens_novos ?? 0) >= 1
+      && JSON.stringify(janA.ja_liberadas) === JSON.stringify([{ item_seq: 1, indice_unidade: 1 }, { item_seq: 3, indice_unidade: 1 }]),
+    'item inserido no meio da lista do Tiny: o pedido volta ao PCP só com a vaga nova, o fato conta o que entrou, o PCP é avisado e nenhuma peça troca de produto (o balcão na posição 2 cobre a posição 3)',
+    JSON.stringify({ a0: a0.completo, a1, ja: janA.ja_liberadas }))
+  await liberar(cardA, [[2, 1]])
+  await liberar(cardA, [[2, 1]]) // de novo: pula
+  const a2 = await retrato(cardA)
+  conferir(a2.completo && a2.pecas.length === 3 && a2.pecas[2].cod === 'SX44C' && a2.pecas[2].seq === 2,
+    'a vaga nova nasce na posição em que já existe peça de outro produto, uma vez só; o pedido volta a ficar completo',
+    JSON.stringify(a2.pecas))
+  await falha44(`insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+                   values ('unidade', ${idA}, 2, 'SX44C', 'Aéreo Teste 44 - Branco', 1, 1)`,
+    'a mesma peça do mesmo produto na mesma vaga segue barrada pelo banco', /unique|duplicate|duplicad/i)
+
+  // só o preço muda: nada
+  await gravar44(pA('Aprovado', [A44, item44('SX44C', 'Aéreo Teste 44 - Branco', '1.00', '150.00'), B44]))
+  const a3 = await retrato(cardA)
+  conferir(a3.fatos === 1 && a3.completo, 'mudança só de preço no Tiny não mexe no PCP (nenhum fato, o pedido segue completo)', JSON.stringify({ fatos: a3.fatos }))
+
+  // o balcão sai: nada se arquiva, o PCP é avisado
+  await gravar44(pA('Aprovado', [A44, C44]))
+  const a4 = await retrato(cardA)
+  conferir(a4.fatos === 2 && a4.fato.saiu.length === 1 && a4.fato.saiu[0].codigo === 'SX44B'
+      && a4.pecas.every((p) => p.vivo) && (a4.avisos.pedido_itens_sairam ?? 0) >= 1 && a4.completo,
+    'item que saiu no Tiny com peça feita: a peça NÃO é arquivada, o fato conta o que saiu e o PCP é avisado',
+    JSON.stringify(a4))
+
+  // ---------------- Em rota: volta ao PCP, segue na rota, a logística é avisada ----------------
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem) values (${cardA}, 'pedido_lancado_rotas', '${logId}', 'interface')`)
+  await gravar44(pA('Aprovado', [A44, C44, D44]))
+  const a5 = await retrato(cardA)
+  const rota5 = await um44(`select lancado_rotas_em is not null as em_rota from public.plt_cards where id = ${cardA}`)
+  await liberar(cardA, [[3, 1]])
+  const a6 = await retrato(cardA)
+  conferir(!a5.completo && a5.fato.fluxo === 'em_rota' && rota5.em_rota && (a5.avisos.pedido_itens_rota ?? 0) >= 1
+      && a6.completo && a6.pecas.length === 4,
+    'pedido em rota que ganhou item: volta ao PCP só com o novo, segue na rota, a logística é avisada para segurar e o PCP consegue liberar',
+    JSON.stringify({ a5, rota5, a6: a6.completo }))
+
+  // ---------------- Frente 5: a entrega do Tiny que volta atrás ----------------
+  await como44(E40.logistica)
+  await bd.exec(`select public.plt_fn_estoque_movimentar(944402, 'entrada', 1, 'teste 44')`)
+  await como44('')
+  const pB = (sit, itens) => pedido44(7944002, 944002, sit, itens)
+  const idB = await gravar44(pB('Aprovado', [A44, B44]), 'inclusao_pedido')
+  const cardB = await cardDe(idB)
+  await liberar(cardB, [[1, 1]])
+  const pecaB = (await um44(`select c.id::int as id from public.plt_cards c join public.plt_setores s on s.id = c.setor_atual_id and s.codigo = 'estoque'
+                              where c.produto_tiny_id = 944402 and c.pedido_id is null and c.arquivado_em is null order by c.id limit 1`)).id
+  await bd.exec(`select set_config('plt.estoque_maquinaria', 'on', true);
+    insert into public.plt_eventos (card_id, tipo, origem, dados) values (${pecaB}, 'peca_reservada', 'automacao',
+      jsonb_build_object('pedido_id', ${idB}, 'numero', 944002, 'item_seq', 2, 'indice_unidade', 1, 'total_unidades', 1, 'produto_tiny_id', 944402));
+    select set_config('plt.estoque_maquinaria', '', true);`)
+  const reservaB = async () => um44(`select arquivado_em is not null as arquivada, reservada_pedido_id = ${idB} as reservada,
+                                            reservada_item_seq as seq from public.plt_cards where id = ${pecaB}`)
+  await gravar44(pB('Entregue', [A44, B44]))
+  const b1 = await retrato(cardB)
+  const rb1 = await reservaB()
+  await gravar44(pB('Preparando envio', [A44, B44]))
+  const b2 = await retrato(cardB)
+  const rb2 = await reservaB()
+  await gravar44(pB('Preparando envio', [A44, B44])) // aviso repetido
+  const b3 = await retrato(cardB)
+  conferir(b1.entregue && b1.arquivado && rb1.arquivada && !rb1.reservada
+      && !b2.entregue && !b2.arquivado && b2.desfeitas === 1 && b2.pecas.every((p) => p.vivo)
+      && !rb2.arquivada && rb2.reservada && rb2.seq === 2 && (b2.avisos.tiny_saiu_de_entregue ?? 0) >= 1
+      && b3.desfeitas === 1,
+    'Tiny Entregue → Preparando envio: a entrega do Sistema reabre uma vez só (aviso repetido não faz nada), a peça volta, a peça do estoque volta RESERVADA ao mesmo pedido e vaga e a logística é avisada',
+    JSON.stringify({ b1: b1.entregue, rb1, b2, rb2, b3: b3.desfeitas }))
+
+  // ---------------- Frente 4: reabrir a entrega do Tiny é do admin ----------------
+  await gravar44(pB('Entregue', [A44, B44]))
+  const motivo44 = (await um44(`select id::int as id from public.plt_motivos where tipo = 'desfazer_entrega' and ativo order by id limit 1`)).id
+  await como44(E40.logistica)
+  await falha44(`select public.plt_fn_entrega_desfazer(${cardB}, ${motivo44}, 'teste')`,
+    'a logística não reabre a entrega que veio do Tiny (só o admin) — com a explicação', /só um administrador/)
+  await como44(E40.admin)
+  const reabriu = (await um44(`select public.plt_fn_entrega_desfazer(${cardB}, ${motivo44}, 'teste 44') as r`)).r
+  await como44('')
+  const b4 = await retrato(cardB)
+  const rb4 = await reservaB()
+  conferir(reabriu.desfeita && reabriu.situacao_tiny === 'preparando_envio' && !b4.entregue && !b4.arquivado
+      && !rb4.arquivada && rb4.reservada,
+    'o admin reabre a entrega do Tiny (com motivo): o pedido e as peças voltam, a do estoque reservada, e o Tiny (ainda "Entregue") volta à situação de antes',
+    JSON.stringify({ reabriu, b4: { entregue: b4.entregue, arquivado: b4.arquivado }, rb4 }))
+
+  // ---------------- A entrega de pessoa: o Tiny volta atrás e nada reabre ----------------
+  const pC = (sit, itens) => pedido44(7944003, 944003, sit, itens)
+  const idC = await gravar44(pC('Aprovado', [A44]), 'inclusao_pedido')
+  const cardC = await cardDe(idC)
+  await liberar(cardC, [[1, 1]])
+  await bd.exec(`select plt_privado.fn_fechar_pedido(${cardC}, '${logId}', 'interface', 'entregue no teste 44', 'plataforma')`)
+  await gravar44(pC('Entregue', [A44]))
+  await gravar44(pC('Preparando envio', [A44]))
+  const c1 = await retrato(cardC)
+  const c1f = await um44(`select count(*)::int as n from public.plt_eventos e where e.card_id = ${cardC} and e.tipo = 'pedido_atualizado'
+                            and (e.dados ->> 'tiny_saiu_de_entregue')::boolean`)
+  conferir(c1.entregue && c1.desfeitas === 0 && c1f.n === 1 && (c1.avisos.tiny_saiu_de_entregue ?? 0) >= 1,
+    'a mesma volta no Tiny com a entrega registrada por pessoa: não reabre, fica na trilha e a logística é avisada',
+    JSON.stringify({ c1, c1f }))
+  await como44(E40.logistica)
+  const desfezC = (await um44(`select public.plt_fn_entrega_desfazer(${cardC}, ${motivo44}, 'teste 44') as r`)).r
+  await como44('')
+  conferir(desfezC.desfeita && desfezC.tiny === 'nao_enviado',
+    'o desfazer do dia segue para a logística; como o Tiny já saiu de "Entregue", nada é enviado a ele',
+    JSON.stringify(desfezC))
+
+  // ---------------- Entregue e o Tiny ganha item: pendência só do novo ----------------
+  await bd.exec(`select plt_privado.fn_fechar_pedido(${cardC}, '${logId}', 'interface', 'entregue de novo', 'plataforma')`)
+  await gravar44(pC('Preparando envio', [A44, B44]))
+  const c2 = await retrato(cardC)
+  const janC = await janela(cardC)
+  conferir(!c2.entregue && !c2.arquivado && c2.fato.fluxo === 'entregue' && !c2.completo
+      && c2.pecas.length === 1 && !c2.pecas[0].vivo
+      && JSON.stringify(janC.ja_liberadas) === JSON.stringify([{ item_seq: 1, indice_unidade: 1 }]),
+    'pedido entregue que ganha item no Tiny: abre a pendência só do item novo — o que ficou com o cliente segue entregue e o PCP só tem a vaga nova',
+    JSON.stringify({ c2, ja: janC.ja_liberadas }))
+
+  // ---------------- Outro dia: só o admin ----------------
+  const pE = (sit, itens) => pedido44(7944005, 944005, sit, itens)
+  const idE = await gravar44(pE('Aprovado', [A44]), 'inclusao_pedido')
+  const cardE = await cardDe(idE)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, dados)
+                   values (${cardE}, 'pedido_entregue', '${logId}', 'interface', now() - interval '2 days',
+                           jsonb_build_object('fonte', 'plataforma', 'situacao_tiny', 'Aprovado'))`)
+  await como44(E40.logistica)
+  await falha44(`select public.plt_fn_entrega_desfazer(${cardE}, ${motivo44}, 'teste')`,
+    'a logística não desfaz a entrega de outro dia (só o admin reabre) — com a explicação', /mesmo dia.*administrador/)
+  await como44(E40.admin)
+  const reabriuE = (await um44(`select public.plt_fn_entrega_desfazer(${cardE}, ${motivo44}, 'teste') as r`)).r
+  await como44('')
+  conferir(reabriuE.desfeita, 'o admin reabre a entrega de outro dia', JSON.stringify(reabriuE))
+
+  const pr44 = await um44(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_vagas_pedido(bigint)', 'execute') as vagas,
+           has_function_privilege('authenticated', 'plt_privado.fn_reabrir_entrega(bigint, uuid, text, text, jsonb, boolean)', 'execute') as reabrir,
+           has_function_privilege('anon', 'public.plt_fn_entrega_desfazer(bigint, bigint, text)', 'execute') as anon,
+           has_function_privilege('authenticated', 'public.plt_fn_entrega_desfazer(bigint, bigint, text)', 'execute') as logado`)
+  conferir(!pr44.vagas && !pr44.reabrir && !pr44.anon && pr44.logado, 'a maquinaria nova fora da API; a porta do desfazer só para quem tem login', JSON.stringify(pr44))
+} finally {
+  await bd.exec('rollback')
+  await como44('')
+}
+} // fim do bloco SESSAO-44
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
