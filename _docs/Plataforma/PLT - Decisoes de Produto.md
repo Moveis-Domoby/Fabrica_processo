@@ -2045,6 +2045,41 @@ O sistema sugere o modelo pelo **nome do móvel** (o do item do pedido ou o tít
 7. **Montar juntos:** de 2 a 20 cards, só na fila e sem ninguém neles; "Concluir o lote" leva todos os que ainda rodam com o mesmo lote para a mesma etapa.
 8. **A decisão manual** só vale para passagem que já saiu do setor; motivo obrigatório; quem decide: líder do setor ou admin.
 
+## D-212 · ⏳ PROVISÓRIA — Itens que o Tiny muda depois da liberação (04/11/2026)
+
+Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demanda não dizia:
+1. **Como a plataforma percebe:** um gatilho ADIADO em `pedidos` (roda no fim da gravação do Tiny, com os itens já regravados) compara os itens de produção de antes e de agora **por produto e quantidade** — preço, observação, ordem da lista e frete não contam. Escolhido o gatilho (o preferido da demanda), não um trecho na porta de gravação do n8n.
+2. **Entrou item:** fato novo na trilha (o que entrou e o que saiu), a conta da liberação é refeita (o pedido volta ao quadro do PCP só com as vagas novas; o que está em andamento não muda) e o PCP recebe aviso no sino (público novo "PCP": quem é do setor de entrada e os administradores).
+3. **Em rota:** volta ao PCP, segue na rota, a logística recebe "Segure a entrega". O PCP pode liberar a vaga nova mesmo com o pedido lançado (antes a liberação recusava pedido lançado para ROTAS — agora recusa só quando não falta nada).
+4. **Já entregue (inteira):** a entrega reabre **só na plataforma** (o Tiny não muda) e fica a pendência só dos itens novos — o que ficou com o cliente segue entregue. ⚠️ Se o Tiny continuar "Entregue", o quadro do PCP não mostra o pedido (a regra "Entregue no Tiny sai do PCP" vale); o PCP abre pelo aviso. Fica como dívida.
+5. **Entrega parcial, devolvido e cancelado:** nada reabre sozinho; fato na trilha e aviso (PCP e logística).
+6. **Item que saiu ou diminuiu com peça já criada:** nunca arquiva; o PCP recebe "item saiu com peça feita" e decide.
+7. **Card arquivado sem entrega** (limpeza, arquivado à mão): o Tiny reler os itens não faz nada.
+8. **Reserva do estoque:** o pedido que ganhou itens é avaliado de novo (só as vagas ainda sem peça e sem reserva) — antes, só na chegada.
+
+## D-213 · ⏳ PROVISÓRIA — Reabrir a entrega (04/11/2026)
+
+1. **Quem:** o desfazer do dia segue com quem já tinha (entregador do caminhão, logística, admin) para a entrega feita aqui, no mesmo dia. **Administrador** reabre qualquer dia e a entrega que veio do Tiny ("Reabrir entrega" na ficha do pedido), sempre com motivo da lista de "desfazer entrega". A parcial segue recusada, com o texto de antes.
+2. **Um caminho só** para o desfazer do dia, o reabrir do admin e a volta do Tiny: por evento; o pedido e as peças que saíram com aquela entrega voltam; **a peça do estoque volta reservada** ao mesmo pedido e vaga (antes voltava solta).
+3. **O Tiny** recebe a situação de antes só se ainda estiver "Entregue" — conta também quando a ida para "Entregue" ainda está na fila ou quando o aviso de volta do Tiny não chegou (a situação local é a de antes da entrega). Se o Tiny já foi para outra situação, nada vai. Para a entrega que veio do Tiny, a "situação de antes" sai do registro dos avisos do Tiny (a última antes do "Entregue"); sem registro, "Enviado".
+4. A ficha e "Entregas do dia" **explicam** por que não dá para desfazer (parcial; veio do Tiny; outro dia — "peça a um administrador") em vez de esconder o botão.
+
+## D-214 · ⏳ PROVISÓRIA — A volta atrás no Tiny (04/11/2026)
+
+1. Aprovado pelo dono em 03/11: saiu de "Entregue" no Tiny → a entrega do Sistema reabre sozinha (pelo caminho da D-213, sem mandar nada ao Tiny), com fato e aviso à logística; a entrega feita aqui por pessoa (ou parcial) não reabre — fato na trilha e aviso à logística; sem entrega vigente, nada.
+2. **"Encerramento"** = só **Cancelado**: Entregue → Cancelado não reabre (o cancelamento segue o caminho dele). Entregue → "Não entregue", "Enviado", "Preparando envio" etc. reabre.
+3. Se reabrir falhar, a gravação do pedido segue e os administradores recebem o alerta de automação (uma vez por hora por pedido).
+
+## D-215 · ⏳ PROVISÓRIA — A peça ligada ao produto, não à posição (04/11/2026)
+
+1. A vaga (item × unidade) é coberta pela peça do **mesmo produto** (o retrato do item que a peça guarda); a posição só desempata (primeiro a mesma posição, depois a ordem). Vale para a janela de liberação, liberar, a conta da liberação, concluir pelo super admin, a peça do estoque reservada, as sugestões, a realocação da devolução e as contagens (o frete das contagens passa a ser o do próprio card).
+2. A trava do banco deixa de ser "uma peça por posição" e passa a ser "uma peça por posição **e produto**": o item inserido no meio da lista ganha a sua peça na posição em que já existe peça de outro produto. Nenhum card antigo foi renumerado.
+
+## D-216 · ⏳ PROVISÓRIA — O acerto do 13787 (04/11/2026)
+
+1. As 2 peças do estoque baixadas na entrega por engano **não voltam** no acerto — o dono não sabe onde estão; se estiverem no galpão, a logística acerta pela contagem.
+2. **Exceção só deste acerto** à regra "avulso nunca vira peça": os avulsos 14542126 e 14542123 (já concluídos) viram as peças dos itens 2 e 4 — nasce a peça do pedido **pronta na Expedição**, com a referência ao avulso, e o avulso sai do quadro (arquivado, com a referência à peça); o tempo e a meta do trabalho ficam no avulso, uma vez só. A regra geral continua; não existe botão de conversão.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

@@ -860,7 +860,9 @@ begin
                                       and d.id > v_entrega.id) then 'devolvido'
                       else 'entregue' end;
     elsif v_card.arquivado_em is not null then
-      v_fluxo := 'arquivado';
+      -- card que saiu dos quadros sem entrega (limpeza, arquivado à mão): fica
+      -- como está — o Tiny reler os itens de um pedido antigo não o ressuscita
+      return null;
     else
       v_em_rota := v_card.lancado_rotas_em is not null
                    or exists (select 1 from public.plt_programacoes pr where pr.card_id = v_card.id);
