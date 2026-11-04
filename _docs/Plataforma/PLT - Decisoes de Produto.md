@@ -2078,7 +2078,7 @@ Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demand
 ## D-216 · ⏳ PROVISÓRIA — O acerto do 13787 (04/11/2026)
 
 1. As 2 peças do estoque baixadas na entrega por engano **não voltam** no acerto — o dono não sabe onde estão; se estiverem no galpão, a logística acerta pela contagem.
-2. **Exceção só deste acerto** à regra "avulso nunca vira peça": os avulsos 14542126 e 14542123 (já concluídos) viram as peças dos itens 2 e 4 — nasce a peça do pedido **pronta na Expedição**, com a referência ao avulso, e o avulso sai do quadro (arquivado, com a referência à peça); o tempo e a meta do trabalho ficam no avulso, uma vez só. A regra geral continua; não existe botão de conversão.
+2. **Exceção só deste acerto** à regra "avulso nunca vira peça": os avulsos 14542126 e 14542123 (já concluídos) viram as peças dos itens 2 e 4 — nasce a peça do pedido **pronta na Expedição**, com a referência ao avulso, e o avulso já tinha saído do quadro no Concluir (o Concluir arquiva); o tempo e a meta do trabalho ficam no avulso, uma vez só. A regra geral continua; não existe botão de conversão.
 
 ## Ver também
 

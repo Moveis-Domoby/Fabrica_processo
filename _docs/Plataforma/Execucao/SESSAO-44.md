@@ -58,3 +58,8 @@ tags: [plataforma, execucao, sessao-44]
 - Conferido no banco real: gatilho `plt_pedidos_zz_itens` adiado, índice `plt_cards_unidade_vaga_uq` (o velho saiu), check com `pedido_itens_alterados`; 13797 = vagas 1–3 com as peças de sempre e 4–6 livres; janela como admin (rollback) igual; 13787 = 4 vagas sem peça (ainda entregue — espera o acerto); **nenhum** pedido marcado completo com vaga sem peça.
 - Advisors (segurança e desempenho): nada novo desta atualização.
 - Esquema atualizado. Falta: site, acerto do 13787 (ensaio antes), ClickUp.
+
+### 04/11 ~01:15 (Natal) — o site publicado (OK do dono: "Pode publicar")
+- Commits todos como contatodomoby (E-33); main avançou direto 78b9c75 → d16fc9c pela credencial do gh; Vercel "Deployment has completed" (success).
+- A tela no site pede o login do dono — a conferência visual do "Reabrir entrega" fica no roteiro do dono.
+- **Ensaio do 13787** no banco real (bloco que termina em raise — nada gravado, conferido: entrega ainda vigente, 0 peças, 0 eventos novos): 1ª tentativa parou na conferência — o **Concluir do avulso já o arquiva** (o raio-x não dizia); script corrigido (aceita o avulso concluído; a referência fica só na peça nova; não arquiva de novo). 2ª tentativa: reabre, 2 peças do estoque ficam baixadas, 4 vagas / 2 prontas na Expedição (itens 2 e 4) / itens 1 e 3 no PCP. Falta o OK do dono para rodar de verdade.

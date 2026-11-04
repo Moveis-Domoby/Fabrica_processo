@@ -20,7 +20,7 @@ Dois defeitos que deixavam pedido errado sem saída — o "Entregue" do Tiny que
 | **1 · 13797** | ✅ **No ar (04/11 00:13)** com o OK do dono: o pedido voltou ao PCP só com as 3 vagas novas (327, 567, 566), fato na trilha, peças 14542143/14542153/14542161 intactas. A janela oferece só 4, 5 e 6, com a sugestão de estoque. **Falta a equipe liberar.** |
 | **2 · Itens novos voltam ao PCP** | ✅ escrito e testado — gatilho adiado em `pedidos` (no fim da gravação do Tiny): fato com o que entrou/saiu, conta da liberação refeita, aviso ao PCP; em rota → aviso "Segure a entrega" à logística e o PCP pode liberar o novo; entregue → pendência só dos novos; parcial/devolvido/cancelado → só aviso; item que saiu → nunca arquiva, avisa; a reserva do estoque reavalia o pedido. ✅ **Banco no ar em 04/11 ~00:50** (OK do dono). |
 | **3 · Peça ligada ao produto** | ✅ escrito e testado — a vaga é coberta pela peça do mesmo produto (posição desempata) em janela, liberar, conta, concluir pelo super admin, reservas, sugestões, realocar e contagens. Nenhum card antigo renumerado. ✅ banco no ar |
-| **4 · Reabrir entrega** | ✅ escrito e testado — admin reabre qualquer dia e a do Tiny ("Reabrir entrega" na ficha), com motivo; a peça do estoque volta **reservada** (o defeito provável estava confirmado); o Tiny só recebe a volta se ainda estiver "Entregue"; a ficha e Entregas do dia explicam por que não dá. ✅ banco no ar · ⏳ site |
+| **4 · Reabrir entrega** | ✅ escrito e testado — admin reabre qualquer dia e a do Tiny ("Reabrir entrega" na ficha), com motivo; a peça do estoque volta **reservada** (o defeito provável estava confirmado); o Tiny só recebe a volta se ainda estiver "Entregue"; a ficha e Entregas do dia explicam por que não dá. ✅ banco e site no ar |
 | **5 · Volta atrás no Tiny** | ✅ escrito e testado — entrega do Sistema reabre sozinha (uma vez, sem eco ao Tiny); de pessoa só avisa a logística; erro vira alerta. ✅ banco no ar |
 | **6 · 13787** | ✅ script escrito (`supabase/manutencao/2026-11-04_pedido_13787_entregue_por_engano.sql`) — ⏳ roda **depois** do banco no ar, com ensaio antes e o OK do dono. |
 
@@ -59,8 +59,8 @@ Arquivos: migration `supabase/migrations/20261104010000_plt_itens_novos_reabrir_
 ## 6. Pendências que precisam do dono
 
 1. ~~OK para subir a atualização do banco~~ ✅ subiu em 04/11 ~00:50; advisors sem nada novo.
-2. **OK para publicar o site** (o botão "Reabrir entrega" e as explicações).
-3. **OK para rodar o acerto do 13787** (depois do banco no ar; ensaio antes).
+2. ~~OK para publicar o site~~ ✅ publicado em 04/11 ~01:15 (Vercel ok). A tela pede o login do dono: conferir no roteiro.
+3. **OK para rodar o acerto do 13787** — ensaio no banco real já feito (nada gravado): bateu 4 vagas, 2 prontas, itens 1 e 3 no PCP.
 4. **ClickUp:** as 6 tarefas da demanda ainda não existem — criar com o OK do dono.
 5. **A equipe liberar o 13797** (os 3 móveis novos).
 6. **Conferir os pedidos 13620, 13689 e 13699** (entregues aqui e cancelados no Tiny) — fora do escopo, só a lista.
