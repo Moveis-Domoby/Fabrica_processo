@@ -2122,6 +2122,7 @@ Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demand
 - **3′.** O ponto é **de rua** ou é o **da cidade com aviso** — **nunca o centro do bairro** nem o ponto solto do CEP. O ponto do CEP e o centro do bairro servem **só de âncora** para achar a rua de mesmo nome perto deles (vira ponto de rua); o ponto do CEP da **própria rua** do pedido vale como ponto de rua (fonte `cep`). Sem rua: o centro da cidade (fonte `aprox_cidade`).
 - **4′.** No ponto da cidade, o cartão mostra o aviso **"Endereço aproximado para a cidade da entrega, ajustar o pino do mapa"** (em destaque) com o botão **"Ajustar o pino"** (a janela do mapa); quem não é da logística vê o aviso sem o botão. O ponto marcado à mão some com o aviso. O ponto da cidade é procurado de novo depois de 7 dias; o que a 1ª versão gravou pelo bairro/CEP (`aprox_bairro`/`aprox_cep`) é refeito na hora.
 
+
 ## D-225 · ⏳ PROVISÓRIA — Sem ranking nas abas internas; ficam os "Melhores tempos" e o "Melhor da semana" (05/11/2026, SESSAO-43)
 
 Nenhuma aba põe as pessoas em ordem de primeiro a último: cada pessoa é comparada com o **padrão do modelo** (abaixo / na média / acima, pela faixa do setor — hoje ±10%). Ficam, como a demanda pediu: na aba Montadores, os **8 móveis com o melhor tempo contra o padrão** (modelos com 2+ montagens válidas, com quem e quando); na TV, o **"Melhor da semana"** (só modelos com 3+ válidas no padrão). Os cartões de pessoa saem na ordem de quem montou mais móveis — é ordem de leitura, não pódio (sem posição, sem medalha).
@@ -2180,6 +2181,48 @@ O **admin** e o **líder do setor** veem todas as pessoas e conferem (Considerar
 ## D-233 · ⏳ PROVISÓRIA (técnica, precisa do OK do dono — regra 18) — Períodos longos com 100 vezes o movimento de hoje passam do tempo-limite (05/11/2026, SESSAO-43)
 
 Com o movimento de hoje, todas as abas abrem em poucos milissegundos, em qualquer período. No ensaio com **100 vezes** o movimento (550 móveis por dia só na Montagem), as abas com **30 dias** (o período que a tela abre) e a TV ficam **dentro** do limite; com **90 dias ou mais**, Período, Móveis e Montadores passam (0,2 a 0,6 s). O caminho de mercado para períodos longos é guardar, por dia, um resumo com a distribuição dos tempos em faixas de 1 minuto — a mediana passa a ser **aproximada a 1 minuto** nos períodos longos. Como isso muda a precisão do número que a tela mostra, fica para o dono decidir quando (registrado como dívida na lei de desempenho).
+
+## D-260 · ✅ DECIDIDA pelo dono — Tech → "Sugestão de melhoria": o quadro que toda a equipe acompanha (05/11/2026, SESSAO-46)
+
+**Pedido do dono (05/11):** um setor novo nas abas laterais, **Tech**, com uma rota por enquanto, **"Sugestão de melhoria"**: um kanban para acompanhar a melhoria sendo implementada — **backlog, fazendo, finalizada, recusada**, e a fila é **"Solicitações"**; quando a melhoria é sugerida, aparece um card para **qualquer pessoa** acompanhar.
+1. Pai **Tech** no menu, filho **Sugestão de melhoria** (`/tech/sugestao-de-melhoria`; `/tech` leva para lá). Aparece para **todo nível** — inclusive a linha de produção e o entregador (as rotas deles ganharam essa tela).
+2. Colunas na ordem: **Solicitações** (toda sugestão nova nasce aqui) · **Backlog** · **Fazendo** · **Finalizada** · **Recusada**.
+3. O formulário (bolinha ou o botão da tela) tem **tudo obrigatório**: pelo menos **um arquivo** (qualquer formato, até 50 MB cada, até 10; escolher, arrastar, **gravar áudio** ali mesmo ou **colar um print com Ctrl+V**), o **tipo** (Bug · Melhoria · Implementação nova), o **texto com 30+ letras** e o **nível de necessidade de 1 a 10** (1 pode esperar · 10 urgente).
+
+## D-261 · ✅ DECIDIDA pelo dono — Só o dono (super admin) move os cards do quadro de sugestões (05/11/2026, SESSAO-46)
+
+Resposta 1 do dono. O resto da equipe só acompanha (vê o quadro e abre a ficha de qualquer sugestão). O banco recusa o gesto de quem não é super admin — nem o admin comum move. No computador o dono arrasta; na ficha há "Mover para" com as 5 colunas (o caminho do tablet/teclado).
+
+## D-262 · ✅ DECIDIDA pelo dono — Recusar exige o motivo, que vai no aviso para quem sugeriu (05/11/2026, SESSAO-46)
+
+Resposta 2 do dono. Mínimo de 5 letras, até 500. O aviso diz "Sugestão #N recusada" com "Motivo: …" e o começo da sugestão; o cartão da coluna Recusada mostra o motivo.
+
+## D-263 · ✅ DECIDIDA pelo dono — Finalizada avisa quem sugeriu; ele testa e APROVA ou DEVOLVE com uma sugestão nova, com o formulário inteiro (05/11/2026, SESSAO-46)
+
+**Pedido do dono:** a conclusão gera notificação automática avisando que já pode testar; assim que testa, aprova ou retorna com uma nova sugestão em cima da última — clicando na notificação ou nas pendências do painel inicial. **Resposta 3:** a devolução pede **tudo de novo** (arquivo, tipo, texto 30+, nível), com o **tipo e o nível já marcados** da anterior.
+1. Ao chegar em **Finalizada**: aviso no sino **"Sugestão #N pronta para testar"** + a pendência **"Testar a sugestão #N"** no Meu painel (bloco "Sugestões para você testar"), em Meus afazeres e na bolinha (com o número).
+2. Tocar no aviso ou na pendência abre a **ficha** com **Aprovar** e **Devolver com nova sugestão**. Só quem sugeriu testa.
+3. **Aprovar**: o cartão fica "Aprovada por quem sugeriu" e a pendência fecha. **Devolver**: nasce a sugestão nova em Solicitações, ligada à anterior ("devolução da #N"); a anterior fica "Devolvida" com o link "continua na #M"; a pendência fecha.
+4. Se o dono tirar a sugestão de Finalizada antes do teste, a pendência fecha; se voltar a Finalizada, nasce de novo com outro aviso.
+
+## D-264 · ⏳ PROVISÓRIA — A pendência de teste é uma tarefa do Sistema da pessoa; aviso e pendência levam à ficha pelo número (05/11/2026, SESSAO-46)
+
+1. A pendência "Testar a sugestão #N" é uma **tarefa do Sistema** de quem sugeriu (privada — só ela vê). Assim ela chega na abertura do app e fica ao vivo **sem leitura nova**, e **ninguém a conclui à mão**: ela se resolve aprovando ou devolvendo. No Meu painel ela sai das filas ("Delegados a mim", "Fila de prioridade") e ganha o bloco próprio.
+2. O aviso do sino e a pendência abrem a ficha pelo **número no título** ("Sugestão #N …", "Testar a sugestão #N").
+3. Os dois avisos novos (**pronta para testar** e **recusada**) **não** entram em Configurações → Avisos: não dá para desligar (são a resposta ao pedido da própria pessoa). Se o dono quiser que se possa desligar, entram no catálogo numa próxima.
+
+## D-265 · ⏳ PROVISÓRIA — A bolinha das sugestões acompanha todo usuário, em toda tela, menos o modo tablet (05/11/2026, SESSAO-46)
+
+**Pedido do dono:** uma bolinha que acompanha todos os usuários em todo o sistema, com exceção do modo tablet, com um botão de sugerir melhoria que abre o modal. O que a sessão escolheu onde o pedido não dizia:
+1. Bolinha amarela com a lâmpada, **arrastável** como o balão do chat (posição guardada por pessoa no aparelho), de partida à esquerda do chat. Aparece até para o entregador e na área das automações; **nunca** no `/tablet` (nem na conta de tablet).
+2. O toque abre o painel: **Sugerir melhoria**, **Acompanhar as sugestões** (o quadro) e **"Para você testar"** (até 5, com o número na bolinha).
+3. Enviar pela bolinha abre a ficha da sugestão que acabou de nascer (a pessoa vê o card dela).
+
+## D-266 · ⏳ PROVISÓRIA — Ordem e números do quadro de sugestões (05/11/2026, SESSAO-46)
+
+1. **Solicitações, Backlog e Fazendo:** o **maior nível de necessidade primeiro**, e no mesmo nível a mais antiga primeiro. **Finalizada e Recusada:** a mais recente primeiro.
+2. Cada coluna mostra 20 e o **"Ver mais (N)"** traz as próximas 20; o número no topo é o total da coluna.
+3. A sugestão tem número próprio (#N), que aparece no cartão, na ficha, no aviso e na pendência.
 
 ## Ver também
 

@@ -20539,6 +20539,206 @@ try {
 }
 } // fim do bloco SESSAO-43
 
+{ // SESSAO-46 (bloco em escopo próprio — E-70): Tech → Sugestão de melhoria
+titulo('SESSAO-46 · sugestão de melhoria: enviar, mover (só o super admin), testar, aprovar, devolver e recusar')
+
+const um46 = async (sql) => (await bd.query(sql)).rows[0]
+const como46 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j46 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha46 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f46')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f46')
+  }
+}
+const TEXTO46 = 'O botão de mover card some no celular quando a lista é comprida demais.'
+
+await bd.exec('begin')
+try {
+  const op = (await um46(`select id::text as id from public.plt_usuarios where auth_user_id = '${E40.operador}'`)).id
+  const adm = (await um46(`select id::text as id from public.plt_usuarios where auth_user_id = '${E40.admin}'`)).id
+  await bd.exec(`update public.plt_usuarios set super_admin = false where auth_user_id = '${E40.admin}'`)
+  const arq = (dono, nome = 'print.png', mime = 'image/png') => ({ caminho: `${dono}/a46-${nome}`, nome, mime, tamanho: 2048 })
+  const criar = (tipo, texto, nivel, anexos, origem = null, chave = null) =>
+    `select public.plt_fn_sugestao_criar('${tipo}', '${texto.replace(/'/g, "''")}', ${nivel}, ${j46(anexos)}, ${origem ?? 'null'}, ${chave ? `'${chave}'` : 'null'}) as r`
+
+  // ---------------- enviar: tudo obrigatório ----------------
+  await como46(E40.operador)
+  await falha46(criar('bug', 'curto demais', 5, [arq(op)]), 'texto com menos de 30 letras é recusado e diz quantas faltam', /pelo menos 30 letras.*faltam 18/)
+  await falha46(criar('bug', TEXTO46, 0, [arq(op)]), 'nível fora de 1 a 10 é recusado', /nível de necessidade, de 1 a 10/)
+  await falha46(criar('outra', TEXTO46, 5, [arq(op)]), 'tipo fora de bug/melhoria/novidade é recusado', /bug, uma melhoria ou uma implementação nova/)
+  await falha46(criar('bug', TEXTO46, 5, []), 'sem arquivo não envia', /pelo menos um arquivo/)
+  await falha46(criar('bug', TEXTO46, 5, [arq(adm)]), 'arquivo fora da pasta de quem envia é recusado', /não está na sua pasta/)
+  await falha46(criar('bug', TEXTO46, 5, [{ ...arq(op), tamanho: 60 * 1024 * 1024 }]), 'arquivo com mais de 50 MB é recusado', /até 50 MB/)
+  const s1 = (await um46(criar('bug', TEXTO46, 7, [arq(op), arq(op), arq(op, 'audio.webm', 'audio/webm;codecs=opus')], null, 'chave-46-um'))).r
+  const s1b = (await um46(criar('bug', TEXTO46, 7, [arq(op)], null, 'chave-46-um'))).r
+  await como46('')
+  const l1 = await um46(`select coluna, teste, nivel, jsonb_array_length(anexos) as n, anexos -> 1 ->> 'mime' as mime2,
+                                (select count(*)::int from public.plt_sugestao_fatos f where f.sugestao_id = s.id) as fatos
+                           from public.plt_sugestoes s where s.id = ${s1.id}`)
+  conferir(s1.repetido === false && s1b.repetido === true && s1b.id === s1.id
+      && l1.coluna === 'solicitacoes' && l1.teste === null && l1.nivel === 7 && l1.n === 2 && l1.mime2 === 'audio/webm' && l1.fatos === 1,
+    'a sugestão nasce em Solicitações (arquivo repetido conta uma vez, o tipo do áudio sem parâmetros); o toque repetido com a mesma chave devolve a mesma',
+    JSON.stringify({ s1, s1b, l1 }))
+
+  // ---------------- o quadro: todos veem, só o super admin move ----------------
+  await como46(E40.operador)
+  const q1 = (await um46(`select public.plt_fn_sugestoes_quadro() as q`)).q
+  await falha46(`select public.plt_fn_sugestao_mover(${s1.id}, 'backlog')`, 'quem não é o super admin não move', /Só o dono do sistema move/)
+  await como46(E40.admin)
+  await falha46(`select public.plt_fn_sugestao_mover(${s1.id}, 'backlog')`, 'admin comum também não move (D-261)', /Só o dono do sistema move/)
+  await como46('')
+  const sol = q1.colunas.find((c) => c.coluna === 'solicitacoes')
+  const item1 = sol.itens.find((i) => i.id === s1.id)
+  conferir(q1.colunas.map((c) => c.coluna).join(',') === 'solicitacoes,backlog,fazendo,finalizada,recusada'
+      && q1.eu_movo === false && sol.total >= 1 && item1?.minha === true && item1?.arquivos === 2
+      && JSON.stringify([...item1.tipos_arquivo].sort()) === '["audio","imagem"]' && item1?.resumo === TEXTO46,
+    'o quadro devolve as 5 colunas na ordem, o total, o cartão (minha, quantos arquivos e de que tipo) e que a pessoa não move',
+    JSON.stringify({ colunas: q1.colunas.map((c) => [c.coluna, c.total]), item1, eu: q1.eu_movo }))
+
+  await bd.exec(`update public.plt_usuarios set super_admin = true where auth_user_id = '${E40.admin}'`)
+  await como46(E40.admin)
+  const m1 = (await um46(`select public.plt_fn_sugestao_mover(${s1.id}, 'backlog') as r`)).r
+  const m1b = (await um46(`select public.plt_fn_sugestao_mover(${s1.id}, 'backlog') as r`)).r
+  await falha46(`select public.plt_fn_sugestao_mover(${s1.id}, 'recusada', '  ')`, 'recusar sem motivo é recusado (D-262)', /motivo da recusa/)
+  await bd.exec(`select public.plt_fn_sugestao_mover(${s1.id}, 'fazendo')`)
+  await bd.exec(`select public.plt_fn_sugestao_mover(${s1.id}, 'finalizada')`)
+  await como46('')
+  const f1 = await um46(`select s.coluna, s.teste, s.tarefa_id, t.titulo, t.origem, t.privada, t.situacao, t.responsavel_id::text as resp,
+        (select count(*)::int from public.plt_notificacoes n where n.destinatario_id = s.autor_id and n.tipo = 'sugestao_testar'
+            and n.titulo = 'Sugestão #' || s.id || ' pronta para testar') as avisos
+      from public.plt_sugestoes s left join public.plt_tarefas t on t.id = s.tarefa_id where s.id = ${s1.id}`)
+  conferir(m1.repetido === false && m1b.repetido === true && f1.coluna === 'finalizada' && f1.teste === 'aguardando'
+      && f1.titulo === `Testar a sugestão #${s1.id}` && f1.origem === 'sistema' && f1.privada && f1.situacao === 'aberta'
+      && f1.resp === op && f1.avisos === 1,
+    'em Finalizada: o teste fica aguardando, nasce a pendência "Testar a sugestão #N" (do Sistema, só de quem sugeriu) e o aviso "pronta para testar"',
+    JSON.stringify({ m1, m1b, f1 }))
+
+  // a pendência é da pessoa: ela vê, mas não conclui à mão
+  await como46(E40.operador)
+  const minhas = (await um46(`select count(*)::int as n from public.plt_tarefas where id = ${f1.tarefa_id}`)).n
+  await falha46(`update public.plt_tarefas set situacao = 'concluida' where id = ${f1.tarefa_id}`,
+    'a pendência de teste não se conclui à mão — só testando', /Tarefa do Sistema/)
+  await como46(E40.logistica)
+  // RLS de verdade só com o papel do navegador (o dono da tabela passa por cima)
+  await bd.exec('set role authenticated')
+  const alheia = (await um46(`select count(*)::int as n from public.plt_tarefas where id = ${f1.tarefa_id}`)).n
+  await bd.exec('reset role')
+  const det1 =(await um46(`select public.plt_fn_sugestao_detalhe(${s1.id}) as d`)).d
+  await falha46(`select public.plt_fn_sugestao_aprovar(${s1.id})`, 'só quem sugeriu aprova', /Só quem sugeriu aprova/)
+  await como46(E40.operador)
+  const det1op = (await um46(`select public.plt_fn_sugestao_detalhe(${s1.id}) as d`)).d
+  const ap1 = (await um46(`select public.plt_fn_sugestao_aprovar(${s1.id}) as r`)).r
+  const ap1b = (await um46(`select public.plt_fn_sugestao_aprovar(${s1.id}) as r`)).r
+  await como46('')
+  const a1 = await um46(`select s.teste, s.testada_em is not null as testada, s.tarefa_id, t.situacao
+      from public.plt_sugestoes s left join public.plt_tarefas t on t.id = ${f1.tarefa_id} where s.id = ${s1.id}`)
+  conferir(minhas === 1 && alheia === 0 && det1.posso_testar === false && det1op.posso_testar === true
+      && det1op.historico.length === 4 && det1op.historico[3].para === 'finalizada' && det1op.anexos.length === 2
+      && ap1.repetido === false && ap1b.repetido === true
+      && a1.teste === 'aprovada' && a1.testada && a1.tarefa_id === null && a1.situacao === 'concluida',
+    'quem sugeriu vê a pendência (os outros não), a ficha diz que só ela testa; aprovar fecha a pendência e marca "aprovada" (o toque repetido não faz nada)',
+    JSON.stringify({ minhas, alheia, p1: det1.posso_testar, p2: det1op.posso_testar, h: det1op.historico.length, ap1, ap1b, a1 }))
+
+  // ---------------- devolver com nova sugestão (o formulário inteiro — D-263) ----------------
+  await como46(E40.operador)
+  const s2 = (await um46(criar('melhoria', 'Quero que o quadro mostre o nome do cliente no card do pedido.', 4, [arq(op, 'b.png')]))).r
+  await como46(E40.admin)
+  await bd.exec(`select public.plt_fn_sugestao_mover(${s2.id}, 'finalizada')`)
+  await como46(E40.operador)
+  const tarefa2 = (await um46(`select tarefa_id from public.plt_sugestoes where id = ${s2.id}`)).tarefa_id
+  const d2 = (await um46(criar('melhoria', 'Testei: o nome aparece, mas corta no celular — quero em duas linhas.', 6, [arq(op, 'c.png')], s2.id))).r
+  await falha46(criar('melhoria', 'Outra devolução da mesma sugestão, que já foi devolvida.', 6, [arq(op, 'd.png')], s2.id),
+    'a sugestão já devolvida não volta de novo', /não está esperando o seu teste/)
+  await como46(E40.logistica)
+  await falha46(criar('melhoria', 'Devolvendo a sugestão de outra pessoa, o que não pode.', 6, [{ caminho: 'x/y.png', nome: 'y.png', mime: 'image/png', tamanho: 10 }], s1.id),
+    'só quem sugeriu devolve', /não está na sua pasta|Só quem sugeriu/)
+  await como46('')
+  const v2 = await um46(`select o.teste, o.devolvida_para_id::int as para, n.coluna, n.origem_id::int as origem, t.situacao,
+        (select count(*)::int from public.plt_sugestao_fatos f where f.sugestao_id = o.id and f.tipo = 'devolvida' and f.relacionada_id = n.id) as fato
+      from public.plt_sugestoes o join public.plt_sugestoes n on n.id = ${d2.id}
+      left join public.plt_tarefas t on t.id = ${tarefa2} where o.id = ${s2.id}`)
+  conferir(v2.teste === 'devolvida' && v2.para === d2.id && v2.coluna === 'solicitacoes' && v2.origem === s2.id
+      && v2.situacao === 'concluida' && v2.fato === 1,
+    'devolver cria a sugestão nova em Solicitações ligada à anterior; a anterior fica "devolvida" e a pendência fecha',
+    JSON.stringify(v2))
+
+  // ---------------- recusar: o motivo vai no aviso ----------------
+  await como46(E40.admin)
+  await bd.exec(`select public.plt_fn_sugestao_mover(${d2.id}, 'recusada', 'Já existe a opção de ver em tela cheia.')`)
+  await como46('')
+  const r2 = await um46(`select s.coluna, s.motivo_recusa, s.teste,
+        (select n.corpo from public.plt_notificacoes n where n.destinatario_id = s.autor_id and n.tipo = 'sugestao_recusada'
+          order by n.id desc limit 1) as corpo
+      from public.plt_sugestoes s where s.id = ${d2.id}`)
+  conferir(r2.coluna === 'recusada' && /tela cheia/.test(r2.motivo_recusa) && r2.teste === null
+      && /^Motivo: Já existe a opção de ver em tela cheia\./.test(r2.corpo ?? ''),
+    'recusada: o motivo fica na sugestão e vai no aviso para quem sugeriu', JSON.stringify(r2))
+
+  // ---------------- a história não se edita ----------------
+  await falha46(`update public.plt_sugestao_fatos set motivo = 'x' where sugestao_id = ${s1.id}`,
+    'a história da sugestão não se edita', /não se edita nem se apaga/)
+  await falha46(`delete from public.plt_sugestao_fatos where sugestao_id = ${s1.id}`,
+    'a história da sugestão não se apaga', /não se edita nem se apaga/)
+
+  // ---------------- o cursor: maior nível primeiro, sem pular nem repetir ----------------
+  await como46(E40.operador)
+  for (const [i, n] of [[1, 3], [2, 9], [3, 9], [4, 1], [5, 6]]) {
+    await bd.exec(criar('novidade', `Sugestão de teste do cursor número ${i}, com texto comprido.`, n, [arq(op, `k${i}.png`)]))
+  }
+  const ids = []
+  let cursor = null
+  let paginas = 0
+  do {
+    const pag = (await um46(cursor
+      ? `select public.plt_fn_sugestoes_quadro('solicitacoes', ${j46(cursor)}, 2) as q`
+      : `select public.plt_fn_sugestoes_quadro('solicitacoes', null, 2) as q`)).q.colunas[0]
+    ids.push(...pag.itens.map((i) => i.nivel))
+    cursor = pag.proximo
+    paginas++
+  } while (cursor && paginas < 10)
+  await falha46(`select public.plt_fn_sugestoes_quadro(null, '{"nivel": 1, "id": 1}'::jsonb, 2)`, 'o "ver mais" é de uma coluna só', /coluna só/)
+  await como46('')
+  const ordem = ids.join(',')
+  conferir(ordem.startsWith('9,9,6,3,1') && paginas >= 3,
+    'Solicitações pagina por cursor: maior nível primeiro, sem pular nem repetir', JSON.stringify({ ordem, paginas }))
+
+  // ---------------- a trilha e as permissões ----------------
+  // O bloco 78 dá SELECT em TODA tabela de public ao authenticated (o padrão do
+  // Supabase, que no banco real vem ANTES do revoke da migration). Reaplicar a
+  // migration aqui (com dado dentro) prova que ela é reaplicável E que fecha as
+  // tabelas de novo.
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261105230000_plt_sugestoes_melhoria.sql'), 'utf8'))
+  const trilha = await um46(`select count(*) filter (where acao = 'sugestao_enviada')::int as env,
+        count(*) filter (where acao = 'sugestao_movida')::int as mov, count(*) filter (where acao = 'sugestao_aprovada')::int as apr,
+        count(*) filter (where acao = 'sugestao_devolvida')::int as dev
+      from public.plt_logs_atividade where acao like 'sugestao_%'`)
+  const pr46 = await um46(`
+    select has_function_privilege('anon', 'public.plt_fn_sugestao_criar(text, text, integer, jsonb, bigint, text)', 'execute') as anon_criar,
+           has_function_privilege('anon', 'public.plt_fn_sugestoes_quadro(text, jsonb, integer)', 'execute') as anon_quadro,
+           has_function_privilege('authenticated', 'public.plt_fn_sugestoes_quadro(text, jsonb, integer)', 'execute') as logado_quadro,
+           has_function_privilege('authenticated', 'plt_privado.fn_sugestoes_pagina(text, jsonb, integer, uuid, boolean)', 'execute') as pagina,
+           has_table_privilege('authenticated', 'public.plt_sugestoes', 'select') as tabela,
+           has_table_privilege('authenticated', 'public.plt_sugestao_fatos', 'select') as fatos,
+           (select relacl::text from pg_class where oid = 'public.plt_sugestoes'::regclass) as acl,
+           (select count(*)::int from realtime.messages m where m.topic = 'plt-aviso:sugestoes' and m.event = 'mudou') as ao_vivo,
+           (select count(*)::int from pg_policies where tablename = 'messages' and policyname = 'plt_sugestoes_ouvir') as politica`)
+  conferir(trilha.env >= 7 && trilha.mov >= 5 && trilha.apr === 1 && trilha.dev === 1
+      && !pr46.anon_criar && !pr46.anon_quadro && pr46.logado_quadro && !pr46.pagina && !pr46.tabela && !pr46.fatos
+      && pr46.ao_vivo >= 1 && pr46.politica === 1,
+    'todo gesto fica na trilha de atividade; o quadro avisa "mudou" no canal próprio; as portas só para quem tem login; as tabelas fechadas à API',
+    JSON.stringify({ trilha, pr46 }))
+} finally {
+  await bd.exec('rollback')
+  await como46('')
+}
+} // fim do bloco SESSAO-46
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(

@@ -9,6 +9,7 @@ import {
   ChevronsLeft,
   Factory,
   House,
+  Lightbulb,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -44,6 +45,8 @@ import { AvisoAoVivoPausado } from '@/componentes/AvisoAoVivoPausado'
 import { preCarregar } from '@/navegacao/pedacos'
 import { medirNaNavegacao } from '@/lib/medicao'
 import { BotaoBuscaGeral } from '@/busca/BotaoBuscaGeral'
+import { BolhaSugestao, ROTA_SUGESTOES } from '@/tech/BolhaSugestao'
+import { JanelaSugestaoNaUrl } from '@/tech/JanelaSugestaoNaUrl'
 
 interface FilhoMenu {
   para: string
@@ -210,6 +213,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const grupos: GrupoMenu[] = useMemo(() => {
     if (!perfil) return []
+    // SESSAO-46 (D-265): o pai Tech — o quadro das sugestões de melhoria é de
+    // TODO nível (todos acompanham; só o super admin move — o banco garante).
+    const grupoTech: GrupoMenu = {
+      id: 'tech',
+      rotulo: 'Tech',
+      icone: <Lightbulb aria-hidden />,
+      secoes: [{ filhos: [{ para: ROTA_SUGESTOES, rotulo: 'Sugestão de melhoria' }] }],
+    }
     if (soEntregador) {
       return [
         {
@@ -218,6 +229,7 @@ export function Layout({ children }: { children: ReactNode }) {
           icone: <Truck aria-hidden />,
           secoes: [{ filhos: [{ para: ROTA_ENTREGADOR, rotulo: 'Entregas do dia' }] }],
         },
+        grupoTech,
       ]
     }
 
@@ -252,6 +264,7 @@ export function Layout({ children }: { children: ReactNode }) {
               },
             ]
           : []),
+        grupoTech,
       ]
     }
 
@@ -393,6 +406,7 @@ export function Layout({ children }: { children: ReactNode }) {
             },
           ]
         : []),
+      grupoTech,
       ...(ehLider
         ? [
             {
@@ -856,8 +870,13 @@ export function Layout({ children }: { children: ReactNode }) {
         {!modoFoco && !soEntregador && <BolhaExecucao />}
         {/* O balão do chat (SESSAO-26): arrastável, ao lado da bolinha. */}
         {!modoFoco && !soEntregador && <BalaoChat />}
+        {/* SESSAO-46 (D-265): a bolinha das sugestões — TODO usuário, toda tela (o /tablet
+          nem chega aqui); arrastável, à esquerda do balão do chat. */}
+        <BolhaSugestao />
         {/* SESSAO-31 (§3): a janela do card — qualquer tela abre pondo ?card= no endereço. */}
         {!soEntregador && <JanelaDoCardNaUrl />}
+        {/* SESSAO-46: a ficha da sugestão — o aviso, a pendência e o quadro abrem com ?sugestao=. */}
+        <JanelaSugestaoNaUrl />
         {/* SESSAO-41 (D-191): o pedido de troca de senha, urgente, na tela do administrador. */}
         {perfil.papel === 'admin' && <AlertaTrocaSenha usuarioId={perfil.id} />}
         {/* SESSAO-41 · ajuste (D-198): "ainda tem alguém neste card?" — para quem está no card e os admins. */}

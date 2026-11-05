@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  FlaskConical,
   ListChecks,
   ListTodo,
   Pause,
@@ -40,6 +41,8 @@ import { ModalTarefa } from '@/afazeres/ModalTarefa'
 import { ModalMeta } from '@/metas/ModalMeta'
 import { CartaoMeta } from '@/metas/CartaoMeta'
 import { useAoVivo, useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
+import { sugestaoDaTarefa } from '@/tech/regras'
+import { useAbrirSugestao } from '@/tech/abrirSugestao'
 
 const METAS_POR_PAGINA = 20
 
@@ -104,8 +107,20 @@ export function MeuPainel() {
     staleTime: Infinity,
   })
 
+  // SESSAO-46 (D-264): a pendência "Testar a sugestão #N" (tarefa do Sistema da
+  // pessoa) tem bloco próprio — sai das filas (não tem tempo nem "concluir": ela
+  // se resolve aprovando ou devolvendo na ficha da sugestão).
+  const paraTestar = useMemo(
+    () =>
+      tarefas.flatMap((t) => {
+        const id = sugestaoDaTarefa(t)
+        return id === null ? [] : [{ id, tarefa: t }]
+      }),
+    [tarefas],
+  )
+  const abrirSugestao = useAbrirSugestao()
   const tarefasDelegadas = useMemo(
-    () => tarefas.filter((t) => !ehTarefaPessoal(t)),
+    () => tarefas.filter((t) => !ehTarefaPessoal(t) && sugestaoDaTarefa(t) === null),
     [tarefas],
   )
   const tarefasProprias = useMemo(() => tarefas.filter((t) => ehTarefaPessoal(t)), [tarefas])
@@ -311,6 +326,43 @@ export function MeuPainel() {
           {meusSetores && <> · {meusSetores}</>}
         </p>
       </div>
+
+      {/* ----- SESSAO-46: as sugestões que a pessoa pediu e já pode testar ----- */}
+      {paraTestar.length > 0 && (
+        <section
+          aria-label="Sugestões para você testar"
+          className="flex flex-col gap-3 rounded-dm-lg border-2 border-info-borda bg-info-fundo p-4"
+        >
+          <div className="flex items-center gap-2">
+            <FlaskConical aria-hidden className="size-5 shrink-0 text-info-texto" />
+            <h2 className="font-marca text-base font-semibold text-info-texto">Sugestões para você testar</h2>
+            <span className="ml-auto rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto tabular-nums">
+              {paraTestar.length}
+            </span>
+          </div>
+          <p className="text-sm text-info-texto">
+            O que você pediu já está no sistema. Teste e aprove — ou devolva com uma nova sugestão.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {paraTestar.map(({ id, tarefa }) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => abrirSugestao(id)}
+                  className="flex min-h-toque-md w-full flex-col items-start justify-center gap-0.5 rounded-dm border border-info-borda bg-superficie px-3 py-2 text-left hover:ring-2 hover:ring-info-borda"
+                >
+                  <span className="text-sm font-semibold text-texto">Testar a sugestão #{id}</span>
+                  {tarefa.descricao && (
+                    <span className="line-clamp-2 text-xs text-texto-suave">
+                      {tarefa.descricao.replace(/^Já está no sistema: /, '')}
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ----- Os separadores: delegados · meus · em execução ----- */}
       <section aria-label="O que me espera" className="flex flex-col gap-3">

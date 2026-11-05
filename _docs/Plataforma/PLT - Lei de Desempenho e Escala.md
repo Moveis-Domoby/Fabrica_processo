@@ -315,6 +315,15 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Plano de crescimento (§7.5):** `plt_tempo_trechos` e `plt_tempo_passagens` só crescem (~1 trecho e ~0,5 passagem por fato de produção — hoje ~4 mil/semana). Índices por data já existem; **partição por mês** (pelo `dia`) quando passarem de alguns milhões de linhas (pg_partman); os resumos por dia (`plt_tempo_resumo_*`) ficam pequenos (dia × setor × modelo/pessoa). Os trechos e passagens de 'teste' (antes de 26/10) podem ser podados depois do histórico do Trello (SESSAO-43), com o OK do dono.
 - **Pacote:** ver o handoff (antes/depois do JS inicial).
 
+**Andamento (SESSAO-46 · Tech → Sugestão de melhoria, 05/11 — D-260…D-266):**
+
+- **Requisições (medidas no navegador, logado):** a bolinha **não pede nada** ao banco (o "para testar" sai das tarefas da pessoa, que já vêm na abertura e ficam ao vivo pelo canal dela); abrir o quadro = **1** (`plt_fn_sugestoes_quadro` — as 5 colunas com o total) + o registro da navegação de sempre; "Ver mais" = 1 por clique (cursor); enviar = 1 subida por arquivo + 1 porta (idempotente pela chave do formulário).
+- **Ao vivo:** `plt-aviso:sugestoes` (política própria — A-190); nenhum relógio, nenhum `postgres_changes`.
+- **Ensaio ×100** (5 mil sugestões no banco real, desfeito): quadro 23 ms · "Ver mais" 3 ms · ficha 13 ms; cursores por Index Scan dos índices parciais (abertas por nível, fechadas pela data).
+- **Pacote:** o JS inicial (todos os arquivos que o `index.html` carrega) = **235,4 KB** comprimidos (teto 250); o que a sessão pôs nele é só a bolinha + as regras (≈3 KB); o quadro (3,9 KB), a ficha (3,2 KB), o formulário (5,0 KB) e o gravador (2,3 KB) são pedaços próprios, baixados no clique.
+- **Dívida (número a dar na junção com a SESSAO-43):** **a ficha da sugestão abre com 2 leituras em sequência** — a ficha (`plt_fn_sugestao_detalhe`) e, com os caminhos dela, os links do armário privado (`createSignedUrls`, 1 chamada para todos os arquivos). É o mesmo desenho da janela do card (anexos). **Caminho:** links públicos com assinatura gerada no servidor (Edge Function) na mesma resposta, ou o armário servido por URL assinada em lote na abertura da ficha.
+- **Crescimento:** `plt_sugestoes`/`plt_sugestao_fatos` crescem com o uso humano (dezenas por mês) — sem plano de partição; índices por coluna+ordem já cobrem as listas.
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes

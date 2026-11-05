@@ -21,6 +21,8 @@ import {
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
 import { rotuloOrigemCard } from '@/kanban/rotulos'
 import { useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
+import { sugestaoDaTarefa } from '@/tech/regras'
+import { useAbrirSugestao } from '@/tech/abrirSugestao'
 
 /**
  * Meus afazeres (SESSAO-12/D-34 · SESSAO-23): cards COMPACTOS — clicar na
@@ -35,6 +37,7 @@ export function Afazeres() {
   const agora = useAgora()
 
   const souAdmin = perfil?.papel === 'admin'
+  const abrirSugestao = useAbrirSugestao()
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
 
@@ -182,11 +185,13 @@ export function Afazeres() {
         {tarefas.map((tarefa) => {
           const minhaPessoal = ehTarefaPessoal(tarefa) && tarefa.responsavel_id === perfil.id
           const contador = contadorPorMae.get(tarefa.id) ?? { total: 0, feitas: 0 }
+          // SESSAO-46 (D-264): "Testar a sugestão #N" abre a ficha da sugestão (aprovar/devolver).
+          const sugestao = sugestaoDaTarefa(tarefa)
           return (
             <li key={`tarefa-${tarefa.id}`}>
               <button
                 type="button"
-                onClick={() => setTarefaAbertaId(tarefa.id)}
+                onClick={() => (sugestao === null ? setTarefaAbertaId(tarefa.id) : abrirSugestao(sugestao))}
                 className={cn(
                   'flex h-full w-full flex-col gap-2 rounded-dm-lg border bg-superficie p-4 text-left transition-colors hover:border-borda-forte',
                   tarefa.situacao === 'em_andamento' ? 'border-acao-ativa' : 'border-borda',
