@@ -99,7 +99,7 @@ export function AbaMoveis({ filtros, aoContador }: PropsAba) {
           tituloCelular={(m) => (
             <button
               type="button"
-              className="text-left underline-offset-2 hover:underline"
+              className="min-h-toque-md text-left underline-offset-2 hover:underline"
               onClick={() => setAberto(m)}
             >
               {m.nome}

@@ -296,11 +296,13 @@ function LinhaDoDia({
   const porPessoa = new Map<string, TrechoDia[]>()
   for (const t of trechos) porPessoa.set(t.pessoa, [...(porPessoa.get(t.pessoa) ?? []), t])
   const marcas: number[] = []
-  for (let h = Math.ceil(inicio / 3_600_000) * 3_600_000; h <= fim; h += 3_600_000) marcas.push(h)
+  // as horas inteiras de dentro (a da ponta não cabe e empurraria a página de lado)
+  for (let h = Math.ceil(inicio / 3_600_000) * 3_600_000; h <= fim - 20 * 60_000; h += 3_600_000)
+    if (h > inicio + 10 * 60_000) marcas.push(h)
 
   return (
     <div className="flex flex-col gap-2 overflow-x-auto">
-      <div className="relative ml-28 h-4 min-w-[36rem] text-[11px] text-texto-fraco">
+      <div className="relative mr-0 ml-28 h-4 min-w-[35.5rem] overflow-hidden text-[11px] text-texto-fraco">
         {marcas.map((h) => (
           <span key={h} className="absolute -translate-x-1/2 tabular-nums" style={{ left: pos(h) }}>
             {horaNaFabrica(new Date(h).toISOString()).slice(0, 2)}h

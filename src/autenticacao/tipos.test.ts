@@ -55,3 +55,23 @@ describe('ehSoEntregador (D-115)', () => {
     expect(ehSoEntregador(null)).toBe(false)
   })
 })
+
+// SESSAO-43 (F3): a permissão Modo TV é EXPLÍCITA (nem o admin a tem sozinho)
+// e a conta SÓ da TV é a que tem "tv" e mais nada.
+describe('Modo TV (SESSAO-43)', () => {
+  it('o botão só aparece com a permissão ligada — inclusive para o admin', async () => {
+    const { temModoTv } = await import('./tipos')
+    expect(temModoTv(perfilDeTeste({ papel: 'admin', modulos: ['fabrica'] }))).toBe(false)
+    expect(temModoTv(perfilDeTeste({ papel: 'admin', modulos: ['fabrica', 'tv'] }))).toBe(true)
+    expect(temModoTv(perfilDeTeste({ modulos: ['fabrica', 'tv'] }))).toBe(true)
+    expect(temModoTv(null)).toBe(false)
+  })
+
+  it('conta só da TV: "tv" sem fábrica, comercial nem entregas, e nunca admin', async () => {
+    const { ehSoTv } = await import('./tipos')
+    expect(ehSoTv(perfilDeTeste({ modulos: ['tv'] }))).toBe(true)
+    expect(ehSoTv(perfilDeTeste({ modulos: ['fabrica', 'tv'] }))).toBe(false)
+    expect(ehSoTv(perfilDeTeste({ modulos: ['entregas', 'tv'] }))).toBe(false)
+    expect(ehSoTv(perfilDeTeste({ papel: 'admin', modulos: ['tv'] }))).toBe(false)
+  })
+})

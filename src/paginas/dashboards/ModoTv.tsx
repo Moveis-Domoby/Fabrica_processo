@@ -314,6 +314,7 @@ function Painel({ r }: { r: RespostaTv }) {
         rotulo: diaCurto(d.dia),
         dia: d.dia,
         total: d.total,
+        topo: 1e-6,
         ...Object.fromEntries(series.map((s) => [s, d.partes[s] ?? 0])),
       })),
     [r.grafico.dias, series],
@@ -428,25 +429,33 @@ function Painel({ r }: { r: RespostaTv }) {
                     )
                   }}
                 />
-                {series.map((s, i) => (
+                {/* sem animação: a TV relê a cada móvel que sai — barra crescendo toda vez distrai de longe */}
+                {series.map((s) => (
                   <Bar
                     key={s}
                     dataKey={s}
                     stackId="tv"
+                    isAnimationActive={false}
                     fill={corDa(s, letras)}
                     stroke="var(--dm-superficie)"
                     strokeWidth={1}
-                  >
-                    {i === series.length - 1 && (
-                      <LabelList
-                        dataKey="total"
-                        position="top"
-                        formatter={(v) => (Number(v) > 0 ? String(v) : '')}
-                        style={{ fill: 'var(--dm-texto)', fontSize: 18, fontWeight: 700 }}
-                      />
-                    )}
-                  </Bar>
+                  />
                 ))}
+                {/* o total em cima de TODA barra: uma barra invisível de altura ínfima no topo da pilha (a de altura zero não ganha rótulo) */}
+                <Bar
+                  dataKey="topo"
+                  stackId="tv"
+                  fill="transparent"
+                  legendType="none"
+                  isAnimationActive={false}
+                >
+                  <LabelList
+                    dataKey="total"
+                    position="top"
+                    formatter={(v) => (Number(v) > 0 ? String(v) : '')}
+                    style={{ fill: 'var(--dm-texto)', fontSize: 18, fontWeight: 700 }}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

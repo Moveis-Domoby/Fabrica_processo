@@ -72,6 +72,7 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
         rotulo: diaCurto(b.balde),
         balde: b.balde,
         total: b.total,
+        topo: 1e-6,
         ...Object.fromEntries(series.map((s) => [s.chave || 'sem', b.partes[s.chave] ?? 0])),
       })),
     [r.grafico.barras, series],
@@ -185,20 +186,28 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
                       key={s.chave || 'sem'}
                       dataKey={s.chave || 'sem'}
                       stackId="m"
+                      isAnimationActive={false}
                       fill={cor(s.chave, i)}
                       stroke="var(--dm-superficie)"
                       strokeWidth={1}
                       radius={i === series.length - 1 ? [4, 4, 0, 0] : undefined}
-                    >
-                      {i === series.length - 1 && (
-                        <LabelList
-                          dataKey="total"
-                          position="top"
-                          style={{ fill: 'var(--dm-texto)', fontSize: 11, fontWeight: 700 }}
-                        />
-                      )}
-                    </Bar>
+                    />
                   ))}
+                  {/* o total em cima de TODA barra: uma barra invisível de altura ínfima no topo da pilha (a de altura zero não ganha rótulo) */}
+                  <Bar
+                    dataKey="topo"
+                    stackId="m"
+                    fill="transparent"
+                    legendType="none"
+                    isAnimationActive={false}
+                  >
+                    <LabelList
+                      dataKey="total"
+                      position="top"
+                      formatter={(v) => (Number(v) > 0 ? String(v) : '')}
+                      style={{ fill: 'var(--dm-texto)', fontSize: 11, fontWeight: 700 }}
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -218,7 +227,7 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
         )}
       </Painel>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2 [&>*]:min-w-0">
         <Painel
           titulo="Onde vai o tempo do setor"
           dica="Só os móveis da plataforma (o histórico do Trello não tem a fila)."
@@ -245,7 +254,7 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
                 ))}
               </div>
               <ul className="flex flex-col gap-1 text-sm">
-                <li className="flex items-center gap-2">
+                <li className="flex flex-wrap items-center gap-x-2">
                   <span
                     aria-hidden
                     className="size-2.5 rounded-sm"
@@ -257,7 +266,7 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
                     ({Math.round((100 * r.tempo_setor.fila_s) / tempoTotal)}%)
                   </span>
                 </li>
-                <li className="flex items-center gap-2">
+                <li className="flex flex-wrap items-center gap-x-2">
                   <span
                     aria-hidden
                     className="size-2.5 rounded-sm"
@@ -269,7 +278,7 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
                     ({Math.round((100 * r.tempo_setor.execucao_s) / tempoTotal)}%)
                   </span>
                 </li>
-                <li className="flex items-center gap-2">
+                <li className="flex flex-wrap items-center gap-x-2">
                   <span
                     aria-hidden
                     className="size-2.5 rounded-sm"
