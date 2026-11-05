@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { MapPinCheck, RotateCcw, Search } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
-import { acharPontoDoEndereco, enderecoLegivel, marcarPontoNoMapa, origemAproximada } from './api'
+import { AVISO_PONTO_APROXIMADO, acharPontoDoEndereco, enderecoLegivel, marcarPontoNoMapa } from './api'
 import type { PontoAproximado } from './api'
 import { FABRICA } from './rotaRuas'
 
@@ -209,8 +209,8 @@ export function ModalPontoNoMapa({
           {ponto
             ? mexeu
               ? 'Confira o pino na casa do cliente (arraste ou toque no mapa para acertar) e salve.'
-              : pedido.geo_aproximado
-                ? `Este ponto é aproximado (${origemAproximada(pedido.geo_aproximado)}) — arraste o pino (ou toque no mapa) até a casa do cliente e salve.`
+              : pedido.geo_aproximado && !pedido.geo_manual
+                ? `${AVISO_PONTO_APROXIMADO}: arraste o pino (ou toque no mapa) até a casa do cliente e salve.`
                 : 'Este é o ponto de agora — arraste o pino (ou toque no mapa) para acertar e salve.'
             : 'O pino está na fábrica — toque no mapa ou arraste o pino até a casa do cliente.'}
         </p>

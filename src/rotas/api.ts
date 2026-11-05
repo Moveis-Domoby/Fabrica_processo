@@ -687,13 +687,16 @@ export const VERSAO_BUSCA = Date.parse('2026-11-05T00:00:00Z')
  */
 export const VERSAO_DEGRAUS = Date.parse('2026-11-05T03:00:00Z')
 
-/** De onde veio o ponto quando a rua não foi achada (o ponto é aproximado). */
+/**
+ * O ponto não é de rua (a rua não foi achada): 'cidade' — o centro da cidade
+ * da entrega, com o aviso para ajustar o pino. ↪️ Correção do dono (05/11):
+ * 'cep' e 'bairro' (o ponto solto do CEP e o centro do bairro) não valem mais —
+ * só existem nas linhas gravadas antes, que a busca refaz.
+ */
 export type PontoAproximado = 'cep' | 'bairro' | 'cidade'
 
-/** "pelo CEP" / "pelo bairro" / "pelo centro da cidade" — de onde veio o ponto aproximado. */
-export function origemAproximada(degrau: PontoAproximado): string {
-  return degrau === 'cep' ? 'pelo CEP' : degrau === 'bairro' ? 'pelo bairro' : 'pelo centro da cidade'
-}
+/** O aviso do cartão e da janela do mapa (o texto pedido pelo dono). */
+export const AVISO_PONTO_APROXIMADO = 'Endereço aproximado para a cidade da entrega, ajustar o pino do mapa'
 
 /** Quem ainda precisa ir ao geocodificador. */
 export function precisaGeocodificar(
@@ -708,8 +711,12 @@ export function precisaGeocodificar(
   if (p.geo_resolvido === null) return true
   const consultado = p.geo_consultado_em ? new Date(p.geo_consultado_em).getTime() : 0
   if (consultado < VERSAO_BUSCA) return true
-  // o ponto aproximado é procurado de novo depois de 7 dias (o serviço de CEP pode ter respondido "limite")
-  if (p.geo_resolvido === true) return !!p.geo_aproximado && agora - consultado > RETENTAR_APOS_MS
+  if (p.geo_resolvido === true) {
+    // o centro do bairro / o ponto solto do CEP não valem mais (correção do dono, 05/11): refaz
+    if (p.geo_aproximado === 'bairro' || p.geo_aproximado === 'cep') return true
+    // o ponto da cidade é procurado de novo depois de 7 dias (o serviço de CEP pode ter dito "limite")
+    return !!p.geo_aproximado && agora - consultado > RETENTAR_APOS_MS
+  }
   if (consultado < VERSAO_DEGRAUS) return true
   return agora - consultado > RETENTAR_APOS_MS
 }

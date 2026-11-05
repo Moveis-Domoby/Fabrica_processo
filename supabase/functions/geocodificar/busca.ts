@@ -26,13 +26,17 @@
 //     errado com cara de certo).
 //
 // ↪️ Ajuste do dono (05/11 — "não pode acontecer o caso de endereço não
-// encontrado"): a rua que não se acha não vira mais "não achei" — a busca DESCE
-// EM DEGRAUS (o Google Maps vai sempre pelo endereço escrito; o ponto é só o do
-// nosso mapa): 1) a rua; 2) o ponto do CEP; 3) o centro do bairro; 4) o centro
-// da cidade. O ponto do CEP ou do bairro também é ÂNCORA: entre as ruas de
-// mesmo nome, a que fica perto dele é a certa (o ambíguo de antes se resolve
-// na rua). O degrau fica gravado (fonte 'aprox_cep' | 'aprox_bairro' |
-// 'aprox_cidade') e o cartão diz "ponto aproximado" — para acertar à mão.
+// encontrado"): a rua que não se acha não vira mais "não achei" (o Google Maps
+// vai sempre pelo endereço escrito; o ponto é só o do nosso mapa).
+// ↪️ Correção do dono (05/11, manhã — "não tem essa de bairro e centro da
+// cidade, NO MÁXIMO a rua é aceitável, mas deve ter um aviso na tela"): o ponto
+// é de RUA ou é o da CIDADE com aviso — nunca o centro do bairro:
+//   1) a rua (os candidatos do buscador);
+//   2) o ponto do CEP e o centro do bairro só como ÂNCORA: entre as ruas de
+//      mesmo nome, a que fica perto dele é a certa (vira ponto de rua); o ponto
+//      do CEP da PRÓPRIA rua do pedido também é ponto de rua (fonte 'cep');
+//   3) senão, o centro da cidade (fonte 'aprox_cidade') — e o cartão avisa
+//      "Endereço aproximado para a cidade da entrega, ajustar o pino do mapa".
 // ============================================================================
 
 export interface EnderecoPartido {
@@ -459,6 +463,8 @@ export interface PontoDoCep {
   lon: number
   /** CEP geral da cidade (termina em 000): o ponto é o centro da cidade. */
   geral: boolean
+  /** O CEP é da PRÓPRIA rua do pedido: o ponto dele está na rua (vale como ponto de rua). */
+  ruaBate: boolean
 }
 
 /**
@@ -479,17 +485,16 @@ export function pontoDoCep(e: EnderecoPartido, corpo: unknown): PontoDoCep | nul
   const uf = texto('state')
   if (e.uf && uf && uf.toUpperCase() !== e.uf.toUpperCase()) return null
   const geral = soDigitos(texto('cep') ?? e.cep).endsWith('000')
-  if (!geral) {
-    const rua = texto('address') ?? texto('address_name')
-    const ruaBate = semelhancaNome(e.rua, rua) >= 0.75
+  const ruaBate = !geral && semelhancaNome(e.rua, texto('address') ?? texto('address_name')) >= 0.75
+  if (!geral && !ruaBate) {
     const bairro = texto('district')
     const bairroBate = !e.bairro || (bairro !== null && lugarBate(e.bairro, [bairro]))
-    if (!ruaBate && !bairroBate) return null
+    if (!bairroBate) return null
   }
-  return { lat, lon, geral }
+  return { lat, lon, geral, ruaBate }
 }
 
-/** A consulta do centro do bairro ("Rocas, Natal") — null sem bairro ou sem cidade. */
+/** A consulta do centro do bairro ("Rocas, Natal") — só ÂNCORA para achar a rua; null sem bairro ou sem cidade. */
 export function consultaBairro(e: EnderecoPartido): string | null {
   if (e.livre || !e.bairro || !e.cidade) return null
   return `${e.bairro}, ${e.cidade}`

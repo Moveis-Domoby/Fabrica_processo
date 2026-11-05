@@ -16,13 +16,19 @@ describe('precisaGeocodificar — quem a tela manda à busca de endereço', () =
     expect(precisaGeocodificar({ ...base, geo_resolvido: false, geo_consultado_em: em(VERSAO_DEGRAUS + 60_000) }, agora)).toBe(false)
   })
 
-  it('o ponto de rua achado pela busca nova não volta; o aproximado volta depois de 7 dias', () => {
+  it('o ponto de rua achado pela busca nova não volta; o da cidade volta depois de 7 dias', () => {
     const recente = em(VERSAO_DEGRAUS + 60_000)
     expect(precisaGeocodificar({ ...base, geo_resolvido: true, geo_consultado_em: recente }, agora)).toBe(false)
-    expect(precisaGeocodificar({ ...base, geo_resolvido: true, geo_aproximado: 'bairro', geo_consultado_em: recente }, agora)).toBe(false)
+    expect(precisaGeocodificar({ ...base, geo_resolvido: true, geo_aproximado: 'cidade', geo_consultado_em: recente }, agora)).toBe(false)
     expect(
-      precisaGeocodificar({ ...base, geo_resolvido: true, geo_aproximado: 'bairro', geo_consultado_em: recente }, agora + 8 * DIA),
+      precisaGeocodificar({ ...base, geo_resolvido: true, geo_aproximado: 'cidade', geo_consultado_em: recente }, agora + 8 * DIA),
     ).toBe(true)
+  })
+
+  it('correção do dono: o ponto gravado pelo centro do bairro ou pelo CEP solto é refeito na hora', () => {
+    const recente = em(VERSAO_DEGRAUS + 60_000)
+    expect(precisaGeocodificar({ ...base, geo_resolvido: true, geo_aproximado: 'cep', geo_consultado_em: recente }, agora)).toBe(true)
+    expect(precisaGeocodificar({ ...base, geo_resolvido: true, geo_aproximado: 'cidade', geo_consultado_em: recente }, agora)).toBe(false)
   })
 
   it('o que a busca antiga gravou é refeito; sem endereço não vai', () => {

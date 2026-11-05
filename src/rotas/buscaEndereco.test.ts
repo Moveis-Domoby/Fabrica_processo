@@ -195,6 +195,8 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
  * CEP, o centro do bairro, o centro da cidade — e o ponto do CEP/bairro acha a
  * rua de mesmo nome que fica perto dele. Respostas reais do serviço de CEP e do
  * Photon (camadas de lugar) de 05/11/2026, só com os campos que a regra lê.
+ * ↪️ Correção do dono (05/11, manhã): o CEP e o bairro são só ÂNCORA (o ponto
+ * final é de rua — ou o da cidade, com aviso para ajustar o pino).
  */
 const lugar = (lat: number, lon: number, type: string, name: string, extra: Record<string, string> = {}) => ({
   geometry: { coordinates: [lon, lat] },
@@ -216,7 +218,7 @@ describe('os degraus — nunca mais "endereço não encontrado"', () => {
       cep: '59022390', address: 'Rua São João', address_name: 'São João', district: 'Lagoa Seca',
       city: 'Natal', state: 'RN', lat: '-5.8085', lng: '-35.2105',
     })
-    expect(cep).toEqual({ lat: -5.8085, lon: -35.2105, geral: false })
+    expect(cep).toEqual({ lat: -5.8085, lon: -35.2105, geral: false, ruaBate: true })
     expect(escolherPerto(ambiguo, duasSaoJoao, { ...cep!, degrau: 'cep' })).toEqual({ lat: -5.8078, lon: -35.2098, fonte: 'photon' })
   })
 
@@ -227,7 +229,9 @@ describe('os degraus — nunca mais "endereço não encontrado"', () => {
   it('o ponto do CEP só vale na cidade do pedido e com a rua ou o bairro batendo', () => {
     const e = partirEndereco('Rua Desembargador Lins Bahia 173, Rocas, Natal, RN, 59.010-190, Brasil')
     const resposta = { cep: '59010190', address: 'Rua Desembargador Lins Bahia', district: 'Rocas', city: 'Natal', state: 'RN', lat: '-5.7799', lng: '-35.1996' }
-    expect(pontoDoCep(e, resposta)).toEqual({ lat: -5.7799, lon: -35.1996, geral: false })
+    expect(pontoDoCep(e, resposta)).toEqual({ lat: -5.7799, lon: -35.1996, geral: false, ruaBate: true })
+    // CEP de outra rua do MESMO bairro: serve de âncora, mas o ponto dele não é da rua do pedido
+    expect(pontoDoCep(e, { ...resposta, address: 'Rua Doutor Barata' })).toEqual({ lat: -5.7799, lon: -35.1996, geral: false, ruaBate: false })
     // CEP de outra cidade (digitado errado): não leva o ponto para lá
     expect(pontoDoCep(e, { ...resposta, city: 'Parnamirim' })).toBeNull()
     // CEP de outra rua e de outro bairro na mesma cidade: suspeito, não serve
@@ -239,7 +243,7 @@ describe('os degraus — nunca mais "endereço não encontrado"', () => {
   it('o CEP geral da cidade (…000) é o centro dela', () => {
     const e = partirEndereco('RUA PROFESSORA ALICE RODRIGUES 1005 A, Extremoz, RN, 59575-000, Brasil')
     expect(pontoDoCep(e, { cep: '59575000', address: '', city: 'Extremoz', state: 'RN', lat: '-5.7058', lng: '-35.3035' }))
-      .toEqual({ lat: -5.7058, lon: -35.3035, geral: true })
+      .toEqual({ lat: -5.7058, lon: -35.3035, geral: true, ruaBate: false })
   })
 
   it('o centro do bairro: o nome igual, dentro da cidade do pedido (o condomínio "Atol das Rocas" de Lagoa Nova não engana)', () => {

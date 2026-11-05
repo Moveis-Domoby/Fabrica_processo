@@ -19,11 +19,14 @@
 // nome noutro bairro saem assim, sem ninguém editar nada à mão.
 //
 // ↪️ Ajuste do dono (05/11 — "não pode acontecer o caso de endereço não
-// encontrado"): a rua que não se acha desce em DEGRAUS (busca.ts) — o ponto
-// do CEP (serviço de CEP gratuito, sem chave), o centro do bairro, o centro da
-// cidade (Photon). O ponto do CEP/bairro também acha a rua de mesmo nome que
-// fica perto dele. O degrau vai na `fonte` ('aprox_cep' | 'aprox_bairro' |
-// 'aprox_cidade'); o "não achei" de antes é refeito uma vez (VERSAO_DEGRAUS).
+// encontrado") + correção da manhã ("não tem essa de bairro e centro da
+// cidade, NO MÁXIMO a rua é aceitável, mas com aviso na tela"): a rua que não
+// se acha usa o ponto do CEP (serviço de CEP gratuito, sem chave) e o centro
+// do bairro (Photon) só como ÂNCORA para achar a rua de mesmo nome perto deles;
+// o ponto do CEP da própria rua do pedido vale como ponto de rua (fonte 'cep').
+// Sem rua: o centro da CIDADE (fonte 'aprox_cidade') e o cartão avisa para
+// ajustar o pino. O "não achei" de antes é refeito uma vez (VERSAO_DEGRAUS);
+// o que a 1ª versão gravou pelo bairro/CEP ('aprox_bairro'/'aprox_cep') também.
 //
 //   POST { itens: [{ chave, endereco }, …] }   (até 5 por chamada)
 //   → { resultados: [{ chave, latitude, longitude, resolvido, tentar_depois? }, …] }
@@ -204,8 +207,8 @@ async function peloPhoton(
   return { lista: candidatosPhoton(r.corpo) }
 }
 
-/** De onde veio o ponto: a rua (pelo buscador) ou um degrau (aproximado). */
-type Fonte = 'nominatim' | 'photon' | 'aprox_cep' | 'aprox_bairro' | 'aprox_cidade'
+/** De onde veio o ponto: a rua (pelo buscador ou pelo CEP da própria rua) ou a cidade (aproximado, com aviso). */
+type Fonte = 'nominatim' | 'photon' | 'cep' | 'aprox_cidade'
 
 type Consulta =
   | { tipo: 'ok'; lat: number; lon: number; fonte: Fonte }
@@ -224,10 +227,12 @@ async function peloCep(e: EnderecoPartido, recusas: string[]): Promise<PontoDoCe
 }
 
 /**
- * A rua não foi achada (ou ficou ambígua): os DEGRAUS — o ponto do CEP, o
- * centro do bairro, o centro da cidade. O ponto do CEP/bairro serve antes de
- * âncora: a rua com o nome do pedido perto dele é a certa (ponto de rua). Só o
- * buscador falhando (nada respondeu) é "tentar depois"; nada gravado.
+ * A rua não foi achada (ou ficou ambígua). O ponto do CEP e o centro do bairro
+ * servem só de ÂNCORA: a rua com o nome do pedido perto deles é a certa (ponto
+ * de rua); o ponto do CEP da PRÓPRIA rua do pedido também é ponto de rua. Sem
+ * rua: o centro da CIDADE, aproximado (o cartão avisa para ajustar o pino) —
+ * nunca o centro do bairro (correção do dono, 05/11). Só o buscador falhando
+ * (nada respondeu) é "tentar depois"; nada gravado.
  */
 async function degraus(
   e: EnderecoPartido,
@@ -239,10 +244,11 @@ async function degraus(
   if (cep && !cep.geral) {
     const rua = escolherPerto(e, candidatos, { lat: cep.lat, lon: cep.lon, degrau: 'cep' })
     if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
-    return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'aprox_cep' }
+    if (cep.ruaBate) return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'cep' }
   }
 
-  const qBairro = consultaBairro(e)
+  // o bairro só ajuda se o buscador trouxe alguma rua com o nome do pedido
+  const qBairro = candidatos.length > 0 ? consultaBairro(e) : null
   if (qBairro) {
     await pausa()
     const r = await peloPhoton(qBairro, e.uf, false, ['district', 'locality'])
@@ -254,7 +260,6 @@ async function degraus(
     if (bairro) {
       const rua = escolherPerto(e, candidatos, { ...bairro, degrau: 'bairro' })
       if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
-      return { tipo: 'ok', lat: bairro.lat, lon: bairro.lon, fonte: 'aprox_bairro' }
     }
   }
 
@@ -337,7 +342,9 @@ function cacheVale(g: LinhaCache, chave: string): boolean {
   const antigo = quando < VERSAO_BUSCA && !chave.startsWith('avulsa:')
   if (antigo) return false
   const semana = RETENTAR_FALHA_APOS_DIAS * 24 * 60 * 60 * 1000
-  // o ponto aproximado (degrau) é procurado de novo depois de 7 dias — o serviço de
+  // o centro do bairro / o ponto solto do CEP não valem mais (correção do dono, 05/11): refaz
+  if (g.fonte === 'aprox_bairro' || g.fonte === 'aprox_cep') return false
+  // o ponto aproximado (a cidade) é procurado de novo depois de 7 dias — o serviço de
   // CEP pode ter recusado (limite de uso) e o mapa aberto melhora
   if (g.fonte.startsWith('aprox_')) return Date.now() - quando < semana
   if (g.resolvido) return true
