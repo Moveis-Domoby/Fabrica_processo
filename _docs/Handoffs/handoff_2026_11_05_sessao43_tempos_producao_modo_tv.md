@@ -9,7 +9,7 @@ tags: [handoff, sessao-43, tempo, dashboards, modo-tv, trello, conferencia]
 
 Demanda: [[SESSAO-43 - Tela Tempos de Producao Modo TV e Historico do Trello]] · Diário: [[SESSAO-43]] (`_docs/Plataforma/Execucao/SESSAO-43.md`) · Decisões: D-225…D-233 · Ramo `sessao-43-tempos-producao-modo-tv` (já com a `main` da SESSAO-46 juntada)
 
-> **Nada disto está no ar.** Banco, carga do histórico e site esperam o OK do dono, cada um num passo (§8).
+> **Banco ✅ no ar e carga do histórico ✅ feita (05/11, com o OK do dono).** Falta só o site, que espera o OK (§8).
 
 ## 1. Objetivo
 
@@ -63,7 +63,7 @@ Todas as provisórias estão em [[PLT - Decisoes de Produto]] (D-225…D-233).
 
 ## 5. Como testar (passo a passo)
 
-**Antes:** (1) ~~aplicar as duas atualizações do banco~~ ✅ feito em 05/11; (2) publicar o site; (3) rodar a carga do histórico (primeiro o ensaio, depois com `--confirmar`) — ver §8. Até lá, as fotos abaixo são da vitrine (dado de mentira).
+**Antes:** (1) ~~aplicar as duas atualizações do banco~~ ✅ feito em 05/11; (2) publicar o site; (3) ~~rodar a carga do histórico~~ ✅ feita em 05/11 (primeiro o ensaio, depois com `--confirmar`) — ver §8. Até lá, as fotos abaixo são da vitrine (dado de mentira).
 
 **A. Tempos de produção — Dia**
 1. Entrar como admin → menu **Dashboards → Tempos de produção**. Abre na Montagem, na aba **Dia**, com "incluir histórico do Trello" ligado.
@@ -106,7 +106,7 @@ Todas as provisórias estão em [[PLT - Decisoes de Produto]] (D-225…D-233).
 ## 6. Impacto nos números visíveis
 
 - A tela nova mostra o histórico do Trello junto (ligado por padrão); desligar volta para só a plataforma. O **tempo padrão oficial** e os avisos não mudam (continuam só com a plataforma).
-- Os números do Trello pela conta da 42: **815 válidas, mediana 43,3 min, média 52,1 min** (a demanda esperava ~813 · ~44 · ~54; a conta crua dá ~183 min). Diferença explicada: os lotes reais são 9 (18 cartões), não 15 — os outros 6 eram cartões repetidos.
+- Os números do Trello pela conta da 42: na bateria **815 válidas, mediana 43,3 min, média 52,1 min**; **no banco real (carga de 05/11) 794 · 42,2 · 49,2** — a Montagem real fecha às 17:00 na sexta e já tem os modelos ligados (a demanda esperava ~813 · ~44 · ~54; a conta crua dá ~183 min). Diferença explicada: os lotes reais são 9 (18 cartões), não 15 — os outros 6 eram cartões repetidos.
 
 ## 7. Notas do cofre atualizadas
 
@@ -117,9 +117,9 @@ Todas as provisórias estão em [[PLT - Decisoes de Produto]] (D-225…D-233).
 ## 8. Ficou pendente / precisa de decisão
 
 1. ✅ **As duas atualizações do banco — aplicadas em 05/11/2026 ~12:00 de Natal** com o OK do dono, uma a uma pelo aplicador `--so`; antes, conferido no banco vivo que `fn_aviso_pode_ouvir` e `plt_fn_motivo_salvar` eram as versões base; integração do Tiny idêntica; depois, a tabela pronta = a origem e as portas respondem ao admin (detalhe no [[SUPA - Esquema do Banco]]). O site no ar continua funcionando: nada que ele usa saiu.
-2. **OK para a carga do histórico do Trello** — `node supabase/manutencao/2026-11-05_historico_trello.mjs` (ensaio) e depois com `--confirmar`.
+2. ✅ **A carga do histórico — feita em 05/11/2026 ~12:37 de Natal (15:37 UTC)** com o OK do dono: o ensaio antes (desfeito), depois `--confirmar`. 891 linhas → 885 cartões (6 repetidos), 794 válidas, 91 para conferir (49 rápidas demais, 20 longas para o modelo, 22 acima do teto), mediana 42,2 min, média 49,2 min (a crua 182,8), 9 lotes (18 cartões), 69 cortados no fim do dia, 9 sábados viraram dia trabalhado da Montagem, 239 cartões sem modelo (115 nomes). Os números do banco real ficam um pouco abaixo dos da bateria (815 · 43,3 · 52,1) porque a Montagem real fecha às 17:00 na sexta e já tem os modelos da 42 ligados — mesma conta, configuração real; dentro da faixa da demanda. Montadores pela etiqueta na equipe do painel da Montagem: Franklinildo 458, Franklin 349, Anderson 61, Alisson 17, João Pedro 4; 10 sem montador. **Etiquetas sem pessoa no painel da Montagem:** GEOVANE (221 cartões) e KLEBER (7, com as variações) estão cadastrados mas fora da equipe do painel da Montagem; DANIEL (14) não casa com ninguém pelo primeiro nome (no painel há um "Francisco Daniel" — não se presume que seja ele); PARADO (2) é status. Conferido depois: `plt_tempo_trello` 885 (794 válidas, 91 conferir), a projeção com 885 do Trello e 889 pessoas (= a soma), o padrão com o histórico 255 modelos (590 cartões do Trello), o oficial intacto (231), 9 exceções de sábado na Montagem; a aba Período de 13/07 a 13/10 com o histórico dá os mesmos números e, sem o histórico, vazio.
 3. **OK para publicar o site** — juntar o ramo na `main` (avanço direto; a `main` da 46 já está dentro).
 4. **O dia de montagem conferido card a card** com o dono (F5) — depois dos três passos acima.
-5. Ligar os **nomes do Trello sem modelo** e cadastrar quem falta das etiquetas (ANDERSON e outras) — e rodar a carga de novo (não duplica).
+5. Ligar os **nomes do Trello sem modelo** (115 nomes, 239 cartões) e pôr na equipe do painel da Montagem quem montava no Trello e está fora dela (GEOVANE com 221 cartões, KLEBER com 7; DANIEL com 14 — dizer quem é) — e rodar a carga de novo, com OK (não duplica; refaz os montadores). O ANDERSON já casou com o Anderson Carvalho.
 6. Confirmar as provisórias **D-225…D-232**; decidir a **D-233** (períodos de 90 dias ou mais com 100× o movimento).
 7. ClickUp: as 5 tarefas em "fazendo", com comentário de entrega — quem conclui é o dono.

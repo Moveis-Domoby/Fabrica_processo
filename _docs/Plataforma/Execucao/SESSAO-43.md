@@ -79,10 +79,10 @@ E-190 (o `cd` da regra 20), E-191 (o PGlite segura o processo sem `process.exit`
 
 ## Pendências (precisam do dono)
 1. ✅ **As duas atualizações do banco — aplicadas em 05/11/2026 ~15:00 UTC** com o OK do dono (ver "Aplicação no banco" abaixo).
-2. **OK para a carga do histórico do Trello** (o script em `supabase/manutencao/`, primeiro em ensaio, depois com `--confirmar`).
+2. ✅ **A carga do histórico do Trello — feita em 05/11/2026 15:37 UTC** com o OK do dono (ver "A carga do histórico" abaixo).
 3. **OK para publicar o site** (juntar o ramo na `main`).
 4. **O dia de montagem conferido card a card** com o dono (F5), com o banco no ar.
-5. Ligar os **Nomes do Trello sem modelo** e cadastrar as etiquetas sem pessoa (ANDERSON e outras) — depois da carga.
+5. Ligar os **Nomes do Trello sem modelo** (115 nomes, 239 cartões) e pôr GEOVANE (221) e KLEBER (7) na equipe do painel da Montagem, dizer quem é o DANIEL (14) — e rodar a carga de novo com OK. O ANDERSON já casou.
 6. Confirmar as provisórias **D-225…D-232** e decidir a **D-233** (períodos longos com 100× o movimento).
 7. ClickUp: as 5 tarefas seguem em "fazendo" com um comentário de entrega; quem conclui é o dono.
 
@@ -93,3 +93,9 @@ E-190 (o `cd` da regra 20), E-191 (o PGlite segura o processo sem `process.exit`
 - **Conferido depois (pelo conector, só leitura):** `plt_tempo_montagens` 611 = as passagens fechadas, com dia e sem teste (611); `plt_tempo_montagem_pessoas` 492 = a soma dos montadores e ajudantes (492); `plt_tempo_passagem_equipe` 865; `plt_tempo_padrao_historico` 231; `plt_tempo_trello` 0 (a carga é o passo seguinte); 5 motivos de conferência; o check validado; `fn_aviso_pode_ouvir` com o Modo TV; `authenticated` sem SELECT nas tabelas novas; as 15 portas com execute só para `authenticated`. Como o admin (claims do `auth_user_id` no mesmo comando — A-75): Dia, Período, Móveis, Montadores, Conferir, TV, opções e Procurar respondem na Montagem (setor 6, 26/10 a 05/11); sem login, a porta recusa ("Entre na plataforma para ver os tempos."). As portas de leitura não gravam trilha — a conferência não deixou rastro.
 - `supabase-fabrica-schema.sql` **não muda**: ele é o retrato das tabelas da integração, e nenhuma foi tocada (impressão digital idêntica). O [[SUPA - Esquema do Banco]] marcou o bloco da 43 como aplicado.
 - O site no ar segue funcionando: nenhuma das duas apaga função, visão ou tabela que ele usa (tudo aditivo; o "Tempo por setor" antigo só sai quando o site novo subir).
+
+## A carga do histórico (05/11/2026 15:37 UTC, com o OK do dono)
+- Ensaio (`node supabase/manutencao/2026-11-05_historico_trello.mjs`, desfeito) e depois `--confirmar` → GRAVADO. 891 linhas → 885 cartões; 794 válidas; 91 para conferir (49 rápidas demais, 20 longas para o modelo, 22 acima do teto); mediana 42,2 min, média 49,2 min (a crua 182,8); 9 lotes / 18 cartões; 69 cortados no fim do dia; 9 sábados criados como dia trabalhado; 239 cartões sem modelo (115 nomes).
+- **Por que abaixo da bateria (815 · 43,3 · 52,1):** o cenário da bateria usa 07:30–12:00 e 13:00–18:00 em todos os dias úteis e um banco sem modelos; a Montagem real fecha às 17:00 na sexta e já tem os modelos da 42 ligados (mais "longa para o modelo"). Mesma conta, configuração real — dentro da faixa da demanda (790–830 · 40–47 · 48–58). Não é furo da regra.
+- **Montadores** (etiqueta × equipe do painel da Montagem, pelo primeiro nome): Franklinildo 458, Franklin 349, Anderson 61 (o ANDERSON casou com Anderson Carvalho, que está no painel), Alisson 17, João Pedro 4; 10 sem montador. **Sem pessoa:** GEOVANE 221 e KLEBER 7 (cadastrados, fora da equipe do painel da Montagem), DANIEL 14 (no painel há "Francisco Daniel" — o primeiro nome não casa e não se presume), PARADO 2 (status). Pendência do dono: pôr quem montava na equipe do painel e rodar a carga de novo (idempotente; refaz os montadores).
+- **Conferido no banco vivo:** `plt_tempo_trello` 885 (794 válida / 91 conferir), projeção 885 do Trello + 611 da plataforma, 889 pessoas do Trello (= a soma das equipes), padrão com o histórico 255 modelos (590 cartões do Trello), padrão oficial intacto (231), 9 exceções de sábado na Montagem. Como o admin: Período 13/07–13/10 com o histórico = 885 montados, 794 válidas, mediana 2.530 s, média 2.954 s, 54 dias com montagem; sem o histórico, vazio; Conferir = 91 (49 rápidas, 42 longas), 18 em lote, 69 cortados.
