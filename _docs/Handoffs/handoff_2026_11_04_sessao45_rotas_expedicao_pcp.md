@@ -25,10 +25,23 @@ Os cinco pontos que o dono mandou na noite de 04/11: o Google Maps abrindo ender
 
 Arquivos: migration `supabase/migrations/20261105010000_plt_rotas_mapa_expedicao_pcp.sql` (e a 20261027080000 reaplicável); função `supabase/functions/geocodificar/` (`index.ts`, `busca.ts` novo); telas `src/rotas/navegacao.ts`, `CartaoPedido.tsx`, `ModalPontoNoMapa.tsx` (novo), `AbaJaProgramadas.tsx`, `AbaProgramar.tsx`, `paradasAvulsas.ts`, `api.ts`; `src/logistica/componentes/ModalLiberarPeca.tsx` (novo), `CartaoProdutoEstoque.tsx`, `ModalProdutoEstoque.tsx`, `src/logistica/api.ts`, `src/paginas/Expedicao.tsx`, `src/paginas/PCP.tsx`, `src/kanban/tipos.ts`; testes `src/rotas/buscaEndereco.test.ts`, `navegacao.test.ts`, `src/logistica/componentes/CartaoProdutoEstoque.test.tsx`, bateria (bloco SESSAO-45). **n8n: nada muda.**
 
+### 2b. Ajuste do dono (05/11, madrugada) — D-221
+
+*"A rota precisa do endereço exato do cliente, não do ponto marcado; o ponto pode servir para ajuste caso necessário, mas não pode acontecer o caso de endereço não encontrado."*
+
+| O quê | Como ficou |
+|---|---|
+| **Google Maps / Waze** | Vão **sempre pelo endereço escrito** do cliente (com CEP) — nem o ponto marcado à mão nem o pino da parada avulsa mandam mais. O ponto só vai quando não existe rua escrita. A aba "Programar" passou a mandar o CEP também. |
+| **O ponto da plataforma** | Serve ao **mapa da rota** (onde a parada aparece, a ordem sugerida, a distância) — "Acertar o ponto no mapa" segue para ajustar. |
+| **Nunca mais "não encontrado"** | A busca desce em degraus: a rua → **o ponto do CEP** → **o centro do bairro** → **o centro da cidade**; o ponto do CEP/bairro antes acha a rua de mesmo nome que fica perto dele (o ambíguo de antes vira ponto de rua). O cartão diz **"Ponto aproximado no mapa (pelo CEP / pelo bairro / pelo centro da cidade) · acertar"**. O aproximado é procurado de novo depois de 7 dias. |
+| **O raro sem ponto** | Só endereço sem rua e sem cidade (pedido sem endereço no Tiny): "Endereço incompleto no cadastro (sem rua e sem cidade) — complete no Tiny". |
+
+Simulação contra os 172 endereços do cache: **160 de rua, 10 pelo bairro, 1 pelo centro da cidade, 1 sem ponto** — o sem ponto é o "endereço" que só tem o estado (37 pedidos sem endereço no Tiny, todos já entregues ou cancelados; nenhum na Programação). Banco: migration `20261105020000` (as duas listas da Programação devolvem o aproximado; nenhuma tabela/coluna — o degrau mora na fonte do ponto). Função `geocodificar` v11. Site na main.
+
 ## 3. Como testar (roteiro do dono)
 
 1. **Google Maps:** Rotas → Programação → Já programadas → escolha uma rota → "Abrir a rota no Google Maps". Cada parada aparece no Google com o endereço do cliente (rua, número, bairro, CEP), não um ponto solto. No celular do entregador (Entregas do dia), o mesmo nos botões Google Maps e Waze de cada parada.
-2. **Não encontrado:** na lista, um pedido com "Endereço não encontrado no mapa" tem o botão **"Marcar no mapa"** → a janela procura o endereço → arraste o pino até a casa do cliente → "Salvar o ponto". O pedido passa a aparecer no mapa e o Google Maps vai exatamente para aquele ponto. Em qualquer pedido achado, "Acertar o ponto no mapa" corrige um ponto errado; "Voltar à busca automática" desfaz. *(Hoje o 13798 — Estrada RN 313, Pium — está assim: a busca antiga tinha posto um ponto numa rua de outro nome; vale marcar.)*
+2. **Ponto no mapa** *(↪️ ajuste de 05/11)*: não existe mais "Endereço não encontrado no mapa". O pedido cuja rua o mapa não acha aparece com **"Ponto aproximado no mapa (pelo bairro…) · acertar"** — o Google Maps segue pelo endereço; o toque abre a janela para arrastar o pino até a casa (só para o mapa da rota). "Voltar à busca automática" desfaz o ponto marcado à mão. *(O 13798 — Estrada RN 313, Pium — fica com o ponto pelo bairro de Pium.)*
 3. **Layout:** a mesma lista com os dois menus abertos: o cartão do pedido em linhas normais e os botões embaixo.
 4. **Liberar peça:** Logística → Expedição → um pedido pronto → **"Liberar para outro pedido"** → escolha a peça → "Sim" → digite o número do pedido que vai receber (a janela diz na hora se dá e por quê) → "Sim, produzir de novo" → Confirmar. Confira: o pedido de destino com a peça pronta na Expedição; o de origem de volta no PCP com o móvel para liberar; o aviso no sino do PCP. Com "Não" → escreva o motivo (ex.: foi para a vitrine). Com "Não por enquanto" → o pedido vai para o stand-by do PCP.
 5. **PCP × Estoque:** quando uma venda reservar peça do estoque, o chip do pedido no PCP diz "N reservada(s) no estoque" e o cartão do mesmo móvel no Estoque diz "livres no estoque" e "+ N no estoque reservadas para venda (pedido …)".
@@ -53,10 +66,10 @@ Arquivos: migration `supabase/migrations/20261105010000_plt_rotas_mapa_expedicao
 ## 6. Pendências que precisam do dono
 
 1. **Confirmar as decisões provisórias** D-217 a D-220 — em especial o que "Não por enquanto" faz (o pedido volta ao PCP em stand-by) e que o destino precisa estar esperando o móvel no PCP.
-2. **Marcar no mapa** os pedidos que agora aparecem como "não encontrado" (ex.: 13798, Estrada RN 313 em Pium) — 2 cliques cada.
+2. ~~Marcar no mapa os pedidos "não encontrado"~~ — ↪️ não precisa mais (ajuste de 05/11): todo pedido tem ponto (de rua ou aproximado); acertar à mão só se quiser o mapa da rota mais exato.
 3. **ClickUp:** nenhuma tarefa criada (o pedido veio direto na conversa).
 4. Da sessão anterior (seguem com o dono): o acerto do 13787, as 6 tarefas do ClickUp, conferir os pedidos 13620, 13689 e 13699.
 
 ## 7. Numeração usada
 
-Migration `20261105010000`; decisões D-217…D-220; aprendizados E-178…E-179, A-137…A-140. Seguinte: **D-221 / E-180 / A-141**.
+Migration `20261105010000`; decisões D-217…D-220; aprendizados E-178…E-179, A-137…A-140. ↪️ Ajuste de 05/11: migration `20261105020000`, D-221 (do dono), E-180, A-141…A-142. Seguinte: **D-222 / E-181 / A-143**.

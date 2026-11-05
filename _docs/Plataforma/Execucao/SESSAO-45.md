@@ -68,6 +68,18 @@ Ramo `sessao-45-rotas-mapa-expedicao-pcp` (pasta principal, a partir da `main` 4
 - **E-178** — a bateria reaplica a migration dos filtros da Programação (20261027080000) depois da nova; ela só derrubava a assinatura de 5 argumentos e o `create or replace` da de 6 batia no retorno novo ("cannot change return type"). → a 080000 passa a derrubar também a de 6 (reaplicável; em produção nada muda); a nova entra na cadeia de reaplicação do bloco 38; o bloco 82 deixa a conta das peças do estoque fora da comparação (mudou de propósito; conferido que a nova nunca passa da antiga).
 - **E-179** — remendos por script com `\d` dentro de heredoc perderam as barras; e o `sed` que tentou trocar o ajudante de CRLF quebrou o próprio script. → regex mexida com a ferramenta de edição; scripts de remendo escritos pelo Write.
 
+## 4b · Ajuste do dono (05/11, madrugada) — "a rota precisa do endereço exato do cliente, não do ponto marcado; o ponto pode servir para ajuste; não pode acontecer endereço não encontrado" (D-221)
+
+Task list do ajuste: 1) ver como a rota e a busca tratam o endereço ✅ · 2) Google Maps/Waze sempre pelo endereço ✅ · 3) nunca "não encontrado": degraus ✅ · 4) testes e simulação com os endereços reais ✅ · 5) publicar e conferir na tela · 6) rastro e cofre.
+
+- O dono marcou à mão um ponto (Nísia Floresta) às 01:45 UTC de 05/11 — o registro é dele; nada a apagar.
+- **Navegação** (`src/rotas/navegacao.ts`, `paradasAvulsas.ts`): saiu o `pontoConfirmado` — o link vai SEMPRE pelo endereço escrito (na avulsa, o digitado); o ponto só sem rua escrita. Testes do 13784 com ponto marcado à mão e da avulsa com pino.
+- **Busca em degraus** (`supabase/functions/geocodificar/busca.ts` + `index.ts`): `escolherPerto` (rua de mesmo nome perto da âncora: 1,5 km do CEP, 2 km do bairro), `pontoDoCep` (cidade e UF iguais; CEP de rua só com a rua OU o bairro batendo; CEP geral …000 = centro da cidade), `consultaBairro`/`consultaCidade`, `escolherLugar` (bairro: nome igual, senão o nome do pedido dentro do do mapa e sem o mapa dizer outro bairro; cidade: nome igual). Ordem: rua → CEP (âncora ou ponto `aprox_cep`) → bairro (âncora ou `aprox_bairro`) → CEP geral/cidade (`aprox_cidade`). Buscador falhando nos degraus = "tentar depois" (nada gravado). O livre (avulsa/janela) não desce degraus. `VERSAO_DEGRAUS` (05/11 03:00 UTC, função e tela juntas): o "não achei" anterior é refeito uma vez.
+- **Banco** — migration `20261105020000_plt_rotas_ponto_aproximado.sql`: `plt_fn_programacao` (+ `cep`, `geo_manual`, `geo_aproximado`) e `plt_fn_programadas` (+ `geo_aproximado`), drop + create das versões vivas, mesmas permissões. Nenhuma tabela/coluna (o degrau mora em `plt_geocache.fonte`). A 20261027040000 passa a derrubar a Programação antes de recriá-la e devolve as permissões (E-178: a bateria a reaplica); a nova entrou na cadeia do bloco 38. Teste novo no bloco SESSAO-45 (aproximado nas duas listas, rua não, permissões).
+- **Telas**: `CartaoPedido` — "Ponto aproximado no mapa (pelo CEP/bairro/centro da cidade) · acertar"; o raro sem ponto diz "Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço"; títulos dizem que o Google vai pelo endereço. `ModalPontoNoMapa` — o aviso de que o ponto é só do mapa da rota e o texto do aproximado.
+- **Serviços de CEP** (A-141): AwesomeAPI com ponto bom (mediana 217 m) e limite de uso (429 depois de ~38 seguidas); BrasilAPI v2 com coordenadas inúteis (mediana 5,5 km).
+- **E-180**: `cat >` sem heredoc travou um comando e criou arquivo vazio fora do repo — apagado.
+
 ## 5 · Rastro dos testes
 
 - Nada gravado em pedido, peça, evento ou ponto de verdade (as janelas foram abertas e canceladas).
