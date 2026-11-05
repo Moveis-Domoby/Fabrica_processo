@@ -9,7 +9,7 @@ function Selo({ icone, children, className }: { icone?: ReactNode; children: Rea
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium [&>svg]:size-3.5 [&>svg]:shrink-0',
+        'relative inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium [&>svg]:size-3.5 [&>svg]:shrink-0',
         className,
       )}
     >

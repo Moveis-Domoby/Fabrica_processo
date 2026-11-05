@@ -27,9 +27,11 @@ function diaCurto(iso: string): string {
 /** O cartão da sugestão no quadro: número, tipo, nível, o começo do texto e quem pediu. */
 function Cartao({ s, arrastando = false }: { s: CartaoSugestao; arrastando?: boolean }) {
   return (
+    // `relative`: o texto só para leitor de tela (sr-only é absoluto) fica preso ao
+    // cartão — sem isso ele escapa da coluna que rola e estica a página para o lado.
     <div
       className={cn(
-        'flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 text-left',
+        'relative flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 text-left',
         arrastando && 'shadow-lg',
       )}
     >
