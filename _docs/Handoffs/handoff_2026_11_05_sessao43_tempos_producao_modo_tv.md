@@ -17,7 +17,7 @@ A 2ª metade do pedido do dono de 29/10 (a 1ª foi a SESSAO-42, o tempo certo): 
 
 ## 2. O que foi feito
 
-### Banco (duas atualizações, ⏳ não aplicadas)
+### Banco (duas atualizações, ✅ aplicadas em 05/11/2026 ~12:00 de Natal, com o OK do dono)
 - **`20261105030000_plt_tempos_historico_trello.sql`:** a equipe de cada passagem (quem montou, quem ajudou, o esforço de cada um, cortado, clique errado — refeita no mesmo gesto que mede); o histórico do Trello numa **tabela própria** (nunca vira fato da plataforma), com a **mesma conta da 42**; o **padrão com o histórico** por modelo (o oficial não muda); "Nomes do Trello sem modelo" e o ligar; a função da carga (fora da API).
 - **`20261105040000_plt_tempos_producao_modo_tv.sql`:** a lista "Motivos de conferência"; a permissão **Modo TV** (junto dos módulos Fábrica/Comercial/Entregas) e a porta que a liga (só admin); o canal do setor aberto para a TV; a **tabela pronta de leitura** (um móvel por linha + uma por pessoa, mantida no gesto); as portas de cada aba, da conferência, do Procurar e da TV (só letras).
 
@@ -63,7 +63,7 @@ Todas as provisórias estão em [[PLT - Decisoes de Produto]] (D-225…D-233).
 
 ## 5. Como testar (passo a passo)
 
-**Antes:** (1) aplicar as duas atualizações do banco; (2) publicar o site; (3) rodar a carga do histórico (primeiro o ensaio, depois com `--confirmar`) — ver §8. Até lá, as fotos abaixo são da vitrine (dado de mentira).
+**Antes:** (1) ~~aplicar as duas atualizações do banco~~ ✅ feito em 05/11; (2) publicar o site; (3) rodar a carga do histórico (primeiro o ensaio, depois com `--confirmar`) — ver §8. Até lá, as fotos abaixo são da vitrine (dado de mentira).
 
 **A. Tempos de produção — Dia**
 1. Entrar como admin → menu **Dashboards → Tempos de produção**. Abre na Montagem, na aba **Dia**, com "incluir histórico do Trello" ligado.
@@ -110,13 +110,13 @@ Todas as provisórias estão em [[PLT - Decisoes de Produto]] (D-225…D-233).
 
 ## 7. Notas do cofre atualizadas
 
-[[PLT - Decisoes de Produto]] (D-225…D-233) · [[PLT - Memoria de Aprendizado]] (E-190…E-193, A-143…A-149) · [[SUPA - Esquema do Banco]] (bloco SESSAO-43, ⏳ não aplicado) · [[PLT - Lei de Desempenho e Escala]] (andamento da 43, exceção da TV, dívida 31; a dívida da 46 virou a 32) · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · a demanda (Resultado).
+[[PLT - Decisoes de Produto]] (D-225…D-233) · [[PLT - Memoria de Aprendizado]] (E-190…E-193, A-143…A-149) · [[SUPA - Esquema do Banco]] (bloco SESSAO-43, ✅ aplicado em 05/11) · [[PLT - Lei de Desempenho e Escala]] (andamento da 43, exceção da TV, dívida 31; a dívida da 46 virou a 32) · [[000 - ORDEM DAS SESSOES]] · [[000 - MAPA DO PROJETO]] · a demanda (Resultado).
 
 **Checklist de desempenho (§12):** requisições — 1 por aba no clique, a TV 1 + ao vivo + 1 na virada do dia (por construção; medir no site publicado); nenhum relógio buscando dado, nenhum `postgres_changes`; planos ×100 no diário e na lei (30 dias dentro do teto; 90 dias = dívida 31); índices em toda chave estrangeira, filtro e ordenação; listas por cursor (Móveis por deslocamento justificado, teto 100); pacote **228,4 KB** só esta sessão, **235,9 KB** junto da 46 (teto 250); escrita idempotente (carga e ligar); a tela tocada (Tempo por setor) saiu.
 
 ## 8. Ficou pendente / precisa de decisão
 
-1. **OK para aplicar as duas atualizações do banco** — uma a uma, pelo aplicador `--so` (a pasta tem a da 46, que já está no ar). Antes, conferir que nenhuma frente recriou `fn_aviso_pode_ouvir` depois de 05/11 (a 43 a recria).
+1. ✅ **As duas atualizações do banco — aplicadas em 05/11/2026 ~12:00 de Natal** com o OK do dono, uma a uma pelo aplicador `--so`; antes, conferido no banco vivo que `fn_aviso_pode_ouvir` e `plt_fn_motivo_salvar` eram as versões base; integração do Tiny idêntica; depois, a tabela pronta = a origem e as portas respondem ao admin (detalhe no [[SUPA - Esquema do Banco]]). O site no ar continua funcionando: nada que ele usa saiu.
 2. **OK para a carga do histórico do Trello** — `node supabase/manutencao/2026-11-05_historico_trello.mjs` (ensaio) e depois com `--confirmar`.
 3. **OK para publicar o site** — juntar o ramo na `main` (avanço direto; a `main` da 46 já está dentro).
 4. **O dia de montagem conferido card a card** com o dono (F5) — depois dos três passos acima.

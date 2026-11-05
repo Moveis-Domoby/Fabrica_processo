@@ -78,10 +78,18 @@ Ramo `sessao-43-tempos-producao-modo-tv`, na pasta principal (sem worktree — p
 E-190 (o `cd` da regra 20), E-191 (o PGlite segura o processo sem `process.exit`), E-192 (o ensaio ×100 depois das telas), E-193 (o remendo do conflito) · A-143 (foto pelo Edge), A-144 (o total em cima da barra), A-145 (tabela pronta por gatilho de comando), A-146 (percentis baratos), A-147 (o plano de dentro da função), A-148 (a regra simulada antes do SQL), A-149 (juntar a main sem reescrever).
 
 ## Pendências (precisam do dono)
-1. **OK para aplicar as duas atualizações do banco** (uma a uma, pelo aplicador `--so`) — conferindo antes que nenhuma frente recriou `fn_aviso_pode_ouvir` depois de 05/11.
+1. ✅ **As duas atualizações do banco — aplicadas em 05/11/2026 ~15:00 UTC** com o OK do dono (ver "Aplicação no banco" abaixo).
 2. **OK para a carga do histórico do Trello** (o script em `supabase/manutencao/`, primeiro em ensaio, depois com `--confirmar`).
 3. **OK para publicar o site** (juntar o ramo na `main`).
 4. **O dia de montagem conferido card a card** com o dono (F5), com o banco no ar.
 5. Ligar os **Nomes do Trello sem modelo** e cadastrar as etiquetas sem pessoa (ANDERSON e outras) — depois da carga.
 6. Confirmar as provisórias **D-225…D-232** e decidir a **D-233** (períodos longos com 100× o movimento).
 7. ClickUp: as 5 tarefas seguem em "fazendo" com um comentário de entrega; quem conclui é o dono.
+
+## Aplicação no banco (05/11/2026 ~15:00 UTC, com o OK do dono)
+- **Antes:** `git fetch` — a `origin/main` seguia em `a94df7a` (a 46, já juntada). No banco vivo: `fn_aviso_pode_ouvir` igual à da `20261018210000` (a base da 040000; a 46 não a recria) e o corpo de `plt_fn_motivo_salvar` com o mesmo md5 da `20261027040000` (a base da 040000, que só acrescenta `conferencia`); o check `plt_motivos_tipo_ck` vivo = o da 27/10; `plt_usuarios` sem check em `modulos`; as tabelas da 46 já no ar; nada da 43 no ar.
+- `npm --prefix "<repo>" run banco:aplicar -- --confirmar --so 20261105030000_plt_tempos_historico_trello.sql` → ✔, integração do Tiny idêntica (`e2109f3a…`, linhas idênticas), 80 tabelas.
+- `npm --prefix "<repo>" run banco:aplicar -- --confirmar --so 20261105040000_plt_tempos_producao_modo_tv.sql` → ✔, integração idêntica, 82 tabelas.
+- **Conferido depois (pelo conector, só leitura):** `plt_tempo_montagens` 611 = as passagens fechadas, com dia e sem teste (611); `plt_tempo_montagem_pessoas` 492 = a soma dos montadores e ajudantes (492); `plt_tempo_passagem_equipe` 865; `plt_tempo_padrao_historico` 231; `plt_tempo_trello` 0 (a carga é o passo seguinte); 5 motivos de conferência; o check validado; `fn_aviso_pode_ouvir` com o Modo TV; `authenticated` sem SELECT nas tabelas novas; as 15 portas com execute só para `authenticated`. Como o admin (claims do `auth_user_id` no mesmo comando — A-75): Dia, Período, Móveis, Montadores, Conferir, TV, opções e Procurar respondem na Montagem (setor 6, 26/10 a 05/11); sem login, a porta recusa ("Entre na plataforma para ver os tempos."). As portas de leitura não gravam trilha — a conferência não deixou rastro.
+- `supabase-fabrica-schema.sql` **não muda**: ele é o retrato das tabelas da integração, e nenhuma foi tocada (impressão digital idêntica). O [[SUPA - Esquema do Banco]] marcou o bloco da 43 como aplicado.
+- O site no ar segue funcionando: nenhuma das duas apaga função, visão ou tabela que ele usa (tudo aditivo; o "Tempo por setor" antigo só sai quando o site novo subir).
