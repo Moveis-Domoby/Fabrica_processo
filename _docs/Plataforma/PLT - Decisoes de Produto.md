@@ -2122,6 +2122,65 @@ Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demand
 - **3′.** O ponto é **de rua** ou é o **da cidade com aviso** — **nunca o centro do bairro** nem o ponto solto do CEP. O ponto do CEP e o centro do bairro servem **só de âncora** para achar a rua de mesmo nome perto deles (vira ponto de rua); o ponto do CEP da **própria rua** do pedido vale como ponto de rua (fonte `cep`). Sem rua: o centro da cidade (fonte `aprox_cidade`).
 - **4′.** No ponto da cidade, o cartão mostra o aviso **"Endereço aproximado para a cidade da entrega, ajustar o pino do mapa"** (em destaque) com o botão **"Ajustar o pino"** (a janela do mapa); quem não é da logística vê o aviso sem o botão. O ponto marcado à mão some com o aviso. O ponto da cidade é procurado de novo depois de 7 dias; o que a 1ª versão gravou pelo bairro/CEP (`aprox_bairro`/`aprox_cep`) é refeito na hora.
 
+## D-225 · ⏳ PROVISÓRIA — Sem ranking nas abas internas; ficam os "Melhores tempos" e o "Melhor da semana" (05/11/2026, SESSAO-43)
+
+Nenhuma aba põe as pessoas em ordem de primeiro a último: cada pessoa é comparada com o **padrão do modelo** (abaixo / na média / acima, pela faixa do setor — hoje ±10%). Ficam, como a demanda pediu: na aba Montadores, os **8 móveis com o melhor tempo contra o padrão** (modelos com 2+ montagens válidas, com quem e quando); na TV, o **"Melhor da semana"** (só modelos com 3+ válidas no padrão). Os cartões de pessoa saem na ordem de quem montou mais móveis — é ordem de leitura, não pódio (sem posição, sem medalha).
+
+## D-226 · ⏳ PROVISÓRIA — O que entra nas contas da tela Tempos de produção (05/11/2026, SESSAO-43)
+
+1. **Móvel montado** = passagem que saiu do setor concluída e não descartada (a da plataforma e a do histórico do Trello). As de **teste** (antes da data oficial) não aparecem.
+2. **Tempo médio** = a **mediana** das montagens **válidas**; a média vai de subtítulo. **Tempo total** = a soma do tempo do móvel das válidas.
+3. **Cobertura do registro** = das montagens do período, quantas têm tempo (fora as "sem registro" e as descartadas).
+4. **Dias úteis** = os dias de expediente do **calendário do setor** (feriado e dia parado fora; dia trabalhado e sábado liberado dentro) **que têm registro**: desde a data oficial e, com o histórico ligado, o período do Trello. O buraco entre o fim do Trello (13/10) e a data oficial (26/10) **não** conta — lá não há registro de ninguém.
+5. **"Incluir histórico do Trello"** liga e desliga o histórico em **todas** as abas, e também troca o padrão de comparação: ligado, o padrão **com histórico** (as válidas da plataforma + as do Trello, por modelo); desligado, o padrão **oficial** da plataforma. O padrão oficial e as regras de hoje continuam lendo **só a plataforma**.
+6. **Quem montou** = quem teve trecho de execução; quem só auxiliou é **ajudante** (conta em "ajudas dadas", não em "montou"). Dupla é uma série própria do gráfico ("A + B"); no Período, as 7 equipes que mais montaram e o resto junto em "Outros".
+7. **Período** > 70 dias agrupa o gráfico por **semana**; o período vai até 12 meses.
+8. **Móveis:** uma coluna por montador para as **6 pessoas que mais montaram** no período (mediana × n); a tabela é ordenada no servidor (quantidade, melhor, mediana, faixa, nome), em páginas de até 100 modelos.
+9. **Montadores:** "ocupação" = tempo com card ÷ tempo no setor dentro do expediente — **só a plataforma** (o Trello não tem presença); "tempo total" = o esforço **dela** (já dividido quando dois trabalharam juntos).
+
+## D-227 · ⏳ PROVISÓRIA — Quem vê o quê na tela de tempos (05/11/2026, SESSAO-43) — ↪️ D-211 item 8
+
+O **admin** e o **líder do setor** veem todas as pessoas e conferem (Considerar / Descartar / Desfazer, Procurar). O **funcionário da fábrica** vê só o que **ele** montou (o filtro de pessoa fica travado nele) e não confere. A **conta só do Modo TV** não abre nada da tela (recusa no banco, além da guarda da tela).
+
+## D-228 · ⏳ PROVISÓRIA — A conferência do histórico do Trello e a lista "Motivos de conferência" (05/11/2026, SESSAO-43)
+
+1. O histórico do Trello é conferido como a plataforma: **Considerar** (entra na média), **Descartar** (sai), **Desfazer** (volta à regra), com motivo obrigatório, por líder do setor ou admin; a linha guarda a decisão vigente e o rastro vai para a Auditoria.
+2. A lista nova **"Motivos de conferência"** (Utilitários) nasce com: *Conferido com quem montou · Card esquecido aberto · Esqueceu de iniciar ou de soltar o card · Montagem em lote · Teste ou treino* — e o "Outro" com texto, como sempre.
+3. Os grupos da aba Conferir: curto demais, longo (passou do teto ou longo para o modelo), cortado no fim do expediente, voltou para a fila (clique errado), retrabalho, sem registro, gesto de administrador, lote e as já decididas.
+
+## D-229 · ⏳ PROVISÓRIA — A carga do histórico do Trello (05/11/2026, SESSAO-43)
+
+1. **Mesma conta da plataforma:** janelas do setor (expediente com almoço, feriado, dia trabalhado) até o corte do fim do dia; mínimo e teto do setor; "longo para o modelo" = acima do fator do setor × a mediana do **próprio histórico** daquele modelo (só com a base mínima de montagens); o lote dividido.
+2. **Sábado com montagem** no Trello vira **dia trabalhado** do setor no calendário — só esses sábados, com as faixas de uma sexta do setor.
+3. **Lote** = cartões do mesmo setor com início e fim **idênticos** (o tempo dividido pelo número de cartões). No arquivo real são **9 lotes** (19 cartões) — o "15 lotes / 30 cartões" da demanda contava também os repetidos.
+4. **Montador pela etiqueta:** a etiqueta casa com a pessoa da **equipe no painel daquele setor** pelo primeiro nome (palavra inteira, sem acento); o segundo nome desempata; titular vence apoio (sem titular, vale o apoio); dois titulares = dupla, esforço dividido. Etiqueta de quem não está na equipe do setor é **ignorada** (o relatório lista quais — hoje *ANDERSON* e outras sem pessoa cadastrada).
+5. **Modelo pela chave da plataforma** (o nome limpo); o que não casar fica **sem modelo** e aparece em Configurações → Controle de tempo → Modelos → **"Nomes do Trello sem modelo"**, onde o admin liga a um modelo existente ou cria um — e o nome ligado passa a valer também para a plataforma.
+6. Os **cartões repetidos** entram uma vez (o mesmo cartão é atualizado; a decisão manual fica). A carga roda de novo sem duplicar.
+
+## D-230 · ⏳ PROVISÓRIA — A permissão Modo TV (05/11/2026, SESSAO-43) — ↪️ D-91, D-158, D-189
+
+1. A permissão **"Modo TV"** mora junto dos módulos Fábrica, Comercial e Entregas (Gestão da equipe → a pessoa), e **só o administrador** liga ou desliga (com rastro na Auditoria).
+2. **Conta só do Modo TV** = a conta que tem **só** essa permissão: entra direto na TV, não abre outra tela (guarda na tela e recusa no banco) e não sai sozinha (o desenho do tablet). Um **administrador não pode** virar conta só-TV.
+3. Quem tem a permissão **junto de outras** (ou é admin) vê o botão **▶ Modo TV**, que abre a TV numa **guia nova**.
+4. **Ajuste do dono no prompt de 05/11:** a permissão **não** entra no token nesta sessão (o gancho do token segue guardado, sem ligar) — a recusa no banco lê a permissão na hora. Quando o gancho for ligado, ela passa para dentro do token como os outros módulos.
+
+## D-231 · ⏳ PROVISÓRIA — O Modo TV (05/11/2026, SESSAO-43)
+
+1. **Tela cheia, sem barra lateral, sem voltar** — exceção à lei de layout (é uma tela de parede, não de navegação).
+2. **Tema:** o da plataforma; a conta só-TV abre no **escuro** (melhor de longe), se ninguém escolheu outro.
+3. **Setor:** o do endereço; sem setor, a **Montagem**. A TV mostra só **letras** (a Equipe no painel) — nunca nome, foto ou etiqueta, nem para o admin.
+4. **Coluna dos montadores:** quem montou **sozinho**, pela letra; a dupla aparece no gráfico como "A + B"; quem não tem letra no setor vira "Outros"; móvel sem montador, "Sem montador".
+5. **Ao vivo** pelo canal do setor; o relógio se redesenha no aparelho a cada 30 s (não busca dado); na **virada do dia, uma leitura** só (exceção registrada na lei).
+6. O histórico do Trello entra na TV (as médias de 30 dias e o "Melhor da semana" contam com ele enquanto houver dado daquele período).
+
+## D-232 · ⏳ PROVISÓRIA — "Tempo por setor" mora dentro de Tempos de produção (05/11/2026, SESSAO-43)
+
+"Tempo por setor" sai do menu de Dashboards; o endereço antigo leva para **Tempos de produção → Período** (com o mesmo setor e período); as visualizações salvas que apontavam para ele foram traduzidas para o endereço novo.
+
+## D-233 · ⏳ PROVISÓRIA (técnica, precisa do OK do dono — regra 18) — Períodos longos com 100 vezes o movimento de hoje passam do tempo-limite (05/11/2026, SESSAO-43)
+
+Com o movimento de hoje, todas as abas abrem em poucos milissegundos, em qualquer período. No ensaio com **100 vezes** o movimento (550 móveis por dia só na Montagem), as abas com **30 dias** (o período que a tela abre) e a TV ficam **dentro** do limite; com **90 dias ou mais**, Período, Móveis e Montadores passam (0,2 a 0,6 s). O caminho de mercado para períodos longos é guardar, por dia, um resumo com a distribuição dos tempos em faixas de 1 minuto — a mediana passa a ser **aproximada a 1 minuto** nos períodos longos. Como isso muda a precisão do número que a tela mostra, fica para o dono decidir quando (registrado como dívida na lei de desempenho).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
