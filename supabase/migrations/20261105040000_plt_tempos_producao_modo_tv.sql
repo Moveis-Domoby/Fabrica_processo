@@ -1066,6 +1066,7 @@ begin
   return jsonb_build_object(
     'setor', jsonb_build_object('id', p_setor_id, 'nome', v_ac.o_setor_nome),
     'grupos', v_grupos, 'grupo', v_grupo,
+    'faixa_pct', (plt_privado.fn_tempo_regra(p_setor_id)).faixa_media_pct,
     'itens', v_itens, 'tem_mais', v_n > v_lim,
     'pode_decidir', true,
     'pessoas', plt_privado.fn_tempos_pessoas(v_ids),

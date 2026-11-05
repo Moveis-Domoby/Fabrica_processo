@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { aplicarTema, ehTema } from '@/perfil/tema'
 import { ContextoSessao } from './sessao-contexto'
 import { abrirPlataforma, semearCache } from './abertura'
-import { COLUNAS_PERFIL } from './tipos'
+import { COLUNAS_PERFIL, ehSoTv } from './tipos'
 import { ehModoTablet, esquecerAtividade, marcarAtividade, passouDoTempo } from './inatividade'
 import type { Perfil, VinculoSetor } from './tipos'
 
@@ -135,7 +135,9 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
   // novo. Sem relógio: a conta é feita ao abrir, a cada gesto (toque, tecla) e
   // ao voltar à aba; o gesto guarda o "agora" no aparelho. ↩️ SESSAO-41 (D-189):
   // a conta de tablet de um setor nunca sai por tempo.
-  const contaTablet = consultaPerfil.data?.perfil?.conta_tablet === true
+  // SESSAO-43 (F3): a conta só do Modo TV também nunca sai por tempo (é a TV).
+  const contaTablet =
+    consultaPerfil.data?.perfil?.conta_tablet === true || ehSoTv(consultaPerfil.data?.perfil ?? null)
   useEffect(() => {
     if (!idAuth || contaTablet) return
     let saindo = false

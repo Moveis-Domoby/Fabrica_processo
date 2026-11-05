@@ -6,10 +6,14 @@ import {
   ehLinhaDeProducao,
   ehNivelLogistica,
   ehSoEntregador,
+  ehSoTv,
   ehSuperAdmin,
   ROTA_ENTREGADOR,
+  ROTA_MODO_TV,
   ROTAS_DA_PRODUCAO,
+  ROTAS_DA_TV,
   ROTAS_DO_ENTREGADOR,
+  temModoTv,
   temModulo,
 } from './tipos'
 import type { Modulo } from './tipos'
@@ -61,6 +65,9 @@ export function RotaProtegida({ nivel }: { nivel?: 'lider' | 'admin' | 'super' }
   // SESSAO-36 (D-146): a conta de tablet de um setor vive SÓ no modo tablet —
   // o botão "casa" e toda URL direta levam de volta ao /tablet.
   if (perfil.conta_tablet && local.pathname !== '/tablet') return <Navigate to="/tablet" replace />
+  // SESSAO-43 (F3): a conta SÓ do Modo TV vive na TV — toda URL leva de volta
+  // a ela (o banco também recusa as outras portas a esta conta).
+  if (ehSoTv(perfil) && !ROTAS_DA_TV.has(local.pathname)) return <Navigate to={ROTA_MODO_TV} replace />
   // SESSAO-30 (D-115): o entregador só vê as entregas do dia — o resto leva para lá.
   if (ehSoEntregador(perfil) && !ROTAS_DO_ENTREGADOR.has(local.pathname))
     return <Navigate to={ROTA_ENTREGADOR} replace />
@@ -76,6 +83,7 @@ export function RotaProtegida({ nivel }: { nivel?: 'lider' | 'admin' | 'super' }
   // o dele é a produção (só olhando), a logística e o painel pessoal.
   if (
     ehNivelLogistica(perfil) &&
+    local.pathname !== ROTA_MODO_TV &&
     (local.pathname.startsWith('/dashboards') || local.pathname.startsWith('/comercial'))
   )
     return <Navigate to="/inicio/meu-painel" replace />
@@ -95,5 +103,16 @@ export function RotaModulo({ modulo }: { modulo: Modulo }) {
   const { carregando, perfil } = useSessao()
   if (carregando) return <TelaCarregando />
   if (!temModulo(perfil, modulo)) return <Navigate to="/inicio/meu-painel" replace />
+  return <Outlet />
+}
+
+/**
+ * SESSAO-43 (F3): o Modo TV — quem tem a permissão (explícita) ou o admin
+ * (pelo endereço). O banco confere de novo na porta da TV.
+ */
+export function RotaModoTv() {
+  const { carregando, perfil } = useSessao()
+  if (carregando) return <TelaCarregando />
+  if (!temModoTv(perfil) && perfil?.papel !== 'admin') return <Navigate to="/inicio/meu-painel" replace />
   return <Outlet />
 }

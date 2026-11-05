@@ -63,4 +63,10 @@ export function esquecerAtividade() {
   }
 }
 
-export const ehModoTablet = () => window.location.pathname.startsWith('/tablet')
+/**
+ * SESSAO-43 (F3): a TV do galpão é como o tablet — nunca sai por tempo parado
+ * (o dono: "a TV nunca sai sozinha"; D-189).
+ */
+export const ehModoTablet = () =>
+  window.location.pathname.startsWith('/tablet') ||
+  window.location.pathname.startsWith('/dashboards/modo-tv')

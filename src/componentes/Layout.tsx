@@ -152,7 +152,11 @@ export function Layout({ children }: { children: ReactNode }) {
     })
   }
 
-  const telaCheia = perfil !== null && location.pathname.startsWith('/tablet')
+  // SESSAO-43 (F3): o Modo TV também é tela cheia, sem menu (exceção à lei de
+  // layout, como o tablet — a TV é de olhar, não de navegar).
+  const telaCheia =
+    perfil !== null &&
+    (location.pathname.startsWith('/tablet') || location.pathname.startsWith('/dashboards/modo-tv'))
   // SESSAO-27 (pedido do dono, 02/10): abrir uma automação é entrar numa ÁREA
   // DE TRABALHO — o menu RECOLHE sozinho ao entrar (a pessoa pode reabrir) e
   // volta ao jeito lembrado ao sair; a barra do editor tem o voltar.
@@ -371,10 +375,12 @@ export function Layout({ children }: { children: ReactNode }) {
                     // SESSAO-36 (D-146): todos veem a tela — o banco devolve
                     // todo mundo ao líder/admin e só o próprio ao funcionário.
                     { para: '/dashboards/tempos-por-pessoa', rotulo: 'Tempos por pessoa' },
+                    // SESSAO-43: os tempos de cada setor (absorveu "Tempo por
+                    // setor"); o funcionário vê só o que ele montou.
+                    { para: '/dashboards/tempos-de-producao', rotulo: 'Tempos de produção' },
                     ...(ehLider
                       ? [
                           { para: '/dashboards/visao-do-dia', rotulo: 'Visão do dia' },
-                          { para: '/dashboards/tempo-por-setor', rotulo: 'Tempo por setor' },
                           { para: '/dashboards/pessoas', rotulo: 'Pessoas' },
                           { para: '/dashboards/qualidade', rotulo: 'Qualidade' },
                           // SESSAO-39 (D-176): os maiores problemas, por motivo

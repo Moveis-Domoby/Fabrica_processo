@@ -66,7 +66,8 @@ export interface Perfil {
   pode_auxiliar?: boolean
 }
 
-export type Modulo = 'fabrica' | 'comercial' | 'entregas'
+/** SESSAO-43 (F3): + 'tv' — a permissão Modo TV (o painel da TV do galpão). */
+export type Modulo = 'fabrica' | 'comercial' | 'entregas' | 'tv'
 
 /**
  * O gate de módulo do front (D-46) — espelho do plt_privado.fn_tem_modulo do
@@ -95,6 +96,33 @@ export function ehSoEntregador(perfil: Perfil | null): boolean {
 /** A casa do entregador e o que mais ele pode abrir. */
 export const ROTA_ENTREGADOR = '/entregas/do-dia'
 export const ROTAS_DO_ENTREGADOR = new Set([ROTA_ENTREGADOR, '/trocar-senha', '/inicio/meu-perfil'])
+
+/**
+ * SESSAO-43 (F3): a permissão Modo TV é EXPLÍCITA — ao contrário dos outros
+ * módulos, o admin não a tem sozinho: só quem ganhou "Modo TV" na Gestão da
+ * equipe vê o botão ▶ Modo TV (espelho de plt_privado.fn_tem_modo_tv; a porta
+ * da TV também aceita o admin, para ele abrir pelo endereço).
+ */
+export function temModoTv(perfil: Perfil | null): boolean {
+  return perfil !== null && perfil.modulos.includes('tv')
+}
+
+/**
+ * SESSAO-43 (F3): a conta SÓ do Modo TV — "tv" e nenhum outro módulo, sem ser
+ * admin. Entra direto na TV e não abre outra tela (o mesmo desenho do "só
+ * entregador"; o banco recusa as portas da tela de tempos — fn_eh_so_tv).
+ */
+export function ehSoTv(perfil: Perfil | null): boolean {
+  return (
+    perfil !== null &&
+    perfil.papel !== 'admin' &&
+    perfil.modulos.includes('tv') &&
+    !perfil.modulos.some((m) => m === 'fabrica' || m === 'comercial' || m === 'entregas')
+  )
+}
+
+export const ROTA_MODO_TV = '/dashboards/modo-tv'
+export const ROTAS_DA_TV = new Set([ROTA_MODO_TV, '/trocar-senha'])
 
 export interface VinculoSetor {
   setor_id: number

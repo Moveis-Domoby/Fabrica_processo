@@ -534,7 +534,9 @@ export async function tempoPessoaDetalhe(
 
 export const TELAS_DASH = [
   { chave: 'visao-do-dia', rotulo: 'Visão do dia' },
-  { chave: 'tempo-por-setor', rotulo: 'Tempo por setor' },
+  // ↪️ SESSAO-43 (F5): "Tempo por setor" virou a aba Período de Tempos de
+  // produção — a visualização salva antiga é traduzida na leitura (abaixo).
+  { chave: 'tempos-de-producao', rotulo: 'Tempos de produção' },
   { chave: 'pessoas', rotulo: 'Pessoas' },
   { chave: 'qualidade', rotulo: 'Qualidade' },
   // SESSAO-39 (D-176): os maiores problemas — pausas, stand-by, não entregas…
@@ -552,7 +554,7 @@ export interface ConfiguracaoPainel {
 }
 
 export const PAINEL_PADRAO: ConfiguracaoPainel = {
-  tela: 'tempo-por-setor',
+  tela: 'visao-do-dia',
   periodoDias: 7,
   setorId: null,
   tempo: 'util',
@@ -579,11 +581,15 @@ export function normalizarConfiguracao(bruta: unknown): ConfiguracaoPainel {
   if (cfg.tela && TELAS_DASH.some((t) => t.chave === cfg.tela)) {
     return { tela: cfg.tela, periodoDias, setorId, tempo }
   }
+  // ↪️ SESSAO-43 (F5): a tela "Tempo por setor" (e o painel de widgets da S10,
+  // que caía nela) agora é a aba Período de Tempos de produção.
+  if ((cfg.tela as string) === 'tempo-por-setor')
+    return { tela: 'tempos-de-producao', periodoDias, setorId, tempo }
   const widgets = Array.isArray(cfg.widgets) ? cfg.widgets : []
   const soQualidade = widgets.length > 0 && widgets.every((w) => w === 'qualidade')
   const soPessoas = widgets.length > 0 && widgets.every((w) => w === 'pessoas' || w === 'execucoes')
   return {
-    tela: soQualidade ? 'qualidade' : soPessoas ? 'pessoas' : 'tempo-por-setor',
+    tela: soQualidade ? 'qualidade' : soPessoas ? 'pessoas' : 'tempos-de-producao',
     periodoDias,
     setorId,
     tempo,

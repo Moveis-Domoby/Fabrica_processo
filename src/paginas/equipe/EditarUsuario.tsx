@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, Cake, Check, Handshake, ImageUp, KeyRound, RotateCcw, Trash2 } from 'lucide-react'
+import { Archive, Cake, Check, Handshake, ImageUp, KeyRound, RotateCcw, Trash2, Tv } from 'lucide-react'
 import { AvatarPessoa, Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { supabase } from '@/lib/supabase'
 import { editarUsuario, pinDefinir } from '@/autenticacao/api'
-import { ehSoEntregador } from '@/autenticacao/tipos'
+import { ehSoEntregador, ehSoTv, temModoTv } from '@/autenticacao/tipos'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
 import { definirEntregador } from '@/rotas/api'
+import { definirModoTv } from '@/dashboards/tempos/api'
 import { definirNascimento, enviarFotoPerfil, lerNascimento } from '@/perfil/api'
 import { reduzirImagem } from '@/lib/imagem'
 import type { Setor } from '@/kanban/tipos'
@@ -27,6 +28,8 @@ const OPCOES_NIVEL = [
   { valor: 'admin', rotulo: 'Admin' },
   // SESSAO-30 (D-115): vê só "Entregas do dia".
   { valor: 'entregador', rotulo: 'Entregador (só ROTAS)' },
+  // SESSAO-43 (F3): a conta da TV do galpão — entra direto no Modo TV e não abre outra tela.
+  { valor: 'so_tv', rotulo: 'Só Modo TV (a TV do galpão)' },
 ]
 
 /**
@@ -59,16 +62,19 @@ export function EditarUsuario({
   const clienteQuery = useQueryClient()
   const arquivado = pessoa.arquivado_em !== null
   const eraEntregador = ehSoEntregador(pessoa)
+  const eraSoTv = ehSoTv(pessoa)
 
   const [nome, setNome] = useState(pessoa.nome)
   const [usuario, setUsuario] = useState(pessoa.usuario)
   const [email, setEmail] = useState(pessoa.email)
   const [telefone, setTelefone] = useState(pessoa.telefone ?? '')
-  const [nivel, setNivel] = useState<string>(eraEntregador ? 'entregador' : pessoa.papel)
+  const [nivel, setNivel] = useState<string>(eraEntregador ? 'entregador' : eraSoTv ? 'so_tv' : pessoa.papel)
   const [vinculos, setVinculos] = useState<Map<number, boolean>>(
     () => new Map(pessoa.vinculos.map((v) => [v.setor_id, v.lider])),
   )
   const [podeAuxiliar, setPodeAuxiliar] = useState(Boolean(pessoa.pode_auxiliar))
+  // SESSAO-43 (F3): a permissão Modo TV junto das outras (o botão ▶ Modo TV)
+  const [modoTv, setModoTv] = useState(temModoTv(pessoa))
   const [pin, setPin] = useState('')
   const [nascimentoEditado, setNascimentoEditado] = useState<string | null>(null)
   const [erro, setErro] = useState('')
@@ -90,7 +96,8 @@ export function EditarUsuario({
   const salvar = useMutation({
     mutationFn: async () => {
       const entregador = nivel === 'entregador'
-      const papel = (entregador ? 'operador' : nivel) as Papel
+      const soTv = nivel === 'so_tv'
+      const papel = (entregador || soTv ? 'operador' : nivel) as Papel
       const lista = new Map(vinculos)
       // o entregador fica ligado à ROTAS (o banco confere de novo)
       const rotas = setores.find((s) => s.codigo === 'rotas')
@@ -105,6 +112,9 @@ export function EditarUsuario({
         setores: [...lista.entries()].map(([setor_id, lider]) => ({ setor_id, lider })),
       })
       if (entregador !== eraEntregador) await definirEntregador(pessoa.id, entregador)
+      // SESSAO-43: a conta só da TV (módulos = só "tv"), ou a permissão junto das outras
+      if (soTv !== eraSoTv || (!soTv && modoTv !== temModoTv(pessoa)))
+        await definirModoTv(pessoa.id, soTv || modoTv, soTv)
       if (podeAuxiliar !== Boolean(pessoa.pode_auxiliar)) {
         const { error } = await supabase.rpc('plt_fn_usuario_pode_auxiliar', {
           p_usuario: pessoa.id,
@@ -128,7 +138,7 @@ export function EditarUsuario({
     if (!/^[a-z0-9._-]{3,32}$/.test(usuario.trim().toLowerCase()))
       return setErro('Nome de usuário: 3 a 32 caracteres, só letras, números, ponto, hífen ou underline.')
     if (!email.includes('@')) return setErro('Informe um e-mail válido.')
-    if (!['admin', 'logistica'].includes(nivel) && nivel !== 'entregador' && vinculos.size === 0)
+    if (!['admin', 'logistica', 'entregador', 'so_tv'].includes(nivel) && vinculos.size === 0)
       return setErro('Escolha pelo menos um setor.')
     salvar.mutate()
   }
@@ -334,6 +344,22 @@ export function EditarUsuario({
                 <span className="text-texto-suave">(não só nos dele)</span>
               </span>
             </label>
+
+            {nivel !== 'so_tv' && (
+              <label className="flex cursor-pointer items-center gap-3 rounded-dm border border-borda px-3 py-2">
+                <input
+                  type="checkbox"
+                  className="size-5 accent-[var(--dm-acao)]"
+                  checked={modoTv}
+                  onChange={(e) => setModoTv(e.target.checked)}
+                />
+                <Tv aria-hidden className="size-4 text-texto-suave" />
+                <span className="text-sm text-texto">
+                  Pode abrir o Modo TV{' '}
+                  <span className="text-texto-suave">(o botão abre a TV numa guia nova, para levar a outra tela)</span>
+                </span>
+              </label>
+            )}
 
             {erro && (
               <p className="text-sm text-danificado-forte" role="alert">

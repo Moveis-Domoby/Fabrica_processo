@@ -4,7 +4,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router'
 import { Layout } from '@/componentes/Layout'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { ProvedorSessao } from '@/autenticacao/ProvedorSessao'
-import { RotaModulo, RotaProtegida } from '@/autenticacao/guardas'
+import { RotaModoTv, RotaModulo, RotaProtegida } from '@/autenticacao/guardas'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSoEntregador } from '@/autenticacao/tipos'
 import { Entrar } from '@/paginas/Entrar'
@@ -28,7 +28,9 @@ const VisaoDoDia = pagina(() => import('@/paginas/dashboards/VisaoDoDia'), 'Visa
 const MeuDesempenho = pagina(() => import('@/paginas/dashboards/MeuDesempenho'), 'MeuDesempenho')
 const TemposPessoas = pagina(() => import('@/paginas/dashboards/TemposPessoas'), 'TemposPessoas')
 const Avisos = pagina(() => import('@/paginas/Avisos'), 'Avisos')
-const TempoPorSetor = pagina(() => import('@/paginas/dashboards/TempoPorSetor'), 'TempoPorSetor')
+// SESSAO-43: a tela Tempos de produção (absorveu "Tempo por setor") e o Modo TV
+const TemposProducao = pagina(() => import('@/paginas/dashboards/TemposProducao'), 'TemposProducao')
+const ModoTv = pagina(() => import('@/paginas/dashboards/ModoTv'), 'ModoTv')
 const Pessoas = pagina(() => import('@/paginas/dashboards/Pessoas'), 'Pessoas')
 const Qualidade = pagina(() => import('@/paginas/dashboards/Qualidade'), 'Qualidade')
 // SESSAO-39 (D-176): o painel de motivos
@@ -107,6 +109,17 @@ function EntregasDoEntregador() {
 function RedirecionarProducaoAntiga() {
   const { codigo } = useParams()
   return <Navigate to={`/fabrica/producao/${codigo}`} replace />
+}
+
+/**
+ * SESSAO-43 (F5): "Tempo por setor" saiu do menu — o endereço antigo (e a
+ * visualização salva que apontava para ele) abre a aba Período da tela nova.
+ */
+function TempoPorSetorAntigo() {
+  const { search } = useLocation()
+  const parametros = new URLSearchParams(search)
+  parametros.set('aba', 'periodo')
+  return <Navigate to={`/dashboards/tempos-de-producao?${parametros.toString()}`} replace />
 }
 
 /** Prefixo antigo → novo preservando o resto do caminho (ex.: /logistica/*). */
@@ -216,6 +229,16 @@ export function App() {
                   {/* SESSAO-36 (D-146 resp. 12): todos veem a tela; o banco devolve
                     todo mundo ao líder/admin e só o próprio ao funcionário */}
                   <Route path="/dashboards/tempos-por-pessoa" element={<TemposPessoas />} />
+                  {/* SESSAO-43: todos da fábrica abrem; o banco devolve tudo ao
+                    líder do setor/admin e só o próprio ao funcionário */}
+                  <Route path="/dashboards/tempos-de-producao" element={<TemposProducao />} />
+                  <Route path="/dashboards/tempo-por-setor" element={<TempoPorSetorAntigo />} />
+                </Route>
+
+                {/* SESSAO-43 (F3): o Modo TV — tela cheia, sem menu; quem tem a
+                  permissão (ou o admin). A conta só da TV só abre esta. */}
+                <Route element={<RotaModoTv />}>
+                  <Route path="/dashboards/modo-tv" element={<ModoTv />} />
                 </Route>
 
                 {/* Comercial (D-46) — o Painel de Recompra dentro da plataforma */}
@@ -233,7 +256,6 @@ export function App() {
                   em /dashboards (Q-66) e o gate de dados vive no banco (D-32) */}
                 <Route element={<RotaModulo modulo="fabrica" />}>
                   <Route path="/dashboards/visao-do-dia" element={<VisaoDoDia />} />
-                  <Route path="/dashboards/tempo-por-setor" element={<TempoPorSetor />} />
                   <Route path="/dashboards/pessoas" element={<Pessoas />} />
                   <Route path="/dashboards/qualidade" element={<Qualidade />} />
                   <Route path="/dashboards/motivos" element={<Motivos />} />

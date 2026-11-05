@@ -14,6 +14,7 @@ import {
 import type { UsuarioCriado } from '@/autenticacao/api'
 import { COLUNAS_PERFIL, ehSoEntregador, ROTULO_PAPEL } from '@/autenticacao/tipos'
 import { definirEntregador } from '@/rotas/api'
+import { definirModoTv } from '@/dashboards/tempos/api'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
 import { EditarUsuario } from './equipe/EditarUsuario'
@@ -62,6 +63,8 @@ const FORMULARIO_VAZIO = {
   pin: '',
   /** SESSAO-30 (D-115): o tipo "Entregador (só ROTAS)" — operador com o módulo de entregas. */
   entregador: false,
+  /** SESSAO-43 (F3): a conta só da TV do galpão — operador só com o módulo "tv". */
+  soTv: false,
 }
 
 /** Gestão mínima de usuários e convites (RF-20/RF-21) — o painel completo é a SESSAO-14. */
@@ -202,12 +205,13 @@ export function Equipe() {
     // D-52: admin tem acesso a tudo — o setor é opcional só para ele.
     const papelFinal = souAdmin ? dados.papel : 'operador'
     const entregador = souAdmin && dados.entregador
+    const soTv = souAdmin && dados.soTv
     // O entregador fica ligado à ROTAS (o banco confere de novo).
     const rotas = setores.find((s) => s.codigo === 'rotas')
     const vinculos = new Map(setoresEscolhidos)
     if (entregador && rotas) vinculos.set(rotas.id, false)
     // SESSAO-37 (D-147): a logística também pode nascer sem setor — o nível já dá o acesso.
-    if (!['admin', 'logistica'].includes(papelFinal) && vinculos.size === 0)
+    if (!['admin', 'logistica'].includes(papelFinal) && !soTv && vinculos.size === 0)
       return setErroFormulario('Escolha pelo menos um setor.')
     if (dados.pin && !/^[0-9]{2,4}$/.test(dados.pin))
       return setErroFormulario('PIN: 2 a 4 dígitos, só números.')
@@ -221,7 +225,7 @@ export function Equipe() {
         usuario: dados.usuario.trim().toLowerCase(),
         cpf: dados.cpf.replace(/\D/g, ''),
         telefone: dados.telefone.trim() || undefined,
-        papel: entregador ? 'operador' : papelFinal,
+        papel: entregador || soTv ? 'operador' : papelFinal,
         setores: [...vinculos.entries()].map(([setor_id, lider]) => ({
           setor_id,
           lider: souAdmin ? lider : false,
@@ -229,6 +233,8 @@ export function Equipe() {
         pin: dados.pin || undefined,
       })
       if (entregador) await definirEntregador(resultado.id, true)
+      // SESSAO-43 (F3): a conta da TV nasce só com o Modo TV (entra direto nele)
+      if (soTv) await definirModoTv(resultado.id, true, true)
       setCriado({ ...resultado, nome: dados.nome.trim() })
       setModalNovo(false)
       setFormulario(FORMULARIO_VAZIO)
@@ -425,13 +431,17 @@ export function Equipe() {
                 { valor: 'admin', rotulo: 'Admin' },
                 // SESSAO-30 (D-115): vê só "Entregas do dia".
                 { valor: 'entregador', rotulo: 'Entregador (só ROTAS)' },
+                // SESSAO-43 (F3): a TV do galpão — entra direto no Modo TV.
+                { valor: 'so_tv', rotulo: 'Só Modo TV (a TV do galpão)' },
               ]}
-              valor={formulario.entregador ? 'entregador' : formulario.papel}
+              valor={formulario.entregador ? 'entregador' : formulario.soTv ? 'so_tv' : formulario.papel}
               aoMudar={(v) =>
                 setFormulario(
                   v === 'entregador'
-                    ? { ...formulario, papel: 'operador', entregador: true }
-                    : { ...formulario, papel: v as Papel, entregador: false },
+                    ? { ...formulario, papel: 'operador', entregador: true, soTv: false }
+                    : v === 'so_tv'
+                      ? { ...formulario, papel: 'operador', entregador: false, soTv: true }
+                      : { ...formulario, papel: v as Papel, entregador: false, soTv: false },
                 )
               }
             />

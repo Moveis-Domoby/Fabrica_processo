@@ -78,6 +78,14 @@ export function usePainelDash(tela: TelaDash) {
     const alvo = visualizacoes.find((v) => String(v.id) === id)
     if (!alvo) return
     const cfg = normalizarConfiguracao(alvo.configuracao)
+    if (cfg.tela === 'tempos-de-producao') {
+      // SESSAO-43 (F5): a visualização de "Tempo por setor" abre a aba Período
+      // com o período e o setor dela (a tela nova guarda os filtros no endereço).
+      const p = new URLSearchParams({ aba: 'periodo', p: [7, 30, 90].includes(cfg.periodoDias) ? String(cfg.periodoDias) : '7' })
+      if (cfg.setorId !== null) p.set('setor', String(cfg.setorId))
+      navigate(`/dashboards/tempos-de-producao?${p.toString()}`)
+      return
+    }
     navigate(`/dashboards/${cfg.tela}?v=${id}`)
   }
 

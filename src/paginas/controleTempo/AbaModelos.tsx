@@ -15,6 +15,7 @@ import {
 } from './api'
 import { EstadoDaLeitura, Explicacao, Interruptor } from './comum'
 import { formatarSegundos } from './formato'
+import { NomesDoTrello } from './NomesDoTrello'
 
 type Acao =
   | { tipo: 'confirmar'; modelo: ModeloTempo }
@@ -266,6 +267,9 @@ export function AbaModelos() {
           aoFalhar={aoFalhar('Não deu para juntar')}
         />
       )}
+
+      {/* SESSAO-43 (F4): os nomes do histórico do Trello que não casaram com modelo */}
+      <NomesDoTrello />
     </div>
   )
 }

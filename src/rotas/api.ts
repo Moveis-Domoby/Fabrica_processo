@@ -140,7 +140,7 @@ export type TipoMotivo = 'nao_entregue' | 'desfazer_entrega' | 'devolucao' | 'pa
  * da entrega fazem um registro por TipoMotivo — o stand-by não é da entrega).
  * SESSAO-39 (D-173): + os motivos do botão MOVER, pelo mesmo motivo.
  */
-export type TipoMotivoComStandby = TipoMotivo | 'standby' | 'mover' | 'entrega_parcial'
+export type TipoMotivoComStandby = TipoMotivo | 'standby' | 'mover' | 'entrega_parcial' | 'conferencia'
 
 export interface Motivo {
   id: number

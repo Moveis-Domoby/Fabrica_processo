@@ -159,6 +159,11 @@ export const ROTULO_ACAO: Record<string, string> = {
   tempo_recalculo_pedido: 'Pediu o recálculo dos tempos',
   tempo_decisao: 'Decidiu o tempo de uma passagem',
   montar_juntos: 'Montou cards juntos (em lote)',
+  // SESSAO-43: o histórico do Trello, a conferência dele e a permissão Modo TV
+  tempo_trello_carregado: 'Carregou o histórico de montagens do Trello',
+  tempo_trello_nome_ligado: 'Ligou um nome do Trello a um modelo de móvel',
+  tempo_trello_decisao: 'Decidiu o tempo de uma montagem do histórico do Trello',
+  usuario_modo_tv: 'Mudou a permissão Modo TV de uma pessoa',
 }
 
 /** Código sem rótulo vira frase: "algo_novo" → "Algo novo". */
@@ -296,6 +301,8 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'usuario_arquivado',
       'usuario_reativado',
       'usuario_excluido',
+      // SESSAO-43 (F3): a permissão Modo TV
+      'usuario_modo_tv',
     ],
   },
   {
@@ -350,6 +357,9 @@ const TELAS: Record<string, string> = {
   '/dashboards/meu-desempenho': 'Dashboards · Meu desempenho',
   '/dashboards/visao-do-dia': 'Dashboards · Visão do dia',
   '/dashboards/tempo-por-setor': 'Dashboards · Tempo por setor',
+  // SESSAO-43: a tela nova de tempos (absorveu "Tempo por setor") e a TV
+  '/dashboards/tempos-de-producao': 'Dashboards · Tempos de produção',
+  '/dashboards/modo-tv': 'Dashboards · Modo TV',
   '/dashboards/pessoas': 'Dashboards · Pessoas',
   '/dashboards/qualidade': 'Dashboards · Qualidade',
   '/comercial/recompra': 'Comercial · Painel de Recompra',

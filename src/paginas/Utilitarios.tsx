@@ -7,6 +7,7 @@ import {
   ArchiveRestore,
   ArrowRightLeft,
   CirclePause,
+  ClipboardCheck,
   ListPlus,
   MessageSquareText,
   DoorOpen,
@@ -43,7 +44,9 @@ import type { CampoCustomizado, CorEtiqueta, Etiqueta, TipoCampo } from '@/utili
 // SESSAO-36 (D-146 resposta 6): + os motivos de SAÍDA do setor (lista própria).
 // SESSAO-38 (D-169): + os motivos de STAND-BY do PCP.
 // SESSAO-39 (D-173): + os motivos do botão MOVER.
-type AbaUtilitarios = 'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida' | 'standby' | 'mover'
+// SESSAO-43 (F2): + os motivos de CONFERÊNCIA (Considerar / Descartar um tempo).
+type AbaUtilitarios =
+  'etiquetas' | 'campos' | 'motivos' | 'pausa' | 'saida' | 'standby' | 'mover' | 'conferencia'
 
 /**
  * Configurações → Utilitários (SESSAO-27 · D-101 — pedido do dono: "crie uma
@@ -60,7 +63,8 @@ export function Utilitarios() {
     pedida === 'pausa' ||
     pedida === 'saida' ||
     pedida === 'standby' ||
-    pedida === 'mover'
+    pedida === 'mover' ||
+    pedida === 'conferencia'
       ? pedida
       : 'etiquetas'
 
@@ -98,6 +102,10 @@ export function Utilitarios() {
             <span>
               Motivos do Mover são escolhidos pelo líder ou admin ao mandar um card para a fila de
               outro setor pelo botão Mover.
+            </span>
+            <span>
+              Motivos de conferência são escolhidos pelo líder ou admin ao considerar ou descartar
+              um tempo em Dashboards → Tempos de produção → Conferir.
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
@@ -147,6 +155,11 @@ export function Utilitarios() {
             rotulo: 'Motivos do Mover',
             icone: <ArrowRightLeft aria-hidden className="size-4" />,
           },
+          {
+            valor: 'conferencia',
+            rotulo: 'Motivos de conferência',
+            icone: <ClipboardCheck aria-hidden className="size-4" />,
+          },
         ]}
       />
 
@@ -163,6 +176,8 @@ export function Utilitarios() {
           <PainelMotivos listas={MOTIVOS_STANDBY} />
         ) : aba === 'mover' ? (
           <PainelMotivos listas={MOTIVOS_MOVER} />
+        ) : aba === 'conferencia' ? (
+          <PainelMotivos listas={MOTIVOS_CONFERENCIA} />
         ) : (
           <PainelMotivos listas={MOTIVOS_ENTREGA} />
         )}
@@ -810,6 +825,16 @@ const MOTIVOS_MOVER: ListaDeMotivos[] = [
     titulo: 'Motivos do Mover',
     explica:
       'Escolhido pelo líder ou admin ao mandar um card para a fila de outro setor pelo botão Mover (o motivo é obrigatório e aparece no histórico do card e no painel de motivos). A opção "Outro", escrita na hora, sempre aparece junto.',
+  },
+]
+
+// SESSAO-43 (F2): considerar ou descartar um tempo pede o motivo — ele vai para a auditoria.
+const MOTIVOS_CONFERENCIA: ListaDeMotivos[] = [
+  {
+    tipo: 'conferencia',
+    titulo: 'Motivos de conferência',
+    explica:
+      'Escolhido pelo líder do setor ou admin ao considerar ou descartar um tempo na conferência (o motivo é obrigatório e fica na auditoria). A opção "Outro", escrita na hora, sempre aparece junto.',
   },
 ]
 
