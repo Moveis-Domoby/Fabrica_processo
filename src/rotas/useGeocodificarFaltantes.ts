@@ -2,12 +2,15 @@ import { useEffect, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { QueryKey } from '@tanstack/react-query'
 import { GEOCODIFICAR_POR_CHAMADA, geocodificar, precisaGeocodificar } from './api'
+import type { PontoAproximado } from './api'
 
 interface ComEndereco {
   geo_chave: string | null
   geo_resolvido: boolean | null
   endereco_geocodificavel?: string | null
   geo_consultado_em?: string | null
+  /** SESSAO-45 · ajuste: o ponto aproximado é procurado de novo depois de 7 dias. */
+  geo_aproximado?: PontoAproximado | null
 }
 
 /**

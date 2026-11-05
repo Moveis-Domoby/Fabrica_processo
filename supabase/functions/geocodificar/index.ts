@@ -336,10 +336,14 @@ function cacheVale(g: LinhaCache, chave: string): boolean {
   // o endereço DIGITADO (avulsa) foi conferido por alguém no pino — não refaz
   const antigo = quando < VERSAO_BUSCA && !chave.startsWith('avulsa:')
   if (antigo) return false
+  const semana = RETENTAR_FALHA_APOS_DIAS * 24 * 60 * 60 * 1000
+  // o ponto aproximado (degrau) é procurado de novo depois de 7 dias — o serviço de
+  // CEP pode ter recusado (limite de uso) e o mapa aberto melhora
+  if (g.fonte.startsWith('aprox_')) return Date.now() - quando < semana
   if (g.resolvido) return true
   // o "não achei" de antes dos degraus é refeito uma vez (agora sempre há um ponto)
   if (quando < VERSAO_DEGRAUS && !chave.startsWith('avulsa:')) return false
-  return Date.now() - quando < RETENTAR_FALHA_APOS_DIAS * 24 * 60 * 60 * 1000
+  return Date.now() - quando < semana
 }
 
 Deno.serve(async (req) => {

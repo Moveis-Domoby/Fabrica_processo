@@ -700,6 +700,7 @@ export function precisaGeocodificar(
   p: Pick<PedidoProgramacao, 'geo_chave' | 'geo_resolvido'> & {
     endereco_geocodificavel?: string | null
     geo_consultado_em?: string | null
+    geo_aproximado?: PontoAproximado | null
   },
   agora = Date.now(),
 ): boolean {
@@ -707,7 +708,8 @@ export function precisaGeocodificar(
   if (p.geo_resolvido === null) return true
   const consultado = p.geo_consultado_em ? new Date(p.geo_consultado_em).getTime() : 0
   if (consultado < VERSAO_BUSCA) return true
-  if (p.geo_resolvido === true) return false
+  // o ponto aproximado é procurado de novo depois de 7 dias (o serviço de CEP pode ter respondido "limite")
+  if (p.geo_resolvido === true) return !!p.geo_aproximado && agora - consultado > RETENTAR_APOS_MS
   if (consultado < VERSAO_DEGRAUS) return true
   return agora - consultado > RETENTAR_APOS_MS
 }

@@ -93,7 +93,9 @@ export const CartaoPedido = memo(function CartaoPedido({
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-atencao-texto">
           <span className="inline-flex items-center gap-1">
             <MapPinOff aria-hidden className="size-3.5 shrink-0" />
-            Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço
+            {!pedido.endereco?.trim() && !pedido.cidade?.trim()
+              ? 'Endereço incompleto no cadastro (sem rua e sem cidade) — complete no Tiny'
+              : 'Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço'}
           </span>
           {marcar && (
             <button
