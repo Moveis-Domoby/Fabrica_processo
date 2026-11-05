@@ -20503,6 +20503,36 @@ try {
   conferir(mot.n === 5 && novoMot === '' && !pr43.anon_tv && !pr43.anon_per && !pr43.carga && pr43.logado && !pr43.tabela,
     'a lista "Motivos de conferência" nasce com 5 e aceita mais; as portas só para quem tem login; a carga e a tabela do histórico fora da API',
     JSON.stringify({ mot, novoMot, pr43 }))
+
+  titulo('SESSAO-43 · a tabela pronta de leitura acompanha a origem (passagens, equipe, Trello) no mesmo gesto')
+  // o card da plataforma refeito do zero (apaga e regrava as passagens) e uma
+  // decisão do histórico — a projeção tem de continuar igual à origem
+  await bd.exec(`select plt_privado.fn_tempo_card_refazer(${cPl})`)
+  const proj = await um43(`
+    with origem as (
+      select 'plataforma'::text as origem, ps.id, ps.setor_id, ps.dia, ps.modelo_id, coalesce(ps.execucao_s, 0) as execucao_s,
+             ps.situacao, coalesce(eq.montadores, '{}'::uuid[]) as montadores, ps.decisao_evento_id is not null as decidida
+        from public.plt_tempo_passagens ps left join public.plt_tempo_passagem_equipe eq on eq.passagem_id = ps.id
+       where ps.saida_em is not null and ps.dia is not null and ps.situacao <> 'teste'
+      union all
+      select 'trello', t.id, t.setor_id, t.dia, t.modelo_id, coalesce(t.execucao_s, 0), t.situacao,
+             coalesce(t.pessoas, '{}'::uuid[]), t.decisao is not null
+        from public.plt_tempo_trello t where t.dia is not null),
+    proj as (select origem, ref_id, setor_id, dia, modelo_id, execucao_s, situacao, montadores, decidida
+               from public.plt_tempo_montagens)
+    select (select count(*) from (select * from origem except select * from proj) x)::int as falta,
+           (select count(*) from (select * from proj except select * from origem) x)::int as sobra,
+           (select count(*) from proj)::int as n,
+           (select count(*) from proj where origem = 'plataforma')::int as n_pl,
+           (select count(*) from public.plt_tempo_montagem_pessoas)::int as pessoas,
+           (select coalesce(sum(cardinality(montadores) + cardinality(ajudantes)), 0) from public.plt_tempo_montagens)::int as esperadas,
+           (select count(*) from public.plt_tempo_montagens m where m.card_id = ${cPl} and m.setor_id = ${S43.k43})::int as card,
+           has_table_privilege('authenticated', 'public.plt_tempo_montagens', 'select') as api1,
+           has_table_privilege('authenticated', 'public.plt_tempo_montagem_pessoas', 'select') as api2`)
+  conferir(proj.falta === 0 && proj.sobra === 0 && proj.n > 0 && proj.n_pl > 0 && proj.pessoas === proj.esperadas
+           && proj.card === 1 && !proj.api1 && !proj.api2,
+    'a tabela pronta tem exatamente os móveis da origem (nem falta nem sobra, mesmo com o card refeito do zero), uma linha por pessoa de cada móvel, e fica fora da API',
+    JSON.stringify(proj))
 } finally {
   await bd.exec('rollback')
   await como43('')

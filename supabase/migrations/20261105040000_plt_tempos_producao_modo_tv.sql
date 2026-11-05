@@ -7,8 +7,13 @@
 -- nenhum. Uma porta por aba, pedida só no clique (Lei §3); listas por cursor
 -- (Lei §6); ao vivo pelo canal do setor que já existe (Lei §4).
 --
---   · vw_tempo_montagens — as passagens que SAÍRAM do setor (sem as de teste)
---     + o histórico do Trello, num formato só (a origem diz de onde veio).
+--   · plt_tempo_montagens + plt_tempo_montagem_pessoas — a PROJEÇÃO de leitura
+--     (Lei §7.1): um móvel por linha (as passagens que SAÍRAM do setor, sem as
+--     de teste, + o histórico do Trello, num formato só — a origem diz de onde
+--     veio) e uma linha por pessoa de cada móvel; mantida pelos gatilhos de
+--     comando das passagens, da equipe e do Trello. vw_tempo_montagens é a
+--     leitura dela com os nomes das portas. (A 1ª versão lia a união das
+--     origens a cada abertura e passava de 300 ms no ensaio ×100 — E-192.)
 --   · Quem vê: admin e líder do setor veem tudo; o funcionário da fábrica vê só
 --     o que ELE montou (a regra de hoje); a conta só do Modo TV não abre nada
 --     daqui (recusa no banco, além da guarda da tela).
@@ -213,32 +218,258 @@ as $$
 $$;
 
 -- ----------------------------------------------------------------------------
--- 3 · O QUE A TELA LÊ: as passagens que saíram do setor + o histórico do
---     Trello, num formato só (uma VIEW: o filtro de setor/dia desce para as
---     duas partes e cada uma usa o índice dela)
+-- 3 · O QUE A TELA LÊ: uma PROJEÇÃO pronta (Lei §7.1) — uma linha por móvel
+--     que saiu do setor (plataforma, sem as de teste) ou veio do histórico do
+--     Trello, num formato só, com a chave da equipe já montada; e uma linha
+--     por pessoa de cada móvel (montador ou ajudante, com o esforço dela).
+--     Mantida no MESMO gesto que mede (gatilhos de comando sobre as passagens,
+--     a equipe e o Trello). O ensaio ×100 provou: a leitura pela união das
+--     tabelas de origem, com a equipe juntada e a chave montada linha a linha,
+--     passava de 300 ms nas abas de período.
 -- ----------------------------------------------------------------------------
+create table if not exists public.plt_tempo_montagens (
+  origem        text not null check (origem in ('plataforma', 'trello')),
+  ref_id        bigint not null,                  -- a passagem (plataforma) ou a linha do Trello
+  card_id       bigint,
+  setor_id      bigint not null,
+  dia           date not null,
+  inicio        timestamptz,
+  fim           timestamptz,
+  modelo_id     bigint,
+  execucao_s    numeric not null default 0,
+  fila_s        numeric not null default 0,
+  parado_s      numeric not null default 0,
+  situacao      text not null,
+  motivo        text,
+  lote          boolean not null default false,
+  retrabalho    boolean not null default false,
+  desfecho      text,
+  montado       boolean not null default false,  -- concluída e não descartada (conta como móvel montado)
+  montadores    uuid[] not null default '{}',
+  ajudantes     uuid[] not null default '{}',
+  esforco       jsonb not null default '{}'::jsonb,
+  chave         text not null default '',         -- os montadores em ordem, separados por vírgula (a série do gráfico)
+  cortado       boolean not null default false,
+  clique_errado boolean not null default false,
+  decidida      boolean not null default false,
+  primary key (origem, ref_id)
+);
+create index if not exists plt_tempo_montagens_setor_dia_idx on public.plt_tempo_montagens (setor_id, dia, fim);
+create index if not exists plt_tempo_montagens_modelo_idx on public.plt_tempo_montagens (setor_id, modelo_id, fim);
+create index if not exists plt_tempo_montagens_conferir_idx on public.plt_tempo_montagens (setor_id, dia) where situacao = 'conferir';
+create index if not exists plt_tempo_montagens_card_idx on public.plt_tempo_montagens (card_id) where card_id is not null;
+comment on table public.plt_tempo_montagens is
+  'SESSAO-43: PROJEÇÃO de leitura — um móvel por linha (as passagens que saíram do setor, sem as de teste, e o histórico do Trello), com a equipe e a chave dos montadores prontas. Escrita SÓ pelos gatilhos de comando das passagens, da equipe e do Trello (fn_tempo_montagens_refazer). Dado derivado: sem chave estrangeira (a integridade vem da origem). Cresce com as passagens: 1 linha por móvel que sai de um setor.';
+alter table public.plt_tempo_montagens enable row level security;
+revoke all on public.plt_tempo_montagens from anon, authenticated;
+
+create table if not exists public.plt_tempo_montagem_pessoas (
+  origem      text not null,
+  ref_id      bigint not null,
+  papel       text not null check (papel in ('montador', 'ajudante')),
+  usuario_id  uuid not null,
+  setor_id    bigint not null,
+  dia         date not null,
+  modelo_id   bigint,
+  execucao_s  numeric not null default 0,
+  esforco_s   numeric not null default 0,       -- o esforço DELA nesse móvel (já dividido)
+  situacao    text not null,
+  montado     boolean not null default false,
+  primary key (origem, ref_id, papel, usuario_id),
+  foreign key (origem, ref_id) references public.plt_tempo_montagens (origem, ref_id) on delete cascade
+);
+create index if not exists plt_tempo_montagem_pessoas_setor_dia_idx on public.plt_tempo_montagem_pessoas (setor_id, dia);
+create index if not exists plt_tempo_montagem_pessoas_pessoa_idx on public.plt_tempo_montagem_pessoas (usuario_id, dia);
+comment on table public.plt_tempo_montagem_pessoas is
+  'SESSAO-43: PROJEÇÃO de leitura — uma linha por pessoa de cada móvel de plt_tempo_montagens (montador ou ajudante), com o esforço dela. As abas Móveis e Montadores agrupam por pessoa daqui, sem desmontar listas linha a linha. Escrita SÓ por fn_tempo_montagens_refazer.';
+alter table public.plt_tempo_montagem_pessoas enable row level security;
+revoke all on public.plt_tempo_montagem_pessoas from anon, authenticated;
+
+-- refaz as linhas de um punhado de móveis de UMA origem, a partir da origem
+-- (o que deixou de valer sai; o que não mudou não é reescrito)
+create or replace function plt_privado.fn_tempo_montagens_refazer(p_origem text, p_ids bigint[])
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if p_ids is null or cardinality(p_ids) = 0 then
+    return;
+  end if;
+
+  with novo as (
+    select 'plataforma'::text as origem, ps.id as ref_id, ps.card_id, ps.setor_id, ps.dia,
+           ps.primeiro_inicio as inicio, ps.saida_em as fim, ps.modelo_id,
+           coalesce(ps.execucao_s, 0) as execucao_s, coalesce(ps.fila_s, 0) as fila_s, coalesce(ps.parado_s, 0) as parado_s,
+           ps.situacao, ps.motivo, coalesce(ps.lote, false) as lote,
+           (coalesce(ps.retrabalho_entrada, false) or ps.desfecho = 'retrabalho') as retrabalho,
+           ps.desfecho,
+           coalesce(eq.montadores, '{}'::uuid[]) as montadores,
+           coalesce(eq.ajudantes, '{}'::uuid[]) as ajudantes,
+           coalesce(eq.esforco, '{}'::jsonb) as esforco,
+           coalesce(eq.cortado, false) as cortado,
+           coalesce(eq.clique_errado, false) as clique_errado,
+           ps.decisao_evento_id is not null as decidida
+      from public.plt_tempo_passagens ps
+      left join public.plt_tempo_passagem_equipe eq on eq.passagem_id = ps.id
+     where p_origem = 'plataforma' and ps.id = any (p_ids)
+       and ps.saida_em is not null and ps.dia is not null and ps.situacao <> 'teste'
+    union all
+    select 'trello', t.id, null::bigint, t.setor_id, t.dia, t.inicio, t.fim, t.modelo_id,
+           coalesce(t.execucao_s, 0), 0::numeric, 0::numeric, t.situacao, t.motivo, coalesce(t.lote_n, 1) > 1, false,
+           'concluida'::text, coalesce(t.pessoas, '{}'::uuid[]), '{}'::uuid[], coalesce(t.esforco, '{}'::jsonb),
+           coalesce(t.cortado, false), false, t.decisao is not null
+      from public.plt_tempo_trello t
+     where p_origem = 'trello' and t.id = any (p_ids) and t.dia is not null
+  ),
+  pronto as (
+    select n.*,
+           (n.desfecho = 'concluida' and n.situacao <> 'descartada') as montado,
+           (select coalesce(string_agg(x::text, ',' order by x::text), '') from unnest(n.montadores) x) as chave
+      from novo n
+  ),
+  sai as (
+    delete from public.plt_tempo_montagens m
+     where m.origem = p_origem and m.ref_id = any (p_ids)
+       and not exists (select 1 from pronto p where p.ref_id = m.ref_id)
+  )
+  insert into public.plt_tempo_montagens as m
+    (origem, ref_id, card_id, setor_id, dia, inicio, fim, modelo_id, execucao_s, fila_s, parado_s, situacao, motivo,
+     lote, retrabalho, desfecho, montado, montadores, ajudantes, esforco, chave, cortado, clique_errado, decidida)
+  select p.origem, p.ref_id, p.card_id, p.setor_id, p.dia, p.inicio, p.fim, p.modelo_id, p.execucao_s, p.fila_s, p.parado_s,
+         p.situacao, p.motivo, p.lote, p.retrabalho, p.desfecho, p.montado, p.montadores, p.ajudantes, p.esforco, p.chave,
+         p.cortado, p.clique_errado, p.decidida
+    from pronto p
+  on conflict (origem, ref_id) do update
+    set card_id = excluded.card_id, setor_id = excluded.setor_id, dia = excluded.dia, inicio = excluded.inicio,
+        fim = excluded.fim, modelo_id = excluded.modelo_id, execucao_s = excluded.execucao_s, fila_s = excluded.fila_s,
+        parado_s = excluded.parado_s, situacao = excluded.situacao, motivo = excluded.motivo, lote = excluded.lote,
+        retrabalho = excluded.retrabalho, desfecho = excluded.desfecho, montado = excluded.montado,
+        montadores = excluded.montadores, ajudantes = excluded.ajudantes, esforco = excluded.esforco,
+        chave = excluded.chave, cortado = excluded.cortado, clique_errado = excluded.clique_errado,
+        decidida = excluded.decidida
+  where (m.card_id, m.setor_id, m.dia, m.inicio, m.fim, m.modelo_id, m.execucao_s, m.fila_s, m.parado_s, m.situacao,
+         m.motivo, m.lote, m.retrabalho, m.desfecho, m.montado, m.montadores, m.ajudantes, m.esforco, m.chave,
+         m.cortado, m.clique_errado, m.decidida)
+        is distinct from
+        (excluded.card_id, excluded.setor_id, excluded.dia, excluded.inicio, excluded.fim, excluded.modelo_id,
+         excluded.execucao_s, excluded.fila_s, excluded.parado_s, excluded.situacao, excluded.motivo, excluded.lote,
+         excluded.retrabalho, excluded.desfecho, excluded.montado, excluded.montadores, excluded.ajudantes,
+         excluded.esforco, excluded.chave, excluded.cortado, excluded.clique_errado, excluded.decidida);
+
+  -- as pessoas de cada móvel (lidas da linha que acabou de ser gravada)
+  with alvo as (
+    select distinct on (x.papel, x.usuario_id, m.ref_id)
+           m.origem, m.ref_id, x.papel, x.usuario_id, m.setor_id, m.dia, m.modelo_id, m.execucao_s,
+           coalesce((m.esforco ->> x.usuario_id::text)::numeric, 0) as esforco_s, m.situacao, m.montado
+      from public.plt_tempo_montagens m
+      cross join lateral (
+        select u as usuario_id, 'montador'::text as papel from unnest(m.montadores) u
+        union all
+        select u, 'ajudante' from unnest(m.ajudantes) u
+      ) x
+     where m.origem = p_origem and m.ref_id = any (p_ids)
+  ),
+  sai as (
+    delete from public.plt_tempo_montagem_pessoas q
+     where q.origem = p_origem and q.ref_id = any (p_ids)
+       and not exists (select 1 from alvo a
+                        where a.ref_id = q.ref_id and a.papel = q.papel and a.usuario_id = q.usuario_id)
+  )
+  insert into public.plt_tempo_montagem_pessoas as q
+    (origem, ref_id, papel, usuario_id, setor_id, dia, modelo_id, execucao_s, esforco_s, situacao, montado)
+  select a.origem, a.ref_id, a.papel, a.usuario_id, a.setor_id, a.dia, a.modelo_id, a.execucao_s, a.esforco_s,
+         a.situacao, a.montado
+    from alvo a
+  on conflict (origem, ref_id, papel, usuario_id) do update
+    set setor_id = excluded.setor_id, dia = excluded.dia, modelo_id = excluded.modelo_id,
+        execucao_s = excluded.execucao_s, esforco_s = excluded.esforco_s, situacao = excluded.situacao,
+        montado = excluded.montado
+  where (q.setor_id, q.dia, q.modelo_id, q.execucao_s, q.esforco_s, q.situacao, q.montado)
+        is distinct from
+        (excluded.setor_id, excluded.dia, excluded.modelo_id, excluded.execucao_s, excluded.esforco_s,
+         excluded.situacao, excluded.montado);
+end;
+$$;
+comment on function plt_privado.fn_tempo_montagens_refazer(text, bigint[]) is
+  'SESSAO-43: refaz a projeção de leitura (plt_tempo_montagens + plt_tempo_montagem_pessoas) de um punhado de móveis de UMA origem (plataforma = passagens; trello = histórico) a partir da origem. O que deixou de valer sai; o que não mudou não é reescrito. Chamada pelos gatilhos de comando.';
+revoke all on function plt_privado.fn_tempo_montagens_refazer(text, bigint[]) from public, anon, authenticated;
+
+-- os gatilhos: de COMANDO (uma chamada por comando, com as linhas tocadas —
+-- o recálculo de um card toca várias passagens de uma vez)
+create or replace function plt_privado.fn_tempo_montagens_fato()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_ids bigint[];
+begin
+  if tg_table_name = 'plt_tempo_passagem_equipe' then
+    select array_agg(distinct n.passagem_id) into v_ids from novas n;
+    perform plt_privado.fn_tempo_montagens_refazer('plataforma', v_ids);
+  elsif tg_op = 'DELETE' then
+    select array_agg(distinct v.id) into v_ids from velhas v;
+    perform plt_privado.fn_tempo_montagens_refazer(
+      case when tg_table_name = 'plt_tempo_trello' then 'trello' else 'plataforma' end, v_ids);
+  else
+    select array_agg(distinct n.id) into v_ids from novas n;
+    perform plt_privado.fn_tempo_montagens_refazer(
+      case when tg_table_name = 'plt_tempo_trello' then 'trello' else 'plataforma' end, v_ids);
+  end if;
+  return null;
+end;
+$$;
+revoke all on function plt_privado.fn_tempo_montagens_fato() from public, anon, authenticated;
+
+drop trigger if exists plt_tempo_passagens_zz_montagens_ins on public.plt_tempo_passagens;
+create trigger plt_tempo_passagens_zz_montagens_ins
+  after insert on public.plt_tempo_passagens referencing new table as novas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_passagens_zz_montagens_upd on public.plt_tempo_passagens;
+create trigger plt_tempo_passagens_zz_montagens_upd
+  after update on public.plt_tempo_passagens referencing new table as novas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_passagens_zz_montagens_del on public.plt_tempo_passagens;
+create trigger plt_tempo_passagens_zz_montagens_del
+  after delete on public.plt_tempo_passagens referencing old table as velhas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_passagem_equipe_zz_montagens_ins on public.plt_tempo_passagem_equipe;
+create trigger plt_tempo_passagem_equipe_zz_montagens_ins
+  after insert on public.plt_tempo_passagem_equipe referencing new table as novas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_passagem_equipe_zz_montagens_upd on public.plt_tempo_passagem_equipe;
+create trigger plt_tempo_passagem_equipe_zz_montagens_upd
+  after update on public.plt_tempo_passagem_equipe referencing new table as novas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_trello_zz_montagens_ins on public.plt_tempo_trello;
+create trigger plt_tempo_trello_zz_montagens_ins
+  after insert on public.plt_tempo_trello referencing new table as novas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_trello_zz_montagens_upd on public.plt_tempo_trello;
+create trigger plt_tempo_trello_zz_montagens_upd
+  after update on public.plt_tempo_trello referencing new table as novas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+drop trigger if exists plt_tempo_trello_zz_montagens_del on public.plt_tempo_trello;
+create trigger plt_tempo_trello_zz_montagens_del
+  after delete on public.plt_tempo_trello referencing old table as velhas
+  for each statement execute function plt_privado.fn_tempo_montagens_fato();
+
+-- o que já existe entra na projeção (idempotente: o que não mudou não é reescrito)
+select plt_privado.fn_tempo_montagens_refazer('plataforma',
+         (select array_agg(ps.id) from public.plt_tempo_passagens ps where ps.saida_em is not null));
+select plt_privado.fn_tempo_montagens_refazer('trello', (select array_agg(t.id) from public.plt_tempo_trello t));
+
+-- a leitura das portas: a projeção com os nomes de sempre
 create or replace view plt_privado.vw_tempo_montagens as
-  select 'plataforma'::text as origem, ps.id, ps.card_id, ps.setor_id, ps.dia,
-         ps.primeiro_inicio as inicio, ps.saida_em as fim, ps.modelo_id,
-         ps.execucao_s, ps.fila_s, ps.parado_s, ps.situacao, ps.motivo, ps.lote,
-         (ps.retrabalho_entrada or ps.desfecho = 'retrabalho') as retrabalho,
-         ps.desfecho,
-         coalesce(eq.montadores, '{}'::uuid[]) as montadores,
-         coalesce(eq.ajudantes, '{}'::uuid[]) as ajudantes,
-         coalesce(eq.esforco, '{}'::jsonb) as esforco,
-         coalesce(eq.cortado, false) as cortado,
-         coalesce(eq.clique_errado, false) as clique_errado,
-         ps.decisao_evento_id is not null as decidida
-    from public.plt_tempo_passagens ps
-    left join public.plt_tempo_passagem_equipe eq on eq.passagem_id = ps.id
-   where ps.saida_em is not null and ps.situacao <> 'teste'
-  union all
-  select 'trello'::text, t.id, null::bigint, t.setor_id, t.dia, t.inicio, t.fim, t.modelo_id,
-         t.execucao_s, 0::numeric, 0::numeric, t.situacao, t.motivo, t.lote_n > 1, false,
-         'concluida'::text, t.pessoas, '{}'::uuid[], t.esforco, t.cortado, false, t.decisao is not null
-    from public.plt_tempo_trello t;
+  select m.origem, m.ref_id as id, m.card_id, m.setor_id, m.dia, m.inicio, m.fim, m.modelo_id,
+         m.execucao_s, m.fila_s, m.parado_s, m.situacao, m.motivo, m.lote, m.retrabalho, m.desfecho,
+         m.montadores, m.ajudantes, m.esforco, m.cortado, m.clique_errado, m.decidida, m.chave, m.montado
+    from public.plt_tempo_montagens m;
 comment on view plt_privado.vw_tempo_montagens is
-  'SESSAO-43: as passagens que SAÍRAM de um setor (sem as de teste) e o histórico do Trello num formato só — origem, tempo do móvel, fila, situação/motivo, lote, retrabalho, desfecho, montadores/ajudantes/esforço (a equipe da passagem), cortado, clique errado, decidida. Lida só pelas portas da tela de tempos e do Modo TV.';
+  'SESSAO-43: a projeção plt_tempo_montagens com os nomes que as portas da tela de tempos e do Modo TV usam (id = a passagem ou a linha do Trello). Lida só por elas.';
 revoke all on plt_privado.vw_tempo_montagens from public, anon, authenticated;
 
 -- quem vê o quê (e com qual filtro de pessoa)
@@ -543,21 +774,20 @@ begin
 
   with b as (
     select m.origem, m.dia, m.modelo_id, m.execucao_s, m.fila_s, m.parado_s, m.situacao, m.desfecho,
-           m.retrabalho, m.montadores,
-           (select coalesce(string_agg(x::text, ',' order by x::text), '') from unnest(m.montadores) x) as k
+           m.retrabalho, m.montado, m.chave as k
       from plt_privado.vw_tempo_montagens m
      where m.setor_id = p_setor_id and m.dia between v_de and v_ate
        and (m.origem = 'plataforma' or v_tr)
        and (v_ac.o_pessoa is null or v_ac.o_pessoa = any (m.montadores))
        and (p_modelo_id is null or m.modelo_id = p_modelo_id)
   ),
-  mont as (select * from b where b.desfecho = 'concluida' and b.situacao <> 'descartada'),
+  mont as (select * from b where b.montado),
   num as (
-    select count(*) filter (where b.desfecho = 'concluida' and b.situacao <> 'descartada') as montados,
+    select count(*) filter (where b.montado) as montados,
            count(*) filter (where b.situacao = 'valida') as validas,
            count(*) filter (where b.situacao = 'conferir') as conferir,
            count(*) filter (where b.desfecho = 'concluida' and b.situacao not in ('descartada', 'sem_registro')) as com_tempo,
-           count(distinct b.dia) filter (where b.desfecho = 'concluida' and b.situacao <> 'descartada') as dias_com,
+           count(distinct b.dia) filter (where b.montado) as dias_com,
            coalesce(sum(b.execucao_s) filter (where b.situacao = 'valida'), 0) as total_s,
            percentile_cont(0.5) within group (order by b.execucao_s) filter (where b.situacao = 'valida') as mediana_s,
            avg(b.execucao_s) filter (where b.situacao = 'valida') as media_s,
@@ -679,7 +909,7 @@ begin
   end if;
 
   with b as (
-    select m.origem, m.modelo_id, m.execucao_s, m.situacao, m.desfecho, m.montadores
+    select m.origem, m.id, m.modelo_id, m.execucao_s, m.situacao, m.montado
       from plt_privado.vw_tempo_montagens m
      where m.setor_id = p_setor_id and m.dia between v_de and v_ate
        and (m.origem = 'plataforma' or v_tr)
@@ -687,18 +917,32 @@ begin
   ),
   g as (
     select b.modelo_id,
-           count(*) filter (where b.desfecho = 'concluida' and b.situacao <> 'descartada') as qtd,
+           count(*) filter (where b.montado) as qtd,
            count(*) filter (where b.situacao = 'conferir') as conferir,
            count(*) filter (where b.situacao = 'valida') as validas,
            min(b.execucao_s) filter (where b.situacao = 'valida') as melhor,
-           percentile_cont(0.5) within group (order by b.execucao_s) filter (where b.situacao = 'valida') as mediana,
-           percentile_cont(0.25) within group (order by b.execucao_s) filter (where b.situacao = 'valida') as p25,
-           percentile_cont(0.75) within group (order by b.execucao_s) filter (where b.situacao = 'valida') as p75,
+           -- os três percentis numa ordenação só
+           percentile_cont(array[0.25, 0.5, 0.75]) within group (order by b.execucao_s)
+             filter (where b.situacao = 'valida') as pc,
            count(*) filter (where b.origem = 'trello') as n_trello
       from b group by b.modelo_id
   ),
+  -- as pessoas dos móveis do período (da projeção por pessoa — sem desmontar
+  -- a lista de montadores linha a linha)
+  bp as (
+    select q.usuario_id, q.modelo_id, q.execucao_s, q.situacao, q.montado
+      from public.plt_tempo_montagem_pessoas q
+     where q.setor_id = p_setor_id and q.dia between v_de and v_ate and q.papel = 'montador'
+       and (q.origem = 'plataforma' or v_tr)
+       and (v_ac.o_pessoa is null
+            or exists (select 1 from public.plt_tempo_montagem_pessoas e
+                        where e.origem = q.origem and e.ref_id = q.ref_id and e.papel = 'montador'
+                          and e.usuario_id = v_ac.o_pessoa))
+  ),
   gn as (
-    select g.*, coalesce(mo.nome, 'Sem modelo') as nome, pa.mediana_s as padrao
+    select g.modelo_id, g.qtd, g.conferir, g.validas, g.melhor, g.n_trello,
+           g.pc[2] as mediana, g.pc[1] as p25, g.pc[3] as p75,
+           coalesce(mo.nome, 'Sem modelo') as nome, pa.mediana_s as padrao
       from g
       left join public.plt_tempo_modelos mo on mo.id = g.modelo_id
       left join plt_privado.fn_tempos_padroes(p_setor_id, v_tr) pa on pa.modelo_id = g.modelo_id
@@ -720,20 +964,24 @@ begin
   ),
   -- as colunas por montador: as 6 pessoas que mais montaram no período
   col as (
-    select p as usuario_id, count(*) as n
-      from b cross join lateral unnest(b.montadores) p
-     where b.desfecho = 'concluida' and b.situacao <> 'descartada'
-     group by p order by count(*) desc, p limit 6
+    select bp.usuario_id, count(*) as n
+      from bp
+     where bp.montado
+     group by bp.usuario_id order by count(*) desc, bp.usuario_id limit 6
   ),
-  pg as (select pagina.modelo_id from pagina where pagina.pos > v_desl and pagina.pos <= v_desl + v_lim),
-  pp as (
-    select b.modelo_id, p as usuario_id, count(*) as n,
-           percentile_cont(0.5) within group (order by b.execucao_s) as mediana
-      from b
-      join pg on pg.modelo_id is not distinct from b.modelo_id
-      cross join lateral unnest(b.montadores) p
-     where b.situacao = 'valida' and p in (select usuario_id from col)
-     group by b.modelo_id, p
+  pg as (select coalesce(pagina.modelo_id, 0) as mk from pagina where pagina.pos > v_desl and pagina.pos <= v_desl + v_lim),
+  pp as (   -- "sem modelo" entra como 0 (igualdade simples: junção por hash)
+    select coalesce(bp.modelo_id, 0) as mk, bp.usuario_id, count(*) as n,
+           percentile_cont(0.5) within group (order by bp.execucao_s) as mediana
+      from bp
+      join pg on pg.mk = coalesce(bp.modelo_id, 0)
+      join col on col.usuario_id = bp.usuario_id
+     where bp.situacao = 'valida'
+     group by 1, bp.usuario_id
+  ),
+  ppj as (  -- uma vez por modelo da página (nunca uma releitura por linha)
+    select pp.mk, jsonb_object_agg(pp.usuario_id::text, jsonb_build_object('n', pp.n, 'mediana_s', round(pp.mediana::numeric))) as j
+      from pp group by pp.mk
   )
   select jsonb_build_object(
     'colunas', coalesce((select jsonb_agg(to_jsonb(col.usuario_id) order by col.n desc, col.usuario_id) from col), '[]'::jsonb),
@@ -741,10 +989,11 @@ begin
                'modelo_id', p.modelo_id, 'nome', p.nome, 'qtd', p.qtd, 'conferir', p.conferir, 'validas', p.validas,
                'melhor_s', round(p.melhor), 'mediana_s', round(p.mediana::numeric), 'p25_s', round(p.p25::numeric),
                'p75_s', round(p.p75::numeric), 'padrao_s', round(p.padrao), 'n_trello', p.n_trello,
-               'por_pessoa', coalesce((select jsonb_object_agg(x.usuario_id::text, jsonb_build_object('n', x.n, 'mediana_s', round(x.mediana::numeric)))
-                                         from pp x where x.modelo_id is not distinct from p.modelo_id), '{}'::jsonb))
+               'por_pessoa', coalesce(j.j, '{}'::jsonb))
              order by p.pos)
-             from pagina p where p.pos > v_desl and p.pos <= v_desl + v_lim), '[]'::jsonb),
+             from pagina p
+             left join ppj j on j.mk = coalesce(p.modelo_id, 0)
+            where p.pos > v_desl and p.pos <= v_desl + v_lim), '[]'::jsonb),
     'total', (select count(*) from gn),
     'tem_mais', (select count(*) from gn) > v_desl + v_lim)
     into v_ret;
@@ -845,50 +1094,68 @@ begin
     raise exception 'O período vai até 12 meses.' using errcode = 'invalid_parameter_value';
   end if;
 
-  with b as (
-    select m.*, pa.mediana_s as padrao_s
+  with pa as materialized (
+    select x.modelo_id, x.mediana_s from plt_privado.fn_tempos_padroes(p_setor_id, v_tr) x
+  ),
+  b as (    -- os móveis (para "os 8 melhores")
+    select m.origem, m.dia, m.modelo_id, m.execucao_s, m.montadores, pa.mediana_s as padrao_s
       from plt_privado.vw_tempo_montagens m
-      left join plt_privado.fn_tempos_padroes(p_setor_id, v_tr) pa on pa.modelo_id = m.modelo_id
+      left join pa on pa.modelo_id = m.modelo_id
      where m.setor_id = p_setor_id and m.dia between v_de and v_ate
+       and m.situacao = 'valida' and m.modelo_id is not null
        and (m.origem = 'plataforma' or v_tr)
        and (p_modelo_id is null or m.modelo_id = p_modelo_id)
+       and (v_ac.o_pessoa is null or v_ac.o_pessoa = any (m.montadores))
   ),
-  pp as (   -- pessoa × passagem (só as que ela montou)
-    select p as usuario_id, b.*
-      from b cross join lateral unnest(b.montadores) p
-     where v_ac.o_pessoa is null or p = v_ac.o_pessoa
+  q as (    -- pessoa × móvel (da projeção por pessoa — montadores e ajudantes)
+    select q.papel, q.usuario_id, q.dia, q.modelo_id, q.execucao_s, q.esforco_s, q.situacao, q.montado
+      from public.plt_tempo_montagem_pessoas q
+     where q.setor_id = p_setor_id and q.dia between v_de and v_ate
+       and (q.origem = 'plataforma' or v_tr)
+       and (p_modelo_id is null or q.modelo_id = p_modelo_id)
+       and (v_ac.o_pessoa is null or q.usuario_id = v_ac.o_pessoa)
+  ),
+  pp as (   -- só o que a pessoa MONTOU, com o padrão do modelo
+    select q.usuario_id, q.dia, q.modelo_id, q.execucao_s, q.esforco_s, q.situacao, q.montado, pa.mediana_s as padrao_s
+      from q left join pa on pa.modelo_id = q.modelo_id
+     where q.papel = 'montador'
   ),
   pes as (
     select pp.usuario_id,
-           count(*) filter (where pp.desfecho = 'concluida' and pp.situacao <> 'descartada') as moveis,
-           count(distinct pp.dia) filter (where pp.desfecho = 'concluida' and pp.situacao <> 'descartada') as dias,
+           count(*) filter (where pp.montado) as moveis,
+           count(distinct pp.dia) filter (where pp.montado) as dias,
            percentile_cont(0.5) within group (order by pp.execucao_s) filter (where pp.situacao = 'valida') as mediana,
-           coalesce(sum((pp.esforco ->> pp.usuario_id::text)::numeric) filter (where pp.situacao = 'valida'), 0) as esforco
+           coalesce(sum(pp.esforco_s) filter (where pp.situacao = 'valida'), 0) as esforco
       from pp group by pp.usuario_id
   ),
-  pm as (   -- a mediana da pessoa em cada modelo, contra o padrão
-    select pp.usuario_id, pp.modelo_id, max(pp.padrao_s) as padrao,
+  pm as materialized (   -- pessoa × modelo (válidas): a mediana e o menor tempo, numa ordenação só
+    select pp.usuario_id, pp.modelo_id, max(pp.padrao_s) as padrao, min(pp.execucao_s) as menor,
            percentile_cont(0.5) within group (order by pp.execucao_s) as med
-      from pp where pp.situacao = 'valida' and pp.modelo_id is not null
+      from pp where pp.situacao = 'valida'
      group by pp.usuario_id, pp.modelo_id
   ),
-  cmp as (
+  cmp as (   -- a mediana dela em cada modelo, contra o padrão
     select pm.usuario_id,
            count(*) filter (where pm.padrao is not null and pm.med < pm.padrao * (1 - v_faixa)) as abaixo,
            count(*) filter (where pm.padrao is not null and pm.med > pm.padrao * (1 + v_faixa)) as acima,
            count(*) filter (where pm.padrao is not null and pm.med between pm.padrao * (1 - v_faixa) and pm.padrao * (1 + v_faixa)) as na_media
-      from pm group by pm.usuario_id
+      from pm where pm.modelo_id is not null group by pm.usuario_id
   ),
-  melhor as (   -- a passagem dela que mais ganhou do padrão (sem padrão: a mais rápida)
-    select distinct on (pp.usuario_id) pp.usuario_id, pp.modelo_id, pp.execucao_s, pp.padrao_s, pp.dia
-      from pp where pp.situacao = 'valida'
-     order by pp.usuario_id, (pp.execucao_s / nullif(pp.padrao_s, 0)) asc nulls last, pp.execucao_s asc
+  melhor0 as (   -- o modelo em que ela mais ganhou do padrão (sem padrão: o mais rápido) — o padrão é
+                 -- um só por modelo, então o melhor do modelo é o menor tempo dele
+    select distinct on (pm.usuario_id) pm.usuario_id, pm.modelo_id, pm.menor, pm.padrao
+      from pm
+     order by pm.usuario_id, (pm.menor / nullif(pm.padrao, 0)) asc nulls last, pm.menor asc, pm.modelo_id
+  ),
+  melhor as (    -- e o dia dessa montagem
+    select m0.usuario_id, m0.modelo_id, m0.menor as execucao_s, m0.padrao as padrao_s, min(pp.dia) as dia
+      from melhor0 m0
+      join pp on pp.usuario_id = m0.usuario_id and coalesce(pp.modelo_id, 0) = coalesce(m0.modelo_id, 0)
+             and pp.execucao_s = m0.menor and pp.situacao = 'valida'
+     group by m0.usuario_id, m0.modelo_id, m0.menor, m0.padrao
   ),
   aj as (
-    select p as usuario_id, count(*) as n
-      from b cross join lateral unnest(b.ajudantes) p
-     where v_ac.o_pessoa is null or p = v_ac.o_pessoa
-     group by p
+    select q.usuario_id, count(*) as n from q where q.papel = 'ajudante' group by q.usuario_id
   ),
   ocup as (   -- tempo com card ÷ tempo no setor dentro do expediente (só a plataforma registra presença)
     select r.usuario_id, sum(r.esforco_s) as com_card, sum(r.trabalhando_s + r.ausente_s + r.especial_s) as no_setor
@@ -897,18 +1164,19 @@ begin
        and (v_ac.o_pessoa is null or r.usuario_id = v_ac.o_pessoa)
      group by r.usuario_id
   ),
+  mg as (   -- por modelo: quantas válidas e o menor tempo (agrupar, sem ordenar tudo)
+    select b.modelo_id, count(*) as n, min(b.execucao_s) as menor, max(b.padrao_s) as padrao_s
+      from b group by b.modelo_id
+  ),
+  m8 as (
+    select mg.* from mg where mg.n >= 2
+     order by (mg.menor / nullif(mg.padrao_s, 0)) asc nulls last, mg.menor asc, mg.modelo_id
+     limit 8
+  ),
   melhores as (   -- os 8 móveis com o melhor tempo contra o padrão (modelos com 2+ válidas)
-    select x.* from (
-      select distinct on (b.modelo_id) b.modelo_id, b.execucao_s, b.padrao_s, b.montadores, b.dia, b.origem,
-             count(*) over (partition by b.modelo_id) as n
-        from b
-       where b.situacao = 'valida' and b.modelo_id is not null
-         and (v_ac.o_pessoa is null or v_ac.o_pessoa = any (b.montadores))
-       order by b.modelo_id, b.execucao_s asc
-    ) x
-    where x.n >= 2
-    order by (x.execucao_s / nullif(x.padrao_s, 0)) asc nulls last, x.execucao_s asc
-    limit 8
+    select distinct on (m8.modelo_id) m8.modelo_id, b.execucao_s, b.padrao_s, b.montadores, b.dia, b.origem
+      from m8 join b on b.modelo_id = m8.modelo_id and b.execucao_s = m8.menor
+     order by m8.modelo_id, b.dia, b.origem
   )
   select jsonb_build_object(
     'pessoas_cartoes', coalesce((select jsonb_agg(jsonb_build_object(
@@ -1159,13 +1427,17 @@ begin
   achados as (
     select 'plataforma'::text as origem, ps.id, ps.card_id, ps.entrada_em as inicio, ps.saida_em as fim
       from public.plt_tempo_passagens ps
-     where ps.setor_id = p_setor_id and ps.card_id in (select id from cards)
+     where ps.card_id = any (array(select id from cards)) and ps.setor_id = p_setor_id   -- pelo índice do card
+    union all
+    -- o Trello em dois caminhos (cada um pelo índice dele: o número ou os trigramas do nome)
+    select 'trello', t.id, null, t.inicio, t.fim
+      from public.plt_tempo_trello t
+     where coalesce(p_trello, true) and v_num is not null and t.pedido_numero = v_num and t.setor_id = p_setor_id
     union all
     select 'trello', t.id, null, t.inicio, t.fim
       from public.plt_tempo_trello t
-     where coalesce(p_trello, true) and t.setor_id = p_setor_id
-       and ((v_num is not null and t.pedido_numero = v_num)
-            or (v_nome is not null and t.nome_busca like '%' || v_nome || '%'))
+     where coalesce(p_trello, true) and v_nome is not null and t.setor_id = p_setor_id
+       and t.nome_busca like '%' || v_nome || '%'
     order by 4 desc
     limit 30
   )
@@ -1288,16 +1560,24 @@ begin
   with le as (
     select e.usuario_id, e.letra from public.plt_tempo_equipe e where e.setor_id = v_setor
   ),
-  b as (
-    select m.dia, m.modelo_id, m.execucao_s, m.situacao, m.desfecho, m.montadores,
-           (m.desfecho = 'concluida' and m.situacao <> 'descartada') as montado,
-           case when cardinality(m.montadores) = 0 then 'Sem montador'
-                when exists (select 1 from unnest(m.montadores) p where p not in (select usuario_id from le)) then 'Outros'
-                else (select string_agg(le.letra, ' + ' order by le.letra) from unnest(m.montadores) p join le on le.usuario_id = p)
-           end as letras,
-           case when cardinality(m.montadores) = 1 then m.montadores[1] end as sozinho
+  b0 as (
+    select m.dia, m.modelo_id, m.execucao_s, m.situacao, m.montado, m.montadores, m.chave
       from plt_privado.vw_tempo_montagens m
      where m.setor_id = v_setor and m.dia between v_de and v_hoje
+  ),
+  -- as letras de cada equipe calculadas UMA vez por chave (não por móvel)
+  k as (
+    select x.chave,
+           case when cardinality(x.montadores) = 0 then 'Sem montador'
+                when exists (select 1 from unnest(x.montadores) p where p not in (select usuario_id from le)) then 'Outros'
+                else (select string_agg(le.letra, ' + ' order by le.letra) from unnest(x.montadores) p join le on le.usuario_id = p)
+           end as letras,
+           case when cardinality(x.montadores) = 1 then x.montadores[1] end as sozinho
+      from (select distinct on (b0.chave) b0.chave, b0.montadores from b0) x
+  ),
+  b as (
+    select b0.dia, b0.modelo_id, b0.execucao_s, b0.situacao, b0.montado, k.letras, k.sozinho
+      from b0 join k on k.chave = b0.chave
   ),
   num as (
     select count(*) filter (where b.montado and b.dia = v_hoje) as hoje,
@@ -1343,7 +1623,7 @@ begin
     'tempo_medio_hoje_s', round(num.med_hoje::numeric),
     'mediana_30_s', round(num.med_30::numeric),
     'dados_ate', (select max(m.dia) from plt_privado.vw_tempo_montagens m
-                   where m.setor_id = v_setor and m.desfecho = 'concluida' and m.situacao <> 'descartada'
+                   where m.setor_id = v_setor and m.montado
                      and m.dia <= v_hoje and m.dia >= v_hoje - 400),
     'montadores', coalesce((select jsonb_agg(jsonb_build_object(
                      'letra', i.letra, 'hoje', i.hoje, 'mediana_hoje_s', round(i.med_hoje::numeric),
