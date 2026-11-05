@@ -69,6 +69,8 @@ const ListasDisparoIndice = pagina(
   'ListasDisparoIndice',
 )
 const ListaDetalhe = pagina(() => import('@/comercial/paginas/ListaDetalhe'), 'ListaDetalhe')
+// SESSAO-46 (D-260): Tech → Sugestão de melhoria — o quadro que todos acompanham.
+const SugestaoMelhoria = pagina(() => import('@/paginas/SugestaoMelhoria'), 'SugestaoMelhoria')
 
 // O mapa (Leaflet, ~150 kB) só vem quando a Programação abre — o resto do
 // sistema não paga por ele (SESSAO-28; pendência anotada na SESSAO-15).
@@ -155,6 +157,8 @@ export function App() {
                 <Route path="/inicio/avisos" element={<Avisos />} />
                 {/* o chat interno (SESSAO-26): a tela cheia; o balão vive na casca */}
                 <Route path="/inicio/chat" element={<Chat />} />
+                {/* SESSAO-46 (D-265): o pai Tech — o quadro das sugestões é de todo nível */}
+                <Route path="/tech/sugestao-de-melhoria" element={<SugestaoMelhoria />} />
 
                 {/* SESSAO-30 (D-115): a casa do entregador (módulo "entregas");
                   a logística vê a mesma tela como aba de ROTAS → Entregas (D-121) */}
@@ -267,6 +271,7 @@ export function App() {
 
               {/* pais nunca navegam: cada um direciona ao primeiro filho */}
               <Route path="/inicio" element={<Navigate to="/inicio/meu-painel" replace />} />
+              <Route path="/tech" element={<Navigate to="/tech/sugestao-de-melhoria" replace />} />
               <Route path="/fabrica" element={<Navigate to="/fabrica/producao/pcp" replace />} />
               <Route
                 path="/fabrica/producao"

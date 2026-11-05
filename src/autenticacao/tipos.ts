@@ -33,6 +33,8 @@ export const ROTAS_DA_PRODUCAO = new Set([
   '/inicio/avisos',
   '/inicio/meu-perfil',
   '/trocar-senha',
+  // SESSAO-46 (D-265): o quadro das sugestões é de todos
+  '/tech/sugestao-de-melhoria',
 ])
 
 /**
@@ -94,7 +96,13 @@ export function ehSoEntregador(perfil: Perfil | null): boolean {
 
 /** A casa do entregador e o que mais ele pode abrir. */
 export const ROTA_ENTREGADOR = '/entregas/do-dia'
-export const ROTAS_DO_ENTREGADOR = new Set([ROTA_ENTREGADOR, '/trocar-senha', '/inicio/meu-perfil'])
+export const ROTAS_DO_ENTREGADOR = new Set([
+  ROTA_ENTREGADOR,
+  '/trocar-senha',
+  '/inicio/meu-perfil',
+  // SESSAO-46 (D-265): o quadro das sugestões é de todos
+  '/tech/sugestao-de-melhoria',
+])
 
 export interface VinculoSetor {
   setor_id: number

@@ -12,6 +12,7 @@ const PEDACOS: [prefixo: string, carregar: () => Promise<unknown>][] = [
   ['/inicio/afazeres', () => import('@/paginas/Afazeres')],
   ['/inicio/chat', () => import('@/paginas/Chat')],
   ['/inicio/meu-perfil', () => import('@/paginas/MeuPerfil')],
+  ['/tech/sugestao-de-melhoria', () => import('@/paginas/SugestaoMelhoria')],
   ['/tablet', () => import('@/paginas/TelaSetor')],
   ['/fabrica/producao/', () => import('@/navegacao/ProducaoSetor')],
   ['/fabrica/pedidos/', () => import('@/pedidos/PaginaPedidos')],

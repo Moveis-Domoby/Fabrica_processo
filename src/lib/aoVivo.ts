@@ -23,6 +23,8 @@ export type AreaAoVivo =
   | 'danificados'
   /** SESSAO-36 (D-146): a dashboard de tempos por pessoa — o aviso não leva dado. */
   | 'tempos'
+  /** SESSAO-46: o quadro das sugestões de melhoria (Tech) — política própria, todo logado ouve. */
+  | 'sugestoes'
   | `setor_${number}`
   | `lista_${string}`
 

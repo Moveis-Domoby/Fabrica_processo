@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { sugestaoDoAviso } from '@/tech/regras'
 
 /**
  * Avisos de plt_notificacoes (SESSAO-06 / D-09 / Q-18): o banco os cria
@@ -21,7 +22,10 @@ export interface Aviso {
  * Para onde tocar no aviso leva (nulo = só marca como lido). SESSAO-31
  * (D-129): a devolução abre direto a telinha "Decidir situação" no Estoque.
  */
-export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'>): string | null {
+export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'> & { titulo?: string }): string | null {
+  // SESSAO-46 (D-264): "Sugestão #N pronta para testar" / "… recusada" abrem a ficha da sugestão.
+  const sugestao = sugestaoDoAviso({ tipo: aviso.tipo, titulo: aviso.titulo ?? '' })
+  if (sugestao !== null) return `?sugestao=${sugestao}`
   if (aviso.tipo === 'devolucao_decidir' && aviso.card_id !== null) {
     return `/fabrica/logistica/estoque?devolucao=${aviso.card_id}`
   }
