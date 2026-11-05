@@ -1,9 +1,9 @@
 ---
 titulo: SESSAO-43 — A tela Tempos de produção em Dashboards, o Modo TV com permissão própria e o histórico do Trello
 tipo: demanda
-status: 📐 pronta para code (30/10/2026) — começa só com a SESSAO-42 entregue
+status: 🧪 entregue no ramo (05/11/2026) — esperando o OK do dono para banco, carga e site
 data: 2026-10-30
-atualizado: 2026-10-30
+atualizado: 2026-11-05
 tags: [plataforma, demandas, tempo, montagem, dashboards, modo-tv, trello, conferencia]
 ---
 
@@ -88,4 +88,10 @@ D-225…D-240 · E-190…E-204 · A-143…A-155 · migrations com o prefixo da d
 
 ## Resultado (preencher ao entregar)
 
-*O que foi feito, o que mudou de rota, link do handoff da sessão.*
+**05/11/2026 — entregue no ramo, esperando o OK do dono** (banco, carga do histórico e site, cada um à parte). Handoff: [[handoff_2026_11_05_sessao43_tempos_producao_modo_tv]] · diário: [[SESSAO-43]].
+
+- **F1–F3 feitas:** a tela Tempos de produção com as 5 abas (1 consulta por aba, no clique; ao vivo pelo canal do setor), a conferência com Considerar/Descartar/Desfazer e o Procurar, o Modo TV só com letras (permissão em Gestão da equipe; conta só-TV entra direto e não sai; o botão abre em guia nova).
+- **F4 feita e provada na bateria com o arquivo real** (2×): 891 linhas → 885 cartões; 815 válidas, mediana 43,3 min, média 52,1 min (esperado ~813 · ~44 · ~54); os lotes reais são 9 (18 cartões) — os outros 6 "lotes" eram cartões repetidos. A carga em produção espera o OK.
+- **F5:** "Tempo por setor" redireciona; visualizações salvas traduzidas; fotos de cada aba e da TV no handoff (vitrine). **Falta o dia conferido card a card com o dono** (precisa do banco no ar).
+- **Mudanças de rota:** (1) a permissão Modo TV ficou em `plt_usuarios.modulos` lida no banco, **sem** o token (ajuste do dono no prompt — D-230); (2) o ensaio ×100 obrigou uma **tabela pronta de leitura** mantida no gesto (E-192) — 30 dias dentro do teto; 90 dias ou mais com 100× o movimento ficou para o dono decidir (D-233, dívida 31 da lei).
+- **Tarefas no ClickUp (criadas com o OK do dono no prompt, em fazendo):** [Tela Tempos de produção](https://app.clickup.com/t/17tya50pwnd) · [Conferência](https://app.clickup.com/t/17tya50pwne) · [Modo TV](https://app.clickup.com/t/17tya50pwnf) · [Histórico do Trello](https://app.clickup.com/t/17tya50pwng) · [Tempo por setor](https://app.clickup.com/t/17tya50pwnh).
