@@ -49,6 +49,18 @@ Demanda: [[SESSAO-46 - Tech - Sugestao de Melhoria]] (ditada pelo dono na conver
 7. **Requisições medidas** (Lei §1): Meu painel recarregado = abertura + chat + metas (as de antes — a bolinha não acrescentou nenhuma); abrir o quadro pelo app = `plt_fn_sugestoes_quadro` + o registro da navegação; ficha = detalhe + links assinados (2 em sequência — dívida registrada na lei).
 8. **Pacote:** JS inicial (tudo o que o `index.html` carrega) 235,4 KB comprimidos (CSS 19,8 à parte); pedaços: quadro 3,9 · ficha 3,2 · formulário 5,0 · gravador 2,3 KB.
 9. **Limpeza do teste:** os 4 arquivos apagados do armário (API do storage com a chave de serviço do `.env.local`, nunca impressa). Apagar sugestões/fatos/registros exige desligar a trava da trilha de atividade — **o ambiente recusou** (auditoria). Não contornei; fica com o dono (handoff §8).
+10. **Limpeza autorizada (05/11, dono: "Pode apagar"):** a transação completa (com a trava da trilha de atividade) foi **recusada de novo** pelo ambiente. Rodada a parte que não toca a trilha: trava de `plt_sugestao_fatos` desligada → 11 fatos apagados → religada; sugestões 5001–5003, tarefas 29/30 (Sistema, "Testar a sugestão #5001/#5002") e avisos 1408–1410 apagados; `plt_sugestoes` e `plt_sugestao_fatos` com `restart with 1`. Conferido: 0 sugestões, 0 fatos, 0 avisos, 0 arquivos, as duas travas ligadas (`O`), sequências em 1 sem uso. **Ficaram os 26 registros de atividade do teste** (ids 14556758…14556786, menos 759/766/778, que são navegação a outras telas), do usuário do dono, 05/11 02:26–02:39 de Natal. Para apagá-los (só com o dono rodando ou liberando a ferramenta de SQL desta máquina):
+
+```sql
+begin;
+alter table public.plt_logs_atividade disable trigger plt_logs_atividade_imutavel;
+delete from public.plt_logs_atividade
+ where id in (14556758,14556760,14556761,14556762,14556763,14556764,14556765,14556767,14556768,14556769,14556770,14556771,14556772,14556773,14556774,14556775,14556776,14556777,14556779,14556780,14556781,14556782,14556783,14556784,14556785,14556786)
+   and usuario_id = 'f7b6de24-ffb5-4539-94f7-bbc42647f5d0'
+   and criado_em between timestamptz '2026-11-05 05:26:00+00' and timestamptz '2026-11-05 05:40:00+00';
+alter table public.plt_logs_atividade enable trigger plt_logs_atividade_imutavel;
+commit;
+```
 
 ## Checklist de desempenho (Lei §12)
 
