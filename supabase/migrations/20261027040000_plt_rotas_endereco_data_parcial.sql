@@ -35,7 +35,9 @@ alter table public.plt_motivos drop constraint if exists plt_motivos_tipo_ck;
 alter table public.plt_motivos add constraint plt_motivos_tipo_ck
   check (tipo in ('nao_entregue', 'desfazer_entrega', 'devolucao', 'pausa', 'saida', 'standby', 'mover',
                   'entrega_parcial')) not valid;
-alter table public.plt_motivos validate constraint plt_motivos_tipo_ck;
+-- ↪️ SESSAO-43 (E-19/E-144): o validate de plt_motivos_tipo_ck mudou para a
+-- 20261105040000 (que recria o check com o tipo 'conferencia' e o valida) —
+-- aqui ele quebraria a reaplicação da bateria com os motivos de conferência.
 
 insert into public.plt_motivos (tipo, texto, ordem) values
   ('entrega_parcial', 'Cliente recusou um dos móveis', 10),
