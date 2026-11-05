@@ -18,9 +18,13 @@
  * informou na venda), e quem acha a casa é o próprio Google. Antes ia o ponto
  * da busca gratuita da plataforma, que é o MEIO da rua (às vezes a rua de
  * mesmo nome noutro bairro): o Google mostrava o endereço mais perto daquele
- * ponto — outro número, outra rua. O ponto só manda quando uma PESSOA o
- * confirmou: marcado à mão na Programação (`pontoConfirmado`) ou o pino da
- * parada avulsa. Sem endereço escrito, vai o ponto.
+ * ponto — outro número, outra rua. Sem endereço escrito, vai o ponto.
+ *
+ * ↪️ SESSAO-45 · ajuste do dono (05/11 — "a rota precisa do endereço exato do
+ * cliente, não do ponto marcado; o ponto pode servir para ajuste"): NEM o
+ * ponto marcado à mão nem o pino da parada avulsa mandam no link — vai SEMPRE
+ * o endereço escrito. O ponto da plataforma serve ao NOSSO mapa (onde a parada
+ * aparece e a ordem sugerida da rota) e é ele que a logística acerta à mão.
  */
 import { FABRICA } from './rotaRuas'
 
@@ -29,8 +33,6 @@ export interface ParadaNavegavel {
   longitude: number | null
   /** O endereço escrito, como o Google/Waze recebem. */
   endereco: string | null
-  /** SESSAO-45: o ponto foi conferido por uma pessoa (pino marcado à mão) — manda sobre o texto. */
-  pontoConfirmado?: boolean
 }
 
 /** O CEP com a máscara (59010-190); fora do formato, nada. */
@@ -53,10 +55,6 @@ export function paradaNavegavel(e: {
   cidade: string | null
   uf: string | null
   cep?: string | null
-  /** SESSAO-45: o ponto foi marcado à mão por alguém da logística. */
-  geo_manual?: boolean | null
-  /** A parada avulsa: o pino foi posto por quem a criou. */
-  ponto_confirmado?: boolean | null
 }): ParadaNavegavel {
   const limpo = (t: string | null | undefined) => (t ?? '').trim() || null
   const rua = limpo(e.endereco)
@@ -75,7 +73,6 @@ export function paradaNavegavel(e: {
     longitude: e.longitude,
     // sem a rua, o texto (só cidade/bairro) levaria ao centro da cidade — melhor o ponto
     endereco: rua ? endereco : e.latitude !== null && e.longitude !== null ? null : endereco,
-    pontoConfirmado: Boolean(e.geo_manual || e.ponto_confirmado),
   }
 }
 
@@ -94,12 +91,11 @@ function coordenada(latitude: number, longitude: number): string {
 }
 
 /**
- * O "lugar" da parada para o link: o ponto confirmado por uma pessoa; senão o
- * endereço escrito (o Google acha a casa); senão o ponto da busca.
+ * O "lugar" da parada para o link: o endereço escrito do cliente (o Google
+ * acha a casa) — sempre; o ponto só quando não há endereço escrito.
  */
 export function lugarDaParada(p: ParadaNavegavel): string | null {
   const temPonto = p.latitude !== null && p.longitude !== null
-  if (temPonto && p.pontoConfirmado) return coordenada(p.latitude!, p.longitude!)
   const texto = (p.endereco ?? '').trim()
   if (texto.length > 0) return texto
   return temPonto ? coordenada(p.latitude!, p.longitude!) : null

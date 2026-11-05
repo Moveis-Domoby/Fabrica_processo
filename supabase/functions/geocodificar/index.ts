@@ -18,6 +18,13 @@
 // `VERSAO_BUSCA` é refeito uma vez (achado ou não) — os pontos de rua de mesmo
 // nome noutro bairro saem assim, sem ninguém editar nada à mão.
 //
+// ↪️ Ajuste do dono (05/11 — "não pode acontecer o caso de endereço não
+// encontrado"): a rua que não se acha desce em DEGRAUS (busca.ts) — o ponto
+// do CEP (serviço de CEP gratuito, sem chave), o centro do bairro, o centro da
+// cidade (Photon). O ponto do CEP/bairro também acha a rua de mesmo nome que
+// fica perto dele. O degrau vai na `fonte` ('aprox_cep' | 'aprox_bairro' |
+// 'aprox_cidade'); o "não achei" de antes é refeito uma vez (VERSAO_DEGRAUS).
+//
 //   POST { itens: [{ chave, endereco }, …] }   (até 5 por chamada)
 //   → { resultados: [{ chave, latitude, longitude, resolvido, tentar_depois? }, …] }
 //
@@ -32,13 +39,18 @@ import {
   caixaDoEstado,
   candidatosNominatim,
   candidatosPhoton,
+  consultaBairro,
+  consultaCidade,
   consultasTexto,
   escolher,
+  escolherLugar,
+  escolherPerto,
   nomeDoEstado,
   partirEndereco,
+  pontoDoCep,
   semRepetidos,
 } from './busca.ts'
-import type { Candidato, EnderecoPartido } from './busca.ts'
+import type { Candidato, EnderecoPartido, PontoDoCep } from './busca.ts'
 
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
 const CHAVE_SERVICO = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -49,6 +61,8 @@ const USER_AGENT = `PlataformaProducaoDomoby/1.0${CONTATO ? ` (${CONTATO})` : ''
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 const PHOTON = 'https://photon.komoot.io/api/'
+/** O serviço de CEP gratuito (sem chave) que devolve o ponto do CEP. */
+const SERVICO_CEP = 'https://cep.awesomeapi.com.br/json/'
 const INTERVALO_MS = 1100
 const MAXIMO_POR_CHAMADA = 5
 const RETENTAR_FALHA_APOS_DIAS = 7
@@ -58,6 +72,12 @@ const RETENTAR_FALHA_APOS_DIAS = 7
  * instante mora na tela (src/rotas/api.ts → VERSAO_BUSCA) — os dois andam juntos.
  */
 const VERSAO_BUSCA = Date.parse('2026-11-05T00:00:00Z')
+/**
+ * Ajuste do dono (05/11): o "não achei" gravado antes deste instante é refeito
+ * uma vez — agora com os degraus (CEP, bairro, cidade). O MESMO instante mora na
+ * tela (src/rotas/api.ts → VERSAO_DEGRAUS).
+ */
+const VERSAO_DEGRAUS = Date.parse('2026-11-05T03:00:00Z')
 /** O Nominatim recusou: não insiste por 1 hora (cada recusa custava 1,1 s por endereço). */
 const PAUSA_NOMINATIM_MS = 60 * 60 * 1000
 let nominatimRecusouEm = 0
@@ -158,8 +178,16 @@ async function pelosNominatim(e: EnderecoPartido): Promise<{ lista: Candidato[] 
   return { lista: candidatosNominatim(r.corpo) }
 }
 
-/** Os candidatos do Photon para uma consulta de texto (casa e rua; no RN, só dentro do RN). */
-async function peloPhoton(consulta: string, uf: string | null, livre: boolean): Promise<{ lista: Candidato[] } | { erro: string }> {
+/**
+ * Os candidatos do Photon para uma consulta de texto (casa e rua — ou, nos
+ * degraus, as camadas de lugar: bairro e cidade; no RN, só dentro do RN).
+ */
+async function peloPhoton(
+  consulta: string,
+  uf: string | null,
+  livre: boolean,
+  camadas: string[] = ['house', 'street'],
+): Promise<{ lista: Candidato[] } | { erro: string }> {
   const url = new URL(PHOTON)
   url.searchParams.set('q', consulta)
   url.searchParams.set('limit', livre ? '5' : '10')
@@ -169,18 +197,82 @@ async function peloPhoton(consulta: string, uf: string | null, livre: boolean): 
   const caixa = caixaDoEstado(livre ? 'RN' : uf)
   if (caixa) url.searchParams.set('bbox', caixa)
   if (!livre) {
-    url.searchParams.append('layer', 'house')
-    url.searchParams.append('layer', 'street')
+    for (const camada of camadas) url.searchParams.append('layer', camada)
   }
   const r = await buscarJson(url, { 'User-Agent': USER_AGENT })
   if ('erro' in r) return { erro: `Photon ${r.erro}` }
   return { lista: candidatosPhoton(r.corpo) }
 }
 
+/** De onde veio o ponto: a rua (pelo buscador) ou um degrau (aproximado). */
+type Fonte = 'nominatim' | 'photon' | 'aprox_cep' | 'aprox_bairro' | 'aprox_cidade'
+
 type Consulta =
-  | { tipo: 'ok'; lat: number; lon: number; fonte: 'nominatim' | 'photon' }
+  | { tipo: 'ok'; lat: number; lon: number; fonte: Fonte }
   | { tipo: 'vazio'; motivo: string }
   | { tipo: 'erro'; motivo: string }
+
+/** O ponto do CEP pelo serviço de CEP (recusa/limite = sem degrau do CEP, nunca erro). */
+async function peloCep(e: EnderecoPartido, recusas: string[]): Promise<PontoDoCep | null> {
+  if (!e.cep) return null
+  const r = await buscarJson(new URL(SERVICO_CEP + e.cep), { 'User-Agent': USER_AGENT })
+  if ('erro' in r) {
+    if (r.erro !== 'HTTP 404') recusas.push(`CEP ${r.erro}`)
+    return null
+  }
+  return pontoDoCep(e, r.corpo)
+}
+
+/**
+ * A rua não foi achada (ou ficou ambígua): os DEGRAUS — o ponto do CEP, o
+ * centro do bairro, o centro da cidade. O ponto do CEP/bairro serve antes de
+ * âncora: a rua com o nome do pedido perto dele é a certa (ponto de rua). Só o
+ * buscador falhando (nada respondeu) é "tentar depois"; nada gravado.
+ */
+async function degraus(
+  e: EnderecoPartido,
+  candidatos: Candidato[],
+  recusas: string[],
+  pausa: () => Promise<void>,
+): Promise<Consulta> {
+  const cep = await peloCep(e, recusas)
+  if (cep && !cep.geral) {
+    const rua = escolherPerto(e, candidatos, { lat: cep.lat, lon: cep.lon, degrau: 'cep' })
+    if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
+    return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'aprox_cep' }
+  }
+
+  const qBairro = consultaBairro(e)
+  if (qBairro) {
+    await pausa()
+    const r = await peloPhoton(qBairro, e.uf, false, ['district', 'locality'])
+    if ('erro' in r) {
+      recusas.push(r.erro)
+      return { tipo: 'erro', motivo: r.erro }
+    }
+    const bairro = escolherLugar(e, r.lista, 'bairro')
+    if (bairro) {
+      const rua = escolherPerto(e, candidatos, { ...bairro, degrau: 'bairro' })
+      if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
+      return { tipo: 'ok', lat: bairro.lat, lon: bairro.lon, fonte: 'aprox_bairro' }
+    }
+  }
+
+  // o CEP geral da cidade (…000) já é o centro dela
+  if (cep?.geral) return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'aprox_cidade' }
+  const qCidade = consultaCidade(e)
+  if (qCidade) {
+    await pausa()
+    const r = await peloPhoton(qCidade, e.uf, false, ['city'])
+    if ('erro' in r) {
+      recusas.push(r.erro)
+      return { tipo: 'erro', motivo: r.erro }
+    }
+    const cidade = escolherLugar(e, r.lista, 'cidade')
+    if (cidade) return { tipo: 'ok', lat: cidade.lat, lon: cidade.lon, fonte: 'aprox_cidade' }
+  }
+  return { tipo: 'vazio', motivo: 'sem_cidade' }
+}
 
 /**
  * Junta os candidatos dos dois buscadores e escolhe (busca.ts). Erro dos DOIS
@@ -225,8 +317,14 @@ async function geocodificar(endereco: string, recusas: string[]): Promise<Consul
   }
 
   if (!respondeu) return { tipo: 'erro', motivo: recusas.join(', ') || 'sem resposta' }
-  const escolha = escolher(e, semRepetidos(candidatos))
-  if (!escolha.ponto) return { tipo: 'vazio', motivo: escolha.motivo }
+  const unicos = semRepetidos(candidatos)
+  const escolha = escolher(e, unicos)
+  if (!escolha.ponto) {
+    // o endereço digitado à mão: a pessoa marca o pino na própria janela
+    if (e.livre) return { tipo: 'vazio', motivo: escolha.motivo }
+    const degrau = await degraus(e, unicos, recusas, pausa)
+    return degrau.tipo === 'vazio' ? { tipo: 'vazio', motivo: `${escolha.motivo}+${degrau.motivo}` } : degrau
+  }
   const fonte = candidatos.find((c) => c.lat === escolha.ponto!.lat && c.lon === escolha.ponto!.lon)?.fonte ?? 'photon'
   return { tipo: 'ok', lat: escolha.ponto.lat, lon: escolha.ponto.lon, fonte }
 }
@@ -239,6 +337,8 @@ function cacheVale(g: LinhaCache, chave: string): boolean {
   const antigo = quando < VERSAO_BUSCA && !chave.startsWith('avulsa:')
   if (antigo) return false
   if (g.resolvido) return true
+  // o "não achei" de antes dos degraus é refeito uma vez (agora sempre há um ponto)
+  if (quando < VERSAO_DEGRAUS && !chave.startsWith('avulsa:')) return false
   return Date.now() - quando < RETENTAR_FALHA_APOS_DIAS * 24 * 60 * 60 * 1000
 }
 
@@ -271,6 +371,7 @@ Deno.serve(async (req) => {
   const resultados: Resultado[] = []
   const recusas: string[] = []
   const motivos: string[] = []
+  const aproximados: string[] = []
   let consultou = false
   for (const item of itens) {
     const guardado = cache.get(item.chave)
@@ -299,6 +400,7 @@ Deno.serve(async (req) => {
       continue
     }
     if (consulta.tipo === 'vazio') motivos.push(consulta.motivo)
+    if (consulta.tipo === 'ok' && consulta.fonte.startsWith('aprox_')) aproximados.push(consulta.fonte.slice(6))
     const ponto = consulta.tipo === 'ok' ? { lat: consulta.lat, lon: consulta.lon } : null
 
     // O ponto marcado à mão por alguém no meio do caminho nunca é sobrescrito.
@@ -336,11 +438,12 @@ Deno.serve(async (req) => {
     })
   }
 
-  if (recusas.length > 0 || motivos.length > 0) {
+  if (recusas.length > 0 || motivos.length > 0 || aproximados.length > 0) {
     // A prova da causa fica no registro da função (o endereço não — dado pessoal).
     console.warn(
       `geocodificar: ${itens.length} endereço(s)` +
         (recusas.length ? ` — recusa/falha de buscador: ${[...new Set(recusas)].join(', ')}` : '') +
+        (aproximados.length ? ` — ponto aproximado pelo degrau: ${aproximados.join(', ')}` : '') +
         (motivos.length ? ` — sem ponto: ${motivos.join(', ')}` : ''),
     )
   }

@@ -229,13 +229,11 @@ type ComEndereco = {
   bairro: string | null
   cidade: string | null
   uf: string | null
-  /** SESSAO-45: o CEP e se o ponto foi marcado/conferido por uma pessoa (ele manda na navegação). */
+  /** SESSAO-45: o CEP (vai ao Google Maps e ao Waze junto com o endereço). */
   cep?: string | null
-  geo_manual?: boolean | null
-  ponto_confirmado?: boolean | null
 }
 
-/** A parada avulsa no formato que o Google Maps e o Waze recebem (o pino, ou o endereço escrito). */
+/** A parada avulsa no formato que o Google Maps e o Waze recebem (o endereço digitado; o pino só sem ele). */
 export function lugarDaAvulsa(a: {
   latitude: number | null
   longitude: number | null
@@ -249,8 +247,6 @@ export function lugarDaAvulsa(a: {
     bairro: null,
     cidade: null,
     uf: null,
-    // SESSAO-45: o pino da parada foi posto (e conferido) por quem a criou — ele manda na navegação
-    ponto_confirmado: a.latitude !== null && a.longitude !== null,
   }
 }
 

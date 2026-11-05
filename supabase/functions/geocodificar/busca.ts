@@ -24,6 +24,15 @@
 //   - rua com o mesmo nome em lugares distantes e nada que desempate = AMBÍGUO:
 //     a busca diz "não achei" e a pessoa marca o ponto no mapa (nunca um ponto
 //     errado com cara de certo).
+//
+// ↪️ Ajuste do dono (05/11 — "não pode acontecer o caso de endereço não
+// encontrado"): a rua que não se acha não vira mais "não achei" — a busca DESCE
+// EM DEGRAUS (o Google Maps vai sempre pelo endereço escrito; o ponto é só o do
+// nosso mapa): 1) a rua; 2) o ponto do CEP; 3) o centro do bairro; 4) o centro
+// da cidade. O ponto do CEP ou do bairro também é ÂNCORA: entre as ruas de
+// mesmo nome, a que fica perto dele é a certa (o ambíguo de antes se resolve
+// na rua). O degrau fica gravado (fonte 'aprox_cep' | 'aprox_bairro' |
+// 'aprox_cidade') e o cartão diz "ponto aproximado" — para acertar à mão.
 // ============================================================================
 
 export interface EnderecoPartido {
@@ -402,6 +411,144 @@ export function escolher(e: EnderecoPartido, candidatos: Candidato[]): Escolha {
     }
   }
   return { ponto: { lat: melhor.c.lat, lon: melhor.c.lon }, motivo: 'ok' }
+}
+
+// ---------------------------------------------------------------------------
+// Os degraus (ajuste do dono, 05/11): o CEP, o bairro, a cidade
+// ---------------------------------------------------------------------------
+
+/** Um ponto de referência que prova o lugar e desempata ruas de mesmo nome. */
+export interface Ancora {
+  lat: number
+  lon: number
+  degrau: 'cep' | 'bairro'
+}
+
+/** Até onde, da âncora, uma rua com o nome do pedido ainda é a do pedido. */
+const RAIO_ANCORA_M: Record<Ancora['degrau'], number> = { cep: 1500, bairro: 2000 }
+
+/**
+ * A rua perto da âncora: entre os candidatos com o nome da rua (no estado
+ * certo), o que fica dentro do raio do ponto do CEP / do centro do bairro — a
+ * casa com o mesmo número primeiro, depois o nome mais parecido, depois o mais
+ * perto. Nada dentro do raio = null (fica o ponto da âncora).
+ */
+export function escolherPerto(
+  e: EnderecoPartido,
+  candidatos: Candidato[],
+  ancora: Ancora,
+): { lat: number; lon: number; fonte: Candidato['fonte'] } | null {
+  if (e.livre || !e.rua) return null
+  const raio = RAIO_ANCORA_M[ancora.degrau]
+  let melhor: { c: Candidato; nota: number; dist: number } | null = null
+  for (const c of candidatos) {
+    const nome = Math.max(semelhancaNome(e.rua, c.rua), c.nome ? semelhancaNome(e.rua, c.nome) : 0)
+    if (nome < 0.75) continue
+    if (estadoBate(e.uf, c.estado) === false) continue
+    const dist = metros(c, ancora)
+    if (dist > raio) continue
+    const casa = c.tipo === 'house' && !!e.numero && !!c.numero && soDigitos(c.numero) === soDigitos(e.numero)
+    const nota = nome + (casa ? 1 : 0)
+    if (!melhor || nota > melhor.nota || (nota === melhor.nota && dist < melhor.dist)) melhor = { c, nota, dist }
+  }
+  return melhor ? { lat: melhor.c.lat, lon: melhor.c.lon, fonte: melhor.c.fonte } : null
+}
+
+export interface PontoDoCep {
+  lat: number
+  lon: number
+  /** CEP geral da cidade (termina em 000): o ponto é o centro da cidade. */
+  geral: boolean
+}
+
+/**
+ * O ponto do CEP (a resposta do serviço de CEP: lat/lng, cidade, UF, rua,
+ * bairro). Só vale na cidade e na UF do pedido e dentro do Brasil; e o CEP
+ * de uma rua só vale se a rua ou o bairro dele baterem com o pedido (o CEP
+ * digitado errado não leva o ponto para outro canto da cidade).
+ */
+export function pontoDoCep(e: EnderecoPartido, corpo: unknown): PontoDoCep | null {
+  const j = (corpo ?? {}) as Record<string, unknown>
+  const texto = (k: string) => (typeof j[k] === 'string' && (j[k] as string).trim() ? (j[k] as string) : null)
+  const lat = Number(j.lat)
+  const lon = Number(j.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat === 0 || lon === 0) return null
+  if (lat > 6 || lat < -34 || lon > -28 || lon < -74) return null
+  const cidade = texto('city')
+  if (e.cidade && !(cidade && lugarBate(e.cidade, [cidade]) && lugarBate(cidade, [e.cidade]))) return null
+  const uf = texto('state')
+  if (e.uf && uf && uf.toUpperCase() !== e.uf.toUpperCase()) return null
+  const geral = soDigitos(texto('cep') ?? e.cep).endsWith('000')
+  if (!geral) {
+    const rua = texto('address') ?? texto('address_name')
+    const ruaBate = semelhancaNome(e.rua, rua) >= 0.75
+    const bairro = texto('district')
+    const bairroBate = !e.bairro || (bairro !== null && lugarBate(e.bairro, [bairro]))
+    if (!ruaBate && !bairroBate) return null
+  }
+  return { lat, lon, geral }
+}
+
+/** A consulta do centro do bairro ("Rocas, Natal") — null sem bairro ou sem cidade. */
+export function consultaBairro(e: EnderecoPartido): string | null {
+  if (e.livre || !e.bairro || !e.cidade) return null
+  return `${e.bairro}, ${e.cidade}`
+}
+
+/** A consulta do centro da cidade ("Natal, Rio Grande do Norte"). */
+export function consultaCidade(e: EnderecoPartido): string | null {
+  if (e.livre || !e.cidade) return null
+  return [e.cidade, nomeDoEstado(e.uf) ?? e.uf].filter(Boolean).join(', ')
+}
+
+/** As palavras que distinguem um lugar (sem as genéricas: residencial, conjunto…). */
+function palavrasDoLugar(t: string | null | undefined): string[] {
+  return palavras(t).filter((p) => !GENERICAS_LUGAR.has(p))
+}
+
+/** O mesmo nome de lugar, palavra por palavra (sem as genéricas) — nos dois sentidos. */
+function mesmoLugar(a: string | null, b: string | null): boolean {
+  const pa = palavrasDoLugar(a)
+  const pb = palavrasDoLugar(b)
+  return pa.length > 0 && pb.length > 0 && pa.every((p) => contem(pb, p)) && pb.every((p) => contem(pa, p))
+}
+
+/** O nome pedido inteiro dentro do nome do lugar ("Pium" em "Pium de Nísia"). */
+function nomeDentro(pedido: string | null, lugarDoMapa: string | null): boolean {
+  const pa = palavrasDoLugar(pedido)
+  const pb = palavrasDoLugar(lugarDoMapa)
+  return pa.length > 0 && pb.length > 0 && pa.every((p) => contem(pb, p))
+}
+
+/**
+ * O centro do bairro ou da cidade entre os candidatos do buscador (as camadas
+ * de lugar, não de rua): o NOME do lugar precisa ser o do pedido; o bairro,
+ * dentro da cidade do pedido; o estado, nunca outro. O bairro com o nome
+ * igual ganha; senão, o que tem o nome do pedido dentro do dele ("Pium" →
+ * "Pium de Nísia") — e que o mapa não diga ficar noutro bairro (o condomínio
+ * "Atol das Rocas" fica em Lagoa Nova, não nas Rocas). A cidade, só com o nome
+ * igual.
+ */
+export function escolherLugar(
+  e: EnderecoPartido,
+  candidatos: Candidato[],
+  degrau: 'bairro' | 'cidade',
+): { lat: number; lon: number } | null {
+  const validos = candidatos.filter((c) => {
+    if (estadoBate(e.uf, c.estado) === false) return false
+    if (degrau === 'cidade') return true
+    return !e.cidade || lugarBate(e.cidade, [...c.cidades, ...c.lugares])
+  })
+  const alvo = degrau === 'bairro' ? e.bairro : e.cidade
+  const igual = validos.find((c) => mesmoLugar(alvo, c.nome))
+  const dentro =
+    degrau === 'bairro'
+      ? validos.find(
+          (c) => nomeDentro(alvo, c.nome) && (c.lugares.length === 0 || c.lugares.some((l) => nomeDentro(alvo, l))),
+        )
+      : undefined
+  const c = igual ?? dentro
+  return c ? { lat: c.lat, lon: c.lon } : null
 }
 
 // ---------------------------------------------------------------------------

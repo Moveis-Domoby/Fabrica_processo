@@ -16208,7 +16208,9 @@ try {
                      '20261104010000_plt_itens_novos_reabrir_entrega.sql',
                      // ↪️ SESSAO-45: recria Já programadas (com o CEP e o ponto marcado à mão), as entregas
                      // do dia, o quadro do PCP e o catálogo de avisos — vem por último, como em produção
-                     '20261105010000_plt_rotas_mapa_expedicao_pcp.sql']) {
+                     '20261105010000_plt_rotas_mapa_expedicao_pcp.sql',
+                     // ↪️ SESSAO-45 · ajuste: recria a Programação e Já programadas com o ponto aproximado
+                     '20261105020000_plt_rotas_ponto_aproximado.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -20172,6 +20174,28 @@ try {
       && g2.n === 0 && logsDepois === logsAntes + 2,
     'a logística marca o ponto (fonte manual), "Já programadas" devolve o ponto, o CEP e que ele foi marcado à mão; desmarcar volta à busca automática; os dois gestos ficam registrados',
     JSON.stringify({ end45, g1, prog45, g2, logsAntes, logsDepois }))
+
+  // ---------------- ajuste do dono (05/11): nunca "não encontrado" — o ponto aproximado ----------------
+  // a busca grava o degrau na fonte ('aprox_bairro'); as duas listas da Programação dizem "bairro"
+  await bd.exec(`insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
+                   values ('${chave45}', '${end45}', -5.7737, -35.1998, true, 'aprox_bairro')`)
+  await como45(E40.logistica)
+  const apJa = await um45(`select geo_aproximado, geo_manual, geo_resolvido from public.plt_fn_programadas(false, '2026-11-20', ${cam45}, 200, 0) where card_id = ${cardE}`)
+  const apProg = await um45(`select geo_aproximado, geo_manual, cep, latitude from public.plt_fn_programacao('2026-11-20', 200, 0, false) where card_id = ${cardE}`)
+  await bd.exec(`update public.plt_geocache set fonte = 'photon' where chave = '${chave45}'`)
+  const ruaJa = await um45(`select geo_aproximado from public.plt_fn_programadas(false, '2026-11-20', ${cam45}, 200, 0) where card_id = ${cardE}`)
+  const ruaProg = await um45(`select geo_aproximado, geo_manual from public.plt_fn_programacao('2026-11-20', 200, 0, false) where card_id = ${cardE}`)
+  await como45('')
+  const prProg = await um45(`
+    select has_function_privilege('anon', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as anon_prog,
+           has_function_privilege('authenticated', 'public.plt_fn_programacao(date, integer, integer, boolean)', 'execute') as logado_prog,
+           has_function_privilege('anon', 'public.plt_fn_programadas(boolean, date, bigint, integer, integer, text)', 'execute') as anon_ja`)
+  conferir(apJa?.geo_aproximado === 'bairro' && apJa?.geo_manual === false && apJa?.geo_resolvido === true
+      && apProg?.geo_aproximado === 'bairro' && apProg?.geo_manual === false && apProg?.cep === '59000-450' && apProg?.latitude === -5.7737
+      && ruaJa?.geo_aproximado === null && ruaProg?.geo_aproximado === null && ruaProg?.geo_manual === false
+      && !prProg.anon_prog && prProg.logado_prog && !prProg.anon_ja,
+    'o ponto que veio do degrau (bairro) aparece como aproximado nas duas listas da Programação (com o CEP também em "Programar"); o ponto de rua não; as listas só para quem tem login',
+    JSON.stringify({ apJa, apProg, ruaJa, ruaProg, prProg }))
 
   // ---------------- o PCP honesto: o que falta, não o estoque inteiro ----------------
   for (let i = 0; i < 3; i++) {

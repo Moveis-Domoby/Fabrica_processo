@@ -330,6 +330,11 @@ export interface PedidoProgramacao extends Prontidao {
   /** null = nunca consultado; false = consultado e sem ponto (Q-65). */
   geo_resolvido: boolean | null
   geo_consultado_em: string | null
+  /** SESSAO-45: o CEP (vai ao Google Maps e ao Waze com o endereço) e se o ponto foi marcado à mão. */
+  cep?: string | null
+  geo_manual?: boolean
+  /** SESSAO-45 · ajuste: o ponto é aproximado (a rua não foi achada) — de qual degrau veio. */
+  geo_aproximado?: PontoAproximado | null
   total_unidades: number
   /** D-111: os móveis do pedido, na ordem, sem o frete. */
   itens: ItemPedido[]
@@ -488,6 +493,8 @@ export interface PedidoProgramado extends Prontidao {
   /** SESSAO-45: o CEP do endereço (vai ao Google Maps) e se o ponto foi marcado à mão. */
   cep?: string | null
   geo_manual?: boolean
+  /** SESSAO-45 · ajuste: o ponto é aproximado (a rua não foi achada) — de qual degrau veio. */
+  geo_aproximado?: PontoAproximado | null
   total_unidades: number
   itens: ItemPedido[]
   data_prevista: string | null
@@ -671,6 +678,23 @@ const RETENTAR_APOS_MS = 7 * 24 * 60 * 60 * 1000
  */
 export const VERSAO_BUSCA = Date.parse('2026-11-05T00:00:00Z')
 
+/**
+ * SESSAO-45 · ajuste do dono (05/11 — "não pode acontecer o caso de endereço não
+ * encontrado"): o "não achei" gravado antes deste instante é procurado de novo
+ * uma vez — a busca agora desce em degraus (o ponto do CEP, o centro do bairro,
+ * o da cidade) e sempre devolve um ponto. O MESMO instante mora na Edge Function
+ * `geocodificar` (VERSAO_DEGRAUS).
+ */
+export const VERSAO_DEGRAUS = Date.parse('2026-11-05T03:00:00Z')
+
+/** De onde veio o ponto quando a rua não foi achada (o ponto é aproximado). */
+export type PontoAproximado = 'cep' | 'bairro' | 'cidade'
+
+/** "pelo CEP" / "pelo bairro" / "pelo centro da cidade" — de onde veio o ponto aproximado. */
+export function origemAproximada(degrau: PontoAproximado): string {
+  return degrau === 'cep' ? 'pelo CEP' : degrau === 'bairro' ? 'pelo bairro' : 'pelo centro da cidade'
+}
+
 /** Quem ainda precisa ir ao geocodificador. */
 export function precisaGeocodificar(
   p: Pick<PedidoProgramacao, 'geo_chave' | 'geo_resolvido'> & {
@@ -684,6 +708,7 @@ export function precisaGeocodificar(
   const consultado = p.geo_consultado_em ? new Date(p.geo_consultado_em).getTime() : 0
   if (consultado < VERSAO_BUSCA) return true
   if (p.geo_resolvido === true) return false
+  if (consultado < VERSAO_DEGRAUS) return true
   return agora - consultado > RETENTAR_APOS_MS
 }
 

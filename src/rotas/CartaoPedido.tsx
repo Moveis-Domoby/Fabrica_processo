@@ -1,7 +1,7 @@
 import { memo, type MouseEvent, type ReactNode } from 'react'
 import { MapPin, MapPinCheck, MapPinOff, Package } from 'lucide-react'
-import { dataLegivel, enderecoLegivel } from './api'
-import type { EstadoPedido, ItemPedido } from './api'
+import { dataLegivel, enderecoLegivel, origemAproximada } from './api'
+import type { EstadoPedido, ItemPedido, PontoAproximado } from './api'
 import { SeloEstado } from './SeloEstado'
 
 export interface DadosCartaoPedido {
@@ -19,6 +19,8 @@ export interface DadosCartaoPedido {
   geo_resolvido: boolean | null
   /** SESSAO-45: o ponto foi marcado à mão pela logística. */
   geo_manual?: boolean
+  /** SESSAO-45 · ajuste: a rua não foi achada — o ponto veio do CEP, do bairro ou da cidade. */
+  geo_aproximado?: PontoAproximado | null
   /** SESSAO-38 (D-156): pronto, em produção ou ainda no PCP. */
   estado?: EstadoPedido | null
   unidades_prontas?: number
@@ -54,6 +56,8 @@ export const CartaoPedido = memo(function CartaoPedido({
       }
     : undefined
   const itens = pedido.itens ?? []
+  // ajuste do dono (05/11): a rua não achada vira ponto aproximado (CEP, bairro ou cidade), nunca "não encontrado"
+  const aproximado = pedido.geo_manual ? null : (pedido.geo_aproximado ?? null)
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -89,7 +93,7 @@ export const CartaoPedido = memo(function CartaoPedido({
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-atencao-texto">
           <span className="inline-flex items-center gap-1">
             <MapPinOff aria-hidden className="size-3.5 shrink-0" />
-            Endereço não encontrado no mapa — entra na programação, só não plota
+            Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço
           </span>
           {marcar && (
             <button
@@ -103,23 +107,35 @@ export const CartaoPedido = memo(function CartaoPedido({
           )}
         </span>
       )}
+      {pedido.geo_resolvido === true && aproximado && !marcar && (
+        <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
+          <MapPin aria-hidden className="size-3.5 shrink-0" />
+          Ponto aproximado no mapa ({origemAproximada(aproximado)})
+        </span>
+      )}
       {pedido.geo_resolvido === true && marcar && (
         <button
           type="button"
           onClick={marcar}
-          className="inline-flex min-h-toque-md items-center gap-1 self-start text-xs font-medium text-texto-suave underline-offset-2 hover:text-texto hover:underline"
+          className="inline-flex min-h-toque-md items-center gap-1 self-start text-left text-xs font-medium text-texto-suave underline-offset-2 hover:text-texto hover:underline"
           title={
             pedido.geo_manual
-              ? 'O ponto foi marcado à mão — é ele que vai para o Google Maps e o Waze'
-              : 'O ponto veio da busca automática — se estiver no lugar errado, acerte aqui'
+              ? 'O ponto foi marcado à mão — ele mostra a parada no mapa da rota; o Google Maps e o Waze vão pelo endereço do cliente'
+              : aproximado
+                ? 'A busca não achou a rua: o ponto é aproximado. O Google Maps e o Waze vão pelo endereço do cliente — acerte aqui só para o mapa da rota'
+                : 'O ponto veio da busca automática — se estiver no lugar errado, acerte aqui (o Google Maps e o Waze vão pelo endereço do cliente)'
           }
         >
           {pedido.geo_manual ? (
-            <MapPinCheck aria-hidden className="size-3.5 text-perfeito-forte" />
+            <MapPinCheck aria-hidden className="size-3.5 shrink-0 text-perfeito-forte" />
           ) : (
-            <MapPin aria-hidden className="size-3.5" />
+            <MapPin aria-hidden className="size-3.5 shrink-0" />
           )}
-          {pedido.geo_manual ? 'Ponto marcado à mão · acertar' : 'Acertar o ponto no mapa'}
+          {pedido.geo_manual
+            ? 'Ponto marcado à mão · acertar'
+            : aproximado
+              ? `Ponto aproximado no mapa (${origemAproximada(aproximado)}) · acertar`
+              : 'Acertar o ponto no mapa'}
         </button>
       )}
       {pedido.geo_resolvido === null && pedido.geo_chave && (

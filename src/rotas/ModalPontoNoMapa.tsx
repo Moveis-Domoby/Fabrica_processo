@@ -2,7 +2,8 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { MapPinCheck, RotateCcw, Search } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
-import { acharPontoDoEndereco, enderecoLegivel, marcarPontoNoMapa } from './api'
+import { acharPontoDoEndereco, enderecoLegivel, marcarPontoNoMapa, origemAproximada } from './api'
+import type { PontoAproximado } from './api'
 import { FABRICA } from './rotaRuas'
 
 const MapaPino = lazy(() => import('./MapaPinoParada'))
@@ -23,6 +24,8 @@ export interface PedidoParaMarcar {
   longitude: number | null
   geo_resolvido: boolean | null
   geo_manual?: boolean
+  /** O ponto de agora é aproximado (a rua não foi achada): de qual degrau veio. */
+  geo_aproximado?: PontoAproximado | null
 }
 
 type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou'
@@ -46,9 +49,11 @@ function textoDeBusca(p: PedidoParaMarcar): string {
  * 13793 de São José de Mipibu): a janela para a LOGÍSTICA marcar no mapa o
  * lugar do endereço do pedido — a mesma do pino da parada avulsa ("Achar no
  * mapa", arrastar o pino ou tocar no mapa). O ponto marcado à mão vale para
- * todo pedido com o mesmo endereço, nunca é trocado pela busca automática e é
- * ele que vai ao Google Maps/Waze. O mapa e a busca só acontecem ao abrir a
- * janela (Lei §3/§9). Botões grandes (D-06).
+ * todo pedido com o mesmo endereço e nunca é trocado pela busca automática.
+ * ↪️ Ajuste do dono (05/11): o ponto é o do NOSSO mapa (onde a parada aparece e
+ * a ordem sugerida) — o Google Maps e o Waze vão sempre pelo endereço do
+ * cliente. O mapa e a busca só acontecem ao abrir a janela (Lei §3/§9).
+ * Botões grandes (D-06).
  */
 export function ModalPontoNoMapa({
   pedido,
@@ -102,7 +107,7 @@ export function ModalPontoNoMapa({
       notificar({
         titulo: alvo ? `Ponto do pedido ${pedido!.numero} marcado no mapa` : 'O ponto volta à busca automática',
         descricao: alvo
-          ? 'Vale para todo pedido com este endereço — e é ele que vai para o Google Maps e o Waze.'
+          ? 'Vale para todo pedido com este endereço — é onde a parada aparece no mapa da rota. O Google Maps e o Waze seguem pelo endereço do cliente.'
           : undefined,
         tom: 'perfeito',
       })
@@ -204,8 +209,14 @@ export function ModalPontoNoMapa({
           {ponto
             ? mexeu
               ? 'Confira o pino na casa do cliente (arraste ou toque no mapa para acertar) e salve.'
-              : 'Este é o ponto de agora — arraste o pino (ou toque no mapa) para acertar e salve.'
+              : pedido.geo_aproximado
+                ? `Este ponto é aproximado (${origemAproximada(pedido.geo_aproximado)}) — arraste o pino (ou toque no mapa) até a casa do cliente e salve.`
+                : 'Este é o ponto de agora — arraste o pino (ou toque no mapa) para acertar e salve.'
             : 'O pino está na fábrica — toque no mapa ou arraste o pino até a casa do cliente.'}
+        </p>
+        <p className="text-xs text-texto-fraco">
+          O ponto só mostra a parada no mapa da rota. O Google Maps e o Waze vão sempre pelo endereço
+          do cliente.
         </p>
       </form>
     </Modal>

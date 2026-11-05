@@ -516,6 +516,10 @@ grant execute on function public.plt_fn_entrega_pecas(bigint) to authenticated;
 --     dia dizem se a entrega foi parcial; "Já programadas" devolve o endereço
 --     para achar o ponto no mapa (forma nova → drop + create).
 -- ----------------------------------------------------------------------------
+-- ↪️ SESSAO-45 · ajuste (E-178): a Programação ganhou forma nova depois desta
+-- (20261105020000); reaplicada, esta derruba antes de recriar (e devolve as
+-- permissões) — em produção nada muda, a de 05/11 vem depois e vale.
+drop function if exists public.plt_fn_programacao(date, integer, integer, boolean);
 CREATE OR REPLACE FUNCTION public.plt_fn_programacao(p_data date DEFAULT NULL::date, p_limite integer DEFAULT 100, p_deslocamento integer DEFAULT 0, p_so_sem_programacao boolean DEFAULT false)
  RETURNS TABLE(card_id bigint, pedido_id bigint, numero integer, cliente_nome text, endereco text, numero_endereco text, complemento text, bairro text, cidade text, uf text, endereco_geocodificavel text, geo_chave text, latitude double precision, longitude double precision, geo_resolvido boolean, geo_consultado_em timestamp with time zone, total_unidades integer, itens jsonb, data_prevista date, lancado_em timestamp with time zone, programacao_data date, caminhao_id bigint, caminhao_nome text, ordem integer, estado text, unidades_prontas integer, unidades_liberadas integer, contagem_total bigint)
  LANGUAGE sql
@@ -583,6 +587,9 @@ AS $function$
    limit least(greatest(coalesce(p_limite, 100), 1), 200)
   offset greatest(coalesce(p_deslocamento, 0), 0);
 $function$;
+
+revoke all on function public.plt_fn_programacao(date, integer, integer, boolean) from public, anon;
+grant execute on function public.plt_fn_programacao(date, integer, integer, boolean) to authenticated, service_role;
 
 drop function if exists public.plt_fn_programadas(boolean, date, bigint, integer, integer);
 CREATE OR REPLACE FUNCTION public.plt_fn_programadas(p_entregues boolean DEFAULT false, p_data date DEFAULT NULL::date, p_caminhao_id bigint DEFAULT NULL::bigint, p_limite integer DEFAULT 50, p_deslocamento integer DEFAULT 0)

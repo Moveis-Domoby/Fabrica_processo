@@ -108,18 +108,21 @@ describe('SESSAO-45 — o Google acha a casa pelo ENDEREÇO do pedido; o ponto s
     )
   })
 
-  it('o ponto marcado à mão pela logística manda (o lugar exato que alguém conferiu)', () => {
-    const p = paradaNavegavel({ ...pedido, geo_manual: true })
-    expect(lugarDaParada(p)).toBe('-5.780046,-35.199401')
-    expect(linkWaze(p)).toBe('https://waze.com/ul?ll=-5.780046,-35.199401&navigate=yes')
+  it('ajuste do dono: nem o ponto marcado à mão manda — o Google Maps e o Waze recebem o endereço do cliente', () => {
+    const marcadoAMao = { ...pedido, geo_manual: true }
+    const p = paradaNavegavel(marcadoAMao)
+    expect(lugarDaParada(p)).toBe('Rua Desembargador Lins Bahia, 173 - Rocas, Natal - RN, 59010-190')
+    expect(linkWaze(p)).toBe(
+      `https://waze.com/ul?q=${encodeURIComponent('Rua Desembargador Lins Bahia, 173 - Rocas, Natal - RN, 59010-190')}&navigate=yes`,
+    )
   })
 
-  it('a parada avulsa com pino vai pelo pino; sem rua no cadastro, vai o ponto (o texto levaria ao centro da cidade)', () => {
+  it('a parada avulsa com pino vai pelo endereço digitado; sem rua no cadastro, vai o ponto (o texto levaria ao centro da cidade)', () => {
     expect(
       lugarDaParada(
-        paradaNavegavel({ latitude: -5.81, longitude: -35.22, endereco: 'Casa do bizotê', numero_endereco: null, bairro: null, cidade: null, uf: null, ponto_confirmado: true }),
+        paradaNavegavel({ latitude: -5.81, longitude: -35.22, endereco: 'Rua das Flores 10, Ponta Negra', numero_endereco: null, bairro: null, cidade: null, uf: null }),
       ),
-    ).toBe('-5.81,-35.22')
+    ).toBe('Rua das Flores 10, Ponta Negra')
     expect(
       lugarDaParada(
         paradaNavegavel({ latitude: -5.9, longitude: -35.3, endereco: null, numero_endereco: null, bairro: 'Centro', cidade: 'Macaíba', uf: 'RN' }),
