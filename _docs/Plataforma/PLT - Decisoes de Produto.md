@@ -2080,6 +2080,35 @@ Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demand
 1. As 2 peças do estoque baixadas na entrega por engano **não voltam** no acerto — o dono não sabe onde estão; se estiverem no galpão, a logística acerta pela contagem.
 2. **Exceção só deste acerto** à regra "avulso nunca vira peça": os avulsos 14542126 e 14542123 (já concluídos) viram as peças dos itens 2 e 4 — nasce a peça do pedido **pronta na Expedição**, com a referência ao avulso, e o avulso já tinha saído do quadro no Concluir (o Concluir arquiva); o tempo e a meta do trabalho ficam no avulso, uma vez só. A regra geral continua; não existe botão de conversão.
 
+## D-217 · ⏳ PROVISÓRIA (escolha do Claude, sob a ordem "decisões próprias") — O Google Maps e o Waze vão pelo ENDEREÇO do pedido; o ponto só manda quando uma pessoa o conferiu (04/11/2026, SESSAO-45) — ↪️ D-174
+
+**Contexto:** o dono viu a rota abrir no Google Maps com outro endereço (13784 e outros). A causa: ia a coordenada da busca gratuita da plataforma — o meio da rua, às vezes a rua de mesmo nome noutro bairro —, e o Google mostra o endereço mais perto do ponto (outro número, outra rua).
+1. Em toda navegação (rota inteira, uma parada, Waze, tela do entregador), o lugar de cada pedido é o **endereço escrito** — rua, número, bairro, cidade, UF e CEP (o de entrega do Tiny ou o do cadastro — D-193); quem acha a casa é o Google/Waze.
+2. **O ponto manda** só quando uma pessoa o conferiu: o **marcado à mão** na Programação (D-218) e o **pino da parada avulsa**. Sem rua escrita, vai o ponto.
+3. Rota longa com endereços compridos: as partes do link encolhem para nunca passar do tamanho que o Google aceita (antes só o limite de 9 paradas).
+
+## D-218 · ⏳ PROVISÓRIA — A busca de endereço confere o BAIRRO e o CEP; o que ela não acha (ou acha duvidoso) a logística marca no mapa (04/11/2026, SESSAO-45) — ↪️ D-112, Q-65
+
+1. A busca (servidor) junta vários candidatos e escolhe pelo **nome da rua** (abreviação e título — Vereador × Governador — não separam), **bairro/localidade**, **CEP** (o exato vale muito; o geral da cidade, "-000", não prova nada) e **cidade**. Sem prova do lugar, não serve; a mesma rua em lugares distantes e nada que desempate = **"não achei"** — nunca um ponto errado com cara de certo (o centro do bairro/cidade segue proibido — Q-65).
+2. **"Marcar no mapa"** (não encontrado) e **"Acertar o ponto no mapa"** (achado) no cartão do pedido da Programação: a janela do pino (a mesma da parada avulsa). O ponto marcado à mão vale para **todo pedido com o mesmo endereço**, **nunca** é trocado pela busca automática e tem "Voltar à busca automática". Gesto da logística/admin, com registro de atividade.
+3. Os pontos que a busca antiga gravou são procurados de novo **uma vez** (a partir de 05/11 00:00 UTC), conforme as telas da Programação são abertas — sem ninguém editar nada à mão. Os 6 que tinham ponto errado passam a "não encontrado" e pedem o pino.
+
+## D-219 · ⏳ PROVISÓRIA — A Expedição LIBERA a peça pronta para outro pedido (04/11/2026, SESSAO-45 — pedido do dono)
+
+**Pedido do dono:** um botão na Expedição com "Qual produto foi liberado?", "O produto foi liberado para um pedido?" (sim → "Para qual pedido?"; não → o motivo da substituição) e "Lançar produto novo com essa tag de pedido para PCP?"; o pedido volta ao PCP com o produto que saiu e o do pedido novo é dado como concluído. O que a sessão escolheu onde o pedido não dizia:
+1. **Botão** "Liberar para outro pedido" no cartão da Expedição que tem peça pronta (e não está em decisão pós devolução). A peça escolhida tem de estar **pronta** (Expedição ou já na rota), **perfeita**, de pedido **não entregue**.
+2. **O destino** ("o pedido novo que chegou ou de algum outro que já estava lá") é um pedido vivo (não cancelado, não entregue) que **ainda espera esse mesmo móvel no PCP** (mesmo produto, cor e medidas — vaga sem peça). Pedido que já tem esse móvel liberado para a produção é recusado com a explicação (a peça em produção dele não fica sem dono). A janela confere ao digitar o número e diz o porquê de não dar.
+3. **O gesto** (tudo ou nada, conferido de novo no banco): a peça sai do pedido de origem (a vaga reabre e ele **volta ao quadro do PCP**); o destino ganha a unidade **pronta na Expedição** na vaga que esperava (a mesma mecânica da peça do estoque — D-62); a peça antiga sai das contas com a história guardada; o PCP recebe o aviso "Pedido N voltou ao PCP". **Nada vai ao Tiny** (as duas vendas já estão lá; o estoque não muda).
+4. **"Não" a "foi para um pedido?"** = substituição com **motivo obrigatório** (vitrine, troca de avaria de outro cliente…): a peça sai das contas e o pedido volta ao PCP.
+5. **"Lançar produto novo com a etiqueta do pedido?"** — **Sim** (padrão): volta ao PCP para liberar a produção de novo. **Não por enquanto**: volta ao PCP **em stand-by**, com o motivo ("produto liberado para o pedido X — sem nova produção por enquanto"); como a rota não leva pedido em stand-by (D-171), pedido programado com "não por enquanto" é recusado com o que fazer.
+6. O mesmo toque repetido não faz nada duas vezes. Gesto da logística/admin.
+
+## D-220 · ⏳ PROVISÓRIA — O PCP e o Estoque falam das mesmas peças com as mesmas palavras (04/11/2026, SESSAO-45 — o vídeo do "PCP mentindo") — ↪️ D-78, D-118
+
+1. O chip do pedido no PCP conta, **por item**, no máximo o que ainda **falta liberar** (antes somava toda peça livre do SKU em todo pedido) e separa: **"N reservada(s)"** (separadas para este pedido quando a venda chegou) **+ "M livre(s)"** (livres no estoque que servem a ele).
+2. No cartão e na janela do produto do Estoque, quando há peça reservada pela venda **ainda no galpão**, o número grande passa a se chamar **"livres no estoque"** e aparece logo abaixo **"+ N no estoque reservadas para venda (pedido X)"**. O número grande continua o livre (D-78: cai na hora da venda); "reservados em venda" (D-118) continua a soma de sempre.
+3. O que a plataforma não sabe é se a peça está fisicamente no galpão: a contagem é da logística (D-70). Se a peça usada do estoque não existir, a Expedição registra pela D-219 ("não foi para um pedido" + o motivo) e o pedido volta ao PCP — a peça fantasma sai das contas.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
