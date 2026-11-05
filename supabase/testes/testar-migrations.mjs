@@ -20,7 +20,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
 import { readFile, readdir } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -16210,7 +16210,10 @@ try {
                      // do dia, o quadro do PCP e o catálogo de avisos — vem por último, como em produção
                      '20261105010000_plt_rotas_mapa_expedicao_pcp.sql',
                      // ↪️ SESSAO-45 · ajuste: recria a Programação e Já programadas com o ponto aproximado
-                     '20261105020000_plt_rotas_ponto_aproximado.sql']) {
+                     '20261105020000_plt_rotas_ponto_aproximado.sql',
+                     // ↪️ SESSAO-43 (E-19/E-144): recria o check dos motivos (com 'conferencia') e o VALIDA,
+                     // o salvar dos motivos e quem ouve os avisos — vem depois da das rotas, como em produção
+                     '20261105030000_plt_tempos_historico_trello.sql', '20261105040000_plt_tempos_producao_modo_tv.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -20227,6 +20230,284 @@ try {
   await como45('')
 }
 } // fim do bloco SESSAO-45
+
+// ============================================================================
+// SESSAO-43 (migrations 20261105030000 e …040000 — D-225…): a tela Tempos de
+// produção, a conferência, o Modo TV e o histórico do Trello. Só LÊ o cálculo
+// da 42. Prova: a carga do Trello (o arquivo real, duas vezes — idempotente,
+// com os números esperados — e casos controlados com a conta exata), os nomes
+// sem modelo e o ligar, a equipe da passagem, cada porta com a permissão certa
+// (o operador vê só o dele; a conta só da TV não abre a tela), a decisão
+// manual do histórico, e a TV SEM NENHUM NOME (como a conta da TV e como admin).
+// Setores próprios, numa transação desfeita no fim.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-43 · o cenário: duas Montagens próprias (o arquivo real e os casos controlados), com almoço, a equipe do painel e as letras')
+
+const um43 = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const como43 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const falha43 = async (sql) => {
+  await bd.exec('savepoint f43')
+  try {
+    await bd.exec(sql)
+    await bd.exec('release savepoint f43')
+    return ''
+  } catch (erro) {
+    await bd.exec('rollback to savepoint f43')
+    return erro.message
+  }
+}
+// faixa própria de ids de teste (...4301–4309); CPFs 43000000001…
+const Q43 = {
+  franklin: '00000000-0000-0000-0000-000000004301',
+  franklinildo: '00000000-0000-0000-0000-000000004302',
+  alisson: '00000000-0000-0000-0000-000000004303',
+  geovane: '00000000-0000-0000-0000-000000004304',
+  adm: '00000000-0000-0000-0000-000000004305',
+  lider: '00000000-0000-0000-0000-000000004306',
+  tv: '00000000-0000-0000-0000-000000004307',
+}
+const { linhasDoHistorico, ARQUIVO_HISTORICO } = await import(pathToFileURL(path.join(RAIZ, 'supabase/manutencao/2026-11-05_historico_trello.mjs')).href)
+await como43('')
+await bd.exec('begin')
+try {
+  await bd.exec(`set constraints all immediate`)
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('m43', 'M43 MONTAGEM', 'producao', 995), ('k43', 'K43 MONTAGEM CASOS', 'producao', 996), ('l43', 'L43 LIMPEZA', 'producao', 997);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}', limite_execucoes_por_pessoa = 1
+     where codigo in ('m43', 'k43', 'l43');
+    insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
+      select 'setor', s.id, d, x.ini, x.fim
+        from public.plt_setores s, generate_series(1, 5) d,
+             (values (time '07:30', time '12:00'), (time '13:00', time '18:00')) as x(ini, fim)
+       where s.codigo in ('m43', 'k43', 'l43');
+    insert into public.plt_tempo_regras (setor_id, teto_min, avisar_pulo, permite_lote)
+      select s.id, 240, false, true from public.plt_setores s where s.codigo in ('m43', 'k43');
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Franklin S43', 'f43@teste.com', '43000000001', 'f.s43', 'operador', '${Q43.franklin}', array['fabrica']),
+      ('Franklinildo S43', 'fi43@teste.com', '43000000002', 'fi.s43', 'operador', '${Q43.franklinildo}', array['fabrica']),
+      ('Alisson S43', 'a43@teste.com', '43000000003', 'a.s43', 'operador', '${Q43.alisson}', array['fabrica']),
+      ('Geovane S43', 'g43@teste.com', '43000000004', 'g.s43', 'operador', '${Q43.geovane}', array['fabrica']),
+      ('Adm S43', 'adm43@teste.com', '43000000005', 'adm.s43', 'admin', '${Q43.adm}', array['fabrica']),
+      ('Lider S43', 'lid43@teste.com', '43000000006', 'lid.s43', 'lider', '${Q43.lider}', array['fabrica']),
+      ('Painel S43', 'tv43@teste.com', '43000000007', 'tv.s43', 'operador', '${Q43.tv}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, s.id, u.usuario = 'lid.s43' from public.plt_usuarios u, public.plt_setores s
+       where u.usuario in ('f.s43', 'fi.s43', 'a.s43', 'g.s43', 'lid.s43') and s.codigo in ('m43', 'k43', 'l43');
+    -- a equipe do painel: na m43 os quatro; na k43 só Franklin/Franklinildo (titulares) e Alisson (apoio) —
+    -- o Geovane ali é "de outro setor" (a etiqueta dele é ignorada)
+    insert into public.plt_tempo_equipe (setor_id, usuario_id, papel, letra)
+      select s.id, u.id, case when u.usuario in ('f.s43', 'fi.s43') then 'titular' else 'apoio' end,
+             case u.usuario when 'f.s43' then 'A' when 'fi.s43' then 'B' when 'a.s43' then 'C' else 'D' end
+        from public.plt_usuarios u, public.plt_setores s
+       where (s.codigo = 'm43' and u.usuario in ('f.s43', 'fi.s43', 'a.s43', 'g.s43'))
+          or (s.codigo = 'k43' and u.usuario in ('f.s43', 'fi.s43', 'a.s43'));
+  `)
+  const S43 = Object.fromEntries((await bd.query(`select codigo, id::int as id from public.plt_setores where codigo in ('m43', 'k43', 'l43')`)).rows.map((r) => [r.codigo, r.id]))
+  const U43 = Object.fromEntries((await bd.query(`select usuario, id from public.plt_usuarios where usuario like '%.s43'`)).rows.map((r) => [r.usuario, r.id]))
+  conferir(Object.keys(S43).length === 3 && Object.keys(U43).length === 7, 'três setores próprios e sete pessoas (quatro da equipe, admin, líder e a conta que vai virar a da TV)')
+
+  titulo('SESSAO-43 · o histórico do Trello: o arquivo real duas vezes — uma linha por cartão, os números da demanda, nada nos fatos')
+  const linhas = linhasDoHistorico(await readFile(ARQUIVO_HISTORICO, 'utf8'))
+  const fatosAntes = await um43(`select count(*)::int as n from public.plt_eventos`)
+  const r1 = (await um43(`select plt_privado.fn_tempo_trello_carregar($1, $2::jsonb) as r`, [S43.m43, JSON.stringify(linhas)])).r
+  const r2 = (await um43(`select plt_privado.fn_tempo_trello_carregar($1, $2::jsonb) as r`, [S43.m43, JSON.stringify(linhas)])).r
+  const fatosDepois = await um43(`select count(*)::int as n from public.plt_eventos`)
+  conferir(linhas.length === 891 && r1.cartoes_unicos === 885 && r1.repetidos_no_arquivo === 6 && r1.entraram === 885,
+    'o arquivo: 891 linhas, 885 cartões (os 6 repetidos entram uma vez)', JSON.stringify({ n: linhas.length, u: r1.cartoes_unicos, e: r1.entraram }))
+  conferir(r1.validas >= 790 && r1.validas <= 830 && r1.mediana_min >= 40 && r1.mediana_min <= 47 && r1.media_min >= 48 && r1.media_min <= 58,
+    'a mesma conta da 42 dá os números da demanda (~813 válidas, mediana ~44 min, média ~54 min; a crua ~183 min)',
+    JSON.stringify({ v: r1.validas, med: r1.mediana_min, media: r1.media_min, crua: r1.crua_media_min }))
+  conferir(r1.lotes === 9 && r1.cartoes_em_lote === 18 && r1.sabados_trabalhados_criados === 9 && r1.cortados_no_fim_do_dia > 0,
+    'os lotes de verdade são 9 (18 cartões — os outros 6 "lotes" eram os repetidos); os 9 sábados com montagem viram dia trabalhado; os cartões que passaram da noite são cortados no fim do dia',
+    JSON.stringify({ l: r1.lotes, c: r1.cartoes_em_lote, s: r1.sabados_trabalhados_criados, cortados: r1.cortados_no_fim_do_dia }))
+  conferir(r2.entraram === 0 && r2.total === 885 && r2.validas === r1.validas && r2.sabados_trabalhados_criados === 0 && fatosAntes.n === fatosDepois.n,
+    'rodar a carga de novo não duplica nada (nem os sábados) — e o histórico nunca entra nos fatos da plataforma',
+    JSON.stringify({ e: r2.entraram, t: r2.total, f: [fatosAntes.n, fatosDepois.n] }))
+  conferir(r1.etiquetas_sem_pessoa.PARADO === 2 && r1.etiquetas_sem_pessoa.ANDERSON === 72 && !('FRANKLIN' in r1.etiquetas_sem_pessoa),
+    'as etiquetas sem pessoa na equipe do setor ficam no relatório (PARADO é status; ANDERSON não está cadastrado aqui)', JSON.stringify(r1.etiquetas_sem_pessoa))
+
+  titulo('SESSAO-43 · o histórico do Trello: a conta exata nos casos controlados')
+  // um modelo já existente (o agrupamento da 42) para o "longo para o modelo"
+  await bd.exec(`select plt_privado.fn_tempo_modelo_do_nome('Mesa Teste43 - Branco - 120 x 75 x 60')`)
+  const caso = (id, nome, etq, ini, fim) => ({ cartao_id: id, nome, url: null, etiquetas: etq, inicio: ini, fim })
+  const casos = [
+    caso('k43-a', '13001 - Estante Teste43 - Branco - 90 x 182 x 30 (1/1)', ['FRANKLIN (lime)'], '2026-09-15T08:00:00-03:00', '2026-09-15T09:00:00-03:00'),
+    caso('k43-a', '13001 - Estante Teste43 - Branco - 90 x 182 x 30 (1/1)', ['FRANKLIN (lime)'], '2026-09-15T08:00:00-03:00', '2026-09-15T09:00:00-03:00'),
+    caso('k43-almoco', 'Estante Teste43 - Preto - 90 x 182 x 30', ['Franklinildo  (red)'], '2026-09-15T11:30:00-03:00', '2026-09-15T13:30:00-03:00'),
+    caso('k43-noite', 'Estante Teste43 - Branco - 90 x 182 x 30', ['FRANKLIN (lime)'], '2026-09-15T17:00:00-03:00', '2026-09-16T09:00:00-03:00'),
+    caso('k43-lote1', 'Rack Teste43 - Branco', ['Franklinildo  (red)'], '2026-09-16T10:00:00-03:00', '2026-09-16T11:00:00-03:00'),
+    caso('k43-lote2', 'Rack Teste43 - Preto', ['Franklinildo  (red)'], '2026-09-16T10:00:00-03:00', '2026-09-16T11:00:00-03:00'),
+    caso('k43-dupla', 'Armário Teste43 - Branco', ['FRANKLIN (lime)', 'Franklinildo  (red)'], '2026-09-17T08:00:00-03:00', '2026-09-17T09:00:00-03:00'),
+    caso('k43-titular', 'Armário Teste43 - Branco', ['ALISSON (pink_light)', 'FRANKLIN (lime)'], '2026-09-17T09:30:00-03:00', '2026-09-17T10:00:00-03:00'),
+    caso('k43-apoio', 'Armário Teste43 - Branco', ['ALISSON (pink_light)'], '2026-09-17T10:30:00-03:00', '2026-09-17T11:00:00-03:00'),
+    caso('k43-fora', 'Armário Teste43 - Branco', ['GEOVANE (black)', 'PARADO (red_dark)'], '2026-09-17T14:00:00-03:00', '2026-09-17T14:30:00-03:00'),
+    caso('k43-rapida', 'Armário Teste43 - Branco', ['FRANKLIN (lime)'], '2026-09-17T15:00:00-03:00', '2026-09-17T15:00:10-03:00'),
+    caso('k43-teto', 'Guarda-roupa Teste43 - Branco', ['FRANKLIN (lime)'], '2026-09-18T07:30:00-03:00', '2026-09-18T13:00:00-03:00'),
+    caso('k43-sabado', 'Estante Teste43 - Branco - 90 x 182 x 30', ['FRANKLIN (lime)'], '2026-09-19T08:00:00-03:00', '2026-09-19T09:00:00-03:00'),
+    caso('k43-feriado', 'Estante Teste43 - Branco - 90 x 182 x 30', ['FRANKLIN (lime)'], '2026-09-07T08:00:00-03:00', '2026-09-07T09:00:00-03:00'),
+    ...['08', '09', '10', '14', '15'].map((h, i) =>
+      caso(`k43-mesa${i}`, `1300${i} - Mesa Teste43 - ${i % 2 ? 'Preto' : 'Branco'} - 120 x 75 x 60 (1/1)`, ['FRANKLIN (lime)'], `2026-09-21T${h}:00:00-03:00`, `2026-09-21T${h}:30:00-03:00`)),
+    caso('k43-mesa-longa', 'Mesa Teste43 - Branco - 120 x 75 x 60', ['FRANKLIN (lime)'], '2026-09-22T08:00:00-03:00', '2026-09-22T10:00:00-03:00'),
+  ]
+  const rk = (await um43(`select plt_privado.fn_tempo_trello_carregar($1, $2::jsonb) as r`, [S43.k43, JSON.stringify(casos)])).r
+  const k = Object.fromEntries((await bd.query(`select cartao_id, execucao_s::int as e, util_s::int as u, lote_n, pessoas::text[] as p, esforco, cortado, situacao, motivo, modelo_id
+                                                  from public.plt_tempo_trello where setor_id = ${S43.k43}`)).rows.map((r) => [r.cartao_id, r]))
+  const F = U43['f.s43'], FI = U43['fi.s43'], A = U43['a.s43']
+  conferir(rk.total === 19 && k['k43-a'].e === 3600 && k['k43-almoco'].e === 3600,
+    'uma linha por cartão (o repetido entra uma vez); das 08:00 às 09:00 = 1 h; das 11:30 às 13:30 = 1 h (o almoço não conta)', JSON.stringify({ t: rk.total, a: k['k43-a'].e, al: k['k43-almoco'].e }))
+  conferir(k['k43-noite'].e === 3600 && k['k43-noite'].cortado,
+    'das 17:00 à manhã seguinte = 1 h — o tempo para no fim do dia, como na plataforma (a manhã sem retomar não conta)', JSON.stringify(k['k43-noite']))
+  conferir(k['k43-lote1'].e === 1800 && k['k43-lote2'].e === 1800 && k['k43-lote1'].lote_n === 2 && Number(k['k43-lote1'].esforco[FI]) === 1800,
+    'o lote (início e fim idênticos): cada móvel 30 min, e a hora conta uma vez só para a pessoa', JSON.stringify(k['k43-lote1']))
+  conferir(k['k43-dupla'].e === 3600 && k['k43-dupla'].p.length === 2 && Number(k['k43-dupla'].esforco[F]) === 1800 && Number(k['k43-dupla'].esforco[FI]) === 1800,
+    'dois titulares = dupla: o móvel 1 h, o esforço dividido (meia hora para cada um)', JSON.stringify(k['k43-dupla']))
+  conferir(k['k43-titular'].p.length === 1 && k['k43-titular'].p[0] === F && k['k43-apoio'].p[0] === A && k['k43-fora'].p.length === 0,
+    'o titular vence o apoio; só o apoio, ele conta; a etiqueta de quem não é da equipe do setor (e o PARADO) é ignorada', JSON.stringify({ t: k['k43-titular'].p, a: k['k43-apoio'].p, f: k['k43-fora'].p }))
+  conferir(k['k43-rapida'].situacao === 'conferir' && k['k43-rapida'].motivo === 'Rápida demais'
+      && k['k43-teto'].situacao === 'conferir' && k['k43-teto'].motivo === 'Acima do teto do setor' && k['k43-teto'].e === 16200,
+    'as mesmas regras: 10 s = rápida demais; 07:30–13:00 = 4h30 úteis, acima do teto de 4 h — os dois para conferir', JSON.stringify({ r: k['k43-rapida'].motivo, t: [k['k43-teto'].motivo, k['k43-teto'].e] }))
+  const sab = await um43(`select count(*)::int as n from public.plt_tempo_excecoes where setor_id = ${S43.k43} and dia = '2026-09-19' and tipo = 'trabalhado'`)
+  conferir(k['k43-sabado'].e === 3600 && sab.n === 1 && k['k43-feriado'].e === 0 && k['k43-feriado'].situacao === 'conferir',
+    'o sábado com montagem vira dia trabalhado do setor (conta 1 h); no feriado nacional (07/09) nada conta', JSON.stringify({ s: k['k43-sabado'].e, f: k['k43-feriado'].e }))
+  conferir(k['k43-mesa-longa'].situacao === 'conferir' && k['k43-mesa-longa'].motivo === 'Longa para o modelo' && k['k43-mesa0'].situacao === 'valida' && k['k43-mesa0'].modelo_id !== null,
+    'o modelo pelo agrupamento da 42 (as cores juntas): 5 de 30 min e a de 2 h passa de 3× a mediana = longa para o modelo', JSON.stringify({ l: k['k43-mesa-longa'].motivo, m: k['k43-mesa0'].modelo_id }))
+  const padH = await um43(`select h.n, h.n_trello, h.mediana_s::int as m from public.plt_tempo_padrao_historico h join public.plt_tempo_modelos mo on mo.id = h.modelo_id
+                            where h.setor_id = ${S43.k43} and mo.nome = 'Mesa Teste43 - 120 x 75 x 60'`)
+  conferir(padH?.n === 5 && padH.n_trello === 5 && padH.m === 1800, 'o padrão com o histórico do modelo: 5 válidas, mediana 30 min (o padrão oficial da plataforma não muda)', JSON.stringify(padH))
+
+  titulo('SESSAO-43 · os nomes do Trello sem modelo e o ligar (vale para a plataforma também)')
+  await como43(Q43.franklin)
+  const semOp = await falha43(`select public.plt_fn_tempo_trello_sem_modelo(30, null, null)`)
+  await como43(Q43.adm)
+  const sem = (await um43(`select public.plt_fn_tempo_trello_sem_modelo(100, null, null) as r`)).r
+  const estante = sem.itens.find((n) => n.chave === 'estante teste43 - 90 x 182 x 30')
+  conferir(/administrador/.test(semOp) && estante?.cartoes === 5 && estante.sugestao === 'Estante Teste43 - 90 x 182 x 30',
+    'a lista dos nomes sem modelo (só admin): "Estante Teste43" com as 5 montagens e o nome sugerido', JSON.stringify({ semOp, estante }))
+  const lig = (await um43(`select public.plt_fn_tempo_trello_ligar('estante teste43 - 90 x 182 x 30', null, 'Estante Teste43') as r`)).r
+  const ligou = await um43(`select count(*) filter (where t.modelo_id = ${lig.modelo_id})::int as n,
+                                   (select count(*) from public.plt_tempo_modelo_chaves k where k.chave = 'estante teste43 - 90 x 182 x 30' and k.modelo_id = ${lig.modelo_id})::int as chave,
+                                   (select n from public.plt_tempo_padrao_historico h where h.setor_id = ${S43.k43} and h.modelo_id = ${lig.modelo_id}) as pad,
+                                   (select count(*) from public.plt_logs_atividade l where l.acao = 'tempo_trello_nome_ligado' and l.criado_em = now())::int as trilha
+                              from public.plt_tempo_trello t where t.setor_id = ${S43.k43}`)
+  conferir(lig.cartoes === 5 && ligou.n === 5 && ligou.chave === 1 && Number(ligou.pad) === 4 && ligou.trilha === 1,
+    'ligar o nome cria o modelo, a chave passa a valer para a plataforma, as 5 montagens entram no modelo e o padrão com histórico é refeito (4 válidas — a do feriado fica fora); a trilha registra',
+    JSON.stringify({ lig, ligou }))
+
+  titulo('SESSAO-43 · uma passagem da plataforma: a equipe dela e a tela lendo o mesmo tempo do card')
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${S43.k43}, 'A MONTAR', 10, true), (${S43.k43}, 'MONTANDO', 20, false), (${S43.l43}, 'A LIMPAR', 10, true);
+  `)
+  const AMk = (await um43(`select id::int as id from public.plt_etapas where setor_id = ${S43.k43} and nome = 'A MONTAR'`)).id
+  const ALl = (await um43(`select id::int as id from public.plt_etapas where setor_id = ${S43.l43} and nome = 'A LIMPAR'`)).id
+  const cPl = (await um43(`insert into public.plt_cards (tipo, titulo) values ('avulso', 'Mesa Teste43 - Preto - 120 x 75 x 60') returning id::int as id`)).id
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, etapa_destino_id, ocorrido_em)
+                 values (${cPl}, 'card_criado', 'automacao', ${S43.k43}, ${AMk}, '2026-11-03 07:40-03')`)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, usuario_id, ocorrido_em) values (${cPl}, 'execucao_iniciada', 'interface', '${F}', '2026-11-03 08:00-03')`)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, usuario_id, setor_destino_id, etapa_destino_id, ocorrido_em)
+                 values (${cPl}, 'movimentacao_setor', 'interface', '${F}', ${S43.l43}, ${ALl}, '2026-11-03 08:40-03')`)
+  const ps = await um43(`select p.id, p.execucao_s::int as e, p.situacao, q.montadores::text[] as m, q.ajudantes::text[] as aj
+                            from public.plt_tempo_passagens p join public.plt_tempo_passagem_equipe q on q.passagem_id = p.id
+                           where p.card_id = ${cPl} and p.setor_id = ${S43.k43}`)
+  conferir(ps?.e === 2400 && ps.situacao === 'valida' && ps.m.length === 1 && ps.m[0] === F && ps.aj.length === 0,
+    'a passagem da plataforma ganha a equipe no mesmo gesto: quem montou (40 min, válida), sem ajudante', JSON.stringify(ps))
+
+  titulo('SESSAO-43 · as portas das abas: o admin e o líder veem tudo; o funcionário só o dele; a conta da TV nada')
+  const set = { de: '2026-09-01', ate: '2026-11-05' }
+  await como43(Q43.adm)
+  const dia = (await um43(`select public.plt_fn_tempos_dia(${S43.k43}, '2026-09-17', '${set.de}', '${set.ate}') as r`)).r
+  const diaPl = (await um43(`select public.plt_fn_tempos_dia(${S43.k43}, '2026-11-03', '${set.de}', '${set.ate}') as r`)).r
+  const per = (await um43(`select public.plt_fn_tempos_periodo(${S43.k43}, '${set.de}', '${set.ate}') as r`)).r
+  const mov = (await um43(`select public.plt_fn_tempos_moveis(${S43.k43}, '${set.de}', '${set.ate}') as r`)).r
+  const mon = (await um43(`select public.plt_fn_tempos_montadores(${S43.k43}, '${set.de}', '${set.ate}') as r`)).r
+  const conf = (await um43(`select public.plt_fn_tempos_conferir(${S43.k43}, '${set.de}', '${set.ate}') as r`)).r
+  conferir(dia.tabela.itens.length === 5 && dia.numeros.montados === 5 && dia.numeros.conferir === 1 && dia.linha.trechos.length >= 4 && dia.linha.janelas.length === 2,
+    'Dia (17/09): os 5 móveis, 1 para conferir, a linha do dia por pessoa e o expediente com almoço', JSON.stringify({ n: dia.tabela.itens.length, num: dia.numeros }))
+  const linhaPl = diaPl.tabela.itens.find((l) => l.card_id === cPl)
+  conferir(linhaPl?.execucao_s === 2400 && linhaPl.origem === 'plataforma' && diaPl.pessoas[F]?.nome === 'Franklin S43',
+    'Dia (03/11): a passagem da plataforma com o MESMO tempo do card (40 min) e o nome de quem montou', JSON.stringify(linhaPl))
+  conferir(per.numeros.montados === 20 && per.numeros.n_trello === 19 && per.numeros.dias_uteis > 0 && per.grafico.agrupado === 'dia' && per.por_montador.length >= 3,
+    'Período: os 19 do histórico + 1 da plataforma, os dias úteis com registro, os móveis por dia e por montador', JSON.stringify({ n: per.numeros, s: per.grafico.series.length }))
+  const mesa = mov.itens.find((m) => m.nome === 'Mesa Teste43 - 120 x 75 x 60')
+  conferir(mesa?.qtd === 7 && mesa.conferir === 1 && mesa.mediana_s === 1800 && mov.colunas.length >= 2,
+    'Móveis: a Mesa com 7 (5 + a longa + a da plataforma), 1 para conferir, mediana 30 min, e as colunas por montador', JSON.stringify(mesa))
+  const cartaoF = mon.pessoas_cartoes.find((c) => c.usuario_id === F)
+  conferir(cartaoF && cartaoF.moveis >= 10 && mon.melhores.length > 0, 'Montadores: um cartão por pessoa e os melhores tempos', JSON.stringify({ f: cartaoF?.moveis, m: mon.melhores.length }))
+  conferir(conf.grupos.rapida === 2 && conf.grupos.longa === 2 && conf.grupos.lote === 2 && conf.grupos.cortado >= 1 && conf.conferir_n === 4,
+    'Conferir: rápida (2), longa (2), lote (2), cortado no fim do dia, e o contador = os 4 a conferir', JSON.stringify(conf.grupos))
+  await como43(Q43.lider)
+  const lidConf = await falha43(`select public.plt_fn_tempos_conferir(${S43.k43}, '${set.de}', '${set.ate}')`)
+  await como43(Q43.alisson)
+  const opMon = (await um43(`select public.plt_fn_tempos_montadores(${S43.k43}, '${set.de}', '${set.ate}') as r`)).r
+  const opDia = (await um43(`select public.plt_fn_tempos_dia(${S43.k43}, '2026-09-17', null, null, '${F}') as r`)).r
+  const opConf = await falha43(`select public.plt_fn_tempos_conferir(${S43.k43}, '${set.de}', '${set.ate}')`)
+  conferir(lidConf === '' && opMon.pessoas_cartoes.length === 1 && opMon.pessoas_cartoes[0].usuario_id === A
+      && opDia.tabela.itens.every((l) => l.montadores.includes(A)) && opDia.pessoa_travada && /líder do setor ou de um administrador/.test(opConf),
+    'o líder do setor confere; o funcionário vê só o próprio cartão e só o que montou (mesmo pedindo outra pessoa) e não entra na Conferir',
+    JSON.stringify({ lidConf, op: opMon.pessoas_cartoes.map((c) => c.usuario_id), opConf }))
+
+  titulo('SESSAO-43 · a decisão manual do histórico: considerar, desfazer, com motivo, por quem decide — e a trilha')
+  const idRap = (await um43(`select id from public.plt_tempo_trello where cartao_id = 'k43-rapida'`)).id
+  await como43(Q43.alisson)
+  const opDec = await falha43(`select public.plt_fn_tempo_trello_decidir(${idRap}, 'considerar', 'Conferido com quem montou')`)
+  await como43(Q43.lider)
+  const semMot = await falha43(`select public.plt_fn_tempo_trello_decidir(${idRap}, 'considerar', '')`)
+  const dec = (await um43(`select public.plt_fn_tempo_trello_decidir(${idRap}, 'considerar', 'Conferido com quem montou') as r`)).r
+  const confDepois = (await um43(`select public.plt_fn_tempos_conferir(${S43.k43}, '${set.de}', '${set.ate}', null, true, 'decididas') as r`)).r
+  const desf = (await um43(`select public.plt_fn_tempo_trello_decidir(${idRap}, 'desfazer', 'Foi engano') as r`)).r
+  const trilhaDec = await um43(`select count(*)::int as n from public.plt_logs_atividade where acao = 'tempo_trello_decisao' and criado_em = now()`)
+  conferir(/líder do setor ou de um administrador/.test(opDec) && /motivo/.test(semMot) && dec.situacao === 'valida' && dec.motivo === 'Considerada à mão'
+      && confDepois.itens.some((c) => c.id === idRap && c.decisao?.motivo === 'Conferido com quem montou') && desf.situacao === 'conferir' && trilhaDec.n === 2,
+    'o funcionário não decide; sem motivo é recusado; o líder considera (entra na média, aparece em "Já decididas" com o motivo) e desfaz (volta à regra); as duas decisões ficam na trilha',
+    JSON.stringify({ opDec, semMot, dec, desf, trilhaDec }))
+
+  titulo('SESSAO-43 · a permissão Modo TV e a porta da TV SEM NOMES (como a conta da TV e como admin)')
+  await como43(Q43.franklin)
+  const opTv = await falha43(`select public.plt_fn_usuario_modo_tv('${U43['tv.s43']}', true, true)`)
+  const semTv = await falha43(`select public.plt_fn_modo_tv(${S43.m43})`)
+  await como43(Q43.adm)
+  const admSoTv = await falha43(`select public.plt_fn_usuario_modo_tv('${U43['adm.s43']}', true, true)`)
+  const virou = (await um43(`select public.plt_fn_usuario_modo_tv('${U43['tv.s43']}', true, true) as r`)).r
+  const trilhaTv = await um43(`select count(*)::int as n from public.plt_logs_atividade where acao = 'usuario_modo_tv' and criado_em = now()`)
+  conferir(/administrador/.test(opTv) && /O Modo TV é liberado/.test(semTv) && /não pode ser conta só da TV/.test(admSoTv)
+      && JSON.stringify(virou.modulos) === '["tv"]' && trilhaTv.n === 1,
+    'só o admin liga o Modo TV; quem não tem a permissão não abre a TV; admin não vira conta só da TV; a conta só da TV fica só com "tv" (e a trilha registra)',
+    JSON.stringify({ opTv, semTv, admSoTv, virou }))
+  await como43(Q43.tv)
+  const tvTv = (await um43(`select public.plt_fn_modo_tv(${S43.m43}) as r`)).r
+  const tvDia = await falha43(`select public.plt_fn_tempos_dia(${S43.m43}, '2026-09-17', null, null)`)
+  const tvOuve = await um43(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:setor_${S43.m43}') as setor, plt_privado.fn_aviso_pode_ouvir('plt-aviso:pcp') as pcp`)
+  await como43(Q43.adm)
+  const tvAdm = (await um43(`select public.plt_fn_modo_tv(${S43.m43}) as r`)).r
+  const nomes = ['Franklin', 'Franklinildo', 'Alisson', 'Geovane', 'S43', 'FRANKLIN', 'Painel', 'foto', 'etiqueta', 'trello.com']
+  const vazou = (r) => nomes.filter((n) => JSON.stringify(r).includes(n))
+  conferir(vazou(tvTv).length === 0 && vazou(tvAdm).length === 0 && tvTv.montadores.every((m) => /^[A-Z]{1,2}$/.test(m.letra))
+      && tvTv.setor.id === S43.m43 && tvTv.dados_ate === '2026-10-13' && tvTv.grafico.dias.length === 14,
+    'a TV devolve só LETRAS — nenhum nome, foto, etiqueta ou link, nem para a conta da TV nem para o admin; 14 dias no gráfico; "dados até" o último dia com montagem',
+    JSON.stringify({ tv: vazou(tvTv), adm: vazou(tvAdm), m: tvTv.montadores, ate: tvTv.dados_ate }))
+  conferir(/só o Modo TV/.test(tvDia) && tvOuve.setor && !tvOuve.pcp,
+    'a conta só da TV é recusada nas portas da tela de tempos; ouve o canal do setor de produção (para ficar ao vivo) e mais nada',
+    JSON.stringify({ tvDia, tvOuve }))
+
+  titulo('SESSAO-43 · os motivos de conferência (Utilitários) e as permissões das portas')
+  await como43(Q43.adm)
+  const mot = await um43(`select count(*)::int as n from public.plt_fn_motivos('conferencia', false)`)
+  const novoMot = await falha43(`select public.plt_fn_motivo_salvar(null, 'conferencia', 'Erro de etiqueta no Trello', 60, true, null)`)
+  const pr43 = await um43(`
+    select has_function_privilege('anon', 'public.plt_fn_modo_tv(bigint)', 'execute') as anon_tv,
+           has_function_privilege('anon', 'public.plt_fn_tempos_periodo(bigint, date, date, uuid, bigint, boolean)', 'execute') as anon_per,
+           has_function_privilege('authenticated', 'plt_privado.fn_tempo_trello_carregar(bigint, jsonb)', 'execute') as carga,
+           has_function_privilege('authenticated', 'public.plt_fn_tempos_dia(bigint, date, date, date, uuid, bigint, boolean, timestamptz, text, bigint, integer)', 'execute') as logado,
+           has_table_privilege('authenticated', 'public.plt_tempo_trello', 'select') as tabela`)
+  conferir(mot.n === 5 && novoMot === '' && !pr43.anon_tv && !pr43.anon_per && !pr43.carga && pr43.logado && !pr43.tabela,
+    'a lista "Motivos de conferência" nasce com 5 e aceita mais; as portas só para quem tem login; a carga e a tabela do histórico fora da API',
+    JSON.stringify({ mot, novoMot, pr43 }))
+} finally {
+  await bd.exec('rollback')
+  await como43('')
+}
+} // fim do bloco SESSAO-43
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
