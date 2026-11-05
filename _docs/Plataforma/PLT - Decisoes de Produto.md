@@ -2118,6 +2118,10 @@ Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demand
 4. O cartão do pedido diz **"Ponto aproximado no mapa (pelo CEP / pelo bairro / pelo centro da cidade) · acertar"**. Só se nem a cidade for reconhecida fica "Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço", com "Marcar no mapa".
 5. O "não encontrado" gravado antes é procurado de novo **uma vez** (o que foi consultado antes de 05/11 03:00 UTC), conforme a Programação é aberta.
 
+↪️ **Correção do dono (05/11, manhã):** *"não tem essa de bairro e centro da cidade, NO MÁXIMO a rua é aceitável, mas deve ter um aviso na tela para que eles mesmos possam ajustar manualmente quando for esses casos — 'Endereço aproximado para a cidade da entrega, ajustar o pino do mapa'"*. Os itens 3 e 4 passam a ser:
+- **3′.** O ponto é **de rua** ou é o **da cidade com aviso** — **nunca o centro do bairro** nem o ponto solto do CEP. O ponto do CEP e o centro do bairro servem **só de âncora** para achar a rua de mesmo nome perto deles (vira ponto de rua); o ponto do CEP da **própria rua** do pedido vale como ponto de rua (fonte `cep`). Sem rua: o centro da cidade (fonte `aprox_cidade`).
+- **4′.** No ponto da cidade, o cartão mostra o aviso **"Endereço aproximado para a cidade da entrega, ajustar o pino do mapa"** (em destaque) com o botão **"Ajustar o pino"** (a janela do mapa); quem não é da logística vê o aviso sem o botão. O ponto marcado à mão some com o aviso. O ponto da cidade é procurado de novo depois de 7 dias; o que a 1ª versão gravou pelo bairro/CEP (`aprox_bairro`/`aprox_cep`) é refeito na hora.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

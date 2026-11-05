@@ -79,6 +79,15 @@ Task list do ajuste: 1) ver como a rota e a busca tratam o endereço ✅ · 2) G
 - **Telas**: `CartaoPedido` — "Ponto aproximado no mapa (pelo CEP/bairro/centro da cidade) · acertar"; o raro sem ponto diz "Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço"; títulos dizem que o Google vai pelo endereço. `ModalPontoNoMapa` — o aviso de que o ponto é só do mapa da rota e o texto do aproximado.
 - **Serviços de CEP** (A-141): AwesomeAPI com ponto bom (mediana 217 m) e limite de uso (429 depois de ~38 seguidas); BrasilAPI v2 com coordenadas inúteis (mediana 5,5 km).
 - **E-180**: `cat >` sem heredoc travou um comando e criou arquivo vazio fora do repo — apagado.
+- Publicado em 05/11 ~02:30 UTC: migration `20261105020000` (aplicada `--so`, integração idêntica), função `geocodificar` v11, site na main (c1fb0cb/8e7d57d). Simulação nos 172 endereços do cache: 160 rua, 10 bairro, 1 cidade, 1 sem ponto (o "endereço" que só tem a UF: 37 pedidos sem endereço no Tiny, todos entregues/cancelados).
+
+## 4c · Correção do dono (05/11, manhã) — "não tem essa de bairro e centro da cidade, NO MÁXIMO a rua; com aviso na tela" (D-221 ↪️)
+
+- `busca.ts`: `PontoDoCep.ruaBate` (o CEP é da própria rua do pedido); CEP de outra rua só vale se o bairro bater (âncora). `index.ts` → `degraus`: CEP âncora → rua; CEP da própria rua → fonte `cep` (ponto de rua); bairro só âncora (só consulta se houver candidato de rua); sem rua → `aprox_cidade`. `cacheVale`: `aprox_bairro`/`aprox_cep` refeitos na hora; `aprox_cidade` depois de 7 dias.
+- Telas: `CartaoPedido` — aviso em destaque (`role=status`) "Endereço aproximado para a cidade da entrega, ajustar o pino do mapa" + botão "Ajustar o pino" (só com a janela do mapa); `ModalPontoNoMapa` com o mesmo texto; `api.precisaGeocodificar` refaz `cep`/`bairro`. `CartaoPedido.test.tsx` novo (4 casos), `precisaGeocodificar.test.ts` e `buscaEndereco.test.ts` ajustados — 401 testes verdes, tipos e lint limpos.
+- Publicado: função `geocodificar` v12, site na main (b69e414), Vercel "success". Nenhum ponto pelo bairro tinha sido gravado em produção pela v11 (conferido).
+- Tela publicada: Programação (12 sem programação) e Já programadas (12 de rua + 1 marcado à mão, o 13798) — zero "não encontrado", zero aproximado; o link do Google Maps da rota leva o 13798 pelo endereço escrito com CEP (não pelo ponto marcado à mão). O aviso foi provado pelo teste de tela (nenhum pedido vivo caiu no ponto da cidade).
+- Rastro: 3 registros de navegação do teste (ids 14556752–14556754, 04:01–04:02 UTC) apagados com a trava desligada e religada na mesma transação; o 14556751 (03:56) é do dono. As 6 linhas de ponto gravadas na abertura da tela são o trabalho normal da tela (pontos refeitos), não teste.
 
 ## 5 · Rastro dos testes
 
