@@ -927,7 +927,7 @@ export function Layout({ children }: { children: ReactNode }) {
             {/* Toda tela tem botão de voltar (D-36) — ↩️ ajuste de 06/11: ele mora
                 no cabeçalho de cada tela (`CabecalhoDaTela`), como a setinha à
                 esquerda do título; a linha só dele saiu daqui. */}
-            <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">
+            <main className="w-full flex-1 px-4 pt-3 pb-24 sm:px-6">
               <VagaDoTitulo.Provider value={vagaTitulo}>{children}</VagaDoTitulo.Provider>
             </main>
             {/* ↩️ 06/11 (pedido do dono): o rodapé com a marca saiu de todas as telas. */}

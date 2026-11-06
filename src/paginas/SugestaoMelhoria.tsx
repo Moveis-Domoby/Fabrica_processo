@@ -1,6 +1,15 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { DndContext, DragOverlay, KeyboardSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CornerUpLeft, Lightbulb, Loader2, Paperclip } from 'lucide-react'
@@ -79,8 +88,19 @@ function Cartao({ s, arrastando = false }: { s: CartaoSugestao; arrastando?: boo
   )
 }
 
-function CartaoNoQuadro({ s, movivel, aoAbrir }: { s: CartaoSugestao; movivel: boolean; aoAbrir: () => void }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: s.id, disabled: !movivel })
+function CartaoNoQuadro({
+  s,
+  movivel,
+  aoAbrir,
+}: {
+  s: CartaoSugestao
+  movivel: boolean
+  aoAbrir: () => void
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: s.id,
+    disabled: !movivel,
+  })
   return (
     <div
       ref={setNodeRef}
@@ -143,7 +163,12 @@ function Coluna({
           isOver ? 'border-acao-ativa bg-acao/5 ring-2 ring-acao' : 'border-borda/40',
         )}
       >
-        <header className={cn('flex shrink-0 flex-col gap-0.5 px-3 py-2.5', itens.length > 0 && 'border-b border-borda/40')}>
+        <header
+          className={cn(
+            'flex shrink-0 flex-col gap-0.5 px-3 py-2.5',
+            itens.length > 0 && 'border-b border-borda/40',
+          )}
+        >
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-texto">{coluna.titulo}</h2>
             <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-medium text-texto-suave tabular-nums">
@@ -192,7 +217,10 @@ export function SugestaoMelhoria() {
   const abrirSugestao = useAbrirSugestao()
   const [sugerindo, setSugerindo] = useState(false)
   // As páginas a mais de cada coluna ("Ver mais") — somem quando o quadro relê.
-  const [mais, setMais] = useState<{ base: number; colunas: Partial<Record<ColunaSugestao, ColunaDoQuadro>> }>({
+  const [mais, setMais] = useState<{
+    base: number
+    colunas: Partial<Record<ColunaSugestao, ColunaDoQuadro>>
+  }>({
     base: 0,
     colunas: {},
   })
@@ -244,8 +272,15 @@ export function SugestaoMelhoria() {
   }
 
   const mover = useMutation({
-    mutationFn: ({ s, para, motivo }: { s: CartaoSugestao; para: ColunaSugestao; motivo?: string }) =>
-      moverSugestao(s.id, para, motivo),
+    mutationFn: ({
+      s,
+      para,
+      motivo,
+    }: {
+      s: CartaoSugestao
+      para: ColunaSugestao
+      motivo?: string
+    }) => moverSugestao(s.id, para, motivo),
     // Escrita otimista (Lei §8): o cartão muda de coluna na hora; o banco confirma ao reler.
     onMutate: async ({ s, para }) => {
       await clienteQuery.cancelQueries({ queryKey: CHAVE_QUADRO })
@@ -257,7 +292,11 @@ export function SugestaoMelhoria() {
             const sem = c.itens.filter((i) => i.id !== s.id)
             const saiu = sem.length !== c.itens.length
             if (c.coluna === para) {
-              return { ...c, itens: [{ ...s, teste: para === 'finalizada' ? 'aguardando' : null }, ...sem], total: (c.total ?? 0) + 1 }
+              return {
+                ...c,
+                itens: [{ ...s, teste: para === 'finalizada' ? 'aguardando' : null }, ...sem],
+                total: (c.total ?? 0) + 1,
+              }
             }
             return saiu ? { ...c, itens: sem, total: Math.max(0, (c.total ?? 1) - 1) } : c
           }),
@@ -283,7 +322,9 @@ export function SugestaoMelhoria() {
   const sensores = useSensors(
     useSensor(SensorDoMouse, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] } }),
+    useSensor(KeyboardSensor, {
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] },
+    }),
   )
 
   function aoComecar(e: DragStartEvent) {
@@ -301,7 +342,7 @@ export function SugestaoMelhoria() {
   }
 
   const quadroRef = useRef<HTMLDivElement>(null)
-  const altura = useAlturaAteOFim(quadroRef, 52, quadro.isSuccess)
+  const altura = useAlturaAteOFim(quadroRef, 116, quadro.isSuccess)
 
   return (
     <div className="flex flex-col gap-4">
@@ -315,7 +356,11 @@ export function SugestaoMelhoria() {
           </>
         }
       >
-        <Botao variante="primaria" icone={<Lightbulb aria-hidden />} onClick={() => setSugerindo(true)}>
+        <Botao
+          variante="primaria"
+          icone={<Lightbulb aria-hidden />}
+          onClick={() => setSugerindo(true)}
+        >
           Sugerir melhoria
         </Botao>
       </CabecalhoDaTela>
@@ -326,7 +371,10 @@ export function SugestaoMelhoria() {
         </p>
       )}
       {quadro.isError && (
-        <div role="alert" className="flex flex-col items-start gap-2 rounded-dm bg-danificado-fundo p-3 text-sm text-danificado-texto">
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-2 rounded-dm bg-danificado-fundo p-3 text-sm text-danificado-texto"
+        >
           {quadro.error instanceof Error ? quadro.error.message : 'Não deu para abrir o quadro.'}
           <Botao variante="secundaria" tamanho="sm" onClick={() => void quadro.refetch()}>
             Tentar de novo
@@ -335,7 +383,12 @@ export function SugestaoMelhoria() {
       )}
 
       {quadro.isSuccess && (
-        <DndContext sensors={sensores} onDragStart={aoComecar} onDragEnd={aoSoltar} onDragCancel={() => setArrastado(null)}>
+        <DndContext
+          sensors={sensores}
+          onDragStart={aoComecar}
+          onDragEnd={aoSoltar}
+          onDragCancel={() => setArrastado(null)}
+        >
           <div
             ref={quadroRef}
             style={altura ? { height: altura } : undefined}
@@ -385,7 +438,10 @@ export function SugestaoMelhoria() {
               variante="perigo"
               disabled={(recusa?.motivo.trim().length ?? 0) < 5}
               carregando={mover.isPending}
-              onClick={() => recusa && mover.mutate({ s: recusa.s, para: 'recusada', motivo: recusa.motivo.trim() })}
+              onClick={() =>
+                recusa &&
+                mover.mutate({ s: recusa.s, para: 'recusada', motivo: recusa.motivo.trim() })
+              }
             >
               Recusar a sugestão
             </Botao>

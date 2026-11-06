@@ -214,7 +214,7 @@ export function AbaModelos() {
       )}
 
       {selecionados.size > 0 && (
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-borda-forte bg-superficie p-3 shadow-lg">
+        <div className="sticky bottom-24 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-borda-forte bg-superficie p-3 shadow-lg">
           <span className="text-sm text-texto">
             {selecionados.size} {selecionados.size === 1 ? 'modelo marcado' : 'modelos marcados'}
           </span>

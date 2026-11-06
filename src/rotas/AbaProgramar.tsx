@@ -618,7 +618,7 @@ export function AbaProgramar({
           className={cn(
             'order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-[calc(var(--dm-topo-fixo,2.75rem)+0.75rem)] @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto',
             ordemMontando.length > 0
-              ? '@3xl:max-h-[calc(100dvh-var(--dm-topo-fixo,2.75rem)-7.25rem)]'
+              ? '@3xl:max-h-[calc(100dvh-var(--dm-topo-fixo,2.75rem)-11.75rem)]'
               : '@3xl:max-h-[calc(100dvh-var(--dm-topo-fixo,2.75rem)-1.75rem)]',
           )}
         >
@@ -671,7 +671,7 @@ export function AbaProgramar({
       </div>
 
       {ordemMontando.length > 0 && (
-        <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3 shadow-lg">
+        <div className="sticky bottom-24 z-10 flex flex-wrap items-center gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3 shadow-lg">
           <span className="text-sm text-texto tabular-nums">
             {listaSelecionados.length} pedido(s) · {pecas} {pecas === 1 ? 'peça' : 'peças'}
             {nAvulsas > 0 && ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}`}

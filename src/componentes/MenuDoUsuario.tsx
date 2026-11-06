@@ -131,7 +131,7 @@ export function MenuDoUsuario({
         ref={botaoRef}
         type="button"
         onClick={() => (aberto ? fechar() : abrir())}
-        aria-label="Mais opções: tema e sair"
+        aria-label="Mais opções: tema, botões flutuantes e sair"
         aria-haspopup="dialog"
         aria-expanded={aberto}
         title="Mais opções"

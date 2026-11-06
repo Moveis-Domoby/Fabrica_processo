@@ -732,7 +732,7 @@ export function QuadroKanban({
   // saiu — o quadro ganhou a altura dela).
   const alturaQuadro = useAlturaAteOFim(
     propsDoQuadro.ref,
-    tamanho === 'galpao' ? 20 : 36,
+    tamanho === 'galpao' ? 20 : 100,
     !(carregando && etapas.length === 0),
   )
 

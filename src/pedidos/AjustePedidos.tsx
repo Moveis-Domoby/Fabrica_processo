@@ -125,7 +125,7 @@ export function BarraAjustePedidos({
       <div
         role="region"
         aria-label="Pedidos marcados"
-        className="sticky bottom-20 z-30 flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 shadow-lg sm:bottom-3 sm:flex-row sm:items-end sm:gap-3"
+        className="sticky bottom-24 z-30 flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-3 shadow-lg sm:flex-row sm:items-end sm:gap-3"
       >
         <div className="flex items-center justify-between gap-2 sm:mb-3 sm:min-w-32">
           <p className="text-sm font-medium text-texto">
