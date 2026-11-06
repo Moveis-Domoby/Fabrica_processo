@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Layers, Package, Settings2, Trophy } from 'lucide-react'
-import { Abas } from '@/componentes/ui'
+import { Layers, Package, PackagePlus, Search, Settings2, Trophy } from 'lucide-react'
+import { Abas, Botao, Campo } from '@/componentes/ui'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import type { Aba } from '@/componentes/ui'
 import { useAcessoLogistica } from '@/logistica/acesso'
@@ -35,6 +36,11 @@ export function Estoque() {
   const { perfil, semAcesso, tenhoAcesso } = useAcessoLogistica()
   const [parametros, setParametros] = useSearchParams()
   const aba = abaDaUrl(parametros.get('aba'))
+  // ↩️ 06/11: o "Cadastrar produto ao estoque" mora na linha das abas (o
+  // painel do Top X abre a escolha do produto quando este botão manda).
+  const [cadastrando, setCadastrando] = useState(false)
+  // ↩️ 06/11: a busca do catálogo também mora na linha das abas.
+  const [busca, setBusca] = useState('')
 
   const { data: config } = useQuery({
     queryKey: ['estoque', 'config'],
@@ -61,7 +67,7 @@ export function Estoque() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação e o "onde estou"
           de cada aba foram para o "?"; as abas ficam na linha do título. */}
       <CabecalhoDaTela
@@ -89,6 +95,28 @@ export function Estoque() {
           </span>
         }
       >
+        {aba === 'top20' && (
+          <div className="mr-auto w-full max-w-md min-w-56 flex-1">
+            <Campo
+              rotulo="Buscar no catálogo"
+              rotuloOculto
+              type="search"
+              prefixo={<Search />}
+              placeholder="Buscar no catálogo: nome do produto ou SKU"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+        )}
+        {aba === 'top20' && tenhoAcesso && (
+          <Botao
+            icone={<PackagePlus />}
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => setCadastrando(true)}
+          >
+            Cadastrar produto ao estoque
+          </Botao>
+        )}
         <Abas
           rotulo="Visões do estoque"
           idBase="estoque"
@@ -106,7 +134,16 @@ export function Estoque() {
       </CabecalhoDaTela>
 
       <div role="tabpanel" id="estoque-painel" aria-labelledby={`estoque-aba-${aba}`}>
-        {aba === 'top20' && <PainelTop20 ativo={tenhoAcesso} podeMexer={tenhoAcesso} />}
+        {aba === 'top20' && (
+          <PainelTop20
+            ativo={tenhoAcesso}
+            podeMexer={tenhoAcesso}
+            cadastrando={cadastrando}
+            aoFecharCadastro={() => setCadastrando(false)}
+            busca={busca}
+            aoMudarBusca={setBusca}
+          />
+        )}
         {aba === 'insumos' && <PainelInsumos ativo={tenhoAcesso} />}
         {aba === 'configuracoes' && (
           <PainelConfiguracoes ativo={tenhoAcesso} podeMexer={tenhoAcesso} />

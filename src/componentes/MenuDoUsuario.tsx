@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router'
-import { ChevronDown, Ellipsis, LogOut, Palette, Search } from 'lucide-react'
+import { ChevronDown, Ellipsis, LogOut, Palette } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { TemasDoMenu } from '@/perfil/SeletorTemaRapido'
 import { ROTULO_TEMA, ehTema } from '@/perfil/tema'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { preCarregarBusca } from '@/busca/preCarregarBusca'
 
 /** A largura do painel (px) — a mesma do `w-60`. */
 const LARGURA = 240
@@ -20,23 +19,21 @@ const ITEM =
  * O mini menu do rodapé da barra lateral — ajuste do dono de 06/11: *"coloque
  * todos esses ícones na parte inferior… dentro de um mini modal ao lado do
  * nome do usuário… que armazena os ícones de pesquisar, sair, trocar tema"*.
- * Ao lado do nome ficam o sino e este botão; no topo, só o recolher.
+ * ↩️ 4ª volta (06/11): o sino e a lupa moram só na barra escura de cima — aqui
+ * ficam o Tema (a lista escondida dentro dele) e o Sair.
  *
  * O painel vai para o fim do `body` (portal) e é `fixed`, posicionado pelo
  * botão na hora de abrir — o `translate` da gaveta prenderia o `fixed` à barra
  * (E-48). Fecha no Esc, em qualquer toque fora (escuta de captura, como o
- * sino), ao trocar de tela e ao escolher Buscar ou Sair. Camada 58: acima da
+ * sino), ao trocar de tela e ao escolher Sair. Camada 58: acima da
  * gaveta do celular (55), abaixo dos avisos passageiros (60).
  */
 export function MenuDoUsuario({
   recolhida,
-  aoBuscar,
   aoSair,
 }: {
   /** Barra recolhida (trilho de ícones): o painel abre para o lado. */
   recolhida: boolean
-  /** Sem o módulo fábrica não há busca de card — o item some. */
-  aoBuscar?: () => void
   aoSair: () => void
 }) {
   const { pathname } = useLocation()
@@ -112,7 +109,7 @@ export function MenuDoUsuario({
         ref={botaoRef}
         type="button"
         onClick={() => (aberto ? fechar() : abrir())}
-        aria-label="Mais opções: buscar card, tema e sair"
+        aria-label="Mais opções: tema e sair"
         aria-haspopup="dialog"
         aria-expanded={aberto}
         title="Mais opções"
@@ -133,24 +130,6 @@ export function MenuDoUsuario({
             style={{ left: posicao.left, bottom: posicao.bottom }}
             className="menu-superficie fixed z-[58] flex max-h-[calc(100dvh-1rem)] w-60 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto rounded-dm-lg border border-grafite-600 bg-grafite-700 p-1.5 text-grafite-100 shadow-lg"
           >
-            {aoBuscar && (
-              <button
-                type="button"
-                onPointerEnter={preCarregarBusca}
-                onFocus={preCarregarBusca}
-                onClick={() => {
-                  fechar()
-                  aoBuscar()
-                }}
-                className={ITEM}
-              >
-                <Search aria-hidden className="size-4 shrink-0" />
-                <span className="flex-1">Buscar card</span>
-                <kbd className="rounded border border-grafite-500 px-1 font-sans text-[0.6875rem] text-grafite-300">
-                  Ctrl K
-                </kbd>
-              </button>
-            )}
             <button
               type="button"
               onClick={() => setTemasAbertos((atual) => !atual)}

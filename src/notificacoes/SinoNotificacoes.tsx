@@ -47,7 +47,7 @@ export function SinoNotificacoes({
    *  desceu para o rodapé, ao lado do nome — o painel abre de baixo
    *  (`esquerda-baixo`), logo acima do bloco do usuário. */
   painelLado?: 'esquerda' | 'direita' | 'esquerda-baixo'
-  /** ↩️ 06/11: o sino do rodapé do menu, desenhado em 36 px (alvo de 44 mantido). */
+  /** ↩️ 06/11: o sino da barra de cima, desenhado em 36 px (alvo de 44 mantido). */
   compacto?: boolean
 }) {
   const clienteQuery = useQueryClient()
@@ -169,7 +169,7 @@ export function SinoNotificacoes({
         title="Notificações"
         className={cn(
           'toque-seguro relative inline-flex shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600',
-          compacto ? 'size-8' : 'h-toque-md w-toque-md',
+          compacto ? 'size-9' : 'h-toque-md w-toque-md',
         )}
       >
         <Bell aria-hidden className="size-5" />
@@ -200,7 +200,7 @@ export function SinoNotificacoes({
             // avisos passageiros (60).
             className={cn(
               'fixed z-[58] flex max-h-[calc(100dvh-5rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg',
-              painelLado === 'direita' && 'top-16 right-3',
+              painelLado === 'direita' && 'top-12 right-3',
               painelLado === 'esquerda' && 'top-16 left-3',
               painelLado === 'esquerda-baixo' && 'bottom-16 left-3',
             )}

@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import { CircleHelp } from 'lucide-react'
 import { Dica } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { useTelaPequena } from '@/lib/telaPequena'
 import { BotaoVoltar } from './BotaoVoltar'
 import { VagaDoTitulo } from './vagaDoTitulo'
 
@@ -40,9 +39,9 @@ export interface CabecalhoDaTelaProps {
  * título um terço menor (era `text-2xl sm:text-3xl`), o **?** com a
  * explicação no lugar do parágrafo de baixo, e as ações na mesma linha.
  *
- * ↩️ 3ª volta (06/11): na tela estreita (celular, tablet em pé) a setinha, o
- * nome e o **?** sobem para a barra escura do topo (a `VagaDoTitulo` da casca)
- * — na página fica só a linha das ações (e nada, se a tela não tiver ação).
+ * ↩️ 3ª/4ª volta (06/11): a setinha, o nome e o **?** moram na barra escura
+ * do topo (a `VagaDoTitulo` da casca) — em TODA tela, celular e computador; na
+ * página fica só a linha das ações (e nada, se a tela não tiver ação).
  *
  * O `header` é `relative` (e a barra do topo é `sticky`): o balão do **?**
  * ancora nele (ver `Dica`) e nunca estoura a borda da tela no celular.
@@ -59,8 +58,9 @@ export function CabecalhoDaTela({
   className,
 }: CabecalhoDaTelaProps) {
   const vaga = useContext(VagaDoTitulo)
-  const telaPequena = useTelaPequena()
-  const naBarra = vaga !== null && telaPequena
+  // ↩️ 4ª volta (06/11): a barra escura existe em toda tela — o título vai
+  // sempre para ela quando a casca oferece a vaga.
+  const naBarra = vaga !== null
 
   const grupoDoTitulo = (
     <div

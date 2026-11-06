@@ -698,22 +698,8 @@ export function Layout({ children }: { children: ReactNode }) {
             )}
           </NavLink>
 
-          {/* ↩️ 06/11 (3ª volta — "não devem existir dois ícones de notificações
-              e lupa"): na tela estreita o sino e a lupa moram só na barra de
-              cima; aqui embaixo, só no computador (onde não há barra de cima). */}
-          {!telaPequena && (
-            <SinoNotificacoes
-              usuarioId={perfil.id}
-              painelLado="esquerda-baixo"
-              linkAvisos={ehLider}
-              compacto
-            />
-          )}
-          <MenuDoUsuario
-            recolhida={trilho}
-            aoBuscar={veFabrica && !telaPequena ? abrirBusca : undefined}
-            aoSair={() => void sair()}
-          />
+          {/* ↩️ 06/11 (4ª volta): o sino e a lupa moram só na barra de cima. */}
+          <MenuDoUsuario recolhida={trilho} aoSair={() => void sair()} />
         </div>
       </div>
     </div>
@@ -812,38 +798,47 @@ export function Layout({ children }: { children: ReactNode }) {
     </div>
   )
 
+  // ↩️ 06/11 (4ª volta — "a barra escura de cima fica… deixe isso como padrão em
+  // toda a plataforma"): a barra escura do topo em TODA tela, celular e
+  // computador, mais baixa (44 px): menu (só onde o menu é gaveta) · [setinha ·
+  // nome da tela · ?] (a vaga do `CabecalhoDaTela`) · lupa · sino. A lupa e o
+  // sino moram SÓ aqui (nada de dois). Sem título na vaga, o celular vê a logo.
+  const barraDeCima = (
+    <header
+      className={cn('menu-superficie sticky top-0 z-30 bg-grafite-700', modoFoco && 'lg:hidden')}
+    >
+      <div className="flex min-h-11 items-center gap-1.5 px-2 py-1 sm:px-4">
+        <button
+          type="button"
+          onClick={() => setGavetaAberta(true)}
+          aria-label="Abrir o menu"
+          aria-expanded={gavetaAberta}
+          className="toque-seguro inline-flex size-9 shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:hidden"
+        >
+          <Menu aria-hidden className="size-5" />
+        </button>
+        <div ref={setVagaTitulo} className="peer flex min-w-0 flex-1 empty:hidden" />
+        <NavLink
+          to={ROTA_INICIAL}
+          className="rounded-dm peer-[:not(:empty)]:hidden lg:hidden"
+          aria-label="Domoby — início"
+        >
+          <Marca tamanho="sm" />
+        </NavLink>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {veFabrica && <BotaoBuscaGeral aoAbrir={abrirBusca} compacto />}
+          <SinoNotificacoes usuarioId={perfil.id} linkAvisos={ehLider} compacto />
+        </div>
+      </div>
+    </header>
+  )
+
   return (
     // O chat (SESSAO-26) acompanha toda tela logada — nunca o /tablet (acima).
     <ProvedorChat eu={perfil.id}>
       <div className="min-h-dvh bg-fundo lg:flex">
-        {/* Barra do celular: menu + [setinha · nome da tela · ?] + lupa + sino (a
-            gaveta traz o resto). ↩️ 06/11 (3ª volta): o título da tela mora aqui
-            na tela estreita; sem título (a vaga vazia), aparece a logo. */}
-        <header className="menu-superficie sticky top-0 z-30 bg-grafite-700 lg:hidden">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <button
-              type="button"
-              onClick={() => setGavetaAberta(true)}
-              aria-label="Abrir o menu"
-              aria-expanded={gavetaAberta}
-              className="inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
-            >
-              <Menu aria-hidden className="size-6" />
-            </button>
-            <div ref={setVagaTitulo} className="peer flex min-w-0 flex-1 empty:hidden" />
-            <NavLink
-              to={ROTA_INICIAL}
-              className="rounded-dm peer-[:not(:empty)]:hidden"
-              aria-label="Domoby — início"
-            >
-              <Marca tamanho="sm" />
-            </NavLink>
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {veFabrica && <BotaoBuscaGeral aoAbrir={abrirBusca} />}
-              <SinoNotificacoes usuarioId={perfil.id} linkAvisos={ehLider} />
-            </div>
-          </div>
-        </header>
+        {/* No editor das automações a barra de cima só aparece na gaveta (celular). */}
+        {modoFoco && barraDeCima}
 
         {/* Fundo escuro atrás da gaveta aberta (só celular/tablet). Fundo e gaveta
           ficam na camada 55 (E-57, ajuste de 28/09): acima das bolhas flutuantes
@@ -881,11 +876,12 @@ export function Layout({ children }: { children: ReactNode }) {
         {modoFoco ? (
           // A área de trabalho das automações: a altura toda da tela (menos a
           // barra do celular); o voltar mora na barra do próprio editor.
-          <main className="flex h-[calc(100dvh-60px)] min-w-0 flex-1 flex-col overflow-hidden lg:h-dvh">
+          <main className="flex h-[calc(100dvh-2.75rem)] min-w-0 flex-1 flex-col overflow-hidden lg:h-dvh">
             <VagaDoTitulo.Provider value={vagaTitulo}>{children}</VagaDoTitulo.Provider>
           </main>
         ) : (
           <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+            {barraDeCima}
             {/* Toda tela tem botão de voltar (D-36) — ↩️ ajuste de 06/11: ele mora
                 no cabeçalho de cada tela (`CabecalhoDaTela`), como a setinha à
                 esquerda do título; a linha só dele saiu daqui. */}

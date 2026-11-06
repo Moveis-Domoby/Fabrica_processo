@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
-import { Factory, PackagePlus, Search } from 'lucide-react'
+import { Factory } from 'lucide-react'
 import { Botao, Campo, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { chaveDoGesto } from '@/kanban/avulso'
@@ -42,13 +42,37 @@ type FiltroTopo = (typeof FILTROS)[number]['valor']
  * reposição automática desligada, o cartão em necessidade ganha o "Lançar para
  * produção". Tudo no servidor — a tela só pede o que mostra (regra 17).
  */
-export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: boolean }) {
+export function PainelTop20({
+  ativo,
+  podeMexer,
+  cadastrando,
+  aoFecharCadastro,
+  busca,
+  aoMudarBusca,
+}: {
+  ativo: boolean
+  podeMexer: boolean
+  /**
+   * ↩️ Ajuste do dono (06/11 — "bem mais esse espaçamento superior do
+   * estoque"): o "Cadastrar produto ao estoque" subiu para a linha das abas, na
+   * página; o painel só abre a escolha do produto quando a página manda.
+   */
+  cadastrando: boolean
+  aoFecharCadastro: () => void
+  /** ↩️ 06/11: a busca também subiu para a linha das abas — o texto mora na página. */
+  busca: string
+  aoMudarBusca: (texto: string) => void
+}) {
   const agora = useAgora()
   const navegar = useNavigate()
-  const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState<FiltroTopo>('todos')
   const [pagina, setPagina] = useState(1)
-  const [escolhendo, setEscolhendo] = useState(false)
+  // Busca nova volta para a 1ª página (o campo mora na página — ajuste de 06/11).
+  const [buscaDaPagina, setBuscaDaPagina] = useState(busca)
+  if (busca !== buscaDaPagina) {
+    setBuscaDaPagina(busca)
+    setPagina(1)
+  }
   const [movimento, setMovimento] = useState<{
     produto: LinhaEstoqueProduto
     operacao: OperacaoEstoque
@@ -118,44 +142,20 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Busca e filtro na MESMA linha (pedido do dono, 30/09); o Top X mora
-          nas Configurações. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <div className="w-full max-w-md min-w-64 flex-1">
-          <Campo
-            rotulo="Buscar no catálogo"
-            prefixo={<Search />}
-            placeholder="Nome do produto ou SKU"
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value)
-              setPagina(1)
-            }}
-          />
-        </div>
-        <div className="pb-1">
-          <FiltroPill
-            rotulo="Mostrar"
-            opcoes={FILTROS}
-            valor={buscando ? 'todos' : filtro}
-            aoMudar={(v) => {
-              setFiltro(v)
-              setBusca('')
-              setPagina(1)
-            }}
-          />
-        </div>
-        {podeMexer && (
-          <Botao
-            icone={<PackagePlus />}
-            className="ml-auto shrink-0 whitespace-nowrap"
-            onClick={() => setEscolhendo(true)}
-          >
-            Cadastrar produto ao estoque
-          </Botao>
-        )}
-      </div>
+    <div className="flex flex-col gap-3">
+      {/* O Top X mora nas Configurações. ↩️ 06/11 ("bem mais esse espaçamento
+          superior"): a busca e o "Cadastrar" subiram para a linha das abas, na
+          página; aqui fica só o filtro. */}
+      <FiltroPill
+        rotulo="Mostrar"
+        opcoes={FILTROS}
+        valor={buscando ? 'todos' : filtro}
+        aoMudar={(v) => {
+          setFiltro(v)
+          aoMudarBusca('')
+          setPagina(1)
+        }}
+      />
 
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {isError && (
@@ -214,10 +214,10 @@ export function PainelTop20({ ativo, podeMexer }: { ativo: boolean; podeMexer: b
       <PecasPersonalizadas ativo={ativo} agora={agora} podeMexer={podeMexer} />
 
       <ModalEscolherProduto
-        aberto={escolhendo}
-        aoFechar={() => setEscolhendo(false)}
+        aberto={cadastrando}
+        aoFechar={aoFecharCadastro}
         aoEscolher={(produto) => {
-          setEscolhendo(false)
+          aoFecharCadastro()
           movimentar(produto, 'entrada')
         }}
       />
