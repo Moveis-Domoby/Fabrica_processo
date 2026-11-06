@@ -30,7 +30,8 @@ Mudança de rumo registrada: na 4ª volta eu entendi "exclui o header de cima, d
 - Textos da varredura: plurais, datas e decimais em português, códigos internos com nome de gente (histórico do pedido, Auditoria), textos que não quebram no meio, filtro "Filtrar: pedido ou móvel".
 
 ### Banco
-- **Arquivo escrito, NÃO aplicado** (falta o OK do dono): `supabase/migrations/20261106020000_plt_modo_tv_ao_vivo_e_dia.sql` — (1) ligar/desligar o Modo TV avisa a pessoa ao vivo (evento `perfil` no canal dela; a casca relê o perfil); (2) `plt_fn_modo_tv(p_setor_id, p_dia)` — o dia escolhido (sem dia = hoje; futuro e >400 dias recusados; devolve `pode_trocar_dia`/`e_hoje`), derrubando a versão de 1 parâmetro. Ensaio (`npm run test:banco`): a conferência nova passa; aplicar com `npm run banco:aplicar -- --confirmar --so 20261106020000_plt_modo_tv_ao_vivo_e_dia.sql`. Depois de aplicar: atualizar `supabase-fabrica-schema.sql` e o [[SUPA - Esquema do Banco]] (regra 10).
+- **✅ APLICADA em 06/11/2026 ~06:30 de Natal (09:30 UTC)**, com o OK do dono na conversa (*"Pode aplicar"*), só o arquivo pelo aplicador `--so`; integração do Tiny idêntica (`e2109f3a…`), linhas idênticas: `supabase/migrations/20261106020000_plt_modo_tv_ao_vivo_e_dia.sql` — (1) ligar/desligar o Modo TV avisa a pessoa ao vivo (evento `perfil` no canal dela; a casca relê o perfil); (2) `plt_fn_modo_tv(p_setor_id, p_dia)` — o dia escolhido (sem dia = hoje; futuro e >400 dias recusados; devolve `pode_trocar_dia`/`e_hoje`), derrubando a versão de 1 parâmetro. Antes: md5 dos dois corpos vivos = os da base (`20261105040000`). Depois: assinaturas certas, ontem 24 montados, amanhã recusado, 35 ms; na tela local (que fala com o banco real) ‹ volta ao dia 05/11, "Voltar para hoje" retorna, › travada em hoje, console limpo. Registrado no [[SUPA - Esquema do Banco]]; o `supabase-fabrica-schema.sql` não muda (nada da integração).
+- **Não conferido de ponta a ponta:** o botão Modo TV aparecendo ao vivo na tela de outra pessoa — exigiria ligar/desligar a permissão de alguém de verdade (mexe no cadastro e deixa trilha). O caminho é o mesmo do chat e do sino (já em uso). Como conferir: Gestão da equipe → ligar o Modo TV de alguém com a tela dela aberta → o botão aparece acima do "Modo tablet" sem recarregar.
 
 ### Edge Functions
 - Nenhuma.
@@ -84,7 +85,7 @@ Nenhum número mudou (só desenho e textos). A Visão do dia, o stand-by do pain
 
 ## 8. Ficou pendente
 
-- **OK do dono para aplicar o banco** (Modo TV ao vivo + trocar o dia) — sem ele, a TV mostra hoje e o botão Modo TV aparece ao recarregar.
-- **Os 4 dados que não batem** (item 4) — uma rodada própria, com investigação de cada porta e o OK para o banco.
+- ~~OK do dono para aplicar o banco~~ — ✅ aplicado em 06/11 ~06:30 (ver Banco). Falta só ver, num uso real, o botão Modo TV aparecer ao vivo para quem ganhar a permissão.
+- **Os 4 dados que não batem** (item 4) — uma rodada própria (já aberta numa sessão separada, a pedido do dono), com investigação de cada porta e o OK para o banco.
 - **ClickUp**: este ajuste não tem tarefa (o Claude Code não cria tarefa por conta própria — regra 19).
 - As 2 falhas antigas do ensaio do banco (Dashboard comercial em 8 períodos; o fluxo do n8n de ponta a ponta) — já falhavam antes deste ajuste.

@@ -217,3 +217,19 @@ Feita em 3 frentes paralelas (subagentes, arquivos separados, sem commit) + a mi
   filtro de cancelado — conferido: só o 13686), Visão do dia × quadros, stand-by 7×6, aviso do calendário.
 - Repasse final eu mesmo, tela a tela (título, alerta, rolagem lateral, NaN/undefined): tudo certo; console
   sem erro de verdade (só as marcas "QA-MARK" que a varredura deixou). `eslint`, `tsc`, `vitest` 66/425 ✅.
+
+### Depois da publicação (06/11) — o banco do Modo TV aplicado
+- O dono: *"Pode aplicar"*. Antes, conferido no banco vivo: o md5 do corpo de `plt_fn_modo_tv(bigint)` e de
+  `plt_fn_usuario_modo_tv` = os da `20261105040000` (a base desta) — ninguém tinha mexido depois.
+- `npm --prefix "<repo>" run banco:aplicar -- --confirmar --so 20261106020000_plt_modo_tv_ao_vivo_e_dia.sql`
+  → ✔; integração do Tiny idêntica (`e2109f3a…`), linhas idênticas. (Outra sessão — a dos dados que não
+  batem — trabalha na mesma pasta; o `--so` garantiu que só esta foi aplicada.)
+- Conferido: só `plt_fn_modo_tv(bigint, date)` e `plt_fn_usuario_modo_tv(uuid, boolean, boolean)`, execute só
+  `authenticated`; como admin (claims no `request.jwt.claims` + `set local role authenticated`): 05/11 → 24
+  montados, `e_hoje` false; sem dia e a chamada antiga de 1 argumento → hoje; amanhã → "A TV não mostra dias
+  que ainda não chegaram."; `explain analyze` 35 ms. Na tela local (banco real): ‹ → "Quinta-feira, 5 de
+  novembro", 24 montados no dia, "Voltar para hoje" volta, › desabilitada em hoje, console sem erro.
+- Não conferido de ponta a ponta: o botão Modo TV aparecendo ao vivo para outra pessoa (precisaria ligar a
+  permissão de alguém de verdade). Mesmo caminho do chat/sino.
+- `supabase-fabrica-schema.sql` não muda (é o retrato da integração; nada dela foi tocado);
+  [[SUPA - Esquema do Banco]] com a entrada "Ajuste de 06/11/2026".
