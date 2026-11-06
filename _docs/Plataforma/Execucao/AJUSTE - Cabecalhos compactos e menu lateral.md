@@ -159,3 +159,10 @@ Feita em 3 frentes paralelas (subagentes, arquivos separados, sem commit) + a mi
 - `eslint src`, `tsc -b`, `vitest --dir src` 66/425 ✅; conferido no navegador: Expedição, Programação (pedido
   marcado, painel enxuto, tela cheia, Ver pedidos, Esc), Setores e etapas, Equipe, Avisos, transparência
   (40% → de volta a 100%), login (computador e celular).
+
+### 7ª volta (06/11) — login em tela inteira
+- O dono viu o cartão pequeno do login: *"volta isso a ser uma tela grande… mas eu gostei desse padrão, deixe
+  ele, porém em uma tela grande mesmo"* → a tela inteira dividida ao meio (grafite da marca com a logo
+  grande | metade clara com o formulário centralizado, `max-w-md`); no celular, a faixa da marca em cima.
+  Mantidos: o "i" com as explicações, "Esqueci minha senha · Entrar com PIN" numa linha, o tablet depois do
+  traço leve. Conferido por 127.0.0.1 (1440x900 e celular); testes do login 8/8.

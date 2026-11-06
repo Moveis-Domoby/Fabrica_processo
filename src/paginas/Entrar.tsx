@@ -42,10 +42,12 @@ type ModoEntrada = 'senha' | 'pin' | 'tablet' | 'recuperar'
  * administrador (2 h, uma vez, só neste aparelho), sem e-mail.
  *
  * ↩️ Ajuste do dono (06/11 — "a tela de login está ruim, melhore-a; o nome
- * 'Plataforma de produção' vira Sistema Domoby"): a tela dividida virou UM
- * cartão centralizado — a faixa grafite da marca à esquerda (em cima, no
- * celular) e o formulário à direita; as explicações foram para o "i" e os
- * caminhos alternativos (PIN, esqueci a senha) ficaram numa linha.
+ * 'Plataforma de produção' vira Sistema Domoby"): as explicações foram para o
+ * "i" e os caminhos alternativos (PIN, esqueci a senha) ficaram numa linha.
+ * ↩️ 2ª volta (06/11 — "volta isso a ser uma tela grande… gostei desse padrão,
+ * deixe ele, porém em uma tela grande"): o cartão pequeno saiu — a tela INTEIRA
+ * dividida ao meio: a metade grafite da marca (logo grande) e a metade clara
+ * com o formulário centralizado; no celular, a faixa da marca em cima.
  */
 export function Entrar() {
   const { sessao, carregando: carregandoSessao } = useSessao()
@@ -120,16 +122,16 @@ export function Entrar() {
   )
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-fundo p-4 sm:p-8">
-      <div className="grid w-full max-w-sm overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-xl md:max-w-3xl md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        {/* A faixa da marca: grafite com a logo metálica. */}
-        <div className="menu-superficie flex flex-col items-center justify-center gap-2 bg-grafite-800 px-6 py-8 text-center md:py-14">
-          <Marca tamanho="lg" sobre="metalico" />
-          <p className="text-sm tracking-wide text-grafite-300">Sistema Domoby</p>
-        </div>
+    <div className="grid min-h-dvh bg-superficie md:grid-cols-2">
+      {/* A metade da marca: grafite com a logo metálica, de ponta a ponta. */}
+      <div className="menu-superficie flex flex-col items-center justify-center gap-3 bg-grafite-800 px-6 py-12 text-center">
+        <Marca tamanho="xl" sobre="metalico" />
+        <p className="text-base tracking-wide text-grafite-300">Sistema Domoby</p>
+      </div>
 
-        {/* O formulário. */}
-        <div className="flex flex-col gap-5 p-5 sm:p-8">
+      {/* A metade do formulário, centralizado. */}
+      <div className="flex items-start justify-center px-5 py-10 sm:px-10 md:items-center">
+        <div className="flex w-full max-w-md flex-col gap-5">
           {modo === 'recuperar' ? (
             <>
               <RecuperarSenha />
@@ -139,7 +141,7 @@ export function Entrar() {
             <>
               {/* relative: o balão do "i" ancora nesta linha */}
               <div className="relative flex items-center gap-1">
-                <h1 className="text-xl">Modo tablet do setor</h1>
+                <h1 className="text-2xl">Modo tablet do setor</h1>
                 <Dica rotulo="Como funciona o modo tablet" compacta>
                   Digite o PIN do SETOR para abrir o tablet dele — qualquer pessoa do setor usa este
                   aparelho depois, se identificando pelo próprio PIN a cada ação.
@@ -167,7 +169,7 @@ export function Entrar() {
           ) : (
             <>
               <div className="relative flex items-center gap-1">
-                <h1 className="text-xl">{modo === 'senha' ? 'Entrar' : 'Entrar com PIN'}</h1>
+                <h1 className="text-2xl">{modo === 'senha' ? 'Entrar' : 'Entrar com PIN'}</h1>
                 <Dica rotulo="Como entrar" compacta>
                   {modo === 'senha' ? (
                     <span className="flex flex-col gap-2">
