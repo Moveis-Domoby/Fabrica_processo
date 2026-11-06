@@ -133,3 +133,29 @@ o tamanho desses headers e coisas assim de TODAS AS TELAS, SEM EXCEÇÃO"*. Ramo
   Conferido: rgb(200,199,202) sobre rgb(90,88,92).
 - `eslint src`, `tsc -b`, `vitest --dir src` 65/423 ✅; conferido no navegador (1440 px): Todos os
   pedidos e Programação, o balão do `i` abre logo abaixo da linha do mapa.
+
+### 6ª volta (06/11) — 14 pedidos de uma vez
+Feita em 3 frentes paralelas (subagentes, arquivos separados, sem commit) + a minha:
+- **Programação/mapa** (frente): painel da rota `compacto`; coluna do mapa sticky abaixo da barra escura e
+  com altura máxima (estava mais alta que a tela — o fim era inalcançável e a barra de baixo cobria);
+  mapa expandido = camada de tela inteira com "Recolher o mapa" e "Ver pedidos" (painel curto: nº, endereço,
+  data de entrega — `src/rotas/pedidosParaVer.ts` + teste); vale também em "Já programadas".
+- **Setores e etapas** (frente): configurações do setor num bloco só (limite · delegação · PIN lado a lado,
+  campos do tamanho do conteúdo, salvar ao lado), "Estado da peça" numa linha, títulos de coluna curtos,
+  pílulas repetidas fora (seguem para quem só vê), 6 explicações no `i`. Título da tela "Estrutura" →
+  "Setores e etapas" (o nome do menu).
+- **Telas soltas** (frente): Equipe — matrícula numa linha, setores em pílulas (até 3 + "+N"), título
+  "Gestão da equipe"; Configurações → Avisos na largura toda, grupos em cartões lado a lado; Expedição e
+  Entregas com a busca na linha das abas.
+- **Eu:** login novo; "Sistema Domoby"; títulos em Inter; rolagem fina; traço leve sob as ações;
+  bolhas por cima do menu + transparência no mini menu; botão Modo TV ao vivo + o arquivo do banco
+  `20261106020000_plt_modo_tv_ao_vivo.sql` (recria `plt_fn_usuario_modo_tv` da versão viva com o sinal
+  `perfil` por `fn_chat_sinal`) — **NÃO aplicado** (falta o OK do dono).
+- Ensaio do banco (`npm run test:banco`): 2 verificações falham — o Dashboard comercial em 8 períodos e o
+  fluxo do n8n de ponta a ponta. **Rodado de novo SEM o arquivo novo: as mesmas 2 falham** — já falhavam
+  antes, não são deste ajuste (dívida a olhar à parte).
+- Login conferido sem deslogar o dono: aberto em `http://127.0.0.1:5173/entrar` (outra origem = outro
+  armazenamento = sem sessão) numa aba própria, fechada depois.
+- `eslint src`, `tsc -b`, `vitest --dir src` 66/425 ✅; conferido no navegador: Expedição, Programação (pedido
+  marcado, painel enxuto, tela cheia, Ver pedidos, Esc), Setores e etapas, Equipe, Avisos, transparência
+  (40% → de volta a 100%), login (computador e celular).
