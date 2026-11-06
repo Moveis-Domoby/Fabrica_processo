@@ -20739,6 +20739,91 @@ try {
 }
 } // fim do bloco SESSAO-46
 
+{ // Ajuste de 06/11 (migration 20261106010000): o aviso de saída leva a etapa e o produto do Tiny
+titulo('Aviso de saída · etapa de origem e de destino (id e nome) e o produto do Tiny dentro do card')
+
+const um0611 = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.plt_webhooks (nome, url, eventos, ativo)
+      values ('estoque de peças (teste)', 'https://exemplo.invalido/estoque', '{movimentacao_etapa}', true);
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+      select s.id, x.nome, x.ordem, x.fila from public.plt_setores s,
+             (values ('A AVISAR', 901, true), ('AVISANDO', 902, false)) x(nome, ordem, fila)
+       where s.codigo = 'secc';
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade)
+      values (961101, 'AV611', 'Peça do aviso 06/11', 'F', 'A', null, 'un'),
+             (961102, 'AV612', 'Peça do aviso 06/11 gravada', 'F', 'A', null, 'un');
+    insert into public.plt_cards (tipo, pedido_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades, produto_tiny_id)
+      select 'unidade', p.id, x.seq, x.cod, x.descr, 1, 1, x.prod
+        from public.pedidos p,
+             (values (611, 'AV611', 'Peça do aviso 06/11', null::bigint),
+                     (612, 'AV612', 'Peça do aviso 06/11 gravada', 961102::bigint)) x(seq, cod, descr, prod)
+       where p.numero = 999999;
+    insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+      select c.id, 'card_criado', (select id from public.plt_setores where codigo = 'secc'), 'api'
+        from public.plt_cards c where c.item_seq in (611, 612) and c.item_codigo like 'AV61_';
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, setor_destino_id, etapa_destino_id, origem)
+      select c.id, 'movimentacao_etapa',
+             (select id from public.plt_setores where codigo = 'secc'),
+             (select id from public.plt_setores where codigo = 'secc'),
+             (select id from public.plt_etapas where nome = 'A AVISAR'), 'api'
+        from public.plt_cards c where c.item_seq in (611, 612) and c.item_codigo like 'AV61_';
+    insert into public.plt_eventos (card_id, tipo, setor_origem_id, etapa_origem_id, setor_destino_id, etapa_destino_id, origem)
+      select c.id, 'movimentacao_etapa',
+             (select id from public.plt_setores where codigo = 'secc'),
+             (select id from public.plt_etapas where nome = 'A AVISAR'),
+             (select id from public.plt_setores where codigo = 'secc'),
+             (select id from public.plt_etapas where nome = 'AVISANDO'), 'api'
+        from public.plt_cards c where c.item_seq in (611, 612) and c.item_codigo like 'AV61_';
+  `)
+  const ids = await um0611(`
+    select (select id::int from public.plt_etapas where nome = 'A AVISAR') as fila,
+           (select id::int from public.plt_etapas where nome = 'AVISANDO') as trabalho,
+           (select id from public.plt_webhooks where nome = 'estoque de peças (teste)') as webhook`)
+  const aviso = async (codigo) => (await um0611(`
+    select en.payload as p
+      from public.plt_webhook_entregas en
+      join public.plt_eventos e on e.id = en.evento_id
+      join public.plt_cards c on c.id = e.card_id
+     where en.webhook_id = ${ids.webhook} and c.item_codigo = '${codigo}' and e.etapa_origem_id is not null
+     order by en.id desc limit 1`)).p
+  const a1 = await aviso('AV611')
+  const a2 = await aviso('AV612')
+  conferir(
+    a1?.etapa_origem?.id === ids.fila && a1?.etapa_origem?.nome === 'A AVISAR'
+      && a1?.etapa_destino?.id === ids.trabalho && a1?.etapa_destino?.nome === 'AVISANDO',
+    'movimentação dentro do mesmo setor: o aviso diz de qual coluna saiu e para qual foi (id e nome)',
+    JSON.stringify({ origem: a1?.etapa_origem, destino: a1?.etapa_destino }),
+  )
+  conferir(
+    a1?.setor_origem === 'SECC' && a1?.setor_destino === 'SECC' && a1?.card?.item_codigo === 'AV611'
+      && a1?.card?.pedido_numero === 999999 && 'observacao' in a1 && 'dados' in a1 && a1?.tipo === 'movimentacao_etapa',
+    'tudo o que o aviso já levava continua no mesmo lugar (setor pelo nome, card, observação, dados)',
+    JSON.stringify(a1),
+  )
+  conferir(
+    a1?.card?.produto_tiny_id === 961101 && a2?.card?.produto_tiny_id === 961102,
+    'o card leva o produto do Tiny ao lado do código — o gravado no card, ou o do código quando o card não guardou',
+    JSON.stringify({ a1: a1?.card, a2: a2?.card }),
+  )
+  const primeiro = await um0611(`
+    select en.payload as p from public.plt_webhook_entregas en
+      join public.plt_eventos e on e.id = en.evento_id
+      join public.plt_cards c on c.id = e.card_id
+     where en.webhook_id = ${ids.webhook} and c.item_codigo = 'AV611' and e.etapa_origem_id is null`)
+  conferir(
+    primeiro?.p && 'etapa_origem' in primeiro.p && primeiro.p.etapa_origem === null
+      && primeiro.p.etapa_destino?.nome === 'A AVISAR',
+    'evento sem etapa de origem: a chave vem nula (não some) e a de destino vem preenchida',
+    JSON.stringify(primeiro?.p ?? null),
+  )
+} finally {
+  await bd.exec('rollback')
+}
+} // fim do bloco do ajuste de 06/11
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(

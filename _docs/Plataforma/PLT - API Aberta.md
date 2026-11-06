@@ -96,6 +96,8 @@ Payload:
   "card_id": 10,
   "setor_origem": "PCP",
   "setor_destino": "SECC",
+  "etapa_origem": null,
+  "etapa_destino": { "id": 12, "nome": "A CORTAR" },
   "estado_qualidade": null,
   "observacao": null,
   "dados": { "integracao": "n8n produção" },
@@ -103,12 +105,34 @@ Payload:
     "tipo": "unidade",
     "pedido_numero": 13098,
     "item_codigo": "061",
+    "produto_tiny_id": 123456789,
     "item_descricao": "Guarda-roupa Master",
     "indice_unidade": 1,
     "total_unidades": 2
   }
 }
 ```
+
+**↪️ 06/11/2026 (ajuste do dono, a pedido do sistema de estoque de peças):**
+o aviso passou a levar `etapa_origem` e `etapa_destino` (`{id, nome}` da
+coluna; `null` quando o evento não tem a etapa — card que nasce, entrada vinda
+do PCP sem coluna de origem) e, dentro de `card`, o `produto_tiny_id` (produto
+do Tiny da fábrica: o gravado no card ou, se o card não guardou, o do código do
+item — `fn_produto_do_item`; `null` em item personalizado e em card sem item).
+Só acréscimos — nada mudou de nome nem de lugar. Migration
+`20261106010000_plt_aviso_etapa_e_produto.sql`.
+
+**Para quem assina (o que a `origem` quer dizer):** `interface` = gesto de
+alguém na tela; `api` = chamada da API; `automacao` = a plataforma fez sozinha.
+Em `movimentacao_etapa`, **todo** `automacao` é o card saindo da FILA do setor
+(ex.: A MONTAR) para a primeira coluna de trabalho (ex.: MONTANDO) no instante
+em que alguém o **inicia** — pelo botão ou arrastando para a coluna de
+trabalho; vem junto um `execucao_iniciada` (`interface`) no mesmo milissegundo
+(conferido em 06/11: 532 de 532 no último mês). É movimento real, conta igual
+aos outros. **Atenção:** o card também troca de coluna em
+`movimentacao_setor` (quando muda de setor) — ex.: PCP → MONTAGEM caindo direto
+em MONTANDO, ou MONTANDO → LIMPEZA E EMBALAGEM; quem precisa de toda entrada e
+saída de uma coluna assina os dois tipos.
 
 ## O que a API NÃO faz (de propósito)
 
