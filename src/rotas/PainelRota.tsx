@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from 'react'
 import { Info, MapPinOff, RotateCcw, Save, TriangleAlert } from 'lucide-react'
-import { Botao } from '@/componentes/ui'
+import { Botao, Dica } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import type { PedidoProgramacao, PedidoProgramado } from './api'
 import { ativaNaRota, ehAvulsa, paradaSalva } from './paradasAvulsas'
@@ -32,6 +32,7 @@ export const PainelRota = memo(function PainelRota({
   ajustada,
   aoVoltarSugestao,
   salvar,
+  compacto = false,
 }: {
   titulo: string
   cor: string
@@ -45,6 +46,13 @@ export const PainelRota = memo(function PainelRota({
   ajustada: boolean
   aoVoltarSugestao?: () => void
   salvar?: { pendente: boolean; carregando: boolean; aoSalvar: () => void }
+  /**
+   * ↩️ Ajuste do dono (06/11): no Programar, só os números da rota (paradas ·
+   * peças · km · tempo, e a ida e a volta numa linha) — sem a lista de paradas
+   * ("Saída da fábrica"…, que o mapa e a lista já mostram) e com o aviso da
+   * sugestão num "i". Cabe embaixo do mapa numa tela a 100%.
+   */
+  compacto?: boolean
 }) {
   const pelasRuas = estado.estado === 'pronta'
   const totalKm = trechos.reduce((soma, t) => soma + t.km, 0)
@@ -63,6 +71,77 @@ export const PainelRota = memo(function PainelRota({
   const doTrajeto = new Set(trechosDoTrajeto(trechos.length, trajeto))
   const ida = somarTrechos(trechos, trechosDoTrajeto(trechos.length, 'ida'))
   const volta = somarTrechos(trechos, trechosDoTrajeto(trechos.length, 'volta'))
+
+  const totais = (
+    <span className="text-sm text-texto tabular-nums">
+      {paradas.length} {paradas.length === 1 ? 'parada' : 'paradas'} · <strong>{pecas}</strong>{' '}
+      {pecas === 1 ? 'peça' : 'peças'}
+      {indicePlotada > 0 && (
+        <>
+          {' '}
+          · <strong>{formatarDistancia(totalKm)}</strong>
+          {pelasRuas ? ` · ${formatarDuracao(estado.rota.duracao_s)} dirigindo` : ' em linha reta'}
+        </>
+      )}
+    </span>
+  )
+
+  if (compacto) {
+    return (
+      <section
+        className="relative flex flex-col gap-1.5 rounded-dm-lg border border-borda bg-superficie px-3 py-2.5"
+        style={{ borderLeft: `6px solid ${cor}` }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1">
+            <h3 className="text-sm font-semibold text-texto">{titulo}</h3>
+            <Dica rotulo="Sobre a sugestão da rota" compacta>
+              Sugestão inicial: sem trânsito ao vivo nem interdições do dia. O tempo é só dirigindo,
+              sem as paradas das entregas. No mapa, "Só a ida" e "Só a volta" mostram cada parte
+              sozinha.
+            </Dica>
+          </span>
+          {totais}
+        </div>
+        {indiceVolta !== null && ida && volta && (
+          <p className="text-xs text-texto-suave tabular-nums">
+            <span className={cn(trajeto === 'ida' && 'font-semibold text-texto')}>
+              Ida <strong className="text-texto">{textoTrecho(ida)}</strong>
+            </span>
+            {' · '}
+            <span className={cn(trajeto === 'volta' && 'font-semibold text-texto')}>
+              Volta <strong className="text-texto">{textoTrecho(volta)}</strong>
+            </span>
+          </p>
+        )}
+        {estado.estado === 'calculando' && (
+          <p className="text-xs text-texto-fraco" role="status">
+            Calculando a rota pelas ruas…
+          </p>
+        )}
+        {(estado.estado === 'fora_do_ar' || estado.estado === 'sem_caminho') && (
+          <p className="flex items-center gap-1.5 text-xs text-atencao-texto" role="status">
+            <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+            {estado.estado === 'fora_do_ar'
+              ? 'Serviço de rotas fora do ar — distâncias em linha reta.'
+              : 'Sem caminho pelas ruas — distâncias em linha reta.'}
+          </p>
+        )}
+        {ajustada && aoVoltarSugestao && (
+          <div className="flex justify-end">
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              icone={<RotateCcw />}
+              onClick={aoVoltarSugestao}
+            >
+              Voltar à sugestão
+            </Botao>
+          </div>
+        )}
+      </section>
+    )
+  }
 
   const linha = (indice: number | undefined, conteudo: ReactNode, chave: string | number) => (
     <div
@@ -86,19 +165,7 @@ export const PainelRota = memo(function PainelRota({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-base font-semibold text-texto">{titulo}</h3>
-        <span className="text-sm text-texto tabular-nums">
-          {paradas.length} {paradas.length === 1 ? 'parada' : 'paradas'} · <strong>{pecas}</strong>{' '}
-          {pecas === 1 ? 'peça' : 'peças'}
-          {indicePlotada > 0 && (
-            <>
-              {' '}
-              · <strong>{formatarDistancia(totalKm)}</strong>
-              {pelasRuas
-                ? ` · ${formatarDuracao(estado.rota.duracao_s)} dirigindo`
-                : ' em linha reta'}
-            </>
-          )}
-        </span>
+        {totais}
       </div>
 
       {/* SESSAO-38: a ida e a volta, cada uma com a sua distância e o seu tempo. */}

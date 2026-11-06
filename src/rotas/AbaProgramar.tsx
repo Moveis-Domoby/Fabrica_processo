@@ -32,6 +32,7 @@ import { ModalPontoNoMapa } from './ModalPontoNoMapa'
 import type { PedidoParaMarcar } from './ModalPontoNoMapa'
 import { ModalProgramar } from './ModalProgramar'
 import { PainelRota } from './PainelRota'
+import { pedidosParaVer } from './pedidosParaVer'
 import {
   ehAvulsa,
   itemDoRascunho,
@@ -272,6 +273,8 @@ export function AbaProgramar({
     [paradasNoMapa, trechosNoMapa, estadoRota.estado],
   )
   const numerosNoMapa = useMemo(() => paradasNoMapa.map((p) => p.numero), [paradasNoMapa])
+  // ↩️ 06/11: o "Ver pedidos" do mapa em tela cheia — a rota na ordem.
+  const paraVer = useMemo(() => pedidosParaVer(ordemMontando), [ordemMontando])
   const pecas = somarPecas(listaSelecionados)
   const kmTotal = trechos.reduce((s, t) => s + t.km, 0)
   const resumoTrajeto = resumoDoTrajeto(trajeto, trechos, numerosNoMapa)
@@ -607,7 +610,18 @@ export function AbaProgramar({
           </section>
         </div>
 
-        <section className="order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start">
+        {/* ↩️ Ajuste do dono (06/11 — "ficou sobreposto à linha de baixo e o scroll
+            não desce até lá"): a coluna do mapa cabe na tela — gruda logo abaixo da
+            barra escura de cima (44 px) e, com a barra de baixo à vista, para antes
+            dela; o que passar rola por dentro. */}
+        <section
+          className={cn(
+            'order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-14 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto',
+            ordemMontando.length > 0
+              ? '@3xl:max-h-[calc(100dvh-10rem)]'
+              : '@3xl:max-h-[calc(100dvh-4.5rem)]',
+          )}
+        >
           {/* "Mapa" e o botão da parada numa linha; a legenda embaixo, pequena.
               relative: o balão do i do botão da parada ancora aqui. */}
           <div className="relative flex flex-col gap-1">
@@ -627,6 +641,12 @@ export function AbaProgramar({
             resumo={resumoMapa}
             sugestoes={sugestoes}
             aoEscolherSugestao={escolherSugestao}
+            paradasParaVer={paraVer}
+            classeAltura={
+              ordemMontando.length > 0
+                ? 'h-[22rem] shrink-0 @3xl:h-[clamp(14rem,calc(100dvh-27rem),32rem)]'
+                : 'h-[22rem] shrink-0 @3xl:h-[clamp(16rem,calc(100dvh-11rem),32rem)]'
+            }
           />
           {ordemMontando.length > 0 && (
             <PainelRota
@@ -638,6 +658,7 @@ export function AbaProgramar({
               trajeto={trajeto}
               ajustada={ajustada}
               aoVoltarSugestao={voltarSugestao}
+              compacto
             />
           )}
           {paradasNoMapa.length > MAXIMO_PARADAS && (

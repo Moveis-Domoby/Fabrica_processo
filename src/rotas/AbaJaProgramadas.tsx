@@ -43,6 +43,7 @@ import { CartaoPedido } from './CartaoPedido'
 import { ListaArrastavel } from './ListaArrastavel'
 import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { MapaProgramacao } from './MapaProgramacao'
+import { pedidosParaVer } from './pedidosParaVer'
 import type { RotaNoMapa } from './MapaProgramacao'
 import { ModalParadaAvulsa } from './ModalParadaAvulsa'
 import { ModalPontoNoMapa } from './ModalPontoNoMapa'
@@ -409,6 +410,8 @@ export function AbaJaProgramadas({
   }, [escolhido, ordenadas, trechosNoMapa, estadoRota.estado, outros, chaveOutros])
 
   const numerosNoMapa = useMemo(() => numerosNoMapaDaLista(ordenadas), [ordenadas])
+  // ↩️ 06/11: o "Ver pedidos" do mapa em tela cheia — a rota escolhida, na ordem.
+  const paraVer = useMemo(() => pedidosParaVer(ordenadas), [ordenadas])
   const pecas = somarPecas(ordenadas)
   const resumoTrajeto = resumoDoTrajeto(trajeto, trechos, numerosNoMapa)
   const resumoMapa = !escolhido
@@ -711,7 +714,9 @@ export function AbaJaProgramadas({
     <div className="@container">
       <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Numa coluna só, o mapa vem primeiro (o caminhão escolhido à vista); em duas, à direita. */}
-        <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start">
+        {/* ↩️ 06/11: gruda abaixo da barra escura de cima e cabe na tela (o fim do
+            painel da rota rola por dentro — antes ficava fora de alcance). */}
+        <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-14 @3xl:col-start-2 @3xl:row-start-1 @3xl:max-h-[calc(100dvh-4.5rem)] @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto">
           <h2 className="text-base">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">
@@ -724,6 +729,8 @@ export function AbaJaProgramadas({
             trajeto={trajeto}
             aoMudarTrajeto={setTrajeto}
             resumo={resumoMapa}
+            paradasParaVer={paraVer}
+            classeAltura="h-[22rem] shrink-0 @3xl:h-[clamp(16rem,calc(100dvh-16rem),32rem)]"
           />
           {escolhido && (
             <PainelRota
