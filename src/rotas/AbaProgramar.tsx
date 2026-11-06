@@ -616,10 +616,10 @@ export function AbaProgramar({
             dela; o que passar rola por dentro. */}
         <section
           className={cn(
-            'order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-14 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto',
+            'order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-[calc(var(--dm-topo-fixo,2.75rem)+0.75rem)] @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto',
             ordemMontando.length > 0
-              ? '@3xl:max-h-[calc(100dvh-10rem)]'
-              : '@3xl:max-h-[calc(100dvh-4.5rem)]',
+              ? '@3xl:max-h-[calc(100dvh-var(--dm-topo-fixo,2.75rem)-7.25rem)]'
+              : '@3xl:max-h-[calc(100dvh-var(--dm-topo-fixo,2.75rem)-1.75rem)]',
           )}
         >
           {/* "Mapa" e o botão da parada numa linha; a legenda embaixo, pequena.

@@ -1,12 +1,22 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router'
-import { Blend, ChevronDown, Ellipsis, LogOut, Palette } from 'lucide-react'
+import {
+  Blend,
+  ChevronDown,
+  ChevronLeft,
+  Ellipsis,
+  LogOut,
+  Minus,
+  Palette,
+  Plus,
+} from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { TemasDoMenu } from '@/perfil/SeletorTemaRapido'
 import { ROTULO_TEMA, ehTema } from '@/perfil/tema'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { OPACIDADE_MINIMA, mudarOpacidade, opacidadeGuardada } from '@/lib/opacidadeFlutuantes'
+import { mudarOpacidade, opacidadeGuardada } from '@/lib/opacidadeFlutuantes'
 
 /** A largura do painel (px) — a mesma do `w-60`. */
 const LARGURA = 240
@@ -40,13 +50,19 @@ export function MenuDoUsuario({
   const { pathname } = useLocation()
   const { perfil } = useSessao()
   const idTemas = useId()
-  const idOpacidade = useId()
   // ↩️ 06/11 (2ª volta — "os temas devem ficar ocultos dentro do ícone de
   // tema"): a lista só aparece ao tocar em Tema; fecha de novo a cada abertura.
   const [temasAbertos, setTemasAbertos] = useState(false)
-  // ↩️ 06/11: a transparência dos botões flutuantes (escondida como o Tema).
-  const [opacidadeAberta, setOpacidadeAberta] = useState(false)
-  const [opacidade, setOpacidade] = useState(opacidadeGuardada)
+  // ↩️ 06/11 (2ª volta — "de 0 a 100%, todos os números inteiros, com um modal
+  // próprio da plataforma"): a transparência dos botões flutuantes tem uma
+  // tela própria DENTRO do painel (a vista "opacidade"), com a faixa da casa.
+  const [vista, setVista] = useState<'menu' | 'opacidade'>('menu')
+  const [porcento, setPorcento] = useState(() => Math.round(opacidadeGuardada() * 100))
+  function mudarPorcento(valor: number) {
+    const v = Math.min(100, Math.max(0, Math.round(valor)))
+    setPorcento(v)
+    mudarOpacidade(v / 100)
+  }
   const temaAtual = perfil && ehTema(perfil.tema) ? ROTULO_TEMA[perfil.tema] : null
   // Aberto só na tela em que foi aberto: trocar de tela fecha (como o sino).
   const [abertoEm, setAbertoEm] = useState<string | null>(null)
@@ -75,7 +91,7 @@ export function MenuDoUsuario({
       )
     }
     setTemasAbertos(false)
-    setOpacidadeAberta(false)
+    setVista('menu')
     setAbertoEm(pathname)
   }
   const fechar = () => setAbertoEm(null)
@@ -132,95 +148,120 @@ export function MenuDoUsuario({
           <div
             ref={painelRef}
             role="dialog"
-            aria-label="Mais opções"
+            aria-label={vista === 'menu' ? 'Mais opções' : 'Transparência dos botões flutuantes'}
             style={{ left: posicao.left, bottom: posicao.bottom }}
             className="menu-superficie fixed z-[58] flex max-h-[calc(100dvh-1rem)] w-60 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto rounded-dm-lg border border-grafite-600 bg-grafite-700 p-1.5 text-grafite-100 shadow-lg"
           >
-            <button
-              type="button"
-              onClick={() => setTemasAbertos((atual) => !atual)}
-              aria-expanded={temasAbertos}
-              aria-controls={idTemas}
-              className={cn(ITEM, temasAbertos && 'bg-grafite-600')}
-            >
-              <Palette aria-hidden className="size-4 shrink-0" />
-              <span className="flex-1">Tema</span>
-              {temaAtual && (
-                <span className="truncate text-[0.6875rem] text-grafite-300">{temaAtual}</span>
-              )}
-              <ChevronDown
-                aria-hidden
-                className={cn(
-                  'size-4 shrink-0 transition-transform',
-                  !temasAbertos && '-rotate-90',
-                )}
-              />
-            </button>
-            {temasAbertos && (
-              <div id={idTemas} className="mt-0.5 mb-1 ml-3.5 border-l border-grafite-600 pl-1.5">
-                <TemasDoMenu />
+            {vista === 'opacidade' ? (
+              <div className="flex flex-col gap-3 p-1">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setVista('menu')}
+                    aria-label="Voltar às opções"
+                    className="toque-seguro inline-flex size-8 shrink-0 items-center justify-center rounded-dm text-grafite-100 hover:bg-grafite-600"
+                  >
+                    <ChevronLeft aria-hidden className="size-4" />
+                  </button>
+                  <span className="flex-1 text-[0.8125rem] font-semibold">Botões flutuantes</span>
+                </div>
+                <div className="flex items-baseline justify-between px-1">
+                  <span className="text-[0.6875rem] text-grafite-300">Quanto aparecem</span>
+                  <span className="text-2xl font-semibold tabular-nums">{porcento}%</span>
+                </div>
+                <div className="flex items-center gap-2 px-1">
+                  <button
+                    type="button"
+                    onClick={() => mudarPorcento(porcento - 1)}
+                    disabled={porcento <= 0}
+                    aria-label="Menos 1%"
+                    className="toque-seguro inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-grafite-500 text-grafite-100 hover:bg-grafite-600 disabled:opacity-40"
+                  >
+                    <Minus aria-hidden className="size-3.5" />
+                  </button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={porcento}
+                    aria-label="Quanto os botões flutuantes aparecem"
+                    aria-valuetext={`${porcento}%`}
+                    onChange={(e) => mudarPorcento(Number(e.target.value))}
+                    style={{ '--faixa-cheia': `${porcento}%` } as CSSProperties}
+                    className="faixa-domoby min-w-0 flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => mudarPorcento(porcento + 1)}
+                    disabled={porcento >= 100}
+                    aria-label="Mais 1%"
+                    className="toque-seguro inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-grafite-500 text-grafite-100 hover:bg-grafite-600 disabled:opacity-40"
+                  >
+                    <Plus aria-hidden className="size-3.5" />
+                  </button>
+                </div>
+                <div className="flex justify-between px-1 text-[0.6875rem] text-grafite-300">
+                  <span>0% · somem de vez</span>
+                  <span>100% · inteiros</span>
+                </div>
+                <p className="px-1 text-[0.6875rem] leading-snug text-grafite-300">
+                  Em 0% eles somem de vez. Acima disso, ao passar o mouse ou tocar, aparecem
+                  inteiros.
+                </p>
               </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setOpacidadeAberta((atual) => !atual)}
-              aria-expanded={opacidadeAberta}
-              aria-controls={idOpacidade}
-              className={cn(ITEM, opacidadeAberta && 'bg-grafite-600')}
-            >
-              <Blend aria-hidden className="size-4 shrink-0" />
-              <span className="flex-1">Botões flutuantes</span>
-              <span className="text-[0.6875rem] text-grafite-300 tabular-nums">
-                {Math.round(opacidade * 100)}%
-              </span>
-              <ChevronDown
-                aria-hidden
-                className={cn(
-                  'size-4 shrink-0 transition-transform',
-                  !opacidadeAberta && '-rotate-90',
-                )}
-              />
-            </button>
-            {opacidadeAberta && (
-              <div
-                id={idOpacidade}
-                className="mt-0.5 mb-1 ml-3.5 flex flex-col gap-1 border-l border-grafite-600 py-1 pr-1 pl-2.5"
-              >
-                <label
-                  className="text-[0.6875rem] text-grafite-300"
-                  htmlFor={`${idOpacidade}-faixa`}
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setTemasAbertos((atual) => !atual)}
+                  aria-expanded={temasAbertos}
+                  aria-controls={idTemas}
+                  className={cn(ITEM, temasAbertos && 'bg-grafite-600')}
                 >
-                  Mais transparente ← → mais visível
-                </label>
-                <input
-                  id={`${idOpacidade}-faixa`}
-                  type="range"
-                  min={OPACIDADE_MINIMA * 100}
-                  max={100}
-                  step={10}
-                  value={Math.round(opacidade * 100)}
-                  aria-valuetext={`${Math.round(opacidade * 100)}% visível`}
-                  onChange={(e) => {
-                    const valor = Number(e.target.value) / 100
-                    setOpacidade(valor)
-                    mudarOpacidade(valor)
+                  <Palette aria-hidden className="size-4 shrink-0" />
+                  <span className="flex-1">Tema</span>
+                  {temaAtual && (
+                    <span className="truncate text-[0.6875rem] text-grafite-300">{temaAtual}</span>
+                  )}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      'size-4 shrink-0 transition-transform',
+                      !temasAbertos && '-rotate-90',
+                    )}
+                  />
+                </button>
+                {temasAbertos && (
+                  <div
+                    id={idTemas}
+                    className="mt-0.5 mb-1 ml-3.5 border-l border-grafite-600 pl-1.5"
+                  >
+                    <TemasDoMenu />
+                  </div>
+                )}
+                <button type="button" onClick={() => setVista('opacidade')} className={ITEM}>
+                  <Blend aria-hidden className="size-4 shrink-0" />
+                  <span className="flex-1">Botões flutuantes</span>
+                  <span className="text-[0.6875rem] text-grafite-300 tabular-nums">
+                    {porcento}%
+                  </span>
+                  <ChevronDown aria-hidden className="size-4 shrink-0 -rotate-90" />
+                </button>
+                <div className="my-1 border-t border-grafite-600" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    fechar()
+                    aoSair()
                   }}
-                  className="h-toque-md w-full cursor-pointer accent-[var(--dm-menu-destaque)] [@media(pointer:fine)]:h-6"
-                />
-              </div>
+                  className={ITEM}
+                >
+                  <LogOut aria-hidden className="size-4 shrink-0" />
+                  Sair da conta
+                </button>
+              </>
             )}
-            <div className="my-1 border-t border-grafite-600" />
-            <button
-              type="button"
-              onClick={() => {
-                fechar()
-                aoSair()
-              }}
-              className={ITEM}
-            >
-              <LogOut aria-hidden className="size-4 shrink-0" />
-              Sair da conta
-            </button>
           </div>,
           document.body,
         )}

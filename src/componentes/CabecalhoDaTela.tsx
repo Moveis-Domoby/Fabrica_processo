@@ -1,10 +1,48 @@
-import { useContext, type ReactNode } from 'react'
+import { useContext, useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { CircleHelp } from 'lucide-react'
 import { Dica } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { BotaoVoltar } from './BotaoVoltar'
 import { VagaDoTitulo } from './vagaDoTitulo'
+
+/** A altura da barra escura de cima (`min-h-11`). */
+const ALTURA_DA_BARRA = 44
+/** A partir de que largura a linha das ações fica presa no topo (o `md`). */
+const CONSULTA_FIXA = '(min-width: 48rem)'
+
+/**
+ * ↩️ Ajuste do dono (06/11 — "trave esse header que possui abas, ele não deve
+ * rolar junto com a tela, deve ficar sempre fixo no topo"): a linha das ações
+ * gruda logo abaixo da barra escura (do tablet em pé para cima — no celular ela
+ * pode ter 2–3 andares e comeria a tela). A altura do que está preso no topo
+ * (barra + esta linha) vai para `--dm-topo-fixo` no `html`: quem também gruda
+ * (a coluna do mapa da Programação) se acomoda embaixo dela.
+ */
+function useTopoFixo(alvo: RefObject<HTMLElement | null>, ativo: boolean) {
+  useEffect(() => {
+    const el = alvo.current
+    if (!ativo || !el) return
+    const raiz = document.documentElement
+    const consulta =
+      typeof window.matchMedia === 'function' ? window.matchMedia(CONSULTA_FIXA) : null
+    const medir = () => {
+      const altura = consulta?.matches
+        ? ALTURA_DA_BARRA + el.getBoundingClientRect().height
+        : ALTURA_DA_BARRA
+      raiz.style.setProperty('--dm-topo-fixo', `${Math.round(altura)}px`)
+    }
+    medir()
+    const observador = typeof ResizeObserver === 'function' ? new ResizeObserver(medir) : null
+    observador?.observe(el)
+    consulta?.addEventListener('change', medir)
+    return () => {
+      observador?.disconnect()
+      consulta?.removeEventListener('change', medir)
+      raiz.style.removeProperty('--dm-topo-fixo')
+    }
+  }, [alvo, ativo])
+}
 
 /**
  * Na barra escura, o texto de apoio (cor "suave"/"fraca" — o total ao lado do
@@ -70,6 +108,8 @@ export function CabecalhoDaTela({
   // ↩️ 4ª volta (06/11): a barra escura existe em toda tela — o título vai
   // sempre para ela quando a casca oferece a vaga.
   const naBarra = vaga !== null
+  const linhaDasAcoes = useRef<HTMLElement>(null)
+  useTopoFixo(linhaDasAcoes, naBarra && Boolean(children))
 
   const grupoDoTitulo = (
     <div
@@ -133,9 +173,12 @@ export function CabecalhoDaTela({
         {acoes && (
           // ↩️ Ajuste do dono (06/11 — Expedição/Entregas, virou padrão): um traço
           // bem leve separa a linha das ações (busca, abas, botões) dos dados.
+          // ↩️ 06/11: e presa no topo, logo abaixo da barra escura (do `md` para cima).
           <header
+            ref={linhaDasAcoes}
             className={cn(
               'relative flex flex-wrap items-center gap-2 border-b border-borda/50 pb-3',
+              'md:sticky md:top-11 md:z-20 md:-mt-3 md:bg-fundo md:pt-3',
               className,
             )}
           >

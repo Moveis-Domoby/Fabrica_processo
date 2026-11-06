@@ -716,7 +716,7 @@ export function AbaJaProgramadas({
         {/* Numa coluna só, o mapa vem primeiro (o caminhão escolhido à vista); em duas, à direita. */}
         {/* ↩️ 06/11: gruda abaixo da barra escura de cima e cabe na tela (o fim do
             painel da rota rola por dentro — antes ficava fora de alcance). */}
-        <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-14 @3xl:col-start-2 @3xl:row-start-1 @3xl:max-h-[calc(100dvh-4.5rem)] @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto">
+        <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-[calc(var(--dm-topo-fixo,2.75rem)+0.75rem)] @3xl:col-start-2 @3xl:row-start-1 @3xl:max-h-[calc(100dvh-var(--dm-topo-fixo,2.75rem)-1.75rem)] @3xl:self-start @3xl:overflow-x-hidden @3xl:overflow-y-auto">
           <h2 className="text-base">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">

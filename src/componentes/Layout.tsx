@@ -550,9 +550,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="w-full flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
-        <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
-          Sistema Domoby · Móveis Domoby
-        </footer>
+        {/* ↩️ 06/11 (pedido do dono): sem rodapé com a marca — "não é necessário a marca acompanhar todo o sistema". */}
       </div>
     )
   }
@@ -932,9 +930,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">
               <VagaDoTitulo.Provider value={vagaTitulo}>{children}</VagaDoTitulo.Provider>
             </main>
-            <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
-              Sistema Domoby · Móveis Domoby
-            </footer>
+            {/* ↩️ 06/11 (pedido do dono): o rodapé com a marca saiu de todas as telas. */}
           </div>
         )}
 

@@ -209,6 +209,60 @@
     opacity: min(var(--dm-opacidade-flutuantes, 1), 0.6);
     transition: opacity 150ms;
   }
+  /* ↩️ 06/11: a faixa (input range) no desenho da casa — trilho fino, a parte
+     cheia na cor de destaque do menu, a bolinha clara com contorno. A parte
+     cheia vem da variável --faixa-cheia (a porcentagem), posta pela tela. */
+  .faixa-domoby {
+    appearance: none;
+    height: 1.5rem;
+    background: transparent;
+    cursor: pointer;
+  }
+  .faixa-domoby::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--dm-menu-destaque) var(--faixa-cheia, 50%),
+      var(--dm-grafite-500) var(--faixa-cheia, 50%)
+    );
+  }
+  .faixa-domoby::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -6px;
+    border-radius: 9999px;
+    background: var(--dm-grafite-50);
+    border: 3px solid var(--dm-menu-destaque);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  }
+  .faixa-domoby::-moz-range-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--dm-grafite-500);
+  }
+  .faixa-domoby::-moz-range-progress {
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--dm-menu-destaque);
+  }
+  .faixa-domoby::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: var(--dm-grafite-50);
+    border: 3px solid var(--dm-menu-destaque);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  }
+
+  /* Em 0%: somem de fato — fora da tela e sem resposta ao mouse ou ao toque.
+     `!important` porque o `inline-flex` do botão é utilidade (camada que vence
+     a base, qualquer que seja a especificidade). */
+  html[data-flutuantes-ocultos] .botao-flutuante,
+  html[data-flutuantes-ocultos] .botao-flutuante-discreto {
+    display: none !important;
+  }
   .botao-flutuante:hover,
   .botao-flutuante:focus-visible,
   .botao-flutuante[aria-expanded='true'],
