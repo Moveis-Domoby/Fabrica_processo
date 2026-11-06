@@ -56,7 +56,9 @@ describe('Entrar (SESSAO-36)', () => {
   it('o modo tablet pede o PIN DO SETOR num teclado na tela e abre o setor', async () => {
     desenhar()
     fireEvent.click(screen.getByRole('button', { name: /modo tablet do setor/i }))
-    expect(screen.getByText(/digite o pin do setor/i)).toBeInTheDocument()
+    // ↩️ 06/11: a explicação mora no "i" ao lado do título do modo tablet
+    expect(screen.getByRole('heading', { name: /modo tablet do setor/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /como funciona o modo tablet/i })).toBeInTheDocument()
     // SESSAO-37: o PIN do setor tem exatamente 2 dígitos — digita 2-4 e confirma
     for (const d of ['2', '4']) {
       fireEvent.click(screen.getByRole('button', { name: `Dígito ${d}` }))
@@ -67,7 +69,7 @@ describe('Entrar (SESSAO-36)', () => {
 
   it('o e-mail + PIN entra por quem nunca criou senha (D-146 resposta 11)', async () => {
     desenhar()
-    fireEvent.click(screen.getByRole('button', { name: /entrar com usuário e pin/i }))
+    fireEvent.click(screen.getByRole('button', { name: /entrar com pin/i }))
     fireEvent.change(screen.getByLabelText(/usuário ou e-mail/i), {
       target: { value: 'pessoa@teste.com' },
     })
@@ -78,7 +80,7 @@ describe('Entrar (SESSAO-36)', () => {
 
   it('o PIN do e-mail + PIN só aceita dígitos (2 a 4 — SESSAO-37)', () => {
     desenhar()
-    fireEvent.click(screen.getByRole('button', { name: /entrar com usuário e pin/i }))
+    fireEvent.click(screen.getByRole('button', { name: /entrar com pin/i }))
     const pin = screen.getByLabelText(/pin/i)
     fireEvent.change(pin, { target: { value: 'abc12345678' } })
     expect((pin as HTMLInputElement).value).toBe('1234')
@@ -87,7 +89,7 @@ describe('Entrar (SESSAO-36)', () => {
   // SESSAO-38 (D-163): o dono não precisa mais digitar o e-mail toda vez.
   it('o PIN também aceita o nome de usuário', async () => {
     desenhar()
-    fireEvent.click(screen.getByRole('button', { name: /entrar com usuário e pin/i }))
+    fireEvent.click(screen.getByRole('button', { name: /entrar com pin/i }))
     fireEvent.change(screen.getByLabelText(/usuário ou e-mail/i), { target: { value: 'pessoa' } })
     fireEvent.change(screen.getByLabelText(/pin/i), { target: { value: '12' } })
     fireEvent.click(screen.getByRole('button', { name: /^entrar$/i }))

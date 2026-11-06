@@ -10,7 +10,7 @@ import {
   TabletSmartphone,
   UserRound,
 } from 'lucide-react'
-import { Botao, Campo } from '@/componentes/ui'
+import { Botao, Campo, Dica } from '@/componentes/ui'
 import { Marca } from '@/componentes/Marca'
 import { entrar, entrarPin, tabletEntrar } from '@/autenticacao/api'
 import { lembrarLogin, lerUltimoLogin } from '@/autenticacao/ultimoLogin'
@@ -40,6 +40,12 @@ type ModoEntrada = 'senha' | 'pin' | 'tablet' | 'recuperar'
  *
  * SESSAO-41 (D-191): "Esqueci minha senha" — a troca liberada por um
  * administrador (2 h, uma vez, só neste aparelho), sem e-mail.
+ *
+ * ↩️ Ajuste do dono (06/11 — "a tela de login está ruim, melhore-a; o nome
+ * 'Plataforma de produção' vira Sistema Domoby"): a tela dividida virou UM
+ * cartão centralizado — a faixa grafite da marca à esquerda (em cima, no
+ * celular) e o formulário à direita; as explicações foram para o "i" e os
+ * caminhos alternativos (PIN, esqueci a senha) ficaram numa linha.
  */
 export function Entrar() {
   const { sessao, carregando: carregandoSessao } = useSessao()
@@ -99,171 +105,183 @@ export function Entrar() {
     }
   }
 
-  return (
-    <div className="flex min-h-dvh flex-col lg:flex-row">
-      {/* A metade da marca: grafite com a logo metálica. */}
-      <div className="flex items-center justify-center bg-grafite-800 px-6 py-10 lg:min-h-dvh lg:flex-1 lg:py-0">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Marca tamanho="xl" sobre="metalico" />
-          <p className="text-sm tracking-wide text-grafite-300">Plataforma de Produção</p>
-        </div>
-      </div>
+  const voltarParaSenha = (
+    <Botao
+      variante="fantasma"
+      tamanho="sm"
+      icone={<ArrowLeft />}
+      onClick={() => {
+        setErro('')
+        setModo('senha')
+      }}
+    >
+      Voltar para usuário e senha
+    </Botao>
+  )
 
-      {/* A metade do formulário. */}
-      <div className="flex flex-1 items-start justify-center px-4 py-8 lg:items-center lg:py-0">
-        <div className="flex w-full max-w-sm flex-col gap-6">
-          <div className="w-full rounded-dm-lg border border-borda bg-superficie p-5 sm:p-6">
-            {modo === 'recuperar' ? (
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-fundo p-4 sm:p-8">
+      <div className="grid w-full max-w-sm overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-xl md:max-w-3xl md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        {/* A faixa da marca: grafite com a logo metálica. */}
+        <div className="menu-superficie flex flex-col items-center justify-center gap-2 bg-grafite-800 px-6 py-8 text-center md:py-14">
+          <Marca tamanho="lg" sobre="metalico" />
+          <p className="text-sm tracking-wide text-grafite-300">Sistema Domoby</p>
+        </div>
+
+        {/* O formulário. */}
+        <div className="flex flex-col gap-5 p-5 sm:p-8">
+          {modo === 'recuperar' ? (
+            <>
               <RecuperarSenha />
-            ) : modo === 'tablet' ? (
-              <>
+              {voltarParaSenha}
+            </>
+          ) : modo === 'tablet' ? (
+            <>
+              {/* relative: o balão do "i" ancora nesta linha */}
+              <div className="relative flex items-center gap-1">
                 <h1 className="text-xl">Modo tablet do setor</h1>
-                <p className="mt-1 text-sm text-texto-suave">
+                <Dica rotulo="Como funciona o modo tablet" compacta>
                   Digite o PIN do SETOR para abrir o tablet dele — qualquer pessoa do setor usa este
                   aparelho depois, se identificando pelo próprio PIN a cada ação.
+                </Dica>
+              </div>
+              <TecladoPin
+                pin={pinSetor}
+                aoMudar={(p) => {
+                  setErro('')
+                  setPinSetor(p)
+                }}
+                aoConfirmar={(p) => void aoEntrarTablet(p)}
+                conferindo={enviando}
+                // SESSAO-37: o PIN do setor tem exatamente 2 dígitos.
+                minimo={2}
+                maximo={2}
+              />
+              {erro && (
+                <p className="text-center text-sm text-danificado-forte" role="alert">
+                  {erro}
                 </p>
-                <div className="mt-5">
-                  <TecladoPin
-                    pin={pinSetor}
-                    aoMudar={(p) => {
-                      setErro('')
-                      setPinSetor(p)
-                    }}
-                    aoConfirmar={(p) => void aoEntrarTablet(p)}
-                    conferindo={enviando}
-                    // SESSAO-37: o PIN do setor tem exatamente 2 dígitos.
-                    minimo={2}
-                    maximo={2}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <h1 className="text-xl">Entrar na plataforma</h1>
-                <p className="mt-1 text-sm text-texto-suave">
-                  {modo === 'senha'
-                    ? 'Use seu nome de usuário ou seu e-mail. Não tem acesso? Peça à liderança — o cadastro só nasce por convite.'
-                    : 'Para quem tem PIN e ainda não criou a própria senha: entre com o seu usuário (ou e-mail) e o PIN — você vai criar a senha em seguida.'}
-                </p>
-
-                <form onSubmit={aoEnviar} className="mt-5 flex flex-col gap-4" noValidate>
-                  {/* O mesmo campo nos dois jeitos (senha ou PIN) — com `name` e
-                      `autocomplete` para o navegador lembrar e preencher. */}
-                  <Campo
-                    rotulo="Usuário ou e-mail"
-                    name="username"
-                    prefixo={<UserRound />}
-                    autoComplete="username"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    value={identificador}
-                    onChange={(e) => setIdentificador(e.target.value)}
-                  />
+              )}
+              {voltarParaSenha}
+            </>
+          ) : (
+            <>
+              <div className="relative flex items-center gap-1">
+                <h1 className="text-xl">{modo === 'senha' ? 'Entrar' : 'Entrar com PIN'}</h1>
+                <Dica rotulo="Como entrar" compacta>
                   {modo === 'senha' ? (
-                    <Campo
-                      rotulo="Senha"
-                      name="password"
-                      type="password"
-                      prefixo={<KeyRound />}
-                      autoComplete="current-password"
-                      // Já veio com o usuário lembrado: o cursor vai direto à senha.
-                      autoFocus={identificadorInicial !== ''}
-                      value={senha}
-                      onChange={(e) => setSenha(e.target.value)}
-                      erro={erro || undefined}
-                    />
+                    <span className="flex flex-col gap-2">
+                      <span>
+                        Use seu nome de usuário ou seu e-mail. Não tem acesso? Peça à liderança — o
+                        cadastro só nasce por convite.
+                      </span>
+                      <span>
+                        Primeiro acesso? Entre com a senha padrão que a liderança te passou — você
+                        vai criar a sua própria senha em seguida.
+                      </span>
+                    </span>
                   ) : (
-                    <Campo
-                      rotulo="PIN (2 a 4 dígitos)"
-                      name="pin"
-                      type="password"
-                      inputMode="numeric"
-                      prefixo={<Fingerprint />}
-                      autoComplete="off"
-                      value={pinPessoa}
-                      onChange={(e) => setPinPessoa(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      erro={erro || undefined}
-                    />
+                    'Para quem tem PIN e ainda não criou a própria senha: entre com o seu usuário (ou e-mail) e o PIN — você vai criar a senha em seguida.'
                   )}
+                </Dica>
+              </div>
+
+              <form onSubmit={aoEnviar} className="flex flex-col gap-4" noValidate>
+                {/* O mesmo campo nos dois jeitos (senha ou PIN) — com `name` e
+                    `autocomplete` para o navegador lembrar e preencher. */}
+                <Campo
+                  rotulo="Usuário ou e-mail"
+                  name="username"
+                  prefixo={<UserRound />}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={identificador}
+                  onChange={(e) => setIdentificador(e.target.value)}
+                />
+                {modo === 'senha' ? (
+                  <Campo
+                    rotulo="Senha"
+                    name="password"
+                    type="password"
+                    prefixo={<KeyRound />}
+                    autoComplete="current-password"
+                    // Já veio com o usuário lembrado: o cursor vai direto à senha.
+                    autoFocus={identificadorInicial !== ''}
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    erro={erro || undefined}
+                  />
+                ) : (
+                  <Campo
+                    rotulo="PIN (2 a 4 dígitos)"
+                    name="pin"
+                    type="password"
+                    inputMode="numeric"
+                    prefixo={<Fingerprint />}
+                    autoComplete="off"
+                    value={pinPessoa}
+                    onChange={(e) => setPinPessoa(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    erro={erro || undefined}
+                  />
+                )}
+                <Botao
+                  type="submit"
+                  tamanho="lg"
+                  larguraTotal
+                  carregando={enviando}
+                  icone={<LogIn />}
+                >
+                  Entrar
+                </Botao>
+              </form>
+
+              {modo === 'senha' ? (
+                <div className="flex flex-wrap items-center justify-center gap-1">
                   <Botao
-                    type="submit"
-                    tamanho="lg"
-                    larguraTotal
-                    carregando={enviando}
-                    icone={<LogIn />}
+                    variante="fantasma"
+                    tamanho="sm"
+                    icone={<LifeBuoy />}
+                    onClick={() => {
+                      setErro('')
+                      setModo('recuperar')
+                    }}
                   >
-                    Entrar
+                    Esqueci minha senha
                   </Botao>
-                </form>
-              </>
-            )}
+                  <Botao
+                    variante="fantasma"
+                    tamanho="sm"
+                    icone={<Fingerprint />}
+                    onClick={() => {
+                      setErro('')
+                      setModo('pin')
+                    }}
+                  >
+                    Entrar com PIN
+                  </Botao>
+                </div>
+              ) : (
+                voltarParaSenha
+              )}
 
-            {modo === 'tablet' && erro && (
-              <p className="mt-3 text-center text-sm text-danificado-forte" role="alert">
-                {erro}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
-            {modo !== 'tablet' && (
-              <Botao
-                variante="secundaria"
-                tamanho="lg"
-                larguraTotal
-                icone={<TabletSmartphone />}
-                onClick={() => {
-                  setErro('')
-                  setModo('tablet')
-                }}
-              >
-                Modo tablet do setor
-              </Botao>
-            )}
-            {modo === 'senha' && (
-              <Botao
-                variante="fantasma"
-                icone={<LifeBuoy />}
-                onClick={() => {
-                  setErro('')
-                  setModo('recuperar')
-                }}
-              >
-                Esqueci minha senha
-              </Botao>
-            )}
-            {modo === 'senha' && (
-              <Botao
-                variante="fantasma"
-                icone={<Fingerprint />}
-                onClick={() => {
-                  setErro('')
-                  setModo('pin')
-                }}
-              >
-                Entrar com usuário e PIN
-              </Botao>
-            )}
-            {modo !== 'senha' && (
-              <Botao
-                variante="fantasma"
-                icone={<ArrowLeft />}
-                onClick={() => {
-                  setErro('')
-                  setModo('senha')
-                }}
-              >
-                Voltar para usuário e senha
-              </Botao>
-            )}
-            {modo === 'senha' && (
-              <p className="text-center text-sm text-texto-fraco">
-                Primeiro acesso? Entre com a senha padrão que a liderança te passou — você vai criar
-                a sua própria senha em seguida.
-              </p>
-            )}
-          </div>
+              {/* O tablet do setor: um caminho à parte, separado por um traço leve. */}
+              <div className="border-t border-borda/60 pt-4">
+                <Botao
+                  variante="secundaria"
+                  larguraTotal
+                  icone={<TabletSmartphone />}
+                  onClick={() => {
+                    setErro('')
+                    setModo('tablet')
+                  }}
+                >
+                  Modo tablet do setor
+                </Botao>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
