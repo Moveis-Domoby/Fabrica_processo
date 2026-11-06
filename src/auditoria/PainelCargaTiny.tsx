@@ -305,7 +305,7 @@ export function PainelCargaTiny() {
       </section>
 
       <section aria-label="Bateu com o Tiny?" className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold text-texto">Bateu com o Tiny?</h2>
+        <h2 className="text-base font-semibold text-texto">Bateu com o Tiny?</h2>
         {grupos.length === 0 ? (
           <p className="rounded-dm-lg border border-borda bg-superficie p-4 text-sm text-texto-suave">
             Ainda não houve contagem. Toque em "Contar no Tiny".
@@ -362,7 +362,7 @@ export function PainelCargaTiny() {
 
       {painel.carga.somas.length > 0 && (
         <section aria-label="As somas das contas a pagar" className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-texto">As somas das contas a pagar</h2>
+          <h2 className="text-base font-semibold text-texto">As somas das contas a pagar</h2>
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie text-sm">
             {painel.carga.somas.map((s) => (
               <li
@@ -389,7 +389,7 @@ export function PainelCargaTiny() {
 
       {painel.carga.por_recurso.length > 0 && (
         <section aria-label="A carga, tipo por tipo" className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-texto">
+          <h2 className="text-base font-semibold text-texto">
             A carga, tipo por tipo{' '}
             <span className="text-sm font-normal text-texto-fraco">
               (começou {quando(painel.carga.rodada)})
@@ -420,7 +420,7 @@ export function PainelCargaTiny() {
 
       {painel.erros.length > 0 && (
         <section aria-label="Os últimos erros" className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-texto">Os últimos erros</h2>
+          <h2 className="text-base font-semibold text-texto">Os últimos erros</h2>
           <ul className="flex flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie text-sm">
             {painel.erros.map((e, i) => (
               <li

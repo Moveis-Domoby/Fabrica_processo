@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ListChecks } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 
 interface LinhaLista {
   id: string
@@ -52,15 +53,13 @@ export function ListasDisparoIndice() {
 
   return (
     <div className="comercial w-full">
-      <header className="mb-6">
-        <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-primary leading-tight">
-          Listas de Disparo
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
-          Suas campanhas de reativação. Para criar uma lista nova, selecione clientes no
-          Painel de Recompra.
-        </p>
-      </header>
+      {/* Ajuste de 06/11 (cabeçalhos compactos): o topo no padrão de todas as telas. */}
+      <CabecalhoDaTela
+        titulo="Listas de Disparo"
+        rotuloAjuda="O que são as listas"
+        ajuda="Suas campanhas de reativação. Para criar uma lista nova, selecione clientes no Painel de Recompra."
+        className="mb-4"
+      />
 
       {carregando ? (
         <div className="flex justify-center items-center h-40">

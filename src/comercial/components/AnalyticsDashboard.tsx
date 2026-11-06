@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft, Crown, Trophy } from 'lucide-react';
+import { Crown, Trophy } from 'lucide-react';
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela';
 import { CustomerLifetimeModal } from './CustomerLifetimeModal';
 import { formatCurrencyNoDecimals, formatCurrency } from '../lib/utils';
 
@@ -12,11 +13,12 @@ import { PurchaseFrequencyChart } from './Dashboard/PurchaseFrequencyChart';
 import { TransitionChart } from './Dashboard/TransitionChart';
 import { useTopClientsData } from '../hooks/useTopClientsData';
 
-interface AnalyticsDashboardProps {
-  onBack: () => void;
-}
-
-export function AnalyticsDashboard({ onBack }: AnalyticsDashboardProps) {
+/**
+ * ↩️ Ajuste de 06/11 (cabeçalhos compactos): o topo é o de todas as telas —
+ * a setinha de voltar do cabeçalho substituiu o botão de voltar próprio, e o
+ * painel deixou de somar o próprio respiro ao da casca.
+ */
+export function AnalyticsDashboard() {
   const [mounted, setMounted] = useState(false);
   const [lifetimeModal, setLifetimeModal] = useState<{ nome: string; telefone: string } | null>(null);
 
@@ -54,18 +56,15 @@ export function AnalyticsDashboard({ onBack }: AnalyticsDashboardProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      <div className="w-full px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <div className="w-full">
 
         {/* ── Header ── */}
-        <header className="mb-8 flex items-center gap-3" style={cardVisible(0)}>
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Voltar">
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-primary leading-tight">Dashboard Analítico</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Visão completa de performance e comportamento de clientes.</p>
-          </div>
-        </header>
+        <CabecalhoDaTela
+          titulo="Dashboard Analítico"
+          rotuloAjuda="O que é este painel"
+          ajuda="Visão completa de performance e comportamento de clientes."
+          className="mb-4"
+        />
 
         {/* ── Extracted Sections ── */}
         <ScorecardsRow mounted={mounted} />
@@ -79,7 +78,7 @@ export function AnalyticsDashboard({ onBack }: AnalyticsDashboardProps) {
           {/* ── Top 50 Rebuyers ── */}
           <div className="bg-card border border-border rounded-xl p-5 flex flex-col" style={cardVisible(660)}>
             <div className="mb-4">
-              <h2 className="font-bold text-lg flex items-center gap-2">
+              <h2 className="font-bold text-base flex items-center gap-2">
                 <Crown size={18} className="text-yellow-400" />
                 Top 50 Recompradores
               </h2>
@@ -147,7 +146,7 @@ export function AnalyticsDashboard({ onBack }: AnalyticsDashboardProps) {
           {/* ── Clientes Recordes ── */}
           <div className="bg-card border border-border rounded-xl p-5 flex flex-col" style={cardVisible(720)}>
             <div className="mb-4">
-              <h2 className="font-bold text-lg flex items-center gap-2">
+              <h2 className="font-bold text-base flex items-center gap-2">
                 <Trophy size={18} className="text-yellow-400" />
                 Clientes Recordes da Domoby
               </h2>

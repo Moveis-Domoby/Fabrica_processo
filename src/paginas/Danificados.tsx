@@ -15,6 +15,7 @@ import {
   useNotificacao,
 } from '@/componentes/ui'
 import type { Estado } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { buscarEtapasAtivas } from '@/kanban/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
@@ -110,17 +111,20 @@ export function Danificados() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-          <XOctagon aria-hidden className="size-7 text-danificado-forte" />
-          Danificados
-        </h1>
-        <p className="mt-1 max-w-2xl text-texto-suave">
-          Tudo que está em DANIFICADO, em qualquer setor, com quem marcou o quê. Resolvido → escolha
-          o destino (a peça volta ao fluxo); sem conserto → arquive. Nada some da história.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o "?". */}
+      <CabecalhoDaTela
+        titulo="Danificados"
+        icone={<XOctagon className="text-danificado-forte" />}
+        rotuloAjuda="Como funciona a tela de danificados"
+        ajuda={
+          <>
+            Tudo que está em DANIFICADO, em qualquer setor, com quem marcou o quê. Resolvido →
+            escolha o destino (a peça volta ao fluxo); sem conserto → arquive. Nada some da
+            história.
+          </>
+        }
+      />
 
       <div className="max-w-md">
         <Campo
@@ -210,7 +214,7 @@ export function Danificados() {
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-lg">Arquivados</h2>
+              <h2 className="text-base">Arquivados</h2>
               <Botao variante="fantasma" tamanho="sm" onClick={() => setMostrarArquivados(false)}>
                 Esconder
               </Botao>

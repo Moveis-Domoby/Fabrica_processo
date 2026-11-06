@@ -24,7 +24,8 @@ import {
   Users,
   Workflow,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Dica, Selecao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Selecao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { buscarNomesUsuarios, buscarSetores } from '@/kanban/api'
 import {
@@ -111,13 +112,12 @@ export function Auditoria() {
   const [aba, setAba] = useState<Aba>('atividade')
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="relative flex flex-wrap items-center gap-2">
-        <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-          <ScrollText aria-hidden className="size-7 shrink-0 text-texto-suave" />
-          Auditoria
-        </h1>
-        <Dica rotulo="O que a auditoria mostra">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Auditoria"
+        icone={<ScrollText />}
+        rotuloAjuda="O que a auditoria mostra"
+        ajuda={
           <span className="flex flex-col gap-2">
             <span>
               Tudo o que acontece na plataforma fica registrado aqui: quem fez, quando, em que tela
@@ -135,8 +135,8 @@ export function Auditoria() {
             </span>
             <span>Tarefa pessoal privada não aparece aqui — só para quem a criou.</span>
           </span>
-        </Dica>
-      </div>
+        }
+      />
 
       <Abas
         rotulo="O que ver na auditoria"

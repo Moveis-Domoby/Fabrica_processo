@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AtSign, Cake, Camera, Check, IdCard, KeyRound, Phone, Trash2, UserRound } from 'lucide-react'
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { lembrarLogin, lerUltimoLogin } from '@/autenticacao/ultimoLogin'
@@ -172,35 +173,19 @@ export function MeuPerfil() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="flex items-center gap-4">
-        {fotoUrl ? (
-          <img
-            src={fotoUrl}
-            alt={`Foto de ${perfil.nome}`}
-            className="size-16 rounded-full border border-borda object-cover"
-          />
-        ) : (
-          <span
-            aria-hidden
-            className="inline-flex size-16 items-center justify-center rounded-full bg-superficie-sutil text-xl font-semibold text-texto-suave"
-          >
-            {perfil.nome
-              .split(' ')
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((parte) => parte[0]?.toUpperCase())
-              .join('')}
-          </span>
-        )}
-        <div className="flex min-w-0 flex-col">
-          <h1 className="truncate text-2xl sm:text-3xl">Meu Perfil</h1>
-          <p className="text-sm text-texto-suave">
+    <div className="flex w-full flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): papel e matrícula foram para o ?;
+          a foto grande desceu para o bloco "Foto". */}
+      <CabecalhoDaTela
+        titulo="Meu Perfil"
+        rotuloAjuda="Seus dados"
+        ajuda={
+          <>
             {ROTULO_PAPEL[perfil.papel]} · matrícula{' '}
             <span className="tabular-nums">{perfil.matricula}</span>
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Foto */}
       <div className="[column-gap:1.5rem] xl:columns-2 2xl:columns-3 [&>section]:mb-6 [&>section]:break-inside-avoid">
@@ -208,10 +193,31 @@ export function MeuPerfil() {
         aria-label="Foto de perfil"
         className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-5"
       >
-        <h2 className="text-lg">Foto</h2>
-        <p className="text-sm text-texto-suave">
-          A foto aparece no menu e nas telas da equipe. Só você (e o admin) pode trocá-la.
-        </p>
+        <h2 className="text-base">Foto</h2>
+        <div className="flex items-center gap-4">
+          {fotoUrl ? (
+            <img
+              src={fotoUrl}
+              alt={`Foto de ${perfil.nome}`}
+              className="size-16 shrink-0 rounded-full border border-borda object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-superficie-sutil text-xl font-semibold text-texto-suave"
+            >
+              {perfil.nome
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((parte) => parte[0]?.toUpperCase())
+                .join('')}
+            </span>
+          )}
+          <p className="text-sm text-texto-suave">
+            A foto aparece no menu e nas telas da equipe. Só você (e o admin) pode trocá-la.
+          </p>
+        </div>
         <input
           ref={entradaFoto}
           type="file"
@@ -252,7 +258,7 @@ export function MeuPerfil() {
         className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-5"
       >
         <div>
-          <h2 className="text-lg">Dados cadastrais</h2>
+          <h2 className="text-base">Dados cadastrais</h2>
           <p className="mt-1 text-sm text-texto-suave">
             O nome de usuário é o seu login e também o nome que os outros veem. CPF e matrícula
             só mudam pela mão do admin.
@@ -307,7 +313,7 @@ export function MeuPerfil() {
         className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-5"
       >
         <div>
-          <h2 className="text-lg">Aniversário</h2>
+          <h2 className="text-base">Aniversário</h2>
           <p className="mt-1 text-sm text-texto-suave">
             No dia do seu aniversário, a Domoby publica os parabéns nos Avisos gerais do chat. Só
             você e o admin veem esta data.
@@ -350,7 +356,7 @@ export function MeuPerfil() {
         className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-5"
       >
         <div>
-          <h2 className="text-lg">Senha</h2>
+          <h2 className="text-base">Senha</h2>
           <p className="mt-1 text-sm text-texto-suave">
             Para trocar, confirme primeiro a senha atual.
           </p>
@@ -396,7 +402,7 @@ export function MeuPerfil() {
         className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-5"
       >
         <div>
-          <h2 className="text-lg">Tema da plataforma</h2>
+          <h2 className="text-base">Tema da plataforma</h2>
           <p className="mt-1 text-sm text-texto-suave">
             10 esquemas, do claro ao escuro — todos com a cara da Domoby. A escolha aplica na
             hora e fica guardada para você em qualquer dispositivo.

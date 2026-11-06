@@ -712,7 +712,7 @@ export function AbaJaProgramadas({
       <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Numa coluna só, o mapa vem primeiro (o caminhão escolhido à vista); em duas, à direita. */}
         <section className="flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start">
-          <h2 className="text-lg">
+          <h2 className="text-base">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">
               a rota escolhida acesa, na cor do caminhão · as outras do mesmo dia transparentes ·
@@ -806,7 +806,7 @@ export function AbaJaProgramadas({
 
           {dias.map(([dia, gruposDoDia]) => (
             <div key={dia} className="flex flex-col gap-3">
-              <h2 className="flex items-center gap-2 border-b border-borda pb-1 text-lg">
+              <h2 className="flex items-center gap-2 border-b border-borda pb-1 text-base">
                 <CalendarDays aria-hidden className="size-5 text-texto-suave" />
                 {diaPorExtenso(dia)}
               </h2>

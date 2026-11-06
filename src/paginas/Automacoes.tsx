@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -14,7 +14,8 @@ import {
   Workflow,
   X,
 } from 'lucide-react'
-import { Botao, Dica, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
+import { Botao, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { buscarEtapasAtivas, buscarSetores } from '@/kanban/api'
@@ -118,14 +119,14 @@ export function Automacoes() {
 // A lista
 // ---------------------------------------------------------------------------
 
-function CabecalhoAutomacoes() {
+/** Ajuste de 06/11 (cabeçalhos compactos): o topo da lista no cabeçalho padrão. */
+function CabecalhoAutomacoes({ children }: { children?: ReactNode }) {
   return (
-    <div className="relative flex flex-wrap items-center gap-2">
-      <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-        <Workflow aria-hidden className="size-7 shrink-0 text-texto-suave" />
-        Automações
-      </h1>
-      <Dica rotulo="Como as automações funcionam">
+    <CabecalhoDaTela
+      titulo="Automações"
+      icone={<Workflow />}
+      rotuloAjuda="Como as automações funcionam"
+      ajuda={
         <span className="flex flex-col gap-2">
           <span>
             Cada automação é um QUANDO (o que dispara) ligado a uma sequência de FAÇA (o que acontece). Monte
@@ -140,8 +141,10 @@ function CabecalhoAutomacoes() {
             uma automação dispara outra, a cadeia para em 5.
           </span>
         </span>
-      </Dica>
-    </div>
+      }
+    >
+      {children}
+    </CabecalhoDaTela>
   )
 }
 
@@ -159,13 +162,12 @@ function ListaAutomacoes() {
   const total = consulta.data?.total ?? 0
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <CabecalhoAutomacoes />
+    <div className="flex flex-col gap-4">
+      <CabecalhoAutomacoes>
         <Botao icone={<Plus />} onClick={() => setParametros({ a: 'nova' })}>
           Nova automação
         </Botao>
-      </div>
+      </CabecalhoAutomacoes>
       <FiltroPill
         rotulo="Mostrar"
         opcoes={[

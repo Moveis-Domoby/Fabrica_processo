@@ -244,7 +244,7 @@ export function AbaCalendario({
             onClick={() => passo(1)}
           />
         </div>
-        <h2 className="text-lg font-semibold first-letter:uppercase" aria-live="polite">
+        <h2 className="text-base font-semibold first-letter:uppercase" aria-live="polite">
           {tituloDoPeriodo(modo, referencia)}
         </h2>
         {/* Semana | Mês num controle só, reto */}

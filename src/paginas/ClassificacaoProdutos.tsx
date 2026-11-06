@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Boxes, ChevronUp, ListTree, RotateCcw, Ruler } from 'lucide-react'
 import { Botao, Campo, Paginacao, Selecao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
 import { EstruturaDoProduto } from '@/logistica/componentes/EstruturaDoProduto'
@@ -88,19 +89,20 @@ export function ClassificacaoProdutos() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-          <Boxes aria-hidden className="size-7 text-texto-suave" />
-          Móveis, insumos e peças
-        </h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          O tipo de cada produto do Tiny no estoque. <strong>Móvel</strong> é produto final e entra
-          nas contas de móveis (Top, mínimo, reposição); <strong>insumo</strong> e{' '}
-          <strong>peça</strong> ficam na aba de matéria-prima e insumos, contados pelo número do
-          Tiny. O automático vem do cadastro do Tiny — troque aqui o que nascer errado.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Móveis, insumos e peças"
+        icone={<Boxes />}
+        rotuloAjuda="Como funciona a classificação"
+        ajuda={
+          <>
+            O tipo de cada produto do Tiny no estoque. <strong>Móvel</strong> é produto final e
+            entra nas contas de móveis (Top, mínimo, reposição); <strong>insumo</strong> e{' '}
+            <strong>peça</strong> ficam na aba de matéria-prima e insumos, contados pelo número do
+            Tiny. O automático vem do cadastro do Tiny — troque aqui o que nascer errado.
+          </>
+        }
+      />
 
       <section
         aria-label="Unidades fora do padrão"

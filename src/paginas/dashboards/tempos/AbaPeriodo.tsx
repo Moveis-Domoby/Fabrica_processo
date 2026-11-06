@@ -81,7 +81,7 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg">
+      <h2 className="text-base">
         De {diaCurto(r.de)} a {diaCurto(r.ate)}
         {r.numeros.n_trello > 0 && (
           <span className="ml-2 text-sm font-normal text-texto-suave">

@@ -16,6 +16,7 @@ import {
   Save,
 } from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { setorPinDefinir } from '@/autenticacao/api'
@@ -121,16 +122,18 @@ export function Estrutura() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Estrutura</h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Estrutura"
+        rotuloAjuda="Como funcionam setores e etapas"
+        ajuda={
+          <>
             {/* D-14: toda etapa nasce com timer — código fora da tela (D-27). */}
             Setores e as etapas internas de cada um. Toda etapa cadastrada já nasce contando tempo —
             não existe timer para ligar. Nada aqui se apaga: desativar preserva o histórico.
-          </p>
-        </div>
+          </>
+        }
+      >
         {souAdmin && (
           <Botao
             icone={<Plus />}
@@ -142,7 +145,7 @@ export function Estrutura() {
             Novo setor
           </Botao>
         )}
-      </div>
+      </CabecalhoDaTela>
 
       <ul className="flex flex-col gap-3">
         {setores.map((setor, indice) => (

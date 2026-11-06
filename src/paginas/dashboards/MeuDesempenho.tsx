@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { Paginacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { formatarDuracaoMs } from '@/kanban/tempo'
@@ -85,17 +86,20 @@ export function MeuDesempenho() {
     OPCOES_PERIODO.find((o) => o.valor === String(dias))?.rotulo ?? `${dias} dias`
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">Meu desempenho</h1>
-        <p className="mt-1 flex max-w-3xl items-center gap-1.5 text-texto-suave">
-          <Lock aria-hidden className="size-4 shrink-0" />
-          Só você vê esta página: os números são seus, e o tempo dos seus afazeres pessoais não
-          aparece para mais ninguém — nem para a liderança.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ?, o
+          cadeado fica ao lado do título e o período sobe para a linha dele. */}
+      <CabecalhoDaTela
+        titulo="Meu desempenho"
+        selo={
+          <span title="Só você vê esta página" className="inline-flex text-texto-suave">
+            <Lock aria-hidden className="size-4 shrink-0" />
+            <span className="sr-only">Só você vê esta página</span>
+          </span>
+        }
+        rotuloAjuda="Quem vê esta página"
+        ajuda="Só você vê esta página: os números são seus, e o tempo dos seus afazeres pessoais não aparece para mais ninguém — nem para a liderança."
+      >
         <FiltroPill
           rotulo="Período"
           opcoes={OPCOES_PERIODO}
@@ -105,7 +109,7 @@ export function MeuDesempenho() {
             setPaginaTarefas(1)
           }}
         />
-      </div>
+      </CabecalhoDaTela>
 
       {/* ---------- KPIs pessoais ---------- */}
       <section
@@ -141,7 +145,7 @@ export function MeuDesempenho() {
       {/* ---------- tempo em afazeres por dia ---------- */}
       <section className="flex flex-col gap-1 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg">Meu tempo em afazeres — por dia</h2>
+          <h2 className="text-base">Meu tempo em afazeres — por dia</h2>
           <span className="flex items-center gap-3 text-xs text-texto-suave">
             <span className="flex items-center gap-1.5">
               <span aria-hidden className="size-2.5 rounded-full" style={{ background: 'var(--dm-serie-1)' }} />
@@ -205,7 +209,7 @@ export function MeuDesempenho() {
 
       {/* ---------- quebra por tarefa (resposta 4 do dono) ---------- */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg">Meu tempo — por tarefa</h2>
+        <h2 className="text-base">Meu tempo — por tarefa</h2>
         {porTarefa.length === 0 ? (
           <p className="rounded-dm-lg border border-borda bg-superficie p-4 text-sm text-texto-suave">
             Nenhuma tarefa com timer neste período.

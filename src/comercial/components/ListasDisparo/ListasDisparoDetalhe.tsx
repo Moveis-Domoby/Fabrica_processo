@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { ListaDisparo, ListaDisparoMembro, ListaDisparoEvento, ScorecardsLista } from '../../types';
 import { differenceInSeconds } from 'date-fns';
-import { ArrowLeft, Save, Copy, Send, Download, Clock, CheckCircle2, XCircle, Trash2, History, Check, Loader2, StopCircle, Flag, Pencil, X } from 'lucide-react';
+import { Save, Copy, Send, Download, Clock, CheckCircle2, XCircle, Trash2, History, Check, Loader2, StopCircle, Flag, Pencil, X } from 'lucide-react';
 import { salvarMensagem, removerMembrosDaListaBulk, iniciarFila, finalizarDisparo, encerrarLista } from '../../lib/disparo/api';
 import Papa from 'papaparse';
 import { AuditoriaModal } from './AuditoriaModal';
@@ -10,6 +10,7 @@ import { DispararModal } from './DispararModal';
 import { MembroAuditoriaModal } from './MembroAuditoriaModal';
 import { DISPARO_LIBERADO, MOTIVO_DISPARO_TRAVADO } from '../../travas';
 import { ouvirCanal } from '@/chat/canais';
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela';
 
 interface ListasDisparoDetalheProps {
   listaId: string;
@@ -253,7 +254,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
     );
   }
 
-  if (!lista) return <div>Lista não encontrada</div>;
+  if (!lista) return <CabecalhoDaTela titulo="Lista não encontrada" />;
 
   const totalAguardandoEnvio = membros.filter(m => m.status === 'aguardando_envio').length;
   const totalEnviados = membros.filter(m => m.status !== 'aguardando_envio').length;
@@ -261,21 +262,22 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
   const progressoPct = totalMembros > 0 ? Math.round((totalEnviados / totalMembros) * 100) : 0;
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center gap-4 mb-2">
-        <button onClick={onBack} className="p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1">
-          {isEditingNome ? (
-            <div className="flex items-center gap-2">
+    <div className="w-full space-y-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): o topo é o de todas as telas —
+          a setinha de voltar do cabeçalho substituiu a própria; o nome da lista
+          é o título (renomear no lápis) e o status fica ao lado dele. */}
+      <CabecalhoDaTela
+        titulo={
+          isEditingNome ? (
+            <span className="flex items-center gap-2">
               <input
                 autoFocus
                 type="text"
+                aria-label="Nome da lista"
                 value={nomeEditado}
                 onChange={e => setNomeEditado(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSalvarNome(); if (e.key === 'Escape') handleCancelarEdicaoNome(); }}
-                className="text-2xl font-bold bg-muted border border-primary/40 rounded-md px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-full max-w-sm"
+                className="text-lg font-bold bg-muted border border-primary/40 rounded-md px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-full max-w-sm"
               />
               <button
                 onClick={handleSalvarNome}
@@ -292,30 +294,36 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
               >
                 <X size={16} />
               </button>
-            </div>
+            </span>
           ) : (
-            <div className="flex items-center gap-2 group">
-              <h2 className="text-2xl font-bold text-foreground">{lista.nome}</h2>
+            lista.nome
+          )
+        }
+        selo={
+          <>
+            {!isEditingNome && (
               <button
                 onClick={handleIniciarEdicaoNome}
-                className="p-1 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-all"
+                className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
                 title="Renomear lista"
+                aria-label="Renomear lista"
               >
                 <Pencil size={15} />
               </button>
-            </div>
-          )}
-          <p className="text-sm text-muted-foreground">Status: <span className="font-medium capitalize">{lista.status.replace('_', ' ')}</span></p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setIsAuditoriaOpen(true)} className="flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors shadow-sm font-medium">
-            <History size={16} /> <span className="hidden sm:inline">Auditoria</span>
-          </button>
-          <button onClick={handleExcluirLista} className="flex items-center gap-2 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 transition-colors shadow-sm font-medium">
-            <Trash2 size={16} /> <span className="hidden sm:inline">Excluir</span>
-          </button>
-        </div>
-      </div>
+            )}
+            <span className="whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              Status: <span className="font-medium capitalize">{lista.status.replace('_', ' ')}</span>
+            </span>
+          </>
+        }
+      >
+        <button onClick={() => setIsAuditoriaOpen(true)} className="flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors shadow-sm font-medium">
+          <History size={16} /> <span className="hidden sm:inline">Auditoria</span>
+        </button>
+        <button onClick={handleExcluirLista} className="flex items-center gap-2 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 transition-colors shadow-sm font-medium">
+          <Trash2 size={16} /> <span className="hidden sm:inline">Excluir</span>
+        </button>
+      </CabecalhoDaTela>
 
       {/* Scorecards */}
       {scorecards && (

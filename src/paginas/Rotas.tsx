@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Abas, Botao, Campo, useNotificacao } from '@/componentes/ui'
 import type { Aba } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useAoVivo } from '@/lib/aoVivo'
 import { useAcessoLogistica } from '@/logistica/acesso'
@@ -139,15 +140,16 @@ export function Rotas() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-            <Truck aria-hidden className="size-7 text-texto-suave" />
-            ROTAS
-          </h1>
-          {aba === 'a-entregar' ? (
-            <p className="mt-1 max-w-2xl text-texto-suave">
+    <div className="flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação de cada aba foi
+          para o "?"; as abas ficam na linha do título. */}
+      <CabecalhoDaTela
+        titulo="ROTAS"
+        icone={<Truck />}
+        rotuloAjuda="Como funciona a tela de entregas"
+        ajuda={
+          aba === 'a-entregar' ? (
+            <>
               As entregas da fábrica, por pedido completo: o que já tem rota (pronto ou ainda em
               produção) e o pronto que ainda espera rota. Programe o dia e o caminhão em{' '}
               <Link to="/rotas/programacao" className="font-medium text-texto underline">
@@ -155,14 +157,15 @@ export function Rotas() {
               </Link>
               . Entregue, o pedido sai daqui e fica no PCP → Todos os pedidos, com tudo dele. Com o
               "Entregue vai ao Tiny" ligado, a entrega registrada aqui vai também para o Tiny.
-            </p>
+            </>
           ) : (
-            <p className="mt-1 max-w-2xl text-texto-suave">
+            <>
               O caminhão de cada dia, parada por parada na ordem da rota — a mesma tela que o
               entregador abre no celular.
-            </p>
-          )}
-        </div>
+            </>
+          )
+        }
+      >
         <Abas
           rotulo="Entregas"
           abas={ABAS}
@@ -177,7 +180,7 @@ export function Rotas() {
           }
           idBase="entregas"
         />
-      </div>
+      </CabecalhoDaTela>
 
       <div
         role="tabpanel"

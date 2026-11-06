@@ -32,7 +32,7 @@ export function AbaMontadores({ filtros, aoContador }: PropsAba) {
   return (
     <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
       <div className="flex flex-col gap-3">
-        <h2 className="text-lg">{ehMontagem ? 'Por montador' : 'Por pessoa'}</h2>
+        <h2 className="text-base">{ehMontagem ? 'Por montador' : 'Por pessoa'}</h2>
         {r.pessoas_cartoes.length === 0 ? (
           <Vazio>Ninguém {ehMontagem ? 'montou' : 'trabalhou'} neste setor no período.</Vazio>
         ) : (

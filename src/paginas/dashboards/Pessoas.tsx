@@ -3,6 +3,7 @@ import { Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Target } from 'lucide-react'
 import { AvatarPessoa, Botao, Paginacao, Tabela, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
 import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
@@ -114,14 +115,18 @@ export function Pessoas() {
   if (!souAdmin && !ehLider) return <Navigate to="/" replace />
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">Pessoas</h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Execução é o tempo que tem dono. Aqui é alavancagem operacional — melhorar cada setor
-          com a contribuição de cada um.{!souAdmin && ' Você vê os setores em que é líder.'}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ?. */}
+      <CabecalhoDaTela
+        titulo="Pessoas"
+        rotuloAjuda="O que esta tela mostra"
+        ajuda={
+          <>
+            Execução é o tempo que tem dono. Aqui é alavancagem operacional — melhorar cada setor
+            com a contribuição de cada um.{!souAdmin && ' Você vê os setores em que é líder.'}
+          </>
+        }
+      />
 
       <Visualizacoes
         usuarioId={perfil.id}
@@ -148,7 +153,7 @@ export function Pessoas() {
       <section className="grid items-start gap-4 xl:grid-cols-[3fr_2fr]">
         {/* ---------- ranking com rótulo direto (regra 4 do LEIA-ME) ---------- */}
         <div className="flex flex-col gap-1 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
-          <h2 className="text-lg">Peças atendidas por pessoa</h2>
+          <h2 className="text-base">Peças atendidas por pessoa</h2>
           <p className="text-xs text-texto-fraco">
             execuções no período · à direita, o tempo{' '}
             {config.tempo === 'bruto' ? 'bruto' : 'útil'} médio por peça
@@ -197,7 +202,7 @@ export function Pessoas() {
         <div className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-2">
             <Target aria-hidden className="size-5 text-texto-suave" />
-            <h2 className="text-lg">Metas — cockpit</h2>
+            <h2 className="text-base">Metas — cockpit</h2>
             <Botao
               variante="secundaria"
               tamanho="sm"
@@ -251,7 +256,7 @@ export function Pessoas() {
 
       {/* ---------- a lista detalhada de execuções (D-32) ---------- */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg">Execuções detalhadas</h2>
+        <h2 className="text-base">Execuções detalhadas</h2>
         <Tabela
           legenda="Cada execução do período, com quem, onde e por quanto tempo"
           porPagina={20}

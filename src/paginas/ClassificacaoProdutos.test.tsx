@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router'
 import { ProvedorNotificacao } from '@/componentes/ui'
 import { ClassificacaoProdutos } from './ClassificacaoProdutos'
 import {
@@ -99,7 +100,10 @@ function renderizar() {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ProvedorNotificacao>
-        <ClassificacaoProdutos />
+        {/* o cabeçalho da tela tem a setinha de voltar (ajuste de 06/11) — precisa do roteador */}
+        <MemoryRouter>
+          <ClassificacaoProdutos />
+        </MemoryRouter>
       </ProvedorNotificacao>
     </QueryClientProvider>,
   )

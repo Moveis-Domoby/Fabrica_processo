@@ -26,7 +26,8 @@ import {
   Truck,
   Undo2,
 } from 'lucide-react'
-import { Abas, Botao, Dica, useNotificacao } from '@/componentes/ui'
+import { Abas, Botao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -361,43 +362,42 @@ export function PCP() {
   if (abaParam === 'cancelados') return <Navigate to="/fabrica/pedidos/cancelados" replace />
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
-        <div className="relative flex items-center gap-1">
-          <h1 className="text-2xl sm:text-3xl">PCP</h1>
-          <Dica rotulo="Como o PCP funciona">
-            <span className="flex flex-col gap-2">
-              {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
-              <span>
-                Todo pedido entra por aqui — e o estoque manda para cá a solicitação do que ficou
-                abaixo do mínimo.
-              </span>
-              <span>
-                Libere as unidades para os setores — dá para liberar parcial e terminar depois.
-              </span>
+    <div className="flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): título menor, o "?" no lugar
+          do "i" e as ações na mesma linha — a setinha de voltar mora aqui. */}
+      <CabecalhoDaTela
+        titulo="PCP"
+        rotuloAjuda="Como o PCP funciona"
+        ajuda={
+          <span className="flex flex-col gap-2">
+            {/* D-13: entrada única pelo PCP — código fora da tela (D-27). */}
+            <span>
+              Todo pedido entra por aqui — e o estoque manda para cá a solicitação do que ficou
+              abaixo do mínimo.
             </span>
-          </Dica>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {souSuperAdmin && (
-            <Botao
-              variante={selecionando ? 'primaria' : 'secundaria'}
-              icone={<ListChecks />}
-              aria-pressed={selecionando}
-              onClick={() => {
-                setSelecionando((s) => !s)
-                setSelecionados(new Map())
-              }}
-            >
-              {selecionando ? 'Sair da seleção' : 'Selecionar pedidos'}
-            </Botao>
-          )}
-          <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
-            Novo card de pedido
+            <span>
+              Libere as unidades para os setores — dá para liberar parcial e terminar depois.
+            </span>
+          </span>
+        }
+      >
+        {souSuperAdmin && (
+          <Botao
+            variante={selecionando ? 'primaria' : 'secundaria'}
+            icone={<ListChecks />}
+            aria-pressed={selecionando}
+            onClick={() => {
+              setSelecionando((s) => !s)
+              setSelecionados(new Map())
+            }}
+          >
+            {selecionando ? 'Sair da seleção' : 'Selecionar pedidos'}
           </Botao>
-        </div>
-      </div>
+        )}
+        <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
+          Novo card de pedido
+        </Botao>
+      </CabecalhoDaTela>
 
       <Abas
         rotulo="Visões do PCP"
@@ -425,7 +425,7 @@ export function PCP() {
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-solicitacoes">
           <section aria-label="Reabastecimento" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg">
+              <h2 className="text-base">
                 Reabastecimento{' '}
                 <span className="text-texto-suave tabular-nums">({totalSolicitacoes})</span>
               </h2>
@@ -488,7 +488,7 @@ export function PCP() {
         >
           <section aria-label="Pedidos aguardando liberação" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg">
+              <h2 className="text-base">
                 Aguardando liberação{' '}
                 <span className="text-texto-suave tabular-nums">({totalPedidosAbertos})</span>
               </h2>
@@ -591,7 +591,7 @@ export function PCP() {
         >
           <section aria-label="Pedidos em stand-by" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg">
+              <h2 className="text-base">
                 Em stand-by <span className="text-texto-suave tabular-nums">({totalStandby})</span>
               </h2>
               <span className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">

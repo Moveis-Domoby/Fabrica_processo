@@ -222,7 +222,7 @@ export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionar
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/10">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Clientes</h2>
+            <h2 className="text-base font-bold text-foreground">Clientes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Faturamento e itens refletem <em>apenas</em> o período filtrado.</p>
           </div>
           <div className="flex flex-wrap gap-2">

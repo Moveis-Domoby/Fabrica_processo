@@ -10,6 +10,7 @@ import {
   Scissors,
 } from 'lucide-react'
 import { Botao, Campo, Dica, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { useAgora } from '@/kanban/tempo'
 import { cn } from '@/lib/cn'
@@ -122,17 +123,18 @@ export function AdminEstoque() {
   })
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-          <Package aria-hidden className="size-7 shrink-0 text-texto-suave" />
-          Estoque
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-texto-suave">
-          A automação da reposição, o Top X, o corte de pedido fora do comum e o sincronismo com o
-          Tiny. A cobertura e os mínimos ficam na própria tela do Estoque, com a logística.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Estoque"
+        icone={<Package />}
+        rotuloAjuda="O que se configura aqui"
+        ajuda={
+          <>
+            A automação da reposição, o Top X, o corte de pedido fora do comum e o sincronismo com o
+            Tiny. A cobertura e os mínimos ficam na própria tela do Estoque, com a logística.
+          </>
+        }
+      />
 
       <section
         aria-label="Reposição automática"
@@ -140,7 +142,7 @@ export function AdminEstoque() {
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-texto">Reposição automática</h2>
+            <h2 className="text-base font-semibold text-texto">Reposição automática</h2>
             <Dica rotulo="Como a reposição automática funciona">
               <span className="flex flex-col gap-2">
                 <span>
@@ -205,7 +207,7 @@ export function AdminEstoque() {
       >
         <div className="flex items-center gap-2">
           <Scissors aria-hidden className="size-5 shrink-0 text-texto-suave" />
-          <h2 className="text-lg font-semibold text-texto">Top X e o pedido fora do comum</h2>
+          <h2 className="text-base font-semibold text-texto">Top X e o pedido fora do comum</h2>
         </div>
         {/* relative na section: os balões dos "i" ancoram na largura toda. */}
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
@@ -363,7 +365,7 @@ function CartaoTiny() {
         {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
         <div className="relative flex items-center gap-2">
           <RefreshCw aria-hidden className="size-6 shrink-0 text-texto-suave" />
-          <h2 className="text-lg font-semibold text-texto">Tiny</h2>
+          <h2 className="text-base font-semibold text-texto">Tiny</h2>
           <Dica rotulo="Como o estoque conversa com o Tiny">
             <span className="flex flex-col gap-2">
               <span>Ligado, a plataforma e o Tiny mostram o mesmo número de cada produto pronto.</span>

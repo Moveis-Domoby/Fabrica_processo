@@ -14,6 +14,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import {
   anexarComprovante,
@@ -217,12 +218,10 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   return (
     <div className={cn('flex w-full max-w-3xl flex-col gap-4', !embutida && 'mx-auto')}>
       <div className="flex flex-col gap-1">
-        {!embutida && (
-          <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-            <Truck aria-hidden className="size-7 shrink-0 text-texto-suave" />
-            Entregas do dia
-          </h1>
-        )}
+        {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): o título do entregador no
+            cabeçalho padrão (com a setinha de voltar). O dia e o "N de M
+            entregues" ficam à vista — é o andamento do dia, não explicação. */}
+        {!embutida && <CabecalhoDaTela titulo="Entregas do dia" icone={<Truck />} />}
         {data && (
           <p className="text-sm text-texto-suave first-letter:uppercase">
             {dataLonga(data.data)}
@@ -669,17 +668,15 @@ function CartaoEntrega({
             Entrega parcial
           </Botao>
         </div>
-      ) : (
-        entrega.entregue_por_gente &&
+      ) : entrega.entregue_por_gente &&
         !entrega.entrega_parcial &&
         entregueHoje(entrega.entregue_em) ? (
-          <Botao variante="fantasma" icone={<Undo2 />} className="self-start" onClick={aoDesfazer}>
-            Desfazer a entrega
-          </Botao>
-        ) : (
-          entrega.entregue_em && (
-            <p className="text-xs text-texto-suave">{porQueNaoDesfaz(entrega)}</p>
-          )
+        <Botao variante="fantasma" icone={<Undo2 />} className="self-start" onClick={aoDesfazer}>
+          Desfazer a entrega
+        </Botao>
+      ) : (
+        entrega.entregue_em && (
+          <p className="text-xs text-texto-suave">{porQueNaoDesfaz(entrega)}</p>
         )
       )}
     </li>
@@ -692,7 +689,8 @@ function CartaoEntrega({
  * (na ficha do pedido).
  */
 function porQueNaoDesfaz(e: Pick<EntregaDoDia, 'entregue_por_gente' | 'entrega_parcial'>): string {
-  if (e.entrega_parcial) return 'Entrega parcial: as peças que voltaram seguem pela decisão da logística.'
+  if (e.entrega_parcial)
+    return 'Entrega parcial: as peças que voltaram seguem pela decisão da logística.'
   if (!e.entregue_por_gente) return 'Veio do Tiny: só um administrador reabre, na ficha do pedido.'
   return 'Foi em outro dia: só um administrador reabre, na ficha do pedido.'
 }

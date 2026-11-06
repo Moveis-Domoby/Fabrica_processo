@@ -455,7 +455,7 @@ export function AbaProgramar({
           {ordemMontando.length > 0 && (
             <section className="order-1 flex min-w-0 flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie-sutil p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-lg">
+                <h2 className="flex items-center gap-2 text-base">
                   <Route aria-hidden className="size-5 text-texto-suave" />
                   Rota programada{' '}
                   <span className="text-sm font-normal text-texto-suave tabular-nums">
@@ -525,7 +525,7 @@ export function AbaProgramar({
           )}
 
           <section className="order-3 flex min-w-0 flex-col gap-3">
-            <h2 className="text-lg">
+            <h2 className="text-base">
               Sem programação{' '}
               <span className="text-sm font-normal text-texto-suave tabular-nums">
                 ({dados?.total_geral ?? 0})
@@ -596,7 +596,7 @@ export function AbaProgramar({
         </div>
 
         <section className="order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start">
-          <h2 className="text-lg">
+          <h2 className="text-base">
             Mapa{' '}
             <span className="text-sm font-normal text-texto-suave">
               F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · quadrado "A" =

@@ -3,6 +3,7 @@ import { Navigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, CircleX } from 'lucide-react'
 import { Tabela } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
@@ -102,14 +103,18 @@ export function Qualidade() {
     `${config.periodoDias} dias`
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">Qualidade nas transições</h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          A marcação de saída da dupla atestação: quem entrega marca, quem recebe confirma.
-          {!souAdmin && ' Você vê os setores em que é líder.'}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ?. */}
+      <CabecalhoDaTela
+        titulo="Qualidade nas transições"
+        rotuloAjuda="O que esta tela mostra"
+        ajuda={
+          <>
+            A marcação de saída da dupla atestação: quem entrega marca, quem recebe confirma.
+            {!souAdmin && ' Você vê os setores em que é líder.'}
+          </>
+        }
+      />
 
       <Visualizacoes
         usuarioId={perfil.id}
@@ -137,7 +142,7 @@ export function Qualidade() {
         {/* ---------- como as peças saem de cada setor (100% empilhado) ---------- */}
         <div className="flex flex-col gap-1 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg">Como as peças saem de cada setor</h2>
+            <h2 className="text-base">Como as peças saem de cada setor</h2>
             <span className="flex flex-wrap items-center gap-3 text-xs text-texto-suave">
               <span className="flex items-center gap-1">
                 <CircleCheck aria-hidden className="size-3.5 text-perfeito-forte" /> perfeito
@@ -283,7 +288,7 @@ export function Qualidade() {
 
       {/* ---------- divergências (RF-85 — quem entrega dano) ---------- */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg">Divergências da dupla atestação</h2>
+        <h2 className="text-base">Divergências da dupla atestação</h2>
         <Tabela
           legenda="Divergências de parecer por setor no período"
           colunas={[

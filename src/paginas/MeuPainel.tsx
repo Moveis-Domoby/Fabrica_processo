@@ -15,6 +15,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { Botao, Paginacao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ROTULO_PAPEL } from '@/autenticacao/tipos'
@@ -317,15 +318,19 @@ export function MeuPainel() {
   ]
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl sm:text-3xl">Olá, {nomeCurto}!</h1>
-        <p className="text-texto-suave">
-          {ROTULO_PAPEL[perfil.papel]} · matrícula{' '}
-          <span className="tabular-nums">{perfil.matricula}</span>
-          {meusSetores && <> · {meusSetores}</>}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): papel, matrícula e setores foram para o ?. */}
+      <CabecalhoDaTela
+        titulo={`Olá, ${nomeCurto}!`}
+        rotuloAjuda="Seus dados"
+        ajuda={
+          <>
+            {ROTULO_PAPEL[perfil.papel]} · matrícula{' '}
+            <span className="tabular-nums">{perfil.matricula}</span>
+            {meusSetores && <> · {meusSetores}</>}
+          </>
+        }
+      />
 
       {/* ----- SESSAO-46: as sugestões que a pessoa pediu e já pode testar ----- */}
       {paraTestar.length > 0 && (
@@ -366,7 +371,7 @@ export function MeuPainel() {
 
       {/* ----- Os separadores: delegados · meus · em execução ----- */}
       <section aria-label="O que me espera" className="flex flex-col gap-3">
-        <h2 className="text-lg">O que me espera</h2>
+        <h2 className="text-base">O que me espera</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {separadores.map((p) => (
             <div
@@ -419,7 +424,7 @@ export function MeuPainel() {
       <section aria-label="Fila de prioridade" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <ListChecks aria-hidden className="size-5 text-texto-suave" />
-          <h2 className="text-lg">Fila de prioridade</h2>
+          <h2 className="text-base">Fila de prioridade</h2>
           <span className="text-sm text-texto-fraco">
             a sua ordem, só sua — as setas mudam só a exibição
           </span>
@@ -539,7 +544,7 @@ export function MeuPainel() {
       <section aria-label="Cockpit de metas" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Target aria-hidden className="size-5 text-texto-suave" />
-          <h2 className="text-lg">Minhas metas</h2>
+          <h2 className="text-base">Minhas metas</h2>
           <span className="text-sm text-texto-fraco">
             barra = feito · traço = onde o período já deveria estar
           </span>

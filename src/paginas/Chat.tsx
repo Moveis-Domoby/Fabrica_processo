@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router'
 import { MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { ListaConversas } from '@/chat/componentes/ListaConversas'
 import { PainelConversa } from '@/chat/componentes/PainelConversa'
 
@@ -20,14 +21,11 @@ export function Chat() {
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <MessageCircle aria-hidden className="size-6 text-texto-suave" />
-        <h1 className="text-2xl sm:text-3xl">Chat</h1>
-      </div>
+      <CabecalhoDaTela titulo="Chat" icone={<MessageCircle />} />
       {/* grid-cols-1 = minmax(0,1fr): sem ele, no celular a coluna implícita
           cresce até o título numa linha só e a conversa é cortada à direita
           (achado da F-07 a 375px). */}
-      <div className="grid h-[calc(100dvh-12rem)] min-h-[26rem] grid-cols-1 overflow-hidden rounded-dm-lg border border-borda bg-superficie lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="grid h-[calc(100dvh-9rem)] min-h-[26rem] grid-cols-1 overflow-hidden rounded-dm-lg border border-borda bg-superficie lg:grid-cols-[22rem_minmax(0,1fr)]">
         <div
           className={cn(
             'min-h-0 min-w-0 border-borda lg:border-r',

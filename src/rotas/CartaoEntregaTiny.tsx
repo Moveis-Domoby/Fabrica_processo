@@ -78,7 +78,7 @@ export function CartaoEntregaTiny() {
           <CirclePause aria-hidden className="size-6 text-texto-suave" />
         )}
         <div className="flex-1">
-          <h2 className="text-lg font-semibold text-texto">Entregue vai ao Tiny</h2>
+          <h2 className="text-base font-semibold text-texto">Entregue vai ao Tiny</h2>
           <p className="text-sm text-texto-suave">
             {ligada
               ? `Ligado desde ${new Date(s.ligado_desde!).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: a entrega registrada aqui deixa o pedido "Entregue" no Tiny, e o desfazer volta.`

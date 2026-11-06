@@ -19,7 +19,8 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import {
@@ -69,13 +70,12 @@ export function Utilitarios() {
       : 'etiquetas'
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="relative flex flex-wrap items-center gap-2">
-        <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-          <Wrench aria-hidden className="size-7 shrink-0 text-texto-suave" />
-          Utilitários
-        </h1>
-        <Dica rotulo="Para que servem os utilitários">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Utilitários"
+        icone={<Wrench />}
+        rotuloAjuda="Para que servem os utilitários"
+        ajuda={
           <span className="flex flex-col gap-2">
             <span>
               Etiquetas são marcas coloridas que as automações põem e tiram dos cards — um card pode
@@ -109,8 +109,8 @@ export function Utilitarios() {
             </span>
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
-        </Dica>
-      </div>
+        }
+      />
 
       <Abas
         rotulo="O que cadastrar"
@@ -932,7 +932,7 @@ function ListaMotivos({
       aria-label={titulo}
     >
       <div>
-        <h2 className="text-lg font-semibold text-texto">{titulo}</h2>
+        <h2 className="text-base font-semibold text-texto">{titulo}</h2>
         <p className="text-sm text-texto-suave">{explica}</p>
         {comMarca && <p className="mt-1 text-sm text-texto-suave">{EXPLICA_ESPECIAL}</p>}
       </div>

@@ -230,7 +230,7 @@ export function Painel({
       )}
     >
       <div>
-        <h2 className="text-lg">{titulo}</h2>
+        <h2 className="text-base">{titulo}</h2>
         {dica && <p className="text-xs text-texto-fraco">{dica}</p>}
       </div>
       {children}

@@ -67,7 +67,7 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
       <div className="bg-card border border-border rounded-xl p-5" style={cardVisible(600)}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h2 className="font-bold text-lg flex items-center gap-2">
+            <h2 className="font-bold text-base flex items-center gap-2">
               <Package size={18} className="text-primary" />
               Top 30 Mais Comprados
             </h2>
@@ -113,7 +113,7 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
       <div className="bg-card border border-border rounded-xl p-5" style={cardVisible(640)}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h2 className="font-bold text-lg flex items-center gap-2">
+            <h2 className="font-bold text-base flex items-center gap-2">
               <TrendingDown size={18} className="text-orange-400" />
               Top 30 Menos Comprados
             </h2>

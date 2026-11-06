@@ -32,7 +32,7 @@ export function NomesDoTrello() {
   return (
     <section className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg">
+        <h2 className="flex items-center gap-2 text-base">
           <FileClock aria-hidden className="size-5 text-texto-suave" />
           Nomes do Trello sem modelo
         </h2>

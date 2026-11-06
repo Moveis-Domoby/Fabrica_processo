@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { Botao, Campo, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSuperAdmin } from '@/autenticacao/tipos'
@@ -175,19 +176,22 @@ export function AdminApi() {
   })
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">API e integrações</h1>
-        <p className="mt-1 max-w-2xl text-texto-suave">
-          A porta de integrações da plataforma: chaves de acesso e webhooks de saída. O guia com
-          exemplos está em <code className="text-texto">docs/api.md</code> no repositório.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <CabecalhoDaTela
+        titulo="API e integrações"
+        rotuloAjuda="Sobre a API e as integrações"
+        ajuda={
+          <>
+            A porta de integrações da plataforma: chaves de acesso e webhooks de saída. O guia com
+            exemplos está em <code className="text-texto">docs/api.md</code> no repositório.
+          </>
+        }
+      />
 
       {/* ---------------- API nova do Tiny da fábrica (SESSAO-33 · D-142) ---------------- */}
       {ehSuperAdmin(perfil) && (
         <section className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-lg">
+          <h2 className="flex items-center gap-2 text-base">
             <Factory aria-hidden className="size-5 text-texto-suave" />
             API nova do Tiny da fábrica
           </h2>
@@ -215,7 +219,7 @@ export function AdminApi() {
 
       {/* ---------------- Chaves ---------------- */}
       <section className="flex flex-col gap-4">
-        <h2 className="flex items-center gap-2 text-lg">
+        <h2 className="flex items-center gap-2 text-base">
           <KeyRound aria-hidden className="size-5 text-texto-suave" />
           Chaves de API
         </h2>
@@ -334,7 +338,7 @@ export function AdminApi() {
 
       {/* ---------------- Webhooks ---------------- */}
       <section className="flex flex-col gap-4">
-        <h2 className="flex items-center gap-2 text-lg">
+        <h2 className="flex items-center gap-2 text-base">
           <WebhookIcon aria-hidden className="size-5 text-texto-suave" />
           Webhooks de saída
         </h2>

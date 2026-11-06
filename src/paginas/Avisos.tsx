@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck, Trash2 } from 'lucide-react'
 import { Paginacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
@@ -62,15 +63,13 @@ export function Avisos() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Avisos</h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
-            Tudo o que o sino já te avisou, do mais novo para o mais antigo.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Avisos"
+        rotuloAjuda="Sobre os avisos"
+        ajuda="Tudo o que o sino já te avisou, do mais novo para o mais antigo."
+      >
+        <>
           {naoLidos > 0 && (
             <button
               type="button"
@@ -93,8 +92,8 @@ export function Avisos() {
               Apagar lidas
             </button>
           )}
-        </div>
-      </div>
+        </>
+      </CabecalhoDaTela>
 
       {total === 0 ? (
         <p className="rounded-dm-lg border border-borda bg-superficie p-5 text-sm text-texto-suave">

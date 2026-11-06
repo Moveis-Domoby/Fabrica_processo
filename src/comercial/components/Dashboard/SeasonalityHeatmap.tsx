@@ -88,7 +88,7 @@ export function SeasonalityHeatmap({ mounted }: SeasonalityHeatmapProps) {
     <div className="bg-card border border-border rounded-xl p-5 mb-6" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(16px)', transition: 'opacity 0.6s ease 500ms, transform 0.6s ease 500ms' }}>
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
-          <h2 className="font-bold text-lg flex items-center gap-2">
+          <h2 className="font-bold text-base flex items-center gap-2">
             <Flame size={18} className="text-orange-400" />
             Sazonalidade de Produtos
           </h2>

@@ -10,6 +10,7 @@ import {
   Users,
 } from 'lucide-react'
 import { Abas, type Aba } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { EstadoDaLeitura } from './controleTempo/comum'
 
@@ -58,15 +59,16 @@ export function ControleTempo() {
   const Painel = PAINEIS[aba]
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">Controle de tempo</h1>
-        <p className="mt-1 max-w-2xl text-texto-suave">
-          {souAdmin
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Controle de tempo"
+        rotuloAjuda="Sobre o controle de tempo"
+        ajuda={
+          souAdmin
             ? 'Quando o tempo conta, o que entra na média e como os tempos são refeitos. O que já foi registrado nunca muda — estes ajustes valem para o cálculo.'
-            : 'A hora extra dos setores que você lidera.'}
-        </p>
-      </div>
+            : 'A hora extra dos setores que você lidera.'
+        }
+      />
 
       {abas.length > 1 && (
         <Abas

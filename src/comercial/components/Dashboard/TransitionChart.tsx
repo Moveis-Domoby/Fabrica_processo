@@ -71,7 +71,7 @@ export function TransitionChart({ mounted }: TransitionChartProps) {
       <div className="bg-card border border-border rounded-xl p-5 mb-6" style={cardVisible(820)}>
         <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
           <div>
-            <h2 className="font-bold text-lg flex items-center gap-2">
+            <h2 className="font-bold text-base flex items-center gap-2">
               <Activity size={18} className="text-purple-400" />
               Tempo Médio entre Compras
             </h2>

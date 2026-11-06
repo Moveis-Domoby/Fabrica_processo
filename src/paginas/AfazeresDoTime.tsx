@@ -3,6 +3,7 @@ import { Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Plus } from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores, delegarCard } from '@/kanban/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
@@ -120,31 +121,32 @@ export function AfazeresDoTime() {
   if (!ehLider) return <Navigate to="/inicio/afazeres" replace />
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Afazeres do time</h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Afazeres do time"
+        rotuloAjuda="Como funcionam os afazeres do time"
+        ajuda={
+          <>
             A carga de cada pessoa e a delegação dos cards do setor. Delegar organiza o trabalho;
             qualquer pessoa do setor continua podendo agir no card.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          {setoresQueLidero.length > 1 && (
-            <div className="w-56">
-              <Selecao
-                rotulo="Setor"
-                opcoes={setoresQueLidero.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
-                valor={String(setorTimeId ?? '')}
-                aoMudar={setSetorTime}
-              />
-            </div>
-          )}
-          <Botao icone={<Plus />} disabled={setorTimeId === null} onClick={() => setModalNova(true)}>
-            Nova tarefa
-          </Botao>
-        </div>
-      </div>
+          </>
+        }
+        classeAcoes="items-end"
+      >
+        {setoresQueLidero.length > 1 && (
+          <div className="w-56">
+            <Selecao
+              rotulo="Setor"
+              opcoes={setoresQueLidero.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+              valor={String(setorTimeId ?? '')}
+              aoMudar={setSetorTime}
+            />
+          </div>
+        )}
+        <Botao icone={<Plus />} disabled={setorTimeId === null} onClick={() => setModalNova(true)}>
+          Nova tarefa
+        </Botao>
+      </CabecalhoDaTela>
 
       {/* Carga por pessoa (RF-40) */}
       <div className="flex flex-wrap gap-2">

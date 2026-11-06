@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ArrowDown, ArrowUp, Clock, Hourglass, Play } from 'lucide-react'
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cn } from '@/lib/cn'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
 import { dashVisaoDoDia } from '@/dashboards/api'
@@ -143,14 +144,15 @@ export function VisaoDoDia() {
   if (!souAdmin && !ehLider) return <Navigate to="/" replace />
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="text-2xl sm:text-3xl">Visão do dia</h1>
-        <p className="text-sm text-texto-suave">
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a data e a hora da última
+          leitura continuam visíveis, na linha do título (é estado, não explicação). */}
+      <CabecalhoDaTela titulo="Visão do dia" classeAcoes="justify-start">
+        <span className="text-sm text-texto-suave">
           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}
           {' · '}atualizado às {agoraTexto}
-        </p>
-      </div>
+        </span>
+      </CabecalhoDaTela>
 
       <Visualizacoes
         usuarioId={perfil.id}
@@ -316,7 +318,7 @@ export function VisaoDoDia() {
       {dia && (
         <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
           <div className="flex flex-col gap-1 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
-            <h2 className="text-lg">Unidades concluídas por hora — hoje</h2>
+            <h2 className="text-base">Unidades concluídas por hora — hoje</h2>
             <p className="text-xs text-texto-fraco">
               barras = hoje · linha tracejada = média das últimas 4 {diaDaSemana}s
             </p>
@@ -389,7 +391,7 @@ export function VisaoDoDia() {
 
           <div className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
             <div>
-              <h2 className="text-lg">Fim de linha — hoje</h2>
+              <h2 className="text-base">Fim de linha — hoje</h2>
               <p className="text-xs text-texto-fraco">destino das unidades concluídas</p>
             </div>
             {(['aguardo', 'rotas', 'estoque', 'danificado'] as const).map((chave) => {

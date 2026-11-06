@@ -11,6 +11,7 @@ import { CriarListaModal } from '../components/ListasDisparo/CriarListaModal'
 import { AdicionarListaModal } from '../components/ListasDisparo/AdicionarListaModal'
 import { ListasDropdown } from '../components/ListasDropdown'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useDisparosData } from '../hooks/useDisparosData'
 import { useFilterOptions } from '../hooks/useFilterOptions'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -74,38 +75,35 @@ export function PainelRecompra() {
   return (
     <div className="comercial w-full">
       <Toaster position="top-right" />
-      <header className="mb-6 sm:mb-8 flex justify-between items-start gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-primary leading-tight">
-            Painel de Recompra
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
-            Análise de métricas e exportação de leads para marketing.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <ListasDropdown
-            isActive={false}
-            onSelectLista={(id) => navigate(`/comercial/listas/${id}`)}
-          />
-          <button
-            onClick={() => navigate('/comercial/dashboard')}
-            className="bg-primary text-primary-foreground flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm hover:bg-primary/90 shadow-sm"
-            title="Abrir Dashboard Analítico"
-          >
-            <BarChart2 size={16} />
-            <span className="hidden sm:inline">Dashboard</span>
-          </button>
-          <button
-            onClick={handleExportDailySummaryCSV}
-            className="bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
-            title="Exportar resumo diário (Auditoria)"
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">Auditoria Diária</span>
-          </button>
-        </div>
-      </header>
+      {/* Ajuste de 06/11 (cabeçalhos compactos): o topo no padrão de todas as
+          telas — a explicação foi para o ?, as ações na mesma linha. */}
+      <CabecalhoDaTela
+        titulo="Painel de Recompra"
+        rotuloAjuda="O que é este painel"
+        ajuda="Análise de métricas e exportação de leads para marketing."
+        className="mb-4"
+      >
+        <ListasDropdown
+          isActive={false}
+          onSelectLista={(id) => navigate(`/comercial/listas/${id}`)}
+        />
+        <button
+          onClick={() => navigate('/comercial/dashboard')}
+          className="bg-primary text-primary-foreground flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm hover:bg-primary/90 shadow-sm"
+          title="Abrir Dashboard Analítico"
+        >
+          <BarChart2 size={16} />
+          <span className="hidden sm:inline">Dashboard</span>
+        </button>
+        <button
+          onClick={handleExportDailySummaryCSV}
+          className="bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
+          title="Exportar resumo diário (Auditoria)"
+        >
+          <Download size={16} />
+          <span className="hidden sm:inline">Auditoria Diária</span>
+        </button>
+      </CabecalhoDaTela>
 
       <ErrorBoundary>
         <FilterBar

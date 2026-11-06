@@ -63,7 +63,7 @@ export function PurchaseFrequencyChart({ mounted }: PurchaseFrequencyChartProps)
     <div className="bg-card border border-border rounded-xl p-5 mb-6" style={cardVisible(780)}>
       <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h2 className="font-bold text-lg flex items-center gap-2">
+          <h2 className="font-bold text-base flex items-center gap-2">
             <Repeat size={18} className="text-purple-400" />
             Comparativo entre Frequência de Compra
           </h2>

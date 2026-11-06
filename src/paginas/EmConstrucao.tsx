@@ -1,4 +1,5 @@
 import { Hammer } from 'lucide-react'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 
 /**
  * Placeholder das telas que já têm endereço mas ainda não têm conteúdo
@@ -7,8 +8,8 @@ import { Hammer } from 'lucide-react'
  */
 export function EmConstrucao({ titulo, descricao }: { titulo: string; descricao?: string }) {
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl sm:text-3xl">{titulo}</h1>
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela titulo={titulo} />
       <div className="flex flex-col items-center gap-3 rounded-dm-lg border border-dashed border-borda-forte bg-superficie px-6 py-16 text-center">
         <Hammer aria-hidden className="size-10 text-texto-fraco" />
         <p className="text-lg font-medium text-texto">Em construção</p>

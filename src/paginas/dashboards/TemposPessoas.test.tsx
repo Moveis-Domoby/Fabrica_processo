@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router'
 import { TemposPessoas } from './TemposPessoas'
 import { tempoPessoaDetalhe } from '@/dashboards/api'
 
@@ -135,10 +136,14 @@ vi.mock('@/dashboards/api', async (original) => {
 
 function desenhar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  // A tela agora tem a setinha de voltar no cabeçalho (ajuste de 06/11) — ela
+  // precisa do roteador.
   return render(
-    <QueryClientProvider client={cliente}>
-      <TemposPessoas />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={cliente}>
+        <TemposPessoas />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 

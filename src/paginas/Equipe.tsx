@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, Check, Copy, MessageCircle, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { AvatarPessoa, Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
 import type { ColunaTabela } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
@@ -326,32 +327,30 @@ export function Equipe() {
   ]
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Equipe</h1>
-          <p className="mt-1 text-texto-suave">
-            {souAdmin
-              ? 'Cadastro e convites de toda a fábrica.'
-              : 'Cadastro e convites dos setores em que você é líder.'}
-          </p>
-        </div>
-        <span className="flex flex-wrap items-center gap-2">
-          {/* D-49: os arquivados moram aqui — fora da lista do dia a dia. */}
-          <Botao
-            variante="secundaria"
-            icone={<Archive />}
-            aria-pressed={verArquivados}
-            className={verArquivados ? 'border-acao-ativa' : undefined}
-            onClick={() => setVerArquivados((v) => !v)}
-          >
-            {verArquivados ? 'Voltar aos ativos' : `Arquivados (${arquivados.length})`}
-          </Botao>
-          <Botao icone={<UserRoundPlus />} onClick={() => setModalNovo(true)}>
-            Novo usuário
-          </Botao>
-        </span>
-      </div>
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Equipe"
+        rotuloAjuda="Sobre a gestão da equipe"
+        ajuda={
+          souAdmin
+            ? 'Cadastro e convites de toda a fábrica.'
+            : 'Cadastro e convites dos setores em que você é líder.'
+        }
+      >
+        {/* D-49: os arquivados moram aqui — fora da lista do dia a dia. */}
+        <Botao
+          variante="secundaria"
+          icone={<Archive />}
+          aria-pressed={verArquivados}
+          className={verArquivados ? 'border-acao-ativa' : undefined}
+          onClick={() => setVerArquivados((v) => !v)}
+        >
+          {verArquivados ? 'Voltar aos ativos' : `Arquivados (${arquivados.length})`}
+        </Botao>
+        <Botao icone={<UserRoundPlus />} onClick={() => setModalNovo(true)}>
+          Novo usuário
+        </Botao>
+      </CabecalhoDaTela>
 
       <Tabela
         legenda={verArquivados ? 'Usuários arquivados' : 'Usuários da plataforma'}

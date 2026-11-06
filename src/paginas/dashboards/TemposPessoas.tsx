@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Handshake, Play, UsersRound } from 'lucide-react'
+import { Handshake, Play } from 'lucide-react'
 import { AvatarPessoa, Modal } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { useAoVivo } from '@/lib/aoVivo'
@@ -88,23 +89,25 @@ export function TemposPessoas() {
   const souSoEu = pessoas.length === 1 && pessoas[0]?.usuario_id === perfil.id
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">Tempos por pessoa</h1>
-        <p className="mt-1 flex max-w-3xl items-center gap-1.5 text-texto-suave">
-          <UsersRound aria-hidden className="size-4 shrink-0" />
-          {souSoEu
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ? e o
+          período subiu para a linha do título. */}
+      <CabecalhoDaTela
+        titulo="Tempos por pessoa"
+        rotuloAjuda="O que esta tela mostra"
+        ajuda={
+          souSoEu
             ? 'Os seus tempos: em produção, ausente e fora de setor — tudo derivado dos fatos (entrada, pausa, saída).'
-            : 'Quem está trabalhando, ausente ou fora de setor — e quanto tempo cada um passou em cada estado no período.'}
-        </p>
-      </div>
-
-      <FiltroPill
-        rotulo="Período"
-        opcoes={OPCOES_PERIODO}
-        valor={String(dias) as (typeof OPCOES_PERIODO)[number]['valor']}
-        aoMudar={(v) => setDias(Number(v))}
-      />
+            : 'Quem está trabalhando, ausente ou fora de setor — e quanto tempo cada um passou em cada estado no período.'
+        }
+      >
+        <FiltroPill
+          rotulo="Período"
+          opcoes={OPCOES_PERIODO}
+          valor={String(dias) as (typeof OPCOES_PERIODO)[number]['valor']}
+          aoMudar={(v) => setDias(Number(v))}
+        />
+      </CabecalhoDaTela>
 
       {isPending ? (
         <p className="text-sm text-texto-suave">Carregando…</p>

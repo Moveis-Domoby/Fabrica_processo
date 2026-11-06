@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, Image, Pencil, Plus, Trash2, Truck } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
@@ -79,22 +80,22 @@ export function Caminhoes() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-            <Truck aria-hidden className="size-7 text-texto-suave" />
-            Caminhões
-          </h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Caminhões"
+        icone={<Truck />}
+        rotuloAjuda="Sobre os caminhões"
+        ajuda={
+          <>
             Os caminhões da logística, com foto. Caminhão que já rodou entrega não se exclui —
             arquiva, e a história fica.
-          </p>
-        </div>
+          </>
+        }
+      >
         <Botao icone={<Plus />} onClick={() => setModal({ caminhao: null })}>
           Novo caminhão
         </Botao>
-      </div>
+      </CabecalhoDaTela>
 
       {/* SESSAO-30 (D-113): a chave da entrega no Tiny mora junto dos caminhões. */}
       <CartaoEntregaTiny />

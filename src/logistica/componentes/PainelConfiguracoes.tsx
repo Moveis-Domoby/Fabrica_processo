@@ -108,7 +108,7 @@ export function PainelConfiguracoes({ ativo, podeMexer }: { ativo: boolean; pode
           <div className="flex flex-col gap-2">
             {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
             <div className="relative flex items-center gap-1">
-              <h2 className="text-lg font-semibold text-texto">Mínimo por produto</h2>
+              <h2 className="text-base font-semibold text-texto">Mínimo por produto</h2>
               <Dica rotulo="Como o mínimo automático funciona">
                 <span className="flex flex-col gap-2">
                   <span>
@@ -253,7 +253,7 @@ function CartaoGalpao({ resumo }: { resumo: ResumoEstoque | null }) {
         className="flex min-h-toque-md items-center gap-2 text-left"
       >
         <Warehouse aria-hidden className="size-6 shrink-0 text-texto-suave" />
-        <h2 className="text-lg font-semibold text-texto">Galpão</h2>
+        <h2 className="text-base font-semibold text-texto">Galpão</h2>
         <span className="flex-1" />
         {aberto ? (
           <ChevronUp aria-hidden className="size-5 shrink-0 text-texto-suave" />

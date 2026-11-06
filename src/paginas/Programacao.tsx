@@ -3,6 +3,7 @@ import { Navigate, useSearchParams } from 'react-router'
 import { CalendarCheck, CalendarDays, Route, Truck } from 'lucide-react'
 import { Abas } from '@/componentes/ui'
 import type { Aba } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useAcessoLogistica } from '@/logistica/acesso'
 import { AbaCalendario } from '@/rotas/AbaCalendario'
 import { AbaJaProgramadas } from '@/rotas/AbaJaProgramadas'
@@ -77,21 +78,21 @@ export function Programacao() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-            <Route aria-hidden className="size-7 text-texto-suave" />
-            Programação de caminhão
-          </h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
-            {aba === 'programar'
-              ? 'Marque os pedidos que vão, arraste para acertar a ordem, veja a rota pelas ruas (é só sugestão — a decisão é sua) e confirme com o dia, o caminhão e a rota.'
-              : aba === 'calendario'
-                ? 'A programação no calendário: cada pedido no dia da rota ou, sem rota, no dia da previsão de entrega — na cor da situação. Toque num pedido na rota para abrir a rota.'
-                : 'Tudo o que já está programado, por dia, caminhão e rota. Escolha uma rota para ver no mapa e acertar a ordem.'}
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação de cada aba foi
+          para o "?"; as abas ficam na linha do título. */}
+      <CabecalhoDaTela
+        titulo="Programação de caminhão"
+        icone={<Route />}
+        rotuloAjuda="Como funciona a programação"
+        ajuda={
+          aba === 'programar'
+            ? 'Marque os pedidos que vão, arraste para acertar a ordem, veja a rota pelas ruas (é só sugestão — a decisão é sua) e confirme com o dia, o caminhão e a rota.'
+            : aba === 'calendario'
+              ? 'A programação no calendário: cada pedido no dia da rota ou, sem rota, no dia da previsão de entrega — na cor da situação. Toque num pedido na rota para abrir a rota.'
+              : 'Tudo o que já está programado, por dia, caminhão e rota. Escolha uma rota para ver no mapa e acertar a ordem.'
+        }
+      >
         <Abas
           rotulo="Programação"
           abas={ABAS}
@@ -99,7 +100,7 @@ export function Programacao() {
           aoMudar={(v) => irPara(v)}
           idBase="programacao"
         />
-      </div>
+      </CabecalhoDaTela>
 
       <div role="tabpanel" id="programacao-painel" aria-labelledby={`programacao-aba-${aba}`}>
         {aba === 'programar' ? (

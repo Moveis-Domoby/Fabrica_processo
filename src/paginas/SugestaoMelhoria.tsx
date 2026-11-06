@@ -5,6 +5,7 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CornerUpLeft, Lightbulb, Loader2, Paperclip } from 'lucide-react'
 import { Botao, Modal, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useAoVivo } from '@/lib/aoVivo'
 import { SensorDoMouse } from '@/kanban/componentes/arrastarQuadro'
@@ -304,18 +305,20 @@ export function SugestaoMelhoria() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl sm:text-3xl">Sugestão de melhoria</h1>
-          <p className="text-texto-suave">
+      <CabecalhoDaTela
+        titulo="Sugestão de melhoria"
+        rotuloAjuda="Como funciona o quadro de sugestões"
+        ajuda={
+          <>
             Tudo o que a equipe pediu para o sistema e onde cada pedido está.{' '}
             {movivel ? 'Arraste o cartão para mudar de coluna.' : 'Toque no cartão para ver tudo.'}
-          </p>
-        </div>
+          </>
+        }
+      >
         <Botao variante="primaria" icone={<Lightbulb aria-hidden />} onClick={() => setSugerindo(true)}>
           Sugerir melhoria
         </Botao>
-      </div>
+      </CabecalhoDaTela>
 
       {quadro.isPending && (
         <p className="flex items-center gap-2 text-sm text-texto-fraco" role="status">

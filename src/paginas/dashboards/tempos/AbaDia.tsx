@@ -85,7 +85,7 @@ export function AbaDia({ filtros, aoContador }: PropsAba) {
           disabled={dia >= hojeNaFabrica()}
           onClick={() => setDia(somarDias(dia, 1))}
         />
-        <h2 className="ml-1 text-lg">{diaPorExtenso(dia)}</h2>
+        <h2 className="ml-1 text-base">{diaPorExtenso(dia)}</h2>
       </div>
 
       {consulta.isPending ? (

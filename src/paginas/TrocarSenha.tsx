@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
+import { BotaoVoltar } from '@/componentes/BotaoVoltar'
 import { trocarSenha } from '@/autenticacao/api'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 
@@ -47,6 +48,9 @@ export function TrocarSenha() {
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6 py-6">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a casca não desenha mais o
+          Voltar. Na troca obrigatória não há para onde voltar. */}
+      {!obrigatoria && <BotaoVoltar className="-mb-4 self-start" />}
       <div className="rounded-dm-lg border border-borda bg-superficie p-5 sm:p-6">
         <ShieldCheck aria-hidden className="size-10 text-acao-ativa" />
         <h1 className="mt-3 text-xl">

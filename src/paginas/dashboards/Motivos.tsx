@@ -14,6 +14,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { Botao, Modal } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
@@ -100,15 +101,20 @@ export function Motivos() {
   const danificadas = qual?.por_setor.reduce((s, q) => s + q.danificado, 0) ?? 0
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl">Motivos</h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Por que a produção para, por que o pedido fica segurado e por que a entrega não acontece —
-          do maior problema para o menor. Toque num motivo para ver cada vez que ele aconteceu.
-          {!souAdmin && ' Você vê os setores em que é líder.'}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ?. */}
+      <CabecalhoDaTela
+        titulo="Motivos"
+        rotuloAjuda="O que esta tela mostra"
+        ajuda={
+          <>
+            Por que a produção para, por que o pedido fica segurado e por que a entrega não
+            acontece — do maior problema para o menor. Toque num motivo para ver cada vez que ele
+            aconteceu.
+            {!souAdmin && ' Você vê os setores em que é líder.'}
+          </>
+        }
+      />
 
       <Visualizacoes
         usuarioId={perfil.id}
@@ -451,7 +457,7 @@ function Secao({
   return (
     <section className="flex flex-col gap-4 rounded-dm-lg border border-borda bg-superficie p-4 sm:p-5">
       <header>
-        <h2 className="flex items-center gap-2 text-lg">
+        <h2 className="flex items-center gap-2 text-base">
           <span className="text-texto-suave">{icone}</span>
           {titulo}
         </h2>

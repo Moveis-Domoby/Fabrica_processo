@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { Abas, Botao, Campo, Modal, Selecao, type Aba } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { temModoTv } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
@@ -165,15 +166,18 @@ export function TemposProducao() {
   if (carregando || !perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Tempos de produção</h1>
-          <p className="mt-1 max-w-3xl text-texto-suave">
+    <div className="flex flex-col gap-4">
+      {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ?. */}
+      <CabecalhoDaTela
+        titulo="Tempos de produção"
+        rotuloAjuda="Como o tempo é contado"
+        ajuda={
+          <>
             Quanto tempo cada móvel levou no setor, com o expediente, o almoço e as pausas
             descontados — o mesmo tempo do card. {ehLider ? '' : 'Você vê o que você montou.'}
-          </p>
-        </div>
+          </>
+        }
+      >
         {temModoTv(perfil) && (
           <Botao
             variante="secundaria"
@@ -189,7 +193,7 @@ export function TemposProducao() {
             Modo TV
           </Botao>
         )}
-      </div>
+      </CabecalhoDaTela>
 
       {/* os filtros numa linha acima de tudo (regra 6 das dashboards) */}
       <div className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-3 sm:p-4">

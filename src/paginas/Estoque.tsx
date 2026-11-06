@@ -1,7 +1,8 @@
 import { Navigate, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Layers, Package, Settings2, Trophy } from 'lucide-react'
-import { Abas, Dica } from '@/componentes/ui'
+import { Abas } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import type { Aba } from '@/componentes/ui'
 import { useAcessoLogistica } from '@/logistica/acesso'
 import { configEstoque } from '@/logistica/api'
@@ -49,7 +50,7 @@ export function Estoque() {
     { valor: 'configuracoes', rotulo: 'Configurações', icone: <Settings2 aria-hidden /> },
   ]
 
-  /** O que aparece embaixo do título: onde a pessoa está, em poucas palavras. */
+  /** Onde a pessoa está, em poucas palavras — ↩️ 06/11: abre no "?" do título. */
   const subtitulo: Record<AbaEstoque, string> = {
     top20: `${rotuloTop} · os mais vendidos primeiro`,
     insumos: 'Matéria-prima e insumos · número do Tiny',
@@ -60,35 +61,34 @@ export function Estoque() {
   if (!perfil) return null
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col">
-          <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-            <Package aria-hidden className="size-7 shrink-0 text-texto-suave" />
-            Estoque
-            <Dica rotulo="Como funciona o estoque">
-              <span className="flex flex-col gap-2">
-                <span>
-                  O número de cada produto pronto é a <strong>contagem da logística</strong>: entra
-                  pelo botão de cadastrar, pela reposição e por pedido cancelado; sai pela baixa ou
-                  quando o PCP usa a peça num pedido.
-                </span>
-                <span>
-                  Peça com pedido fica na Expedição e não soma aqui: ela conta como{' '}
-                  <strong>reservada em venda</strong> desde que fica pronta até o pedido ser
-                  entregue — inclusive lançada para ROTAS ou já no caminhão. O Tiny vale só para a
-                  matéria-prima e os insumos.
-                </span>
-                <span>
-                  A lista segue os mais vendidos dos últimos 90 dias, {topX} por página (o Top X) —
-                  só eles têm mínimo. A busca acha qualquer produto do catálogo.
-                </span>
-              </span>
-            </Dica>
-          </h1>
-          <p className="text-sm text-texto-suave">{subtitulo[aba]}</p>
-        </div>
-
+    <div className="flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação e o "onde estou"
+          de cada aba foram para o "?"; as abas ficam na linha do título. */}
+      <CabecalhoDaTela
+        titulo="Estoque"
+        icone={<Package />}
+        rotuloAjuda="Como funciona o estoque"
+        ajuda={
+          <span className="flex flex-col gap-2">
+            <strong className="font-semibold">{subtitulo[aba]}</strong>
+            <span>
+              O número de cada produto pronto é a <strong>contagem da logística</strong>: entra pelo
+              botão de cadastrar, pela reposição e por pedido cancelado; sai pela baixa ou quando o
+              PCP usa a peça num pedido.
+            </span>
+            <span>
+              Peça com pedido fica na Expedição e não soma aqui: ela conta como{' '}
+              <strong>reservada em venda</strong> desde que fica pronta até o pedido ser entregue —
+              inclusive lançada para ROTAS ou já no caminhão. O Tiny vale só para a matéria-prima e
+              os insumos.
+            </span>
+            <span>
+              A lista segue os mais vendidos dos últimos 90 dias, {topX} por página (o Top X) — só
+              eles têm mínimo. A busca acha qualquer produto do catálogo.
+            </span>
+          </span>
+        }
+      >
         <Abas
           rotulo="Visões do estoque"
           idBase="estoque"
@@ -103,7 +103,7 @@ export function Estoque() {
           }}
           className="shrink-0"
         />
-      </div>
+      </CabecalhoDaTela>
 
       <div role="tabpanel" id="estoque-painel" aria-labelledby={`estoque-aba-${aba}`}>
         {aba === 'top20' && <PainelTop20 ativo={tenhoAcesso} podeMexer={tenhoAcesso} />}

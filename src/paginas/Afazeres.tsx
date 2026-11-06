@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, ClipboardList, Eye, EyeOff, ListChecks, Plus, Timer } from 'lucide-react'
 import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
@@ -125,19 +126,21 @@ export function Afazeres() {
   const totalMeus = cards.length + tarefas.length
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Meus afazeres</h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
+    <div className="flex flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Meus afazeres"
+        rotuloAjuda="Como funcionam os afazeres"
+        ajuda={
+          <>
             O que está sob a sua responsabilidade. Toque numa demanda para ver e agir — tempo,
             subtarefas, edição e conclusão, tudo no mesmo lugar.
-          </p>
-        </div>
+          </>
+        }
+      >
         <Botao icone={<Plus />} onClick={() => setModalNova(true)}>
           Nova tarefa
         </Botao>
-      </div>
+      </CabecalhoDaTela>
 
       {totalMeus === 0 && (
         <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">

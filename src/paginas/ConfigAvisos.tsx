@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, Lock } from 'lucide-react'
 import { Selecao, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarTelaAvisos, definirAviso } from '@/notificacoes/preferencias'
@@ -71,14 +72,13 @@ export function ConfigAvisos() {
   const pessoas = tela.data?.pessoas ?? null
 
   return (
-    <div className="flex max-w-3xl flex-col gap-5">
-      <div>
-        <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-          <Bell aria-hidden className="size-7 text-texto-suave" />
-          Avisos
-        </h1>
-        <p className="mt-1 text-texto-suave">Escolha o que chega no sino.</p>
-      </div>
+    <div className="flex max-w-3xl flex-col gap-4">
+      <CabecalhoDaTela
+        titulo="Avisos"
+        icone={<Bell />}
+        rotuloAjuda="Sobre os avisos"
+        ajuda="Escolha o que chega no sino."
+      />
 
       {pessoas && pessoas.length > 0 && (
         <Selecao

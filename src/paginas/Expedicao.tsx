@@ -16,6 +16,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { Abas, Botao, Campo, Modal, Paginacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import type { Aba } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { unidadesDoPedido } from '@/kanban/api'
@@ -127,19 +128,23 @@ export function Expedicao() {
   }
 
   return (
-    <div className="@container flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl">Expedição</h1>
-          <p className="mt-1 max-w-2xl text-texto-suave">
+    <div className="@container flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o "?" e
+          as abas ficam na linha do título. */}
+      <CabecalhoDaTela
+        titulo="Expedição"
+        rotuloAjuda="Como funciona a Expedição"
+        ajuda={
+          <>
             Todos os pedidos ainda não entregues, a previsão mais próxima primeiro — prontos, em
             produção ou ainda no PCP. Qualquer um deles pode ganhar rota na{' '}
             <Link to="/fabrica/rotas/programacao" className="font-medium text-texto underline">
               Programação
             </Link>
             .
-          </p>
-        </div>
+          </>
+        }
+      >
         <Abas
           rotulo="Visões da Expedição"
           idBase="expedicao"
@@ -147,7 +152,7 @@ export function Expedicao() {
           valor={visao}
           aoMudar={(v) => mudarParametro('visao', v, 'pedidos')}
         />
-      </div>
+      </CabecalhoDaTela>
 
       <div role="tabpanel" id="expedicao-painel" aria-labelledby={`expedicao-aba-${visao}`}>
         {visao === 'pecas' ? (

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { Ban, CheckSquare, ChevronDown, Inbox, ListChecks, Search } from 'lucide-react'
-import { Botao, Campo, Dica } from '@/componentes/ui'
+import { Botao, Campo } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { MaisAoRolar } from '@/componentes/MaisAoRolar'
 import { cn } from '@/lib/cn'
 import { useAoVivo } from '@/lib/aoVivo'
@@ -99,46 +100,45 @@ function PaginaPedidos({ modo }: { modo: 'todos' | 'cancelados' }) {
   const selecionaveis = linhas.filter((p) => p.card_id !== null)
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {/* relative: o balão do "i" ancora nesta linha (ver Dica). */}
-        <div className="relative flex items-center gap-1">
-          <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">
-            {cancelados ? (
-              <Ban aria-hidden className="size-7 shrink-0 text-texto-suave" />
-            ) : (
-              <Inbox aria-hidden className="size-7 shrink-0 text-texto-suave" />
-            )}
+    <div className="flex flex-col gap-4">
+      {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): o "?" no lugar do "i", o total
+          junto do título e a seleção na mesma linha. */}
+      <CabecalhoDaTela
+        titulo={
+          <>
             {cancelados ? 'Cancelados' : 'Todos os pedidos'}
             {total !== null && (
-              <span className="text-lg font-normal text-texto-suave tabular-nums">
+              <span className="ml-2 text-sm font-normal text-texto-suave tabular-nums">
                 ({textoDoTotal(total)})
               </span>
             )}
-          </h1>
-          <Dica rotulo={cancelados ? 'Sobre os cancelados' : 'Sobre a lista de pedidos'}>
-            <span className="flex flex-col gap-2">
-              {cancelados ? (
-                <>
-                  <span>Todo pedido cancelado no Tiny, da história inteira da empresa.</span>
-                  <span>
-                    Peça que já estava pronta voltou para o estoque, sem dono; peça que estava na
-                    produção segue com a etiqueta &quot;Pedido cancelado&quot; e, concluída, vai
-                    para o estoque.
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>Todo pedido do Tiny, do mais novo ao mais antigo.</span>
-                  <span>
-                    Toque no pedido para ver o resumo; os botões revelam itens e pagamento, a
-                    produção de cada peça, a entrega com o comprovante e tudo o que o Tiny mandou.
-                  </span>
-                </>
-              )}
-            </span>
-          </Dica>
-        </div>
+          </>
+        }
+        icone={cancelados ? <Ban /> : <Inbox />}
+        rotuloAjuda={cancelados ? 'Sobre os cancelados' : 'Sobre a lista de pedidos'}
+        ajuda={
+          <span className="flex flex-col gap-2">
+            {cancelados ? (
+              <>
+                <span>Todo pedido cancelado no Tiny, da história inteira da empresa.</span>
+                <span>
+                  Peça que já estava pronta voltou para o estoque, sem dono; peça que estava na
+                  produção segue com a etiqueta &quot;Pedido cancelado&quot; e, concluída, vai para
+                  o estoque.
+                </span>
+              </>
+            ) : (
+              <>
+                <span>Todo pedido do Tiny, do mais novo ao mais antigo.</span>
+                <span>
+                  Toque no pedido para ver o resumo; os botões revelam itens e pagamento, a produção
+                  de cada peça, a entrega com o comprovante e tudo o que o Tiny mandou.
+                </span>
+              </>
+            )}
+          </span>
+        }
+      >
         {souSuperAdmin && !cancelados && (
           <Botao
             variante={selecionando ? 'primaria' : 'secundaria'}
@@ -152,7 +152,7 @@ function PaginaPedidos({ modo }: { modo: 'todos' | 'cancelados' }) {
             {selecionando ? 'Sair da seleção' : 'Selecionar pedidos'}
           </Botao>
         )}
-      </div>
+      </CabecalhoDaTela>
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-full max-w-md">
