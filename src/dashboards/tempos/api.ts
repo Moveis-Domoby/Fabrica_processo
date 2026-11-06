@@ -511,10 +511,25 @@ export interface RespostaTv {
     series: string[]
   }
   melhor_semana: { letras: string; modelo: string; tempo_s: number; padrao_s: number } | null
+  /** 06/11: a porta sabe mostrar outro dia (a tela só mostra as setas com isto). */
+  pode_trocar_dia?: boolean
+  /** 06/11: o dia mostrado é hoje? */
+  e_hoje?: boolean
 }
 
-export async function buscarModoTv(setorId: number | null): Promise<RespostaTv> {
-  const { data, error } = await supabase.rpc('plt_fn_modo_tv', { p_setor_id: setorId })
+/**
+ * A porta da TV. ↩️ 06/11: `dia` escolhe o dia mostrado (sem ele, hoje). Só vai
+ * no pedido quando há dia — a porta antiga (sem o parâmetro) segue respondendo
+ * o "hoje" enquanto o banco não é atualizado.
+ */
+export async function buscarModoTv(
+  setorId: number | null,
+  dia?: string | null,
+): Promise<RespostaTv> {
+  const { data, error } = await supabase.rpc(
+    'plt_fn_modo_tv',
+    dia ? { p_setor_id: setorId, p_dia: dia } : { p_setor_id: setorId },
+  )
   erroDe(error, 'Não deu para carregar a TV.')
   return data as RespostaTv
 }

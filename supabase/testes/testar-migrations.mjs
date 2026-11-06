@@ -16213,7 +16213,9 @@ try {
                      '20261105020000_plt_rotas_ponto_aproximado.sql',
                      // ↪️ SESSAO-43 (E-19/E-144): recria o check dos motivos (com 'conferencia') e o VALIDA,
                      // o salvar dos motivos e quem ouve os avisos — vem depois da das rotas, como em produção
-                     '20261105030000_plt_tempos_historico_trello.sql', '20261105040000_plt_tempos_producao_modo_tv.sql']) {
+                     '20261105030000_plt_tempos_historico_trello.sql', '20261105040000_plt_tempos_producao_modo_tv.sql',
+                     // ↪️ Ajuste 06/11: a porta da TV com o dia (tira a de 1 parâmetro que a de cima recria)
+                     '20261106020000_plt_modo_tv_ao_vivo_e_dia.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -20490,12 +20492,23 @@ try {
     'a conta só da TV é recusada nas portas da tela de tempos; ouve o canal do setor de produção (para ficar ao vivo) e mais nada',
     JSON.stringify({ tvDia, tvOuve }))
 
+  titulo('Ajuste 06/11 · a TV escolhe o dia (sem dia, hoje); dia futuro recusado; a porta avisa que sabe trocar')
+  await como43(Q43.tv)
+  const tvOutro = (await um43(`select public.plt_fn_modo_tv(${S43.m43}, '2026-10-13') as r`)).r
+  const tvFuturo = await falha43(`select public.plt_fn_modo_tv(${S43.m43}, (now() at time zone 'America/Fortaleza')::date + 1)`)
+  const tvLonge = await falha43(`select public.plt_fn_modo_tv(${S43.m43}, (now() at time zone 'America/Fortaleza')::date - 401)`)
+  conferir(tvOutro.hoje === '2026-10-13' && tvOutro.e_hoje === false && tvOutro.pode_trocar_dia === true
+      && tvOutro.grafico.dias.at(-1).dia === '2026-10-13' && tvTv.e_hoje === true && tvTv.pode_trocar_dia === true
+      && /ainda não chegaram/.test(tvFuturo) && /400 dias/.test(tvLonge),
+    'com o dia, a TV mostra aquele dia (o gráfico termina nele) e diz que não é hoje; sem o dia, é hoje; o futuro e mais de 400 dias atrás são recusados',
+    JSON.stringify({ hoje: tvOutro.hoje, e_hoje: tvOutro.e_hoje, ult: tvOutro.grafico.dias.at(-1), tvFuturo, tvLonge }))
+
   titulo('SESSAO-43 · os motivos de conferência (Utilitários) e as permissões das portas')
   await como43(Q43.adm)
   const mot = await um43(`select count(*)::int as n from public.plt_fn_motivos('conferencia', false)`)
   const novoMot = await falha43(`select public.plt_fn_motivo_salvar(null, 'conferencia', 'Erro de etiqueta no Trello', 60, true, null)`)
   const pr43 = await um43(`
-    select has_function_privilege('anon', 'public.plt_fn_modo_tv(bigint)', 'execute') as anon_tv,
+    select has_function_privilege('anon', 'public.plt_fn_modo_tv(bigint, date)', 'execute') as anon_tv,
            has_function_privilege('anon', 'public.plt_fn_tempos_periodo(bigint, date, date, uuid, bigint, boolean)', 'execute') as anon_per,
            has_function_privilege('authenticated', 'plt_privado.fn_tempo_trello_carregar(bigint, jsonb)', 'execute') as carga,
            has_function_privilege('authenticated', 'public.plt_fn_tempos_dia(bigint, date, date, date, uuid, bigint, boolean, timestamptz, text, bigint, integer)', 'execute') as logado,

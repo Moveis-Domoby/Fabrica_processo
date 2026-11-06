@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut, Maximize, Radio, Trophy, WifiOff } from 'lucide-react'
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Maximize,
+  Radio,
+  Trophy,
+  WifiOff,
+} from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -16,6 +25,7 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSoTv } from '@/autenticacao/tipos'
 import { ouvirCanal } from '@/chat/canais'
 import { aplicarTema } from '@/perfil/tema'
+import { Selecao } from '@/componentes/ui'
 import { TooltipGrafico } from '@/dashboards/componentes/TooltipGrafico'
 import { buscarModoTv, type RespostaTv } from '@/dashboards/tempos/api'
 import {
@@ -24,9 +34,42 @@ import {
   diaPorExtenso,
   duracao,
   hojeNaFabrica,
-  horaNaFabrica,
   msAteMeiaNoite,
+  somarDias,
 } from '@/dashboards/tempos/formato'
+
+/** O relógio da TV com os segundos (06/11), no fuso da fábrica. */
+const FORMATO_HORA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Fortaleza',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
+/**
+ * ↩️ Ajuste do dono (06/11 — "a hora coloque os segundos contando também em
+ * tempo real"): o relógio é um pedaço à parte, que redesenha só a si mesmo a
+ * cada segundo (o painel e o gráfico não se redesenham junto). Não busca nada.
+ */
+function RelogioTv() {
+  const [agora, setAgora] = useState(() => Date.now())
+  useEffect(() => {
+    // acerta no começo de cada segundo, para os segundos virarem juntos com o relógio do aparelho
+    let t: ReturnType<typeof setTimeout>
+    const tic = () => {
+      setAgora(Date.now())
+      t = setTimeout(tic, 1000 - (Date.now() % 1000))
+    }
+    t = setTimeout(tic, 1000 - (Date.now() % 1000))
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <span className="font-marca text-[3em] leading-none font-semibold tabular-nums">
+      {FORMATO_HORA.format(agora)}
+    </span>
+  )
+}
 
 const CORES = [
   'var(--dm-serie-1)',
@@ -66,30 +109,31 @@ export function ModoTv() {
   const cliente = useQueryClient()
   const [parametros, setParametros] = useSearchParams()
   const setorPedido = Number(parametros.get('setor')) || null
-  const [agora, setAgora] = useState(() => Date.now())
   const [aoVivo, setAoVivo] = useState(true)
   const [hoje, setHoje] = useState(hojeNaFabrica())
+  // ↩️ 06/11 ("um botão de alternar entre os dias"): o dia que a TV mostra —
+  // null = hoje (fica só na memória: recarregar a TV volta para hoje).
+  const [diaEscolhido, setDiaEscolhido] = useState<string | null>(null)
+  const diaVisto = diaEscolhido ?? hoje
   const soTv = ehSoTv(perfil)
 
   const consulta = useQuery({
-    queryKey: ['modo-tv', setorPedido, hoje],
-    queryFn: () => buscarModoTv(setorPedido),
+    queryKey: ['modo-tv', setorPedido, hoje, diaEscolhido],
+    queryFn: () => buscarModoTv(setorPedido, diaEscolhido),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    // trocar de dia mantém o painel anterior até o novo chegar (sem piscar)
+    placeholderData: (anterior) => anterior,
   })
   const r = consulta.data
   const setorId = r?.setor.id ?? null
+  const podeTrocarDia = r?.pode_trocar_dia === true
+  const irParaDia = (dia: string) => setDiaEscolhido(dia >= hoje ? null : dia)
 
   // a conta da TV abre no tema escuro (melhor de longe), se ninguém escolheu outro
   useEffect(() => {
     if (soTv && (!perfil?.tema || perfil.tema === 'claro')) aplicarTema('escuro')
   }, [soTv, perfil?.tema])
-
-  // o relógio da tela: só redesenha a hora (não busca nada)
-  useEffect(() => {
-    const t = setInterval(() => setAgora(Date.now()), 30_000)
-    return () => clearInterval(t)
-  }, [])
 
   // a virada do dia: UMA leitura nova (exceção da Lei §4, registrada)
   useEffect(() => {
@@ -154,8 +198,6 @@ export function ModoTv() {
     }
   }, [])
 
-  const hora = horaNaFabrica(new Date(agora).toISOString())
-
   return (
     <div className="flex min-h-dvh flex-col gap-[clamp(0.75rem,1.6vw,1.75rem)] bg-fundo p-[clamp(0.75rem,2vw,2.5rem)] text-[clamp(14px,1.2vw,22px)] text-texto">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -163,7 +205,17 @@ export function ModoTv() {
           <p className="text-[0.8em] font-semibold tracking-wide text-texto-suave uppercase">
             {r ? `${tituloSetor(r.setor.nome)} · Fábrica Domoby` : 'Fábrica Domoby'}
           </p>
-          <h1 className="font-marca text-[2em] leading-tight">{diaPorExtenso(hoje)}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-marca text-[2em] leading-tight">{diaPorExtenso(diaVisto)}</h1>
+            {podeTrocarDia && (
+              <TrocarDia
+                dia={diaVisto}
+                eHoje={diaEscolhido === null}
+                aoIr={irParaDia}
+                aoHoje={() => setDiaEscolhido(null)}
+              />
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <ControlesDiscretos
@@ -176,9 +228,7 @@ export function ModoTv() {
               else navigate('/dashboards/tempos-de-producao')
             }}
           />
-          <span className="font-marca text-[3em] leading-none font-semibold tabular-nums">
-            {hora}
-          </span>
+          <RelogioTv />
         </div>
       </header>
 
@@ -194,7 +244,7 @@ export function ModoTv() {
           Carregando…
         </p>
       ) : (
-        <Painel r={r} />
+        <Painel r={r} eHoje={diaEscolhido === null} />
       )}
 
       <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-borda pt-3 text-[0.9em] text-texto-suave">
@@ -238,6 +288,59 @@ function tituloSetor(nome: string) {
   return nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase()
 }
 
+/**
+ * ↩️ 06/11: trocar o dia da TV — anterior · próximo (até hoje) · "Hoje". Discreto
+ * como os outros controles (quem olha de longe não precisa deles); fora de hoje,
+ * o "Hoje" fica aceso para ninguém esquecer a TV num dia velho.
+ */
+function TrocarDia({
+  dia,
+  eHoje,
+  aoIr,
+  aoHoje,
+}: {
+  dia: string
+  eHoje: boolean
+  aoIr: (dia: string) => void
+  aoHoje: () => void
+}) {
+  return (
+    <div className="flex items-center gap-1 text-[0.7em]">
+      <span className="flex items-center gap-1 opacity-40 transition-opacity focus-within:opacity-100 hover:opacity-100">
+        <button
+          type="button"
+          onClick={() => aoIr(somarDias(dia, -1))}
+          aria-label="Dia anterior"
+          title="Dia anterior"
+          className="toque-seguro inline-flex size-10 items-center justify-center rounded-dm border border-borda bg-superficie hover:bg-superficie-sutil"
+        >
+          <ChevronLeft aria-hidden className="size-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => aoIr(somarDias(dia, 1))}
+          disabled={eHoje}
+          aria-label="Próximo dia"
+          title="Próximo dia"
+          className="toque-seguro inline-flex size-10 items-center justify-center rounded-dm border border-borda bg-superficie hover:bg-superficie-sutil disabled:opacity-40"
+        >
+          <ChevronRight aria-hidden className="size-5" />
+        </button>
+      </span>
+      {!eHoje && (
+        <button
+          type="button"
+          onClick={aoHoje}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-dm bg-acao px-3 font-semibold text-acao-texto"
+        >
+          <CalendarDays aria-hidden className="size-5" />
+          Voltar para hoje
+        </button>
+      )}
+    </div>
+  )
+}
+
 /** Os botões da TV ficam apagados (quem olha de longe não precisa deles). */
 function ControlesDiscretos({
   r,
@@ -252,21 +355,18 @@ function ControlesDiscretos({
 }) {
   return (
     <div className="flex items-center gap-1 opacity-40 transition-opacity focus-within:opacity-100 hover:opacity-100">
+      {/* ↩️ 06/11 ("remova esse modal do navegador, use o nosso padrão"): a
+          seleção da casa no lugar da lista nativa do navegador. */}
       {r && r.setores.length > 1 && (
-        <label className="flex items-center gap-1 text-[0.7em]">
-          <span className="sr-only">Setor da TV</span>
-          <select
-            value={r.setor.id}
-            onChange={(e) => aoSetor(Number(e.target.value))}
-            className="min-h-toque-md rounded-dm border border-borda-forte bg-superficie px-2 text-texto"
-          >
-            {r.setores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nome}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="w-56 text-[0.7em]">
+          <Selecao
+            rotulo="Setor da TV"
+            classeRotulo="sr-only"
+            opcoes={r.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+            valor={String(r.setor.id)}
+            aoMudar={(v) => aoSetor(Number(v))}
+          />
+        </div>
       )}
       <button
         type="button"
@@ -293,7 +393,9 @@ function ControlesDiscretos({
   )
 }
 
-function Painel({ r }: { r: RespostaTv }) {
+function Painel({ r, eHoje }: { r: RespostaTv; eHoje: boolean }) {
+  // ↩️ 06/11: fora de hoje, os textos dizem "no dia" (a TV pode mostrar outro dia)
+  const doDia = eHoje ? 'hoje' : 'no dia'
   const media = r.media_30
   const naMeta = media !== null && r.montados_hoje >= media
   const faltam = media !== null ? Math.max(Math.ceil(media - r.montados_hoje), 0) : null
@@ -324,7 +426,7 @@ function Painel({ r }: { r: RespostaTv }) {
     <>
       {r.montados_hoje === 0 && (
         <p className="rounded-dm-lg bg-acao px-4 py-2 font-medium text-acao-texto">
-          Sem registros de hoje ainda.
+          {eHoje ? 'Sem registros de hoje ainda.' : 'Sem registros neste dia.'}
           {r.dados_ate ? ` Último dia com dados: ${diaCurto(r.dados_ate)}.` : ''}
         </p>
       )}
@@ -332,7 +434,7 @@ function Painel({ r }: { r: RespostaTv }) {
       <section className="grid grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)] xl:grid-cols-4">
         <Numero
           valor={r.montados_hoje}
-          rotulo="montados hoje"
+          rotulo={`montados ${doDia}`}
           detalhe={
             media === null
               ? 'sem base de comparação'
@@ -349,11 +451,11 @@ function Painel({ r }: { r: RespostaTv }) {
         <Numero
           valor={r.montados_mes}
           rotulo="montados no mês"
-          detalhe={`${decimal(r.media_mes)} por dia útil até hoje`}
+          detalhe={`${decimal(r.media_mes)} por dia útil até ${eHoje ? 'hoje' : 'o dia'}`}
         />
         <Numero
           valor={duracao(r.tempo_medio_hoje_s)}
-          rotulo="tempo médio hoje"
+          rotulo={`tempo médio ${doDia}`}
           detalhe={`mediana dos 30 dias: ${duracao(r.mediana_30_s)}`}
         />
       </section>
@@ -375,7 +477,7 @@ function Painel({ r }: { r: RespostaTv }) {
                   <span className="text-[1.1em] font-semibold">Montador {m.letra}</span>
                   <span className="text-[0.85em] text-texto-suave">
                     {m.hoje > 0 && m.mediana_hoje_s !== null
-                      ? `mediana hoje ${duracao(m.mediana_hoje_s)} · `
+                      ? `mediana ${doDia} ${duracao(m.mediana_hoje_s)} · `
                       : ''}
                     ritmo {decimal(m.ritmo)}/dia
                   </span>
