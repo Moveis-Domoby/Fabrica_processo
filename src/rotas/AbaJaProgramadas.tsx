@@ -826,6 +826,24 @@ export function AbaJaProgramadas({
                 const nItens = g.pedidos.length + g.avulsas.length
                 // SESSAO-37 (pedido do dono, 19/10): a equipe da rota no card.
                 const equipeDoGrupo = g.pedidos[0]?.equipe ?? []
+                const botaoEquipe = (grupo: typeof g) => (
+                  <Botao
+                    variante="secundaria"
+                    tamanho="sm"
+                    icone={<Users />}
+                    onClick={() =>
+                      setEquipeDe({
+                        dia: grupo.dia,
+                        caminhaoId: grupo.caminhaoId,
+                        caminhaoNome: grupo.caminhaoNome,
+                        rota: grupo.rota,
+                        variasRotas: grupo.variasRotas,
+                      })
+                    }
+                  >
+                    Equipe
+                  </Botao>
+                )
                 return (
                   <section
                     key={g.chave}
@@ -851,8 +869,12 @@ export function AbaJaProgramadas({
                           <Truck aria-hidden className="size-6" />
                         </span>
                       )}
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="flex items-center gap-2 font-semibold text-texto">
+                      {/* ↩️ Ajuste do dono (06/11 — "o card voltou a ficar com texto
+                          quebrado"): o nome e os números têm largura mínima (18rem);
+                          sem espaço, os botões ao lado DESCEM para a linha de baixo em
+                          vez de espremer o texto numa tira. */}
+                      <span className="flex min-w-0 flex-1 basis-72 flex-col">
+                        <span className="flex flex-wrap items-center gap-x-2 font-semibold text-texto">
                           <span
                             aria-hidden
                             className="inline-block size-3 shrink-0 rounded-full"
@@ -895,51 +917,20 @@ export function AbaJaProgramadas({
                             : 'Sem equipe definida'}
                         </span>
                       </span>
+                      {/* ↩️ 06/11: no caminhão escolhido, os botões moram TODOS na
+                          fileira de baixo (uma só, que quebra) — o cabeçalho fica só
+                          com o nome, os números e o "no mapa". */}
                       {ativo ? (
-                        <span className="flex flex-wrap gap-2">
-                          {!entregues && ajustada && (
-                            <Botao
-                              variante="fantasma"
-                              icone={<RotateCcw />}
-                              onClick={voltarSugestao}
-                            >
-                              Voltar à sugestão
-                            </Botao>
-                          )}
-                          {salvar?.pendente && (
-                            <Botao
-                              icone={<Save />}
-                              carregando={salvar.carregando}
-                              onClick={salvar.aoSalvar}
-                            >
-                              Salvar ordem
-                            </Botao>
-                          )}
-                          {!salvar?.pendente && (
-                            <span className="text-xs font-medium text-texto-suave">no mapa</span>
-                          )}
-                        </span>
+                        !salvar?.pendente && (
+                          <span className="text-xs font-medium text-texto-suave">no mapa</span>
+                        )
                       ) : (
-                        <Botao variante="secundaria" icone={<MapPin />} onClick={() => focar(g)}>
-                          Ver no mapa
-                        </Botao>
-                      )}
-                      {!entregues && (
-                        <Botao
-                          variante="secundaria"
-                          icone={<Users />}
-                          onClick={() =>
-                            setEquipeDe({
-                              dia: g.dia,
-                              caminhaoId: g.caminhaoId,
-                              caminhaoNome: g.caminhaoNome,
-                              rota: g.rota,
-                              variasRotas: g.variasRotas,
-                            })
-                          }
-                        >
-                          Equipe
-                        </Botao>
+                        <span className="flex flex-wrap items-center gap-2">
+                          <Botao variante="secundaria" icone={<MapPin />} onClick={() => focar(g)}>
+                            Ver no mapa
+                          </Botao>
+                          {!entregues && botaoEquipe(g)}
+                        </span>
                       )}
                     </div>
                     {/* SESSAO-39 (D-174): a rota como está na tela (com o rascunho), no
@@ -947,6 +938,26 @@ export function AbaJaProgramadas({
                         SESSAO-41 (D-196): + pôr parada avulsa nesta rota. */}
                     {ativo && (
                       <div className="flex flex-wrap gap-2">
+                        {salvar?.pendente && (
+                          <Botao
+                            tamanho="sm"
+                            icone={<Save />}
+                            carregando={salvar.carregando}
+                            onClick={salvar.aoSalvar}
+                          >
+                            Salvar ordem
+                          </Botao>
+                        )}
+                        {!entregues && ajustada && (
+                          <Botao
+                            variante="fantasma"
+                            tamanho="sm"
+                            icone={<RotateCcw />}
+                            onClick={voltarSugestao}
+                          >
+                            Voltar à sugestão
+                          </Botao>
+                        )}
                         <BotaoRotaGoogleMaps
                           paradas={lugaresGoogle}
                           posicoes={posicoesGoogle}
@@ -962,6 +973,7 @@ export function AbaJaProgramadas({
                             Adicionar parada avulsa
                           </Botao>
                         )}
+                        {!entregues && botaoEquipe(g)}
                       </div>
                     )}
                     {ativo && !entregues ? (

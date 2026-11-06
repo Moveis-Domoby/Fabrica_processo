@@ -166,3 +166,15 @@ Feita em 3 frentes paralelas (subagentes, arquivos separados, sem commit) + a mi
   grande | metade clara com o formulário centralizado, `max-w-md`); no celular, a faixa da marca em cima.
   Mantidos: o "i" com as explicações, "Esqueci minha senha · Entrar com PIN" numa linha, o tablet depois do
   traço leve. Conferido por 127.0.0.1 (1440x900 e celular); testes do login 8/8.
+
+### 8ª volta (06/11) — o card do caminhão em "Já programadas" espremido de novo
+- O dono: *"o card voltou a ficar com texto quebrado novamente"* (print: "Hyundai HR", "5 paradas · 7 peças ·
+  29,5 km…" e "Sem equipe definida" numa tira de uma palavra por linha). Causa: o cabeçalho é `flex-wrap`,
+  mas o bloco do nome era `min-w-0 flex-1` (base 0) — encolhia até sumir em vez de os botões descerem; com a
+  rota ajustada à mão, "Voltar à sugestão" + "no mapa" + "Equipe" tomavam a linha toda.
+- Correção: o bloco do nome com base de 18rem (`basis-72`) — sem espaço, os botões descem; e no caminhão
+  escolhido TODOS os botões numa fileira só embaixo (Salvar ordem · Voltar à sugestão · Google Maps ·
+  Adicionar parada avulsa · Equipe, em `sm`), o cabeçalho só com nome, números e "no mapa". Conferido a
+  1440x900 e no tablet; testes de rotas 135/135.
+- Regra (já era a da casa, E-30/padrão de container): bloco de texto ao lado de botões NUNCA com base 0 —
+  dar largura mínima ao texto e deixar os botões quebrarem.
