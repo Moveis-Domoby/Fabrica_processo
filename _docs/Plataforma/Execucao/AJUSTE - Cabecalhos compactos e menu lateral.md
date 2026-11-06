@@ -81,3 +81,24 @@ o tamanho desses headers e coisas assim de TODAS AS TELAS, SEM EXCEÇÃO"*. Ramo
 - Auditoria das rotas: toda tela da casca tem `CabecalhoDaTela` (as do comercial via os componentes
   `AnalyticsDashboard` e `ListasDisparoDetalhe`); `h1` soltos só fora da casca (entrar, convite, recuperar
   senha, conta sem acesso), no tablet e na TV — de propósito.
+
+### 2ª volta — o dono olhando (06/11)
+- *"O modal deve seguir o tema da aba lateral"* → o mini menu passou a usar `menu-superficie` + grafite
+  (as mesmas cores, retintadas por tema, da barra). *"Os temas devem ficar ocultos dentro do ícone de
+  tema"* → "Tema" virou um item que abre/fecha a lista (uma coluna; antes, duas colunas cortavam
+  "Dour…"/"Esmerald…").
+- Medido no navegador: a 184 px a barra 2 quebrava "Controle de produção" (137 px de texto) e "Limpeza e
+  embalagem" (159 com o recuo) → **196 px** (`lg:w-49`). A matrícula "MDM-084-001" cortava → avatar 28 px,
+  sino e `⋯` 32 px (alvo de 44 mantido), `tracking-tight` → cabe (82/82 px).
+- Armadilha: o navegador mostrou a lista de temas com as cores velhas mesmo com o arquivo certo — a recarga
+  a quente não trocou o módulo; recarregar a página resolveu (primo do E-32).
+
+### 3ª volta (06/11)
+- *"Coloque o nome do setor, o botão de voltar e o ícone informativo para o header principal"* (a barra
+  escura do topo da tela estreita) → `VagaDoTitulo` (contexto com o elemento da vaga, guardado pela casca
+  por `ref={setVagaTitulo}`) + portal no `CabecalhoDaTela` quando `useTelaPequena()`; `Dica tom="menu"`.
+- *"Não devem existir dois ícones de notificações e lupa"* → na tela estreita o rodapé da gaveta não tem
+  sino e o mini menu não tem "Buscar card" (ficam na barra de cima); no computador seguem no rodapé.
+- Conferido no navegador (tela estreita e 1440 px): FITAMENTO, PCP, Estoque, Meu painel, Painel de
+  recompra — título na barra, 1 sino na página, 1 voltar; o ? abre logo abaixo da barra.
+- `eslint src` limpo, `tsc -b` limpo, `vitest --dir src` 65/423 ✅.
