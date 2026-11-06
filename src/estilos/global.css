@@ -174,12 +174,48 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* ↩️ Ajuste do dono (06/11 — "a fonte dos nomes dos setores e abas, troque
+     para uma mais limpa, essa está destoante do padrão do sistema"): os
+     títulos usam a MESMA letra do resto da tela (Inter); a Poppins fica só na
+     marca, no Modo TV e no topo do tablet. */
   h1,
   h2,
   h3 {
-    font-family: var(--font-marca);
+    font-family: var(--font-sans);
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.011em;
+  }
+
+  /* ↩️ 06/11 ("esse scroll lateral está feio, fora do padrão"): a barra de
+     rolagem fina e discreta em toda a plataforma, nas cores do tema; na barra
+     lateral e na barra escura de cima, no grafite delas. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--dm-texto-suave) 40%, transparent) transparent;
+  }
+  .menu-superficie,
+  .menu-superficie * {
+    scrollbar-color: var(--dm-grafite-500) transparent;
+  }
+
+  /* ↩️ 06/11: os botões flutuantes (chat, sugestões, "em execução") seguem a
+     transparência escolhida no mini menu; ao passar o mouse, focar ou abrir,
+     ficam inteiros. O "em execução" é discreto de nascença (no máximo 60%). */
+  .botao-flutuante {
+    opacity: var(--dm-opacidade-flutuantes, 1);
+    transition: opacity 150ms;
+  }
+  .botao-flutuante-discreto {
+    opacity: min(var(--dm-opacidade-flutuantes, 1), 0.6);
+    transition: opacity 150ms;
+  }
+  .botao-flutuante:hover,
+  .botao-flutuante:focus-visible,
+  .botao-flutuante[aria-expanded='true'],
+  .botao-flutuante-discreto:hover,
+  .botao-flutuante-discreto:focus-visible,
+  .botao-flutuante-discreto[aria-expanded='true'] {
+    opacity: 1;
   }
 
   /* Foco sempre visível: o galpão usa teclado, leitor e dedo. */

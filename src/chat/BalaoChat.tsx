@@ -39,7 +39,9 @@ export function BalaoChat() {
   )
   const [aberto, setAberto] = useState(false)
   const [conversa, setConversa] = useState<number | null>(null)
-  const arrasto = useRef<{ x: number; y: number; inicio: PosicaoBalao; moveu: boolean } | null>(null)
+  const arrasto = useRef<{ x: number; y: number; inicio: PosicaoBalao; moveu: boolean } | null>(
+    null,
+  )
 
   // Janela mudou de tamanho: o balão continua inteiro na tela.
   useEffect(() => {
@@ -74,14 +76,18 @@ export function BalaoChat() {
     if (!atual.moveu && Math.hypot(dx, dy) < LIMIAR_ARRASTO) return
     atual.moveu = true
     setPosicao(
-      limitarPosicao({ direita: atual.inicio.direita - dx, baixo: atual.inicio.baixo - dy }, tela()),
+      limitarPosicao(
+        { direita: atual.inicio.direita - dx, baixo: atual.inicio.baixo - dy },
+        tela(),
+      ),
     )
   }
 
   function aoSoltar(e: EventoPonteiro<HTMLButtonElement>) {
     const atual = arrasto.current
     arrasto.current = null
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId)
     if (!atual) return
     if (atual.moveu) {
       const final = limitarPosicao(
@@ -124,7 +130,7 @@ export function BalaoChat() {
             }
           }}
           style={{ right: posicao.direita, bottom: posicao.baixo, touchAction: 'none' }}
-          className="fixed z-40 inline-flex size-toque-lg cursor-grab select-none items-center justify-center rounded-full border-2 border-grafite-700 bg-superficie text-texto shadow-lg active:cursor-grabbing"
+          className="botao-flutuante fixed z-40 inline-flex size-toque-lg cursor-grab select-none items-center justify-center rounded-full border-2 border-grafite-700 bg-superficie text-texto shadow-lg active:cursor-grabbing"
         >
           <MessageCircle aria-hidden className="size-6" />
           {totalNaoLidas > 0 && (

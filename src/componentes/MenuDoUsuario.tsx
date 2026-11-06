@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router'
-import { ChevronDown, Ellipsis, LogOut, Palette } from 'lucide-react'
+import { Blend, ChevronDown, Ellipsis, LogOut, Palette } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { TemasDoMenu } from '@/perfil/SeletorTemaRapido'
 import { ROTULO_TEMA, ehTema } from '@/perfil/tema'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { OPACIDADE_MINIMA, mudarOpacidade, opacidadeGuardada } from '@/lib/opacidadeFlutuantes'
 
 /** A largura do painel (px) — a mesma do `w-60`. */
 const LARGURA = 240
@@ -39,9 +40,13 @@ export function MenuDoUsuario({
   const { pathname } = useLocation()
   const { perfil } = useSessao()
   const idTemas = useId()
+  const idOpacidade = useId()
   // ↩️ 06/11 (2ª volta — "os temas devem ficar ocultos dentro do ícone de
   // tema"): a lista só aparece ao tocar em Tema; fecha de novo a cada abertura.
   const [temasAbertos, setTemasAbertos] = useState(false)
+  // ↩️ 06/11: a transparência dos botões flutuantes (escondida como o Tema).
+  const [opacidadeAberta, setOpacidadeAberta] = useState(false)
+  const [opacidade, setOpacidade] = useState(opacidadeGuardada)
   const temaAtual = perfil && ehTema(perfil.tema) ? ROTULO_TEMA[perfil.tema] : null
   // Aberto só na tela em que foi aberto: trocar de tela fecha (como o sino).
   const [abertoEm, setAbertoEm] = useState<string | null>(null)
@@ -70,6 +75,7 @@ export function MenuDoUsuario({
       )
     }
     setTemasAbertos(false)
+    setOpacidadeAberta(false)
     setAbertoEm(pathname)
   }
   const fechar = () => setAbertoEm(null)
@@ -153,6 +159,54 @@ export function MenuDoUsuario({
             {temasAbertos && (
               <div id={idTemas} className="mt-0.5 mb-1 ml-3.5 border-l border-grafite-600 pl-1.5">
                 <TemasDoMenu />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setOpacidadeAberta((atual) => !atual)}
+              aria-expanded={opacidadeAberta}
+              aria-controls={idOpacidade}
+              className={cn(ITEM, opacidadeAberta && 'bg-grafite-600')}
+            >
+              <Blend aria-hidden className="size-4 shrink-0" />
+              <span className="flex-1">Botões flutuantes</span>
+              <span className="text-[0.6875rem] text-grafite-300 tabular-nums">
+                {Math.round(opacidade * 100)}%
+              </span>
+              <ChevronDown
+                aria-hidden
+                className={cn(
+                  'size-4 shrink-0 transition-transform',
+                  !opacidadeAberta && '-rotate-90',
+                )}
+              />
+            </button>
+            {opacidadeAberta && (
+              <div
+                id={idOpacidade}
+                className="mt-0.5 mb-1 ml-3.5 flex flex-col gap-1 border-l border-grafite-600 py-1 pr-1 pl-2.5"
+              >
+                <label
+                  className="text-[0.6875rem] text-grafite-300"
+                  htmlFor={`${idOpacidade}-faixa`}
+                >
+                  Mais transparente ← → mais visível
+                </label>
+                <input
+                  id={`${idOpacidade}-faixa`}
+                  type="range"
+                  min={OPACIDADE_MINIMA * 100}
+                  max={100}
+                  step={10}
+                  value={Math.round(opacidade * 100)}
+                  aria-valuetext={`${Math.round(opacidade * 100)}% visível`}
+                  onChange={(e) => {
+                    const valor = Number(e.target.value) / 100
+                    setOpacidade(valor)
+                    mudarOpacidade(valor)
+                  }}
+                  className="h-toque-md w-full cursor-pointer accent-[var(--dm-menu-destaque)] [@media(pointer:fine)]:h-6"
+                />
               </div>
             )}
             <div className="my-1 border-t border-grafite-600" />

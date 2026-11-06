@@ -67,7 +67,9 @@ export function BolhaSugestao() {
   const [aberto, setAberto] = useState(false)
   const [sugerindo, setSugerindo] = useState(false)
   const [jaSugeriu, setJaSugeriu] = useState(false)
-  const arrasto = useRef<{ x: number; y: number; inicio: PosicaoBalao; moveu: boolean } | null>(null)
+  const arrasto = useRef<{ x: number; y: number; inicio: PosicaoBalao; moveu: boolean } | null>(
+    null,
+  )
   const painel = useRef<HTMLDivElement>(null)
 
   useMeuTrabalhoAoVivo(perfil?.id)
@@ -122,16 +124,25 @@ export function BolhaSugestao() {
     const dy = e.clientY - atual.y
     if (!atual.moveu && Math.hypot(dx, dy) < LIMIAR_ARRASTO) return
     atual.moveu = true
-    setPosicao(limitarPosicao({ direita: atual.inicio.direita - dx, baixo: atual.inicio.baixo - dy }, tela()))
+    setPosicao(
+      limitarPosicao(
+        { direita: atual.inicio.direita - dx, baixo: atual.inicio.baixo - dy },
+        tela(),
+      ),
+    )
   }
   function aoSoltar(e: EventoPonteiro<HTMLButtonElement>) {
     const atual = arrasto.current
     arrasto.current = null
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId)
     if (!atual) return
     if (atual.moveu) {
       const final = limitarPosicao(
-        { direita: atual.inicio.direita - (e.clientX - atual.x), baixo: atual.inicio.baixo - (e.clientY - atual.y) },
+        {
+          direita: atual.inicio.direita - (e.clientX - atual.x),
+          baixo: atual.inicio.baixo - (e.clientY - atual.y),
+        },
         tela(),
       )
       setPosicao(final)
@@ -167,7 +178,7 @@ export function BolhaSugestao() {
             }
           }}
           style={{ right: posicao.direita, bottom: posicao.baixo, touchAction: 'none' }}
-          className="fixed z-40 inline-flex size-toque-lg cursor-grab select-none items-center justify-center rounded-full border-2 border-grafite-700 bg-acao text-acao-texto shadow-lg active:cursor-grabbing"
+          className="botao-flutuante fixed z-40 inline-flex size-toque-lg cursor-grab select-none items-center justify-center rounded-full border-2 border-grafite-700 bg-acao text-acao-texto shadow-lg active:cursor-grabbing"
         >
           <Lightbulb aria-hidden className="size-6" />
           {paraTestar.length > 0 && (
@@ -216,7 +227,8 @@ export function BolhaSugestao() {
           {paraTestar.length > 0 && (
             <section aria-label="Para você testar" className="flex flex-col gap-1.5">
               <h3 className="flex items-center gap-1.5 text-sm font-semibold text-info-texto">
-                <FlaskConical aria-hidden className="size-4" /> Para você testar ({paraTestar.length})
+                <FlaskConical aria-hidden className="size-4" /> Para você testar (
+                {paraTestar.length})
               </h3>
               <ul className="flex flex-col gap-1">
                 {paraTestar.slice(0, 5).map((t) => (
@@ -229,7 +241,9 @@ export function BolhaSugestao() {
                       }}
                       className="flex min-h-toque-md w-full flex-col items-start justify-center rounded-dm bg-info-fundo px-3 py-1.5 text-left hover:ring-2 hover:ring-info-borda"
                     >
-                      <span className="text-sm font-semibold text-info-texto">Testar a sugestão #{t.id}</span>
+                      <span className="text-sm font-semibold text-info-texto">
+                        Testar a sugestão #{t.id}
+                      </span>
                       {t.descricao && (
                         <span className="line-clamp-1 text-xs text-info-texto">
                           {t.descricao.replace(/^Já está no sistema: /, '')}
@@ -255,7 +269,11 @@ export function BolhaSugestao() {
 
       {jaSugeriu && (
         <Suspense fallback={null}>
-          <ModalSugerir aberto={sugerindo} aoFechar={() => setSugerindo(false)} aoEnviar={abrirSugestao} />
+          <ModalSugerir
+            aberto={sugerindo}
+            aoFechar={() => setSugerindo(false)}
+            aoEnviar={abrirSugestao}
+          />
         </Suspense>
       )}
     </>

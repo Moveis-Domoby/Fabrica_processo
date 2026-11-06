@@ -14,10 +14,13 @@ import { App } from './App'
 import { aplicarTema, temaGuardado } from './perfil/tema'
 import { preCarregar } from './navegacao/pedacos'
 import { iniciarMedicao } from './lib/medicao'
+import { aplicarOpacidade, opacidadeGuardada } from './lib/opacidadeFlutuantes'
 
 // O último tema usado neste navegador entra ANTES do primeiro quadro pintado —
 // sem isso a tela pisca clara até o perfil chegar. O perfil confirma depois.
 aplicarTema(temaGuardado())
+// ↩️ 06/11: a transparência dos botões flutuantes escolhida neste aparelho.
+aplicarOpacidade(opacidadeGuardada())
 
 // SESSAO-32 (Lei §9): o pedaço da 1ª tela começa a baixar junto com a casca —
 // não espera o React montar para descobrir que precisa dele.

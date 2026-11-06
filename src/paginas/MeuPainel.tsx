@@ -202,7 +202,11 @@ export function MeuPainel() {
   const pausarMutacao = useMutation({
     mutationFn: pausarTarefa,
     onSuccess: async () => {
-      notificar({ titulo: 'Tempo pausado', descricao: 'A contagem fica guardada.', tom: 'perfeito' })
+      notificar({
+        titulo: 'Tempo pausado',
+        descricao: 'A contagem fica guardada.',
+        tom: 'perfeito',
+      })
       await invalidarFilas()
     },
     onError: aoErroGesto('Não deu para pausar'),
@@ -247,8 +251,7 @@ export function MeuPainel() {
   // O preview da demanda (pedido do dono, 23/09): clicar abre o modal com
   // iniciar/parar/editar/concluir ali mesmo — nada de pular para outra tela.
   const [tarefaAbertaId, setTarefaAbertaId] = useState<number | null>(null)
-  const tarefaAberta =
-    [...tarefas, ...tarefasSistema].find((t) => t.id === tarefaAbertaId) ?? null
+  const tarefaAberta = [...tarefas, ...tarefasSistema].find((t) => t.id === tarefaAbertaId) ?? null
   const linkQuadroDaAberta =
     tarefaAberta?.origem === 'sistema' && tarefaAberta.setor_id
       ? rotaDoSetor(setorPorId.get(tarefaAberta.setor_id)?.codigo ?? '')
@@ -257,7 +260,11 @@ export function MeuPainel() {
   const encerrarMutacao = useMutation({
     mutationFn: encerrarMeta,
     onSuccess: async () => {
-      notificar({ titulo: 'Meta encerrada', descricao: 'A história dela fica guardada.', tom: 'perfeito' })
+      notificar({
+        titulo: 'Meta encerrada',
+        descricao: 'A história dela fica guardada.',
+        tom: 'perfeito',
+      })
       await clienteQuery.invalidateQueries({ queryKey: ['metas'] })
     },
     onError: (excecao: unknown) =>
@@ -267,7 +274,6 @@ export function MeuPainel() {
         tom: 'danificado',
       }),
   })
-
 
   if (!perfil) return null // a guarda já cuidou; isto só acalma o TypeScript
 
@@ -340,7 +346,7 @@ export function MeuPainel() {
         >
           <div className="flex items-center gap-2">
             <FlaskConical aria-hidden className="size-5 shrink-0 text-info-texto" />
-            <h2 className="font-marca text-base font-semibold text-info-texto">Sugestões para você testar</h2>
+            <h2 className="text-base font-semibold text-info-texto">Sugestões para você testar</h2>
             <span className="ml-auto rounded-full bg-acao px-2.5 py-0.5 text-sm font-semibold text-acao-texto tabular-nums">
               {paraTestar.length}
             </span>
@@ -380,11 +386,13 @@ export function MeuPainel() {
             >
               <div className="flex items-center gap-2">
                 <p.icone aria-hidden className="size-5 shrink-0 text-texto-suave" />
-                <h3 className="font-marca text-sm font-semibold">{p.titulo}</h3>
+                <h3 className="text-sm font-semibold">{p.titulo}</h3>
                 <span
                   className={cn(
                     'ml-auto rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums',
-                    p.total > 0 ? 'bg-acao text-acao-texto' : 'bg-superficie-sutil text-texto-fraco',
+                    p.total > 0
+                      ? 'bg-acao text-acao-texto'
+                      : 'bg-superficie-sutil text-texto-fraco',
                   )}
                 >
                   {p.total}
@@ -467,7 +475,11 @@ export function MeuPainel() {
                       : 'bg-superficie-sutil text-texto-suave',
                   )}
                 >
-                  {item.origem === 'card' ? 'produção' : item.origem === 'minha' ? 'meu' : 'delegado'}
+                  {item.origem === 'card'
+                    ? 'produção'
+                    : item.origem === 'minha'
+                      ? 'meu'
+                      : 'delegado'}
                 </span>
                 {/* iniciar/pausar/finalizar na própria linha (pedido do dono):
                     pausar e finalizar só aparecem com o tempo iniciado. */}

@@ -79,7 +79,11 @@ export function BolhaExecucao() {
   const pausarMutacao = useMutation({
     mutationFn: pausarTarefa,
     onSuccess: async () => {
-      notificar({ titulo: 'Tempo pausado', descricao: 'A contagem fica guardada.', tom: 'perfeito' })
+      notificar({
+        titulo: 'Tempo pausado',
+        descricao: 'A contagem fica guardada.',
+        tom: 'perfeito',
+      })
       await invalidar()
     },
     onError: aoErro('Não deu para pausar'),
@@ -106,8 +110,7 @@ export function BolhaExecucao() {
         aria-label={`Em execução agora: ${total} item${total === 1 ? '' : 's'}`}
         aria-expanded={aberta}
         className={cn(
-          'fixed right-4 bottom-20 z-40 inline-flex size-toque-lg items-center justify-center rounded-full bg-acao text-acao-texto shadow-lg transition-opacity sm:bottom-6',
-          aberta ? 'opacity-100' : 'opacity-60 hover:opacity-100',
+          'botao-flutuante-discreto fixed right-4 bottom-20 z-40 inline-flex size-toque-lg items-center justify-center rounded-full bg-acao text-acao-texto shadow-lg sm:bottom-6',
         )}
       >
         <Play aria-hidden className="size-6" />
@@ -135,9 +138,14 @@ export function BolhaExecucao() {
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {rodando.map((t) => (
-                <div key={`t-${t.id}`} className="flex flex-col gap-1.5 border-b border-borda px-3 py-2 last:border-b-0">
+                <div
+                  key={`t-${t.id}`}
+                  className="flex flex-col gap-1.5 border-b border-borda px-3 py-2 last:border-b-0"
+                >
                   <p className="flex items-baseline justify-between gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate font-medium text-texto">{t.titulo}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-texto">
+                      {t.titulo}
+                    </span>
                     <span className="shrink-0 text-xs text-texto-suave tabular-nums">
                       {formatarDuracaoMs(msTempoTarefa(t, agora))}
                     </span>
@@ -188,7 +196,8 @@ export function BolhaExecucao() {
                       </span>
                     </span>
                     <span className="text-xs text-texto-fraco">
-                      execução na produção{setor ? ` · ${setor.nome}` : ''} — toque para abrir o quadro
+                      execução na produção{setor ? ` · ${setor.nome}` : ''} — toque para abrir o
+                      quadro
                     </span>
                   </Link>
                 )

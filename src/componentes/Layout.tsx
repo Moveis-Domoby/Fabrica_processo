@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -16,13 +16,23 @@ import {
   ShieldCheck,
   Store,
   TabletSmartphone,
+  Tv,
   Truck,
   X,
 } from 'lucide-react'
 import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { ehSoEntregador, ehSuperAdmin, ROTA_ENTREGADOR, temModulo } from '@/autenticacao/tipos'
+import {
+  ehSoEntregador,
+  ehSoTv,
+  ehSuperAdmin,
+  ROTA_ENTREGADOR,
+  ROTA_MODO_TV,
+  temModoTv,
+  temModulo,
+} from '@/autenticacao/tipos'
+import { ouvirCanal, topicoDaPessoa } from '@/chat/canais'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { AlertaTrocaSenha } from '@/notificacoes/AlertaTrocaSenha'
 import { AlertaCardEsquecido } from '@/notificacoes/AlertaCardEsquecido'
@@ -117,7 +127,7 @@ function guardar(chave: string, valor: boolean) {
  * dois estados ficam lembrados. A rota /tablet continua sem navegação nenhuma.
  */
 export function Layout({ children }: { children: ReactNode }) {
-  const { perfil, vinculos, ehLider, sair } = useSessao()
+  const { perfil, vinculos, ehLider, sair, recarregarPerfil } = useSessao()
   const location = useLocation()
   // Ajuste do dono (14/10 noite): ninguém fica preso numa versão velha.
   const versaoNova = useVersaoNova()
@@ -200,6 +210,20 @@ export function Layout({ children }: { children: ReactNode }) {
     if (!perfilId || navegacaoJaRegistrada(location.pathname)) return
     registrarAtividade('navegacao', location.pathname)
   }, [perfilId, location.pathname])
+
+  // ↩️ Ajuste do dono (06/11): permissão mudada pelo administrador (o Modo TV)
+  // chega AO VIVO — o banco manda "perfil" no canal da pessoa e a casca relê o
+  // perfil (o botão Modo TV aparece/some sem recarregar a página).
+  const recarregarRef = useRef(recarregarPerfil)
+  useEffect(() => {
+    recarregarRef.current = recarregarPerfil
+  })
+  useEffect(() => {
+    if (!perfilId) return
+    return ouvirCanal(topicoDaPessoa(perfilId), (evento) => {
+      if (evento === 'perfil') void recarregarRef.current()
+    })
+  }, [perfilId])
 
   // Módulos por pessoa (SESSAO-20/D-46): sem `fabrica`, somem Fábrica,
   // Dashboards e o botão Modo tablet; sem `comercial`, some o Comercial.
@@ -522,14 +546,12 @@ export function Layout({ children }: { children: ReactNode }) {
         <header className="bg-grafite-700">
           <div className="flex w-full items-center gap-4 px-4 py-3 sm:px-6">
             <Marca tamanho="sm" />
-            <span className="hidden text-sm text-grafite-300 sm:inline">
-              Plataforma de Produção
-            </span>
+            <span className="hidden text-sm text-grafite-300 sm:inline">Sistema Domoby</span>
           </div>
         </header>
         <main className="w-full flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
         <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
-          Móveis Domoby · Plataforma de Produção
+          Sistema Domoby · Móveis Domoby
         </footer>
       </div>
     )
@@ -598,9 +620,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </button>
       </div>
       {!trilho && (
-        <span className="px-3.5 pb-1.5 text-[0.6875rem] text-grafite-300">
-          Plataforma de Produção
-        </span>
+        <span className="px-3.5 pb-1.5 text-[0.6875rem] text-grafite-300">Sistema Domoby</span>
       )}
 
       <nav
@@ -636,6 +656,28 @@ export function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       <div className="flex flex-col border-t border-grafite-600">
+        {/* ↩️ Ajuste do dono (06/11): o Modo TV, acima do Modo tablet, para quem
+            ganhou a permissão de transmitir e usa a plataforma para mais coisas
+            (a conta só da TV já entra direto na TV). Aparece ao vivo. */}
+        {temModoTv(perfil) && !ehSoTv(perfil) && (
+          <NavLink
+            to={ROTA_MODO_TV}
+            onClick={() => setGavetaAberta(false)}
+            onMouseEnter={() => preCarregar(ROTA_MODO_TV)}
+            onFocus={() => preCarregar(ROTA_MODO_TV)}
+            onTouchStart={() => preCarregar(ROTA_MODO_TV)}
+            title={trilho ? 'Modo TV' : undefined}
+            className={cn(
+              'mx-2 mt-2 inline-flex items-center gap-2.5 rounded-dm border border-grafite-500 px-2.5 font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-[1.125rem] [&>svg]:shrink-0',
+              ALTURA_ITEM,
+              LETRA_MENU,
+              trilho && 'justify-center px-0',
+            )}
+          >
+            <Tv aria-hidden />
+            {!trilho && 'Modo TV'}
+          </NavLink>
+        )}
         {/* Modo tablet: fixo, logo acima do bloco do usuário (D-36).
             Sem o módulo fabrica, o botão some junto com o grupo (D-46). */}
         {veFabrica && (
@@ -864,7 +906,9 @@ export function Layout({ children }: { children: ReactNode }) {
           className={cn(
             'fixed inset-y-0 left-0 z-[55] flex max-w-[100vw] transition-[translate,visibility] duration-200',
             gavetaAberta ? 'visible translate-x-0' : 'invisible -translate-x-full',
-            'lg:visible lg:sticky lg:top-0 lg:z-50 lg:h-dvh lg:shrink-0 lg:translate-x-0',
+            // ↩️ 06/11 ("os botões flutuantes devem poder se sobrepor ao menu lateral"):
+            // no computador a coluna fica na camada 30, abaixo das bolhas (40).
+            'lg:visible lg:sticky lg:top-0 lg:z-30 lg:h-dvh lg:shrink-0 lg:translate-x-0',
           )}
         >
           <div className="flex h-full overflow-x-auto lg:overflow-visible">
@@ -889,7 +933,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <VagaDoTitulo.Provider value={vagaTitulo}>{children}</VagaDoTitulo.Provider>
             </main>
             <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
-              Móveis Domoby · Plataforma de Produção
+              Sistema Domoby · Móveis Domoby
             </footer>
           </div>
         )}

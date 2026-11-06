@@ -131,7 +131,14 @@ export function CabecalhoDaTela({
       <>
         {createPortal(grupoDoTitulo, vaga)}
         {acoes && (
-          <header className={cn('relative flex flex-wrap items-center gap-2', className)}>
+          // ↩️ Ajuste do dono (06/11 — Expedição/Entregas, virou padrão): um traço
+          // bem leve separa a linha das ações (busca, abas, botões) dos dados.
+          <header
+            className={cn(
+              'relative flex flex-wrap items-center gap-2 border-b border-borda/50 pb-3',
+              className,
+            )}
+          >
             {acoes}
           </header>
         )}

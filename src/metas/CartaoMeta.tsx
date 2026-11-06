@@ -36,7 +36,7 @@ export function CartaoMeta({
   return (
     <div className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-4">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h3 className="font-marca text-base font-semibold">
+        <h3 className="text-base font-semibold">
           {meta.titulo || `${dono} · ${ROTULO_INDICADOR[meta.indicador]}`}
         </h3>
         <span className="text-sm text-texto-fraco">{dono}</span>
