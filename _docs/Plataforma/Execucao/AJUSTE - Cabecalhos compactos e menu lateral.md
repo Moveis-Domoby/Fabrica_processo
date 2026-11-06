@@ -102,3 +102,18 @@ o tamanho desses headers e coisas assim de TODAS AS TELAS, SEM EXCEÇÃO"*. Ramo
 - Conferido no navegador (tela estreita e 1440 px): FITAMENTO, PCP, Estoque, Meu painel, Painel de
   recompra — título na barra, 1 sino na página, 1 voltar; o ? abre logo abaixo da barra.
 - `eslint src` limpo, `tsc -b` limpo, `vitest --dir src` 65/423 ✅.
+
+### 4ª volta (06/11) — a barra escura é o padrão
+- O dono pediu "diminua mais o header de cima e bem mais o espaçamento superior do estoque; em outras
+  telas você simplesmente exclui o header de cima, deixe isso como padrão". **Entendi ao contrário**
+  (tirar a barra) e anunciei; o dono corrigiu na hora: *"A BARRA ESCURA DE CIMA FICA, é o contrário"* —
+  nada do plano errado chegou a ser escrito (E-232). O certo: a barra escura existe em toda tela, também
+  no computador (onde antes não havia barra — era isso o "em outras telas você exclui").
+- Barra: dentro da coluna do conteúdo (sticky, ao lado da barra lateral no computador), 44 px; ☰ só
+  abaixo do `lg`; logo só no celular sem título. Lupa e sino só nela (o rodapé da lateral perdeu o sino e
+  o mini menu perdeu o "Buscar card" — `preCarregarBusca` voltou para dentro do `BotaoBuscaGeral`).
+  Editor das automações: barra só no celular, altura `100dvh-2.75rem`.
+- Estoque: busca + Cadastrar + abas numa linha (página), "Mostrar" embaixo; os produtos começam ~120 px
+  mais acima no tablet. Busca conferida ("Balcão" acha os balcões; "balcao" sem acento não acha — já era
+  assim, regra do servidor, não mexi).
+- `eslint src`, `tsc -b`, `vitest --dir src` 65/423 ✅; conferido no navegador a 1440 px e no tablet.
