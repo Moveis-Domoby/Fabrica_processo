@@ -71,9 +71,21 @@ evento e só quando há assinante ativo do tipo; acréscimo = 2 buscas por chave
 primária em `plt_etapas` e, só para card sem produto gravado, 1 busca pelo
 índice `produtos_codigo_idx`. Nada de relógio novo; o despacho segue o mesmo.
 
-## Pendências
+## No ar (06/11/2026, com o OK do dono na conversa: "Sim, pode subir")
 
-- [ ] Aplicar no banco de produção — **só com o OK do dono** (regra 2).
-- [ ] Depois de aplicado: conferir a função viva e o próximo aviso real do
-      sistema de estoque (as chaves novas no corpo).
-- [ ] Merge na `main` (só cofre, banco e teste — nada do site muda).
+- [x] Aplicada no banco de produção às 01:42 (horário de Brasília) pelo
+      aplicador da casa, **só este arquivo** (`npm run banco:aplicar --
+      --confirmar --so 20261106010000_plt_aviso_etapa_e_produto.sql`):
+      integração do Tiny com estrutura e linhas idênticas; 82 tabelas, 65
+      políticas, 47 etapas.
+- [x] Função viva conferida (leva etapa e produto; gatilho ligado; fila de
+      entregas sem pendente). Madrugada, fábrica parada → o aviso foi montado
+      em leitura, com a mesma consulta da função, a partir de dois movimentos
+      reais de 05/11: A MONTAR (29) → MONTANDO (28), `automacao`, produto
+      919543161; A LIMPAR (36) → CANCELADO (32), `interface`, produto 888678409.
+- [x] Merge na `main` (só cofre, banco e teste — nada do site muda).
+- [ ] Conferir o primeiro aviso real do sistema de estoque depois que a fábrica
+      abrir (o corpo em `plt_webhook_entregas` do webhook 9 com as chaves novas).
+- [ ] Recado ao integrador (o dono passa): assinar também
+      `movimentacao_setor` para não perder entrada/saída de MONTANDO por troca
+      de setor.
