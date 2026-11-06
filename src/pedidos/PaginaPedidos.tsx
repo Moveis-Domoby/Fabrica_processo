@@ -100,9 +100,10 @@ function PaginaPedidos({ modo }: { modo: 'todos' | 'cancelados' }) {
   const selecionaveis = linhas.filter((p) => p.card_id !== null)
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): o "?" no lugar do "i", o total
-          junto do título e a seleção na mesma linha. */}
+          junto do título; a busca, o "Marcar os N" e a seleção numa linha só (o
+          rótulo da busca ficou só para o leitor de tela). */}
       <CabecalhoDaTela
         titulo={
           <>
@@ -139,27 +140,17 @@ function PaginaPedidos({ modo }: { modo: 'todos' | 'cancelados' }) {
           </span>
         }
       >
-        {souSuperAdmin && !cancelados && (
-          <Botao
-            variante={selecionando ? 'primaria' : 'secundaria'}
-            icone={<ListChecks />}
-            aria-pressed={selecionando}
-            onClick={() => {
-              setSelecionando((s) => !s)
-              setSelecionados(new Map())
-            }}
-          >
-            {selecionando ? 'Sair da seleção' : 'Selecionar pedidos'}
-          </Botao>
-        )}
-      </CabecalhoDaTela>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="w-full max-w-md">
+        <div className="mr-auto w-full max-w-md min-w-56 flex-1">
           <Campo
             rotulo={cancelados ? 'Buscar cancelado' : 'Buscar pedido'}
+            rotuloOculto
+            type="search"
             prefixo={<Search />}
-            placeholder="Número, cliente ou vendedor"
+            placeholder={
+              cancelados
+                ? 'Buscar cancelado: número, cliente ou vendedor'
+                : 'Buscar pedido: número, cliente ou vendedor'
+            }
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
@@ -180,7 +171,20 @@ function PaginaPedidos({ modo }: { modo: 'todos' | 'cancelados' }) {
             Marcar os {selecionaveis.length} da tela
           </Botao>
         )}
-      </div>
+        {souSuperAdmin && !cancelados && (
+          <Botao
+            variante={selecionando ? 'primaria' : 'secundaria'}
+            icone={<ListChecks />}
+            aria-pressed={selecionando}
+            onClick={() => {
+              setSelecionando((s) => !s)
+              setSelecionados(new Map())
+            }}
+          >
+            {selecionando ? 'Sair da seleção' : 'Selecionar pedidos'}
+          </Botao>
+        )}
+      </CabecalhoDaTela>
 
       {consulta.isPending && (
         <ul className="flex flex-col gap-2" aria-busy="true" aria-label="Carregando os pedidos">

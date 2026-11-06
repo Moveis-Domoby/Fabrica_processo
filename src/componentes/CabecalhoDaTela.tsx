@@ -6,6 +6,15 @@ import { cn } from '@/lib/cn'
 import { BotaoVoltar } from './BotaoVoltar'
 import { VagaDoTitulo } from './vagaDoTitulo'
 
+/**
+ * Na barra escura, o texto de apoio (cor "suave"/"fraca" — o total ao lado do
+ * título, a data, o cadeado) vira o cinza claro da barra; senão some (cinza sobre
+ * cinza — o "(5.724)" de Todos os pedidos, 06/11). Só no título e no selo: o
+ * balão do ? continua com as cores da página.
+ */
+const APOIO_NA_BARRA =
+  '[--dm-texto-suave:var(--dm-grafite-300)] [--dm-texto-fraco:var(--dm-grafite-300)]'
+
 export interface CabecalhoDaTelaProps {
   /** O nome da tela (o `h1`). */
   titulo: ReactNode
@@ -90,12 +99,12 @@ export function CabecalhoDaTela({
       <h1
         className={cn(
           'min-w-0 text-lg leading-tight sm:text-xl',
-          naBarra && 'truncate text-base sm:text-lg',
+          naBarra && cn('truncate text-base sm:text-lg', APOIO_NA_BARRA),
         )}
       >
         {titulo}
       </h1>
-      {selo}
+      {selo && naBarra ? <span className={cn('contents', APOIO_NA_BARRA)}>{selo}</span> : selo}
       {ajuda && (
         <Dica
           rotulo={rotuloAjuda}

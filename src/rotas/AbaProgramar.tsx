@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPinPlus, Route, Truck, X } from 'lucide-react'
-import { Botao, useNotificacao } from '@/componentes/ui'
+import { Botao, Dica, useNotificacao } from '@/componentes/ui'
 import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
 import { filtroAplicavel } from '@/kanban/filtroQuadro'
 import { cn } from '@/lib/cn'
@@ -426,15 +426,24 @@ export function AbaProgramar({
   }))
   const semPonto = ordemMontando.filter((p) => !temPonto(p)).length
   const nAvulsas = avulsas.length
+  // ↩️ Ajuste do dono (06/11): o "Adicionar parada avulsa" mora UMA vez, no topo
+  // do mapa (saiu de baixo do mapa e do cabeçalho da rota), e a explicação foi
+  // para o ? ao lado dele.
   const botaoParada = (
-    <Botao
-      variante="secundaria"
-      tamanho="sm"
-      icone={<MapPinPlus />}
-      onClick={() => setJanelaParada(Date.now())}
-    >
-      Adicionar parada avulsa
-    </Botao>
+    <span className="flex shrink-0 items-center gap-0.5">
+      <Botao
+        variante="secundaria"
+        tamanho="sm"
+        icone={<MapPinPlus />}
+        onClick={() => setJanelaParada(Date.now())}
+      >
+        Adicionar parada avulsa
+      </Botao>
+      <Dica rotulo="Como montar a rota" compacta>
+        Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas entregas e
+        volta. Dá para pôr também uma parada avulsa (buscar material, passar num endereço).
+      </Dica>
+    </span>
   )
 
   return (
@@ -462,7 +471,6 @@ export function AbaProgramar({
                     ({ordemMontando.length} · {pecas} {pecas === 1 ? 'peça' : 'peças'})
                   </span>
                 </h2>
-                {botaoParada}
               </div>
               <p className="text-xs text-texto-suave">
                 {ajustada
@@ -525,16 +533,20 @@ export function AbaProgramar({
           )}
 
           <section className="order-3 flex min-w-0 flex-col gap-3">
-            <h2 className="text-base">
-              Sem programação{' '}
-              <span className="text-sm font-normal text-texto-suave tabular-nums">
-                ({dados?.total_geral ?? 0})
-              </span>
-            </h2>
-            <p className="text-xs text-texto-suave">
-              Todos os pedidos em andamento ainda sem rota — prontos, em produção ou ainda no PCP.
-              Programado, o pedido passa para "Já programadas".
-            </p>
+            {/* ↩️ 06/11: a explicação foi para o i ao lado do título (relative: o
+                balão ancora nesta linha). */}
+            <div className="relative flex items-center gap-1">
+              <h2 className="text-base">
+                Sem programação{' '}
+                <span className="text-sm font-normal text-texto-suave tabular-nums">
+                  ({dados?.total_geral ?? 0})
+                </span>
+              </h2>
+              <Dica rotulo="Sobre os pedidos sem programação" compacta>
+                Todos os pedidos em andamento ainda sem rota — prontos, em produção ou ainda no PCP.
+                Programado, o pedido passa para "Já programadas".
+              </Dica>
+            </div>
             <FiltrosProgramar escolha={escolha} aoMudar={setEscolha} dados={dados} />
             {filtrando && dados && (
               <p className="text-sm text-texto-suave tabular-nums" aria-live="polite">
@@ -596,13 +608,18 @@ export function AbaProgramar({
         </div>
 
         <section className="order-2 flex min-w-0 flex-col gap-3 @3xl:sticky @3xl:top-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:self-start">
-          <h2 className="text-base">
-            Mapa{' '}
-            <span className="text-sm font-normal text-texto-suave">
+          {/* "Mapa" e o botão da parada numa linha; a legenda embaixo, pequena.
+              relative: o balão do i do botão da parada ancora aqui. */}
+          <div className="relative flex flex-col gap-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base">Mapa</h2>
+              {botaoParada}
+            </div>
+            <p className="text-xs text-texto-suave">
               F = fábrica (saída e volta) · amarelo numerado = ordem das paradas · quadrado "A" =
               parada avulsa · âmbar = pedidos próximos (até {RAIO_SUGESTAO_KM} km)
-            </span>
-          </h2>
+            </p>
+          </div>
           <MapaProgramacao
             rotas={rotasNoMapa}
             trajeto={trajeto}
@@ -611,7 +628,7 @@ export function AbaProgramar({
             sugestoes={sugestoes}
             aoEscolherSugestao={escolherSugestao}
           />
-          {ordemMontando.length > 0 ? (
+          {ordemMontando.length > 0 && (
             <PainelRota
               titulo="Rota que você está montando"
               cor={COR_MONTAGEM}
@@ -622,15 +639,6 @@ export function AbaProgramar({
               ajustada={ajustada}
               aoVoltarSugestao={voltarSugestao}
             />
-          ) : (
-            <div className="flex flex-col items-start gap-3 rounded-dm border border-borda bg-superficie p-4">
-              <p className="text-sm text-texto-suave">
-                Marque pedidos na lista para montar a rota — ela sai da fábrica, passa pelas
-                entregas e volta. Dá para pôr também uma parada avulsa (buscar material, passar num
-                endereço).
-              </p>
-              {botaoParada}
-            </div>
           )}
           {paradasNoMapa.length > MAXIMO_PARADAS && (
             <p className="text-xs text-atencao-texto">
