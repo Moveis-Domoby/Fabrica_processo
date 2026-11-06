@@ -169,7 +169,7 @@ export function SinoNotificacoes({
         title="Notificações"
         className={cn(
           'toque-seguro relative inline-flex shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600',
-          compacto ? 'size-9' : 'h-toque-md w-toque-md',
+          compacto ? 'size-8' : 'h-toque-md w-toque-md',
         )}
       >
         <Bell aria-hidden className="size-5" />

@@ -1,8 +1,11 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { CircleHelp } from 'lucide-react'
 import { Dica } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
+import { useTelaPequena } from '@/lib/telaPequena'
 import { BotaoVoltar } from './BotaoVoltar'
+import { VagaDoTitulo } from './vagaDoTitulo'
 
 export interface CabecalhoDaTelaProps {
   /** O nome da tela (o `h1`). */
@@ -37,8 +40,12 @@ export interface CabecalhoDaTelaProps {
  * título um terço menor (era `text-2xl sm:text-3xl`), o **?** com a
  * explicação no lugar do parágrafo de baixo, e as ações na mesma linha.
  *
- * O `header` é `relative`: o balão do **?** ancora nele (ver `Dica`) e nunca
- * estoura a borda da tela no celular.
+ * ↩️ 3ª volta (06/11): na tela estreita (celular, tablet em pé) a setinha, o
+ * nome e o **?** sobem para a barra escura do topo (a `VagaDoTitulo` da casca)
+ * — na página fica só a linha das ações (e nada, se a tela não tiver ação).
+ *
+ * O `header` é `relative` (e a barra do topo é `sticky`): o balão do **?**
+ * ancora nele (ver `Dica`) e nunca estoura a borda da tela no celular.
  */
 export function CabecalhoDaTela({
   titulo,
@@ -51,40 +58,82 @@ export function CabecalhoDaTela({
   semVoltar = false,
   className,
 }: CabecalhoDaTelaProps) {
-  return (
-    <header className={cn('relative flex flex-wrap items-center gap-x-3 gap-y-2', className)}>
-      <div className="flex min-h-toque-md min-w-0 items-center gap-1.5">
-        {!semVoltar && <BotaoVoltar />}
-        {icone && (
-          <span
-            aria-hidden
-            className="inline-flex shrink-0 text-texto-suave [&>svg]:size-5 [&>svg]:shrink-0"
-          >
-            {icone}
-          </span>
-        )}
-        <h1 className="min-w-0 text-lg leading-tight sm:text-xl">{titulo}</h1>
-        {selo}
-        {ajuda && (
-          <Dica
-            rotulo={rotuloAjuda}
-            compacta
-            icone={<CircleHelp aria-hidden className="size-[1.125rem]" />}
-          >
-            {ajuda}
-          </Dica>
-        )}
-      </div>
-      {children && (
-        <div
+  const vaga = useContext(VagaDoTitulo)
+  const telaPequena = useTelaPequena()
+  const naBarra = vaga !== null && telaPequena
+
+  const grupoDoTitulo = (
+    <div
+      className={cn(
+        'flex min-w-0 items-center gap-1.5',
+        naBarra ? 'flex-1 text-grafite-50' : 'min-h-toque-md',
+      )}
+    >
+      {!semVoltar && (
+        <BotaoVoltar
+          className={
+            naBarra ? 'ml-0 text-grafite-100 hover:bg-grafite-600 hover:text-grafite-50' : undefined
+          }
+        />
+      )}
+      {icone && (
+        <span
+          aria-hidden
           className={cn(
-            'flex min-w-0 flex-auto flex-wrap items-center justify-end gap-2',
-            classeAcoes,
+            'inline-flex shrink-0 [&>svg]:size-5 [&>svg]:shrink-0',
+            naBarra ? 'text-grafite-200' : 'text-texto-suave',
           )}
         >
-          {children}
-        </div>
+          {icone}
+        </span>
       )}
+      <h1
+        className={cn(
+          'min-w-0 text-lg leading-tight sm:text-xl',
+          naBarra && 'truncate text-base sm:text-lg',
+        )}
+      >
+        {titulo}
+      </h1>
+      {selo}
+      {ajuda && (
+        <Dica
+          rotulo={rotuloAjuda}
+          compacta
+          tom={naBarra ? 'menu' : 'padrao'}
+          icone={<CircleHelp aria-hidden className="size-[1.125rem]" />}
+        >
+          {ajuda}
+        </Dica>
+      )}
+    </div>
+  )
+
+  const acoes = children ? (
+    <div
+      className={cn('flex min-w-0 flex-auto flex-wrap items-center justify-end gap-2', classeAcoes)}
+    >
+      {children}
+    </div>
+  ) : null
+
+  if (naBarra) {
+    return (
+      <>
+        {createPortal(grupoDoTitulo, vaga)}
+        {acoes && (
+          <header className={cn('relative flex flex-wrap items-center gap-2', className)}>
+            {acoes}
+          </header>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <header className={cn('relative flex flex-wrap items-center gap-x-3 gap-y-2', className)}>
+      {grupoDoTitulo}
+      {acoes}
     </header>
   )
 }

@@ -1,16 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router'
-import { Ellipsis, LogOut, Palette, Search } from 'lucide-react'
+import { ChevronDown, Ellipsis, LogOut, Palette, Search } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { TemasDoMenu } from '@/perfil/SeletorTemaRapido'
+import { ROTULO_TEMA, ehTema } from '@/perfil/tema'
+import { useSessao } from '@/autenticacao/sessao-contexto'
 import { preCarregarBusca } from '@/busca/preCarregarBusca'
 
 /** A largura do painel (px) — a mesma do `w-60`. */
 const LARGURA = 240
 
+// ↩️ 06/11 (2ª volta, pedido do dono): o mini menu segue as cores da barra
+// lateral (`menu-superficie` + grafite, que cada tema retinta), não as da página.
 const ITEM =
-  'flex min-h-toque-md w-full items-center gap-2.5 rounded-[0.4rem] px-2 text-left text-[0.8125rem] transition-colors [@media(pointer:fine)]:min-h-9'
+  'flex min-h-toque-md w-full items-center gap-2.5 rounded-dm px-2 text-left text-[0.8125rem] text-grafite-100 transition-colors hover:bg-grafite-600 [@media(pointer:fine)]:min-h-9'
 
 /**
  * O mini menu do rodapé da barra lateral — ajuste do dono de 06/11: *"coloque
@@ -36,6 +40,12 @@ export function MenuDoUsuario({
   aoSair: () => void
 }) {
   const { pathname } = useLocation()
+  const { perfil } = useSessao()
+  const idTemas = useId()
+  // ↩️ 06/11 (2ª volta — "os temas devem ficar ocultos dentro do ícone de
+  // tema"): a lista só aparece ao tocar em Tema; fecha de novo a cada abertura.
+  const [temasAbertos, setTemasAbertos] = useState(false)
+  const temaAtual = perfil && ehTema(perfil.tema) ? ROTULO_TEMA[perfil.tema] : null
   // Aberto só na tela em que foi aberto: trocar de tela fecha (como o sino).
   const [abertoEm, setAbertoEm] = useState<string | null>(null)
   const aberto = abertoEm === pathname
@@ -62,6 +72,7 @@ export function MenuDoUsuario({
             },
       )
     }
+    setTemasAbertos(false)
     setAbertoEm(pathname)
   }
   const fechar = () => setAbertoEm(null)
@@ -106,7 +117,7 @@ export function MenuDoUsuario({
         aria-expanded={aberto}
         title="Mais opções"
         className={cn(
-          'toque-seguro inline-flex size-9 shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600',
+          'toque-seguro inline-flex size-8 shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600',
           aberto && 'bg-grafite-600',
         )}
       >
@@ -120,42 +131,59 @@ export function MenuDoUsuario({
             role="dialog"
             aria-label="Mais opções"
             style={{ left: posicao.left, bottom: posicao.bottom }}
-            className="fixed z-[58] flex max-h-[calc(100dvh-1rem)] w-60 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto rounded-dm-lg border border-borda bg-superficie p-1.5 text-texto shadow-lg"
+            className="menu-superficie fixed z-[58] flex max-h-[calc(100dvh-1rem)] w-60 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto rounded-dm-lg border border-grafite-600 bg-grafite-700 p-1.5 text-grafite-100 shadow-lg"
           >
             {aoBuscar && (
-              <>
-                <button
-                  type="button"
-                  onPointerEnter={preCarregarBusca}
-                  onFocus={preCarregarBusca}
-                  onClick={() => {
-                    fechar()
-                    aoBuscar()
-                  }}
-                  className={cn(ITEM, 'hover:bg-superficie-sutil')}
-                >
-                  <Search aria-hidden className="size-4 shrink-0 text-texto-suave" />
-                  <span className="flex-1">Buscar card</span>
-                  <kbd className="rounded border border-borda px-1 font-sans text-[0.6875rem] text-texto-fraco">
-                    Ctrl K
-                  </kbd>
-                </button>
-                <div className="my-1 border-t border-borda" />
-              </>
+              <button
+                type="button"
+                onPointerEnter={preCarregarBusca}
+                onFocus={preCarregarBusca}
+                onClick={() => {
+                  fechar()
+                  aoBuscar()
+                }}
+                className={ITEM}
+              >
+                <Search aria-hidden className="size-4 shrink-0" />
+                <span className="flex-1">Buscar card</span>
+                <kbd className="rounded border border-grafite-500 px-1 font-sans text-[0.6875rem] text-grafite-300">
+                  Ctrl K
+                </kbd>
+              </button>
             )}
-            <p className="flex items-center gap-2.5 px-2 pt-1 pb-1 text-xs font-semibold text-texto-suave">
+            <button
+              type="button"
+              onClick={() => setTemasAbertos((atual) => !atual)}
+              aria-expanded={temasAbertos}
+              aria-controls={idTemas}
+              className={cn(ITEM, temasAbertos && 'bg-grafite-600')}
+            >
               <Palette aria-hidden className="size-4 shrink-0" />
-              Tema
-            </p>
-            <TemasDoMenu />
-            <div className="my-1 border-t border-borda" />
+              <span className="flex-1">Tema</span>
+              {temaAtual && (
+                <span className="truncate text-[0.6875rem] text-grafite-300">{temaAtual}</span>
+              )}
+              <ChevronDown
+                aria-hidden
+                className={cn(
+                  'size-4 shrink-0 transition-transform',
+                  !temasAbertos && '-rotate-90',
+                )}
+              />
+            </button>
+            {temasAbertos && (
+              <div id={idTemas} className="mt-0.5 mb-1 ml-3.5 border-l border-grafite-600 pl-1.5">
+                <TemasDoMenu />
+              </div>
+            )}
+            <div className="my-1 border-t border-grafite-600" />
             <button
               type="button"
               onClick={() => {
                 fechar()
                 aoSair()
               }}
-              className={cn(ITEM, 'text-danificado-texto hover:bg-danificado-fundo')}
+              className={ITEM}
             >
               <LogOut aria-hidden className="size-4 shrink-0" />
               Sair da conta

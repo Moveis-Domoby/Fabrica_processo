@@ -43,6 +43,7 @@ import { preCarregar } from '@/navegacao/pedacos'
 import { medirNaNavegacao } from '@/lib/medicao'
 import { BotaoBuscaGeral, BuscaGeralNaCasca } from '@/busca/BotaoBuscaGeral'
 import { MenuDoUsuario } from './MenuDoUsuario'
+import { VagaDoTitulo } from './vagaDoTitulo'
 import { BolhaSugestao, ROTA_SUGESTOES } from '@/tech/BolhaSugestao'
 import { JanelaSugestaoNaUrl } from '@/tech/JanelaSugestaoNaUrl'
 
@@ -131,6 +132,9 @@ export function Layout({ children }: { children: ReactNode }) {
   // ↩️ Ajuste do dono (06/11): a janela da busca mora na casca — a lupa foi para
   // o mini menu do rodapé (e segue na barra do celular); o Ctrl+K continua.
   const [buscaAberta, setBuscaAberta] = useState(false)
+  // ↩️ 06/11 (3ª volta): a vaga do título na barra escura do topo (celular e
+  // tablet em pé) — o `CabecalhoDaTela` leva a setinha, o nome e o ? para lá.
+  const [vagaTitulo, setVagaTitulo] = useState<HTMLDivElement | null>(null)
   const abrirBusca = useCallback(() => {
     setGavetaAberta(false)
     setBuscaAberta(true)
@@ -664,7 +668,7 @@ export function Layout({ children }: { children: ReactNode }) {
             aria-label="Meu perfil"
             title={trilho ? perfil.nome : undefined}
             className={cn(
-              'flex min-w-0 flex-1 items-center gap-2 rounded-dm px-1.5 py-1 transition-colors hover:bg-grafite-600',
+              'flex min-w-0 flex-1 items-center gap-1.5 rounded-dm px-1 py-1 transition-colors hover:bg-grafite-600',
               trilho && 'flex-none px-1',
             )}
           >
@@ -672,12 +676,12 @@ export function Layout({ children }: { children: ReactNode }) {
               <img
                 src={fotoUrl}
                 alt=""
-                className="size-8 shrink-0 rounded-full border border-grafite-500 object-cover"
+                className="size-7 shrink-0 rounded-full border border-grafite-500 object-cover"
               />
             ) : (
               <span
                 aria-hidden
-                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-grafite-600 text-[0.8125rem] font-semibold text-grafite-100"
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-grafite-600 text-xs font-semibold text-grafite-100"
               >
                 {iniciais}
               </span>
@@ -687,22 +691,27 @@ export function Layout({ children }: { children: ReactNode }) {
                 <span className="truncate text-[0.8125rem] font-medium text-grafite-100">
                   {perfil.nome}
                 </span>
-                <span className="truncate text-[0.6875rem] text-grafite-300 tabular-nums">
+                <span className="truncate text-[0.6875rem] tracking-tight text-grafite-300 tabular-nums">
                   {perfil.matricula}
                 </span>
               </span>
             )}
           </NavLink>
 
-          <SinoNotificacoes
-            usuarioId={perfil.id}
-            painelLado="esquerda-baixo"
-            linkAvisos={ehLider}
-            compacto
-          />
+          {/* ↩️ 06/11 (3ª volta — "não devem existir dois ícones de notificações
+              e lupa"): na tela estreita o sino e a lupa moram só na barra de
+              cima; aqui embaixo, só no computador (onde não há barra de cima). */}
+          {!telaPequena && (
+            <SinoNotificacoes
+              usuarioId={perfil.id}
+              painelLado="esquerda-baixo"
+              linkAvisos={ehLider}
+              compacto
+            />
+          )}
           <MenuDoUsuario
             recolhida={trilho}
-            aoBuscar={veFabrica ? abrirBusca : undefined}
+            aoBuscar={veFabrica && !telaPequena ? abrirBusca : undefined}
             aoSair={() => void sair()}
           />
         </div>
@@ -713,8 +722,8 @@ export function Layout({ children }: { children: ReactNode }) {
   // BARRA 2 — os filhos do grupo escolhido: um menu ao lado do menu. Na gaveta
   // do celular ela fica mais larga (ao lado do trilho), para os nomes caberem.
   const barraFilhos = painelAberto && grupoDoPainel && (
-    // ↩️ 06/11: 184 px no computador (era 208); na gaveta do celular, 224 (era 240)
-    <div className="menu-superficie flex h-full w-56 flex-col border-l border-grafite-600 bg-grafite-800 lg:w-46">
+    // ↩️ 06/11: 196 px no computador (era 208 — a 196 os nomes cabem numa linha); na gaveta do celular, 224 (era 240)
+    <div className="menu-superficie flex h-full w-56 flex-col border-l border-grafite-600 bg-grafite-800 lg:w-49">
       <div className="flex items-center gap-1 px-3 pt-3 pb-1">
         <span className="flex-1 truncate text-[0.8125rem] font-bold tracking-tight text-grafite-50">
           {grupoDoPainel.rotulo}
@@ -807,7 +816,9 @@ export function Layout({ children }: { children: ReactNode }) {
     // O chat (SESSAO-26) acompanha toda tela logada — nunca o /tablet (acima).
     <ProvedorChat eu={perfil.id}>
       <div className="min-h-dvh bg-fundo lg:flex">
-        {/* Barra do celular: menu + marca + sino (a gaveta traz o resto). */}
+        {/* Barra do celular: menu + [setinha · nome da tela · ?] + lupa + sino (a
+            gaveta traz o resto). ↩️ 06/11 (3ª volta): o título da tela mora aqui
+            na tela estreita; sem título (a vaga vazia), aparece a logo. */}
         <header className="menu-superficie sticky top-0 z-30 bg-grafite-700 lg:hidden">
           <div className="flex items-center gap-2 px-3 py-2">
             <button
@@ -819,10 +830,15 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               <Menu aria-hidden className="size-6" />
             </button>
-            <NavLink to={ROTA_INICIAL} className="rounded-dm" aria-label="Domoby — início">
+            <div ref={setVagaTitulo} className="peer flex min-w-0 flex-1 empty:hidden" />
+            <NavLink
+              to={ROTA_INICIAL}
+              className="rounded-dm peer-[:not(:empty)]:hidden"
+              aria-label="Domoby — início"
+            >
               <Marca tamanho="sm" />
             </NavLink>
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               {veFabrica && <BotaoBuscaGeral aoAbrir={abrirBusca} />}
               <SinoNotificacoes usuarioId={perfil.id} linkAvisos={ehLider} />
             </div>
@@ -866,14 +882,16 @@ export function Layout({ children }: { children: ReactNode }) {
           // A área de trabalho das automações: a altura toda da tela (menos a
           // barra do celular); o voltar mora na barra do próprio editor.
           <main className="flex h-[calc(100dvh-60px)] min-w-0 flex-1 flex-col overflow-hidden lg:h-dvh">
-            {children}
+            <VagaDoTitulo.Provider value={vagaTitulo}>{children}</VagaDoTitulo.Provider>
           </main>
         ) : (
           <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
             {/* Toda tela tem botão de voltar (D-36) — ↩️ ajuste de 06/11: ele mora
                 no cabeçalho de cada tela (`CabecalhoDaTela`), como a setinha à
                 esquerda do título; a linha só dele saiu daqui. */}
-            <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">{children}</main>
+            <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">
+              <VagaDoTitulo.Provider value={vagaTitulo}>{children}</VagaDoTitulo.Provider>
+            </main>
             <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
               Móveis Domoby · Plataforma de Produção
             </footer>

@@ -33,7 +33,9 @@ export function TemasDoMenu() {
   const escolhido = trocar.isPending && trocar.variables ? trocar.variables : temaAtual
 
   return (
-    <div role="radiogroup" aria-label="Tema da plataforma" className="grid grid-cols-2 gap-0.5">
+    // ↩️ 06/11 (2ª volta): uma coluna só (os nomes não cortam) e as cores da
+    // barra lateral — a lista mora no mini menu, que segue a barra.
+    <div role="radiogroup" aria-label="Tema da plataforma" className="flex flex-col gap-0.5">
       {TEMAS.map((tema) => {
         const marcado = tema === escolhido
         return (
@@ -48,13 +50,13 @@ export function TemasDoMenu() {
               trocar.mutate(tema)
             }}
             className={cn(
-              'flex min-h-toque-md items-center gap-2 rounded-[0.4rem] px-2 text-left text-[0.8125rem] text-texto transition-colors hover:bg-superficie-sutil [@media(pointer:fine)]:min-h-8',
-              marcado && 'bg-superficie-sutil font-semibold',
+              'flex min-h-toque-md items-center gap-2 rounded-dm px-2 text-left text-[0.8125rem] text-grafite-100 transition-colors hover:bg-grafite-600 [@media(pointer:fine)]:min-h-8',
+              marcado && 'bg-grafite-600 font-semibold',
             )}
           >
             <span
               aria-hidden
-              className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-borda"
+              className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-grafite-500"
               style={{ background: AMOSTRA_TEMA[tema].fundo }}
             >
               <span
@@ -63,7 +65,7 @@ export function TemasDoMenu() {
               />
             </span>
             <span className="min-w-0 flex-1 truncate">{ROTULO_TEMA[tema]}</span>
-            {marcado && <Check aria-hidden className="size-3.5 shrink-0 text-acao-ativa" />}
+            {marcado && <Check aria-hidden className="size-3.5 shrink-0 text-menu-destaque" />}
           </button>
         )
       })}

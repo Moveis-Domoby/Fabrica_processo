@@ -30,8 +30,11 @@ export function Marca({ tamanho = 'md', sobre = 'grafite', className }: MarcaPro
   return (
     <span className={cn('inline-flex flex-col leading-none', className)}>
       <span
-        className={cn('font-marca font-medium uppercase', escala.topo,
-          sobre === 'metalico' ? 'text-marca-300' : 'text-marca-500')}
+        className={cn(
+          'font-marca font-medium uppercase',
+          escala.topo,
+          sobre === 'metalico' ? 'text-marca-300' : 'text-marca-500',
+        )}
       >
         Móveis
       </span>

@@ -14,6 +14,11 @@ export interface DicaProps {
    * alvo de 44 px mantido por `toque-seguro` — o **?** ao lado do título.
    */
   compacta?: boolean
+  /**
+   * ↩️ 06/11 (3ª volta): `menu` = o **?** sobre a barra escura do topo (as
+   * cores da barra); `padrao` = sobre a página.
+   */
+  tom?: 'padrao' | 'menu'
 }
 
 /**
@@ -26,7 +31,14 @@ export interface DicaProps {
  * no ícone — assim ele nunca estoura a borda da tela no celular (lição da
  * F-07: overlay se ancora na borda da página, não no elemento).
  */
-export function Dica({ rotulo, children, className, icone, compacta = false }: DicaProps) {
+export function Dica({
+  rotulo,
+  children,
+  className,
+  icone,
+  compacta = false,
+  tom = 'padrao',
+}: DicaProps) {
   const [aberta, setAberta] = useState(false)
   const id = useId()
   const raiz = useRef<HTMLSpanElement>(null)
@@ -63,10 +75,17 @@ export function Dica({ rotulo, children, className, icone, compacta = false }: D
         onFocus={() => setAberta(true)}
         onBlur={() => setAberta(false)}
         className={cn(
-          'inline-flex items-center justify-center rounded-full text-texto-suave transition-colors',
+          'inline-flex items-center justify-center rounded-full transition-colors',
           compacta ? 'toque-seguro size-8 shrink-0' : 'size-toque-md',
-          'hover:bg-superficie-sutil hover:text-texto focus-visible:bg-superficie-sutil focus-visible:text-texto',
-          aberta && 'text-texto',
+          tom === 'menu'
+            ? cn(
+                'text-grafite-200 hover:bg-grafite-600 hover:text-grafite-50 focus-visible:bg-grafite-600 focus-visible:text-grafite-50',
+                aberta && 'text-grafite-50',
+              )
+            : cn(
+                'text-texto-suave hover:bg-superficie-sutil hover:text-texto focus-visible:bg-superficie-sutil focus-visible:text-texto',
+                aberta && 'text-texto',
+              ),
         )}
       >
         {icone ?? <Info aria-hidden className="size-5" />}
