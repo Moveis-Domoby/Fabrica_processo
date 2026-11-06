@@ -178,3 +178,27 @@ Feita em 3 frentes paralelas (subagentes, arquivos separados, sem commit) + a mi
   1440x900 e no tablet; testes de rotas 135/135.
 - Regra (já era a da casa, E-30/padrão de container): bloco de texto ao lado de botões NUNCA com base 0 —
   dar largura mínima ao texto e deixar os botões quebrarem.
+
+### 9ª–11ª voltas (06/11)
+- **Transparência:** *"de 0 a 100%, com um modal próprio da plataforma e sem pré-definição de 10 em 10"* →
+  vista própria no mini menu (o painel troca de conteúdo: ‹ voltar · número grande · − faixa + · legenda),
+  faixa estilizada (`.faixa-domoby`), passo 1. *"Em 0% eles somem de fato, além da opacidade, a
+  funcionalidade também"* → `data-flutuantes-ocultos` no `html` em 0% exato → `display:none !important`.
+  Armadilha: sem o `!important` a regra (camada base) perdia para o `inline-flex` (camada das utilidades) —
+  conferido no navegador: em 0% `display:none`, em 1% `display:flex` e opacidade 0,01. Corrigido também:
+  sem nada guardado, a opacidade é 1 (antes `Number(null)` daria 0).
+- **Linha das abas presa no topo** (*"trave esse header que possui abas, ele não deve rolar junto"*) →
+  sticky do `md` para cima + `--dm-topo-fixo` medido; as colunas do mapa (Programar e Já programadas)
+  passaram a grudar abaixo dela. Conferido: rolando 900 px, a linha fica a 44 px do topo e o mapa a 125 px.
+- **Rodapé com a marca** saiu (as duas casas: a logada e a sem sessão).
+- **Card do caminhão** (Já programadas) espremido de novo → ver 8ª volta.
+- **Modo TV:** seleção da casa no lugar da lista nativa; relógio `HH:MM:SS` ao vivo (conferido 04:16:58 →
+  04:17:00); trocar o dia — o arquivo do banco pendente virou `20261106020000_plt_modo_tv_ao_vivo_e_dia.sql`
+  (ainda **não aplicado**): além do aviso ao vivo, recria `plt_fn_modo_tv(p_setor_id, p_dia)` (sem dia = hoje;
+  futuro e >400 dias recusados; devolve `pode_trocar_dia` e `e_hoje`) e **derruba a versão de 1 parâmetro**
+  (com as duas, a API não saberia qual chamar). Ensaio do banco: entrou na lista do bloco que reaplica as
+  recentes "como em produção" (senão a de 1 parâmetro voltava e dava "is not unique"); conferência nova
+  ("a TV escolhe o dia") ✔; só as 2 falhas antigas seguem (Dashboard comercial e fluxo n8n — já falhavam
+  sem este ajuste). Armadilha: `create function` não roda duas vezes — tem de ser `create or replace`.
+- O site pode ser publicado antes do banco: sem a porta nova, a TV segue mostrando hoje (as setas não
+  aparecem) e o botão Modo TV aparece ao recarregar a página.
