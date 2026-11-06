@@ -37,13 +37,18 @@ export function SinoNotificacoes({
   usuarioId,
   painelLado = 'direita',
   linkAvisos = false,
+  compacto = false,
 }: {
   usuarioId: string
   /** D-202: quem vê Configurações tem, no painel, o atalho para escolher os avisos. */
   linkAvisos?: boolean
-  /** De que borda da PÁGINA o painel abre — nunca ancorado no próprio sino (o
-   *  sino agora vive no topo da sidebar; ancorar nele estouraria a tela). */
-  painelLado?: 'esquerda' | 'direita'
+  /** De que borda da PÁGINA o painel abre — nunca ancorado no próprio sino
+   *  (ancorar nele estouraria a tela). ↩️ 06/11: o sino da barra lateral
+   *  desceu para o rodapé, ao lado do nome — o painel abre de baixo
+   *  (`esquerda-baixo`), logo acima do bloco do usuário. */
+  painelLado?: 'esquerda' | 'direita' | 'esquerda-baixo'
+  /** ↩️ 06/11: o sino do rodapé do menu, desenhado em 36 px (alvo de 44 mantido). */
+  compacto?: boolean
 }) {
   const clienteQuery = useQueryClient()
   const navegar = useNavigate()
@@ -161,11 +166,20 @@ export function SinoNotificacoes({
             : 'Notificações'
         }
         aria-expanded={aberto}
-        className="toque-seguro relative inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
+        title="Notificações"
+        className={cn(
+          'toque-seguro relative inline-flex shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600',
+          compacto ? 'size-9' : 'h-toque-md w-toque-md',
+        )}
       >
         <Bell aria-hidden className="size-5" />
         {naoLidos.length > 0 && (
-          <span className="absolute right-1 top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-danificado-forte px-1 text-xs font-semibold text-white tabular-nums">
+          <span
+            className={cn(
+              'absolute inline-flex min-w-5 items-center justify-center rounded-full bg-danificado-forte px-1 text-xs font-semibold text-white tabular-nums',
+              compacto ? '-top-1 -right-1' : 'top-1 right-1',
+            )}
+          >
             {naoLidos.length > 9 ? '9+' : naoLidos.length}
           </span>
         )}
@@ -185,8 +199,10 @@ export function SinoNotificacoes({
             // gaveta do celular (55) e do seletor de tema (56), abaixo dos
             // avisos passageiros (60).
             className={cn(
-              'fixed top-16 z-[58] flex max-h-[calc(100dvh-5rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg',
-              painelLado === 'direita' ? 'right-3' : 'left-3',
+              'fixed z-[58] flex max-h-[calc(100dvh-5rem)] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-dm-lg border border-borda bg-superficie shadow-lg',
+              painelLado === 'direita' && 'top-16 right-3',
+              painelLado === 'esquerda' && 'top-16 left-3',
+              painelLado === 'esquerda-baixo' && 'bottom-16 left-3',
             )}
           >
             <header className="flex items-center justify-between gap-2 border-b border-borda px-3 py-2">

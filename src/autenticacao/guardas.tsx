@@ -33,7 +33,7 @@ function ContaSemAcesso() {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
       <ShieldAlert aria-hidden className="size-12 text-atencao-forte" />
-      <h1 className="text-2xl">Conta sem acesso</h1>
+      <h1 className="text-xl">Conta sem acesso</h1>
       <p className="text-texto-suave">
         Esta conta não tem cadastro ativo na plataforma. Fale com a liderança para ser cadastrado —
         o acesso só nasce pela mão de um admin ou líder.

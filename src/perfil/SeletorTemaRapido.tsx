@@ -1,22 +1,21 @@
-import * as RadixSelect from '@radix-ui/react-select'
 import { useMutation } from '@tanstack/react-query'
-import { Check, Palette } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
+import { cn } from '@/lib/cn'
 import { salvarTema } from './api'
 import { AMOSTRA_TEMA, ROTULO_TEMA, TEMAS, aplicarTema, ehTema } from './tema'
 import type { Tema } from './tema'
 
 /**
- * O seletor de TEMA do rodapé do menu (SESSAO-27 · D-100 — pedido do dono: "o
- * símbolo de configurações será agora um símbolo de tema para escolher o tema
- * com um campinho pequeno de select"). Mesmo comportamento do Meu Perfil:
- * aplica na hora e o banco guarda em seguida; se não gravar, volta ao tema
- * guardado. A lista abre num portal do Radix (nunca cortada pela gaveta).
+ * Os temas no mini menu do rodapé da barra lateral. Origem: SESSAO-27 · D-100
+ * (a engrenagem virou o seletor de tema, um "campinho pequeno de select");
+ * ↩️ ajuste do dono de 06/11: busca, tema e sair moram num mini menu ao lado
+ * do nome — aqui os temas aparecem em lista (amostra + nome), sem uma segunda
+ * janela por cima do mini menu. Mesmo comportamento do Meu Perfil: aplica na
+ * hora e o banco guarda em seguida; se não gravar, volta ao tema guardado.
  */
-export function SeletorTemaRapido({ recolhida }: { recolhida: boolean }) {
-  // Com a barra recolhida, a lista abre para o lado (não há espaço acima).
-  const lado = recolhida ? 'right' : 'top'
+export function TemasDoMenu() {
   const { perfil, recarregarPerfil } = useSessao()
   const notificar = useNotificacao()
   const temaAtual: Tema = perfil && ehTema(perfil.tema) ? perfil.tema : 'claro'
@@ -34,53 +33,40 @@ export function SeletorTemaRapido({ recolhida }: { recolhida: boolean }) {
   const escolhido = trocar.isPending && trocar.variables ? trocar.variables : temaAtual
 
   return (
-    <RadixSelect.Root
-      value={escolhido}
-      onValueChange={(valor) => {
-        if (!ehTema(valor) || valor === temaAtual) return
-        aplicarTema(valor)
-        trocar.mutate(valor)
-      }}
-    >
-      <RadixSelect.Trigger
-        aria-label={`Tema da plataforma: ${ROTULO_TEMA[escolhido]}`}
-        title="Tema"
-        className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
-      >
-        <Palette aria-hidden className="size-5" />
-      </RadixSelect.Trigger>
-      <RadixSelect.Portal>
-        <RadixSelect.Content
-          position="popper"
-          side={lado}
-          align="start"
-          sideOffset={8}
-          collisionPadding={12}
-          className="z-[56] max-h-80 min-w-44 overflow-hidden rounded-dm border border-borda bg-superficie shadow-lg"
-        >
-          <RadixSelect.Viewport className="p-1">
-            {TEMAS.map((tema) => (
-              <RadixSelect.Item
-                key={tema}
-                value={tema}
-                className="flex h-toque-md cursor-pointer items-center gap-2 rounded-[0.4rem] px-2 text-sm text-texto outline-none data-[highlighted]:bg-superficie-sutil"
-              >
-                <span
-                  aria-hidden
-                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-borda"
-                  style={{ background: AMOSTRA_TEMA[tema].fundo }}
-                >
-                  <span className="size-2 rounded-full" style={{ background: AMOSTRA_TEMA[tema].acao }} />
-                </span>
-                <RadixSelect.ItemText>{ROTULO_TEMA[tema]}</RadixSelect.ItemText>
-                <RadixSelect.ItemIndicator className="ml-auto">
-                  <Check aria-hidden className="size-4 text-acao-ativa" />
-                </RadixSelect.ItemIndicator>
-              </RadixSelect.Item>
-            ))}
-          </RadixSelect.Viewport>
-        </RadixSelect.Content>
-      </RadixSelect.Portal>
-    </RadixSelect.Root>
+    <div role="radiogroup" aria-label="Tema da plataforma" className="grid grid-cols-2 gap-0.5">
+      {TEMAS.map((tema) => {
+        const marcado = tema === escolhido
+        return (
+          <button
+            key={tema}
+            type="button"
+            role="radio"
+            aria-checked={marcado}
+            onClick={() => {
+              if (tema === temaAtual) return
+              aplicarTema(tema)
+              trocar.mutate(tema)
+            }}
+            className={cn(
+              'flex min-h-toque-md items-center gap-2 rounded-[0.4rem] px-2 text-left text-[0.8125rem] text-texto transition-colors hover:bg-superficie-sutil [@media(pointer:fine)]:min-h-8',
+              marcado && 'bg-superficie-sutil font-semibold',
+            )}
+          >
+            <span
+              aria-hidden
+              className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-borda"
+              style={{ background: AMOSTRA_TEMA[tema].fundo }}
+            >
+              <span
+                className="size-1.5 rounded-full"
+                style={{ background: AMOSTRA_TEMA[tema].acao }}
+              />
+            </span>
+            <span className="min-w-0 flex-1 truncate">{ROTULO_TEMA[tema]}</span>
+            {marcado && <Check aria-hidden className="size-3.5 shrink-0 text-acao-ativa" />}
+          </button>
+        )
+      })}
+    </div>
   )
 }

@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowLeft,
   ChartColumn,
   ChevronDown,
   ChevronsLeft,
   Factory,
   House,
   Lightbulb,
-  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -25,7 +23,6 @@ import { Marca } from './Marca'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSoEntregador, ehSuperAdmin, ROTA_ENTREGADOR, temModulo } from '@/autenticacao/tipos'
-import { SeletorTemaRapido } from '@/perfil/SeletorTemaRapido'
 import { SinoNotificacoes } from '@/notificacoes/SinoNotificacoes'
 import { AlertaTrocaSenha } from '@/notificacoes/AlertaTrocaSenha'
 import { AlertaCardEsquecido } from '@/notificacoes/AlertaCardEsquecido'
@@ -44,7 +41,8 @@ import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 import { AvisoAoVivoPausado } from '@/componentes/AvisoAoVivoPausado'
 import { preCarregar } from '@/navegacao/pedacos'
 import { medirNaNavegacao } from '@/lib/medicao'
-import { BotaoBuscaGeral } from '@/busca/BotaoBuscaGeral'
+import { BotaoBuscaGeral, BuscaGeralNaCasca } from '@/busca/BotaoBuscaGeral'
+import { MenuDoUsuario } from './MenuDoUsuario'
 import { BolhaSugestao, ROTA_SUGESTOES } from '@/tech/BolhaSugestao'
 import { JanelaSugestaoNaUrl } from '@/tech/JanelaSugestaoNaUrl'
 
@@ -71,6 +69,15 @@ interface GrupoMenu {
 function filhosDoGrupo(grupo: GrupoMenu): FilhoMenu[] {
   return grupo.secoes.flatMap((s) => s.filhos)
 }
+
+/**
+ * ↩️ Ajuste do dono (06/11 — "deixe um pouco menor a aba lateral, diminua a
+ * fonte também, mas bem pouco"): no MOUSE os itens do menu têm 36 px; no toque
+ * (celular, tablet) seguem com os 44 px mínimos (D-06).
+ */
+const ALTURA_ITEM = 'min-h-toque-md [@media(pointer:fine)]:min-h-9'
+/** A letra do menu: 13 px (era 14). */
+const LETRA_MENU = 'text-[0.8125rem]'
 
 const CHAVE_RECOLHIDA = 'dm-sidebar-recolhida'
 const CHAVE_PAINEL = 'dm-sidebar-painel-recolhido'
@@ -101,25 +108,6 @@ function guardar(chave: string, valor: boolean) {
   }
 }
 
-/** O botão de voltar de toda tela: volta à aba anterior; sem histórico, vai para a casa. */
-function BotaoVoltar() {
-  const navigate = useNavigate()
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        const historico = (window.history.state as { idx?: number } | null)?.idx ?? 0
-        if (historico > 0) navigate(-1)
-        else navigate(ROTA_INICIAL)
-      }}
-      className="inline-flex min-h-toque-md items-center gap-2 rounded-dm px-3 text-sm font-medium text-texto-suave transition-colors hover:bg-superficie-sutil hover:text-texto"
-    >
-      <ArrowLeft aria-hidden className="size-5" />
-      Voltar
-    </button>
-  )
-}
-
 /**
  * A casca da aplicação (SESSAO-13 — lei de navegação, no desenho pedido pelo
  * dono): DUAS barras laterais lado a lado. A primeira lista os PAIS (grupos);
@@ -140,6 +128,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const [grupoEscolhido, setGrupoEscolhido] = useState<string | null>(null)
   // Seções recolhidas da barra 2 (Controle de Produção, Logística, ROTAS…).
   const [secoesRecolhidas, setSecoesRecolhidas] = useState<Set<string>>(lerSecoesRecolhidas)
+  // ↩️ Ajuste do dono (06/11): a janela da busca mora na casca — a lupa foi para
+  // o mini menu do rodapé (e segue na barra do celular); o Ctrl+K continua.
+  const [buscaAberta, setBuscaAberta] = useState(false)
+  const abrirBusca = useCallback(() => {
+    setGavetaAberta(false)
+    setBuscaAberta(true)
+  }, [])
 
   function alternarSecao(titulo: string) {
     setSecoesRecolhidas((atual) => {
@@ -559,10 +554,13 @@ export function Layout({ children }: { children: ReactNode }) {
     <div
       className={cn(
         'menu-superficie flex h-full flex-col bg-grafite-700',
-        trilho ? 'w-[4.5rem]' : 'w-60',
+        // ↩️ 06/11: 208 px (era 240); o trilho, 64 px (era 72)
+        trilho ? 'w-16' : 'w-52',
       )}
     >
-      <div className={cn('flex items-center gap-1 p-3 pb-2', trilho && 'flex-col')}>
+      {/* ↩️ Ajuste do dono (06/11): no topo só a logo e o recolher — a lupa (que
+          quase cobria a logo), o sino, o tema e o sair desceram para o rodapé. */}
+      <div className={cn('flex items-center gap-1 px-3 pt-3 pb-1', trilho && 'flex-col px-2')}>
         {!trilho && (
           <NavLink
             to={ROTA_INICIAL}
@@ -573,15 +571,12 @@ export function Layout({ children }: { children: ReactNode }) {
             <Marca tamanho="sm" />
           </NavLink>
         )}
-        {/* SESSAO-40 (D-188): a busca geral dos cards, ao lado do sino (Ctrl+K). */}
-        {veFabrica && <BotaoBuscaGeral atalho />}
-        {/* O sino no topo, junto à logo (D-36). */}
-        <SinoNotificacoes usuarioId={perfil.id} painelLado="esquerda" linkAvisos={ehLider} />
         <button
           type="button"
           onClick={alternarRecolhida}
           aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
-          className="toque-seguro hidden h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:inline-flex"
+          title={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
+          className="toque-seguro hidden size-9 shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:inline-flex"
         >
           {recolhida ? (
             <PanelLeftOpen aria-hidden className="size-5" />
@@ -593,18 +588,20 @@ export function Layout({ children }: { children: ReactNode }) {
           type="button"
           onClick={() => setGavetaAberta(false)}
           aria-label="Fechar o menu"
-          className="ml-auto inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:hidden"
+          className="ml-auto inline-flex h-toque-md w-toque-md shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600 lg:hidden"
         >
           <X aria-hidden className="size-5" />
         </button>
       </div>
       {!trilho && (
-        <span className="px-4 pb-2 text-xs text-grafite-300">Plataforma de Produção</span>
+        <span className="px-3.5 pb-1.5 text-[0.6875rem] text-grafite-300">
+          Plataforma de Produção
+        </span>
       )}
 
       <nav
         aria-label="Navegação principal"
-        className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
+        className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2"
       >
         {grupos.map((grupo) => {
           const ativo = grupo.id === grupoAtivo
@@ -618,7 +615,9 @@ export function Layout({ children }: { children: ReactNode }) {
               aria-expanded={mostrando}
               title={trilho ? grupo.rotulo : undefined}
               className={cn(
-                'inline-flex min-h-toque-md items-center gap-3 rounded-dm px-3 text-sm font-semibold transition-colors [&>svg]:size-5 [&>svg]:shrink-0',
+                'inline-flex items-center gap-2.5 rounded-dm px-2.5 font-semibold transition-colors [&>svg]:size-[1.125rem] [&>svg]:shrink-0',
+                ALTURA_ITEM,
+                LETRA_MENU,
                 ativo ? 'text-menu-destaque' : 'text-grafite-100',
                 mostrando && 'bg-grafite-600',
                 'hover:bg-grafite-600',
@@ -644,7 +643,9 @@ export function Layout({ children }: { children: ReactNode }) {
             onTouchStart={() => preCarregar('/tablet')}
             title={trilho ? 'Modo tablet' : undefined}
             className={cn(
-              'mx-3 mt-3 inline-flex min-h-toque-md items-center gap-3 rounded-dm border border-grafite-500 px-3 text-sm font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-5 [&>svg]:shrink-0',
+              'mx-2 mt-2 inline-flex items-center gap-2.5 rounded-dm border border-grafite-500 px-2.5 font-semibold text-grafite-100 transition-colors hover:bg-grafite-600 [&>svg]:size-[1.125rem] [&>svg]:shrink-0',
+              ALTURA_ITEM,
+              LETRA_MENU,
               trilho && 'justify-center px-0',
             )}
           >
@@ -653,14 +654,17 @@ export function Layout({ children }: { children: ReactNode }) {
           </NavLink>
         )}
 
-        <div className={cn('flex items-center gap-1 p-3', trilho && 'flex-col')}>
+        {/* ↩️ Ajuste do dono (06/11): ao lado do nome, o sino e o mini menu
+            (buscar card, tema, sair); o sino abre o painel de baixo para cima. */}
+        <div className={cn('flex items-center gap-0.5 p-2', trilho && 'flex-col gap-1')}>
           {/* O bloco do usuário abre o Meu Perfil (D-41). */}
           <NavLink
             to="/inicio/meu-perfil"
             onClick={() => setGavetaAberta(false)}
             aria-label="Meu perfil"
+            title={trilho ? perfil.nome : undefined}
             className={cn(
-              'flex min-w-0 flex-1 items-center gap-2 rounded-dm px-2 py-1.5 transition-colors hover:bg-grafite-600',
+              'flex min-w-0 flex-1 items-center gap-2 rounded-dm px-1.5 py-1 transition-colors hover:bg-grafite-600',
               trilho && 'flex-none px-1',
             )}
           >
@@ -668,35 +672,39 @@ export function Layout({ children }: { children: ReactNode }) {
               <img
                 src={fotoUrl}
                 alt=""
-                className="size-9 shrink-0 rounded-full border border-grafite-500 object-cover"
+                className="size-8 shrink-0 rounded-full border border-grafite-500 object-cover"
               />
             ) : (
               <span
                 aria-hidden
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-grafite-600 text-sm font-semibold text-grafite-100"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-grafite-600 text-[0.8125rem] font-semibold text-grafite-100"
               >
                 {iniciais}
               </span>
             )}
             {!trilho && (
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium text-grafite-100">{perfil.nome}</span>
-                <span className="text-xs text-grafite-300 tabular-nums">{perfil.matricula}</span>
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className="truncate text-[0.8125rem] font-medium text-grafite-100">
+                  {perfil.nome}
+                </span>
+                <span className="truncate text-[0.6875rem] text-grafite-300 tabular-nums">
+                  {perfil.matricula}
+                </span>
               </span>
             )}
           </NavLink>
 
-          {/* SESSAO-27 (D-100): a engrenagem virou o seletor de TEMA — as
-              configurações pessoais e o perfil eram a mesma coisa. */}
-          <SeletorTemaRapido recolhida={trilho} />
-          <button
-            type="button"
-            onClick={() => void sair()}
-            aria-label="Sair da conta"
-            className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
-          >
-            <LogOut aria-hidden className="size-5" />
-          </button>
+          <SinoNotificacoes
+            usuarioId={perfil.id}
+            painelLado="esquerda-baixo"
+            linkAvisos={ehLider}
+            compacto
+          />
+          <MenuDoUsuario
+            recolhida={trilho}
+            aoBuscar={veFabrica ? abrirBusca : undefined}
+            aoSair={() => void sair()}
+          />
         </div>
       </div>
     </div>
@@ -705,28 +713,30 @@ export function Layout({ children }: { children: ReactNode }) {
   // BARRA 2 — os filhos do grupo escolhido: um menu ao lado do menu. Na gaveta
   // do celular ela fica mais larga (ao lado do trilho), para os nomes caberem.
   const barraFilhos = painelAberto && grupoDoPainel && (
-    <div className="menu-superficie flex h-full w-60 flex-col border-l border-grafite-600 bg-grafite-800 lg:w-52">
-      <div className="flex min-h-toque-md items-center gap-2 px-3 pt-3">
-        <span className="flex-1 truncate text-sm font-bold tracking-tight text-grafite-50">
+    // ↩️ 06/11: 184 px no computador (era 208); na gaveta do celular, 224 (era 240)
+    <div className="menu-superficie flex h-full w-56 flex-col border-l border-grafite-600 bg-grafite-800 lg:w-46">
+      <div className="flex items-center gap-1 px-3 pt-3 pb-1">
+        <span className="flex-1 truncate text-[0.8125rem] font-bold tracking-tight text-grafite-50">
           {grupoDoPainel.rotulo}
         </span>
         <button
           type="button"
           onClick={alternarPainel}
           aria-label="Recolher o painel de itens"
-          className="toque-seguro inline-flex h-toque-md w-toque-md items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
+          title="Recolher o painel de itens"
+          className="toque-seguro inline-flex size-9 shrink-0 items-center justify-center rounded-dm text-grafite-100 transition-colors hover:bg-grafite-600"
         >
           <ChevronsLeft aria-hidden className="size-5" />
         </button>
       </div>
       <nav
         aria-label={`Itens de ${grupoDoPainel.rotulo}`}
-        className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
+        className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2"
       >
         {grupoDoPainel.secoes.map((secao, indice) => {
           const recolhida = secao.titulo ? secoesRecolhidas.has(secao.titulo) : false
           return (
-            <div key={secao.titulo ?? indice} className={cn(indice > 0 && 'mt-3')}>
+            <div key={secao.titulo ?? indice} className={cn(indice > 0 && 'mt-2')}>
               {secao.titulo && (
                 // O "pai" de seção (Controle de produção, Logística, Rotas):
                 // recolhe/expande os filhos, com a setinha de dropdown (D-36).
@@ -737,7 +747,11 @@ export function Layout({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={() => alternarSecao(secao.titulo!)}
                   aria-expanded={!recolhida}
-                  className="mb-0.5 flex min-h-toque-md w-full items-center gap-1 rounded-dm px-3 text-sm font-semibold text-grafite-50 transition-colors hover:bg-grafite-600"
+                  className={cn(
+                    'mb-0.5 flex w-full items-center gap-1 rounded-dm px-2.5 font-semibold text-grafite-50 transition-colors hover:bg-grafite-600',
+                    ALTURA_ITEM,
+                    LETRA_MENU,
+                  )}
                 >
                   <span className="flex-1 text-left">{secao.titulo}</span>
                   <ChevronDown
@@ -753,7 +767,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 <div
                   className={cn(
                     'flex flex-col gap-0.5',
-                    secao.titulo && 'ml-3 border-l border-grafite-600 pl-1.5',
+                    secao.titulo && 'ml-2.5 border-l border-grafite-600 pl-1.5',
                   )}
                 >
                   {secao.filhos.map((filho) => (
@@ -766,7 +780,9 @@ export function Layout({ children }: { children: ReactNode }) {
                       onTouchStart={() => preCarregar(filho.para)}
                       className={({ isActive }) =>
                         cn(
-                          'inline-flex min-h-toque-md items-center rounded-dm px-3 text-sm transition-colors',
+                          'inline-flex items-center rounded-dm px-2.5 py-1 leading-snug transition-colors',
+                          ALTURA_ITEM,
+                          LETRA_MENU,
                           // o filho é um degrau abaixo do pai: peso normal,
                           // um tom mais suave; o ativo ganha a cor do menu
                           isActive
@@ -807,7 +823,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <Marca tamanho="sm" />
             </NavLink>
             <div className="ml-auto flex items-center gap-1">
-              {veFabrica && <BotaoBuscaGeral />}
+              {veFabrica && <BotaoBuscaGeral aoAbrir={abrirBusca} />}
               <SinoNotificacoes usuarioId={perfil.id} linkAvisos={ehLider} />
             </div>
           </div>
@@ -854,10 +870,9 @@ export function Layout({ children }: { children: ReactNode }) {
           </main>
         ) : (
           <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-            {/* Toda tela tem botão de voltar (D-36). */}
-            <div className="w-full px-4 pt-3 sm:px-6">
-              <BotaoVoltar />
-            </div>
+            {/* Toda tela tem botão de voltar (D-36) — ↩️ ajuste de 06/11: ele mora
+                no cabeçalho de cada tela (`CabecalhoDaTela`), como a setinha à
+                esquerda do título; a linha só dele saiu daqui. */}
             <main className="w-full flex-1 px-4 py-3 sm:px-6 sm:pb-8">{children}</main>
             <footer className="border-t border-borda px-4 py-4 text-center text-sm text-texto-fraco sm:px-6">
               Móveis Domoby · Plataforma de Produção
@@ -881,6 +896,14 @@ export function Layout({ children }: { children: ReactNode }) {
         {perfil.papel === 'admin' && <AlertaTrocaSenha usuarioId={perfil.id} />}
         {/* SESSAO-41 · ajuste (D-198): "ainda tem alguém neste card?" — para quem está no card e os admins. */}
         <AlertaCardEsquecido usuarioId={perfil.id} />
+        {/* A janela da busca geral (Ctrl+K, a lupa do celular e o mini menu). */}
+        {veFabrica && (
+          <BuscaGeralNaCasca
+            aberta={buscaAberta}
+            aoAbrir={abrirBusca}
+            aoFechar={() => setBuscaAberta(false)}
+          />
+        )}
         <AvisoVersaoNova nova={versaoNova} />
         {/* SESSAO-32 (Lei §10): a conexão ao vivo caiu — avisa e oferece atualizar. */}
         {!versaoNova && <AvisoAoVivoPausado />}

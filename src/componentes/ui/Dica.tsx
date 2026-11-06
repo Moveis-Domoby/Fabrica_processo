@@ -9,6 +9,11 @@ export interface DicaProps {
   className?: string
   /** SESSAO-31: o ícone do botão (padrão: o "i"); o card usa o da descrição. */
   icone?: ReactNode
+  /**
+   * Ajuste de 06/11 (cabeçalhos compactos): o botão desenhado em 32 px, com o
+   * alvo de 44 px mantido por `toque-seguro` — o **?** ao lado do título.
+   */
+  compacta?: boolean
 }
 
 /**
@@ -21,7 +26,7 @@ export interface DicaProps {
  * no ícone — assim ele nunca estoura a borda da tela no celular (lição da
  * F-07: overlay se ancora na borda da página, não no elemento).
  */
-export function Dica({ rotulo, children, className, icone }: DicaProps) {
+export function Dica({ rotulo, children, className, icone, compacta = false }: DicaProps) {
   const [aberta, setAberta] = useState(false)
   const id = useId()
   const raiz = useRef<HTMLSpanElement>(null)
@@ -58,7 +63,8 @@ export function Dica({ rotulo, children, className, icone }: DicaProps) {
         onFocus={() => setAberta(true)}
         onBlur={() => setAberta(false)}
         className={cn(
-          'inline-flex size-toque-md items-center justify-center rounded-full text-texto-suave transition-colors',
+          'inline-flex items-center justify-center rounded-full text-texto-suave transition-colors',
+          compacta ? 'toque-seguro size-8 shrink-0' : 'size-toque-md',
           'hover:bg-superficie-sutil hover:text-texto focus-visible:bg-superficie-sutil focus-visible:text-texto',
           aberta && 'text-texto',
         )}
