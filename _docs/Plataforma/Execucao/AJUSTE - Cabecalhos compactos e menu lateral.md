@@ -202,3 +202,18 @@ Feita em 3 frentes paralelas (subagentes, arquivos separados, sem commit) + a mi
   sem este ajuste). Armadilha: `create function` não roda duas vezes — tem de ser `create or replace`.
 - O site pode ser publicado antes do banco: sem a porta nova, a TV segue mostrando hoje (as setas não
   aparecem) e o botão Modo TV aparece ao recarregar a página.
+
+### 12ª volta (06/11) — varredura de todas as telas, correções e publicação
+- O dono: *"ao finalizar tudo, abra todas as telas, sem exceção, e faça diversos testes… se ficou [quebrado],
+  resolva e publique; se não, pode publicar"*. Varredura por um agente separado (1440 e 768, ~50 telas e abas,
+  sem gravar nada): nenhum erro no console, nenhuma rolagem lateral; achados no handoff
+  ([[handoff_2026_11_06_ajuste_cabecalhos_compactos]]).
+- Corrigido (3 frentes): faixa dos botões flutuantes reservada (`main pb-24`; barras fixas de baixo `bottom-24`;
+  quadros com desconto 100/116); abas e buscas na linha presa (PCP, Controle de tempo, Utilitários,
+  Auditoria, Danificados, Peça por peça, Insumos); Trocar senha na barra; títulos = menu; textos (plurais,
+  "de" minúsculo nas datas, decimais com vírgula, `prioridade_definida`/`estoque_reserva_avaliada` com nome
+  de gente, rótulos da Auditoria, pedaços de tempo que não quebram, filtro "Filtrar: pedido ou móvel").
+- NÃO corrigido (banco, de antes, precisa de OK): pedido cancelado em "A entregar" (`plt_fn_rotas` sem
+  filtro de cancelado — conferido: só o 13686), Visão do dia × quadros, stand-by 7×6, aviso do calendário.
+- Repasse final eu mesmo, tela a tela (título, alerta, rolagem lateral, NaN/undefined): tudo certo; console
+  sem erro de verdade (só as marcas "QA-MARK" que a varredura deixou). `eslint`, `tsc`, `vitest` 66/425 ✅.
