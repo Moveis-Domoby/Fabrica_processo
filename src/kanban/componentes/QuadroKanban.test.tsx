@@ -89,6 +89,7 @@ function desenhar(props: Partial<Parameters<typeof QuadroKanban>[0]>) {
         setores={[{ ...setor, id: 7, nome: 'LIMPEZA E EMBALAGEM' } as Setor]}
         camposPorCard={new Map()}
         carregando={props.carregando}
+        tamanho={props.tamanho}
         execucao={{
           execucoesPorCard: new Map(),
           nomesUsuarios: new Map(),
@@ -137,7 +138,19 @@ describe('QuadroKanban — ajustes do dono (14/10 noite)', () => {
     expect(screen.queryByText(/Solte aqui/)).not.toBeInTheDocument()
     // o que fica é o texto do topo
     expect(screen.getByText(/leva para LIMPEZA E EMBALAGEM/)).toBeInTheDocument()
+    // ↩️ 06/11: no computador o início é só o ícone verde (o nome fica no leitor de tela)
+    expect(screen.getByRole('img', { name: 'soltar aqui começa o tempo' })).toBeInTheDocument()
+    expect(screen.queryByText(/soltar aqui começa o tempo/)).not.toBeInTheDocument()
+  })
+
+  it('no tablet o início continua com o texto "soltar aqui começa o tempo"', () => {
+    desenhar({ tamanho: 'galpao' })
     expect(screen.getByText(/soltar aqui começa o tempo/)).toBeInTheDocument()
+  })
+
+  it('a dica "Para ver as outras colunas" saiu do quadro', () => {
+    desenhar({})
+    expect(screen.queryByText(/Para ver as outras colunas/)).not.toBeInTheDocument()
   })
 })
 

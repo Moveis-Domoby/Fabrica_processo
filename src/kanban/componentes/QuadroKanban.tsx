@@ -16,7 +16,6 @@ import {
   ArrowRight,
   ChevronDown,
   CircleCheckBig,
-  Hand,
   Handshake,
   Inbox,
   Layers,
@@ -275,6 +274,19 @@ function Coluna({
                   🔴 dano
                 </span>
               )}
+              {/* ↩️ Ajuste do dono (06/11): no computador, o "soltar aqui começa o
+                  tempo" virou só o ícone verde ao lado do número (a frase fica no
+                  leitor de tela e ao passar o mouse). O tablet segue com o texto. */}
+              {ehInicio && tamanho !== 'galpao' && (
+                <span
+                  role="img"
+                  aria-label="soltar aqui começa o tempo"
+                  title="Soltar aqui começa o tempo"
+                  className="inline-flex"
+                >
+                  <Play aria-hidden className="size-4 text-perfeito-forte" />
+                </span>
+              )}
               {/* SESSAO-22: o contador é o TOTAL real do servidor, não só o carregado. */}
               {!levaPara && (!conclui || total > 0) && (
                 <span className="rounded-full bg-superficie px-2 py-0.5 text-xs font-medium text-texto-suave tabular-nums">
@@ -296,7 +308,7 @@ function Coluna({
             </span>
           )}
           {/* SESSAO-24: o que soltar aqui faz — ícone + texto (M-12). */}
-          {ehInicio && (
+          {ehInicio && tamanho === 'galpao' && (
             <span className="inline-flex items-center gap-1 text-xs text-texto-suave">
               <Play aria-hidden className="size-3.5 text-perfeito-forte" />
               soltar aqui começa o tempo
@@ -716,10 +728,11 @@ export function QuadroKanban({
   // botão do meio do mouse, ou com o esquerdo no fundo vazio.
   const { arrastando: correndoQuadro, propsDoQuadro } = useArrastarParaOLado()
   // SESSAO-41 (D-190): o quadro vai até o pé da janela; as colunas rolam por
-  // dentro. Embaixo dele: a dica da mãozinha (só no mouse) e o respiro da página.
+  // dentro. Embaixo dele: o respiro da página (↩️ 06/11: a dica da mãozinha
+  // saiu — o quadro ganhou a altura dela).
   const alturaQuadro = useAlturaAteOFim(
     propsDoQuadro.ref,
-    tamanho === 'galpao' ? 20 : 52,
+    tamanho === 'galpao' ? 20 : 36,
     !(carregando && etapas.length === 0),
   )
 
@@ -822,12 +835,8 @@ export function QuadroKanban({
               />
             ))}
           </div>
-          {/* Só no mouse: como correr o quadro para o lado. */}
-          <p className="hidden items-center gap-1.5 text-xs text-texto-fraco [@media(pointer:fine)]:flex">
-            <Hand aria-hidden className="size-3.5" />
-            Para ver as outras colunas: segure o fundo do quadro (ou o botão do meio do mouse) e
-            arraste para o lado.
-          </p>
+          {/* ↩️ Ajuste do dono (06/11): a dica "Para ver as outras colunas…" saiu
+              da tela ("é inútil") — a explicação mora no ? do cabeçalho. */}
 
           {producao && !temFila && (
             <p className="flex items-center gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-4 text-sm text-atencao-texto">

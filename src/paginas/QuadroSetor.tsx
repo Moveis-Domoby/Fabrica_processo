@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Flag, KeyRound, ListChecks } from 'lucide-react'
+import { Flag, KeyRound, ListChecks, Play } from 'lucide-react'
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
+import { FiltroDoQuadro } from '@/kanban/componentes/FiltroDoQuadro'
+import { BotaoOrdemFila } from '@/kanban/componentes/MarcasDoCard'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { setorPinConferir } from '@/autenticacao/api'
 import { buscarSetores, montarJuntos, soltarCardOuLote } from '@/kanban/api'
@@ -269,39 +272,41 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   // setor só depois do PIN de entrada daquele setor (conferido no servidor).
   if (souProducao && !vinculoAqui && !destravadoAqui) {
     return (
-      <div className="mx-auto flex max-w-sm flex-col items-center gap-4 py-16 text-center">
-        <KeyRound aria-hidden className="size-10 text-texto-fraco" />
-        <h1 className="text-2xl">{setor.nome}</h1>
-        <p className="text-sm text-texto-suave">
-          Este setor não é o seu. Para dar uma olhada nele, digite o PIN de entrada DESTE setor (o
-          mesmo que abre o tablet dele).
-        </p>
-        <form
-          className="flex items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (/^[0-9]{2}$/.test(pinSetor)) mutacaoDestravar.mutate()
-          }}
-        >
-          <div className="w-36">
-            <Campo
-              rotulo="PIN do setor"
-              type="password"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="2 dígitos"
-              value={pinSetor}
-              onChange={(e) => setPinSetor(e.target.value.replace(/\D/g, '').slice(0, 2))}
-            />
-          </div>
-          <Botao
-            type="submit"
-            carregando={mutacaoDestravar.isPending}
-            disabled={!/^[0-9]{2}$/.test(pinSetor)}
+      <div className="flex flex-col gap-3">
+        <CabecalhoDaTela titulo={setor.nome} />
+        <div className="mx-auto flex max-w-sm flex-col items-center gap-4 py-12 text-center">
+          <KeyRound aria-hidden className="size-10 text-texto-fraco" />
+          <p className="text-sm text-texto-suave">
+            Este setor não é o seu. Para dar uma olhada nele, digite o PIN de entrada DESTE setor (o
+            mesmo que abre o tablet dele).
+          </p>
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (/^[0-9]{2}$/.test(pinSetor)) mutacaoDestravar.mutate()
+            }}
           >
-            Abrir
-          </Botao>
-        </form>
+            <div className="w-36">
+              <Campo
+                rotulo="PIN do setor"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="2 dígitos"
+                value={pinSetor}
+                onChange={(e) => setPinSetor(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              />
+            </div>
+            <Botao
+              type="submit"
+              carregando={mutacaoDestravar.isPending}
+              disabled={!/^[0-9]{2}$/.test(pinSetor)}
+            >
+              Abrir
+            </Botao>
+          </form>
+        </div>
       </div>
     )
   }
@@ -372,32 +377,55 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl">
-            {setor.nome}
-            {terminal && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-perfeito-fundo px-3 py-1 text-sm font-medium text-perfeito-texto">
-                <Flag aria-hidden className="size-4" />
-                fim de linha
-              </span>
-            )}
-          </h1>
-          <p className="mt-1 text-texto-suave">
+    <div className="flex flex-col gap-3">
+      {/* ↩️ Ajuste do dono (06/11 — cabeçalhos compactos): uma linha só — o nome
+          do setor com o ?, Etapas do setor e o filtro juntos, a ordem da fila
+          encostada à direita. O informativo de baixo foi para o ?. */}
+      <CabecalhoDaTela
+        titulo={setor.nome}
+        selo={
+          terminal && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-0.5 text-xs font-medium text-perfeito-texto">
+              <Flag aria-hidden className="size-3.5" />
+              fim de linha
+            </span>
+          )
+        }
+        rotuloAjuda="Como funciona o quadro do setor"
+        ajuda={
+          <span className="flex flex-col gap-2">
             {/* D-13 (terminais) e D-02 (fila × execução) — código fora da tela (D-27). */}
-            {terminal
-              ? 'Unidade que chega aqui está concluída.'
-              : quadro.carregando
-                ? 'Abrindo o quadro…'
-                : quadro.filtroAplicado
-                  ? // o texto como foi digitado (o servidor devolve a régua: sem acento/espaço)
-                    totalNoSetor === 1
-                    ? `1 card bate com o filtro "${filtroQuadro.aplicado ?? quadro.filtroAplicado}".`
-                    : `${totalNoSetor} cards batem com o filtro "${filtroQuadro.aplicado ?? quadro.filtroAplicado}".`
-                  : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor. Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a outro setor, ele segue para lá.`}
-          </p>
-        </div>
+            <span>
+              {terminal
+                ? 'Unidade que chega aqui está concluída.'
+                : quadro.carregando
+                  ? 'Abrindo o quadro…'
+                  : quadro.filtroAplicado
+                    ? // o texto como foi digitado (o servidor devolve a régua: sem acento/espaço)
+                      totalNoSetor === 1
+                      ? `1 card bate com o filtro "${filtroQuadro.aplicado ?? quadro.filtroAplicado}".`
+                      : `${totalNoSetor} cards batem com o filtro "${filtroQuadro.aplicado ?? quadro.filtroAplicado}".`
+                    : `${totalNoSetor} card${totalNoSetor === 1 ? '' : 's'} no setor.`}
+            </span>
+            {!terminal && (
+              <>
+                <span>
+                  Arraste o card: na etapa de trabalho o seu tempo começa; nas etapas que levam a
+                  outro setor, ele segue para lá.
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Play aria-hidden className="size-3.5 shrink-0 text-perfeito-forte" />O ícone
+                  verde ao lado do número marca a etapa em que soltar o card começa o tempo.
+                </span>
+                <span>
+                  Para ver as outras colunas, segure o fundo do quadro (ou o botão do meio do mouse)
+                  e arraste para o lado.
+                </span>
+              </>
+            )}
+          </span>
+        }
+      >
         {podeGerirEtapas && (
           <Link to={`/estrutura?setor=${setor.id}`}>
             <Botao variante="secundaria" icone={<ListChecks />}>
@@ -405,7 +433,13 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
             </Botao>
           </Link>
         )}
-      </div>
+        <FiltroDoQuadro
+          texto={filtroQuadro.texto}
+          aoMudar={filtroQuadro.mudar}
+          className="mr-auto"
+        />
+        <BotaoOrdemFila ordem={ordemFila} aoMudar={mudarOrdemFila} />
+      </CabecalhoDaTela>
 
       <QuadroKanban
         setor={setor}
@@ -421,9 +455,7 @@ export function QuadroSetor({ setorId }: { setorId: number }) {
         montandoJuntos={mutacaoMontar.isPending}
         camposPorCard={camposPorCard}
         carregando={quadro.carregando}
-        ordem={ordemFila}
-        aoMudarOrdem={mudarOrdemFila}
-        filtro={{ texto: filtroQuadro.texto, aoMudar: filtroQuadro.mudar }}
+        // ↩️ 06/11: o filtro e a ordem moram no cabeçalho da tela (linha única).
         filtrando={Boolean(quadro.filtroAplicado)}
         execucao={{
           execucoesPorCard,
