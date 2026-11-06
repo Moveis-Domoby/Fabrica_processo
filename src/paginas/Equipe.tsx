@@ -1,7 +1,25 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, Check, Copy, MessageCircle, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
-import { AvatarPessoa, Botao, Campo, Modal, Selecao, Tabela, useNotificacao } from '@/componentes/ui'
+import {
+  Archive,
+  Check,
+  Copy,
+  Crown,
+  MessageCircle,
+  Pencil,
+  Trash2,
+  UserRoundPlus,
+} from 'lucide-react'
+import { nomeNoMenu } from '@/navegacao/rotas'
+import {
+  AvatarPessoa,
+  Botao,
+  Campo,
+  Modal,
+  Selecao,
+  Tabela,
+  useNotificacao,
+} from '@/componentes/ui'
 import type { ColunaTabela } from '@/componentes/ui'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { supabase } from '@/lib/supabase'
@@ -33,6 +51,7 @@ async function buscarEquipe(): Promise<LinhaEquipe[]> {
       .select('usuario_id, setor_id, lider_do_setor, setor:plt_setores(nome)'),
   ])
   const setoresPorPessoa = new Map<string, string[]>()
+  const listaPorPessoa = new Map<string, { nome: string; lider: boolean }[]>()
   const vinculosPorPessoa = new Map<string, { setor_id: number; lider: boolean }[]>()
   for (const v of (vinculos.data ?? []) as unknown as {
     usuario_id: string
@@ -43,6 +62,9 @@ async function buscarEquipe(): Promise<LinhaEquipe[]> {
     const lista = setoresPorPessoa.get(v.usuario_id) ?? []
     lista.push(v.lider_do_setor ? `${v.setor.nome} (líder)` : v.setor.nome)
     setoresPorPessoa.set(v.usuario_id, lista)
+    const pilulas = listaPorPessoa.get(v.usuario_id) ?? []
+    pilulas.push({ nome: v.setor.nome, lider: v.lider_do_setor })
+    listaPorPessoa.set(v.usuario_id, pilulas)
     const ids = vinculosPorPessoa.get(v.usuario_id) ?? []
     ids.push({ setor_id: Number(v.setor_id), lider: v.lider_do_setor })
     vinculosPorPessoa.set(v.usuario_id, ids)
@@ -50,6 +72,7 @@ async function buscarEquipe(): Promise<LinhaEquipe[]> {
   return ((pessoas.data ?? []) as Perfil[]).map((p) => ({
     ...p,
     setores: (setoresPorPessoa.get(p.id) ?? []).join(' · ') || '—',
+    listaSetores: listaPorPessoa.get(p.id) ?? [],
     vinculos: vinculosPorPessoa.get(p.id) ?? [],
   }))
 }
@@ -274,7 +297,8 @@ export function Equipe() {
     {
       chave: 'matricula',
       cabecalho: 'Matrícula',
-      celula: (p) => <span className="tabular-nums">{p.matricula}</span>,
+      // ↩️ 06/11 (pedido do dono): a matrícula numa linha só — quebrava em três.
+      celula: (p) => <span className="text-sm whitespace-nowrap tabular-nums">{p.matricula}</span>,
     },
     {
       chave: 'nome',
@@ -283,7 +307,9 @@ export function Equipe() {
       celula: (p) => (
         <span className="flex items-center gap-2">
           <AvatarPessoa nome={p.nome} foto={p.foto_caminho} tamanho="sm" />
-          <span className="min-w-0 truncate">{p.nome}</span>
+          {/* ↩️ 06/11: o nome quebra em duas linhas quando falta espaço (cortado com
+              "…" ele empurrava a tabela para fora da tela). */}
+          <span className="min-w-36">{p.nome}</span>
         </span>
       ),
       ocultarNoCelular: true,
@@ -294,7 +320,11 @@ export function Equipe() {
       cabecalho: 'Papel',
       celula: (p) => (ehSoEntregador(p) ? 'Entregador' : ROTULO_PAPEL[p.papel]),
     },
-    { chave: 'setores', cabecalho: 'Setores', celula: (p) => p.setores },
+    {
+      chave: 'setores',
+      cabecalho: 'Setores',
+      celula: (p) => <SetoresDaPessoa lista={p.listaSetores} />,
+    },
     {
       chave: 'situacao',
       cabecalho: 'Situação',
@@ -329,7 +359,7 @@ export function Equipe() {
   return (
     <div className="flex flex-col gap-4">
       <CabecalhoDaTela
-        titulo="Equipe"
+        titulo="Gestão da equipe"
         rotuloAjuda="Sobre a gestão da equipe"
         ajuda={
           souAdmin
@@ -433,7 +463,9 @@ export function Equipe() {
                 // SESSAO-43 (F3): a TV do galpão — entra direto no Modo TV.
                 { valor: 'so_tv', rotulo: 'Só Modo TV (a TV do galpão)' },
               ]}
-              valor={formulario.entregador ? 'entregador' : formulario.soTv ? 'so_tv' : formulario.papel}
+              valor={
+                formulario.entregador ? 'entregador' : formulario.soTv ? 'so_tv' : formulario.papel
+              }
               aoMudar={(v) =>
                 setFormulario(
                   v === 'entregador'
@@ -677,5 +709,46 @@ export function Equipe() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+/** Até quantas pílulas de setor a linha mostra; o resto vira "+N". */
+const PILULAS_VISIVEIS = 3
+
+/**
+ * Os setores da pessoa na tabela da Equipe — ↩️ ajuste do dono (06/11: "os
+ * setores do usuário ficaram ruins"): pílulas compactas no padrão de nome do
+ * menu, até três e um "+N" (a lista inteira no `title` e para o leitor de
+ * tela), para a linha da tabela ficar baixa. Líder ganha a coroa.
+ */
+function SetoresDaPessoa({ lista }: { lista: { nome: string; lider: boolean }[] }) {
+  if (lista.length === 0) return <span className="text-texto-fraco">—</span>
+  const rotulo = (s: { nome: string; lider: boolean }) =>
+    s.lider ? `${nomeNoMenu(s.nome)} (líder)` : nomeNoMenu(s.nome)
+  const todos = lista.map(rotulo).join(' · ')
+  const visiveis = lista.slice(0, PILULAS_VISIVEIS)
+  const resto = lista.length - visiveis.length
+  return (
+    <span className="flex max-w-[22rem] flex-wrap gap-1" title={todos}>
+      <span className="sr-only">{todos}</span>
+      {visiveis.map((s) => (
+        <span
+          key={s.nome}
+          aria-hidden
+          className="inline-flex items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs whitespace-nowrap text-texto"
+        >
+          {s.lider && <Crown className="size-3 shrink-0 text-acao-ativa" />}
+          {nomeNoMenu(s.nome)}
+        </span>
+      ))}
+      {resto > 0 && (
+        <span
+          aria-hidden
+          className="inline-flex items-center rounded-full border border-borda px-2 py-0.5 text-xs whitespace-nowrap text-texto-suave tabular-nums"
+        >
+          +{resto}
+        </span>
+      )}
+    </span>
   )
 }

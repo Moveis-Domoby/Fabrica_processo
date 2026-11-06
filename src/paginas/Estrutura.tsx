@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -8,14 +8,13 @@ import {
   ChevronDown,
   ChevronRight,
   CircleCheckBig,
-  ClipboardCheck,
   Pause,
   Pencil,
   Plus,
   RotateCcw,
   Save,
 } from 'lucide-react'
-import { Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
+import { Botao, Campo, Dica, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -124,7 +123,7 @@ export function Estrutura() {
   return (
     <div className="flex flex-col gap-4">
       <CabecalhoDaTela
-        titulo="Estrutura"
+        titulo="Setores e etapas"
         rotuloAjuda="Como funcionam setores e etapas"
         ajuda={
           <>
@@ -306,6 +305,11 @@ function SecaoSetor(props: {
   aoMudar: () => Promise<void>
 }) {
   const { setor, expandido, podeGerirEtapas } = props
+  const producao = setor.papel_no_fluxo === 'producao'
+  const mostraLimite = props.podeGerirSetor || podeGerirEtapas
+  const mostraDelegacao = props.podeGerirSetor
+  const mostraEstado = props.podeGerirSetor && producao
+  const mostraPin = props.podeGerirSetor && producao && setor.ativo
 
   return (
     <section
@@ -378,21 +382,31 @@ function SecaoSetor(props: {
 
       {expandido && (
         <>
-          {/* D-48 (SESSAO-22): o limite é configuração do setor que o LÍDER
-              também ajusta (a RPC valida no banco); a delegação segue do admin. */}
-          {(props.podeGerirSetor || podeGerirEtapas) && (
-            <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
-          )}
-          {props.podeGerirSetor && (
-            <ModoDelegacao setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
-          )}
-          {/* SESSAO-31 (D-126): o estado da peça é chave do setor — só admin. */}
-          {props.podeGerirSetor && setor.papel_no_fluxo === 'producao' && (
-            <EstadoDaPeca setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
-          )}
-          {/* SESSAO-36 (D-146): o PIN de entrada do tablet do setor — só admin. */}
-          {props.podeGerirSetor && setor.papel_no_fluxo === 'producao' && setor.ativo && (
-            <PinDoSetor setor={setor} aoErro={props.aoErro} />
+          {/* ↩️ Ajuste do dono (06/11 — "muito texto, muita informação, deixe mais
+              enxuto, porém sem remover funcionalidades"): as configurações do setor
+              num bloco só — limite · delegação · PIN lado a lado (descem quando não
+              cabem), o estado da peça numa linha embaixo; as explicações no "i". */}
+          {(mostraLimite || mostraDelegacao || mostraPin || mostraEstado) && (
+            <div className="flex flex-col gap-3 border-t border-borda px-3 py-3 sm:px-4">
+              {(mostraLimite || mostraDelegacao || mostraPin) && (
+                <div className="relative flex flex-wrap items-start gap-x-8 gap-y-3">
+                  {/* D-48 (SESSAO-22): o limite é configuração do setor que o LÍDER
+                      também ajusta (a RPC valida no banco); a delegação segue do admin. */}
+                  {mostraLimite && (
+                    <LimiteExecucoes setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+                  )}
+                  {mostraDelegacao && (
+                    <ModoDelegacao setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+                  )}
+                  {/* SESSAO-36 (D-146): o PIN de entrada do tablet do setor — só admin. */}
+                  {mostraPin && <PinDoSetor setor={setor} aoErro={props.aoErro} />}
+                </div>
+              )}
+              {/* SESSAO-31 (D-126): o estado da peça é chave do setor — só admin. */}
+              {mostraEstado && (
+                <EstadoDaPeca setor={setor} aoErro={props.aoErro} aoMudar={props.aoMudar} />
+              )}
+            </div>
           )}
           <ListaEtapas
             setor={setor}
@@ -408,6 +422,25 @@ function SecaoSetor(props: {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * ↩️ Ajuste do dono (06/11 — tela enxuta): o rótulo visível curto e o "i" com a
+ * explicação ao lado. O controle leva o nome inteiro para o leitor de tela (o
+ * rótulo dele fica `sr-only`); a LINHA em volta é `relative` — o balão do "i"
+ * ancora nela e abre largo (no bloco, ficava estreito como o campo).
+ */
+function RotuloComDica({ texto, dica }: { texto: string; dica: ReactNode }) {
+  return (
+    <span className="flex items-center gap-0.5">
+      <span aria-hidden className="text-sm font-medium text-texto">
+        {texto}
+      </span>
+      <Dica rotulo={`Sobre: ${texto}`} compacta>
+        {dica}
+      </Dica>
+    </span>
+  )
+}
 
 /**
  * SESSAO-36 (D-146 resposta 1): o PIN de entrada do tablet do setor — exatamente
@@ -432,17 +465,22 @@ function PinDoSetor(props: { setor: Setor; aoErro: (excecao: unknown) => void })
   })
 
   return (
-    <div className="border-t border-borda px-3 py-3 sm:px-4">
-      <form
-        className="flex flex-wrap items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (/^[0-9]{2}$/.test(pin)) gravar.mutate()
-        }}
-      >
-        <div className="w-44">
+    <form
+      className="flex min-w-0 flex-col gap-1"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (/^[0-9]{2}$/.test(pin)) gravar.mutate()
+      }}
+    >
+      <RotuloComDica
+        texto="PIN do tablet"
+        dica="É com este PIN de 2 dígitos que o tablet entra neste setor pela tela de login. Ele não pode repetir o PIN de nenhuma pessoa nem de outro setor; o valor não aparece depois — para trocar, grave um novo."
+      />
+      <div className="flex items-center gap-2">
+        <div className="w-28">
           <Campo
             rotulo="PIN de entrada do tablet"
+            rotuloOculto
             type="password"
             inputMode="numeric"
             autoComplete="off"
@@ -456,24 +494,20 @@ function PinDoSetor(props: { setor: Setor; aoErro: (excecao: unknown) => void })
           tamanho="sm"
           variante="secundaria"
           icone={<Save />}
+          aria-label="Gravar o PIN do tablet"
           carregando={gravar.isPending}
           disabled={!/^[0-9]{2}$/.test(pin)}
         >
-          Gravar PIN
+          Gravar
         </Botao>
-        <p className="w-full text-xs text-texto-fraco sm:w-auto sm:flex-1">
-          É com este PIN que o tablet entra no setor pela tela de login. Ele não pode repetir o PIN
-          de nenhuma pessoa nem de outro setor; o valor não é mostrado depois — para trocar, grave
-          um novo.
-        </p>
-      </form>
-    </div>
+      </div>
+    </form>
   )
 }
 
 const TIPOS_QUALIDADE: { valor: TipoQualidade; rotulo: string }[] = [
   { valor: 'peca_pedido', rotulo: 'Peça de pedido' },
-  { valor: 'peca_estoque', rotulo: 'Peça de estoque (reposição)' },
+  { valor: 'peca_estoque', rotulo: 'Reposição' },
   { valor: 'avulso', rotulo: 'Card avulso' },
 ]
 
@@ -517,22 +551,23 @@ function EstadoDaPeca(props: {
 
   function grupo(
     titulo: string,
+    nomeInteiro: string,
     ajuda: string,
     valores: TipoQualidade[],
     aoMudar: (v: TipoQualidade[]) => void,
   ) {
     return (
-      <fieldset className="flex min-w-0 flex-1 flex-col gap-1">
-        <legend className="text-sm font-medium text-texto">{titulo}</legend>
-        <p className="text-xs text-texto-suave">{ajuda}</p>
-        <div className="mt-1 flex flex-wrap gap-2">
+      <fieldset className="flex min-w-0 flex-col gap-1">
+        <legend className="sr-only">{nomeInteiro}</legend>
+        <RotuloComDica texto={titulo} dica={ajuda} />
+        <div className="flex flex-wrap gap-1.5">
           {TIPOS_QUALIDADE.map((tipo) => {
             const ligado = valores.includes(tipo.valor)
             return (
               <label
                 key={tipo.valor}
                 className={cn(
-                  'toque-seguro flex min-h-toque-md cursor-pointer items-center gap-2 rounded-dm border px-3 text-sm',
+                  'toque-seguro flex min-h-toque-md cursor-pointer items-center gap-1.5 rounded-dm border px-2.5 text-[0.8125rem] [@media(pointer:fine)]:min-h-8',
                   ligado
                     ? 'border-acao-ativa bg-superficie-sutil text-texto'
                     : 'border-borda text-texto-suave',
@@ -540,7 +575,7 @@ function EstadoDaPeca(props: {
               >
                 <input
                   type="checkbox"
-                  className="size-5 accent-[var(--dm-acao)]"
+                  className="size-4 accent-[var(--dm-acao)]"
                   checked={ligado}
                   onChange={() =>
                     aoMudar(
@@ -558,36 +593,32 @@ function EstadoDaPeca(props: {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-borda px-3 py-3 sm:px-4">
-      <p className="flex items-center gap-2 text-sm font-semibold text-texto">
-        <ClipboardCheck aria-hidden className="size-4 text-texto-suave" />
-        Estado da peça (perfeito · atenção · danificado)
-      </p>
-      <div className="flex flex-col gap-3 md:flex-row">
-        {grupo(
-          'Pedir ao enviar',
-          'Quem tira a peça deste setor marca o estado em que ela saiu.',
-          envio,
-          setEnvio,
-        )}
-        {grupo(
-          'Pedir ao receber',
-          'Este setor confirma o estado em que a peça chegou, antes de começar.',
-          recebimento,
-          setRecebimento,
-        )}
-      </div>
-      <div>
-        <Botao
-          variante="secundaria"
-          className="min-h-toque-md"
-          disabled={!mudou}
-          carregando={salvarMutacao.isPending}
-          onClick={() => salvarMutacao.mutate()}
-        >
-          Salvar estado da peça
-        </Botao>
-      </div>
+    // ↩️ 06/11: uma linha — "ao enviar" | "ao receber" | Salvar; as explicações no "i".
+    <div className="relative flex flex-wrap items-end gap-x-6 gap-y-3">
+      {grupo(
+        'Pedir o estado ao enviar',
+        'Pedir o estado da peça (perfeito · atenção · danificado) ao enviar',
+        'Quem tira a peça deste setor marca o estado em que ela saiu — perfeito, atenção ou danificado. Vale só para os tipos de card marcados; nada marcado = não pergunta.',
+        envio,
+        setEnvio,
+      )}
+      {grupo(
+        'Pedir o estado ao receber',
+        'Pedir o estado da peça (perfeito · atenção · danificado) ao receber',
+        'Este setor confirma o estado em que a peça chegou, antes de começar. Vale só para os tipos de card marcados; nada marcado = não pergunta.',
+        recebimento,
+        setRecebimento,
+      )}
+      <Botao
+        variante="secundaria"
+        tamanho="sm"
+        aria-label="Salvar o estado da peça"
+        disabled={!mudou}
+        carregando={salvarMutacao.isPending}
+        onClick={() => salvarMutacao.mutate()}
+      >
+        Salvar
+      </Botao>
     </div>
   )
 }
@@ -626,20 +657,22 @@ function ModoDelegacao(props: {
   })
 
   return (
-    <div className="flex flex-col gap-2 border-t border-borda px-3 py-3 sm:px-4">
-      <div className="max-w-sm">
-        <Selecao
-          rotulo="Delegação dos cards que chegam"
-          ajuda="Sorteio só entre quem está com a plataforma aberta, balanceando por carga. Delegar organiza — não trava gesto nenhum."
-          opcoes={[
-            { valor: 'desativada', rotulo: 'Desativada — card sem dono na fila' },
-            { valor: 'direta', rotulo: 'Direta — líder/admin atribui' },
-            { valor: 'aleatoria', rotulo: 'Aleatória — sorteia entre os logados' },
-          ]}
-          valor={setor.modo_delegacao}
-          aoMudar={(v) => salvarMutacao.mutate(v as Setor['modo_delegacao'])}
-        />
-      </div>
+    <div className="flex w-[21rem] max-w-full min-w-0 flex-col gap-1">
+      <RotuloComDica
+        texto="Delegação dos cards que chegam"
+        dica="Como o card que chega neste setor ganha dono. No sorteio, só entra quem está com a plataforma aberta, balanceando por carga. Delegar organiza — não trava gesto nenhum."
+      />
+      <Selecao
+        rotulo="Delegação dos cards que chegam"
+        classeRotulo="sr-only"
+        opcoes={[
+          { valor: 'desativada', rotulo: 'Desativada — card sem dono na fila' },
+          { valor: 'direta', rotulo: 'Direta — líder/admin atribui' },
+          { valor: 'aleatoria', rotulo: 'Aleatória — sorteia entre os logados' },
+        ]}
+        valor={setor.modo_delegacao}
+        aoMudar={(v) => salvarMutacao.mutate(v as Setor['modo_delegacao'])}
+      />
     </div>
   )
 }
@@ -693,28 +726,35 @@ function LimiteExecucoes(props: {
   }
 
   return (
-    <div className="flex flex-col gap-2 border-t border-borda px-3 py-3 sm:flex-row sm:items-end sm:px-4">
-      <div className="max-w-xs flex-1">
-        <Campo
-          rotulo="Limite de cards em execução por pessoa"
-          // D-24/D-48: limite configurável por setor — código fora da tela (D-27).
-          ajuda="Padrão da casa: 1 — uma pessoa, um pedido por vez. Vazio = sem limite. Execução pausada não conta no teto."
-          type="number"
-          min={1}
-          inputMode="numeric"
-          placeholder="sem limite"
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-        />
+    <div className="flex min-w-0 flex-col gap-1">
+      {/* D-24/D-48: limite configurável por setor — código fora da tela (D-27). */}
+      <RotuloComDica
+        texto="Limite de cards por pessoa"
+        dica="Quantos cards a mesma pessoa pode ter em execução ao mesmo tempo neste setor. Padrão da casa: 1 — uma pessoa, um pedido por vez. Vazio = sem limite. Execução pausada não conta."
+      />
+      <div className="flex items-center gap-2">
+        <div className="w-28">
+          <Campo
+            rotulo="Limite de cards em execução por pessoa"
+            rotuloOculto
+            type="number"
+            min={1}
+            inputMode="numeric"
+            placeholder="sem limite"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+          />
+        </div>
+        <Botao
+          variante="secundaria"
+          tamanho="sm"
+          aria-label="Salvar o limite"
+          carregando={salvarMutacao.isPending}
+          onClick={aoSalvar}
+        >
+          Salvar
+        </Botao>
       </div>
-      <Botao
-        variante="secundaria"
-        carregando={salvarMutacao.isPending}
-        onClick={aoSalvar}
-        className="min-h-toque-md"
-      >
-        Salvar limite
-      </Botao>
     </div>
   )
 }
@@ -824,8 +864,8 @@ function ListaEtapas(props: {
             className="hidden pb-1 text-xs font-medium text-texto-suave @4xl:col-span-full @4xl:grid @4xl:grid-cols-subgrid"
           >
             <span>Etapa</span>
-            <span>Soltar o card aqui manda para</span>
-            <span>Ao parar aqui</span>
+            <span>Manda para</span>
+            <span>Ao parar</span>
             <span />
           </div>
         )}
@@ -868,8 +908,10 @@ function ListaEtapas(props: {
                       fila
                     </span>
                   )}
-                  {/* SESSAO-24: soltar o card nesta etapa o leva para outro setor. */}
-                  {etapa.setor_destino_id !== null && (
+                  {/* SESSAO-24: soltar o card nesta etapa o leva para outro setor.
+                      ↩️ 06/11: a pílula só aparece onde não há a seleção ao lado
+                      (dizia o mesmo que ela — texto repetido). */}
+                  {etapa.setor_destino_id !== null && !mandaPara && (
                     <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-superficie-sutil px-2 py-0.5 text-xs font-medium text-texto">
                       <ArrowRight aria-hidden className="size-3 shrink-0" />
                       <span className="truncate">
@@ -877,14 +919,15 @@ function ListaEtapas(props: {
                       </span>
                     </span>
                   )}
-                  {etapa.conclui_producao && (
+                  {etapa.conclui_producao && !mandaPara && (
                     <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-perfeito-fundo px-2 py-0.5 text-xs font-medium text-perfeito-texto">
                       <CircleCheckBig aria-hidden className="size-3 shrink-0" />
                       <span className="truncate">conclui a produção</span>
                     </span>
                   )}
-                  {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo. */}
-                  {etapa.pede_motivo && (
+                  {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo
+                      (a pílula só onde não há a caixinha ao lado — 06/11). */}
+                  {etapa.pede_motivo && !pedeMotivo && (
                     <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
                       <Pause aria-hidden className="size-3 shrink-0" />
                       <span className="truncate">pede o motivo</span>
@@ -930,6 +973,7 @@ function ListaEtapas(props: {
                     <input
                       type="checkbox"
                       className="size-5 accent-marca-500"
+                      aria-label={`Parar em ${etapa.nome} pede o motivo`}
                       checked={etapa.pede_motivo}
                       onChange={(ev) =>
                         atualizarMutacao.mutate({
@@ -938,7 +982,9 @@ function ListaEtapas(props: {
                         })
                       }
                     />
-                    Parar aqui pede o motivo
+                    {/* largo, o cabeçalho "Ao parar" já diz o resto */}
+                    <span className="@4xl:hidden">Parar aqui pede o motivo</span>
+                    <span className="hidden @4xl:inline">Pede o motivo</span>
                   </label>
                 ) : null}
                 {podeGerir && (
@@ -988,7 +1034,8 @@ function ListaEtapas(props: {
 
       {podeGerir && (
         <form
-          className="mt-3 flex flex-col gap-2 rounded-dm border border-borda bg-superficie-sutil p-3 sm:flex-row sm:items-end"
+          // ↩️ 06/11: uma linha — o nome, "é a fila" (a explicação no "i") e Criar.
+          className="relative mt-3 flex flex-wrap items-center gap-2 rounded-dm border border-borda bg-superficie-sutil p-2"
           onSubmit={(e) => {
             e.preventDefault()
             if (nomeNova.trim().length < 2) {
@@ -998,24 +1045,30 @@ function ListaEtapas(props: {
             criarMutacao.mutate()
           }}
         >
-          <div className="flex-1">
+          <div className="min-w-48 flex-1 sm:max-w-sm">
             <Campo
               rotulo="Nova etapa"
-              placeholder="Ex.: NA FILA, EM CORTE, FINALIZADO…"
+              rotuloOculto
+              placeholder="Nova etapa — ex.: EM CORTE, FINALIZADO…"
               value={nomeNova}
               onChange={(e) => setNomeNova(e.target.value)}
               erro={erroNova || undefined}
             />
           </div>
-          <label className="flex min-h-toque-md cursor-pointer items-center gap-2 text-sm text-texto-suave">
-            <input
-              type="checkbox"
-              className="size-5 accent-[var(--dm-acao)]"
-              checked={novaEhFila}
-              onChange={() => setNovaEhFila(!novaEhFila)}
-            />
-            é a fila do setor (o card espera sem dono — uma por setor)
-          </label>
+          <span className="flex items-center">
+            <label className="flex min-h-toque-md cursor-pointer items-center gap-2 text-sm text-texto-suave">
+              <input
+                type="checkbox"
+                className="size-5 accent-[var(--dm-acao)]"
+                checked={novaEhFila}
+                onChange={() => setNovaEhFila(!novaEhFila)}
+              />
+              É a fila do setor
+            </label>
+            <Dica rotulo="Sobre a fila do setor" compacta>
+              Na fila o card espera sem dono até alguém começar. Só uma por setor.
+            </Dica>
+          </span>
           {destinoPeloNome && (
             <p className="flex items-center gap-1 text-xs text-texto-suave sm:self-center">
               <ArrowRight aria-hidden className="size-3.5" />
@@ -1025,6 +1078,7 @@ function ListaEtapas(props: {
           <Botao
             type="submit"
             variante="secundaria"
+            tamanho="sm"
             carregando={criarMutacao.isPending}
             icone={<Plus />}
           >

@@ -130,7 +130,8 @@ export function Expedicao() {
   return (
     <div className="@container flex flex-col gap-4">
       {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o "?" e
-          as abas ficam na linha do título. */}
+          as abas ficam na linha do título; a busca (só da visão Pedidos) subiu
+          para a mesma linha, com o rótulo só para o leitor de tela. */}
       <CabecalhoDaTela
         titulo="Expedição"
         rotuloAjuda="Como funciona a Expedição"
@@ -145,6 +146,22 @@ export function Expedicao() {
           </>
         }
       >
+        {visao === 'pedidos' && (
+          <div className="mr-auto w-full max-w-md min-w-56 flex-1">
+            <Campo
+              rotulo="Buscar pedido"
+              rotuloOculto
+              type="search"
+              prefixo={<Search />}
+              placeholder="Buscar: nº do pedido ou nome do cliente"
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value)
+                setPagina(1)
+              }}
+            />
+          </div>
+        )}
         <Abas
           rotulo="Visões da Expedição"
           idBase="expedicao"
@@ -158,25 +175,12 @@ export function Expedicao() {
         {visao === 'pecas' ? (
           <PecasProntas ativo={tenhoAcesso} />
         ) : (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <QuadrosFiltro
               contagens={data?.contagens ?? null}
               ativo={filtro}
               aoEscolher={(v) => mudarParametro('filtro', v, 'todos')}
             />
-
-            <div className="max-w-md">
-              <Campo
-                rotulo="Buscar pedido"
-                prefixo={<Search />}
-                placeholder="Número do pedido ou nome do cliente"
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value)
-                  setPagina(1)
-                }}
-              />
-            </div>
 
             {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!isPending && linhas.length === 0 && (

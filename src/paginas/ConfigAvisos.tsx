@@ -72,7 +72,10 @@ export function ConfigAvisos() {
   const pessoas = tela.data?.pessoas ?? null
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    // ↩️ Ajuste do dono (06/11 — "os avisos não seguem a tela quando dá zoom"):
+    // a tela ocupa a largura (padrão da casa) e os grupos viram cartões numa
+    // grade que segue a largura DA ÁREA (container), não a da janela.
+    <div className="flex w-full max-w-[min(100%,110rem)] flex-col gap-4">
       <CabecalhoDaTela
         titulo="Avisos"
         icone={<Bell />}
@@ -103,47 +106,51 @@ export function ConfigAvisos() {
       {tela.isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {tela.isError && <p className="text-sm text-danificado-forte">{tela.error.message}</p>}
 
-      {grupos.map((g) => (
-        <section
-          key={g.nome}
-          aria-label={g.nome}
-          className="overflow-hidden rounded-dm-lg border border-borda bg-superficie"
-        >
-          <h2 className="border-b border-borda px-4 py-2.5 text-sm font-semibold text-texto">
-            {g.nome}
-          </h2>
-          <ul className="divide-y divide-borda">
-            {g.avisos.map((a) => (
-              <li key={a.tipo} className="flex items-center gap-4 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-texto">{a.nome}</p>
-                  {a.descricao && <p className="text-xs text-texto-suave">{a.descricao}</p>}
-                  {a.recebidos_30d > 0 && (
-                    <p className="text-xs text-texto-fraco tabular-nums">
-                      {a.recebidos_30d} nos últimos 30 dias
-                    </p>
-                  )}
-                </div>
-                {a.obrigatorio ? (
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-texto-suave"
-                    title="Urgente — fica sempre ligado"
-                  >
-                    <Lock aria-hidden className="size-3.5" />
-                    Sempre ligado
-                  </span>
-                ) : (
-                  <Interruptor
-                    ligado={a.ligado}
-                    rotulo={a.nome}
-                    aoMudar={(ligado) => mudar.mutate({ tipo: a.tipo, ligado })}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <div className="@container">
+        <div className="grid items-start gap-4 @3xl:grid-cols-2 @7xl:grid-cols-3">
+          {grupos.map((g) => (
+            <section
+              key={g.nome}
+              aria-label={g.nome}
+              className="overflow-hidden rounded-dm-lg border border-borda bg-superficie"
+            >
+              <h2 className="border-b border-borda px-4 py-2.5 text-sm font-semibold text-texto">
+                {g.nome}
+              </h2>
+              <ul className="divide-y divide-borda">
+                {g.avisos.map((a) => (
+                  <li key={a.tipo} className="flex items-center gap-4 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-texto">{a.nome}</p>
+                      {a.descricao && <p className="text-xs text-texto-suave">{a.descricao}</p>}
+                      {a.recebidos_30d > 0 && (
+                        <p className="text-xs text-texto-fraco tabular-nums">
+                          {a.recebidos_30d} nos últimos 30 dias
+                        </p>
+                      )}
+                    </div>
+                    {a.obrigatorio ? (
+                      <span
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-texto-suave"
+                        title="Urgente — fica sempre ligado"
+                      >
+                        <Lock aria-hidden className="size-3.5" />
+                        Sempre ligado
+                      </span>
+                    ) : (
+                      <Interruptor
+                        ligado={a.ligado}
+                        rotulo={a.nome}
+                        aoMudar={(ligado) => mudar.mutate({ tipo: a.tipo, ligado })}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

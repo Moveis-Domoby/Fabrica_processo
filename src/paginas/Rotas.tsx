@@ -142,7 +142,8 @@ export function Rotas() {
   return (
     <div className="flex flex-col gap-4">
       {/* ↩️ Ajuste de 06/11 (cabeçalhos compactos): a explicação de cada aba foi
-          para o "?"; as abas ficam na linha do título. */}
+          para o "?"; as abas ficam na linha do título, e a busca (só de "A
+          entregar") subiu para a mesma linha, com o rótulo só para o leitor de tela. */}
       <CabecalhoDaTela
         titulo="ROTAS"
         icone={<Truck />}
@@ -166,6 +167,22 @@ export function Rotas() {
           )
         }
       >
+        {aba === 'a-entregar' && (
+          <div className="mr-auto w-full max-w-md min-w-56 flex-1">
+            <Campo
+              rotulo="Buscar"
+              rotuloOculto
+              type="search"
+              prefixo={<Search />}
+              placeholder="Buscar: nº do pedido ou cliente"
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value)
+                setPagina(0)
+              }}
+            />
+          </div>
+        )}
         <Abas
           rotulo="Entregas"
           abas={ABAS}
@@ -186,7 +203,7 @@ export function Rotas() {
         role="tabpanel"
         id="entregas-painel"
         aria-labelledby={`entregas-aba-${aba}`}
-        className="flex flex-col gap-5"
+        className="flex flex-col gap-4"
       >
         {aba === 'do-dia' ? (
           <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando as entregas…</p>}>
@@ -194,19 +211,6 @@ export function Rotas() {
           </Suspense>
         ) : (
           <>
-            <div className="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo
-                rotulo="Buscar"
-                prefixo={<Search />}
-                placeholder="Número do pedido ou cliente"
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value)
-                  setPagina(0)
-                }}
-              />
-            </div>
-
             {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
             {!isPending && entregas.length === 0 && (
               <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">

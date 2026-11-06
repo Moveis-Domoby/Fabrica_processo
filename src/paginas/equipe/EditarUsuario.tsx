@@ -15,6 +15,8 @@ import type { Setor } from '@/kanban/tipos'
 /** A linha da Equipe com os vínculos (a caneta precisa saber os setores e quem é líder). */
 export interface PessoaDaEquipe extends Perfil {
   setores: string
+  /** ↩️ 06/11: os setores em lista (as pílulas da tabela da Equipe). */
+  listaSetores: { nome: string; lider: boolean }[]
   vinculos: { setor_id: number; lider: boolean }[]
 }
 
