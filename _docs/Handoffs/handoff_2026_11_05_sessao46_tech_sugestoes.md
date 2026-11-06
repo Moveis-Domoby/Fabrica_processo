@@ -73,7 +73,7 @@ Nenhum número existente muda. O "Delegados a mim" do Meu painel deixa de contar
 
 ## 8. Ficou pendente / precisa de decisão
 
-1. **O rastro do teste de tela** ficou no banco: as sugestões **#5001–#5003** (marcadas "TESTE DA SESSAO") aparecem no quadro, com os avisos, as 2 pendências já fechadas e os registros de atividade. Os 4 arquivos do teste já foram apagados do armário. Apagar o resto exige desligar por instantes a proteção dos registros de atividade, e o ambiente desta sessão recusou isso (é mexer em auditoria) — **o dono decide**: deixar como está, ou autorizar a limpeza (a numeração então volta a começar do 1).
+1. ✅ **Rastro do teste de tela apagado em 05/11** (o dono autorizou): as sugestões #5001–#5003 saíram do quadro com a história, as 2 pendências e os 3 avisos; os arquivos já tinham saído; **a numeração voltou a começar do 1**. Ficaram só os **26 registros de atividade** do teste (05/11, 02:26–02:39, conta do dono) — o ambiente recusou de novo desligar a proteção da trilha de atividade. Não aparecem em tela nenhuma de sugestões; se o dono quiser apagá-los, o bloco pronto está no diário (item 10) — roda ele mesmo no editor de SQL da Supabase, ou deixa como está.
 2. Confirmar as provisórias **D-264, D-265, D-266**.
 3. Gravar áudio: conferir num celular/computador de verdade (o painel do app bloqueia o microfone).
 4. ClickUp: esta demanda não tem tarefas lá (veio direto da conversa) — o dono decide se cria.
