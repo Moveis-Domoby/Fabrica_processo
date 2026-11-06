@@ -117,3 +117,19 @@ o tamanho desses headers e coisas assim de TODAS AS TELAS, SEM EXCEÇÃO"*. Ramo
   mais acima no tablet. Busca conferida ("Balcão" acha os balcões; "balcao" sem acento não acha — já era
   assim, regra do servidor, não mexi).
 - `eslint src`, `tsc -b`, `vitest --dir src` 65/423 ✅; conferido no navegador a 1440 px e no tablet.
+
+### 5ª volta (06/11)
+- *"O botão de parada avulsa, coloque-o pra a parte superior e tire-o da parte de baixo do mapa e remova
+  essa descrição também, coloque-a dentro de um ícone informativo ao lado do botão"* → `AbaProgramar`:
+  o botão + `Dica` na linha do "Mapa" (topo da coluna do mapa); a caixa de baixo do mapa saiu e o botão
+  também saiu do cabeçalho da "Rota programada" (um lugar só). A legenda do mapa, que espremia em 4 linhas
+  ao lado do botão, desceu para uma linha `text-xs`. "Sem programação": parágrafo → `i`.
+- *"Em todos os pedidos, coloque o selecionar pedidos e o buscar em uma única linha e diminua o tamanho
+  dessa parte superior"* → busca (rótulo oculto, `type="search"`), "Marcar os N" e "Selecionar pedidos"
+  no `CabecalhoDaTela` (a linha das ações); a linha própria da busca saiu; `gap-4` → `gap-3`.
+- Achado na conferência: o total "(5.724)" ao lado do título sumia na barra escura (cor "suave" sobre o
+  grafite) → `APOIO_NA_BARRA` remapeia `--dm-texto-suave/fraco` para `grafite-300` no `h1` e no selo
+  (`@theme inline`: as utilidades leem a variável direto, então redefinir a variável no elemento basta).
+  Conferido: rgb(200,199,202) sobre rgb(90,88,92).
+- `eslint src`, `tsc -b`, `vitest --dir src` 65/423 ✅; conferido no navegador (1440 px): Todos os
+  pedidos e Programação, o balão do `i` abre logo abaixo da linha do mapa.
