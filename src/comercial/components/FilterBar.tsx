@@ -54,7 +54,9 @@ export function FilterBar({ filters, setFilters, availableItems, availablePurcha
   // Navegação mês/dia/ano
   const prevMonth = () => { const c = parseISO(`${filters.specificMonth}-01`); setFilters(prev => ({ ...prev, specificMonth: format(subMonths(c, 1), 'yyyy-MM') })); };
   const nextMonth = () => { const c = parseISO(`${filters.specificMonth}-01`); setFilters(prev => ({ ...prev, specificMonth: format(addMonths(c, 1), 'yyyy-MM') })); };
-  const monthLabel = () => { try { return format(parseISO(`${filters.specificMonth}-01`), "MMM 'de' yyyy", { locale: ptBR }); } catch { return filters.specificMonth; } };
+  // ↩️ 06/11 (varredura): só a primeira letra maiúscula — o `capitalize` do CSS fazia "Nov De 2026"
+  const primeiraMaiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const monthLabel = () => { try { return primeiraMaiuscula(format(parseISO(`${filters.specificMonth}-01`), "MMM 'de' yyyy", { locale: ptBR })); } catch { return filters.specificMonth; } };
 
   const prevDay = () => { const c = parseISO(`${filters.specificDay}T00:00:00`); setFilters(prev => ({ ...prev, specificDay: format(subDays(c, 1), 'yyyy-MM-dd') })); };
   const nextDay = () => { const c = parseISO(`${filters.specificDay}T00:00:00`); setFilters(prev => ({ ...prev, specificDay: format(addDays(c, 1), 'yyyy-MM-dd') })); };
@@ -124,7 +126,7 @@ export function FilterBar({ filters, setFilters, availableItems, availablePurcha
             <div className="mt-1.5 flex items-center gap-1 bg-background border border-input rounded-lg px-1 py-1">
               <button onClick={prevMonth} className={navBtnCls}><ChevronLeft size={14}/></button>
               <div className="flex-1 relative flex items-center justify-center">
-                <span className="text-xs font-medium capitalize">{monthLabel()}</span>
+                <span className="text-xs font-medium">{monthLabel()}</span>
                 <input ref={monthInputRef} type="month" value={filters.specificMonth}
                   onChange={e => setFilters(prev => ({ ...prev, specificMonth: e.target.value }))}
                   onClick={e => { try { e.currentTarget.showPicker(); } catch {} }}
@@ -138,7 +140,7 @@ export function FilterBar({ filters, setFilters, availableItems, availablePurcha
             <div className="mt-1.5 flex items-center gap-1 bg-background border border-input rounded-lg px-1 py-1">
               <button onClick={prevDay} className={navBtnCls}><ChevronLeft size={14}/></button>
               <div className="flex-1 relative flex items-center justify-center">
-                <span className="text-xs font-medium capitalize">{dayLabel()}</span>
+                <span className="text-xs font-medium">{dayLabel()}</span>
                 <input ref={dayInputRef} type="date" value={filters.specificDay}
                   onChange={e => setFilters(prev => ({ ...prev, specificDay: e.target.value }))}
                   onClick={e => { try { e.currentTarget.showPicker(); } catch {} }}

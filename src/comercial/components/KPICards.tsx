@@ -21,7 +21,8 @@ export function KPICards({ filters }: KPICardsProps) {
   
   const recorrentes = scorecards.recurrents;
   const novos = totalClientes - recorrentes;
-  const taxaRecompra = scorecards.recurrence_rate.toFixed(1);
+  // ↩️ 06/11 (varredura): vírgula do português, não ponto ("42,5%")
+  const taxaRecompra = scorecards.recurrence_rate.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   // O número usa container query (.num-*): escala com a largura REAL do card,
   // então nunca vaza nem precisa ser cortado/escondido — em qualquer largura,

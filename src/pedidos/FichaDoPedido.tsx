@@ -26,6 +26,7 @@ import { entregueHoje, linkDoAnexo, linkWhatsApp } from '@/rotas/api'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalDecidirDevolucao } from '@/logistica/componentes/ModalDecidirDevolucao'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
+import { humanizar } from '@/auditoria/rotulos'
 import { DataDeEntrega } from './DataDeEntrega'
 import { DadosDoTinyPainel } from './DadosDoTiny'
 import { ProducaoDoPedidoPainel } from './ProducaoDoPedido'
@@ -62,6 +63,9 @@ const FATOS: Record<string, string> = {
   etiqueta_removida: 'Etiqueta tirada',
   notificacao_enviada: 'Aviso enviado',
   movimentacao_setor: 'Mudou de setor',
+  // ↩️ 06/11 (varredura): apareciam como código na ficha
+  prioridade_definida: 'Prioridade mudada',
+  estoque_reserva_avaliada: 'Reserva do estoque conferida para a venda',
 }
 
 type Parte = 'itens' | 'producao' | 'entrega' | 'tiny' | 'historico'
@@ -747,7 +751,7 @@ function PainelHistorico({ d }: { d: DetalhePedido }) {
           {d.historico.map((h) => (
             <li key={h.id} className="flex flex-wrap gap-x-2">
               <span className="shrink-0 text-texto-suave tabular-nums">{diaEHora(h.em)}</span>
-              <span className="font-medium text-texto">{FATOS[h.tipo] ?? h.tipo}</span>
+              <span className="font-medium text-texto">{FATOS[h.tipo] ?? humanizar(h.tipo)}</span>
               <span className="text-texto-suave">
                 {h.por ?? (h.origem === 'interface' ? '' : 'Sistema')}
                 {h.setor && h.tipo === 'movimentacao_setor' ? ` → ${h.setor}` : ''}

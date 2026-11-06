@@ -331,8 +331,8 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
           <ScoreCard title="Membros" value={scorecards.total_membros} />
           <ScoreCard title="Enviados" value={scorecards.total_enviados} />
           <ScoreCard title="Erros Envio" value={scorecards.total_erros_envio ?? 0} />
-          <ScoreCard title="Resposta %" value={`${scorecards.taxa_resposta_pct ?? 0}%`} />
-          <ScoreCard title="Conversão %" value={`${scorecards.taxa_conversao_pct ?? 0}%`} />
+          <ScoreCard title="Resposta %" value={`${Number(scorecards.taxa_resposta_pct ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} />
+          <ScoreCard title="Conversão %" value={`${Number(scorecards.taxa_conversao_pct ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} />
           <ScoreCard title="Custo Disparo" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(scorecards.custo_total_real ?? 0)} />
           <ScoreCard title="Receita" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(scorecards.receita_gerada ?? 0)} />
           <ScoreCard title="Ticket Médio" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(scorecards.ticket_medio ?? 0)} />

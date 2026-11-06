@@ -51,7 +51,8 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
 
   const selectedMonthLabel = useMemo(() => {
     if (topItemsMonth === 'all') return 'Todo o período';
-    try { return format(parseISO(`${topItemsMonth}-01`), "MMMM 'de' yyyy", { locale: ptBR }); }
+    // ↩️ 06/11 (varredura): só a primeira letra maiúscula ("Novembro de 2026")
+    try { const t = format(parseISO(`${topItemsMonth}-01`), "MMMM 'de' yyyy", { locale: ptBR }); return t.charAt(0).toUpperCase() + t.slice(1); }
     catch { return topItemsMonth; }
   }, [topItemsMonth]);
 
@@ -71,7 +72,7 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
               <Package size={18} className="text-primary" />
               Top 30 Mais Comprados
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5 capitalize">{selectedMonthLabel}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{selectedMonthLabel}</p>
           </div>
           <select
             value={topItemsMonth}
@@ -117,7 +118,7 @@ export function TopItemsPanel({ mounted }: TopItemsPanelProps) {
               <TrendingDown size={18} className="text-orange-400" />
               Top 30 Menos Comprados
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5 capitalize">{selectedMonthLabel}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{selectedMonthLabel}</p>
           </div>
           {removedBottomItems.size > 0 && (
             <button

@@ -1,4 +1,12 @@
-import { CONDICOES, DESTINOS_AVISO, ESTADOS_PECA, ROTULO_GATILHO, ROTULO_PASSO, TIPOS_CARD, rotuloSituacaoPedido } from './catalogo'
+import {
+  CONDICOES,
+  DESTINOS_AVISO,
+  ESTADOS_PECA,
+  ROTULO_GATILHO,
+  ROTULO_PASSO,
+  TIPOS_CARD,
+  rotuloSituacaoPedido,
+} from './catalogo'
 import type { Gatilho } from './catalogo'
 import type { Passo } from './desenho'
 import { textoDoValorCampo } from '@/utilitarios/tipos'
@@ -26,7 +34,12 @@ const num = (v: unknown): number | null => {
   return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n
 }
 
-function lugar(nomes: NomesAutomacao, setor: unknown, etapa: unknown, semSetor = 'qualquer setor'): string {
+function lugar(
+  nomes: NomesAutomacao,
+  setor: unknown,
+  etapa: unknown,
+  semSetor = 'qualquer setor',
+): string {
   const s = num(setor)
   const e = num(etapa)
   const nomeSetor = s !== null ? (nomes.setores.get(s) ?? 'setor removido') : semSetor
@@ -53,8 +66,19 @@ export function horasEmTexto(horas: unknown): string {
   return tempo(h, 'horas')
 }
 
+/** O estado da peça dentro da frase "A peça foi marcada …". */
+const FRASE_DO_ESTADO: Record<'perfeito' | 'atencao' | 'danificado', string> = {
+  perfeito: 'como perfeita',
+  atencao: 'em atenção',
+  danificado: 'como danificada',
+}
+
 /** A frase do QUANDO. */
-export function resumoGatilho(gatilho: Gatilho, config: Record<string, unknown>, nomes: NomesAutomacao): string {
+export function resumoGatilho(
+  gatilho: Gatilho,
+  config: Record<string, unknown>,
+  nomes: NomesAutomacao,
+): string {
   switch (gatilho) {
     case 'card_entrou':
       return `O card entrou em ${lugar(nomes, config.setor_id, config.etapa_id)}`
@@ -62,9 +86,15 @@ export function resumoGatilho(gatilho: Gatilho, config: Record<string, unknown>,
       return `Alguém começou a trabalhar no card em ${lugar(nomes, config.setor_id, config.etapa_id)}`
     case 'qualidade_marcada': {
       const estados = Array.isArray(config.estados) ? config.estados : []
-      const rotulos = ESTADOS_PECA.filter((e) => estados.includes(e.valor)).map((e) => e.rotulo.toLowerCase())
-      const onde = num(config.setor_id) !== null ? ` em ${nomes.setores.get(num(config.setor_id)!) ?? 'setor removido'}` : ''
-      return `A peça foi marcada como ${rotulos.join(' ou ') || '(escolha o estado)'}${onde}`
+      // ↩️ 06/11 (varredura): a frase concorda com "a peça" ("danificada", não "danificado")
+      const frases = ESTADOS_PECA.filter((e) => estados.includes(e.valor)).map(
+        (e) => FRASE_DO_ESTADO[e.valor],
+      )
+      const onde =
+        num(config.setor_id) !== null
+          ? ` em ${nomes.setores.get(num(config.setor_id)!) ?? 'setor removido'}`
+          : ''
+      return `A peça foi marcada ${frases.join(' ou ') || 'com um estado (escolha qual)'}${onde}`
     }
     case 'card_parado':
       return `O card ficou parado ${horasEmTexto(config.horas)} em ${lugar(nomes, config.setor_id, config.etapa_id, 'qualquer setor de produção')}`
@@ -73,7 +103,8 @@ export function resumoGatilho(gatilho: Gatilho, config: Record<string, unknown>,
     case 'etiqueta_posta':
     case 'etiqueta_tirada': {
       const id = num(config.etiqueta_id)
-      const qual = id !== null ? `"${nomes.etiquetas.get(id) ?? 'etiqueta removida'}"` : 'qualquer etiqueta'
+      const qual =
+        id !== null ? `"${nomes.etiquetas.get(id) ?? 'etiqueta removida'}"` : 'qualquer etiqueta'
       return gatilho === 'etiqueta_posta' ? `O card ganhou ${qual}` : `O card perdeu ${qual}`
     }
     case 'pedido_novo':
@@ -100,7 +131,9 @@ export function resumoPasso(passo: Passo, nomes: NomesAutomacao): string {
     case 'etiqueta_por':
       return `Pôr: ${listaEtiquetas(nomes, passo.etiquetas)}`
     case 'etiqueta_tirar':
-      return passo.todas ? 'Tirar todas as etiquetas' : `Tirar: ${listaEtiquetas(nomes, passo.etiquetas)}`
+      return passo.todas
+        ? 'Tirar todas as etiquetas'
+        : `Tirar: ${listaEtiquetas(nomes, passo.etiquetas)}`
     case 'campo': {
       const campo = nomes.campos.get(num(passo.campo_id) ?? -1)
       if (!campo) return 'Preencher — escolha o campo'
@@ -109,7 +142,8 @@ export function resumoPasso(passo: Passo, nomes: NomesAutomacao): string {
     }
     case 'avisar': {
       const destino = DESTINOS_AVISO.find((d) => d.valor === passo.destino)
-      if (passo.destino === 'pessoa') return `Avisar ${nomes.pessoas.get(String(passo.usuario_id)) ?? '(escolha a pessoa)'}`
+      if (passo.destino === 'pessoa')
+        return `Avisar ${nomes.pessoas.get(String(passo.usuario_id)) ?? '(escolha a pessoa)'}`
       return `Avisar ${destino ? destino.rotulo.toLowerCase() : '(escolha quem)'}`
     }
     case 'chamar': {
@@ -127,14 +161,19 @@ export function resumoPasso(passo: Passo, nomes: NomesAutomacao): string {
       if (!condicao) return `${ROTULO_PASSO[passo.tipo]} — escolha a condição`
       if (passo.condicao === 'tem_etiqueta' || passo.condicao === 'nao_tem_etiqueta')
         return `${se} ${condicao.rotulo} "${nomes.etiquetas.get(num(passo.etiqueta_id) ?? -1) ?? '?'}"`
-      if (passo.condicao === 'campo_igual' || passo.condicao === 'campo_vazio' || passo.condicao === 'campo_preenchido') {
+      if (
+        passo.condicao === 'campo_igual' ||
+        passo.condicao === 'campo_vazio' ||
+        passo.condicao === 'campo_preenchido'
+      ) {
         const campo = nomes.campos.get(num(passo.campo_id) ?? -1)
         const nome = campo ? `"${campo.nome}"` : '(campo)'
         if (passo.condicao === 'campo_igual')
           return `${se} ${nome} for ${campo ? textoDoValorCampo(campo, passo.valor as ValorCampo) : '?'}`
         return `${se} ${nome} estiver ${passo.condicao === 'campo_vazio' ? 'vazio' : 'preenchido'}`
       }
-      if (passo.condicao === 'no_setor') return `${se} o card estiver em ${lugar(nomes, passo.setor_id, passo.etapa_id)}`
+      if (passo.condicao === 'no_setor')
+        return `${se} o card estiver em ${lugar(nomes, passo.setor_id, passo.etapa_id)}`
       const valores = Array.isArray(passo.valores) ? (passo.valores as string[]) : []
       if (passo.condicao === 'situacao_pedido')
         return `${se} o pedido estiver ${valores.map((v) => rotuloSituacaoPedido(v)).join(' ou ') || '(escolha)'}`

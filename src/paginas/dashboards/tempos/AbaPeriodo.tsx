@@ -84,8 +84,10 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
       <h2 className="text-base">
         De {diaCurto(r.de)} a {diaCurto(r.ate)}
         {r.numeros.n_trello > 0 && (
-          <span className="ml-2 text-sm font-normal text-texto-suave">
-            · {r.numeros.n_trello} do histórico do Trello
+          <span className="text-sm font-normal text-texto-suave">
+            {/* ↩️ 06/11 (varredura): o espaço antes do "·" (a margem não vira espaço no texto) */}
+            {' · '}
+            {r.numeros.n_trello} do histórico do Trello
           </span>
         )}
       </h2>

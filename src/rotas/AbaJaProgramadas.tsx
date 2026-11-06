@@ -749,12 +749,16 @@ export function AbaJaProgramadas({
 
         <section className="flex min-w-0 flex-col gap-4 @3xl:col-start-1 @3xl:row-start-1">
           <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* ↩️ 06/11 (varredura): o caminho certo do menu, e o número sem parecer
+                "entregues" — é quanto está na lista (e quanto já carregou dela). */}
             <p className="text-sm text-texto-suave">
-              A entregar — o entregue sai daqui e fica no PCP → Todos os pedidos.
+              A entregar — o entregue sai daqui e fica em Pedidos → Todos os pedidos.
             </p>
             {total > 0 && (
               <span className="text-sm text-texto-suave tabular-nums">
-                {linhas.length} de {total} {total === 1 ? 'entrega' : 'entregas'}
+                {linhas.length < total
+                  ? `mostrando ${linhas.length} de ${total} entregas programadas`
+                  : `${total} ${total === 1 ? 'entrega programada' : 'entregas programadas'}`}
               </span>
             )}
           </div>

@@ -134,22 +134,24 @@ export function TemposPessoas() {
                     </span>
                   </span>
                 </span>
-                <dl className="grid grid-cols-3 gap-2 text-center">
+                {/* ↩️ 06/11 (varredura): o tempo nunca quebra no meio ("20h / 09min") —
+                    sem espaço, a caixinha desce (grade que se ajusta, padrão da casa). */}
+                <dl className="grid grid-cols-[repeat(auto-fit,minmax(5.75rem,1fr))] gap-2 text-center">
                   <div className="rounded-dm bg-superficie-sutil px-2 py-1.5">
                     <dt className="text-[11px] text-texto-suave">Em produção</dt>
-                    <dd className="text-sm font-semibold text-texto tabular-nums">
+                    <dd className="text-sm font-semibold whitespace-nowrap text-texto tabular-nums">
                       {seg(p.producao_s)}
                     </dd>
                   </div>
                   <div className="rounded-dm bg-superficie-sutil px-2 py-1.5">
                     <dt className="text-[11px] text-texto-suave">Ausente</dt>
-                    <dd className="text-sm font-semibold text-texto tabular-nums">
+                    <dd className="text-sm font-semibold whitespace-nowrap text-texto tabular-nums">
                       {seg(p.ausente_s)}
                     </dd>
                   </div>
                   <div className="rounded-dm bg-superficie-sutil px-2 py-1.5">
                     <dt className="text-[11px] text-texto-suave">Fora de setor</dt>
-                    <dd className="text-sm font-semibold text-texto tabular-nums">
+                    <dd className="text-sm font-semibold whitespace-nowrap text-texto tabular-nums">
                       {seg(p.deriva_s)}
                     </dd>
                   </div>

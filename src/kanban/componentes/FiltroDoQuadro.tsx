@@ -23,7 +23,8 @@ export function FiltroDoQuadro({
   tamanho = 'padrao',
   className,
   rotulo = 'Filtrar o quadro',
-  placeholder = 'Filtrar: nº do pedido ou nome do móvel',
+  // ↩️ 06/11 (varredura): o exemplo cabe no campo (antes cortava em "…ou nome d")
+  placeholder = 'Filtrar: pedido ou móvel',
 }: {
   texto: string
   aoMudar: (texto: string) => void

@@ -111,11 +111,17 @@ export function CartaoProdutoEstoque({
                 LIVRE; a peça que a venda já reservou continua no galpão e aparece logo
                 abaixo — as mesmas palavras do chip do PCP. */}
             <span className="text-xs text-texto-suave">
-              {linha.reservadas_estoque > 0 ? 'livres no estoque' : 'em estoque'}
+              {/* ↩️ 06/11 (varredura): "1 livre", não "1 livres" */}
+              {linha.reservadas_estoque > 0
+                ? emEstoque === 1
+                  ? 'livre no estoque'
+                  : 'livres no estoque'
+                : 'em estoque'}
             </span>
           </p>
           <div className="flex items-center justify-end gap-0.5">
-            <p className="text-right text-xs text-texto-suave tabular-nums">
+            {/* ↩️ 06/11 (varredura): "Mínimo 4" numa linha só */}
+            <p className="text-right text-xs whitespace-nowrap text-texto-suave tabular-nums">
               Mínimo{' '}
               {linha.no_top && linha.minimo !== null && linha.minimo > 0
                 ? formatarQuantidade(linha.minimo)
@@ -172,7 +178,9 @@ export function CartaoProdutoEstoque({
           <p className="text-xs font-medium text-texto tabular-nums">
             + {formatarQuantidade(linha.reservadas_estoque)} no estoque{' '}
             {linha.reservadas_estoque === 1 ? 'reservada' : 'reservadas'} para venda
-            {linha.pendente_pedido_numero !== null ? ` (pedido ${linha.pendente_pedido_numero}${linha.reservadas_estoque > 1 ? '…' : ''})` : ''}
+            {linha.pendente_pedido_numero !== null
+              ? ` (pedido ${linha.pendente_pedido_numero}${linha.reservadas_estoque > 1 ? '…' : ''})`
+              : ''}
           </p>
         )}
         {(linha.reservados_producao > 0 || linha.reservados_venda > 0) && (

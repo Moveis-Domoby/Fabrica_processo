@@ -479,9 +479,11 @@ export function CartaoUnidade({
           </span>
         </p>
       ) : (
+        // ↩️ 06/11 (varredura): cada pedaço numa linha só ("24min na fila", "· fora do
+        // expediente") — a linha quebra ENTRE os pedaços, nunca no meio deles.
         <p
           className={cn(
-            'inline-flex items-center gap-1.5 tabular-nums',
+            'flex flex-wrap items-center gap-x-1.5 tabular-nums',
             galpao ? 'text-base' : 'text-sm',
             esperandoHaMaisTempo ? 'font-medium text-atencao-texto' : 'text-texto-suave',
           )}
@@ -498,10 +500,12 @@ export function CartaoUnidade({
           ) : (
             <Clock aria-hidden className="size-4" />
           )}
-          {desdeUtil(card.desde)} na fila
-          {esperandoHaMaisTempo && <span> · há mais tempo esperando</span>}
+          <span className="whitespace-nowrap">{desdeUtil(card.desde)} na fila</span>
+          {esperandoHaMaisTempo && (
+            <span className="whitespace-nowrap">· há mais tempo esperando</span>
+          )}
           {foraDoExpediente && !esperandoHaMaisTempo && (
-            <span className="text-xs"> · fora do expediente</span>
+            <span className="text-xs whitespace-nowrap">· fora do expediente</span>
           )}
         </p>
       )}

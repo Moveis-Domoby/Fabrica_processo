@@ -388,11 +388,12 @@ export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionar
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => onViewItems(c)}
-                        className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 font-medium bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md"
+                        // ↩️ 06/11 (varredura): "Ver itens" numa linha só
+                        className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 whitespace-nowrap font-medium bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-md"
                         title="Ver itens do período filtrado"
                       >
-                        <List size={16} />
-                        <span>Ver Itens</span>
+                        <List size={16} className="shrink-0" />
+                        <span>Ver itens</span>
                       </button>
                     </td>
                   </tr>

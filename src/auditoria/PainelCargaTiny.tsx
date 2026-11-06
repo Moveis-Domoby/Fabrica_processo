@@ -132,7 +132,10 @@ function Situacao({
   return (
     <span className="inline-flex items-center gap-1 text-atencao-forte">
       <TriangleAlert aria-hidden className="size-4" />
-      {tiny > aqui ? `faltam ${numero(tiny - aqui)} aqui` : `${numero(aqui - tiny)} a mais aqui`}
+      {/* ↩️ 06/11 (varredura): "falta 1", não "faltam 1" */}
+      {tiny > aqui
+        ? `${tiny - aqui === 1 ? 'falta' : 'faltam'} ${numero(tiny - aqui)} aqui`
+        : `${numero(aqui - tiny)} a mais aqui`}
     </span>
   )
 }

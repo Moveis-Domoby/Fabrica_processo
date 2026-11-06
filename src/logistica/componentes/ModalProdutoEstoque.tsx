@@ -70,7 +70,11 @@ export function ModalProdutoEstoque({
               </span>
               <span className="text-sm text-texto-suave">
                 {/* SESSAO-45: o número é o LIVRE; a reservada pela venda aparece ao lado */}
-                {(produto.reservadas_estoque ?? 0) > 0 ? 'livres no estoque' : 'em estoque'}
+                {(produto.reservadas_estoque ?? 0) > 0
+                  ? (produto.em_estoque ?? 0) === 1
+                    ? 'livre no estoque'
+                    : 'livres no estoque'
+                  : 'em estoque'}
               </span>
             </p>
             <p className="text-sm text-texto-suave tabular-nums">

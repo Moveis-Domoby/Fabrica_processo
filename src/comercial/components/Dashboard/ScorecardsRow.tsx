@@ -180,7 +180,7 @@ export function ScorecardsRow({ mounted }: ScorecardsRowProps) {
             <div className="num-bloco flex flex-1 flex-col">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-tight">Taxa Recompra</p>
               <h3 className="num-kpi mt-auto font-bold text-serie-5">
-                <AnimatedNumber value={scorecards?.recurrence_rate || 0} formatter={v => v.toFixed(1)} />%
+                <AnimatedNumber value={scorecards?.recurrence_rate || 0} formatter={v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} />%
               </h3>
             </div>
             <div className="text-serie-5/50">
