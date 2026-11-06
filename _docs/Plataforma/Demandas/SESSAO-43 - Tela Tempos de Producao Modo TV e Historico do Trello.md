@@ -1,7 +1,7 @@
 ---
 titulo: SESSAO-43 — A tela Tempos de produção em Dashboards, o Modo TV com permissão própria e o histórico do Trello
 tipo: demanda
-status: 🧪 entregue no ramo (05/11/2026) — banco no ar e histórico carregado (05/11, com o OK do dono); o site espera o OK
+status: ✅ no ar — banco e histórico em 05/11/2026, site em 06/11/2026 (com o OK do dono)
 data: 2026-10-30
 atualizado: 2026-11-05
 tags: [plataforma, demandas, tempo, montagem, dashboards, modo-tv, trello, conferencia]
@@ -88,7 +88,7 @@ D-225…D-240 · E-190…E-204 · A-143…A-155 · migrations com o prefixo da d
 
 ## Resultado (preencher ao entregar)
 
-**05/11/2026 — entregue no ramo; banco no ar e histórico do Trello carregado no mesmo dia, com o OK do dono** (no banco real: 885 cartões, 794 válidas, mediana 42,2 min, média 49,2 min; o site espera o OK). Handoff: [[handoff_2026_11_05_sessao43_tempos_producao_modo_tv]] · diário: [[SESSAO-43]].
+**05/11/2026 — entregue no ramo; banco no ar e histórico do Trello carregado no mesmo dia, com o OK do dono** (no banco real: 885 cartões, 794 válidas, mediana 42,2 min, média 49,2 min); **site publicado em 06/11/2026 ~01:33 de Natal, com o OK do dono.** Handoff: [[handoff_2026_11_05_sessao43_tempos_producao_modo_tv]] · diário: [[SESSAO-43]].
 
 - **F1–F3 feitas:** a tela Tempos de produção com as 5 abas (1 consulta por aba, no clique; ao vivo pelo canal do setor), a conferência com Considerar/Descartar/Desfazer e o Procurar, o Modo TV só com letras (permissão em Gestão da equipe; conta só-TV entra direto e não sai; o botão abre em guia nova).
 - **F4 feita e provada na bateria com o arquivo real** (2×): 891 linhas → 885 cartões; 815 válidas, mediana 43,3 min, média 52,1 min (esperado ~813 · ~44 · ~54); os lotes reais são 9 (18 cartões) — os outros 6 "lotes" eram cartões repetidos. A carga em produção espera o OK.
