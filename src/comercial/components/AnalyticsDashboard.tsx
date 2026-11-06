@@ -60,7 +60,7 @@ export function AnalyticsDashboard() {
 
         {/* ── Header ── */}
         <CabecalhoDaTela
-          titulo="Dashboard Analítico"
+          titulo="Dashboard analítico"
           rotuloAjuda="O que é este painel"
           ajuda="Visão completa de performance e comportamento de clientes."
           className="mb-4"
@@ -97,7 +97,7 @@ export function AnalyticsDashboard() {
                 </div>
                 <div className="bg-muted/50 rounded-lg px-3 py-2 text-center border border-border/60">
                   <p className="text-[10px] text-muted-foreground uppercase font-semibold">Média Pedidos</p>
-                  <p className="text-base font-bold text-purple-400 mt-0.5">{rebuyerStats.avgPedidos.toFixed(1)}</p>
+                  <p className="text-base font-bold text-purple-400 mt-0.5">{rebuyerStats.avgPedidos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</p>
                 </div>
               </div>
             )}

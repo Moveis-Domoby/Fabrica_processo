@@ -110,58 +110,60 @@ export function Utilitarios() {
             <span>Usado não se exclui: arquiva, e a história fica.</span>
           </span>
         }
-      />
-
-      <Abas
-        rotulo="O que cadastrar"
-        idBase="utilitarios"
-        valor={aba}
-        aoMudar={(valor) =>
-          setParametros(valor === 'etiquetas' ? {} : { aba: valor }, { replace: true })
-        }
-        abas={[
-          {
-            valor: 'etiquetas',
-            rotulo: 'Etiquetas',
-            icone: <Tag aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'campos',
-            rotulo: 'Campos customizados',
-            icone: <ListPlus aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'motivos',
-            rotulo: 'Motivos da entrega',
-            icone: <MessageSquareText aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'pausa',
-            rotulo: 'Motivos de pausa',
-            icone: <Pause aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'saida',
-            rotulo: 'Motivos de saída',
-            icone: <DoorOpen aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'standby',
-            rotulo: 'Motivos de stand-by',
-            icone: <CirclePause aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'mover',
-            rotulo: 'Motivos do Mover',
-            icone: <ArrowRightLeft aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'conferencia',
-            rotulo: 'Motivos de conferência',
-            icone: <ClipboardCheck aria-hidden className="size-4" />,
-          },
-        ]}
-      />
+      >
+        {/* ↩️ 06/11 (varredura): as abas na linha presa do topo. */}
+        <Abas
+          rotulo="O que cadastrar"
+          idBase="utilitarios"
+          className="mr-auto"
+          valor={aba}
+          aoMudar={(valor) =>
+            setParametros(valor === 'etiquetas' ? {} : { aba: valor }, { replace: true })
+          }
+          abas={[
+            {
+              valor: 'etiquetas',
+              rotulo: 'Etiquetas',
+              icone: <Tag aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'campos',
+              rotulo: 'Campos customizados',
+              icone: <ListPlus aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'motivos',
+              rotulo: 'Motivos da entrega',
+              icone: <MessageSquareText aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'pausa',
+              rotulo: 'Motivos de pausa',
+              icone: <Pause aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'saida',
+              rotulo: 'Motivos de saída',
+              icone: <DoorOpen aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'standby',
+              rotulo: 'Motivos de stand-by',
+              icone: <CirclePause aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'mover',
+              rotulo: 'Motivos do Mover',
+              icone: <ArrowRightLeft aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'conferencia',
+              rotulo: 'Motivos de conferência',
+              icone: <ClipboardCheck aria-hidden className="size-4" />,
+            },
+          ]}
+        />
+      </CabecalhoDaTela>
 
       <div role="tabpanel" id="utilitarios-painel" aria-labelledby={`utilitarios-aba-${aba}`}>
         {aba === 'etiquetas' ? (

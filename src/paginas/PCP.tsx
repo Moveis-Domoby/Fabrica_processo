@@ -381,6 +381,33 @@ export function PCP() {
           </span>
         }
       >
+        {/* ↩️ 06/11 (varredura): as abas na linha presa do topo, à esquerda. */}
+        <Abas
+          rotulo="Visões do PCP"
+          idBase="pcp"
+          abas={[
+            {
+              valor: 'solicitacoes',
+              rotulo: 'Reabastecimento',
+              icone: <PackagePlus aria-hidden />,
+            },
+            {
+              valor: 'quadro',
+              rotulo: 'Pedidos aguardando liberação',
+              icone: <PackageOpen aria-hidden />,
+            },
+            { valor: 'standby', rotulo: 'Stand-by', icone: <CirclePause aria-hidden /> },
+            { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
+          ]}
+          valor={aba}
+          aoMudar={(valor) => {
+            const novos = new URLSearchParams(parametros)
+            if (valor === 'quadro') novos.delete('aba')
+            else novos.set('aba', valor)
+            setParametros(novos, { replace: true })
+          }}
+          className="mr-auto"
+        />
         {souSuperAdmin && (
           <Botao
             variante={selecionando ? 'primaria' : 'secundaria'}
@@ -398,28 +425,6 @@ export function PCP() {
           Novo card de pedido
         </Botao>
       </CabecalhoDaTela>
-
-      <Abas
-        rotulo="Visões do PCP"
-        idBase="pcp"
-        abas={[
-          { valor: 'solicitacoes', rotulo: 'Reabastecimento', icone: <PackagePlus aria-hidden /> },
-          {
-            valor: 'quadro',
-            rotulo: 'Pedidos aguardando liberação',
-            icone: <PackageOpen aria-hidden />,
-          },
-          { valor: 'standby', rotulo: 'Stand-by', icone: <CirclePause aria-hidden /> },
-          { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
-        ]}
-        valor={aba}
-        aoMudar={(valor) => {
-          const novos = new URLSearchParams(parametros)
-          if (valor === 'quadro') novos.delete('aba')
-          else novos.set('aba', valor)
-          setParametros(novos, { replace: true })
-        }}
-      />
 
       {aba === 'solicitacoes' && (
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-solicitacoes">

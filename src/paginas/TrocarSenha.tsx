@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { Botao, Campo, useNotificacao } from '@/componentes/ui'
-import { BotaoVoltar } from '@/componentes/BotaoVoltar'
+import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { trocarSenha } from '@/autenticacao/api'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 
@@ -37,7 +37,11 @@ export function TrocarSenha() {
     try {
       await trocarSenha(nova)
       await recarregarPerfil()
-      notificar({ titulo: 'Senha definida', descricao: 'A partir de agora, entre com ela.', tom: 'perfeito' })
+      notificar({
+        titulo: 'Senha definida',
+        descricao: 'A partir de agora, entre com ela.',
+        tom: 'perfeito',
+      })
       navegar('/', { replace: true })
     } catch (excecao) {
       setErro(excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.')
@@ -47,16 +51,17 @@ export function TrocarSenha() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 py-6">
-      {/* Ajuste de 06/11 (cabeçalhos compactos): a casca não desenha mais o
-          Voltar. Na troca obrigatória não há para onde voltar. */}
-      {!obrigatoria && <BotaoVoltar className="-mb-4 self-start" />}
-      <div className="rounded-dm-lg border border-borda bg-superficie p-5 sm:p-6">
+    <div className="flex flex-col gap-4">
+      {/* ↩️ 06/11 (varredura): o título e a setinha na barra escura de cima, como
+          em toda tela (antes a barra ficava vazia e o ← e o título soltos no
+          cartão). Na troca obrigatória não há para onde voltar: sem a setinha. */}
+      <CabecalhoDaTela
+        titulo={obrigatoria ? 'Crie a sua senha' : 'Trocar a senha'}
+        semVoltar={obrigatoria}
+      />
+      <div className="mx-auto w-full max-w-sm rounded-dm-lg border border-borda bg-superficie p-5 sm:p-6">
         <ShieldCheck aria-hidden className="size-10 text-acao-ativa" />
-        <h1 className="mt-3 text-xl">
-          {obrigatoria ? 'Crie a sua senha' : 'Trocar a senha'}
-        </h1>
-        <p className="mt-1 text-sm text-texto-suave">
+        <p className="mt-3 text-sm text-texto-suave">
           {obrigatoria
             ? 'Você entrou com a senha padrão da fábrica — que todo mundo conhece. Antes de qualquer coisa, crie uma senha só sua.'
             : 'Defina uma senha nova para a sua conta.'}

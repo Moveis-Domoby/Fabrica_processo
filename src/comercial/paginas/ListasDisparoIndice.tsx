@@ -55,7 +55,7 @@ export function ListasDisparoIndice() {
     <div className="comercial w-full">
       {/* Ajuste de 06/11 (cabeçalhos compactos): o topo no padrão de todas as telas. */}
       <CabecalhoDaTela
-        titulo="Listas de Disparo"
+        titulo="Listas de disparo"
         rotuloAjuda="O que são as listas"
         ajuda="Suas campanhas de reativação. Para criar uma lista nova, selecione clientes no Painel de Recompra."
         className="mb-4"

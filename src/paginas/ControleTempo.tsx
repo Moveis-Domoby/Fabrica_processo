@@ -68,22 +68,24 @@ export function ControleTempo() {
             ? 'Quando o tempo conta, o que entra na média e como os tempos são refeitos. O que já foi registrado nunca muda — estes ajustes valem para o cálculo.'
             : 'A hora extra dos setores que você lidera.'
         }
-      />
-
-      {abas.length > 1 && (
-        <Abas
-          rotulo="Partes do controle de tempo"
-          idBase="controle-tempo"
-          abas={abas}
-          valor={aba}
-          aoMudar={(valor) => {
-            const novos = new URLSearchParams(parametros)
-            if (valor === padrao) novos.delete('aba')
-            else novos.set('aba', valor)
-            setParametros(novos, { replace: true })
-          }}
-        />
-      )}
+      >
+        {/* ↩️ 06/11 (varredura): as abas na linha presa do topo. */}
+        {abas.length > 1 && (
+          <Abas
+            rotulo="Partes do controle de tempo"
+            idBase="controle-tempo"
+            className="mr-auto"
+            abas={abas}
+            valor={aba}
+            aoMudar={(valor) => {
+              const novos = new URLSearchParams(parametros)
+              if (valor === padrao) novos.delete('aba')
+              else novos.set('aba', valor)
+              setParametros(novos, { replace: true })
+            }}
+          />
+        )}
+      </CabecalhoDaTela>
 
       <div
         role={abas.length > 1 ? 'tabpanel' : undefined}

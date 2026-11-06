@@ -124,21 +124,24 @@ export function Danificados() {
             história.
           </>
         }
-      />
-
-      <div className="max-w-md">
-        <Campo
-          rotulo="Buscar"
-          prefixo={<Search />}
-          placeholder="Número do pedido, produto ou setor"
-          value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value)
-            setPagina(1)
-            setPaginaArquivados(1)
-          }}
-        />
-      </div>
+      >
+        {/* ↩️ 06/11 (varredura): a busca na linha presa do topo, rótulo só no leitor de tela. */}
+        <div className="mr-auto w-full max-w-md min-w-56 flex-1">
+          <Campo
+            rotulo="Buscar danificado"
+            rotuloOculto
+            type="search"
+            prefixo={<Search />}
+            placeholder="Buscar: nº do pedido, produto ou setor"
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value)
+              setPagina(1)
+              setPaginaArquivados(1)
+            }}
+          />
+        </div>
+      </CabecalhoDaTela>
 
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {!isPending && linhas.length === 0 && (

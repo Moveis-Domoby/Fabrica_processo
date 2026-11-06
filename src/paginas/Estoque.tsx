@@ -41,6 +41,8 @@ export function Estoque() {
   const [cadastrando, setCadastrando] = useState(false)
   // ↩️ 06/11: a busca do catálogo também mora na linha das abas.
   const [busca, setBusca] = useState('')
+  // ↩️ 06/11 (varredura): a busca da aba "Matéria-prima e insumos" também na linha presa.
+  const [buscaInsumos, setBuscaInsumos] = useState('')
 
   const { data: config } = useQuery({
     queryKey: ['estoque', 'config'],
@@ -108,6 +110,19 @@ export function Estoque() {
             />
           </div>
         )}
+        {aba === 'insumos' && (
+          <div className="mr-auto w-full max-w-md min-w-56 flex-1">
+            <Campo
+              rotulo="Buscar insumo"
+              rotuloOculto
+              type="search"
+              prefixo={<Search />}
+              placeholder="Buscar insumo: nome ou SKU"
+              value={buscaInsumos}
+              onChange={(e) => setBuscaInsumos(e.target.value)}
+            />
+          </div>
+        )}
         {aba === 'top20' && tenhoAcesso && (
           <Botao
             icone={<PackagePlus />}
@@ -144,7 +159,7 @@ export function Estoque() {
             aoMudarBusca={setBusca}
           />
         )}
-        {aba === 'insumos' && <PainelInsumos ativo={tenhoAcesso} />}
+        {aba === 'insumos' && <PainelInsumos ativo={tenhoAcesso} busca={buscaInsumos} />}
         {aba === 'configuracoes' && (
           <PainelConfiguracoes ativo={tenhoAcesso} podeMexer={tenhoAcesso} />
         )}

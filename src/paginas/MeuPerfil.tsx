@@ -177,7 +177,7 @@ export function MeuPerfil() {
       {/* Ajuste de 06/11 (cabeçalhos compactos): papel e matrícula foram para o ?;
           a foto grande desceu para o bloco "Foto". */}
       <CabecalhoDaTela
-        titulo="Meu Perfil"
+        titulo="Meu perfil"
         rotuloAjuda="Seus dados"
         ajuda={
           <>

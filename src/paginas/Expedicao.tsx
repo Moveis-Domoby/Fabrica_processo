@@ -79,6 +79,8 @@ export function Expedicao() {
   const visao: VisaoExpedicao = parametros.get('visao') === 'pecas' ? 'pecas' : 'pedidos'
 
   const [busca, setBusca] = useState('')
+  // ↩️ 06/11 (varredura): a busca da aba "Peça por peça" também na linha presa do topo.
+  const [buscaPecas, setBuscaPecas] = useState('')
   const [pagina, setPagina] = useState(1)
   const [pedidoAberto, setPedidoAberto] = useState<PedidoExpedicao | null>(null)
   // SESSAO-45 (pedido do dono): liberar a peça pronta deste pedido para outro
@@ -162,6 +164,19 @@ export function Expedicao() {
             />
           </div>
         )}
+        {visao === 'pecas' && (
+          <div className="mr-auto w-full max-w-md min-w-56 flex-1">
+            <Campo
+              rotulo="Buscar peça pronta"
+              rotuloOculto
+              type="search"
+              prefixo={<Search />}
+              placeholder="Buscar: produto, SKU, nº do pedido ou cliente"
+              value={buscaPecas}
+              onChange={(e) => setBuscaPecas(e.target.value)}
+            />
+          </div>
+        )}
         <Abas
           rotulo="Visões da Expedição"
           idBase="expedicao"
@@ -173,7 +188,7 @@ export function Expedicao() {
 
       <div role="tabpanel" id="expedicao-painel" aria-labelledby={`expedicao-aba-${visao}`}>
         {visao === 'pecas' ? (
-          <PecasProntas ativo={tenhoAcesso} />
+          <PecasProntas ativo={tenhoAcesso} busca={buscaPecas} />
         ) : (
           <div className="flex flex-col gap-4">
             <QuadrosFiltro

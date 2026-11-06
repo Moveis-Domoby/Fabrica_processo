@@ -78,7 +78,7 @@ export function PainelRecompra() {
       {/* Ajuste de 06/11 (cabeçalhos compactos): o topo no padrão de todas as
           telas — a explicação foi para o ?, as ações na mesma linha. */}
       <CabecalhoDaTela
-        titulo="Painel de Recompra"
+        titulo="Painel de recompra"
         rotuloAjuda="O que é este painel"
         ajuda="Análise de métricas e exportação de leads para marketing."
         className="mb-4"

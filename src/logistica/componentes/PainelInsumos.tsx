@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { CircleDashed, Search } from 'lucide-react'
-import { Campo, Paginacao } from '@/componentes/ui'
+import { CircleDashed } from 'lucide-react'
+import { Paginacao } from '@/componentes/ui'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { useAgora } from '@/kanban/tempo'
 import { listarEstoqueProdutos } from '@/logistica/api'
@@ -21,11 +21,25 @@ const FILTROS: { valor: FiltroEstoque | 'todos'; rotulo: string }[] = [
  * o número ainda é o do Tiny (a contagem manual da logística é dos acabados).
  * O que tem estoque vem primeiro; o resto nas páginas seguintes.
  */
-export function PainelInsumos({ ativo }: { ativo: boolean }) {
+export function PainelInsumos({
+  ativo,
+  busca,
+}: {
+  ativo: boolean
+  /**
+   * ↩️ 06/11 (varredura): a busca mora na linha presa do topo do Estoque — o
+   * texto vem da página; busca nova volta para a 1ª página.
+   */
+  busca: string
+}) {
   const agora = useAgora()
-  const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState<FiltroEstoque | 'todos'>('todos')
   const [pagina, setPagina] = useState(1)
+  const [buscaDaPagina, setBuscaDaPagina] = useState(busca)
+  if (busca !== buscaDaPagina) {
+    setBuscaDaPagina(busca)
+    setPagina(1)
+  }
 
   const {
     data: linhas = [],
@@ -52,18 +66,6 @@ export function PainelInsumos({ ativo }: { ativo: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
-        <div className="max-w-md">
-          <Campo
-            rotulo="Buscar"
-            prefixo={<Search />}
-            placeholder="Nome ou SKU"
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value)
-              setPagina(1)
-            }}
-          />
-        </div>
         <FiltroPill
           rotulo="Mostrar"
           opcoes={FILTROS}

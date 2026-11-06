@@ -145,7 +145,7 @@ export function Rotas() {
           para o "?"; as abas ficam na linha do título, e a busca (só de "A
           entregar") subiu para a mesma linha, com o rótulo só para o leitor de tela. */}
       <CabecalhoDaTela
-        titulo="ROTAS"
+        titulo="Entregas"
         icone={<Truck />}
         rotuloAjuda="Como funciona a tela de entregas"
         ajuda={

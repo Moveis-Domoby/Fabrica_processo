@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Ban, Hourglass, PackageCheck, Search } from 'lucide-react'
-import { BadgeEstado, Campo, Paginacao } from '@/componentes/ui'
+import { Ban, Hourglass, PackageCheck } from 'lucide-react'
+import { BadgeEstado, Paginacao } from '@/componentes/ui'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { pedidoCancelado } from '@/kanban/situacao'
 import { listarProdutosReservados } from '@/logistica/api'
@@ -15,10 +15,24 @@ const POR_PAGINA = 20
  * peça pronta de pedido esperando a entrega, com o pedido, o SKU e há quanto
  * tempo está pronta. Paginada no servidor; só carrega com a visão aberta.
  */
-export function PecasProntas({ ativo }: { ativo: boolean }) {
+export function PecasProntas({
+  ativo,
+  busca,
+}: {
+  ativo: boolean
+  /**
+   * ↩️ 06/11 (varredura): a busca mora na linha presa do topo da Expedição — o
+   * texto vem da página; busca nova volta para a 1ª página.
+   */
+  busca: string
+}) {
   const agora = useAgora()
-  const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(1)
+  const [buscaDaPagina, setBuscaDaPagina] = useState(busca)
+  if (busca !== buscaDaPagina) {
+    setBuscaDaPagina(busca)
+    setPagina(1)
+  }
 
   const { data: linhas = [], isPending } = useQuery({
     queryKey: ['produtos-reservados', busca, pagina],
@@ -35,19 +49,6 @@ export function PecasProntas({ ativo }: { ativo: boolean }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="max-w-md">
-        <Campo
-          rotulo="Buscar peça pronta"
-          prefixo={<Search />}
-          placeholder="Produto, SKU, número do pedido ou cliente"
-          value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value)
-            setPagina(1)
-          }}
-        />
-      </div>
-
       {isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
       {!isPending && linhas.length === 0 && (
         <p className="rounded-dm border border-borda bg-superficie p-4 text-sm text-texto-suave">

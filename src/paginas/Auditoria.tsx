@@ -136,31 +136,33 @@ export function Auditoria() {
             <span>Tarefa pessoal privada não aparece aqui — só para quem a criou.</span>
           </span>
         }
-      />
-
-      <Abas
-        rotulo="O que ver na auditoria"
-        idBase="auditoria"
-        valor={aba}
-        aoMudar={setAba}
-        abas={[
-          {
-            valor: 'atividade',
-            rotulo: 'Atividade',
-            icone: <Activity aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'conferencias',
-            rotulo: 'Conferências com o Tiny',
-            icone: <RefreshCw aria-hidden className="size-4" />,
-          },
-          {
-            valor: 'carga',
-            rotulo: 'Carga do Tiny',
-            icone: <CloudDownload aria-hidden className="size-4" />,
-          },
-        ]}
-      />
+      >
+        {/* ↩️ 06/11 (varredura): as abas na linha presa do topo. */}
+        <Abas
+          rotulo="O que ver na auditoria"
+          idBase="auditoria"
+          className="mr-auto"
+          valor={aba}
+          aoMudar={setAba}
+          abas={[
+            {
+              valor: 'atividade',
+              rotulo: 'Atividade',
+              icone: <Activity aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'conferencias',
+              rotulo: 'Conferências com o Tiny',
+              icone: <RefreshCw aria-hidden className="size-4" />,
+            },
+            {
+              valor: 'carga',
+              rotulo: 'Carga do Tiny',
+              icone: <CloudDownload aria-hidden className="size-4" />,
+            },
+          ]}
+        />
+      </CabecalhoDaTela>
 
       <div role="tabpanel" id="auditoria-painel" aria-labelledby={`auditoria-aba-${aba}`}>
         {aba === 'atividade' && <PainelAtividade />}
@@ -479,7 +481,9 @@ function PainelConferencias() {
                   <strong className="text-texto tabular-nums">{r.mudaram}</strong>{' '}
                   {r.mudaram === 1 ? 'estava diferente do Tiny' : 'estavam diferentes do Tiny'}
                   {r.novos > 0 ? ` · ${r.novos} não tinham chegado aqui` : ''}
-                  {r.nao_encontrados > 0 ? ` · ${r.nao_encontrados} não encontrados no Tiny` : ''}
+                  {r.nao_encontrados > 0
+                    ? ` · ${r.nao_encontrados} ${r.nao_encontrados === 1 ? 'não encontrado' : 'não encontrados'} no Tiny`
+                    : ''}
                   {r.falhas > 0 ? ` · ${r.falhas} com erro` : ''}
                 </p>
                 {/* SESSAO-30 (D-122): as contas a receber voltaram na mesma rodada. */}
