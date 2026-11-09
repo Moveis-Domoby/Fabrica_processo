@@ -11,6 +11,7 @@ import {
   Scissors,
   ShieldAlert,
   Undo2,
+  Users,
   Wrench,
 } from 'lucide-react'
 import { AvatarPessoa, Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
@@ -24,9 +25,20 @@ import {
   type Situacao,
 } from '@/dashboards/tempos/api'
 import { contraPadrao, duracao, primeiroNome } from '@/dashboards/tempos/formato'
+import { ID_OUTROS } from '@/dashboards/tempos/painel'
 
-/** Uma pessoa: a foto (ou as iniciais) e o primeiro nome. */
+/**
+ * Uma pessoa: a foto (ou as iniciais) e o primeiro nome. SESSAO-47: quem está
+ * desligado do painel vem como "Outros" — sem rosto, porque não é uma pessoa.
+ */
 export function ChipPessoa({ id, pessoas }: { id: string; pessoas: MapaPessoas }) {
+  if (id === ID_OUTROS)
+    return (
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-texto-suave">
+        <Users aria-hidden className="size-4 shrink-0" />
+        <span>Outros</span>
+      </span>
+    )
   const p = pessoas[id]
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">

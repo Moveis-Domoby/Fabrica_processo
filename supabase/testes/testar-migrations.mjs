@@ -16234,7 +16234,10 @@ try {
                      // ↪️ SESSAO-47 · Bloco B (E-24/E-159): as de cima recriam o desfazer, a entrega parcial
                      // e os leitores da entrega (lista, ficha, rotas, já programadas, entregas do dia,
                      // calendário, motivos) na versão de antes — a do dia real vem depois, como em produção
-                     '20261109030000_plt_entrega_dia_real.sql']) {
+                     '20261109030000_plt_entrega_dia_real.sql',
+                     // ↪️ SESSAO-47 · Bloco C: as de cima recriam as portas da tela de tempos e a da TV na versão de
+                     // antes — a da configuração do painel vem depois e as devolve (o painel, a média e o "Outros")
+                     '20261109040000_plt_tempos_painel_config.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -21946,6 +21949,513 @@ try {
   await como47b('')
 }
 } // fim do bloco SESSAO-47 · Bloco B
+
+// ============================================================================
+// SESSAO-47 · BLOCO C (migration 20261109040000 — a configuração do painel de
+// Tempos de produção): uma linha de configuração + o liga/desliga na equipe do
+// painel; a configuração vem junto de cada porta; só o admin abre a janela e
+// salva (trilha com antes/depois, aviso ao vivo aos setores); montador
+// desligado = "Outros" na tela e na TV com os números do setor IDÊNTICOS; a
+// média ao lado da mediana; a marca do padrão na linha do dia; a abertura em
+// uma requisição. Setores e pessoas próprios, numa transação desfeita no fim.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-47 · Bloco C · o cenário: uma Montagem própria com a equipe do painel (letras A, B e C), duplas, um móvel sem montador e um montador sem letra')
+
+const um47c = async (sql, p) => (await bd.query(sql, p)).rows[0]
+const como47c = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// a recusa sem derrubar a transação da bateria (E-161): devolve a mensagem, ou '' se passou
+const falha47c = async (sql) => {
+  await bd.exec('savepoint f47c')
+  try {
+    await bd.exec(sql)
+    await bd.exec('release savepoint f47c')
+    return ''
+  } catch (erro) {
+    await bd.exec('rollback to savepoint f47c')
+    return erro.message
+  }
+}
+// igualdade de respostas: as chaves em ordem (o banco devolve as chaves do jsonb na ordem dele); as listas como vêm
+const ordem47c = (v) =>
+  Array.isArray(v) ? v.map(ordem47c)
+    : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, ordem47c(v[k])]))
+      : v
+const igual47c = (a, b) => JSON.stringify(ordem47c(a)) === JSON.stringify(ordem47c(b))
+// faixa própria: auth_user_id …9249xx, nomes com o sufixo "47C", CPFs 479000000xx
+const Q47C = {
+  ana: '00000000-0000-0000-0000-000000924901',
+  bia: '00000000-0000-0000-0000-000000924902',
+  caio: '00000000-0000-0000-0000-000000924903',
+  davi: '00000000-0000-0000-0000-000000924904',
+  adm: '00000000-0000-0000-0000-000000924905',
+  lia: '00000000-0000-0000-0000-000000924906',
+  tela: '00000000-0000-0000-0000-000000924907',
+}
+const OUTROS = '00000000-0000-0000-0000-000000000000'
+await como47c('')
+await bd.exec('begin')
+try {
+  await bd.exec(`set constraints all immediate`)
+  // os dias do cenário saem do relógio do banco (hoje e ontem na fábrica) — e viram DIA TRABALHADO do
+  // setor, para a prova não depender de a bateria rodar num fim de semana ou feriado
+  const D0 = (await um47c(`select (now() at time zone 'America/Fortaleza')::date::text as d`)).d
+  const D1 = (await um47c(`select ((now() at time zone 'America/Fortaleza')::date - 1)::text as d`)).d
+  const D29 = (await um47c(`select ((now() at time zone 'America/Fortaleza')::date - 29)::text as d`)).d
+  const D6 = (await um47c(`select ((now() at time zone 'America/Fortaleza')::date - 6)::text as d`)).d
+  await bd.exec(`
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('m47c', 'M47C MONTAGEM', 'producao', 985), ('l47c', 'L47C LIMPEZA', 'producao', 986);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}', limite_execucoes_por_pessoa = 1
+     where codigo in ('m47c', 'l47c');
+    insert into public.plt_tempo_regras (setor_id, teto_min, avisar_pulo, permite_lote)
+      select s.id, 240, false, false from public.plt_setores s where s.codigo in ('m47c', 'l47c')
+      on conflict (setor_id) do nothing;
+    insert into public.plt_tempo_excecoes (setor_id, dia, tipo, descricao, faixas)
+      select s.id, d.dia, 'trabalhado', 'Dia do cenário 47C', '[["07:30","12:00"],["13:00","18:00"]]'::jsonb
+        from public.plt_setores s, (values (date '${D0}'), (date '${D1}')) as d(dia)
+       where s.codigo in ('m47c', 'l47c');
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Ana 47C', 'ana47c@teste.com', '47900000001', 'ana.47c', 'operador', '${Q47C.ana}', array['fabrica']),
+      ('Bia 47C', 'bia47c@teste.com', '47900000002', 'bia.47c', 'operador', '${Q47C.bia}', array['fabrica']),
+      ('Caio 47C', 'caio47c@teste.com', '47900000003', 'caio.47c', 'operador', '${Q47C.caio}', array['fabrica']),
+      ('Davi 47C', 'davi47c@teste.com', '47900000004', 'davi.47c', 'operador', '${Q47C.davi}', array['fabrica']),
+      ('Adm 47C', 'adm47c@teste.com', '47900000005', 'adm.47c', 'admin', '${Q47C.adm}', array['fabrica']),
+      ('Lia 47C', 'lia47c@teste.com', '47900000006', 'lia.47c', 'lider', '${Q47C.lia}', array['fabrica']),
+      ('Tela 47C', 'tela47c@teste.com', '47900000007', 'tela.47c', 'operador', '${Q47C.tela}', array['fabrica']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, s.id, u.usuario = 'lia.47c' from public.plt_usuarios u, public.plt_setores s
+       where u.usuario in ('ana.47c', 'bia.47c', 'caio.47c', 'davi.47c', 'lia.47c') and s.codigo in ('m47c', 'l47c');
+    -- a equipe do painel: Ana (A), Bia (B) e Caio (C), os três titulares (duas etiquetas = dupla); o Davi é do
+    -- setor mas NÃO está na equipe do painel (não tem letra)
+    insert into public.plt_tempo_equipe (setor_id, usuario_id, papel, letra)
+      select s.id, u.id, 'titular', case u.usuario when 'ana.47c' then 'A' when 'bia.47c' then 'B' else 'C' end
+        from public.plt_usuarios u, public.plt_setores s
+       where s.codigo = 'm47c' and u.usuario in ('ana.47c', 'bia.47c', 'caio.47c');
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+      select s.id, x.nome, x.ordem, x.fila from public.plt_setores s,
+             (values ('m47c', 'A MONTAR', 10, true), ('m47c', 'MONTANDO', 20, false), ('l47c', 'A LIMPAR', 10, true)) as x(codigo, nome, ordem, fila)
+       where s.codigo = x.codigo;
+    select plt_privado.fn_tempo_modelo_do_nome('Mesa Teste47C - Branco - 120 x 75 x 60');
+    select plt_privado.fn_tempo_modelo_do_nome('Rack Teste47C - Branco - 180 x 50 x 40');
+  `)
+  const S47C = Object.fromEntries((await bd.query(`select codigo, id::int as id from public.plt_setores where codigo in ('m47c', 'l47c')`)).rows.map((r) => [r.codigo, r.id]))
+  const U47C = Object.fromEntries((await bd.query(`select split_part(usuario, '.', 1) as u, id from public.plt_usuarios where usuario like '%.47c'`)).rows.map((r) => [r.u, r.id]))
+  const M = S47C.m47c
+  const { ana: ANA, bia: BIA, caio: CAIO, davi: DAVI } = U47C
+  // as montagens (o histórico pela mesma conta — a carga da SESSAO-43): tempos escolhidos para a média e a mediana diferirem
+  const mesa = 'Mesa Teste47C - Preto - 120 x 75 x 60'
+  const rack = 'Rack Teste47C - Preto - 180 x 50 x 40'
+  const caso47c = (id, nome, etq, dia, ini, fim) => ({ cartao_id: id, nome, url: null, etiquetas: etq, inicio: `${dia}T${ini}:00-03:00`, fim: `${dia}T${fim}:00-03:00` })
+  const casos47c = [
+    caso47c('m47c-a1', mesa, ['ANA'], D0, '08:00', '08:30'), //            Ana    30 min
+    caso47c('m47c-a2', mesa, ['ANA'], D0, '08:40', '09:25'), //            Ana    45 min
+    caso47c('m47c-b1', mesa, ['BIA'], D0, '08:00', '08:20'), //            Bia    20 min  ← o melhor da semana
+    caso47c('m47c-c1', mesa, ['CAIO'], D0, '09:00', '10:00'), //           Caio   60 min
+    caso47c('m47c-ab', rack, ['ANA', 'BIA'], D0, '10:00', '11:00'), //     dupla  60 min
+    caso47c('m47c-bc', rack, ['BIA', 'CAIO'], D0, '13:00', '13:50'), //    dupla  50 min
+    caso47c('m47c-sm', rack, ['DAVI'], D0, '14:00', '14:30'), //           sem montador (o Davi não é da equipe) 30 min
+    caso47c('m47c-a3', mesa, ['ANA'], D1, '08:00', '08:50'), //            Ana    50 min
+    caso47c('m47c-b2', rack, ['BIA'], D1, '09:00', '09:40'), //            Bia    40 min
+    caso47c('m47c-c2', rack, ['CAIO'], D1, '10:00', '10:30'), //           Caio   30 min
+    { ...caso47c('m47c-rap', mesa, ['BIA'], D1, '11:00', '11:01') }, //    Bia     1 min  → para conferir (rápida demais)
+  ]
+  await bd.query(`select plt_privado.fn_tempo_trello_carregar($1, $2::jsonb)`, [M, JSON.stringify(casos47c)])
+  // duas passagens da PLATAFORMA (ontem): o Davi (sem letra) monta uma Mesa em 30 min; o Caio, um Rack em 25 min
+  const AM47C = (await um47c(`select id::int as id from public.plt_etapas where setor_id = ${M} and nome = 'A MONTAR'`)).id
+  const AL47C = (await um47c(`select id::int as id from public.plt_etapas where setor_id = ${S47C.l47c} and nome = 'A LIMPAR'`)).id
+  const cardPl47c = async (nome, quem, ini, fim) => {
+    const id = (await um47c(`insert into public.plt_cards (tipo, titulo) values ('avulso', '${nome}') returning id::int as id`)).id
+    await bd.exec(`
+      insert into public.plt_eventos (card_id, tipo, origem, setor_destino_id, etapa_destino_id, ocorrido_em)
+        values (${id}, 'card_criado', 'automacao', ${M}, ${AM47C}, '${D1} 14:00-03');
+      insert into public.plt_eventos (card_id, tipo, origem, usuario_id, ocorrido_em)
+        values (${id}, 'execucao_iniciada', 'interface', '${quem}', '${D1} ${ini}-03');
+      insert into public.plt_eventos (card_id, tipo, origem, usuario_id, setor_destino_id, etapa_destino_id, ocorrido_em)
+        values (${id}, 'movimentacao_setor', 'interface', '${quem}', ${S47C.l47c}, ${AL47C}, '${D1} ${fim}-03');`)
+    return id
+  }
+  const cDavi = await cardPl47c('Mesa Teste47C - Cinza - 120 x 75 x 60', DAVI, '15:00', '15:30')
+  const cCaio = await cardPl47c('Rack Teste47C - Cinza - 180 x 50 x 40', CAIO, '16:00', '16:25')
+  const cen = await um47c(`
+    select count(*)::int as n, count(*) filter (where m.origem = 'plataforma')::int as pl,
+           count(*) filter (where m.situacao = 'valida')::int as validas,
+           count(*) filter (where cardinality(m.montadores) = 2)::int as duplas,
+           count(*) filter (where cardinality(m.montadores) = 0)::int as sem,
+           (select count(*)::int from public.plt_tempo_equipe e where e.setor_id = ${M} and e.no_painel) as ligados
+      from public.plt_tempo_montagens m where m.setor_id = ${M}`)
+  conferir(cen.n === 13 && cen.pl === 2 && cen.validas === 12 && cen.duplas === 2 && cen.sem === 1 && cen.ligados === 3,
+    'o cenário: 13 móveis na Montagem própria (11 do histórico + 2 da plataforma), 12 válidos, 2 duplas, 1 sem montador; a equipe do painel nasce LIGADA (3)',
+    JSON.stringify(cen))
+
+  // as leituras que a prova compara (como o admin; o período de 30 dias até hoje)
+  const ler47c = async () => ({
+    dia0: (await um47c(`select public.plt_fn_tempos_dia(${M}, '${D0}', '${D29}', '${D0}') as r`)).r,
+    dia1: (await um47c(`select public.plt_fn_tempos_dia(${M}, '${D1}', '${D29}', '${D0}') as r`)).r,
+    per: (await um47c(`select public.plt_fn_tempos_periodo(${M}, '${D29}', '${D0}') as r`)).r,
+    mov: (await um47c(`select public.plt_fn_tempos_moveis(${M}, '${D29}', '${D0}') as r`)).r,
+    mon: (await um47c(`select public.plt_fn_tempos_montadores(${M}, '${D29}', '${D0}') as r`)).r,
+    pas: (await um47c(`select public.plt_fn_tempos_modelo_passagens(${M}, (select k.modelo_id from public.plt_tempo_modelo_chaves k
+                         where k.chave = plt_privado.fn_tempo_modelo_chave('${mesa}')), '${D29}', '${D0}') as r`)).r,
+    conf: (await um47c(`select public.plt_fn_tempos_conferir(${M}, '${D29}', '${D0}') as r`)).r,
+    tv: (await um47c(`select public.plt_fn_modo_tv(${M}) as r`)).r,
+  })
+
+  titulo('SESSAO-47 · Bloco C · sem ninguém gravar: a configuração padrão, e ela vem JUNTO de cada porta')
+  await como47c(Q47C.adm)
+  const padrao = (await um47c(`select plt_privado.fn_tempos_painel_padrao() as p`)).p
+  const efetivo0 = (await um47c(`select plt_privado.fn_tempos_painel() as p, (select painel from public.plt_tempo_config where id = 1) as gravado`))
+  conferir(igual47c(efetivo0.p, padrao) && igual47c(efetivo0.gravado, {}) && padrao.grafico_periodo === 'empilhadas' && padrao.grafico_tv === 'empilhadas'
+      && padrao.medida === 'mediana' && padrao.linha_padrao === false && padrao.abrir_setor_id === null && padrao.abrir_periodo === 'hoje'
+      && ['tv_numeros', 'tv_montadores', 'tv_grafico', 'tv_melhor_semana', 'tv_relogio', 'tv_dados_ate', 'tv_ao_vivo'].every((k) => padrao[k] === true),
+    'a coluna nasce vazia e o efetivo é o padrão: barras empilhadas, mediana, sem a marca do padrão, abre como sempre, a TV com todos os blocos',
+    JSON.stringify(efetivo0))
+  const antes = await ler47c()
+  conferir(['dia0', 'per', 'mov', 'mon', 'conf', 'tv'].every((k) => igual47c(antes[k].painel, padrao)) && antes.pas.painel === undefined,
+    'cada aba (Dia, Período, Móveis, Montadores, Conferir) e a TV devolvem a configuração na MESMA resposta (nenhuma porta a mais)',
+    JSON.stringify(Object.fromEntries(Object.entries(antes).map(([k, v]) => [k, v.painel ? 'ok' : '—']))))
+
+  titulo('SESSAO-47 · Bloco C · a média ao lado da mediana (conferida à mão) — a régua do padrão não muda')
+  const linhaA = antes.per.por_montador.find((p) => p.chave === ANA)
+  const mesaAntes = antes.mov.itens.find((m) => m.nome === 'Mesa Teste47C - 120 x 75 x 60')
+  const rackAntes = antes.mov.itens.find((m) => m.nome === 'Rack Teste47C - 180 x 50 x 40')
+  const cartaoA = antes.mon.pessoas_cartoes.find((c) => c.usuario_id === ANA)
+  const tvA = antes.tv.montadores.find((m) => m.letra === 'A')
+  conferir(antes.per.numeros.montados === 13 && antes.per.numeros.validas === 12 && antes.per.numeros.mediana_s === 2100 && antes.per.numeros.media_s === 2350
+      && antes.per.numeros.tempo_total_s === 28200,
+    'o setor no período: 13 montados, 12 válidos, 470 min no total — mediana 35 min e média 39 min 10 s (470 ÷ 12)', JSON.stringify(antes.per.numeros))
+  conferir(linhaA?.moveis === 3 && linhaA.mediana_s === 2700 && linhaA.media_s === 2500,
+    'Período · por montador: a Ana sozinha fez 30, 45 e 50 min — mediana 45 min, média 41 min 40 s (125 ÷ 3)', JSON.stringify(linhaA))
+  conferir(mesaAntes?.qtd === 7 && mesaAntes.validas === 6 && mesaAntes.mediana_s === 2250 && mesaAntes.media_s === 2350 && mesaAntes.padrao_s === 2250
+      && mesaAntes.por_pessoa[ANA]?.n === 3 && mesaAntes.por_pessoa[ANA].mediana_s === 2700 && mesaAntes.por_pessoa[ANA].media_s === 2500
+      && rackAntes?.qtd === 6 && rackAntes.mediana_s === 2100 && rackAntes.media_s === 2350,
+    'Móveis: a Mesa (20, 30, 30, 45, 50, 60) com mediana 37 min 30 s e média 39 min 10 s; o padrão segue a mediana; a coluna da Ana com as duas contas',
+    JSON.stringify({ mesaAntes, rack: rackAntes && [rackAntes.qtd, rackAntes.mediana_s, rackAntes.media_s] }))
+  conferir(cartaoA?.moveis === 4 && cartaoA.mediana_s === 2850 && cartaoA.media_s === 2775,
+    'Montadores: o cartão da Ana (30, 45, 50 e a dupla de 60) — mediana 47 min 30 s, média 46 min 15 s (185 ÷ 4)', JSON.stringify(cartaoA))
+  conferir(antes.tv.montados_hoje === 7 && antes.tv.tempo_medio_hoje_s === 2700 && antes.tv.tempo_media_hoje_s === 2529
+      && antes.tv.mediana_30_s === 2100 && antes.tv.tempo_media_30_s === 2350 && tvA?.hoje === 2 && tvA.mediana_hoje_s === 2250 && tvA.media_hoje_s === 2250,
+    'TV: 7 montados hoje — mediana 45 min e média 42 min 9 s (295 ÷ 7); nos 30 dias 35 min e 39 min 10 s; a letra A com as duas contas',
+    JSON.stringify({ h: antes.tv.montados_hoje, med: antes.tv.tempo_medio_hoje_s, media: antes.tv.tempo_media_hoje_s, m30: antes.tv.mediana_30_s, me30: antes.tv.tempo_media_30_s, tvA }))
+
+  titulo('SESSAO-47 · Bloco C · só o admin abre a janela e salva; a janela mostra letra, nome e foto da equipe de cada setor')
+  const recusas = {}
+  for (const [quem, auth] of [['lider', Q47C.lia], ['funcionario', Q47C.ana], ['anonimo', '']]) {
+    await como47c(auth)
+    recusas[quem] = [await falha47c(`select public.plt_fn_tempos_painel()`), await falha47c(`select public.plt_fn_tempos_painel_salvar('{"medida": "media"}'::jsonb)`)]
+  }
+  await como47c(Q47C.adm)
+  await bd.exec(`select public.plt_fn_usuario_modo_tv('${U47C.tela}', true, true)`)
+  await como47c(Q47C.tela)
+  recusas.tv = [await falha47c(`select public.plt_fn_tempos_painel()`), await falha47c(`select public.plt_fn_tempos_painel_salvar('{"medida": "media"}'::jsonb)`)]
+  await como47c(Q47C.adm)
+  const janela = (await um47c(`select public.plt_fn_tempos_painel() as r`)).r
+  const eqJanela = janela.setores.find((s) => s.id === M)?.equipe ?? []
+  conferir(Object.values(recusas).every((r) => r.every((m) => /administrador/.test(m))),
+    'o líder do setor, o funcionário, a conta só da TV e quem não entrou são recusados — na janela e no salvar', JSON.stringify(recusas))
+  conferir(igual47c(janela.painel, padrao) && igual47c(janela.padrao, padrao) && janela.blocos_tv.length === 7
+      && eqJanela.map((e) => e.letra).join('') === 'ABC' && eqJanela[1].nome === 'Bia 47C' && 'foto' in eqJanela[1] && eqJanela[1].usuario_id === BIA
+      && eqJanela[1].papel === 'titular' && eqJanela.every((e) => e.no_painel === true)
+      && janela.setores.some((s) => s.id === S47C.l47c && s.equipe.length === 0),
+    'a janela (uma requisição): a configuração, o padrão, os 7 blocos da TV e a equipe de cada setor de produção pela letra — com nome, foto e o liga/desliga',
+    JSON.stringify({ blocos: janela.blocos_tv, eq: eqJanela.map((e) => [e.letra, e.nome, e.no_painel]) }))
+
+  titulo('SESSAO-47 · Bloco C · salvar: cada chave gravada e relida, só o que difere do padrão na coluna, a trilha com antes/depois')
+  const trilha47c = async () => (await bd.query(`select contexto from public.plt_logs_atividade where acao = 'tempo_painel_alterado' and criado_em = now() order by id`)).rows.map((r) => r.contexto)
+  const tudo = { grafico_periodo: 'linhas', grafico_tv: 'barras', linha_padrao: true, abrir_setor_id: M, abrir_periodo: '7', medida: 'media', tv_relogio: false, tv_melhor_semana: false }
+  const s1 = (await um47c(`select public.plt_fn_tempos_painel_salvar($1::jsonb) as r`, [JSON.stringify(tudo)])).r
+  const gravado1 = (await um47c(`select painel, atualizado_por from public.plt_tempo_config where id = 1`))
+  const relido = (await um47c(`select public.plt_fn_tempos_periodo(${M}, '${D29}', '${D0}') -> 'painel' as p`)).p
+  const t1 = await trilha47c()
+  conferir(s1.mudou === true && Object.entries(tudo).every(([k, v]) => s1.painel[k] === v) && s1.painel.tv_numeros === true
+      && igual47c(gravado1.painel, { ...tudo }) && gravado1.atualizado_por === U47C.adm && igual47c(relido, s1.painel),
+    'as 8 chaves mudadas voltam no efetivo, ficam na coluna (e só elas — o resto segue o padrão) e a aba já devolve a configuração nova',
+    JSON.stringify({ s1, gravado: gravado1.painel }))
+  conferir(t1.length === 1 && Object.keys(t1[0].antes).length === 8 && t1[0].antes.medida === 'mediana' && t1[0].depois.medida === 'media'
+      && t1[0].antes.abrir_setor_id === null && t1[0].depois.abrir_setor_id === M && t1[0].o_que_mudou.length === 8
+      && t1[0].o_que_mudou.includes('Número do tempo médio: mediana → média')
+      && t1[0].o_que_mudou.includes('Setor em que a tela abre: o que o aparelho lembra → M47C MONTAGEM') && !('montadores_ids' in t1[0]),
+    'a trilha (a Auditoria): uma linha, com o antes e o depois só do que mudou e a mudança em língua de gente', JSON.stringify(t1[0]))
+  const s2 = (await um47c(`select public.plt_fn_tempos_painel_salvar($1::jsonb, '[]'::jsonb) as r`, [JSON.stringify(tudo)])).r
+  const s3 = (await um47c(`select public.plt_fn_tempos_painel_salvar($1::jsonb) as r`, [JSON.stringify({ grafico_periodo: 'empilhadas', tv_relogio: true, medida: 'media' })])).r
+  const gravado3 = (await um47c(`select painel from public.plt_tempo_config where id = 1`)).painel
+  const t3 = await trilha47c()
+  conferir(s2.mudou === false && igual47c(s2.painel, s1.painel) && s3.mudou === true && t3.length === 2 && Object.keys(t3[1].depois).sort().join() === 'grafico_periodo,tv_relogio'
+      && !('grafico_periodo' in gravado3) && !('tv_relogio' in gravado3) && gravado3.medida === 'media' && Object.keys(gravado3).length === 6,
+    'salvar igual ao que já está não grava nem deixa trilha; voltar uma chave ao padrão a TIRA da coluna (a trilha registra só as duas que mudaram)',
+    JSON.stringify({ s2: s2.mudou, gravado3, t3: t3[1] }))
+
+  titulo('SESSAO-47 · Bloco C · valor que não vale é recusado em língua de gente — e nada muda')
+  const lixo = {
+    grafico: `select public.plt_fn_tempos_painel_salvar('{"grafico_tv": "pizza"}'::jsonb)`,
+    medida: `select public.plt_fn_tempos_painel_salvar('{"medida": "moda"}'::jsonb)`,
+    periodo: `select public.plt_fn_tempos_painel_salvar('{"abrir_periodo": "90"}'::jsonb)`,
+    setor_fora: `select public.plt_fn_tempos_painel_salvar(jsonb_build_object('abrir_setor_id', (select id from public.plt_setores where codigo = 'estoque')))`,
+    setor_texto: `select public.plt_fn_tempos_painel_salvar('{"abrir_setor_id": "montagem"}'::jsonb)`,
+    liga: `select public.plt_fn_tempos_painel_salvar('{"tv_relogio": "sim"}'::jsonb)`,
+    desconhecida: `select public.plt_fn_tempos_painel_salvar('{"cor": "azul"}'::jsonb)`,
+    lista: `select public.plt_fn_tempos_painel_salvar('[1, 2]'::jsonb)`,
+    montadores: `select public.plt_fn_tempos_painel_salvar(null, '{"a": 1}'::jsonb)`,
+    fora_da_equipe: `select public.plt_fn_tempos_painel_salvar(null, '[{"setor_id": ${M}, "usuario_id": "${DAVI}", "ligado": false}]'::jsonb)`,
+    incompleto: `select public.plt_fn_tempos_painel_salvar(null, '[{"setor_id": ${M}, "usuario_id": "${BIA}"}]'::jsonb)`,
+    torto: `select public.plt_fn_tempos_painel_salvar(null, '[{"setor_id": ${M}, "usuario_id": "bia", "ligado": false}]'::jsonb)`,
+    // uma chave boa junto de uma ruim: nada entra
+    meio: `select public.plt_fn_tempos_painel_salvar('{"tv_grafico": false, "medida": "moda"}'::jsonb)`,
+  }
+  const lixoR = {}
+  for (const [k, sql] of Object.entries(lixo)) lixoR[k] = await falha47c(sql)
+  const gravadoLixo = (await um47c(`select painel from public.plt_tempo_config where id = 1`)).painel
+  conferir(/tipo de gráfico/.test(lixoR.grafico) && /mediana ou a média/.test(lixoR.medida) && /hoje, 7 dias ou 30 dias/.test(lixoR.periodo)
+      && /setor de produção/.test(lixoR.setor_fora) && /setor de produção/.test(lixoR.setor_texto) && /só liga ou desliga/.test(lixoR.liga)
+      && /não existe na configuração do painel: cor/.test(lixoR.desconhecida) && /configuração do painel/.test(lixoR.lista)
+      && /lista de montadores/.test(lixoR.montadores) && /não está na equipe do painel/.test(lixoR.fora_da_equipe)
+      && /incompleto/.test(lixoR.incompleto) && /não vale/.test(lixoR.torto) && /mediana ou a média/.test(lixoR.meio)
+      && igual47c(gravadoLixo, gravado3) && (await trilha47c()).length === 2,
+    'tipo de gráfico, medida, período, setor que não é de produção, liga/desliga com texto, chave desconhecida, lista torta, pessoa fora da equipe: tudo recusado, nada gravado',
+    JSON.stringify(lixoR))
+
+  titulo('SESSAO-47 · Bloco C · ao vivo: o salvar avisa os setores de produção pelo canal que a tela e a TV já ouvem')
+  const nProd = (await um47c(`select count(*)::int as n from public.plt_setores where ativo and papel_no_fluxo = 'producao'`)).n
+  const limparAvisos47c = () => bd.exec(`
+    delete from realtime.messages where topic like 'plt-aviso:setor_%';
+    select set_config('plt.avisado_setor_' || s.id, '', true) from public.plt_setores s;`)
+  const avisos47c = async () => (await um47c(`select count(*)::int as n, count(distinct topic)::int as topicos,
+      count(*) filter (where topic = 'plt-aviso:setor_${M}' and event = 'mudou')::int as meu from realtime.messages where topic like 'plt-aviso:setor_%'`))
+  await limparAvisos47c()
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar('{"tv_dados_ate": false}'::jsonb)`)
+  const av1 = await avisos47c()
+  await limparAvisos47c()
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar('{"tv_dados_ate": false}'::jsonb)`)
+  const av2 = await avisos47c()
+  await como47c(Q47C.tela)
+  const tvOuve = (await um47c(`select plt_privado.fn_aviso_pode_ouvir('plt-aviso:setor_${M}') as ok`)).ok
+  const tvRele = (await um47c(`select public.plt_fn_modo_tv(${M}) -> 'painel' as p`)).p
+  await como47c(Q47C.adm)
+  conferir(av1.n === nProd && av1.topicos === nProd && av1.meu === 1 && av2.n === 0 && tvOuve === true && tvRele.tv_dados_ate === false && tvRele.grafico_tv === 'barras',
+    'um aviso "mudou" por setor de produção (o da Montagem própria entre eles); sem mudança, nenhum aviso; a conta da TV ouve esse canal e relê a porta dela já com a configuração nova',
+    JSON.stringify({ nProd, av1, av2, tvOuve }))
+
+  // volta ao padrão para a prova do montador desligado comparar com o "antes"
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar(plt_privado.fn_tempos_painel_padrao())`)
+  conferir(igual47c((await um47c(`select painel from public.plt_tempo_config where id = 1`)).painel, {}) && igual47c(await ler47c(), antes),
+    'de volta ao padrão a coluna fica vazia de novo — e todas as portas respondem exatamente como antes de alguém mexer')
+
+  titulo('SESSAO-47 · Bloco C · montador desligado (a Bia): sai da coluna na tela e na TV, o tempo vai para "Outros" — e os números do setor são IDÊNTICOS')
+  const sB = (await um47c(`select public.plt_fn_tempos_painel_salvar(null, $1::jsonb) as r`, [JSON.stringify([{ setor_id: M, usuario_id: BIA, ligado: false }])])).r
+  const tB = (await trilha47c()).at(-1)
+  conferir(sB.mudou === true && tB.montadores_ids.length === 1 && tB.montadores_ids[0].antes === true && tB.montadores_ids[0].depois === false
+      && tB.o_que_mudou[0] === 'Montador B (Bia 47C) · M47C MONTAGEM: ligado → desligado' && !('antes' in tB)
+      && (await um47c(`select no_painel from public.plt_tempo_equipe where setor_id = ${M} and usuario_id = '${BIA}'`)).no_painel === false,
+    'o liga/desliga é a coluna na equipe do painel; a trilha diz quem, de qual setor, e o antes e o depois', JSON.stringify(tB))
+  const dep = await ler47c()
+  const texto = (o) => JSON.stringify(o)
+  // --- a TV
+  const semMontadores = ({ montadores: _m, grafico: _g, melhor_semana: _s, ...resto }) => resto
+  conferir(igual47c(semMontadores(dep.tv), semMontadores(antes.tv))
+      && igual47c(dep.tv.grafico.dias.map((d) => [d.dia, d.total]), antes.tv.grafico.dias.map((d) => [d.dia, d.total])),
+    'TV: montados, médias, medianas, "dados até" e o total de cada um dos 14 dias — tudo igual ao de antes', texto(semMontadores(dep.tv)))
+  const hojeTv = (r) => r.grafico.dias.at(-1).partes
+  const ontemTv = (r) => r.grafico.dias.at(-2).partes
+  conferir(igual47c(antes.tv.montadores.map((m) => m.letra), ['A', 'B', 'C']) && igual47c(dep.tv.montadores.map((m) => m.letra), ['A', 'C'])
+      && igual47c(dep.tv.montadores, antes.tv.montadores.filter((m) => m.letra !== 'B')),
+    'TV: a letra B sai da coluna dos montadores; as outras ficam com os mesmos números', texto(dep.tv.montadores))
+  conferir(igual47c(hojeTv(antes.tv), { A: 2, B: 1, C: 1, 'A + B': 1, 'B + C': 1, 'Sem montador': 1 })
+      && igual47c(hojeTv(dep.tv), { A: 2, Outros: 1, C: 1, 'A + Outros': 1, 'C + Outros': 1, 'Sem montador': 1 })
+      && igual47c(ontemTv(antes.tv), { A: 1, B: 2, C: 2, Outros: 1 }) && igual47c(ontemTv(dep.tv), { A: 1, C: 2, Outros: 3 })
+      && !dep.tv.grafico.series.some((s) => /B/.test(s)),
+    'TV · gráfico: o que era "B" vira "Outros"; a dupla com a Bia vira a letra de quem está ligado + "Outros"; o móvel sem montador segue "Sem montador"; quem não tem letra (o Davi) já era "Outros"',
+    texto({ antes: [hojeTv(antes.tv), ontemTv(antes.tv)], depois: [hojeTv(dep.tv), ontemTv(dep.tv)] }))
+  conferir(antes.tv.melhor_semana?.letras === 'B' && antes.tv.melhor_semana.tempo_s === 1200 && antes.tv.melhor_semana.padrao_s === 2250
+      && igual47c({ ...dep.tv.melhor_semana, letras: 'B' }, antes.tv.melhor_semana) && dep.tv.melhor_semana.letras === 'Outros',
+    'TV · "Melhor da semana": continua sendo a Mesa de 20 min (padrão 37 min 30 s) — só o nome de quem fez vira "Outros"', texto([antes.tv.melhor_semana, dep.tv.melhor_semana]))
+  const nomes47c = ['Ana 47C', 'Bia 47C', 'Caio 47C', 'Davi 47C', 'Adm 47C', 'Lia 47C', 'Tela 47C', 'ana.47c', '@teste.com', 'foto', ANA, BIA, CAIO, DAVI]
+  await como47c(Q47C.tela)
+  const tvConta = (await um47c(`select public.plt_fn_modo_tv(${M}) as r`)).r
+  await como47c(Q47C.adm)
+  conferir(nomes47c.every((n) => !texto(dep.tv).includes(n) && !texto(antes.tv).includes(n) && !texto(tvConta).includes(n)) && igual47c(tvConta, dep.tv),
+    'a TV continua SÓ com letras: nenhum nome, usuário, foto ou identificador de pessoa na resposta — para o admin e para a conta só da TV (que recebe a mesma coisa)')
+  // --- Período
+  const semPessoas = ({ por_montador: _p, grafico: _g, pessoas: _q, ...resto }) => resto
+  const linhaDe = (r, chave) => r.per.por_montador.find((p) => p.chave === chave)
+  const chavePar = (a, b) => [a, b].sort().join(',')
+  conferir(igual47c(semPessoas(dep.per), semPessoas(antes.per)) && igual47c(dep.per.grafico.barras.map((b) => [b.balde, b.total]), antes.per.grafico.barras.map((b) => [b.balde, b.total]))
+      && dep.per.por_montador.reduce((n, p) => n + p.moveis, 0) === 13 && antes.per.por_montador.reduce((n, p) => n + p.moveis, 0) === 13,
+    'Período: os números do setor, onde vai o tempo, os móveis mais montados e o total de cada dia — iguais; a soma dos móveis por montador segue 13', texto(semPessoas(dep.per).numeros))
+  conferir(linhaDe(antes, BIA)?.moveis === 3 && linhaDe(antes, BIA).mediana_s === 1800 && !linhaDe(dep, BIA)
+      && igual47c({ ...linhaDe(dep, OUTROS), chave: BIA }, linhaDe(antes, BIA)) && dep.per.por_montador.at(-1).chave === OUTROS
+      && linhaDe(antes, chavePar(ANA, BIA))?.moveis === 1 && linhaDe(dep, `${ANA},${OUTROS}`)?.moveis === 1 && linhaDe(dep, `${CAIO},${OUTROS}`)?.moveis === 1
+      && linhaDe(dep, '')?.moveis === 1 && igual47c(linhaDe(dep, ANA), linhaDe(antes, ANA)) && igual47c(linhaDe(dep, DAVI), linhaDe(antes, DAVI)),
+    'Período · por montador: a linha da Bia some e a linha "Outros" (por último) tem exatamente os números dela; as duplas viram "Ana + Outros" e "Caio + Outros"; sem montador e quem não foi desligado não mudam',
+    texto(dep.per.por_montador.map((p) => [p.chave.replaceAll(ANA, 'ana').replaceAll(CAIO, 'caio').replaceAll(DAVI, 'davi').replaceAll(OUTROS, 'OUTROS'), p.moveis])))
+  conferir(!(BIA in dep.per.pessoas) && dep.per.pessoas[OUTROS]?.nome === 'Outros' && dep.per.pessoas[OUTROS].foto === null && antes.per.pessoas[BIA]?.nome === 'Bia 47C'
+      && !texto(dep.per).includes('Bia 47C') && !texto(dep.per).includes(BIA) && dep.per.grafico.series.every((s) => s.chave !== OUTROS)
+      && dep.per.grafico.barras.at(-1).partes['+'] === 1 && igual47c(Object.keys(antes.per.grafico.barras.at(-1).partes).length, 6),
+    'Período: o nome e o identificador da Bia não saem na resposta; "Outros" vem no mapa de nomes; no gráfico o "Outros" nunca é uma série própria (entra junto com o resto)',
+    texto(dep.per.grafico.series))
+  // --- Móveis
+  const semColunas = (r) => ({ ...r, colunas: null, pessoas: null, itens: r.itens.map(({ por_pessoa: _p, ...m }) => m) })
+  const mesaDep = dep.mov.itens.find((m) => m.nome === 'Mesa Teste47C - 120 x 75 x 60')
+  const rackDep = dep.mov.itens.find((m) => m.nome === 'Rack Teste47C - 180 x 50 x 40')
+  conferir(igual47c(semColunas(dep.mov), semColunas(antes.mov)),
+    'Móveis: quantidade, melhor, mediana, média, faixa e padrão de cada modelo — iguais', texto(semColunas(dep.mov).itens))
+  conferir(antes.mov.colunas.includes(BIA) && !dep.mov.colunas.includes(BIA) && dep.mov.colunas.at(-1) === OUTROS && dep.mov.colunas.length === antes.mov.colunas.length
+      && igual47c(mesaDep.por_pessoa[OUTROS], mesaAntes.por_pessoa[BIA]) && igual47c(rackDep.por_pessoa[OUTROS], rackAntes.por_pessoa[BIA])
+      && rackDep.por_pessoa[OUTROS].n === 3 && rackDep.por_pessoa[OUTROS].mediana_s === 3000 && !(BIA in mesaDep.por_pessoa)
+      && igual47c(mesaDep.por_pessoa[ANA], mesaAntes.por_pessoa[ANA]),
+    'Móveis · colunas: a coluna da Bia sai e a coluna "Outros" (por último) tem a mesma conta que era dela (Rack: 3 móveis, mediana 50 min)',
+    texto({ colunas: dep.mov.colunas.length, mesa: mesaDep.por_pessoa[OUTROS], rack: rackDep.por_pessoa[OUTROS] }))
+  // --- Montadores
+  const cartaoDe = (r, id) => r.mon.pessoas_cartoes.find((c) => c.usuario_id === id)
+  const semQuem = (m) => m.map(({ montadores: _m, ...x }) => x)
+  conferir(cartaoDe(antes, BIA)?.moveis === 5 && !cartaoDe(dep, BIA) && igual47c({ ...cartaoDe(dep, OUTROS), usuario_id: BIA }, cartaoDe(antes, BIA))
+      && dep.mon.pessoas_cartoes.at(-1).usuario_id === OUTROS && igual47c(cartaoDe(dep, ANA), cartaoDe(antes, ANA)) && igual47c(cartaoDe(dep, CAIO), cartaoDe(antes, CAIO))
+      && dep.mon.pessoas_cartoes.reduce((n, c) => n + c.moveis, 0) === antes.mon.pessoas_cartoes.reduce((n, c) => n + c.moveis, 0)
+      && igual47c(semQuem(dep.mon.melhores), semQuem(antes.mon.melhores)) && !texto(dep.mon).includes(BIA)
+      && texto(antes.mon.melhores).includes(BIA) && texto(dep.mon.melhores).includes(OUTROS),
+    'Montadores: o cartão da Bia some e o cartão "Outros" (por último) tem os mesmos números (móveis, dias, mediana, média, tempo, modelos contra o padrão, o melhor); os melhores tempos são os mesmos — só o nome vira "Outros"',
+    texto(cartaoDe(dep, OUTROS)))
+  // --- Dia
+  const linhaTab = (r, id) => r.tabela.itens.find((l) => l.inicio && new Date(l.inicio).toISOString() === new Date(casos47c.find((c) => c.cartao_id === id).inicio).toISOString()
+      && new Date(l.fim).toISOString() === new Date(casos47c.find((c) => c.cartao_id === id).fim).toISOString())
+  const semQuemTab = (r) => r.tabela.itens.map(({ montadores: _m, ajudantes: _a, ...l }) => l)
+  conferir(igual47c(dep.dia0.numeros, antes.dia0.numeros) && antes.dia0.numeros.montadores === 3 && igual47c(semQuemTab(dep.dia0), semQuemTab(antes.dia0))
+      && igual47c(linhaTab(antes.dia0, 'm47c-b1').montadores, [BIA]) && igual47c(linhaTab(dep.dia0, 'm47c-b1').montadores, [OUTROS])
+      && igual47c(linhaTab(dep.dia0, 'm47c-ab').montadores, [ANA, OUTROS]) && igual47c(linhaTab(dep.dia0, 'm47c-bc').montadores, [CAIO, OUTROS])
+      && igual47c(linhaTab(dep.dia0, 'm47c-sm').montadores, []) && igual47c(linhaTab(dep.dia0, 'm47c-a1').montadores, [ANA]),
+    'Dia: os números do dia iguais (as 3 pessoas que montaram continuam contando); na tabela a Bia vira "Outros", a dupla vira quem está ligado + "Outros", o sem montador segue vazio',
+    texto(dep.dia0.tabela.itens.map((l) => l.montadores.length)))
+  const pessoasDaLinha = (r) => [...new Set(r.linha.trechos.map((t) => t.pessoa))]
+  conferir(antes.dia0.linha.trechos.length === dep.dia0.linha.trechos.length && pessoasDaLinha(antes.dia0).includes(BIA) && !pessoasDaLinha(dep.dia0).includes(BIA)
+      && pessoasDaLinha(dep.dia0).at(-1) === OUTROS && dep.dia0.linha.trechos.filter((t) => t.pessoa === OUTROS).length === antes.dia0.linha.trechos.filter((t) => t.pessoa === BIA).length
+      && !(BIA in dep.dia0.pessoas) && dep.dia0.pessoas[OUTROS]?.nome === 'Outros',
+    'Dia · a linha do dia: os mesmos trechos — os da Bia passam para a faixa "Outros" (por último); o nome dela não vai na resposta', texto(pessoasDaLinha(dep.dia0).length))
+  conferir(igual47c(antes.pas.itens.map((p) => p.execucao_s), dep.pas.itens.map((p) => p.execucao_s)) && texto(antes.pas.itens).includes(BIA)
+      && !texto(dep.pas).includes(BIA) && texto(dep.pas.itens).includes(OUTROS),
+    'Móveis · as montagens de um modelo: as mesmas, com "Outros" no lugar da Bia')
+
+  titulo('SESSAO-47 · Bloco C · onde o desligado NÃO vira "Outros": a conferência, o procurar, o filtro de pessoa — e os tempos dele mesmo')
+  const proc = (await um47c(`select public.plt_fn_tempos_procurar(${M}, 'Mesa Teste47C') as r`)).r
+  const opc = (await um47c(`select public.plt_fn_tempos_opcoes(${M}) as r`)).r
+  conferir(igual47c(dep.conf.itens, antes.conf.itens) && dep.conf.grupos.rapida === 1 && igual47c(dep.conf.itens[0].montadores, [BIA]) && dep.conf.pessoas[BIA]?.nome === 'Bia 47C'
+      && texto(proc).includes(BIA) && proc.pessoas[BIA]?.nome === 'Bia 47C' && opc.pessoas.some((p) => p.id === BIA && p.nome === 'Bia 47C')
+      && !texto(dep.conf).includes(OUTROS) && !texto(proc).includes(OUTROS),
+    'a aba Conferir (o caso "rápida demais" da Bia), o Procurar e as opções do filtro de pessoa continuam dizendo quem montou, pelo nome',
+    texto({ conf: dep.conf.itens[0]?.montadores, opc: opc.pessoas.length }))
+  await como47c(Q47C.bia)
+  const biaMon = (await um47c(`select public.plt_fn_tempos_montadores(${M}, '${D29}', '${D0}') as r`)).r
+  const biaDia = (await um47c(`select public.plt_fn_tempos_dia(${M}, '${D0}', '${D29}', '${D0}') as r`)).r
+  await como47c(Q47C.ana)
+  const anaDia = (await um47c(`select public.plt_fn_tempos_dia(${M}, '${D0}', '${D29}', '${D0}') as r`)).r
+  await como47c(Q47C.adm)
+  conferir(biaMon.pessoas_cartoes.length === 1 && biaMon.pessoas_cartoes[0].usuario_id === BIA && biaMon.pessoas[BIA]?.nome === 'Bia 47C' && biaMon.pessoa_travada === true
+      && biaDia.tabela.itens.length === 3 && biaDia.tabela.itens.every((l) => l.montadores.includes(BIA)) && !texto(biaDia).includes(OUTROS)
+      && anaDia.tabela.itens.length === 3 && igual47c(anaDia.tabela.itens.find((l) => l.montadores.length === 2).montadores, [ANA, OUTROS]) && !texto(anaDia).includes(BIA),
+    'a própria Bia (funcionária: só vê o que ela montou) continua com o nome dela nos tempos dela; para a Ana, a dupla com a Bia aparece "Ana + Outros"',
+    texto({ bia: biaMon.pessoas_cartoes.map((c) => c.usuario_id === BIA), ana: anaDia.tabela.itens.map((l) => l.montadores.length) }))
+
+  titulo('SESSAO-47 · Bloco C · todos da dupla desligados = "Outros"; religar devolve tudo como era; mexer na equipe não religa ninguém')
+  await bd.query(`select public.plt_fn_tempos_painel_salvar(null, $1::jsonb)`, [JSON.stringify([{ setor_id: M, usuario_id: ANA, ligado: false }])])
+  const dois = { tv: (await um47c(`select public.plt_fn_modo_tv(${M}) as r`)).r, per: (await um47c(`select public.plt_fn_tempos_periodo(${M}, '${D29}', '${D0}') as r`)).r }
+  conferir(igual47c(hojeTv(dois.tv), { Outros: 4, C: 1, 'C + Outros': 1, 'Sem montador': 1 }) && igual47c(dois.tv.montadores.map((m) => m.letra), ['C'])
+      && dois.per.por_montador.find((p) => p.chave === OUTROS)?.moveis === 7 && !dois.per.por_montador.some((p) => p.chave.includes(ANA) || p.chave.includes(BIA))
+      && igual47c(semPessoas(dois.per), semPessoas(antes.per)) && igual47c(semMontadores(dois.tv), semMontadores(antes.tv)),
+    'com a Ana e a Bia desligadas: a dupla das duas é um "Outros" só (junto com o que cada uma fez sozinha); o setor segue com os mesmos números',
+    texto({ tv: hojeTv(dois.tv), per: dois.per.por_montador.map((p) => p.moveis) }))
+  await bd.exec(`select public.plt_fn_tempo_equipe_salvar(${M}, '${BIA}', 'apoio', 'B')`)
+  const aindaFora = (await um47c(`select no_painel, papel from public.plt_tempo_equipe where setor_id = ${M} and usuario_id = '${BIA}'`))
+  await bd.exec(`select public.plt_fn_tempo_equipe_salvar(${M}, '${BIA}', 'titular', 'B')`)
+  await bd.query(`select public.plt_fn_tempos_painel_salvar(null, $1::jsonb)`, [JSON.stringify([{ setor_id: M, usuario_id: ANA, ligado: true }, { setor_id: M, usuario_id: BIA, ligado: true }])])
+  conferir(aindaFora.no_painel === false && aindaFora.papel === 'apoio' && igual47c(await ler47c(), antes),
+    'trocar o papel ou a letra em Configurações → Equipe no painel não religa quem estava desligado; religar a Ana e a Bia devolve todas as portas ao que era, sem diferença nenhuma')
+
+  titulo('SESSAO-47 · Bloco C · a marca do tempo padrão na linha do dia: liga e desliga')
+  const trechoDe = (r, card) => r.linha.trechos.find((t) => t.card_id === card)
+  const semMarca = (await um47c(`select public.plt_fn_tempos_dia(${M}, '${D1}', '${D29}', '${D0}') as r`)).r
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar('{"linha_padrao": true}'::jsonb)`)
+  const comMarca = (await um47c(`select public.plt_fn_tempos_dia(${M}, '${D1}', '${D29}', '${D0}') as r`)).r
+  const trA3 = (r) => r.linha.trechos.find((t) => t.origem === 'trello' && t.pessoa === ANA)
+  conferir(trechoDe(semMarca, cCaio)?.padrao_s === null && trechoDe(semMarca, cCaio).movel_s === null && typeof trechoDe(semMarca, cCaio).ref === 'number'
+      && trechoDe(comMarca, cCaio)?.padrao_s === 2100 && trechoDe(comMarca, cCaio).movel_s === 1500 && trechoDe(comMarca, cDavi)?.padrao_s === 2250 && trechoDe(comMarca, cDavi).movel_s === 1800
+      && trA3(comMarca)?.padrao_s === 2250 && trA3(comMarca).movel_s === 3000 && trA3(semMarca).padrao_s === null
+      && comMarca.painel.linha_padrao === true && igual47c(comMarca.numeros, semMarca.numeros) && comMarca.linha.trechos.length === semMarca.linha.trechos.length,
+    'desligada (o padrão), o trecho só diz de qual móvel é; ligada, cada trecho leva o tempo padrão do modelo e o tempo do móvel (o Rack do Caio: 25 min contra 35; a Mesa da Ana: 50 contra 37 min 30 s) — o resto do dia não muda',
+    texto({ caio: trechoDe(comMarca, cCaio), a3: trA3(comMarca) }))
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar('{"linha_padrao": false}'::jsonb)`)
+
+  titulo('SESSAO-47 · Bloco C · a abertura em UMA requisição: o setor (configurado → lembrado → a Montagem), a aba e o período — e a MESMA resposta da aba')
+  const montagem = (await um47c(`select s.id::int as id from public.plt_setores s where s.papel_no_fluxo = 'producao' and s.ativo
+                                   and 'montagem' = any (plt_privado.fn_tempo_palavras(s.nome)) order by s.ordem, s.id limit 1`)).id
+  const ab0 = (await um47c(`select public.plt_fn_tempos_abertura(null, '${D0}') as r`)).r
+  const ab0Dia = (await um47c(`select public.plt_fn_tempos_dia(${montagem}, '${D0}', '${D29}', '${D0}', null, null, true, null, null, null, 50) as r`)).r
+  const ab1 = (await um47c(`select public.plt_fn_tempos_abertura(${M}, '${D0}') as r`)).r
+  const ab1SemDia = (await um47c(`select public.plt_fn_tempos_abertura(${M}) as r`)).r
+  conferir(montagem !== M && ab0.aba === 'dia' && ab0.periodo === '30' && ab0.setor_id === montagem && ab0.dia === D0 && ab0.de === D29 && ab0.ate === D0
+      && igual47c(ab0.resposta, ab0Dia) && igual47c(ab0.painel, padrao),
+    'sem configuração e sem setor lembrado: a aba Dia de hoje na Montagem, com 30 dias — e a resposta é a da própria porta da aba Dia', texto({ ...ab0, resposta: '…' }))
+  conferir(ab1.setor_id === M && ab1.aba === 'dia' && igual47c(ab1.resposta, antes.dia0) && igual47c(ab1SemDia.resposta, antes.dia0),
+    'com o setor que o aparelho lembra: abre nele, com a mesma resposta da aba Dia (com ou sem o dia do aparelho)', texto({ ...ab1, resposta: '…' }))
+  await bd.query(`select public.plt_fn_tempos_painel_salvar($1::jsonb)`, [JSON.stringify({ abrir_setor_id: S47C.l47c, abrir_periodo: '7' })])
+  const ab2 = (await um47c(`select public.plt_fn_tempos_abertura(${M}, '${D0}') as r`)).r
+  const ab2Per = (await um47c(`select public.plt_fn_tempos_periodo(${S47C.l47c}, '${D6}', '${D0}', null, null, true) as r`)).r
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar('{"abrir_setor_id": null, "abrir_periodo": "30"}'::jsonb)`)
+  const ab3 = (await um47c(`select public.plt_fn_tempos_abertura(${M}, '${D0}') as r`)).r
+  conferir(ab2.setor_id === S47C.l47c && ab2.aba === 'periodo' && ab2.periodo === '7' && ab2.de === D6 && ab2.ate === D0 && igual47c(ab2.resposta, ab2Per)
+      && ab2.painel.abrir_periodo === '7' && ab3.setor_id === M && ab3.aba === 'periodo' && ab3.periodo === '30' && ab3.de === D29
+      && igual47c(ab3.resposta, { ...antes.per, painel: ab3.painel }),
+    'configurado: o setor escolhido vence o lembrado e a tela abre na aba Período com 7 dias (ou 30) — com a mesma resposta da porta do Período', texto({ ...ab2, resposta: '…' }))
+  await bd.query(`select public.plt_fn_tempos_painel_salvar($1::jsonb)`, [JSON.stringify({ abrir_setor_id: S47C.l47c, abrir_periodo: 'hoje' })])
+  await bd.exec(`update public.plt_setores set ativo = false where id = ${S47C.l47c}`)
+  const ab4 = (await um47c(`select public.plt_fn_tempos_abertura(${M}, '${D0}') as r`)).r
+  await bd.exec(`update public.plt_setores set ativo = true where id = ${S47C.l47c}`)
+  await como47c('')
+  const abAnon = await falha47c(`select public.plt_fn_tempos_abertura(${M})`)
+  await como47c(Q47C.tela)
+  const abTv = await falha47c(`select public.plt_fn_tempos_abertura(${M})`)
+  await como47c(Q47C.ana)
+  const abAna = (await um47c(`select public.plt_fn_tempos_abertura(${M}, '${D0}') as r`)).r
+  await como47c(Q47C.adm)
+  conferir(ab4.setor_id === M && ab4.painel.abrir_setor_id === null && /Entre na plataforma/.test(abAnon) && /só o Modo TV/.test(abTv)
+      && abAna.setor_id === S47C.l47c && abAna.resposta.pessoa_travada === true,
+    'o setor configurado que foi desativado deixa de valer (volta ao lembrado); quem não entrou e a conta só da TV são recusados como nas abas; o funcionário abre (e só vê o dele)',
+    texto({ ab4: ab4.setor_id, abAnon, abTv }))
+  await bd.exec(`select public.plt_fn_tempos_painel_salvar(plt_privado.fn_tempos_painel_padrao())`)
+
+  titulo('SESSAO-47 · Bloco C · permissões e o plano sob medida das portas')
+  await como47c('')
+  const pr47c = await um47c(`
+    select has_function_privilege('anon', 'public.plt_fn_tempos_abertura(bigint, date)', 'execute') as anon_ab,
+           has_function_privilege('anon', 'public.plt_fn_tempos_painel()', 'execute') as anon_jan,
+           has_function_privilege('anon', 'public.plt_fn_tempos_painel_salvar(jsonb, jsonb)', 'execute') as anon_salvar,
+           has_function_privilege('authenticated', 'public.plt_fn_tempos_abertura(bigint, date)', 'execute') as log_ab,
+           has_function_privilege('authenticated', 'public.plt_fn_tempos_painel()', 'execute') as log_jan,
+           has_function_privilege('authenticated', 'public.plt_fn_tempos_painel_salvar(jsonb, jsonb)', 'execute') as log_salvar,
+           has_function_privilege('authenticated', 'plt_privado.fn_tempos_painel()', 'execute') as aj1,
+           has_function_privilege('authenticated', 'plt_privado.fn_tempos_desligados(bigint, uuid)', 'execute') as aj2,
+           has_function_privilege('authenticated', 'plt_privado.fn_tempos_visiveis(uuid[], uuid[])', 'execute') as aj3,
+           has_function_privilege('authenticated', 'plt_privado.fn_tempos_chave_visivel(text, uuid[])', 'execute') as aj4,
+           has_function_privilege('authenticated', 'plt_privado.fn_tempos_painel_padrao()', 'execute') as aj5,
+           has_table_privilege('authenticated', 'public.plt_tempo_config', 'select') as t1,
+           has_table_privilege('authenticated', 'public.plt_tempo_equipe', 'select') as t2,
+           has_function_privilege('anon', 'public.plt_fn_modo_tv(bigint, date)', 'execute') as anon_tv,
+           has_function_privilege('authenticated', 'public.plt_fn_tempos_periodo(bigint, date, date, uuid, bigint, boolean)', 'execute') as log_per,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname in ('plt_fn_tempos_dia', 'plt_fn_tempos_periodo', 'plt_fn_tempos_moveis', 'plt_fn_tempos_modelo_passagens',
+                   'plt_fn_tempos_montadores', 'plt_fn_tempos_conferir', 'plt_fn_modo_tv')
+               and 'plan_cache_mode=force_custom_plan' = any (p.proconfig)) as sob_medida,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname in ('plt_fn_tempos_dia', 'plt_fn_tempos_periodo', 'plt_fn_tempos_moveis', 'plt_fn_tempos_modelo_passagens',
+                   'plt_fn_tempos_montadores', 'plt_fn_tempos_conferir', 'plt_fn_modo_tv', 'plt_fn_tempos_abertura', 'plt_fn_tempos_painel',
+                   'plt_fn_tempos_painel_salvar')) as uma_de_cada`)
+  conferir(!pr47c.anon_ab && !pr47c.anon_jan && !pr47c.anon_salvar && pr47c.log_ab && pr47c.log_jan && pr47c.log_salvar
+      && !pr47c.aj1 && !pr47c.aj2 && !pr47c.aj3 && !pr47c.aj4 && !pr47c.aj5 && !pr47c.t1 && !pr47c.t2 && !pr47c.anon_tv && pr47c.log_per
+      && pr47c.sob_medida === 7 && pr47c.uma_de_cada === 10,
+    'anônimo fora; as três portas novas só para quem está logado (o banco decide quem é admin); os ajudantes e as duas tabelas fora da API; as 7 portas recriadas com o plano sob medida e uma assinatura só de cada',
+    JSON.stringify(pr47c))
+} finally {
+  await bd.exec('rollback')
+  await como47c('')
+}
+} // fim do bloco SESSAO-47 · Bloco C
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

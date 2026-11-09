@@ -1,9 +1,16 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, Equal, HandHelping, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, Equal, HandHelping, Trophy, Users } from 'lucide-react'
 import { AvatarPessoa } from '@/componentes/ui'
 import { buscarMontadores, type CartaoPessoa, type MapaPessoas } from '@/dashboards/tempos/api'
-import { decimal, diaCurto, duracao, horas, primeiroNome } from '@/dashboards/tempos/formato'
+import { decimal, diaCurto, duracao, horas, nomeCurtoDaPessoa } from '@/dashboards/tempos/formato'
+import {
+  ID_OUTROS,
+  nomeDaMedida,
+  painelDe,
+  tempoDaMedida,
+  type Medida,
+} from '@/dashboards/tempos/painel'
 import type { PropsAba } from '../TemposProducao'
 import { Carregando, ContraPadrao, ErroLeitura, Montadores, Painel, Vazio } from './comum'
 
@@ -12,6 +19,10 @@ import { Carregando, ContraPadrao, ErroLeitura, Montadores, Painel, Vazio } from
  * F1: um cartão por pessoa, SEM ranking (cada um contra o padrão de cada
  * modelo — a escolha do dono na 16). Ao lado, os melhores tempos contra o
  * padrão. O funcionário vê só o próprio cartão (o banco devolve só o dele).
+ *
+ * SESSAO-47 (Bloco C): o tempo médio de cada cartão é a mediana ou a média,
+ * conforme a configuração do painel (o rótulo diz qual); quem está desligado do
+ * painel não tem cartão próprio — os números dele vão para o cartão "Outros".
  */
 export function AbaMontadores({ filtros, aoContador }: PropsAba) {
   const consulta = useQuery({
@@ -28,6 +39,7 @@ export function AbaMontadores({ filtros, aoContador }: PropsAba) {
   if (consulta.error) return <ErroLeitura erro={consulta.error} />
   if (!r) return null
   const ehMontagem = /montagem/i.test(r.setor.nome)
+  const medida = painelDe(r).medida
 
   return (
     <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
@@ -44,6 +56,7 @@ export function AbaMontadores({ filtros, aoContador }: PropsAba) {
                   pessoas={r.pessoas}
                   faixa={r.faixa_pct}
                   verbo={ehMontagem ? 'montados' : 'feitos'}
+                  medida={medida}
                 />
               </li>
             ))}
@@ -55,7 +68,7 @@ export function AbaMontadores({ filtros, aoContador }: PropsAba) {
             Só ajudaram:
             {r.ajudantes_so.map((a) => (
               <span key={a.usuario_id}>
-                {primeiroNome(r.pessoas[a.usuario_id]?.nome ?? 'Alguém')} ({a.ajudas})
+                {nomeCurtoDaPessoa(a.usuario_id, r.pessoas)} ({a.ajudas})
               </span>
             ))}
           </p>
@@ -102,23 +115,46 @@ function CartaoDaPessoa({
   pessoas,
   faixa,
   verbo,
+  medida,
 }: {
   c: CartaoPessoa
   pessoas: MapaPessoas
   faixa: number
   verbo: string
+  medida: Medida
 }) {
   const p = pessoas[c.usuario_id]
+  // quem está desligado do painel: um cartão só, sem rosto (não é uma pessoa)
+  const outros = c.usuario_id === ID_OUTROS
   return (
     <article className="flex h-full flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-4">
       <header className="flex items-center gap-3">
-        <AvatarPessoa nome={p?.nome ?? null} foto={p?.foto ?? null} tamanho="md" />
-        <h3 className="text-base font-semibold">{p?.nome ?? 'Alguém'}</h3>
+        {outros ? (
+          <span
+            aria-hidden
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-superficie-sutil text-texto-suave"
+          >
+            <Users className="size-5" />
+          </span>
+        ) : (
+          <AvatarPessoa nome={p?.nome ?? null} foto={p?.foto ?? null} tamanho="md" />
+        )}
+        <div className="flex min-w-0 flex-col">
+          <h3 className="text-base font-semibold">{outros ? 'Outros' : (p?.nome ?? 'Alguém')}</h3>
+          {outros && (
+            <p className="text-xs text-texto-suave">
+              Quem não aparece com o próprio nome no painel.
+            </p>
+          )}
+        </div>
       </header>
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         <Numero rotulo={`móveis ${verbo}`} valor={c.moveis} />
         <Numero rotulo={`por dia trabalhado (${c.dias})`} valor={decimal(c.por_dia)} />
-        <Numero rotulo="mediana por móvel" valor={duracao(c.mediana_s)} />
+        <Numero
+          rotulo={`${nomeDaMedida(medida)} por móvel`}
+          valor={duracao(tempoDaMedida(medida, c))}
+        />
         <Numero rotulo="tempo total (o esforço)" valor={horas(c.tempo_total_s)} />
         <Numero rotulo="ajudas dadas" valor={c.ajudas} />
         <Numero

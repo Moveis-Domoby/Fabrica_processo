@@ -11,16 +11,6 @@ import {
   Trophy,
   WifiOff,
 } from 'lucide-react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSoTv } from '@/autenticacao/tipos'
 import { ouvirCanal } from '@/chat/canais'
@@ -37,6 +27,13 @@ import {
   msAteMeiaNoite,
   somarDias,
 } from '@/dashboards/tempos/formato'
+import { GraficoMoveis } from '@/dashboards/tempos/GraficoMoveis'
+import {
+  nomeDaMedida,
+  painelDe,
+  tempoDaMedida,
+  type PainelTempos,
+} from '@/dashboards/tempos/painel'
 
 /** O relógio da TV com os segundos (06/11), no fuso da fábrica. */
 const FORMATO_HORA = new Intl.DateTimeFormat('pt-BR', {
@@ -84,12 +81,17 @@ const corDa = (serie: string, letras: string[]) =>
   serie === 'Outros' || serie === 'Sem montador' || serie.includes(' + ')
     ? 'var(--dm-borda-forte)'
     : CORES[Math.max(letras.indexOf(serie), 0) % CORES.length]
-const nomeDa = (serie: string) =>
-  serie === 'Outros' || serie === 'Sem montador'
-    ? serie
-    : serie.includes(' + ')
-      ? `Montadores ${serie}`
-      : `Montador ${serie}`
+/**
+ * "Montador A", "Montadores A + B" — e, SESSAO-47, "Montador A + Outros": a
+ * dupla com alguém que não aparece pela letra (sem letra no setor ou desligado
+ * na configuração do painel).
+ */
+const nomeDa = (serie: string) => {
+  if (serie === 'Outros' || serie === 'Sem montador') return serie
+  const letras = serie.split(' + ').filter((parte) => parte !== 'Outros')
+  const comOutros = serie.split(' + ').includes('Outros') ? ' + Outros' : ''
+  return `${letras.length > 1 ? 'Montadores' : 'Montador'} ${letras.join(' + ')}${comOutros}`
+}
 
 /**
  * SESSAO-43 (F3) — O MODO TV: o painel da TV do galpão que o dono já tinha
@@ -102,6 +104,12 @@ const nomeDa = (serie: string) =>
  * dado — exceção registrada na Lei, com o porquê); o relógio da tela só
  * redesenha a hora. Nunca sai sozinha (como o tablet — D-189); várias TVs em
  * paralelo, cada aparelho com a sua sessão.
+ *
+ * SESSAO-47 (Bloco C): a TV obedece à configuração do painel, que vem na mesma
+ * resposta da porta (`r.painel`) — o tipo do gráfico, o número do tempo médio
+ * (mediana ou média), quais blocos aparecem e quem aparece pela letra (isso o
+ * banco já resolve: a TV continua sem nome nenhum). Quando o administrador
+ * salva, o banco avisa no canal do setor; a TV relê e muda na hora, sem recarregar.
  */
 export function ModoTv() {
   const { perfil, sair } = useSessao()
@@ -126,6 +134,8 @@ export function ModoTv() {
     placeholderData: (anterior) => anterior,
   })
   const r = consulta.data
+  // a configuração do painel (o banco de antes não manda: vale o desenho de sempre)
+  const painel = painelDe(r)
   const setorId = r?.setor.id ?? null
   const podeTrocarDia = r?.pode_trocar_dia === true
   const irParaDia = (dia: string) => setDiaEscolhido(dia >= hoje ? null : dia)
@@ -228,7 +238,7 @@ export function ModoTv() {
               else navigate('/dashboards/tempos-de-producao')
             }}
           />
-          <RelogioTv />
+          {painel.tv_relogio && <RelogioTv />}
         </div>
       </header>
 
@@ -244,42 +254,50 @@ export function ModoTv() {
           Carregando…
         </p>
       ) : (
-        <Painel r={r} eHoje={diaEscolhido === null} />
+        <Painel r={r} eHoje={diaEscolhido === null} painel={painel} />
       )}
 
-      <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-borda pt-3 text-[0.9em] text-texto-suave">
-        <span className="flex items-center gap-2">
-          <Trophy aria-hidden className="size-[1.1em] shrink-0" />
-          {r?.melhor_semana ? (
-            <span>
-              Melhor da semana:{' '}
-              <strong className="text-texto">{nomeDa(r.melhor_semana.letras)}</strong> montou{' '}
-              <em className="text-texto not-italic">{r.melhor_semana.modelo}</em> em{' '}
-              <strong className="text-texto tabular-nums">
-                {duracao(r.melhor_semana.tempo_s)}
-              </strong>{' '}
-              (padrão {duracao(r.melhor_semana.padrao_s)})
+      {/* SESSAO-47: cada pedaço do rodapé liga e desliga; sem nenhum, o rodapé some.
+          O "ao vivo pausado" é aviso — aparece sempre, mesmo com o selo desligado. */}
+      {(painel.tv_melhor_semana || painel.tv_dados_ate || painel.tv_ao_vivo || !aoVivo) && (
+        <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-borda pt-3 text-[0.9em] text-texto-suave">
+          {painel.tv_melhor_semana && (
+            <span className="flex items-center gap-2">
+              <Trophy aria-hidden className="size-[1.1em] shrink-0" />
+              {r?.melhor_semana ? (
+                <span>
+                  Melhor da semana:{' '}
+                  <strong className="text-texto">{nomeDa(r.melhor_semana.letras)}</strong> montou{' '}
+                  <em className="text-texto not-italic">{r.melhor_semana.modelo}</em> em{' '}
+                  <strong className="text-texto tabular-nums">
+                    {duracao(r.melhor_semana.tempo_s)}
+                  </strong>{' '}
+                  (padrão {duracao(r.melhor_semana.padrao_s)})
+                </span>
+              ) : (
+                <span>Melhor da semana: ainda sem móvel com padrão (3 montagens ou mais).</span>
+              )}
             </span>
-          ) : (
-            <span>Melhor da semana: ainda sem móvel com padrão (3 montagens ou mais).</span>
           )}
-        </span>
-        <span className="flex items-center gap-4">
-          {r?.dados_ate && (
-            <span>
-              Dados até <strong className="text-texto">{diaCurto(r.dados_ate)}</strong>
-            </span>
-          )}
-          <span className="flex items-center gap-1.5" role="status">
-            {aoVivo ? (
-              <Radio aria-hidden className="size-[1em]" />
-            ) : (
-              <WifiOff aria-hidden className="size-[1em]" />
+          <span className="ml-auto flex items-center gap-4">
+            {painel.tv_dados_ate && r?.dados_ate && (
+              <span>
+                Dados até <strong className="text-texto">{diaCurto(r.dados_ate)}</strong>
+              </span>
             )}
-            {aoVivo ? 'ao vivo' : 'ao vivo pausado'}
+            {(painel.tv_ao_vivo || !aoVivo) && (
+              <span className="flex items-center gap-1.5" role="status">
+                {aoVivo ? (
+                  <Radio aria-hidden className="size-[1em]" />
+                ) : (
+                  <WifiOff aria-hidden className="size-[1em]" />
+                )}
+                {aoVivo ? 'ao vivo' : 'ao vivo pausado'}
+              </span>
+            )}
           </span>
-        </span>
-      </footer>
+        </footer>
+      )}
     </div>
   )
 }
@@ -393,9 +411,18 @@ function ControlesDiscretos({
   )
 }
 
-function Painel({ r, eHoje }: { r: RespostaTv; eHoje: boolean }) {
+function Painel({ r, eHoje, painel }: { r: RespostaTv; eHoje: boolean; painel: PainelTempos }) {
   // ↩️ 06/11: fora de hoje, os textos dizem "no dia" (a TV pode mostrar outro dia)
   const doDia = eHoje ? 'hoje' : 'no dia'
+  // SESSAO-47: o número do tempo médio (mediana ou média) e os blocos vêm da configuração do painel
+  const medida = painel.medida
+  const tempoHoje = tempoDaMedida(medida, {
+    mediana_s: r.tempo_medio_hoje_s,
+    media_s: r.tempo_media_hoje_s,
+  })
+  const tempo30 = tempoDaMedida(medida, { mediana_s: r.mediana_30_s, media_s: r.tempo_media_30_s })
+  const mostraColuna = painel.tv_montadores
+  const mostraGrafico = painel.tv_grafico
   const media = r.media_30
   const naMeta = media !== null && r.montados_hoje >= media
   const faltam = media !== null ? Math.max(Math.ceil(media - r.montados_hoje), 0) : null
@@ -431,152 +458,151 @@ function Painel({ r, eHoje }: { r: RespostaTv; eHoje: boolean }) {
         </p>
       )}
 
-      <section className="grid grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)] xl:grid-cols-4">
-        <Numero
-          valor={r.montados_hoje}
-          rotulo={`montados ${doDia}`}
-          detalhe={
-            media === null
-              ? 'sem base de comparação'
-              : naMeta
-                ? `na meta: a média é ${decimal(media)} por dia`
-                : `faltam ${faltam} para a média diária`
+      {painel.tv_numeros && (
+        <section
+          data-bloco="numeros"
+          className="grid grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)] xl:grid-cols-4"
+        >
+          <Numero
+            valor={r.montados_hoje}
+            rotulo={`montados ${doDia}`}
+            detalhe={
+              media === null
+                ? 'sem base de comparação'
+                : naMeta
+                  ? `na meta: a média é ${decimal(media)} por dia`
+                  : `faltam ${faltam} para a média diária`
+            }
+          />
+          <Numero
+            valor={decimal(r.media_30)}
+            rotulo="média por dia útil"
+            detalhe={`${r.n30} móveis em ${r.dias_uteis_30} dias úteis (30 dias)`}
+          />
+          <Numero
+            valor={r.montados_mes}
+            rotulo="montados no mês"
+            detalhe={`${decimal(r.media_mes)} por dia útil até ${eHoje ? 'hoje' : 'o dia'}`}
+          />
+          <Numero
+            valor={duracao(tempoHoje)}
+            rotulo={`tempo médio ${doDia}`}
+            detalhe={`${nomeDaMedida(medida)} dos 30 dias: ${duracao(tempo30)}`}
+          />
+        </section>
+      )}
+
+      {/* a coluna e o gráfico: com um só ligado, ele ocupa a largura toda (sem buraco) */}
+      {(mostraColuna || mostraGrafico) && (
+        <section
+          className={
+            mostraColuna && mostraGrafico
+              ? 'grid flex-1 gap-[clamp(0.5rem,1.2vw,1.25rem)] lg:grid-cols-[1fr_2fr]'
+              : 'grid flex-1 gap-[clamp(0.5rem,1.2vw,1.25rem)]'
           }
-        />
-        <Numero
-          valor={decimal(r.media_30)}
-          rotulo="média por dia útil"
-          detalhe={`${r.n30} móveis em ${r.dias_uteis_30} dias úteis (30 dias)`}
-        />
-        <Numero
-          valor={r.montados_mes}
-          rotulo="montados no mês"
-          detalhe={`${decimal(r.media_mes)} por dia útil até ${eHoje ? 'hoje' : 'o dia'}`}
-        />
-        <Numero
-          valor={duracao(r.tempo_medio_hoje_s)}
-          rotulo={`tempo médio ${doDia}`}
-          detalhe={`mediana dos 30 dias: ${duracao(r.mediana_30_s)}`}
-        />
-      </section>
-
-      <section className="grid flex-1 gap-[clamp(0.5rem,1.2vw,1.25rem)] lg:grid-cols-[1fr_2fr]">
-        <div className="flex flex-col gap-[clamp(0.4rem,0.8vw,0.9rem)]">
-          {r.montadores.length === 0 ? (
-            <p className="rounded-dm-lg border border-borda bg-superficie p-4 text-texto-suave">
-              Ninguém da equipe do painel montou nos últimos 30 dias.
-            </p>
-          ) : (
-            r.montadores.map((m) => (
-              <div
-                key={m.letra}
-                className="flex items-center gap-4 rounded-dm-lg border border-borda bg-superficie p-[clamp(0.6rem,1vw,1.1rem)]"
-                style={{ borderLeft: `10px solid ${corDa(m.letra, letras)}` }}
-              >
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-[1.1em] font-semibold">Montador {m.letra}</span>
-                  <span className="text-[0.85em] text-texto-suave">
-                    {m.hoje > 0 && m.mediana_hoje_s !== null
-                      ? `mediana ${doDia} ${duracao(m.mediana_hoje_s)} · `
-                      : ''}
-                    ritmo {decimal(m.ritmo)}/dia
-                  </span>
-                </div>
-                <span className="font-marca text-[2.6em] leading-none font-semibold tabular-nums">
-                  {m.hoje}
-                </span>
-              </div>
-            ))
+        >
+          {mostraColuna && (
+            <div
+              data-bloco="montadores"
+              className={
+                mostraGrafico
+                  ? 'flex flex-col gap-[clamp(0.4rem,0.8vw,0.9rem)]'
+                  : 'grid content-start gap-[clamp(0.4rem,0.8vw,0.9rem)] sm:grid-cols-2 xl:grid-cols-3'
+              }
+            >
+              {r.montadores.length === 0 ? (
+                <p className="rounded-dm-lg border border-borda bg-superficie p-4 text-texto-suave">
+                  Ninguém da equipe do painel montou nos últimos 30 dias.
+                </p>
+              ) : (
+                r.montadores.map((m) => {
+                  const tempoDele = tempoDaMedida(medida, {
+                    mediana_s: m.mediana_hoje_s,
+                    media_s: m.media_hoje_s,
+                  })
+                  return (
+                    <div
+                      key={m.letra}
+                      className="flex items-center gap-4 rounded-dm-lg border border-borda bg-superficie p-[clamp(0.6rem,1vw,1.1rem)]"
+                      style={{ borderLeft: `10px solid ${corDa(m.letra, letras)}` }}
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-[1.1em] font-semibold">Montador {m.letra}</span>
+                        <span className="text-[0.85em] text-texto-suave">
+                          {m.hoje > 0 && tempoDele !== null
+                            ? `${nomeDaMedida(medida)} ${doDia} ${duracao(tempoDele)} · `
+                            : ''}
+                          ritmo {decimal(m.ritmo)}/dia
+                        </span>
+                      </div>
+                      <span className="font-marca text-[2.6em] leading-none font-semibold tabular-nums">
+                        {m.hoje}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
+            </div>
           )}
-        </div>
 
-        <div className="flex min-h-[18rem] flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-[clamp(0.6rem,1vw,1.1rem)]">
-          <h2 className="text-[1em] font-semibold">Móveis montados nos últimos 14 dias</h2>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dados} margin={{ top: 28, right: 8, left: -8, bottom: 0 }}>
-                <CartesianGrid stroke="var(--dm-borda)" strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="rotulo"
-                  tick={{ fontSize: 16, fill: 'var(--dm-texto-suave)' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 14, fill: 'var(--dm-texto-suave)' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  cursor={{ fill: 'var(--dm-superficie-sutil)' }}
-                  content={({ active, payload }) => {
-                    const p = payload?.[0]?.payload as (typeof dados)[number] | undefined
-                    if (!active || !p) return null
-                    return (
-                      <TooltipGrafico
-                        titulo={diaPorExtenso(p.dia)}
-                        linhas={[
-                          { rotulo: p.total === 1 ? '1 móvel' : `${p.total} móveis`, valor: '' },
-                          ...series
-                            .map((s) => ({ s, n: Number((p as Record<string, unknown>)[s] ?? 0) }))
-                            .filter((x) => x.n > 0)
-                            .map((x) => ({
-                              cor: corDa(x.s, letras),
-                              rotulo: nomeDa(x.s),
-                              valor: x.n,
-                            })),
-                        ]}
-                      />
-                    )
-                  }}
-                />
+          {mostraGrafico && (
+            <div
+              data-bloco="grafico"
+              data-grafico={painel.grafico_tv}
+              className="flex min-h-[18rem] flex-col gap-2 rounded-dm-lg border border-borda bg-superficie p-[clamp(0.6rem,1vw,1.1rem)]"
+            >
+              <h2 className="text-[1em] font-semibold">Móveis montados nos últimos 14 dias</h2>
+              <div className="min-h-0 flex-1">
                 {/* sem animação: a TV relê a cada móvel que sai — barra crescendo toda vez distrai de longe */}
-                {series.map((s) => (
-                  <Bar
-                    key={s}
-                    dataKey={s}
-                    stackId="tv"
-                    isAnimationActive={false}
-                    fill={corDa(s, letras)}
-                    stroke="var(--dm-superficie)"
-                    strokeWidth={1}
-                  />
-                ))}
-                {/* o total em cima de TODA barra: uma barra invisível de altura ínfima no topo da pilha (a de altura zero não ganha rótulo) */}
-                <Bar
-                  dataKey="topo"
-                  stackId="tv"
-                  fill="transparent"
-                  legendType="none"
-                  isAnimationActive={false}
-                >
-                  <LabelList
-                    dataKey="total"
-                    position="top"
-                    formatter={(v) => (Number(v) > 0 ? String(v) : '')}
-                    style={{ fill: 'var(--dm-texto)', fontSize: 18, fontWeight: 700 }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {series.length > 0 && (
-            <p className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8em] text-texto-suave">
-              {series.map((s) => (
-                <span key={s} className="flex items-center gap-1.5">
-                  <span
-                    aria-hidden
-                    className="size-3 rounded-sm"
-                    style={{ background: corDa(s, letras) }}
-                  />
-                  {nomeDa(s)}
-                </span>
-              ))}
-            </p>
+                <GraficoMoveis
+                  tipo={painel.grafico_tv}
+                  deLonge
+                  dados={dados}
+                  series={series.map((s) => ({ chave: s, cor: corDa(s, letras) }))}
+                  dica={(p) => (
+                    <TooltipGrafico
+                      titulo={diaPorExtenso(p.dia)}
+                      linhas={[
+                        { rotulo: p.total === 1 ? '1 móvel' : `${p.total} móveis`, valor: '' },
+                        ...series
+                          .map((s) => ({ s, n: Number((p as Record<string, unknown>)[s] ?? 0) }))
+                          .filter((x) => x.n > 0)
+                          .map((x) => ({
+                            cor: corDa(x.s, letras),
+                            rotulo: nomeDa(x.s),
+                            valor: x.n,
+                          })),
+                      ]}
+                    />
+                  )}
+                />
+              </div>
+              {/* nas barras só com o total não há cor por letra: a legenda sai */}
+              {series.length > 0 && painel.grafico_tv !== 'barras' && (
+                <p className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8em] text-texto-suave">
+                  {series.map((s) => (
+                    <span key={s} className="flex items-center gap-1.5">
+                      <span
+                        aria-hidden
+                        className="size-3 rounded-sm"
+                        style={{ background: corDa(s, letras) }}
+                      />
+                      {nomeDa(s)}
+                    </span>
+                  ))}
+                </p>
+              )}
+            </div>
           )}
-        </div>
-      </section>
+        </section>
+      )}
+
+      {!painel.tv_numeros && !mostraColuna && !mostraGrafico && (
+        <p role="status" className="text-texto-suave">
+          Os números, a coluna dos montadores e o gráfico estão desligados na configuração do
+          painel.
+        </p>
+      )}
     </>
   )
 }

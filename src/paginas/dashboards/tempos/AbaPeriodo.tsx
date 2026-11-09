@@ -1,19 +1,10 @@
 import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { Tabela } from '@/componentes/ui'
 import { Heroi } from '@/dashboards/componentes/Heroi'
 import { TooltipGrafico } from '@/dashboards/componentes/TooltipGrafico'
 import { buscarPeriodo, type RespostaPeriodo } from '@/dashboards/tempos/api'
+import { chaveDoPeriodo } from '@/dashboards/tempos/consultas'
 import {
   decimal,
   diaCurto,
@@ -22,6 +13,13 @@ import {
   horas,
   nomeDaChave,
 } from '@/dashboards/tempos/formato'
+import { GraficoMoveis } from '@/dashboards/tempos/GraficoMoveis'
+import {
+  legendaDaMedida,
+  nomeDaMedidaCapital,
+  painelDe,
+  tempoDaMedida,
+} from '@/dashboards/tempos/painel'
 import type { PropsAba } from '../TemposProducao'
 import { Carregando, Cobertura, ErroLeitura, Painel, Vazio } from './comum'
 
@@ -42,10 +40,13 @@ const COR_RESTO = 'var(--dm-borda-forte)'
  * período, os móveis por dia (por semana acima de 70 dias) empilhados por quem
  * montou, onde vai o tempo do setor (fila × trabalho × parado, e o retrabalho),
  * a tabela por montador e os móveis mais montados.
+ *
+ * SESSAO-47 (Bloco C): o tipo do gráfico e o número do tempo médio (mediana ou
+ * média) vêm da configuração do painel, na mesma resposta (`r.painel`).
  */
 export function AbaPeriodo({ filtros, aoContador }: PropsAba) {
   const consulta = useQuery({
-    queryKey: ['tempos-producao', 'periodo', filtros],
+    queryKey: chaveDoPeriodo(filtros),
     queryFn: () => buscarPeriodo(filtros),
     staleTime: Infinity,
   })
@@ -63,6 +64,8 @@ export function AbaPeriodo({ filtros, aoContador }: PropsAba) {
 function Conteudo({ r }: { r: RespostaPeriodo }) {
   const ehMontagem = /montagem/i.test(r.setor.nome)
   const verbo = ehMontagem ? 'montados' : 'feitos'
+  const painel = painelDe(r)
+  const medida = painel.medida
   const cor = (chave: string, i: number) =>
     chave === '+' || chave === '' ? COR_RESTO : CORES[i % CORES.length]
   const series = r.grafico.series
@@ -114,12 +117,8 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
         />
         <Heroi
           rotulo="Tempo médio por móvel"
-          valor={duracao(r.numeros.mediana_s)}
-          detalhe={
-            r.numeros.media_s !== null
-              ? `mediana · a média é ${duracao(r.numeros.media_s)}`
-              : 'mediana'
-          }
+          valor={duracao(tempoDaMedida(medida, r.numeros))}
+          detalhe={legendaDaMedida(medida, r.numeros, duracao)}
         />
       </section>
       <Cobertura total={r.numeros.cobertura_total} comTempo={r.numeros.cobertura_com_tempo} />
@@ -136,91 +135,49 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
           <Vazio>Nenhum móvel saiu do setor no período.</Vazio>
         ) : (
           <>
-            <div className="h-[clamp(14rem,40vh,22rem)]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dados} margin={{ top: 18, right: 8, left: -12, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--dm-borda)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="rotulo"
-                    tick={{ fontSize: 11, fill: 'var(--dm-texto-suave)' }}
-                    axisLine={false}
-                    tickLine={false}
+            {/* SESSAO-47: o tipo do gráfico vem da configuração do painel (o padrão é o empilhado de sempre) */}
+            <div className="h-[clamp(14rem,40vh,22rem)]" data-grafico={painel.grafico_periodo}>
+              <GraficoMoveis
+                tipo={painel.grafico_periodo}
+                dados={dados}
+                series={series.map((s, i) => ({ chave: s.chave || 'sem', cor: cor(s.chave, i) }))}
+                dica={(p) => (
+                  <TooltipGrafico
+                    titulo={
+                      r.grafico.agrupado === 'semana'
+                        ? `Semana de ${diaCurto(p.balde)}`
+                        : diaPorExtenso(p.balde)
+                    }
+                    linhas={[
+                      { rotulo: p.total === 1 ? '1 móvel' : `${p.total} móveis`, valor: '' },
+                      ...series
+                        .map((s, i) => ({
+                          s,
+                          i,
+                          n: Number((p as Record<string, unknown>)[s.chave || 'sem'] ?? 0),
+                        }))
+                        .filter((x) => x.n > 0)
+                        .map((x) => ({
+                          cor: cor(x.s.chave, x.i),
+                          rotulo: nomeDaChave(x.s.chave, r.pessoas),
+                          valor: x.n,
+                        })),
+                    ]}
                   />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fontSize: 11, fill: 'var(--dm-texto-suave)' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'var(--dm-superficie-sutil)' }}
-                    content={({ active, payload }) => {
-                      const p = payload?.[0]?.payload as (typeof dados)[number] | undefined
-                      if (!active || !p) return null
-                      return (
-                        <TooltipGrafico
-                          titulo={
-                            r.grafico.agrupado === 'semana'
-                              ? `Semana de ${diaCurto(p.balde)}`
-                              : diaPorExtenso(p.balde)
-                          }
-                          linhas={[
-                            { rotulo: p.total === 1 ? '1 móvel' : `${p.total} móveis`, valor: '' },
-                            ...series
-                              .map((s, i) => ({
-                                s,
-                                i,
-                                n: Number((p as Record<string, unknown>)[s.chave || 'sem'] ?? 0),
-                              }))
-                              .filter((x) => x.n > 0)
-                              .map((x) => ({
-                                cor: cor(x.s.chave, x.i),
-                                rotulo: nomeDaChave(x.s.chave, r.pessoas),
-                                valor: x.n,
-                              })),
-                          ]}
-                        />
-                      )
-                    }}
-                  />
-                  {series.map((s, i) => (
-                    <Bar
-                      key={s.chave || 'sem'}
-                      dataKey={s.chave || 'sem'}
-                      stackId="m"
-                      isAnimationActive={false}
-                      fill={cor(s.chave, i)}
-                      stroke="var(--dm-superficie)"
-                      strokeWidth={1}
-                      radius={i === series.length - 1 ? [4, 4, 0, 0] : undefined}
-                    />
-                  ))}
-                  {/* o total em cima de TODA barra: uma barra invisível de altura ínfima no topo da pilha (a de altura zero não ganha rótulo) */}
-                  <Bar
-                    dataKey="topo"
-                    stackId="m"
-                    fill="transparent"
-                    legendType="none"
-                    isAnimationActive={false}
-                  >
-                    <LabelList
-                      dataKey="total"
-                      position="top"
-                      formatter={(v) => (Number(v) > 0 ? String(v) : '')}
-                      style={{ fill: 'var(--dm-texto)', fontSize: 11, fontWeight: 700 }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                )}
+              />
             </div>
             <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-suave">
               {series.map((s, i) => (
                 <span key={s.chave || 'sem'} className="flex items-center gap-1.5">
-                  <span
-                    aria-hidden
-                    className="size-2.5 rounded-sm"
-                    style={{ background: cor(s.chave, i) }}
-                  />
+                  {/* nas barras só com o total não há cor por montador: a legenda fica só com os números */}
+                  {painel.grafico_periodo !== 'barras' && (
+                    <span
+                      aria-hidden
+                      className="size-2.5 rounded-sm"
+                      style={{ background: cor(s.chave, i) }}
+                    />
+                  )}
                   {nomeDaChave(s.chave, r.pessoas)} ({s.n})
                 </span>
               ))}
@@ -368,10 +325,13 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
               celula: (p) => <span className="tabular-nums">{decimal(p.por_dia)}</span>,
             },
             {
-              chave: 'mediana',
-              cabecalho: 'Mediana',
+              // SESSAO-47: a coluna diz qual número está valendo (mediana ou média)
+              chave: 'medida',
+              cabecalho: nomeDaMedidaCapital(medida),
               alinhamento: 'direita',
-              celula: (p) => <span className="tabular-nums">{duracao(p.mediana_s)}</span>,
+              celula: (p) => (
+                <span className="tabular-nums">{duracao(tempoDaMedida(medida, p))}</span>
+              ),
             },
             {
               chave: 'total',
