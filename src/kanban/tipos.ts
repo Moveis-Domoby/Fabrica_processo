@@ -169,6 +169,26 @@ export interface StandbyDoPedido {
   standby_periodos?: { ini: string; fim: string }[] | null
 }
 
+/**
+ * SESSAO-47: o pedido que o Tiny tinha levado adiante (Faturado, Pronto para
+ * envio, Enviado) e que a logística devolveu ao PCP pedindo ao Tiny a situação
+ * de antes. Enquanto o Tiny não mostra outra situação, o pedido fica no PCP com
+ * esta marca — a tela diz se o Tiny ainda não confirmou.
+ */
+export interface VoltaPcp {
+  desde: string
+  /** O que foi pedido ao Tiny (os nomes que a API dele usa). */
+  situacao_pedida: 'aberto' | 'preparando_envio'
+  /** O que o Tiny mostra agora. */
+  situacao_tiny: string | null
+  /**
+   * A fila de saída: esperando a resposta · falhando (tentando de novo) ·
+   * parado (o Tiny recusou, os administradores foram avisados) · aceito (o Tiny
+   * aceitou; falta só a situação nova chegar).
+   */
+  estado: 'esperando' | 'falhando' | 'parado' | 'aceito'
+}
+
 /** Colunas de plt_cards que o front lê — espelho do tipo Card acima. */
 export const COLUNAS_CARD =
   'id, tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, ' +
@@ -214,6 +234,8 @@ export interface PedidoResumo {
    * RESERVADAS para ele (o resto, de `pecas_estoque`, está livre).
    */
   pecas_reservadas?: number
+  /** SESSAO-47: a logística devolveu este pedido ao PCP e o Tiny ainda não mostrou a situação nova. */
+  volta_pcp?: VoltaPcp | null
 }
 
 /**
@@ -369,6 +391,9 @@ export interface EventoLinhaTempo {
     | 'auxilio_encerrado'
     // SESSAO-42 (regra 14): a decisão manual sobre o tempo de uma passagem.
     | 'tempo_decisao'
+    // SESSAO-47: a volta ao PCP do pedido que o Tiny levou adiante, e o fim dela.
+    | 'pedido_volta_pcp'
+    | 'pedido_volta_pcp_fim'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

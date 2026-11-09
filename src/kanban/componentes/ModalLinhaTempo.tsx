@@ -93,6 +93,9 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   // SESSAO-38 (D-169): o stand-by do pedido no PCP.
   pedido_standby_entrou: 'Pedido em stand-by',
   pedido_standby_saiu: 'Pedido saiu do stand-by',
+  // SESSAO-47: a logística devolveu ao PCP o pedido que o Tiny tinha levado adiante.
+  pedido_volta_pcp: 'Voltou ao PCP (situação pedida ao Tiny)',
+  pedido_volta_pcp_fim: 'O Tiny mudou a situação',
   // SESSAO-36 (D-146): o auxílio.
   auxilio_iniciado: 'Ajuda iniciada',
   auxilio_pausado: 'Ajuda pausada',

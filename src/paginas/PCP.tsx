@@ -43,6 +43,7 @@ const AbaLancamentoManual = lazy(() =>
   })),
 )
 import { arquivarCard } from '@/logistica/api'
+import { avisoDaVolta } from '@/logistica/voltaPcp'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { duracaoUtilDesde, formatarTempoUtil, noExpediente, tempoPcpMs } from '@/kanban/tempoUtil'
 import { useReguaTempo } from '@/kanban/useReguaTempo'
@@ -865,6 +866,8 @@ function CartaoPedidoPcp({
     .filter(Boolean)
     .join(' + ')
   const cancelado = pedidoCancelado(resumo?.situacao)
+  // SESSAO-47: o pedido voltou ao PCP pela plataforma e o Tiny ainda não confirmou a situação pedida
+  const esperandoTiny = avisoDaVolta(resumo?.volta_pcp)
   // SESSAO-38 (D-167): o tempo do pedido no PCP conta só o expediente do PCP
   // (e nunca o stand-by) — o relógio para à noite e no fim de semana.
   const regua = useReguaTempo()
@@ -925,8 +928,19 @@ function CartaoPedidoPcp({
       {(noEstoque > 0 ||
         cancelado ||
         resumo?.alterado_apos_liberacao ||
+        esperandoTiny !== null ||
         (etiquetas?.length ?? 0) > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* SESSAO-47: a logística devolveu o pedido ao PCP e o Tiny ainda não mostrou a situação nova. */}
+          {esperandoTiny && (
+            <span
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto"
+              title={esperandoTiny.detalhe}
+            >
+              <AlertTriangle aria-hidden className="size-3.5 shrink-0" />
+              <span className="break-words">{esperandoTiny.texto}</span>
+            </span>
+          )}
           {/* Rodada de 30/09 (D-62): há peça no galpão que atende este pedido. */}
           {noEstoque > 0 && (
             <span
@@ -1071,6 +1085,8 @@ function CartaoStandbyPcp({
     agora,
   )
   const desde = resumo?.standby_desde ? new Date(resumo.standby_desde) : null
+  // SESSAO-47: voltou ao PCP pela plataforma e o Tiny ainda não confirmou a situação pedida
+  const esperandoTiny = avisoDaVolta(resumo?.volta_pcp)
   return (
     <li className="flex h-full min-w-0 flex-col gap-3 rounded-dm-lg border border-atencao-forte bg-superficie p-4">
       <header className="flex items-start justify-between gap-3">
@@ -1100,6 +1116,18 @@ function CartaoStandbyPcp({
             <span className="break-words">Stand-by · {resumo?.standby_motivo ?? '…'}</span>
           </span>
         </p>
+        {/* SESSAO-47: voltou ao PCP (em stand-by) pela plataforma e o Tiny ainda não confirmou. */}
+        {esperandoTiny && (
+          <p>
+            <span
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto"
+              title={esperandoTiny.detalhe}
+            >
+              <AlertTriangle aria-hidden className="size-3.5 shrink-0" />
+              <span className="break-words">{esperandoTiny.texto}</span>
+            </span>
+          </p>
+        )}
         <p className="text-xs text-texto-suave tabular-nums">
           {desde ? `Desde ${desde.toLocaleString('pt-BR', DIA_E_HORA)}` : 'Em stand-by'}
           {resumo?.standby_por ? ` · por ${resumo.standby_por}` : ''}

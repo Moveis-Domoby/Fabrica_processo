@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Estado } from '@/componentes/ui'
+import type { VoltaPcp } from '@/kanban/tipos'
 import { pastaDoProduto } from '@/tablet/api'
 
 /**
@@ -571,7 +572,14 @@ export async function baixarPecaPersonalizada(cardId: number, observacao: string
 // ---------------------------------------------------------------------------
 
 /** Os filtros da Expedição (os quadradinhos do topo). */
-export type FiltroExpedicao = 'todos' | 'com_rota' | 'sem_rota' | 'prontos' | 'em_producao'
+export type FiltroExpedicao =
+  | 'todos'
+  | 'com_rota'
+  | 'sem_rota'
+  | 'prontos'
+  | 'em_producao'
+  // SESSAO-47: o que o Tiny levou adiante (Faturado, Pronto para envio, Enviado) com produto por liberar
+  | 'saiu_do_pcp'
 
 /** pronto · em produção (alguma peça liberada) · no PCP (nada liberado ainda). */
 export type EstadoPedidoVivo = 'pronto' | 'em_producao' | 'no_pcp'
@@ -603,6 +611,18 @@ export interface PedidoExpedicao {
   /** SESSAO-38 (D-171): segurado pelo PCP — fica na Expedição com a marca, fora das rotas. */
   standby?: { desde: string; motivo: string | null } | null
   alterado_apos_liberacao: boolean
+  /**
+   * SESSAO-47: no Tiny o pedido está Faturado, Pronto para envio ou Enviado e a
+   * plataforma não o devolveu ao PCP — a janela de liberar peça pergunta o que fazer.
+   */
+  tiny_adiantado?: boolean
+  /**
+   * SESSAO-47: o pedido saiu do PCP pela situação do Tiny e ainda tem produto
+   * por liberar — o aviso da Expedição (a situação real e quantos faltam).
+   */
+  saiu_do_pcp?: { situacao: string | null; faltam: number } | null
+  /** SESSAO-47: a logística já o devolveu ao PCP e o Tiny ainda não mostrou a situação nova. */
+  volta_pcp?: VoltaPcp | null
   programacao: {
     data: string
     caminhao_id: number
@@ -618,10 +638,17 @@ export interface ContagensExpedicao {
   sem_rota: number
   prontos: number
   em_producao: number
+  /** SESSAO-47 (o banco de antes não manda). */
+  saiu_do_pcp?: number
 }
 
 export interface PaginaExpedicao {
   filtro: FiltroExpedicao
+  /**
+   * SESSAO-47: a ida ao Tiny está ligada (a chave "Entregue vai ao Tiny" das
+   * Rotas)? Desligada, os botões de voltar ao PCP ficam apagados, com a explicação.
+   */
+  tiny_ligado?: boolean
   contagens: ContagensExpedicao
   /** Quantos o filtro (com a busca) tem — para a paginação. */
   total: number
@@ -808,13 +835,22 @@ export interface ResultadoLiberacao {
   standby?: boolean
   /** O Tiny já levou o pedido de origem adiante (faturado…): ele não aparece no quadro do PCP. */
   tiny_adiante?: boolean
+  /** SESSAO-47: o pedido de origem voltou de fato ao PCP (o banco de antes não manda). */
+  voltou_ao_pcp?: boolean
+  /** SESSAO-47: a situação do pedido de origem no Tiny na hora do gesto. */
+  tiny_situacao?: string | null
+  /** SESSAO-47: a situação pedida ao Tiny junto com a volta ao PCP (nulo = nada foi pedido). */
+  tiny_pedido?: SituacaoDaVolta | null
 }
 
 /**
  * Libera a peça pronta para outro pedido (`paraNumero`) ou registra que ela saiu
  * por substituição (`motivo`). `relancar`: o pedido de origem volta ao PCP para
  * produzir de novo (sim) ou fica em stand-by (não). `chave`: a do toque (o
- * toque repetido não faz nada duas vezes).
+ * toque repetido não faz nada duas vezes). SESSAO-47 — `tiny`: com o pedido de
+ * origem adiantado no Tiny, o que fazer no mesmo gesto (voltar a situação lá e
+ * devolver ao PCP, ou deixar como está); só vai quando a tela perguntou — o
+ * banco de antes não conhece o parâmetro.
  */
 export async function liberarPecaParaOutroPedido(parametros: {
   pecaId: number
@@ -822,6 +858,7 @@ export async function liberarPecaParaOutroPedido(parametros: {
   motivo: string | null
   relancar: boolean
   chave: string
+  tiny?: EscolhaDoTiny | null
 }): Promise<ResultadoLiberacao> {
   const { data, error } = await supabase.rpc('plt_fn_liberar_peca', {
     p_peca_id: parametros.pecaId,
@@ -829,7 +866,50 @@ export async function liberarPecaParaOutroPedido(parametros: {
     p_motivo: parametros.motivo?.trim() || null,
     p_relancar: parametros.relancar,
     p_chave: parametros.chave,
+    ...(parametros.tiny ? { p_tiny: parametros.tiny } : {}),
   })
   if (error) throw new Error(error.message)
   return data as ResultadoLiberacao
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-47: o pedido que o Tiny levou adiante e que ainda tem produto por
+// liberar volta ao PCP pela plataforma — que muda a situação dele no Tiny.
+// ---------------------------------------------------------------------------
+
+/** Para qual situação o pedido volta no Tiny (os nomes que a API dele usa). */
+export type SituacaoDaVolta = 'aberto' | 'preparando_envio'
+
+/** Na janela de liberar peça: voltar a situação no Tiny, ou deixar como está. */
+export type EscolhaDoTiny = SituacaoDaVolta | 'deixar'
+
+export interface ResultadoVoltaPcp {
+  feito: boolean
+  /** O mesmo toque de novo — nada foi feito duas vezes. */
+  repetido?: boolean
+  /** Por que nada foi feito: o Tiny já não está adiante, ou o pedido já tinha voltado. */
+  motivo?: 'tiny_nao_esta_adiante' | 'ja_devolvido'
+  numero?: number
+  faltam?: number
+  situacao_antes?: string | null
+  situacao_pedida?: SituacaoDaVolta
+  standby?: boolean
+}
+
+/**
+ * Devolve o pedido ao PCP na hora e pede ao Tiny a situação escolhida (uma
+ * chamada, idempotente pela chave do toque). Logística e admin.
+ */
+export async function voltarPedidoAoPcp(parametros: {
+  cardId: number
+  situacao: SituacaoDaVolta
+  chave: string
+}): Promise<ResultadoVoltaPcp> {
+  const { data, error } = await supabase.rpc('plt_fn_pedido_voltar_pcp', {
+    p_card_id: parametros.cardId,
+    p_situacao: parametros.situacao,
+    p_chave: parametros.chave,
+  })
+  if (error) throw new Error(error.message)
+  return data as ResultadoVoltaPcp
 }

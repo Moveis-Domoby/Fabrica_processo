@@ -22,7 +22,9 @@ export interface Aviso {
  * Para onde tocar no aviso leva (nulo = só marca como lido). SESSAO-31
  * (D-129): a devolução abre direto a telinha "Decidir situação" no Estoque.
  */
-export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'> & { titulo?: string }): string | null {
+export function destinoDoAviso(
+  aviso: Pick<Aviso, 'tipo' | 'card_id'> & { titulo?: string },
+): string | null {
   // SESSAO-46 (D-264): "Sugestão #N pronta para testar" / "… recusada" abrem a ficha da sugestão.
   const sugestao = sugestaoDoAviso({ tipo: aviso.tipo, titulo: aviso.titulo ?? '' })
   if (sugestao !== null) return `?sugestao=${sugestao}`
@@ -36,6 +38,10 @@ export function destinoDoAviso(aviso: Pick<Aviso, 'tipo' | 'card_id'> & { titulo
   if (aviso.tipo === 'webhook_falhou') return '/configuracoes/api'
   // SESSAO-41 · ajuste (D-198): o card esquecido abre a pergunta urgente (Sim / Não).
   if (aviso.tipo === 'card_esquecido') return '?esquecidos=1'
+  // SESSAO-47: o pedido que o Tiny levou adiante com produto por liberar — o aviso
+  // leva à Expedição já no filtro deles (é lá que se devolve ao PCP).
+  if (aviso.tipo === 'pedido_adiantado_tiny')
+    return '/fabrica/logistica/expedicao?filtro=saiu_do_pcp'
   // SESSAO-31 (§3): responsável e menção abrem a janela do card, ali mesmo.
   // SESSAO-42: "Móvel pulou a montagem" (saiu do setor sem ninguém iniciar) também.
   if (

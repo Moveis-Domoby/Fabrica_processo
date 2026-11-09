@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -14,24 +14,43 @@ import {
   PackageX,
   Search,
   Truck,
+  Undo2,
 } from 'lucide-react'
-import { Abas, Botao, Campo, Modal, Paginacao } from '@/componentes/ui'
+import { Abas, Botao, Campo, Modal, Paginacao, useNotificacao } from '@/componentes/ui'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import type { Aba } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { unidadesDoPedido } from '@/kanban/api'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
 import { useAcessoLogistica } from '@/logistica/acesso'
-import { listarExpedicao } from '@/logistica/api'
-import type { ContagensExpedicao, FiltroExpedicao, PedidoExpedicao } from '@/logistica/api'
+import { listarExpedicao, voltarPedidoAoPcp } from '@/logistica/api'
+import type {
+  ContagensExpedicao,
+  FiltroExpedicao,
+  PedidoExpedicao,
+  SituacaoDaVolta,
+} from '@/logistica/api'
 import { ModalLiberarPeca } from '@/logistica/componentes/ModalLiberarPeca'
 import { PecasProntas } from '@/logistica/componentes/PecasProntas'
 import { nomeDoLugar } from '@/logistica/lugar'
+import {
+  EXPLICACAO_TINY_DESLIGADO,
+  NOME_DA_SITUACAO,
+  ROTULO_VOLTAR,
+  SITUACOES_DA_VOLTA,
+  avisoDaVolta,
+  fraseConfirmarVolta,
+  fraseSaiuDoPcp,
+  produtos,
+} from '@/logistica/voltaPcp'
 import { SeloEstado } from '@/rotas/SeloEstado'
-import { nomeDaRota } from '@/rotas/api'
+import { chaveDoGesto, nomeDaRota } from '@/rotas/api'
 import { useAoVivo } from '@/lib/aoVivo'
 
 const POR_PAGINA = 20
+
+/** As telas que mudam quando o pedido volta ao PCP (releem depois do gesto). */
+const RELER_NA_VOLTA: string[][] = [['expedicao'], ['pcp'], ['programadas'], ['programacao']]
 
 function formatarData(iso: string | null): string {
   return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—'
@@ -44,6 +63,8 @@ const FILTROS: { valor: FiltroExpedicao; rotulo: string }[] = [
   { valor: 'sem_rota', rotulo: 'Sem rota programada' },
   { valor: 'prontos', rotulo: 'Pedidos prontos' },
   { valor: 'em_producao', rotulo: 'Ainda em produção' },
+  // SESSAO-47: o que o Tiny levou adiante com produto por liberar — saiu do PCP e espera a decisão daqui
+  { valor: 'saiu_do_pcp', rotulo: 'Saiu do PCP pelo Tiny' },
 ]
 const VALORES_FILTRO = new Set<string>(FILTROS.map((f) => f.valor))
 
@@ -67,9 +88,16 @@ const VISOES: Aba<VisaoExpedicao>[] = [
  * atalho para abrir o pedido. O "Lançar para ROTAS" saiu: qualquer pedido vivo
  * se programa direto na Programação (D-156). Ao vivo pelo aviso do PCP, do
  * aguardo e da ROTAS (sem relógio).
+ *
+ * ↪️ SESSAO-47: o pedido que o Tiny levou adiante (Faturado, Pronto para envio,
+ * Enviado) e que ainda tem produto por liberar aparece aqui mesmo sem peça
+ * nenhuma, com o aviso da situação real e os dois botões que o devolvem ao PCP
+ * mudando a situação no Tiny (uma chamada, idempotente pela chave do toque).
  */
 export function Expedicao() {
   const { perfil, tenhoAcesso, semAcesso } = useAcessoLogistica()
+  const notificar = useNotificacao()
+  const clienteQuery = useQueryClient()
   const agora = useAgora()
   const [parametros, setParametros] = useSearchParams()
   const filtroUrl = parametros.get('filtro') ?? 'todos'
@@ -85,6 +113,46 @@ export function Expedicao() {
   const [pedidoAberto, setPedidoAberto] = useState<PedidoExpedicao | null>(null)
   // SESSAO-45 (pedido do dono): liberar a peça pronta deste pedido para outro
   const [liberandoDe, setLiberandoDe] = useState<PedidoExpedicao | null>(null)
+  // SESSAO-47: a confirmação de uma frase antes de devolver o pedido ao PCP (a
+  // chave nasce com a confirmação: o toque repetido não faz nada duas vezes)
+  const [voltando, setVoltando] = useState<{
+    linha: PedidoExpedicao
+    situacao: SituacaoDaVolta
+    chave: string
+  } | null>(null)
+
+  const voltar = useMutation({
+    mutationFn: (alvo: NonNullable<typeof voltando>) =>
+      voltarPedidoAoPcp({ cardId: alvo.linha.card_id, situacao: alvo.situacao, chave: alvo.chave }),
+    onSuccess: async (r, alvo) => {
+      const numero = r.numero ?? alvo.linha.numero
+      if (r.feito) {
+        notificar({
+          titulo: `Pedido ${numero} voltou ao PCP`,
+          descricao: `Com ${produtos(r.faltam ?? alvo.linha.saiu_do_pcp?.faltam ?? 0)} para liberar${r.standby ? ', em stand-by' : ''}. No Tiny ele passa para ${NOME_DA_SITUACAO[alvo.situacao]}.`,
+          tom: 'perfeito',
+        })
+      } else if (r.motivo === 'tiny_nao_esta_adiante') {
+        notificar({
+          titulo: `O Tiny já mudou a situação do pedido ${numero}`,
+          descricao: 'Ele já está no PCP — não foi preciso mudar nada.',
+          tom: 'informativo',
+        })
+      } else {
+        notificar({ titulo: 'Isso já tinha sido feito', tom: 'informativo' })
+      }
+      await Promise.all(
+        RELER_NA_VOLTA.map((queryKey) => clienteQuery.invalidateQueries({ queryKey })),
+      )
+      setVoltando(null)
+    },
+    onError: (excecao) =>
+      notificar({
+        titulo: 'Não deu para devolver o pedido ao PCP',
+        descricao: excecao instanceof Error ? excecao.message : undefined,
+        tom: 'danificado',
+      }),
+  })
 
   const listaAberta = tenhoAcesso && visao === 'pedidos'
   const { data, isPending } = useQuery({
@@ -144,7 +212,9 @@ export function Expedicao() {
             <Link to="/fabrica/rotas/programacao" className="font-medium text-texto underline">
               Programação
             </Link>
-            .
+            . Quando o Tiny leva adiante (Faturado, Pronto para envio ou Enviado) um pedido que
+            ainda tem produto por liberar, ele sai do PCP e fica aqui com o aviso — os botões do
+            aviso mudam a situação no Tiny e devolvem o pedido ao PCP.
           </>
         }
       >
@@ -210,8 +280,12 @@ export function Expedicao() {
                   key={linha.card_id}
                   linha={linha}
                   agora={agora}
+                  tinyLigado={data?.tiny_ligado !== false}
                   aoVerUnidades={() => setPedidoAberto(linha)}
                   aoLiberarPeca={() => setLiberandoDe(linha)}
+                  aoVoltarAoPcp={(situacao) =>
+                    setVoltando({ linha, situacao, chave: chaveDoGesto() })
+                  }
                 />
               ))}
             </ul>
@@ -232,8 +306,59 @@ export function Expedicao() {
       <ModalLiberarPeca
         key={liberandoDe ? `liberar-${liberandoDe.card_id}` : 'liberar-fechado'}
         pedido={liberandoDe}
+        tinyLigado={data?.tiny_ligado !== false}
         aoFechar={() => setLiberandoDe(null)}
       />
+
+      {/* SESSAO-47: a confirmação de uma frase antes de mudar a situação no Tiny e devolver ao PCP */}
+      <Modal
+        aberto={voltando !== null}
+        aoFechar={(aberto) => {
+          if (!aberto && !voltar.isPending) setVoltando(null)
+        }}
+        titulo={voltando ? `Voltar o pedido ${voltando.linha.numero} ao PCP?` : 'Voltar ao PCP'}
+        descricao={
+          voltando
+            ? fraseConfirmarVolta({
+                numero: voltando.linha.numero,
+                faltam: voltando.linha.saiu_do_pcp?.faltam ?? 0,
+                situacao: voltando.situacao,
+                standby: Boolean(voltando.linha.standby),
+              })
+            : undefined
+        }
+        rodape={
+          <>
+            <Botao
+              tamanho="lg"
+              variante="secundaria"
+              onClick={() => setVoltando(null)}
+              disabled={voltar.isPending}
+            >
+              Cancelar
+            </Botao>
+            <Botao
+              tamanho="lg"
+              icone={<Undo2 />}
+              onClick={() => voltando && voltar.mutate(voltando)}
+              carregando={voltar.isPending}
+            >
+              Voltar ao PCP
+            </Botao>
+          </>
+        }
+      >
+        {voltando && (
+          <p className="text-sm text-texto-suave">
+            Hoje, no Tiny, ele está como{' '}
+            <strong className="font-semibold text-texto">
+              {voltando.linha.saiu_do_pcp?.situacao ?? voltando.linha.situacao ?? 'adiantado'}
+            </strong>
+            . O pedido volta ao PCP na hora; se o Tiny não aceitar a mudança, ele continua no PCP e
+            a plataforma avisa.
+          </p>
+        )}
+      </Modal>
 
       <Modal
         aberto={pedidoAberto !== null}
@@ -302,13 +427,22 @@ function QuadrosFiltro({
   ativo: FiltroExpedicao
   aoEscolher: (filtro: FiltroExpedicao) => void
 }) {
+  // SESSAO-47: o quadradinho novo só aparece quando o banco manda o número dele
+  // (a tela nova tolera o banco de antes por uns minutos — Lei §7.6).
+  const filtros = FILTROS.filter(
+    (f) =>
+      f.valor !== 'saiu_do_pcp' || contagens?.saiu_do_pcp !== undefined || ativo === 'saiu_do_pcp',
+  )
   return (
     <div
       role="group"
       aria-label="Filtros da Expedição"
-      className="grid grid-cols-2 gap-3 @xl:grid-cols-3 @4xl:grid-cols-5"
+      className={cn(
+        'grid grid-cols-2 gap-3 @xl:grid-cols-3',
+        filtros.length > 5 ? '@4xl:grid-cols-6' : '@4xl:grid-cols-5',
+      )}
     >
-      {FILTROS.map((f) => {
+      {filtros.map((f) => {
         const selecionado = f.valor === ativo
         const numero = contagens?.[f.valor]
         return (
@@ -336,14 +470,23 @@ function QuadrosFiltro({
 function CartaoExpedicao({
   linha,
   agora,
+  tinyLigado,
   aoVerUnidades,
   aoLiberarPeca,
+  aoVoltarAoPcp,
 }: {
   linha: PedidoExpedicao
   agora: number
+  /** SESSAO-47: a ida ao Tiny está ligada? (desligada, os botões de voltar ficam apagados) */
+  tinyLigado: boolean
   aoVerUnidades: () => void
   aoLiberarPeca: () => void
+  aoVoltarAoPcp: (situacao: SituacaoDaVolta) => void
 }) {
+  // SESSAO-47: o Tiny levou o pedido adiante e ainda falta liberar — ele NÃO está no PCP
+  const saiu = linha.saiu_do_pcp ?? null
+  // …ou a logística já o devolveu e o Tiny ainda não mostrou a situação nova
+  const esperandoTiny = avisoDaVolta(linha.volta_pcp)
   const alvo = Math.max(linha.a_entregar, 0)
   const progresso =
     alvo > 0
@@ -363,11 +506,28 @@ function CartaoExpedicao({
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-texto tabular-nums">Pedido {linha.numero}</span>
-          <SeloEstado
-            estado={linha.estado}
-            prontas={linha.unidades_prontas}
-            total={linha.a_entregar}
-          />
+          {saiu && linha.estado === 'no_pcp' ? (
+            // SESSAO-47: nada liberado e fora do PCP — "ainda no PCP" seria mentira
+            <span className="inline-flex items-center gap-1 rounded-full border border-atencao-borda bg-atencao-fundo px-2 py-0.5 text-xs font-medium whitespace-nowrap text-atencao-texto">
+              <AlertTriangle aria-hidden className="size-3.5" />
+              Saiu do PCP pelo Tiny
+            </span>
+          ) : (
+            <SeloEstado
+              estado={linha.estado}
+              prontas={linha.unidades_prontas}
+              total={linha.a_entregar}
+            />
+          )}
+          {esperandoTiny && (
+            <span
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto"
+              title={esperandoTiny.detalhe}
+            >
+              <AlertTriangle aria-hidden className="size-3.5 shrink-0" />
+              <span className="break-words">{esperandoTiny.texto}</span>
+            </span>
+          )}
           {nadaAProduzir && (
             // D-63: pedido só de frete — não há móvel a produzir.
             <span className="rounded-full bg-superficie-sutil px-2.5 py-0.5 text-xs font-medium text-texto-suave">
@@ -401,8 +561,40 @@ function CartaoExpedicao({
         </div>
         <p className="line-clamp-1 text-sm text-texto-suave">
           {linha.cliente_nome || 'Sem cliente'} · previsão {formatarData(linha.data_prevista)}
-          {faltamNoPcp > 0 && <> · {faltamNoPcp} ainda no PCP</>}
+          {faltamNoPcp > 0 && !saiu && <> · {faltamNoPcp} ainda no PCP</>}
         </p>
+
+        {/* SESSAO-47: o aviso do pedido que o Tiny levou adiante com produto por
+            liberar — a situação real, o que falta e os dois botões que mudam a
+            situação lá e devolvem o pedido ao PCP. */}
+        {saiu && (
+          <div
+            role="note"
+            aria-label={`Aviso do pedido ${linha.numero}: saiu do PCP pela situação do Tiny`}
+            className="flex flex-col gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3"
+          >
+            <p className="flex items-start gap-2 text-sm text-atencao-texto">
+              <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+              <span>{fraseSaiuDoPcp(saiu.situacao, saiu.faltam)}</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SITUACOES_DA_VOLTA.map((situacao) => (
+                <Botao
+                  key={situacao}
+                  variante="secundaria"
+                  icone={<Undo2 />}
+                  disabled={!tinyLigado}
+                  onClick={() => aoVoltarAoPcp(situacao)}
+                >
+                  {ROTULO_VOLTAR[situacao]}
+                </Botao>
+              ))}
+            </div>
+            {!tinyLigado && (
+              <p className="text-xs text-atencao-texto">{EXPLICACAO_TINY_DESLIGADO}</p>
+            )}
+          </div>
+        )}
 
         {/* D-39/D-128: a rota do pedido, ou o caminho para programar. */}
         {linha.programacao ? (

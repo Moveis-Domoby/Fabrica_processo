@@ -23,6 +23,9 @@ export const ROTULO_ACAO: Record<string, string> = {
   // SESSAO-38 (D-169): o stand-by do pedido no PCP — o motivo vai no "por quê"
   pedido_standby_entrou: 'Pôs o pedido em stand-by',
   pedido_standby_saiu: 'Tirou o pedido do stand-by',
+  // SESSAO-47: a volta ao PCP do pedido que o Tiny tinha levado adiante
+  pedido_volta_pcp: 'Devolveu o pedido ao PCP mudando a situação no Tiny',
+  pedido_volta_pcp_fim: 'O Tiny mudou a situação do pedido devolvido ao PCP',
   pedido_entregue: 'Registrou a entrega do pedido',
   unidade_desvinculada: 'A peça ficou sem pedido',
   peca_alocada: 'Usou uma peça do estoque no pedido',
@@ -216,6 +219,8 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'pcp_pedidos_ajustados',
       'pedido_standby_entrou',
       'pedido_standby_saiu',
+      'pedido_volta_pcp',
+      'pedido_volta_pcp_fim',
       'ajuste_aberto',
       'ajuste_concluido',
       'avulso_concluido',
