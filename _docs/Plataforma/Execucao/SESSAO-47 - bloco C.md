@@ -92,6 +92,7 @@ As 7 portas recriadas levam `set plan_cache_mode = force_custom_plan` (o achado 
 9. **Na tela**: a abertura só roda com o endereço sem aba, setor e período; a resposta é semeada no cache da aba com a MESMA chave (`consultas.ts`) e o endereço é acertado com `replace`. Se a porta de abertura não existir (banco de antes), a tela abre como sempre abriu.
 10. **O salvar** tranca a linha única da configuração (uma gravação por vez), valida chave a chave, compara com o efetivo e só então grava; a trilha leva `o_que_mudou` (frases prontas), `antes`, `depois` e `montadores_ids`.
 11. **Um gráfico só** para a tela e a TV (`GraficoMoveis`), e a janela de configuração em pedaço próprio, baixado só no clique do admin.
+12. **O site publicado (o de antes) com o banco novo** — conferido lendo o código que está no ar (`git show HEAD:…` antes das minhas mudanças): nenhuma assinatura mudou e nenhuma chave saiu; com alguém desligado, a chave zerada chega no mapa de pessoas já com o nome "Outros" (as abas antigas mostram "Outros" sem saber da configuração — foi para isso que o "Outros" entrou no mapa de nomes do banco, e não só na tela nova); a TV antiga trata "A + Outros" como uma dupla (cinza, "Montadores A + Outros") e "Outros" como já tratava. **A tela nova com o banco de antes**: a chave `painel` ausente = padrão; a porta de abertura ausente = abre como sempre; a janela mostra o erro do banco (provado nos testes de tela).
 
 ## Decisões provisórias (para o supervisor levar ao dono — em português de gente)
 
@@ -111,6 +112,7 @@ As 7 portas recriadas levam `set plan_cache_mode = force_custom_plan` (o achado 
 14. **A janela tem um botão "Voltar ao padrão"** (os gráficos, o tempo médio, a abertura e a TV voltam ao desenho de antes; os montadores não são religados por ele).
 15. **A porta da TV continua mandando todos os dados mesmo com um bloco desligado** — quem esconde é a tela (a resposta não muda de forma; a TV antiga, ainda aberta, segue funcionando).
 16. **A configuração é uma só para a fábrica inteira** (o tipo de gráfico, média/mediana, a marca, a abertura e os blocos da TV valem para todos os setores e todas as TVs); só o liga/desliga dos montadores é por setor, porque a equipe do painel é por setor.
+17. **Quando quem lidera filtra por uma pessoa que está desligada do painel**, os móveis dela aparecem, mas com "Outros" no lugar do nome (o filtro continua mostrando o nome dela — a lista do filtro não esconde ninguém). A regra ficou uma só: desligado do painel = sem nome nas abas. Se o dono preferir que filtrar pela pessoa "religue" o nome naquela consulta, é uma mudança pequena no banco.
 
 ## Erros e acertos que valem virar aprendizado (sem numerar)
 
