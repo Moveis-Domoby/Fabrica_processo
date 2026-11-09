@@ -9846,7 +9846,7 @@ conferir(op56lista.length === 0, 'quem não é da logística não vê a lista', 
 const priv56 = await um56(`
   select has_function_privilege('anon', 'public.plt_fn_pcp_ajustar_pedidos(bigint[], text, text)', 'execute') as ajustar_anon,
          has_function_privilege('anon', 'public.plt_fn_pcp_todos_pedidos(text, integer, integer)', 'execute') as todos_anon,
-         has_function_privilege('authenticated', 'plt_privado.fn_fechar_pedido(bigint, uuid, text, text, text)', 'execute') as fechar_logado`)
+         has_function_privilege('authenticated', 'plt_privado.fn_fechar_pedido(bigint, uuid, text, text, text, timestamptz)', 'execute') as fechar_logado`)
 conferir(
   !priv56.ajustar_anon && !priv56.todos_anon && !priv56.fechar_logado,
   'portas novas fechadas para quem não entrou; a maquinaria de fechar o pedido fora da API',
@@ -10509,14 +10509,17 @@ conferir(
   JSON.stringify({ de_novo, filaD2 }),
 )
 // entrega de ontem: não se desfaz
+// ↪️ SESSAO-47: "do dia" passou a contar pelo dia em que a entrega foi REGISTRADA
+// (quem marca hoje "entregue ontem" ainda desfaz hoje) — a entrega de outro dia
+// é a registrada em outro dia
 await como59('')
 const pcE = await pedidoNaRota(959005)
 await como59('')
 await bd.exec(`
   select set_config('plt.entrega_maquinaria', 'on', false);
-  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, dados)
+  insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, registrado_em, dados)
     values (${pcE}, 'pedido_entregue', (select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'),
-            'interface', now() - interval '2 days', '{"fonte": "plataforma"}'::jsonb);
+            'interface', now() - interval '2 days', now() - interval '2 days', '{"fonte": "plataforma"}'::jsonb);
   select set_config('plt.entrega_maquinaria', '', false);
 `)
 await como59(E40.logistica)
@@ -16224,7 +16227,11 @@ try {
                      '20261106030000_plt_numeros_que_batem.sql',
                      // ↪️ SESSAO-47 (E-19/E-144): a base recria o check dos tipos de evento (com a volta
                      // ao PCP e o dia real da entrega) e o VALIDA — a da SESSAO-44 acima o recria sem eles
-                     '20261109010000_plt_sessao47_base.sql']) {
+                     '20261109010000_plt_sessao47_base.sql',
+                     // ↪️ SESSAO-47 · Bloco B (E-24/E-159): as de cima recriam o desfazer, a entrega parcial
+                     // e os leitores da entrega (lista, ficha, rotas, já programadas, entregas do dia,
+                     // calendário, motivos) na versão de antes — a do dia real vem depois, como em produção
+                     '20261109030000_plt_entrega_dia_real.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -17437,9 +17444,11 @@ try {
   const sit = (dia, card) => doDia(dia).itens.find((i) => i.card_id === card)?.situacao ?? null
   conferir(sit('2027-01-12', p1) === 'sem_rota' && sit('2027-01-12', p2) === null,
     'sem rota: no dia da previsão; o programado não aparece no dia da previsão', JSON.stringify(doDia('2027-01-12')))
-  conferir(sit('2027-01-13', p2) === 'na_rota' && sit('2027-01-13', p3) === 'entregue'
+  // ↪️ SESSAO-47: o entregue saiu do dia programado — mora no dia em que a entrega
+  // aconteceu de fato (provado no bloco da SESSAO-47 · Bloco B, no fim do arquivo)
+  conferir(sit('2027-01-13', p2) === 'na_rota' && sit('2027-01-13', p3) === null
       && doDia('2027-01-13').itens[0].caminhao_nome === 'Baú 39' && doDia('2027-01-13').itens[0].rota === 1,
-    'no dia da rota: o programado "na rota" (com o caminhão e a rota) e o entregue', JSON.stringify(doDia('2027-01-13')))
+    'no dia da rota: o programado "na rota" (com o caminhão e a rota); o entregue não fica no dia programado (vai para o dia real da entrega)', JSON.stringify(doDia('2027-01-13')))
   conferir(sit('2027-01-14', p4) === 'nao_entregue' && (doDia('2027-01-14').itens[0].motivo ?? '').startsWith(textoNE)
       && sit('2027-01-15', p4) === 'sem_rota',
     'o não entregue fica no dia da rota, com o motivo; e o pedido volta "sem rota" no dia da previsão', JSON.stringify([doDia('2027-01-14'), doDia('2027-01-15')]))
@@ -17475,8 +17484,10 @@ try {
 
   titulo('SESSAO-39 · Rotas · o calendário pagina por dia, tem teto de período e é só da logística')
 
-  const so1 = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-13', '2027-01-13', 1) as r`))[0].r.dias[0]
-  const prox = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-13', '2027-01-13', 1, 1) as r`))[0].r.dias[0]
+  // ↪️ SESSAO-47: o dia 13 ficou só com o "na rota" (o entregue foi para o dia real) —
+  // o dia com DOIS pedidos agora é o 15 (o sem rota e o stand-by)
+  const so1 = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-15', '2027-01-15', 1) as r`))[0].r.dias[0]
+  const prox = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-15', '2027-01-15', 1, 1) as r`))[0].r.dias[0]
   conferir(so1.total === 2 && so1.itens.length === 1 && prox.itens.length === 1 && so1.itens[0].card_id !== prox.itens[0].card_id,
     'com 1 por dia vem uma barra e o total 2; o "Ver mais" do dia traz a outra', JSON.stringify({ so1, prox }))
   const proxFora = (await logado39r(LOG, `select public.plt_fn_rotas_calendario('2027-01-10', '2027-01-16', 30, 1) as r`))[0].r.fora
@@ -20002,8 +20013,9 @@ try {
   const pE = (sit, itens) => pedido44(7944005, 944005, sit, itens)
   const idE = await gravar44(pE('Aprovado', [A44]), 'inclusao_pedido')
   const cardE = await cardDe(idE)
-  await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, dados)
-                   values (${cardE}, 'pedido_entregue', '${logId}', 'interface', now() - interval '2 days',
+  // ↪️ SESSAO-47: "outro dia" = REGISTRADA em outro dia (o desfazer do dia conta pelo registro)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, registrado_em, dados)
+                   values (${cardE}, 'pedido_entregue', '${logId}', 'interface', now() - interval '2 days', now() - interval '2 days',
                            jsonb_build_object('fonte', 'plataforma', 'situacao_tiny', 'Aprovado'))`)
   await como44(E40.logistica)
   await falha44(`select public.plt_fn_entrega_desfazer(${cardE}, ${motivo44}, 'teste')`,
@@ -21062,6 +21074,487 @@ try {
   await como0611b('')
 }
 } // fim do bloco dos números que batem (06/11)
+
+// ============================================================================
+// SESSAO-47 · BLOCO B (migration 20261109030000_plt_entrega_dia_real.sql): o DIA
+// REAL da entrega. "Marcar como entregue no dia…" — nunca um dia que ainda não
+// chegou nem antes de o pedido chegar à plataforma (conferido no banco); o fato
+// nasce no dia escolhido (o fim do expediente dele) e registrado agora; o toque
+// repetido e o "desfazer do dia" contam pelo REGISTRO; a correção é só do
+// administrador, por fato novo; e todo leitor usa a mesma data (lista, ficha,
+// rotas, já programadas, entregas do dia, calendário com o "programado para" e
+// o número de entregas do painel de motivos). Faixa de teste: usuários
+// …9248xx, pedidos 97201–97215, nomes "47B".
+// ============================================================================
+{ // SESSAO-47 · Bloco B (bloco em escopo próprio — E-70)
+titulo('SESSAO-47 · Bloco B · o cenário: o calendário da fábrica, a rota de hoje com o entregador e os pedidos 972xx')
+
+const um47b = async (sql) => (await bd.query(sql)).rows[0]
+const como47b = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// como a API chama: o papel authenticated + quem está logado (E-103); o ponto
+// de volta mostra o erro de verdade (E-161)
+const logado47b = async (auth, sql) => {
+  await como47b(auth)
+  await bd.exec('savepoint l47b')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l47b')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l47b')
+    await bd.exec('reset role')
+    throw new Error(`logado47b: ${erro.message}`)
+  }
+}
+const recusa47b = async (auth, sql, descricao, padrao) => {
+  await como47b(auth)
+  await bd.exec('savepoint s47b')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s47b')
+    await bd.exec('reset role')
+  }
+}
+// direto na tabela, como o dono do banco (o que nenhuma porta faz)
+const falha47b = async (sql, descricao, padrao) => {
+  await como47b('')
+  await bd.exec('savepoint f47b')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f47b')
+  }
+}
+const ms47b = (v) => (v instanceof Date ? v : new Date(v)).getTime()
+const LOCAL47B = (expr) => `to_char(${expr} at time zone 'America/Fortaleza', 'YYYY-MM-DD HH24:MI:SS')`
+const ENT47B = '00000000-0000-0000-0000-000000924801' // o entregador da equipe da rota
+const FORA47B = '00000000-0000-0000-0000-000000924802' // outro entregador, fora da equipe
+const OPB47B = '00000000-0000-0000-0000-000000924803' // o operador do setor de produção do cenário
+const LOG47B = E40.logistica
+const ADM47B = E40.admin
+
+await como47b('')
+await bd.exec('begin')
+try {
+  const D = await um47b(`select h::text as hoje, (h - 1)::text as ontem, (h - 2)::text as anteontem, (h - 3)::text as d3,
+                               (h + 1)::text as amanha, (h - 7)::text as d7, now() as agora
+                          from (select (now() at time zone 'America/Fortaleza')::date as h) x`)
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (1947201, 'SX47B', 'Aparador Teste 47B', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 47B', 'TST47B1');
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Entregador 47B', 'ent47b@teste.com', '92480000001', 'ent.47b', 'operador', '${ENT47B}', array['fabrica']),
+      ('Entregador de Fora 47B', 'fora47b@teste.com', '92480000002', 'fora.47b', 'operador', '${FORA47B}', array['fabrica']),
+      ('Operador Montagem 47B', 'op47b@teste.com', '92480000003', 'op.47b', 'operador', '${OPB47B}', array['fabrica']);
+    -- o setor de produção do cenário (a peça em execução na hora da entrega)
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('m47b', 'MONTAGEM 47B', 'producao', 995);
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo = 'm47b';
+  `)
+  const ID = await um47b(`
+    select (select id::int from public.plt_caminhoes where placa = 'TST47B1') as cam,
+           (select id::int from public.plt_setores where codigo = 'm47b') as montagem,
+           (select id::int from public.plt_setores where codigo = 'aguardo') as aguardo,
+           (select id from public.plt_usuarios where usuario = 'ent.47b') as ent,
+           (select id from public.plt_usuarios where usuario = 'fora.47b') as fora,
+           (select id from public.plt_usuarios where usuario = 'op.47b') as op,
+           (select id from public.plt_usuarios where auth_user_id = '${LOG47B}') as log,
+           (select id from public.plt_usuarios where auth_user_id = '${ADM47B}') as adm,
+           (select nome from public.plt_usuarios where auth_user_id = '${ADM47B}') as adm_nome,
+           (select id::int from public.plt_motivos where tipo = 'desfazer_entrega' and ativo order by id limit 1) as motivo`)
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      (${ID.montagem}, 'A MONTAR 47B', 10, true), (${ID.montagem}, 'MONTANDO 47B', 20, false);
+    insert into public.plt_usuario_setores (usuario_id, setor_id) values ('${ID.op}', ${ID.montagem});
+    -- o calendário da fábrica, conhecido: todo setor de produção das 07:30 às 12:00 e das 13:00 às
+    -- 17:15, todos os dias; ANTEONTEM é feriado; há três dias houve hora extra até as 19:40
+    delete from public.plt_pausas_tempo;
+    delete from public.plt_tempo_horas_extras;
+    delete from public.plt_tempo_excecoes;
+    delete from public.plt_horarios_funcionamento where escopo = 'setor';
+    insert into public.plt_horarios_funcionamento (escopo, setor_id, dia_semana, hora_inicio, hora_fim)
+      select 'setor', s.id, d, x.ini, x.fim
+        from public.plt_setores s, generate_series(0, 6) d,
+             (values (time '07:30', time '12:00'), (time '13:00', time '17:15')) as x(ini, fim)
+       where s.papel_no_fluxo = 'producao' and s.ativo;
+    insert into public.plt_tempo_excecoes (setor_id, dia, tipo, descricao) values (null, '${D.anteontem}', 'feriado', 'Feriado 47B');
+    insert into public.plt_tempo_horas_extras (setor_id, inicio, fim, motivo)
+      values (${ID.montagem}, ('${D.d3} 17:15'::timestamp at time zone 'America/Fortaleza'),
+              ('${D.d3} 19:40'::timestamp at time zone 'America/Fortaleza'), 'Hora extra 47B');
+  `)
+  const etapaMontando = (await um47b(`select id::int as id from public.plt_etapas where nome = 'MONTANDO 47B'`)).id
+  await como47b(ADM47B)
+  await bd.exec(`select public.plt_fn_usuario_entregador('${ID.ent}', true); select public.plt_fn_usuario_entregador('${ID.fora}', true);`)
+  await como47b('')
+
+  // um pedido que chegou à plataforma há 6 dias (o padrão do cenário), com o card no PCP
+  const pedido47b = async (numero, quantidade = 1) => {
+    await como47b('')
+    await bd.exec(`
+      insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+        (${numero}, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', ${numero}00, '${D.hoje}');
+      insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+        ((select id from public.pedidos where numero = ${numero}), 1, 'SX47B', 'Aparador Teste 47B', ${quantidade});`)
+    const r = await um47b(`select c.id::int as card, p.id::int as pedido from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                            where c.tipo = 'pedido' and p.numero = ${numero}`)
+    await bd.exec(`update public.plt_cards set criado_em = now() - interval '6 days' where id = ${r.card}`)
+    return r
+  }
+  // a peça do pedido: pronta na Expedição, ou num lugar da produção
+  const peca47b = async (p, k, n, setor = ID.aguardo, etapa = null, quando = 'now()') => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${p.pedido}, ${p.card}, 1, 'SX47B', 'Aparador Teste 47B', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem, ocorrido_em)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${setor}, ${etapa ?? 'null'}, 'api', ${quando});`)
+    return (await um47b(`select max(id)::int as id from public.plt_cards where pedido_id = ${p.pedido} and tipo = 'unidade'`)).id
+  }
+  const fato47b = (id) => um47b(`
+    select e.id::int as id, ${LOCAL47B('e.ocorrido_em')} as ocorrido, e.registrado_em = now() as registrado_agora,
+           e.dados ->> 'dia_escolhido' as dia_escolhido, e.dados ->> 'registrado_dia' as registrado_dia, e.observacao,
+           c.entrega_evento_id = e.id as vigente, c.entrega_em = e.ocorrido_em as projetado
+      from public.plt_eventos e join public.plt_cards c on c.id = e.card_id where e.id = ${id}`)
+  const card47b = (card) => um47b(`
+    select c.entrega_evento_id::int as entrega, ${LOCAL47B('c.entrega_em')} as em, c.entrega_em is null as sem_dia,
+           c.arquivado_em is not null as arquivado,
+           (select count(*)::int from public.plt_eventos e where e.card_id = c.id and e.tipo = 'pedido_entregue') as entregas,
+           (select count(*)::int from public.plt_eventos e where e.card_id = c.id and e.tipo = 'entrega_desfeita') as desfeitas,
+           (select count(*)::int from public.plt_eventos e where e.card_id = c.id and e.tipo = 'entrega_dia_corrigido') as correcoes,
+           (select count(*)::int from public.plt_cards u where u.pedido_id = c.pedido_id and u.tipo = 'unidade' and u.arquivado_em is null) as pecas_vivas
+      from public.plt_cards c where c.id = ${card}`)
+  const entreguesNoDia = async (dia) => {
+    const r = (await logado47b(ADM47B, `select public.plt_fn_dash_motivos(('${dia}'::date)::timestamp at time zone 'America/Fortaleza',
+                                          ('${dia}'::date + 1)::timestamp at time zone 'America/Fortaleza') as r`))[0].r
+    return r.rotas.entregues
+  }
+
+  const P1 = await pedido47b(97201) // na rota de hoje: o entregador marca "entregue ontem", desfaz e marca de novo
+  const P2 = await pedido47b(97202) // na rota de hoje: entregue hoje, pelo site publicado (3 parâmetros)
+  const P3 = await pedido47b(97203) // na rota de hoje: a peça em execução na fábrica — entregue anteontem (feriado)
+  const P4 = await pedido47b(97204) // sem rota: chegou ONTEM às 20:00 — os limites do dia
+  const P6 = await pedido47b(97206, 2) // entrega parcial
+  const P7 = await pedido47b(97207) // programado para amanhã, entregue há três dias (hora extra)
+  const P8 = await pedido47b(97208) // entrega registrada ONTEM (o "dia seguinte")
+  const P9 = await pedido47b(97209) // na rota de hoje, por entregar
+  const P11 = await pedido47b(97211) // o dia escolhido é o próprio hoje
+  const u1 = await peca47b(P1, 1, 1)
+  await peca47b(P2, 1, 1)
+  const u3 = await peca47b(P3, 1, 1, ID.montagem, etapaMontando, `now() - interval '3 hours'`)
+  await peca47b(P4, 1, 1)
+  const u6a = await peca47b(P6, 1, 2)
+  const u6b = await peca47b(P6, 2, 2)
+  await peca47b(P7, 1, 1)
+  await peca47b(P8, 1, 1)
+  await peca47b(P9, 1, 1)
+  await peca47b(P11, 1, 1)
+  // a peça do 97203 está sendo montada há uma hora (o tempo aberto)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, usuario_id, ocorrido_em)
+                   values (${u3}, 'execucao_iniciada', 'interface', '${ID.op}', now() - interval '1 hour')`)
+  await bd.exec(`
+    update public.plt_cards set criado_em = ('${D.ontem} 20:00'::timestamp at time zone 'America/Fortaleza') where id = ${P4.card};
+    set local session_replication_role = replica;
+    update public.plt_cards set lancado_rotas_em = now() where id in (${P2.card}, ${P7.card});
+    set local session_replication_role = origin;`)
+  await logado47b(LOG47B, `select public.plt_fn_programar_rota('${D.hoje}', ${ID.cam}, array[${P1.card}, ${P2.card}, ${P3.card}, ${P9.card}]::bigint[], null, 1)`)
+  await logado47b(LOG47B, `select public.plt_fn_programar_rota('${D.amanha}', ${ID.cam}, array[${P7.card}]::bigint[], null, 1)`)
+  await logado47b(LOG47B, `select public.plt_fn_equipe_definir('${D.hoje}', ${ID.cam}, array['${ID.ent}']::uuid[], 1)`)
+  const ontem0 = await entreguesNoDia(D.ontem)
+  conferir([P1, P2, P3, P4, P6, P7, P8, P9, P11].every((p) => p.card > 0) && u1 > 0 && u3 > 0 && typeof ontem0 === 'number',
+    'o cenário nasceu: nove pedidos com card, as peças, a rota de hoje (com o entregador) e a de amanhã')
+
+  titulo('SESSAO-47 · Bloco B · o dia: amanhã é recusado; antes de o pedido chegar, também; hoje e os dias desde a chegada valem')
+
+  await recusa47b(LOG47B, `select public.plt_fn_registrar_entrega(${P4.card}, null, false, '${D.amanha}')`,
+    'o dia de amanhã é recusado pelo banco (não dá para entregar num dia que ainda não chegou)', /ainda não chegou/)
+  await recusa47b(LOG47B, `select public.plt_fn_registrar_entrega(${P4.card}, null, false, '${D.anteontem}')`,
+    'um dia anterior à chegada do pedido à plataforma é recusado, com a explicação', /chegou à plataforma em/)
+  const e4 = (await logado47b(LOG47B, `select public.plt_fn_registrar_entrega(${P4.card}, 'recebido pela vizinha', false, '${D.ontem}') as e`))[0].e
+  const f4 = await fato47b(e4)
+  conferir(f4.ocorrido === `${D.ontem} 20:00:00` && f4.registrado_agora && f4.dia_escolhido === D.ontem && f4.registrado_dia === D.hoje
+      && f4.vigente && f4.projetado && /recebido pela vizinha/.test(f4.observacao) && /Marcado como entregue no dia/.test(f4.observacao),
+    'o dia da própria chegada vale: o fato nasce NO dia escolhido (nunca antes da hora em que o pedido chegou), registrado agora, e a trilha diz os dois dias',
+    JSON.stringify(f4))
+  // o site publicado: os 3 parâmetros de antes, pelo nome
+  const e2 = (await logado47b(LOG47B, `select public.plt_fn_registrar_entrega(p_card_id => ${P2.card}, p_observacao => null, p_confirmar_incompleto => false) as e`))[0].e
+  const e2b = (await logado47b(LOG47B, `select public.plt_fn_registrar_entrega(${P2.card}) as e`))[0].e
+  const f2 = await fato47b(e2)
+  const e11 = (await logado47b(LOG47B, `select public.plt_fn_registrar_entrega(${P11.card}, null, false, '${D.hoje}') as e`))[0].e
+  const f11 = await fato47b(e11)
+  conferir(ms47b((await um47b(`select ocorrido_em from public.plt_eventos where id = ${e2}`)).ocorrido_em) === ms47b(D.agora)
+      && f2.dia_escolhido === null && f2.projetado && Number(e2b) === Number(e2) && (await card47b(P2.card)).entregas === 1
+      && f11.dia_escolhido === null && f11.registrado_agora && f11.projetado,
+    'sem dia (o site publicado, com os 3 parâmetros de antes) ou com o próprio hoje: a entrega é de agora, como sempre — e o toque repetido devolve a mesma',
+    JSON.stringify({ f2, e2, e2b, f11 }))
+
+  titulo('SESSAO-47 · Bloco B · a hora do dia passado: o fim do expediente daquele dia (feriado = 18:00; a hora extra conta)')
+
+  const e1 = (await logado47b(ENT47B, `select public.plt_fn_registrar_entrega(${P1.card}, null, false, '${D.ontem}') as e`))[0].e
+  const e1b = (await logado47b(ENT47B, `select public.plt_fn_registrar_entrega(${P1.card}, null, false, '${D.ontem}') as e`))[0].e
+  const f1 = await fato47b(e1)
+  conferir(f1.ocorrido === `${D.ontem} 17:15:00` && f1.registrado_agora && f1.projetado && Number(e1b) === Number(e1)
+      && (await card47b(P1.card)).entregas === 1,
+    'o entregador marca "entregue ontem": o fato fica no fim do expediente de ontem (17:15) — e o toque repetido conta pela hora do REGISTRO (uma entrega só)',
+    JSON.stringify({ f1, e1, e1b }))
+  await recusa47b(LOG47B, `select public.plt_fn_registrar_entrega(${P3.card}, null, false, '${D.anteontem}')`,
+    'com a peça ainda em produção, o dia escolhido não dispensa a confirmação (o aviso de sempre)', /Confirmar a entrega encerra tudo dele/)
+  const e3 = (await logado47b(LOG47B, `select public.plt_fn_registrar_entrega(${P3.card}, null, true, '${D.anteontem}') as e`))[0].e
+  const e7 = (await logado47b(LOG47B, `select public.plt_fn_registrar_entrega(${P7.card}, null, false, '${D.d3}') as e`))[0].e
+  const f3 = await fato47b(e3)
+  const f7 = await fato47b(e7)
+  conferir(f3.ocorrido === `${D.anteontem} 18:00:00` && f7.ocorrido === `${D.d3} 19:40:00` && f3.projetado && f7.projetado,
+    'dia sem expediente (feriado): 18:00; dia com hora extra autorizada: o fim dela (19:40)', JSON.stringify({ f3, f7 }))
+
+  titulo('SESSAO-47 · Bloco B · só o fato da entrega vai para o dia real: as peças e o tempo aberto fecham em AGORA')
+
+  await bd.exec('set constraints plt_eventos_zzz_tempo immediate')
+  const t3 = await um47b(`
+    select (select count(*)::int from public.plt_eventos e where e.card_id = ${u3} and e.id > ${e3}) as fatos,
+           (select count(*)::int from public.plt_eventos e where e.card_id = ${u3} and e.id > ${e3} and e.tipo = 'card_arquivado') as saiu,
+           (select bool_and(e.ocorrido_em = now()) from public.plt_eventos e where e.card_id = ${u3} and e.id > ${e3}) as tudo_agora,
+           (select c.arquivado_em = now() and c.arquivado_em >= c.desde from public.plt_cards c where c.id = ${u3}) as peca_agora,
+           (select count(*)::int from public.plt_tempo_trechos t where t.card_id = ${u3}) as trechos,
+           (select count(*)::int from public.plt_tempo_trechos t where t.card_id = ${u3} and (t.fim < t.inicio or t.fim_conta < t.inicio)) as trecho_negativo,
+           (select bool_and(t.fim = now()) from public.plt_tempo_trechos t where t.card_id = ${u3}) as trecho_fecha_agora,
+           (select count(*)::int from public.plt_tempo_passagens p where p.card_id = ${u3} and p.saida_em < p.entrada_em) as passagem_negativa,
+           (select e.ocorrido_em < x.ocorrido_em from public.plt_eventos e, public.plt_eventos x
+             where e.id = ${e3} and x.card_id = ${u3} and x.tipo = 'execucao_iniciada') as entrega_antes_do_inicio`)
+  conferir(t3.fatos >= 1 && t3.saiu === 1 && t3.tudo_agora === true && t3.peca_agora === true && t3.trechos >= 1
+      && t3.trecho_negativo === 0 && t3.trecho_fecha_agora === true && t3.passagem_negativa === 0 && t3.entrega_antes_do_inicio === true,
+    'a peça que estava sendo montada sai AGORA (o tempo aberto fecha agora): nenhum intervalo negativo, mesmo com a entrega marcada antes do início da montagem',
+    JSON.stringify(t3))
+
+  titulo('SESSAO-47 · Bloco B · desfazer "do dia" = o dia em que a entrega foi REGISTRADA')
+
+  const des1 = (await logado47b(ENT47B, `select public.plt_fn_entrega_desfazer(${P1.card}, ${ID.motivo}, 'marquei o pedido errado') as r`))[0].r
+  const c1des = await card47b(P1.card)
+  conferir(des1.desfeita === true && des1.pecas_voltaram === 1 && c1des.entrega === null && c1des.sem_dia && c1des.pecas_vivas === 1,
+    'quem marcou hoje "entregue ontem" desfaz hoje: a entrega sai, o dia sai do card e a peça volta (achada pela hora do registro)',
+    JSON.stringify({ des1, c1des }))
+  const e1c = (await logado47b(ENT47B, `select public.plt_fn_registrar_entrega(${P1.card}, null, false, '${D.ontem}') as e`))[0].e
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em, registrado_em, dados)
+                   values (${P8.card}, 'pedido_entregue', '${ID.log}', 'interface', now() - interval '3 days', now() - interval '1 day',
+                           jsonb_build_object('fonte', 'plataforma', 'situacao_tiny', 'Preparando envio'))`)
+  await recusa47b(LOG47B, `select public.plt_fn_entrega_desfazer(${P8.card}, ${ID.motivo}, 'teste')`,
+    'a entrega registrada ONTEM não se desfaz hoje por quem não é administrador', /mesmo dia em que ela foi registrada.*administrador/)
+  const des8 = (await logado47b(ADM47B, `select public.plt_fn_entrega_desfazer(${P8.card}, ${ID.motivo}, 'teste') as r`))[0].r
+  conferir(des8.desfeita === true && Number(e1c) !== Number(e1) && (await card47b(P1.card)).em === `${D.ontem} 17:15:00`,
+    'o administrador reabre a entrega registrada em outro dia; a entrega desfeita se registra de novo, no mesmo dia real',
+    JSON.stringify({ des8, e1c }))
+
+  titulo('SESSAO-47 · Bloco B · todo leitor pela mesma data: lista, ficha, rotas, já programadas, entregas do dia, calendário, número por dia')
+
+  const lista = await logado47b(LOG47B, `select numero, ${LOCAL47B('entregue_em')} as em, situacao_plataforma
+                                           from public.plt_fn_pedidos_lista('9720', null, 50, false)`)
+  const naLista = (n) => lista.find((l) => l.numero === n)
+  const ficha4 = (await logado47b(LOG47B, `select public.plt_fn_pcp_pedido_detalhe(${P4.pedido}) as f`))[0].f
+  const fato4NaFicha = ficha4.historico.find((h) => h.tipo === 'pedido_entregue')
+  conferir(naLista(97204)?.em === `${D.ontem} 20:00:00` && naLista(97201)?.em === `${D.ontem} 17:15:00`
+      && naLista(97203)?.em === `${D.anteontem} 18:00:00` && naLista(97209)?.em === null,
+    'a lista de pedidos mostra o dia REAL de cada entrega', JSON.stringify(lista))
+  conferir(ms47b(ficha4.entrega.em) === ms47b((await um47b(`select entrega_em from public.plt_cards where id = ${P4.card}`)).entrega_em)
+      && ms47b(ficha4.entrega.registrada_em) === ms47b(D.agora) && ficha4.entrega.correcao === null
+      && ms47b(ficha4.plataforma.chegou_em) === ms47b((await um47b(`select criado_em from public.plt_cards where id = ${P4.card}`)).criado_em)
+      && ms47b(fato4NaFicha.registrado_em) === ms47b(D.agora) && ms47b(fato4NaFicha.em) === ms47b(ficha4.entrega.em),
+    'a ficha: a entrega no dia real, quando ela foi registrada, quando o pedido chegou — e a trilha com a hora do registro de cada fato',
+    JSON.stringify({ e: ficha4.entrega, p: ficha4.plataforma, h: fato4NaFicha }))
+  const rotas7 = await logado47b(LOG47B, `select ${LOCAL47B('entregue_em')} as em, situacao_entrega from public.plt_fn_rotas('entregue', '97207', 20, 0)`)
+  const prog = await logado47b(LOG47B, `select numero, ${LOCAL47B('entregue_em')} as em, programacao_data::text as programado
+                                          from public.plt_fn_programadas(true, null, ${ID.cam}, 50, 0, null)`)
+  const progAberta = await logado47b(LOG47B, `select numero from public.plt_fn_programadas(false, null, ${ID.cam}, 50, 0, null)`)
+  conferir(rotas7.length === 1 && rotas7[0].em === `${D.d3} 19:40:00` && rotas7[0].situacao_entrega === 'entregue'
+      && prog.find((p) => p.numero === 97207)?.em === `${D.d3} 19:40:00` && prog.find((p) => p.numero === 97207)?.programado === D.amanha
+      && prog.find((p) => p.numero === 97201)?.em === `${D.ontem} 17:15:00`
+      && progAberta.length === 1 && progAberta[0].numero === 97209,
+    'ROTAS → Entregas e Já programadas: o entregue com o dia real (o programado para amanhã, entregue há três dias); o por entregar segue na lista do que falta',
+    JSON.stringify({ rotas7, prog, progAberta }))
+
+  const doDia = async (auth, dia, cam = 'null', rota = 'null') =>
+    (await logado47b(auth, `select public.plt_fn_entregas_do_dia('${dia}', ${cam}, ${rota}) as r`))[0].r
+  const hojeEnt = await doDia(ENT47B, D.hoje, ID.cam, 1)
+  const parada1 = hojeEnt.entregas.find((e) => e.card_id === P1.card)
+  const parada9 = hojeEnt.entregas.find((e) => e.card_id === P9.card)
+  conferir(hojeEnt.entregas.length === 4 && parada1.entregue_no_dia === D.ontem && ms47b(parada1.entrega_registrada_em) === ms47b(D.agora)
+      && ms47b(parada1.entregue_em) < ms47b(parada1.entrega_registrada_em) && parada1.entregue_por_gente === true
+      && parada9.entregue_em === null && parada9.entregue_no_dia === null && parada9.entrega_registrada_em === null
+      && ms47b(parada9.chegou_em) === ms47b((await um47b(`select criado_em from public.plt_cards where id = ${P9.card}`)).criado_em)
+      && Array.isArray(hojeEnt.entregues_de_outro_dia) && hojeEnt.entregues_de_outro_dia.length === 0,
+    'a rota de hoje continua sendo a PROGRAMADA para hoje: a parada entregue traz o dia real (ontem) e a hora do registro (hoje — é por ela que se desfaz); a por entregar traz quando o pedido chegou',
+    JSON.stringify({ parada1, parada9, outro: hojeEnt.entregues_de_outro_dia }))
+  const ontemLog = await doDia(LOG47B, D.ontem)
+  const ontemEnt = await doDia(ENT47B, D.ontem)
+  const ontemFora = await doDia(FORA47B, D.ontem)
+  const deOntem = ontemLog.entregues_de_outro_dia.find((e) => e.card_id === P1.card)
+  conferir(deOntem?.programado_para === D.hoje && deOntem.caminhao_nome === 'Baú 47B' && deOntem.rota === 1 && deOntem.numero === 97201
+      && ms47b(deOntem.entrega_registrada_em) === ms47b(D.agora)
+      && !ontemLog.entregues_de_outro_dia.some((e) => e.card_id === P4.card)
+      && ontemEnt.entregues_de_outro_dia.some((e) => e.card_id === P1.card)
+      && ontemFora.entregues_de_outro_dia.length === 0,
+    'o dia de ontem mostra em "entregues neste dia" o pedido entregue ontem e programado para hoje (com o dia e o caminhão programados) — a logística e o entregador da equipe veem; outro entregador, não; o entregue sem programação fica fora',
+    JSON.stringify({ log: ontemLog.entregues_de_outro_dia, ent: ontemEnt.entregues_de_outro_dia, fora: ontemFora.entregues_de_outro_dia }))
+
+  const cal = async (de, ate) => (await logado47b(LOG47B, `select public.plt_fn_rotas_calendario('${de}', '${ate}') as r`))[0].r
+  const semana = await cal(D.d3, D.amanha)
+  const noDia = (dia, card) => (semana.dias.find((d) => d.dia === dia)?.itens ?? []).find((i) => i.card_id === card) ?? null
+  conferir(noDia(D.ontem, P1.card)?.situacao === 'entregue' && noDia(D.ontem, P1.card).programado_para === D.hoje
+      && noDia(D.hoje, P1.card) === null
+      && noDia(D.d3, P7.card)?.situacao === 'entregue' && noDia(D.d3, P7.card).programado_para === D.amanha && noDia(D.amanha, P7.card) === null
+      && noDia(D.hoje, P2.card)?.situacao === 'entregue' && noDia(D.hoje, P2.card).programado_para === D.hoje
+      && noDia(D.hoje, P9.card)?.situacao === 'na_rota' && noDia(D.hoje, P9.card).programado_para === null
+      && noDia(D.anteontem, P3.card)?.situacao === 'entregue' && noDia(D.ontem, P4.card) === null,
+    'o calendário das rotas põe o entregue no dia REAL da entrega, com o dia para o qual estava programado (a nota "programado para"); o que ainda está na rota fica no dia programado; o entregue sem programação continua fora',
+    JSON.stringify(semana.dias.map((d) => ({ dia: d.dia, itens: d.itens.filter((i) => i.numero >= 97201 && i.numero <= 97215).map((i) => [i.numero, i.situacao, i.programado_para]) }))))
+  const soOntem = await cal(D.ontem, D.ontem)
+  conferir(soOntem.dias.length >= 1 && soOntem.dias.find((d) => d.dia === D.ontem).contagem.entregue >= 1
+      && soOntem.dias.flatMap((d) => d.itens).some((i) => i.card_id === P1.card),
+    'pedindo só o dia de ontem ao calendário, o entregue de ontem vem (a busca é pelo dia da entrega, não pelo da programação)',
+    JSON.stringify(soOntem.dias))
+  const ontem1 = await entreguesNoDia(D.ontem)
+  conferir(ontem1 - ontem0 === 2,
+    'o número de entregas do dia (painel de motivos) conta as entregas VIGENTES pelo dia real: ontem ganhou 2 (a desfeita e refeita conta uma vez só)',
+    JSON.stringify({ ontem0, ontem1 }))
+
+  titulo('SESSAO-47 · Bloco B · a entrega que vem do Tiny e a entrega parcial projetam o dia; a correção é só do administrador, por fato novo')
+
+  const j47b = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+  const doTiny = (situacao) => ({
+    id: '79720500', numero: '97205', data_pedido: '01/11/2026', data_prevista: '20/11/2026', situacao,
+    total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+    forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 47B',
+    codigo_rastreamento: '', url_rastreamento: '',
+    cliente: { codigo: '', nome: 'Cliente Teste 47B', nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+               endereco: 'Rua Teste 47B', numero: '47', complemento: '', bairro: 'Centro', cep: '59000-470', cidade: 'Natal',
+               uf: 'RN', fone: '84999994747', email: '' },
+    itens: [{ item: { id_produto: '', codigo: 'SX47B', descricao: 'Aparador Teste 47B', unidade: 'UN', quantidade: '1.00', valor_unitario: '100.00' } }],
+  })
+  const gravarTiny = async (situacao, tipo) => {
+    await como47b('')
+    const id = (await um47b(`select public.fn_upsert_pedido(p => ${j47b(doTiny(situacao))}, p_tipo => '${tipo}', p_tiny_id => 79720500, p_origem => 'webhook')::int as id`)).id
+    await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+    return id
+  }
+  const pedido5 = await gravarTiny('Aprovado', 'inclusao_pedido')
+  const P5 = { pedido: pedido5, card: (await um47b(`select id::int as id from public.plt_cards where pedido_id = ${pedido5} and tipo = 'pedido'`)).id }
+  await bd.exec(`update public.plt_cards set criado_em = now() - interval '6 days' where id = ${P5.card}`)
+  await gravarTiny('Entregue', 'atualizacao_pedido')
+  const c5 = await card47b(P5.card)
+  const f5 = await fato47b(c5.entrega)
+  const parcial = (await logado47b(LOG47B, `select public.plt_fn_entrega_parcial(${P6.card}, array[${u6a}]::bigint[], null, 'voltou um aparador 47B') as r`))[0].r
+  const parcial2 = (await logado47b(LOG47B, `select public.plt_fn_entrega_parcial(${P6.card}, array[${u6a}]::bigint[], null, 'voltou um aparador 47B') as r`))[0].r
+  const f6 = await fato47b(parcial.entrega_evento_id)
+  conferir(c5.entrega > 0 && f5.projetado && f5.registrado_agora && f5.dia_escolhido === null && c5.em.startsWith(D.hoje)
+      && f6.projetado && f6.registrado_agora && parcial2.repetido === true
+      && Number(parcial2.entrega_evento_id) === Number(parcial.entrega_evento_id) && u6b > 0,
+    'a entrega que o Tiny fecha e a entrega parcial ficam no dia do registro (hoje) e projetam o dia no card; a parcial repetida devolve a mesma',
+    JSON.stringify({ c5, f5, f6, parcial2 }))
+
+  await recusa47b(LOG47B, `select public.plt_fn_entrega_corrigir_dia(${P5.card}, '${D.ontem}', 'teste')`,
+    'a logística não altera a data da entrega', /gesto do administrador/)
+  await recusa47b(ENT47B, `select public.plt_fn_entrega_corrigir_dia(${P1.card}, '${D.anteontem}', 'teste')`,
+    'o entregador não altera a data da entrega (nem a que ele mesmo registrou)', /gesto do administrador/)
+  await recusa47b(ADM47B, `select public.plt_fn_entrega_corrigir_dia(${P5.card}, '${D.amanha}', null)`,
+    'nem o administrador põe a entrega num dia que ainda não chegou', /ainda não chegou/)
+  await recusa47b(ADM47B, `select public.plt_fn_entrega_corrigir_dia(${P5.card}, '${D.d7}', null)`,
+    'nem num dia anterior à chegada do pedido à plataforma', /chegou à plataforma em/)
+  await recusa47b(ADM47B, `select public.plt_fn_entrega_corrigir_dia(${P9.card}, '${D.ontem}', null)`,
+    'pedido que não está entregue não tem data de entrega para alterar', /não está entregue/)
+  const avisos0 = (await um47b(`select count(*)::int as n from realtime.messages where topic = 'plt-aviso:rotas'`)).n
+  await bd.exec(`select set_config('plt.avisado_rotas', '', true)`)
+  const cor1 = (await logado47b(ADM47B, `select public.plt_fn_entrega_corrigir_dia(${P5.card}, '${D.ontem}', '  cliente confirmou o dia  ') as r`))[0].r
+  const cor2 = (await logado47b(ADM47B, `select public.plt_fn_entrega_corrigir_dia(${P5.card}, '${D.ontem}', 'de novo') as r`))[0].r
+  const c5b = await card47b(P5.card)
+  const cor = await um47b(`
+    select k.evento_referencia_id::int as ref, k.dados ->> 'antes' as antes, k.dados ->> 'depois' as depois, k.dados ->> 'motivo' as motivo,
+           k.ocorrido_em = now() as agora, k.usuario_id = '${ID.adm}' as do_admin, k.observacao,
+           (select ${LOCAL47B('e.ocorrido_em')} from public.plt_eventos e where e.id = k.evento_referencia_id) as fato_em,
+           (select count(*)::int from public.plt_logs_atividade l where l.acao = 'entrega_dia_corrigido' and (l.contexto ->> 'evento_id')::bigint = k.id) as logs,
+           (select count(*)::int from realtime.messages where topic = 'plt-aviso:rotas') as avisos
+      from public.plt_eventos k where k.card_id = ${P5.card} and k.tipo = 'entrega_dia_corrigido'`)
+  conferir(cor1.mudou === true && cor1.antes === D.hoje && cor1.dia === D.ontem && cor2.mudou === false
+      && c5b.entrega === c5.entrega && c5b.entregas === 1 && c5b.correcoes === 1 && c5b.em === `${D.ontem} 17:15:00`
+      && cor.ref === c5.entrega && cor.antes === D.hoje && cor.depois === D.ontem && cor.motivo === 'cliente confirmou o dia'
+      && cor.agora && cor.do_admin && /corrigido de .* para /.test(cor.observacao) && cor.fato_em === c5.em && cor.logs === 1
+      && cor.avisos === avisos0 + 1,
+    'o administrador corrige o dia por FATO NOVO (o dia de antes, o novo e o motivo): a entrega fica intacta, o card passa a dizer o dia corrigido, fica o registro de atividade, as rotas são avisadas ao vivo — e o mesmo dia de novo não faz nada',
+    JSON.stringify({ cor1, cor2, c5b, cor }))
+  const ficha5 = (await logado47b(LOG47B, `select public.plt_fn_pcp_pedido_detalhe(${P5.pedido}) as f`))[0].f
+  const lista5 = (await logado47b(LOG47B, `select ${LOCAL47B('entregue_em')} as em, entregue_fonte from public.plt_fn_pedidos_lista('97205', null, 20, false)`))[0]
+  const ontem2 = await entreguesNoDia(D.ontem)
+  conferir(ms47b(ficha5.entrega.em) === ms47b((await um47b(`select entrega_em from public.plt_cards where id = ${P5.card}`)).entrega_em)
+      && ficha5.entrega.correcao?.antes === D.hoje && ficha5.entrega.correcao.depois === D.ontem
+      && ficha5.entrega.correcao.motivo === 'cliente confirmou o dia' && ficha5.entrega.correcao.por === ID.adm_nome
+      && ficha5.historico.some((h) => h.tipo === 'entrega_dia_corrigido')
+      && lista5.em === `${D.ontem} 17:15:00` && lista5.entregue_fonte === 'tiny' && ontem2 - ontem0 === 3,
+    'depois da correção, todas as leituras passam a usar o dia corrigido: a ficha (com quem corrigiu, de quando para quando e o motivo), a lista e o número de entregas do dia',
+    JSON.stringify({ e: ficha5.entrega, lista5, ontem0, ontem2 }))
+  await falha47b(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, evento_referencia_id, dados)
+                    values (${P5.card}, 'entrega_dia_corrigido', '${ID.adm}', 'interface', ${c5.entrega}, '{"entregue_em": "2026-01-01T12:00:00Z"}')`,
+    'a correção do dia direto na tabela (sem a porta do administrador) é recusada', /ficha do pedido/)
+  await falha47b(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, ocorrido_em)
+                    values (${P9.card}, 'pedido_entregue', '${ID.log}', 'interface', now() + interval '2 days')`,
+    'um fato de entrega num dia futuro é recusado até direto na tabela', /ainda não chegou/)
+
+  titulo('SESSAO-47 · Bloco B · a migration de novo (com os dados): a projeção estragada à mão volta; nada mais muda')
+
+  await bd.exec(`update public.plt_cards set entrega_em = null where id in (${P4.card}, ${P5.card});
+                 update public.plt_cards set entrega_em = now() where id = ${P9.card};`)
+  const MIG47B = await readFile(path.join(MIGRATIONS, '20261109030000_plt_entrega_dia_real.sql'), 'utf8')
+  await bd.exec(MIG47B)
+  await bd.exec(MIG47B)
+  const volta = { p1: await card47b(P1.card), p4: await card47b(P4.card), p5: await card47b(P5.card), p9: await card47b(P9.card) }
+  conferir(volta.p4.em === `${D.ontem} 20:00:00` && volta.p5.em === `${D.ontem} 17:15:00` && volta.p9.sem_dia === true
+      && volta.p1.em === `${D.ontem} 17:15:00` && volta.p5.correcoes === 1 && volta.p5.entregas === 1,
+    'reaplicada duas vezes, a migration refaz o dia de cada entrega vigente (o do fato, ou o da última correção), tira o dia de quem não tem entrega e não cria fato nenhum',
+    JSON.stringify(volta))
+  const reabre5 = (await logado47b(ADM47B, `select public.plt_fn_entrega_desfazer(${P5.card}, ${ID.motivo}, 'teste 47B') as r`))[0].r
+  const c5c = await card47b(P5.card)
+  conferir(reabre5.desfeita === true && c5c.entrega === null && c5c.sem_dia && c5c.correcoes === 1,
+    'reaberta a entrega, o dia sai do card (a correção fica só na história)', JSON.stringify({ reabre5, c5c }))
+
+  titulo('SESSAO-47 · Bloco B · a lista de pedidos respeita o pedido devolvido ao PCP; as portas novas só para quem está logado')
+
+  const P10 = await pedido47b(97210)
+  await bd.exec(`update public.pedidos set situacao = 'Pronto para envio' where numero = 97210`)
+  const sit10 = async () => (await logado47b(LOG47B, `select situacao_plataforma from public.plt_fn_pedidos_lista('97210', null, 20, false)`))[0].situacao_plataforma
+  const antes10 = await sit10()
+  await como47b('')
+  await bd.exec(`update public.plt_cards set volta_pcp_em = now(), volta_pcp_situacao = 'preparando_envio' where id = ${P10.card}`)
+  const depois10 = await sit10()
+  conferir(antes10 === 'tiny' && depois10 === 'pcp',
+    'o pedido adiantado no Tiny aparece "segue no Tiny"; devolvido ao PCP pela logística, a lista diz "no PCP"', JSON.stringify({ antes10, depois10 }))
+  await como47b('')
+  const pr47b = await um47b(`
+    select has_function_privilege('anon', 'public.plt_fn_entrega_corrigir_dia(bigint, date, text)', 'execute') as corrigir_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_entrega_corrigir_dia(bigint, date, text)', 'execute') as corrigir_logado,
+           has_function_privilege('anon', 'public.plt_fn_registrar_entrega(bigint, text, boolean, date)', 'execute') as registrar_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_registrar_entrega(bigint, text, boolean, date)', 'execute') as registrar_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_entrega_instante(date, timestamptz)', 'execute') as instante,
+           has_function_privilege('authenticated', 'plt_privado.fn_dia_da_entrega(timestamptz)', 'execute') as dia,
+           has_function_privilege('authenticated', 'plt_privado.fn_validar_entrega_dia()', 'execute') as guarda,
+           has_function_privilege('authenticated', 'plt_privado.fn_fechar_pedido(bigint, uuid, text, text, text, timestamptz)', 'execute') as fechar,
+           to_regprocedure('public.plt_fn_registrar_entrega(bigint, text, boolean)') is null as sem_a_de_3,
+           to_regprocedure('plt_privado.fn_fechar_pedido(bigint, uuid, text, text, text)') is null as sem_a_de_5,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname = 'plt_fn_registrar_entrega') as registrar_versoes`)
+  conferir(!pr47b.corrigir_anon && pr47b.corrigir_logado && !pr47b.registrar_anon && pr47b.registrar_logado
+      && !pr47b.instante && !pr47b.dia && !pr47b.guarda && !pr47b.fechar
+      && pr47b.sem_a_de_3 && pr47b.sem_a_de_5 && pr47b.registrar_versoes === 1,
+    'registrar com o dia e corrigir o dia: só para quem está logado; a regra do dia, a guarda e o fechar do pedido fora da API; as assinaturas antigas saíram (uma versão só de cada porta)',
+    JSON.stringify(pr47b))
+} finally {
+  await bd.exec('rollback')
+  await como47b('')
+}
+} // fim do bloco SESSAO-47 · Bloco B
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
