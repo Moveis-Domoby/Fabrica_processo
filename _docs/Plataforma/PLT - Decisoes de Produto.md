@@ -2224,6 +2224,49 @@ Resposta 2 do dono. Mínimo de 5 letras, até 500. O aviso diz "Sugestão #N rec
 2. Cada coluna mostra 20 e o **"Ver mais (N)"** traz as próximas 20; o número no topo é o total da coluna.
 3. A sugestão tem número próprio (#N), que aparece no cartão, na ficha, no aviso e na pendência.
 
+## D-267 · ✅ DECIDIDA pelo dono — Pedido cancelado (ou excluído) no Tiny sai de ROTAS → Entregas → "A entregar", mesmo lançado ou programado; o já entregue fica no histórico (06/11/2026, os números que não batiam) — ↪️ D-45, D-156, D-140
+
+**Achado (varredura de 06/11):** o 13686 foi lançado para as entregas em 20/10 e cancelado no Tiny no dia seguinte; continuava em "A entregar" com os botões de entregar — e a entrega dele é recusada pelo banco. A reação ao cancelamento já tirava a peça e a programação; o "lançado" ficava. A Programação e a Expedição já o escondiam (a regra do pedido vivo).
+
+**Decidido (resposta do dono, 06/11):** *"Sai da lista"*. O cancelado ou excluído no Tiny sai de "A entregar" na hora; o que já tinha sido entregue antes do cancelamento continua em "Entregues" (o 13620).
+
+**Descartada:** ficar na lista com a marca "Cancelado no Tiny" e sem botões.
+
+**Como ficou (técnico):** migration `20261106030000` — `plt_fn_rotas` com `entrega_evento_id is not null or (situação ≠ cancelado e não excluído no Tiny)`. Nada de apagar o lançamento: a porta lê a regra.
+
+## D-268 · ✅ DECIDIDA pelo dono — A Visão do dia conta o que o QUADRO mostra: a fila é a coluna da fila (com o card avulso), em execução é só quem trabalha agora (o pausado não aparece), a espera em horas de expediente, e "prontos esperando rota" são os candidatos da Programação (06/11/2026) — ↪️ D-42, D-75, D-156, D-172
+
+**Achado (varredura de 06/11):** Limpeza "na fila 84" com o quadro mostrando 38 (o painel somava as colunas CANCELADO 44 e NÃO ENCONTRADO 4); "em execução agora 3" com os 3 pausados; as filas sem o card avulso (SECC 1×2, Fitamento 7×9, Furação 6×7); a espera mais antiga em dias corridos × o card em horas de expediente; "aguardando lançamento para ROTAS 16" com 4 já programados.
+
+**Decidido (respostas do dono, 06/11):**
+- **"Na fila" = só a coluna da fila de cada setor, como o quadro** (*"Só a coluna da fila"*): a peça e o card avulso, sem ninguém trabalhando; as colunas de estacionar (CANCELADO, NÃO ENCONTRADO) não entram em número nenhum do painel. Card ainda sem coluna (setor sem etapas) espera — conta na fila.
+- **"Em execução" = só quem está trabalhando agora** (*"Pausado não aparece"*): o pausado não conta em lugar nenhum do painel (nem a pessoa dele em "em N pessoas").
+- **A espera mais antiga em horas de expediente**, como o card no quadro (a mesma régua do setor; "29h 10min", sem "dias").
+- **"Pedidos prontos esperando rota"** (era "Pedidos completos aguardando lançamento para ROTAS") = os candidatos da Programação prontos e ainda sem programação — desde a D-156 o lançamento não é passo; o programado já tem rota.
+
+**Descartadas:** pausados à parte ("3 pausados"); mostrar também "parados em outras colunas".
+
+**Como ficou (técnico):** migration `20261106030000` — `plt_fn_dash_agora` (peça + avulso; fila = `eh_fila`, ou sem coluna; rodando = executor e `pausado_em is null`) e `plt_fn_dash_dia` (`aguardando_lancamento` = `vw_pedidos_para_rota` pronto e sem programação); retornos iguais. A tela converte a espera pela régua (`lido_em − espera` = a chegada do mais antigo). O ensaio amarra painel = quadro e painel = Programação.
+
+## D-269 · ✅ DECIDIDA pelo dono — O cancelamento no Tiny FECHA o stand-by do pedido, na hora do cancelamento; o painel de Motivos conta "em stand-by agora" igual à aba Stand-by do PCP (06/11/2026) — ↪️ D-169, D-171, D-176
+
+**Achado (varredura de 06/11):** Motivos dizia 7 em stand-by; o PCP e a Expedição, 6. O 13649 entrou em stand-by em 22/10 e foi cancelado no Tiny em 28/10 — o stand-by ficou aberto para sempre: a aba o escondia, o painel o contava e o tempo dele seguia crescendo no ranking ("ainda segurado").
+
+**Decidido (resposta do dono, 06/11):** *"Cancelado fecha o stand-by"*. Quando o Tiny cancela um pedido em stand-by, o stand-by fecha sozinho, na hora do cancelamento, com o registro do porquê ("Pedido cancelado no Tiny — o stand-by fechou sozinho"). O 13649 fecha com a hora do cancelamento (28/10). O painel conta "em stand-by agora" e o "ainda segurado" de cada motivo com a regra da aba.
+
+**Descartada:** só acertar a conta do painel (o 13649 seguiria aberto por dentro, somando tempo no ranking).
+
+**Como ficou (técnico):** migration `20261106030000` — fato `pedido_standby_saiu` com `destino = 'cancelado'`, origem automação, puxado pelo gatilho `plt_eventos_zz_standby_cancelado` (no fato `pedido_cancelado`); a validação aceita esse destino só da automação e com o pedido cancelado de fato; o aberto de antes fecha na migration (`retroativo`). Regra da aba: `plt_privado.vw_standby_na_aba` (o mesmo filtro do quadro do PCP). Nada se edita (RNF-05).
+**Fica para depois (não pedido):** o pedido que o Tiny leva adiante (faturado, pronto para envio, enviado) em stand-by sai da aba (D-169) mas o stand-by segue aberto por dentro — hoje não há nenhum.
+
+## D-270 · "Fora do calendário" conta só o que não aparece na grade (06/11/2026) — ↪️ D-175
+
+**Achado (varredura de 06/11):** "Fora do calendário: 6 sem rota com a previsão já vencida" contava também os 3 que estavam na grade da semana (13795 em 03/11; 13785 e 13815 em 04/11).
+
+**Decidido (sem escolha de produto — o aviso diz "fora do calendário"):** conta o sem rota com a previsão vencida **fora do período mostrado** (e o sem previsão, como antes). Na semana de 02 a 08/11: 3 + 1 sem previsão.
+
+**Como ficou (técnico):** migration `20261106030000` — `plt_fn_rotas_calendario`, `fora.atrasados_sem_rota` com `previsão < hoje e fora de [de, até]`.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
