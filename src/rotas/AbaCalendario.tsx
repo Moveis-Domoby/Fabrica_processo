@@ -106,6 +106,15 @@ function notaDoProgramado(i: ItemCalendario, dia: string): string | null {
     : null
 }
 
+/**
+ * A mesma nota, curta, para a BARRA ("prog. 09/11"): a coluna é estreita e o
+ * que importa é a data — a nota não encolhe (quem encolhe é o bairro); a frase
+ * inteira fica no texto completo da barra e no detalhe do toque.
+ */
+function notaCurtaDoProgramado(i: ItemCalendario, dia: string): string | null {
+  return notaDoProgramado(i, dia) && i.programado_para ? `prog. ${diaMes(i.programado_para)}` : null
+}
+
 /** O texto completo da barra (o que a pessoa lê ao passar o mouse e o leitor de tela). */
 function descricaoDoItem(i: ItemCalendario, dia: string): string {
   return [
@@ -474,7 +483,7 @@ function Barra({
   aoTocar: () => void
 }) {
   const descricao = descricaoDoItem(item, dia)
-  const nota = notaDoProgramado(item, dia)
+  const nota = notaCurtaDoProgramado(item, dia)
   return (
     <button
       type="button"
@@ -489,8 +498,9 @@ function Barra({
     >
       <span className="shrink-0 font-semibold tabular-nums">{item.numero}</span>
       {item.bairro && <span className="min-w-0 truncate">· {item.bairro}</span>}
-      {/* SESSAO-47: a nota discreta do entregue fora do dia programado */}
-      {nota && <span className="min-w-0 truncate italic opacity-80">· {nota}</span>}
+      {/* SESSAO-47: a nota discreta do entregue fora do dia programado — curta e
+          sem encolher (a data é o que importa; a frase inteira está no título) */}
+      {nota && <span className="shrink-0 italic opacity-80 tabular-nums">· {nota}</span>}
     </button>
   )
 }
