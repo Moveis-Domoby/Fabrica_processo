@@ -3,8 +3,7 @@ import type { ReactNode } from 'react'
 import { CalendarCheck, CalendarDays, CheckCircle2 } from 'lucide-react'
 import { Botao, Campo } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
-import { hojeNaFabrica } from '@/dashboards/tempos/formato'
-import { diaNaFabrica, diaPorExtenso, problemaDoDia } from './diaDaEntrega'
+import { diaNaFabrica, diaPorExtenso, hojeNaFabrica, problemaDoDia } from './diaDaEntrega'
 
 export interface ConfirmarEntregaProps {
   /** O número do pedido (o leitor de tela ouve de qual entrega são os botões). */
