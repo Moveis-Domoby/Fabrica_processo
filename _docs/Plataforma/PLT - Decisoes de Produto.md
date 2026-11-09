@@ -2267,6 +2267,45 @@ Resposta 2 do dono. Mínimo de 5 letras, até 500. O aviso diz "Sugestão #N rec
 
 **Como ficou (técnico):** migration `20261106030000` — `plt_fn_rotas_calendario`, `fora.atrasados_sem_rota` com `previsão < hoje e fora de [de, até]`.
 
+## D-271 · ✅ DECIDIDA pelo dono — O pedido que o Tiny levou adiante e ainda tem produto por liberar aparece na Expedição com o aviso, e volta ao PCP por dois botões que mudam a situação no Tiny (09/11/2026, SESSAO-47) — ↪️ complementa D-132, D-133, D-219
+
+**Achado (o 13818, leitura do banco em 09/11):** o Tiny ficou "Pronto para envio" (mudança à mão, lá) e a logística liberou as duas peças prontas dele para outros pedidos. O pedido saiu do PCP (D-132) **e** da Expedição (D-133: o adiantado só aparecia com peça na fábrica) — ninguém o via, e o sino dizia "voltou ao PCP".
+
+**Decidido (pedido e respostas do dono, 09/11):**
+1. **A regra do PCP fica:** Faturado, Pronto para envio e Enviado no Tiny continuam fora do PCP.
+2. **"Adiantado no Tiny com falta"** — uma regra só: o card do pedido vivo (não arquivado, sem entrega), o Tiny em Faturado, Pronto para envio ou Enviado, e pelo menos uma vaga de produção por liberar (a conta do PCP: frete não conta, personalizado conta). Entregue, Não entregue e Cancelado têm caminho próprio e ficam de fora.
+3. **A Expedição mostra o pedido mesmo com zero peça pronta**, com a situação real: *"Este pedido está como Pronto para envio no Tiny, por isso saiu do PCP. Ainda falta liberar 2 produtos."* O pedido com peça pronta **e** com falta ganha o mesmo aviso no card normal. Pedidos antigos também aparecem (hoje, o 13652 e o 13684).
+4. **Dois botões no aviso** — **"Voltar para Em aberto (Tiny)"** e **"Voltar para Preparando envio (Tiny)"** ("Em produção" não existe no Tiny) — para logística e admin (a permissão de liberar peça), com uma confirmação de uma frase. Num toque: a plataforma pede a situação ao Tiny, o pedido volta ao PCP **na hora** (sem esperar o Tiny) só com o que falta, fica o registro de quem fez com a situação de antes e a pedida, e o PCP recebe "Pedido N voltou ao PCP". Toque repetido = um efeito só.
+5. **A volta vale até o Tiny mostrar outra situação**; depois a regra do PCP decide sozinha de novo (se alguém adiantar o pedido lá outra vez, ele sai do PCP e o aviso volta). Aviso antigo do Tiny fora de ordem não esconde o pedido devolvido. **O Tiny recusou ou não respondeu:** o pedido segue no PCP com "O Tiny ainda não confirmou a mudança" e o alerta sai pela porta de sempre.
+6. **Na janela de liberar peça**, com o pedido de origem adiantado no Tiny e o produto voltando para a produção: a situação real e três opções no mesmo gesto — voltar para Em aberto, voltar para Preparando envio ou **"Deixar como está"** (o pedido fica na Expedição, com o aviso).
+7. **Avisos que dizem a verdade:** "voltou ao PCP" só quando voltou; senão *"O produto saiu do pedido N, mas ele está como Pronto para envio no Tiny e ficou na Expedição esperando decisão."*
+
+**Fora (dito na demanda):** mudar a D-132; Entregue, Não entregue e Cancelado; descobrir ou bloquear quem muda a situação no Tiny; mexer no fluxo do n8n; acertar o 13818 (já resolvido).
+
+**Como ficou (técnico):** migrations `20261109010000` (base) e `20261109020000`. Regra única `plt_privado.vw_pedidos_adiantados_falta`; a regra do PCP `plt_privado.fn_fora_do_pcp(situação, volta_pcp_em)` lida por `plt_fn_pcp_quadro`, `plt_fn_cards_pedido_pcp`, `plt_fn_dash_pcp_dia`, `vw_standby_na_aba` e `plt_fn_pcp_standby`; a marca = fato `pedido_volta_pcp` → projeção `plt_cards.volta_pcp_em/_situacao`, fechada por `pedido_volta_pcp_fim` (gatilho próprio `plt_pedidos_volta_pcp` em `pedidos`, à prova de falha) ou pela entrega; porta `plt_fn_pedido_voltar_pcp(card, 'aberto'|'preparando_envio', chave)` → fila de saída que já existia (`plt_tiny_pedido_fila`, motivo novo `volta_pcp`); `plt_fn_expedicao` com `saiu_do_pcp`, `tiny_adiantado`, `volta_pcp`, `tiny_ligado` e o filtro; `plt_fn_liberar_peca(…, p_tiny)`; avisos `pedido_voltou_pcp` e `pedido_adiantado_tiny` no catálogo. O n8n não muda.
+
+## D-272 · ⏳ PROVISÓRIA — O pedido em stand-by também entra na regra do adiantado com falta (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-169, D-171
+
+O pedido em stand-by que o Tiny levou adiante e que ainda tem produto por liberar aparece na Expedição com o aviso (e a marca de stand-by ao lado). O botão devolve o pedido ao PCP **mantendo o stand-by**: ele volta para a aba Stand-by, não para a fila de liberar. Na janela de liberar peça, "não lançar agora" com o Tiny adiante passou a funcionar (antes o gesto inteiro era recusado pelo banco): o pedido fica em stand-by e, como o Tiny o tirou do PCP, aparece na Expedição com o aviso.
+
+## D-273 · ⏳ PROVISÓRIA — Quadradinho "Saiu do PCP pelo Tiny" nos filtros da Expedição (09/11/2026, SESSAO-47 — provisória escrita na demanda)
+
+Um sexto quadradinho, com a contagem só dos pedidos adiantados no Tiny com produto por liberar e ainda não devolvidos. O aviso do sino "ficou na Expedição esperando decisão" abre a Expedição já nesse filtro.
+
+## D-274 · ⏳ PROVISÓRIA — Com a ida ao Tiny desligada, os botões de voltar ao PCP ficam apagados, com a explicação (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-113
+
+Os dois botões (no aviso da Expedição e na janela de liberar peça) dependem da chave "Entregue vai ao Tiny" (Configurações → Caminhões; em produção ligada desde 19/10). Desligada: os botões ficam apagados e a tela explica — *"…Mude no Tiny, ou peça a um administrador para ligar 'Entregue vai ao Tiny' em Configurações → Caminhões."* O banco recusa o gesto do mesmo jeito (não devolve o pedido sem conseguir pedir a mudança ao Tiny — os dois lados ficariam dizendo coisas diferentes). Na janela de liberar peça, só "Deixar como está" fica disponível.
+
+## D-275 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes do pedido adiantado no Tiny (09/11/2026, SESSAO-47)
+
+1. **O adiantado com falta é pedido vivo para as rotas também** (uma regra só de "pedido vivo" serve a Expedição e a Programação — D-156): além de aparecer na Expedição, ele volta a poder ser programado numa rota, como qualquer pedido vivo. O adiantado sem nada por liberar e sem peça na fábrica segue fora, como antes.
+2. **A volta ao PCP deixa de valer quando o Tiny sai das três situações adiantadas** — para a situação pedida (confirmou) ou para qualquer outra (mudou lá) — e também quando a entrega do pedido é registrada. Faturado → Enviado (outra adiantada) mantém a volta.
+3. **"Faltam N produtos"** = as vagas de produção sem peça, na conta do PCP. A reserva do estoque ainda não é peça: conta como falta até alguém usar.
+4. **Quem recebe "ficou na Expedição esperando decisão":** a logística (todo mundo que pode apertar os botões). "Voltou ao PCP" segue indo para o PCP.
+5. **Na janela de liberar peça a escolha é obrigatória** quando o pedido está adiantado e o produto volta para a produção (o Confirmar só acende com uma das três). O site de antes, que não pergunta, vale como "deixar como está".
+6. **Pedido já devolvido:** o aviso e os botões saem do card na Expedição (ele volta a ser um pedido "ainda no PCP"); enquanto o Tiny não confirma, o card do PCP e o da Expedição mostram "O Tiny ainda não confirmou a mudança".
+7. **A fila de saída do Tiny guarda uma vontade por pedido:** pedir a volta substitui um "desfazer entrega" ainda pendente do mesmo pedido, e uma entrega registrada depois substitui a volta pendente.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

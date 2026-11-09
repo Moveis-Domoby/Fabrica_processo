@@ -339,6 +339,16 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Dívida 32 (numerada na junção com a SESSAO-43):** **a ficha da sugestão abre com 2 leituras em sequência** — a ficha (`plt_fn_sugestao_detalhe`) e, com os caminhos dela, os links do armário privado (`createSignedUrls`, 1 chamada para todos os arquivos). É o mesmo desenho da janela do card (anexos). **Caminho:** links públicos com assinatura gerada no servidor (Edge Function) na mesma resposta, ou o armário servido por URL assinada em lote na abertura da ficha.
 - **Crescimento:** `plt_sugestoes`/`plt_sugestao_fatos` crescem com o uso humano (dezenas por mês) — sem plano de partição; índices por coluna+ordem já cobrem as listas.
 
+**Andamento (SESSAO-47 · pedido adiantado no Tiny, o dia real da entrega, vários comprovantes e a configuração do painel de tempos, 09/11 — D-271…; ⏳ nada aplicado nem publicado em 09/11):**
+
+- **Bloco A — o pedido adiantado no Tiny (Expedição, PCP, liberar peça):**
+  - **Requisições:** nenhuma tela ganhou requisição. A Expedição segue 1 (o aviso, o que falta, a contagem do quadradinho novo e "a ida ao Tiny está ligada?" vêm na MESMA resposta); o PCP segue 1 (o selo "o Tiny ainda não confirmou" vem no resumo do pedido); voltar ao PCP = 1 chamada, idempotente pela chave do toque; liberar peça com a escolha do Tiny = a mesma 1 chamada de antes, numa transação.
+  - **Sem relógio (§4):** a ida ao Tiny usa a fila de saída que já existia (nada novo agendado); a marca fecha num gatilho na gravação da situação (nasce do fato); as telas releem pelo aviso da área (`pcp`, `aguardo`, `rotas`) — inclusive quando a fila anda (gatilho de comando na fila).
+  - **Ensaio ×100** (562.700 pedidos; PGlite em disco; `Execucao/dados/SESSAO-47 - ensaio x100 do pedido adiantado no Tiny (…)`), ANTES → DEPOIS: PCP "aguardando liberação" 77 → 77 ms · porta antiga do PCP 214 → 195 · quadrinho do PCP 63 → 72 · regra do pedido vivo (visão sozinha) 0,73 → 0,58 s · Expedição (20) 2,11 → 1,96 s · busca 2,91 → 1,98 s · filtro novo 2,13 s · Programação 3,13 → 2,75 s · "A entregar" 5,02 → 3,92 s (máquina com outros trabalhos: ruído de ±30%). Gesto de voltar ao PCP **12 ms** (máx 39) · o Tiny confirmando 4 ms · o gatilho novo numa gravação de situação sem a marca 1,3 ms. **Nenhuma porta piorou; Expedição, Programação e "A entregar" já estavam fora do teto (dívidas 24, 25, 29 e 30) — não nasceu aqui.**
+  - **Duas regressões achadas pelo ensaio e corrigidas antes do fim (E-238, E-239):** a regra do PCP aninhando funções que não são embutidas (+44 a +64 ms) e o caso novo da regra do pedido vivo citando a coluna do card dentro do "ou" (o plano trocou o laço pela varredura de todos os pedidos: 0,74 → 3,1 s).
+  - **Índices:** nenhum novo — a marca é lida na linha do card que a porta já tem na mão; a fila de saída tem uma linha por pedido (chave primária).
+  - **Pacote:** JS inicial **236,3 KB** só com o bloco A (antes 235,9; teto 250).
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes
