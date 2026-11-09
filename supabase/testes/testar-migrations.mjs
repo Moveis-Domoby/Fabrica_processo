@@ -3042,13 +3042,16 @@ titulo('Dashboards de verdade (SESSAO-16/D-42): retrato de agora, dia e gates')
 await bd.exec(`select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', false)`)
 
 // 1 · O retrato de agora fecha com a conta manual sobre os cards projetados.
+// ↪️ 06/11/2026 (D-268 — painel = quadro): a fila é a coluna da fila (ou o card
+// ainda sem coluna), com a peça e o avulso; a execução é só a que roda (sem pausa).
 const agoraManual = (
   await bd.query(`
-    select count(*) filter (where c.executor_atual_id is null)::int     as fila,
-           count(*) filter (where c.executor_atual_id is not null)::int as exec
+    select count(*) filter (where c.executor_atual_id is null and coalesce(et.eh_fila, true))::int as fila,
+           count(*) filter (where c.executor_atual_id is not null and c.pausado_em is null)::int   as exec
       from public.plt_cards c
       join public.plt_setores s on s.id = c.setor_atual_id
-     where c.tipo = 'unidade' and c.arquivado_em is null and c.concluido_em is null
+      left join public.plt_etapas et on et.id = c.etapa_atual_id
+     where c.tipo in ('unidade', 'avulso') and c.arquivado_em is null and c.concluido_em is null
        and s.ativo and s.papel_no_fluxo = 'producao'`)
 ).rows[0]
 const agoraPorta = (
@@ -16215,7 +16218,10 @@ try {
                      // o salvar dos motivos e quem ouve os avisos — vem depois da das rotas, como em produção
                      '20261105030000_plt_tempos_historico_trello.sql', '20261105040000_plt_tempos_producao_modo_tv.sql',
                      // ↪️ Ajuste 06/11: a porta da TV com o dia (tira a de 1 parâmetro que a de cima recria)
-                     '20261106020000_plt_modo_tv_ao_vivo_e_dia.sql']) {
+                     '20261106020000_plt_modo_tv_ao_vivo_e_dia.sql',
+                     // ↪️ Ajuste 06/11 (números que batem — E-165/E-178): a das rotas acima recria o "a
+                     // entregar", o calendário e a validação do stand-by na versão de antes — esta vem depois
+                     '20261106030000_plt_numeros_que_batem.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -20836,6 +20842,223 @@ try {
   await bd.exec('rollback')
 }
 } // fim do bloco do ajuste de 06/11
+
+{ // Ajuste de 06/11 (migration 20261106030000): os números que batem entre as telas (D-267…D-270)
+titulo('Números que batem (06/11) · "A entregar", Visão do dia = quadro, stand-by fecha no cancelamento, calendário')
+
+const um0611b = async (sql) => (await bd.query(sql)).rows[0]
+const como0611b = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// gravar o que precisa voltar atrás sem derrubar a transação da bateria (E-161)
+const recusa0611b = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint recusa0611b')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint recusa0611b')
+  }
+}
+const pedido0611b = async (numero, { situacao = 'Preparando envio', item = 'N0611', previsao = null } = {}) => {
+  await como0611b('')
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+      (${numero}, (select id from public.clientes order by id limit 1), '${situacao}', 'webhook', ${numero}00, ${previsao ?? 'null'});
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+      ((select id from public.pedidos where numero = ${numero}), 1, ${item ? `'${item}'` : 'null'},
+       ${item ? "'Painel Teste 06/11'" : "'Frete'"}, 1);
+  `)
+  return (await um0611b(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                          where c.tipo = 'pedido' and p.numero = ${numero}`)).id
+}
+const cancelar0611b = (numero) =>
+  bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = ${numero}`)
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, estoque_minimo, unidade)
+      values (961201, 'N0611', 'Painel Teste 06/11', 'F', 'A', null, 'un'), (961209, 'N0611X', 'Peça do painel 06/11', 'F', 'A', null, 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 06/11', 'TST0611');
+  `)
+  const secc = (await um0611b(`select id::int as id from public.plt_setores where codigo = 'secc'`)).id
+
+  // ---------------- 2 · Visão do dia = quadro (D-268) ----------------
+  // A fila do SECC (a que existir, ou uma nova — uma fila ativa por setor), uma
+  // coluna de trabalho e uma de estacionar (como CANCELADO da Limpeza).
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila)
+      select ${secc}, 'FILA 0611', 921, true
+       where not exists (select 1 from public.plt_etapas e where e.setor_id = ${secc} and e.eh_fila and e.ativa);
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      (${secc}, 'TRABALHO 0611', 922, false), (${secc}, 'ESTACIONADO 0611', 923, false);
+  `)
+  const et = await um0611b(`
+    select (select id::int from public.plt_etapas where setor_id = ${secc} and eh_fila and ativa) as fila,
+           (select id::int from public.plt_etapas where nome = 'TRABALHO 0611') as trabalho,
+           (select id::int from public.plt_etapas where nome = 'ESTACIONADO 0611') as estacionado`)
+  const agoraSecc = () => um0611b(`
+    select s.na_fila, s.em_execucao, s.pessoas_executando, extract(epoch from s.espera_mais_antiga)::bigint as espera_s,
+           t.na_fila as total_fila, t.em_execucao as total_exec
+      from public.plt_fn_dash_agora() s, public.plt_fn_dash_agora() t
+     where s.setor_codigo = 'secc' and t.setor_id is null`)
+  await como0611b(E40.admin)
+  const antesAgora = await agoraSecc()
+  // semeadura direta das projeções (A-131): só o que o painel lê
+  await bd.exec(`
+    set local session_replication_role = replica;
+    insert into public.plt_cards (tipo, produto_tiny_id, item_codigo, item_descricao, indice_unidade, total_unidades,
+                                  setor_atual_id, etapa_atual_id, desde, executor_atual_id, pausado_em)
+    values ('unidade', 961209, 'N0611X', 'Na fila 06/11',     1, 1, ${secc}, ${et.fila},        now() - interval '400 days', null, null),
+           ('unidade', 961209, 'N0611X', 'Estacionado 06/11', 1, 1, ${secc}, ${et.estacionado}, now() - interval '500 days', null, null),
+           ('unidade', 961209, 'N0611X', 'Rodando 06/11',     1, 1, ${secc}, ${et.trabalho},    now(), '00000000-0000-0000-0000-00000006110a', null),
+           ('unidade', 961209, 'N0611X', 'Pausado 06/11',     1, 1, ${secc}, ${et.trabalho},    now(), '00000000-0000-0000-0000-00000006110b', now());
+    insert into public.plt_cards (tipo, titulo, setor_atual_id, etapa_atual_id, desde)
+      values ('avulso', 'Avulso 06/11', ${secc}, ${et.fila}, now() - interval '1 hour');
+    set local session_replication_role = origin;
+  `)
+  const depoisAgora = await agoraSecc()
+  conferir(depoisAgora.na_fila - antesAgora.na_fila === 2 && depoisAgora.total_fila - antesAgora.total_fila === 2,
+    'na fila = a coluna da fila, com a peça E o card avulso — o estacionado em outra coluna não entra',
+    JSON.stringify({ antesAgora, depoisAgora }))
+  conferir(depoisAgora.em_execucao - antesAgora.em_execucao === 1 && depoisAgora.pessoas_executando - antesAgora.pessoas_executando === 1
+      && depoisAgora.total_exec - antesAgora.total_exec === 1,
+    'em execução = só quem trabalha agora: o pausado não conta (nem a pessoa dele)', JSON.stringify({ antesAgora, depoisAgora }))
+  conferir(depoisAgora.espera_s >= 400 * 86400 && depoisAgora.espera_s < 401 * 86400,
+    'a espera mais antiga vem da fila (o estacionado de 500 dias não puxa) — em tempo corrido; a tela converte pela régua',
+    JSON.stringify(depoisAgora))
+
+  // "prontos esperando rota" = os candidatos da Programação prontos e sem rota
+  const aguardando = async () => (await um0611b(`select aguardando_lancamento as n from public.plt_fn_dash_dia()`)).n
+  const ag0 = await aguardando()
+  const frete = await pedido0611b(961202, { situacao: 'Em aberto', item: null }) // só frete = pronto (D-63)
+  await como0611b(E40.admin)
+  const ag1 = await aguardando()
+  const cand = await um0611b(`select count(*)::int as n from plt_privado.vw_pedidos_para_rota where pronto and programacao_data is null`)
+  await bd.exec(`insert into public.plt_programacoes (card_id, data_entrega, caminhao_id, rota, ordem)
+                   values (${frete}, current_date + 1, (select id from public.plt_caminhoes where placa = 'TST0611'), 1, 1)`)
+  const ag2 = await aguardando()
+  conferir(ag1 === ag0 + 1 && ag2 === ag0 && ag1 === cand.n,
+    'prontos esperando rota: o pedido pronto sem rota entra; programado, sai — o mesmo número dos candidatos da Programação',
+    JSON.stringify({ ag0, ag1, ag2, cand }))
+
+  // ---------------- 1 · "A entregar" sem o cancelado (D-267) ----------------
+  const lancado = await pedido0611b(961203, { situacao: 'Em aberto', item: null })
+  await bd.exec(`set local session_replication_role = replica;
+                 update public.plt_cards set lancado_rotas_em = now() where id = ${lancado};
+                 set local session_replication_role = origin;`)
+  // o entregue de exemplo já saiu do PCP (liberado) — o que ainda esperava liberação
+  // sai com a entrega (D-156) e não fica na lista, com ou sem cancelamento
+  const entregue = await pedido0611b(961204, { situacao: 'Em aberto', item: null })
+  await bd.exec(`set local session_replication_role = replica;
+                 update public.plt_cards set liberado_completo_em = now(), lancado_rotas_em = now() where id = ${entregue};
+                 set local session_replication_role = origin;`)
+  await como0611b(E40.admin)
+  await bd.exec(`select public.plt_fn_registrar_entrega(${entregue}, 'teste 06/11', true)`)
+  const naLista = async (situacao, numero) =>
+    (await um0611b(`select count(*)::int as n from public.plt_fn_rotas('${situacao}', '${numero}', 20, 0)`)).n
+  const antesCancelar = { lancado: await naLista('pronta', 961203), entregue: await naLista('entregue', 961204) }
+  await cancelar0611b(961203)
+  await cancelar0611b(961204)
+  await como0611b(E40.admin)
+  const depoisCancelar = { lancado: await naLista('pronta', 961203), entregue: await naLista('entregue', 961204) }
+  conferir(antesCancelar.lancado === 1 && depoisCancelar.lancado === 0,
+    'o pedido lançado para as entregas e cancelado no Tiny sai de "A entregar" (como o 13686)', JSON.stringify({ antesCancelar, depoisCancelar }))
+  conferir(antesCancelar.entregue === 1 && depoisCancelar.entregue === 1,
+    'o que já tinha sido entregue continua no histórico de entregues, mesmo cancelado depois', JSON.stringify({ antesCancelar, depoisCancelar }))
+
+  // ---------------- 3 · Stand-by: o cancelamento fecha; painel = aba (D-269) ----------------
+  const motivoSb = (await um0611b(`select id::int as id from public.plt_motivos where tipo = 'standby' and ativo order by ordem, id limit 1`)).id
+  const sbA = await pedido0611b(961205)
+  const sbB = await pedido0611b(961206)
+  const sbC = await pedido0611b(961207)
+  await como0611b(E40.admin)
+  for (const c of [sbA, sbB, sbC]) await bd.exec(`select public.plt_fn_pcp_standby(${c}, ${motivoSb}, null)`)
+  const contar = async () => {
+    await como0611b(E40.admin)
+    const aba = (await bd.query(`select contagem_total::int as n from public.plt_fn_pcp_quadro(10, 0, 'standby', null, null) limit 1`)).rows[0]?.n ?? 0
+    const painel = (await um0611b(`select public.plt_fn_dash_motivos(now() - interval '1 day', now() + interval '1 day') as r`)).r
+    const seguradosAgora = (painel.pcp?.standby ?? []).reduce((s, m) => s + (m.agora ?? 0), 0)
+    return { aba, painel: painel.pcp?.em_standby_agora, seguradosAgora }
+  }
+  const sb0 = await contar()
+  await cancelar0611b(961205)
+  const fechouA = await um0611b(`
+    select c.standby_desde is null as fechou, jsonb_array_length(c.standby_periodos)::int as periodos,
+           (select count(*)::int from public.plt_eventos s where s.card_id = c.id and s.tipo = 'pedido_standby_saiu') as saidas,
+           (select s.origem from public.plt_eventos s where s.card_id = c.id and s.tipo = 'pedido_standby_saiu') as origem,
+           (select s.dados ->> 'destino' from public.plt_eventos s where s.card_id = c.id and s.tipo = 'pedido_standby_saiu') as destino,
+           (select (s.dados ? 'segundos_uteis') from public.plt_eventos s where s.card_id = c.id and s.tipo = 'pedido_standby_saiu') as util,
+           (select s.ocorrido_em = x.ocorrido_em from public.plt_eventos s, public.plt_eventos x
+             where s.card_id = c.id and s.tipo = 'pedido_standby_saiu' and x.card_id = c.id and x.tipo = 'pedido_cancelado') as na_hora
+      from public.plt_cards c where c.id = ${sbA}`)
+  conferir(fechouA.fechou && fechouA.periodos === 1 && fechouA.saidas === 1 && fechouA.origem === 'automacao'
+      && fechouA.destino === 'cancelado' && fechouA.util === true && fechouA.na_hora === true,
+    'o Tiny cancela o pedido em stand-by: o stand-by fecha sozinho, na hora do cancelamento, com o registro do porquê',
+    JSON.stringify(fechouA))
+  const sb1 = await contar()
+  conferir(sb0.painel === sb0.aba && sb1.painel === sb1.aba && sb1.aba === sb0.aba - 1
+      && sb0.seguradosAgora === sb0.painel && sb1.seguradosAgora === sb1.painel,
+    'o painel de Motivos conta "em stand-by agora" (e o "ainda segurado" de cada motivo) igual à aba Stand-by do PCP',
+    JSON.stringify({ sb0, sb1 }))
+  const evB = (await um0611b(`select standby_evento_id::int as ev from public.plt_cards where id = ${sbB}`)).ev
+  await recusa0611b(`insert into public.plt_eventos (card_id, tipo, origem, evento_referencia_id, dados)
+                       values (${sbB}, 'pedido_standby_saiu', 'automacao', ${evB}, '{"destino": "cancelado"}')`,
+    'fechar o stand-by "pelo cancelamento" de pedido que não está cancelado é recusado', /Só o cancelamento/)
+
+  // O que ficou aberto antes desta migration (o 13649): o cancelamento gravado como
+  // antes, sem o fecho (semeado direto, sem gatilho nenhum); a migration de novo
+  // fecha com a hora do cancelamento — e só uma vez.
+  await bd.exec(`
+    set local session_replication_role = replica;
+    update public.pedidos set situacao = 'Cancelado' where numero = 961207;
+    insert into public.plt_eventos (card_id, tipo, origem, observacao, ocorrido_em, dados)
+      values (${sbC}, 'pedido_cancelado', 'automacao', 'Pedido cancelado no Tiny.', now() + interval '2 hours',
+              '{"fonte": "tiny", "numero": 961207}');
+    set local session_replication_role = origin;
+  `)
+  const abertoC = (await um0611b(`select standby_desde is not null as aberto from public.plt_cards where id = ${sbC}`)).aberto
+  const MIG0611B = await readFile(path.join(MIGRATIONS, '20261106030000_plt_numeros_que_batem.sql'), 'utf8')
+  await bd.exec(MIG0611B)
+  await bd.exec(MIG0611B)
+  const fechouC = await um0611b(`
+    select c.standby_desde is null as fechou,
+           (select count(*)::int from public.plt_eventos s where s.card_id = c.id and s.tipo = 'pedido_standby_saiu') as saidas,
+           (select (s.dados ->> 'retroativo')::boolean from public.plt_eventos s where s.card_id = c.id and s.tipo = 'pedido_standby_saiu') as retro,
+           (select s.ocorrido_em = x.ocorrido_em from public.plt_eventos s, public.plt_eventos x
+             where s.card_id = c.id and s.tipo = 'pedido_standby_saiu' and x.card_id = c.id and x.tipo = 'pedido_cancelado') as na_hora
+      from public.plt_cards c where c.id = ${sbC}`)
+  conferir(abertoC === true && fechouC.fechou && fechouC.saidas === 1 && fechouC.retro === true && fechouC.na_hora === true,
+    'o stand-by que já estava aberto em pedido cancelado fecha na migration, com a hora do cancelamento — reaplicada, não repete',
+    JSON.stringify({ abertoC, fechouC }))
+
+  // ---------------- 4 · Calendário: "fora" só o que não aparece na grade (D-270) ----------------
+  await pedido0611b(961208, { previsao: 'current_date - 2' })
+  await como0611b(E40.admin)
+  const cal = async (de, ate) => (await um0611b(`select public.plt_fn_rotas_calendario(${de}, ${ate}) as r`)).r
+  const naGrade = await cal('current_date - 3', 'current_date + 3')
+  const semEle = await cal('current_date - 1', 'current_date + 5')
+  const achou = naGrade.dias.flatMap((d) => d.itens).find((i) => i.numero === 961208)
+  conferir(achou?.situacao === 'sem_rota' && semEle.fora.atrasados_sem_rota === naGrade.fora.atrasados_sem_rota + 1,
+    'a previsão vencida que aparece na grade não conta como "fora do calendário"; fora do período mostrado, conta',
+    JSON.stringify({ achou, naGrade: naGrade.fora, semEle: semEle.fora }))
+
+  // ---------------- permissões ----------------
+  await como0611b('')
+  const pr = await um0611b(`
+    select has_table_privilege('authenticated', 'plt_privado.vw_standby_na_aba', 'select') as aba,
+           has_function_privilege('authenticated', 'plt_privado.fn_standby_fechar_no_cancelamento()', 'execute') as fecha,
+           has_function_privilege('authenticated', 'public.plt_fn_dash_agora()', 'execute') as agora_logado,
+           has_function_privilege('anon', 'public.plt_fn_dash_agora()', 'execute') as agora_anon`)
+  conferir(!pr.aba && !pr.fecha && pr.agora_logado && !pr.agora_anon,
+    'a regra da aba e o fecho pelo cancelamento ficam fora da API; as portas seguem só para quem está logado',
+    JSON.stringify(pr))
+} finally {
+  await bd.exec('rollback')
+  await como0611b('')
+}
+} // fim do bloco dos números que batem (06/11)
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

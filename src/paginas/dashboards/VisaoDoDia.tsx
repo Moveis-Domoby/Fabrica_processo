@@ -2,11 +2,22 @@ import { useMemo } from 'react'
 import { Navigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ArrowDown, ArrowUp, Clock, Hourglass, Play } from 'lucide-react'
-import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { cn } from '@/lib/cn'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { formatarDuracaoMs, useAgora } from '@/kanban/tempo'
+import { formatarTempoUtil, tempoUtilMs } from '@/kanban/tempoUtil'
+import { useReguaTempo } from '@/kanban/useReguaTempo'
 import { dashVisaoDoDia } from '@/dashboards/api'
 import { envelhecerIntervalo, msDeIntervalo } from '@/dashboards/intervalo'
 import { useAoVivo } from '@/lib/aoVivo'
@@ -26,6 +37,17 @@ const ROTULO_DESTINO: Record<string, string> = {
 function esperaLegivel(intervalo: string | null): string {
   const ms = msDeIntervalo(intervalo)
   return ms > 0 ? formatarDuracaoMs(ms) : '—'
+}
+
+/**
+ * ↪️ 06/11/2026 (D-268): a espera da fila de um setor, escrita como o card no
+ * quadro — em horas de expediente ("29h 10min", sem "dias"); sem régua (banco
+ * antigo), o tempo corrido de antes. Fila vazia: "—".
+ */
+function esperaDaFila(s: { na_fila: number; esperaMs: number }, comRegua: boolean): string {
+  if (s.na_fila === 0) return '—'
+  if (!comRegua) return s.esperaMs > 0 ? formatarDuracaoMs(s.esperaMs) : '—'
+  return s.esperaMs < 60_000 ? '0min' : formatarTempoUtil(s.esperaMs)
 }
 
 /**
@@ -55,19 +77,35 @@ export function VisaoDoDia() {
   })
   useAoVivo('painel', [['dash', 'visao-do-dia']], { esperaMs: 2_000, espalharMs: 4_000 })
   const relogio = useAgora()
-  const passado = visao ? Math.max(0, relogio - new Date(visao.lido_em).getTime()) : 0
+  const lidoMs = visao ? new Date(visao.lido_em).getTime() : 0
+  const passado = visao ? Math.max(0, relogio - lidoMs) : 0
+  // ↪️ 06/11/2026 (D-268 — painel = quadro): a espera mais antiga em HORAS DE
+  // EXPEDIENTE, como o card no quadro. O banco devolve o tempo corrido desde a
+  // chegada do card mais antigo da fila (lido_em − espera = a chegada); a régua
+  // do setor (a mesma do quadro, vinda na abertura — D-172) diz quanto disso
+  // conta até agora. Sem régua (banco antigo), o tempo corrido de antes.
+  const regua = useReguaTempo()
   const agora = useMemo(
     () =>
-      (visao?.agora ?? []).map((s) => ({
-        ...s,
-        espera_mais_antiga: envelhecerIntervalo(s.espera_mais_antiga, passado),
-      })),
-    [visao, passado],
+      (visao?.agora ?? []).map((s) => {
+        const corridoMs = msDeIntervalo(s.espera_mais_antiga)
+        const esperaMs =
+          corridoMs <= 0
+            ? 0
+            : regua
+              ? tempoUtilMs(lidoMs - corridoMs, relogio, s.setor_id, regua)
+              : corridoMs + passado
+        return { ...s, esperaMs }
+      }),
+    [visao, regua, lidoMs, relogio, passado],
   )
   const pcp = useMemo(
     () =>
       visao?.pcp_dia
-        ? { ...visao.pcp_dia, espera_mais_antiga: envelhecerIntervalo(visao.pcp_dia.espera_mais_antiga, passado) }
+        ? {
+            ...visao.pcp_dia,
+            espera_mais_antiga: envelhecerIntervalo(visao.pcp_dia.espera_mais_antiga, passado),
+          }
         : undefined,
     [visao, passado],
   )
@@ -93,9 +131,7 @@ export function VisaoDoDia() {
   // O gargalo grita (mockup 01): o setor com a espera mais antiga, quando ela
   // destoa da mediana dos demais — o rótulo diz o quanto ("N× a mediana").
   const gargalo = useMemo(() => {
-    const comEspera = setores
-      .map((s) => ({ ...s, esperaMs: msDeIntervalo(s.espera_mais_antiga) }))
-      .filter((s) => s.esperaMs > 0)
+    const comEspera = setores.filter((s) => s.na_fila > 0 && s.esperaMs > 0)
     if (comEspera.length < 2) return null
     const ordenadas = [...comEspera].sort((a, b) => a.esperaMs - b.esperaMs)
     const pior = ordenadas[ordenadas.length - 1]
@@ -108,8 +144,7 @@ export function VisaoDoDia() {
   const setorMaiorEspera = useMemo(() => {
     let pior: (typeof setores)[number] | null = null
     for (const s of setores) {
-      if (msDeIntervalo(s.espera_mais_antiga) > msDeIntervalo(pior?.espera_mais_antiga ?? null))
-        pior = s
+      if (s.na_fila > 0 && (pior === null || s.esperaMs > pior.esperaMs)) pior = s
     }
     return pior
   }, [setores])
@@ -149,7 +184,11 @@ export function VisaoDoDia() {
           leitura continuam visíveis, na linha do título (é estado, não explicação). */}
       <CabecalhoDaTela titulo="Visão do dia" classeAcoes="justify-start">
         <span className="text-sm text-texto-suave">
-          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}
+          {new Date().toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: '2-digit',
+            month: '2-digit',
+          })}
           {' · '}atualizado às {agoraTexto}
         </span>
       </CabecalhoDaTela>
@@ -213,11 +252,11 @@ export function VisaoDoDia() {
             icone={<Clock aria-hidden className="size-3.5" />}
             valor={total.na_fila}
             detalhe={
-              setorMaiorEspera && msDeIntervalo(setorMaiorEspera.espera_mais_antiga) > 0 ? (
+              setorMaiorEspera ? (
                 <span className="inline-flex flex-wrap items-center gap-1">
                   <Hourglass aria-hidden className="size-3.5 text-atencao-texto" />
                   <span className="font-semibold text-atencao-texto">
-                    {esperaLegivel(setorMaiorEspera.espera_mais_antiga)}
+                    {esperaDaFila(setorMaiorEspera, regua !== null)}
                   </span>
                   a espera mais antiga ({setorMaiorEspera.setor_nome})
                 </span>
@@ -259,7 +298,9 @@ export function VisaoDoDia() {
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-sm text-texto-suave">liberadas hoje</dt>
-                <dd className="num-tile font-semibold tabular-nums">{pcp.unidades_liberadas_dia}</dd>
+                <dd className="num-tile font-semibold tabular-nums">
+                  {pcp.unidades_liberadas_dia}
+                </dd>
               </div>
             </dl>
             <p className="mt-auto pt-1 text-xs text-texto-fraco">
@@ -300,7 +341,7 @@ export function VisaoDoDia() {
                 )}
               >
                 {ehGargalo && <Hourglass aria-hidden className="size-3.5" />}
-                mais antiga: {esperaLegivel(s.espera_mais_antiga)}
+                mais antiga: {esperaDaFila(s, regua !== null)}
                 {ehGargalo && gargalo && ` — ${gargalo.vezes.toFixed(0)}× a mediana`}
               </p>
             </div>
@@ -308,8 +349,8 @@ export function VisaoDoDia() {
         })}
         {setores.length === 0 && !pcp && (
           <p className="rounded-dm-lg border border-borda bg-superficie p-5 text-sm text-texto-suave">
-            Você não mede nenhum setor de produção — os tiles do andon aparecem para líderes
-            (do próprio setor) e admins.
+            Você não mede nenhum setor de produção — os tiles do andon aparecem para líderes (do
+            próprio setor) e admins.
           </p>
         )}
       </section>
@@ -330,7 +371,11 @@ export function VisaoDoDia() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={horas} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke="var(--dm-borda)" strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid
+                      stroke="var(--dm-borda)"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="rotulo"
                       tick={{ fontSize: 12, fill: 'var(--dm-texto-suave)' }}
@@ -438,8 +483,10 @@ export function VisaoDoDia() {
                 </div>
               )
             })}
+            {/* ↪️ 06/11/2026 (D-268): os candidatos da Programação prontos e sem
+                rota — desde a D-156 o lançamento não é passo. */}
             <p className="text-sm text-texto-suave">
-              Pedidos completos aguardando lançamento para ROTAS:{' '}
+              Pedidos prontos esperando rota:{' '}
               <span className="font-semibold text-texto tabular-nums">
                 {dia.aguardando_lancamento}
               </span>
