@@ -1,5 +1,3 @@
-import { hojeNaFabrica } from '@/dashboards/tempos/formato'
-
 /**
  * O DIA DA ENTREGA (SESSAO-47 — pedido do dono: "marcar como entregue no dia em
  * que foi entregue de fato … deve refletir em toda a plataforma"). As contas de
@@ -10,6 +8,15 @@ import { hojeNaFabrica } from '@/dashboards/tempos/formato'
  * as telas mostram) e QUANDO FOI REGISTRADA (o que decide o "desfazer do dia").
  */
 const FUSO_MS = -3 * 3_600_000
+
+/**
+ * O dia de hoje na fábrica, "AAAA-MM-DD" — o limite de cima de toda escolha de
+ * dia de entrega. (A mesma conta do painel de tempos; fica aqui para a tela do
+ * entregador não carregar nada daquele painel.)
+ */
+export function hojeNaFabrica(agora = Date.now()): string {
+  return new Date(agora + FUSO_MS).toISOString().slice(0, 10)
+}
 
 /** O dia (AAAA-MM-DD) de um instante, no fuso da fábrica. */
 export function diaNaFabrica(instante: string | null | undefined): string | null {

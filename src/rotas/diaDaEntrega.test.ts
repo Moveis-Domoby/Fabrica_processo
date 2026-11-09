@@ -4,9 +4,11 @@ import {
   diaNaFabrica,
   diaPorExtenso,
   entregueEmOutroDia,
+  hojeNaFabrica,
   problemaDoDia,
   registradaHoje,
 } from './diaDaEntrega'
+import { hojeNaFabrica as hojeDoPainelDeTempos } from '@/dashboards/tempos/formato'
 
 describe('o dia da entrega (SESSAO-47) — as contas da tela, na régua do banco', () => {
   it('o dia é sempre o do fuso da fábrica', () => {
@@ -16,6 +18,15 @@ describe('o dia da entrega (SESSAO-47) — as contas da tela, na régua do banco
     expect(diaNaFabrica('2026-11-08T18:00:00-03:00')).toBe('2026-11-08')
     expect(diaNaFabrica(null)).toBeNull()
     expect(diaNaFabrica('isto não é uma data')).toBeNull()
+  })
+
+  it('"hoje" é o dia da fábrica — a mesma conta do painel de tempos, sem carregar o painel', () => {
+    // 23:30 de 05/11 em Natal: em UTC já virou o dia
+    const quaseMeiaNoite = Date.parse('2026-11-06T02:30:00Z')
+    expect(hojeNaFabrica(quaseMeiaNoite)).toBe('2026-11-05')
+    expect(hojeNaFabrica(Date.parse('2026-11-06T03:00:00Z'))).toBe('2026-11-06')
+    for (const agora of [quaseMeiaNoite, Date.parse('2026-12-31T23:59:59-03:00'), Date.now()])
+      expect(hojeNaFabrica(agora)).toBe(hojeDoPainelDeTempos(agora))
   })
 
   it('amanhã não vale; antes de o pedido chegar também não; hoje e os dias desde a chegada valem', () => {

@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
-import { hojeNaFabrica } from '@/dashboards/tempos/formato'
 import { corrigirDiaDaEntrega } from '@/rotas/api'
-import { diaNaFabrica, diaPorExtenso, problemaDoDia } from '@/rotas/diaDaEntrega'
+import { diaNaFabrica, diaPorExtenso, hojeNaFabrica, problemaDoDia } from '@/rotas/diaDaEntrega'
 
 /**
  * O que as outras telas releem quando o dia de uma entrega muda (a ficha em que

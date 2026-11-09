@@ -42,7 +42,11 @@ vi.mock('@/kanban/api', async (original) => {
 })
 vi.mock('@/rotas/api', async (original) => {
   const real = await original<typeof import('@/rotas/api')>()
-  return { ...real, corrigirDiaDaEntrega: vi.fn(async () => ({ mudou: true })) }
+  return {
+    ...real,
+    corrigirDiaDaEntrega: vi.fn(async () => ({ mudou: true })),
+    anexarComprovante: vi.fn(async () => {}),
+  }
 })
 
 const HOJE = hojeNaFabrica()
@@ -166,6 +170,7 @@ beforeEach(() => {
   sessao.papel = 'admin'
   vi.mocked(kanbanApi.detalhePedidoPcp).mockReset().mockResolvedValue(ficha())
   vi.mocked(rotasApi.corrigirDiaDaEntrega).mockReset().mockResolvedValue({ mudou: true })
+  vi.mocked(rotasApi.anexarComprovante).mockReset().mockResolvedValue(undefined)
 })
 
 describe('Ficha do pedido — o dia real da entrega', () => {
@@ -289,5 +294,44 @@ describe('Ficha do pedido — o dia real da entrega', () => {
     const linha = within(historico).getByText('Entregue').closest('li')!
     expect(linha).toHaveTextContent(diaPorExtenso(ONTEM))
     expect(linha).toHaveTextContent(new RegExp(`registrado em ${diaPorExtenso(HOJE)} às`))
+  })
+
+  it('"Anexar comprovantes" na ficha: vários de uma vez; depois do envio a ficha relê e mostra todos', async () => {
+    sessao.papel = 'logistica'
+    desenhar()
+    const painel = await abrirEntrega()
+    expect(painel).toHaveTextContent('Nenhum comprovante anexado a este pedido.')
+    await userEvent.click(within(painel).getByRole('button', { name: 'Anexar comprovantes' }))
+    const janela = await screen.findByRole('dialog', { name: 'Comprovantes — pedido 13818' })
+    const escolher = within(janela).getByLabelText('Escolher arquivos')
+    expect(escolher).toHaveAttribute('multiple')
+    await userEvent.upload(escolher, [
+      new File(['a'], 'pix.pdf', { type: 'application/pdf' }),
+      new File(['b'], 'canhoto.pdf', { type: 'application/pdf' }),
+    ])
+    // a ficha relida depois do envio já traz os dois
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue({
+      ...ficha(),
+      anexos: ['pix.pdf', 'canhoto.pdf'].map((nome, i) => ({
+        id: i + 1,
+        tipo: 'comprovante',
+        nome,
+        mime: 'application/pdf',
+        tamanho: 1,
+        caminho: `900/${nome}`,
+        por: 'Kaio',
+        em: new Date().toISOString(),
+      })),
+    })
+    await userEvent.click(within(janela).getByRole('button', { name: 'Anexar 2 arquivos' }))
+    await waitFor(() => expect(rotasApi.anexarComprovante).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(rotasApi.anexarComprovante).mock.calls.map((c) => [c[0], c[1].name])).toEqual([
+      [900, 'pix.pdf'],
+      [900, 'canhoto.pdf'],
+    ])
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const depois = screen.getByRole('region', { name: 'Entrega e comprovante' })
+    expect(await within(depois).findByText('pix.pdf')).toBeInTheDocument()
+    expect(within(depois).getByText('canhoto.pdf')).toBeInTheDocument()
   })
 })

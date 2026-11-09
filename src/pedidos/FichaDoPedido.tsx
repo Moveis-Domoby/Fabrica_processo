@@ -12,6 +12,7 @@ import {
   ImageIcon,
   MessageCircle,
   PackageX,
+  Paperclip,
   ReceiptText,
   Truck,
   TriangleAlert,
@@ -24,6 +25,8 @@ import { detalhePedidoPcp } from '@/kanban/api'
 import { linkDoAnexo, linkWhatsApp } from '@/rotas/api'
 import { diaNaFabrica, entregueEmOutroDia, registradaHoje } from '@/rotas/diaDaEntrega'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
+import { ModalComprovantes } from '@/rotas/ModalComprovantes'
+import { useComprovantes } from '@/rotas/useComprovantes'
 import { ModalDecidirDevolucao } from '@/logistica/componentes/ModalDecidirDevolucao'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
 import { humanizar } from '@/auditoria/rotulos'
@@ -495,6 +498,9 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
       }),
   })
   const { pedido: p, cliente: c } = d
+  // SESSAO-47: vários comprovantes de uma vez — cada um que sobe relê a ficha
+  const comprovantes = useComprovantes(aoMudar)
+  const cardId = d.plataforma.card_id
   // SESSAO-41 (D-193): onde entregar — o endereço de entrega do Tiny, quando há.
   const onde = d.endereco_entrega ?? { ...c, de_entrega: false }
   const juntar = (e: {
@@ -686,7 +692,21 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-texto-suave">Comprovantes e anexos</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium text-texto-suave">Comprovantes e anexos</p>
+          {/* SESSAO-47 (pedido do dono): anexar daqui também, vários de uma vez. Quem abre
+              a ficha é a logística ou o administrador — os mesmos que o banco deixa anexar. */}
+          {cardId !== null && (
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<Paperclip />}
+              onClick={() => comprovantes.abrir({ card_id: cardId, numero: p.numero })}
+            >
+              Anexar comprovantes
+            </Botao>
+          )}
+        </div>
         {d.anexos.length === 0 ? (
           <p className="text-sm text-texto-suave">Nenhum comprovante anexado a este pedido.</p>
         ) : (
@@ -728,6 +748,7 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
         )}
       </div>
 
+      <ModalComprovantes envio={comprovantes} />
       <ModalMotivoEntrega
         key={desfazendo ? 'desfazer-aberto' : 'desfazer-fechado'}
         tipo="desfazer_entrega"
