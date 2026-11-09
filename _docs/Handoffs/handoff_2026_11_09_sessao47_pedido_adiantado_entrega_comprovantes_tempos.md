@@ -48,3 +48,36 @@ Fotos (a tela real com dados de exemplo — nomes inventados):
 ![[sessao47-expedicao-celular.jpg]]
 *No celular (375 px), sem rolagem lateral. Tablet: `sessao47-expedicao-tablet.png`.*
 
+### Bloco B — A entrega (frentes 5 e 6)
+
+| Frente | O que mudou |
+|---|---|
+| **5 · "Marcar como entregue no dia..."** | Depois de tocar em "Entregue" — em ROTAS → Entregas (logística) e nas Entregas do dia (entregador) — aparecem **"Confirmar entrega"** (hoje, como sempre), **"Marcar como entregue no dia..."** (abre "Em que dia foi entregue?" e o botão vira "Marcar como entregue em dd/mm/aaaa") e **"Ainda não"**. Com peças ainda em produção o aviso da imagem do dono continua, e os dois botões de confirmar valem como o "entregar mesmo assim" de antes. **O dia de amanhã é recusado pela tela e pelo banco**; o dia anterior à chegada do pedido também. A entrega nasce já com o dia real (a hora de um dia passado = o fim do expediente da fábrica naquele dia) e com a hora em que foi registrada — a trilha diz "Marcado como entregue no dia X (registrado em Y)". |
+| **5 · A data vale em toda a plataforma** | Uma data só (guardada no card do pedido) para: a ficha ("Entregue no dia 06/11/2026, registrado em 09/11/2026 às 10:32 por Fulano"), a lista de pedidos, ROTAS → Entregas, Já programadas, as Entregas do dia ("entregue em dd/mm" e a lista dos entregues neste dia que eram de outra rota), **o calendário das rotas** (o entregue no dia real, com a nota "prog. dd/mm" quando difere do programado) e o número de entregas do painel de Motivos. |
+| **5 · Desfazer e corrigir** | "Desfazer do dia" conta pelo dia em que a entrega foi **registrada** (quem marcou hoje "entregue ontem" ainda desfaz hoje). **Corrigir depois: só o admin**, na ficha, pelo botão **"Alterar a data da entrega"** (dia + motivo opcional) — é um registro novo com o dia de antes e o novo; a entrega original não é editada. Logística e entregador não veem o botão, e o banco recusa. O Tiny continua recebendo "Entregue" como hoje; a data não vai. |
+| **6 · Vários comprovantes de uma vez** | Nos três lugares (o painel do "Entregue" do entregador, o botão "Comprovante" do card e a ficha — que ganhou "Anexar comprovantes") dá para **escolher vários arquivos de uma vez** (até 10; os mesmos tipos e o mesmo tamanho de antes). Cada um sobe e é registrado sozinho, um depois do outro: **o que falha não derruba os outros**, a janela diz qual falhou e por quê, e "Tentar de novo" manda só ele. A entrega continua sendo registrada **antes** dos comprovantes. |
+| **Extra · o calendário mais firme** | A leitura do calendário das rotas passou a usar sempre o plano feito sob medida para o período — com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ela levava dezenas de segundos (achado do ajuste de 06/11). |
+
+Banco: `supabase/migrations/20261109030000_plt_entrega_dia_real.sql` (a frente 6 não mexe no banco). Telas: `src/rotas/ConfirmarEntrega.tsx`, `diaDaEntrega.ts`, `ModalComprovantes.tsx`, `enviarComprovantes.ts`, `useComprovantes.ts` (novos), `src/pedidos/AlterarDataDaEntrega.tsx`, `entregaNaFicha.ts` (novos), `src/paginas/Rotas.tsx`, `EntregasDoDia.tsx`, `src/pedidos/FichaDoPedido.tsx`, `ProducaoDoPedido.tsx`, `src/rotas/AbaCalendario.tsx`, `src/rotas/api.ts`. Testes: bateria (bloco "SESSAO-47 · Bloco B", 35 conferências) e os testes de tela ao lado de cada arquivo. Diário próprio: `Execucao/SESSAO-47 - bloco B.md`.
+
+![[sessao47-entrega-confirmar.png]]
+*ROTAS → Entregas, depois de "Entregue": os três botões.*
+
+![[sessao47-entrega-em-producao-dia.png]]
+*O pedido que ainda aparece em produção: o aviso continua, e "Marcar como entregue no dia..." abre a escolha do dia.*
+
+![[sessao47-entregador-celular.jpg]]
+*O painel do entregador no celular (375 px): vários comprovantes escolhidos, a observação e os três botões.*
+
+![[sessao47-comprovantes.png]]
+*A janela dos comprovantes: dois subiram, um falhou — o porquê na linha e "Tentar de novo o arquivo que falhou".*
+
+![[sessao47-calendario-dia-real.png]]
+*O calendário das rotas: o 13841 aparece no dia em que foi entregue de fato (09/11), com "prog. 10/11".*
+
+![[sessao47-ficha-entrega.png]]
+*A ficha: "Entregue no dia 06/11/2026, registrado em 09/11/2026 às 10:32 por …", os comprovantes e (só admin) "Alterar a data da entrega".*
+
+![[sessao47-ficha-alterar-data.png]]
+*A janela do admin para corrigir o dia.*
+

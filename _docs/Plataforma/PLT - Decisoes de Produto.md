@@ -2306,6 +2306,63 @@ Os dois botões (no aviso da Expedição e na janela de liberar peça) dependem 
 6. **Pedido já devolvido:** o aviso e os botões saem do card na Expedição (ele volta a ser um pedido "ainda no PCP"); enquanto o Tiny não confirma, o card do PCP e o da Expedição mostram "O Tiny ainda não confirmou a mudança".
 7. **A fila de saída do Tiny guarda uma vontade por pedido:** pedir a volta substitui um "desfazer entrega" ainda pendente do mesmo pedido, e uma entrega registrada depois substitui a volta pendente.
 
+## D-276 · ✅ DECIDIDA pelo dono — "Marcar como entregue no dia…": a entrega pode ser registrada no dia em que aconteceu de fato, nunca num dia que ainda não chegou; a data vale em toda a plataforma e depois só o admin corrige (09/11/2026, SESSAO-47) — ↪️ complementa D-33, D-113, D-156, D-175
+
+**Pedido do dono (09/11):** *"Quando for dar um pedido como entregue, deve aparecer também um botão de alterar a data da entrega para o dia que foi entregue de fato… Eu não posso alterar para uma data que ainda não chegou… Não deve ser obrigatório… se a data for alterada, isso deve refletir em toda a plataforma, inclusive no calendário das rotas."*
+
+**Decidido (pedido e respostas 6 a 8):**
+1. Depois de tocar em "Entregue" — em ROTAS → Entregas e nas Entregas do dia do entregador — aparecem três botões: **"Confirmar entrega"** (hoje, como sempre), **"Ainda não"** (fecha sem registrar) e **"Marcar como entregue no dia..."** (abre a escolha do dia e confirma já com ele).
+2. **Com peças ainda em produção** (o aviso da imagem do dono) o aviso continua na tela, e os dois botões de confirmar valem como o "entregar mesmo assim" de antes. A regra de fechar tudo do pedido não muda.
+3. **A data é opcional** (o padrão é hoje) e **nunca é um dia que ainda não chegou** — o limite é hoje no fuso da fábrica, conferido no banco e não só na tela.
+4. **A data escolhida vale em toda a plataforma:** ficha do pedido, Entregas do dia, lista de pedidos, calendário das rotas (o entregue aparece no dia real) e os números de entregas por dia.
+5. **Corrigir depois: só o admin, na ficha do pedido** ("Alterar a data da entrega"), com a mesma regra de data. A entrega não é editada: a correção é um registro novo com o dia de antes e o novo.
+6. **O Tiny** continua recebendo "Entregue" como hoje; a data não vai ao Tiny.
+
+**Como ficou (técnico):** migration `20261109030000`. A data que vale = `plt_cards.entrega_em` (projeção dos fatos `pedido_entregue`, `entrega_desfeita`, `entrega_dia_corrigido` — `fn_projetar_entrega`); o dia sempre por `plt_privado.fn_dia_da_entrega` (fuso `America/Fortaleza`); a regra do dia em `plt_privado.fn_entrega_instante`; `plt_fn_registrar_entrega(…, p_dia date default null)` e `fn_fechar_pedido(…, p_ocorrido_em)`; guarda no fato (`fn_validar_entrega_dia`); `plt_fn_entrega_corrigir_dia(card, dia, motivo)` só admin; leitores pela mesma data: `plt_fn_pedidos_lista`, `plt_fn_pcp_pedido_detalhe`, `plt_fn_rotas`, `plt_fn_programadas`, `plt_fn_entregas_do_dia`, `plt_fn_rotas_calendario`, `plt_fn_dash_motivos`. Telas: `src/rotas/ConfirmarEntrega.tsx` (um componente para os dois lugares), `src/rotas/diaDaEntrega.ts`, `src/pedidos/AlterarDataDaEntrega.tsx`.
+
+## D-277 · ⏳ PROVISÓRIA — O dia da entrega nunca fica antes do dia em que o pedido chegou à plataforma (09/11/2026, SESSAO-47 — provisória escrita na demanda)
+
+"Chegada" = o momento em que o pedido ganhou o card dele na plataforma. O banco recusa com a explicação (*"Este pedido chegou à plataforma em dd/mm/aaaa — a entrega não pode ser marcada antes disso"*). No painel do entregador e na ficha o campo já limita; na lista da logística (ROTAS → Entregas) o campo não tem data mínima (essa lista não recebe a chegada) e quem recusa é o banco.
+
+## D-278 · ⏳ PROVISÓRIA — A hora guardada para um dia passado é o fim do expediente da fábrica naquele dia (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-203…D-211
+
+O fim do último turno de qualquer setor de produção naquele dia, contando hora extra e as exceções do calendário. Em dia sem expediente (domingo, feriado) ou sem horário cadastrado, 18:00. Se o pedido chegou à plataforma depois dessa hora naquele mesmo dia, a hora da chegada. Nunca fora do dia escolhido, nunca depois de agora. Escolher o próprio dia de hoje é o mesmo que "Confirmar entrega" (a hora de agora). Na tela, a entrega marcada num dia passado aparece como "no dia dd/mm/aaaa" (sem hora), com "registrado em … por …" ao lado.
+
+## D-279 · ⏳ PROVISÓRIA — No calendário das rotas o entregue aparece no dia REAL, com a nota do dia programado quando difere (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-175
+
+Na barra do pedido a nota é curta — **"prog. dd/mm"** — para não ser cortada na coluna estreita; a frase inteira **"programado para dd/mm"** aparece no detalhe do toque (e no texto lido pelo leitor de tela). O pedido continua na rota em que estava programado (a rota não muda, só o dia mostrado); "Ver a rota" abre a rota do dia programado. O entregue sem programação continua fora do calendário, como antes. Nas Entregas do dia, "Entregues neste dia" junta as paradas da rota já entregues (com "entregue em dd/mm" quando o dia de fato é outro) e os pedidos entregues de fato naquele dia que eram de outra rota ("programado para dd/mm (Caminhão)") — a logística vê todos, o entregador só os das rotas da equipe dele; no máximo 100 por dia; o desfazer fica na rota em que o pedido estava programado.
+
+## D-280 · ⏳ PROVISÓRIA — "Desfazer do dia" (e o toque repetido) contam pelo dia em que a entrega foi REGISTRADA, não pelo dia escolhido (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-113, D-213
+
+Quem marcou hoje "entregue ontem" ainda desfaz hoje. A registrada em outro dia só o admin reabre, na ficha. As frases mudaram: *"Só dá para desfazer a entrega no mesmo dia em que ela foi registrada"* / *"Foi registrada em outro dia: só um administrador reabre, na ficha do pedido"*.
+
+## D-281 · ⏳ PROVISÓRIA — A correção do dia da entrega: motivo opcional, registro novo feito na hora (09/11/2026, SESSAO-47 — provisória escrita na demanda)
+
+Só o admin, na ficha ("Alterar a data da entrega"). O motivo é opcional (até 300 letras). A correção fica registrada como acontecida na hora em que foi feita, levando o dia de antes e o dia novo; a entrega original fica intacta. Corrigir para o mesmo dia não registra nada (a janela nem deixa salvar). A hora depois de corrigir segue a D-278. Na ficha: *"Dia corrigido por Fulano em … (era dd/mm/aaaa) — motivo"*; no histórico, "Dia da entrega corrigido". Gera log e avisa as telas das rotas.
+
+## D-282 · ✅ DECIDIDA pelo dono (anexar vários) + ⏳ PROVISÓRIA (os limites) — Vários comprovantes de uma vez (09/11/2026, SESSAO-47)
+
+**Pedido do dono:** *"Ter a possibilidade de anexar mais de um arquivo de comprovante por vez ao pedido."* Vale nos três lugares: o painel do "Entregue" do entregador, o botão "Comprovante" do card nas Entregas do dia e a ficha do pedido (que ganhou o botão "Anexar comprovantes" — antes só listava e abria).
+
+**Provisório (o limite veio da demanda; o resto é escolha da sessão):**
+1. **Até 10 por vez**, com os mesmos tipos e o mesmo tamanho máximo de antes (10 MB por arquivo). Passou de 10 na mesma escolha, os excedentes ficam de fora com o aviso; dá para enviar esses e escolher mais depois.
+2. **Cada arquivo sobe e é registrado sozinho, um depois do outro** (no celular com internet fraca falha menos e dá para ver o andamento de cada um). O que falha não derruba os outros; a janela diz qual falhou, por quê, e oferece tentar de novo **só** ele — sem reenviar o que já subiu e sem deixar cópia solta.
+3. **A entrega é registrada antes dos comprovantes**, como já era: no "Entregue" do entregador a entrega vale primeiro e os arquivos sobem em seguida numa janela. Sair da janela vira "Deixar para depois" (o que subiu fica no pedido; o que faltou se anexa depois).
+4. Arquivo vazio e documento (PDF/Word) com mais de 10 MB ficam de fora já na escolha, com o porquê; a foto grande entra, porque é reduzida no próprio aparelho. O mesmo arquivo escolhido duas vezes não repete. Arquivo que já subiu não pode mais ser tirado da lista ali.
+
+**Como ficou (técnico):** sem mudança de banco (`plt_fn_anexo_registrar` já não repete o mesmo caminho). `src/rotas/enviarComprovantes.ts`, `useComprovantes.ts`, `ModalComprovantes.tsx`; `anexarComprovante(card, arquivo, chave)` com caminho estável por arquivo.
+
+## D-283 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes da entrega no dia real (09/11/2026, SESSAO-47)
+
+1. **O campo do dia começa vazio**; o botão só acende com um dia que vale e passa a dizer "Marcar como entregue em dd/mm/aaaa".
+2. **A entrega parcial não ganhou a escolha do dia**: vale no dia em que é registrada; se precisar, o admin corrige depois na ficha.
+3. **A entrega que vem do Tiny** continua valendo no momento em que a plataforma recebeu o aviso; o admin também pode corrigir.
+4. **Na trilha do pedido**, a entrega marcada num dia passado leva a frase "Marcado como entregue no dia X (registrado em Y)".
+5. **Na lista de pedidos**, quando o dia foi escolhido, a hora ao lado é a do fim do expediente (a lista não sabe quando a entrega foi registrada; a ficha diz as duas coisas).
+6. **O número de entregas do painel de Motivos** passou a contar as entregas que estão valendo, pelo dia de fato — antes contava os registros, inclusive os desfeitos depois.
+7. **Na aba Produção da ficha**, a peça que saiu com a entrega mostra o dia de fato da entrega.
+8. **O calendário das rotas passou a ser lido sempre com o plano feito sob medida para o período** (ajuste técnico pedido pelo supervisor — o achado de 06/11: com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ele levava dezenas de segundos).
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
