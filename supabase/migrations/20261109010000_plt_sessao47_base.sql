@@ -85,14 +85,29 @@ comment on function plt_privado.fn_tiny_adiantou(text) is
 -- PCP, a não ser que a plataforma o tenha devolvido e o Tiny ainda não tenha
 -- mostrado outra situação. Nas outras situações, vale a D-132 como sempre — a
 -- marca nunca segura no PCP um pedido entregue, não entregue ou cancelado.
+--
+-- Escrita com UMA normalização por chamada (ela roda por linha em todas as
+-- portas do PCP — o ensaio ×100 mostrou +44 a +64 ms quando ela chamava as
+-- outras duas funções; assim custa o mesmo que a regra de antes). As listas
+-- são as de fn_tiny_tirou_do_pcp e fn_tiny_adiantou — a bateria prova que as
+-- três respondem igual para toda situação do Tiny.
 create or replace function plt_privado.fn_fora_do_pcp(p_situacao text, p_volta_em timestamptz)
 returns boolean
 language sql
 immutable
 set search_path = public, pg_temp
 as $$
-  select case when plt_privado.fn_tiny_adiantou(p_situacao) then p_volta_em is null
-              else plt_privado.fn_tiny_tirou_do_pcp(p_situacao) end;
+  select case plt_privado.fn_situacao_normalizada(p_situacao)
+           -- o Tiny levou adiante: fora, a não ser que a plataforma o tenha devolvido
+           when 'faturado'          then p_volta_em is null
+           when 'pronto_para_envio' then p_volta_em is null
+           when 'enviado'           then p_volta_em is null
+           -- encerrado no Tiny: fora sempre
+           when 'entregue'          then true
+           when 'nao_entregue'      then true
+           when 'cancelado'         then true
+           else false
+         end;
 $$;
 
 comment on function plt_privado.fn_fora_do_pcp(text, timestamptz) is

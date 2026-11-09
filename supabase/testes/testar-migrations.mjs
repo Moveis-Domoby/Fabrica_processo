@@ -21185,6 +21185,29 @@ try {
     'Faturado, Pronto para envio e Enviado com produto por liberar: o pedido sai do PCP (e do quadrinho), mas APARECE na Expedição mesmo sem peça nenhuma, com a situação real, o que falta (2) e no filtro só deles; Preparando envio e Em aberto não ganham o aviso',
     JSON.stringify({ x0, porSituacao, xAberto }))
 
+  // a regra única (escrita com UMA normalização por linha — o ensaio ×100) não pode divergir das
+  // outras duas: sem a marca responde como a regra do PCP de antes; com a marca, só as três
+  // situações adiantadas voltam ao PCP (entregue, não entregue e cancelado seguem fora)
+  const regras47 = await todos47(`
+    select s, plt_privado.fn_tiny_tirou_do_pcp(s) as antes, plt_privado.fn_fora_do_pcp(s, null) as sem_marca,
+           plt_privado.fn_fora_do_pcp(s, now()) as com_marca, plt_privado.fn_tiny_adiantou(s) as adiantou
+      from unnest(array['Em aberto', 'Aprovado', 'Preparando envio', 'Faturado', 'Pronto para envio', 'Enviado',
+                        'Entregue', 'Não entregue', 'Cancelado', 'Dados incompletos', 'PRONTO PARA ENVIO', '', null]) s`)
+  const noBanco47 = await um47(`
+    select count(*)::int as situacoes,
+           count(*) filter (where plt_privado.fn_fora_do_pcp(x.s, null) is distinct from plt_privado.fn_tiny_tirou_do_pcp(x.s)
+                               or plt_privado.fn_fora_do_pcp(x.s, now())
+                                    is distinct from (plt_privado.fn_tiny_tirou_do_pcp(x.s) and not plt_privado.fn_tiny_adiantou(x.s)))::int as divergem
+      from (select distinct situacao as s from public.pedidos) x`)
+  conferir(
+    regras47.length === 13
+      && regras47.every((r) => r.sem_marca === r.antes && r.com_marca === (r.antes && !r.adiantou))
+      && regras47.filter((r) => r.adiantou).map((r) => r.s).join('|') === 'Faturado|Pronto para envio|Enviado|PRONTO PARA ENVIO'
+      && regras47.filter((r) => r.com_marca).map((r) => r.s).join('|') === 'Entregue|Não entregue|Cancelado'
+      && noBanco47.situacoes > 0 && noBanco47.divergem === 0,
+    'a regra única do PCP responde igual à de antes para toda situação do Tiny quando não há a marca; com a marca, só Faturado, Pronto para envio e Enviado voltam ao PCP — entregue, não entregue e cancelado continuam fora',
+    JSON.stringify({ regras47, noBanco47 }))
+
   // com peça pronta E com falta: o card normal ganha o mesmo aviso; liberado por inteiro, não ganha
   const idY = await gravar47(pedido47(97102, 'Preparando envio', [ESTANTE47]))
   const cardY = await cardDe(idY)

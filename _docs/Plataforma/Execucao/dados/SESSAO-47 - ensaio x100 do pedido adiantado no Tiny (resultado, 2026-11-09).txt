@@ -1,0 +1,304 @@
+SESSAO-47 · bloco A · ensaio x100 (PGlite gravado em disco; os numeros sao o teto, nao a media de producao)
+Programa: o do lado (script). ANTES = migrations ate 20261106030000; DEPOIS = base da 47 + bloco A.
+
+Esta e a 2a RODADA (19:14 de 09/11), ja com as duas correcoes que a 1a rodada pediu:
+  1. fn_fora_do_pcp com UMA normalizacao por linha (antes chamava duas funcoes que normalizavam de novo): o PCP voltou ao custo de antes.
+  2. o caso novo da regra do pedido vivo olhando so o PEDIDO (a visao dos adiantados com falta): o planejador voltou a ler pedidos pela chave.
+Obs.: a maquina estava com outros trabalhos rodando (bateria, testes de tela, as duas frentes paralelas) - a fase 3 da Expedicao (2.916 ms) e ruido; a fase 2 e a referencia.
+A 1a rodada (antes das correcoes) vai inteira no fim deste arquivo.
+
+==================== 2a RODADA (com as correcoes) ====================
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  135 migrations aplicadas (a última: 20261106030000_plt_numeros_que_batem.sql) (6 s)
+  pedidos 562.700 (18 s)
+  peças vivas 20.400 e arquivadas 45.500 (24 s)
+  cards 95.169 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 (27 s)
+
+== ANTES (até o ajuste de 06/11) ==
+  PCP "aguardando liberação" (10)                                                      mediana     77.1 ms · máx     92.2 ms · 3169 no quadro
+  PCP aba Stand-by (10)                                                                mediana      7.9 ms · máx     15.7 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    213.6 ms · máx    236.6 ms · 5369
+  quadrinho do PCP na Visão do dia                                                     mediana     62.6 ms · máx     67.9 ms · 5369 a liberar
+  Expedição (todos, 20)                                                                mediana   2105.8 ms · máx   2240.4 ms · 20 na página · total 23175 · contagens {"todos":23175,"prontos":20006,"com_rota":277,"sem_rota":22898,"em_producao":3169}
+  Expedição (busca pelo número, 20)                                                    mediana   2907.0 ms · máx   3075.7 ms · 1 na página · total 1 · contagens {"todos":23175,"prontos":20006,"com_rota":277,"sem_rota":22898,"em_producao":3169}
+  Programação — sem programação (200)                                                  mediana   3127.4 ms · máx   3512.5 ms · 200 linhas · total 22898
+  calendário da semana                                                                 mediana   1040.3 ms · máx   1049.4 ms
+  A entregar (rotas, 20)                                                               mediana   5016.7 ms · máx   7705.8 ms · 20 linhas
+  a regra do pedido vivo (contagem)                                                    mediana    734.4 ms · máx    746.1 ms · 23175 vivos
+
+  2 migrations da SESSAO-47 (base + bloco A) aplicadas: 20261109010000_plt_sessao47_base.sql, 20261109020000_plt_pedido_adiantado_tiny.sql
+
+== DEPOIS (a base da SESSAO-47 + o bloco A) ==
+  PCP "aguardando liberação" (10)                                                      mediana     77.2 ms · máx    128.3 ms · 3169 no quadro
+  PCP aba Stand-by (10)                                                                mediana      8.0 ms · máx     13.8 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    195.0 ms · máx    203.4 ms · 5369
+  quadrinho do PCP na Visão do dia                                                     mediana     72.2 ms · máx     74.5 ms · 5369 a liberar
+  Expedição (todos, 20)                                                                mediana   1958.5 ms · máx   1993.0 ms · 20 na página · total 23437 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":262}
+  Expedição (busca pelo número, 20)                                                    mediana   1980.4 ms · máx   2053.8 ms · 2 na página · total 2 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":262}
+  Expedição (filtro "Saiu do PCP pelo Tiny", 20)                                       mediana   2134.2 ms · máx   2222.4 ms · 20 na página · total 262 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":262}
+  Programação — sem programação (200)                                                  mediana   2751.9 ms · máx   2924.8 ms · 200 linhas · total 23160
+  calendário da semana                                                                 mediana    906.8 ms · máx  70140.5 ms
+  A entregar (rotas, 20)                                                               mediana   3916.9 ms · máx   4024.6 ms · 20 linhas
+  a regra do pedido vivo (contagem)                                                    mediana    578.1 ms · máx    612.0 ms · 23437 vivos
+  GESTO: voltar ao PCP mudando a situação no Tiny (5 pedidos)                          mediana     11.9 ms · máx     39.2 ms
+  o Tiny confirma (gravação da situação + a marca fecha por fato)                      mediana      4.2 ms · máx      7.9 ms
+  gravação da situação de um pedido sem a marca (o custo do gatilho novo)              mediana      1.3 ms · máx      6.2 ms
+
+== DEPOIS, com 5 pedidos devolvidos e confirmados ==
+  PCP "aguardando liberação" (10)                                                      mediana     79.8 ms · máx     85.9 ms · 3174 no quadro
+  PCP aba Stand-by (10)                                                                mediana      7.0 ms · máx      7.1 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    189.7 ms · máx    195.5 ms · 5374
+  quadrinho do PCP na Visão do dia                                                     mediana     65.8 ms · máx     67.1 ms · 5374 a liberar
+  Expedição (todos, 20)                                                                mediana   2916.6 ms · máx   2968.3 ms · 20 na página · total 23437 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":257}
+  Expedição (busca pelo número, 20)                                                    mediana   2457.3 ms · máx   3143.6 ms · 2 na página · total 2 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":257}
+  Expedição (filtro "Saiu do PCP pelo Tiny", 20)                                       mediana   1959.3 ms · máx   1964.6 ms · 20 na página · total 257 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":257}
+  Programação — sem programação (200)                                                  mediana   3036.7 ms · máx   3183.3 ms · 200 linhas · total 23160
+  calendário da semana                                                                 mediana  38063.1 ms · máx  42223.5 ms
+  A entregar (rotas, 20)                                                               mediana   4783.2 ms · máx   5050.3 ms · 20 linhas
+  a regra do pedido vivo (contagem)                                                    mediana    657.6 ms · máx    658.7 ms · 23437 vivos
+  --- plano: a regra do pedido vivo (com o adiantado com falta)
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=109736
+        ->  Nested Loop Anti Join (actual rows=23437.00 loops=1)
+              Join Filter: (x.pedido_id = p.id)
+              Buffers: shared hit=109736
+              ->  Nested Loop (actual rows=23437.00 loops=1)
+                    Buffers: shared hit=109736
+                    ->  Index Scan using plt_cards_pedido_vivo_idx on plt_cards pc (actual rows=25669.00 loops=1)
+                          Index Searches: 1
+                          Buffers: shared hit=1136
+                    ->  Index Scan using pedidos_pkey on pedidos p (actual rows=0.91 loops=25669)
+                          Index Cond: (id = pc.pedido_id)
+                          Filter: ((plt_privado.fn_situacao_normalizada(situacao) <> ALL ('{entregue,nao_entregue,cancelado}'::text[])) AND ((NOT plt_privado.fn_tiny_tirou_do_pcp(situacao)) OR EXISTS(SubPlan 1) OR EXISTS(SubPlan 3)))
+                          Rows Removed by Filter: 0
+                          Index Searches: 25669
+                          Buffers: shared hit=108560
+                          SubPlan 1
+                            ->  Index Scan using plt_cards_unidade_vaga_uq on plt_cards cu (actual rows=0.19 loops=652)
+                                  Index Cond: (pedido_id = p.id)
+                                  Filter: (arquivado_em IS NULL)
+                                  Rows Removed by Filter: 1
+                                  Index Searches: 652
+                                  Buffers: shared hit=2375
+                          SubPlan 3
+                            ->  Nested Loop Semi Join (actual rows=0.48 loops=530)
+                                  Buffers: shared hit=3469
+                                  ->  Nested Loop (actual rows=0.48 loops=530)
+                                        Buffers: shared hit=2698
+                                        ->  Index Scan using plt_cards_pedido_vivo_idx on plt_cards pc_1 (actual rows=0.48 loops=530)
+                                              Index Cond: (pedido_id = p.id)
+                                              Filter: (liberado_completo_em IS NULL)
+                                              Rows Removed by Filter: 1
+                                              Index Searches: 530
+                                              Buffers: shared hit=1590
+                                        ->  Index Scan using pedidos_pkey on pedidos p_1 (actual rows=1.00 loops=257)
+                                              Index Cond: (id = p.id)
+                                              Filter: plt_privado.fn_tiny_adiantou(situacao)
+                                              Index Searches: 257
+                                              Buffers: shared hit=1068
+                                  ->  Index Scan using pedido_itens_pkey on pedido_itens pi (actual rows=1.00 loops=257)
+                                        Index Cond: (pedido_id = p.id)
+                                        Filter: (CASE WHEN plt_privado.fn_eh_frete(descricao) THEN 0 WHEN (round(COALESCE(quantidade, '0'::numeric), 0) >= '1'::numeric) THEN (round(quantidade, 0))::integer ELSE 0 END > 0)
+                                        Index Searches: 257
+                                        Buffers: shared hit=771
+              ->  Seq Scan on plt_pedidos_excluidos_tiny x (actual rows=0.00 loops=23437)
+      Planning:
+        Buffers: shared hit=142
+      Planning Time: 3.490 ms
+      Execution Time: 678.217 ms
+  --- plano: a Expedição (todos, 20)
+      Result (actual rows=1.00 loops=1)
+        Buffers: shared hit=649137
+      Planning Time: 0.028 ms
+      Execution Time: 2094.647 ms
+  --- plano: o filtro do PCP com a regra única
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=15261
+        ->  Nested Loop (actual rows=3174.00 loops=1)
+              Buffers: shared hit=15261
+              ->  Hash Join (actual rows=3700.00 loops=1)
+                    Hash Cond: (c.pedido_id = pi.pedido_id)
+                    Buffers: shared hit=381
+                    ->  Nested Loop (actual rows=3701.00 loops=1)
+                          Buffers: shared hit=342
+                          ->  Seq Scan on plt_setores s (actual rows=1.00 loops=1)
+                                Filter: (papel_no_fluxo = 'entrada'::text)
+                                Rows Removed by Filter: 10
+                                Buffers: shared hit=1
+                          ->  Bitmap Heap Scan on plt_cards c (actual rows=3701.00 loops=1)
+                                Recheck Cond: ((s.id = setor_atual_id) AND (tipo = 'pedido'::text) AND (liberado_completo_em IS NULL) AND (arquivado_em IS NULL))
+                                Filter: (standby_desde IS NULL)
+                                Heap Blocks: exact=337
+                                Buffers: shared hit=341
+                                ->  Bitmap Index Scan on plt_cards_pcp_abertos_idx (actual rows=3703.00 loops=1)
+                                      Index Cond: (setor_atual_id = s.id)
+                                      Index Searches: 1
+                                      Buffers: shared hit=4
+                    ->  Hash (actual rows=3700.00 loops=1)
+                          Buckets: 4096 (originally 2048)  Batches: 1 (originally 1)  Memory Usage: 132kB
+                          Buffers: shared hit=39
+                          ->  HashAggregate (actual rows=3700.00 loops=1)
+                                Group Key: pi.pedido_id
+                                Batches: 1  Memory Usage: 249kB
+                                Buffers: shared hit=39
+                                ->  Seq Scan on pedido_itens pi (actual rows=3700.00 loops=1)
+                                      Filter: (CASE WHEN plt_privado.fn_eh_frete(descricao) THEN 0 WHEN (round(COALESCE(quantidade, '0'::numeric), 0) >= '1'::numeric) THEN (round(quantidade, 0))::integer ELSE 0 END > 0)
+                                      Buffers: shared hit=39
+              ->  Index Scan using pedidos_pkey on pedidos p (actual rows=0.86 loops=3700)
+                    Index Cond: (id = c.pedido_id)
+                    Filter: (NOT plt_privado.fn_fora_do_pcp(situacao, c.volta_pcp_em))
+                    Rows Removed by Filter: 0
+                    Index Searches: 3700
+                    Buffers: shared hit=14880
+      Planning:
+        Buffers: shared hit=59
+      Planning Time: 1.873 ms
+      Execution Time: 68.770 ms
+
+fim (361 s)
+saida=0
+
+==================== 1a RODADA (antes das correcoes) ====================
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  135 migrations aplicadas (a última: 20261106030000_plt_numeros_que_batem.sql) (7 s)
+  pedidos 562.700 (20 s)
+  peças vivas 20.400 e arquivadas 45.500 (27 s)
+  cards 95.169 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 (30 s)
+
+== ANTES (até o ajuste de 06/11) ==
+  PCP "aguardando liberação" (10)                                                      mediana     84.0 ms · máx    111.9 ms · 3169 no quadro
+  PCP aba Stand-by (10)                                                                mediana      9.0 ms · máx     17.8 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    211.1 ms · máx    234.0 ms · 5369
+  quadrinho do PCP na Visão do dia                                                     mediana     70.0 ms · máx     72.7 ms · 5369 a liberar
+  Expedição (todos, 20)                                                                mediana   2364.3 ms · máx   2390.7 ms · 20 na página · total 23175 · contagens {"todos":23175,"prontos":20006,"com_rota":277,"sem_rota":22898,"em_producao":3169}
+  Expedição (busca pelo número, 20)                                                    mediana   2507.0 ms · máx   2515.2 ms · 1 na página · total 1 · contagens {"todos":23175,"prontos":20006,"com_rota":277,"sem_rota":22898,"em_producao":3169}
+  Programação — sem programação (200)                                                  mediana   3294.9 ms · máx   3626.5 ms · 200 linhas · total 22898
+  calendário da semana                                                                 mediana   1069.9 ms · máx   1160.2 ms
+  A entregar (rotas, 20)                                                               mediana   4878.6 ms · máx   5248.7 ms · 20 linhas
+  a regra do pedido vivo (contagem)                                                    mediana    741.5 ms · máx    742.9 ms · 23175 vivos
+
+  2 migrations da SESSAO-47 (base + bloco A) aplicadas: 20261109010000_plt_sessao47_base.sql, 20261109020000_plt_pedido_adiantado_tiny.sql
+
+== DEPOIS (a base da SESSAO-47 + o bloco A) ==
+  PCP "aguardando liberação" (10)                                                      mediana    127.9 ms · máx    131.1 ms · 3169 no quadro
+  PCP aba Stand-by (10)                                                                mediana      8.2 ms · máx     17.3 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    275.1 ms · máx    300.1 ms · 5369
+  quadrinho do PCP na Visão do dia                                                     mediana    118.3 ms · máx    121.0 ms · 5369 a liberar
+  Expedição (todos, 20)                                                                mediana   2321.8 ms · máx   2469.9 ms · 20 na página · total 23437 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":262}
+  Expedição (busca pelo número, 20)                                                    mediana   2253.4 ms · máx   2368.8 ms · 2 na página · total 2 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":262}
+  Expedição (filtro "Saiu do PCP pelo Tiny", 20)                                       mediana   2182.3 ms · máx   2358.1 ms · 20 na página · total 262 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":262}
+  Programação — sem programação (200)                                                  mediana   2864.3 ms · máx   2937.4 ms · 200 linhas · total 23160
+  calendário da semana                                                                 mediana    967.8 ms · máx  76196.9 ms
+  A entregar (rotas, 20)                                                               mediana   4862.4 ms · máx   4883.0 ms · 20 linhas
+  a regra do pedido vivo (contagem)                                                    mediana   3097.9 ms · máx   3238.0 ms · 23437 vivos
+  GESTO: voltar ao PCP mudando a situação no Tiny (5 pedidos)                          mediana     14.6 ms · máx     44.3 ms
+  o Tiny confirma (gravação da situação + a marca fecha por fato)                      mediana      5.0 ms · máx     10.3 ms
+  gravação da situação de um pedido sem a marca (o custo do gatilho novo)              mediana      2.3 ms · máx      7.9 ms
+
+== DEPOIS, com 5 pedidos devolvidos e confirmados ==
+  PCP "aguardando liberação" (10)                                                      mediana    132.7 ms · máx    137.8 ms · 3174 no quadro
+  PCP aba Stand-by (10)                                                                mediana      8.3 ms · máx     11.6 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    264.4 ms · máx    270.6 ms · 5374
+  quadrinho do PCP na Visão do dia                                                     mediana    111.1 ms · máx    112.8 ms · 5374 a liberar
+  Expedição (todos, 20)                                                                mediana   2311.6 ms · máx   2588.5 ms · 20 na página · total 23437 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":257}
+  Expedição (busca pelo número, 20)                                                    mediana   2073.4 ms · máx   2110.4 ms · 2 na página · total 2 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":257}
+  Expedição (filtro "Saiu do PCP pelo Tiny", 20)                                       mediana   2105.0 ms · máx   2118.7 ms · 20 na página · total 257 · contagens {"todos":23437,"prontos":20006,"com_rota":277,"sem_rota":23160,"em_producao":3431,"saiu_do_pcp":257}
+  Programação — sem programação (200)                                                  mediana   2822.3 ms · máx   3086.0 ms · 200 linhas · total 23160
+  calendário da semana                                                                 mediana  34837.8 ms · máx  40883.3 ms
+  A entregar (rotas, 20)                                                               mediana   4792.7 ms · máx   5075.3 ms · 20 linhas
+  a regra do pedido vivo (contagem)                                                    mediana   2964.1 ms · máx   3045.1 ms · 23437 vivos
+  --- plano: a regra do pedido vivo (com o adiantado com falta)
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=11603, temp read=2997 written=2997
+        ->  Nested Loop Anti Join (actual rows=23437.00 loops=1)
+              Join Filter: (x.pedido_id = p.id)
+              Buffers: shared hit=11603, temp read=2997 written=2997
+              ->  Hash Join (actual rows=23437.00 loops=1)
+                    Hash Cond: (pc.pedido_id = p.id)
+                    Join Filter: ((NOT plt_privado.fn_tiny_tirou_do_pcp(p.situacao)) OR (ANY (p.id = (hashed SubPlan 2).col1)) OR ((pc.liberado_completo_em IS NULL) AND (ANY (p.id = (hashed SubPlan 4).col1))))
+                    Rows Removed by Join Filter: 273
+                    Buffers: shared hit=11603, temp read=2997 written=2997
+                    ->  Bitmap Heap Scan on plt_cards pc (actual rows=25669.00 loops=1)
+                          Recheck Cond: ((tipo = 'pedido'::text) AND (arquivado_em IS NULL) AND (entrega_evento_id IS NULL))
+                          Heap Blocks: exact=1055
+                          Buffers: shared hit=1134
+                          ->  Bitmap Index Scan on plt_cards_pedido_vivo_idx (actual rows=25672.00 loops=1)
+                                Index Searches: 1
+                                Buffers: shared hit=79
+                    ->  Hash (actual rows=519432.00 loops=1)
+                          Buckets: 262144  Batches: 8  Memory Usage: 4569kB
+                          Buffers: shared hit=8789, temp written=2869
+                          ->  Seq Scan on pedidos p (actual rows=519432.00 loops=1)
+                                Filter: (plt_privado.fn_situacao_normalizada(situacao) <> ALL ('{entregue,nao_entregue,cancelado}'::text[]))
+                                Rows Removed by Filter: 43268
+                                Buffers: shared hit=8789
+                    SubPlan 2
+                      ->  Bitmap Heap Scan on plt_cards cu (actual rows=20400.00 loops=1)
+                            Recheck Cond: (arquivado_em IS NULL)
+                            Filter: (tipo = 'unidade'::text)
+                            Rows Removed by Filter: 29269
+                            Heap Blocks: exact=1598
+                            Buffers: shared hit=1641
+                            ->  Bitmap Index Scan on plt_cards_arquivado_idx (actual rows=49672.00 loops=1)
+                                  Index Searches: 1
+                                  Buffers: shared hit=43
+                    SubPlan 4
+                      ->  Seq Scan on pedido_itens pi (actual rows=3700.00 loops=1)
+                            Filter: (CASE WHEN plt_privado.fn_eh_frete(descricao) THEN 0 WHEN (round(COALESCE(quantidade, '0'::numeric), 0) >= '1'::numeric) THEN (round(quantidade, 0))::integer ELSE 0 END > 0)
+                            Buffers: shared hit=39
+              ->  Seq Scan on plt_pedidos_excluidos_tiny x (actual rows=0.00 loops=23437)
+      Planning:
+        Buffers: shared hit=69
+      Planning Time: 2.720 ms
+      Execution Time: 2997.649 ms
+  --- plano: a Expedição (todos, 20)
+      Result (actual rows=1.00 loops=1)
+        Buffers: shared hit=646440
+      Planning Time: 0.052 ms
+      Execution Time: 2259.206 ms
+  --- plano: o filtro do PCP com a regra única
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=15261
+        ->  Nested Loop (actual rows=3174.00 loops=1)
+              Buffers: shared hit=15261
+              ->  Hash Join (actual rows=3700.00 loops=1)
+                    Hash Cond: (c.pedido_id = pi.pedido_id)
+                    Buffers: shared hit=381
+                    ->  Nested Loop (actual rows=3701.00 loops=1)
+                          Buffers: shared hit=342
+                          ->  Seq Scan on plt_setores s (actual rows=1.00 loops=1)
+                                Filter: (papel_no_fluxo = 'entrada'::text)
+                                Rows Removed by Filter: 10
+                                Buffers: shared hit=1
+                          ->  Bitmap Heap Scan on plt_cards c (actual rows=3701.00 loops=1)
+                                Recheck Cond: ((s.id = setor_atual_id) AND (tipo = 'pedido'::text) AND (liberado_completo_em IS NULL) AND (arquivado_em IS NULL))
+                                Filter: (standby_desde IS NULL)
+                                Heap Blocks: exact=337
+                                Buffers: shared hit=341
+                                ->  Bitmap Index Scan on plt_cards_pcp_abertos_idx (actual rows=3703.00 loops=1)
+                                      Index Cond: (setor_atual_id = s.id)
+                                      Index Searches: 1
+                                      Buffers: shared hit=4
+                    ->  Hash (actual rows=3700.00 loops=1)
+                          Buckets: 4096 (originally 2048)  Batches: 1 (originally 1)  Memory Usage: 132kB
+                          Buffers: shared hit=39
+                          ->  HashAggregate (actual rows=3700.00 loops=1)
+                                Group Key: pi.pedido_id
+                                Batches: 1  Memory Usage: 249kB
+                                Buffers: shared hit=39
+                                ->  Seq Scan on pedido_itens pi (actual rows=3700.00 loops=1)
+                                      Filter: (CASE WHEN plt_privado.fn_eh_frete(descricao) THEN 0 WHEN (round(COALESCE(quantidade, '0'::numeric), 0) >= '1'::numeric) THEN (round(quantidade, 0))::integer ELSE 0 END > 0)
+                                      Buffers: shared hit=39
+              ->  Index Scan using pedidos_pkey on pedidos p (actual rows=0.86 loops=3700)
+                    Index Cond: (id = c.pedido_id)
+                    Filter: (NOT plt_privado.fn_fora_do_pcp(situacao, c.volta_pcp_em))
+                    Rows Removed by Filter: 0
+                    Index Searches: 3700
+                    Buffers: shared hit=14880
+      Planning:
+        Buffers: shared hit=59
+      Planning Time: 1.383 ms
+      Execution Time: 96.718 ms
+
+fim (385 s)
+saida=0

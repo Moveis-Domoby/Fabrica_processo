@@ -297,7 +297,7 @@ begin
                               'numero', v_pedido.numero, 'situacao_pedida', p_situacao);
   end if;
   if plt_privado.fn_tiny_entrega_desde() is null then
-    raise exception 'A ida ao Tiny está desligada — por aqui não dá para mudar a situação do pedido lá. Mude no Tiny, ou peça ao administrador para ligar "Entregue vai ao Tiny" nas Rotas.'
+    raise exception 'A ida ao Tiny está desligada — por aqui não dá para mudar a situação do pedido lá. Mude no Tiny, ou peça a um administrador para ligar "Entregue vai ao Tiny" em Configurações → Caminhões.'
       using errcode = 'check_violation';
   end if;
 
@@ -817,9 +817,12 @@ $$;
 -- 8 · O pedido vivo (Expedição e rotas — D-133/D-156) ganha o adiantado com falta
 -- ----------------------------------------------------------------------------
 -- O que o Tiny levou adiante só ficava com peça viva na fábrica (D-133). Agora fica
--- também quando ainda falta liberar alguma vaga de produção (a conta do PCP) — é o
--- pedido que sumia do PCP e da Expedição ao mesmo tempo (o 13818). As colunas não
--- mudam (create or replace). (recriada da vigente em 20261027040000_plt_rotas_endereco_data_parcial.sql:215-237)
+-- também quando ainda falta liberar alguma vaga de produção — a regra única acima — é
+-- o pedido que sumia do PCP e da Expedição ao mesmo tempo (o 13818). O caso novo só
+-- olha o PEDIDO (p.id), para o filtro continuar descendo até a leitura de `pedidos`
+-- pela chave (com a coluna do card no filtro, o planejador trocou para varrer todos os
+-- pedidos: 0,7 → 3 s no ensaio ×100). As colunas não mudam (create or replace).
+-- (recriada da vigente em 20261027040000_plt_rotas_endereco_data_parcial.sql:215-237)
 create or replace view plt_privado.vw_pedidos_vivos_regra as
  SELECT pc.id AS card_id,
     p.id AS pedido_id,
@@ -840,9 +843,9 @@ create or replace view plt_privado.vw_pedidos_vivos_regra as
      LEFT JOIN plt_programacoes pr ON pr.card_id = pc.id
   WHERE pc.tipo = 'pedido'::text AND pc.arquivado_em IS NULL AND pc.entrega_evento_id IS NULL AND (plt_privado.fn_situacao_normalizada(p.situacao) <> ALL (ARRAY['entregue'::text, 'nao_entregue'::text, 'cancelado'::text])) AND (NOT plt_privado.fn_tiny_tirou_do_pcp(p.situacao) OR (EXISTS ( SELECT 1
            FROM plt_cards cu
-          WHERE cu.pedido_id = p.id AND cu.tipo = 'unidade'::text AND cu.arquivado_em IS NULL)) OR (pc.liberado_completo_em IS NULL AND (EXISTS ( SELECT 1
-           FROM plt_privado.vw_itens_producao vi
-          WHERE vi.pedido_id = p.id AND vi.unidades > 0)))) AND NOT (EXISTS ( SELECT 1
+          WHERE cu.pedido_id = p.id AND cu.tipo = 'unidade'::text AND cu.arquivado_em IS NULL)) OR (EXISTS ( SELECT 1
+           FROM plt_privado.vw_pedidos_adiantados_falta af
+          WHERE af.pedido_id = p.id))) AND NOT (EXISTS ( SELECT 1
            FROM plt_pedidos_excluidos_tiny x
           WHERE x.pedido_id = p.id));
 

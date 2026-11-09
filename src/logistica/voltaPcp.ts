@@ -25,7 +25,7 @@ export const SITUACOES_DA_VOLTA: SituacaoDaVolta[] = ['aberto', 'preparando_envi
 
 /** Com a ida ao Tiny desligada, os botões ficam apagados — e a tela diz por quê. */
 export const EXPLICACAO_TINY_DESLIGADO =
-  'A plataforma está sem a ida ao Tiny ligada, então por aqui não dá para mudar a situação do pedido lá. Mude no Tiny, ou peça a um administrador para ligar "Entregue vai ao Tiny" nas Rotas.'
+  'A plataforma está sem a ida ao Tiny ligada, então por aqui não dá para mudar a situação do pedido lá. Mude no Tiny, ou peça a um administrador para ligar "Entregue vai ao Tiny" em Configurações → Caminhões.'
 
 /** "2 produtos" / "1 produto" (plural por extenso). */
 export function produtos(quantos: number): string {
