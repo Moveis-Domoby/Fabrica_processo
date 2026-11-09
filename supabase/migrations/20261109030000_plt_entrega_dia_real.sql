@@ -1760,6 +1760,11 @@ CREATE OR REPLACE FUNCTION public.plt_fn_rotas_calendario(p_de date, p_ate date,
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
+ -- ↪️ SESSAO-47: o plano SEMPRE sob medida para o período pedido. Sem isto, da 6ª
+ -- chamada em diante na mesma conexão o plpgsql passa a usar o plano genérico
+ -- (que não sabe o período) e a porta sai de ~1 s para dezenas de segundos com
+ -- o volume ×100 (achado no ajuste de 06/11; já era assim antes desta sessão).
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare
   v_por_dia integer := least(greatest(coalesce(p_por_dia, 30), 1), 100);

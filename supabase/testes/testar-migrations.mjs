@@ -21550,6 +21550,19 @@ try {
       && pr47b.sem_a_de_3 && pr47b.sem_a_de_5 && pr47b.registrar_versoes === 1,
     'registrar com o dia e corrigir o dia: só para quem está logado; a regra do dia, a guarda e o fechar do pedido fora da API; as assinaturas antigas saíram (uma versão só de cada porta)',
     JSON.stringify(pr47b))
+  // O calendário das rotas roda sempre com o plano sob medida (da 6ª chamada em diante na
+  // mesma conexão o plano genérico levava a porta a dezenas de segundos com o volume ×100)
+  const plano47b = await um47b(`
+    select p.proconfig as config from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'plt_fn_rotas_calendario'`)
+  const oito = []
+  for (let i = 0; i < 8; i++)
+    oito.push((await logado47b(LOG47B, `select public.plt_fn_rotas_calendario('${D.d3}', '${D.amanha}') as r`))[0].r.dias.length)
+  conferir((plano47b.config ?? []).includes('plan_cache_mode=force_custom_plan')
+      && (plano47b.config ?? []).some((c) => c.startsWith('search_path='))
+      && oito.every((n) => n === oito[0] && n >= 3),
+    'o calendário das rotas guarda a configuração do plano sempre sob medida (junto do caminho de busca) e responde igual em 8 chamadas seguidas na mesma conexão',
+    JSON.stringify({ config: plano47b.config, oito }))
 } finally {
   await bd.exec('rollback')
   await como47b('')
