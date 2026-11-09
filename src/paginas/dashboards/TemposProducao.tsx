@@ -1,11 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { useSearchParams } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays,
   CalendarRange,
   ClipboardCheck,
   Search,
+  Settings2,
   Sofa,
   Tv,
   Users,
@@ -18,7 +19,8 @@ import { temModoTv } from '@/autenticacao/tipos'
 import { buscarSetores } from '@/kanban/api'
 import { useAoVivo } from '@/lib/aoVivo'
 import { FiltroPill } from '@/dashboards/componentes/Filtros'
-import { opcoesDosFiltros, type FiltrosTempos } from '@/dashboards/tempos/api'
+import { abrirTempos, opcoesDosFiltros, type FiltrosTempos } from '@/dashboards/tempos/api'
+import { CHAVE_DA_ABERTURA, semearAbertura } from '@/dashboards/tempos/consultas'
 import {
   ehChavePeriodo,
   hojeNaFabrica,
@@ -49,6 +51,12 @@ const PAINEIS: Record<AbaTempos, ComponentType<PropsAba>> = {
   conferir: pedaco(() => import('./tempos/AbaConferir'), 'AbaConferir'),
 }
 
+// SESSAO-47 (Bloco C): a janela "Configurar painel" (só o admin) — o código e a
+// leitura dela só chegam no clique (Lei §3/§9).
+const ConfigurarPainel = lazy(() =>
+  import('./tempos/ConfigurarPainel').then((m) => ({ default: m.ConfigurarPainel })),
+)
+
 const CHAVE_SETOR = 'domoby:tempos-setor'
 function setorLembrado(): number | null {
   try {
@@ -73,13 +81,58 @@ function lembrarSetor(id: number) {
  * Os filtros moram no endereço (o link leva à mesma visão); o setor fica
  * lembrado no aparelho. Ao vivo pelo canal do setor (Lei §4). Absorveu a tela
  * "Tempo por setor" (aba Período).
+ *
+ * SESSAO-47 (Bloco C): o botão "Configurar painel" (só o admin) abre a
+ * configuração que vale para todos, na tela e na TV. E a tela ABRE no setor e no
+ * período configurados: quando o endereço não diz aba, setor nem período, uma
+ * porta de abertura resolve os três e já traz a resposta da aba (uma requisição
+ * só); o que estiver no endereço sempre vence — link salvo abre onde apontava.
  */
 export function TemposProducao() {
   const { perfil, ehLider, carregando } = useSessao()
+  const cliente = useQueryClient()
   const [parametros, setParametros] = useSearchParams()
   const [conferirN, setConferirN] = useState<number | null>(null)
   const [escolher, setEscolher] = useState<'pessoa' | 'modelo' | null>(null)
   const [rotulos, setRotulos] = useState<{ pessoa?: string; modelo?: string }>({})
+  const [configurando, setConfigurando] = useState(false)
+
+  // A abertura: só com o endereço "limpo". O banco de antes não tem a porta — a
+  // chamada falha e a tela abre como sempre abriu (aba Dia, o setor lembrado).
+  const enderecoLimpo = !parametros.has('aba') && !parametros.has('setor') && !parametros.has('p')
+  const abertura = useQuery({
+    queryKey: CHAVE_DA_ABERTURA,
+    queryFn: () => abrirTempos(setorLembrado(), hojeNaFabrica()),
+    enabled: enderecoLimpo && !carregando && perfil !== null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+  const abrindo = enderecoLimpo && !abertura.isError
+  const aberturaAplicada = useRef(0)
+  useEffect(() => {
+    if (!enderecoLimpo || !abertura.data || abertura.isFetching) return
+    if (aberturaAplicada.current === abertura.dataUpdatedAt) return
+    aberturaAplicada.current = abertura.dataUpdatedAt
+    // a resposta da aba vai para onde a aba procura (ela não pede de novo) e o
+    // endereço passa a dizer onde a tela abriu
+    semearAbertura(cliente, abertura.data)
+    const novos = new URLSearchParams(parametros)
+    novos.set('aba', abertura.data.aba)
+    if (abertura.data.setor_id !== null) novos.set('setor', String(abertura.data.setor_id))
+    if (abertura.data.periodo !== '30') novos.set('p', abertura.data.periodo)
+    setParametros(novos, { replace: true })
+  }, [
+    enderecoLimpo,
+    abertura.data,
+    abertura.isFetching,
+    abertura.dataUpdatedAt,
+    cliente,
+    parametros,
+    setParametros,
+  ])
 
   const { data: setores = [] } = useQuery({
     queryKey: ['setores'],
@@ -103,8 +156,9 @@ export function TemposProducao() {
     )
   }, [producao, pedidoSetor])
   useEffect(() => {
-    if (setor) lembrarSetor(setor.id)
-  }, [setor])
+    // durante a abertura o setor ainda é um palpite — só o que abriu é lembrado
+    if (setor && !abrindo) lembrarSetor(setor.id)
+  }, [setor, abrindo])
 
   const hoje = hojeNaFabrica()
   const chavePeriodo: ChavePeriodo = ehChavePeriodo(parametros.get('p'))
@@ -124,8 +178,10 @@ export function TemposProducao() {
 
   // Ao vivo: o banco avisa no canal do setor quando um móvel sai dele (a
   // passagem fecha) — a aba aberta relê; as outras ficam marcadas.
+  // SESSAO-47: é por este mesmo canal que a configuração nova do painel chega
+  // (o salvar avisa os setores) — a aba relê a porta dela, que traz o painel.
   useAoVivo(setor ? `setor_${setor.id}` : 'tempos', [['tempos-producao']], {
-    ligado: setor !== null,
+    ligado: setor !== null && !abrindo,
     esperaMs: 1_500,
     espalharMs: 3_000,
   })
@@ -164,9 +220,11 @@ export function TemposProducao() {
   }
 
   if (carregando || !perfil) return null
+  // SESSAO-47: a configuração vale para todos — só o administrador mexe (o banco recusa os outros)
+  const ehAdmin = perfil.papel === 'admin'
 
-  return (
-    <div className="flex flex-col gap-4">
+  const cabecalho = (
+    <>
       {/* Ajuste de 06/11 (cabeçalhos compactos): a explicação foi para o ?. */}
       <CabecalhoDaTela
         titulo="Tempos de produção"
@@ -178,13 +236,22 @@ export function TemposProducao() {
           </>
         }
       >
+        {ehAdmin && (
+          <Botao
+            variante="secundaria"
+            icone={<Settings2 aria-hidden />}
+            onClick={() => setConfigurando(true)}
+          >
+            Configurar painel
+          </Botao>
+        )}
         {temModoTv(perfil) && (
           <Botao
             variante="secundaria"
             icone={<Tv aria-hidden />}
             onClick={() =>
               window.open(
-                `/dashboards/modo-tv${setor ? `?setor=${setor.id}` : ''}`,
+                `/dashboards/modo-tv${setor && !abrindo ? `?setor=${setor.id}` : ''}`,
                 '_blank',
                 'noopener',
               )
@@ -194,6 +261,29 @@ export function TemposProducao() {
           </Botao>
         )}
       </CabecalhoDaTela>
+      {ehAdmin && configurando && (
+        <Suspense fallback={null}>
+          <ConfigurarPainel
+            setorAtual={abrindo ? null : (setor?.id ?? null)}
+            aoFechar={() => setConfigurando(false)}
+          />
+        </Suspense>
+      )}
+    </>
+  )
+
+  // a abertura ainda não respondeu: a tela ainda não sabe em que setor e aba abrir
+  if (abrindo)
+    return (
+      <div className="flex flex-col gap-4">
+        {cabecalho}
+        <Carregando />
+      </div>
+    )
+
+  return (
+    <div className="flex flex-col gap-4">
+      {cabecalho}
 
       {/* os filtros numa linha acima de tudo (regra 6 das dashboards) */}
       <div className="flex flex-col gap-3 rounded-dm-lg border border-borda bg-superficie p-3 sm:p-4">

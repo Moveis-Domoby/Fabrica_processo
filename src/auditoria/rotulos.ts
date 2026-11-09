@@ -155,6 +155,8 @@ export const ROTULO_ACAO: Record<string, string> = {
   tempo_hora_extra_cancelada: 'Cancelou uma hora extra',
   tempo_regras_alteradas: 'Mudou as regras de tempo',
   tempo_equipe_alterada: 'Mudou a equipe do painel de tempos',
+  // SESSAO-47 (Bloco C): a configuração do painel de Tempos de produção (a tela e a TV)
+  tempo_painel_alterado: 'Mudou a configuração do painel de tempos',
   tempo_modelo_alterado: 'Mudou os modelos de móvel',
   tempo_recalculo_pedido: 'Pediu o recálculo dos tempos',
   tempo_decisao: 'Decidiu o tempo de uma passagem',

@@ -1,4 +1,5 @@
 import type { MapaPessoas } from './api'
+import { ID_OUTROS } from './painel'
 
 /**
  * SESSAO-43 — as contas de APRESENTAÇÃO da tela Tempos de produção e da TV
@@ -53,14 +54,23 @@ export function contraPadrao(
     : { texto: `${pct}% mais lento`, tipo: 'lento' }
 }
 
-/** A chave de montadores (ids separados por vírgula) → "Franklin + Franklinildo"; vazia = sem montador. */
+/**
+ * A chave de montadores (ids separados por vírgula) → "Franklin + Franklinildo"; vazia = sem montador.
+ * SESSAO-47: quem está desligado do painel vem com a chave zerada → "Outros" ("Franklin + Outros").
+ */
 export function nomeDaChave(chave: string, pessoas: MapaPessoas): string {
   if (chave === '') return 'Sem montador'
   if (chave === '+') return 'Outros'
   return chave
     .split(',')
-    .map((id) => primeiroNome(pessoas[id]?.nome ?? 'Alguém'))
+    .map((id) => nomeCurtoDaPessoa(id, pessoas))
     .join(' + ')
+}
+
+/** O primeiro nome de quem montou — ou "Outros" (quem está desligado do painel). */
+export function nomeCurtoDaPessoa(id: string, pessoas: MapaPessoas): string {
+  if (id === ID_OUTROS) return 'Outros'
+  return primeiroNome(pessoas[id]?.nome ?? 'Alguém')
 }
 
 /** "Franklin da Silva" → "Franklin" (o nome curto das legendas e dos chips). */

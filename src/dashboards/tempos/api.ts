@@ -1,11 +1,19 @@
 import { supabase } from '@/lib/supabase'
+import type { PainelTempos } from './painel'
 
 /**
  * SESSAO-43 — Dashboards → Tempos de produção e o Modo TV. Cada aba é UMA porta
  * do banco, pedida só no clique (Lei §3); as listas andam por cursor (Lei §6).
  * Tudo lê o cálculo único da SESSAO-42 (passagens, trechos, padrão) e o
  * histórico do Trello — nenhuma conta de tempo é feita aqui.
+ *
+ * SESSAO-47 (Bloco C): cada aba e a TV trazem a configuração do painel na MESMA
+ * resposta (a chave `painel`; o banco de antes não manda — `painelDe` devolve o
+ * padrão). Quem está desligado do painel chega como "Outros" (`ID_OUTROS`).
  */
+
+/** A configuração como veio na resposta (pode faltar, ou faltar chave — banco de antes). */
+export type PainelDaResposta = Partial<Record<keyof PainelTempos, unknown>> | null
 
 export type Origem = 'plataforma' | 'trello'
 export type Situacao =
@@ -37,6 +45,8 @@ interface Comum {
   pessoas: MapaPessoas
   /** Quantos casos esperam a conferência no período (só para quem decide). */
   conferir_n: number | null
+  /** SESSAO-47: a configuração do painel (vale para todos). */
+  painel?: PainelDaResposta
 }
 
 export interface LinhaDia {
@@ -72,6 +82,11 @@ export interface TrechoDia {
   descartado: boolean
   cortado: boolean
   origem: Origem
+  /** SESSAO-47: de qual móvel é o trecho (a passagem ou a linha do histórico). */
+  ref?: number | null
+  /** SESSAO-47: só com a marca do padrão ligada — o tempo padrão do modelo e o tempo do móvel. */
+  padrao_s?: number | null
+  movel_s?: number | null
 }
 
 export interface RespostaDia extends Comum {
@@ -132,6 +147,8 @@ export interface RespostaPeriodo extends Comum {
     dias: number
     por_dia: number
     mediana_s: number | null
+    /** SESSAO-47: a média ao lado da mediana. */
+    media_s?: number | null
     tempo_total_s: number
   }[]
   moveis_top: {
@@ -148,11 +165,13 @@ export interface ModeloLinha {
   validas: number
   melhor_s: number | null
   mediana_s: number | null
+  /** SESSAO-47: a média ao lado da mediana. */
+  media_s?: number | null
   p25_s: number | null
   p75_s: number | null
   padrao_s: number | null
   n_trello: number
-  por_pessoa: Record<string, { n: number; mediana_s: number | null }>
+  por_pessoa: Record<string, { n: number; mediana_s: number | null; media_s?: number | null }>
 }
 
 export interface RespostaMoveis extends Comum {
@@ -189,6 +208,8 @@ export interface CartaoPessoa {
   dias: number
   por_dia: number
   mediana_s: number | null
+  /** SESSAO-47: a média ao lado da mediana. */
+  media_s?: number | null
   tempo_total_s: number
   abaixo: number
   acima: number
@@ -265,6 +286,7 @@ export interface RespostaConferir {
   tem_mais: boolean
   pessoas: MapaPessoas
   conferir_n: number
+  painel?: PainelDaResposta
 }
 
 export interface TrechoProcurado {
@@ -351,7 +373,8 @@ export async function buscarPeriodo(f: FiltrosTempos): Promise<RespostaPeriodo> 
   return data as RespostaPeriodo
 }
 
-export type OrdemMoveis = 'qtd' | 'melhor' | 'mediana' | 'faixa' | 'nome'
+/** SESSAO-47: + 'media' (a ordem pelo número que a tela mostra quando a medida é a média). */
+export type OrdemMoveis = 'qtd' | 'melhor' | 'mediana' | 'media' | 'faixa' | 'nome'
 
 export async function buscarMoveis(
   f: FiltrosTempos,
@@ -489,6 +512,85 @@ export async function decidirTempo(
 }
 
 // ---------------------------------------------------------------------------
+// SESSAO-47 (Bloco C) — a abertura da tela e a configuração do painel
+// ---------------------------------------------------------------------------
+export interface AberturaTempos {
+  aba: 'dia' | 'periodo'
+  setor_id: number | null
+  /** O período das abas de período: '7' ou '30'. */
+  periodo: '7' | '30'
+  dia: string
+  de: string
+  ate: string
+  painel: PainelDaResposta
+  /** Exatamente o que a porta da aba devolveria (nulo sem setor de produção). */
+  resposta: RespostaDia | RespostaPeriodo | null
+}
+
+/**
+ * A abertura da tela em UMA requisição: o banco resolve o setor (configurado →
+ * o que o aparelho lembra → a Montagem), a aba e o período pela configuração do
+ * painel e já devolve a resposta da aba. Só é chamada quando o endereço não
+ * diz aba, setor nem período.
+ */
+export async function abrirTempos(
+  setorLembrado: number | null,
+  hoje: string,
+): Promise<AberturaTempos> {
+  const { data, error } = await supabase.rpc('plt_fn_tempos_abertura', {
+    p_setor_lembrado: setorLembrado,
+    p_hoje: hoje,
+  })
+  erroDe(error, 'Não deu para abrir os tempos.')
+  return data as AberturaTempos
+}
+
+export interface PessoaDoPainel {
+  usuario_id: string
+  nome: string
+  foto: string | null
+  letra: string
+  papel: 'titular' | 'apoio'
+  no_painel: boolean
+}
+
+export interface ConfiguracaoDoPainel {
+  painel: PainelDaResposta
+  padrao: PainelDaResposta
+  blocos_tv: string[]
+  setores: { id: number; nome: string; equipe: PessoaDoPainel[] }[]
+}
+
+/** A janela "Configurar painel" (só admin): tudo numa leitura, pedida no clique. */
+export async function buscarConfiguracaoDoPainel(): Promise<ConfiguracaoDoPainel> {
+  const { data, error } = await supabase.rpc('plt_fn_tempos_painel')
+  erroDe(error, 'Não deu para carregar a configuração do painel.')
+  return data as ConfiguracaoDoPainel
+}
+
+export interface MontadorNoPainel {
+  setor_id: number
+  usuario_id: string
+  ligado: boolean
+}
+
+/**
+ * Grava a configuração (só as chaves mandadas) e o liga/desliga dos montadores.
+ * Só admin — o banco recusa os outros. Devolve o efetivo e se algo mudou.
+ */
+export async function salvarPainel(
+  painel: Partial<PainelTempos> | null,
+  montadores: MontadorNoPainel[] | null,
+): Promise<{ painel: PainelDaResposta; mudou: boolean }> {
+  const { data, error } = await supabase.rpc('plt_fn_tempos_painel_salvar', {
+    p_painel: painel,
+    p_montadores: montadores,
+  })
+  erroDe(error, 'Não deu para salvar a configuração do painel.')
+  return data as { painel: PainelDaResposta; mudou: boolean }
+}
+
+// ---------------------------------------------------------------------------
 // Modo TV
 // ---------------------------------------------------------------------------
 export interface RespostaTv {
@@ -504,8 +606,19 @@ export interface RespostaTv {
   media_mes: number | null
   tempo_medio_hoje_s: number | null
   mediana_30_s: number | null
+  /** SESSAO-47: as médias ao lado das medianas. */
+  tempo_media_hoje_s?: number | null
+  tempo_media_30_s?: number | null
+  /** SESSAO-47: a configuração do painel — a TV se redesenha por ela (sem recarregar). */
+  painel?: PainelDaResposta
   dados_ate: string | null
-  montadores: { letra: string; hoje: number; mediana_hoje_s: number | null; ritmo: number | null }[]
+  montadores: {
+    letra: string
+    hoje: number
+    mediana_hoje_s: number | null
+    media_hoje_s?: number | null
+    ritmo: number | null
+  }[]
   grafico: {
     dias: { dia: string; total: number; partes: Record<string, number> }[]
     series: string[]

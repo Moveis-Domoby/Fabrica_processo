@@ -11,7 +11,13 @@ import {
   type ModeloLinha,
   type OrdemMoveis,
 } from '@/dashboards/tempos/api'
-import { diaCurto, duracao, primeiroNome } from '@/dashboards/tempos/formato'
+import { diaCurto, duracao, nomeCurtoDaPessoa } from '@/dashboards/tempos/formato'
+import {
+  nomeDaMedidaCapital,
+  painelDe,
+  tempoDaMedida,
+  type Medida,
+} from '@/dashboards/tempos/painel'
 import type { PropsAba } from '../TemposProducao'
 import {
   BotoesDecidir,
@@ -24,10 +30,11 @@ import {
   Vazio,
 } from './comum'
 
-const ORDENS: { valor: OrdemMoveis; rotulo: string }[] = [
+/** As ordens da tabela — a do tempo médio segue a medida da configuração do painel (SESSAO-47). */
+const ordensDa = (medida: Medida): { valor: OrdemMoveis; rotulo: string }[] => [
   { valor: 'qtd', rotulo: 'Quantidade' },
   { valor: 'melhor', rotulo: 'Melhor tempo' },
-  { valor: 'mediana', rotulo: 'Mediana' },
+  { valor: medida, rotulo: nomeDaMedidaCapital(medida) },
   { valor: 'faixa', rotulo: 'Faixa (o quanto varia)' },
   { valor: 'nome', rotulo: 'Nome do móvel' },
 ]
@@ -37,11 +44,20 @@ const ORDENS: { valor: OrdemMoveis; rotulo: string }[] = [
  * mediana, a faixa (metade dos tempos fica entre os dois números) e uma
  * coluna por montador (a mediana dele × quantas). Ordenada no servidor; o
  * clique abre as montagens daquele móvel (por cursor), com Considerar/Descartar.
+ *
+ * SESSAO-47 (Bloco C): a coluna do tempo médio (do móvel e de cada montador)
+ * mostra a mediana ou a média, conforme a configuração do painel — e o título
+ * diz qual; quem está desligado do painel entra na coluna "Outros".
  */
 export function AbaMoveis({ filtros, aoContador }: PropsAba) {
-  const [ordem, setOrdem] = useState<OrdemMoveis>('qtd')
+  const [ordemEscolhida, setOrdem] = useState<OrdemMoveis>('qtd')
   const [desc, setDesc] = useState(true)
   const [aberto, setAberto] = useState<ModeloLinha | null>(null)
+  // A medida que a última resposta trouxe (mediana até a 1ª chegar): quem ordena
+  // "pelo tempo médio" ordena pelo número que a coluna mostra, e acompanha a troca.
+  const [medida, setMedida] = useState<Medida>('mediana')
+  const ordem: OrdemMoveis =
+    ordemEscolhida === 'mediana' || ordemEscolhida === 'media' ? medida : ordemEscolhida
   const consulta = useInfiniteQuery({
     queryKey: ['tempos-producao', 'moveis', filtros, ordem, desc],
     queryFn: ({ pageParam }) => buscarMoveis(filtros, ordem, desc, pageParam),
@@ -55,12 +71,16 @@ export function AbaMoveis({ filtros, aoContador }: PropsAba) {
     if (primeira) aoContador(primeira.conferir_n)
   }, [primeira, aoContador])
   const itens = useMemo(() => consulta.data?.pages.flatMap((p) => p.itens) ?? [], [consulta.data])
+  // a configuração mudou (a resposta nova trouxe outra medida): acerta no próprio desenho, sem efeito
+  const medidaDaResposta = primeira ? painelDe(primeira).medida : medida
+  if (medidaDaResposta !== medida) setMedida(medidaDaResposta)
 
   if (consulta.isPending) return <Carregando />
   if (consulta.error) return <ErroLeitura erro={consulta.error} />
   if (!primeira) return null
   const pessoas = primeira.pessoas
   const faixa = primeira.faixa_pct
+  const tituloDaMedida = nomeDaMedidaCapital(medida)
 
   return (
     <div className="flex flex-col gap-3">
@@ -68,7 +88,7 @@ export function AbaMoveis({ filtros, aoContador }: PropsAba) {
         <div className="w-60">
           <Selecao
             rotulo="Ordenar por"
-            opcoes={ORDENS}
+            opcoes={ordensDa(medida)}
             valor={ordem}
             aoMudar={(v) => {
               setOrdem(v as OrdemMoveis)
@@ -147,12 +167,13 @@ export function AbaMoveis({ filtros, aoContador }: PropsAba) {
               celula: (m) => <span className="tabular-nums">{duracao(m.melhor_s)}</span>,
             },
             {
-              chave: 'mediana',
-              cabecalho: 'Mediana',
+              // SESSAO-47: a mediana ou a média, conforme a configuração — o título diz qual
+              chave: 'medida',
+              cabecalho: tituloDaMedida,
               alinhamento: 'direita',
               celula: (m) => (
                 <span className="tabular-nums">
-                  <strong>{duracao(m.mediana_s)}</strong>
+                  <strong>{duracao(tempoDaMedida(medida, m))}</strong>
                   {m.padrao_s !== null && (
                     <span className="block text-xs text-texto-fraco">
                       padrão {duracao(m.padrao_s)}
@@ -171,20 +192,23 @@ export function AbaMoveis({ filtros, aoContador }: PropsAba) {
                 </span>
               ),
             },
+            // uma coluna por montador (quem está desligado do painel vem junto em "Outros")
             ...primeira.colunas.map((id) => ({
               chave: `p-${id}`,
-              cabecalho: primeiroNome(pessoas[id]?.nome ?? 'Alguém'),
+              cabecalho: nomeCurtoDaPessoa(id, pessoas),
               celula: (m: ModeloLinha) => {
                 const c = m.por_pessoa[id]
                 if (!c) return <span className="text-texto-fraco">—</span>
+                // o número mostrado é o da medida escolhida — e é ele que se compara com o padrão
+                const tempo = tempoDaMedida(medida, c)
                 return (
                   <span className="flex flex-col text-sm">
                     <span className="tabular-nums whitespace-nowrap">
-                      {duracao(c.mediana_s)} <span className="text-texto-fraco">×{c.n}</span>
+                      {duracao(tempo)} <span className="text-texto-fraco">×{c.n}</span>
                     </span>
                     <span className="text-xs">
                       <ContraPadrao
-                        segundos={c.mediana_s}
+                        segundos={tempo}
                         padrao={m.padrao_s}
                         faixaPct={faixa}
                         mostrarPadrao={false}

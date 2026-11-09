@@ -5,15 +5,18 @@ import { Botao, Campo, Tabela } from '@/componentes/ui'
 import { useAbrirCard } from '@/kanban/janela/abrirCard'
 import { Heroi } from '@/dashboards/componentes/Heroi'
 import { buscarDia, type LinhaDia, type MapaPessoas, type TrechoDia } from '@/dashboards/tempos/api'
+import { chaveDoDia } from '@/dashboards/tempos/consultas'
 import {
   decimal,
   duracao,
   diaPorExtenso,
   hojeNaFabrica,
   horaNaFabrica,
-  primeiroNome,
+  nomeCurtoDaPessoa,
   somarDias,
 } from '@/dashboards/tempos/formato'
+import { marcasDoPadrao, type MarcaDoPadrao } from '@/dashboards/tempos/linhaDoDia'
+import { ID_OUTROS, legendaDaMedida, painelDe, tempoDaMedida } from '@/dashboards/tempos/painel'
 import type { PropsAba } from '../TemposProducao'
 import {
   Carregando,
@@ -30,12 +33,16 @@ import {
  * grandes, a linha do dia de cada pessoa (os trechos ao longo do expediente,
  * o almoço e o fim do dia sombreados, os buracos à vista) e a tabela, por
  * cursor ("Ver mais" pede só a próxima página).
+ *
+ * SESSAO-47 (Bloco C): o número do tempo médio (mediana ou média) e a marca do
+ * tempo padrão na linha do dia vêm da configuração do painel (`painel`, na
+ * mesma resposta); quem está desligado do painel aparece na faixa "Outros".
  */
 export function AbaDia({ filtros, aoContador }: PropsAba) {
   const [dia, setDia] = useState(hojeNaFabrica())
   const abrirCard = useAbrirCard()
   const consulta = useInfiniteQuery({
-    queryKey: ['tempos-producao', 'dia', filtros, dia],
+    queryKey: chaveDoDia(filtros, dia),
     queryFn: ({ pageParam }) => buscarDia(filtros, dia, pageParam),
     initialPageParam: null as { fim: string; origem: 'plataforma' | 'trello'; id: number } | null,
     getNextPageParam: (ultima) => {
@@ -58,6 +65,7 @@ export function AbaDia({ filtros, aoContador }: PropsAba) {
     () => Object.assign({}, ...(consulta.data?.pages.map((p) => p.pessoas) ?? [])),
     [consulta.data],
   )
+  const painel = painelDe(primeira)
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,12 +120,8 @@ export function AbaDia({ filtros, aoContador }: PropsAba) {
             />
             <Heroi
               rotulo="Tempo médio"
-              valor={duracao(primeira.numeros.mediana_s)}
-              detalhe={
-                primeira.numeros.media_s !== null
-                  ? `mediana · a média é ${duracao(primeira.numeros.media_s)}`
-                  : 'mediana'
-              }
+              valor={duracao(tempoDaMedida(painel.medida, primeira.numeros))}
+              detalhe={legendaDaMedida(painel.medida, primeira.numeros, duracao)}
             />
             <Heroi
               rotulo="Abaixo do padrão"
@@ -141,12 +145,17 @@ export function AbaDia({ filtros, aoContador }: PropsAba) {
 
           <Painel
             titulo="A linha do dia"
-            dica="Cada faixa é uma pessoa ao longo do expediente: os trechos com o móvel, o almoço e o fim do dia sombreados."
+            dica={
+              painel.linha_padrao
+                ? 'Cada faixa é uma pessoa ao longo do expediente: os trechos com o móvel, o almoço e o fim do dia sombreados. O traço marca onde cada móvel terminaria no tempo padrão.'
+                : 'Cada faixa é uma pessoa ao longo do expediente: os trechos com o móvel, o almoço e o fim do dia sombreados.'
+            }
           >
             <LinhaDoDia
               janelas={primeira.linha.janelas}
               trechos={primeira.linha.trechos}
               pessoas={pessoas}
+              marcarPadrao={painel.linha_padrao}
             />
           </Painel>
 
@@ -264,22 +273,41 @@ export function AbaDia({ filtros, aoContador }: PropsAba) {
 
 const ms = (iso: string) => Date.parse(iso)
 
+/** Uma marca muito além do fim do dia esticaria a régua inteira: fica de fora. */
+const FOLGA_DA_MARCA_MS = 2 * 3_600_000
+
 /** As faixas do dia por pessoa: posição em % dentro do expediente (sem biblioteca de gráfico). */
 function LinhaDoDia({
   janelas,
   trechos,
   pessoas,
+  marcarPadrao,
 }: {
   janelas: [string, string][]
   trechos: TrechoDia[]
   pessoas: MapaPessoas
+  /** SESSAO-47: a marca de onde cada móvel terminaria no tempo padrão (configuração do painel). */
+  marcarPadrao: boolean
 }) {
   if (trechos.length === 0)
     return (
       <p className="text-sm text-texto-suave">Ninguém trabalhou num card deste setor neste dia.</p>
     )
+  const porPessoa = new Map<string, TrechoDia[]>()
+  for (const t of trechos) porPessoa.set(t.pessoa, [...(porPessoa.get(t.pessoa) ?? []), t])
   const inicio = Math.min(...janelas.map((j) => ms(j[0])), ...trechos.map((t) => ms(t.inicio)))
-  const fim = Math.max(...janelas.map((j) => ms(j[1])), ...trechos.map((t) => ms(t.fim)))
+  const fimDoDia = Math.max(...janelas.map((j) => ms(j[1])), ...trechos.map((t) => ms(t.fim)))
+  // as marcas do padrão de cada faixa; a régua cresce um pouco para a marca de quem terminou adiantado caber
+  const marcasPorPessoa = new Map<string, MarcaDoPadrao[]>()
+  if (marcarPadrao)
+    for (const [pessoa, lista] of porPessoa)
+      marcasPorPessoa.set(
+        pessoa,
+        marcasDoPadrao(lista).filter(
+          (m) => m.quando >= inicio && m.quando <= fimDoDia + FOLGA_DA_MARCA_MS,
+        ),
+      )
+  const fim = Math.max(fimDoDia, ...[...marcasPorPessoa.values()].flat().map((m) => m.quando))
   const total = Math.max(fim - inicio, 1)
   const pos = (t: number) => `${((t - inicio) / total) * 100}%`
   const larg = (a: number, b: number) => `${Math.max(((b - a) / total) * 100, 0.4)}%`
@@ -293,8 +321,6 @@ function LinhaDoDia({
     cursor = Math.max(cursor, b)
   }
   if (cursor < fim) fora.push([cursor, fim])
-  const porPessoa = new Map<string, TrechoDia[]>()
-  for (const t of trechos) porPessoa.set(t.pessoa, [...(porPessoa.get(t.pessoa) ?? []), t])
   const marcas: number[] = []
   // as horas inteiras de dentro (a da ponta não cabe e empurraria a página de lado)
   for (let h = Math.ceil(inicio / 3_600_000) * 3_600_000; h <= fim - 20 * 60_000; h += 3_600_000)
@@ -311,8 +337,11 @@ function LinhaDoDia({
       </div>
       {[...porPessoa.entries()].map(([pessoa, lista]) => (
         <div key={pessoa} className="flex min-w-[43rem] items-center gap-2">
-          <span className="w-26 shrink-0 truncate text-sm" title={pessoas[pessoa]?.nome}>
-            {primeiroNome(pessoas[pessoa]?.nome ?? 'Alguém')}
+          <span
+            className="w-26 shrink-0 truncate text-sm"
+            title={pessoa === ID_OUTROS ? 'Outros' : pessoas[pessoa]?.nome}
+          >
+            {nomeCurtoDaPessoa(pessoa, pessoas)}
           </span>
           <div className="relative h-8 flex-1 rounded-dm bg-superficie-sutil">
             {fora.map(([a, b]) => (
@@ -343,6 +372,16 @@ function LinhaDoDia({
                 />
               )
             })}
+            {(marcasPorPessoa.get(pessoa) ?? []).map((m, i) => (
+              <span
+                key={`p${m.quando}-${i}`}
+                data-marca-padrao
+                title={m.titulo}
+                aria-label={m.titulo}
+                className="absolute -inset-y-0.5 w-0.5 -translate-x-1/2 rounded-full bg-texto"
+                style={{ left: pos(m.quando) }}
+              />
+            ))}
           </div>
         </div>
       ))}
@@ -378,6 +417,12 @@ function LinhaDoDia({
           />
           fora do expediente
         </span>
+        {marcarPadrao && (
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="h-3 w-0.5 rounded-full bg-texto" />
+            onde terminaria no tempo padrão
+          </span>
+        )}
       </p>
     </div>
   )
