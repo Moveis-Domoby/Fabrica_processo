@@ -692,6 +692,10 @@ export interface PainelMotivos {
     desfeita: MotivoContado[]
     por_caminhao: { caminhao_id: number; caminhao: string; vezes: number }[]
     por_pessoa: { usuario_id: string; nome: string; vezes: number }[]
+    /**
+     * ↪️ SESSAO-47: as entregas que estão VALENDO, contadas pelo dia em que
+     * aconteceram de fato (o dia escolhido ou corrigido) — a desfeita não conta.
+     */
     entregues: number
   } | null
 }

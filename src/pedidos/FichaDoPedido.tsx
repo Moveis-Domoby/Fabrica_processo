@@ -21,15 +21,18 @@ import { Botao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { detalhePedidoPcp } from '@/kanban/api'
-import type { DetalhePedido } from '@/kanban/api'
-import { entregueHoje, linkDoAnexo, linkWhatsApp } from '@/rotas/api'
+import { linkDoAnexo, linkWhatsApp } from '@/rotas/api'
+import { diaNaFabrica, entregueEmOutroDia, registradaHoje } from '@/rotas/diaDaEntrega'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalDecidirDevolucao } from '@/logistica/componentes/ModalDecidirDevolucao'
 import { CamposDoCard } from '@/utilitarios/CamposDoCard'
 import { humanizar } from '@/auditoria/rotulos'
+import { AlterarDataDaEntrega } from './AlterarDataDaEntrega'
 import { DataDeEntrega } from './DataDeEntrega'
 import { DadosDoTinyPainel } from './DadosDoTiny'
 import { ProducaoDoPedidoPainel } from './ProducaoDoPedido'
+import { fraseDaCorrecao, quandoFoiEntregue, quandoFoiRegistrada } from './entregaNaFicha'
+import type { FichaComDiaReal } from './entregaNaFicha'
 import { data, diaEHora, moeda, valorDoTiny } from './formato'
 
 /** A situação da conta a receber como o Tiny manda → como a gente fala. */
@@ -57,6 +60,8 @@ const FATOS: Record<string, string> = {
   comentario_adicionado: 'Comentário',
   anexo_adicionado: 'Comprovante anexado',
   anexo_removido: 'Anexo tirado',
+  // SESSAO-47: o administrador corrigiu o dia em que a entrega aconteceu
+  entrega_dia_corrigido: 'Dia da entrega corrigido',
   card_arquivado: 'Arquivado',
   card_desarquivado: 'Trazido de volta',
   etiqueta_adicionada: 'Etiqueta colocada',
@@ -152,7 +157,8 @@ export function FichaDoPedido({ pedidoId }: { pedidoId: number }) {
       </p>
     )
   }
-  const d = consulta.data
+  // SESSAO-47: a mesma resposta, com as chaves do dia real da entrega (quando o banco as manda)
+  const d: FichaComDiaReal = consulta.data
   return (
     <div className="flex flex-col gap-4">
       <Resumo d={d} />
@@ -187,7 +193,7 @@ export function FichaDoPedido({ pedidoId }: { pedidoId: number }) {
       {abertas.has('itens') && <PainelItens d={d} />}
       {abertas.has('producao') && (
         <Painel titulo="Produção">
-          <ProducaoDoPedidoPainel pedidoId={pedidoId} />
+          <ProducaoDoPedidoPainel pedidoId={pedidoId} entregueEm={d.entrega?.em ?? null} />
         </Painel>
       )}
       {abertas.has('entrega') && <PainelEntrega d={d} aoMudar={() => void consulta.refetch()} />}
@@ -202,7 +208,7 @@ export function FichaDoPedido({ pedidoId }: { pedidoId: number }) {
 }
 
 /** O que se lê de relance: quem, quanto, quem vendeu e onde está a entrega. */
-function Resumo({ d }: { d: DetalhePedido }) {
+function Resumo({ d }: { d: FichaComDiaReal }) {
   const { pedido: p, cliente: c } = d
   const whatsapp = linkWhatsApp(c.fone)
   const cidade = [c.cidade, c.uf].filter(Boolean).join(' - ')
@@ -273,14 +279,22 @@ function Resumo({ d }: { d: DetalhePedido }) {
                     ? `Entregue em parte (${d.entrega.pecas_entregues} de ${(d.entrega.pecas_entregues ?? 0) + (d.entrega.pecas_voltaram ?? 0)})`
                     : 'Entregue'}
               </p>
-              <p className="text-sm text-texto">{diaEHora(d.entrega.em)}</p>
+              {/* SESSAO-47: o dia em que foi entregue de fato; quando difere do dia do
+                  registro, a linha de baixo diz quando (e por quem) foi registrado */}
+              <p className="text-sm text-texto">{quandoFoiEntregue(d.entrega)}</p>
               <p className="text-sm text-texto-suave">
-                {d.entrega.por
-                  ? `por ${d.entrega.por}`
-                  : d.entrega.fonte === 'tiny'
-                    ? 'marcado no Tiny'
-                    : ''}
+                {[
+                  quandoFoiRegistrada(d.entrega),
+                  d.entrega.por
+                    ? `por ${d.entrega.por}`
+                    : d.entrega.fonte === 'tiny'
+                      ? 'marcado no Tiny'
+                      : null,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               </p>
+              {d.entrega.correcao && <p className="text-xs text-texto-suave">dia corrigido</p>}
             </>
           ) : cancelado ? (
             <>
@@ -314,7 +328,7 @@ function Resumo({ d }: { d: DetalhePedido }) {
   )
 }
 
-function PainelItens({ d }: { d: DetalhePedido }) {
+function PainelItens({ d }: { d: FichaComDiaReal }) {
   const { pedido: p } = d
   const souAdmin = useSessao().perfil?.papel === 'admin'
   return (
@@ -456,7 +470,7 @@ function PainelItens({ d }: { d: DetalhePedido }) {
 }
 
 /** A entrega: programação, quando e por quem, o comprovante e os gestos da logística. */
-function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }) {
+function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void }) {
   const notificar = useNotificacao()
   const souAdmin = useSessao().perfil?.papel === 'admin'
   const [desfazendo, setDesfazendo] = useState(false)
@@ -465,7 +479,7 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
   // O link do arquivo é de vida curta: pede no clique e mostra a imagem ali mesmo.
   const [vendo, setVendo] = useState<{ id: number; url: string } | null>(null)
   const abrir = useMutation({
-    mutationFn: async (a: DetalhePedido['anexos'][number]) => ({
+    mutationFn: async (a: FichaComDiaReal['anexos'][number]) => ({
       a,
       url: await linkDoAnexo(a.caminho),
     }),
@@ -503,9 +517,11 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
   // SESSAO-44 (D-213): o desfazer do dia (entrega feita aqui, hoje) é de todos
   // os que mexem na entrega; fora disso, só o administrador reabre — e a ficha
   // explica o porquê em vez de esconder o botão. A parcial segue recusada.
+  // ↪️ SESSAO-47: "do dia" = REGISTRADA hoje (quem marcou hoje "entregue ontem"
+  // ainda desfaz hoje); sem a hora do registro (o banco de antes), a da entrega.
   const entrega = d.entrega
   const temCard = d.plataforma.card_id !== null
-  const doDia = !!entrega?.por_gente && entregueHoje(entrega.em)
+  const doDia = !!entrega?.por_gente && registradaHoje(entrega.registrada_em, entrega.em)
   const podeDesfazer = !!entrega && !entrega.parcial && doDia && temCard
   const podeReabrir = !!entrega && !entrega.parcial && !doDia && temCard && souAdmin
   const semDesfazer = !entrega
@@ -516,7 +532,8 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
         ? null
         : !entrega.por_gente
           ? 'Esta entrega veio do Tiny. Para reabrir, peça a um administrador.'
-          : 'A entrega foi em outro dia. Para reabrir, peça a um administrador.'
+          : 'A entrega foi registrada em outro dia. Para reabrir, peça a um administrador.'
+  const correcao = fraseDaCorrecao(entrega?.correcao)
 
   return (
     <Painel titulo="Entrega e comprovante">
@@ -597,13 +614,17 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
                     ? `Entregue em parte — ${d.entrega.pecas_entregues} entregue(s), ${d.entrega.pecas_voltaram} voltaram`
                     : 'Entregue'}
                 </span>{' '}
-                em {diaEHora(d.entrega.em)}
+                {/* SESSAO-47: "no dia X, registrado em Y por Z" quando o dia foi escolhido */}
+                {entregueEmOutroDia(d.entrega.em, d.entrega.registrada_em)
+                  ? `${quandoFoiEntregue(d.entrega)}, ${quandoFoiRegistrada(d.entrega)}`
+                  : `em ${quandoFoiEntregue(d.entrega)}`}
                 {d.entrega.por
                   ? ` por ${d.entrega.por}`
                   : d.entrega.fonte === 'tiny'
                     ? ' (marcado no Tiny)'
                     : ''}
               </p>
+              {correcao && <p>{correcao}</p>}
               {d.entrega.observacao && <p>{d.entrega.observacao}</p>}
             </div>
           )}
@@ -637,6 +658,17 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
               >
                 {podeReabrir ? 'Reabrir entrega' : 'Desfazer a entrega'}
               </Botao>
+            )}
+            {/* SESSAO-47 (resposta do dono): corrigir o dia depois de registrada é só do
+                administrador — a logística e o entregador não veem o botão (o banco confere). */}
+            {entrega && souAdmin && d.plataforma.card_id !== null && (
+              <AlterarDataDaEntrega
+                cardId={d.plataforma.card_id}
+                numero={p.numero}
+                entregueEm={entrega.em}
+                chegouEm={d.plataforma.chegou_em}
+                aoMudar={aoMudar}
+              />
             )}
             {/* SESSAO-31 (D-129): "devolução de peça já entregue pode ocorrer também". */}
             {d.entrega && !d.devolucao && d.plataforma.card_id !== null && (
@@ -741,24 +773,32 @@ function PainelEntrega({ d, aoMudar }: { d: DetalhePedido; aoMudar: () => void }
   )
 }
 
-function PainelHistorico({ d }: { d: DetalhePedido }) {
+function PainelHistorico({ d }: { d: FichaComDiaReal }) {
   return (
     <Painel titulo="Histórico">
       {d.historico.length === 0 ? (
         <p className="text-sm text-texto-suave">Nada registrado na plataforma para este pedido.</p>
       ) : (
         <ol className="flex flex-col gap-1.5 text-sm">
-          {d.historico.map((h) => (
-            <li key={h.id} className="flex flex-wrap gap-x-2">
-              <span className="shrink-0 text-texto-suave tabular-nums">{diaEHora(h.em)}</span>
-              <span className="font-medium text-texto">{FATOS[h.tipo] ?? humanizar(h.tipo)}</span>
-              <span className="text-texto-suave">
-                {h.por ?? (h.origem === 'interface' ? '' : 'Sistema')}
-                {h.setor && h.tipo === 'movimentacao_setor' ? ` → ${h.setor}` : ''}
-              </span>
-              {h.observacao && <span className="w-full pl-2 text-texto">{h.observacao}</span>}
-            </li>
-          ))}
+          {d.historico.map((h) => {
+            // SESSAO-47: o fato que vale num dia e foi gravado em outro (a entrega
+            // marcada "no dia X") mostra o dia em que valeu e quando foi registrado
+            const emOutroDia = entregueEmOutroDia(h.em, h.registrado_em)
+            return (
+              <li key={h.id} className="flex flex-wrap gap-x-2">
+                <span className="shrink-0 text-texto-suave tabular-nums">
+                  {emOutroDia ? data(diaNaFabrica(h.em)) : diaEHora(h.em)}
+                </span>
+                <span className="font-medium text-texto">{FATOS[h.tipo] ?? humanizar(h.tipo)}</span>
+                <span className="text-texto-suave">
+                  {h.por ?? (h.origem === 'interface' ? '' : 'Sistema')}
+                  {h.setor && h.tipo === 'movimentacao_setor' ? ` → ${h.setor}` : ''}
+                  {emOutroDia ? ` · registrado em ${diaEHora(h.registrado_em)}` : ''}
+                </span>
+                {h.observacao && <span className="w-full pl-2 text-texto">{h.observacao}</span>}
+              </li>
+            )
+          })}
         </ol>
       )}
     </Painel>

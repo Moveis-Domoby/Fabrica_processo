@@ -73,18 +73,43 @@ export async function listarEntregas(parametros: {
  * Marca o pedido como entregue (evento append-only; o banco valida). ↩️
  * SESSAO-38 (ajuste): pedido que ainda aparece em produção só com
  * `confirmarIncompleto` (a tela pergunta antes) — fecha tudo dele, como o Tiny.
+ * ↪️ SESSAO-47: `dia` (AAAA-MM-DD) = o dia em que a entrega aconteceu de fato;
+ * sem ele, hoje. O banco recusa o dia que ainda não chegou e o dia anterior à
+ * chegada do pedido. O parâmetro só vai quando há dia escolhido — sem ele a
+ * chamada é a de sempre (a tela nova funciona com o banco de antes).
  */
 export async function registrarEntrega(parametros: {
   cardId: number
   observacao?: string
   confirmarIncompleto?: boolean
+  dia?: string | null
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_registrar_entrega', {
     p_card_id: parametros.cardId,
     p_observacao: parametros.observacao?.trim() || null,
     p_confirmar_incompleto: parametros.confirmarIncompleto ?? false,
+    ...(parametros.dia ? { p_dia: parametros.dia } : {}),
   })
   if (error) throw new Error(`Não deu para registrar a entrega: ${error.message}`)
+}
+
+/**
+ * SESSAO-47: o administrador corrige o DIA em que a entrega aconteceu, na ficha
+ * do pedido — por fato novo (a entrega não se edita). O motivo é opcional; o
+ * mesmo dia de novo não muda nada. O Tiny não muda.
+ */
+export async function corrigirDiaDaEntrega(parametros: {
+  cardId: number
+  dia: string
+  motivo?: string
+}): Promise<{ mudou: boolean }> {
+  const { data, error } = await supabase.rpc('plt_fn_entrega_corrigir_dia', {
+    p_card_id: parametros.cardId,
+    p_dia: parametros.dia,
+    p_motivo: parametros.motivo?.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+  return { mudou: Boolean((data as { mudou?: boolean } | null)?.mudou) }
 }
 
 /** SESSAO-41 (D-195): uma peça viva do pedido, para marcar a entrega parcial. */
@@ -769,11 +794,21 @@ export interface EntregaDoDia {
   unidades: number
   /** Volumes do cadastro do Tiny (produto com mais de um volume — montado na entrega). */
   volumes: number
+  /** ↪️ SESSAO-47: o instante REAL da entrega (o dia escolhido ou corrigido). */
   entregue_em: string | null
   entregue_por: string | null
   entregue_por_gente: boolean
   /** SESSAO-41 (D-195): a entrega foi parcial (as que voltaram estão com a logística). */
   entrega_parcial?: boolean
+  /**
+   * SESSAO-47: o dia real da entrega (AAAA-MM-DD, no fuso da fábrica), quando ela
+   * foi REGISTRADA (é por aqui que o "desfazer do dia" conta) e quando o pedido
+   * chegou à plataforma (o limite do "entregue no dia…"). Ausentes = o banco de
+   * antes desta sessão.
+   */
+  entregue_no_dia?: string | null
+  entrega_registrada_em?: string | null
+  chegou_em?: string | null
   comprovantes: number
   comentarios: ComentarioEntrega[]
   /** SESSAO-38 (D-156): o programado pode ainda estar em produção. */
@@ -794,12 +829,33 @@ export interface CaminhaoDoDia {
   entregas: number
 }
 
+/**
+ * SESSAO-47: um pedido entregue NESTE dia de fato, mas programado para outro
+ * dia (a parada continua na rota em que estava programada — é lá que se desfaz).
+ */
+export interface EntregueDeOutroDia {
+  card_id: number
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  entregue_em: string
+  entrega_registrada_em: string | null
+  entregue_por: string | null
+  entregue_por_gente: boolean
+  entrega_parcial: boolean
+  programado_para: string
+  caminhao_nome: string | null
+  rota: number | null
+}
+
 export interface EntregasDoDia {
   data: string
   caminhao_id: number | null
   rota: number | null
   caminhoes: CaminhaoDoDia[]
   entregas: EntregaDoDia[]
+  /** SESSAO-47: ausente = o banco de antes desta sessão (a tela trata como nenhum). */
+  entregues_de_outro_dia?: EntregueDeOutroDia[]
   /**
    * SESSAO-41 (D-196): as paradas avulsas da rota escolhida, na ordem (a mesma
    * sequência das entregas — `ordem` dividida). Ausente = o banco de antes
@@ -1011,6 +1067,11 @@ export interface ItemCalendario {
   ordem: number | null
   /** O motivo do "não entregue" ou do stand-by. */
   motivo: string | null
+  /**
+   * SESSAO-47: só no entregue — o dia para o qual estava programado (o entregue
+   * mora no dia REAL da entrega; a tela diz "programado para dd/mm" quando difere).
+   */
+  programado_para?: string | null
 }
 
 export interface DiaCalendario {
