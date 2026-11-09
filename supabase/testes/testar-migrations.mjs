@@ -16224,7 +16224,10 @@ try {
                      '20261106030000_plt_numeros_que_batem.sql',
                      // ↪️ SESSAO-47 (E-19/E-144): a base recria o check dos tipos de evento (com a volta
                      // ao PCP e o dia real da entrega) e o VALIDA — a da SESSAO-44 acima o recria sem eles
-                     '20261109010000_plt_sessao47_base.sql']) {
+                     '20261109010000_plt_sessao47_base.sql',
+                     // ↪️ SESSAO-47 · bloco A (E-81/E-165): as de cima recriam as portas do PCP, a Expedição,
+                     // o pedido vivo, a aba Stand-by e o liberar peça (com 5 argumentos) na versão de antes
+                     '20261109020000_plt_pedido_adiantado_tiny.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -16309,7 +16312,10 @@ const emProd = await pedido38(938002, { prontas: 1, emProducao: 1 })    // 1 de 
 const pronto = await pedido38(938003, { prontas: 2 })                   // pronto, sem lançar
 const cancelado = await pedido38(938004)                                // vivo, depois cancelado no Tiny
 await bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = 938004`)
-const faturado = await pedido38(938005, { situacao: 'Faturado' })       // o Tiny levou adiante, sem peça aqui
+// ↩️ SESSAO-47: o levado adiante pelo Tiny só deixa de ser pedido vivo quando NÃO há produto
+// por liberar (aqui: nada a produzir). Com produto por liberar ele volta a ser vivo e aparece
+// na Expedição com o aviso — provado no bloco da SESSAO-47.
+const faturado = await pedido38(938005, { situacao: 'Faturado', itens: 0 }) // o Tiny levou adiante, sem peça aqui e sem nada por liberar
 const excluido = await pedido38(938006)                                 // excluído no Tiny (D-140)
 const prontoEntrega = await pedido38(938007, { itens: 1, prontas: 1 })  // para a entrega de ponta a ponta
 await bd.exec(`insert into public.plt_pedidos_excluidos_tiny (pedido_id, numero, erro)
@@ -20230,7 +20236,7 @@ try {
     JSON.stringify(qF))
 
   const pr45 = await um45(`
-    select has_function_privilege('anon', 'public.plt_fn_liberar_peca(bigint, integer, text, boolean, text)', 'execute') as anon_lib,
+    select has_function_privilege('anon', 'public.plt_fn_liberar_peca(bigint, integer, text, boolean, text, text)', 'execute') as anon_lib, -- ↪️ SESSAO-47: a assinatura ganhou p_tiny (E-120)
            has_function_privilege('anon', 'public.plt_fn_geo_marcar(text, text, double precision, double precision)', 'execute') as anon_geo,
            has_function_privilege('authenticated', 'plt_privado.fn_liberar_peca_avaliar(bigint, integer)', 'execute') as avaliar,
            has_function_privilege('authenticated', 'public.plt_fn_liberar_peca_destino(bigint, integer)', 'execute') as logado`)
@@ -21062,6 +21068,355 @@ try {
   await como0611b('')
 }
 } // fim do bloco dos números que batem (06/11)
+
+// ============================================================================
+// SESSAO-47 · BLOCO A (migrations 20261109010000 e …020000): o pedido que o Tiny
+// levou adiante (Faturado, Pronto para envio, Enviado) e que ainda tem produto
+// por liberar — a Expedição mostra com o aviso, a logística devolve ao PCP
+// mudando a situação no Tiny, a janela de liberar peça pergunta o que fazer e
+// o aviso "voltou ao PCP" só sai quando o pedido voltou.
+// ============================================================================
+{ // SESSAO-47 · bloco A (escopo próprio — E-70)
+titulo('SESSAO-47 · A · o pedido adiantado no Tiny com falta: a Expedição mostra, o PCP não; os botões devolvem ao PCP na hora')
+
+// E-81/E-136: blocos de cima reaplicam migrations antigas que recriam o PCP, a
+// Expedição e o stand-by na versão de antes — as desta sessão de novo, na ordem.
+for (const m47 of ['20261109010000_plt_sessao47_base.sql', '20261109020000_plt_pedido_adiantado_tiny.sql']) {
+  await bd.exec(await readFile(path.join(MIGRATIONS, m47), 'utf8'))
+}
+
+const um47 = async (sql) => (await bd.query(sql)).rows[0]
+const todos47 = async (sql) => (await bd.query(sql)).rows
+const como47 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j47 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha47 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f47')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f47')
+  }
+}
+const item47 = (codigo, descricao, qtd = '1.00') =>
+  ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } })
+const pedido47 = (numero, situacao, itens) => ({
+  id: String(7947000 + (numero % 1000)), numero: String(numero), data_pedido: '05/11/2026', data_prevista: '28/11/2026', situacao,
+  total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 47A',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: `Cliente Teste 47A ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste 47A', numero: '47', complemento: '', bairro: 'Centro', cep: '59000-470', cidade: 'Natal',
+             uf: 'RN', fone: '84999994747', email: '' },
+  itens,
+})
+// a gravação do Tiny (inclusão ou atualização) + o gatilho adiado dos itens disparado como no COMMIT (E-175)
+const gravar47 = async (p, tipo = 'inclusao_pedido') => {
+  const id = (await um47(`select public.fn_upsert_pedido(p => ${j47(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const ESTANTE47 = item47('SX47AE', 'Estante Teste 47A - Branca', '2.00')
+const MESA47 = item47('SX47AM', 'Mesa Teste 47A - Preta')
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (924701, 'SX47AE', 'Estante Teste 47A - Branca', 'F', 'A', 'un'),
+      (924702, 'SX47AM', 'Mesa Teste 47A - Preta', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;
+    update public.plt_setores set tiny_entrega_desde = null where codigo = 'rotas';`)
+  const aguardo = (await um47(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+  const cardDe = async (pedidoId) => (await um47(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  const pronta = async (pedidoId, card, seq, k, n, codigo, descricao) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pedidoId}, ${card}, ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${aguardo}, 'api');`)
+    return (await um47(`select max(id)::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'unidade'`)).id
+  }
+  const tiny = (numero, situacao) => bd.exec(`update public.pedidos set situacao = '${situacao}' where numero = ${numero}`)
+  // o que cada tela diz do pedido (PCP e Visão do dia como admin; Expedição como logística)
+  const telas = async (numero) => {
+    await como47(E40.admin)
+    const pcp = await um47(`select q.pedido_resumo -> 'volta_pcp' as volta from public.plt_fn_pcp_quadro(100, 0, 'pedido') q
+                             join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+    const sb = await um47(`select 1 as ok from public.plt_fn_pcp_quadro(100, 0, 'standby') q
+                            join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+    const antigo = await um47(`select 1 as ok from public.plt_fn_cards_pedido_pcp(100, 0) q
+                                join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+    const painel = await um47(`select (select pedidos_a_liberar from public.plt_fn_dash_pcp_dia()) as painel,
+                                      (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0)) as quadro`)
+    await como47(E40.logistica)
+    const exp = (await um47(`select public.plt_fn_expedicao('todos', '${numero}', 20, 0) as e`)).e
+    const filtro = (await um47(`select public.plt_fn_expedicao('saiu_do_pcp', '${numero}', 20, 0) as e`)).e
+    await como47('')
+    const linha = exp.itens.find((i) => i.numero === numero)
+    return { noPcp: pcp !== undefined, voltaPcp: pcp?.volta ?? null, naAbaStandby: sb !== undefined, noPcpAntigo: antigo !== undefined,
+             painelIgualQuadro: painel.painel === painel.quadro, naExpedicao: linha !== undefined,
+             aviso: linha?.saiu_do_pcp ?? null, volta: linha?.volta_pcp ?? null, adiantado: linha?.tiny_adiantado ?? null,
+             standby: linha?.standby ?? null, estado: linha?.estado ?? null, noFiltro: filtro.itens.some((i) => i.numero === numero),
+             contagemFiltro: filtro.contagens.saiu_do_pcp, tinyLigado: exp.tiny_ligado }
+  }
+  const marca = (card) => um47(`select volta_pcp_em is not null as marcado, volta_pcp_situacao as situacao from public.plt_cards where id = ${card}`)
+
+  // ---------------- frente 1 · a regra e a Expedição ----------------
+  const idX = await gravar47(pedido47(97101, 'Preparando envio', [ESTANTE47]))
+  const cardX = await cardDe(idX)
+  const x0 = await telas(97101)
+  const porSituacao = {}
+  for (const s of ['Faturado', 'Pronto para envio', 'Enviado']) {
+    await tiny(97101, s)
+    porSituacao[s] = await telas(97101)
+  }
+  await tiny(97101, 'Em aberto')
+  const xAberto = await telas(97101)
+  await tiny(97101, 'Pronto para envio')
+  const x1 = porSituacao['Pronto para envio']
+  conferir(
+    x0.noPcp && x0.naExpedicao && x0.aviso === null && x0.adiantado === false && xAberto.noPcp && xAberto.aviso === null
+      && Object.values(porSituacao).every((t) => !t.noPcp && !t.noPcpAntigo && t.painelIgualQuadro && t.naExpedicao && t.noFiltro
+           && t.aviso?.faltam === 2 && t.adiantado === true && t.contagemFiltro >= 1)
+      && x1.aviso.situacao === 'Pronto para envio' && x1.estado === 'no_pcp' && x1.tinyLigado === false,
+    'Faturado, Pronto para envio e Enviado com produto por liberar: o pedido sai do PCP (e do quadrinho), mas APARECE na Expedição mesmo sem peça nenhuma, com a situação real, o que falta (2) e no filtro só deles; Preparando envio e Em aberto não ganham o aviso',
+    JSON.stringify({ x0, porSituacao, xAberto }))
+
+  // com peça pronta E com falta: o card normal ganha o mesmo aviso; liberado por inteiro, não ganha
+  const idY = await gravar47(pedido47(97102, 'Preparando envio', [ESTANTE47]))
+  const cardY = await cardDe(idY)
+  await pronta(idY, cardY, 1, 1, 2, 'SX47AE', 'Estante Teste 47A - Branca')
+  await tiny(97102, 'Enviado')
+  const yParcial = await telas(97102)
+  await pronta(idY, cardY, 1, 2, 2, 'SX47AE', 'Estante Teste 47A - Branca')
+  const yCompleto = await telas(97102)
+  // entregue e cancelado no Tiny: caminho próprio — fora da Expedição
+  const idZ = await gravar47(pedido47(97103, 'Preparando envio', [MESA47]))
+  await tiny(97103, 'Cancelado')
+  const zCancelado = await telas(97103)
+  conferir(
+    yParcial.naExpedicao && yParcial.aviso?.faltam === 1 && yParcial.estado === 'em_producao' && !yParcial.noPcp
+      && yCompleto.naExpedicao && yCompleto.aviso === null && yCompleto.adiantado === true && !yCompleto.noFiltro
+      && !zCancelado.naExpedicao && !zCancelado.noPcp && idZ > 0,
+    'com peça pronta E produto por liberar, o card da Expedição ganha o aviso (falta 1); liberado por inteiro, não ganha; cancelado no Tiny não aparece',
+    JSON.stringify({ yParcial, yCompleto, zCancelado }))
+
+  // ---------------- frente 2 · os botões ----------------
+  titulo('SESSAO-47 · A · a volta ao PCP: quem pode, a ida ao Tiny desligada, um toque = um efeito, o fato com o autor')
+  await como47(E40.operador)
+  await falha47(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'preparando_envio', 'chave-47a-operador')`,
+    'quem não é da logística nem admin não devolve pedido ao PCP', /logística ou de admin/)
+  await como47(E40.logistica)
+  await falha47(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'preparando_envio', 'chave-47a-desligado')`,
+    'com a ida ao Tiny desligada o banco recusa (a tela deixa os botões apagados, com a explicação)', /ida ao Tiny está desligada/)
+  await como47('')
+  await bd.exec(`update public.plt_setores set tiny_entrega_desde = now() where codigo = 'rotas'`)
+  await como47(E40.logistica)
+  await falha47(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'enviado', 'chave-47a-situacao')`,
+    'só "Em aberto" e "Preparando envio" são aceitas como situação da volta', /Em aberto.*Preparando envio/)
+  await falha47(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+                   values (${cardX}, 'pedido_volta_pcp', (select id from public.plt_usuarios where auth_user_id = '${E40.logistica}'),
+                           'interface', '{"situacao_pedida": "aberto"}')`,
+    'o fato da volta não nasce solto na tabela — só pela porta, que pede a situação ao Tiny no mesmo gesto', /botões "Voltar para/)
+  const volta = (await um47(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'preparando_envio', 'chave-47a-0001') as r`)).r
+  const repetida = (await um47(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'preparando_envio', 'chave-47a-0001') as r`)).r
+  const outraChave = (await um47(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'preparando_envio', 'chave-47a-0002') as r`)).r
+  await como47('')
+  const x2 = await telas(97101)
+  const fatos = await um47(`
+    select count(*)::int as n, max(e.dados ->> 'situacao_antes') as antes, max(e.dados ->> 'situacao_pedida') as pedida,
+           bool_and(e.usuario_id = (select id from public.plt_usuarios where auth_user_id = '${E40.logistica}')) as autor,
+           (select count(*)::int from public.plt_logs_atividade l where l.acao = 'pedido_volta_pcp') as logs,
+           (select count(*)::int from public.plt_notificacoes n where n.card_id = ${cardX} and n.tipo = 'pedido_voltou_pcp') as avisos,
+           (select max(n.corpo) from public.plt_notificacoes n where n.card_id = ${cardX} and n.tipo = 'pedido_voltou_pcp') as corpo
+      from public.plt_eventos e where e.card_id = ${cardX} and e.tipo = 'pedido_volta_pcp'`)
+  const fila = await um47(`select situacao, motivo, versao from public.plt_tiny_pedido_fila where numero = 97101`)
+  conferir(
+    volta.feito === true && volta.faltam === 2 && volta.situacao_pedida === 'preparando_envio' && repetida.repetido === true
+      && outraChave.feito === false && outraChave.motivo === 'ja_devolvido'
+      && x2.noPcp && x2.noPcpAntigo && x2.painelIgualQuadro && x2.voltaPcp?.estado === 'esperando' && x2.voltaPcp?.situacao_pedida === 'preparando_envio'
+      && x2.naExpedicao && x2.aviso === null && x2.volta?.estado === 'esperando' && x2.adiantado === false && !x2.noFiltro && x2.tinyLigado === true
+      && fatos.n === 1 && fatos.antes === 'Pronto para envio' && fatos.pedida === 'preparando_envio' && fatos.autor === true
+      && fatos.logs >= 1 && fatos.avisos >= 1 && /Pronto para envio.*Preparando envio.*Faltam liberar 2 produtos/.test(fatos.corpo)
+      && fila?.situacao === 'preparando_envio' && fila?.motivo === 'volta_pcp',
+    'o botão: o pedido volta ao PCP NA HORA (quadro, porta antiga e quadrinho) só com o que falta, a situação é pedida ao Tiny pela fila de saída, o fato guarda quem fez e as duas situações, gera log e avisa o PCP; o toque repetido e o segundo toque não fazem nada de novo',
+    JSON.stringify({ volta, repetida, outraChave, x2, fatos, fila }))
+
+  // aviso antigo do Tiny fora de ordem (a mesma situação adiantada, ou outra adiantada) não esconde o pedido
+  await tiny(97101, 'Pronto para envio')
+  const mesmoAviso = await telas(97101)
+  await tiny(97101, 'Enviado')
+  const outroAdiantado = await telas(97101)
+  conferir(mesmoAviso.noPcp && outroAdiantado.noPcp && outroAdiantado.voltaPcp !== null && (await marca(cardX)).marcado,
+    'aviso do Tiny que repete a situação adiantada (ou traz outra adiantada) antes da confirmação NÃO esconde o pedido devolvido',
+    JSON.stringify({ mesmoAviso, outroAdiantado }))
+
+  // o Tiny recusou / não respondeu: o pedido segue no PCP, a tela sabe, e depois de 8 tentativas o alerta sai
+  await bd.exec(`select public.plt_fn_tiny_pedido_resultado(${idX}, ${fila?.versao ?? 1}, false, 'erro 31 - transição inválida')`)
+  const falhando = await telas(97101)
+  for (let i = 0; i < 7; i++) {
+    await bd.exec(`select public.plt_fn_tiny_pedido_resultado(${idX}, ${fila?.versao ?? 1}, false, 'erro 31 - transição inválida')`)
+  }
+  const parado = await telas(97101)
+  const alerta = await um47(`select count(*)::int as n from public.plt_notificacoes where card_id = ${cardX} and tipo = 'tiny_pedido_parado'`)
+  conferir(falhando.noPcp && falhando.voltaPcp?.estado === 'falhando' && parado.noPcp && parado.voltaPcp?.estado === 'parado'
+      && parado.volta?.estado === 'parado' && alerta.n >= 1,
+    'o Tiny falhou: o pedido continua no PCP com "o Tiny ainda não confirmou" (falhando → parado) e o alerta de sempre sai para os administradores',
+    JSON.stringify({ falhando: falhando.voltaPcp, parado: parado.voltaPcp, alerta }))
+
+  // o Tiny confirmou: a marca fecha por fato, a D-132 volta a decidir — e a regravação dos itens não abre "itens novos"
+  await bd.exec(`delete from public.plt_tiny_pedido_fila where numero = 97101`)
+  const aceito = await telas(97101)
+  await gravar47(pedido47(97101, 'Preparando envio', [ESTANTE47]), 'atualizacao_pedido')
+  const confirmado = await telas(97101)
+  const fim = await um47(`
+    select (select count(*)::int from public.plt_eventos where card_id = ${cardX} and tipo = 'pedido_volta_pcp_fim') as n,
+           (select dados ->> 'motivo' from public.plt_eventos where card_id = ${cardX} and tipo = 'pedido_volta_pcp_fim' order by id desc limit 1) as motivo,
+           (select count(*)::int from public.plt_eventos where card_id = ${cardX} and tipo = 'pedido_itens_alterados') as itens_novos`)
+  // …e se alguém adiantar o pedido no Tiny de novo, ele sai do PCP e o aviso volta
+  await tiny(97101, 'Faturado')
+  const deNovo = await telas(97101)
+  conferir(aceito.noPcp && aceito.voltaPcp?.estado === 'aceito'
+      && confirmado.noPcp && confirmado.voltaPcp === null && !(await marca(cardX)).marcado && confirmado.aviso === null
+      && fim.n === 1 && fim.motivo === 'tiny_confirmou' && fim.itens_novos === 0
+      && !deNovo.noPcp && deNovo.aviso?.faltam === 2 && deNovo.aviso?.situacao === 'Faturado',
+    'o Tiny confirmou "Preparando envio": a marca fecha por um fato (nada se edita), a regra de sempre volta a decidir e a regravação dos itens não vira "itens novos"; adiantado de novo no Tiny, o pedido sai do PCP e o aviso volta',
+    JSON.stringify({ aceito: aceito.voltaPcp, confirmado, fim, deNovo }))
+
+  // pedida uma situação, o Tiny foi para outra não adiantada: a marca fecha (o pedido já está no PCP pela regra de sempre);
+  // e a marca nunca segura no PCP um pedido cancelado
+  await como47(E40.logistica)
+  await bd.exec(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'aberto', 'chave-47a-0003')`)
+  await como47('')
+  await tiny(97101, 'Preparando envio')
+  const mudou = await um47(`select dados ->> 'motivo' as motivo from public.plt_eventos where card_id = ${cardX} and tipo = 'pedido_volta_pcp_fim' order by id desc limit 1`)
+  const xMudou = await telas(97101)
+  await tiny(97101, 'Enviado')
+  await como47(E40.logistica)
+  await bd.exec(`select public.plt_fn_pedido_voltar_pcp(${cardX}, 'aberto', 'chave-47a-0004')`)
+  await como47('')
+  await tiny(97101, 'Cancelado')
+  const xCancelado = await telas(97101)
+  conferir(mudou.motivo === 'tiny_mudou' && xMudou.noPcp && xMudou.voltaPcp === null
+      && !xCancelado.noPcp && !xCancelado.naExpedicao && !(await marca(cardX)).marcado,
+    'pedido "Em aberto" e o Tiny foi para "Preparando envio": a marca fecha do mesmo jeito; e o pedido devolvido que o Tiny cancela sai do PCP (a marca não segura cancelado)',
+    JSON.stringify({ mudou, xMudou, xCancelado }))
+
+  // ---------------- o stand-by entra na regra ----------------
+  titulo('SESSAO-47 · A · o pedido em stand-by que o Tiny leva adiante: aparece na Expedição com o aviso e volta ao PCP mantendo o stand-by')
+  const idS = await gravar47(pedido47(97104, 'Preparando envio', [MESA47]))
+  const cardS = await cardDe(idS)
+  const motivoSb = (await um47(`select id::int as id from public.plt_motivos where tipo = 'standby' and ativo order by ordem, id limit 1`)).id
+  await como47(E40.admin)
+  await bd.exec(`select public.plt_fn_pcp_standby(${cardS}, ${motivoSb}, null)`)
+  await como47('')
+  const s0 = await telas(97104)
+  await tiny(97104, 'Enviado')
+  const s1 = await telas(97104)
+  await como47(E40.logistica)
+  const voltaS = (await um47(`select public.plt_fn_pedido_voltar_pcp(${cardS}, 'aberto', 'chave-47a-standby') as r`)).r
+  await como47('')
+  const s2 = await telas(97104)
+  const naVisao = await um47(`select count(*)::int as n from plt_privado.vw_standby_na_aba where card_id = ${cardS}`)
+  conferir(s0.naAbaStandby && !s1.naAbaStandby && s1.naExpedicao && s1.aviso?.faltam === 1 && s1.standby !== null
+      && voltaS.feito === true && voltaS.standby === true && s2.naAbaStandby && !s2.noPcp && naVisao.n === 1 && s2.standby !== null,
+    'stand-by + Tiny adiante: o pedido sai da aba Stand-by e aparece na Expedição com o aviso e a marca do stand-by; o botão devolve ao PCP MANTENDO o stand-by (aba Stand-by e o painel de Motivos contam igual)',
+    JSON.stringify({ s0: s0.naAbaStandby, s1, voltaS, s2, naVisao }))
+
+  // ---------------- frentes 3 e 4 · liberar a peça ----------------
+  titulo('SESSAO-47 · A · liberar a peça pronta com o pedido de origem adiantado: as três escolhas num gesto só e o aviso que diz a verdade')
+  // destino: um pedido que espera a mesma mesa no PCP (quatro vagas para os quatro casos)
+  await gravar47(pedido47(97110, 'Aprovado', [item47('SX47AM', 'Mesa Teste 47A - Preta', '4.00')]))
+  const origem = async (numero, situacao) => {
+    const id = await gravar47(pedido47(numero, 'Preparando envio', [MESA47]))
+    const card = await cardDe(id)
+    const peca = await pronta(id, card, 1, 1, 1, 'SX47AM', 'Mesa Teste 47A - Preta')
+    if (situacao !== 'Preparando envio') await tiny(numero, situacao)
+    return { id, card, peca }
+  }
+  const avisosDe = (card) => um47(`
+    select coalesce(jsonb_object_agg(t.tipo, t.n), '{}') as porTipo,
+           (select max(n.corpo) from public.plt_notificacoes n where n.card_id = ${card} and n.tipo = 'pedido_adiantado_tiny') as ficou,
+           (select max(n.corpo) from public.plt_notificacoes n where n.card_id = ${card} and n.tipo = 'pedido_peca_liberada') as voltou
+      from (select n.tipo, count(*)::int as n from public.plt_notificacoes n where n.card_id = ${card} group by n.tipo) t`)
+
+  // (a) voltar para Preparando envio no mesmo gesto
+  const A = await origem(97111, 'Pronto para envio')
+  // (b) deixar como está
+  const B = await origem(97112, 'Faturado')
+  // (c) não lançar agora (stand-by) com o Tiny adiante — antes o gesto inteiro era recusado
+  const C = await origem(97113, 'Enviado')
+  // (d) o pedido que NÃO está adiantado segue como sempre (e a chamada de antes, com 5 argumentos, segue valendo)
+  const D = await origem(97114, 'Preparando envio')
+  await como47(E40.logistica)
+  await falha47(`select public.plt_fn_liberar_peca(${A.peca}, 97110, null, true, 'chave-47a-lib-x', 'qualquer')`,
+    'escolha do Tiny desconhecida é recusada', /Em aberto.*Preparando envio.*deixar como está/)
+  const libA = (await um47(`select public.plt_fn_liberar_peca(${A.peca}, 97110, null, true, 'chave-47a-lib-a', 'preparando_envio') as r`)).r
+  const libB = (await um47(`select public.plt_fn_liberar_peca(${B.peca}, null, 'foi para a vitrine', true, 'chave-47a-lib-b', 'deixar') as r`)).r
+  const libC = (await um47(`select public.plt_fn_liberar_peca(${C.peca}, 97110, null, false, 'chave-47a-lib-c', null) as r`)).r
+  const libD = (await um47(`select public.plt_fn_liberar_peca(${D.peca}, 97110, null, true, 'chave-47a-lib-d') as r`)).r
+  await como47('')
+  const tA = await telas(97111), tB = await telas(97112), tC = await telas(97113), tD = await telas(97114)
+  const nA = await avisosDe(A.card), nB = await avisosDe(B.card), nC = await avisosDe(C.card), nD = await avisosDe(D.card)
+  const filaA = await um47(`select situacao, motivo from public.plt_tiny_pedido_fila where numero = 97111`)
+  const filaB = await um47(`select count(*)::int as n from public.plt_tiny_pedido_fila where numero in (97112, 97113, 97114)`)
+  conferir(
+    libA.feito && libA.voltou_ao_pcp === true && libA.tiny_pedido === 'preparando_envio' && libA.tiny_situacao === 'Pronto para envio'
+      && tA.noPcp && tA.voltaPcp?.situacao_pedida === 'preparando_envio' && filaA?.situacao === 'preparando_envio' && filaA?.motivo === 'volta_pcp'
+      && (nA.portipo.pedido_peca_liberada ?? 0) >= 1 && !nA.portipo.pedido_adiantado_tiny && !nA.portipo.pedido_voltou_pcp
+      && /voltou|ficou com o pedido 97110/.test(nA.voltou) && /Pronto para envio.*Preparando envio/.test(nA.voltou),
+    '"Voltar para Preparando envio (Tiny)" na janela de liberar: num gesto só a peça sai, a situação é pedida ao Tiny e o pedido volta ao PCP — um aviso só, dizendo a situação',
+    JSON.stringify({ libA, tA: { noPcp: tA.noPcp, volta: tA.voltaPcp }, filaA, nA }))
+  conferir(
+    libB.feito && libB.voltou_ao_pcp === false && libB.tiny_situacao === 'Faturado' && libB.tiny_adiante === true
+      && !tB.noPcp && tB.naExpedicao && tB.aviso?.faltam === 1 && tB.aviso?.situacao === 'Faturado' && tB.voltaPcp === null
+      && !nB.portipo.pedido_peca_liberada && (nB.portipo.pedido_adiantado_tiny ?? 0) >= 1
+      && /saiu do pedido 97112.*Faturado.*ficou na Expedição esperando decisão/.test(nB.ficou) && filaB.n === 0,
+    '"Deixar como está": o pedido NÃO volta ao PCP, fica na Expedição com o aviso e o sino diz a verdade — "ficou na Expedição esperando decisão", com a situação real (nenhum "voltou ao PCP")',
+    JSON.stringify({ libB, tB: { noPcp: tB.noPcp, aviso: tB.aviso }, nB, filaB }))
+  conferir(
+    libC.feito && libC.standby === true && libC.voltou_ao_pcp === false && !tC.noPcp && !tC.naAbaStandby
+      && tC.naExpedicao && tC.standby !== null && tC.aviso?.faltam === 1
+      && !nC.portipo.pedido_peca_liberada && (nC.portipo.pedido_adiantado_tiny ?? 0) >= 1 && /stand-by/.test(nC.ficou),
+    '"Não lançar agora" com o Tiny adiante: o gesto passa (antes era recusado), o pedido fica em stand-by e na Expedição com o aviso',
+    JSON.stringify({ libC, tC: { noPcp: tC.noPcp, standby: tC.standby, aviso: tC.aviso }, nC }))
+  conferir(
+    libD.feito && libD.voltou_ao_pcp === true && libD.tiny_pedido === null && libD.tiny_adiante === false && tD.noPcp && tD.voltaPcp === null
+      && (nD.portipo.pedido_peca_liberada ?? 0) >= 1 && !nD.portipo.pedido_adiantado_tiny && /Libere a produção de novo/.test(nD.voltou),
+    'pedido que não está adiantado: liberar a peça segue como sempre (a chamada de antes, sem a escolha do Tiny, continua valendo) e o aviso "voltou ao PCP" é verdadeiro',
+    JSON.stringify({ libD, tD: { noPcp: tD.noPcp }, nD }))
+
+  // a entrega registrada apaga a marca (pedido entregue não tem volta pendente)
+  await como47(E40.logistica)
+  await bd.exec(`select public.plt_fn_registrar_entrega(${A.card}, 'teste 47A', true)`)
+  await como47('')
+  conferir(!(await marca(A.card)).marcado, 'registrar a entrega do pedido devolvido apaga a marca', JSON.stringify(await marca(A.card)))
+
+  titulo('SESSAO-47 · A · permissões e uma assinatura só')
+  const pr47 = await um47(`
+    select has_function_privilege('anon', 'public.plt_fn_pedido_voltar_pcp(bigint, text, text)', 'execute') as anon_volta,
+           has_function_privilege('authenticated', 'public.plt_fn_pedido_voltar_pcp(bigint, text, text)', 'execute') as logado_volta,
+           has_function_privilege('authenticated', 'public.plt_fn_liberar_peca(bigint, integer, text, boolean, text, text)', 'execute') as logado_lib,
+           has_function_privilege('authenticated', 'plt_privado.fn_pedido_voltar_pcp(bigint, text, text, uuid, text, boolean)', 'execute') as miolo,
+           has_function_privilege('authenticated', 'plt_privado.fn_fora_do_pcp(text, timestamptz)', 'execute') as regra,
+           to_regprocedure('public.plt_fn_liberar_peca(bigint, integer, text, boolean, text)') is null as velha_saiu,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname = 'plt_fn_liberar_peca') as assinaturas,
+           plt_privado.fn_fora_do_pcp('Pronto para envio', null) as fora, plt_privado.fn_fora_do_pcp('Pronto para envio', now()) as devolvido,
+           plt_privado.fn_fora_do_pcp('Cancelado', now()) as cancelado, plt_privado.fn_fora_do_pcp('Preparando envio', null) as normal,
+           (select count(*)::int from plt_privado.fn_avisos_catalogo() c where c.tipo in ('pedido_voltou_pcp', 'pedido_adiantado_tiny')) as catalogo`)
+  conferir(!pr47.anon_volta && pr47.logado_volta && pr47.logado_lib && !pr47.miolo && !pr47.regra && pr47.velha_saiu && pr47.assinaturas === 1
+      && pr47.fora === true && pr47.devolvido === false && pr47.cancelado === true && pr47.normal === false && pr47.catalogo === 2,
+    'anônimo fora; as portas novas só para quem tem login; o miolo e a regra fora da API; uma assinatura só do liberar peça; a regra única responde certo; os dois avisos novos no catálogo',
+    JSON.stringify(pr47))
+} finally {
+  await bd.exec('rollback')
+  await como47('')
+}
+} // fim do bloco SESSAO-47 · A
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
