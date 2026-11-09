@@ -16221,7 +16221,10 @@ try {
                      '20261106020000_plt_modo_tv_ao_vivo_e_dia.sql',
                      // ↪️ Ajuste 06/11 (números que batem — E-165/E-178): a das rotas acima recria o "a
                      // entregar", o calendário e a validação do stand-by na versão de antes — esta vem depois
-                     '20261106030000_plt_numeros_que_batem.sql']) {
+                     '20261106030000_plt_numeros_que_batem.sql',
+                     // ↪️ SESSAO-47 (E-19/E-144): a base recria o check dos tipos de evento (com a volta
+                     // ao PCP e o dia real da entrega) e o VALIDA — a da SESSAO-44 acima o recria sem eles
+                     '20261109010000_plt_sessao47_base.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`

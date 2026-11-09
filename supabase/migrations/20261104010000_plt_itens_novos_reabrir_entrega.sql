@@ -45,7 +45,9 @@ alter table public.plt_eventos add constraint plt_eventos_tipo_check check (tipo
   'data_entrega_alterada', 'peca_vinculada', 'tempo_decisao',
   'pedido_itens_alterados'  -- SESSAO-44: o Tiny mudou os itens (o que entrou e o que saiu)
 ]::text[])) not valid;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- ↪️ SESSAO-47 (E-19): o validate de plt_eventos_tipo_check mudou para a migration
+-- 20261109010000 (os tipos da volta ao PCP e do dia real da entrega) — a lista
+-- desta é a da época dela e não valida o que o banco já viveu depois.
 
 -- ----------------------------------------------------------------------------
 -- 2 · O frete numa regra só (a view passa a usá-la; o card também)
