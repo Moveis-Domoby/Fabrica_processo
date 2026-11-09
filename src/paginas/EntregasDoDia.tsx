@@ -22,7 +22,6 @@ import {
   comentarNoCard,
   enderecoLegivel,
   entregasDoDia,
-  entregueHoje,
   linkWhatsApp,
   registrarEntrega,
   salvarParadaAvulsa,
@@ -31,6 +30,8 @@ import {
 import type { DadosParadaAvulsa, EntregaDoDia, ItemDaOrdem, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalEntregaParcial } from '@/rotas/ModalEntregaParcial'
+import { ConfirmarEntrega } from '@/rotas/ConfirmarEntrega'
+import { diaCurto, diaNaFabrica, diaPorExtenso, registradaHoje } from '@/rotas/diaDaEntrega'
 import { ModalParadaAvulsa } from '@/rotas/ModalParadaAvulsa'
 import { BotaoRotaGoogleMaps, BotoesParada } from '@/rotas/BotoesNavegacao'
 import type { PontoDoMiniMapa } from '@/rotas/MiniMapaEntregas'
@@ -130,6 +131,9 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   // dia fica recolhido aqui só para o entregador poder desfazer (D-113).
   const entreguesHoje = entregas.filter((e) => e.entregue_em)
   const feitas = entreguesHoje.length
+  // SESSAO-47: o que foi entregue NESTE dia de fato, programado para outro dia
+  // (a parada dele continua na rota em que estava programada — é lá que se desfaz).
+  const deOutroDia = data?.entregues_de_outro_dia ?? []
   // A lista: o que falta entregar e as paradas avulsas (a marcada fica, com "Desfazer").
   const naLista = useMemo(
     () => itens.filter((i) => i.tipo === 'avulsa' || !i.entrega.entregue_em),
@@ -375,7 +379,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         })}
       </ol>
 
-      {entreguesHoje.length > 0 && (
+      {(entreguesHoje.length > 0 || deOutroDia.length > 0) && (
         <section aria-label="Entregues" className="flex flex-col gap-2">
           <Botao
             variante="fantasma"
@@ -385,39 +389,73 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
             aria-expanded={verEntregues}
             onClick={() => setVerEntregues((v) => !v)}
           >
-            Entregues {dia ? 'neste dia' : 'hoje'} ({entreguesHoje.length})
+            Entregues {dia ? 'neste dia' : 'hoje'} ({entreguesHoje.length + deOutroDia.length})
           </Botao>
           {verEntregues && (
             <ul className="flex flex-col divide-y divide-borda rounded-dm-lg border border-borda bg-superficie px-3">
-              {entreguesHoje.map((e) => (
-                <li key={e.card_id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+              {entreguesHoje.map((e) => {
+                // SESSAO-47: a parada da rota de hoje pode ter sido entregue em outro
+                // dia de fato ("entregue ontem") — a linha diz o dia, não uma hora
+                const diaReal = e.entregue_no_dia ?? diaNaFabrica(e.entregue_em)
+                const emOutroDia = diaReal !== null && data !== undefined && diaReal !== data.data
+                return (
+                  <li key={e.card_id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                    <CheckCircle2 aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
+                    <span className="min-w-0 flex-1 text-texto">
+                      Pedido {e.numero} · {e.cliente_nome || 'Sem cliente'}
+                      <span className="text-texto-suave">
+                        {' '}
+                        ·{' '}
+                        {emOutroDia ? `entregue em ${diaCurto(diaReal)}` : horaCurta(e.entregue_em)}
+                        {e.entregue_por ? ` · ${e.entregue_por}` : ''}
+                      </span>
+                    </span>
+                    {e.entrega_parcial && (
+                      <span className="shrink-0 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
+                        em parte
+                      </span>
+                    )}
+                    {/* SESSAO-41 (D-195): a parcial não se desfaz (as que voltaram já estão com a logística).
+                        SESSAO-47: "do dia" = registrada hoje (quem marcou hoje "entregue ontem" desfaz hoje). */}
+                    {e.entregue_por_gente &&
+                    !e.entrega_parcial &&
+                    registradaHoje(e.entrega_registrada_em, e.entregue_em) ? (
+                      <Botao
+                        variante="secundaria"
+                        tamanho="sm"
+                        icone={<Undo2 />}
+                        onClick={() => setComMotivo({ tipo: 'desfazer_entrega', entrega: e })}
+                      >
+                        Desfazer
+                      </Botao>
+                    ) : (
+                      // SESSAO-44 (D-213): explica em vez de esconder o desfazer
+                      <span className="shrink-0 text-xs text-texto-suave">
+                        {porQueNaoDesfaz(e)}
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
+              {/* SESSAO-47: entregues neste dia de fato, mas da rota de outro dia */}
+              {deOutroDia.map((e) => (
+                <li
+                  key={`outro-dia-${e.card_id}`}
+                  className="flex flex-wrap items-center gap-2 py-2 text-sm"
+                >
                   <CheckCircle2 aria-hidden className="size-4 shrink-0 text-perfeito-forte" />
                   <span className="min-w-0 flex-1 text-texto">
                     Pedido {e.numero} · {e.cliente_nome || 'Sem cliente'}
                     <span className="text-texto-suave">
-                      {' '}
-                      · {horaCurta(e.entregue_em)}
-                      {e.entregue_por ? ` · ${e.entregue_por}` : ''}
+                      {e.entregue_por ? ` · ${e.entregue_por}` : ''} · programado para{' '}
+                      {diaCurto(e.programado_para)}
+                      {e.caminhao_nome ? ` (${e.caminhao_nome})` : ''}
                     </span>
                   </span>
                   {e.entrega_parcial && (
                     <span className="shrink-0 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
                       em parte
                     </span>
-                  )}
-                  {/* SESSAO-41 (D-195): a parcial não se desfaz (as que voltaram já estão com a logística). */}
-                  {e.entregue_por_gente && !e.entrega_parcial && entregueHoje(e.entregue_em) ? (
-                    <Botao
-                      variante="secundaria"
-                      tamanho="sm"
-                      icone={<Undo2 />}
-                      onClick={() => setComMotivo({ tipo: 'desfazer_entrega', entrega: e })}
-                    >
-                      Desfazer
-                    </Botao>
-                  ) : (
-                    // SESSAO-44 (D-213): explica em vez de esconder o desfazer
-                    <span className="shrink-0 text-xs text-texto-suave">{porQueNaoDesfaz(e)}</span>
                   )}
                 </li>
               ))}
@@ -670,7 +708,7 @@ function CartaoEntrega({
         </div>
       ) : entrega.entregue_por_gente &&
         !entrega.entrega_parcial &&
-        entregueHoje(entrega.entregue_em) ? (
+        registradaHoje(entrega.entrega_registrada_em, entrega.entregue_em) ? (
         <Botao variante="fantasma" icone={<Undo2 />} className="self-start" onClick={aoDesfazer}>
           Desfazer a entrega
         </Botao>
@@ -686,19 +724,21 @@ function CartaoEntrega({
 /**
  * SESSAO-44 (D-213): por que a entrega não se desfaz aqui — a parcial vai pela
  * decisão da logística; a do Tiny e a de outro dia, só o administrador reabre
- * (na ficha do pedido).
+ * (na ficha do pedido). ↪️ SESSAO-47: "outro dia" = REGISTRADA em outro dia.
  */
 function porQueNaoDesfaz(e: Pick<EntregaDoDia, 'entregue_por_gente' | 'entrega_parcial'>): string {
   if (e.entrega_parcial)
     return 'Entrega parcial: as peças que voltaram seguem pela decisão da logística.'
   if (!e.entregue_por_gente) return 'Veio do Tiny: só um administrador reabre, na ficha do pedido.'
-  return 'Foi em outro dia: só um administrador reabre, na ficha do pedido.'
+  return 'Foi registrada em outro dia: só um administrador reabre, na ficha do pedido.'
 }
 
 /**
  * O painel do "Entregue" (D-115): comprovante de pagamento (foto, PDF, Word —
  * opcional) e observação (opcional). A entrega é registrada primeiro (é o
  * fato que importa); o comprovante sobe em seguida, direto ao armário.
+ * ↪️ SESSAO-47 (pedido do dono): os três botões — "Confirmar entrega" (hoje),
+ * "Ainda não" e "Marcar como entregue no dia..." (o dia em que foi de fato).
  */
 function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar: () => void }) {
   const notificar = useNotificacao()
@@ -711,11 +751,13 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
   const [incompleto, setIncompleto] = useState(!prontoParaEntregar(entrega.estado))
 
   const confirmar = useMutation({
-    mutationFn: async () => {
+    // `dia` = o dia em que foi entregue de fato (nulo = hoje)
+    mutationFn: async (dia: string | null) => {
       await registrarEntrega({
         cardId: entrega.card_id,
         observacao,
         confirmarIncompleto: incompleto,
+        dia,
       })
       if (arquivo) {
         try {
@@ -726,12 +768,18 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
       }
       return null
     },
-    onSuccess: async (erroComprovante) => {
+    onSuccess: async (erroComprovante, dia) => {
       notificar({
         titulo: `Pedido ${entrega.numero} entregue`,
-        descricao: erroComprovante
-          ? `A entrega ficou registrada, mas o comprovante não subiu (${erroComprovante}). Use "Comprovante" no card.`
-          : undefined,
+        descricao:
+          [
+            dia ? `Marcado como entregue em ${diaPorExtenso(dia)}.` : null,
+            erroComprovante
+              ? `A entrega ficou registrada, mas o comprovante não subiu (${erroComprovante}). Use "Comprovante" no card.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' ') || undefined,
         tom: erroComprovante ? 'atencao' : 'perfeito',
       })
       aoFechar()
@@ -751,63 +799,50 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
   })
 
   return (
-    <form
-      className="flex flex-col gap-3 rounded-dm border border-acao-ativa bg-acao/10 p-3"
-      onSubmit={(e) => {
-        e.preventDefault()
-        confirmar.mutate()
-      }}
-    >
+    // sem <form>: com três botões, o Enter no campo da observação não pode confirmar sozinho
+    <div className="flex flex-col gap-3 rounded-dm border border-acao-ativa bg-acao/10 p-3">
       <p className="text-sm font-medium text-texto">
         Confirmar a entrega do pedido {entrega.numero}
       </p>
-      {incompleto && (
-        <p
-          role="alert"
-          className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto"
-        >
-          {fraseEntregaIncompleta(entrega.prontas ?? 0, entrega.a_entregar ?? entrega.unidades)}
-        </p>
-      )}
-      <div className="flex flex-col gap-1">
-        <input
-          ref={arquivoRef}
-          type="file"
-          accept={TIPOS_COMPROVANTE}
-          className="sr-only"
-          onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+      <ConfirmarEntrega
+        numero={entrega.numero}
+        tamanho="lg"
+        aviso={
+          incompleto
+            ? fraseEntregaIncompleta(entrega.prontas ?? 0, entrega.a_entregar ?? entrega.unidades)
+            : null
+        }
+        chegouEm={entrega.chegou_em}
+        carregando={confirmar.isPending}
+        aoConfirmar={(dia) => confirmar.mutate(dia)}
+        aoCancelar={aoFechar}
+      >
+        <div className="flex flex-col gap-1">
+          <input
+            ref={arquivoRef}
+            type="file"
+            accept={TIPOS_COMPROVANTE}
+            className="sr-only"
+            onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+          />
+          <Botao
+            type="button"
+            variante="secundaria"
+            icone={<Paperclip />}
+            onClick={() => arquivoRef.current?.click()}
+          >
+            {arquivo ? 'Trocar o comprovante' : 'Anexar comprovante (opcional)'}
+          </Botao>
+          {arquivo && <p className="truncate text-xs text-texto-suave">{arquivo.name}</p>}
+        </div>
+        <Campo
+          rotulo="Observação (opcional)"
+          placeholder="Ex.: recebido pela vizinha"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
         />
-        <Botao
-          type="button"
-          variante="secundaria"
-          icone={<Paperclip />}
-          onClick={() => arquivoRef.current?.click()}
-        >
-          {arquivo ? 'Trocar o comprovante' : 'Anexar comprovante (opcional)'}
-        </Botao>
-        {arquivo && <p className="truncate text-xs text-texto-suave">{arquivo.name}</p>}
-      </div>
-      <Campo
-        rotulo="Observação (opcional)"
-        placeholder="Ex.: recebido pela vizinha"
-        value={observacao}
-        onChange={(e) => setObservacao(e.target.value)}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <Botao type="submit" tamanho="lg" icone={<CheckCircle2 />} carregando={confirmar.isPending}>
-          {incompleto ? 'Confirmar mesmo assim' : 'Confirmar'}
-        </Botao>
-        <Botao
-          type="button"
-          tamanho="lg"
-          variante="fantasma"
-          onClick={aoFechar}
-          disabled={confirmar.isPending}
-        >
-          Voltar
-        </Botao>
-      </div>
-    </form>
+      </ConfirmarEntrega>
+    </div>
   )
 }
 

@@ -20,6 +20,7 @@ import {
   DIAS_DA_SEMANA,
   SITUACOES,
   diaCurto,
+  diaMes,
   diasDaSemana,
   gradeDoMes,
   mesmoMes,
@@ -94,9 +95,26 @@ function ondeNaRota(i: ItemCalendario): string {
     .join(' · ')
 }
 
+/**
+ * SESSAO-47: o entregue mora no dia em que a entrega aconteceu de fato; quando
+ * esse dia não é o programado, a nota discreta diz para qual dia ele estava
+ * ("programado para 09/11"). Nula quando os dias são o mesmo.
+ */
+function notaDoProgramado(i: ItemCalendario, dia: string): string | null {
+  return i.situacao === 'entregue' && i.programado_para && i.programado_para !== dia
+    ? `programado para ${diaMes(i.programado_para)}`
+    : null
+}
+
 /** O texto completo da barra (o que a pessoa lê ao passar o mouse e o leitor de tela). */
-function descricaoDoItem(i: ItemCalendario): string {
-  return [`Pedido ${i.numero}`, i.bairro, ROTULO[i.situacao].toLowerCase(), ondeNaRota(i)]
+function descricaoDoItem(i: ItemCalendario, dia: string): string {
+  return [
+    `Pedido ${i.numero}`,
+    i.bairro,
+    ROTULO[i.situacao].toLowerCase(),
+    notaDoProgramado(i, dia),
+    ondeNaRota(i),
+  ]
     .filter(Boolean)
     .join(' · ')
 }
@@ -392,7 +410,8 @@ export function AbaCalendario({
         aoFechar={() => setAberto(null)}
         aoVerRota={(dia, item) => {
           setAberto(null)
-          aoFocar(dia, item.caminhao_id!, item.rota ?? 1)
+          // SESSAO-47: a rota do entregue é a do dia PROGRAMADO (ele mora no dia real)
+          aoFocar(item.programado_para ?? dia, item.caminhao_id!, item.rota ?? 1)
         }}
         aoAbrirJanela={(item) => {
           setAberto(null)
@@ -444,14 +463,18 @@ function totalVisivel(d: DiaCalendario | undefined, visivel: (s: SituacaoCalenda
 /** A barra de um pedido: reta, uma linha — "13704 · Pitimbu" — na cor da situação. */
 function Barra({
   item,
+  dia,
   compacta = false,
   aoTocar,
 }: {
   item: ItemCalendario
+  /** O dia da grade em que a barra está (o entregue: o dia real da entrega). */
+  dia: string
   compacta?: boolean
   aoTocar: () => void
 }) {
-  const descricao = descricaoDoItem(item)
+  const descricao = descricaoDoItem(item, dia)
+  const nota = notaDoProgramado(item, dia)
   return (
     <button
       type="button"
@@ -466,6 +489,8 @@ function Barra({
     >
       <span className="shrink-0 font-semibold tabular-nums">{item.numero}</span>
       {item.bairro && <span className="min-w-0 truncate">· {item.bairro}</span>}
+      {/* SESSAO-47: a nota discreta do entregue fora do dia programado */}
+      {nota && <span className="min-w-0 truncate italic opacity-80">· {nota}</span>}
     </button>
   )
 }
@@ -555,6 +580,7 @@ function Semana({
                     <Barra
                       key={`${item.situacao}-${item.card_id}`}
                       item={item}
+                      dia={dia}
                       aoTocar={() => aoTocar(dia, item)}
                     />
                   ))}
@@ -657,6 +683,7 @@ function Mes({
                     <Barra
                       key={`${item.situacao}-${item.card_id}`}
                       item={item}
+                      dia={dia}
                       compacta
                       aoTocar={() => aoTocar(dia, item)}
                     />
@@ -770,7 +797,20 @@ function DetalheDoPedido({
               <Dado rotulo="Previsão de entrega">{diaCurto(dia)}</Dado>
             ) : (
               <>
-                <Dado rotulo="Dia da rota">{diaCurto(dia)}</Dado>
+                {/* SESSAO-47: o entregue está no dia em que foi entregue de fato; a
+                    nota diz para qual dia estava programado, quando não é o mesmo */}
+                {item.situacao === 'entregue' ? (
+                  <Dado rotulo="Entregue no dia">
+                    {diaCurto(dia)}
+                    {notaDoProgramado(item, dia) && (
+                      <span className="block text-xs font-normal italic opacity-80">
+                        {notaDoProgramado(item, dia)}
+                      </span>
+                    )}
+                  </Dado>
+                ) : (
+                  <Dado rotulo="Dia da rota">{diaCurto(dia)}</Dado>
+                )}
                 <Dado rotulo="Previsão do vendedor">
                   {item.previsao ? diaCurto(item.previsao) : 'Sem previsão'}
                 </Dado>

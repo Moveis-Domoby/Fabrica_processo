@@ -16,10 +16,16 @@ const SAIDA: Record<string, string> = {
   concluido: 'concluída',
 }
 
-function ondeEsta(p: PecaDoPedido): { texto: string; pronta: boolean } {
+/**
+ * ↪️ SESSAO-47: a peça que saiu com a entrega mostra o dia em que a entrega
+ * aconteceu de fato (o mesmo dia de toda a plataforma) — a peça sai das contas
+ * na hora do registro, que pode ser outro dia.
+ */
+function ondeEsta(p: PecaDoPedido, entregueEm: string | null): { texto: string; pronta: boolean } {
   if (p.arquivado_em) {
+    const quando = p.motivo_saida === 'entregue' && entregueEm ? entregueEm : p.arquivado_em
     return {
-      texto: `${SAIDA[p.motivo_saida ?? ''] ?? 'fora das contas'} · ${data(p.arquivado_em)}`,
+      texto: `${SAIDA[p.motivo_saida ?? ''] ?? 'fora das contas'} · ${data(quando)}`,
       pronta: true,
     }
   }
@@ -36,7 +42,14 @@ function ondeEsta(p: PecaDoPedido): { texto: string; pronta: boolean } {
  * quanto; depois cada peça numa linha, e a peça abre a sua história (setor,
  * etapa, quem, início, fim, tempo) no clique.
  */
-export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
+export function ProducaoDoPedidoPainel({
+  pedidoId,
+  entregueEm = null,
+}: {
+  pedidoId: number
+  /** SESSAO-47: o instante real da entrega que está valendo (da ficha), se houver. */
+  entregueEm?: string | null
+}) {
   const [abertas, setAbertas] = useState<Set<number>>(() => new Set())
   const consulta = useQuery({
     queryKey: ['pedido-producao', pedidoId],
@@ -61,7 +74,7 @@ export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
       </p>
     )
   }
-  const prontas = pecas.filter((p) => ondeEsta(p).pronta).length
+  const prontas = pecas.filter((p) => ondeEsta(p, entregueEm).pronta).length
 
   return (
     <div className="flex flex-col gap-4">
@@ -100,7 +113,7 @@ export function ProducaoDoPedidoPainel({ pedidoId }: { pedidoId: number }) {
       <ul className="flex flex-col divide-y divide-borda/70 rounded-dm-lg border border-borda/70">
         {pecas.map((peca) => {
           const aberta = abertas.has(peca.card_id)
-          const onde = ondeEsta(peca)
+          const onde = ondeEsta(peca, entregueEm)
           const quem = [...new Set(peca.execucoes.map((e) => e.pessoa).filter(Boolean))]
           return (
             <li key={peca.card_id}>
