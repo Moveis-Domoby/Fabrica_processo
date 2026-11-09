@@ -889,7 +889,8 @@ export async function comentarNoCard(cardId: number, texto: string): Promise<voi
 const ARMARIO = 'plt-anexos'
 export const TIPOS_COMPROVANTE =
   'image/*,application/pdf,.pdf,.doc,.docx,.odt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-const LIMITE_ARQUIVO = 10 * 1024 * 1024
+/** O tamanho máximo de um comprovante (a foto é reduzida no aparelho antes de medir). */
+export const LIMITE_ARQUIVO = 10 * 1024 * 1024
 
 /**
  * Foto reduzida NO APARELHO antes de subir (Lei §9): o lado maior vai a 1600 px
@@ -917,8 +918,17 @@ export async function reduzirSeForFoto(arquivo: File): Promise<File> {
  * O comprovante sobe DIRETO ao armário privado (não passa pelo banco); depois o
  * banco registra o anexo no card. O caminho começa pelo card — é o que a regra
  * do armário confere.
+ * ↪️ SESSAO-47 (vários comprovantes de uma vez): com `chave` (uma por arquivo
+ * escolhido), o caminho é sempre o mesmo — tentar de novo o arquivo que falhou
+ * não deixa cópia solta no armário: se ele já tinha subido e só o registro
+ * falhou, o armário diz "já existe" e segue-se direto para o registro (que o
+ * banco também não repete).
  */
-export async function anexarComprovante(cardId: number, original: File): Promise<void> {
+export async function anexarComprovante(
+  cardId: number,
+  original: File,
+  chave?: string,
+): Promise<void> {
   const arquivo = await reduzirSeForFoto(original)
   if (arquivo.size > LIMITE_ARQUIVO)
     throw new Error('O arquivo tem mais de 10 MB — mande uma foto ou um PDF menor.')
@@ -927,12 +937,18 @@ export async function anexarComprovante(cardId: number, original: File): Promise
       .normalize('NFD')
       .replace(/[^\w.-]+/g, '-')
       .slice(-80) || 'comprovante'
-  const caminho = `${cardId}/${crypto.randomUUID()}-${nomeLimpo}`
+  const caminho = `${cardId}/${chave ?? crypto.randomUUID()}-${nomeLimpo}`
   const envio = await supabase.storage.from(ARMARIO).upload(caminho, arquivo, {
     contentType: arquivo.type || 'application/octet-stream',
     upsert: false,
   })
-  if (envio.error) throw new Error(`Não deu para enviar o arquivo: ${envio.error.message}`)
+  const jaEstavaLa =
+    chave !== undefined &&
+    envio.error !== null &&
+    ((envio.error as { statusCode?: string }).statusCode === '409' ||
+      /already exists|duplicate/i.test(envio.error.message))
+  if (envio.error && !jaEstavaLa)
+    throw new Error(`Não deu para enviar o arquivo: ${envio.error.message}`)
   const { error } = await supabase.rpc('plt_fn_anexo_registrar', {
     p_card_id: cardId,
     p_caminho: caminho,

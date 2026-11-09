@@ -318,6 +318,65 @@ describe('Entregas do dia (o entregador): depois do "Entregue"', () => {
     )
   })
 
+  it('vários comprovantes: a entrega é registrada ANTES; cada arquivo sobe sozinho; se um falha, a entrega fica e a janela diz qual falhou', async () => {
+    vi.mocked(api.anexarComprovante).mockImplementation(async (_card, arquivo) => {
+      if (arquivo.name === 'pix-2.pdf') throw new Error('Não deu para enviar o arquivo: sem sinal')
+    })
+    desenhar('do-dia')
+    await screen.findByText('Cliente do Dia')
+    await userEvent.click(botao('Entregue'))
+    const escolher = screen.getByLabelText('Anexar comprovantes (opcional)')
+    expect(escolher).toHaveAttribute('multiple')
+    await userEvent.upload(escolher, [
+      new File(['a'], 'pix-1.pdf', { type: 'application/pdf' }),
+      new File(['b'], 'pix-2.pdf', { type: 'application/pdf' }),
+      new File(['c'], 'pix-3.pdf', { type: 'application/pdf' }),
+    ])
+    expect(screen.getByRole('list', { name: 'Arquivos escolhidos' }).children).toHaveLength(3)
+
+    await userEvent.click(botao('Confirmar entrega'))
+    await waitFor(() => expect(api.anexarComprovante).toHaveBeenCalledTimes(3))
+    // a entrega primeiro (uma vez só), os comprovantes depois — todos no card do pedido
+    expect(api.registrarEntrega).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(api.registrarEntrega).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(api.anexarComprovante).mock.invocationCallOrder[0],
+    )
+    expect(vi.mocked(api.anexarComprovante).mock.calls.map((c) => [c[0], c[1].name])).toEqual([
+      [21, 'pix-1.pdf'],
+      [21, 'pix-2.pdf'],
+      [21, 'pix-3.pdf'],
+    ])
+    // a janela dos comprovantes diz qual falhou e por quê; os outros ficaram
+    const janela = await screen.findByRole('dialog', { name: 'Comprovantes — pedido 13836' })
+    expect(janela).toHaveTextContent('A entrega do pedido 13836 já ficou registrada')
+    await waitFor(() =>
+      expect(screen.getByText('pix-2.pdf').closest('li')).toHaveTextContent(
+        'falhou — Não deu para enviar o arquivo: sem sinal',
+      ),
+    )
+    expect(screen.getByText('pix-1.pdf').closest('li')).toHaveTextContent('enviado')
+    expect(screen.getByText('pix-3.pdf').closest('li')).toHaveTextContent('enviado')
+    expect(botao('Tentar de novo o arquivo que falhou')).toBeEnabled()
+  })
+
+  it('o "Comprovante" do card abre a mesma janela, para escolher vários de uma vez', async () => {
+    desenhar('do-dia')
+    await screen.findByText('Cliente do Dia')
+    await userEvent.click(botao('Comprovante'))
+    const janela = await screen.findByRole('dialog', { name: 'Comprovantes — pedido 13836' })
+    expect(janela).toHaveTextContent('até 10 arquivos por vez')
+    await userEvent.upload(screen.getByLabelText('Escolher arquivos'), [
+      new File(['a'], 'recibo-1.pdf', { type: 'application/pdf' }),
+      new File(['b'], 'recibo-2.pdf', { type: 'application/pdf' }),
+    ])
+    await userEvent.click(botao('Anexar 2 arquivos'))
+    await waitFor(() => expect(api.anexarComprovante).toHaveBeenCalledTimes(2))
+    // tudo subiu: a janela fecha e as entregas do dia releem (a contagem certa)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(api.entregasDoDia).toHaveBeenCalledTimes(2))
+    expect(api.registrarEntrega).not.toHaveBeenCalled()
+  })
+
   it('os entregues: a parada marcada hoje como "entregue ontem" diz o dia e ainda se desfaz hoje; a registrada em outro dia, não; o entregue hoje da rota de outro dia aparece com o dia programado', async () => {
     const agora = new Date().toISOString()
     vi.mocked(api.entregasDoDia).mockResolvedValue(

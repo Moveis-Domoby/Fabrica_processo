@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircle2,
@@ -17,7 +17,6 @@ import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import {
-  anexarComprovante,
   chaveDoGesto,
   comentarNoCard,
   enderecoLegivel,
@@ -25,13 +24,16 @@ import {
   linkWhatsApp,
   registrarEntrega,
   salvarParadaAvulsa,
-  TIPOS_COMPROVANTE,
 } from '@/rotas/api'
 import type { DadosParadaAvulsa, EntregaDoDia, ItemDaOrdem, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalEntregaParcial } from '@/rotas/ModalEntregaParcial'
 import { ConfirmarEntrega } from '@/rotas/ConfirmarEntrega'
 import { diaCurto, diaNaFabrica, diaPorExtenso, registradaHoje } from '@/rotas/diaDaEntrega'
+import { EscolhaDeComprovantes, ModalComprovantes } from '@/rotas/ModalComprovantes'
+import { useComprovantes } from '@/rotas/useComprovantes'
+import { contarComprovantes } from '@/rotas/enviarComprovantes'
+import type { ComprovanteEscolhido } from '@/rotas/enviarComprovantes'
 import { ModalParadaAvulsa } from '@/rotas/ModalParadaAvulsa'
 import { BotaoRotaGoogleMaps, BotoesParada } from '@/rotas/BotoesNavegacao'
 import type { PontoDoMiniMapa } from '@/rotas/MiniMapaEntregas'
@@ -102,12 +104,17 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
   const [comentando, setComentando] = useState<EntregaDoDia | null>(null)
   // SESSAO-41 (D-195): a entrega parcial — o entregador marca o que foi entregue.
   const [parcial, setParcial] = useState<EntregaDoDia | null>(null)
-  const [anexando, setAnexando] = useState<EntregaDoDia | null>(null)
   // SESSAO-41 (D-196): a janela da parada avulsa (a chave do gesto) e a do "momento"
   const [janelaParada, setJanelaParada] = useState<string | null>(null)
   const [momento, setMomento] = useState<{ destaque: number | null; vez: number } | null>(null)
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
+  // SESSAO-47 (pedido do dono): vários comprovantes de uma vez — a janela é da
+  // TELA (e não do card) porque o card sai da lista quando o pedido é entregue e
+  // os comprovantes continuam subindo; a cada arquivo que sobe, a contagem relê.
+  const comprovantes = useComprovantes(
+    () => void clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] }),
+  )
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['entregas-do-dia', dia, escolha?.caminhaoId ?? null, escolha?.rota ?? null],
@@ -373,7 +380,10 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
               aoParcial={() => setParcial(entrega)}
               aoDesfazer={() => setComMotivo({ tipo: 'desfazer_entrega', entrega })}
               aoComentar={() => setComentando(entrega)}
-              aoAnexar={() => setAnexando(entrega)}
+              aoAnexar={() => comprovantes.abrir(entrega)}
+              aoEntregarComComprovantes={(arquivos) =>
+                comprovantes.abrir(entrega, { arquivos, depoisDaEntrega: true })
+              }
             />
           )
         })}
@@ -480,11 +490,7 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
         entrega={comentando}
         aoFechar={() => setComentando(null)}
       />
-      <ModalAnexar
-        key={anexando ? `anexo-${anexando.card_id}` : 'anexo-fechado'}
-        entrega={anexando}
-        aoFechar={() => setAnexando(null)}
-      />
+      <ModalComprovantes envio={comprovantes} />
       <ModalParadaAvulsa
         key={janelaParada ?? 'parada-fechada'}
         aberto={janelaParada !== null && rotaAtual !== null}
@@ -528,6 +534,7 @@ function CartaoEntrega({
   aoDesfazer,
   aoComentar,
   aoAnexar,
+  aoEntregarComComprovantes,
 }: {
   entrega: EntregaDoDia
   aoNaoEntregue: () => void
@@ -536,6 +543,8 @@ function CartaoEntrega({
   aoDesfazer: () => void
   aoComentar: () => void
   aoAnexar: () => void
+  /** SESSAO-47: a entrega foi registrada — os comprovantes escolhidos no painel sobem em seguida. */
+  aoEntregarComComprovantes: (arquivos: ComprovanteEscolhido[]) => void
 }) {
   const [entregando, setEntregando] = useState(false)
   const [verItens, setVerItens] = useState(false)
@@ -554,7 +563,11 @@ function CartaoEntrega({
     >
       {/* "Entregue" abre o painel EM CIMA, dentro do card (pedido do dono). */}
       {entregando && !entregue && (
-        <PainelEntregue entrega={entrega} aoFechar={() => setEntregando(false)} />
+        <PainelEntregue
+          entrega={entrega}
+          aoFechar={() => setEntregando(false)}
+          aoEntregarComComprovantes={aoEntregarComComprovantes}
+        />
       )}
 
       <div className="flex items-start gap-3">
@@ -738,13 +751,23 @@ function porQueNaoDesfaz(e: Pick<EntregaDoDia, 'entregue_por_gente' | 'entrega_p
  * opcional) e observação (opcional). A entrega é registrada primeiro (é o
  * fato que importa); o comprovante sobe em seguida, direto ao armário.
  * ↪️ SESSAO-47 (pedido do dono): os três botões — "Confirmar entrega" (hoje),
- * "Ainda não" e "Marcar como entregue no dia..." (o dia em que foi de fato).
+ * "Ainda não" e "Marcar como entregue no dia..." (o dia em que foi de fato) —
+ * e VÁRIOS comprovantes de uma vez: a pessoa escolhe aqui; registrada a
+ * entrega, a janela dos comprovantes (da tela) sobe um por um e diz qual
+ * falhou. A entrega nunca depende do comprovante.
  */
-function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar: () => void }) {
+function PainelEntregue({
+  entrega,
+  aoFechar,
+  aoEntregarComComprovantes,
+}: {
+  entrega: EntregaDoDia
+  aoFechar: () => void
+  aoEntregarComComprovantes: (arquivos: ComprovanteEscolhido[]) => void
+}) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
-  const arquivoRef = useRef<HTMLInputElement>(null)
-  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [arquivos, setArquivos] = useState<ComprovanteEscolhido[]>([])
   const [observacao, setObservacao] = useState('')
   // ↩️ SESSAO-38 (ajuste): o pedido que ainda aparece em produção pede a
   // confirmação explícita; se a tela estava velha, o banco pede e ela aparece.
@@ -752,37 +775,28 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
 
   const confirmar = useMutation({
     // `dia` = o dia em que foi entregue de fato (nulo = hoje)
-    mutationFn: async (dia: string | null) => {
-      await registrarEntrega({
+    mutationFn: (dia: string | null) =>
+      registrarEntrega({
         cardId: entrega.card_id,
         observacao,
         confirmarIncompleto: incompleto,
         dia,
-      })
-      if (arquivo) {
-        try {
-          await anexarComprovante(entrega.card_id, arquivo)
-        } catch (erro) {
-          return erro instanceof Error ? erro.message : 'o comprovante não subiu'
-        }
-      }
-      return null
-    },
-    onSuccess: async (erroComprovante, dia) => {
+      }),
+    onSuccess: async (_nada, dia) => {
       notificar({
         titulo: `Pedido ${entrega.numero} entregue`,
         descricao:
           [
             dia ? `Marcado como entregue em ${diaPorExtenso(dia)}.` : null,
-            erroComprovante
-              ? `A entrega ficou registrada, mas o comprovante não subiu (${erroComprovante}). Use "Comprovante" no card.`
-              : null,
+            arquivos.length > 0 ? `Enviando ${contarComprovantes(arquivos.length)}…` : null,
           ]
             .filter(Boolean)
             .join(' ') || undefined,
-        tom: erroComprovante ? 'atencao' : 'perfeito',
+        tom: 'perfeito',
       })
       aoFechar()
+      // a entrega já vale; os comprovantes sobem agora, cada um por si
+      if (arquivos.length > 0) aoEntregarComComprovantes(arquivos)
       await clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] })
     },
     onError: (erro) => {
@@ -817,24 +831,12 @@ function PainelEntregue({ entrega, aoFechar }: { entrega: EntregaDoDia; aoFechar
         aoConfirmar={(dia) => confirmar.mutate(dia)}
         aoCancelar={aoFechar}
       >
-        <div className="flex flex-col gap-1">
-          <input
-            ref={arquivoRef}
-            type="file"
-            accept={TIPOS_COMPROVANTE}
-            className="sr-only"
-            onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
-          />
-          <Botao
-            type="button"
-            variante="secundaria"
-            icone={<Paperclip />}
-            onClick={() => arquivoRef.current?.click()}
-          >
-            {arquivo ? 'Trocar o comprovante' : 'Anexar comprovante (opcional)'}
-          </Botao>
-          {arquivo && <p className="truncate text-xs text-texto-suave">{arquivo.name}</p>}
-        </div>
+        <EscolhaDeComprovantes
+          itens={arquivos}
+          aoMudar={setArquivos}
+          desabilitado={confirmar.isPending}
+          rotulo="Anexar comprovantes (opcional)"
+        />
         <Campo
           rotulo="Observação (opcional)"
           placeholder="Ex.: recebido pela vizinha"
@@ -907,65 +909,6 @@ function ModalComentario({
   )
 }
 
-/** "Comprovante" fora da entrega (D-115): anexar a qualquer hora. */
-function ModalAnexar({
-  entrega,
-  aoFechar,
-}: {
-  entrega: EntregaDoDia | null
-  aoFechar: () => void
-}) {
-  const notificar = useNotificacao()
-  const clienteQuery = useQueryClient()
-  const [arquivo, setArquivo] = useState<File | null>(null)
-  const enviar = useMutation({
-    mutationFn: () => anexarComprovante(entrega!.card_id, arquivo!),
-    onSuccess: async () => {
-      notificar({ titulo: 'Comprovante anexado', tom: 'perfeito' })
-      aoFechar()
-      await clienteQuery.invalidateQueries({ queryKey: ['entregas-do-dia'] })
-    },
-    onError: (erro) =>
-      notificar({
-        titulo: 'Não deu para anexar',
-        descricao: erro instanceof Error ? erro.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-  return (
-    <Modal
-      aberto={entrega !== null}
-      aoFechar={(v) => !v && aoFechar()}
-      titulo={`Comprovante — pedido ${entrega?.numero ?? ''}`}
-      descricao="Foto, PDF ou Word, até 10 MB. A foto é reduzida no próprio aparelho."
-    >
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (arquivo) enviar.mutate()
-        }}
-      >
-        <input
-          type="file"
-          accept={TIPOS_COMPROVANTE}
-          className="text-sm text-texto file:mr-3 file:min-h-12 file:rounded-dm file:border-0 file:bg-superficie-sutil file:px-4 file:text-texto"
-          onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Botao
-            type="submit"
-            icone={<Paperclip />}
-            disabled={!arquivo}
-            carregando={enviar.isPending}
-          >
-            Anexar
-          </Botao>
-          <Botao type="button" variante="secundaria" onClick={aoFechar}>
-            Cancelar
-          </Botao>
-        </div>
-      </form>
-    </Modal>
-  )
-}
+// ↪️ SESSAO-47: o "Comprovante" fora da entrega (D-115 — anexar a qualquer hora)
+// deixou de ser uma janela de um arquivo só: é a `ModalComprovantes` da tela
+// (vários de uma vez, o estado de cada um à vista, tentar de novo só o que falhou).
