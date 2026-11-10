@@ -312,7 +312,7 @@ Um pedido entra nessa regra quando:
   - a sessão foi construída **por cima do ajuste de 06/11** (os números que batem entre as telas), que estava pronto num ramo local e nunca tinha subido — mexem nas mesmas funções; ele subiu junto;
   - a **"linha do tempo padrão"** não é uma linha num gráfico (os gráficos contam móveis, não tempo): virou uma marca na linha do dia da aba Dia (D-288 — provisória, pede o olhar do dono);
   - o ensaio com 100 vezes o movimento achou e corrigiu, antes de subir, duas lentidões do bloco A, o degrau da 6ª leitura nas portas de tempos e o do calendário das rotas; a causa de fundo do calendário (um pré-filtro inútil) foi achada depois da subida e está numa **quinta atualização, por aplicar** (`20261109050000`).
-- **Critérios de aceite:** todos cobertos por teste do banco e de tela; conferidos no ar (só olhando) a Expedição com o 13652 e o 13684, o PCP sem eles, o botão e a janela do painel, a TV e as entregas. **Ficaram sem conferir:** os advisors (a leitura de produção foi barrada para a sessão), o seletor de vários arquivos com a câmera no celular do entregador e a medida de velocidade no aparelho.
+- **Critérios de aceite:** todos cobertos por teste do banco e de tela; conferidos no ar (só olhando) a Expedição com o 13652 e o 13684, o PCP sem eles, o botão e a janela do painel, a TV e as entregas. Depois de aplicar: 0 entregas sem o dia projetado e os advisors sem nada novo além do esperado. **Ficaram sem conferir:** o seletor de vários arquivos com a câmera no celular do entregador e a medida de velocidade no aparelho.
 - **ClickUp:** as 5 tarefas em FAZENDO, com o comentário do que foi entregue; a 6ª (o aviso na Expedição) segue por criar, com o OK do dono.
 
 ---

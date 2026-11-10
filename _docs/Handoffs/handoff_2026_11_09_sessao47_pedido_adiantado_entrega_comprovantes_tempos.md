@@ -150,7 +150,9 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
 - **Aplicação** (09/11 ~20:45): as 5 atualizações, uma transação cada, na ordem; em todas, a integração do Tiny com a estrutura idêntica e as linhas idênticas.
 - **No ar, com o acesso do dono (só olhando):** a Expedição com "2 · Saiu do PCP pelo Tiny" e o aviso com os botões no 13684 (falta 1) e no 13652 (faltam 3); o PCP sem eles (aguardando liberação: 2, igual ao quadrinho da Visão do dia); a Programação voltou a listar o 13652; "A entregar" sem o 13686 cancelado; a tela de tempos abrindo em uma requisição, com o botão; a janela de configuração lendo do banco (10 montadores ligados, tudo no padrão) — aberta e fechada **sem salvar**; a TV com os mesmos números de antes. Nenhum erro no console em nenhuma delas. **Nenhum botão que muda dado foi tocado.**
 - **Celular (375) e tablet (768):** Expedição e o painel do entregador sem rolagem lateral (medido). A janela de configuração usa a janela padrão da casa.
-- **Não conferido:** os advisors da Supabase e a contagem "entregas vigentes sem o dia projetado = 0" no banco vivo (a leitura de produção ficou barrada para esta sessão — no ensaio deu 0); o seletor de vários arquivos com a câmera no aparelho do entregador; a medida de velocidade no aparelho (INP/LCP).
+- **Depois de aplicar, só lendo o banco** (21:40): as 3 colunas novas do card, as 2 do painel, as 2 visões, os 6 gatilhos e as 5 portas novas existem; **163 entregas vigentes, 0 sem o dia projetado**; nenhum pedido devolvido ao PCP ainda; 2 adiantados com falta; a fila de saída do Tiny vazia; a configuração do painel no padrão e nenhum montador desligado; nenhum stand-by aberto em pedido cancelado (o ajuste de 06/11).
+- **Advisors da Supabase** (lidos às 21:40): **nada novo além do esperado** — as 5 portas novas ganham o aviso de sempre das portas da plataforma (função com direitos do dono executável por quem está logado — são 268 assim) e o índice novo do dia da entrega aparece como "ainda não usado". Os outros avisos já existiam (7 funções antigas sem caminho de busca fixo, a extensão de rede no esquema público, a proteção de senha vazada desligada no painel).
+- **Não conferido:** o seletor de vários arquivos com a câmera no aparelho do entregador; a medida de velocidade no aparelho (INP/LCP).
 
 ## 5. Desempenho (Lei — checklist)
 
@@ -166,7 +168,7 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
 - [x] **Listas:** nenhuma lista nova sem teto ("entregues de outro dia": no máximo 100).
 - [x] **Pacote:** JS inicial **236,3 KB** comprimidos (antes 235,9; teto 250); o que é novo são pedaços baixados no clique.
 - [x] **Escrita idempotente:** voltar ao PCP e liberar peça pela chave do toque; registrar a entrega (toque repetido = a mesma entrega); salvar a configuração igual = nada; comprovante com caminho estável.
-- [ ] **Advisors** — não lidos (ver "Não conferido").
+- [x] **Advisors** — lidos depois de aplicar: nada novo além do esperado (ver a Verificação).
 
 ## 6. Pendências que precisam do dono
 
@@ -180,11 +182,10 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
    - se o admin escolher um **setor de abertura**, ele vale para todos os aparelhos (D-289.6).
 4. **ClickUp:** criar a 6ª tarefa ("Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny") — só com o OK dele. As 5 que existem estão em FAZENDO, com o comentário do que foi entregue; quem conclui é o dono.
 5. **Conferir no celular do entregador** se, ao escolher vários comprovantes, o aparelho ainda oferece a câmera (se não, o remédio é um botão "Tirar foto" ao lado).
-6. **Liberar a leitura do banco de produção para a sessão** (ou rodar à mão): os advisors e a contagem das entregas sem o dia projetado ficaram sem conferir.
-7. **Achados fora do escopo, para uma próxima sessão:** a busca geral escreve "Entregue em dd/mm" pelo dia em que a peça foi arquivada (o dia do registro, não o dia real); o detalhe da devolução mostra o dia antigo de uma entrega corrigida; a lista de pedidos mostra a hora do fim do expediente quando o dia foi escolhido; a Auditoria mostra o antes/depois da configuração do painel com os nomes internos das opções; o degrau do plano genérico pode existir em outros painéis.
-8. **Do ajuste de 06/11** (segue com o dono): o handoff dele tinha a seção de pendências por preencher.
+6. **Achados fora do escopo, para uma próxima sessão:** a busca geral escreve "Entregue em dd/mm" pelo dia em que a peça foi arquivada (o dia do registro, não o dia real); o detalhe da devolução mostra o dia antigo de uma entrega corrigida; a lista de pedidos mostra a hora do fim do expediente quando o dia foi escolhido; a Auditoria mostra o antes/depois da configuração do painel com os nomes internos das opções; o degrau do plano genérico pode existir em outros painéis.
+7. **Do ajuste de 06/11** (segue com o dono): o handoff dele tinha a seção de pendências por preencher.
 
 ## 7. Numeração usada
 
-Migrations `20261109010000` (base), `…020000` (A), `…030000` (B), `…040000` (C) — aplicadas — e `…050000` (o fecho do calendário — por aplicar); junto, a `20261106030000` do ajuste de 06/11. Decisões **D-271…D-289**; aprendizados **E-235…E-248** e **A-198…A-211**; dívidas da lei **33, 34 e 35**. Seguinte: **D-290 / E-249 / A-212 / dívida 36**.
+Migrations `20261109010000` (base), `…020000` (A), `…030000` (B), `…040000` (C) — aplicadas — e `…050000` (o fecho do calendário — por aplicar); junto, a `20261106030000` do ajuste de 06/11. Decisões **D-271…D-289**; aprendizados **E-235…E-249** e **A-198…A-211**; dívidas da lei **33, 34 e 35**. Seguinte: **D-290 / E-250 / A-212 / dívida 36**.
 
