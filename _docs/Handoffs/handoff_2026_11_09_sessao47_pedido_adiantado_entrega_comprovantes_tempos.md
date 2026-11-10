@@ -10,7 +10,7 @@ tags: [handoff, sessao-47, expedicao, pcp, tiny, entregas, comprovantes, calenda
 Demanda: [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · Diário: `_docs/Plataforma/Execucao/SESSAO-47.md` (+ `SESSAO-47 - bloco B.md` e `SESSAO-47 - bloco C.md`) · Ramo: `sessao-47-pedido-adiantado-entrega-comprovantes-tempos`
 
 > ✅ **NO AR desde 09/11/2026 ~20:45 de Natal**, com o OK do dono na conversa (*"sobe logo"*, *"RODE AÍ"*): o banco (o ajuste de 06/11 dos números que batem + as 4 atualizações da sessão, na ordem) e o site (a `main`). O n8n **não mudou**.
-> ⏳ **Por aplicar (espera o OK do dono):** uma quinta atualização, pequena — o fecho do calendário das rotas (`20261109050000`), achado depois da subida. Com o movimento de hoje não muda nada na tela; é para o calendário não ficar lento quando o movimento crescer.
+> ✅ **Também no ar desde 09/11 ~22:20** (com o *"Pode aplicar"* do dono): a quinta atualização, pequena — o fecho do calendário das rotas (`20261109050000`), achado depois da subida. Não muda nada na tela; é para o calendário não ficar lento quando o movimento crescer. Conferido: o corpo vivo da função era o esperado antes e é o novo depois; o calendário da semana e o do mês abrem sem erro, com os entregues no dia real ("prog. 07/11").
 
 ## 1. Objetivo
 
@@ -162,7 +162,7 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
   - **A** (562.700 pedidos): PCP 77 → 77 ms · porta antiga do PCP 214 → 195 · quadrinho 63 → 72 · regra do pedido vivo 0,73 → 0,58 s · Expedição 2,11 → 1,96 s · Programação 3,13 → 2,75 s · "A entregar" 5,02 → 3,92 s · voltar ao PCP 12 ms.
   - **B** (15 mil entregues): Já programadas "por entregar" 1.738 → 140 ms · ROTAS Entregues 3,8 → 3,6 s · entregas do dia 53 → 65 ms · lista de pedidos 108 → 113 ms · ficha 17 → 16 ms · registrar 30 ms · marcar ontem 39 ms · corrigir o dia 30 ms.
   - **C** (300 mil passagens): Dia 24 → 25 ms (dia cheio 59 → 32) · Período 76 → 78 · Móveis 52 → 55 · Montadores 113 → 114 · **TV 164 → 68 ms** · abertura = a aba + 1,5 ms.
-  - **Nenhuma porta piorou além do ruído.** As que estão fora do teto no ×100 já estavam (dívidas 24, 25, 29, 30, 31) e continuam registradas na lei; novas: 33 (o calendário — paga na atualização por aplicar), 34 (o degrau do plano genérico em outras portas) e 35 (entregas do dia com a rota muito cheia).
+  - **Nenhuma porta piorou além do ruído.** As que estão fora do teto no ×100 já estavam (dívidas 24, 25, 29, 30, 31) e continuam registradas na lei; novas: 33 (o calendário — paga na quinta atualização, já aplicada), 34 (o degrau do plano genérico em outras portas) e 35 (entregas do dia com a rota muito cheia).
 - [x] **Duas regressões achadas pelo ensaio e corrigidas antes de subir** (a regra do PCP aninhando funções; o caso novo do pedido vivo citando a coluna do card).
 - [x] **Índices:** um novo, parcial (`plt_cards_entrega_em_idx`). Nenhuma política de RLS nova.
 - [x] **Listas:** nenhuma lista nova sem teto ("entregues de outro dia": no máximo 100).
@@ -172,7 +172,7 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
 
 ## 6. Pendências que precisam do dono
 
-1. **Aplicar o fecho do calendário** (`20261109050000`) — um OK. Não muda nada na tela hoje.
+1. ~~Aplicar o fecho do calendário (`20261109050000`)~~ — ✅ aplicado em 09/11 ~22:20, com o OK do dono.
 2. **Recarregar as TVs do galpão** uma vez.
 3. **Confirmar as decisões provisórias** D-272…D-275 (pedido adiantado), D-277…D-283 (entrega e comprovantes) e D-285…D-289 (painel). As que mais pedem o olhar dele:
    - a "linha do tempo padrão" virou uma **marca na linha do dia** (D-288) — pode não ser o que ele imaginou;
@@ -187,5 +187,5 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
 
 ## 7. Numeração usada
 
-Migrations `20261109010000` (base), `…020000` (A), `…030000` (B), `…040000` (C) — aplicadas — e `…050000` (o fecho do calendário — por aplicar); junto, a `20261106030000` do ajuste de 06/11. Decisões **D-271…D-289**; aprendizados **E-235…E-249** e **A-198…A-211**; dívidas da lei **33, 34 e 35**. Seguinte: **D-290 / E-250 / A-212 / dívida 36**.
+Migrations `20261109010000` (base), `…020000` (A), `…030000` (B), `…040000` (C) — aplicadas às 20:45 — e `…050000` (o fecho do calendário — aplicada às 22:20); junto, a `20261106030000` do ajuste de 06/11. Decisões **D-271…D-289**; aprendizados **E-235…E-249** e **A-198…A-211**; dívidas da lei **33, 34 e 35**. Seguinte: **D-290 / E-250 / A-212 / dívida 36**.
 

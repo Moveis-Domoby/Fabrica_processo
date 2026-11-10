@@ -157,3 +157,11 @@ Ramo `sessao-47-pedido-adiantado-entrega-comprovantes-tempos`, na pasta principa
 - **ClickUp:** comentário humanizado nas 5 tarefas (o que foi entregue e como conferir); todas seguem em FAZENDO — quem conclui é o dono. A 6ª não foi criada (espera o OK).
 - **Limpeza:** a vitrine apagada (`vitrine-s47/`, nunca entrou em commit), o servidor dela parado, a entrada tirada do `.claude/launch.json`; as duas cópias das frentes removidas e os ramos delas apagados (já estavam dentro do ramo da sessão).
 - **Erro na hora de escrever esta seção (E-249):** passei um programa de troca de texto por `node -e "…"` com crases dentro — o shell executou cada trecho entre crases como comando (todos falharam, nada rodou de verdade) e o texto saiu com buracos; refeito pela ferramenta de edição. É o E-45/E-79/E-145 de novo.
+
+## O fecho do calendário aplicado (09/11, ~22:20 — o dono: *"Pode aplicar"*)
+
+- **Antes (só leitura):** o corpo vivo de `plt_fn_rotas_calendario` igual ao da `20261109030000` (1 de 1).
+- **Aplicada** `20261109050000_plt_calendario_sem_prefiltro.sql` pelo aplicador `--so`, numa transação: ✔; integração do Tiny com a estrutura idêntica (`e2109f3a…`) e as linhas idênticas.
+- **Depois (só leitura):** o corpo vivo igual ao da `…050000` (1 de 1); a configuração da função só com o `search_path` (a guarda saiu); 0 entregas sem o dia; as 7 portas de tempos seguem com a guarda delas.
+- **No ar, com o acesso do dono (só olhando):** Rotas → Programação → Calendário — a semana de 8 a 14/11 (sem rota 5 · na rota 11 · entregue 14) com os entregues de hoje no dia real e a nota "prog. 07/11" (as entregas registradas hoje de pedidos programados para sábado); o mês de novembro (sem rota 8 · na rota 11 · entregue 56 · não entregue 8 · stand-by 2) com as notas "prog. 31/10", "prog. 04/11", "prog. 07/11". Nenhum erro no console.
+- Cofre atualizado (esquema, lei — a dívida 33 paga —, handoff, ordem, mapa, demanda, decisões).

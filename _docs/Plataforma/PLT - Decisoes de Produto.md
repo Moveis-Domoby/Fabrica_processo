@@ -2361,7 +2361,7 @@ Só o admin, na ficha ("Alterar a data da entrega"). O motivo é opcional (até 
 5. **Na lista de pedidos**, quando o dia foi escolhido, a hora ao lado é a do fim do expediente (a lista não sabe quando a entrega foi registrada; a ficha diz as duas coisas).
 6. **O número de entregas do painel de Motivos** passou a contar as entregas que estão valendo, pelo dia de fato — antes contava os registros, inclusive os desfeitos depois.
 7. **Na aba Produção da ficha**, a peça que saiu com a entrega mostra o dia de fato da entrega.
-8. **O calendário das rotas passou a ser lido sempre com o plano feito sob medida para o período** (ajuste técnico pedido pelo supervisor — o achado de 06/11: com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ele levava dezenas de segundos). ↪️ O fecho (migration `20261109050000`, ⏳ por aplicar): a causa era um pré-filtro que não tirava linha nenhuma; sem ele a guarda deixa de ser precisa e sai também (ela encarecia os períodos longos).
+8. **O calendário das rotas passou a ser lido sempre com o plano feito sob medida para o período** (ajuste técnico pedido pelo supervisor — o achado de 06/11: com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ele levava dezenas de segundos). ↪️ O fecho (migration `20261109050000`, ✅ aplicada em 09/11 ~22:20 com o OK do dono): a causa era um pré-filtro que não tirava linha nenhuma; sem ele a guarda deixa de ser precisa e sai também (ela encarecia os períodos longos).
 
 ## D-284 · ✅ DECIDIDA pelo dono — "Configurar painel" em Tempos de produção: uma configuração só, do admin, que vale para a tela e para a TV (09/11/2026, SESSAO-47) — ↪️ complementa D-225…D-232; a D-231 (a TV só mostra letras) continua
 
