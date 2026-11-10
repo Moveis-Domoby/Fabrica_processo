@@ -128,7 +128,12 @@ function Conteudo({ r }: { r: RespostaPeriodo }) {
         dica={
           r.grafico.agrupado === 'semana'
             ? 'Agrupado por semana (a partir da segunda-feira) — o período passa de 70 dias.'
-            : 'Um dia por barra; passe o mouse para ver quem montou.'
+            : // a frase acompanha o tipo do gráfico escolhido na configuração do painel
+              painel.grafico_periodo === 'linhas'
+              ? 'Uma linha por montador; passe o mouse para ver os números do dia.'
+              : painel.grafico_periodo === 'barras'
+                ? 'Um dia por barra, só com o total; passe o mouse para ver quem montou.'
+                : 'Um dia por barra; passe o mouse para ver quem montou.'
         }
       >
         {dados.length === 0 ? (
