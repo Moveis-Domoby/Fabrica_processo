@@ -942,13 +942,23 @@ export async function anexarComprovante(
     contentType: arquivo.type || 'application/octet-stream',
     upsert: false,
   })
+  // o armário diz "já existe" pelo número (409), pelo código ou pela frase,
+  // conforme a versão — só vale como "já subiu" quando o caminho é o da chave
+  const recusa = envio.error as {
+    message: string
+    status?: number
+    statusCode?: string
+    code?: string
+  } | null
   const jaEstavaLa =
     chave !== undefined &&
-    envio.error !== null &&
-    ((envio.error as { statusCode?: string }).statusCode === '409' ||
-      /already exists|duplicate/i.test(envio.error.message))
-  if (envio.error && !jaEstavaLa)
-    throw new Error(`Não deu para enviar o arquivo: ${envio.error.message}`)
+    recusa !== null &&
+    (recusa.status === 409 ||
+      recusa.statusCode === '409' ||
+      recusa.statusCode === 'ResourceAlreadyExists' ||
+      recusa.code === 'ResourceAlreadyExists' ||
+      /already exists|duplicate/i.test(recusa.message))
+  if (recusa && !jaEstavaLa) throw new Error(`Não deu para enviar o arquivo: ${recusa.message}`)
   const { error } = await supabase.rpc('plt_fn_anexo_registrar', {
     p_card_id: cardId,
     p_caminho: caminho,

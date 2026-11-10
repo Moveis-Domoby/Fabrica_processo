@@ -84,6 +84,8 @@ export const ROTULO_ACAO: Record<string, string> = {
   pedido_devolvido: 'Marcou o pedido como devolvido',
   devolucao_decidida: 'Decidiu a situação da peça devolvida',
   entrega_desfeita: 'Desfez a entrega',
+  // SESSAO-47: o administrador corrigiu o dia em que a entrega aconteceu de fato
+  entrega_dia_corrigido: 'Corrigiu o dia da entrega',
   ajuste_aberto: 'Mandou a peça para ajuste',
   ajuste_concluido: 'O ajuste da peça terminou',
   // card (SESSAO-31)
@@ -288,6 +290,7 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
           'pedido_devolvido',
           'devolucao_decidida',
           'entrega_desfeita',
+          'entrega_dia_corrigido',
         ].includes(a),
     ),
   },
