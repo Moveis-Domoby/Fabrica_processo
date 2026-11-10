@@ -180,7 +180,7 @@ Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi c
    - a **entrega parcial não escolhe o dia** (D-283.2);
    - na TV, a dupla em que um não tem letra passou a aparecer como **"A + Outros"** mesmo sem ninguém mexer (D-287);
    - se o admin escolher um **setor de abertura**, ele vale para todos os aparelhos (D-289.6).
-4. **ClickUp:** criar a 6ª tarefa ("Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny") — só com o OK dele. As 5 que existem estão em FAZENDO, com o comentário do que foi entregue; quem conclui é o dono.
+4. **ClickUp:** concluir as 6 tarefas (quem conclui é o dono). Estão todas em FAZENDO, com o comentário do que foi entregue e de como conferir — a 6ª ("Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny") foi criada em 09/11 à noite, com o OK dele.
 5. **Conferir no celular do entregador** se, ao escolher vários comprovantes, o aparelho ainda oferece a câmera (se não, o remédio é um botão "Tirar foto" ao lado).
 6. **Achados fora do escopo, para uma próxima sessão:** a busca geral escreve "Entregue em dd/mm" pelo dia em que a peça foi arquivada (o dia do registro, não o dia real); o detalhe da devolução mostra o dia antigo de uma entrega corrigida; a lista de pedidos mostra a hora do fim do expediente quando o dia foi escolhido; a Auditoria mostra o antes/depois da configuração do painel com os nomes internos das opções; o degrau do plano genérico pode existir em outros painéis.
 7. **Do ajuste de 06/11** (segue com o dono): o handoff dele tinha a seção de pendências por preencher.

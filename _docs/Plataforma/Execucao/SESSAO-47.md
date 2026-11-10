@@ -42,7 +42,7 @@ Ramo `sessao-47-pedido-adiantado-entrega-comprovantes-tempos`, na pasta principa
 
 **Geral**
 8. ✅ Bateria 2×, tipos, lint, testes de tela, pacote; celular 375 e tablet 768; ensaio ×100 das portas novas/tocadas; advisors (depois de aplicar).
-9. ✅ (as 5 em FAZENDO e comentadas; a 6ª espera o OK do dono) ClickUp: as 5 tarefas em FAZENDO ao começar cada uma + comentário ao entregar; a 6ª ("Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny") só com o OK do dono.
+9. ✅ (as 6 em FAZENDO e comentadas — a 6ª criada com o OK do dono em 09/11 à noite) ClickUp: as 5 tarefas em FAZENDO ao começar cada uma + comentário ao entregar; a 6ª ("Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny") só com o OK do dono.
 10. ✅ Cofre: decisões provisórias, memória, esquema, lei, modelo de sistema, handoff, ordem, mapa.
 
 ## Lições da memória que valem nesta sessão (relidas em 09/11)
@@ -165,3 +165,8 @@ Ramo `sessao-47-pedido-adiantado-entrega-comprovantes-tempos`, na pasta principa
 - **Depois (só leitura):** o corpo vivo igual ao da `…050000` (1 de 1); a configuração da função só com o `search_path` (a guarda saiu); 0 entregas sem o dia; as 7 portas de tempos seguem com a guarda delas.
 - **No ar, com o acesso do dono (só olhando):** Rotas → Programação → Calendário — a semana de 8 a 14/11 (sem rota 5 · na rota 11 · entregue 14) com os entregues de hoje no dia real e a nota "prog. 07/11" (as entregas registradas hoje de pedidos programados para sábado); o mês de novembro (sem rota 8 · na rota 11 · entregue 56 · não entregue 8 · stand-by 2) com as notas "prog. 31/10", "prog. 04/11", "prog. 07/11". Nenhum erro no console.
 - Cofre atualizado (esquema, lei — a dívida 33 paga —, handoff, ordem, mapa, demanda, decisões).
+
+## A sexta tarefa do ClickUp (09/11, ~22:40 — o dono: *"Pode criar"*)
+
+- Criada na lista PRODUÇÃO do DPTO TI, no padrão das outras cinco (nome "Área - Item", descrição em língua de gente, atribuída ao dono, prioridade alta): **"Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny"** — `17tya50r2tf`, já em FAZENDO (o trabalho está entregue), com o comentário do que foi entregue e de como conferir. Nunca em CONCLUÍDO — quem conclui é o dono.
+- A demanda (seção "Tarefas no ClickUp") e o handoff passaram a apontar para ela.

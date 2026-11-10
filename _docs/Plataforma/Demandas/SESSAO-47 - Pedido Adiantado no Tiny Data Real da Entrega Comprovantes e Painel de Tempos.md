@@ -296,7 +296,7 @@ Um pedido entra nessa regra quando:
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
 
-- Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny: **criação bloqueada pela permissão da sessão do Cowork. Criar com o OK do dono.**
+- [Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny](https://app.clickup.com/t/17tya50r2tf) — criada em 09/11 à noite, com o OK do dono na conversa (*"Pode criar"*), já em FAZENDO e com o comentário do que foi entregue.
 - [Expedição - Botões para voltar o pedido ao PCP mudando a situação no Tiny](https://app.clickup.com/t/17tya50qxqc)
 - [Logística - Liberar peça de pedido adiantado no Tiny já devolvendo ao PCP](https://app.clickup.com/t/17tya50qxqd)
 - [Entregas - Marcar como entregue no dia em que foi entregue de fato](https://app.clickup.com/t/17tya50qxzd)
@@ -313,7 +313,7 @@ Um pedido entra nessa regra quando:
   - a **"linha do tempo padrão"** não é uma linha num gráfico (os gráficos contam móveis, não tempo): virou uma marca na linha do dia da aba Dia (D-288 — provisória, pede o olhar do dono);
   - o ensaio com 100 vezes o movimento achou e corrigiu, antes de subir, duas lentidões do bloco A, o degrau da 6ª leitura nas portas de tempos e o do calendário das rotas; a causa de fundo do calendário (um pré-filtro inútil) foi achada depois da subida e foi numa **quinta atualização** (`20261109050000`), aplicada no mesmo dia às ~22:20, com o OK do dono.
 - **Critérios de aceite:** todos cobertos por teste do banco e de tela; conferidos no ar (só olhando) a Expedição com o 13652 e o 13684, o PCP sem eles, o botão e a janela do painel, a TV e as entregas. Depois de aplicar: 0 entregas sem o dia projetado e os advisors sem nada novo além do esperado. **Ficaram sem conferir:** o seletor de vários arquivos com a câmera no celular do entregador e a medida de velocidade no aparelho.
-- **ClickUp:** as 5 tarefas em FAZENDO, com o comentário do que foi entregue; a 6ª (o aviso na Expedição) segue por criar, com o OK do dono.
+- **ClickUp:** as 6 tarefas em FAZENDO, com o comentário do que foi entregue (a 6ª — o aviso na Expedição — criada com o OK do dono); quem conclui é o dono.
 
 ---
 
