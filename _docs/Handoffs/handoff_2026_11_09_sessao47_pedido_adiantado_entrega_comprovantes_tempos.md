@@ -9,7 +9,8 @@ tags: [handoff, sessao-47, expedicao, pcp, tiny, entregas, comprovantes, calenda
 
 Demanda: [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · Diário: `_docs/Plataforma/Execucao/SESSAO-47.md` (+ `SESSAO-47 - bloco B.md` e `SESSAO-47 - bloco C.md`) · Ramo: `sessao-47-pedido-adiantado-entrega-comprovantes-tempos`
 
-> ⏳ **Nada foi aplicado no banco nem publicado.** O código está no ramo, testado; a atualização do banco, a publicação do site e qualquer coisa no n8n esperam o OK do dono (regra 2). O n8n **não muda**.
+> ✅ **NO AR desde 09/11/2026 ~20:45 de Natal**, com o OK do dono na conversa (*"sobe logo"*, *"RODE AÍ"*): o banco (o ajuste de 06/11 dos números que batem + as 4 atualizações da sessão, na ordem) e o site (a `main`). O n8n **não mudou**.
+> ⏳ **Por aplicar (espera o OK do dono):** uma quinta atualização, pequena — o fecho do calendário das rotas (`20261109050000`), achado depois da subida. Com o movimento de hoje não muda nada na tela; é para o calendário não ficar lento quando o movimento crescer.
 
 ## 1. Objetivo
 
@@ -80,4 +81,110 @@ Banco: `supabase/migrations/20261109030000_plt_entrega_dia_real.sql` (a frente 6
 
 ![[sessao47-ficha-alterar-data.png]]
 *A janela do admin para corrigir o dia.*
+
+### Bloco C — A configuração do painel de Tempos de produção (frente 7)
+
+| Item | O que mudou |
+|---|---|
+| **O botão** | **"Configurar painel"** em Dashboards → Tempos de produção, ao lado de "Modo TV" — **só o admin vê** (líder e funcionário veem só o resultado; o banco recusa quem não é admin). A janela é lida no clique. |
+| **Uma configuração só** | Vale para a tela e para a TV, para a fábrica inteira (só o liga/desliga dos montadores é por setor). Salvou, **a TV e as telas abertas mudam na hora**, pelo canal que já ouviam. Toda mudança aparece na Auditoria ("Mudou a configuração do painel de tempos", com o que mudou em frases). |
+| **1 · Tipo de gráfico** | Para a aba Período e para a TV, cada um com a sua escolha: **empilhadas por montador** (o desenho de sempre), **barras** (uma por dia, só o total) e **linhas** (uma por montador). |
+| **2 · Montadores** | A equipe de cada setor com **letra, nome e foto** (só nessa janela — a TV continua só com letras) e um liga/desliga. **Desligado sai da coluna dele, na tela e na TV, e entra em "Outros"**; os totais, as médias e o "Melhor da semana" do setor não mudam (provado no banco: os números do setor idênticos nas 6 leituras). Dupla com um desligado = a letra do ligado + "Outros". |
+| **3 · Tempo padrão** | Liga e desliga uma **marca na linha do dia** (aba Dia): em cada móvel, um tracinho mostra onde ele terminaria no tempo padrão do modelo. ⚠️ Decisão provisória que pede o olhar do dono — os gráficos contam móveis, não tempo, então não havia onde riscar tempo padrão neles. |
+| **4 · Abrir já filtrado** | O setor e o período (hoje, 7 ou 30 dias) com que a tela abre pelo menu. Link salvo e filtro escolhido na hora continuam mandando. A tela passou a abrir em **uma** requisição. |
+| **5 · Média ou mediana** | Qual número a tela e a TV mostram; o rótulo de cada número diz qual está valendo ("média · a mediana é 35 min"). O tempo padrão de cada móvel não muda. |
+| **6 · O que a TV mostra** | Liga e desliga dos 7 blocos que a TV já tinha: os quatro números do topo, a coluna dos montadores, o gráfico dos 14 dias, o melhor da semana, o relógio, o "dados até" e o selo "ao vivo". A TV se arruma sozinha quando um bloco sai. |
+| **"Voltar ao padrão"** | Volta os gráficos, o tempo médio, a abertura e a TV ao desenho de antes (os montadores ficam como estão). |
+
+Banco: `supabase/migrations/20261109040000_plt_tempos_painel_config.sql`. Telas: `src/paginas/dashboards/tempos/ConfigurarPainel.tsx`, `src/dashboards/tempos/painel.ts`, `consultas.ts`, `GraficoMoveis.tsx`, `linhaDoDia.ts` (novos), `src/paginas/dashboards/TemposProducao.tsx`, `ModoTv.tsx`, as abas `AbaDia`/`AbaPeriodo`/`AbaMoveis`/`AbaMontadores`, `src/dashboards/tempos/api.ts`, `src/auditoria/rotulos.ts`. Testes: bateria (bloco "SESSAO-47 · Bloco C", 41 conferências) e 53 testes de tela. Diário próprio: `Execucao/SESSAO-47 - bloco C.md`.
+
+![[sessao47-painel-configurar.png]]
+*A janela "Configurar painel" (dados de exemplo): os gráficos, média ou mediana, a marca do tempo padrão, como a tela abre, os montadores com letra, nome e foto, e os blocos da TV.*
+
+![[sessao47-painel-periodo.png]]
+*A aba Período com o botão (só para o admin) e o gráfico de sempre.*
+
+![[sessao47-painel-periodo-linhas-media.png]]
+*A mesma aba com "linhas" e "média" escolhidas: o rótulo diz "média · a mediana é 35 min".*
+
+![[sessao47-painel-tv.png]]
+*A TV como sempre (só letras).*
+
+![[sessao47-painel-tv-barras-outros.png]]
+*A TV com "barras", o Montador B desligado (saiu da coluna) e o "Melhor da semana" desligado.*
+
+### Junto, por ser a base — o ajuste de 06/11 (os números que batem entre as telas)
+
+Estava pronto num ramo local desde 06/11 e nunca tinha subido; a SESSAO-47 foi construída por cima dele (mexem nas mesmas funções), então subiu junto: "A entregar" sem o pedido cancelado no Tiny (o 13686 saiu da lista — conferido no ar), a Visão do dia contando o que o quadro mostra (a espera em horas de expediente), o cancelamento no Tiny fechando o stand-by, e "fora do calendário" só com o que não está na grade. Detalhe: [[handoff_2026_11_06_numeros_que_batem]] e `Execucao/AJUSTE - Numeros que batem entre as telas.md`.
+
+## 3. Como testar (roteiro do dono)
+
+**Bloco A — pedido adiantado no Tiny**
+1. **Logística → Expedição.** Há um sexto quadradinho, **"Saiu do PCP pelo Tiny"** (em 09/11 à noite: **2** — o 13652 e o 13684). Toque nele: aparecem só esses, cada um com o aviso laranja ("Este pedido está como Faturado no Tiny, por isso saiu do PCP. Ainda falta liberar N produtos.") e os dois botões.
+2. Num deles, toque em **"Voltar para Preparando envio (Tiny)"** (ou "Em aberto") → confira a frase → **"Voltar ao PCP"**. ⚠️ *Isto muda de verdade a situação do pedido no Tiny — é o que o botão faz.* O aviso some do card; o pedido aparece em **Fábrica → Produção → PCP** só com o que falta liberar; o sino do PCP recebe "Pedido N voltou ao PCP"; no Tiny a situação muda em seguida. Enquanto o Tiny não confirma, o card mostra "O Tiny ainda não confirmou a mudança".
+3. Toque de novo no mesmo botão (ou peça a outra pessoa): nada acontece duas vezes.
+4. **Liberar peça:** Expedição → um pedido com peça pronta que esteja Faturado, Pronto para envio ou Enviado no Tiny → "Liberar para outro pedido" → escolha a peça → responda as perguntas → com "Sim, produzir de novo", a janela mostra "No Tiny, este pedido está como …" e as três opções. Com "Deixar como está", o aviso do sino diz que o pedido ficou na Expedição esperando decisão (e leva para lá).
+5. O PCP continua **sem** mostrar pedido adiantado no Tiny que ninguém devolveu.
+
+**Bloco B — a entrega**
+6. **Rotas → Entregas → "Entregue"** num pedido: aparecem "Confirmar entrega", "Marcar como entregue no dia..." e "Ainda não". Toque em "Ainda não" para só olhar.
+7. Numa entrega de verdade que aconteceu em outro dia: "Marcar como entregue no dia..." → escolha o dia → "Marcar como entregue em dd/mm/aaaa". Tente escolher amanhã: o botão não acende ("Esse dia ainda não chegou").
+8. Confira o dia escolhido: na **ficha do pedido** ("Entregue no dia …, registrado em … por …"), em **Rotas → Programação → Calendário** (o pedido no dia real, com "prog. dd/mm" se estava programado para outro dia — toque nele para ver a frase inteira) e nas **Entregas do dia**.
+9. **Desfazer:** quem marcou hoje uma entrega de ontem ainda desfaz hoje (Entregas do dia ou a ficha).
+10. **Corrigir o dia (só admin):** ficha do pedido → "Entrega e comprovante" → **"Alterar a data da entrega"** → dia e motivo (opcional) → "Salvar a data". Entre como logística: o botão não aparece.
+11. **Vários comprovantes:** no celular do entregador, "Entregue" → "Anexar comprovantes (opcional)" → escolha 2 ou 3 fotos de uma vez → "Confirmar entrega": a entrega é registrada e a janela mostra cada arquivo subindo. Também pelo botão "Comprovante" do card e por "Anexar comprovantes" na ficha. *Para conferir no aparelho: se, ao escolher vários, o celular ainda oferece a câmera.*
+
+**Bloco C — o painel de tempos**
+12. **Dashboards → Tempos de produção**, como admin: o botão **"Configurar painel"** ao lado de "Modo TV". Como líder ou funcionário, não aparece.
+13. Abra a janela; troque o gráfico da aba Período para "Linhas" → **Salvar**: a aba Período muda sem recarregar. Com uma TV aberta em outro aparelho, troque o gráfico da TV ou desligue um bloco: **a TV muda na hora**.
+14. Desligue um montador: ele some da coluna na TV e da tela e aparece "Outros"; **os totais do setor (montados no dia, no mês, tempo médio) continuam os mesmos**. Religue.
+15. Ligue "Marcar onde cada móvel terminaria no tempo padrão" e veja a aba Dia; escolha "Média" e veja os rótulos; em "Como a tela abre" escolha um setor e "7 dias", salve e abra a tela pelo menu.
+16. **Super admin → Auditoria:** a linha "Mudou a configuração do painel de tempos". **"Voltar ao padrão"** + Salvar deixa tudo como antes.
+17. ⚠️ **Recarregue cada TV do galpão uma vez** — a que já estava ligada segue com o programa de antes até recarregar.
+
+## 4. Verificação
+
+- **Bateria do banco** (aplica todas as migrations duas vezes): **1.640 verdes, 1 vermelho antigo** (o painel de vendas — "as 7 portas novas = as antigas em 8 períodos" —, que já falha na `main` sem esta sessão). Novos: 20 do bloco A, 35 do B, 41 do C.
+- **Site:** tipos e lint limpos; **545 testes de tela** verdes (83 arquivos); o site compila.
+- **Antes de aplicar** (só leitura): o corpo de **31 funções** no banco vivo comparado com o último `create` das migrations já aplicadas — **31 iguais**. Havia 2 pedidos adiantados no Tiny sem liberar tudo (os dois da demanda) e a ida ao Tiny ligada.
+- **Aplicação** (09/11 ~20:45): as 5 atualizações, uma transação cada, na ordem; em todas, a integração do Tiny com a estrutura idêntica e as linhas idênticas.
+- **No ar, com o acesso do dono (só olhando):** a Expedição com "2 · Saiu do PCP pelo Tiny" e o aviso com os botões no 13684 (falta 1) e no 13652 (faltam 3); o PCP sem eles (aguardando liberação: 2, igual ao quadrinho da Visão do dia); a Programação voltou a listar o 13652; "A entregar" sem o 13686 cancelado; a tela de tempos abrindo em uma requisição, com o botão; a janela de configuração lendo do banco (10 montadores ligados, tudo no padrão) — aberta e fechada **sem salvar**; a TV com os mesmos números de antes. Nenhum erro no console em nenhuma delas. **Nenhum botão que muda dado foi tocado.**
+- **Celular (375) e tablet (768):** Expedição e o painel do entregador sem rolagem lateral (medido). A janela de configuração usa a janela padrão da casa.
+- **Não conferido:** os advisors da Supabase e a contagem "entregas vigentes sem o dia projetado = 0" no banco vivo (a leitura de produção ficou barrada para esta sessão — no ensaio deu 0); o seletor de vários arquivos com a câmera no aparelho do entregador; a medida de velocidade no aparelho (INP/LCP).
+
+## 5. Desempenho (Lei — checklist)
+
+- [x] **Requisições:** nenhuma tela ganhou requisição; a tela de tempos passou a abrir em 1. A janela de configuração, a de comprovantes e a de corrigir o dia só leem/escrevem no clique.
+- [x] **Sem polling, sem `postgres_changes`, sem relógio novo:** a ida ao Tiny usa a fila que já existia; as marcas fecham no fato (gatilho); as telas releem pelo aviso da área; a configuração do painel viaja pelo canal do setor.
+- [x] **Toda porta nova ou tocada no ×100** — três ensaios, em `Execucao/dados/SESSAO-47 - ensaio x100 …`:
+  - **A** (562.700 pedidos): PCP 77 → 77 ms · porta antiga do PCP 214 → 195 · quadrinho 63 → 72 · regra do pedido vivo 0,73 → 0,58 s · Expedição 2,11 → 1,96 s · Programação 3,13 → 2,75 s · "A entregar" 5,02 → 3,92 s · voltar ao PCP 12 ms.
+  - **B** (15 mil entregues): Já programadas "por entregar" 1.738 → 140 ms · ROTAS Entregues 3,8 → 3,6 s · entregas do dia 53 → 65 ms · lista de pedidos 108 → 113 ms · ficha 17 → 16 ms · registrar 30 ms · marcar ontem 39 ms · corrigir o dia 30 ms.
+  - **C** (300 mil passagens): Dia 24 → 25 ms (dia cheio 59 → 32) · Período 76 → 78 · Móveis 52 → 55 · Montadores 113 → 114 · **TV 164 → 68 ms** · abertura = a aba + 1,5 ms.
+  - **Nenhuma porta piorou além do ruído.** As que estão fora do teto no ×100 já estavam (dívidas 24, 25, 29, 30, 31) e continuam registradas na lei; novas: 33 (o calendário — paga na atualização por aplicar), 34 (o degrau do plano genérico em outras portas) e 35 (entregas do dia com a rota muito cheia).
+- [x] **Duas regressões achadas pelo ensaio e corrigidas antes de subir** (a regra do PCP aninhando funções; o caso novo do pedido vivo citando a coluna do card).
+- [x] **Índices:** um novo, parcial (`plt_cards_entrega_em_idx`). Nenhuma política de RLS nova.
+- [x] **Listas:** nenhuma lista nova sem teto ("entregues de outro dia": no máximo 100).
+- [x] **Pacote:** JS inicial **236,3 KB** comprimidos (antes 235,9; teto 250); o que é novo são pedaços baixados no clique.
+- [x] **Escrita idempotente:** voltar ao PCP e liberar peça pela chave do toque; registrar a entrega (toque repetido = a mesma entrega); salvar a configuração igual = nada; comprovante com caminho estável.
+- [ ] **Advisors** — não lidos (ver "Não conferido").
+
+## 6. Pendências que precisam do dono
+
+1. **Aplicar o fecho do calendário** (`20261109050000`) — um OK. Não muda nada na tela hoje.
+2. **Recarregar as TVs do galpão** uma vez.
+3. **Confirmar as decisões provisórias** D-272…D-275 (pedido adiantado), D-277…D-283 (entrega e comprovantes) e D-285…D-289 (painel). As que mais pedem o olhar dele:
+   - a "linha do tempo padrão" virou uma **marca na linha do dia** (D-288) — pode não ser o que ele imaginou;
+   - o pedido adiantado com falta **volta a poder ser programado numa rota** (D-275.1);
+   - a **entrega parcial não escolhe o dia** (D-283.2);
+   - na TV, a dupla em que um não tem letra passou a aparecer como **"A + Outros"** mesmo sem ninguém mexer (D-287);
+   - se o admin escolher um **setor de abertura**, ele vale para todos os aparelhos (D-289.6).
+4. **ClickUp:** criar a 6ª tarefa ("Expedição - Aviso de pedido que saiu do PCP pela situação do Tiny") — só com o OK dele. As 5 que existem estão em FAZENDO, com o comentário do que foi entregue; quem conclui é o dono.
+5. **Conferir no celular do entregador** se, ao escolher vários comprovantes, o aparelho ainda oferece a câmera (se não, o remédio é um botão "Tirar foto" ao lado).
+6. **Liberar a leitura do banco de produção para a sessão** (ou rodar à mão): os advisors e a contagem das entregas sem o dia projetado ficaram sem conferir.
+7. **Achados fora do escopo, para uma próxima sessão:** a busca geral escreve "Entregue em dd/mm" pelo dia em que a peça foi arquivada (o dia do registro, não o dia real); o detalhe da devolução mostra o dia antigo de uma entrega corrigida; a lista de pedidos mostra a hora do fim do expediente quando o dia foi escolhido; a Auditoria mostra o antes/depois da configuração do painel com os nomes internos das opções; o degrau do plano genérico pode existir em outros painéis.
+8. **Do ajuste de 06/11** (segue com o dono): o handoff dele tinha a seção de pendências por preencher.
+
+## 7. Numeração usada
+
+Migrations `20261109010000` (base), `…020000` (A), `…030000` (B), `…040000` (C) — aplicadas — e `…050000` (o fecho do calendário — por aplicar); junto, a `20261106030000` do ajuste de 06/11. Decisões **D-271…D-289**; aprendizados **E-235…E-248** e **A-198…A-211**; dívidas da lei **33, 34 e 35**. Seguinte: **D-290 / E-249 / A-212 / dívida 36**.
 

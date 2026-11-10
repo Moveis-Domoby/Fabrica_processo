@@ -1,0 +1,229 @@
+SESSAO-47 - bloco C - ensaio x100 da configuracao do painel de tempos (frente C, 09/11/2026)
+
+==== ANTES (como esta: 9 chamadas seguidas na mesma conexao) ====
+
+=== ANTES (a base, sem a migration do Bloco C) ===
+Dia (ontem, ~550 passagens)                                  84.6 ms   (mín 32.1 ms, máx 93.1 ms)
+Dia — Ver mais (a página seguinte)                            6.6 ms   (mín 6.2 ms, máx 8.9 ms)
+Período 7 dias                                               21.4 ms   (mín 18.5 ms, máx 28.4 ms)
+Período 30 dias (~16 mil + o Trello do começo)               85.9 ms   (mín 80.8 ms, máx 95.8 ms)
+Período 90 dias (~50 mil + o Trello) — dívida 31            575.3 ms   (mín 571.7 ms, máx 578.6 ms)
+Móveis 30 dias (2.000 modelos)                               72.2 ms   (mín 56.4 ms, máx 81.7 ms)
+Móveis 90 dias — dívida 31                                  330.0 ms   (mín 320.2 ms, máx 386.2 ms)
+Passagens de um modelo (90 dias)                              3.9 ms   (mín 3.4 ms, máx 4.7 ms)
+Montadores 30 dias                                         3140.5 ms   (mín 115.2 ms, máx 3362.8 ms)
+Montadores 90 dias — dívida 31                             19375.7 ms   (mín 19092.7 ms, máx 19959.3 ms)
+Montadores 30 dias como funcionário (só o dele)             464.5 ms   (mín 453.8 ms, máx 468.6 ms)
+Conferir 30 dias (grupos + 1ª página)                        37.2 ms   (mín 20.9 ms, máx 42.0 ms)
+Modo TV (hoje, 30 dias, mês, 14 dias, semana)               179.9 ms   (mín 169.9 ms, máx 239.9 ms)
+
+--- plano: o período de 30 dias pela tabela pronta
+Aggregate (actual time=22.206..22.209 rows=1.00 loops=1)
+  ->  Bitmap Heap Scan on plt_tempo_montagens m (actual time=1.446..13.043 rows=19564.00 loops=1)
+        ->  Bitmap Index Scan on plt_tempo_montagens_setor_dia_idx (actual time=1.019..1.020 rows=19564.00 loops=1)
+Execution Time: 22.498 ms
+
+--- plano: a 1ª página do Dia
+Limit (actual time=0.926..0.950 rows=51.00 loops=1)
+  ->  Incremental Sort (actual time=0.924..0.933 rows=51.00 loops=1)
+        Sort Key: m.fim, m.origem, m.ref_id
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 21kB  Peak Memory: 21kB
+        Pre-sorted Groups: 1  Sort Method: top-N heapsort  Average Memory: 21kB  Peak Memory: 21kB
+        ->  Index Scan using plt_tempo_montagens_setor_dia_idx on plt_tempo_montagens m (actual time=0.018..0.479 rows=556.00 loops=1)
+Execution Time: 0.983 ms
+
+--- plano: as pessoas dos móveis do período (Móveis/Montadores)
+Aggregate (actual time=14.938..14.940 rows=1.00 loops=1)
+  ->  Bitmap Heap Scan on plt_tempo_montagem_pessoas q (actual time=0.973..10.299 rows=21231.00 loops=1)
+        ->  Bitmap Index Scan on plt_tempo_montagem_pessoas_setor_dia_idx (actual time=0.754..0.754 rows=22211.00 loops=1)
+Execution Time: 14.967 ms
+
+--- plano: os trechos do dia com o padrão do modelo (a marca da linha do dia)
+Limit (actual time=10.288..10.567 rows=556.00 loops=1)
+  ->  Sort (actual time=10.285..10.387 rows=556.00 loops=1)
+        Sort Key: t.inicio
+        Sort Method: quicksort  Memory: 56kB
+        ->  Hash Right Join (actual time=8.838..10.115 rows=556.00 loops=1)
+              Hash Cond: (pa.modelo_id = ps.modelo_id)
+              ->  Function Scan on fn_tempos_padroes pa (actual time=0.932..1.302 rows=2000.00 loops=1)
+              ->  Hash (actual time=7.885..7.889 rows=556.00 loops=1)
+                    ->  Nested Loop Left Join (actual time=0.020..7.587 rows=556.00 loops=1)
+                          ->  Index Scan using plt_tempo_trechos_setor_dia_idx on plt_tempo_trechos t (actual time=0.011..0.678 rows=556.00 loops=1)
+                          ->  Index Scan using plt_tempo_passagens_pkey on plt_tempo_passagens ps (actual time=0.011..0.011 rows=1.00 loops=556)
+Execution Time: 10.714 ms
+
+--- plano: a equipe do painel do setor (quem está ligado)
+Seq Scan on plt_tempo_equipe e (actual time=0.013..0.017 rows=10.00 loops=1)
+Execution Time: 0.033 ms
+
+RESULTADO antes {"dia":84.6,"dia_mais":6.6,"per7":21.4,"per30":85.9,"per90":575.3,"mov30":72.2,"mov90":330,"modelo":3.9,"mon30":3140.5,"mon90":19375.7,"mon30op":464.5,"conf30":37.2,"tv":179.9}
+saida=0
+
+==== DEPOIS (a versao final; antes x depois intercalados, plano sob medida nos dois lados) ====
+a migration do Bloco C aplicada 2× em 18264 ms
+
+=== DEPOIS · configuração padrão (ninguém desligado) ===
+Dia (ontem, ~550 passagens)                                  27.2 ms   (mín 25.4 ms, máx 39.0 ms)
+Dia — Ver mais (a página seguinte)                            6.6 ms   (mín 6.4 ms, máx 7.1 ms)
+Período 7 dias                                               21.6 ms   (mín 19.7 ms, máx 25.5 ms)
+Período 30 dias (~16 mil + o Trello do começo)               77.6 ms   (mín 76.3 ms, máx 81.0 ms)
+Período 90 dias (~50 mil + o Trello) — dívida 31            526.2 ms   (mín 519.5 ms, máx 545.1 ms)
+Móveis 30 dias (2.000 modelos)                               58.2 ms   (mín 57.0 ms, máx 61.0 ms)
+Móveis 90 dias — dívida 31                                  244.3 ms   (mín 240.8 ms, máx 260.3 ms)
+Passagens de um modelo (90 dias)                              4.0 ms   (mín 3.8 ms, máx 4.1 ms)
+Montadores 30 dias                                          118.3 ms   (mín 115.5 ms, máx 122.4 ms)
+Montadores 90 dias — dívida 31                              685.8 ms   (mín 675.1 ms, máx 704.2 ms)
+Montadores 30 dias como funcionário (só o dele)              33.2 ms   (mín 32.8 ms, máx 33.5 ms)
+Conferir 30 dias (grupos + 1ª página)                        18.7 ms   (mín 18.3 ms, máx 19.0 ms)
+Modo TV (hoje, 30 dias, mês, 14 dias, semana)                65.3 ms   (mín 64.6 ms, máx 67.3 ms)
+
+=== DEPOIS · as portas novas ===
+Abertura (o setor lembrado, a aba Dia de hoje)               33.6 ms   (mín 33.0 ms, máx 34.5 ms)
+   … a aba Dia de hoje chamada direto (comparação)           32.1 ms   (mín 31.2 ms, máx 33.2 ms)
+A janela de configuração (o painel + as equipes)              0.7 ms   (mín 0.6 ms, máx 0.9 ms)
+Salvar (2 montadores, com trilha e aviso aos setores)         2.1 ms
+configuração agora: {"medida":"media","grafico_tv":"empilhadas","tv_ao_vivo":true,"tv_grafico":true,"tv_numeros":true,"tv_relogio":true,"linha_padrao":true,"tv_dados_ate":true,"abrir_periodo":"7","tv_montadores":true,"abrir_setor_id":null,"grafico_periodo":"empilhadas","tv_melhor_semana":true} · desligados: 2
+
+=== DEPOIS · 2 montadores desligados (B e F), a marca do padrão ligada, média ===
+Dia (ontem, ~550 passagens)                                  28.3 ms   (mín 27.9 ms, máx 29.1 ms)
+Dia — Ver mais (a página seguinte)                            8.9 ms   (mín 8.7 ms, máx 11.1 ms)
+Período 7 dias                                               21.7 ms   (mín 21.3 ms, máx 26.8 ms)
+Período 30 dias (~16 mil + o Trello do começo)               83.9 ms   (mín 82.7 ms, máx 87.9 ms)
+Período 90 dias (~50 mil + o Trello) — dívida 31            570.8 ms   (mín 562.9 ms, máx 602.0 ms)
+Móveis 30 dias (2.000 modelos)                               61.8 ms   (mín 60.8 ms, máx 67.3 ms)
+Móveis 90 dias — dívida 31                                  254.6 ms   (mín 251.5 ms, máx 262.4 ms)
+Passagens de um modelo (90 dias)                              3.5 ms   (mín 3.4 ms, máx 3.8 ms)
+Montadores 30 dias                                          120.9 ms   (mín 118.7 ms, máx 140.1 ms)
+Montadores 90 dias — dívida 31                              673.3 ms   (mín 671.3 ms, máx 706.7 ms)
+Montadores 30 dias como funcionário (só o dele)              32.6 ms   (mín 32.2 ms, máx 33.7 ms)
+Conferir 30 dias (grupos + 1ª página)                        19.2 ms   (mín 18.3 ms, máx 23.5 ms)
+Modo TV (hoje, 30 dias, mês, 14 dias, semana)                60.7 ms   (mín 60.2 ms, máx 61.3 ms)
+Abertura (configurada: Período 7 dias, o setor lembrado)     21.5 ms   (mín 21.3 ms, máx 22.2 ms)
+
+--- plano: o período de 30 dias pela tabela pronta
+Aggregate (actual time=18.630..18.631 rows=1.00 loops=1)
+  ->  Bitmap Heap Scan on plt_tempo_montagens m (actual time=1.150..11.043 rows=19564.00 loops=1)
+        ->  Bitmap Index Scan on plt_tempo_montagens_setor_dia_idx (actual time=0.778..0.778 rows=19564.00 loops=1)
+Execution Time: 18.726 ms
+
+--- plano: a 1ª página do Dia
+Limit (actual time=1.021..1.049 rows=51.00 loops=1)
+  ->  Incremental Sort (actual time=1.019..1.030 rows=51.00 loops=1)
+        Sort Key: m.fim, m.origem, m.ref_id
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 21kB  Peak Memory: 21kB
+        Pre-sorted Groups: 1  Sort Method: top-N heapsort  Average Memory: 21kB  Peak Memory: 21kB
+        ->  Index Scan using plt_tempo_montagens_setor_dia_idx on plt_tempo_montagens m (actual time=0.023..0.520 rows=556.00 loops=1)
+Execution Time: 1.087 ms
+
+--- plano: as pessoas dos móveis do período (Móveis/Montadores)
+Aggregate (actual time=14.088..14.090 rows=1.00 loops=1)
+  ->  Bitmap Heap Scan on plt_tempo_montagem_pessoas q (actual time=0.808..9.966 rows=21231.00 loops=1)
+        ->  Bitmap Index Scan on plt_tempo_montagem_pessoas_setor_dia_idx (actual time=0.621..0.621 rows=22211.00 loops=1)
+Execution Time: 14.117 ms
+
+--- plano: os trechos do dia com o padrão do modelo (a marca da linha do dia)
+Limit (actual time=4.333..4.581 rows=556.00 loops=1)
+  ->  Sort (actual time=4.330..4.421 rows=556.00 loops=1)
+        Sort Key: t.inicio
+        Sort Method: quicksort  Memory: 56kB
+        ->  Hash Right Join (actual time=3.303..4.182 rows=556.00 loops=1)
+              Hash Cond: (pa.modelo_id = ps.modelo_id)
+              ->  Function Scan on fn_tempos_padroes pa (actual time=0.668..0.985 rows=2000.00 loops=1)
+              ->  Hash (actual time=2.627..2.629 rows=556.00 loops=1)
+                    ->  Nested Loop Left Join (actual time=0.026..2.426 rows=556.00 loops=1)
+                          ->  Index Scan using plt_tempo_trechos_setor_dia_idx on plt_tempo_trechos t (actual time=0.016..0.529 rows=556.00 loops=1)
+                          ->  Index Scan using plt_tempo_passagens_pkey on plt_tempo_passagens ps (actual time=0.003..0.003 rows=1.00 loops=556)
+Execution Time: 4.712 ms
+
+--- plano: a equipe do painel do setor (quem está ligado)
+Seq Scan on plt_tempo_equipe e (actual time=0.008..0.012 rows=10.00 loops=1)
+Execution Time: 0.024 ms
+
+RESULTADO depois {"dia":27.2,"dia_mais":6.6,"per7":21.6,"per30":77.6,"per90":526.2,"mov30":58.2,"mov90":244.3,"modelo":4,"mon30":118.3,"mon90":685.8,"mon30op":33.2,"conf30":18.7,"tv":65.3,"abertura_dia":33.6,"dia_hoje":32.1,"janela":0.7,"salvar":2.1,"dia_desl":28.3,"dia_mais_desl":8.9,"per7_desl":21.7,"per30_desl":83.9,"per90_desl":570.8,"mov30_desl":61.8,"mov90_desl":254.6,"modelo_desl":3.5,"mon30_desl":120.9,"mon90_desl":673.3,"mon30op_desl":32.6,"conf30_desl":19.2,"tv_desl":60.7,"abertura_per":21.5}
+saida=0
+
+==== A SONDA de 10 chamadas seguidas - ANTES ====
+
+=== plan_cache_mode = auto (antes) ===
+Montadores 30    355 · 152 · 122 · 127 · 127 · 3184 · 3154 · 3120 · 3188 · 3169 ms
+Dia              79 · 27 · 25 · 24 · 25 · 93 · 89 · 89 · 93 · 91 ms
+Período 30       109 · 82 · 79 · 81 · 80 · 83 · 84 · 84 · 82 · 83 ms
+Móveis 30        62 · 59 · 61 · 60 · 60 · 81 · 74 · 76 · 74 · 75 ms
+Conferir 30      27 · 21 · 22 · 20 · 21 · 42 · 38 · 37 · 40 · 39 ms
+Modo TV          186 · 171 · 171 · 166 · 164 · 170 · 167 · 168 · 171 · 171 ms
+
+=== plan_cache_mode = force_custom_plan (antes) ===
+Montadores 30    121 · 119 · 120 · 120 · 121 · 118 · 121 · 123 · 119 · 118 ms
+Dia              27 · 24 · 24 · 25 · 25 · 24 · 24 · 26 · 24 · 24 ms
+Período 30       85 · 84 · 80 · 80 · 83 · 84 · 82 · 82 · 82 · 81 ms
+Móveis 30        58 · 57 · 56 · 57 · 57 · 57 · 56 · 56 · 56 · 56 ms
+Conferir 30      23 · 21 · 21 · 21 · 21 · 21 · 23 · 22 · 22 · 21 ms
+Modo TV          173 · 171 · 170 · 165 · 166 · 170 · 174 · 168 · 170 · 164 ms
+saida=0
+
+==== A SONDA de 10 chamadas seguidas - DEPOIS ====
+a migration do Bloco C aplicada 2× em 20195 ms
+
+=== plan_cache_mode = auto (depois) ===
+Montadores 30    330 · 147 · 125 · 121 · 121 · 128 · 121 · 120 · 121 · 123 ms
+Dia              71 · 30 · 27 · 29 · 31 · 29 · 32 · 27 · 25 · 31 ms
+Período 30       100 · 81 · 81 · 81 · 81 · 82 · 80 · 79 · 78 · 82 ms
+Móveis 30        64 · 63 · 64 · 61 · 61 · 59 · 59 · 59 · 59 · 61 ms
+Conferir 30      29 · 22 · 21 · 22 · 20 · 20 · 20 · 21 · 20 · 20 ms
+Modo TV          77 · 68 · 67 · 69 · 69 · 70 · 71 · 69 · 68 · 69 ms
+
+=== plan_cache_mode = force_custom_plan (depois) ===
+Montadores 30    119 · 117 · 119 · 115 · 116 · 115 · 116 · 127 · 115 · 117 ms
+Dia              32 · 28 · 26 · 26 · 26 · 26 · 26 · 25 · 26 · 27 ms
+Período 30       85 · 84 · 84 · 78 · 78 · 81 · 84 · 81 · 78 · 80 ms
+Móveis 30        60 · 56 · 57 · 57 · 59 · 58 · 57 · 63 · 57 · 57 ms
+Conferir 30      21 · 20 · 20 · 19 · 20 · 20 · 20 · 19 · 20 · 21 ms
+Modo TV          77 · 69 · 68 · 68 · 68 · 68 · 67 · 68 · 68 · 68 ms
+saida=0
+
+==== O PERFIL (planos de dentro) ====
+a migration do Bloco C aplicada 2× em 17980 ms
+
+=== configuração padrão (ninguém desligado) — antes × depois, 11 chamadas de cada, intercaladas (mediana) ===
+Dia (ontem)                       23.6 →    24.8 ms   (+1.3)
+Dia — Ver mais                     5.9 →     6.1 ms   (+0.1)
+Hoje (a aba Dia de hoje)          58.9 →    32.2 ms   (-26.7)
+Período 7                         19.9 →    19.9 ms   (+0.0)
+Período 30                        76.0 →    77.7 ms   (+1.6)
+Período 90                       514.5 →   525.9 ms   (+11.3)
+Móveis 30                         52.0 →    55.0 ms   (+3.1)
+Móveis 90                        223.0 →   231.8 ms   (+8.8)
+Passagens de um modelo             3.3 →     3.4 ms   (+0.1)
+Montadores 30                    112.8 →   113.5 ms   (+0.7)
+Montadores 90                    646.6 →   660.7 ms   (+14.1)
+Montadores 30 (funcionário)       34.0 →    33.7 ms   (-0.3)
+Conferir 30                       19.5 →    19.7 ms   (+0.1)
+Modo TV                          163.9 →    68.4 ms   (-95.4)
+
+=== os ajudantes sozinhos ===
+select 1 (o piso de uma ida ao banco)                      0.392 ms por chamada
+fn_tempos_painel()                                         0.308 ms por chamada
+fn_tempos_painel_padrao()                                  0.297 ms por chamada
+fn_tempos_desligados(setor)                                0.321 ms por chamada
+fn_tempos_acesso(setor)                                    0.400 ms por chamada
+51 linhas: m.montadores cru                                0.484 ms por chamada
+51 linhas: fn_tempos_visiveis(m.montadores, {})            1.173 ms por chamada
+
+=== 2 montadores desligados (B e F) + a marca do padrão — antes × depois, 11 chamadas de cada, intercaladas (mediana) ===
+Dia (ontem)                       20.1 →    27.8 ms   (+7.7)
+Dia — Ver mais                     5.5 →     8.1 ms   (+2.6)
+Hoje (a aba Dia de hoje)          58.4 →    39.4 ms   (-18.9)
+Período 7                         19.3 →    22.5 ms   (+3.2)
+Período 30                        73.4 →    83.5 ms   (+10.1)
+Período 90                       535.8 →   592.8 ms   (+57.0)
+Móveis 30                         52.9 →    59.6 ms   (+6.7)
+Móveis 90                        228.1 →   265.9 ms   (+37.7)
+Passagens de um modelo             3.5 →     3.6 ms   (+0.1)
+Montadores 30                    115.0 →   116.7 ms   (+1.7)
+Montadores 90                    630.0 →   645.2 ms   (+15.2)
+Montadores 30 (funcionário)       30.5 →    31.0 ms   (+0.6)
+Conferir 30                       18.2 →    18.4 ms   (+0.2)
+Modo TV                          174.2 →    69.9 ms   (-104.4)
+
+RESULTADO {"padrao":{"Dia (ontem)":[23.6,24.8],"Dia — Ver mais":[5.9,6.1],"Hoje (a aba Dia de hoje)":[58.9,32.2],"Período 7":[19.9,19.9],"Período 30":[76,77.7],"Período 90":[514.5,525.9],"Móveis 30":[52,55],"Móveis 90":[223,231.8],"Passagens de um modelo":[3.3,3.4],"Montadores 30":[112.8,113.5],"Montadores 90":[646.6,660.7],"Montadores 30 (funcionário)":[34,33.7],"Conferir 30":[19.5,19.7],"Modo TV":[163.9,68.4]},"desligados":{"Dia (ontem)":[20.1,27.8],"Dia — Ver mais":[5.5,8.1],"Hoje (a aba Dia de hoje)":[58.4,39.4],"Período 7":[19.3,22.5],"Período 30":[73.4,83.5],"Período 90":[535.8,592.8],"Móveis 30":[52.9,59.6],"Móveis 90":[228.1,265.9],"Passagens de um modelo":[3.5,3.6],"Montadores 30":[115,116.7],"Montadores 90":[630,645.2],"Montadores 30 (funcionário)":[30.5,31],"Conferir 30":[18.2,18.4],"Modo TV":[174.2,69.9]}}
+saida=0

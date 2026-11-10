@@ -2361,7 +2361,49 @@ Só o admin, na ficha ("Alterar a data da entrega"). O motivo é opcional (até 
 5. **Na lista de pedidos**, quando o dia foi escolhido, a hora ao lado é a do fim do expediente (a lista não sabe quando a entrega foi registrada; a ficha diz as duas coisas).
 6. **O número de entregas do painel de Motivos** passou a contar as entregas que estão valendo, pelo dia de fato — antes contava os registros, inclusive os desfeitos depois.
 7. **Na aba Produção da ficha**, a peça que saiu com a entrega mostra o dia de fato da entrega.
-8. **O calendário das rotas passou a ser lido sempre com o plano feito sob medida para o período** (ajuste técnico pedido pelo supervisor — o achado de 06/11: com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ele levava dezenas de segundos).
+8. **O calendário das rotas passou a ser lido sempre com o plano feito sob medida para o período** (ajuste técnico pedido pelo supervisor — o achado de 06/11: com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ele levava dezenas de segundos). ↪️ O fecho (migration `20261109050000`, ⏳ por aplicar): a causa era um pré-filtro que não tirava linha nenhuma; sem ele a guarda deixa de ser precisa e sai também (ela encarecia os períodos longos).
+
+## D-284 · ✅ DECIDIDA pelo dono — "Configurar painel" em Tempos de produção: uma configuração só, do admin, que vale para a tela e para a TV (09/11/2026, SESSAO-47) — ↪️ complementa D-225…D-232; a D-231 (a TV só mostra letras) continua
+
+**Pedido do dono (09/11):** *"Colocar um botão de configuração do painel dentro das abas da dash de tempo de produção, dentro dessa configuração deve ser possível editar o tipo de gráfico, ligar e desligar os montadores que aparecem na tela como montador a, b, c... podendo ver qual é qual, óbvio, e algumas outras configurações que você irá me recomendar."*
+
+**Decidido (pedido e respostas 10 a 12):**
+1. **A configuração é igual para todos:** o admin configura e ela vale para a tela e para a TV. Mudou, a TV e as telas abertas mudam **na hora**. Toda mudança fica na Auditoria.
+2. **Os itens:** o tipo de gráfico (da aba Período e da TV); ligar e desligar montadores, vendo a letra, o nome e a foto de cada um (só nessa janela — a TV continua só com letras); a marca do tempo padrão; com que setor e período a tela abre; média ou mediana; o que a TV mostra.
+3. **Montador desligado** sai da coluna dele, na tela e na TV, e entra em **"Outros"** — o tempo dele continua contando: os totais, as médias e o "Melhor da semana" do setor não mudam.
+4. As letras e a equipe continuam sendo editadas onde já eram (Configurações → Controle de tempo → Equipe no painel).
+
+**Como ficou (técnico):** migration `20261109040000`. `plt_tempo_config.painel jsonb` (uma linha; só o que difere do padrão) e `plt_tempo_equipe.no_painel boolean`; a configuração vem na MESMA resposta de cada porta (`painel`) — `plt_fn_tempos_dia/_periodo/_moveis/_modelo_passagens/_montadores/_conferir` e `plt_fn_modo_tv`, mesmas assinaturas; portas novas `plt_fn_tempos_abertura` (a tela abre em 1 requisição, já no setor e no período), `plt_fn_tempos_painel` (a janela, só admin, no clique) e `plt_fn_tempos_painel_salvar` (só admin; trilha `tempo_painel_alterado`; avisa pelo canal do setor que a tela e a TV já ouviam). "Outros" = a chave zerada no lugar da pessoa, resolvida no banco, igual em todas as portas. Telas: `src/paginas/dashboards/tempos/ConfigurarPainel.tsx`, `src/dashboards/tempos/painel.ts`, `GraficoMoveis.tsx` (um gráfico para a tela e a TV).
+
+## D-285 · ⏳ PROVISÓRIA — Só o admin vê o botão "Configurar painel" e só ele salva (09/11/2026, SESSAO-47 — provisória escrita na demanda)
+
+Líder e funcionário veem apenas o resultado. O banco recusa quem não é admin (inclusive a conta só-TV).
+
+## D-286 · ⏳ PROVISÓRIA — Três tipos de gráfico: empilhadas por montador, barras e linhas (09/11/2026, SESSAO-47 — provisória escrita na demanda)
+
+**Empilhadas por montador** é o desenho que já existia (vale enquanto ninguém mexer); **barras** mostra uma barra por dia, só com o total; **linhas** traz uma linha por montador. O "barras (atual)" da demanda foi entendido como o empilhado que já existia. Vale para o gráfico da aba Período e para o da TV, cada um com a sua escolha.
+
+## D-287 · ⏳ PROVISÓRIA — Dupla com um desligado aparece como a letra (ou o nome) de quem está ligado + "Outros" (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-231
+
+Os dois desligados = "Outros". Móvel sem montador continua "Sem montador". **Muda na TV mesmo sem ninguém mexer na configuração:** a dupla em que um dos dois não tem letra aparecia inteira como "Outros"; agora aparece como "A + Outros" (a regra passou a ser por pessoa).
+
+## D-288 · ⏳ PROVISÓRIA (precisa do olhar do dono) — A "linha do tempo padrão" virou uma marca na linha do dia da aba Dia (09/11/2026, SESSAO-47)
+
+A demanda pedia ligar e desligar "a linha de referência do tempo padrão do modelo nos gráficos". Os dois gráficos que existem (aba Período e TV) contam **móveis por dia**, não tempo — não havia onde riscar tempo padrão neles. O que foi feito: na **linha do dia** (aba Dia, a faixa de cada pessoa ao longo do expediente), cada móvel ganha um tracinho mostrando onde ele terminaria se levasse o tempo padrão do modelo — depois do fim, se foi mais rápido; dentro da barra, se foi mais lento. Nasce desligada. **O dono pode ter imaginado outra coisa** (uma linha num gráfico de tempo, que hoje não existe) — confirmar.
+
+## D-289 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes da configuração do painel (09/11/2026, SESSAO-47)
+
+1. **"Outros" não vale na aba Conferir, na busca nem na lista do filtro de pessoa** (ferramentas de quem lidera: precisam dizer quem montou). Vale na lista de montagens de um modelo (aba Móveis). Quando quem lidera filtra por uma pessoa desligada, os móveis dela aparecem com "Outros" no lugar do nome.
+2. **Média ou mediana troca só o número mostrado.** O tempo padrão de cada modelo e a conta de "abaixo / na média / acima" continuam como hoje. Detalhe: na aba Móveis, o "x% mais rápido/mais lento" de cada montador compara o número que está na tela (a média dele, se a média estiver escolhida) com o padrão do modelo.
+3. **Quem está desligado continua vendo o próprio nome** nos tempos dele (o funcionário só enxerga o que ele montou).
+4. **A TV tem 7 blocos que ligam e desligam:** os quatro números do topo (um bloco só), a coluna dos montadores, o gráfico dos 14 dias, o melhor da semana, o relógio, o "dados até" e o selo "ao vivo". Os avisos de "ao vivo pausado" e "sem registros" aparecem sempre. A TV se arruma sozinha quando um bloco sai; o banco continua mandando tudo (quem esconde é a tela).
+5. **Na TV, quem está desligado some da coluna dos montadores** (não ganha um cartão "Outros" lá) e entra em "Outros" no gráfico.
+6. **A tela só abre "já filtrada" quando o endereço vem limpo** (pelo menu). Link salvo e filtro escolhido na hora continuam mandando. **Se o admin escolher um setor de abertura, ele vale para todos os aparelhos** (passa na frente do setor que cada aparelho lembrava). "Hoje" e "não configurado" são a mesma coisa (aba Dia); 7 e 30 dias abrem na aba Período.
+7. **Na aba Móveis, as colunas são 6 pessoas + "Outros"** (por último, só quando há alguém desligado).
+8. **A janela tem "Voltar ao padrão"** (os gráficos, o tempo médio, a abertura e a TV voltam ao desenho de antes; os montadores não são religados por ele).
+9. **A configuração é uma só para a fábrica inteira;** só o liga/desliga dos montadores é por setor (a equipe do painel é por setor).
+10. **Na Auditoria**, a linha "Mudou a configuração do painel de tempos" traz o que mudou em frases; o "antes/depois" aparece também com os nomes internos das opções (é como a Auditoria mostra qualquer antes/depois hoje).
+11. **TVs já ligadas não se atualizam sozinhas:** depois de publicar, cada TV precisa ser recarregada uma vez para obedecer à configuração (até lá segue funcionando com o programa de antes).
 
 ## Ver também
 

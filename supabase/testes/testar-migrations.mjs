@@ -16237,7 +16237,10 @@ try {
                      '20261109030000_plt_entrega_dia_real.sql',
                      // ↪️ SESSAO-47 · Bloco C: as de cima recriam as portas da tela de tempos e a da TV na versão de
                      // antes — a da configuração do painel vem depois e as devolve (o painel, a média e o "Outros")
-                     '20261109040000_plt_tempos_painel_config.sql']) {
+                     '20261109040000_plt_tempos_painel_config.sql',
+                     // ↪️ SESSAO-47 · o fecho do calendário: a do Bloco B acima o recria com o pré-filtro e a
+                     // guarda do plano — esta vem depois e tira os dois (a mesma resposta), como em produção
+                     '20261109050000_plt_calendario_sem_prefiltro.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -21931,19 +21934,37 @@ try {
       && pr47b.sem_a_de_3 && pr47b.sem_a_de_5 && pr47b.registrar_versoes === 1,
     'registrar com o dia e corrigir o dia: só para quem está logado; a regra do dia, a guarda e o fechar do pedido fora da API; as assinaturas antigas saíram (uma versão só de cada porta)',
     JSON.stringify(pr47b))
-  // O calendário das rotas roda sempre com o plano sob medida (da 6ª chamada em diante na
-  // mesma conexão o plano genérico levava a porta a dezenas de segundos com o volume ×100)
-  const plano47b = await um47b(`
+  // ↪️ SESSAO-47 (o fecho — migration 20261109050000): o pré-filtro dos pedidos sem rota saiu do
+  // calendário (era dele o plano ruim: com o volume ×100 o mês passava de minutos) e, com ele, a
+  // guarda do plano sob medida que a migration acima (reaplicada neste bloco) tinha posto. A
+  // resposta tem de ser a MESMA, letra por letra — na semana e em quase seis semanas (o teto
+  // da porta é de 6 semanas por vez).
+  const cal47b = async (de, ate) =>
+    JSON.stringify((await logado47b(LOG47B, `select public.plt_fn_rotas_calendario(${de}, ${ate}) as r`))[0].r)
+  const SEMANA47B = [`'${D.d3}'::date`, `'${D.amanha}'::date`]
+  const LONGO47B = [`'${D.d3}'::date - 18`, `'${D.amanha}'::date + 18`]
+  const antesDoFecho = { semana: await cal47b(...SEMANA47B), longo: await cal47b(...LONGO47B) }
+  const guardaAntes = (await um47b(`
     select p.proconfig as config from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'plt_fn_rotas_calendario'`)).config ?? []
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261109050000_plt_calendario_sem_prefiltro.sql'), 'utf8'))
+  const plano47b = await um47b(`
+    select p.proconfig as config, position('px.data_prevista between' in p.prosrc) > 0 as prefiltro
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname = 'plt_fn_rotas_calendario'`)
   const oito = []
   for (let i = 0; i < 8; i++)
     oito.push((await logado47b(LOG47B, `select public.plt_fn_rotas_calendario('${D.d3}', '${D.amanha}') as r`))[0].r.dias.length)
-  conferir((plano47b.config ?? []).includes('plan_cache_mode=force_custom_plan')
+  const depoisDoFecho = { semana: await cal47b(...SEMANA47B), longo: await cal47b(...LONGO47B) }
+  conferir(guardaAntes.includes('plan_cache_mode=force_custom_plan')
+      && !(plano47b.config ?? []).some((c) => c.startsWith('plan_cache_mode='))
       && (plano47b.config ?? []).some((c) => c.startsWith('search_path='))
-      && oito.every((n) => n === oito[0] && n >= 3),
-    'o calendário das rotas guarda a configuração do plano sempre sob medida (junto do caminho de busca) e responde igual em 8 chamadas seguidas na mesma conexão',
-    JSON.stringify({ config: plano47b.config, oito }))
+      && plano47b.prefiltro === false
+      && oito.every((n) => n === oito[0] && n >= 3)
+      && depoisDoFecho.semana === antesDoFecho.semana && depoisDoFecho.longo === antesDoFecho.longo,
+    'o fecho do calendário das rotas: sem o pré-filtro e sem a guarda do plano sob medida, a resposta é a mesma letra por letra (a semana e quase seis semanas) e 8 chamadas seguidas na mesma conexão respondem igual',
+    JSON.stringify({ guardaAntes, config: plano47b.config, prefiltro: plano47b.prefiltro, oito,
+                     semanaIgual: depoisDoFecho.semana === antesDoFecho.semana, longoIgual: depoisDoFecho.longo === antesDoFecho.longo }))
 } finally {
   await bd.exec('rollback')
   await como47b('')

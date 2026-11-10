@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-47 — Pedido adiantado no Tiny volta ao PCP, data real da entrega, vários comprovantes e configuração do painel de Tempos de produção"
 tipo: demanda
-status: 📐 pronta para code
+status: ✅ entregue e no ar (09/11/2026) — handoff linkado no fim
 data: 2026-11-09
 origem: bug do pedido 13818 e pedidos do dono de 09/11, mapeados no Cowork com leitura do banco de produção e do código (main até 06/11). Só leitura: nada foi alterado.
 revisa: nada. A D-132 (o PCP segue o Tiny) e a D-231 (a TV só mostra letras) continuam valendo. ↪️ complementa a D-133 (pedido vivo na Expedição), a liberação de peça da SESSAO-45, o "Entregue" das SESSOES 30/38 e o painel da SESSAO-43.
@@ -303,9 +303,17 @@ Um pedido entra nessa regra quando:
 - [Entregas - Anexar vários comprovantes de uma vez](https://app.clickup.com/t/17tya50qxze)
 - [Dashboards - Configuração do painel de Tempos de produção](https://app.clickup.com/t/17tya50qxzf)
 
-## Resultado (preencher ao entregar)
+## Resultado (preenchido em 09/11/2026)
 
-*O que foi feito, o que mudou de rota, link do handoff da sessão.*
+**Entregue e no ar em 09/11/2026 ~20:45 de Natal** (banco e site, com o OK do dono na conversa). Handoff: [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos]] · diários: [[SESSAO-47]], `SESSAO-47 - bloco B`, `SESSAO-47 - bloco C` · decisões **D-271…D-289**.
+
+- **Os três blocos, as sete frentes**, feitos em três frentes paralelas sobre uma base comum (os fatos novos, a marca no card e a regra única do PCP nasceram antes): A pelo supervisor, B e C cada uma numa cópia isolada.
+- **O que mudou de rota:**
+  - a sessão foi construída **por cima do ajuste de 06/11** (os números que batem entre as telas), que estava pronto num ramo local e nunca tinha subido — mexem nas mesmas funções; ele subiu junto;
+  - a **"linha do tempo padrão"** não é uma linha num gráfico (os gráficos contam móveis, não tempo): virou uma marca na linha do dia da aba Dia (D-288 — provisória, pede o olhar do dono);
+  - o ensaio com 100 vezes o movimento achou e corrigiu, antes de subir, duas lentidões do bloco A, o degrau da 6ª leitura nas portas de tempos e o do calendário das rotas; a causa de fundo do calendário (um pré-filtro inútil) foi achada depois da subida e está numa **quinta atualização, por aplicar** (`20261109050000`).
+- **Critérios de aceite:** todos cobertos por teste do banco e de tela; conferidos no ar (só olhando) a Expedição com o 13652 e o 13684, o PCP sem eles, o botão e a janela do painel, a TV e as entregas. **Ficaram sem conferir:** os advisors (a leitura de produção foi barrada para a sessão), o seletor de vários arquivos com a câmera no celular do entregador e a medida de velocidade no aparelho.
+- **ClickUp:** as 5 tarefas em FAZENDO, com o comentário do que foi entregue; a 6ª (o aviso na Expedição) segue por criar, com o OK do dono.
 
 ---
 

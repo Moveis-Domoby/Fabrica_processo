@@ -1,0 +1,177 @@
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  136 migrations aplicadas (a última: 20261109010000_plt_sessao47_base.sql) (8 s)
+  pedidos 562.700 (43 s)
+  peças vivas 20.400 e arquivadas 45.500 (62 s)
+  cards 95.169 · eventos 45.500 · vivos na LIMPEZA 7.700 · pedidos aguardando no PCP 3.700 (68 s)
+  bloco B: pedidos entregues 15.167 (ontem: 408) · programações 15.467 · eventos 60.667 · hoje na fábrica 2026-11-09 (77 s)
+  a rota de ONTEM medida: caminhão 2, rota 1 (153 paradas programadas)
+  as 7 portas de leitura de ANTES copiadas para o esquema antes47 (77 s)
+
+== ANTES (até a base da SESSAO-47) — os gestos ==
+  GESTO (antes): registrar a entrega de hoje (5 pedidos)                               mediana     56.4 ms · máx     84.6 ms · cada: 85 · 60 · 56 · 53 · 54
+
+  a migration do bloco B (20261109030000_plt_entrega_dia_real.sql) aplicada em 4.5 s — entregas vigentes 15.172, com o dia projetado 15.172, sem o dia 0
+  a mesma migration de novo (reaplicável): 0.4 s
+
+== ANTES × DEPOIS, alternados na mesma conexão (mediana da 2ª chamada em diante) ==
+  ROTAS → Entregues (20)                             antes   3763.5 ms · depois   3632.4 ms · -3% · resposta igual · 20 linhas · total 15172
+      antes  (ms): 5779 · 3763 · 3705 · 3763 · 3618 · 3993 · 3897
+      depois (ms): 3900 · 3465 · 3612 · 3632 · 3578 · 5707 · 4339
+  ROTAS → A entregar (20)                            antes   4902.0 ms · depois   4993.3 ms · +2% · resposta igual · 20 linhas · total 6302
+      antes  (ms): 4236 · 5417 · 4791 · 4902
+      depois (ms): 4258 · 4993 · 4799 · 6109
+  Já programadas — entregues (50)                    antes   4217.9 ms · depois   3717.7 ms · -12% · resposta igual · 50 linhas · total 15172
+      antes  (ms): 5709 · 4544 · 4218 · 4182 · 4145
+      depois (ms): 3750 · 3718 · 3767 · 3649 · 3698
+  Já programadas — entregues de ONTEM (50)           antes    127.0 ms · depois    124.7 ms · -2% · resposta igual · 50 linhas · total 408
+      antes  (ms): 135 · 118 · 159 · 127 · 126 · 125 · 147
+      depois (ms): 129 · 137 · 123 · 125 · 119 · 115 · 141
+  Já programadas — por entregar (50)                 antes   1738.3 ms · depois    140.4 ms · -92% · resposta igual · 50 linhas · total 300
+      antes  (ms): 1727 · 1772 · 1707 · 1738 · 1683
+      depois (ms): 145 · 140 · 167 · 140 · 135
+  entregas do dia — HOJE (caminhão 1, rota 1)        antes     53.0 ms · depois     65.1 ms · +23% · resposta diferente · 117 paradas · de outro dia 0
+      antes  (ms): 62 · 51 · 53 · 52 · 67 · 64 · 41
+      depois (ms): 69 · 66 · 65 · 62 · 95 · 65 · 47
+  entregas do dia — ONTEM (a rota mais cheia)        antes     50.1 ms · depois     60.2 ms · +20% · resposta diferente · 153 paradas · de outro dia 51
+      antes  (ms): 48 · 47 · 50 · 57 · 59 · 46 · 46
+      depois (ms): 58 · 63 · 58 · 57 · 64 · 58 · 60
+  calendário da semana (plano sob medida nas duas)   antes   2024.5 ms · depois   2022.3 ms · -0% · resposta diferente · 7 dias · entregue 1586 · na rota 240 · sem rota 1652
+      antes  (ms): 2146 · 2095 · 2178 · 2000 · 2024 · 1944 · 2005
+      depois (ms): 1994 · 2072 · 1940 · 2076 · 2022 · 1964 · 1966
+  Pedidos — a lista (20)                             antes    108.0 ms · depois    112.5 ms · +4% · resposta igual · 20 linhas
+      antes  (ms): 109 · 105 · 107 · 108 · 126 · 107 · 117
+      depois (ms): 111 · 105 · 113 · 118 · 107 · 113 · 105
+  Pedidos — a busca pelo número (20)                 antes   7674.6 ms · depois   7790.5 ms · +2% · resposta igual · 12 linhas
+      antes  (ms): 5805 · 7675 · 7572 · 7077 · 8141 · 8049 · 6016
+      depois (ms): 6025 · 7791 · 8076 · 7261 · 7897 · 7057 · 5930
+  ficha de um pedido entregue                        antes     16.9 ms · depois     15.7 ms · -7% · resposta diferente · entrega em 2026-10-15T14:47:59.716-03:00
+      antes  (ms): 23 · 14 · 21 · 17 · 17 · 15 · 3
+      depois (ms): 18 · 22 · 20 · 15 · 14 · 16 · 4
+  painel de motivos (30 dias)                        antes     17.9 ms · depois     18.5 ms · +3% · resposta igual · entregas no período 12061
+      antes  (ms): 30 · 18 · 18 · 17 · 18 · 21 · 11
+      depois (ms): 23 · 19 · 18 · 19 · 17 · 19 · 7
+
+== DEPOIS — o calendário das rotas ==
+  a semana, 8 seguidas (a função com o plano sob medida)         1ª   1985.7 ms · da 2ª em diante: mediana   1998.1 ms · máx   2046.6 ms · 7 dias · entregue 1586 · na rota 240 · sem rota 1652
+      cada chamada (ms): 1986 · 2033 · 2016 · 1970 · 1982 · 1998 · 1983 · 2047
+  3 semanas (o modo mês)                                         1ª   3242.8 ms · da 2ª em diante: mediana   3283.4 ms · máx   3283.4 ms · 21 dias · entregue 5624 · na rota 300 · sem rota 3773
+      cada chamada (ms): 3243 · 3283 · 3259
+  6 semanas (o mês inteiro da tela)                              1ª   4751.9 ms · da 2ª em diante: mediana   4933.9 ms · máx   4933.9 ms · 42 dias · entregue 11245 · na rota 300 · sem rota 5423
+      cada chamada (ms): 4752 · 4893 · 4934
+  a semana SEM a guarda (plano genérico liberado), 10 seguidas: 1178 · 1139 · 1137 · 1156 · 1317 · 1139 · 1137 · 1164 · 1158 · 1114 ms — não cai mais
+  6 semanas SEM a guarda, depois das 10 da semana: 1947 · 2014 · 2021 ms
+
+== DEPOIS — os gestos ==
+  GESTO: registrar a entrega de hoje, como o site publicado (5 pedidos)                mediana     30.5 ms · máx     49.9 ms · cada: 50 · 33 · 30 · 29 · 30
+  GESTO: marcar como entregue ONTEM (5 pedidos)                                        mediana     38.6 ms · máx     62.0 ms · cada: 62 · 39 · 42 · 38 · 37
+  GESTO: o administrador corrige o dia da entrega (5 pedidos)                          mediana     29.7 ms · máx     35.9 ms · cada: 30 · 27 · 26 · 36 · 36
+  GESTO: desfazer a entrega registrada hoje (5 pedidos)                                mediana     36.4 ms · máx     39.4 ms · cada: 39 · 31 · 37 · 36 · 31
+  depois dos gestos: 5 correções de dia registradas · entregas vigentes sem o dia projetado: 0
+
+== a tabela (ms, mediana da 2ª chamada em diante, alternadas) ==
+  | ROTAS → Entregues (20)                             |   3763 |   3632 |    -3% | igual |
+  | ROTAS → A entregar (20)                            |   4902 |   4993 |    +2% | igual |
+  | Já programadas — entregues (50)                    |   4218 |   3718 |   -12% | igual |
+  | Já programadas — entregues de ONTEM (50)           |    127 |    125 |    -2% | igual |
+  | Já programadas — por entregar (50)                 |   1738 |    140 |   -92% | igual |
+  | entregas do dia — HOJE (caminhão 1, rota 1)        |     53 |     65 |   +23% | muda  |
+  | entregas do dia — ONTEM (a rota mais cheia)        |     50 |     60 |   +20% | muda  |
+  | calendário da semana (plano sob medida nas duas)   |   2024 |   2022 |    -0% | muda  |
+  | Pedidos — a lista (20)                             |    108 |    113 |    +4% | igual |
+  | Pedidos — a busca pelo número (20)                 |   7675 |   7791 |    +2% | igual |
+  | ficha de um pedido entregue                        |     17 |     16 |    -7% | muda  |
+  | painel de motivos (30 dias)                        |     18 |     19 |    +3% | igual |
+  --- plano: o calendário — os entregues da semana pelo dia REAL (o índice do dia da entrega)
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=227
+        ->  Hash Join (actual rows=1591.00 loops=1)
+              Hash Cond: (pr.card_id = pc.id)
+              Buffers: shared hit=227
+              ->  Seq Scan on plt_programacoes pr (actual rows=15482.00 loops=1)
+                    Buffers: shared hit=176
+              ->  Hash (actual rows=1591.00 loops=1)
+                    Buckets: 2048 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 58kB
+                    Buffers: shared hit=51
+                    ->  Index Scan using plt_cards_entrega_em_idx on plt_cards pc (actual rows=1591.00 loops=1)
+                          Index Cond: ((entrega_em >= '2026-11-06 00:00:00-03'::timestamp with time zone) AND (entrega_em < '2026-11-13 00:00:00-03'::timestamp with time zone))
+                          Filter: (tipo = 'pedido'::text)
+                          Index Searches: 1
+                          Buffers: shared hit=51
+      Planning:
+        Buffers: shared hit=25
+      Planning Time: 1.440 ms
+      Execution Time: 5.633 ms
+  --- plano: as entregas do dia — o que foi entregue ONTEM e estava programado para outro dia
+      Limit (actual rows=51.00 loops=1)
+        Buffers: shared hit=191
+        ->  Sort (actual rows=51.00 loops=1)
+              Sort Key: pc.entrega_em
+              Sort Method: quicksort  Memory: 18kB
+              Buffers: shared hit=191
+              ->  Hash Join (actual rows=51.00 loops=1)
+                    Hash Cond: (pr.card_id = pc.id)
+                    Buffers: shared hit=191
+                    ->  Seq Scan on plt_programacoes pr (actual rows=15074.00 loops=1)
+                          Filter: (data_entrega <> '2026-11-08'::date)
+                          Rows Removed by Filter: 408
+                          Buffers: shared hit=176
+                    ->  Hash (actual rows=408.00 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 20kB
+                          Buffers: shared hit=15
+                          ->  Index Scan using plt_cards_entrega_em_idx on plt_cards pc (actual rows=408.00 loops=1)
+                                Index Cond: ((entrega_em >= '2026-11-08 00:00:00-03'::timestamp with time zone) AND (entrega_em < '2026-11-09 00:00:00-03'::timestamp with time zone))
+                                Filter: (tipo = 'pedido'::text)
+                                Index Searches: 1
+                                Buffers: shared hit=15
+      Planning:
+        Buffers: shared hit=25
+      Planning Time: 1.764 ms
+      Execution Time: 5.540 ms
+  --- plano: o painel de motivos — as entregas do período (30 dias)
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=318
+        ->  Index Only Scan using plt_cards_entrega_em_idx on plt_cards pc (actual rows=12066.00 loops=1)
+              Index Cond: ((entrega_em >= '2026-10-11 00:00:00-03'::timestamp with time zone) AND (entrega_em < '2026-11-10 00:00:00-03'::timestamp with time zone))
+              Heap Fetches: 12066
+              Index Searches: 1
+              Buffers: shared hit=318
+      Planning:
+        Buffers: shared hit=16
+      Planning Time: 1.010 ms
+      Execution Time: 4.323 ms
+
+fim (427 s)
+
+==================== O FECHO DO CALENDARIO (supervisor, 21:15 de 09/11) - no banco deste ensaio, a funcao sem o pre-filtro ====================
+COM a guarda do plano sob medida (como a 20261109030000 deixou) x SEM a guarda (a 20261109050000), chamadas seguidas na mesma conexao:
+
+== quem chama (o admin do ensaio)
+   cada: 314 ms
+
+== a guarda de volta (como a frente deixou)
+   ok
+
+== COM a guarda: a semana (8 seguidas)
+   cada: 1600 · 1083 · 1128 · 1045 · 1029 · 1043 · 1026 · 1085 ms
+
+== COM a guarda: 6 semanas (4 seguidas)
+   cada: 2976 · 3447 · 2959 · 2999 ms
+
+== tira a guarda
+   ok
+
+== SEM a guarda, ordem invertida: 6 semanas primeiro (8 seguidas)
+   cada: 1212 · 1244 · 1206 · 1231 · 1185 · 1273 · 1219 · 1203 ms
+
+== SEM a guarda: depois a semana (8 seguidas)
+   cada: 773 · 756 · 709 · 1479 · 2417 · 1327 · 1238 · 835 ms
+
+== SEM a guarda: 3 semanas (8 seguidas)
+   cada: 957 · 954 · 952 · 995 · 1082 · 1031 · 1061 · 885 ms
+
+== SEM a guarda: de novo 6 semanas (4 seguidas)
+   cada: 1058 · 1147 · 1055 · 1063 ms
+
+== SEM a guarda: um dia só (8 seguidas)
+   cada: 540 · 524 · 540 · 522 · 519 · 533 · 514 · 544 ms
+
