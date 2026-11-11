@@ -120,8 +120,8 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 
 ## 4. Verificação
 
-- **Bateria do banco** (aplica todas as migrations duas vezes), com as 4 atualizações juntas: **1.713 verdes**; vermelhos só os 2 de fora desta sessão — o antigo do painel de vendas (já falha na `main`) e o do lote do Tiny que **depende do horário** (falha entre 03:10 e 04:40 — E-266). Blocos novos: base 25 (+1 da correção da lista), frente 2 18 (+1), frente 3 24, frente 5 5.
-- **Telas:** **627 testes** verdes (97 arquivos); tipos limpos; lint dos 53 arquivos tocados limpo; o site monta — **JS inicial 233,2 KB** (teto 250).
+- **Bateria do banco** (aplica todas as migrations duas vezes), com as 4 atualizações juntas, rodada às 04:41 (fora da janela da madrugada): **1.714 verdes e 1 vermelho** — o antigo do painel de vendas, que já falha na `main` sem esta sessão. Entre 03:10 e 04:40 o teste do lote do Tiny também fica vermelho por causa do horário (E-266) — não é quebra. Blocos novos: base 25 (+1 da correção da lista), frente 2 18 (+1), frente 3 24, frente 5 5.
+- **Telas:** **628 testes** verdes (97 arquivos); tipos limpos; lint dos 53 arquivos tocados limpo; o site monta — **JS inicial 233,2 KB** (teto 250).
 - **Ensaio ×100** (562.700 pedidos) da base e das frentes 2 e 3 — ver §5.
 - **Celular (375) e tablet (768):** as telas novas sem rolagem lateral (medido no navegador do app); o selo do PCP com alvo de toque de 44 px.
 - **Junção:** conferido por programa que nenhuma função é recriada por duas atualizações; os conflitos foram só "as duas frentes acrescentaram no mesmo lugar" na bateria.

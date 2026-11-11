@@ -25,41 +25,41 @@ Ramo `sessao-48-cancelar-fabricacao-recargas`, na pasta principal (sem worktree)
 ## Task list (espelha a demanda)
 
 **Frente 1 — mover para CANCELADO / NÃO ENCONTRADO tira da produção**
-1. ⏳ Sinal novo na etapa (`cancela_fabricacao` + motivo), ligado no CANCELADO e no NÃO ENCONTRADO da LIMPEZA E EMBALAGEM; o admin liga/desliga em Setores e etapas, no lugar de "conclui a produção".
-2. ⏳ O fato de chegada numa etapa dessas (qualquer caminho: arrasto, tablet, Mover, liberação do PCP) gera `fabricacao_cancelada` (autor, de onde veio, motivo, pedido/reposição) + projeção `cancelada_em`; peça de pedido vivo perde o pedido (`unidade_desvinculada`) e a vaga volta; idempotente.
-3. ⏳ A regra única do que conta: peça cancelada sem categoria (Estoque/Top 20), fora dos contadores, do PCP, da Expedição e dos painéis; log, Auditoria, histórico; aviso ao vivo (setor e estoque).
-4. ⏳ Na coluna: "Cancelada em dd/mm · some em N dias" (ou "Não encontrada em…") no lugar do tempo de fila; ninguém inicia nem trabalha peça cancelada (banco recusa, tela não oferece).
-5. ⏳ Arrastar de volta em 7 dias desfaz (`fabricacao_retomada`): volta a contar; com a vaga ainda aberta volta ao pedido e o aviso some; senão volta sem dono (provisória); reposição só perde a peça (provisória).
+1. ✅ Sinal novo na etapa (`cancela_fabricacao` + motivo), ligado no CANCELADO e no NÃO ENCONTRADO da LIMPEZA E EMBALAGEM; o admin liga/desliga em Setores e etapas, no lugar de "conclui a produção".
+2. ✅ O fato de chegada numa etapa dessas (qualquer caminho: arrasto, tablet, Mover, liberação do PCP) gera `fabricacao_cancelada` (autor, de onde veio, motivo, pedido/reposição) + projeção `cancelada_em`; peça de pedido vivo perde o pedido (`unidade_desvinculada`) e a vaga volta; idempotente.
+3. ✅ A regra única do que conta: peça cancelada sem categoria (Estoque/Top 20), fora dos contadores, do PCP, da Expedição e dos painéis; log, Auditoria, histórico; aviso ao vivo (setor e estoque).
+4. ✅ Na coluna: "Cancelada em dd/mm · some em N dias" (ou "Não encontrada em…") no lugar do tempo de fila; ninguém inicia nem trabalha peça cancelada (banco recusa, tela não oferece).
+5. ✅ Arrastar de volta em 7 dias desfaz (`fabricacao_retomada`): volta a contar; com a vaga ainda aberta volta ao pedido e o aviso some; senão volta sem dono (provisória); reposição só perde a peça (provisória).
 
 **Frente 2 — a vaga volta ao PCP com aviso, e o PCP decide**
-6. ⏳ O pedido ganha o selo "Peça cancelada na produção" / "Peça não encontrada" (texto + cor) e o sino avisa logística e admin.
-7. ⏳ A janela "O que aconteceu?" (uma leitura ao abrir): as peças canceladas (móvel, k/n, coluna, quem, quando) e o que o pedido ainda tem em produção ou pronto; "Produzir de novo" fecha o aviso; "Remover do PCP" com motivo (pedido cancelado — "Cancele também no Tiny"; tirar da linha de produção — "O que houve?" obrigatório; outro motivo — texto obrigatório).
-8. ⏳ "Remover do PCP" no banco: fato `pedido_removido_pcp`, projeção no card, o pedido sai de todas as portas do PCP (regra única), log e Auditoria; aba "Cancelados e removidos" com o motivo e quem; "Devolver ao PCP" (`pedido_devolvido_pcp`); remover não mexe no Tiny nem nas peças em produção/prontas (a janela avisa quantas).
+6. ✅ O pedido ganha o selo "Peça cancelada na produção" / "Peça não encontrada" (texto + cor) e o sino avisa logística e admin.
+7. ✅ A janela "O que aconteceu?" (uma leitura ao abrir): as peças canceladas (móvel, k/n, coluna, quem, quando) e o que o pedido ainda tem em produção ou pronto; "Produzir de novo" fecha o aviso; "Remover do PCP" com motivo (pedido cancelado — "Cancele também no Tiny"; tirar da linha de produção — "O que houve?" obrigatório; outro motivo — texto obrigatório).
+8. ✅ "Remover do PCP" no banco: fato `pedido_removido_pcp`, projeção no card, o pedido sai de todas as portas do PCP (regra única), log e Auditoria; aba "Cancelados e removidos" com o motivo e quem; "Devolver ao PCP" (`pedido_devolvido_pcp`); remover não mexe no Tiny nem nas peças em produção/prontas (a janela avisa quantas).
 
 **Frente 3 — pedido cancelado no Tiny pergunta o destino**
-9. ⏳ Cancelamento do Tiny com peça em produção (não concluída): marca "esperando decisão" (fato + projeção), sai do "produção de pedido", etiqueta "Pedido cancelado — esperando decisão da logística", sino para logística e admin. A peça pronta segue indo sozinha ao ESTOQUE.
-10. ⏳ A janela "Para onde vai este móvel?" (uma leitura ao abrir; peça por peça ou todas): seguir para o estoque · passar para outro pedido (régua da D-62, maquinaria da D-201; desabilitada com o porquê) · cancelar a fabricação (o gesto da frente 1).
-11. ⏳ Sem decisão e chegou ao fim da linha → ESTOQUE sem dono e a pendência fecha com fato; pedido "descancelado" antes da decisão → a marca sai e a peça volta ao pedido.
+9. ✅ Cancelamento do Tiny com peça em produção (não concluída): marca "esperando decisão" (fato + projeção), sai do "produção de pedido", etiqueta "Pedido cancelado — esperando decisão da logística", sino para logística e admin. A peça pronta segue indo sozinha ao ESTOQUE.
+10. ✅ A janela "Para onde vai este móvel?" (uma leitura ao abrir; peça por peça ou todas): seguir para o estoque · passar para outro pedido (régua da D-62, maquinaria da D-201; desabilitada com o porquê) · cancelar a fabricação (o gesto da frente 1).
+11. ✅ Sem decisão e chegou ao fim da linha → ESTOQUE sem dono e a pendência fecha com fato; pedido "descancelado" antes da decisão → a marca sai e a peça volta ao pedido.
 
 **Frente 4 — a limpeza dos 7 dias e a recuperação**
-12. ⏳ As duas colunas só mostram os últimos 7 dias (filtro na leitura, com índice) — mesmo antes da limpeza.
-13. ⏳ No 8º dia: `card_arquivado` com o motivo, sem relógio novo (na rotina diária que já existe); nada apagado.
-14. ⏳ Recuperar: a peça arquivada na busca geral e na Auditoria com o motivo; o admin recupera (`fabricacao_retomada` + desarquivar) e ela volta para a fila da LIMPEZA E EMBALAGEM; os 7 dias numa configuração.
+12. ✅ As duas colunas só mostram os últimos 7 dias (filtro na leitura, com índice) — mesmo antes da limpeza.
+13. ✅ No 8º dia: `card_arquivado` com o motivo, sem relógio novo (na rotina diária que já existe); nada apagado.
+14. ✅ Recuperar: a peça arquivada na busca geral e na Auditoria com o motivo; o admin recupera (`fabricacao_retomada` + desarquivar) e ela volta para a fila da LIMPEZA E EMBALAGEM; os 7 dias numa configuração.
 
 **Frente 5 — a plataforma que recarrega sozinha**
-15. ⏳ (a) Documentação não publica o site (`ignoreCommand` no `vercel.json`) — **só com o OK do dono**.
-16. ⏳ (b) A versão é o código (hash do arquivo de entrada no `versao.json`), não o commit.
-17. ⏳ (c) Recarregar só em momento seguro no tablet e na TV (sem janela, sem PIN, 1 min sem toque); escritório na troca de tela; pedaço sumido no tablet: "Atualizando a plataforma…" e uma recarga; ver a proteção contra versões misturadas da Vercel (perguntar se for paga).
-18. ⏳ (d) A abertura grava o porquê (navigate/reload/back_forward, aba descartada, motivo da própria plataforma) e a Auditoria mostra em português.
-19. ⏳ (e) A troca de setor por PIN recarrega uma vez só (reproduzir o laço de 10/11 11:23).
-20. ⏳ (f) Regra da casa: subir para a main é publicar (memória + CLAUDE.md).
+15. ✅ (a) Documentação não publica o site (`ignoreCommand` no `vercel.json`) — escrito e provado num clone raso; ⏳ **entra na Vercel com a publicação, só com o OK do dono** (e a prova com um commit só de cofre).
+16. ✅ (b) A versão é o código (hash do arquivo de entrada no `versao.json`), não o commit.
+17. ✅ (c) Recarregar só em momento seguro no tablet e na TV (sem janela, sem PIN, 1 min sem toque); escritório na troca de tela; pedaço sumido no tablet: "Atualizando a plataforma…" e uma recarga; ver a proteção contra versões misturadas da Vercel (perguntar se for paga).
+18. ✅ (d) A abertura grava o porquê (navigate/reload/back_forward, aba descartada, motivo da própria plataforma) e a Auditoria mostra em português.
+19. ✅ (e) A troca de setor por PIN recarrega uma vez só (reproduzir o laço de 10/11 11:23).
+20. ✅ (f) Regra da casa: subir para a main é publicar (memória + CLAUDE.md).
 
 **Acerto (só com o OK do dono)**
-21. ⏳ Manutenção `supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql` ensaiada com contagens antes/depois; aplicada só com o OK; recontar o estoque; conferir a Estante Basic 7 nichos e os móveis afetados.
+21. ✅ Manutenção `supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql` ensaiada com contagens antes/depois; aplicada só com o OK; recontar o estoque; conferir a Estante Basic 7 nichos e os móveis afetados. ⏳ **Rodar no banco só com o OK do dono** (o ensaio que não grava primeiro).
 
 **Geral**
-22. ⏳ Celular 375 e tablet 768 sem rolagem lateral; bateria 2×, tsc, lint, vitest, build, advisors; ensaio ×100 das portas novas/tocadas; cada tela em 1 requisição, sem relógio novo.
-23. ⏳ Cofre: decisões provisórias, memória, esquema, lei, modelo de sistema, handoff com fotos, ordem, mapa, resultado na demanda.
+22. ✅ Celular 375 e tablet 768 sem rolagem lateral; bateria 2×, tsc, lint, vitest, build, ⏳ advisors só depois de aplicar (o banco de produção não foi lido nesta sessão); ensaio ×100 das portas novas/tocadas; cada tela em 1 requisição, sem relógio novo.
+23. ✅ Cofre: decisões provisórias, memória, esquema, lei, modelo de sistema, handoff com fotos, ordem, mapa, resultado na demanda.
 
 ## Lições da memória que valem nesta sessão
 
@@ -79,3 +79,11 @@ Ramo `sessao-48-cancelar-fabricacao-recargas`, na pasta principal (sem worktree)
 - ~02:30 · **telas das frentes 1 e 4** (eu): cartão ("Cancelada em dd/mm · some em N dias", "Era do pedido N", a etiqueta do pedido cancelado esperando decisão), coluna ("tira da produção · some em N dias"), Setores e etapas (as duas escolhas novas + o prazo em dias), janela do card (o aviso e "Recuperar a peça" para o admin), busca geral (onde a peça cancelada está / quando saiu da coluna). Testes de tela: 558 verdes. O arquivo do acerto `supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql` (ensaio que não grava / aplicar com a marca), provado na bateria. Commit `cf8df98`.
 - ~02:40 · **ensaio ×100** (562.700 pedidos; 5.300 peças paradas nas colunas): achou dois defeitos reais e um de desempenho — E-254 (peça antiga sem pai e fora do catálogo ficaria sem nada ao perder o pedido), E-256 (cancelar de novo a mesma vaga esbarrava na trava "uma peça por vaga" das peças sem pedido), E-255 (a janela dos 7 dias lia a data card a card: 210 → 272 ms no quadro da LIMPEZA). Corrigidos (commits `ea7091e`, `58e7c64`); casos novos na bateria. Bateria final da base: **1.665 verdes, 1 vermelho antigo** (o painel de vendas, que já falhava na main).
 - **Desempenho (×100, `dados/SESSAO-48 - ensaio x100 do cancelamento da fabricacao`)** — antes × depois da base, rodada com a máquina livre: PCP 84,8 → 84,7 ms · aba Stand-by 8,7 → 8,6 · porta antiga 205 → 206 · quadrinho 71,5 → 72,0 · quadro da LIMPEZA 214 → 212 (depois da correção) · "Ver mais" 58,6 → 59,0 · busca 37 → 39 · lista de pedidos 65 → 65 · janela de liberar 44 → 45. O gesto de cancelar: mediana 52 ms; retomar: 14 ms; o acerto: 5.300 peças em 25–31 s numa transação (no real são 53 → ~0,3 s); a limpeza: 2.650 peças em 87 s (33 ms por peça — cada arquivamento passa pelos gatilhos de sempre; no real, poucas por noite); rodar de novo: 2 ms. Depois do acerto o PCP do ensaio fica mais lento (84 → 140 ms) porque as peças semeadas eram de pedidos SEM itens (o "liberado por inteiro" deles vira nulo e o quadro filtra mais linhas) — estado que o acerto real não cria. As portas que já passavam do teto no ×100 (porta antiga do PCP, quadro da LIMPEZA) já passavam antes desta sessão.
+- ~03:00–03:40 · **as frentes entregaram**, cada uma no seu ramo e com o seu diário: [[SESSAO-48 - frente 5]] (a versão pelo código, o pulo da documentação, a recarga em momento seguro, o porquê da abertura, o laço da troca de setor), [[SESSAO-48 - frente 3]] (o destino do móvel do pedido cancelado no Tiny; ensaio ×100 368 → 33 ms, pior caso 75), [[SESSAO-48 - frente 2]] (o selo, "O que aconteceu?", remover/devolver, a aba "Cancelados e removidos"; ensaio ×100 186 ms → 4 ms). **Junção na ordem:** frente 5 (limpa), frente 3 (conflito só na bateria: a cadeia do bloco 38 e os blocos — resolvido por programa com os marcadores presos ao começo da linha, E-262), frente 2 (conflito só na cadeia). Antes: conferido por programa que nenhuma função é recriada por duas migrations (`sobreposicao.mjs` — A-217). Commits `2565cef`, `4a6f1e4`, `303fb36`.
+- ~04:00 · **o app fechou** no meio da bateria e da montagem; ao reabrir, o rascunho da sessão mudou de pasta (E-264). Os programas pequenos (subida, acerto, resolvedores) foram copiados para o rascunho novo (`…\5c91cc81118c8f02\…\scratchpad\s48\`); a cópia antiga (com os bancos dos ensaios) ficou em `…\e0216271dda9b13d\…\scratchpad\s48\`. Testes rodados de novo.
+- **Tudo junto:** vitest **97 arquivos / 628 testes** verdes; `tsc -b` limpo; lint dos **53** arquivos tocados limpo (rodado com o shell na pasta principal — E-258 não se aplica); montagem **JS inicial 233,2 KB** (teto 250).
+- **Achados da frente 2 corrigidos na junção (E-261/D-300):** a lista de Pedidos mostrava "Em produção" para o pedido removido com peça liberada e contava como liberada a peça cancelada que guarda o card do pedido como pai; a busca geral mostrava o removido como "PCP · aguardando liberação". Correção na base (rótulo `removido_pcp` antes de `aguardo`/`producao`, `cancelada_em is null` nas liberadas, a chave `removido_pcp_em` na busca) + a pílula e o atalho em `src/busca/ondeEsta.ts` + 2 conferências novas na bateria (verdes) + 1 teste de tela. Commit `4a38767`.
+- **Fotos** (vitrine — `vitrine-s48/`, fora dos commits): cenas novas do PCP (selo, "O que aconteceu?", o 2º passo "Remover do PCP" com toques automáticos — A-218, "Cancelados e removidos") e do destino ("Para onde vai este móvel?", com "Passar para outro pedido" escolhido). As fotos de celular pelo Edge sem janela saíram cortadas (E-265) — refeitas pelo navegador do app (375×812 e 768×1024, sem rolagem lateral: `scrollWidth` = largura).
+- **Cofre:** decisões D-299…D-305 (as provisórias das frentes + a correção da lista), memória E-257…E-267 e A-212…A-220, lei (o andamento da sessão + dívidas 36 e 37), modelo de sistema (a aba do PCP, o selo, as duas janelas, a recarga), esquema (as 3 migrations das frentes + a correção), a regra da casa no CLAUDE.md (subir para a main é publicar — A-220), handoff, ordem das sessões, mapa e o "Resultado" da demanda.
+- **Programa de subida** (`subir/subir-s48.mjs`, no rascunho): agora acha sozinho as 19 funções novas (da saída do `vigentes-antes`), confere quem chama as QUATRO regras que mudam de assinatura e, no passo `site`, busca a main do GitHub e só envia se ela for ancestral do ramo.
+- ~04:41 · **bateria final**, fora da janela da madrugada: **1.714 verdes, 1 vermelho antigo** (o painel de vendas — já falha na `main`); o do lote do Tiny passou (era só o relógio — E-266). As 3 cópias temporárias das frentes removidas (o atalho do `node_modules` solto antes, para não apagar o da pasta principal — conferido: 248 itens antes e depois) e os 3 ramos das frentes apagados (já juntados no ramo da sessão).
