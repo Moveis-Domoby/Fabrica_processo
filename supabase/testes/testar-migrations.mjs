@@ -22815,6 +22815,14 @@ try {
     eG.cancelada && eG.pedido_id === null && eG.pai === cardG && eG.produto_tiny_id === null,
     'a peça antiga sem pai e de móvel fora do catálogo também sai da produção: perde o pedido e guarda o card dele como pai (a coerência da peça não recusa)',
     JSON.stringify(eG))
+  // ↪️ (supervisor, achado da frente 2) a lista de Pedidos não conta a peça cancelada como liberada
+  await como48(E40.admin)
+  const listaG = await um48(`select unidades_liberadas::int as lib, situacao_plataforma as s
+                                from public.plt_fn_pedidos_lista('97487') where numero = 97487`)
+  await como48('')
+  conferir(listaG?.lib === 0 && listaG?.s === 'pcp',
+    'a lista de Pedidos não conta a peça cancelada como liberada (nem a de fora do catálogo, que guarda o card do pedido como pai): 0 liberadas e o pedido volta a "no PCP"',
+    JSON.stringify(listaG))
 
   // ---------------- 5 · a regra do PCP: removido do PCP ----------------
   titulo('SESSAO-48 · base · a regra única do PCP: o pedido removido sai de todas as portas e volta ao ser devolvido')
@@ -23198,6 +23206,14 @@ try {
       && jan3.removido?.motivo === 'fora_da_linha' && jan3.removido?.texto === 'o cliente vai buscar na loja' && jan3.removido?.por === admin.nome,
     '"Remover do PCP": o fato com o motivo, o texto e o autor; o pedido sai do quadro, da porta antiga e do quadrinho (painel = quadro); devolve quantas peças seguem (1 em produção, 1 pronta) — elas e o Tiny não mudam; remover de novo não grava nada; a janela diz quem removeu e por quê',
     JSON.stringify({ rem1, rem2, projA, fRem, pcp3, pecasAntes, pecasDepois, tinyAntes, tinyDepois }))
+  // ↪️ (supervisor, achado da frente 2) a lista de Pedidos e a busca geral dizem que o pedido saiu do
+  // PCP — mesmo com peça dele em produção e pronta
+  const lista3 = await como(E40.admin, `select situacao_plataforma as s from public.plt_fn_pedidos_lista('97521') where numero = 97521`)
+  const busca3 = await como(E40.admin, `select it from jsonb_array_elements(public.plt_fn_busca_cards('97521') -> 'itens') it
+                                          where (it ->> 'id')::int = ${cardA}`)
+  conferir(lista3?.s === 'removido_pcp' && busca3?.it?.removido_pcp_em != null && busca3?.it?.removido_pcp_motivo === 'fora_da_linha',
+    'o pedido removido aparece como "Removido do PCP" na lista de Pedidos (mesmo com 1 peça em produção e 1 pronta) e a busca geral sabe que ele saiu do PCP',
+    JSON.stringify({ lista3, busca3 }))
 
   // removido do PCP, a peça que se cancela depois não reabre o aviso nem toca o sino
   const notiAntes = (await um482(`select count(*)::int as n from public.plt_notificacoes where tipo = 'peca_cancelada_pcp' and card_id = ${cardA}`)).n

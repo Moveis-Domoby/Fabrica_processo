@@ -139,6 +139,21 @@ describe('o atalho do quadro no card do pedido', () => {
       '/fabrica/producao/pcp?aba=standby&filtro=13721',
     )
   })
+
+  it('o pedido removido do PCP diz que saiu e o atalho leva à aba "Cancelados e removidos" (SESSAO-48)', () => {
+    const removido: ItemDaBusca = {
+      ...base,
+      tipo: 'pedido',
+      setor_codigo: 'pcp',
+      setor_papel: 'entrada',
+      // com peça liberada e até em stand-by antes: a remoção é o que vale
+      standby: true,
+      removido_pcp_em: '2026-11-10T15:00:00Z',
+      removido_pcp_motivo: 'fora_da_linha',
+    }
+    expect(ondeEsta(removido)).toEqual({ texto: 'Removido do PCP em 10/11', tom: 'neutro' })
+    expect(rotaDoQuadroFiltrado(removido)).toBe('/fabrica/producao/pcp?aba=cancelados&filtro=13721')
+  })
 })
 
 describe('a peça com a fabricação cancelada na busca geral (SESSAO-48)', () => {

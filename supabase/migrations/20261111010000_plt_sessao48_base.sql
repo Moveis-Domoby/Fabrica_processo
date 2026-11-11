@@ -1049,12 +1049,13 @@ begin
            when pc.arquivado_em is not null then 'arquivado'
            -- SESSAO-38 (↪️ D-156): o PROGRAMADO também está "Em rota" (lançado ou não)
            when pc.lancado_rotas_em is not null or pr.card_id is not null then 'em_rota'
+           -- ↪️ SESSAO-48 (frente 2): o PCP tirou o pedido da linha de produção — vale antes de
+           -- "aguardando"/"em produção": as peças que seguem não desfazem a remoção
+           when pc.removido_pcp_em is not null then 'removido_pcp'
            when coalesce(i.total_unidades, 0) > 0 and coalesce(u.prontas, 0) >= i.total_unidades then 'aguardo'
            when coalesce(u.liberadas, 0) > 0 then 'producao'
            -- D-132: o Tiny já levou adiante e nada foi liberado — segue o Tiny.
            -- ↪️ SESSAO-47: … a não ser que a logística o tenha devolvido ao PCP
-           -- ↪️ SESSAO-48 (frente 2): o PCP tirou o pedido da linha de produção
-           when pc.removido_pcp_em is not null then 'removido_pcp'
            when plt_privado.fn_fora_do_pcp(nu.situacao, pc.volta_pcp_em, pc.removido_pcp_em) then 'tiny'
            else 'pcp'
          end                                     as situacao_plataforma,
@@ -1094,6 +1095,7 @@ begin
         from public.plt_cards cu
        where cu.tipo = 'unidade'
          and (cu.pedido_id = nu.id or (pc.id is not null and cu.card_pai_id = pc.id))
+         and cu.cancelada_em is null   -- SESSAO-48: a peça cancelada perdeu o pedido (a vaga voltou)
     ) u on true
    where nu.n <= v_lim
    order by nu.numero desc;
@@ -2688,6 +2690,9 @@ begin
                'standby', c.standby_desde is not null,
                'executor', u.nome,
                'rota_dia', r.data_entrega, 'rota_caminhao', r.caminhao, 'rota_numero', r.rota)
+             -- SESSAO-48: o pedido removido do PCP (a chave só nasce quando há o que dizer)
+             || case when c.removido_pcp_em is null then '{}'::jsonb
+                     else jsonb_build_object('removido_pcp_em', c.removido_pcp_em, 'removido_pcp_motivo', c.removido_pcp_motivo) end
              -- SESSAO-48: a peça cancelada (a chave só nasce quando há o que dizer)
              || case when c.cancelada_em is null then '{}'::jsonb
                      else jsonb_build_object('cancelada_em', c.cancelada_em, 'cancelada_motivo', c.cancelada_motivo,

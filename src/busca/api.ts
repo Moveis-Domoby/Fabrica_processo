@@ -43,6 +43,12 @@ export interface ItemDaBusca {
   cancelada_em?: string | null
   cancelada_motivo?: 'cancelada' | 'nao_encontrada' | null
   cancelada_pedido_numero?: number | null
+  /**
+   * SESSAO-48 (frente 2): o card do PEDIDO que o PCP tirou da linha de produção —
+   * mora na aba "Cancelados e removidos". Ausente = não foi removido.
+   */
+  removido_pcp_em?: string | null
+  removido_pcp_motivo?: 'pedido_cancelado' | 'fora_da_linha' | 'outro' | null
 }
 
 export interface PaginaDaBusca {
