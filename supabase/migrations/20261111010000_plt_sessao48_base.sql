@@ -1239,6 +1239,164 @@ create trigger plt_eventos_projetar_cancelamento
   execute function plt_privado.fn_projetar_fatos_cancelamento();
 
 -- ----------------------------------------------------------------------------
+-- 6b · A peça que fica sem dono guarda um pai (achado do ensaio ×100 — E-254): a
+--      coerência da peça exige pedido, produto ou pai; a peça antiga sem pai e de
+--      produto fora do catálogo ficava sem nada. O fato pode trazer o pai (o card do
+--      pedido) — a projeção só o usa quando a peça não tem um.
+-- ----------------------------------------------------------------------------
+
+-- (recriada da vigente em 20260927120000_plt_producao_concluida_cancelamentos.sql)
+create or replace function plt_privado.fn_projetar_posicao()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_terminal boolean;
+  v_tipo_card text;
+  v_pedido_id bigint;
+  v_pai_id    bigint;
+begin
+  if new.tipo in ('card_criado', 'movimentacao_setor', 'movimentacao_etapa') then
+    select s.papel_no_fluxo = 'terminal'
+      into v_terminal
+      from public.plt_setores s
+     where s.id = coalesce(new.setor_destino_id,
+                           (select c.setor_atual_id from public.plt_cards c where c.id = new.card_id));
+
+    update public.plt_cards
+       set setor_atual_id = coalesce(new.setor_destino_id, setor_atual_id),
+           etapa_atual_id = new.etapa_destino_id,
+           desde          = new.ocorrido_em,
+           executor_atual_id = null,
+           -- SESSAO-22: mover encerra a execução — e a pausa junto com ela.
+           pausado_em     = null,
+           responsavel_id = case when new.tipo = 'movimentacao_setor'
+                                 then null else responsavel_id end,
+           -- SESSAO-23: o afazer era daquele time — o relógio da delegação zera junto.
+           delegado_em    = case when new.tipo = 'movimentacao_setor'
+                                 then null else delegado_em end,
+           -- SESSAO-15: concluído = está num terminal AGORA (D-13); saiu de
+           -- lá (danificado resolvido, ajuste manual), volta a "em produção".
+           concluido_em   = case when coalesce(v_terminal, false)
+                                 then coalesce(concluido_em, new.ocorrido_em)
+                                 else null end
+     where id = new.card_id;
+
+    -- SESSAO-22 (D-48): unidade nova liberada → o card de pedido pode ter
+    -- acabado de completar a liberação.
+    if new.tipo = 'card_criado' then
+      select c.tipo, c.pedido_id, c.card_pai_id into v_tipo_card, v_pedido_id, v_pai_id
+        from public.plt_cards c where c.id = new.card_id;
+      if v_tipo_card = 'unidade' and v_pedido_id is not null then
+        perform plt_privado.fn_recalcular_liberacao(v_pedido_id);
+      elsif v_tipo_card = 'unidade' and v_pai_id is not null then
+        -- SESSAO-25: unidade da REPOSIÇÃO — o card de reposição pode ter
+        -- acabado de completar a liberação.
+        perform plt_privado.fn_recalcular_liberacao_reposicao(v_pai_id);
+      end if;
+    end if;
+
+  elsif new.tipo = 'execucao_iniciada' then
+    -- Iniciar num card já em execução por OUTRA pessoa = transferência (D-24):
+    -- fecha para um, abre para o outro — e encerra pausa que houver.
+    update public.plt_cards
+       set executor_atual_id = new.usuario_id,
+           pausado_em = null
+     where id = new.card_id;
+
+  elsif new.tipo = 'execucao_finalizada' then
+    update public.plt_cards
+       set executor_atual_id = null,
+           pausado_em = null
+     where id = new.card_id;
+
+  elsif new.tipo = 'execucao_pausada' then
+    -- SESSAO-22 (D-48): a urgência entra porque o pausado sai do limite.
+    update public.plt_cards
+       set pausado_em = new.ocorrido_em
+     where id = new.card_id;
+
+  elsif new.tipo = 'execucao_retomada' then
+    update public.plt_cards
+       set pausado_em = null
+     where id = new.card_id;
+
+  elsif new.tipo = 'estorno' then
+    -- O estado guardado é projeção; o evento é a verdade (M-13). A pausa
+    -- pertencia à execução desfeita — zera junto.
+    update public.plt_cards
+       set executor_atual_id = plt_privado.fn_executor_pelo_log(new.card_id),
+           pausado_em = null
+     where id = new.card_id;
+
+  elsif new.tipo in ('qualidade_marcada', 'qualidade_parecer') then
+    update public.plt_cards
+       set qualidade_atual = new.estado_qualidade
+     where id = new.card_id;
+
+  elsif new.tipo = 'card_arquivado' then
+    update public.plt_cards
+       set arquivado_em = new.ocorrido_em,
+           executor_atual_id = null,
+           pausado_em = null
+     where id = new.card_id;
+
+  elsif new.tipo = 'delegacao' then
+    -- SESSAO-23: o relógio da fila de prioridade nasce (ou zera) aqui.
+    update public.plt_cards
+       set responsavel_id = nullif(new.dados ->> 'responsavel_id', '')::uuid,
+           delegado_em = case when nullif(new.dados ->> 'responsavel_id', '') is null
+                              then null else new.ocorrido_em end
+     where id = new.card_id;
+
+  elsif new.tipo = 'pedido_lancado_rotas' then
+    -- SESSAO-15 (D-45): o card de pedido passa a existir para as ROTAS.
+    update public.plt_cards
+       set lancado_rotas_em = new.ocorrido_em
+     where id = new.card_id;
+
+  elsif new.tipo = 'pedido_atualizado' then
+    -- SESSAO-22 (D-48): o Tiny pode ter mudado os itens — o "completo" muda junto.
+    select c.pedido_id into v_pedido_id
+      from public.plt_cards c where c.id = new.card_id;
+    if v_pedido_id is not null then
+      perform plt_privado.fn_recalcular_liberacao(v_pedido_id);
+    end if;
+
+  elsif new.tipo = 'unidade_desvinculada' then
+    -- SESSAO-24: a peça perdeu o pedido (cancelado no Tiny) — fica SEM DONO.
+    -- O produto do catálogo vem no evento (nulo quando personalizada ou fora
+    -- do catálogo: aí a peça é o próprio item — SKU + descrição).
+    select c.pedido_id into v_pedido_id
+      from public.plt_cards c where c.id = new.card_id;
+    update public.plt_cards
+       set pedido_id       = null,
+           produto_tiny_id = coalesce(produto_tiny_id,
+                                      nullif(new.dados ->> 'produto_tiny_id', '')::bigint),
+           -- SESSAO-48: o pai que o fato traz, só quando a peça não tem um
+           card_pai_id     = coalesce(card_pai_id, nullif(new.dados ->> 'card_pai_id', '')::bigint)
+     where id = new.card_id;
+    if v_pedido_id is not null then
+      perform plt_privado.fn_recalcular_liberacao(v_pedido_id);
+    end if;
+
+  elsif new.tipo = 'peca_alocada' then
+    -- SESSAO-24: a peça livre virou unidade pronta de um pedido (card novo, no
+    -- aguardo) — esta sai de todas as listas; a história dela fica.
+    update public.plt_cards
+       set arquivado_em = new.ocorrido_em,
+           executor_atual_id = null,
+           pausado_em = null
+     where id = new.card_id;
+  end if;
+
+  return null;
+end;
+$$;
+
+-- ----------------------------------------------------------------------------
 -- 7 · O gesto: a peça que CHEGA numa etapa que cancela sai da produção; a que
 --     SAI dela (para qualquer outra etapa ou setor) volta — por qualquer caminho
 -- ----------------------------------------------------------------------------
@@ -1338,7 +1496,10 @@ begin
                 'pedido_id',       v_card.pedido_id,
                 'numero',          v_pedido.numero,
                 'card_pedido_id',  v_pc.id,
-                'produto_tiny_id', plt_privado.fn_produto_do_item(v_card.item_codigo, v_card.item_descricao)));
+                'produto_tiny_id', plt_privado.fn_produto_do_item(v_card.item_codigo, v_card.item_descricao),
+                -- a peça antiga sem pai (e sem produto do catálogo) ficaria sem nada e
+                -- a coerência da peça recusaria: ela passa a ter o card do pedido como pai
+                'card_pai_id',     case when v_card.card_pai_id is null then v_pc.id end));
   end if;
 
   -- o sino do PCP (logística e admin): a vaga voltou
@@ -1543,13 +1704,15 @@ as $$
        and (p_so_ids is null or v.id = any (p_so_ids))
        -- SESSAO-48: na coluna que cancela a fabricação, só os últimos N dias (o resto a
        -- rotina da madrugada arquiva) — a coluna não incha nem antes de a limpeza rodar.
-       -- A pergunta "esta coluna cancela?" não depende da linha (calculada uma vez); a data
-       -- do card só é lida nas colunas que cancelam (o índice plt_cards_cancelada_idx).
-       and (case when not exists (select 1 from public.plt_etapas e
-                                   where e.id = p_etapa_id and e.cancela_fabricacao) then true
-                 else coalesce((select c2.cancelada_em from public.plt_cards c2 where c2.id = v.id), 'infinity'::timestamptz)
-                        >= (select now() - make_interval(days => e.cancela_dias::int)
-                              from public.plt_etapas e where e.id = p_etapa_id) end)
+       -- Os que passaram do prazo saem por um conjunto calculado UMA vez (o índice
+       -- plt_cards_cancelada_idx; vazio fora das colunas que cancelam) — nada linha a linha
+       -- (a 1ª versão lia a data de cada card: +60 ms no ensaio ×100 — E-255).
+       and v.id not in (select c2.id
+                          from public.plt_cards c2
+                          join public.plt_etapas e on e.id = c2.etapa_atual_id and e.cancela_fabricacao
+                         where c2.etapa_atual_id = p_etapa_id
+                           and c2.cancelada_em is not null and c2.arquivado_em is null
+                           and c2.cancelada_em < now() - make_interval(days => e.cancela_dias::int))
   ),
   corte as (
     select case (select modo from m) when 'prioridade' then v.rank_prioridade else v.rank_urgente end as k1,

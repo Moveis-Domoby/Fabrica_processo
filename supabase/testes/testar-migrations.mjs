@@ -22766,6 +22766,19 @@ try {
     'a peça de pedido cancelado no Tiny: sai da produção, sem vaga de volta, sem aviso e sem sino no PCP',
     JSON.stringify({ eC, notiC }))
 
+  // a peça ANTIGA de pedido sem pai e de móvel fora do catálogo (achado do ensaio ×100):
+  // ao perder o pedido ela ficaria sem nada — passa a ter o card do pedido como pai
+  const idG = await gravar48(pedido48(97487, 'Preparando envio', [item48('SX48SOB', 'Mesa sob medida 48 - 1,20 m')]))
+  const cardG = await cardDe(idG)
+  const g1 = await peca(idG, null, 1, 1, 1, ['SX48SOB', 'Mesa sob medida 48 - 1,20 m'])
+  await soltar(g1, cancelado)
+  const eG = await um48(`select pedido_id, card_pai_id::int as pai, produto_tiny_id, cancelada_em is not null as cancelada
+                           from public.plt_cards where id = ${g1}`)
+  conferir(
+    eG.cancelada && eG.pedido_id === null && eG.pai === cardG && eG.produto_tiny_id === null,
+    'a peça antiga sem pai e de móvel fora do catálogo também sai da produção: perde o pedido e guarda o card dele como pai (a coerência da peça não recusa)',
+    JSON.stringify(eG))
+
   // ---------------- 5 · a regra do PCP: removido do PCP ----------------
   titulo('SESSAO-48 · base · a regra única do PCP: o pedido removido sai de todas as portas e volta ao ser devolvido')
   const regras48 = await todos48(`
