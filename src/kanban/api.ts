@@ -1019,3 +1019,196 @@ export async function detalhePedidoPcp(pedidoId: number): Promise<DetalhePedido>
   const { data, error } = await supabase.rpc('plt_fn_pcp_pedido_detalhe', { p_pedido_id: pedidoId })
   return garantir(data as DetalhePedido | null, error, 'Não deu para abrir o pedido')
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-48 (frente 2): a vaga do pedido volta ao PCP com aviso, e o PCP decide
+// — a janela "O que aconteceu?", "Produzir de novo", "Remover do PCP",
+// "Devolver ao PCP" e a aba "Cancelados e removidos".
+// ---------------------------------------------------------------------------
+
+/** Por que o pedido saiu do PCP (a escolha na janela). */
+export type MotivoRemocaoPcp = 'pedido_cancelado' | 'fora_da_linha' | 'outro'
+
+/** Onde estão as peças que ainda carregam o pedido (setor e etapa) e quantas. */
+export interface LugarDasPecas {
+  setor: string | null
+  etapa: string | null
+  /** Num fim de linha (Pedidos em aguardo, ROTAS): pronta. */
+  pronta: boolean
+  pecas: number
+}
+
+/** As peças do pedido que seguem como estão (a janela mostra; remover devolve). */
+export interface PecasQueSeguem {
+  em_producao: number
+  prontas: number
+  onde: LugarDasPecas[]
+}
+
+/** Uma peça do pedido com a fabricação cancelada (CANCELADO / NÃO ENCONTRADO). */
+export interface PecaCanceladaDoPedido {
+  card_id: number
+  descricao: string | null
+  sku: string | null
+  indice: number | null
+  total: number | null
+  // (o tipo vem por import() aqui embaixo — os acréscimos desta frente ficam
+  // todos no fim do arquivo, sem mexer no import do topo)
+  motivo: import('./tipos').MotivoCancelamento
+  /** O setor e a coluna onde ela chegou (o último cancelamento). */
+  setor: string | null
+  etapa: string | null
+  /** Quem a moveu para lá (nulo = automação/integração). */
+  quem: string | null
+  quando: string
+  cancelada_em: string
+  /** Passados os dias da coluna, a limpeza a arquivou (o admin recupera). */
+  arquivada: boolean
+  /** É do aviso de agora (cancelada depois que ele abriu). */
+  nova: boolean
+}
+
+/** O que a janela "O que aconteceu?" mostra — uma requisição ao abrir. */
+export interface AvisoPcpJanela {
+  card_id: number
+  pedido_id: number
+  numero: number
+  cliente: string | null
+  /** A situação no Tiny, como ele grava. */
+  situacao: string | null
+  cancelado_no_tiny: boolean
+  /** O aviso aberto — nulo quando já foi resolvido. */
+  aviso: import('./tipos').AvisoCancelada | null
+  removido: {
+    em: string
+    motivo: MotivoRemocaoPcp
+    texto: string | null
+    por: string | null
+  } | null
+  liberado_completo: boolean
+  vagas: number
+  vagas_abertas: number
+  canceladas: PecaCanceladaDoPedido[]
+  canceladas_total: number
+  pecas: PecasQueSeguem
+}
+
+export async function lerAvisoPcp(cardId: number): Promise<AvisoPcpJanela> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_aviso', { p_card_id: cardId })
+  return garantir(data as AvisoPcpJanela | null, error, 'Não deu para abrir o aviso')
+}
+
+/** "Produzir de novo": fecha o aviso; o pedido segue no PCP para liberar. */
+export async function resolverAvisoPcp(
+  cardId: number,
+): Promise<{ feito: boolean; numero: number | null; vagas_abertas?: number }> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_aviso_resolver', { p_card_id: cardId })
+  if (error) throw new Error(error.message)
+  return data as { feito: boolean; numero: number | null; vagas_abertas?: number }
+}
+
+export interface ResultadoRemoverPcp extends PecasQueSeguem {
+  feito: boolean
+  numero: number | null
+  /** O motivo escolhido (ou 'ja_removido' quando ninguém precisou fazer nada). */
+  motivo: MotivoRemocaoPcp | 'ja_removido'
+}
+
+/**
+ * "Remover do PCP": o pedido sai de todas as portas do PCP. O Tiny e as peças
+ * já em produção ou prontas não mudam — a resposta diz quantas e onde.
+ */
+export async function removerDoPcp(parametros: {
+  cardId: number
+  motivo: MotivoRemocaoPcp
+  texto?: string
+}): Promise<ResultadoRemoverPcp> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_remover', {
+    p_card_id: parametros.cardId,
+    p_motivo: parametros.motivo,
+    p_texto: parametros.texto?.trim() || null,
+  })
+  if (error) throw new Error(error.message)
+  return data as ResultadoRemoverPcp
+}
+
+export interface ResultadoDevolverPcp {
+  feito: boolean
+  numero: number | null
+  /** O Tiny o mantém fora do PCP (cancelado, faturado…) — sai dos removidos, mas não volta ao quadro. */
+  fora_pelo_tiny?: boolean
+  situacao?: string | null
+  standby?: boolean
+}
+
+/** "Devolver ao PCP" (aba "Cancelados e removidos"): desfaz a remoção. */
+export async function devolverAoPcp(cardId: number): Promise<ResultadoDevolverPcp> {
+  const { data, error } = await supabase.rpc('plt_fn_pcp_devolver', { p_card_id: cardId })
+  if (error) throw new Error(error.message)
+  return data as ResultadoDevolverPcp
+}
+
+/** Uma linha da aba "Cancelados e removidos". */
+export interface PedidoCanceladoOuRemovido {
+  card_id: number
+  pedido_id: number
+  numero: number
+  cliente_nome: string
+  data_pedido: string | null
+  situacao: string | null
+  cancelado_no_tiny: boolean
+  cancelado_em: string | null
+  removido_em: string | null
+  removido_motivo: MotivoRemocaoPcp | null
+  removido_texto: string | null
+  removido_por: string | null
+  /** Quando saiu do PCP — a ordem e o cursor da lista (o texto do banco, sem mexer). */
+  saiu_em: string
+  total_unidades: number
+  em_producao: number
+  prontas: number
+  no_estoque: number
+  esperando_decisao: number
+  pode_devolver: boolean
+  tem_mais: boolean
+  /** Só na primeira página. */
+  contagem_total: number | null
+}
+
+/** O cursor da aba: "saiu em" e o card da última linha mostrada. */
+export interface CursorCancelados {
+  saiuEm: string
+  cardId: number
+}
+
+export interface PaginaCancelados {
+  linhas: PedidoCanceladoOuRemovido[]
+  /** O cursor da próxima página — nulo quando acabou. */
+  proxima: CursorCancelados | null
+  total: number | null
+}
+
+export const CANCELADOS_POR_PAGINA = 20
+
+/** A aba "Cancelados e removidos" do PCP — paginada no servidor, por cursor. */
+export async function listarCanceladosRemovidos(parametros: {
+  busca?: string | null
+  depois?: CursorCancelados | null
+  limite?: number
+}): Promise<PaginaCancelados> {
+  const { data, error } = await supabase.rpc('plt_fn_pedidos_cancelados', {
+    p_busca: parametros.busca?.trim() || null,
+    p_limite: parametros.limite ?? CANCELADOS_POR_PAGINA,
+    p_depois_em: parametros.depois?.saiuEm ?? null,
+    p_depois_id: parametros.depois?.cardId ?? null,
+  })
+  if (error) throw new Error(`Não deu para carregar os cancelados e removidos: ${error.message}`)
+  const linhas = (data ?? []) as PedidoCanceladoOuRemovido[]
+  const ultima = linhas.at(-1)
+  return {
+    linhas,
+    proxima:
+      ultima && linhas[0].tem_mais ? { saiuEm: ultima.saiu_em, cardId: ultima.card_id } : null,
+    total: linhas[0]?.contagem_total ?? null,
+  }
+}
