@@ -8683,6 +8683,17 @@ conferir(!priv50.anon && priv50.logado && !priv50.conf_anon, 'anônimo fora; log
 await como50('')
 } // fim do bloco 50
 
+// ↪️ SESSAO-48 · frente 3: o cancelamento do Tiny passou a gravar o destino da peça em
+// produção (destino_pendente / destino_decidido) — também nos cenários antigos deste
+// teste (os pedidos cancelados com peça em produção dos blocos de cima). As migrations
+// antigas que, REAPLICADAS aqui, recriam e VALIDAM a lista de tipos de evento (a 20261027040000
+// e a 20261031020000) precisam aceitar esses fatos — o mesmo jeito da 51 logo abaixo, só na
+// reaplicação do teste (em produção cada uma rodou antes de esses fatos existirem; a base
+// da SESSAO-48, reaplicada no fim de cada cadeia, valida a lista completa).
+const aceitaDestino48 = (sql) =>
+  sql.replaceAll('plt_eventos_tipo_check check (tipo = any (array[',
+                 "plt_eventos_tipo_check check (tipo = any (array['destino_pendente', 'destino_decidido', ")
+
 // ============================================================================
 // SESSAO-27 · AUTOMAÇÕES EM CANVAS (02/10 — migration 51, D-99…D-104):
 // super admin, etiquetas (várias por card, por evento), campos customizados
@@ -8714,7 +8725,8 @@ if (!SQL51.includes("'entrega_desfeita'")) throw new Error('a lista de fatos da 
 // as migrations DEPOIS da 51 recriam funções dela (a 52 a porta da Auditoria, a 53
 // a trilha dos campos) — reaplicar na ordem de produção, 51 → as seguintes (E-81)
 const DEPOIS51 = await Promise.all(
-  arquivos.filter((f) => f > '20261002120000_plt_automacoes_canvas.sql').map((f) => readFile(path.join(MIGRATIONS, f), 'utf8')),
+  arquivos.filter((f) => f > '20261002120000_plt_automacoes_canvas.sql')
+    .map(async (f) => aceitaDestino48(await readFile(path.join(MIGRATIONS, f), 'utf8'))),   // ↪️ SESSAO-48 · frente 3
 )
 await bd.exec(SQL51)
 for (const sql of DEPOIS51) await bd.exec(sql)
@@ -16190,7 +16202,7 @@ try {
   // ↪️ SESSAO-41 (E-19): a das rotas recria os checks dos tipos de evento e de
   // motivo e os VALIDA (o validate saiu das do stand-by e do Mover) — e recria as
   // portas das rotas com o endereço de entrega e a data que vale
-  await bd.exec(await readFile(path.join(MIGRATIONS, '20261027040000_plt_rotas_endereco_data_parcial.sql'), 'utf8'))
+  await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, '20261027040000_plt_rotas_endereco_data_parcial.sql'), 'utf8')))
   // ↪️ SESSAO-41 (D-196): a das paradas recria as entregas do dia (com as paradas) — depois da das rotas
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027050000_plt_paradas_avulsas.sql'), 'utf8'))
   // ↪️ SESSAO-41 (D-196): a ordem da rota sem os pedidos arquivados — depois da das paradas
@@ -16244,8 +16256,11 @@ try {
                      // ↪️ SESSAO-48 (E-19/E-144): a base recria o check dos tipos de evento (com os do
                      // cancelamento da fabricação, do aviso e da remoção do PCP e do destino) e o VALIDA, as
                      // regras únicas (o que conta e o PCP), o quadro e a busca — as de cima os recriam na versão de antes
-                     '20261111010000_plt_sessao48_base.sql']) {
-    await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
+                     '20261111010000_plt_sessao48_base.sql',
+                     // ↪️ SESSAO-48 · frente 3: o cancelamento do Tiny que pergunta o destino da peça em
+                     // produção — as de cima recriam a reação ao cancelamento na versão de antes
+                     '20261111030000_plt_cancelado_pergunta_destino.sql']) {
+    await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
     select (select prioridade from public.plt_cards where id = ${P3}) as pedido3,
@@ -22883,6 +22898,443 @@ try {
 }
 } // fim do bloco SESSAO-48 · base
 
+
+// ============================================================================
+// SESSAO-48 · FRENTE 3 (migration 20261111030000): pedido cancelado no Tiny
+// PERGUNTA o destino de cada móvel em produção. A peça pronta segue sozinha ao
+// ESTOQUE; a em produção fica "esperando decisão" (sai do "reservados p/
+// produção"), a logística recebe UM aviso e decide na janela (seguir para o
+// estoque · passar para outro pedido · cancelar a fabricação), peça por peça ou
+// todas juntas. Sem decisão, o fim da linha leva ao ESTOQUE com o fato; o Tiny
+// "descancelando" tira a marca; o PCP usando a peça fecha a pendência.
+// ============================================================================
+{ // SESSAO-48 · frente 3 (escopo próprio — E-70)
+titulo('SESSAO-48 · frente 3 · pedido cancelado no Tiny: a peça em produção espera a decisão; a pronta segue ao ESTOQUE; um aviso só')
+
+// E-81/E-136: blocos de cima reaplicam migrations antigas — a base e a desta frente de novo.
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261111010000_plt_sessao48_base.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261111030000_plt_cancelado_pergunta_destino.sql'), 'utf8'))
+
+const um483 = async (sql) => (await bd.query(sql)).rows[0]
+const todos483 = async (sql) => (await bd.query(sql)).rows
+const como483 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j483 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha483 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f483')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f483')
+  }
+}
+const item483 = (codigo, descricao, qtd = '1.00') =>
+  ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } })
+const pedido483 = (numero, situacao, itens, data = '10/11/2026') => ({
+  id: String(7948300 + (numero % 100)), numero: String(numero), data_pedido: data, data_prevista: '30/11/2026', situacao,
+  total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 483',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: `Cliente Teste 483 ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste 483', numero: '483', complemento: '', bairro: 'Centro', cep: '59000-483', cidade: 'Natal',
+             uf: 'RN', fone: '84999994830', email: '' },
+  itens,
+})
+// a gravação do Tiny + o gatilho adiado dos itens disparado como no COMMIT (E-175)
+const gravar483 = async (p, tipo = 'inclusao_pedido') => {
+  const id = (await um483(`select public.fn_upsert_pedido(p => ${j483(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const COMODA483 = ['SX483C', 'Cômoda Teste 483 - Branca']
+const ARMARIO483 = ['SX483A', 'Armário Teste 483 - Preto']
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (924831, 'SX483C', 'Cômoda Teste 483 - Branca', 'F', 'A', 'un'),
+      (924832, 'SX483A', 'Armário Teste 483 - Preto', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;`)
+  const setor = async (codigo) => (await um483(`select id::int as id from public.plt_setores where codigo = '${codigo}'`)).id
+  const [LIMPEZA, MONTAGEM, FURACAO, AGUARDO, ESTOQUE] =
+    [await setor('limpeza_embalagem'), await setor('montagem'), await setor('furacao'), await setor('aguardo'), await setor('estoque')]
+  // as colunas que cancelam: a da LIMPEZA E EMBALAGEM e uma própria da MONTAGEM (a FURAÇÃO não tem)
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, cancela_fabricacao, cancela_motivo) values
+      (${LIMPEZA}, 'CANCELADO 483', 95, false, true, 'cancelada'),
+      (${LIMPEZA}, 'NÃO ENCONTRADO 483', 96, false, true, 'nao_encontrada'),
+      (${MONTAGEM}, 'CANCELADO M 483', 95, false, true, 'cancelada');`)
+  const canc483 = (await um483(`select id::int as id from public.plt_etapas where nome = 'CANCELADO 483'`)).id
+  const cancM483 = (await um483(`select id::int as id from public.plt_etapas where nome = 'CANCELADO M 483'`)).id
+  const cardDe = async (pedidoId) => (await um483(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  // a peça nasce no setor pedido (a fila dele, se houver), como a liberação do PCP faz
+  const peca = async (pedidoId, pai, seq, k, n, [codigo, descricao], setorId) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pedidoId}, ${pai}, ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${setorId}, 'api');`)
+    return (await um483(`select max(id)::int as id from public.plt_cards where tipo = 'unidade'`)).id
+  }
+  const estado = (id) => um483(`
+    select c.pedido_id::int as pedido, c.destino_pendente_em is not null as pendente, c.cancelada_em is not null as cancelada,
+           c.cancelada_motivo as motivo, c.setor_atual_id::int as setor, c.etapa_atual_id::int as etapa,
+           c.arquivado_em is not null as arquivada, c.produto_tiny_id::int as produto
+      from public.plt_cards c where c.id = ${id}`)
+  const fatos = (id) => todos483(`select id::int as id, tipo, origem, usuario_id is not null as com_autor,
+                                         evento_referencia_id::int as ref, dados, observacao
+                                    from public.plt_eventos where card_id = ${id} order by id`)
+  const numeros = (tiny) => um483(`
+    select coalesce(n.producao_de_pedido, 0)::int as de_pedido, coalesce(n.producao_sem_dono, 0)::int as sem_dono,
+           coalesce(n.livres, 0)::int as livres,
+           coalesce(r.de_pedidos, 0)::int as reservados_pedidos, coalesce(r.para_estoque, 0)::int as reservados_estoque
+      from (select 1) x
+      left join public.plt_estoque_numeros n on n.produto_tiny_id = ${tiny}
+      left join plt_privado.fn_reservados_producao() r on r.tiny_id = ${tiny}`)
+  const avisos = (cardId) => todos483(`
+    select u.usuario, n.titulo, n.corpo
+      from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+     where n.tipo = 'pedido_cancelado_decidir' and n.card_id = ${cardId} order by u.usuario`)
+  const ler = async (cardId, auth = E40.logistica) => {
+    await como483(auth)
+    try {
+      return (await um483(`select public.plt_fn_destino_pendentes(${cardId}) as d`)).d
+    } finally {
+      await como483('')
+    }
+  }
+  const decidir = async (cardId, decisoes, auth = E40.logistica) => {
+    await como483(auth)
+    try {
+      return (await um483(`select public.plt_fn_destino_decidir(${cardId}, ${j483(decisoes)}) as r`)).r
+    } finally {
+      await como483('')
+    }
+  }
+  const cancelar = (numero) => bd.exec(`update public.pedidos set situacao = 'Cancelado' where numero = ${numero}`)
+
+  // ---------------- 1 · o cancelamento do Tiny ----------------
+  // o 97531: 2 cômodas em produção (MONTAGEM e LIMPEZA) e 1 armário pronto na Expedição
+  const idA = await gravar483(pedido483(97531, 'Preparando envio', [item483(...COMODA483, '2.00'), item483(...ARMARIO483)]))
+  const cardA = await cardDe(idA)
+  const a1 = await peca(idA, cardA, 1, 1, 2, COMODA483, MONTAGEM)
+  const a2 = await peca(idA, cardA, 1, 2, 2, COMODA483, LIMPEZA)
+  const a3 = await peca(idA, cardA, 2, 1, 1, ARMARIO483, AGUARDO)
+  // os pedidos vivos no PCP que precisam da cômoda: o 97533 (o mais antigo, 2 vagas) e o 97532 (1 vaga);
+  // o 97534 também precisa, mas o Tiny já o faturou (fora do PCP) — não é candidato
+  const idB = await gravar483(pedido483(97532, 'Em aberto', [item483(...COMODA483)], '05/11/2026'))
+  const idC = await gravar483(pedido483(97533, 'Preparando envio', [item483(...COMODA483, '2.00')], '01/11/2026'))
+  const idD = await gravar483(pedido483(97534, 'Faturado', [item483(...COMODA483)], '20/10/2026'))
+  const antes = { num: await numeros(924831), arm: await numeros(924832) }
+  await cancelar(97531)
+  const evCanc = (await um483(`select id::int as id from public.plt_eventos where card_id = ${cardA} and tipo = 'pedido_cancelado'`)).id
+  const [eA1, eA2, eA3] = [await estado(a1), await estado(a2), await estado(a3)]
+  const [fA1, fA3] = [await fatos(a1), await fatos(a3)]
+  const depois = { num: await numeros(924831), arm: await numeros(924832) }
+  const avA = await avisos(cardA)
+  const pend1 = fA1.find((f) => f.tipo === 'destino_pendente')
+  conferir(
+    antes.num.de_pedido >= 2 && antes.num.reservados_pedidos >= 2
+      && eA1.pendente && eA1.pedido === idA && eA2.pendente && eA2.pedido === idA
+      && pend1?.origem === 'automacao' && pend1.ref === evCanc && pend1.dados.numero === 97531 && pend1.dados.pedido_id === idA
+      && !eA3.pendente && eA3.pedido === null && eA3.setor === ESTOQUE
+      && !fA3.some((f) => f.tipo === 'destino_pendente') && fA3.some((f) => f.tipo === 'unidade_desvinculada')
+      && depois.num.de_pedido === antes.num.de_pedido - 2 && depois.num.reservados_pedidos === antes.num.reservados_pedidos - 2
+      && depois.num.sem_dono === antes.num.sem_dono,
+    'cancelado no Tiny: as 2 cômodas em produção ficam "esperando decisão" (com o fato, que aponta o cancelamento) e saem do "reservados p/ produção"; o armário pronto segue sozinho ao ESTOQUE, sem dono, sem pendência',
+    JSON.stringify({ antes, depois, eA1, eA2, eA3, pend1 }))
+  conferir(
+    avA.length >= 2 && avA.some((a) => a.usuario === 'log.um') && avA.some((a) => a.usuario === 'primeira.pessoa')
+      && !avA.some((a) => a.usuario === 'exec.um') && new Set(avA.map((a) => a.usuario)).size === avA.length
+      && avA.every((a) => a.titulo === 'Pedido 97531 cancelado com móveis em produção'
+        && a.corpo === 'O pedido 97531 foi cancelado no Tiny. 2 móveis dele estão em produção — decida para onde vão.'),
+    'o sino avisa a logística e o admin UMA vez por pedido ("2 móveis dele estão em produção — decida para onde vão"); o operador não recebe',
+    JSON.stringify(avA))
+
+  // o mesmo cancelamento de novo (o aviso do Tiny que chega duas vezes): nada muda
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, observacao) values (${cardA}, 'pedido_cancelado', 'automacao', 'de novo')`)
+  const repet = await um483(`select (select count(*)::int from public.plt_eventos where tipo = 'destino_pendente' and card_id in (${a1}, ${a2})) as pendentes,
+                                    (select count(*)::int from public.plt_notificacoes where tipo = 'pedido_cancelado_decidir' and card_id = ${cardA}) as avisos`)
+  await falha483(`insert into public.plt_eventos (card_id, tipo, origem, dados) values (${a1}, 'destino_decidido', 'api', '{"destino": "estoque"}')`,
+    'gravar a decisão direto na tabela (sem a janela) é recusado', /nasce sozinho/)
+  conferir(repet.pendentes === 2 && repet.avisos === avA.length,
+    'o cancelamento repetido não marca de novo nem avisa de novo (um efeito só)', JSON.stringify(repet))
+
+  // ---------------- 2 · a janela: a leitura ----------------
+  titulo('SESSAO-48 · frente 3 · a janela "Para onde vai este móvel?" lê tudo numa requisição; só a logística e o admin')
+  const d1 = await ler(cardA)
+  const dPeca = await ler(a1)
+  const chave = d1?.pecas?.[0]?.chave
+  const cands = chave ? d1.candidatos[chave] : []
+  conferir(
+    d1.numero === 97531 && d1.cancelado === true && typeof d1.cancelado_em === 'string' && d1.cliente_nome === 'Cliente Teste 483 97531'
+      && d1.pecas.length === 2 && d1.pecas[0].id === a1 && d1.pecas[1].id === a2
+      && d1.pecas[0].indice === 1 && d1.pecas[0].total === 2 && d1.pecas[0].setor === 'MONTAGEM' && d1.pecas[0].danificada === false
+      && typeof d1.pecas[0].desde === 'string' && d1.pecas[1].chave === chave && chave === 'p:924831'
+      && cands.length === 2 && cands[0].numero === 97533 && cands[0].vagas === 2 && cands[1].numero === 97532 && cands[1].vagas === 1
+      && cands[0].pedido_id === idC && cands[0].card_pedido_id === (await cardDe(idC)) && cands[0].cliente_nome === 'Cliente Teste 483 97533'
+      && !cands.some((c) => c.numero === 97534 || c.numero === 97531)
+      && Array.isArray(d1.decididas) && d1.decididas.length === 0
+      && JSON.stringify(dPeca) === JSON.stringify(d1),
+    'a janela traz o pedido, as 2 peças esperando (móvel, k/n, setor, desde quando) e, por móvel, os pedidos vivos no PCP com vaga do mesmo móvel — o mais antigo primeiro, com quantas vagas; o faturado e o próprio cancelado ficam fora; aberta pela peça, a mesma resposta',
+    JSON.stringify({ d1, cands }))
+  // o quadro do setor mostra a marca no card que espera (a etiqueta do card lê dela)
+  await como483(E40.admin)
+  const quadroA = (await um483(`select public.plt_fn_quadro_setor(${MONTAGEM}, 50) as q`)).q
+  await como483('')
+  const cardQuadroA = quadroA.colunas.flatMap((c) => c.cards).find((c) => c.id === a1)
+  // a peça danificada de pedido cancelado: espera a decisão, mas não vai para outro pedido
+  const danif = (await um483(`select plt_privado.fn_garantir_etapa_danificado(${MONTAGEM})::int as id`)).id
+  const idJ = await gravar483(pedido483(97540, 'Preparando envio', [item483(...COMODA483)]))
+  const cardJ = await cardDe(idJ)
+  await bd.exec(`
+    insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+      values ('unidade', ${idJ}, ${cardJ}, 1, '${COMODA483[0]}', '${COMODA483[1]}', 1, 1);
+    insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+      values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${MONTAGEM}, ${danif}, 'api');`)
+  const j1 = (await um483(`select max(id)::int as id from public.plt_cards where tipo = 'unidade'`)).id
+  await cancelar(97540)
+  const dJ = await ler(cardJ)
+  await como483(E40.logistica)
+  await falha483(`select public.plt_fn_destino_decidir(${cardJ}, ${j483([{ peca_id: j1, destino: 'outro_pedido', pedido_id: idB }])})`,
+    'a peça danificada não passa para outro pedido (o banco diz o porquê)', /danificada/i)
+  await como483('')
+  conferir(
+    typeof cardQuadroA?.destino_pendente_em === 'string'
+      && dJ.pecas.length === 1 && dJ.pecas[0].id === j1 && dJ.pecas[0].danificada === true
+      && (dJ.candidatos[dJ.pecas[0].chave] ?? []).length === 0,
+    'no quadro, o card que espera traz a marca (a etiqueta do card lê dela); a peça danificada também espera a decisão, mas sem pedido candidato',
+    JSON.stringify({ cardQuadroA: cardQuadroA && { id: cardQuadroA.id, desde: cardQuadroA.destino_pendente_em }, dJ }))
+  await falha483(`select set_config('request.jwt.claim.sub', '${E40.operador}', false); select public.plt_fn_destino_pendentes(${cardA})`,
+    'o operador da produção não abre a janela (é da logística ou de admin)', /logística ou de admin/)
+  await falha483(`select set_config('request.jwt.claim.sub', '${E40.operador}', false); select public.plt_fn_destino_decidir(${cardA}, ${j483([{ peca_id: a1, destino: 'estoque' }])})`,
+    'o operador da produção não decide o destino', /logística ou de admin/)
+
+  // ---------------- 3 · as três decisões, peça por peça ----------------
+  titulo('SESSAO-48 · frente 3 · peça por peça: passar para outro pedido e seguir para o estoque; o toque repetido pula')
+  const r1 = await decidir(cardA, [{ peca_id: a1, destino: 'outro_pedido', pedido_id: idC }])
+  const eA1b = await estado(a1)
+  const fA1b = await fatos(a1)
+  const vinc = fA1b.find((f) => f.tipo === 'peca_vinculada')
+  const dec1 = fA1b.find((f) => f.tipo === 'destino_decidido')
+  const num1 = await numeros(924831)
+  conferir(
+    r1.decididas === 1 && r1.feitas[0].destino === 'outro_pedido' && r1.feitas[0].numero_destino === 97533 && r1.puladas.length === 0
+      && eA1b.pedido === idC && !eA1b.pendente && eA1b.setor === MONTAGEM
+      && vinc?.com_autor && vinc.dados.pedido_id === idC && vinc.dados.pedido_anterior_id === idA && vinc.dados.indice_unidade === 1
+      && dec1?.dados.destino === 'outro_pedido' && dec1.dados.via === 'logistica' && dec1.com_autor && dec1.ref === vinc.id
+      && dec1.dados.pedido_id === idA && dec1.dados.pedido_destino_id === idC && dec1.dados.numero_destino === 97533
+      && num1.de_pedido === depois.num.de_pedido + 1,
+    '"Passar para outro pedido": a cômoda passa a ser do 97533 ali mesmo na MONTAGEM (a maquinaria da peça em produção), a pendência fecha com o fato (pela logística, com quem decidiu) e volta a contar como produção de pedido',
+    JSON.stringify({ r1, eA1b, dec1, num1 }))
+  const r2 = await decidir(cardA, [{ peca_id: a2, destino: 'estoque' }])
+  const eA2b = await estado(a2)
+  const fA2b = await fatos(a2)
+  const num2 = await numeros(924831)
+  const dec2 = fA2b.find((f) => f.tipo === 'destino_decidido')
+  const desv2 = fA2b.find((f) => f.tipo === 'unidade_desvinculada')
+  conferir(
+    r2.decididas === 1 && eA2b.pedido === null && !eA2b.pendente && eA2b.setor === LIMPEZA && !eA2b.cancelada
+      && eA2b.produto === 924831
+      && dec2?.dados.destino === 'estoque' && dec2.com_autor && dec2.origem === 'interface' && !dec2.dados.automatico
+      && desv2?.dados.motivo === 'pedido_cancelado' && desv2.ref === dec2.id && desv2.com_autor
+      && num2.sem_dono === num1.sem_dono + 1 && num2.de_pedido === num1.de_pedido,
+    '"Seguir para o estoque": a peça perde o pedido e continua a produção onde está (LIMPEZA), contando como produção sem dono — vai para o estoque quando ficar pronta',
+    JSON.stringify({ r2, eA2b, num2 }))
+  const r3 = await decidir(cardA, [{ peca_id: a1, destino: 'estoque' }, { peca_id: a2, destino: 'cancelar' }])
+  const d2 = await ler(cardA)
+  const eA1c = await estado(a1)
+  conferir(
+    r3.decididas === 0 && r3.puladas.length === 2 && r3.puladas[0].destino === 'outro_pedido' && r3.puladas[1].destino === 'estoque'
+      && eA1c.pedido === idC && d2.pecas.length === 0 && d2.decididas.length === 2
+      && d2.decididas.some((x) => x.peca_id === a1 && x.destino === 'outro_pedido' && x.numero_destino === 97533 && x.quem === 'Logística Um')
+      && d2.decididas.some((x) => x.peca_id === a2 && x.destino === 'estoque'),
+    'decidir de novo a peça já decidida não muda nada: ela é pulada e o que aconteceu com ela é relatado; a janela relida mostra nada esperando e o que foi decidido, por quem',
+    JSON.stringify({ r3, d2 }))
+  // recusas em português
+  const idE = await gravar483(pedido483(97535, 'Preparando envio', [item483(...COMODA483), item483(...ARMARIO483)]))
+  const cardE = await cardDe(idE)
+  const e1 = await peca(idE, cardE, 1, 1, 1, COMODA483, MONTAGEM)
+  const e2 = await peca(idE, cardE, 2, 1, 1, ARMARIO483, FURACAO)
+  await cancelar(97535)
+  await como483(E40.logistica)
+  await falha483(`select public.plt_fn_destino_decidir(${cardE}, ${j483([{ peca_id: e1, destino: 'outro_pedido', pedido_id: idD }])})`,
+    'passar para um pedido que não está mais no PCP (o Tiny já faturou) é recusado com o porquê', /não está mais no PCP/)
+  await falha483(`select public.plt_fn_destino_decidir(${cardE}, ${j483([{ peca_id: e2, destino: 'outro_pedido', pedido_id: idC }])})`,
+    'passar o armário para um pedido que só precisa de cômoda é recusado (não precisa deste móvel)', /não precisa mais deste móvel/)
+  await falha483(`select public.plt_fn_destino_decidir(${cardE}, ${j483([{ peca_id: e1, destino: 'loja' }])})`,
+    'destino desconhecido é recusado, dizendo as três opções', /seguir para o estoque, passar para outro pedido ou cancelar/)
+  await falha483(`select public.plt_fn_destino_decidir(${cardE}, ${j483([{ peca_id: e1, destino: 'outro_pedido' }])})`,
+    'passar para outro pedido sem dizer qual é recusado', /para qual pedido/)
+  await falha483(`select public.plt_fn_destino_decidir(${cardE}, '[]'::jsonb)`,
+    'decidir nada é recusado', /pelo menos um móvel/)
+  await como483('')
+
+  // ---------------- 4 · todas de uma vez ----------------
+  titulo('SESSAO-48 · frente 3 · todas de uma vez: as três decisões numa chamada; cancelar leva à coluna do setor ou à da LIMPEZA')
+  const idF = await gravar483(pedido483(97536, 'Preparando envio',
+    [item483(...COMODA483), item483(...ARMARIO483), item483(...COMODA483)]))
+  const cardF = await cardDe(idF)
+  const f1 = await peca(idF, cardF, 1, 1, 1, COMODA483, LIMPEZA)
+  const f2 = await peca(idF, cardF, 2, 1, 1, ARMARIO483, MONTAGEM)
+  const f3 = await peca(idF, cardF, 3, 1, 1, COMODA483, FURACAO)
+  await cancelar(97536)
+  const rF = await decidir(cardF, [
+    { peca_id: f1, destino: 'estoque' },
+    { peca_id: f2, destino: 'cancelar' },
+    { peca_id: f3, destino: 'outro_pedido', pedido_id: idB },
+  ])
+  const [eF1, eF2, eF3] = [await estado(f1), await estado(f2), await estado(f3)]
+  const fF2 = await fatos(f2)
+  const canc2 = fF2.find((f) => f.tipo === 'fabricacao_cancelada')
+  const mov2 = fF2.find((f) => f.tipo === 'movimentacao_etapa')
+  // todas de uma vez, a mesma decisão: as duas peças do 97535 vão para a coluna que cancela
+  const rE = await decidir(cardE, [{ peca_id: e1, destino: 'cancelar' }, { peca_id: e2, destino: 'cancelar' }])
+  const [eE1, eE2] = [await estado(e1), await estado(e2)]
+  const fE2 = await fatos(e2)
+  const movE2 = fE2.find((f) => f.tipo === 'movimentacao_setor')
+  const notiCanc = await um483(`select count(*)::int as n from public.plt_notificacoes where tipo = 'peca_cancelada_pcp' and card_id in (${cardE}, ${cardF})`)
+  conferir(
+    rF.decididas === 3 && eF1.pedido === null && !eF1.pendente && eF1.setor === LIMPEZA
+      && eF2.cancelada && eF2.motivo === 'cancelada' && eF2.etapa === cancM483 && eF2.setor === MONTAGEM && !eF2.pendente && eF2.pedido === null
+      && mov2?.origem === 'automacao' && mov2.com_autor
+      && canc2?.com_autor && canc2.dados.vaga_volta === false
+      && fF2.some((f) => f.tipo === 'destino_decidido' && f.dados.destino === 'cancelar' && f.com_autor)
+      && eF3.pedido === idB && !eF3.pendente && eF3.setor === FURACAO
+      && rF.feitas.find((x) => x.peca_id === f2)?.coluna === 'MONTAGEM · CANCELADO M 483',
+    'numa chamada só, cada peça com a sua decisão: a da LIMPEZA segue para o estoque; o armário da MONTAGEM vai para a coluna CANCELADO da própria MONTAGEM (autor = quem decidiu, sem vaga de volta); a cômoda da FURAÇÃO passa para o 97532 onde está',
+    JSON.stringify({ rF, eF1, eF2, eF3, canc2 }))
+  conferir(
+    rE.decididas === 2 && eE1.cancelada && eE1.etapa === cancM483 && eE2.cancelada && eE2.setor === LIMPEZA && eE2.etapa === canc483
+      && movE2?.origem === 'automacao' && movE2.com_autor && notiCanc.n === 0,
+    'todas de uma vez com a mesma decisão: "Cancelar a fabricação" leva a peça da FURAÇÃO (sem coluna própria) para o CANCELADO da LIMPEZA E EMBALAGEM, sem pedir o estado da peça e sem aviso de vaga ao PCP (o pedido foi cancelado)',
+    JSON.stringify({ rE, eE1, eE2, notiCanc }))
+
+  // ---------------- 5 · sem decisão até o fim da linha; o Tiny descancela; o PCP usa a peça ----------------
+  titulo('SESSAO-48 · frente 3 · sem decisão, o fim da linha leva ao ESTOQUE com o fato; o Tiny descancelando tira a marca; o PCP usando a peça fecha a pendência')
+  const idG = await gravar483(pedido483(97537, 'Preparando envio', [item483(...ARMARIO483)]))
+  const cardG = await cardDe(idG)
+  const g1 = await peca(idG, cardG, 1, 1, 1, ARMARIO483, LIMPEZA)
+  await cancelar(97537)
+  const pendG = await estado(g1)
+  const armAntes = await numeros(924832)
+  await como483(E40.admin)
+  const destinoG = (await um483(`select public.plt_fn_concluir_producao(${g1}) as d`)).d
+  await como483('')
+  const eG = await estado(g1)
+  const fG = await fatos(g1)
+  const decG = fG.find((f) => f.tipo === 'destino_decidido')
+  const desvG = fG.findIndex((f) => f.tipo === 'unidade_desvinculada')
+  const armDepois = await numeros(924832)
+  conferir(
+    pendG.pendente && destinoG === 'estoque' && eG.setor === ESTOQUE && eG.pedido === null && !eG.pendente
+      && decG?.dados.destino === 'estoque' && decG.dados.automatico === true && decG.dados.motivo === 'fim_da_linha'
+      && decG.origem === 'automacao' && !decG.com_autor
+      && desvG > fG.indexOf(decG) && armDepois.livres === armAntes.livres + 1,
+    'ninguém decidiu e o móvel ficou pronto: entra no ESTOQUE sem dono (a regra de antes) e a pendência fecha com o fato "fim da linha", automático, antes da desvinculação',
+    JSON.stringify({ pendG, destinoG, eG, decG, armAntes, armDepois }))
+
+  const idH = await gravar483(pedido483(97538, 'Preparando envio', [item483(...COMODA483)]))
+  const cardH = await cardDe(idH)
+  const h1 = await peca(idH, cardH, 1, 1, 1, COMODA483, MONTAGEM)
+  const numH0 = await numeros(924831)
+  await cancelar(97538)
+  const numH1 = await numeros(924831)
+  await bd.exec(`update public.pedidos set situacao = 'Em aberto' where numero = 97538`)
+  const eH = await estado(h1)
+  const decH = (await fatos(h1)).find((f) => f.tipo === 'destino_decidido')
+  const numH2 = await numeros(924831)
+  await cancelar(97538)
+  const eH2 = await estado(h1)
+  conferir(
+    numH1.de_pedido === numH0.de_pedido - 1 && eH.pedido === idH && !eH.pendente
+      && decH?.dados.destino === 'descancelado' && decH.dados.automatico === true && decH.dados.situacao === 'Em aberto'
+      && numH2.de_pedido === numH0.de_pedido && eH2.pendente,
+    'o Tiny "descancelou" antes da decisão: a marca sai (o fato diz que o pedido voltou a valer), a peça segue com o pedido e volta a contar; cancelado de novo, ela espera de novo',
+    JSON.stringify({ numH0, numH1, numH2, eH, decH, eH2 }))
+
+  // o PCP usa a peça pendente (a sugestão "em produção" da janela de liberar — D-201)
+  const idI = await gravar483(pedido483(97539, 'Preparando envio', [item483(...COMODA483)]))
+  const cardI = await cardDe(idI)
+  const sugI = await todos483(`select peca_card_id::int as peca from plt_privado.fn_sugestoes_em_producao(${cardI}, '[]'::jsonb)`)
+  await como483(E40.admin)
+  const libI = (await um483(`select public.plt_fn_pcp_liberar(${cardI}, ${j483([{ item_seq: 1, indice_unidade: 1, peca_producao_id: h1 }])}) as r`)).r
+  await como483('')
+  const eI = await estado(h1)
+  const decI = (await fatos(h1)).filter((f) => f.tipo === 'destino_decidido').at(-1)
+  const dH = await ler(cardH)
+  conferir(
+    sugI.some((s) => s.peca === h1) && libI.vinculadas === 1 && eI.pedido === idI && !eI.pendente
+      && decI?.dados.destino === 'outro_pedido' && decI.dados.via === 'pcp' && decI.com_autor
+      && decI.dados.pedido_id === idH && decI.dados.numero_destino === 97539
+      && dH.pecas.length === 0 && dH.decididas.some((x) => x.peca_id === h1 && x.destino === 'outro_pedido' && x.via === 'pcp'),
+    'o PCP usou a peça pendente para outro pedido (a sugestão de peça em produção): a pendência fecha com o fato "pelo PCP", e a janela do cancelado mostra o que aconteceu',
+    JSON.stringify({ sugI, libI, eI, decI }))
+
+  // ---------------- 6 · à prova de falha ----------------
+  titulo('SESSAO-48 · frente 3 · à prova de falha: um erro na marca não derruba o cancelamento nem a gravação do Tiny')
+  const idK = await gravar483(pedido483(97541, 'Preparando envio', [item483(...COMODA483)]))
+  const cardK = await cardDe(idK)
+  const k1 = await peca(idK, cardK, 1, 1, 1, COMODA483, MONTAGEM)
+  const quebrar = `
+    create or replace function public.teste_quebra483() returns trigger language plpgsql as $f$
+    begin
+      raise exception 'quebrado de propósito (teste)';
+    end $f$;
+    create trigger teste_quebra483 before insert on public.plt_eventos
+      for each row when (new.tipo in ('destino_pendente', 'destino_decidido')) execute function public.teste_quebra483();`
+  const olharK = () => um483(`
+    select (select count(*)::int from public.plt_eventos where card_id = ${cardK} and tipo = 'pedido_cancelado') as canc,
+           (select destino_pendente_em is not null from public.plt_cards where id = ${k1}) as pendente,
+           (select situacao from public.pedidos where id = ${idK}) as situacao,
+           (select count(*)::int from public.plt_logs_atividade
+             where acao = 'automacao_erro' and contexto ->> 'aviso_id' in ('destino_pendente:${idK}', 'destino_descancelado:${idK}')) as alertas`)
+  await bd.exec('savepoint quebra483')
+  await bd.exec(quebrar)
+  await cancelar(97541)
+  const kQuebrado = await olharK()
+  await bd.exec('rollback to savepoint quebra483')
+  await cancelar(97541)
+  const kCancelado = await olharK()
+  await bd.exec('savepoint quebra483')
+  await bd.exec(quebrar)
+  await bd.exec(`update public.pedidos set situacao = 'Aprovado' where numero = 97541`)
+  const kDescQuebrado = await olharK()
+  await bd.exec('rollback to savepoint quebra483')
+  conferir(
+    kQuebrado.canc === 1 && !kQuebrado.pendente && kQuebrado.situacao === 'Cancelado' && kQuebrado.alertas === 1
+      && kCancelado.pendente
+      && kDescQuebrado.situacao === 'Aprovado' && kDescQuebrado.pendente && kDescQuebrado.alertas === 1,
+    'com a marca quebrada, o cancelamento vale do mesmo jeito (o móvel cai na regra de antes) e o erro vira aviso de automação; com o "descancelar" quebrado, a gravação do Tiny passa e o erro também vira aviso',
+    JSON.stringify({ kQuebrado, kCancelado, kDescQuebrado }))
+
+  // ---------------- 7 · a conta, o quadro e as permissões ----------------
+  const recontou = (await um483(`select plt_privado.fn_estoque_numeros_recontar() as n`)).n
+  await bd.exec(`select set_config('request.jwt.claim.sub', '${E40.admin}', false)`)
+  const quadroM = (await um483(`select public.plt_fn_quadro_setor(${MONTAGEM}, 50) as q`)).q
+  await como483('')
+  const noQuadro = quadroM.colunas.flatMap((c) => c.cards).find((c) => c.id === h1)
+  const pr = await um483(`
+    select has_function_privilege('anon', 'public.plt_fn_destino_pendentes(bigint)', 'execute') as ler_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_destino_pendentes(bigint)', 'execute') as ler_logado,
+           has_function_privilege('anon', 'public.plt_fn_destino_decidir(bigint, jsonb)', 'execute') as decidir_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_destino_decidir(bigint, jsonb)', 'execute') as decidir_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_destino_descancelado()', 'execute') as descanc,
+           has_function_privilege('authenticated', 'plt_privado.fn_destino_peca_vinculada()', 'execute') as vinc,
+           has_function_privilege('authenticated', 'plt_privado.fn_desvincular_por_cancelamento()', 'execute') as desv`)
+  conferir(
+    recontou === 0 && noQuadro !== undefined && noQuadro.pedido_id === idI && !('destino_pendente_em' in noQuadro)
+      && !pr.ler_anon && pr.ler_logado && !pr.decidir_anon && pr.decidir_logado && !pr.descanc && !pr.vinc && !pr.desv,
+    'recontar o estoque do zero não muda nada (cada gesto já contou certo); o card no quadro só traz a marca quando espera decisão; as duas portas só para quem entrou; a maquinaria fora da API',
+    JSON.stringify({ recontou, noQuadro: noQuadro && { id: noQuadro.id, pedido: noQuadro.pedido_id }, pr }))
+} finally {
+  await bd.exec('rollback')
+  await como483('')
+}
+} // fim do bloco SESSAO-48 · frente 3
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
