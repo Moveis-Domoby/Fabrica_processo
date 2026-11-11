@@ -342,7 +342,8 @@ function ItemAtividade({
             {grupo ? ICONE_GRUPO[grupo] : <Activity aria-hidden className="size-4" />}
           </span>
           <span className="min-w-0 break-words">
-            {rotuloDaAcao(linha.acao)}
+            {/* SESSAO-48 (frente 5): a abertura de página diz por que abriu */}
+            {rotuloDaAcao(linha.acao, linha.contexto)}
             {linha.pedido_numero !== null && (
               <span className="text-texto-suave"> · pedido {linha.pedido_numero}</span>
             )}

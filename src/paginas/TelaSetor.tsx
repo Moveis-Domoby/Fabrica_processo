@@ -37,7 +37,8 @@ import { TecladoPin } from '@/tablet/TecladoPin'
 import { cardAuxiliar, setorAuxiliarTodos } from '@/tablet/api'
 import { tabletEntrar } from '@/autenticacao/api'
 import { prepararSom, tocarSomChegada } from '@/tablet/som'
-import { useVersaoNova } from '@/lib/versaoNova'
+import { useRecargaSegura } from '@/lib/versaoNova'
+import { cancelarRecarga, prepararRecarga, recarregar } from '@/lib/recarga'
 import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
 
 const CHAVE_SETOR = 'plt-tela-setor-id'
@@ -94,7 +95,9 @@ export function TelaSetor() {
   const agora = useAgora()
   const abrirCard = useAbrirCard()
   // Ajuste do dono (14/10 noite): o tablet fica o dia todo aberto — avisa versão nova.
-  const versaoNova = useVersaoNova()
+  // ↩️ SESSAO-48 (frente 5): e se atualiza sozinho só no momento seguro — sem
+  // janela aberta (o PIN é digitado numa) e 1 minuto sem toque; até lá, o aviso.
+  const versaoNova = useRecargaSegura()
 
   const souAdmin = perfil?.papel === 'admin'
   // SESSAO-36 (D-146): a conta de dispositivo do setor — entrou pelo PIN do setor.
@@ -789,21 +792,30 @@ export function TelaSetor() {
             aoConfirmar={(p) => {
               setTrocando(true)
               setErroTroca('')
+              // SESSAO-48 (frente 5 — o laço da troca de setor): a sessão nova é da
+              // conta do setor de destino e a página recarrega UMA vez. Enquanto a
+              // troca acontece, esta página não reage à sessão nova (antes ela
+              // abria a plataforma com a conta nova E a recarga abria de novo), e o
+              // setor de destino fica guardado no aparelho — a página nova abre
+              // direto nele. O porquê ("troca de setor") vai para a trilha.
+              prepararRecarga()
               tabletEntrar(p)
-                .then(() => {
-                  setTrocandoSetor(false)
-                  escolherSetor(null)
-                  // a sessão nova é da conta do setor de destino; o perfil recarrega
-                  // pelo provedor e o quadro abre no setor novo
-                  window.location.reload()
+                .then(({ setor: destino }) => {
+                  try {
+                    localStorage.setItem(CHAVE_SETOR, String(destino.id))
+                  } catch {
+                    // sem localStorage: a página nova abre no único setor da conta
+                  }
+                  recarregar('troca_setor')
                 })
                 .catch((excecao: unknown) => {
+                  cancelarRecarga()
                   setPinTroca('')
                   setErroTroca(
                     excecao instanceof Error ? excecao.message : 'Não deu certo. Tente de novo.',
                   )
+                  setTrocando(false)
                 })
-                .finally(() => setTrocando(false))
             }}
             conferindo={trocando}
           />
@@ -817,7 +829,7 @@ export function TelaSetor() {
 
       {/* SESSAO-31: a janela do card no tablet — só para ver, sem dado de cliente (D-28). */}
       <JanelaDoCardNaUrl modo="tablet" />
-      <AvisoVersaoNova nova={versaoNova} />
+      <AvisoVersaoNova nova={versaoNova} sozinha />
 
       <ModalMotivoPausa
         key={parando ? `parar-${parando.card.id}` : 'parar-fechado'}

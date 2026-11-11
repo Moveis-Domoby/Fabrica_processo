@@ -16,6 +16,8 @@ import { ehSoTv } from '@/autenticacao/tipos'
 import { ouvirCanal } from '@/chat/canais'
 import { aplicarTema } from '@/perfil/tema'
 import { Selecao } from '@/componentes/ui'
+import { AvisoVersaoNova } from '@/componentes/AvisoVersaoNova'
+import { conferirVersao, useRecargaSegura } from '@/lib/versaoNova'
 import { TooltipGrafico } from '@/dashboards/componentes/TooltipGrafico'
 import { buscarModoTv, type RespostaTv } from '@/dashboards/tempos/api'
 import {
@@ -124,6 +126,11 @@ export function ModoTv() {
   const [diaEscolhido, setDiaEscolhido] = useState<string | null>(null)
   const diaVisto = diaEscolhido ?? hoje
   const soTv = ehSoTv(perfil)
+  // SESSAO-48 (frente 5): a TV fica dias ligada e ninguém troca de tela nela —
+  // a versão nova é conferida quando um fato chega (o aviso do canal, a virada
+  // do dia; no máximo a cada 2 min) e a TV se atualiza no momento seguro (sem
+  // janela aberta e 1 minuto sem toque); até lá, o aviso discreto.
+  const versaoNova = useRecargaSegura()
 
   const consulta = useQuery({
     queryKey: ['modo-tv', setorPedido, hoje, diaEscolhido],
@@ -147,7 +154,10 @@ export function ModoTv() {
 
   // a virada do dia: UMA leitura nova (exceção da Lei §4, registrada)
   useEffect(() => {
-    const t = setTimeout(() => setHoje(hojeNaFabrica()), msAteMeiaNoite() + 5_000)
+    const t = setTimeout(() => {
+      setHoje(hojeNaFabrica())
+      conferirVersao()
+    }, msAteMeiaNoite() + 5_000)
     return () => clearTimeout(t)
   }, [hoje])
 
@@ -163,6 +173,8 @@ export function ModoTv() {
         () => void cliente.invalidateQueries({ queryKey: ['modo-tv'] }),
         1_500 + Math.random() * 2_000,
       )
+      // SESSAO-48 (frente 5): o fato que chegou também confere a versão (≤ 1 a cada 2 min)
+      conferirVersao()
     }
     const parar = ouvirCanal(
       `plt-aviso:setor_${setorId}`,
@@ -298,6 +310,7 @@ export function ModoTv() {
           </span>
         </footer>
       )}
+      <AvisoVersaoNova nova={versaoNova} sozinha />
     </div>
   )
 }

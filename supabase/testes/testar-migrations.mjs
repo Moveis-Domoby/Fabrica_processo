@@ -12914,8 +12914,8 @@ const pres2 = (await um78(`select count(*)::int as n from public.plt_presencas w
 conferir(pres1 === 1 && pres2 === 1, 'navegar carimba a presença; um gesto com fato também', JSON.stringify({ pres1, pres2 }))
 
 const priv78 = await um78(`
-  select has_function_privilege('anon', 'public.plt_fn_abertura(text, boolean)', 'execute') as anon_abertura,
-         has_function_privilege('authenticated', 'public.plt_fn_abertura(text, boolean)', 'execute') as logado_abertura,
+  select has_function_privilege('anon', 'public.plt_fn_abertura(text, boolean, jsonb)', 'execute') as anon_abertura,
+         has_function_privilege('authenticated', 'public.plt_fn_abertura(text, boolean, jsonb)', 'execute') as logado_abertura,
          has_function_privilege('authenticated', 'public.plt_fn_minhas_execucoes()', 'execute') as logado_execucoes,
          has_function_privilege('authenticated', 'public.plt_fn_dash_visao_do_dia()', 'execute') as logado_visao,
          has_function_privilege('authenticated', 'plt_privado.fn_avisar_pessoa(uuid, text)', 'execute') as maquinaria`)
@@ -16244,7 +16244,10 @@ try {
                      // ↪️ SESSAO-48 (E-19/E-144): a base recria o check dos tipos de evento (com os do
                      // cancelamento da fabricação, do aviso e da remoção do PCP e do destino) e o VALIDA, as
                      // regras únicas (o que conta e o PCP), o quadro e a busca — as de cima os recriam na versão de antes
-                     '20261111010000_plt_sessao48_base.sql']) {
+                     '20261111010000_plt_sessao48_base.sql',
+                     // ↪️ SESSAO-48 · frente 5 (A-12): a do tempo/stand-by acima recria a porta de abertura de
+                     // 2 argumentos — esta tira a velha e deixa só a de 3 (o porquê da abertura), como em produção
+                     '20261111050000_plt_abertura_motivo.sql']) {
     await bd.exec(await readFile(path.join(MIGRATIONS, m42), 'utf8'))
   }
   const conv = await um38(`
@@ -22960,6 +22963,132 @@ try {
   await como48('')
 }
 } // fim do bloco SESSAO-48 · base
+
+
+// ============================================================================
+// SESSAO-48 · FRENTE 5 (migration 20261111050000): a trilha diz POR QUE a página
+// abriu. A porta de abertura ganha o 3º argumento — o contexto da carga (o tipo
+// de carga do navegador, a aba descartada, o motivo da própria plataforma, a
+// versão) — e o grava no registro que ela já escrevia ('navegacao', com a marca
+// abertura = true). Só o que o banco conhece entra; sem contexto (a tela de
+// antes, ou trocar de conta sem recarregar), '{}' como sempre; a resposta não
+// muda. Como o navegador chama: o papel authenticated (E-103 — a porta é invoker).
+// ============================================================================
+{ // SESSAO-48 · frente 5 (escopo próprio — E-70)
+titulo('SESSAO-48 · frente 5 · a abertura grava por que a página abriu — e só o que o banco conhece')
+
+// E-81/E-136: blocos de cima reaplicam migrations antigas — a base e a desta
+// frente de novo (duas vezes: a desta frente é idempotente)
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261111010000_plt_sessao48_base.sql'), 'utf8'))
+const migF5 = await readFile(path.join(MIGRATIONS, '20261111050000_plt_abertura_motivo.sql'), 'utf8')
+await bd.exec(migF5)
+await bd.exec(migF5)
+
+const umF5 = async (sql) => (await bd.query(sql)).rows[0]
+const comoF5 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const jF5 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+// o jsonb guarda as chaves na ordem dele — compara pelo conteúdo
+const igualF5 = (a, b) => {
+  const ordena = (o) => JSON.stringify(Object.fromEntries(Object.entries(o ?? {}).sort(([x], [y]) => (x < y ? -1 : 1))))
+  return ordena(a) === ordena(b)
+}
+const logadoF5 = async (auth, sql) => {
+  await comoF5(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows[0]
+  } finally {
+    await bd.exec('reset role')
+    await comoF5('')
+  }
+}
+
+await bd.exec('begin')
+try {
+  const opF5 = (await umF5(`select id::text as id from public.plt_usuarios where auth_user_id = '${E40.operador}'`)).id
+  const ultimoF5 = () => umF5(`select rota, contexto from public.plt_logs_atividade
+                                where usuario_id = '${opF5}' and acao = 'navegacao' order by id desc limit 1`)
+  const contarF5 = async () => (await umF5(`select count(*)::int as n from public.plt_logs_atividade
+                                              where usuario_id = '${opF5}' and acao = 'navegacao'`)).n
+
+  // ---------------- 1 · a 1ª abertura da página leva o porquê ----------------
+  const ctx1 = { carga: 'reload', descartada: true, recarga: 'troca_setor', versao: '28ea753f9cca' }
+  const ab1 = (await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false, ${jF5(ctx1)}) as a`)).a
+  const l1 = await ultimoF5()
+  const ctx2 = { carga: 'navigate', recarga: 'versao_nova_botao' }
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/inicio/meu-painel', true, ${jF5(ctx2)}) as a`)
+  const l2 = await ultimoF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/entregas/do-dia', false, ${jF5({ carga: 'back_forward' })}) as a`)
+  const l3 = await ultimoF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false, '{}'::jsonb) as a`)
+  const l4 = await ultimoF5()
+  conferir(
+    ab1.perfil?.id === opF5 && l1.rota === '/tablet'
+      && igualF5(l1.contexto, { abertura: true, carga: 'reload', descartada: true, recarga: 'troca_setor', versao: '28ea753f9cca' })
+      && l2.rota === '/inicio/meu-painel' && igualF5(l2.contexto, { abertura: true, carga: 'navigate', recarga: 'versao_nova_botao' })
+      && igualF5(l3.contexto, { abertura: true, carga: 'back_forward' })
+      && igualF5(l4.contexto, { abertura: true }),
+    'a 1ª abertura da página grava no registro dela (navegação) o tipo de carga, a aba descartada, o motivo da plataforma e a versão, com a marca de abertura; contexto vazio ainda é abertura',
+    JSON.stringify({ l1, l2, l3, l4 }))
+
+  // ---------------- 2 · o lixo do navegador não entra ----------------
+  const lixo = {
+    carga: 'teletransporte', descartada: 'sim', recarga: 'apagar_tudo', versao: "x'; drop table plt_cards; --",
+    motivo: 'injetado', usuario_id: '00000000-0000-0000-0000-000000000001', extra: 'x'.repeat(20000),
+  }
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false, ${jF5(lixo)}) as a`)
+  const l5 = await ultimoF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false, ${jF5({ carga: 'reload', versao: 'ABCDEF123456', descartada: 1 })}) as a`)
+  const l6 = await ultimoF5()
+  conferir(
+    igualF5(l5.contexto, { abertura: true }) && igualF5(l6.contexto, { abertura: true, carga: 'reload' }),
+    'valor ou chave que o banco não conhece fica de fora (nem o "motivo" que viraria o "por quê" da Auditoria); o contexto gigante não derruba a abertura',
+    JSON.stringify({ l5, l6 }))
+
+  // ---------------- 3 · sem contexto: como sempre ----------------
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false) as a`)
+  const l7 = await ultimoF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura(p_rota => '/inicio/meu-painel', p_meu_painel => true) as a`)
+  const l8 = await ultimoF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false, null) as a`)
+  const l9 = await ultimoF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura('/tablet', false, '[1, 2]'::jsonb) as a`)
+  const l10 = await ultimoF5()
+  conferir(
+    [l7, l8, l9, l10].every((l) => igualF5(l.contexto, {})) && l8.rota === '/inicio/meu-painel',
+    'a tela de antes (2 argumentos, pela posição ou pelo nome, como a API chama) e a troca de conta sem recarregar (contexto nulo) gravam a navegação como sempre — sem a marca de abertura',
+    JSON.stringify({ l7, l8, l9, l10 }))
+
+  // ---------------- 4 · sem rota nada é gravado; a resposta não muda ----------------
+  const antesF5 = await contarF5()
+  await logadoF5(E40.operador, `select public.plt_fn_abertura(null, false, ${jF5({ carga: 'reload' })}) as a`)
+  const depoisF5 = await contarF5()
+  const semF5 = (await logadoF5(E40.operador, `select public.plt_fn_abertura(null, true) as a`)).a
+  const comF5 = (await logadoF5(E40.operador, `select public.plt_fn_abertura(null, true, ${jF5(ctx1)}) as a`)).a
+  const tiraF5 = (a) => JSON.stringify({ ...a, agora_ms: 0 })
+  const ninguemF5 = (await logadoF5('00000000-0000-0000-0000-00000000dead', `select public.plt_fn_abertura('/tablet', false, ${jF5(ctx1)}) as a`)).a
+  conferir(
+    depoisF5 === antesF5 && tiraF5(semF5) === tiraF5(comF5) && 'meu_painel' in comF5 && ninguemF5.perfil === null,
+    'a releitura sem rota não grava nada (nem com contexto); com e sem contexto a resposta é a mesma; quem não tem cadastro ativo recebe perfil vazio',
+    JSON.stringify({ antesF5, depoisF5, chaves: Object.keys(comF5), ninguemF5 }))
+} finally {
+  await bd.exec('rollback')
+  await comoF5('')
+}
+
+// ---------------- 5 · a assinatura nova, de quem está logado ----------------
+const prF5 = await umF5(`
+  select has_function_privilege('anon', 'public.plt_fn_abertura(text, boolean, jsonb)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_abertura(text, boolean, jsonb)', 'execute') as logado,
+         to_regprocedure('public.plt_fn_abertura(text, boolean)') is null as velha_saiu,
+         (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname = 'plt_fn_abertura') as quantas,
+         (select prosecdef from pg_proc where oid = 'public.plt_fn_abertura(text, boolean, jsonb)'::regprocedure) as definer`)
+conferir(
+  !prF5.anon && prF5.logado && prF5.velha_saiu && prF5.quantas === 1 && prF5.definer === false,
+  'uma porta de abertura só (a de 2 argumentos saiu — sem sobrecarga), de quem está logado (anônimo fora), e ela continua rodando como quem chama',
+  JSON.stringify(prF5))
+} // fim do bloco SESSAO-48 · frente 5
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

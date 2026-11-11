@@ -15,6 +15,12 @@ import { aplicarTema, temaGuardado } from './perfil/tema'
 import { preCarregar } from './navegacao/pedacos'
 import { iniciarMedicao } from './lib/medicao'
 import { aplicarOpacidade, opacidadeGuardada } from './lib/opacidadeFlutuantes'
+import { aoPedacoSumido, contextoDaCarga } from './lib/recarga'
+
+// SESSAO-48 (frente 5): como esta página foi aberta (navegou, atualizou, aba
+// descartada, ou a própria plataforma recarregou — e por quê), lido JÁ: o
+// porquê guardado na aba é consumido aqui e vai na 1ª abertura para a trilha.
+contextoDaCarga()
 
 // O último tema usado neste navegador entra ANTES do primeiro quadro pintado —
 // sem isso a tela pisca clara até o perfil chegar. O perfil confirma depois.
@@ -50,25 +56,12 @@ clienteQuery.setQueryDefaults(['setores'], { staleTime: Infinity })
 
 // SESSAO-32 (Lei §9): com o pacote dividido por tela, quem ficou com a
 // plataforma aberta desde antes de uma atualização pode pedir um pedaço que
-// não existe mais (o nome muda a cada versão). Recarrega a página uma vez — a
-// versão nova traz os pedaços novos. Nunca em laço: 10 s entre recargas.
-window.addEventListener('vite:preloadError', (evento) => {
-  const CHAVE = 'domoby:recarga-por-pedaco'
-  let ultima = 0
-  try {
-    ultima = Number(sessionStorage.getItem(CHAVE) ?? 0)
-  } catch {
-    // sem armazenamento (aba privada): recarrega mesmo assim, uma vez por aviso
-  }
-  if (Date.now() - ultima < 10_000) return
-  try {
-    sessionStorage.setItem(CHAVE, String(Date.now()))
-  } catch {
-    // idem
-  }
-  evento.preventDefault()
-  window.location.reload()
-})
+// não existe mais (o nome muda a cada versão). Recarrega a página — a versão
+// nova traz os pedaços novos.
+// ↩️ SESSAO-48 (frente 5): mostra "Atualizando a plataforma…" e recarrega UMA
+// vez por versão (a guarda fica na aba — nunca em laço); sem internet, ou se a
+// mesma versão falhar de novo, só o aviso com o botão "Atualizar".
+window.addEventListener('vite:preloadError', aoPedacoSumido)
 
 const raiz = document.getElementById('root')
 if (!raiz) throw new Error('Elemento #root não encontrado no index.html')

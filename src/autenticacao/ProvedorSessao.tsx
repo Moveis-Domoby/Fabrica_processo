@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { recargaEmCurso } from '@/lib/recarga'
 import { aplicarTema, ehTema } from '@/perfil/tema'
 import { ContextoSessao } from './sessao-contexto'
 import { abrirPlataforma, semearCache } from './abertura'
@@ -58,6 +59,11 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
       setSessaoResolvida(true)
     })
     const { data: escuta } = supabase.auth.onAuthStateChange((evento, novaSessao) => {
+      // SESSAO-48 (frente 5 — o laço da troca de setor): a página vai recarregar
+      // (a troca de setor do tablet). A conta nova é da PRÓXIMA página — esta
+      // não reage: antes, ela abria a plataforma com a conta nova e a recarga
+      // abria de novo (duas aberturas no mesmo segundo a cada troca).
+      if (recargaEmCurso()) return
       // Saiu (ou a sessão venceu): nada guardado de quem saiu fica para quem
       // entrar depois no mesmo aparelho, e a próxima entrada é abertura de novo
       // (o perfil é guardado sem prazo — SESSAO-32).
