@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Layers, Package, PackagePlus, Search, Settings2, Trophy } from 'lucide-react'
@@ -10,6 +10,14 @@ import { configEstoque } from '@/logistica/api'
 import { PainelConfiguracoes } from '@/logistica/componentes/PainelConfiguracoes'
 import { PainelInsumos } from '@/logistica/componentes/PainelInsumos'
 import { PainelTop20 } from '@/logistica/componentes/PainelTop20'
+
+// SESSAO-48 (frente 3): a janela "Para onde vai este móvel?" — pedaço próprio, só
+// baixa quando o endereço pede (`?destino=`, o caminho do aviso do sino — Lei §9).
+const ModalDestinoPedidoCancelado = lazy(() =>
+  import('@/logistica/componentes/ModalDestinoPedidoCancelado').then((m) => ({
+    default: m.ModalDestinoPedidoCancelado,
+  })),
+)
 
 type AbaEstoque = 'top20' | 'insumos' | 'configuracoes'
 
@@ -36,6 +44,15 @@ export function Estoque() {
   const { perfil, semAcesso, tenhoAcesso } = useAcessoLogistica()
   const [parametros, setParametros] = useSearchParams()
   const aba = abaDaUrl(parametros.get('aba'))
+  // SESSAO-48 (frente 3): o pedido cancelado no Tiny com móveis em produção — a
+  // janela vive no endereço (?destino=<card do pedido>), como a "Decidir situação"
+  // da devolução: o aviso do sino e o link abrem direto, em qualquer aba.
+  const destinoCardId = Number(parametros.get('destino')) || null
+  function fecharDestino() {
+    const novos = new URLSearchParams(parametros)
+    novos.delete('destino')
+    setParametros(novos, { replace: true })
+  }
   // ↩️ 06/11: o "Cadastrar produto ao estoque" mora na linha das abas (o
   // painel do Top X abre a escolha do produto quando este botão manda).
   const [cadastrando, setCadastrando] = useState(false)
@@ -164,6 +181,16 @@ export function Estoque() {
           <PainelConfiguracoes ativo={tenhoAcesso} podeMexer={tenhoAcesso} />
         )}
       </div>
+
+      {destinoCardId !== null && tenhoAcesso && (
+        <Suspense fallback={null}>
+          <ModalDestinoPedidoCancelado
+            key={destinoCardId}
+            cardId={destinoCardId}
+            aoFechar={fecharDestino}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

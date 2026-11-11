@@ -98,3 +98,102 @@ exata; o resto é novo. Nenhuma tabela, coluna ou tipo de fato novo (a base trou
   conferência antiga mudou de cor).
 - Para iterar rápido: uma mini bateria (`s48/f3/mini.mjs`: monta o banco em disco uma vez — 8 s — e roda só o meu bloco).
 
+### 3 · O ensaio ×100 (Lei §7.2/§12 — ANTES de fechar a tela, A-209/E-192)
+
+Programa e resultado em `_docs/Plataforma/Execucao/dados/SESSAO-48 - frente 3 - ensaio x100 do destino do pedido cancelado
+(script|resultado, 2026-11-11)`. Volume ×100 do retrato (562.700 pedidos, 1,1 milhão de itens, 3.753 pedidos na fila
+do PCP, 140 mil fatos) e o pior caso esperado: o cancelado com **30 peças de 10 móveis** (o 13622 tinha 31), um móvel
+muito vendido (1 em cada 7 pedidos; 536 na fila) com metade das vagas já cobertas. PGlite em disco, com a máquina
+dividida com as outras frentes — os números são o teto.
+
+- **1ª versão** (a procura por móvel juntando o pedido e chamando a regra do PCP linha a linha, e a fila relida para cada
+  móvel): a janela **368 ms**. → **2ª** (a fila uma vez só): 85 ms no pior caso — mas, com `setor in (select …)`, o
+  planejador lia os 30 mil cards do PCP; com `= any(array(…))` passou a usar o índice da fila, e aí trocou a junção pelos
+  itens dos 10 móveis pelo índice do SKU (113 mil itens — 93 ms). → **Final:** a fila do PCP numa passada (o índice
+  parcial da fila), os itens de cada pedido da fila pela chave do item (`lateral` — o custo é o tamanho da fila, nunca o
+  de quantas vendas o móvel teve), e a regra do PCP + a conta das vagas só nas primeiras linhas, na ordem, até o 10º.
+- **Números finais:** janela, caso típico (3 peças de um móvel muito vendido) **33 ms**; pior caso (30 peças, 10 móveis,
+  50 candidatos, 13,5 KB) **75 ms** (6ª chamada 68 ms) — o grosso é 1 conta de vagas por candidato (~0,8 ms cada × 50).
+  A decisão de 1 peça: estoque 23 ms · outro pedido 16 ms · cancelar 31 ms; **as 30 peças de uma vez: 206 ms** (cada
+  peça desvinculada refaz a conta de liberação do pedido cancelado — a maquinaria de sempre). O Tiny cancelando um pedido
+  com 10 peças em produção (a gravação inteira, com a reação): 37 ms.
+- **Fora do teto (para o supervisor decidir):** o pior caso da janela (75 ms > 50 ms) e as 30 peças de uma vez
+  (206 ms > 100 ms). Os dois são raros (a janela abre por clique; 30 peças de uma vez é o caso do 13622) e o custo é a
+  conta de vagas da casa (`fn_vagas_pedido`) e a reconta da liberação — não a procura. Com o volume de hoje (×1), a
+  janela leva poucos milissegundos.
+
+### 4 · As telas
+
+- **`src/logistica/destino.ts`** — as portas (`detalheDestino`, `decidirDestino`), os tipos, as palavras
+  (`ROTULO_DESTINO`, `EXPLICA_DESTINO`, `textoDaDecisao`, `nomeDaPeca`) e a lógica pura: `vagasQueSobram` (a vaga que
+  outra peça da janela já escolheu não aparece livre) e `distribuirOutroPedido` ("todas de uma vez" → cada peça no 1º
+  pedido com vaga, dividindo as vagas; nulo quando alguma fica sem pedido).
+- **`src/logistica/componentes/ModalDestinoPedidoCancelado.tsx`** — a janela "Para onde vai este móvel?" (o molde é a
+  "Decidir situação" da devolução): `Modal tamanho="galpao"` (no celular sobe do rodapé), uma leitura ao abrir
+  (`gcTime: 0` — esquece ao fechar), o resumo (o pedido, quando cancelou, a pílula "Cancelado no Tiny" com ícone), o
+  bloco **"Todas de uma vez"** (3 botões com `aria-pressed`; "Passar para outro pedido" desligado com o porquê quando nem
+  todos têm pedido) e, por móvel: nome (k/n), SKU, onde está e desde quando espera, quem está trabalhando nele, o selo de
+  danificada, os 3 botões-rádio (ícone + texto + o check quando marcado) e, em "Passar para outro pedido", os pedidos em
+  botões (nº · cliente, "previsto dd/mm · N vagas deste móvel", "em stand-by"; a vaga tomada por outro móvel da janela
+  fica desligada e diz isso). O rodapé (Fechar · Aplicar a decisão) fica sempre à vista; o aviso do fim diz o que
+  aconteceu com cada móvel (e "N móveis já tinham destino — nada mudou neles"); a janela relê sozinha e mostra
+  "Já decidido" (o que aconteceu, quem e quando). Recusa do banco = aviso em português, e as escolhas ficam.
+- **`src/paginas/Estoque.tsx`** — o gancho do `?destino=` (o caminho do sino): abre a janela em **qualquer aba** e
+  fechar tira só o `?destino=`; a janela é um **pedaço próprio** (`lazy`), baixado só quando o endereço pede.
+- **Testes:** `destino.test.ts` (7), `ModalDestinoPedidoCancelado.test.tsx` (10), `Estoque.test.tsx` (2).
+
+### 5 · Conferências finais (na cópia)
+
+- **Bateria, 3ª rodada** (depois da leitura otimizada): **1685 ✔ · 2 ✘** — o vermelho antigo do Dashboard e
+  "SESSAO-33 · o fluxo do n8n … de ponta a ponta", que **depende do relógio**: `fn_tiny_fila_lote` deixa a conta da
+  fábrica de fora na madrugada dela (`fn_tiny_fabrica_em_varredura`) — a rodada começou ~03:10 e o lote não trouxe a
+  linha da fábrica; na 2ª rodada (02:58) passou. Nada a ver com a frente (a fila do Tiny não foi tocada).
+- **vitest** (com as variáveis de mentira): **86 arquivos, 563 testes ✔**. **tsc** ✔. **lint** dos 6 arquivos ✔.
+- **Montagem:** ✔ — **JS inicial: 231.2 KB comprimidos em 8 arquivos (teto 250 KB)**; a janela é um pedaço próprio
+  (`ModalDestinoPedidoCancelado` 12,11 kB · 4,03 kB comprimido); o pedaço do Estoque 48,56 kB (12,77 kB comprimido).
+- **Não conferido aqui:** a foto da janela no celular (375) e no tablet (768) — o supervisor tira (o desenho não tem
+  largura fixa: uma coluna no celular, `sm:grid-cols-3` nas opções, textos que quebram).
+
+## Provisórias (o supervisor transforma em decisões numeradas)
+
+- **P1:** "o mais antigo primeiro" = o pedido que **espera há mais tempo no PCP** (o `desde` do card do pedido — a ordem
+  da fila do PCP), não a data da venda: é a ordem que o PCP já usa e é o que deixa a procura parar no 10º.
+- **P2:** até **10 pedidos por móvel**; a procura olha no máximo os 200 primeiros da fila que têm o móvel (Lei §6).
+- **P3:** peça **sem SKU** não tem candidato ("Passar para outro pedido" desligada) — a mesma régua da sugestão de peça em
+  produção do PCP (D-201), que também só procura pelo SKU.
+- **P4:** a peça **danificada** também espera a decisão (está em produção), mas não passa para outro pedido (a maquinaria
+  recusa) — a janela diz o porquê.
+- **P5:** a peça com **ajuste aberto** (D-130) não ganha a marca: o ajuste já tem o destino final escolhido pelo PCP.
+- **P6:** todo `destino_decidido` leva `pedido_id` = o pedido **cancelado** (a origem — igual ao que a base grava no
+  'cancelar'); o "outro pedido" leva também `pedido_destino_id` / `numero_destino` e `via` ('pcp' | 'logistica').
+- **P7:** "Cancelar a fabricação" vai para a coluna que cancela **do setor da peça** (motivo "cancelada"), senão para a da
+  LIMPEZA E EMBALAGEM — origem automação + a pessoa: não se pede o estado da peça (ela não segue a produção).
+- **P8:** o aviso é **um por pedido**, para o público logística (o catálogo; o admin entra pela régua do público), título
+  "Pedido N cancelado com móveis em produção".
+- **P9:** **blindagem:** se a marca falhar, o cancelamento vale do mesmo jeito e a peça cai na regra de antes (o ESTOQUE
+  quando ficar pronta); o erro vira aviso de automação para os administradores.
+- **P10:** "descancelado": a marca sai com o fato (automático); o aviso que já estava no sino fica — aberto, a janela diz
+  "Nada esperando decisão" e "Voltou a valer no Tiny". Cancelado de novo, a peça espera de novo.
+- **P11:** a leitura aceita também o card de uma **peça** (leva ao pedido dela) — o rótulo do card pode abrir a janela.
+- **P12:** "Todas de uma vez → Passar para outro pedido" distribui as peças pelos pedidos (o mais antigo primeiro,
+  dividindo as vagas) e fica desligada quando alguma peça ficaria sem pedido.
+- **P13:** a janela abre no Estoque pelo `?destino=` em qualquer aba (o `?devolucao=` vive só no Top X).
+
+## Lições (para a memória de aprendizado — o supervisor numera)
+
+- **`vitest run --root "<cópia>" --dir src` com a pasta de trabalho na principal roda os testes da PRINCIPAL** (o `--dir`
+  é relativo à pasta de trabalho, não ao `--root`): na cópia, `--dir "<cópia>/src"`. E a cópia não tem `.env.local` —
+  sem as variáveis de mentira (`VITE_SUPABASE_URL=https://teste.invalid VITE_SUPABASE_ANON_KEY=…`), 10 arquivos de
+  teste caem no `src/lib/supabase.ts`.
+- **`eslint <arquivos>` de fora da pasta de trabalho ignora os arquivos e sai com 0** ("File ignored because outside of
+  base path" — só aparece sem `--no-warn-ignored`): o lint da cópia vai pela API do ESLint com `cwd` = a cópia
+  (`s48/f3/lint.mjs`), conferido com um texto que tem de dar erro.
+- **Mudar o que um fato antigo faz muda os cenários antigos da bateria:** o cancelamento passou a gravar tipos novos nos
+  blocos da SESSAO-24 em diante, e as migrations antigas reaplicadas que VALIDAM a lista de tipos caíram. Antes de mexer
+  numa reação a fato do Tiny, procurar na bateria quem reaplica migration com `validate constraint`.
+- **Ensaio ×100 com a porta ainda no papel pegou 368 → 33 ms (típico) / 75 ms (pior caso):** procura "por candidato" lê a
+  fila UMA vez, pela chave do item (o custo é o tamanho da fila, não a popularidade do móvel), e só as primeiras linhas,
+  na ordem, pagam a regra e a conta cara; `in (select …)` × `= any(array(…))` muda o índice escolhido.
+- **PGlite em disco no Windows:** remontar o banco na MESMA pasta logo depois de apagá-la pode dar "could not create file
+  base/…: File exists" — usar uma pasta nova.
+
