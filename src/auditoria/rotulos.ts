@@ -188,7 +188,49 @@ export function humanizar(codigo: string): string {
   return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : 'Atividade'
 }
 
-export function rotuloDaAcao(acao: string): string {
+// ---------------------------------------------------------------------------
+// SESSAO-48 (frente 5 — "a plataforma recarrega sozinha"): a 1ª abertura de
+// cada página grava POR QUE ela abriu (a navegação com a marca `abertura`). A
+// Auditoria diz em português: "Abriu a plataforma — atualizou a página", "— a
+// aba tinha sido descartada pelo navegador", "— versão nova (atualizou
+// sozinha)", "— troca de setor no tablet"…
+// ---------------------------------------------------------------------------
+
+/** O que o navegador diz da carga da página. */
+const CARGA_DA_ABERTURA: Record<string, string> = {
+  navigate: 'abriu pelo endereço ou por um atalho',
+  reload: 'atualizou a página',
+  back_forward: 'voltou pelo botão de voltar do navegador',
+  prerender: 'o navegador abriu antes da hora',
+}
+/** Quando foi a própria plataforma que recarregou. */
+const RECARGA_DA_PLATAFORMA: Record<string, string> = {
+  versao_nova: 'versão nova (atualizou sozinha)',
+  versao_nova_botao: 'versão nova (tocou em Atualizar)',
+  pedaco_sumido: 'versão nova (faltava uma parte da versão anterior)',
+  troca_setor: 'troca de setor no tablet',
+}
+const ABA_DESCARTADA = 'a aba tinha sido descartada pelo navegador'
+
+/** Esta linha da trilha é a abertura de uma página (e não uma troca de tela)? */
+export function ehAbertura(acao: string, contexto?: Record<string, unknown> | null): boolean {
+  return acao === 'navegacao' && contexto?.abertura === true
+}
+
+/** Por que a página abriu — o mais forte primeiro: a plataforma, a aba descartada, o navegador. */
+export function porQueAbriu(contexto: Record<string, unknown>): string | null {
+  const recarga = typeof contexto.recarga === 'string' ? RECARGA_DA_PLATAFORMA[contexto.recarga] : undefined
+  if (recarga) return recarga
+  if (contexto.descartada === true) return ABA_DESCARTADA
+  const carga = typeof contexto.carga === 'string' ? CARGA_DA_ABERTURA[contexto.carga] : undefined
+  return carga ?? null
+}
+
+export function rotuloDaAcao(acao: string, contexto?: Record<string, unknown> | null): string {
+  if (contexto && ehAbertura(acao, contexto)) {
+    const porque = porQueAbriu(contexto)
+    return porque ? `Abriu a plataforma — ${porque}` : 'Abriu a plataforma'
+  }
   return ROTULO_ACAO[acao] ?? humanizar(acao)
 }
 
@@ -603,6 +645,17 @@ export function detalhesDoContexto(
   contexto: Record<string, unknown> | null,
 ): { rotulo: string; valor: string }[] {
   if (!contexto) return []
+  // SESSAO-48 (frente 5): a abertura de uma página — tudo o que se sabe dela,
+  // em português (a versão é da máquina: fica fora)
+  if (contexto.abertura === true) {
+    const detalhes: { rotulo: string; valor: string }[] = []
+    const carga = typeof contexto.carga === 'string' ? CARGA_DA_ABERTURA[contexto.carga] : undefined
+    if (carga) detalhes.push({ rotulo: 'O navegador', valor: carga })
+    if (contexto.descartada === true) detalhes.push({ rotulo: 'Aba descartada', valor: 'sim — o navegador tinha tirado a aba da memória' })
+    const recarga = typeof contexto.recarga === 'string' ? RECARGA_DA_PLATAFORMA[contexto.recarga] : undefined
+    if (recarga) detalhes.push({ rotulo: 'Recarregada pela plataforma', valor: recarga })
+    return detalhes
+  }
   return Object.entries(contexto)
     .filter(([chave]) => !ehChaveDeMaquina(chave))
     .map(([chave, valor]) => ({

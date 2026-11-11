@@ -86,6 +86,51 @@ describe('auditoria — rótulos', () => {
     expect(detalhesDoContexto(null)).toEqual([])
   })
 
+  // SESSAO-48 (frente 5 — "a plataforma recarrega sozinha"): a 1ª abertura de
+  // cada página grava por que ela abriu; a Auditoria diz em português.
+  it('a abertura da página diz por que abriu — a plataforma primeiro, depois a aba descartada, depois o navegador', () => {
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'reload' })).toBe('Abriu a plataforma — atualizou a página')
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'navigate' })).toBe(
+      'Abriu a plataforma — abriu pelo endereço ou por um atalho',
+    )
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'back_forward' })).toBe(
+      'Abriu a plataforma — voltou pelo botão de voltar do navegador',
+    )
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'reload', descartada: true })).toBe(
+      'Abriu a plataforma — a aba tinha sido descartada pelo navegador',
+    )
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'reload', recarga: 'troca_setor' })).toBe(
+      'Abriu a plataforma — troca de setor no tablet',
+    )
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'reload', recarga: 'versao_nova' })).toBe(
+      'Abriu a plataforma — versão nova (atualizou sozinha)',
+    )
+    expect(rotuloDaAcao('navegacao', { abertura: true, recarga: 'versao_nova_botao' })).toBe(
+      'Abriu a plataforma — versão nova (tocou em Atualizar)',
+    )
+    expect(rotuloDaAcao('navegacao', { abertura: true, recarga: 'pedaco_sumido' })).toBe(
+      'Abriu a plataforma — versão nova (faltava uma parte da versão anterior)',
+    )
+    // sem nada que se saiba (ou valor desconhecido): só "Abriu a plataforma"
+    expect(rotuloDaAcao('navegacao', { abertura: true })).toBe('Abriu a plataforma')
+    expect(rotuloDaAcao('navegacao', { abertura: true, carga: 'teletransporte' })).toBe('Abriu a plataforma')
+    // a troca de tela de sempre (e a trilha de antes) segue "Abriu a tela"
+    expect(rotuloDaAcao('navegacao', {})).toBe('Abriu a tela')
+    expect(rotuloDaAcao('navegacao')).toBe('Abriu a tela')
+    expect(rotuloDaAcao('saiu', { abertura: true })).toBe('Saiu da plataforma')
+  })
+
+  it('os detalhes da abertura em português, sem a versão (é da máquina)', () => {
+    expect(
+      detalhesDoContexto({ abertura: true, carga: 'reload', descartada: true, recarga: 'versao_nova', versao: '28ea753f9cca' }),
+    ).toEqual([
+      { rotulo: 'O navegador', valor: 'atualizou a página' },
+      { rotulo: 'Aba descartada', valor: 'sim — o navegador tinha tirado a aba da memória' },
+      { rotulo: 'Recarregada pela plataforma', valor: 'versão nova (atualizou sozinha)' },
+    ])
+    expect(detalhesDoContexto({ abertura: true, versao: '28ea753f9cca' })).toEqual([])
+  })
+
   it('o que mudou na conferência e de onde veio a rodada', () => {
     expect(rotuloDosCampos(['obs', 'obs_interna', 'novo'])).toBe(
       'observação, observação interna, pedido que não tinha chegado aqui',

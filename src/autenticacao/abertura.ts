@@ -1,5 +1,8 @@
+import type { PostgrestError } from '@supabase/supabase-js'
 import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { contextoDaCarga } from '@/lib/recarga'
+import type { ContextoDaCarga } from '@/lib/recarga'
 import { acertarRelogio, pedirReprise, topicoDaPessoa } from '@/chat/canais'
 import { chaveConversas } from '@/chat/consultas'
 import { montarPaginaConversas } from '@/chat/api'
@@ -64,16 +67,51 @@ export function navegacaoJaRegistrada(rota: string): boolean {
   return false
 }
 
-export async function abrirPlataforma(primeira: boolean): Promise<Abertura> {
-  const rota = primeira ? rotaInicial() : null
-  const { data, error } = await supabase.rpc('plt_fn_abertura', {
+/**
+ * SESSAO-48 (frente 5): o porquê vai UMA vez por página — na 1ª abertura que
+ * a trilha registrou. Trocar de conta sem recarregar (entrar de novo depois de
+ * sair, a troca vinda de outra aba) é navegação, não abertura da página.
+ */
+let aberturaDaPaginaRegistrada = false
+
+function chamarAbertura(rota: string | null, contexto: ContextoDaCarga | null) {
+  return supabase.rpc('plt_fn_abertura', {
     p_rota: rota,
     p_meu_painel: rota !== null && rota.startsWith('/inicio/meu-painel'),
+    ...(contexto ? { p_contexto: contexto } : {}),
   })
+}
+
+/** O banco ainda sem o 3º argumento da porta (a tela nova chegou antes da migration). */
+function portaSemContexto(erro: PostgrestError): boolean {
+  return erro.code === 'PGRST202'
+}
+
+export async function abrirPlataforma(primeira: boolean): Promise<Abertura> {
+  const rota = primeira ? rotaInicial() : null
+  // SESSAO-48 (frente 5): a 1ª abertura desta página diz por que ela abriu —
+  // navegou, atualizou, voltou, a aba descartada, ou a própria plataforma
+  // recarregou (versão nova, pedaço sumido, troca de setor). Vai para a trilha.
+  const contexto = rota !== null && !aberturaDaPaginaRegistrada ? contextoDaCarga() : null
+  let { data, error } = await chamarAbertura(rota, contexto)
+  if (error && contexto && portaSemContexto(error)) {
+    // a tela nova tolera o banco de antes por alguns minutos (Lei §7.6): a
+    // abertura de sempre, só sem o porquê
+    ;({ data, error } = await chamarAbertura(rota, null))
+  }
   if (error) throw new Error(`Não deu para abrir a plataforma: ${error.message}`)
   const abertura = data as Abertura
-  if (rota && abertura.perfil) navegacaoDaAbertura = rota
+  if (rota && abertura.perfil) {
+    navegacaoDaAbertura = rota
+    if (contexto) aberturaDaPaginaRegistrada = true
+  }
   return abertura
+}
+
+/** Só para os testes: uma página recém-aberta. */
+export function reiniciarAberturaParaTeste(): void {
+  aberturaDaPaginaRegistrada = false
+  navegacaoDaAbertura = null
 }
 
 /** Cada pedaço da abertura no cache, com a chave e o formato que a tela usa. */
