@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "if [ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ':(exclude)_docs' ':(exclude)Claude outputs' ':(exclude)*.md'; then echo 'Desde a ultima publicacao so mudou documentacao: montagem pulada (o site no ar segue o mesmo).'; exit 0; else echo 'Mudou codigo (ou nao ha publicacao anterior para comparar): monta.'; exit 1; fi",
+  "ignoreCommand": "sh scripts/vercel-pular-documentacao.sh",
   "headers": [
     {
       "source": "/assets/(.*)",
