@@ -1,0 +1,65 @@
+# SESSAO-48 · frente 3 — ensaio ×100 da janela "Para onde vai este móvel?", da decisão e do cancelamento do Tiny
+# (PGlite em disco; a máquina dividida com as outras frentes da sessão — os números são o teto)
+
+# 1ª versão (a procura por móvel juntando o pedido e chamando a regra do PCP linha a linha; a fila relida por móvel):
+== a janela (UMA leitura ao abrir) ==
+  plt_fn_destino_pendentes — 30 peças, 10 móveis (o muito vendido entre eles)    mediana   367.9 ms · máx   522.3 ms · 6ª   275.3 ms · 30 peças · 5 móveis com candidato · 50 candidatos · 13.462 bytes
+  --- plano: a fila do PCP com algum dos 10 móveis
+
+
+# no explorador (o mesmo banco): a passada pela fila — com 'setor in (select …)' o planejador lia os 30 mil cards do PCP (31,6 ms);
+# com '= any(array(…))' o índice da fila (22,1 ms); juntando os itens pelo índice do SKU, 113 mil itens dos 10 móveis (pior caso 93 ms);
+# pela chave do item ('lateral', o custo é o tamanho da fila): típico 30–33 ms, pior caso 54–57 ms.
+
+# versão final:
+== montando o banco em disco (×100: pedidos 562.700) ==
+  142 migrations aplicadas (a última: 20261111030000_plt_cancelado_pergunta_destino.sql) (6 s)
+  pedidos e itens (27 s)
+  pedidos 562.700 · itens 1.125.400 · cards 45.055 · fatos 140.031 · fila do PCP 3.753 (com o móvel muito vendido: 536) · pedido cancelado 100003 com 30 peças esperando (34 s)
+
+== a janela (UMA leitura ao abrir) ==
+  plt_fn_destino_pendentes — 30 peças, 10 móveis (o muito vendido entre eles)    mediana    75.1 ms · máx   311.6 ms · 6ª    67.6 ms · 30 peças · 5 móveis com candidato · 50 candidatos · 13.541 bytes
+  plt_fn_destino_pendentes — 3 peças do móvel muito vendido (o caso típico)      mediana    33.3 ms · máx    55.3 ms · 6ª    33.3 ms · 3 peças · 10 candidatos
+  --- plano: a fila do PCP × os itens com algum dos 10 móveis
+      Hash Semi Join (actual rows=2502.00 loops=1)
+        Hash Cond: (pi.codigo = ('SKU'::text || (k.k)::text))
+        Buffers: shared hit=19747 read=24
+        ->  Nested Loop (actual rows=7508.00 loops=1)
+              Buffers: shared hit=19747 read=24
+              ->  Nested Loop (actual rows=3754.00 loops=1)
+                    Buffers: shared hit=978 read=23
+                    ->  Seq Scan on plt_setores s (actual rows=1.00 loops=1)
+                          Filter: (papel_no_fluxo = 'entrada'::text)
+                          Rows Removed by Filter: 10
+                          Buffers: shared hit=1
+                    ->  Index Scan using plt_cards_arquivado_idx on plt_cards pc (actual rows=3754.00 loops=1)
+                          Index Cond: (setor_atual_id = s.id)
+                          Filter: ((liberado_completo_em IS NULL) AND (entrega_evento_id IS NULL) AND (tipo = 'pedido'::text))
+                          Rows Removed by Filter: 26264
+                          Index Searches: 1
+                          Buffers: shared hit=977 read=23
+              ->  Index Scan using pedido_itens_pkey on pedido_itens pi (actual rows=2.00 loops=3754)
+                    Index Cond: (pedido_id = pc.pedido_id)
+                    Index Searches: 3754
+                    Buffers: shared hit=18769 read=1
+        ->  Hash (actual rows=10.00 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 5kB
+              ->  Function Scan on generate_series k (actual rows=10.00 loops=1)
+      Planning:
+        Buffers: shared hit=38 read=2
+      Planning Time: 1.414 ms
+      Execution Time: 25.640 ms
+  as partes: a fila × os itens dos 10 móveis, sozinha                            mediana    28.1 ms · máx    30.4 ms · 6ª    28.1 ms
+  as partes: fn_vagas_pedido de UM pedido da fila (o custo de cada candidato)    mediana     0.8 ms · máx     1.3 ms · 6ª     0.7 ms
+
+== a decisão (o gesto; cada uma desfeita depois) ==
+  seguir para o estoque — 1 peça                                                 mediana    23.3 ms · máx    56.1 ms · 6ª    17.7 ms
+  passar para outro pedido — 1 peça do móvel muito vendido                       mediana    16.2 ms · máx    19.3 ms · 6ª    16.3 ms
+  cancelar a fabricação — 1 peça (vai para o CANCELADO da LIMPEZA)               mediana    31.3 ms · máx    39.0 ms · 6ª    22.5 ms
+  todas de uma vez — as 30 peças seguem para o estoque                           mediana   206.3 ms · máx   213.4 ms · 6ª   197.7 ms
+
+== o cancelamento do Tiny (a reação que marca e avisa) ==
+  (conferência: 10 peças esperando decisão)
+  o Tiny cancela um pedido com 10 peças em produção (a gravação inteira)         mediana    36.9 ms · máx    65.2 ms · 6ª    35.0 ms
+
+fim (38 s)
