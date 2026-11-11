@@ -350,8 +350,9 @@ create trigger plt_eventos_zz_destino_vinculada
 --     pedido, as peças esperando decisão (móvel, k/n, setor e etapa, desde quando)
 --     e, por móvel, os pedidos VIVOS no PCP que precisam do MESMO móvel com vaga
 --     aberta (a régua da D-62 pelo fn_chave_peca; a vaga pelo fn_vagas_pedido; o
---     PCP pela regra única fn_fora_do_pcp) — até 10, o pedido mais antigo
---     primeiro. E o que já foi decidido. Logística e admin (a régua da devolução).
+--     PCP pela regra única fn_fora_do_pcp) — até 10, o que espera há mais
+--     tempo no PCP primeiro (a ordem da fila do PCP). E o que já foi decidido.
+--     Logística e admin (a régua da devolução).
 -- ----------------------------------------------------------------------------
 create or replace function public.plt_fn_destino_pendentes(p_card_id bigint)
 returns jsonb
@@ -406,33 +407,56 @@ begin
      where not p.danificada and p.item_codigo is not null
      order by p.chave, p.id
   ),
+  -- a fila do PCP: o card do pedido aguardando liberação (o índice parcial
+  -- plt_cards_pcp_abertos_idx) — UMA passada para todas as peças, sem juntar o
+  -- pedido nem chamar regra por linha (E-238)
+  fila_pcp as materialized (
+    select pc.id as card_id, pc.pedido_id, pc.desde, pc.standby_desde is not null as standby,
+           pc.volta_pcp_em, pc.removido_pcp_em
+      from public.plt_cards pc
+     where exists (select 1 from moveis)
+       and pc.tipo = 'pedido' and pc.liberado_completo_em is null and pc.arquivado_em is null
+       -- "= any(array(…))": o setor resolvido uma vez — o índice da fila é usado (no
+       -- ensaio ×100, com "in (select …)" o planejador lia os 30 mil cards do PCP)
+       and pc.setor_atual_id = any (array(select s.id from public.plt_setores s where s.papel_no_fluxo = 'entrada'))
+       and pc.entrega_evento_id is null
+       and pc.pedido_id <> v_card.pedido_id
+  ),
+  -- × os itens com algum dos móveis, pela chave do item (pedido, seq): o custo é o
+  -- tamanho da fila, nunca o de quantas vendas o móvel já teve (no ensaio ×100, juntar
+  -- pelo índice do SKU lia 113 mil itens dos 10 móveis — o dobro do tempo)
+  fila as materialized (
+    select q.card_id, q.pedido_id, q.desde, q.standby, q.volta_pcp_em, q.removido_pcp_em, i.codigo
+      from fila_pcp q
+      cross join lateral (
+        select pi.codigo from public.pedido_itens pi
+         where pi.pedido_id = q.pedido_id
+           and pi.codigo in (select m.item_codigo from moveis m)) i
+  ),
   cand as (
     select m.chave, z.*
       from moveis m
       cross join lateral (
-        select o.card_id, o.pedido_id, o.numero, o.cliente_id, o.data_prevista, o.data_pedido, o.standby, v.vagas
+        select o.card_id, o.pedido_id, o.desde, o.standby, p2.numero, p2.cliente_id, p2.data_prevista, v.vagas
           from (
-            -- os pedidos no PCP (aguardando liberação) que têm o item, do mais antigo
-            -- para o mais novo (teto de 200 na procura — Lei §6); o "limit" trava a
-            -- ordem antes da conta das vagas, que então para no 10º que serve
-            select pc.id as card_id, p2.id as pedido_id, p2.numero, p2.cliente_id, p2.data_prevista,
-                   p2.data_pedido, pc.standby_desde is not null as standby
-              from public.plt_cards pc
-              join public.plt_setores sp on sp.id = pc.setor_atual_id and sp.papel_no_fluxo = 'entrada'
-              join public.pedidos p2 on p2.id = pc.pedido_id
-             where pc.tipo = 'pedido' and pc.arquivado_em is null and pc.liberado_completo_em is null
-               and pc.entrega_evento_id is null
-               and pc.pedido_id <> v_card.pedido_id
-               and not plt_privado.fn_fora_do_pcp(p2.situacao, pc.volta_pcp_em, pc.removido_pcp_em)
-               and exists (select 1 from public.pedido_itens pi
-                            where pi.pedido_id = pc.pedido_id and pi.codigo = m.item_codigo)
-             order by p2.data_pedido nulls last, p2.numero, pc.id
+            -- os que têm ESTE móvel, o que espera há mais tempo no PCP primeiro (a ordem
+            -- da fila do PCP; teto de 200 na procura — Lei §6); o "limit" trava a ordem e
+            -- só então vêm a regra do PCP e a conta das vagas, linha a linha, até o 10º
+            select distinct f.card_id, f.pedido_id, f.desde, f.standby, f.volta_pcp_em, f.removido_pcp_em
+              from fila f
+             where f.codigo = m.item_codigo
+             order by f.desde nulls last, f.card_id
              limit 200) o
+          cross join lateral (
+            select p.numero, p.cliente_id, p.data_prevista, p.situacao
+              from public.pedidos p where p.id = o.pedido_id) p2
           cross join lateral (
             select count(*)::int as vagas
               from plt_privado.fn_vagas_pedido(o.pedido_id) w
              where w.card_id is null and w.reserva_card_id is null and w.chave = m.chave) v
-         where v.vagas > 0
+         where not plt_privado.fn_fora_do_pcp(p2.situacao, o.volta_pcp_em, o.removido_pcp_em)
+           and v.vagas > 0
+         order by o.desde nulls last, o.card_id
          limit 10) z
   )
   select (select coalesce(jsonb_agg(jsonb_build_object(
@@ -449,7 +473,7 @@ begin
                            'cliente_nome', cl.nome,
                            'data_prevista', plt_privado.fn_data_entrega(c.pedido_id, c.data_prevista),
                            'vagas', c.vagas, 'standby', c.standby)
-                           order by c.data_pedido nulls last, c.numero, c.card_id) as lista
+                           order by c.desde nulls last, c.card_id) as lista
                     from cand c
                     left join public.clientes cl on cl.id = c.cliente_id
                    group by c.chave) k)
@@ -491,7 +515,7 @@ end;
 $$;
 
 comment on function public.plt_fn_destino_pendentes(bigint) is
-  'SESSAO-48 (frente 3): a janela "Para onde vai este móvel?" numa leitura — o pedido cancelado no Tiny, as peças esperando a decisão da logística e, por móvel, até 10 pedidos vivos no PCP com vaga aberta do mesmo móvel (o mais antigo primeiro), e o que já foi decidido. Aceita o card do pedido ou o de uma peça dele. Logística e admin.';
+  'SESSAO-48 (frente 3): a janela "Para onde vai este móvel?" numa leitura — o pedido cancelado no Tiny, as peças esperando a decisão da logística e, por móvel, até 10 pedidos vivos no PCP com vaga aberta do mesmo móvel (o que espera há mais tempo no PCP primeiro), e o que já foi decidido. Aceita o card do pedido ou o de uma peça dele. Logística e admin.';
 revoke all on function public.plt_fn_destino_pendentes(bigint) from public, anon;
 grant execute on function public.plt_fn_destino_pendentes(bigint) to authenticated;
 

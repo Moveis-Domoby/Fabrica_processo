@@ -23023,11 +23023,15 @@ try {
   const a1 = await peca(idA, cardA, 1, 1, 2, COMODA483, MONTAGEM)
   const a2 = await peca(idA, cardA, 1, 2, 2, COMODA483, LIMPEZA)
   const a3 = await peca(idA, cardA, 2, 1, 1, ARMARIO483, AGUARDO)
-  // os pedidos vivos no PCP que precisam da cômoda: o 97533 (o mais antigo, 2 vagas) e o 97532 (1 vaga);
-  // o 97534 também precisa, mas o Tiny já o faturou (fora do PCP) — não é candidato
+  // os pedidos vivos no PCP que precisam da cômoda: o 97533 (esperando no PCP há mais tempo, 2 vagas)
+  // e o 97532 (1 vaga); o 97534 também precisa, mas o Tiny já o faturou (fora do PCP) — não é candidato
   const idB = await gravar483(pedido483(97532, 'Em aberto', [item483(...COMODA483)], '05/11/2026'))
   const idC = await gravar483(pedido483(97533, 'Preparando envio', [item483(...COMODA483, '2.00')], '01/11/2026'))
   const idD = await gravar483(pedido483(97534, 'Faturado', [item483(...COMODA483)], '20/10/2026'))
+  // (a chegada ao PCP em dias diferentes — no teste tudo nasce no mesmo instante)
+  await bd.exec(`update public.plt_cards set desde = now() - interval '5 days' where tipo = 'pedido' and pedido_id = ${idC};
+                 update public.plt_cards set desde = now() - interval '1 day'  where tipo = 'pedido' and pedido_id = ${idB};
+                 update public.plt_cards set desde = now() - interval '9 days' where tipo = 'pedido' and pedido_id = ${idD};`)
   const antes = { num: await numeros(924831), arm: await numeros(924832) }
   await cancelar(97531)
   const evCanc = (await um483(`select id::int as id from public.plt_eventos where card_id = ${cardA} and tipo = 'pedido_cancelado'`)).id
@@ -23079,7 +23083,7 @@ try {
       && !cands.some((c) => c.numero === 97534 || c.numero === 97531)
       && Array.isArray(d1.decididas) && d1.decididas.length === 0
       && JSON.stringify(dPeca) === JSON.stringify(d1),
-    'a janela traz o pedido, as 2 peças esperando (móvel, k/n, setor, desde quando) e, por móvel, os pedidos vivos no PCP com vaga do mesmo móvel — o mais antigo primeiro, com quantas vagas; o faturado e o próprio cancelado ficam fora; aberta pela peça, a mesma resposta',
+    'a janela traz o pedido, as 2 peças esperando (móvel, k/n, setor, desde quando) e, por móvel, os pedidos vivos no PCP com vaga do mesmo móvel — o que espera há mais tempo no PCP primeiro, com quantas vagas; o faturado e o próprio cancelado ficam fora; aberta pela peça, a mesma resposta',
     JSON.stringify({ d1, cands }))
   // o quadro do setor mostra a marca no card que espera (a etiqueta do card lê dela)
   await como483(E40.admin)
