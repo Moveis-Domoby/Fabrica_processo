@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { recargaEmCurso, versaoDaPagina } from '@/lib/recarga'
 
 /**
  * A PLATAFORMA MEDE A PRÓPRIA VELOCIDADE (SESSAO-32 · D-137 item 2 — "pode ser
@@ -88,7 +89,8 @@ function enviar() {
     p_fcp_ms: ms(medida.fcp),
     p_ttfb_ms: ms(medida.ttfb),
     p_interacoes: medida.interacoes,
-    p_versao: __VERSAO_APP__,
+    // ↩️ SESSAO-48 (frente 5): a versão é o código montado (o index.html diz), não o commit
+    p_versao: versaoDaPagina(),
     p_conexao:
       (navigator as Navigator & { connection?: { effectiveType?: string } }).connection
         ?.effectiveType ?? null,
@@ -119,6 +121,9 @@ export function iniciarMedicao() {
   enviadaEm = Date.now()
   modoTablet = window.location.pathname.startsWith('/tablet')
   supabase.auth.onAuthStateChange((_evento, sessao) => {
+    // SESSAO-48 (frente 5): na troca de setor do tablet a página vai recarregar —
+    // a medida DESTA página segue em nome da conta que a abriu
+    if (recargaEmCurso()) return
     token = sessao?.access_token ?? null
   })
 
