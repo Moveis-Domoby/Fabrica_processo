@@ -146,6 +146,14 @@ alter table public.plt_cards add constraint plt_cards_cancelada_pedido_fk
   foreign key (cancelada_pedido_id) references public.pedidos(id) not valid;
 alter table public.plt_cards validate constraint plt_cards_cancelada_pedido_fk;
 
+-- A trava "uma peça por vaga" das peças SEM pedido (feita para a reposição — a mesma
+-- vaga não nasce duas vezes) não vale para a peça cancelada: cancelar, liberar de novo
+-- a mesma vaga e cancelar outra vez são duas peças sem pedido no mesmo lugar (E-256).
+drop index if exists public.plt_cards_unidade_reposicao_uq;
+create unique index plt_cards_unidade_reposicao_uq
+  on public.plt_cards (card_pai_id, item_seq, indice_unidade)
+  where tipo = 'unidade' and pedido_id is null and cancelada_pedido_id is null;
+
 -- A coluna que cancela lê os últimos N dias e a rotina da madrugada acha o que
 -- passou do prazo — pelo mesmo índice (Lei §7.2: parcial, no recorte usado).
 create index if not exists plt_cards_cancelada_idx
@@ -1375,8 +1383,10 @@ begin
        set pedido_id       = null,
            produto_tiny_id = coalesce(produto_tiny_id,
                                       nullif(new.dados ->> 'produto_tiny_id', '')::bigint),
-           -- SESSAO-48: o pai que o fato traz, só quando a peça não tem um
-           card_pai_id     = coalesce(card_pai_id, nullif(new.dados ->> 'card_pai_id', '')::bigint)
+           -- SESSAO-48: a peça do catálogo que perde o pedido fica sem pai (E-256); a de
+           -- móvel fora do catálogo recebe o pai que o fato traz, se não tiver um (E-254)
+           card_pai_id     = case when coalesce((new.dados ->> 'sem_pai')::boolean, false) then null
+                                  else coalesce(card_pai_id, nullif(new.dados ->> 'card_pai_id', '')::bigint) end
      where id = new.card_id;
     if v_pedido_id is not null then
       perform plt_privado.fn_recalcular_liberacao(v_pedido_id);
@@ -1422,12 +1432,14 @@ declare
   v_m2     text;
   v_quem   text;
   v_nome   text;
+  v_produto bigint;
 begin
   select * into v_card from public.plt_cards where id = p_card_id for update;
   select * into v_etapa from public.plt_etapas where id = p_etapa_id;
   if v_card.id is null or v_card.tipo <> 'unidade' or not coalesce(v_etapa.cancela_fabricacao, false) then
     return null;
   end if;
+  v_produto := coalesce(v_card.produto_tiny_id, plt_privado.fn_produto_do_item(v_card.item_codigo, v_card.item_descricao));
   -- já cancelada pelo mesmo motivo: um efeito só (soltar duas vezes, a API de novo)
   if v_card.cancelada_em is not null and v_card.cancelada_motivo is not distinct from v_etapa.cancela_motivo then
     return null;
@@ -1496,10 +1508,14 @@ begin
                 'pedido_id',       v_card.pedido_id,
                 'numero',          v_pedido.numero,
                 'card_pedido_id',  v_pc.id,
-                'produto_tiny_id', plt_privado.fn_produto_do_item(v_card.item_codigo, v_card.item_descricao),
-                -- a peça antiga sem pai (e sem produto do catálogo) ficaria sem nada e
-                -- a coerência da peça recusaria: ela passa a ter o card do pedido como pai
-                'card_pai_id',     case when v_card.card_pai_id is null then v_pc.id end));
+                'produto_tiny_id', v_produto,
+                -- E-256: a peça do catálogo que perde o pedido deixa de ter o card do pedido
+                -- como pai (senão entra na trava "uma peça por vaga" das peças sem pedido e
+                -- cancelar de novo a mesma vaga, depois de liberada outra vez, seria recusado);
+                -- a de móvel fora do catálogo precisa de um pai (a coerência da peça — E-254):
+                -- fica o card do pedido
+                'sem_pai',         v_produto is not null,
+                'card_pai_id',     case when v_produto is null and v_card.card_pai_id is null then v_pc.id end));
   end if;
 
   -- o sino do PCP (logística e admin): a vaga voltou
@@ -1594,6 +1610,8 @@ begin
               jsonb_build_object(
                 'pedido_id',      v_card.cancelada_pedido_id,
                 'numero',         v_pedido.numero,
+                -- o pai volta a ser o card do pedido (a peça do catálogo o tinha perdido — E-256)
+                'card_pai_id',    v_pc.id,
                 'item_seq',       v_card.item_seq,
                 'indice_unidade', v_card.indice_unidade,
                 'total_unidades', v_card.total_unidades,

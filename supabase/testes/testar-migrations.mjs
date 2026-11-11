@@ -22711,6 +22711,20 @@ try {
     'a vaga já liberada de novo: o aviso fecha com a liberação completa, e a peça retomada volta SEM dono (conta como produção sem dono)',
     JSON.stringify({ aviso4a, pcp4, pc4, e4, num4 }))
 
+  // cancelar de novo a MESMA vaga, depois de liberada outra vez (a3 nasceu para a vaga da a1, que
+  // ficou sem dono): as duas ficam sem pedido no mesmo lugar — a trava das peças sem pedido não
+  // pode recusar (achado do ensaio ×100)
+  await soltar(a3, cancelado)
+  const e5 = await um48(`select pedido_id, card_pai_id, cancelada_em is not null as cancelada from public.plt_cards where id = ${a3}`)
+  const a1Pai = await um48(`select card_pai_id from public.plt_cards where id = ${a1}`)
+  await soltar(a3, fila)   // volta: a vaga dela está aberta → volta ao pedido, com o card do pedido como pai
+  const e6 = await um48(`select pedido_id::int as pedido, card_pai_id::int as pai, cancelada_em is null as viva from public.plt_cards where id = ${a3}`)
+  conferir(
+    e5.cancelada && e5.pedido_id === null && e5.card_pai_id === null && a1Pai.card_pai_id === null
+      && e6.viva && e6.pedido === idA && e6.pai === cardA,
+    'cancelar de novo a MESMA vaga (depois de liberada outra vez) não é recusado: a peça do catálogo que perde o pedido fica sem pai; ao voltar ao pedido, o pai volta a ser o card do pedido',
+    JSON.stringify({ e5, a1Pai, e6 }))
+
   // ---------------- 4 · os outros caminhos ----------------
   titulo('SESSAO-48 · base · liberar no PCP direto no CANCELADO; a peça de reposição só perde a peça; a de pedido cancelado não volta ao PCP')
   const idB = await gravar48(pedido48(97482, 'Preparando envio', [item48(...MESA48)]))
