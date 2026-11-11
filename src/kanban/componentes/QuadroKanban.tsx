@@ -14,6 +14,7 @@ import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowRight,
+  Ban,
   ChevronDown,
   CircleCheckBig,
   Handshake,
@@ -40,7 +41,7 @@ import { SensorDoMouse, useArrastarParaOLado } from './arrastarQuadro'
 import { useAlturaAteOFim } from './alturaDoQuadro'
 import { useReguaTempo } from '../useReguaTempo'
 import type { TempoVivo } from '../tempoUtil'
-import type { Card, Etapa, ExecucaoAberta, PedidoDoCard, Setor } from '../tipos'
+import type { Card, Etapa, ExecucaoAberta, MotivoCancelamento, PedidoDoCard, Setor } from '../tipos'
 
 /** SESSAO-42: o banco aceita de 2 a 20 cards no "Montar juntos". */
 const LOTE_MAXIMO = 20
@@ -125,6 +126,11 @@ interface ColunaProps {
   levaPara?: string
   /** SESSAO-31 (D-127): soltar a peça aqui conclui a produção (a EXPEDIÇÃO). */
   conclui?: boolean
+  /**
+   * SESSAO-48: soltar a peça aqui cancela a fabricação (o CANCELADO e o NÃO
+   * ENCONTRADO) — ela sai da produção e some da coluna em `dias` dias.
+   */
+  cancela?: { motivo: MotivoCancelamento; dias: number }
   dados: ColunaPaginada
   pedidosPorId: Map<number, PedidoDoCard>
   agora: number
@@ -202,6 +208,7 @@ function Coluna({
   ehInicio = false,
   levaPara,
   conclui = false,
+  cancela,
   dados,
   pedidosPorId,
   agora,
@@ -239,7 +246,9 @@ function Coluna({
           ? `Etapa ${titulo}: solte aqui para mandar o card para ${levaPara}`
           : conclui
             ? `Etapa ${titulo}: solte aqui a peça pronta para concluir a produção`
-            : `Etapa ${titulo} com ${total} card(s)`
+            : cancela
+              ? `Etapa ${titulo} com ${total} card(s): soltar a peça aqui tira ela da produção`
+              : `Etapa ${titulo} com ${total} card(s)`
       }
       // SESSAO-41 (D-190): a coluna tem a altura do quadro e rola POR DENTRO —
       // o cabeçalho fica parado, só a lista de cards anda.
@@ -324,6 +333,13 @@ function Coluna({
             <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
               <CircleCheckBig aria-hidden className="size-3.5 text-perfeito-forte" />
               conclui a produção
+            </span>
+          )}
+          {/* SESSAO-48: a coluna que cancela a fabricação diz o que acontece (M-12). */}
+          {cancela && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-texto">
+              <Ban aria-hidden className="size-3.5 shrink-0 text-danificado-forte" />
+              tira da produção · some em {cancela.dias} {cancela.dias === 1 ? 'dia' : 'dias'}
             </span>
           )}
           {/* SESSAO-37 (D-147): a coluna com card em execução ganha o AJUDAR EM
@@ -442,6 +458,8 @@ function Coluna({
                   : undefined,
                 // SESSAO-42 (F4): o tempo do móvel no setor (o fechado + o vivo)
                 tempoVivo: execucao.temposPorCard?.get(card.id),
+                // SESSAO-48: na coluna que cancela, em quantos dias a peça some dela
+                diasNaColuna: cancela?.dias,
               }
               if (lote && marcados) {
                 // SESSAO-42: no modo "Montar juntos", tocar no card marca (sem arrastar nem abrir).
@@ -820,6 +838,11 @@ export function QuadroKanban({
                     : undefined
                 }
                 conclui={etapa.conclui_producao}
+                cancela={
+                  etapa.cancela_fabricacao
+                    ? { motivo: etapa.cancela_motivo ?? 'cancelada', dias: etapa.cancela_dias ?? 7 }
+                    : undefined
+                }
                 lote={loteDaFila(etapa)}
                 dados={dadosDe(String(etapa.id))}
                 pedidosPorId={pedidosPorId}

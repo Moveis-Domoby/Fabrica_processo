@@ -22860,6 +22860,57 @@ try {
     'a janela de liberar sugere uma peça viva sem dono e NUNCA a cancelada (nem deixa usá-la); recontar o estoque do zero não muda nada — a conta de cada gesto já estava certa',
     JSON.stringify({ sug, recontou }))
 
+  // ---------------- 7b · o acerto das peças que já estavam paradas ----------------
+  titulo('SESSAO-48 · base · o acerto das peças paradas nas colunas antes da regra: o ensaio não grava; aplicado, um fato por peça, um aviso por pedido e o estoque recontado')
+  // o estado de antes da regra: a coluna ainda não cancelava quando as peças chegaram
+  await bd.exec(`insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${limpeza}, 'CANCELADO LEGADO 48', 92, false)`)
+  const legado = (await um48(`select id::int as id from public.plt_etapas where nome = 'CANCELADO LEGADO 48'`)).id
+  const idF = await gravar48(pedido48(97486, 'Preparando envio', [item48(...ESTANTE48, '2.00')]))
+  const cardF = await cardDe(idF)
+  const l1 = await peca(idF, cardF, 1, 1, 2, ESTANTE48, legado)
+  const l2 = await peca(idF, cardF, 1, 2, 2, ESTANTE48, legado)
+  const l3 = await peca(null, null, 1, 1, 1, MESA48, legado)
+  await bd.exec(`update public.plt_etapas set cancela_fabricacao = true, cancela_motivo = 'cancelada' where id = ${legado}`)
+  const antesF = { num: await numeros(924801), l1: await estado(l1) }
+  const ACERTO48 = await readFile(path.join(RAIZ, 'supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql'), 'utf8')
+  let ensaio48 = ''
+  await bd.exec('savepoint ens48')
+  try {
+    await bd.exec(ACERTO48)
+  } catch (erro) {
+    ensaio48 = erro.message
+  } finally {
+    await bd.exec('rollback to savepoint ens48')
+  }
+  const resultado48 = ensaio48.includes('ENSAIO (nada gravado): ')
+    ? JSON.parse(ensaio48.slice(ensaio48.indexOf('ENSAIO (nada gravado): ') + 'ENSAIO (nada gravado): '.length))
+    : null
+  const depoisDoEnsaio = await estado(l1)
+  await bd.exec(`select set_config('plt.acerto_s48', 'aplicar', false)`)
+  await bd.exec(ACERTO48)
+  const eventosAntesDeNovo = (await um48(`select max(id)::bigint as n from public.plt_eventos`)).n
+  await bd.exec(ACERTO48)
+  const eventosDepoisDeNovo = (await um48(`select max(id)::bigint as n from public.plt_eventos`)).n
+  await bd.exec(`select set_config('plt.acerto_s48', '', false)`)
+  const aplicadoF = { l1: await estado(l1), l2: await estado(l2), l3: await estado(l3), num: await numeros(924801) }
+  const fatosF1 = await fatos(l1)
+  const avisoF = await um48(`select pcp_aviso_em is not null as aviso from public.plt_cards where id = ${cardF}`)
+  const sinoF = await um48(`select count(*)::int as n, count(distinct destinatario_id)::int as pessoas, min(titulo) as titulo, min(corpo) as corpo
+                              from public.plt_notificacoes where tipo = 'peca_cancelada_pcp' and card_id = ${cardF}`)
+  conferir(
+    resultado48?.pecas === 3 && resultado48.antes.paradas_nas_colunas === 3 && resultado48.depois.paradas_nas_colunas === 0
+      && resultado48.depois.canceladas_hoje === 3 && resultado48.depois.perderam_o_pedido === 2
+      && resultado48.pedidos.length === 1 && resultado48.pedidos[0].numero === 97486 && resultado48.pedidos[0].pecas === 2
+      && !depoisDoEnsaio.cancelada && antesF.num.de_pedido >= 2
+      && aplicadoF.l1.cancelada && aplicadoF.l2.cancelada && aplicadoF.l3.cancelada && aplicadoF.l1.pedido === null
+      && aplicadoF.num.de_pedido === antesF.num.de_pedido - 2
+      && fatosF1.some((f) => f.tipo === 'fabricacao_cancelada' && f.origem === 'api' && !f.com_autor)
+      && avisoF.aviso && sinoF.n === sinoF.pessoas && sinoF.pessoas >= 1
+      && /Peças canceladas na produção · pedido 97486/.test(sinoF.titulo) && /tirou 2 peças do pedido 97486/.test(sinoF.corpo)
+      && eventosDepoisDeNovo === eventosAntesDeNovo,
+    'o acerto: o ensaio conta antes e depois e não grava nada; aplicado, cada peça parada passa pelo mesmo gesto (origem da integração, data de hoje), o pedido vivo ganha o aviso e UM sino por pessoa, o estoque é recontado; rodar de novo não grava nada',
+    JSON.stringify({ resultado48, depoisDoEnsaio, aplicadoF, sinoF }))
+
   // ---------------- 8 · permissões ----------------
   const pr48 = await um48(`
     select has_function_privilege('anon', 'public.plt_fn_peca_cancelada_recuperar(bigint)', 'execute') as rec_anon,

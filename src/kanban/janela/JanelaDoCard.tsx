@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlignLeft,
   ArrowRightLeft,
+  Ban,
   BellOff,
   CalendarClock,
   CircleCheckBig,
@@ -18,7 +19,9 @@ import {
   Flag,
   Pencil,
   Play,
+  RotateCcw,
   Save,
+  SearchX,
   SlidersHorizontal,
   Tag,
   TriangleAlert,
@@ -49,6 +52,8 @@ import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
 import { formatarDuracao, useAgora } from '../tempo'
 import { duracaoUtilDesde, formatarTempoUtil, tempoPcpMs, textoTempoDoMovel } from '../tempoUtil'
 import { TEXTO_PAUSA_AUTOMATICA, pausaAutomatica } from '../pausa'
+import { pecaCancelada, textoCancelada } from '../cancelada'
+import { recuperarPecaCancelada } from '../apiCancelamento'
 import { useReguaTempo } from '../useReguaTempo'
 import { abrirJanela } from './api'
 import type { JanelaDoCard as DadosJanela } from './api'
@@ -311,6 +316,26 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
       ? 'Concluído'
       : 'Arquivado'
     : [dados.setor?.nome, dados.etapa?.nome].filter(Boolean).join(' · ')
+  // SESSAO-48 (frentes 1 e 4): a peça com a fabricação cancelada — o aviso diz que
+  // ela saiu da produção; depois que a limpeza a tirou da coluna, só o admin a
+  // recupera (ela volta para a fila do setor, sem dono).
+  const cancelada = pecaCancelada(card) ? card.cancelada_em : null
+  const podeRecuperar = Boolean(cancelada) && Boolean(dados.arquivado_em) && !tablet && perfil?.papel === 'admin'
+  const recuperar = useMutation({
+    mutationFn: () => recuperarPecaCancelada(card.id),
+    onSuccess: async (r) => {
+      notificar({
+        titulo: r.feito ? `Peça recuperada — voltou para ${r.etapa ?? 'a fila'}` : 'Esta peça já tinha sido recuperada',
+        tom: 'perfeito',
+      })
+      await Promise.all([
+        releituras(),
+        clienteQuery.invalidateQueries({ queryKey: ['quadro'] }),
+        clienteQuery.invalidateQueries({ queryKey: ['busca-geral'] }),
+      ])
+    },
+    onError: falhou('Não deu para recuperar a peça'),
+  })
 
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-5">
@@ -324,6 +349,17 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2.5 py-0.5 text-xs font-medium text-info-texto">
               <Wrench aria-hidden className="size-3.5" />
               Ajuste · vai para {ROTULO_DESTINO_FINAL[card.ajuste_destino].toLowerCase()}
+            </span>
+          )}
+          {cancelada && (
+            // SESSAO-48: ícone + texto (M-12)
+            <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
+              {card.cancelada_motivo === 'nao_encontrada' ? (
+                <SearchX aria-hidden className="size-3.5" />
+              ) : (
+                <Ban aria-hidden className="size-3.5" />
+              )}
+              {textoCancelada(card.cancelada_motivo, cancelada)}
             </span>
           )}
           <span className="ml-auto flex flex-wrap items-center gap-2">
@@ -546,6 +582,37 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             <span>Cliente: {dados.pedido.cliente_nome}</span>
           )}
         </p>
+        {/* SESSAO-48: a peça com a fabricação cancelada — o que aconteceu e como desfazer. */}
+        {cancelada && (
+          <div
+            role="status"
+            className="flex flex-col gap-2 rounded-dm-lg border border-danificado-forte/40 bg-danificado-fundo p-3 text-sm text-danificado-texto sm:flex-row sm:items-center"
+          >
+            <p className="min-w-0 flex-1">
+              {card.cancelada_motivo === 'nao_encontrada'
+                ? 'A peça não foi encontrada e saiu da produção'
+                : 'A fabricação desta peça foi cancelada e ela saiu da produção'}
+              {card.cancelada_pedido_numero != null
+                ? ` (era do pedido ${card.cancelada_pedido_numero}; a vaga voltou ao PCP)`
+                : ''}
+              .{' '}
+              {dados.arquivado_em
+                ? 'Ela já saiu da coluna e ficou guardada — só o administrador a traz de volta.'
+                : 'Para desfazer, arraste-a de volta para uma etapa de produção.'}
+            </p>
+            {podeRecuperar && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<RotateCcw />}
+                carregando={recuperar.isPending}
+                onClick={() => recuperar.mutate()}
+              >
+                Recuperar a peça
+              </Botao>
+            )}
+          </div>
+        )}
       </header>
 
       {/* ---------- propriedades ---------- */}

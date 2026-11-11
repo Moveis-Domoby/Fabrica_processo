@@ -156,3 +156,54 @@ describe('o tempo do móvel no card (SESSAO-42)', () => {
     expect(screen.getByText('Pausado · sem resposta ao aviso')).toBeTruthy()
   })
 })
+
+describe('a peça com a fabricação cancelada (SESSAO-48)', () => {
+  const cancelada = new Date(AGORA - 2 * 3_600_000).toISOString()
+
+  it('na coluna CANCELADO: quando saiu e em quantos dias some — no lugar do tempo de fila — e de qual pedido era', () => {
+    render(
+      <CartaoUnidade
+        card={{
+          ...peca,
+          pedido_id: null,
+          cancelada_em: cancelada,
+          cancelada_motivo: 'cancelada',
+          cancelada_pedido_numero: 13622,
+        }}
+        agora={AGORA}
+        diasNaColuna={7}
+      />,
+    )
+    expect(screen.getByText('Cancelada em 21/10')).toBeTruthy()
+    expect(screen.getByText('· some em 7 dias')).toBeTruthy()
+    expect(screen.getByText('Era do pedido 13622')).toBeTruthy()
+    expect(screen.queryByText(/na fila/)).toBeNull()
+    expect(screen.getByRole('article').getAttribute('aria-label')).toMatch(/fabricação cancelada/)
+  })
+
+  it('na coluna NÃO ENCONTRADO: "Não encontrada em …" e o prazo da coluna', () => {
+    render(
+      <CartaoUnidade
+        card={{ ...peca, pedido_id: null, cancelada_em: cancelada, cancelada_motivo: 'nao_encontrada' }}
+        agora={AGORA}
+        diasNaColuna={1}
+      />,
+    )
+    expect(screen.getByText('Não encontrada em 21/10')).toBeTruthy()
+    expect(screen.getByText('· some amanhã')).toBeTruthy()
+    // sem o pedido de antes (peça de reposição): a origem de sempre
+    expect(screen.getByText('Reposição de estoque')).toBeTruthy()
+  })
+
+  it('a peça de pedido cancelado no Tiny esperando a decisão diz isso (e não que vai sozinha ao estoque)', () => {
+    const cancelado = { ...pedido, situacao: 'Cancelado' } as PedidoDoCard
+    const { unmount } = render(
+      <CartaoUnidade card={{ ...peca, destino_pendente_em: AGORA.toString() }} pedido={cancelado} agora={AGORA} />,
+    )
+    expect(screen.getByText('Pedido cancelado — esperando decisão da logística')).toBeTruthy()
+    expect(screen.queryByText(/vai para o estoque/)).toBeNull()
+    unmount()
+    render(<CartaoUnidade card={peca} pedido={cancelado} agora={AGORA} />)
+    expect(screen.getByText('Pedido cancelado — pronta, vai para o estoque')).toBeTruthy()
+  })
+})

@@ -18,6 +18,7 @@ import {
   Paperclip,
   Pause,
   Play,
+  SearchX,
   Wrench,
 } from 'lucide-react'
 import { BadgeEstado, Botao, Dica } from '@/componentes/ui'
@@ -32,6 +33,7 @@ import type { TempoVivo } from '../tempoUtil'
 import { TEXTO_PAUSA_AUTOMATICA, pausaAutomatica } from '../pausa'
 import { useReguaTempo } from '../useReguaTempo'
 import { pedidoCancelado } from '../situacao'
+import { DIAS_NA_COLUNA_PADRAO, pecaCancelada, textoCancelada, textoSome } from '../cancelada'
 import type { Card, PedidoDoCard } from '../tipos'
 import { nomeDoCard, rotuloOrigemCard } from '../rotulos'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
@@ -132,6 +134,11 @@ export interface CartaoUnidadeProps {
    * Ausente (banco de antes): o relógio desde o início, como sempre.
    */
   tempoVivo?: TempoVivo
+  /**
+   * SESSAO-48: na coluna que cancela a fabricação, em quantos dias a peça some
+   * dela (a configuração da etapa; ausente = o padrão, 7).
+   */
+  diasNaColuna?: number
 }
 
 /**
@@ -166,6 +173,7 @@ export function CartaoUnidade({
   aoAbrir,
   ajudaAtiva = false,
   tempoVivo,
+  diasNaColuna,
 }: CartaoUnidadeProps) {
   const galpao = tamanho === 'galpao'
   const kn =
@@ -186,6 +194,17 @@ export function CartaoUnidade({
   // ela vai para o estoque sem dono. Lido da situação do pedido (a mesma fonte
   // do evento de cancelamento — nada guardado para dessincronizar).
   const cancelado = card.pedido_id !== null && pedidoCancelado(pedido?.situacao)
+  // SESSAO-48 (frente 3): a peça de pedido cancelado no Tiny que estava em
+  // produção espera a logística decidir o destino (não vai mais sozinha ao estoque).
+  const esperandoDestino = cancelado && Boolean(card.destino_pendente_em)
+  // SESSAO-48 (frente 1): a fabricação desta peça foi cancelada (ela está na
+  // coluna CANCELADO ou NÃO ENCONTRADO) — saiu da produção, sem tempo de fila.
+  const cancelada = pecaCancelada(card)
+  // A peça cancelada que era de um pedido diz de qual (ela perdeu o pedido).
+  const origem =
+    cancelada && card.cancelada_pedido_numero != null
+      ? `Era do pedido ${card.cancelada_pedido_numero}`
+      : rotuloOrigemCard(card, pedido)
   // SESSAO-38 (F5 · D-167 ⏳): todo relógio do card conta só o expediente do
   // setor (sem a régua — banco antigo — o relógio corrido de sempre).
   // ↪️ SESSAO-42: a execução também — o card mostra o TEMPO DO MÓVEL no setor
@@ -234,7 +253,7 @@ export function CartaoUnidade({
       aria-label={
         avulso
           ? `Card avulso — ${nomeDoCard(card)}`
-          : `Unidade ${kn} — ${rotuloOrigemCard(card, pedido)}`
+          : `Unidade ${kn} — ${origem}${cancelada ? ' — fabricação cancelada' : ''}`
       }
     >
       {urgente && (
@@ -249,7 +268,7 @@ export function CartaoUnidade({
               galpao ? 'text-base' : 'text-sm',
             )}
           >
-            {rotuloOrigemCard(card, pedido)}
+            {origem}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
@@ -295,8 +314,15 @@ export function CartaoUnidade({
         // M-12: estado com ícone + texto, nunca só cor.
         <p>
           <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2.5 py-0.5 text-xs font-medium text-danificado-texto">
-            <Ban aria-hidden className="size-3.5" />
-            Pedido cancelado — pronta, vai para o estoque
+            {esperandoDestino ? (
+              <Hourglass aria-hidden className="size-3.5 shrink-0" />
+            ) : (
+              <Ban aria-hidden className="size-3.5 shrink-0" />
+            )}
+            {/* SESSAO-48 (frente 3): com o cancelamento novo, a logística decide o destino. */}
+            {esperandoDestino
+              ? 'Pedido cancelado — esperando decisão da logística'
+              : 'Pedido cancelado — pronta, vai para o estoque'}
           </span>
         </p>
       )}
@@ -362,7 +388,29 @@ export function CartaoUnidade({
           segue na janela do card (Tempo e histórico) e no próprio PCP. */}
 
       {/* O tempo, como a D-02 manda: fila é do setor, execução é da pessoa. */}
-      {terminal ? (
+      {cancelada && card.cancelada_em ? (
+        // SESSAO-48 (frente 1): a peça saiu da produção — no lugar do tempo de fila,
+        // quando saiu e em quantos dias some da coluna (ícone + texto — M-12).
+        <p
+          className={cn(
+            'flex flex-wrap items-center gap-x-1.5 font-medium text-danificado-texto',
+            galpao ? 'text-base' : 'text-sm',
+          )}
+          title={`Saiu da produção em ${new Date(card.cancelada_em).toLocaleString('pt-BR')} — o tempo de fila não conta. Arrastar de volta para uma etapa de produção desfaz.`}
+        >
+          {card.cancelada_motivo === 'nao_encontrada' ? (
+            <SearchX aria-hidden className="size-4 shrink-0" />
+          ) : (
+            <Ban aria-hidden className="size-4 shrink-0" />
+          )}
+          <span className="whitespace-nowrap">
+            {textoCancelada(card.cancelada_motivo, card.cancelada_em)}
+          </span>
+          <span className="whitespace-nowrap font-normal text-texto-suave">
+            · {textoSome(card.cancelada_em, diasNaColuna ?? DIAS_NA_COLUNA_PADRAO, agora)}
+          </span>
+        </p>
+      ) : terminal ? (
         <p className="inline-flex items-center gap-1.5 text-sm text-texto-suave tabular-nums">
           <Flag aria-hidden className="size-4 text-perfeito-forte" />
           {desdeUtil(card.desde)}

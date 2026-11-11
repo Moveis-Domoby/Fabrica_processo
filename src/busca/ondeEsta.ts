@@ -28,6 +28,16 @@ function rota(item: ItemDaBusca): string {
 }
 
 export function ondeEsta(item: ItemDaBusca): LugarDoCard {
+  // SESSAO-48: a peça com a fabricação cancelada — na coluna (por alguns dias) ou
+  // já tirada dela pela limpeza (o admin recupera pela janela do card).
+  if (item.cancelada_em) {
+    const motivo = item.cancelada_motivo === 'nao_encontrada' ? 'Não encontrada' : 'Fabricação cancelada'
+    if (item.arquivado_em) {
+      return { texto: `${motivo} — saiu da coluna em ${dia(item.arquivado_em)}`, tom: 'neutro' }
+    }
+    const partes = [item.setor_nome ?? 'Setor', item.etapa_nome].filter(Boolean).join(' · ')
+    return { texto: `${partes} — ${motivo.toLowerCase()} em ${dia(item.cancelada_em)}`, tom: 'danificado' }
+  }
   if (item.arquivado_em) {
     const quando = dia(item.arquivado_em)
     switch (item.arquivado_motivo) {
@@ -70,6 +80,9 @@ export function ondeEsta(item: ItemDaBusca): LugarDoCard {
 export function origemDoItem(item: ItemDaBusca): string {
   if (item.tipo === 'avulso') return 'Card avulso'
   if (item.tipo === 'reposicao') return 'Reposição de estoque (no PCP)'
+  // SESSAO-48: a peça cancelada perdeu o pedido — diz de qual era
+  if (item.pedido_numero === null && item.cancelada_pedido_numero != null)
+    return `Era do pedido ${item.cancelada_pedido_numero}`
   if (item.pedido_numero === null) return 'Reposição de estoque'
   return item.tipo === 'pedido'
     ? `Pedido ${item.pedido_numero} — o pedido`

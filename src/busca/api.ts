@@ -35,6 +35,14 @@ export interface ItemDaBusca {
   rota_dia: string | null
   rota_caminhao: string | null
   rota_numero: number | null
+  /**
+   * SESSAO-48: a peça com a fabricação cancelada (na coluna CANCELADO / NÃO
+   * ENCONTRADO, ou já arquivada pela limpeza) — quando, o motivo e o pedido que
+   * ela perdeu. Ausente = peça viva.
+   */
+  cancelada_em?: string | null
+  cancelada_motivo?: 'cancelada' | 'nao_encontrada' | null
+  cancelada_pedido_numero?: number | null
 }
 
 export interface PaginaDaBusca {

@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  Ban,
   ChevronDown,
   ChevronRight,
   CircleCheckBig,
@@ -761,6 +762,65 @@ function LimiteExecucoes(props: {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * SESSAO-48: em quantos dias a peça cancelada some da coluna que cancela (de 1
+ * a 90; padrão 7). Salva ao sair do campo ou no Enter — só quando mudou.
+ */
+function DiasNaColuna({
+  etapaNome,
+  dias,
+  salvando,
+  aoSalvar,
+}: {
+  etapaNome: string
+  dias: number
+  salvando: boolean
+  aoSalvar: (dias: number) => void
+}) {
+  const [texto, setTexto] = useState(String(dias))
+  const [erro, setErro] = useState('')
+  const salvar = () => {
+    const n = Number(texto)
+    if (!Number.isInteger(n) || n < 1 || n > 90) {
+      setErro('Use de 1 a 90 dias.')
+      return
+    }
+    setErro('')
+    if (n !== dias) aoSalvar(n)
+  }
+  return (
+    <span className="flex flex-col gap-1 @md:col-span-2 @md:row-start-3 @lg:col-span-1 @lg:col-start-2 @lg:row-start-2 @lg:self-end @4xl:col-start-3 @4xl:row-start-1 @4xl:self-center">
+      <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
+        {/* largo, a coluna "Ao parar" fica estreita — o texto encurta */}
+        <span className="@4xl:hidden">Some da coluna em</span>
+        <span className="hidden @4xl:inline">Some em</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={90}
+          value={texto}
+          disabled={salvando}
+          aria-label={`Em quantos dias a peça cancelada some da coluna ${etapaNome}`}
+          aria-invalid={erro ? true : undefined}
+          onChange={(ev) => setTexto(ev.target.value)}
+          onBlur={salvar}
+          onKeyDown={(ev) => {
+            if (ev.key === 'Enter') salvar()
+          }}
+          className="h-11 w-16 rounded-dm border border-borda bg-superficie px-2 text-base text-texto tabular-nums"
+        />
+        <span>dias</span>
+      </label>
+      {erro && (
+        <span role="alert" className="text-xs text-danificado-forte">
+          {erro}
+        </span>
+      )}
+    </span>
+  )
+}
+
 function ListaEtapas(props: {
   setor: Setor
   setores: Setor[]
@@ -786,6 +846,10 @@ function ListaEtapas(props: {
   // SESSAO-31 (D-127): a etapa que CONCLUI a produção (a EXPEDIÇÃO da LIMPEZA E
   // EMBALAGEM) — Pedidos em aguardo ou ESTOQUE, o banco decide pela peça.
   const CONCLUI = 'concluir'
+  // SESSAO-48: a etapa que CANCELA a fabricação (o CANCELADO e o NÃO ENCONTRADO
+  // da LIMPEZA E EMBALAGEM) — soltar a peça ali tira ela da produção na hora.
+  const CANCELA = 'cancela'
+  const NAO_ENCONTRADA = 'nao_encontrada'
   const producao = setor.papel_no_fluxo === 'producao'
   // No computador, as etapas do setor de produção viram uma grade alinhada
   // (nome · para onde manda · motivo · ações) com cabeçalho; no celular,
@@ -877,8 +941,11 @@ function ListaEtapas(props: {
         >
           {etapas.map((etapa, indice) => {
             const mandaPara = podeGerir && producao && !etapa.eh_fila && !etapa.eh_danificado
+            // SESSAO-48: a coluna que cancela não pede motivo de parada (o motivo é o
+            // dela) — no lugar da caixinha vai o prazo em dias.
+            const cancela = Boolean(etapa.cancela_fabricacao)
             const pedeMotivo =
-              mandaPara && etapa.setor_destino_id === null && !etapa.conclui_producao
+              mandaPara && etapa.setor_destino_id === null && !etapa.conclui_producao && !cancela
             return (
               <li
                 key={etapa.id}
@@ -925,6 +992,18 @@ function ListaEtapas(props: {
                       <span className="truncate">conclui a produção</span>
                     </span>
                   )}
+                  {/* SESSAO-48: soltar a peça aqui tira ela da produção (a pílula só
+                      onde não há a seleção ao lado). */}
+                  {cancela && !mandaPara && (
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto">
+                      <Ban aria-hidden className="size-3 shrink-0" />
+                      <span className="truncate">
+                        {etapa.cancela_motivo === 'nao_encontrada'
+                          ? 'peça não encontrada · tira da produção'
+                          : 'cancela a fabricação'}
+                      </span>
+                    </span>
+                  )}
                   {/* SESSAO-31 (§4): parar aqui um card em execução pede o motivo
                       (a pílula só onde não há a caixinha ao lado — 06/11). */}
                   {etapa.pede_motivo && !pedeMotivo && (
@@ -945,26 +1024,64 @@ function ListaEtapas(props: {
                         valor: CONCLUI,
                         rotulo: 'Conclui a produção (Expedição ou ESTOQUE)',
                       },
+                      // SESSAO-48: a peça solta aqui sai da produção (o motivo fica gravado)
+                      { valor: CANCELA, rotulo: 'Cancela a fabricação (tira da produção)' },
+                      {
+                        valor: NAO_ENCONTRADA,
+                        rotulo: 'Peça não encontrada (tira da produção)',
+                      },
                       ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
                     ]}
                     valor={
-                      etapa.conclui_producao
-                        ? CONCLUI
-                        : etapa.setor_destino_id === null
-                          ? SEM_DESTINO
-                          : String(etapa.setor_destino_id)
+                      cancela
+                        ? etapa.cancela_motivo === 'nao_encontrada'
+                          ? NAO_ENCONTRADA
+                          : CANCELA
+                        : etapa.conclui_producao
+                          ? CONCLUI
+                          : etapa.setor_destino_id === null
+                            ? SEM_DESTINO
+                            : String(etapa.setor_destino_id)
                     }
                     aoMudar={(v) =>
                       atualizarMutacao.mutate({
                         id: etapa.id,
                         mudancas:
-                          v === CONCLUI
-                            ? { setor_destino_id: null, conclui_producao: true }
-                            : {
-                                setor_destino_id: v === SEM_DESTINO ? null : Number(v),
+                          v === CANCELA || v === NAO_ENCONTRADA
+                            ? {
+                                setor_destino_id: null,
                                 conclui_producao: false,
-                              },
+                                cancela_fabricacao: true,
+                                cancela_motivo: v === CANCELA ? 'cancelada' : 'nao_encontrada',
+                              }
+                            : v === CONCLUI
+                              ? {
+                                  setor_destino_id: null,
+                                  conclui_producao: true,
+                                  cancela_fabricacao: false,
+                                  cancela_motivo: null,
+                                }
+                              : {
+                                  setor_destino_id: v === SEM_DESTINO ? null : Number(v),
+                                  conclui_producao: false,
+                                  cancela_fabricacao: false,
+                                  cancela_motivo: null,
+                                },
                       })
+                    }
+                  />
+                ) : null}
+                {/* SESSAO-48: na coluna que cancela, em quantos dias a peça some dela
+                    (depois, a rotina da madrugada a arquiva — o admin recupera). */}
+                {mandaPara && cancela ? (
+                  <DiasNaColuna
+                    // o valor do servidor mudou → o campo recomeça dele
+                    key={`${etapa.id}-${etapa.cancela_dias ?? 7}`}
+                    etapaNome={etapa.nome}
+                    dias={etapa.cancela_dias ?? 7}
+                    salvando={atualizarMutacao.isPending}
+                    aoSalvar={(dias) =>
+                      atualizarMutacao.mutate({ id: etapa.id, mudancas: { cancela_dias: dias } })
                     }
                   />
                 ) : null}

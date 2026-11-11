@@ -140,3 +140,39 @@ describe('o atalho do quadro no card do pedido', () => {
     )
   })
 })
+
+describe('a peça com a fabricação cancelada na busca geral (SESSAO-48)', () => {
+  const cancelada: ItemDaBusca = {
+    ...base,
+    pedido_id: null,
+    pedido_numero: null,
+    pedido_situacao: null,
+    etapa_nome: 'CANCELADO',
+    cancelada_em: '2026-11-03T18:00:00Z',
+    cancelada_motivo: 'cancelada',
+    cancelada_pedido_numero: 13622,
+  }
+
+  it('na coluna: onde está, o motivo e o dia; e de qual pedido era', () => {
+    expect(ondeEsta(cancelada)).toEqual({
+      texto: 'LIMPEZA E EMBALAGEM · CANCELADO — fabricação cancelada em 03/11',
+      tom: 'danificado',
+    })
+    expect(origemDoItem(cancelada)).toBe('Era do pedido 13622')
+    expect(ondeEsta({ ...cancelada, cancelada_motivo: 'nao_encontrada', etapa_nome: 'NÃO ENCONTRADO' }).texto).toBe(
+      'LIMPEZA E EMBALAGEM · NÃO ENCONTRADO — não encontrada em 03/11',
+    )
+  })
+
+  it('já tirada da coluna pela limpeza: o dia em que saiu (sem o pedido, a origem de sempre)', () => {
+    const arquivada = {
+      ...cancelada,
+      arquivado_em: '2026-11-11T06:00:00Z',
+      arquivado_motivo: 'Fabricação cancelada há mais de 7 dias — removida da coluna CANCELADO.',
+      cancelada_pedido_numero: null,
+    }
+    expect(ondeEsta(arquivada)).toEqual({ texto: 'Fabricação cancelada — saiu da coluna em 11/11', tom: 'neutro' })
+    expect(origemDoItem(arquivada)).toBe('Reposição de estoque')
+    expect(rotaDoQuadroFiltrado(arquivada)).toBeNull()
+  })
+})
