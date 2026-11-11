@@ -415,6 +415,12 @@ export function PCP() {
             <span>
               Libere as unidades para os setores — dá para liberar parcial e terminar depois.
             </span>
+            {/* SESSAO-48 (frente 2): o selo da peça cancelada e a aba nova. */}
+            <span>
+              Pedido com o selo vermelho teve peça cancelada na produção: toque no selo para ver o
+              que aconteceu e decidir — produzir de novo ou remover do PCP. Os removidos ficam em
+              "Cancelados e removidos", de onde dá para devolver.
+            </span>
           </span>
         }
       >

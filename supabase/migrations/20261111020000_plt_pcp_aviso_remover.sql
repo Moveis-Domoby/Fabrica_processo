@@ -370,11 +370,49 @@ grant execute on function public.plt_fn_pcp_devolver(bigint) to authenticated;
 --     (20260928120000), agora com os removidos do PCP e por CURSOR (Lei §6: a
 --     lista cresce sem fim). A ordem é "quando saiu do PCP", o mais recente
 --     primeiro: o removido pela remoção; o cancelado no Tiny pelo último fato
---     pedido_cancelado. Cada metade anda pelo seu índice (removido_pcp_em;
---     plt_eventos por tipo e hora) e para na página — nada de varrer todos os
---     cards de pedido. A assinatura muda (o cursor no lugar do deslocamento):
---     a de 3 argumentos sai no fim desta seção.
+--     pedido_cancelado. A assinatura muda (o cursor no lugar do deslocamento) e
+--     sai o total (Lei §6.4 — contar todos os cancelados custava ~175 ms no
+--     ensaio ×100): a de 3 argumentos sai no fim desta seção.
+--
+--     O caminho (ensaio ×100: o planejador, sozinho, partia de TODOS os pedidos
+--     cancelados — 17 mil — e só depois ordenava):
+--       1 · cada metade anda pelo seu índice, na ordem, e para quando enche a
+--           página — os removidos pela remoção (plt_cards_removido_pcp_idx); os
+--           cancelados pelo fato pedido_cancelado (plt_eventos_tipo_idx), cada
+--           fato conferido na hora (o card vivo, o pedido ainda cancelado, o
+--           último fato do card). Com filtro, cada uma lê no máximo 150 linhas;
+--       2 · o nº (sempre) e o nome raro (não encheu a página nessas 150): os
+--           candidatos vêm do próprio filtro — o nº pelas faixas do índice do
+--           número, como a lista de Pedidos (com 2–3 dígitos, só os cancelados
+--           das faixas pelo índice parcial e os removidos); o nome pelos
+--           trigramas do nome do cliente (3 letras ou mais) — numa lista, e os
+--           cards deles pela chave (= any); só eles são conferidos.
 -- ----------------------------------------------------------------------------
+
+-- O filtro dos quadros (D-187) aplicado a um pedido: o nº que começa com o texto,
+-- ou o nome do cliente que o contém (sem acento) — conferido linha a linha.
+create or replace function plt_privado.fn_pedido_bate_filtro(p_pedido_id bigint, p_numero text, p_nome text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce((
+    select case when p_numero is not null then p.numero::text like p_numero || '%'
+                else plt_privado.fn_nome_comparavel(cl.nome) like '%' || p_nome || '%' end
+      from public.pedidos p
+      left join public.clientes cl on cl.id = p.cliente_id
+     where p.id = p_pedido_id), false);
+$$;
+
+comment on function plt_privado.fn_pedido_bate_filtro(bigint, text, text) is
+  'SESSAO-48 (frente 2): o filtro dos quadros (fn_filtro_do_quadro) num pedido — o nº que começa com o texto, ou o nome do cliente que o contém (sem acento). A aba "Cancelados e removidos" confere linha a linha.';
+revoke all on function plt_privado.fn_pedido_bate_filtro(bigint, text, text) from public, anon, authenticated;
+
+-- derruba antes de recriar: o retorno desta porta pode mudar entre versões
+-- (o "cannot change return type" do E-178 — o total saiu nesta frente)
+drop function if exists public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint);
 create or replace function public.plt_fn_pedidos_cancelados(
   p_busca     text        default null,
   p_limite    integer     default 20,
@@ -401,8 +439,7 @@ returns table (
   no_estoque        integer,
   esperando_decisao integer,
   pode_devolver     boolean,
-  tem_mais          boolean,
-  contagem_total    integer
+  tem_mais          boolean
 )
 language plpgsql
 stable
@@ -411,13 +448,27 @@ set search_path = public, pg_temp
 as $$
 #variable_conflict use_column
 declare
-  v_lim   integer     := least(greatest(coalesce(p_limite, 20), 1), 100);
-  v_ate   timestamptz := coalesce(p_depois_em, 'infinity'::timestamptz);
-  v_id    bigint      := coalesce(p_depois_id, 9223372036854775807);
-  v_ativo boolean;
-  v_num   text;
-  v_nome  text;
-  v_total integer;
+  v_lim    integer     := least(greatest(coalesce(p_limite, 20), 1), 100);
+  v_ate    timestamptz := coalesce(p_depois_em, 'infinity'::timestamptz);
+  v_id     bigint      := coalesce(p_depois_id, 9223372036854775807);
+  v_teto   constant integer := 150;  -- com filtro: quantas linhas cada metade lê antes do caminho do filtro raro
+  v_txt    text        := nullif(btrim(coalesce(p_busca, '')), '');
+  v_ativo  boolean;
+  v_num    text;
+  v_nome   text;
+  v_numb   bigint;
+  v_cabe   boolean;                  -- o nome com 3 letras ou mais: tem o caminho dos trigramas se for raro
+  v_raro   boolean := false;         -- vai pelos candidatos do filtro (o nº sempre; o nome raro)
+  v_lidas  integer;
+  v_ped    bigint;
+  r        record;
+  v_r_ids  bigint[] := '{}';
+  v_r_ch   timestamptz[] := '{}';
+  v_c_ids  bigint[] := '{}';
+  v_c_ch   timestamptz[] := '{}';
+  v_ids    bigint[] := '{}';
+  v_chaves timestamptz[] := '{}';
+  v_cand   bigint[] := '{}';
 begin
   -- como a de antes: sem acesso, lista vazia (a régua de liberar)
   if plt_privado.fn_usuario_atual() is null or not plt_privado.fn_pode_ver_expedicao() then
@@ -427,84 +478,140 @@ begin
   -- ou o nome do cliente que o contém (sem acento)
   select f.ativo, f.numero, f.nome into v_ativo, v_num, v_nome from plt_privado.fn_filtro_do_quadro(p_busca) f;
   v_ativo := coalesce(v_ativo, false);
+  v_numb  := case when v_num ~ '^[1-9][0-9]{0,8}$' then v_num::bigint end;
+  -- nº com mais de 9 dígitos: nenhum pedido tem
+  if v_num is not null and v_numb is null then
+    return;
+  end if;
+  -- o nº vai sempre direto aos candidatos (o índice do número); o nome com 3
+  -- letras ou mais tenta antes a lista na ordem (o nome comum enche logo)
+  v_raro  := v_numb is not null;
+  v_cabe  := v_ativo and v_num is null and length(coalesce(v_txt, '')) >= 3;
 
-  -- o total, só na 1ª página (até 10.001), pelos mesmos caminhos
-  if p_depois_em is null then
-    select (select count(*)::int
-              from (select 1
-                      from public.plt_cards pc
-                      join public.pedidos p on p.id = pc.pedido_id
-                      left join public.clientes cl on cl.id = p.cliente_id
-                     where pc.removido_pcp_em is not null and pc.tipo = 'pedido' and pc.arquivado_em is null
-                       and (not v_ativo
-                            or case when v_num is not null then p.numero::text like v_num || '%'
-                                    else plt_privado.fn_nome_comparavel(cl.nome) like '%' || v_nome || '%' end)
-                     limit 10001) r)
-         + (select count(*)::int
-              from (select distinct e.card_id
-                      from public.plt_eventos e
-                      join public.plt_cards pc on pc.id = e.card_id
-                      join public.pedidos p on p.id = pc.pedido_id
-                      left join public.clientes cl on cl.id = p.cliente_id
-                     where e.tipo = 'pedido_cancelado'
-                       and pc.tipo = 'pedido' and pc.arquivado_em is null and pc.removido_pcp_em is null
-                       and plt_privado.fn_situacao_normalizada(p.situacao) = 'cancelado'
-                       and (not v_ativo
-                            or case when v_num is not null then p.numero::text like v_num || '%'
-                                    else plt_privado.fn_nome_comparavel(cl.nome) like '%' || v_nome || '%' end)
-                     limit 10001) c)
-      into v_total;
+  -- 1 · os removidos do PCP, na ordem da remoção, até encher a página
+  if not v_raro then
+    v_lidas := 0;
+    for r in select pc.id, pc.removido_pcp_em as chave, pc.pedido_id as ped
+               from public.plt_cards pc
+              where pc.removido_pcp_em is not null
+                and (pc.removido_pcp_em, pc.id) < (v_ate, v_id)
+                and pc.tipo = 'pedido' and pc.arquivado_em is null
+              order by pc.removido_pcp_em desc, pc.id desc
+    loop
+      v_lidas := v_lidas + 1;
+      if v_cabe and v_lidas > v_teto then
+        v_raro := true;
+        exit;
+      end if;
+      continue when v_ativo and not plt_privado.fn_pedido_bate_filtro(r.ped, v_num, v_nome);
+      v_r_ids := v_r_ids || r.id;
+      v_r_ch  := v_r_ch || r.chave;
+      exit when cardinality(v_r_ids) > v_lim;
+    end loop;
   end if;
 
+  -- 1 · os cancelados no Tiny (e não removidos), pelo fato pedido_cancelado, do
+  -- mais novo para trás — vale o último fato do card (o pedido pode ter voltado
+  -- no Tiny e sido cancelado de novo)
+  if not v_raro then
+    v_lidas := 0;
+    for r in select e.id as ev, e.card_id as id, e.ocorrido_em as chave
+               from public.plt_eventos e
+              where e.tipo = 'pedido_cancelado'
+                and e.ocorrido_em <= v_ate
+                and (e.ocorrido_em < v_ate or e.card_id < v_id)
+              order by e.ocorrido_em desc, e.card_id desc
+    loop
+      v_lidas := v_lidas + 1;
+      if v_cabe and v_lidas > v_teto then
+        v_raro := true;
+        exit;
+      end if;
+      v_ped := null;
+      select pc.pedido_id into v_ped
+        from public.plt_cards pc
+        join public.pedidos p on p.id = pc.pedido_id
+       where pc.id = r.id and pc.tipo = 'pedido' and pc.arquivado_em is null and pc.removido_pcp_em is null
+         and plt_privado.fn_situacao_normalizada(p.situacao) = 'cancelado';
+      continue when v_ped is null;
+      continue when exists (select 1 from public.plt_eventos e2
+                             where e2.card_id = r.id and e2.tipo = 'pedido_cancelado'
+                               and (e2.ocorrido_em, e2.id) > (r.chave, r.ev));
+      continue when v_ativo and not plt_privado.fn_pedido_bate_filtro(v_ped, v_num, v_nome);
+      v_c_ids := v_c_ids || r.id;
+      v_c_ch  := v_c_ch || r.chave;
+      exit when cardinality(v_c_ids) > v_lim;
+    end loop;
+  end if;
+
+  if not v_raro then
+    select coalesce(array_agg(j.id order by j.chave desc, j.id desc), '{}'),
+           coalesce(array_agg(j.chave order by j.chave desc, j.id desc), '{}')
+      into v_ids, v_chaves
+      from (select u.id, u.chave
+              from unnest(v_r_ids || v_c_ids, v_r_ch || v_c_ch) as u(id, chave)
+             order by u.chave desc, u.id desc
+             limit v_lim + 1) j;
+  else
+    -- 2 · filtro raro: os candidatos vêm do filtro — o nº pelas faixas do índice
+    -- do número [x·10^k, (x+1)·10^k); o nome pelos trigramas do nome do cliente
+    -- (conferido também sem acento) — e cada um ganha a sua "saída do PCP".
+    -- Primeiro os pedidos candidatos (uma lista), depois os cards deles pela
+    -- chave (= any): o planejador não sabe quantos números as faixas trazem e,
+    -- numa consulta só, juntava TODOS os cards de pedido (ensaio ×100: 1,1 a 4 s)
+    if v_numb is not null and length(v_num) >= 4 then
+      -- 4 dígitos ou mais: poucos números começam com ele — todos os das faixas
+      select coalesce(array_agg(p1.id), '{}') into v_cand
+        from generate_series(0, greatest(0, 10 - length(v_num))) as g(e)
+        join public.pedidos p1
+          on p1.numero >= v_numb * (10::bigint ^ g.e)::bigint
+         and p1.numero <  (v_numb + 1) * (10::bigint ^ g.e)::bigint;
+    elsif v_numb is not null then
+      -- 2–3 dígitos: muitos números — só os cancelados das faixas (o índice
+      -- parcial dos cancelados por número) e os removidos do PCP (poucos)
+      select coalesce(array_agg(x.id), '{}') into v_cand
+        from (select p1.id
+                from generate_series(0, greatest(0, 10 - length(v_num))) as g(e)
+                join public.pedidos p1
+                  on p1.numero >= v_numb * (10::bigint ^ g.e)::bigint
+                 and p1.numero <  (v_numb + 1) * (10::bigint ^ g.e)::bigint
+                 and plt_privado.fn_situacao_normalizada(p1.situacao) = 'cancelado'
+              union
+              select pc.pedido_id
+                from public.plt_cards pc
+                join public.pedidos p3 on p3.id = pc.pedido_id
+               where pc.removido_pcp_em is not null and pc.tipo = 'pedido' and pc.arquivado_em is null
+                 and p3.numero::text like v_num || '%') x;
+    else
+      -- o nome: os trigramas do nome do cliente, conferido também sem acento
+      select coalesce(array_agg(p2.id), '{}') into v_cand
+        from public.clientes c2
+        join public.pedidos p2 on p2.cliente_id = c2.id
+       where c2.nome ilike '%' || v_txt || '%'
+         and plt_privado.fn_nome_comparavel(c2.nome) like '%' || v_nome || '%';
+    end if;
+    select coalesce(array_agg(x.id order by x.chave desc, x.id desc), '{}'),
+           coalesce(array_agg(x.chave order by x.chave desc, x.id desc), '{}')
+      into v_ids, v_chaves
+      from (
+        select k.id, k.chave
+          from (
+            select pc.id,
+                   case when pc.removido_pcp_em is not null then pc.removido_pcp_em
+                        when plt_privado.fn_situacao_normalizada(p.situacao) = 'cancelado'
+                          then (select max(e.ocorrido_em) from public.plt_eventos e
+                                 where e.card_id = pc.id and e.tipo = 'pedido_cancelado') end as chave
+              from public.plt_cards pc
+              join public.pedidos p on p.id = pc.pedido_id
+             where pc.pedido_id = any (v_cand) and pc.tipo = 'pedido' and pc.arquivado_em is null
+          ) k
+         where k.chave is not null and (k.chave, k.id) < (v_ate, v_id)
+         order by k.chave desc, k.id desc
+         limit v_lim + 1) x;
+  end if;
+
+  -- 3 · o que cada linha mostra (só as da página)
   return query
-  with removidos as (
-    -- os removidos do PCP, pelo índice da remoção (removido_pcp_em desc, id desc)
-    select pc.id, pc.removido_pcp_em as chave
-      from public.plt_cards pc
-      join public.pedidos p on p.id = pc.pedido_id
-      left join public.clientes cl on cl.id = p.cliente_id
-     where pc.removido_pcp_em is not null and pc.tipo = 'pedido' and pc.arquivado_em is null
-       and (pc.removido_pcp_em, pc.id) < (v_ate, v_id)
-       and (not v_ativo
-            or case when v_num is not null then p.numero::text like v_num || '%'
-                    else plt_privado.fn_nome_comparavel(cl.nome) like '%' || v_nome || '%' end)
-     order by pc.removido_pcp_em desc, pc.id desc
-     limit v_lim + 1
-  ),
-  cancelados as (
-    -- os cancelados no Tiny (e não removidos), pelo fato pedido_cancelado — o
-    -- índice (tipo, hora) anda do mais novo para trás; vale o último fato do card
-    -- (o pedido pode ter voltado no Tiny e sido cancelado de novo)
-    select e.card_id as id, e.ocorrido_em as chave
-      from public.plt_eventos e
-      join public.plt_cards pc on pc.id = e.card_id
-      join public.pedidos p on p.id = pc.pedido_id
-      left join public.clientes cl on cl.id = p.cliente_id
-     where e.tipo = 'pedido_cancelado'
-       and e.ocorrido_em <= v_ate
-       and (e.ocorrido_em < v_ate or e.card_id < v_id)
-       and pc.tipo = 'pedido' and pc.arquivado_em is null and pc.removido_pcp_em is null
-       and plt_privado.fn_situacao_normalizada(p.situacao) = 'cancelado'
-       and not exists (select 1 from public.plt_eventos e2
-                        where e2.card_id = e.card_id and e2.tipo = 'pedido_cancelado'
-                          and (e2.ocorrido_em, e2.id) > (e.ocorrido_em, e.id))
-       and (not v_ativo
-            or case when v_num is not null then p.numero::text like v_num || '%'
-                    else plt_privado.fn_nome_comparavel(cl.nome) like '%' || v_nome || '%' end)
-     order by e.ocorrido_em desc, e.card_id desc
-     limit v_lim + 1
-  ),
-  juntos as (
-    select j.id, j.chave
-      from (select r.id, r.chave from removidos r union all select c.id, c.chave from cancelados c) j
-     order by j.chave desc, j.id desc
-     limit v_lim + 1
-  ),
-  pagina as (
-    select j.id, j.chave, row_number() over (order by j.chave desc, j.id desc) as n,
-           count(*) over () as vieram
-      from juntos j
-  )
   select pc.id                                                          as card_id,
          p.id                                                           as pedido_id,
          p.numero                                                       as numero,
@@ -528,9 +635,8 @@ begin
          -- não o mantém fora (cancelado, faturado, entregue… — D-132)
          pc.removido_pcp_em is not null
            and not plt_privado.fn_fora_do_pcp(p.situacao, pc.volta_pcp_em, null) as pode_devolver,
-         pg.vieram > v_lim                                              as tem_mais,
-         v_total                                                        as contagem_total
-    from pagina pg
+         cardinality(v_ids) > v_lim                                     as tem_mais
+    from unnest(v_ids, v_chaves) with ordinality as pg(id, chave, ord)
     join public.plt_cards pc on pc.id = pg.id
     join public.pedidos p on p.id = pc.pedido_id
     left join public.clientes cl on cl.id = p.cliente_id
@@ -565,13 +671,13 @@ begin
        where cu.card_pai_id = pc.id and cu.tipo = 'unidade'
          and cu.pedido_id is null and cu.arquivado_em is null and cu.cancelada_em is null
     ) d on true
-   where pg.n <= v_lim
-   order by pg.chave desc, pg.id desc;
+   where pg.ord <= v_lim
+   order by pg.ord;
 end;
 $$;
 
 comment on function public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint) is
-  'SESSAO-48 (frente 2): a aba "Cancelados e removidos" do PCP — os pedidos cancelados no Tiny (com o card vivo) e os removidos do PCP, do que saiu mais recente para trás, por cursor (saiu_em, card_id); cada um com o motivo, quem removeu e quando, as peças em produção/prontas/no estoque/esperando decisão e se pode voltar ao PCP (removido e o Tiny não o mantém fora). Filtro como o dos quadros. Total só na 1ª página. Sem acesso (PCP/logística/admin) = vazia.';
+  'SESSAO-48 (frente 2): a aba "Cancelados e removidos" do PCP — os pedidos cancelados no Tiny (com o card vivo) e os removidos do PCP, do que saiu mais recente para trás, por cursor (saiu_em, card_id); cada um com o motivo, quem removeu e quando, as peças em produção/prontas/no estoque/esperando decisão e se pode voltar ao PCP (removido e o Tiny não o mantém fora). Cada metade anda pelo seu índice e para na página; o filtro raro vai pelos candidatos do próprio filtro. Sem total (Lei §6.4). Sem acesso (PCP/logística/admin) = vazia.';
 revoke all on function public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint) from public, anon;
 grant execute on function public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint) to authenticated;
 

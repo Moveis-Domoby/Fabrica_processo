@@ -41,7 +41,6 @@ const linha = (extra: Partial<PedidoCanceladoOuRemovido>): PedidoCanceladoOuRemo
   esperando_decisao: 0,
   pode_devolver: true,
   tem_mais: false,
-  contagem_total: 2,
   ...extra,
 })
 
@@ -88,7 +87,6 @@ describe('A aba "Cancelados e removidos"', () => {
     listarCanceladosRemovidos.mockResolvedValue({
       linhas: [removido, canceladoNoTiny],
       proxima: null,
-      total: 2,
     })
     renderizar()
     const linhaRemovido = (await screen.findByText('Pedido 13622')).closest('li')!
@@ -109,7 +107,7 @@ describe('A aba "Cancelados e removidos"', () => {
       within(linhaCancelado).queryByRole('button', { name: 'Devolver ao PCP' }),
     ).not.toBeInTheDocument()
 
-    expect(screen.getByText('(2)')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cancelados e removidos' })).toBeInTheDocument()
     expect(listarCanceladosRemovidos).toHaveBeenCalledTimes(1)
     expect(listarCanceladosRemovidos).toHaveBeenCalledWith({ busca: null, depois: null })
     expect(screen.getByRole('link', { name: 'Pedidos → Cancelados' })).toHaveAttribute(
@@ -119,7 +117,7 @@ describe('A aba "Cancelados e removidos"', () => {
   })
 
   it('"Devolver ao PCP" manda o card do pedido e diz para onde ele voltou', async () => {
-    listarCanceladosRemovidos.mockResolvedValue({ linhas: [removido], proxima: null, total: 1 })
+    listarCanceladosRemovidos.mockResolvedValue({ linhas: [removido], proxima: null })
     devolverAoPcp.mockResolvedValue({
       feito: true,
       numero: 13622,
@@ -135,7 +133,7 @@ describe('A aba "Cancelados e removidos"', () => {
   })
 
   it('o Tiny o mantém fora: o aviso diz a verdade', async () => {
-    listarCanceladosRemovidos.mockResolvedValue({ linhas: [removido], proxima: null, total: 1 })
+    listarCanceladosRemovidos.mockResolvedValue({ linhas: [removido], proxima: null })
     devolverAoPcp.mockResolvedValue({
       feito: true,
       numero: 13622,
@@ -152,7 +150,7 @@ describe('A aba "Cancelados e removidos"', () => {
   })
 
   it('lista vazia diz isso', async () => {
-    listarCanceladosRemovidos.mockResolvedValue({ linhas: [], proxima: null, total: 0 })
+    listarCanceladosRemovidos.mockResolvedValue({ linhas: [], proxima: null })
     renderizar()
     expect(
       await screen.findByText('Nenhum pedido cancelado ou removido do PCP.'),

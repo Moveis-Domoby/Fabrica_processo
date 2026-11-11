@@ -41,7 +41,6 @@ export function AbaCanceladosRemovidos() {
     placeholderData: keepPreviousData,
   })
   const linhas = useMemo(() => consulta.data?.pages.flatMap((p) => p.linhas) ?? [], [consulta.data])
-  const total = consulta.data?.pages[0]?.total ?? null
 
   const devolver = useMutation({
     mutationFn: (cardId: number) => devolverAoPcp(cardId),
@@ -80,10 +79,9 @@ export function AbaCanceladosRemovidos() {
   return (
     <section aria-label="Cancelados e removidos" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base">
-          Cancelados e removidos{' '}
-          {total !== null && <span className="text-texto-suave tabular-nums">({total})</span>}
-        </h2>
+        {/* Sem o total: contar a história inteira custa e a tela não precisa (Lei §6.4) —
+            a lista anda ao rolar. */}
+        <h2 className="text-base">Cancelados e removidos</h2>
         <span className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
           <FiltroDoQuadro texto={filtro.texto} aoMudar={filtro.mudar} />
         </span>
@@ -205,7 +203,7 @@ function LinhaCanceladoOuRemovido({
           variante="fantasma"
           tamanho="sm"
           icone={<PanelRightOpen />}
-          className="min-h-toque-md px-2"
+          className="min-h-toque-md min-w-toque-md px-2"
           aria-label={`Abrir o card do pedido ${l.numero}`}
           title="Abrir o card"
           onClick={aoAbrir}

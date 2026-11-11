@@ -1170,9 +1170,8 @@ export interface PedidoCanceladoOuRemovido {
   no_estoque: number
   esperando_decisao: number
   pode_devolver: boolean
+  /** Há mais depois desta página (a lista não conta o total — Lei §6.4: contar custa e a tela não precisa). */
   tem_mais: boolean
-  /** Só na primeira página. */
-  contagem_total: number | null
 }
 
 /** O cursor da aba: "saiu em" e o card da última linha mostrada. */
@@ -1185,7 +1184,6 @@ export interface PaginaCancelados {
   linhas: PedidoCanceladoOuRemovido[]
   /** O cursor da próxima página — nulo quando acabou. */
   proxima: CursorCancelados | null
-  total: number | null
 }
 
 export const CANCELADOS_POR_PAGINA = 20
@@ -1209,6 +1207,5 @@ export async function listarCanceladosRemovidos(parametros: {
     linhas,
     proxima:
       ultima && linhas[0].tem_mais ? { saiuEm: ultima.saiu_em, cardId: ultima.card_id } : null,
-    total: linhas[0]?.contagem_total ?? null,
   }
 }

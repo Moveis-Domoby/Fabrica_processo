@@ -22999,7 +22999,7 @@ try {
   const lista = (busca, limite = 50, depois = null, auth = E40.admin) =>
     como(auth, `select card_id::int as card_id, numero, cliente_nome, situacao, cancelado_no_tiny, cancelado_em is not null as com_data_cancel,
                        removido_motivo, removido_texto, removido_por, saiu_em::text as saiu, total_unidades, em_producao, prontas,
-                       no_estoque, esperando_decisao, pode_devolver, tem_mais, contagem_total
+                       no_estoque, esperando_decisao, pode_devolver, tem_mais
                   from public.plt_fn_pedidos_cancelados(${busca === null ? 'null' : `'${busca}'`}, ${limite},
                        ${depois ? `'${depois.saiu}'::timestamptz` : 'null'}, ${depois ? depois.card_id : 'null'})`, true)
 
@@ -23135,14 +23135,14 @@ try {
   const daOperacao = await lista('9752', 50, null, E40.operador)
   conferir(
     remB.feito && remC.feito && listaPedB?.situacao_plataforma === 'removido_pcp'
-      && tudo.length === 4 && tudo.every((l) => l.contagem_total === 4) && ordemCerta
+      && tudo.length === 4 && tudo.every((l) => l.tem_mais === false) && ordemCerta
       && lA?.removido_motivo === 'fora_da_linha' && lA.removido_texto === 'o cliente vai buscar na loja' && lA.removido_por === admin.nome
       && lA.pode_devolver === true && lA.cancelado_no_tiny === false && lA.em_producao === 0 && lA.prontas === 1 && lA.total_unidades === 4
       && lB?.removido_motivo === 'pedido_cancelado' && lB.removido_texto === null && lB.removido_por === logistica.nome && lB.pode_devolver === true
       && lC?.removido_motivo === 'outro' && lC.removido_texto === 'Teste do outro motivo' && lC.removido_por === admin.nome
       && lD?.cancelado_no_tiny === true && lD.com_data_cancel === true && lD.removido_motivo === null && lD.pode_devolver === false
       && daOperacao.length === 0,
-    'a aba lista os removidos (o motivo, o texto, quem removeu e se volta ao PCP) e o cancelado no Tiny (sem "Devolver"), do que saiu mais recente para trás, com o total; a lista de Pedidos diz "removido do PCP"; quem não é PCP, logística nem admin não vê nada',
+    'a aba lista os removidos (o motivo, o texto, quem removeu e se volta ao PCP) e o cancelado no Tiny (sem "Devolver"), do que saiu mais recente para trás; a lista de Pedidos diz "removido do PCP"; quem não é PCP, logística nem admin não vê nada',
     JSON.stringify({ tudo, daOperacao, listaPedB }))
 
   const p1 = await lista('9752', 1)
@@ -23153,12 +23153,40 @@ try {
   const vistos = [p1, p2, p3, p4].map((p) => p[0]?.card_id)
   const soC = await lista('Cliente Teste 482 97523')
   conferir(
-    p1.length === 1 && p1[0].tem_mais && p1[0].contagem_total === 4 && p2[0]?.tem_mais && p2[0]?.contagem_total === null
+    p1.length === 1 && p1[0].tem_mais && p2[0]?.tem_mais
       && p3[0]?.tem_mais && p4[0]?.tem_mais === false && p5.length === 0
       && new Set(vistos).size === 4 && vistos.every((id, i) => id === tudo[i].card_id)
       && soC.length === 1 && soC[0].numero === 97523,
-    'por cursor: uma por página, na mesma ordem da lista inteira, sem repetir nem pular (o total só na 1ª); o filtro pelo nome do cliente acha só o dele',
+    'por cursor: uma por página, na mesma ordem da lista inteira, sem repetir nem pular; o filtro pelo nome do cliente acha só o dele',
     JSON.stringify({ vistos, esperado: tudo.map((l) => l.card_id), p1, p4, soC }))
+
+  // o filtro raro: 155 removidos mais novos que não batem — cada metade lê no
+  // máximo 150 e o resto vai pelos candidatos do próprio filtro (nº e nome)
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao)
+      select g, (select id from public.clientes order by id limit 1), 'Em aberto' from generate_series(9759001, 9759155) g;
+    insert into public.plt_cards (tipo, pedido_id, setor_atual_id)
+      select 'pedido', p.id, (select id from public.plt_setores where codigo = 'pcp')
+        from public.pedidos p
+       where p.numero between 9759001 and 9759155
+         and not exists (select 1 from public.plt_cards c where c.pedido_id = p.id and c.tipo = 'pedido')
+       order by p.numero;`)
+  const lote = await como(E40.admin, `
+    select count(*) filter (where (public.plt_fn_pcp_remover(c.id, 'outro', 'lote de teste do filtro raro') ->> 'feito')::boolean)::int as n
+      from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+     where c.tipo = 'pedido' and p.numero between 9759001 and 9759155`)
+  const raroNum = await lista('97522')
+  const raroNome = await lista('Cliente Teste 482 97523')
+  const comum = await lista('97590', 20)
+  const semFiltro = await lista(null, 20)
+  conferir(
+    lote.n === 155
+      && raroNum.length === 1 && raroNum[0].numero === 97522 && raroNum[0].removido_motivo === 'pedido_cancelado'
+      && raroNome.length === 1 && raroNome[0].numero === 97523
+      && comum.length === 20 && comum.every((l) => String(l.numero).startsWith('97590')) && comum[0].tem_mais
+      && semFiltro.length === 20 && semFiltro[0].tem_mais,
+    'filtro raro (155 removidos mais novos não batem): o nº e o nome acham o pedido pelos candidatos do filtro; o filtro comum e a lista sem filtro enchem a página na ordem',
+    JSON.stringify({ lote, raroNum, raroNome, comum: comum.length, semFiltro: semFiltro.length }))
 
   // ---------------- 5 · "Devolver ao PCP" ----------------
   titulo('SESSAO-48 · frente 2 · "Devolver ao PCP": volta a todas as portas do PCP e sai da lista; o Tiny segue mandando; tocar de novo não faz nada')
@@ -23202,14 +23230,15 @@ try {
            has_function_privilege('anon', 'public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint)', 'execute') as lista_anon,
            has_function_privilege('authenticated', 'public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint)', 'execute') as lista_logado,
            has_function_privilege('authenticated', 'plt_privado.fn_pcp_pecas_do_pedido(bigint)', 'execute') as maquina,
+           has_function_privilege('authenticated', 'plt_privado.fn_pedido_bate_filtro(bigint, text, text)', 'execute') as maquina2,
            to_regprocedure('public.plt_fn_pedidos_cancelados(text, integer, integer)') is null as velha_saiu,
            (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public' and p.proname = 'plt_fn_pedidos_cancelados') as uma_so`)
   conferir(
     !pr482.aviso_anon && pr482.aviso_logado && !pr482.resolver_anon && pr482.resolver_logado && !pr482.remover_anon
       && pr482.remover_logado && !pr482.devolver_anon && pr482.devolver_logado && !pr482.lista_anon && pr482.lista_logado
-      && !pr482.maquina && pr482.velha_saiu && pr482.uma_so === 1,
-    'anônimo fora das cinco portas; quem está logado entra (o banco decide quem é PCP/logística/admin); o ajudante fora da API; a porta da aba com uma assinatura só (a do deslocamento saiu)',
+      && !pr482.maquina && !pr482.maquina2 && pr482.velha_saiu && pr482.uma_so === 1,
+    'anônimo fora das cinco portas; quem está logado entra (o banco decide quem é PCP/logística/admin); os ajudantes fora da API; a porta da aba com uma assinatura só (a do deslocamento saiu)',
     JSON.stringify(pr482))
 } finally {
   await bd.exec('rollback')
