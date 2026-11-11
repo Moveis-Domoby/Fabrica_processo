@@ -12,7 +12,7 @@ tags: [plataforma, demanda, producao, cancelamento, estoque, pcp, logistica, kan
 # 🎯 SESSAO-48 — Cancelar a fabricação de verdade
 
 > **Número:** 48 era o próximo livre na main em 11/11 (a 47 foi a última entregue). Confira na `000 - ORDEM DAS SESSOES`; se já estiver usado, pegue o próximo e corrija o título.
-> **Primeiro passo da sessão:** esta demanda já está em `_docs/Plataforma/Demandas/` e linkada na Ordem das Sessões — só confira.
+> **Primeiro passo da sessão:** esta demanda já está em `_docs/Plataforma/Demandas/`, linkada na Ordem das Sessões, com o handoff de entrada do Cowork em [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas]] — só confira.
 > **Cinco frentes:** 1 (mover para CANCELADO/NÃO ENCONTRADO tira da produção), 2 (a vaga do pedido volta ao PCP com aviso e o PCP decide), 3 (pedido cancelado no Tiny pergunta o destino), 4 (a limpeza dos 7 dias e a recuperação), 5 (a plataforma que recarrega sozinha) e o acerto do que já está parado, **só com o OK do dono**. Um commit por frente. A frente 5 é independente: pode correr em paralelo. Se o tempo apertar, a ordem é 5 → 1 → 2 → 4 → 3 → acerto.
 
 ## O pedido do dono (texto fiel, 11/11)
