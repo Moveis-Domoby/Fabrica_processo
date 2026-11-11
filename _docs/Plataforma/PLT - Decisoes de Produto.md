@@ -645,6 +645,7 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 - **Cancelado com peça em produção:** a peça **segue em produção** com a etiqueta **"Pedido cancelado — pronta, vai para o estoque"**; ao ser concluída na LIMPEZA E EMBALAGEM, vai ao **ESTOQUE sem dono**. Nada de estocar peça inacabada (b2): *"a peça continua em produção e logo mais irá para o estoque de peças de fato, não de produtos prontos"* (o estoque de peça é o próximo passo — D-57).
 - **Cancelado com peça pronta** (em Pedidos em aguardo): a peça vai **sozinha** ao ESTOQUE, **sem dono** (o produto do catálogo é achado pelo SKU). Personalizado cancelado também vai ao estoque (a exceção da D-55).
 - A etiqueta é lida da situação do pedido no Tiny (a mesma fonte do cancelamento) — nada guardado à parte.
+- ↩️ **11/11/2026 (D-290, SESSAO-48):** a peça de pedido cancelado que está **em produção** não segue mais sozinha para o estoque — ela fica "esperando decisão" e a logística escolhe o destino (seguir para o estoque, passar para outro pedido ou cancelar a fabricação); sem decisão, ao chegar ao fim da linha, vale a regra antiga (ESTOQUE sem dono). A peça **pronta** continua indo sozinha ao ESTOQUE. E mover qualquer peça para CANCELADO ou NÃO ENCONTRADO tira ela da produção na hora.
 
 ## D-62 · A sugestão do estoque na liberação: o que é "peça igual" e quem aceita (27/09/2026)
 
@@ -2404,6 +2405,117 @@ A demanda pedia ligar e desligar "a linha de referência do tempo padrão do mod
 9. **A configuração é uma só para a fábrica inteira;** só o liga/desliga dos montadores é por setor (a equipe do painel é por setor).
 10. **Na Auditoria**, a linha "Mudou a configuração do painel de tempos" traz o que mudou em frases; o "antes/depois" aparece também com os nomes internos das opções (é como a Auditoria mostra qualquer antes/depois hoje).
 11. **TVs já ligadas não se atualizam sozinhas:** depois de publicar, cada TV precisa ser recarregada uma vez para obedecer à configuração (até lá segue funcionando com o programa de antes).
+
+## D-290 · ✅ DECIDIDA pelo dono — Mover a peça para CANCELADO ou NÃO ENCONTRADO cancela a fabricação: sai da produção na hora, fica alguns dias à vista na coluna e depois é arquivada (recuperável); cancelar a peça não é cancelar o pedido (11/11/2026, SESSAO-48) — ↩️ revisa a D-61 · ↪️ D-75, D-132, D-201
+
+**Pedido do dono (11/11, texto fiel):** *"O móvel aparece que está em produção, no entanto, está em cancelado. Ou seja, não deveria aparecer em produção. Quando for um PEDIDO, pergunta para onde vai mover aquele móvel que seria do pedido que foi cancelado. Caso seja um estoque que foi cancelado a fabricação apenas tire aquele móvel da produção."* · ajuste (01:27): *"Não colocaremos botões, só o mover para cancelado já deve cancelar a peça e ela é excluída depois de 7 dias pra não inflar a coluna com muitos cards, ficando apenas o log de exclusão para recuperarmos caso necessário."* · respostas (01:33): cancelar uma peça não é cancelar o pedido; NÃO ENCONTRADO entra nesta sessão com o mesmo tratamento; a vaga da peça de pedido volta ao PCP com um aviso, e no aviso o PCP pode remover do PCP escolhendo "o pedido foi cancelado", "tirar da linha de produção" (com o que houve) ou "outro motivo"; e investigar a plataforma que recarrega sozinha.
+
+- **Sem botão:** o gesto é mover a peça para a coluna. Vale por qualquer caminho — arrasto no quadro, tablet, Mover, a liberação do PCP direto na coluna, a API.
+- **A peça sai da produção na hora:** some do "reservados p/ produção" do Estoque e do Top 20, das contas do PCP e da Expedição; o tempo de fila para de contar; ninguém inicia nem retoma trabalho nela.
+- **Na coluna:** "Cancelada em dd/mm · some em N dias" (ou "Não encontrada em …"), no lugar do tempo de fila. Arrastar de volta desfaz.
+- **De estoque** (reposição, lançamento manual): só sai da produção. **De pedido vivo:** perde o pedido e a vaga volta ao PCP com o aviso "Peça cancelada na produção" (ou "Peça não encontrada") e o sino do PCP. **De pedido cancelado no Tiny:** sai da produção, sem vaga de volta.
+- **NÃO ENCONTRADO** é o mesmo gesto; muda só o motivo gravado.
+
+**Como ficou (técnico):** migration `20261111010000_plt_sessao48_base.sql` — o sinal da etapa (`plt_etapas.cancela_fabricacao` / `cancela_motivo` / `cancela_dias`, ligado uma vez só no CANCELADO e no NÃO ENCONTRADO da LIMPEZA E EMBALAGEM); o gatilho no fato de CHEGADA (`plt_eventos_zz_cancelamento_chegada` → `fn_cancelar_fabricacao` / `fn_retomar_fabricacao`); os fatos `fabricacao_cancelada` / `fabricacao_retomada` (só pela maquinaria — marca `plt.cancelamento_maquinaria`) com a projeção `plt_cards.cancelada_em` / `cancelada_motivo` / `cancelada_pedido_id`; a peça de pedido perde o pedido por `unidade_desvinculada` (a vaga volta pela regra de sempre — `fn_vagas_pedido`); o aviso `plt_cards.pcp_aviso_em` no card do pedido; a regra única do que conta (`fn_estoque_categoria` com 8 argumentos e os 5 leitores) e a do PCP (`fn_fora_do_pcp` com a remoção, em todas as portas — D-75).
+
+## D-291 · ⏳ PROVISÓRIA — "Excluir" a peça cancelada é arquivar com fato; nada é apagado (11/11/2026, SESSAO-48 — provisória escrita na demanda)
+
+No prazo, a peça recebe `card_arquivado` com o motivo ("Fabricação cancelada há mais de 7 dias — removida da coluna CANCELADO."); o registro fica para sempre e a peça pode ser recuperada.
+
+## D-292 · ⏳ PROVISÓRIA (escolha da sessão) — Os dias da coluna moram na própria etapa: Configurações → Setores e etapas, ao lado de "Cancela a fabricação", padrão 7, de 1 a 90 (11/11/2026, SESSAO-48)
+
+A demanda sugeria "Configurações → Controle do quadro", tela que não existe. O prazo ficou na própria etapa que cancela (cada coluna com o seu — o CANCELADO e o NÃO ENCONTRADO podem ter prazos diferentes), no mesmo lugar em que o admin liga "Cancela a fabricação" ou "Peça não encontrada" — a escolha nova da lista onde já estavam "Fica no setor", "Conclui a produção" e os setores. Nenhum número escrito no código.
+
+## D-293 · ⏳ PROVISÓRIA — A limpeza roda dentro da rotina da madrugada que já existe (a conferência com o Tiny, 03:00 de Natal) — nenhum relógio novo (11/11/2026, SESSAO-48 — provisória escrita na demanda)
+
+`fn_tiny_pente_fino_iniciar` chama `fn_cancelados_arquivar()` no começo, protegida (se a limpeza falhar, a conferência do Tiny segue). E a coluna já não mostra o que passou do prazo mesmo antes de a limpeza rodar (filtro na leitura — a porta do quadro e o "Ver mais").
+
+## D-294 · ⏳ PROVISÓRIA — Só o admin recupera a peça que já saiu da coluna; ela volta para a fila do setor dela (a LIMPEZA E EMBALAGEM), sem dono (11/11/2026, SESSAO-48 — provisória escrita na demanda; o lugar do botão é escolha da sessão)
+
+O botão "Recuperar a peça" fica na janela do card (que a busca geral e a Auditoria abrem) e só aparece para o admin quando a peça já foi arquivada; dentro dos dias da coluna, desfaz-se arrastando de volta. Recuperar de novo não faz nada.
+
+## D-295 · ⏳ PROVISÓRIA — Arrastar de volta: a peça volta a ser do pedido só quando a vaga dele ainda está aberta; senão volta sem dono (11/11/2026, SESSAO-48 — provisória escrita na demanda; as condições exatas são escolha da sessão)
+
+Volta ao pedido quando: a peça voltou para uma etapa de PRODUÇÃO, o pedido segue no PCP (a regra única) e há vaga do mesmo móvel sem peça e sem reserva do estoque. Arrastar direto para a coluna que conclui retoma e conclui sem dono. O aviso do pedido some quando não sobra outra peça cancelada dele.
+
+## D-296 · ⏳ PROVISÓRIA — A reposição só perde a peça (11/11/2026, SESSAO-48 — provisória escrita na demanda, no padrão da D-201)
+
+A vaga da reposição continua contada como liberada; se o estoque ficar abaixo do mínimo, a reposição automática ou a logística lançam de novo, como hoje.
+
+## D-297 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes do cancelamento (11/11/2026, SESSAO-48)
+
+1. Toda peça cancelada perde o pedido — também a de pedido cancelado no Tiny e a de pedido removido do PCP (sem vaga de volta e sem aviso) — e guarda de qual era: o card mostra "Era do pedido N".
+2. Passar de CANCELADO para NÃO ENCONTRADO (ou o contrário) troca o motivo e mantém a data: os dias contam do primeiro cancelamento.
+3. O aviso no PCP fecha também quando o pedido é liberado por inteiro de novo (mesmo sem abrir a janela) e quando a peça volta ao pedido.
+4. A peça de móvel do catálogo que perde o pedido fica sem "pai"; a de móvel fora do catálogo guarda o card do pedido (detalhe técnico — E-254/E-256).
+5. Ninguém inicia nem retoma trabalho em peça cancelada: o banco recusa e diz para arrastar de volta.
+6. A busca geral acha a peça cancelada (também a arquivada) pelo nome do móvel, com "Era do pedido N"; pelo número do pedido não acha (ela perdeu o pedido) — a janela "O que aconteceu?" do PCP lista as peças canceladas do pedido.
+7. O sino do PCP sai a cada peça cancelada de pedido vivo; o acerto manda um só por pedido.
+
+## D-298 · ⏳ PROVISÓRIA — O acerto das peças que já estavam paradas (11/11/2026, SESSAO-48 — provisória escrita na demanda; o sino por pedido é escolha da sessão)
+
+`supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql`: cada peça viva nas colunas que cancelam passa pelo MESMO gesto (`fn_cancelar_fabricacao`), origem `api`, com a data do dia do acerto (cada uma ganha os dias de conferência); o sino do PCP sai uma vez por pedido; os números do estoque são recontados. Modo ensaio (conta antes e depois e não grava nada) e modo aplicar (só com o OK do dono).
+
+## D-299 · ⏳ PROVISÓRIA — A aba "Cancelados e removidos" volta para dentro do PCP (11/11/2026, SESSAO-48 — a aba é da demanda; o lugar, a ordem e o filtro são escolhas da sessão) — ↩️ D-134 (o `?aba=cancelados` levava para Pedidos → Cancelados)
+
+1. **Mora no PCP** (`?aba=cancelados`, como a Stand-by): mostra os pedidos removidos do PCP e os cancelados no Tiny que passaram pelo PCP (card vivo); "Devolver ao PCP" é gesto do PCP. A história inteira dos cancelados continua em Pedidos → Cancelados, com um atalho na aba.
+2. **A ordem é "quando saiu do PCP"**, o mais recente primeiro (removido: a remoção; cancelado: o último cancelamento vindo do Tiny) — quem acabou de remover acha o pedido no topo.
+3. **A aba não mostra o total** ("(N)"), ao contrário das outras do PCP: contar a história inteira custava ~175 ms no ensaio ×100 (Lei §6.4); a lista anda ao rolar, 20 por vez, por cursor.
+4. **O filtro raro pelo nome** acha o nome como ele está gravado (sem diferença de maiúscula, com acento) — o mesmo jeito da busca de Pedidos → Cancelados; o nome comum é conferido sem acento (a régua dos quadros).
+
+**Como ficou (técnico):** `plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint)` (a de 3 argumentos sai), cada metade pelo seu índice num laço que para na página; `AbaCanceladosRemovidos` (pedaço próprio). Migration `20261111020000_plt_pcp_aviso_remover.sql`.
+
+## D-300 · ⏳ PROVISÓRIA — Remover do PCP: só a parte do PCP muda (11/11/2026, SESSAO-48 — a regra é da demanda; os detalhes são escolhas da sessão) — ↪️ D-299
+
+1. **Não mexe nas peças reservadas do estoque** para o pedido (a demanda não fala; "só a parte do PCP muda"). Se o Tiny cancelar depois, o caminho de sempre as solta; devolvido, continuam reservadas.
+2. **O pedido cancelado no Tiny também pode ser removido** (nada muda no Tiny; na aba aparece uma vez só). Devolvê-lo tira a marca de removido, mas o Tiny o mantém fora do quadro — a tela diz isso, e o botão "Devolver ao PCP" só aparece quando o pedido volta de verdade.
+3. **"Devolver ao PCP" não reabre o aviso:** o pedido volta a "Aguardando liberação" com as vagas abertas e o PCP libera pela janela de sempre.
+4. **O texto obrigatório** ("O que houve?" e "Outro motivo") tem 3 letras ou mais, como o "Outro" do stand-by.
+5. **(supervisor) Removido vale antes de "em produção":** na lista de Pedidos o pedido removido aparece como "Removido do PCP" mesmo com peça dele em produção ou pronta (só "em rota", entregue, devolvido, arquivado e cancelado vêm antes); a peça cancelada nunca conta como liberada. Na busca geral: "Removido do PCP em dd/mm", e o atalho leva à aba "Cancelados e removidos".
+
+## D-301 · ⏳ PROVISÓRIA — "Para onde vai este móvel?": quem aparece para "Passar para outro pedido" (11/11/2026, SESSAO-48 — escolhas da sessão onde a demanda não dizia) — ↪️ D-290, D-201
+
+1. **"O mais antigo primeiro" é o pedido que espera há mais tempo no PCP** (a ordem da fila do PCP), não a data da venda.
+2. **Até 10 pedidos por móvel**; a procura olha no máximo os 200 primeiros da fila que têm o móvel (Lei §6).
+3. **Peça sem código (SKU) não tem candidato** — a mesma régua da sugestão de peça em produção do PCP (D-201).
+4. **"Todas de uma vez → Passar para outro pedido"** distribui as peças pelos pedidos (o mais antigo primeiro, dividindo as vagas) e fica desligada, dizendo o porquê, quando alguma peça ficaria sem pedido.
+5. **A janela abre no Estoque** (o caminho do sino, `?destino=`), em qualquer aba; a leitura aceita também o card de uma peça (leva ao pedido dela).
+
+## D-302 · ⏳ PROVISÓRIA — O destino do móvel de pedido cancelado: cada escolha e as proteções (11/11/2026, SESSAO-48 — a regra é da demanda e da D-290; os detalhes são escolhas da sessão)
+
+1. **A peça danificada também espera a decisão**, mas não passa para outro pedido (a regra de sempre recusa) — a janela diz o porquê.
+2. **A peça com ajuste aberto (D-130) não ganha a pendência:** o ajuste já tem o destino escolhido pelo PCP.
+3. **"Cancelar a fabricação"** leva a peça para a coluna que cancela do setor dela (motivo "cancelada"), senão para a da LIMPEZA E EMBALAGEM; não se pede o estado da peça.
+4. **O aviso é um por pedido**, para a logística (o admin entra pela régua do público): "Pedido N cancelado com móveis em produção".
+5. **Blindagem:** se a marca de "esperando decisão" falhar, o cancelamento vale do mesmo jeito (a peça cai na regra de antes: ESTOQUE ao ficar pronta) e o erro vira aviso de automação para os administradores.
+6. **"Descancelado" no Tiny:** a pendência sai sozinha (fato automático); o aviso que já estava no sino fica — aberto, a janela diz "Nada esperando decisão". Cancelado de novo, a peça espera de novo.
+7. **Todo fato de decisão leva o pedido cancelado** (a origem); "outro pedido" leva também o pedido de destino e por onde veio (PCP ou logística).
+
+**Como ficou (técnico):** migration `20261111030000_plt_cancelado_pergunta_destino.sql` — `fn_desvincular_por_cancelamento` recriada por extração (md5 da vigente no diário da frente 3), `plt_fn_destino_pendentes`, `plt_fn_destino_decidir`, gatilhos `plt_pedidos_destino_descancelado` e `plt_eventos_zz_destino_vinculada`; `ModalDestinoPedidoCancelado` (pedaço próprio) aberto pelo `?destino=` do Estoque.
+
+## D-303 · ⏳ PROVISÓRIA — A versão é o código e documentação não publica (11/11/2026, SESSAO-48 — a regra é da demanda; a fórmula é escolha da sessão) — ⏳ a mudança na Vercel só entra com o OK do dono
+
+1. **A versão** = um resumo (sha256, 12 caracteres) dos nomes de todos os arquivos montados + o conteúdo do index.html; vai no `versao.json` e numa marca do index.html (a página sabe a própria versão por ali). Montar o mesmo código duas vezes dá a mesma versão; o commit não entra mais no pedaço de entrada (ele renomeava 89 dos 215 arquivos a cada commit — a causa do "pedaço sumido" depois de cada publicação).
+2. **A Vercel pula a montagem** só quando há publicação anterior no ramo e, desde ela, só mudou `_docs/`, `Claude outputs/` ou `*.md`; qualquer dúvida monta. `supabase/` segue montando (o dono decide se entra na lista).
+
+## D-304 · ⏳ PROVISÓRIA — O momento seguro de recarregar (11/11/2026, SESSAO-48 — o 1 minuto é da demanda; o resto são escolhas da sessão)
+
+1. **Tablet e TV:** sem janela aberta (o PIN é digitado numa janela) e 1 minuto sem toque nem tecla; com janela aberta, olha de novo a cada minuto. Até lá, o aviso discreto diz "Ela se atualiza sozinha depois de 1 minuto sem uso."
+2. **Onde a versão é conferida, sem relógio:** escritório — trocar de tela e voltar à aba (como antes); tablet — também o toque; TV — o aviso do setor, a reconexão e a virada do dia. No máximo uma conferida a cada 2 minutos (o `versao.json` é arquivo da CDN; não toca o banco).
+3. **O pedaço sumido:** "Atualizando a plataforma…" e uma recarga por versão; a mesma versão falhando de novo, sem internet ou sem armazenamento → só o aviso com o botão "Atualizar". Vale em toda tela.
+4. **O botão do aviso de versão:** 44 px no escritório (era 36 px), 64 px no tablet e na TV.
+5. **A troca de setor no tablet** recarrega uma vez só: a janela do PIN fica "conferindo" até a página recarregar e o setor de destino vai direto para o aparelho.
+6. **A página que não foi embora** (algo segurou a recarga — raríssimo): passados 15 s (60 s na troca de setor), ela volta a reagir à sessão e a poder recarregar, em vez de ficar surda.
+7. **A proteção contra versões misturadas da Vercel (Skew Protection)** existe só nos planos pagos (Pro/Enterprise) e, para um site Vite puro, pede trabalho a mais no código — nada ligado; pergunta ao dono.
+
+## D-305 · ⏳ PROVISÓRIA — A trilha diz por que a página abriu (11/11/2026, SESSAO-48 — a regra é da demanda; os detalhes são escolhas da sessão)
+
+1. **Os porquês da plataforma:** versão nova (sozinha), versão nova (tocou em "Atualizar"), pedaço sumido e troca de setor — guardados na aba antes de recarregar, valem 60 s.
+2. **Abertura é a página:** só a 1ª abertura registrada de cada página leva a marca; trocar de conta na mesma página (entrar de novo, a troca vinda de outra aba) grava a navegação comum.
+3. **O banco só aceita o que conhece** (listas fechadas; a versão em hexadecimal).
+4. **Na Auditoria:** "Abriu a plataforma — <porquê>", na ordem plataforma > aba descartada pelo navegador > o que o navegador fez (atualizou, abriu pelo endereço, voltou); a versão fica fora da tela.
+
+**Como ficou (técnico):** `plt_fn_abertura(text, boolean, jsonb)` (a de 2 argumentos sai — A-12), migration `20261111050000_plt_abertura_motivo.sql`; `src/lib/recarga.ts`, `src/lib/versaoNova.ts`, `vite.config.ts`, `vercel.json`.
 
 ## Ver também
 

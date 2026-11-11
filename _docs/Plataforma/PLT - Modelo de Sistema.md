@@ -592,9 +592,15 @@ SESSAO-05.
   (`?aba=produtos`); as contagens vêm de UMA porta (`plt_fn_aguardo_contagens`) e batem
   por construção. Produto reservado: SKU + "Pedido N (k/n)", selo do estado quando não é
   🟢, "veio do estoque", "em aguardo há X". Botões da lista com 44px.
-- **PCP em `<Abas>`:** "Aguardando liberação" · "Cancelados" (`?aba=cancelados`) — lista
-  paginada (20) com busca, carregada só ao abrir (regra 17); cada pedido mostra quantas
-  peças estão em produção, no estoque e nas ROTAS.
+- **PCP em `<Abas>`:** "Reabastecimento" · "Pedidos aguardando liberação" · "Stand-by" ·
+  **"Cancelados e removidos"** (`?aba=cancelados` — ↩️ SESSAO-48/D-299: voltou para dentro do
+  PCP; de 14/10 a 11/11 levava para Pedidos → Cancelados) · "Lançamento manual". A aba
+  "Cancelados e removidos" é lista por cursor (20, anda ao rolar, **sem o total** — Lei §6.4)
+  com o filtro dos quadros, carregada só ao abrir (regra 17); cada linha: "Removido do PCP"
+  (`PackageX`, âmbar) e/ou "Cancelado no Tiny" (`Ban`, vermelho), o motivo + o texto, quem e
+  quando, as peças que seguem (em produção · prontas · no estoque · esperando a decisão da
+  logística) e **"Devolver ao PCP"** (`Undo2`, secundário, só quando o pedido volta de verdade);
+  no rodapé, o atalho para a história inteira em Pedidos → Cancelados.
 - **Etiqueta "Pedido cancelado — pronta, vai para o estoque"** no card de unidade em
   produção (`danificado-*` com `Ban` — ícone + texto, nunca só cor).
 - **Liberar com sugestão do estoque** (`ModalLiberarPedido`): por linha, "Há N igual(is)
@@ -737,6 +743,7 @@ SESSAO-05.
 ### Aviso de versão nova (14/10 noite — D-135)
 
 - `AvisoVersaoNova` (`src/componentes/`): cartão discreto no canto inferior esquerdo (acima da barra do celular), "Saiu uma versão nova da plataforma" + botão "Atualizar". Aparece na casca e no tablet; a próxima troca de tela já recarrega sozinha.
+- ↪️ **SESSAO-48 (frente 5 — D-303…D-305):** a versão é o código montado (o mesmo código = a mesma versão; só documentação não publica). **Escritório:** a troca de tela recarrega, como antes. **Tablet e TV:** só no momento seguro — sem janela aberta e 1 minuto sem toque; o aviso ganha a linha "Ela se atualiza sozinha depois de 1 minuto sem uso." Botão "Atualizar" com 44 px no escritório (era 36) e 64 px no tablet e na TV. **Pedaço sumido:** "Atualizando a plataforma…" por cima da tela e uma recarga só por versão; se falhar de novo (ou sem internet), só o aviso com "Atualizar". **Auditoria:** a abertura vira "Abriu a plataforma — <porquê>" (versão nova, sozinha ou pelo botão · faltava uma parte da versão anterior · troca de setor no tablet · a aba tinha sido descartada pelo navegador · atualizou a página · abriu pelo endereço · voltou), com os detalhes em português.
 
 ### Calendário, Google Maps/Waze, Mover e o painel de motivos (SESSAO-39 / D-173…D-176)
 
@@ -801,6 +808,18 @@ Pedido do dono, com o print da MONTAGEM: *"diminuir o tamanho desses headers e c
 - **Ficha** (`JanelaSugestao.tsx`, `?sugestao=N` — como a janela do card): selos (coluna · tipo · nível · teste), o bloco azul "Já está no sistema — você pode testar" com **Aprovar** (primária) e **Devolver com nova sugestão**, o motivo da recusa (vermelho), o texto inteiro, as sugestões ligadas (botões), os arquivos (imagem com prévia, áudio e vídeo com player, o resto com "abrir em outra aba"), "Mover para" (só super admin; a coluna atual marcada) e a história.
 - **Selos** (`Selos.tsx`): ícone + texto, nunca só cor — coluna (Inbox · ListTodo · Hammer · CircleCheckBig · XCircle), tipo (Bug · Sparkles · Lightbulb), nível (`superficie-sutil` → `info` → `prazo-amarelo` → `danificado`), teste (`info` esperando · `perfeito` aprovada · `atencao` devolvida).
 - **Meu painel:** o bloco "Sugestões para você testar" (fundo `info`, acima de "O que me espera") aparece só quando há; a pendência sai de "Delegados a mim" e da fila.
+
+### Cancelar a fabricação de verdade (SESSAO-48 / D-290…)
+
+- **A coluna que cancela** (o CANCELADO e o NÃO ENCONTRADO da LIMPEZA E EMBALAGEM — `etapa.cancela_fabricacao`): no topo, como o "conclui a produção", a linha `Ban` (vermelho) + "tira da produção · some em N dias". Nunca é a etapa de início (`etapaDeInicio` e `fn_etapa_inicio` a pulam).
+- **O cartão da peça cancelada** (`CartaoUnidade`, regra em `src/kanban/cancelada.ts`): no lugar do tempo de fila, `Ban` (ou `SearchX` para "Não encontrada") + "Cancelada em dd/mm" em `danificado-texto` e, em `texto-suave`, "· some em N dias" / "· some amanhã" / "· some hoje" (dias de calendário até a coluna deixar de mostrar). A origem diz "Era do pedido N" (`rotuloOrigemCard` — vale para o cartão, a janela e a busca). Cada pedaço da linha em `whitespace-nowrap` (quebra entre os pedaços, nunca no meio).
+- **A peça de pedido cancelado esperando a decisão** (`card.destino_pendente_em`): a etiqueta de sempre do pedido cancelado com `Hourglass` + "Pedido cancelado — esperando decisão da logística" (a antiga, `Ban` + "… pronta, vai para o estoque", segue para quem não tem a marca).
+- **Setores e etapas:** "Cancela a fabricação" e "Peça não encontrada" são escolhas da MESMA lista de "Manda para" (com "Fica no setor", "Conclui a produção" e os setores); escolhida uma delas, a caixinha "Parar aqui pede o motivo" dá lugar a "Some da coluna em [7] dias" (campo numérico de 44 px, 1 a 90, salva ao sair do campo ou no Enter, erro em `role="alert"`). Fora da edição, a pílula `danificado` "cancela a fabricação" / "peça não encontrada · tira da produção".
+- **A janela do card** da peça cancelada: a pílula `Ban` "Cancelada em dd/mm" no topo e um bloco `danificado` (`role="status"`) que diz o que houve, de qual pedido era e como desfazer; com a peça já tirada da coluna, o botão secundário **"Recuperar a peça"** (só admin, nunca no tablet).
+- **Busca geral:** a peça cancelada diz onde está ("LIMPEZA E EMBALAGEM · CANCELADO — fabricação cancelada em dd/mm", tom `danificado`) ou quando saiu da coluna ("Fabricação cancelada — saiu da coluna em dd/mm"). O pedido removido do PCP diz "Removido do PCP em dd/mm" (tom neutro) e o atalho leva à aba "Cancelados e removidos"; na lista de Pedidos ele aparece "Removido do PCP" mesmo com peça em produção (D-300).
+- **O selo da peça cancelada no PCP** (`SeloPecaCancelada` em `PCP.tsx`, frente 2): no card do pedido em "Aguardando liberação" e em Stand-by, pílula `danificado` com `Ban` (ou `SearchX`) + "Peça cancelada na produção" / "Peça não encontrada" / "N peças canceladas na produção" — é um **botão** (`toque-seguro`: 44 px de alvo sem mudar o desenho) que abre a janela; lido de `pedido_resumo.aviso_cancelada` (sem requisição a mais). O sino do PCP abre a mesma janela (`?aviso=<card>`).
+- **A janela "O que aconteceu?"** (`ModalPecaCancelada`, pedaço próprio): lê uma vez ao abrir e esquece ao fechar. Topo: o bloco do aviso (vermelho, com ícone; "já resolvido" em verde; "removido por X" neutro). "Peças que saíram da produção (N)": cada uma com `Ban`/`SearchX`, nome (k/n) · SKU e, em `texto-suave`, a coluna · setor · quem · quando. "O que o pedido ainda tem": em produção (onde), prontas, "Vagas para liberar no PCP: X de Y". Rodapé: a explicação curta das duas saídas + **"Remover do PCP"** (secundário, `PackageX`) e **"Produzir de novo"** (primário, `RotateCcw`). O 2º passo, "Remover do PCP": "Por que o pedido sai do PCP?" com os 3 motivos em botões grandes (o desenho da casa para escolher um motivo); "O pedido foi cancelado" mostra "Cancele também no Tiny."; os outros dois pedem o texto ("O que houve?" / o motivo, 3 letras ou mais, conferido na tela e no banco); aviso âmbar com as peças que seguem ("Este pedido ainda tem 1 peça em A LIMPAR. Para cancelar a fabricação dela, mova para CANCELADO."); "Voltar" + "Remover do PCP".
+- **A janela "Para onde vai este móvel?"** (`ModalDestinoPedidoCancelado`, frente 3 — o molde é a "Decidir situação" da devolução; `tamanho="galpao"`, no celular sobe do rodapé; pedaço próprio aberto pelo `?destino=` do Estoque em qualquer aba): o resumo (o pedido, quando cancelou, quantos móveis estavam em produção, a pílula "Cancelado no Tiny"); **"Todas de uma vez"** (3 botões com `aria-pressed`; "Passar para outro pedido" desligado com o porquê quando nem todos têm pedido); por móvel: nome (k/n), SKU, onde está e desde quando espera, quem trabalha nele, o selo de danificada, os 3 botões-rádio (`Boxes` "Seguir para o estoque" · `Replace` "Passar para outro pedido" · `Ban` "Cancelar a fabricação", com o check quando marcado) e, em "Passar para outro pedido", "Para qual pedido" com os pedidos em botões (nº · cliente, "previsto dd/mm · N vagas deste móvel", "em stand-by"; a vaga tomada por outro móvel da janela fica desligada e diz isso). Rodapé sempre à vista: "Fechar" + "Aplicar a decisão"; "Já decidido" mostra o que aconteceu, quem e quando.
 
 ## 5. Regras de escrita da interface
 
