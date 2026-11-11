@@ -42,6 +42,14 @@ export function destinoDoAviso(
   // leva à Expedição já no filtro deles (é lá que se devolve ao PCP).
   if (aviso.tipo === 'pedido_adiantado_tiny')
     return '/fabrica/logistica/expedicao?filtro=saiu_do_pcp'
+  // SESSAO-48 (frente 2): a peça cancelada na produção abre, no PCP, a janela
+  // "O que aconteceu?" do pedido (o card do aviso é o do pedido).
+  if (aviso.tipo === 'peca_cancelada_pcp' && aviso.card_id !== null)
+    return `/fabrica/producao/pcp?aviso=${aviso.card_id}`
+  // SESSAO-48 (frente 3): o pedido cancelado no Tiny com móveis em produção abre,
+  // no Estoque (a casa das decisões da logística), a janela "Para onde vai este móvel?".
+  if (aviso.tipo === 'pedido_cancelado_decidir' && aviso.card_id !== null)
+    return `/fabrica/logistica/estoque?destino=${aviso.card_id}`
   // SESSAO-31 (§3): responsável e menção abrem a janela do card, ali mesmo.
   // SESSAO-42: "Móvel pulou a montagem" (saiu do setor sem ninguém iniciar) também.
   if (

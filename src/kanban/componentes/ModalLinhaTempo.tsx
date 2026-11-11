@@ -64,7 +64,9 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   pedido_lancado_rotas: 'Lançado para ROTAS',
   delegacao: 'Delegado',
   // SESSAO-24: a peça que perdeu o pedido e a peça do estoque usada por um pedido.
-  unidade_desvinculada: 'Ficou sem dono (pedido cancelado)',
+  // ↩️ SESSAO-48: a peça também fica sem dono quando a fabricação é cancelada —
+  // o porquê vem na observação do fato.
+  unidade_desvinculada: 'Ficou sem dono',
   peca_alocada: 'Usada por um pedido',
   // D-201: a peça sem dono em produção passou a ser de um pedido (pelo PCP).
   peca_vinculada: 'Passou a ser de um pedido',
@@ -96,6 +98,15 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   // SESSAO-47: a logística devolveu ao PCP o pedido que o Tiny tinha levado adiante.
   pedido_volta_pcp: 'Voltou ao PCP (situação pedida ao Tiny)',
   pedido_volta_pcp_fim: 'O Tiny mudou a situação',
+  // SESSAO-48: cancelar a fabricação (mover para CANCELADO / NÃO ENCONTRADO) e retomar;
+  // o aviso, a remoção e a devolução no PCP; o destino da peça de pedido cancelado.
+  fabricacao_cancelada: 'Fabricação cancelada',
+  fabricacao_retomada: 'Fabricação retomada',
+  pcp_aviso_resolvido: 'O PCP viu a peça cancelada e vai produzir de novo',
+  pedido_removido_pcp: 'Removido do PCP',
+  pedido_devolvido_pcp: 'Devolvido ao PCP',
+  destino_pendente: 'Esperando a logística decidir o destino',
+  destino_decidido: 'Destino decidido',
   // SESSAO-36 (D-146): o auxílio.
   auxilio_iniciado: 'Ajuda iniciada',
   auxilio_pausado: 'Ajuda pausada',

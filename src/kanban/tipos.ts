@@ -49,7 +49,20 @@ export interface Etapa {
    * (o PARADO). O tempo fecha como antes; o motivo fica na frente do card.
    */
   pede_motivo: boolean
+  /**
+   * SESSAO-48: soltar a PEÇA aqui cancela a fabricação dela — ela sai da
+   * produção na hora (o CANCELADO e o NÃO ENCONTRADO da LIMPEZA E EMBALAGEM).
+   * Ausente (o quadro só manda quando cancela) = não cancela.
+   */
+  cancela_fabricacao?: boolean
+  /** SESSAO-48: o motivo que a peça leva ao chegar aqui. */
+  cancela_motivo?: MotivoCancelamento | null
+  /** SESSAO-48: quantos dias a peça cancelada fica à vista na coluna (padrão 7). */
+  cancela_dias?: number
 }
+
+/** SESSAO-48: por que a peça saiu da produção (o motivo da coluna onde chegou). */
+export type MotivoCancelamento = 'cancelada' | 'nao_encontrada'
 
 /**
  * Card do kanban (D-01): 'pedido' é o que o PCP enxerga; 'unidade' é o (k/n).
@@ -140,6 +153,19 @@ export interface Card {
   prioridade_herdada?: boolean
   /** SESSAO-38 (D-150): a data de entrega — a do pedido no Tiny (ao vivo); no avulso, o vencimento. */
   data_entrega?: string | null
+  /**
+   * SESSAO-48: a fabricação desta peça foi cancelada (ela chegou numa coluna
+   * que cancela) — desde quando, o motivo e o pedido que ela perdeu. Ausente =
+   * peça em produção. Projeção do banco (o quadro só manda quando há).
+   */
+  cancelada_em?: string | null
+  cancelada_motivo?: MotivoCancelamento | null
+  cancelada_pedido_numero?: number | null
+  /**
+   * SESSAO-48 (frente 3): a peça é de um pedido cancelado no Tiny e espera a
+   * logística decidir para onde vai. Ausente = nada a decidir.
+   */
+  destino_pendente_em?: string | null
 }
 
 /**
@@ -236,6 +262,22 @@ export interface PedidoResumo {
   pecas_reservadas?: number
   /** SESSAO-47: a logística devolveu este pedido ao PCP e o Tiny ainda não mostrou a situação nova. */
   volta_pcp?: VoltaPcp | null
+  /**
+   * SESSAO-48 (frente 2): peça deste pedido cancelada na produção — a vaga
+   * voltou ao PCP. O selo do quadro do PCP e a janela "O que aconteceu?".
+   * Ausente = sem aviso.
+   */
+  aviso_cancelada?: AvisoCancelada | null
+}
+
+/** SESSAO-48: o aviso da peça cancelada na produção, no card do pedido (PCP). */
+export interface AvisoCancelada {
+  /** Desde quando o aviso está aberto (a 1ª peça cancelada que o PCP ainda não viu). */
+  desde: string
+  /** Quantas peças do pedido foram canceladas desde então. */
+  pecas: number
+  /** 'nao_encontrada' só quando TODAS são "não encontrada". */
+  motivo: MotivoCancelamento
 }
 
 /**
@@ -256,6 +298,8 @@ export type SituacaoPlataforma =
   | 'tiny'
   /** 14/10 (D-134): cancelado no Tiny. */
   | 'cancelado'
+  /** SESSAO-48 (frente 2): o PCP tirou o pedido da linha de produção (aba "Cancelados e removidos"). */
+  | 'removido_pcp'
 
 /** Linha de plt_fn_pedido_itens_kanban — item já traduzido em unidades (k/n). */
 export interface ItemKanban {
@@ -394,6 +438,15 @@ export interface EventoLinhaTempo {
     // SESSAO-47: a volta ao PCP do pedido que o Tiny levou adiante, e o fim dela.
     | 'pedido_volta_pcp'
     | 'pedido_volta_pcp_fim'
+    // SESSAO-48: cancelar e retomar a fabricação; o aviso, a remoção e a devolução
+    // no PCP; o destino da peça de pedido cancelado no Tiny.
+    | 'fabricacao_cancelada'
+    | 'fabricacao_retomada'
+    | 'pcp_aviso_resolvido'
+    | 'pedido_removido_pcp'
+    | 'pedido_devolvido_pcp'
+    | 'destino_pendente'
+    | 'destino_decidido'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

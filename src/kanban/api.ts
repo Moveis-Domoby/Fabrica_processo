@@ -61,7 +61,9 @@ export async function buscarSetores(incluirInativos = false): Promise<Setor[]> {
 
 /** As colunas da etapa que o front lê — espelho do tipo Etapa. */
 const COLUNAS_ETAPA =
-  'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao, pede_motivo'
+  'id, setor_id, nome, ordem, eh_fila, eh_danificado, ativa, setor_destino_id, conclui_producao, pede_motivo, ' +
+  // SESSAO-48: a etapa que cancela a fabricação (o CANCELADO e o NÃO ENCONTRADO)
+  'cancela_fabricacao, cancela_motivo, cancela_dias'
 
 export async function buscarEtapasDoSetor(
   setorId: number,
@@ -816,6 +818,9 @@ export async function atualizarEtapa(
       | 'setor_destino_id'
       | 'conclui_producao'
       | 'pede_motivo'
+      | 'cancela_fabricacao'
+      | 'cancela_motivo'
+      | 'cancela_dias'
     >
   >,
 ): Promise<void> {

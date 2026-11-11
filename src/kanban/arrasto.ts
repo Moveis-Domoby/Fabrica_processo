@@ -25,6 +25,8 @@ export function etapaDeInicio(etapas: readonly Etapa[]): Etapa | undefined {
         !e.eh_danificado &&
         e.setor_destino_id === null &&
         !e.conclui_producao &&
+        // SESSAO-48: a coluna que cancela a fabricação nunca é a de início
+        !e.cancela_fabricacao &&
         (e.ordem > fila.ordem || (e.ordem === fila.ordem && e.id > fila.id)),
     )
     .sort((a, b) => a.ordem - b.ordem || a.id - b.id)[0]

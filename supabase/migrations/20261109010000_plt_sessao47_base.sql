@@ -43,7 +43,10 @@ alter table public.plt_eventos add constraint plt_eventos_tipo_check check (tipo
   -- SESSAO-47: a volta ao PCP do pedido que o Tiny levou adiante, e o dia real da entrega
   'pedido_volta_pcp', 'pedido_volta_pcp_fim', 'entrega_dia_corrigido'
 ]::text[])) not valid;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- ↪️ SESSAO-48 (E-19): o validate de plt_eventos_tipo_check mudou para a migration
+-- 20261111010000 (os tipos do cancelamento da fabricação, do aviso e da remoção do
+-- PCP e do destino) — a lista desta é a da época dela e não valida o que o banco
+-- já viveu depois.
 
 -- ----------------------------------------------------------------------------
 -- 2 · A marca "devolvido ao PCP pela plataforma" (projeção no card do pedido)
