@@ -81,6 +81,25 @@ describe('recarregar deixa o porquê para a próxima abertura', () => {
     cancelarRecarga()
     expect(recargaEmCurso()).toBe(false)
   })
+
+  it('a página que continua viva depois de pedir a recarga não fica surda à sessão', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      recarregar('versao_nova')
+      expect(recargaEmCurso()).toBe(true)
+      vi.advanceTimersByTime(16_000)
+      expect(recargaEmCurso()).toBe(false)
+      recarregar('versao_nova_botao')
+      expect(recarregou).toHaveBeenCalledTimes(2)
+
+      reiniciarRecargaParaTeste(recarregou)
+      prepararRecarga()
+      vi.advanceTimersByTime(61_000)
+      expect(recargaEmCurso()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('o contexto da carga (vai na 1ª abertura da página)', () => {

@@ -44,11 +44,23 @@ const VALIDADE_MOTIVO_MS = 60_000
 const META_VERSAO = 'meta[name="domoby-versao"]'
 const ID_AVISO = 'domoby-aviso-recarga'
 
-let recarregando = false
-let trocaEmCurso = false
+/**
+ * Pedida a recarga, a página espera ir embora; ainda viva depois disto, algo a
+ * segurou (raríssimo) — ela volta ao normal em vez de ficar surda à sessão.
+ */
+const ESPERA_RECARGA_MS = 15_000
+/** A troca de setor espera a resposta do PIN (rede ruim do galpão) até isto. */
+const ESPERA_TROCA_MS = 60_000
+
+let recarregouEm = 0
+let trocaDesde = 0
 let contexto: ContextoDaCarga | null = null
 const recarregarDeVerdade = () => window.location.reload()
 let recarregarPagina: () => void = recarregarDeVerdade
+
+function recarregandoAgora(): boolean {
+  return recarregouEm > 0 && Date.now() - recarregouEm < ESPERA_RECARGA_MS
+}
 
 /**
  * A versão desta página: o resumo dos arquivos da montagem, que a montagem
@@ -63,8 +75,8 @@ export function versaoDaPagina(): string | null {
 
 /** Recarrega a página deixando o porquê para a próxima abertura. Uma vez só por página. */
 export function recarregar(motivo: MotivoRecarga): void {
-  if (recarregando) return
-  recarregando = true
+  if (recarregandoAgora()) return
+  recarregouEm = Date.now()
   try {
     sessionStorage.setItem(CHAVE_MOTIVO, JSON.stringify({ motivo, em: Date.now() }))
   } catch {
@@ -80,17 +92,17 @@ export function recarregar(motivo: MotivoRecarga): void {
  * abertura a mais em cada troca, no mesmo segundo).
  */
 export function prepararRecarga(): void {
-  trocaEmCurso = true
+  trocaDesde = Date.now()
 }
 
 /** A troca não aconteceu (PIN errado, sem internet): a página segue como estava. */
 export function cancelarRecarga(): void {
-  trocaEmCurso = false
+  trocaDesde = 0
 }
 
 /** A página está para ser recarregada pela própria plataforma? */
 export function recargaEmCurso(): boolean {
-  return trocaEmCurso || recarregando
+  return (trocaDesde > 0 && Date.now() - trocaDesde < ESPERA_TROCA_MS) || recarregandoAgora()
 }
 
 function consumirMotivo(): MotivoRecarga | undefined {
@@ -196,7 +208,7 @@ function mostrarAviso(tipo: TipoAviso): void {
 
 /** O ouvinte do `vite:preloadError` (src/main.tsx). */
 export function aoPedacoSumido(evento: Event): void {
-  if (recarregando) {
+  if (recarregandoAgora()) {
     // a página já está indo embora — o erro não precisa derrubar a tela antes
     evento.preventDefault()
     return
@@ -228,8 +240,8 @@ export function aoPedacoSumido(evento: Event): void {
  * recarrega — o teste passa quem faz as vezes da recarga).
  */
 export function reiniciarRecargaParaTeste(recarregador: () => void = recarregarDeVerdade): void {
-  recarregando = false
-  trocaEmCurso = false
+  recarregouEm = 0
+  trocaDesde = 0
   contexto = null
   recarregarPagina = recarregador
   document.getElementById(ID_AVISO)?.remove()
