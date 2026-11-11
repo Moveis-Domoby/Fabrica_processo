@@ -66,8 +66,8 @@ describe('Setores e etapas — a coluna que cancela a fabricação (SESSAO-48)',
 
   it('o CANCELADO e o NÃO ENCONTRADO mostram a escolha no mesmo lugar de "conclui a produção", com o prazo em dias', async () => {
     await abrir()
-    expect(screen.getByText('Cancela a fabricação (tira da produção)')).toBeTruthy()
-    expect(screen.getByText('Peça não encontrada (tira da produção)')).toBeTruthy()
+    expect(screen.getByText('Cancela a fabricação')).toBeTruthy()
+    expect(screen.getByText('Peça não encontrada')).toBeTruthy()
     const dias = screen.getByLabelText('Em quantos dias a peça cancelada some da coluna CANCELADO') as HTMLInputElement
     expect(dias.value).toBe('7')
     // a coluna que cancela não pede o motivo da parada (o motivo é o dela)

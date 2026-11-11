@@ -1,0 +1,73 @@
+# SESSAO-48 · ensaio x100 — rodada 2 (maquina mais livre: o antes x depois da base)
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+== ANTES (até a SESSAO-47) ==
+  PCP "aguardando liberação" (10)                                                      mediana     83.9 ms · máx    107.8 ms · 3350 no quadro
+  PCP aba Stand-by (10)                                                                mediana      9.0 ms · máx      9.9 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    196.8 ms · máx    207.4 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana     68.4 ms · máx     71.0 ms · 5550 a liberar
+  quadro da LIMPEZA E EMBALAGEM (10 por coluna)                                        mediana    214.2 ms · máx    329.6 ms · 13000 no quadro · CANCELADO 4827 · NÃO ENCONTRADO 473
+  "Ver mais" na coluna CANCELADO (10)                                                  mediana     58.6 ms · máx     61.5 ms
+  busca geral pelo nome ("Estante Basic 7", 20)                                        mediana     37.2 ms · máx     41.3 ms · 20 itens
+  lista de Pedidos (20)                                                                mediana     61.8 ms · máx     67.5 ms · 20 linhas
+  a janela de liberar (sugestões de peça em produção)                                  mediana     43.6 ms · máx     56.7 ms
+  a base da SESSAO-48 aplicada; o sinal ligou sozinho em: CANCELADO → cancelada, NÃO ENCONTRADO → nao_encontrada
+== DEPOIS (a base), antes do acerto ==
+  PCP "aguardando liberação" (10)                                                      mediana     80.4 ms · máx     88.3 ms · 3350 no quadro
+  PCP aba Stand-by (10)                                                                mediana      8.4 ms · máx      9.0 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    198.9 ms · máx    200.1 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana     69.4 ms · máx     71.3 ms · 5550 a liberar
+  quadro da LIMPEZA E EMBALAGEM (10 por coluna)                                        mediana    212.3 ms · máx    279.6 ms · 13000 no quadro · CANCELADO 4827 · NÃO ENCONTRADO 473
+  "Ver mais" na coluna CANCELADO (10)                                                  mediana     59.0 ms · máx     66.5 ms
+  busca geral pelo nome ("Estante Basic 7", 20)                                        mediana     39.0 ms · máx     40.6 ms · 20 itens
+  lista de Pedidos (20)                                                                mediana     64.7 ms · máx     67.5 ms · 20 linhas
+  a janela de liberar (sugestões de peça em produção)                                  mediana     39.1 ms · máx     48.9 ms
+
+# rodada 3 (a versao final da base; maquina carregada com as tres frentes rodando testes): o gesto, a retomada e a limpeza
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+== ANTES (até a SESSAO-47) ==
+  PCP "aguardando liberação" (10)                                                      mediana     87.4 ms · máx    114.5 ms · 3350 no quadro
+  PCP aba Stand-by (10)                                                                mediana      8.5 ms · máx      9.3 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    207.4 ms · máx    215.2 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana     85.7 ms · máx    116.2 ms · 5550 a liberar
+  quadro da LIMPEZA E EMBALAGEM (10 por coluna)                                        mediana    282.5 ms · máx    343.0 ms · 13000 no quadro · CANCELADO 4827 · NÃO ENCONTRADO 473
+  "Ver mais" na coluna CANCELADO (10)                                                  mediana     67.0 ms · máx     75.9 ms
+  busca geral pelo nome ("Estante Basic 7", 20)                                        mediana     44.1 ms · máx     54.7 ms · 20 itens
+  lista de Pedidos (20)                                                                mediana     72.0 ms · máx     82.6 ms · 20 linhas
+  a janela de liberar (sugestões de peça em produção)                                  mediana     50.9 ms · máx     72.7 ms
+  a base da SESSAO-48 aplicada; o sinal ligou sozinho em: CANCELADO → cancelada, NÃO ENCONTRADO → nao_encontrada
+== DEPOIS (a base), antes do acerto ==
+  PCP "aguardando liberação" (10)                                                      mediana     94.2 ms · máx    108.8 ms · 3350 no quadro
+  PCP aba Stand-by (10)                                                                mediana     13.2 ms · máx     18.1 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    224.3 ms · máx    520.8 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana     76.3 ms · máx     77.2 ms · 5550 a liberar
+  quadro da LIMPEZA E EMBALAGEM (10 por coluna)                                        mediana    241.0 ms · máx    303.4 ms · 13000 no quadro · CANCELADO 4827 · NÃO ENCONTRADO 473
+  "Ver mais" na coluna CANCELADO (10)                                                  mediana     62.7 ms · máx     71.5 ms
+  busca geral pelo nome ("Estante Basic 7", 20)                                        mediana     41.2 ms · máx     43.5 ms · 20 itens
+  lista de Pedidos (20)                                                                mediana     68.0 ms · máx     79.1 ms · 20 linhas
+  a janela de liberar (sugestões de peça em produção)                                  mediana     40.9 ms · máx     53.1 ms
+  ACERTO: as 5.300 peças paradas pelo gesto (uma transação)                            mediana  31255.7 ms · máx  31255.7 ms
+== DEPOIS do acerto (todas canceladas hoje — a coluna mostra todas) ==
+  PCP "aguardando liberação" (10)                                                      mediana    144.4 ms · máx    206.3 ms · 3350 no quadro
+  PCP aba Stand-by (10)                                                                mediana      9.0 ms · máx      9.6 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    351.0 ms · máx    529.1 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana    135.6 ms · máx    161.8 ms · 5550 a liberar
+  quadro da LIMPEZA E EMBALAGEM (10 por coluna)                                        mediana    252.2 ms · máx    276.5 ms · 13000 no quadro · CANCELADO 4827 · NÃO ENCONTRADO 473
+  "Ver mais" na coluna CANCELADO (10)                                                  mediana     56.8 ms · máx     59.5 ms
+  busca geral pelo nome ("Estante Basic 7", 20)                                        mediana     12.9 ms · máx     14.7 ms · 20 itens
+  lista de Pedidos (20)                                                                mediana     74.2 ms · máx     81.0 ms · 20 linhas
+  a janela de liberar (sugestões de peça em produção)                                  mediana     27.1 ms · máx     38.3 ms
+  GESTO: soltar uma peça de pedido no CANCELADO (5 peças)                              mediana     52.1 ms · máx    122.6 ms
+  GESTO: arrastar de volta para a fila (5 peças — a vaga ainda aberta)                 mediana     14.0 ms · máx     37.0 ms
+  LIMPEZA DA MADRUGADA: arquivar as que passaram do prazo (2.650 peças)                mediana  87188.9 ms · máx  87188.9 ms
+  LIMPEZA DA MADRUGADA rodando de novo (nada a fazer: 0)                               mediana      2.0 ms · máx      2.0 ms
+== DEPOIS da limpeza (metade arquivada) ==
+  PCP "aguardando liberação" (10)                                                      mediana    136.4 ms · máx    168.1 ms · 3350 no quadro
+  PCP aba Stand-by (10)                                                                mediana      8.4 ms · máx      9.2 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    438.2 ms · máx    575.2 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana    125.6 ms · máx    126.6 ms · 5550 a liberar
+  quadro da LIMPEZA E EMBALAGEM (10 por coluna)                                        mediana    221.0 ms · máx    240.7 ms · 10350 no quadro · CANCELADO 2177 · NÃO ENCONTRADO 473
+  "Ver mais" na coluna CANCELADO (10)                                                  mediana     32.0 ms · máx     33.7 ms
+  busca geral pelo nome ("Estante Basic 7", 20)                                        mediana     14.0 ms · máx     18.3 ms · 20 itens
+  lista de Pedidos (20)                                                                mediana     65.1 ms · máx     70.6 ms · 20 linhas
+  a janela de liberar (sugestões de peça em produção)                                  mediana     22.7 ms · máx     31.9 ms
+fim (189 s)

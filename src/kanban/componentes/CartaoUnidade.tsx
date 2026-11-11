@@ -200,11 +200,9 @@ export function CartaoUnidade({
   // SESSAO-48 (frente 1): a fabricação desta peça foi cancelada (ela está na
   // coluna CANCELADO ou NÃO ENCONTRADO) — saiu da produção, sem tempo de fila.
   const cancelada = pecaCancelada(card)
-  // A peça cancelada que era de um pedido diz de qual (ela perdeu o pedido).
-  const origem =
-    cancelada && card.cancelada_pedido_numero != null
-      ? `Era do pedido ${card.cancelada_pedido_numero}`
-      : rotuloOrigemCard(card, pedido)
+  // A peça cancelada que era de um pedido diz de qual (ela perdeu o pedido) — a regra
+  // mora em rotuloOrigemCard.
+  const origem = rotuloOrigemCard(card, pedido)
   // SESSAO-38 (F5 · D-167 ⏳): todo relógio do card conta só o expediente do
   // setor (sem a régua — banco antigo — o relógio corrido de sempre).
   // ↪️ SESSAO-42: a execução também — o card mostra o TEMPO DO MÓVEL no setor

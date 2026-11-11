@@ -7,11 +7,14 @@ import type { Card, PedidoResumo } from './tipos'
  * no estoque aguardando a venda.
  */
 export function rotuloOrigemCard(
-  card: Pick<Card, 'pedido_id'> & Partial<Pick<Card, 'tipo'>>,
+  card: Pick<Card, 'pedido_id'> & Partial<Pick<Card, 'tipo' | 'cancelada_pedido_numero'>>,
   pedido?: Pick<PedidoResumo, 'numero'> | null,
 ): string {
   // SESSAO-31 (D-125): o card digitado à mão no PCP.
   if (card.tipo === 'avulso') return 'Card avulso'
+  // SESSAO-48: a peça cancelada perdeu o pedido — diz de qual era (não é reposição)
+  if (card.pedido_id === null && card.cancelada_pedido_numero != null)
+    return `Era do pedido ${card.cancelada_pedido_numero}`
   if (card.pedido_id === null) return 'Reposição de estoque'
   return `Pedido ${pedido?.numero ?? '…'}`
 }

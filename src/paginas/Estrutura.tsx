@@ -1025,10 +1025,10 @@ function ListaEtapas(props: {
                         rotulo: 'Conclui a produção (Expedição ou ESTOQUE)',
                       },
                       // SESSAO-48: a peça solta aqui sai da produção (o motivo fica gravado)
-                      { valor: CANCELA, rotulo: 'Cancela a fabricação (tira da produção)' },
+                      { valor: CANCELA, rotulo: 'Cancela a fabricação' },
                       {
                         valor: NAO_ENCONTRADA,
-                        rotulo: 'Peça não encontrada (tira da produção)',
+                        rotulo: 'Peça não encontrada',
                       },
                       ...setoresDestino.map((s) => ({ valor: String(s.id), rotulo: s.nome })),
                     ]}
