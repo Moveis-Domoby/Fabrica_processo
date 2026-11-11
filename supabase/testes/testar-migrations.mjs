@@ -5146,8 +5146,9 @@ const noQuadroPcp = (
                    where c.pedido_id in (select id from public.pedidos where numero in (924002, 924003))`)
 ).rows[0].total
 const cancelados = Object.fromEntries(
+  // ↪️ SESSAO-48 · frente 2: a porta da aba anda por cursor (a de 3 argumentos saiu)
   (await bd.query(`select numero, em_producao, prontas, no_estoque, cancelado_em is not null as com_data
-                     from public.plt_fn_pedidos_cancelados(null, 100, 0) where numero in (924002, 924003)`)).rows
+                     from public.plt_fn_pedidos_cancelados(null, 100) where numero in (924002, 924003)`)).rows
     .map((r) => [r.numero, r]),
 )
 conferir(
@@ -6745,7 +6746,8 @@ await comoS24(s24.logistica)
 const aguardo204 = await noAguardoD63(924204)
 await comoS24(s24.admin)
 const cancelado204 = (
-  await bd.query(`select total_unidades from public.plt_fn_pedidos_cancelados('924204', 20, 0)`)
+  // ↪️ SESSAO-48 · frente 2: a porta da aba anda por cursor (a de 3 argumentos saiu)
+  await bd.query(`select total_unidades from public.plt_fn_pedidos_cancelados('924204', 20)`)
 ).rows[0]
 conferir(
   aguardo204 === undefined && cancelado204?.total_unidades === 0,
@@ -16257,6 +16259,9 @@ try {
                      // cancelamento da fabricação, do aviso e da remoção do PCP e do destino) e o VALIDA, as
                      // regras únicas (o que conta e o PCP), o quadro e a busca — as de cima os recriam na versão de antes
                      '20261111010000_plt_sessao48_base.sql',
+                     // ↪️ SESSAO-48 · frente 2: as portas do aviso e da remoção do PCP e a da aba
+                     // "Cancelados e removidos" (por cursor — a de 3 argumentos sai)
+                     '20261111020000_plt_pcp_aviso_remover.sql',
                      // ↪️ SESSAO-48 · frente 3: o cancelamento do Tiny que pergunta o destino da peça em
                      // produção — as de cima recriam a reação ao cancelamento na versão de antes
                      '20261111030000_plt_cancelado_pergunta_destino.sql',
@@ -22978,6 +22983,364 @@ try {
   await como48('')
 }
 } // fim do bloco SESSAO-48 · base
+
+// ============================================================================
+// SESSAO-48 · FRENTE 2 (migration 20261111020000): a vaga do pedido volta ao PCP
+// com aviso, e o PCP decide. A janela "O que aconteceu?" numa leitura; "Produzir
+// de novo" fecha o aviso; "Remover do PCP" com o motivo (o Tiny e as peças já em
+// produção ou prontas não mudam); "Devolver ao PCP"; a aba "Cancelados e
+// removidos" do PCP por cursor. Pedidos 97521…, produtos 924821….
+// ============================================================================
+{ // SESSAO-48 · frente 2 (escopo próprio — E-70)
+titulo('SESSAO-48 · frente 2 · a janela "O que aconteceu?" lê numa requisição: as peças canceladas, o que o pedido ainda tem e as vagas')
+
+// E-81/E-136: blocos de cima reaplicam migrations antigas — a base e a desta frente de novo
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261111010000_plt_sessao48_base.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261111020000_plt_pcp_aviso_remover.sql'), 'utf8'))
+
+const um482 = async (sql) => (await bd.query(sql)).rows[0]
+const todos482 = async (sql) => (await bd.query(sql)).rows
+const como482 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j482 = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha482 = async (sql, descricao, padrao) => {
+  await bd.exec('savepoint f482')
+  try {
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f482')
+  }
+}
+// roda a consulta como a pessoa (uma linha, ou todas) e volta ao "ninguém"
+const como = async (auth, sql, todas = false) => {
+  await como482(auth)
+  try {
+    return todas ? await todos482(sql) : await um482(sql)
+  } finally {
+    await como482('')
+  }
+}
+const item482 = (codigo, descricao, qtd = '1.00') =>
+  ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } })
+const pedido482 = (numero, situacao, itens) => ({
+  id: String(7952000 + (numero % 1000)), numero: String(numero), data_pedido: '10/11/2026', data_prevista: '30/11/2026', situacao,
+  total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 482',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: `Cliente Teste 482 ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste 482', numero: '482', complemento: '', bairro: 'Centro', cep: '59000-482', cidade: 'Natal',
+             uf: 'RN', fone: '84999994820', email: '' },
+  itens,
+})
+// a gravação do Tiny + o gatilho adiado dos itens disparado como no COMMIT (E-175)
+const gravar482 = async (p, tipo = 'inclusao_pedido') => {
+  const id = (await um482(`select public.fn_upsert_pedido(p => ${j482(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const ESTANTE482 = ['SX482E', 'Estante Teste 482 - Branca']
+const MESA482 = ['SX482M', 'Mesa Teste 482 - Preta']
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (924821, 'SX482E', 'Estante Teste 482 - Branca', 'F', 'A', 'un'),
+      (924822, 'SX482M', 'Mesa Teste 482 - Preta', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;`)
+  const limpeza = await um482(`select id::int as id, nome from public.plt_setores where codigo = 'limpeza_embalagem'`)
+  const aguardo = (await um482(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+  const fila = await um482(`select id::int as id, nome from public.plt_etapas where setor_id = ${limpeza.id} and eh_fila and ativa order by ordem, id limit 1`)
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, cancela_fabricacao, cancela_motivo) values
+      (${limpeza.id}, 'CANCELADO 482', 92, false, true, 'cancelada'),
+      (${limpeza.id}, 'NÃO ENCONTRADO 482', 93, false, true, 'nao_encontrada');`)
+  const cancelado = (await um482(`select id::int as id from public.plt_etapas where nome = 'CANCELADO 482'`)).id
+  const naoEnc = (await um482(`select id::int as id from public.plt_etapas where nome = 'NÃO ENCONTRADO 482'`)).id
+  const pessoa = async (auth) => um482(`select id, nome from public.plt_usuarios where auth_user_id = '${auth}'`)
+  const admin = await pessoa(E40.admin)
+  const logistica = await pessoa(E40.logistica)
+  const cardDe = async (pedidoId) => (await um482(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  // a peça nasce onde a liberação a pôs (a fila da LIMPEZA; ou pronta, no aguardo)
+  const peca = async (pedidoId, pai, seq, k, n, [codigo, descricao], setor = limpeza.id, etapa = fila.id) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pedidoId}, ${pai}, ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${setor}, ${etapa ?? 'null'}, 'api');`)
+    return (await um482(`select max(id)::int as id from public.plt_cards where tipo = 'unidade'`)).id
+  }
+  const soltar = (card, etapa) => como(E40.admin, `select public.plt_fn_soltar_card(${card}, ${etapa}) as r`)
+  // o PCP como o admin vê: o quadro (filtrado pelo número), a porta antiga e o quadrinho do painel
+  const noPcp = async (numero) => {
+    await como482(E40.admin)
+    try {
+      const q = await um482(`select q.pedido_resumo -> 'aviso_cancelada' as aviso
+                               from public.plt_fn_pcp_quadro(100, 0, 'pedido', null, '${numero}') q
+                               join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+      const antigo = await um482(`select 1 as ok from public.plt_fn_cards_pedido_pcp(100, 0) q
+                                    join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+      const painel = await um482(`select (select pedidos_a_liberar from public.plt_fn_dash_pcp_dia()) as painel,
+                                         (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0)) as quadro`)
+      return { noPcp: q !== undefined, aviso: q?.aviso ?? null, noAntigo: antigo !== undefined,
+               painelIgualQuadro: painel.painel === painel.quadro }
+    } finally {
+      await como482('')
+    }
+  }
+  const janela = (cardId, auth = E40.admin) => como(auth, `select public.plt_fn_pcp_aviso(${cardId}) as j`).then((r) => r.j)
+  const gesto = (auth, sql) => como(auth, `select ${sql} as r`).then((r) => r.r)
+  const lista = (busca, limite = 50, depois = null, auth = E40.admin) =>
+    como(auth, `select card_id::int as card_id, numero, cliente_nome, situacao, cancelado_no_tiny, cancelado_em is not null as com_data_cancel,
+                       removido_motivo, removido_texto, removido_por, saiu_em::text as saiu, total_unidades, em_producao, prontas,
+                       no_estoque, esperando_decisao, pode_devolver, tem_mais
+                  from public.plt_fn_pedidos_cancelados(${busca === null ? 'null' : `'${busca}'`}, ${limite},
+                       ${depois ? `'${depois.saiu}'::timestamptz` : 'null'}, ${depois ? depois.card_id : 'null'})`, true)
+
+  // ---------------- 1 · a janela ----------------
+  const idA = await gravar482(pedido482(97521, 'Preparando envio', [item482(...ESTANTE482, '3.00'), item482(...MESA482)]))
+  const cardA = await cardDe(idA)
+  const a1 = await peca(idA, cardA, 1, 1, 3, ESTANTE482)
+  const a2 = await peca(idA, cardA, 1, 2, 3, ESTANTE482)
+  const a4 = await peca(idA, cardA, 1, 3, 3, ESTANTE482)
+  const a3 = await peca(idA, cardA, 2, 1, 1, MESA482, aguardo, null)
+  const antesA = await noPcp(97521)
+  await soltar(a1, cancelado)
+  await soltar(a2, naoEnc)
+  const depoisA = await noPcp(97521)
+  const jan = await janela(cardA)
+  const jA1 = jan.canceladas.find((c) => c.card_id === a1)
+  const jA2 = jan.canceladas.find((c) => c.card_id === a2)
+  const lugarFila = jan.pecas.onde.find((o) => !o.pronta)
+  const lugarPronta = jan.pecas.onde.find((o) => o.pronta)
+  conferir(
+    !antesA.noPcp && depoisA.noPcp && depoisA.aviso?.pecas === 2
+      && jan.card_id === cardA && jan.numero === 97521 && jan.cliente === 'Cliente Teste 482 97521' && jan.situacao === 'Preparando envio'
+      && jan.cancelado_no_tiny === false && jan.removido === null && jan.liberado_completo === false
+      && jan.aviso?.pecas === 2 && jan.aviso?.motivo === 'cancelada' && typeof jan.aviso?.desde === 'string'
+      && jan.canceladas.length === 2 && jan.canceladas_total === 2
+      && jA1?.motivo === 'cancelada' && jA1.etapa === 'CANCELADO 482' && jA1.setor === limpeza.nome && jA1.quem === admin.nome
+      && jA1.indice === 1 && jA1.total === 3 && jA1.descricao === 'Estante Teste 482 - Branca' && jA1.sku === 'SX482E'
+      && jA1.arquivada === false && jA1.nova === true && typeof jA1.quando === 'string'
+      && jA2?.motivo === 'nao_encontrada' && jA2.etapa === 'NÃO ENCONTRADO 482' && jA2.indice === 2
+      && jan.pecas.em_producao === 1 && jan.pecas.prontas === 1 && jan.pecas.onde.length === 2
+      && lugarFila?.etapa === fila.nome && lugarFila?.setor === limpeza.nome && lugarFila?.pecas === 1 && lugarPronta?.pecas === 1
+      && jan.vagas === 4 && jan.vagas_abertas === 2,
+    'a janela numa leitura: o pedido (número, cliente, situação no Tiny), o aviso (2 peças), cada peça com a coluna, o motivo, quem e quando, o que ainda está na produção (1, onde) e pronto (1), e as vagas (4, 2 abertas)',
+    JSON.stringify({ antesA, depoisA, jan }))
+
+  const jLog = await janela(cardA, E40.logistica)
+  const opPode = (await como(E40.operador, `select plt_privado.fn_pode_ver_expedicao() as p`)).p
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.operador}', false); select public.plt_fn_pcp_aviso(${cardA})`,
+    'quem não é PCP, logística nem admin não abre a janela', /PCP, da logística ou do admin/)
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.admin}', false); select public.plt_fn_pcp_aviso(${a4})`,
+    'a janela é do card do pedido (a peça não abre)', /Pedido não encontrado/)
+  conferir(jLog?.numero === 97521 && jLog.canceladas.length === 2 && opPode === false,
+    'a logística também abre a janela (a régua de liberar); o operador da produção não é PCP',
+    JSON.stringify({ opPode }))
+
+  // ---------------- 2 · "Produzir de novo" ----------------
+  titulo('SESSAO-48 · frente 2 · "Produzir de novo" fecha o aviso — o pedido segue no PCP; tocar de novo não faz nada')
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.operador}', false); select public.plt_fn_pcp_aviso_resolver(${cardA})`,
+    'quem não é PCP, logística nem admin não resolve o aviso', /PCP, da logística ou do admin/)
+  const res1 = await gesto(E40.logistica, `public.plt_fn_pcp_aviso_resolver(${cardA})`)
+  const res2 = await gesto(E40.logistica, `public.plt_fn_pcp_aviso_resolver(${cardA})`)
+  const pcp2 = await noPcp(97521)
+  const fRes = await todos482(`select usuario_id, origem, dados from public.plt_eventos where card_id = ${cardA} and tipo = 'pcp_aviso_resolvido'`)
+  const jan2 = await janela(cardA)
+  conferir(
+    res1.feito === true && res1.numero === 97521 && res1.vagas_abertas === 2
+      && res2.feito === false && res2.motivo === 'sem_aviso'
+      && fRes.length === 1 && fRes[0].usuario_id === logistica.id && fRes[0].origem === 'interface' && fRes[0].dados.pecas === 2
+      && pcp2.noPcp && pcp2.aviso === null && pcp2.noAntigo && pcp2.painelIgualQuadro
+      && jan2.aviso === null && jan2.canceladas.length === 2 && jan2.canceladas.every((c) => c.nova === false),
+    '"Produzir de novo": o fato com o autor fecha o aviso (o selo some), o pedido continua no PCP com as 2 vagas para liberar (quadro, porta antiga e quadrinho iguais); tocar de novo não grava nada; a janela ainda mostra o que aconteceu',
+    JSON.stringify({ res1, res2, pcp2, fRes }))
+
+  // ---------------- 3 · "Remover do PCP" ----------------
+  titulo('SESSAO-48 · frente 2 · "Remover do PCP" com o motivo: sai de todas as portas do PCP; o Tiny e as peças em produção ou prontas não mudam')
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.admin}', false); select public.plt_fn_pcp_remover(${cardA}, 'sei la', 'qualquer coisa')`,
+    'o motivo é um dos três', /Escolha por que/)
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.admin}', false); select public.plt_fn_pcp_remover(${cardA}, 'fora_da_linha', '   ')`,
+    '"Tirar o pedido da linha de produção" pede o que houve', /O que houve/)
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.admin}', false); select public.plt_fn_pcp_remover(${cardA}, 'outro', 'ab')`,
+    '"Outro motivo" pede o texto', /Escreva o motivo/)
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.operador}', false); select public.plt_fn_pcp_remover(${cardA}, 'pedido_cancelado', null)`,
+    'quem não é PCP, logística nem admin não remove', /PCP, da logística ou do admin/)
+  const retrato = () => todos482(`
+    select c.id::int as id, c.pedido_id::int as pedido, c.setor_atual_id::int as setor, c.etapa_atual_id::int as etapa,
+           (select count(*)::int from public.plt_eventos e where e.card_id = c.id) as fatos
+      from public.plt_cards c where c.id in (${a3}, ${a4}) order by c.id`)
+  const filaTiny = async () => (await um482(`select count(*)::int as n from public.plt_tiny_pedido_fila where pedido_id = ${idA}`)).n
+  const pecasAntes = await retrato()
+  const tinyAntes = await filaTiny()
+  const rem1 = await gesto(E40.admin, `public.plt_fn_pcp_remover(${cardA}, 'fora_da_linha', '  o cliente vai buscar na loja  ')`)
+  const rem2 = await gesto(E40.admin, `public.plt_fn_pcp_remover(${cardA}, 'outro', 'mudou de ideia')`)
+  const pecasDepois = await retrato()
+  const tinyDepois = await filaTiny()
+  const situacaoA = (await um482(`select situacao from public.pedidos where id = ${idA}`)).situacao
+  const projA = await um482(`select removido_pcp_em is not null as removido, removido_pcp_motivo as motivo, removido_pcp_texto as texto,
+                                    pcp_aviso_em is null as sem_aviso from public.plt_cards where id = ${cardA}`)
+  const fRem = await todos482(`select usuario_id, origem, dados from public.plt_eventos where card_id = ${cardA} and tipo = 'pedido_removido_pcp'`)
+  const pcp3 = await noPcp(97521)
+  const jan3 = await janela(cardA)
+  conferir(
+    rem1.feito === true && rem1.numero === 97521 && rem1.motivo === 'fora_da_linha'
+      && rem1.em_producao === 1 && rem1.prontas === 1 && rem1.onde.length === 2
+      && rem2.feito === false && rem2.motivo === 'ja_removido'
+      && projA.removido && projA.motivo === 'fora_da_linha' && projA.texto === 'o cliente vai buscar na loja' && projA.sem_aviso
+      && fRem.length === 1 && fRem[0].usuario_id === admin.id && fRem[0].origem === 'interface'
+      && fRem[0].dados.motivo === 'fora_da_linha' && fRem[0].dados.texto === 'o cliente vai buscar na loja'
+      && !pcp3.noPcp && !pcp3.noAntigo && pcp3.painelIgualQuadro
+      && JSON.stringify(pecasAntes) === JSON.stringify(pecasDepois) && tinyAntes === tinyDepois && situacaoA === 'Preparando envio'
+      && jan3.removido?.motivo === 'fora_da_linha' && jan3.removido?.texto === 'o cliente vai buscar na loja' && jan3.removido?.por === admin.nome,
+    '"Remover do PCP": o fato com o motivo, o texto e o autor; o pedido sai do quadro, da porta antiga e do quadrinho (painel = quadro); devolve quantas peças seguem (1 em produção, 1 pronta) — elas e o Tiny não mudam; remover de novo não grava nada; a janela diz quem removeu e por quê',
+    JSON.stringify({ rem1, rem2, projA, fRem, pcp3, pecasAntes, pecasDepois, tinyAntes, tinyDepois }))
+
+  // removido do PCP, a peça que se cancela depois não reabre o aviso nem toca o sino
+  const notiAntes = (await um482(`select count(*)::int as n from public.plt_notificacoes where tipo = 'peca_cancelada_pcp' and card_id = ${cardA}`)).n
+  await soltar(a4, cancelado)
+  const notiDepois = (await um482(`select count(*)::int as n from public.plt_notificacoes where tipo = 'peca_cancelada_pcp' and card_id = ${cardA}`)).n
+  const proj3b = await um482(`select pcp_aviso_em is null as sem_aviso from public.plt_cards where id = ${cardA}`)
+  const fA4 = await um482(`select dados from public.plt_eventos where card_id = ${a4} and tipo = 'fabricacao_cancelada' order by id desc limit 1`)
+  conferir(proj3b.sem_aviso && notiDepois === notiAntes && fA4?.dados.vaga_volta === false && !(await noPcp(97521)).noPcp,
+    'com o pedido removido do PCP, a peça cancelada depois não abre aviso nem toca o sino (a vaga não volta ao PCP)',
+    JSON.stringify({ proj3b, notiAntes, notiDepois, fA4 }))
+
+  // ---------------- 4 · a aba "Cancelados e removidos" ----------------
+  titulo('SESSAO-48 · frente 2 · a aba "Cancelados e removidos": o motivo, quem removeu e quando; o cancelado no Tiny; por cursor, sem repetir')
+  const idB = await gravar482(pedido482(97522, 'Preparando envio', [item482(...MESA482)]))
+  const cardB = await cardDe(idB)
+  const idC = await gravar482(pedido482(97523, 'Em aberto', [item482(...MESA482)]))
+  const cardC = await cardDe(idC)
+  const idD = await gravar482(pedido482(97524, 'Preparando envio', [item482(...MESA482)]))
+  const cardD = await cardDe(idD)
+  await bd.exec(`update public.pedidos set situacao = 'Cancelado' where id = ${idD}`)
+  const remB = await gesto(E40.logistica, `public.plt_fn_pcp_remover(${cardB}, 'pedido_cancelado', null)`)
+  const remC = await gesto(E40.admin, `public.plt_fn_pcp_remover(${cardC}, 'outro', 'Teste do outro motivo')`)
+  // a lista de Pedidos (a regra da base): o removido sem nada liberado diz "removido do PCP"
+  const listaPedB = await como(E40.admin, `select situacao_plataforma from public.plt_fn_pedidos_lista('97522') where numero = 97522`)
+  const tudo = await lista('9752')
+  const porNumero = Object.fromEntries(tudo.map((l) => [l.numero, l]))
+  const [lA, lB, lC, lD] = [97521, 97522, 97523, 97524].map((n) => porNumero[n])
+  // do que saiu mais recente para trás; no empate (a mesma hora), o card mais novo primeiro
+  const ordemCerta = tudo.every((l, i) => i === 0 || tudo[i - 1].saiu > l.saiu
+    || (tudo[i - 1].saiu === l.saiu && tudo[i - 1].card_id > l.card_id))
+  const daOperacao = await lista('9752', 50, null, E40.operador)
+  conferir(
+    remB.feito && remC.feito && listaPedB?.situacao_plataforma === 'removido_pcp'
+      && tudo.length === 4 && tudo.every((l) => l.tem_mais === false) && ordemCerta
+      && lA?.removido_motivo === 'fora_da_linha' && lA.removido_texto === 'o cliente vai buscar na loja' && lA.removido_por === admin.nome
+      && lA.pode_devolver === true && lA.cancelado_no_tiny === false && lA.em_producao === 0 && lA.prontas === 1 && lA.total_unidades === 4
+      && lB?.removido_motivo === 'pedido_cancelado' && lB.removido_texto === null && lB.removido_por === logistica.nome && lB.pode_devolver === true
+      && lC?.removido_motivo === 'outro' && lC.removido_texto === 'Teste do outro motivo' && lC.removido_por === admin.nome
+      && lD?.cancelado_no_tiny === true && lD.com_data_cancel === true && lD.removido_motivo === null && lD.pode_devolver === false
+      && daOperacao.length === 0,
+    'a aba lista os removidos (o motivo, o texto, quem removeu e se volta ao PCP) e o cancelado no Tiny (sem "Devolver"), do que saiu mais recente para trás; a lista de Pedidos diz "removido do PCP"; quem não é PCP, logística nem admin não vê nada',
+    JSON.stringify({ tudo, daOperacao, listaPedB }))
+
+  const p1 = await lista('9752', 1)
+  const p2 = await lista('9752', 1, p1[0])
+  const p3 = await lista('9752', 1, p2[0])
+  const p4 = await lista('9752', 1, p3[0])
+  const p5 = await lista('9752', 1, p4[0])
+  const vistos = [p1, p2, p3, p4].map((p) => p[0]?.card_id)
+  const soC = await lista('Cliente Teste 482 97523')
+  conferir(
+    p1.length === 1 && p1[0].tem_mais && p2[0]?.tem_mais
+      && p3[0]?.tem_mais && p4[0]?.tem_mais === false && p5.length === 0
+      && new Set(vistos).size === 4 && vistos.every((id, i) => id === tudo[i].card_id)
+      && soC.length === 1 && soC[0].numero === 97523,
+    'por cursor: uma por página, na mesma ordem da lista inteira, sem repetir nem pular; o filtro pelo nome do cliente acha só o dele',
+    JSON.stringify({ vistos, esperado: tudo.map((l) => l.card_id), p1, p4, soC }))
+
+  // o filtro raro: 155 removidos mais novos que não batem — cada metade lê no
+  // máximo 150 e o resto vai pelos candidatos do próprio filtro (nº e nome)
+  await bd.exec(`
+    insert into public.pedidos (numero, cliente_id, situacao)
+      select g, (select id from public.clientes order by id limit 1), 'Em aberto' from generate_series(9759001, 9759155) g;
+    insert into public.plt_cards (tipo, pedido_id, setor_atual_id)
+      select 'pedido', p.id, (select id from public.plt_setores where codigo = 'pcp')
+        from public.pedidos p
+       where p.numero between 9759001 and 9759155
+         and not exists (select 1 from public.plt_cards c where c.pedido_id = p.id and c.tipo = 'pedido')
+       order by p.numero;`)
+  const lote = await como(E40.admin, `
+    select count(*) filter (where (public.plt_fn_pcp_remover(c.id, 'outro', 'lote de teste do filtro raro') ->> 'feito')::boolean)::int as n
+      from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+     where c.tipo = 'pedido' and p.numero between 9759001 and 9759155`)
+  const raroNum = await lista('97522')
+  const raroNome = await lista('Cliente Teste 482 97523')
+  const comum = await lista('97590', 20)
+  const semFiltro = await lista(null, 20)
+  conferir(
+    lote.n === 155
+      && raroNum.length === 1 && raroNum[0].numero === 97522 && raroNum[0].removido_motivo === 'pedido_cancelado'
+      && raroNome.length === 1 && raroNome[0].numero === 97523
+      && comum.length === 20 && comum.every((l) => String(l.numero).startsWith('97590')) && comum[0].tem_mais
+      && semFiltro.length === 20 && semFiltro[0].tem_mais,
+    'filtro raro (155 removidos mais novos não batem): o nº e o nome acham o pedido pelos candidatos do filtro; o filtro comum e a lista sem filtro enchem a página na ordem',
+    JSON.stringify({ lote, raroNum, raroNome, comum: comum.length, semFiltro: semFiltro.length }))
+
+  // ---------------- 5 · "Devolver ao PCP" ----------------
+  titulo('SESSAO-48 · frente 2 · "Devolver ao PCP": volta a todas as portas do PCP e sai da lista; o Tiny segue mandando; tocar de novo não faz nada')
+  await falha482(`select set_config('request.jwt.claim.sub', '${E40.operador}', false); select public.plt_fn_pcp_devolver(${cardA})`,
+    'quem não é PCP, logística nem admin não devolve', /PCP, da logística ou do admin/)
+  const dev1 = await gesto(E40.logistica, `public.plt_fn_pcp_devolver(${cardA})`)
+  const dev2 = await gesto(E40.logistica, `public.plt_fn_pcp_devolver(${cardA})`)
+  const pcp5 = await noPcp(97521)
+  const proj5 = await um482(`select removido_pcp_em is null and removido_pcp_motivo is null and removido_pcp_texto is null
+                                    and removido_pcp_evento_id is null as limpo from public.plt_cards where id = ${cardA}`)
+  const fDev = await todos482(`select usuario_id, dados from public.plt_eventos where card_id = ${cardA} and tipo = 'pedido_devolvido_pcp'`)
+  const lista5 = await lista('97521')
+  const devD = await gesto(E40.admin, `public.plt_fn_pcp_devolver(${cardD})`)
+  // o cancelado no Tiny também pode ser removido; devolvido, sai dos removidos mas o Tiny o mantém fora
+  const remD = await gesto(E40.admin, `public.plt_fn_pcp_remover(${cardD}, 'pedido_cancelado', 'confirmado com o cliente')`)
+  const listaD = await lista('97524')
+  const devD2 = await gesto(E40.admin, `public.plt_fn_pcp_devolver(${cardD})`)
+  const listaD2 = await lista('97524')
+  conferir(
+    dev1.feito === true && dev1.numero === 97521 && dev1.fora_pelo_tiny === false && dev2.feito === false && dev2.motivo === 'nao_removido'
+      && fDev.length === 1 && fDev[0].usuario_id === logistica.id && fDev[0].dados.motivo_antes === 'fora_da_linha'
+      && pcp5.noPcp && pcp5.noAntigo && pcp5.painelIgualQuadro && pcp5.aviso === null && proj5.limpo && lista5.length === 0
+      && devD.feito === false && devD.motivo === 'nao_removido'
+      && remD.feito === true && listaD.length === 1 && listaD[0].cancelado_no_tiny && listaD[0].removido_motivo === 'pedido_cancelado'
+      && listaD[0].pode_devolver === false
+      && devD2.feito === true && devD2.fora_pelo_tiny === true && listaD2.length === 1 && listaD2[0].removido_motivo === null
+      && !(await noPcp(97524)).noPcp,
+    '"Devolver ao PCP": o fato com o autor desfaz a remoção, o pedido volta ao quadro, à porta antiga e ao quadrinho (sem reabrir o aviso) e sai da lista; de novo não grava nada; o cancelado no Tiny aparece uma vez só, removido ou não, sem oferecer "Devolver" (o Tiny o mantém fora — devolvido pela porta, continua fora do PCP)',
+    JSON.stringify({ dev1, dev2, fDev, pcp5, proj5, lista5, devD, remD, listaD, devD2, listaD2 }))
+
+  // ---------------- 6 · permissões ----------------
+  const pr482 = await um482(`
+    select has_function_privilege('anon', 'public.plt_fn_pcp_aviso(bigint)', 'execute') as aviso_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_aviso(bigint)', 'execute') as aviso_logado,
+           has_function_privilege('anon', 'public.plt_fn_pcp_aviso_resolver(bigint)', 'execute') as resolver_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_aviso_resolver(bigint)', 'execute') as resolver_logado,
+           has_function_privilege('anon', 'public.plt_fn_pcp_remover(bigint, text, text)', 'execute') as remover_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_remover(bigint, text, text)', 'execute') as remover_logado,
+           has_function_privilege('anon', 'public.plt_fn_pcp_devolver(bigint)', 'execute') as devolver_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_devolver(bigint)', 'execute') as devolver_logado,
+           has_function_privilege('anon', 'public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint)', 'execute') as lista_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint)', 'execute') as lista_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_pcp_pecas_do_pedido(bigint)', 'execute') as maquina,
+           has_function_privilege('authenticated', 'plt_privado.fn_pedido_bate_filtro(bigint, text, text)', 'execute') as maquina2,
+           to_regprocedure('public.plt_fn_pedidos_cancelados(text, integer, integer)') is null as velha_saiu,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname = 'plt_fn_pedidos_cancelados') as uma_so`)
+  conferir(
+    !pr482.aviso_anon && pr482.aviso_logado && !pr482.resolver_anon && pr482.resolver_logado && !pr482.remover_anon
+      && pr482.remover_logado && !pr482.devolver_anon && pr482.devolver_logado && !pr482.lista_anon && pr482.lista_logado
+      && !pr482.maquina && !pr482.maquina2 && pr482.velha_saiu && pr482.uma_so === 1,
+    'anônimo fora das cinco portas; quem está logado entra (o banco decide quem é PCP/logística/admin); os ajudantes fora da API; a porta da aba com uma assinatura só (a do deslocamento saiu)',
+    JSON.stringify(pr482))
+} finally {
+  await bd.exec('rollback')
+  await como482('')
+}
+} // fim do bloco SESSAO-48 · frente 2
 
 
 // ============================================================================

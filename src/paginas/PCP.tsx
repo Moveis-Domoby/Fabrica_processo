@@ -22,6 +22,7 @@ import {
   PackageX,
   PanelRightOpen,
   Plus,
+  SearchX,
   SquarePen,
   Truck,
   Undo2,
@@ -42,6 +43,18 @@ const AbaLancamentoManual = lazy(() =>
     default: m.AbaLancamentoManual,
   })),
 )
+// SESSAO-48 (frente 2): a aba "Cancelados e removidos" e a janela "O que
+// aconteceu?" também são pedaços próprios — carregam no 1º clique (Lei §9).
+const AbaCanceladosRemovidos = lazy(() =>
+  import('@/kanban/componentes/AbaCanceladosRemovidos').then((m) => ({
+    default: m.AbaCanceladosRemovidos,
+  })),
+)
+const ModalPecaCancelada = lazy(() =>
+  import('@/kanban/componentes/ModalPecaCancelada').then((m) => ({
+    default: m.ModalPecaCancelada,
+  })),
+)
 import { arquivarCard } from '@/logistica/api'
 import { avisoDaVolta } from '@/logistica/voltaPcp'
 import { formatarDuracao, useAgora } from '@/kanban/tempo'
@@ -51,7 +64,8 @@ import { ModalStandby } from '@/kanban/componentes/ModalStandby'
 import { pedidoCancelado } from '@/kanban/situacao'
 import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
-import type { Card, PedidoResumo } from '@/kanban/tipos'
+import { textoDoSelo } from '@/kanban/avisoPcp'
+import type { AvisoCancelada, Card, PedidoResumo } from '@/kanban/tipos'
 import { useCamposDosPedidos } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
@@ -119,18 +133,40 @@ export function PCP() {
   // liberação. A aba vive na URL (?aba=) — Voltar e link funcionam.
   // SESSAO-31 (D-125): + o Lançamento manual (card avulso e ajuste de peça).
   // ↩️ 14/10 (D-134): "Todos os pedidos" saiu daqui para a área Pedidos —
-  // ?aba=todos (e o antigo ?aba=cancelados) levam para lá.
+  // ?aba=todos leva para lá (↪️ SESSAO-48: ?aba=cancelados voltou a ser do PCP).
   const [parametros, setParametros] = useSearchParams()
   const abaParam = parametros.get('aba')
   // SESSAO-38 (D-169): + a aba Stand-by (os pedidos segurados pelo PCP).
-  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'lancamento' =
+  // ↪️ SESSAO-48 (frente 2): + "Cancelados e removidos" (?aba=cancelados — desde
+  // 14/10 o link levava para Pedidos → Cancelados; a história inteira segue lá).
+  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'cancelados' | 'lancamento' =
     abaParam === 'solicitacoes'
       ? 'solicitacoes'
       : abaParam === 'lancamento'
         ? 'lancamento'
         : abaParam === 'standby'
           ? 'standby'
-          : 'quadro'
+          : abaParam === 'cancelados'
+            ? 'cancelados'
+            : 'quadro'
+
+  // SESSAO-48 (frente 2): a janela "O que aconteceu?" do pedido com peça
+  // cancelada na produção — pelo selo do card ou pelo sino (?aviso=<card do
+  // pedido>). A janela lê o pedido sozinha (não precisa achá-lo no quadro).
+  const idAvisoDoLink = (() => {
+    const v = Number(parametros.get('aviso') ?? '')
+    return Number.isInteger(v) && v > 0 ? v : null
+  })()
+  const [avisoAberto, setAvisoAberto] = useState<number | null>(null)
+  const cardDoAviso = avisoAberto ?? idAvisoDoLink
+  function fecharAviso() {
+    setAvisoAberto(null)
+    if (idAvisoDoLink !== null) {
+      const novos = new URLSearchParams(parametros)
+      novos.delete('aviso')
+      setParametros(novos, { replace: true })
+    }
+  }
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPcp = setores.find((s) => s.codigo === 'pcp')
@@ -358,9 +394,9 @@ export function PCP() {
 
   if (!carregando && !souAdmin && !souDoPcp) return <Navigate to="/" replace />
   if (!perfil) return null
-  // ↩️ 14/10 (D-134): Todos os pedidos e Cancelados moram na área Pedidos — link antigo segue.
+  // ↩️ 14/10 (D-134): Todos os pedidos mora na área Pedidos — link antigo segue.
+  // ↪️ SESSAO-48 (frente 2): ?aba=cancelados volta a ser do PCP ("Cancelados e removidos").
   if (abaParam === 'todos') return <Navigate to="/fabrica/pedidos/todos" replace />
-  if (abaParam === 'cancelados') return <Navigate to="/fabrica/pedidos/cancelados" replace />
 
   return (
     <div className="flex flex-col gap-4">
@@ -378,6 +414,12 @@ export function PCP() {
             </span>
             <span>
               Libere as unidades para os setores — dá para liberar parcial e terminar depois.
+            </span>
+            {/* SESSAO-48 (frente 2): o selo da peça cancelada e a aba nova. */}
+            <span>
+              Pedido com o selo vermelho teve peça cancelada na produção: toque no selo para ver o
+              que aconteceu e decidir — produzir de novo ou remover do PCP. Os removidos ficam em
+              "Cancelados e removidos", de onde dá para devolver.
             </span>
           </span>
         }
@@ -398,6 +440,11 @@ export function PCP() {
               icone: <PackageOpen aria-hidden />,
             },
             { valor: 'standby', rotulo: 'Stand-by', icone: <CirclePause aria-hidden /> },
+            {
+              valor: 'cancelados',
+              rotulo: 'Cancelados e removidos',
+              icone: <Ban aria-hidden />,
+            },
             { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
           ]}
           valor={aba}
@@ -553,6 +600,7 @@ export function PCP() {
                   }
                   aoLiberar={() => setCardParaLiberar(card)}
                   aoAbrir={() => abrirCard(card.id)}
+                  aoVerAviso={() => setAvisoAberto(card.id)}
                   aoPriorizar={(p) => priorizar.mutate({ cardId: card.id, prioridade: p })}
                   priorizando={priorizar.isPending && priorizar.variables?.cardId === card.id}
                   acoesExtras={
@@ -625,6 +673,7 @@ export function PCP() {
                   confirmandoLancar={lancandoId === card.id}
                   ocupado={sairDoStandby.isPending && sairDoStandby.variables?.cardId === card.id}
                   aoAbrir={() => abrirCard(card.id)}
+                  aoVerAviso={() => setAvisoAberto(card.id)}
                   aoPedirLancar={() => setLancandoId(card.id)}
                   aoCancelarLancar={() => setLancandoId(null)}
                   aoLancar={() => sairDoStandby.mutate({ cardId: card.id, destino: 'entregas' })}
@@ -641,6 +690,20 @@ export function PCP() {
             />
           </section>
         </div>
+      )}
+
+      {aba === 'cancelados' && (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-cancelados">
+          <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando…</p>}>
+            <AbaCanceladosRemovidos />
+          </Suspense>
+        </div>
+      )}
+
+      {cardDoAviso !== null && (
+        <Suspense fallback={null}>
+          <ModalPecaCancelada cardId={cardDoAviso} aoFechar={fecharAviso} />
+        </Suspense>
       )}
 
       <ModalStandby pedido={paraStandby} aoFechar={() => setParaStandby(null)} />
@@ -832,6 +895,7 @@ function CartaoPedidoPcp({
   aoSelecionar,
   aoLiberar,
   aoAbrir,
+  aoVerAviso,
   aoPriorizar,
   priorizando,
   acoesExtras,
@@ -846,6 +910,8 @@ function CartaoPedidoPcp({
   aoSelecionar: (numero: number) => void
   aoLiberar: () => void
   aoAbrir: () => void
+  /** SESSAO-48 (frente 2): tocar no selo da peça cancelada abre "O que aconteceu?". */
+  aoVerAviso: () => void
   aoPriorizar: (p: Prioridade) => void
   priorizando: boolean
   acoesExtras?: ReactNode
@@ -929,8 +995,17 @@ function CartaoPedidoPcp({
         cancelado ||
         resumo?.alterado_apos_liberacao ||
         esperandoTiny !== null ||
+        resumo?.aviso_cancelada ||
         (etiquetas?.length ?? 0) > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* SESSAO-48 (frente 2): peça do pedido cancelada na produção — a vaga voltou ao PCP. */}
+          {resumo?.aviso_cancelada && (
+            <SeloPecaCancelada
+              aviso={resumo.aviso_cancelada}
+              numero={resumo.numero}
+              aoAbrir={aoVerAviso}
+            />
+          )}
           {/* SESSAO-47: a logística devolveu o pedido ao PCP e o Tiny ainda não mostrou a situação nova. */}
           {esperandoTiny && (
             <span
@@ -1055,6 +1130,7 @@ function CartaoStandbyPcp({
   confirmandoLancar,
   ocupado,
   aoAbrir,
+  aoVerAviso,
   aoPedirLancar,
   aoCancelarLancar,
   aoLancar,
@@ -1066,6 +1142,8 @@ function CartaoStandbyPcp({
   confirmandoLancar: boolean
   ocupado: boolean
   aoAbrir: () => void
+  /** SESSAO-48 (frente 2): o pedido em stand-by também pode ter peça cancelada na produção. */
+  aoVerAviso: () => void
   aoPedirLancar: () => void
   aoCancelarLancar: () => void
   aoLancar: () => void
@@ -1116,6 +1194,16 @@ function CartaoStandbyPcp({
             <span className="break-words">Stand-by · {resumo?.standby_motivo ?? '…'}</span>
           </span>
         </p>
+        {/* SESSAO-48 (frente 2): peça do pedido cancelada na produção — a vaga voltou ao PCP. */}
+        {resumo?.aviso_cancelada && (
+          <p>
+            <SeloPecaCancelada
+              aviso={resumo.aviso_cancelada}
+              numero={resumo.numero}
+              aoAbrir={aoVerAviso}
+            />
+          </p>
+        )}
         {/* SESSAO-47: voltou ao PCP (em stand-by) pela plataforma e o Tiny ainda não confirmou. */}
         {esperandoTiny && (
           <p>
@@ -1181,6 +1269,39 @@ function CartaoStandbyPcp({
         )}
       </footer>
     </li>
+  )
+}
+
+/**
+ * SESSAO-48 (frente 2): o selo vermelho do pedido com peça cancelada na
+ * produção ("Peça cancelada na produção" / "Peça não encontrada", com o número
+ * quando mais de uma) — ícone + texto, nunca só cor (M-12). É um botão: tocar
+ * abre a janela "O que aconteceu?". O alvo de toque cresce para 44 px sem
+ * mudar o desenho (`toque-seguro`).
+ */
+function SeloPecaCancelada({
+  aviso,
+  numero,
+  aoAbrir,
+}: {
+  aviso: AvisoCancelada
+  numero?: number
+  aoAbrir: () => void
+}) {
+  const Icone = aviso.motivo === 'nao_encontrada' ? SearchX : Ban
+  const texto = textoDoSelo(aviso)
+  return (
+    <button
+      type="button"
+      onClick={aoAbrir}
+      aria-haspopup="dialog"
+      aria-label={`${texto}${numero ? ` no pedido ${numero}` : ''} — ver o que aconteceu`}
+      title="Ver o que aconteceu"
+      className="toque-seguro inline-flex max-w-full items-center gap-1 rounded-full border border-danificado-borda bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto transition-colors hover:bg-danificado-borda/40"
+    >
+      <Icone aria-hidden className="size-3.5 shrink-0" />
+      <span className="break-words">{texto}</span>
+    </button>
   )
 }
 
