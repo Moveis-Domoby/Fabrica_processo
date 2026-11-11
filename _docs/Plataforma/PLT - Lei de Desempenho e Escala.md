@@ -370,7 +370,7 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | 34 | **O degrau do plano genérico pode existir em outras portas `plpgsql`** com período e filtros opcionais (as de dashboards; `plt_fn_tempos_procurar` e `plt_fn_tempos_opcoes` não foram sondadas). | Aberta. **Caminho:** a sonda de 10 chamadas seguidas no ensaio ×100 de cada porta de painel; onde houver degrau, primeiro achar a consulta que desanda — a guarda do plano sob medida é o último recurso e tem preço (A-210). |
 | 35 | **As entregas do dia com a rota muito cheia no ×100: 60–65 ms** (teto de tela 50) — a lista nova dos entregues de outro dia. Com o movimento de hoje, poucos ms. | Aberta, pequena. **Caminho:** a lista "de outro dia" só no clique. |
 
-**Andamento (SESSAO-48 · cancelar a fabricação de verdade, o aviso e a remoção no PCP, o destino do móvel de pedido cancelado, a limpeza das colunas e a plataforma que recarrega sozinha, 11/11 — D-290…D-305; ⏳ NÃO APLICADA — esperando o OK do dono):**
+**Andamento (SESSAO-48 · cancelar a fabricação de verdade, o aviso e a remoção no PCP, o destino do móvel de pedido cancelado, a limpeza das colunas e a plataforma que recarrega sozinha, 11/11 — D-290…D-305; ✅ no ar desde 11/11 ~05:18 — banco, acerto e site, com o OK do dono):**
 
 - **Requisições:** nenhuma tela ganhou requisição na abertura. O quadro segue 1 (o cancelamento vem no card e na etapa — chaves só quando há); o PCP segue 1 (o selo vem no resumo do pedido); a lista de Pedidos e a busca geral seguem 1. As janelas novas — "O que aconteceu?" (PCP) e "Para onde vai este móvel?" (Estoque) — leem 1 vez, só no clique, e esquecem ao fechar; a aba "Cancelados e removidos" = 1 por página, por cursor, **sem o total** (§6.4). A abertura da plataforma segue 1 (o porquê vai na mesma chamada).
 - **Sem relógio (§4):** o cancelamento nasce do fato de CHEGADA na coluna (gatilho); a vaga e o aviso do PCP são projeção; a limpeza dos dias da coluna roda dentro da rotina da madrugada que já existia (03:00) e a coluna já filtra na leitura; a pergunta do destino nasce do cancelamento do Tiny; a conferida de versão é gesto ou fato (no máximo 1 a cada 2 min, num arquivo da CDN — não toca o banco); o "momento seguro" do tablet e da TV só existe com versão nova conhecida e não busca dado. Nenhum `refetchInterval`, `setInterval` buscando dado nem `postgres_changes` novo.
@@ -384,7 +384,7 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - **Escrita idempotente:** soltar duas vezes, remover duas vezes, devolver duas vezes, decidir de novo e recuperar de novo = um efeito só (bateria).
 - **Pacote:** JS inicial **233,2 KB** comprimidos (teto 250; antes 231,2 — +2,0 KB: o registro das recargas e a guarda do pedaço sumido no pedaço de entrada). Pedaços novos só no clique: "O que aconteceu?" 3,2 KB · "Cancelados e removidos" 2,3 KB · "Para onde vai este móvel?" 4,0 KB.
 - **Tablet e celular:** 375 e 768 sem rolagem lateral nas telas novas (conferido no navegador do app — E-265); o selo do PCP é botão com alvo de 44 px; o botão "Atualizar" passou para 44 px no escritório e 64 px no tablet e na TV.
-- **Advisors:** só depois de aplicar (o banco de produção não foi lido nesta sessão).
+- **Advisors** (05:17, depois de aplicar): nada novo além do esperado — o aviso de sempre das 7 portas novas e os 2 índices novos "ainda sem uso" (acabaram de nascer).
 - **Dívidas novas:**
 
 | # | Dívida | Estado |

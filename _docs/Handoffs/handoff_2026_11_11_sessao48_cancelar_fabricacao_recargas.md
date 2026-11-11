@@ -9,7 +9,9 @@ tags: [handoff, sessao-48, producao, cancelamento, pcp, estoque, logistica, tiny
 
 Demanda: [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] · handoff de entrada: [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas]] · Diário: [[SESSAO-48]] (+ [[SESSAO-48 - frente 2]], [[SESSAO-48 - frente 3]], [[SESSAO-48 - frente 5]])
 
-> ⏳ **NADA NO AR AINDA.** Tudo pronto e testado no ramo `sessao-48-cancelar-fabricacao-recargas` (pasta principal), esperando **quatro OKs separados do dono** (regra 2): **(1)** as 4 atualizações do banco · **(2)** o acerto das 53 peças paradas (primeiro o ensaio que não grava) · **(3)** a mudança na Vercel (pular a montagem quando só muda documentação — vai no `vercel.json`) · **(4)** publicar o site. O programa de subida está pronto, um passo por comando: `subir-s48.mjs conferir | banco | acerto-ensaio | acerto-aplicar | site` (no rascunho da sessão — o caminho está no diário). O `conferir` só lê o banco: confere o corpo das 29 funções que serão recriadas e que as 19 novas ainda não existem.
+> ✅ **NO AR desde 11/11/2026 ~05:18 de Natal**, com o OK do dono na conversa (*"Sim, sobe tudo"*). Na ordem: a conferência só lendo o banco (28 funções com o corpo esperado, as 19 novas ainda inexistentes, 53 peças nas duas colunas, 127 em produção); **as 4 atualizações do banco às ~05:12** (uma transação cada; a integração do Tiny idêntica em estrutura e linhas); **o acerto às ~05:13**, depois do ensaio com os mesmos números (53 peças canceladas; produção 127 → 74; 34 perderam o pedido — as 30 do 13622 e 4 de pedidos já cancelados no Tiny; só o 13622 com aviso — 6 avisos no sino do PCP; a Estante Basic 7 nichos sem as 2 "reservadas p/ produção"); **o site**: a 1ª publicação (05:14) **falhou na validação** do `vercel.json` — o comando de pular a documentação tinha 363 caracteres e a Vercel aceita 256 (E-268) — e o site seguiu na versão anterior por ~4 min; o comando foi para um roteiro (`scripts/vercel-pular-documentacao.sh`, provado num clone raso em 6 casos) e a 2ª publicação (`5606afd`, 05:18) entrou: `versao.json` = `6243378971b2` (a versão pelo código).
+>
+> *(Antes da subida:)* **ERA:** Tudo pronto e testado no ramo `sessao-48-cancelar-fabricacao-recargas` (pasta principal), esperando **quatro OKs separados do dono** (regra 2): **(1)** as 4 atualizações do banco · **(2)** o acerto das 53 peças paradas (primeiro o ensaio que não grava) · **(3)** a mudança na Vercel (pular a montagem quando só muda documentação — vai no `vercel.json`) · **(4)** publicar o site. O programa de subida está pronto, um passo por comando: `subir-s48.mjs conferir | banco | acerto-ensaio | acerto-aplicar | site` (no rascunho da sessão — o caminho está no diário). O `conferir` só lê o banco: confere o corpo das 29 funções que serão recriadas e que as 19 novas ainda não existem.
 
 ## 1. Objetivo
 
@@ -125,7 +127,17 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 - **Ensaio ×100** (562.700 pedidos) da base e das frentes 2 e 3 — ver §5.
 - **Celular (375) e tablet (768):** as telas novas sem rolagem lateral (medido no navegador do app); o selo do PCP com alvo de toque de 44 px.
 - **Junção:** conferido por programa que nenhuma função é recriada por duas atualizações; os conflitos foram só "as duas frentes acrescentaram no mesmo lugar" na bateria.
-- **Não conferido:** o banco vivo (nada foi lido nem escrito — fica para o `conferir`, com o OK); os advisors da Supabase (só depois de aplicar); a troca de setor e o momento seguro num tablet de verdade; a prova do "Canceled" na Vercel (só depois de publicar).
+- **Antes de aplicar** (só leitura, 05:12): 28 funções e 1 visão com o corpo igual ao da última versão das migrations; as 19 funções novas ainda não existiam; ninguém de fora chamava as 4 regras que mudam de assinatura; 53 peças nas colunas e 127 em produção.
+- **Depois de aplicar, só lendo o banco** (05:19): o CANCELADO e o NÃO ENCONTRADO com "cancela a fabricação" e 7 dias; as funções e os 6 gatilhos novos no lugar; as 4 regras com a assinatura nova; 53 canceladas vivas, 74 em produção; o 13622 com o aviso de 30 peças; a Estante Basic 7 nichos com 1 livre e nenhuma reservada p/ produção; 53 fatos de cancelamento e 34 de peça que perdeu o pedido.
+- **No ar, com o acesso do dono (só olhando, 05:18–05:20):** o PCP com o 13622 e o selo "30 peças canceladas na produção" (e a aba "Cancelados e removidos"); a janela "O que aconteceu?" com as 30 peças; as colunas CANCELADO (49) e NÃO ENCONTRADO (4) com "tira da produção · some em 7 dias" e os cartões "Era do pedido N · Não encontrada em 11/11 · some em 7 dias"; o Estoque com a Estante Basic 7 nichos em 1 / mínimo 2 e o sinal vermelho de "precisa de produção" (antes as 2 peças canceladas o escondiam); a Auditoria com "Abriu a plataforma — abriu pelo endereço ou por um atalho".
+- **Advisors da Supabase** (05:17): nada novo além do esperado — as 7 portas novas ganham o aviso de sempre das portas da plataforma (275 no total) e os 2 índices novos aparecem como "ainda não usados" (acabaram de nascer); os outros avisos já existiam.
+- **Não conferido:** a troca de setor e o momento seguro num tablet de verdade (o código e os testes cobrem; falta o aparelho).
+
+![[sessao48-no-ar-pcp.jpg]]
+![[sessao48-no-ar-o-que-aconteceu.jpg]]
+![[sessao48-no-ar-colunas.jpg]]
+![[sessao48-no-ar-estoque.jpg]]
+![[sessao48-no-ar-auditoria.jpg]]
 
 ## 5. Desempenho (Lei — checklist)
 
@@ -136,12 +148,12 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 - [x] **Listas:** a aba nova por cursor; candidatos até 10 por móvel; decisão até 100 peças.
 - [x] **Pacote:** JS inicial 233,2 KB (antes 231,2); as janelas e a aba novas são pedaços baixados no clique (2,3–4,0 KB).
 - [x] **Escrita idempotente:** soltar, remover, devolver, decidir e recuperar duas vezes = um efeito.
-- [ ] **Advisors:** depois de aplicar.
+- [x] **Advisors** (lidos depois de aplicar): nada novo além do esperado (ver a Verificação).
 - **Dívidas novas na lei:** 36 (a janela do destino no pior caso, 75 ms) e 37 (decidir 30 peças de uma vez, 206 ms) — raras, com o caminho escrito.
 
 ## 6. Pendências que precisam do dono
 
-1. **Os 4 OKs** (cada um em separado): atualizar o banco · rodar o acerto (o ensaio primeiro) · a mudança na Vercel · publicar o site.
+1. ~~Os 4 OKs~~ — ✅ dados e feitos em 11/11 (*"Sim, sobe tudo"*). **Agora, o 13622:** está no PCP com o selo "30 peças canceladas na produção" — o PCP decide pela janela (provavelmente "Remover do PCP"; se o pedido for mesmo cancelado, cancelar também no Tiny).
 2. **Plano da Vercel:** a proteção contra versões misturadas (Skew Protection) só existe nos planos pagos — e, no nosso tipo de site, pede trabalho a mais. Com as mudanças desta sessão ela fica bem menos necessária; ligar só se o dono quiser pagar.
 3. **Confirmar as provisórias** D-291…D-305. As que mais pedem o olhar dele:
    - a aba **"Cancelados e removidos" voltou para dentro do PCP** (D-299) — desde 14/10 ela levava para Pedidos → Cancelados;
@@ -157,4 +169,4 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 
 ## 7. Numeração usada
 
-Migrations `20261111010000` (base), `…020000` (frente 2), `…030000` (frente 3), `…050000` (frente 5) — ⏳ não aplicadas; manutenção `2026-11-11_cancelado_vira_gesto.sql` — ⏳ não rodada. Decisões **D-290…D-305**; erros **E-250…E-267**; acertos **A-212…A-220**; dívidas da lei **36, 37**. Próximos: **D-306 · E-268 · A-221 · dívida 38**.
+Migrations `20261111010000` (base), `…020000` (frente 2), `…030000` (frente 3), `…050000` (frente 5) — ✅ aplicadas em 11/11 ~05:12; manutenção `2026-11-11_cancelado_vira_gesto.sql` — ✅ rodada às ~05:13. Decisões **D-290…D-305**; erros **E-250…E-267**; acertos **A-212…A-220**; dívidas da lei **36, 37**. E-268 usado na subida (o limite de 256 caracteres da Vercel). Próximos: **D-306 · E-269 · A-221 · dívida 38**.

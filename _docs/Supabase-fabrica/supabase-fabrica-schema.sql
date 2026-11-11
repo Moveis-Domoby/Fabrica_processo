@@ -1057,3 +1057,21 @@ create index if not exists notas_fiscais_pedido_id_idx   on public.notas_fiscais
 --   single_row (1 = loja, renovada SÓ pelo tiny-auth-refresh-cron; 2 = fábrica,
 --   renovada SÓ pelo tiny-fabrica-token — nasce na autorização).
 -- Impressão digital da integração idêntica: e2109f3a0ab69112b6a48baadbbba876.
+
+-- ---------------------------------------------------------------------------
+-- 15 · GATILHOS DA PLATAFORMA NA SITUAÇÃO DO PEDIDO (public.pedidos) —
+--      SESSAO-47 (migration 20261109020000, aplicada em 09/11/2026) e
+--      SESSAO-48 (migration 20261111030000, aplicada em 11/11/2026 ~05:12 de
+--      Natal com o OK do dono — D-302). Nenhuma coluna da integração mudou.
+-- ---------------------------------------------------------------------------
+-- plt_pedidos_volta_pcp            — after update of situacao, só quando muda:
+--                                    plt_privado.fn_volta_pcp_tiny() (o pedido
+--                                    devolvido ao PCP fecha quando o Tiny confirma)
+-- plt_pedidos_destino_descancelado — after update of situacao, só quando muda:
+--                                    plt_privado.fn_destino_descancelado() (saiu de
+--                                    "cancelado" → a peça que esperava o destino
+--                                    volta a seguir o pedido); À PROVA DE FALHA
+--                                    (erro vira aviso de automação; a gravação do
+--                                    Tiny passa)
+-- O aplicador conferiu a integração idêntica (estrutura e linhas) depois de cada
+-- uma das 4 atualizações da SESSAO-48.

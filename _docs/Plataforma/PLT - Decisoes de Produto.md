@@ -2498,6 +2498,8 @@ A vaga da reposição continua contada como liberada; se o estoque ficar abaixo 
 1. **A versão** = um resumo (sha256, 12 caracteres) dos nomes de todos os arquivos montados + o conteúdo do index.html; vai no `versao.json` e numa marca do index.html (a página sabe a própria versão por ali). Montar o mesmo código duas vezes dá a mesma versão; o commit não entra mais no pedaço de entrada (ele renomeava 89 dos 215 arquivos a cada commit — a causa do "pedaço sumido" depois de cada publicação).
 2. **A Vercel pula a montagem** só quando há publicação anterior no ramo e, desde ela, só mudou `_docs/`, `Claude outputs/` ou `*.md`; qualquer dúvida monta. `supabase/` segue montando (o dono decide se entra na lista).
 
+↪️ **11/11 (na subida):** o comando mora em `scripts/vercel-pular-documentacao.sh` — o campo `ignoreCommand` do `vercel.json` aceita no máximo 256 caracteres; o comando inteiro (363) derrubou a 1ª publicação na validação (E-268). ✅ No ar desde 11/11 ~05:18 (com o OK do dono).
+
 ## D-304 · ⏳ PROVISÓRIA — O momento seguro de recarregar (11/11/2026, SESSAO-48 — o 1 minuto é da demanda; o resto são escolhas da sessão)
 
 1. **Tablet e TV:** sem janela aberta (o PIN é digitado numa janela) e 1 minuto sem toque nem tecla; com janela aberta, olha de novo a cada minuto. Até lá, o aviso discreto diz "Ela se atualiza sozinha depois de 1 minuto sem uso."
