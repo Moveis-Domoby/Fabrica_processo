@@ -2519,7 +2519,7 @@ A vaga da reposição continua contada como liberada; se o estoque ficar abaixo 
 
 **Como ficou (técnico):** `plt_fn_abertura(text, boolean, jsonb)` (a de 2 argumentos sai — A-12), migration `20261111050000_plt_abertura_motivo.sql`; `src/lib/recarga.ts`, `src/lib/versaoNova.ts`, `vite.config.ts`, `vercel.json`.
 
-## D-306 · ✅ DECIDIDA pelo dono (abrir como aplicativo) + ⏳ PROVISÓRIA (os detalhes) — A plataforma abre como aplicativo: um ícone, uma janela só (12/11/2026, ajuste da SESSAO-48) — ↪️ D-304, D-305
+## D-306 · ✅ DECIDIDA pelo dono (abrir como aplicativo) + ⏳ PROVISÓRIA (os detalhes) — A plataforma abre como aplicativo: um ícone, uma janela só (12/11/2026, ajuste da SESSAO-48; ✅ no ar desde 12/11 ~01:45) — ↪️ D-304, D-305
 
 **Pedido do dono (12/11, na conversa):** depois de ver o que os registros de 10/11 mostraram (o tablet do FITAMENTO com abas da plataforma acumuladas — o atalho da tela inicial abria uma aba nova a cada toque), *"Sim, faz"* à pergunta "Faço a plataforma abrir como aplicativo nos tablets?".
 

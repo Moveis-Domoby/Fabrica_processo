@@ -170,7 +170,7 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 
 ## 6b. Ajuste de 12/11 — a plataforma abre como aplicativo (D-306)
 
-Pedido do dono depois do achado das abas acumuladas nos tablets: o site ganhou o "cartão do aplicativo" e os ícones, e o Chrome passa a oferecer **"Instalar app"** — um ícone na tela inicial que abre a plataforma numa janela própria, sempre a mesma (tocar de novo volta à janela aberta, não abre aba nova). ⏳ **Publicar só com o OK do dono.**
+Pedido do dono depois do achado das abas acumuladas nos tablets: o site ganhou o "cartão do aplicativo" e os ícones, e o Chrome passa a oferecer **"Instalar app"** — um ícone na tela inicial que abre a plataforma numa janela própria, sempre a mesma (tocar de novo volta à janela aberta, não abre aba nova). ✅ **No ar desde 12/11 ~01:45**, com o OK do dono (*"Sim, publica"*), junto com o botão "Atualizar" do tablet — conferido no site publicado: o cartão do aplicativo e os 5 ícones servidos certos, as ligações na página inicial.
 
 **Depois de publicar, em cada tablet (uma vez):**
 1. Abrir a plataforma no Chrome (pelo atalho de hoje mesmo).
