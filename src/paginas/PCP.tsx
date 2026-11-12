@@ -15,6 +15,7 @@ import {
   CheckSquare,
   CirclePause,
   Clock,
+  EyeOff,
   ListChecks,
   OctagonAlert,
   PackageOpen,
@@ -43,12 +44,19 @@ const AbaLancamentoManual = lazy(() =>
     default: m.AbaLancamentoManual,
   })),
 )
-// SESSAO-48 (frente 2): a aba "Cancelados e removidos" e a janela "O que
-// aconteceu?" também são pedaços próprios — carregam no 1º clique (Lei §9).
-const AbaCanceladosRemovidos = lazy(() =>
-  import('@/kanban/componentes/AbaCanceladosRemovidos').then((m) => ({
-    default: m.AbaCanceladosRemovidos,
+// SESSAO-48 (frente 2) ↪️ SESSAO-50: as abas "Cancelados" e "Pedidos ocultos", a
+// janela "O que aconteceu?" e os modais "Cancelar pedido" / "Ocultar do PCP" são
+// pedaços próprios — carregam no 1º clique (Lei §9).
+const AbaCancelados = lazy(() =>
+  import('@/kanban/componentes/AbaCancelados').then((m) => ({ default: m.AbaCancelados })),
+)
+const AbaPedidosOcultos = lazy(() =>
+  import('@/kanban/componentes/AbaPedidosOcultos').then((m) => ({
+    default: m.AbaPedidosOcultos,
   })),
+)
+const ModalSaidaPedido = lazy(() =>
+  import('@/kanban/componentes/ModalSaidaPedido').then((m) => ({ default: m.ModalSaidaPedido })),
 )
 const ModalPecaCancelada = lazy(() =>
   import('@/kanban/componentes/ModalPecaCancelada').then((m) => ({
@@ -66,6 +74,7 @@ import { ModalNovoPedido } from '@/kanban/componentes/ModalNovoPedido'
 import { ModalLiberarPedido } from '@/kanban/componentes/ModalLiberarPedido'
 import { textoDoSelo } from '@/kanban/avisoPcp'
 import type { AvisoCancelada, Card, PedidoResumo } from '@/kanban/tipos'
+import type { AlvoSaidaPedido } from '@/kanban/componentes/ModalSaidaPedido'
 import { useCamposDosPedidos } from '@/utilitarios/consultas'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
@@ -139,7 +148,8 @@ export function PCP() {
   // SESSAO-38 (D-169): + a aba Stand-by (os pedidos segurados pelo PCP).
   // ↪️ SESSAO-48 (frente 2): + "Cancelados e removidos" (?aba=cancelados — desde
   // 14/10 o link levava para Pedidos → Cancelados; a história inteira segue lá).
-  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'cancelados' | 'lancamento' =
+  // ↪️ SESSAO-50: ela vira duas — "Cancelados" (?aba=cancelados) e "Pedidos ocultos" (?aba=ocultos).
+  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'cancelados' | 'ocultos' | 'lancamento' =
     abaParam === 'solicitacoes'
       ? 'solicitacoes'
       : abaParam === 'lancamento'
@@ -148,7 +158,12 @@ export function PCP() {
           ? 'standby'
           : abaParam === 'cancelados'
             ? 'cancelados'
-            : 'quadro'
+            : abaParam === 'ocultos'
+              ? 'ocultos'
+              : 'quadro'
+
+  // SESSAO-50 (bloco B): "Cancelar pedido" e "Ocultar do PCP" — de qual pedido o modal está aberto.
+  const [saida, setSaida] = useState<AlvoSaidaPedido | null>(null)
 
   // SESSAO-48 (frente 2): a janela "O que aconteceu?" do pedido com peça
   // cancelada na produção — pelo selo do card ou pelo sino (?aviso=<card do
@@ -357,6 +372,12 @@ export function PCP() {
     novos.delete('liberar')
     setParametros(novos, { replace: true })
   }
+  // SESSAO-50: da janela "O que aconteceu?" para o modal do gesto (uma janela por vez).
+  function trocarAvisoPorSaida(numero: number | null, modo: AlvoSaidaPedido['modo']) {
+    const id = cardDoAviso
+    fecharAviso()
+    if (id !== null) setSaida({ cardId: id, numero, modo })
+  }
   useEffect(() => {
     if (idLiberar !== null && buscouLiberar && cardDoLink === null) {
       notificar({
@@ -391,6 +412,13 @@ export function PCP() {
   const camposPorPedido = useCamposDosPedidos(
     todosOsCards.map((c) => c.pedido_id).filter((id): id is number => id !== null),
   )
+  // SESSAO-50 (frente 5): da janela "Liberar unidades" para "Cancelar pedido" / "Ocultar do PCP".
+  function trocarLiberarPorSaida(card: Card, modo: AlvoSaidaPedido['modo']) {
+    const numero = card.pedido_id !== null ? (pedidosPorId.get(card.pedido_id)?.numero ?? null) : null
+    setCardParaLiberar(null)
+    if (idLiberar !== null) limparLiberar()
+    setSaida({ cardId: card.id, numero, modo })
+  }
 
   if (!carregando && !souAdmin && !souDoPcp) return <Navigate to="/" replace />
   if (!perfil) return null
@@ -415,11 +443,15 @@ export function PCP() {
             <span>
               Libere as unidades para os setores — dá para liberar parcial e terminar depois.
             </span>
-            {/* SESSAO-48 (frente 2): o selo da peça cancelada e a aba nova. */}
+            {/* SESSAO-48 (frente 2) ↪️ SESSAO-50: o selo, Cancelar e Ocultar. */}
             <span>
               Pedido com o selo vermelho teve peça cancelada na produção: toque no selo para ver o
-              que aconteceu e decidir — produzir de novo ou remover do PCP. Os removidos ficam em
-              "Cancelados e removidos", de onde dá para devolver.
+              que aconteceu e decidir — produzir de novo, cancelar o pedido ou ocultar do PCP.
+            </span>
+            <span>
+              Pedido que não vai ser produzido: "Cancelar pedido" cancela também no Tiny e ele vai
+              para "Cancelados"; "Ocultar do PCP" não mexe no Tiny e ele fica em "Pedidos ocultos",
+              de onde dá para recuperar.
             </span>
           </span>
         }
@@ -440,11 +472,8 @@ export function PCP() {
               icone: <PackageOpen aria-hidden />,
             },
             { valor: 'standby', rotulo: 'Stand-by', icone: <CirclePause aria-hidden /> },
-            {
-              valor: 'cancelados',
-              rotulo: 'Cancelados e removidos',
-              icone: <Ban aria-hidden />,
-            },
+            { valor: 'cancelados', rotulo: 'Cancelados', icone: <Ban aria-hidden /> },
+            { valor: 'ocultos', rotulo: 'Pedidos ocultos', icone: <EyeOff aria-hidden /> },
             { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
           ]}
           valor={aba}
@@ -470,7 +499,7 @@ export function PCP() {
           </Botao>
         )}
         <Botao icone={<Plus />} onClick={() => setModalNovo(true)}>
-          Novo card de pedido
+          Incluir pedido no PCP
         </Botao>
       </CabecalhoDaTela>
 
@@ -601,6 +630,20 @@ export function PCP() {
                   aoLiberar={() => setCardParaLiberar(card)}
                   aoAbrir={() => abrirCard(card.id)}
                   aoVerAviso={() => setAvisoAberto(card.id)}
+                  aoCancelar={() =>
+                    setSaida({
+                      cardId: card.id,
+                      numero: pedidosPorId.get(card.pedido_id ?? 0)?.numero ?? null,
+                      modo: 'cancelar',
+                    })
+                  }
+                  aoOcultar={() =>
+                    setSaida({
+                      cardId: card.id,
+                      numero: pedidosPorId.get(card.pedido_id ?? 0)?.numero ?? null,
+                      modo: 'ocultar',
+                    })
+                  }
                   aoPriorizar={(p) => priorizar.mutate({ cardId: card.id, prioridade: p })}
                   priorizando={priorizar.isPending && priorizar.variables?.cardId === card.id}
                   acoesExtras={
@@ -674,6 +717,20 @@ export function PCP() {
                   ocupado={sairDoStandby.isPending && sairDoStandby.variables?.cardId === card.id}
                   aoAbrir={() => abrirCard(card.id)}
                   aoVerAviso={() => setAvisoAberto(card.id)}
+                  aoCancelar={() =>
+                    setSaida({
+                      cardId: card.id,
+                      numero: pedidosPorId.get(card.pedido_id ?? 0)?.numero ?? null,
+                      modo: 'cancelar',
+                    })
+                  }
+                  aoOcultar={() =>
+                    setSaida({
+                      cardId: card.id,
+                      numero: pedidosPorId.get(card.pedido_id ?? 0)?.numero ?? null,
+                      modo: 'ocultar',
+                    })
+                  }
                   aoPedirLancar={() => setLancandoId(card.id)}
                   aoCancelarLancar={() => setLancandoId(null)}
                   aoLancar={() => sairDoStandby.mutate({ cardId: card.id, destino: 'entregas' })}
@@ -695,14 +752,33 @@ export function PCP() {
       {aba === 'cancelados' && (
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-cancelados">
           <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando…</p>}>
-            <AbaCanceladosRemovidos />
+            <AbaCancelados />
+          </Suspense>
+        </div>
+      )}
+
+      {aba === 'ocultos' && (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-ocultos">
+          <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando…</p>}>
+            <AbaPedidosOcultos />
           </Suspense>
         </div>
       )}
 
       {cardDoAviso !== null && (
         <Suspense fallback={null}>
-          <ModalPecaCancelada cardId={cardDoAviso} aoFechar={fecharAviso} />
+          <ModalPecaCancelada
+            cardId={cardDoAviso}
+            aoFechar={fecharAviso}
+            aoCancelar={(numero) => trocarAvisoPorSaida(numero, 'cancelar')}
+            aoOcultar={(numero) => trocarAvisoPorSaida(numero, 'ocultar')}
+          />
+        </Suspense>
+      )}
+
+      {saida !== null && (
+        <Suspense fallback={null}>
+          <ModalSaidaPedido alvo={saida} aoFechar={() => setSaida(null)} />
         </Suspense>
       )}
 
@@ -740,6 +816,14 @@ export function PCP() {
           aoFechar={() => {
             setCardParaLiberar(null)
             if (idLiberar !== null) limparLiberar()
+          }}
+          aoCancelarPedido={() => {
+            const card = cardParaLiberar ?? cardDoLink
+            if (card && card.tipo === 'pedido') trocarLiberarPorSaida(card, 'cancelar')
+          }}
+          aoOcultarPedido={() => {
+            const card = cardParaLiberar ?? cardDoLink
+            if (card && card.tipo === 'pedido') trocarLiberarPorSaida(card, 'ocultar')
           }}
         />
       )}
@@ -896,6 +980,8 @@ function CartaoPedidoPcp({
   aoLiberar,
   aoAbrir,
   aoVerAviso,
+  aoCancelar,
+  aoOcultar,
   aoPriorizar,
   priorizando,
   acoesExtras,
@@ -912,6 +998,9 @@ function CartaoPedidoPcp({
   aoAbrir: () => void
   /** SESSAO-48 (frente 2): tocar no selo da peça cancelada abre "O que aconteceu?". */
   aoVerAviso: () => void
+  /** SESSAO-50 (bloco B): "Cancelar pedido" (cancela também no Tiny) e "Ocultar do PCP". */
+  aoCancelar: () => void
+  aoOcultar: () => void
   aoPriorizar: (p: Prioridade) => void
   priorizando: boolean
   acoesExtras?: ReactNode
@@ -1111,6 +1200,7 @@ function CartaoPedidoPcp({
         >
           {liberadas > 0 ? 'Continuar liberação' : 'Liberar unidades'}
         </Botao>
+        <AcoesSaida numero={resumo?.numero} aoCancelar={aoCancelar} aoOcultar={aoOcultar} />
       </footer>
     </li>
   )
@@ -1131,6 +1221,8 @@ function CartaoStandbyPcp({
   ocupado,
   aoAbrir,
   aoVerAviso,
+  aoCancelar,
+  aoOcultar,
   aoPedirLancar,
   aoCancelarLancar,
   aoLancar,
@@ -1144,6 +1236,9 @@ function CartaoStandbyPcp({
   aoAbrir: () => void
   /** SESSAO-48 (frente 2): o pedido em stand-by também pode ter peça cancelada na produção. */
   aoVerAviso: () => void
+  /** SESSAO-50 (bloco B): "Cancelar pedido" e "Ocultar do PCP" também no stand-by. */
+  aoCancelar: () => void
+  aoOcultar: () => void
   aoPedirLancar: () => void
   aoCancelarLancar: () => void
   aoLancar: () => void
@@ -1265,6 +1360,7 @@ function CartaoStandbyPcp({
             >
               Devolver para aguardando liberação
             </Botao>
+            <AcoesSaida numero={resumo?.numero} aoCancelar={aoCancelar} aoOcultar={aoOcultar} />
           </>
         )}
       </footer>
@@ -1302,6 +1398,48 @@ function SeloPecaCancelada({
       <Icone aria-hidden className="size-3.5 shrink-0" />
       <span className="break-words">{texto}</span>
     </button>
+  )
+}
+
+/**
+ * SESSAO-50 (bloco B · frente 4 — resposta do dono de 12/11): as duas saídas do
+ * pedido que não vai ser produzido, em todo card de pedido do PCP (aguardando
+ * liberação e stand-by): "Ocultar do PCP" e "Cancelar pedido". Discretas (o
+ * gesto do dia a dia é liberar), com texto e ícone, alvo de toque de 44 px; o
+ * modal de cada uma diz o que acontece antes de confirmar.
+ */
+function AcoesSaida({
+  numero,
+  aoCancelar,
+  aoOcultar,
+}: {
+  numero?: number
+  aoCancelar: () => void
+  aoOcultar: () => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1">
+      <Botao
+        variante="fantasma"
+        tamanho="sm"
+        icone={<EyeOff />}
+        className="min-h-toque-md justify-center px-2 text-texto-suave"
+        aria-label={`Ocultar do PCP o pedido ${numero ?? ''}`}
+        onClick={aoOcultar}
+      >
+        Ocultar do PCP
+      </Botao>
+      <Botao
+        variante="fantasma"
+        tamanho="sm"
+        icone={<Ban />}
+        className="min-h-toque-md justify-center px-2 text-texto-suave"
+        aria-label={`Cancelar o pedido ${numero ?? ''}`}
+        onClick={aoCancelar}
+      >
+        Cancelar pedido
+      </Botao>
+    </div>
   )
 }
 

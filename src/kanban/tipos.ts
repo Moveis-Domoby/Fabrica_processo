@@ -278,6 +278,8 @@ export interface AvisoCancelada {
   pecas: number
   /** 'nao_encontrada' só quando TODAS são "não encontrada". */
   motivo: MotivoCancelamento
+  /** SESSAO-50 (frente 5): 3 ou mais peças do pedido canceladas em 24 h — o laço liberar → cancelar. */
+  laco?: boolean
 }
 
 /**
@@ -307,6 +309,8 @@ export interface ItemKanban {
   codigo: string | null
   descricao: string | null
   unidades: number
+  /** SESSAO-50 (bloco A): a observação do item no Tiny ("adicionar rodízios") — nula quando não há. */
+  observacao?: string | null
 }
 
 /** Linha de plt_fn_expedicao_kanban — o reagrupamento do pedido (D-01/D-13). */
@@ -447,6 +451,12 @@ export interface EventoLinhaTempo {
     | 'pedido_devolvido_pcp'
     | 'destino_pendente'
     | 'destino_decidido'
+    // SESSAO-50 (bloco B): o excluído no Tiny (e reencontrado), o cancelado pela
+    // plataforma e a peça ocultada com o pedido.
+    | 'pedido_excluido_tiny'
+    | 'pedido_reencontrado_tiny'
+    | 'pedido_cancelado_plataforma'
+    | 'card_oculto'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null
