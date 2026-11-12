@@ -102,6 +102,14 @@ export interface RotaNoMapa {
 
 const PONTO_FABRICA: [number, number] = [FABRICA.latitude, FABRICA.longitude]
 
+// SESSAO-50 (bloco C): o balão da parada com botão ("Editar", "Editar endereço") cabe no
+// mapa do celular (375 px: o padrão de 300 px de largura passava da borda) e, ao abrir
+// perto do topo, o mapa anda até o balão sair de baixo do zoom e do "Expandir"
+const BALAO_COM_BOTAO = {
+  maxWidth: 240,
+  autoPanPaddingTopLeft: [12, 84] as [number, number],
+}
+
 function LinhaDaRota({ rota, trajeto }: { rota: RotaNoMapa; trajeto: Trajeto }) {
   const pontos = rota.paradas.map(
     ({ parada }) => [parada.latitude, parada.longitude] as [number, number],
@@ -385,7 +393,7 @@ export const MapaProgramacao = memo(function MapaProgramacao({
               position={[p.latitude, p.longitude]}
               icon={iconeParadaAvulsa(numero, rota.cor)}
             >
-              <Popup>
+              <Popup {...BALAO_COM_BOTAO}>
                 <strong>{numero}ª parada · Parada avulsa</strong>
                 <br />
                 {avulsa.titulo}
@@ -414,7 +422,7 @@ export const MapaProgramacao = memo(function MapaProgramacao({
               <Tooltip permanent direction="center" className="plt-parada" opacity={1}>
                 {numero}
               </Tooltip>
-              <Popup>
+              <Popup {...BALAO_COM_BOTAO}>
                 <strong>
                   {numero}ª parada · Pedido {p.numero}
                 </strong>
