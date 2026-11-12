@@ -2609,5 +2609,41 @@ A vaga da reposição continua contada como liberada; se o estoque ficar abaixo 
 1. **Ensaio primeiro** (conta, preenche e desfaz — o 13871 antes e depois), **aplicar** depois; rodar de novo não faz nada.
 2. **Além de inserir o que falta**, troca texto velho, tira o que o Tiny não tem mais e avisa os quadros e o PCP uma vez.
 
+## D-319 · ✅ DECIDIDA pelo dono (12/11/2026, 01:25 e 01:30) — Editar o endereço de entrega do pedido, com o original do Tiny guardado e a pergunta "salvar também no Tiny?" (SESSAO-50, bloco C) — ↪️ D-193, D-194
+
+*"Editar endereço de entrega mesmo e corrigindo no pino no mapa."* · *"Quando ele editar, deve gerar uma pergunta, mas o endereço original que veio do Tiny ainda continua no banco como log para recuperar caso necessário."* · *"A pergunta é se ele deseja salvar também no Tiny."*
+
+1. **"Editar endereço"** (Rotas — Programar, Já programadas, o mapa —, Entregas do dia e a ficha do pedido): rua, número, complemento, bairro, cidade, UF, CEP e o pino. Ao salvar, a janela mostra **de/para** e pergunta se salva também no Tiny ("Salvar só na plataforma" / "Salvar na plataforma e no Tiny").
+2. **O original do Tiny fica guardado** no fato `endereco_entrega_alterado` (o endereço inteiro, de onde veio — entrega ou cadastro —, o anterior, o novo, o ponto e a escolha); **"Voltar ao endereço original"** restaura (fato `endereco_entrega_restaurado`). Mexer só no pino continua sendo o "Salvar o ponto" de sempre, sem pergunta.
+3. **O endereço novo vale em todo lugar** (Rotas, mapa, Entregas do dia e o link do Google Maps/Waze do entregador, ficha, candidatos e filtros de cidade e bairro): a regra única de "onde entregar" (`vw_endereco_entrega`) prefere o da plataforma. Onde ele aparece, o selo **"Endereço alterado na plataforma"** e, ao lado, o que está no Tiny.
+
+**Como ficou (técnico):** `plt_fn_pedido_endereco` (a janela numa leitura), `plt_fn_pedido_endereco_salvar`, `plt_fn_pedido_endereco_restaurar`; a projeção em `plt_pedido_enderecos` (uma linha por pedido alterado); `vw_endereco_tiny` (a regra antiga, sem mudar uma letra) e `vw_endereco_entrega` (só o corpo). Telas: `JanelaEnderecoPedido`, `SeloEnderecoAlterado`. Migration `20261112060000_plt_editar_endereco.sql`.
+
+## D-320 · ⏳ PROVISÓRIA — "Salvar na plataforma e no Tiny" fica desligado por enquanto, com o porquê (12/11/2026, SESSAO-50 — a demanda pede o teste num pedido de teste com o dono acordado) — ↪️ D-319
+
+1. **O botão aparece, desligado, com o porquê em uma linha:** *"O Tiny só deixa alterar o endereço de pedido Em aberto ou Aprovado."* ou *"Salvar no Tiny ainda não está ligado — por enquanto o endereço muda só na plataforma."* O banco recusa a escolha "Tiny" com o mesmo texto.
+2. **O caminho que falta** (registrado no diário do bloco C): o fluxo do n8n teria de ler o pedido inteiro e devolvê-lo idêntico menos o endereço (a API nova do Tiny não aceita endereço; a antiga substitui o pedido inteiro e só vale para Em aberto/Aprovado); a fila de saída guarda UMA vontade por pedido (um endereço pendente apagaria um "Entregue" pendente — antes de ligar, uma linha por motivo); e o teste num pedido de teste, com o dono. **A volta já está pronta e testada:** o Tiny devolvendo o endereço pedido grava a confirmação (sem aviso).
+
+## D-321 · ⏳ PROVISÓRIA — O Tiny mudando o endereço por fora vence e avisa (12/11/2026, SESSAO-50 — a regra é provisória da demanda; os detalhes são escolhas da sessão) — ↪️ D-319
+
+1. **Mudou de verdade no Tiny** (o endereço de entrega do pedido **ou o cadastro do cliente** — a maioria dos pedidos usa o do cadastro): fato `endereco_entrega_tiny_substituido`, a marca da plataforma sai e o sino toca para a logística.
+2. **Chegou igual ao que a plataforma pediu:** fato `endereco_entrega_tiny_confirmado`, sem aviso. Comparar é comparar o resumo (sem acento, sem maiúscula, sem espaço; o CEP só com os números) — "RUA DAS FLORES" / "59075000" é confirmação de "Rua das Flores" / "59075-000".
+
+## D-322 · ⏳ PROVISÓRIA — Os detalhes do endereço do pedido (12/11/2026, SESSAO-50 — escolhas da sessão onde a demanda não dizia) — ↪️ D-319
+
+1. **Pedido entregue:** só o admin edita (os outros não veem os botões). **Pedido sem card na plataforma:** o endereço só muda pelo Tiny (a janela diz o porquê).
+2. **Escrever de novo o endereço do Tiny** na janela conta como "Voltar ao endereço original". **Depois que o Tiny confirmar** um endereço novo, "Voltar" é recusado ("edite o endereço — o original está no histórico").
+3. **A projeção mora numa tabela própria e pequena** (`plt_pedido_enderecos`, uma linha só para os pedidos alterados — banco enxuto), não em 14 colunas quase sempre vazias no card do pedido. O registro de atividade é o do próprio fato (sem linha duplicada na Auditoria).
+
+## D-323 · ⏳ PROVISÓRIA — Editar a parada avulsa (12/11/2026, SESSAO-50, bloco C — "parada feita não edita" é provisória da demanda; o resto são escolhas da sessão) — ↪️ SESSAO-41
+
+1. **"Editar"** em Programar (a parada do rascunho se edita na tela, sem banco, até "Programar"), em Já programadas, no balão do mapa e nas Entregas do dia: o mesmo formulário de criar, preenchido (título, endereço, pino, observação); "Salvar as mudanças" só acende quando algo mudou.
+2. **Só a parada pendente se edita** (feita ou não feita, não). O registro guarda o antes e o depois só do que mudou; o toque repetido não grava nada. A rota aberta muda na hora (o aviso de sempre de Rotas). Nada se apaga.
+3. **No mapa,** o balão com botão tem no máximo 240 px e o mapa anda até ele sair de baixo dos controles (no celular o balão padrão passava da borda); o gesto recolhe a tela cheia antes de abrir a janela.
+
+## D-324 · ⏳ PROVISÓRIA — Em "Já programadas" o selo do endereço alterado fica na janela, não no cartão (12/11/2026, SESSAO-50 — escolha da sessão) — ↪️ D-319
+
+O cartão mostra o endereço novo e o "Editar endereço"; o selo e o original aparecem na janela, na ficha e nos cartões da aba Programar. A porta de "Já programadas" devolve uma tabela que uma atualização antiga recria com as colunas de antes (a bateria a reaplica) — ganhar uma coluna quebraria essa reaplicação. Se o dono quiser o selo no cartão, a porta é recriada com a coluna nova e a bateria ajustada.
+
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-50 — Observação do item na capa do card, Cancelar e Ocultar pedido no PCP (com o excluído no Tiny saindo de vez) e editar o endereço de uma parada da rota"
 tipo: demanda
-status: 📐 pronta para code
+status: ✅ entregue e no ar (12/11/2026 ~04:05)
 data: 2026-11-12
 atualizado: 2026-11-12 (01:25 — respostas do dono: o outro caso é o 13270; botões Cancelar e Ocultar no PCP; editar endereço de verdade + pino; pergunta ao salvar e o endereço do Tiny guardado · 01:30 — a pergunta é "salvar também no Tiny?"; peças ocultadas, ao recuperar, voltam como vagas no PCP, não para a coluna)
 origem: pedidos do dono de 12/11 (01:10) + vídeo de 11/11 (11:01, pedido 13871). Investigado no Cowork com leitura do banco de produção (12/11, ~01:30) e da documentação da API do Tiny (v2 e v3). Só leitura: nada foi alterado. O código do front não foi lido (sem acesso ao repositório): os caminhos de tela são "a conferir".
@@ -355,14 +355,17 @@ Na parada do pedido (Rotas e mapa) e na ficha do pedido (seção de entrega), o 
 - a SESSAO-41 (paradas avulsas) e a SESSAO-44 (itens por código), só as partes citadas.
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
-*A criar com o OK do dono:*
-- "Produção - Observação do item do Tiny na capa do card"
-- "PCP - Botões Cancelar (no Tiny) e Ocultar pedido, com Pedidos ocultos"
-- "PCP - Pedido excluído no Tiny sai do PCP e fim do laço de liberar e cancelar"
-- "Rotas - Editar parada avulsa e endereço de entrega do pedido (com opção de salvar no Tiny)"
+*Criadas em 12/11 ~03:55 (com a permissão do dono para a noite), em "fazendo", atribuídas ao dono — quem conclui é o dono:*
+- [Produção - Observação do item do Tiny na capa do card](https://app.clickup.com/t/17tya50u7jf)
+- [PCP - Botões Cancelar (no Tiny) e Ocultar pedido, com Pedidos ocultos](https://app.clickup.com/t/17tya50u7jg)
+- [PCP - Pedido excluído no Tiny sai do PCP e fim do laço de liberar e cancelar](https://app.clickup.com/t/17tya50u7jh)
+- [Rotas - Editar parada avulsa e endereço de entrega do pedido (com opção de salvar no Tiny)](https://app.clickup.com/t/17tya50u7jj)
 
 ## Resultado (preencher ao entregar)
-*O que foi feito, o que mudou de rota, link do handoff da sessão.*
+✅ **Entregue e no ar em 12/11/2026 ~04:05** — handoff: [[handoff_2026_11_12_sessao50_observacao_cancelar_ocultar_endereco]] · decisões D-307…D-324.
+- **Os três blocos** (B → A → C; o A e o C em cópias separadas, juntados na ordem): banco (4 atualizações), o preenchimento das 376 observações, a automação do Tiny aceitando "cancelado" e o site.
+- **O que mudou de rota:** a observação mora numa tabela da plataforma por item, não numa coluna nova em `pedido_itens` (a estrutura da integração não muda — regra 10); o "Incluir pedido no PCP" foi refeito (a porta antiga contava a lista inteira — 131 s no ensaio ×100) e passou a mostrar só o pedido que o PCP mostraria; os 30 dias dos ocultos são mudados pelo admin na própria aba (a página "Controle do quadro" citada não existe); a Expedição ficou sem a faixa da observação (não desenha card de unidade); "salvar o endereço também no Tiny" ficou desligado com o porquê (sem o teste com o dono).
+- **O 13622 saiu do PCP sozinho; o 13270 ficou para o PCP decidir.** O 13871 já tinha sido entregue em 11/11 — a observação dele está guardada e a capa a recebe.
 
 ---
 
