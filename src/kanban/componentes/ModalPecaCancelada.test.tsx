@@ -7,19 +7,19 @@ import { ModalPecaCancelada } from './ModalPecaCancelada'
 import type { AvisoPcpJanela } from '@/kanban/api'
 
 /**
- * SESSAO-48 (frente 2): a janela "O que aconteceu?" do PCP — lê numa
- * requisição ao abrir e mostra as peças que saíram da produção (de qual
- * coluna, quem e quando), o que o pedido ainda tem e as vagas; as saídas são
- * "Produzir de novo" e "Remover do PCP" com os três motivos (dois com texto
- * obrigatório; "O pedido foi cancelado" lembra de cancelar no Tiny).
+ * SESSAO-48 (frente 2) ↪️ SESSAO-50 (bloco B): a janela "O que aconteceu?" do
+ * PCP — lê numa requisição ao abrir e mostra as peças que saíram da produção,
+ * o que o pedido ainda tem e as vagas; as saídas passam a ser "Produzir de
+ * novo", "Cancelar pedido" e "Ocultar do PCP" (o "Remover do PCP" com três
+ * motivos deixou de existir). Com 3 ou mais peças canceladas em 24 h, o aviso
+ * do laço.
  */
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
-const { lerAvisoPcp, resolverAvisoPcp, removerDoPcp } = vi.hoisted(() => ({
+const { lerAvisoPcp, resolverAvisoPcp } = vi.hoisted(() => ({
   lerAvisoPcp: vi.fn(),
   resolverAvisoPcp: vi.fn(),
-  removerDoPcp: vi.fn(),
 }))
-vi.mock('@/kanban/api', () => ({ lerAvisoPcp, resolverAvisoPcp, removerDoPcp }))
+vi.mock('@/kanban/api', () => ({ lerAvisoPcp, resolverAvisoPcp }))
 
 const janela = (extra: Partial<AvisoPcpJanela> = {}): AvisoPcpJanela => ({
   card_id: 900,
@@ -71,31 +71,42 @@ const janela = (extra: Partial<AvisoPcpJanela> = {}): AvisoPcpJanela => ({
     prontas: 0,
     onde: [{ setor: 'LIMPEZA E EMBALAGEM', etapa: 'A LIMPAR', pronta: false, pecas: 1 }],
   },
+  canceladas_24h: 2,
+  tiny_ligado: true,
+  cancelado_plataforma_em: null,
+  excluido_no_tiny: false,
+  ocultos_dias: 30,
   ...extra,
 })
 
 function renderizar(cardId: number | null = 900) {
   const aoFechar = vi.fn()
+  const aoCancelar = vi.fn()
+  const aoOcultar = vi.fn()
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ProvedorNotificacao>
-        <ModalPecaCancelada cardId={cardId} aoFechar={aoFechar} />
+        <ModalPecaCancelada
+          cardId={cardId}
+          aoFechar={aoFechar}
+          aoCancelar={aoCancelar}
+          aoOcultar={aoOcultar}
+        />
       </ProvedorNotificacao>
     </QueryClientProvider>,
   )
-  return { aoFechar }
+  return { aoFechar, aoCancelar, aoOcultar }
 }
 
 afterEach(() => {
   lerAvisoPcp.mockReset()
   resolverAvisoPcp.mockReset()
-  removerDoPcp.mockReset()
 })
 
 describe('A janela "O que aconteceu?"', () => {
-  it('lê numa requisição e mostra as peças, o que o pedido ainda tem e as vagas', async () => {
+  it('lê numa requisição e mostra as peças, o que o pedido ainda tem, as vagas e as três saídas', async () => {
     lerAvisoPcp.mockResolvedValue(janela())
     renderizar()
     expect(await screen.findByText('2 peças canceladas na produção')).toBeInTheDocument()
@@ -111,7 +122,13 @@ describe('A janela "O que aconteceu?"', () => {
     expect(screen.getByText(/1 em A LIMPAR \(LIMPEZA E EMBALAGEM\)/)).toBeInTheDocument()
     expect(screen.getByText('2 de 31')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Produzir de novo' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Remover do PCP' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Cancelar pedido' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Ocultar do PCP' })).toBeEnabled()
+    // o "Remover do PCP" com três motivos deixou de existir
+    expect(screen.queryByRole('button', { name: 'Remover do PCP' })).not.toBeInTheDocument()
+    expect(screen.getByText(/fica em "Pedidos ocultos" por 30 dias/)).toBeInTheDocument()
+    // sem o laço (2 em 24 h)
+    expect(screen.queryByText(/estão sendo canceladas várias vezes/)).not.toBeInTheDocument()
     expect(lerAvisoPcp).toHaveBeenCalledTimes(1)
     expect(lerAvisoPcp).toHaveBeenCalledWith(900)
   })
@@ -131,115 +148,56 @@ describe('A janela "O que aconteceu?"', () => {
     await waitFor(() => expect(aoFechar).toHaveBeenCalled())
   })
 
-  it('"Remover do PCP": os três motivos; o cancelado lembra do Tiny; "O que houve?" é obrigatório; avisa as peças que seguem', async () => {
+  it('"Cancelar pedido" e "Ocultar do PCP" levam ao modal do gesto (a página troca a janela)', async () => {
     lerAvisoPcp.mockResolvedValue(janela())
-    removerDoPcp.mockResolvedValue({
-      feito: true,
-      numero: 13622,
-      motivo: 'fora_da_linha',
-      em_producao: 1,
-      prontas: 0,
-      onde: [],
-    })
-    const { aoFechar } = renderizar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Remover do PCP' }))
-
-    const confirmar = screen.getByRole('button', { name: 'Remover do PCP' })
-    expect(confirmar).toBeDisabled()
-    for (const rotulo of [
-      'O pedido foi cancelado',
-      'Tirar o pedido da linha de produção',
-      'Outro motivo',
-    ]) {
-      expect(screen.getByRole('button', { name: rotulo })).toHaveAttribute('aria-pressed', 'false')
-    }
-    expect(
-      screen.getByText(
-        'Este pedido ainda tem 1 peça em A LIMPAR. Para cancelar a fabricação dela, mova para CANCELADO.',
-      ),
-    ).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'O pedido foi cancelado' }))
-    expect(screen.getByText('Cancele também no Tiny.')).toBeInTheDocument()
-
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Tirar o pedido da linha de produção' }),
-    )
-    expect(screen.queryByText('Cancele também no Tiny.')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Remover do PCP' }))
-    expect(await screen.findByText('Conte o que houve com o pedido.')).toBeInTheDocument()
-    expect(removerDoPcp).not.toHaveBeenCalled()
-
-    await userEvent.type(screen.getByLabelText('O que houve?'), 'o cliente vai buscar na loja')
-    await userEvent.click(screen.getByRole('button', { name: 'Remover do PCP' }))
-    await waitFor(() =>
-      expect(removerDoPcp).toHaveBeenCalledWith({
-        cardId: 900,
-        motivo: 'fora_da_linha',
-        texto: 'o cliente vai buscar na loja',
-      }),
-    )
-    expect(await screen.findByText('Pedido 13622 removido do PCP')).toBeInTheDocument()
-    await waitFor(() => expect(aoFechar).toHaveBeenCalled())
+    const { aoCancelar, aoOcultar } = renderizar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancelar pedido' }))
+    expect(aoCancelar).toHaveBeenCalledWith(13622)
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar do PCP' }))
+    expect(aoOcultar).toHaveBeenCalledWith(13622)
   })
 
-  it('"Outro motivo" também pede o texto; "Voltar" volta para o que aconteceu', async () => {
-    lerAvisoPcp.mockResolvedValue(janela())
-    removerDoPcp.mockResolvedValue({
-      feito: true,
-      numero: 13622,
-      motivo: 'outro',
-      em_producao: 1,
-      prontas: 0,
-      onde: [],
-    })
+  it('o laço: 3 ou mais peças canceladas em 24 h mudam o aviso', async () => {
+    lerAvisoPcp.mockResolvedValue(janela({ canceladas_24h: 31 }))
     renderizar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Remover do PCP' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Voltar' }))
-    expect(screen.getByRole('button', { name: 'Produzir de novo' })).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Remover do PCP' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Outro motivo' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Remover do PCP' }))
-    expect(await screen.findByText('Escreva o motivo.')).toBeInTheDocument()
-    await userEvent.type(screen.getByLabelText('Qual o motivo?'), 'pedido duplicado')
-    await userEvent.click(screen.getByRole('button', { name: 'Remover do PCP' }))
-    await waitFor(() =>
-      expect(removerDoPcp).toHaveBeenCalledWith({
-        cardId: 900,
-        motivo: 'outro',
-        texto: 'pedido duplicado',
-      }),
-    )
+    expect(
+      await screen.findByText(/As peças deste pedido estão sendo canceladas várias vezes\./),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Se ele não vai ser produzido, cancele ou oculte o pedido\./)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar pedido' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ocultar do PCP' })).toBeInTheDocument()
   })
 
-  it('aviso já resolvido: diz isso e só oferece "Remover do PCP"', async () => {
+  it('aviso já resolvido: diz isso e oferece cancelar ou ocultar', async () => {
     lerAvisoPcp.mockResolvedValue(janela({ aviso: null }))
     renderizar()
     expect(await screen.findByText('O aviso deste pedido já foi resolvido.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Produzir de novo' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Remover do PCP' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar pedido' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ocultar do PCP' })).toBeInTheDocument()
   })
 
-  it('pedido já removido: diz quem removeu e por quê, sem as saídas', async () => {
+  it('pedido já oculto: diz quem ocultou e onde recuperar, sem as saídas', async () => {
     lerAvisoPcp.mockResolvedValue(
       janela({
         aviso: null,
-        removido: {
-          em: '2026-11-11T12:00:00Z',
-          motivo: 'fora_da_linha',
-          texto: 'o cliente vai buscar na loja',
-          por: 'Guilherme',
-        },
+        removido: { em: '2026-11-11T12:00:00Z', motivo: 'oculto', texto: null, por: 'Guilherme' },
       }),
     )
     renderizar()
     expect(
-      await screen.findByText(
-        /Removido do PCP por Guilherme em .* — Tirado da linha de produção: o cliente vai buscar na loja/,
-      ),
+      await screen.findByText(/Ocultado do PCP por Guilherme em .* use a aba "Pedidos ocultos"/),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Produzir de novo' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Remover do PCP' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancelar pedido' })).not.toBeInTheDocument()
+  })
+
+  it('pedido excluído no Tiny: diz isso e não oferece saída (ele já saiu do PCP)', async () => {
+    lerAvisoPcp.mockResolvedValue(janela({ excluido_no_tiny: true }))
+    renderizar()
+    expect(
+      await screen.findByText(/Este pedido não existe mais no Tiny \(foi excluído\)/),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ocultar do PCP' })).not.toBeInTheDocument()
   })
 })

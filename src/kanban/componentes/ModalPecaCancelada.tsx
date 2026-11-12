@@ -1,30 +1,20 @@
-import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Ban,
   CircleCheck,
+  EyeOff,
   Factory,
+  FileX,
   PackageCheck,
-  PackageX,
   RotateCcw,
   SearchX,
-  Undo2,
 } from 'lucide-react'
-import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
-import { cn } from '@/lib/cn'
-import { lerAvisoPcp, removerDoPcp, resolverAvisoPcp } from '../api'
-import type { AvisoPcpJanela, MotivoRemocaoPcp, PecaCanceladaDoPedido } from '../api'
-import {
-  MOTIVOS_REMOCAO,
-  ROTULO_MOTIVO_REMOCAO,
-  diaEHoraCurto,
-  erroDoTextoRemocao,
-  frasesPecasQueSeguem,
-  nomeDoLugar,
-  pecasPorExtenso,
-  textoDoSelo,
-} from '../avisoPcp'
+import { Botao, Modal, useNotificacao } from '@/componentes/ui'
+import { lerAvisoPcp, resolverAvisoPcp } from '../api'
+import type { AvisoPcpJanela, PecaCanceladaDoPedido } from '../api'
+import { diaEHoraCurto, nomeDoLugar, textoDoSelo } from '../avisoPcp'
+import { LACO_PECAS_24H } from '../pcpSaida'
 
 /**
  * A janela "O que aconteceu?" (SESSAO-48 · frente 2 — resposta 3 do dono): a
@@ -32,35 +22,30 @@ import {
  * vaga voltou ao PCP com o aviso, e o PCP decide aqui. Lê tudo numa requisição
  * ao abrir e esquece ao fechar (D-89): as peças que saíram (de qual coluna,
  * quem e quando), o que o pedido ainda tem em produção ou pronto e as vagas.
- * Duas saídas: "Produzir de novo" (o aviso fecha; o pedido segue em
- * "Aguardando liberação") e "Remover do PCP" com o motivo — o desenho da casa
- * para escolher um motivo (botões grandes; os dois últimos pedem o texto). O
- * banco confere quem pode e é idempotente; o Tiny e as peças não mudam.
+ *
+ * ↩️ SESSAO-50 (bloco B · frente 4): as saídas passam a ser **"Produzir de
+ * novo"** (o aviso fecha; o pedido segue em "Aguardando liberação"),
+ * **"Cancelar pedido"** (cancela também no Tiny) e **"Ocultar do PCP"** (o Tiny
+ * não muda) — o "Remover do PCP" com três motivos deixou de existir. Os dois
+ * últimos abrem o modal próprio deles (a página troca esta janela por ele).
+ * Frente 5: com 3 ou mais peças canceladas em 24 h, o aviso do laço.
  */
 export function ModalPecaCancelada({
   cardId,
   aoFechar,
+  aoCancelar,
+  aoOcultar,
 }: {
   /** O card do PEDIDO (o do aviso); nulo = fechada. */
   cardId: number | null
   aoFechar: () => void
+  /** Abre "Cancelar pedido" para este pedido (a página fecha esta janela). */
+  aoCancelar: (numero: number | null) => void
+  /** Abre "Ocultar do PCP" para este pedido (a página fecha esta janela). */
+  aoOcultar: (numero: number | null) => void
 }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
-  const [passo, setPasso] = useState<'ver' | 'remover'>('ver')
-  const [motivo, setMotivo] = useState<MotivoRemocaoPcp | null>(null)
-  const [texto, setTexto] = useState('')
-  const [erro, setErro] = useState('')
-
-  // Recomeça a cada pedido novo (ajuste durante o render, sem efeito).
-  const [anterior, setAnterior] = useState<number | null>(null)
-  if (cardId !== anterior) {
-    setAnterior(cardId)
-    setPasso('ver')
-    setMotivo(null)
-    setTexto('')
-    setErro('')
-  }
 
   const { data, isPending, error } = useQuery({
     // debaixo de ['cards']: o aviso do PCP ao vivo relê a janela aberta
@@ -104,56 +89,20 @@ export function ModalPecaCancelada({
       }),
   })
 
-  const remover = useMutation({
-    mutationFn: () => removerDoPcp({ cardId: cardId!, motivo: motivo!, texto }),
-    onSuccess: async (r) => {
-      const seguem = r.em_producao + r.prontas
-      notificar(
-        r.feito
-          ? {
-              titulo: `Pedido ${r.numero} removido do PCP`,
-              descricao:
-                'Ele está na aba "Cancelados e removidos" do PCP — de lá dá para devolver.' +
-                (seguem > 0
-                  ? ` ${pecasPorExtenso(seguem)} que já estava${seguem === 1 ? '' : 'm'} em produção ou pronta${seguem === 1 ? '' : 's'} seguem como estão.`
-                  : ''),
-              tom: 'perfeito',
-            }
-          : { titulo: 'Este pedido já tinha sido removido do PCP', tom: 'perfeito' },
-      )
-      aoFechar()
-      await releer()
-    },
-    onError: (e) =>
-      notificar({
-        titulo: 'Não deu para remover do PCP',
-        descricao: e instanceof Error ? e.message : undefined,
-        tom: 'danificado',
-      }),
-  })
-
-  function confirmarRemocao() {
-    if (!motivo) {
-      setErro('Escolha por que o pedido sai do PCP.')
-      return
-    }
-    const problema = erroDoTextoRemocao(motivo, texto)
-    if (problema) {
-      setErro(problema)
-      return
-    }
-    setErro('')
-    remover.mutate()
-  }
-
-  const opcao = MOTIVOS_REMOCAO.find((m) => m.valor === motivo)
+  const saiu =
+    data !== undefined &&
+    (data.removido !== null ||
+      data.cancelado_no_tiny ||
+      (data.cancelado_plataforma_em ?? null) !== null ||
+      data.excluido_no_tiny === true)
+  const laco = (data?.canceladas_24h ?? 0) >= LACO_PECAS_24H
 
   return (
     <Modal
       aberto={cardId !== null}
       aoFechar={(v) => !v && aoFechar()}
       tamanho="galpao"
-      titulo={passo === 'remover' ? 'Remover do PCP' : 'O que aconteceu?'}
+      titulo="O que aconteceu?"
       descricao={
         data ? `Pedido ${data.numero}${data.cliente ? ` · ${data.cliente}` : ''}` : undefined
       }
@@ -165,13 +114,25 @@ export function ModalPecaCancelada({
         </p>
       )}
 
-      {data && passo === 'ver' && (
+      {data && (
         <div className="flex flex-col gap-4">
           <EstadoDoAviso dados={data} />
+          {laco && !saiu && (
+            <p
+              className="flex items-start gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto"
+              role="status"
+            >
+              <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <strong>As peças deste pedido estão sendo canceladas várias vezes.</strong> Se ele não
+                vai ser produzido, cancele ou oculte o pedido.
+              </span>
+            </p>
+          )}
           <PecasQueSairam dados={data} />
           <OQueOPedidoAindaTem dados={data} />
 
-          {data.removido === null && (
+          {!saiu && (
             <div className="flex flex-col gap-3 border-t border-borda pt-4">
               <ul className="flex flex-col gap-1 text-xs text-texto-suave">
                 {data.aviso && (
@@ -181,21 +142,31 @@ export function ModalPecaCancelada({
                   </li>
                 )}
                 <li>
-                  <strong className="text-texto">Remover do PCP:</strong> o pedido sai do PCP com o
-                  motivo. O Tiny e as peças que já estão em produção ou prontas não mudam.
+                  <strong className="text-texto">Cancelar pedido:</strong> cancela também no Tiny e o
+                  pedido sai do PCP; as peças em produção esperam a logística decidir o destino.
+                </li>
+                <li>
+                  <strong className="text-texto">Ocultar do PCP:</strong> o pedido sai do PCP sem mudar
+                  o Tiny e fica em "Pedidos ocultos" por {data.ocultos_dias ?? 30} dias — dá para
+                  recuperar.
                 </li>
               </ul>
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <Botao
                   variante="secundaria"
-                  icone={<PackageX />}
+                  icone={<EyeOff />}
                   disabled={produzir.isPending}
-                  onClick={() => {
-                    setPasso('remover')
-                    setErro('')
-                  }}
+                  onClick={() => aoOcultar(data.numero)}
                 >
-                  Remover do PCP
+                  Ocultar do PCP
+                </Botao>
+                <Botao
+                  variante="secundaria"
+                  icone={<Ban />}
+                  disabled={produzir.isPending}
+                  onClick={() => aoCancelar(data.numero)}
+                >
+                  Cancelar pedido
                 </Botao>
                 {data.aviso && (
                   <Botao
@@ -211,113 +182,45 @@ export function ModalPecaCancelada({
           )}
         </div>
       )}
-
-      {data && passo === 'remover' && (
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            confirmarRemocao()
-          }}
-        >
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium text-texto">
-              Por que o pedido sai do PCP?
-            </legend>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {MOTIVOS_REMOCAO.map((m) => (
-                <button
-                  key={m.valor}
-                  type="button"
-                  aria-pressed={motivo === m.valor}
-                  onClick={() => {
-                    setMotivo(m.valor)
-                    setErro('')
-                  }}
-                  className={cn(
-                    'min-h-12 rounded-dm border px-3 py-2 text-left text-sm transition-colors',
-                    motivo === m.valor
-                      ? 'border-acao-ativa bg-acao/15 font-medium text-texto'
-                      : 'border-borda bg-superficie text-texto hover:bg-superficie-sutil',
-                  )}
-                >
-                  {m.rotulo}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {motivo === 'pedido_cancelado' && (
-            <p className="flex items-start gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">
-              <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-              <span>
-                A plataforma não muda o Tiny. <strong>Cancele também no Tiny.</strong>
-              </span>
-            </p>
-          )}
-
-          {opcao && (
-            <Campo
-              rotulo={opcao.rotuloTexto}
-              maxLength={300}
-              value={texto}
-              // a conferência é nossa (a mensagem em português) — sem o balão do navegador
-              aria-required={opcao.textoObrigatorio}
-              placeholder={opcao.exemplo}
-              onChange={(e) => {
-                setTexto(e.target.value)
-                setErro('')
-              }}
-              erro={erro || undefined}
-            />
-          )}
-          {!opcao && erro && (
-            <p className="text-sm text-danificado-forte" role="alert">
-              {erro}
-            </p>
-          )}
-
-          <AvisoDasPecasQueSeguem dados={data} />
-
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Botao
-              type="button"
-              variante="secundaria"
-              icone={<Undo2 />}
-              disabled={remover.isPending}
-              onClick={() => {
-                setPasso('ver')
-                setErro('')
-              }}
-            >
-              Voltar
-            </Botao>
-            <Botao
-              type="submit"
-              icone={<PackageX />}
-              disabled={motivo === null}
-              carregando={remover.isPending}
-            >
-              Remover do PCP
-            </Botao>
-          </div>
-        </form>
-      )}
     </Modal>
   )
 }
 
-/** O estado do aviso no topo: aberto (o selo), já resolvido, ou o pedido já removido. */
+/** O estado no topo: aberto (o selo), já resolvido, ou o pedido que já saiu do PCP (oculto, cancelado, excluído). */
 function EstadoDoAviso({ dados }: { dados: AvisoPcpJanela }) {
+  if (dados.excluido_no_tiny) {
+    return (
+      <p className="flex items-start gap-2 rounded-dm border border-borda bg-superficie-sutil p-3 text-sm text-texto">
+        <FileX aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <span>
+          Este pedido não existe mais no Tiny (foi excluído) — ele saiu do PCP e está na aba
+          "Cancelados".
+        </span>
+      </p>
+    )
+  }
+  if (dados.cancelado_plataforma_em || dados.cancelado_no_tiny) {
+    return (
+      <p className="flex items-start gap-2 rounded-dm border border-borda bg-superficie-sutil p-3 text-sm text-texto">
+        <Ban aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <span>
+          {dados.cancelado_plataforma_em
+            ? `Cancelado pela plataforma em ${diaEHoraCurto(dados.cancelado_plataforma_em)}`
+            : 'Cancelado no Tiny'}{' '}
+          — ele saiu do PCP e está na aba "Cancelados".
+        </span>
+      </p>
+    )
+  }
   if (dados.removido) {
     return (
       <p className="flex items-start gap-2 rounded-dm border border-borda bg-superficie-sutil p-3 text-sm text-texto">
-        <PackageX aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <EyeOff aria-hidden className="mt-0.5 size-4 shrink-0" />
         <span>
-          Removido do PCP{dados.removido.por ? ` por ${dados.removido.por}` : ''} em{' '}
-          {diaEHoraCurto(dados.removido.em)} — {ROTULO_MOTIVO_REMOCAO[dados.removido.motivo]}
-          {dados.removido.texto ? `: ${dados.removido.texto}` : ''}. Para devolvê-lo, use a aba
-          "Cancelados e removidos".
+          Ocultado do PCP{dados.removido.por ? ` por ${dados.removido.por}` : ''} em{' '}
+          {diaEHoraCurto(dados.removido.em)}
+          {dados.removido.texto ? ` — ${dados.removido.texto}` : ''}. Para trazê-lo de volta, use a
+          aba "Pedidos ocultos".
         </span>
       </p>
     )
@@ -328,8 +231,8 @@ function EstadoDoAviso({ dados }: { dados: AvisoPcpJanela }) {
       <p className="flex items-start gap-2 rounded-dm border border-danificado-borda bg-danificado-fundo p-3 text-sm text-danificado-texto">
         <Icone aria-hidden className="mt-0.5 size-4 shrink-0" />
         <span>
-          <strong>{textoDoSelo(dados.aviso)}</strong> — desde {diaEHoraCurto(dados.aviso.desde)}. A
-          vaga voltou ao PCP.
+          <strong>{textoDoSelo({ ...dados.aviso, laco: false })}</strong> — desde{' '}
+          {diaEHoraCurto(dados.aviso.desde)}. A vaga voltou ao PCP.
         </span>
       </p>
     )
@@ -382,7 +285,7 @@ function LinhaPecaCancelada({
     <li className="flex items-start gap-2 rounded-dm border border-borda bg-superficie px-3 py-2 text-sm">
       <Icone aria-hidden className="mt-0.5 size-4 shrink-0 text-danificado-forte" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-texto">
+        <span className="break-words text-texto">
           <span className="font-medium">
             {p.descricao ?? 'Peça'}
             {p.indice !== null && p.total !== null ? ` (${p.indice}/${p.total})` : ''}
@@ -454,21 +357,5 @@ function OQueOPedidoAindaTem({ dados }: { dados: AvisoPcpJanela }) {
         </li>
       </ul>
     </section>
-  )
-}
-
-/** "Remover do PCP" não mexe nas peças que seguem: a janela diz quantas e onde. */
-function AvisoDasPecasQueSeguem({ dados }: { dados: AvisoPcpJanela }) {
-  const frases = frasesPecasQueSeguem(dados.pecas)
-  if (frases.length === 0) return null
-  return (
-    <div className="flex items-start gap-2 rounded-dm border border-atencao-borda bg-atencao-fundo p-3 text-sm text-atencao-texto">
-      <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-      <div className="flex flex-col gap-1">
-        {frases.map((f) => (
-          <p key={f}>{f}</p>
-        ))}
-      </div>
-    </div>
   )
 }

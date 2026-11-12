@@ -1081,7 +1081,8 @@ export interface AvisoPcpJanela {
   aviso: import('./tipos').AvisoCancelada | null
   removido: {
     em: string
-    motivo: MotivoRemocaoPcp
+    /** SESSAO-50: 'oculto' ("Ocultar do PCP"); os três antigos do "Remover do PCP" não são mais gravados. */
+    motivo: MotivoRemocaoPcp | 'oculto'
     texto: string | null
     por: string | null
   } | null
@@ -1091,6 +1092,13 @@ export interface AvisoPcpJanela {
   canceladas: PecaCanceladaDoPedido[]
   canceladas_total: number
   pecas: PecasQueSeguem
+  /** SESSAO-50 (frente 5): peças do pedido canceladas nas últimas 24 h (3 ou mais = o laço). */
+  canceladas_24h?: number
+  /** SESSAO-50: a ida ao Tiny ligada — sem ela, "Cancelar pedido" fica apagado. */
+  tiny_ligado?: boolean
+  cancelado_plataforma_em?: string | null
+  excluido_no_tiny?: boolean
+  ocultos_dias?: number
 }
 
 export async function lerAvisoPcp(cardId: number): Promise<AvisoPcpJanela> {

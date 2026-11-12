@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Factory, PackageCheck } from 'lucide-react'
+import { Ban, CheckCircle2, EyeOff, Factory, PackageCheck, StickyNote } from 'lucide-react'
 import { Botao, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
@@ -18,6 +18,8 @@ interface LinhaLiberacao {
   indice_unidade: number
   total_unidades: number
   jaLiberada: boolean
+  /** SESSAO-50 (bloco A): a observação do item no Tiny, igual para todas as unidades dele. */
+  observacao: string | null
   selecionada: boolean
   setorId: string
   etapaId: string
@@ -34,6 +36,12 @@ export interface ModalLiberarPedidoProps {
   reposicao?: ReposicaoResumo
   setores: Setor[]
   aoFechar: () => void
+  /**
+   * SESSAO-50 (frente 5): "Este pedido não vai ser produzido?" leva aos dois
+   * botões novos do PCP (a página fecha esta janela e abre o modal do gesto).
+   */
+  aoCancelarPedido?: () => void
+  aoOcultarPedido?: () => void
 }
 
 /**
@@ -69,6 +77,8 @@ export function ModalLiberarPedido({
   reposicao,
   setores,
   aoFechar,
+  aoCancelarPedido,
+  aoOcultarPedido,
 }: ModalLiberarPedidoProps) {
   const { perfil } = useSessao()
   const notificar = useNotificacao()
@@ -113,6 +123,9 @@ export function ModalLiberarPedido({
   const etapasPorSetor = useMemo(() => {
     const mapa = new Map<number, Etapa[]>()
     for (const etapa of todasEtapas) {
+      // SESSAO-50 (frente 5): o PCP não libera direto numa coluna que cancela a
+      // fabricação (CANCELADO / NÃO ENCONTRADO) — virava laço; o banco também recusa.
+      if (etapa.cancela_fabricacao) continue
       const lista = mapa.get(etapa.setor_id) ?? []
       lista.push(etapa)
       mapa.set(etapa.setor_id, lista)
@@ -145,6 +158,7 @@ export function ModalLiberarPedido({
           indice_unidade: k,
           total_unidades: item.unidades,
           jaLiberada,
+          observacao: item.observacao ?? null,
           selecionada: !jaLiberada,
           setorId: '',
           etapaId: CHEGADA,
@@ -385,11 +399,28 @@ export function ModalLiberarPedido({
                       disabled={linha.jaLiberada}
                       onChange={() => mudarLinha(linha.chave, { selecionada: !linha.selecionada })}
                     />
-                    <span className={linha.jaLiberada ? 'text-texto-fraco' : 'text-texto'}>
-                      {linha.item_descricao ?? 'Sem descrição'}{' '}
-                      <span className="font-medium tabular-nums">
-                        ({linha.indice_unidade}/{linha.total_unidades})
+                    <span
+                      className={cn(
+                        'flex min-w-0 flex-col gap-1',
+                        linha.jaLiberada ? 'text-texto-fraco' : 'text-texto',
+                      )}
+                    >
+                      <span className="break-words">
+                        {linha.item_descricao ?? 'Sem descrição'}{' '}
+                        <span className="font-medium tabular-nums">
+                          ({linha.indice_unidade}/{linha.total_unidades})
+                        </span>
                       </span>
+                      {/* SESSAO-50 (bloco A): a observação do item no Tiny, inteira (é a janela de detalhe) */}
+                      {linha.observacao && (
+                        <span className="flex items-start gap-1.5 rounded-r-dm border-l-2 border-atencao-forte bg-atencao-fundo/60 px-2 py-1 text-xs text-texto">
+                          <StickyNote aria-hidden className="mt-px size-3.5 shrink-0 text-atencao-texto" />
+                          <span className="break-words">
+                            <span className="sr-only">Observação do item: </span>
+                            {linha.observacao}
+                          </span>
+                        </span>
+                      )}
                     </span>
                   </label>
                   {linha.jaLiberada && (
@@ -514,6 +545,28 @@ export function ModalLiberarPedido({
           <p className="text-sm text-danificado-forte" role="alert">
             {erro}
           </p>
+        )}
+
+        {/* SESSAO-50 (frente 5): quem não vai produzir não libera no CANCELADO — cancela ou oculta. */}
+        {!ehReposicao && pendentes.length > 0 && (aoCancelarPedido || aoOcultarPedido) && (
+          <div className="flex flex-col gap-2 rounded-dm border border-borda bg-superficie-sutil p-3 text-sm text-texto sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Este pedido não vai ser produzido? Use <strong>Cancelar pedido</strong> ou{' '}
+              <strong>Ocultar do PCP</strong>.
+            </span>
+            <span className="flex flex-wrap gap-2">
+              {aoCancelarPedido && (
+                <Botao variante="secundaria" tamanho="sm" icone={<Ban />} onClick={aoCancelarPedido}>
+                  Cancelar pedido
+                </Botao>
+              )}
+              {aoOcultarPedido && (
+                <Botao variante="secundaria" tamanho="sm" icone={<EyeOff />} onClick={aoOcultarPedido}>
+                  Ocultar do PCP
+                </Botao>
+              )}
+            </span>
+          </div>
         )}
       </div>
     </Modal>
