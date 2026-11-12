@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Sistema Domoby",
+  "short_name": "Domoby",
+  "description": "Sistema Domoby, da Móveis Domoby — kanban por setor com controle de tempo e produtividade.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f8",
+  "theme_color": "#5A585C",
+  "icons": [
+    { "src": "/icones/domoby-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icones/domoby-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icones/domoby-mascara-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icones/domoby-mascara-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
