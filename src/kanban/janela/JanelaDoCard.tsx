@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -11,6 +11,7 @@ import {
   CirclePause,
   Clock,
   DoorOpen,
+  EyeOff,
   Handshake,
   History,
   Link2,
@@ -58,6 +59,13 @@ import { recuperarPecaCancelada } from '../apiCancelamento'
 import { useReguaTempo } from '../useReguaTempo'
 import { abrirJanela } from './api'
 import type { JanelaDoCard as DadosJanela } from './api'
+import { useAcessoLogistica } from '@/logistica/acesso'
+import type { AlvoSaidaPedido } from '../componentes/ModalSaidaPedido'
+
+// SESSAO-50 (frente 4): o modal de Cancelar/Ocultar só baixa no clique (pedaço próprio).
+const ModalSaidaPedido = lazy(() =>
+  import('../componentes/ModalSaidaPedido').then((m) => ({ default: m.ModalSaidaPedido })),
+)
 import { AnexosDoCard } from './AnexosDoCard'
 import { ResponsaveisPorSetor } from './ResponsaveisPorSetor'
 import { ChipPrazo, PontoPrioridade, SeletorPrioridade } from '../componentes/MarcasDoCard'
@@ -174,6 +182,17 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   const podeEditar = permissoes.editar && !tablet
   const pessoas = dados.pessoas
   const [verHistorico, setVerHistorico] = useState(false)
+  // SESSAO-50 (frente 4): "Cancelar pedido" e "Ocultar do PCP" em todo pedido do PCP —
+  // também na janela do card do pedido (a demanda: quadro, aba Stand-by e a janela).
+  const [saida, setSaida] = useState<AlvoSaidaPedido | null>(null)
+  const { tenhoAcesso: acessoLogistica } = useAcessoLogistica()
+  const podeSairDoPcp =
+    card.tipo === 'pedido' &&
+    !tablet &&
+    acessoLogistica &&
+    dados.setor?.papel_no_fluxo === 'entrada' &&
+    !dados.arquivado_em &&
+    !card.liberado_completo_em
   const [concluindo, setConcluindo] = useState(false)
   // SESSAO-31 (§4): Pausar (com o motivo) / Retomar. No tablet, o PIN antes.
   // SESSAO-36 (D-146): Auxiliar / Sair do auxílio — idem.
@@ -630,6 +649,41 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
           </div>
         )}
       </header>
+
+      {/* SESSAO-50 (frente 4): a saída do PCP pela janela do pedido — o mesmo modal do quadro */}
+      {podeSairDoPcp && (
+        <section
+          aria-label="Saída do PCP"
+          className="flex flex-col gap-2 rounded-dm-lg border border-borda bg-superficie-sutil p-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm text-texto-suave">Este pedido não vai ser produzido?</p>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<EyeOff />}
+              className="whitespace-nowrap px-2.5"
+              onClick={() => setSaida({ cardId: card.id, numero: dados.pedido?.numero ?? null, modo: 'ocultar' })}
+            >
+              Ocultar do PCP
+            </Botao>
+            <Botao
+              variante="secundaria"
+              tamanho="sm"
+              icone={<Ban />}
+              className="whitespace-nowrap px-2.5"
+              onClick={() => setSaida({ cardId: card.id, numero: dados.pedido?.numero ?? null, modo: 'cancelar' })}
+            >
+              Cancelar pedido
+            </Botao>
+          </div>
+        </section>
+      )}
+      {saida && (
+        <Suspense fallback={null}>
+          <ModalSaidaPedido alvo={saida} aoFechar={() => setSaida(null)} />
+        </Suspense>
+      )}
 
       {/* ---------- propriedades ---------- */}
       <section aria-label="Propriedades" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
