@@ -1426,6 +1426,8 @@ E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja en
 
 ## D-140 · SESSAO-32: pedido excluído no Tiny não existe em nenhum módulo — uma verdade só para fábrica e comercial (16/10/2026)
 
+**↩️ revisada em 2026-11-12 (D-311, SESSAO-50):** o excluído no Tiny segue o caminho do CANCELADO — os cards **não são mais arquivados**: o fato `pedido_excluido_tiny` fica no card do pedido (que sai do PCP pela regra única e aparece em "Cancelados" como "Excluído no Tiny"), a peça em produção espera a logística, a pronta vai ao ESTOQUE sem dono; o sino é da logística. Continua fora da lista de Pedidos, da busca e do Comercial. Só a conta da LOJA marca.
+
 **Pedido do dono (16/10, ~06:00 UTC, com print do Tiny × Painel de Recompra):** *"Os valores de outubro no tiny e na plataforma estão diferentes, investigue o motivo e resolva"*. **A causa:** outubro na plataforma 128 pedidos / R$ 149.047,80; no Tiny 127 / R$ 134.995,90 — a diferença é EXATAMENTE o pedido 13622 (Loja Domoby, 29 itens, R$ 14.051,90, "Em aberto", de 08/10), excluído no Tiny entre 08/10 18:08 e 09/10 03:39 UTC. O Tiny não avisa exclusão; a conferência da madrugada pedia o pedido ao Tiny toda noite e ouvia "codigo 32: Pedido não localizado", mas só contava "não encontrados" — o pedido seguia vivo no Comercial, na lista de Pedidos, no PCP e na produção (32 cartões: o do pedido, 8 unidades prontas em aguardo, 21 a montar e 2 paradas na montagem).
 
 **A regra do dono (ao ser perguntado o que fazer com os cartões):** *"Entenda que fábrica e comercial devem reagir às mesmas tabelas, aos mesmos dados e tudo mais, a única diferença é apenas como eles aparecem no front, então se o pedido não existe mais, ele não deve aparecer em nenhum módulo"*. **OK para aplicar:** *"Pode aplicar"*.
@@ -2456,6 +2458,8 @@ A vaga da reposição continua contada como liberada; se o estoque ficar abaixo 
 
 `supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql`: cada peça viva nas colunas que cancelam passa pelo MESMO gesto (`fn_cancelar_fabricacao`), origem `api`, com a data do dia do acerto (cada uma ganha os dias de conferência); o sino do PCP sai uma vez por pedido; os números do estoque são recontados. Modo ensaio (conta antes e depois e não grava nada) e modo aplicar (só com o OK do dono).
 
+**↩️ D-299 e D-300 revisadas em 2026-11-12 (D-307/D-314, SESSAO-50 — pedido do dono):** o "Remover do PCP" com três motivos virou "Cancelar pedido" e "Ocultar do PCP", e a aba "Cancelados e removidos" virou "Cancelados" e "Pedidos ocultos".
+
 ## D-299 · ⏳ PROVISÓRIA — A aba "Cancelados e removidos" volta para dentro do PCP (11/11/2026, SESSAO-48 — a aba é da demanda; o lugar, a ordem e o filtro são escolhas da sessão) — ↩️ D-134 (o `?aba=cancelados` levava para Pedidos → Cancelados)
 
 1. **Mora no PCP** (`?aba=cancelados`, como a Stand-by): mostra os pedidos removidos do PCP e os cancelados no Tiny que passaram pelo PCP (card vivo); "Devolver ao PCP" é gesto do PCP. A história inteira dos cancelados continua em Pedidos → Cancelados, com um atalho na aba.
@@ -2529,6 +2533,81 @@ A vaga da reposição continua contada como liberada; se o estoque ficar abaixo 
 4. **No aparelho, uma vez:** instalar pelo menu, apagar o atalho antigo da tela inicial e fechar as abas da plataforma no Chrome. No aplicativo não há o "puxar a tela para atualizar" do navegador; a versão nova continua chegando sozinha (D-304).
 5. ✅ **DECIDIDA pelo dono (12/11):** *"Coloque um botão para o tablet de recarregar a tela, isso deve sanar a parte de abaixar a tela para recarregar"* — o botão **"Atualizar"** (ícone de setas em volta) no cabeçalho da tela do tablet, ao lado de "Trocar setor": recarrega na hora, uma vez só, mostra "Atualizando…" enquanto vai; a Auditoria registra "Abriu a plataforma — atualizou a página" (é a pessoa que atualiza, não a plataforma — sem porquê novo no banco). No celular os botões do cabeçalho descem de linha.
 
+## D-307 · ✅ DECIDIDA pelo dono (12/11/2026, 01:25 e 01:30) — "Cancelar pedido" e "Ocultar do PCP" no lugar do "Remover do PCP" (SESSAO-50, bloco B) — ↩️ D-299, D-300 · ↪️ D-75, D-290
+
+*"Dentro de PCP a partir de agora tem um botão também de cancelar/ocultar pedido. Se clicar em cancelar, ele cancela no Tiny… O ocultar apenas remove ele por completo da lista do PCP, perguntando se ele deseja ocultar também os cards já liberados… podendo recuperar ele dentro de uma lista de 'Pedidos ocultos', que se apaga depois que o card ficar lá por 1 mês, e o único jeito de recuperar é pelo incluir pedido no PCP"* · sobre as peças ocultadas, ao recuperar: *"voltam todas para PCP, não para a coluna onde estavam."*
+
+1. **Onde:** em todo pedido do PCP — o card do quadro, o card da aba Stand-by, a janela do card do pedido e a janela "O que aconteceu?" (que passa a ter "Produzir de novo", "Cancelar pedido" e "Ocultar do PCP"); e a linha da janela "Liberar unidades" (*"Este pedido não vai ser produzido?"*). Quem usa: PCP, logística e admin (a permissão de sempre). O "Remover do PCP" com três motivos deixou de existir (a porta antiga responde com o caminho novo).
+2. **Cancelar pedido** (modal próprio, botão destrutivo "Cancelar no Tiny e aqui"): pede `cancelado` ao Tiny pela fila de saída (motivo novo `cancelar`; a última vontade do pedido vale), o pedido **sai do PCP na hora** com o fato `pedido_cancelado_plataforma` (com quem), as peças em produção esperam a logística ("Para onde vai este móvel?"), as prontas vão ao ESTOQUE sem dono e as reservas do estoque soltam. Um toque = uma chamada com chave (repetir não faz nada).
+3. **Ocultar do PCP** (modal próprio): o pedido sai de todas as portas do PCP e fica em **"Pedidos ocultos"**; com peças já liberadas, a pergunta "Ocultar também essas peças?" — **"Ocultar só o pedido"** (as peças seguem na produção, do pedido) ou **"Ocultar o pedido e as peças"** (cada peça ganha `card_oculto`, perde o pedido e é guardada com registro — sai do quadro e de todas as contas; nada é apagado). O Tiny não muda.
+4. **Recuperar** (na aba ou pelo "Incluir pedido no PCP"): o pedido volta a "Aguardando liberação" com **as vagas abertas** — nenhuma peça volta para a coluna; a liberação é a de sempre. A janela diz com quantos produtos ele volta.
+5. **Depois do prazo**, o pedido só sai da lista (nada é apagado, nenhum relógio): o único caminho é **"Incluir pedido no PCP"**, que passa a achar o oculto de qualquer idade ("Oculto em dd/mm").
+
+**Como ficou (técnico):** `plt_fn_pcp_cancelar`, `plt_fn_pcp_ocultar`, `plt_fn_pcp_saida_previa` (a prévia dos dois modais numa requisição), `plt_fn_pcp_devolver` (Recuperar), `plt_fn_pcp_cancelados`, `plt_fn_pcp_ocultos`, `plt_fn_pcp_incluir_lista`; `plt_cards.cancelado_plataforma_em/_evento_id`; `removido_pcp_motivo = 'oculto'`. Telas: `ModalSaidaPedido`, `AbaCancelados`, `AbaPedidosOcultos`, `ModalNovoPedido` ("Incluir pedido no PCP"), `JanelaDoCard`. Migrations `20261112010000_plt_sessao50_base.sql` e `20261112020000_plt_pcp_cancelar_ocultar_excluido.sql`.
+
+## D-308 · ⏳ PROVISÓRIA — Os detalhes do "Cancelar pedido" (12/11/2026, SESSAO-50 — o "Tentar de novo" é provisória da demanda; o resto são escolhas da sessão) — ↪️ D-307
+
+1. **O Tiny recusou ou não respondeu:** o pedido **continua fora do PCP**, na aba "Cancelados", com *"O Tiny ainda não confirmou o cancelamento"* (o porquê no título) e **"Tentar de novo"** (põe o pedido de novo na fila de saída e registra quem pediu). Confirmado: o selo "Confirmado no Tiny"; a marca da plataforma fica como trilha.
+2. **Ida ao Tiny desligada** ("Entregue vai ao Tiny" em Configurações → Caminhões): o botão fica apagado, com a explicação — sem a ida, o cancelamento não chegaria lá.
+3. **Pedido já entregue:** o banco recusa ("não dá para cancelar pela plataforma"). Já cancelado no Tiny: nada a fazer (o modal diz que ele já está em "Cancelados").
+4. **A automação do n8n** que leva a situação ao Tiny só deixava passar as situações de entrega: `cancelado` foi somado na lista dela na subida (sem isso a fila reenviaria para sempre).
+
+## D-309 · ⏳ PROVISÓRIA — Os detalhes do "Ocultar do PCP" (12/11/2026, SESSAO-50 — os dois primeiros são provisórias da demanda; o resto são escolhas da sessão) — ↪️ D-307
+
+1. **Peça na rota (programada) ou entregue não é ocultada** — o modal avisa quantas ficam e onde.
+2. **"Ocultar o pedido e as peças" solta as reservas do estoque** do pedido; "Ocultar só o pedido" não mexe nelas.
+3. **A contagem do modal** (quantas peças liberadas e onde) é lida ao abrir, numa requisição.
+4. **O oculto que o Tiny mantém fora do PCP** (faturado, cancelado…): a linha da aba avisa que, recuperado, ele sai dos ocultos mas só volta ao quadro quando o Tiny voltar a situação.
+
+## D-310 · ⏳ PROVISÓRIA — Os 30 dias dos "Pedidos ocultos" moram na linha do PCP e o admin muda na própria aba (12/11/2026, SESSAO-50 — a demanda pedia "Configurações → Controle do quadro", página que não existe) — ↪️ D-307
+
+1. **Padrão 30 dias, de 1 a 365**, guardado na configuração do setor PCP (nenhum número escrito no código); o admin muda pelo "Mudar" ao lado de "Ficam aqui por 30 dias" na aba (os outros só leem).
+2. **Filtro na leitura** (`removido_pcp_em ≥ agora − N dias`, com índice) — sem relógio, sem apagar nada; quando o dono quiser uma página de configurações do quadro, a chave muda de lugar sem mudar a regra.
+
+## D-311 · ✅ DECIDIDA (a regra é da demanda) + ⏳ PROVISÓRIA (os detalhes) — O pedido excluído no Tiny sai do PCP de vez e segue o caminho do cancelado (12/11/2026, SESSAO-50, bloco B) — ↩️ D-140 (os cards não são mais arquivados) · ↪️ D-75, D-148
+
+1. **Uma regra só:** a regra de "fora do PCP" passou a considerar a lista de excluídos no Tiny (e o cancelado pela plataforma) — quadro, porta antiga, quadrinho do dia, aviso e totais iguais entre si. O 13622 sai sozinho; o 13270 (que não está na lista) fica para o PCP decidir pelos botões novos.
+2. **Excluído = cancelado:** o fato `pedido_excluido_tiny` no card do pedido (log + sino da **logística**: *"O pedido 13622 não existe mais no Tiny (foi excluído). Ele saiu do PCP."*); a peça em produção espera a logística, a pronta vai ao ESTOQUE sem dono; o pedido aparece em "Cancelados" com "Excluído no Tiny". ↩️ D-140: os cards **não são mais arquivados** (o pedido continua fora da lista de Pedidos, da busca e do Comercial).
+3. **Reencontrado:** o pedido que o Tiny volta a achar sai da lista com o fato `pedido_reencontrado_tiny`.
+4. **Só a conta da LOJA marca:** o "não localizado" da conta da fábrica é de pedido da outra empresa e não marca nada (antes marcava). Sem relógio novo: a conferência da madrugada de sempre aplica o veredito.
+
+## D-312 · ✅ DECIDIDA (a regra é da demanda) + ⏳ PROVISÓRIA (o laço) — O PCP não libera direto numa coluna que cancela (12/11/2026, SESSAO-50, frente 5) — ↪️ D-290
+
+1. **"Liberar unidades" não oferece CANCELADO nem NÃO ENCONTRADO** como destino, e o banco recusa se alguém tentar por outro caminho. No lugar, a linha *"Este pedido não vai ser produzido?"* com os dois botões. Arrastar uma peça **já liberada** para o CANCELADO continua valendo.
+2. **O laço (provisória da demanda):** 3 ou mais peças do pedido canceladas em 24 h → o selo "Peças canceladas várias vezes" e, na janela "O que aconteceu?", *"As peças deste pedido estão sendo canceladas várias vezes. Se ele não vai ser produzido, cancele ou oculte o pedido."*
+
+## D-313 · ⏳ PROVISÓRIA — "Incluir pedido no PCP": só o pedido que o PCP mostraria, página a página ao rolar (12/11/2026, SESSAO-50 — escolhas da sessão; o oculto de qualquer idade é da D-307) — ↪️ D-22, D-75
+
+1. **O botão ganhou o nome "Incluir pedido no PCP"** (era "Novo pedido"): no alto, os ocultos de qualquer idade que batem com a busca (até 5; incluir = Recuperar); embaixo, os pedidos sem card. O excluído no Tiny não aparece.
+2. **Só o pedido vivo no Tiny** (nem faturado, enviado, entregue ou cancelado): o card de um pedido assim nasceria fora do quadro (a regra única) — invisível. E a busca fica do tamanho da operação, não da história.
+3. **Página a página ao rolar, sem total** (Lei §6): a lista antiga contava e calculava todos os pedidos antes de mostrar 8 — 131 s no ensaio com 560 mil pedidos; a nova, 16–20 ms (a busca, 39–48 ms).
+
+## D-314 · ⏳ PROVISÓRIA — As abas "Cancelados" e "Pedidos ocultos" (12/11/2026, SESSAO-50 — as abas são da demanda; o que cada linha mostra são escolhas da sessão) — ↩️ D-299 · ↪️ D-307
+
+1. **"Cancelados"**: os cancelados no Tiny, os cancelados pela plataforma e os excluídos no Tiny, do que saiu mais recente para trás, cada um com o seu rótulo ("Cancelado no Tiny", "Cancelado pela plataforma" + o estado no Tiny, "Excluído no Tiny"), quem cancelou e quando, as peças em produção, prontas, no estoque e esperando a logística, "Abrir o card" e, quando o Tiny falhou, "Tentar de novo". Sem total; 20 por vez ao rolar.
+2. **"Pedidos ocultos"**: quem ocultou e quando, em quantos dias sai da lista, quantas peças saíram junto, com quantos produtos volta; "Abrir o card" e "Recuperar". O nome do estado na lista de Pedidos e na busca virou **"Oculto do PCP"**.
+
+## D-315 · ✅ DECIDIDA (a regra é da demanda) + ⏳ PROVISÓRIA (onde mora e a limpeza) — A observação do item do Tiny na capa do card (12/11/2026, SESSAO-50, bloco A) — ↪️ D-63, D-75
+
+1. **Onde mora:** numa tabela da plataforma por item (`plt_itens_observacao (pedido_id, seq)`), escrita por gatilho quando o pedido do Tiny é gravado — a demanda pedia uma coluna nova em `pedido_itens`, mas a estrutura das tabelas da integração não muda (regra 10: o aplicador confere a impressão digital delas).
+2. **O texto (provisória):** sem espaço nas pontas, espaços e quebras de linha viram um espaço, entidades de HTML decodificadas, até 2.000 caracteres; vazio = nada. O gatilho só age quando os itens do pedido mudam; se falhar, vira aviso de automação (uma vez por hora) e o pedido do Tiny é gravado igual.
+3. **Mudar só a observação no Tiny não reabre o PCP** e o card muda ao vivo (o aviso que os quadros e a janela já usam; nenhum fato novo).
+
+## D-316 · ⏳ PROVISÓRIA — Qual peça mostra qual observação (12/11/2026, SESSAO-50, bloco A — escolhas da sessão) — ↪️ D-315, SESSAO-44
+
+1. **Cada unidade mostra a do seu item** pelo casamento da SESSAO-44 (mesmo produto; primeiro a mesma posição e unidade, depois a ordem). Dois itens do mesmo produto com observações diferentes: cada peça a sua; se o Tiny reordenar, a observação pode "trocar" de estante, mas nunca some nem duplica.
+2. **Não mostram:** a peça que sobrou do pedido, a peça sem pedido, a peça do estoque só reservada e o card do pedido.
+
+## D-317 · ⏳ PROVISÓRIA — Como a observação aparece (12/11/2026, SESSAO-50, bloco A — escolhas da sessão dentro do layout da demanda) — ↪️ D-315
+
+1. **Na capa:** faixa âmbar bem suave com filete à esquerda, ícone de nota, 12 px (14 px no tablet), no máximo 2 linhas com reticências, o texto inteiro ao passar o mouse; o leitor de tela lê "Observação do item: …". Card sem observação fica idêntico ao de antes.
+2. **Na janela do card:** a seção "Observação do item (Tiny)", logo acima de Datas, só quando há. **Na janela "Liberar unidades":** a mesma faixa embaixo de cada unidade.
+3. **A Expedição ficou sem a faixa:** ela não desenha card de unidade (mostra o pedido reagrupado), e a janela "Pedido N — unidades" devolve uma tabela que não pode ganhar coluna sem quebrar a reaplicação das atualizações antigas. Fica para quando o dono pedir.
+
+## D-318 · ⏳ PROVISÓRIA — O preenchimento das observações antigas (12/11/2026, SESSAO-50, bloco A) — ↪️ D-315
+
+1. **Ensaio primeiro** (conta, preenche e desfaz — o 13871 antes e depois), **aplicar** depois; rodar de novo não faz nada.
+2. **Além de inserir o que falta**, troca texto velho, tira o que o Tiny não tem mais e avisa os quadros e o PCP uma vez.
 
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]
