@@ -177,10 +177,13 @@ Pedido do dono depois do achado das abas acumuladas nos tablets: o site ganhou o
 2. Fechar as outras abas da plataforma no Chrome (o botão das abas → fechar, deixando uma).
 3. Menu ⋮ do Chrome → **"Instalar app"** (em alguns aparelhos aparece "Adicionar à tela inicial" → escolher **"Instalar"**).
 4. Apagar da tela inicial o ícone antigo (o atalho do navegador) e usar só o novo, o "Domoby".
-5. Se precisar recarregar: fechar o app pela tela de apps recentes e abrir de novo — no aplicativo não existe o "puxar a tela para baixo" do navegador. A versão nova continua chegando sozinha.
+5. Para recarregar a tela: tocar em **"Atualizar"**, no alto da tela do tablet, ao lado de "Trocar setor" (no aplicativo não existe o "puxar a tela para baixo" do navegador — pedido do dono de 12/11). A versão nova continua chegando sozinha.
+
+![[sessao48-tablet-atualizar.jpg]]
+![[sessao48-tablet-atualizar-celular.jpg]]
 
 No celular do entregador vale o mesmo — diminui as recargas na volta do Maps/Waze/WhatsApp/câmera, mas não zera (o celular ainda pode tirar o app da memória). No computador do escritório, o Chrome também oferece "Instalar" (opcional).
 
 
 
-Migrations `20261111010000` (base), `…020000` (frente 2), `…030000` (frente 3), `…050000` (frente 5) — ✅ aplicadas em 11/11 ~05:12; manutenção `2026-11-11_cancelado_vira_gesto.sql` — ✅ rodada às ~05:13. Decisões **D-290…D-305**; erros **E-250…E-267**; acertos **A-212…A-220**; dívidas da lei **36, 37**. E-268 usado na subida (o limite de 256 caracteres da Vercel). Ajuste de 12/11: D-306 e A-222. Próximos: **D-307 · E-269 · A-223 · dívida 38**.
+Migrations `20261111010000` (base), `…020000` (frente 2), `…030000` (frente 3), `…050000` (frente 5) — ✅ aplicadas em 11/11 ~05:12; manutenção `2026-11-11_cancelado_vira_gesto.sql` — ✅ rodada às ~05:13. Decisões **D-290…D-305**; erros **E-250…E-267**; acertos **A-212…A-220**; dívidas da lei **36, 37**. E-268 usado na subida (o limite de 256 caracteres da Vercel). Ajustes de 12/11: D-306, E-269 e A-222. Próximos: **D-307 · E-270 · A-223 · dívida 38**.

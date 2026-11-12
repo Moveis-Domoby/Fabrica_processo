@@ -744,6 +744,7 @@ SESSAO-05.
 
 - `public/manifest.webmanifest` + `<link rel="manifest">` e `<link rel="apple-touch-icon">` no `index.html`: nome "Sistema Domoby" / "Domoby", janela própria, início em "/", barra #5A585C, abertura #f7f7f8. Ícones em `public/icones/` (`domoby-192/512.png` com os cantos arredondados e fundo transparente; `domoby-mascara-192/512.png` em quadrado cheio com o desenho a 80% — a zona segura do ícone adaptável) e `public/apple-touch-icon.png` (180, quadrado cheio). O desenho é o do `favicon.svg` (o "d" em Poppins 700 branco, a bolinha #F1C24B, o grafite #5A585C) — para refazer, a receita está na memória (A-222). Sem service worker.
 - Em janela própria não existe a barra do navegador: o botão de voltar de cada tela (D-36) e o aviso de versão nova (abaixo) cobrem a navegação e a atualização.
+- **"Atualizar" no cabeçalho do tablet** (`BotaoAtualizarTela` em `src/tablet/`, D-306.5): `Botao` fantasma com `RefreshCw` + "Atualizar", o primeiro do grupo da direita (Atualizar · Trocar setor · pessoas · Sair), 44 px como os vizinhos; ao tocar vira "Atualizando…" com o giro e desligado (`carregando`) até a página ir embora. O grupo da direita do cabeçalho tem `flex-wrap justify-end`: no celular (375) os botões descem para uma 2ª linha em vez de empurrar o "Sair" para fora.
 
 ### Aviso de versão nova (14/10 noite — D-135)
 
