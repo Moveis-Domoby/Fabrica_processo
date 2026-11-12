@@ -202,10 +202,12 @@ create trigger plt_pedidos_observacao_itens_upd
 -- 1º passo do casamento (as "exatas" da fn_vagas_pedido) — resolve-se por ela
 -- mesma, pela chave; o casamento inteiro (fn_vagas_pedido) só roda no pedido que
 -- tem peça fora desse passo (o Tiny reordenou, inseriu ou tirou item). A chave do
--- produto é a mesma (fn_chave_peca + fn_produto_do_item, como na fn_vagas_pedido);
--- se o passo exato da fn_vagas_pedido mudar, mude aqui também — a bateria compara
--- as duas. Nunca derruba quem chama: erro = a página sem observação (e um aviso
--- no registro do banco).
+-- produto é a mesma (fn_chave_peca + fn_produto_do_item, como na fn_vagas_pedido),
+-- e só é calculada quando o retrato do item na peça difere do item de hoje (o
+-- mesmo código e a mesma descrição dão a mesma chave). Se o passo exato da
+-- fn_vagas_pedido mudar, mude aqui também — a bateria compara as duas. Nunca
+-- derruba quem chama: erro = a página sem observação (e um aviso no registro do
+-- banco).
 create or replace function plt_privado.fn_observacao_das_unidades(p_ids bigint[])
 returns table (card_id bigint, texto text)
 language plpgsql
@@ -217,10 +219,8 @@ as $$
 begin
   return query
     with pagina as (
-      -- as peças da página cujo pedido tem alguma observação, com a chave do produto delas
-      select c.id, c.pedido_id, c.item_seq, c.indice_unidade,
-             plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(c.item_codigo, c.item_descricao),
-                                       c.item_codigo, c.item_descricao) as chave
+      -- as peças da página cujo pedido tem alguma observação
+      select c.id, c.pedido_id, c.item_seq, c.indice_unidade, c.item_codigo, c.item_descricao
         from public.plt_cards c
        where c.id = any (p_ids)
          and c.tipo = 'unidade'
@@ -229,20 +229,29 @@ begin
     ),
     exatas as (
       -- o 1º passo do casamento: a vaga (posição, unidade) da própria peça, o mesmo
-      -- produto, e nenhuma peça mais antiga do pedido nessa vaga com o mesmo produto
+      -- produto, e nenhuma peça mais antiga do pedido nessa vaga com o mesmo produto.
+      -- O mesmo código e a mesma descrição dão a mesma chave sem calcular nada (o caso
+      -- de sempre: o retrato do item na peça = o item de hoje); só quando diferem a
+      -- chave do produto é calculada, como na fn_vagas_pedido.
       select pg.id, pg.pedido_id, pg.item_seq
         from pagina pg
         join plt_privado.vw_itens_producao v
           on v.pedido_id = pg.pedido_id and v.seq = pg.item_seq
          and pg.indice_unidade between 1 and v.unidades
-       where plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(v.codigo, v.descricao),
-                                       v.codigo, v.descricao) = pg.chave
+       where ((v.codigo is not distinct from pg.item_codigo and v.descricao is not distinct from pg.item_descricao)
+              or plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(v.codigo, v.descricao), v.codigo, v.descricao)
+                 = plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(pg.item_codigo, pg.item_descricao),
+                                             pg.item_codigo, pg.item_descricao))
          and not exists (
                select 1 from public.plt_cards p2
                 where p2.pedido_id = pg.pedido_id and p2.tipo = 'unidade'
                   and p2.item_seq = pg.item_seq and p2.indice_unidade = pg.indice_unidade and p2.id < pg.id
-                  and plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(p2.item_codigo, p2.item_descricao),
-                                                p2.item_codigo, p2.item_descricao) = pg.chave)
+                  and ((p2.item_codigo is not distinct from pg.item_codigo
+                        and p2.item_descricao is not distinct from pg.item_descricao)
+                       or plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(p2.item_codigo, p2.item_descricao),
+                                                    p2.item_codigo, p2.item_descricao)
+                          = plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(pg.item_codigo, pg.item_descricao),
+                                                      pg.item_codigo, pg.item_descricao)))
     ),
     fora as (
       -- o pedido que tem peça da página fora do passo exato: o casamento inteiro

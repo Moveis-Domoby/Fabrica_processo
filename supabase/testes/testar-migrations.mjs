@@ -24214,10 +24214,16 @@ try {
   const d1 = await peca(id8, card8, 1, 1, 1, ESTANTE50A)
   const d2 = await peca(id8, card8, 1, 1, 1, [ESTANTE50A[0], 'Estante Basic 10 nichos Teste 50A (nome antigo)'])
   const dup = (await um50a(`select plt_privado.fn_quadro_cards(array[${d1}, ${d2}]::bigint[]) as q`)).q
+  // o Tiny renomeou o item depois da liberação (o mesmo código, o mesmo produto): a peça com o
+  // nome antigo segue sendo do item e mostra a observação dele
+  const id9 = await gravar50a(pedido50a(99618, [item50a(...MESA50A, '1.00', 'FECHADURA NA PRIMEIRA GAVETA')]), 'inclusao_pedido')
+  const r1 = await peca(id9, await cardDe(id9), 1, 1, 1, [MESA50A[0], 'Mesa Teste 50A (nome de antes)'])
+  const ren = (await um50a(`select plt_privado.fn_quadro_cards(array[${r1}]::bigint[]) -> 0 as c`)).c
   conferir(
-    dup[0]?.observacao_item === 'COM RODINHAS' && semChave50a(dup[1]) && await bateComAsVagas(id8, [d1, d2]),
-    'duas peças do mesmo produto na mesma vaga: só a mais antiga mostra a observação (a outra sobra), como no casamento da SESSAO-44',
-    JSON.stringify(dup.map((c) => [c.id, c.item_descricao, c.observacao_item ?? null])))
+    dup[0]?.observacao_item === 'COM RODINHAS' && semChave50a(dup[1]) && await bateComAsVagas(id8, [d1, d2])
+      && ren?.observacao_item === 'FECHADURA NA PRIMEIRA GAVETA' && await bateComAsVagas(id9, [r1]),
+    'duas peças do mesmo produto na mesma vaga: só a mais antiga mostra a observação (a outra sobra), como no casamento da SESSAO-44; o item renomeado no Tiny (o mesmo produto) segue com a observação na peça de nome antigo',
+    JSON.stringify({ dup: dup.map((c) => [c.id, c.item_descricao, c.observacao_item ?? null]), ren }))
 
   // ---------------- 6 · a gravação do Tiny nunca cai por causa da observação ----------------
   titulo('SESSAO-50 · bloco A · blindagem: a observação que não grava vira aviso de automação e o pedido do Tiny é gravado')
