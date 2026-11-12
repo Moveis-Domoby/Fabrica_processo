@@ -195,9 +195,17 @@ create trigger plt_pedidos_observacao_itens_upd
 -- uma com rodízios: cada peça mostra a do seu item; o Tiny reordenou ou
 -- inseriu item depois da liberação: a peça segue o produto, não a posição.
 -- Peça de item que saiu do pedido (sobra), peça sem pedido e card que não é
--- peça: nada. UMA chamada por página de cards; o casamento só roda nos pedidos
--- que têm observação (a maioria não tem e não paga nada). Nunca derruba quem
--- chama: erro = a página sem observação (e um aviso no registro do banco).
+-- peça: nada. UMA chamada por página de cards; só os pedidos que têm observação
+-- pagam alguma coisa (a maioria não tem).
+-- Desempenho (ensaio ×100): a peça que está na MESMA posição e unidade da vaga,
+-- com o mesmo produto e sem outra peça mais antiga na mesma vaga, é exatamente o
+-- 1º passo do casamento (as "exatas" da fn_vagas_pedido) — resolve-se por ela
+-- mesma, pela chave; o casamento inteiro (fn_vagas_pedido) só roda no pedido que
+-- tem peça fora desse passo (o Tiny reordenou, inseriu ou tirou item). A chave do
+-- produto é a mesma (fn_chave_peca + fn_produto_do_item, como na fn_vagas_pedido);
+-- se o passo exato da fn_vagas_pedido mudar, mude aqui também — a bateria compara
+-- as duas. Nunca derruba quem chama: erro = a página sem observação (e um aviso
+-- no registro do banco).
 create or replace function plt_privado.fn_observacao_das_unidades(p_ids bigint[])
 returns table (card_id bigint, texto text)
 language plpgsql
@@ -208,27 +216,55 @@ as $$
 #variable_conflict use_column
 begin
   return query
-    with com_observacao as (
-      -- os pedidos das peças da página que têm alguma observação
-      select distinct c.pedido_id
+    with pagina as (
+      -- as peças da página cujo pedido tem alguma observação, com a chave do produto delas
+      select c.id, c.pedido_id, c.item_seq, c.indice_unidade,
+             plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(c.item_codigo, c.item_descricao),
+                                       c.item_codigo, c.item_descricao) as chave
         from public.plt_cards c
        where c.id = any (p_ids)
          and c.tipo = 'unidade'
          and c.pedido_id is not null
          and exists (select 1 from public.plt_itens_observacao x where x.pedido_id = c.pedido_id)
+    ),
+    exatas as (
+      -- o 1º passo do casamento: a vaga (posição, unidade) da própria peça, o mesmo
+      -- produto, e nenhuma peça mais antiga do pedido nessa vaga com o mesmo produto
+      select pg.id, pg.pedido_id, pg.item_seq
+        from pagina pg
+        join plt_privado.vw_itens_producao v
+          on v.pedido_id = pg.pedido_id and v.seq = pg.item_seq
+         and pg.indice_unidade between 1 and v.unidades
+       where plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(v.codigo, v.descricao),
+                                       v.codigo, v.descricao) = pg.chave
+         and not exists (
+               select 1 from public.plt_cards p2
+                where p2.pedido_id = pg.pedido_id and p2.tipo = 'unidade'
+                  and p2.item_seq = pg.item_seq and p2.indice_unidade = pg.indice_unidade and p2.id < pg.id
+                  and plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(p2.item_codigo, p2.item_descricao),
+                                                p2.item_codigo, p2.item_descricao) = pg.chave)
+    ),
+    fora as (
+      -- o pedido que tem peça da página fora do passo exato: o casamento inteiro
+      select distinct pg.pedido_id from pagina pg where not exists (select 1 from exatas e where e.id = pg.id)
     )
+    select e.id, o.texto
+      from exatas e
+      join public.plt_itens_observacao o on o.pedido_id = e.pedido_id and o.seq = e.item_seq
+    union all
     select w.card_id, o.texto
-      from com_observacao p
-      cross join lateral plt_privado.fn_vagas_pedido(p.pedido_id) w
-      join public.plt_itens_observacao o on o.pedido_id = p.pedido_id and o.seq = w.seq
-     where w.card_id = any (p_ids);
+      from fora f
+      cross join lateral plt_privado.fn_vagas_pedido(f.pedido_id) w
+      join public.plt_itens_observacao o on o.pedido_id = f.pedido_id and o.seq = w.seq
+     where w.card_id = any (p_ids)
+       and not exists (select 1 from exatas e where e.id = w.card_id);
 exception when others then
   raise warning 'plt_observacao_das_unidades: % — os cards seguem sem a observação', sqlerrm;
   return;
 end;
 $$;
 comment on function plt_privado.fn_observacao_das_unidades(bigint[]) is
-  'SESSAO-50 (bloco A): a REGRA de qual observação do Tiny cada peça mostra — a do item da vaga que ela cobre pelo casamento da SESSAO-44 (fn_vagas_pedido: o mesmo produto, a posição só desempata). Recebe a página de cards e devolve (card, texto) só das peças com observação; uma chamada por página, o casamento só nos pedidos que têm observação. Erro = nenhuma linha (nunca derruba o quadro).';
+  'SESSAO-50 (bloco A): a REGRA de qual observação do Tiny cada peça mostra — a do item da vaga que ela cobre pelo casamento da SESSAO-44 (fn_vagas_pedido: o mesmo produto, a posição só desempata). Recebe a página de cards e devolve (card, texto) só das peças com observação; uma chamada por página; a peça no passo exato do casamento (mesma posição e unidade, mesmo produto, a mais antiga da vaga) resolve-se pela chave, e a fn_vagas_pedido só roda no pedido com peça fora dele. Erro = nenhuma linha (nunca derruba o quadro).';
 revoke all on function plt_privado.fn_observacao_das_unidades(bigint[]) from public, anon, authenticated;
 
 -- ----------------------------------------------------------------------------

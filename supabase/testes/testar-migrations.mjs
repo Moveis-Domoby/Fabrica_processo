@@ -24207,6 +24207,18 @@ try {
     'o Tiny tirou o item (a estante com rodízios): a peça que sobrou não mostra mais a observação (o item não existe no pedido); a peça sem pedido nunca tem a chave',
     JSON.stringify({ antes: antesSair.card.observacao_item, depois: depoisSair.card.observacao_item ?? null }))
 
+  // duas peças na MESMA vaga (o Tiny trocou o nome do item entre as liberações — o produto é o
+  // mesmo): o casamento dá a vaga à mais antiga; a outra sobra — a regra rápida segue igual
+  const id8 = await gravar50a(pedido50a(99617, [item50a(...ESTANTE50A, '1.00', 'COM RODINHAS')]), 'inclusao_pedido')
+  const card8 = await cardDe(id8)
+  const d1 = await peca(id8, card8, 1, 1, 1, ESTANTE50A)
+  const d2 = await peca(id8, card8, 1, 1, 1, [ESTANTE50A[0], 'Estante Basic 10 nichos Teste 50A (nome antigo)'])
+  const dup = (await um50a(`select plt_privado.fn_quadro_cards(array[${d1}, ${d2}]::bigint[]) as q`)).q
+  conferir(
+    dup[0]?.observacao_item === 'COM RODINHAS' && semChave50a(dup[1]) && await bateComAsVagas(id8, [d1, d2]),
+    'duas peças do mesmo produto na mesma vaga: só a mais antiga mostra a observação (a outra sobra), como no casamento da SESSAO-44',
+    JSON.stringify(dup.map((c) => [c.id, c.item_descricao, c.observacao_item ?? null])))
+
   // ---------------- 6 · a gravação do Tiny nunca cai por causa da observação ----------------
   titulo('SESSAO-50 · bloco A · blindagem: a observação que não grava vira aviso de automação e o pedido do Tiny é gravado')
   // o aviso de erro chega a quem o ligou (D-202): o admin do teste liga
