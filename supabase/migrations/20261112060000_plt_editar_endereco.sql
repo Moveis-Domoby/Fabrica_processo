@@ -40,10 +40,11 @@
 --                que nunca derrubam a gravação do Tiny; a nossa própria escrita
 --                voltando do Tiny é confirmação, não mudança.
 --
--- Funções que já existiam (fn_parada_json, plt_fn_parada_avulsa_salvar,
--- plt_fn_pcp_pedido_detalhe, plt_fn_programacao_candidatos): recriadas por
--- EXTRAÇÃO da última versão nas migrations, com trocas de texto de contagem
--- exata (scratchpad/s50/c-ferramentas/gerar-c.mjs). Nenhuma assinatura muda.
+-- Funções que já existiam (plt_fn_paradas_avulsas, plt_fn_entregas_do_dia,
+-- plt_fn_parada_avulsa_salvar, plt_fn_pcp_pedido_detalhe,
+-- plt_fn_programacao_candidatos): recriadas por EXTRAÇÃO da última versão nas
+-- migrations, com trocas de texto de contagem exata
+-- (scratchpad/s50/c-ferramentas/gerar-c.mjs). Nenhuma assinatura muda.
 -- Nada aqui altera tabela da integração: pedidos e clientes só ganham gatilhos.
 -- ============================================================================
 set local lock_timeout = '5s';
@@ -851,25 +852,209 @@ comment on trigger plt_clientes_endereco_tiny on public.clientes is
 -- 8 · Frente 6 · a parada avulsa: quem pode editar (na leitura, sem requisição
 --     nova) e a edição com o antes e o depois
 -- ----------------------------------------------------------------------------
-create or replace function plt_privado.fn_parada_json(pa public.plt_paradas_avulsas)
+-- O "quem pode editar" vem nas DUAS leituras das paradas (as Entregas do dia e "Já
+-- programadas"), calculado com o "sou da logística?" que cada porta já sabe UMA vez —
+-- não dentro de fn_parada_json, que roda por parada (o 1º ensaio ×100 com a regra lá
+-- dentro: a leitura do período foi de 36 para 56 ms, uma consulta de permissão por parada).
+create or replace function public.plt_fn_paradas_avulsas(p_de date, p_ate date)
 returns jsonb
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select jsonb_build_object(
-    'id', pa.id, 'data', pa.data_entrega, 'caminhao_id', pa.caminhao_id, 'rota', pa.rota, 'ordem', pa.ordem,
-    'titulo', pa.titulo, 'endereco', pa.endereco, 'latitude', pa.latitude, 'longitude', pa.longitude,
-    'observacao', pa.observacao, 'situacao', pa.situacao,
-    'criada_por', (select u.nome from public.plt_usuarios u where u.id = pa.criada_por),
-    'sou_autor', pa.criada_por = plt_privado.fn_usuario_atual(),
-    'concluida_em', pa.concluida_em, 'nao_feita_motivo', pa.nao_feita_motivo,
-    -- SESSAO-50 (bloco C): quem pode editar — a logística, ou quem pôs a parada; só a
-    -- pendente (provisória: a feita/não feita não se edita). A tela mostra o "Editar".
-    'pode_editar', pa.removida_em is null and pa.situacao = 'pendente'
-                   and (plt_privado.fn_pode_ver_expedicao() or pa.criada_por = plt_privado.fn_usuario_atual()));
+begin
+  if plt_privado.fn_usuario_atual() is null or not plt_privado.fn_pode_ver_expedicao() then
+    raise exception 'As paradas da rota são da logística.' using errcode = 'insufficient_privilege';
+  end if;
+  if p_ate - p_de > 62 then
+    raise exception 'Até dois meses por vez.' using errcode = 'check_violation';
+  end if;
+  return coalesce((
+    select jsonb_agg(plt_privado.fn_parada_json(pa)
+                     -- SESSAO-50 (bloco C): só a logística lê esta porta — ela edita toda parada
+                     -- PENDENTE (a regra da porta de salvar; a feita/não feita não se edita)
+                     || jsonb_build_object('pode_editar', pa.situacao = 'pendente')
+                     order by pa.data_entrega, pa.caminhao_id, pa.rota, pa.ordem nulls last, pa.id)
+      from public.plt_paradas_avulsas pa
+     where pa.data_entrega between p_de and p_ate and pa.removida_em is null), '[]'::jsonb);
+end;
 $$;
+
+CREATE OR REPLACE FUNCTION public.plt_fn_entregas_do_dia(p_data date DEFAULT NULL::date, p_caminhao_id bigint DEFAULT NULL::bigint, p_rota integer DEFAULT NULL::integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_usuario   uuid;
+  v_logistica boolean;
+  v_data      date;
+  v_caminhoes jsonb;
+  v_caminhao  bigint;
+  v_rota      integer;
+  v_entregas  jsonb;
+  v_paradas   jsonb;
+  -- SESSAO-47: o que foi entregue NESTE dia de fato, programado para outro
+  v_outro_dia jsonb;
+  v_ini       timestamptz;
+  v_fim       timestamptz;
+begin
+  v_usuario := plt_privado.fn_usuario_atual();
+  if v_usuario is null then
+    raise exception 'Entre na plataforma para ver as entregas.' using errcode = 'insufficient_privilege';
+  end if;
+  v_logistica := plt_privado.fn_pode_ver_expedicao();
+  if not v_logistica and not plt_privado.fn_eh_entregador(v_usuario) then
+    raise exception 'As entregas do dia são do entregador e da logística.' using errcode = 'insufficient_privilege';
+  end if;
+  v_data := coalesce(p_data, (now() at time zone 'America/Fortaleza')::date);
+
+  -- As rotas do dia: a logística vê todas as programadas; o entregador, as da
+  -- equipe dele (SESSAO-31 · D-128: a equipe é de cada rota).
+  select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'rota', x.rota, 'nome', x.nome, 'placa', x.placa,
+                                               'foto', x.foto_caminho, 'equipe', x.equipe, 'entregas', x.n)
+                            order by x.nome, x.id, x.rota), '[]'::jsonb)
+    into v_caminhoes
+    from (
+      select cam.id, cam.nome, cam.placa, cam.foto_caminho, pr.rota::int as rota, count(pr.id)::int as n,
+             coalesce((select jsonb_agg(u.nome order by u.nome)
+                         from public.plt_programacao_equipes eq join public.plt_usuarios u on u.id = eq.usuario_id
+                        where eq.data_entrega = v_data and eq.caminhao_id = cam.id and eq.rota = pr.rota), '[]'::jsonb) as equipe
+        from public.plt_caminhoes cam
+        join public.plt_programacoes pr on pr.caminhao_id = cam.id and pr.data_entrega = v_data
+       where v_logistica
+          or exists (select 1 from public.plt_programacao_equipes eq
+                      where eq.data_entrega = v_data and eq.caminhao_id = cam.id and eq.rota = pr.rota
+                        and eq.usuario_id = v_usuario)
+       group by cam.id, pr.rota
+    ) x;
+
+  select (t.c ->> 'id')::bigint, (t.c ->> 'rota')::int into v_caminhao, v_rota
+    from jsonb_array_elements(v_caminhoes) with ordinality as t(c, i)
+   where (p_caminhao_id is null or (t.c ->> 'id')::bigint = p_caminhao_id)
+     and (p_rota is null or (t.c ->> 'rota')::int = p_rota)
+   order by t.i
+   limit 1;
+
+  select coalesce(jsonb_agg(e order by (e ->> 'posicao')::int), '[]'::jsonb) into v_entregas
+    from (
+      select jsonb_build_object(
+               'posicao', row_number() over (order by pr.ordem nulls last, p.numero),
+               -- SESSAO-39 (D-174): a ordem salva — a tela numera como "Já programadas"
+               'ordem', pr.ordem,
+               'card_id', pc.id, 'pedido_id', p.id, 'numero', p.numero,
+               'cliente_nome', coalesce(c.nome, ''), 'telefone', c.fone,
+               'endereco', ee.endereco, 'numero_endereco', ee.numero, 'complemento', ee.complemento,
+               'bairro', ee.bairro, 'cidade', ee.cidade, 'uf', ee.uf,
+               'latitude', g.latitude, 'longitude', g.longitude,
+               -- SESSAO-45: o CEP vai ao Google Maps/Waze; o ponto marcado à mão manda na navegação
+               'cep', ee.cep, 'geo_manual', coalesce(g.fonte = 'manual', false),
+               'obs', p.obs, 'detalhe', pr.detalhe, 'data_prevista', plt_privado.fn_data_entrega(p.id, p.data_prevista),
+               'itens', coalesce(i.itens, '[]'::jsonb), 'unidades', coalesce(i.unidades, 0),
+               'volumes', coalesce(i.volumes, 0),
+               -- SESSAO-38 (D-156): o programado pode ainda estar em produção.
+               'estado', pp.estado, 'pronto', coalesce(pp.pronto, true),
+               'prontas', coalesce(pp.unidades_prontas, 0), 'a_entregar', coalesce(pp.a_entregar, 0),
+               -- SESSAO-47: o dia REAL da entrega (a projeção do card), quando ela
+               -- foi REGISTRADA (o "desfazer do dia" conta por aqui) e quando o
+               -- pedido chegou à plataforma (o limite do "entregue no dia...")
+               'entregue_em', pc.entrega_em, 'entregue_por', ue.nome,
+               'entregue_no_dia', plt_privado.fn_dia_da_entrega(pc.entrega_em),
+               'entrega_registrada_em', ent.registrado_em,
+               'chegou_em', pc.criado_em,
+               -- SESSAO-41 (D-195): a entrega foi PARCIAL
+               'entrega_parcial', coalesce((ent.dados ->> 'parcial')::boolean, false),
+               'entregue_por_gente', ent.usuario_id is not null,
+               'comprovantes', (select count(*) from public.plt_anexos a where a.card_id = pc.id and a.removido_em is null),
+               'comentarios', coalesce((select jsonb_agg(jsonb_build_object('texto', cm.observacao, 'por', uc.nome, 'em', cm.ocorrido_em)
+                                                         order by cm.id desc)
+                                          from (select * from public.plt_eventos ev
+                                                 where ev.card_id = pc.id and ev.tipo = 'comentario_adicionado'
+                                                 order by ev.id desc limit 5) cm
+                                          left join public.plt_usuarios uc on uc.id = cm.usuario_id), '[]'::jsonb)
+             ) as e
+        from public.plt_programacoes pr
+        join public.plt_cards pc on pc.id = pr.card_id and pc.tipo = 'pedido'
+        join public.pedidos p on p.id = pc.pedido_id
+        left join public.clientes c on c.id = p.cliente_id
+      left join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
+        left join public.plt_geocache g
+               on g.chave = md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep)))
+        left join public.plt_eventos ent on ent.id = pc.entrega_evento_id
+        left join public.plt_usuarios ue on ue.id = ent.usuario_id
+        left join plt_privado.vw_pedido_prontidao pp on pp.card_id = pc.id
+        left join lateral (
+          -- D-63: o frete não aparece; os volumes vêm do cadastro do Tiny (vazio ou 0 = 1 por móvel).
+          select jsonb_agg(jsonb_build_object('descricao', coalesce(nullif(btrim(v.descricao), ''), 'Item sem descrição'),
+                                              'quantidade', v.unidades,
+                                              'volumes', v.unidades * x.vol) order by v.seq) as itens,
+                 sum(v.unidades)::int as unidades,
+                 sum(v.unidades * x.vol)::int as volumes
+            from plt_privado.vw_itens_producao v
+            cross join lateral (
+              select greatest(coalesce(nullif(regexp_replace(coalesce(pr2.raw ->> 'qtd_volumes', ''), '[^0-9]', '', 'g'), '')::int, 1), 1) as vol
+                from (select plt_privado.fn_produto_do_item(v.codigo, v.descricao) as tiny_id) t
+                left join public.produtos pr2 on pr2.tiny_id = t.tiny_id
+            ) x
+           where v.pedido_id = p.id and not v.eh_frete and v.unidades > 0
+        ) i on true
+       where pr.data_entrega = v_data and pr.caminhao_id = v_caminhao and pr.rota = v_rota
+         -- SESSAO-38 (ajuste): a entrega do dia aparece mesmo quando o card saiu com ela
+         and (pc.arquivado_em is null or pc.entrega_evento_id is not null)
+    ) s;
+
+  -- SESSAO-41 (D-196): as paradas avulsas da rota, na mesma ordem dos pedidos
+  select coalesce(jsonb_agg(plt_privado.fn_parada_json(pa)
+                            -- SESSAO-50 (bloco C): quem pode editar — a logística, ou quem pôs a
+                            -- parada; só a pendente (a regra da porta de salvar) — o "Editar" da tela
+                            || jsonb_build_object('pode_editar', pa.situacao = 'pendente'
+                                                  and (v_logistica or pa.criada_por = v_usuario))
+                            order by pa.ordem nulls last, pa.id), '[]'::jsonb)
+    into v_paradas
+    from public.plt_paradas_avulsas pa
+   where pa.data_entrega = v_data and pa.caminhao_id = v_caminhao and pa.rota = v_rota and pa.removida_em is null;
+
+  -- SESSAO-47: os pedidos cujo dia REAL de entrega é este, programados para
+  -- OUTRO dia (a logística vê todos; o entregador, os das rotas da equipe
+  -- dele). A parada continua também na rota em que estava programada — é lá
+  -- que quem registrou desfaz. Pelo índice do dia da entrega; teto de 100.
+  v_ini := v_data::timestamp at time zone 'America/Fortaleza';
+  v_fim := (v_data + 1)::timestamp at time zone 'America/Fortaleza';
+  select coalesce(jsonb_agg(x.e order by x.em, x.numero), '[]'::jsonb) into v_outro_dia
+    from (
+      select pc.entrega_em as em, p.numero,
+             jsonb_build_object(
+               'card_id', pc.id, 'pedido_id', p.id, 'numero', p.numero,
+               'cliente_nome', coalesce(c.nome, ''),
+               'entregue_em', pc.entrega_em, 'entrega_registrada_em', ent.registrado_em,
+               'entregue_por', ue.nome, 'entregue_por_gente', ent.usuario_id is not null,
+               'entrega_parcial', coalesce((ent.dados ->> 'parcial')::boolean, false),
+               'programado_para', pr.data_entrega, 'caminhao_nome', cam.nome, 'rota', pr.rota::int) as e
+        from public.plt_cards pc
+        join public.plt_programacoes pr on pr.card_id = pc.id
+        join public.pedidos p on p.id = pc.pedido_id
+        left join public.clientes c on c.id = p.cliente_id
+        left join public.plt_caminhoes cam on cam.id = pr.caminhao_id
+        left join public.plt_eventos ent on ent.id = pc.entrega_evento_id
+        left join public.plt_usuarios ue on ue.id = ent.usuario_id
+       where pc.tipo = 'pedido'
+         and pc.entrega_em >= v_ini and pc.entrega_em < v_fim
+         and pr.data_entrega <> v_data
+         and (v_logistica
+              or exists (select 1 from public.plt_programacao_equipes eq
+                          where eq.data_entrega = pr.data_entrega and eq.caminhao_id = pr.caminhao_id
+                            and eq.rota = pr.rota and eq.usuario_id = v_usuario))
+       order by pc.entrega_em, p.numero
+       limit 100
+    ) x;
+
+  return jsonb_build_object('data', v_data, 'caminhao_id', v_caminhao, 'rota', v_rota, 'caminhoes', v_caminhoes,
+                            'entregas', v_entregas, 'paradas_avulsas', v_paradas, 'sou_logistica', v_logistica,
+                            'entregues_de_outro_dia', v_outro_dia);
+end;
+$function$;
 
 create or replace function public.plt_fn_parada_avulsa_salvar(
   p_id          bigint,
