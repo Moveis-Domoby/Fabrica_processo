@@ -16270,7 +16270,10 @@ try {
                      '20261111050000_plt_abertura_motivo.sql',
                      // ↪️ SESSAO-50 (E-19): a base recria o check dos tipos de evento (com os do excluído no
                      // Tiny, do cancelar/ocultar no PCP e do endereço) e o VALIDA — a da 48 acima já não valida
-                     '20261112010000_plt_sessao50_base.sql']) {
+                     '20261112010000_plt_sessao50_base.sql',
+                     // ↪️ SESSAO-50 · bloco A: a frente do card (com a observação do item) — as de cima
+                     // a recriam na versão da 48
+                     '20261112050000_plt_observacao_do_item.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
@@ -23928,6 +23931,378 @@ conferir(
   'uma porta de abertura só (a de 2 argumentos saiu — sem sobrecarga), de quem está logado (anônimo fora), e ela continua rodando como quem chama',
   JSON.stringify(prF5))
 } // fim do bloco SESSAO-48 · frente 5
+
+// ============================================================================
+// SESSAO-50 · BLOCO A (migration 20261112050000): a observação do ITEM do Tiny
+// (raw.itens[].item.info_adicional — "adicionar rodízios") guardada por gatilho
+// em plt_itens_observacao e na frente do card (quadro do setor, "Ver mais", o
+// tablet e a janela). Faixa: pedidos 99610–99649 · produtos 9960001…9960099.
+// ============================================================================
+{ // SESSAO-50 · bloco A (escopo próprio — E-70)
+titulo('SESSAO-50 · bloco A · a observação do item é guardada limpa, na posição do item, por gatilho')
+
+// E-81: blocos de cima reaplicam migrations antigas que recriam a frente do card
+// na versão da 48 — a base da 50 e a do bloco A de novo, na ordem de produção.
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261112010000_plt_sessao50_base.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261112050000_plt_observacao_do_item.sql'), 'utf8'))
+
+const um50a = async (sql) => (await bd.query(sql)).rows[0]
+const todos50a = async (sql) => (await bd.query(sql)).rows
+const como50a = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j50a = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const item50a = (codigo, descricao, qtd = '1.00', info = undefined) => ({
+  item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00',
+          ...(info === undefined ? {} : { info_adicional: info }) },
+})
+const pedido50a = (numero, itens, extra = {}) => ({
+  id: String(7950000 + (numero % 1000)), numero: String(numero), data_pedido: '10/11/2026', data_prevista: '30/11/2026',
+  situacao: 'Preparando envio', total_produtos: '300.00', total_pedido: '300.00', valor_frete: '0.00', forma_pagamento: 'pix',
+  meio_pagamento: '', forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: 'Cliente vai pagar na entrega.',
+  obs_interna: '', nome_vendedor: 'Vendedora 50A', codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: `Cliente Teste 50A ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste 50', numero: '50', complemento: '', bairro: 'Centro', cep: '59000-500', cidade: 'Natal',
+             uf: 'RN', fone: '84999995050', email: '' },
+  itens,
+  ...extra,
+})
+// a gravação do Tiny + o gatilho adiado dos itens disparado como no COMMIT (E-175)
+const gravar50a = async (p, tipo = 'atualizacao_pedido') => {
+  const id = (await um50a(`select public.fn_upsert_pedido(p => ${j50a(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+// um "mudou" por área por transação (fn_avisar) — o teste roda numa transação só:
+// zera a marca e os sinais antes de cada gravação que vai conferir os avisos
+const zerarAvisos50a = () => bd.exec(`
+  delete from realtime.messages;
+  select set_config('plt.avisado_' || a, '', true)
+    from (select 'setor_' || s.id as a from public.plt_setores s union all select 'pcp') x;`)
+// jsonb com as chaves em ordem (para comparar por igualdade)
+const canonico50a = (v) => (Array.isArray(v) ? v.map(canonico50a)
+  : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonico50a(v[k])])) : v)
+const ESTANTE50A = ['S50AE', 'Estante Basic 10 nichos Teste 50A - Branca']
+const MESA50A = ['S50AM', 'Mesa Teste 50A - Preta']
+const CADEIRA50A = ['S50AC', 'Cadeira Teste 50A - Freijó']
+const LONGA50A = 'Sob medida: 1,20 m de largura x 0,45 m de profundidade, cor freijó com branco neve, puxador cava, ' +
+  'cliente não quer rodinhas e pediu a prateleira do meio removível'
+// o card sem a chave nova (e que existe — o undefined não passa)
+const semChave50a = (c) => c !== undefined && c !== null && !('observacao_item' in c)
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (9960001, 'S50AE', 'Estante Basic 10 nichos Teste 50A - Branca', 'F', 'A', 'un'),
+      (9960002, 'S50AM', 'Mesa Teste 50A - Preta', 'F', 'A', 'un'),
+      (9960003, 'S50AC', 'Cadeira Teste 50A - Freijó', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;`)
+  const montagem = (await um50a(`select id::int as id from public.plt_setores where codigo = 'montagem'`)).id
+  let fila = (await um50a(`select id::int as id from public.plt_etapas where setor_id = ${montagem} and eh_fila and ativa order by ordem, id limit 1`))?.id
+  if (!fila) {
+    await bd.exec(`insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values (${montagem}, 'A MONTAR 50A', 1, true)`)
+    fila = (await um50a(`select id::int as id from public.plt_etapas where setor_id = ${montagem} and nome = 'A MONTAR 50A'`)).id
+  }
+  const cardDe = async (pedidoId) => (await um50a(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  // a peça nasce na fila da MONTAGEM, como a liberação do PCP faz (o retrato do item no card)
+  const peca = async (pedidoId, pai, seq, k, n, [codigo, descricao]) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, produto_tiny_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pedidoId ?? 'null'}, ${pai ?? 'null'},
+                ${pedidoId ? 'null' : `(select tiny_id from public.produtos where codigo = '${codigo}')`},
+                ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${montagem}, ${fila}, 'api');`)
+    return (await um50a(`select max(id)::int as id from public.plt_cards where tipo = 'unidade'`)).id
+  }
+  const obs = async (pedidoId) =>
+    todos50a(`select seq, texto from public.plt_itens_observacao where pedido_id = ${pedidoId} order by seq`)
+  // o quadro da MONTAGEM como o admin vê (o filtro pelo número traz só o pedido do teste)
+  const quadro = async (numero) => {
+    await como50a(E40.admin)
+    try {
+      const q = (await um50a(`select public.plt_fn_quadro_setor(${montagem}, 50, null, '${numero}') as q`)).q
+      return q.colunas.flatMap((c) => c.cards)
+    } finally {
+      await como50a('')
+    }
+  }
+  const verMais = async (numero) => {
+    await como50a(E40.admin)
+    try {
+      return (await um50a(`select public.plt_fn_quadro_coluna(${montagem}, ${fila}, null, 0, 10, null, '${numero}') as c`)).c.cards
+    } finally {
+      await como50a('')
+    }
+  }
+  const janela = async (cardId) => {
+    await como50a(E40.admin)
+    try {
+      return (await um50a(`select public.plt_fn_card_janela(${cardId}) as j`)).j
+    } finally {
+      await como50a('')
+    }
+  }
+  const doCard = (cards, id) => cards.find((c) => c.id === id)
+  // a regra é a da SESSAO-44: o texto que cada peça mostra = a observação da vaga que a fn_vagas_pedido lhe dá
+  const bateComAsVagas = async (pedidoId, ids) => {
+    const vagas = await todos50a(`select w.card_id::int as card, w.seq from plt_privado.fn_vagas_pedido(${pedidoId}) w where w.card_id is not null`)
+    const textos = await obs(pedidoId)
+    const frente = (await um50a(`select plt_privado.fn_quadro_cards(array[${ids}]::bigint[]) as q`)).q
+    return frente.every((c) => {
+      const v = vagas.find((x) => x.card === c.id)
+      const esperado = v ? (textos.find((o) => o.seq === v.seq)?.texto ?? null) : null
+      return esperado === null ? !('observacao_item' in c) : c.observacao_item === esperado
+    })
+  }
+
+  // ---------------- 1 · guardar: limpo, na posição, só o que tem ----------------
+  const id1 = await gravar50a(pedido50a(99610, [
+    item50a(...ESTANTE50A, '1.00', 'adicionar rodízios '),
+    item50a(...ESTANTE50A, '1.00', ''),
+    item50a(...MESA50A, '1.00', '  COM   \n RODINHAS\t'),
+  ]), 'inclusao_pedido')
+  const o1 = await obs(id1)
+  const itens1 = await todos50a(`select seq, codigo from public.pedido_itens where pedido_id = ${id1} order by seq`)
+  // um item só chega como OBJETO (não lista); o texto com entidades de HTML; o longo (162)
+  const id2 = await gravar50a(pedido50a(99611, { item: item50a(...MESA50A, '1.00', 'Prateleira &quot;extra&quot; &amp; puxador cava').item }), 'inclusao_pedido')
+  const id3 = await gravar50a(pedido50a(99612, [item50a(...ESTANTE50A, '2.00', LONGA50A)]), 'inclusao_pedido')
+  const o2 = await obs(id2)
+  const o3 = await obs(id3)
+  conferir(
+    o1.length === 2 && o1[0].seq === 1 && o1[0].texto === 'adicionar rodízios' && o1[1].seq === 3 && o1[1].texto === 'COM RODINHAS'
+      && itens1.length === 3 && itens1[0].codigo === 'S50AE' && itens1[2].codigo === 'S50AM'
+      && o2.length === 1 && o2[0].seq === 1 && o2[0].texto === 'Prateleira "extra" & puxador cava'
+      && o3.length === 1 && o3[0].texto === LONGA50A && LONGA50A.length === 162,
+    'o Tiny grava o pedido: a observação de cada item fica guardada na posição do item (a mesma de pedido_itens), sem espaço nas pontas, espaços e quebras repetidos viram um, vazio não tem linha; item único (objeto) e entidades de HTML também; os 162 caracteres inteiros',
+    JSON.stringify({ o1, itens1, o2, o3 }))
+
+  // ---------------- 2 · onde aparece: cada peça mostra a do SEU item ----------------
+  titulo('SESSAO-50 · bloco A · a frente do card (quadro, "Ver mais", janela): cada peça mostra a do seu item; sem observação, nada muda')
+  const card1 = await cardDe(id1)
+  const e1 = await peca(id1, card1, 1, 1, 1, ESTANTE50A)
+  const e2 = await peca(id1, card1, 2, 1, 1, ESTANTE50A)
+  const m1 = await peca(id1, card1, 3, 1, 1, MESA50A)
+  const q1 = await quadro(99610)
+  const v1 = await verMais(99610)
+  const j1 = await janela(e1)
+  const j2 = await janela(e2)
+  const jPedido = await janela(card1)
+  conferir(
+    doCard(q1, e1)?.observacao_item === 'adicionar rodízios' && semChave50a(doCard(q1, e2))
+      && doCard(q1, m1)?.observacao_item === 'COM RODINHAS'
+      && doCard(v1, e1)?.observacao_item === 'adicionar rodízios' && semChave50a(doCard(v1, e2))
+      && j1?.card?.observacao_item === 'adicionar rodízios' && semChave50a(j2?.card)
+      && semChave50a(jPedido?.card),
+    'duas estantes iguais, só uma com rodízios: no quadro da MONTAGEM, no "Ver mais" e na janela, cada peça mostra a observação do SEU item (a outra estante não ganha a chave); a mesa mostra a dela; o card do pedido não tem a chave',
+    JSON.stringify({ q1: q1.map((c) => [c.id, c.item_seq, c.observacao_item ?? null]), v1: v1.map((c) => [c.id, c.observacao_item ?? null]) }))
+
+  // a frente de antes (a da 48) × a de agora: tirando a chave nova, igual letra por letra
+  const base48 = (await readFile(path.join(MIGRATIONS, '20261111010000_plt_sessao48_base.sql'), 'utf8')).replace(/\r\n/g, '\n')
+  const ini48 = base48.indexOf('create or replace function plt_privado.fn_quadro_cards(p_ids bigint[])')
+  const fim48 = base48.indexOf('\n$$;', ini48) + 4
+  await bd.exec(base48.slice(ini48, fim48).replace('plt_privado.fn_quadro_cards(p_ids bigint[])', 'plt_privado.fn_quadro_cards_antes50a(p_ids bigint[])'))
+  const ids1 = [e1, e2, m1, card1]
+  const comp = await um50a(`select plt_privado.fn_quadro_cards_antes50a(array[${ids1}]::bigint[]) as a, plt_privado.fn_quadro_cards(array[${ids1}]::bigint[]) as d`)
+  const semAChave = comp.d.map((c) => { const x = { ...c }; delete x.observacao_item; return x })
+  conferir(
+    ini48 > 0 && comp.a.length >= 3 && comp.a.length === comp.d.length
+      && JSON.stringify(canonico50a(comp.a)) === JSON.stringify(canonico50a(semAChave))
+      && comp.d[1]?.id === e2 && JSON.stringify(canonico50a(comp.a[1])) === JSON.stringify(canonico50a(comp.d[1])),
+    'a frente do card é a mesma de antes — só a chave "observacao_item" a mais, e só na peça que tem observação (a estante sem observação e o card do pedido saem idênticos)',
+    JSON.stringify({ antes: comp.a.map((c) => Object.keys(c).length), depois: comp.d.map((c) => Object.keys(c).length) }))
+  const regraVazia = await um50a(`select count(*)::int as n from plt_privado.fn_observacao_das_unidades('{}'::bigint[])`)
+  conferir(regraVazia.n === 0 && await bateComAsVagas(id1, [e1, e2, m1]),
+    'a regra devolve só o que bate com o casamento da SESSAO-44 (a vaga que a peça cobre); página vazia, nada',
+    JSON.stringify(regraVazia))
+
+  // ---------------- 3 · o Tiny reordena (e depois insere) itens depois da liberação ----------------
+  titulo('SESSAO-50 · bloco A · o Tiny reordena ou insere itens depois da liberação: a peça segue o produto, não a posição')
+  await gravar50a(pedido50a(99610, [
+    item50a(...MESA50A, '1.00', 'COM RODINHAS'),
+    item50a(...ESTANTE50A, '1.00', 'adicionar rodízios'),
+    item50a(...ESTANTE50A, '1.00', ''),
+  ]))
+  const fatosReordem = await um50a(`select count(*)::int as n from public.plt_eventos where card_id = ${card1} and tipo = 'pedido_itens_alterados'`)
+  const q3 = await quadro(99610)
+  const est3 = [doCard(q3, e1), doCard(q3, e2)]
+  const bate3 = await bateComAsVagas(id1, [e1, e2, m1])
+  await gravar50a(pedido50a(99610, [
+    item50a(...CADEIRA50A, '1.00', ''),
+    item50a(...MESA50A, '1.00', 'COM RODINHAS'),
+    item50a(...ESTANTE50A, '1.00', 'adicionar rodízios'),
+    item50a(...ESTANTE50A, '1.00', ''),
+  ]))
+  const q4 = await quadro(99610)
+  const est4 = [doCard(q4, e1), doCard(q4, e2)]
+  const bate4 = await bateComAsVagas(id1, [e1, e2, m1])
+  conferir(
+    fatosReordem.n === 0
+      && doCard(q3, m1)?.observacao_item === 'COM RODINHAS' && est3.filter((c) => c?.observacao_item === 'adicionar rodízios').length === 1
+      && est3.filter((c) => semChave50a(c)).length === 1 && bate3
+      && doCard(q4, m1)?.observacao_item === 'COM RODINHAS' && est4.filter((c) => c?.observacao_item === 'adicionar rodízios').length === 1
+      && bate4,
+    'reordenar os itens não é item novo (nenhum fato); a mesa leva a observação dela para a posição nova, e só UMA das duas estantes mostra os rodízios — a que o casamento da SESSAO-44 põe na vaga do item com rodízios (o mesmo do PCP); com um item inserido no meio, idem',
+    JSON.stringify({ q3: q3.map((c) => [c.id, c.item_seq, c.observacao_item ?? null]), q4: q4.map((c) => [c.id, c.item_seq, c.observacao_item ?? null]) }))
+
+  // ---------------- 4 · só a observação muda: ao vivo, sem reabrir o PCP ----------------
+  titulo('SESSAO-50 · bloco A · mudar só a observação no Tiny: o card muda ao vivo e o PCP não reabre')
+  const card3 = await cardDe(id3)
+  const a1 = await peca(id3, card3, 1, 1, 2, ESTANTE50A)
+  const a2 = await peca(id3, card3, 1, 2, 2, ESTANTE50A)
+  await bd.exec(`select plt_privado.fn_recalcular_liberacao(${id3})`)
+  const antes4 = await um50a(`select liberado_completo_em::text as lib, pcp_aviso_em is null as sem_aviso from public.plt_cards where id = ${card3}`)
+  await zerarAvisos50a()
+  await gravar50a(pedido50a(99612, [item50a(...ESTANTE50A, '2.00', 'adicionar rodízios')]))
+  const o4 = await obs(id3)
+  const sinais4 = await todos50a(`select topic, event, payload from realtime.messages order by topic`)
+  const depois4 = await um50a(`select liberado_completo_em::text as lib, pcp_aviso_em is null as sem_aviso,
+                                      (select count(*)::int from public.plt_eventos e where e.card_id = ${card3} and e.tipo = 'pedido_itens_alterados') as fatos
+                                 from public.plt_cards where id = ${card3}`)
+  const q5 = await quadro(99612)
+  conferir(
+    antes4.lib !== null && o4.length === 1 && o4[0].texto === 'adicionar rodízios'
+      && depois4.lib === antes4.lib && depois4.sem_aviso && depois4.fatos === 0
+      && sinais4.some((s) => s.topic === `plt-aviso:setor_${montagem}` && s.event === 'mudou')
+      && sinais4.some((s) => s.topic === `plt-card:${a1}` && s.event === 'card_mudou' && s.payload.card_id === a1)
+      && sinais4.some((s) => s.topic === `plt-card:${a2}` && s.event === 'card_mudou')
+      && sinais4.some((s) => s.topic === 'plt-aviso:pcp' && s.event === 'mudou')
+      && doCard(q5, a1)?.observacao_item === 'adicionar rodízios' && doCard(q5, a2)?.observacao_item === 'adicionar rodízios',
+    'o Tiny troca só a observação de um pedido já liberado: nenhum fato de item novo, a liberação completa fica como estava, nenhum aviso no PCP; os quadros do setor, a janela de cada peça (canal do card) e o PCP recebem o "mudou"; as DUAS unidades do item mostram a nova',
+    JSON.stringify({ antes4, depois4, o4, sinais4: sinais4.map((s) => `${s.topic}:${s.event}`) }))
+
+  // tirar a observação no Tiny; regravar igual; mudar outra coisa do pedido
+  await zerarAvisos50a()
+  await gravar50a(pedido50a(99612, [item50a(...ESTANTE50A, '2.00', '   ')]))
+  const o5 = await obs(id3)
+  const sinais5 = await todos50a(`select topic, event from realtime.messages where event = 'card_mudou'`)
+  const q6 = await quadro(99612)
+  await zerarAvisos50a()
+  await gravar50a(pedido50a(99612, [item50a(...ESTANTE50A, '2.00', '   ')]))
+  const sinais6 = await todos50a(`select topic, event from realtime.messages
+                                    where event = 'card_mudou' or topic like 'plt-aviso:setor_%' or topic = 'plt-aviso:pcp'`)
+  await gravar50a(pedido50a(99612, [item50a(...ESTANTE50A, '2.00', '   ')], { data_prevista: '05/12/2026' }))
+  const sinais7 = await todos50a(`select topic, event from realtime.messages where event = 'card_mudou'`)
+  conferir(
+    o5.length === 0 && sinais5.length === 2 && semChave50a(doCard(q6, a1)) && semChave50a(doCard(q6, a2))
+      && sinais6.length === 0 && sinais7.length === 0,
+    'a observação apagada no Tiny some do card (a linha sai e as janelas abertas releem); o Tiny mandando o mesmo pedido de novo não faz nada; mudar outra coisa do pedido (a data) não mexe na observação',
+    JSON.stringify({ o5, sinais5, sinais6, sinais7 }))
+
+  // ---------------- 5 · a peça de item que saiu do pedido; peça sem pedido ----------------
+  titulo('SESSAO-50 · bloco A · peça de item que saiu do pedido e peça sem pedido não mostram observação')
+  const id5 = await gravar50a(pedido50a(99613, [item50a(...ESTANTE50A, '1.00', 'COM RODINHAS'), item50a(...MESA50A, '1.00', '')]), 'inclusao_pedido')
+  const card5 = await cardDe(id5)
+  const s1 = await peca(id5, card5, 1, 1, 1, ESTANTE50A)
+  const s2 = await peca(id5, card5, 2, 1, 1, MESA50A)
+  const antesSair = await janela(s1)
+  await gravar50a(pedido50a(99613, [item50a(...MESA50A, '1.00', '')]))
+  const depoisSair = await janela(s1)
+  const semPedido = await peca(null, null, 1, 1, 1, ESTANTE50A)
+  const reposicao = await um50a(`select plt_privado.fn_quadro_cards(array[${semPedido}]::bigint[]) -> 0 as c`)
+  const obs5 = await obs(id5)
+  const janelaMesa = await janela(s2)
+  conferir(
+    antesSair?.card?.observacao_item === 'COM RODINHAS' && semChave50a(depoisSair?.card)
+      && obs5.length === 0 && semChave50a(janelaMesa?.card) && semChave50a(reposicao?.c),
+    'o Tiny tirou o item (a estante com rodízios): a peça que sobrou não mostra mais a observação (o item não existe no pedido); a peça sem pedido nunca tem a chave',
+    JSON.stringify({ antes: antesSair.card.observacao_item, depois: depoisSair.card.observacao_item ?? null }))
+
+  // ---------------- 6 · a gravação do Tiny nunca cai por causa da observação ----------------
+  titulo('SESSAO-50 · bloco A · blindagem: a observação que não grava vira aviso de automação e o pedido do Tiny é gravado')
+  // o aviso de erro chega a quem o ligou (D-202): o admin do teste liga
+  await bd.exec(`update public.plt_usuarios set avisos = coalesce(avisos, '{}'::jsonb) || '{"automacao_erro": true}'::jsonb
+                  where auth_user_id = '${E40.admin}'`)
+  await bd.exec(`alter table public.plt_itens_observacao add constraint teste50a_quebra check (texto <> 'QUEBRA 50A') not valid`)
+  const id6 = await gravar50a(pedido50a(99614, [item50a(...MESA50A, '1.00', 'QUEBRA 50A')]), 'inclusao_pedido')
+  await gravar50a(pedido50a(99614, [item50a(...MESA50A, '2.00', 'QUEBRA 50A')]))
+  const ped6 = await um50a(`select p.raw -> 'itens' -> 0 -> 'item' ->> 'quantidade' as qtd,
+                                   (select count(*)::int from public.pedido_itens i where i.pedido_id = p.id) as itens,
+                                   (select count(*)::int from public.plt_itens_observacao o where o.pedido_id = p.id) as obs
+                              from public.pedidos p where p.id = ${id6}`)
+  const alerta6 = await um50a(`
+    select (select count(*)::int from public.plt_logs_atividade l
+             where l.acao = 'automacao_erro' and l.contexto ->> 'aviso_id' = 'observacao_itens:${id6}') as registros,
+           (select count(*)::int from public.plt_notificacoes n
+             where n.tipo = 'automacao_erro' and n.titulo = 'Não deu para guardar a observação dos itens do pedido 99614') as sinos,
+           (select count(*)::int from public.plt_usuarios u
+             where u.ativo and u.arquivado_em is null and not u.conta_tablet and (u.papel = 'admin' or u.super_admin)
+               and plt_privado.fn_aviso_ligado('automacao_erro', u.id)) as admins`)
+  await bd.exec(`alter table public.plt_itens_observacao drop constraint teste50a_quebra`)
+  conferir(
+    ped6?.qtd === '2.00' && ped6.itens === 1 && ped6.obs === 0
+      && alerta6.registros === 2 && alerta6.sinos === alerta6.admins && alerta6.admins >= 1,
+    'a observação que não grava: o pedido do Tiny é gravado igual (o raw e os itens novos), a falha fica no registro a cada vez e o sino dos administradores toca UMA vez por hora por pedido',
+    JSON.stringify({ ped6, alerta6 }))
+
+  // ---------------- 7 · o preenchimento dos antigos ----------------
+  titulo('SESSAO-50 · bloco A · o preenchimento dos antigos: o ensaio conta e não grava; aplicado, igual ao Tiny; de novo, nada')
+  // os pedidos de antes da atualização: gravados sem o gatilho (como estão no banco hoje)
+  await bd.exec(`set session_replication_role = replica`)
+  const raw7a = pedido50a(99615, [item50a(...ESTANTE50A, '1.00', 'FECHADURA NA PRIMEIRA GAVETA'), item50a(...MESA50A, '1.00', ' Adicionar uma prateleira removível no vão superior ')])
+  const raw7b = pedido50a(99616, [item50a(...MESA50A, '1.00', 'COM RODINHAS')])
+  await bd.exec(`
+    insert into public.pedidos (numero, situacao, origem, tiny_id, raw)
+      values (99615, 'Em aberto', 'webhook', 7950615, ${j50a(raw7a)}), (99616, 'Em aberto', 'webhook', 7950616, ${j50a(raw7b)});`)
+  await bd.exec(`set session_replication_role = origin`)
+  const id7a = (await um50a(`select id::int as id from public.pedidos where numero = 99615`)).id
+  const id7b = (await um50a(`select id::int as id from public.pedidos where numero = 99616`)).id
+  // o que sobrou de antes: uma linha velha que o Tiny não tem mais e uma com o texto antigo
+  await bd.exec(`insert into public.plt_itens_observacao (pedido_id, seq, texto) values (${id7a}, 9, 'sobrou'), (${id7b}, 1, 'texto velho')`)
+  const PREENCHER = await readFile(path.join(RAIZ, 'supabase/manutencao/2026-11-12_observacao_dos_itens.sql'), 'utf8')
+  const ensaiar = async () => {
+    let msg = ''
+    await bd.exec('savepoint ens50a')
+    try {
+      await bd.exec(PREENCHER)
+    } catch (erro) {
+      msg = erro.message
+    } finally {
+      await bd.exec('rollback to savepoint ens50a')
+    }
+    const marca = 'ENSAIO (nada gravado): '
+    return msg.includes(marca) ? JSON.parse(msg.slice(msg.indexOf(marca) + marca.length)) : { erro: msg }
+  }
+  const ens1 = await ensaiar()
+  const depoisDoEnsaio = (await obs(id7a)).concat(await obs(id7b))
+  await bd.exec(`select set_config('plt.acerto_s50_obs', 'aplicar', false)`)
+  await bd.exec(PREENCHER)
+  await bd.exec(`select set_config('plt.acerto_s50_obs', '', false)`)
+  const a7 = await obs(id7a)
+  const b7 = await obs(id7b)
+  const ens2 = await ensaiar()
+  const o6 = await obs(id6)
+  // falta: os 2 do 99615 e o 99614 (o da blindagem, que não gravou); texto velho: o 99616; sobra: o item 9 do 99615
+  conferir(
+    ens1.inseridos === 3 && ens1.trocados === 1 && ens1.tirados === 1 && ens1.pedidos_mexidos === 3
+      && ens1.depois.guardados_iguais_ao_tiny === ens1.antes.itens_com_observacao_no_tiny
+      && ens1.antes.guardados_iguais_ao_tiny === ens1.antes.itens_com_observacao_no_tiny - 4
+      && ens1.depois.guardados_na_plataforma === ens1.antes.itens_com_observacao_no_tiny
+      && depoisDoEnsaio.length === 2 && depoisDoEnsaio.some((o) => o.texto === 'sobrou')
+      && a7.length === 2 && a7[0].texto === 'FECHADURA NA PRIMEIRA GAVETA' && a7[1].texto === 'Adicionar uma prateleira removível no vão superior'
+      && b7.length === 1 && b7[0].texto === 'COM RODINHAS' && o6.length === 1 && o6[0].texto === 'QUEBRA 50A'
+      && ens2.inseridos === 0 && ens2.trocados === 0 && ens2.tirados === 0 && ens2.pedidos_mexidos === 0,
+    'o preenchimento: o ensaio conta o que o Tiny tem × o que a plataforma guarda e não grava nada; aplicado, insere o que falta (também o pedido cuja observação não tinha gravado), troca o texto velho e tira o que sobrou; rodar de novo não muda nada',
+    JSON.stringify({ ens1, depoisDoEnsaio, a7, b7, o6, ens2 }))
+
+  // ---------------- 8 · permissões ----------------
+  const pr50a = await um50a(`
+    select has_table_privilege('authenticated', 'public.plt_itens_observacao', 'select') as tabela_logado,
+           has_table_privilege('anon', 'public.plt_itens_observacao', 'select') as tabela_anon,
+           has_function_privilege('authenticated', 'plt_privado.fn_observacao_das_unidades(bigint[])', 'execute') as regra,
+           has_function_privilege('authenticated', 'plt_privado.fn_itens_observacao_do_raw(jsonb)', 'execute') as raw,
+           has_function_privilege('authenticated', 'plt_privado.fn_observacao_avisar(bigint)', 'execute') as avisar,
+           has_function_privilege('authenticated', 'plt_privado.fn_quadro_cards(bigint[])', 'execute') as frente,
+           (select count(*)::int from pg_trigger t where t.tgrelid = 'public.pedidos'::regclass
+               and t.tgname in ('plt_pedidos_observacao_itens_ins', 'plt_pedidos_observacao_itens_upd')) as gatilhos`)
+  conferir(
+    !pr50a.tabela_logado && !pr50a.tabela_anon && !pr50a.regra && !pr50a.raw && !pr50a.avisar && !pr50a.frente && pr50a.gatilhos === 2,
+    'a observação só sai pelas portas (a tabela e as regras fora da API); os dois gatilhos do pedido no lugar',
+    JSON.stringify(pr50a))
+} finally {
+  await bd.exec('rollback')
+  await como50a('')
+}
+} // fim do bloco SESSAO-50 · bloco A
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
