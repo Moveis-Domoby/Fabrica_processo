@@ -155,7 +155,9 @@ as $$
 $$;
 
 -- O resumo de um endereço para comparar ("o Tiny mudou?", "é o que a plataforma
--- pediu?"): sem caixa, sem espaço sobrando, o CEP só com os números.
+-- pediu?"): cada parte pela régua de nome da casa (fn_nome_comparavel: sem
+-- acento, sem caixa, sem espaço — não depende da língua do banco) e o CEP só
+-- com os números.
 create or replace function plt_privado.fn_endereco_assinatura(p jsonb)
 returns text
 language sql
@@ -163,12 +165,12 @@ immutable
 set search_path = public, pg_temp
 as $$
   select md5(concat_ws('|',
-    lower(regexp_replace(btrim(coalesce(p ->> 'endereco', '')), '\s+', ' ', 'g')),
-    lower(regexp_replace(btrim(coalesce(p ->> 'numero', '')), '\s+', ' ', 'g')),
-    lower(regexp_replace(btrim(coalesce(p ->> 'complemento', '')), '\s+', ' ', 'g')),
-    lower(regexp_replace(btrim(coalesce(p ->> 'bairro', '')), '\s+', ' ', 'g')),
-    lower(regexp_replace(btrim(coalesce(p ->> 'cidade', '')), '\s+', ' ', 'g')),
-    lower(regexp_replace(coalesce(p ->> 'uf', ''), '\s', '', 'g')),
+    plt_privado.fn_nome_comparavel(p ->> 'endereco'),
+    plt_privado.fn_nome_comparavel(p ->> 'numero'),
+    plt_privado.fn_nome_comparavel(p ->> 'complemento'),
+    plt_privado.fn_nome_comparavel(p ->> 'bairro'),
+    plt_privado.fn_nome_comparavel(p ->> 'cidade'),
+    plt_privado.fn_nome_comparavel(p ->> 'uf'),
     regexp_replace(coalesce(p ->> 'cep', ''), '\D', '', 'g')));
 $$;
 
