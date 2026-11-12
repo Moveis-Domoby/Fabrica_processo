@@ -69,6 +69,22 @@ Bateria: bloco `SESSAO-50 · bloco A` antes de `const contar` (reaplica a base d
 - **Medidas:** em 375, 768 e 1440 (quadro, tablet e janela) `scrollWidth = innerWidth` (nenhuma rolagem lateral da página); toda faixa dentro do card; o texto de 162 caracteres em **2 linhas, cortado com reticências** (12 px no computador, 14 px no tablet) e inteiro na janela (5 linhas em 375, 2 em 1440); os cards da mesma coluna com e sem faixa têm a MESMA largura (a coluna com rolagem por dentro perde ~10 px para a barra fina — igual com ou sem observação). Fotos: `scratchpad/s50/a/moldura.png` (8 cenas) e `moldura-escuro.png` (meia-noite e esmeralda-escuro: a faixa marrom suave com o filete laranja, texto claro, legível).
 - As fontes da vitrine ficaram FORA do repositório, em `scratchpad/s50/a/vitrine-src/`; `sh scratchpad/s50/a/vitrine-rodar.sh [<cópia>]` as põe na cópia só durante a montagem, mede e fotografa de novo.
 
+### O ensaio ×100 (Lei §1/§7.2/§12)
+
+Script e resultado em `_docs/Plataforma/Execucao/dados/SESSAO-50 - bloco A - ensaio x100 da observacao do item (script|resultado, 2026-11-12)`. PGlite em disco (pasta nova a cada montagem — E-267); volume de 12/11 × 100: **590.000 pedidos com raw e itens (708.000 itens)**, 5.000 peças vivas na MONTAGEM, 16.000 noutros setores, 45.500 arquivadas; **33.630 itens com observação** (~5,7% dos pedidos). ANTES × DEPOIS **intercalados na mesma conexão** — a versão de antes recriada com outro nome (`fn_quadro_cards_antes` e as três portas `_antes`) —, 8 chamadas cada, a 6ª à parte (A-209). Três casos do quadro da MONTAGEM (10 por coluna, o que a tela abre — E-246): a distribuição de produção (0 dos 70 cards da 1ª página com observação), o típico (20 de 70) e o pior (70 de 70). Rodada final (regra do commit `7f6d728`; máquina dividida com outras frentes — absolutos variam até 2× entre rodadas, compare a mesma linha):
+
+| Porta (×100) | produção | típico (20/70) | pior (70/70) |
+|---|---|---|---|
+| quadro da MONTAGEM · ANTES → DEPOIS (mediana) | 123,0 → 124,2 ms | 114,2 → 129,6 ms (6ª 149,5 → 146,7) | 107,6 → 108,0 ms |
+| "Ver mais" da fila | 20,3 → 19,1 ms | 15,4 → 15,5 ms | 15,2 → 15,1 ms |
+| janela do card com observação | 10,0 → 11,0 ms | 2,3 → 2,5 ms | 2,4 → 2,5 ms |
+| janela do card sem observação | 3,2 → 3,1 ms | 2,2 → 2,5 ms | 2,0 → 2,3 ms |
+
+- **A regra sozinha numa página cheia (70 cards, todos com observação): 2,1 ms** (6ª 2,2) — plano: só índices (`plt_cards_pkey`, `plt_itens_observacao_pk`, `pedido_itens_pkey`, `plt_cards_unidade_vaga_uq`), 1,3 ms de execução, a `fn_vagas_pedido` nem roda ("never executed"). Com a 1ª versão (a `fn_vagas_pedido` coluna a coluna) era 19,9 ms e o quadro do pior caso ia de 83,9 para 131,4 ms (anexo do resultado).
+- **O gesto (o Tiny grava o pedido mudando só a observação):** 6,4 → 8,2 ms (mediana; teto do gesto 100 ms) — 30 avisos `card_mudou` (as 3 peças vivas de cada pedido).
+- **O preenchimento ×100:** ~23 s por rodada (uma transação; 3 passadas no raw de 590 mil pedidos — o ensaio conta, preenche e conta de novo); no banco real (~6 mil pedidos) ~0,25 s. É manutenção de uma vez, não porta.
+- **Dívida que já existia (não é deste bloco):** o quadro do setor passa dos 50 ms no ×100 do PGlite ANTES desta mudança (107–123 ms aqui; a SESSAO-48 mediu o da LIMPEZA em 210–272 ms) — a observação não o piora de forma medível (o pior caso +0,4 ms).
+
 ## Decisões provisórias (o supervisor numera)
 
 - **P1 · O texto guardado:** sem espaço nas pontas; espaços, tabulações e **quebras de linha** repetidos viram UM espaço (a observação vira uma linha só — na capa ela tem 2 linhas de qualquer jeito); as entidades de HTML que o Tiny às vezes manda viram o caractere (a mesma limpeza do nome do cliente); teto de 2.000 caracteres (a maior real tem 162); vazio = sem observação.

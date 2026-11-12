@@ -1,0 +1,155 @@
+SESSAO-50 · bloco A · ensaio ×100 da observação do item — resultado (12/11/2026, PGlite em disco; os números são o teto)
+Rodada final (03:2x, a regra com o passo exato pela chave e a chave só quando o retrato difere — commit 7f6d728).
+ATENÇÃO: a máquina estava dividida com outras frentes — os absolutos variam até 2× entre rodadas; compare ANTES × DEPOIS da MESMA linha (intercalados — A-209).
+
+== montando o banco em disco (×100: pedidos 590.000 · vivos na MONTAGEM 5.000) ==
+  146 migrations aplicadas (a última: 20261112050000_plt_observacao_do_item.sql) (6 s)
+  pedidos 590.000 com raw e itens (37 s)
+  cards 92.369 · itens 708.000 · vivos na MONTAGEM 5.000 (46 s)
+
+== o preenchimento dos antigos (manutenção) ==
+  ENSAIO (conta, preenche e desfaz — nada gravado)                               mediana 23933.9 ms · máx 23933.9 ms · ENSAIO (nada gravado): {"antes": {"pedido_13871": null, "maior_em_caracteres": 162, "mediana_de_caracteres": 28, "guardados_na_plataforma": 0, "guardados_iguais…
+  APLICAR (uma transação)                                                        mediana 23053.2 ms · máx 23053.2 ms
+  APLICAR de novo (nada a fazer)                                                 mediana 68540.5 ms · máx 68540.5 ms
+  guardados: 33.630 itens em 33.630 pedidos
+
+== DEPOIS do preenchimento — a distribuição de produção (~5,7% dos pedidos com observação) ==
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · ANTES                 mediana   123.0 ms · máx   295.8 ms · 6ª 114.6 ms · 0 de 70 cards com observação
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · DEPOIS                mediana   124.2 ms · máx   215.8 ms · 6ª 123.9 ms · 0 de 70 cards com observação
+  "Ver mais" na fila da MONTAGEM (10) · ANTES                                    mediana    20.3 ms · máx    33.7 ms · 6ª 33.7 ms · 0 de 10 com observação
+  "Ver mais" na fila da MONTAGEM (10) · DEPOIS                                   mediana    19.1 ms · máx    34.7 ms · 6ª 34.7 ms · 0 de 10 com observação
+  janela do card de uma peça COM observação · ANTES                              mediana    10.0 ms · máx    29.1 ms · 6ª 10.0 ms · chave: null
+  janela do card de uma peça COM observação · DEPOIS                             mediana    11.0 ms · máx    20.7 ms · 6ª 11.0 ms · chave: "COM RODINHAS"
+  janela do card de uma peça SEM observação · ANTES                              mediana     3.2 ms · máx     3.9 ms · 6ª 2.7 ms
+  janela do card de uma peça SEM observação · DEPOIS                             mediana     3.1 ms · máx     4.4 ms · 6ª 2.1 ms
+
+== TÍPICO — o pedido de 1 em cada 10 cards da 1ª página com observação (vale para as 3 peças dele) ==
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · ANTES                 mediana   114.2 ms · máx   218.7 ms · 6ª 149.5 ms · 0 de 70 cards com observação
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · DEPOIS                mediana   129.6 ms · máx   209.7 ms · 6ª 146.7 ms · 20 de 70 cards com observação
+  "Ver mais" na fila da MONTAGEM (10) · ANTES                                    mediana    15.4 ms · máx    16.9 ms · 6ª 15.0 ms · 0 de 10 com observação
+  "Ver mais" na fila da MONTAGEM (10) · DEPOIS                                   mediana    15.5 ms · máx    16.6 ms · 6ª 14.6 ms · 3 de 10 com observação
+  janela do card de uma peça COM observação · ANTES                              mediana     2.3 ms · máx     2.9 ms · 6ª 2.1 ms · chave: null
+  janela do card de uma peça COM observação · DEPOIS                             mediana     2.5 ms · máx     3.1 ms · 6ª 2.4 ms · chave: "COM RODINHAS"
+  janela do card de uma peça SEM observação · ANTES                              mediana     2.2 ms · máx     3.2 ms · 6ª 2.5 ms
+  janela do card de uma peça SEM observação · DEPOIS                             mediana     2.5 ms · máx     3.7 ms · 6ª 2.7 ms
+
+== PIOR CASO — todo pedido com peça na MONTAGEM tem observação ==
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · ANTES                 mediana   107.6 ms · máx   130.1 ms · 6ª 130.1 ms · 0 de 70 cards com observação
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · DEPOIS                mediana   108.0 ms · máx   165.4 ms · 6ª 116.9 ms · 70 de 70 cards com observação
+  "Ver mais" na fila da MONTAGEM (10) · ANTES                                    mediana    15.2 ms · máx    16.2 ms · 6ª 15.8 ms · 0 de 10 com observação
+  "Ver mais" na fila da MONTAGEM (10) · DEPOIS                                   mediana    15.1 ms · máx    17.0 ms · 6ª 17.0 ms · 10 de 10 com observação
+  janela do card de uma peça COM observação · ANTES                              mediana     2.4 ms · máx     4.6 ms · 6ª 1.7 ms · chave: null
+  janela do card de uma peça COM observação · DEPOIS                             mediana     2.5 ms · máx     4.6 ms · 6ª 4.3 ms · chave: "COM RODINHAS"
+  janela do card de uma peça SEM observação · ANTES                              mediana     2.0 ms · máx     2.7 ms · 6ª 1.8 ms
+  janela do card de uma peça SEM observação · DEPOIS                             mediana     2.3 ms · máx     3.2 ms · 6ª 3.2 ms
+
+  a 1ª página do quadro: 70 cards
+  --- plano: a regra (fn_observacao_das_unidades) — a consulta de dentro, na página cheia do pior caso
+      Append (actual rows=70.00 loops=1)
+        Buffers: shared hit=1011
+        CTE pagina
+          ->  Nested Loop Semi Join (actual rows=70.00 loops=1)
+                Buffers: shared hit=241
+                ->  Index Scan using plt_cards_pkey on plt_cards c (actual rows=70.00 loops=1)
+                      Index Cond: (id = ANY ('{2500,1499,4999,498,3998,2997,1996,995,4495,3494,1500,5000,499,3999,2998,1997,996,4496,3495,2494,500,4000,2999,1998,997,4497,3496,2495,1494,4994,3000,1999,998,4498,3497,2496,1495,4995,494,3994,2000,999,4499,3498,2497,1496,4996,495,3995,2994,1000,4500,3499,2498,1497,4997,496,3996,2995,1994,3500,2499,1498,4998,497,3997,2996,1995,994,4494}'::bigint[]))
+                      Filter: ((pedido_id IS NOT NULL) AND (tipo = 'unidade'::text))
+                      Index Searches: 10
+                      Buffers: shared hit=31
+                ->  Index Only Scan using plt_itens_observacao_pk on plt_itens_observacao x (actual rows=1.00 loops=70)
+                      Index Cond: (pedido_id = c.pedido_id)
+                      Heap Fetches: 70
+                      Index Searches: 70
+                      Buffers: shared hit=210
+        CTE exatas
+          ->  Nested Loop Anti Join (actual rows=70.00 loops=1)
+                Buffers: shared hit=801
+                ->  Nested Loop (actual rows=70.00 loops=1)
+                      Buffers: shared hit=521
+                      ->  CTE Scan on pagina pg_1 (actual rows=70.00 loops=1)
+                            Filter: (indice_unidade >= 1)
+                            Storage: Memory  Maximum Storage: 22kB
+                            Buffers: shared hit=241
+                      ->  Index Scan using pedido_itens_pkey on pedido_itens pi (actual rows=1.00 loops=70)
+                            Index Cond: ((pedido_id = pg_1.pedido_id) AND (seq = pg_1.item_seq))
+                            Filter: ((pg_1.indice_unidade <= CASE WHEN plt_privado.fn_eh_frete(descricao) THEN 0 WHEN (round(COALESCE(quantidade, '0'::numeric), 0) >= '1'::numeric) THEN (round(quantidade, 0))::integer ELSE 0 END) AND (((NOT (codigo IS DISTINCT FROM pg_1.item_codigo)) AND (NOT (descricao IS DISTINCT FROM pg_1.item_descricao))) OR (plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(codigo, descricao), codigo, descricao) = plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(pg_1.item_codigo, pg_1.item_descricao), pg_1.item_codigo, pg_1.item_descricao))))
+                            Index Searches: 70
+                            Buffers: shared hit=280
+                ->  Index Scan using plt_cards_unidade_vaga_uq on plt_cards p2 (actual rows=0.00 loops=70)
+                      Index Cond: ((pedido_id = pg_1.pedido_id) AND (item_seq = pg_1.item_seq) AND (indice_unidade = pg_1.indice_unidade))
+                      Filter: ((id < pg_1.id) AND (((NOT (item_codigo IS DISTINCT FROM pg_1.item_codigo)) AND (NOT (item_descricao IS DISTINCT FROM pg_1.item_descricao))) OR (plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(item_codigo, item_descricao), item_codigo, item_descricao) = plt_privado.fn_chave_peca(plt_privado.fn_produto_do_item(pg_1.item_codigo, pg_1.item_descricao), pg_1.item_codigo, pg_1.item_descricao))))
+                      Rows Removed by Filter: 1
+                      Index Searches: 70
+                      Buffers: shared hit=280
+        ->  Nested Loop (actual rows=70.00 loops=1)
+              Buffers: shared hit=1011
+              ->  CTE Scan on exatas e (actual rows=70.00 loops=1)
+                    Storage: Memory  Maximum Storage: 20kB
+                    Buffers: shared hit=801
+              ->  Index Scan using plt_itens_observacao_pk on plt_itens_observacao o (actual rows=1.00 loops=70)
+                    Index Cond: ((pedido_id = e.pedido_id) AND (seq = e.item_seq))
+                    Index Searches: 70
+                    Buffers: shared hit=210
+        ->  Hash Anti Join (actual rows=0.00 loops=1)
+              Hash Cond: (w.card_id = e_1.id)
+              ->  Nested Loop (actual rows=0.00 loops=1)
+                    ->  HashAggregate (actual rows=0.00 loops=1)
+                          Group Key: pg.pedido_id
+                          Batches: 1  Memory Usage: 32kB
+                          ->  Hash Anti Join (actual rows=0.00 loops=1)
+                                Hash Cond: (pg.id = e_2.id)
+                                ->  CTE Scan on pagina pg (actual rows=70.00 loops=1)
+                                      Storage: Memory  Maximum Storage: 22kB
+                                ->  Hash (actual rows=70.00 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 7kB
+                                      ->  CTE Scan on exatas e_2 (actual rows=70.00 loops=1)
+                                            Storage: Memory  Maximum Storage: 20kB
+                    ->  Hash Join (never executed)
+                          Hash Cond: (w.seq = o_1.seq)
+                          ->  Function Scan on fn_vagas_pedido w (never executed)
+                                Filter: (card_id = ANY ('{2500,1499,4999,498,3998,2997,1996,995,4495,3494,1500,5000,499,3999,2998,1997,996,4496,3495,2494,500,4000,2999,1998,997,4497,3496,2495,1494,4994,3000,1999,998,4498,3497,2496,1495,4995,494,3994,2000,999,4499,3498,2497,1496,4996,495,3995,2994,1000,4500,3499,2498,1497,4997,496,3996,2995,1994,3500,2499,1498,4998,497,3997,2996,1995,994,4494}'::bigint[]))
+                          ->  Hash (never executed)
+                                ->  Index Scan using plt_itens_observacao_pk on plt_itens_observacao o_1 (never executed)
+                                      Index Cond: (pedido_id = pg.pedido_id)
+                                      Index Searches: 0
+              ->  Hash (never executed)
+                    ->  CTE Scan on exatas e_1 (never executed)
+                          Storage: Memory  Maximum Storage: 20kB
+      Planning:
+        Buffers: shared hit=82
+      Planning Time: 2.716 ms
+      Execution Time: 1.323 ms
+  a regra sozinha numa página cheia (70 cards, todos com observação)             mediana     2.1 ms · máx     2.6 ms · 6ª 2.2 ms
+
+== a gravação do Tiny (fn_upsert_pedido) que muda só a observação de um pedido com peças na MONTAGEM ==
+  GESTO: gravar o pedido do Tiny (sem o gatilho novo — a de antes)               mediana     6.4 ms · máx    42.6 ms
+  GESTO: gravar o pedido do Tiny (com o gatilho novo: grava a observação e avisa) mediana     8.2 ms · máx    18.3 ms
+  avisos "card_mudou" enviados: 30
+
+fim (172 s)
+
+==================================================================================================
+ANEXO · a 1ª rodada (02:5x, máquina quieta), com a 1ª versão da regra (a fn_vagas_pedido em todo pedido com observação, coluna a coluna):
+
+== DEPOIS do preenchimento — a distribuição de produção (~5,7% dos pedidos com observação) ==
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · ANTES                 mediana    87.3 ms · máx   171.6 ms · 6ª 84.7 ms · 0 de 70 cards com observação
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · DEPOIS                mediana    95.0 ms · máx   129.3 ms · 6ª 90.0 ms · 0 de 70 cards com observação
+  "Ver mais" na fila da MONTAGEM (10) · ANTES                                    mediana    12.6 ms · máx    13.1 ms · 6ª 12.0 ms · 0 de 10 com observação
+  "Ver mais" na fila da MONTAGEM (10) · DEPOIS                                   mediana    13.5 ms · máx    14.4 ms · 6ª 12.5 ms · 0 de 10 com observação
+  janela do card de uma peça COM observação · ANTES                              mediana     7.2 ms · máx    13.1 ms · 6ª 7.2 ms · chave: null
+  janela do card de uma peça COM observação · DEPOIS                             mediana    10.0 ms · máx    16.9 ms · 6ª 10.0 ms · chave: "COM RODINHAS"
+  janela do card de uma peça SEM observação · ANTES                              mediana     1.6 ms · máx     2.1 ms · 6ª 1.6 ms
+  janela do card de uma peça SEM observação · DEPOIS                             mediana     2.4 ms · máx     2.9 ms · 6ª 2.9 ms
+
+== PIOR CASO — todo pedido com peça na MONTAGEM tem observação ==
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · ANTES                 mediana    83.9 ms · máx    89.8 ms · 6ª 79.7 ms · 0 de 70 cards com observação
+  quadro da MONTAGEM (10 por coluna) — o que a tela abre · DEPOIS                mediana   131.4 ms · máx   139.7 ms · 6ª 135.2 ms · 70 de 70 cards com observação
+  "Ver mais" na fila da MONTAGEM (10) · ANTES                                    mediana    13.9 ms · máx    14.6 ms · 6ª 14.6 ms · 0 de 10 com observação
+  "Ver mais" na fila da MONTAGEM (10) · DEPOIS                                   mediana    19.5 ms · máx    22.9 ms · 6ª 21.5 ms · 10 de 10 com observação
+  janela do card de uma peça COM observação · ANTES                              mediana     1.9 ms · máx     2.2 ms · 6ª 1.7 ms · chave: null
+  janela do card de uma peça COM observação · DEPOIS                             mediana     3.8 ms · máx     4.5 ms · 6ª 4.5 ms · chave: "COM RODINHAS"
+  janela do card de uma peça SEM observação · ANTES                              mediana     1.9 ms · máx     2.2 ms · 6ª 1.7 ms
+  janela do card de uma peça SEM observação · DEPOIS                             mediana     3.9 ms · máx     4.4 ms · 6ª 3.5 ms
+
+  a 1ª página do quadro: 70 cards
+  --- plano: a regra (fn_observacao_das_unidades) — a consulta de dentro, na página cheia do pior caso
+  a regra sozinha numa página cheia (70 cards, todos com observação)             mediana    19.9 ms · máx    20.8 ms · 6ª 19.9 ms
