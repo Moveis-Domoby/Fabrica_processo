@@ -56,8 +56,8 @@ export function ondeEsta(item: ItemDaBusca): LugarDoCard {
     }
   }
   if (item.tipo === 'pedido') {
-    // SESSAO-48 (frente 2): o PCP tirou o pedido da linha — mora em "Cancelados e removidos"
-    if (item.removido_pcp_em) return { texto: `Removido do PCP em ${dia(item.removido_pcp_em)}`, tom: 'neutro' }
+    // SESSAO-48 (frente 2) ↪️ SESSAO-50: o PCP ocultou o pedido — mora em "Pedidos ocultos"
+    if (item.removido_pcp_em) return { texto: `Oculto do PCP em ${dia(item.removido_pcp_em)}`, tom: 'neutro' }
     if (item.standby) return { texto: 'PCP · em stand-by', tom: 'atencao' }
     if (item.liberado_completo_em) return { texto: `PCP · tudo liberado${rota(item)}`, tom: 'info' }
     return { texto: `PCP · aguardando liberação${rota(item)}`, tom: 'atencao' }
@@ -116,10 +116,10 @@ export function rotaDoQuadroFiltrado(item: ItemDaBusca): string | null {
   const filtro = item.pedido_numero !== null ? String(item.pedido_numero) : (item.titulo ?? '')
   const base = `/fabrica/producao/${item.setor_codigo}`
   const aba = item.setor_codigo === 'pcp' && item.tipo === 'reposicao' ? 'aba=solicitacoes&' : ''
-  // SESSAO-48 (frente 2): o pedido removido do PCP mora na aba "Cancelados e removidos"
+  // SESSAO-48 (frente 2) ↪️ SESSAO-50: o pedido oculto do PCP mora na aba "Pedidos ocultos"
   const removido = item.setor_codigo === 'pcp' && item.tipo === 'pedido' && !!item.removido_pcp_em
   const abaStandby = item.setor_codigo === 'pcp' && item.standby && !removido ? 'aba=standby&' : ''
-  const abaRemovido = removido ? 'aba=cancelados&' : ''
+  const abaRemovido = removido ? 'aba=ocultos&' : ''
   return filtro.trim().length >= 2
     ? `${base}?${aba}${abaStandby}${abaRemovido}filtro=${encodeURIComponent(filtro.trim())}`
     : base

@@ -17,8 +17,8 @@ export const ROTULO_SITUACAO_PLATAFORMA: Record<SituacaoPlataforma, string> = {
   // ↩️ 14/10 (D-132/D-134): o Tiny levou adiante sem nada liberado; e o cancelado.
   tiny: 'Segue no Tiny',
   cancelado: 'Cancelado',
-  // SESSAO-48 (frente 2): o PCP tirou o pedido da linha de produção (o Tiny não muda).
-  removido_pcp: 'Removido do PCP',
+  // SESSAO-48 (frente 2) ↪️ SESSAO-50: o PCP ocultou o pedido (o Tiny não muda).
+  removido_pcp: 'Oculto do PCP',
 }
 
 /** O que cada ajuste do super admin faz — o texto da confirmação. */

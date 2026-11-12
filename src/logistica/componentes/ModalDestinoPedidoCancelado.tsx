@@ -200,7 +200,13 @@ export function ModalDestinoPedidoCancelado({
           <section className="flex flex-col gap-2 rounded-dm border border-borda bg-superficie-sutil p-3 text-sm">
             <p className="text-texto">
               O pedido <strong>{data.numero}</strong>{' '}
-              {data.cancelado ? 'foi cancelado no Tiny' : 'tinha sido cancelado no Tiny'}
+              {data.cancelado
+                ? data.motivo_cancelamento === 'plataforma'
+                  ? 'foi cancelado pela plataforma'
+                  : data.motivo_cancelamento === 'excluido'
+                    ? 'foi excluído no Tiny'
+                    : 'foi cancelado no Tiny'
+                : 'tinha sido cancelado no Tiny'}
               {data.cancelado_em ? ` em ${quando(data.cancelado_em)}` : ''}.{' '}
               {pecas.length === 0
                 ? ''
@@ -212,7 +218,11 @@ export function ModalDestinoPedidoCancelado({
               {data.cancelado ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-danificado-fundo px-2 py-0.5 text-xs font-medium text-danificado-texto">
                   <Ban aria-hidden className="size-3.5" />
-                  Cancelado no Tiny
+                  {data.motivo_cancelamento === 'plataforma'
+                    ? 'Cancelado pela plataforma'
+                    : data.motivo_cancelamento === 'excluido'
+                      ? 'Excluído no Tiny'
+                      : 'Cancelado no Tiny'}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto">

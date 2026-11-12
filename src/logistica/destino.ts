@@ -67,6 +67,11 @@ export interface DetalheDestino {
   cliente_nome: string | null
   situacao_tiny: string | null
   cancelado: boolean
+  /**
+   * SESSAO-50 (bloco B): por que o pedido é cancelado — no Tiny, pela plataforma
+   * ("Cancelar pedido" no PCP) ou excluído no Tiny. Nulo quando voltou a valer.
+   */
+  motivo_cancelamento?: 'tiny' | 'plataforma' | 'excluido' | null
   cancelado_em: string | null
   pecas: PecaEsperandoDestino[]
   /** Por móvel (a chave da peça): até 10 pedidos, o mais antigo primeiro. */

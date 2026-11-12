@@ -103,10 +103,16 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   fabricacao_cancelada: 'Fabricação cancelada',
   fabricacao_retomada: 'Fabricação retomada',
   pcp_aviso_resolvido: 'O PCP viu a peça cancelada e vai produzir de novo',
-  pedido_removido_pcp: 'Removido do PCP',
-  pedido_devolvido_pcp: 'Devolvido ao PCP',
+  pedido_removido_pcp: 'Ocultado do PCP',
+  pedido_devolvido_pcp: 'Voltou ao PCP',
   destino_pendente: 'Esperando a logística decidir o destino',
   destino_decidido: 'Destino decidido',
+  // SESSAO-50 (bloco B): o pedido excluído no Tiny (e reencontrado), o cancelado
+  // pela plataforma e a peça ocultada junto com o pedido.
+  pedido_excluido_tiny: 'Excluído no Tiny — saiu do PCP',
+  pedido_reencontrado_tiny: 'O Tiny achou o pedido de novo',
+  pedido_cancelado_plataforma: 'Cancelado pela plataforma (pedido também ao Tiny)',
+  card_oculto: 'Ocultada junto com o pedido',
   // SESSAO-36 (D-146): o auxílio.
   auxilio_iniciado: 'Ajuda iniciada',
   auxilio_pausado: 'Ajuda pausada',

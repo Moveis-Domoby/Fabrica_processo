@@ -151,8 +151,8 @@ describe('o atalho do quadro no card do pedido', () => {
       removido_pcp_em: '2026-11-10T15:00:00Z',
       removido_pcp_motivo: 'fora_da_linha',
     }
-    expect(ondeEsta(removido)).toEqual({ texto: 'Removido do PCP em 10/11', tom: 'neutro' })
-    expect(rotaDoQuadroFiltrado(removido)).toBe('/fabrica/producao/pcp?aba=cancelados&filtro=13721')
+    expect(ondeEsta(removido)).toEqual({ texto: 'Oculto do PCP em 10/11', tom: 'neutro' })
+    expect(rotaDoQuadroFiltrado(removido)).toBe('/fabrica/producao/pcp?aba=ocultos&filtro=13721')
   })
 })
 
