@@ -10,6 +10,7 @@ import {
   FileText,
   History,
   ImageIcon,
+  MapPinPen,
   MessageCircle,
   PackageX,
   Paperclip,
@@ -24,6 +25,10 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { detalhePedidoPcp } from '@/kanban/api'
 import { linkDoAnexo, linkWhatsApp } from '@/rotas/api'
 import { diaNaFabrica, entregueEmOutroDia, registradaHoje } from '@/rotas/diaDaEntrega'
+import type { SeloEndereco } from '@/rotas/enderecoDoPedido'
+import { JanelaEnderecoPedido } from '@/rotas/JanelaEnderecoPedido'
+import { SeloEnderecoAlterado } from '@/rotas/SeloEnderecoAlterado'
+import { useAcessoLogistica } from '@/logistica/acesso'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalComprovantes } from '@/rotas/ModalComprovantes'
 import { useComprovantes } from '@/rotas/useComprovantes'
@@ -56,6 +61,11 @@ const FATOS: Record<string, string> = {
   pedido_atualizado: 'Pedido mudou no Tiny',
   pedido_cancelado: 'Pedido cancelado no Tiny',
   pedido_lancado_rotas: 'Lançado para ROTAS',
+  // SESSAO-50 (bloco C): o endereço de entrega mudado na plataforma (o original do Tiny fica no fato)
+  endereco_entrega_alterado: 'Endereço de entrega alterado na plataforma',
+  endereco_entrega_restaurado: 'Endereço de entrega de volta ao do Tiny',
+  endereco_entrega_tiny_confirmado: 'O Tiny confirmou o endereço novo',
+  endereco_entrega_tiny_substituido: 'O endereço mudou no Tiny (vale o do Tiny)',
   pedido_entregue: 'Entregue',
   entrega_desfeita: 'Entrega desfeita',
   entrega_nao_realizada: 'Não entregue',
@@ -518,7 +528,16 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
       .filter(Boolean)
       .join(' · ')
   const endereco = juntar(onde)
-  const enderecoCadastro = onde.de_entrega ? juntar(c) : ''
+  // SESSAO-50 (bloco C — pedido do dono): o endereço mudado na plataforma (o selo, com o
+  // original do Tiny ao lado), "Editar endereço" e "Voltar ao endereço original"
+  const enderecoPlataforma =
+    (d as FichaComDiaReal & { endereco_plataforma?: SeloEndereco | null }).endereco_plataforma ??
+    null
+  const enderecoCadastro = onde.de_entrega && !enderecoPlataforma ? juntar(c) : ''
+  const { tenhoAcesso } = useAcessoLogistica()
+  const [janelaEndereco, setJanelaEndereco] = useState<'editar' | 'restaurar' | null>(null)
+  // a logística e o admin; pedido já entregue, só o admin (o banco confere de novo)
+  const podeMudarEndereco = tenhoAcesso && d.plataforma.card_id !== null && (!d.entrega || souAdmin)
 
   // SESSAO-44 (D-213): o desfazer do dia (entrega feita aqui, hoje) é de todos
   // os que mexem na entrega; fora disso, só o administrador reabre — e a ficha
@@ -546,7 +565,12 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-medium text-texto-suave">
-            Para onde{onde.de_entrega ? ' — endereço de entrega do pedido' : ''}
+            Para onde
+            {enderecoPlataforma
+              ? ' — endereço alterado na plataforma'
+              : onde.de_entrega
+                ? ' — endereço de entrega do pedido'
+                : ''}
           </p>
           {endereco ? (
             <p className="text-sm text-texto">{endereco}</p>
@@ -557,8 +581,38 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
             <p className="text-sm text-texto-suave">Complemento: {onde.complemento}</p>
           )}
           <Linha rotulo="CEP" valor={onde.cep} />
+          {enderecoPlataforma && <SeloEnderecoAlterado selo={enderecoPlataforma} />}
           {enderecoCadastro && (
             <p className="text-xs text-texto-suave">Cadastro do cliente: {enderecoCadastro}</p>
+          )}
+          {podeMudarEndereco && (
+            <div className="flex flex-wrap gap-2">
+              <Botao
+                variante="secundaria"
+                icone={<MapPinPen />}
+                onClick={() => setJanelaEndereco('editar')}
+              >
+                Editar endereço
+              </Botao>
+              {enderecoPlataforma && !enderecoPlataforma.tiny_confirmado_em && (
+                <Botao
+                  variante="fantasma"
+                  icone={<Undo2 />}
+                  onClick={() => setJanelaEndereco('restaurar')}
+                >
+                  Voltar ao endereço original
+                </Botao>
+              )}
+            </div>
+          )}
+          {janelaEndereco && p.id && (
+            <JanelaEnderecoPedido
+              pedidoId={p.id}
+              numero={p.numero}
+              inicio={janelaEndereco}
+              aoFechar={() => setJanelaEndereco(null)}
+              aoMudar={aoMudar}
+            />
           )}
           {/* SESSAO-41 (D-194): a data de entrega — mudar ou remover SÓ na plataforma. */}
           {p.id && <DataDeEntrega pedido={p} aoMudar={aoMudar} />}

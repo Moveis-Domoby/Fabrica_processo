@@ -1,6 +1,6 @@
 import { Suspense, lazy, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { MapPinOff, MapPinPlus, Search } from 'lucide-react'
+import { MapPinOff, MapPinPlus, Save, Search } from 'lucide-react'
 import { Botao, Campo, Modal } from '@/componentes/ui'
 import { acharPontoDoEndereco } from './api'
 import type { DadosParadaAvulsa } from './api'
@@ -24,12 +24,18 @@ type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou'
  * clique (Lei §3/§9). Quem usa decide o que fazer com os dados (`aoSalvar`):
  * a aba Programar guarda na rota que está montando; as outras telas salvam.
  * Botões grandes — o entregador usa no celular (D-06).
+ *
+ * ↪️ SESSAO-50 (bloco C — pedido do dono: "editar o local de uma parada avulsa
+ * … ao invés de apagar e criar outra"): com `inicial`, a MESMA janela abre
+ * preenchida para editar — título, endereço, o pino já no mapa (arrastável) e a
+ * observação; "Salvar as mudanças" só liga quando algo mudou.
  */
 export function ModalParadaAvulsa({
   aberto,
-  titulo = 'Adicionar parada avulsa',
+  titulo,
   descricao,
   carregando = false,
+  inicial,
   aoFechar,
   aoSalvar,
 }: {
@@ -37,15 +43,24 @@ export function ModalParadaAvulsa({
   titulo?: string
   descricao?: string
   carregando?: boolean
+  /** SESSAO-50: a parada como está (a janela abre preenchida, para editar). */
+  inicial?: DadosParadaAvulsa | null
   aoFechar: () => void
   aoSalvar: (dados: DadosParadaAvulsa) => void
 }) {
-  const [tituloParada, setTituloParada] = useState('')
-  const [endereco, setEndereco] = useState('')
-  const [observacao, setObservacao] = useState('')
-  const [ponto, setPonto] = useState<{ latitude: number; longitude: number } | null>(null)
+  const editando = !!inicial
+  const pontoInicial =
+    inicial && inicial.latitude !== null && inicial.longitude !== null
+      ? { latitude: inicial.latitude, longitude: inicial.longitude }
+      : null
+  const [tituloParada, setTituloParada] = useState(inicial?.titulo ?? '')
+  const [endereco, setEndereco] = useState(inicial?.endereco ?? '')
+  const [observacao, setObservacao] = useState(inicial?.observacao ?? '')
+  const [ponto, setPonto] = useState<{ latitude: number; longitude: number } | null>(pontoInicial)
   // o endereço que o ponto representa — mudou o texto, a tela avisa
-  const [enderecoDoPonto, setEnderecoDoPonto] = useState<string | null>(null)
+  const [enderecoDoPonto, setEnderecoDoPonto] = useState<string | null>(
+    pontoInicial ? (inicial?.endereco ?? '').trim() : null,
+  )
   const [busca, setBusca] = useState<Busca>('nada')
 
   const achar = useMutation({
@@ -65,10 +80,19 @@ export function ModalParadaAvulsa({
 
   const tituloOk = tituloParada.trim().length >= TITULO_MIN
   const enderecoOk = endereco.trim().length >= ENDERECO_MIN
-  const pode = tituloOk && enderecoOk && !carregando
+  // editando: só liga quando algo mudou (salvar igual não faz nada no banco)
+  const algoMudou =
+    !inicial ||
+    tituloParada.trim() !== inicial.titulo ||
+    endereco.trim() !== inicial.endereco ||
+    (observacao.trim() || null) !== (inicial.observacao ?? null) ||
+    (ponto?.latitude ?? null) !== inicial.latitude ||
+    (ponto?.longitude ?? null) !== inicial.longitude
+  const pode = tituloOk && enderecoOk && algoMudou && !carregando
   const enderecoMudou =
     ponto !== null && enderecoDoPonto !== null && endereco.trim() !== enderecoDoPonto
-  const mapaAberto = busca !== 'nada'
+  // editando, o mapa já abre (o pino arrastável); criando, só depois de "Achar no mapa"
+  const mapaAberto = editando || busca !== 'nada'
 
   function moverPino(latitude: number, longitude: number) {
     setPonto({ latitude, longitude })
@@ -90,10 +114,12 @@ export function ModalParadaAvulsa({
     <Modal
       aberto={aberto}
       aoFechar={(v) => !v && aoFechar()}
-      titulo={titulo}
+      titulo={titulo ?? (editando ? 'Editar parada avulsa' : 'Adicionar parada avulsa')}
       descricao={
         descricao ??
-        'Buscar material, levar uma peça, passar num endereço — a parada entra na rota junto com os pedidos.'
+        (editando
+          ? 'Mude o título, o endereço, o pino ou a observação — a parada continua no mesmo lugar da rota.'
+          : 'Buscar material, levar uma peça, passar num endereço — a parada entra na rota junto com os pedidos.')
       }
       rodape={
         <>
@@ -102,12 +128,12 @@ export function ModalParadaAvulsa({
           </Botao>
           <Botao
             tamanho="lg"
-            icone={<MapPinPlus />}
+            icone={editando ? <Save /> : <MapPinPlus />}
             onClick={salvar}
             disabled={!pode}
             carregando={carregando}
           >
-            Salvar a parada
+            {editando ? 'Salvar as mudanças' : 'Salvar a parada'}
           </Botao>
         </>
       }

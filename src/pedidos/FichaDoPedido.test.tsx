@@ -335,3 +335,141 @@ describe('Ficha do pedido — o dia real da entrega', () => {
     expect(within(depois).getByText('canhoto.pdf')).toBeInTheDocument()
   })
 })
+
+// SESSAO-50 (bloco C): a janela "Editar endereço" tem teste próprio — aqui só se
+// confere que a ficha a abre do jeito certo (editar / voltar ao original)
+vi.mock('@/rotas/JanelaEnderecoPedido', () => ({
+  JanelaEnderecoPedido: ({ inicio }: { inicio?: string }) => (
+    <div role="dialog" aria-label={`janela do endereço (${inicio ?? 'editar'})`} />
+  ),
+}))
+
+/**
+ * SESSAO-50 (bloco C — pedido do dono, 12/11): a ficha mostra o selo discreto
+ * "Endereço alterado na plataforma" com o original do Tiny ao lado, e os botões
+ * "Editar endereço" e "Voltar ao endereço original" (a logística e o admin;
+ * pedido já entregue, só o admin).
+ */
+describe('Ficha do pedido — o endereço de entrega alterado na plataforma', () => {
+  const comEndereco = (extra: Partial<FichaComDiaReal> = {}) =>
+    ({
+      ...ficha(),
+      entrega: null,
+      endereco_entrega: {
+        de_entrega: false,
+        endereco: 'Rua A',
+        numero: '100',
+        complemento: 'casa B',
+        bairro: 'Centro',
+        cidade: 'Natal',
+        uf: 'RN',
+        cep: null,
+      },
+      endereco_plataforma: {
+        em: '2026-11-12T05:47:12Z',
+        por: 'Kaio',
+        escolha: 'plataforma',
+        tiny_confirmado_em: null,
+        original: {
+          endereco: 'Rua A',
+          numero: '1',
+          complemento: null,
+          bairro: 'Centro',
+          cidade: 'Natal',
+          uf: 'RN',
+          cep: null,
+          fonte: 'cadastro',
+        },
+      },
+      historico: [
+        {
+          id: 9,
+          tipo: 'endereco_entrega_alterado',
+          em: '2026-11-12T05:47:12Z',
+          registrado_em: '2026-11-12T05:47:12Z',
+          por: 'Kaio',
+          origem: 'interface',
+          observacao:
+            'Endereço de entrega alterado na plataforma: de Rua A, 1 · Centro · Natal-RN para Rua A, 100 · Centro · Natal-RN (o Tiny não muda).',
+          motivo: null,
+          setor: null,
+        },
+      ],
+      ...extra,
+    }) as FichaComDiaReal
+
+  it('o selo com o original do Tiny ao lado, "Editar endereço" e "Voltar ao endereço original"', async () => {
+    sessao.papel = 'logistica'
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue(comEndereco())
+    desenhar()
+    const painel = await abrirEntrega()
+    expect(
+      within(painel).getByText('Para onde — endereço alterado na plataforma'),
+    ).toBeInTheDocument()
+    expect(within(painel).getByText('Rua A, 100 · Centro · Natal-RN')).toBeInTheDocument()
+    expect(within(painel).getByText('Endereço alterado na plataforma')).toBeInTheDocument()
+    expect(within(painel).getByText('No Tiny: Rua A, 1 · Centro · Natal-RN')).toBeInTheDocument()
+    // o do cadastro não se repete embaixo (o original já está no selo)
+    expect(within(painel).queryByText(/Cadastro do cliente:/)).not.toBeInTheDocument()
+
+    await userEvent.click(within(painel).getByRole('button', { name: 'Editar endereço' }))
+    expect(screen.getByRole('dialog', { name: 'janela do endereço (editar)' })).toBeInTheDocument()
+  })
+
+  it('"Voltar ao endereço original" abre direto a pergunta da volta', async () => {
+    sessao.papel = 'logistica'
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue(comEndereco())
+    desenhar()
+    const painel = await abrirEntrega()
+    await userEvent.click(
+      within(painel).getByRole('button', { name: 'Voltar ao endereço original' }),
+    )
+    expect(
+      screen.getByRole('dialog', { name: 'janela do endereço (restaurar)' }),
+    ).toBeInTheDocument()
+  })
+
+  it('o histórico diz o que aconteceu, em português', async () => {
+    sessao.papel = 'logistica'
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue(comEndereco())
+    desenhar()
+    await userEvent.click(await screen.findByRole('button', { name: /Histórico/ }))
+    expect(screen.getByText('Endereço de entrega alterado na plataforma')).toBeInTheDocument()
+  })
+
+  it('pedido já entregue: a logística não vê "Editar endereço"; o administrador vê', async () => {
+    sessao.papel = 'logistica'
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue({
+      ...comEndereco(),
+      entrega: ficha().entrega,
+    })
+    desenhar()
+    const painel = await abrirEntrega()
+    expect(
+      within(painel).queryByRole('button', { name: 'Editar endereço' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('pedido já entregue: o administrador ainda edita', async () => {
+    sessao.papel = 'admin'
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue({
+      ...comEndereco(),
+      entrega: ficha().entrega,
+    })
+    desenhar()
+    const painel = await abrirEntrega()
+    expect(within(painel).getByRole('button', { name: 'Editar endereço' })).toBeInTheDocument()
+  })
+
+  it('sem endereço alterado: sem selo; o botão "Editar endereço" continua (a logística)', async () => {
+    sessao.papel = 'logistica'
+    vi.mocked(kanbanApi.detalhePedidoPcp).mockResolvedValue({ ...ficha(), entrega: null })
+    desenhar()
+    const painel = await abrirEntrega()
+    expect(within(painel).queryByText('Endereço alterado na plataforma')).not.toBeInTheDocument()
+    expect(within(painel).getByRole('button', { name: 'Editar endereço' })).toBeInTheDocument()
+    expect(
+      within(painel).queryByRole('button', { name: 'Voltar ao endereço original' }),
+    ).not.toBeInTheDocument()
+  })
+})

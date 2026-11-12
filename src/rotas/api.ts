@@ -1368,3 +1368,19 @@ export async function marcarPontoNoMapa(parametros: {
   })
   if (error) throw new Error(error.message)
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-50 (bloco C): a parada avulsa diz quem pode editá-la e o pedido da aba
+// Programar traz o selo do endereço alterado na plataforma — chaves novas das
+// mesmas respostas (ausentes = o banco de antes desta sessão; a tela trata como
+// "não"). As portas e a lógica do endereço moram em `enderecoDoPedido.ts`.
+// ---------------------------------------------------------------------------
+export interface ParadaAvulsa {
+  /** A logística, ou quem pôs a parada — e só a pendente (a feita/não feita não se edita). */
+  pode_editar?: boolean
+}
+
+export interface PedidoProgramacao {
+  /** O endereço foi mudado na plataforma: o original do Tiny, para o selo do cartão. */
+  endereco_plataforma?: import('./enderecoDoPedido').SeloEndereco | null
+}

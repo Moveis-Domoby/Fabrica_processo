@@ -12,7 +12,7 @@ import {
 } from 'react-leaflet'
 import { latLngBounds } from 'leaflet'
 import type { Map as LeafletMap } from 'leaflet'
-import { List, Maximize2, Minimize2, X } from 'lucide-react'
+import { List, MapPinPen, Maximize2, Minimize2, Pencil, X } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import { Botao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
@@ -79,7 +79,12 @@ export interface ParadaNoMapa {
    * SESSAO-41 (D-196): é uma PARADA AVULSA (não um pedido) — marcador próprio
    * (quadrado "A"), com o título e o endereço que a pessoa escreveu.
    */
-  avulsa?: { titulo: string; endereco: string }
+  avulsa?: {
+    titulo: string
+    endereco: string
+    /** SESSAO-50 (bloco C): o balão mostra "Editar" (a pendente, para quem pode). */
+    podeEditar?: boolean
+  }
 }
 
 export interface RotaNoMapa {
@@ -193,6 +198,8 @@ export const MapaProgramacao = memo(function MapaProgramacao({
   aoEscolherSugestao,
   paradasParaVer = SEM_PEDIDOS,
   classeAltura = 'h-[24rem] lg:h-[32rem]',
+  aoEditarAvulsa,
+  aoEditarEndereco,
 }: {
   rotas: RotaNoMapa[]
   /** O trajeto da rota principal (a 1ª não esmaecida): inteira, só a ida ou só a volta. */
@@ -205,6 +212,13 @@ export const MapaProgramacao = memo(function MapaProgramacao({
   paradasParaVer?: PedidoParaVer[]
   /** A altura do mapa na página (a tela cheia ocupa tudo). */
   classeAltura?: string
+  /**
+   * SESSAO-50 (bloco C): "Editar" no balão da parada avulsa e "Editar endereço"
+   * no balão do pedido (pelo `card_id` da parada no mapa). Sem eles, o balão só
+   * informa. A tela cheia recolhe antes (a janela abre por cima da página).
+   */
+  aoEditarAvulsa?: (cardId: number) => void
+  aoEditarEndereco?: (cardId: number) => void
 }) {
   const [expandido, setExpandido] = useState(false)
   const [vendoPedidos, setVendoPedidos] = useState(false)
@@ -281,6 +295,13 @@ export const MapaProgramacao = memo(function MapaProgramacao({
   function recolher() {
     setVendoPedidos(false)
     setExpandido(false)
+  }
+
+  // SESSAO-50 (bloco C): o gesto do balão recolhe a tela cheia antes — a janela
+  // de editar abre por cima da página (a camada da tela cheia ficaria na frente)
+  function doBalao(gesto: (cardId: number) => void, cardId: number) {
+    recolher()
+    gesto(cardId)
   }
 
   const principal = rotas.find((r) => !r.esmaecida)
@@ -370,6 +391,17 @@ export const MapaProgramacao = memo(function MapaProgramacao({
                 {avulsa.titulo}
                 <br />
                 {avulsa.endereco}
+                {aoEditarAvulsa && avulsa.podeEditar !== false && (
+                  <Botao
+                    variante="secundaria"
+                    icone={<Pencil />}
+                    className="mt-2 w-full"
+                    aria-label={`Editar a parada avulsa "${avulsa.titulo}"`}
+                    onClick={() => doBalao(aoEditarAvulsa, p.card_id)}
+                  >
+                    Editar
+                  </Botao>
+                )}
               </Popup>
             </Marker>
           ) : (
@@ -390,6 +422,17 @@ export const MapaProgramacao = memo(function MapaProgramacao({
                 {p.cliente_nome}
                 <br />
                 {p.total_unidades} {p.total_unidades === 1 ? 'peça' : 'peças'}
+                {aoEditarEndereco && (
+                  <Botao
+                    variante="secundaria"
+                    icone={<MapPinPen />}
+                    className="mt-2 w-full"
+                    aria-label={`Editar o endereço de entrega do pedido ${p.numero}`}
+                    onClick={() => doBalao(aoEditarEndereco, p.card_id)}
+                  >
+                    Editar endereço
+                  </Botao>
+                )}
               </Popup>
             </CircleMarker>
           ),

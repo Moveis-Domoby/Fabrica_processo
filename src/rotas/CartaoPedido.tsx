@@ -1,7 +1,9 @@
 import { memo, type MouseEvent, type ReactNode } from 'react'
-import { MapPin, MapPinCheck, MapPinOff, Package } from 'lucide-react'
+import { MapPin, MapPinCheck, MapPinOff, MapPinPen, Package } from 'lucide-react'
 import { AVISO_PONTO_APROXIMADO, dataLegivel, enderecoLegivel } from './api'
 import type { EstadoPedido, ItemPedido, PontoAproximado } from './api'
+import type { SeloEndereco } from './enderecoDoPedido'
+import { SeloEnderecoAlterado } from './SeloEnderecoAlterado'
 import { SeloEstado } from './SeloEstado'
 
 export interface DadosCartaoPedido {
@@ -24,6 +26,8 @@ export interface DadosCartaoPedido {
   /** SESSAO-38 (D-156): pronto, em produção ou ainda no PCP. */
   estado?: EstadoPedido | null
   unidades_prontas?: number
+  /** SESSAO-50 (bloco C): o endereço foi mudado na plataforma — o selo, com o original do Tiny. */
+  endereco_plataforma?: SeloEndereco | null
 }
 
 /**
@@ -38,6 +42,7 @@ export const CartaoPedido = memo(function CartaoPedido({
   pedido,
   selo,
   aoMarcarNoMapa,
+  aoEditarEndereco,
 }: {
   pedido: DadosCartaoPedido
   selo?: ReactNode
@@ -46,6 +51,11 @@ export const CartaoPedido = memo(function CartaoPedido({
    * endereço no mapa — só a logística (quem vê a Programação) recebe.
    */
   aoMarcarNoMapa?: () => void
+  /**
+   * SESSAO-50 (bloco C — pedido do dono): abre a janela "Editar endereço" do
+   * pedido (o endereço de entrega + o pino) — só a logística recebe.
+   */
+  aoEditarEndereco?: () => void
 }) {
   const marcar = aoMarcarNoMapa
     ? (e: MouseEvent<HTMLButtonElement>) => {
@@ -53,6 +63,13 @@ export const CartaoPedido = memo(function CartaoPedido({
         e.preventDefault()
         e.stopPropagation()
         aoMarcarNoMapa()
+      }
+    : undefined
+  const editar = aoEditarEndereco
+    ? (e: MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault()
+        e.stopPropagation()
+        aoEditarEndereco()
       }
     : undefined
   const itens = pedido.itens ?? []
@@ -75,6 +92,7 @@ export const CartaoPedido = memo(function CartaoPedido({
       </span>
       <span className="truncate text-sm text-texto">{pedido.cliente_nome || 'Sem cliente'}</span>
       <span className="text-sm text-texto-suave">{enderecoLegivel(pedido)}</span>
+      {pedido.endereco_plataforma && <SeloEnderecoAlterado selo={pedido.endereco_plataforma} />}
       {itens.length > 0 ? (
         <ul className="mt-1 flex flex-col gap-0.5 border-l-2 border-borda pl-2" aria-label={`Itens do pedido ${pedido.numero}`}>
           {itens.map((item, i) => (
@@ -130,24 +148,40 @@ export const CartaoPedido = memo(function CartaoPedido({
           )}
         </span>
       )}
-      {pedido.geo_resolvido === true && !aproximado && marcar && (
-        <button
-          type="button"
-          onClick={marcar}
-          className="inline-flex min-h-toque-md items-center gap-1 self-start text-left text-xs font-medium text-texto-suave underline-offset-2 hover:text-texto hover:underline"
-          title={
-            pedido.geo_manual
-              ? 'O ponto foi marcado à mão — ele mostra a parada no mapa da rota; o Google Maps e o Waze vão pelo endereço do cliente'
-              : 'O ponto veio da busca automática — se estiver no lugar errado, acerte aqui (o Google Maps e o Waze vão pelo endereço do cliente)'
-          }
-        >
-          {pedido.geo_manual ? (
-            <MapPinCheck aria-hidden className="size-3.5 shrink-0 text-perfeito-forte" />
-          ) : (
-            <MapPin aria-hidden className="size-3.5 shrink-0" />
+      {/* SESSAO-50 (bloco C): "Editar endereço" mora ao lado do "Acertar o ponto no mapa" */}
+      {((pedido.geo_resolvido === true && !aproximado && marcar) || editar) && (
+        <span className="flex flex-wrap items-center gap-x-4">
+          {pedido.geo_resolvido === true && !aproximado && marcar && (
+            <button
+              type="button"
+              onClick={marcar}
+              className="inline-flex min-h-toque-md items-center gap-1 self-start text-left text-xs font-medium text-texto-suave underline-offset-2 hover:text-texto hover:underline"
+              title={
+                pedido.geo_manual
+                  ? 'O ponto foi marcado à mão — ele mostra a parada no mapa da rota; o Google Maps e o Waze vão pelo endereço do cliente'
+                  : 'O ponto veio da busca automática — se estiver no lugar errado, acerte aqui (o Google Maps e o Waze vão pelo endereço do cliente)'
+              }
+            >
+              {pedido.geo_manual ? (
+                <MapPinCheck aria-hidden className="size-3.5 shrink-0 text-perfeito-forte" />
+              ) : (
+                <MapPin aria-hidden className="size-3.5 shrink-0" />
+              )}
+              {pedido.geo_manual ? 'Ponto marcado à mão · acertar' : 'Acertar o ponto no mapa'}
+            </button>
           )}
-          {pedido.geo_manual ? 'Ponto marcado à mão · acertar' : 'Acertar o ponto no mapa'}
-        </button>
+          {editar && (
+            <button
+              type="button"
+              onClick={editar}
+              aria-label={`Editar o endereço de entrega do pedido ${pedido.numero}`}
+              className="inline-flex min-h-toque-md items-center gap-1 text-left text-xs font-medium text-texto-suave underline-offset-2 hover:text-texto hover:underline"
+            >
+              <MapPinPen aria-hidden className="size-3.5 shrink-0" />
+              Editar endereço
+            </button>
+          )}
+        </span>
       )}
       {pedido.geo_resolvido === null && pedido.geo_chave && (
         <span className="text-xs text-texto-fraco">procurando no mapa…</span>

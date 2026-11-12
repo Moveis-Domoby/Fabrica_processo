@@ -695,3 +695,38 @@ export function rotuloDoMotivo(motivo: string | null | undefined): string {
   if (motivo === 'manual') return 'Rodada pedida à mão'
   return `Rodada de teste (${motivo})`
 }
+
+// ---------------------------------------------------------------------------
+// SESSAO-50 (bloco C): a parada avulsa (pôr, editar — com o antes e o depois —,
+// marcar, tirar), o ponto marcado à mão e o endereço de entrega mudado na
+// plataforma, em língua de gente. Acrescentado no FIM (o arquivo é dividido com
+// as outras frentes da sessão — a junção fica trivial).
+// ---------------------------------------------------------------------------
+const ACOES_DAS_ROTAS_50: Record<string, string> = {
+  parada_avulsa_criada: 'Pôs uma parada avulsa na rota',
+  parada_avulsa_editada: 'Editou a parada avulsa',
+  parada_avulsa_removida: 'Tirou a parada avulsa da rota',
+  parada_avulsa_feita: 'Marcou a parada avulsa como feita',
+  parada_avulsa_nao_feita: 'Marcou a parada avulsa como não feita',
+  parada_avulsa_reaberta: 'Desfez a marcação da parada avulsa',
+  mapa_ponto_marcado: 'Marcou o ponto do endereço no mapa',
+  mapa_ponto_desmarcado: 'Voltou o ponto do endereço à busca automática',
+  endereco_entrega_alterado: 'Mudou o endereço de entrega do pedido (só na plataforma)',
+  endereco_entrega_restaurado: 'Voltou o pedido ao endereço de entrega do Tiny',
+  endereco_entrega_tiny_confirmado: 'O Tiny confirmou o endereço de entrega mudado na plataforma',
+  endereco_entrega_tiny_substituido:
+    'O endereço de entrega mudou no Tiny (o mudado na plataforma deixou de valer)',
+}
+Object.assign(ROTULO_ACAO, ACOES_DAS_ROTAS_50)
+GRUPOS_ACAO.find((g) => g.valor === 'rotas')?.acoes.push(...Object.keys(ACOES_DAS_ROTAS_50))
+Object.assign(CHAVES, {
+  parada: 'Parada',
+  titulo_antes: 'Título antes',
+  titulo_depois: 'Título depois',
+  endereco_antes: 'Endereço antes',
+  endereco_depois: 'Endereço depois',
+  ponto_antes: 'Ponto no mapa antes',
+  ponto_depois: 'Ponto no mapa depois',
+  observacao_antes: 'Observação antes',
+  observacao_depois: 'Observação depois',
+})
