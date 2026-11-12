@@ -167,8 +167,13 @@ export function ModalSaidaPedido({
 }
 
 /** O rodapé dos dois: no celular a ação principal em cima (a mais alcançável). */
-function Rodape({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">{children}</div>
+/** Os botões do fim; com três escolhas de texto longo, um embaixo do outro em todo tamanho (no tablet, lado a lado, quebravam em duas linhas). */
+function Rodape({ children, empilhado = false }: { children: ReactNode; empilhado?: boolean }) {
+  return (
+    <div className={empilhado ? 'flex flex-col-reverse gap-2 pt-1' : 'flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end'}>
+      {children}
+    </div>
+  )
 }
 
 function CorpoCancelar({
@@ -317,7 +322,7 @@ function CorpoOcultar({
           <span>{ficam}</span>
         </p>
       )}
-      <Rodape>
+      <Rodape empilhado={Boolean(pergunta)}>
         <Botao variante="secundaria" icone={<Undo2 />} disabled={ocupado} onClick={aoVoltar}>
           Voltar
         </Botao>

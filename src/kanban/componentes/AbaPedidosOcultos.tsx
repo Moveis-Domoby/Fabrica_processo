@@ -5,7 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { Check, EyeOff, Inbox, PanelRightOpen, Pencil, RotateCcw, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Check, EyeOff, Inbox, PanelRightOpen, Pencil, RotateCcw, Undo2, X } from 'lucide-react'
 import { Botao, Modal, useNotificacao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { MaisAoRolar } from '@/componentes/MaisAoRolar'
@@ -186,17 +186,27 @@ function LinhaOculto({
             : 'Só o pedido foi ocultado'}
           {l.a_liberar > 0 ? ` · ${produtosPorExtenso(l.a_liberar)} para liberar ao recuperar` : ''}
         </span>
+        {l.fora_pelo_tiny && (
+          <span className="mt-1 flex items-start gap-1.5 rounded-dm bg-atencao-fundo px-2 py-1 text-xs text-atencao-texto">
+            <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
+            <span className="break-words">
+              No Tiny está como "{l.situacao ?? '—'}": recuperado, ele sai daqui mas só volta ao quadro quando o Tiny
+              voltar a situação.
+            </span>
+          </span>
+        )}
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-1 sm:justify-end">
         <Botao
           variante="fantasma"
           tamanho="sm"
           icone={<PanelRightOpen />}
-          className="min-h-toque-md min-w-toque-md px-2"
+          className="min-h-toque-md px-2 text-texto-suave"
           aria-label={`Abrir o card do pedido ${l.numero}`}
-          title="Abrir o card"
           onClick={aoAbrir}
-        />
+        >
+          Abrir o card
+        </Botao>
         <Botao variante="secundaria" icone={<RotateCcw />} onClick={aoRecuperar}>
           Recuperar
         </Botao>

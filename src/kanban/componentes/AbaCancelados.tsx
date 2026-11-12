@@ -198,11 +198,12 @@ function LinhaCancelado({
           variante="fantasma"
           tamanho="sm"
           icone={<PanelRightOpen />}
-          className="min-h-toque-md min-w-toque-md px-2"
+          className="min-h-toque-md px-2 text-texto-suave"
           aria-label={`Abrir o card do pedido ${l.numero}`}
-          title="Abrir o card"
           onClick={aoAbrir}
-        />
+        >
+          Abrir o card
+        </Botao>
         {podeTentar && (
           <Botao variante="secundaria" icone={<RotateCw />} carregando={tentando} onClick={aoTentar}>
             Tentar de novo
