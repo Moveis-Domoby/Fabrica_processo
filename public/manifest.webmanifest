@@ -13,7 +13,17 @@
   "icons": [
     { "src": "/icones/domoby-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icones/domoby-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icones/domoby-mascara-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icones/domoby-mascara-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icones/domoby-mascara-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icones/domoby-mascara-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

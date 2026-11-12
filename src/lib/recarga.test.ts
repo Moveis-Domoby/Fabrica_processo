@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   aoPedacoSumido,
+  atualizarAPedido,
   cancelarRecarga,
   contextoDaCarga,
   prepararRecarga,
@@ -147,6 +148,29 @@ describe('o contexto da carga (vai na 1ª abertura da página)', () => {
     reiniciarRecargaParaTeste(recarregou)
     sessionStorage.setItem('domoby:motivo-recarga', 'não é json')
     expect(contextoDaCarga().recarga).toBeUndefined()
+  })
+})
+
+describe('a pessoa pede para atualizar (o botão do tablet — ajuste de 12/11)', () => {
+  it('recarrega uma vez só, sem deixar porquê da plataforma — a próxima abertura diz "atualizou"', () => {
+    atualizarAPedido()
+    atualizarAPedido()
+    expect(recarregou).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.getItem('domoby:motivo-recarga')).toBeNull()
+    expect(recargaEmCurso()).toBe(true)
+    // a página nova: o navegador diz "reload" e não há motivo da plataforma
+    reiniciarRecargaParaTeste(recarregou)
+    cargaDoNavegador('reload')
+    expect(contextoDaCarga()).toEqual({ carga: 'reload' })
+  })
+
+  it('não atropela uma recarga da plataforma já pedida (o porquê dela fica)', () => {
+    recarregar('troca_setor')
+    atualizarAPedido()
+    expect(recarregou).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(sessionStorage.getItem('domoby:motivo-recarga') ?? '{}').motivo).toBe(
+      'troca_setor',
+    )
   })
 })
 

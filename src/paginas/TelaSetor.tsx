@@ -25,6 +25,7 @@ import { acaoLevaOLote, outrosDoLote } from '@/kanban/lote'
 import type { Card } from '@/kanban/tipos'
 import { textoPecaConcluida } from '@/kanban/situacaoPlataforma'
 import { ModalPinOperador } from '@/tablet/ModalPinOperador'
+import { BotaoAtualizarTela } from '@/tablet/BotaoAtualizarTela'
 import { ModalPausarGeral } from '@/kanban/componentes/ModalPausarGeral'
 import { AvisoCardsEsquecidos } from '@/kanban/componentes/AvisoCardsEsquecidos'
 import { responderCardEsquecido, textoDaResposta } from '@/kanban/cardEsquecido'
@@ -513,7 +514,10 @@ export function TelaSetor() {
         <span className="rounded-full bg-grafite-600 px-3 py-1 text-sm font-medium text-grafite-100 tabular-nums">
           {totalNoSetor} no setor
         </span>
-        <span className="ml-auto flex items-center gap-1">
+        {/* flex-wrap: no celular (375) os botões descem de linha em vez de empurrar o "Sair" para fora */}
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-1">
+          {/* Ajuste de 12/11 (D-306): no aplicativo não há o "puxar para atualizar" do navegador. */}
+          <BotaoAtualizarTela className="text-grafite-100 hover:bg-grafite-600" />
           {/* SESSAO-24 (F-07): alvo de toque de 44px também no cabeçalho do tablet (D-06). */}
           {(contaTablet || opcoes.length > 1) && (
             <Botao

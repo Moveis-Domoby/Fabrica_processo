@@ -86,6 +86,18 @@ export function recarregar(motivo: MotivoRecarga): void {
 }
 
 /**
+ * A PESSOA pediu para atualizar a tela — o botão "Atualizar" do tablet (ajuste de 12/11,
+ * D-306: no aplicativo não existe o "puxar a tela para baixo" do navegador). Não é a
+ * plataforma que decide, então não deixa porquê da plataforma: a trilha registra o que
+ * o navegador diz da carga — "atualizou a página" —, que é o que aconteceu. Uma vez só.
+ */
+export function atualizarAPedido(): void {
+  if (recarregandoAgora()) return
+  recarregouEm = Date.now()
+  recarregarPagina()
+}
+
+/**
  * A troca de setor do tablet vai recarregar a página (a conta nova é da
  * PRÓXIMA página): enquanto isso, a sessão desta página não reage à troca — sem
  * isso, ela abria a plataforma com a conta nova antes de recarregar (uma
