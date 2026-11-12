@@ -545,3 +545,17 @@ export interface HistoricoDoCardDados {
   passagens: PassagemDoCard[]
   trechos: TrechoDoCard[]
 }
+
+/**
+ * SESSAO-50 (bloco A): o card ganha a observação do ITEM no Tiny (acrescentada
+ * aqui no fim — o TypeScript junta as duas declarações de `Card`).
+ */
+export interface Card {
+  /**
+   * A observação que o vendedor escreveu DENTRO do produto no Tiny ("adicionar
+   * rodízios"), do item que esta peça cobre (o casamento da SESSAO-44 — o mesmo
+   * do PCP). Ausente = o item não tem observação (o banco só manda quando há).
+   * Não é a observação do pedido.
+   */
+  observacao_item?: string | null
+}
