@@ -8692,9 +8692,15 @@ await como50('')
 // e a 20261031020000) precisam aceitar esses fatos — o mesmo jeito da 51 logo abaixo, só na
 // reaplicação do teste (em produção cada uma rodou antes de esses fatos existirem; a base
 // da SESSAO-48, reaplicada no fim de cada cadeia, valida a lista completa).
+// ↪️ SESSAO-50 (E-259 de novo): a conferência com o Tiny passou a gravar o fato do pedido
+// excluído (e reencontrado) no card — também nos cenários antigos da carga histórica; e os
+// tipos novos do Cancelar/Ocultar e do endereço entram juntos (a base da 50 valida tudo).
 const aceitaDestino48 = (sql) =>
   sql.replaceAll('plt_eventos_tipo_check check (tipo = any (array[',
-                 "plt_eventos_tipo_check check (tipo = any (array['destino_pendente', 'destino_decidido', ")
+                 "plt_eventos_tipo_check check (tipo = any (array['destino_pendente', 'destino_decidido', " +
+                 "'pedido_excluido_tiny', 'pedido_reencontrado_tiny', 'pedido_cancelado_plataforma', 'card_oculto', " +
+                 "'endereco_entrega_alterado', 'endereco_entrega_restaurado', 'endereco_entrega_tiny_confirmado', " +
+                 "'endereco_entrega_tiny_substituido', ")
 
 // ============================================================================
 // SESSAO-27 · AUTOMAÇÕES EM CANVAS (02/10 — migration 51, D-99…D-104):
@@ -13701,8 +13707,12 @@ conferir(
   JSON.stringify({ antes87, depois87, marcado87, log87, resumo: resumo87?.excluidos_no_tiny, conf87a, volta87: volta87.r, voltou87, conf87b, outroErro87, priv87 }))
 
 // D-140 inteiro: "se o pedido não existe mais, ele não deve aparecer em nenhum
-// módulo" — um pedido com cartões na produção some dos quadros, da lista de
-// Pedidos e das contas; os admins ficam sabendo
+// módulo" — um pedido com cartões na produção some da lista de Pedidos e das
+// contas; os admins ficam sabendo.
+// ↩️ SESSAO-50 (bloco B): o excluído no Tiny segue o caminho do CANCELADO — os
+// cartões não são mais arquivados: o fato pedido_excluido_tiny fica no card do
+// pedido (que sai do PCP pela regra única e aparece em "Cancelados"), a peça em
+// produção espera a decisão da logística; o sino vai para a logística.
 await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
 await bd.exec(`
   insert into public.pedidos (numero, tiny_id, cliente_id, situacao, data_pedido, total_pedido, origem, raw)
@@ -13742,6 +13752,10 @@ const cartoesDepois87 = await vivos87()
 const listaDepois87 = await naLista87()
 const motivos87 = await um87(`select count(*)::int as n from public.plt_eventos e join public.plt_cards c on c.id = e.card_id join public.pedidos p on p.id = c.pedido_id
   where p.numero = 987003 and e.tipo = 'card_arquivado' and e.dados->>'motivo' = 'pedido_excluido_no_tiny'`)
+const fato87 = await um87(`select count(*)::int as n from public.plt_eventos e join public.plt_cards c on c.id = e.card_id join public.pedidos p on p.id = c.pedido_id
+  where p.numero = 987003 and e.tipo = 'pedido_excluido_tiny'`)
+const pendente87 = await um87(`select count(*)::int as n from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+  where p.numero = 987003 and c.tipo = 'unidade' and c.destino_pendente_em is not null`)
 const notif87 = (await um87(`select count(*)::int as n from public.plt_notificacoes where tipo = 'pedido_excluido_no_tiny'`)).n
 const vendaSumiu87 = await um87(`select count(*)::int as n from public.plt_comercial_vendas where numero_pedido = '987003'`)
 const conf87c = Object.fromEntries((await bd.query(`select parte, diferencas::int as d from plt_privado.fn_comercial_conferir()`)).rows.map((r) => [r.parte, r.d]))
@@ -13749,13 +13763,14 @@ const conf87c = Object.fromEntries((await bd.query(`select parte, diferencas::in
 await bd.exec(`select plt_privado.fn_pedidos_excluidos_aplicar()`)
 const notif87b = (await um87(`select count(*)::int as n from public.plt_notificacoes where tipo = 'pedido_excluido_no_tiny'`)).n
 const eventos87b = (await um87(`select count(*)::int as n from public.plt_eventos e join public.plt_cards c on c.id = e.card_id join public.pedidos p on p.id = c.pedido_id
-  where p.numero = 987003 and e.tipo = 'card_arquivado'`)).n
+  where p.numero = 987003 and e.tipo = 'pedido_excluido_tiny'`)).n
 conferir(
   cartoesAntes87 === 3 && listaAntes87 === 2 && aplic87.r.novos === 1
-    && cartoesDepois87 === 0 && listaDepois87 === 0 && motivos87.n === 3 && notif87 > notifAntes87
-    && vendaSumiu87.n === 0 && zerado87(conf87c) && notif87b === notif87 && eventos87b === 3,
-  'pedido excluído no Tiny com produção: os 3 cartões saem dos quadros (evento com o motivo), some da lista e da busca de Pedidos e do Comercial, admins avisados; a rodada seguinte não repete nada',
-  JSON.stringify({ cartoesAntes87, listaAntes87, aplic: aplic87.r, cartoesDepois87, listaDepois87, motivos: motivos87.n, notifAntes87, notif87, vendaSumiu: vendaSumiu87.n, conf87c, notif87b, eventos87b }))
+    && cartoesDepois87 === 3 && listaDepois87 === 0 && motivos87.n === 0 && fato87.n === 1 && pendente87.n === 1
+    && notif87 > notifAntes87
+    && vendaSumiu87.n === 0 && zerado87(conf87c) && notif87b === notif87 && eventos87b === 1,
+  'pedido excluído no Tiny com produção (↩️ SESSAO-50: o caminho do cancelado): o fato no card do pedido, nada arquivado, a peça em produção espera a decisão da logística; some da lista e da busca de Pedidos e do Comercial; o sino avisa; a rodada seguinte não repete nada',
+  JSON.stringify({ cartoesAntes87, listaAntes87, aplic: aplic87.r, cartoesDepois87, listaDepois87, motivos: motivos87.n, fato: fato87.n, pendente: pendente87.n, notifAntes87, notif87, vendaSumiu: vendaSumiu87.n, conf87c, notif87b, eventos87b }))
 } // fim do bloco 87
 
 // ============================================================================
@@ -16270,7 +16285,10 @@ try {
                      '20261111050000_plt_abertura_motivo.sql',
                      // ↪️ SESSAO-50 (E-19): a base recria o check dos tipos de evento (com os do excluído no
                      // Tiny, do cancelar/ocultar no PCP e do endereço) e o VALIDA — a da 48 acima já não valida
-                     '20261112010000_plt_sessao50_base.sql']) {
+                     '20261112010000_plt_sessao50_base.sql',
+                     // ↪️ SESSAO-50 · bloco B: a regra única do PCP com 5 argumentos e os 12 leitores, a reação ao
+                     // cancelamento (o excluído e o cancelado pela plataforma), Cancelar/Ocultar e as abas novas
+                     '20261112020000_plt_pcp_cancelar_ocultar_excluido.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
@@ -22755,9 +22773,16 @@ try {
   titulo('SESSAO-48 · base · liberar no PCP direto no CANCELADO; a peça de reposição só perde a peça; a de pedido cancelado não volta ao PCP')
   const idB = await gravar48(pedido48(97482, 'Preparando envio', [item48(...MESA48)]))
   const cardB = await cardDe(idB)
+  // ↩️ SESSAO-50 (frente 5): liberar DIRETO no CANCELADO passou a ser recusado pelo banco (virava
+  // o laço libera → cancela → a vaga volta); liberada na fila e arrastada para o CANCELADO, a peça
+  // segue o mesmo caminho de antes
+  await falha48(`select set_config('request.jwt.claim.sub', '${E40.admin}', false); select public.plt_fn_pcp_liberar(${cardB}, ${j48([{ item_seq: 1, indice_unidade: 1, setor_id: limpeza, etapa_id: cancelado }])})`,
+    'liberar direto no CANCELADO é recusado (SESSAO-50 · frente 5)', /coluna que cancela a fabricação/)
   await como48(E40.admin)
-  const libB = (await um48(`select public.plt_fn_pcp_liberar(${cardB}, ${j48([{ item_seq: 1, indice_unidade: 1, setor_id: limpeza, etapa_id: cancelado }])}) as r`)).r
+  const libB = (await um48(`select public.plt_fn_pcp_liberar(${cardB}, ${j48([{ item_seq: 1, indice_unidade: 1, setor_id: limpeza, etapa_id: fila }])}) as r`)).r
   await como48('')
+  const b0 = (await um48(`select id::int as id from public.plt_cards where tipo = 'unidade' and pedido_id = ${idB}`))?.id
+  if (b0) await soltar(b0, cancelado)
   const b1 = (await um48(`select id::int as id from public.plt_cards where tipo = 'unidade' and cancelada_pedido_id = ${idB}`))?.id
   const eB = b1 ? await estado(b1) : null
   const pcpB = await noPcp(97482)
@@ -22765,7 +22790,7 @@ try {
   conferir(
     b1 !== undefined && eB?.cancelada && eB.pedido === null && eB.etapa === cancelado
       && pcpB.noPcp && pcpB.aviso?.pecas === 1 && numB.de_pedido === 0 && numB.sem_dono === 0,
-    'liberar no PCP direto no CANCELADO funciona igual: a peça nasce, sai da produção na hora, e o pedido segue no PCP com o aviso',
+    'a peça liberada pelo PCP e arrastada para o CANCELADO: sai da produção na hora, e o pedido segue no PCP com o aviso',
     JSON.stringify({ libB, eB, pcpB, numB }))
 
   await bd.exec(`
@@ -23929,6 +23954,378 @@ conferir(
   JSON.stringify(prF5))
 } // fim do bloco SESSAO-48 · frente 5
 
+
+// ============================================================================
+// SESSAO-50 · BLOCO B (migrations 20261112010000 base + 20261112020000): o pedido
+// excluído no Tiny sai do PCP de vez e segue o caminho do cancelado; "Cancelar
+// pedido" (pede ao Tiny pela fila de saída e sai do PCP na hora) e "Ocultar do
+// PCP" (com ou sem as peças; "Pedidos ocultos" por N dias; "Recuperar" com as
+// vagas abertas; "Incluir pedido no PCP" de qualquer idade); a liberação não
+// manda para a coluna que cancela; o laço (3 ou mais em 24 h).
+// ============================================================================
+{ // SESSAO-50 · bloco B (escopo próprio — E-70)
+titulo('SESSAO-50 · bloco B · o excluído no Tiny sai do PCP (a lista que já existia) e segue o caminho do cancelado')
+
+// E-81: blocos de cima reaplicam migrations antigas que recriam o PCP na versão de antes
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261112010000_plt_sessao50_base.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261112020000_plt_pcp_cancelar_ocultar_excluido.sql'), 'utf8'))
+
+const um50b = async (sql) => (await bd.query(sql)).rows[0]
+const todos50b = async (sql) => (await bd.query(sql)).rows
+const como50b = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const j50b = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+const falha50b = async (sql, descricao, padrao, auth = null) => {
+  await bd.exec('savepoint f50b')
+  try {
+    if (auth) await como50b(auth)
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint f50b')
+    await como50b('')
+  }
+}
+const comoQuem50b = async (auth, sql) => {
+  await como50b(auth)
+  try {
+    return await um50b(sql)
+  } finally {
+    await como50b('')
+  }
+}
+const item50b = (codigo, descricao, qtd = '1.00') =>
+  ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } })
+const pedido50b = (numero, situacao, itens) => ({
+  id: String(7996000 + (numero % 1000)), numero: String(numero), data_pedido: '12/11/2026', data_prevista: '30/11/2026', situacao,
+  total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs: '', obs_interna: '', nome_vendedor: 'Vendedora 50',
+  codigo_rastreamento: '', url_rastreamento: '',
+  cliente: { codigo: '', nome: `Cliente Teste 50 ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: 'Rua Teste 50', numero: '50', complemento: '', bairro: 'Centro', cep: '59000-500', cidade: 'Natal',
+             uf: 'RN', fone: '84999995050', email: '' },
+  itens,
+})
+const gravar50b = async (p, tipo = 'inclusao_pedido') => {
+  const id = (await um50b(`select public.fn_upsert_pedido(p => ${j50b(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const ESTANTE50 = ['SX50E', 'Estante Teste 50 - Branca']
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade) values
+      (9965001, 'SX50E', 'Estante Teste 50 - Branca', 'F', 'A', 'un')
+    on conflict (tiny_id) do nothing;
+    -- a ida ao Tiny ligada (a chave da ROTAS) — o "Cancelar pedido" depende dela
+    update public.plt_setores set tiny_entrega_desde = coalesce(tiny_entrega_desde, now()) where codigo = 'rotas';`)
+  const limpeza = (await um50b(`select id::int as id from public.plt_setores where codigo = 'limpeza_embalagem'`)).id
+  const aguardo = (await um50b(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+  const rotas = (await um50b(`select id::int as id from public.plt_setores where codigo = 'rotas'`)).id
+  const fila = (await um50b(`select id::int as id from public.plt_etapas where setor_id = ${limpeza} and eh_fila and ativa order by ordem, id limit 1`)).id
+  await bd.exec(`
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila, cancela_fabricacao, cancela_motivo) values
+      (${limpeza}, 'CANCELADO 50', 92, false, true, 'cancelada');`)
+  const cancelado = (await um50b(`select id::int as id from public.plt_etapas where nome = 'CANCELADO 50'`)).id
+  const cardDe = async (pedidoId) => (await um50b(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+  const peca = async (pedidoId, pai, seq, k, n, [codigo, descricao], setor = limpeza, etapa = fila) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pedidoId}, ${pai}, ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${setor}, ${etapa ?? 'null'}, 'api');`)
+    return (await um50b(`select max(id)::int as id from public.plt_cards where tipo = 'unidade'`)).id
+  }
+  const estado = (id) => um50b(`
+    select c.pedido_id::int as pedido, c.arquivado_em is not null as arquivada, c.destino_pendente_em is not null as pendente,
+           s.codigo as setor
+      from public.plt_cards c left join public.plt_setores s on s.id = c.setor_atual_id where c.id = ${id}`)
+  const noPcp = async (numero) => {
+    await como50b(E40.admin)
+    try {
+      const q = await um50b(`select q.pedido_resumo -> 'aviso_cancelada' as aviso
+                               from public.plt_fn_pcp_quadro(100, 0, 'pedido', null, '${numero}') q
+                               join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+      const antigo = await um50b(`select 1 as ok from public.plt_fn_cards_pedido_pcp(100, 0) q
+                                    join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)
+      const painel = await um50b(`select (select pedidos_a_liberar from public.plt_fn_dash_pcp_dia()) as painel,
+                                         (select count(*)::int from public.plt_fn_cards_pedido_pcp(100, 0)) as quadro`)
+      return { noPcp: q !== undefined, aviso: q?.aviso ?? null, noAntigo: antigo !== undefined,
+               painelIgualQuadro: painel.painel === painel.quadro }
+    } finally {
+      await como50b('')
+    }
+  }
+  const cancelados = async () => {
+    await como50b(E40.logistica)
+    try {
+      return await todos50b(`select numero, motivo, tiny_estado, cancelado_por, saiu_em::text as saiu_em
+                               from public.plt_fn_pcp_cancelados(null, 50, null, null)`)
+    } finally {
+      await como50b('')
+    }
+  }
+
+  // ---------------- 1 · a detecção (a conta da loja) e o caminho do cancelado ----------------
+  const idX = await gravar50b(pedido50b(99651, 'Preparando envio', [item50b(...ESTANTE50, '3.00')]))
+  const cardX = await cardDe(idX)
+  const x1 = await peca(idX, cardX, 1, 1, 3, ESTANTE50)                    // em produção (a fila da LIMPEZA)
+  const x2 = await peca(idX, cardX, 1, 2, 3, ESTANTE50, aguardo, null)      // pronta (Expedição); a 3ª vaga segue no PCP
+  const idF = await gravar50b(pedido50b(99652, 'Preparando envio', [item50b(...ESTANTE50, '1.00')]))
+  const antesX = await noPcp(99651)
+  await bd.exec(`
+    insert into public.tiny_fila (recurso, chave, referencia, status, erro, tentativas, params, conta) values
+      ('pedido', (select tiny_id::text from public.pedidos where id = ${idX}), '99651', 'vazio', 'codigo 32: Pedido não localizado', 1, '{"rodada": "teste-50b"}'::jsonb, 'loja'),
+      ('pedido', (select tiny_id::text from public.pedidos where id = ${idF}), '99652', 'vazio', 'codigo 32: Pedido não localizado', 1, '{"rodada": "teste-50b"}'::jsonb, 'fabrica');`)
+  const ap1 = (await um50b(`select plt_privado.fn_pedidos_excluidos_aplicar() as r`)).r
+  const lista1 = (await todos50b(`select numero from public.plt_pedidos_excluidos_tiny where numero in (99651, 99652) order by numero`)).map((r) => r.numero)
+  const fatoX = await um50b(`select tipo, origem, observacao from public.plt_eventos where card_id = ${cardX} and tipo = 'pedido_excluido_tiny'`)
+  const depoisX = await noPcp(99651)
+  const ex1 = await estado(x1)
+  const ex2 = await estado(x2)
+  const notiX = await um50b(`select count(*)::int as n, min(corpo) as corpo from public.plt_notificacoes
+                              where tipo = 'pedido_excluido_no_tiny' and card_id = ${cardX}`)
+  const avisoDestinoX = await um50b(`select count(*)::int as n, min(titulo) as titulo from public.plt_notificacoes
+                                      where tipo = 'pedido_cancelado_decidir' and card_id = ${cardX}`)
+  const canceladoX = (await um50b(`select plt_privado.fn_pedido_cancelado(${idX}) as c`)).c
+  const listaX = (await cancelados()).find((l) => l.numero === 99651)
+  const destinoX = await comoQuem50b(E40.logistica, `select public.plt_fn_destino_pendentes(${cardX}) as d`)
+  conferir(
+    antesX.noPcp && ap1.novos === 1 && JSON.stringify(lista1) === '[99651]'
+      && fatoX?.origem === 'automacao' && /não existe mais no Tiny/.test(fatoX?.observacao ?? '')
+      && !depoisX.noPcp && !depoisX.noAntigo && depoisX.painelIgualQuadro
+      && ex1.pendente && ex1.pedido === idX && ex2.pedido === null && ex2.setor === 'estoque'
+      && notiX.n >= 1 && notiX.corpo === 'O pedido 99651 não existe mais no Tiny (foi excluído). Ele saiu do PCP.'
+      && avisoDestinoX.n >= 1 && /Pedido 99651 excluído no Tiny com móveis em produção/.test(avisoDestinoX.titulo)
+      && canceladoX === true && listaX?.motivo === 'excluido'
+      && destinoX.d.cancelado === true && destinoX.d.motivo_cancelamento === 'excluido' && destinoX.d.pecas.length === 1,
+    'o "não localizado" da conta da LOJA marca o pedido (o da conta da fábrica não): o fato no card, o pedido sai do PCP (quadro, porta antiga e quadrinho iguais), a peça em produção espera a logística decidir, a pronta vai ao ESTOQUE sem dono, o sino da logística diz o texto da demanda e ele aparece em "Cancelados" como "Excluído no Tiny"',
+    JSON.stringify({ antesX, ap1, lista1, fatoX, depoisX, ex1, ex2, notiX, avisoDestinoX, canceladoX, listaX, destino: destinoX.d?.motivo_cancelamento }))
+
+  // reencontrado: sai da lista, o fato, a peça que esperava decisão volta a ser só dele
+  await bd.exec(`update public.tiny_fila set status = 'ok', erro = null
+                  where recurso = 'pedido' and chave = (select tiny_id::text from public.pedidos where id = ${idX})`)
+  const ap2 = (await um50b(`select plt_privado.fn_pedidos_excluidos_aplicar() as r`)).r
+  const fatoV = await um50b(`select count(*)::int as n from public.plt_eventos where card_id = ${cardX} and tipo = 'pedido_reencontrado_tiny'`)
+  const ex1b = await estado(x1)
+  const voltaX = await noPcp(99651)
+  conferir(
+    ap2.voltaram === 1 && fatoV.n === 1 && !ex1b.pendente && ex1b.pedido === idX && voltaX.noPcp,
+    'achado de novo no Tiny: sai da lista com o fato "reencontrado", a peça que esperava a decisão volta a ser só do pedido e ele volta ao PCP (a vaga da peça que foi ao estoque está aberta)',
+    JSON.stringify({ ap2, fatoV, ex1b, voltaX }))
+
+  // o caso do 13622: já estava na lista (antes do fato existir) — sai do PCP sozinho
+  const idY = await gravar50b(pedido50b(99653, 'Em aberto', [item50b(...ESTANTE50, '3.00')]))
+  const antesY = await noPcp(99653)
+  await bd.exec(`insert into public.plt_pedidos_excluidos_tiny (pedido_id, tiny_id, numero, erro, detectado_em)
+                 select id, tiny_id, numero, 'codigo 32: Pedido não localizado', now() - interval '27 days' from public.pedidos where id = ${idY}`)
+  const depoisY = await noPcp(99653)
+  const listaY = (await cancelados()).find((l) => l.numero === 99653)
+  conferir(
+    antesY.noPcp && !depoisY.noPcp && depoisY.painelIgualQuadro && listaY?.motivo === 'excluido',
+    'o pedido que já estava na lista de excluídos (o caso do 13622) sai do PCP sem acerto nenhum e aparece em "Cancelados" como "Excluído no Tiny"',
+    JSON.stringify({ antesY, depoisY, listaY }))
+
+  // ---------------- 2 · "Cancelar pedido" ----------------
+  titulo('SESSAO-50 · bloco B · "Cancelar pedido": sai do PCP na hora, o cancelamento vai ao Tiny pela fila; um efeito só; "Tentar de novo"')
+  const idC = await gravar50b(pedido50b(99654, 'Preparando envio', [item50b(...ESTANTE50, '2.00')]))
+  const cardC = await cardDe(idC)
+  const c1 = await peca(idC, cardC, 1, 1, 2, ESTANTE50)
+  await falha50b(`select public.plt_fn_pcp_cancelar(${cardC}, 'k-op')`,
+    'o operador não cancela pedido (o PCP, a logística e o admin sim)', /PCP, da logística ou do admin/, E40.operador)
+  const rc1 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_cancelar(${cardC}, 'k-c1') as r`)).r
+  const filaC = await um50b(`select situacao, motivo from public.plt_tiny_pedido_fila where pedido_id = ${idC}`)
+  const pcC = await um50b(`select cancelado_plataforma_em is not null as marcado from public.plt_cards where id = ${cardC}`)
+  const ec1 = await estado(c1)
+  const depoisC = await noPcp(99654)
+  const vivoC = await um50b(`select count(*)::int as n from plt_privado.vw_pedidos_vivos_regra where pedido_id = ${idC}`)
+  const listaC = (await cancelados()).find((l) => l.numero === 99654)
+  const fatoC = await um50b(`select count(*)::int as n, bool_and(usuario_id is not null) as autor from public.plt_eventos
+                              where card_id = ${cardC} and tipo = 'pedido_cancelado_plataforma'`)
+  conferir(
+    rc1.feito === true && filaC?.situacao === 'cancelado' && filaC?.motivo === 'cancelar'
+      && pcC.marcado && fatoC.n === 1 && fatoC.autor && ec1.pendente && !depoisC.noPcp && depoisC.painelIgualQuadro
+      && vivoC.n === 0 && listaC?.motivo === 'plataforma' && listaC?.tiny_estado === 'esperando' && listaC?.cancelado_por !== null,
+    'cancelar: o fato com o autor, a marca no card, o pedido "cancelado" na fila de saída do Tiny, sai do PCP e das rotas na hora, a peça em produção espera a logística, e aparece em "Cancelados" como "Cancelado pela plataforma" esperando o Tiny',
+    JSON.stringify({ rc1, filaC, pcC, fatoC, ec1, depoisC, vivoC, listaC }))
+
+  const rc2 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_cancelar(${cardC}, 'k-c1') as r`)).r
+  const fatoC2 = await um50b(`select count(*)::int as n from public.plt_eventos where card_id = ${cardC} and tipo = 'pedido_cancelado_plataforma'`)
+  await bd.exec(`update public.plt_tiny_pedido_fila set parado_em = now(), tentativas = 8, ultimo_erro = 'Situação inválida' where pedido_id = ${idC}`)
+  const estadoParado = (await um50b(`select plt_privado.fn_cancelamento_tiny_estado(${idC}) as e`)).e
+  const rc3 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_cancelar(${cardC}, 'k-c3') as r`)).r
+  const filaC3 = await um50b(`select parado_em is null as andando, tentativas::int as t from public.plt_tiny_pedido_fila where pedido_id = ${idC}`)
+  conferir(
+    rc2.feito === false && rc2.motivo === 'ja_cancelado' && fatoC2.n === 1
+      && estadoParado === 'parado' && rc3.feito === true && rc3.motivo === 'tentar_de_novo' && filaC3.andando && filaC3.t === 0,
+    'tocar de novo não faz nada (um fato só); com o Tiny parado, tocar de novo é o "Tentar de novo" (o pedido volta para a fila de saída)',
+    JSON.stringify({ rc2, fatoC2, estadoParado, rc3, filaC3 }))
+
+  await bd.exec(`update public.plt_setores set tiny_entrega_desde = null where codigo = 'rotas'`)
+  const idD = await gravar50b(pedido50b(99655, 'Preparando envio', [item50b(...ESTANTE50, '1.00')]))
+  const cardD = await cardDe(idD)
+  await falha50b(`select public.plt_fn_pcp_cancelar(${cardD}, 'k-d')`,
+    'com a ida ao Tiny desligada, o banco recusa o cancelamento (a tela apaga o botão)', /ida ao Tiny está desligada/, E40.logistica)
+  await bd.exec(`update public.plt_setores set tiny_entrega_desde = now() where codigo = 'rotas'`)
+
+  // o stand-by aberto fecha no cancelamento pela plataforma (D-269)
+  const motivoSb = (await um50b(`select id::int as id from public.plt_motivos where tipo = 'standby' and ativo order by ordem, id limit 1`)).id
+  await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_standby(${cardD}, ${motivoSb}, 'esperando o cliente') as r`)
+  await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_cancelar(${cardD}, 'k-d2') as r`)
+  const sbD = await um50b(`select c.standby_desde is null as fechado,
+                                  (select e.dados ->> 'destino' from public.plt_eventos e where e.card_id = c.id and e.tipo = 'pedido_standby_saiu' order by e.id desc limit 1) as destino
+                             from public.plt_cards c where c.id = ${cardD}`)
+  conferir(sbD.fechado && sbD.destino === 'cancelado',
+    'o pedido em stand-by cancelado pela plataforma: o stand-by fecha sozinho na hora (como no cancelamento do Tiny)', JSON.stringify(sbD))
+
+  // ---------------- 3 · "Ocultar do PCP" e "Recuperar" ----------------
+  titulo('SESSAO-50 · bloco B · "Ocultar do PCP": só o pedido ou o pedido e as peças; "Pedidos ocultos"; "Recuperar" com as vagas abertas')
+  const idO = await gravar50b(pedido50b(99656, 'Preparando envio', [item50b(...ESTANTE50, '3.00')]))
+  const cardO = await cardDe(idO)
+  const o1 = await peca(idO, cardO, 1, 1, 3, ESTANTE50)                    // em produção
+  const o2 = await peca(idO, cardO, 1, 2, 3, ESTANTE50, aguardo, null)      // pronta
+  const o3 = await peca(idO, cardO, 1, 3, 3, ESTANTE50, rotas, null)        // já na ROTAS: fica
+  const previaO = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_saida_previa(${cardO}) as p`)).p
+  const ro1 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_ocultar(${cardO}, true, 'k-o1') as r`)).r
+  const eo1 = await estado(o1)
+  const eo2 = await estado(o2)
+  const eo3 = await estado(o3)
+  const fatosO1 = (await todos50b(`select tipo from public.plt_eventos where card_id = ${o1} order by id`)).map((f) => f.tipo)
+  const pcO = await um50b(`select removido_pcp_motivo as motivo from public.plt_cards where id = ${cardO}`)
+  const ocultosO = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_ocultos(null, 20, null, null) as r`)).r
+  const linhaO = ocultosO.linhas.find((l) => l.numero === 99656)
+  const ro2 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_ocultar(${cardO}, true, 'k-o2') as r`)).r
+  conferir(
+    previaO.ocultar.ocultaveis === 2 && previaO.ocultar.ficam === 1 && previaO.ocultos_dias === 30
+      && ro1.feito === true && ro1.ocultadas === 2 && pcO.motivo === 'oculto'
+      && eo1.arquivada && eo1.pedido === null && eo2.arquivada && eo2.pedido === null && !eo3.arquivada && eo3.pedido === idO
+      && JSON.stringify(fatosO1.slice(-3)) === JSON.stringify(['card_oculto', 'unidade_desvinculada', 'card_arquivado'])
+      && !(await noPcp(99656)).noPcp && linhaO?.pecas_ocultadas === 2 && linhaO?.a_liberar === 2 && ocultosO.dias === 30
+      && ro2.feito === false && ro2.motivo === 'ja_oculto',
+    'ocultar o pedido e as peças: a prévia diz quantas saem (2) e quantas ficam (a da rota); cada peça sai com card_oculto, perde o pedido e é arquivada (nada é apagado); o pedido sai do PCP e aparece em "Pedidos ocultos" com 2 produtos para liberar; tocar de novo não faz nada',
+    JSON.stringify({ previa: previaO.ocultar, ro1, eo1, eo2, eo3, fatosO1, pcO, linhaO, ro2 }))
+
+  const rr = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_devolver(${cardO}) as r`)).r
+  const eo1b = await estado(o1)
+  const voltaO = await noPcp(99656)
+  conferir(
+    rr.feito === true && rr.a_liberar === 2 && voltaO.noPcp && eo1b.arquivada && eo1b.pedido === null,
+    'recuperar: o pedido volta ao PCP com as 2 vagas abertas para liberar — as peças ocultadas continuam arquivadas (nenhuma volta para a coluna)',
+    JSON.stringify({ rr, voltaO, eo1b }))
+
+  // só o pedido: a peça segue na produção; os N dias; o "Incluir" de qualquer idade
+  const idS = await gravar50b(pedido50b(99657, 'Preparando envio', [item50b(...ESTANTE50, '1.00')]))
+  const cardS = await cardDe(idS)
+  const s1 = await peca(idS, cardS, 1, 1, 1, ESTANTE50)
+  const rs = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_ocultar(${cardS}, false, 'k-s') as r`)).r
+  const es1 = await estado(s1)
+  await bd.exec(`
+    set local session_replication_role = replica;
+    update public.plt_cards set removido_pcp_em = now() - interval '40 days' where id = ${cardS};
+    set local session_replication_role = origin;`)
+  const ocultosS = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_ocultos('99657', 20, null, null) as r`)).r
+  const incluirS = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_incluir_lista('99657', 8, null) as r`)).r
+  const incluirY = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_incluir_lista('99653', 8, null) as r`)).r
+  conferir(
+    rs.feito === true && rs.ocultadas === 0 && !es1.arquivada && es1.pedido === idS
+      && ocultosS.linhas.length === 0
+      && incluirS.ocultos.some((o) => o.numero === 99657) && !incluirY.sem_card.some((s) => s.numero === 99653)
+      && !incluirY.ocultos.some((s) => s.numero === 99653),
+    '"Ocultar só o pedido" deixa a peça na produção; depois dos 30 dias o pedido sai da lista "Pedidos ocultos" (nada é apagado) e o "Incluir pedido no PCP" ainda o acha; o excluído no Tiny não aparece no "Incluir"',
+    JSON.stringify({ rs, es1, ocultosS: ocultosS.linhas.length, incluirS: incluirS.ocultos, incluirY }))
+
+  // o "Incluir pedido no PCP" pagina pelo número (cursor, sem total — Lei §6): três pedidos
+  // antigos SEM card (gravados direto, sem o gatilho que cria o card do pedido novo)
+  await bd.exec(`
+    set local session_replication_role = replica;
+    insert into public.pedidos (numero, situacao, origem, data_pedido) values
+      (99671, 'Preparando envio', 'webhook', date '2026-01-03'),
+      (99672, 'Preparando envio', 'webhook', date '2026-01-04'),
+      (99673, 'Preparando envio', 'webhook', date '2026-01-05'),
+      (99674, 'Entregue', 'webhook', date '2026-01-06');
+    set local session_replication_role = origin;`)
+  const inc1 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_incluir_lista('9967', 2, null) as r`)).r
+  const inc2 = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_incluir_lista('9967', 2, ${inc1.proximo ?? 0}) as r`)).r
+  const incSem = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_incluir_lista(null, 3, null) as r`)).r
+  const incSem2 = incSem.proximo
+    ? (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_incluir_lista(null, 3, ${incSem.proximo}) as r`)).r
+    : { sem_card: [], ocultos: [], proximo: null }
+  conferir(
+    JSON.stringify(inc1.sem_card.map((s) => s.numero)) === '[99673,99672]' && inc1.proximo === 99672
+      && JSON.stringify(inc2.sem_card.map((s) => s.numero)) === '[99671]' && inc2.proximo === null
+      && inc2.ocultos.length === 0 && !('total_sem_card' in inc1)
+      && incSem.sem_card.length <= 3
+      && incSem.sem_card.every((s, i, a) => i === 0 || a[i - 1].numero > s.numero)
+      && incSem2.sem_card.every((s) => s.numero < incSem.proximo)
+      && !incSem.sem_card.some((s) => [99657, 99653].includes(s.numero)),
+    '"Incluir pedido no PCP" pagina pelo número (a página achada primeiro, o cursor é o número da última linha, sem total): a busca rara acha os 3 sem card em duas páginas; sem busca, as páginas descem sem repetir; quem tem card, foi excluído no Tiny ou já foi entregue (o card nasceria fora do quadro) não aparece',
+    JSON.stringify({ inc1, inc2: inc2.sem_card, incSem: incSem.sem_card.map((s) => s.numero), proximo: incSem.proximo, incSem2: incSem2.sem_card.map((s) => s.numero) }))
+
+  await falha50b(`select public.plt_fn_pcp_remover(${cardC}, 'fora_da_linha', 'o cliente vai buscar')`,
+    'o "Remover do PCP" com os motivos antigos deixou de existir (o banco diz o caminho novo)', /virou "Cancelar pedido" e "Ocultar do PCP"/, E40.logistica)
+  await falha50b(`select public.plt_fn_pcp_ocultos_dias(30)`,
+    'mudar os dias dos ocultos é do admin', /gesto do admin/, E40.logistica)
+  await falha50b(`select public.plt_fn_pcp_ocultos_dias(400)`,
+    'os dias dos ocultos ficam entre 1 e 365', /de 1 a 365/, E40.admin)
+  const dias45 = (await comoQuem50b(E40.admin, `select public.plt_fn_pcp_ocultos_dias(45) as d`)).d
+  const diasLidos = (await um50b(`select plt_privado.fn_ocultos_dias() as d`)).d
+  conferir(dias45 === 45 && diasLidos === 45, 'o admin muda os dias da lista "Pedidos ocultos" (a configuração mora na linha do PCP)', JSON.stringify({ dias45, diasLidos }))
+
+  // ---------------- 4 · a liberação e o laço ----------------
+  titulo('SESSAO-50 · bloco B · a liberação não manda para a coluna que cancela; o laço (3 ou mais canceladas em 24 h); a observação do item na janela')
+  const idL = await gravar50b(pedido50b(99658, 'Preparando envio', [item50b(...ESTANTE50, '3.00')]))
+  const cardL = await cardDe(idL)
+  await falha50b(`select public.plt_fn_pcp_liberar(${cardL}, ${j50b([{ item_seq: 1, indice_unidade: 1, setor_id: limpeza, etapa_id: cancelado }])})`,
+    'liberar direto no CANCELADO é recusado pelo banco (e diz o caminho: cancelar ou ocultar)', /coluna que cancela a fabricação/, E40.logistica)
+  await bd.exec(`insert into public.plt_itens_observacao (pedido_id, seq, texto) values (${idL}, 1, 'adicionar rodízios')`)
+  const janelaL = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_liberacao(${cardL}) as j`)).j
+  const l1 = await peca(idL, cardL, 1, 1, 3, ESTANTE50)
+  const l2 = await peca(idL, cardL, 1, 2, 3, ESTANTE50)
+  const l3 = await peca(idL, cardL, 1, 3, 3, ESTANTE50)
+  for (const p of [l1, l2, l3]) await comoQuem50b(E40.admin, `select public.plt_fn_soltar_card(${p}, ${cancelado}) as r`)
+  const lacoL = await noPcp(99658)
+  const avisoL = (await comoQuem50b(E40.logistica, `select public.plt_fn_pcp_aviso(${cardL}) as a`)).a
+  conferir(
+    janelaL.itens[0]?.observacao === 'adicionar rodízios'
+      && lacoL.noPcp && lacoL.aviso?.laco === true && lacoL.aviso?.pecas === 3
+      && avisoL.canceladas_24h === 3 && avisoL.tiny_ligado === true && avisoL.ocultos_dias === 45,
+    'a janela "Liberar unidades" traz a observação do item; com 3 peças canceladas em 24 h o selo do PCP vira o laço e a janela "O que aconteceu?" conta as 3',
+    JSON.stringify({ obs: janelaL.itens[0], aviso: lacoL.aviso, avisoL: { c: avisoL.canceladas_24h, t: avisoL.tiny_ligado } }))
+
+  // ---------------- 5 · a regra única, a API do Tiny e quem pode ----------------
+  const api50 = await um50b(`select plt_privado.fn_tiny_situacao_api('cancelado') as a, plt_privado.fn_tiny_situacao_api('Cancelado') as b`)
+  const regra3 = await um50b(`select to_regprocedure('plt_privado.fn_fora_do_pcp(text, timestamptz, timestamptz)') is null as saiu,
+                                     to_regprocedure('plt_privado.fn_fora_do_pcp(text, timestamptz, timestamptz, boolean, timestamptz)') is not null as nova`)
+  const priv50 = await um50b(`
+    select has_function_privilege('anon', 'public.plt_fn_pcp_cancelar(bigint, text)', 'execute') as cancelar_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_cancelar(bigint, text)', 'execute') as cancelar_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_ocultar(bigint, boolean, text)', 'execute') as ocultar_logado,
+           has_function_privilege('anon', 'public.plt_fn_pcp_ocultar(bigint, boolean, text)', 'execute') as ocultar_anon,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_cancelados(text, integer, timestamptz, bigint)', 'execute') as cancelados_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_ocultos(text, integer, timestamptz, bigint)', 'execute') as ocultos_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_incluir_lista(text, integer, integer)', 'execute') as incluir_logado,
+           has_function_privilege('authenticated', 'public.plt_fn_pcp_saida_previa(bigint)', 'execute') as previa_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_pcp_ocultos_linhas(text, integer, timestamptz, bigint, boolean)', 'execute') as linhas_logado,
+           has_function_privilege('authenticated', 'plt_privado.fn_cancelamento_tiny_estado(bigint)', 'execute') as estado_logado,
+           (select relrowsecurity from pg_class where relname = 'plt_itens_observacao') as obs_rls,
+           has_table_privilege('authenticated', 'public.plt_itens_observacao', 'select') as obs_logado`)
+  await falha50b(`insert into public.plt_eventos (card_id, tipo, origem) values (${cardS}, 'pedido_cancelado_plataforma', 'api')`,
+    'o fato do cancelamento pela plataforma não se grava direto (só pela porta)', /nasce sozinho/)
+  conferir(
+    api50.a === 'cancelado' && api50.b === 'cancelado' && regra3.saiu && regra3.nova
+      && !priv50.cancelar_anon && priv50.cancelar_logado && priv50.ocultar_logado && !priv50.ocultar_anon
+      && priv50.cancelados_logado && priv50.ocultos_logado && priv50.incluir_logado && priv50.previa_logado
+      && !priv50.linhas_logado && !priv50.estado_logado && priv50.obs_rls && !priv50.obs_logado,
+    'o "cancelado" vai ao Tiny como "cancelado" (antes caía em "enviado"); a regra única de 3 argumentos saiu; as portas novas só para quem está logado; os ajudantes e a tabela da observação fora da API',
+    JSON.stringify({ api50, regra3, priv50 }))
+} finally {
+  await bd.exec('rollback')
+  await como50b('')
+}
+} // fim do bloco SESSAO-50 · bloco B
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
