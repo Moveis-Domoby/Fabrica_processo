@@ -80,6 +80,28 @@ export function paradaSalva(a: ParadaAvulsa | RascunhoParada): a is ParadaAvulsa
   return 'id' in a
 }
 
+/**
+ * SESSAO-50 (bloco C — pedido do dono): quem vê o "Editar" da parada. O
+ * rascunho da aba Programar (ainda não está no banco) sempre; a salva, pelo
+ * que o banco diz (`pode_editar`: a logística, ou quem pôs — só a pendente).
+ * Sem a chave (o banco de antes desta sessão), só a pendente.
+ */
+export function podeEditarParada(a: ParadaAvulsa | RascunhoParada): boolean {
+  if (!paradaSalva(a)) return true
+  return a.pode_editar ?? a.situacao === 'pendente'
+}
+
+/** Os dados da parada como a janela de editar os recebe (o mesmo formato de criar). */
+export function dadosDaParada(a: ParadaAvulsa | RascunhoParada): DadosParadaAvulsa {
+  return {
+    titulo: a.titulo,
+    endereco: a.endereco,
+    latitude: a.latitude,
+    longitude: a.longitude,
+    observacao: a.observacao,
+  }
+}
+
 /** Feita ou Não feita: segue na ordem, mas sai do caminho (mapa, conta da rota, Google Maps). */
 export function paradaConcluida(item: object): boolean {
   return ehAvulsa(item) && paradaSalva(item.avulsa) && item.avulsa.situacao !== 'pendente'
@@ -208,7 +230,11 @@ export function marcadoresDaRota(
             longitude: p.longitude,
           },
           numero: i + 1,
-          avulsa: { titulo: p.avulsa.titulo, endereco: p.avulsa.endereco },
+          avulsa: {
+            titulo: p.avulsa.titulo,
+            endereco: p.avulsa.endereco,
+            podeEditar: podeEditarParada(p.avulsa),
+          },
         },
       ]
     }

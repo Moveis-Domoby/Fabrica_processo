@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CircleCheck, CircleX, ListOrdered, Undo2, X } from 'lucide-react'
+import { CircleCheck, CircleX, ListOrdered, Pencil, Undo2, X } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { concluirParadaAvulsa, removerParadaAvulsa } from './api'
 import type { ParadaAvulsa } from './api'
 import { BotoesParada } from './BotoesNavegacao'
 import { NumeroParadaAvulsa, SeloSituacaoParada } from './CartaoParadaAvulsa'
-import { CHAVES_PARADA_AVULSA, lugarDaAvulsa } from './paradasAvulsas'
+import { useEditarParada } from './editarParada'
+import { ModalParadaAvulsa } from './ModalParadaAvulsa'
+import {
+  CHAVES_PARADA_AVULSA,
+  dadosDaParada,
+  lugarDaAvulsa,
+  podeEditarParada,
+} from './paradasAvulsas'
 
 function horaCurta(iso: string | null): string {
   return iso
@@ -29,6 +36,8 @@ function useInvalidarParadas() {
  * pôs; Google Maps / Waze até ela; "Feita" e "Não feita" (motivo opcional) e,
  * já marcada, "Desfazer". Quem pôs (ainda pendente) muda o momento dela e a
  * tira da rota; a logística também tira.
+ * ↪️ SESSAO-50 (bloco C): "Editar" (a mesma janela de pôr, preenchida) para
+ * quem o banco deixa — a logística, ou quem pôs; só a pendente.
  */
 export function CartaoParadaDoDia({
   parada,
@@ -44,8 +53,14 @@ export function CartaoParadaDoDia({
   const notificar = useNotificacao()
   const invalidar = useInvalidarParadas()
   const [naoFeita, setNaoFeita] = useState(false)
+  const [editando, setEditando] = useState(false)
   const pendente = parada.situacao === 'pendente'
   const minhaPendente = parada.sou_autor && pendente
+  // SESSAO-50 (bloco C): o banco diz quem edita (a logística, ou quem pôs — só a pendente)
+  const podeEditar = pendente && podeEditarParada(parada)
+
+  // SESSAO-50 (bloco C — pedido do dono): editar a parada em vez de apagar e criar outra
+  const editar = useEditarParada(() => setEditando(false))
 
   const concluir = useMutation({
     mutationFn: (v: { feita: boolean | null; motivo?: string }) =>
@@ -156,8 +171,13 @@ export function CartaoParadaDoDia({
         </>
       )}
 
-      {(minhaPendente || souLogistica || !pendente) && (
+      {(minhaPendente || souLogistica || !pendente || podeEditar) && (
         <div className="flex flex-wrap gap-2">
+          {podeEditar && (
+            <Botao variante="secundaria" icone={<Pencil />} onClick={() => setEditando(true)}>
+              Editar
+            </Botao>
+          )}
           {!pendente && (
             <Botao
               variante="fantasma"
@@ -194,6 +214,15 @@ export function CartaoParadaDoDia({
         aoFechar={() => setNaoFeita(false)}
         aoConfirmar={(motivo) => concluir.mutate({ feita: false, motivo })}
       />
+      {editando && (
+        <ModalParadaAvulsa
+          aberto
+          inicial={dadosDaParada(parada)}
+          carregando={editar.isPending}
+          aoFechar={() => setEditando(false)}
+          aoSalvar={(dados) => editar.mutate({ parada, dados })}
+        />
+      )}
     </li>
   )
 }

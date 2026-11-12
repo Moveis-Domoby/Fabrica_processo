@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MapPinPlus, Route, Truck, X } from 'lucide-react'
+import { MapPinPlus, Pencil, Route, Truck, X } from 'lucide-react'
 import { Botao, Dica, useNotificacao } from '@/componentes/ui'
 import { useDebouncedValue } from '@/comercial/hooks/useDebouncedValue'
 import { filtroAplicavel } from '@/kanban/filtroQuadro'
@@ -34,6 +34,7 @@ import { ModalProgramar } from './ModalProgramar'
 import { PainelRota } from './PainelRota'
 import { pedidosParaVer } from './pedidosParaVer'
 import {
+  dadosDaParada,
   ehAvulsa,
   itemDoRascunho,
   marcadoresDaRota,
@@ -63,6 +64,11 @@ import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
+
+// SESSAO-50 (bloco C): a janela "Editar endereço" só baixa no clique (Lei §9)
+const JanelaEnderecoPedido = lazy(() =>
+  import('./JanelaEnderecoPedido').then((m) => ({ default: m.JanelaEnderecoPedido })),
+)
 
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
@@ -137,6 +143,10 @@ export function AbaProgramar({
   const [janelaParada, setJanelaParada] = useState<number | null>(null)
   // SESSAO-45: a janela de marcar/acertar o ponto do endereço no mapa
   const [pontoDe, setPontoDe] = useState<PedidoParaMarcar | null>(null)
+  // SESSAO-50 (bloco C): editar a parada da montagem (o rascunho, ainda fora do
+  // banco — muda só na tela) e o endereço de entrega do pedido
+  const [editandoRascunho, setEditandoRascunho] = useState<number | null>(null)
+  const [enderecoDe, setEnderecoDe] = useState<{ pedidoId: number; numero: number } | null>(null)
 
   // SESSAO-41 (D-199): a busca vai ao servidor depois de 300 ms parada, com 2+ letras
   const buscaAplicada = filtroAplicavel(useDebouncedValue(escolha.busca, 300))
@@ -323,6 +333,28 @@ export function AbaProgramar({
     setAvulsas((atual) => atual.filter((a) => a.card_id !== id))
     setRascunho((atual) => (atual ? atual.filter((x) => x !== id) : atual))
   }, [])
+  // SESSAO-50 (bloco C): a parada da montagem editada (ainda não está no banco —
+  // muda só na tela, com a mesma chave do gesto; o lugar dela na rota não muda)
+  function editarRascunho(id: number, dados: DadosParadaAvulsa) {
+    setAvulsas((atual) =>
+      atual.map((a) =>
+        a.card_id === id && !paradaSalva(a.avulsa)
+          ? itemDoRascunho({ ...a.avulsa, ...dados }, id)
+          : a,
+      ),
+    )
+    setEditandoRascunho(null)
+  }
+  // e o "Editar" dos balões do mapa (pelo card_id da parada no mapa)
+  const aoEditarAvulsaNoMapa = useCallback((cardId: number) => setEditandoRascunho(cardId), [])
+  const aoEditarEnderecoNoMapa = useCallback(
+    (cardId: number) => {
+      const p = porId.get(cardId)
+      if (p) setEnderecoDe({ pedidoId: p.pedido_id, numero: p.numero })
+    },
+    [porId],
+  )
+  const rascunhoEmEdicao = editandoRascunho !== null ? avulsaPorId.get(editandoRascunho) : undefined
 
   const programarMutacao = useMutation({
     mutationFn: async (v: {
@@ -490,19 +522,31 @@ export function AbaProgramar({
                   const a = avulsaPorId.get(id)
                   if (a) {
                     return (
-                      <div className="flex min-h-toque-lg items-start gap-3 rounded-dm-lg border border-acao-ativa bg-superficie p-3">
-                        <NumeroParadaAvulsa numero={indice + 1} />
-                        <CartaoParadaAvulsa parada={a.avulsa} />
-                        <Botao
-                          variante="fantasma"
-                          tamanho="sm"
-                          icone={<X />}
-                          className="shrink-0"
-                          aria-label={`Tirar a parada "${a.avulsa.titulo}" da rota`}
-                          onClick={() => tirarAvulsa(id)}
-                        >
-                          Tirar
-                        </Botao>
+                      // SESSAO-50 (bloco C): os botões numa linha própria embaixo (Editar ·
+                      // Tirar) — ao lado do cartão eles espremiam o texto em 375 px
+                      <div className="flex min-h-toque-lg flex-col gap-2 rounded-dm-lg border border-acao-ativa bg-superficie p-3">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <NumeroParadaAvulsa numero={indice + 1} />
+                          <CartaoParadaAvulsa parada={a.avulsa} />
+                        </div>
+                        <span className="flex flex-wrap justify-end gap-2">
+                          <Botao
+                            variante="secundaria"
+                            icone={<Pencil />}
+                            aria-label={`Editar a parada "${a.avulsa.titulo}"`}
+                            onClick={() => setEditandoRascunho(id)}
+                          >
+                            Editar
+                          </Botao>
+                          <Botao
+                            variante="fantasma"
+                            icone={<X />}
+                            aria-label={`Tirar a parada "${a.avulsa.titulo}" da rota`}
+                            onClick={() => tirarAvulsa(id)}
+                          >
+                            Tirar
+                          </Botao>
+                        </span>
                       </div>
                     )
                   }
@@ -527,6 +571,9 @@ export function AbaProgramar({
                       <CartaoPedido
                         pedido={p}
                         aoMarcarNoMapa={p.geo_chave ? () => setPontoDe(p) : undefined}
+                        aoEditarEndereco={() =>
+                          setEnderecoDe({ pedidoId: p.pedido_id, numero: p.numero })
+                        }
                       />
                     </div>
                   )
@@ -594,6 +641,9 @@ export function AbaProgramar({
                       <CartaoPedido
                         pedido={p}
                         aoMarcarNoMapa={p.geo_chave ? () => setPontoDe(p) : undefined}
+                        aoEditarEndereco={() =>
+                          setEnderecoDe({ pedidoId: p.pedido_id, numero: p.numero })
+                        }
                         selo={
                           distancia !== undefined ? (
                             <span className="rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
@@ -647,6 +697,8 @@ export function AbaProgramar({
                 ? 'h-[22rem] shrink-0 @3xl:h-[clamp(14rem,calc(100dvh-27rem),32rem)]'
                 : 'h-[22rem] shrink-0 @3xl:h-[clamp(16rem,calc(100dvh-11rem),32rem)]'
             }
+            aoEditarAvulsa={aoEditarAvulsaNoMapa}
+            aoEditarEndereco={aoEditarEnderecoNoMapa}
           />
           {ordemMontando.length > 0 && (
             <PainelRota
@@ -742,6 +794,27 @@ export function AbaProgramar({
         aoFechar={() => setJanelaParada(null)}
         aoSalvar={porAvulsa}
       />
+      {/* SESSAO-50 (bloco C): editar a parada da montagem e o endereço de entrega do pedido */}
+      {rascunhoEmEdicao && editandoRascunho !== null && (
+        <ModalParadaAvulsa
+          key={`editar-rascunho-${editandoRascunho}`}
+          aberto
+          inicial={dadosDaParada(rascunhoEmEdicao.avulsa)}
+          descricao="Mude o título, o endereço, o pino ou a observação — a parada segue no mesmo lugar da rota que você está montando."
+          aoFechar={() => setEditandoRascunho(null)}
+          aoSalvar={(dados) => editarRascunho(editandoRascunho, dados)}
+        />
+      )}
+      {enderecoDe && (
+        <Suspense fallback={null}>
+          <JanelaEnderecoPedido
+            key={`endereco-${enderecoDe.pedidoId}`}
+            pedidoId={enderecoDe.pedidoId}
+            numero={enderecoDe.numero}
+            aoFechar={() => setEnderecoDe(null)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

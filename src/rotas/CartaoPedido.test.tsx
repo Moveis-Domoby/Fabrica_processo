@@ -57,3 +57,90 @@ describe('CartaoPedido — o ponto do mapa', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 })
+
+/**
+ * SESSAO-50 (bloco C — pedido do dono): "Editar endereço" ao lado do "Acertar
+ * o ponto no mapa", e o selo discreto do endereço alterado na plataforma com o
+ * original do Tiny ao lado (ícone + texto).
+ */
+describe('CartaoPedido — o endereço de entrega editável', () => {
+  it('"Editar endereço" mora ao lado do "Acertar o ponto no mapa" e abre a janela (o toque não marca o pedido)', async () => {
+    const aoEditar = vi.fn()
+    const aoMarcarPedido = vi.fn()
+    // (na aba Programar o cartão mora dentro do rótulo da seleção: o toque não pode subir)
+    render(
+      <div onClick={aoMarcarPedido}>
+        <CartaoPedido pedido={pedido} aoMarcarNoMapa={() => {}} aoEditarEndereco={aoEditar} />
+      </div>,
+    )
+    expect(screen.getByRole('button', { name: /acertar o ponto no mapa/i })).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Editar o endereço de entrega do pedido 13798' }),
+    )
+    expect(aoEditar).toHaveBeenCalledTimes(1)
+    expect(aoMarcarPedido).not.toHaveBeenCalled()
+  })
+
+  it('sem o gesto (quem não é da logística), sem o botão', () => {
+    render(<CartaoPedido pedido={pedido} />)
+    expect(screen.queryByRole('button', { name: /editar o endereço/i })).toBeNull()
+  })
+
+  it('endereço alterado na plataforma: o selo e o original do Tiny ao lado', () => {
+    render(
+      <CartaoPedido
+        pedido={{
+          ...pedido,
+          numero_endereco: '280',
+          endereco_plataforma: {
+            original: {
+              endereco: 'Estrada RN 313',
+              numero: '28',
+              complemento: null,
+              bairro: 'Pium',
+              cidade: 'Nísia Floresta',
+              uf: 'RN',
+              cep: null,
+              fonte: 'cadastro',
+            },
+            tiny_confirmado_em: null,
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText('Endereço alterado na plataforma')).toBeInTheDocument()
+    expect(
+      screen.getByText('No Tiny: Estrada RN 313, 28 · Pium · Nísia Floresta-RN'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Estrada RN 313, 280 · Pium · Nísia Floresta-RN')).toBeInTheDocument()
+  })
+
+  it('o Tiny confirmou: o selo diz "salvo também no Tiny" e o de antes vira "Antes:"', () => {
+    render(
+      <CartaoPedido
+        pedido={{
+          ...pedido,
+          endereco_plataforma: {
+            original: {
+              endereco: 'Estrada RN 313',
+              numero: '28',
+              complemento: null,
+              bairro: 'Pium',
+              cidade: 'Nísia Floresta',
+              uf: 'RN',
+              cep: null,
+            },
+            tiny_confirmado_em: '2026-11-12T06:00:00Z',
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText('Endereço alterado (salvo também no Tiny)')).toBeInTheDocument()
+    expect(screen.getByText(/^Antes: Estrada RN 313, 28/)).toBeInTheDocument()
+  })
+
+  it('pedido sem endereço alterado: nenhum selo', () => {
+    render(<CartaoPedido pedido={pedido} />)
+    expect(screen.queryByText(/Endereço alterado/)).toBeNull()
+  })
+})

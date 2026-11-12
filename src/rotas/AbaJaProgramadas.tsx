@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react'
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -11,6 +11,7 @@ import {
   MapPin,
   MapPinPlus,
   NotebookPen,
+  Pencil,
   RotateCcw,
   Save,
   Truck,
@@ -40,6 +41,7 @@ import type { DadosParadaAvulsa, ItemDaOrdem, ParadaAvulsa, PedidoProgramado } f
 import { BotaoRotaGoogleMaps } from './BotoesNavegacao'
 import { CartaoParadaAvulsa, NumeroParadaAvulsa } from './CartaoParadaAvulsa'
 import { CartaoPedido } from './CartaoPedido'
+import { useEditarParada } from './editarParada'
 import { ListaArrastavel } from './ListaArrastavel'
 import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { MapaProgramacao } from './MapaProgramacao'
@@ -55,6 +57,7 @@ import {
   CHAVES_PARADA_AVULSA,
   ativaNaRota,
   completarOrdem,
+  dadosDaParada,
   ehAvulsa,
   itemDaParada,
   janelaDasParadas,
@@ -63,6 +66,7 @@ import {
   numerosNoMapaDaLista,
   paraNavegar,
   paradaSalva,
+  podeEditarParada,
   refDoItem,
 } from './paradasAvulsas'
 import type { ItemAvulsa } from './paradasAvulsas'
@@ -84,6 +88,11 @@ import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
 import { useRotaPelasRuas, useRotasPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
+
+// SESSAO-50 (bloco C): a janela "Editar endereço" só baixa no clique (Lei §9)
+const JanelaEnderecoPedido = lazy(() =>
+  import('./JanelaEnderecoPedido').then((m) => ({ default: m.JanelaEnderecoPedido })),
+)
 
 const POR_PAGINA = 50
 const SEM_PONTOS: Ponto[] = []
@@ -209,6 +218,10 @@ export function AbaJaProgramadas({
   const [janelaParada, setJanelaParada] = useState<{ grupo: Grupo; chave: string } | null>(null)
   // SESSAO-45: a janela de marcar/acertar o ponto do endereço no mapa
   const [pontoDe, setPontoDe] = useState<PedidoParaMarcar | null>(null)
+  // SESSAO-50 (bloco C): editar a parada avulsa e o endereço de entrega do pedido
+  const [editandoParada, setEditandoParada] = useState<ParadaAvulsa | null>(null)
+  const [enderecoDe, setEnderecoDe] = useState<{ pedidoId: number; numero: number } | null>(null)
+  const editarParada = useEditarParada(() => setEditandoParada(null))
   // SESSAO-41 (D-199): os filtros — a busca vai ao servidor parada há 300 ms, com 2+ letras
   const [busca, setBusca] = useState('')
   const [caminhaoFiltro, setCaminhaoFiltro] = useState(TODOS_CAMINHOES)
@@ -410,6 +423,21 @@ export function AbaJaProgramadas({
   }, [escolhido, ordenadas, trechosNoMapa, estadoRota.estado, outros, chaveOutros])
 
   const numerosNoMapa = useMemo(() => numerosNoMapaDaLista(ordenadas), [ordenadas])
+  // SESSAO-50 (bloco C): o "Editar" dos balões do mapa (pelo card_id da parada no mapa)
+  const aoEditarAvulsaNoMapa = useCallback(
+    (cardId: number) => {
+      const item = ordenadas.find((p) => p.card_id === cardId)
+      if (item && ehAvulsa(item) && paradaSalva(item.avulsa)) setEditandoParada(item.avulsa)
+    },
+    [ordenadas],
+  )
+  const aoEditarEnderecoNoMapa = useCallback(
+    (cardId: number) => {
+      const item = ordenadas.find((p) => p.card_id === cardId)
+      if (item && !ehAvulsa(item)) setEnderecoDe({ pedidoId: item.pedido_id, numero: item.numero })
+    },
+    [ordenadas],
+  )
   // ↩️ 06/11: o "Ver pedidos" do mapa em tela cheia — a rota escolhida, na ordem.
   const paraVer = useMemo(() => pedidosParaVer(ordenadas), [ordenadas])
   const pecas = somarPecas(ordenadas)
@@ -640,15 +668,27 @@ export function AbaJaProgramadas({
           <NumeroParadaAvulsa numero={numero} cor={cor} apagado={concluida} />
           <CartaoParadaAvulsa parada={p} />
         </div>
-        <Botao
-          variante="fantasma"
-          icone={<X />}
-          onClick={() => tirarParada.mutate(p)}
-          carregando={tirarParada.isPending && tirarParada.variables?.id === p.id}
-          className="self-end"
-        >
-          Tirar da rota
-        </Botao>
+        {/* SESSAO-50 (bloco C): "Editar" (a mesma janela de pôr, preenchida) ao lado do "Tirar da rota" */}
+        <span className="flex flex-wrap justify-end gap-2">
+          {!entregues && podeEditarParada(p) && (
+            <Botao
+              variante="secundaria"
+              icone={<Pencil />}
+              aria-label={`Editar a parada avulsa "${p.titulo}"`}
+              onClick={() => setEditandoParada(p)}
+            >
+              Editar
+            </Botao>
+          )}
+          <Botao
+            variante="fantasma"
+            icone={<X />}
+            onClick={() => tirarParada.mutate(p)}
+            carregando={tirarParada.isPending && tirarParada.variables?.id === p.id}
+          >
+            Tirar da rota
+          </Botao>
+        </span>
       </div>
     )
   }
@@ -674,6 +714,11 @@ export function AbaJaProgramadas({
             <CartaoPedido
               pedido={p}
               aoMarcarNoMapa={entregues || !p.geo_chave ? undefined : () => setPontoDe(p)}
+              aoEditarEndereco={
+                entregues
+                  ? undefined
+                  : () => setEnderecoDe({ pedidoId: p.pedido_id, numero: p.numero })
+              }
             />
             {p.detalhe && (
               <span className="rounded-dm border border-atencao-borda bg-atencao-fundo px-2 py-1 text-sm text-atencao-texto">
@@ -731,6 +776,8 @@ export function AbaJaProgramadas({
             resumo={resumoMapa}
             paradasParaVer={paraVer}
             classeAltura="h-[22rem] shrink-0 @3xl:h-[clamp(16rem,calc(100dvh-16rem),32rem)]"
+            aoEditarAvulsa={entregues ? undefined : aoEditarAvulsaNoMapa}
+            aoEditarEndereco={entregues ? undefined : aoEditarEnderecoNoMapa}
           />
           {escolhido && (
             <PainelRota
@@ -1028,6 +1075,27 @@ export function AbaJaProgramadas({
           pedido={pontoDe}
           aoFechar={() => setPontoDe(null)}
         />
+        {/* SESSAO-50 (bloco C): editar a parada avulsa e o endereço de entrega do pedido */}
+        {editandoParada && (
+          <ModalParadaAvulsa
+            key={`editar-parada-${editandoParada.id}`}
+            aberto
+            inicial={dadosDaParada(editandoParada)}
+            carregando={editarParada.isPending}
+            aoFechar={() => setEditandoParada(null)}
+            aoSalvar={(dados) => editarParada.mutate({ parada: editandoParada, dados })}
+          />
+        )}
+        {enderecoDe && (
+          <Suspense fallback={null}>
+            <JanelaEnderecoPedido
+              key={`endereco-${enderecoDe.pedidoId}`}
+              pedidoId={enderecoDe.pedidoId}
+              numero={enderecoDe.numero}
+              aoFechar={() => setEnderecoDe(null)}
+            />
+          </Suspense>
+        )}
         <ModalDetalheEntrega
           key={detalheDe ? `detalhe-${detalheDe.card_id}` : 'detalhe-fechado'}
           pedido={detalheDe}

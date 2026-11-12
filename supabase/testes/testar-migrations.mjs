@@ -16291,7 +16291,10 @@ try {
                      '20261112020000_plt_pcp_cancelar_ocultar_excluido.sql',
                      // ↪️ SESSAO-50 · bloco A: a frente do card (com a observação do item) — as de cima
                      // a recriam na versão da 48
-                     '20261112050000_plt_observacao_do_item.sql']) {
+                     '20261112050000_plt_observacao_do_item.sql',
+                     // ↪️ SESSAO-50 · bloco C: a visão de onde entregar (a 040000 acima a recria com o corpo
+                     // antigo), a parada editável, a ficha e os candidatos com o selo do endereço alterado
+                     '20261112060000_plt_editar_endereco.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
@@ -24719,6 +24722,389 @@ try {
   await como50b('')
 }
 } // fim do bloco SESSAO-50 · bloco B
+
+// ============================================================================
+// SESSAO-50 · BLOCO C (migration 20261112060000): editar a parada avulsa e o
+// endereço de entrega do pedido. A parada PENDENTE se edita (título, endereço,
+// pino, observação) com o antes e o depois no registro; a feita não. O endereço
+// do pedido muda NA PLATAFORMA: o fato endereco_entrega_alterado guarda o
+// original do Tiny inteiro, a projeção guarda o que vale e a visão de "onde
+// entregar" prefere o da plataforma (todas as portas das rotas leem o novo);
+// "Voltar ao endereço original"; o Tiny mudando o endereço por fora vence e
+// avisa a logística; a nossa própria escrita voltando é confirmação; "salvar
+// também no Tiny" fica desligado (o banco recusa com o porquê). Faixa: pedidos
+// 99810–99849, produtos 9980001…
+// ============================================================================
+{ // SESSAO-50 · bloco C (escopo próprio — E-70)
+titulo('SESSAO-50 · bloco C · a parada avulsa pendente se edita, com o antes e o depois; a feita não')
+
+// E-81/E-136: blocos de cima reaplicam migrations antigas (a 109030000 recria a ficha
+// do pedido; a 040000, a visão de onde entregar) — a base da 50 e a deste bloco de
+// novo (a deste bloco duas vezes: é idempotente)
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261112010000_plt_sessao50_base.sql'), 'utf8'))
+const migC = await readFile(path.join(MIGRATIONS, '20261112060000_plt_editar_endereco.sql'), 'utf8')
+await bd.exec(migC)
+await bd.exec(migC)
+
+const umC = async (sql) => (await bd.query(sql)).rows[0]
+const todosC = async (sql) => (await bd.query(sql)).rows
+const comoC = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const jC = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+// como o navegador chama: o papel authenticated (as permissões de verdade)
+const logadoC = async (auth, sql) => {
+  await comoC(auth)
+  try {
+    await bd.exec('set role authenticated')
+    return (await bd.query(sql)).rows[0]
+  } finally {
+    await bd.exec('reset role')
+    await comoC('')
+  }
+}
+const recusaC = async (auth, sql, descricao, padrao) => {
+  await bd.exec('savepoint fc50')
+  try {
+    await comoC(auth)
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint fc50')
+    await bd.exec('reset role')
+    await comoC('')
+  }
+}
+const pedidoC = (numero, situacao, { entrega = null, rua = 'Rua Teste C', num = '50', bairro = 'Centro', cidade = 'Natal', cep = '59000-500', obs = '' } = {}) => ({
+  id: String(99800000 + (numero % 1000)), numero: String(numero), data_pedido: '10/11/2026', data_prevista: '30/11/2026', situacao,
+  total_produtos: '100.00', total_pedido: '100.00', valor_frete: '0.00', forma_pagamento: 'pix', meio_pagamento: '',
+  forma_envio: 'Transportadora', parcelas: [], marcadores: [], obs, obs_interna: '', nome_vendedor: 'Vendedora C',
+  codigo_rastreamento: '', url_rastreamento: '',
+  ...(entrega ? { endereco_entrega: { tipo_pessoa: 'F', cpf_cnpj: '', complemento: '', fone: '', nome_destinatario: 'Maria C', ...entrega } } : {}),
+  cliente: { codigo: '', nome: `Cliente Teste C ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+             endereco: rua, numero: num, complemento: '', bairro, cep, cidade, uf: 'RN', fone: `84988${numero}`, email: '' },
+  itens: [{ item: { id_produto: '', codigo: 'SX50C', descricao: 'Estante Teste C - Branca', unidade: 'UN', quantidade: '1.00', valor_unitario: '100.00' } }],
+})
+// a gravação do Tiny + o gatilho adiado dos itens disparado como no COMMIT (E-175)
+const gravarC = async (p, tipo = 'inclusao_pedido') => {
+  const id = (await umC(`select public.fn_upsert_pedido(p => ${jC(p)}, p_tipo => '${tipo}', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+  return id
+}
+const cardC = async (pedidoId) => (await umC(`select id::int as id from public.plt_cards where pedido_id = ${pedidoId} and tipo = 'pedido'`)).id
+const valeC = (pedidoId) => umC(`select to_jsonb(e) - 'pedido_id' as e from plt_privado.vw_endereco_entrega e where e.pedido_id = ${pedidoId}`)
+const fatosC = (cardId) => todosC(`select tipo, origem, usuario_id is not null as com_autor, dados, observacao
+                                     from public.plt_eventos where card_id = ${cardId} and tipo like 'endereco_entrega%' order by id`)
+const avisosRotasC = async () => (await umC(`select count(*)::int as n from realtime.messages where topic = 'plt-aviso:rotas'`)).n
+// o aviso sai uma vez por transação (fn_avisar) e o bloco inteiro é UMA transação: zera a marca antes do gesto medido
+const novoGestoC = () => bd.exec("select set_config('plt.avisado_rotas', '', true)")
+const ENTC = '00000000-0000-0000-0000-0000000c5001'
+
+await bd.exec('begin')
+try {
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (9980001, 'SX50C', 'Estante Teste C - Branca', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
+      values ('Entregador C50', 'entc50@teste.com', '50500000901', 'ent.c50', 'operador', '${ENTC}', array['entregas']);
+    insert into public.plt_caminhoes (nome, placa) values ('Baú C50', 'TSTC501');`)
+  const CAM = (await umC(`select id::int as id from public.plt_caminhoes where placa = 'TSTC501'`)).id
+  const HOJE = (await umC(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+  const P10 = await gravarC(pedidoC(99810, 'Preparando envio', { rua: 'Rua Jacarandá', num: '55', bairro: 'Centro', cidade: 'Parnamirim', cep: '59140-000' }))
+  const K10 = await cardC(P10)
+  await logadoC(E40.logistica, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K10}]::bigint[], null, 1) as r`)
+  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id)
+                 values ('${HOJE}', ${CAM}, 1, (select id from public.plt_usuarios where usuario = 'ent.c50'))`)
+
+  // ---------------- frente 6 · a parada avulsa ----------------
+  const salvarParada = (auth, id, titulo, endereco, lat, lon, obs) => logadoC(auth, `
+    select public.plt_fn_parada_avulsa_salvar(${id ?? 'null'}, '${HOJE}', ${CAM}, 1, '${titulo}', '${endereco}',
+      ${lat ?? 'null'}, ${lon ?? 'null'}, ${obs === null ? 'null' : `'${obs}'`}) as r`)
+  const A1 = (await salvarParada(E40.logistica, null, 'Buscar ferragem', 'Av. Prudente de Morais, 1000, Natal', -5.8, -35.2, 'pegar 2 caixas')).r.id
+  await novoGestoC()
+  const avisosAntes = await avisosRotasC()
+  const ed1 = (await salvarParada(E40.logistica, A1, 'Buscar ferragem', 'Av. Prudente de Morais, 1200, Natal', -5.81, -35.21, 'pegar 2 caixas')).r
+  const lin1 = await umC(`select titulo, endereco, latitude, longitude, observacao from public.plt_paradas_avulsas where id = ${A1}`)
+  const log1 = await umC(`select contexto, usuario_id is not null as com_autor from public.plt_logs_atividade
+                           where acao = 'parada_avulsa_editada' and contexto ->> 'parada_id' = '${A1}' order by id desc limit 1`)
+  conferir(ed1.repetido === false && lin1.endereco === 'Av. Prudente de Morais, 1200, Natal' && lin1.latitude === -5.81
+      && lin1.longitude === -35.21 && lin1.titulo === 'Buscar ferragem' && lin1.observacao === 'pegar 2 caixas',
+    'a logística edita a parada pendente (endereço e pino) sem apagar nada: a mesma parada muda', JSON.stringify({ ed1, lin1 }))
+  conferir(log1?.com_autor === true && JSON.stringify(log1.contexto.campos) === JSON.stringify(['endereço', 'ponto no mapa'])
+      && log1.contexto.endereco_antes === 'Av. Prudente de Morais, 1000, Natal' && log1.contexto.endereco_depois === 'Av. Prudente de Morais, 1200, Natal'
+      && log1.contexto.ponto_antes === '-5.800000, -35.200000' && log1.contexto.ponto_depois === '-5.810000, -35.210000'
+      && !('titulo_antes' in log1.contexto) && !('observacao_antes' in log1.contexto) && log1.contexto.parada === 'Buscar ferragem',
+    'o registro da edição guarda o antes e o depois do que mudou (endereço e ponto) e a lista dos campos — o que não mudou não entra',
+    JSON.stringify(log1))
+  conferir(await avisosRotasC() === avisosAntes + 1, 'a rota, o mapa e as entregas do dia abertos são avisados (rotas)', String(await avisosRotasC() - avisosAntes))
+  const ed1b = (await salvarParada(E40.logistica, A1, 'Buscar ferragem', 'Av. Prudente de Morais, 1200, Natal', -5.81, -35.21, 'pegar 2 caixas')).r
+  const logs1b = (await umC(`select count(*)::int as n from public.plt_logs_atividade where acao = 'parada_avulsa_editada' and contexto ->> 'parada_id' = '${A1}'`)).n
+  conferir(ed1b.repetido === true && ed1b.id === A1 && logs1b === 1,
+    'salvar de novo sem mudar nada (o toque repetido) não registra nada', JSON.stringify({ ed1b, logs1b }))
+  const ed1c = (await salvarParada(E40.logistica, A1, 'Buscar ferragem e parafusos', 'Av. Prudente de Morais, 1200, Natal', -5.81, -35.21, null)).r
+  const log1c = (await umC(`select contexto from public.plt_logs_atividade where acao = 'parada_avulsa_editada' and contexto ->> 'parada_id' = '${A1}' order by id desc limit 1`)).contexto
+  conferir(ed1c.repetido === false && JSON.stringify(log1c.campos) === JSON.stringify(['título', 'observação'])
+      && log1c.titulo_antes === 'Buscar ferragem' && log1c.titulo_depois === 'Buscar ferragem e parafusos'
+      && log1c.observacao_antes === 'pegar 2 caixas' && log1c.observacao_depois === 'sem observação' && !('endereco_antes' in log1c),
+    'título e observação: o antes e o depois de cada um (observação apagada = "sem observação")', JSON.stringify(log1c))
+
+  // o entregador: a dele sim, a da logística não
+  const A2 = (await salvarParada(ENTC, null, 'Levar peça', 'Rua Y, 20, Parnamirim', null, null, null)).r.id
+  const ed2 = (await salvarParada(ENTC, A2, 'Levar peça ao terceiro', 'Rua Y, 20, Parnamirim', -5.9, -35.2, 'portão azul')).r
+  conferir(ed2.repetido === false && (await umC(`select titulo from public.plt_paradas_avulsas where id = ${A2}`)).titulo === 'Levar peça ao terceiro',
+    'quem pôs a parada (o entregador da rota) edita a dele, pendente', JSON.stringify(ed2))
+  await recusaC(ENTC, `select public.plt_fn_parada_avulsa_salvar(${A1}, '${HOJE}', ${CAM}, 1, 'Mudou', 'Rua Z, 1', null, null, null)`,
+    'o entregador não edita a parada que a logística pôs', /Só a logística/)
+  const doDia = (await logadoC(ENTC, `select public.plt_fn_entregas_do_dia('${HOJE}', ${CAM}, 1) as d`)).d
+  const podeDia = Object.fromEntries((doDia.paradas_avulsas ?? []).map((p) => [p.id, p.pode_editar]))
+  const periodo = (await logadoC(E40.logistica, `select public.plt_fn_paradas_avulsas('${HOJE}', '${HOJE}') as l`)).l
+  const podeLog = Object.fromEntries(periodo.map((p) => [p.id, p.pode_editar]))
+  conferir(podeDia[A2] === true && podeDia[A1] === false && podeLog[A1] === true && podeLog[A2] === true,
+    'a leitura diz quem pode editar (sem requisição nova): o entregador só a dele; a logística as pendentes',
+    JSON.stringify({ podeDia, podeLog }))
+
+  // a parada feita (ou não feita) não se edita — nem pela logística; desfeita, volta a editar
+  await logadoC(ENTC, `select public.plt_fn_parada_avulsa_concluir(${A2}, true) as r`)
+  await recusaC(E40.logistica, `select public.plt_fn_parada_avulsa_salvar(${A2}, '${HOJE}', ${CAM}, 1, 'Outro', 'Rua Y, 20, Parnamirim', null, null, null)`,
+    'a parada já feita não se edita, nem pela logística (o porquê diz "Desfazer")', /Desfazer/)
+  const podeFeita = (await logadoC(E40.logistica, `select public.plt_fn_paradas_avulsas('${HOJE}', '${HOJE}') as l`)).l.find((p) => p.id === A2)?.pode_editar
+  await logadoC(ENTC, `select public.plt_fn_parada_avulsa_concluir(${A2}, null) as r`)
+  const ed2b = (await salvarParada(ENTC, A2, 'Levar peça (de novo)', 'Rua Y, 20, Parnamirim', -5.9, -35.2, 'portão azul')).r
+  conferir(podeFeita === false && ed2b.repetido === false,
+    'feita, a leitura diz que não edita; desfeita (pendente de novo), quem pôs volta a editar', JSON.stringify({ podeFeita, ed2b }))
+
+  titulo('SESSAO-50 · bloco C · o endereço de entrega muda na plataforma: o original do Tiny guardado, a pergunta do Tiny, todos leem o novo')
+
+  // o pedido usa o endereço do CADASTRO (sem endereço de entrega no Tiny), "Preparando envio"
+  const jan10 = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco(${P10}) as j`)).j
+  conferir(jan10.fonte === 'cadastro' && jan10.atual.endereco === 'Rua Jacarandá' && jan10.atual.numero === '55'
+      && jan10.tiny.fonte === 'cadastro' && jan10.plataforma === null && jan10.pode_editar === true && jan10.card_id === K10
+      && jan10.tiny_salvar.pode === false && jan10.tiny_salvar.motivo === 'O Tiny só deixa alterar o endereço de pedido Em aberto ou Aprovado.',
+    'a janela lê ao abrir: o endereço que vale (o do cadastro), de onde veio, quem pode e por que o Tiny não ("Preparando envio")',
+    JSON.stringify(jan10))
+  await recusaC(E40.operador, `select public.plt_fn_pedido_endereco(${P10})`, 'quem não é da logística não abre a janela do endereço', /logística ou de admin/)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P10}, ${jC({ endereco: 'Rua Jacarandá', numero: '555', cidade: 'Parnamirim', uf: 'RN' })}, null, null, true)`,
+    '"Salvar na plataforma e no Tiny" é recusado pelo banco com o mesmo porquê da tela', /só deixa alterar o endereço de pedido Em aberto ou Aprovado/)
+
+  await novoGestoC()
+  const avisosE = await avisosRotasC()
+  const s10 = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P10},
+      ${jC({ endereco: '  Rua   Jacarandá ', numero: '555', complemento: 'casa B', bairro: 'Centro', cidade: 'Parnamirim', uf: 'rn', cep: '59140000' })},
+      -5.91, -35.26) as r`)).r
+  const vale10 = (await valeC(P10)).e
+  const f10 = await fatosC(K10)
+  const proj10 = await umC(`select escolha, tiny_original, tiny_confirmado_em, evento_id::int as evento, definido_por is not null as com_autor
+                              from public.plt_pedido_enderecos where pedido_id = ${P10}`)
+  conferir(s10.mudou === true && s10.restaurado === false && vale10.endereco === 'Rua Jacarandá' && vale10.numero === '555'
+      && vale10.complemento === 'casa B' && vale10.uf === 'RN' && vale10.cep === '59140-000' && vale10.cidade === 'Parnamirim'
+      && vale10.de_entrega === false,
+    'salvar só na plataforma: a regra de onde entregar passa a dar o endereço novo (limpo: espaços, UF, CEP)', JSON.stringify({ s10, vale10 }))
+  const d10 = f10[0]?.dados ?? {}
+  conferir(f10.length === 1 && f10[0].tipo === 'endereco_entrega_alterado' && f10[0].com_autor && f10[0].origem === 'interface'
+      && d10.escolha === 'plataforma' && d10.original?.fonte === 'cadastro' && d10.original?.campos?.numero === '55'
+      && d10.original?.cadastro?.endereco === 'Rua Jacarandá' && d10.original?.cadastro?.numero === '55' && 'endereco_entrega' in (d10.original ?? {})
+      && d10.anterior?.fonte === 'cadastro' && d10.anterior?.numero === '55' && d10.novo?.numero === '555' && d10.novo?.complemento === 'casa B'
+      && d10.ponto?.latitude === -5.91 && d10.numero === 99810 && /de Rua Jacarandá, 55 .* para Rua Jacarandá, 555/.test(f10[0].observacao),
+    'o fato no card do pedido guarda o original do Tiny inteiro (de onde veio, os campos, o endereço de entrega cru e o do cadastro), o anterior, o novo, o ponto, quem e a escolha',
+    JSON.stringify(f10))
+  conferir(proj10?.escolha === 'plataforma' && proj10.tiny_original?.numero === '55' && proj10.tiny_original?.fonte === 'cadastro'
+      && proj10.tiny_confirmado_em === null && proj10.com_autor,
+    'a projeção (escrita só pelo gatilho do fato) guarda o endereço que vale, o original para o selo e a escolha', JSON.stringify(proj10))
+  const geo10 = await umC(`select g.fonte, g.latitude, g.longitude from public.plt_geocache g
+      where g.chave = md5(lower(plt_privado.fn_endereco_geocodificavel('Rua Jacarandá', '555', 'Centro', 'Parnamirim', 'RN', '59140-000')))`)
+  const logs10 = await todosC(`select acao from public.plt_logs_atividade where acao = 'endereco_entrega_alterado' and contexto ->> 'card_id' = '${K10}'`)
+  conferir(geo10?.fonte === 'manual' && geo10.latitude === -5.91 && logs10.length === 1 && await avisosRotasC() === avisosE + 1,
+    'o pino entra como ponto marcado à mão para a chave do endereço NOVO; um registro de atividade só (o do fato); as rotas abertas são avisadas',
+    JSON.stringify({ geo10, logs10: logs10.length }))
+  const s10b = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P10},
+      ${jC({ endereco: 'Rua Jacarandá', numero: '555', complemento: 'casa B', bairro: 'Centro', cidade: 'Parnamirim', uf: 'RN', cep: '59140-000' })}) as r`)).r
+  conferir(s10b.mudou === false && (await fatosC(K10)).length === 1, 'o mesmo endereço de novo (o toque repetido): nada muda, nenhum fato', JSON.stringify(s10b))
+
+  // todos leem o novo: a ficha (com o selo), a aba Programar (com o selo), Já programadas, as entregas do dia
+  const ficha10 = (await logadoC(E40.logistica, `select public.plt_fn_pcp_pedido_detalhe(${P10}) as f`)).f
+  const dia10 = (await logadoC(E40.logistica, `select public.plt_fn_entregas_do_dia('${HOJE}', ${CAM}, 1) as d`)).d.entregas.find((e) => e.pedido_id === P10)
+  const prog10 = await logadoC(E40.logistica, `select endereco, numero_endereco, latitude, geo_manual from public.plt_fn_programadas(false, '${HOJE}', ${CAM}, 50, 0, null) where pedido_id = ${P10}`)
+  conferir(ficha10.endereco_entrega?.numero === '555' && ficha10.endereco_plataforma?.original?.numero === '55'
+      && ficha10.endereco_plataforma?.escolha === 'plataforma' && typeof ficha10.endereco_plataforma?.por === 'string'
+      && dia10?.numero_endereco === '555' && dia10?.latitude === -5.91 && dia10?.geo_manual === true
+      && prog10?.numero_endereco === '555' && prog10?.latitude === -5.91 && prog10?.geo_manual === true,
+    'a ficha (com o selo e o original do Tiny), "Já programadas" e as entregas do dia (link do entregador) leem o endereço novo e o ponto dele',
+    JSON.stringify({ selo: ficha10.endereco_plataforma, dia10: dia10?.numero_endereco, prog10 }))
+
+  // um pedido ainda sem rota, para a aba Programar
+  const P11 = await gravarC(pedidoC(99811, 'Preparando envio', { rua: 'Rua das Acácias', num: '10', bairro: 'Tirol', cidade: 'Natal', cep: '59020-100' }))
+  const K11 = await cardC(P11)
+  await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua das Acácias', numero: '100', bairro: 'Tirol', cidade: 'Natal', uf: 'RN', cep: '59020-100' })}) as r`)
+  const P12 = await gravarC(pedidoC(99812, 'Preparando envio', { rua: 'Rua Sem Mudança', num: '1' }))
+  const cand = (await logadoC(E40.logistica, `select public.plt_fn_programacao_candidatos('9981', null, null, null, null, 'numero', 200) as c`)).c
+  const c11 = cand.itens.find((i) => i.pedido_id === P11)
+  const c12 = cand.itens.find((i) => i.pedido_id === P12)
+  conferir(c11?.numero_endereco === '100' && c11?.endereco_plataforma?.original?.numero === '10' && c12 && !('endereco_plataforma' in c12)
+      && c11.geo_chave === (await umC(`select md5(lower(plt_privado.fn_endereco_geocodificavel('Rua das Acácias', '100', 'Tirol', 'Natal', 'RN', '59020-100'))) as k`)).k,
+    'a aba Programar lê o endereço novo (a chave do mapa é a do novo) e traz o selo com o original — só o pedido alterado ganha a chave (E-237)',
+    JSON.stringify({ c11, c12 }))
+
+  // 2ª mudança: o anterior é o da plataforma; o original segue o do Tiny
+  await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua das Acácias', numero: '101', bairro: 'Tirol', cidade: 'Natal', uf: 'RN', cep: '59020-100' })}) as r`)
+  const f11 = await fatosC(K11)
+  conferir(f11.length === 2 && f11[1].dados.anterior?.fonte === 'plataforma' && f11[1].dados.anterior?.numero === '100'
+      && f11[1].dados.original?.campos?.numero === '10' && f11[1].dados.novo?.numero === '101',
+    'mudar de novo: o anterior é o da plataforma e o original do Tiny continua o mesmo', JSON.stringify(f11.map((f) => f.dados.anterior)))
+  // voltar ao original: pela porta (o Tiny desligado na volta também, com o porquê dela) e escrevendo o do Tiny de novo
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_restaurar(${P11}, true)`,
+    'voltar ao original "também no Tiny": recusado — o Tiny já está com o original', /já está com o endereço original/)
+  const r11 = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_restaurar(${P11}) as r`)).r
+  const r11b = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_restaurar(${P11}) as r`)).r
+  const vale11 = (await valeC(P11)).e
+  const proj11 = (await umC(`select count(*)::int as n from public.plt_pedido_enderecos where pedido_id = ${P11}`)).n
+  const f11b = await fatosC(K11)
+  conferir(r11.mudou === true && r11.restaurado === true && r11b.mudou === false && vale11.numero === '10' && proj11 === 0
+      && f11b.at(-1).tipo === 'endereco_entrega_restaurado' && f11b.at(-1).com_autor && f11b.at(-1).dados.anterior?.numero === '101'
+      && f11b.length === 3,
+    '"Voltar ao endereço original": vale o do Tiny de novo, a marca sai e o alterado fica no histórico; tocar de novo não faz nada',
+    JSON.stringify({ r11, r11b, vale11, tipos: f11b.map((f) => f.tipo) }))
+  await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua das Acácias', numero: '102', bairro: 'Tirol', cidade: 'Natal', uf: 'RN' })}) as r`)
+  const r11c = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'RUA DAS ACÁCIAS', numero: ' 10 ', bairro: 'tirol', cidade: 'NATAL', uf: 'rn', cep: '59020100' })}) as r`)).r
+  conferir(r11c.mudou === true && r11c.restaurado === true && (await fatosC(K11)).at(-1).tipo === 'endereco_entrega_restaurado'
+      && (await umC(`select count(*)::int as n from public.plt_pedido_enderecos where pedido_id = ${P11}`)).n === 0,
+    'escrever de novo o endereço do Tiny (outra caixa, CEP sem traço) é a volta ao original', JSON.stringify(r11c))
+
+  // as validações (a mensagem diz o que fazer)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Ru', cidade: 'Natal', uf: 'RN' })})`, 'sem a rua: recusado', /Escreva a rua/)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Boa', cidade: '', uf: 'RN' })})`, 'sem a cidade: recusado', /Escreva a cidade/)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Boa', cidade: 'Natal', uf: 'R' })})`, 'UF com uma letra: recusado', /UF tem 2 letras/)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Boa', cidade: 'Natal', uf: 'RN', cep: '5900' })})`, 'CEP incompleto: recusado', /CEP tem 8 números/)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Boa', cidade: 'Natal', uf: 'RN' })}, -5.8, null)`, 'meio ponto (só a latitude): recusado', /latitude e da longitude/)
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Boa', cidade: 'Natal', uf: 'RN' })}, 10, 10)`, 'o pino fora do Brasil: recusado (pela regra do ponto de sempre)', /fora do Brasil/)
+  await recusaC('', `insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+                     values (${K11}, 'endereco_entrega_alterado', (select id from public.plt_usuarios where auth_user_id = '${E40.admin}'), 'interface', '{"escolha":"plataforma"}')`,
+    'um fato de endereço solto (sem a janela) é recusado — sem ele a rota mudaria sem o original guardado', /Editar endereço|permission denied/)
+  await bd.exec('savepoint fc50b')
+  let soltoAdmin = null
+  try {
+    await bd.exec(`insert into public.plt_eventos (card_id, tipo, usuario_id, origem, dados)
+                   values (${K11}, 'endereco_entrega_alterado', (select id from public.plt_usuarios where auth_user_id = '${E40.admin}'), 'interface', '{"escolha":"plataforma"}')`)
+  } catch (erro) {
+    soltoAdmin = erro.message
+  } finally {
+    await bd.exec('rollback to savepoint fc50b')
+  }
+  conferir(/Editar endereço/.test(soltoAdmin ?? ''), 'nem direto na tabela (o dono do banco): o fato do endereço só nasce pela maquinaria', String(soltoAdmin))
+
+  // pedido entregue: só o administrador (provisória)
+  await bd.exec(`update public.plt_cards set entrega_evento_id = (select max(id) from public.plt_eventos where card_id = ${K11}) where id = ${K11}`)
+  const jan11 = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco(${P11}) as j`)).j
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Entregue', numero: '1', cidade: 'Natal', uf: 'RN' })})`,
+    'pedido já entregue: a logística não muda o endereço', /já foi entregue/)
+  const adm11 = (await logadoC(E40.admin, `select public.plt_fn_pedido_endereco_salvar(${P11}, ${jC({ endereco: 'Rua Entregue', numero: '1', cidade: 'Natal', uf: 'RN' })}) as r`)).r
+  conferir(jan11.pode_editar === false && /já foi entregue/.test(jan11.motivo) && jan11.entregue === true && adm11.mudou === true,
+    'pedido já entregue: a janela diz que só o administrador muda — e o administrador muda', JSON.stringify({ jan11: jan11.motivo, adm11 }))
+
+  titulo('SESSAO-50 · bloco C · o Tiny mudando o endereço por fora vence e avisa; a nossa escrita voltando é confirmação; a gravação do Tiny nunca cai')
+
+  // pedido com ENDEREÇO DE ENTREGA no Tiny, "Em aberto"
+  const ENTREGA13 = { endereco: 'Rua das Flores', numero: '12', bairro: 'Lagoa Nova', cidade: 'Natal', uf: 'RN', cep: '59075-000' }
+  const P13 = await gravarC(pedidoC(99813, 'Em aberto', { entrega: ENTREGA13, rua: 'Rua do Cadastro', num: '1' }))
+  const K13 = await cardC(P13)
+  const jan13 = (await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco(${P13}) as j`)).j
+  conferir(jan13.fonte === 'entrega' && jan13.atual.endereco === 'Rua das Flores' && jan13.tiny_salvar.pode === false
+      && jan13.tiny_salvar.motivo === 'Salvar no Tiny ainda não está ligado — por enquanto o endereço muda só na plataforma.',
+    'pedido "Em aberto" com endereço de entrega no Tiny: o porquê do Tiny desligado é outro (o caminho ainda não está ligado)', JSON.stringify(jan13.tiny_salvar))
+  await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P13}, ${jC({ ...ENTREGA13, numero: '121' })}) as r`)
+  const orig13 = (await fatosC(K13))[0]?.dados?.original
+  conferir(orig13?.fonte === 'entrega' && orig13?.endereco_entrega?.nome_destinatario === 'Maria C' && orig13?.endereco_entrega?.numero === '12'
+      && orig13?.cadastro?.endereco === 'Rua do Cadastro',
+    'o original do Tiny guarda o endereço de entrega CRU do pedido (até o destinatário) e o do cadastro', JSON.stringify(orig13))
+
+  // o Tiny reenvia o mesmo pedido (outra observação, o mesmo endereço): nada muda
+  await gravarC(pedidoC(99813, 'Em aberto', { entrega: ENTREGA13, rua: 'Rua do Cadastro', num: '1', obs: 'mudou só a observação' }), 'atualizacao_pedido')
+  conferir((await fatosC(K13)).length === 1 && (await umC(`select count(*)::int as n from public.plt_pedido_enderecos where pedido_id = ${P13}`)).n === 1,
+    'o Tiny reenviando o pedido com o mesmo endereço não mexe no endereço da plataforma')
+
+  // a nossa própria escrita voltando (o Tiny com o endereço da plataforma — outra caixa, CEP sem traço): confirmação
+  const avisos13 = (await umC(`select count(*)::int as n from public.plt_notificacoes where tipo = 'endereco_tiny_mudou'`)).n
+  await gravarC(pedidoC(99813, 'Em aberto', { entrega: { ...ENTREGA13, endereco: 'RUA DAS FLORES', numero: '121', bairro: 'Lagoa  Nova', cep: '59075000' }, rua: 'Rua do Cadastro', num: '1' }), 'atualizacao_pedido')
+  const f13 = await fatosC(K13)
+  const proj13 = await umC(`select tiny_confirmado_em is not null as confirmado, numero from public.plt_pedido_enderecos where pedido_id = ${P13}`)
+  conferir(f13.at(-1)?.tipo === 'endereco_entrega_tiny_confirmado' && f13.at(-1).origem === 'automacao' && proj13?.confirmado && proj13.numero === '121'
+      && (await umC(`select count(*)::int as n from public.plt_notificacoes where tipo = 'endereco_tiny_mudou'`)).n === avisos13,
+    'o Tiny voltando com o endereço que a plataforma pediu é CONFIRMAÇÃO (o selo vira "salvo também no Tiny"), não mudança — nenhum aviso',
+    JSON.stringify({ tipos: f13.map((f) => f.tipo), proj13 }))
+  await recusaC(E40.logistica, `select public.plt_fn_pedido_endereco_restaurar(${P13})`,
+    'depois que o Tiny confirmou, "voltar ao original" só na plataforma é recusado (edite o endereço)', /já foi salvo também no Tiny/)
+
+  // o Tiny muda por fora: vale o do Tiny, a marca sai e a logística é avisada
+  await gravarC(pedidoC(99813, 'Em aberto', { entrega: { ...ENTREGA13, endereco: 'Rua Outra', numero: '7', bairro: 'Tirol', cep: '59020-000' }, rua: 'Rua do Cadastro', num: '1' }), 'atualizacao_pedido')
+  const f13b = await fatosC(K13)
+  const vale13 = (await valeC(P13)).e
+  const aviso13 = await todosC(`select n.titulo, n.corpo, u.auth_user_id::text as auth from public.plt_notificacoes n
+                                  join public.plt_usuarios u on u.id = n.destinatario_id
+                                 where n.tipo = 'endereco_tiny_mudou' and n.card_id = ${K13}`)
+  conferir(f13b.at(-1)?.tipo === 'endereco_entrega_tiny_substituido' && f13b.at(-1).origem === 'automacao'
+      && f13b.at(-1).dados.plataforma?.numero === '121' && f13b.at(-1).dados.tiny?.endereco === 'Rua Outra'
+      && vale13.endereco === 'Rua Outra' && vale13.numero === '7'
+      && (await umC(`select count(*)::int as n from public.plt_pedido_enderecos where pedido_id = ${P13}`)).n === 0,
+    'o Tiny mudou o endereço por fora: vale o do Tiny, a marca da plataforma sai com um fato (o alterado e o original ficam no histórico)',
+    JSON.stringify({ tipos: f13b.map((f) => f.tipo), vale13 }))
+  conferir(aviso13.length >= 2 && aviso13.some((a) => a.auth === E40.logistica) && aviso13.some((a) => a.auth === E40.admin)
+      && aviso13.every((a) => a.corpo === 'O endereço do pedido 99813 mudou no Tiny; o endereço alterado na plataforma deixou de valer.'),
+    'o sino avisa a logística (e o administrador): "O endereço do pedido N mudou no Tiny; o endereço alterado na plataforma deixou de valer."',
+    JSON.stringify(aviso13))
+
+  // o pedido usa o CADASTRO e o cadastro muda no Tiny (o gatilho dos clientes)
+  const P14 = await gravarC(pedidoC(99814, 'Preparando envio', { rua: 'Rua Cadastro C', num: '5' }))
+  const K14 = await cardC(P14)
+  await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P14}, ${jC({ endereco: 'Rua Cadastro C', numero: '50', bairro: 'Centro', cidade: 'Natal', uf: 'RN' })}) as r`)
+  await gravarC(pedidoC(99814, 'Preparando envio', { rua: 'Avenida Mudou no Tiny', num: '8' }), 'atualizacao_pedido')
+  const f14 = await fatosC(K14)
+  conferir(f14.at(-1)?.tipo === 'endereco_entrega_tiny_substituido' && (await valeC(P14)).e.endereco === 'Avenida Mudou no Tiny',
+    'o endereço do CADASTRO mudou no Tiny (o pedido usa o cadastro): vale o do Tiny e a marca sai', JSON.stringify(f14.map((f) => f.tipo)))
+
+  // a blindagem: a conferência quebrada não derruba a gravação do Tiny (por último: a função fica quebrada até o rollback)
+  await logadoC(E40.logistica, `select public.plt_fn_pedido_endereco_salvar(${P13}, ${jC({ endereco: 'Rua Outra', numero: '70', bairro: 'Tirol', cidade: 'Natal', uf: 'RN' })}) as r`)
+  await bd.exec(`create or replace function plt_privado.fn_endereco_conferir_tiny(p_pedido_id bigint) returns text
+                   language plpgsql as $q$ begin raise exception 'quebrada de propósito (teste)'; end $q$`)
+  let gravou = true
+  try {
+    await gravarC(pedidoC(99813, 'Em aberto', { entrega: { ...ENTREGA13, endereco: 'Rua Terceira', numero: '9' }, rua: 'Rua do Cadastro', num: '1' }), 'atualizacao_pedido')
+  } catch {
+    gravou = false
+  }
+  const blind = await umC(`select p.endereco_entrega ->> 'endereco' as rua,
+      (select count(*)::int from public.plt_logs_atividade l where l.acao = 'automacao_erro' and l.contexto ->> 'aviso_id' = 'endereco_tiny:${P13}') as alertas
+      from public.pedidos p where p.id = ${P13}`)
+  conferir(gravou && blind.rua === 'Rua Terceira' && blind.alertas === 1,
+    'com a conferência do endereço quebrada, a gravação do Tiny segue e o erro vira aviso de automação (blindado)', JSON.stringify(blind))
+  await bd.exec(migC)
+
+  titulo('SESSAO-50 · bloco C · a visão de onde entregar não muda de forma; as portas são de quem está logado')
+
+  const forma = await umC(`select string_agg(attname || ':' || format_type(atttypid, atttypmod), ',' order by attnum) as c
+                             from pg_attribute where attrelid = 'plt_privado.vw_endereco_entrega'::regclass and attnum > 0 and not attisdropped`)
+  conferir(forma.c === 'pedido_id:bigint,de_entrega:boolean,endereco:text,numero:text,complemento:text,bairro:text,cidade:text,uf:text,cep:text',
+    'a visão de onde entregar tem as mesmas colunas, na mesma ordem (E-251 — as migrations antigas reaplicadas não quebram)', forma.c)
+  const pr = await umC(`
+    select has_function_privilege('anon', 'public.plt_fn_pedido_endereco(bigint)', 'execute') as anon_le,
+           has_function_privilege('authenticated', 'public.plt_fn_pedido_endereco(bigint)', 'execute') as le,
+           has_function_privilege('authenticated', 'public.plt_fn_pedido_endereco_salvar(bigint, jsonb, double precision, double precision, boolean)', 'execute') as salva,
+           has_function_privilege('anon', 'public.plt_fn_pedido_endereco_salvar(bigint, jsonb, double precision, double precision, boolean)', 'execute') as anon_salva,
+           has_function_privilege('authenticated', 'public.plt_fn_pedido_endereco_restaurar(bigint, boolean)', 'execute') as restaura,
+           has_function_privilege('authenticated', 'plt_privado.fn_endereco_mudar(bigint, jsonb, double precision, double precision, boolean)', 'execute') as miolo,
+           has_function_privilege('authenticated', 'plt_privado.fn_endereco_conferir_tiny(bigint)', 'execute') as conferir,
+           has_table_privilege('authenticated', 'public.plt_pedido_enderecos', 'select') as tabela,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname in ('plt_fn_pedido_endereco', 'plt_fn_pedido_endereco_salvar', 'plt_fn_pedido_endereco_restaurar')
+               and p.prosecdef and array_to_string(p.proconfig, ',') like '%search_path=public, pg_temp%') as definers`)
+  conferir(!pr.anon_le && pr.le && pr.salva && !pr.anon_salva && pr.restaura && !pr.miolo && !pr.conferir && !pr.tabela && pr.definers === 3,
+    'as 3 portas do endereço: de quem está logado (o banco confere quem), anônimo fora; o miolo, a conferência e a tabela fora da API',
+    JSON.stringify(pr))
+} finally {
+  await bd.exec('rollback')
+  await comoC('')
+}
+} // fim do bloco SESSAO-50 · bloco C
+
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(

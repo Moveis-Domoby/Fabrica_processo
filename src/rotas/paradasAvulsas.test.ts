@@ -16,6 +16,8 @@ import {
   ordemDoDiaParaOBanco,
   paraNavegar,
   pendenteNoDia,
+  podeEditarParada,
+  dadosDaParada,
   refDaMontagem,
   refDoItem,
   rotaDoDia,
@@ -183,7 +185,12 @@ describe('a parada já marcada sai do caminho, mas segue na ordem', () => {
     const lista = [feita, semPonto, pendente, comPonto]
     const marcadores = marcadoresDaRota(lista)
     expect(marcadores.map((m) => m.numero)).toEqual([3, 4])
-    expect(marcadores[0].avulsa).toEqual({ titulo: 'Parada 2', endereco: 'Rua 2, Natal' })
+    // ↪️ SESSAO-50 (bloco C): o balão do marcador sabe se mostra o "Editar"
+    expect(marcadores[0].avulsa).toEqual({
+      titulo: 'Parada 2',
+      endereco: 'Rua 2, Natal',
+      podeEditar: true,
+    })
     expect(marcadores[1].avulsa).toBeUndefined()
     expect(numerosNoMapaDaLista(lista)).toEqual([3, 4])
   })
@@ -325,5 +332,50 @@ describe('janelaDasParadas — os dias que "Já programadas" pede (até 62 por v
       de: '2026-10-30',
       ate: '2026-12-31',
     })
+  })
+})
+
+// SESSAO-50 (bloco C — pedido do dono): o "Editar" da parada avulsa
+describe('quem vê o "Editar" da parada avulsa', () => {
+  it('a salva: o que o banco diz (pode_editar); sem a chave (banco de antes), só a pendente', () => {
+    expect(podeEditarParada(parada(1, { pode_editar: true }))).toBe(true)
+    expect(podeEditarParada(parada(1, { pode_editar: false }))).toBe(false)
+    expect(podeEditarParada(parada(1))).toBe(true)
+    expect(podeEditarParada(parada(1, { situacao: 'feita' }))).toBe(false)
+    expect(podeEditarParada(parada(1, { situacao: 'nao_feita' }))).toBe(false)
+  })
+
+  it('o rascunho da aba Programar (ainda não está no banco) sempre edita', () => {
+    const rascunho = itemDoRascunho(
+      {
+        titulo: 'Buscar',
+        endereco: 'Rua A',
+        latitude: null,
+        longitude: null,
+        observacao: null,
+        chave: 'k',
+      },
+      -1,
+    )
+    expect(podeEditarParada(rascunho.avulsa)).toBe(true)
+  })
+
+  it('a janela de editar recebe a parada no formato de criar (título, endereço, pino, observação)', () => {
+    expect(
+      dadosDaParada(parada(7, { latitude: -5.8, longitude: -35.2, observacao: 'portão azul' })),
+    ).toEqual({
+      titulo: 'Parada 7',
+      endereco: 'Rua 7, Natal',
+      latitude: -5.8,
+      longitude: -35.2,
+      observacao: 'portão azul',
+    })
+  })
+
+  it('o balão do mapa não mostra "Editar" na parada que o banco diz que não edita', () => {
+    const minha = itemDaParada(
+      parada(2, { latitude: -5.81, longitude: -35.21, pode_editar: false }),
+    )
+    expect(marcadoresDaRota([minha])[0].avulsa?.podeEditar).toBe(false)
   })
 })
