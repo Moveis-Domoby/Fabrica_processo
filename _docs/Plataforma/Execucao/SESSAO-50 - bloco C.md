@@ -37,7 +37,7 @@ As funções que já existiam saem da última versão nas migrations (`extrair-s
 | `fn_endereco_mudar` (o miolo) + `plt_fn_pedido_endereco_salvar` / `plt_fn_pedido_endereco_restaurar` | ver abaixo. |
 | `plt_fn_pedido_endereco` (leitura da janela) | o que vale, o do Tiny (e de onde veio), quem mudou e quando, o ponto de agora (e se é manual), quem pode e o porquê, o porquê do Tiny desligado (para salvar e para voltar). |
 | `fn_endereco_conferir_tiny` + gatilhos `plt_pedidos_endereco_tiny` (pedidos: endereço de entrega ou cliente mudou) e `plt_clientes_endereco_tiny` (clientes: o endereço do cadastro mudou) | o Tiny mudou o endereço por fora → `endereco_entrega_tiny_substituido`, a linha sai, sino `endereco_tiny_mudou` para a logística (`fn_avisar_publico`); o Tiny chegou com o endereço que a plataforma pediu → `endereco_entrega_tiny_confirmado` (a nossa escrita voltando — sem aviso). Blindados: erro vira `automacao_erro` e a gravação do Tiny segue (o molde de `fn_desvincular_por_cancelamento`). |
-| `fn_parada_json` | + `pode_editar` (pendente e logística ou quem pôs). |
+| `plt_fn_paradas_avulsas` / `plt_fn_entregas_do_dia` (as duas leituras das paradas) | + `pode_editar` em cada parada, somado na própria leitura: no período (só a logística lê) = pendente; nas entregas do dia = pendente **e** (logística **ou** quem pôs), com o "sou da logística?" que a porta já calcula uma vez. **A `fn_parada_json` NÃO muda** — a 1ª versão pôs a regra lá dentro e o ensaio ×100 mostrou o custo (ver "Ensaio ×100"). |
 | `plt_fn_parada_avulsa_salvar` | a edição: só da pendente (para todos); salvar sem mudar nada devolve `repetido` sem registrar; o registro `parada_avulsa_editada` com o antes e o depois só do que mudou (título, endereço, ponto, observação) e a lista "Campos alterados". |
 | `plt_fn_pcp_pedido_detalhe` (a ficha) | + `endereco_plataforma` (quando há — E-237): quando, quem, a escolha, a confirmação do Tiny e o original. |
 | `plt_fn_programacao_candidatos` (aba Programar) | + `endereco_plataforma` por pedido (quando há): o original e a confirmação — o selo do cartão. Junção pela chave só nas linhas da página (até 200). |
@@ -66,6 +66,73 @@ Tudo aplicado duas vezes sem erro (a 040000, que recria a visão com o corpo ant
 - Bloco novo **"SESSAO-50 · bloco C"** logo antes de `const contar` (escopo próprio, `begin … rollback`; reaplica a base da 50 e a do bloco — duas vezes); a migration do bloco na cadeia do bloco 38, logo depois da base da 50. Programa: `c-ferramentas/inserir-bloco-c.mjs` (o bloco em `bloco-c.js.txt`; troca o bloco inteiro se já estiver lá).
 - **45 conferências novas** (parada: edição com antes/depois, aviso de rotas, toque repetido, título/observação, entregador na dele e não na da logística, `pode_editar` nas duas leituras, feita não edita, desfeita volta; endereço: a janela, o operador fora, o Tiny recusado com o porquê, salvar só na plataforma — a regra, o fato com o original inteiro, a projeção, o ponto manual na chave nova, um registro só, o aviso —, o toque repetido, a ficha/Já programadas/entregas do dia/aba Programar com o novo e o selo (só no alterado — E-237), a 2ª mudança, voltar ao original (porta e escrevendo o do Tiny), 6 validações, fato solto recusado (pela API e direto na tabela), entregue só admin; Tiny: o porquê do "Em aberto", o original com o endereço de entrega cru, o reenvio igual, a confirmação sem aviso, voltar depois de confirmado recusado, o Tiny mudando por fora (fato, a marca sai, o sino para logística e admin com a frase da demanda), o cadastro mudando, a blindagem; a forma da visão e as permissões).
 - **1ª rodada: 1.757 ✔ e 3 ✘** — 2 meus: o aviso de `rotas` sai uma vez por TRANSAÇÃO (`fn_avisar` marca `plt.avisado_rotas`) e o bloco inteiro é uma transação só; o teste passou a zerar a marca antes do gesto medido. **2ª rodada (12/11 ~03:00 de Natal): 1.759 ✔, 1 ✘ — o vermelho antigo do Dashboard ("as 7 portas novas = as antigas em 8 períodos"), que não é do bloco.** A bateria inteira leva ~2 min nesta máquina.
+- **3ª rodada (12/11 ~03:25, com o `pode_editar` já nas duas leituras): 1.758 ✔, 2 ✘ — as 45 do bloco C verdes.** Os 2 vermelhos não são do bloco: o do Dashboard (o mesmo) e o de ponta a ponta do fluxo do n8n da SESSAO-33 ("o lote do banco → o código do fluxo monta a chamada…": `fimV2 = pendente`). Este só falha de madrugada: `fn_tiny_fila_lote` deixa a conta da fábrica inteira de fora entre **03:10 e 04:40 de Fortaleza** (`fn_tiny_fabrica_em_varredura`, a varredura da fábrica), e a rodada caiu dentro da janela; a 2ª rodada (03:00, fora da janela) o tinha verde — o total de conferências é o mesmo (1.760).
+
+## Ensaio ×100 (PGlite em disco — `dados/SESSAO-50 - bloco C - ensaio x100 do endereco e da parada (script|resultado, 2026-11-12)`)
+
+Banco: 562.700 pedidos, 95.169 cards, 15.467 programações, 600 paradas avulsas, **3.643 pedidos com o endereço mudado na plataforma**. ANTES = a visão de onde entregar, a `fn_parada_json` e as 8 portas que a leem, de antes, copiadas para o esquema `antes50c`; antes × depois alternados na mesma conexão (8 de cada; a 6ª chamada e a mediana da 2ª em diante). A migration aplica em 0,0 s e reaplica em 0,0 s.
+
+| Porta (mediana da 2ª em diante, ms) | Antes | Depois | |
+|---|---:|---:|---|
+| Programar — sem filtro (200, o que a aba abre; 72 com o selo) | 1.587 | 1.625 | +2% |
+| Programar — cidade "Natal" (200) | 1.669 | 1.672 | 0% |
+| Já programadas — por entregar (1ª página, 50) | 61 | 59 | −3% |
+| Já programadas — a busca (50) | 91 | 100 | +10% (a busca acha também o endereço da plataforma) |
+| Entregas do dia — hoje (61 paradas, 20 avulsas) | 25,7 | 24,8 | −4% |
+| ROTAS → Entregas, a entregar (20) | 2.117 | 1.819 | −14% (ruído) |
+| ROTAS → Entregues (20) | 1.530 | 1.516 | −1% |
+| Calendário — a semana que abre | 659 | 661 | 0% |
+| Ficha do pedido — com endereço mudado (com o selo) | 7,3 | 7,8 | +0,5 ms |
+| Ficha do pedido — sem endereço mudado | 1,1 | 1,3 | +0,2 ms |
+| Decisão da devolução (o detalhe) | 3,9 | 4,4 | +0,5 ms |
+| Paradas avulsas do período (5 dias, 600 paradas) | 35,8 | 38,0 | +6% |
+
+- **A 1ª rodada achou um custo meu: as paradas do período 36 → 56 ms (+58%).** A regra de quem pode editar morava na `fn_parada_json`, que roda POR PARADA e chamava a conferência de permissão (`fn_pode_ver_expedicao`) a cada uma. Saiu de lá: cada leitura soma `pode_editar` com o que ela já sabe uma vez (o período só a logística lê; as entregas do dia já calculam "sou da logística?" e "quem sou"). **2ª rodada: 36 → 38 ms (+6% — só a soma do campo); as entregas do dia 26 → 25.**
+- **A porta nova e os gestos (depois):** a janela "Editar endereço" ao abrir **2,0 ms**; salvar só na plataforma **7,0 ms** (máx 24 na 1ª); o mesmo endereço de novo (nada muda) **1,1 ms**; salvar com o pino **3,9 ms**; voltar ao original **2,5 ms**; editar a parada avulsa **1,4 ms**. **Tiny:** o pedido regravado sem mudar o endereço **10,4 ms** (o gatilho nem acorda — `when` no próprio gatilho); o endereço mudou no Tiny (vale o do Tiny + aviso) **8,1 ms**.
+- **Planos:** a regra de onde entregar para os 9.418 pedidos vivos sem programação **351 → 374 ms** (+6,5%): uma busca pela chave primária de `plt_pedido_enderecos` por pedido (+21.932 leituras de página em memória), sem varredura; **um pedido (a ficha, a janela): 0,07 ms**, três buscas por índice.
+- **Fora do orçamento com 100 vezes o volume, mas iguais antes e depois** (no PGlite): Programar ~1,6 s (dívida 30), o calendário ~660 ms (dívida 29), as listas da ROTAS ~1,5–2 s e a busca de "Já programadas" ~100 ms (o custo da regra do pedido vivo — dívida 24 —, já medido na SESSAO-47). **Nenhuma dívida nova do bloco**; o que o bloco soma é a junção pela chave do endereço da plataforma (+0,5 ms na ficha; +9 ms na busca de "Já programadas", que já estava acima do teto pela dívida 24).
+
+## Telas
+
+**Novos:** `src/rotas/enderecoDoPedido.ts` (as 3 portas e as contas puras: limpar o que se digitou, comparar endereços como o banco compara, o endereço numa linha, o texto da busca, o rótulo da fonte), `src/rotas/JanelaEnderecoPedido.tsx` (a janela), `src/rotas/SeloEnderecoAlterado.tsx` (o selo), `src/rotas/editarParada.ts` (o gesto de editar a parada salva).
+
+**Alterados:** `ModalParadaAvulsa.tsx` (o mesmo formulário de criar, preenchido: "Editar parada avulsa", o mapa já aberto com o pino arrastável, "Salvar as mudanças" só quando algo mudou) · `ParadaAvulsaDoDia.tsx` ("Editar" na pendente, para quem pode — o banco diz) · `paradasAvulsas.ts` (`podeEditarParada`, `dadosDaParada`, `podeEditar` no marcador) · `AbaJaProgramadas.tsx` ("Editar" e "Tirar da rota" na linha da parada; "Editar endereço" no cartão; os dois nos balões do mapa) · `AbaProgramar.tsx` (a parada do rascunho com "Editar"/"Tirar" embaixo do texto; "Editar endereço" nos cartões das duas listas e no balão) · `CartaoPedido.tsx` (o selo com o original e "Editar endereço" ao lado de "Acertar o ponto no mapa"; o botão dentro do `<label>` da caixa de marcar não marca a caixa) · `MapaProgramacao.tsx` ("Editar" no balão da avulsa, "Editar endereço" no do pedido) · `FichaDoPedido.tsx` (os 4 fatos do endereço no histórico; o painel "Entrega e comprovante": "Para onde — endereço alterado na plataforma", o selo com o original, "Editar endereço", "Voltar ao endereço original") · `api.ts` e `auditoria/rotulos.ts` (**só acréscimos no FIM**: `pode_editar` na parada e `endereco_plataforma` no pedido da programação; os rótulos das ações das paradas e do endereço e as chaves do antes/depois na Auditoria).
+
+**A janela "Editar endereço":** uma leitura no clique (sem cache: abre sempre com o de agora) e o código só baixa no clique (pedaço próprio, 12,98 kB / 4,01 kB comprimidos). Etapas: **editar** → texto mudado: **a pergunta** ("Trocar o endereço de entrega do pedido N?", De/Para com a fonte, o ponto, "Deseja salvar também no Tiny?…", "Salvar na plataforma e no Tiny" desligado com o porquê ligado por `aria-describedby`, "Salvar só na plataforma" — o foco já nele —, "Voltar") · só o pino mexeu: **"Salvar o ponto"** pelo `plt_fn_geo_marcar` de sempre, sem pergunta · **"Voltar ao endereço original"** → a mesma pergunta, ao contrário. "Para salvar, falta: …" diz o que falta (rua, cidade, UF, CEP com 8 números); quem não pode (operador, entregue sem ser o admin, pedido sem card) vê o porquê e "Fechar". Salvou → aviso curto, as telas das rotas releem (as chaves da programação, das programadas, das entregas do dia, das rotas e do calendário) e o aviso `rotas` do banco chega às outras telas abertas.
+
+### Escolhas de tela onde a demanda não diz (provisórias — o supervisor numera)
+
+- **P11 — a parada do RASCUNHO** (aba Programar, ainda não programada) se edita na própria tela, sem banco: o rascunho é local até "Programar"; só a parada salva passa pela porta.
+- **P12 — no mapa**, "Editar" no balão da parada avulsa (só quem pode) e "Editar endereço" no balão do pedido; o gesto recolhe o mapa de tela cheia antes de abrir a janela (senão ela abriria por baixo da camada da tela cheia). O balão com botão tem largura máxima de 240 px e o mapa anda até ele sair de baixo dos controles do topo — no celular o balão padrão (300 px) passava da borda do mapa e o título ficava embaixo do "Expandir" (visto na vitrine).
+- **P13 — na ficha**, "Editar endereço" e "Voltar ao endereço original" moram no painel "Entrega e comprovante"; o "Voltar" só aparece enquanto o Tiny não confirmou (P5); pedido entregue: só o admin vê os botões (a regra do banco).
+- **P14 — em "Já programadas"** o selo aparece na janela, não no cartão (P10).
+
+### Conferência visual (vitrine temporária, fora do ramo)
+
+`scratchpad/s50/c-ferramentas/vitrine/` (`vitrine-c.tsx`, `vitrine-c.html`, `vite.vitrine-c.config.ts` — o cache do Vite no rascunho; o banco é de mentira: o `supabase.rpc` devolve os dados de exemplo pelo nome da porta). Endereços: `?ver=cartoes` · `?ver=parada` · `?ver=endereco` · `?ver=endereco&alterado=1` · `?ver=endereco&alterado=1&inicio=restaurar` · `?ver=ficha&alterado=1` · `?ver=mapa`. Medido em **375 × 812, 768 × 1024 e 1280 × 800**: nenhuma rolagem lateral (`scrollWidth = innerWidth` em todas as telas medidas); botões de toque 44 px (cartões, balões, ficha) e 56 px (rodapé das janelas); a janela "Editar endereço" vira folha de baixo no celular, 707 px no tablet e 768 px no computador; a pergunta, 512 px.
+
+### Testes e montagem
+
+- **41 testes novos** (a janela 9, as contas do endereço 9, o formulário da parada 5, a parada do dia 3, o cartão +5, a ficha +6, as paradas +4) — **vitest: 102 arquivos, 673 testes, todos verdes** (com as variáveis do Supabase de mentira — a cópia não tem `.env.local`).
+- **tsc** sem erro (os dois tsconfig com `-p`, sem `-b` — ver Lições); **lint** 21 arquivos, 0 erro, 0 aviso (pela API do ESLint com a prova do `any`); **prettier** limpo nos arquivos novos e nos que já eram limpos (E-242).
+- **Montagem: JS inicial 232,8 KB comprimidos em 8 arquivos (teto 250 KB) — o mesmo da base**; a Programação 96,23 kB / 27,68 kB comprimidos (+0,04 kB).
+
+## Lei de desempenho — o checklist do bloco
+
+- **Requisições:** abrir as telas tocadas não ganha leitura nova — o selo e o `pode_editar` vêm nas leituras que já existiam. A janela = **1 leitura no clique**; salvar = 1 escrita; editar a parada = 1 escrita.
+- **Escondido só no clique:** a janela e o código dela.
+- **Tempo real:** o aviso `rotas` (canal) sai de cada gesto; as telas abertas releem — sem relógio, sem `postgres_changes`.
+- **Banco:** projeção pequena por pedido (só os alterados têm linha), junção pela chave primária; índice na chave estrangeira (`definido_por`); RLS ligada e nenhum acesso direto; os gatilhos do Tiny só acordam quando o endereço (ou o cliente) mudou e nunca derrubam a gravação do Tiny; ×100 medido (acima).
+- **Escrita idempotente:** o toque repetido não grava (endereço igual → nada; parada igual → `repetido`, sem registro).
+- **Pacote:** JS inicial igual; a janela em pedaço próprio.
+
+## O caminho que falta para ligar "Salvar na plataforma e no Tiny" (para o handoff)
+
+1. **O fluxo do n8n:** a API nova do Tiny (v3) não aceita endereço; a antiga (v2, `pedido.alterar`) só vale para pedido **Em aberto/Aprovado** e **substitui o pedido inteiro** — o fluxo tem de ler o pedido inteiro (`pedido.obter`) e devolver tudo idêntico (itens, valores, parcelas, frete, marcadores, observações, vendedor, forma de envio) menos o endereço de entrega. Mudar fluxo do n8n em produção é ajuste crítico (regra 3).
+2. **A fila de saída:** `plt_tiny_pedido_fila` guarda **UMA linha por pedido e vale a última vontade** — um endereço pendente apagaria um "Entregue" pendente (e o contrário). Antes de ligar: uma linha por motivo (ou uma fila própria do endereço).
+3. **No banco:** hoje `fn_endereco_mudar` recusa `p_tiny = true` com o porquê de `fn_endereco_tiny_motivo`; ligar = trocar a recusa pelo enfileirar, no mesmo gesto do fato (que já guarda `escolha = 'tiny'`), e a leitura da janela passar a devolver `tiny_salvar.pode = true` para Em aberto/Aprovado. **A volta já está pronta e testada:** o pedido chegando do Tiny com o endereço pedido grava `endereco_entrega_tiny_confirmado` (sem aviso; o selo vira "salvo também no Tiny"); chegando com outro, `endereco_entrega_tiny_substituido` + o sino.
+4. **Na tela:** nada a mudar — o botão já lê o `pode` e o porquê da leitura da janela.
+5. **O teste:** num pedido de teste Em aberto no Tiny, com o dono acordado — conferir que o pedido volta idêntico menos o endereço.
 
 ## Lições (o supervisor numera)
 
@@ -73,3 +140,8 @@ Tudo aplicado duas vezes sem erro (a 040000, que recria a visão com o corpo ant
 
 - Ensaio de banco que reaplica UMA migration antiga por cima de tudo (a 040000) deixa as outras funções que ela recria na versão antiga (as entregas do dia sem as paradas) e o check dos tipos sem os da 50 — o ensaio tem de reaplicar TUDO (duas rodadas, como a bateria). Custou uma rodada de fumaça confusa.
 - Todo fato já vira registro de atividade sozinho (`fn_logar_evento`) — porta que grava fato não grava registro com a mesma ação (a Auditoria mostraria duas linhas).
+- **Regra de permissão dentro de uma função que monta o JSON de UMA linha roda por linha** (a `fn_parada_json` chamando `fn_pode_ver_expedicao` a cada parada: +58% no período ×100). A porta calcula a permissão uma vez e soma o campo na própria leitura (`fn_x(linha) || jsonb_build_object(…)`) — e o ×100 antes × depois é o que mostra; a bateria não pega custo.
+- **As cópias isoladas (o `node_modules` é a junção da pasta principal) dividem o arquivo de estado do `tsc -b`** (`node_modules/.tmp/tsconfig.*.tsbuildinfo` — às 03:42 ele tinha os arquivos do bloco A, gravado pela pasta principal; antes, o meu `tsc -b --force` da cópia o tinha gravado): numa cópia, `tsc -b` sem `--force` pode dizer "em dia" sem conferir nada, e a conferência de uma frente escreve na pasta principal. Nas cópias: `tsc -p tsconfig.app.json` e `tsc -p tsconfig.node.json` (sem `-b`: confere tudo e não grava estado nenhum); a montagem, `vite build` sozinho. Na pasta principal, depois de juntar: `tsc -b --force` uma vez antes de confiar no verde.
+- **A bateria rodada de madrugada tem um vermelho que não é de ninguém:** o teste de ponta a ponta do fluxo do n8n (SESSAO-33) depende do lote da fábrica, que fica de fora entre 03:10 e 04:40 de Fortaleza (a varredura). Rodou nessa janela → `fimV2 = pendente`; fora dela, verde.
+- **Balão do Leaflet com botão no celular:** o padrão (até 300 px de texto + margens) passa da borda de um mapa de 341 px e o mapa só anda o bastante para o balão caber na borda — fica embaixo dos controles do topo. `maxWidth` menor e `autoPanPaddingTopLeft` com a altura dos controles (visto na vitrine em 375 px).
+- **Botão dentro de `<label>`** (o cartão da aba Programar fica dentro do rótulo da caixa de marcar): o clique no botão também marca a caixa — `preventDefault` + `stopPropagation` no botão; no teste, o nome do botão vem do `aria-label` dele.
