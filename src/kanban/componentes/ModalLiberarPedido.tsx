@@ -411,10 +411,14 @@ export function ModalLiberarPedido({
                           ({linha.indice_unidade}/{linha.total_unidades})
                         </span>
                       </span>
-                      {/* SESSAO-50 (bloco A): a observação do item no Tiny, inteira (é a janela de detalhe) */}
+                      {/* SESSAO-50 (bloco A): a observação do item no Tiny, inteira (é a janela de detalhe) —
+                          o mesmo desenho da faixa do card (ObservacaoDoItem), em <span> por estar dentro do rótulo */}
                       {linha.observacao && (
-                        <span className="flex items-start gap-1.5 rounded-r-dm border-l-2 border-atencao-forte bg-atencao-fundo/60 px-2 py-1 text-xs text-texto">
-                          <StickyNote aria-hidden className="mt-px size-3.5 shrink-0 text-atencao-texto" />
+                        <span
+                          className="flex min-w-0 items-start gap-1.5 rounded-sm border-l-[3px] border-atencao-borda bg-atencao-fundo/50 py-1 pr-2 pl-1.5 text-xs text-texto"
+                          data-observacao-item=""
+                        >
+                          <StickyNote aria-hidden className="mt-px size-3.5 shrink-0 text-atencao-forte" />
                           <span className="break-words">
                             <span className="sr-only">Observação do item: </span>
                             {linha.observacao}
