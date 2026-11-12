@@ -392,6 +392,8 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 | 36 | **A janela "Para onde vai este móvel?" no pior caso ×100: 75 ms** (teto de tela 50; típico 33 ms) — 30 peças de 10 móveis com 50 candidatos; o grosso é a conta de vagas por candidato (~0,8 ms × 50). Com o movimento de hoje, poucos ms. | Aberta, rara (abre por clique; o pior caso é um pedido como o 13622). **Caminho:** as vagas dos candidatos numa conta só, por conjunto. |
 | 37 | **"Aplicar a decisão" com 30 peças de uma vez: 206 ms** (teto de escrita 100) — cada peça desvinculada refaz a conta de liberação do pedido cancelado (a maquinaria de sempre). | Aberta, rara. **Caminho:** recalcular a liberação uma vez no fim do lote. |
 
+**Andamento (ajuste de 12/11 — a plataforma abre como aplicativo, D-306):** nenhuma requisição nova da plataforma — o cartão do aplicativo e os ícones são arquivos estáticos que só o navegador busca (o cartão ao abrir a página, os ícones na instalação); JS inicial igual (233,2 KB); sem service worker (nada guardado no aparelho além do cache comum do navegador).
+
 → As telas tocadas pelas SESSÕES 30 e 31 **já saem dentro da lei**. O resto é a [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]].
 
 ## Fontes

@@ -168,6 +168,19 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 6. ~~**As recargas de 10/11**~~ — ✅ **lidas em 11/11 ~05:30** (com o OK do dono): **FITAMENTO 11:23** = um tablet só com **4 trocas de setor por PIN em 64 s** (FITAMENTO → FURAÇÃO → MONTAGEM → FITAMENTO; cada troca gravava 2 aberturas) **+ 3 abas de fundo nunca tocadas** que recarregaram junto na 1ª troca; **CNC 13:58 e 14:38** = o Android recarregando a aba descartada quando a tela acordava (os 40 min foram coincidência); **Entregas** = 17 páginas carregadas do zero no dia, coladas no Maps/Waze/WhatsApp/câmera. O que esta sessão mudou resolve a 1ª (uma recarga por troca) e a trilha nova vai marcar as outras ("aba descartada"). **Sugestão:** fechar as abas extras dos tablets e fazer a plataforma abrir como aplicativo (uma janela só). Detalhe no diário da frente 5. *(Antes:)* a frente 5 explicou pelo código e deixou 6 consultas só de leitura (no diário da frente) para confirmar nos registros do banco o que aconteceu às 11:23 (FITAMENTO), às 13:58 e 14:38 (CNC, de 40 em 40 min) e nas Entregas — só com o OK para ler o banco. Os registros do servidor duram pouco no plano gratuito.
 7. **Depois de publicar:** a primeira publicação com a versão nova acende "versão nova" uma vez em cada tela aberta (é a troca de régua); as TVs se atualizam sozinhas no momento seguro.
 
-## 7. Numeração usada
+## 6b. Ajuste de 12/11 — a plataforma abre como aplicativo (D-306)
 
-Migrations `20261111010000` (base), `…020000` (frente 2), `…030000` (frente 3), `…050000` (frente 5) — ✅ aplicadas em 11/11 ~05:12; manutenção `2026-11-11_cancelado_vira_gesto.sql` — ✅ rodada às ~05:13. Decisões **D-290…D-305**; erros **E-250…E-267**; acertos **A-212…A-220**; dívidas da lei **36, 37**. E-268 usado na subida (o limite de 256 caracteres da Vercel). Próximos: **D-306 · E-269 · A-222 · dívida 38**.
+Pedido do dono depois do achado das abas acumuladas nos tablets: o site ganhou o "cartão do aplicativo" e os ícones, e o Chrome passa a oferecer **"Instalar app"** — um ícone na tela inicial que abre a plataforma numa janela própria, sempre a mesma (tocar de novo volta à janela aberta, não abre aba nova). ⏳ **Publicar só com o OK do dono.**
+
+**Depois de publicar, em cada tablet (uma vez):**
+1. Abrir a plataforma no Chrome (pelo atalho de hoje mesmo).
+2. Fechar as outras abas da plataforma no Chrome (o botão das abas → fechar, deixando uma).
+3. Menu ⋮ do Chrome → **"Instalar app"** (em alguns aparelhos aparece "Adicionar à tela inicial" → escolher **"Instalar"**).
+4. Apagar da tela inicial o ícone antigo (o atalho do navegador) e usar só o novo, o "Domoby".
+5. Se precisar recarregar: fechar o app pela tela de apps recentes e abrir de novo — no aplicativo não existe o "puxar a tela para baixo" do navegador. A versão nova continua chegando sozinha.
+
+No celular do entregador vale o mesmo — diminui as recargas na volta do Maps/Waze/WhatsApp/câmera, mas não zera (o celular ainda pode tirar o app da memória). No computador do escritório, o Chrome também oferece "Instalar" (opcional).
+
+
+
+Migrations `20261111010000` (base), `…020000` (frente 2), `…030000` (frente 3), `…050000` (frente 5) — ✅ aplicadas em 11/11 ~05:12; manutenção `2026-11-11_cancelado_vira_gesto.sql` — ✅ rodada às ~05:13. Decisões **D-290…D-305**; erros **E-250…E-267**; acertos **A-212…A-220**; dívidas da lei **36, 37**. E-268 usado na subida (o limite de 256 caracteres da Vercel). Ajuste de 12/11: D-306 e A-222. Próximos: **D-307 · E-269 · A-223 · dívida 38**.

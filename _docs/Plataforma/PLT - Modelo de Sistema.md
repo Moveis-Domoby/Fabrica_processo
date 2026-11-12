@@ -740,6 +740,11 @@ SESSAO-05.
 - **Comprovante:** em "Entrega e comprovante", cada arquivo com quem e quando; "Ver" pede o link curto no clique — imagem aparece ali mesmo (`max-h-96`), PDF abre noutra aba.
 - **Texto do Tiny (15/10):** a pílula da plataforma só quando difere da situação do Tiny; valor que o Tiny manda em código vira palavra (`valorDoTiny`: "credito" → "Crédito"; o escrito à mão fica); nome de campo com acento e sigla (`rotuloDoCampo`); dinheiro só em campo de valor (código nunca); cancelado depois de entregue: "Foi entregue, depois cancelado" (sem o verde) — a situação do Tiny é rótulo ("Cancelado"), compara-se sem caixa. No celular, o resumo da ficha fica em 2 colunas.
 
+### A plataforma como aplicativo (12/11 — D-306)
+
+- `public/manifest.webmanifest` + `<link rel="manifest">` e `<link rel="apple-touch-icon">` no `index.html`: nome "Sistema Domoby" / "Domoby", janela própria, início em "/", barra #5A585C, abertura #f7f7f8. Ícones em `public/icones/` (`domoby-192/512.png` com os cantos arredondados e fundo transparente; `domoby-mascara-192/512.png` em quadrado cheio com o desenho a 80% — a zona segura do ícone adaptável) e `public/apple-touch-icon.png` (180, quadrado cheio). O desenho é o do `favicon.svg` (o "d" em Poppins 700 branco, a bolinha #F1C24B, o grafite #5A585C) — para refazer, a receita está na memória (A-222). Sem service worker.
+- Em janela própria não existe a barra do navegador: o botão de voltar de cada tela (D-36) e o aviso de versão nova (abaixo) cobrem a navegação e a atualização.
+
 ### Aviso de versão nova (14/10 noite — D-135)
 
 - `AvisoVersaoNova` (`src/componentes/`): cartão discreto no canto inferior esquerdo (acima da barra do celular), "Saiu uma versão nova da plataforma" + botão "Atualizar". Aparece na casca e no tablet; a próxima troca de tela já recarrega sozinha.
