@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPinPlus, Pencil, Route, Truck, X } from 'lucide-react'
 import { Botao, Dica, useNotificacao } from '@/componentes/ui'
@@ -22,7 +22,6 @@ import type { DadosParadaAvulsa, PedidoProgramacao } from './api'
 import { CartaoParadaAvulsa, NumeroParadaAvulsa } from './CartaoParadaAvulsa'
 import { CartaoPedido } from './CartaoPedido'
 import { FiltrosProgramar } from './FiltrosProgramar'
-import { JanelaEnderecoPedido } from './JanelaEnderecoPedido'
 import { SEM_FILTROS, filtrosDoServidor, marcadosVivos, temFiltro } from './filtrosProgramacao'
 import type { EscolhaDosFiltros } from './filtrosProgramacao'
 import { ListaArrastavel } from './ListaArrastavel'
@@ -65,6 +64,11 @@ import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
+
+// SESSAO-50 (bloco C): a janela "Editar endereço" só baixa no clique (Lei §9)
+const JanelaEnderecoPedido = lazy(() =>
+  import('./JanelaEnderecoPedido').then((m) => ({ default: m.JanelaEnderecoPedido })),
+)
 
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
@@ -802,12 +806,14 @@ export function AbaProgramar({
         />
       )}
       {enderecoDe && (
-        <JanelaEnderecoPedido
-          key={`endereco-${enderecoDe.pedidoId}`}
-          pedidoId={enderecoDe.pedidoId}
-          numero={enderecoDe.numero}
-          aoFechar={() => setEnderecoDe(null)}
-        />
+        <Suspense fallback={null}>
+          <JanelaEnderecoPedido
+            key={`endereco-${enderecoDe.pedidoId}`}
+            pedidoId={enderecoDe.pedidoId}
+            numero={enderecoDe.numero}
+            aoFechar={() => setEnderecoDe(null)}
+          />
+        </Suspense>
       )}
     </div>
   )

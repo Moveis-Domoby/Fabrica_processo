@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
@@ -26,7 +26,6 @@ import { detalhePedidoPcp } from '@/kanban/api'
 import { linkDoAnexo, linkWhatsApp } from '@/rotas/api'
 import { diaNaFabrica, entregueEmOutroDia, registradaHoje } from '@/rotas/diaDaEntrega'
 import type { SeloEndereco } from '@/rotas/enderecoDoPedido'
-import { JanelaEnderecoPedido } from '@/rotas/JanelaEnderecoPedido'
 import { SeloEnderecoAlterado } from '@/rotas/SeloEnderecoAlterado'
 import { useAcessoLogistica } from '@/logistica/acesso'
 import { ModalDevolvido, ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
@@ -42,6 +41,11 @@ import { ProducaoDoPedidoPainel } from './ProducaoDoPedido'
 import { fraseDaCorrecao, quandoFoiEntregue, quandoFoiRegistrada } from './entregaNaFicha'
 import type { FichaComDiaReal } from './entregaNaFicha'
 import { data, diaEHora, moeda, valorDoTiny } from './formato'
+
+// SESSAO-50 (bloco C): a janela "Editar endereço" só baixa no clique (Lei §9)
+const JanelaEnderecoPedido = lazy(() =>
+  import('@/rotas/JanelaEnderecoPedido').then((m) => ({ default: m.JanelaEnderecoPedido })),
+)
 
 /** A situação da conta a receber como o Tiny manda → como a gente fala. */
 const SITUACAO_CONTA: Record<string, string> = {
@@ -606,13 +610,15 @@ function PainelEntrega({ d, aoMudar }: { d: FichaComDiaReal; aoMudar: () => void
             </div>
           )}
           {janelaEndereco && p.id && (
-            <JanelaEnderecoPedido
-              pedidoId={p.id}
-              numero={p.numero}
-              inicio={janelaEndereco}
-              aoFechar={() => setJanelaEndereco(null)}
-              aoMudar={aoMudar}
-            />
+            <Suspense fallback={null}>
+              <JanelaEnderecoPedido
+                pedidoId={p.id}
+                numero={p.numero}
+                inicio={janelaEndereco}
+                aoFechar={() => setJanelaEndereco(null)}
+                aoMudar={aoMudar}
+              />
+            </Suspense>
           )}
           {/* SESSAO-41 (D-194): a data de entrega — mudar ou remover SÓ na plataforma. */}
           {p.id && <DataDeEntrega pedido={p} aoMudar={aoMudar} />}

@@ -413,7 +413,10 @@ describe('Ficha do pedido — o endereço de entrega alterado na plataforma', ()
     expect(within(painel).queryByText(/Cadastro do cliente:/)).not.toBeInTheDocument()
 
     await userEvent.click(within(painel).getByRole('button', { name: 'Editar endereço' }))
-    expect(screen.getByRole('dialog', { name: 'janela do endereço (editar)' })).toBeInTheDocument()
+    // a janela é um pedaço próprio do pacote (baixa no clique)
+    expect(
+      await screen.findByRole('dialog', { name: 'janela do endereço (editar)' }),
+    ).toBeInTheDocument()
   })
 
   it('"Voltar ao endereço original" abre direto a pergunta da volta', async () => {
@@ -425,7 +428,7 @@ describe('Ficha do pedido — o endereço de entrega alterado na plataforma', ()
       within(painel).getByRole('button', { name: 'Voltar ao endereço original' }),
     )
     expect(
-      screen.getByRole('dialog', { name: 'janela do endereço (restaurar)' }),
+      await screen.findByRole('dialog', { name: 'janela do endereço (restaurar)' }),
     ).toBeInTheDocument()
   })
 

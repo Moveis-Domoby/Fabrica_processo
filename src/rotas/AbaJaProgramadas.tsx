@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react'
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -42,7 +42,6 @@ import { BotaoRotaGoogleMaps } from './BotoesNavegacao'
 import { CartaoParadaAvulsa, NumeroParadaAvulsa } from './CartaoParadaAvulsa'
 import { CartaoPedido } from './CartaoPedido'
 import { useEditarParada } from './editarParada'
-import { JanelaEnderecoPedido } from './JanelaEnderecoPedido'
 import { ListaArrastavel } from './ListaArrastavel'
 import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { MapaProgramacao } from './MapaProgramacao'
@@ -89,6 +88,11 @@ import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
 import { useRotaPelasRuas, useRotasPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
+
+// SESSAO-50 (bloco C): a janela "Editar endereço" só baixa no clique (Lei §9)
+const JanelaEnderecoPedido = lazy(() =>
+  import('./JanelaEnderecoPedido').then((m) => ({ default: m.JanelaEnderecoPedido })),
+)
 
 const POR_PAGINA = 50
 const SEM_PONTOS: Ponto[] = []
@@ -1083,12 +1087,14 @@ export function AbaJaProgramadas({
           />
         )}
         {enderecoDe && (
-          <JanelaEnderecoPedido
-            key={`endereco-${enderecoDe.pedidoId}`}
-            pedidoId={enderecoDe.pedidoId}
-            numero={enderecoDe.numero}
-            aoFechar={() => setEnderecoDe(null)}
-          />
+          <Suspense fallback={null}>
+            <JanelaEnderecoPedido
+              key={`endereco-${enderecoDe.pedidoId}`}
+              pedidoId={enderecoDe.pedidoId}
+              numero={enderecoDe.numero}
+              aoFechar={() => setEnderecoDe(null)}
+            />
+          </Suspense>
         )}
         <ModalDetalheEntrega
           key={detalheDe ? `detalhe-${detalheDe.card_id}` : 'detalhe-fechado'}
