@@ -3134,6 +3134,7 @@ declare
   v_num     bigint;
   v_teto    bigint;
   v_ids     bigint[] := '{}';
+  v_alvo    bigint[] := '{}';
   v_ocultos jsonb := '[]'::jsonb;
   v_sem     jsonb := '[]'::jsonb;
 begin
@@ -3174,20 +3175,25 @@ begin
          and not exists (select 1 from public.plt_cards pc where pc.pedido_id = p.id and pc.tipo = 'pedido')
          and not exists (select 1 from public.plt_pedidos_excluidos_tiny x where x.pedido_id = p.id)
        order by p.numero desc limit v_lim + 1) x;
-    -- termo RARO (a janela não encheu a página): os caminhos que os índices usam
+    -- termo RARO (a janela não encheu a página): os caminhos que os índices usam —
+    -- primeiro os candidatos (as faixas do número, os trigramas do nome), depois a
+    -- página só entre eles (em dois passos: numa consulta só, o planejador andava o
+    -- índice parcial inteiro na ordem e cruzava — 700 ms no ensaio ×100)
     if cardinality(v_ids) <= v_lim then
+      select coalesce(array_agg(alvo.id), '{}') into v_alvo
+        from (select p1.id
+                from generate_series(0, greatest(0, 10 - length(v_busca))) as k(e)
+                join public.pedidos p1
+                  on p1.numero >= v_num * (10::bigint ^ k.e)::bigint
+                 and p1.numero <  (v_num + 1) * (10::bigint ^ k.e)::bigint
+               where v_num is not null
+              union
+              select p2.id from public.clientes c2 join public.pedidos p2 on p2.cliente_id = c2.id
+               where c2.nome ilike '%' || v_busca || '%') alvo;
       select coalesce(array_agg(x.id order by x.numero desc), '{}') into v_ids from (
         select p.id, p.numero
-          from (select p1.id
-                  from generate_series(0, greatest(0, 10 - length(v_busca))) as k(e)
-                  join public.pedidos p1
-                    on p1.numero >= v_num * (10::bigint ^ k.e)::bigint
-                   and p1.numero <  (v_num + 1) * (10::bigint ^ k.e)::bigint
-                 where v_num is not null
-                union
-                select p2.id from public.clientes c2 join public.pedidos p2 on p2.cliente_id = c2.id
-                 where c2.nome ilike '%' || v_busca || '%') alvo
-          join public.pedidos p on p.id = alvo.id
+          from unnest(v_alvo) as u(id)
+          join public.pedidos p on p.id = u.id
          where (p_antes_numero is null or p.numero < p_antes_numero)
            and coalesce(plt_privado.fn_situacao_normalizada(p.situacao), '') not in
                ('faturado', 'pronto_para_envio', 'enviado', 'entregue', 'nao_entregue', 'cancelado')

@@ -1,0 +1,85 @@
+SESSAO-50 · bloco B · ensaio ×100 (12/11/2026, ~03:30) — PGlite em disco, o mesmo banco ANTES × DEPOIS.
+Rodada 1 (sem concorrência, até travar na porta antiga do "Novo pedido") e rodada 2 (completa, com a bateria rodando ao lado nos primeiros minutos — o ANTES saiu ~2× mais lento por isso).
+
+===== rodada 2 (completa) =====
+== montando o banco em disco (×100: pedidos 562.700) ==
+  144 migrations aplicadas (a última: 20261111050000_plt_abertura_motivo.sql) (9 s)
+  pedidos 562.700 (32 s)
+  cards 91.569 · eventos 45.706 · aguardando no PCP 3.700 (50 s)
+
+== ANTES (até a SESSAO-48) ==
+  PCP "aguardando liberação" (10)                                                      mediana    177.5 ms · máx    212.1 ms · 3700 no quadro
+  PCP filtrado pelo número ("12", 10)                                                  mediana    139.1 ms · máx    154.0 ms · 0 batem
+  PCP aba Stand-by (10)                                                                mediana     18.7 ms · máx     20.5 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    339.9 ms · máx    368.1 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana     95.6 ms · máx    104.0 ms · 3700 a liberar
+  lista de Pedidos (20)                                                                mediana     95.2 ms · máx    100.0 ms · 20 linhas
+  a janela "Liberar unidades"                                                          mediana     57.4 ms · máx     92.5 ms
+  a janela "O que aconteceu?"                                                          mediana     36.4 ms · máx     47.8 ms
+  a lista do "Novo pedido" de antes (pedidos sem card, 8 — a porta antiga)             mediana 131121.6 ms · máx 131121.6 ms
+
+  a base e o bloco B da SESSAO-50 aplicados (192 s)
+  excluídos 100 · cancelados pela plataforma 300 · ocultos 500 (193 s)
+
+== DEPOIS (a base e o bloco B da SESSAO-50) ==
+  PCP "aguardando liberação" (10)                                                      mediana     89.5 ms · máx     96.9 ms · 2800 no quadro
+  PCP filtrado pelo número ("12", 10)                                                  mediana     76.7 ms · máx     81.8 ms · 0 batem
+  PCP aba Stand-by (10)                                                                mediana     10.6 ms · máx     11.7 ms · 0 linhas
+  PCP porta antiga (10)                                                                mediana    194.9 ms · máx    204.1 ms · 10 linhas
+  quadrinho do PCP na Visão do dia                                                     mediana     76.6 ms · máx     85.6 ms · 2800 a liberar
+  lista de Pedidos (20)                                                                mediana     11.4 ms · máx     17.6 ms · 20 linhas
+  a janela "Liberar unidades"                                                          mediana     30.9 ms · máx     48.5 ms
+  a janela "O que aconteceu?"                                                          mediana     29.2 ms · máx     32.3 ms
+
+== as portas novas ==
+  aba "Cancelados" (1ª página, 20)                                                     mediana     23.3 ms · máx     51.3 ms · 20 linhas
+  aba "Cancelados" (2ª página pelo cursor)                                             mediana      9.7 ms · máx     23.9 ms · 20 linhas
+  aba "Cancelados" filtrada pelo número ("97", 20)                                     mediana      9.4 ms · máx     13.6 ms · 2 linhas
+  aba "Cancelados" filtrada pelo nome ("Cliente 12", 20)                               mediana     38.3 ms · máx     47.2 ms · 3 linhas
+  aba "Pedidos ocultos" (20, os 30 dias)                                               mediana     19.5 ms · máx     22.1 ms · 20 linhas
+  aba "Pedidos ocultos" filtrada ("5", 20)                                             mediana     14.5 ms · máx     16.3 ms · 20 linhas
+  "Incluir pedido no PCP" (1ª página)                                                  mediana     16.0 ms · máx     19.8 ms · 5 ocultos · 8 sem card · próximo 558601
+  "Incluir pedido no PCP" (2ª página pelo cursor)                                      mediana      5.0 ms · máx      6.1 ms · 8 sem card
+  "Incluir pedido no PCP" (o cursor no meio da história)                               mediana      4.1 ms · máx      4.5 ms · 8 sem card
+  "Incluir pedido no PCP" buscando ("Cliente 3")                                       mediana     54.4 ms · máx     61.5 ms · 8 sem card
+  "Incluir pedido no PCP" buscando o número ("5612", raro)                             mediana    278.4 ms · máx    335.8 ms · 8 sem card
+    · a parte de cima: os ocultos de qualquer idade (5)                                mediana      6.0 ms · máx      7.3 ms
+  a prévia dos modais Cancelar/Ocultar                                                 mediana     27.5 ms · máx     40.3 ms
+  "Para onde vai este móvel?" de um cancelado pela plataforma                          mediana     41.1 ms · máx     52.9 ms
+
+== os gestos ==
+  GESTO: "Cancelar pedido" (5 pedidos)                                                 mediana     19.1 ms · máx     42.9 ms
+  GESTO: "Ocultar o pedido e as peças" (5 pedidos × 3 peças)                           mediana     80.8 ms · máx    287.8 ms
+  GESTO: "Recuperar" (5 pedidos — as vagas voltam abertas)                             mediana      5.9 ms · máx      7.7 ms
+  CONFERÊNCIA: o veredito dos excluídos (5 novos — o fato, as peças, o sino)           mediana    170.4 ms · máx    170.4 ms
+  --- plano: o quadro do PCP (a regra única com o conjunto dos excluídos)
+      Function Scan on plt_fn_pcp_quadro (actual rows=10.00 loops=1)
+        Buffers: shared hit=25033 read=21 written=12
+      Planning Time: 0.121 ms
+      Execution Time: 95.819 ms
+  --- plano: a aba "Cancelados" (1ª página)
+      Function Scan on plt_fn_pcp_cancelados (actual rows=20.00 loops=1)
+        Buffers: shared hit=1707 read=1 written=1
+      Planning Time: 0.093 ms
+      Execution Time: 17.813 ms
+
+fim (206 s)
+
+===== depois da correção da busca rara do "Incluir pedido no PCP" (o mesmo banco ×100; a função trocada no lugar) =====
+1ª página                                          mediana 34.3 ms máx 333.1 · 8 sem card
+busca "Cliente 3"                                  mediana 73.6 ms máx 151.0 · 8 sem card
+busca número raro "5612"                           mediana 65.4 ms máx 81.5 · 8 sem card
+busca número raro "12345"                          mediana 61.6 ms máx 71.4 · 8 sem card
+busca nome raro "Cliente 4999"                     mediana 110.3 ms máx 134.7 · 8 sem card
+busca que não acha "zzz"                           mediana 107.7 ms máx 134.1 · 0 sem card
+(a medição acima rodou com a bateria do banco rodando ao lado — CPU dividida. A mesma medição SEM concorrência, minutos antes:)
+1ª página                                          mediana 19.8 ms máx 201.7 · 8 sem card
+busca "Cliente 3"                                  mediana 48.5 ms máx 69.9 · 8 sem card
+busca número raro "5612"                           mediana 40.8 ms máx 60.7 · 8 sem card   (antes da correção: 278 ms — o planejador andava o índice parcial inteiro)
+busca número raro "12345"                          mediana 38.9 ms máx 39.3 · 8 sem card
+busca nome raro "Cliente 4999"                     mediana 47.8 ms máx 54.1 · 8 sem card
+busca que não acha "zzz"                           mediana 46.1 ms máx 76.9 · 0 sem card
+
+Leitura: a porta antiga do "Novo pedido" (plt_fn_pedidos_kanban com p_somente_sem_card) levou 131 s numa chamada com 560 mil
+pedidos (contava e calculava a lista inteira antes de cortar 8). A nova: 16–20 ms a 1ª página, 4–5 ms as seguintes, 39–48 ms as
+buscas (a janela dos 5.000 números faz o ilike em ~4,5 mil linhas — o mesmo molde da lista de Pedidos). PGlite em disco: teto, não média.
