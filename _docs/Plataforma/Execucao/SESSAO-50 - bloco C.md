@@ -117,6 +117,14 @@ Banco: 562.700 pedidos, 95.169 cards, 15.467 programações, 600 paradas avulsas
 - **tsc** sem erro (os dois tsconfig com `-p`, sem `-b` — ver Lições); **lint** 21 arquivos, 0 erro, 0 aviso (pela API do ESLint com a prova do `any`); **prettier** limpo nos arquivos novos e nos que já eram limpos (E-242).
 - **Montagem: JS inicial 232,8 KB comprimidos em 8 arquivos (teto 250 KB) — o mesmo da base**; a Programação 96,23 kB / 27,68 kB comprimidos (+0,04 kB).
 
+### Junção de ensaio com o ramo da sessão (12/11 ~04:00 — nada juntado de verdade)
+
+A junção do ramo do bloco C com `sessao-50-observacao-pcp-endereco` (blocos A e B; `962de38`) feita só em memória (`git merge-tree`) e exportada para o rascunho (`scratchpad/s50/c-juntado`, com a mesma junção do `node_modules`):
+
+- **1 conflito só — a cadeia do bloco 38 na bateria**: as três entradas da 50 juntas, na ordem dos arquivos (`020000` do B, `050000` do A, `060000` do C). O programa `c-ferramentas/resolver-juntada.mjs` faz exatamente isso. O resto (o bloco de testes do C, `src/auditoria/rotulos.ts` com os acréscimos dos dois lados) junta sozinho.
+- **Nenhuma função recriada por dois blocos:** as 6 que a `060000` recria (a visão de onde entregar, `plt_fn_paradas_avulsas`, `plt_fn_entregas_do_dia`, `plt_fn_parada_avulsa_salvar`, `plt_fn_pcp_pedido_detalhe`, `plt_fn_programacao_candidatos`) não estão na `020000` nem na `050000`, e a `060000` não usa nada que elas recriam ou apagam (a `fn_fora_do_pcp` de 3 argumentos que o B apaga não aparece nela). A `plt_fn_rotas` do B lê a visão pelo nome — recebe o endereço da plataforma sem mudar nada.
+- **Resultado na junção:** bateria **1.791 ✔, 2 ✘** (os mesmos dois de fora do bloco: o Dashboard e o fluxo do n8n na janela da madrugada) — as 45 do C, as do A e as do B verdes juntas; **vitest 108 arquivos, 702 testes verdes**; **tsc** (os dois tsconfig) sem erro; **JS inicial 232,6 KB**.
+
 ## Lei de desempenho — o checklist do bloco
 
 - **Requisições:** abrir as telas tocadas não ganha leitura nova — o selo e o `pode_editar` vêm nas leituras que já existiam. A janela = **1 leitura no clique**; salvar = 1 escrita; editar a parada = 1 escrita.
