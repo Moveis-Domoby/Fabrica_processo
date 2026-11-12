@@ -40,6 +40,7 @@ import { EtiquetasDoCard } from '@/utilitarios/PilulaEtiqueta'
 import type { CampoMostrado } from '@/utilitarios/consultas'
 import { prioridadeDe } from '../prioridade'
 import { ChipPrazo, PontoPrioridade } from './MarcasDoCard'
+import { ObservacaoDoItem } from './ObservacaoDoItem'
 
 /** Os rostos dos responsáveis (até 3 + "+N") — o nome vai no texto acessível. */
 function Responsaveis({
@@ -289,6 +290,9 @@ export function CartaoUnidade({
       <p className={cn('line-clamp-2 text-texto', galpao ? 'text-lg font-medium' : 'text-sm')}>
         {nomeDoCard(card)}
       </p>
+      {/* SESSAO-50 (bloco A): a observação do item no Tiny, logo abaixo do nome — só
+          quando existe (o card sem ela fica como sempre foi). */}
+      {card.observacao_item && <ObservacaoDoItem texto={card.observacao_item} tamanho={tamanho} />}
       {/* SESSAO-31 (D-125): o vínculo do avulso é só referência — linha pequena. */}
       {avulso && card.vinculo_rotulo && (
         <p className="inline-flex min-w-0 items-center gap-1 text-xs text-texto-suave">

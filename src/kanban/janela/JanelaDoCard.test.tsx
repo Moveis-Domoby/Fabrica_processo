@@ -7,6 +7,8 @@ import type { JanelaDoCard as Dados } from './api'
 
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
 vi.mock('@/perfil/api', () => ({ urlDaFoto: () => null }))
+// SESSAO-50 (bloco A): a janela ouve o canal do card (a observação do item que muda)
+vi.mock('@/chat/canais', () => ({ ouvirCanal: () => () => undefined }))
 
 let papel = 'admin'
 vi.mock('@/autenticacao/sessao-contexto', () => ({

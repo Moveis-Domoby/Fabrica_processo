@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -23,6 +23,7 @@ import {
   Save,
   SearchX,
   SlidersHorizontal,
+  StickyNote,
   Tag,
   TriangleAlert,
   Users,
@@ -62,6 +63,9 @@ import { ResponsaveisPorSetor } from './ResponsaveisPorSetor'
 import { ChipPrazo, PontoPrioridade, SeletorPrioridade } from '../componentes/MarcasDoCard'
 import { ROTULO_PRIORIDADE, definirPrioridade, prioridadeDe } from '../prioridade'
 import type { Prioridade } from '../prioridade'
+import { ouvirCanal } from '@/chat/canais'
+import { ObservacaoDoItem } from '../componentes/ObservacaoDoItem'
+import { topicoDoCard } from './conversa'
 
 const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
 function hojeIso(agora: number): string {
@@ -98,6 +102,18 @@ export function JanelaDoCard({
     staleTime: 0,
   })
   const dados = consulta.data
+  // SESSAO-50 (bloco A): a observação do item mudou no Tiny com a janela aberta —
+  // o banco avisa no canal do card (o mesmo da conversa: tópico estreito, nenhum
+  // canal novo) e a janela relê. Nada de relógio.
+  const clienteDaJanela = useQueryClient()
+  useEffect(
+    () =>
+      ouvirCanal(topicoDoCard(cardId), (evento) => {
+        if (evento === 'card_mudou')
+          void clienteDaJanela.invalidateQueries({ queryKey: ['card-janela', cardId] })
+      }),
+    [cardId, clienteDaJanela],
+  )
   // O card do PEDIDO (o do PCP) não tem produto: o título é o pedido.
   const doPedido = dados?.card.tipo === 'pedido'
   const titulo = !dados
@@ -662,6 +678,18 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
             </div>
           )}
         </Propriedade>
+
+        {/* SESSAO-50 (bloco A): a observação do item no Tiny, inteira, logo acima das
+            Datas — só na peça que tem (também no tablet, só para ver). */}
+        {card.observacao_item && (
+          <Propriedade
+            icone={<StickyNote aria-hidden className="size-4" />}
+            rotulo="Observação do item (Tiny)"
+            largo
+          >
+            <ObservacaoDoItem texto={card.observacao_item} inteira />
+          </Propriedade>
+        )}
 
         <Propriedade icone={<CalendarClock aria-hidden className="size-4" />} rotulo="Datas">
           {podeEditarDatas ? (
