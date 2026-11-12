@@ -16267,7 +16267,10 @@ try {
                      '20261111030000_plt_cancelado_pergunta_destino.sql',
                      // ↪️ SESSAO-48 · frente 5 (A-12): a do tempo/stand-by acima recria a porta de abertura de
                      // 2 argumentos — esta tira a velha e deixa só a de 3 (o porquê da abertura), como em produção
-                     '20261111050000_plt_abertura_motivo.sql']) {
+                     '20261111050000_plt_abertura_motivo.sql',
+                     // ↪️ SESSAO-50 (E-19): a base recria o check dos tipos de evento (com os do excluído no
+                     // Tiny, do cancelar/ocultar no PCP e do endereço) e o VALIDA — a da 48 acima já não valida
+                     '20261112010000_plt_sessao50_base.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`

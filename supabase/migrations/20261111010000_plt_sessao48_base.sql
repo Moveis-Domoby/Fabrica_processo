@@ -59,7 +59,8 @@ alter table public.plt_eventos add constraint plt_eventos_tipo_check check (tipo
   'fabricacao_cancelada', 'fabricacao_retomada', 'pcp_aviso_resolvido', 'pedido_removido_pcp',
   'pedido_devolvido_pcp', 'destino_pendente', 'destino_decidido'
 ]::text[])) not valid;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- ↪️ SESSAO-50 (E-19): o validate saiu daqui — mora na 20261112010000 (a mais nova do
+-- check); reaplicada depois de fatos dos tipos novos, esta não pode reprovar a lista.
 
 -- ----------------------------------------------------------------------------
 -- 2 · A etapa que cancela a fabricação (o sinal novo, no padrão de
