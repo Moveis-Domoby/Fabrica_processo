@@ -16,6 +16,7 @@ import {
   History,
   Link2,
   Moon,
+  PackageOpen,
   Pause,
   Flag,
   Pencil,
@@ -66,6 +67,11 @@ import type { AlvoSaidaPedido } from '../componentes/ModalSaidaPedido'
 const ModalSaidaPedido = lazy(() =>
   import('../componentes/ModalSaidaPedido').then((m) => ({ default: m.ModalSaidaPedido })),
 )
+// SESSAO-51 (bloco B): "Mover para o PCP" — pedaço próprio, só no clique.
+const ModalVoltarPcp = lazy(() =>
+  import('../componentes/ModalVoltarPcp').then((m) => ({ default: m.ModalVoltarPcp })),
+)
+import { mostraVoltarPcp } from '../voltaPcp'
 import { AnexosDoCard } from './AnexosDoCard'
 import { ResponsaveisPorSetor } from './ResponsaveisPorSetor'
 import { ChipPrazo, PontoPrioridade, SeletorPrioridade } from '../componentes/MarcasDoCard'
@@ -356,6 +362,18 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
   // recupera (ela volta para a fila do setor, sem dono).
   const cancelada = pecaCancelada(card) ? card.cancelada_em : null
   const podeRecuperar = Boolean(cancelada) && Boolean(dados.arquivado_em) && !tablet && perfil?.papel === 'admin'
+  // SESSAO-51 (bloco B · D-330): "Mover para o PCP" — admin, fora do tablet, peça viva em setor de produção
+  const [voltandoPcp, setVoltandoPcp] = useState(false)
+  const podeVoltarPcp = mostraVoltarPcp({
+    tipo: card.tipo,
+    vivo,
+    papelDoSetor: dados.setor?.papel_no_fluxo,
+    tablet,
+    souAdmin: perfil?.papel === 'admin',
+    cancelada: Boolean(card.cancelada_em),
+    ajuste: Boolean(card.ajuste_destino),
+    destinoPendente: Boolean(card.destino_pendente_em),
+  })
   const recuperar = useMutation({
     mutationFn: () => recuperarPecaCancelada(card.id),
     onSuccess: async (r) => {
@@ -465,6 +483,16 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
                 onClick={() => (tablet ? setPinPara('mover') : setMovendo({}))}
               >
                 Mover
+              </Botao>
+            )}
+            {podeVoltarPcp && (
+              <Botao
+                variante="secundaria"
+                tamanho="sm"
+                icone={<PackageOpen />}
+                onClick={() => setVoltandoPcp(true)}
+              >
+                Mover para o PCP
               </Botao>
             )}
             {permissoes.concluir && !tablet && (
@@ -972,6 +1000,12 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         tamanho={tablet ? 'galpao' : 'padrao'}
         aoFechar={() => setPausando(null)}
       />
+
+      {voltandoPcp && (
+        <Suspense fallback={null}>
+          <ModalVoltarPcp cardId={card.id} aoFechar={() => setVoltandoPcp(false)} />
+        </Suspense>
+      )}
 
       <ModalMoverParaFila
         key={movendo ? 'mover-aberto' : 'mover-fechado'}

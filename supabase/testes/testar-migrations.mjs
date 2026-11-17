@@ -16304,7 +16304,10 @@ try {
                      '20261116010000_plt_sessao51_base.sql',
                      // ↪️ SESSAO-51 · bloco A (A-12/E-165): a entrega parcial de 6 argumentos — as de cima
                      // recriam a de 5 ao lado (chamada ambígua); esta tira a velha, como em produção
-                     '20261116020000_plt_entrega_parcial_mantem_producao.sql']) {
+                     '20261116020000_plt_entrega_parcial_mantem_producao.sql',
+                     // ↪️ SESSAO-51 · bloco B: a liberação com "Usar a mesma peça", o quadro do PCP com o
+                     // selo da peça que voltou e a reposição que veio da produção
+                     '20261116030000_plt_mover_card_para_pcp.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
@@ -25389,6 +25392,243 @@ await bd.exec(await readFile(path.join(MIGRATIONS, '20261116020000_plt_entrega_p
     await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
   }
 } // fim do bloco SESSAO-51 · bloco A
+
+// ============================================================================
+// SESSAO-51 · BLOCO B (migration 20261116030000): "Mover para o PCP" — a peça em
+// produção volta ao PCP como vaga do pedido (com motivo) ou vira reposição de
+// estoque; a liberação oferece "Usar a mesma peça" (D-130: a peça é uma só).
+// ============================================================================
+{ // SESSAO-51 · bloco B (escopo próprio — E-70)
+titulo('SESSAO-51 · bloco B · as migrations da 51 de novo (E-81)')
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261116010000_plt_sessao51_base.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261116020000_plt_entrega_parcial_mantem_producao.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261116030000_plt_mover_card_para_pcp.sql'), 'utf8'))
+  const um = async (sql) => (await bd.query(sql)).rows[0]
+  const como = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+  const j = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+  // E-161/E-287: ponto de volta antes do gesto — o erro de verdade não fica escondido
+  const logado = async (auth, sql) => {
+    await bd.exec('savepoint l51b')
+    try {
+      await como(auth)
+      const r = await um(sql)
+      await bd.exec('release savepoint l51b')
+      return r
+    } catch (e) {
+      await bd.exec('rollback to savepoint l51b')
+      throw e
+    } finally {
+      await como('')
+    }
+  }
+  const falha = async (auth, sql, descricao, padrao) => {
+    await bd.exec('savepoint f51b')
+    try {
+      await como(auth)
+      await bd.exec(sql)
+      conferir(false, descricao, 'passou, e não devia')
+    } catch (e) {
+      conferir(padrao.test(e.message), descricao, e.message)
+    } finally {
+      await bd.exec('rollback to savepoint f51b')
+      await como('')
+    }
+  }
+
+  await bd.exec('begin')
+  try {
+  const ADM = '00000000-0000-0000-0000-0000000051b1'
+  const PCPU = '00000000-0000-0000-0000-0000000051b2'
+  const OPE = '00000000-0000-0000-0000-0000000051b3'
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Admin 51B', 'adm51b@teste.com', '51100000001', 'adm.51b', 'admin', '${ADM}', array['fabrica']),
+      ('PCP 51B', 'pcp51b@teste.com', '51100000002', 'pcp.51b', 'operador', '${PCPU}', array['fabrica']),
+      ('Franklin 51B', 'ope51b@teste.com', '51100000003', 'ope.51b', 'operador', '${OPE}', array['fabrica']);
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('m51b', 'MONTAGEM 51B', 'producao', 998), ('f51b', 'FITAMENTO 51B', 'producao', 999)
+    on conflict do nothing;
+    insert into public.plt_usuario_setores (usuario_id, setor_id)
+      select u.id, s.id from public.plt_usuarios u, public.plt_setores s
+       where (u.usuario, s.codigo) in (('pcp.51b', 'pcp'), ('ope.51b', 'm51b'));
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}'
+     where codigo in ('m51b', 'f51b', 'aguardo', 'pcp');
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      ((select id from public.plt_setores where codigo = 'm51b'), 'A MONTAR 51B', 1, true),
+      ((select id from public.plt_setores where codigo = 'm51b'), 'MONTANDO 51B', 2, false),
+      ((select id from public.plt_setores where codigo = 'f51b'), 'A FITAR 51B', 1, true),
+      ((select id from public.plt_setores where codigo = 'f51b'), 'FITANDO 51B', 2, false);
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (9951101, 'SX51B', 'Cômoda Teste 51B', 'F', 'A', 'un') on conflict (tiny_id) do nothing;`)
+  const id = async (sql) => Number((await um(sql)).id)
+  const MONT = await id(`select id from public.plt_setores where codigo = 'm51b'`)
+  const FIT = await id(`select id from public.plt_setores where codigo = 'f51b'`)
+  const AGU = await id(`select id from public.plt_setores where codigo = 'aguardo'`)
+  const A_MONTAR = await id(`select id from public.plt_etapas where nome = 'A MONTAR 51B'`)
+  const MONTANDO = await id(`select id from public.plt_etapas where nome = 'MONTANDO 51B'`)
+  const A_FITAR = await id(`select id from public.plt_etapas where nome = 'A FITAR 51B'`)
+  const ID_OPE = (await um(`select id from public.plt_usuarios where usuario = 'ope.51b'`)).id
+
+  const pedido = (numero, itens) => ({
+    id: String(7951100 + (numero % 100)), numero: String(numero), data_pedido: '16/11/2026', data_prevista: '30/11/2026',
+    situacao: 'Preparando envio', total_produtos: '300.00', total_pedido: '300.00', valor_frete: '0.00',
+    forma_pagamento: 'pix', meio_pagamento: '', forma_envio: 'Transportadora', parcelas: [], marcadores: [],
+    obs: '', obs_interna: '', nome_vendedor: 'Vendedora 51B', codigo_rastreamento: '', url_rastreamento: '',
+    cliente: { codigo: '', nome: `Cliente Teste 51B ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+               endereco: 'Rua Teste 51B', numero: '51', complemento: '', bairro: 'Centro', cep: '59000-511', cidade: 'Natal',
+               uf: 'RN', fone: '84999995152', email: '' },
+    itens: itens.map(([codigo, descricao, qtd]) => ({ item: { id_produto: '', codigo, descricao, unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } })),
+  })
+  const gravar = async (p) => {
+    const r = await um(`select public.fn_upsert_pedido(p => ${j(p)}, p_tipo => 'inclusao_pedido', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)
+    await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+    return r.id
+  }
+  const cardDe = (pid) => id(`select id from public.plt_cards where pedido_id = ${pid} and tipo = 'pedido'`)
+  const peca = async (pid, pai, seq, k, n, [codigo, descricao], setor, etapa) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pid}, ${pai}, ${seq}, '${codigo}', '${descricao}', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${setor}, ${etapa ?? 'null'}, 'api');`)
+    return id(`select max(id) as id from public.plt_cards where tipo = 'unidade'`)
+  }
+  const estado = (cid) => um(`
+    select c.setor_atual_id::int as setor, c.etapa_atual_id::int as etapa, c.executor_atual_id as executor,
+           c.arquivado_em is not null as arquivada, c.pedido_id::int as pedido, c.card_pai_id::int as pai,
+           c.item_seq, c.indice_unidade as k, c.total_unidades as n, c.voltou_pcp_em is not null as voltou,
+           (select count(*)::int from public.plt_eventos e where e.card_id = c.id) as fatos
+      from public.plt_cards c where c.id = ${cid}`)
+  const resumo = async (numero) =>
+    (await logado(PCPU, `select q.pedido_resumo as r from public.plt_fn_pcp_quadro(100, 0, 'pedido', null, '${numero}') q
+                          join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`))?.r
+  const COMODA = ['SX51B', 'Cômoda Teste 51B']
+
+  // ---------------- o cenário: o pedido com 3 cômodas — 1 na MONTAGEM (alguém trabalhando), 1 no FITAMENTO, 1 vaga ----------------
+  titulo('SESSAO-51 · frente 4 · "Mover para o PCP": só o admin, só peça em setor de produção')
+  const P1 = await gravar(pedido(99521, [[...COMODA, '3.00']]))
+  const K1 = await cardDe(P1)
+  const c1 = await peca(P1, K1, 1, 1, 3, COMODA, MONT, A_MONTAR)
+  const c2 = await peca(P1, K1, 1, 2, 3, COMODA, FIT, A_FITAR)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, etapa_origem_id, setor_destino_id, etapa_destino_id)
+                   values (${c1}, 'movimentacao_etapa', 'api', ${MONT}, ${A_MONTAR}, ${MONT}, ${MONTANDO});
+                 update public.plt_cards set executor_atual_id = '${ID_OPE}' where id = ${c1};`)
+  await falha(PCPU, `select public.plt_fn_card_voltar_pcp_previa(${c1})`, 'o PCP não tem o botão (o banco recusa a janela)', /administrador/)
+  await falha(OPE, `select public.plt_fn_card_voltar_pcp(${c1}, 'voltar', null, 'teste', 'k-op')`, 'o operador não move para o PCP', /administrador/)
+  const prev = (await logado(ADM, `select public.plt_fn_card_voltar_pcp_previa(${c1}) as r`)).r
+  conferir(prev.pode && prev.setor === 'MONTAGEM 51B' && prev.etapa === 'MONTANDO 51B' && prev.executor === 'Franklin 51B' && prev.numero === 99521,
+           'a janela: a peça, o pedido, setor · etapa e quem está trabalhando nela', JSON.stringify(prev))
+  conferir(prev.voltar.pode && prev.reposicao.pode && prev.motivos.length === 5 && prev.motivos.some((m) => m.texto === 'Prioridade mudou'),
+           'as duas escolhas valem e os 5 motivos da lista "Volta ao PCP" vêm junto', JSON.stringify(prev.motivos))
+  await falha(ADM, `select public.plt_fn_card_voltar_pcp(${c1}, 'voltar', null, '  ', 'k-sem')`, '"Voltar" sem motivo nem observação é recusado', /motivo ou escreva/)
+
+  titulo('SESSAO-51 · frente 5 · "Voltar para o PCP": o tempo fecha, a peça sai do quadro e a vaga reabre com o selo')
+  const prioridade = (await um(`select id from public.plt_motivos where tipo = 'volta_pcp' and texto = 'Prioridade mudou'`)).id
+  const antes1 = await estado(c1)
+  const v1 = (await logado(ADM, `select public.plt_fn_card_voltar_pcp(${c1}, 'voltar', ${prioridade}, null, 'k-v1') as r`)).r
+  conferir(v1.feito && v1.escolha === 'voltar', 'a peça voltou ao PCP', JSON.stringify(v1))
+  const d1 = await estado(c1)
+  conferir(d1.arquivada && d1.voltou && d1.pedido === null && d1.executor === null, 'arquivada com registro, sem pedido, sem ninguém trabalhando', JSON.stringify(d1))
+  const fato1 = await um(`select dados from public.plt_eventos where card_id = ${c1} and tipo = 'card_voltou_pcp'`)
+  conferir(fato1.dados.etapa === 'MONTANDO 51B' && fato1.dados.motivo === 'Prioridade mudou' && fato1.dados.executor === 'Franklin 51B' && fato1.dados.posicao >= 1,
+           'o fato guarda setor, etapa (MONTANDO — antes de fechar o tempo), posição, motivo e quem trabalhava', JSON.stringify(fato1.dados))
+  const r1 = await resumo(99521)
+  conferir(r1 && r1.voltou_producao && Number(r1.voltou_producao.voltar) === 1 && r1.voltou_producao.ultimo.motivo === 'Prioridade mudou',
+           'o card do pedido no PCP ganhou o selo "1 voltou da produção" com o motivo', JSON.stringify(r1?.voltou_producao))
+  const sino = await um(`select count(*)::int as n from public.plt_notificacoes where tipo = 'card_voltou_pcp' and card_id = ${K1}`)
+  conferir(sino.n >= 1, 'o sino do PCP avisa')
+  const rep1 = (await logado(ADM, `select public.plt_fn_card_voltar_pcp(${c1}, 'voltar', ${prioridade}, null, 'k-v1') as r`)).r
+  conferir(rep1.repetido === true, 'o mesmo toque repetido faz um efeito só')
+  const aoVivo = await um(`select count(*)::int as n from realtime.messages where topic like '%setor_${MONT}%'`)
+  conferir(aoVivo.n >= 1, 'o quadro da MONTAGEM aberto recebe o aviso ao vivo', JSON.stringify(aoVivo))
+
+  titulo('SESSAO-51 · frente 5 · "Liberar unidades" oferece "Usar a mesma peça" e devolve a MESMA peça')
+  const jan = (await logado(PCPU, `select public.plt_fn_pcp_liberacao(${K1}) as r`)).r
+  const mp = (jan.mesma_peca ?? []).find((m) => m.peca_card_id === c1)
+  conferir(mp && mp.item_seq === 1 && mp.indice_unidade === 1 && mp.etapa === 'MONTANDO 51B' && mp.sugestao_vale === true,
+           'a vaga da peça oferece a mesma peça, com a etapa onde ela parou', JSON.stringify(jan.mesma_peca))
+  const lib = (await logado(PCPU, `select public.plt_fn_pcp_liberar(${K1}, ${j([{ item_seq: 1, indice_unidade: 1, setor_id: MONT, etapa_id: A_MONTAR, peca_volta_id: c1 }])}) as r`)).r
+  conferir(lib.reaproveitadas === 1, 'a liberação reaproveitou a peça', JSON.stringify(lib))
+  const l1 = await estado(c1)
+  conferir(!l1.arquivada && !l1.voltou && l1.pedido === P1 && l1.k === 1 && l1.n === 3 && l1.etapa === A_MONTAR && l1.fatos > antes1.fatos,
+           'a mesma peça voltou: desarquivada, do pedido, com o k/n e a história, na coluna escolhida', JSON.stringify(l1))
+  const r2 = await resumo(99521)
+  conferir(r2 && !r2.voltou_producao, 'o selo saiu do card do pedido', JSON.stringify(r2?.voltou_producao))
+
+  titulo('SESSAO-51 · frente 5 · desmarcada = nasce uma peça nova e a antiga continua guardada')
+  await logado(ADM, `select public.plt_fn_card_voltar_pcp(${c1}, 'voltar', null, 'mudou a cor', 'k-v2') as r`)
+  const lib2 = (await logado(PCPU, `select public.plt_fn_pcp_liberar(${K1}, ${j([{ item_seq: 1, indice_unidade: 1, setor_id: MONT, etapa_id: A_MONTAR }])}) as r`)).r
+  conferir(lib2.liberadas === 1 && lib2.reaproveitadas === 0, 'liberou uma peça nova', JSON.stringify(lib2))
+  const l2 = await estado(c1)
+  conferir(l2.arquivada && l2.voltou, 'a antiga segue arquivada (guardada)')
+
+  titulo('SESSAO-51 · frente 5 · "Virar reposição de estoque": perde o pedido, a vaga reabre e nasce 1 reposição com a origem')
+  const vr = (await logado(ADM, `select public.plt_fn_card_voltar_pcp(${c2}, 'reposicao', null, null, 'k-r1') as r`)).r
+  conferir(vr.feito && vr.escolha === 'reposicao' && vr.reposicao_card_id > 0 && vr.reposicao_nova === true, 'virou reposição', JSON.stringify(vr))
+  const REP = vr.reposicao_card_id
+  const d2 = await estado(c2)
+  conferir(d2.arquivada && d2.pedido === null, 'a peça perdeu o pedido e saiu do quadro')
+  const rep = await um(`select tipo, total_unidades, reposicao_origem_card_id::int as origem, produto_tiny_id::int as produto,
+                               liberado_completo_em, arquivado_em from public.plt_cards where id = ${REP}`)
+  conferir(rep.tipo === 'reposicao' && rep.total_unidades === 1 && rep.origem === c2 && rep.produto === 9951101 && rep.arquivado_em === null,
+           'a reposição de 1 unidade do mesmo móvel, ligada à peça de origem', JSON.stringify(rep))
+  const naAba = (await logado(PCPU, `select q.pedido_resumo -> 'origem_producao' as o from public.plt_fn_pcp_quadro(100, 0, 'reposicao', null, null) q where q.id = ${REP}`))?.o
+  conferir(naAba && naAba.numero === 99521 && naAba.etapa === 'A FITAR 51B', 'na aba Reabastecimento: "Veio da produção — era do pedido N, estava em …"', JSON.stringify(naAba))
+  const r3 = await resumo(99521)
+  conferir(r3 && Number(r3.voltou_producao?.reposicao) === 1, 'o pedido ganhou o selo "1 virou reposição de estoque" e a vaga reabriu', JSON.stringify(r3?.voltou_producao))
+  await bd.exec(`update public.plt_cards set criado_em = now() - interval '10 days' where id = ${REP}`)
+  await um(`select plt_privado.fn_vencer_reposicoes() as n`)
+  conferir((await um(`select arquivado_em from public.plt_cards where id = ${REP}`)).arquivado_em === null,
+           'a reposição que veio da produção não sai sozinha depois de 2 dias úteis')
+  const res = await um(`select coalesce(sum(pcp_pendentes), 0)::int as n from plt_privado.fn_reservados_producao() where tiny_id = 9951101`)
+  conferir(res.n === 0, 'ela não entra na conta da reposição automática enquanto não for liberada', JSON.stringify(res))
+  const janRep = (await logado(PCPU, `select public.plt_fn_pcp_liberacao(${REP}) as r`)).r
+  const mpr = (janRep.mesma_peca ?? []).find((m) => m.peca_card_id === c2)
+  conferir(mpr && mpr.indice_unidade === 1, 'a liberação da reposição oferece a mesma peça', JSON.stringify(janRep.mesma_peca))
+  const lib3 = (await logado(PCPU, `select public.plt_fn_pcp_liberar(${REP}, ${j([{ item_seq: 1, indice_unidade: 1, setor_id: FIT, etapa_id: A_FITAR, peca_volta_id: c2 }])}) as r`)).r
+  const l3 = await estado(c2)
+  const rep2 = await um(`select liberado_completo_em is not null as completo from public.plt_cards where id = ${REP}`)
+  conferir(lib3.reaproveitadas === 1 && !l3.arquivada && l3.pedido === null && l3.pai === REP && rep2.completo,
+           'liberada: a mesma peça volta sem dono, da reposição (que fica liberada por inteiro)', JSON.stringify({ lib3, l3, rep2 }))
+
+  titulo('SESSAO-51 · frente 4 · o botão não vale fora da produção, e cada escolha diz por quê')
+  const pronta = await peca(P1, K1, 1, 3, 3, COMODA, AGU, null)
+  await falha(ADM, `select public.plt_fn_card_voltar_pcp(${pronta}, 'voltar', null, 'teste', 'k-p')`, 'peça pronta (Pedidos em aguardo) é recusada', /setor de produção/)
+  // peça de reposição (sem pedido): só "Voltar"
+  const prevRep = (await logado(ADM, `select public.plt_fn_card_voltar_pcp_previa(${c2}) as r`)).r
+  conferir(prevRep.voltar.pode && !prevRep.reposicao.pode && /já é de reposição/.test(prevRep.reposicao.porque_nao),
+           'peça sem pedido (de reposição) só tem "Voltar para o PCP"', JSON.stringify(prevRep))
+  // pedido fora do PCP (oculto): só "Virar reposição"
+  const P2 = await gravar(pedido(99522, [[...COMODA, '1.00']]))
+  const K2 = await cardDe(P2)
+  const c3 = await peca(P2, K2, 1, 1, 1, COMODA, MONT, A_MONTAR)
+  await logado(ADM, `select public.plt_fn_pcp_ocultar(${K2}, false, 'k-oc') as r`)
+  const prevOc = (await logado(ADM, `select public.plt_fn_card_voltar_pcp_previa(${c3}) as r`)).r
+  conferir(!prevOc.voltar.pode && prevOc.reposicao.pode && /ocultado do PCP/.test(prevOc.voltar.porque_nao),
+           'pedido oculto: só "Virar reposição", com a explicação', JSON.stringify(prevOc.voltar))
+  await falha(ADM, `select public.plt_fn_card_voltar_pcp(${c3}, 'voltar', null, 'teste', 'k-oc2')`, 'e o banco recusa o "Voltar"', /ocultado do PCP/)
+  // móvel fora do catálogo: só "Voltar"
+  const P3 = await gravar(pedido(99523, [['PERS-51', 'Mesa personalizada 51', '1.00']]))
+  const K3 = await cardDe(P3)
+  const c4 = await peca(P3, K3, 1, 1, 1, ['PERS-51', 'Mesa personalizada 51'], FIT, A_FITAR)
+  const prevPers = (await logado(ADM, `select public.plt_fn_card_voltar_pcp_previa(${c4}) as r`)).r
+  conferir(prevPers.voltar.pode && !prevPers.reposicao.pode && /catálogo/.test(prevPers.reposicao.porque_nao),
+           'móvel personalizado: só "Voltar para o PCP"', JSON.stringify(prevPers.reposicao))
+  const v4 = (await logado(ADM, `select public.plt_fn_card_voltar_pcp(${c4}, 'voltar', null, 'medida errada', 'k-p4') as r`)).r
+  const d4 = await estado(c4)
+  conferir(v4.feito && d4.arquivada && d4.pedido === null && d4.pai === K3, 'a personalizada volta guardando o pai (a coerência da peça — E-254)', JSON.stringify(d4))
+  const jan4 = (await logado(PCPU, `select public.plt_fn_pcp_liberacao(${K3}) as r`)).r
+  conferir((jan4.mesma_peca ?? []).some((m) => m.peca_card_id === c4), 'e a liberação dela também oferece a mesma peça')
+  // card avulso: recusado
+  await bd.exec(`insert into public.plt_cards (tipo, titulo, setor_atual_id) values ('avulso', 'Avulso 51B', ${MONT})`)
+  const avulso = await id(`select max(id) as id from public.plt_cards where tipo = 'avulso'`)
+  await falha(ADM, `select public.plt_fn_card_voltar_pcp(${avulso}, 'voltar', null, 'teste', 'k-av')`, 'card avulso é recusado', /Só a peça do quadro/)
+  } finally {
+    await bd.exec('rollback')
+    await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
+  }
+} // fim do bloco SESSAO-51 · bloco B
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
