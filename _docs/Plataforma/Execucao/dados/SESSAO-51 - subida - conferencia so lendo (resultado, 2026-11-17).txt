@@ -1,0 +1,11 @@
+SESSAO-51 · subida, passo 1 — conferência SÓ LENDO o banco vivo (17/11/2026, com o OK do dono: "Pode conferir")
+
+recriadas pelas migrations da sessão: 30 · com versão anterior: 14 · novas: 16
+funções conferidas: 14 · corpo igual ao esperado: 14 · visões: 0 · novas: 16 · problemas: 0
+entregas parciais de antes desta sessão: {"pedidos":1,"ainda_aguardando_no_pcp":1,"pecas_em_decisao_pos_devolucao":0,"pecas_ainda_em_producao":23,"numeros":"13869 (12/11)"}
+
+O pedido 13869 (a única entrega parcial de antes desta sessão), lido só para entender — sem nomes de pessoas:
+- entrega parcial em 12/11 17:25 (Natal), pela tela da logística, motivo "Entrega antecipada de alguns móveis": 14 peças entregues (estão arquivadas em PEDIDOS EM AGUARDO);
+- a regra antiga mandou as outras 23 (5 da MONTAGEM · MONTANDO e 18 da SECC) para a decisão pós devolução; 12 minutos depois a logística decidiu "ajuste" para todas, com destino final "volta ao pedido" — as 23 voltaram à produção como ajuste (as 5 da MONTAGEM sendo montadas em 13–16/11; as 18 em SECC · A CORTAR);
+- o card do pedido segue no PCP em "Aguardando liberação" (48 unidades no pedido, 37 peças liberadas — 11 ainda sem liberar);
+- conclusão: nada a acertar — a equipe já deixou o pedido no estado que a regra nova faz sozinha (o que estava na fábrica segue na produção; o que falta liberar segue no PCP); quando as peças de ajuste ficarem prontas, a regra do ajuste devolve ao pedido e reabre a entrega só na plataforma (D-130).

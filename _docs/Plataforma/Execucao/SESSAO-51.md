@@ -75,3 +75,8 @@ Regra 20 (nenhum `cd`); conferir o ramo antes de todo commit (E-113); recriar po
 - **Prettier** nos 14 arquivos da sessão que estavam formatados na main (ou são novos) — os que já estavam fora do padrão na main ficaram como estavam (PCP.tsx, JanelaDoCard.tsx, ModalLiberarPedido.tsx, rotas/api.ts, busca/ondeEsta.ts, auditoria/rotulos.ts).
 - **Decisões registradas:** D-325…D-334 (+ ↩️ na D-195). **Lições:** E-287, E-288, E-289 (li a saída inteira da bateria — o E-235 de novo), E-290; A-236…A-242.
 - **Nada aplicado no banco de produção, nada na main** — o programa de subida está no handoff, para quando o dono mandar (cada passo com o OK dele).
+
+## Subida (17/11, madrugada — com o OK do dono)
+
+- **Passo 1 · conferência só lendo** (OK do dono: *"Pode conferir"*): as 14 funções que a 51 recria com o corpo esperado (14/14), as 16 novas ainda inexistentes, ninguém de fora chamando a entrega parcial de 5 argumentos. **Entregas parciais de antes desta sessão: 1 — o 13869** (12/11, "Entrega antecipada de alguns móveis", 14 peças entregues). A regra antiga mandou as outras 23 para a decisão pós devolução; 12 minutos depois a logística as devolveu à produção como **ajuste com destino "volta ao pedido"** (5 na MONTAGEM, 18 na SECC); o card segue no PCP com 11 unidades sem liberar. **Nada a acertar** (D-334): é o estado que a regra nova produz sozinha; quando as peças de ajuste ficarem prontas, o ajuste devolve ao pedido e reabre a entrega só na plataforma (D-130). [[SESSAO-51 - subida - conferencia so lendo (resultado, 2026-11-17).txt|resultado]] (sem nomes de pessoas).
+- O dono, em seguida: *"Já suba tudo para o site depois que finalizar aí"* → passo 2 (as 3 atualizações do banco) e passo 3 (o site), nessa ordem.
