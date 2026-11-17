@@ -1897,6 +1897,8 @@ O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias)
 - O pedido fica **"Entregue em parte (N de M)"** (ficha, entregas do dia). **O Tiny não é chamado.** "Reenviar ao cliente" a peça que voltou reabre a entrega só na plataforma e o pedido volta a ser programado.
 - ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a entrega parcial **não se desfaz** pelo "Desfazer" (as peças que voltaram já estão com a logística — para corrigir, a logística usa a decisão ou "Pedido devolvido"); (b) peça que a plataforma ainda vê em produção pede a confirmação, como no Entregue; (c) pedido com peça reservada do estoque não aceita entrega parcial (0 hoje) — vai pela logística.
 
+**↩️ Revisada em 16/11/2026 (pedido do dono — SESSAO-51, D-325…D-329):** a regra acima vale só para as peças **prontas** (Pedidos em aguardo, Expedição, rota) que não foram entregues. O que **ainda está na fábrica** (em setor de produção) não vai mais para a decisão pós devolução: a janela separa "Saíram para a entrega" de "Ainda na fábrica" e pergunta **"Deixar em produção"** (vem marcada — o pedido segue vivo em toda regra) ou **"Limpar da produção"** (as peças saem com registro, sem perder o pedido, e as vagas saem do PCP); a decisão se revoga quantas vezes for preciso na aba "Entregas parciais" do PCP e na ficha do pedido.
+
 ## D-196 · A PARADA AVULSA NA ROTA: título, endereço com pino, observação, Feita/Não feita; a ordem dividida com os pedidos; o entregador põe a dele e só muda o lugar dela (27/10/2026, pedido do dono — SESSAO-41)
 
 **Pedido do dono:** *"Adicionar parada avulsa na rota durante a hora da programação, ou até mesmo quando estiver em rota, o próprio entregador, ou a pessoa responsável por controlar as rotas… coloque a opção de digitar um endereço também e ele aparece pinado no mapa e no quadrinho dos pedidos programados também, que agora não será mais pedidos programados, mas sim rota programada"* · respostas: 4 (título, endereço, observação, Feita/Não feita), 5 (*"Eles podem arrastar assim que adicionar a nova parada avulsa e deixar o momento exato em que eles irão parar nela, o resto dos pedidos eles não devem conseguir mexer, apenas a pessoa responsável pelas rotas no computador e os admins/super admin"*), 6 ("rota programada" = o quadro "Na rota" do Programar e a lista de Já programadas).
@@ -2644,6 +2646,72 @@ A vaga da reposição continua contada como liberada; se o estoque ficar abaixo 
 ## D-324 · ⏳ PROVISÓRIA — Em "Já programadas" o selo do endereço alterado fica na janela, não no cartão (12/11/2026, SESSAO-50 — escolha da sessão) — ↪️ D-319
 
 O cartão mostra o endereço novo e o "Editar endereço"; o selo e o original aparecem na janela, na ficha e nos cartões da aba Programar. A porta de "Já programadas" devolve uma tabela que uma atualização antiga recria com as colunas de antes (a bateria a reaplica) — ganhar uma coluna quebraria essa reaplicação. Se o dono quiser o selo no cartão, a porta é recriada com a coluna nova e a bateria ajustada.
+
+## D-325 · ✅ DECIDIDA pelo dono (16/11/2026, 22:41) + a forma escolhida pela sessão — Na entrega parcial, o que ainda está na fábrica CONTINUA em produção; "Limpar da produção" é a exceção (SESSAO-51, bloco A) — ↩️ revisa a D-195 para o que ainda está na fábrica · ↪️ D-156, D-113, D-213
+
+*"Quando um pedido for lançado para entrega parcial, os produtos que ainda estão em produção continuam em produção, a menos que o responsável queira remover os mesmos da linha… podendo revogar essa decisão."*
+
+1. **A janela em dois grupos:** "Saíram para a entrega" (as peças prontas, marcadas — desmarcada = voltou para a decisão da logística, a D-195 inalterada para elas) e "Ainda na fábrica" (as peças em setor de produção, com setor e etapa, desmarcadas, + "N produtos ainda no PCP, sem liberar"). Marcar uma da fábrica = "foi entregue mesmo" (a confirmação da D-156). Sem nada na fábrica, a janela é a de antes.
+2. **"E o que ainda está na fábrica?"** — **"Deixar em produção"** (vem marcada) ou **"Limpar da produção"**.
+3. **A forma (escolha da sessão — a demanda pedia a mais limpa):** com "Deixar em produção", o fato da entrega parcial **não vira a entrega vigente do card** do pedido — o pedido continua vivo em TODA regra (PCP, Expedição, programação, "A entregar") sem mexer em porta nenhuma. A entrega parcial fica em colunas próprias do card (quando, quantas, a decisão). A outra forma possível (reabrir a entrega pelo caminho da D-213) traria de volta as peças entregues — descartada.
+4. **"Limpar da produção":** cada peça na fábrica ganha o fato da saída (setor, etapa, posição, pedido, item, k/n), o tempo aberto fecha antes, ela é arquivada com registro e sai de quadro e de toda conta; **as vagas saem do PCP** pela marca de remoção que a regra única do PCP já lê, com o motivo próprio "entrega parcial" (não aparece em "Pedidos ocultos" nem no "Incluir pedido no PCP"); o pedido fecha como antes; sino do PCP.
+5. **O resto entregue depois:** o "Entregue" normal fecha tudo e vai ao Tiny (D-113/D-276). **O Tiny não muda na parcial.** O "Entregue" no Tiny segue fechando tudo (D-113 inalterada) — o pedido sai da lista "Entregas parciais" e a trilha mostra a entrega do Tiny.
+
+## D-326 · ⏳ PROVISÓRIA — Os detalhes da peça que sai e volta pela entrega parcial (16–17/11/2026, SESSAO-51 — as provisórias 2, 4 e 5 da demanda + escolhas da sessão) — ↪️ D-325
+
+1. **A peça tirada não perde o pedido** (o fato guarda o vínculo) — a volta devolve a mesma peça ao mesmo pedido, item e k/n.
+2. **A volta:** a mesma peça, desarquivada com a história, **no mesmo setor e na mesma etapa**, sem ninguém trabalhando (quem for trabalhar aperta "Iniciar"); a fila recomeça a contar na volta (o tempo fora não conta).
+3. **A posição na fila:** o quadro ordena por prioridade e pela chegada na etapa — não há posição guardada à mão. A peça que volta chega agora → **fica no fim da etapa**. A posição de antes fica no fato (trilha).
+4. **Etapa arquivada no meio do caminho** → a primeira etapa ativa do mesmo setor; **setor que não existe mais** (ou sem etapa ativa) → a peça fica guardada e a vaga dela volta ao PCP. A janela avisa os dois casos antes do toque.
+5. **Fechar o tempo aberto move a peça para a fila** (a regra antiga): o fato guarda a etapa ANTES de fechar — é por ela que a peça volta.
+
+## D-327 · ✅ DECIDIDA (a regra é do dono) + ⏳ PROVISÓRIA (o lugar, o prazo e o que fica) — Revogar a decisão da entrega parcial, quantas vezes for preciso (16–17/11/2026, SESSAO-51, frente 3) — ↪️ D-325
+
+1. **Onde:** a aba **"Entregas parciais"** no PCP (provisória: o lugar), ao lado de "Cancelados" e "Pedidos ocultos", e a **ficha do pedido**. A lista mostra só o pedido com a decisão que ainda dá para revogar, do mais recente para trás, por cursor, com a busca pelo número ou pelo cliente; **sem prazo** (provisória).
+2. **Um botão só, o contrário da decisão que vale:** "Revogar e remover da linha de produção" (o "Limpar" de agora — cada peça guarda a etapa de AGORA) ou "Revogar e voltar tudo para a produção" (a volta da D-326; as vagas reabrem em "Aguardando liberação"; o pedido que a parcial fechou reabre e a parada antiga sai da programação).
+3. **"Revogar e remover" não tira peça já pronta** (Pedidos em aguardo, Expedição) **nem a da rota** (provisória) — a janela diz quantas ficam e onde, e o pedido segue para ser entregue com elas. Sem nada vivo depois, o pedido fecha pela própria entrega parcial.
+4. **Quem:** logística, PCP e admin. Cada revogar = um fato no card do pedido (antes, depois, quem, a chave do toque); o toque repetido faz um efeito só; a trilha mostra todas as idas e voltas.
+5. **Sai da lista (e o banco recusa, com o porquê) quando:** o resto foi entregue, o pedido foi cancelado ou excluído no Tiny, o Tiny o marcou como entregue, ele foi ocultado do PCP ou não sobrou nada na fábrica nem no PCP.
+
+## D-328 · ⏳ PROVISÓRIA — Onde o pedido mostra "Entregue em parte (N de M)" e a parada da rota (16–17/11/2026, SESSAO-51 — escolhas da sessão) — ↪️ D-325
+
+1. **Mostram:** a ficha do pedido (com "K ainda em produção", a decisão e o botão), o card do pedido no PCP, a lista de Pedidos ("Entregue em parte … · o resto segue na fábrica") e a busca geral. **Não mostram (dívida):** a Programação, a Expedição e as Entregas do dia — as portas delas devolvem uma tabela fixa que atualizações antigas recriam (a mesma razão da D-324); quem abre o pedido nelas vê a ficha.
+2. **Com "Deixar em produção" a parada sai da rota do dia** (como no "Não entregue") e o pedido volta para "Programar" — o resto é programado quando ficar pronto. Com "Limpar", a parada fica (o pedido fechou, como antes).
+3. **O toque repetido do entregador** (a rede que volta) é conferido antes da permissão: a parada saiu da rota e ele deixou de ser da equipe dela.
+
+## D-329 · ⏳ PROVISÓRIA — Só a logística, o PCP e o admin escolhem "Limpar da produção" (16/11/2026, SESSAO-51 — a provisória 1 da demanda) — ↪️ D-325
+
+O entregador vê a informação e só a opção "Deixar em produção" (na rua ele não decide tirar peça da linha); o banco recusa o "Limpar" dele com a explicação; a logística revoga depois, se quiser.
+
+## D-330 · ✅ DECIDIDA pelo dono (16/11/2026, 22:41) + ⏳ PROVISÓRIA (quem e onde) — "Mover para o PCP": a peça em produção volta ao PCP como vaga do pedido ou vira reposição de estoque (SESSAO-51, bloco B) — ↪️ D-130, D-201, D-307
+
+*"Se um card já está em produção e um admin quiser mover o mesmo para PCP novamente, ele deve conseguir, porém selecionando se o produto agora passa a virar reabastecimento de estoque, ou simplesmente volta para PCP por N motivos."*
+
+1. **Quem:** **admin e super admin** (provisória: o PCP não ganha o botão). **Onde:** na janela do card, ao lado de "Mover" — o card do quadro não tem menu "⋯" (escolha da sessão; a demanda supunha um). Não aparece no tablet.
+2. **Em que peça:** viva, em setor de produção. Nunca em fim de linha (Pedidos em aguardo, ESTOQUE, ROTAS, decisão pós devolução), peça cancelada, card avulso, card de ajuste (provisória) e — escolha da sessão — a peça de pedido cancelado que espera a logística decidir o destino. O banco recusa nos mesmos casos, com a explicação.
+3. **"Voltar para o PCP"** (motivo da lista e/ou observação — pelo menos um): o tempo aberto fecha; o fato guarda setor, etapa, posição, motivo, escolha e quem trabalhava; a peça é arquivada com registro e perde o pedido — **a vaga reabre** em "Aguardando liberação" (a conta da 48, sem o aviso de cancelamento), com o selo "1 voltou da produção: motivo — estava em SETOR · ETAPA". Sino do PCP e o aviso ao vivo de sempre.
+4. **"Virar reposição de estoque"** (motivo e observação opcionais): a peça perde o pedido, **a vaga do pedido reabre** com o selo "1 virou reposição de estoque", e nasce **1 reposição** do mesmo móvel no Reabastecimento com a origem ("Veio da produção — era do pedido N, estava em …").
+
+## D-331 · ⏳ PROVISÓRIA — A lista "Volta ao PCP" com 5 sementes (16/11/2026, SESSAO-51 — a provisória 8 da demanda) — ↪️ D-330
+
+"Liberada por engano", "Prioridade mudou", "Falta material", "Mudança no pedido" e "Outro" — em Utilitários, como as outras listas de motivo.
+
+## D-332 · ⏳ PROVISÓRIA — A reposição que veio da produção (16–17/11/2026, SESSAO-51 — as provisórias 9 e 11 da demanda + escolhas da sessão) — ↪️ D-54, D-85, D-86, D-186
+
+1. **Um card de reposição à parte** (a regra do banco segura UMA reposição aberta por produto só para a maquinaria; a lançada por gesto nasce ao lado — D-186), de 1 unidade, com a peça de origem guardada.
+2. **Não sai sozinha depois de 2 dias úteis** (D-85) — é uma peça física de verdade; **não entra na conta da reposição automática** enquanto não for liberada (D-86) e o "estoque coberto" não a tira.
+3. **Peça sem pedido** (já de reposição): só "Voltar para o PCP" — a vaga dela reabre na reposição de origem; se a de origem não existe mais, nasce uma reposição nova com a peça. **Pedido fora do PCP** (oculto, cancelado, entregue, levado adiante pelo Tiny): só "Virar reposição", com a explicação. **Móvel fora do catálogo** (personalizado): só "Voltar" — ele não é móvel do estoque.
+
+## D-333 · ⏳ PROVISÓRIA — "Usar a mesma peça" ao liberar de novo (16–17/11/2026, SESSAO-51 — a provisória 10 da demanda + escolhas da sessão) — ↪️ D-130, D-201
+
+1. Na janela "Liberar unidades" (do pedido ou da reposição), a vaga cuja peça voltou mostra **"Usar a mesma peça (estava em SETOR · ETAPA)" marcada**, com a coluna onde ela parou já escolhida (quando o setor e a etapa ainda existem); o PCP pode trocar. Liberar = a mesma peça desarquivada, com a história e o k/n, na coluna escolhida. Desmarcada = nasce uma peça nova e a antiga continua guardada (e segue oferecida enquanto houver vaga do mesmo móvel).
+2. Na volta como reposição, a peça liberada fica **sem dono** e pode ir para um pedido novo pela D-201.
+3. A vaga que reabriu pelo revogar da entrega parcial (D-327) não passa por aqui — o revogar já devolve a peça direto à etapa dela.
+4. **O selo do PCP** ("N voltou da produção" / "N virou reposição") fica enquanto a peça espera; some quando ela é reaproveitada (ou quando o pedido sai de "Aguardando liberação").
+
+## D-334 · ⏳ PROVISÓRIA — Os pedidos entregues em parte antes desta sessão (17/11/2026, SESSAO-51 — a demanda) — ↪️ D-195
+
+Não ganham decisão nem acerto automático: as peças deles já foram para a decisão pós devolução pela regra antiga. A contagem e onde estão as peças vão no handoff (lidas no banco vivo com o OK do dono). Achado da leitura do código: a regra antiga deixava no PCP, em "Aguardando liberação", a vaga ainda sem liberar de um pedido entregue em parte — o acerto, se o dono quiser, é um passo à parte.
 
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

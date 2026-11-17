@@ -1,0 +1,61 @@
+== montando o banco em disco (×100: pedidos 562.700) ==
+  148 migrations aplicadas (a última: 20261112060000_plt_editar_endereco.sql) (5 s)
+  pedidos 562.700 (20 s)
+  cards 91.569 · eventos 45.706 · aguardando no PCP 3.700 (29 s)
+
+== ANTES ==
+  ANTES · PCP — quadro, 1ª página (10)                                                 mediana     81.4 ms · máx    114.5 ms
+  ANTES · Pedidos — 1ª página (20)                                                     mediana     57.7 ms · máx     64.5 ms
+  ANTES · Pedidos — busca "12"                                                         mediana   3329.8 ms · máx   3401.8 ms
+  ANTES · Pedidos ocultos (aba)                                                        mediana      2.6 ms · máx      6.1 ms
+  ANTES · Incluir pedido no PCP (os ocultos de qualquer idade)                         mediana      2.6 ms · máx      4.4 ms
+  ANTES · Liberar unidades (a janela)                                                  mediana     35.6 ms · máx     54.1 ms
+  ANTES · Ficha do pedido                                                              mediana     25.5 ms · máx     32.8 ms
+
+== aplicando as migrations da 51 (57 s) ==
+  20261116010000_plt_sessao51_base.sql (334 ms)
+  20261116020000_plt_entrega_parcial_mantem_producao.sql (13 ms)
+  20261116030000_plt_mover_card_para_pcp.sql (9 ms)
+  entregas parciais com decisão 300 · peças devolvidas ao PCP 200 · peças retiradas 450 (59 s)
+
+== DEPOIS ==
+  DEPOIS · PCP — quadro, 1ª página (10)                                                mediana     96.1 ms · máx    142.5 ms
+  DEPOIS · Pedidos — 1ª página (20)                                                    mediana     60.4 ms · máx     65.7 ms
+  DEPOIS · Pedidos — busca "12"                                                        mediana   3307.0 ms · máx   3323.3 ms
+  DEPOIS · Pedidos ocultos (aba)                                                       mediana      3.2 ms · máx      4.7 ms
+  DEPOIS · Incluir pedido no PCP (os ocultos de qualquer idade)                        mediana      2.4 ms · máx      2.5 ms
+  DEPOIS · Liberar unidades (a janela)                                                 mediana     28.7 ms · máx     43.9 ms
+  DEPOIS · Ficha do pedido                                                             mediana     26.5 ms · máx     27.7 ms
+  DEPOIS · Entregas parciais — 1ª página (20)                                          mediana     14.3 ms · máx     40.0 ms · 20 itens
+  DEPOIS · Entregas parciais — busca "12"                                              mediana     14.9 ms · máx     15.4 ms
+  DEPOIS · janela do revogar (prévia)                                                  mediana     25.0 ms · máx     25.4 ms
+  DEPOIS · janela da entrega parcial (abrir)                                           mediana     21.9 ms · máx     25.0 ms
+  DEPOIS · janela "Mover para o PCP" (prévia)                                          mediana     10.6 ms · máx     13.4 ms
+  DEPOIS · Ficha do pedido entregue em parte                                           mediana     26.3 ms · máx     26.8 ms
+  DEPOIS · Reabastecimento (quadro das reposições)                                     mediana     15.3 ms · máx     16.2 ms
+  DEPOIS · gesto: revogar (remover da produção)                                        mediana     53.0 ms · máx    110.8 ms
+  DEPOIS · gesto: Mover para o PCP (voltar)                                            mediana     24.2 ms · máx     30.7 ms
+  --- plano: Entregas parciais — 1ª página
+      Result (actual rows=1.00 loops=1)
+        Buffers: shared hit=854
+      Planning Time: 0.036 ms
+      Execution Time: 12.099 ms
+  --- plano: PCP — quadro, 1ª página
+      Aggregate (actual rows=1.00 loops=1)
+        Buffers: shared hit=26854
+        ->  Function Scan on plt_fn_pcp_quadro (actual rows=10.00 loops=1)
+              Buffers: shared hit=26854
+      Planning Time: 0.040 ms
+      Execution Time: 81.499 ms
+
+fim (89 s)
+
+== A/B do quadro do PCP no MESMO banco ×100 (a versão de antes da 51 × a da 51, 3 rodadas alternadas, mediana de 10) ==
+rodada 1 · antes da 51 · pedidos 77.2 ms · reposições 15.4 ms
+rodada 1 · com a 51   · pedidos 76.4 ms · reposições 14.8 ms
+rodada 2 · antes da 51 · pedidos 74.1 ms · reposições 13.9 ms
+rodada 2 · com a 51   · pedidos 74.9 ms · reposições 14.1 ms
+rodada 3 · antes da 51 · pedidos 74.1 ms · reposições 13.0 ms
+rodada 3 · com a 51   · pedidos 75.4 ms · reposições 14.1 ms
+--- antes da 51: Buffers: shared hit=26892 | Buffers: shared hit=26892 | Execution Time: 83.474 ms
+--- com a 51: Buffers: shared hit=26972 | Buffers: shared hit=26972 | Execution Time: 74.160 ms
