@@ -9,7 +9,7 @@ tags: [handoff, sessao-51, rotas, entrega-parcial, pcp, kanban, reposicao]
 
 Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP]] · Diário: [[SESSAO-51]] · Decisões: D-325…D-334 em [[PLT - Decisoes de Produto]] (↩️ D-195)
 
-> ⏳ **NÃO ESTÁ NO AR.** Tudo pronto e provado no ramo `sessao-51-entrega-parcial-mover-pcp` (7 commits, enviados ao GitHub; a main do GitHub não andou desde o início — dá para publicar sem juntar nada). **Nada foi aplicado no banco de produção e nada foi para a main**, como o dono pediu ("migration, acerto de dado e publicação só com o meu OK, cada um em passo separado"). O programa de subida está pronto e testado (seção 7) — cada passo roda só com o OK dele.
+> ✅ **NO AR desde 17/11/2026 ~07:20 de Natal**, com o OK do dono na conversa, passo a passo: *"Pode conferir"* (a conferência só lendo — as 14 funções com o corpo esperado, as 16 novas ainda inexistentes, ninguém de fora chamando a entrega parcial de 5 argumentos; a única entrega parcial antiga, o 13869, sem acerto a fazer) e *"Já suba tudo para o site depois que finalizar aí"* → **as 3 atualizações do banco** (07:19; uma transação cada; a integração do Tiny idêntica em estrutura e linhas em cada uma; depois: as 16 portas/regras novas presentes, a entrega parcial só com 6 argumentos, os 6 checks validados, os 2 gatilhos ligados, as 5 sementes de "Volta ao PCP", as portas só para quem está logado) e **o site** (main `f69edaf`; a Vercel publicou; `versao.json` vivo = `08fd15b20888`, o mesmo da montagem local; os pedaços novos respondem 200). Advisors: nada novo além do esperado.
 
 ## 1. Objetivo (o pedido do dono, 16/11 22:41)
 
@@ -100,7 +100,7 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 
 **Geral**
 - ✅ Celular (375) e tablet (768) sem rolagem lateral nas 12 cenas; botões de toque; janelas da casa.
-- ✅ Bateria do banco A+B: **1.872 ✔** + os 2 ✘ conhecidos (o painel do Dashboard e o teste do fluxo do n8n que só falha entre 03:10 e 04:40). `tsc -b --force` 0 · lint 0 · vitest do projeto 112 arquivos / 717 testes ✔ · montagem ok. ⏳ **Advisors: depois de aplicar**, com o OK do dono.
+- ✅ Bateria do banco A+B: **1.872 ✔** + os 2 ✘ conhecidos (o painel do Dashboard e o teste do fluxo do n8n que só falha entre 03:10 e 04:40). `tsc -b --force` 0 · lint 0 · vitest do projeto 112 arquivos / 717 testes ✔ · montagem ok. ✅ **Advisors** (17/11 ~07:21, depois de aplicar): nada novo além do esperado — as portas novas no aviso de sempre (`SECURITY DEFINER` executável por quem está logado) e os 5 índices novos "ainda sem uso" (acabaram de nascer); nenhuma chave estrangeira nova sem índice.
 - ✅ Lei de desempenho — seção 5.
 
 ## 5. Desempenho (Lei — checklist)
@@ -114,11 +114,11 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 
 ## 6. Pendências que precisam do dono
 
-1. **Subir (cada passo com o OK dele, na ordem):** (a) a conferência só lendo o banco + a contagem das entregas parciais antigas; (b) as 3 atualizações do banco; (c) a publicação do site. O banco vem ANTES do site (as telas novas chamam as portas novas). Programa na seção 7.
+1. ✅ **Subir** — feito em 17/11 ~07:20 com o OK dele (o topo deste handoff).
 2. ✅ **As entregas parciais de antes desta sessão** (D-334 — lido na conferência de 17/11, com o OK do dono): **só uma, o 13869** (12/11, 14 peças entregues). As outras 23 a logística já tinha devolvido à produção como ajuste com destino "volta ao pedido" (5 na MONTAGEM, 18 na SECC), e o card segue no PCP com 11 unidades sem liberar — **o estado que a regra nova faz sozinha. Nada a acertar.**
 3. **ClickUp:** a demanda pede criar 2 tarefas ("Rotas - Entrega parcial mantém a produção (deixar ou limpar) e aba Entregas parciais com revogar" e "Produção - Mover card de volta ao PCP (vaga do pedido ou reposição de estoque)") — **só com o OK dele**.
 4. **Confirmar as provisórias** (D-326…D-334, ⏳): quem limpa; a posição da peça que volta (fim da etapa); etapa/setor sumidos; a aba no PCP sem prazo; "remover" não tira a pronta nem a da rota; o botão só para admin e onde ele fica; as 5 sementes de motivo; a reposição que veio da produção (separada, sem vencimento, fora das contas); "Usar a mesma peça" marcada; onde aparece "Entregue em parte" (a Programação, a Expedição e as Entregas do dia ainda não mostram); as entregas parciais antigas sem acerto.
-5. **Depois de subir:** os advisors do banco e uma conferência na tela (seção 3).
+5. **Conferir na tela** (seção 3) — o banco e o site estão no ar; os advisors já foram vistos.
 
 ## 7. Programa de subida (pronto e testado — A-211)
 

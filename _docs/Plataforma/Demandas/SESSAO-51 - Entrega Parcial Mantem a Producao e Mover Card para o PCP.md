@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-51 — Entrega parcial que mantém a produção (com revogar) e mover card da produção de volta ao PCP"
 tipo: demanda
-status: ✅ entregue no ramo (17/11, madrugada) — ⏳ banco e site esperando o OK do dono
+status: ✅ no ar (17/11/2026 ~07:20 — banco e site, com o OK do dono)
 data: 2026-11-16
 atualizado: 2026-11-16 (22:45 — pedido do dono; mapeado no chat, decisões em aberto viraram provisórias marcadas)
 origem: pedido do dono de 16/11 (22:41, ajustes noturnos). Lido na cópia local da main (última atualização dos arquivos em 12/11): migrations da 41, 47, 48 e 50 e as decisões D-54, D-130, D-156, D-195, D-201, D-213, D-307…D-313. Só leitura: nada foi alterado. O banco vivo NÃO foi lido nesta etapa (o conector Supabase do Claude aponta para outra organização) — tudo que diz "hoje" vem do código das migrations e tem de ser conferido no banco vivo.
@@ -328,7 +328,8 @@ Quando o grupo 2 tem algo desmarcado, a janela pergunta **"E o que ainda está n
   - "Mover para o PCP" fica na janela do card, ao lado de "Mover": o card do quadro não tem menu "⋯" (D-330).
   - Achado: o quadro do PCP não filtra pela entrega — pela regra antiga, o pedido entregue em parte com produto sem liberar continuava em "Aguardando liberação" (D-334; a contagem sai no 1º passo da subida, só leitura).
   - A Programação, a Expedição e as Entregas do dia ainda não mostram "Entregue em parte" (D-328) — as portas delas devolvem uma tabela fixa.
-- **Pendente com o dono:** subir (conferir → banco → site, cada um com o OK); as tarefas do ClickUp; confirmar as provisórias D-326…D-334.
+- **No ar em 17/11 ~07:20** (banco e site, com o OK do dono; a conferência só lendo antes: 14/14 iguais; a única entrega parcial antiga — o 13869 — não precisa de acerto).
+- **Pendente com o dono:** as tarefas do ClickUp; confirmar as provisórias D-326…D-334; conferir na tela.
 
 ---
 
