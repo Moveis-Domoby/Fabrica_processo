@@ -317,9 +317,9 @@ Quando o grupo 2 tem algo desmarcado, a janela pergunta **"E o que ainda está n
 - as lições de front.
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
-*A criar com o OK do dono:*
-- "Rotas - Entrega parcial mantém a produção (deixar ou limpar) e aba Entregas parciais com revogar"
-- "Produção - Mover card de volta ao PCP (vaga do pedido ou reposição de estoque)"
+*Criadas em 17/11 ~07:35 com o OK do dono ("Pode criar"), em "fazendo", atribuídas ao dono, cada uma com o comentário de entrega — quem conclui é o dono:*
+- [Rotas - Entrega parcial mantém a produção (deixar ou limpar) e aba Entregas parciais com revogar](https://app.clickup.com/t/17tya50w4bw)
+- [Produção - Mover card de volta ao PCP (vaga do pedido ou reposição de estoque)](https://app.clickup.com/t/17tya50w4bx)
 
 ## Resultado (17/11/2026, madrugada)
 - **Feito, no ramo `sessao-51-entrega-parcial-mover-pcp`** (7 commits; nada no banco de produção, nada na main): os dois blocos, as 5 frentes, com as provas do banco (A 46 ✔, B 35 ✔; bateria inteira 1.872 ✔ + os 2 ✘ conhecidos), os testes das telas, o ensaio ×100 e 25 fotos. Handoff: [[handoff_2026_11_17_sessao51_entrega_parcial_mover_pcp]].
@@ -329,7 +329,7 @@ Quando o grupo 2 tem algo desmarcado, a janela pergunta **"E o que ainda está n
   - Achado: o quadro do PCP não filtra pela entrega — pela regra antiga, o pedido entregue em parte com produto sem liberar continuava em "Aguardando liberação" (D-334; a contagem sai no 1º passo da subida, só leitura).
   - A Programação, a Expedição e as Entregas do dia ainda não mostram "Entregue em parte" (D-328) — as portas delas devolvem uma tabela fixa.
 - **No ar em 17/11 ~07:20** (banco e site, com o OK do dono; a conferência só lendo antes: 14/14 iguais; a única entrega parcial antiga — o 13869 — não precisa de acerto).
-- **Pendente com o dono:** as tarefas do ClickUp; confirmar as provisórias D-326…D-334; conferir na tela.
+- **Pendente com o dono:** concluir as 2 tarefas do ClickUp quando conferir; confirmar as provisórias D-326…D-334; conferir na tela.
 
 ---
 
