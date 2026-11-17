@@ -9,7 +9,9 @@ tags: [handoff, sessao-51, rotas, entrega-parcial, pcp, kanban, reposicao]
 
 Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP]] · Diário: [[SESSAO-51]] · Decisões: D-325…D-334 em [[PLT - Decisoes de Produto]] (↩️ D-195)
 
-> ✅ **NO AR desde 17/11/2026 ~07:20 de Natal**, com o OK do dono na conversa, passo a passo: *"Pode conferir"* (a conferência só lendo — as 14 funções com o corpo esperado, as 16 novas ainda inexistentes, ninguém de fora chamando a entrega parcial de 5 argumentos; a única entrega parcial antiga, o 13869, sem acerto a fazer) e *"Já suba tudo para o site depois que finalizar aí"* → **as 3 atualizações do banco** (07:19; uma transação cada; a integração do Tiny idêntica em estrutura e linhas em cada uma; depois: as 16 portas/regras novas presentes, a entrega parcial só com 6 argumentos, os 6 checks validados, os 2 gatilhos ligados, as 5 sementes de "Volta ao PCP", as portas só para quem está logado) e **o site** (main `f69edaf`; a Vercel publicou; `versao.json` vivo = `08fd15b20888`, o mesmo da montagem local; os pedaços novos respondem 200). Advisors: nada novo além do esperado.
+> ✅ **NO AR desde 17/11/2026 ~04:20 de Natal**, com o OK do dono na conversa, passo a passo: *"Pode conferir"* (a conferência só lendo — as 14 funções com o corpo esperado, as 16 novas ainda inexistentes, ninguém de fora chamando a entrega parcial de 5 argumentos; a única entrega parcial antiga, o 13869, sem acerto a fazer) e *"Já suba tudo para o site depois que finalizar aí"* → **as 3 atualizações do banco** (04:19; uma transação cada; a integração do Tiny idêntica em estrutura e linhas em cada uma; depois: as 16 portas/regras novas presentes, a entrega parcial só com 6 argumentos, os 6 checks validados, os 2 gatilhos ligados, as 5 sementes de "Volta ao PCP", as portas só para quem está logado) e **o site** (main `f69edaf`; a Vercel publicou; `versao.json` vivo = `08fd15b20888`, o mesmo da montagem local; os pedaços novos respondem 200). Advisors: nada novo além do esperado.
+>
+> ↪️ **Ajuste do dono, no ar desde ~04:37** (*"não precisa de dois botões, coloque o PCP dentro do botão que já existia e publique novamente"*): um botão só — **"PCP" é a primeira opção dentro do "Mover"** (main `1a82ab1`; `versao.json` vivo = `e98602dee355`, o mesmo da montagem local).
 
 ## 1. Objetivo (o pedido do dono, 16/11 22:41)
 
@@ -25,7 +27,7 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 - **Achado da leitura do código (D-334):** pela regra antiga, um pedido entregue em parte que ainda tinha produto sem liberar **continuava em "Aguardando liberação" no PCP**. A contagem dos pedidos entregues em parte antes desta sessão sai no 1º passo da subida (só leitura, com o OK do dono) — nenhum acerto automático.
 
 ### Bloco B — "Mover para o PCP" (D-330…D-333)
-- **O botão "Mover para o PCP"** na janela do card, ao lado de "Mover" — só o admin, fora do tablet, em peça viva de setor de produção (nunca em fim de linha, peça cancelada, card avulso, card de ajuste ou peça que espera a logística decidir). O card do quadro não tem menu "⋯" (a demanda supunha um).
+- **"PCP" dentro do botão "Mover"** (↩️ ajuste do dono de 17/11, publicado: *"não precisa de dois botões"*): na janela do "Mover", a primeira opção é **"PCP"** — só o admin, fora do tablet, em peça viva de setor de produção (nunca em fim de linha, peça cancelada, card avulso, card de ajuste ou peça que espera a logística decidir). Escolher "PCP" abre a janela abaixo.
 - **A janela:** a peça, o pedido, setor · etapa, e o aviso "Fulano está trabalhando nela — o tempo dele fecha agora". Duas escolhas, cada uma com o porquê quando não dá:
   - **"Voltar para o PCP"** (motivo da lista nova "Volta ao PCP" — 5 sementes — e/ou observação): a peça sai do quadro (ao vivo também nas telas abertas), o tempo fecha, a vaga reabre no pedido com o selo **"1 voltou da produção: motivo — estava em SETOR · ETAPA"**.
   - **"Virar reposição de estoque"** (só móvel do catálogo, com o pedido no PCP): a peça perde o pedido, a vaga do pedido reabre (**"1 virou reposição de estoque"**) e nasce 1 reposição no Reabastecimento com a origem ("Veio da produção — era do pedido N…"); ela não vence em 2 dias úteis e não entra na conta da reposição automática enquanto não for liberada.
@@ -47,7 +49,10 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 | ![[imagens/sessao51-revogar-voltar-celular.jpg]] | "Revogar e voltar tudo": para onde cada peça volta e o aviso da etapa que não existe mais |
 | ![[imagens/sessao51-ficha-parcial-celular.jpg]] | A ficha do pedido com "Entregue em parte (1 de 3)", a decisão e o botão |
 | ![[imagens/sessao51-ficha-parcial-computador.jpg]] | … no computador |
-| ![[imagens/sessao51-janela-mover-celular.jpg]] | O botão "Mover para o PCP" na janela do card (celular) |
+| ![[imagens/sessao51-janela-mover-celular.jpg]] | A janela do card com um botão só, "Mover" (celular) |
+| ![[imagens/sessao51-mover-com-pcp-celular.jpg]] | A janela do "Mover" com "PCP" como primeira opção (celular) |
+| ![[imagens/sessao51-mover-com-pcp-tablet.jpg]] | … no tablet |
+| ![[imagens/sessao51-mover-com-pcp-computador.jpg]] | … no computador |
 | ![[imagens/sessao51-janela-mover-computador.jpg]] | … no computador |
 | ![[imagens/sessao51-mover-pcp-celular-1.jpg]] | A janela "Mover para o PCP": quem trabalha, as duas escolhas, o motivo |
 | ![[imagens/sessao51-mover-pcp-celular-2.jpg]] | … mais abaixo: os motivos, a observação e o botão |
@@ -73,11 +78,11 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 7. Pelo celular do entregador, numa outra entrega parcial: só aparece "Deixar em produção".
 
 **Mover para o PCP**
-1. Como admin, abra uma peça que está num setor de produção (ex.: MONTAGEM). Ao lado de "Mover" aparece **"Mover para o PCP"**.
-2. Toque. Escolha **"Voltar para o PCP"**, marque um motivo e confirme. Confira: a peça sumiu do quadro (também no tablet do setor); no PCP o pedido mostra "1 voltou da produção: motivo — estava em …".
+1. Como admin, abra uma peça que está num setor de produção (ex.: MONTAGEM) e toque em **"Mover"**: a primeira opção da lista é **"PCP"**.
+2. Toque em **"PCP"**. Escolha **"Voltar para o PCP"**, marque um motivo e confirme. Confira: a peça sumiu do quadro (também no tablet do setor); no PCP o pedido mostra "1 voltou da produção: motivo — estava em …".
 3. No PCP, abra **"Liberar unidades"** desse pedido: aparece **"Usar a mesma peça (estava em …)"** marcada, com a coluna já escolhida. Libere: a mesma peça volta para o quadro, com a história dela.
 4. Em outra peça, escolha **"Virar reposição de estoque"**: a peça sai do pedido, o pedido mostra "1 virou reposição de estoque" e a aba **Reabastecimento** ganha 1 reposição com "Veio da produção — era do pedido …".
-5. Como operador (ou PCP), abra uma peça: o botão "Mover para o PCP" não aparece.
+5. Como líder que não é administrador, toque em "Mover": a opção "PCP" não aparece (só os setores).
 
 ## 4. Verificação (critérios de aceite)
 
@@ -92,7 +97,7 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 - ✅ O resto entregue tira da lista e o revogar é recusado com a explicação.
 
 **Bloco B** — bloco "SESSAO-51 · bloco B" (35 ✔) + telas:
-- ✅ O admin vê "Mover para o PCP" (na janela do card — não há menu "⋯"); o operador e o PCP não veem (o banco recusa); peça pronta, cancelada, avulsa e de ajuste: o botão não aparece e o banco recusa.
+- ✅ O admin vê "PCP" dentro do "Mover" (↩️ ajuste do dono de 17/11 — um botão só); quem não é admin não vê (o banco recusa); peça pronta, cancelada, avulsa e de ajuste: o botão não aparece e o banco recusa.
 - ✅ "Voltar para o PCP": a peça sai do quadro (o quadro aberto recebe o aviso ao vivo), o tempo fecha, a vaga reabre com o selo e o motivo.
 - ✅ "Virar reposição": perde o pedido, a vaga reabre, 1 reposição com a origem, não vence em 2 dias úteis, fora da conta automática.
 - ✅ "Liberar unidades": "Usar a mesma peça" marcada com a etapa onde parou; liberar devolve a mesma peça com a história; desmarcar cria uma peça nova (a antiga segue guardada).
@@ -100,7 +105,7 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 
 **Geral**
 - ✅ Celular (375) e tablet (768) sem rolagem lateral nas 12 cenas; botões de toque; janelas da casa.
-- ✅ Bateria do banco A+B: **1.872 ✔** + os 2 ✘ conhecidos (o painel do Dashboard e o teste do fluxo do n8n que só falha entre 03:10 e 04:40). `tsc -b --force` 0 · lint 0 · vitest do projeto 112 arquivos / 717 testes ✔ · montagem ok. ✅ **Advisors** (17/11 ~07:21, depois de aplicar): nada novo além do esperado — as portas novas no aviso de sempre (`SECURITY DEFINER` executável por quem está logado) e os 5 índices novos "ainda sem uso" (acabaram de nascer); nenhuma chave estrangeira nova sem índice.
+- ✅ Bateria do banco A+B: **1.872 ✔** + os 2 ✘ conhecidos (o painel do Dashboard e o teste do fluxo do n8n que só falha entre 03:10 e 04:40). `tsc -b --force` 0 · lint 0 · vitest do projeto 112 arquivos / 717 testes ✔ · montagem ok. ✅ **Advisors** (17/11 ~04:21, depois de aplicar): nada novo além do esperado — as portas novas no aviso de sempre (`SECURITY DEFINER` executável por quem está logado) e os 5 índices novos "ainda sem uso" (acabaram de nascer); nenhuma chave estrangeira nova sem índice.
 - ✅ Lei de desempenho — seção 5.
 
 ## 5. Desempenho (Lei — checklist)
@@ -114,9 +119,9 @@ Demanda: [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP
 
 ## 6. Pendências que precisam do dono
 
-1. ✅ **Subir** — feito em 17/11 ~07:20 com o OK dele (o topo deste handoff).
+1. ✅ **Subir** — feito em 17/11 ~04:20 com o OK dele (o topo deste handoff).
 2. ✅ **As entregas parciais de antes desta sessão** (D-334 — lido na conferência de 17/11, com o OK do dono): **só uma, o 13869** (12/11, 14 peças entregues). As outras 23 a logística já tinha devolvido à produção como ajuste com destino "volta ao pedido" (5 na MONTAGEM, 18 na SECC), e o card segue no PCP com 11 unidades sem liberar — **o estado que a regra nova faz sozinha. Nada a acertar.**
-3. ✅ **ClickUp** (17/11 ~07:35, com o OK do dono): [Rotas - Entrega parcial mantém a produção (deixar ou limpar) e aba Entregas parciais com revogar](https://app.clickup.com/t/17tya50w4bw) e [Produção - Mover card de volta ao PCP (vaga do pedido ou reposição de estoque)](https://app.clickup.com/t/17tya50w4bx) — em "fazendo", atribuídas ao dono, com o comentário de entrega; **quem conclui é o dono**.
+3. ✅ **ClickUp** (17/11 ~04:24, com o OK do dono): [Rotas - Entrega parcial mantém a produção (deixar ou limpar) e aba Entregas parciais com revogar](https://app.clickup.com/t/17tya50w4bw) e [Produção - Mover card de volta ao PCP (vaga do pedido ou reposição de estoque)](https://app.clickup.com/t/17tya50w4bx) — em "fazendo", atribuídas ao dono, com o comentário de entrega; **quem conclui é o dono**.
 4. **Confirmar as provisórias** (D-326…D-334, ⏳): quem limpa; a posição da peça que volta (fim da etapa); etapa/setor sumidos; a aba no PCP sem prazo; "remover" não tira a pronta nem a da rota; o botão só para admin e onde ele fica; as 5 sementes de motivo; a reposição que veio da produção (separada, sem vencimento, fora das contas); "Usar a mesma peça" marcada; onde aparece "Entregue em parte" (a Programação, a Expedição e as Entregas do dia ainda não mostram); as entregas parciais antigas sem acerto.
 5. **Conferir na tela** (seção 3) — o banco e o site estão no ar; os advisors já foram vistos.
 
