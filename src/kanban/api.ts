@@ -520,6 +520,29 @@ export interface JanelaLiberacao {
   ja_liberadas: { item_seq: number; indice_unidade: number }[]
   sugestoes: SugestaoAlocacao[]
   em_producao?: SugestaoProducao[]
+  /** SESSAO-51 (bloco B): a peça que voltou da produção — "Usar a mesma peça" (o banco de antes não manda). */
+  mesma_peca?: MesmaPeca[]
+}
+
+/**
+ * SESSAO-51 (bloco B · D-333): a vaga cuja peça voltou da produção ao PCP — a
+ * mesma peça (com a história e o k/n) pode voltar; a coluna sugerida é onde ela
+ * parou (só quando o setor e a etapa ainda existem).
+ */
+export interface MesmaPeca {
+  item_seq: number
+  indice_unidade: number
+  peca_card_id: number
+  descricao: string | null
+  setor_id: number | null
+  setor: string | null
+  etapa_id: number | null
+  etapa: string | null
+  sugestao_vale: boolean
+  motivo: string | null
+  observacao: string | null
+  escolha: 'voltar' | 'reposicao' | null
+  voltou_em: string | null
 }
 
 export async function janelaLiberacao(cardId: number): Promise<JanelaLiberacao> {
@@ -535,6 +558,8 @@ export type UnidadeLiberacao =
   | { item_seq: number; indice_unidade: number; peca_card_id: number }
   | { item_seq: number; indice_unidade: number; peca_producao_id: number }
   | { item_seq: number; indice_unidade: number; setor_id: number; etapa_id: number | null }
+  // SESSAO-51 (bloco B): a mesma peça que voltou da produção, na coluna escolhida
+  | { item_seq: number; indice_unidade: number; setor_id: number; etapa_id: number | null; peca_volta_id: number }
 
 export interface ResultadoLiberacao {
   /** Usaram a peça do estoque — nasceram prontas em Pedidos em aguardo. */
@@ -543,6 +568,8 @@ export interface ResultadoLiberacao {
   liberadas: number
   /** D-201: usaram a peça sem dono que já estava em produção (o banco de antes não manda). */
   vinculadas?: number
+  /** SESSAO-51 (bloco B): a mesma peça que tinha voltado da produção, liberada de novo. */
+  reaproveitadas?: number
   /** Já tinham sido liberadas (o toque repetido não duplica). */
   ja_liberadas: number
   cards: number[]

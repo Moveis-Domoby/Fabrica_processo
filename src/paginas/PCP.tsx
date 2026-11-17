@@ -39,6 +39,7 @@ import { useAoVivo } from '@/lib/aoVivo'
 import { buscarCardsPedidoPcp, buscarSetores, reposicoesResumo, tirarDoStandby } from '@/kanban/api'
 import type { ReposicaoResumo } from '@/kanban/api'
 import { textoEntregueEmParte } from '@/kanban/entregaParcial'
+import { textoSeloVolta } from '@/kanban/voltaPcp'
 import { BarraAjustePedidos, CaixaSelecao } from '@/pedidos/AjustePedidos'
 // SESSAO-31 (Lei §9): a aba Lançamento manual é pedaço próprio — carrega no 1º clique.
 const AbaLancamentoManual = lazy(() =>
@@ -922,6 +923,21 @@ function CartaoReposicaoPcp({
           <span className="text-texto-suave tabular-nums"> · SKU {card.item_codigo}</span>
         )}
       </p>
+      {/* SESSAO-51 (bloco B): a reposição que veio de uma peça da produção diz de onde veio */}
+      {card.pedido_resumo?.origem_producao && (
+        <p className="flex items-start gap-1.5 text-xs text-info-texto">
+          <Undo2 aria-hidden className="mt-px size-3.5 shrink-0" />
+          <span className="break-words">
+            Veio da produção
+            {card.pedido_resumo.origem_producao.numero
+              ? ` — era do pedido ${card.pedido_resumo.origem_producao.numero}`
+              : ''}
+            {card.pedido_resumo.origem_producao.setor
+              ? `, estava em ${[card.pedido_resumo.origem_producao.setor, card.pedido_resumo.origem_producao.etapa].filter(Boolean).join(' · ')}`
+              : ''}
+          </span>
+        </p>
+      )}
       {resumo && (
         <p className="text-xs text-texto-fraco tabular-nums">
           Em estoque {resumo.em_estoque_agora ?? '—'} · mínimo {resumo.minimo ?? '—'}
@@ -1106,6 +1122,7 @@ function CartaoPedidoPcp({
         esperandoTiny !== null ||
         resumo?.aviso_cancelada ||
         resumo?.entrega_parcial ||
+        resumo?.voltou_producao ||
         (etiquetas?.length ?? 0) > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {/* SESSAO-51 (bloco A): entregue em parte — o resto segue aqui para liberar. */}
@@ -1113,6 +1130,13 @@ function CartaoPedidoPcp({
             <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto tabular-nums">
               <PackageCheck aria-hidden className="size-3.5" />
               {textoEntregueEmParte(resumo.entrega_parcial.entregues, resumo.entrega_parcial.total)}
+            </span>
+          )}
+          {/* SESSAO-51 (bloco B): peça deste pedido que o administrador devolveu ao PCP. */}
+          {resumo?.voltou_producao && (
+            <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
+              <Undo2 aria-hidden className="size-3.5 shrink-0" />
+              <span className="break-words">{textoSeloVolta(resumo.voltou_producao)}</span>
             </span>
           )}
           {/* SESSAO-48 (frente 2): peça do pedido cancelada na produção — a vaga voltou ao PCP. */}

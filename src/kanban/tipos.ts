@@ -273,6 +273,30 @@ export interface PedidoResumo {
    * "Entregue em parte (N de M)". Ausente = sem entrega parcial.
    */
   entrega_parcial?: { entregues: number | null; total: number | null; em: string | null } | null
+  /**
+   * SESSAO-51 (bloco B): peças deste pedido que o administrador devolveu ao PCP —
+   * "1 voltou da produção" / "1 virou reposição de estoque". Ausente = nenhuma.
+   */
+  voltou_producao?: {
+    voltar: number
+    reposicao: number
+    ultimo?: {
+      escolha?: string | null
+      motivo?: string | null
+      observacao?: string | null
+      setor?: string | null
+      etapa?: string | null
+      em?: string | null
+      por?: string | null
+    } | null
+  } | null
+  /** SESSAO-51 (bloco B): no card de REPOSIÇÃO — veio de uma peça da produção. */
+  origem_producao?: {
+    numero?: number | null
+    setor?: string | null
+    etapa?: string | null
+    motivo?: string | null
+  } | null
 }
 
 /** SESSAO-48: o aviso da peça cancelada na produção, no card do pedido (PCP). */

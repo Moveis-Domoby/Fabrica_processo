@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, CheckCircle2, EyeOff, Factory, PackageCheck, StickyNote } from 'lucide-react'
+import { Ban, CheckCircle2, EyeOff, Factory, PackageCheck, StickyNote, Undo2 } from 'lucide-react'
 import { Botao, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarEtapasAtivas, janelaLiberacao, liberarNoPcp } from '../api'
-import type { ReposicaoResumo, SugestaoAlocacao, SugestaoProducao, UnidadeLiberacao } from '../api'
+import type { MesmaPeca, ReposicaoResumo, SugestaoAlocacao, SugestaoProducao, UnidadeLiberacao } from '../api'
 import type { Card, Etapa, ItemKanban, PedidoResumo, Setor } from '../tipos'
 
 const CHEGADA = 'chegada'
@@ -27,6 +27,8 @@ interface LinhaLiberacao {
   usarEstoque: boolean
   /** D-201: usar a peça igual sem dono que já está em produção (passa a ser deste pedido). */
   usarProducao: boolean
+  /** SESSAO-51 (bloco B · D-333): usar a MESMA peça que voltou da produção (marcada de início). */
+  usarMesma: boolean
 }
 
 export interface ModalLiberarPedidoProps {
@@ -111,6 +113,14 @@ export function ModalLiberarPedido({
       ),
     [janela],
   )
+  // SESSAO-51 (bloco B): a vaga cuja peça voltou da produção oferece a MESMA peça
+  const mesmaPorChave = useMemo(
+    () =>
+      new Map<string, MesmaPeca>(
+        (janela?.mesma_peca ?? []).map((m) => [`${m.item_seq}:${m.indice_unidade}`, m]),
+      ),
+    [janela],
+  )
   const itens: ItemKanban[] = useMemo(() => janela?.itens ?? [], [janela])
   const unidadesExistentes = useMemo(() => janela?.ja_liberadas ?? [], [janela])
   const origem = ehReposicao ? 'Reposição de estoque' : `Pedido ${pedido?.numero ?? ''}`
@@ -164,6 +174,7 @@ export function ModalLiberarPedido({
           etapaId: CHEGADA,
           usarEstoque: false,
           usarProducao: false,
+          usarMesma: false,
         })
       }
     }
@@ -185,11 +196,24 @@ export function ModalLiberarPedido({
   }
 
   // D-78: a peça reservada pela venda já vem marcada para usar (o PCP pode desmarcar).
-  const linhas = linhasBase.map((l) => ({
-    ...l,
-    usarEstoque: sugestaoPorChave.get(l.chave)?.reservada ?? false,
-    ...ajustes.get(l.chave),
-  }))
+  // SESSAO-51 (D-333): a mesma peça que voltou da produção vem MARCADA, com a coluna
+  // onde ela parou já escolhida (quando ainda existe) — o PCP pode trocar as duas.
+  const linhas = linhasBase.map((l) => {
+    const mesma = l.jaLiberada ? undefined : mesmaPorChave.get(l.chave)
+    return {
+      ...l,
+      usarEstoque: sugestaoPorChave.get(l.chave)?.reservada ?? false,
+      ...(mesma
+        ? {
+            usarMesma: true,
+            setorId: mesma.sugestao_vale && mesma.setor_id ? String(mesma.setor_id) : '',
+            etapaId: mesma.sugestao_vale && mesma.etapa_id ? String(mesma.etapa_id) : CHEGADA,
+          }
+        : {}),
+      ...ajustes.get(l.chave),
+    }
+  })
+  const usaMesma = (l: LinhaLiberacao) => l.usarMesma && mesmaPorChave.has(l.chave)
   const pendentes = linhas.filter((l) => !l.jaLiberada)
   const selecionadas = pendentes.filter((l) => l.selecionada)
   // D-201: o banco só sugere a peça em produção para a vaga que o estoque não cobre.
@@ -224,8 +248,13 @@ export function ModalLiberarPedido({
   // duplica).
   const mutacao = useMutation({
     mutationFn: (unidades: UnidadeLiberacao[]) => liberarNoPcp(cardPedido!.id, unidades),
-    onSuccess: async ({ alocadas, liberadas, vinculadas = 0, ja_liberadas }) => {
+    onSuccess: async ({ alocadas, liberadas, vinculadas = 0, reaproveitadas = 0, ja_liberadas }) => {
       const partes = [
+        reaproveitadas > 0
+          ? reaproveitadas === 1
+            ? 'a mesma peça voltou para a produção'
+            : `${reaproveitadas} peças voltaram (as mesmas) para a produção`
+          : null,
         liberadas > 0
           ? `${liberadas} unidade${liberadas === 1 ? '' : 's'} liberada${liberadas === 1 ? '' : 's'}`
           : null,
@@ -279,8 +308,9 @@ export function ModalLiberarPedido({
     const semDestino = selecionadas.filter(
       (l) =>
         l.setorId === '' &&
-        !(l.usarEstoque && sugestaoPorChave.has(l.chave)) &&
-        !(usaProducao(l) && producaoPorChave.has(l.chave)),
+        (usaMesma(l) ||
+          (!(l.usarEstoque && sugestaoPorChave.has(l.chave)) &&
+            !(usaProducao(l) && producaoPorChave.has(l.chave)))),
     )
     if (semDestino.length > 0) {
       setErro(
@@ -291,6 +321,16 @@ export function ModalLiberarPedido({
     setErro('')
     mutacao.mutate(
       selecionadas.map((l): UnidadeLiberacao => {
+        const mesma = usaMesma(l) ? mesmaPorChave.get(l.chave) : undefined
+        if (mesma) {
+          return {
+            item_seq: l.item_seq,
+            indice_unidade: l.indice_unidade,
+            setor_id: Number(l.setorId),
+            etapa_id: l.etapaId === CHEGADA ? null : Number(l.etapaId),
+            peca_volta_id: mesma.peca_card_id,
+          }
+        }
         const sugestao = l.usarEstoque ? sugestaoPorChave.get(l.chave) : undefined
         const emProducao = usaProducao(l) ? producaoPorChave.get(l.chave) : undefined
         return sugestao
@@ -381,12 +421,17 @@ export function ModalLiberarPedido({
               producaoComFila && linha.etapaId === CHEGADA
                 ? String(filaDoDestino!.id)
                 : linha.etapaId
+            // SESSAO-51 (D-333): a mesma peça que voltou da produção (vem marcada; com
+            // ela marcada, as outras sugestões saem de cena).
+            const mesma = linha.jaLiberada ? undefined : mesmaPorChave.get(linha.chave)
+            const usandoMesma = mesma !== undefined && linha.usarMesma
             // SESSAO-24: peça igual sem dono no estoque para esta unidade.
-            const sugestao = linha.jaLiberada ? undefined : sugestaoPorChave.get(linha.chave)
+            const sugestao =
+              linha.jaLiberada || usandoMesma ? undefined : sugestaoPorChave.get(linha.chave)
             const usandoEstoque = sugestao !== undefined && linha.usarEstoque
             // D-201: peça igual sem dono que ainda está em produção (o estoque não cobre).
             const emProducao =
-              linha.jaLiberada || sugestao ? undefined : producaoPorChave.get(linha.chave)
+              linha.jaLiberada || sugestao || usandoMesma ? undefined : producaoPorChave.get(linha.chave)
             const usandoProducao = emProducao !== undefined && linha.usarProducao
             return (
               <li key={linha.chave} className="flex flex-col gap-2 px-3 py-3">
@@ -433,6 +478,37 @@ export function ModalLiberarPedido({
                     </span>
                   )}
                 </div>
+
+                {mesma && linha.selecionada && (
+                  <label
+                    className={cn(
+                      'ml-8 flex min-h-toque-md cursor-pointer items-center gap-3 rounded-dm border px-3 py-2 text-sm',
+                      usandoMesma ? 'border-acao-ativa bg-superficie-sutil' : 'border-info-borda bg-info-fundo',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-5 shrink-0 accent-[var(--dm-acao)]"
+                      checked={linha.usarMesma}
+                      onChange={() => mudarLinha(linha.chave, { usarMesma: !linha.usarMesma })}
+                    />
+                    <Undo2 aria-hidden className="size-5 shrink-0 text-info-texto" />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="font-medium text-texto">
+                        Usar a mesma peça
+                        {mesma.setor ? ` (estava em ${[mesma.setor, mesma.etapa].filter(Boolean).join(' · ')})` : ''}
+                      </span>
+                      <span className="text-xs text-texto-suave">
+                        {mesma.escolha === 'reposicao'
+                          ? 'Ela voltou da produção e virou esta reposição.'
+                          : `Ela voltou da produção${mesma.motivo || mesma.observacao ? ` — ${mesma.motivo ?? mesma.observacao}` : ''}.`}{' '}
+                        {usandoMesma
+                          ? 'A mesma peça volta, com a história dela, para a coluna escolhida abaixo.'
+                          : 'Sem marcar, nasce uma peça nova e a antiga continua guardada.'}
+                      </span>
+                    </span>
+                  </label>
+                )}
 
                 {sugestao && linha.selecionada && (
                   <label
