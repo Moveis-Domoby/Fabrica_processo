@@ -18,6 +18,7 @@ import {
   EyeOff,
   ListChecks,
   OctagonAlert,
+  PackageCheck,
   PackageOpen,
   PackagePlus,
   PackageX,
@@ -37,6 +38,7 @@ import { ehSuperAdmin } from '@/autenticacao/tipos'
 import { useAoVivo } from '@/lib/aoVivo'
 import { buscarCardsPedidoPcp, buscarSetores, reposicoesResumo, tirarDoStandby } from '@/kanban/api'
 import type { ReposicaoResumo } from '@/kanban/api'
+import { textoEntregueEmParte } from '@/kanban/entregaParcial'
 import { BarraAjustePedidos, CaixaSelecao } from '@/pedidos/AjustePedidos'
 // SESSAO-31 (Lei §9): a aba Lançamento manual é pedaço próprio — carrega no 1º clique.
 const AbaLancamentoManual = lazy(() =>
@@ -53,6 +55,12 @@ const AbaCancelados = lazy(() =>
 const AbaPedidosOcultos = lazy(() =>
   import('@/kanban/componentes/AbaPedidosOcultos').then((m) => ({
     default: m.AbaPedidosOcultos,
+  })),
+)
+// SESSAO-51 (frente 3): a aba "Entregas parciais" (o revogar) — pedaço próprio, no 1º clique.
+const AbaEntregasParciais = lazy(() =>
+  import('@/kanban/componentes/AbaEntregasParciais').then((m) => ({
+    default: m.AbaEntregasParciais,
   })),
 )
 const ModalSaidaPedido = lazy(() =>
@@ -149,7 +157,8 @@ export function PCP() {
   // ↪️ SESSAO-48 (frente 2): + "Cancelados e removidos" (?aba=cancelados — desde
   // 14/10 o link levava para Pedidos → Cancelados; a história inteira segue lá).
   // ↪️ SESSAO-50: ela vira duas — "Cancelados" (?aba=cancelados) e "Pedidos ocultos" (?aba=ocultos).
-  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'cancelados' | 'ocultos' | 'lancamento' =
+  // ↪️ SESSAO-51 (frente 3): + "Entregas parciais" (?aba=parciais — o revogar da decisão).
+  const aba: 'solicitacoes' | 'quadro' | 'standby' | 'cancelados' | 'ocultos' | 'parciais' | 'lancamento' =
     abaParam === 'solicitacoes'
       ? 'solicitacoes'
       : abaParam === 'lancamento'
@@ -160,7 +169,9 @@ export function PCP() {
             ? 'cancelados'
             : abaParam === 'ocultos'
               ? 'ocultos'
-              : 'quadro'
+              : abaParam === 'parciais'
+                ? 'parciais'
+                : 'quadro'
 
   // SESSAO-50 (bloco B): "Cancelar pedido" e "Ocultar do PCP" — de qual pedido o modal está aberto.
   const [saida, setSaida] = useState<AlvoSaidaPedido | null>(null)
@@ -474,6 +485,7 @@ export function PCP() {
             { valor: 'standby', rotulo: 'Stand-by', icone: <CirclePause aria-hidden /> },
             { valor: 'cancelados', rotulo: 'Cancelados', icone: <Ban aria-hidden /> },
             { valor: 'ocultos', rotulo: 'Pedidos ocultos', icone: <EyeOff aria-hidden /> },
+            { valor: 'parciais', rotulo: 'Entregas parciais', icone: <PackageCheck aria-hidden /> },
             { valor: 'lancamento', rotulo: 'Lançamento manual', icone: <SquarePen aria-hidden /> },
           ]}
           valor={aba}
@@ -761,6 +773,14 @@ export function PCP() {
         <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-ocultos">
           <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando…</p>}>
             <AbaPedidosOcultos />
+          </Suspense>
+        </div>
+      )}
+
+      {aba === 'parciais' && (
+        <div role="tabpanel" id="pcp-painel" aria-labelledby="pcp-aba-parciais">
+          <Suspense fallback={<p className="text-sm text-texto-fraco">Carregando…</p>}>
+            <AbaEntregasParciais />
           </Suspense>
         </div>
       )}
@@ -1085,8 +1105,16 @@ function CartaoPedidoPcp({
         resumo?.alterado_apos_liberacao ||
         esperandoTiny !== null ||
         resumo?.aviso_cancelada ||
+        resumo?.entrega_parcial ||
         (etiquetas?.length ?? 0) > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* SESSAO-51 (bloco A): entregue em parte — o resto segue aqui para liberar. */}
+          {resumo?.entrega_parcial && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-info-fundo px-2 py-0.5 text-xs font-medium text-info-texto tabular-nums">
+              <PackageCheck aria-hidden className="size-3.5" />
+              {textoEntregueEmParte(resumo.entrega_parcial.entregues, resumo.entrega_parcial.total)}
+            </span>
+          )}
           {/* SESSAO-48 (frente 2): peça do pedido cancelada na produção — a vaga voltou ao PCP. */}
           {resumo?.aviso_cancelada && (
             <SeloPecaCancelada

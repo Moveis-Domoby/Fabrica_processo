@@ -1,4 +1,5 @@
 import type { DetalhePedido } from '@/kanban/api'
+import type { EstadoParcial } from '@/kanban/entregaParcial'
 import { diaNaFabrica, diaPorExtenso, entregueEmOutroDia } from '@/rotas/diaDaEntrega'
 import { data, diaEHora } from './formato'
 
@@ -36,6 +37,8 @@ export type FichaComDiaReal = Omit<DetalhePedido, 'entrega' | 'plataforma' | 'hi
     chegou_em?: string | null
   }
   historico: FatoDaFicha[]
+  /** SESSAO-51 (bloco A): a entrega parcial, a decisão sobre a fábrica e se dá para revogar. */
+  entrega_parcial?: EstadoParcial | null
 }
 
 /**

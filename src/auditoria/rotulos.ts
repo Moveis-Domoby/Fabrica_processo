@@ -42,6 +42,13 @@ export const ROTULO_ACAO: Record<string, string> = {
   pedido_reencontrado_tiny: 'O Tiny achou o pedido de novo',
   pcp_ocultos_dias: 'Mudou quantos dias o pedido oculto fica na lista',
   pedido_cancelamento_reenviado: 'Pediu de novo ao Tiny o cancelamento do pedido',
+  // SESSAO-51: a entrega parcial que mantém ou limpa a produção e o revogar (bloco A);
+  // a peça devolvida ao PCP e reaproveitada na liberação (bloco B)
+  peca_retirada_entrega_parcial: 'Tirou a peça da produção (entrega parcial)',
+  peca_volta_entrega_parcial: 'A peça voltou para a produção (revogar da entrega parcial)',
+  entrega_parcial_decisao_revogada: 'Revogou a decisão da entrega parcial',
+  card_voltou_pcp: 'Devolveu a peça ao PCP',
+  peca_reaproveitada_pcp: 'Liberou de novo a mesma peça que tinha voltado ao PCP',
   pedido_entregue: 'Registrou a entrega do pedido',
   unidade_desvinculada: 'A peça ficou sem pedido',
   peca_alocada: 'Usou uma peça do estoque no pedido',
@@ -298,6 +305,12 @@ export const GRUPOS_ACAO: { valor: GrupoAcao; rotulo: string; acoes: string[] }[
       'card_oculto',
       'pcp_ocultos_dias',
       'pedido_cancelamento_reenviado',
+      // SESSAO-51
+      'peca_retirada_entrega_parcial',
+      'peca_volta_entrega_parcial',
+      'entrega_parcial_decisao_revogada',
+      'card_voltou_pcp',
+      'peca_reaproveitada_pcp',
       'ajuste_aberto',
       'ajuste_concluido',
       'avulso_concluido',

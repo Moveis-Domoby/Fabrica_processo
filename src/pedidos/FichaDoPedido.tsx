@@ -12,9 +12,11 @@ import {
   ImageIcon,
   MapPinPen,
   MessageCircle,
+  PackageCheck,
   PackageX,
   Paperclip,
   ReceiptText,
+  RotateCcw,
   Truck,
   TriangleAlert,
   Undo2,
@@ -40,6 +42,12 @@ import { DadosDoTinyPainel } from './DadosDoTiny'
 import { ProducaoDoPedidoPainel } from './ProducaoDoPedido'
 import { fraseDaCorrecao, quandoFoiEntregue, quandoFoiRegistrada } from './entregaNaFicha'
 import type { FichaComDiaReal } from './entregaNaFicha'
+import { textoBotaoRevogar, textoDecisao, textoEntregueEmParte } from '@/kanban/entregaParcial'
+import type { EstadoParcial } from '@/kanban/entregaParcial'
+// SESSAO-51 (frente 3): a janela do revogar só carrega no clique (Lei §9)
+const ModalRevogarParcial = lazy(() =>
+  import('@/kanban/componentes/ModalRevogarParcial').then((m) => ({ default: m.ModalRevogarParcial })),
+)
 import { data, diaEHora, moeda, valorDoTiny } from './formato'
 
 // SESSAO-50 (bloco C): a janela "Editar endereço" só baixa no clique (Lei §9)
@@ -71,6 +79,8 @@ const FATOS: Record<string, string> = {
   endereco_entrega_tiny_confirmado: 'O Tiny confirmou o endereço novo',
   endereco_entrega_tiny_substituido: 'O endereço mudou no Tiny (vale o do Tiny)',
   pedido_entregue: 'Entregue',
+  // SESSAO-51 (bloco A): a troca da decisão sobre o que ficou na fábrica
+  entrega_parcial_decisao_revogada: 'Decisão da entrega parcial revogada',
   entrega_desfeita: 'Entrega desfeita',
   entrega_nao_realizada: 'Não entregue',
   pedido_devolvido: 'Pedido devolvido',
@@ -179,6 +189,7 @@ export function FichaDoPedido({ pedidoId }: { pedidoId: number }) {
   return (
     <div className="flex flex-col gap-4">
       <Resumo d={d} />
+      {d.entrega_parcial && <EntregaParcialDaFicha estado={d.entrega_parcial} />}
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Ver mais do pedido">
         {PARTES.map((p) => {
@@ -221,6 +232,66 @@ export function FichaDoPedido({ pedidoId }: { pedidoId: number }) {
       )}
       {abertas.has('historico') && <PainelHistorico d={d} />}
     </div>
+  )
+}
+
+/**
+ * SESSAO-51 (bloco A · frente 3): a entrega parcial na ficha — quantas saíram, o
+ * que ficou na fábrica, a decisão que vale e o mesmo botão contrário da aba
+ * "Entregas parciais" (logística, PCP e admin). Quando não dá para revogar, a
+ * ficha diz o porquê em vez de esconder.
+ */
+function EntregaParcialDaFicha({ estado: e }: { estado: EstadoParcial }) {
+  const { tenhoAcesso } = useAcessoLogistica()
+  const [revogando, setRevogando] = useState(false)
+  const naFabrica = e.n_producao + e.vagas
+  return (
+    <section
+      aria-label="Entrega parcial"
+      className="flex flex-col gap-2 rounded-dm-lg border border-info-borda bg-info-fundo/40 p-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-texto">
+          <PackageCheck aria-hidden className="size-4 shrink-0 text-info-texto" />
+          {textoEntregueEmParte(e.entregues, e.total)}
+          {!e.fechado && e.decisao === 'manter' && naFabrica > 0 && (
+            <span className="text-sm font-normal text-texto-suave">
+              · {naFabrica} ainda em produção
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-texto-suave">
+          Em {diaEHora(e.parcial_em)}
+          {e.parcial_por ? ` por ${e.parcial_por}` : ''}
+        </p>
+        {e.decisao && (
+          <p className="text-sm text-texto">
+            {textoDecisao(e)}
+            {e.decisao_em && (
+              <span className="text-xs text-texto-suave">
+                {' '}
+                — decidido{e.decisao_por ? ` por ${e.decisao_por}` : ''} em {diaEHora(e.decisao_em)}
+              </span>
+            )}
+          </p>
+        )}
+        {e.decisao && !e.pode_revogar && e.porque_nao && (
+          <p className="text-xs text-texto-suave">Não dá mais para revogar: {e.porque_nao}</p>
+        )}
+      </div>
+      {tenhoAcesso && e.pode_revogar && e.acao && (
+        <div className="flex shrink-0">
+          <Botao variante="secundaria" icone={<RotateCcw />} className="whitespace-normal text-left" onClick={() => setRevogando(true)}>
+            {textoBotaoRevogar(e.acao)}
+          </Botao>
+        </div>
+      )}
+      {revogando && (
+        <Suspense fallback={null}>
+          <ModalRevogarParcial cardId={e.card_id} aoFechar={() => setRevogando(false)} />
+        </Suspense>
+      )}
+    </section>
   )
 }
 

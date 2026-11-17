@@ -268,6 +268,11 @@ export interface PedidoResumo {
    * Ausente = sem aviso.
    */
   aviso_cancelada?: AvisoCancelada | null
+  /**
+   * SESSAO-51 (bloco A): o pedido foi entregue em parte e o resto segue no PCP —
+   * "Entregue em parte (N de M)". Ausente = sem entrega parcial.
+   */
+  entrega_parcial?: { entregues: number | null; total: number | null; em: string | null } | null
 }
 
 /** SESSAO-48: o aviso da peça cancelada na produção, no card do pedido (PCP). */
@@ -457,6 +462,13 @@ export interface EventoLinhaTempo {
     | 'pedido_reencontrado_tiny'
     | 'pedido_cancelado_plataforma'
     | 'card_oculto'
+    // SESSAO-51: a peça tirada da produção pela entrega parcial e a volta dela, o
+    // revogar (bloco A); a peça devolvida ao PCP e a reaproveitada (bloco B)
+    | 'peca_retirada_entrega_parcial'
+    | 'peca_volta_entrega_parcial'
+    | 'entrega_parcial_decisao_revogada'
+    | 'card_voltou_pcp'
+    | 'peca_reaproveitada_pcp'
   ocorrido_em: string
   usuario_id: string | null
   usuario_nome: string | null

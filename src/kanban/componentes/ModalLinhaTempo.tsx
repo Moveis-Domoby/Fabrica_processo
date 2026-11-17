@@ -113,6 +113,13 @@ const ROTULO_TIPO: Partial<Record<EventoLinhaTempo['tipo'], string>> = {
   pedido_reencontrado_tiny: 'O Tiny achou o pedido de novo',
   pedido_cancelado_plataforma: 'Cancelado pela plataforma (pedido também ao Tiny)',
   card_oculto: 'Ocultada junto com o pedido',
+  // SESSAO-51: a entrega parcial que tira da produção, a volta pelo revogar (bloco A);
+  // a peça devolvida ao PCP e liberada de novo (bloco B)
+  peca_retirada_entrega_parcial: 'Saiu da produção (entrega parcial)',
+  peca_volta_entrega_parcial: 'Voltou para a produção (revogar da entrega parcial)',
+  entrega_parcial_decisao_revogada: 'Decisão da entrega parcial revogada',
+  card_voltou_pcp: 'Devolvida ao PCP',
+  peca_reaproveitada_pcp: 'Liberada de novo pelo PCP (a mesma peça)',
   // SESSAO-36 (D-146): o auxílio.
   auxilio_iniciado: 'Ajuda iniciada',
   auxilio_pausado: 'Ajuda pausada',

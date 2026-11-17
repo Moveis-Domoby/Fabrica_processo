@@ -51,12 +51,22 @@ export function ondeEsta(item: ItemDaBusca): LugarDoCard {
         return { texto: `Saiu do ESTOQUE em ${quando}`, tom: 'neutro' }
       case 'reposicao_vencida':
         return { texto: `Saiu do PCP em ${quando} (venceu o prazo)`, tom: 'neutro' }
+      // SESSAO-51 (bloco A): tirada da produção pela entrega parcial — volta pelo revogar
+      case 'retirada_entrega_parcial':
+        return {
+          texto: `Saiu da produção na entrega parcial, em ${quando} — dá para voltar em PCP → Entregas parciais`,
+          tom: 'neutro',
+        }
       default:
         return { texto: `Arquivado em ${quando}`, tom: 'neutro' }
     }
   }
   if (item.tipo === 'pedido') {
     // SESSAO-48 (frente 2) ↪️ SESSAO-50: o PCP ocultou o pedido — mora em "Pedidos ocultos"
+    // ↪️ SESSAO-51: o "Limpar da produção" da entrega parcial usa a mesma marca — mora em "Entregas parciais"
+    if (item.removido_pcp_em && item.removido_pcp_motivo === 'entrega_parcial') {
+      return { texto: `Entregue em parte — o resto saiu do PCP em ${dia(item.removido_pcp_em)}`, tom: 'neutro' }
+    }
     if (item.removido_pcp_em) return { texto: `Oculto do PCP em ${dia(item.removido_pcp_em)}`, tom: 'neutro' }
     if (item.standby) return { texto: 'PCP · em stand-by', tom: 'atencao' }
     if (item.liberado_completo_em) return { texto: `PCP · tudo liberado${rota(item)}`, tom: 'info' }
@@ -119,7 +129,12 @@ export function rotaDoQuadroFiltrado(item: ItemDaBusca): string | null {
   // SESSAO-48 (frente 2) ↪️ SESSAO-50: o pedido oculto do PCP mora na aba "Pedidos ocultos"
   const removido = item.setor_codigo === 'pcp' && item.tipo === 'pedido' && !!item.removido_pcp_em
   const abaStandby = item.setor_codigo === 'pcp' && item.standby && !removido ? 'aba=standby&' : ''
-  const abaRemovido = removido ? 'aba=ocultos&' : ''
+  // ↪️ SESSAO-51: o que a entrega parcial tirou do PCP mora em "Entregas parciais"
+  const abaRemovido = removido
+    ? item.removido_pcp_motivo === 'entrega_parcial'
+      ? 'aba=parciais&'
+      : 'aba=ocultos&'
+    : ''
   return filtro.trim().length >= 2
     ? `${base}?${aba}${abaStandby}${abaRemovido}filtro=${encodeURIComponent(filtro.trim())}`
     : base

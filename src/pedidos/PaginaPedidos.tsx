@@ -280,10 +280,16 @@ function Andamento({ p }: { p: PedidoDaLista }) {
     )
   }
   if (p.entregue_em) {
+    // SESSAO-51: a entrega PARCIAL — fechada, ou com o resto ainda em produção
+    // (aí o estado da linha segue o do resto: no PCP, em produção, pronto…)
+    const parcial = p.entregue_fonte === 'parcial'
     return (
       <span className="text-xs text-perfeito-texto">
-        Entregue {diaEHora(p.entregue_em)}
+        {parcial ? 'Entregue em parte' : 'Entregue'} {diaEHora(p.entregue_em)}
         {p.entregue_por ? ` por ${p.entregue_por}` : p.entregue_fonte === 'tiny' ? ' (Tiny)' : ''}
+        {parcial && p.situacao_plataforma !== 'entregue' && p.situacao_plataforma !== 'devolvido' && (
+          <span className="text-texto-suave"> · o resto segue na fábrica</span>
+        )}
       </span>
     )
   }
