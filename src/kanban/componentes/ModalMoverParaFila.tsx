@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightLeft } from 'lucide-react'
+import { ArrowRightLeft, PackageOpen } from 'lucide-react'
 import {
   BadgeEstado,
   Botao,
@@ -33,6 +33,11 @@ const OUTRO = 'outro'
  *     (D-126, a mesma regra do arrasto).
  * Os setores já moram no cache da casca; abrir lê só a lista de motivos
  * (dado de referência, cache longo).
+ *
+ * ↪️ SESSAO-51 (ajuste do dono, 17/11 — D-330): o "Mover para o PCP" mora AQUI,
+ * como a primeira opção da lista ("PCP"), só para quem pode (o administrador,
+ * fora do tablet). Escolher "PCP" fecha esta janela e abre a do PCP (voltar como
+ * vaga do pedido ou virar reposição) — quem decide é `aoEscolherPcp`.
  */
 export function ModalMoverParaFila({
   card,
@@ -41,6 +46,7 @@ export function ModalMoverParaFila({
   pedidoNumero,
   operadorId,
   tamanho = 'padrao',
+  aoEscolherPcp,
   aoFechar,
 }: {
   card: Card | null
@@ -51,6 +57,8 @@ export function ModalMoverParaFila({
   pedidoNumero?: number | null
   operadorId?: string
   tamanho?: 'padrao' | 'galpao'
+  /** Quando vem, a lista ganha "PCP" (devolver a peça ao PCP) — só para o administrador. */
+  aoEscolherPcp?: () => void
   aoFechar: () => void
 }) {
   const notificar = useNotificacao()
@@ -164,6 +172,17 @@ export function ModalMoverParaFila({
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium text-texto">Para a fila de</legend>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {aoEscolherPcp && (
+              <button type="button" onClick={aoEscolherPcp} className={botaoEscolha(false)}>
+                <span className="flex items-center gap-1.5">
+                  <PackageOpen aria-hidden className="size-4 shrink-0 text-texto-suave" />
+                  PCP
+                </span>
+                <span className="block text-xs font-normal text-texto-suave">
+                  Volta como vaga do pedido ou vira reposição de estoque
+                </span>
+              </button>
+            )}
             {setoresProducao.map((s) => {
               const aqui = s.id === card?.setor_atual_id
               return (

@@ -16,7 +16,6 @@ import {
   History,
   Link2,
   Moon,
-  PackageOpen,
   Pause,
   Flag,
   Pencil,
@@ -475,24 +474,19 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
                 Sair do auxílio
               </Botao>
             )}
-            {podeMover && (
+            {/* ↪️ SESSAO-51 (ajuste do dono, 17/11 — D-330): um botão só — o PCP é uma opção
+                DENTRO do Mover (a primeira da lista, só para o administrador). Se a pessoa só
+                puder devolver ao PCP, o Mover abre direto a janela do PCP. */}
+            {(podeMover || podeVoltarPcp) && (
               <Botao
                 variante="secundaria"
                 tamanho={tablet ? 'lg' : 'sm'}
                 icone={<ArrowRightLeft />}
-                onClick={() => (tablet ? setPinPara('mover') : setMovendo({}))}
+                onClick={() =>
+                  tablet ? setPinPara('mover') : podeMover ? setMovendo({}) : setVoltandoPcp(true)
+                }
               >
                 Mover
-              </Botao>
-            )}
-            {podeVoltarPcp && (
-              <Botao
-                variante="secundaria"
-                tamanho="sm"
-                icone={<PackageOpen />}
-                onClick={() => setVoltandoPcp(true)}
-              >
-                Mover para o PCP
               </Botao>
             )}
             {permissoes.concluir && !tablet && (
@@ -1015,6 +1009,14 @@ function LadoDoCard({ dados, modo }: { dados: DadosJanela; modo: 'padrao' | 'tab
         pedidoNumero={dados.pedido?.numero ?? null}
         operadorId={movendo?.operadorId}
         tamanho={tablet ? 'galpao' : 'padrao'}
+        aoEscolherPcp={
+          podeVoltarPcp
+            ? () => {
+                setMovendo(null)
+                setVoltandoPcp(true)
+              }
+            : undefined
+        }
         aoFechar={() => setMovendo(null)}
       />
 
