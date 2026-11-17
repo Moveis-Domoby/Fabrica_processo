@@ -8700,7 +8700,11 @@ const aceitaDestino48 = (sql) =>
                  "plt_eventos_tipo_check check (tipo = any (array['destino_pendente', 'destino_decidido', " +
                  "'pedido_excluido_tiny', 'pedido_reencontrado_tiny', 'pedido_cancelado_plataforma', 'card_oculto', " +
                  "'endereco_entrega_alterado', 'endereco_entrega_restaurado', 'endereco_entrega_tiny_confirmado', " +
-                 "'endereco_entrega_tiny_substituido', ")
+                 "'endereco_entrega_tiny_substituido', " +
+                 // ↪️ SESSAO-51: a entrega parcial que limpa a produção e o revogar (bloco A); a
+                 // peça devolvida ao PCP e reaproveitada (bloco B) — a base da 51 valida tudo
+                 "'peca_retirada_entrega_parcial', 'peca_volta_entrega_parcial', 'entrega_parcial_decisao_revogada', " +
+                 "'card_voltou_pcp', 'peca_reaproveitada_pcp', ")
 
 // ============================================================================
 // SESSAO-27 · AUTOMAÇÕES EM CANVAS (02/10 — migration 51, D-99…D-104):
@@ -16294,7 +16298,13 @@ try {
                      '20261112050000_plt_observacao_do_item.sql',
                      // ↪️ SESSAO-50 · bloco C: a visão de onde entregar (a 040000 acima a recria com o corpo
                      // antigo), a parada editável, a ficha e os candidatos com o selo do endereço alterado
-                     '20261112060000_plt_editar_endereco.sql']) {
+                     '20261112060000_plt_editar_endereco.sql',
+                     // ↪️ SESSAO-51 (E-19): a base recria o check dos tipos de evento e o dos motivos e os
+                     // VALIDA (a da 50 e a dos tempos já não validam), as projeções e o validador dos fatos novos
+                     '20261116010000_plt_sessao51_base.sql',
+                     // ↪️ SESSAO-51 · bloco A (A-12/E-165): a entrega parcial de 6 argumentos — as de cima
+                     // recriam a de 5 ao lado (chamada ambígua); esta tira a velha, como em produção
+                     '20261116020000_plt_entrega_parcial_mantem_producao.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
@@ -18564,8 +18574,8 @@ try {
   conferir((await um41r(`select count(*)::int as n from public.plt_motivos where tipo = 'entrega_parcial' and ativo`)).n >= 5,
     'a lista de motivos de entrega parcial nasce com 5 (e se edita em Utilitários)')
   const priv = await um41r(`
-    select has_function_privilege('authenticated', 'public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean)', 'execute') as parcial,
-           has_function_privilege('anon', 'public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean)', 'execute') as parcial_anon,
+    select has_function_privilege('authenticated', 'public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean, text)', 'execute') as parcial,
+           has_function_privilege('anon', 'public.plt_fn_entrega_parcial(bigint, bigint[], bigint, text, boolean, text)', 'execute') as parcial_anon,
            has_function_privilege('authenticated', 'public.plt_fn_pedido_data_entrega(bigint, date, boolean)', 'execute') as data,
            has_function_privilege('authenticated', 'plt_privado.fn_data_entrega(bigint, date)', 'execute') as regra_data`)
   conferir(priv.parcial && !priv.parcial_anon && priv.data && !priv.regra_data,
@@ -25104,6 +25114,281 @@ try {
   await comoC('')
 }
 } // fim do bloco SESSAO-50 · bloco C
+
+
+// ============================================================================
+// SESSAO-51 · BLOCO A (migrations 20261116010000 base + 20261116020000): a entrega
+// parcial que mantém a produção — "Deixar em produção" (o pedido segue vivo, nada
+// muda nas peças) ou "Limpar da produção" (as peças saem com registro, sem perder
+// o pedido; o pedido sai do PCP) — e o revogar na aba "Entregas parciais"
+// (ida e volta, a etapa exata, a etapa arquivada, a peça pronta que fica, o
+// resto entregue que tira da lista).
+// ============================================================================
+{ // SESSAO-51 · bloco A (escopo próprio — E-70)
+titulo('SESSAO-51 · bloco A · as migrations da 51 de novo (os blocos de cima recriam a entrega de antes — E-81)')
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261116010000_plt_sessao51_base.sql'), 'utf8'))
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261116020000_plt_entrega_parcial_mantem_producao.sql'), 'utf8'))
+  const um = async (sql) => (await bd.query(sql)).rows[0]
+  const todos = async (sql) => (await bd.query(sql)).rows
+  const como = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+  const j = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+  // E-161: ponto de volta antes do gesto — o erro de verdade não fica escondido
+  const logado = async (auth, sql) => {
+    await bd.exec('savepoint l51')
+    try {
+      await como(auth)
+      const r = await um(sql)
+      await bd.exec('release savepoint l51')
+      return r
+    } catch (e) {
+      await bd.exec('rollback to savepoint l51')
+      throw e
+    } finally {
+      await como('')
+    }
+  }
+  const falha = async (auth, sql, descricao, padrao) => {
+    await bd.exec('savepoint f51')
+    try {
+      await como(auth)
+      await bd.exec(sql)
+      conferir(false, descricao, 'passou, e não devia')
+    } catch (e) {
+      conferir(padrao.test(e.message), descricao, e.message)
+    } finally {
+      await bd.exec('rollback to savepoint f51')
+      await como('')
+    }
+  }
+
+  await bd.exec('begin')
+  try {
+  const ADM = '00000000-0000-0000-0000-0000000051a1'
+  const LOG = '00000000-0000-0000-0000-0000000051a2'
+  const PCPU = '00000000-0000-0000-0000-0000000051a3'
+  const ENT = '00000000-0000-0000-0000-0000000051a4'
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Admin 51', 'adm51@teste.com', '51000000001', 'adm.51', 'admin', '${ADM}', array['fabrica']),
+      ('Logística 51', 'log51@teste.com', '51000000002', 'log.51', 'logistica', '${LOG}', array['fabrica']),
+      ('PCP 51', 'pcp51@teste.com', '51000000003', 'pcp.51', 'operador', '${PCPU}', array['fabrica']),
+      ('Entregador 51', 'ent51@teste.com', '51000000004', 'ent.51', 'operador', '${ENT}', array['entregas']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id)
+      select u.id, s.id from public.plt_usuarios u, public.plt_setores s
+       where (u.usuario, s.codigo) in (('pcp.51', 'pcp'), ('log.51', 'aguardo'), ('ent.51', 'rotas'));
+    update public.plt_setores set tiny_entrega_desde = coalesce(tiny_entrega_desde, now()) where codigo = 'rotas';
+    -- os setores de produção do cenário (os semeados já têm a fila de outros blocos — uma fila por setor)
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('m51', 'MONTAGEM 51', 'producao', 996), ('f51', 'FITAMENTO 51', 'producao', 997)
+    on conflict do nothing;
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}'
+     where codigo in ('m51', 'f51', 'aguardo', 'rotas', 'devolucao', 'pcp');
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      ((select id from public.plt_setores where codigo = 'm51'), 'A MONTAR 51', 1, true),
+      ((select id from public.plt_setores where codigo = 'm51'), 'MONTANDO 51', 2, false),
+      ((select id from public.plt_setores where codigo = 'f51'), 'A FITAR 51', 1, true),
+      ((select id from public.plt_setores where codigo = 'f51'), 'FITANDO 51', 2, false);
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (9951001, 'SX51A', 'Guarda-roupa Teste 51', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 51', 'TST5151');`)
+  const id = async (sql) => Number((await um(sql)).id)
+  const MONT = await id(`select id from public.plt_setores where codigo = 'm51'`)
+  const FIT = await id(`select id from public.plt_setores where codigo = 'f51'`)
+  const AGU = await id(`select id from public.plt_setores where codigo = 'aguardo'`)
+  const A_MONTAR = await id(`select id from public.plt_etapas where nome = 'A MONTAR 51'`)
+  const MONTANDO = await id(`select id from public.plt_etapas where nome = 'MONTANDO 51'`)
+  const A_FITAR = await id(`select id from public.plt_etapas where nome = 'A FITAR 51'`)
+  const FITANDO = await id(`select id from public.plt_etapas where nome = 'FITANDO 51'`)
+  const CAM = await id(`select id from public.plt_caminhoes where placa = 'TST5151'`)
+  const HOJE = (await um(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+
+  const pedido = (numero, qtd) => ({
+    id: String(7951000 + (numero % 1000)), numero: String(numero), data_pedido: '16/11/2026', data_prevista: '30/11/2026',
+    situacao: 'Preparando envio', total_produtos: '500.00', total_pedido: '500.00', valor_frete: '0.00',
+    forma_pagamento: 'pix', meio_pagamento: '', forma_envio: 'Transportadora', parcelas: [], marcadores: [],
+    obs: '', obs_interna: '', nome_vendedor: 'Vendedora 51', codigo_rastreamento: '', url_rastreamento: '',
+    cliente: { codigo: '', nome: `Cliente Teste 51 ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+               endereco: 'Rua Teste 51', numero: '51', complemento: '', bairro: 'Centro', cep: '59000-510', cidade: 'Natal',
+               uf: 'RN', fone: '84999995151', email: '' },
+    itens: [{ item: { id_produto: '', codigo: 'SX51A', descricao: 'Guarda-roupa Teste 51', unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } }],
+  })
+  const gravar = async (p) => {
+    const r = await um(`select public.fn_upsert_pedido(p => ${j(p)}, p_tipo => 'inclusao_pedido', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)
+    await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+    return r.id
+  }
+  const cardDe = (pid) => id(`select id from public.plt_cards where pedido_id = ${pid} and tipo = 'pedido'`)
+  const peca = async (pid, pai, k, n, setor, etapa) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pid}, ${pai}, 1, 'SX51A', 'Guarda-roupa Teste 51', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${setor}, ${etapa ?? 'null'}, 'api');`)
+    return id(`select max(id) as id from public.plt_cards where tipo = 'unidade'`)
+  }
+  const estado = (cid) => um(`
+    select c.setor_atual_id::int as setor, c.etapa_atual_id::int as etapa, c.executor_atual_id as executor,
+           c.arquivado_em is not null as arquivada, c.retirada_parcial_em is not null as retirada,
+           c.pedido_id::int as pedido, c.desde
+      from public.plt_cards c where c.id = ${cid}`)
+  const noPcp = async (numero) =>
+    (await logado(PCPU, `select count(*)::int as n from public.plt_fn_pcp_quadro(100, 0, 'pedido', null, '${numero}') q
+                          join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`)).n > 0
+  const resumoPcp = async (numero) =>
+    (await logado(PCPU, `select q.pedido_resumo -> 'entrega_parcial' as ep from public.plt_fn_pcp_quadro(100, 0, 'pedido', null, '${numero}') q
+                          join public.pedidos p on p.id = q.pedido_id where p.numero = ${numero}`))?.ep
+
+  // ---------------- o cenário da demanda: 5 unidades — 2 prontas, 1 na MONTAGEM, 1 no FITAMENTO, 1 vaga ----------------
+  titulo('SESSAO-51 · frente 1 · a janela separa o que saiu do que ficou na fábrica')
+  const P1 = await gravar(pedido(99511, '5.00'))
+  const K1 = await cardDe(P1)
+  const u1 = await peca(P1, K1, 1, 5, AGU, null)
+  const u2 = await peca(P1, K1, 2, 5, AGU, null)
+  const u3 = await peca(P1, K1, 3, 5, MONT, A_MONTAR)
+  const u4 = await peca(P1, K1, 4, 5, FIT, A_FITAR)
+  // alguém trabalhando na peça da MONTAGEM (MONTANDO, com execução aberta)
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, etapa_origem_id, setor_destino_id, etapa_destino_id)
+                   values (${u3}, 'movimentacao_etapa', 'api', ${MONT}, ${A_MONTAR}, ${MONT}, ${MONTANDO});
+                 update public.plt_cards set executor_atual_id = (select id from public.plt_usuarios where usuario = 'adm.51') where id = ${u3};
+                 -- a bateria roda numa transação (o now() é um só): a chegada na etapa fica no passado
+                 update public.plt_cards set desde = now() - interval '2 hours' where id in (${u3}, ${u4});`)
+  await logado(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}]::bigint[], null, 1) as r`)
+  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id)
+                 values ('${HOJE}', ${CAM}, 1, (select id from public.plt_usuarios where usuario = 'ent.51'))`)
+  const abrir = (await logado(ENT, `select public.plt_fn_entrega_parcial_abrir(${K1}) as r`)).r
+  const prontas = abrir.pecas.filter((p) => p.pronta).map((p) => p.id)
+  const fabrica = abrir.pecas.filter((p) => !p.pronta)
+  conferir(prontas.length === 2 && fabrica.length === 2 && abrir.vagas === 1,
+           'a janela: 2 prontas, 2 na fábrica (com setor e etapa) e 1 vaga no PCP', JSON.stringify({ prontas, f: fabrica.length, v: abrir.vagas }))
+  conferir(fabrica.some((p) => p.etapa === 'MONTANDO 51') && fabrica.some((p) => p.etapa === 'A FITAR 51'),
+           'cada peça na fábrica diz o setor e a etapa', JSON.stringify(fabrica))
+  conferir(abrir.pode_limpar === false && abrir.recusa === null, 'o entregador não tem "Limpar"; nada recusa o pedido')
+  conferir((await logado(LOG, `select public.plt_fn_entrega_parcial_abrir(${K1}) -> 'pode_limpar' as r`)).r === true,
+           'a logística tem "Limpar"')
+
+  titulo('SESSAO-51 · frente 2 · o entregador só deixa em produção (o banco recusa o "Limpar")')
+  await falha(ENT, `select public.plt_fn_entrega_parcial(${K1}, array[${u1}, ${u2}]::bigint[], null, 'cliente sem espaço', false, 'limpar')`,
+              'o entregador tentando limpar é recusado', /decisão da logística, do PCP ou do admin/)
+
+  titulo('SESSAO-51 · frente 2 · "Deixar em produção": o que está na fábrica não muda e o pedido segue vivo')
+  const antes3 = await estado(u3)
+  const antes4 = await estado(u4)
+  const r1 = (await logado(ENT, `select public.plt_fn_entrega_parcial(${K1}, array[${u1}, ${u2}]::bigint[], null, 'cliente sem espaço', false, 'manter') as r`)).r
+  conferir(r1.fabrica === 'manter' && r1.entregues === 2 && r1.na_fabrica === 2 && r1.vagas === 1 && r1.saiu_da_rota === true,
+           'a entrega parcial registrou 2 entregues, 2 na fábrica, 1 vaga e tirou o pedido da rota do dia', JSON.stringify(r1))
+  const k1 = await um(`select entrega_evento_id, parcial_decisao, parcial_entregues, parcial_total, removido_pcp_em from public.plt_cards where id = ${K1}`)
+  conferir(k1.entrega_evento_id === null && k1.parcial_decisao === 'manter' && k1.parcial_entregues === 2 && k1.parcial_total === 5 && k1.removido_pcp_em === null,
+           'o pedido não fechou: "Entregue em parte (2 de 5)", decisão "manter"', JSON.stringify(k1))
+  const d3 = await estado(u3)
+  const d4 = await estado(u4)
+  conferir(d3.setor === antes3.setor && d3.etapa === antes3.etapa && d3.executor === antes3.executor && String(d3.desde) === String(antes3.desde) && !d3.arquivada,
+           'a peça da MONTAGEM segue igual (setor, etapa, quem trabalha, tempo)')
+  conferir(d4.setor === antes4.setor && d4.etapa === antes4.etapa && !d4.arquivada, 'a peça do FITAMENTO segue igual')
+  conferir(await noPcp(99511), 'a vaga continua no PCP (Aguardando liberação)')
+  const ep = await resumoPcp(99511)
+  conferir(ep && ep.entregues === 2 && ep.total === 5, 'o card do PCP diz "Entregue em parte (2 de 5)"', JSON.stringify(ep))
+  conferir((await um(`select count(*)::int as n from plt_privado.vw_pedidos_vivos_regra v where v.pedido_id = ${P1}`)).n === 1,
+           'o pedido segue vivo na regra do pedido vivo (Expedição, rotas)')
+  conferir((await um(`select count(*)::int as n from public.plt_programacoes where card_id = ${K1}`)).n === 0,
+           'o pedido saiu da rota do dia (volta para Programar)')
+  const rep = (await logado(ENT, `select public.plt_fn_entrega_parcial(${K1}, array[${u1}, ${u2}]::bigint[], null, 'cliente sem espaço', false, 'manter') as r`)).r
+  conferir(rep.repetido === true, 'o mesmo toque repetido faz um efeito só', JSON.stringify(rep))
+
+  titulo('SESSAO-51 · frente 3 · a aba "Entregas parciais" e o revogar (ida e volta)')
+  const lista1 = (await logado(LOG, `select public.plt_fn_entregas_parciais(null, 20, null, null) as r`)).r
+  const linha1 = lista1.itens.find((x) => x.card_id === K1)
+  conferir(linha1 && linha1.acao === 'remover' && linha1.n_producao === 2 && linha1.vagas === 1,
+           'a lista mostra o pedido com "Seguem em produção: 2 peças · 1 produto no PCP" e o botão contrário', JSON.stringify(linha1))
+  await falha(ENT, `select public.plt_fn_entregas_parciais(null, 20, null, null)`, 'o entregador não vê a lista', /logística, do PCP e do admin/)
+  const prev1 = (await logado(PCPU, `select public.plt_fn_entrega_parcial_previa(${K1}) as r`)).r
+  conferir(prev1.na_producao.length === 2 && prev1.na_producao.some((p) => p.etapa === 'MONTANDO 51'),
+           'a janela do revogar lê as peças e onde estão', JSON.stringify(prev1.na_producao))
+
+  const rv1 = (await logado(PCPU, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a1') as r`)).r
+  conferir(rv1.decisao === 'limpar' && rv1.retiradas === 2 && rv1.fechou === true, 'revogar e remover: as 2 saem e o pedido fecha', JSON.stringify(rv1))
+  const t3 = await estado(u3)
+  conferir(t3.arquivada && t3.retirada && t3.pedido === P1, 'a peça saiu da produção, arquivada com registro, sem perder o pedido')
+  conferir(!(await noPcp(99511)), 'a vaga saiu do PCP')
+  const ev3 = await um(`select dados from public.plt_eventos where card_id = ${u3} and tipo = 'peca_retirada_entrega_parcial' order by id desc limit 1`)
+  conferir(ev3.dados.etapa === 'MONTANDO 51' && ev3.dados.setor && ev3.dados.indice_unidade === 3,
+           'o fato guarda o setor e a etapa de AGORA (MONTANDO), o pedido e o k/n', JSON.stringify(ev3.dados))
+  const rv1b = (await logado(PCPU, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a1') as r`)).r
+  conferir(rv1b.repetido === true, 'o mesmo toque do revogar faz um efeito só')
+
+  const rv2 = (await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a2') as r`)).r
+  conferir(rv2.decisao === 'manter' && rv2.voltaram === 2 && rv2.reabriu === true, 'revogar e voltar tudo: as 2 voltam e o pedido reabre', JSON.stringify(rv2))
+  const v3 = await estado(u3)
+  const v4 = await estado(u4)
+  conferir(!v3.arquivada && !v3.retirada && v3.setor === MONT && v3.etapa === MONTANDO && v3.executor === null,
+           'a mesma peça voltou para MONTAGEM · MONTANDO, sem ninguém trabalhando', JSON.stringify(v3))
+  conferir(!v4.arquivada && v4.setor === FIT && v4.etapa === A_FITAR, 'a do FITAMENTO voltou para A FITAR', JSON.stringify(v4))
+  conferir(new Date(v3.desde).getTime() > new Date(antes3.desde).getTime(), 'a fila recomeça a contar na volta')
+  conferir(await noPcp(99511), 'a vaga reabriu no PCP')
+  const k1b = await um(`select entrega_evento_id, removido_pcp_em, parcial_decisao from public.plt_cards where id = ${K1}`)
+  conferir(k1b.entrega_evento_id === null && k1b.removido_pcp_em === null && k1b.parcial_decisao === 'manter', 'o pedido voltou a valer como "deixar em produção"')
+
+  // a 3ª ida e volta + a etapa arquivada no meio do caminho
+  await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a3') as r`)
+  await bd.exec(`update public.plt_etapas set ativa = false where id = ${MONTANDO}`)
+  const prev2 = (await logado(LOG, `select public.plt_fn_entrega_parcial_previa(${K1}) as r`)).r
+  const destino3 = prev2.retiradas.find((p) => p.id === u3)
+  conferir(destino3 && destino3.mudou_etapa === true && destino3.destino_etapa === 'A MONTAR 51',
+           'etapa arquivada: a janela avisa que a peça volta para a primeira etapa ativa', JSON.stringify(destino3))
+  await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a4') as r`)
+  const w3 = await estado(u3)
+  conferir(!w3.arquivada && w3.etapa === A_MONTAR, 'a peça voltou para A MONTAR (a primeira etapa ativa)', JSON.stringify(w3))
+  await bd.exec(`update public.plt_etapas set ativa = true where id = ${MONTANDO}`)
+  await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a5') as r`)
+  await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a6') as r`)
+  const trilha = await todos(`select dados ->> 'antes' as antes, dados ->> 'depois' as depois from public.plt_eventos
+                               where card_id = ${K1} and tipo = 'entrega_parcial_decisao_revogada' order by id`)
+  conferir(trilha.length === 6, 'a trilha mostra as 3 idas e voltas', JSON.stringify(trilha))
+
+  titulo('SESSAO-51 · a peça da MONTAGEM fica pronta: vai a Pedidos em aguardo e o pedido volta a ser programável')
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, etapa_origem_id, setor_destino_id)
+                   values (${u3}, 'movimentacao_setor', 'api', ${MONT}, ${A_MONTAR}, ${AGU});`)
+  conferir((await estado(u3)).setor === AGU, 'a peça está em Pedidos em aguardo')
+  const prog = await um(`select count(*)::int as n from plt_privado.vw_pedidos_para_rota v where v.pedido_id = ${P1}`)
+  conferir(prog.n === 1, 'o pedido aparece para programar')
+
+  titulo('SESSAO-51 · "Revogar e remover" não tira peça já pronta; o resto entregue tira da lista')
+  const rv7 = (await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a7') as r`)).r
+  conferir(rv7.retiradas === 1 && rv7.ficaram === 1 && rv7.fechou === false, 'saiu só a do FITAMENTO; a pronta ficou e o pedido segue vivo', JSON.stringify(rv7))
+  conferir(!(await estado(u3)).arquivada, 'a peça pronta segue em Pedidos em aguardo')
+  // o resto é entregue pelo "Entregue" normal
+  await logado(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}]::bigint[], null, 1) as r`)
+  const ent = await logado(LOG, `select public.plt_fn_registrar_entrega(${K1}, 'o resto', true) as r`)
+  conferir(ent.r !== null, 'o "Entregue" do resto fechou o pedido')
+  const lista2 = (await logado(LOG, `select public.plt_fn_entregas_parciais(null, 20, null, null) as r`)).r
+  conferir(!lista2.itens.some((x) => x.card_id === K1), 'o pedido saiu da lista "Entregas parciais"')
+  await falha(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-a8')`, 'o revogar é recusado com a explicação', /resto do pedido já foi entregue/)
+  const fila = await um(`select count(*)::int as n from public.plt_tiny_pedido_fila where pedido_id = ${P1}`)
+  conferir(fila.n >= 1, 'o "Entregue" do resto foi para a fila do Tiny', JSON.stringify(fila))
+
+  titulo('SESSAO-51 · "Limpar da produção" na própria entrega parcial (logística)')
+  const P2 = await gravar(pedido(99512, '3.00'))
+  const K2 = await cardDe(P2)
+  const z1 = await peca(P2, K2, 1, 3, AGU, null)
+  const z2 = await peca(P2, K2, 2, 3, MONT, A_MONTAR)
+  const r2 = (await logado(LOG, `select public.plt_fn_entrega_parcial(${K2}, array[${z1}]::bigint[], null, 'só uma cabia', false, 'limpar') as r`)).r
+  conferir(r2.fabrica === 'limpar' && r2.retiradas === 1 && r2.vagas === 1, 'limpar: 1 peça retirada e 1 produto tirado do PCP', JSON.stringify(r2))
+  const k2 = await um(`select entrega_evento_id is not null as fechado, removido_pcp_motivo from public.plt_cards where id = ${K2}`)
+  conferir(k2.fechado && k2.removido_pcp_motivo === 'entrega_parcial', 'o pedido fechou e saiu do PCP pela regra única', JSON.stringify(k2))
+  conferir(!(await noPcp(99512)), 'a vaga saiu do PCP')
+  const ocultos = await logado(LOG, `select count(*)::int as n from plt_privado.fn_pcp_ocultos_linhas(null, 50, null, null, true) o where o.numero = 99512`)
+  conferir(ocultos.n === 0, 'ele não aparece em "Pedidos ocultos"')
+  const sino = await um(`select count(*)::int as n from public.plt_notificacoes where tipo = 'entrega_parcial_retirada' and card_id = ${K2}`)
+  conferir(sino.n >= 1, 'o sino do PCP avisa', JSON.stringify(sino))
+  const lista3 = (await logado(LOG, `select public.plt_fn_entregas_parciais('99512', 20, null, null) as r`)).r
+  conferir(lista3.itens.length === 1 && lista3.itens[0].acao === 'voltar', 'a busca pelo número acha o pedido, com "Revogar e voltar tudo"', JSON.stringify(lista3.itens.map((x) => x.numero)))
+  const lpd = await logado(LOG, `select situacao_plataforma, entregue_fonte from public.plt_fn_pedidos_lista('99512', null, 20, false) limit 1`)
+  conferir(lpd && lpd.entregue_fonte === 'parcial', 'a lista de Pedidos diz "entregue em parte"', JSON.stringify(lpd))
+  } finally {
+    await bd.exec('rollback')
+    await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
+  }
+} // fim do bloco SESSAO-51 · bloco A
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total

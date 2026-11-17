@@ -37,7 +37,9 @@ alter table public.plt_motivos drop constraint if exists plt_motivos_tipo_ck;
 alter table public.plt_motivos add constraint plt_motivos_tipo_ck
   check (tipo in ('nao_entregue', 'desfazer_entrega', 'devolucao', 'pausa', 'saida', 'standby', 'mover',
                   'entrega_parcial', 'conferencia')) not valid;
-alter table public.plt_motivos validate constraint plt_motivos_tipo_ck;
+-- ↪️ SESSAO-51 (E-19/E-144): o validate de plt_motivos_tipo_ck mudou para a
+-- migration mais nova do check (20261116010000_plt_sessao51_base.sql — o motivo
+-- 'volta_pcp'); reaplicada sobre um banco com esses motivos, esta quebraria.
 
 insert into public.plt_motivos (tipo, texto, ordem) values
   ('conferencia', 'Conferido com quem montou', 10),

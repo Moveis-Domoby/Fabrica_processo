@@ -47,7 +47,9 @@ alter table public.plt_eventos add constraint plt_eventos_tipo_check check (tipo
   'endereco_entrega_alterado', 'endereco_entrega_restaurado', 'endereco_entrega_tiny_confirmado',
   'endereco_entrega_tiny_substituido'
 ]::text[])) not valid;
-alter table public.plt_eventos validate constraint plt_eventos_tipo_check;
+-- ↪️ SESSAO-51 (E-19): o validate de plt_eventos_tipo_check mudou para a migration
+-- mais nova do check (20261116010000_plt_sessao51_base.sql) — reaplicada sobre um
+-- banco que já tem os tipos da 51, esta lista (sem eles) quebraria o validate.
 
 -- ----------------------------------------------------------------------------
 -- 2 · O catálogo dos avisos: o pedido excluído no Tiny vai para a logística (que

@@ -113,24 +113,6 @@ export async function corrigirDiaDaEntrega(parametros: {
 }
 
 /** SESSAO-41 (D-195): uma peça viva do pedido, para marcar a entrega parcial. */
-export interface PecaDaEntrega {
-  id: number
-  descricao: string | null
-  item_seq: number | null
-  indice: number | null
-  total: number | null
-  /** No fim de linha (Expedição ou ROTAS) — senão, a plataforma ainda a vê em produção. */
-  pronta: boolean
-  onde: string | null
-}
-
-/** As peças do pedido — só quando a janela da entrega parcial abre (Lei §3). */
-export async function listarPecasDaEntrega(cardId: number): Promise<PecaDaEntrega[]> {
-  const { data, error } = await supabase.rpc('plt_fn_entrega_pecas', { p_card_id: cardId })
-  if (error) throw new Error(`Não deu para carregar as peças: ${error.message}`)
-  return (data ?? []) as PecaDaEntrega[]
-}
-
 /**
  * SESSAO-41 (D-195): a ENTREGA PARCIAL — as peças entregues saem; as que
  * voltaram vão para "Em decisão pós devolução" (a logística decide). O Tiny
@@ -142,15 +124,74 @@ export async function registrarEntregaParcial(parametros: {
   motivoId: number | null
   observacao?: string
   confirmarIncompleto?: boolean
-}): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_entrega_parcial', {
+  /**
+   * SESSAO-51 (frente 2): o que fazer com o que ainda está na fábrica —
+   * 'manter' (padrão; o entregador só tem esta) ou 'limpar' (logística, PCP e admin).
+   */
+  fabrica?: 'manter' | 'limpar'
+}): Promise<ResultadoEntregaParcial> {
+  const { data, error } = await supabase.rpc('plt_fn_entrega_parcial', {
     p_card_id: parametros.cardId,
     p_entregues: parametros.entregues,
     p_motivo_id: parametros.motivoId,
     p_observacao: parametros.observacao?.trim() || null,
     p_confirmar_incompleto: parametros.confirmarIncompleto ?? false,
+    p_fabrica: parametros.fabrica ?? 'manter',
   })
   if (error) throw new Error(error.message)
+  return (data ?? {}) as ResultadoEntregaParcial
+}
+
+/** O que a entrega parcial fez (SESSAO-51). */
+export interface ResultadoEntregaParcial {
+  repetido?: boolean
+  entregues?: number
+  voltaram?: number
+  na_fabrica?: number
+  vagas?: number
+  fabrica?: 'manter' | 'limpar' | null
+  retiradas?: number
+  saiu_da_rota?: boolean
+}
+
+/** SESSAO-51 (frente 1): uma peça na janela da entrega parcial. */
+export interface PecaEntregaParcial {
+  id: number
+  descricao: string | null
+  item_seq: number | null
+  indice: number | null
+  total: number | null
+  /** No fim de linha (Pedidos em aguardo ou a rota) — "Saíram para a entrega". */
+  pronta: boolean
+  onde: string | null
+  setor: string | null
+  etapa: string | null
+}
+
+/** SESSAO-51 (frente 1): tudo o que a janela da entrega parcial mostra, numa requisição. */
+export interface AberturaEntregaParcial {
+  pecas: PecaEntregaParcial[]
+  /** Os produtos do pedido ainda no PCP, sem liberar. */
+  vagas: number
+  motivos: { id: number; texto: string }[]
+  /** Quem pode escolher "Limpar da produção" (logística, PCP e admin). */
+  pode_limpar: boolean
+  /** Por que o pedido não aceita entrega parcial agora (nulo = aceita). */
+  recusa: string | null
+}
+
+/** A janela da entrega parcial — só quando ela abre (Lei §3). */
+export async function abrirEntregaParcial(cardId: number): Promise<AberturaEntregaParcial> {
+  const { data, error } = await supabase.rpc('plt_fn_entrega_parcial_abrir', { p_card_id: cardId })
+  if (error) throw new Error(`Não deu para carregar as peças: ${error.message}`)
+  const d = (data ?? {}) as Partial<AberturaEntregaParcial>
+  return {
+    pecas: d.pecas ?? [],
+    vagas: d.vagas ?? 0,
+    motivos: d.motivos ?? [],
+    pode_limpar: d.pode_limpar ?? false,
+    recusa: d.recusa ?? null,
+  }
 }
 
 // ---------------------------------------------------------------------------
