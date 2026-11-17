@@ -559,7 +559,13 @@ export type UnidadeLiberacao =
   | { item_seq: number; indice_unidade: number; peca_producao_id: number }
   | { item_seq: number; indice_unidade: number; setor_id: number; etapa_id: number | null }
   // SESSAO-51 (bloco B): a mesma peça que voltou da produção, na coluna escolhida
-  | { item_seq: number; indice_unidade: number; setor_id: number; etapa_id: number | null; peca_volta_id: number }
+  | {
+      item_seq: number
+      indice_unidade: number
+      setor_id: number
+      etapa_id: number | null
+      peca_volta_id: number
+    }
 
 export interface ResultadoLiberacao {
   /** Usaram a peça do estoque — nasceram prontas em Pedidos em aguardo. */

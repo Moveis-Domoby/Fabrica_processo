@@ -46,7 +46,9 @@ import { textoBotaoRevogar, textoDecisao, textoEntregueEmParte } from '@/kanban/
 import type { EstadoParcial } from '@/kanban/entregaParcial'
 // SESSAO-51 (frente 3): a janela do revogar só carrega no clique (Lei §9)
 const ModalRevogarParcial = lazy(() =>
-  import('@/kanban/componentes/ModalRevogarParcial').then((m) => ({ default: m.ModalRevogarParcial })),
+  import('@/kanban/componentes/ModalRevogarParcial').then((m) => ({
+    default: m.ModalRevogarParcial,
+  })),
 )
 import { data, diaEHora, moeda, valorDoTiny } from './formato'
 
@@ -255,8 +257,9 @@ function EntregaParcialDaFicha({ estado: e }: { estado: EstadoParcial }) {
           <PackageCheck aria-hidden className="size-4 shrink-0 text-info-texto" />
           {textoEntregueEmParte(e.entregues, e.total)}
           {!e.fechado && e.decisao === 'manter' && naFabrica > 0 && (
-            <span className="text-sm font-normal text-texto-suave">
-              · {naFabrica} ainda em produção
+            // uma pílula (não "· N"): no celular ela quebra a linha e o "·" ficava sozinho no começo
+            <span className="rounded-full border border-borda bg-superficie px-2 py-0.5 text-xs font-normal text-texto-suave">
+              {naFabrica} ainda em produção
             </span>
           )}
         </p>
@@ -281,7 +284,13 @@ function EntregaParcialDaFicha({ estado: e }: { estado: EstadoParcial }) {
       </div>
       {tenhoAcesso && e.pode_revogar && e.acao && (
         <div className="flex shrink-0">
-          <Botao variante="secundaria" icone={<RotateCcw />} className="whitespace-normal text-left" onClick={() => setRevogando(true)}>
+          <Botao
+            variante="secundaria"
+            icone={<RotateCcw />}
+            // o texto longo quebra em duas linhas no celular — o botão cresce junto
+            className="h-auto! min-h-toque-md py-2 whitespace-normal text-left"
+            onClick={() => setRevogando(true)}
+          >
             {textoBotaoRevogar(e.acao)}
           </Botao>
         </div>

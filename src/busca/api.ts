@@ -48,7 +48,8 @@ export interface ItemDaBusca {
    * mora na aba "Cancelados e removidos". Ausente = não foi removido.
    */
   removido_pcp_em?: string | null
-  removido_pcp_motivo?: 'pedido_cancelado' | 'fora_da_linha' | 'outro' | 'oculto' | 'entrega_parcial' | null
+  removido_pcp_motivo?:
+    'pedido_cancelado' | 'fora_da_linha' | 'outro' | 'oculto' | 'entrega_parcial' | null
 }
 
 export interface PaginaDaBusca {

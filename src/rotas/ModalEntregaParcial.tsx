@@ -153,7 +153,9 @@ export function ModalEntregaParcial({
         }}
       >
         {abertura.isPending && <p className="text-sm text-texto-fraco">Carregando as peças…</p>}
-        {abertura.isError && <p className="text-sm text-danificado-forte">{abertura.error.message}</p>}
+        {abertura.isError && (
+          <p className="text-sm text-danificado-forte">{abertura.error.message}</p>
+        )}
         {dados?.recusa && (
           <p
             role="alert"
@@ -175,7 +177,12 @@ export function ModalEntregaParcial({
               logística (reenviar, estoque, outro pedido, danificados…).
             </p>
             {prontas.map((p) => (
-              <LinhaPeca key={p.id} peca={p} marcada={marcadas.includes(p.id)} aoAlternar={() => alternar(p.id)} />
+              <LinhaPeca
+                key={p.id}
+                peca={p}
+                marcada={marcadas.includes(p.id)}
+                aoAlternar={() => alternar(p.id)}
+              />
             ))}
           </fieldset>
         )}
@@ -233,7 +240,9 @@ export function ModalEntregaParcial({
 
         {temFabrica && marcadas.length > 0 && (
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium text-texto">E o que ainda está na fábrica?</legend>
+            <legend className="mb-1 text-sm font-medium text-texto">
+              E o que ainda está na fábrica?
+            </legend>
             <OpcaoFabrica
               nome="fabrica"
               valor="manter"
@@ -362,7 +371,9 @@ function OpcaoFabrica({
     <label
       className={cn(
         'flex min-h-12 cursor-pointer items-start gap-3 rounded-dm border p-3 text-sm transition-colors',
-        escolhido ? 'border-acao-ativa bg-acao/10' : 'border-borda bg-superficie hover:bg-superficie-sutil',
+        escolhido
+          ? 'border-acao-ativa bg-acao/10'
+          : 'border-borda bg-superficie hover:bg-superficie-sutil',
       )}
     >
       <input

@@ -51,7 +51,9 @@ const estado = (extra: Partial<EstadoParcial> = {}): EstadoParcial => ({
 function renderizar() {
   render(
     <MemoryRouter initialEntries={['/fabrica/producao/pcp?aba=parciais']}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <ProvedorNotificacao>
           <AbaEntregasParciais />
         </ProvedorNotificacao>
@@ -69,18 +71,36 @@ afterEach(() => {
 describe('A aba "Entregas parciais"', () => {
   it('mostra a decisão que vale e só o botão contrário', async () => {
     listarEntregasParciais.mockResolvedValue({
-      itens: [estado(), estado({ card_id: 71, numero: 13901, decisao: 'limpar', acao: 'voltar', n_producao: 0, n_retiradas: 2 })],
+      itens: [
+        estado(),
+        estado({
+          card_id: 71,
+          numero: 13901,
+          decisao: 'limpar',
+          acao: 'voltar',
+          n_producao: 0,
+          n_retiradas: 2,
+        }),
+      ],
       proxima: null,
     })
     renderizar()
     const a = (await screen.findByText('Pedido 13900')).closest('li')!
     expect(within(a).getByText('Entregue em parte (2 de 5)')).toBeInTheDocument()
-    expect(within(a).getByText('Seguem em produção: 2 peças · 1 produto no PCP')).toBeInTheDocument()
-    expect(within(a).getByRole('button', { name: 'Revogar e remover da linha de produção' })).toBeInTheDocument()
+    expect(
+      within(a).getByText('Seguem em produção: 2 peças · 1 produto no PCP'),
+    ).toBeInTheDocument()
+    expect(
+      within(a).getByRole('button', { name: 'Revogar e remover da linha de produção' }),
+    ).toBeInTheDocument()
     expect(within(a).queryByRole('button', { name: /voltar tudo/ })).not.toBeInTheDocument()
     const b = screen.getByText('Pedido 13901').closest('li')!
-    expect(within(b).getByText('Retiradas da produção: 2 peças · 1 produto do PCP')).toBeInTheDocument()
-    expect(within(b).getByRole('button', { name: 'Revogar e voltar tudo para a produção' })).toBeInTheDocument()
+    expect(
+      within(b).getByText('Retiradas da produção: 2 peças · 1 produto do PCP'),
+    ).toBeInTheDocument()
+    expect(
+      within(b).getByRole('button', { name: 'Revogar e voltar tudo para a produção' }),
+    ).toBeInTheDocument()
   })
 
   it('a janela do revogar lê ao abrir (onde cada peça está) e o toque leva a chave', async () => {
@@ -88,37 +108,82 @@ describe('A aba "Entregas parciais"', () => {
     previaEntregaParcial.mockResolvedValue(
       estado({
         na_producao: [
-          { id: 3, descricao: 'Guarda-roupa 3/4', indice: 3, total: 5, setor: 'MONTAGEM', etapa: 'Montando', trabalhando: true },
-          { id: 4, descricao: 'Guarda-roupa 3/4', indice: 4, total: 5, setor: 'FITAMENTO', etapa: 'Fila' },
+          {
+            id: 3,
+            descricao: 'Guarda-roupa 3/4',
+            indice: 3,
+            total: 5,
+            setor: 'MONTAGEM',
+            etapa: 'Montando',
+            trabalhando: true,
+          },
+          {
+            id: 4,
+            descricao: 'Guarda-roupa 3/4',
+            indice: 4,
+            total: 5,
+            setor: 'FITAMENTO',
+            etapa: 'Fila',
+          },
         ],
         prontas: [],
       }),
     )
-    revogarEntregaParcial.mockResolvedValue({ feito: true, decisao: 'limpar', retiradas: 2, vagas: 1, ficaram: 0 })
+    revogarEntregaParcial.mockResolvedValue({
+      feito: true,
+      decisao: 'limpar',
+      retiradas: 2,
+      vagas: 1,
+      ficaram: 0,
+    })
     renderizar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Revogar e remover da linha de produção' }))
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Revogar e remover da linha de produção' }),
+    )
     const janela = await screen.findByRole('dialog')
-    expect(await within(janela).findByText(/Tirar da produção as 2 peças \(MONTAGEM · Montando, FITAMENTO · Fila\)/)).toBeInTheDocument()
+    expect(
+      await within(janela).findByText(
+        /Tirar da produção as 2 peças \(MONTAGEM · Montando, FITAMENTO · Fila\)/,
+      ),
+    ).toBeInTheDocument()
     expect(within(janela).getByText(/alguém trabalha nela/)).toBeInTheDocument()
-    await userEvent.click(within(janela).getByRole('button', { name: 'Revogar e remover da linha de produção' }))
+    await userEvent.click(
+      within(janela).getByRole('button', { name: 'Revogar e remover da linha de produção' }),
+    )
     await waitFor(() => expect(revogarEntregaParcial).toHaveBeenCalled())
     expect(revogarEntregaParcial.mock.calls[0][0]).toBe(70)
     expect(String(revogarEntregaParcial.mock.calls[0][1])).toMatch(/^revogar-70-/)
   })
 
   it('"voltar tudo": cada peça diz para onde volta e avisa a etapa que não existe mais', async () => {
-    listarEntregasParciais.mockResolvedValue({ itens: [estado({ decisao: 'limpar', acao: 'voltar', n_producao: 0, n_retiradas: 1 })], proxima: null })
+    listarEntregasParciais.mockResolvedValue({
+      itens: [estado({ decisao: 'limpar', acao: 'voltar', n_producao: 0, n_retiradas: 1 })],
+      proxima: null,
+    })
     previaEntregaParcial.mockResolvedValue(
       estado({
         decisao: 'limpar',
         acao: 'voltar',
         retiradas: [
-          { id: 3, descricao: 'Guarda-roupa 3/4', indice: 3, total: 5, setor: 'MONTAGEM', etapa: 'Montando', destino_setor: 'MONTAGEM', destino_etapa: 'A montar', mudou_etapa: true, vira_vaga: false },
+          {
+            id: 3,
+            descricao: 'Guarda-roupa 3/4',
+            indice: 3,
+            total: 5,
+            setor: 'MONTAGEM',
+            etapa: 'Montando',
+            destino_setor: 'MONTAGEM',
+            destino_etapa: 'A montar',
+            mudou_etapa: true,
+            vira_vaga: false,
+          },
         ],
       }),
     )
     renderizar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Revogar e voltar tudo para a produção' }))
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Revogar e voltar tudo para a produção' }),
+    )
     const janela = await screen.findByRole('dialog')
     expect(await within(janela).findByText(/volta para MONTAGEM · A montar/)).toBeInTheDocument()
     expect(within(janela).getByText(/A etapa Montando não existe mais/)).toBeInTheDocument()

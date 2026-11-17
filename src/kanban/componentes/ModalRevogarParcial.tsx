@@ -12,7 +12,13 @@ import {
 } from '../entregaParcial'
 
 /** O que o pedido revogado precisa reler (PCP, Pedidos, a ficha, a lista). */
-const CHAVES = [['cards'], ['pedidos-lista'], ['pedido-ficha'], ['entregas-parciais'], ['programacao']]
+const CHAVES = [
+  ['cards'],
+  ['pedidos-lista'],
+  ['pedido-ficha'],
+  ['entregas-parciais'],
+  ['programacao'],
+]
 
 function onde(setor: string | null | undefined, etapa: string | null | undefined): string {
   return [setor, etapa].filter(Boolean).join(' · ') || 'a fábrica'
@@ -79,7 +85,9 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
                 .join(' ')
             : [
                 (r.voltaram ?? 0) === 1 ? '1 peça voltou para a etapa onde estava.' : '',
-                (r.voltaram ?? 0) > 1 ? `${r.voltaram} peças voltaram para a etapa onde estavam.` : '',
+                (r.voltaram ?? 0) > 1
+                  ? `${r.voltaram} peças voltaram para a etapa onde estavam.`
+                  : '',
                 (r.vagas ?? 0) + (r.viraram_vaga ?? 0) > 0
                   ? `${produtosPorExtenso((r.vagas ?? 0) + (r.viraram_vaga ?? 0))} de volta ao PCP para liberar.`
                   : '',
@@ -141,8 +149,12 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
               </>
             ) : null}
             {naProducao.length > 0 && e.vagas > 0 ? ' e ' : ''}
-            {e.vagas > 0 ? (e.vagas === 1 ? 'o produto ainda no PCP' : `os ${e.vagas} produtos ainda no PCP`) : ''} do
-            pedido {e.numero}?
+            {e.vagas > 0
+              ? e.vagas === 1
+                ? 'o produto ainda no PCP'
+                : `os ${e.vagas} produtos ainda no PCP`
+              : ''}{' '}
+            do pedido {e.numero}?
           </p>
           {naProducao.length > 0 && (
             <ul className="flex flex-col gap-1 text-sm">
@@ -150,8 +162,14 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
                 <li key={p.id} className="flex items-start gap-2 text-texto">
                   <Factory aria-hidden className="mt-0.5 size-4 shrink-0 text-texto-suave" />
                   <span className="min-w-0 break-words">
-                    {nomeComIndice(p)} <span className="text-texto-suave">— {onde(p.setor, p.etapa)}</span>
-                    {p.trabalhando && <span className="text-atencao-texto"> · alguém trabalha nela: o tempo fecha agora</span>}
+                    {nomeComIndice(p)}{' '}
+                    <span className="text-texto-suave">— {onde(p.setor, p.etapa)}</span>
+                    {p.trabalhando && (
+                      <span className="text-atencao-texto">
+                        {' '}
+                        · alguém trabalha nela: o tempo fecha agora
+                      </span>
+                    )}
                   </span>
                 </li>
               ))}
@@ -159,20 +177,24 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
           )}
           {prontas.length > 0 && (
             <p className="rounded-dm border border-borda bg-superficie-sutil p-3 text-sm text-texto-suave">
-              {prontas.length === 1 ? '1 peça já está pronta e fica' : `${prontas.length} peças já estão prontas e ficam`}{' '}
-              ({prontas.map((p) => (p.na_rota ? `${p.onde} — na rota` : p.onde)).join(', ')}): o pedido segue para
-              ser entregue com {prontas.length === 1 ? 'ela' : 'elas'}.
+              {prontas.length === 1
+                ? '1 peça já está pronta e fica'
+                : `${prontas.length} peças já estão prontas e ficam`}{' '}
+              ({prontas.map((p) => (p.na_rota ? `${p.onde} — na rota` : p.onde)).join(', ')}): o
+              pedido segue para ser entregue com {prontas.length === 1 ? 'ela' : 'elas'}.
             </p>
           )}
-          <p className="text-xs text-texto-suave">Nada é apagado: dá para voltar atrás de novo aqui mesmo.</p>
+          <p className="text-xs text-texto-suave">
+            Nada é apagado: dá para voltar atrás de novo aqui mesmo.
+          </p>
         </div>
       )}
 
       {e.pode_revogar && e.acao === 'voltar' && (
         <div className="flex flex-col gap-2">
           <p className="text-sm text-texto">
-            Voltar tudo para a produção, cada peça na etapa onde estava? Ninguém volta a trabalhar nela sozinho —
-            quem for trabalhar aperta "Iniciar".
+            Voltar tudo para a produção, cada peça na etapa onde estava? Ninguém volta a trabalhar
+            nela sozinho — quem for trabalhar aperta "Iniciar".
           </p>
           {retiradas.length > 0 && (
             <ul className="flex flex-col gap-1 text-sm">
@@ -182,19 +204,21 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
                     <ArrowRight aria-hidden className="mt-0.5 size-4 shrink-0 text-texto-suave" />
                     <span className="min-w-0 break-words">
                       {nomeComIndice(p)} →{' '}
-                      {p.vira_vaga ? 'vira vaga no PCP' : `volta para ${onde(p.destino_setor, p.destino_etapa)}`}
+                      {p.vira_vaga
+                        ? 'vira vaga no PCP'
+                        : `volta para ${onde(p.destino_setor, p.destino_etapa)}`}
                     </span>
                   </span>
                   {p.mudou_etapa && !p.vira_vaga && (
                     <span className="ml-6 flex items-start gap-1 text-xs text-atencao-texto">
-                      <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />A etapa {p.etapa} não existe mais —
-                      a peça volta para a primeira etapa ativa do setor.
+                      <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />A etapa{' '}
+                      {p.etapa} não existe mais — a peça volta para a primeira etapa ativa do setor.
                     </span>
                   )}
                   {p.vira_vaga && (
                     <span className="ml-6 flex items-start gap-1 text-xs text-atencao-texto">
-                      <XCircle aria-hidden className="mt-px size-3.5 shrink-0" />O setor {p.setor} não existe mais — a
-                      vaga dela volta ao PCP para liberar.
+                      <XCircle aria-hidden className="mt-px size-3.5 shrink-0" />O setor {p.setor}{' '}
+                      não existe mais — a vaga dela volta ao PCP para liberar.
                     </span>
                   )}
                 </li>
@@ -212,11 +236,23 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Botao variante="secundaria" icone={<Undo2 />} disabled={revogar.isPending} onClick={aoFechar}>
+        <Botao
+          variante="secundaria"
+          icone={<Undo2 />}
+          disabled={revogar.isPending}
+          onClick={aoFechar}
+        >
           {e.pode_revogar ? 'Voltar' : 'Fechar'}
         </Botao>
         {e.pode_revogar && e.acao && (
-          <Botao icone={<RotateCcw />} carregando={revogar.isPending} onClick={() => revogar.mutate()}>
+          <Botao
+            icone={<RotateCcw />}
+            carregando={revogar.isPending}
+            // o texto é longo: no celular ele quebra em duas linhas — o botão cresce junto
+            // ("!": a junção de classes não reconhece a altura da casa e manteria as duas)
+            className="h-auto! min-h-toque-md py-2 whitespace-normal"
+            onClick={() => revogar.mutate()}
+          >
             {textoBotaoRevogar(e.acao)}
           </Botao>
         )}

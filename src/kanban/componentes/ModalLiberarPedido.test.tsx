@@ -52,15 +52,29 @@ const janela: JanelaLiberacao = {
   ],
 }
 const setores = [
-  { id: 6, nome: 'MONTAGEM', codigo: 'montagem', papel_no_fluxo: 'producao', ativo: true, ordem: 60 },
+  {
+    id: 6,
+    nome: 'MONTAGEM',
+    codigo: 'montagem',
+    papel_no_fluxo: 'producao',
+    ativo: true,
+    ordem: 60,
+  },
 ] as unknown as Setor[]
 const card = { id: 500, tipo: 'pedido', pedido_id: 9 } as unknown as Card
 
 function renderizar() {
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <ProvedorNotificacao>
-        <ModalLiberarPedido cardPedido={card} pedido={{ numero: 13871 } as never} setores={setores} aoFechar={() => {}} />
+        <ModalLiberarPedido
+          cardPedido={card}
+          pedido={{ numero: 13871 } as never}
+          setores={setores}
+          aoFechar={() => {}}
+        />
       </ProvedorNotificacao>
     </QueryClientProvider>,
   )
@@ -79,9 +93,17 @@ describe('"Liberar unidades" com a peça que voltou da produção', () => {
       { id: 61, setor_id: 6, nome: 'A montar', eh_fila: true, ordem: 1 },
       { id: 62, setor_id: 6, nome: 'Montando', eh_fila: false, ordem: 2 },
     ])
-    liberarNoPcp.mockResolvedValue({ alocadas: 0, liberadas: 0, reaproveitadas: 1, ja_liberadas: 0, cards: [77] })
+    liberarNoPcp.mockResolvedValue({
+      alocadas: 0,
+      liberadas: 0,
+      reaproveitadas: 1,
+      ja_liberadas: 0,
+      cards: [77],
+    })
     renderizar()
-    const caixa = await screen.findByRole('checkbox', { name: /Usar a mesma peça \(estava em MONTAGEM · Montando\)/ })
+    const caixa = await screen.findByRole('checkbox', {
+      name: /Usar a mesma peça \(estava em MONTAGEM · Montando\)/,
+    })
     expect(caixa).toBeChecked()
     await userEvent.click(screen.getByRole('button', { name: /Liberar 1 unidade/ }))
     await waitFor(() => expect(liberarNoPcp).toHaveBeenCalled())

@@ -47,7 +47,9 @@ const previa = (extra: Partial<PreviaVoltaPcp> = {}): PreviaVoltaPcp => ({
 
 function renderizar() {
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <ProvedorNotificacao>
         <ModalVoltarPcp cardId={40} aoFechar={() => {}} />
       </ProvedorNotificacao>
@@ -67,7 +69,9 @@ describe('A janela "Mover para o PCP"', () => {
     const janela = await screen.findByRole('dialog')
     const linha = (await within(janela).findByText(/Guarda-roupa Casal 3\/4/)).closest('p')
     expect(linha).toHaveTextContent('Guarda-roupa Casal 3/4 (pedido 13871) · MONTAGEM · Montando.')
-    expect(within(janela).getByText('Franklin está trabalhando nela — o tempo dele fecha agora.')).toBeInTheDocument()
+    expect(
+      within(janela).getByText('Franklin está trabalhando nela — o tempo dele fecha agora.'),
+    ).toBeInTheDocument()
   })
 
   it('"Voltar para o PCP" pede motivo ou observação e manda a chave do toque', async () => {
@@ -81,13 +85,23 @@ describe('A janela "Mover para o PCP"', () => {
     expect(botao).toBeEnabled()
     await userEvent.click(botao)
     await waitFor(() => expect(voltarParaPcp).toHaveBeenCalled())
-    expect(voltarParaPcp.mock.calls[0][0]).toMatchObject({ cardId: 40, escolha: 'voltar', motivoId: 2 })
+    expect(voltarParaPcp.mock.calls[0][0]).toMatchObject({
+      cardId: 40,
+      escolha: 'voltar',
+      motivoId: 2,
+    })
     expect(String(voltarParaPcp.mock.calls[0][0].chave)).toMatch(/^volta-pcp-40-/)
   })
 
   it('pedido fora do PCP: só "Virar reposição de estoque", com o porquê da outra', async () => {
     previaVoltarPcp.mockResolvedValue(
-      previa({ voltar: { pode: false, porque_nao: 'O pedido 13871 foi ocultado do PCP — a peça só pode virar reposição de estoque.' } }),
+      previa({
+        voltar: {
+          pode: false,
+          porque_nao:
+            'O pedido 13871 foi ocultado do PCP — a peça só pode virar reposição de estoque.',
+        },
+      }),
     )
     voltarParaPcp.mockResolvedValue({ feito: true, escolha: 'reposicao', numero: 13871 })
     renderizar()
@@ -126,11 +140,20 @@ describe('Quem vê o botão e o selo do PCP', () => {
       textoSeloVolta({
         voltar: 1,
         reposicao: 0,
-        ultimo: { escolha: 'voltar', motivo: 'Prioridade mudou', setor: 'MONTAGEM', etapa: 'Montando' },
+        ultimo: {
+          escolha: 'voltar',
+          motivo: 'Prioridade mudou',
+          setor: 'MONTAGEM',
+          etapa: 'Montando',
+        },
       }),
     ).toBe('1 voltou da produção: Prioridade mudou — estava em MONTAGEM · Montando')
-    expect(textoSeloVolta({ voltar: 0, reposicao: 1, ultimo: { escolha: 'reposicao', setor: 'MONTAGEM' } })).toBe(
-      '1 virou reposição de estoque — estava em MONTAGEM',
-    )
+    expect(
+      textoSeloVolta({
+        voltar: 0,
+        reposicao: 1,
+        ultimo: { escolha: 'reposicao', setor: 'MONTAGEM' },
+      }),
+    ).toBe('1 virou reposição de estoque — estava em MONTAGEM')
   })
 })

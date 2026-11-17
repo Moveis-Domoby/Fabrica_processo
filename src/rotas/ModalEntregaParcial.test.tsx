@@ -26,10 +26,50 @@ vi.mock('./api', async (original) => ({
 
 const abertura = (extra: Partial<AberturaEntregaParcial> = {}): AberturaEntregaParcial => ({
   pecas: [
-    { id: 1, descricao: 'Guarda-roupa 3/4', item_seq: 1, indice: 1, total: 5, pronta: true, onde: 'PEDIDOS EM AGUARDO', setor: 'PEDIDOS EM AGUARDO', etapa: null },
-    { id: 2, descricao: 'Guarda-roupa 3/4', item_seq: 1, indice: 2, total: 5, pronta: true, onde: 'ROTAS', setor: 'ROTAS', etapa: null },
-    { id: 3, descricao: 'Guarda-roupa 3/4', item_seq: 1, indice: 3, total: 5, pronta: false, onde: 'MONTAGEM', setor: 'MONTAGEM', etapa: 'Montando' },
-    { id: 4, descricao: 'Guarda-roupa 3/4', item_seq: 1, indice: 4, total: 5, pronta: false, onde: 'FITAMENTO', setor: 'FITAMENTO', etapa: 'Fila' },
+    {
+      id: 1,
+      descricao: 'Guarda-roupa 3/4',
+      item_seq: 1,
+      indice: 1,
+      total: 5,
+      pronta: true,
+      onde: 'PEDIDOS EM AGUARDO',
+      setor: 'PEDIDOS EM AGUARDO',
+      etapa: null,
+    },
+    {
+      id: 2,
+      descricao: 'Guarda-roupa 3/4',
+      item_seq: 1,
+      indice: 2,
+      total: 5,
+      pronta: true,
+      onde: 'ROTAS',
+      setor: 'ROTAS',
+      etapa: null,
+    },
+    {
+      id: 3,
+      descricao: 'Guarda-roupa 3/4',
+      item_seq: 1,
+      indice: 3,
+      total: 5,
+      pronta: false,
+      onde: 'MONTAGEM',
+      setor: 'MONTAGEM',
+      etapa: 'Montando',
+    },
+    {
+      id: 4,
+      descricao: 'Guarda-roupa 3/4',
+      item_seq: 1,
+      indice: 4,
+      total: 5,
+      pronta: false,
+      onde: 'FITAMENTO',
+      setor: 'FITAMENTO',
+      etapa: 'Fila',
+    },
   ],
   vagas: 1,
   motivos: [{ id: 9, texto: 'Cliente sem espaço' }],
@@ -40,9 +80,14 @@ const abertura = (extra: Partial<AberturaEntregaParcial> = {}): AberturaEntregaP
 
 function renderizar() {
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <ProvedorNotificacao>
-        <ModalEntregaParcial pedido={{ card_id: 50, numero: 13871, cliente_nome: 'Cliente Teste' }} aoFechar={() => {}} />
+        <ModalEntregaParcial
+          pedido={{ card_id: 50, numero: 13871, cliente_nome: 'Cliente Teste' }}
+          aoFechar={() => {}}
+        />
       </ProvedorNotificacao>
     </QueryClientProvider>,
   )
@@ -72,11 +117,17 @@ describe('A janela da entrega parcial', () => {
     expect(await screen.findByText('E o que ainda está na fábrica?')).toBeInTheDocument()
     expect(screen.getByText('Deixar em produção')).toBeInTheDocument()
     expect(screen.queryByText('Limpar da produção')).not.toBeInTheDocument()
-    expect(screen.getByText(/As 2 peças seguem onde estão e o produto segue no PCP para liberar/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/As 2 peças seguem onde estão e o produto segue no PCP para liberar/),
+    ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Cliente sem espaço' }))
     await userEvent.click(screen.getByRole('button', { name: /Registrar entrega parcial/ }))
     await waitFor(() => expect(registrarEntregaParcial).toHaveBeenCalled())
-    expect(registrarEntregaParcial.mock.calls[0][0]).toMatchObject({ cardId: 50, entregues: [1, 2], fabrica: 'manter' })
+    expect(registrarEntregaParcial.mock.calls[0][0]).toMatchObject({
+      cardId: 50,
+      entregues: [1, 2],
+      fabrica: 'manter',
+    })
   })
 
   it('a logística escolhe "Limpar da produção"', async () => {
@@ -84,7 +135,9 @@ describe('A janela da entrega parcial', () => {
     registrarEntregaParcial.mockResolvedValue({ fabrica: 'limpar' })
     renderizar()
     await userEvent.click(await screen.findByText('Limpar da produção'))
-    expect(screen.getByText(/As 2 peças saem dos quadros e o produto sai do PCP/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/As 2 peças saem dos quadros e o produto sai do PCP/),
+    ).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Observação'), 'só duas couberam')
     await userEvent.click(screen.getByRole('button', { name: /Registrar entrega parcial/ }))
     await waitFor(() => expect(registrarEntregaParcial).toHaveBeenCalled())
@@ -92,7 +145,9 @@ describe('A janela da entrega parcial', () => {
   })
 
   it('sem nada na fábrica, a janela é a de antes (sem a pergunta)', async () => {
-    abrirEntregaParcial.mockResolvedValue(abertura({ pecas: abertura().pecas.slice(0, 2), vagas: 0 }))
+    abrirEntregaParcial.mockResolvedValue(
+      abertura({ pecas: abertura().pecas.slice(0, 2), vagas: 0 }),
+    )
     renderizar()
     expect(await screen.findByText('Saíram para a entrega')).toBeInTheDocument()
     expect(screen.queryByText('Ainda na fábrica')).not.toBeInTheDocument()
@@ -102,13 +157,17 @@ describe('A janela da entrega parcial', () => {
   it('marcar uma peça que ainda está na fábrica pede a confirmação de sempre', async () => {
     abrirEntregaParcial.mockResolvedValue(abertura())
     registrarEntregaParcial.mockRejectedValueOnce(
-      new Error('Uma peça marcada como entregue ainda aparece em produção na fábrica (2 de 4 peças prontas). Confirme só se ela foi mesmo entregue.'),
+      new Error(
+        'Uma peça marcada como entregue ainda aparece em produção na fábrica (2 de 4 peças prontas). Confirme só se ela foi mesmo entregue.',
+      ),
     )
     renderizar()
     const caixas = await screen.findAllByRole('checkbox')
     await userEvent.click(caixas[2])
     await userEvent.click(screen.getByRole('button', { name: 'Cliente sem espaço' }))
     await userEvent.click(screen.getByRole('button', { name: /Registrar entrega parcial/ }))
-    expect(await screen.findByRole('button', { name: /Confirmar a entrega parcial/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('button', { name: /Confirmar a entrega parcial/ }),
+    ).toBeInTheDocument()
   })
 })

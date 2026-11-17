@@ -7,7 +7,14 @@ import { previaVoltarPcp, voltarParaPcp } from '../voltaPcp'
 import type { EscolhaVolta, OpcaoVolta } from '../voltaPcp'
 
 /** O que a volta ao PCP muda (os quadros, o PCP, a janela do card, a busca). */
-const CHAVES = [['quadro'], ['cards'], ['card-janela'], ['busca-geral'], ['pedidos-lista'], ['pedido-ficha']]
+const CHAVES = [
+  ['quadro'],
+  ['cards'],
+  ['card-janela'],
+  ['busca-geral'],
+  ['pedidos-lista'],
+  ['pedido-ficha'],
+]
 
 /**
  * SESSAO-51 (bloco B · frentes 4 e 5): "Mover para o PCP". O administrador tira a
@@ -16,9 +23,20 @@ const CHAVES = [['quadro'], ['cards'], ['card-janela'], ['busca-geral'], ['pedid
  * "Virar reposição de estoque" (a peça deixa o pedido, a vaga dele reabre e
  * nasce 1 reposição). A janela lê ao abrir; o toque leva a chave.
  */
-export function ModalVoltarPcp({ cardId, aoFechar }: { cardId: number | null; aoFechar: () => void }) {
+export function ModalVoltarPcp({
+  cardId,
+  aoFechar,
+}: {
+  cardId: number | null
+  aoFechar: () => void
+}) {
   return (
-    <Modal aberto={cardId !== null} aoFechar={(v) => !v && aoFechar()} tamanho="md" titulo="Mover para o PCP">
+    <Modal
+      aberto={cardId !== null}
+      aoFechar={(v) => !v && aoFechar()}
+      tamanho="md"
+      titulo="Mover para o PCP"
+    >
       {cardId !== null && <Conteudo key={cardId} cardId={cardId} aoFechar={aoFechar} />}
     </Modal>
   )
@@ -42,7 +60,12 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
   // a escolha que vale de início: a única possível (peça sem pedido só volta; pedido
   // fora do PCP só vira reposição) — com as duas, ninguém escolhe pela pessoa
   const escolha: EscolhaVolta | null =
-    escolhaFeita ?? (p?.voltar.pode && !p.reposicao.pode ? 'voltar' : p?.reposicao.pode && !p.voltar.pode ? 'reposicao' : null)
+    escolhaFeita ??
+    (p?.voltar.pode && !p.reposicao.pode
+      ? 'voltar'
+      : p?.reposicao.pode && !p.voltar.pode
+        ? 'reposicao'
+        : null)
   const temPorque = motivoId !== null || observacao.trim() !== ''
   const pode = !!p?.pode && escolha !== null && (escolha === 'reposicao' || temPorque)
 
@@ -133,7 +156,13 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
             opcao={p.reposicao}
             icone={<Boxes aria-hidden className="size-5 shrink-0" />}
             titulo="Virar reposição de estoque"
-            texto={`A peça deixa o pedido e vai para o Reabastecimento do PCP. O pedido ${p.numero ?? ''} continua precisando deste móvel: a vaga dele reabre no PCP.`}
+            texto={
+              // com o pedido fora do PCP (oculto, cancelado, entregue…) a vaga reabre na conta, mas
+              // ninguém a vê no PCP — a janela não promete o que a tela não mostra
+              p.voltar.pode
+                ? `A peça deixa o pedido e vai para o Reabastecimento do PCP. O pedido ${p.numero ?? ''} continua precisando deste móvel: a vaga dele reabre no PCP.`
+                : 'A peça deixa o pedido e vai para o Reabastecimento do PCP.'
+            }
           />
         </fieldset>
       )}
@@ -165,7 +194,11 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
           </fieldset>
           <Campo
             rotulo="Observação"
-            ajuda={escolha === 'voltar' ? 'Escolha um motivo ou escreva aqui — pelo menos um dos dois.' : undefined}
+            ajuda={
+              escolha === 'voltar'
+                ? 'Escolha um motivo ou escreva aqui — pelo menos um dos dois.'
+                : undefined
+            }
             placeholder="Ex.: o cliente mudou a cor"
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
@@ -174,11 +207,22 @@ function Conteudo({ cardId, aoFechar }: { cardId: number; aoFechar: () => void }
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Botao type="button" variante="secundaria" icone={<Undo2 />} disabled={mover.isPending} onClick={aoFechar}>
+        <Botao
+          type="button"
+          variante="secundaria"
+          icone={<Undo2 />}
+          disabled={mover.isPending}
+          onClick={aoFechar}
+        >
           {p.pode ? 'Voltar' : 'Fechar'}
         </Botao>
         {p.pode && (
-          <Botao type="submit" icone={<PackageOpen />} disabled={!pode} carregando={mover.isPending}>
+          <Botao
+            type="submit"
+            icone={<PackageOpen />}
+            disabled={!pode}
+            carregando={mover.isPending}
+          >
             {escolha === 'reposicao' ? 'Virar reposição de estoque' : 'Mover para o PCP'}
           </Botao>
         )}

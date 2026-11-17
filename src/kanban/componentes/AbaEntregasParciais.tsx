@@ -30,7 +30,8 @@ export function AbaEntregasParciais() {
 
   const consulta = useInfiniteQuery({
     queryKey: ['entregas-parciais', filtro.aplicado ?? ''],
-    queryFn: ({ pageParam }) => listarEntregasParciais({ busca: filtro.aplicado, depois: pageParam }),
+    queryFn: ({ pageParam }) =>
+      listarEntregasParciais({ busca: filtro.aplicado, depois: pageParam }),
     initialPageParam: null as { em: string; id: number } | null,
     getNextPageParam: (ultima) => ultima.proxima ?? undefined,
     placeholderData: keepPreviousData,
@@ -43,7 +44,8 @@ export function AbaEntregasParciais() {
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-base">Entregas parciais</h2>
           <span className="text-xs text-texto-suave">
-            O que ficou na fábrica numa entrega parcial — dá para trocar a decisão quantas vezes for preciso.
+            O que ficou na fábrica numa entrega parcial — dá para trocar a decisão quantas vezes for
+            preciso.
           </span>
         </div>
         <span className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
@@ -116,7 +118,9 @@ function LinhaParcial({
         <span className="truncate text-sm text-texto-suave">{l.cliente || 'Sem cliente'}</span>
         <span className="text-xs text-texto-suave tabular-nums">
           Entrega parcial em {diaEHoraCurto(l.parcial_em)}
-          {l.decisao_em ? ` · decidido${l.decisao_por ? ` por ${l.decisao_por}` : ''} em ${diaEHoraCurto(l.decisao_em)}` : ''}
+          {l.decisao_em
+            ? ` · decidido${l.decisao_por ? ` por ${l.decisao_por}` : ''} em ${diaEHoraCurto(l.decisao_em)}`
+            : ''}
         </span>
         <span className="text-sm font-medium text-texto">{textoDecisao(l)}</span>
       </div>
@@ -131,7 +135,13 @@ function LinhaParcial({
         >
           Abrir o card
         </Botao>
-        <Botao variante="secundaria" icone={<RotateCcw />} className="whitespace-normal text-left" onClick={aoRevogar}>
+        <Botao
+          variante="secundaria"
+          icone={<RotateCcw />}
+          // o texto longo quebra em duas linhas no celular — o botão cresce junto
+          className="h-auto! min-h-toque-md py-2 whitespace-normal text-left"
+          onClick={aoRevogar}
+        >
           {textoBotaoRevogar(l.acao)}
         </Botao>
       </div>

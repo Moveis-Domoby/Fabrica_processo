@@ -97,7 +97,13 @@ export function mostraVoltarPcp(parametros: {
 export function textoSeloVolta(v: {
   voltar: number
   reposicao: number
-  ultimo?: { escolha?: string | null; motivo?: string | null; observacao?: string | null; setor?: string | null; etapa?: string | null } | null
+  ultimo?: {
+    escolha?: string | null
+    motivo?: string | null
+    observacao?: string | null
+    setor?: string | null
+    etapa?: string | null
+  } | null
 }): string {
   const partes: string[] = []
   if (v.voltar > 0) partes.push(`${v.voltar} voltou da produção`)

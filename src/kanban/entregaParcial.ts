@@ -120,7 +120,10 @@ export interface ResultadoRevogar {
 }
 
 /** O revogar: um toque, uma chamada idempotente (a chave do toque). */
-export async function revogarEntregaParcial(cardId: number, chave: string): Promise<ResultadoRevogar> {
+export async function revogarEntregaParcial(
+  cardId: number,
+  chave: string,
+): Promise<ResultadoRevogar> {
   const { data, error } = await supabase.rpc('plt_fn_entrega_parcial_revogar', {
     p_card_id: cardId,
     p_chave: chave,
@@ -130,7 +133,9 @@ export async function revogarEntregaParcial(cardId: number, chave: string): Prom
 }
 
 /** "Seguem em produção: 2 peças · 1 produto no PCP" / "Retiradas da produção: 2 peças · 1 produto do PCP". */
-export function textoDecisao(e: Pick<EstadoParcial, 'decisao' | 'n_producao' | 'n_retiradas' | 'vagas'>): string {
+export function textoDecisao(
+  e: Pick<EstadoParcial, 'decisao' | 'n_producao' | 'n_retiradas' | 'vagas'>,
+): string {
   if (e.decisao === 'manter') {
     const partes = [
       e.n_producao > 0 ? pecasPorExtenso(e.n_producao) : '',
@@ -150,11 +155,16 @@ export function textoDecisao(e: Pick<EstadoParcial, 'decisao' | 'n_producao' | '
 
 /** O botão contrário à decisão que vale. */
 export function textoBotaoRevogar(acao: EstadoParcial['acao']): string {
-  return acao === 'remover' ? 'Revogar e remover da linha de produção' : 'Revogar e voltar tudo para a produção'
+  return acao === 'remover'
+    ? 'Revogar e remover da linha de produção'
+    : 'Revogar e voltar tudo para a produção'
 }
 
 /** "Entregue em parte (2 de 5)". */
-export function textoEntregueEmParte(entregues: number | null | undefined, total: number | null | undefined): string {
+export function textoEntregueEmParte(
+  entregues: number | null | undefined,
+  total: number | null | undefined,
+): string {
   if (!entregues || !total) return 'Entregue em parte'
   return `Entregue em parte (${entregues} de ${total})`
 }
@@ -162,7 +172,11 @@ export function textoEntregueEmParte(entregues: number | null | undefined, total
 /** "As 2 peças seguem onde estão e o produto segue no PCP para liberar…" (a janela da entrega parcial). */
 export function textoManter(pecas: number, vagas: number): string {
   const p =
-    pecas === 0 ? '' : pecas === 1 ? 'A peça segue onde está' : `As ${pecas} peças seguem onde estão`
+    pecas === 0
+      ? ''
+      : pecas === 1
+        ? 'A peça segue onde está'
+        : `As ${pecas} peças seguem onde estão`
   const v =
     vagas === 0
       ? ''
@@ -177,12 +191,17 @@ export function textoManter(pecas: number, vagas: number): string {
 export function textoLimpar(pecas: number, vagas: number): string {
   const p =
     pecas === 0 ? '' : pecas === 1 ? 'A peça sai dos quadros' : `As ${pecas} peças saem dos quadros`
-  const v = vagas === 0 ? '' : vagas === 1 ? 'o produto sai do PCP' : `os ${vagas} produtos saem do PCP`
+  const v =
+    vagas === 0 ? '' : vagas === 1 ? 'o produto sai do PCP' : `os ${vagas} produtos saem do PCP`
   const frase = [p, v].filter(Boolean).join(' e ')
   return `${frase.charAt(0).toUpperCase()}${frase.slice(1)}. Dá para voltar atrás em PCP → Entregas parciais.`
 }
 
 /** "Guarda-roupa 3/4 (3/5)". */
-export function nomeComIndice(p: { descricao: string | null; indice: number | null; total: number | null }): string {
+export function nomeComIndice(p: {
+  descricao: string | null
+  indice: number | null
+  total: number | null
+}): string {
   return `${p.descricao ?? 'Peça'}${p.total && p.total > 1 ? ` (${p.indice}/${p.total})` : ''}`
 }
