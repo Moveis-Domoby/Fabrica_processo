@@ -206,17 +206,18 @@ select c.id as card_id,
        jsonb_build_object('entregues', c.parcial_entregues, 'total', c.parcial_total, 'em', c.parcial_em)
        -- o que ainda está na fábrica: só enquanto o pedido segue vivo com "deixar em produção"
        || case when c.entrega_evento_id is null and c.parcial_decisao = 'manter'
-               then (select case when x.n > 0 then jsonb_build_object('ainda_producao', x.n) else '{}'::jsonb end
-                       from (select ((select count(*)
-                                        from public.plt_cards u
-                                        join public.plt_setores s on s.id = u.setor_atual_id
-                                       where u.pedido_id = c.pedido_id and u.tipo = 'unidade'
-                                         and u.arquivado_em is null and u.cancelada_em is null
-                                         and u.destino_pendente_em is null
-                                         and s.papel_no_fluxo in ('entrada', 'producao'))
-                                     + (select count(*)
-                                          from plt_privado.fn_vagas_pedido(c.pedido_id) w
-                                         where w.card_id is null and w.reserva_card_id is null))::int as n) x)
+               -- (a conta aparece UMA vez: zero vira nulo e a chave nula sai — nada de contar duas vezes)
+               then jsonb_strip_nulls(jsonb_build_object('ainda_producao', nullif(
+                      ((select count(*)
+                          from public.plt_cards u
+                          join public.plt_setores s on s.id = u.setor_atual_id
+                         where u.pedido_id = c.pedido_id and u.tipo = 'unidade'
+                           and u.arquivado_em is null and u.cancelada_em is null
+                           and u.destino_pendente_em is null
+                           and s.papel_no_fluxo in ('entrada', 'producao'))
+                       + (select count(*)
+                            from plt_privado.fn_vagas_pedido(c.pedido_id) w
+                           where w.card_id is null and w.reserva_card_id is null))::int, 0)))
                else '{}'::jsonb end as selo
   from public.plt_cards c
  where c.tipo = 'pedido'
