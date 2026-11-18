@@ -86,7 +86,15 @@ export interface DetalheDevolucao {
     observacao: string | null
     entregue: boolean
   } | null
-  historico: { tipo: string; quando: string; quem: string | null; texto: string | null }[]
+  historico: {
+    tipo: string
+    /** Quando aconteceu — na entrega, o dia VIGENTE (já com a correção do administrador). */
+    quando: string
+    quem: string | null
+    texto: string | null
+    /** SESSAO-52: só na entrega — quando ela foi registrada. */
+    registrado_em?: string | null
+  }[]
   comprovantes: number
   pecas: PecaDevolvida[]
   decididas: { peca_id: number; decisao: DecisaoDevolucao; quando: string; quem: string | null }[]

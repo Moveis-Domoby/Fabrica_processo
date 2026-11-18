@@ -4,6 +4,7 @@ import { Ban, Boxes, PackageCheck, Replace, Store, Truck, Undo2, Wrench } from '
 import { BadgeEstado, Botao, Campo, Modal, Selecao, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { buscarSetores } from '@/kanban/api'
+import { quandoCurtoDaEntrega } from '@/pedidos/horaDaEntrega'
 import {
   decidirDevolucao,
   detalheDevolucao,
@@ -231,7 +232,13 @@ export function ModalDecidirDevolucao({
               <ul className="flex flex-col gap-0.5 text-xs text-texto-suave">
                 {data.historico.slice(0, 6).map((h, i) => (
                   <li key={`${h.tipo}-${i}`}>
-                    <span className="tabular-nums">{quando(h.quando)}</span> ·{' '}
+                    <span className="tabular-nums">
+                      {/* SESSAO-52: a entrega com o dia escolhido ou corrigido mostra só o dia */}
+                      {h.tipo === 'pedido_entregue'
+                        ? quandoCurtoDaEntrega(h.quando, h.registrado_em)
+                        : quando(h.quando)}
+                    </span>{' '}
+                    ·{' '}
                     {ROTULO_HISTORICO[h.tipo] ?? 'Registro'}
                     {h.quem ? ` · ${h.quem}` : ''}
                     {h.texto ? ` — ${h.texto}` : ''}
