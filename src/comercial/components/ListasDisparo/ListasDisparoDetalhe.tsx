@@ -11,6 +11,13 @@ import { MembroAuditoriaModal } from './MembroAuditoriaModal';
 import { DISPARO_LIBERADO, MOTIVO_DISPARO_TRAVADO } from '../../travas';
 import { ouvirCanal } from '@/chat/canais';
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela';
+import { useNotificacao } from '@/componentes/ui';
+import { ModalConfirmacao } from '../ModalConfirmacao';
+
+// SESSAO-54 (DT-D24): as quatro confirmações desta tela — antes eram
+// a pergunta nativa do navegador; agora a janela da casa, com o mesmo texto
+// e o mesmo efeito em cada escolha.
+type Confirmacao = 'parar_disparo' | 'encerrar_lista' | 'excluir_lista' | 'remover_membros';
 
 interface ListasDisparoDetalheProps {
   listaId: string;
@@ -33,6 +40,12 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
   const [nomeEditado, setNomeEditado] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [membroAuditoria, setMembroAuditoria] = useState<ListaDisparoMembro | null>(null);
+  const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const notificar = useNotificacao();
+  // o aviso de erro da casa (antes: o alerta nativo com "Erro…: mensagem")
+  const avisarErro = (titulo: string, e: any) =>
+    notificar({ titulo, descricao: e?.message ?? String(e), tom: 'danificado' });
 
   // Fetch completo com loading spinner — usado apenas na carga inicial
   const fetchData = useCallback(async () => {
@@ -120,7 +133,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
       setLista(prev => prev ? { ...prev, nome: nomeTrimmed } : prev);
       setIsEditingNome(false);
     } catch (e: any) {
-      alert('Erro ao renomear: ' + e.message);
+      avisarErro('Erro ao renomear', e);
     } finally {
       setIsRenaming(false);
     }
@@ -130,49 +143,47 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
     try {
       setIsSavingMsg(true);
       await salvarMensagem(listaId, mensagem);
-      alert('Mensagem salva com sucesso!');
+      notificar({ titulo: 'Mensagem salva com sucesso!', tom: 'perfeito' });
     } catch (e: any) {
-      alert('Erro ao salvar: ' + e.message);
+      avisarErro('Erro ao salvar', e);
     } finally {
       setIsSavingMsg(false);
     }
   };
 
+  // Os quatro gestos que pedem confirmação: o botão só ABRE a janela; o gesto
+  // roda quando a pessoa confirma nela (o mesmo efeito de antes em cada um).
   const handleFinalizarDisparo = async () => {
-    if (!window.confirm('Parar o disparo agora? Os contatos já enviados continuam com seus timers de resposta/resultado ativos.')) return;
     try {
       await finalizarDisparo(listaId);
       await fetchDataSilent();
     } catch (e: any) {
-      alert('Erro: ' + e.message);
+      avisarErro('Erro ao parar o disparo', e);
     }
   };
 
   const handleEncerrarLista = async () => {
-    if (!window.confirm('Encerrar a lista completamente? Os dados serão consolidados e nenhum envio ou contagem adicional será realizado. Esta ação não pode ser desfeita.')) return;
     try {
       await encerrarLista(listaId);
       await fetchData();
     } catch (e: any) {
-      alert('Erro: ' + e.message);
+      avisarErro('Erro ao encerrar a lista', e);
     }
   };
 
   const handleExcluirLista = async () => {
-    if (window.confirm('Tem certeza que deseja excluir esta lista? Todos os membros e histórico vinculados a ela serão perdidos. Esta ação não pode ser desfeita.')) {
-      try {
-        const { error } = await supabase.from('listas_disparo').delete().eq('id', listaId);
-        if (error) throw error;
-        onBack();
-      } catch (e: any) {
-        alert('Erro ao excluir lista: ' + e.message);
-      }
+    try {
+      const { error } = await supabase.from('listas_disparo').delete().eq('id', listaId);
+      if (error) throw error;
+      onBack();
+    } catch (e: any) {
+      avisarErro('Erro ao excluir lista', e);
     }
   };
 
   const handleCopiarMensagem = () => {
     navigator.clipboard.writeText(mensagem);
-    alert('Mensagem copiada!');
+    notificar({ titulo: 'Mensagem copiada!', tom: 'perfeito' });
   };
 
   const handleRegistrarEnvio = async (membro: ListaDisparoMembro) => {
@@ -180,7 +191,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
     // Trava da união (D-46): além do botão desabilitado, a chamada em si não
     // sai — nenhum caminho dispara WhatsApp por aqui até o cutover.
     if (!DISPARO_LIBERADO) {
-      alert(MOTIVO_DISPARO_TRAVADO);
+      notificar({ titulo: MOTIVO_DISPARO_TRAVADO, tom: 'atencao' });
       return;
     }
     try {
@@ -190,7 +201,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
       if (error) throw error;
       fetchData();
     } catch (e: any) {
-      alert('Erro ao disparar membro: ' + (e?.message ?? e));
+      avisarErro('Erro ao disparar membro', e);
     }
   };
 
@@ -198,14 +209,55 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
 
   const handleRemoverMembroBulk = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Tem certeza que deseja remover ${selectedIds.size} membros da lista?`)) return;
     try {
       await removerMembrosDaListaBulk(Array.from(selectedIds), listaId);
       setIsSelectionMode(false);
       setSelectedIds(new Set());
       fetchData();
     } catch (e: any) {
-      alert('Erro ao remover membros: ' + e.message);
+      avisarErro('Erro ao remover membros', e);
+    }
+  };
+
+  const CONFIRMACOES: Record<Confirmacao, { titulo: string; descricao: string; rotulo: string; perigo: boolean; gesto: () => Promise<void> }> = {
+    parar_disparo: {
+      titulo: 'Parar o disparo agora?',
+      descricao: 'Os contatos já enviados continuam com seus timers de resposta/resultado ativos.',
+      rotulo: 'Parar o disparo',
+      perigo: false,
+      gesto: handleFinalizarDisparo,
+    },
+    encerrar_lista: {
+      titulo: 'Encerrar a lista completamente?',
+      descricao: 'Os dados serão consolidados e nenhum envio ou contagem adicional será realizado. Esta ação não pode ser desfeita.',
+      rotulo: 'Encerrar a lista',
+      perigo: true,
+      gesto: handleEncerrarLista,
+    },
+    excluir_lista: {
+      titulo: 'Excluir esta lista?',
+      descricao: 'Todos os membros e histórico vinculados a ela serão perdidos. Esta ação não pode ser desfeita.',
+      rotulo: 'Excluir a lista',
+      perigo: true,
+      gesto: handleExcluirLista,
+    },
+    remover_membros: {
+      titulo: selectedIds.size === 1 ? 'Remover 1 membro da lista?' : `Remover ${selectedIds.size} membros da lista?`,
+      descricao: 'Quem for removido sai desta lista e não recebe o disparo dela.',
+      rotulo: 'Remover da lista',
+      perigo: true,
+      gesto: handleRemoverMembroBulk,
+    },
+  };
+
+  const handleConfirmar = async () => {
+    if (!confirmacao || confirmando) return;
+    setConfirmando(true);
+    try {
+      await CONFIRMACOES[confirmacao].gesto();
+    } finally {
+      setConfirmando(false);
+      setConfirmacao(null);
     }
   };
 
@@ -320,7 +372,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
         <button onClick={() => setIsAuditoriaOpen(true)} className="flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors shadow-sm font-medium">
           <History size={16} /> <span className="hidden sm:inline">Auditoria</span>
         </button>
-        <button onClick={handleExcluirLista} className="flex items-center gap-2 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 transition-colors shadow-sm font-medium">
+        <button onClick={() => setConfirmacao('excluir_lista')} className="flex items-center gap-2 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 transition-colors shadow-sm font-medium">
           <Trash2 size={16} /> <span className="hidden sm:inline">Excluir</span>
         </button>
       </CabecalhoDaTela>
@@ -352,7 +404,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
                     <button onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} className="flex items-center gap-2 text-sm bg-muted text-muted-foreground px-3 py-1.5 rounded-lg hover:bg-muted/80">
                       Cancelar
                     </button>
-                    <button onClick={handleRemoverMembroBulk} disabled={selectedIds.size === 0} className="flex items-center gap-2 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 disabled:opacity-50">
+                    <button onClick={() => setConfirmacao('remover_membros')} disabled={selectedIds.size === 0} className="flex items-center gap-2 text-sm bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 disabled:opacity-50">
                       <Trash2 size={16} /> Remover da lista ({selectedIds.size})
                     </button>
                   </>
@@ -374,7 +426,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
                         </div>
                         <button
                           id="btn-finalizar-disparo"
-                          onClick={handleFinalizarDisparo}
+                          onClick={() => setConfirmacao('parar_disparo')}
                           className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-lg hover:bg-yellow-500/20 font-medium"
                         >
                           <StopCircle size={16} /> Finalizar disparo
@@ -554,7 +606,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
           {lista.status !== 'encerrada' && lista.status !== 'rascunho' && (
             <button
               id="btn-parar-contagem"
-              onClick={handleEncerrarLista}
+              onClick={() => setConfirmacao('encerrar_lista')}
               className="w-full flex items-center justify-center gap-2 bg-destructive/10 hover:bg-destructive/20 text-destructive py-2.5 rounded-xl text-sm font-medium transition-colors border border-destructive/20"
             >
               <Flag size={16} /> Parar contagem e encerrar lista
@@ -587,6 +639,17 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
           eventos={eventos}
         />
       )}
+
+      <ModalConfirmacao
+        aberto={confirmacao !== null}
+        titulo={confirmacao ? CONFIRMACOES[confirmacao].titulo : ''}
+        descricao={confirmacao ? CONFIRMACOES[confirmacao].descricao : undefined}
+        rotuloConfirmar={confirmacao ? CONFIRMACOES[confirmacao].rotulo : 'Confirmar'}
+        perigo={confirmacao ? CONFIRMACOES[confirmacao].perigo : false}
+        carregando={confirmando}
+        aoConfirmar={handleConfirmar}
+        aoCancelar={() => setConfirmacao(null)}
+      />
     </div>
   );
 }
