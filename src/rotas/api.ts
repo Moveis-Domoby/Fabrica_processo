@@ -371,6 +371,19 @@ export function linkMapa(e: Entrega): string | null {
 // Programação de caminhão (D-39/D-45)
 // ---------------------------------------------------------------------------
 
+/**
+ * SESSAO-53: o pedido entregue em parte, como as portas da Programação, da
+ * Expedição e das Entregas do dia mandam (a chave só vem quando há).
+ * `ainda_producao` só vem enquanto o resto segue na fábrica por decisão
+ * ("deixar em produção") e ainda não foi entregue.
+ */
+export interface EntregueEmParte {
+  entregues: number | null
+  total: number | null
+  em: string | null
+  ainda_producao?: number
+}
+
 /** Um móvel do pedido (D-111): a descrição e a quantidade — o frete não vem. */
 export interface ItemPedido {
   descricao: string
@@ -413,6 +426,8 @@ export interface PedidoProgramacao extends Prontidao {
   /** D-109: a posição salva na rota do caminhão; null = rota antiga, ainda sem ordem salva (SESSAO-56). */
   ordem: number | null
   contagem_total: number
+  /** SESSAO-53: o pedido já teve uma parte entregue (ausente = não teve, ou o banco de antes). */
+  entregue_em_parte?: EntregueEmParte | null
 }
 
 /**
@@ -584,6 +599,8 @@ export interface PedidoProgramado extends Prontidao {
   /** SESSAO-30 (D-115): o detalhe da entrega escrito por quem programou. */
   detalhe: string | null
   contagem_total: number
+  /** SESSAO-53: o pedido já teve uma parte entregue (nulo/ausente = não teve, ou o banco de antes). */
+  entregue_em_parte?: EntregueEmParte | null
 }
 
 /**
@@ -910,6 +927,11 @@ export interface EntregaDoDia {
   pronto?: boolean
   prontas?: number
   a_entregar?: number
+  /**
+   * SESSAO-53: "Entregue em parte (N de M)" — o pedido que já teve uma parte entregue e
+   * volta à rota com o resto, ou a parada cuja entrega foi parcial (ausente = não há).
+   */
+  entregue_em_parte?: EntregueEmParte | null
 }
 
 /** SESSAO-31 (D-128): um item por ROTA do dia (o caminhão + o número da rota). */

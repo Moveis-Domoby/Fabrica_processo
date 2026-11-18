@@ -1,9 +1,10 @@
 import { memo, type MouseEvent, type ReactNode } from 'react'
 import { MapPin, MapPinCheck, MapPinOff, MapPinPen, Package, RotateCw } from 'lucide-react'
 import { AVISO_PONTO_APROXIMADO, dataLegivel, enderecoLegivel } from './api'
-import type { EstadoPedido, ItemPedido, PontoAproximado } from './api'
+import type { EntregueEmParte, EstadoPedido, ItemPedido, PontoAproximado } from './api'
 import type { SeloEndereco } from './enderecoDoPedido'
 import { SeloEnderecoAlterado } from './SeloEnderecoAlterado'
+import { SeloEntregueEmParte } from './SeloEntregueEmParte'
 import { SeloEstado } from './SeloEstado'
 import { AVISO_BUSCA_SEM_RESPOSTA, tentarDeNovo, useEstadoDaBusca } from './estadoDaBusca'
 
@@ -34,6 +35,8 @@ export interface DadosCartaoPedido {
   unidades_prontas?: number
   /** SESSAO-50 (bloco C): o endereço foi mudado na plataforma — o selo, com o original do Tiny. */
   endereco_plataforma?: SeloEndereco | null
+  /** SESSAO-53: o pedido já teve uma parte entregue — "Entregue em parte (N de M)". */
+  entregue_em_parte?: EntregueEmParte | null
 }
 
 /**
@@ -108,6 +111,8 @@ export const CartaoPedido = memo(function CartaoPedido({
           prontas={pedido.unidades_prontas}
           total={pedido.total_unidades}
         />
+        {/* SESSAO-53: o mesmo selo do PCP e da ficha — o resto do pedido é o que se programa */}
+        <SeloEntregueEmParte parcial={pedido.entregue_em_parte} />
         <span className="text-sm text-texto-suave tabular-nums">
           {pedido.total_unidades} {pedido.total_unidades === 1 ? 'peça' : 'peças'} · previsão{' '}
           {dataLegivel(pedido.data_prevista)}

@@ -323,3 +323,40 @@ describe('Expedição — o pedido que saiu do PCP pelo Tiny', () => {
     expect(within(card).queryByRole('button', { name: /Voltar para/ })).toBeNull()
   })
 })
+
+describe('Expedição — o pedido entregue em parte (SESSAO-53)', () => {
+  afterEach(() => {
+    listarExpedicao.mockImplementation(listaPadrao)
+  })
+
+  it('diz "Entregue em parte (2 de 5)" e quantas seguem na fábrica, na mesma leitura da lista', async () => {
+    listarExpedicao.mockClear()
+    listarExpedicao.mockImplementation(
+      async ({ filtro }: { filtro: string }): Promise<PaginaExpedicao> => ({
+        filtro: filtro as PaginaExpedicao['filtro'],
+        contagens,
+        total: 2,
+        itens: [
+          pedido({
+            card_id: 31,
+            numero: 13531,
+            total_unidades: 5,
+            a_entregar: 3,
+            unidades_prontas: 1,
+            pronto: false,
+            estado: 'em_producao',
+            entregue_em_parte: { entregues: 2, total: 5, em: null, ainda_producao: 2 },
+          }),
+          pedido({ card_id: 32, numero: 13532 }),
+        ],
+      }),
+    )
+    renderizar()
+    const parcial = (await screen.findByText('Pedido 13531')).closest('li')!
+    expect(within(parcial).getByText('Entregue em parte (2 de 5)')).toBeInTheDocument()
+    expect(within(parcial).getByText('2 ainda em produção')).toBeInTheDocument()
+    const inteiro = screen.getByText('Pedido 13532').closest('li')!
+    expect(within(inteiro).queryByText(/Entregue em parte/)).toBeNull()
+    expect(listarExpedicao).toHaveBeenCalledTimes(1)
+  })
+})

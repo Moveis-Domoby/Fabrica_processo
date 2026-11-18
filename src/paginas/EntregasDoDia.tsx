@@ -45,6 +45,7 @@ import {
   pendenteNoDia,
   rotaDoDia,
 } from '@/rotas/paradasAvulsas'
+import { SeloEntregueEmParte } from '@/rotas/SeloEntregueEmParte'
 import { SeloEstado } from '@/rotas/SeloEstado'
 import {
   fraseEntregaIncompleta,
@@ -418,10 +419,16 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                         {e.entregue_por ? ` · ${e.entregue_por}` : ''}
                       </span>
                     </span>
-                    {e.entrega_parcial && (
-                      <span className="shrink-0 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
-                        em parte
-                      </span>
+                    {/* SESSAO-53: o selo de todas as telas ("Entregue em parte (N de M)");
+                        o "em parte" de antes fica para o banco que ainda não manda a conta */}
+                    {e.entregue_em_parte ? (
+                      <SeloEntregueEmParte parcial={e.entregue_em_parte} className="shrink-0" />
+                    ) : (
+                      e.entrega_parcial && (
+                        <span className="shrink-0 rounded-full bg-atencao-fundo px-2 py-0.5 text-xs font-medium text-atencao-texto">
+                          em parte
+                        </span>
+                      )
                     )}
                     {/* SESSAO-41 (D-195): a parcial não se desfaz (as que voltaram já estão com a logística).
                         SESSAO-47: "do dia" = registrada hoje (quem marcou hoje "entregue ontem" desfaz hoje). */}
@@ -437,8 +444,9 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                         Desfazer
                       </Botao>
                     ) : (
-                      // SESSAO-44 (D-213): explica em vez de esconder o desfazer
-                      <span className="shrink-0 text-xs text-texto-suave">
+                      // SESSAO-44 (D-213): explica em vez de esconder o desfazer. ↪️ SESSAO-53: a frase
+                      // longa quebra a linha (com shrink-0 ela vazava a tela do celular — rolagem lateral)
+                      <span className="min-w-0 text-xs text-texto-suave">
                         {porQueNaoDesfaz(e)}
                       </span>
                     )}
@@ -597,6 +605,9 @@ function CartaoEntrega({
               className="self-start"
             />
           )}
+          {/* SESSAO-53: o pedido já teve uma parte entregue (a parada de agora leva o resto)
+              ou a entrega desta parada foi em parte — o mesmo selo do PCP e da ficha */}
+          <SeloEntregueEmParte parcial={entrega.entregue_em_parte} className="self-start" />
         </div>
         {entregue && (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-perfeito-fundo px-2.5 py-1 text-sm font-medium text-perfeito-texto">

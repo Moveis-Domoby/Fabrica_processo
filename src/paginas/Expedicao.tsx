@@ -43,6 +43,7 @@ import {
   fraseSaiuDoPcp,
   produtos,
 } from '@/logistica/voltaPcp'
+import { SeloEntregueEmParte } from '@/rotas/SeloEntregueEmParte'
 import { SeloEstado } from '@/rotas/SeloEstado'
 import { chaveDoGesto, nomeDaRota } from '@/rotas/api'
 import { useAoVivo } from '@/lib/aoVivo'
@@ -519,6 +520,8 @@ function CartaoExpedicao({
               total={linha.a_entregar}
             />
           )}
+          {/* SESSAO-53: o pedido já teve uma parte entregue — o mesmo selo do PCP e da ficha */}
+          <SeloEntregueEmParte parcial={linha.entregue_em_parte} />
           {esperandoTiny && (
             <span
               className="inline-flex max-w-full items-center gap-1 rounded-full bg-atencao-fundo px-2.5 py-0.5 text-xs font-medium text-atencao-texto"

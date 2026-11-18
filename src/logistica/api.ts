@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { Estado } from '@/componentes/ui'
 import type { VoltaPcp } from '@/kanban/tipos'
+import type { EntregueEmParte } from '@/rotas/api'
 import { pastaDoProduto } from '@/tablet/api'
 
 /**
@@ -623,6 +624,8 @@ export interface PedidoExpedicao {
   saiu_do_pcp?: { situacao: string | null; faltam: number } | null
   /** SESSAO-47: a logística já o devolveu ao PCP e o Tiny ainda não mostrou a situação nova. */
   volta_pcp?: VoltaPcp | null
+  /** SESSAO-53: o pedido já teve uma parte entregue — "Entregue em parte (N de M)" (ausente = não teve). */
+  entregue_em_parte?: EntregueEmParte | null
   programacao: {
     data: string
     caminhao_id: number
