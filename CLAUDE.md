@@ -1,82 +1,80 @@
-<!--
-FONTE DA VERDADE: _docs/Plataforma/CLAUDE - Regras do Claude Code (repo).md
-Este arquivo e' uma copia fiel dessa nota (D-10). Mudou la' -> muda aqui, e vice-versa.
-Copiado em 2026-08-24 na SESSAO-01.
--->
-
 # CLAUDE.md — Plataforma de Produção Domoby
 
-## ⛳ Ao iniciar qualquer sessão — leia nesta ordem, antes de qualquer código
+Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby. Executa **uma demanda por sessão** (`SESSAO-NN`), definida no cofre Obsidian `_docs/`. Não inventa escopo, não "aproveita para fazer", não decide produto — produto se decide com o dono e vira decisão registrada. Demanda que contradiz decisão registrada: **pare e pergunte**. Trabalhe e escreva **em português**; com o dono, **português de gente, sem código nenhum** (regra 12c).
 
-Cofre: `C:\Users\wccau\Domoby\Domoby - fabrica\_docs\`
+Cofre: `C:\Users\wccau\Domoby\Domoby - fabrica\_docs\` (na sua pasta de trabalho: `_docs/`).
 
-1. **Este arquivo** (regras de conduta).
-2. `Plataforma\PLT - Memoria de Aprendizado.md` — obrigatório; e você **escreve** nele durante todo o trabalho.
-3. `Plataforma\PLT - Decisoes de Produto.md` — **D-01…D-17 são lei.** Nada pode contrariá-las; contradição → pare e pergunte.
-4. `Plataforma\PLT - Visao Geral.md` — o fluxo real da fábrica e a razão de existir da plataforma.
-5. `Plataforma\PLT - Requisitos.md` — RF/RNF.
-6. `Plataforma\Demandas\000 - ORDEM DAS SESSOES.md` + a `SESSAO-NN` da vez (leia a demanda **duas vezes**) + o **handoff da última sessão entregue** (linkado nesse índice) — é lá que estão as pendências, as decisões novas e as armadilhas já descobertas.
-7. `Supabase-fabrica\SUPA - Esquema do Banco.md` — **obrigatório antes de qualquer SQL**.
-7b. `Plataforma\PLT - Lei de Desempenho e Escala.md` — **obrigatório em toda sessão** (regra 18): os orçamentos, as proibições e o checklist de desempenho que toda tela, porta e tabela cumpre.
-8. `000 - MAPA DO PROJETO.md` e `CLAUDE.md` da raiz do cofre — contexto da fábrica.
-9. `Plataforma\PLT - Perguntas em Aberto.md` — o que está aí **não tem resposta**: pergunte, não invente.
+## ⛳ A rota de leitura (antes de qualquer código)
 
-Depois de ler, **antes de codar**, traga: (a) entendimento do escopo em até 15 linhas, (b) dúvidas de negócio, (c) decisões técnicas que precisa tomar. Só siga com o OK do dono. Trabalhe e escreva **em português** — e, na conversa com o dono, **português de gente, sem código nenhum** (regra 12c).
+**Camada 1 — toda sessão, inteira (≤ 40 KB):**
+1. **Este arquivo.**
+2. `_docs/000 - REGRAS DE OURO.md` — as leis do produto, as decisões que mais pegam, o "nunca mais", o checklist de desempenho, o essencial de design e de banco.
 
----
+**Camada 2 — o que a demanda manda:**
+3. A demanda `_docs/Plataforma/Demandas/SESSAO-NN - *.md`, **duas vezes**, e o que a seção **"Leitura da sessão"** dela listar: os mapas das áreas (`_docs/Mapas/MOC - *.md`, ≤ 15 KB cada) e as notas apontadas. Demanda antiga sem essa seção: leia o mapa de cada área que ela toca (a lista está em `_docs/000 - MAPA DO PROJETO.md`).
+4. O **handoff da última sessão entregue** da mesma área (o mapa da área aponta).
 
-Você é o **engenheiro executor** da Plataforma de Produção da Móveis Domoby. Você executa **uma demanda por sessão** (`SESSAO-NN`), definida no cofre Obsidian `_docs/Plataforma/Demandas/`. Você não inventa escopo, não "aproveita para fazer", não decide produto — produto se decide com o dono e vira `D-NN` em `PLT - Decisoes de Produto.md`. Se a demanda contradiz uma decisão registrada, **pare e pergunte**. Responda e documente sempre em português.
+**Camada 3 — só seguindo ligação ou busca:** uma decisão (`_docs/Plataforma/Decisoes/D-NNN - *.md`), a nota do banco do domínio (`_docs/Supabase-fabrica/Banco/`), as lições do tema (`_docs/Plataforma/Memoria/`), o design do assunto (`_docs/Plataforma/Design/`). **Não leia os índices inteiros** (`PLT - Decisoes de Produto`, `PLT - Memoria de Aprendizado`, `SUPA - Esquema do Banco`): procure neles pelo que precisa.
+
+**Sempre que a demanda tocar:** SQL → a nota do domínio em `Banco/` **antes** de escrever; desempenho → `PLT - Lei de Desempenho e Escala.md`; tela → a nota de `Design/` do assunto; dúvida de negócio → `PLT - Perguntas em Aberto.md` (o que está lá **não tem resposta**: pergunte, não invente).
+
+Meta: **≤ 150 KB lidos antes de codar** (`node scripts/cofre/verificar.mjs --leitura "<arquivo da demanda>"` mostra a conta). Depois de ler, **antes de codar**, traga ao dono: (a) o entendimento do escopo em até 15 linhas, (b) as dúvidas de negócio, (c) as decisões técnicas. Só siga com o OK dele.
 
 ## 🔴 Regras CRÍTICAS (violar = sessão comprometida)
 
-1. **NUNCA codar direto na main.** Toda sessão trabalha em branch própria (`sessao-NN-descricao`), e nada entra na `main` sem o dono revisar antes. **↩️ Ajustado em 26/08/2026 (D-20):** enquanto o dono for o único a trabalhar no repositório, a revisão acontece **na conversa** e o merge é direto — PR formal e proteção de branch ficam dispensados. Entrar mais alguém no repositório reativa o PR.
-2. **NUNCA subir/aplicar nada no banco de produção** (o Supabase da fábrica) sem aprovação explícita do dono naquela conversa. Migrations são escritas em arquivo e versionadas; **aplicá-las é um passo separado, pedido e aprovado**. Vale também para deploy de front/Edge Functions em produção. **Subir para a main é publicar o site** (a Vercel monta a cada envio — A-220, SESSAO-48): commit de código na main só no momento combinado com o dono; com o pulo da documentação no ar (D-303), o cofre pode subir a qualquer hora sem publicar nada.
-3. **SEMPRE perguntar antes de ajuste crítico:** mudança de schema, auth/permissões, exclusão de dados, dependência nova pesada, mudança em endpoint público da API, qualquer coisa que toque as integrações n8n em produção.
-4. **NUNCA colar token/credencial** em chat, código commitado, print ou nota. (Um token do Tiny já vazou assim — regra permanente da casa.)
-5. **Eventos são append-only** (RNF-05): nenhuma feature pode editar ou apagar registros de evento — correção é um novo evento.
+1. **Nunca codar na main.** Branch própria (`sessao-NN-descricao`); nada entra na main sem o dono revisar. *Enquanto ele for o único no repositório, a revisão é na conversa e o merge é direto.*
+2. **Nunca aplicar nada em produção** (banco, função, site) sem o OK explícito do dono naquela conversa. Migration é arquivo versionado; aplicar é passo separado. **Subir código para a main é publicar o site**; o cofre (`_docs/`) e os roteiros do cofre podem subir a qualquer hora sem publicar.
+3. **Perguntar antes de ajuste crítico:** schema, permissões, exclusão de dados, dependência pesada, API pública, integrações n8n em produção.
+4. **Nunca colar token ou credencial** em chat, código, print ou nota. *Um token já vazou assim.*
+5. **Fatos são append-only:** nada edita nem apaga registro de evento — correção é um fato novo.
 
 ## 🟠 Regras MODERADAS (o método anti-alucinação)
 
-6. **Antes de escrever qualquer código:** ler a demanda principal (`SESSAO-NN`) **pelo menos duas vezes**, ler as decisões (`PLT - Decisoes de Produto.md`), o **modelo de sistema** (`_docs/Plataforma/PLT - Modelo de Sistema.md` — D-27) e a **memória de aprendizado** (`PLT - Memoria de Aprendizado.md`) — leitura obrigatória em TODA sessão, sem exceção. Listar dúvidas de negócio ANTES de começar — **o que não está escrito na demanda não existe**; não presuma.
-6b. **Alimentar a memória de aprendizado NA HORA:** errou → registrar `E-NN` em `PLT - Memoria de Aprendizado.md` em 1 linha; corrigiu → completar a mesma linha com a correção; acerto que deve virar padrão, fórmula, modelo mental ou possibilidade → registrar também. Nunca apagar entrada. Lição que virou lei → promover para este CLAUDE.md.
-7. **Task list obrigatória no início da sessão**, espelhando item a item a demanda principal (usar a ferramenta de tasks da sessão E registrar no arquivo de memória). Ao final, conferir a lista contra a demanda antes de declarar concluído.
-8. **Memória de execução contínua:** computar TUDO o que foi feito, sem perder detalhe, ENQUANTO executa — em `_docs/Plataforma/Execucao/SESSAO-NN.md` no repo: decisões técnicas, arquivos criados/alterados, comandos rodados, erros e como foram resolvidos. Reler essa memória periodicamente durante a sessão para não repetir nem contradizer o já feito.
-9. **Handoff obrigatório ao fim da demanda**, para revisão do dono: o que foi adicionado, **como testar passo a passo**, o que ficou pendente, o que precisa de decisão. Vai para `_docs/Handoffs/` (template do cofre) e é linkado no `000 - MAPA DO PROJETO.md`. Sem handoff, a demanda não está entregue.
-10. **Banco:** antes de qualquer SQL, ler `SUPA - Esquema do Banco.md` — nomes de tabela/coluna saem de lá, nunca de memória. Alterou o banco (com aprovação): SQL rodado → `supabase-fabrica-schema.sql` atualizado → nota atualizada. Tabelas da plataforma usam prefixo próprio e **não alteram** as tabelas existentes da integração. **Leitura de `plt_usuarios` é por coluna (E-50/D-68):** coluna nova só fica legível pelo navegador com `grant select (coluna)` explícito, e dado pessoal nasce fora da API (lido por porta própria). **Sessões em paralelo:** o aplicador reaplica tudo — se outra frente aplicou uma migration que a sua pasta não tem, aplique só a sua (`--so <arquivo>`).
+6. **Ler antes de escrever:** a rota acima, sem pular a camada 1. **O que não está escrito na demanda não existe** — liste as dúvidas antes de começar.
+6b. **Registrar na hora:** errou → lição nova (`### E-NNN`) **na nota do tema** em `Plataforma/Memoria/`, com a correção na mesma entrada; acerto que vira padrão → `### A-NNN`. Decisão nova → **nota nova** em `Plataforma/Decisoes/` (copie o frontmatter de uma vizinha), provisória se o dono não decidiu. Lição que custou caro → uma linha nas Regras de Ouro. Nunca apagar entrada. Os índices se geram sozinhos (regra 9).
+7. **Task list no início**, espelhando a demanda item a item; no fim, conferir contra a demanda.
+8. **Diário contínuo** em `_docs/Plataforma/Execucao/SESSAO-NN.md`: decisões técnicas, arquivos, comandos, erros e como foram resolvidos (≤ 30 KB; o que passar vira arquivo de dados ao lado).
+9. **Handoff obrigatório** em `_docs/Handoffs/` (template em `_docs/Templates/`, ≤ 15 KB — o detalhe técnico fica no diário): o que foi feito, **como testar passo a passo**, pendências, decisões para o dono. Antes de entregar: `node scripts/cofre/verificar.mjs --gerar` e depois `node scripts/cofre/verificar.mjs` — **zero erro**, e o resumo vai no handoff. Sem handoff, a demanda não está entregue.
+10. **Banco:** nomes saem da nota do domínio (`Supabase-fabrica/Banco/`), nunca de memória. Alterou (com aprovação): migration → `supabase-fabrica-schema.sql` → bloco novo **no fim da nota do domínio**. Prefixo `plt_`; as tabelas da integração não se alteram. Leitura de usuário é por coluna, com grant explícito. Sessões em paralelo: aplicar só a sua (`--so <arquivo>`).
 
 ## 🟢 Regras BÁSICAS (qualidade do dia a dia)
 
-11. **Seguir o modelo de sistema** (`_docs/Plataforma/PLT - Modelo de Sistema.md` — desde a SESSAO-07/D-27, o antigo `docs/design-system.md` vive lá, fonte única) em toda tela nova; componente novo só se não existir equivalente. Tela com muitos dados → **paginação obrigatória** (RNF-02).
-12. **Termos da equipe sem tradução:** SECC, FITAMENTO, FURAÇÃO, PCP, "rota" — a interface fala a língua do galpão. UI em português.
-12b. **Códigos internos NUNCA em texto de interface** (D-27): "D-09", "RF-80", "Q-16" etc. não aparecem para o usuário — ele não entende. Na UI, escrever em língua de gente; o código vai para comentário no código-fonte, como entendimento do Claude.
-12c. **Na conversa com o dono, NUNCA falar em código** (pedido do dono, 28/09/2026): *"não fique falando em códigos no estilo (D-63, E-55, 3503d77) — eu nem sei o que é isso; quem entende isso é a máquina, não eu nem ninguém — fale português"*. Nas mensagens para ele: **nada** de ID de decisão, erro, aprendizado, requisito ou pergunta (D-NN, E-NN, A-NN, M-NN, F-NN, RF-NN, Q-NN), hash de commit, nome de branch, número de migration, nome de função/tabela/coluna ou caminho de arquivo. Diga o que a coisa **é** e o que ela **faz**, em português do galpão ("a regra de que o frete não vira peça", "a atualização do banco de hoje", "a versão que subiu para o site"). Os códigos continuam valendo **dentro** do cofre e do código — são a memória da máquina; na conversa, só a tradução. Vale também para o texto das perguntas e opções que você mostra a ele.
-13. **Commits pequenos e descritivos; uma branch por demanda.** Nada de entrega gigante misturando assuntos.
-14. **Verificação conforme os critérios de aceite da demanda** — cada critério testado e reportado no handoff; UI nova acompanha screenshot.
-15. **Mobile-first para o chão de fábrica** (D-06): tudo que o operador toca funciona em tablet com botão grande e em celular.
-16. **Lei de layout e navegação (D-36):** layout nunca nasce fora do padrão **pai→filho** — um filho é sempre herdeiro de um pai. **Pai nunca é rota navegável**: só direciona aos filhos, no padrão `/pai/filho` (ex.: `/logistica/estoque`). **Nenhuma rota solta na raiz**: toda entrada redireciona para a rota herdeira — `/entrar` → `/inicio/meu-painel`, `/` → `/inicio/meu-painel`. Sidebar presente e recolhível em **toda** tela; **botão de voltar em toda tela**; sino de notificações no topo; e **toda atividade de usuário gera log no banco** (D-40).
-17. **Lei de requisição (SESSAO-22, pedido do dono): cada tela requisita apenas o que ela mostra — se a tela não mostra, ela não requisita.** Lista/coluna pagina **no servidor** (`limite/deslocamento` ou `range`), o total vem de agregado barato (contagem na mesma consulta paginada), e "Ver mais" busca só a próxima página. Baixar o conjunto inteiro para filtrar/desenhar um pedaço no cliente é proibido — vale para toda tela nova e para toda tela que for tocada.
-18. **Lei de desempenho e escala (pedido do dono, 07/10/2026) — vale como regra CRÍTICA:** sempre a solução mais otimizada do padrão de mercado, a das plataformas que atendem milhares de usuários — **"é mais difícil" nunca é motivo para escolher o caminho que não escala**; atalho só com o OK do dono, registrado como D-NN. Leia e cumpra `_docs/Plataforma/PLT - Lei de Desempenho e Escala.md`. O essencial: **(a)** primeira abertura do app = **1 requisição de dados** (uma porta de abertura) e cada tela = 1 requisição; nada em cascata; **(b)** dado escondido só chega **no clique** (aba, modal, detalhe, "Ver mais"); **(c)** tempo real **por websocket** (Broadcast em canal privado, tópico estreito); long polling/SSE só se websocket for impossível; **polling por intervalo e `postgres_changes` são PROIBIDOS**; no banco, trabalho nasce do fato (fila), nunca de relógio que acorda para ver se há trabalho; **(d)** sessão por token curto que se renova enquanto a pessoa usa, **verificado localmente** (chaves assimétricas, `getClaims`) e com as **permissões dentro do token** — nada de ir ao banco perguntar "quem sou eu" quando está tudo certo; **(e)** **paginação no servidor em toda lista que um dia possa crescer**, por **cursor** (deslocamento só em lista pequena e limitada), com teto no banco; **(f)** banco impecável: projeção pronta para leitura pesada, índice em toda chave estrangeira, filtro, ordenação e coluna de RLS, RLS com `(select …)`, `EXPLAIN ANALYZE` com volume ×100 de toda porta nova, migração sem travar, plano de crescimento das tabelas que só aumentam; **(g)** código dividido por tela, cache com invalidação por sinal, escrita idempotente, chamada externa com tempo limite, nova tentativa com espera crescente e disjuntor. **Orçamentos:** porta de tela ≤ 50 ms (p95), painel ≤ 150 ms; LCP ≤ 2,5 s, INP ≤ 200 ms, CLS ≤ 0,1; JS inicial ≤ 250 KB comprimido. **Toda tela tocada sai dentro da lei** — o que não sair vira dívida registrada na própria lei, com o porquê. O checklist de desempenho da lei entra no checklist final de toda sessão.
-19. **ClickUp — quem cria, quem move, quem conclui (pedido do dono, 07/10/2026):** o que o dono mapeia com o Cowork vira **tarefa** na lista **PRODUÇÃO** do espaço DPTO TI — **tudo como tarefa, nada como subtarefa**, no padrão "Área - Item" (ex.: "Kanban - Cartões avulsos"), atribuída ao dono, em **A FAZER**; a demanda lista os links das suas tarefas na seção "Tarefas no ClickUp". **O Claude Code, ao começar a executar uma tarefa, move-a para FAZENDO — e NUNCA para CONCLUÍDO:** quem conclui é o dono. Ao terminar cada tarefa, o Claude Code **avisa o dono** na conversa (e deixa um comentário curto na tarefa: o que foi entregue e como conferir). Não cria tarefa nem subtarefa por conta própria; achou trabalho novo → avisa o dono, que decide. Sem acesso ao ClickUp na sessão → avisa o dono no início, para ele mover. **Texto no ClickUp é humanizado** (pedido do dono, 14/10/2026: *"as demandas devem ser criadas como humanizadas e ponto, no padrão que já existiam"*): nome, descrição e comentário de tarefa falam só do que a coisa é e faz, como as tarefas antigas — **nada** de "sessão", "SESSAO-NN", "sessão noturna"/"madrugada", códigos (D-NN, E-NN, §N…), nome de arquivo, "cofre", "handoff" ou "etapa N" da execução; a ligação tarefa ↔ demanda mora só na demanda (seção "Tarefas no ClickUp").
-20. **Nenhum `cd` no shell da sessão** (E-74/E-77/E-91/E-93/E-101 — cinco reincidências): o app adota a pasta do `cd` como a pasta de trabalho da sessão, até em comando composto "só para ler". Sempre caminho absoluto: variável (`R="…"; cat "$R/…"`), `git -C "<repo>"`, `npm --prefix "<repo>"`, `npx --prefix "<repo>"`. Vale desde o PRIMEIRO comando, antes de qualquer leitura.
+11. **Seguir o modelo de sistema** (`Plataforma/Design/`); componente novo só se não existir equivalente; lista grande é paginada.
+12. **Termos do galpão sem tradução:** SECC, FITAMENTO, FURAÇÃO, PCP, "rota". Interface em português.
+12b. **Código interno nunca aparece na tela** ("D-09", "RF-80"): na interface, língua de gente; o código fica em comentário.
+12c. **Com o dono, nunca falar em código:** nada de identificador de decisão, erro ou requisito, versão, ramo, número de atualização do banco, nome de função, tabela ou arquivo. Diga o que a coisa **é** e o que **faz**. Vale para perguntas, opções e ClickUp.
+13. **Commits pequenos e descritivos; uma branch por demanda.**
+14. **Verificar cada critério de aceite** e reportar no handoff; tela nova acompanha print.
+15. **Mobile-first para o chão de fábrica:** tablet com botão grande e celular.
+16. **Layout pai→filho:** pai nunca é rota; tudo é `/pai/filho`; nada solto na raiz; menu lateral recolhível, botão de voltar e sino em toda tela; **toda atividade de usuário gera registro no banco**.
+17. **Cada tela pede só o que mostra:** lista pagina no servidor; "Ver mais" busca só a próxima página; baixar tudo para filtrar no cliente é proibido.
+18. **Lei de desempenho e escala (vale como CRÍTICA):** sempre a solução que escala, a do padrão de mercado — "é mais difícil" não é motivo; atalho só com o OK do dono, registrado como decisão. 1 requisição na abertura e 1 por tela; dado escondido só no clique; tempo real por websocket (**relógio buscando dado e `postgres_changes` são proibidos**); sessão por token verificado localmente; paginação por cursor; banco com índice, RLS com `(select …)` e ensaio ×100; código dividido por tela. Os orçamentos e o checklist estão nas Regras de Ouro; toda tela tocada sai dentro da lei ou vira dívida registrada.
+19. **ClickUp:** o que o dono mapeia vira **tarefa** (nunca subtarefa) na lista PRODUÇÃO do DPTO TI, no padrão "Área - Item". O Claude Code move para **FAZENDO** ao começar e **nunca para CONCLUÍDO** — quem conclui é o dono; ao terminar, avisa na conversa e deixa um comentário curto. Não cria tarefa por conta própria. **Texto humanizado:** sem "sessão", códigos, arquivo, "cofre" ou "handoff".
+20. **Nenhum `cd` no shell** (o app adota a pasta — cinco reincidências): sempre caminho absoluto, `git -C`, `npm --prefix`, desde o primeiro comando.
 
 ## O ciclo de toda sessão
 
 ```
-ler SESSAO-NN (2x) → ler decisões + modelo de sistema + MEMÓRIA DE APRENDIZADO + LEI DE DESEMPENHO
-→ listar dúvidas → task list → branch → tarefas do ClickUp da demanda em FAZENDO (regra 19)
-→ codar computando tudo em _docs/Plataforma/Execucao/SESSAO-NN.md
-   (errou/acertou/aprendeu → anotar em PLT - Memoria de Aprendizado NA HORA)
-→ conferir task list contra a demanda + checklist de desempenho (regra 18) → revisão do dono → merge na main
-→ avisar o dono de cada tarefa entregue (o dono conclui no ClickUp — regra 19)
-→ handoff em _docs/Handoffs/ + memória de aprendizado atualizada
+camada 1 (este arquivo + Regras de Ouro) → demanda 2x + "Leitura da sessão" → dúvidas → OK do dono
+→ task list → branch → tarefas do ClickUp em FAZENDO
+→ codar, com o diário em Execucao/SESSAO-NN.md (lição na nota do tema; decisão em nota nova)
+→ conferir a task list contra a demanda + checklist de desempenho
+→ verificar.mjs --gerar e verificar.mjs (zero erro) → handoff → revisão do dono → merge
+→ avisar o dono de cada tarefa entregue (ele conclui no ClickUp)
 ```
 
 ## Onde vive a verdade
 
-- Demanda da sessão: `_docs/Plataforma/Demandas/SESSAO-NN - *.md`
-- Decisões de produto: `_docs/Plataforma/PLT - Decisoes de Produto.md`
-- **Memória de aprendizado (leitura E escrita obrigatórias em toda sessão): `_docs/Plataforma/PLT - Memoria de Aprendizado.md`**
-- Requisitos: `_docs/Plataforma/PLT - Requisitos.md`
-- Esquema do banco: `_docs/Supabase-fabrica/SUPA - Esquema do Banco.md`
-- **Lei de desempenho e escala (leitura obrigatória em toda sessão): `_docs/Plataforma/PLT - Lei de Desempenho e Escala.md`**
-- O que ainda não foi decidido: `_docs/Plataforma/PLT - Perguntas em Aberto.md` — se sua dúvida está lá, ela está SEM resposta: pergunte ao dono, não invente.
+| O quê | Onde (`_docs/…`) |
+|---|---|
+| Regras que valem sempre | `000 - REGRAS DE OURO.md` |
+| As áreas e os mapas | `000 - MAPA DO PROJETO.md` → `Mapas/MOC - *.md` |
+| Demandas e a ordem | `Plataforma/Demandas/` (`000 - ORDEM DAS SESSOES.md`) |
+| Decisões de produto | `Plataforma/Decisoes/` (índice: `Plataforma/PLT - Decisoes de Produto.md`) |
+| Lições (erros, acertos, modelos) | `Plataforma/Memoria/` (índice: `Plataforma/PLT - Memoria de Aprendizado.md`) |
+| Banco | `Supabase-fabrica/Banco/` (índice: `Supabase-fabrica/SUPA - Esquema do Banco.md`) |
+| Design | `Plataforma/Design/` (índice: `Plataforma/PLT - Modelo de Sistema.md`) |
+| Lei de desempenho e as dívidas | `Plataforma/PLT - Lei de Desempenho e Escala.md` (+ `… - Dividas e Andamento N.md`) |
+| O que ainda não foi decidido | `Plataforma/PLT - Perguntas em Aberto.md` |
+| O detalhe e o histórico de cada regra daqui | `Plataforma/CLAUDE - Regras do Claude Code (repo).md` |
+| O verificador do cofre | `scripts/cofre/verificar.mjs` (`--gerar`, `--leitura <demanda>`, `--ligar`) |
