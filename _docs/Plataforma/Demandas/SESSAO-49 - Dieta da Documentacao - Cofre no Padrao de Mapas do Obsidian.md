@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-49 — Dieta da documentação: o cofre no padrão de mapas do Obsidian, regras de leitura rápida e cada demanda lendo só o que precisa"
 tipo: demanda
-status: 🔨 em execução (18/11 — replanejada com as medições de hoje; ver a seção ↪️ 18/11)
+status: 📦 entregue na branch (18/11 — espera a revisão do dono para entrar na main)
 data: 2026-11-11
 origem: pergunta do dono de 11/11 (03:20) — "o Claude Code está demorando muito para executar" — e o pedido de 03:25. Medições feitas no Cowork sobre a main de 11/11 (só leitura).
 revisa: a ordem de leitura do CLAUDE.md da raiz e a regra 6/10 ("ler tudo antes de codar"). Não revisa decisão de produto nenhuma.
@@ -19,7 +19,7 @@ tags: [cofre, documentacao, obsidian, processo, desempenho-da-sessao]
 > **Onde este replanejamento diverge do texto de 11/11, vale este.**
 
 ### O que entrou no cofre depois de 11/11
-- **SESSAO-48, 50 e 51 estão na main** (a trava "rodar só depois da 48" caiu). Com elas vieram as decisões até a **D-334**, as lições até **E-291 / A-243** e o **pulo da documentação na Vercel** (D-303): subir só `_docs/` não publica mais o site.
+- **SESSAO-48, 50 e 51 estão na main** (a trava "rodar só depois da 48" caiu). Com elas vieram as decisões até a **[[D-334 - Os pedidos entregues em parte antes desta sessao|D-334]]**, as lições até **[[Memoria - Processo de Sessao Cofre e Dono#E-291|E-291]] / [[Memoria - Publicacao Vercel e Funcoes#A-243|A-243]]** e o **pulo da documentação na Vercel** ([[D-303 - A versao e o codigo e documentacao nao publica a mudanca|D-303]]): subir só `_docs/` não publica mais o site.
 - **A revisão de 18/11** (já na main): os 335 critérios de aceite marcados nas demandas entregues, os status corrigidos, o retrato novo no topo de [[000 - PROXIMOS PASSOS]] e as notas ↪️ 18/11 na Ordem das Sessões, nas Perguntas em Aberto, no n8n, no Comercial e nos handoffs. **Consequência para a dieta:** essas notas ↪️ 18/11 são texto vivo e vão junto, sem reescrever, para onde a nota for; o que a revisão marcou como "deixou de ser pendência" não entra nos mapas como pendência.
 
 ### As medições de hoje (18/11, pelo script, sobre a main `4d91dd3`)
@@ -27,7 +27,7 @@ tags: [cofre, documentacao, obsidian, processo, desempenho-da-sessao]
 | O quê | 11/11 (demanda) | **18/11 (medido)** |
 |---|---|---|
 | Leitura obrigatória (os documentos que o CLAUDE.md manda ler, com o Modelo de Sistema) | 1,1 MB | **1.315,7 KB (~1,3 MB)** |
-| Decisões de Produto | 372 KB · 248 decisões | **423,0 KB · 291 decisões com título** (a maior é a D-334) |
+| Decisões de Produto | 372 KB · 248 decisões | **423,0 KB · 291 decisões com título** (a maior é a [[D-334 - Os pedidos entregues em parte antes desta sessao\|D-334]]) |
 | Memória de Aprendizado | 224 KB · 180 E · 157 A · 16 M | **262,5 KB · 222 E · 188 A · 16 M · 9 F · 4 X = 439 entradas** |
 | Esquema do Banco | 237 KB | **258,0 KB** |
 | Modelo de Sistema | 92 KB | **109,8 KB** |
@@ -41,19 +41,19 @@ tags: [cofre, documentacao, obsidian, processo, desempenho-da-sessao]
 (KB = 1.024 bytes, como o verificador mede; o sistema de arquivos mostra 433 / 269 / 264 / 112 KB em milhares de bytes — são os mesmos arquivos.)
 
 ### Correções ao texto de 11/11
-1. **A contagem de decisões é a de hoje: 291 notas, não 248.** Os números pulados (44, 64, 69, 149, 160, 177–185, 222–224, 234–259) **não têm texto de decisão em lugar nenhum**: a D-44 foi reservada pela frente do histórico do Tiny e nunca escrita (as respostas do dono viraram a D-45), a D-64 "ficou sem uso" (dito no próprio arquivo), e as faixas foram reservas de sessões em paralelo. "As duas que faltam" da nota de 11/11 são a D-44 e a D-64: **não ganham nota** (não há o que mover — inventar o texto seria criar decisão); o índice as lista como "número sem decisão" e o verificador aceita a citação.
+1. **A contagem de decisões é a de hoje: 291 notas, não 248.** Os números pulados (44, 64, 69, 149, 160, 177–185, 222–224, 234–259) **não têm texto de decisão em lugar nenhum**: a D-44 foi reservada pela frente do histórico do Tiny e nunca escrita (as respostas do dono viraram a [[D-045 - Logistica e ROTAS unidade pronta lancamento ID de producao|D-45]]), a D-64 "ficou sem uso" (dito no próprio arquivo), e as faixas foram reservas de sessões em paralelo. "As duas que faltam" da nota de 11/11 são a D-44 e a D-64: **não ganham nota** (não há o que mover — inventar o texto seria criar decisão); o índice as lista como "número sem decisão" e o verificador aceita a citação.
 2. **As contagens da memória são as de hoje** (222 erros, 188 acertos, 16 modelos, 9 fórmulas, 4 possibilidades). Uma entrada (a do CRLF) ocupa três linhas; o script trata a continuação como parte dela.
 3. **`aliases` não faz `[[D-61]]` abrir a nota.** No Obsidian o apelido só aparece na busca e no completar; a ligação aponta para o **nome do arquivo**. Para a ligação abrir de verdade e o grafo mostrar o nome em português: a nota chama `D-061 - <o que a decisão faz>` (como a demanda pede) e toda citação vira `[[D-061 - …|D-61]]` — o leitor vê "D-61", o Obsidian abre a nota. O `aliases` fica no frontmatter para a busca. (Provisória.)
 4. **O índice de decisões não cabe em 15 KB.** Com 291 decisões, uma linha por decisão dá ~40 KB. Os três **índices gerados** (decisões, memória, esquema) ganham teto próprio (≤ 60 KB) e **não são leitura obrigatória**: servem à busca. O que a sessão lê é o **mapa da área** (≤ 15 KB), que já traz as decisões vigentes daquela área. (Provisória.)
 5. **Nota que não cabe no teto sem reescrever fica como está e vira aviso do verificador** (decisão maior que 8 KB, por exemplo): a regra "não reescrever" vence o orçamento.
 6. **O exemplo da leitura ≤ 150 KB** passa a ser medido com uma demanda de hoje (a SESSAO-51) além da 48.
-7. **A trava "juntar os commits e subir poucas vezes"** deixou de valer para o cofre (D-303); vale o ponto novo abaixo.
+7. **A trava "juntar os commits e subir poucas vezes"** deixou de valer para o cofre ([[D-303 - A versao e o codigo e documentacao nao publica a mudanca|D-303]]); vale o ponto novo abaixo.
 
 ### Ponto novo · o pulo da Vercel
 Hoje `scripts/vercel-pular-documentacao.sh` só pula quando mudou `_docs/`, `Claude outputs/` ou `.md`. Os roteiros do verificador moram em `scripts/cofre/` (`.mjs`): **cada mudança neles montaria o site de novo**, sem necessidade — o site não usa nada dessa pasta. **Saída (provisória):** acrescentar `scripts/cofre` à lista do pulo. Efeito colateral único e inofensivo: a subida que levar essa mudança monta o site uma vez (o próprio roteiro do pulo é código); daí em diante, mexer no verificador não publica nada.
 
 ### Outra frente ao mesmo tempo · SESSAO-34 (rotinas do banco por evento)
-Roda em outra mesa da mesma fila. **Combinado:** ela **não mexe** nas notas grandes — Decisões, Memória, Esquema, Lei de Desempenho, Mapa, Ordem das Sessões e Próximos Passos. **As decisões e lições dela entram depois da dieta**, já no formato novo (uma nota por decisão; lição na nota do tema). Esta sessão, por sua vez, **não toca** na demanda nem nas notas da 34. Numeração: esta sessão usa a partir de D-335, E-292 e A-244; a 34 numera depois, a partir do que o verificador mostrar.
+Roda em outra mesa da mesma fila. **Combinado:** ela **não mexe** nas notas grandes — Decisões, Memória, Esquema, Lei de Desempenho, Mapa, Ordem das Sessões e Próximos Passos. **As decisões e lições dela entram depois da dieta**, já no formato novo (uma nota por decisão; lição na nota do tema). Esta sessão, por sua vez, **não toca** na demanda nem nas notas da 34. Numeração: esta sessão usa a partir de [[D-335 - Os roteiros do cofre nao publicam o site|D-335]], [[Memoria - Git Shell e Windows 2#E-292|E-292]] e [[Memoria - Processo de Sessao Cofre e Dono#A-244|A-244]]; a 34 numera depois, a partir do que o verificador mostrar.
 
 ### Ordem e escopo de execução (18/11)
 - Ordem: **1 → 2 → 5 → 3 → 4 → 6**, um commit por frente (a da demanda, para o caso de o tempo apertar).
@@ -90,7 +90,7 @@ Isso é maior que a memória de trabalho do Claude Code. Ele lê em pedaços, a 
 | Lei de Desempenho | 73 KB | 24 | lei + dívidas + checklist juntos |
 | Mapa do Projeto | 62 KB | 49 | virou lista cronológica de handoffs, não mapa |
 
-**3. É aí que mora a "desvinculação" que o dono sente.** As citações "D-61", "E-19", "A-96" estão escritas como **texto**, não como ligação. O grafo do Obsidian não enxerga quem depende de quem. Para achar uma decisão, é preciso abrir o arquivo de 372 KB e procurar.
+**3. É aí que mora a "desvinculação" que o dono sente.** As citações "[[D-061 - Cancelamento em tres estagios a aba Cancelados guarda|D-61]]", "[[Memoria - Migrations Aplicador e Ensaio 2#E-19|E-19]]", "[[Memoria - Banco e SQL 2#A-96|A-96]]" estão escritas como **texto**, não como ligação. O grafo do Obsidian não enxerga quem depende de quem. Para achar uma decisão, é preciso abrir o arquivo de 372 KB e procurar.
 
 **4. Os diários e handoffs incham, mas estão fora da leitura obrigatória** (Handoffs 6,3 MB; diários de execução de até 84 KB). Ficam onde estão: só precisam de teto daqui para frente.
 
@@ -109,7 +109,7 @@ Isso é maior que a memória de trabalho do Claude Code. Ele lê em pedaços, a 
 ### Frente 1 · O documento obrigatório leve: `000 - REGRAS DE OURO` + `CLAUDE.md` enxuto
 - **`CLAUDE.md` da raiz (≤ 10 KB):** as 20 regras em formato de lista curta (o quê + 1 linha de porquê), o ciclo da sessão e **a rota de leitura nova**. Detalhe e histórico de cada regra vão para notas ligadas.
 - **`_docs/000 - REGRAS DE OURO.md` (≤ 30 KB), em seções curtas:**
-  1. **Leis do produto:** D-01…D-17, uma linha cada, com ligação para a nota.
+  1. **Leis do produto:** [[D-001 - Unidade do card hibrido|D-01]]…[[D-017 - Formato dos prompts do Claude Code minimo so o caminho|D-17]], uma linha cada, com ligação para a nota.
   2. **As decisões que mais pegam:** as ~30 decisões vigentes mais citadas nas demandas (conte as citações), uma linha cada.
   3. **Nunca mais:** as ~30 lições que mais custaram (as que viraram regra ou se repetiram), uma linha cada, com ligação.
   4. **Desempenho — o checklist** (de 1 página, tirado da Lei): orçamentos, proibições e o checklist de fim de sessão.
@@ -210,15 +210,15 @@ Um script `scripts/cofre/verificar.mjs` (Node, sem dependência nova), rodado no
 - Plugin pago do Obsidian. Se for útil, o Dataview pode ser sugerido ao dono, mas os índices são gerados em texto puro para o Claude Code ler sem plugin.
 
 ## Critérios de aceite
-- [ ] Camada 1 (CLAUDE.md + Regras de Ouro) ≤ 40 KB, medida pelo script.
-- [ ] O script, com a demanda da SESSAO-48 como exemplo, mostra a leitura ≤ 150 KB.
-- [ ] 248 notas de decisão com frontmatter válido; o índice gerado bate; `[[D-61]]` abre a nota no Obsidian.
-- [ ] Esquema por domínio e memória por tema, sem perder nenhuma entrada (contagem antes/depois no handoff).
-- [ ] Um mapa por área, nenhum acima de 15 KB; o Mapa do Projeto volta a ser mapa.
-- [ ] Zero ligação quebrada e zero nota solta nas notas vivas; imagens consertadas.
-- [ ] Citações de id nas notas vivas viraram ligação; o grafo do Obsidian mostra as decisões ligadas às áreas (print no handoff).
-- [ ] Templates de demanda e handoff com as seções novas; CLAUDE.md com a rota de leitura nova.
-- [ ] Nenhum arquivo fora de `_docs/`, `CLAUDE.md` e `scripts/cofre/` foi tocado.
+- [x] Camada 1 (CLAUDE.md + Regras de Ouro) ≤ 40 KB, medida pelo script. ↪️ 18/11: **30,1 KB**.
+- [x] O script, com a demanda da SESSAO-48 como exemplo, mostra a leitura ≤ 150 KB. ↪️ 18/11: **109,5 KB** (estimativa pelas áreas, porque a 48 não tem a seção "Leitura da sessão").
+- [x] 248 notas de decisão com frontmatter válido; o índice gerado bate; `[[D-61]]` abre a nota no Obsidian. ↪️ 18/11: **291 notas** (a contagem de hoje); a citação abre a nota por ligação com apelido — **falta o dono conferir no Obsidian**.
+- [x] Esquema por domínio e memória por tema, sem perder nenhuma entrada (contagem antes/depois no handoff).
+- [x] Um mapa por área, nenhum acima de 15 KB; o Mapa do Projeto volta a ser mapa. ↪️ 18/11: 15 mapas (os 12 da demanda + Meu Painel/Chat/Automações, Interface e Processo).
+- [x] Zero ligação quebrada e zero nota solta nas notas vivas; imagens consertadas. ↪️ 18/11: as imagens quebradas já não existiam.
+- [ ] Citações de id nas notas vivas viraram ligação; o grafo do Obsidian mostra as decisões ligadas às áreas (print no handoff). ↪️ 18/11: **as ligações estão feitas (1.241); o print do grafo NÃO foi tirado** — a sessão rodou sem Obsidian.
+- [x] Templates de demanda e handoff com as seções novas; CLAUDE.md com a rota de leitura nova.
+- [x] Nenhum arquivo fora de `_docs/`, `CLAUDE.md` e `scripts/cofre/` foi tocado. ↪️ 18/11: mais uma linha do roteiro do pulo da Vercel (provisória, autorizada pelo pedido de 18/11).
 
 ## Notas para o Claude Code
 - **Faça com script, não à mão:** a separação das 248 decisões e das ~400 entradas de memória sai de um script que lê os títulos (`## D-NN ·`, `### E-NN`…) e grava as notas. Revise o resultado por amostragem: as 10 maiores, as 10 mais citadas e as revisadas.
@@ -231,10 +231,16 @@ Um script `scripts/cofre/verificar.mjs` (Node, sem dependência nova), rodado no
 CLAUDE.md da raiz · `_docs/CLAUDE.md` · esta demanda · o índice das três notas monolíticas (só os títulos, com `grep '^## '`) · `Templates/` · `000 - MAPA DO PROJETO` (só a estrutura). **Não precisa ler as notas monolíticas inteiras para dividi-las:** o script faz a divisão pelos títulos.
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
-- *A criar com o OK do dono:* "Documentação - Regras de leitura rápida para o Claude Code" · "Documentação - Decisões, banco e aprendizados organizados por assunto" · "Documentação - Verificador automático da documentação".
+- ↪️ 18/11: **não criadas** — a sessão rodou em modo fila, que proíbe mexer no ClickUp. *A criar pelo dono (ou com o OK dele):* "Documentação - Regras de leitura rápida para o Claude Code" · "Documentação - Decisões, banco e aprendizados organizados por assunto" · "Documentação - Verificador automático da documentação".
 
 ## Resultado (preencher ao entregar)
-*Quanto a leitura obrigatória caiu (antes/depois), o que foi movido para onde, o print do grafo, o que ficou pendente.*
+**Entregue na branch em 18/11/2026** — [[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]] · [[SESSAO-49|diário]].
+
+- **A leitura obrigatória caiu de 1.315,7 KB para 30,1 KB** (`CLAUDE.md` 9,0 + [[000 - REGRAS DE OURO]] 21,1). Uma sessão típica lê ~110 KB antes de codar.
+- **Movido, sem reescrever** (cada bloco conferido por programa em exatamente uma nota): 291 decisões → `Plataforma/Decisoes/`; 439 lições → 19 notas em `Plataforma/Memoria/`; o esquema (120 blocos, 2.312 nomes) → 18 notas em `Supabase-fabrica/Banco/`; o modelo de sistema → 6 notas em `Plataforma/Design/`; as dívidas da lei → 3 partes; o histórico do Mapa e os resumos longos da Ordem → `Arquivo/`. Os nomes antigos viraram índices.
+- **Novo:** 15 mapas de área + o mapa das sessões (`Mapas/`); 1.241 citações viraram ligação; o verificador (`scripts/cofre/verificar.mjs`) — zero erro.
+- **Provisórias da sessão:** D-335 · D-336 · D-337 · D-338 · D-339.
+- **Pendente:** o print do grafo e a conferência no Obsidian (com o dono); as 3 tarefas do ClickUp; a proposta da bateria do banco; a outra frente da fila registra as decisões dela no formato novo depois desta entrar.
 
 ---
 

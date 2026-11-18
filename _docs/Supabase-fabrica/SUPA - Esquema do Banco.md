@@ -43,16 +43,16 @@ Schema Postgres: **`public`** · Todas as tabelas com **RLS ligado e ZERO polici
 
 A primeira nota é a que mais fala da tabela. Função, porta e gatilho: procure o nome na pasta `Supabase-fabrica/Banco/`.
 
-- `clientes` → [[Banco - Comercial]] · também em [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]], [[Banco - PCP e Liberacao 1]], [[Banco - Filas e Integracoes Tiny e n8n 2]] e mais 1
-- `contas_receber` → [[Banco - Filas e Integracoes Tiny e n8n 1]] · também em [[Banco - PCP e Liberacao 1]], [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]], [[Banco - Plataforma - Visao Geral das Tabelas plt]]
-- `eventos` → [[Banco - Filas e Integracoes Tiny e n8n 1]] · também em [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]], [[Banco - Cards e Eventos do Kanban]], [[Banco - Estoque e Reposicao]] e mais 6
+- `clientes` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - Comercial]], [[Banco - PCP e Liberacao 1]]
+- `contas_receber` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - Filas e Integracoes Tiny e n8n 1]], [[Banco - PCP e Liberacao 1]], [[Banco - Plataforma - Visao Geral das Tabelas plt]]
+- `eventos` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - Filas e Integracoes Tiny e n8n 1]], [[Banco - Estoque e Reposicao]], [[Banco - Filas e Integracoes Tiny e n8n 2]] e mais 1
 - `gp_pcp_processados` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]]
 - `listas_disparo` → [[Banco - Comercial]]
 - `listas_disparo_eventos` → [[Banco - Comercial]]
 - `listas_disparo_membros` → [[Banco - Comercial]]
-- `notas_fiscais` → [[Banco - PCP e Liberacao 1]] · também em [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]], [[Banco - Plataforma - Visao Geral das Tabelas plt]]
-- `pedido_itens` → [[Banco - Plataforma - Visao Geral das Tabelas plt]] · também em [[Banco - Estoque e Reposicao]], [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]], [[Banco - PCP e Liberacao 1]]
-- `pedidos` → [[Banco - PCP e Liberacao 2]] · também em [[Banco - Comercial]], [[Banco - PCP e Liberacao 1]], [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] e mais 13
+- `notas_fiscais` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - PCP e Liberacao 1]], [[Banco - Plataforma - Visao Geral das Tabelas plt]]
+- `pedido_itens` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - Plataforma - Visao Geral das Tabelas plt]], [[Banco - Estoque e Reposicao]], [[Banco - PCP e Liberacao 1]]
+- `pedidos` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - PCP e Liberacao 1]], [[Banco - Chat Tarefas Automacoes e Configuracoes]], [[Banco - Cards e Eventos do Kanban]] e mais 8
 - `plt_anexos` → [[Banco - Cards e Eventos do Kanban]] · também em [[Banco - Logistica ROTAS e Entregas 1]]
 - `plt_automacao_execucoes` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
 - `plt_automacoes` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
@@ -61,7 +61,7 @@ A primeira nota é a que mais fala da tabela. Função, porta e gatilho: procure
 - `plt_campos` → [[Banco - Cards e Eventos do Kanban]] · também em [[Banco - Chat Tarefas Automacoes e Configuracoes]]
 - `plt_campos_valores` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
 - `plt_card_mensagens` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
-- `plt_cards` → [[Banco - PCP e Liberacao 2]] · também em [[Banco - Chat Tarefas Automacoes e Configuracoes]], [[Banco - Filas e Integracoes Tiny e n8n 1]], [[Banco - Setores Etapas e Execucao]] e mais 11
+- `plt_cards` → [[Banco - PCP e Liberacao 2]] · também em [[Banco - Chat Tarefas Automacoes e Configuracoes]], [[Banco - Setores Etapas e Execucao]], [[Banco - Cards e Eventos do Kanban]] e mais 11
 - `plt_chat_conversas` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
 - `plt_chat_mensagens` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
 - `plt_chat_participantes` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
@@ -74,10 +74,11 @@ A primeira nota é a que mais fala da tabela. Função, porta e gatilho: procure
 - `plt_comercial_vendas` → [[Banco - Comercial]]
 - `plt_estoque_numeros` → [[Banco - Estoque e Reposicao]] · também em [[Banco - Expedicao Devolucao e Cancelamento]]
 - `plt_etapas` → [[Banco - Setores Etapas e Execucao]] · também em [[Banco - Expedicao Devolucao e Cancelamento]], [[Banco - Filas e Integracoes Tiny e n8n 1]], [[Banco - Plataforma - Visao Geral das Tabelas plt]]
-- `plt_etiquetas` → [[Banco - Cards e Eventos do Kanban]] · também em [[Banco - Chat Tarefas Automacoes e Configuracoes]]
-- `plt_eventos` → [[Banco - Tempos e Paineis]] · também em [[Banco - Chat Tarefas Automacoes e Configuracoes]], [[Banco - Plataforma - Visao Geral das Tabelas plt]], [[Banco - Usuarios Acesso e Logs]] e mais 9
+- `plt_etiquetas` → [[Banco - Chat Tarefas Automacoes e Configuracoes]]
+- `plt_eventos` → [[Banco - Tempos e Paineis]] · também em [[Banco - Plataforma - Visao Geral das Tabelas plt]], [[Banco - Usuarios Acesso e Logs]], [[Banco - Cards e Eventos do Kanban]] e mais 9
 - `plt_geocache` → [[Banco - Logistica ROTAS e Entregas 1]] · também em [[Banco - Logistica ROTAS e Entregas 2]]
 - `plt_horarios_funcionamento` → [[Banco - Setores Etapas e Execucao]] · também em [[Banco - Tempos e Paineis]]
+- `plt_itens_observacao` → [[Banco - PCP e Liberacao 2]]
 - `plt_logs_atividade` → [[Banco - Chat Tarefas Automacoes e Configuracoes]] · também em [[Banco - Usuarios Acesso e Logs]], [[Banco - Estoque e Reposicao]], [[Banco - Expedicao Devolucao e Cancelamento]] e mais 4
 - `plt_medicoes_web` → [[Banco - Usuarios Acesso e Logs]]
 - `plt_metas` → [[Banco - Chat Tarefas Automacoes e Configuracoes]] · também em [[Banco - Logistica ROTAS e Entregas 1]]
@@ -87,6 +88,7 @@ A primeira nota é a que mais fala da tabela. Função, porta e gatilho: procure
 - `plt_paradas_avulsas` → [[Banco - Logistica ROTAS e Entregas 2]]
 - `plt_pausas_tempo` → [[Banco - Setores Etapas e Execucao]]
 - `plt_pedido_datas` → [[Banco - Logistica ROTAS e Entregas 2]]
+- `plt_pedido_enderecos` → [[Banco - PCP e Liberacao 2]]
 - `plt_pedidos_excluidos_tiny` → [[Banco - Filas e Integracoes Tiny e n8n 1]] · também em [[Banco - Logistica ROTAS e Entregas 1]]
 - `plt_pessoa_pausas` → [[Banco - Logistica ROTAS e Entregas 2]] · também em [[Banco - Setores Etapas e Execucao]]
 - `plt_pin_tentativas` → [[Banco - Tablet e TV]] · também em [[Banco - Usuarios Acesso e Logs]]
@@ -135,13 +137,11 @@ A primeira nota é a que mais fala da tabela. Função, porta e gatilho: procure
 - `plt_visualizacoes` → [[Banco - Plataforma - Visao Geral das Tabelas plt]] · também em [[Banco - Tempos e Paineis]]
 - `plt_webhook_entregas` → [[Banco - Filas e Integracoes Tiny e n8n 1]]
 - `plt_webhooks` → [[Banco - Filas e Integracoes Tiny e n8n 1]] · também em [[Banco - Logistica ROTAS e Entregas 1]], [[Banco - Tablet e TV]]
-- `produtos` → [[Banco - Estoque e Reposicao]] · também em [[Banco - Filas e Integracoes Tiny e n8n 2]], [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]], [[Banco - Filas e Integracoes Tiny e n8n 1]] e mais 8
+- `produtos` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - Estoque e Reposicao]], [[Banco - Filas e Integracoes Tiny e n8n 1]], [[Banco - Filas e Integracoes Tiny e n8n 2]] e mais 1
 - `tarifas_mensagem_whatsapp` → [[Banco - Comercial]]
 - `tiny_auth` → [[Banco - Comercial]] · também em [[Banco - Filas e Integracoes Tiny e n8n 2]]
-- `tiny_fila` → [[Banco - Filas e Integracoes Tiny e n8n 1]] · também em [[Banco - Filas e Integracoes Tiny e n8n 2]], [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]]
+- `tiny_fila` → [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] · também em [[Banco - Filas e Integracoes Tiny e n8n 1]], [[Banco - Filas e Integracoes Tiny e n8n 2]]
 - `webhook_eventos_crm` → [[Banco - Comercial]]
-
-**Tabelas que existem nas migrations e nenhuma nota cita (2):** `plt_itens_observacao` · `plt_pedido_enderecos` — documentar na nota do domínio quando a sessão tocar nelas.
 <!-- gerado:fim -->
 
 ## O que NÃO existe (para ninguém inventar)

@@ -154,8 +154,10 @@ function gerarIndiceEsquema(c) {
   const semNota = [];
   const linhas = [];
   for (const t of tabelas) {
-    const re = new RegExp('(?<![\\w.])' + t + '(?![\\w])', 'g');
-    const onde = notas.map((n) => ({ n, k: (n.texto.match(re) ?? []).length })).filter((x) => x.k).sort((a, b) => b.k - a.k);
+    // conta o nome escrito como código (`tabela` ou `tabela.coluna`); a nota que tem o título "Tabela `x`" é a casa dela
+    const re = new RegExp('`(?:public\\.)?' + t + '(?![\\w])', 'g');
+    const casa = new RegExp('^#+ .*Tabela `' + t + '`', 'm');
+    const onde = notas.map((n) => ({ n, k: (n.texto.match(re) ?? []).length + (casa.test(n.texto) ? 1000 : 0) })).filter((x) => x.k).sort((a, b) => b.k - a.k);
     if (!onde.length) semNota.push(t);
     else linhas.push(`- \`${t}\` → [[${onde[0].n.nome}]]${onde.length > 1 ? ` · também em ${onde.slice(1, 4).map((x) => `[[${x.n.nome}]]`).join(', ')}${onde.length > 4 ? ` e mais ${onde.length - 4}` : ''}` : ''}`);
   }
