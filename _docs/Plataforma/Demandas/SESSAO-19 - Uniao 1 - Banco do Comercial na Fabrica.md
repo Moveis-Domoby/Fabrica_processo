@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-19 — União 1: Banco do Comercial na fábrica"
 tipo: demanda
-status: pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: pronta para code)"
 data: 2026-09-15
 atualizado: 2026-09-15
 tags: [plataforma, demanda, uniao, comercial, banco]
@@ -30,13 +30,13 @@ Front (SESSAO-20). Cutover, crons, DataCrazy, exclusão do projeto antigo (SESSA
 
 ## Critérios de aceite
 
-- [ ] Migration testada no harness local (`npm run test:banco`) antes de qualquer conversa sobre aplicar.
-- [ ] Aplicação no banco de produção só após OK explícito do dono na conversa.
-- [ ] Contagem das 6 tabelas idêntica origem×destino após a carga (na data da carga).
-- [ ] As 8 RPCs de dashboard + `fn_filter_customers` retornam, na fábrica, os **mesmos números** do projeto antigo (comparação mês a mês; tolerância zero fora do delta de sync do dia).
-- [ ] RLS ativa nas 6 tabelas; anon key **não** lê nem escreve nenhuma delas; usuário sem módulo `comercial` não lê nada; admin lê tudo.
-- [ ] `tiny-auth-refresh` deployada mas **sem cron** — o renovador continua rodando SÓ no projeto antigo até o cutover (risco 1 do plano).
-- [ ] `SUPA - Esquema do Banco.md` e `supabase-fabrica-schema.sql` atualizados.
+- [x] Migration testada no harness local (`npm run test:banco`) antes de qualquer conversa sobre aplicar. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Aplicação no banco de produção só após OK explícito do dono na conversa. — ↪️ *18/11: conferido no código/banco — aplicada em 15/09 com o OK (Ordem)*
+- [x] Contagem das 6 tabelas idêntica origem×destino após a carga (na data da carga). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] As 8 RPCs de dashboard + `fn_filter_customers` retornam, na fábrica, os **mesmos números** do projeto antigo (comparação mês a mês; tolerância zero fora do delta de sync do dia). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] RLS ativa nas 6 tabelas; anon key **não** lê nem escreve nenhuma delas; usuário sem módulo `comercial` não lê nada; admin lê tudo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (conferida no banco: a função das notas não responde a quem não fez login)*
+- [-] `tiny-auth-refresh` deployada mas **sem cron** — o renovador continua rodando SÓ no projeto antigo até o cutover (risco 1 do plano). — ↪️ *18/11: superado — o cutover (SESSAO-21) passou o renovador para a fábrica: a rotina de 3 em 3 h está ativa no banco*
+- [x] `SUPA - Esquema do Banco.md` e `supabase-fabrica-schema.sql` atualizados. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 ## Notas para o Claude Code
 

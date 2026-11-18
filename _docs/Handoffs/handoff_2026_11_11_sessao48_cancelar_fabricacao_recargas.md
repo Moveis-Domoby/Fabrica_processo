@@ -97,7 +97,7 @@ Cinco frentes: a base (frentes 1 e 4) feita primeiro; as frentes 2, 3 e 5 em par
 **Acerto (logo depois de aplicar)**
 1. **Logística → Estoque → Estante Basic 7 nichos:** o "reservados p/ produção" não conta mais as peças da coluna CANCELADO.
 2. **Produção → LIMPEZA E EMBALAGEM:** CANCELADO e NÃO ENCONTRADO com "tira da produção · some em 7 dias" no topo; cada card "Cancelada em 11/11 · some em 7 dias".
-3. **PCP:** o **13622** aparece em "Aguardando liberação" com o selo vermelho. Toque no selo → "O que aconteceu?" → decida: "Produzir de novo" ou "Remover do PCP" (provavelmente remover — o pedido está "Em aberto" no Tiny; se for cancelar, cancele também no Tiny).
+3. **PCP:** o **13622** aparece em "Aguardando liberação" com o selo vermelho. Toque no selo → "O que aconteceu?" → decida: "Produzir de novo" ou "Remover do PCP" (provavelmente remover — o pedido está "Em aberto" no Tiny; se for cancelar, cancele também no Tiny). ↪️ *18/11: não precisou — o 13622 saiu do PCP sozinho pela regra da SESSAO-50 (está na lista dos excluídos no Tiny).*
 
 **Frente 1**
 4. Arraste uma peça de **reposição** para CANCELADO → no Estoque, o "reservados p/ produção" daquele móvel cai na hora. Arraste de volta para A LIMPAR → volta a contar.

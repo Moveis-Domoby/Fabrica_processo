@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-23 — Meu Painel 2.0: filas pessoais, subtarefas e tempos"
 tipo: demanda
-status: entregue (aguardando validação do dono e merge)
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências: validada e mesclada (Ordem das Sessões) (antes: entregue (aguardando validação do dono e merge))"
 data: 2026-09-18
 atualizado: 2026-09-23
 tags: [plataforma, demanda, bloco-5, meu-painel, tarefas]

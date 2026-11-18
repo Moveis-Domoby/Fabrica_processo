@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-44 — Entrega que volta do Tiny e itens novos no PCP"
 tipo: demanda
-status: pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: pronta para code)"
 data: 2026-11-03
 atualizado: 2026-11-04
 tags: [plataforma, demanda, pedidos, pcp, tiny, rotas]
@@ -144,23 +144,23 @@ Só depois das frentes 4 e 5 e com o OK do dono. Releia tudo antes, e use script
 
 ## Critérios de aceite
 
-- [ ] 13797 de volta ao PCP só com as 3 vagas novas; as peças 14542143, 14542153 e 14542161 não mudaram.
-- [ ] Item acrescentado no Tiny faz o pedido liberado voltar ao PCP só com o que falta, com aviso e trilha.
-- [ ] Em rota: volta ao PCP, segue na rota e a logística recebe aviso.
-- [ ] Entregue: pendência só dos itens novos, sem reabrir a entrega do que ficou com o cliente.
-- [ ] Mudança só de preço, observação ou situação não reabre o PCP.
-- [ ] Item inserido no meio da lista do Tiny não troca o produto de nenhuma peça.
-- [ ] Item removido ou reduzido nunca arquiva peça sozinho.
-- [ ] Admin reabre entrega de outro dia e entrega do Tiny, com motivo; logística e entregador não.
-- [ ] Peça reservada volta reservada ao mesmo pedido e item.
-- [ ] Tela explica por que não dá para desfazer; entrega parcial segue recusada.
-- [ ] Tiny Entregue → Preparando envio reabre a entrega do Sistema, uma vez só, mesmo com aviso repetido ou fora de ordem.
-- [ ] A mesma volta em entrega de pessoa não reabre e avisa a logística.
-- [ ] Nada aqui envia situação ao Tiny sem necessidade; fluxo normal de entrega nos dois lados segue igual.
-- [ ] 13787 como descrito na frente 6, sem duplicar números.
-- [ ] Bateria do banco 2×, tsc, lint, vitest, build, advisors sem nada novo.
-- [ ] Lei de desempenho: checklist no handoff, com plano ×100 das portas novas ou tocadas.
-- [ ] Handoff com roteiro de teste por frente, decisões provisórias e a lista dos pedidos para conferir.
+- [x] 13797 de volta ao PCP só com as 3 vagas novas; as peças 14542143, 14542153 e 14542161 não mudaram. — ↪️ *18/11: conferido no código/banco — acertado no ar em 04/11 (Ordem e handoff)*
+- [x] Item acrescentado no Tiny faz o pedido liberado voltar ao PCP só com o que falta, com aviso e trilha. — ↪️ *18/11: conferido no código/banco — no banco: 8 mudanças de itens tratadas*
+- [x] Em rota: volta ao PCP, segue na rota e a logística recebe aviso. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Entregue: pendência só dos itens novos, sem reabrir a entrega do que ficou com o cliente. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Mudança só de preço, observação ou situação não reabre o PCP. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Item inserido no meio da lista do Tiny não troca o produto de nenhuma peça. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Item removido ou reduzido nunca arquiva peça sozinho. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Admin reabre entrega de outro dia e entrega do Tiny, com motivo; logística e entregador não. — ↪️ *18/11: conferido no código/banco — "Reabrir entrega" no código*
+- [x] Peça reservada volta reservada ao mesmo pedido e item. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Tela explica por que não dá para desfazer; entrega parcial segue recusada. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Tiny Entregue → Preparando envio reabre a entrega do Sistema, uma vez só, mesmo com aviso repetido ou fora de ordem. — ↪️ *18/11: conferido no código/banco — no banco: 7 entregas desfeitas*
+- [x] A mesma volta em entrega de pessoa não reabre e avisa a logística. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Nada aqui envia situação ao Tiny sem necessidade; fluxo normal de entrega nos dois lados segue igual. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] 13787 como descrito na frente 6, sem duplicar números. — ↪️ *18/11: conferido no código/banco — no banco, o acerto rodou em 04/11 22:46 (marca do acerto presente) e o pedido foi entregue de novo em 09/11*
+- [x] Bateria do banco 2×, tsc, lint, vitest, build, advisors sem nada novo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lei de desempenho: checklist no handoff, com plano ×100 das portas novas ou tocadas. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Handoff com roteiro de teste por frente, decisões provisórias e a lista dos pedidos para conferir. — ↪️ *18/11: conferido no código/banco — o handoff existe*
 
 ## Notas para o Claude Code
 

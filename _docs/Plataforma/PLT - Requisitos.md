@@ -2,7 +2,7 @@
 titulo: Plataforma — Requisitos
 tipo: requisitos
 data: 2026-08-19
-atualizado: 2026-10-03
+atualizado: 2026-11-18
 tags: [plataforma, requisitos, backlog]
 ---
 
@@ -23,7 +23,7 @@ tags: [plataforma, requisitos, backlog]
 | RF-06 | Automações internas fáceis de configurar, estilo ClickUp ("quando X acontecer, faça Y") — sem depender de dev | ✅ entregue (SESSAO-27) — o canvas do Painel super admin (RF-118…RF-125) |
 | RF-118 | Canvas de automações (D-99/D-103; ↪️ excluir — D-107: some de vez, o histórico fica na Auditoria marcado "automação excluída"): Painel super admin → Automações; blocos QUANDO → FAÇA ligados em sequência, arrastáveis, com "+" que põe o próximo já ligado; nome, liga/desliga com confirmação; nasce desligada (garantido no banco); arquivar/reativar; lista paginada no servidor; usável no tablet para ligar/desligar e ver o histórico | ✅ entregue (SESSAO-27) |
 | RF-119 | Motor no banco (D-103): dispara no fechamento do gesto (gatilho adiado sobre os eventos e sobre a situação do pedido), nunca derruba o gesto nem a gravação do Tiny, cadeia até 5 (6ª barrada e registrada) + disjuntor de 50 por gesto; obedece às regras de uma pessoa; relógio só com "parado há" ligado ou execução esperando | ✅ entregue (SESSAO-27 — migration 51) |
-| RF-120 | Catálogo de QUANDO: entrou na etapa · iniciado · peça marcada · parado N · arquivado · etiqueta posta/tirada · pedido novo · pedido mudou de situação · chamada de fora (Edge Function `api`, `POST /automacoes/:id/disparar`) | ✅ entregue (SESSAO-27) — a chamada de fora vale quando a função `api` for publicada |
+| RF-120 | Catálogo de QUANDO: entrou na etapa · iniciado · peça marcada · parado N · arquivado · etiqueta posta/tirada · pedido novo · pedido mudou de situação · chamada de fora (Edge Function `api`, `POST /automacoes/:id/disparar`) | ✅ entregue (SESSAO-27) — a chamada de fora vale quando a função `api` for publicada — ↪️ *18/11: a função `api` no ar ainda é a de 28/08 (sem essa rota) — a chamada de fora segue sem valer.* |
 | RF-121 | Catálogo de FAÇA: só se… · **se… senão** (duas saídas, cada uma com os próprios passos — D-106) · mover · pôr/tirar etiqueta · preencher/limpar campo · avisar no sino · chamar endereço de fora (assinado) · esperar · arquivar · trazer de volta | ✅ entregue (SESSAO-27) |
 | RF-122 | Histórico das execuções (D-103): o que disparou, a condição avaliada, cada passo e o resultado, paginado no servidor; "Trazer de volta" onde a automação arquivou; uma linha na trilha (Auditoria) por execução | ✅ entregue (SESSAO-27) |
 | RF-123 | Etiquetas (D-101): cadastro em Configurações → Utilitários (nome + cor da paleta das etiquetas), várias por card por evento com projeção; aparecem no quadro, no tablet e no card do pedido do PCP (ícone + nome + cor) | ✅ entregue (SESSAO-27) |

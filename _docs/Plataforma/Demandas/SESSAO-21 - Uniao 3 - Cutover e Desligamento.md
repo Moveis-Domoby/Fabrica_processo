@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-21 — União 3: Cutover e desligamento do projeto antigo"
 tipo: demanda
-status: entregue — aceite em curso
+status: "✅ entregue — ↪️ 18/11 (revisão das pendências): aceite fechado (renovação do token só na fábrica há ~2 meses); só falta confirmar a exclusão do projeto antigo, que não aparece na organização da fábrica (antes: entregue — aceite em curso)"
 data: 2026-09-15
 atualizado: 2026-09-22
 tags: [plataforma, demanda, uniao, cutover]
@@ -38,9 +38,9 @@ Qualquer feature nova. Consolidação `vendas_marketing`×`pedidos` além da vie
 ## Critérios de aceite
 
 - [x] Nenhuma janela em que crons de disparo ou o renovador do token estejam ativos nos dois projetos ao mesmo tempo. *(22/09: antigo desativado 20:28 UTC; o primeiro job na fábrica nasceu 21:19 UTC — 51 min sem NENHUM ativo, dentro da validade do refresh.)*
-- [ ] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(23/09: o dono trocou a URL no DataCrazy e a trava foi aberta — PR #6; a 1ª lista real ele roda quando for usar, e **pediu para não ficar como pendência**: "vou lembrar disso se der erro")*
-- [ ] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; 1ª automática 23/09 00:00:01 UTC ✅; conferir as seguintes até 21:20 UTC de 23/09)*
-- [ ] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(**dispensado pelo dono em 23/09**: os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica, idênticas byte a byte — nada exclusivo ficou no projeto antigo; exclusão marcada pelo dono para **06/10/2026**)*
+- [x] Primeira lista de disparo real pós-cutover roda com sucesso ponta a ponta (envio → resposta via webhook → verificação de venda) no banco da fábrica. *(23/09: o dono trocou a URL no DataCrazy e a trava foi aberta — PR #6; a 1ª lista real ele roda quando for usar, e **pediu para não ficar como pendência**: "vou lembrar disso se der erro")* — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (as rotinas do disparo e o webhook do DataCrazy estão ativos no banco)*
+- [x] Token do Tiny renovando só na fábrica por pelo menos 24h após o cutover, sem falha. *(em curso: renovação manual 21:20 UTC ✅; 1ª automática 23/09 00:00:01 UTC ✅; conferir as seguintes até 21:20 UTC de 23/09)* — ↪️ *18/11: conferido no código/banco — a renovação do token roda só na fábrica há quase 2 meses (rotina de 3 em 3 h ativa no banco)*
+- [-] Backup final do projeto antigo salvo e referenciado no handoff antes de pausar/excluir. *(**dispensado pelo dono em 23/09**: os dados de clientes estão no Tiny e as 6 tabelas do disparo já estão na fábrica, idênticas byte a byte — nada exclusivo ficou no projeto antigo; exclusão marcada pelo dono para **06/10/2026**)* — ↪️ *18/11: superado — dispensado pelo dono em 23/09*
 - [x] `000 - MAPA DO PROJETO.md` e o cofre do recompra recebem a nota de encerramento (para onde tudo foi). *(22/09)*
 
 ## Herdado da SESSAO-20 — 3 apontamentos de segurança do banco (não são do Comercial)

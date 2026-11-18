@@ -1,7 +1,7 @@
 ---
 titulo: SESSAO-39 — Calendário das rotas, painel de motivos, Google Maps/Waze e o botão Mover
 tipo: demanda
-status: 🔨 em execução
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 🔨 em execução)"
 data: 2026-10-21
 atualizado: 2026-10-21
 tags: [plataforma, demandas, rotas, dashboards, kanban, motivos]
@@ -50,8 +50,8 @@ Arrastar pedido de um dia para outro no calendário (o vídeo não mostra); rota
 
 ## Critérios de aceite
 
-- [ ] Rotas → Programação ganha o modo **Calendário** (semana, como o vídeo; e mês), com cada pedido no seu dia, na cor da situação, e um clique leva à rota.
-- [ ] Dashboards ganha o **painel de motivos** com as quatro áreas, por período, do maior problema para o menor, com detalhe no clique — uma requisição por tela.
-- [ ] A rota de "Já programadas" e a da tela do entregador abrem no **Google Maps** na ordem da plataforma; cada parada abre no **Waze**; o entregador vê a mesma ordem da logística.
-- [ ] Todo card de produção tem **Mover** (líder/admin/super admin), que manda o card para a fila do setor escolhido com motivo obrigatório; o motivo aparece no painel.
-- [ ] Checklist da lei de desempenho cumprido; handoff com o roteiro de teste.
+- [x] Rotas → Programação ganha o modo **Calendário** (semana, como o vídeo; e mês), com cada pedido no seu dia, na cor da situação, e um clique leva à rota. — ↪️ *18/11: conferido no código/banco — Calendário na Programação (código)*
+- [x] Dashboards ganha o **painel de motivos** com as quatro áreas, por período, do maior problema para o menor, com detalhe no clique — uma requisição por tela. — ↪️ *18/11: conferido no código/banco — Dashboards → Motivos*
+- [x] A rota de "Já programadas" e a da tela do entregador abrem no **Google Maps** na ordem da plataforma; cada parada abre no **Waze**; o entregador vê a mesma ordem da logística. — ↪️ *18/11: conferido no código/banco — Google Maps e Waze no código*
+- [x] Todo card de produção tem **Mover** (líder/admin/super admin), que manda o card para a fila do setor escolhido com motivo obrigatório; o motivo aparece no painel. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Checklist da lei de desempenho cumprido; handoff com o roteiro de teste. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*

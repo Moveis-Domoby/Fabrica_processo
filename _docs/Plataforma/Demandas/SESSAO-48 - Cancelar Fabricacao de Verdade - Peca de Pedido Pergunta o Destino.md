@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-48 — Cancelar a fabricação de verdade (mover para CANCELADO ou NÃO ENCONTRADO tira a peça da produção, some em 7 dias e fica recuperável; a vaga do pedido volta ao PCP com aviso) e a plataforma que recarrega sozinha"
 tipo: demanda
-status: 📐 pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 📐 pronta para code)"
 data: 2026-11-11
 atualizado: 2026-11-11 (01:27 — sem botão: mover para CANCELADO cancela, limpeza em 7 dias com registro · 01:33 — respostas do dono: cancelar peça não é cancelar pedido; NÃO ENCONTRADO entra nesta sessão; a vaga do pedido volta ao PCP com aviso; e a investigação das recargas sozinhas)
 origem: vídeo do dono de 10/11 (17:28) — Estoque mostrando a Estante Basic 7 nichos com "2 reservados p/ produção" e o quadro da LIMPEZA E EMBALAGEM com as duas peças do pedido 13622 na coluna CANCELADO há 138 h. Investigado no Cowork com leitura do banco de produção (11/11, ~01:30) e do código (main em 4e4a571). Só leitura: nada foi alterado.
@@ -199,41 +199,41 @@ Manutenção de dado em `supabase/manutencao/AAAA-MM-DD_cancelado_vira_gesto.sql
 ## Critérios de aceite
 
 **Frente 1**
-- [ ] Soltar peça no CANCELADO ou no NÃO ENCONTRADO tira ela na hora do "reservados p/ produção" do Estoque e do Top 20, dos contadores e dos painéis, sem recarregar; o motivo certo fica gravado.
-- [ ] Na coluna, o card mostra quando saiu e em quantos dias some; o tempo de fila não conta e ninguém inicia a peça.
-- [ ] Arrastar de volta dentro dos 7 dias desfaz; com a vaga ainda aberta, a peça volta para o pedido e o aviso some.
-- [ ] Liberar no PCP direto numa dessas colunas funciona igual. Soltar duas vezes produz um efeito só.
+- [x] Soltar peça no CANCELADO ou no NÃO ENCONTRADO tira ela na hora do "reservados p/ produção" do Estoque e do Top 20, dos contadores e dos painéis, sem recarregar; o motivo certo fica gravado. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Na coluna, o card mostra quando saiu e em quantos dias some; o tempo de fila não conta e ninguém inicia a peça. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Arrastar de volta dentro dos 7 dias desfaz; com a vaga ainda aberta, a peça volta para o pedido e o aviso some. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [-] Liberar no PCP direto numa dessas colunas funciona igual. Soltar duas vezes produz um efeito só. — ↪️ *18/11: superado — a SESSAO-50 tirou CANCELADO e NÃO ENCONTRADO do "Liberar unidades"*
 
 **Frente 2**
-- [ ] Peça de pedido vivo cancelada: a vaga volta ao PCP na hora, o pedido ganha o selo e o sino avisa o PCP.
-- [ ] A janela mostra o que aconteceu e oferece "Produzir de novo" e "Remover do PCP" com os três motivos (dois com texto obrigatório).
-- [ ] Pedido removido sai de todas as portas do PCP, aparece em "Cancelados e removidos" com o motivo, e "Devolver ao PCP" funciona.
-- [ ] Remover não mexe no Tiny nem nas peças já em produção ou prontas (a janela avisa quantas são).
+- [x] Peça de pedido vivo cancelada: a vaga volta ao PCP na hora, o pedido ganha o selo e o sino avisa o PCP. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [-] A janela mostra o que aconteceu e oferece "Produzir de novo" e "Remover do PCP" com os três motivos (dois com texto obrigatório). — ↪️ *18/11: superado — a SESSAO-50 trocou o "Remover do PCP" por "Cancelar pedido" e "Ocultar do PCP"*
+- [-] Pedido removido sai de todas as portas do PCP, aparece em "Cancelados e removidos" com o motivo, e "Devolver ao PCP" funciona. — ↪️ *18/11: superado — a SESSAO-50 dividiu em "Cancelados" e "Pedidos ocultos"*
+- [-] Remover não mexe no Tiny nem nas peças já em produção ou prontas (a janela avisa quantas são). — ↪️ *18/11: superado — virou o "Ocultar" da SESSAO-50*
 
 **Frente 3**
-- [ ] Pedido cancelado no Tiny com peça em produção: a peça fica "esperando decisão", sai do "reservados p/ produção" e o sino avisa logística e admin.
-- [ ] As três opções funcionam peça por peça e todas de uma vez.
-- [ ] Peça sem decisão que chega ao fim da linha vai ao ESTOQUE sem dono, e a pendência se fecha com fato.
+- [x] Pedido cancelado no Tiny com peça em produção: a peça fica "esperando decisão", sai do "reservados p/ produção" e o sino avisa logística e admin. — ↪️ *18/11: conferido no código/banco — "Para onde vai este móvel?" no código; 2 destinos pendentes e decididos no banco*
+- [x] As três opções funcionam peça por peça e todas de uma vez. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Peça sem decisão que chega ao fim da linha vai ao ESTOQUE sem dono, e a pendência se fecha com fato. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Frente 4**
-- [ ] As duas colunas só mostram os últimos 7 dias, mesmo antes da limpeza rodar.
-- [ ] No 8º dia a peça é arquivada com o motivo, sem relógio novo; nada é apagado.
-- [ ] O admin acha a peça na busca geral e na Auditoria e a recupera.
+- [x] As duas colunas só mostram os últimos 7 dias, mesmo antes da limpeza rodar. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] No 8º dia a peça é arquivada com o motivo, sem relógio novo; nada é apagado. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O admin acha a peça na busca geral e na Auditoria e a recupera. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Frente 5**
-- [ ] Commit só de documentação na main não gera publicação nova (provado com um commit de teste do cofre).
-- [ ] Republicar o mesmo código não acende "versão nova" em tela aberta.
-- [ ] No tablet, versão nova não recarrega no meio de um gesto nem com janela aberta.
-- [ ] Toda abertura da plataforma grava o porquê (navegou, atualizou, aba descartada, versão nova, pedaço sumido, troca de setor), e a Auditoria mostra em português.
-- [ ] A troca de setor por PIN recarrega uma vez só.
+- [x] Commit só de documentação na main não gera publicação nova (provado com um commit de teste do cofre). — ↪️ *18/11: conferido no código/banco — roteiro do pulo da documentação na Vercel (repositório)*
+- [x] Republicar o mesmo código não acende "versão nova" em tela aberta. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] No tablet, versão nova não recarrega no meio de um gesto nem com janela aberta. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Toda abertura da plataforma grava o porquê (navegou, atualizou, aba descartada, versão nova, pedaço sumido, troca de setor), e a Auditoria mostra em português. — ↪️ *18/11: conferido no código/banco — motivos de abertura (versão nova, aba descartada…) no código*
+- [x] A troca de setor por PIN recarrega uma vez só. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Acerto**
-- [ ] Ensaio com contagens antes/depois; aplicado só com o OK do dono; a Estante Basic 7 nichos e os outros móveis afetados mostram o número certo; o 13622 aparece no PCP com o aviso.
+- [x] Ensaio com contagens antes/depois; aplicado só com o OK do dono; a Estante Basic 7 nichos e os outros móveis afetados mostram o número certo; o 13622 aparece no PCP com o aviso. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Geral**
-- [ ] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque.
-- [ ] Bateria do banco 2×, tsc, lint, vitest, build, advisors sem nada novo além do esperado.
-- [ ] Lei de desempenho: cada tela em 1 requisição, sem relógio novo (trabalho nasce do fato); as janelas leem só ao abrir; plano ×100 das portas novas ou tocadas no handoff.
+- [x] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Bateria do banco 2×, tsc, lint, vitest, build, advisors sem nada novo além do esperado. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lei de desempenho: cada tela em 1 requisição, sem relógio novo (trabalho nasce do fato); as janelas leem só ao abrir; plano ×100 das portas novas ou tocadas no handoff. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 ## Notas para o Claude Code
 

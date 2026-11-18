@@ -70,7 +70,7 @@ Simulação (1ª versão) contra os 172 endereços do cache: **160 de rua, 10 pe
 1. **Confirmar as decisões provisórias** D-217 a D-220 — em especial o que "Não por enquanto" faz (o pedido volta ao PCP em stand-by) e que o destino precisa estar esperando o móvel no PCP.
 2. ~~Marcar no mapa os pedidos "não encontrado"~~ — ↪️ não precisa mais (ajuste de 05/11): todo pedido tem ponto (de rua ou aproximado); acertar à mão só se quiser o mapa da rota mais exato.
 3. **ClickUp:** nenhuma tarefa criada (o pedido veio direto na conversa).
-4. Da sessão anterior (seguem com o dono): o acerto do 13787, as 6 tarefas do ClickUp, conferir os pedidos 13620, 13689 e 13699.
+4. Da sessão anterior (seguem com o dono): o acerto do 13787, as 6 tarefas do ClickUp, conferir os pedidos 13620, 13689 e 13699. ↪️ *18/11: o acerto do 13787 rodou em 04/11 22:46 (conferido no banco); as 6 tarefas do ClickUp nunca foram criadas; a conferência do 13620, 13689 e 13699 era só de leitura (todos cancelados no Tiny e sem peça viva).*
 
 ## 7. Numeração usada
 

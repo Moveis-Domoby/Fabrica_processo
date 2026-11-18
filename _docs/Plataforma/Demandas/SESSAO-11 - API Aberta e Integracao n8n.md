@@ -46,8 +46,8 @@ Builder de automações internas (11) · app/tela nova.
 
 ## Critérios de aceite
 
-- [ ] Chave criada no admin autentica; chave revogada para de funcionar na hora.
-- [ ] Ciclo completo via API: criar pedido → liberar unidades → mover → eventos com autor "integração".
-- [ ] Webhook de saída entrega o evento num endpoint de teste do n8n.
-- [ ] Documentação da API validada executando os exemplos.
-- [ ] PR + handoff.
+- [x] Chave criada no admin autentica; chave revogada para de funcionar na hora. — ↪️ *18/11: conferido no código/banco — Configurações → API com chave e revogação*
+- [x] Ciclo completo via API: criar pedido → liberar unidades → mover → eventos com autor "integração". — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Webhook de saída entrega o evento num endpoint de teste do n8n. — ↪️ *18/11: conferido no código/banco — no banco: 7 webhooks e 1.497 entregas registradas*
+- [x] Documentação da API validada executando os exemplos. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] PR + handoff. — ↪️ *18/11: conferido no código/banco — o handoff existe*

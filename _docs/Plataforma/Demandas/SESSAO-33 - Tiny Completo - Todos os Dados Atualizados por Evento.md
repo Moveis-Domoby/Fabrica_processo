@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-33 — Tiny completo: todos os dados, atualizados quando algo acontece"
 tipo: demanda
-status: 📦 entregue em arquivo (17/10/2026) — o que dependia do OK já está no ar; o resto liga em casa pelo handoff
+status: "✅ entregue e ligado (18/10) — ↪️ 18/11: os passos 1–11 do handoff foram feitos em 17–18/10; resta só o teste do login de pessoa desativada, que depende do gancho do token (antes: 📦 entregue em arquivo (17/10/2026) — o que dependia do OK já está no ar; o resto liga em casa pelo handoff)"
 data: 2026-10-16
 atualizado: 2026-10-17
 origem: pedido do dono em 16/10/2026 (prompt da sessão remota), com as respostas de 16/10 (D-141, D-142)
@@ -78,14 +78,14 @@ Plano de corte / SketchUp / CNC (D-142 item 4 — fica para a parte de corte) ·
 
 ## Critérios de aceite
 
-- [ ] A nota [[N8N - Tiny - Mapa Completo da API e dos Dados]] cobre todos os tipos de dado da lista (e os que aparecerem), cada linha com fonte; o que não foi possível confirmar daqui está marcado como tal, com o que o dono confere em casa.
-- [ ] O dono vê, em português, o que fica "na hora" e o que fica "com atraso de X", e por quê.
-- [ ] O tempo da carga inicial calculado com a cota real e o ritmo proposto sem derrubar as integrações de hoje.
-- [ ] O plano (Etapa B) apresentado e aprovado antes de construir.
-- [ ] O que for construído: banco em arquivo (com a bateria verde, integração idêntica), fluxo(s) do n8n em JSON melhorando a automação que já existe (sem duplicar; nós intocáveis preservados), um renovador por credencial, conferência "bateu com o Tiny", alerta de erro — e o passo a passo "para ligar em casa".
-- [ ] Estruturas do Tiny ligadas na plataforma e a lista das unidades fora do padrão em Configurações (D-142).
-- [ ] Tarefas do ClickUp em FAZENDO ao começar, comentário humanizado ao entregar, **nunca** concluídas pelo Claude Code.
-- [ ] Memória de execução, aprendizados, handoff com "Para ligar em casa", mapa, ordem das sessões e próximos passos atualizados.
+- [x] A nota [[N8N - Tiny - Mapa Completo da API e dos Dados]] cobre todos os tipos de dado da lista (e os que aparecerem), cada linha com fonte; o que não foi possível confirmar daqui está marcado como tal, com o que o dono confere em casa. — ↪️ *18/11: conferido no código/banco — a nota do mapa completo da API existe*
+- [x] O dono vê, em português, o que fica "na hora" e o que fica "com atraso de X", e por quê. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O tempo da carga inicial calculado com a cota real e o ritmo proposto sem derrubar as integrações de hoje. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O plano (Etapa B) apresentado e aprovado antes de construir. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O que for construído: banco em arquivo (com a bateria verde, integração idêntica), fluxo(s) do n8n em JSON melhorando a automação que já existe (sem duplicar; nós intocáveis preservados), um renovador por credencial, conferência "bateu com o Tiny", alerta de erro — e o passo a passo "para ligar em casa". — ↪️ *18/11: conferido no código/banco — carga e atualização no ar desde 18/10 (rotinas do Tiny ativas no banco)*
+- [x] Estruturas do Tiny ligadas na plataforma e a lista das unidades fora do padrão em Configurações (D-142). — ↪️ *18/11: conferido no código/banco — botão Estrutura e lista das unidades fora do padrão no código*
+- [x] Tarefas do ClickUp em FAZENDO ao começar, comentário humanizado ao entregar, **nunca** concluídas pelo Claude Code. — ↪️ *18/11: conferido no código/banco — as 3 tarefas em FAZENDO no ClickUp*
+- [ ] Memória de execução, aprendizados, handoff com "Para ligar em casa", mapa, ordem das sessões e próximos passos atualizados. — ↪️ *18/11: 🟨 parcial — Próximos Passos ficou parado em 17/10 (atualizado nesta revisão)*
 
 ## Notas para o Claude Code
 

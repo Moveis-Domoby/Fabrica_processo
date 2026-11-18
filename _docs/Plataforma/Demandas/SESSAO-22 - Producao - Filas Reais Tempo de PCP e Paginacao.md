@@ -59,14 +59,14 @@ Estrutura do PCP e dos terminais (a coluna some só nos setores de produção) �
 
 ## Critérios de aceite
 
-- [ ] Nenhum setor de produção exibe coluna "Chegada"; card movido para um setor aparece na etapa fila real dele (testável movendo um card de verdade).
-- [ ] Cards vivos que estavam "na chegada" migrados por evento (lote origem `api`), com contagem antes/depois registrada na memória de execução.
-- [ ] Pedido que passou N dias no PCP mostra ~N dias de "tempo em PCP" no card de unidade e nos dashboards — verificado com um pedido real antigo.
-- [ ] Cada coluna carrega no máximo 10 cards por página; "Ver mais" traz os próximos 10 **sem** recarregar o quadro; o payload da requisição inicial do quadro não contém cards além dos exibidos (conferir no navegador, aba Network).
-- [ ] Regra "cada tela requisita só o que mostra" escrita no CLAUDE do repo, na cópia do cofre e no Modelo de Sistema.
-- [ ] Com limite 1: segunda tentativa de iniciar execução é recusada com mensagem que diz o que fazer; após o líder pausar a primeira, a urgência inicia normalmente; retomar volta a contar tempo.
-- [ ] Pausa/retomada aparecem na linha do tempo do card e descontam do tempo de execução da pessoa (conferir em `plt_fn_linha_tempo_card` e nas views).
-- [ ] Revisão de D-24 (e da Q-17) registrada em [[PLT - Decisoes de Produto]] com D-NN novo.
+- [x] Nenhum setor de produção exibe coluna "Chegada"; card movido para um setor aparece na etapa fila real dele (testável movendo um card de verdade). — ↪️ *18/11: conferido no código/banco — o setor de produção não tem coluna Chegada; ela só existe no PCP e nos terminais (código do quadro)*
+- [x] Cards vivos que estavam "na chegada" migrados por evento (lote origem `api`), com contagem antes/depois registrada na memória de execução. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Pedido que passou N dias no PCP mostra ~N dias de "tempo em PCP" no card de unidade e nos dashboards — verificado com um pedido real antigo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Cada coluna carrega no máximo 10 cards por página; "Ver mais" traz os próximos 10 **sem** recarregar o quadro; o payload da requisição inicial do quadro não contém cards além dos exibidos (conferir no navegador, aba Network). — ↪️ *18/11: conferido no código/banco — "Ver mais" por página no quadro (código)*
+- [x] Regra "cada tela requisita só o que mostra" escrita no CLAUDE do repo, na cópia do cofre e no Modelo de Sistema. — ↪️ *18/11: conferido no código/banco — regra 17 no CLAUDE.md da raiz*
+- [x] Com limite 1: segunda tentativa de iniciar execução é recusada com mensagem que diz o que fazer; após o líder pausar a primeira, a urgência inicia normalmente; retomar volta a contar tempo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Pausa/retomada aparecem na linha do tempo do card e descontam do tempo de execução da pessoa (conferir em `plt_fn_linha_tempo_card` e nas views). — ↪️ *18/11: conferido no código/banco — no banco: 161 pausas e 103 retomadas registradas*
+- [x] Revisão de D-24 (e da Q-17) registrada em [[PLT - Decisoes de Produto]] com D-NN novo. — ↪️ *18/11: conferido no código/banco — D-48 registrada*
 
 ## Notas para o Claude Code
 

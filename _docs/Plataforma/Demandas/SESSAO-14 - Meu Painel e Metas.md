@@ -53,12 +53,12 @@ externa (WhatsApp — Q-42, standby D-35).
 
 ## Critérios de aceite
 
-- [ ] Login cai em `/inicio/meu-painel` com pendências reais do usuário logado.
-- [ ] Meta criada com cada um dos 3 indicadores progride sozinha quando o dado-fonte muda (testável: finalizar execução move a meta de unidades).
-- [ ] Períodos diário/semanal/mensal viram janelas corretas (fuso America/Fortaleza) e reiniciam sozinhos.
-- [ ] Líder cria meta só para gente/setor dele; operador só pessoal; RLS garante no banco, não só na UI.
-- [ ] Progresso em tempo real (realtime ou polling curto) visível sem recarregar.
-- [ ] Afazeres funciona igual à S12 no novo endereço.
+- [x] Login cai em `/inicio/meu-painel` com pendências reais do usuário logado. — ↪️ *18/11: conferido no código/banco — a entrada cai em /inicio/meu-painel*
+- [x] Meta criada com cada um dos 3 indicadores progride sozinha quando o dado-fonte muda (testável: finalizar execução move a meta de unidades). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (1 meta cadastrada em produção)*
+- [x] Períodos diário/semanal/mensal viram janelas corretas (fuso America/Fortaleza) e reiniciam sozinhos. — ↪️ *18/11: conferido no código/banco — fuso America/Fortaleza no código e no banco*
+- [x] Líder cria meta só para gente/setor dele; operador só pessoal; RLS garante no banco, não só na UI. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Progresso em tempo real (realtime ou polling curto) visível sem recarregar. — ↪️ *18/11: conferido no código/banco — tempo real por aviso ao vivo (websocket) — o polling foi proibido depois (regra 18)*
+- [x] Afazeres funciona igual à S12 no novo endereço. — ↪️ *18/11: conferido no código/banco — Afazeres existe*
 
 ## Notas para o Claude Code
 

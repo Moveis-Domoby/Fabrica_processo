@@ -134,12 +134,12 @@ A tela **Dashboards → Tempos de produção** (abas Dia, Período, Móveis, Mon
 
 ## Critérios de aceite
 
-- [ ] F1 — Às 18:00 (fim da janela), todo card rodando em qualquer setor fica pausado com "Fim do expediente", sem pessoa no gesto, e quem estava nele sai do setor; o card mostra "pausado — fim do expediente"; com hora extra autorizada, o corte acontece no fim dela. O aviso de card esquecido sem resposta em 15 min pausa no instante do aviso. "Montar juntos" inicia 2+ cards iguais na Montagem e o tempo é dividido. Pular MONTANDO avisa os admins (e o aviso some para quem o desliga em Configurações → Avisos).
-- [ ] F2 — As 7 abas do Controle de tempo funcionam no PC e no celular, 1 requisição por aba; o líder vê só a Hora extra dos seus setores; toda mudança aparece na trilha e dispara o recálculo com progresso.
-- [ ] F3 — Os casos reais dão os números esperados; cada passagem desde 19/10 tem situação e motivo; o tempo padrão de cada modelo existe; a decisão manual muda a situação e aparece na Auditoria; mudar o almoço recalcula o período sozinho.
-- [ ] F4 — O mesmo móvel mostra o mesmo tempo no card, na janela, em Pessoas, em Tempos por pessoa e em Meu desempenho; nenhum dia-pessoa passa da jornada sem hora extra; nenhum relógio novo; JS inicial dentro do teto.
-- [ ] Lei de desempenho: checklist do §12 no handoff, com os planos ×100 das portas novas/tocadas.
-- [ ] Handoff com o roteiro de teste de cada frente, o antes × depois dos números por setor e as decisões provisórias para o dono confirmar.
+- [x] F1 — Às 18:00 (fim da janela), todo card rodando em qualquer setor fica pausado com "Fim do expediente", sem pessoa no gesto, e quem estava nele sai do setor; o card mostra "pausado — fim do expediente"; com hora extra autorizada, o corte acontece no fim dela. O aviso de card esquecido sem resposta em 15 min pausa no instante do aviso. "Montar juntos" inicia 2+ cards iguais na Montagem e o tempo é dividido. Pular MONTANDO avisa os admins (e o aviso some para quem o desliga em Configurações → Avisos). — ↪️ *18/11: conferido no código/banco — pausa "Fim do expediente" no banco e no código*
+- [x] F2 — As 7 abas do Controle de tempo funcionam no PC e no celular, 1 requisição por aba; o líder vê só a Hora extra dos seus setores; toda mudança aparece na trilha e dispara o recálculo com progresso. — ↪️ *18/11: conferido no código/banco — Configurações → Tempo com hora extra (código)*
+- [x] F3 — Os casos reais dão os números esperados; cada passagem desde 19/10 tem situação e motivo; o tempo padrão de cada modelo existe; a decisão manual muda a situação e aparece na Auditoria; mudar o almoço recalcula o período sozinho. — ↪️ *18/11: conferido no código/banco — no banco: 1.669 passagens e 377 tempos padrão*
+- [x] F4 — O mesmo móvel mostra o mesmo tempo no card, na janela, em Pessoas, em Tempos por pessoa e em Meu desempenho; nenhum dia-pessoa passa da jornada sem hora extra; nenhum relógio novo; JS inicial dentro do teto. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lei de desempenho: checklist do §12 no handoff, com os planos ×100 das portas novas/tocadas. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Handoff com o roteiro de teste de cada frente, o antes × depois dos números por setor e as decisões provisórias para o dono confirmar. — ↪️ *18/11: conferido no código/banco — o handoff existe*
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
 

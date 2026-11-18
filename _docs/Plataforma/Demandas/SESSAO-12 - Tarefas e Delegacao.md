@@ -44,8 +44,8 @@ Automações "quando X, delegue Y" (11) · notificação externa.
 
 ## Critérios de aceite
 
-- [ ] Setor em modo aleatório: 5 cards chegando são distribuídos balanceadamente entre 2 membros.
-- [ ] Líder reatribui e o histórico mostra as duas delegações.
-- [ ] "Meus afazeres" do operador reflete delegações na hora, no celular e no tablet.
-- [ ] Modo de delegação trocado por setor sem afetar os demais.
-- [ ] PR + handoff.
+- [x] Setor em modo aleatório: 5 cards chegando são distribuídos balanceadamente entre 2 membros. — ↪️ *18/11: conferido no código/banco — o sorteio da delegação roda no banco (gatilho próprio)*
+- [x] Líder reatribui e o histórico mostra as duas delegações. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] "Meus afazeres" do operador reflete delegações na hora, no celular e no tablet. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Modo de delegação trocado por setor sem afetar os demais. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] PR + handoff. — ↪️ *18/11: conferido no código/banco — o handoff existe*

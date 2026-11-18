@@ -1,7 +1,7 @@
 ---
 titulo: SESSAO-36 — Tablet 2.0 · Login por setor, auxiliares e tempos por pessoa
 tipo: demanda
-status: 📐 pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 📐 pronta para code)"
 data: 2026-10-18
 origem: pedido do dono em 18/10/2026, organizado no Cowork e gravado direto no repositório (o dono está fora — sessão em MODO AUTÔNOMO)
 frente: tablet + autenticação + dashboards — pasta principal "Domoby - fabrica", branch nova a partir da main atualizada
@@ -113,18 +113,18 @@ Criadas pelo Cowork na lista PRODUÇÃO do DPTO TI, em A FAZER — mover para FA
 
 ## Critérios de aceite
 
-- [ ] Modo tablet na tela de login; PIN do setor entra no setor e mostra só ele; trocar de setor pede o PIN do setor de destino; um tablet atende o setor inteiro.
-- [ ] PIN do setor cadastrável pela administração, com log; conferido com segurança (nunca em texto puro no cliente).
-- [ ] Qualquer ação de card identifica a pessoa **só pelo PIN**, sem clicar no nome; PIN de usuário único; pessoa só em um setor por vez; movimentar card em setor novo entra direto pelo PIN.
-- [ ] Botão "Auxiliar" em todo card em execução; auxiliar movimenta, pausa e conclui; tempo individual por pessoa no card.
-- [ ] Ícone com foto no canto superior direito; Pausar/Sair pausam todos os cards da pessoa; auxiliar sai sem afetar o card de quem ficou.
-- [ ] Pausa pede motivo; sem card restante → ausente; sair do setor sem entrar em outro → à deriva; motivos de saída cadastráveis em Configurações.
-- [ ] Rota filha de Dashboards com scorecard por usuário (produção por card/setor, ausente, à deriva) e detalhe ao clicar; tempos batem com os eventos.
-- [ ] Foto no cadastro e em todos os ícones de usuário da plataforma.
-- [ ] PC: email + PIN para quem nunca criou senha, com troca obrigatória na primeira entrada; inativo recusado no login.
-- [ ] Tudo em tempo real por websocket (tablet ⇄ PC), zero polling e zero releitura por relógio nas telas tocadas; tablet em 1 requisição.
-- [ ] Toda mudança de configuração gera log com autor; eventos append-only.
-- [ ] Tablet (768) e celular (375) sem rolagem lateral; alvos de toque adequados.
+- [x] Modo tablet na tela de login; PIN do setor entra no setor e mostra só ele; trocar de setor pede o PIN do setor de destino; um tablet atende o setor inteiro. — ↪️ *18/11: conferido no código/banco — 6 setores com PIN próprio no banco*
+- [x] PIN do setor cadastrável pela administração, com log; conferido com segurança (nunca em texto puro no cliente). — ↪️ *18/11: conferido no código/banco — o PIN fica guardado só cifrado no banco*
+- [x] Qualquer ação de card identifica a pessoa **só pelo PIN**, sem clicar no nome; PIN de usuário único; pessoa só em um setor por vez; movimentar card em setor novo entra direto pelo PIN. — ↪️ *18/11: conferido no código/banco — 14 pessoas com PIN; identificação pelo PIN no código*
+- [x] Botão "Auxiliar" em todo card em execução; auxiliar movimenta, pausa e conclui; tempo individual por pessoa no card. — ↪️ *18/11: conferido no código/banco — no banco: 60 auxílios iniciados e encerrados*
+- [x] Ícone com foto no canto superior direito; Pausar/Sair pausam todos os cards da pessoa; auxiliar sai sem afetar o card de quem ficou. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Pausa pede motivo; sem card restante → ausente; sair do setor sem entrar em outro → à deriva; motivos de saída cadastráveis em Configurações. — ↪️ *18/11: conferido no código/banco — estados ausente/à deriva e motivos de saída no código*
+- [x] Rota filha de Dashboards com scorecard por usuário (produção por card/setor, ausente, à deriva) e detalhe ao clicar; tempos batem com os eventos. — ↪️ *18/11: conferido no código/banco — Dashboards → Tempos por pessoa*
+- [x] Foto no cadastro e em todos os ícones de usuário da plataforma. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [ ] PC: email + PIN para quem nunca criou senha, com troca obrigatória na primeira entrada; inativo recusado no login. — ↪️ *18/11: 🟨 parcial — e-mail + PIN com troca obrigatória existe; "inativo recusado no login" depende do gancho do token, que não foi ligado*
+- [x] Tudo em tempo real por websocket (tablet ⇄ PC), zero polling e zero releitura por relógio nas telas tocadas; tablet em 1 requisição. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Toda mudança de configuração gera log com autor; eventos append-only. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Tablet (768) e celular (375) sem rolagem lateral; alvos de toque adequados. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 ## Notas para o Claude Code (validação e fechamento — modo autônomo)
 

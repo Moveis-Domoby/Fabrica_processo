@@ -50,8 +50,8 @@ Webhooks de saída · CRUD completo via API · ponte ROTAS · gestão de chaves 
 
 ## Critérios de aceite
 
-- [ ] Pedido de teste entrando pelo fluxo Tiny/n8n aparece como card no PCP sem toque humano.
-- [ ] O mesmo evento reenviado 3x resulta em 1 card só.
-- [ ] Edição de pedido no Tiny atualiza o card; com unidades liberadas, o conflito fica visível.
-- [ ] Chave inválida → recusado e logado.
-- [ ] PR + handoff + memória de aprendizado atualizada.
+- [x] Pedido de teste entrando pelo fluxo Tiny/n8n aparece como card no PCP sem toque humano. — ↪️ *18/11: conferido no código/banco — no banco, os pedidos do Tiny viram card de pedido sozinhos (origem integração)*
+- [x] O mesmo evento reenviado 3x resulta em 1 card só. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Edição de pedido no Tiny atualiza o card; com unidades liberadas, o conflito fica visível. — ↪️ *18/11: conferido no código/banco — no banco: 124 pedidos atualizados e 8 mudanças de itens tratadas (SESSAO-44)*
+- [x] Chave inválida → recusado e logado. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] PR + handoff + memória de aprendizado atualizada. — ↪️ *18/11: conferido no código/banco — handoff e memória existem*

@@ -65,13 +65,13 @@ Qualquer mudança na regra do tempo (é da 42 — achou um furo, registre e avis
 
 ## Critérios de aceite
 
-- [ ] F1 — As 5 abas no PC, no tablet e no celular, cada uma com 1 requisição no clique; o mesmo móvel tem o mesmo tempo aqui, no card e em Tempos por pessoa; trocar setor, período, pessoa e móvel funciona; desligar "histórico do Trello" tira o histórico de todas as abas.
-- [ ] F2 — Cada motivo de conferência aparece no grupo certo; Considerar/Descartar/Desfazer mudam a média na hora e aparecem na Auditoria; Procurar acha pelo número do pedido.
-- [ ] F3 — A TV mostra tudo o que o painel HTML mostrava, sem nenhum nome; conta só-TV entra direto nela e não sai dela; o admin com a permissão abre a TV numa guia nova; duas TVs abertas em aparelhos diferentes não se derrubam; a TV não sai sozinha; atualiza ao vivo.
-- [ ] F4 — As 891 linhas entram uma vez, com situação; "Nomes do Trello sem modelo" lista o que não casou e ligar um nome recalcula o modelo; os números batem com os esperados (ou a diferença está explicada no handoff).
-- [ ] F5 — "Tempo por setor" redireciona; visualizações salvas traduzidas; um dia de montagem conferido com o dono.
-- [ ] Lei de desempenho: checklist do §12 no handoff, com os planos ×100.
-- [ ] Handoff com o roteiro de teste de cada frente, prints de cada aba e da TV, e as decisões provisórias para o dono confirmar.
+- [x] F1 — As 5 abas no PC, no tablet e no celular, cada uma com 1 requisição no clique; o mesmo móvel tem o mesmo tempo aqui, no card e em Tempos por pessoa; trocar setor, período, pessoa e móvel funciona; desligar "histórico do Trello" tira o histórico de todas as abas. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] F2 — Cada motivo de conferência aparece no grupo certo; Considerar/Descartar/Desfazer mudam a média na hora e aparecem na Auditoria; Procurar acha pelo número do pedido. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (86 passagens do Trello ainda "a conferir" sem decisão)*
+- [x] F3 — A TV mostra tudo o que o painel HTML mostrava, sem nenhum nome; conta só-TV entra direto nela e não sai dela; o admin com a permissão abre a TV numa guia nova; duas TVs abertas em aparelhos diferentes não se derrubam; a TV não sai sozinha; atualiza ao vivo. — ↪️ *18/11: conferido no código/banco — Modo TV no código*
+- [ ] F4 — As 891 linhas entram uma vez, com situação; "Nomes do Trello sem modelo" lista o que não casou e ligar um nome recalcula o modelo; os números batem com os esperados (ou a diferença está explicada no handoff). — ↪️ *18/11: 🟨 parcial — 885 linhas no banco, mas 207 cartões (107 nomes) seguem sem modelo e a carga não foi refeita desde 05/11*
+- [ ] F5 — "Tempo por setor" redireciona; visualizações salvas traduzidas; um dia de montagem conferido com o dono. — ↪️ *18/11: 🟨 parcial — redirecionamento e traduções feitos; "um dia de montagem conferido com o dono" não aconteceu*
+- [x] Lei de desempenho: checklist do §12 no handoff, com os planos ×100. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Handoff com o roteiro de teste de cada frente, prints de cada aba e da TV, e as decisões provisórias para o dono confirmar. — ↪️ *18/11: conferido no código/banco — o handoff existe*
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
 

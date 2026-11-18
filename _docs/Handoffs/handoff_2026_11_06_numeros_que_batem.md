@@ -80,4 +80,4 @@ _docs/Supabase-fabrica/SUPA - Esquema do Banco.md · _docs/000 - MAPA DO PROJETO
 
 ## 8. Ficou pendente
 
-- (preencher no fim)
+- ~~(preencher no fim)~~ ↪️ *18/11 (revisão das pendências): esta seção ficou sem preencher. O ajuste subiu junto com a SESSAO-47 em 09/11 (ver o handoff da 47, "Junto, por ser a base"); nenhuma pendência própria foi registrada — o que sobrou de desempenho está na Lei (§14).*

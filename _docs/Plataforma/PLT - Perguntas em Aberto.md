@@ -2,7 +2,7 @@
 titulo: Plataforma — Perguntas em Aberto (entrevista de descoberta)
 tipo: descoberta
 data: 2026-08-19
-atualizado: 2026-10-01
+atualizado: 2026-11-18
 tags: [plataforma, descoberta, perguntas]
 ---
 
@@ -60,7 +60,7 @@ tags: [plataforma, descoberta, perguntas]
 
 - ✅ **Q-40 · Quais as 3 primeiras automações internas** que você configuraria no estilo "quando X, faça Y"? (candidatas óbvias do cofre: card parado > N dias alerta o líder; pedido completo — todas as unidades prontas — avisa a expedição) → respondida em 01/10: **nenhuma definida ainda — o módulo de automações existe justamente para testá-las** → [[PLT - Decisoes de Produto#D-92]]
 - ✅ **Q-41 · Quem pode criar automações?** → respondida em 01/10: **só admin, por enquanto** (revisar depois) → D-92 · ↪️ **01/10 noite (SESSAO-27): só o SUPER ADMIN** (o dono) cria, edita e liga — D-99/D-102
-- **Q-42 · Notificações:** onde o líder recebe alertas (inclusive os de qualidade da D-09)? Na plataforma, WhatsApp (via n8n), e-mail?
+- **Q-42 · Notificações:** onde o líder recebe alertas (inclusive os de qualidade da D-09)? Na plataforma, WhatsApp (via n8n), e-mail? ↪️ **18/11:** em parte respondida — o aviso chega no sino da plataforma e cada um escolhe o que recebe em Configurações → Avisos (D-202, 28/10); WhatsApp e e-mail seguem sem decisão.
 
 ## 🔵 API e integrações
 
@@ -70,9 +70,9 @@ tags: [plataforma, descoberta, perguntas]
 
 ## ⚪ Operação e infraestrutura
 
-- ⏸️ **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar**
+- ⏸️ **Q-60 · Internet no galpão:** wi-fi cobre todos os setores? Se cair, a produção para de registrar — precisa de modo offline básico ou aceita o risco? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar** ↪️ **18/11:** o motivo do adiamento caiu — o site está no ar (D-141) e em produção nos tablets desde 19/10. A pergunta em si (wi-fi cobre todos os setores? modo offline ou aceita o risco?) **segue sem resposta**.
 - ✅ **Q-61 · Quantos usuários** → respondida em 26/08 (SESSAO-03): **~30 usuários** na largada → [[PLT - Decisoes de Produto#D-21]]
-- ⏸️ **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar**
+- ⏸️ **Q-62 · Hospedagem do front:** VPS atual da Hostinger, Vercel, ou decidir com o Claude Code? → **adiada com a SESSAO-08 (D-30): sem deploy por ora; o dono avisa quando for lançar** ↪️ **18/11:** ✅ **respondida na prática** — o front está na **Vercel** (publica a cada envio de código para a main; documentação não publica — D-303).
 
 ## 🟤 Reforma (bloco 3 — 28/08/2026)
 
@@ -108,7 +108,7 @@ tags: [plataforma, descoberta, perguntas]
   4. Origem errada da peça manual na alocação.
   5. A regra de "peça livre" copiada em 3 funções (M-04: um dono por regra).
   6. Peça personalizada presa (não entra nem sai pelos caminhos normais).
-  7. Leitura do Tiny pesada a cada 30 s na tela.
+  7. Leitura do Tiny pesada a cada 30 s na tela. ↪️ *18/11: ✅ não existe mais — nenhum relógio buscando dado no código (conferido).*
   8. Reaplicar a migration 36 desfaz a 40 (ordem de recriação).
   9. Resíduos da "necessidade extrema" (regra morta da D-55).
   10. 173 produtos sem SKU no catálogo.

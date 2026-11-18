@@ -2,7 +2,7 @@
 titulo: Comercial — Débito Técnico (Índice de Problemas Conhecidos)
 tipo: nota
 prioridade: critica
-atualizado: 2026-09-17
+atualizado: 2026-11-18
 tags: [comercial, plataforma, debito-tecnico, bugs, backlog, indice]
 ---
 
@@ -27,7 +27,7 @@ tags: [comercial, plataforma, debito-tecnico, bugs, backlog, indice]
 
 | ID | Problema | Esforço |
 |---|---|---|
-| **DT-BD5** | Paginação repete clientes de verdade (`ORDER BY` sem desempate — 3 duplicados entre pág. 1↔2 confirmados em produção 10/09) | baixo |
+| **DT-BD5** | Paginação repete clientes de verdade (`ORDER BY` sem desempate — 3 duplicados entre pág. 1↔2 confirmados em produção 10/09) | baixo — ✅ resolvido — conferido no banco em 18/11: a ordem tem desempate (`, cid`). |
 | **DT-BD1** | Identidade do cliente sem normalização de telefone — ver [[PLT - Comercial - Identidade do Cliente]] (na fábrica exige adaptar o plano: `vendas_marketing` é view) | médio |
 | **DT-U1 + DT-U11** | `loading` descartado em parte do dashboard + falha de API vira KPIs zerados sem aviso | baixo |
 | **DT-D11** | Tipo `ScorecardsLista` com 3 campos errados → `undefined` silencioso nos cards de campanha | baixo |
@@ -42,8 +42,8 @@ tags: [comercial, plataforma, debito-tecnico, bugs, backlog, indice]
 | **DT-BD1** | 🔴 | Identidade = telefone bruto, sem normalização. Duplica clientes em **toda** RPC. **[reavaliar]** o plano da coluna gerada foi escrito para a tabela do banco antigo; na fábrica `vendas_marketing` é view — a normalização entra na view, na tabela-base ou numa função | todas as RPCs | Ver [[PLT - Comercial - Identidade do Cliente]]; trocar a expressão em todas as RPCs de uma vez |
 | **DT-BD2** | 🔴 | ✅ resolvido em 2026-09-08 — `gap_days` sempre NULL (window sem frame) → filtro "Tempo de Recompra" retornava vazio | `fn_filter_customers` | Trocado `nth_value` por `LEAD()` |
 | **DT-BD3** | 🟠 | `itens_comprados` JSONB sem contrato — 10 caminhos de fallback, sem SKU. **[reavaliar]** na fábrica existe `pedido_itens` no pipeline de produção — a solução (tabela de itens + catálogo, Sessão 3 antiga) pode se apoiar nela | view `vendas_marketing` | tabela de itens + `produtos_catalogo` |
-| **DT-BD4** | 🟠 | `fn_dashboard_transitions` legada (com PII) nunca dropada — ⚠️ **veio junto na cópia da S19** (está na lista de RPCs portadas) | banco da fábrica | `DROP FUNCTION` (o hook morto `useTransitionData.ts` não foi portado) |
-| **DT-BD5** | 🟠 | Paginação instável — `ORDER BY u_compra_periodo DESC` sem desempate; duplica/omite clientes entre páginas (confirmado em produção 10/09) | `fn_filter_customers` | adicionar `, cid` |
+| **DT-BD4** | 🟠 | `fn_dashboard_transitions` legada (com PII) nunca dropada — ⚠️ **veio junto na cópia da S19** (está na lista de RPCs portadas) | banco da fábrica | `DROP FUNCTION` (o hook morto `useTransitionData.ts` não foi portado) — ↪️ 18/11: **segue aberto** — a função ainda existe no banco e quem tem login pode chamá-la. |
+| **DT-BD5** | 🟠 | Paginação instável — `ORDER BY u_compra_periodo DESC` sem desempate; duplica/omite clientes entre páginas (confirmado em produção 10/09) | `fn_filter_customers` | adicionar `, cid` — ✅ **resolvido** — conferido no banco em 18/11: `order by u_compra_periodo desc, cid`. |
 | **DT-BD6** | 🟠 | `fn_dashboard_items` sem `LIMIT` — milhares de linhas para exibir 3/mês | | `ROW_NUMBER() OVER (PARTITION BY mês ...) <= 5` |
 | **DT-BD7** | 🟡 | `EXTRACT(DAY FROM interval)` trunca horas — médias subestimadas | transitions + `gap_days` das 2 RPCs (DT-G15) | `EXTRACT(EPOCH FROM (...))/86400` |
 | **DT-BD8** | 🟡 | `LIMIT 15` silencioso na frequência de compra *(o `LIMIT 300` do top de itens saiu no DT-G2)* | freq. compra | avisar na UI ou aumentar |
@@ -69,7 +69,7 @@ A união **reformou o modelo de acesso**: RLS no padrão da casa condicionada ao
 | **DT-SEC5** | 🟠 | **[reavaliar]** Gatilho do DataCrazy sem token — a URL era o único segredo. A fábrica tem o secret `DATACRAZY_WEBHOOK_SECRET` configurado; **conferir se `webhook-datacrazy-resposta` valida algum segredo** antes de dar por resolvido |
 | **DT-SEC6** | 🟡 | **[reavaliar]** Edge Functions de cron sem validação de método/chamador; `config.toml` incompleto — conferir a configuração das 6 functions deployadas na fábrica |
 | **DT-SEC7** | 🟡 | **[reavaliar]** `webhook_eventos_crm.payload_bruto` (PII do CRM) legível por anon — na fábrica a tabela nasceu sob RLS padrão (S19); confirmar policies antes de marcar ✅ |
-| **DT-SEC8** | ⚪ | Funções sem `SET search_path` — as RPCs foram copiadas **sem alteração**, então o item **veio junto** para a fábrica |
+| **DT-SEC8** | ⚪ | Funções sem `SET search_path` — as RPCs foram copiadas **sem alteração**, então o item **veio junto** para a fábrica — ✅ **resolvido** — conferido no banco em 18/11: nenhuma função de acesso elevado do esquema público sem caminho fixo. |
 | **DT-SEC9** | 🟠 | **[reavaliar]** `vw_clientes_consolidados` e `vw_scorecards_lista` SECURITY DEFINER (lint 0010). O modelo mudou na S20 (`authenticated` sem SELECT direto; portas gateadas) — reexaminar o advisor no banco da fábrica |
 
 *Apontamentos de segurança **do banco da fábrica** herdados pela SESSAO-21 (não são do Comercial): `fn_pedido_por_numero_nf` executável por `anon` 🟠, `fn_backfill_conta_mapear`/`fn_vig_touch` sem `search_path` 🟡, `vig_conhecimento_vendas` com RLS sem policy ⚪ — ver [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]].*
@@ -139,15 +139,15 @@ A união **reformou o modelo de acesso**: RLS no padrão da casa condicionada ao
 | **DT-D12** | 🟡 | Tipos de evento semanticamente errados (`iniciarFila` grava `envio_registrado`) |
 | **DT-D13** | 🟡 | `encerrado_em` e `filtros_aplicados` nunca preenchidos |
 | **DT-D14** | 🟡 | Resquícios do desenho abandonado: `sincronizada`, `negocio_perdido_crm`, `leads_sincronizados`, `id_lista_crm`, `tag_crm` |
-| **DT-D15** | 🟡 | Polling não recarrega eventos |
-| **DT-D16** | 🟡 | Polling sobrescreve a edição da mensagem (`prev \|\| …`) |
+| **DT-D15** | 🟡 | Polling não recarrega eventos — ↪️ 18/11: superado — não existe mais polling no código (o defeito vinha dele); conferir na tela que a lista recarrega pelo aviso ao vivo. |
+| **DT-D16** | 🟡 | Polling sobrescreve a edição da mensagem (`prev \|\| …`) — ↪️ 18/11: superado — não existe mais polling no código; conferir na tela. |
 | **DT-D17** | ⚪ | ✅ resolvido em 2026-09-08 — botão "Salvando..." durante o save |
 | **DT-D18** | 🟡 | Divisão em N partes produz menos de N listas (`Math.ceil`) |
 | **DT-D19** | 🟡 | Validações usam `filteredData` em vez de `validData` |
 | **DT-D20** | 🟠 | Intervalo < 60s é ilusório (granularidade real do cron é 1 min) |
 | **DT-D21** | 🟠 | Ordenação da fila não-determinística (`criado_em` empatado, sem desempate) |
 | **DT-D22** | 🟠 | `useDisparosData` sem paginação — badges truncadas silenciosamente em ~1000 linhas |
-| **DT-D24** | ⚪ | `alert()`/`confirm()` nativos apesar do `react-hot-toast` |
+| **DT-D24** | ⚪ | `alert()`/`confirm()` nativos apesar do `react-hot-toast` — ↪️ 18/11: **segue aberto** — 16 arquivos do Comercial ainda usam `alert()`/`confirm()`. |
 | **DT-D25** | ⚪ | `handleRegistrarEnvio` chama `fetchData()` com spinner |
 | **DT-D26** | ⚪ | 9 scorecards em `grid-cols-8` — ROI cai sozinho na 2ª linha |
 | **DT-D30** | 🟠 | Erros invisíveis — `erros[]` com HTTP 200, resposta descartada pelo `pg_cron` |
@@ -171,7 +171,7 @@ A união **reformou o modelo de acesso**: RLS no padrão da casa condicionada ao
 | **DT-ARQ6** | ⚪ | ✅ **[superado pela união]** sem router — a SESSAO-20 transformou o view-state em rotas `/comercial/*` |
 | **DT-ARQ7** | ⚪ | `SaleRecord.instagram_cliente` e `GroupedCustomer.instagram` declarados; a coluna não existe — **[reavaliar]** conferir se os types portados ainda trazem |
 | **DT-ARQ8** | ⚪ | ✅ **[não portado]** config do oxlint era do repo antigo; o lint do repo da fábrica passou limpo na S20 |
-| **DT-ARQ9** | ⚪ | Bundle sem code splitting — **confirmado na S20: ~1,7 MB com o Recharts**; fora do escopo da união, segue aberto |
+| **DT-ARQ9** | ⚪ | Bundle sem code splitting — **confirmado na S20: ~1,7 MB com o Recharts**; fora do escopo da união, segue aberto — ✅ **resolvido em 16/10** (sessão de desempenho): o código foi dividido por tela (conferido em 18/11). |
 | **DT-U8** | ⚪ | ✅ **[superado pela união]** tema sem persistência/anti-FOUC — o módulo passou a usar o sistema de temas da plataforma (Meu Perfil → Tema; catálogo com esmeralda claro/escuro) |
 | **DT-U9** | ⚪ | `* { transition-colors }` global — **[reavaliar]** conferir se o CSS portado manteve |
 | **DT-U10** | ⚪ | 🔶 amplamente superado na S20 — gráficos passaram a resolver cores pelos tokens da casa (`--dm-serie-1..6`, `var(--…)`); conferir restos de classes hardcoded fora dos gráficos |

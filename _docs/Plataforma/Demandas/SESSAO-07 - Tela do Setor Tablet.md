@@ -53,9 +53,9 @@ Dashboards · telas de líder/admin · tarefas.
 
 ## Critérios de aceite
 
-- [ ] Num tablet real (ou viewport equivalente), o ciclo receber → iniciar → finalizar → mover+marcar acontece só com toques, sem teclado além do PIN.
-- [ ] Dois operadores no mesmo tablet registram ações com autores distintos.
-- [ ] Card novo aparece na fila em tempo real.
-- [ ] Card com recebimento pendente (dupla atestação da SESSAO-06) é visualmente inconfundível e o iniciar passa pela confirmação. (↩️ substitui o critério antigo de "card pausado por disputa" — disputa/pausa caiu na D-09 revisada.)
-- [ ] Prelúdio D-27 entregue: sidebar, modelo de sistema no cofre (sem rota /design), microinteração dos botões, UI sem códigos internos.
-- [ ] PR + handoff com screenshots em tablet e celular.
+- [-] Num tablet real (ou viewport equivalente), o ciclo receber → iniciar → finalizar → mover+marcar acontece só com toques, sem teclado além do PIN. — ↪️ *18/11: superado — pelo Tablet 2.0 (SESSAO-36): PIN do setor e PIN da pessoa*
+- [-] Dois operadores no mesmo tablet registram ações com autores distintos. — ↪️ *18/11: superado — pelo Tablet 2.0: cada ação identifica a pessoa pelo PIN*
+- [x] Card novo aparece na fila em tempo real. — ↪️ *18/11: conferido no código/banco — o card novo chega por aviso ao vivo (websocket), sem relógio*
+- [-] Card com recebimento pendente (dupla atestação da SESSAO-06) é visualmente inconfundível e o iniciar passa pela confirmação. (↩️ substitui o critério antigo de "card pausado por disputa" — disputa/pausa caiu na D-09 revisada.) — ↪️ *18/11: superado — a marcação do recebimento virou configuração e nasce desligada (D-126)*
+- [x] Prelúdio D-27 entregue: sidebar, modelo de sistema no cofre (sem rota /design), microinteração dos botões, UI sem códigos internos. — ↪️ *18/11: conferido no código/banco — sidebar, Modelo de Sistema no cofre e interface sem códigos*
+- [x] PR + handoff com screenshots em tablet e celular. — ↪️ *18/11: conferido no código/banco — o handoff existe (PR dispensado)*

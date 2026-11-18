@@ -263,44 +263,44 @@ Na parada do pedido (Rotas e mapa) e na ficha do pedido (seção de entrega), o 
 ## Critérios de aceite
 
 **Bloco A**
-- [ ] O 13871 mostra "adicionar rodízios" na capa (quadro, tablet, celular), na janela do card e no PCP.
-- [ ] Card sem observação continua idêntico. Com 162 caracteres, fica em 2 linhas com reticências, sem rolagem lateral em 375/768 e sem desalinhar a coluna.
-- [ ] Mudar a observação no Tiny muda o card ao vivo e não reabre o PCP.
-- [ ] Dois itens do mesmo produto com observações diferentes: cada unidade mostra a sua.
-- [ ] Backfill dos 376 itens com contagem antes/depois.
+- [x] O 13871 mostra "adicionar rodízios" na capa (quadro, tablet, celular), na janela do card e no PCP. — ↪️ *18/11: conferido no código/banco — observação do item no código e na capa*
+- [x] Card sem observação continua idêntico. Com 162 caracteres, fica em 2 linhas com reticências, sem rolagem lateral em 375/768 e sem desalinhar a coluna. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Mudar a observação no Tiny muda o card ao vivo e não reabre o PCP. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Dois itens do mesmo produto com observações diferentes: cada unidade mostra a sua. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Backfill dos 376 itens com contagem antes/depois. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Bloco B**
-- [ ] O 13622 some do PCP sem acerto. Pedido da lista de excluídos aparece em "Cancelados" como "Excluído no Tiny", e o sino avisa.
-- [ ] **Cancelar:**
+- [x] O 13622 some do PCP sem acerto. Pedido da lista de excluídos aparece em "Cancelados" como "Excluído no Tiny", e o sino avisa. — ↪️ *18/11: conferido no código/banco — no banco, o 13622 está na lista de excluídos e fora do PCP*
+- [ ] **Cancelar:** — ↪️ *18/11: 🟨 parcial — funciona na plataforma, mas nunca foi usado em produção: a ida do "Cancelado" ao Tiny ainda não foi provada com um pedido real*
   - o modal próprio avisa que cancela no Tiny;
   - o pedido sai do PCP na hora, e o Tiny passa a "Cancelado";
   - as peças em produção perguntam o destino;
   - com o Tiny falhando, aparecem o aviso e o "Tentar de novo";
   - toque repetido produz um efeito só.
-- [ ] **Ocultar:**
+- [x] **Ocultar:** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (nunca usado em produção)*
   - sem peças, oculta direto; com peças, pergunta e mostra quantas e onde;
   - "Ocultar o pedido e as peças" tira as peças do quadro e das contas;
   - o pedido aparece em "Pedidos ocultos".
-- [ ] **Recuperar:**
+- [x] **Recuperar:** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - dentro de 30 dias, devolve o pedido ao PCP com **todas** as vagas das peças ocultadas abertas para liberar; nenhuma peça volta para coluna;
   - depois de 30 dias, o pedido some da lista, e "Incluir pedido no PCP" o traz de volta, de qualquer idade.
-- [ ] "Liberar unidades" não oferece CANCELADO nem NÃO ENCONTRADO, e o banco recusa. A linha leva aos botões novos.
-- [ ] O aviso de laço aparece com 3 ou mais cancelamentos em 24 h.
+- [x] "Liberar unidades" não oferece CANCELADO nem NÃO ENCONTRADO, e o banco recusa. A linha leva aos botões novos. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O aviso de laço aparece com 3 ou mais cancelamentos em 24 h. — ↪️ *18/11: conferido no código/banco — aviso de laço no código*
 
 **Bloco C**
-- [ ] A parada avulsa pendente edita endereço, pino, título e observação sem apagar. O log grava antes e depois, e a rota aberta muda na hora.
-- [ ] Editar o endereço do pedido mostra de/para e pergunta se salva também no Tiny. O fato guarda o original do Tiny, e o novo aparece em Rotas, mapa, Entregas do dia, ficha e link do entregador.
-- [ ] **"Salvar na plataforma e no Tiny":**
+- [x] A parada avulsa pendente edita endereço, pino, título e observação sem apagar. O log grava antes e depois, e a rota aberta muda na hora. — ↪️ *18/11: conferido no código/banco — editar parada avulsa no código*
+- [x] Editar o endereço do pedido mostra de/para e pergunta se salva também no Tiny. O fato guarda o original do Tiny, e o novo aparece em Rotas, mapa, Entregas do dia, ficha e link do entregador. — ↪️ *18/11: conferido no código/banco — editar endereço com a pergunta do Tiny no código*
+- [ ] **"Salvar na plataforma e no Tiny":** — ↪️ *18/11: ❌ NÃO feito — "Salvar também no Tiny" segue desligado de propósito; o teste num pedido de teste com o dono não foi feito (D-320)*
   - provado num pedido de teste com o OK do dono (pedido no Tiny idêntico, fora o endereço);
   - desabilitado com o porquê quando o Tiny não deixa;
   - se o Tiny falhar, mostra o aviso e "Tentar de novo".
-- [ ] "Voltar ao endereço original" restaura, e mexer só no pino também funciona.
-- [ ] Mudança de endereço feita por fora no Tiny vence e avisa. A nossa própria escrita não dispara esse aviso.
+- [x] "Voltar ao endereço original" restaura, e mexer só no pino também funciona. — ↪️ *18/11: conferido no código/banco — "Voltar ao endereço original" no código*
+- [x] Mudança de endereço feita por fora no Tiny vence e avisa. A nossa própria escrita não dispara esse aviso. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Geral**
-- [ ] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque; modais próprios do sistema.
-- [ ] Bateria do banco (regra da casa), tsc, lint, vitest, build e advisors sem nada novo.
-- [ ] Lei de desempenho: cada tela em 1 requisição, modais leem só ao abrir, sem relógio novo. O plano ×100 das portas tocadas vai no handoff.
+- [x] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque; modais próprios do sistema. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Bateria do banco (regra da casa), tsc, lint, vitest, build e advisors sem nada novo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lei de desempenho: cada tela em 1 requisição, modais leem só ao abrir, sem relógio novo. O plano ×100 das portas tocadas vai no handoff. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 ## Notas para o Claude Code
 - Recrie toda função a partir da **versão viva** do banco, conferindo o corpo (A-96/A-97). Tipos novos de evento entram no `plt_eventos_tipo_check` (E-19).

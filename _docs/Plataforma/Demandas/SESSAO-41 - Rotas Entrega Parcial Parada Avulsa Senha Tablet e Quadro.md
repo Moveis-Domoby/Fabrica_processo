@@ -1,7 +1,7 @@
 ---
 titulo: SESSAO-41 — Entrega parcial, parada avulsa, endereço e data de entrega, recuperar senha com segurança, tablet que não cai e o quadro com rolagem na coluna
 tipo: demanda
-status: 🔨 em execução (27/10/2026)
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 🔨 em execução (27/10/2026))"
 data: 2026-10-27
 atualizado: 2026-10-27
 tags: [plataforma, demandas, rotas, entrega, senha, seguranca, tablet, kanban]
@@ -70,11 +70,11 @@ Mexer no Tiny (nada vai para lá: nem a entrega parcial, nem a data, nem o ender
 
 ## Critérios de aceite
 
-- [ ] F1 — Dois aparelhos no mesmo setor ficam logados juntos; sair de um não derruba o outro; o tablet não sai sozinho; a pessoa vira ausente com 15 min sem card em execução e sai do setor com 1 h; o gesto de card com PIN de quem não está no setor funciona e a põe no setor.
-- [ ] F2 — Na MONTAGEM com dezenas de cards, a coluna rola por dentro, o cabeçalho das colunas fica sempre à vista e o arrasto mostra a coluna de destino; "Ver mais" dentro da coluna; PC e tablet.
-- [ ] F3 — Solicitar → aviso urgente na tela de todo admin/super admin (com Liberar / Não liberar) e no sino; liberado, o aparelho que pediu troca a senha em até 2 h, uma vez; e-mail não cadastrado, conta de tablet e pessoa desativada = a mesma mensagem genérica; tudo na trilha; a revisão de segurança com o que foi achado e corrigido.
-- [ ] F4 — Entrega parcial no entregador e na logística; as peças entregues saem de toda conta; as que voltaram aparecem em "Decidir situação"; o pedido aparece "Entregue em parte" (Pedidos, calendário, ficha); desfazer no mesmo dia desfaz tudo; o Tiny não muda.
-- [ ] F5 — Parada avulsa na programação e na rota do dia; o endereço digitado vira pino; Feita/Não feita; o entregador só reordena a avulsa que pôs; Google Maps leva a avulsa na ordem; "Rota programada".
-- [ ] F6 — O pedido 13660 aparece na programação em Nova Parnamirim; mudar/remover a data na plataforma muda card, expedição, calendário e programação (o Tiny não muda); o Tiny mudando a data depois, a plataforma segue o Tiny.
-- [ ] Lei de desempenho: portas novas/tocadas medidas no ×100; nenhuma requisição nova na abertura; nada de relógio nem `postgres_changes`.
-- [ ] Handoff com o roteiro de teste de cada frente.
+- [x] F1 — Dois aparelhos no mesmo setor ficam logados juntos; sair de um não derruba o outro; o tablet não sai sozinho; a pessoa vira ausente com 15 min sem card em execução e sai do setor com 1 h; o gesto de card com PIN de quem não está no setor funciona e a põe no setor. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] F2 — Na MONTAGEM com dezenas de cards, a coluna rola por dentro, o cabeçalho das colunas fica sempre à vista e o arrasto mostra a coluna de destino; "Ver mais" dentro da coluna; PC e tablet. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] F3 — Solicitar → aviso urgente na tela de todo admin/super admin (com Liberar / Não liberar) e no sino; liberado, o aparelho que pediu troca a senha em até 2 h, uma vez; e-mail não cadastrado, conta de tablet e pessoa desativada = a mesma mensagem genérica; tudo na trilha; a revisão de segurança com o que foi achado e corrigido. — ↪️ *18/11: conferido no código/banco — pedido de senha com Liberar/Não liberar no código; 2 pedidos no banco*
+- [x] F4 — Entrega parcial no entregador e na logística; as peças entregues saem de toda conta; as que voltaram aparecem em "Decidir situação"; o pedido aparece "Entregue em parte" (Pedidos, calendário, ficha); desfazer no mesmo dia desfaz tudo; o Tiny não muda. — ↪️ *18/11: conferido no código/banco — entrega parcial no entregador e na logística (revista pela SESSAO-51)*
+- [x] F5 — Parada avulsa na programação e na rota do dia; o endereço digitado vira pino; Feita/Não feita; o entregador só reordena a avulsa que pôs; Google Maps leva a avulsa na ordem; "Rota programada". — ↪️ *18/11: conferido no código/banco — 10 paradas avulsas no banco*
+- [x] F6 — O pedido 13660 aparece na programação em Nova Parnamirim; mudar/remover a data na plataforma muda card, expedição, calendário e programação (o Tiny não muda); o Tiny mudando a data depois, a plataforma segue o Tiny. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lei de desempenho: portas novas/tocadas medidas no ×100; nenhuma requisição nova na abertura; nada de relógio nem `postgres_changes`. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Handoff com o roteiro de teste de cada frente. — ↪️ *18/11: conferido no código/banco — handoff com roteiro*

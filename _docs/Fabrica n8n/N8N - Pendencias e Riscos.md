@@ -1,7 +1,7 @@
 ---
 titulo: n8n — Pendências e Riscos
 tipo: indice
-atualizado: 2026-10-17
+atualizado: 2026-11-18
 tags: [pendencias, riscos, n8n, debito-tecnico]
 ---
 
@@ -13,7 +13,7 @@ tags: [pendencias, riscos, n8n, debito-tecnico]
 ## 🔴 Prioridade alta
 
 ### P1 · Alerta de erro — NÃO EXISTE · ✅ resolvido em 2026-10-17
-**✅ 17/10/2026 — no ar:** o fluxo `Domoby · alerta de erro das automações` (`PWB9rkXQgLlKEWqN`) publicado e ligado como fluxo de erro na fila do Tiny (`Rzm3N1bKnhsgGfav`), no fluxo da fábrica (`gJNYde20T921AY6l`) e no de vendas (`80NbZ4CUl664NYlc`) — o aviso chega no sino do dono e na Auditoria → Atividade ([[SESSAO-33]]).
+**✅ 17/10/2026 — no ar:** o fluxo `Domoby · alerta de erro das automações` (`PWB9rkXQgLlKEWqN`) publicado e ligado como fluxo de erro na fila do Tiny (`Rzm3N1bKnhsgGfav`), no fluxo da fábrica (`gJNYde20T921AY6l`) e no de vendas (`80NbZ4CUl664NYlc`) — o aviso chega no sino do dono e na Auditoria → Atividade ([[SESSAO-33]]). ↪️ **18/11:** ✅ o dono ligou "notas fiscais autorizadas" e "pedidos enviados" no Tiny da loja em 18/10 (passo 8 do handoff da SESSAO-33).
 Nenhum workflow tem Error Workflow configurado. O incidente de 11/08 ([[N8N - Incidente Credencial Google]]) foi descoberto ~2h depois, por acaso. Hoje são **4 integrações** que podem falhar em silêncio (Sheets, ClickUp, Trello, Tiny) — e falha significa pedido sem card de produção/rota.
 **Fazer:** workflow `ALERTA - Erro n8n` com node **Error Trigger** → notificação (Telegram sugerido; e-mail exige SMTP). Depois, em cada workflow: ⋯ → Settings → Error Workflow. *Adiado a pedido do usuário em 12/08.*
 **↪️ 17/10/2026 (SESSAO-33) — pronto para ligar em casa:** o aviso vai para o **sino do dono na plataforma** (sem Telegram nem e-mail) e fica na Auditoria → Atividade (grupo das automações), sem repetir o mesmo aviso em 30 min por fluxo. Fluxo `domoby-alerta-erro-automacoes.json` (Error Trigger → "Montar aviso" → `plt_fn_automacao_erro`) e o programa `supabase/manutencao/2026-10-17_n8n_fila_tiny_completo.mjs --alerta` (cria/publica o fluxo e liga o "Error Workflow" na fila do Tiny, no fluxo da fábrica e no das vendas). Item da fila do Tiny que desiste (4ª falha) também avisa. Vale quando o banco (migration 89) e o programa rodarem — ver o handoff da SESSAO-33.
@@ -88,7 +88,7 @@ Pedido cancelado continua na lista de produção (pré-existente ao n8n; hoje ma
 Tarefa `teste` em GREENPALLETS; histórico da PCP; estrutura geral. Usuário decidiu arrumar **depois** das migrações.
 
 ### P13 · Medição de tempo de produção
-Discutido, nada decidido. Ver [[FAB - Estrutura de Producao (Trello e ClickUp)#Medição de tempo de produção]].
+Discutido, nada decidido. Ver [[FAB - Estrutura de Producao (Trello e ClickUp)#Medição de tempo de produção]]. ↪️ **18/11:** ✅ resolvido pela plataforma — o tempo de produção é medido nos cards e lido em Dashboards → Tempos de produção (SESSAO-42 e SESSAO-43); não depende mais do n8n.
 
 ### P15 · Migrar o banco de dados da planilha para o Supabase — **PROMOVIDA A PROJETO ATIVO em 17/08**
 O dono decidiu iniciar: Supabase passa a ser o armazenamento canônico de clientes/pedidos (todos os dados possíveis, **incluindo o `id` interno do Tiny**), alimentado pelo webhook de vendas; os nós de planilha serão substituídos gradualmente conforme der certo. Estratégia acordada: **dupla escrita** primeiro (ramo Supabase em paralelo ao Sheets, zero risco), backfill do histórico, conferência de paridade, e só então desligar planilha — mesmo método dos cortes do Plugga. Com o id armazenado, a automação P14 pode trocar o passo `pedidos.pesquisa` por uma leitura no banco. O n8n já tem o id em toda execução (`Normalizar evento` → `dados.id`).

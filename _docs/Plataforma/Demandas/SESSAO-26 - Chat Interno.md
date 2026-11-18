@@ -55,14 +55,14 @@ Anexos/áudio/foto no chat (fase 2 do chat, se pedida) · integração WhatsApp 
 
 ## Critérios de aceite
 
-- [ ] `/inicio/chat` funciona no desktop e no celular; balão presente e arrastável em todas as telas autenticadas (menos `/tablet`), posição persistida.
-- [ ] Canal de grupo, particular e avisos gerais funcionando; quem não participa de uma conversa não lê nada dela **nem pela API** (testar com papel simulado).
-- [ ] Mensagem enviada aparece para o outro participante **sem recarregar** (realtime), e o badge de não lidas do balão sobe na tela em que ele estiver.
-- [ ] Com o painel de rede aberto (aba Network): balão fechado gera apenas o agregado de não lidas; abrir uma conversa gera **uma** assinatura realtime e **uma** página de histórico; fechar desinscreve. Nada de requisição por conversa fechada.
-- [ ] Data de nascimento cadastrável no perfil (próprio e admin); no dia, a mensagem de parabéns é publicada sozinha (testável forjando uma data no dia do teste).
-- [ ] Histórico paginado por cursor ("ver anteriores" traz a página anterior, nunca tudo).
-- [ ] Criação de canal e aviso geral logadas (D-40); conteúdo de mensagens fora do log.
-- [ ] Decisões novas registradas em [[PLT - Decisoes de Produto]] (chat, aniversários, permissões).
+- [x] `/inicio/chat` funciona no desktop e no celular; balão presente e arrastável em todas as telas autenticadas (menos `/tablet`), posição persistida. — ↪️ *18/11: conferido no código/banco — /inicio/chat e o balão existem (código)*
+- [x] Canal de grupo, particular e avisos gerais funcionando; quem não participa de uma conversa não lê nada dela **nem pela API** (testar com papel simulado). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Mensagem enviada aparece para o outro participante **sem recarregar** (realtime), e o badge de não lidas do balão sobe na tela em que ele estiver. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Com o painel de rede aberto (aba Network): balão fechado gera apenas o agregado de não lidas; abrir uma conversa gera **uma** assinatura realtime e **uma** página de histórico; fechar desinscreve. Nada de requisição por conversa fechada. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Data de nascimento cadastrável no perfil (próprio e admin); no dia, a mensagem de parabéns é publicada sozinha (testável forjando uma data no dia do teste). — ↪️ *18/11: conferido no código/banco — a rotina diária dos aniversários está ativa no banco*
+- [x] Histórico paginado por cursor ("ver anteriores" traz a página anterior, nunca tudo). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Criação de canal e aviso geral logadas (D-40); conteúdo de mensagens fora do log. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Decisões novas registradas em [[PLT - Decisoes de Produto]] (chat, aniversários, permissões). — ↪️ *18/11: conferido no código/banco — decisões do chat registradas*
 
 ## Notas para o Claude Code
 

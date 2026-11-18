@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-31 — Kanban completo: card avulso, janela do card, anexos, conversa e pausa com motivo"
 tipo: demanda
-status: 🔨 em execução (14/10 — sessão noturna)
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 🔨 em execução (14/10 — sessão noturna))"
 data: 2026-10-07
 atualizado: 2026-10-14
 origem: pedido do dono em 06/10/2026 (com 3 prints do ClickUp como referência), mapeado no Cowork (leitura só de cofre, código, banco e ClickUp — nada alterado)
@@ -130,26 +130,26 @@ Tudo da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entre
 
 ## 8. Critérios de aceite
 
-- [ ] Aba "Lançamento manual" no PCP: criar com só o nome (Enter salva); responsável, datas, prioridade e etiqueta pelos atalhos; vínculo opcional (sem vínculo funciona); visões A lançar / Em produção / Concluídos paginadas no servidor.
-- [ ] Avulso lançado anda por arrasto no quadro e no tablet (com PIN) como qualquer card: tempo, limite de 1, histórico; termina como o dono decidir (pergunta 2) — provado no harness e no ensaio desfeito no banco real.
-- [ ] O avulso **não entra em conta nenhuma** de estoque, reserva, Top X ou "peças concluídas" do painel (a não ser o que o dono decidir na pergunta 2); entra nos **tempos** por setor e por pessoa.
-- [ ] Frente do card enxuta: etiquetas, avatares, vencimento atrasado com ícone + texto, descrição ao passar o mouse (e ao tocar no tablet), contadores de anexos/mensagens; nada estoura a borda a 375 px.
-- [ ] A janela abre em **todo tipo de card**, por clique (sem disparar arrasto) e pelo link; cada parte só busca **ao abrir** (Network: abrir a janela = as leituras dela; fechar = nada fica ouvindo).
-- [ ] Anexar imagem, PDF e áudio (arquivo e gravação) — privado, link de vida curta; removido por evento; quem não vê o card não abre o anexo.
-- [ ] Conversa do card em tempo real com duas abas abertas (sem recarregar e sem releitura); 10 por página.
-- [ ] **Menção:** o mencionado recebe o aviso no sino **e** o cartão "mencionou você" na conversa particular; o balão sobe sozinho; "Abrir card" abre a janela certa; mencionar a si mesmo não avisa.
-- [ ] Pessoas põem e tiram etiqueta (evento + projeção, a automação continua funcionando igual); campo customizado vale em avulso.
-- [ ] Pausa com motivo: arrastar para PARADO pede o motivo; Pausar/Retomar na janela; motivo na frente e no histórico; regras da D-48 intactas.
-- [ ] Tudo o que grava autor deixa rastro na Auditoria; nenhum evento editado ou apagado.
-- [ ] Celular 375 px e tablet 768 px: sem rolagem lateral, toques ≥ 44 px, janela do card usável com uma mão.
-- [ ] Revisões registradas como D-NN novas (↩️ D-101, ↩️ D-59, ↩️ D-22).
-- [ ] **§4c:** pedido com o marcador "Devolvido" no Tiny não conta mais como cancelado — as peças seguem com ele (harness + ensaio desfeito no banco real); o cancelado continua indo ao estoque; a resposta da pergunta 11 aplicada.
-- [ ] **Aba Network:** abrir o quadro de um setor (e o tablet) = **1 requisição**; "Ver mais" = 1; abrir a janela do card = 1; histórico/anexos só no clique; **nada se repete sozinho** — card movido em outra aba aparece sem releitura.
-- [ ] **Busca no código:** nenhum `refetchInterval`/`postgres_changes` no quadro, no tablet, no PCP e no sino.
-- [ ] Porta do quadro e porta da janela do card **≤ 50 ms (p95) com volume ×100** — plano (`EXPLAIN ANALYZE`) na execução.
-- [ ] Clique duplo em "Salvar", "Enviar" ou "Anexar" = um efeito só.
-- [ ] Checklist de desempenho da lei (§12) marcado item a item no handoff, com o tamanho do pacote antes/depois.
-- [ ] Tarefas do ClickUp (seção abaixo) movidas para **FAZENDO** ao começar e **nunca** para concluído; o dono avisado de cada uma ao terminar.
+- [x] Aba "Lançamento manual" no PCP: criar com só o nome (Enter salva); responsável, datas, prioridade e etiqueta pelos atalhos; vínculo opcional (sem vínculo funciona); visões A lançar / Em produção / Concluídos paginadas no servidor. — ↪️ *18/11: conferido no código/banco — aba Lançamento manual no código; 100 avulsos criados em produção*
+- [x] Avulso lançado anda por arrasto no quadro e no tablet (com PIN) como qualquer card: tempo, limite de 1, histórico; termina como o dono decidir (pergunta 2) — provado no harness e no ensaio desfeito no banco real. — ↪️ *18/11: conferido no código/banco — 95 avulsos concluídos em produção*
+- [x] O avulso **não entra em conta nenhuma** de estoque, reserva, Top X ou "peças concluídas" do painel (a não ser o que o dono decidir na pergunta 2); entra nos **tempos** por setor e por pessoa. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Frente do card enxuta: etiquetas, avatares, vencimento atrasado com ícone + texto, descrição ao passar o mouse (e ao tocar no tablet), contadores de anexos/mensagens; nada estoura a borda a 375 px. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A janela abre em **todo tipo de card**, por clique (sem disparar arrasto) e pelo link; cada parte só busca **ao abrir** (Network: abrir a janela = as leituras dela; fechar = nada fica ouvindo). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Anexar imagem, PDF e áudio (arquivo e gravação) — privado, link de vida curta; removido por evento; quem não vê o card não abre o anexo. — ↪️ *18/11: conferido no código/banco — 126 anexos em produção; gravação de áudio no código*
+- [x] Conversa do card em tempo real com duas abas abertas (sem recarregar e sem releitura); 10 por página. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (nenhuma conversa de card em produção ainda)*
+- [x] **Menção:** o mencionado recebe o aviso no sino **e** o cartão "mencionou você" na conversa particular; o balão sobe sozinho; "Abrir card" abre a janela certa; mencionar a si mesmo não avisa. — ↪️ *18/11: conferido no código/banco — menções no código*
+- [x] Pessoas põem e tiram etiqueta (evento + projeção, a automação continua funcionando igual); campo customizado vale em avulso. — ↪️ *18/11: conferido no código/banco — no banco: 7 etiquetas postas e 4 tiradas por pessoas*
+- [x] Pausa com motivo: arrastar para PARADO pede o motivo; Pausar/Retomar na janela; motivo na frente e no histórico; regras da D-48 intactas. — ↪️ *18/11: conferido no código/banco — no banco: 161 pausas e 65 motivos cadastrados*
+- [x] Tudo o que grava autor deixa rastro na Auditoria; nenhum evento editado ou apagado. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Celular 375 px e tablet 768 px: sem rolagem lateral, toques ≥ 44 px, janela do card usável com uma mão. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Revisões registradas como D-NN novas (↩️ D-101, ↩️ D-59, ↩️ D-22). — ↪️ *18/11: conferido no código/banco — D-125…D-131 registradas*
+- [x] **§4c:** pedido com o marcador "Devolvido" no Tiny não conta mais como cancelado — as peças seguem com ele (harness + ensaio desfeito no banco real); o cancelado continua indo ao estoque; a resposta da pergunta 11 aplicada. — ↪️ *18/11: conferido no código/banco — o marcador "Devolvido" é tratado nas atualizações do banco*
+- [x] **Aba Network:** abrir o quadro de um setor (e o tablet) = **1 requisição**; "Ver mais" = 1; abrir a janela do card = 1; histórico/anexos só no clique; **nada se repete sozinho** — card movido em outra aba aparece sem releitura. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **Busca no código:** nenhum `refetchInterval`/`postgres_changes` no quadro, no tablet, no PCP e no sino. — ↪️ *18/11: conferido no código/banco — nenhum refetchInterval nem postgres_changes no código*
+- [x] Porta do quadro e porta da janela do card **≤ 50 ms (p95) com volume ×100** — plano (`EXPLAIN ANALYZE`) na execução. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Clique duplo em "Salvar", "Enviar" ou "Anexar" = um efeito só. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Checklist de desempenho da lei (§12) marcado item a item no handoff, com o tamanho do pacote antes/depois. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Tarefas do ClickUp (seção abaixo) movidas para **FAZENDO** ao começar e **nunca** para concluído; o dono avisado de cada uma ao terminar. — ↪️ *18/11: conferido no código/banco — tarefas em FAZENDO no ClickUp*
 
 ## 9. Notas para o Claude Code
 

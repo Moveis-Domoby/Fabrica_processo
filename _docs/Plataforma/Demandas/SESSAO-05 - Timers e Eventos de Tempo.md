@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-05 — Timers e Eventos de Tempo"
 tipo: demanda
-status: em execucao
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: em execucao)"
 data: 2026-08-19
 atualizado: 2026-08-27
 tags: [plataforma, demanda, sessao]
@@ -44,8 +44,8 @@ Qualidade nas transições (06) · dashboards (08) · alertas automáticos (11).
 
 ## Critérios de aceite
 
-- [ ] Card que passou por 2 etapas mostra na linha do tempo: fila e execução de cada uma, com autores.
-- [ ] Mover sem iniciar → tempo fica todo como fila (ou o comportamento decidido na pergunta acima).
-- [ ] Estorno cria evento novo e o original permanece visível.
-- [ ] UPDATE/DELETE em evento falham (verificado no banco).
-- [ ] PR + handoff.
+- [x] Card que passou por 2 etapas mostra na linha do tempo: fila e execução de cada uma, com autores. — ↪️ *18/11: conferido no código/banco — a linha do tempo do card existe no código*
+- [x] Mover sem iniciar → tempo fica todo como fila (ou o comportamento decidido na pergunta acima). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Estorno cria evento novo e o original permanece visível. — ↪️ *18/11: conferido no código/banco — o estorno vira evento novo (código)*
+- [x] UPDATE/DELETE em evento falham (verificado no banco). — ↪️ *18/11: conferido no código/banco — no banco, as travas contra alterar e apagar evento estão ativas e ninguém tem permissão para isso*
+- [x] PR + handoff. — ↪️ *18/11: conferido no código/banco — PR dispensado (D-20); o handoff existe*

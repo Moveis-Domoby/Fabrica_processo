@@ -86,21 +86,21 @@ Tudo o que as SESSÕES 30 e 31 já adequaram · publicação definitiva nos tabl
 
 ## 5. Critérios de aceite
 
-- [ ] **Primeira abertura = 1 requisição de dados** + o websocket pessoal (aba Network, cache vazio).
-- [ ] **Toda tela abre com 1 requisição**; dado escondido só no clique — tabela tela × nº de requisições no handoff.
-- [ ] **Busca no código:** zero `refetchInterval`, zero `setInterval` buscando dado, zero `postgres_changes`; `plt_cards` fora da publicação do Realtime (ou justificado).
-- [ ] **Token:** `getClaims()` verificando localmente (sem chamada ao Auth por tela — Network); políticas lendo do token; nenhuma consulta a `plt_usuarios` para saber papel/setor numa leitura comum.
-- [ ] **Pacote:** JS inicial ≤ 250 KB comprimido; cada tela em pedaço próprio; teto no build.
-- [ ] **Portas:** nenhuma porta de tela acima de 50 ms (p95) nem painel acima de 150 ms com volume ×100 — `pg_stat_statements` antes/depois no handoff.
-- [ ] **Advisors de desempenho** zerados (ou cada item restante justificado e aprovado).
-- [ ] Estatísticas certas nas tabelas de eventos e de logs, com a causa explicada e corrigida.
-- [ ] Nenhum relógio que acorda para ver se há trabalho; o que sobrou de relógio é de calendário.
-- [ ] Listas que crescem por cursor; teto de página no banco.
-- [ ] Teste de carga com o resultado no handoff (tempos p95 e erros com 40 usuários e com ×10).
-- [ ] Core Web Vitals no p75 dos tablets: LCP ≤ 2,5 s, INP ≤ 200 ms, CLS ≤ 0,1 (se a medição for ligada — pergunta 4).
-- [ ] Integração do Tiny com estrutura e linhas idênticas antes/depois de cada atualização do banco.
-- [ ] O §14 da lei atualizado: dívida paga marcada, dívida que sobrou com o porquê e o OK do dono.
-- [ ] Tarefas do ClickUp em FAZENDO ao começar e **nunca** concluídas pelo Claude Code; o dono avisado de cada uma.
+- [x] **Primeira abertura = 1 requisição de dados** + o websocket pessoal (aba Network, cache vazio). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [ ] **Toda tela abre com 1 requisição**; dado escondido só no clique — tabela tela × nº de requisições no handoff. — ↪️ *18/11: 🟨 parcial — a dívida "telas com 2–3 leituras" segue aberta na Lei (§14: 15, 18, 20 e 32) e a tarefa do ClickUp segue em FAZENDO*
+- [x] **Busca no código:** zero `refetchInterval`, zero `setInterval` buscando dado, zero `postgres_changes`; `plt_cards` fora da publicação do Realtime (ou justificado). — ↪️ *18/11: conferido no código/banco — nenhum refetchInterval nem postgres_changes no código*
+- [ ] **Token:** `getClaims()` verificando localmente (sem chamada ao Auth por tela — Network); políticas lendo do token; nenhuma consulta a `plt_usuarios` para saber papel/setor numa leitura comum. — ↪️ *18/11: ❌ NÃO feito — as permissões não estão no token: o gancho segue guardado em supabase/pendentes e a função não existe no banco (conferido 18/11)*
+- [x] **Pacote:** JS inicial ≤ 250 KB comprimido; cada tela em pedaço próprio; teto no build. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (pacote ~218 KB)*
+- [ ] **Portas:** nenhuma porta de tela acima de 50 ms (p95) nem painel acima de 150 ms com volume ×100 — `pg_stat_statements` antes/depois no handoff. — ↪️ *18/11: 🟨 parcial — dívidas de porta acima do orçamento seguem abertas na Lei (§14)*
+- [x] **Advisors de desempenho** zerados (ou cada item restante justificado e aprovado). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Estatísticas certas nas tabelas de eventos e de logs, com a causa explicada e corrigida. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [ ] Nenhum relógio que acorda para ver se há trabalho; o que sobrou de relógio é de calendário. — ↪️ *18/11: ❌ NÃO feito — três rotinas ainda acordam a cada minuto no banco (reservas do estoque, envio de webhooks e disparo do Comercial) e as fotos a cada 5 min — é a SESSAO-34, a mapear*
+- [x] Listas que crescem por cursor; teto de página no banco. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Teste de carga com o resultado no handoff (tempos p95 e erros com 40 usuários e com ×10). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [ ] Core Web Vitals no p75 dos tablets: LCP ≤ 2,5 s, INP ≤ 200 ms, CLS ≤ 0,1 (se a medição for ligada — pergunta 4). — ↪️ *18/11: ⚪ não conferível só lendo — depende da medição nos aparelhos*
+- [x] Integração do Tiny com estrutura e linhas idênticas antes/depois de cada atualização do banco. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O §14 da lei atualizado: dívida paga marcada, dívida que sobrou com o porquê e o OK do dono. — ↪️ *18/11: conferido no código/banco — §14 da Lei atualizado com as dívidas pagas e as restantes*
+- [x] Tarefas do ClickUp em FAZENDO ao começar e **nunca** concluídas pelo Claude Code; o dono avisado de cada uma. — ↪️ *18/11: conferido no código/banco — tarefas no ClickUp (3 seguem em FAZENDO)*
 
 ## 6. Notas para o Claude Code
 

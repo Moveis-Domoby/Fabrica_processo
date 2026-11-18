@@ -89,7 +89,7 @@ Demanda: [[SESSAO-50 - Observacao do Item Cancelar e Ocultar no PCP e Editar End
 
 ## 6. Pendências que precisam do dono
 
-1. **O 13270:** decidir pelo botão — "Cancelar pedido" (cancela também no Tiny) ou "Ocultar do PCP".
+1. **O 13270:** decidir pelo botão — "Cancelar pedido" (cancela também no Tiny) ou "Ocultar do PCP". ↪️ *18/11: decisão do dono — **o 13270 fica como está**; daqui em diante é assunto da fábrica, não pendência da plataforma.*
 2. **"Salvar o endereço também no Tiny":** se quiser ligar, combinar uma hora com o pedido de teste (D-320 tem o caminho: a automação lê e regrava o pedido inteiro; a fila precisa de uma linha por motivo).
 3. **As provisórias** (D-308…D-310, D-313, D-314, D-316…D-318, D-320…D-324) — confirmar ou mudar; em especial: os 30 dias mudados na própria aba (D-310), o "Incluir" só com pedidos vivos no Tiny (D-313), a Expedição sem a faixa da observação (D-317) e o selo em "Já programadas" só na janela (D-324).
 4. **ClickUp:** as 4 tarefas foram criadas em "fazendo" na lista PRODUÇÃO do DPTO TI, com o comentário do que foi entregue — concluir depois de conferir.

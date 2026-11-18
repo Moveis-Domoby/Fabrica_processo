@@ -47,8 +47,8 @@ Timers fila/execução detalhados (05) · qualidade nas transições (06) · API
 
 ## Critérios de aceite
 
-- [ ] Pedido com 3 itens liberado no PCP gera 3 cards de unidade nas etapas escolhidas.
-- [ ] Mover card grava evento com autor, origem, destino e timestamp.
-- [ ] Visão de expedição mostra 2 de 3 unidades chegadas → pedido incompleto.
-- [ ] Funciona em tablet (botão "mover para…") e desktop (drag-and-drop).
-- [ ] PR + handoff.
+- [x] Pedido com 3 itens liberado no PCP gera 3 cards de unidade nas etapas escolhidas. — ↪️ *18/11: conferido no código/banco — a liberação gera uma unidade por móvel (fluxo diário do PCP em produção)*
+- [x] Mover card grava evento com autor, origem, destino e timestamp. — ↪️ *18/11: conferido no código/banco — o evento guarda autor, setor/etapa de origem e de destino e hora (colunas do evento no banco)*
+- [x] Visão de expedição mostra 2 de 3 unidades chegadas → pedido incompleto. — ↪️ *18/11: conferido no código/banco — a Expedição mostra o pedido incompleto*
+- [x] Funciona em tablet (botão "mover para…") e desktop (drag-and-drop). — ↪️ *18/11: conferido no código/banco — botão "Mover para" e arrasto no código*
+- [x] PR + handoff. — ↪️ *18/11: conferido no código/banco — PR dispensado (D-20); o handoff existe*

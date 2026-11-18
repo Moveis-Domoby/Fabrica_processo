@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-29 — Reconciliação com o Tiny: pente-fino diário e 'o último pacote vence'"
 tipo: demanda
-status: entregue (banco no ar; a tela da Auditoria espera a revisão do dono para ir à main)
+status: "✅ entregue — ↪️ 18/11: a tela da Auditoria subiu em 02/10 (antes: entregue (banco no ar; a tela da Auditoria espera a revisão do dono para ir à main))"
 data: 2026-09-22
 atualizado: 2026-10-01
 tags: [plataforma, demanda, integracao, tiny, n8n, reconciliacao]

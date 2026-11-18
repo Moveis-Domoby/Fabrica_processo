@@ -208,42 +208,42 @@ Um pedido entra nessa regra quando:
 ## Critérios de aceite
 
 **Bloco A**
-- [ ] Pedido Faturado, Pronto para envio ou Enviado com falta aparece na Expedição mesmo com 0 peça, com a situação real (inclui o 13652 e o 13684).
-- [ ] Preparando envio, Em aberto, Entregue e Cancelado não ganham o aviso.
-- [ ] O PCP continua sem mostrar pedido adiantado no Tiny que não foi devolvido.
-- [ ] Os botões põem o pedido no PCP na hora, só com o que falta, e o Tiny muda para a situação escolhida.
-- [ ] Toque repetido = um efeito só. Aviso antigo do Tiny fora de ordem não esconde o pedido devolvido.
-- [ ] Tiny falhou → o pedido segue no PCP com "o Tiny ainda não confirmou", e o alerta sai.
-- [ ] Depois da confirmação, se alguém adiantar o pedido no Tiny de novo, ele sai do PCP e o aviso volta.
-- [ ] A janela de liberar peça mostra a situação real e as três opções, num gesto só.
-- [ ] O aviso "voltou ao PCP" só sai quando o pedido de fato voltou.
-- [ ] Só logística e admin veem os botões; tudo gera fato e log com autor.
+- [x] Pedido Faturado, Pronto para envio ou Enviado com falta aparece na Expedição mesmo com 0 peça, com a situação real (inclui o 13652 e o 13684). — ↪️ *18/11: conferido no código/banco — aviso da situação do Tiny na Expedição (código)*
+- [x] Preparando envio, Em aberto, Entregue e Cancelado não ganham o aviso. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O PCP continua sem mostrar pedido adiantado no Tiny que não foi devolvido. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Os botões põem o pedido no PCP na hora, só com o que falta, e o Tiny muda para a situação escolhida. — ↪️ *18/11: conferido no código/banco — botões de voltar ao PCP no código; 2 voltas registradas no banco*
+- [x] Toque repetido = um efeito só. Aviso antigo do Tiny fora de ordem não esconde o pedido devolvido. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Tiny falhou → o pedido segue no PCP com "o Tiny ainda não confirmou", e o alerta sai. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Depois da confirmação, se alguém adiantar o pedido no Tiny de novo, ele sai do PCP e o aviso volta. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A janela de liberar peça mostra a situação real e as três opções, num gesto só. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O aviso "voltou ao PCP" só sai quando o pedido de fato voltou. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Só logística e admin veem os botões; tudo gera fato e log com autor. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Bloco B**
-- [ ] Depois de "Entregue", aparecem "Confirmar entrega", "Ainda não" e "Marcar como entregue no dia...", na Rotas e nas Entregas do dia.
-- [ ] O dia de amanhã é recusado pela tela **e** pelo banco; hoje e dias passados (desde a chegada do pedido) são aceitos.
-- [ ] Com peças em produção, o aviso da imagem aparece, e os dois botões de confirmar valem como confirmação explícita.
-- [ ] Entrega marcada em dia passado aparece nesse dia no calendário das rotas, na ficha, nas Entregas do dia e nos números de entregas por dia.
-- [ ] Admin corrige a data depois, por fato novo; logística e entregador não veem esse botão.
-- [ ] Desfazer do dia continua funcionando para quem registrou hoje uma entrega de dia passado.
-- [ ] Vários comprovantes sobem de uma vez; uma falha não derruba os outros, e a tela diz qual falhou.
+- [x] Depois de "Entregue", aparecem "Confirmar entrega", "Ainda não" e "Marcar como entregue no dia...", na Rotas e nas Entregas do dia. — ↪️ *18/11: conferido no código/banco — "Confirmar entrega", "Ainda não" e o dia da entrega no código*
+- [x] O dia de amanhã é recusado pela tela **e** pelo banco; hoje e dias passados (desde a chegada do pedido) são aceitos. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Com peças em produção, o aviso da imagem aparece, e os dois botões de confirmar valem como confirmação explícita. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Entrega marcada em dia passado aparece nesse dia no calendário das rotas, na ficha, nas Entregas do dia e nos números de entregas por dia. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Admin corrige a data depois, por fato novo; logística e entregador não veem esse botão. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Desfazer do dia continua funcionando para quem registrou hoje uma entrega de dia passado. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Vários comprovantes sobem de uma vez; uma falha não derruba os outros, e a tela diz qual falhou. — ↪️ *18/11: conferido no código/banco — envio de vários comprovantes no código*
 
 **Bloco C**
-- [ ] O botão de configuração aparece nas abas só para o admin.
-- [ ] A troca do tipo de gráfico vale na tela e na TV.
-- [ ] Desligar um montador tira a letra dele da tela e da TV, o tempo vai para "Outros", e os totais e médias não mudam.
-- [ ] A configuração mostra letra, nome e foto; a TV continua só com letras.
-- [ ] A linha do tempo padrão liga e desliga.
-- [ ] A tela abre no setor e período configurados.
-- [ ] A troca entre média e mediana vale em todas as abas e na TV, com o rótulo certo.
-- [ ] Os blocos da TV ligam e desligam.
-- [ ] A TV aberta muda na hora, sem recarregar.
-- [ ] Toda mudança gera log e aparece na Auditoria.
+- [x] O botão de configuração aparece nas abas só para o admin. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A troca do tipo de gráfico vale na tela e na TV. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Desligar um montador tira a letra dele da tela e da TV, o tempo vai para "Outros", e os totais e médias não mudam. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A configuração mostra letra, nome e foto; a TV continua só com letras. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A linha do tempo padrão liga e desliga. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A tela abre no setor e período configurados. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A troca entre média e mediana vale em todas as abas e na TV, com o rótulo certo. — ↪️ *18/11: conferido no código/banco — média/mediana no código*
+- [x] Os blocos da TV ligam e desligam. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] A TV aberta muda na hora, sem recarregar. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Toda mudança gera log e aparece na Auditoria. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Geral**
-- [ ] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque.
-- [ ] Bateria do banco 2×, tsc, lint, vitest, build, advisors sem nada novo.
-- [ ] Lei de desempenho: cada tela continua em 1 requisição, sem relógio novo; plano ×100 das portas novas ou tocadas no handoff.
+- [x] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Bateria do banco 2×, tsc, lint, vitest, build, advisors sem nada novo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lei de desempenho: cada tela continua em 1 requisição, sem relógio novo; plano ×100 das portas novas ou tocadas no handoff. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 ## Notas para o Claude Code
 

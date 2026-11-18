@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-30 — Produção de ponta a ponta: pedido, reabastecimento e entrega"
 tipo: demanda
-status: 📐 pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 📐 pronta para code)"
 data: 2026-10-07
 atualizado: 2026-10-07
 origem: pedido do dono em 06/10/2026, mapeado no Cowork (leitura só de cofre, código, banco e ClickUp — nada alterado)
@@ -138,24 +138,24 @@ Tudo do kanban — card avulso, janela do card, conversa, menções, pausa com m
 
 ## 7. Critérios de aceite
 
-- [ ] **Ensaio do pedido** (§3.5.1) com a tabela de números passo a passo batendo no banco real (transação desfeita) e no harness.
-- [ ] Lançar para ROTAS **não muda** "reservados em venda"; marcar Entregue **baixa** — no cartão do Estoque, nos filtros e na Visão do dia (mesma porta — harness amarra).
-- [ ] Entregar aqui → o pedido de mudança do Tiny entra na fila e o Tiny fica "Entregue" — provado com **1 pedido real, com o OK do dono**.
-- [ ] Tiny "Entregue" → a plataforma registra sozinha ("Sistema", origem Tiny), uma vez só, sem eco de volta ao Tiny.
-- [ ] Os pedidos 13146, 13156 e 13176 e as unidades de 13108/13114 fechados pela manutenção aprovada; **nenhuma unidade de pedido entregue fica ativa em ROTAS**.
-- [ ] Tela do entregador a 375 px: entregas do dia na ordem da rota, concluir em dois toques, comprovante por foto/PDF; o arquivo é **privado** (quem não é da logística/admin não abre; link de vida curta).
-- [ ] Raio-x 1 a 6: cada correção com teste no harness provando a regra **para toda origem** (tela, API, automação).
-- [ ] **Ensaio do reabastecimento** (§3.5.3) batendo.
-- [ ] Cancelamento nos 3 estágios e reposição vencida sem regressão.
-- [ ] Toda mudança por evento novo; nenhum evento editado ou apagado.
-- [ ] Integração do Tiny com **estrutura e linhas idênticas** antes/depois de cada atualização do banco (impressão digital — F-08).
-- [ ] Revisões registradas como D-NN novas (↩️ D-33/D-45, ↩️ D-86) e a Q-72 marcada com o que foi corrigido.
-- [ ] **Números do estoque ≤ 50 ms (p95) com volume ×100** — plano (`EXPLAIN ANALYZE`) na execução; resumo, lista, configurações e reposição batem entre si (uma fonte só).
-- [ ] **Aba Network:** Estoque, Pedidos em aguardo, PCP, ROTAS → Entregas e a tela do entregador abrem com **1 requisição** cada e **nada se repete sozinho**; mudança feita em outra aba aparece sem recarregar.
-- [ ] **Busca no código:** nenhum `refetchInterval`/`postgres_changes` nas telas tocadas.
-- [ ] Concluir entrega tocado duas vezes, ou com a rede caindo e voltando = **uma** entrega; Tiny fora do ar não trava o entregador (fica na fila e tenta depois).
-- [ ] Checklist de desempenho da lei (§12) marcado item a item no handoff, com o tamanho do pacote antes/depois.
-- [ ] Tarefas do ClickUp (seção abaixo) movidas para **FAZENDO** ao começar e **nunca** para concluído; o dono avisado de cada uma ao terminar.
+- [x] **Ensaio do pedido** (§3.5.1) com a tabela de números passo a passo batendo no banco real (transação desfeita) e no harness. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Lançar para ROTAS **não muda** "reservados em venda"; marcar Entregue **baixa** — no cartão do Estoque, nos filtros e na Visão do dia (mesma porta — harness amarra). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Entregar aqui → o pedido de mudança do Tiny entra na fila e o Tiny fica "Entregue" — provado com **1 pedido real, com o OK do dono**. — ↪️ *18/11: conferido no código/banco — no banco, "Entregue vai ao Tiny" está ligado desde 19/10 e o último envio foi confirmado em 17/11*
+- [x] Tiny "Entregue" → a plataforma registra sozinha ("Sistema", origem Tiny), uma vez só, sem eco de volta ao Tiny. — ↪️ *18/11: conferido no código/banco — no banco, entregas registradas com origem integração*
+- [x] Os pedidos 13146, 13156 e 13176 e as unidades de 13108/13114 fechados pela manutenção aprovada; **nenhuma unidade de pedido entregue fica ativa em ROTAS**. — ↪️ *18/11: conferido no código/banco — no banco, os 5 pedidos sem unidade viva e nenhuma unidade de pedido entregue viva em ROTAS*
+- [x] Tela do entregador a 375 px: entregas do dia na ordem da rota, concluir em dois toques, comprovante por foto/PDF; o arquivo é **privado** (quem não é da logística/admin não abre; link de vida curta). — ↪️ *18/11: conferido no código/banco — tela do entregador (/entregas/do-dia) e comprovante com link de vida curta (código)*
+- [x] Raio-x 1 a 6: cada correção com teste no harness provando a regra **para toda origem** (tela, API, automação). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **Ensaio do reabastecimento** (§3.5.3) batendo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Cancelamento nos 3 estágios e reposição vencida sem regressão. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Toda mudança por evento novo; nenhum evento editado ou apagado. — ↪️ *18/11: conferido no código/banco — travas do banco contra alterar e apagar evento*
+- [x] Integração do Tiny com **estrutura e linhas idênticas** antes/depois de cada atualização do banco (impressão digital — F-08). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Revisões registradas como D-NN novas (↩️ D-33/D-45, ↩️ D-86) e a Q-72 marcada com o que foi corrigido. — ↪️ *18/11: conferido no código/banco — decisões registradas e a pergunta do raio-x marcada (itens 1–6)*
+- [x] **Números do estoque ≤ 50 ms (p95) com volume ×100** — plano (`EXPLAIN ANALYZE`) na execução; resumo, lista, configurações e reposição batem entre si (uma fonte só). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **Aba Network:** Estoque, Pedidos em aguardo, PCP, ROTAS → Entregas e a tela do entregador abrem com **1 requisição** cada e **nada se repete sozinho**; mudança feita em outra aba aparece sem recarregar. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **Busca no código:** nenhum `refetchInterval`/`postgres_changes` nas telas tocadas. — ↪️ *18/11: conferido no código/banco — nenhum refetchInterval nem postgres_changes no código*
+- [x] Concluir entrega tocado duas vezes, ou com a rede caindo e voltando = **uma** entrega; Tiny fora do ar não trava o entregador (fica na fila e tenta depois). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Checklist de desempenho da lei (§12) marcado item a item no handoff, com o tamanho do pacote antes/depois. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Tarefas do ClickUp (seção abaixo) movidas para **FAZENDO** ao começar e **nunca** para concluído; o dono avisado de cada uma ao terminar. — ↪️ *18/11: conferido no código/banco — tarefas em FAZENDO no ClickUp*
 
 ## 8. Notas para o Claude Code
 

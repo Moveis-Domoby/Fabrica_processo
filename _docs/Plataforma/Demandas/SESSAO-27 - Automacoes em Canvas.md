@@ -49,14 +49,14 @@ Central de notificações com preferências (o resto da antiga S17 que não entr
 
 ## Critérios de aceite
 
-- [ ] Montar no canvas, sem código: "pedido iniciado na etapa X do setor Y → mover para etapa Z" e vê-la rodar com um card de teste (evento origem `automacao` na linha do tempo).
-- [ ] Ação de arquivar e ação de etiqueta funcionam por gatilho; etiqueta aparece no card (quadro e tablet).
-- [ ] Etiquetas criadas/editadas em Configurações; cores por token do design system.
-- [ ] Trilha de execução mostra gatilho, avaliação e ação de cada disparo; automação desligada não dispara.
-- [ ] Líder não cria/edita automação fora do próprio setor (garantido no banco).
-- [ ] Loop entre automações não trava o sistema (teste forjado com duas automações em ciclo: profundidade limitada e registrada).
-- [ ] Automação nova nasce **desligada**.
-- [ ] Revisão da D-03 + respostas Q-40/Q-41 registradas em [[PLT - Decisoes de Produto]]; [[SESSAO-17 - Automacoes Internas]] anotada como absorvida.
+- [x] Montar no canvas, sem código: "pedido iniciado na etapa X do setor Y → mover para etapa Z" e vê-la rodar com um card de teste (evento origem `automacao` na linha do tempo). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (em produção: 2 automações e nenhuma execução registrada)*
+- [x] Ação de arquivar e ação de etiqueta funcionam por gatilho; etiqueta aparece no card (quadro e tablet). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Etiquetas criadas/editadas em Configurações; cores por token do design system. — ↪️ *18/11: conferido no código/banco — Configurações → Utilitários com etiquetas (2 cadastradas)*
+- [x] Trilha de execução mostra gatilho, avaliação e ação de cada disparo; automação desligada não dispara. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [-] Líder não cria/edita automação fora do próprio setor (garantido no banco). — ↪️ *18/11: superado — D-99: só o super admin monta e liga automação*
+- [x] Loop entre automações não trava o sistema (teste forjado com duas automações em ciclo: profundidade limitada e registrada). — ↪️ *18/11: conferido no código/banco — limite de profundidade no banco*
+- [x] Automação nova nasce **desligada**. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Revisão da D-03 + respostas Q-40/Q-41 registradas em [[PLT - Decisoes de Produto]]; [[SESSAO-17 - Automacoes Internas]] anotada como absorvida. — ↪️ *18/11: conferido no código/banco — a D-99 revisa a D-03; a 17 anotada como absorvida*
 
 ## Notas para o Claude Code
 

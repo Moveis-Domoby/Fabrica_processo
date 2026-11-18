@@ -57,11 +57,11 @@ PDF, dashboards públicos.
 
 ## Critérios de aceite
 
-- [ ] As 4 telas existem em `/dashboards/...` e seguem visivelmente os mockups (screenshot lado a lado no handoff).
-- [ ] Gate D-32 intacto: líder só vê o próprio setor; operador não acessa.
-- [ ] Filtros funcionam combinados e persistem na visualização salva.
-- [ ] Tooltip em barras/pontos/células; sem gráfico de dois eixos; sem pizza.
-- [ ] Visão do dia atualiza sozinha (realtime/polling) e é legível de longe.
+- [x] As 4 telas existem em `/dashboards/...` e seguem visivelmente os mockups (screenshot lado a lado no handoff). — ↪️ *18/11: conferido no código/banco — as telas existem em /dashboards (geral, visão do dia, pessoas, qualidade, motivos…)*
+- [x] Gate D-32 intacto: líder só vê o próprio setor; operador não acessa. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Filtros funcionam combinados e persistem na visualização salva. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (nenhuma visualização salva em produção)*
+- [x] Tooltip em barras/pontos/células; sem gráfico de dois eixos; sem pizza. — ↪️ *18/11: conferido no código/banco — tooltip nos gráficos (código)*
+- [x] Visão do dia atualiza sozinha (realtime/polling) e é legível de longe. — ↪️ *18/11: conferido no código/banco — Visão do dia por aviso ao vivo*
 
 ## Herança da SESSAO-20 (entregue em 16/09 — ler antes de começar)
 

@@ -1,7 +1,7 @@
 ---
 titulo: AJUSTE — Estoque 2 · Top X, necessidade de produção, reservados e sugestão por dias úteis
 tipo: demanda
-status: 📐 pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: 📐 pronta para code)"
 data: 2026-09-30
 origem: pedido do dono em 30/09/2026, refinado no Cowork (análise só leitura de código, cofre e banco)
 frente: estoque — trabalhar na PASTA PRINCIPAL "Domoby - fabrica", branch nova a partir da main atualizada (a pasta "Domoby - Fabrica - estoque" é cópia antiga de 28/09, fora do git — não usar)
@@ -108,17 +108,17 @@ Respondidas: reservado em venda = peças prontas separadas · mínimo automátic
 7. **Vencimento de 2 dias úteis** vale igual para a reposição lançada pelo botão manual: **sim**.
 
 ## 4. Critérios de aceite
-- [ ] "Quantas peças cabem" e o encolhimento proporcional sumiram; nenhuma sugestão depende de capacidade.
-- [ ] Top X de 1 a 50 salvo para todos; página 1 = 1..X, página 2 = X+1..2X; rede mostra 1 requisição por troca de página.
-- [ ] Filtro Todos / Necessidade de produção / Reservados para produção, paginado no servidor.
-- [ ] Cartão com nome, SKU, vendidos em 90 d, em estoque (destaque), reservados para produção, reservados em venda; sem "Sem estoque"/"Faltam N".
-- [ ] Reposição parada 2 dias úteis sai do PCP por evento; parcial vence só a parte parada; produto volta à necessidade se ainda abaixo do mínimo.
-- [ ] Liga/desliga no painel admin; desligado = sem job agendado e nenhuma consulta da automação; botão manual "Lançar para produção" funciona. **Entregue desligado.**
-- [ ] Sugestão = vendidos 90 d (com corte) ÷ dias úteis × dias úteis/semana × semanas, arredondada para cima; exemplo do 327 confere com a conta do dia.
-- [ ] Mínimo automático recalcula ao trocar cobertura; editado à mão trava; "voltar ao automático" funciona; fora do Top X não tem mínimo.
-- [ ] Corte de pedido grande (X no painel admin, padrão 10) tira a linha da sugestão **e** do ranking; o Closet do pedido de 23 un. sai da conta.
-- [ ] Toda mudança de configuração gera log com autor.
-- [ ] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque.
+- [x] "Quantas peças cabem" e o encolhimento proporcional sumiram; nenhuma sugestão depende de capacidade. — ↪️ *18/11: conferido no código/banco — o campo saiu (só sobra um comentário no código dizendo que saiu)*
+- [x] Top X de 1 a 50 salvo para todos; página 1 = 1..X, página 2 = X+1..2X; rede mostra 1 requisição por troca de página. — ↪️ *18/11: conferido no código/banco — Top X no código e no banco*
+- [x] Filtro Todos / Necessidade de produção / Reservados para produção, paginado no servidor. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Cartão com nome, SKU, vendidos em 90 d, em estoque (destaque), reservados para produção, reservados em venda; sem "Sem estoque"/"Faltam N". — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Reposição parada 2 dias úteis sai do PCP por evento; parcial vence só a parte parada; produto volta à necessidade se ainda abaixo do mínimo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Liga/desliga no painel admin; desligado = sem job agendado e nenhuma consulta da automação; botão manual "Lançar para produção" funciona. **Entregue desligado.** — ↪️ *18/11: conferido no código/banco — reposição automática desligada: nenhuma rotina de reposição agendada no banco; botão "Lançar para produção" no código*
+- [x] Sugestão = vendidos 90 d (com corte) ÷ dias úteis × dias úteis/semana × semanas, arredondada para cima; exemplo do 327 confere com a conta do dia. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Mínimo automático recalcula ao trocar cobertura; editado à mão trava; "voltar ao automático" funciona; fora do Top X não tem mínimo. — ↪️ *18/11: conferido no código/banco — "Voltar ao automático" no código*
+- [x] Corte de pedido grande (X no painel admin, padrão 10) tira a linha da sugestão **e** do ranking; o Closet do pedido de 23 un. sai da conta. — ↪️ *18/11: conferido no código/banco — corte de pedido grande no código*
+- [x] Toda mudança de configuração gera log com autor. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 ## 5. Ritual e checklist de validação final (obrigatórios)
 (a) entendimento em até 15 linhas · (b) dúvidas de negócio · (c) decisões técnicas — **só codar com o OK do dono**, em português de gente (regra 12c).

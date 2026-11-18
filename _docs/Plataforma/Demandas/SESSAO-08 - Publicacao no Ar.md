@@ -50,11 +50,11 @@ Modo offline (Q-60 — se virar necessidade, é decisão nova) · CI/CD sofistic
 
 ## Critérios de aceite
 
-- [ ] Plataforma acessível pela URL num tablet e num celular DENTRO do galpão, com login funcionando.
-- [ ] Deploy repetível documentado: uma mudança trivial publicada de novo em minutos, sem passo manual obscuro.
-- [ ] Nenhum segredo além das chaves públicas (`VITE_*`) no bundle — conferido.
-- [ ] Registro no cofre: hospedagem escolhida e por quê (Q-62 ✅), estado real do wi-fi por setor (Q-60).
-- [ ] Handoff + memória de aprendizado; a partir daqui, toda sessão publica em produção com aprovação explícita (D-19 encerrada).
+- [x] Plataforma acessível pela URL num tablet e num celular DENTRO do galpão, com login funcionando. — ↪️ *18/11: conferido no código/banco — o site está no ar e em uso nos tablets do galpão desde 19/10*
+- [x] Deploy repetível documentado: uma mudança trivial publicada de novo em minutos, sem passo manual obscuro. — ↪️ *18/11: conferido no código/banco — cada envio de código para a main publica sozinho na Vercel; envio só de documentação não publica (D-303)*
+- [x] Nenhum segredo além das chaves públicas (`VITE_*`) no bundle — conferido. — ↪️ *18/11: conferido no código/banco — o front só leva a chave pública; o arquivo de conexão proíbe a de serviço*
+- [ ] Registro no cofre: hospedagem escolhida e por quê (Q-62 ✅), estado real do wi-fi por setor (Q-60). — ↪️ *18/11: 🟨 parcial — a hospedagem é a Vercel (fechada nesta revisão nas Perguntas em Aberto); o estado do wi-fi por setor nunca foi registrado*
+- [x] Handoff + memória de aprendizado; a partir daqui, toda sessão publica em produção com aprovação explícita (D-19 encerrada). — ↪️ *18/11: conferido no código/banco — a publicação foi fechada como entregue em 16/10 (D-141)*
 
 ## Notas para o Claude Code
 

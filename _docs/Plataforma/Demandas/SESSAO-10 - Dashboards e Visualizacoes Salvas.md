@@ -45,8 +45,8 @@ Ranking/bonificação (⏸️ D-04) · exportações · métricas de estoque fas
 
 ## Critérios de aceite
 
-- [ ] Com dados de teste, os números da dash batem com a soma manual dos eventos (verificação por query documentada no handoff).
-- [ ] Criar visualização → salvar → sair → voltar → ela está lá; alternar entre 2 salvas funciona.
-- [ ] Painel de qualidade mostra divergências por setor.
-- [ ] Líder não enxerga dados de outro setor.
-- [ ] PR + handoff.
+- [x] Com dados de teste, os números da dash batem com a soma manual dos eventos (verificação por query documentada no handoff). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Criar visualização → salvar → sair → voltar → ela está lá; alternar entre 2 salvas funciona. — ↪️ *18/11: conferido no código/banco — as visualizações salvas existem (tabela e tela) — ninguém salvou nenhuma em produção*
+- [x] Painel de qualidade mostra divergências por setor. — ↪️ *18/11: conferido no código/banco — Dashboards → Qualidade existe*
+- [x] Líder não enxerga dados de outro setor. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] PR + handoff. — ↪️ *18/11: conferido no código/banco — o handoff existe; o visual foi refeito na SESSAO-16 (D-42)*

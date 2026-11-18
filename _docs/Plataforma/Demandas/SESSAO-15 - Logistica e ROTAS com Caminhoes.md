@@ -70,12 +70,12 @@ do dono).
 
 ## Critérios de aceite
 
-- [ ] Unidade concluída de pedido incompleto aparece em Pedidos em aguardo; ao completar o pedido, o botão Lançar aparece; após lançar, o pedido está nas ROTAS.
-- [ ] Estoque busca por ID digitado e permite editar o ID.
-- [ ] Danificado resolvido para um setor volta a aparecer na fila daquele setor; para Estoque/ROTAS idem; arquivado some da lista e fica em evento.
-- [ ] Programação: seleção de 3 pedidos plota 3 pontos; sugestão lista pedidos próximos não selecionados; confirmar grava data + caminhão e some da lista de sem-programação.
-- [ ] Caminhão com foto aparece na programação; excluir caminhão usado é bloqueado com arquivamento oferecido.
-- [ ] Tudo em `/logistica/...`, `/rotas/...`, `/admin/caminhoes`, com sidebar persistente e voltar (regra 16).
+- [-] Unidade concluída de pedido incompleto aparece em Pedidos em aguardo; ao completar o pedido, o botão Lançar aparece; após lançar, o pedido está nas ROTAS. — ↪️ *18/11: superado — a tela Pedidos em aguardo foi absorvida pela Expedição (D-157); o lançar para ROTAS segue lá*
+- [-] Estoque busca por ID digitado e permite editar o ID. — ↪️ *18/11: superado — o Estoque passou a ser por produto (Ajuste Estoque 2 / Top X); não há mais ID de peça para editar*
+- [x] Danificado resolvido para um setor volta a aparecer na fila daquele setor; para Estoque/ROTAS idem; arquivado some da lista e fica em evento. — ↪️ *18/11: conferido no código/banco — tela Danificados com destino*
+- [x] Programação: seleção de 3 pedidos plota 3 pontos; sugestão lista pedidos próximos não selecionados; confirmar grava data + caminhão e some da lista de sem-programação. — ↪️ *18/11: conferido no código/banco — a Programação existe; 168 programações no banco*
+- [x] Caminhão com foto aparece na programação; excluir caminhão usado é bloqueado com arquivamento oferecido. — ↪️ *18/11: conferido no código/banco — Configurações → Caminhões; 3 caminhões cadastrados*
+- [-] Tudo em `/logistica/...`, `/rotas/...`, `/admin/caminhoes`, com sidebar persistente e voltar (regra 16). — ↪️ *18/11: superado — os endereços viraram /fabrica/logistica/... e /fabrica/rotas/... (SESSAO-20) e Caminhões foi para Configurações*
 
 ## Notas para o Claude Code
 

@@ -80,15 +80,15 @@ para os filhos que ainda não existem — na rota certa, com "em construção".
 
 ## Critérios de aceite
 
-- [ ] Nenhuma rota fora do padrão `/pai/filho`; `/` e login caem em `/inicio/meu-painel`; rotas antigas redirecionam.
-- [ ] Clicar em qualquer pai apenas expande/recolhe os filhos — nunca navega.
-- [ ] Sidebar visível e recolhível em toda tela; estado lembrado; some apenas no Modo tablet.
-- [ ] Botão voltar presente e funcional em toda tela.
-- [ ] Popover de notificações abre inteiro em qualquer tamanho de tela (inclusive sidebar recolhida).
-- [ ] Sino no topo; Configurações no rodapé; Modo tablet acima do bloco do usuário.
-- [ ] Meu Perfil altera nome de usuário, senha, foto e dados; tema aplica na hora e persiste por usuário; 8 temas Domoby claro→escuro.
-- [ ] Login com logo metálica à esquerda; funciona no celular.
-- [ ] Ação de usuário (ex.: mover card, criar tarefa, trocar tema, login) gera linha de log consultável; log é append-only.
+- [x] Nenhuma rota fora do padrão `/pai/filho`; `/` e login caem em `/inicio/meu-painel`; rotas antigas redirecionam. — ↪️ *18/11: conferido no código/banco — rotas no padrão /pai/filho; a raiz e a entrada levam ao Meu Painel; rotas antigas redirecionam (lista de rotas do app)*
+- [x] Clicar em qualquer pai apenas expande/recolhe os filhos — nunca navega. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Sidebar visível e recolhível em toda tela; estado lembrado; some apenas no Modo tablet. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Botão voltar presente e funcional em toda tela. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Popover de notificações abre inteiro em qualquer tamanho de tela (inclusive sidebar recolhida). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Sino no topo; Configurações no rodapé; Modo tablet acima do bloco do usuário. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Meu Perfil altera nome de usuário, senha, foto e dados; tema aplica na hora e persiste por usuário; 8 temas Domoby claro→escuro. — ↪️ *18/11: conferido no código/banco — Meu Perfil existe; 10 temas (o pedido era 8)*
+- [x] Login com logo metálica à esquerda; funciona no celular. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Ação de usuário (ex.: mover card, criar tarefa, trocar tema, login) gera linha de log consultável; log é append-only. — ↪️ *18/11: conferido no código/banco — no banco, o registro de atividade existe e a Auditoria lê; eventos não se alteram nem se apagam*
 
 ## Notas para o Claude Code
 

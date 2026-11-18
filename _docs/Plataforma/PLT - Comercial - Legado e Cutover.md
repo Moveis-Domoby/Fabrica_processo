@@ -2,7 +2,7 @@
 titulo: Comercial — Legado e Cutover
 tipo: nota
 prioridade: alta
-atualizado: 2026-09-22
+atualizado: 2026-11-18
 tags: [comercial, plataforma, uniao, cutover, legado]
 ---
 
@@ -40,8 +40,8 @@ Projeto antigo: Supabase **`kfkcumjepnxnnzyvmxfo`** + front do recompra. Até o 
 ## 2. Pendências conhecidas
 
 - **Secrets**: ✅ já configurados pelo dono na fábrica em 15/09 — `TINY_CLIENT_ID`, `TINY_CLIENT_SECRET`, `DATACRAZY_WEBHOOK_TRIGGER_URL`, `DATACRAZY_WEBHOOK_SECRET` (nomes apenas; **valores nunca em chat/nota/código**). Consequência: as functions de disparo da fábrica são funcionais desde já — daí a trava.
-- **Webhook DataCrazy**: reapontamento pendente (passo 4 acima). No Tiny nada muda — o token vive em `tiny_auth`, que migrou com os dados.
-- **3 apontamentos de segurança do banco da fábrica herdados pela SESSAO-21** (de outra frente — backfill/vigia, não são do Comercial): `fn_pedido_por_numero_nf` SECURITY DEFINER executável por `anon` 🟠 (responde a quem não tem login — o mais sério); `fn_backfill_conta_mapear` e `fn_vig_touch` sem `search_path` fixo 🟡; `vig_conhecimento_vendas` com RLS ligada e nenhuma policy ⚪ (possivelmente intencional). Decidir com o dono: revogar/fixar/dropar.
+- **Webhook DataCrazy**: reapontamento pendente (passo 4 acima). No Tiny nada muda — o token vive em `tiny_auth`, que migrou com os dados. ↪️ **18/11:** ✅ repontado pelo dono em 23/09 (Ordem das Sessões, linha da 21).
+- **3 apontamentos de segurança do banco da fábrica herdados pela SESSAO-21** (de outra frente — backfill/vigia, não são do Comercial): `fn_pedido_por_numero_nf` SECURITY DEFINER executável por `anon` 🟠 (responde a quem não tem login — o mais sério); `fn_backfill_conta_mapear` e `fn_vig_touch` sem `search_path` fixo 🟡; `vig_conhecimento_vendas` com RLS ligada e nenhuma policy ⚪ (possivelmente intencional). Decidir com o dono: revogar/fixar/dropar. ↪️ **18/11 (conferido no banco):** ✅ a função das notas não responde mais a quem não fez login; ✅ as duas funções têm caminho fixo; ⚪ a tabela da vigia segue com proteção ligada e nenhuma regra — ou seja, ninguém lê (seguro, só informativo).
 - **Congelamento combinado (D-46)**: nenhum disparo em nenhum dos dois painéis até a união concluir; qualquer correção que mude número visível é avisada antes.
 - **Screenshots das telas novas**: ficaram parciais na S20 (dispensados pelo dono — validação ao vivo).
 

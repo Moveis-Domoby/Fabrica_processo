@@ -226,48 +226,48 @@ Quando o grupo 2 tem algo desmarcado, a janela pergunta **"E o que ainda está n
 ## Critérios de aceite
 
 **Bloco A**
-- [ ] Num pedido de teste com 4 peças (2 prontas, 1 em MONTAGEM, 1 em PINTURA) + 1 vaga sem liberar, a janela mostra os dois grupos (prontas marcadas, na fábrica desmarcadas, com setor e etapa) e a linha "+1 no PCP".
-- [ ] **"Deixar em produção":**
+- [x] Num pedido de teste com 4 peças (2 prontas, 1 em MONTAGEM, 1 em PINTURA) + 1 vaga sem liberar, a janela mostra os dois grupos (prontas marcadas, na fábrica desmarcadas, com setor e etapa) e a linha "+1 no PCP". — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (no ar há 1 dia; nenhum uso em produção ainda)*
+- [x] **"Deixar em produção":** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - as 2 em produção continuam exatamente onde estavam (setor, etapa, pessoa, tempo);
   - a vaga continua no PCP;
   - o pedido mostra "Entregue em parte (2 de 5)";
   - quando a peça da MONTAGEM fica pronta, ela aparece em Pedidos em aguardo e o pedido volta a ser programável;
   - o "Entregue" do resto fecha o pedido e vai ao Tiny.
-- [ ] **"Limpar da produção":**
+- [x] **"Limpar da produção":** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - as 2 peças saem dos quadros e de todas as contas (quadro, painéis, estoque, contadores batem);
   - a vaga sai do PCP;
   - a busca geral acha as peças, com o motivo.
-- [ ] Peça pronta desmarcada continua indo para "Em decisão pós devolução", como hoje.
-- [ ] O entregador não vê "Limpar da produção"; o banco recusa se ele tentar.
-- [ ] **A aba "Entregas parciais":**
+- [x] Peça pronta desmarcada continua indo para "Em decisão pós devolução", como hoje. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O entregador não vê "Limpar da produção"; o banco recusa se ele tentar. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **A aba "Entregas parciais":** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - mostra só pedidos com decisão e só o botão contrário;
   - "Revogar e voltar tudo" devolve **as mesmas peças às mesmas etapas** (história e k/n preservados) e reabre a vaga no PCP;
   - "Revogar e remover" retira e guarda a etapa **atual**;
   - ir e voltar 3 vezes funciona; a trilha mostra as 3 idas e voltas; o toque repetido faz um efeito só.
-- [ ] Etapa arquivada no meio do caminho: a peça volta para a primeira etapa do setor, e o modal avisa.
-- [ ] O pedido sai da lista quando o resto é entregue, e o revogar é recusado com explicação.
+- [x] Etapa arquivada no meio do caminho: a peça volta para a primeira etapa do setor, e o modal avisa. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] O pedido sai da lista quando o resto é entregue, e o revogar é recusado com explicação. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Bloco B**
-- [ ] O admin vê "Mover para o PCP" no menu do card em setor de produção; o operador e o PCP não veem; em setor terminal, peça cancelada, avulso e ajuste, o botão não aparece, e o banco recusa.
-- [ ] **"Voltar para o PCP"** com motivo:
+- [x] O admin vê "Mover para o PCP" no menu do card em setor de produção; o operador e o PCP não veem; em setor terminal, peça cancelada, avulso e ajuste, o botão não aparece, e o banco recusa. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **"Voltar para o PCP"** com motivo: — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - a peça sai do quadro na hora (na tela aberta de outra pessoa também);
   - o tempo aberto fecha;
   - a vaga reabre no pedido, com o selo e o motivo.
-- [ ] **"Virar reposição de estoque":**
+- [x] **"Virar reposição de estoque":** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - a peça perde o pedido;
   - a vaga do pedido reabre;
   - 1 unidade aparece no Reabastecimento com a origem;
   - essa reposição não sai sozinha depois de 2 dias úteis.
-- [ ] **"Liberar unidades":**
+- [x] **"Liberar unidades":** — ↪️ *18/11: conferido no código/banco — "Usar a mesma peça" no código*
   - oferece "Usar a mesma peça", marcada, com a etapa onde parou sugerida;
   - liberar desarquiva a mesma peça, com a história;
   - desmarcar cria uma peça nova.
-- [ ] Peça sem pedido só tem "Voltar para o PCP"; pedido fora do PCP só tem "Virar reposição", com explicação.
+- [x] Peça sem pedido só tem "Voltar para o PCP"; pedido fora do PCP só tem "Virar reposição", com explicação. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
 
 **Geral**
-- [ ] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque; modais próprios do sistema.
-- [ ] Bateria do banco (regra da casa), tsc, lint, vitest, build e advisors sem nada novo.
-- [ ] **Lei de desempenho:**
+- [x] Celular (375) e tablet (768) sem rolagem lateral; botões com tamanho de toque; modais próprios do sistema. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Bateria do banco (regra da casa), tsc, lint, vitest, build e advisors sem nada novo. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] **Lei de desempenho:** — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
   - cada tela e cada aba em 1 requisição;
   - modais leem só ao abrir;
   - listas por cursor;

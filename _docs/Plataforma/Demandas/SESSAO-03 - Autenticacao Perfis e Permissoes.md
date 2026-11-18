@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-03 — Autenticação, Perfis e Permissões"
 tipo: demanda
-status: rascunho
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: rascunho)"
 data: 2026-08-19
 atualizado: 2026-08-19
 tags: [plataforma, demanda, sessao]
@@ -51,8 +51,8 @@ Telas de kanban; dashboards; painel admin completo (SESSAO-14 consolida — aqui
 
 ## Critérios de aceite
 
-- [ ] Convite → cadastro → login → usuário cai na navegação do seu papel.
-- [ ] Operador não acessa telas/rotas de líder nem de admin (testado por URL direta).
-- [ ] No modo tablet, duas ações seguidas de operadores diferentes registram autores diferentes.
-- [ ] Conta sem aprovação não acessa nada.
-- [ ] PR + handoff com matriz papel × permissão documentada.
+- [x] Convite → cadastro → login → usuário cai na navegação do seu papel. — ↪️ *18/11: conferido no código/banco — a tela de convite e a de criar senha existem; a entrada leva ao Meu Painel*
+- [x] Operador não acessa telas/rotas de líder nem de admin (testado por URL direta). — ↪️ *18/11: conferido no código/banco — guardas de papel nas rotas do app*
+- [-] No modo tablet, duas ações seguidas de operadores diferentes registram autores diferentes. — ↪️ *18/11: superado — pelo Tablet 2.0 (SESSAO-36): cada ação identifica a pessoa só pelo PIN; no banco, 6 setores e 14 pessoas com PIN*
+- [x] Conta sem aprovação não acessa nada. — ↪️ *18/11: conferido no código/banco — a plataforma barra conta inativa; a recusa já no login depende do gancho do token, que segue guardado sem ligar*
+- [x] PR + handoff com matriz papel × permissão documentada. — ↪️ *18/11: conferido no código/banco — PR dispensado pela regra 1 (D-20); o handoff existe*

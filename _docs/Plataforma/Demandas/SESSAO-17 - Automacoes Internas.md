@@ -43,8 +43,8 @@ Mover card automaticamente por roteiro de produto (precisa de decisão D nova) �
 
 ## Critérios de aceite
 
-- [ ] Criar "parado > 1h → notificar líder" pela interface, sem código, e vê-la disparar com um card de teste.
-- [ ] Notificação chega na central do destinatário certo.
-- [ ] Log de execução mostra gatilho, condição avaliada e ação tomada.
-- [ ] Líder não cria automação fora do seu setor.
-- [ ] PR + handoff.
+- [-] Criar "parado > 1h → notificar líder" pela interface, sem código, e vê-la disparar com um card de teste. — ↪️ *18/11: superado — demanda absorvida pela SESSAO-27 (automações em canvas); a central de notificações com preferências saiu depois, em Configurações → Avisos (D-202, 28/10)*
+- [-] Notificação chega na central do destinatário certo. — ↪️ *18/11: superado — demanda absorvida pela SESSAO-27 (automações em canvas); a central de notificações com preferências saiu depois, em Configurações → Avisos (D-202, 28/10)*
+- [-] Log de execução mostra gatilho, condição avaliada e ação tomada. — ↪️ *18/11: superado — demanda absorvida pela SESSAO-27 (automações em canvas); a central de notificações com preferências saiu depois, em Configurações → Avisos (D-202, 28/10)*
+- [-] Líder não cria automação fora do seu setor. — ↪️ *18/11: superado — demanda absorvida pela SESSAO-27 (automações em canvas); a central de notificações com preferências saiu depois, em Configurações → Avisos (D-202, 28/10)*
+- [-] PR + handoff. — ↪️ *18/11: superado — demanda absorvida pela SESSAO-27 (automações em canvas); a central de notificações com preferências saiu depois, em Configurações → Avisos (D-202, 28/10)*

@@ -45,10 +45,10 @@ Fluxo de disputa/pausa com resolução do líder (adiado na revisão de 24/08 �
 
 ## Critérios de aceite
 
-- [ ] Impossível mover card entre setores sem marcar estado.
-- [ ] Impossível iniciar trabalho sem responder à confirmação de recebimento.
-- [ ] Divergência registra os dois pareceres e NÃO trava o card.
-- [ ] 🟡, 🔴 e divergência disparam notificação automática a líder/admin com o relato exato.
-- [ ] 🔴 confirmado → DANIFICADO; movimento via API passa sem exigir estado.
-- [ ] Linha do tempo do card conta a história de qualidade completa.
-- [ ] PR + handoff + memória de aprendizado atualizada.
+- [-] Impossível mover card entre setores sem marcar estado. — ↪️ *18/11: superado — a marcação do estado da peça virou configuração por setor e nasce desligada (D-126, 14/10)*
+- [-] Impossível iniciar trabalho sem responder à confirmação de recebimento. — ↪️ *18/11: superado — idem — D-126*
+- [x] Divergência registra os dois pareceres e NÃO trava o card. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (vale quando a marcação estiver ligada — D-126)*
+- [x] 🟡, 🔴 e divergência disparam notificação automática a líder/admin com o relato exato. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo (vale quando a marcação estiver ligada — D-126)*
+- [x] 🔴 confirmado → DANIFICADO; movimento via API passa sem exigir estado. — ↪️ *18/11: conferido no código/banco — a tela Danificados existe; o movimento pela API passa sem estado*
+- [x] Linha do tempo do card conta a história de qualidade completa. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] PR + handoff + memória de aprendizado atualizada. — ↪️ *18/11: conferido no código/banco — handoff e memória existem*

@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-20 — União 2: Módulo Comercial no front"
 tipo: demanda
-status: pronta para code
+status: "✅ entregue — ↪️ corrigido em 18/11 na revisão das pendências (antes: pronta para code)"
 data: 2026-09-15
 atualizado: 2026-09-15
 tags: [plataforma, demanda, uniao, comercial, front]
@@ -43,13 +43,13 @@ Crons, cutover, DataCrazy (SESSAO-21). Qualquer disparo real de WhatsApp (congel
 
 ## Critérios de aceite
 
-- [ ] Lado a lado com o painel antigo: mesmos números nos KPIs, gráficos e scorecards (mesmo período, mesmos filtros), **descontadas a deriva de identidade já documentada no handoff da 19** (2 clientes a menos e 2 recorrentes a mais — R$ 9.442,55 que saem de "1 compra" e entram em "2 compras", pelos pedidos 8223/13082 e 8711/12837, de gente que trocou de telefone entre uma compra e outra) **e o delta de pedidos do dia**.
-- [ ] Usuário logado **sem** o módulo `comercial` não lê nada do Comercial por API: `GET /rest/v1/vendas_marketing` e as 10 RPCs negam; com o módulo, tudo responde igual a hoje.
-- [ ] Fluxo de lista completo funciona até a véspera do disparo (criar lista, adicionar membros, salvar mensagem) — **sem disparar**.
-- [ ] Trava de disparo ativa: botões de disparo individual, de fila e "iniciar fila" desabilitados com explicação na tela; nenhuma chamada a `disparar-membro-individual` ou `enviar-proximo-disparo` sai do front durante toda a sessão. Conferir no fim da sessão que `listas_disparo_eventos` não ganhou nenhum evento de envio e que `listas_disparo_membros` continua com os mesmos 128 registros e status.
-- [ ] Usuário sem módulo `comercial` não vê o grupo no menu e recebe redirect ao tentar a URL direta; operador comum continua vendo exatamente o que via antes.
-- [ ] Todas as rotas antigas redirecionam; `/tablet` intocada; sidebar/voltar/sino presentes nas telas novas (D-36).
-- [ ] Screenshot de cada tela nova no handoff.
+- [x] Lado a lado com o painel antigo: mesmos números nos KPIs, gráficos e scorecards (mesmo período, mesmos filtros), **descontadas a deriva de identidade já documentada no handoff da 19** (2 clientes a menos e 2 recorrentes a mais — R$ 9.442,55 que saem de "1 compra" e entram em "2 compras", pelos pedidos 8223/13082 e 8711/12837, de gente que trocou de telefone entre uma compra e outra) **e o delta de pedidos do dia**. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Usuário logado **sem** o módulo `comercial` não lê nada do Comercial por API: `GET /rest/v1/vendas_marketing` e as 10 RPCs negam; com o módulo, tudo responde igual a hoje. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Fluxo de lista completo funciona até a véspera do disparo (criar lista, adicionar membros, salvar mensagem) — **sem disparar**. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [-] Trava de disparo ativa: botões de disparo individual, de fila e "iniciar fila" desabilitados com explicação na tela; nenhuma chamada a `disparar-membro-individual` ou `enviar-proximo-disparo` sai do front durante toda a sessão. Conferir no fim da sessão que `listas_disparo_eventos` não ganhou nenhum evento de envio e que `listas_disparo_membros` continua com os mesmos 128 registros e status. — ↪️ *18/11: superado — o cutover (SESSAO-21) tirou a trava: as rotinas do disparo estão ativas no banco*
+- [x] Usuário sem módulo `comercial` não vê o grupo no menu e recebe redirect ao tentar a URL direta; operador comum continua vendo exatamente o que via antes. — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Todas as rotas antigas redirecionam; `/tablet` intocada; sidebar/voltar/sino presentes nas telas novas (D-36). — ↪️ *18/11: relatado como testado no handoff; não dá para reconferir só lendo*
+- [x] Screenshot de cada tela nova no handoff. — ↪️ *18/11: conferido no código/banco — dispensado pelo dono (validação ao vivo) — ver Legado e Cutover*
 
 ## Notas para o Claude Code
 
