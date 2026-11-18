@@ -25658,6 +25658,214 @@ await bd.exec(await readFile(path.join(MIGRATIONS, '20261116030000_plt_mover_car
 } // fim do bloco SESSAO-51 · bloco B
 
 // ============================================================================
+// SESSAO-53 (migration 20261118110000): "Entregue em parte (N de M)" também na
+// Programação (Programar e Já programadas), na Expedição e nas Entregas do dia —
+// na MESMA porta de cada tela (a chave/coluna entregue_em_parte só existe quando
+// há), com "K ainda em produção" enquanto o resto segue na fábrica.
+// Faixa: pedidos 99531–99539 · produto 9953001 · usuários …0053a1–a3 · caminhão TST5353.
+// ============================================================================
+{ // SESSAO-53 (escopo próprio — E-70)
+titulo('SESSAO-53 · as migrations de novo (os blocos de cima recriam as portas de antes — E-81)')
+// E-178: a migration antiga que recriava "Já programadas" reaplica DEPOIS da nova sem quebrar — e a nova volta por cima
+for (const m of ['20261118110000_plt_entregue_em_parte_nas_telas.sql', '20261109030000_plt_entrega_dia_real.sql',
+                 '20261109050000_plt_calendario_sem_prefiltro.sql', '20261112020000_plt_pcp_cancelar_ocultar_excluido.sql',
+                 '20261112060000_plt_editar_endereco.sql', '20261116010000_plt_sessao51_base.sql',
+                 '20261116020000_plt_entrega_parcial_mantem_producao.sql', '20261116030000_plt_mover_card_para_pcp.sql',
+                 '20261118110000_plt_entregue_em_parte_nas_telas.sql']) {
+  await bd.exec(await readFile(path.join(MIGRATIONS, m), 'utf8'))
+}
+conferir(true, 'a migration antiga de "Já programadas" reaplica depois da nova, e a nova volta por cima, sem erro')
+  const um = async (sql) => (await bd.query(sql)).rows[0]
+  const como = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+  const j = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+  const logado = async (auth, sql) => {
+    await bd.exec('savepoint l53')
+    try {
+      await como(auth)
+      const r = await um(sql)
+      await bd.exec('release savepoint l53')
+      return r
+    } catch (e) {
+      await bd.exec('rollback to savepoint l53')
+      throw e
+    } finally {
+      await como('')
+    }
+  }
+
+  titulo('SESSAO-53 · a forma das portas: uma "Já programadas" só, com a coluna nova; a regra do selo é privada')
+  const formas = await um(`
+    select count(*)::int as n,
+           bool_and(pg_get_function_result(p.oid) like '%entregue_em_parte jsonb%') as tem,
+           bool_and(has_function_privilege('authenticated', p.oid, 'execute')) as logado,
+           bool_or(has_function_privilege('anon', p.oid, 'execute')) as anonimo
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'plt_fn_programadas'`)
+  conferir(formas.n === 1 && formas.tem && formas.logado && !formas.anonimo,
+           '"Já programadas": uma assinatura só, devolve entregue_em_parte, só para quem está logado', JSON.stringify(formas))
+  const priv = await um(`select has_table_privilege('authenticated', 'plt_privado.vw_entregue_em_parte', 'select') as a,
+                                has_table_privilege('anon', 'plt_privado.vw_entregue_em_parte', 'select') as b`)
+  conferir(!priv.a && !priv.b, 'a regra do selo (a visão) não se lê de fora')
+
+  await bd.exec('begin')
+  try {
+  const ADM = '00000000-0000-0000-0000-0000000053a1'
+  const LOG = '00000000-0000-0000-0000-0000000053a2'
+  const ENT = '00000000-0000-0000-0000-0000000053a3'
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos) values
+      ('Admin 53', 'adm53@teste.com', '53000000001', 'adm.53', 'admin', '${ADM}', array['fabrica']),
+      ('Logística 53', 'log53@teste.com', '53000000002', 'log.53', 'logistica', '${LOG}', array['fabrica']),
+      ('Entregador 53', 'ent53@teste.com', '53000000003', 'ent.53', 'operador', '${ENT}', array['entregas']);
+    insert into public.plt_usuario_setores (usuario_id, setor_id)
+      select u.id, s.id from public.plt_usuarios u, public.plt_setores s
+       where (u.usuario, s.codigo) in (('log.53', 'aguardo'), ('ent.53', 'rotas'));
+    update public.plt_setores set tiny_entrega_desde = coalesce(tiny_entrega_desde, now()) where codigo = 'rotas';
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values
+      ('m53', 'MONTAGEM 53', 'producao', 994), ('f53', 'FITAMENTO 53', 'producao', 995)
+    on conflict do nothing;
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}'
+     where codigo in ('m53', 'f53', 'aguardo', 'rotas', 'devolucao', 'pcp');
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      ((select id from public.plt_setores where codigo = 'm53'), 'A MONTAR 53', 1, true),
+      ((select id from public.plt_setores where codigo = 'f53'), 'A FITAR 53', 1, true);
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (9953001, 'SX53A', 'Guarda-roupa Teste 53', 'F', 'A', 'un') on conflict (tiny_id) do nothing;
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 53', 'TST5353');`)
+  const id = async (sql) => Number((await um(sql)).id)
+  const MONT = await id(`select id from public.plt_setores where codigo = 'm53'`)
+  const FIT = await id(`select id from public.plt_setores where codigo = 'f53'`)
+  const AGU = await id(`select id from public.plt_setores where codigo = 'aguardo'`)
+  const A_MONTAR = await id(`select id from public.plt_etapas where nome = 'A MONTAR 53'`)
+  const A_FITAR = await id(`select id from public.plt_etapas where nome = 'A FITAR 53'`)
+  const CAM = await id(`select id from public.plt_caminhoes where placa = 'TST5353'`)
+  const HOJE = (await um(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+
+  const pedido = (numero, qtd) => ({
+    id: String(7953000 + (numero % 1000)), numero: String(numero), data_pedido: '18/11/2026', data_prevista: '30/11/2026',
+    situacao: 'Preparando envio', total_produtos: '500.00', total_pedido: '500.00', valor_frete: '0.00',
+    forma_pagamento: 'pix', meio_pagamento: '', forma_envio: 'Transportadora', parcelas: [], marcadores: [],
+    obs: '', obs_interna: '', nome_vendedor: 'Vendedora 53', codigo_rastreamento: '', url_rastreamento: '',
+    cliente: { codigo: '', nome: `Cliente Teste 53 ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+               endereco: 'Rua Teste 53', numero: '53', complemento: '', bairro: 'Centro', cep: '59000-530', cidade: 'Natal',
+               uf: 'RN', fone: '84999995353', email: '' },
+    itens: [{ item: { id_produto: '', codigo: 'SX53A', descricao: 'Guarda-roupa Teste 53', unidade: 'UN', quantidade: qtd, valor_unitario: '100.00' } }],
+  })
+  const gravar = async (p) => {
+    const r = await um(`select public.fn_upsert_pedido(p => ${j(p)}, p_tipo => 'inclusao_pedido', p_tiny_id => ${Number(p.id)}, p_origem => 'webhook')::int as id`)
+    await bd.exec('set constraints plt_pedidos_zz_itens immediate; set constraints plt_pedidos_zz_itens deferred')
+    return r.id
+  }
+  const cardDe = (pid) => id(`select id from public.plt_cards where pedido_id = ${pid} and tipo = 'pedido'`)
+  const peca = async (pid, pai, k, n, setor, etapa) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${pid}, ${pai}, 1, 'SX53A', 'Guarda-roupa Teste 53', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${setor}, ${etapa ?? 'null'}, 'api');`)
+    return id(`select max(id) as id from public.plt_cards where tipo = 'unidade'`)
+  }
+  // o que cada tela recebe, pela PORTA DELA (uma chamada cada)
+  const noProgramar = async (numero) =>
+    ((await logado(LOG, `select public.plt_fn_programacao_candidatos('${numero}', null, null, null, null, null, 200) as r`)).r.itens ?? [])
+      .find((x) => x.numero === numero)
+  const naExpedicao = async (numero) =>
+    ((await logado(LOG, `select public.plt_fn_expedicao('todos', '${numero}', 20, 0) as r`)).r.itens ?? []).find((x) => x.numero === numero)
+  const nasProgramadas = async (cardId, entregues = false) =>
+    logado(LOG, `select q.numero, q.entregue_em_parte as ep from public.plt_fn_programadas(${entregues}, '${HOJE}', ${CAM}, 200, 0, null) q where q.card_id = ${cardId}`)
+  const noDia = async (quem, cardId) =>
+    ((await logado(quem, `select public.plt_fn_entregas_do_dia('${HOJE}', ${CAM}, 1) as r`)).r.entregas ?? []).find((x) => x.card_id === cardId)
+
+  // ---------- o cenário: 5 unidades — 2 prontas, 1 na MONTAGEM, 1 no FITAMENTO, 1 ainda no PCP ----------
+  titulo('SESSAO-53 · antes da entrega parcial nenhuma tela recebe a chave')
+  const P1 = await gravar(pedido(99531, '5.00'))
+  const K1 = await cardDe(P1)
+  const u1 = await peca(P1, K1, 1, 5, AGU, null)
+  const u2 = await peca(P1, K1, 2, 5, AGU, null)
+  const u3 = await peca(P1, K1, 3, 5, MONT, A_MONTAR)
+  await peca(P1, K1, 4, 5, FIT, A_FITAR)
+  // o pedido de comparação: inteiro, pronto, sem entrega parcial
+  const P3 = await gravar(pedido(99533, '1.00'))
+  const K3 = await cardDe(P3)
+  await peca(P3, K3, 1, 1, AGU, null)
+  const a1 = await noProgramar(99531)
+  const a2 = await naExpedicao(99531)
+  conferir(a1 && !('entregue_em_parte' in a1) && a2 && !('entregue_em_parte' in a2),
+           'Programar e Expedição: o pedido aparece sem a chave (ela só nasce quando há)', JSON.stringify({ a1: a1?.entregue_em_parte, a2: a2?.entregue_em_parte }))
+  await logado(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K3}]::bigint[], null, 1) as r`)
+  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id)
+                 values ('${HOJE}', ${CAM}, 1, (select id from public.plt_usuarios where usuario = 'ent.53'))`)
+  const b1 = await nasProgramadas(K1)
+  const b2 = await noDia(ENT, K1)
+  conferir(b1 && b1.ep === null && b2 && !('entregue_em_parte' in b2),
+           'Já programadas e Entregas do dia: sem entrega parcial, coluna nula e chave ausente', JSON.stringify({ b1, b2: b2?.entregue_em_parte }))
+
+  titulo('SESSAO-53 · "Deixar em produção": as três telas dizem "Entregue em parte (2 de 5)" e "3 ainda em produção"')
+  const r1 = (await logado(ENT, `select public.plt_fn_entrega_parcial(${K1}, array[${u1}, ${u2}]::bigint[], null, 'cliente sem espaço', false, 'manter') as r`)).r
+  conferir(r1.fabrica === 'manter' && r1.entregues === 2, 'a entrega parcial registrou 2 entregues e deixou o resto na fábrica', JSON.stringify(r1))
+  const ficha = (await logado(LOG, `select public.plt_fn_entrega_parcial_previa(${K1}) as r`)).r
+  const c1 = await noProgramar(99531)
+  conferir(c1?.entregue_em_parte?.entregues === 2 && c1.entregue_em_parte.total === 5 && c1.entregue_em_parte.ainda_producao === 3 && !!c1.entregue_em_parte.em,
+           'Programar: o pedido voltou para a lista com 2 de 5 e 3 ainda em produção', JSON.stringify(c1?.entregue_em_parte))
+  const c2 = await naExpedicao(99531)
+  conferir(c2?.entregue_em_parte?.entregues === 2 && c2.entregue_em_parte.total === 5 && c2.entregue_em_parte.ainda_producao === 3,
+           'Expedição: o mesmo 2 de 5 e 3 ainda em produção', JSON.stringify(c2?.entregue_em_parte))
+  conferir(ficha.n_producao + ficha.vagas === c1?.entregue_em_parte?.ainda_producao && ficha.entregues === 2 && ficha.total === 5,
+           'é a MESMA conta da ficha do pedido (peças na fábrica + produtos sem liberar no PCP)', JSON.stringify({ n: ficha.n_producao, v: ficha.vagas }))
+  const c3 = await noProgramar(99533)
+  const c4 = await naExpedicao(99533)
+  conferir((!c3 || !('entregue_em_parte' in c3)) && (!c4 || !('entregue_em_parte' in c4)), 'o pedido sem entrega parcial segue sem a chave')
+  // o resto volta à rota: Já programadas e Entregas do dia
+  await logado(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}]::bigint[], null, 1) as r`)
+  const d1 = await nasProgramadas(K1)
+  conferir(d1?.ep?.entregues === 2 && d1.ep.total === 5 && d1.ep.ainda_producao === 3,
+           'Já programadas: a parada do resto diz 2 de 5 e 3 ainda em produção', JSON.stringify(d1))
+  conferir((await nasProgramadas(K3))?.ep === null, 'Já programadas: a parada do pedido inteiro segue com a coluna nula')
+  const d2 = await noDia(ENT, K1)
+  conferir(d2?.entregue_em_parte?.entregues === 2 && d2.entregue_em_parte.total === 5 && d2.entregue_em_parte.ainda_producao === 3,
+           'Entregas do dia (o entregador): a parada do resto diz 2 de 5 e 3 ainda em produção', JSON.stringify(d2?.entregue_em_parte))
+  const d3 = await noDia(LOG, K3)
+  conferir(d3 && !('entregue_em_parte' in d3), 'Entregas do dia: a parada do pedido inteiro segue sem a chave')
+
+  titulo('SESSAO-53 · a conta acompanha a fábrica: a peça fica pronta; a decisão é revogada; o resto é entregue')
+  await bd.exec(`insert into public.plt_eventos (card_id, tipo, origem, setor_origem_id, etapa_origem_id, setor_destino_id)
+                   values (${u3}, 'movimentacao_setor', 'api', ${MONT}, ${A_MONTAR}, ${AGU});`)
+  const e1 = await naExpedicao(99531)
+  conferir(e1?.entregue_em_parte?.ainda_producao === 2, 'a peça da MONTAGEM ficou pronta: 2 ainda em produção', JSON.stringify(e1?.entregue_em_parte))
+  const rv = (await logado(LOG, `select public.plt_fn_entrega_parcial_revogar(${K1}, 'chave-53-1') as r`)).r
+  conferir(rv.decisao === 'limpar' && rv.fechou === false, 'revogar e remover: o que estava na fábrica sai; a peça pronta fica e o pedido segue vivo', JSON.stringify(rv))
+  const e2 = await noDia(LOG, K1)
+  conferir(e2?.entregue_em_parte?.entregues === 2 && !('ainda_producao' in e2.entregue_em_parte),
+           'com "limpar" o selo fica e o "ainda em produção" some (nada segue na fábrica)', JSON.stringify(e2?.entregue_em_parte))
+  const ent = await logado(LOG, `select public.plt_fn_registrar_entrega(${K1}, 'o resto', true) as r`)
+  conferir(ent.r !== null, 'o "Entregue" do resto fechou o pedido')
+  const e3 = await noDia(LOG, K1)
+  const e4 = await nasProgramadas(K1, true)
+  conferir(e3 && e3.entregue_em !== null && !('entregue_em_parte' in e3) && e4 && e4.ep === null,
+           'o resto entregue: o pedido é "Entregue" — o selo some das Entregas do dia e do histórico de Já programadas', JSON.stringify({ e3: e3?.entregue_em_parte, e4 }))
+
+  titulo('SESSAO-53 · a entrega parcial que fecha o pedido ("Limpar da produção"): a parada entregue diz "1 de 3"')
+  const P2 = await gravar(pedido(99532, '3.00'))
+  const K2 = await cardDe(P2)
+  const z1 = await peca(P2, K2, 1, 3, AGU, null)
+  await peca(P2, K2, 2, 3, MONT, A_MONTAR)
+  await logado(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K2}]::bigint[], null, 1) as r`)
+  const r2 = (await logado(LOG, `select public.plt_fn_entrega_parcial(${K2}, array[${z1}]::bigint[], null, 'só uma cabia', false, 'limpar') as r`)).r
+  conferir(r2.fabrica === 'limpar', 'limpar na própria entrega parcial', JSON.stringify(r2))
+  const g1 = await noDia(LOG, K2)
+  conferir(g1 && g1.entrega_parcial === true && g1.entregue_em_parte?.entregues === 1 && g1.entregue_em_parte.total === 3 && !('ainda_producao' in g1.entregue_em_parte),
+           'Entregas do dia: a parada entregue em parte diz 1 de 3 (e o aviso de antes continua)', JSON.stringify({ p: g1?.entrega_parcial, ep: g1?.entregue_em_parte }))
+  const g2 = await nasProgramadas(K2, true)
+  conferir(g2?.ep?.entregues === 1 && g2.ep.total === 3, 'Já programadas (entregues): 1 de 3', JSON.stringify(g2))
+  conferir(!(await noProgramar(99532)) && !(await naExpedicao(99532)), 'o pedido fechado não volta para Programar nem para a Expedição')
+  } finally {
+    await bd.exec('rollback')
+    await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
+  }
+} // fim do bloco SESSAO-53
+
+
+// ============================================================================
 // SESSAO-56 · bloco B (migration 20261124100000 — pedido do dono, 23/11): A
 // ORDEM DA ROTA NÃO SE MEXE SOZINHA — tirar um pedido, reprogramar ou remover
 // uma parada tira SÓ aquele item; os outros ficam na ordem que a tela mostrava

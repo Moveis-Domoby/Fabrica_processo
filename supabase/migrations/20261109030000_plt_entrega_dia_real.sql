@@ -1457,6 +1457,11 @@ AS $function$
 $function$;
 
 -- 10.4 · Já programadas (recriada da 20261105020000_plt_rotas_ponto_aproximado.sql:109-236 — mesma assinatura e retorno)
+-- ↪️ SESSAO-53 (E-178): a 20261118110000 muda o RETORNO desta porta (+ entregue_em_parte) e a
+-- bateria reaplica esta migration depois dela — sem derrubar antes, o "create or replace"
+-- bate no retorno novo ("cannot change return type"). Reaplicável; em produção nada muda
+-- (esta já rodou; a porta fica com as permissões de sempre — o bloco de baixo as repõe).
+drop function if exists public.plt_fn_programadas(boolean, date, bigint, integer, integer, text);
 CREATE OR REPLACE FUNCTION public.plt_fn_programadas(p_entregues boolean DEFAULT false, p_data date DEFAULT NULL::date, p_caminhao_id bigint DEFAULT NULL::bigint, p_limite integer DEFAULT 50, p_deslocamento integer DEFAULT 0, p_busca text DEFAULT NULL::text)
  RETURNS TABLE(card_id bigint, pedido_id bigint, numero integer, cliente_nome text, endereco text, numero_endereco text, complemento text, bairro text, cidade text, uf text, geo_chave text, latitude double precision, longitude double precision, geo_resolvido boolean, endereco_geocodificavel text, geo_consultado_em timestamp with time zone, cep text, geo_manual boolean, geo_aproximado text, total_unidades integer, itens jsonb, data_prevista date, programacao_data date, caminhao_id bigint, caminhao_nome text, caminhao_placa text, rota integer, ordem integer, entregue_em timestamp with time zone, detalhe text, equipe text[], estado text, unidades_prontas integer, unidades_liberadas integer, contagem_total bigint)
  LANGUAGE sql
@@ -1582,6 +1587,9 @@ AS $function$
    limit least(greatest(coalesce(p_limite, 50), 1), 200)
   offset greatest(coalesce(p_deslocamento, 0), 0);
 $function$;
+-- ↪️ SESSAO-53: derrubada acima → as permissões de sempre de volta (as da 20261105020000)
+revoke all on function public.plt_fn_programadas(boolean, date, bigint, integer, integer, text) from public, anon;
+grant execute on function public.plt_fn_programadas(boolean, date, bigint, integer, integer, text) to authenticated, service_role;
 
 -- 10.5 · Entregas do dia (recriada da 20261105010000_plt_rotas_mapa_expedicao_pcp.sql:227-350 — o jsonb só ganha chaves)
 CREATE OR REPLACE FUNCTION public.plt_fn_entregas_do_dia(p_data date DEFAULT NULL::date, p_caminhao_id bigint DEFAULT NULL::bigint, p_rota integer DEFAULT NULL::integer)
