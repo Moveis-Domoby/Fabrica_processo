@@ -683,6 +683,8 @@ export function detalhesDoContexto(
     if (recarga) detalhes.push({ rotulo: 'Recarregada pela plataforma', valor: recarga })
     return detalhes
   }
+  // SESSAO-52: a configuração do painel de tempos — o antes e o depois em português
+  if (ehMudancaDoPainelDeTempos(contexto)) return detalhesDoPainelDeTempos(contexto)
   return Object.entries(contexto)
     .filter(([chave]) => !ehChaveDeMaquina(chave))
     .map(([chave, valor]) => ({
@@ -757,3 +759,113 @@ Object.assign(CHAVES, {
   observacao_antes: 'Observação antes',
   observacao_depois: 'Observação depois',
 })
+
+// ---------------------------------------------------------------------------
+// SESSAO-52: a configuração do painel de Tempos de produção (a ação
+// tempo_painel_alterado — SESSAO-47, Bloco C). A trilha guarda o que mudou em
+// frases ("o_que_mudou") e também o antes e o depois com os NOMES INTERNOS das
+// opções ({"grafico_tv":"barras"}) — que a tela mostrava crus. Aqui eles viram
+// português do galpão, com as mesmas palavras das frases do banco
+// (plt_privado.fn_tempos_painel_rotulo/_texto). A tradução é feita na leitura:
+// vale também para os registros antigos, e a trilha não é reescrita (D-107).
+// ---------------------------------------------------------------------------
+const ROTULO_PAINEL_TEMPOS: Record<string, string> = {
+  grafico_periodo: 'Gráfico da aba Período',
+  grafico_tv: 'Gráfico da TV',
+  linha_padrao: 'Marca do tempo padrão na linha do dia',
+  abrir_setor_id: 'Setor em que a tela abre',
+  abrir_periodo: 'Período em que a tela abre',
+  medida: 'Número do tempo médio',
+  tv_numeros: 'TV · os quatro números',
+  tv_montadores: 'TV · a coluna dos montadores',
+  tv_grafico: 'TV · o gráfico dos 14 dias',
+  tv_melhor_semana: 'TV · o melhor da semana',
+  tv_relogio: 'TV · o relógio',
+  tv_dados_ate: 'TV · até quando há dados',
+  tv_ao_vivo: 'TV · o selo "ao vivo"',
+}
+const GRAFICO_PAINEL_TEMPOS: Record<string, string> = {
+  empilhadas: 'barras empilhadas por montador',
+  barras: 'barras com o total',
+  linhas: 'linhas por montador',
+}
+const PERIODO_PAINEL_TEMPOS: Record<string, string> = {
+  hoje: 'hoje (aba Dia)',
+  '7': '7 dias (aba Período)',
+  '30': '30 dias (aba Período)',
+}
+const MEDIDA_PAINEL_TEMPOS: Record<string, string> = { media: 'média', mediana: 'mediana' }
+
+function ehObjetoSimples(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+/** O registro é uma mudança da configuração do painel de tempos? (pelo formato do contexto) */
+function ehMudancaDoPainelDeTempos(contexto: Record<string, unknown>): boolean {
+  if (!Array.isArray(contexto.o_que_mudou)) return false
+  return [contexto.antes, contexto.depois].every(
+    (lado) =>
+      lado === undefined ||
+      (ehObjetoSimples(lado) && Object.keys(lado).every((k) => k in ROTULO_PAINEL_TEMPOS)),
+  )
+}
+
+/**
+ * O nome do setor de abertura não está no antes/depois (lá vai o número dele):
+ * sai da frase que o banco escreveu — "Setor em que a tela abre: X → Y".
+ */
+function setorDaFrase(frases: unknown[], lado: 'antes' | 'depois'): string | null {
+  const inicio = `${ROTULO_PAINEL_TEMPOS.abrir_setor_id}: `
+  const frase = frases.find((f): f is string => typeof f === 'string' && f.startsWith(inicio))
+  if (!frase) return null
+  const partes = frase.slice(inicio.length).split(' → ')
+  if (partes.length !== 2) return null
+  return (lado === 'antes' ? partes[0] : partes[1]).trim() || null
+}
+
+function valorDoPainelDeTempos(
+  chave: string,
+  valor: unknown,
+  frases: unknown[],
+  lado: 'antes' | 'depois',
+): string {
+  if (chave === 'abrir_setor_id') {
+    if (valor === null || valor === undefined) return 'o que o aparelho lembra'
+    return setorDaFrase(frases, lado) ?? 'um setor escolhido'
+  }
+  if (valor === null || valor === undefined) return '—'
+  if (typeof valor === 'boolean') return valor ? 'ligado' : 'desligado'
+  const texto = String(valor)
+  if (chave === 'grafico_periodo' || chave === 'grafico_tv')
+    return GRAFICO_PAINEL_TEMPOS[texto] ?? 'outro tipo de gráfico'
+  if (chave === 'medida') return MEDIDA_PAINEL_TEMPOS[texto] ?? 'outro número'
+  if (chave === 'abrir_periodo') return PERIODO_PAINEL_TEMPOS[texto] ?? 'outro período'
+  return 'outro valor'
+}
+
+function ladoDoPainelDeTempos(
+  lado: unknown,
+  frases: unknown[],
+  qual: 'antes' | 'depois',
+): string | null {
+  if (!ehObjetoSimples(lado)) return null
+  const itens = Object.entries(lado).map(
+    ([chave, valor]) =>
+      `${ROTULO_PAINEL_TEMPOS[chave]}: ${valorDoPainelDeTempos(chave, valor, frases, qual)}`,
+  )
+  return itens.length > 0 ? itens.join('; ') : null
+}
+
+function detalhesDoPainelDeTempos(
+  contexto: Record<string, unknown>,
+): { rotulo: string; valor: string }[] {
+  const frases = contexto.o_que_mudou as unknown[]
+  const detalhes: { rotulo: string; valor: string }[] = []
+  const mudou = frases.filter((f): f is string => typeof f === 'string' && f.trim() !== '')
+  if (mudou.length > 0) detalhes.push({ rotulo: 'O que mudou', valor: mudou.join('; ') })
+  const antes = ladoDoPainelDeTempos(contexto.antes, frases, 'antes')
+  if (antes) detalhes.push({ rotulo: 'Antes', valor: antes })
+  const depois = ladoDoPainelDeTempos(contexto.depois, frases, 'depois')
+  if (depois) detalhes.push({ rotulo: 'Depois', valor: depois })
+  return detalhes
+}

@@ -86,6 +86,98 @@ describe('auditoria — rótulos', () => {
     expect(detalhesDoContexto(null)).toEqual([])
   })
 
+  // SESSAO-52: o antes e o depois da configuração do painel de tempos em português —
+  // nenhum nome interno de opção na tela (vale para os registros antigos também)
+  it('a configuração do painel de tempos: antes e depois sem nomes internos', () => {
+    const detalhes = detalhesDoContexto({
+      o_que_mudou: [
+        'Gráfico da TV: barras empilhadas por montador → barras com o total',
+        'Número do tempo médio: mediana → média',
+        'TV · o relógio: ligado → desligado',
+        'Setor em que a tela abre: o que o aparelho lembra → MONTAGEM',
+        'Período em que a tela abre: hoje (aba Dia) → 7 dias (aba Período)',
+        'Montador B (Bia) · MONTAGEM: ligado → desligado',
+      ],
+      antes: {
+        grafico_tv: 'empilhadas',
+        medida: 'mediana',
+        tv_relogio: true,
+        abrir_setor_id: null,
+        abrir_periodo: 'hoje',
+      },
+      depois: {
+        grafico_tv: 'barras',
+        medida: 'media',
+        tv_relogio: false,
+        abrir_setor_id: 12,
+        abrir_periodo: '7',
+      },
+      montadores_ids: [{ setor_id: 12, usuario_id: 'u-1', antes: true, depois: false }],
+    })
+    expect(detalhes).toEqual([
+      {
+        rotulo: 'O que mudou',
+        valor:
+          'Gráfico da TV: barras empilhadas por montador → barras com o total; Número do tempo médio: mediana → média; TV · o relógio: ligado → desligado; Setor em que a tela abre: o que o aparelho lembra → MONTAGEM; Período em que a tela abre: hoje (aba Dia) → 7 dias (aba Período); Montador B (Bia) · MONTAGEM: ligado → desligado',
+      },
+      {
+        rotulo: 'Antes',
+        valor:
+          'Gráfico da TV: barras empilhadas por montador; Número do tempo médio: mediana; TV · o relógio: ligado; Setor em que a tela abre: o que o aparelho lembra; Período em que a tela abre: hoje (aba Dia)',
+      },
+      {
+        rotulo: 'Depois',
+        valor:
+          'Gráfico da TV: barras com o total; Número do tempo médio: média; TV · o relógio: desligado; Setor em que a tela abre: MONTAGEM; Período em que a tela abre: 7 dias (aba Período)',
+      },
+    ])
+    // nenhum nome interno (com sublinhado, chave de JSON, o código da opção ou o número do setor) chega à tela
+    const tudo = detalhes.map((d) => `${d.rotulo} ${d.valor}`).join(' ')
+    expect(tudo).not.toMatch(/[a-z]_[a-z]|[{}"]|empilhadas\b(?! por)|\bmedia\b|\b12\b/)
+  })
+
+  it('a configuração do painel: só montadores (sem antes/depois) e as 13 opções com nome de gente', () => {
+    expect(
+      detalhesDoContexto({
+        o_que_mudou: ['Montador A (Ana) · MONTAGEM: desligado → ligado'],
+        montadores_ids: [{ setor_id: 1, usuario_id: 'u', antes: false, depois: true }],
+      }),
+    ).toEqual([{ rotulo: 'O que mudou', valor: 'Montador A (Ana) · MONTAGEM: desligado → ligado' }])
+    const todas = {
+      grafico_periodo: 'linhas',
+      grafico_tv: 'empilhadas',
+      linha_padrao: true,
+      abrir_setor_id: 3,
+      abrir_periodo: '30',
+      medida: 'mediana',
+      tv_numeros: false,
+      tv_montadores: false,
+      tv_grafico: false,
+      tv_melhor_semana: false,
+      tv_relogio: false,
+      tv_dados_ate: false,
+      tv_ao_vivo: false,
+    }
+    const depois = detalhesDoContexto({
+      o_que_mudou: ['Voltou ao padrão'],
+      antes: {},
+      depois: todas,
+    }).find((d) => d.rotulo === 'Depois')
+    expect(depois?.valor.split('; ')).toHaveLength(13)
+    expect(depois?.valor).toContain('Gráfico da aba Período: linhas por montador')
+    expect(depois?.valor).toContain('Setor em que a tela abre: um setor escolhido')
+    expect(depois?.valor).toContain('Período em que a tela abre: 30 dias (aba Período)')
+    expect(depois?.valor).not.toMatch(/[a-z]_[a-z]|[{}]/)
+  })
+
+  it('outro registro com "antes" e "depois" não é confundido com o do painel', () => {
+    expect(detalhesDoContexto({ sku: '061', antes: 3, depois: 5 })).toEqual([
+      { rotulo: 'SKU', valor: '061' },
+      { rotulo: 'Antes', valor: '3' },
+      { rotulo: 'Depois', valor: '5' },
+    ])
+  })
+
   // SESSAO-48 (frente 5 — "a plataforma recarrega sozinha"): a 1ª abertura de
   // cada página grava por que ela abriu; a Auditoria diz em português.
   it('a abertura da página diz por que abriu — a plataforma primeiro, depois a aba descartada, depois o navegador', () => {
