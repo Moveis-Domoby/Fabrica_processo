@@ -9,7 +9,7 @@ tags: [handoff, sessao-55, desempenho, dashboards, configuracoes, meu-painel]
 
 Demanda: [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · Diário: [[SESSAO-55]] · Ensaio: [[SESSAO-55 - ensaio x100 das portas de abertura (resultado, 2026-11-18).txt|resultado ×100]]
 
-> ⏳ **NÃO está no ar.** Tudo no ramo `sessao-55-telas-numa-leitura` (8 commits): **nada na main, nenhuma atualização aplicada no banco, nada publicado, nada no n8n, nada no ClickUp.** A sessão rodou sem o dono na conversa — as escolhas viraram decisões provisórias (seção 6). **A demanda não foi linkada na Ordem das Sessões e as notas grandes não foram editadas** (regra da leva): o que é delas está na seção 8.
+> ⏳ **NÃO está no ar.** Tudo no ramo `sessao-55-telas-numa-leitura` (11 commits, com os 2 ajustes da revisão): **nada na main, nenhuma atualização aplicada no banco, nada publicado, nada no n8n, nada no ClickUp.** A sessão rodou sem o dono na conversa — as escolhas viraram decisões provisórias (seção 6). **A demanda não foi linkada na Ordem das Sessões e as notas grandes não foram editadas** (regra da leva): o que é delas está na seção 8.
 
 ## 1. Objetivo
 
@@ -33,6 +33,7 @@ As dívidas 18 e 20 da Lei de Desempenho: cada tela abre com **1 requisição**,
 | Controle de tempo → "Desligar o tempo" (no clique) | 3 | **1** |
 | Configurações → Caminhões | 2 | **1** |
 | Automações (a lista e a automação aberta) | 3 | **1** |
+| Automações → automação nova aberta direto pelo endereço | 2 | **1** (vinda da lista: 0) |
 
 ### Banco — 3 arquivos de atualização, 9 funções novas de leitura, **nenhuma função existente recriada**
 
@@ -64,18 +65,18 @@ Em cada passo: abrir as **ferramentas do navegador (F12) → aba Rede → filtro
 8. **Configurações → Equipe** — **1 linha** `plt_fn_equipe_abertura`; a lista, os setores de cada pessoa e a marca de líder iguais. Editar alguém: salvar relê 1 linha.
 9. **Configurações → API e integrações** — **1 linha** `plt_fn_api_abertura`; "Atualizar" = 1 linha; criar/revogar chave = 1 linha depois do gesto.
 10. **Configurações → Caminhões** — **1 linha** `plt_fn_caminhoes_abertura`; o cartão "Entregue vai ao Tiny" aparece com a situação; marcar "mostrar arquivados" = 1 linha.
-11. **Painel super admin → Automações** — a lista: **1 linha** `plt_fn_automacoes_abertura`; abrir uma automação: 1 linha (a mesma porta).
+11. **Painel super admin → Automações** — a lista: **1 linha** `plt_fn_automacoes_abertura`; abrir uma automação: 1 linha (a mesma porta). "Nova automação" vinda da lista: nenhuma linha; com a nova aberta, **atualizar a página (F5)**: 1 linha (a mesma porta, só os cadastros).
 12. **Configurações → Controle de tempo** — cada aba: 1 linha (como já era). Abrir "Desligar o tempo" (dentro de Expediente e intervalos): **1 linha** `plt_fn_tempo_desligar_abertura`.
 13. **Como operador** (uma conta sem papel de admin): Meus afazeres e Meu desempenho abrem com os dados só dele; Pessoas e Qualidade o mandam para o início (como antes).
 
 ## 4. Verificação (critérios de aceite)
 
-- [x] **Cada tela tocada abre com 1 requisição de dados** — `src/paginas/umaLeitura.test.tsx` (14 provas): as telas de verdade com um servidor gravado; uma chamada à porta de abertura e nenhuma leitura direta de tabela; o aviso do trabalho relê uma vez; o Meu Painel como 1ª tela não lê nada. ⚠️ **Não foi conferido no navegador** (seção 5).
+- [x] **Cada tela tocada abre com 1 requisição de dados** — `src/paginas/umaLeitura.test.tsx` (16 provas): as telas de verdade com um servidor gravado; uma chamada à porta de abertura e nenhuma leitura direta de tabela; o aviso do trabalho relê uma vez; o Meu Painel como 1ª tela não lê nada. ⚠️ **Não foi conferido no navegador** (seção 5).
 - [x] **Nenhum dado escondido antes do clique; nenhum relógio; nada de `postgres_changes`** — busca nos arquivos tocados: zero; as páginas seguintes (execuções, tempo por tarefa, metas) só no clique; a janela da tarefa, o nascimento e o histórico das automações seguem no clique.
 - [~] **Plano ×100; porta de tela ≤ 50 ms e painel ≤ 150 ms** — ensaio feito (seção 5 do diário e o resultado anexo): **11 de 16 medições dentro do teto; 5 fora** — todas por uma leitura antiga pesada que a porta nova só junta (nenhuma porta ficou mais lenta que a soma de antes). Viraram dívida (seção 8).
-- [x] **Os números de cada tela iguais aos de antes** — bateria do banco, bloco SESSAO-55 (**130 ✔**): cada pedaço de cada porta comparado no banco com a leitura antiga, como o navegador chama, para o dono, um admin comum, um líder, um operador e um operador sem setor.
+- [x] **Os números de cada tela iguais aos de antes** — bateria do banco, bloco SESSAO-55 (**133 ✔**): cada pedaço de cada porta comparado no banco com a leitura antiga, como o navegador chama, para o dono, um admin comum, um líder, um operador e um operador sem setor.
 
-**Rodadas finais:** `npm run lint` limpo · `npm run build` ok (JS inicial 232,9 KB; teto 250) · `npm test` 114 arquivos / **733 testes verdes** · `npm run test:banco` **2.003 ✔ / 1 ✘** (o ✘ é o `fn_dashboard_revenue_chart` do Comercial, que já falha na main).
+**Rodadas finais:** `npm run lint` limpo · `npm run build` ok (JS inicial 232,9 KB; teto 250) · `npm test` 114 arquivos / **735 testes verdes** · `npm run test:banco` **2.006 ✔ / 1 ✘** (o ✘ é o `fn_dashboard_revenue_chart` do Comercial, que já falha na main).
 
 ## 5. O que NÃO foi validado (dito com todas as letras)
 

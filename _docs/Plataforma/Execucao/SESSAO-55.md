@@ -70,7 +70,7 @@ Demanda: [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes 
 
 - `20261118130000_plt_meu_trabalho_numa_leitura.sql` — `plt_fn_meu_trabalho(p_tela, p_abrir)`: as tarefas abertas e as execuções abertas (a bolinha); `painel` soma os cards delegados e as tarefas do Sistema dos setores da pessoa (com `p_abrir`, a fila de prioridade e a 1ª página das metas); `afazeres` soma os cards, o contador de subtarefas por tarefa e o número dos pedidos dos cards (até 100). As mesmas colunas e filtros de `plt_fn_abertura`.
 - `20261118130100_plt_dashboards_numa_leitura.sql` — `plt_fn_dash_pessoas_abertura(p_dias, p_setor_id, p_setor_dito, p_v, p_visualizacoes, p_metas, p_metas_limite)`, `plt_fn_dash_qualidade_abertura(p_dias, p_v, p_visualizacoes)`, `plt_fn_meu_desempenho_abertura(p_dias, p_limite)`. Chamam por dentro `plt_fn_dash_tempos_pessoa`, `plt_fn_dash_execucoes`, `plt_fn_dash_qualidade` (duas vezes), `plt_fn_dash_danificados_abertos`, `plt_fn_meu_desempenho`, `plt_fn_meu_tempo_dias`, `plt_fn_meu_tempo_tarefas`, `plt_fn_metas_painel`. **O período passa a ser resolvido no banco** com a precedência da tela (endereço > visualização salva de quem chama > 7 dias) e volta em `de`/`ate`.
-- `20261118130200_plt_configuracoes_numa_leitura.sql` — `plt_fn_equipe_abertura()`, `plt_fn_api_abertura()`, `plt_fn_caminhoes_abertura(p_arquivados, p_tiny)`, `plt_fn_automacoes_abertura(p_id, p_limite, p_deslocamento, p_arquivadas, p_cadastros)`, `plt_fn_tempo_desligar_abertura()`.
+- `20261118130200_plt_configuracoes_numa_leitura.sql` — `plt_fn_equipe_abertura()`, `plt_fn_api_abertura()`, `plt_fn_caminhoes_abertura(p_arquivados, p_tiny)`, `plt_fn_automacoes_abertura(p_id, p_limite, p_deslocamento, p_arquivadas, p_cadastros, p_so_cadastros)`, `plt_fn_tempo_desligar_abertura()`.
 - Todas: `security invoker` (a RLS e a leitura por coluna de `plt_usuarios` decidem como na leitura direta), `stable`, `set search_path`, `revoke … from public, anon` + `grant execute … to authenticated`, `set local lock_timeout = '5s'`. **Nenhuma tabela, coluna, índice, política ou grant de tabela muda.** O segredo do webhook e o hash da chave de API não saem (a tela nunca os leu); CPF, PIN, convite e nascimento seguem fora.
 - **md5 de função recriada: não se aplica** (nenhuma recriada). A conferir no banco vivo antes de aplicar: que as 9 **não existem** e que as portas chamadas por dentro existem com a assinatura esperada (lista em "Para ligar com o dono").
 
@@ -156,6 +156,13 @@ Volume: 300 pessoas · 300 mil cards (30 mil delegados) · 300 mil passagens · 
 - [ ] **Tablet/celular (INP):** não medido em aparelho (a mesa não abre a tela logada).
 - [x] **Telas tocadas adequadas:** o que ficou fora está em "Dívidas".
 
+## Rodada 2 (18/11 — os 2 ajustes da revisão)
+
+1. **A automação NOVA aberta direto pelo endereço** (`?a=nova` com F5 ou link) fazia 2 leituras de tabela (as etapas e as pessoas) — vinda da lista não acontecia, por isso o teste de tela não pegava. **Feito pelo caminho (a):** a porta `plt_fn_automacoes_abertura` ganhou o modo "só cadastros" (`p_so_cadastros`, 6º argumento — a migration ainda está só em arquivo, então a assinatura mudou no próprio arquivo, sem sobrecarga); `abrirCadastrosAutomacao` em `src/automacoes/api.ts` pede os dois numa chamada só quando faltam no cache (vinda da lista: nenhuma chamada); o editor da nova abre na hora e os cadastros ligam quando a chamada responde. **Nesse modo a porta não devolve dado de automação nenhum** — só as etapas ativas e o nome das pessoas ativas, que qualquer pessoa logada já lê direto (a RLS decide); por isso não há a recusa do super admin nele (a lista e a automação aberta seguem recusando). Provas: +2 na tela (`umaLeitura.test.tsx`: a nova pelo endereço = 1 chamada; a nova vinda da lista = 0) e +3 na bateria (só os cadastros; iguais aos que vêm com a lista; o operador, mesmo pedindo um id, não recebe automação).
+2. **Sobrava `invalidateQueries({ queryKey: ['meu-painel'] })`** em `src/afazeres/ModalTarefa.tsx` e `src/tech/JanelaSugestao.tsx` — nenhuma consulta mora mais sob essa chave. **Tiradas as duas**; não resta nenhuma menção a `'meu-painel'` como chave em `src/`.
+
+Rodadas da rodada 2: `npm run lint` limpo · `npm run build` ok (JS inicial 232,9 KB) · `npm test` 114 arquivos / **735 verdes** · `npm run test:banco` **2.006 ✔ / 1 ✘** (o mesmo `fn_dashboard_revenue_chart`; o bloco SESSAO-55 com 133 ✔).
+
 ---
 
 # Para entrar nas notas depois da dieta
@@ -212,7 +219,7 @@ Volume: 300 pessoas · 300 mil cards (30 mil delegados) · 300 mil passagens · 
 ## → [[SUPA - Esquema do Banco]]
 
 9 funções novas em `public` (todas `returns jsonb`, `security invoker`, `stable`, execução só para `authenticated`); **nenhuma tabela, coluna, índice, política ou gatilho**:
-`plt_fn_meu_trabalho(text, boolean)` · `plt_fn_dash_pessoas_abertura(numeric, bigint, boolean, bigint, boolean, boolean, integer)` · `plt_fn_dash_qualidade_abertura(numeric, bigint, boolean)` · `plt_fn_meu_desempenho_abertura(numeric, integer)` · `plt_fn_equipe_abertura()` · `plt_fn_api_abertura()` · `plt_fn_caminhoes_abertura(boolean, boolean)` · `plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean)` · `plt_fn_tempo_desligar_abertura()`.
+`plt_fn_meu_trabalho(text, boolean)` · `plt_fn_dash_pessoas_abertura(numeric, bigint, boolean, bigint, boolean, boolean, integer)` · `plt_fn_dash_qualidade_abertura(numeric, bigint, boolean)` · `plt_fn_meu_desempenho_abertura(numeric, integer)` · `plt_fn_equipe_abertura()` · `plt_fn_api_abertura()` · `plt_fn_caminhoes_abertura(boolean, boolean)` · `plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean, boolean)` · `plt_fn_tempo_desligar_abertura()`.
 Migrations: `20261118130000_plt_meu_trabalho_numa_leitura.sql` · `20261118130100_plt_dashboards_numa_leitura.sql` · `20261118130200_plt_configuracoes_numa_leitura.sql` — **não aplicadas**.
 
 ## → [[000 - MAPA DO PROJETO]] · [[000 - ORDEM DAS SESSOES]] · Próximos passos
