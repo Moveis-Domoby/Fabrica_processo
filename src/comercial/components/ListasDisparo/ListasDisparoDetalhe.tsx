@@ -396,9 +396,11 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
         {/* Main Content */}
         <div className="flex-1 space-y-6">
           <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20">
+            {/* SESSAO-54: no celular (375) os botões passavam da borda do cartão e o
+                "Disparar" ficava cortado — a linha agora quebra. */}
+            <div className="p-4 border-b border-border flex flex-wrap gap-2 justify-between items-center bg-muted/20">
               <h3 className="font-semibold">Membros da Lista</h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 justify-end">
                 {isSelectionMode ? (
                   <>
                     <button onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} className="flex items-center gap-2 text-sm bg-muted text-muted-foreground px-3 py-1.5 rounded-lg hover:bg-muted/80">
@@ -419,7 +421,7 @@ export function ListasDisparoDetalhe({ listaId, onBack }: ListasDisparoDetalhePr
                       <Download size={16} /> Exportar CSV
                     </button>
                     {lista.status === 'disparando' ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <div className="flex items-center gap-2 text-sm bg-orange-500/10 text-orange-500 px-3 py-1.5 rounded-lg font-medium">
                           <Loader2 size={16} className="animate-spin" />
                           Disparando... ({totalEnviados}/{totalMembros})
