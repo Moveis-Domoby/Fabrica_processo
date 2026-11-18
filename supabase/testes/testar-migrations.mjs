@@ -2907,15 +2907,17 @@ const definersS20 = (
       join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prosecdef
        and p.proname in ('fn_dashboard_revenue_chart','fn_dashboard_purchase_frequency',
-                         'fn_dashboard_transitions','fn_dashboard_transitions_summary',
+                         'fn_dashboard_transitions_summary',
                          'fn_dashboard_transition_clients','fn_dashboard_items',
                          'fn_dashboard_top_items_overall','fn_dashboard_scorecards',
                          'fn_filter_customers','fn_vendas_disparo_por_telefone',
                          'fn_clientes_consolidados','fn_vendas_cliente')`)
 ).rows[0]
+// ↩️ SESSAO-54 (DT-BD4): eram 12 — a fn_dashboard_transitions (legada, com a
+// chave do cliente, sem tela nenhuma) saiu na migration 20261118120000.
 conferir(
-  definersS20.total === 12,
-  'as 10 RPCs do recompra + fn_clientes_consolidados + fn_vendas_cliente são SECURITY DEFINER com gate (item 0/A)',
+  definersS20.total === 11,
+  'as 9 RPCs do recompra (a legada das transições saiu na SESSAO-54) + fn_clientes_consolidados + fn_vendas_cliente são SECURITY DEFINER com gate (item 0/A)',
   `definers: ${definersS20.total}`,
 )
 
@@ -13562,7 +13564,8 @@ const DASH86 = [
   ['fn_dashboard_items', 'month_str, item_name, quantidade'],
   ['fn_dashboard_purchase_frequency', 'pedidos_count, faturamento_total::text as fat, clientes_count'],
   ['fn_dashboard_transitions_summary', 'purchase_number, avg_days::text as media, client_count'],
-  ['fn_dashboard_transitions', 'client_id, purchase_number, days_since_last'],
+  // ↩️ SESSAO-54 (DT-BD4): a fn_dashboard_transitions saiu do banco (migration
+  // 20261118120000) — não há mais porta nova para comparar com a antiga.
 ]
 const difsDash = []
 let linhasDash = 0
@@ -13599,7 +13602,7 @@ conferir(difsDash.length === 0 && linhasDash > 1000
     // (os pedidos sem data formam o "mês" vazio, por último — como sempre foi)
     && ordemGrafico.every((r, i) => i === 0 || r.month_str === null || ordemGrafico[i - 1].month_str < r.month_str)
     && ordemItens.every((r, i) => i === 0 || ordemItens[i - 1].quantidade >= r.quantidade),
-  `Dashboard: as 7 portas novas = as antigas em ${PERIODOS86.length} períodos (${linhasDash} linhas) — período inteiro e meses inteiros saem das contas prontas`,
+  `Dashboard: as 6 portas novas = as antigas (a legada das transições saiu na SESSAO-54) em ${PERIODOS86.length} períodos (${linhasDash} linhas) — período inteiro e meses inteiros saem das contas prontas`,
   JSON.stringify(difsDash).slice(0, 1500))
 
 // 6 · Os maiores clientes e a atribuição do disparo
@@ -27100,6 +27103,236 @@ for (const arquivo55 of ['20261118130000_plt_meu_trabalho_numa_leitura.sql', '20
     await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
   }
 } // fim do bloco SESSAO-55
+
+
+// ============================================================================
+// SESSAO-54 · Comercial — a função antiga das transições sai do banco (DT-BD4)
+// e a tabela de clientes ordena no banco (DT-G16)
+// Faixas novas desta bateria: pedidos 9954001–9954320 · clientes "Cliente 54 #…"
+// ============================================================================
+titulo('SESSAO-54 · Comercial · a função antiga das transições saiu e nada no banco a cita')
+{ // escopo próprio (E-70) — os dois blocos da SESSAO-54
+const linhas54 = async (sql) => (await bd.query(sql)).rows
+const um54 = async (sql) => (await bd.query(sql)).rows[0]
+const ordenar54 = (rows) => rows.map((r) => JSON.stringify(r)).sort()
+{
+  await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`) // máquina: o gate deixa passar
+  const existe54 = await um54(`
+    select to_regprocedure('public.fn_dashboard_transitions(timestamptz, timestamptz)') is null as saiu,
+           to_regprocedure('public.fn_dashboard_transitions_summary(timestamptz, timestamptz)') is not null as resumo,
+           to_regprocedure('public.fn_dashboard_transition_clients(integer, timestamptz, timestamptz, integer, integer)') is not null as detalhe,
+           (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname = 'fn_dashboard_transitions') as sobrou`)
+  conferir(existe54.saiu && existe54.sobrou === 0, 'fn_dashboard_transitions não existe mais (nenhuma versão, com nenhuma assinatura)', JSON.stringify(existe54))
+  conferir(existe54.resumo && existe54.detalhe, 'o resumo do gráfico e o detalhe por cliente (as portas que a tela usa) continuam no lugar', JSON.stringify(existe54))
+  // ninguém no banco a cita: corpo de função, view, gatilho ou política
+  const cita54 = await um54(`
+    select (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname not in ('pg_catalog', 'information_schema') and p.prokind in ('f', 'p')
+               and p.prosrc ~ 'fn_dashboard_transitions(?!_summary)\\M') as funcoes,
+           (select count(*)::int from pg_views v
+             where v.schemaname not in ('pg_catalog', 'information_schema')
+               and v.definition ~ 'fn_dashboard_transitions(?!_summary)\\M') as views,
+           (select count(*)::int from pg_policies o
+             where coalesce(o.qual, '') || coalesce(o.with_check, '') ~ 'fn_dashboard_transitions(?!_summary)\\M') as politicas`)
+  conferir(cita54.funcoes === 0 && cita54.views === 0 && cita54.politicas === 0,
+    'nenhuma função, view ou política do banco cita a função removida', JSON.stringify(cita54))
+  // o gráfico segue respondendo (a porta que a tela chama)
+  const resumo54 = await linhas54(`select purchase_number, client_count from public.fn_dashboard_transitions_summary(null, null)`)
+  conferir(Array.isArray(resumo54), `o resumo das transições responde como sempre (${resumo54.length} linhas)`)
+  // remover de novo não quebra (a migration roda duas vezes na subida de teste)
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261118120000_plt_comercial_remove_funcao_antiga.sql'), 'utf8'))
+  conferir(true, 'a remoção rodada de novo, com a função já fora, não dá erro')
+}
+
+titulo('SESSAO-54 · Comercial · a tabela de clientes ordena o resultado INTEIRO no banco (mesma porta, mesma assinatura)')
+{
+  await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+  // a porta de antes (a da migration 20261016110000), com outro nome — a régua
+  const m86 = (await readFile(path.join(MIGRATIONS, '20261016110000_plt_comercial_tela_pronta.sql'), 'utf8')).replace(/\r\n/g, '\n')
+  const ini54 = m86.indexOf('create or replace function public.fn_filter_customers(')
+  const fim54 = m86.indexOf('$function$;', ini54)
+  if (ini54 < 0 || fim54 < 0) throw new Error('SESSAO-54: a porta de antes não foi achada na migration 20261016110000')
+  const antes54 = m86.slice(ini54, fim54 + '$function$;'.length)
+  await bd.exec(antes54.replace('public.fn_filter_customers(', 'public.fn_filter_customers_v86('))
+  await bd.exec('begin')
+  try {
+    // clientes e pedidos próprios (faixa 9954001–9954320): datas espalhadas em
+    // 2 anos, empates de data entre clientes, cliente sem telefone e 3 pedidos sem data
+    await bd.exec(`
+      insert into public.clientes (nome, fone, raw)
+      select 'Cliente 54 #' || g,
+             case when g % 6 = 0 then null else '(84) 95' || lpad(g::text, 3, '0') || '-' || lpad((g * 3)::text, 4, '0') end,
+             '{}'::jsonb
+        from generate_series(1, 80) g;
+      insert into public.pedidos (numero, cliente_id, situacao, data_pedido, total_pedido, total_produtos, raw)
+      select 9954000 + g,
+             (select c.id from public.clientes c where c.nome = 'Cliente 54 #' || (1 + (g * 29) % 80)),
+             'Entregue',
+             case when g > 317 then null else date '2034-01-01' + ((g * 41) % 60) * 11 end,
+             round(((g * 83) % 2500 + 50.5)::numeric, 2),
+             round(((g * 83) % 2500 + 50.5)::numeric, 2),
+             jsonb_build_object(
+               'cliente', jsonb_build_object('nome', 'Cliente 54 #' || (1 + (g * 29) % 80)),
+               'itens', jsonb_build_array(jsonb_build_object('item', jsonb_build_object(
+                          'descricao', 'Produto 54 ' || chr(65 + (g % 4)), 'quantidade', '1.00', 'valor_unitario', '10.00'))))
+        from generate_series(1, 320) g;
+    `)
+    const n54 = (await um54(`select count(*)::int as n from public.plt_comercial_clientes`)).n
+    conferir(n54 >= 80, `a tela pronta recebeu os clientes do ensaio (${n54} clientes)`)
+
+    const COLS54 = `nome_cliente, telefone_cliente, quantidade_pedidos, faturamento_total::text as fat, total_itens,
+        data_primeira_compra, ultima_compra, pedidos_vida, is_recorrente, total_count::int as total`
+    const ler54 = (fn, f, lim = 100000, des = 0) =>
+      linhas54(`select ${COLS54} from public.${fn}('${JSON.stringify(f).replace(/'/g, "''")}'::jsonb, ${lim}, ${des})`)
+    const FILTROS54 = [
+      {}, { dateFilter: 'all' }, { dateFilter: 'all', selectedItems: ['all'], purchaseCount: ['all'] },
+      { dateFilter: 'specificMonth', specificMonth: '2034-03' }, { dateFilter: 'specificDay', specificDay: '2034-01-12' },
+      { dateFilter: 'custom', customDateStart: '2034-02-01' }, { dateFilter: 'custom', customDateEnd: '2034-06-30' },
+      { dateFilter: 'custom' }, { dateFilter: 'all', searchQuery: '95012' }, { dateFilter: 'all', searchQuery: '   ' },
+      { dateFilter: 'all', inactiveBeforeDate: '2035-01-01' }, { dateFilter: 'all', recompraMinDays: '10', recompraMaxDays: '400' },
+      { dateFilter: 'all', spendAmount: '3000', spendType: 'total', spendMode: 'above' },
+      { dateFilter: 'all', spendAmount: '1200', spendType: 'avg', spendMode: 'around' },
+      { dateFilter: 'specificYear', specificYear: '2035', purchaseCount: ['10+'], searchQuery: 'Cliente' },
+      { dateFilter: 'all', searchQuery: 'Cliente 54' },
+      { dateFilter: 'specificYear', specificYear: '2034' },
+      { dateFilter: 'custom', customDateStart: '2034-03-01', customDateEnd: '2035-02-28' },
+      { dateFilter: 'all', selectedItems: ['Produto 54 A'] },
+      { dateFilter: 'all', purchaseCount: ['3', '4'] },
+    ]
+
+    // 1 · quem já chama a porta (sem a chave, com "desc" ou com qualquer outro
+    //     valor) recebe EXATAMENTE o que recebia: mesmas linhas, na mesma ordem
+    const difs54 = []
+    let contadas54 = 0
+    for (const f of FILTROS54) {
+      const antes = JSON.stringify(await ler54('fn_filter_customers_v86', f))
+      for (const extra of [{}, { sortOrder: 'desc' }, { sortOrder: 'DESC' }, { sortOrder: '' }, { sortOrder: 'qualquer' }, { sortOrder: null }]) {
+        const agora = await ler54('fn_filter_customers', { ...f, ...extra })
+        contadas54 += agora.length
+        if (JSON.stringify(agora) !== antes) difs54.push({ f, extra })
+      }
+    }
+    conferir(difs54.length === 0 && contadas54 > 2000,
+      `sem a chave da ordem (ou com "desc"/valor desconhecido), a porta devolve linha a linha, na mesma ordem, o que a de antes devolvia — ${FILTROS54.length} filtros × 6 jeitos (${contadas54} linhas)`,
+      JSON.stringify(difs54).slice(0, 800))
+
+    // 2 · "mais antiga primeiro": os MESMOS clientes, do mais antigo para o mais
+    //     recente no resultado inteiro (os dois caminhos da porta)
+    const difsAsc = []
+    let linhasAsc = 0
+    for (const f of FILTROS54) {
+      const desc = await ler54('fn_filter_customers', f)
+      const asc = await ler54('fn_filter_customers', { ...f, sortOrder: 'asc' })
+      linhasAsc += asc.length
+      const mesmos = JSON.stringify(ordenar54(desc)) === JSON.stringify(ordenar54(asc))
+      // crescente; quem não tem data fica no fim (no "desc" de sempre fica no começo)
+      const crescente = asc.every((r, i) => i === 0 || asc[i - 1].ultima_compra === null && r.ultima_compra === null
+        || (asc[i - 1].ultima_compra !== null && (r.ultima_compra === null || new Date(asc[i - 1].ultima_compra) <= new Date(r.ultima_compra))))
+      if (!mesmos || !crescente) difsAsc.push({ f, desc: desc.length, asc: asc.length, mesmos, crescente })
+    }
+    conferir(difsAsc.length === 0 && linhasAsc > 400,
+      `"mais antiga primeiro" traz os mesmos clientes, em ordem crescente da última compra, nos ${FILTROS54.length} filtros (${linhasAsc} linhas)`,
+      JSON.stringify(difsAsc).slice(0, 800))
+
+    // 3 · o defeito de antes: a 1ª página do "mais antiga primeiro" é o COMEÇO do
+    //     resultado inteiro (os mais antigos de todos), não a página 1 invertida
+    for (const [nome, f] of [['período inteiro (a tela pronta)', {}], ['com busca (o outro caminho)', { dateFilter: 'all', searchQuery: 'Cliente' }]]) {
+      const inteiraAsc = await ler54('fn_filter_customers', { ...f, sortOrder: 'asc' })
+      const pag1Asc = await ler54('fn_filter_customers', { ...f, sortOrder: 'asc' }, 50, 0)
+      const pag1Desc = await ler54('fn_filter_customers', f, 50, 0)
+      const maisAntiga = (await um54(`select min(x.ultima_compra) as d from public.fn_filter_customers('${JSON.stringify(f)}'::jsonb, 100000, 0) x`)).d
+      const invertida = JSON.stringify([...pag1Desc].reverse().map((r) => r.nome_cliente))
+      conferir(inteiraAsc.length > 50
+          && JSON.stringify(pag1Asc) === JSON.stringify(inteiraAsc.slice(0, 50))
+          && String(pag1Asc[0].ultima_compra) === String(maisAntiga)
+          && JSON.stringify(pag1Asc.map((r) => r.nome_cliente)) !== invertida,
+        `${nome}: a página 1 de "mais antiga primeiro" começa no cliente mais antigo de todos (${inteiraAsc.length} clientes) — não é mais a página 1 de cabeça para baixo`)
+      // página por página = a lista inteira, sem repetir nem pular (o desempate fixo vale nas duas ordens)
+      const paginas = []
+      for (let o = 0; o < inteiraAsc.length + 7; o += 7) paginas.push(...(await ler54('fn_filter_customers', { ...f, sortOrder: 'asc' }, 7, o)))
+      conferir(JSON.stringify(paginas) === JSON.stringify(inteiraAsc),
+        `${nome}: de 7 em 7 na ordem crescente, as páginas = a lista inteira, sem repetir nem pular`)
+    }
+
+    // 4 · a porta é a mesma: uma assinatura só, as mesmas permissões e o mesmo gate
+    const porta54 = await um54(`
+      select count(*)::int as versoes,
+             max(pg_get_function_identity_arguments(p.oid)) as argumentos,
+             bool_and(p.prosecdef) as definer,
+             bool_and(has_function_privilege('authenticated', p.oid, 'execute')) as logado,
+             bool_or(has_function_privilege('anon', p.oid, 'execute')) as anonimo,
+             bool_and(p.prosrc like '%fn_negar_sem_modulo(''comercial'')%') as gate
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'fn_filter_customers'`)
+    conferir(porta54.versoes === 1 && porta54.argumentos === 'p_filters jsonb, p_limit integer, p_offset integer'
+        && porta54.definer && porta54.logado && !porta54.anonimo && porta54.gate,
+      'a porta continua uma só, com a mesma assinatura, o mesmo gate do módulo e as permissões de sempre (logado sim, anônimo não)',
+      JSON.stringify(porta54))
+
+    // 5 · O ensaio de volume (Lei de Desempenho §7.2) — só quando pedido
+    //     (PLANO54=1 npm run test:banco): ~100× o Comercial de hoje direto nas
+    //     tabelas prontas (sem passar pelos gatilhos), a porta de antes × a de
+    //     agora, nas duas ordens e nos dois caminhos. Não é conferência: imprime.
+    if (process.env.PLANO54) {
+      try {
+        const N_CLI = Number(process.env.PLANO54_CLIENTES ?? 400000)
+        const N_VEN = Number(process.env.PLANO54_VENDAS ?? 557000)
+        await bd.exec(`
+          insert into public.plt_comercial_clientes (cid, nome_max, telefone_max, pedidos_vida, faturamento_vida, itens_vida, primeira_compra, ultima_compra, gap_dias)
+          select 'v54-' || g, 'Volume 54 #' || g, '8491' || lpad(g::text, 7, '0'), 1 + (g % 4), 500 + (g % 3000), 1 + (g % 6),
+                 timestamptz '2030-01-01 03:00+00' + (g % 1000) * interval '1 day',
+                 timestamptz '2033-01-01 03:00+00' + (g % 1400) * interval '1 day',
+                 case when g % 4 > 0 then g % 300 end
+            from generate_series(1, ${N_CLI}) g;
+          insert into public.plt_comercial_vendas (pedido_id, id, numero_pedido, nome_cliente, telefone_cliente, cid, telefone_digitos,
+                 telefone_normalizado, data_compra, mes, valor_pedido, numero_itens, itens_comprados, item_nomes, ordem_cliente, data_anterior, created_at)
+          select 80000000 + g, md5('v54:' || g)::uuid, 'V54-' || g, 'Volume 54 #' || (1 + g % ${N_CLI}), '8491' || lpad((1 + g % ${N_CLI})::text, 7, '0'),
+                 'v54-' || (1 + g % ${N_CLI}), '8491' || lpad((1 + g % ${N_CLI})::text, 7, '0'), '8491' || lpad((1 + g % ${N_CLI})::text, 7, '0'),
+                 timestamptz '2033-01-01 03:00+00' + (g % 1400) * interval '1 day',
+                 to_char(timestamptz '2033-01-01 03:00+00' + (g % 1400) * interval '1 day', 'YYYY-MM'),
+                 100 + (g % 2500), 1, '[]'::jsonb, array['Produto V54 ' || chr(65 + (g % 8))], 1 + (g / ${N_CLI}), null, now()
+            from generate_series(1, ${N_VEN}) g;
+          analyze public.plt_comercial_clientes;
+          analyze public.plt_comercial_vendas;
+        `)
+        const tam = await um54(`select (select count(*)::int from public.plt_comercial_clientes) as clientes, (select count(*)::int from public.plt_comercial_vendas) as vendas`)
+        console.log(`  · ensaio de volume: ${tam.clientes} clientes e ${tam.vendas} vendas nas tabelas prontas`)
+        const CASOS = [
+          ['período inteiro (a tela pronta)', {}],
+          ['um mês', { dateFilter: 'specificMonth', specificMonth: '2034-03' }],
+          ['um ano', { dateFilter: 'specificYear', specificYear: '2034' }],
+          ['busca por nome', { dateFilter: 'all', searchQuery: 'Volume 54 #1234' }],
+          ['um produto', { dateFilter: 'all', selectedItems: ['Produto V54 A'] }],
+        ]
+        const medir = async (fn, f, des) => {
+          const j = JSON.stringify(f).replace(/'/g, "''")
+          const tempos = []
+          for (let i = 0; i < 4; i += 1) {
+            const pl = await linhas54(`explain (analyze, buffers) select * from public.${fn}('${j}'::jsonb, 50, ${des})`)
+            const linha = pl.map((r) => r['QUERY PLAN']).find((t) => /Execution Time/.test(t))
+            tempos.push(Number(/([\d.]+) ms/.exec(linha)[1]))
+          }
+          return Math.min(...tempos.slice(1)).toFixed(1) // a 1ª aquece
+        }
+        for (const [nome, f] of CASOS) {
+          for (const des of [0, 5000]) {
+            const antes = await medir('fn_filter_customers_v86', f, des)
+            const desc = await medir('fn_filter_customers', f, des)
+            const asc = await medir('fn_filter_customers', { ...f, sortOrder: 'asc' }, des)
+            console.log(`  · ${nome}, 50 linhas a partir da ${des}: antes ${antes} ms · agora (mais recente primeiro) ${desc} ms · agora (mais antiga primeiro) ${asc} ms`)
+          }
+        }
+      } catch (erro) {
+        console.log(`  · ensaio de volume não coube neste Postgres de teste: ${erro.message}`)
+      }
+    }
+  } finally {
+    await bd.exec('rollback')
+    await bd.exec('drop function if exists public.fn_filter_customers_v86(jsonb, integer, integer)')
+  }
+}
+} // fim do bloco SESSAO-54
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
