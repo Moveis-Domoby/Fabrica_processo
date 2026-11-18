@@ -1,4 +1,6 @@
+import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { faltaNoCache } from '@/lib/semear'
 import type { Gatilho } from './catalogo'
 import type { DesenhoGuardado, Passo } from './desenho'
 
@@ -71,24 +73,63 @@ export interface Execucao {
   atualizada_em: string
 }
 
+/** Os cadastros que os blocos usam e que têm vida própria no cache (E-22). */
+export const CHAVE_ETAPAS_ATIVAS = ['etapas-ativas'] as const
+export const CHAVE_USUARIOS_ATIVOS = ['usuarios-ativos'] as const
+/** A validade das duas consultas (a mesma de sempre). */
+export const VALIDADE_CADASTROS_MS = 5 * 60_000
+
+interface AberturaAutomacoes {
+  lista?: (AutomacaoResumo & { contagem_total: number })[]
+  automacao?: Automacao
+  etapas?: unknown[]
+  pessoas?: { id: string; nome: string }[]
+}
+
+/**
+ * SESSAO-55 (Lei §2): a lista (ou a automação aberta) numa requisição — junto
+ * vêm as etapas e as pessoas que os blocos usam, quando o guardado não existe ou
+ * envelheceu, e entram no cache com as chaves de sempre. Antes eram 3 leituras.
+ */
+async function abrirAutomacoes(
+  clienteQuery: QueryClient,
+  parametros: Record<string, unknown>,
+  contexto: string,
+): Promise<AberturaAutomacoes> {
+  const { data, error } = await supabase.rpc('plt_fn_automacoes_abertura', {
+    ...parametros,
+    p_cadastros:
+      faltaNoCache(clienteQuery, CHAVE_ETAPAS_ATIVAS, VALIDADE_CADASTROS_MS) ||
+      faltaNoCache(clienteQuery, CHAVE_USUARIOS_ATIVOS, VALIDADE_CADASTROS_MS),
+  })
+  if (error) throw new Error(`${contexto}: ${error.message}`)
+  const r = (data ?? {}) as AberturaAutomacoes
+  if (r.etapas) clienteQuery.setQueryData(CHAVE_ETAPAS_ATIVAS, r.etapas)
+  if (r.pessoas) clienteQuery.setQueryData(CHAVE_USUARIOS_ATIVOS, r.pessoas)
+  return r
+}
+
 export async function listarAutomacoes(
   pagina: number,
-  arquivadas = false,
+  arquivadas: boolean,
+  clienteQuery: QueryClient,
 ): Promise<{ linhas: AutomacaoResumo[]; total: number }> {
-  const { data, error } = await supabase.rpc('plt_fn_automacoes', {
-    p_limite: POR_PAGINA_AUTOMACOES,
-    p_deslocamento: (pagina - 1) * POR_PAGINA_AUTOMACOES,
-    p_arquivadas: arquivadas,
-  })
-  if (error) throw new Error(`Não deu para carregar as automações: ${error.message}`)
-  const linhas = (data ?? []) as (AutomacaoResumo & { contagem_total: number })[]
+  const r = await abrirAutomacoes(
+    clienteQuery,
+    {
+      p_limite: POR_PAGINA_AUTOMACOES,
+      p_deslocamento: (pagina - 1) * POR_PAGINA_AUTOMACOES,
+      p_arquivadas: arquivadas,
+    },
+    'Não deu para carregar as automações',
+  )
+  const linhas = r.lista ?? []
   return { linhas, total: Number(linhas[0]?.contagem_total ?? 0) }
 }
 
-export async function buscarAutomacao(id: number): Promise<Automacao> {
-  const { data, error } = await supabase.rpc('plt_fn_automacao', { p_id: id })
-  if (error) throw new Error(`Não deu para abrir a automação: ${error.message}`)
-  return data as Automacao
+export async function buscarAutomacao(id: number, clienteQuery: QueryClient): Promise<Automacao> {
+  const r = await abrirAutomacoes(clienteQuery, { p_id: id }, 'Não deu para abrir a automação')
+  return r.automacao as Automacao
 }
 
 export async function salvarAutomacao(parametros: {

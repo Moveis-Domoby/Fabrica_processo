@@ -31,7 +31,7 @@ import {
   excluirUsuario,
 } from '@/autenticacao/api'
 import type { UsuarioCriado } from '@/autenticacao/api'
-import { COLUNAS_PERFIL, ehSoEntregador, ROTULO_PAPEL } from '@/autenticacao/tipos'
+import { ehSoEntregador, ROTULO_PAPEL } from '@/autenticacao/tipos'
 import { definirEntregador } from '@/rotas/api'
 import { definirModoTv } from '@/dashboards/tempos/api'
 import type { Papel, Perfil } from '@/autenticacao/tipos'
@@ -41,24 +41,31 @@ import type { PessoaDaEquipe } from './equipe/EditarUsuario'
 
 type LinhaEquipe = PessoaDaEquipe
 
+/**
+ * SESSAO-55 (Lei §2): a Equipe numa requisição — as pessoas e os vínculos de
+ * setor vêm da porta de abertura da tela (antes eram 2 leituras). A porta lê as
+ * mesmas colunas do perfil, com a mesma permissão de quem pede.
+ */
 async function buscarEquipe(): Promise<LinhaEquipe[]> {
-  const [pessoas, vinculos] = await Promise.all([
-    // A conta do tablet de cada setor é do APARELHO, não de uma pessoa: fica
-    // fora da Equipe (arquivá-la por engano trava o tablet do setor).
-    supabase.from('plt_usuarios').select(COLUNAS_PERFIL).eq('conta_tablet', false).order('nome'),
-    supabase
-      .from('plt_usuario_setores')
-      .select('usuario_id, setor_id, lider_do_setor, setor:plt_setores(nome)'),
-  ])
+  // A conta do tablet de cada setor é do APARELHO, não de uma pessoa: fica
+  // fora da Equipe (arquivá-la por engano trava o tablet do setor) — a porta
+  // já a deixa de fora.
+  const { data, error } = await supabase.rpc('plt_fn_equipe_abertura')
+  if (error) throw new Error(`Não deu para carregar a equipe: ${error.message}`)
+  const { pessoas, vinculos } = (data ?? { pessoas: [], vinculos: [] }) as {
+    pessoas: Perfil[]
+    vinculos: {
+      usuario_id: string
+      setor_id: number
+      lider_do_setor: boolean
+      setor: { nome: string } | null
+    }[]
+  }
   const setoresPorPessoa = new Map<string, string[]>()
   const listaPorPessoa = new Map<string, { nome: string; lider: boolean }[]>()
   const vinculosPorPessoa = new Map<string, { setor_id: number; lider: boolean }[]>()
-  for (const v of (vinculos.data ?? []) as unknown as {
-    usuario_id: string
-    setor_id: number
-    lider_do_setor: boolean
-    setor: { nome: string }
-  }[]) {
+  for (const v of vinculos) {
+    if (!v.setor) continue
     const lista = setoresPorPessoa.get(v.usuario_id) ?? []
     lista.push(v.lider_do_setor ? `${v.setor.nome} (líder)` : v.setor.nome)
     setoresPorPessoa.set(v.usuario_id, lista)
@@ -69,7 +76,7 @@ async function buscarEquipe(): Promise<LinhaEquipe[]> {
     ids.push({ setor_id: Number(v.setor_id), lider: v.lider_do_setor })
     vinculosPorPessoa.set(v.usuario_id, ids)
   }
-  return ((pessoas.data ?? []) as Perfil[]).map((p) => ({
+  return pessoas.map((p) => ({
     ...p,
     setores: (setoresPorPessoa.get(p.id) ?? []).join(' · ') || '—',
     listaSetores: listaPorPessoa.get(p.id) ?? [],

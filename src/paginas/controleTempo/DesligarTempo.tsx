@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarNomesUsuarios, buscarSetores } from '@/kanban/api'
 import {
+  abrirDesligarTempo,
   criarHorarios,
   criarPausa,
   listarHorarios,
@@ -36,17 +37,36 @@ export function DesligarTempo() {
   const clienteQuery = useQueryClient()
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
+  // SESSAO-55 (Lei §3 — 1 requisição por clique): os nomes, os horários e as
+  // pausas chegam JUNTOS quando o bloco abre (antes eram 3 leituras) e entram no
+  // cache com as chaves de sempre; as três consultas só ligam depois (`pronto`),
+  // acham o dado guardado e relêem sozinhas só no gesto que as muda.
+  const { isFetched: pronto } = useQuery({
+    queryKey: ['tempo', 'desligar-abertura'],
+    queryFn: () => abrirDesligarTempo(clienteQuery),
+  })
   const { data: nomesUsuarios = new Map<string, string>() } = useQuery({
     queryKey: ['usuarios', 'nomes'],
     queryFn: buscarNomesUsuarios,
-    staleTime: 5 * 60_000,
+    enabled: pronto,
+    staleTime: Infinity,
   })
   const usuarios = [...nomesUsuarios.entries()]
     .map(([id, nome]) => ({ id, nome }))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
-  const { data: horarios = [] } = useQuery({ queryKey: ['horarios'], queryFn: listarHorarios })
-  const { data: pausas = [] } = useQuery({ queryKey: ['pausas'], queryFn: listarPausas })
+  const { data: horarios = [] } = useQuery({
+    queryKey: ['horarios'],
+    queryFn: listarHorarios,
+    enabled: pronto,
+    staleTime: Infinity,
+  })
+  const { data: pausas = [] } = useQuery({
+    queryKey: ['pausas'],
+    queryFn: listarPausas,
+    enabled: pronto,
+    staleTime: Infinity,
+  })
   const horariosDePessoa = horarios.filter((h) => h.escopo === 'usuario')
 
   // SESSAO-38 (D-172): mudou horário ou pausa → a régua do tempo útil dos

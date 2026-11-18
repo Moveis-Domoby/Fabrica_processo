@@ -20,9 +20,7 @@ vi.mock('@/admin/api', async (original) => {
   const real = await original<typeof import('@/admin/api')>()
   return {
     ...real,
-    listarChavesApi: vi.fn(async () => []),
-    listarWebhooks: vi.fn(async () => []),
-    entregasRecentes: vi.fn(async () => []),
+    abrirApiIntegracoes: vi.fn(async () => ({ chaves: [], webhooks: [], entregas: [] })),
     iniciarApiNovaFabrica: vi.fn(async () => {
       throw new Error('Faltam os segredos do aplicativo do Tiny da fábrica no painel da Supabase.')
     }),

@@ -1,4 +1,5 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
+import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -35,6 +36,26 @@ export interface PausaTempo {
 const COLUNAS_HORARIO = 'id, escopo, setor_id, usuario_id, dia_semana, hora_inicio, hora_fim'
 const COLUNAS_PAUSA =
   'id, escopo, setor_id, usuario_id, inicio, fim, retroativa, motivo, criado_por, criado_em'
+
+/**
+ * SESSAO-55 (Lei §3 — 1 requisição por clique): o bloco "Desligar o tempo" numa
+ * leitura — os nomes das pessoas, os horários e as pausas vêm juntos e entram
+ * no cache com as chaves de sempre (E-22); cada lista relê sozinha só no gesto
+ * que a muda.
+ */
+export async function abrirDesligarTempo(clienteQuery: QueryClient): Promise<true> {
+  const { data, error } = await supabase.rpc('plt_fn_tempo_desligar_abertura')
+  if (error) throw new Error(`Não deu para carregar o controle de tempo: ${error.message}`)
+  const r = data as {
+    usuarios: { id: string; nome: string }[]
+    horarios: HorarioFuncionamento[]
+    pausas: PausaTempo[]
+  }
+  clienteQuery.setQueryData(['usuarios', 'nomes'], new Map(r.usuarios.map((u) => [u.id, u.nome])))
+  clienteQuery.setQueryData(['horarios'], r.horarios)
+  clienteQuery.setQueryData(['pausas'], r.pausas)
+  return true
+}
 
 export async function listarHorarios(): Promise<HorarioFuncionamento[]> {
   const { data, error } = await supabase
@@ -130,15 +151,6 @@ export interface ChaveApi {
   ultimo_uso_em: string | null
 }
 
-export async function listarChavesApi(): Promise<ChaveApi[]> {
-  const { data, error } = await supabase
-    .from('plt_chaves_api')
-    .select('id, nome, prefixo, escopo, criada_em, revogada_em, ultimo_uso_em')
-    .order('criada_em', { ascending: false })
-  if (error) throw new Error(`Não deu para carregar as chaves: ${error.message}`)
-  return (data ?? []) as ChaveApi[]
-}
-
 /**
  * Gera a chave NO NAVEGADOR e guarda só o hash (Q-50): o valor `pltk_…` é
  * devolvido UMA vez para o admin copiar — nunca mais aparece.
@@ -207,13 +219,24 @@ export interface EntregaWebhook {
   criada_em: string
 }
 
-export async function listarWebhooks(): Promise<Webhook[]> {
-  const { data, error } = await supabase
-    .from('plt_webhooks')
-    .select('id, nome, url, eventos, ativo, criado_em')
-    .order('criado_em', { ascending: false })
-  if (error) throw new Error(`Não deu para carregar os webhooks: ${error.message}`)
-  return (data ?? []) as Webhook[]
+export interface ApiIntegracoes {
+  chaves: ChaveApi[]
+  webhooks: Webhook[]
+  entregas: EntregaWebhook[]
+}
+
+export const CHAVE_API_INTEGRACOES = ['api-integracoes'] as const
+
+/**
+ * SESSAO-55 (Lei §2): Configurações → API e integrações numa requisição — as
+ * chaves, os webhooks e as últimas entregas (antes eram 3 leituras). A porta lê
+ * as mesmas tabelas com a permissão de quem pede (só admin vê).
+ */
+export async function abrirApiIntegracoes(): Promise<ApiIntegracoes> {
+  const { data, error } = await supabase.rpc('plt_fn_api_abertura')
+  if (error) throw new Error(`Não deu para carregar as integrações: ${error.message}`)
+  const r = (data ?? {}) as Partial<ApiIntegracoes>
+  return { chaves: r.chaves ?? [], webhooks: r.webhooks ?? [], entregas: r.entregas ?? [] }
 }
 
 export async function criarWebhook(parametros: {
@@ -236,16 +259,6 @@ export async function criarWebhook(parametros: {
 export async function alternarWebhook(id: number, ativo: boolean): Promise<void> {
   const { error } = await supabase.from('plt_webhooks').update({ ativo }).eq('id', id)
   if (error) throw new Error(`Não deu para atualizar o webhook: ${error.message}`)
-}
-
-export async function entregasRecentes(): Promise<EntregaWebhook[]> {
-  const { data, error } = await supabase
-    .from('plt_webhook_entregas')
-    .select('id, webhook_id, situacao, tentativas, ultimo_erro, criada_em')
-    .order('criada_em', { ascending: false })
-    .limit(20)
-  if (error) throw new Error(`Não deu para carregar as entregas: ${error.message}`)
-  return (data ?? []) as EntregaWebhook[]
 }
 
 /**

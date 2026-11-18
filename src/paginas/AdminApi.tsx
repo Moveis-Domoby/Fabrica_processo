@@ -16,16 +16,20 @@ import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { ehSuperAdmin } from '@/autenticacao/tipos'
 import {
+  CHAVE_API_INTEGRACOES,
   EVENTOS_WEBHOOK,
+  abrirApiIntegracoes,
   alternarWebhook,
   criarChaveApi,
   criarWebhook,
-  entregasRecentes,
   iniciarApiNovaFabrica,
-  listarChavesApi,
-  listarWebhooks,
   revogarChaveApi,
 } from '@/admin/api'
+import type { ChaveApi, EntregaWebhook, Webhook } from '@/admin/api'
+
+const NENHUMA_CHAVE: ChaveApi[] = []
+const NENHUM_WEBHOOK: Webhook[] = []
+const NENHUMA_ENTREGA: EntregaWebhook[] = []
 
 function quando(iso: string | null): string {
   return iso
@@ -99,14 +103,16 @@ export function AdminApi() {
       }),
   })
 
-  const { data: chaves = [] } = useQuery({ queryKey: ['chaves-api'], queryFn: listarChavesApi })
-  const { data: webhooks = [] } = useQuery({ queryKey: ['webhooks'], queryFn: listarWebhooks })
-  const { data: entregas = [] } = useQuery({
-    queryKey: ['webhook-entregas'],
-    queryFn: entregasRecentes,
-    // SESSAO-32 (Lei §4): sem relógio — a lista lê ao abrir e no "Atualizar".
-    staleTime: Infinity,
+  // SESSAO-55 (Lei §2): a tela numa requisição — as chaves, os webhooks e as
+  // últimas entregas vêm juntos (antes eram 3 leituras). SESSAO-32 (Lei §4): sem
+  // relógio — lê ao abrir, depois de um gesto e no "Atualizar".
+  const { data: integracoes } = useQuery({
+    queryKey: CHAVE_API_INTEGRACOES,
+    queryFn: abrirApiIntegracoes,
   })
+  const chaves = integracoes?.chaves ?? NENHUMA_CHAVE
+  const webhooks = integracoes?.webhooks ?? NENHUM_WEBHOOK
+  const entregas = integracoes?.entregas ?? NENHUMA_ENTREGA
 
   function aoErro(titulo: string) {
     return (excecao: unknown) =>
@@ -128,7 +134,7 @@ export function AdminApi() {
     onSuccess: async (valor) => {
       setChaveRecemCriada(valor)
       setNomeChave('')
-      await clienteQuery.invalidateQueries({ queryKey: ['chaves-api'] })
+      await clienteQuery.invalidateQueries({ queryKey: CHAVE_API_INTEGRACOES })
     },
     onError: aoErro('Não deu para criar a chave'),
   })
@@ -136,7 +142,7 @@ export function AdminApi() {
     mutationFn: revogarChaveApi,
     onSuccess: async () => {
       notificar({ titulo: 'Chave revogada — parou de funcionar agora', tom: 'atencao' })
-      await clienteQuery.invalidateQueries({ queryKey: ['chaves-api'] })
+      await clienteQuery.invalidateQueries({ queryKey: CHAVE_API_INTEGRACOES })
     },
     onError: aoErro('Não deu para revogar'),
   })
@@ -164,14 +170,14 @@ export function AdminApi() {
       setNomeWebhook('')
       setUrlWebhook('')
       setSegredoWebhook('')
-      await clienteQuery.invalidateQueries({ queryKey: ['webhooks'] })
+      await clienteQuery.invalidateQueries({ queryKey: CHAVE_API_INTEGRACOES })
     },
     onError: aoErro('Não deu para criar o webhook'),
   })
   const alternarMutacao = useMutation({
     mutationFn: (parametros: { id: number; ativo: boolean }) =>
       alternarWebhook(parametros.id, parametros.ativo),
-    onSuccess: () => clienteQuery.invalidateQueries({ queryKey: ['webhooks'] }),
+    onSuccess: () => clienteQuery.invalidateQueries({ queryKey: CHAVE_API_INTEGRACOES }),
     onError: aoErro('Não deu para atualizar'),
   })
 
@@ -454,7 +460,7 @@ export function AdminApi() {
                 variante="secundaria"
                 icone={<RefreshCw />}
                 onClick={() =>
-                  void clienteQuery.invalidateQueries({ queryKey: ['webhook-entregas'] })
+                  void clienteQuery.invalidateQueries({ queryKey: CHAVE_API_INTEGRACOES })
                 }
               >
                 Atualizar

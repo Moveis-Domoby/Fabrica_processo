@@ -14,16 +14,21 @@ import { ligarEntregaTiny, reenviarEntregaTiny, situacaoEntregaTiny } from './ap
  * pedido real. O admin vê a situação; só o super admin liga, desliga e manda
  * de novo o pedido que parou. Lido só aqui (regra 17), sem relógio.
  */
-export function CartaoEntregaTiny() {
+export function CartaoEntregaTiny({ pronto = true }: { pronto?: boolean }) {
   const { perfil } = useSessao()
   const superAdmin = ehSuperAdmin(perfil)
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const [confirmando, setConfirmando] = useState(false)
 
+  // SESSAO-55 (Lei §2): a situação vem na abertura da tela dos Caminhões (uma
+  // requisição) — esta consulta só liga depois (`pronto`), acha o dado guardado
+  // e não pede de novo; ela relê no gesto (ligar, desligar, mandar de novo).
   const { data: s, isPending } = useQuery({
     queryKey: ['tiny-entrega'],
     queryFn: situacaoEntregaTiny,
+    enabled: pronto,
+    staleTime: Infinity,
   })
   const ligada = Boolean(s?.ligado_desde)
 

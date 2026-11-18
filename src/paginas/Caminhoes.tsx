@@ -12,7 +12,7 @@ import {
   criarCaminhao,
   enviarFotoCaminhao,
   excluirCaminhao,
-  listarCaminhoes,
+  abrirCaminhoes,
   removerFotoCaminhao,
   urlFotoCaminhao,
 } from '@/admin/caminhoes'
@@ -35,9 +35,15 @@ export function Caminhoes() {
   const [excluindo, setExcluindo] = useState<Caminhao | null>(null)
   const [emUso, setEmUso] = useState<Caminhao | null>(null)
 
-  const { data: caminhoes = [], isPending } = useQuery({
+  // SESSAO-55 (Lei §2): a tela numa requisição — a lista e a situação do cartão
+  // "Entregue vai ao Tiny" vêm juntas.
+  const {
+    data: caminhoes = [],
+    isPending,
+    isFetched,
+  } = useQuery({
     queryKey: ['caminhoes', mostrarArquivados],
-    queryFn: () => listarCaminhoes(mostrarArquivados),
+    queryFn: () => abrirCaminhoes(clienteQuery, mostrarArquivados),
   })
 
   async function invalidar() {
@@ -98,7 +104,7 @@ export function Caminhoes() {
       </CabecalhoDaTela>
 
       {/* SESSAO-30 (D-113): a chave da entrega no Tiny mora junto dos caminhões. */}
-      <CartaoEntregaTiny />
+      <CartaoEntregaTiny pronto={isFetched} />
 
       <label className="inline-flex min-h-toque-md items-center gap-2 text-sm text-texto">
         <input

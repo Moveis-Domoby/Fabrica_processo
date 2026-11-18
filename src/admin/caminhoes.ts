@@ -1,4 +1,6 @@
+import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { faltaNoCache } from '@/lib/semear'
 
 /**
  * Cadastro de caminhões (SESSAO-15 / D-39). RLS: todo mundo logado lê (a
@@ -26,6 +28,28 @@ export async function listarCaminhoes(incluirArquivados = false): Promise<Caminh
   const { data, error } = await consulta
   if (error) throw new Error(`Não deu para carregar os caminhões: ${error.message}`)
   return (data ?? []) as Caminhao[]
+}
+
+export const CHAVE_TINY_ENTREGA = ['tiny-entrega'] as const
+
+/**
+ * SESSAO-55 (Lei §2): Configurações → Caminhões numa requisição — a lista e a
+ * situação do "Entregue vai ao Tiny" (o cartão do topo) vêm juntas (antes eram
+ * 2 leituras). A situação entra no cache com a chave do cartão (E-22); a porta
+ * só a traz de novo quando o guardado envelheceu.
+ */
+export async function abrirCaminhoes(
+  clienteQuery: QueryClient,
+  incluirArquivados = false,
+): Promise<Caminhao[]> {
+  const { data, error } = await supabase.rpc('plt_fn_caminhoes_abertura', {
+    p_arquivados: incluirArquivados,
+    p_tiny: faltaNoCache(clienteQuery, CHAVE_TINY_ENTREGA),
+  })
+  if (error) throw new Error(`Não deu para carregar os caminhões: ${error.message}`)
+  const r = (data ?? {}) as { caminhoes?: Caminhao[]; tiny_entrega?: unknown }
+  if ('tiny_entrega' in r) clienteQuery.setQueryData(CHAVE_TINY_ENTREGA, r.tiny_entrega ?? null)
+  return r.caminhoes ?? []
 }
 
 function traduzirErro(mensagem: string): string {

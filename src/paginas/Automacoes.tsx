@@ -80,13 +80,18 @@ function quando(iso: string | null): string {
   })
 }
 
-/** Os cadastros reais que os blocos usam (setores, etapas, etiquetas, campos, pessoas). */
-function useDadosAutomacao(): { dados: DadosAutomacao; nomes: NomesAutomacao } {
+/**
+ * Os cadastros reais que os blocos usam (setores, etapas, etiquetas, campos, pessoas).
+ * SESSAO-55 (Lei §2): as etapas e as pessoas vêm na abertura da tela (a lista ou
+ * a automação aberta) — as duas consultas só ligam depois dela (`pronto`), acham
+ * o dado guardado e não pedem de novo.
+ */
+function useDadosAutomacao(pronto: boolean): { dados: DadosAutomacao; nomes: NomesAutomacao } {
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
-  const { data: etapas = [] } = useQuery({ queryKey: ['etapas-ativas'], queryFn: buscarEtapasAtivas, staleTime: 5 * 60_000 })
+  const { data: etapas = [] } = useQuery({ queryKey: ['etapas-ativas'], queryFn: buscarEtapasAtivas, enabled: pronto, staleTime: Infinity })
   const { data: etiquetas = [] } = useEtiquetas()
   const { data: campos = [] } = useCampos()
-  const { data: pessoas = [] } = useQuery({ queryKey: ['usuarios-ativos'], queryFn: usuariosAtivos, staleTime: 5 * 60_000 })
+  const { data: pessoas = [] } = useQuery({ queryKey: ['usuarios-ativos'], queryFn: usuariosAtivos, enabled: pronto, staleTime: Infinity })
   return useMemo(
     () => ({
       dados: { setores, etapas, etiquetas, campos, pessoas },
@@ -150,14 +155,15 @@ function CabecalhoAutomacoes({ children }: { children?: ReactNode }) {
 
 function ListaAutomacoes() {
   const [, setParametros] = useSearchParams()
-  const { nomes } = useDadosAutomacao()
+  const clienteQuery = useQueryClient()
   const [pagina, setPagina] = useState(1)
   const [arquivadas, setArquivadas] = useState(false)
   const consulta = useQuery({
     queryKey: ['automacoes', 'lista', arquivadas, pagina],
-    queryFn: () => listarAutomacoes(pagina, arquivadas),
+    queryFn: () => listarAutomacoes(pagina, arquivadas, clienteQuery),
     placeholderData: (anterior) => anterior,
   })
+  const { nomes } = useDadosAutomacao(consulta.isFetched)
   const linhas = consulta.data?.linhas ?? []
   const total = consulta.data?.total ?? 0
 
@@ -321,9 +327,10 @@ function LinhaAutomacao({ automacao: a, nomes }: { automacao: AutomacaoResumo; n
 
 function EditorCarregado({ chave }: { chave: string }) {
   const id = chave === 'nova' ? null : Number(chave)
+  const clienteQuery = useQueryClient()
   const consulta = useQuery({
     queryKey: ['automacoes', 'uma', id],
-    queryFn: () => buscarAutomacao(id!),
+    queryFn: () => buscarAutomacao(id!, clienteQuery),
     enabled: id !== null && Number.isFinite(id),
   })
   if (id === null) return <Editor key="nova" automacao={null} />
@@ -349,7 +356,8 @@ function Editor({ automacao }: { automacao: Automacao | null }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const [, setParametros] = useSearchParams()
-  const { dados, nomes } = useDadosAutomacao()
+  // o editor só nasce depois de a automação chegar (os cadastros vieram junto)
+  const { dados, nomes } = useDadosAutomacao(true)
   const [nome, setNome] = useState(automacao?.nome ?? '')
   const [estado, setEstado] = useState<EstadoDesenho>(() => (automacao ? montarDesenho(automacao) : desenhoNovo()))
   const [selecionado, setSelecionado] = useState<string | null>(automacao ? null : ID_QUANDO)
