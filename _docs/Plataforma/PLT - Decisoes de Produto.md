@@ -1,8 +1,8 @@
 ---
 titulo: Plataforma — Decisões de Produto
-tipo: decisoes
+tipo: indice
 data: 2026-08-19
-atualizado: 2026-10-28
+atualizado: 2026-11-18
 tags: [plataforma, decisoes, produto]
 ---
 
@@ -11,2708 +11,363 @@ tags: [plataforma, decisoes, produto]
 > [!abstract] Como usar
 > Toda decisão estrutural da plataforma ganha um ID (`D-NN`), a data, o que foi decidido e as alternativas descartadas. **Decisão revisada nunca é apagada** — ganha `↩️ revisada em AAAA-MM-DD`. Antes de propor qualquer arquitetura ou tela, ler este arquivo.
 
-## D-01 · Unidade do card: híbrido (19/08/2026)
-
-**Decidido:** o PCP enxerga o **pedido inteiro** para tomar a decisão; ao liberar, cada móvel vira **um card por unidade** (equivalente ao (k/n) atual) que percorre os setores individualmente; as unidades se "juntam" de novo na expedição — pedido completo = todas as unidades prontas.
-
-**Descartadas:** card = pedido inteiro (tempo impreciso quando móveis do mesmo pedido seguem caminhos diferentes); card = unidade desde o início (PCP afogado em cards).
-
-## D-02 · Timer: dois contadores por etapa, dash compara e soma (19/08/2026)
-
-**Decidido (palavras do dono):** "tempo total por etapa, independente se está na fila ou não; conta o tempo parado **na fila entre cada etapa** e **outro tempo na etapa em si**; na dash mostra um comparativo somando esses dois tempos."
-
-Modelo: cada passagem por etapa registra **tempo de fila** (da chegada até o início) e **tempo de execução** (do início ao fim). Dashboards mostram os dois lado a lado e o total somado. Gargalo = fila; produtividade = execução.
-
-**↪️ Detalhamento (24/08/2026):** TODAS as etapas contam o tempo que cada card fica parado nelas, inclusive na fila. **O tempo de fila pertence ao SETOR/etapa, nunca a uma pessoa** — na fila o card ainda não está direcionado a ninguém. O tempo de execução pertence a quem iniciou/finalizou. Propósito declarado: fila longa num setor = **gargalo identificado** = possivelmente contratar mais alguém para o setor. O fluxo, por enquanto, serve para identificar o **tempo de produção por item, por setor e por pessoa**.
-
-## D-03 · Destino do card: manual hoje, automação via API amanhã (19/08/2026)
-
-**↩️ revisada em 2026-10-01 (D-99):** a automação do canvas pode mover o card sozinha — montada e ligada pelo super admin, nascendo desligada.
-
-**Decidido:** movimentação **manual** (PCP e setores decidem), até encontrarmos padrões bem definidos que justifiquem automatizar. Desde o dia 1, porém, a **API aberta permite movimentação, criação, edição e exclusão em cada etapa via automação** — ou seja, a automação de destino poderá nascer no n8n sem mudar o núcleo da plataforma.
-
-**Descartadas (por ora):** sugestão automática com confirmação; roteiro automático por produto. Nota: isso **revisa** parcialmente [[FAB - Processo Alvo - Um Clique Um Evento]] — ver [[PLT - Visao Geral]].
-
-## D-04 · Produtividade e bonificação ↩️ revisada em 19/08/2026
-
-**↪️ 01/10/2026 (D-94):** bonificação descartada pelo dono — o tema está encerrado.
-
-**Decisão original (manhã de 19/08):** medição alimentaria bonificação/meritocracia.
-
-**↩️ Revisão (mesmo dia, palavras do dono):** *"não se preocupe com isso, nem com a bonificação — isso ainda será debatido e decidido; por enquanto veremos apenas como uma **alavancagem operacional**, melhorando cada setor por si só, com a contribuição dos colaboradores."*
-
-**O que fica:** eventos **append-only** e trilha de auditoria completa (RNF-05) — barato de fazer agora, impossível de recuperar depois; se a bonificação voltar, o histórico já existe.
-**O que sai do escopo por ora:** pesos/pontos por produto, regras anti-manipulação formais, fluxo de contestação, ranking. As perguntas Q-10–Q-14 ficam **⏸️ adiadas** em [[PLT - Perguntas em Aberto]].
-
-## D-05 · Escopo: produção primeiro, logística depois (19/08/2026)
-
-**Decidido:** a plataforma nasce cobrindo PCP → setores → estoque/expedição. ROTAS continua no ClickUp; o **n8n faz a ponte** durante a transição (a automação ROTAS "entregue" → Tiny, em produção desde 17/08, não pode quebrar).
-
-## D-06 · Dispositivos: tablet/PC fixo por setor E celular pessoal (19/08/2026)
-
-**Decidido:** os dois modos convivem. Tela compartilhada por setor mostrando a fila do setor, com identificação rápida do operador ao agir (PIN/seleção); e login individual no celular pessoal para quem tiver. **Implicação de UX:** tudo que o operador toca precisa funcionar em tela de tablet com botão grande E em celular — o design system nasce mobile-first para o chão de fábrica.
-
-## D-07 · Estoque: módulo da mesma plataforma, fase 2 (19/08/2026)
-
-**Decidido:** primeiro o kanban + tempo (a dor crítica); o estoque entra como **módulo nativo** em seguida, no mesmo banco — card que chega em ESTOQUE vira saldo automaticamente. Não será sistema separado.
-
-## D-08 · Banco: o mesmo Supabase da fábrica (19/08/2026)
-
-**Decidido:** a plataforma nasce sobre o Supabase que já recebe os pedidos do Tiny (P15 — dupla escrita ativa). Card criado automaticamente quando o pedido entra; zero sincronização entre bancos. O schema cresce com as tabelas novas (etapas, eventos de movimentação, usuários, perfis, visualizações salvas). **Regra do cofre continua valendo:** antes de qualquer SQL, ler [[SUPA - Esquema do Banco]].
-
-## D-09 · Qualidade em 3 estados em TODA transição, com dupla atestação (19/08/2026)
-
-**↩️ revisada em 2026-10-14 (D-126):** a marcação deixa de ser obrigatória — vira chave por setor, por tipo de card, no envio e no recebimento; nasce tudo desligado.
-
-
-**Decidido (pedido da equipe, trazido pelo dono):** o estado físico da peça impacta completamente o andamento entre setores — e **um setor pode dizer que algo está bom apenas para prejudicar o próximo**. Por isso a atestação é **dupla**: quem entrega marca, quem recebe confirma.
-
-**O fluxo:**
-
-1. **Ao mover** o card para outro setor, é **obrigatório** marcar um de 3 estados: 🟢 **perfeito estado** · 🟡 **estado de atenção** · 🔴 **danificado**.
-2. **Ao receber**, antes de iniciar qualquer etapa da produção, o setor recebedor vê: *"O setor X marcou como Y — você concorda?"* e registra o próprio parecer.
-3. **Se NÃO concorda:** define o novo estado → **notifica um líder** → a peça entra em **pausa momentânea** até o líder resolver.
-4. **Se concorda:** 🟢 segue o fluxo padrão · 🔴 vai para DANIFICADO e **notifica líder/admin** · 🟡 pergunta se deseja **seguir o fluxo normal ou notificar o admin**.
-5. **Toda decisão entre etapas reflete na dashboard** — qualidade por setor, divergências, quem entrega dano.
-
-**↩️ Revisão (24/08/2026):**
-
-- **Sem foto obrigatória** na saída nem na entrada (Q-15 ✅).
-- **Sem fluxo de disputa/pausa por enquanto** (Q-17 ✅): a dupla marcação continua (quem entrega marca, quem recebe registra o próprio parecer), mas divergência **não pausa a peça nem abre resolução formal** — vira registro que alimenta a dashboard. O card segue o fluxo normal de recebimento.
-**↪️ Complementos (24/08/2026, segunda rodada):**
-
-- **Notificação (Q-18 ✅):** divergência entre setores, OU marcação 🟡, OU marcação 🔴 → **líder/admin é notificado automaticamente, com exatamente o que aconteceu** (quem marcou o quê, setores envolvidos, os dois pareceres). Isso substitui a escolha manual de 19/08 ("seguir ou notificar") — no 🟡 o card segue o fluxo E a notificação sai sozinha.
-- **Critério do 🟡 (Q-16 ✅), nas palavras do dono:** *"levemente danificado, porém ainda dá pra seguir e tentar consertar"* — este texto vai escrito na interface de marcação.
-- **API sem estado (Q-19 ✅):** movimentação por API externa **NÃO exige estado de qualidade** — a atestação é um gesto exclusivamente humano. (Proposta do Cowork de estado obrigatório no payload foi descartada pelo dono.)
-
-## D-11 · API antecipada: entrada de pedidos via n8n logo após o kanban (24/08/2026)
-
-**Decidido:** o dono quer a API **já no início** — mas no formato mais simples: **a plataforma recebendo dados do n8n** (n8n chama a API; a plataforma não busca nada no Tiny). Para isso a antiga SESSAO-11 foi dividida: a **[[SESSAO-09 - Entrada de Pedidos via n8n]]** (só o caminho de entrada Tiny → n8n → card no PCP) é executada logo após o kanban, e a SESSAO-11 (API completa: CRUD, webhooks de saída, ponte ROTAS) fica mais tarde. A partir daí, todos os testes das sessões seguintes rodam com **pedido real fluindo sozinho**. Ordem oficial em [[000 - ORDEM DAS SESSOES]] — **o número da sessão é ID, não ordem**.
-
-## D-18 · Fins de linha: ESTOQUE e ROTAS nascem juntos (26/08/2026)
-
-**↩️ revisada em 2026-09-27 (D-58):** nasceu o 10º setor, o fim de linha interno PEDIDOS EM AGUARDO (a aba que já existia virou o lugar da peça pronta de pedido).
-
-**Contexto — contradição encontrada ao codar a SESSAO-02:** a D-13 diz que o card termina em ESTOQUE ou ROTAS, mas a lista de setores do dia 1 da D-12 (copiada do ClickUp) não tem nenhum dos dois, e a D-05 mantém a ROTAS no ClickUp na fase 1. O Claude Code parou e perguntou em vez de escolher.
-
-**Decidido (palavras do dono):** *"coloque o setor de rotas nos primórdios de criação então"*.
-
-- O seed nasce com **9 setores**: PCP (entrada) · SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM (produção) · **ESTOQUE** e **ROTAS** (terminais).
-- A ROTAS existe na plataforma como **setor terminal de handoff**: o card chega nela e a ponte do n8n cria o card na ROTAS do ClickUp enquanto a logística viver lá (D-05). Quando a logística migrar, **nada na estrutura muda**.
-- Isso **responde a Q-28** e desbloqueia a SESSAO-04.
-
-**Descartada:** deixar só ESTOQUE como terminal na plataforma, com a ROTAS inteiramente fora — o dono preferiu já ter o fim de linha completo desenhado desde o começo.
-
-## D-19 · Banco: o projeto da org Tech é o de produção, e por ora é onde se trabalha (26/08/2026)
-
-**Decidido:** o Supabase da organization **Tech** (ref `axnzldwgwsmepukdiljx`) — **o mesmo que já recebe os pedidos do Tiny** — é o banco da plataforma, confirmando a D-08. Nas palavras do dono: *"esse será o banco de produção, mas por enquanto podemos mexer nele à vontade"*.
-
-**↩️ Isto revisa a parte de "banco de desenvolvimento" da D-15**, que previa um projeto Supabase novo e exclusivo de dev: por ora **não existe** projeto de dev, e as migrations da plataforma são aplicadas direto nesse banco, com autorização explícita do dono.
-
-**O que continua valendo, sem exceção:**
-
-- Nenhuma migration toca as tabelas da integração (`clientes`, `pedidos`, `pedido_itens`, `eventos`, `gp_pcp_processados`). Toda aplicação confere a estrutura e as contagens **antes e depois**.
-- Migrations são testadas fora antes de entrar (`npm run test:banco`, contra o esquema real da integração).
-- **Quando a plataforma tiver gente usando de verdade, esta permissão acaba** e volta a regra crítica 2 na íntegra: aplicar em produção só com aprovação explícita naquela conversa.
-
-## D-20 · Sem PR e sem proteção de branch enquanto o dono for o único (26/08/2026)
-
-**Decidido (palavras do dono):** *"o github apenas eu estou subindo coisa no projeto, só eu trabalho nele, então tudo bem"*.
-
-- A sessão **continua trabalhando em branch própria** (`sessao-NN-descricao`) — isso não muda, é o que permite conferir o conjunto antes de entrar.
-- **A revisão acontece na conversa**, no checkpoint de fim de sessão. Aprovou, o merge na `main` é direto.
-- **Proteção de branch no GitHub fica dispensada.**
-- **↩️ Isto ajusta a regra crítica 1** do [[CLAUDE - Regras do Claude Code (repo)]] e do `CLAUDE.md` da raiz do repo, que exigiam PR. Os dois arquivos foram atualizados na mesma data.
-
-**Gatilho para voltar atrás:** entrar mais alguém trabalhando no repositório. Aí PR e proteção de `main` voltam, porque o motivo original delas (duas pessoas escrevendo no mesmo lugar) passa a existir.
-
-## D-21 · Identidade e acesso: uma tabela, matrícula, senha padrão com troca obrigatória (26/08/2026)
-
-**Decidido (respostas do dono no início da SESSAO-03):**
-
-- **Login:** todo usuário informa **e-mail** no cadastro, mas entra com **nome de usuário OU e-mail** + senha.
-- **Sem autocadastro:** usuário só nasce pela mão de admin/líder. A tela pública é só o login.
-- **Senha padrão de criação** para todos, definida pelo dono (o valor vive como **segredo de ambiente**, nunca em nota ou código — regra crítica 4), com **troca obrigatória no primeiro login** — sem a troca, nenhuma tela é liberada.
-- **Convite por link** enviado por **WhatsApp** — sem e-mail automático por ora.
-- **Admin principal:** `wallacecauan03@gmail.com` (Wallace; grafia corrigida pelo dono em 27/08). O `contatodomoby@gmail.com` foi descartado de propósito: muita gente tem acesso a ele.
-- **Uma tabela só de usuário** (palavras do dono: *"não crie tables para separar dados de usuários internos"*): os campos novos entram na própria `plt_usuarios`, que futuramente guardará também os dados principais de gestão.
-- **Matrícula automática** como identificador interno, no padrão **`MDM-XXX-NNN`** — XXX = 3 primeiros dígitos do CPF, NNN = ordem de cadastro (001, 002…). Por consequência, **CPF é obrigatório** em todo usuário interno.
-- **Escala:** ~30 usuários na largada (responde Q-61).
-
-**Descartadas:** autocadastro com aprovação (porta a mais para vigiar, sem função com senha padrão + convite); tabela separada de "dados internos" (dificultaria a gestão futura, viola a intenção do dono); e-mail automático de convite (exigiria SMTP configurado; o link por WhatsApp resolve).
-
-## D-22 · Kanban: liberação parcial, destino livre, PCP com visão completa (27/08/2026)
-
-**↩️ revisada em 2026-10-14 (D-125):** existe card de produção digitado à mão — o card avulso.
-
-
-**Decidido (respostas do dono no início da SESSAO-04):**
-
-- **Liberação parcial OU completa:** o PCP pode liberar todas as unidades do pedido de uma vez ou só parte agora e o resto depois. Cada unidade liberada vai para o setor que o PCP escolher (unidades do mesmo pedido podem seguir caminhos diferentes — D-01).
-- **Card de pedido some do quadro PCP quando todas as unidades foram liberadas**; o pedido passa a ser acompanhado na visão de expedição/reagrupamento.
-- **Destino livre:** qualquer pessoa pode mover o card que está no setor dela para **qualquer** setor — a confirmação de entrada com o índice de qualidade (D-09) é gesto do setor recebedor e entra na SESSAO-06, não agora.
-- **Perfil do PCP:** trabalham no computador na maior parte do tempo, são também a logística e possivelmente serão admins no futuro (talvez sem todas as permissões — decisão para depois). A tela deles pode ser **mais completa**, inclusive no tablet.
-- **Origem do card:** todo card de pedido nasce de um **pedido real da integração** (Tiny → n8n → banco). Não existe pedido avulso digitado à mão (produção para estoque continua sendo a Q-23, em aberto).
-- **Cadastro de etapas:** admin em qualquer setor E **líder no próprio setor** — como o RLS da SESSAO-02 já previa.
-- **Q-21 (sub-cards de trabalho paralelo): fica para depois**, fora do escopo do kanban núcleo.
-
-## D-23 · Replanejamento da jornada a partir da 5ª posição (27/08/2026) — ↩️ revisa a D-11
-
-**Contexto:** na entrega da SESSAO-04 o dono pediu o replanejamento (palavras dele): *"não faz sentido a 13 ter que vir antes das outras, ajuste isso... refaça o planejamento ordenado das sessões para o plano mais lógico possível a partir da 5, concatene ou crie mais se necessário"*.
-
-**Decidido:**
-
-- **↩️ A antecipação da SESSAO-09 (D-11) cai.** A entrada automática de pedidos deixa de vir logo após o kanban: enquanto a plataforma não está no ar, a criação manual de card no PCP atende. A SESSAO-09 continua existindo como está escrita — muda só a posição.
-- **Nasce a SESSAO-08 — Publicação no Ar**, a lacuna real do plano: nenhuma sessão cobria hospedar a plataforma, e sem isso nada chega ao tablet do galpão. Entra logo depois da tela do setor (07), respondendo Q-62 (hospedagem) e enfrentando Q-60 (internet do galpão) na prática.
-- **Nova ordem oficial a partir da 5ª posição** (a lógica: primeiro o núcleo de medição completo, depois ir ao ar, depois os pedidos fluírem sozinhos, depois medir sobre dados reais, depois integrar/automatizar/consolidar):
-
-1. **SESSAO-05** (timers — a razão de existir; destrava 06, 07, 10 e 11)
-2. **SESSAO-06** (qualidade nas transições — pluga na movimentação já entregue; assim a tela do tablet já nasce com a qualidade embutida)
-3. **SESSAO-07** (tela do setor tablet — o gesto do chão de fábrica)
-4. **SESSAO-08** (publicação no ar — a partir daqui a plataforma tem gente usando: **encerra a permissão da D-19** e a regra crítica 2 volta na íntegra)
-5. **SESSAO-09** (entrada via n8n — no ar, criar card na mão para ~10 pedidos/dia vira fardo; pedido passa a fluir sozinho)
-6. **SESSAO-10** (dashboards — sobre dados REAIS acumulados pelo uso)
-7. **SESSAO-11** (API completa + ponte ROTAS)
-8. **SESSAO-12** (tarefas e delegação)
-9. **SESSAO-13** (automações internas)
-10. **SESSAO-14** (painel admin completo)
-
-- **Blocos:** Bloco 2 = 05 → 06 → 07 → 08 → 09 (termina com a plataforma no ar e pedido fluindo sozinho). Bloco 3 = 10 → 11 → 12 → 13 → 14.
-- **Nada foi concatenado:** a divisão entrada × API completa da D-11 (hoje sessões 09 e 11) continua valendo (evita sessão gigante — regra 13); o que mudou é que as duas agora vivem cada uma no seu bloco.
-
-**Descartadas:** pular direto para as sessões finais ignorando timers e entrada (quebraria as dependências — quase tudo precisa dos timers); concatenar a entrada dentro da API completa (sessão grande demais).
-
-**↪️ Complemento (mesma data) — renumeração: número passa a ser ordem.** Nas palavras do dono: *"não existe 05→06→07→14→13... pelo menos muda o nome pra deixar na ordem numérica certa"*. As demandas a partir da 5ª posição foram **renumeradas para os números espelharem a ordem de execução** (isto revisa o modelo mental M-09). De-para, para ler notas antigas: Dashboards 08→**10** · Tarefas 09→**12** · API completa 10→**11** · Automações 11→**13** · Admin 12→**14** · Entrada n8n 13→**09** · Publicação 14→**08**. Arquivos renomeados e todas as referências do cofre e do repositório atualizadas na mesma data; a lista numerada acima já usa os números novos.
-
-## D-24 · Execução: vários cards por pessoa com limite configurável, iniciar obrigatório, transferência conta para os dois (27/08/2026)
-
-**↩️ revisada em 2026-09-27 (D-59):** os quadros viraram só arrasto — iniciar = soltar o card na etapa de início; o "assumir" (transferência) saiu dos quadros por ora.
-
-**Decidido (respostas do dono no início da SESSAO-05):**
-
-- **Vários cards em execução pela mesma pessoa: pode** — o que importa é o tempo estar contando. Mas nasce uma **configuração por setor no painel de admin: limite de cards em execução por pessoa, por vez** — padrão **sem limite**; o admin ajusta quando quiser.
-- **"Iniciar" é obrigatório** quando o card de fato chega no setor — mesmo que a pessoa finalize um instante depois de iniciar. Finalizar sem ter iniciado não existe.
-- **Mover card com execução aberta encerra a execução automaticamente** naquele instante: o tempo conta até o mover, atribuído a quem estava executando. Mover nunca fica bloqueado.
-- **Admin pode tudo, independentemente** — inclusive estornar em qualquer setor. (Líder estorna no próprio setor, como a demanda já dizia.)
-- **Transferência entre pessoas:** o tempo **finaliza para um e inicia para o outro**, e continua contando para o produto — o gesto "assumir" fecha a execução de quem estava e abre a de quem assumiu, no mesmo instante.
-
-**Descartadas:** bloquear o mover até finalizar (travaria o fluxo do galpão); limite fixo de um card por pessoa (o dono quer liberdade com teto configurável).
-
-## D-25 · Qualidade nas transições: detalhes de execução (27/08/2026)
-
-**Decidido (respostas do dono no início da SESSAO-06):**
-
-- **Notificação de 🟡/🔴/divergência:** vai para os **líderes dos DOIS setores** (o que entregou e o que recebeu) **+ todos os admins**.
-- **Etapa DANIFICADO:** o sistema **garante uma etapa especial "DANIFICADO" em cada setor**, criada automaticamente (exceção de sistema à D-14 — não é chute de etapa operacional, é infraestrutura do fluxo de qualidade).
-- **Saída do PCP não é transição de qualidade:** liberar unidade do PCP não exige marcação (a peça ainda nem foi produzida) e a primeira chegada não pede parecer.
-- **Chegada em terminal:** ROTAS aceita o registro unilateral de quem entrega. **ESTOQUE notifica os admins e a logística** — como a logística ainda não existe como entidade na plataforma (o PCP é a logística — D-22), notifica os admins e a parte da logística **fica no planejamento** para quando existir.
-- **API não participa do fluxo de qualidade:** a única chegada de card por API é em **PCP ou ROTAS** — então chegada via API não exige marcação nem parecer (reafirma RF-86/Q-19).
-- **Movimentação de etapa dentro do MESMO setor não exige qualidade** — a D-09 vale só para transição entre setores.
-
-**Descartadas:** etapa DANIFICADO cadastrada manualmente pelo dono (letra c); card danificado ficar parado onde está sem etapa própria (letra b).
-
-## D-26 · Bloco noturno autônomo: sessões 07→12 sem perguntas durante a execução (28/08/2026)
-
-**Decidido (pedido do dono):** as sessões **07, 08, 09, 10, 11 e 12** (ordem da D-23) rodam **em sequência, de madrugada, sem o dono acompanhar**. O protocolo:
-
-- **Todas as dúvidas de negócio das 6 demandas são levantadas UMA vez, no início do bloco** — o dono responde antes de dormir. Depois do OK, **nenhuma pergunta até o fim**.
-- **Lacuna não coberta pelas respostas/decisões:** escolher a opção mais conservadora coerente com as decisões registradas e **logar como "decisão provisória"** no handoff da sessão, para revisão do dono de manhã. Contradição insolúvel com decisão registrada → pular o item, documentar, seguir.
-- **Bloqueio externo** (criação de conta, credencial, pagamento — ex.: hospedagem na SESSAO-08): preparar tudo que dá (código, config, doc do passo manual), **documentar o bloqueio e seguir** para a próxima sessão cujas dependências permitam.
-- **Banco e GitHub autorizados para o bloco inteiro** (palavras do dono em 27/08: acesso liberado para aplicar e subir sem perguntar): migrations testadas → aplicadas; cada sessão termina com merge na `main`. **↪️ Nuance da D-19/D-23:** a publicação (08) normalmente encerraria a permissão de mexer direto no banco; como a equipe ainda não estará usando de madrugada, a permissão vale **até a revisão do dono na manhã seguinte** — aí a regra crítica 2 volta na íntegra.
-- **Encadeamento automático (pedido do dono):** uma demanda por conversa continua (D-10). Ao **fim de cada sessão** — ou com o **contexto perto do limite** no meio de uma — o Claude Code grava um **handoff de continuidade** e **abre sozinho a próxima conversa** do Claude Code via CLI, com o prompt curto padrão. O bloco termina na 12 ou num bloqueio irrecuperável.
-- Handoffs individuais por sessão continuam obrigatórios (regra 9) — são o material de revisão da manhã.
-
-**Descartadas:** rodar tudo numa conversa só (estoura contexto e viola D-10); parar e esperar resposta a cada dúvida (o dono estará dormindo).
-
-**↪️ Complementos (28/08, aval do dono ao iniciar o bloco):** (1) **verificação de tela (F-07/navegador) apenas a cada 2–3 sessões** para economizar tokens — nas demais, conferência por `tsc`/`lint`/testes/`test:banco` direto nos arquivos; (2) as dúvidas do bloco foram respondidas e viraram **D-28 a D-34**; (3) a SESSAO-08 saiu do bloco (D-30).
-
-## D-27 · Padrões de interface: menu lateral, modelo de sistema no cofre, microinterações, sem códigos internos (28/08/2026)
-
-**Decidido (pedidos do dono em 28/08; entram no escopo da SESSAO-07):**
-
-- **Navegação vira MENU LATERAL** (sidebar) — a barra superior de rotas sai. No celular, a sidebar recolhe (padrão hambúrguer/gaveta); no tablet de setor, o operador continua sem navegar (D-06).
-- **A aba "Design system" sai do aplicativo.** O design system vira **[[PLT - Modelo de Sistema]]** no cofre (`_docs/Plataforma/`), fonte única — o `docs/design-system.md` do repo migra para lá e os dois `CLAUDE.md` passam a apontar o caminho novo. **Nada se constrói fora do modelo de sistema.**
-- **Microinteração dos botões interativos:** além do estado atual (fosco), botão ganha **elevação leve ao interagir** — sobe sutilmente (1–2px) com **sombra suave no fundo**. "Coisa leve", nas palavras do dono; vale para o padrão inteiro via componente `Botao`.
-- **Códigos internos (D-NN, RF-NN, Q-NN, M-NN) NUNCA em texto visível da interface** — usuário não entende "D-09". Os códigos viram comentário de código (entendimento do Claude); o texto da UI fala a língua do usuário. Inclui **varredura do que já existe**. → promovida a regra no [[CLAUDE - Regras do Claude Code (repo)]].
-- **Textos explicativos longos na UI: temporários.** Ficam por ora (o dono quer entender as telas ao revisar), mas **não devem ser mantidos** — enxugar em sessão futura, quando o dono mandar.
-
-**Descartadas:** criar sessão nova só para UI (os ajustes cabem como prelúdio da 07, que já é a sessão de interface); remover os textos explicativos já (o dono pediu para manter por enquanto).
-
-## D-28 · Card do operador: dados do produto, espaço de imagens, som discreto (28/08/2026)
-
-**Decidido (respostas do dono no início do bloco noturno — SESSAO-07):**
-
-- O card da fila do setor mostra **todos os dados do produto** e **nenhum dado do cliente** (Q-31 ✅).
-- O card ganha um **espaço funcional de imagens** (upload por admin/líder, operador vê) — preparado para a futura **biblioteca de peças** que o dono vai importar.
-- **Som mínimo e discreto** ("um pouco opaco, para não irritar") na chegada de card novo na fila (Q-32 ✅).
-- **Modo setor:** conta de dispositivo por tablet abre a fila do setor em tela cheia; toda ação pede o PIN do operador; celular pessoal logado cai no setor do próprio usuário.
-
-## D-29 · Controle de tempo pelo admin: horário de funcionamento, pausas manuais e correção retroativa (28/08/2026)
-
-**Decidido (pedido novo do dono no início do bloco — "4 extra"):**
-
-- Admin configura **horário de funcionamento por setor E por usuário** nas configurações de admin → fora do horário, os timers não contam.
-- **Botões de controle direto:** desligar o tempo de um setor ou de uma pessoa AGORA, até religar manualmente.
-- **Botão de correção retroativa** ("esqueci de desligar, mas ontem tal setor não funcionou"): admin marca um período passado de setor/pessoa como não contado.
-- **Nada disso altera o dado registrado** — o tempo executado até então é fixo; eventos continuam append-only e o desconto acontece só no cálculo derivado (M-13).
-
-## D-30 · Publicação adiada: nenhum deploy no bloco noturno (28/08/2026) — ↩️ revisa a posição da SESSAO-08 na D-23
-
-**Decidido (palavras do dono):** *"tudo que envolver deploy, hospedagem ou coisa do tipo pode jogar para sessões futuras, não iremos lançar ela agora e quando eu for fazer o deploy eu falo"*.
-
-- A **SESSAO-08 sai do bloco noturno** e fica ⏸️ até o dono pedir o lançamento. O bloco vira **07 → 09 → 10 → 11 → 12**.
-- Q-60 (wi-fi) e Q-62 (hospedagem) ficam ⏸️ junto com ela.
-- Consequência: a permissão da D-19 (banco direto) segue valendo durante o bloco e até a revisão do dono (D-26).
-
-## D-31 · Entrada de pedidos: a plataforma lê o próprio banco, sem tocar o n8n (28/08/2026)
-
-**Decidido (palavras do dono):** *"não precisa conectar no n8n, ele já lança no banco, então leia o banco e crie o card quando chegar lá, instantaneamente"*.
-
-- Card do PCP nasce/atualiza por **trigger no banco** a partir de `pedidos` (que o n8n já alimenta via P15). Nenhum workflow novo no n8n; endpoint HTTP fica apenas documentado como alternativa futura.
-- **Cancelamento (Q-24 ✅):** card marcado "cancelado", visível, não some; com unidades já liberadas, notifica admins.
-- **Modelo do card do PCP** = o modelo real do PCP atual (ClickUp), documentado no cofre — seguir esse modelo.
-
-## D-32 · Dashboards: foco pesado em tempo; só líder e admin (28/08/2026)
-
-**Decidido:** o foco principal é **tempo de produção bem detalhado** — "tempo entre cada execução, tempo para cada funcionário e tudo mais que envolver tempo; queremos uma lista muito bem detalhada" — além das métricas propostas (finalizados por setor, fila vs execução, tempo por item, qualidade, tempo em estoque). **Operador não vê dashboard nenhum** — apenas líder (próprio setor) e admin (tudo).
-
-## D-33 · ROTAS dentro da plataforma; ClickUp não recebe mais nada (28/08/2026) — ↩️ revisa a D-05
-
-**↩️ revisada em 2026-10-08 (D-113):** a entrega passa a ir e voltar do Tiny pelo n8n — o fluxo do ClickUp ganha um segundo ramo (plataforma → Tiny) e o Tiny "Entregue" fecha o pedido aqui. O ClickUp só avisa, nunca recebe.
-
-**Decidido (palavras do dono):** *"rotas será criado aqui dentro também, então nada deve ser pensado mais em criar coisa no ClickUp; n8n também não vai jogar nada aqui por enquanto, já temos todos os dados que precisamos para as rotas da forma que o n8n joga pra gente"*.
-
-- A **ponte ROTAS → ClickUp morre antes de nascer**: nenhuma integração nova cria nada no ClickUp.
-- **Módulo básico de rotas nasce na SESSAO-11** (opção B confirmada pelo dono), seguindo a documentação de rotas existente nos `_docs`; onde não houver documentação, seguir o padrão do sistema.
-- **Agrupamento por pedido completo:** a entrega sai por pedido inteiro ("mesmo que tenha 30 unidades, não vamos entregar 10 móveis se ele pediu 30").
-- A plataforma **nunca lê do Tiny** (Q-52 ✅); a automação ROTAS "entregue" → Tiny **em produção não se toca**.
-
-## D-34 · Delegação: 3 modos por setor, sorteio entre logados, tarefa avulsa sem timer obrigatório (28/08/2026)
-
-**Decidido (respostas do dono — SESSAO-12):**
-
-- **Modos por setor, configuráveis no admin:** delegação **desativada** (card fica sem dono na fila) · **direta** (líder/admin atribui) · **aleatória**.
-- **Sorteio aleatório só entre quem está logado na plataforma no momento**, balanceado por carga aberta.
-- **Só cards de produção contam tempo.** Tarefa avulsa não conta tempo por padrão — só se o próprio atarefado quiser acionar.
-- **Delegação organiza, não trava:** card delegado aparece em "meus afazeres", mas qualquer pessoa do setor pode agir (coerente com D-22/D-24).
-
-## D-35 · Plataforma funcional primeiro: externo em standby; Bloco 3 = Sessões 13→16 com checkpoint (28/08/2026)
-
-**Decidido (pedido do dono, na revisão do bloco noturno):** entregar uma **plataforma funcional** vem antes de qualquer integração externa nova. Ficam em **standby**: publicação (D-30 segue — o dono avisa), usos novos de API/webhooks/n8n (o que já está no ar continua), automações internas (antiga SESSAO-13 → **17**) e a consolidação do admin (antiga 14 → **18**).
-
-- **Bloco 3 = a reforma: Sessões 13→16**, uma conversa por sessão, **checkpoint do dono ao fim de cada** — a regra crítica 2 vale na íntegra (banco/deploy só com aprovação naquela conversa).
-- Renumeração (número = ordem, complemento da D-23): **Automações 13→17 · Painel Admin 14→18**; as novas 13–16 são a reforma (D-36…D-42).
-
-## D-36 · Lei de navegação: hierarquia pai→filho, pai nunca navega, rota sempre /pai/filho (28/08/2026)
-
-**Decidido (palavras do dono):** *"layout nunca é colocado e pensado fora do padrão, um filho sempre será herdeiro do pai; o pai nunca é uma rota navegável, ela apenas direciona para os filhos no padrão /pai/filho; nenhuma rota acessa direto a raiz — /entrar → /inicio/meu-painel."*
-
-- Sidebar em **dois níveis**: o grupo pai expande os filhos em cascata; clicar no pai NUNCA abre página própria.
-- Estrutura: **Início** (Meu painel · Afazeres) · **Controle de Produção** (um filho por setor cadastrado, dinâmico — substitui a aba "PCP") · **Logística** (Expedição · Estoque · Pedidos em aguardo · Danificados) · **ROTAS** · **Dashboards** · **Administração** (dropdown: Gestão da equipe · Setores e etapas · Controle de tempo · API e integrações · Caminhões). **Equipe e Estrutura deixam de ser abas de 1º nível** — viram filhos de Administração.
-- A sidebar **persiste em todas as telas** (inclusive quadros de setor), com botão de **recolher/expandir**; estado lembrado.
-- **Toda tela tem botão de voltar** (à aba anterior).
-- **"Modo tablet"** (a antiga aba "Tela do setor") vira botão fixo na sidebar, logo acima do bloco do usuário.
-- **Sino de notificações no topo** (junto à logo); no rodapé, **Configurações** no lugar do sino; o popover de notificações **nunca é cortado pela tela**.
-- Login desemboca sempre em `/inicio/meu-painel`.
-- Lei promovida aos dois `CLAUDE.md` (regra 16).
-
-## D-37 · Tela inicial = Meu Painel, com cockpit de metas configuráveis (28/08/2026)
-
-- `Início → Meu painel` mostra: **pendências** do usuário (qualidade a atestar, delegações, tarefas), **notificações** e o **cockpit de metas** com índice de conclusão **em tempo real**.
-- Meta tem **indicador configurável** — quem cria escolhe: unidades concluídas, tarefas concluídas ou tempo útil — alvo por período **diário/semanal/mensal**, e dona (pessoa ou setor).
-- Criam metas: **admin** (todas), **líder** (do próprio setor) e **a própria pessoa** (metas pessoais).
-- `Início → Afazeres` = a tela da SESSAO-12: o que eu cadastrei para mim + o que líderes/admins me delegaram.
-
-## D-38 · Logística: Estoque com ID digitável, sala de Pedidos em aguardo, Danificados com destino (28/08/2026)
-
-**↩️ revisada em 2026-09-27 (D-58):** Pedidos em aguardo deixou de ser só uma sala (filtro do ESTOQUE) e virou o lugar da peça pronta de pedido, com as abas "Pedidos" e "Produtos reservados".
-
-- **Estoque:** produtos parados, cada um com **ID de produção digitável de formato livre** (o formato definitivo é decisão futura — Q-63).
-- **Pedidos em aguardo:** onde unidades prontas esperam o pedido ficar **completo**; completo → **lançar para ROTAS**. Absorve como tela o reagrupamento da expedição.
-- **Danificados:** tela própria com tudo que está em DANIFICADO; ações **arquivar** ou **resolvido → escolher destino** (Estoque, ROTAS ou qualquer setor). Tudo evento append-only.
-
-## D-39 · ROTAS: programação de caminhão com mapa e sugestão; caminhões cadastráveis (28/08/2026)
-
-**↩️ revisada em 2026-10-02 (D-108/D-109/D-110):** a linha deixou de ser reta — é a rota pelas ruas (serviço gratuito de rotas), da fábrica à fábrica, com distância e tempo; a ordem sugerida pode ser ajustada à mão e salva; o mapa mostra também a rota programada de cada caminhão. Continua grátis, sem chave e só sugestão.
-
-- ROTAS lista **apenas pedidos prontos** lançados pelos Pedidos em aguardo.
-- **Programar caminhão:** escolhe o dia → pedidos sem programação → a seleção abre **mapa lateral** (Leaflet + OpenStreetMap, grátis e sem chave; geocodificação aberta com cache no banco) mostrando a rota selecionada e **sugerindo** pedidos que fazem sentido nela (proximidade). **É só sugestão — a decisão é humana** (princípio de sempre). Confirma com **data + caminhão**.
-- **Caminhões:** cadastro em Administração — visualizar, editar, excluir, com foto.
-
-## D-40 · Auditoria total: toda atividade de usuário gera log persistido (28/08/2026)
-
-Toda ação de usuário registra **log no banco** (quem, quando, o quê, onde), **append-only**, sem exceção. O registro nasce na SESSAO-13; a consulta admin completa pode vir depois.
-
-**↪️ 01/10/2026 (D-95):** a consulta chegou — **Painel admin → Auditoria**, com o porquê de cada gesto e a saída da plataforma também na trilha. **↪️ 01/10 (D-100):** a Auditoria foi para o **Painel super admin** (só o dono).
-
-## D-41 · Identidade: Meu Perfil com 8 temas Domoby; login com logo metálica (28/08/2026)
-
-- Clicar no bloco do usuário (rodapé da sidebar) abre **Meu Perfil**: alterar nome de usuário, senha, **foto**, dados cadastrais e **tema da plataforma**.
-- **8 esquemas de cor, do claro ao escuro, todos no DNA Domoby** (amarelo × grafite) — ativa a infraestrutura `data-tema` preparada desde a SESSAO-01 (**responde o modo escuro da Q-30**). Escolha persiste por usuário.
-- **Login novo:** logo Domoby **grande, em tom metálico, à esquerda**; formulário à direita.
-
-## D-42 · Dashboards guiados por imagem: docs/inspiracao/dashboards/ é a régua (28/08/2026)
-
-O dono rejeitou a página da SESSAO-10 (*"isso não é uma dashboard"*). O Cowork gerou **4 mockups-alvo no design system Domoby + regras de construção** em `docs/inspiracao/dashboards/` (no repo). A SESSAO-16 reconstrói os dashboards **nesses moldes** — o Claude Code **abre as imagens antes de codar**. Os dados e gates da S10 (migration 18, D-32) seguem sendo a fonte.
-
-## D-43 · Meu Perfil: nome de login editável pelo próprio, e-mail também, foto própria, log de tudo (28/08/2026)
-
-**Decidido (respostas do dono no início da SESSAO-13):**
-
-- **"Nome de usuário" no Meu Perfil é o nome de LOGIN mesmo** — o próprio usuário pode trocá-lo (mantendo unicidade), e esse nome é também o exibido para todos os outros.
-- **Dados cadastrais editáveis pelo próprio usuário:** nome, telefone e **e-mail** (que também serve de login). CPF e matrícula ficam travados — só admin.
-- **Foto de perfil:** o operador comum pode subir a **própria** foto (pasta própria no bucket; admin pode trocar a de qualquer um).
-- **Log de atividade (D-40): registrar tudo** — nenhum tipo de atividade excluído do registro.
-
-## D-45 · Logística e ROTAS: unidade pronta, lançamento, ID de produção, danificados, programação e metas completas (01/09/2026, registrada em 08/09)
-
-**↩️ revisada em 2026-09-27 (D-58):** "unidade pronta" = chegou a um dos três fins de linha; o lançamento move as unidades de Pedidos em aguardo para as ROTAS (não mais do ESTOQUE).
-
-**↩️ revisada em 2026-10-08 (D-113/D-115):** registrar a entrega deixa de ser só interno — vai ao Tiny, volta do Tiny, fecha as peças, e o entregador entrega, desfaz, marca "não entregue" ou "devolvido" pela tela dele.
-
-**Decidido (respostas do dono no início da SESSAO-15, em 01/09; a D-44 pertence à frente do backfill — cofre de Pedidos entregues):**
-
-- **"Unidade pronta" = chegou em setor terminal** (ESTOQUE ou ROTAS). Uma tela de "concluídos" fica para o futuro.
-- **Lançar para ROTAS move de verdade:** ao lançar o pedido completo, as unidades que estão no ESTOQUE são movidas para o setor ROTAS por evento normal de movimentação — saem da lista do Estoque e a contagem das ROTAS fecha. **Só o lançado aparece nas ROTAS** (a regra da S11 — "bastava estar no setor ROTAS" — cai).
-- **Estoque é lista, não quadro:** a lista da D-38 SUBSTITUI o quadro kanban do setor ESTOQUE (palavras do dono: *"esse quadro primeiramente que não deveria nem existir"*). **Quem vê e edita o ID de produção:** logística (PCP/terminais) e admin.
-- **Danificados:** resolver para outro setor **exige marcar o estado** (a peça pode sair 🟡 ou 🔴 mesmo); as ações ficam com **logística e admin** (líder fora — resposta de 08/09); o botão **"visualizar arquivados" só carrega ao ser clicado**.
-- **Programação de caminhão:** reprogramável a qualquer instante, inclusive no dia — **nunca depois de o pedido ser registrado como entregue**; admin tem controle total; quem opera é a logística.
-- **Os ~163 cards históricos do PCP** (E-24): aprovado arquivar em massa (evento `card_arquivado`, exclusão lógica; o histórico fica). ✅ **Feito em 08/09** na SESSAO-15 — 233 cards arquivados (conferido no banco em 01/10).
-- **Metas (pendência da S14):** a meta que o líder define para o liderado é **completa** — *"Lucas → concluir X cards na etapa Y em x tempo (opcional)"* — o liderado só pega, executa e finaliza o card, e a meta contabiliza sozinha. Consequências: **edição/encerramento travados para quem criou** (admin mantém tudo; a pessoa manda só nas metas que ela mesma criou) e a meta de unidades ganha **etapa opcional**.
-- **Horas úteis:** cada etapa conta o próprio tempo; a pessoa conta do iniciar ao finalizar; cada card carrega o tempo total de produção (PCP → fim de linha); a dashboard mostra a **média por etapa** — insumo registrado para a SESSAO-16. A meta de setor em horas úteis segue contando só execução.
-
-**Descartadas:** só "marcar" o pedido como lançado sem mover as unidades (deixaria o Estoque sujo e a ROTAS inconsistente); manter o quadro kanban do ESTOQUE ao lado da lista.
-
-## D-46 · União das Plataformas: o Painel de Recompra vira o módulo Comercial (15/09/2026)
-
-**Decidido (conversa de planejamento no Cowork, 15/09):** as duas plataformas viram uma. O plano completo vive em [[PLT - Plano Uniao das Plataformas]]; execução nas SESSÕES 19–21.
-
-**↩️ Revisada em 15/09 (mesma conversa, depois de conferir o escopo da SESSAO-16):** a ordem de execução passa a ser **16 → 19 (em paralelo, se o dono quiser) → 20 → 21**. A versão anterior desta decisão mandava as 19–21 rodarem antes das 16–18; caiu porque a SESSAO-16 e a SESSAO-20 disputam os mesmos arquivos de casca (`App.tsx`, `Layout.tsx`, `estilos/tokens.css`) e porque é a 16 quem fixa a biblioteca de gráfico (Recharts) que o módulo Comercial herda. A SESSAO-19 é imune: não encosta no front, e as tabelas/RPCs que ela cria (`fn_dashboard_*`) não colidem com as da fábrica (`plt_fn_dash_*`). Os números 19–21 seguem fora da regra "número = ordem" (D-23) só para não renumerar demandas já escritas.
-
-**A SESSAO-16 não muda por causa da união** (decisão do dono, 15/09): os dashboards da produção continuam como quatro telas-filhas do pai **Dashboards**, com os nomes atuais. O dashboard do Comercial nasce dentro do próprio módulo, em `/comercial/dashboard`; se um dia os filhos do pai Dashboards forem renomeados por domínio ("Dash Produção", "Dash Comercial", …), isso é assunto de outra sessão → **Q-66**.
-
-- **Banco mantido: o da fábrica** (`axnzldwgwsmepukdiljx`). O projeto do recompra (`kfkcumjepnxnnzyvmxfo`) entra em quarentena após o cutover e é **excluído** ao final dela.
-- **O painel de recompra NÃO é desligado** — é recriado **idêntico** dentro da plataforma como o módulo **Comercial** (dashboards, filtros, listas de disparo, renovador do token do Tiny, tudo). Nenhum dado alterado, nenhum comportamento perdido. O antigo só sai do ar depois da validação do dono e da quarentena.
-- **Navegação:** "Administração" passa a se chamar **"Painel admin"**; Controle de Produção, Logística e ROTAS viram filhos do novo pai **"Fábrica"**; o Comercial é outro pai. Acesso a Fábrica e Comercial é **permissão ativável por usuário** (coluna `plt_usuarios.modulos`; todos começam com `fabrica`; `comercial` começa **só no admin** e vai sendo liberado com o tempo).
-- **Paleta:** o módulo Comercial respeita a arquitetura do design system da casa, e o design system **ganha a paleta verde-esmeralda do recompra** como temas novos.
-- **Congelamento:** nenhum disparo de WhatsApp em nenhum dos dois painéis até a união concluir. Crons de disparo e o renovador do token rodam em **exatamente um** projeto por vez (o refresh do Tiny rotaciona o token — dois renovadores se matam).
-
-**Descartadas:** migrar a fábrica para o banco do recompra (30 tabelas + auth + RLS vs 8 tabelas); manter dois bancos permanentemente (dois pontos de falha, dois syncs do Tiny gastando o mesmo rate limit); desligar o painel antigo direto no cutover (sem rede de segurança).
-
-## D-47 · Regra permanente: nenhuma tabela nova se uma existente pode ser reutilizada (15/09/2026)
-
-**Decidido (palavras do dono):** *"nenhuma nova tabela é criada se alguma existente pode ser reutilizada em um módulo similar"* — ex.: não criar tabela de pedidos sendo que todos os pedidos já estão em `pedidos`.
-
-- Primeira aplicação (na própria união): `vendas_marketing` **não** vira tabela na fábrica — vira **view de compatibilidade** sobre `pedidos` + `clientes` + `pedido_itens` (verificado em 15/09: mesmo dataset, 5.302 = 5.302 pedidos, 19/19 meses batendo ao centavo, telefone no mesmo formato). `tiny_sync_state`, as 3 functions de sync do Tiny e seus ticks/crons também **não** migram — o webhook n8n da fábrica já cobre criação e edição de pedidos.
-- A regra vale daqui em diante para toda demanda: antes de propor tabela nova, provar que nenhuma existente serve.
-
-## D-48 · Execução um por vez com pausa por líder; tempo de PCP e de aguardo são do pedido (21/09/2026) — ↩️ revisa a D-24 e a Q-17
-
-**↩️ revisada em 2026-09-27 (D-59):** a pausa do líder saiu dos quadros junto com os botões — arrastar para PARADO ou para a fila fecha o tempo. O limite de 1 por pessoa e o "iniciar na fila avança" continuam (agora pelo arrasto).
-
-**↩️ revisada em 2026-10-14 (D-125, SESSAO-31):** a pausa volta, **com motivo** (lista "Motivos de pausa" + "Outro"), na **janela do card** (Pausar / Retomar); o **próprio operador** pausa o card dele, o líder/admin o de qualquer um do setor. Soltar no PARADO um card em execução pergunta o motivo (o tempo fecha como antes). Pausado continua sem contar tempo e sem ocupar o limite; retomar com outra execução aberta continua recusado.
-
-**Decidido (respostas do dono no início da SESSAO-22):**
-
-- **Limite de execuções por pessoa: o padrão vira 1** em todos os setores (↩️ revisa a D-24, que nascia "sem limite"). Segue **configurável por setor** — e a edição passa a ser permitida a **líderes (do próprio setor) e admins**, nas configurações do setor.
-- **Líder pode pausar a execução de alguém** (urgência do dia a dia). ↩️ Isto revisa a Q-17 ("não existe pausa"): a pausa volta, mas como **gesto de gestão do líder/admin**, não como disputa de qualidade. `execucao_pausada`/`execucao_retomada` são eventos append-only; execução pausada **não conta tempo** para a pessoa **nem ocupa o limite** — é o que deixa a urgência entrar.
-- **Retomar:** a própria pessoa retoma sozinha, **mas só depois de finalizar a urgência** — retomar com outra execução aberta é recusado pela mesma trava do limite (palavras do dono: *"se a urgência tá aberta pra ele então tá errado, ele tem que concluir a urgência antes de pegar outro"*).
-- **Tempo em PCP é do PEDIDO:** o pedido entra no PCP e **só para de contar quando for liberado por completo** (todas as unidades). Cada produto tem o próprio tempo de produção (da liberação em diante). Isto substitui as duas alternativas cogitadas na demanda (até a liberação daquela unidade / da primeira unidade).
-- **Tempo de aguardo é do PEDIDO:** com tudo produzido, o pedido conta **tempo de aguardo total** em Pedidos em aguardo — insumo futuro do **cálculo de tempo de entrega**. Todos esses tempos ficam salvos no banco (derivados dos eventos — M-02; nada se grava à mão).
-
-**Descartadas:** tempo de PCP por unidade (até a liberação dela ou da primeira); retomada só pelo líder; limite padrão diferente por setor.
-
-**↪️ Complemento (21/09/2026, revisão ao vivo da SESSAO-22 — palavras do dono):** *"quando eu iniciar qualquer card que estiver na fila, ele deve ser automaticamente movido para a próxima etapa; uma etapa pode sim ter mais de 1 execução ao mesmo tempo, um usuário que não pode."*
-
-- **Iniciar na FILA avança sozinho** para a próxima etapa do setor (ordem seguinte, ativa, não-DANIFICADO), com a execução aberta já na etapa nova — M-01: o humano decide (iniciar), o sistema executa a consequência (sair da fila). Setor cuja fila é a única etapa: executa na própria fila (D-14 — etapa não se inventa). Migration 30.
-- **O limite de execuções é da PESSOA, nunca da etapa** — confirma o desenho: várias execuções na mesma etapa são normais; a mesma pessoa é que respeita o teto do setor.
-
-## D-49 · Saída de usuário: excluir de fato só sem história; arquivar realoca as pendências ao líder (22/09/2026)
-
-**Decidido (pedido do dono no fechamento da SESSAO-22):** *"adiciona a possibilidade de excluir e de arquivar um usuário: se excluir, tudo o que estava no nome dele é de fato excluído; arquivar, tudo ainda fica no nome dele, porém as pendências dele são transferidas ao líder direto dele, para que o líder possa realocar"* — com modais próprios da casa, nada de caixa do navegador.
-
-- **ARQUIVAR** (qualquer usuário): perde o acesso (`ativo=false` + `arquivado_em`), **tudo fica registrado no nome dele**; no ato, a **execução aberta é encerrada** (o tempo até ali é dele — evento, nunca edição), e **cards delegados + tarefas abertas passam ao líder direto** do setor de cada pendência (setor sem líder, ou o arquivado É o líder → vão para o admin que arquivou). Reversível (**reativar**); as pendências realocadas não voltam.
-- **EXCLUIR** (só cadastro **sem história** — nunca gerou evento/log/meta): some **de verdade** — linha, vínculos, notificações, tarefas dele, visualizações, presenças, horários, foto e a **conta de login**. Quem já tem história **não pode ser excluído** (eventos e trilha são append-only — regra crítica 5/D-40, a história não se apaga): o sistema recusa explicando e **oferece o arquivar na hora** (mesmo padrão do caminhão em uso). Card delegado ao excluído volta a ficar sem dono **por evento**.
-- **Quem pode: só admin.** Ninguém arquiva/exclui a si mesmo; o último admin ativo não se arquiva.
-
-**Descartadas:** apagar história de produção junto com o usuário (revogaria a regra crítica 5 e furaria a medição — se um dia for desejado, é decisão nova aqui); abrir o gesto a líderes.
-
-## D-50 · Integração Tiny → banco: edição no Tiny edita aqui, apagar no Tiny NÃO apaga aqui (só observações); conferência diária de 60 dias às 3h (23/09/2026)
-
-**Decidido (respostas do dono às perguntas da [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]], conversa da SESSAO-21):**
-
-- **Regra de gravação** — palavras do dono: *"observação tudo bem, mas o resto deve manter mesmo que apague lá; a única coisa realmente que pode acontecer pra alterar aqui é editar pelo Tiny — edição lá deve editar aqui também, mas não apagar"*. Tradução: valor **novo** vindo do Tiny **sobrescreve** o do banco; campo **esvaziado** no Tiny **não apaga** o do banco — **exceto `obs` e `obs_interna`**, que acompanham o Tiny inclusive quando apagadas. (O `coalesce` do `fn_upsert_pedido` já faz "edição sim, apagar não" para todos os campos; a SESSAO-29 muda **só** as observações.)
-- **Conferência diária (pente-fino):** relê os pedidos dos **últimos 60 dias**, às **3h da manhã**.
-- **Retroativo (23/09):** a correção de 22/09 que apagou a previsão do 13276 foi **desfeita** (`supabase/manutencao/2026-09-23_restaurar_previsao_13276.sql`); as observações internas limpas (13180, 13410) seguem limpas; o vendedor apagado em 13183 e 13421 não tem o valor antigo guardado na plataforma — com o dono.
-
-**Descartada:** "o último pacote do Tiny vence" também para campo apagado (a proposta B original da SESSAO-29).
-
-- **Marcadores:** ficam como estão hoje — a lista do banco acompanha a do Tiny a cada atualização (marcador removido lá sai daqui também). Resposta do dono, 23/09: *"pode deixar do jeito que está atualmente"*.
-- **Nada de depender de combinado com a equipe de vendas:** a plataforma tem que se virar sozinha com o que vier do Tiny (resposta do dono à pergunta 4 da SESSAO-29) — a proposta D ("nome do contato só com o nome") foi **descartada**; o que resolve contato renomeado é o pente-fino + a identidade do cliente pelo id do contato no Tiny (itens A e C da SESSAO-29).
-
-**↪️ 01/10/2026 — entregue na SESSAO-29 (migration 49):** a conferência roda às 3h (06:00 UTC) pelo fluxo de carga do n8n, que agora é **acordado pelo banco só quando há pedido para reler** (o relógio de 1 em 1 minuto do n8n saiu — fazia ~1.400 execuções vazias por dia). Relê a busca do Tiny pelos últimos 60 dias (pega até pedido que nunca chegou) + os não terminados de qualquer idade. As observações acompanham o Tiny quando o Tiny manda o campo (vazio = apaga); se o campo nem vier, nada muda. **Gravar só o que mudou:** pedido igual ao Tiny não é regravado (nem os itens); cada rodada deixa UMA linha no log com quantos foram relidos, quais estavam diferentes e o quê — visível em Painel admin → Auditoria (D-95). Cliente: D-98. Pedido achado só pela conferência: D-96.
-
-## D-51 · Meu Painel 2.0: três filas, subtarefas, tarefa privada e o painel pessoal (23/09/2026) — ↩️ revisa a D-37 e complementa a D-32
-
-**Decidido (respostas do dono no início da SESSAO-23):**
-
-- **O Meu Painel se reorganiza em três separadores:** *Delegados a mim* (tarefas de outros ou do Sistema + cards de produção delegados — resposta do dono: *"deixe que os delegados a mim entrem também, se eu não gostar eu mudo"*), *Meus afazeres* (tarefas que eu criei para mim) e a **Fila de prioridade** — a união dos dois em ordem de cadastro, **reordenável pelo próprio usuário** (a posição é preferência de exibição dele, persiste no cadastro e não muda prazo, dono nem dado de tarefa — M-04).
-- **"Qualidade a atestar" e "Avisos recentes" saem do painel** (↩️ revisa a D-37): a pendência de parecer vira **tarefa do "Sistema"** no setor recebedor (dar o parecer a conclui sozinha; sem usuário fantasma) e os avisos vivem no sino, que ganhou **"Ver todos"** com o histórico paginado no servidor.
-- **Tarefa do Sistema NÃO entra na Fila de prioridade** (*"se é tarefa do sistema é coisa rápida"*) — mas **gera notificação** no sino dos membros do setor recebedor.
-- **Subtarefas: até DOIS níveis** (tarefa → subtarefa → subtarefa da subtarefa), na MESMA tabela; mais níveis só se a produção pedir.
-- **Tarefa pessoal nasce PRIVADA** — nem líder, nem admin a enxergam (nem o conteúdo, nem o tempo, **nem pela API** — garantido por RLS). O dono pode **torná-la pública na criação ou na edição**; pública, ela ganha as dependências de uma tarefa comum. Reatribuída a outra pessoa, deixa de ser pessoal e vira pública sozinha. A fila de prioridade de alguém, portanto, é visível à gestão **só no que for tarefa delegada** — as pessoais não aparecem.
-- **Tempo:** o de *meus afazeres* é só do próprio; o de *delegados* é visível ao próprio + líderes do setor + admins. Timer segue o existente (`iniciada_em`), derivado, nunca digitado.
-- **Painel pessoal em Dashboards** (*"Meu desempenho"* — complementa a D-32: operador segue sem ver dashboard de GESTÃO, mas todo usuário vê **o próprio** painel): tempo em afazeres por dia e **por tarefa** (resposta 4) + KPIs de desempenho **apenas do próprio** — *"para que ele possa entender também onde melhorar"*.
-
-**Descartadas:** fila de prioridade 100% secreta (o dono quis a gestão enxergando o que é delegado); um nível só de subtarefa; tarefa do sistema dentro da fila.
-
-## D-52 · Cadastro de ADMIN não exige setor (23/09/2026)
-
-**Decidido (regra do dono, 23/09, durante os ajustes da SESSAO-23):** ao criar um usuário com papel **admin**, o vínculo de setor é **opcional** — admin já tem permissão total e acesso a todos os setores. **Líder e operador continuam obrigados** a ter pelo menos um setor.
-
-- Vale nas duas portas: a tela de Gestão da equipe (aviso "Admin tem acesso a todos os setores — vincular é opcional") e a Edge Function `autenticacao` (`criar-usuario`), que pula o insert em `plt_usuario_setores` quando não há setores.
-- Terreno já suportava: existe admin ativo sem vínculo nenhum desde a fundação (o próprio dono) e nenhuma tela/RPC depende de vínculo para admin (`fn_setores_do_usuario` vazio é normal; os gates de admin passam por `fn_eh_admin`).
-
-**Descartada:** esconder a lista de setores para admin (o dono deixou as duas opções; ficou a lista opcional com o aviso — admin pode, se quiser, ser vinculado a setores para aparecer nas equipes).
-
-## D-10 · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites (19/08/2026)
-
-**Decidido:** a construção acontece em **sessões separadas do Claude Code, por ordem de implementação**, com o dono acompanhando cada uma e abrindo novas sessões de idealização com o Cowork entre elas.
-
-- As sessões vivem em `Plataforma/Demandas/` como `SESSAO-NN - Título.md` — ordem proposta em [[000 - ORDEM DAS SESSOES]].
-- As regras de conduta do Claude Code (persona + limites críticos/moderados/básicos) vivem em [[CLAUDE - Regras do Claude Code (repo)]], que **deve ser copiado como `CLAUDE.md` para a raiz do repositório** na Sessão 01.
-- Regras-síntese: nunca commitar na main · nunca tocar banco de produção sem aprovação · perguntar antes de ajuste crítico · reler a demanda várias vezes contra a memória de execução (anti-alucinação) · computar tudo enquanto executa · task list espelhando a demanda · handoff ao fim de cada demanda.
-
-## D-12 · Setores do dia 1 = os do ClickUp; estrutura em 2 níveis configurável (24/08/2026)
-
-**Decidido (a partir da print do ClickUp DPTO PRODUÇÃO):** os setores do dia 1 são exatamente os que existem hoje no espaço DPTO PRODUÇÃO:
-
-**PCP · SECC · CNC · FITAMENTO · FURAÇÃO · MONTAGEM · LIMPEZA E EMBALAGEM**
-
-E a estrutura é em **2 níveis, como no ClickUp**: **setores** (o card viaja entre eles) contendo **etapas internas** (status dentro de cada setor). O admin pode **cadastrar novos setores e novas etapas dentro de cada setor** — nada é fixo no código.
-
-**METALURGICA (confirmado pelo dono em 24/08):** **ainda não é um setor utilizado** — apenas futuramente será. Não entra no dia 1; quando for usada, o admin a cadastra (RF-07). Nenhuma lógica do sistema pode assumir a existência dela.
-
-## D-13 · Entrada única e saídas terminais do fluxo (24/08/2026)
-
-**↩️ revisada em 2026-09-27 (D-58):** os fins de linha agora são três — Pedidos em aguardo (peça de pedido), ESTOQUE (só peça sem dono) e ROTAS (pedido lançado). A entrada única pelo PCP não muda.
-
-**Decidido (palavras do dono):** *"Todos os pedidos chegam exclusivamente primeiro para PCP e por último em estoque ou rotas, ficando ou parado ou entregue lá mesmo."*
-
-- **Entrada única:** todo pedido entra **sempre** pelo **PCP** — não existe card nascendo em outro setor.
-- **Saídas terminais:** o card termina em **ESTOQUE** (fica parado lá) ou em **ROTAS** (é entregue). São os dois únicos fins de linha.
-- Consequência de modelo: o reagrupamento do pedido (D-01) acontece nesse fim de linha — responde a Q-27.
-- ⚠️ Ponto a confirmar na sessão do kanban: na fase 1 a **ROTAS vive no ClickUp** (D-05). Portanto ROTAS existe na plataforma como **setor terminal de handoff** (o card chega lá e a ponte n8n cria o card na ROTAS do ClickUp), ou o fim de linha na plataforma é só ESTOQUE + expedição? Decidir antes de codar a SESSAO-04.
-
-## D-14 · Etapas internas: cadastro livre, cada uma com timer próprio (24/08/2026)
-
-**Decidido (palavras do dono):** *"cada setor tem suas peculiaridades internas, não apenas aguardando, execução e finalizado… para toda etapa diferente que cadastrar dentro de cada setor, essa etapa por si só já carrega um timer interno que passa a contar a partir do momento do cadastro para todo card que chegar lá."*
-
-- **NÃO existe trio padrão** ("na fila → em execução → finalizado") imposto pelo sistema. Cada setor tem suas etapas internas próprias, conforme suas peculiaridades.
-- **Toda etapa cadastrada nasce com timer próprio**, automaticamente: card que chega naquela etapa começa a contar tempo ali, sem configuração extra. O timer é propriedade da etapa, não uma feature avulsa.
-- **NÃO CHUTAR ETAPAS.** O sistema entrega o cadastro; **o dono cadastra manualmente as etapas de cada setor quando vir a plataforma**. Seeds de etapas internas são proibidos — só os setores da D-12 são semeados.
-- Isso substitui a hipótese de trio padrão levantada em Q-26 (respondida).
-
-## D-15 · Stack escolhida pelo Claude Code, e imutável depois (24/08/2026)
-
-**Decidido:** o dono não tem preferência técnica (*"deixe ele escolher a mais assertiva e seguir esse padrão até o fim"*). O Claude Code escolhe a stack do front na Sessão 01, **justifica a escolha**, e ela vira **padrão até o fim do projeto** — trocar depois exige decisão nova aqui. Recomendação registrada do Cowork: **React + Vite + TypeScript + Tailwind** (padrão de mercado, integra nativamente com Supabase, TypeScript reduz erro bobo, Tailwind facilita o design system próprio).
-
-**↪️ Confirmação da stack (24/08/2026 — SESSAO-01):** o Claude Code escolheu e justificou. **React 19 + TypeScript + Vite + Tailwind CSS v4 + Radix UI (primitivos) + React Router + TanStack Query**, testes em Vitest + Testing Library, `npm` como gerenciador. Justificativa curta: TypeScript corta a classe de erro mais cara do projeto (nome de campo/coluna errado — E-05); Vite dá build enxuto e dev instantâneo, o que importa na rede do galpão; Tailwind com tokens próprios permite design system Domoby sem herdar identidade de terceiro; Radix entrega acessibilidade (foco, teclado, ARIA) pronta, que é onde componente caseiro erra feio; TanStack Query entrou já na fundação porque cache de fila de setor é arquitetura, não detalhe. **A partir daqui é padrão até o fim do projeto** — trocar exige decisão nova aqui. Detalhes e alternativas descartadas no handoff [[handoff_2026_08_24_sessao01_fundacao]].
-
-**Banco de desenvolvimento (mesma data):** todo o desenvolvimento roda num **projeto Supabase novo, exclusivo de dev**. O Supabase de produção (D-08) só recebe migrations já testadas, com aprovação explícita do dono — a integração do Tiny está no ar nele.
-
-## D-16 · Bloco 1 de construção = Sessões 01→05 (24/08/2026)
-
-**Decidido:** o primeiro prompt do Claude Code cobre **cinco sessões em sequência** (fundação → banco → auth → kanban → timers), com **PR e checkpoint com o dono ao fim de cada uma**. Ao final do bloco o dono já cadastra suas etapas internas e vê o tempo sendo contado de verdade. Prompt pronto em [[PROMPT - Bloco 1 (Sessoes 01 a 05)]].
-
-## D-17 · Formato dos prompts do Claude Code: mínimo, só o caminho (24/08/2026)
-
-**Decidido (pedido do dono):** o prompt entregue ao Claude Code é o **menor possível** — aponta o caminho do cofre e o bloco a executar, nada mais. Tudo o que ele precisa saber já está escrito nas notas; repetir no prompt cria uma segunda fonte de verdade que envelhece sozinha (viola M-04, "um dono por dado").
-
-- O prompt é entregue **no chat pelo Cowork**, pronto para colar — não vira documento longo.
-- Para isso funcionar, [[CLAUDE - Regras do Claude Code (repo)]] abre com a seção **"Ao iniciar qualquer sessão"**, com a ordem de leitura obrigatória. **Manter essa seção viva é o que sustenta prompts curtos.**
-- Vale para todos os blocos seguintes: muda só a linha que nomeia o bloco.
-
-## D-53 · Estoque na frente: a 25 troca de ordem com a 24 e absorve o estoque-base (24/09/2026)
-
-**Pedido do dono:** *"preciso urgentemente dessa sessão do estoque completamente entregue"*.
-
-**Decidido:**
-1. **Ordem de execução do Bloco 5 passa a ser 22 → 23 → 25 → 24 → 26 → 27 → 28.** A [[SESSAO-25 - Integracao Tiny Fabrica - Estoque e Minimos]] roda **antes** da [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]].
-2. **O estoque-base migra da 24 para a 25**, para o estoque sair inteiro numa sessão só: **item com pedido × sem dono**, **lançamento manual de estoque** e a **tela de Estoque** (saldo, mínimo, sinalização). A 24 fica com as **consequências**: "Concluir produção" → Pedidos em aguardo, os 3 fluxos de cancelamento e a sugestão de alocação no PCP.
-3. **Os números dos arquivos NÃO mudam** (`SESSAO-24`/`SESSAO-25` continuam como estão) — renomear quebraria dezenas de links do cofre. Isto abre **exceção pontual à regra "número = ordem"** da D-23: onde número e ordem divergirem, **vale a coluna Ordem de [[000 - ORDEM DAS SESSOES]]**.
-4. **Saldo negativo:** na plataforma é exibido como **0** (*"não existe ter −2 mesas em estoque"*); o valor cru continua no evento. A correção da causa no Tiny fica com o dono ([[N8N - Pendencias e Riscos#P16]]) — **não corrigir por automação**.
-
-**Contexto que tornou isso possível:** entre 21 e 23/09, fora de sessão de código, a **integração com o Tiny da fábrica ficou pronta e em produção** (catálogo `produtos` com 487 itens, `fn_upsert_produto`, workflow n8n ativo e webhook de lançamentos de estoque ligado, com o payload capturado). Ou seja, a parte "externa" da 25 já está feita — sobrou o trabalho dentro da plataforma. Ver [[N8N - Tiny Fabrica Produtos para Banco]].
-
-## D-54 · O fluxo do estoque: só peça pronta, perfeita e sem pedido; abaixo do mínimo, o estoque pede REPOSIÇÃO ao PCP (26/09/2026) — ↩️ revisa a D-22 e fecha a Q-23
-
-**↪️ 30/09/2026 (D-85/D-87):** a reposição ganhou a **segunda saída** (parada 2 dias úteis no PCP, sai sozinha — o Sistema assina) e o **liga/desliga no Painel admin** (agendar/desagendar a rotina); desligada, a logística lança à mão. O mínimo que dispara passou a ser o automático do Top X (D-83/D-84), e a conta desconta o que já vem para o estoque (D-86).
-
-**↩️ revisada em 2026-09-28 (D-70):** agora EXISTE entrada manual no ESTOQUE — a logística/admin cadastra, dá baixa e confere a contagem dos acabados ("por enquanto", palavras do dono). O resto desta decisão (ESTOQUE só com peça 🟢 e sem dono; reposição no PCP) segue valendo.
-
-**Decidido (resposta 7 do dono no início da SESSAO-25 — ele NÃO confirmou o item sem dono nascendo direto no ESTOQUE):** *"Dentro dele não ficará mais nenhum produto danificado, nem com estado de atenção, nem produtos prontos com pedido definido; produtos prontos com pedidos definidos serão estoque reservado e não devem contabilizar positivamente no estoque de fato … quando o produto ficar abaixo do estoque mínimo, lançamos para a produção (PCP) um card de 'necessidade de reposição em estoque', esse card que o estoque vai gerar, no fim também é o PCP que vai decidir o rumo dele; assim que o produto for produzido, vai para estoque aguardar a venda."*
-
-- **Estoque de fato = peça pronta, 🟢 e SEM pedido.** Pronta COM pedido = **reservada** (duas etiquetas: SKU + pedido) — aparece à parte, nunca soma.
-- **O ESTOQUE só recebe peça 🟢** — regra do banco para chegada humana (trigger `plt_eventos_validar_chegada_estoque`); as telas de mover/concluir/resolver danificado só oferecem 🟢 quando o destino é o ESTOQUE.
-- **Card de REPOSIÇÃO** (tipo novo `reposicao` em `plt_cards`): a maquinaria gera no **PCP** quando o disponível de um produto do catálogo fica abaixo do mínimo do Tiny — um ciclo vivo por produto; depois de um ciclo, só reabre com leitura NOVA do Tiny daquele produto (a peça pronta precisa entrar no Tiny antes). Quantidade = mínimo − disponível (o negativo NÃO entra: aqueles pedidos já têm card próprio no PCP). O **PCP decide**: libera as unidades (nascem sem pedido) ou **"Não produzir"** (arquiva). Pronta → fica **livre** no ESTOQUE.
-- **D-13 continua valendo** (tudo entra pelo PCP). **↩️ D-22 revisada:** existe card no PCP que não nasce de pedido do Tiny — o de reposição, gerado pelo estoque (nunca digitado à mão).
-- **Não existe lançamento manual direto no ESTOQUE** (item 5 da demanda original, não confirmado): a entrada de estoque é o Tiny (a equipe cadastra o pronto lá) e a produção de reposição.
-- **Q-23 ✅ fechada:** produção para estoque = card de reposição que o estoque gera no PCP.
-- A geração automática (pg_cron, a cada 5 min) **é ligada à parte**, com o OK do dono (`supabase/manutencao/2026-09-26_ligar_reposicao_automatica.sql`) — a primeira rodada com a carga de 26/09 criaria 44 cards (121 unidades).
-
-**Descartada:** item sem dono lançado à mão direto no ESTOQUE (não confirmado pelo dono).
-
-## D-55 · O número do estoque: o do Tiny menos o que a loja já vendeu e ainda não saiu; negativo = "necessidade extrema" (26/09/2026)
-
-**↩️ revisada em 2026-09-28 (D-70):** nos ACABADOS o número passou a ser a contagem da logística (peças livres no ESTOQUE) — o Tiny não avisava a saída da venda nem o pronto dos móveis, e o negativo dele virava falsa "necessidade extrema". Esta regra (Tiny − reservas) segue só para matéria-prima e insumos.
-
-**Decidido (respostas 1, 2 e 3 do dono, SESSAO-25):** *"o pessoal cadastra o produto dentro do Tiny como pronto, o Tiny aumenta a quantidade; quando um pedido de venda é gerado no Tiny da loja, ele já debita automaticamente do Tiny da fábrica … para eles o negativo é necessidade de produção, mas na nossa plataforma não faremos assim, não teremos estoque negativo, quando ficar negativo é porque é necessidade extrema de produção."*
-
-- **Saldo do Tiny = leitura derivada** do último aviso de cada produto (webhook de lançamentos de estoque ou a carga inicial) — **sem tabela e sem coluna nova** (resposta 1: "faça o mais profissional, otimizado e rápido"; o dono autorizou 2 colunas em `produtos` se um dia precisar).
-- **Disponível = saldo físico lido − reservas abertas** (itens não personalizados de pedidos da loja em aberto/aprovado/preparando envio, casados por SKU). O Tiny **não avisa** quando sai pedido (46 pedidos, 0 avisos — a reserva não é lançamento); a plataforma faz a conta com os pedidos que já chegam ao banco.
-- **Na tela, nunca negativo** (D-53): mostra 0 e a **"necessidade extrema — N vendidos sem estoque"** (ícone + texto).
-- **Tiny e plataforma nunca se somam** (resposta 2): "Em estoque" (Tiny) · "Reservados" (prontos com pedido) · "Livres na plataforma" (prontos sem pedido, da reposição).
-- **Venda da loja debita** = a reserva derivada acima (a venda nova entra na conta na hora).
-- **Personalizado** não reserva nem desconta o produto do catálogo (a loja reusa o SKU com outras medidas). **Exceção (dono, 26/09):** personalizado produzido cujo pedido foi cancelado **vai para o estoque** e, a partir daí, uma venda igual dá baixa nele — fluxo do cancelamento, [[SESSAO-24 - Estoque Nucleo - Aguardo Cancelamentos e Alocacao]].
-
-⚠️ **Achado da carga de 26/09 (para o dono):** o **físico** dos fabricados no Tiny está **negativo em 93 de 168** (venda que baixou sem o "pronto" correspondente) e a **reserva do Tiny não bate com os pedidos abertos** (ex.: 327 com 44 reservados no Tiny × 0 pedidos abertos no banco; serviços da própria fábrica — Corte, Furo, FITAMENTO — com milhares reservados). Por isso a plataforma usa os pedidos abertos, não o `saldoReservado` do Tiny.
-
-## D-56 · O ID da peça é o SKU; reservada ganha a segunda etiqueta, a do pedido (26/09/2026) — fecha a Q-63
-
-**Decidido (resposta 4 do dono):** *"O id que eles usam atualmente é apenas o SKU do Tiny etiquetando, e eles contam em um papel todos os dias quantos tem de cada produto em estoque. Vamos deixar que ainda seja o SKU contando a quantidade, mas a nossa ideia é eliminar o papel. Quando sai um pedido com o respectivo produto tendo sido vendido, o produto passa a ter 2 ids, o SKU e o id do pedido, duas etiquetas diferentes, e ele vira produto reservado."*
-
-- A tela de Estoque mostra a **quantidade por SKU** (o papel deixa de ser a fonte); a peça reservada aparece com **SKU + nº do pedido**.
-- O campo livre "ID de produção" (D-38) **sai da tela** (a coluna e a RPC ficam no banco — nada se apaga).
-- **Q-63 ✅ fechada.**
-
-## D-57 · Estoque em duas telas + sugestão de mínimo pelo top 20 (26/09/2026)
-
-**↪️ 28/09/2026 (D-71/D-72):** "Produtos acabados" virou **Top 20+** (a lista de prioridade das vendas foi para lá) e "Sugestão de mínimo" virou **Configurações** (mínimo editável aqui, capacidade do galpão, sugestão que cabe no galpão). O dono ajusta o mínimo na plataforma — o do Tiny vale só enquanto não houver um definido aqui.
-
-**Decidido (resposta 8 e pedido do dono na abertura da SESSAO-25):**
-
-- **Produtos acabados** (F fabricado, S simples/revenda, variações) e **Matéria-prima e insumos** (M, K — peças, MDF, parafusos): *"pra produção, o que futuramente irá existir é estoque de peça e necessidade de produção de peça com plano de corte — esse será o nosso próximo passo, então já adiantaremos a peça."* As duas vivem em abas do mesmo filho `/fabrica/logistica/estoque` (não são rotas novas — D-36).
-- **Sugestão de mínimo:** *"é para os 20 produtos mais vendidos dos últimos 90 dias, porém com rank — obviamente o produto mais vendido deve ter mais em estoque do que o top 20."* Sugestão = média semanal de vendas (sem personalizado, sem cancelado) × semanas de cobertura escolhidas na tela (1, 2 ou 4) — cresce com a venda. O dono ajusta o mínimo **no Tiny**.
-- **Alerta de erro do n8n (P1): não agora** (*"belíssima ideia, porém não faremos ainda"*).
-
-## D-58 · O lugar da peça pronta: com pedido → Pedidos em aguardo; o ESTOQUE fica só com peça sem dono (27/09/2026) — ↩️ revisa a D-13, a D-18, a D-38 e a D-45
-
-**Decidido (resposta b4 do dono no início da SESSAO-24):** *"JÁ EXISTE A ABA DE PEDIDOS EM AGUARDO, OS LOCAIS FINAIS NÃO SÃO MAIS ESTOQUE E MUITO MENOS ROTA, ISSO JÁ MUDOU, ESTOQUE SÓ FICA COMO LOCAL FINAL DE PEÇA SEM DONO."*
-
-- **Peça pronta COM pedido termina em Pedidos em aguardo** — a aba que já existia passa a ser o **lugar** da peça (por baixo, um fim de linha interno "PEDIDOS EM AGUARDO"; nenhuma tela nova, nenhuma rota nova). De lá o pedido completo é **lançado para as ROTAS** (D-45, que segue valendo para o lançamento).
-- **O ESTOQUE só recebe peça SEM dono** (reposição, ou peça de pedido cancelado — que perde o pedido na chegada). Peça de pedido vivo mandada ao ESTOQUE é recusada pelo banco com a explicação.
-- **Os dois lugares só recebem peça 🟢** (a regra da D-54 vale para os dois). Pedidos em aguardo só aceita peça de pedido vivo.
-- **Painel:** "concluídas do dia" passa a contar só a chegada vinda da **produção** (a mudança entre fins de linha — lançar para ROTAS, cancelamento — não é produção nova; antes o lançamento contava a peça duas vezes). O "fim de linha" do painel ganha Pedidos em aguardo.
-- **O que estava no ESTOQUE com pedido em 27/09** (herança): as 🟢 de pedido vivo foram para Pedidos em aguardo; as de pedido **já entregue no Tiny** foram **arquivadas** (dono: *"se já foi entregue, não deve nem aparecer mais aí"*); a 🔴 do 13215 ficou esperando decisão.
-- ↩️ **D-13 / D-18:** os fins de linha agora são três — Pedidos em aguardo (peça de pedido), ESTOQUE (peça sem dono) e ROTAS (pedido lançado); a entrada única pelo PCP não muda. ↩️ **D-38:** a "sala" de Pedidos em aguardo virou lugar. ↩️ **D-45:** "unidade pronta" = chegou a um fim de linha (qualquer um dos três); o lançamento move do aguardo para as ROTAS.
-
-**Descartadas:** manter a peça de pedido no ESTOQUE e só filtrar a aba (era o modelo antigo, que o dono disse que "já mudou"); criar tela ou rota nova para o aguardo.
-
-## D-59 · Quadros de produção só por arrasto; o único botão é "Concluir produção", na LIMPEZA E EMBALAGEM (27/09/2026) — ↩️ revisa a D-24, a D-48 e a D-03
-
-**↩️ revisada em 2026-10-14 (D-125/D-127):** o "Concluir produção" sai da LIMPEZA E EMBALAGEM (concluir = soltar na EXPEDIÇÃO); o botão "Concluir" fica só no card avulso; Pausar/Retomar voltam dentro da janela do card e arrastar para PARADO um card em execução pede o motivo.
-
-**↩️ revisada em 2026-10-21 (D-173):** o **Mover** volta — só para a liderança (líder de qualquer setor, admin, super admin), na janela do card, para a FILA de qualquer setor de produção, com motivo obrigatório. O arrasto continua sendo o gesto da equipe.
-
-
-**Decidido (resposta a1 do dono, depois de um alinhamento com a equipe da fábrica):** *"um móvel só vira móvel na parte de montagem; até a montagem ele é um plano de corte dividido em várias peças de outros móveis até. Então, por enquanto, vamos remover todos os botões, eles preferem que tudo seja arrastando, é mais rápido. Se o cara mover de 'a montar' para 'montando', esse card já deve ser instantaneamente iniciado, não o contrário; se ele mover para 'montado', o card já deve ir para o próximo setor, que é limpeza e embalagem. O único lugar que terá o botão de concluir é no setor de limpeza e embalagem: todos os móveis que vão para estoque passam por ele e eles que movem para estoque, seja móvel para estoque de fato, ou móvel já reservado por algum pedido."* E: *"já existe a etapa de fila, início e conclusão em todos os setores."*
-
-- **Soltar o card na etapa de INÍCIO** (a próxima depois da fila — a mesma regra da D-48↪️) **inicia o tempo de quem arrastou**, na mesma hora. O limite de 1 por pessoa (D-48) e o parecer de quem recebe (D-09) continuam valendo.
-- **Soltar numa etapa que ENCAMINHA** (com nome de setor, ou CONCLUÍDO — D-60) **leva o card ao setor dela**, pedindo a marcação 🟢🟡🔴 de quem entrega (D-09 é lei).
-- **Soltar em qualquer outra etapa** (PARADO, a própria fila…) só move — e fecha o tempo de quem executava (regra que já existia).
-- **"Concluir produção"** é o único botão dos quadros e só existe na **LIMPEZA E EMBALAGEM**: peça de pedido vivo → **Pedidos em aguardo**; peça sem pedido (reposição) ou de pedido cancelado → **ESTOQUE, sem dono** (D-58). Só 🟢.
-- **Modo tablet** também vira quadro de arrastar, com botão grande; ao soltar ou concluir, pede o **PIN** de quem fez (D-06/SESSAO-07).
-- **Saem dos quadros** os botões Iniciar, Pausar, Retomar, Finalizar, Assumir e Mover. ↩️ **D-24:** "iniciar é obrigatório" continua — o gesto agora é soltar na coluna de início; o "assumir" (transferência) sai por ora. ↩️ **D-48:** a pausa do líder sai junto com os botões — arrastar para PARADO ou para a fila fecha o tempo (as regras e os eventos de pausa continuam no banco). ↩️ **D-03:** o destino continua manual — quem decide é quem arrasta; a etapa que encaminha só poupa o segundo gesto.
-- Decidido pelo Claude e avisado ao dono (pode corrigir): tablet por arrasto com PIN; etapa chamada ESTOQUE não encaminha (quem leva ao fim de linha é o Concluir).
-
-**Descartadas:** manter os botões ao lado do arrasto (a equipe prefere só arrastar); concluir em todos os setores (só a LIMPEZA E EMBALAGEM leva ao fim de linha); cadastrar marca nova "etapa que inicia" (a estrutura fila → início já existia — E-44).
-
-## D-60 · Rotas das etapas: etapa com nome de setor leva ao setor; CONCLUÍDO leva ao próximo — SECC e CNC mandam para a FURAÇÃO (27/09/2026)
-
-**Decidido (respostas do dono na SESSAO-24):** *"etapa com nome de setor move o card para o setor"*; *"a etapa CONCLUÍDO de SECC e CNC manda para FURAÇÃO, o concluído dos outros setores manda sempre para o próximo (SECC e CNC são 2 máquinas diferentes que fazem praticamente a mesma coisa: cortam uma chapa de MDF de acordo com o plano de corte feito no SketchUp; a diferença é que a CNC também fura a peça, a SECC não)"*; "CENTRO DE FURAÇÃO" = setor FURAÇÃO.
-
-- **Etapa com nome de setor de produção** (herança do ClickUp — em todos os quadros e também no PCP) leva ao setor do nome. **"CENTRO DE FURAÇÃO" → FURAÇÃO.**
-- **CONCLUÍDO:** SECC → FURAÇÃO · CNC → FURAÇÃO · FITAMENTO → FURAÇÃO · FURAÇÃO → MONTAGEM · MONTAGEM → LIMPEZA E EMBALAGEM ("o próximo" pela ordem cadastrada dos setores — confirmado pelo dono na prévia: *"Sim, está certo"*).
-- A LIMPEZA E EMBALAGEM não tem rota: as etapas ESTOQUE, EXPEDIÇÃO, CANCELADO, NÃO ENCONTRADO e ENTREGUE ficam etapas comuns — o fim de linha é o **Concluir produção** (D-59).
-- **É dado do dono, não código:** editável em **Setores e etapas** ("Soltar o card em {etapa} manda para…"); etapa nova com nome de setor já nasce com a rota. A carga inicial (20 etapas) só preencheu etapa sem rota — reaplicar nunca desfaz edição do admin.
-
-## D-61 · Cancelamento em três estágios; a aba Cancelados guarda para sempre; peça inacabada não vai para o estoque (27/09/2026)
-
-**Decidido (respostas b2 e b3 do dono na SESSAO-24, sobre o desenho da demanda):**
-
-- **Cancelado ainda no PCP** (nada produzido): o pedido sai do quadro do PCP e vai para a **aba Cancelados** do PCP — que **guarda para sempre** (b3), paginada, carregada só ao abrir.
-- **Cancelado com peça em produção:** a peça **segue em produção** com a etiqueta **"Pedido cancelado — pronta, vai para o estoque"**; ao ser concluída na LIMPEZA E EMBALAGEM, vai ao **ESTOQUE sem dono**. Nada de estocar peça inacabada (b2): *"a peça continua em produção e logo mais irá para o estoque de peças de fato, não de produtos prontos"* (o estoque de peça é o próximo passo — D-57).
-- **Cancelado com peça pronta** (em Pedidos em aguardo): a peça vai **sozinha** ao ESTOQUE, **sem dono** (o produto do catálogo é achado pelo SKU). Personalizado cancelado também vai ao estoque (a exceção da D-55).
-- A etiqueta é lida da situação do pedido no Tiny (a mesma fonte do cancelamento) — nada guardado à parte.
-- ↩️ **11/11/2026 (D-290, SESSAO-48):** a peça de pedido cancelado que está **em produção** não segue mais sozinha para o estoque — ela fica "esperando decisão" e a logística escolhe o destino (seguir para o estoque, passar para outro pedido ou cancelar a fabricação); sem decisão, ao chegar ao fim da linha, vale a regra antiga (ESTOQUE sem dono). A peça **pronta** continua indo sozinha ao ESTOQUE. E mover qualquer peça para CANCELADO ou NÃO ENCONTRADO tira ela da produção na hora.
-
-## D-62 · A sugestão do estoque na liberação: o que é "peça igual" e quem aceita (27/09/2026)
-
-**Decidido (respostas b1 e b5 do dono na SESSAO-24):**
-
-- **"Peça igual" (b1):** produto do catálogo casa pelo **SKU**; **personalizado** casa por **SKU + descrição idêntica** (sem ligar para maiúsculas, acentos e espaços); item **sem SKU** casa pela descrição idêntica.
-- Ao liberar um pedido no PCP, cada linha mostra **"Há N igual(is) no estoque, sem dono — usar?"** — **desmarcado por padrão** (a sugestão nunca decide sozinha). **↪️ 30/09 (D-78):** a peça que a VENDA já reservou para a unidade vem **marcada** ("Peça do estoque reservada para este pedido — usar?").
-- **Quem aceita (b5):** PCP/logística (*"são a mesma coisa no fim das contas"*) e admin.
-- **Aceitar** faz a unidade do pedido nascer **direto em Pedidos em aguardo** (a peça livre sai do ESTOQUE; as duas histórias ficam guardadas). Se o pedido for cancelado depois, a peça volta ao ESTOQUE sem dono (D-61).
-
-## D-63 · Frete não vira peça de produção; o resto nasce no PCP e o PCP escolhe o lugar; pedido sem nada a produzir vai direto para Pedidos em aguardo (28/09/2026) — ↪️ ajusta a D-01 e a D-45
-
-**Contexto:** achado da F-07 da SESSAO-24 — o 13215 tinha um card "Frete" (1/1) na LIMPEZA E EMBALAGEM: todo item do pedido com quantidade ≥ 1 virava unidade (a regra do n8n/ClickUp de sempre, copiada na SESSAO-04). Levantamento só de leitura (8.107 itens, 03/2025 → 28/09): fora de móvel, só 4 famílias — frete/entrega, serviço de instalação ("Fechadura (com instalação)", "Passa fio (com instalação)"), revenda pronta (cadeiras, lâmpadas-kit, espelho Adnet, carro de mão, longarinas) e acessório solto (rodízios, puxador); em 90 dias, 44 de 897 pedidos (4,9%) com algum. A classe do catálogo do Tiny e o SKU **não** separam (A-31).
-
-**Decidido (respostas do dono em 28/09):**
-
-- **Só frete/entrega não vira card** de produção (resposta: *"Frete / entrega"*) — nem conta para o pedido ficar completo. Reconhecido **pela descrição** (resposta: *"Pela descrição"*): a 1ª palavra — "Frete", "Frete cliente", "Entrega".
-- **Todo o resto** — cadeira, lâmpada, fechadura, passa-fio, rodízio, espelho… — *"SEMPRE NASCE NO PCP DO JEITO QUE ESTÁ E O PCP DEFINE O LOCAL CORRETO"*: continua virando unidade, e o PCP escolhe o destino na liberação (a cadeira de estoque pode ir direto para Pedidos em aguardo — já funcionava).
-- **Cadeira e acessório são produto de estoque:** *"também são vendidos pela loja e devem estar no estoque cadastradas com a quantidade de acordo com o Tiny, se não está assim atualmente, está errado"* — conferido em 28/09: as cadeiras estão em Estoque → Produtos acabados com o número do Tiny; o que ficou para o dono decidir está na Q-71.
-- **Pedido sem nada a produzir** (só frete — nunca aconteceu: 0 em 5.410 pedidos): *"Direto p/ Pedidos em aguardo"* — nasce no PCP (entrada única, D-13), não espera liberação e aparece já completo para a logística lançar para ROTAS. Decidido **na leitura**: se o Tiny acrescentar um móvel, o pedido volta sozinho ao quadro do PCP.
-- ↪️ **D-01:** "cada móvel vira um card por unidade" — frete/entrega não é móvel e não vira card. ↪️ **D-45:** "unidade pronta" e pedido completo contam só unidades de produção.
-
-**↩️ revisada em 2026-10-08 (SESSAO-30, raio-x 3 — escolha do dono em 06/10 de incluir o item):** o PCP libera **só para setor de produção**; ESTOQUE, Pedidos em aguardo e ROTAS não são destino de liberação, para toda origem (o ajuste do super admin — D-117 — passa). A peça pronta do estoque (a cadeira de revenda, inclusive) entra pela **sugestão "usar?"**, que a faz nascer pronta no aguardo; sem peça no estoque, vai pela LIMPEZA E EMBALAGEM → "Concluir produção". Na história, o PCP nunca liberou direto para o aguardo (0 de 33 liberações). ✅ **Confirmada pelo dono em 13/10** (D-124).
-
-**Como ficou (técnico):** migration 39 — a regra única na view `plt_privado.vw_itens_producao` (eh_frete + unidades; view e não função porque função com `set search_path` não é embutida pelo planner — E-65), somada pelas 17 portas que contam unidades; gatilho em `plt_cards` recusa card de unidade de frete para todo escritor (M-14); `lock_timeout` de 5 s na aplicação (E-66); manutenção arquiva o card de frete que nasceu antes da regra (o do 13215 — card de teste, M-16).
-
-**Descartadas:** reconhecer pela classe do produto no Tiny (a classe "simples" mistura móvel feito aqui — Penteadeira camarim, 82 vendas — com revenda, e frete não tem SKU); lista editável no admin (tabela nova sem necessidade — D-47); o PCP marcar item a item (+1 gesto por pedido); tirar também revenda, serviço e acessório da produção (o dono quer o PCP decidindo o lugar).
-
-> Numeração: a SESSAO-24 (que rodou em paralelo com a 26) usou D-58…D-62; a D-63 é do ajuste do Frete (28/09); a D-64 ficou sem uso.
-
-## D-65 · Chat interno: canais, particulares e Avisos gerais — quem cria, quem escreve, quem lê (27/09/2026)
-
-**↩️ revisada em 2026-10-14 (D-131):** a mensagem pode ser editada e apagada pelo autor; admin/super admin veem as apagadas nas conversas a que têm acesso (a particular dos outros continua fechada).
-
-
-**Decidido (respostas do dono no início da SESSAO-26):**
-
-- **Três tipos de conversa:** canal de grupo, particular (1:1 com qualquer colega) e **Avisos gerais** (uma conversa da empresa inteira — todo cadastro participa, inclusive quem chega depois, sem herdar "não lidas" antigas).
-- **Canal: só líder e admin criam** (resposta 2). **Quem cria administra** — muda o nome, põe e tira pessoas; o admin da plataforma que estiver no canal também administra. Ninguém tira a si mesmo.
-- **Avisos gerais: o admin escreve sempre e decide QUEM MAIS escreve** (resposta 3 — lista configurável na própria conversa, "Quem escreve"); os demais só leem.
-- **Cada um lê só as conversas de que participa — nem o admin lê particular ou canal alheio**, nem pela API (RLS por participação + canal de websocket privado).
-- **Guardar para sempre** (resposta 4). Mensagem é **só inserção**: não se edita nem se apaga (histórico simples e honesto); quem sai de um canal não é apagado — a saída fica marcada.
-- **Conta de tablet do setor participa normalmente** (resposta 5) — na prática ela vive no `/tablet`, onde o chat não aparece.
-- **Trilha (D-40):** canal criado/renomeado, pessoa posta/tirada, quem escreve nos avisos, aviso publicado e data de nascimento alterada. **Mensagem comum e abertura de particular NÃO vão para a trilha** — a própria mensagem já é o registro, e a trilha mostraria aos admins quem conversa com quem. Conteúdo, nunca.
-- Mensagem nova **não** vai para o sino (o sino é dos avisos do sistema); quem avisa é o badge do balão.
-
-**Descartadas:** todos criarem canal; líderes escreverem nos avisos por padrão; admin lendo tudo (auditoria de conversa); apagar/editar mensagem.
-
-## D-66 · Aniversários: o Sistema publica os parabéns nos Avisos gerais (27/09/2026)
-
-**Decidido (resposta 1 do dono — "só no grupo mesmo, tá boa a mensagem"):**
-
-- Campo novo **data de nascimento** em `plt_usuarios` (D-21) — a própria pessoa cadastra no Meu Perfil; o admin, na Gestão da equipe. **Só a pessoa e o admin veem a data** (fora da API — D-68).
-- No dia, às **08:00 de Natal**, o Sistema publica nos **Avisos gerais**, uma vez por pessoa: *"🎉 Hoje é aniversário de {nome}! Parabéns — toda a Domoby deseja um ótimo dia."* Só pessoas ativas.
-- Nascido em **29/02** é lembrado em **28/02** nos anos não bissextos.
-
-**Descartada:** mandar também em particular para a pessoa.
-
-## D-67 · Chat por websocket; leitura só por página — 10 mensagens, 5 conversas (27/09/2026) — ↩️ ajusta as notas técnicas da SESSAO-26
-
-**Decidido (adendo do dono no início da SESSAO-26):** *"a comunicação deve ser por websockets, não deve ter consulta de leitura ao banco, apenas de post; a única leitura deve ser da paginação para consultar mensagens antigas, até 10 mensagens por paginação, até 5 conversas por paginação também, até rolar o scroll e requisitar mais."*
-
-- **Websocket = Broadcast do banco em canal PRIVADO.** A autorização é conferida UMA vez, na entrada do canal (política em `realtime.messages`); o banco empurra cada mensagem. **↩️ Ajusta a nota da demanda** ("a publicação realtime ganha a tabela de mensagens"): no `postgres_changes` o Realtime relê o banco para cada assinante a cada mudança — o peso que o dono proibiu —, então a publicação **não** mudou.
-- **Dois canais só:** o da pessoa (sinais do badge e da lista — 1 por login) e o da conversa ABERTA (a mensagem inteira — sai ao fechar).
-- **Leitura:** a lista vem de 5 em 5 e as mensagens de 10 em 10 (o teto é do banco), a próxima página só ao rolar ou tocar em "Ver mais/Ver anteriores". A 1ª página da lista é a única leitura na abertura do app (é ela que acende o badge). **Nada de polling, nada de reler ao voltar à aba**; só a queda do websocket relê a 1ª página (pode ter perdido sinal).
-- **O resto é POST:** enviar (devolve a mensagem — quem envia não relê), marcar como lida, abrir particular, criar/renomear canal, pôr/tirar pessoa, liberar quem escreve, data de nascimento.
-
-## D-68 · Dados sensíveis do cadastro fora da API (27/09/2026)
-
-**Decidido (resposta 6 do dono — "a"):** o navegador passa a ler de `plt_usuarios` **só as colunas de trabalho**. **CPF, hash do PIN, token de convite e data de nascimento ficam fora da API.** Achado da SESSAO-26 (E-50): o grant de TABELA que o Supabase dá por padrão anulava os `revoke` por coluna da S03 — qualquer pessoa logada lia CPF, PIN e convite de todos.
-
-- **Regra permanente:** coluna nova em `plt_usuarios` só fica legível pelo navegador com `grant select (coluna)` explícito; dado pessoal novo nasce fora da API e é lido por porta própria (como a data de nascimento).
-
-## D-70 · O estoque dos acabados é a CONTAGEM da logística (entrada, baixa e contagem manual) — o Tiny sai da conta (28/09/2026) — ↩️ revisa a D-54 e a D-55
-
-**↪️ 30/09/2026 (D-76…D-79):** a contagem continua sendo o número, mas agora **conversa com o Tiny** (sincronismo ligado pelo admin): o Tiny acima sobe a plataforma, os gestos daqui deixam o Tiny igual, e a venda reserva a peça.
-
-**Contexto (diagnóstico de 28/09, só leitura no banco real):** o número dos acabados era "saldo do Tiny − pedidos da loja em aberto" (D-55). Mas o aviso de estoque do Tiny não chega na saída da venda nem no "pronto" dos móveis — 9 avisos na vida toda, nenhum de móvel, o último em 25/09; 45 pedidos saíram da reserva sem aviso (A-25). Só 19 dos 168 fabricados tinham saldo positivo e 57 viravam "necessidade extrema" sem pedido nenhum (o negativo do Tiny — P16). O dono, vendo a tela: *"porque nenhum produto está em estoque?"*.
-
-**Decidido (pedido do dono na conversa, 28/09):** *"deve ter um botão de 'cadastrar produto ao estoque' … a logística irá dar baixa manual na quantidade de itens em estoque por enquanto"*.
-
-- **O número de cada produto acabado (F/S/variação) = as peças livres no ESTOQUE** — a contagem da plataforma. A logística (e o admin) **cadastra** (entrada), **dá baixa** (sai a mais antiga primeiro) ou **confere a contagem** (o sistema acerta a diferença). Por baixo, cada peça é um card `unidade` sem pedido, com o produto do catálogo, direto no ESTOQUE — a mesma peça que a reposição e o pedido cancelado já deixam lá. Tudo por evento append-only (RNF-05); a baixa é o `card_arquivado` com o motivo, e a logística passa a poder arquivar peça livre do ESTOQUE.
-- **Consequência boa, sem nada novo:** a sugestão do PCP na liberação ("há N no estoque — usar?", D-62) enxerga as peças cadastradas.
-- **O Tiny sai da conta dos acabados** — fica nos insumos (M/K) e como referência no detalhe do produto. Os pedidos da loja em aberto **não descontam mais** o número (o pedido vira peça pela produção ou pela alocação do PCP). Acaba a "necessidade extrema" (↩️ D-55: o negativo era do Tiny).
-- **A reposição automática** (ainda desligada) passa a olhar a contagem da plataforma e o mínimo efetivo; depois de um ciclo, reabre com **movimento novo do estoque** do produto (antes: leitura nova do Tiny). ⚠️ Antes de ligar, a logística precisa ter contado o estoque — senão todo produto com mínimo pede reposição.
-- ↩️ **D-54:** "não existe lançamento manual direto no ESTOQUE" deixa de valer — agora existe, pela logística/admin, só peça pronta e em perfeito estado (o ESTOQUE continua só com peça 🟢 e sem dono). "Por enquanto" (palavra do dono): quando o fluxo do galpão estiver todo na plataforma, a entrada vem da produção.
-
-## D-71 · Top 20+: a tela do estoque abre pelos 20 mais vendidos; só aparece o que está em estoque; o resto na busca (28/09/2026) — ↪️ D-57
-
-**↩️ revisada em 2026-09-30 (D-83):** o 20 virou o **Top X configurável** (1–50), que é o tamanho da página; a lista virou UMA (o catálogo inteiro pelo ranking, o "Ver os outros" morreu) e o corte de pedido fora do comum entrou no ranking (D-84).
-
-**Decidido (pedido do dono, 28/09):** *"no estoque deve aparecer apenas os itens que realmente estão em estoque, os outros devem ficar nas próximas páginas, ou em um botão de 'ver produtos'"*; *"a paginação pegue os 20 produtos mais vendidos dos últimos 90 dias"*; *"gostei dessa lista de prioridade do mais vendido ao menos vendido, passe essa lista para a aba de 'produtos acabados' que agora irá se chamar 'Top 20+'"*.
-
-- A aba **Produtos acabados vira "Top 20+"**: a primeira página são os **20 mais vendidos dos últimos 90 dias**, em ordem de venda (o rank aparece na foto); depois vem **tudo o que tem estoque**. O resto do catálogo não aparece: fica em **"Ver os outros produtos"** (carrega só ao abrir) e na **busca**, que procura no catálogo inteiro.
-- A venda de 90 dias é **uma regra só** no banco (sem cancelado, sem personalizado, SKU do catálogo ativo) — a mesma do rank e da sugestão de mínimo.
-- A aba **Matéria-prima e insumos** mostra primeiro o que tem estoque (o resto nas páginas seguintes).
-
-## D-72 · Mínimo e capacidade do galpão na plataforma; a sugestão de mínimo CABE no galpão (28/09/2026) — ↩️ revisa a decisão 4 da SESSAO-25 e a D-57
-
-**↩️ revisada em 2026-09-30 (D-83/D-84):** a capacidade do galpão **saiu de uso** (a coluna fica guardada) e a sugestão passou a ser por **dias úteis de venda**, sem teto; o mínimo virou **automático** (editar trava) e **só o Top X tem mínimo** — o do Tiny deixou de valer como reserva nos acabados. O "Usar todas as sugestões" morreu. O cartão Galpão virou o painel de seis números (pedido do dono em 30/09).
-
-**Decidido (pedido do dono, 28/09):** *"o mínimo deve ser editável em uma caixinha de configurações … aparecer também a quantidade máxima do galpão; a quantidade mínima sugerida deve se adequar ao tamanho máximo do galpão (cuidado aqui)"*; *"a aba de sugestão de mínimo pode na verdade virar a aba de configurações"*.
-
-- A aba **Sugestão de mínimo vira "Configurações"**: a **capacidade do galpão** (quantas peças cabem) e o **mínimo de cada produto**, editável ali. **Mínimo vazio volta a valer o do Tiny** (↩️ "o mínimo mora no Tiny" da SESSAO-25) — nada se perde, e o que for definido aqui manda.
-- **A sugestão** = venda média da semana (90 dias) × cobertura (1, 2 ou 4 semanas). **Se a soma de todas passar da capacidade, todas encolhem na mesma proporção** (arredondamento pelo maior resto): a soma nunca passa da capacidade e **o mais vendido nunca fica com menos que o de baixo**. Quem não vendeu nos 90 dias não tem sugestão.
-- **"Usar todas as sugestões"** (dois toques): os mínimos viram as sugestões e quem não vendeu fica **sem mínimo** — só assim a soma dos mínimos cabe de verdade no galpão. Um a um também ("Usar" em cada linha). A tela avisa quando a soma dos mínimos passa da capacidade.
-- Decidido pelo Claude (o dono pediu para não perguntar): capacidade em **peças** (não em volume); a sugestão cabe na capacidade inteira (as peças reservadas em Pedidos em aguardo aparecem no resumo, mas não descontam a capacidade); mínimo e capacidade são gesto da **logística e do admin**, com trilha (D-40).
-
-## D-73 · Foto de cada produto no estoque — só a logística e o admin cadastram (28/09/2026) — ↪️ D-28
-
-**Decidido (pedido do dono, 28/09):** *"deve ter a possibilidade de cadastrar e ver a imagem de cada item … dando destaque para a imagem (apenas logística e admins podem cadastrar imagens)"*.
-
-- Cada produto ganha a **foto (capa)**, que aparece em destaque no cartão do Top 20+; tocar na foto abre o produto (foto grande, números, peça por peça).
-- A foto mora na **mesma biblioteca por SKU** que o tablet já usa para as imagens de produto (D-28 — `produtos/{sku}/…`): uma foto do produto, um lugar só. **Quem define a capa do estoque: logística e admin** (o banco confere); a política de envio da logística vale só para a pasta de produtos. A foto é reduzida no próprio celular antes de subir (rede do galpão).
-
-## D-81 · As fotos dos produtos vêm do Tiny e aparecem inteiras, sem corte (30/09/2026) — ↪️ D-73
-
-**Pedido do dono (30/09):** *"coloque as imagens dos produtos de acordo com o que está no Tiny… eu preciso dessas imagens na plataforma por questões de design"*; e, vendo o resultado: *"a visualização da foto está ruim, ela provavelmente é em pé, porém o view dela na plataforma está deitado, ajuste isso"*.
-
-**Decidido (respostas do dono em 30/09):**
-
-- **Todas as fotos do Tiny entram** (*"Todos os 144"*): móveis, insumos, kits e revenda. Feito em 30/09: 144 produtos, 146 fotos, copiadas para a biblioteca da plataforma (a foto não depende do Tiny no ar), registradas no histórico com o nome do dono. Só preencheu quem estava sem foto; 47 móveis ativos seguem sem foto porque o Tiny não tem.
-- **Daqui para frente, cópia automática** (*"Quero automático depois"*): quando o produto entrar ou mudar a foto no Tiny, a plataforma copia sozinha — **próximo passo, a desenhar e aprovar** (não feito ainda). Até lá, produto novo ganha foto pela câmera do Estoque ou por uma nova cópia pedida ao Claude.
-- **A foto aparece inteira, nunca cortada:** o quadro do cartão virou **quadrado** (121 das 144 fotos são quadradas; 16 em pé, 7 deitadas) e a foto se encaixa nele; a sobra fica **branca** (o fundo das fotos do catálogo), em qualquer tema. No detalhe do produto, a foto grande num quadrado centralizado. As miniaturas das listas também deixaram de cortar.
-- **Foto recortada (fundo transparente) sobe com fundo branco** também pela câmera do Estoque (*"Sim, corrige junto"*) — antes saía com fundo preto.
-
-**Como ficou (técnico):** nenhuma mudança no banco. O Tiny manda o link público da foto em `produtos.raw->'anexos'` (o `produto.obter` que o n8n já grava); a carga subiu pelo cliente do app com o dono logado (`enviarFotoProduto` → `plt_fn_estoque_definir_imagem`), redução igual à do app (lado ≤ 1280 px, JPEG 0,82) com **fundo branco** nas 18 fotos recortadas (transparentes). `FotoProduto` passou a `object-contain` sobre branco; o cartão, `aspect-square`; `reduzirImagem` pinta o fundo de branco antes de desenhar.
-
-**Descartadas:** mostrar o link do Tiny direto (a tela dependeria do Tiny no ar); quadro em pé (cortaria as deitadas e deixaria o cartão alto demais para 20+ cartões); manter o corte e só aumentar o quadro (continuaria cortando as em pé).
-
-## D-82 · A foto do Tiny chega sozinha à plataforma — a da câmera fica, a apagada no Tiny também (30/09/2026) — ↪️ D-81
-
-**Pedido do dono (30/09):** *"faça essa parada aí das fotos mudarem quando mudarem no Tiny"*.
-
-**Decidido (respostas do dono em 30/09):**
-
-- **Produto novo com foto no Tiny, ou foto principal trocada no Tiny → a plataforma copia sozinha** (reduzida e com fundo branco, como a câmera; a cópia antiga sai da biblioteca). Tempo: produto novo ~20 min (entra pelo ciclo de 15 min do catálogo); foto trocada num produto que já existe, **na manhã seguinte** — o Tiny não avisa mudança de produto, e a releitura completa do catálogo é de madrugada.
-- **A foto posta pela câmera fica** (*"A da câmera fica"*): o Tiny só atualiza as fotos que vieram dele.
-- **Foto apagada no Tiny: a plataforma mantém a última** (*"Mantém a última"*).
-- **Só a foto principal** (a 1ª do Tiny) vira capa; as outras não são copiadas sozinhas.
-- **Nada rodando à toa:** o relógio do banco confere de 5 em 5 minutos, sem custo, e só chama a função do servidor quando há foto para copiar (a lição da migration 43 — o dono não quer execução sem trabalho).
-- **Construir, testar e ligar sem nova pergunta** (*"Constrói, testa e liga"*).
-
-**Como ficou (técnico):** migration 44 — `produtos.imagem_tiny` (o link do Tiny da foto copiada; nulo = foto da câmera ou sem foto; as 144 da carga de 30/09 marcadas pelo histórico daquela carga); a câmera (`plt_fn_estoque_definir_imagem`) zera `imagem_tiny`; portas só da chave de serviço (`plt_fn_fotos_tiny_pendentes`, `plt_fn_foto_tiny_definir`, `plt_fn_foto_tiny_falhou`, `plt_fn_fotos_tiny_conferir`); relógio `plt-fotos-tiny` (pg_cron */5) → `plt_privado.fn_fotos_tiny_relogio` → Edge Function **`fotos-tiny`** (verify_jwt desligado; quem chama prova com o segredo guardado em `plt_webhooks`, conferido pelo banco). A função baixa só do armazém do Tiny, reduz com a ImageScript (≤ 1280 px, JPEG 82, fundo branco; WebP sobe como veio), grava em `produtos/{pasta}/tiny-{md5}.{ext}`, até 3 por chamada (limite de CPU). Link que falha espera 24 h (histórico `estoque_foto_tiny_falhou`). **O n8n não foi tocado** — a função lê o que o fluxo do catálogo já grava em `produtos.raw`.
-
-**Descartadas:** ramo no fluxo único do n8n (sem redução de imagem lá e mexeria no fluxo da outra frente); função chamada de 5 em 5 min direto pelo relógio (execução à toa — o dono vetou isso na 43); gatilho na tabela `produtos` (mexeria no caminho de escrita da integração: um erro ali derrubaria o catálogo — A-09); guardar a origem da foto só no nome do arquivo (as 144 de hoje não seriam reconhecidas sem renomear os arquivos).
-
-## D-83 · O Top X manda no estoque: é o tamanho da página e só ele tem mínimo; a capacidade do galpão sai de uso (30/09/2026) — ↩️ revisa a D-71 e a D-72
-
-**Pedido do dono (30/09, demanda "Ajuste Estoque 2"):** o Top X vira configurável (*mínimo 1, máximo 50*), *"X é o tamanho da página"*, e *"retire o botão de quantas peças cabem por enquanto"* (na sessão, com print).
-
-- **Top X (1–50)** é valor único da equipe (logística e admin mudam, com trilha — D-40) e mora na ficha do setor ESTOQUE, como a capacidade e a chave do Tiny. Página 1 = 1º ao Xº do ranking; página 2 = X+1 ao 2X; **a lista é UMA** — o "Ver os outros produtos" morreu (o resto do catálogo está nas páginas seguintes e na busca, que varre tudo).
-- **Só os X primeiros têm mínimo** e pedem reposição. Fora do Top X: sem mínimo, sem sugestão, nunca pede. Quem sai do Top X fica com o mínimo **adormecido** (nada se apaga; voltando, vale de novo).
-- **A capacidade do galpão sai de uso**: o campo e o encolhimento proporcional da sugestão morreram; a coluna fica guardada, sem uso (o dono não pediu exclusão). Quem limita o estoque é o Top X.
-- **O mínimo do Tiny deixa de valer como reserva** nos acabados — vira só referência na linha. Nos insumos nada muda.
-
-**Como ficou (técnico):** migration 45 — configurações na linha do setor `estoque` em `plt_setores` (`top_x`, `cobertura_semanas`, `corte_pedido_grande`), mínimo efetivo dos acabados = `minimo_plataforma` e só dentro do Top X (`fn_minimo_efetivo`), lista única em `plt_fn_estoque_produtos` paginada pelo X.
-
-## D-84 · Sugestão por dias úteis de VENDA (loja seg–sáb) e mínimo AUTOMÁTICO que trava ao editar; corte de pedido fora do comum (30/09/2026) — ↩️ revisa a D-72
-
-**Decidido (demanda + respostas do dono em 30/09):** a loja vende de segunda a sábado; a fábrica funciona de segunda a sexta (resposta 1). Cobertura personalizada de 1 a 8 semanas (resposta 2).
-
-- **Fórmula:** vendidos nos 90 dias ÷ dias úteis de venda decorridos (seg–sáb, ~78) × 6 (os dias úteis de uma semana de venda) × semanas de cobertura (1 · 2 · 3 · personalizada 1–8; padrão 2), **arredondada para cima no fim**. Exemplo conferido com o dono: 96 vendidos → 15 para 2 semanas. Sem tabela de feriados (decisão do dono).
-- **Mínimo automático:** acompanha a sugestão sozinho — recalcula ao trocar cobertura/Top X/corte e 1×/dia de madrugada (a janela dos 90 dias anda todo dia). **Editar à mão TRAVA** naquele valor até "voltar ao automático". O "Usar todas as sugestões" morreu. Os mínimos definidos antes desta decisão entraram no automático (editar de novo trava).
-- **Corte de pedido fora do comum:** linha de pedido com MAIS unidades que o corte (padrão 10; Painel admin, só admin, com trilha) sai da conta de vendas — **do ranking E da sugestão** — como se o pedido não existisse. O pedido de 23 closets sai. O cartão avisa discreto: "1 pedido grande fora da conta".
-
-**Como ficou (técnico):** migration 45 — `fn_vendas_90d` aplica o corte na fonte (regra única), `fn_sugestoes_minimo` por dias úteis, `produtos.minimo_travado`, `fn_recalcular_minimos` (cron diário `plt-estoque-minimos` + nas trocas de configuração).
-
-## D-85 · Reposição parada 2 dias úteis da FÁBRICA (seg–sex) no PCP sai sozinha — o Sistema assina; parcial vence só a parte parada (30/09/2026) — ↪️ a segunda saída, ao lado do "estoque coberto" da D-76
-
-**Decidido (demanda + resposta 7 do dono):** se em 2 dias úteis o que está no PCP não sair para a produção, a parte parada sai do PCP e deixa de contar como reservada — vale igual para a reposição lançada à mão.
-
-- **O prazo:** vence à meia-noite (de Fortaleza) depois do 2º dia útil da fábrica (seg–sex) seguinte à criação — criada na segunda vence quinta 00:00; criada na sexta ou no sábado, o fim de semana não conta. Sem feriados.
-- **Parcial:** o que já entrou na produção segue produzindo e contando; só a parte parada vence. A saída é por **evento** (origem da integração, sem pessoa — o Sistema assina), nada se apaga.
-- **Depois de vencida, a necessidade volta sozinha** — sem exigir movimento novo do estoque (diferente do "Não produzir" do PCP, que continua exigindo).
-- **Dupla garantia:** as contas da tela já ignoram a parte vencida na hora; uma rotina leve de hora em hora (`plt-estoque-vencimentos`) faz a saída oficial. A rotina é **independente** do liga/desliga da reposição automática (a manual também vence).
-
-## D-86 · Reservados: o cartão mostra TUDO que está em produção; a NECESSIDADE conta só o que vem para o estoque; reservados em venda é um número só; a bolinha vermelha leva à decisão do PCP (30/09/2026)
-
-**↩️ revisada em 2026-10-08 (D-118):** "reservados em venda" inclui a peça lançada para ROTAS (programada, no caminhão) até o pedido ser entregue.
-
-**Decidido (respostas 3, 5 e 6 do dono em 30/09):**
-
-- **Reservados para produção (o número do cartão)** = a reposição parada no PCP (dentro do prazo) + TODAS as unidades em produção — as sem dono a caminho do estoque (inclusive peça de pedido cancelado — resposta 3) **e os móveis de pedidos** (o exemplo do dono: PCP recusou a peça do estoque e mandou produzir → "1 reservado para produção"). Aparece para todo produto, mesmo fora do Top X.
-- **A conta da NECESSIDADE** (`em estoque + reservados < mínimo`) usa só o que **vem para o estoque** — móvel de pedido sai com o pedido, não abastece o galpão.
-- **Reservados em venda é UM número** (resposta 6): as peças prontas separadas para pedidos — reservadas no galpão + em Pedidos em aguardo.
-- **A bolinha vermelha** no canto do cartão: pedido esperando a decisão do PCP (peça reservada pela venda, pedido ainda não liberado). Tocar **leva direto à decisão** na tela do PCP.
-- **O filtro do topo tem 4 posições:** Todos · Necessidade de produção · Reservados para produção · **Com estoque** (novo, resposta 5). A ordem é sempre pela venda; a busca varre o catálogo inteiro.
-
-**Como ficou (técnico):** migration 45 — regra única em `fn_reservados_producao` (para_estoque × exibição), filtros e a bolinha (`pendente_card_id`) em `plt_fn_estoque_produtos`; no PCP, `?liberar=<card>` abre a decisão com uma busca própria página a página no servidor (modal por derivação, sem estado intermediário).
-
-## D-87 · Liga/desliga da reposição automática no Painel admin = agendar/desagendar a rotina de verdade; desligada, a logística tem o "Lançar para produção" (30/09/2026) — ↪️ o fluxo da reposição da D-54
-
-**Decidido (demanda + resposta 4 do dono):**
-
-- O botão (Painel admin → **Estoque**, só admin) **agenda e desagenda o job no relógio do banco**: desligada, a rotina NÃO existe — nenhuma consulta, nenhuma execução à toa (a lição da migration 43). A situação que a tela mostra é o próprio relógio (o job existe?).
-- **Com a automática desligada**, o cartão em necessidade ganha o **"Lançar para produção"**: a logística cria a reposição no PCP à mão (gesto com autor e trilha), quantidade proposta = mínimo − estoque − o que já vem para o estoque, editável. **Com ela ligada, o botão some** (resposta 4: *"não faz nem sentido aparecer"*).
-- A automática agora **desconta o que já vem para o estoque** na conta e no tamanho do card (antes não descontava a produção em andamento).
-- **Entregue DESLIGADA** — só liga depois da contagem inicial da logística (senão todo o Top X pede reposição de uma vez). ↪️ **01/10 (D-90):** ligar ou não é escolha da operação, não pendência do dono.
-
-## D-88 · O PCP em três abas: Reabastecimento · Pedidos aguardando liberação · Todos os pedidos; Cancelados vira tela da Logística (30/09/2026) — ↪️ D-86/D-62, ↩️ revisa a aba Cancelados da D-61
-
-**Pedido do dono (30/09, no teste ao vivo):** *"Dentro de PCP, coloque uma nova aí para solicitação de estoque, pedidos aguardando liberação, todos os pedidos. Cancelados deve sair de PCP e virar rota filha de logística"* — gatilho: ele lançou reabastecimentos à mão e **não os viu** (o quadro ordena do mais antigo e pagina de 10 em 10: caíram na última página). Depois, pelo print: *"ao invés de solicitação de estoque, mude para reabastecimento"*.
-
-- **Reabastecimento** (1ª aba): só os cards de reposição, na hora — sem se perder atrás dos pedidos.
-- **Pedidos aguardando liberação**: o quadro de sempre, agora só com pedidos; cada card ganha o **selo verde "N peças no estoque — dá para usar"** quando o galpão atende o pedido (reservadas p/ ele + livres de mesmo SKU — a régua da D-62; migration 48).
-- **Todos os pedidos**: a lista completa da integração (5.400+), com busca, pela porta de resumo que já existia; **pedido ENTREGUE mostra tudo liberado** (conclusão visual — o número real segue nas outras telas) e cada linha tem a **bolinha de cor da situação do Tiny** + o texto (M-12). O **olhinho** abre o detalhe de PRODUÇÃO (itens em unidades, onde está cada unidade, situação, prevista) — **busca só ao abrir e esquece ao fechar** (nada no cache).
-- **Cancelados** saiu do PCP e virou **Fábrica → Logística → Cancelados** (mesma porta e tela; link antigo redireciona).
-- A seção **"Unidades no PCP" morreu** (*"não sei nem pra que serve isso, remova"*) e a **paginação virou rolagem** nas três listas.
-- **O "i" no lugar do texto vira o PADRÃO**: todo texto informativo de tela encostada daqui em diante vira o balão (↪️ D-74 vale para a casa toda).
-
-**Como ficou (técnico):** migration 47 (`p_grupo` na porta do quadro — nulo = tudo, o painel D-75 continua batendo; drop das assinaturas antigas, A-12) + migration 48 (`pecas_estoque` na mesma porta, conta por página — regra 17). O quadro parado com pedido já entregue no Tiny é o aviso que o Tiny NÃO mandou (P17) — conferido no banco: não há status mais novo guardado; a correção de raiz é a [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] (recomendada como próxima), e qualquer salvamento do pedido no Tiny reenvia o aviso e o tira do quadro na hora.
-
-## D-89 · A lapidação ao vivo do Estoque (30/09/2026) — ↪️ D-83/D-84/D-87; ↩️ ajusta o lugar do Top X e do quadro Tiny
-
-**Rodadas do dono no teste logado (30/09), cada uma conferida na tela na hora:**
-
-- **Filtro do topo na MESMA linha da busca** (em tela estreita ele desce em linha corrida, sem empilhar).
-- **Top X mudou para o Painel admin → Estoque**, com a bolinha "i" ao lado (1ª rodada o pôs nas Configurações; a 2ª o levou ao admin). A **cobertura e os mínimos ficam** com a logística, nas Configurações do Estoque.
-- **O quadro do Tiny (sincronismo + reservas presas + liga/desliga) também foi para o Painel admin → Estoque** — ⚠️ consequência dita ao dono: a logística deixa de ver a situação do sincronismo (devolver a visão sem botões é ajuste pequeno, se um dia quiser).
-- **Galpão e Tiny viraram cartões RECOLHÍVEIS** (Galpão fechado por padrão; o do Tiny mantém o "Ligado desde" visível fechado).
-- **O botão "Lançar para produção" virou o ícone vermelho pequeno PULANDO** ao lado do mínimo, só no cartão em necessidade com a automática desligada — tocar abre o lançamento (quantidade proposta do servidor). O botão por extenso morreu.
-- **A câmera de trocar foto saiu do cartão** — só no detalhe do produto.
-- **O "sugerido do Tiny" aparece ao lado do mínimo** de cada produto nas Configurações, só informativo.
-- O balão do "i" **ancora na linha inteira**, nunca no ícone (ancorado no ícone, o texto sai espremido numa coluna).
-
-## D-74 · Estoque enxuto: "i" no lugar do texto, abas em quadrados no canto superior direito, cartão com a foto em destaque (28/09/2026) — ↪️ D-27
-
-**Decidido (pedido do dono, 28/09):** *"esse texto abaixo do nome estoque, troque por um ícone i de informativo e deixe apenas o balãozinho … a troca entre abas do estoque, deixe no extremo canto superior direito em quadrados que integram ao passar do mouse"*; *"ficou muito ruim essa visualização de produto, está muito poluído, deixe mais enxuto com valores menores"*.
-
-- O texto explicativo sob o título virou o **ícone "i" com balão** (abre ao passar o mouse, focar ou tocar). Embaixo do título fica só onde a pessoa está ("Top 20+ · os mais vendidos primeiro").
-- As abas viraram **quadrados só com ícone, no canto superior direito**, que sobem ao passar o mouse e mostram o nome num balãozinho (variante do componente de abas — não é componente novo).
-- **Cartão do produto enxuto:** foto em cima (com o rank), nome, SKU e vendas, o número do estoque, o mínimo, o sinal (ícone + texto — "Sem estoque", "Faltam N para o mínimo", "No mínimo") e os dois gestos (Entrada/Baixa). Peças, referência do Tiny e contagem ficam no detalhe.
-
-## D-75 · O quadrinho do PCP na Visão do dia conta o que o quadro do PCP mostra — reposição inclusa; "liberadas hoje" fica como está (28/09/2026) — ↪️ ajusta o painel da SESSAO-16 (D-42)
-
-**Contexto (achado do ajuste do Frete, conferido só com leitura no banco real):** a Visão do dia dizia **233 "a liberar"** e o quadro do PCP mostrava **33**. Desde a SESSAO-23 o quadro esconde o pedido que o Tiny já encerrou (entregue, não entregue, cancelado); o painel da SESSAO-16 nunca acompanhou — só tirava o cancelado. Dos 233, **200 estavam "Entregue" no Tiny**; os 33 restantes eram exatamente os do quadro. No mesmo quadrinho, a "mais antiga" olhava também pedido entregue e pedido já liberado por inteiro (31 dias × 27 do quadro) e o "liberadas hoje" somava a entrada manual no ESTOQUE (8 das 12 do dia).
-
-**Decidido (respostas do dono em 28/09):**
-
-- **"A liberar" = o que o quadro do PCP mostra** (*"Sim, igual ao quadro"*): pedido vivo no Tiny com peça por liberar (o frete não é peça — D-63).
-- **A "mais antiga" também** passa a ser a do quadro (escolhida no mesmo quadrinho).
-- **Os cards de reposição contam** no "a liberar", como o quadro já mostra (*"Sim, conta junto"*) — hoje não há nenhum (a reposição automática segue desligada).
-- **"Liberadas hoje" fica como está** — o dono não escolheu mudar: segue contando toda peça criada no dia, inclusive o cadastro direto no ESTOQUE (D-70). Mudar é decisão nova aqui.
-
-**Como ficou (técnico):** migration 41 — `plt_fn_dash_pcp_dia` recriada a partir da versão da 39 (E-24), com o mesmo filtro de `plt_fn_cards_pedido_pcp` (sem o gate por pessoa; o painel mantém o dele). A coluna segue `pedidos_a_liberar` (mesma forma — a tela não mudou). O harness amarra painel = quadro: quem mudar a regra de um sem a do outro fica vermelho.
-
-**Descartadas:** manter a conta própria do painel (foi ela que se separou do quadro em silêncio); juntar as duas numa regra única compartilhada agora (mexeria no quadro, sem ganho hoje — o teste já amarra os dois).
-
-## D-76 · O Tiny sobe a plataforma: vale o saldo SOMADO das duas empresas; Tiny acima → a plataforma sobe até ele; abaixo → nada (30/09/2026) — ↪️ D-70
-
-**Contexto (29/09, vídeo do Guilherme — líder da logística):** ele fez o balanço no Tiny e a plataforma não mudou. Diagnóstico só de leitura: desde a D-70 o número dos acabados é a contagem da plataforma; e o aviso de estoque do Tiny da fábrica só enxerga o depósito **Geral da FÁBRICA**, enquanto o "multiempresa" que a equipe olha é a soma de quatro depósitos de duas empresas (**FábricaDomoby/Geral** + **lojadomoby/Fábrica · Loja · Desmontado**). As peças prontas estão no depósito "Fábrica" da empresa da loja (174: Geral 0 + 3 lá = os 3 da tela). O "reservado" do Tiny não serve (345: 47 no Tiny × 2 em pedidos abertos) — vale o **saldo**.
-
-**Decidido (dono, 29–30/09):** *"a ideia futura é deixar que a plataforma seja o centro … mas eles irão usar o tiny por bastante tempo ainda"*; *"quando for cadastrado um produto no estoque do tiny, vai disparar pra gente aqui e a lógica deve conferir a quantidade a partir do sku"*; *"eles só olham o saldo multiempresa"*.
-
-- Cada aviso de estoque (da conta da fábrica **ou da loja** — a loja é achada pelo SKU, os ids não casam entre contas, A-22) põe o produto numa fila; o n8n lê o **saldo somado** (`produto.obter.estoque` da fábrica) e devolve à plataforma.
-- **Tiny acima** do que está no galpão pela plataforma (livres + reservadas para venda) → a plataforma **sobe até o Tiny** (peças novas, motivo "entrou pelo Tiny", origem da integração). **Abaixo → nada** (a saída se dá pela plataforma — D-77). Negativo no Tiny = 0 no galpão (D-53).
-- **"Sobe até", não "soma a diferença"** (decidido pelo Claude, avisado ao dono): o aviso traz só o saldo final; somar diferenças transforma correção de balanço em peça (o −7 → 0 do 327 viraria 7 peças).
-- Com o mínimo coberto, a **reposição que ainda está no PCP sem nada liberado é arquivada sozinha** (o exemplo do dono: *"removeria os dois cards de necessidade de produção que provavelmente ainda vão estar em pcp"*). Liberada em parte fica com o PCP.
-- Toda madrugada (04:00) todos os acabados são relidos — rede de segurança para aviso perdido.
-
-**Descartadas:** somar a diferença entre avisos (lixo com balanço); usar o "disponível" do Tiny (o reservado dele não bate com os pedidos); ler só o depósito da fábrica (não é o número que a equipe vê).
-
-**↪️ 30/09/2026 (manhã) — a lista das reservas presas (pedido do dono, depois do conflito do 567):** a equipe trabalha pelo **"disponível multiempresa"** do Tiny, que é saldo − reservado — e o reservado do Tiny guarda reserva de pedido que já saiu (567: saldo 2, reservado 23, nenhum pedido aberto → −21 no Tiny × 2 aqui). O dono perguntou se dava para puxar o multiempresa; resposta: **o número daqui continua o saldo** (puxar o disponível traria o erro das reservas junto). Escolha do dono: *"Lista das reservas presas"* — em Configurações → Tiny, por móvel, **o que o Tiny reserva × as unidades de pedidos ainda abertos**, do maior para o menor, para a equipe **limpar no Tiny** (aba de reservas do produto: tirar as de pedidos entregues ou cancelados). Serviços do Tiny (Corte, Furo, Fitamento — milhares de "reservas") e itens sem SKU ficam fora. **Quem arruma o quê:** reserva presa → **no Tiny** (a plataforma não mexe em reserva de lá); peça que entra, sai ou é contada → **na plataforma** (vai sozinha ao Tiny — D-77). 1ª leitura real: **111 móveis, 814 unidades presas** (345: 45 · 323: 30 · 419: 28 · 193: 24 · 567: 23). Migration 46; RF-108 ↪️.
-
-## D-77 · A plataforma manda no Tiny: entrada, baixa e contagem daqui deixam o Tiny com o número da plataforma; a produção que chega ao estoque também (30/09/2026)
-
-**Decidido (dono, 29/09):** *"deixe que os botões de dar baixa, entrada e contagem continuem na plataforma, porém eles funcionam como gatilho para atualizar o tiny … demos entrada em estoque de 4 penteadeiras, no tiny estava −2 … ela avisa para o tiny ficar com 4"*; resposta de 30/09 — produção que chega ao estoque: **"a plataforma avisa sozinha"** (a equipe para de lançar no Tiny); saída feita direto no Tiny (avaria, correção): **ignorar — a baixa se dá só pela plataforma**.
-
-- **O Tiny fica com o número da plataforma** (as peças livres — o da tela), por produto, depois de: entrada, baixa, contagem (até a conferida), arquivar peça livre, peça que chega ao / sai do ESTOQUE (produção, cancelamento), peça livre usada num pedido, e o PCP mandar produzir a unidade que tinha peça reservada (D-78).
-- **Não vão ao Tiny:** o que veio do Tiny, a venda (reserva e consumo — o Tiny já baixa sozinho), a reserva desfeita por cancelamento ou pedido alterado (o Tiny devolve sozinho) e a peça reservada usada no próprio pedido.
-- **Onde grava** (decidido pelo Claude, avisado ao dono): balanço no depósito **"Fábrica" da empresa da loja** (onde as peças prontas estão e onde a venda baixa), pela conta da loja; sem ele, no **Geral** da fábrica. A **soma** das duas empresas fica igual à plataforma. Balanço porque é repetível sem dobrar; se ficaria negativo, saída da diferença.
-- Uma fila por produto junta vários movimentos seguidos num pedido só ao Tiny (limite de 60 consultas/min da conta). 5 falhas seguidas → o produto para e aparece em Configurações do Estoque; um movimento novo destrava.
-
-**Descartadas:** empurrar cada movimento como entrada/saída relativa (não se conserta sozinho e dobraria em repetição); aceitar as quedas do Tiny (o aviso não diz se foi venda ou avaria — descontaria a venda duas vezes).
-
-## D-78 · A venda reserva a peça na hora; o pedido segue no PCP, que decide; nada da venda vai ao Tiny (30/09/2026) — ↪️ D-62 e D-70
-
-**Decidido (dono, 29–30/09):** *"sempre que um pedido de venda for gerado com o produto daquele sku, a plataforma deve ver e diminuir menos 1 do estoque, isso não deve disparar nada para o tiny"*; e, na pergunta sobre reservar ou só baixar: *"a peça é reservada no estoque para atualizar em tempo real, mas deve aparecer no pcp ainda para ele liberar, se ele não liberar, a peça volta para o estoque e manda o tiny somar mais 1 lá também, o pcp decide a produção completa"*.
-
-- Pedido **novo** da loja (chegou depois de ligar o sincronismo), em aberto/aprovado/preparando envio: cada unidade de produto acabado do catálogo **reserva uma peça livre igual** (a mais antiga) — o número do estoque cai na hora e a peça aparece como "reservada para o pedido N". Uma vez só, na chegada da venda (a peça que entra depois não é reservada para pedido antigo). Frete não reserva (D-63); personalizado não (D-55).
-- No **PCP**, a unidade vem com a peça reservada **já marcada** para usar (↪️ D-62, que vinha desmarcada). Usar → a unidade nasce pronta em Pedidos em aguardo (nada ao Tiny). **Desmarcar e liberar para a produção** → a reserva se desfaz, a peça volta livre e o Tiny recebe de volta (D-77).
-- **Cancelado** → a reserva se desfaz (sem Tiny). **Item mudou/saiu** → desfaz. **Faturado / pronto para envio / enviado / entregue / não entregue** → a peça saiu com o pedido (baixa "venda", sem Tiny).
-- Contagem é **física**: conta as reservadas que ainda estão no galpão; contar menos que elas é recusado.
-- Só a plataforma reserva (vale até para a chave de serviço). Depois de cada venda, uma leitura do Tiny só para conferir.
-
-## D-79 · Ponto de partida: ligar copia uma vez o saldo do Tiny; tudo nasce desligado e só o admin liga (30/09/2026)
-
-**Decidido (dono, 30/09):** *"Copiar o Tiny uma vez"* (o balanço do Guilherme vira a contagem inicial; as 2 peças do 327 lançadas pelo dono passam a valer o número do Tiny).
-
-- A chave mora no ESTOQUE (Configurações → Tiny): **Ligar** (só admin) copia, produto a produto, o saldo somado do Tiny para a plataforma — **nos dois sentidos** (o que estiver diferente fica igual ao Tiny). Depois disso vale a D-76/D-77/D-78. **Desligar** para tudo (as reservas que já existem seguem acompanhando o pedido).
-- A venda que chegou **antes** de ligar não reserva (ela já está no saldo copiado do Tiny).
-
-## D-80 · Um fluxo só no n8n para o Tiny da fábrica (catálogo + estoque); a carga avulsa do saldo morre (30/09/2026)
-
-**Decidido (dono, 30/09):** *"eu não quero vários fluxos para a mesma coisa, quero 1 único que faz o trabalho completinho sem erro"*.
-
-- O workflow do Tiny da FÁBRICA vira **"Domoby · Tiny FÁBRICA → produtos e estoque (fluxo único)"**: o catálogo segue igual (a cada 15 min + varredura 03:15); o aviso de estoque (mesmo endereço — da fábrica e da loja) chama a plataforma; a cada minuto a fila lê o Tiny e grava o ajuste; às 04:00 a varredura do estoque. O workflow "carga do saldo (rodar 1×)" **sai** (a varredura faz o papel dele).
-- O aviso de estoque deixa de disparar a releitura do cadastro (o produto novo entra pelo ciclo de 15 min).
-- O n8n guarda só as execuções com erro (a fila roda a cada minuto); o que foi feito fica na plataforma (trilha + Configurações → Tiny).
-
-**↪️ 30/09/2026 (mesma madrugada) — sob demanda, sem relógio no n8n:** o dono, vendo o gatilho de 1 em 1 minuto: *"você não tá nem doido de deixar alguma coisa rodando no meu n8n a cada 1 minuto para requisitar várias coisas, calma paizão, melhora isso daí"*. Decidido: **o n8n não tem relógio para o estoque.** Quem chama o fluxo é o relógio INTERNO do banco (o mesmo da reserva da venda), e só quando o sincronismo está ligado, há produto esperando na fila e nenhum lote está em andamento — fila vazia não gera execução no n8n nem consulta ao Tiny. A varredura das 04:00 também passou para o banco. No n8n sobram só os relógios do catálogo que já existiam (15 min e 03:15). Técnico: migration 43.
-
-## D-90 · Reposição automática é escolha da operação, não pendência do dono (01/10/2026) — ↪️ D-87
-
-**Decidido (revisão das pendências com o dono no Cowork, 01/10):** ligar ou não a reposição automática **não é decisão pendente** — é um modo de trabalho. A logística escolhe entre deixar a automática lançar para a produção sozinha ou lançar ela mesma pelo botão **"Lançar para produção"** do cartão. O mecanismo da D-87 fica como está (o liga/desliga vive no Painel admin → Estoque; o admin liga quando a logística pedir). A frase "só liga depois da contagem inicial" da D-87 vira cuidado operacional, não pendência.
-
-## D-91 · Três tipos de usuário — da fábrica, do comercial e dos dois — com permissões bem definidas; o dashboard do Comercial fica no Comercial (01/10/2026) — ↪️ D-46
-
-**Decidido (respostas do dono às Q-66 e Q-68, 01/10):**
-
-- Depois do admin, quem ganha o módulo `comercial` é o **usuário do comercial**. A plataforma separa **usuário da fábrica**, **usuário do comercial** e **usuário dos dois**, e as permissões de cada um precisam ser **bem definidas** (o desenho fino nasce numa demanda própria).
-- O **dashboard do Comercial fica dentro do Comercial** (`/comercial/dashboard`), por enquanto. Renomear os filhos do pai Dashboards por domínio **não é pendência**.
-
-## D-92 · Automações: só admin cria, por ora; o módulo é o laboratório (01/10/2026) — ↪️ SESSAO-27
-
-**↪️ 01/10 (D-99/D-100):** na própria SESSAO-27 o dono afinou: só o **super admin** (ele) monta e liga — o canvas mora no Painel super admin.
-
-**Decidido (respostas do dono às Q-40 e Q-41, 01/10):** **só o admin cria automações** por enquanto (revisar depois). O dono **não tem automações definidas** — o módulo da [[SESSAO-27 - Automacoes em Canvas]] existe justamente para **testá-las** e descobrir as que valem. A SESSAO-27 não espera uma lista de automações para começar.
-
-## D-93 · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS (01/10/2026) — ↪️ D-39
-
-**Decidido (resposta do dono à Q-65, 01/10):** as ROTAS entregam no **endereço do cliente que vem do Tiny** — é ele que a geocodificação e a [[SESSAO-28 - Rota Calculada no Mapa]] usam. Não existe outra fonte de endereço de entrega.
-
-## D-94 · Bonificação descartada (01/10/2026) — ↩️ encerra o tema da D-04
-
-**Decidido (01/10):** o dono mandou **esquecer a bonificação**. As perguntas Q-10, Q-11, Q-12 e Q-14 saem da lista; a medição segue servindo à alavancagem operacional (D-04 revisada), sem ponto nem ranking de prêmio.
-
-## D-95 · Auditoria no Painel admin: o rastro de tudo — quem, quando, onde, o quê e porquê (01/10/2026) — ↪️ D-40
-
-**Pedido do dono (respostas da [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]]):** *"Crie uma página de auditoria dentro do painel admin; lá dentro iremos colocar para mapear os erros do n8n também futuramente; dentro dessa auditoria deve aparecer log de tudo — execução, visualização, clique de entrada, movimentações e coisas do tipo; deve salvar o rastro de quem, quando, onde, porquê, o quê e por aí vai."*
-
-- **Painel admin → Auditoria** (`/admin/auditoria`, só admin) com duas abas: **Atividade** (a trilha que a D-40 grava desde a SESSAO-13 — entradas e saídas, telas abertas, movimentações, execuções, qualidade, pedidos vindos do Tiny, estoque, ROTAS, tarefas, cadastros, chat sem as mensagens, avisos) e **Conferências com o Tiny** (a conferência diária da SESSAO-29: a rodada em andamento e o histórico, com os pedidos que estavam diferentes e o quê).
-- Cada linha diz **o quê** (frase de gente, nunca o código), **quem** (o nome; "Sistema" quando é automático), **quando**, **onde** (a tela, ou os setores/etapas de origem → destino) e **por quê** (a observação do gesto ou o motivo, quando há). Detalhes sem ids. Busca pelo nº do pedido acha o que aconteceu com os cards dele.
-- Filtros no servidor (pessoa, tipo, período, busca) e uma página por vez (regra 17). A saída da plataforma passou a entrar na trilha.
-- **Tarefa pessoal privada (D-51) não aparece nem para o admin** — a trilha existe no banco, mas a auditoria a esconde de quem não a criou.
-- **Os erros do n8n** entram na aba das conferências numa próxima etapa (o dono avisou que vêm "futuramente").
-- Decidido pelo Claude (o dono pode mudar): o período abre em "Últimos 7 dias"; 30 linhas por página; nenhuma tabela nova (D-47) — só duas portas de leitura.
-
-**Como ficou (técnico):** migration 50 — `plt_fn_auditoria` (trilha paginada com filtros, já traduzida: nome, pedido do card, setores/etapas, motivo; tarefa privada fora) e `plt_fn_auditoria_conferencias`; tela `src/paginas/Auditoria.tsx`; `ProvedorSessao.sair` registra `saiu`.
-
-## D-96 · O pedido vivo que só a conferência achou entra no PCP (01/10/2026) — ↪️ a blindagem da carga histórica
-
-**Decidido (resposta 3 do dono — "Pode ser"):** o pedido que o aviso do Tiny nunca trouxe e a conferência diária achou entra no quadro do PCP **como se tivesse chegado pelo aviso**, se ainda não foi entregue nem cancelado. Encerrado (entregue, não entregue, cancelado) entra só no banco. Nos 5.360 pedidos conferidos em 22/09 isso nunca tinha acontecido — é rede de segurança. **Técnico:** origem nova `pente_fino` em `pedidos`, aceita pela guarda do gatilho de inserção (migration 49); a carga histórica (`backfill`) segue fora.
-
-## D-97 · O nome do cliente é gravado sem o código no lugar do apóstrofo (01/10/2026)
-
-**Decidido (resposta 4 do dono — "Corrija"):** o Tiny guarda alguns nomes com o código da página no lugar de caracteres ("D&#39;Elia" em vez de "D'Elia" — 1 caso em 5.440). A plataforma grava o **nome do cliente já corrigido** (e o existente foi corrigido uma vez). A cópia crua do pedido segue igual à do Tiny (é ela que a conferência compara). ⚠️ O módulo Comercial mostra o nome da cópia crua do pedido — lá o caso único continua como o Tiny guarda.
-
-## D-98 · O cliente é achado pelo cadastro do Tiny; o fluxo de vendas passa esse número (01/10/2026) — item C da SESSAO-29
-
-**Achado (só leitura, 01/10):** o pedido que o Tiny devolve (`pedido.obter`) **não traz o número do cadastro do cliente** — só nome, CPF, telefone e endereço; o número só vem no **aviso de venda**, e o fluxo de vendas do n8n o descartava. E o nome que vem no pedido é o **atual** do cadastro (4.932 de 4.932 pedidos da carga histórica batem com o cadastro).
-
-**Decidido:** o cliente do pedido é achado nesta ordem — **1)** o número do cadastro do Tiny (quando o aviso traz); **2)** o CPF/CNPJ; **3)** o cliente que o pedido **já tem**, quando nada prova que é outra pessoa (sem CPF dos dois lados e sem número de cadastro que contradiga) — é o contato renomeado no Tiny; **4)** nome + telefone; **5)** cliente novo. O CPF nunca é copiado para um cliente se já pertence a outro. Resposta 1 do dono sobre a mudança no fluxo de vendas: *"Você gera para mim e eu edito o fluxo"* — o passo a passo está no handoff; **o banco já aceita o número** (sem ele, os passos 2–5 seguem valendo).
-
-**Consequência:** reprocessar um pedido de cliente sem CPF renomeado no Tiny não cria mais cliente duplicado; um pedido **novo** desse cliente só deixa de duplicar quando o fluxo de vendas passar o número do cadastro.
-
-## D-99 · A automação pode mover o card sozinha — e serve "para tudo"; quem monta e liga é só o super admin (01/10/2026) — ↩️ revisa a D-03, ↪️ D-92
-
-**Decidido (resposta 1 do dono no início da [[SESSAO-27 - Automacoes em Canvas]]):** *"A automação em canvas deve ser para tudo, comercial, api, pedidos, e só eu vou construir essas coisas, então eu vou saber quando ligar"*.
-
-- ↩️ **D-03:** mover o card automaticamente por gatilho **passa a existir** — com o freio de que a automação é montada por humano (o super admin — D-100) e **nasce desligada** (garantido no banco, para todo escritor — M-14).
-- **"Para tudo":** o canvas não se limita à produção — tem gatilhos de card, de pedido do Tiny e de chamada de fora (n8n/API), e ações de card, de pedido, de aviso e de saída para fora (catálogo na D-103). O comercial entra pelos gatilhos de pedido + "chamar endereço de fora" (ex.: pedido entregue → n8n → DataCrazy); um bloco próprio de campanha só quando o dono pedir.
-- **Sem as travas extras que o Claude propôs** (só setores de produção, só peças): a automação vale para qualquer setor e card, mas **obedece às mesmas regras de uma pessoa** (D-103).
-
-## D-100 · O "Painel admin" vira Configurações; nasce o Painel super admin (só o dono): Automações e Auditoria; a engrenagem do rodapé vira o seletor de tema (01/10/2026) — ↪️ D-36, D-46, D-95
-
-**Decidido (pedido do dono, mesma conversa):** *"Esse canvas será para apenas super admin … o atual painel admin será as configurações; na parte de baixo, o símbolo de configurações será agora um símbolo de tema para escolher o tema com um campinho pequeno de select; as configurações atuais e o meu perfil são a mesma coisa, não faz muito sentido; o painel admin vira configurações e a partir de hoje é criado um painel de super admin que só o meu usuário tem permissão de acessar, por enquanto, dentro dele deve ficar a auditoria e o canvas"*.
-
-- **Configurações** (`/configuracoes/*`) = o antigo Painel admin, com tudo o que tinha (menos a Auditoria) + **Utilitários** (D-101). As rotas antigas `/admin/*` redirecionam (bookmark não quebra) — lei D-36 (rota = hierarquia).
-- **Super admin** (`/super-admin/*`): **Automações** e **Auditoria**. Só o dono por enquanto: marca `super_admin` no cadastro, posta por SQL (nenhuma tela dá ou tira); o banco confere (`fn_eh_super_admin`) em todas as portas das automações e da Auditoria — e a trilha inteira (`plt_logs_atividade`) passou a ser lida só pelo super admin (cada um segue lendo a própria). ↪️ D-95: a Auditoria era "só admin".
-- **Rodapé do menu:** a engrenagem (que abria o Meu Perfil, igual ao bloco do usuário) virou o **ícone de tema** com o seletor pequeno — aplica na hora e guarda no perfil. O Meu Perfil segue abrindo pelo bloco do usuário.
-
-## D-101 · Utilitários: etiquetas (várias por card, só a automação põe e tira) e campos customizados (peças e pedidos; automação e admin preenchem) (01/10/2026)
-
-**↩️ revisada em 2026-10-14 (D-125):** quem pode editar o card põe e tira etiqueta; criar etiqueta é de líder e admin (nome repetido recusado); campo customizado vale também em card avulso.
-
-
-**Decidido (respostas 2 e 3 do dono e as escolhas de 01/10):** *"Crie uma aba na página de admin chamada Utilitários, lá dentro coloque para cadastrar etiquetas e campos customizados"*; etiquetas *"quantas eu quiser colocar, para tirar deve ter o nó de remover etiquetas"*; campos **nas peças, no card do pedido e nos pedidos**, preenchidos **pela automação e pelo admin**.
-
-- **Configurações → Utilitários** (só admin), em abas: **Etiquetas** (nome + uma de 6 cores da paleta das etiquetas — sem verde/âmbar/vermelho da qualidade nem o amarelo da ação) e **Campos customizados** (texto, número, data, lista de opções, sim/não; valem nas peças, nos pedidos ou nos dois). Usado não se exclui — arquiva (a história fica).
-- **Etiquetas no card:** várias; quem põe e tira são os blocos "pôr etiqueta" / "tirar etiqueta" (o admin também pode pelo banco). Vínculo por **evento com projeção** (M-13): `etiqueta_adicionada`/`etiqueta_removida` → `plt_cards.etiquetas`. Aparecem no quadro, no tablet e no card do pedido do PCP — ícone + nome + cor (M-12).
-- **"No card do pedido" e "no pedido" são o MESMO valor** (decidido pelo Claude, dito ao dono): um pedido tem um card só no PCP; o valor é guardado pelo pedido — alcança até pedido antigo sem card. Na peça, o valor é da peça. Aparece no card (até 3), no histórico do card (todos, com edição à mão do admin), no card do pedido no PCP e no detalhe do pedido em "Todos os pedidos". A história do valor (quem, antes → depois) vai para a trilha.
-
-## D-102 · "Trazer de volta" um card arquivado — bloco da automação e botão do admin (01/10/2026)
-
-**Decidido (resposta 4 do dono):** *"Sim, a automação deve ter um nó de trazer de volta também"*.
-
-- Evento novo `card_desarquivado` (o arquivar deixa de ser só ida): o card volta para onde estava (o arquivamento nunca mudou a posição). A peça livre que volta ao ESTOQUE volta a contar no Tiny (D-77).
-- **Bloco "Trazer de volta"** no canvas (com o gatilho "O card foi arquivado") e **botão "Trazer de volta"** no histórico das execuções, onde uma automação arquivou (o admin desfaz à mão).
-
-## D-103 · As regras do motor: na hora, no banco, nunca derruba o gesto; cadeia até 5; obedece às regras de uma pessoa; o catálogo de blocos (01/10/2026)
-
-**Decidido pelo Claude, apresentado ao dono e aceito ("pode fazer"):**
-
-- **Roda no banco, na hora:** um gatilho ADIADO sobre os eventos dispara no fechamento do gesto (depois de tudo o que o gesto gravou — A-47); outro sobre a situação do pedido. Sem fila, sem relógio rodando à toa, nada no n8n. **Falha de automação nunca desfaz o gesto da pessoa nem a gravação do Tiny** — vira registro.
-- **Cadeia limitada:** automação que dispara outra (que dispara outra…) para em **5**; a 6ª fica "barrada no limite" no histórico. Disjuntor extra: 50 execuções no mesmo gesto.
-- **Obedece às regras de uma pessoa:** ESTOQUE só peça 🟢 e sem dono; Pedidos em aguardo só peça de pedido vivo; **o card do pedido não sai do PCP** (vira peças pela liberação); **para as ROTAS só pelo "Lançar para ROTAS"**; etapa que "manda para" outro setor leva o card até lá (como no arrasto). Se a regra recusar, o histórico diz por quê. Mover tira o tempo de quem estava trabalhando (regra de sempre do mover).
-- **Só vale para o que acontecer depois de ligar.** O "parado há" conta desde a chegada ou desde que a automação foi ligada — o que for mais novo (ligar não dispara em massa); dispara uma vez por permanência.
-- **Toda execução registrada:** o que disparou (card/pedido), a condição avaliada ("o card entrou e continua na etapa" / "já tinha saído"), cada passo com o resultado e o porquê — na tela das automações (paginado) e na Auditoria. Os gestos da automação aparecem como "Automático", com o nome dela como o porquê.
-- **Catálogo — QUANDO:** o card entrou numa etapa (ou em qualquer etapa do setor) · alguém começou a trabalhar no card · a peça foi marcada (perfeito/atenção/danificado) · o card ficou parado N horas/dias · o card foi arquivado · etiqueta posta · etiqueta tirada · pedido novo do Tiny · o pedido mudou de situação (de → para) · chamada de fora (n8n/API, pela chave da API). **FAÇA:** só se… (etiqueta, campo, setor, situação do pedido, tipo do card) · mover · pôr etiqueta · tirar etiqueta (ou todas) · preencher/limpar campo · avisar no sino (pessoa, líderes do setor, todos do setor, admins — com {pedido} {produto} {setor} {etapa} {situacao} {automacao}) · chamar endereço de fora (POST assinado com a chave da automação) · esperar (1 min a 30 dias) · arquivar · trazer de volta. Até 20 passos.
-- **Exemplos de fábrica, desligados:** "parado há 3 dias avisa o líder" e "peça danificada avisa os admins" (os da antiga SESSAO-17 que cabem; o "pedido completo avisa a expedição" não — esse gatilho não existe ainda).
-- **O canvas é feito em casa** (sem biblioteca nova): blocos arrastáveis, ligações em curva, ligar arrastando a bolinha; tudo também por botão ("+" põe o próximo bloco já ligado). No tablet a tela serve para ligar/desligar e ver o histórico.
-
-**Descartadas:** fila com relógio de 1 em 1 minuto para executar (o dono vetou relógio à toa — D-80); travar a automação aos setores de produção e às peças (o dono: "para tudo"); deixar a automação passar por cima das regras do estoque (corromperia o número do galpão).
-
-## D-107 · Excluir automação: some de vez; o que ela fez FICA na Auditoria, marcado "automação excluída" (02/10/2026) — ↪️ D-99
-
-**Pedido do dono (02/10, noite):** *"deixe um botão para excluir automação"*; perguntado sobre o histórico de execuções: *"fica na auditoria com uma tagzinha de automação excluída"*.
-
-- Botão **Excluir** (lixeira) na barra do editor, com o "tem certeza?" na própria barra (*"Excluir de vez? Ela some; o que ela fez fica na Auditoria."*). Só o super admin (garantido no banco).
-- A automação **sai de vez** (some da lista, inclusive das arquivadas). Se estava ligada, para no mesmo gesto; quem estava **esperando** para continuar **para** ali.
-- **O histórico fica:** as execuções continuam guardadas (com o nome da automação), e na **Auditoria** toda linha dela — criou, ligou, rodou, os gestos que ela fez nos cards e a própria exclusão — ganha a etiqueta vermelha **"Automação excluída"**. A trilha não é reescrita (é imutável): a marca é calculada na leitura.
-- Exemplo de fábrica que o dono excluir **não volta** numa reaplicação do banco.
-
-**Descartadas:** só excluir automação que nunca rodou (como as etiquetas — o dono quis excluir as de teste, que rodaram); apagar o histórico junto (o dono quer o rastro na Auditoria).
-
-## D-106 · O "Se… senão": a condição com DUAS saídas, cada uma com os próprios passos (02/10/2026) — ↪️ D-103
-
-**Pedido do dono no teste ao vivo:** *"coloque separador lógico condicionais tipo, if (com um else embutido como segunda saída), coisas assim também"* — e, na mesma mensagem, *"ajuste a hierarquia disso aqui, está tudo fora de esquadro"* (a janela de escolher o próximo bloco).
-
-- **Bloco novo "Se… senão"** (no grupo Lógica, ao lado do "Só se…" e do "Esperar"): testa as MESMAS condições do "Só se…" (etiqueta, campo, setor, situação do pedido, tipo de card). Bateu → segue pelo caminho **Sim**; não bateu → pelo caminho **Senão**. No canvas, o bloco tem **duas bolinhas de saída**, com o nome de cada uma (Sim em verde, Senão em vermelho) e **um "+" para cada**.
-- **Depois do "Se… senão" não há "continuação comum"**: os passos seguintes moram DENTRO dos caminhos (o banco recusa passo depois dele na mesma sequência). Caminho vazio = a automação termina ali. Caminhos dentro de caminhos valem até **5 níveis**; o limite de **40 passos conta os dos caminhos**.
-- **Pôr um "Se… senão" no meio** de uma sequência: quem vinha depois passa a seguir pelo **Sim**. **Tirar** um "Se… senão": o caminho Sim continua no lugar dele; o Senão fica **solto** (não roda — a tela avisa).
-- Como o banco guarda: o passo `se_senao` leva `entao` e `senao` (listas de passos) dentro dele. O executor, ao avaliar, troca o resto do plano pelo caminho escolhido e **guarda o plano** — o "esperar" dentro de um caminho retoma no lugar certo. No histórico: "se … → caminho Sim/Senão — condição bateu/não bateu". Etiqueta ou campo usado só dentro de um caminho também conta como "já usado" (não se exclui; arquiva).
-- **A escolha do bloco** passa a vir **por grupos** (Lógica · No card · Etiquetas e campos · Avisos e integrações), cartões do mesmo tamanho, ícone num quadrado, nome e uma frase curta.
-
-**Descartadas:** caminhos que se reencontram depois do "Se… senão" (junção — vira grafo com várias entradas por bloco; complica sem pedido); "senão" como bloco separado ligado depois do "Só se…" (o dono pediu o else **embutido** como segunda saída).
-
-## D-105 · O editor de uma automação é uma ÁREA DE TRABALHO: menu recolhido, canvas na tela toda, barra fina com Salvar e Publicar, execuções numa aba (02/10/2026) — ↪️ D-36
-
-**Pedido do dono no teste ao vivo:** *"Está pequeno demais; sempre que eu clicar para entrar no canvas, deve abrir uma área de workflow com foco no trabalho que está sendo realizado e apenas na parte superior um botão de salvar, publicar e coisas assim; fecha inclusive o menu esquerdo"*; e, na rodada seguinte: *"deixa apenas que feche o menu automaticamente quando entrar, mas a pessoa pode abrir novamente, ele vai ficar apenas recolhido na lateral; as últimas execuções ficam ocultas tipo n8n, quando eu tenho que clicar lá em cima em execuções; o bloco lateral de selecionar o que aquela condição faz pode ser esse lateral mesmo, mas permita fechar ele"*.
-
-- Abrir uma automação **recolhe o menu** (as duas barras — fica o trilho de ícones); a pessoa reabre quando quiser; ao sair do editor, o menu volta ao jeito lembrado. ↪️ D-36: a sidebar continua presente (recolhida); o "voltar" mora na barra do editor (não há o voltar padrão da casca nem o rodapé nessa tela).
-- O **canvas ocupa a tela toda**; em cima, só: voltar, o nome (editável no lugar), o selo Ligada/Desligada, as abas **Editor | Execuções**, **Salvar** e **Publicar** (salva o que mudou e LIGA — como no n8n) / **Desligar**, e arquivar.
-- As **execuções ficam escondidas** até clicar na aba "Execuções" (a lista troca o canvas; só busca ao abrir).
-- O painel do bloco é uma **gaveta à direita**, que fecha no X (ou no ESC).
-- As bolhas flutuantes (balão do chat, bolinha de execução) não aparecem na área de trabalho — cobririam o canvas e a gaveta.
-
-## D-104 · Teste ao vivo com os cards de teste (01/10/2026) — ↪️ M-16
-
-**Decidido (resposta 6 do dono):** *"Sim, ainda são só de teste, pode fazer o que quiser com eles"* — os quadros de produção seguem sendo de teste; o aceite das automações roda com eles (o pedido é real, o card é teste).
-
-## D-108 · A rota da Programação é calculada PELAS RUAS, parte da fábrica e VOLTA para ela; distância e tempo à vista (02/10/2026) — ↩️ revisa a D-39 (a linha reta)
-
-**Decidido (respostas do dono no início da SESSAO-28, 02/10):** *"Rua Tancredo Neves - Planalto, Natal - RN, 59073-351"* · *"Volta para a fábrica"* · *"Pode mostrar [o tempo], já dá para ter alguma ideia"* · sobre o servidor: *"Que miséria é isso? Não entendi nada"* — a escolha ficou com o Claude, explicada em uma frase (E-82).
-
-- **Partida e chegada = a fábrica da Móveis Domoby**, Rua Tancredo Neves, Planalto, Natal-RN (CEP 59073-351), no ponto **−5,84800 · −35,25428** (conferido com o print do Google Maps que o dono mandou; no mapa aberto a rua está grafada "Trancredo"). Fica **fixa no sistema**, sem tela de edição — se a fábrica mudar de endereço, é um ajuste no código.
-- **A rota vai da fábrica às paradas, na ordem, e volta à fábrica** — a volta é o último trecho, separado.
-- **A linha é a rota de verdade pelas ruas** (respeita contramão e sentido das vias), calculada pelo **serviço gratuito de rotas sobre o mapa aberto (OSRM)** — o servidor público da FOSSGIS, perfil de carro, sem chave, com identificação e no máximo 1 pedido por segundo. **Sem garantia de ficar no ar:** se ele falhar, a tela mostra a linha reta antiga com um aviso e continua funcionando. O endereço do servidor é configuração — trocar por um servidor próprio (o da casa) é um ajuste, se um dia precisar.
-- **Distância e tempo por trecho e totais** aparecem na tela. O tempo é **"só dirigindo"**: de carro, sem trânsito e sem o tempo parado em cada entrega — está escrito assim na tela.
-- **A rota calculada fica guardada** (no mesmo lugar onde o sistema já guarda os endereços achados no mapa — sem tabela nova, D-47): a mesma sequência de paradas não é recalculada; mudou a sequência, recalcula.
-- **Continua sendo sugestão inicial** — aviso curto na tela: sem trânsito ao vivo e sem interdições do dia. A decisão é humana (princípio da D-39, mantido).
-- **Evolução futura, registrada:** trânsito ao vivo, **trecho interditado no dia programado** e horário de chegada garantido dependem de serviço PAGO (ex.: Google Routes). Se um dia o dono quiser, é decisão nova.
-
-**Descartadas:** hospedar o motor de rotas no servidor da casa (o do n8n) agora — exige instalar o mapa da região na máquina que roda o n8n em produção, sem ganho visível no volume de hoje (algumas dezenas de cálculos por dia, guardados); serviço pago com trânsito (fora da regra "grátis e sem chave" da D-39 por ora); manter a linha reta.
-
-## D-109 · A ordem das paradas: a sugestão é a do mais perto, mas qualquer um da logística REORDENA à mão, vê na hora e SALVA (02/10/2026) — ↪️ D-39/D-45
-
-**Decidido (resposta 6 do dono):** *"Faça a possibilidade de poder reordenar à mão também, a sugestão de rota é a mais próxima, porém deve sim ser possível alguém alterar as ordens e ver em tempo real clicando em um botão de salvar"*.
-
-- A **sugestão** continua sendo "o mais perto primeiro" — agora **a partir da fábrica** (a 1ª parada é a mais perto da fábrica).
-- Quem opera a programação (logística e admin) **sobe/desce paradas** na lista; o mapa redesenha a rota **na hora**, com os quilômetros e o tempo novos.
-- **"Salvar ordem"** grava a ordem daquele caminhão naquele dia para todo mundo; **"Voltar à sugestão"** desfaz o ajuste. Na montagem (antes de programar), a ordem mostrada é gravada junto ao clicar em **Programar**; pedido programado depois num caminhão que já tem ordem entra **no fim**.
-- **Trocar o dia ou o caminhão** de um pedido tira a ordem dele (ele vai para o fim da rota nova). Salvar a ordem vai para a trilha como UM gesto ("Salvou a ordem das paradas"); depois de entregue, nada muda.
-
-**Descartadas:** arrastar e soltar as paradas (os botões de subir/descer funcionam igual no celular e no tablet do galpão — D-06); ordem só automática (o dono pediu o ajuste humano); "otimização de rota" automática de verdade (continua fora).
-
-**↩️ revisada em 2026-10-03 (D-111):** o dono pediu o ARRASTO (*"podendo arrastar ele pra cima ou pra baixo"*) — os botões de subir/descer saíram; o arrasto funciona com mouse, dedo e teclado.
-
-## D-110 · O mapa da Programação mostra também a rota JÁ PROGRAMADA de cada caminhão no dia (02/10/2026) — ↪️ D-39
-
-**Decidido (resposta 5 do dono):** *"Sim, faça mostrar"*.
-
-- Além de **"Montando agora"** (os pedidos marcados, como antes), o mapa tem uma escolha por **caminhão programado no dia**: escolher um caminhão mostra a rota dele (fábrica → paradas na ordem salva → fábrica), com distância e tempo, e permite reordenar e salvar (D-109).
-- Os dados já chegam na tela junto com a lista (nenhuma consulta nova — regra "cada tela requisita só o que mostra").
-
-**Descartadas:** o mapa só da seleção (a rota calculada sumia no momento em que se confirmava a programação).
-
-**↩️ revisada em 2026-10-03 (D-111):** a rota de cada caminhão saiu da aba de montar e foi para a aba filha **"Já programadas"**.
-
-## D-111 · A Programação em duas abas — "Programar" e "Já programadas"; itens sempre à vista; ordenar a lista; marcou, sobe e se arrasta; cada caminhão com a sua cor; o trecho aceso (03/10/2026) — ↩️ revisa a D-109 (botões) e a D-110 (lugar)
-
-**↩️ revisada em 2026-10-14 (D-128):** o caminhão pode fazer várias rotas no mesmo dia, cada uma com ordem e equipe próprias.
-
-
-**Pedidos do dono depois de testar a rota com a carga de teste (03/10), com as respostas às dúvidas:**
-- *"coloque uma opção de ver todas as programações já realizadas"* + *"quando altero o dia lá em cima … troque isso para uma aba filha de programação que mora dentro da tela mesmo chamada 'Já programadas'"* → a tela ganha duas abas filhas (na URL): **Programar** e **Já programadas**. O "dia lá em cima" saiu — o dia se escolhe ao programar. Em "Já programadas": **só as não entregues** (por dia e por caminhão, o dia mais perto primeiro), com o botão **"Ver entregues"** (resposta: *"Apenas as não entregues, mas coloque o botão de ver entregues"*); paginada no servidor ("Ver mais").
-- *"se eu selecionar diferentes caminhões, eles ficam sem prioridade visual além da imagem e ficam separados"* → **cada caminhão tem a sua cor** (faixa do grupo, contorno das paradas, linha no mapa) e as entregas dele ficam **juntas, na ordem da rota**. Escolher um caminhão acende a rota dele; **os outros caminhões do mesmo dia ficam transparentes** no mapa.
-- *"no momento em que estou programando … uma ordem de prioridade por dia de entrega … porém deixe uma setinha para … ordenar por mais próximos e assim por diante"* → a lista "Sem programação" vem pelo **dia de entrega mais perto** (sem previsão no fim); o "Ordenar por" troca para **"Mais perto"** — *"se algum pedido já foi selecionado, o mais perto sempre vai ser o mais perto do que está selecionado até o mais distante; se nada estiver selecionado, é o mais perto da fábrica"* — ou **número do pedido**.
-- *"eu devo conseguir sempre ver quais itens vão em cada pedido"* → todo pedido mostra **os móveis com a quantidade** (o frete não aparece — D-63), e a rota e cada caminhão mostram o **total de peças**.
-- *"quando eu selecionar um pedido para entrar na rota, ele deve subir e ficar acima de todos como já selecionado, podendo arrastar ele pra cima ou pra baixo pra recalcular"* → marcar **sobe** o pedido para o bloco **"Na rota"**, numerado, onde a ordem se **arrasta** (alça de 44 px; mouse, dedo e teclado) e a rota recalcula. ↩️ Os botões de subir/descer da D-109 saíram; "Salvar ordem"/"Voltar à sugestão" continuam (no caminhão, em "Já programadas").
-- *"a linha da rota está sem prioridade visual … quando eu selecionar uma linha de rota, a outra fica mais transparente"* → resposta: **escolher um trecho**. A linha ganhou cor forte com contorno branco; tocar num trecho (no mapa ou no painel) **acende só ele**, o resto fica transparente, e o canto do mapa mostra **km e tempo daquele trecho**; tocar de novo volta à rota inteira.
-- *"senti que a plataforma ficou um pouco pesada e lenta nessa aba"* → medido: o banco responde em ~20 ms; o peso era a rota recalculada a cada mudança (2–4 s, com a linha sumindo e a reta tracejada piscando), a tela inteira (mapa incluso) redesenhando a cada clique e o programar fazendo uma chamada por pedido. Agora: **a linha anterior fica na tela** (esmaecida) até a nova chegar, espera menor, o mapa só redesenha quando o que ele mostra muda, e **programar é uma chamada só** (o banco programa e salva a ordem juntos, tudo ou nada).
-
-**Descartadas:** caminhos alternativos "como o Google" (o serviço gratuito só oferece alternativa para trecho de dois pontos, e cada trecho viraria uma consulta a mais); manter os botões de subir/descer junto com o arrasto; trazer as entregues sempre (só quando pedir).
-
-## D-112 · Busca de endereços: recusa do serviço não é "não existe"; um segundo buscador gratuito quando o primeiro recusa (03/10/2026) — ↪️ D-39
-
-**Contexto:** na carga de teste, os 18 endereços saíram "não encontrado no mapa"; a mesma busca feita fora do servidor achou 15. Provado em 03/10: o buscador gratuito (Nominatim) responde **"acesso proibido" (HTTP 403)** a todo pedido que sai do nosso servidor, e a função antiga gravava a recusa como "endereço não existe" por 7 dias.
-
-**Decidido (respostas do dono):** *"Sim, conserta"* e, sobre trocar de buscador, *"Sim, use o outro"*:
-- **Recusa/limite/fora do ar não grava nada** — a tela tenta de novo depois; só "não existe" de verdade fica guardado.
-- Três tentativas por endereço (completo → sem o CEP → rua e cidade); **nunca "só a cidade/bairro"**; a cidade do resultado é conferida.
-- Quando o primeiro buscador recusa, a consulta vai ao **Photon** — outro buscador gratuito, sem chave, sobre o mesmo mapa aberto. O cache guarda **quem respondeu**.
-- A resposta do serviço fica no **registro da função** (sem o endereço — dado pessoal).
-
-**Descartadas:** buscar o endereço no navegador de quem usa (o ritmo e a identificação que o serviço exige não se garantem lá); serviço pago com chave.
-
-## D-113 · "Entregue" é um fato só, dos dois lados — e entregue no Tiny fecha TUDO do pedido aqui (08/10/2026) — ↩️ revisa a D-33 e a D-45
-
-**Decidido (respostas do dono no início da [[SESSAO-30 - Producao de Ponta a Ponta - Pedido Reabastecimento e Entrega]], 06/10 no Cowork e 08/10 na sessão):**
-
-- *"Se está entregue no Tiny, aqui deve estar como entregue também; para ser entregue no Tiny é porque a peça do pedido não existe mais no galpão e não deve mais estar nada referente a ele em aberto aqui."* → o Tiny ficou "Entregue" (aviso de venda ou conferência das 3h) = a plataforma registra a entrega sozinha (assinada "Sistema", origem Tiny) e **fecha tudo do pedido, onde a peça estiver** — PCP, produção (o tempo aberto é fechado antes), aguardo, ROTAS. Nada volta ao Tiny. ↩️ A recomendação do Claude era avisar e uma pessoa decidir — o dono escolheu fechar.
-- **Marcou entregue na plataforma → o Tiny fica "Entregue" na hora** (o banco chama o n8n só quando há entrega — sem relógio); a entrega vale aqui na hora, o Tiny vai depois se estiver fora do ar.
-- **Os caminhos (resposta 8 — *"coloque um fluxo bifurcado"*):** Tiny → plataforma (pelo fluxo de vendas que já existe); ClickUp → Tiny → plataforma (o fluxo antigo do ClickUp continua ligado); plataforma → Tiny (caminho novo no MESMO fluxo do ClickUp, como um segundo ramo). **O ClickUp só avisa, nunca recebe.** O fluxo antigo **não será desligado por enquanto** — a equipe ainda dá a entrega pelo ClickUp.
-  - ↩️ **08/10 (etapa 4, Claude):** o caminho plataforma → Tiny virou um **fluxo próprio** no n8n ("Plataforma → Tiny (situação do pedido)"), e não um ramo dentro do fluxo do ClickUp: isola o novo do que a equipe usa todo dia (um erro num não derruba o outro) e a chave da API do n8n só lê (o fluxo entra no ar importado, com o dono). A bifurcação dos três caminhos é a mesma. Detalhe: [[N8N - Plataforma para Tiny (situacao do pedido)]].
-- **Desfazer (resposta 6):** quem desfaz é **o entregador**, só as entregas **do dia**, escolhendo um **motivo** (D-116); o Tiny volta junto para a situação de antes, na hora.
-- **As peças entregues saem de toda conta** (estoque, reservas, ROTAS ativa, Visão do dia) e ficam no histórico — por evento, nada se apaga.
-- ↩️ **D-33** ("a automação ROTAS entregue → Tiny em produção não se toca"; "a plataforma nunca lê do Tiny"): a entrega agora vai e volta do Tiny pelo n8n. ↩️ **D-45**: a entrega deixa de ser só um registro interno.
-
-## D-114 · Cancelado ou devolvido com o móvel pronto vai SOZINHO para o estoque — inclusive da ROTAS e do caminhão; o marcador "Devolvido" do Tiny vale como cancelamento (08/10/2026) — ↪️ D-61
-
-**↩️ revisada em 2026-10-14 (D-129):** o "Pedido devolvido" deixa de mandar ao estoque — as peças ficam "Em decisão pós devolução" e a logística decide; quem marca é a logística, não o entregador.
-
-
-**↩️ revisada em 2026-10-13 (D-124):** o marcador "Devolvido" do Tiny deixa de valer como cancelamento — a fábrica ainda tenta recuperar a venda (a remoção é da SESSAO-31). O cancelado continua indo sozinho ao estoque.
-
-**Decidido (respostas 2 e 1a/2 do dono, 08/10):** *"Se o pedido for cancelado ou devolvido e o móvel já estiver montado, não tem essa de logística confirmar, o produto automaticamente já deve ir para o estoque."*
-
-- Peça pronta de pedido cancelado — no aguardo (como já era, D-61), **na ROTAS, programada ou no caminhão** — vai ao **ESTOQUE sem dono**, sem confirmação de ninguém.
-- **Devolvido no Tiny = o marcador "Devolvido"** (resposta do dono): a plataforma reage a ele como ao cancelamento.
-- **"Pedido devolvido" marcado pelo entregador** (D-115): o móvel volta ao ESTOQUE sem dono aqui e **o Tiny não muda** (resposta 1a — devolução mexe com dinheiro e nota fiscal; o comercial trata lá).
-
-## D-115 · O entregador: usuário só de ROTAS, a tela das entregas do dia, a equipe de cada caminhão e o card com volumes (08/10/2026) — ↪️ D-39/D-109/D-111
-
-**↩️ revisada em 2026-10-14 (D-128/D-129):** o botão "Pedido devolvido" sai da tela do entregador; a equipe passa a ser de cada rota do dia.
-
-
-**Decidido (respostas 3 e 4 do dono, 08/10):**
-
-- **Login próprio** (o sistema de login muda no futuro). Na criação de usuário existe o tipo **ROTAS (entregador)**: ele vê **só a tela das entregas do dia** — nada mais da plataforma.
-- **Quem programa a rota escolhe quem a recebe** — **um ou mais usuários** por caminhão naquele dia (decidido pelo Claude: quem pode programar, ou seja, logística e admin; o dono disse *"algum admin irá liberar o caminhão para ele"*).
-- **A tela:** mini mapa da rota do dia; os pedidos na ordem de entrega (a ordem salva da rota — do mais perto ao mais longe); o card de ROTAS → Entregas que já existe (*"já sana bem todos os dados"*), ajustado para celular e tablet, com: cliente, nº do pedido, **quantidade de VOLUMES** (≠ produtos — o cadastro do Tiny diz quantos volumes cada produto tem; vazio conta 1), endereço, observações do pedido e o **detalhe da entrega** (escrito ao programar ou em "Já programadas" — ex.: "cliente só pode receber depois das 10h"), a lista de produtos; botões **Comentário · Entregue · Não entregue · Pedido devolvido · Anexar comprovante · WhatsApp · Mapa**.
-- **Entregue** abre um painel em cima com o **comprovante de pagamento** (PDF, Word, imagem e outros formatos de comprovante) e uma **observação** — os dois **opcionais** (resposta 4: não é obrigatório). Anexar comprovante também existe **fora da entrega** (um botão no card, a qualquer hora — entendimento do Claude, dito ao dono).
-
-## D-116 · Motivos de "não entregue" e de "desfazer a entrega" em Configurações → Utilitários (08/10/2026) — ↪️ D-101
-
-**Decidido (resposta 5 do dono):** "Não entregue" pede um **motivo escolhido numa lista**; os motivos se cadastram **em Configurações, junto de etiquetas e campos customizados**; já nascem vários, curtos (*"Cliente estava ausente", "Endereço errado", "Caminhão quebrou", "Entrega reagendada"*…). Não entregue → o pedido volta para "Programar" (as peças continuam na ROTAS; o Tiny não muda). O desfazer da entrega (D-113) também escolhe motivo de uma lista própria.
-
-## D-117 · PCP do super admin: seletor de situação do pedido e arquivar em massa — sem mexer no Tiny (08/10/2026)
-
-**Decidido (resposta 7 do dono + resposta 3 de 08/10):** *"pedido entregue no Tiny não deve mais aparecer como aberto para o PCP; deve ter a opção de mudar status do pedido já diretamente pelo PCP, um botão simples de selecionar status do pedido, 'entregue, em rota, concluído', esse botão deve ser apenas para super admin; coloque também um botão de seleção em massa … eu preciso dela zerada"*.
-
-- **Só o super admin.** **Concluído** = as peças ficam prontas e o pedido vai para Pedidos em aguardo · **Em rota** = lançado para ROTAS · **Entregue** = fecha tudo do pedido (como a D-113).
-- **Não mexe no Tiny** (resposta do dono: *"não mexe"*) — é arrumação da plataforma.
-- **Seleção em massa** para arquivar (e para a mesma troca de situação). Tudo por evento, com o super admin como autor e o porquê; arquivado se traz de volta (D-102).
-- A peça 502 (teste, danificada) é arquivada (resposta 7).
-
-## D-118 · Reservados em venda até a ENTREGA (06/10/2026, Cowork; registrada em 08/10) — ↩️ revisa a D-86
-
-**Decidido (pedido do dono em 06/10, mapeado no Cowork):** a peça pronta de pedido conta como **"reservada em venda" desde que fica pronta** (no aguardo, ou a peça do estoque reservada pela venda) **até o pedido ser entregue** — inclusive lançada para ROTAS, programada ou no caminhão. Vale em todo número que mostra "reservados" (cartão do Estoque, filtros, Visão do dia, Pedidos em aguardo). ↩️ **D-86:** "reservados em venda = reservadas no galpão + em Pedidos em aguardo" — agora soma a ROTAS até a entrega. Um dono para a regra (M-04): a contagem mora num lugar só e todas as portas a leem.
-
-## D-119 · Os números do estoque ficam PRONTOS no banco; o ranking das vendas anda de madrugada (08/10/2026, Claude — sob a ordem noturna do dono; ✅ confirmada pelo dono em 13/10 — D-124) — ↪️ D-84/D-86/D-118
-
-**Decidido pelo Claude (SESSAO-30, etapa 2 — Lei de Desempenho §6: "projeção pronta para leitura pesada"):**
-
-- **Cada produto tem uma linha com os seus números prontos** — livres no galpão, reservadas pela venda, prontas de pedido (aguardo e ROTAS até a entrega — D-118), em produção para o estoque e de pedido, a última leitura do Tiny. A linha anda **no mesmo gesto** que mexe a peça (entrada, baixa, liberação, movimentação, entrega, cancelamento, leitura do Tiny) — o número na tela é sempre o de agora. **De madrugada** uma recontagem completa confere tudo e corrige qualquer diferença.
-- **As vendas de 90 dias e a posição no ranking (o Top X) são recalculadas de madrugada** (na mesma rotina do mínimo automático) **e na hora em que o Top X, a cobertura ou o corte de pedido grande mudam** em Configurações. Uma venda nova **não** muda a posição do produto no ranking na hora — muda na manhã seguinte. *Por quê:* recalcular 90 dias de vendas de todos os produtos a cada abertura da tela custava segundos; a posição de um produto entre 90 dias de vendas não muda de forma que importe dentro do mesmo dia.
-- **O resumo do galpão é a soma dos cartões** (raio-x 5) — a mesma regra, lida da mesma linha.
-- A peça de estoque **personalizada** (de pedido cancelado, sem produto do catálogo) aparece numa lista própria na tela do Estoque, com o pedido de origem, e tem **baixa com motivo** (raio-x 6).
-
-## D-120 · O pedido entregue sai da ROTAS e mora no PCP, com tudo dele num clique (08/10/2026, pedido do dono) — ↪️ D-63/D-113
-
-**Decidido (pedido do dono, 08/10, noite):** *"Os pedidos entregues devem sumir das rotas também e moram apenas em PCP com TODAS as informações daquele pedido caso eu clique nele, observações, situação de pagamento e tudo mais."*
-
-- **ROTAS → Entregas** mostra **só o que falta entregar** — a escolha "Entregues" saiu da tela. **Programação → Já programadas** também mostra só o que falta entregar.
-- **Entregas do dia (a tela do entregador):** o que já foi entregue **sai da lista e do mapa** e fica numa linha recolhida no fim ("Entregues hoje" / "Entregues neste dia"), só para **desfazer no mesmo dia** quem marcou errado (D-63 segue valendo).
-- **PCP → Todos os pedidos** é a casa do pedido entregue. O clique no pedido abre a **janela completa**, numa requisição só (Lei §2/§3): situação na plataforma e no Tiny, marcadores, a entrega (quando, quem, de onde, observação), cliente e endereço com telefone e documento, programação e equipe, **pagamento** (forma, meio, condição, parcelas; as contas a receber e o "pago / em aberto" quando a integração as tem), comprovantes, valores, datas, vendedor, envio e rastreio, nota fiscal, **observações** (a do pedido e a interna), itens com valor e unidades de produção, onde está (ou para onde foi) cada peça e a linha do tempo. **Desfazer a entrega** também pode ser feito dali, no mesmo dia, por quem pode.
-- **Limite conhecido (avisado ao dono):** o "pago / em aberto" de cada parcela vem das contas a receber copiadas do Tiny, e essa cópia parou em 09/09/2026. A janela diz isso com todas as letras quando não há conta copiada. Voltar a copiar as contas a receber é uma frente separada — **decisão do dono**.
-
-## D-121 · "Entregas do dia" é uma aba de ROTAS → Entregas, não um filho do menu (09/10/2026, pedido do dono) — ↪️ D-115/D-36
-
-**Decidido (pedido do dono, 09/10):** *"Entrega do dia não precisa ser uma rota filha, pode ser apenas um filtro/aba dentro de entregas."*
-
-- **ROTAS → Entregas** tem duas abas: **A entregar** (a lista de sempre, o padrão) e **Entregas do dia** (o caminhão de cada dia, parada por parada — a mesma tela do entregador, com "Ver outro dia" e o caminhão). A aba vive no endereço (`?aba=do-dia`), como as abas do PCP e da Programação — o Voltar e o link funcionam.
-- No menu, a seção ROTAS fica com **Entregas** e **Programação**. Quem tinha o endereço antigo das entregas do dia cai direto na aba.
-- **O entregador não muda (D-115):** ele não tem o módulo da fábrica, então continua com a tela própria dele, que é a única que ele vê.
-- Cada aba só pede o que mostra (regra 17): "A entregar" pede a lista; "Entregas do dia" pede o dia — e o código da tela do dia só baixa quando a aba abre.
-
-## D-122 · As contas a receber voltam do Tiny todo dia, na conferência da madrugada (09/10/2026, pedido do dono) — ↪️ D-50/D-120
-
-**Decidido (pedido do dono, 09/10):** *"traga de volta as contas a receber do Tiny"* — e, perguntado, *"pode, e roda já"*.
-
-- As contas a receber (o "pago / em aberto" de cada parcela) tinham vindo **uma vez só**, na carga do histórico (terminou em 09/09/2026). Agora a **conferência diária com o Tiny (3h)** traz também as contas: a busca das contas **emitidas nos últimos 60 dias** (acha as novas) e a **releitura das que ainda não fecharam** (nem pagas nem canceladas), de qualquer idade — é ela que pega o "pago" do dia. A conta que já fechou no Tiny não é relida (dezenas de chamadas por noite, não centenas).
-- **O fluxo do n8n não mudou** — ele faz no Tiny a busca que a fila manda.
-- A janela do pedido no PCP mostra cada conta como **Pago / Em aberto / Pago em parte / Cancelada**, com a data da última conferência; sem conta e com a conferência em dia, diz que o Tiny não tem conta para o pedido. A Auditoria (super admin) mostra, em cada rodada, quantas contas foram relidas, novas, pagas e em aberto.
-- **Limite conhecido:** conta já paga que o Tiny **estorna** depois não é relida sozinha — se acontecer, reabrir a conta na fila e acordar a fila.
-
-## D-123 · O "Entregue vai ao Tiny" mora dentro da automação do Tiny que já existia (09/10/2026, pedido do dono) — ↪️ D-113
-
-**Decidido (pedido do dono, 09/10):** *"atualizei também a api do n8n para que você possa aplicar fluxos lá, o fluxo que tinha ficado pendente de importação, publique lá, CUIDADO EXTREMO PARA NÃO QUEBRAR OS QUE JÁ EXISTEM, se possível, coloque esses fluxos de tiny dentro de automações já existentes do tiny."*
-
-- O caminho plataforma → Tiny (a entrega registrada deixa o Tiny "Entregue"; desfeita, volta) **não é uma automação nova**: é a 2ª parte, com gatilho próprio, da automação que já liga o Tiny ao banco da fábrica ("subir banco de dados --- tiny -> supabase" — a mesma que traz pedidos e contas toda madrugada). A do ClickUp (que um dia será desligada) não serviu de casa por isso.
-- Usa a chave da **loja** no Tiny (onde moram os pedidos de venda), não a da fábrica — o arquivo de 08/10 estava trocado.
-- No ar desde 09/10 ~01:15; a chave "Entregue vai ao Tiny" segue **desligada** até o dono ligar e fazer a prova com 1 pedido real.
-
-## D-124 · O marcador "Devolvido" do Tiny NÃO é cancelamento — a fábrica ainda tenta recuperar a venda (13/10/2026, pedido do dono) — ↩️ revisa a D-114
-
-**Decidido (resposta do dono, 13/10):** *"Sobre essa marcação devolvido, anote para a próxima sessão remover, deixar apenas os outros do jeito que está, pois o devolvido a fábrica ainda tenta recuperar a venda."*
-
-- **Sai** a regra da D-114 de que o marcador **"Devolvido"** no Tiny vale como cancelamento (a peça viva desse pedido ia sozinha ao ESTOQUE sem dono e o pedido passava a contar como cancelado). Pedido com o marcador "Devolvido" volta a ser um pedido como outro qualquer: as peças seguem com ele. **A remoção é da [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]]** (§4c da demanda).
-- **Fica como está** (o resto da D-114): cancelado no Tiny com móvel pronto — inclusive na ROTAS e no caminhão — vai sozinho ao ESTOQUE.
-- **A conferir com o dono no início da SESSAO-31:** o botão **"Pedido devolvido"** do entregador (D-115) também deixa de mandar os móveis ao ESTOQUE sem dono (para a fábrica tentar recuperar a venda), ou continua como está?
-- **Confirmadas pelo dono na mesma resposta ("deixar apenas os outros do jeito que está"):** a ↩️ da D-63 (o PCP libera só para setor de produção; a peça pronta do estoque vai pela sugestão "usar?") e a D-119 (o ranking das vendas anda de madrugada).
-
-## D-125 · O card avulso: quem cria, como termina, vínculo, etiquetas, quem vê, quem edita, anexos e pausa (13–14/10/2026, respostas do dono no início da SESSAO-31) — ↩️ revisa a D-22, a D-59 e a D-101
-
-**Decidido (respostas às perguntas 1–10 da [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]]):**
-
-- **Quem cria card avulso:** o PCP/logística, os líderes e o admin (1).
-- **Como termina:** um botão **"Concluir"** que existe **só no card avulso**, em **qualquer setor** — vai para "Concluídos" (2). Os outros cards continuam como estão. **O vínculo é só referência:** o avulso nunca vira peça no estoque nem peça a mais do pedido — é trabalho registrado, com tempo (entra nos tempos por setor e por pessoa; fica fora de estoque, reservas, Top X e "peças concluídas"). Para produzir peça para o estoque, existe o reabastecimento. Exceção: o **ajuste de peça** (D-130).
-- **"Peça" no vínculo** = uma peça que já está no quadro; insumo e matéria-prima entram por "Produto" (o catálogo do Tiny da fábrica). **Um vínculo por card** (4).
-- **Etiquetas:** quem pode editar o card põe e tira; **criar etiqueta nova** (do card ou em Utilitários) só **líder e admin**; **nome repetido é recusado** — sem ligar para maiúsculas, acentos e espaços, contando também as arquivadas (5). ↩️ **D-101** ("só a automação põe e tira").
-- **Quem vê:** o **responsável** e quem foi **mencionado** passam a abrir **aquele card** (e conversar nele), mesmo fora do setor (6).
-- **Quem edita** descrição, datas, responsáveis e campos: no avulso, **quem criou, os responsáveis, o líder do setor onde ele está e o admin**; nos cards de pedido e de peça, **o PCP/logística, o líder e o admin** (7).
-- **Anexos:** até **25 MB** por arquivo; áudio até **5 minutos**; **gravar áudio pelo app**; o anexo removido **some para todos**, mas o arquivo **fica guardado** e só o admin vê (8).
-- **Pausa:** motivos de uma **lista cadastrada + "Outro"** com texto; **o próprio operador pausa o card dele**, e o **líder/admin pausa o de qualquer um do setor**; retomar: o próprio, o líder ou o admin (9). ↩️ **D-59/D-48**: Pausar/Retomar voltam, dentro da janela do card, e arrastar para PARADO um card em execução pede o motivo.
-- **Campo customizado** passa a poder valer em cards avulsos. ↩️ **D-101**.
-- ↩️ **D-22:** existe card de produção que não nasce de pedido nem de reposição — o avulso, digitado à mão pelo PCP/líder/admin.
-- **Mensagem pode ser editada e apagada** — ver D-131 (resposta 10).
-
-## D-126 · A marcação do estado da peça (perfeito/atenção/danificado) vira CONFIGURAÇÃO — por setor, por tipo de card, no envio e no recebimento; nasce tudo desligado (13–14/10/2026, pedido do dono) — ↩️ revisa a D-09, a D-25, a D-54 e a D-58
-
-**Pedido do dono:** *"remova essa marcação, deixe como uma opção de ligar e desligar e para quais tipos de card deve ser ligado ou desligado, para qual setor também"* · *"deve ter a opção de confirmar situação no envio e no recebimento, pode ser que eles queiram colocar para que um setor declare que a peça saiu em perfeito estado, mas que outro setor não precise confirmar o estado de chegada, então isso deve ser bem personalizado"*.
-
-- Cada setor tem **duas chaves**, cada uma com os **tipos de card** em que vale (peça de pedido, peça de reposição/estoque, avulso): **"Pedir o estado ao enviar"** (quem tira a peça do setor marca) e **"Pedir o estado ao receber"** (o setor confirma o estado na chegada, antes de começar). As duas são independentes: um setor pode declarar a saída sem que o próximo precise confirmar a chegada, e vice-versa.
-- **Tudo nasce desligado** (*"remover a solicitação de estado da peça"*): sem chave ligada, mover, encaminhar e concluir não perguntam nada.
-- Quando as duas pontas marcam, a divergência continua indo para a dashboard e o aviso aos líderes/admins (D-09/D-25) continua saindo para 🟡, 🔴 e divergência. Danificado continua indo para DANIFICADO.
-- **Os fins de linha** (ESTOQUE, Pedidos em aguardo) continuam recusando peça marcada 🟡 ou 🔴; **peça sem marcação entra normalmente** (antes, "só peça 🟢").
-- Quem configura: **admin** (Configurações → Setores e etapas) — decisão provisória do Claude (a qualidade entre setores é exatamente o ponto em que um setor pode prejudicar o outro — D-09; por isso não ficou com o líder do próprio setor).
-- ↩️ **D-09** (lei — "obrigatório marcar em TODA transição"): o dono revogou a obrigatoriedade; a dupla atestação passa a existir **onde ele ligar**.
-
-## D-127 · A LIMPEZA E EMBALAGEM conclui pela etapa EXPEDIÇÃO — o botão "Concluir produção" sai (13–14/10/2026, pedido do dono) — ↩️ revisa a D-59
-
-**Pedido do dono:** *"Setor de limpeza e embalagem não deve mais possuir o botão de concluir card, o concluir card do setor de limpeza e embalagem deve ser a movimentação para a etapa expedição."*
-
-- **Soltar a peça na EXPEDIÇÃO** (LIMPEZA E EMBALAGEM) faz o que o botão fazia: peça de pedido vivo → **Pedidos em aguardo**; peça sem pedido (reposição) ou de pedido cancelado → **ESTOQUE, sem dono**. Estado da peça só se a chave da D-126 estiver ligada para aquele setor e tipo.
-- É **dado** (a rota da etapa, editável em Setores e etapas — D-60): a EXPEDIÇÃO passa a "concluir a produção"; outra etapa pode receber a mesma rota.
-- **O "Concluir" fica só no card avulso** (D-125), em qualquer setor. No avulso, soltar na EXPEDIÇÃO só move (ele termina pelo "Concluir") — exceção: o **ajuste de peça** (D-130) aplica o destino final.
-- As **6 peças** que a equipe já tinha posto na EXPEDIÇÃO em 13/10 (pedidos 13177 e 13207) vão para Pedidos em aguardo quando a regra entra (resposta F).
-
-## D-128 · Várias rotas por dia no mesmo caminhão — cada rota com o seu dia, a sua ordem e a sua equipe (13–14/10/2026, pedido do dono) — ↩️ revisa a D-111 e a D-115
-
-**Pedido do dono:** *"deve ser possível programar mais de uma rota por dia, pois lá eles podem fazer 3, 4, ou até mais rotas em um único dia"* · *"cada programação será definida o próprio dia, a ordem e cada entregador, pode ser que tenha troca de turno no mesmo caminhão e a terceira rota seja outra pessoa"*.
-
-- O mesmo caminhão faz **várias viagens no dia** (sai da fábrica, entrega, volta, carrega de novo): **"Rota 1", "Rota 2"…** do caminhão naquele dia, cada uma com **mapa, ordem das paradas, distância e tempo próprios** (fábrica → paradas → fábrica).
-- **A equipe (entregadores) é de cada rota** — troca de turno no mesmo caminhão é normal; a rota nova já vem preenchida com a equipe da rota anterior do mesmo caminhão (só sugestão — decisão provisória do Claude, **✅ confirmada pelo dono em 15/10 — D-136**), e se muda à vontade.
-- O entregador vê as rotas do dia em que está, na ordem.
-
-## D-129 · Devolução: o entregador não marca mais "Pedido devolvido"; a LOGÍSTICA marca, as peças ficam "Em decisão pós devolução" e a logística decide (13–14/10/2026, pedido do dono) — ↩️ revisa a D-114, a D-115 e a D-124
-
-**Pedido do dono:** *"remova o botão pedido devolvido, me contaram hoje que o entregador não pode ter esse controle nas mãos, uma vez que sempre que o pedido é devolvido, a fábrica não cadastra em estoque logo em seguida, primeiro o produto volta para a loja para tentar renegociar com o cliente"* · *"no estoque apareça mais uma linha caso o produto seja devolvido e esse produto fica aguardando decisão da logística … além da linha de reservado para produção, reservado para venda, será adicionada a linha de 'Em decisão pós devolução'"* · *"siga essa do botão para a logística, a própria recebe uma notificação e aparece uma telinha de 'Decidir situação' para que a logística apenas receba o mini relatório com o motivo … e decida o que fazer, devolver ao estoque, reenviar produto, realocar peça para outro pedido e opções do tipo"* · *"se chegou danificada, vai para danificados, devolução de peça já entregue pode ocorrer também"*.
-
-- **O entregador perde o botão "Pedido devolvido"** (a tela dele fica com Comentário · Entregue · Não entregue · Comprovante · WhatsApp · Mapa). O "Não entregue" fica como está.
-- **A logística (e o admin) marca "Pedido devolvido"**, com motivo (lista própria em Utilitários) e observação — em ROTAS → Entregas (pedido na ROTAS) e na janela completa do pedido no PCP (inclusive **pedido já entregue**). O Tiny não muda.
-- As peças do pedido ficam **"Em decisão pós devolução"** — continuam do pedido, saem da ROTAS e da programação, e aparecem no **Estoque** numa linha nova ao lado de "reservados em venda" e "reservados para produção". A logística recebe **um aviso no sino** que abre a telinha **"Decidir situação"**: o mini relatório (pedido, cliente, quem marcou e quando, o motivo, a observação, o histórico da entrega — não entregue com motivo, comentários do entregador, comprovantes — e as peças) e as decisões, peça por peça ou todas:
-  - **Reenviar ao cliente** — a peça volta com o pedido para "Programar" nas ROTAS (pedido já entregue: a entrega é reaberta só na plataforma; o Tiny não muda);
-  - **Devolver ao estoque** — vira peça livre no ESTOQUE da fábrica;
-  - **Realocar para outro pedido** — a peça passa a ser de outro pedido vivo do mesmo produto, pronta em Pedidos em aguardo;
-  - **Danificada → Danificados**;
-  - **Liberar para o estoque da loja** — sai das contas do galpão da fábrica, registrado "foi para a loja" (o Tiny não muda);
-  - **Mandar para ajuste** — abre um ajuste de peça (D-130).
-- **O marcador "Devolvido" do Tiny não faz nada** (D-124 mantida): quem marca a devolução na plataforma é a logística.
-- Cancelado no Tiny com móvel pronto continua indo **sozinho** ao ESTOQUE (D-114 nessa parte) — exceto a peça que já está em decisão: essa espera a decisão da logística.
-
-## D-130 · O ajuste de peça: um card avulso de "ajuste" que leva a peça de volta à produção com DESTINO FINAL definido pelo PCP (13–14/10/2026, pedido do dono) — ↪️ D-125/D-129
-
-**Pedido do dono:** *"deve ser criado dentro dos cards avulsos a possibilidade de um card para ajuste de peças, pode ser que a peça tenha ido mal acabada para o cliente e o cliente devolva para a fábrica ajustar ela, essa peça irá ou para limpeza e embalagem ou algo do tipo, isso é decisão do PCP … o PCP pode decidir o destino final após a limpeza e embalagem lançar na etapa expedição; na criação desse tipo de card, o PCP pode definir (vai para o estoque, vai para rotas, terceirizado, entre outros)"*.
-
-- No **Lançamento manual**, "Novo card" tem o tipo **"Ajuste de peça"**: escolhe-se a peça (a que está em decisão pós devolução, no estoque, no aguardo, ou a já entregue de um pedido), o **setor** para onde ela vai e o **destino final**. Também nasce da decisão "Mandar para ajuste" (D-129).
-- **A peça é uma só** (decisão do Claude — M-02/M-04): o ajuste não cria uma peça nova; a mesma peça (com a história dela) volta à produção, com o selo "Ajuste · destino: …", e aparece na aba Lançamento manual junto com os avulsos.
-- **Destino final**, aplicado quando a peça é solta na **EXPEDIÇÃO** da LIMPEZA E EMBALAGEM (D-127) — ou no "Concluir" do ajuste em qualquer setor: **ESTOQUE** (peça livre) · **volta ao pedido / ROTAS** (Pedidos em aguardo, ou direto para a ROTAS se o pedido já estava lançado; pedido já entregue: reentrega, a entrega reaberta só na plataforma) · **terceirizado** · **loja** (as duas: sai das contas do galpão, registrado) · **Danificados**.
-- Sem regra de estado da peça, a não ser a da D-126.
-
-## D-131 · Mensagens podem ser editadas e apagadas — no card e no chat; a história fica (13–14/10/2026, resposta 10 do dono) — ↩️ revisa a D-65 e a D-67
-
-**Decidido:** *"Pode, inclusive a do chat também deve poder, porém o apagar, o super admin e os admins ainda conseguem visualizar sabendo que foi apagada, a história não se apaga"* · *"o admin não vê as particulares, isso é invasão de privacidade, mas as que ele tem acesso, consegue ver normalmente"*.
-
-- **Cada um edita e apaga só a própria mensagem** (decisão provisória do Claude — **✅ confirmada pelo dono em 15/10, D-136**), na conversa do card e no chat.
-- Mensagem editada mostra **"editada"** para todos; mensagem apagada vira **"Mensagem apagada"** para todos.
-- **Admin e super admin** veem o **texto apagado** (com o aviso "apagada") e as **versões anteriores** de uma editada — **só nas conversas a que já têm acesso** (canais em que estão, Avisos gerais, as próprias particulares, e os cards que podem abrir). **A particular dos outros continua fechada** para todo mundo (D-65).
-- Nada se apaga de verdade: editar e apagar são registros novos (RNF-05).
-
-## D-132 · O PCP segue o Tiny: pedido Faturado, Pronto para envio ou Enviado sai do PCP (14/10/2026, noite — pedido do dono) — ↩️ revisa a D-75 (o filtro do quadrinho) e o filtro da SESSAO-23
-
-**Pedido do dono:** *"No PCP, não faz sentido esses pedidos ainda estarem aqui, sendo que no Tiny eles já estão até como recebido, isso já deveria estar funcionando, sempre que um pedido é dado como entregue/recebido ou algo do tipo no Tiny, se ele ainda estiver em PCP, ele deve sumir e seguir a atualização do Tiny."*
-
-- O "recebido" que o Tiny mostra é do **pagamento**; quem anda é a **situação do pedido**: Em aberto → **Preparando envio** (o estado normal de pedido esperando produção aqui — 36 em 14/10) → Faturado → Pronto para envio → Enviado → Entregue.
-- O PCP já tirava Entregue, Não entregue e Cancelado; passa a tirar também **Faturado, Pronto para envio e Enviado** — o Tiny levou o pedido adiante, ele não espera liberação. **Preparando envio fica.**
-- É **leitura**, não arquivamento: se o Tiny voltar a situação, o pedido volta ao PCP. Na área Pedidos ele aparece como **"Segue no Tiny"**.
-- Uma regra só no banco (o quadro do PCP e o quadrinho da Visão do dia leem dela — painel = quadro, D-75).
-- Em 14/10 isso tirou **um** pedido (13623, Faturado); os outros 22 estavam "Preparando envio" no Tiny.
-
-## D-133 · A Expedição mostra só pedido vivo, a previsão mais próxima primeiro (14/10/2026, noite — pedido do dono)
-
-**Pedido do dono (imagem 6):** *"não faz sentido essa ordenação completamente desatualizada"* — apareciam no topo pedidos de agosto já entregues ("1 ainda no PCP").
-
-- A Expedição traz só o pedido **em andamento**: sem entrega registrada na plataforma, não encerrado no Tiny (entregue, não entregue, cancelado); o que o Tiny já levou adiante (D-132) só fica se a fábrica ainda tem peça dele nas mãos.
-- Ordem: a **previsão de entrega mais próxima** primeiro.
-- A tela fica **ao vivo** (sem o relógio de 30 s).
-
-## D-134 · A área PEDIDOS: "Todos os pedidos" sai do PCP e "Cancelados" sai da Logística (14/10/2026, noite — pedido do dono)
-
-**Pedido do dono:** *"Remova de PCP a aba de todos os pedidos e jogue essa aba como rota filha de um novo pai chamado 'Pedidos' … todos os pedidos com todos os dados, sem exceção, dados de produção, dados comerciais, quem fechou essa venda, quem produziu cada produto com tempo de execução em cada etapa e pessoa que participou, com o dia da entrega e o horário que foi dado como entregue … layout de extrema qualidade e LEVE PARA O VISUAL, com botões ocultando dados pesados que são revelados com cliques, porém revelados de forma gradativa. Vai também a rota filha 'Cancelados', que mostra todos os pedidos cancelados da história da empresa de forma paginada, com TODOS os dados fornecidos pelo Tiny também."* · *"Após o pedido entregue, onde é possível visualizar o comprovante anexado? … coloque para ver dentro da nova rota de pedidos."*
-
-- Menu da Fábrica: pai **Pedidos** com **Todos os pedidos** (`/fabrica/pedidos/todos`) e **Cancelados** (`/fabrica/pedidos/cancelados`). Quem vê: a logística (PCP, fins de linha) e o admin — o mesmo de antes.
-- **Cancelados** reúne a tela que era da Logística (decisão provisória do Claude: duas telas "Cancelados" confundiriam) e passa a ter **toda a história** (164 em 14/10), não só os que tinham card.
-- A **linha** é leve: número, data, situação no Tiny e na plataforma, cliente, **quem vendeu**, marcadores, valor, peças prontas — ou **entregue em (dia e hora) por quem**, ou cancelado em.
-- **Tocar** abre a ficha (1 requisição): o resumo — cliente, venda, valor, entrega. O resto, por **botões**, um de cada vez: **Itens e pagamento** · **Produção** (cada peça, cada etapa, quem trabalhou e quanto tempo — busca só no clique) · **Entrega e comprovante** (o comprovante abre ali mesmo) · **Dados do Tiny** (o registro inteiro que o Tiny mandou — busca só no clique) · **Histórico**.
-- A seleção do super admin (D-117) foi junto para "Todos os pedidos".
-
-## D-135 · Ajustes de tela do dono (14/10/2026, noite)
-
-- **"Concluir" só no card avulso** — a peça conclui soltando na etapa que conclui (D-127).
-- **Quadro:** sem a mensagem vermelha piscando ao trocar de setor (o quadro mostra o desenho das colunas enquanto abre); entre as colunas, uma **linha fina e clara**; o fundo da coluna mais transparente; **só a coluna com card cresce**; nada de "Vazio"/"Solte aqui" no meio — ficam só os textos do topo.
-- **Ao vivo entre áreas:** lançar do PCP aparece no setor sem recarregar — a tela que volta a abrir relê o que mudou enquanto a pessoa estava fora.
-- **Motivo da pausa** no mesmo desenho do motivo da entrega; **Configurações → Utilitários** ganhou a aba própria **"Motivos de pausa"** (saiu de "Motivos da entrega").
-- **Lançamento manual** em **cards comuns** (grade), como os pedidos do PCP.
-- **Menu:** um padrão só de nome (primeira letra maiúscula, siglas inteiras — "Limpeza e embalagem", "PCP"), o **pai** de cada seção legível e os filhos debaixo dele, em todos os grupos.
-- **Versão nova:** quem está com a plataforma aberta é avisado quando sai versão nova (e ela se atualiza na próxima troca de tela) — as "duas rotas no mesmo dia" não funcionavam por causa de uma versão velha aberta; a regra das rotas estava certa.
-- **↪️ 15/10 (validação no site + pedido do dono):** **mãozinha no quadro** — no computador, segurar o botão do meio em qualquer ponto, ou o esquerdo no fundo do quadro, e arrastar corre as colunas para o lado; o card só se arrasta com o botão esquerdo; no celular e no tablet, o dedo já corre. **Menu do celular:** com os itens de um grupo abertos, a coluna dos grupos vira só ícones e a dos itens fica mais larga (os nomes não quebram). **Pedidos:** a situação da plataforma só aparece quando é diferente da do Tiny; o cancelado depois de entregue diz isso, sem o verde de "entregue"; a forma de pagamento que o Tiny manda em código aparece como palavra. **Janela do card:** o nome uma vez só, no topo; mudar o nome é o botão "Renomear"; no card do pedido, o título é "Pedido N" (não "Sem descrição"). **Setores e etapas:** as etapas numa grade alinhada com cabeçalho.
-
-## D-136 · As 6 decisões provisórias da SESSAO-31 confirmadas pelo dono (15/10/2026)
-
-**Resposta do dono** às 6 escolhas do §6 do [[handoff_2026_10_14_sessao31_kanban_completo]], explicadas a ele em português: *"1 sim, 2 sim, 3 sim, 4 sim, 5 sim, 6 sim"*. Nada muda no sistema — as 6 já funcionam assim desde a entrega de 14/10; agora são regra.
-
-1. **Tablet:** a janela do card no tablet é **só para ver**, sem dado de cliente (D-28); mudar, anexar e conversar pelo computador ou pelo celular. **Exceção:** Pausar/Retomar, com o PIN de quem age.
-2. **Programar com várias rotas (↪️ D-128):** caminhão que já tem rota no dia → a rota marcada é **"Nova rota"**; no Reprogramar, a rota em que o pedido já está. A rota nova já vem com a **equipe da rota anterior** do mesmo caminhão (muda-se à vontade). **"Rota N"** só aparece quando o caminhão tem mais de uma rota no dia.
-3. **"Líder"** (para criar card avulso e etiqueta — D-125) = papel de líder **ou** marca de líder em algum setor; **quem trabalha no setor também conclui o avulso** (no tablet, com o PIN).
-4. **Busca de peça para o ajuste (D-130):** só peça **em decisão pós devolução**, no **ESTOQUE (não reservada)**, em **Pedidos em aguardo** ou **já entregue**.
-5. **Mensagens (↪️ D-131):** cada pessoa **edita e apaga só a própria**; a menção vale na hora de escrever (**editar não avisa de novo**).
-6. **Pausa (D-125, resposta 9):** "Parar aqui pede o motivo" nasce ligado **só no PARADO da MONTAGEM**; o admin liga em outras etapas (Configurações → Setores e etapas).
-
-## D-137 · SESSAO-32: as respostas do dono — tempo logado, medição nos aparelhos e teste de carga em produção (15/10/2026)
-
-**Respostas do dono** às perguntas da [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] (explicadas a ele em português, com os números do retrato de 15/10):
-
-1. **Tempo logado parado:** *"Pode ser"* — **12 h nos tablets** (um turno) e **8 h no escritório**. No plano gratuito da Supabase o ajuste nativo não existe (só no pago); a plataforma faz por conta própria — quem passar do tempo parado entra de novo.
-2. **Medir a velocidade nos aparelhos:** *"Pode ser a própria plataforma mesmo"* — a plataforma mede e guarda (sem a ferramenta paga da Vercel).
-3. **Teste de carga:** *"Pode rodar o teste de carga em produção mesmo, não tem ninguém usando agora à noite, então faça, analise apenas os horários das automações"* — roda no banco de verdade, à noite, fora dos horários das automações.
-
-**Escolhas do Claude que o dono não contestou** (ficam valendo): os cliques no painel da Supabase (chave do login e gancho das permissões) são feitos pelo dono com o Claude guiando; a remoção de índices repetidos/sem uso só com a lista na mão e o OK dele; os índices nas tabelas do Tiny (busca por nome e Cancelados da área Pedidos) só depois do antes/depois e do OK dele.
-
-**Ordem do dono (15/10, ~21:10 de Natal):** *"Vou sair agora, abre logo o navegador aqui pra que eu possa logar pra você e você testa tudo e me entrega apenas o resultado final após finalizar"* — a sessão segue sozinha, como as noturnas da 30 e da 31: cada frente testada inteira é aplicada e publicada no mesmo gesto (E-73); o que o dono reservou para si (acima) fica pronto e esperando.
-
-## D-138 · SESSAO-32: o OK dos índices e os insumos separados dos móveis no estoque (16/10/2026)
-
-**Respostas do dono ao fim da noite (16/10, ~03:05 UTC):**
-
-1. **Os pendentes:** *"Pode aplicar"* — os índices da busca por nome e da lista de Cancelados em Pedidos (com a porta nova por caminhos, que entra junto), os 4 índices das cópias do Tiny (contas a receber e notas fiscais) e a retirada dos 2 índices repetidos.
-2. **Os insumos:** *"eles devem contar como estoque, mas eles não devem mais contabilizar como estoque de móveis, mas sim de peças e insumos, logo mais iremos trabalhar com eles, então sim, eles devem continuar sendo utilizados e contabilizados, porém ajuste para que seja da forma correta, tenha em mente que insumo não é móvel, móvel não é peça, peças são insumos e móveis são produtos finais, então as contas devem ser separadas, mesmo que no setor de estoque"*.
-   - **Regra:** **móvel = produto final**; **peça é insumo**; as contas de **móveis** e de **peças e insumos** são **separadas**, mesmo dentro do ESTOQUE. Insumo continua contado e usado — só sai da conta dos móveis.
-   - Revisa a leitura da D-57/D-70 em que "S simples/revenda" contava como acabado: no Tiny da fábrica, a classe S mistura revenda (cadeira, base…) e insumos (fita, cola, parafuso, luva, thinner…).
-3. **Como separar (respostas às 2 perguntas do Claude, 16/10):**
-   - *"Faça pelo código fiscal, porém crie também uma tela em configurações que liste tudo de móveis de forma paginada e que dê para um admin alterar os itens entre móvel, insumo e peça, dessa forma, caso algo algum dia acabe nascendo errado, o ajuste é mais simples do que ter que abrir código. Coloque nessa tela também alguns filtros para ajudar na busca de cada coisa."* → o **padrão** vem do Tiny: fabricado e com variação = **móvel**; simples = **móvel só com o código fiscal de móvel** (NCM do capítulo 94 — cadeiras, bases, mesas de revenda), o resto **insumo**; matéria-prima e kit = **insumo** (e a matéria-prima por peça — as peças cortadas de MDF — = **peça**). Uma tela em **Configurações** (admin), paginada e com filtros, muda cada produto entre **móvel, insumo e peça** (e volta ao automático).
-   - *"Elas ficam no quadro de estoque, porém na aba de matéria prima e insumos contando normalmente, seja por metro quadrado, ou por quantidade"* → as ~4.765 peças de insumo que a sincronização com o Tiny criou no ESTOQUE **ficam no quadro**; a conta delas sai dos móveis e passa para a aba **Matéria-prima e insumos**, na unidade do produto (m², metro, unidade…).
-4. **Como ficou (16/10, ~03:42 UTC — migration 85 + site):** 504 produtos ativos = **201 móveis · 240 insumos · 63 peças** pelo automático; "móveis em estoque" **4.895 → 130** (o resto eram insumos); a aba Matéria-prima e insumos com 303 itens, cada um na sua unidade e dizendo se é insumo, peça, kit ou matéria-prima; a conciliação peça a peça com o Tiny só para móvel (insumo não vira mais um cartão por unidade). Tela: **Configurações → Móveis, insumos e peças** (só admin; busca, filtros por tipo, classe do Tiny, origem e situação; troca e volta ao automático; fica na auditoria).
-
-## D-139 · SESSAO-32: o Comercial abre no mês atual e o período inteiro vem pronto do banco (16/10/2026)
-
-**Pedido do dono (16/10, ~04:20 UTC):** *"Vi que o modulo comercial ainda está bem lento, ele está carregando todos os pedidos de uma única vez de forma errônea, ajuste para que a busca inicial seja apenas para o mês atual, não para todo o período, ajuste também para que a ida ao banco quando o filtro for todo o período, a tela já esteja montada lá e me devolva de forma quase instantânea"*. **OK para aplicar:** *"PODE"* (16/10, ~05:28 UTC), depois da prova no banco real; a mudança liga gatilhos na gravação de pedidos e clientes do Tiny (regra 3) — explicado a ele antes.
-
-1. **A primeira busca é do mês atual.** O Painel de Recompra abre em "Do mês" (o atual); no Dashboard, o que abria em "Tudo" (os números do topo, a frequência de compra e o top de produtos) abre no mês atual. Os gráficos de linha do tempo (faturamento por mês e sazonalidade em 6 meses, transições em 3) seguem com o período deles — um mês só não desenha linha. "Todo o período" fica a um toque.
-2. **A tela fica pronta no banco.** Os pedidos já desmontados, a vida de cada cliente e as contas por mês ficam guardados e se atualizam no fato — a gravação do pedido pelo n8n e a troca do telefone do cliente (gatilho à prova de falha: um erro ali nunca derruba a gravação do Tiny; o pedido fica anotado e a próxima gravação refaz). O "todo o período" sem busca nem produto sai direto da vida de cada cliente; meses inteiros saem das contas do mês.
-3. **Mesmos números.** Provado porta antiga × nova na bateria e no banco real (transação desfeita): 0 diferença em 21 filtros do Painel de Recompra (25.517 linhas) e 7 períodos do Dashboard (17.141 linhas), views idênticas linha a linha, a tela pronta = os pedidos (conferência 0), transação desfeita.
-4. **Como ficou:** aplicada em 16/10 ~05:30 UTC + site publicado no mesmo gesto. No banco real, como o dono: Painel de Recompra no mês atual 1,9 ms (126 clientes) e no período inteiro 3 ms (4.264 clientes; antes 1,5–2,5 s); números do período inteiro 1,3 ms (antes 66 ms–2,3 s); top de produtos 2,9 ms (antes 220 ms); maiores clientes 0,6 ms (antes 149 ms). A tela pronta = os 5.568 pedidos (conferência 0); o gatilho testado numa transação desfeita (valor e telefone acompanhados na hora); quem não tem o módulo segue barrado.
-
-## D-140 · SESSAO-32: pedido excluído no Tiny não existe em nenhum módulo — uma verdade só para fábrica e comercial (16/10/2026)
-
-**↩️ revisada em 2026-11-12 (D-311, SESSAO-50):** o excluído no Tiny segue o caminho do CANCELADO — os cards **não são mais arquivados**: o fato `pedido_excluido_tiny` fica no card do pedido (que sai do PCP pela regra única e aparece em "Cancelados" como "Excluído no Tiny"), a peça em produção espera a logística, a pronta vai ao ESTOQUE sem dono; o sino é da logística. Continua fora da lista de Pedidos, da busca e do Comercial. Só a conta da LOJA marca.
-
-**Pedido do dono (16/10, ~06:00 UTC, com print do Tiny × Painel de Recompra):** *"Os valores de outubro no tiny e na plataforma estão diferentes, investigue o motivo e resolva"*. **A causa:** outubro na plataforma 128 pedidos / R$ 149.047,80; no Tiny 127 / R$ 134.995,90 — a diferença é EXATAMENTE o pedido 13622 (Loja Domoby, 29 itens, R$ 14.051,90, "Em aberto", de 08/10), excluído no Tiny entre 08/10 18:08 e 09/10 03:39 UTC. O Tiny não avisa exclusão; a conferência da madrugada pedia o pedido ao Tiny toda noite e ouvia "codigo 32: Pedido não localizado", mas só contava "não encontrados" — o pedido seguia vivo no Comercial, na lista de Pedidos, no PCP e na produção (32 cartões: o do pedido, 8 unidades prontas em aguardo, 21 a montar e 2 paradas na montagem).
-
-**A regra do dono (ao ser perguntado o que fazer com os cartões):** *"Entenda que fábrica e comercial devem reagir às mesmas tabelas, aos mesmos dados e tudo mais, a única diferença é apenas como eles aparecem no front, então se o pedido não existe mais, ele não deve aparecer em nenhum módulo"*. **OK para aplicar:** *"Pode aplicar"*.
-
-1. **Uma verdade só:** a conferência da madrugada marca o pedido que o Tiny diz que não existe mais (e desmarca se uma conferência seguinte o achar). Todos os módulos leem a mesma marcação — nada se apaga dos pedidos.
-2. **Some de tudo:** os cartões do pedido saem de todos os quadros (arquivados pela integração, com o motivo no histórico, o tempo aberto fechado, as peças do estoque reservadas para ele liberadas e fora da programação do caminhão); os admins recebem um aviso ("se alguma peça já existe de verdade, dê entrada dela no estoque"); a lista e a busca de Pedidos, o "Todos os pedidos" do PCP, a reserva do estoque pelo vendido, o ranking e os cortes das vendas, o detalhe do pedido, a busca de vínculo, as reservas presas do Tiny e o Comercial não o enxergam mais.
-3. **Cancelado ≠ excluído:** o cancelado segue como sempre (aparece em Cancelados, as peças prontas voltam ao estoque sem dono — D-124/D-129); o Tiny também conta o cancelado no total da lista dele (o 13559, R$ 850, está nos 127).
-4. **Como ficou (16/10 ~06:22 UTC, migration 87 + site):** outubro 127 pedidos · R$ 134.995,90 · 125 clientes = Tiny; o 13622 marcado, os 32 cartões fora dos quadros, 4 admins avisados; busca "13622" em Pedidos = nenhum pedido.
-
-## D-141 · As respostas do dono sobre o que ficou da SESSAO-32 e as pendências antigas (16/10/2026) — ↪️ D-137, D-30
-
-**Respostas do dono (16/10, trazidas no início da [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]], com o dono fora de casa, pelo celular):**
-
-1. **A chave nova do login e o gancho do token no painel da Supabase** → o dono faz quando chegar em casa (segue pendente com ele; o Claude guia — D-137).
-2. **As rotinas que acordam de minuto em minuto passarem a rodar só quando algo acontece** (reservas do estoque, envio de avisos, disparo do Comercial, fotos do Tiny) → **aprovado**. Vira trabalho de sessão — na SESSAO-33 só se couber no fim (§4 da demanda); o disparo do Comercial nunca roda em dois lugares.
-3. **A máquina do banco** → **fica no plano gratuito por enquanto**. Sai da lista de pendências (a dívida 19 da [[PLT - Lei de Desempenho e Escala]] fica registrada como escolha de custo do dono).
-4. **O projeto de testes pausado na Supabase ("Sistema Domoby - Staging")** → **liberado para os ensaios pesados** (carga, volume ×100).
-5. **As 6 escolhas provisórias da SESSAO-32** (§6 do [[handoff_2026_10_16_sessao32_desempenho_escala]]):
-   1. Tempo de sessão — tablet 12 h / escritório 8 h → **confirmado**.
-   2. Medição de velocidade — uma linha por abertura, só o dono vê → **confirmado**.
-   3. Pessoa desativada → **MUDOU: recusar já no login, com mensagem clara** (não deixar entrar e negar tudo depois). O gancho do token em `supabase/pendentes/` passa a recusar a pessoa inativa ao emitir ou renovar o token, com a mensagem em português de gente; **continua só ligando quando o dono fizer os cliques em casa**. O login da plataforma (que hoje responde "usuário ou senha incorretos" também para quem está desativado) passa a dizer, **só para quem acertou a senha**, que o acesso está desativado — quem erra a senha continua sem saber se a conta existe.
-   4. Releituras espalhadas — painel 4 s, PCP 1,5 s, logística 1 s, quadro 0,7 s → **confirmado**.
-   5. Busca de Pedidos por caminhos junto com os índices → **confirmado** (já aplicada — D-138).
-   6. Auditoria e histórico das automações → **paginação por rolagem**: carrega mais ao rolar, sem números de página, por cursor (regra 18).
-6. **Tarefas entregues no ClickUp** → já **concluídas pelo Cowork em 16/10** (25 tarefas: as 7 do kanban completo, os 14 ajustes de 15/10, e tempo real, pacote dividido, banco e listas por cursor). Ficaram abertas: primeira abertura (telas com 2–3 leituras), comercial/gravação do pedido do Tiny e permissões no token.
-
-**Pendências antigas:**
-- **Olhar o kanban no tablet** → o dono vê depois (mantém).
-- **A imagem de teste do comprovante no pedido 13622** → o dono **autorizou tirar**. É dado de produção: sai pelo caminho normal da plataforma (anexo/comprovante; se for evento, a correção é evento novo — nunca apagar evento, regra 5), mostrando ao dono exatamente o que sai e só executando com o "pode" dele na conversa.
-- **Contagem inicial do estoque** → o dono acredita que foi feita, mas **mantém como pendência** (conferir no banco).
-- **Publicação no ar** → **já está publicada** (o site está no ar e as sessões publicam nele desde setembro). A [[SESSAO-08 - Publicacao no Ar]] fecha como **entregue** e sai de toda lista de pendências e de "em espera" (↪️ revisa a D-30).
-- **Cartões de insumo parados no quadro do ESTOQUE** (D-138) → **mantém**; o destino deles volta quando entrar a parte da linha de produção que consome insumo e atualiza o estoque em tempo real.
-
-## D-142 · Integração completa com o Tiny: as 6 perguntas do plano respondidas (16/10/2026) — ↪️ [[003 - PLANO - Integracao Completa Tiny da Fabrica]], D-77, D-138
-
-**Respostas do dono (16/10)** às perguntas do §5 do plano 003, para o plano da Etapa B da [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]]:
-
-1. **API nova (v3) na conta da fábrica** → **liberada**: pode criar o aplicativo na conta da fábrica, **com o renovador próprio** — um renovador por credencial, sempre (E-07, A-18). O renovador da conta da loja continua o único dela.
-2. **Quem dá baixa de peça e insumo** → **do mesmo jeito que funciona para os móveis montados** (D-77): a plataforma registra entrada, baixa e contagem e deixa o Tiny igual.
-3. **As estruturas dos móveis no Tiny** → **não estão completas**. As que já existem no Tiny ficam **ligadas na plataforma** (móvel → peças → insumos). Em **Configurações** nasce um liga/desliga com o texto **"Reduzir os insumos de acordo com a conclusão dos setores de produção?"** — ligado: quando um setor conclui a sua etapa, a plataforma baixa os insumos daquela etapa pela estrutura; desligado: nada acontece. **Nasce desligado.** Ao desenhar, o Claude traz ao dono **como amarrar cada insumo à etapa/setor que o consome** (a estrutura do Tiny na API nova tem etapas — conferir na pesquisa).
-4. **Plano de corte** → o dono não sabe o nome do plugin do SketchUp; **a CNC lê um JSON do plano de corte e executa**. Fica para a parte de corte (não na SESSAO-33); o que a pesquisa achar de útil vai anotado.
-5. **Peça cortada entra no estoque** → **sim, como matéria-prima / peça / insumo** (não como móvel) — usa as contas separadas de móvel × insumo × peça que já existem (D-138).
-6. **Insumos com unidade fora do padrão** → uma **lista em Configurações** com os insumos de unidade fora do padrão (e os sem unidade), para a equipe padronizar depois no Tiny. **A plataforma não converte por conta própria.**
-
-**Escopo da SESSAO-33 para estas respostas:** a ligação das estruturas que já existem (é dado do Tiny — entra na carga completa) e a lista das unidades em Configurações. O liga/desliga de reduzir insumos e a baixa por etapa entram **se o dono aprovar no plano da Etapa B**; se não couberem, ficam escritos como a próxima sessão.
-
-## D-143 · Tiny completo: o plano aprovado inteiro; o que o Tiny não avisa, de hora em hora só das 8h às 20h; a baixa por etapa na próxima sessão (16/10/2026) — ↪️ D-142, regra 18
-
-**Respostas do dono (16/10, noite, pelo celular)** ao plano da Etapa B da [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]]:
-
-1. **Plano aprovado inteiro** — as duas partes: (a) com a conexão de hoje (API v2, as duas contas): a carga completa, a cascata na hora a partir da venda (a nota, o cliente e as contas do pedido), os avisos de nota autorizada e pedido enviado, a conferência "bateu com o Tiny", o alerta de erro, as estruturas ligadas e a lista das unidades em Configurações; (b) a API nova (v3) na conta da fábrica, com o renovador próprio (um por credencial) e a ponte segura (a automação nunca vê a chave).
-2. **O que o Tiny não avisa (produtos e clientes alterados) → uma consulta por hora, só entre 8h e 20h** (horário da fábrica). **Exceção registrada à Lei de Desempenho** (§13 — a lei proíbe relógio que acorda para ver se há trabalho): o Tiny não avisa esses dados; a consulta "o que mudou desde a última vez" custa uma chamada quando nada mudou; fora do horário nada roda — o que mudar à noite entra na primeira consulta das 8h ou na conferência da madrugada. Quando a API nova da fábrica estiver ligada, ela **substitui** a consulta de 15 em 15 minutos dos produtos novos do fluxo da fábrica.
-3. **A baixa dos insumos por etapa** (o liga/desliga "Reduzir os insumos de acordo com a conclusão dos setores de produção?", nasce desligado) → **próxima sessão**, amarrando **cada insumo ao setor que o consome** (configura uma vez por insumo e vale para todos os móveis — o Tiny não liga componente a etapa: as etapas da estrutura na API nova são só nomes).
-4. **Liberações executadas na mesma noite:** a imagem de teste do comprovante no pedido 13622 retirada pelo caminho normal; a rolagem das conferências da Auditoria aplicada no banco; o login com a mensagem de pessoa desativada publicado.
-5. **As rotinas de minuto em minuto** (D-141, item 2) → **próxima sessão** (proposta do plano, não contestada).
-6. **"Para de me perguntar, só faz, eu não tô em casa"** — com o dono fora, a sessão segue sem perguntas: o que precisa de banco ou n8n novo sai pronto em arquivo para ligar em casa; em produção, só o que ele já liberou (regra 2).
-
-## D-144 · Os dados próprios da conta da FÁBRICA no Tiny ficam num módulo à parte — fora do Comercial e da Produção, por enquanto (18/10/2026) — ↪️ D-142, D-143
-
-**Pedido do dono (18/10, vendo a contagem "Bateu com o Tiny?" da carga completa):** *"esse da fábrica deve ficar a parte do comercial e até mesmo da produção por enquanto, deixe apenas ele como um modulo a parte que trabalharemos depois"*.
-
-1. **O que a carga traz da conta da fábrica** (CNPJ da matriz) — contatos (clientes, fornecedores, transportadoras), pedidos de venda, notas fiscais, contas a pagar e a receber, pedidos de compra, depósitos, marcas, categorias, formas de pagamento e de recebimento, listas de preço — **fica só guardado** em `plt_tiny_registros` (`conta = 'fabrica'`). **Nunca** entra em `pedidos`, `clientes`, `notas_fiscais` ou `contas_receber` (são da loja e alimentam o Comercial e a Produção) nem aparece em tela do Comercial ou da Produção. **Já é assim** (conferido no código em 18/10: `fn_tiny_fila_resposta` só manda às rotinas de sempre o que é da loja; o resto da fábrica vai para os registros).
-2. **Onde aparece hoje:** só na Auditoria → Carga do Tiny (as contagens, para o super admin).
-3. **Depois:** um **módulo próprio da fábrica**, desenhado com o dono numa sessão futura (o que mostrar e para quem).
-4. **Fica como estava** (decisões anteriores, entendimento do Claude — o dono corrige se quiser diferente): os **produtos e o estoque** da fábrica (o catálogo da plataforma desde 23/09 — D-77, D-138) e a **estrutura dos móveis** em Configurações (D-142) — são do processo de produção, não dos registros comerciais da fábrica.
-
-**Para quem codar:** nenhuma porta do Comercial ou da Produção lê `plt_tiny_registros` com `conta = 'fabrica'`; a ponte entre as contas continua só pelo produto (SKU — A-22).
-
-## D-145 · A consulta de hora em hora pergunta os produtos alterados SÓ à fábrica (18/10/2026) — ↪️ D-143, D-144
-
-**Pedido do dono (18/10):** *"Pode tirar a loja da consulta de produtos alterados de hora em hora. Os produtos vêm da fábrica."*
-
-O aplicativo da API nova da loja é o do Comercial e não tem o módulo Produtos; a pergunta levava 403 toda hora. Desde a 93 ela terminava calada, mas era uma chamada inútil por hora. Dar o módulo exigiria autorizar de novo o aplicativo do Comercial, ou seja, mexer no que funciona. Os produtos da plataforma vêm da fábrica (o catálogo, desde 23/09), e o catálogo da loja segue pela API v2 na carga. Os **contatos** alterados continuam sendo perguntados nas duas contas. Aplicado como a atualização **94**, com o OK do dono na conversa.
-
-## D-146 · ⏳ PROVISÓRIA (confirmar com o dono) — Tablet 2.0: as 13 respostas provisórias da SESSAO-36 + as escolhas extras do Claude (18/10/2026)
-
-**Contexto:** sessão em MODO AUTÔNOMO (ordem do dono, 18/10 — ele está fora e não responde). A demanda [[SESSAO-36 - Tablet 2.0 - Login por Setor Auxiliares e Tempos por Pessoa]] mandou adotar as respostas provisórias do §3 dela sem perguntar e registrá-las aqui. **Nada disto está confirmado pelo dono** — ele confirma (ou corrige) quando voltar, pelo handoff.
-
-**Adotadas tal como escritas no §3 da demanda (1–13):** PIN do setor pelo admin no cadastro do setor (4–6 dígitos, nunca em texto puro no cliente, mudança com log) · PIN de usuário único e sem colidir com setor (duplicados históricos NÃO são corrigidos à revelia: listados na pendência; só nesses casos a ação pede confirmar o nome) · na tela de entrada do tablet só vale PIN de setor · card rodando em setor anterior segue contando (nenhuma pausa automática sem motivo) · "Entrar" do ícone = dar entrada no setor da tela · Sair pede motivo (lista própria, separada da de pausa) · "pode auxiliar" é liga/desliga geral no cadastro · conclusão por qualquer executor fecha o tempo de todos no card · o ícone do canto mostra as pessoas ativas do setor e cada gesto pede o PIN da própria pessoa · foto: admin cadastra e a própria pessoa troca a sua, comprimida com miniatura · email+PIN deixa de valer depois de criar senha · dashboard de tempos: líder/admin veem todos, o funcionário só o próprio · "à deriva" aparece só na dashboard.
-
-**Extras decididos pelo Claude (conservadores, a confirmar junto):**
-1. A entrada pelo PIN do setor abre a sessão de uma **conta de tablet do setor** (criada sozinha na primeira entrada; papel operador, vínculo só àquele setor, marcada como conta de tablet) — preserva gates por vínculo, RLS e o gancho do token; o tempo de 12 h de inatividade do modo tablet (D-137) segue valendo para a sessão do aparelho.
-2. "Pausar/Sair" do ícone pede **um** motivo e aplica a todos os cards da pessoa.
-3. "Card em produção" (para o estado trabalhando/ausente) = execução ou auxílio aberto e não pausado.
-4. A deriva é do chão de fábrica: nasce da SAÍDA de setor sem entrada em outro; sair da conta no PC não gera deriva; quem nunca deu entrada não conta tempo nenhum.
-5. No PC o quadro segue como hoje (a sessão logada é o autor; sem PIN); o PIN como identificador é do modo tablet. O botão Auxiliar existe também na janela do card no PC, agindo pela própria sessão.
-6. O tempo por pessoa soma execuções (como dono do card) + auxílios; o tempo do card e as views existentes não mudam de significado.
-7. **A entrada automática no setor acontece ao INICIAR, RETOMAR ou AUXILIAR um card** (o gesto de trabalhar); mover um card sozinho não dá entrada — o líder que organiza o quadro de outro setor não "entra" nele.
-8. **Ausente e à deriva têm teto de 12 h por trecho** (o mesmo teto da sessão do tablet): ninguém fica "ausente" a noite inteira na conta — o horário de funcionamento por setor pode refinar isso no futuro.
-9. **A pausa do card pausa os auxílios junto** (com o mesmo motivo) e a retomada devolve só quem foi pausado junto com o card; mover, concluir ou arquivar o card encerra os auxílios (resposta 8).
-
-## D-147 · A arrumação para entrar em produção: limpa geral, PINs curtos, dois níveis novos, pausa por pessoa e o ajudar geral (19/10/2026, dono na conversa) — ↪️ D-146, D-48
-
-O dono, na madrugada de 19/10, arrumou a plataforma para o galpão começar DE VERDADE no mesmo dia:
-
-1. **Limpa geral (rodada uma vez, com OK explícito):** apagados os cards do kanban, todos os eventos de produção, execuções, auxílios, presenças, tempos, avisos, programações de rota e a fila de webhooks; TODOS os PINs (pessoas e setores) zerados. Ficaram intactos: chat, cadastros, pedidos do Tiny, estoque, comercial e a trilha de atividade. O PCP foi repovoado com um card por pedido do Tiny não entregue/não cancelado (51). ⚠️ Exceção registrada ao "evento não se apaga": reset único de dados de teste, não é feature.
-2. **PIN de setor = exatamente 2 dígitos; PIN de pessoa = 2 a 4 dígitos.** O dono digita os definitivos à mão. A trava de tentativas (5 erros → espera dobrando) segue valendo — com 2 dígitos são 100 combinações, risco aceito pelo dono.
-3. **Nível "Linha de produção"** (`producao`): navega SÓ nos setores de produção — os dela abrem livre; outro setor pede o PIN de entrada daquele setor (conferência no servidor, com trilha); além disso só chat, meus afazeres, avisos e o próprio perfil. PCP, dashboards, configurações, logística e pedidos não existem para ela.
-4. **Nível "Logística"** (`logistica`): acompanha a produção SÓ OLHANDO (nenhum gesto de card — recusado no banco e na tela), recebe o módulo de logística inteiro (pedidos, expedição, estoque, aguardo, danificados, rotas) e o painel pessoal completo; sem dashboards, comercial ou configurações. Pode nascer sem vínculo de setor.
-5. **A pausa é da PESSOA** (botão geral e painel de pessoas): pausa só a parte dela — o card segue com quem ficou e só aparece Pausado quando o último ativo se pausa. A pausa DO CARD (gesto no card) continua pausando o card e as ajudas juntas (D-146 resposta 9 fica restrita ao gesto no card).
-6. **Botão "Ajudar em tudo"** no topo da coluna em execução (tablet e PC): um gesto entra como auxiliar em TODOS os cards em execução do setor; e o "Pausar geral" ao lado. ⏳ PROVISÓRIA: para isso o limite por pessoa (D-48) deixou de barrar o AUXÍLIO — ele segue contando as ajudas abertas ao INICIAR um card próprio.
-7. **Dashboard de tempos detalhada** (pedido na mesma conversa): o card de cada pessoa abre os números POR SETOR (produção × ausente) e a produção por móvel — tempo, tempo parado e os motivos — na mesma requisição; o clique aprofunda (dia a dia, por setor, cada card com pausas e motivos).
-
-## D-148 · O que o Tiny não avisa fica em dia pela conferência da madrugada; o que foi apagado no Tiny é marcado, e o PRODUTO apagado some de todas as telas (21/10/2026, dono na conversa) — ↪️ D-140, D-143, D-144, regra 18
-
-**Contexto:** a recontagem de 21/10 (Auditoria → Carga do Tiny) mostrou que, 3 dias depois da carga completa, ficam no retrato da carga os dados que o Tiny não avisa nem entram na consulta de hora em hora — os registros próprios da fábrica (pedidos de venda 137 × 135, notas 590 × 589, contas a receber 288 × 287, pedidos de compra 157 × 151) e as contas a pagar das duas contas (loja 579 × 563) — e que o que foi **apagado** no Tiny segue aqui (108 produtos da fábrica, "Produto não localizado"; 89 contas a pagar da fábrica que saíram da busca do Tiny).
-
-**O plano levado ao dono e aprovado** (*"Pode seguir com o plano. Os produtos apagados no Tiny somem de todas as telas, como o pedido apagado."*):
-
-1. **Sem relógio novo:** a conferência da madrugada que já existe (a das 3h — relógio de calendário, Lei §4) passa a pedir ao Tiny a **lista completa** de: pedidos de venda, notas fiscais, contas a receber e pedidos de compra da FÁBRICA; contas a pagar das DUAS contas; e o catálogo da fábrica (só para achar o que sumiu). Hoje ~60 páginas por noite.
-2. **Só relê o que mudou:** cada item da lista é comparado com o que está guardado; o que é novo ou mudou (pago, cancelado, valor trocado) é buscado de novo inteiro; o igual não é tocado. A primeira rodada relê todos os detalhes (~5,6 mil chamadas, prioridade baixa) — depois, só o que mudou.
-3. **O apagado no Tiny é marcado, nunca apagado aqui:** o que temos e não veio na lista completa é conferido um a um; só quando o Tiny responde que não existe vira "apagado no Tiny". Visto de novo → desmarca sozinho. **Trava:** lista que vem com menos da metade do que temos não marca nada e avisa o dono no sino.
-4. **Atraso de até 1 dia** para esses dados (ninguém os vê numa tela ainda — D-144); a consulta de hora em hora fica como está (D-143).
-5. **O PRODUTO apagado no Tiny some de todas as telas, como o pedido apagado (D-140):** Estoque, Configurações (móveis, insumos e peças, unidades fora do padrão, estrutura), buscas; e a plataforma **para de perguntar ao Tiny** por ele (estoque, fotos). Fica guardado e volta se reaparecer no Tiny. Na decisão: 108 produtos (62 peças, 34 insumos, 3 kits, 9 móveis), nenhum com cartão vivo; os 9 móveis estavam parados na fila do estoque com o Tiny desde 20/10.
-6. **A renovação do acesso da API nova da fábrica** passa a poder renovar com 30 min de intervalo mínimo (era 2 h) — com o relógio de 3 em 3 h o acesso nunca passa de 3h30 de idade (vale 4 h — E-116).
-
-**Fora desta decisão (anotado):** os contatos da loja que nunca compraram; os produtos da loja (D-145); as contas a receber da loja (a conferência das 3h segue como sempre).
-
-## D-161 · O grupo "Pedidos" do menu mora logo abaixo de "Rotas" (21/10/2026, pedido do dono) — ↪️ D-134
-
-**Pedido do dono (lote noturno da SESSAO-38):** mover o pai **Pedidos** (Todos os pedidos · Cancelados) para ficar logo **abaixo** do grupo **Rotas** (Entregas · Programação). Ordem da Fábrica agora: Controle de produção → Logística → Rotas → **Pedidos**. Nada mais muda: o pai continua sem rota própria, os filhos seguem `/fabrica/pedidos/…` e quem vê é o mesmo de antes (D-134).
-
-## D-162 · As notificações fecham com qualquer toque fora do painel (21/10/2026, pedido do dono)
-
-**Pedido do dono:** o painel de notificações ficava aberto por cima da tela enquanto a pessoa clicava em outras coisas — qualquer toque/clique em qualquer lugar da plataforma, fora do painel, tem de fechá-lo na hora.
-
-- Fecha com toque ou clique em **qualquer** lugar fora dele: barra lateral, página, mapa, balão do chat, janelas abertas. Dentro do painel tudo segue funcionando (marcar como lida, apagar, "Ver todos"); o sino abre e fecha; **Esc** fecha; trocar de tela fecha.
-- **O toque que fecha não se perde:** o botão, o mapa ou o card tocado recebe o clique normalmente (antes, um fundo invisível "comia" o clique — e só cobria a própria barra lateral).
-- ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono): trocar de tela também fecha o painel (não estava no pedido; é o comportamento esperado de um menu suspenso).
-
-## D-163 · Entrar sem digitar o e-mail: o aparelho lembra o nome de usuário, e o PIN aceita usuário (21/10/2026, pedido do dono) — ↪️ D-21, D-146
-
-**Pedido do dono:** *"digitar o e-mail toda vez é um saco"* — poder entrar com nome de usuário e senha.
-
-**O que já existia (D-21, SESSAO-03):** a entrada por **nome de usuário OU e-mail** + senha está no ar desde a SESSAO-03 — todos os 16 cadastros ativos têm nome de usuário (único, sem acento, minúsculo; o do dono é `wallace`), visível e editável no Meu Perfil e na Equipe.
-
-**Por que o dono ainda digitava o e-mail (a causa):** (1) a tela de entrada **não lembrava de ninguém** — com o tempo parado de 8 h (D-137) a sessão cai e cada entrada começava do campo vazio (o dono entrou 19 vezes em 7 dias); (2) os campos não tinham `name`, e o gerenciador de senhas do navegador guardava/preenchia mal; (3) o "Entrar com e-mail e PIN" (D-146) **só aceitava e-mail**; (4) nada na tela ensinava o próprio nome de usuário a quem sempre entrou pelo e-mail.
-
-**Decidido (escolhas do Claude, ⏳ PROVISÓRIA — confirmar com o dono):**
-1. **O aparelho lembra o nome de usuário** de quem entrou por último (só neste navegador; nunca senha nem PIN). O servidor devolve o nome de usuário de quem acabou de acertar a senha — quem entrava pelo e-mail passa a ver o próprio usuário já preenchido. Na próxima entrada o cursor já vai para a senha. O link de convite continua vencendo.
-2. Os campos levam `name`/`autocomplete` padrão (`username`, `current-password`) para o navegador lembrar e preencher.
-3. **"Entrar com usuário e PIN"**: o caminho do PIN para quem nunca criou senha aceita usuário **ou** e-mail (mesma trava de tentativas; o site antigo segue funcionando).
-4. O campo de entrada aceita o usuário **com maiúscula, acento e espaço** ("João Lucas" acha `joaolucas`).
-5. **Segurança mantida e reforçada:** nenhuma consulta pública de usuário → e-mail (tudo no servidor); a mesma mensagem para "não existe" e "senha errada"; a **senha errada passa pela mesma trava do PIN** (5 erros em 15 min → espera de 1 min, dobrando até 15) — contada pelo que foi digitado, exista ou não a pessoa (o "muitas tentativas" não entrega quem tem cadastro); a conta de tablet de cada setor **não entra por senha** (só pelo PIN do setor); pessoa desativada continua recusada (D-141); a troca obrigatória de senha e o PIN seguem iguais; toda entrada vai para a trilha **com o caminho usado** (usuário ou e-mail — sem guardar o que foi digitado).
-6. Sem coluna nova nem atualização do banco (banco enxuto): a coluna de nome de usuário já existia e estava preenchida para todos.
-
-**Risco aceito (a confirmar):** alguém que digite errado a senha de outra pessoa 5 vezes trava a entrada dela por 1 minuto (padrão de mercado; o bloqueio cresce só enquanto os erros continuam).
-## D-164 · Motivos de pausa ESPECIAIS: "Faltou peça", "Máquina quebrou" e "Pausa solicitada por um líder" — o funcionário não vê diferença (21/10/2026, pedido do dono; SESSAO-38 · frente F4)
-
-**Pedido do dono (traduzido):** *"na parte de PARAR um card, crie motivos ESPECIAIS que param de contar o tempo para o funcionário quando selecionados. Não mostre nenhum aviso para o funcionário — para ele é um motivo como outro qualquer. São eles: 'Faltou peça', 'Máquina quebrou', 'Pausa solicitada por um líder'. Por enquanto só esses; depois eu crio outros nos motivos de pausa. Coloque lá um 'especial ou não' para quem cria ou edita saber disso."*
-
-- Os motivos de pausa ganham a marca **especial** (Configurações → Utilitários → Motivos de pausa): uma caixinha "Especial" no cadastro e na edição, com a explicação para quem configura, e a pílula "Especial · não conta o tempo" na lista. Só motivo de **pausa** pode ser especial (trava no banco).
-- Os três do dono nasceram especiais. Nenhum motivo existente tinha o mesmo nome (comparado sem maiúsculas, acentos e espaços) — "Falta de material", "Manutenção da máquina" e "Conferir com o líder" seguem **comuns** (sentido parecido, mas não o mesmo; o admin marca se quiser).
-- **O funcionário não vê nada:** a lista que ele recebe ao pausar (janela do card, PARADO, pausar geral, tablet) é a mesma de sempre e **não traz a marca**; no quadro/tablet ele continua "Ausente"; na própria dashboard de tempos nada "especial" aparece.
-
-## D-165 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O que "não contar o tempo" quer dizer, com precisão (21/10/2026, SESSAO-38 · F4)
-
-**O tempo do funcionário neste sistema** (o que conta contra ele) é a PRESENÇA da SESSAO-36: **em produção** (execução ou ajuda rodando), **ausente** (deu entrada no setor e nada rodando) e **fora de setor** (saiu sem entrar em outro) — somados por dia. O tempo de execução (as dashboards Pessoas / Meu desempenho / tempo do card) **já descontava toda pausa**, especial ou não — não muda. O que pesa contra a pessoa é o **ausente**.
-
-1. **Enquanto a pessoa está parada por motivo especial, o trecho NÃO é ausente:** vai para um balde próprio ("não conta"), fora do ausente e fora da produção. Exemplo: Ana trabalha 1 h, pausa por "Máquina quebrou" 30 min, retoma e trabalha mais 1 h → produção 2 h, **ausente 0**, não conta 30 min. Se o motivo fosse "Falta de material" (comum): produção 2 h, ausente 30 min — exatamente como antes.
-2. **Quem fica "não conta":** quem EXECUTA o card pausado (mesmo que o líder tenha pausado); quem ajudava e foi pausado junto com o card; quem se pausa pelo "pausar geral" com motivo especial (também na ajuda); e quem executava o card que foi solto no PARADO com motivo especial.
-3. **Vale a parada MAIS RECENTE da pessoa:** se depois ela parar outro card por motivo comum, volta a contar como ausente. O PARADO especial acaba quando o card sai do PARADO; qualquer parada acaba quando a pessoa **entra em outro setor ou sai do setor** (ela seguiu em frente; o que a prendia não vale para o próximo setor nem para o dia seguinte). O teto de 12 h por trecho do ausente vale igual.
-4. **A marca vale do gesto em diante:** o trecho guarda se o motivo era especial NO MOMENTO da pausa; ligar/desligar a marca depois não reescreve o que já foi somado (histórico: não havia nenhuma pausa com esses motivos — a lista era nova; conferido no banco em 21/10: uma pausa só em toda a produção, "Fim do turno").
-5. **Quem vê o "não conta":** só líder e admin, na dashboard Tempos por pessoa — discreto: "Parado · não conta" no estado, a linha "Parado por motivo especial (não conta)" no cartão, "não conta X" por setor, por dia e por móvel, e o motivo marcado "(não conta)". O próprio funcionário vê o ausente sem esse trecho e nenhuma marca.
-6. **Auxílio no PARADO:** soltar no PARADO encerra as ajudas (como sempre — D-146 resposta 8); quem ajudava fica ausente comum (só quem executava ganha o "não conta"). Escolha conservadora.
-
-## D-166 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O tempo do CARD não muda com a pausa especial (21/10/2026, SESSAO-38 · F4)
-
-- A linha do tempo do card e a seção "Tempo e histórico" da janela **não mudaram** (outra frente vai refazer o tempo do card). Hoje o tempo de execução do card já desconta toda pausa; a pausa especial aparece na história como qualquer pausa, com o motivo.
-- **Recomendação para a frente do tempo do card:** mostrar a pausa por motivo especial como "parada por causa externa" (máquina, peça, pedido do líder) separada das pausas comuns no total "parado" do card — é tempo que o card esperou por algo de fora, útil para achar gargalo de máquina/abastecimento. A marca está em `plt_motivos.especial` (o motivo do fato está em `dados.motivo_id`); a do momento do gesto está em `plt_pessoa_pausas.especial`.
-## D-150 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O prazo e a PRIORIDADE do card de produção (21/10/2026, pedido do dono) — ↩️ revisa a D-101 (a prioridade não é mais etiqueta) e a D-125 (as datas do card de pedido)
-
-**Pedido do dono:** todo card de pedido mostra a data de entrega que o vendedor pôs no Tiny — só a data, com a cor dizendo quanto falta; a janela do card traz Início (o dia do pedido no Tiny) e Vencimento (a entrega); a prioridade deixa de ser etiqueta e vira marca própria, que o PCP põe a qualquer momento, inclusive ao criar o card: **Urgente** (sempre o primeiro, "a urgência tem que ser urgente"), **Atenção** (bolinha amarela) e **Comum** (bolinha verde).
-
-- **A data é LIDA do pedido, ao vivo** (nada copiado): o Tiny mudou a data → o card mostra a nova; o quadro de cada setor com peça do pedido é avisado na hora quando o Tiny atualiza o pedido.
-- **A cor:** verde com mais de 3 dias; amarelo com 2 ou 3; **vermelho forte, cheio e pulsando devagar** com 1 dia, no dia da entrega ou atrasado (quem pediu menos movimento no aparelho vê sem o pulso). O texto escondido diz quanto falta (a cor nunca vai sozinha).
-- **No card avulso** a data é o vencimento digitado (as datas continuam manuais); no card de pedido e nas peças dele as datas vêm do Tiny e **não se editam na janela**.
-- **Onde a prioridade mora (um dono por dado):** no **card do pedido** — vale para **todas as peças dele, em todos os setores**, inclusive as liberadas depois (cada peça LÊ a do pedido; nenhuma guarda a própria). A reposição de estoque tem a dela (vale para as peças que ela gerou) e o avulso a dele. Mudar pela peça muda a do pedido (a janela avisa: "vale para todas as peças do pedido").
-- O urgente aparece **escrito** ("URGENTE"), com a bolinha vermelha e a borda grossa vermelha no card; atenção e comum, só a bolinha.
-
-## D-151 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — Quem muda a prioridade (21/10/2026)
-
-- **O PCP/logística, o líder do setor onde o card está e o admin** — as mesmas pessoas que editam o card de pedido hoje (D-125 resposta 7); no avulso, também quem pode editá-lo (quem criou, os responsáveis).
-- O nível **"Logística"** (D-147) **muda** a prioridade: é uma propriedade do card (como etiqueta e descrição), não um gesto de mover ou executar.
-- O operador não muda. O mesmo toque duas vezes não grava nada novo.
-
-## D-152 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — Os RESPONSÁVEIS do card, por setor (21/10/2026, pedido do dono) — ↩️ revisa a D-125 (responsáveis)
-
-**Pedido do dono:** os responsáveis se preenchem sozinhos com quem pegou o card em cada setor; o líder ou o admin define o responsável dos próximos setores; o que já foi executado ninguém muda.
-
-- **Quem pegou** sai da história do card (quem iniciou o trabalho e quem ajudou, em cada setor — nada copiado); é **só leitura para todos**. No card do pedido (e no de reposição) a janela junta quem pegou as peças dele.
-- **Quem vai pegar nos próximos setores** se define **na peça (ou no card avulso)** — é ela que anda pelos setores; no card do pedido, a seção é só para ver.
-- **Quem define:** o admin, o PCP/logística, o **líder do setor onde o card está** ou o **líder do setor escolhido**. Só para setor de produção **ainda não trabalhado** naquele card — o banco recusa o setor já executado.
-- **Quem pode ser definido:** gente ativa daquele setor, ou quem tem no cadastro "pode ajudar em outros setores"; nunca a conta do tablet nem o nível Logística. Até 5 por setor.
-- A pessoa definida **é avisada no sino** e **passa a ver o card**. **Não vira delegação automática** (o afazer do Meu Painel continua sendo a delegação de sempre) — se o dono quiser que, ao chegar no setor, o card caia direto para a pessoa, é um passo seguinte.
-- Os "responsáveis do card todo" do avulso (escolhidos ao criar) continuam existindo, abaixo da lista por setor.
-
-## D-153 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A etiqueta que fazia o papel de prioridade (21/10/2026)
-
-- Etiqueta cujo nome começa com prioridade/prioritário/urgente/urgência/atenção: o card **vivo** que a tem ganha a prioridade nova (atenção para "atenção", urgente para as outras — no card do pedido, se for peça), e a etiqueta é **arquivada** (nada se apaga; a história fica).
-- Em produção, em 21/10: a etiqueta **"PRIORIDADE"** estava em **nenhum card vivo** — só foi arquivada. Para voltar, o admin a reativa em Utilitários.
-
-## D-154 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O organizador da fila: entrega, prioridade, alfabética (21/10/2026, pedido do dono)
-
-**Pedido do dono:** em todos os quadros (computador e tablet) e no PCP, um organizador da fila por data de entrega, por prioridade e alfabético; troca-se por cliques num botão com o ícone do estilo atual, sem texto.
-
-- **Um botão só, com o ícone** (bandeira = prioridade · calendário = entrega · A-Z = alfabética); cada toque passa para a próxima. O nome vai para o leitor de tela e para a dica do mouse.
-- **O urgente vem sempre primeiro**, em qualquer ordem.
-- **Prioridade** (a padrão): urgente → atenção → comum; dentro de cada uma, o mais antigo na etapa primeiro (a ordem de sempre).
-- **Entrega:** a data de entrega mais próxima primeiro (o avulso pelo vencimento), depois o número do pedido e o mais antigo; **sem data vai para o fim**.
-- **Alfabética:** letras primeiro (sem ligar para maiúscula e acento), depois números, depois o resto (símbolo, emoji); no quadro, pelo nome do produto (ou do avulso); **no PCP, pelo nome do cliente** (é o que o card do PCP mostra).
-- **Quem ordena é o servidor** (as colunas paginam lá); "Ver mais" continua a mesma ordem. A escolha fica **lembrada no aparelho**, uma para os quadros e outra para o PCP.
-
-## D-155 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O card do setor sem o cliente e o card do PCP refeito (21/10/2026, pedido do dono) — ↪️ D-28
-
-- **O card do setor não mostra o nome do cliente** — nem no computador (no tablet já não mostrava, D-28); o quadro do setor nem recebe mais o nome. Quem precisa vê na **janela do card** (fora do tablet) e no **PCP**.
-- **O card do PCP:** todos do **mesmo tamanho** na grade; o aviso de peça no estoque virou um **selo pequeno** ("3 no estoque", com a explicação na dica), como os outros avisos — não estica mais o card; o lado direito tem o **prazo** e o tempo no PCP; no rodapé, as unidades liberadas, a **prioridade** (três bolinhas), o botão de **abrir o card** e o lugar reservado para **mais um botão** (o "stand-by", que vem em outra entrega); a liberação continua igual.
-- **Campos** vazios na janela: "Sem campos personalizados." (sem cara de erro; o admin cria campos em Utilitários).
-- ↪️ **23/10/2026 (pedido do dono):** o card do setor também deixou de mostrar o "Pedido ficou X em PCP" — *"para a produção trabalhar isso não importa"*. O tempo em PCP segue na janela do card (Tempo e histórico) e no próprio PCP.
-## D-156 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A rota aceita QUALQUER pedido vivo; o "Lançar para ROTAS" deixa de ser passo (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-38, a D-39, a D-45 e a D-58 (o lançamento)
-
-**Pedido do dono (bateria da SESSAO-38):** a qualquer momento ele cadastra numa rota qualquer pedido — pronto, em produção ou ainda no PCP; assim que o pedido chega à plataforma ele pode ser programado; programado, aparece SÓ em "Já programadas". As rotas não dependem mais de "Pedidos em aguardo": respondem direto a todos os pedidos, prontos ou não. Cada cartão de "Sem programação" diz se o pedido está pronto ou ainda em produção/PCP.
-
-1. **Pedido vivo = uma regra só** para a Expedição e as rotas: card do pedido não arquivado, sem entrega registrada na plataforma, não encerrado no Tiny (entregue, não entregue, cancelado), o que o Tiny já levou adiante (faturado, pronto para envio, enviado) só fica com peça dele na fábrica (D-132/D-133), nunca o excluído no Tiny (D-140). **Candidato da rota** = o vivo que não está em decisão pós devolução (D-129). *(Para quem codar: `plt_privado.vw_pedidos_vivos` e `plt_privado.vw_pedidos_para_rota` — o "stand-by" de outra frente entra como UMA condição nesta última.)*
-2. **Estado de cada pedido:** **pronto** (todas as peças a entregar no fim de linha — Pedidos em aguardo ou ROTAS), **em produção** (alguma peça liberada; o cartão diz "1 de 3 prontas") ou **ainda no PCP** (nada liberado). Só frete = pronto desde que nasceu (D-63).
-3. **O que substitui o "Lançar para ROTAS" (escolha do Claude):** nada precisa ser lançado. A peça pronta fica no lugar de sempre ("Pedidos em aguardo" — continua sendo o nome do lugar onde a peça pronta espera; a TELA saiu — D-157) até a entrega; programar é direto na Programação. O botão antigo continua funcionando no banco só para o site antigo, até a publicação.
-4. **"Entregue" pede o pedido pronto** (escolha conservadora do Claude): o entregador e a logística só marcam "Entregue" com todas as peças a entregar prontas; antes disso o cartão avisa e o botão fica apagado (o banco confere de novo). Pedido em decisão pós devolução não se entrega. A entrega pelo Tiny continua fechando tudo onde a peça estiver (D-113, sem mudança).
-5. **ROTAS → Entregas → "A entregar"** = o programado (pronto ou não — o cartão diz), o pronto que ainda espera rota e o lançado do jeito antigo. O em produção sem rota fica só na Expedição.
-6. **O card do pedido programado fica como registro da entrega** (como o lançado ficava): o entregador vê em "Entregues hoje" e desfaz no mesmo dia; a Programação mostra nos entregues. "Não entregue" e "Pedido devolvido" (antes da entrega) valem para o programado, lançado ou não — as peças prontas saem do aguardo ou da ROTAS.
-7. ↩️ **D-39** ("ROTAS lista apenas pedidos prontos lançados pelos Pedidos em aguardo"), **D-45** ("lançar para ROTAS move de verdade; só o lançado aparece nas ROTAS"), **D-58** ("de lá o pedido completo é lançado para as ROTAS") e **D-38** (o "completo → lançar para ROTAS"): o lançamento deixa de ser exigência; a entrega continua por pedido completo (D-33).
-
-**Descartadas:** lançar sozinho quando a última peça chega ao aguardo (mexeria na maquinaria do arrasto do quadro, de outra frente).
-
-**↩️ revisada em 21/10/2026 (revisão do supervisor, mesma sessão) — o item 4:** o "Entregue" de um pedido que ainda aparece em produção **não se trava mais**. No campo, a plataforma pode estar atrasada (alguém esqueceu de arrastar a peça) e um botão apagado na porta do cliente é pior — vale o precedente do próprio dono na D-113 ("entregue fecha tudo do pedido onde a peça estiver"). Em todo lugar que registra entrega (a tela do entregador e ROTAS → Entregas) aparece a confirmação explícita: *"Este pedido ainda aparece em produção na fábrica (X de Y peças prontas). Confirmar a entrega encerra tudo dele."* Sem a confirmação o banco recusa (o site antigo continua como era); confirmada, fecha tudo como o caminho do Tiny — o tempo aberto fecha antes, as peças saem de toda conta e a trilha da entrega diz com quantas peças prontas ela saiu. O card do pedido que ainda esperava liberação no PCP sai com a entrega (não fica no quadro do PCP); a entrega continua em "Entregas do dia" para desfazer no mesmo dia (o desfazer devolve as peças e o card). Pedido em decisão pós devolução continua sem entrega.
-- **Área Pedidos (mesma revisão):** o pedido PROGRAMADO aparece **"Em rota"**, com o dia, o caminhão e a rota — não "pronto".
-
-## D-157 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A Expedição absorve "Pedidos em aguardo": os filtros em quadradinhos e o fim da tela do aguardo (21/10/2026, SESSAO-38 · frente da Logística) — ↪️ D-133, D-147
-
-**Pedido do dono (imagens 6/7):** "Pedidos em aguardo" pertence à Expedição; a Expedição ganha filtros visuais (quadradinhos com número grande e nome, o ativo contornado, que respondem ao clique): todos os não entregues · com rota programada · sem rota programada · prontos · ainda em produção. A tela "Pedidos em aguardo" deixa de existir.
-
-1. **Os 5 quadradinhos** — os números vêm do banco na MESMA requisição da página (todos = com rota + sem rota = prontos + em produção); o filtro e a paginação são no servidor; o filtro vive no endereço (`?filtro=`), o Voltar funciona. Ordem: a previsão mais próxima primeiro (D-133). Ao vivo como antes.
-2. **O que veio do aguardo (escolha do Claude):** a visão **"Peça por peça"** (a antiga aba "Produtos reservados": cada peça pronta com SKU, pedido e há quanto tempo está pronta), o **"Ver unidades"**, o relógio **"1ª peça pronta há / completo há"**, os avisos "Alterado no Tiny após a liberação" e "Em decisão pós devolução", e o atalho **"Abrir o pedido"** (a ficha em Pedidos → Todos os pedidos). Cada pedido mostra o caminhão e o dia da rota ou "Sem rota — programar". O "Lançar para ROTAS" saiu (D-156).
-3. **Menu e endereço:** "Pedidos em aguardo" sai do menu da Logística; o endereço antigo leva à Expedição (lei de navegação — nenhuma rota órfã). A peça pronta continua no lugar interno "Pedidos em aguardo" (é o nome do lugar, ainda citado nos quadros e no Estoque).
-4. **Quem vê:** a logística de sempre (admin, PCP, fins de linha) **e o nível "Logística"** sem vínculo de setor (D-147) — antes, a tela da Expedição o mandava embora sem vínculo; corrigido para todas as telas da logística que usam o mesmo gate.
-5. **Achado da prova no banco (21/10):** a Expedição antiga mostrava o pedido 13622, excluído no Tiny (D-140); a nova não mostra (42 → 41).
-6. **↪️ 21/10 (revisão do supervisor): o lugar também se chama Expedição na tela** — "pedidos em aguardo agora pertence à Expedição". Os textos que nomeiam o lugar da peça pronta dizem "Expedição" (ex.: "Peça pronta na Expedição", "entrou na Expedição", "A Expedição só recebe peça em perfeito estado", "Pronto na Expedição" na área Pedidos, "Conclui a produção (Expedição ou ESTOQUE)"), inclusive os que o banco escreve (avisos do sino, recusas, a observação do reenvio). **Não mudam:** o cadastro do setor ("PEDIDOS EM AGUARDO" — dado; a Expedição mostra "Expedição" no lugar), a etapa EXPEDIÇÃO da LIMPEZA E EMBALAGEM, colunas e os avisos antigos. Os textos de telas de outra frente da mesma sessão (linha do tempo, janela do card, PCP, controle de tempo, utilitários, auditoria) são renomeados por ela.
-
-## D-158 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A equipe da rota: só entregador (21/10/2026, SESSAO-38 · frente da Logística) — ↪️ D-115, D-128
-
-**Pedido do dono (imagem 4 — "Quem leva o Hyundai HR"):** a lista da equipe misturava gente marcada "da ROTAS" (vínculo com o setor, sem ser entregador) com os entregadores; deve mostrar só quem é entregador de verdade.
-
-1. **Entregador = o tipo "Entregador (só ROTAS)" do cadastro** (módulo "entregas" — D-115). Admin/logística/operador que só tem vínculo com o setor ROTAS sai da lista (em 21/10: 4 entregadores ficam, 6 pessoas "da ROTAS" saem).
-2. **Quem já estava numa equipe e não é entregador** aparece no fim da lista, marcado, com "não é entregador — desmarque" — só para poder sair (escolha do Claude). O banco recusa pôr na equipe alguém novo que não seja entregador; quem já estava pode ficar até ser desmarcado.
-
-## D-159 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O mapa da rota: "Só a ida" e "Só a volta"; o "Programar" sem espaço vazio (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-111 (o trecho aceso)
-
-**Pedido do dono (imagem 3):** no lugar de escolher UM trecho entre duas paradas ("Trecho 1ª parada → fábrica"), escolher **só a ida** (fábrica → … → última parada) ou **só a volta** (última parada → fábrica), para o mapa não ficar poluído pela linha da volta e medir cada uma (distância e tempo). A rota inteira continua o padrão. E tirar o espaço vazio entre "Na rota" e "Sem programação".
-
-1. **No mapa** (Programar e Já programadas — é o mesmo mapa), três botões grandes no canto de baixo: **Rota inteira · Só a ida · Só a volta**. Escolhida a ida, a volta **não se desenha** (e vice-versa); o canto de cima diz "Só a ida (fábrica → 3ª parada): 12,3 km · 25 min". Sem o serviço de rotas, vale o mesmo em linha reta (tracejada), com a distância em linha reta.
-2. **No painel da rota:** a ida e a volta lado a lado, cada uma com distância e tempo; as linhas das paradas mostram o trecho de cada uma (sem toque para acender — o toque saiu com o trecho aceso).
-3. **"Programar":** a coluna da esquerda é uma pilha só — "Na rota" só aparece com pedido marcado e cresce na medida em que "Sem programação" encolhe; o "Ordenar por" fica no cabeçalho da lista. Nenhuma altura reservada.
-
-## D-167 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O TEMPO ÚTIL do card: só o expediente do setor; o PCP não tem fila (21/10/2026, pedido do dono) — ↪️ D-29, D-48
-
-**↩️ revisada em 2026-10-30 (D-203, SESSAO-42):** a execução fora do expediente **deixa de contar** (resposta 3 do dono: hora extra só quando o líder autoriza); o card rodando é pausado sozinho no fim do expediente; o tempo de cada setor vem pronto do cálculo único.
-
-**Pedido do dono:** *"esses avisos de fila em PCP não fazem sentido na parte de tempo e histórico, já que PCP NÃO tem fila — deve ser só: Tempo útil em PCP. Lembrando que esse card deve sempre respeitar o horário do SETOR: se estiver fora do expediente e ninguém fizer hora extra, ele para de contar o tempo, até na fila — tem que contar só as horas úteis."*
-
-- **Todo relógio de espera do card** conta só o horário de expediente do setor onde ele está: a fila ("X na fila"), o "Parado · motivo · há X", o "Pausado há X", o tempo no fim de linha, o card do pedido no PCP e o "Pedido ficou X em PCP". Fora do horário o relógio para (a frente do card diz "fora do expediente", com ícone).
-- **Hora extra conta:** a execução em andamento segue o relógio corrido (quem trabalha fora do horário está trabalhando), e na linha do tempo o "Total na etapa" soma o expediente com o trabalho feito fora dele.
-- **Linha do tempo ("Tempo e histórico"):** o bloco do PCP mostra só **"Tempo útil em PCP"** — o do PEDIDO (D-48: da entrada à liberação da última unidade), sem o stand-by; os fins de linha (Expedição, Estoque, ROTAS, devolução) também mostram só "Tempo útil em <lugar>" (ninguém "inicia" ali). Os setores de produção seguem com "Fila (do setor)", as execuções e o total — todos no tempo útil.
-- **O mostrador do tempo útil é em horas** ("29h 10min"), sem "dias": um dia de 24 h úteis seriam mais de dois dias de galpão.
-- Regra igual à das dashboards (sem horário cadastrado = conta o tempo todo; a pausa do setor desconta), calculada no aparelho a partir da régua que vem na abertura (D-172).
-- **Fica como está (registrado):** as dashboards seguem com a conta de sempre — elas descontam também a execução fora do horário (o card agora conta essa hora extra). O horário por pessoa não entra na fila do card (a fila é do setor).
-
-## D-168 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O PCP ganha horário de expediente (21/10/2026)
-
-O PCP não tinha horário cadastrado — pela regra de sempre, ele contaria 24 h × 7. Na atualização do banco, o PCP recebeu **uma vez** o horário do primeiro setor de produção (o SECC: **segunda a sexta, 07:30–18:00**, o mesmo de todos os setores hoje). O admin muda em **Configurações → Controle de tempo**, como qualquer setor. Efeito junto: a dashboard de filas do PCP também passa a contar só o expediente.
-
-## D-169 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O STAND-BY no PCP (21/10/2026, pedido do dono)
-
-**Pedido do dono:** *"Na tela inicial do PCP, TODO card deve ter a opção de colocar em STAND-BY, selecionando um MOTIVO (os motivos são criados nas configurações também; motivo obrigatório para colocar em stand-by, e vai para a minha AUDITORIA). PCP ganha também uma nova SUB-ABA para manter esses pedidos em stand-by; de lá eles devem poder ser LANÇADOS DIRETO PARA AS ENTREGAS, ou VOLTAR para aguardando liberação (só volta a aparecer nas rotas se não estiver em stand-by). Pedidos em stand-by também NÃO contam tempo."*
-
-- **Onde:** o botão de stand-by fica em cada card de **"Aguardando liberação"** (ícone de pausa redondo, ao lado de abrir o card). A reposição de estoque não tem stand-by (tem o "Não produzir").
-- **Motivo obrigatório:** da lista **Configurações → Utilitários → Motivos de stand-by** (nasceram seis: aguardando pagamento, cliente pediu para segurar, aguardando confirmação do cliente, aguardando medidas ou projeto, produto já pronto no estoque, entrega a combinar) **ou "Outro", escrito**. Nunca "especial" (isso é só da pausa). O motivo vai para a **Auditoria** (o "por quê" da linha "Pôs o pedido em stand-by").
-- **Quem:** quem edita o card do pedido — PCP/logística, o líder e o admin (D-125 item 7).
-- **A aba nova "Stand-by"** do PCP (`?aba=standby`) mostra cada pedido segurado com o motivo, desde quando, quem pôs, o tempo útil no PCP (parado) e os dois caminhos.
-- **Pedido parcialmente liberado** também entra: sai de "Aguardando liberação" e o relógio do PCP para; **as peças já liberadas seguem na produção** normalmente.
-- **Pedido programado para uma entrega não entra** em stand-by sem antes sair da programação (nada some calado de "Já programadas").
-- **Não conta tempo:** o tempo útil do pedido no PCP desconta todos os períodos de stand-by (os fechados ficam guardados no card).
-- O Tiny continua mandando (D-132): se ele levar o pedido adiante, o pedido sai também da aba Stand-by.
-
-## D-170 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — "Lançar direto para as entregas" e "Devolver" (21/10/2026)
-
-- **Lançar para as entregas** = sair do stand-by e **as peças que ainda faltam ficam prontas na Expedição, sem passar pela produção** (a peça do estoque reservada pela venda é usada quando há) — a mesma maquinaria do "Concluído" do super admin (D-117). O pedido fica "Pronto" e entra nos candidatos de rota (Programação). Pede confirmação (dois toques).
-- **Recusado com peça na produção:** se alguma peça do pedido está num setor de produção, o lançar é recusado com a frase "N peças deste pedido estão na produção — espere ficarem prontas ou devolva o pedido para aguardando liberação" (a peça não é arrancada da produção).
-- **Devolver para aguardando liberação** = sair do stand-by e voltar ao quadro de sempre (e às rotas).
-
-## D-171 · ⏳ PROVISÓRIA (escolha do Claude — ajustada pelo supervisor) — Onde o pedido em stand-by aparece (21/10/2026)
-
-- **Expedição: continua** em todos os filtros ("todos os pedidos não entregues" é literalmente todos menos os entregues), com a marca **"Stand-by · motivo"** (o motivo no balão) e sem o convite "Sem rota — programar".
-- **Fora dos candidatos de rota** (Programação, ROTAS, programar) e de "Aguardando liberação" (mora na aba nova). O quadrinho do PCP na Visão do dia conta o mesmo conjunto do quadro (D-75) — sem o stand-by.
-
-## D-172 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A régua do tempo útil vem na abertura do app (21/10/2026) — Lei §2/§8
-
-O horário de cada setor e as pausas de setor (abertas ou dos últimos 120 dias) vêm prontos na **abertura do app** — nenhuma requisição a mais por tela; o aparelho calcula o tempo útil de cada card. O admin que muda um horário vê na hora; **as outras pessoas recebem o horário novo na próxima vez que abrirem a plataforma** (mudança de horário é rara; nada de relógio).
-
-## D-173 · O botão MOVER do card: a liderança manda qualquer card de produção para a FILA de qualquer setor, com motivo obrigatório (21/10/2026, pedido do dono — SESSAO-39) — ↩️ revisa a D-59 (o "Mover" tinha saído dos quadros) para a liderança
-
-**Pedido do dono:** *"Dentro de todos os cards de produção, coloque a possibilidade de dentro dele ter um botão de mover, esse mover pode ser movido para a FILA de qualquer setor a qualquer momento por um líder, admin ou super admin."* **Respostas (21/10, na conversa):** líder de **qualquer** setor (não só do setor que lidera) move qualquer card de produção; o **motivo é obrigatório**, de uma lista própria em Configurações → Utilitários (+ "Outro", escrito), e entra no painel de motivos.
-
-- **Onde:** na janela do card, em todo card de produção (a peça e o card avulso) que está num setor de produção. Não vale para o card do pedido (ele segue pelo PCP), nem para o que já está num fim de linha (Expedição, ESTOQUE, Danificados, ROTAS).
-- **Para onde:** a **etapa de fila** de qualquer setor de produção — inclusive o próprio setor ("volta para a fila daqui"), se o card não estiver nela. Setor sem etapa de fila recusa, com o caminho para cadastrar.
-- **Quem:** admin (o super admin é admin), o papel líder ou a marca de líder em qualquer setor. O nível logística nunca move (D-147: só olha). O operador comum não vê o botão.
-- **Motivo:** obrigatório — "Motivos do Mover" (aba própria em Utilitários) ou "Outro", escrito; o detalhe opcional entra junto. O motivo fica na observação do fato (o histórico do card mostra) e o id do motivo nos dados (o painel conta).
-- **⏳ PROVISÓRIAS (escolhas do Claude, ditas ao dono na conversa sem objeção — confirmar):**
-  1. **Os quatro motivos que nascem:** "Retrabalho", "Foi para o setor errado", "Mudança no planejamento", "Peça com defeito" (o admin edita, desliga e cria outros).
-  2. **Com alguém trabalhando no card:** o tempo dele fecha na hora (a mesma regra do arrasto — D-24) e quem ajudava sai junto.
-  3. **A marcação do estado da peça** (perfeito/atenção/danificado) segue a regra do arrasto (D-126): só quando o setor de onde a peça sai pede ao enviar.
-  4. **No tablet:** o botão aparece e pede o PIN; o banco aceita só o PIN de líder ou de admin (o fato sai em nome de quem digitou).
-- **Os fatos:** os de sempre — movimentação para outro setor (com a marcação, quando houver) ou de etapa (no mesmo setor), com `dados.como = 'mover_para_fila'`. Nada novo no tipo de evento.
-
-**Descartadas:** só o líder do setor do card (o dono quis qualquer líder); motivo opcional ou sem motivo (o dono quis obrigatório); um tipo de evento novo (a movimentação de sempre já fecha o tempo e as ajudas — um dono por regra).
-
-## D-174 · A rota no GOOGLE MAPS e no WAZE: o link oficial, sem custo, na ordem da plataforma; o entregador vê a mesma ordem da logística (21/10/2026, pedido do dono — SESSAO-39) — ↪️ D-108/D-109/D-115
-
-**Pedido do dono:** *"Em rotas, precisamos também levar a rota já montada para o google maps ou para o waze, analise se é possível encontrar uma api gratuita ou se é possível apenas colocar um botão com link de redirecionamento com rota montada exatamente como foi feito na plataforma."*
-
-- **O que existe (pesquisado na documentação oficial, 21/10):** o Google Maps tem um **link oficial** ("Maps URLs") que abre a rota com origem, destino e paradas **na ordem dada**, **sem chave e sem custo**; limite de **9 paradas intermediárias por link** (3 no navegador do celular, sem o aplicativo). As APIs de rota do Google são pagas e não são necessárias para isto. O **Waze aceita UM destino por link** (várias paradas dá erro, segundo a própria documentação).
-- **Decidido (levado ao dono na conversa, sem objeção):**
-  1. **"Abrir a rota no Google Maps"** na rota escolhida de "Já programadas" (sai da fábrica, as paradas na ordem DA TELA — com o rascunho, se houver — e volta à fábrica) e na tela do entregador (**de onde o aparelho está**, as entregas que faltam, na ordem, e a volta à fábrica).
-  2. **Rota com mais de 9 paradas sai em partes equilibradas** ("Paradas 1 a 6", "Paradas 7 a 10 e a volta"), cada parte começando onde a anterior terminou — nunca uma parte só com a volta.
-  3. **Em cada entrega, "Google Maps" e "Waze"** já navegando até ela (no lugar do antigo "Mapa", que só mostrava o ponto).
-  4. A parada vai pela **coordenada** que a plataforma usou; a sem ponto no mapa, pelo **endereço escrito**.
-  5. **A mesma ordem para todos:** antes, sem ordem salva, o entregador via as paradas pela numeração do pedido — e o Google abriria noutra ordem. Agora as entregas do dia trazem a ordem salva e a tela numera como "Já programadas" (a salva ou, sem ela, a sugestão do mais perto a partir da fábrica).
-- **Conferido em 21/10:** o link aberto no Google Maps montou "Fábrica Domoby → 4 paradas na ordem → Fábrica Domoby" (57 min de carro). **A conferir no celular do entregador:** o limite de 9 paradas vale no aplicativo; sem o aplicativo, o navegador do celular aceita 3.
-
-**Descartadas:** a API paga de rotas do Google (desnecessária para abrir a rota); o Waze com a rota inteira (não existe); otimizar a ordem pelo Google (a ordem é a da plataforma — a decisão é humana, D-39/D-109).
-
-## D-175 · O CALENDÁRIO da programação: um modo de ver dentro de Rotas → Programação, no formato do calendário da lista ROTAS do ClickUp (21/10/2026, pedido do dono com vídeo — SESSAO-39) — ↪️ D-111/D-128/D-169
-
-**Pedido do dono:** *"Para as rotas, coloque uma visualização de calendário para visualizar a programação, analise o vídeo para entender o formato e coloque como um modo de visualização dentro de rotas."* **O vídeo** (celular filmando o monitor, 21/10 15:42): o calendário da lista ROTAS do ClickUp, visão **Semana** (domingo → sábado), "Hoje", setas ‹ ›, o título com o intervalo; uma **barra por pedido** ("nº - bairro - data", às vezes com recado: "ENTRE 13:30 AS 17:00"); a **cor da barra é a situação** (conferido na lista do ClickUp, só leitura: cinza a fazer · azul 1ª/2ª/3ª rota · amarelo rota terceirizada · verde entregue · vermelho cancelado · rosa parado · roxo retirada).
-
-- **Onde:** uma terceira aba de Rotas → Programação: **Programar · Já programadas · Calendário** (`?aba=calendario`; o modo `?ver=mes` e o dia de referência `?ref=` também no endereço).
-- **Cada pedido no seu dia, pela regra que as outras telas já usam (⏳ PROVISÓRIA — a tradução do ClickUp para a plataforma, escolha do Claude):**
-  - **Na rota** (azul — o "1ª/2ª/3ª rota" do ClickUp): o programado, no dia da programação, com o caminhão e a rota;
-  - **Entregue** (verde): o programado e entregue, no dia da rota;
-  - **Não entregue** (vermelho — no lugar do "cancelado"): o "não entregue" daquele dia de rota, com o motivo (o pedido volta para "Programar");
-  - **Sem rota** (cinza — o "a fazer"): o pedido vivo sem programação, no dia da **previsão de entrega** do vendedor;
-  - **Stand-by** (rosa — o "parado"): o pedido segurado pelo PCP, no dia da previsão.
-  - Rota terceirizada e retirada **não existem na plataforma** — ficaram fora.
-- **Na barra (↩️↩️ 22/10, 2ª volta — pedido do dono: *"Essa visualização está muito redonda e confusa, altere novamente o layout e deixe a possibilidade de ver mais detalhes do pedido caso eu clique no mesmo"*):** a grade é **reta**, como a do ClickUp — sete colunas iguais com linhas finas, o cabeçalho do dia numa linha só ("SEG 19 out", o hoje na cor de ação), **sem** grupos por rota, círculos nem pílulas. **Uma barra de uma linha por pedido: "13704 · Pitimbu"** (o bairro encurta se não couber; o texto inteiro no passar do mouse), no tom claro da situação com a **faixa forte à esquerda**, cantos quase retos. A legenda vira quadradinhos de cor com o nome e o total — **continua filtrando** (tocar esconde/mostra). **Tocar no pedido abre o DETALHE dele** (todas as situações): em cima, na hora, o que o calendário já sabe — situação, dia da rota (ou a previsão, para sem rota e stand-by), a previsão do vendedor, o caminhão (na cor dele), a rota e a parada, o recado da programação e o motivo (não entregue/stand-by); embaixo, **a ficha do pedido** da área Pedidos (D-134 — cliente com WhatsApp, venda, valor, entrega; e, atrás de botões, itens e pagamento, produção, entrega e comprovante, dados do Tiny e histórico), que pede tudo numa requisição só, no clique. Do detalhe: **"Ver a rota"** (o programado — abre a rota em "Já programadas") e **"Abrir a janela do pedido"**. *(A 1ª volta, de 22/10 de manhã — barra em duas linhas, grupos por rota com a bolinha do caminhão, número do dia em círculo, fim de semana estreito, legenda em pílulas —, foi achada "redonda e confusa" pelo dono e saiu.)*
-- **A largura das colunas, como numa planilha (↩️ 22/10, 3º pedido do dono — *"deixe que seja possível estender a coluna no estilo do Sheets e Excel … clicar duas vezes na divisória e ela se ajustar ao tamanho exato do maior texto"*):** a **divisória no cabeçalho de cada dia** se arrasta para alargar/estreitar aquela coluna; **dois cliques** nela ajustam a coluna ao maior texto dela (o maior "nº · bairro" carregado e o cabeçalho); pelo teclado, setas ←/→ e Enter. As colunas começam iguais; depois de mexer, cada uma tem a sua largura (a grade rola para o lado se passar da tela) e **"Colunas iguais"** volta ao começo. Semana e mês têm larguras próprias, **guardadas no aparelho de quem mexeu** (⏳ escolha do Claude: é preferência de quem olha — não muda a tela dos outros). Só onde as colunas viram grade (computador/tablet deitado); no celular os dias seguem em lista.
-- **Semana e mês (⏳ escolha do Claude):** a semana como o vídeo (até 30 barras por dia; o resto num "+N" que busca o dia no clique) e o **mês** (a grade de 6 semanas, 3 barras por dia; tocar no dia abre a semana dele) — o ClickUp do vídeo tinha o seletor de visão. No celular, os dias empilham.
-- **Fora do calendário, mas avisado:** os pedidos sem rota com a previsão já vencida e os sem previsão — um aviso com "Ver em Programar".
-- **Uma requisição por tela** (o período inteiro, até 6 semanas), ao vivo pelos avisos das rotas e do PCP (Lei §1/§4).
-
-**Descartadas:** arrastar o pedido de um dia para outro no calendário (o vídeo não mostra; seria outra forma de reprogramar — fica para o dono pedir); mostrar só os programados (o ClickUp do vídeo mostra também o "a fazer"); a cor pela situação do ClickUp ao pé da letra (terceirizado/retirada/cancelado não existem aqui); o detalhe num desenho novo (a ficha do pedido já existe e é a mesma da área Pedidos — um lugar só para mudar); a rota/caminhão dentro da barra (foi o que deixou a 1ª volta confusa — fica no detalhe).
-
-## D-176 · O PAINEL DE MOTIVOS: os maiores problemas da fábrica e das rotas, do maior para o menor (21/10/2026, pedido do dono — SESSAO-39) — ↪️ D-32/D-42/D-164/D-169/D-116
-
-**Pedido do dono:** *"Em dashboards, crie uma dash para medir as questões da fábrica e rotas, motivos de não entregas, motivos de pausa e todos os motivos dessa forma, é uma medição para metrificar quais são os maiores problemas em cada um desses pontos."* **Resposta (21/10):** entram **Produção** (pausas, paradas e saídas do setor), **PCP** (stand-by), **Rotas** (não entrega, devolução, entrega desfeita) e **Qualidade** (atenção/danificado).
-
-- **Onde:** Dashboards → **Motivos** (`/dashboards/motivos`), com o filtro de período (Hoje/7/30/90 dias), o de setor e as visualizações salvas, como os outros painéis.
-- **Quem vê (D-32):** líder (os setores de produção que lidera) e admin (tudo). O PCP e as rotas aparecem para quem vê esses setores no painel (o admin; o líder do PCP/das ROTAS). Com um setor de produção escolhido no filtro, o PCP e as rotas saem.
-- **O que mede (⏳ PROVISÓRIAS — escolhas do Claude):**
-  1. **Pausas e paradas:** vezes = os gestos; **tempo = o tempo ÚTIL parado de cada pessoa** (só o expediente do setor — a mesma régua dos outros painéis; quem ajudava conta também — horas-pessoa paradas). Por motivo, por setor e por pessoa. O motivo especial (D-164) aparece marcado "especial · não conta para a pessoa".
-  2. **Saídas do setor (tablet):** por motivo (sem o detalhe), com o tempo útil até a pessoa entrar de novo ("Fim do turno" fica perto de zero — a noite está fora do expediente).
-  3. **Mover (D-173):** por motivo e "de onde para onde".
-  4. **Stand-by:** por motivo, com o tempo útil segurado (os que ainda estão contam até agora) e quantos estão segurados agora. *(O tempo útil de cada stand-by encerrado vem no próprio registro da saída, escrito na hora em que o pedido sai — o painel só soma; como o de cada pausa e de cada saída do setor, guardado quando termina. Lei de desempenho.)*
-  5. **Rotas:** não entrega por motivo, por caminhão e por quem marcou (com "X% de N tentativas" — entregues + não entregues no período); devolução e entrega desfeita por motivo.
-  6. **Qualidade:** por setor de origem, as peças com atenção e danificadas e as divergências (quem recebeu discordou).
-  7. O "Outro" escrito na hora fica num grupo só ("Outro (escrito na hora)"); o detalhe mostra cada texto.
-- **O clique num motivo** abre cada vez que ele aconteceu (quando, quem, onde, o card, o motivo escrito, o tempo), 20 por vez com "Ver mais" (cursor); o card abre a janela dele.
-- **Desenho (D-42):** números-herói no topo (mais tempo parado, em stand-by agora, não entregues, peças com problema), ranking com barra de um matiz só (o azul de espera), rótulo direto, o maior problema primeiro.
-
-**Descartadas:** gráficos de pizza (proibidos pela régua dos painéis); um painel por área (o dono pediu "uma dash"); contar só as vezes (o tempo parado é a medida que mostra o tamanho do problema).
-
-## D-186 · LANÇAR QUALQUER MÓVEL PARA PRODUÇÃO, A QUALQUER MOMENTO — o mesmo ícone da fábrica em todo cartão do Estoque (23/10/2026, pedido do dono — SESSAO-40) — ↩️ revisa a D-87 e a D-89 (o botão só com a automática desligada e o produto em necessidade) e a regra "uma reposição aberta por produto" da D-54 para o gesto da logística
-
-**Pedido do dono:** *"Na parte de estoque, coloque um botão para lançar para produção mesmo estando com o estoque mínimo já suprido, coloque para lançar qualquer produto a qualquer momento, pode ser da mesma maneira do ícone vermelho."*
-
-- **O ícone:** o MESMO da fábrica ao lado do "Mínimo", em **todo** móvel da aba dos acabados, para quem mexe no estoque (logística e admin): **vermelho pulando** quando falta peça e a reposição automática está desligada (o chamado da produção, como antes); **discreto** (cinza) no resto — no mínimo, fora do Top X, sem mínimo, com a automática ligada. No detalhe do produto (tocar na foto), o botão por extenso **"Lançar para produção"** ao lado de Entrada/Baixa/Contagem.
-- **O lançamento:** o mesmo de antes (quantidade de 1 a 500, nasce no PCP → Reabastecimento, o PCP decide, parada 2 dias úteis sai sozinha — D-85). A quantidade proposta é o que falta para o mínimo; sem falta, **1**. O texto diz quando nada falta ("a reposição nasce no PCP do mesmo jeito").
-- **⏳ PROVISÓRIA (escolha do Claude):** se o produto **já tem uma reposição esperando no PCP**, a nova nasce **ao lado** (outro card de reabastecimento) — "a qualquer momento" vale também aí. A automática segue com UMA aberta por produto (ela não cria outra enquanto houver qualquer reposição aberta). O clique duplo (ou a rede que cai e volta) **não** cria duas: cada abertura do lançamento leva uma chave do gesto (Lei §10) e o mesmo toque devolve o card já criado.
-- **Compatível:** sem a chave (o site de antes), a regra antiga (uma aberta por produto) continua.
-
-**Descartadas:** somar as unidades na reposição que já está no PCP (mudaria o prazo de 2 dias úteis da parte antiga e exigiria um fato novo de "ampliar"); um botão grande por extenso em cada cartão (o dono pediu "da mesma maneira do ícone vermelho").
-
-## D-187 · O FILTRO DOS QUADROS: o número do pedido ou o nome do móvel, em todo quadro de setor, no tablet e no PCP (23/10/2026, pedido do dono com o vídeo do Trello — SESSAO-40)
-
-**Pedido do dono (vídeo do quadro LOGÍSTICA do Trello, filtro por "13722"):** *"Isso facilitaria muito aqui dentro da limpeza e embalagem. Em todos os setores você pode colocar isso, esse filtro."*
-
-- **Onde:** no topo de **todo quadro de setor de produção** (SECC, CNC, FITAMENTO, FURAÇÃO, MONTAGEM, LIMPEZA E EMBALAGEM), no **modo tablet** e no **PCP** (abas Reabastecimento, Aguardando liberação e Stand-by), à esquerda do botão da ordem da fila. Os fins de linha já tinham busca (Estoque, Expedição, Rotas).
-- **O que bate (⏳ PROVISÓRIA — escolha do Claude):** só números (ou "pedido 13722", "#13722") = o **pedido cujo número começa** com eles; letras = o **nome que contém** o texto (o móvel; o card avulso; no PCP, o cliente do pedido ou o móvel da reposição), sem acento, sem maiúscula e sem espaço. Menos de 2 caracteres não filtra. Espera 300 ms parado (Lei §3).
-- **No SERVIDOR:** cada coluna vem só com os cards que batem e diz **quantos batem** ("3 cards batem com o filtro" — o "N cartões correspondem aos filtros" do Trello); "Ver mais" com o mesmo filtro; o ao vivo continua. O filtro vive no endereço (`?filtro=`) — o Voltar e o link funcionam, e a busca geral abre o quadro já filtrado. O "x" ou o Esc limpa.
-
-**Descartadas:** filtrar só os 10 cards já carregados na tela (esconderia os da página seguinte — Lei §3 / regra 17); filtro por pessoa, etiqueta e data (o vídeo usa só a palavra-chave).
-
-## D-188 · A BUSCA GERAL: a lupa ao lado do sino acha os cards de TODOS os setores e diz onde cada um está (23/10/2026, pedido do dono com o vídeo do Trello — SESSAO-40)
-
-**Pedido do dono (vídeo da pesquisa do Trello, "13721" → "9 - LOGISTICA: ENTREGUE"):** *"Tem também essa ferramenta aqui que eu posso colocar qualquer coisa que ele busca em todos os quadros… e diz que está no quadro Logística Entregue. Se tivesse também aqui, facilitaria muito para a rastreabilidade dos cards."*
-
-- **Onde:** a **lupa ao lado do sino** (no menu do computador e na barra do celular) e **Ctrl+K** (⌘K no Mac) de qualquer tela. Não aparece para quem é só entregador nem no modo tablet.
-- **O que acha (a mesma régua do filtro — D-187):** o **card do pedido** (o pedido no PCP — vivo ou já entregue), as **peças** vivas e as **peças de pedido já entregues/arquivadas** (a rastreabilidade), a **reposição** ainda no PCP e o **card avulso** (vivo ou concluído). **⏳ PROVISÓRIA:** fica de fora a peça sem pedido que já saiu do estoque (contagem, baixa) — não é rastro de pedido e só encheria a lista.
-- **Onde está, em língua de galpão:** "LIMPEZA E EMBALAGEM · A LIMPAR · com Ana", "PCP · aguardando liberação", "Pronta, na Expedição · na rota de 24/10 — Baú 1", "No ESTOQUE", "Nas ROTAS", "Entregue em 17/10", "Concluído em …"; o pedido cancelado no Tiny ganha o selo "Pedido cancelado".
-- **Tocar** abre a janela do card; o ícone ao lado (só setor de produção e PCP) **abre o quadro do setor já filtrado** pelo pedido.
-- **Quem vê o quê:** só o que a pessoa já pode ver na janela do card (admin e logística/PCP: tudo; o resto: o setor dela, o que ela executa ou participa).
-- **⏳ PROVISÓRIA — a ordem:** pelo **número**, o pedido mais novo primeiro (entregue ou não) e, dentro do pedido, o card do pedido e as peças na ordem dos itens; pelo **nome**, o vivo primeiro e o card mais novo primeiro. 20 por vez com "Ver mais" (cursor). Uma requisição por busca; o resultado é esquecido ao fechar. **Mínimo:** 2 números ou 3 letras (o índice do nome precisa de 3 — no ensaio ×100, 2 letras levavam 1,9 s).
-
-**Descartadas:** buscar também dentro da conversa e dos anexos do card (o vídeo busca o nome do cartão); a busca dentro de cada tela só (o dono pediu "em todos os quadros").
-
-## D-189 · O TABLET NÃO CAI: cada aparelho com a sua sessão; quem sai do setor por tempo são as PESSOAS (15 min sem card = ausente; 1 h = fora); qualquer gesto com o PIN põe a pessoa no setor do tablet (27/10/2026, pedido do dono — SESSAO-41) — ↩️ revisa a D-137 (12 h no tablet), a D-146 itens 1, 7 e 8
-
-**Pedido do dono:** *"A sessão no modo tablet nos setores estão sempre 'expirando'… remova a expiração por inatividade, coloque para uma hora, antes disso, ele apenas fica ausente se não estiver com nenhum card em nenhum setor sendo executado em um intervalo de 15 minutos"* · resposta 10: *"o próprio tablet não deve deslogar nunca da conta do setor, ele deve apenas deslogar as pessoas que estão dentro do setor naquele momento depois do tempo informado… ela não deve ter que logar novamente para movimentar os cards, elas apenas movimentam e colocam o pin dela, assim que o pin for digitado, o sistema já deve reconhecer quem é a pessoa, movimentar o card e logar ela no setor"*.
-
-**A causa achada (registro do servidor, 26/10):** não era tempo parado — a entrada pelo PIN do setor trocava a senha da conta do tablet a cada entrada, e o servidor de login derruba as sessões abertas quando a senha muda: um aparelho entrando derrubava os outros do mesmo setor (MONTAGEM: 18 entradas no dia, de minutos em minutos); e o "Sair" do site encerrava a conta em todos os aparelhos.
-
-- **A sessão do aparelho:** a senha da conta de tablet passa a ser DERIVADA no servidor (HMAC da chave de serviço com o id da conta — ninguém a vê, não fica guardada, não muda); cada aparelho ganha a sua sessão e nenhum derruba o outro. "Sair" encerra só aquele aparelho (no PC também). **O tablet nunca sai por tempo** (o escritório segue com 8 h — D-137).
-- **A pessoa:** sem card em execução em nenhum setor, os **15 primeiros minutos contam como trabalhando** (a carência entre um card e outro); depois, **ausente**; com **1 h**, **sai do setor sozinha** — o fato `saida_automatica` (sem motivo de lista; não entra no painel de motivos de saída) e o tempo depois dela não conta (nem como "fora de setor"). Derivado na leitura e gravado no próximo fato da pessoa — sem relógio (Lei §4).
-- **O gesto com PIN no tablet** (mover, iniciar, pausar, auxiliar… qualquer um) põe a pessoa no setor DO TABLET. No computador vale a regra de antes (só iniciar/retomar/auxiliar dá entrada — o líder que organiza outro quadro não "entra" nele).
-- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a pausa DA PESSOA (gesto com motivo) não tem carência — ausente na hora, como antes; a saída de 1 h vale para as duas; (b) ~~a carência conta como "trabalhando" na dashboard de tempos~~ → ↩️ **resolvida pelo dono na D-197: só 5 min contam**; (c) depois da saída automática o tempo não conta nem como ausente nem como fora de setor.
-
-## D-190 · O QUADRO COM ROLAGEM SÓ DENTRO DA COLUNA, como no Trello (27/10/2026, pedido do dono com vídeo — SESSAO-41)
-
-**Pedido do dono:** *"Lista do kanban estática com rolagem apenas dentro da própria lista, não no quadro todo"* — no vídeo: *"aqui no Trello a lista fica estática, e a rolagem é só na lista; então eu não consigo visualizar para qual lista eu vou mover… aqui a rolagem é na tela completa"*.
-
-- O quadro do setor (computador e tablet) tem a altura da tela, do ponto onde começa até o pé da janela; **cada coluna rola por dentro**, o cabeçalho das colunas fica sempre à vista (também durante o arrasto); "Ver mais" no fim da própria coluna. A página não rola mais por causa do quadro.
-
-## D-191 · "ESQUECI MINHA SENHA" LIBERADO POR UM ADMINISTRADOR: aviso urgente na tela, 2 h, uma troca, só no aparelho que pediu, a mesma resposta para quem tem e quem não tem cadastro (27/10/2026, pedido do dono — SESSAO-41)
-
-**Pedido do dono:** *"Botão de recuperar minha senha na tela de login, esse botão deve enviar uma notificação para um admin, notificação de urgência, um aviso na tela mesmo com um botão de liberar troca, ou de não liberar, se liberar troca para aquele email, a pessoa clica em trocar minha senha, digita o email dela e já direto consegue trocar, se não estiver liberado para troca de senha, aparece apenas o botão de solicitar, se o email não estiver cadastrado no banco, aparece apenas uma mensagem genérica."* Respostas: quem libera = administradores e super admin (7); **2 horas** (8); a mesma resposta para todos (9).
-
-- Tela de entrada → **"Esqueci minha senha"** → e-mail → **"Trocar minha senha"**: liberado para ESTE aparelho → cria a senha nova e já entra; não liberado → aparece só **"Solicitar troca"**; ao solicitar, a mensagem é SEMPRE a mesma ("se este e-mail tiver cadastro, a liderança recebe o aviso…").
-- O aparelho que pede cria um **segredo só dele** (32 bytes; o banco guarda só o resumo); a liberação vale **2 h, uma troca, só para esse aparelho**. Pedir de novo substitui o pedido aberto — **um aparelho novo nunca herda a liberação** de outro (precisa de outra decisão).
-- Cada administrador recebe o **aviso no sino** e o **aviso urgente na tela** (qualquer tela), com **"Liberar troca" / "Não liberar"** e a pessoa (nome, usuário, a hora); sem pedido pendente, o aviso sai de todos. Pendente que passa de 24 h já não aparece para decidir.
-- E-mail sem cadastro, conta de tablet e pessoa desativada: nada acontece (e a tela diz o mesmo). Trava: 5 pedidos por 15 min por aparelho e por e-mail; senha nova de 8 a 72 caracteres e diferente da senha padrão. Tudo na trilha.
-
-## D-192 · A REVISÃO DE SEGURANÇA: a segunda camada de permissões, a trava geral do PIN de setor e os limites do login (27/10/2026, pedido do dono — SESSAO-41)
-
-**Pedido do dono:** *"revisar políticas de segurança para bloquear testes comuns que hackers e pessoas mal-intencionadas fazem, seja bloquear injeção de sql no login, teste de força bruta, edição de acesso via api e coisas do tipo"*.
-
-- **Achado e mantido (auditoria no banco real, só leitura):** toda regra de escrita das tabelas é para quem está logado e confere a pessoa; quem está logado só muda o próprio nome/telefone/foto/tema/fila em `plt_usuarios` — **nunca papel, super admin, módulos, ativo** (testado na bateria: "virar admin pela API" é recusado); nenhuma porta monta SQL com texto digitado (as 2 que montam usam `%L`/`USING`); o login procura por `.eq` (sem injeção); nenhuma função privilegiada aberta ao visitante.
-- **Corrigido:** (1) o visitante (sem login) perde TODA escrita (insert/update/delete/truncate) em todas as tabelas e visões — antes só as regras de linha seguravam; (2) ninguém do navegador "esvazia tabela" (TRUNCATE não passa pelas regras de linha); o mesmo para tabela nova; (3) **trava GERAL do PIN de setor**: 30 erros em 15 min, de qualquer aparelho, fecham a entrada por PIN de setor por um tempo (a trava por aparelho usa o endereço de internet, que dá para disfarçar, e o PIN de setor tem 2 dígitos — D-147); (4) o login recusa texto acima de 254/72 caracteres sem ir ao banco.
-- **Para o dono clicar no painel da Supabase (o Claude guia):** desligar o **cadastro público** de contas (hoje qualquer um cria uma conta de login por fora — não enxerga nada, mas é porta aberta; os cadastros da plataforma continuam pela Equipe) e a **senha mínima de 8**.
-- ⏳ Fica para depois (custa ou depende do dono): CAPTCHA no login (Turnstile, gratuito, chave do dono), proteção contra senha vazada (plano pago da Supabase).
-
-## D-193 · O ENDEREÇO DE ENTREGA DO PEDIDO vale na logística, inteiro; sem ele, o do cadastro (27/10/2026, pedido do dono com vídeo — SESSAO-41)
-
-**Pedido do dono (vídeo do pedido 13660):** *"o que importa para a logística é o endereço de entrega e não o endereço de cadastro… quando não tiver endereço diferente do endereço do cadastro você usa esse endereço como o endereço de entrega; caso tenha endereço de entrega você usa esse endereço aqui"*.
-
-- O Tiny já mandava o endereço de entrega (`pedidos.endereco_entrega`, 191 pedidos — todos com cidade e estado); nenhuma tela o usava. Agora a Programação (o ponto do mapa), Já programadas, as entregas do dia, a lista da ROTAS, o calendário, a decisão da devolução e a ficha do pedido usam **o endereço de entrega INTEIRO** quando ele existe (nunca misturado com o número/bairro do cadastro); sem ele, o do cadastro. A ficha mostra os dois.
-- O ponto no mapa do endereço novo é procurado sozinho também em "Já programadas" (o pedido já programado que passou a usar o endereço de entrega).
-
-## D-194 · A DATA DE ENTREGA MUDADA OU REMOVIDA SÓ NA PLATAFORMA; o Tiny mudando a data, vale o Tiny (27/10/2026, pedido do dono — SESSAO-41) — ↩️ revisa a D-150 ("no card de pedido as datas vêm do Tiny e não se editam")
-
-**Pedido do dono:** *"coloque também a possibilidade de alterar a data de entrega de um pedido, ou até mesmo de remover essa data, mas isso não deve afetar o Tiny, apenas a plataforma mesmo, porém se mudar no Tiny, muda na plataforma também"*.
-
-- Na **ficha do pedido** (Pedidos, o detalhe do calendário, "Abrir o pedido"): **"Mudar a data de entrega"** (nova data, ou **"Remover a data"**) — logística, PCP e admin. A data mudada vale no card de produção (a cor do prazo e a ordem pela entrega), na Expedição, na Programação, no calendário e nas rotas; a ficha diz "mudada na plataforma (no Tiny: …)". Fica o fato na linha do tempo do pedido.
-- **Se o Tiny mudar a data depois**, vale a do Tiny (a da plataforma guarda a data do Tiny daquele momento e deixa de valer sozinha). Escolher de novo a data do Tiny apaga a da plataforma.
-
-## D-195 · A ENTREGA PARCIAL: o entregador (ou a logística) marca o que foi entregue; o resto volta para a decisão da logística; o Tiny não muda (27/10/2026, pedido do dono — SESSAO-41) — ↪️ D-129
-
-**Pedido do dono:** *"um botão de opção de entrega parcial (adicionando o que foi entregue do referente pedido e campo de observação)… foi entregue apenas 3 deles e um retornou à fábrica, deve contabilizar o pedido como entregue parcialmente e o produto que retornou deve ficar para decisão do mesmo setor que trata os pedidos devolvidos"* · respostas: *"o próprio entregador pode marcar entregue parcialmente e selecionar um motivo pré-criado em utilitários ou adicionar um campo de observação"* (1); observação obrigatória quando algo volta — "Perfeito" (2); o Tiny não muda (3).
-
-- Botão **"Entrega parcial"** na tela do entregador e em ROTAS → Entregas: as peças do pedido (todas marcadas de início — o comum é desmarcar o que voltou); **motivo da lista (Utilitários → Entrega parcial) e/ou observação — pelo menos um**. Marcadas = entregues (saem de toda conta, como no Entregue); desmarcadas = **voltam para "Em decisão pós devolução"**, com o aviso à logística e a mesma telinha **"Decidir situação"** (reenviar, estoque, realocar, danificados, loja, ajuste).
-- O pedido fica **"Entregue em parte (N de M)"** (ficha, entregas do dia). **O Tiny não é chamado.** "Reenviar ao cliente" a peça que voltou reabre a entrega só na plataforma e o pedido volta a ser programado.
-- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) a entrega parcial **não se desfaz** pelo "Desfazer" (as peças que voltaram já estão com a logística — para corrigir, a logística usa a decisão ou "Pedido devolvido"); (b) peça que a plataforma ainda vê em produção pede a confirmação, como no Entregue; (c) pedido com peça reservada do estoque não aceita entrega parcial (0 hoje) — vai pela logística.
-
-**↩️ Revisada em 16/11/2026 (pedido do dono — SESSAO-51, D-325…D-329):** a regra acima vale só para as peças **prontas** (Pedidos em aguardo, Expedição, rota) que não foram entregues. O que **ainda está na fábrica** (em setor de produção) não vai mais para a decisão pós devolução: a janela separa "Saíram para a entrega" de "Ainda na fábrica" e pergunta **"Deixar em produção"** (vem marcada — o pedido segue vivo em toda regra) ou **"Limpar da produção"** (as peças saem com registro, sem perder o pedido, e as vagas saem do PCP); a decisão se revoga quantas vezes for preciso na aba "Entregas parciais" do PCP e na ficha do pedido.
-
-## D-196 · A PARADA AVULSA NA ROTA: título, endereço com pino, observação, Feita/Não feita; a ordem dividida com os pedidos; o entregador põe a dele e só muda o lugar dela (27/10/2026, pedido do dono — SESSAO-41)
-
-**Pedido do dono:** *"Adicionar parada avulsa na rota durante a hora da programação, ou até mesmo quando estiver em rota, o próprio entregador, ou a pessoa responsável por controlar as rotas… coloque a opção de digitar um endereço também e ele aparece pinado no mapa e no quadrinho dos pedidos programados também, que agora não será mais pedidos programados, mas sim rota programada"* · respostas: 4 (título, endereço, observação, Feita/Não feita), 5 (*"Eles podem arrastar assim que adicionar a nova parada avulsa e deixar o momento exato em que eles irão parar nela, o resto dos pedidos eles não devem conseguir mexer, apenas a pessoa responsável pelas rotas no computador e os admins/super admin"*), 6 ("rota programada" = o quadro "Na rota" do Programar e a lista de Já programadas).
-
-- A parada **não é pedido** (sem card, estoque, Tiny ou Expedição): mora na rota (dia + caminhão + rota) e **divide a ordem** com os pedidos. Pino no mapa (ajustável), na lista da rota, no Google Maps da rota e no Waze.
-- **Logística/admin:** põe e reordena em qualquer rota (Programar — o quadro passa a se chamar **"Rota programada"** — e Já programadas), tira da rota. **Entregador:** põe na rota **de hoje** em que está na equipe, arrasta **só a parada que ele pôs** (o banco confere) e marca **Feita / Não feita** (com o porquê) em qualquer parada da rota.
-- ⏳ **PROVISÓRIAS:** (a) o entregador só põe parada na rota do dia (não nas futuras); (b) a parada removida fica registrada (nada se apaga); (c) "Já programadas" lê as paradas numa requisição à parte (dívida 28 da Lei — a porta das programadas é uma tabela paginada).
-
-## D-197 · SEM CARD, SÓ 5 MINUTOS CONTAM COMO TRABALHO — a tela segue mostrando "trabalhando" até 15 (27/10/2026, ajuste do dono — SESSAO-41) — ↩️ revisa a D-189 (provisória b)
-
-**Pedido do dono:** *"15 minutos sem card não deve contar como tempo de trabalho, tempo de trabalho é apenas tempo de execução de um card, libere apenas 5 minutos sem card para contar como trabalho ainda, outra coisa é limitar intervalos de esquecimento, se um card de montagem demorar mais de 2 horas para montar (apenas para os que já foram iniciados), deve ser lançada uma notificação para a pessoa e para o admin perguntando se ainda tem alguém nesse card, uma notificação urgente"* · resposta à pergunta "depois dos 5 minutos a pessoa já aparece ausente?": *"Aparece trabalhando até 15 min"*.
-
-- **Na conta do tempo** (dashboard de tempos, scorecards): sem card em execução, só os **5 primeiros minutos** valem como trabalhando; dos 5 em diante, **ausente**, até a saída de 1 h. Tempo de trabalho é tempo de execução de card (+ esses 5 min de intervalo).
-- **Na tela** (o ícone das pessoas do setor, o tablet) nada muda: "trabalhando" até 15 min sem card, depois "ausente", com 1 h fora.
-- Responde e substitui a provisória (b) da D-189.
-
-## D-198 · O CARD ESQUECIDO: na MONTAGEM, 2 h rodando sem parar perguntam "ainda tem alguém neste card?" — urgente, para quem está no card e os administradores; o "Não" pausa no instante do aviso (27/10/2026, ajuste do dono — SESSAO-41)
-
-**Pedido do dono:** o mesmo da D-197 · respostas: só a **MONTAGEM**, **2 h**; contam **rodando sem parar** (desde o último iniciar/retomar — pausar zera); **"Sim, ainda tem gente"** segue e pergunta de novo em mais 2 h; **"Não, pausar o card"** pausa, e o **tempo depois do aviso não conta** como trabalho.
-
-- **Para quem:** quem executa e quem auxilia o card, e todos os administradores — aviso URGENTE na tela (abre sozinho, como o da troca de senha) e no sino. No **tablet** do setor, a pergunta aparece no alto do quadro e quem responde digita o PIN.
-- **Quem responde:** quem está no card, o líder do setor ou um administrador. Respondida por um, some para todos; responder de novo não faz nada.
-- **"Não":** o card fica pausado **no instante do aviso** (o fato da pausa é gravado na hora da resposta, valendo no instante do aviso — nada se apaga nem se edita); o trabalho de quem estava no card fecha ali e o que vem depois é ausente (sem os 5 min); avisado há mais de 1 h, a pessoa sai do setor 1 h depois do aviso. Respondido do **tablet** com o PIN, a pessoa está ali — o gesto a põe de volta no setor (D-189).
-- **Sem relógio que acorda para ver (Lei §4):** o banco marca **um** agendamento para o minuto em que o próximo card completa as 2 h, remarcado no fato (iniciar, retomar, pausar, finalizar, mover, responder); sem card rodando com prazo, ele não existe.
-- O prazo é **do setor** (um número por setor, em minutos): só a MONTAGEM tem (120). Ligar em outro setor é mudar esse número (ainda sem tela — pedir ao Claude).
-
-## D-199 · FILTROS NA PROGRAMAÇÃO DE CAMINHÃO — a lista para programar com busca, situação, previsão, cidade, bairro e ordens novas; "Já programadas" com busca, caminhão e dia (27/10/2026, pedido do dono — SESSAO-41)
-
-**Pedido do dono:** *"Na tela de programação de um caminhão, adicione alguns filtros variados também, seja por ordenar por ordem alfabética e tudo mais"*. Respostas: os quatro filtros (busca por texto, situação do pedido, cidade e bairro, previsão de entrega); as ordens cliente de A a Z / Z a A, mais peças primeiro, pedido mais novo / mais antigo; **nas duas abas**; subir junto com o ajuste do card esquecido. Depois: *"Nao aguarde minha aprovação para nada, apenas suba, nao estarei em casa para aprovar, entao suba e eu testo em produçao mesmo"*.
-
-- **Programar (os pedidos sem rota):** busca (nº do pedido que começa com — também "pedido N" e "#N"; senão cliente, endereço, bairro, cidade ou móvel que contém, sem acento e sem maiúscula), **situação** (prontos · em produção · ainda no PCP), **previsão de entrega** (atrasados · para hoje · esta semana · próximos 15 dias · sem previsão), **cidade** e **bairro** (sem cidade escolhida, o bairro aparece com a cidade — "Centro · Parnamirim" — e escolhê-lo escolhe a cidade junto; trocar a cidade solta o bairro). Cada opção diz quantos pedidos há.
-- **Ordenar por:** dia de entrega mais perto (o padrão) · mais perto (da rota ou da fábrica) · cliente de A a Z · cliente de Z a A · mais peças primeiro · pedido mais novo primeiro · pedido mais antigo primeiro (pela data do pedido) · número do pedido.
-- **O pedido já marcado para a rota não sai dela quando um filtro o esconde da lista.**
-- **Já programadas:** busca, caminhão e dia. A busca traz a **rota inteira** que tem o pedido (ou a parada avulsa — título, endereço, observação) que bate: o mapa e a ordem das paradas não se quebram. A ordem das paradas continua a da rota.
-- Quem filtra e ordena é o **servidor** (a busca acha o pedido mesmo fora dos 200 que a lista mostra), numa requisição só por tela — as opções e os "quantos" vêm junto.
-- ⏳ **PROVISÓRIAS (escolha do Claude — confirmar):** (a) "esta semana" = domingo a sábado, como o calendário da Programação (inclui o atrasado do começo da semana); (b) os "quantos" das opções contam todos os pedidos sem rota (não mudam com os outros filtros — a opção nunca some); (c) a busca de "Já programadas" traz a rota inteira, não só o pedido que bateu.
-
-## D-200 · O PEDIDO DE TROCA DE SENHA PARA E-MAIL SEM CADASTRO AVISA OS ADMINISTRADORES; a tela de quem pede sugere o e-mail certo; decidir tira o aviso de todas as telas na hora (28/10/2026, ajuste do dono) — ↪️ D-191
-
-**Relato do dono:** *"Quando alguém solicita uma troca de senha, a notificação não chega no momento correto para o Admin, foi relatado que ele precisou entrar e sair da plataforma para a notificação finalmente chegar."*
-
-**O que os registros do servidor mostraram (27/10, ~17:50 de Natal):** o administrador estava usando a plataforma quando a pessoa pediu a troca — mas o 1º pedido foi feito com o e-mail **digitado errado** (faltou o "l" de "gmail"). Pela D-191 a tela diz sempre a mesma coisa e o e-mail sem cadastro não fazia nada: ninguém soube. O administrador conferiu a Equipe, recarregou e saiu; a pessoa pediu de novo com o e-mail certo justo nesse meio-tempo; ao entrar, o aviso abriu na hora. Conferido no banco: um pedido só (o do e-mail certo), nenhuma conta com o e-mail errado, os 5 administradores avisados no mesmo segundo. O aviso ao vivo funcionava; a causa era o pedido que não existia.
-
-**Decidido (resposta do dono — "Corrigir dos dois lados"):**
-
-- **Na tela de quem pede** ("Esqueci minha senha"): quando o fim do e-mail tem um erro comum de digitação de provedor ("gmai.com", "gamil.com", "hotmal.com", "outlok.com", ".con"…), aparece **"Você quis dizer …?"** — um toque corrige. A conferência roda só no aparelho, com uma lista fixa de provedores: **não consulta o banco**, então continua sem dizer quem tem cadastro (a D-191 segue).
-- **No sino dos administradores:** o pedido para e-mail **sem cadastro ativo** (inexistente, desativado ou conta de tablet) vira o aviso **"Troca de senha: e-mail sem cadastro"** com o e-mail digitado e "confira com a pessoa se o e-mail foi digitado certo". Não abre o aviso urgente (não há o que liberar) e não cria pedido. O mesmo e-mail, enquanto o aviso não foi lido, **não repete** (e a trava de 5 pedidos a cada 15 min por aparelho e por e-mail continua).
-- **Quem pediu vê a mesma mensagem de sempre** — nada muda para ela.
-- **Decidiu, sumiu de todas as telas:** quando um administrador libera ou não libera, o aviso urgente sai **na hora** das telas abertas dos outros administradores e das outras abas do mesmo (antes ficava o pedido antigo na tela até sair e entrar, e o 2º toque dizia "outro administrador já tinha decidido"). E o pedido que chega com o aviso já aberto entra na lista na hora.
-
-**Como ficou (técnico):** migration `20261028010000` — `plt_fn_senha_solicitar` (o ramo do e-mail sem cadastro: aviso `senha_sem_cadastro` por administrador, sem repetir o não lido) e `plt_fn_senha_decidir` (o sinal `senha_decidida` no canal pessoal de cada administrador; marcar como lido pela caixa de cada um — o índice dos não lidos). Tela: `src/autenticacao/sugestaoEmail.ts` (distância de edição no domínio), `RecuperarSenha.tsx`, `AlertaTrocaSenha.tsx` (ouve `senha_decidida`; a lista relê com o aviso novo).
-
-**Descartadas:** dizer na tela de quem pede que o e-mail não existe (fere a D-191 — entregaria quem tem cadastro); mandar o e-mail sem cadastro para o aviso urgente (não há o que liberar); consultar o banco para sugerir o e-mail (entregaria quem tem cadastro).
-
-## D-201 · O PEDIDO NOVO USA, PELO PCP, A PEÇA SEM DONO QUE JÁ ESTÁ EM PRODUÇÃO — da reposição de estoque ou de pedido cancelado; a reposição só perde a peça (28/10/2026, pedido do dono) — ↪️ D-62, D-54 e D-61
-
-**Pedido do dono:** *"Quando um pedido de reposição de estoque é lançado e chega um pedido de venda para o móvel que já está em produção como reposição de estoque, precisamos que seja possível lincar o pedido que acabou de chegar com o que já está em produção para reposição de estoque através do PCP mesmo; atualmente é possível liberar apenas o estoque para um pedido novo que chegou, porém deve ser possível também transformar o card do pedido de reposição em um card de pedido de venda através do PCP caso tenha de fato algum já em produção."*
-
-**Decidido (respostas do dono, 28/10):**
-
-- **Onde:** na janela **"Liberar unidades"** do pedido, no PCP — do mesmo jeito da sugestão do estoque (D-62). O móvel que não tem peça pronta no estoque, mas tem uma **igual sendo produzida sem dono**, ganha **"Há N igual(is) em produção, sem dono — usar?"**, com onde ela está (setor · etapa) e de onde veio. **Vem desmarcada** — o PCP decide.
-- **Vale para** a peça da **reposição de estoque** E a peça de **pedido cancelado que segue em produção** (resposta: *"Isso, e peça de cancelado também"*). A peça danificada não entra. "Igual" é a régua de sempre (D-62: o produto pelo SKU; personalizada, SKU + descrição).
-- **Mais de uma:** a plataforma escolhe a **mais adiantada** (o setor mais à frente, a etapa mais à frente, há mais tempo ali).
-- **Usar = a peça passa a ser deste pedido ONDE ESTÁ:** setor, etapa, quem trabalha nela e o tempo seguem iguais; o card passa a mostrar o pedido, o cliente, o prazo e a prioridade do pedido; pronta, vai para **Pedidos em aguardo** (não para o estoque). Fica na história da peça ("Passou a ser do pedido N (k/n) em MONTAGEM — era da reposição de estoque").
-- **Do lado do estoque, a reposição só perde a peça** (resposta: *"Só perde a peça"*): o estoque passa a esperar uma peça a menos; se ficar abaixo do mínimo, a reposição automática ou o botão da logística lançam de novo, como já acontece. A vaga dessa peça na reposição continua contada como liberada (a reposição não pede de novo).
-- **O fim do tempo em PCP do pedido** é o instante da ligação (não a criação antiga da peça).
-
-**Como ficou (técnico):** migration `20261028020000` — o fato novo **`peca_vinculada`** (na peça; tipo acrescentado ao check de `plt_eventos`) com projeção própria (`fn_projetar_peca_vinculada`: pedido, pai, item, k/n e o retrato do item vêm do fato; a peça de reposição guarda a reposição como pai, a de cancelado passa a ter o pedido novo como pai); `fn_sugestoes_em_producao` (lida pela janela, na MESMA requisição: `em_producao`); `fn_vincular_peca_producao` (as conferências) chamada por `plt_fn_pcp_liberar` com `{item_seq, indice_unidade, peca_producao_id}`; `fn_recalcular_liberacao` conta a ligação no fim do tempo em PCP; a janela e a liberação da reposição leem a vaga original no fato. O número do estoque troca a peça de "a caminho do estoque" para "de pedido" pela projeção de sempre (`plt_estoque_numeros`).
-
-**Descartadas:** criar um card novo para o pedido e arquivar o da reposição (perderia o tempo, quem está trabalhando e a história da peça); a reposição ganhar uma peça nova sozinha (o dono escolheu "só perde a peça"); selo "N em produção" no cartão do pedido no PCP (mexeria na porta do quadro do PCP — fica para quando o dono pedir); escolher a peça numa lista (a mais adiantada resolve o caso comum).
-
-## D-202 · OS AVISOS QUE CADA UM RECEBE, ESCOLHIDOS EM CONFIGURAÇÕES → AVISOS; os erros de automação ganham aviso; o administrador não recebe nem decide a própria troca de senha (28/10/2026, pedido do dono) — ↪️ D-191 e D-200
-
-**Pedido do dono:** *"Pode corrigir os dois, inclusive, aproveitando que você irá realizar modificações dentro dos sinos, crie uma tela em configurações para editar as notificações com todos os avisos possíveis, para que o usuário possa editar os avisos que ele deseja receber, quero remover alguns desnecessários para mim e colocar outros que são necessários como notificações de erros de automação e coisas do tipo que eu devo estar ciente."*
-
-**Decidido (respostas do dono, 28/10):**
-
-- **A tela:** Configurações → **Avisos** (para quem vê Configurações: liderança e administradores; atalho também no sino). Todos os avisos da plataforma, por assunto — Produção e qualidade · Expedição e estoque · Pedidos e Tiny · Cards e afazeres · Acesso · Erros de automação e integrações —, cada um com liga/desliga, a frase do que ele é e **quantos chegaram nos últimos 30 dias** (para ver o que mais enche o sino). Mostra só os avisos que podem chegar para aquela pessoa.
-- **Quem edita:** cada um, os próprios; **o administrador escolhe também os de qualquer pessoa** (resposta: *"Cada um + admin edita todos"*) — "De quem" no alto da tela.
-- **Os urgentes ficam sempre ligados** (resposta): o pedido de troca de senha e "ainda tem alguém neste card?" aparecem travados ("Sempre ligado").
-- **Desligado = o aviso não nasce** para a pessoa (nem no sino, nem no aviso urgente). Ligar de novo volta a chegar dali em diante.
-- **Os erros de automação e integrações** vão para os administradores; **ligados por padrão só para o super admin** — os outros administradores ligam se quiserem (resposta). Os de antes: o Tiny desistiu de um item, erro numa automação do n8n, a conexão com o Tiny da fábrica caiu, a lista do Tiny veio incompleta, o Tiny não aceitou a situação de um pedido. **Os novos** (resposta: os três): **uma automação da plataforma falhou**, **o estoque parou de ir para o Tiny** (5 tentativas) e **um aviso para uma integração não foi entregue** (5 tentativas). O mesmo erro não repete o aviso dentro de 1 hora (o estoque, 1 dia); a Auditoria registra todos.
-- **Os dois achados do ajuste da senha, corrigidos:** o sino não mostra mais a barrinha de rolagem para o lado; **o administrador que pede a troca de senha não recebe o próprio aviso, não vê o próprio pedido na lista e não consegue liberá-lo** — outro administrador decide.
-
-**Como ficou (técnico):** migration `20261028030000` — `plt_usuarios.avisos jsonb` (a escolha; nula = padrão; fora da API); `plt_privado.fn_avisos_catalogo()` (o catálogo: tipo, assunto, nome, frase, público, obrigatório, erro — aviso novo = uma linha); `fn_aviso_publico_de`, `fn_aviso_ligado`; o gatilho **`plt_notificacoes_filtrar`** (antes de gravar — vale para todo produtor de aviso); `fn_alertar_erro` (o corpo de `fn_tiny_alertar`, com o tipo e para os administradores — `fn_tiny_alertar` virou um caso dele); `plt_fn_tiny_pedido_resultado` (o laço do aviso para os administradores); os gatilhos de fato `plt_automacao_execucoes_falhou`, `plt_tiny_estoque_fila_parou`, `plt_webhook_entregas_falhou`; `plt_fn_senha_solicitar/pedidos/decidir` (a própria troca); as portas `plt_fn_avisos(pessoa)` e `plt_fn_aviso_definir(tipo, ligado, pessoa)`; o índice `plt_notificacoes_destinatario_idx`. Tela: `src/paginas/ConfigAvisos.tsx`, `src/notificacoes/preferencias.ts`, o sino (atalho e sem rolagem lateral), o destino dos erros novos (estoque → Configurações → Estoque; integração → API e integrações).
-
-**Descartadas:** filtrar no sino (o aviso nasceria e contaria no banco — e o urgente da tela abriria igual); uma tabela de preferências (a escolha cabe no cadastro da pessoa — "nada de tabela nova"); deixar desligar os urgentes (ninguém responderia).
-
-## D-203 · O TEMPO CERTO: o calendário da fábrica, a pausa sozinha no fim do expediente, as regras de tempo válido e um cálculo único para todas as telas (30/10/2026 — as 17 respostas do dono; SESSAO-42) — ↩️ revisa a D-167 (a hora extra não autorizada deixa de contar), ↪️ D-29, D-48, D-165, D-197, D-198, D-202
-
-**Pedido do dono (29/10):** um painel de revisão do tempo de montagem e dos tempos de cada setor, com as regras controladas em Configurações — *"atualmente os dados estão todos errados"*; tratar o card esquecido de um dia para o outro, as idas e voltas, e os dados irreais que já estão no banco. As respostas (30/10, no relatório do plano), todas "de acordo" com a recomendação, menos as com texto do dono:
-
-1. **Almoço** 12:00–13:00 em todos os setores; o café não sai da conta.
-2. **Sábado** fora do expediente — liberado dia a dia no calendário.
-3. **Hora extra** só conta quando o líder (ou o admin) autoriza.
-4. **Pausa sozinha no fim do expediente**, em todos os setores, motivo "Fim do expediente".
-5. De manhã, o card arrastado para a frente **sem retomar**: os minutos da manhã não contam.
-6. O aviso de card esquecido **sem resposta em 15 min** vira pausa no instante do aviso.
-7. Mínimo de **3 min**, teto de **4 h** na Montagem, "**3 vezes a mediana** do modelo" (com pelo menos 5 de base) — revistos depois de 2 semanas de dado limpo.
-8. Volta para a fila em até **5 min** = clique errado; volta para setor anterior = **retrabalho**, fora da média.
-9. O operador **pode pular** a execução — *"mas isso envia uma notificação aos admins, essa notificação deve poder ser desligada"*.
-10. **Gestos de administrador** fora das médias.
-11. **Dados oficiais a partir de 26/10/2026.**
-12. **Montar em lote** (2+ iguais juntos, tempo dividido): só na Montagem e só com o mesmo modelo.
-13. **As cores do mesmo móvel** são o mesmo modelo no tempo padrão.
-14. **Mediana** no lugar da média; "na média" = até 10%.
-15–17. (SESSAO-43) histórico do Trello importado e marcado; a TV fica como está (só tema e organização); o Modo TV em paralelo, com permissão própria.
-
-**Como ficou:** Configurações → Controle de tempo em 7 abas (Expediente e intervalos · Calendário · Hora extra · Regras por setor · Equipe no painel · Modelos · Recálculo); o card rodando é pausado sozinho no fim da janela do setor (ou da hora extra) e quem estava nele sai do setor; o aviso sem resposta pausa; "Montar juntos" na fila da Montagem; o aviso "Móvel pulou a montagem" em Configurações → Avisos; e o **cálculo único** (trechos, passagens, tempo padrão por modelo, resumos por dia) que o card, a janela, Tempos por pessoa, Pessoas, Meu desempenho, as metas e Tempo por setor passam a ler — recalculado desde 19/10. Técnico: migrations `20261031010000…040000`; ver [[SUPA - Esquema do Banco]] e o diário [[SESSAO-42]].
-
-## D-204 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — O que é o "fim do expediente" de um trecho (31/10/2026, SESSAO-42)
-
-- É o fim da **última janela do dia** em que a pessoa começou (ou retomou): o almoço **não** corta (quem monta das 11:10 às 13:57 conta 1h47, sem pausa); a hora extra autorizada colada ou mais tarde no mesmo dia **empurra** o fim.
-- Começou **depois** do expediente do dia, sem hora extra: nada conta até a próxima janela; ao vivo, o card é pausado com "Fim do expediente" no **começo** da próxima janela (ninguém trabalha "de graça" a noite toda no relógio).
-- **No passado é só conta** (nenhum fato retroativo): os cards que já estavam rodando quando a regra subiu ganham a pausa no **próximo** fim de expediente.
-
-## D-205 · ⏳ PROVISÓRIA — O trabalho simultâneo da mesma pessoa é dividido (a forma geral da resposta 12) (31/10/2026)
-
-Se a pessoa tem N cards rodando ao mesmo tempo (lote na Montagem, ou o limite maior dos outros setores), **cada minuto vale 1/N para cada card** no tempo do móvel e **conta uma vez só** no tempo da pessoa. O tempo do móvel é o relógio enquanto pelo menos uma pessoa trabalhou nele, cada pedaço valendo o maior 1/N de quem estava; o **esforço** é a soma de pessoa × tempo. (A demanda pediu para registrar como provisória.)
-
-## D-206 · ⏳ PROVISÓRIA — Retrabalho: quais passagens saem da média (31/10/2026)
-
-Ficam fora (situação "retrabalho"): a passagem que **saiu para um setor anterior**; a passagem no setor anterior que **recebeu** o card de um setor posterior (é o conserto); e a **volta** do card ao setor de onde saiu para trás. Contam no indicador de retrabalho do setor. A volta ao PCP não é retrabalho — a passagem fecha como "saiu".
-
-## D-207 · ⏳ PROVISÓRIA — Gesto de administrador (31/10/2026)
-
-É a passagem em que um **administrador iniciou a execução** sem ser do setor (sem vínculo) e sem estar na equipe do painel daquele setor. O admin que ajuda (auxílio) não muda a passagem. Fica fora das médias (com a regra ligada no setor).
-
-## D-208 · ⏳ PROVISÓRIA — A data oficial tira só das MÉDIAS; o tempo da pessoa conta (31/10/2026)
-
-As passagens que saíram antes de 26/10 ficam como **teste** — guardadas, fora das médias, do tempo padrão e dos painéis do móvel. O **tempo da pessoa** (Tempos por pessoa, Pessoas, Meu desempenho, metas) conta o trabalho desses dias (a presença foi real). Não contam: o clique errado (volta em até 5 min) e a passagem descartada à mão.
-
-## D-209 · ⏳ PROVISÓRIA — Os dias da conta (31/10/2026)
-
-O trecho conta no dia em que **começou** (para a pessoa); a passagem, no dia em que **saiu** do setor (regra 15). A presença "à deriva" (fora de setor) só conta dentro das janelas da fábrica (a união dos setores de produção). Ninguém passa da jornada do dia (janelas + hora extra): o que sobrar sai primeiro de "à deriva", depois de "ausente", depois de "especial".
-
-## D-210 · ⏳ PROVISÓRIA — O modelo sugerido pelo nome (31/10/2026)
-
-O sistema sugere o modelo pelo **nome do móvel** (o do item do pedido ou o título do card): tira o número do pedido, o "(n/m)", o que está entre parênteses e o pedaço que é **só cor** (lista de cores: branco, preto, freijó, carvalho, off white…). Nome novo nasce como modelo **a confirmar**; o admin confirma, junta ou separa em Configurações → Controle de tempo → Modelos.
-
-## D-211 · ⏳ PROVISÓRIA — Pequenas escolhas da tela e da regra (31/10/2026)
-
-1. **Setor sem horário** continua contando o dia inteiro (D-29); na subida, só o 07:30–18:00 de cada setor vira duas faixas (07:30–12:00 e 13:00–18:00) — nenhum setor ganha horário novo.
-2. **Hora extra:** até 16 h por registro; do setor inteiro ou de uma pessoa; o líder registra só nos setores que lidera; cancelar não apaga (fica na trilha).
-3. **"Desligar o tempo agora", a correção retroativa e o horário por pessoa** continuam, recolhidos dentro da aba Expediente.
-4. **Tempo por setor** (até a SESSAO-43): execução útil = o tempo do móvel das passagens **válidas**; a coluna "finalizadas" passa a contar as **válidas**. **Pessoas:** "execuções" e "móveis atendidos" = as passagens em que a pessoa trabalhou. A lista de execuções diz "mais de mil" acima de 1.000.
-5. **O card arquivado** dentro do setor fecha a passagem como "saiu" (sem aviso de pulo).
-6. **O aviso "Móvel pulou a montagem"** vai para os administradores (como a resposta 9), só no gesto (o recálculo nunca avisa), uma vez por saída; desligável em Configurações → Avisos.
-7. **Montar juntos:** de 2 a 20 cards, só na fila e sem ninguém neles; "Concluir o lote" leva todos os que ainda rodam com o mesmo lote para a mesma etapa.
-8. **A decisão manual** só vale para passagem que já saiu do setor; motivo obrigatório; quem decide: líder do setor ou admin.
-
-## D-212 · ⏳ PROVISÓRIA — Itens que o Tiny muda depois da liberação (04/11/2026)
-
-Respostas do dono de 03/11 (fechadas) + o que a SESSAO-44 escolheu onde a demanda não dizia:
-1. **Como a plataforma percebe:** um gatilho ADIADO em `pedidos` (roda no fim da gravação do Tiny, com os itens já regravados) compara os itens de produção de antes e de agora **por produto e quantidade** — preço, observação, ordem da lista e frete não contam. Escolhido o gatilho (o preferido da demanda), não um trecho na porta de gravação do n8n.
-2. **Entrou item:** fato novo na trilha (o que entrou e o que saiu), a conta da liberação é refeita (o pedido volta ao quadro do PCP só com as vagas novas; o que está em andamento não muda) e o PCP recebe aviso no sino (público novo "PCP": quem é do setor de entrada e os administradores).
-3. **Em rota:** volta ao PCP, segue na rota, a logística recebe "Segure a entrega". O PCP pode liberar a vaga nova mesmo com o pedido lançado (antes a liberação recusava pedido lançado para ROTAS — agora recusa só quando não falta nada).
-4. **Já entregue (inteira):** a entrega reabre **só na plataforma** (o Tiny não muda) e fica a pendência só dos itens novos — o que ficou com o cliente segue entregue. ⚠️ Se o Tiny continuar "Entregue", o quadro do PCP não mostra o pedido (a regra "Entregue no Tiny sai do PCP" vale); o PCP abre pelo aviso. Fica como dívida.
-5. **Entrega parcial, devolvido e cancelado:** nada reabre sozinho; fato na trilha e aviso (PCP e logística).
-6. **Item que saiu ou diminuiu com peça já criada:** nunca arquiva; o PCP recebe "item saiu com peça feita" e decide.
-7. **Card arquivado sem entrega** (limpeza, arquivado à mão): o Tiny reler os itens não faz nada.
-8. **Reserva do estoque:** o pedido que ganhou itens é avaliado de novo (só as vagas ainda sem peça e sem reserva) — antes, só na chegada.
-
-## D-213 · ⏳ PROVISÓRIA — Reabrir a entrega (04/11/2026)
-
-1. **Quem:** o desfazer do dia segue com quem já tinha (entregador do caminhão, logística, admin) para a entrega feita aqui, no mesmo dia. **Administrador** reabre qualquer dia e a entrega que veio do Tiny ("Reabrir entrega" na ficha do pedido), sempre com motivo da lista de "desfazer entrega". A parcial segue recusada, com o texto de antes.
-2. **Um caminho só** para o desfazer do dia, o reabrir do admin e a volta do Tiny: por evento; o pedido e as peças que saíram com aquela entrega voltam; **a peça do estoque volta reservada** ao mesmo pedido e vaga (antes voltava solta).
-3. **O Tiny** recebe a situação de antes só se ainda estiver "Entregue" — conta também quando a ida para "Entregue" ainda está na fila ou quando o aviso de volta do Tiny não chegou (a situação local é a de antes da entrega). Se o Tiny já foi para outra situação, nada vai. Para a entrega que veio do Tiny, a "situação de antes" sai do registro dos avisos do Tiny (a última antes do "Entregue"); sem registro, "Enviado".
-4. A ficha e "Entregas do dia" **explicam** por que não dá para desfazer (parcial; veio do Tiny; outro dia — "peça a um administrador") em vez de esconder o botão.
-
-## D-214 · ⏳ PROVISÓRIA — A volta atrás no Tiny (04/11/2026)
-
-1. Aprovado pelo dono em 03/11: saiu de "Entregue" no Tiny → a entrega do Sistema reabre sozinha (pelo caminho da D-213, sem mandar nada ao Tiny), com fato e aviso à logística; a entrega feita aqui por pessoa (ou parcial) não reabre — fato na trilha e aviso à logística; sem entrega vigente, nada.
-2. **"Encerramento"** = só **Cancelado**: Entregue → Cancelado não reabre (o cancelamento segue o caminho dele). Entregue → "Não entregue", "Enviado", "Preparando envio" etc. reabre.
-3. Se reabrir falhar, a gravação do pedido segue e os administradores recebem o alerta de automação (uma vez por hora por pedido).
-
-## D-215 · ⏳ PROVISÓRIA — A peça ligada ao produto, não à posição (04/11/2026)
-
-1. A vaga (item × unidade) é coberta pela peça do **mesmo produto** (o retrato do item que a peça guarda); a posição só desempata (primeiro a mesma posição, depois a ordem). Vale para a janela de liberação, liberar, a conta da liberação, concluir pelo super admin, a peça do estoque reservada, as sugestões, a realocação da devolução e as contagens (o frete das contagens passa a ser o do próprio card).
-2. A trava do banco deixa de ser "uma peça por posição" e passa a ser "uma peça por posição **e produto**": o item inserido no meio da lista ganha a sua peça na posição em que já existe peça de outro produto. Nenhum card antigo foi renumerado.
-
-## D-216 · ⏳ PROVISÓRIA — O acerto do 13787 (04/11/2026)
-
-1. As 2 peças do estoque baixadas na entrega por engano **não voltam** no acerto — o dono não sabe onde estão; se estiverem no galpão, a logística acerta pela contagem.
-2. **Exceção só deste acerto** à regra "avulso nunca vira peça": os avulsos 14542126 e 14542123 (já concluídos) viram as peças dos itens 2 e 4 — nasce a peça do pedido **pronta na Expedição**, com a referência ao avulso, e o avulso já tinha saído do quadro no Concluir (o Concluir arquiva); o tempo e a meta do trabalho ficam no avulso, uma vez só. A regra geral continua; não existe botão de conversão.
-
-## D-217 · ⏳ PROVISÓRIA (escolha do Claude, sob a ordem "decisões próprias") — O Google Maps e o Waze vão pelo ENDEREÇO do pedido; o ponto só manda quando uma pessoa o conferiu (04/11/2026, SESSAO-45) — ↪️ D-174
-
-**Contexto:** o dono viu a rota abrir no Google Maps com outro endereço (13784 e outros). A causa: ia a coordenada da busca gratuita da plataforma — o meio da rua, às vezes a rua de mesmo nome noutro bairro —, e o Google mostra o endereço mais perto do ponto (outro número, outra rua).
-1. Em toda navegação (rota inteira, uma parada, Waze, tela do entregador), o lugar de cada pedido é o **endereço escrito** — rua, número, bairro, cidade, UF e CEP (o de entrega do Tiny ou o do cadastro — D-193); quem acha a casa é o Google/Waze.
-2. ~~**O ponto manda** só quando uma pessoa o conferiu: o **marcado à mão** na Programação (D-218) e o **pino da parada avulsa**.~~ ↪️ **Substituído pela D-221 (dono, 05/11):** nem o ponto marcado à mão manda — vai sempre o endereço escrito. Sem rua escrita, vai o ponto.
-3. Rota longa com endereços compridos: as partes do link encolhem para nunca passar do tamanho que o Google aceita (antes só o limite de 9 paradas).
-
-## D-218 · ⏳ PROVISÓRIA — A busca de endereço confere o BAIRRO e o CEP; o que ela não acha (ou acha duvidoso) a logística marca no mapa (04/11/2026, SESSAO-45) — ↪️ D-112, Q-65
-
-1. A busca (servidor) junta vários candidatos e escolhe pelo **nome da rua** (abreviação e título — Vereador × Governador — não separam), **bairro/localidade**, **CEP** (o exato vale muito; o geral da cidade, "-000", não prova nada) e **cidade**. Sem prova do lugar, não serve; a mesma rua em lugares distantes e nada que desempate = **"não achei"** — nunca um ponto errado com cara de certo (o centro do bairro/cidade segue proibido — Q-65). ↪️ **A parte do "não achei" foi substituída pela D-221 (dono, 05/11):** a busca desce em degraus (CEP, bairro, cidade) e o ponto aproximado aparece como aproximado — "não encontrado" não existe mais.
-2. **"Marcar no mapa"** (não encontrado) e **"Acertar o ponto no mapa"** (achado) no cartão do pedido da Programação: a janela do pino (a mesma da parada avulsa). O ponto marcado à mão vale para **todo pedido com o mesmo endereço**, **nunca** é trocado pela busca automática e tem "Voltar à busca automática". Gesto da logística/admin, com registro de atividade.
-3. Os pontos que a busca antiga gravou são procurados de novo **uma vez** (a partir de 05/11 00:00 UTC), conforme as telas da Programação são abertas — sem ninguém editar nada à mão. Os 6 que tinham ponto errado passam a "não encontrado" e pedem o pino.
-
-## D-219 · ⏳ PROVISÓRIA — A Expedição LIBERA a peça pronta para outro pedido (04/11/2026, SESSAO-45 — pedido do dono)
-
-**Pedido do dono:** um botão na Expedição com "Qual produto foi liberado?", "O produto foi liberado para um pedido?" (sim → "Para qual pedido?"; não → o motivo da substituição) e "Lançar produto novo com essa tag de pedido para PCP?"; o pedido volta ao PCP com o produto que saiu e o do pedido novo é dado como concluído. O que a sessão escolheu onde o pedido não dizia:
-1. **Botão** "Liberar para outro pedido" no cartão da Expedição que tem peça pronta (e não está em decisão pós devolução). A peça escolhida tem de estar **pronta** (Expedição ou já na rota), **perfeita**, de pedido **não entregue**.
-2. **O destino** ("o pedido novo que chegou ou de algum outro que já estava lá") é um pedido vivo (não cancelado, não entregue) que **ainda espera esse mesmo móvel no PCP** (mesmo produto, cor e medidas — vaga sem peça). Pedido que já tem esse móvel liberado para a produção é recusado com a explicação (a peça em produção dele não fica sem dono). A janela confere ao digitar o número e diz o porquê de não dar.
-3. **O gesto** (tudo ou nada, conferido de novo no banco): a peça sai do pedido de origem (a vaga reabre e ele **volta ao quadro do PCP**); o destino ganha a unidade **pronta na Expedição** na vaga que esperava (a mesma mecânica da peça do estoque — D-62); a peça antiga sai das contas com a história guardada; o PCP recebe o aviso "Pedido N voltou ao PCP". **Nada vai ao Tiny** (as duas vendas já estão lá; o estoque não muda).
-4. **"Não" a "foi para um pedido?"** = substituição com **motivo obrigatório** (vitrine, troca de avaria de outro cliente…): a peça sai das contas e o pedido volta ao PCP.
-5. **"Lançar produto novo com a etiqueta do pedido?"** — **Sim** (padrão): volta ao PCP para liberar a produção de novo. **Não por enquanto**: volta ao PCP **em stand-by**, com o motivo ("produto liberado para o pedido X — sem nova produção por enquanto"); como a rota não leva pedido em stand-by (D-171), pedido programado com "não por enquanto" é recusado com o que fazer.
-6. O mesmo toque repetido não faz nada duas vezes. Gesto da logística/admin.
-
-## D-220 · ⏳ PROVISÓRIA — O PCP e o Estoque falam das mesmas peças com as mesmas palavras (04/11/2026, SESSAO-45 — o vídeo do "PCP mentindo") — ↪️ D-78, D-118
-
-1. O chip do pedido no PCP conta, **por item**, no máximo o que ainda **falta liberar** (antes somava toda peça livre do SKU em todo pedido) e separa: **"N reservada(s)"** (separadas para este pedido quando a venda chegou) **+ "M livre(s)"** (livres no estoque que servem a ele).
-2. No cartão e na janela do produto do Estoque, quando há peça reservada pela venda **ainda no galpão**, o número grande passa a se chamar **"livres no estoque"** e aparece logo abaixo **"+ N no estoque reservadas para venda (pedido X)"**. O número grande continua o livre (D-78: cai na hora da venda); "reservados em venda" (D-118) continua a soma de sempre.
-3. O que a plataforma não sabe é se a peça está fisicamente no galpão: a contagem é da logística (D-70). Se a peça usada do estoque não existir, a Expedição registra pela D-219 ("não foi para um pedido" + o motivo) e o pedido volta ao PCP — a peça fantasma sai das contas.
-
-## D-221 · ✅ DECIDIDA pelo dono — A rota vai SEMPRE pelo endereço do cliente; o ponto é só do mapa da rota (e se acerta à mão); "endereço não encontrado" deixa de existir (05/11/2026, ajuste da SESSAO-45) — ↪️ D-217, D-218
-
-**Pedido do dono (05/11):** *"a rota precisa do endereço exato do cliente, não do ponto marcado; o ponto pode servir para ajuste caso necessário, mas não pode acontecer o caso de endereço não encontrado"*.
-1. **Google Maps e Waze** (a rota inteira, uma parada, a tela do entregador, a parada avulsa): **sempre o endereço escrito** — rua, número, bairro, cidade, UF e CEP (na parada avulsa, o endereço digitado). Nem o ponto marcado à mão nem o pino da avulsa mandam no link (substitui a D-217, item 2). O ponto só vai quando não há rua escrita nenhuma.
-2. **O ponto da plataforma** serve ao **mapa da rota** (onde a parada aparece, a ordem sugerida, a distância) — é ele que a logística acerta à mão ("Acertar o ponto no mapa"; o marcado à mão segue valendo para todo pedido do mesmo endereço e nunca é trocado pela busca).
-3. **A busca nunca termina em "não encontrado"** (substitui a D-218, a parte do "não achei"): quando a rua não se acha (ou fica ambígua), ela desce em **degraus** — **o ponto do CEP** (serviço de CEP gratuito, sem chave; só vale na cidade e UF do pedido e com a rua ou o bairro do CEP batendo), **o centro do bairro**, **o centro da cidade** (os dois pelo mapa aberto). Antes de virar ponto aproximado, o ponto do CEP/bairro serve de **âncora**: a rua com o nome do pedido perto dele (1,5 km do CEP, 2 km do bairro) é a certa e vira ponto de rua. O degrau fica gravado na coluna que já existia (a fonte do ponto: `aprox_cep`/`aprox_bairro`/`aprox_cidade`) — nenhuma tabela, nenhuma coluna.
-4. O cartão do pedido diz **"Ponto aproximado no mapa (pelo CEP / pelo bairro / pelo centro da cidade) · acertar"**. Só se nem a cidade for reconhecida fica "Ainda sem ponto no mapa da rota — o Google Maps vai pelo endereço", com "Marcar no mapa".
-5. O "não encontrado" gravado antes é procurado de novo **uma vez** (o que foi consultado antes de 05/11 03:00 UTC), conforme a Programação é aberta.
-
-↪️ **Correção do dono (05/11, manhã):** *"não tem essa de bairro e centro da cidade, NO MÁXIMO a rua é aceitável, mas deve ter um aviso na tela para que eles mesmos possam ajustar manualmente quando for esses casos — 'Endereço aproximado para a cidade da entrega, ajustar o pino do mapa'"*. Os itens 3 e 4 passam a ser:
-- **3′.** O ponto é **de rua** ou é o **da cidade com aviso** — **nunca o centro do bairro** nem o ponto solto do CEP. O ponto do CEP e o centro do bairro servem **só de âncora** para achar a rua de mesmo nome perto deles (vira ponto de rua); o ponto do CEP da **própria rua** do pedido vale como ponto de rua (fonte `cep`). Sem rua: o centro da cidade (fonte `aprox_cidade`).
-- **4′.** No ponto da cidade, o cartão mostra o aviso **"Endereço aproximado para a cidade da entrega, ajustar o pino do mapa"** (em destaque) com o botão **"Ajustar o pino"** (a janela do mapa); quem não é da logística vê o aviso sem o botão. O ponto marcado à mão some com o aviso. O ponto da cidade é procurado de novo depois de 7 dias; o que a 1ª versão gravou pelo bairro/CEP (`aprox_bairro`/`aprox_cep`) é refeito na hora.
-
-
-## D-225 · ⏳ PROVISÓRIA — Sem ranking nas abas internas; ficam os "Melhores tempos" e o "Melhor da semana" (05/11/2026, SESSAO-43)
-
-Nenhuma aba põe as pessoas em ordem de primeiro a último: cada pessoa é comparada com o **padrão do modelo** (abaixo / na média / acima, pela faixa do setor — hoje ±10%). Ficam, como a demanda pediu: na aba Montadores, os **8 móveis com o melhor tempo contra o padrão** (modelos com 2+ montagens válidas, com quem e quando); na TV, o **"Melhor da semana"** (só modelos com 3+ válidas no padrão). Os cartões de pessoa saem na ordem de quem montou mais móveis — é ordem de leitura, não pódio (sem posição, sem medalha).
-
-## D-226 · ⏳ PROVISÓRIA — O que entra nas contas da tela Tempos de produção (05/11/2026, SESSAO-43)
-
-1. **Móvel montado** = passagem que saiu do setor concluída e não descartada (a da plataforma e a do histórico do Trello). As de **teste** (antes da data oficial) não aparecem.
-2. **Tempo médio** = a **mediana** das montagens **válidas**; a média vai de subtítulo. **Tempo total** = a soma do tempo do móvel das válidas.
-3. **Cobertura do registro** = das montagens do período, quantas têm tempo (fora as "sem registro" e as descartadas).
-4. **Dias úteis** = os dias de expediente do **calendário do setor** (feriado e dia parado fora; dia trabalhado e sábado liberado dentro) **que têm registro**: desde a data oficial e, com o histórico ligado, o período do Trello. O buraco entre o fim do Trello (13/10) e a data oficial (26/10) **não** conta — lá não há registro de ninguém.
-5. **"Incluir histórico do Trello"** liga e desliga o histórico em **todas** as abas, e também troca o padrão de comparação: ligado, o padrão **com histórico** (as válidas da plataforma + as do Trello, por modelo); desligado, o padrão **oficial** da plataforma. O padrão oficial e as regras de hoje continuam lendo **só a plataforma**.
-6. **Quem montou** = quem teve trecho de execução; quem só auxiliou é **ajudante** (conta em "ajudas dadas", não em "montou"). Dupla é uma série própria do gráfico ("A + B"); no Período, as 7 equipes que mais montaram e o resto junto em "Outros".
-7. **Período** > 70 dias agrupa o gráfico por **semana**; o período vai até 12 meses.
-8. **Móveis:** uma coluna por montador para as **6 pessoas que mais montaram** no período (mediana × n); a tabela é ordenada no servidor (quantidade, melhor, mediana, faixa, nome), em páginas de até 100 modelos.
-9. **Montadores:** "ocupação" = tempo com card ÷ tempo no setor dentro do expediente — **só a plataforma** (o Trello não tem presença); "tempo total" = o esforço **dela** (já dividido quando dois trabalharam juntos).
-
-## D-227 · ⏳ PROVISÓRIA — Quem vê o quê na tela de tempos (05/11/2026, SESSAO-43) — ↪️ D-211 item 8
-
-O **admin** e o **líder do setor** veem todas as pessoas e conferem (Considerar / Descartar / Desfazer, Procurar). O **funcionário da fábrica** vê só o que **ele** montou (o filtro de pessoa fica travado nele) e não confere. A **conta só do Modo TV** não abre nada da tela (recusa no banco, além da guarda da tela).
-
-## D-228 · ⏳ PROVISÓRIA — A conferência do histórico do Trello e a lista "Motivos de conferência" (05/11/2026, SESSAO-43)
-
-1. O histórico do Trello é conferido como a plataforma: **Considerar** (entra na média), **Descartar** (sai), **Desfazer** (volta à regra), com motivo obrigatório, por líder do setor ou admin; a linha guarda a decisão vigente e o rastro vai para a Auditoria.
-2. A lista nova **"Motivos de conferência"** (Utilitários) nasce com: *Conferido com quem montou · Card esquecido aberto · Esqueceu de iniciar ou de soltar o card · Montagem em lote · Teste ou treino* — e o "Outro" com texto, como sempre.
-3. Os grupos da aba Conferir: curto demais, longo (passou do teto ou longo para o modelo), cortado no fim do expediente, voltou para a fila (clique errado), retrabalho, sem registro, gesto de administrador, lote e as já decididas.
-
-## D-229 · ⏳ PROVISÓRIA — A carga do histórico do Trello (05/11/2026, SESSAO-43)
-
-1. **Mesma conta da plataforma:** janelas do setor (expediente com almoço, feriado, dia trabalhado) até o corte do fim do dia; mínimo e teto do setor; "longo para o modelo" = acima do fator do setor × a mediana do **próprio histórico** daquele modelo (só com a base mínima de montagens); o lote dividido.
-2. **Sábado com montagem** no Trello vira **dia trabalhado** do setor no calendário — só esses sábados, com as faixas de uma sexta do setor.
-3. **Lote** = cartões do mesmo setor com início e fim **idênticos** (o tempo dividido pelo número de cartões). No arquivo real são **9 lotes** (18 cartões) — dos "15 lotes / 30 cartões" da demanda, os outros 6 eram os cartões repetidos (que entram uma vez).
-4. **Montador pela etiqueta:** a etiqueta casa com a pessoa da **equipe no painel daquele setor** pelo primeiro nome (palavra inteira, sem acento); o segundo nome desempata; titular vence apoio (sem titular, vale o apoio); dois titulares = dupla, esforço dividido. Etiqueta de quem não está na equipe do setor é **ignorada** (o relatório lista quais — hoje *ANDERSON* e outras sem pessoa cadastrada).
-5. **Modelo pela chave da plataforma** (o nome limpo); o que não casar fica **sem modelo** e aparece em Configurações → Controle de tempo → Modelos → **"Nomes do Trello sem modelo"**, onde o admin liga a um modelo existente ou cria um — e o nome ligado passa a valer também para a plataforma.
-6. Os **cartões repetidos** entram uma vez (o mesmo cartão é atualizado; a decisão manual fica). A carga roda de novo sem duplicar.
-
-## D-230 · ⏳ PROVISÓRIA — A permissão Modo TV (05/11/2026, SESSAO-43) — ↪️ D-91, D-158, D-189
-
-1. A permissão **"Modo TV"** mora junto dos módulos Fábrica, Comercial e Entregas (Gestão da equipe → a pessoa), e **só o administrador** liga ou desliga (com rastro na Auditoria).
-2. **Conta só do Modo TV** = a conta que tem **só** essa permissão: entra direto na TV, não abre outra tela (guarda na tela e recusa no banco) e não sai sozinha (o desenho do tablet). Um **administrador não pode** virar conta só-TV.
-3. Quem tem a permissão **junto de outras** (ou é admin) vê o botão **▶ Modo TV**, que abre a TV numa **guia nova**.
-4. **Ajuste do dono no prompt de 05/11:** a permissão **não** entra no token nesta sessão (o gancho do token segue guardado, sem ligar) — a recusa no banco lê a permissão na hora. Quando o gancho for ligado, ela passa para dentro do token como os outros módulos.
-
-## D-231 · ⏳ PROVISÓRIA — O Modo TV (05/11/2026, SESSAO-43)
-
-1. **Tela cheia, sem barra lateral, sem voltar** — exceção à lei de layout (é uma tela de parede, não de navegação).
-2. **Tema:** o da plataforma; a conta só-TV abre no **escuro** (melhor de longe), se ninguém escolheu outro.
-3. **Setor:** o do endereço; sem setor, a **Montagem**. A TV mostra só **letras** (a Equipe no painel) — nunca nome, foto ou etiqueta, nem para o admin.
-4. **Coluna dos montadores:** quem montou **sozinho**, pela letra; a dupla aparece no gráfico como "A + B"; quem não tem letra no setor vira "Outros"; móvel sem montador, "Sem montador".
-5. **Ao vivo** pelo canal do setor; o relógio se redesenha no aparelho a cada 30 s (não busca dado); na **virada do dia, uma leitura** só (exceção registrada na lei).
-6. O histórico do Trello entra na TV (as médias de 30 dias e o "Melhor da semana" contam com ele enquanto houver dado daquele período).
-
-## D-232 · ⏳ PROVISÓRIA — "Tempo por setor" mora dentro de Tempos de produção (05/11/2026, SESSAO-43)
-
-"Tempo por setor" sai do menu de Dashboards; o endereço antigo leva para **Tempos de produção → Período** (com o mesmo setor e período); as visualizações salvas que apontavam para ele foram traduzidas para o endereço novo.
-
-## D-233 · ⏳ PROVISÓRIA (técnica, precisa do OK do dono — regra 18) — Períodos longos com 100 vezes o movimento de hoje passam do tempo-limite (05/11/2026, SESSAO-43)
-
-Com o movimento de hoje, todas as abas abrem em poucos milissegundos, em qualquer período. No ensaio com **100 vezes** o movimento (550 móveis por dia só na Montagem), as abas com **30 dias** (o período que a tela abre) e a TV ficam **dentro** do limite; com **90 dias ou mais**, Período, Móveis e Montadores passam (0,2 a 0,6 s). O caminho de mercado para períodos longos é guardar, por dia, um resumo com a distribuição dos tempos em faixas de 1 minuto — a mediana passa a ser **aproximada a 1 minuto** nos períodos longos. Como isso muda a precisão do número que a tela mostra, fica para o dono decidir quando (registrado como dívida na lei de desempenho).
-
-## D-260 · ✅ DECIDIDA pelo dono — Tech → "Sugestão de melhoria": o quadro que toda a equipe acompanha (05/11/2026, SESSAO-46)
-
-**Pedido do dono (05/11):** um setor novo nas abas laterais, **Tech**, com uma rota por enquanto, **"Sugestão de melhoria"**: um kanban para acompanhar a melhoria sendo implementada — **backlog, fazendo, finalizada, recusada**, e a fila é **"Solicitações"**; quando a melhoria é sugerida, aparece um card para **qualquer pessoa** acompanhar.
-1. Pai **Tech** no menu, filho **Sugestão de melhoria** (`/tech/sugestao-de-melhoria`; `/tech` leva para lá). Aparece para **todo nível** — inclusive a linha de produção e o entregador (as rotas deles ganharam essa tela).
-2. Colunas na ordem: **Solicitações** (toda sugestão nova nasce aqui) · **Backlog** · **Fazendo** · **Finalizada** · **Recusada**.
-3. O formulário (bolinha ou o botão da tela) tem **tudo obrigatório**: pelo menos **um arquivo** (qualquer formato, até 50 MB cada, até 10; escolher, arrastar, **gravar áudio** ali mesmo ou **colar um print com Ctrl+V**), o **tipo** (Bug · Melhoria · Implementação nova), o **texto com 30+ letras** e o **nível de necessidade de 1 a 10** (1 pode esperar · 10 urgente).
-
-## D-261 · ✅ DECIDIDA pelo dono — Só o dono (super admin) move os cards do quadro de sugestões (05/11/2026, SESSAO-46)
-
-Resposta 1 do dono. O resto da equipe só acompanha (vê o quadro e abre a ficha de qualquer sugestão). O banco recusa o gesto de quem não é super admin — nem o admin comum move. No computador o dono arrasta; na ficha há "Mover para" com as 5 colunas (o caminho do tablet/teclado).
-
-## D-262 · ✅ DECIDIDA pelo dono — Recusar exige o motivo, que vai no aviso para quem sugeriu (05/11/2026, SESSAO-46)
-
-Resposta 2 do dono. Mínimo de 5 letras, até 500. O aviso diz "Sugestão #N recusada" com "Motivo: …" e o começo da sugestão; o cartão da coluna Recusada mostra o motivo.
-
-## D-263 · ✅ DECIDIDA pelo dono — Finalizada avisa quem sugeriu; ele testa e APROVA ou DEVOLVE com uma sugestão nova, com o formulário inteiro (05/11/2026, SESSAO-46)
-
-**Pedido do dono:** a conclusão gera notificação automática avisando que já pode testar; assim que testa, aprova ou retorna com uma nova sugestão em cima da última — clicando na notificação ou nas pendências do painel inicial. **Resposta 3:** a devolução pede **tudo de novo** (arquivo, tipo, texto 30+, nível), com o **tipo e o nível já marcados** da anterior.
-1. Ao chegar em **Finalizada**: aviso no sino **"Sugestão #N pronta para testar"** + a pendência **"Testar a sugestão #N"** no Meu painel (bloco "Sugestões para você testar"), em Meus afazeres e na bolinha (com o número).
-2. Tocar no aviso ou na pendência abre a **ficha** com **Aprovar** e **Devolver com nova sugestão**. Só quem sugeriu testa.
-3. **Aprovar**: o cartão fica "Aprovada por quem sugeriu" e a pendência fecha. **Devolver**: nasce a sugestão nova em Solicitações, ligada à anterior ("devolução da #N"); a anterior fica "Devolvida" com o link "continua na #M"; a pendência fecha.
-4. Se o dono tirar a sugestão de Finalizada antes do teste, a pendência fecha; se voltar a Finalizada, nasce de novo com outro aviso.
-
-## D-264 · ⏳ PROVISÓRIA — A pendência de teste é uma tarefa do Sistema da pessoa; aviso e pendência levam à ficha pelo número (05/11/2026, SESSAO-46)
-
-1. A pendência "Testar a sugestão #N" é uma **tarefa do Sistema** de quem sugeriu (privada — só ela vê). Assim ela chega na abertura do app e fica ao vivo **sem leitura nova**, e **ninguém a conclui à mão**: ela se resolve aprovando ou devolvendo. No Meu painel ela sai das filas ("Delegados a mim", "Fila de prioridade") e ganha o bloco próprio.
-2. O aviso do sino e a pendência abrem a ficha pelo **número no título** ("Sugestão #N …", "Testar a sugestão #N").
-3. Os dois avisos novos (**pronta para testar** e **recusada**) **não** entram em Configurações → Avisos: não dá para desligar (são a resposta ao pedido da própria pessoa). Se o dono quiser que se possa desligar, entram no catálogo numa próxima.
-
-## D-265 · ⏳ PROVISÓRIA — A bolinha das sugestões acompanha todo usuário, em toda tela, menos o modo tablet (05/11/2026, SESSAO-46)
-
-**Pedido do dono:** uma bolinha que acompanha todos os usuários em todo o sistema, com exceção do modo tablet, com um botão de sugerir melhoria que abre o modal. O que a sessão escolheu onde o pedido não dizia:
-1. Bolinha amarela com a lâmpada, **arrastável** como o balão do chat (posição guardada por pessoa no aparelho), de partida à esquerda do chat. Aparece até para o entregador e na área das automações; **nunca** no `/tablet` (nem na conta de tablet).
-2. O toque abre o painel: **Sugerir melhoria**, **Acompanhar as sugestões** (o quadro) e **"Para você testar"** (até 5, com o número na bolinha).
-3. Enviar pela bolinha abre a ficha da sugestão que acabou de nascer (a pessoa vê o card dela).
-
-## D-266 · ⏳ PROVISÓRIA — Ordem e números do quadro de sugestões (05/11/2026, SESSAO-46)
-
-1. **Solicitações, Backlog e Fazendo:** o **maior nível de necessidade primeiro**, e no mesmo nível a mais antiga primeiro. **Finalizada e Recusada:** a mais recente primeiro.
-2. Cada coluna mostra 20 e o **"Ver mais (N)"** traz as próximas 20; o número no topo é o total da coluna.
-3. A sugestão tem número próprio (#N), que aparece no cartão, na ficha, no aviso e na pendência.
-
-## D-267 · ✅ DECIDIDA pelo dono — Pedido cancelado (ou excluído) no Tiny sai de ROTAS → Entregas → "A entregar", mesmo lançado ou programado; o já entregue fica no histórico (06/11/2026, os números que não batiam) — ↪️ D-45, D-156, D-140
-
-**Achado (varredura de 06/11):** o 13686 foi lançado para as entregas em 20/10 e cancelado no Tiny no dia seguinte; continuava em "A entregar" com os botões de entregar — e a entrega dele é recusada pelo banco. A reação ao cancelamento já tirava a peça e a programação; o "lançado" ficava. A Programação e a Expedição já o escondiam (a regra do pedido vivo).
-
-**Decidido (resposta do dono, 06/11):** *"Sai da lista"*. O cancelado ou excluído no Tiny sai de "A entregar" na hora; o que já tinha sido entregue antes do cancelamento continua em "Entregues" (o 13620).
-
-**Descartada:** ficar na lista com a marca "Cancelado no Tiny" e sem botões.
-
-**Como ficou (técnico):** migration `20261106030000` — `plt_fn_rotas` com `entrega_evento_id is not null or (situação ≠ cancelado e não excluído no Tiny)`. Nada de apagar o lançamento: a porta lê a regra.
-
-## D-268 · ✅ DECIDIDA pelo dono — A Visão do dia conta o que o QUADRO mostra: a fila é a coluna da fila (com o card avulso), em execução é só quem trabalha agora (o pausado não aparece), a espera em horas de expediente, e "prontos esperando rota" são os candidatos da Programação (06/11/2026) — ↪️ D-42, D-75, D-156, D-172
-
-**Achado (varredura de 06/11):** Limpeza "na fila 84" com o quadro mostrando 38 (o painel somava as colunas CANCELADO 44 e NÃO ENCONTRADO 4); "em execução agora 3" com os 3 pausados; as filas sem o card avulso (SECC 1×2, Fitamento 7×9, Furação 6×7); a espera mais antiga em dias corridos × o card em horas de expediente; "aguardando lançamento para ROTAS 16" com 4 já programados.
-
-**Decidido (respostas do dono, 06/11):**
-- **"Na fila" = só a coluna da fila de cada setor, como o quadro** (*"Só a coluna da fila"*): a peça e o card avulso, sem ninguém trabalhando; as colunas de estacionar (CANCELADO, NÃO ENCONTRADO) não entram em número nenhum do painel. Card ainda sem coluna (setor sem etapas) espera — conta na fila.
-- **"Em execução" = só quem está trabalhando agora** (*"Pausado não aparece"*): o pausado não conta em lugar nenhum do painel (nem a pessoa dele em "em N pessoas").
-- **A espera mais antiga em horas de expediente**, como o card no quadro (a mesma régua do setor; "29h 10min", sem "dias").
-- **"Pedidos prontos esperando rota"** (era "Pedidos completos aguardando lançamento para ROTAS") = os candidatos da Programação prontos e ainda sem programação — desde a D-156 o lançamento não é passo; o programado já tem rota.
-
-**Descartadas:** pausados à parte ("3 pausados"); mostrar também "parados em outras colunas".
-
-**Como ficou (técnico):** migration `20261106030000` — `plt_fn_dash_agora` (peça + avulso; fila = `eh_fila`, ou sem coluna; rodando = executor e `pausado_em is null`) e `plt_fn_dash_dia` (`aguardando_lancamento` = `vw_pedidos_para_rota` pronto e sem programação); retornos iguais. A tela converte a espera pela régua (`lido_em − espera` = a chegada do mais antigo). O ensaio amarra painel = quadro e painel = Programação.
-
-## D-269 · ✅ DECIDIDA pelo dono — O cancelamento no Tiny FECHA o stand-by do pedido, na hora do cancelamento; o painel de Motivos conta "em stand-by agora" igual à aba Stand-by do PCP (06/11/2026) — ↪️ D-169, D-171, D-176
-
-**Achado (varredura de 06/11):** Motivos dizia 7 em stand-by; o PCP e a Expedição, 6. O 13649 entrou em stand-by em 22/10 e foi cancelado no Tiny em 28/10 — o stand-by ficou aberto para sempre: a aba o escondia, o painel o contava e o tempo dele seguia crescendo no ranking ("ainda segurado").
-
-**Decidido (resposta do dono, 06/11):** *"Cancelado fecha o stand-by"*. Quando o Tiny cancela um pedido em stand-by, o stand-by fecha sozinho, na hora do cancelamento, com o registro do porquê ("Pedido cancelado no Tiny — o stand-by fechou sozinho"). O 13649 fecha com a hora do cancelamento (28/10). O painel conta "em stand-by agora" e o "ainda segurado" de cada motivo com a regra da aba.
-
-**Descartada:** só acertar a conta do painel (o 13649 seguiria aberto por dentro, somando tempo no ranking).
-
-**Como ficou (técnico):** migration `20261106030000` — fato `pedido_standby_saiu` com `destino = 'cancelado'`, origem automação, puxado pelo gatilho `plt_eventos_zz_standby_cancelado` (no fato `pedido_cancelado`); a validação aceita esse destino só da automação e com o pedido cancelado de fato; o aberto de antes fecha na migration (`retroativo`). Regra da aba: `plt_privado.vw_standby_na_aba` (o mesmo filtro do quadro do PCP). Nada se edita (RNF-05).
-**Fica para depois (não pedido):** o pedido que o Tiny leva adiante (faturado, pronto para envio, enviado) em stand-by sai da aba (D-169) mas o stand-by segue aberto por dentro — hoje não há nenhum.
-
-## D-270 · "Fora do calendário" conta só o que não aparece na grade (06/11/2026) — ↪️ D-175
-
-**Achado (varredura de 06/11):** "Fora do calendário: 6 sem rota com a previsão já vencida" contava também os 3 que estavam na grade da semana (13795 em 03/11; 13785 e 13815 em 04/11).
-
-**Decidido (sem escolha de produto — o aviso diz "fora do calendário"):** conta o sem rota com a previsão vencida **fora do período mostrado** (e o sem previsão, como antes). Na semana de 02 a 08/11: 3 + 1 sem previsão.
-
-**Como ficou (técnico):** migration `20261106030000` — `plt_fn_rotas_calendario`, `fora.atrasados_sem_rota` com `previsão < hoje e fora de [de, até]`.
-
-## D-271 · ✅ DECIDIDA pelo dono — O pedido que o Tiny levou adiante e ainda tem produto por liberar aparece na Expedição com o aviso, e volta ao PCP por dois botões que mudam a situação no Tiny (09/11/2026, SESSAO-47) — ↪️ complementa D-132, D-133, D-219
-
-**Achado (o 13818, leitura do banco em 09/11):** o Tiny ficou "Pronto para envio" (mudança à mão, lá) e a logística liberou as duas peças prontas dele para outros pedidos. O pedido saiu do PCP (D-132) **e** da Expedição (D-133: o adiantado só aparecia com peça na fábrica) — ninguém o via, e o sino dizia "voltou ao PCP".
-
-**Decidido (pedido e respostas do dono, 09/11):**
-1. **A regra do PCP fica:** Faturado, Pronto para envio e Enviado no Tiny continuam fora do PCP.
-2. **"Adiantado no Tiny com falta"** — uma regra só: o card do pedido vivo (não arquivado, sem entrega), o Tiny em Faturado, Pronto para envio ou Enviado, e pelo menos uma vaga de produção por liberar (a conta do PCP: frete não conta, personalizado conta). Entregue, Não entregue e Cancelado têm caminho próprio e ficam de fora.
-3. **A Expedição mostra o pedido mesmo com zero peça pronta**, com a situação real: *"Este pedido está como Pronto para envio no Tiny, por isso saiu do PCP. Ainda falta liberar 2 produtos."* O pedido com peça pronta **e** com falta ganha o mesmo aviso no card normal. Pedidos antigos também aparecem (hoje, o 13652 e o 13684).
-4. **Dois botões no aviso** — **"Voltar para Em aberto (Tiny)"** e **"Voltar para Preparando envio (Tiny)"** ("Em produção" não existe no Tiny) — para logística e admin (a permissão de liberar peça), com uma confirmação de uma frase. Num toque: a plataforma pede a situação ao Tiny, o pedido volta ao PCP **na hora** (sem esperar o Tiny) só com o que falta, fica o registro de quem fez com a situação de antes e a pedida, e o PCP recebe "Pedido N voltou ao PCP". Toque repetido = um efeito só.
-5. **A volta vale até o Tiny mostrar outra situação**; depois a regra do PCP decide sozinha de novo (se alguém adiantar o pedido lá outra vez, ele sai do PCP e o aviso volta). Aviso antigo do Tiny fora de ordem não esconde o pedido devolvido. **O Tiny recusou ou não respondeu:** o pedido segue no PCP com "O Tiny ainda não confirmou a mudança" e o alerta sai pela porta de sempre.
-6. **Na janela de liberar peça**, com o pedido de origem adiantado no Tiny e o produto voltando para a produção: a situação real e três opções no mesmo gesto — voltar para Em aberto, voltar para Preparando envio ou **"Deixar como está"** (o pedido fica na Expedição, com o aviso).
-7. **Avisos que dizem a verdade:** "voltou ao PCP" só quando voltou; senão *"O produto saiu do pedido N, mas ele está como Pronto para envio no Tiny e ficou na Expedição esperando decisão."*
-
-**Fora (dito na demanda):** mudar a D-132; Entregue, Não entregue e Cancelado; descobrir ou bloquear quem muda a situação no Tiny; mexer no fluxo do n8n; acertar o 13818 (já resolvido).
-
-**Como ficou (técnico):** migrations `20261109010000` (base) e `20261109020000`. Regra única `plt_privado.vw_pedidos_adiantados_falta`; a regra do PCP `plt_privado.fn_fora_do_pcp(situação, volta_pcp_em)` lida por `plt_fn_pcp_quadro`, `plt_fn_cards_pedido_pcp`, `plt_fn_dash_pcp_dia`, `vw_standby_na_aba` e `plt_fn_pcp_standby`; a marca = fato `pedido_volta_pcp` → projeção `plt_cards.volta_pcp_em/_situacao`, fechada por `pedido_volta_pcp_fim` (gatilho próprio `plt_pedidos_volta_pcp` em `pedidos`, à prova de falha) ou pela entrega; porta `plt_fn_pedido_voltar_pcp(card, 'aberto'|'preparando_envio', chave)` → fila de saída que já existia (`plt_tiny_pedido_fila`, motivo novo `volta_pcp`); `plt_fn_expedicao` com `saiu_do_pcp`, `tiny_adiantado`, `volta_pcp`, `tiny_ligado` e o filtro; `plt_fn_liberar_peca(…, p_tiny)`; avisos `pedido_voltou_pcp` e `pedido_adiantado_tiny` no catálogo. O n8n não muda.
-
-## D-272 · ⏳ PROVISÓRIA — O pedido em stand-by também entra na regra do adiantado com falta (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-169, D-171
-
-O pedido em stand-by que o Tiny levou adiante e que ainda tem produto por liberar aparece na Expedição com o aviso (e a marca de stand-by ao lado). O botão devolve o pedido ao PCP **mantendo o stand-by**: ele volta para a aba Stand-by, não para a fila de liberar. Na janela de liberar peça, "não lançar agora" com o Tiny adiante passou a funcionar (antes o gesto inteiro era recusado pelo banco): o pedido fica em stand-by e, como o Tiny o tirou do PCP, aparece na Expedição com o aviso.
-
-## D-273 · ⏳ PROVISÓRIA — Quadradinho "Saiu do PCP pelo Tiny" nos filtros da Expedição (09/11/2026, SESSAO-47 — provisória escrita na demanda)
-
-Um sexto quadradinho, com a contagem só dos pedidos adiantados no Tiny com produto por liberar e ainda não devolvidos. O aviso do sino "ficou na Expedição esperando decisão" abre a Expedição já nesse filtro.
-
-## D-274 · ⏳ PROVISÓRIA — Com a ida ao Tiny desligada, os botões de voltar ao PCP ficam apagados, com a explicação (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-113
-
-Os dois botões (no aviso da Expedição e na janela de liberar peça) dependem da chave "Entregue vai ao Tiny" (Configurações → Caminhões; em produção ligada desde 19/10). Desligada: os botões ficam apagados e a tela explica — *"…Mude no Tiny, ou peça a um administrador para ligar 'Entregue vai ao Tiny' em Configurações → Caminhões."* O banco recusa o gesto do mesmo jeito (não devolve o pedido sem conseguir pedir a mudança ao Tiny — os dois lados ficariam dizendo coisas diferentes). Na janela de liberar peça, só "Deixar como está" fica disponível.
-
-## D-275 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes do pedido adiantado no Tiny (09/11/2026, SESSAO-47)
-
-1. **O adiantado com falta é pedido vivo para as rotas também** (uma regra só de "pedido vivo" serve a Expedição e a Programação — D-156): além de aparecer na Expedição, ele volta a poder ser programado numa rota, como qualquer pedido vivo. O adiantado sem nada por liberar e sem peça na fábrica segue fora, como antes.
-2. **A volta ao PCP deixa de valer quando o Tiny sai das três situações adiantadas** — para a situação pedida (confirmou) ou para qualquer outra (mudou lá) — e também quando a entrega do pedido é registrada. Faturado → Enviado (outra adiantada) mantém a volta.
-3. **"Faltam N produtos"** = as vagas de produção sem peça, na conta do PCP. A reserva do estoque ainda não é peça: conta como falta até alguém usar.
-4. **Quem recebe "ficou na Expedição esperando decisão":** a logística (todo mundo que pode apertar os botões). "Voltou ao PCP" segue indo para o PCP.
-5. **Na janela de liberar peça a escolha é obrigatória** quando o pedido está adiantado e o produto volta para a produção (o Confirmar só acende com uma das três). O site de antes, que não pergunta, vale como "deixar como está".
-6. **Pedido já devolvido:** o aviso e os botões saem do card na Expedição (ele volta a ser um pedido "ainda no PCP"); enquanto o Tiny não confirma, o card do PCP e o da Expedição mostram "O Tiny ainda não confirmou a mudança".
-7. **A fila de saída do Tiny guarda uma vontade por pedido:** pedir a volta substitui um "desfazer entrega" ainda pendente do mesmo pedido, e uma entrega registrada depois substitui a volta pendente.
-
-## D-276 · ✅ DECIDIDA pelo dono — "Marcar como entregue no dia…": a entrega pode ser registrada no dia em que aconteceu de fato, nunca num dia que ainda não chegou; a data vale em toda a plataforma e depois só o admin corrige (09/11/2026, SESSAO-47) — ↪️ complementa D-33, D-113, D-156, D-175
-
-**Pedido do dono (09/11):** *"Quando for dar um pedido como entregue, deve aparecer também um botão de alterar a data da entrega para o dia que foi entregue de fato… Eu não posso alterar para uma data que ainda não chegou… Não deve ser obrigatório… se a data for alterada, isso deve refletir em toda a plataforma, inclusive no calendário das rotas."*
-
-**Decidido (pedido e respostas 6 a 8):**
-1. Depois de tocar em "Entregue" — em ROTAS → Entregas e nas Entregas do dia do entregador — aparecem três botões: **"Confirmar entrega"** (hoje, como sempre), **"Ainda não"** (fecha sem registrar) e **"Marcar como entregue no dia..."** (abre a escolha do dia e confirma já com ele).
-2. **Com peças ainda em produção** (o aviso da imagem do dono) o aviso continua na tela, e os dois botões de confirmar valem como o "entregar mesmo assim" de antes. A regra de fechar tudo do pedido não muda.
-3. **A data é opcional** (o padrão é hoje) e **nunca é um dia que ainda não chegou** — o limite é hoje no fuso da fábrica, conferido no banco e não só na tela.
-4. **A data escolhida vale em toda a plataforma:** ficha do pedido, Entregas do dia, lista de pedidos, calendário das rotas (o entregue aparece no dia real) e os números de entregas por dia.
-5. **Corrigir depois: só o admin, na ficha do pedido** ("Alterar a data da entrega"), com a mesma regra de data. A entrega não é editada: a correção é um registro novo com o dia de antes e o novo.
-6. **O Tiny** continua recebendo "Entregue" como hoje; a data não vai ao Tiny.
-
-**Como ficou (técnico):** migration `20261109030000`. A data que vale = `plt_cards.entrega_em` (projeção dos fatos `pedido_entregue`, `entrega_desfeita`, `entrega_dia_corrigido` — `fn_projetar_entrega`); o dia sempre por `plt_privado.fn_dia_da_entrega` (fuso `America/Fortaleza`); a regra do dia em `plt_privado.fn_entrega_instante`; `plt_fn_registrar_entrega(…, p_dia date default null)` e `fn_fechar_pedido(…, p_ocorrido_em)`; guarda no fato (`fn_validar_entrega_dia`); `plt_fn_entrega_corrigir_dia(card, dia, motivo)` só admin; leitores pela mesma data: `plt_fn_pedidos_lista`, `plt_fn_pcp_pedido_detalhe`, `plt_fn_rotas`, `plt_fn_programadas`, `plt_fn_entregas_do_dia`, `plt_fn_rotas_calendario`, `plt_fn_dash_motivos`. Telas: `src/rotas/ConfirmarEntrega.tsx` (um componente para os dois lugares), `src/rotas/diaDaEntrega.ts`, `src/pedidos/AlterarDataDaEntrega.tsx`.
-
-## D-277 · ⏳ PROVISÓRIA — O dia da entrega nunca fica antes do dia em que o pedido chegou à plataforma (09/11/2026, SESSAO-47 — provisória escrita na demanda)
-
-"Chegada" = o momento em que o pedido ganhou o card dele na plataforma. O banco recusa com a explicação (*"Este pedido chegou à plataforma em dd/mm/aaaa — a entrega não pode ser marcada antes disso"*). No painel do entregador e na ficha o campo já limita; na lista da logística (ROTAS → Entregas) o campo não tem data mínima (essa lista não recebe a chegada) e quem recusa é o banco.
-
-## D-278 · ⏳ PROVISÓRIA — A hora guardada para um dia passado é o fim do expediente da fábrica naquele dia (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-203…D-211
-
-O fim do último turno de qualquer setor de produção naquele dia, contando hora extra e as exceções do calendário. Em dia sem expediente (domingo, feriado) ou sem horário cadastrado, 18:00. Se o pedido chegou à plataforma depois dessa hora naquele mesmo dia, a hora da chegada. Nunca fora do dia escolhido, nunca depois de agora. Escolher o próprio dia de hoje é o mesmo que "Confirmar entrega" (a hora de agora). Na tela, a entrega marcada num dia passado aparece como "no dia dd/mm/aaaa" (sem hora), com "registrado em … por …" ao lado.
-
-## D-279 · ⏳ PROVISÓRIA — No calendário das rotas o entregue aparece no dia REAL, com a nota do dia programado quando difere (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-175
-
-Na barra do pedido a nota é curta — **"prog. dd/mm"** — para não ser cortada na coluna estreita; a frase inteira **"programado para dd/mm"** aparece no detalhe do toque (e no texto lido pelo leitor de tela). O pedido continua na rota em que estava programado (a rota não muda, só o dia mostrado); "Ver a rota" abre a rota do dia programado. O entregue sem programação continua fora do calendário, como antes. Nas Entregas do dia, "Entregues neste dia" junta as paradas da rota já entregues (com "entregue em dd/mm" quando o dia de fato é outro) e os pedidos entregues de fato naquele dia que eram de outra rota ("programado para dd/mm (Caminhão)") — a logística vê todos, o entregador só os das rotas da equipe dele; no máximo 100 por dia; o desfazer fica na rota em que o pedido estava programado.
-
-## D-280 · ⏳ PROVISÓRIA — "Desfazer do dia" (e o toque repetido) contam pelo dia em que a entrega foi REGISTRADA, não pelo dia escolhido (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-113, D-213
-
-Quem marcou hoje "entregue ontem" ainda desfaz hoje. A registrada em outro dia só o admin reabre, na ficha. As frases mudaram: *"Só dá para desfazer a entrega no mesmo dia em que ela foi registrada"* / *"Foi registrada em outro dia: só um administrador reabre, na ficha do pedido"*.
-
-## D-281 · ⏳ PROVISÓRIA — A correção do dia da entrega: motivo opcional, registro novo feito na hora (09/11/2026, SESSAO-47 — provisória escrita na demanda)
-
-Só o admin, na ficha ("Alterar a data da entrega"). O motivo é opcional (até 300 letras). A correção fica registrada como acontecida na hora em que foi feita, levando o dia de antes e o dia novo; a entrega original fica intacta. Corrigir para o mesmo dia não registra nada (a janela nem deixa salvar). A hora depois de corrigir segue a D-278. Na ficha: *"Dia corrigido por Fulano em … (era dd/mm/aaaa) — motivo"*; no histórico, "Dia da entrega corrigido". Gera log e avisa as telas das rotas.
-
-## D-282 · ✅ DECIDIDA pelo dono (anexar vários) + ⏳ PROVISÓRIA (os limites) — Vários comprovantes de uma vez (09/11/2026, SESSAO-47)
-
-**Pedido do dono:** *"Ter a possibilidade de anexar mais de um arquivo de comprovante por vez ao pedido."* Vale nos três lugares: o painel do "Entregue" do entregador, o botão "Comprovante" do card nas Entregas do dia e a ficha do pedido (que ganhou o botão "Anexar comprovantes" — antes só listava e abria).
-
-**Provisório (o limite veio da demanda; o resto é escolha da sessão):**
-1. **Até 10 por vez**, com os mesmos tipos e o mesmo tamanho máximo de antes (10 MB por arquivo). Passou de 10 na mesma escolha, os excedentes ficam de fora com o aviso; dá para enviar esses e escolher mais depois.
-2. **Cada arquivo sobe e é registrado sozinho, um depois do outro** (no celular com internet fraca falha menos e dá para ver o andamento de cada um). O que falha não derruba os outros; a janela diz qual falhou, por quê, e oferece tentar de novo **só** ele — sem reenviar o que já subiu e sem deixar cópia solta.
-3. **A entrega é registrada antes dos comprovantes**, como já era: no "Entregue" do entregador a entrega vale primeiro e os arquivos sobem em seguida numa janela. Sair da janela vira "Deixar para depois" (o que subiu fica no pedido; o que faltou se anexa depois).
-4. Arquivo vazio e documento (PDF/Word) com mais de 10 MB ficam de fora já na escolha, com o porquê; a foto grande entra, porque é reduzida no próprio aparelho. O mesmo arquivo escolhido duas vezes não repete. Arquivo que já subiu não pode mais ser tirado da lista ali.
-
-**Como ficou (técnico):** sem mudança de banco (`plt_fn_anexo_registrar` já não repete o mesmo caminho). `src/rotas/enviarComprovantes.ts`, `useComprovantes.ts`, `ModalComprovantes.tsx`; `anexarComprovante(card, arquivo, chave)` com caminho estável por arquivo.
-
-## D-283 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes da entrega no dia real (09/11/2026, SESSAO-47)
-
-1. **O campo do dia começa vazio**; o botão só acende com um dia que vale e passa a dizer "Marcar como entregue em dd/mm/aaaa".
-2. **A entrega parcial não ganhou a escolha do dia**: vale no dia em que é registrada; se precisar, o admin corrige depois na ficha.
-3. **A entrega que vem do Tiny** continua valendo no momento em que a plataforma recebeu o aviso; o admin também pode corrigir.
-4. **Na trilha do pedido**, a entrega marcada num dia passado leva a frase "Marcado como entregue no dia X (registrado em Y)".
-5. **Na lista de pedidos**, quando o dia foi escolhido, a hora ao lado é a do fim do expediente (a lista não sabe quando a entrega foi registrada; a ficha diz as duas coisas).
-6. **O número de entregas do painel de Motivos** passou a contar as entregas que estão valendo, pelo dia de fato — antes contava os registros, inclusive os desfeitos depois.
-7. **Na aba Produção da ficha**, a peça que saiu com a entrega mostra o dia de fato da entrega.
-8. **O calendário das rotas passou a ser lido sempre com o plano feito sob medida para o período** (ajuste técnico pedido pelo supervisor — o achado de 06/11: com 100 vezes o movimento, da 6ª leitura em diante na mesma conexão ele levava dezenas de segundos). ↪️ O fecho (migration `20261109050000`, ✅ aplicada em 09/11 ~22:20 com o OK do dono): a causa era um pré-filtro que não tirava linha nenhuma; sem ele a guarda deixa de ser precisa e sai também (ela encarecia os períodos longos).
-
-## D-284 · ✅ DECIDIDA pelo dono — "Configurar painel" em Tempos de produção: uma configuração só, do admin, que vale para a tela e para a TV (09/11/2026, SESSAO-47) — ↪️ complementa D-225…D-232; a D-231 (a TV só mostra letras) continua
-
-**Pedido do dono (09/11):** *"Colocar um botão de configuração do painel dentro das abas da dash de tempo de produção, dentro dessa configuração deve ser possível editar o tipo de gráfico, ligar e desligar os montadores que aparecem na tela como montador a, b, c... podendo ver qual é qual, óbvio, e algumas outras configurações que você irá me recomendar."*
-
-**Decidido (pedido e respostas 10 a 12):**
-1. **A configuração é igual para todos:** o admin configura e ela vale para a tela e para a TV. Mudou, a TV e as telas abertas mudam **na hora**. Toda mudança fica na Auditoria.
-2. **Os itens:** o tipo de gráfico (da aba Período e da TV); ligar e desligar montadores, vendo a letra, o nome e a foto de cada um (só nessa janela — a TV continua só com letras); a marca do tempo padrão; com que setor e período a tela abre; média ou mediana; o que a TV mostra.
-3. **Montador desligado** sai da coluna dele, na tela e na TV, e entra em **"Outros"** — o tempo dele continua contando: os totais, as médias e o "Melhor da semana" do setor não mudam.
-4. As letras e a equipe continuam sendo editadas onde já eram (Configurações → Controle de tempo → Equipe no painel).
-
-**Como ficou (técnico):** migration `20261109040000`. `plt_tempo_config.painel jsonb` (uma linha; só o que difere do padrão) e `plt_tempo_equipe.no_painel boolean`; a configuração vem na MESMA resposta de cada porta (`painel`) — `plt_fn_tempos_dia/_periodo/_moveis/_modelo_passagens/_montadores/_conferir` e `plt_fn_modo_tv`, mesmas assinaturas; portas novas `plt_fn_tempos_abertura` (a tela abre em 1 requisição, já no setor e no período), `plt_fn_tempos_painel` (a janela, só admin, no clique) e `plt_fn_tempos_painel_salvar` (só admin; trilha `tempo_painel_alterado`; avisa pelo canal do setor que a tela e a TV já ouviam). "Outros" = a chave zerada no lugar da pessoa, resolvida no banco, igual em todas as portas. Telas: `src/paginas/dashboards/tempos/ConfigurarPainel.tsx`, `src/dashboards/tempos/painel.ts`, `GraficoMoveis.tsx` (um gráfico para a tela e a TV).
-
-## D-285 · ⏳ PROVISÓRIA — Só o admin vê o botão "Configurar painel" e só ele salva (09/11/2026, SESSAO-47 — provisória escrita na demanda)
-
-Líder e funcionário veem apenas o resultado. O banco recusa quem não é admin (inclusive a conta só-TV).
-
-## D-286 · ⏳ PROVISÓRIA — Três tipos de gráfico: empilhadas por montador, barras e linhas (09/11/2026, SESSAO-47 — provisória escrita na demanda)
-
-**Empilhadas por montador** é o desenho que já existia (vale enquanto ninguém mexer); **barras** mostra uma barra por dia, só com o total; **linhas** traz uma linha por montador. O "barras (atual)" da demanda foi entendido como o empilhado que já existia. Vale para o gráfico da aba Período e para o da TV, cada um com a sua escolha.
-
-## D-287 · ⏳ PROVISÓRIA — Dupla com um desligado aparece como a letra (ou o nome) de quem está ligado + "Outros" (09/11/2026, SESSAO-47 — provisória escrita na demanda) — ↪️ D-231
-
-Os dois desligados = "Outros". Móvel sem montador continua "Sem montador". **Muda na TV mesmo sem ninguém mexer na configuração:** a dupla em que um dos dois não tem letra aparecia inteira como "Outros"; agora aparece como "A + Outros" (a regra passou a ser por pessoa).
-
-## D-288 · ⏳ PROVISÓRIA (precisa do olhar do dono) — A "linha do tempo padrão" virou uma marca na linha do dia da aba Dia (09/11/2026, SESSAO-47)
-
-A demanda pedia ligar e desligar "a linha de referência do tempo padrão do modelo nos gráficos". Os dois gráficos que existem (aba Período e TV) contam **móveis por dia**, não tempo — não havia onde riscar tempo padrão neles. O que foi feito: na **linha do dia** (aba Dia, a faixa de cada pessoa ao longo do expediente), cada móvel ganha um tracinho mostrando onde ele terminaria se levasse o tempo padrão do modelo — depois do fim, se foi mais rápido; dentro da barra, se foi mais lento. Nasce desligada. **O dono pode ter imaginado outra coisa** (uma linha num gráfico de tempo, que hoje não existe) — confirmar.
-
-## D-289 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes da configuração do painel (09/11/2026, SESSAO-47)
-
-1. **"Outros" não vale na aba Conferir, na busca nem na lista do filtro de pessoa** (ferramentas de quem lidera: precisam dizer quem montou). Vale na lista de montagens de um modelo (aba Móveis). Quando quem lidera filtra por uma pessoa desligada, os móveis dela aparecem com "Outros" no lugar do nome.
-2. **Média ou mediana troca só o número mostrado.** O tempo padrão de cada modelo e a conta de "abaixo / na média / acima" continuam como hoje. Detalhe: na aba Móveis, o "x% mais rápido/mais lento" de cada montador compara o número que está na tela (a média dele, se a média estiver escolhida) com o padrão do modelo.
-3. **Quem está desligado continua vendo o próprio nome** nos tempos dele (o funcionário só enxerga o que ele montou).
-4. **A TV tem 7 blocos que ligam e desligam:** os quatro números do topo (um bloco só), a coluna dos montadores, o gráfico dos 14 dias, o melhor da semana, o relógio, o "dados até" e o selo "ao vivo". Os avisos de "ao vivo pausado" e "sem registros" aparecem sempre. A TV se arruma sozinha quando um bloco sai; o banco continua mandando tudo (quem esconde é a tela).
-5. **Na TV, quem está desligado some da coluna dos montadores** (não ganha um cartão "Outros" lá) e entra em "Outros" no gráfico.
-6. **A tela só abre "já filtrada" quando o endereço vem limpo** (pelo menu). Link salvo e filtro escolhido na hora continuam mandando. **Se o admin escolher um setor de abertura, ele vale para todos os aparelhos** (passa na frente do setor que cada aparelho lembrava). "Hoje" e "não configurado" são a mesma coisa (aba Dia); 7 e 30 dias abrem na aba Período.
-7. **Na aba Móveis, as colunas são 6 pessoas + "Outros"** (por último, só quando há alguém desligado).
-8. **A janela tem "Voltar ao padrão"** (os gráficos, o tempo médio, a abertura e a TV voltam ao desenho de antes; os montadores não são religados por ele).
-9. **A configuração é uma só para a fábrica inteira;** só o liga/desliga dos montadores é por setor (a equipe do painel é por setor).
-10. **Na Auditoria**, a linha "Mudou a configuração do painel de tempos" traz o que mudou em frases; o "antes/depois" aparece também com os nomes internos das opções (é como a Auditoria mostra qualquer antes/depois hoje).
-11. **TVs já ligadas não se atualizam sozinhas:** depois de publicar, cada TV precisa ser recarregada uma vez para obedecer à configuração (até lá segue funcionando com o programa de antes).
-
-## D-290 · ✅ DECIDIDA pelo dono — Mover a peça para CANCELADO ou NÃO ENCONTRADO cancela a fabricação: sai da produção na hora, fica alguns dias à vista na coluna e depois é arquivada (recuperável); cancelar a peça não é cancelar o pedido (11/11/2026, SESSAO-48) — ↩️ revisa a D-61 · ↪️ D-75, D-132, D-201
-
-**Pedido do dono (11/11, texto fiel):** *"O móvel aparece que está em produção, no entanto, está em cancelado. Ou seja, não deveria aparecer em produção. Quando for um PEDIDO, pergunta para onde vai mover aquele móvel que seria do pedido que foi cancelado. Caso seja um estoque que foi cancelado a fabricação apenas tire aquele móvel da produção."* · ajuste (01:27): *"Não colocaremos botões, só o mover para cancelado já deve cancelar a peça e ela é excluída depois de 7 dias pra não inflar a coluna com muitos cards, ficando apenas o log de exclusão para recuperarmos caso necessário."* · respostas (01:33): cancelar uma peça não é cancelar o pedido; NÃO ENCONTRADO entra nesta sessão com o mesmo tratamento; a vaga da peça de pedido volta ao PCP com um aviso, e no aviso o PCP pode remover do PCP escolhendo "o pedido foi cancelado", "tirar da linha de produção" (com o que houve) ou "outro motivo"; e investigar a plataforma que recarrega sozinha.
-
-- **Sem botão:** o gesto é mover a peça para a coluna. Vale por qualquer caminho — arrasto no quadro, tablet, Mover, a liberação do PCP direto na coluna, a API.
-- **A peça sai da produção na hora:** some do "reservados p/ produção" do Estoque e do Top 20, das contas do PCP e da Expedição; o tempo de fila para de contar; ninguém inicia nem retoma trabalho nela.
-- **Na coluna:** "Cancelada em dd/mm · some em N dias" (ou "Não encontrada em …"), no lugar do tempo de fila. Arrastar de volta desfaz.
-- **De estoque** (reposição, lançamento manual): só sai da produção. **De pedido vivo:** perde o pedido e a vaga volta ao PCP com o aviso "Peça cancelada na produção" (ou "Peça não encontrada") e o sino do PCP. **De pedido cancelado no Tiny:** sai da produção, sem vaga de volta.
-- **NÃO ENCONTRADO** é o mesmo gesto; muda só o motivo gravado.
-
-**Como ficou (técnico):** migration `20261111010000_plt_sessao48_base.sql` — o sinal da etapa (`plt_etapas.cancela_fabricacao` / `cancela_motivo` / `cancela_dias`, ligado uma vez só no CANCELADO e no NÃO ENCONTRADO da LIMPEZA E EMBALAGEM); o gatilho no fato de CHEGADA (`plt_eventos_zz_cancelamento_chegada` → `fn_cancelar_fabricacao` / `fn_retomar_fabricacao`); os fatos `fabricacao_cancelada` / `fabricacao_retomada` (só pela maquinaria — marca `plt.cancelamento_maquinaria`) com a projeção `plt_cards.cancelada_em` / `cancelada_motivo` / `cancelada_pedido_id`; a peça de pedido perde o pedido por `unidade_desvinculada` (a vaga volta pela regra de sempre — `fn_vagas_pedido`); o aviso `plt_cards.pcp_aviso_em` no card do pedido; a regra única do que conta (`fn_estoque_categoria` com 8 argumentos e os 5 leitores) e a do PCP (`fn_fora_do_pcp` com a remoção, em todas as portas — D-75).
-
-## D-291 · ⏳ PROVISÓRIA — "Excluir" a peça cancelada é arquivar com fato; nada é apagado (11/11/2026, SESSAO-48 — provisória escrita na demanda)
-
-No prazo, a peça recebe `card_arquivado` com o motivo ("Fabricação cancelada há mais de 7 dias — removida da coluna CANCELADO."); o registro fica para sempre e a peça pode ser recuperada.
-
-## D-292 · ⏳ PROVISÓRIA (escolha da sessão) — Os dias da coluna moram na própria etapa: Configurações → Setores e etapas, ao lado de "Cancela a fabricação", padrão 7, de 1 a 90 (11/11/2026, SESSAO-48)
-
-A demanda sugeria "Configurações → Controle do quadro", tela que não existe. O prazo ficou na própria etapa que cancela (cada coluna com o seu — o CANCELADO e o NÃO ENCONTRADO podem ter prazos diferentes), no mesmo lugar em que o admin liga "Cancela a fabricação" ou "Peça não encontrada" — a escolha nova da lista onde já estavam "Fica no setor", "Conclui a produção" e os setores. Nenhum número escrito no código.
-
-## D-293 · ⏳ PROVISÓRIA — A limpeza roda dentro da rotina da madrugada que já existe (a conferência com o Tiny, 03:00 de Natal) — nenhum relógio novo (11/11/2026, SESSAO-48 — provisória escrita na demanda)
-
-`fn_tiny_pente_fino_iniciar` chama `fn_cancelados_arquivar()` no começo, protegida (se a limpeza falhar, a conferência do Tiny segue). E a coluna já não mostra o que passou do prazo mesmo antes de a limpeza rodar (filtro na leitura — a porta do quadro e o "Ver mais").
-
-## D-294 · ⏳ PROVISÓRIA — Só o admin recupera a peça que já saiu da coluna; ela volta para a fila do setor dela (a LIMPEZA E EMBALAGEM), sem dono (11/11/2026, SESSAO-48 — provisória escrita na demanda; o lugar do botão é escolha da sessão)
-
-O botão "Recuperar a peça" fica na janela do card (que a busca geral e a Auditoria abrem) e só aparece para o admin quando a peça já foi arquivada; dentro dos dias da coluna, desfaz-se arrastando de volta. Recuperar de novo não faz nada.
-
-## D-295 · ⏳ PROVISÓRIA — Arrastar de volta: a peça volta a ser do pedido só quando a vaga dele ainda está aberta; senão volta sem dono (11/11/2026, SESSAO-48 — provisória escrita na demanda; as condições exatas são escolha da sessão)
-
-Volta ao pedido quando: a peça voltou para uma etapa de PRODUÇÃO, o pedido segue no PCP (a regra única) e há vaga do mesmo móvel sem peça e sem reserva do estoque. Arrastar direto para a coluna que conclui retoma e conclui sem dono. O aviso do pedido some quando não sobra outra peça cancelada dele.
-
-## D-296 · ⏳ PROVISÓRIA — A reposição só perde a peça (11/11/2026, SESSAO-48 — provisória escrita na demanda, no padrão da D-201)
-
-A vaga da reposição continua contada como liberada; se o estoque ficar abaixo do mínimo, a reposição automática ou a logística lançam de novo, como hoje.
-
-## D-297 · ⏳ PROVISÓRIA (escolhas da sessão onde a demanda não dizia) — Detalhes do cancelamento (11/11/2026, SESSAO-48)
-
-1. Toda peça cancelada perde o pedido — também a de pedido cancelado no Tiny e a de pedido removido do PCP (sem vaga de volta e sem aviso) — e guarda de qual era: o card mostra "Era do pedido N".
-2. Passar de CANCELADO para NÃO ENCONTRADO (ou o contrário) troca o motivo e mantém a data: os dias contam do primeiro cancelamento.
-3. O aviso no PCP fecha também quando o pedido é liberado por inteiro de novo (mesmo sem abrir a janela) e quando a peça volta ao pedido.
-4. A peça de móvel do catálogo que perde o pedido fica sem "pai"; a de móvel fora do catálogo guarda o card do pedido (detalhe técnico — E-254/E-256).
-5. Ninguém inicia nem retoma trabalho em peça cancelada: o banco recusa e diz para arrastar de volta.
-6. A busca geral acha a peça cancelada (também a arquivada) pelo nome do móvel, com "Era do pedido N"; pelo número do pedido não acha (ela perdeu o pedido) — a janela "O que aconteceu?" do PCP lista as peças canceladas do pedido.
-7. O sino do PCP sai a cada peça cancelada de pedido vivo; o acerto manda um só por pedido.
-
-## D-298 · ⏳ PROVISÓRIA — O acerto das peças que já estavam paradas (11/11/2026, SESSAO-48 — provisória escrita na demanda; o sino por pedido é escolha da sessão)
-
-`supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql`: cada peça viva nas colunas que cancelam passa pelo MESMO gesto (`fn_cancelar_fabricacao`), origem `api`, com a data do dia do acerto (cada uma ganha os dias de conferência); o sino do PCP sai uma vez por pedido; os números do estoque são recontados. Modo ensaio (conta antes e depois e não grava nada) e modo aplicar (só com o OK do dono).
-
-**↩️ D-299 e D-300 revisadas em 2026-11-12 (D-307/D-314, SESSAO-50 — pedido do dono):** o "Remover do PCP" com três motivos virou "Cancelar pedido" e "Ocultar do PCP", e a aba "Cancelados e removidos" virou "Cancelados" e "Pedidos ocultos".
-
-## D-299 · ⏳ PROVISÓRIA — A aba "Cancelados e removidos" volta para dentro do PCP (11/11/2026, SESSAO-48 — a aba é da demanda; o lugar, a ordem e o filtro são escolhas da sessão) — ↩️ D-134 (o `?aba=cancelados` levava para Pedidos → Cancelados)
-
-1. **Mora no PCP** (`?aba=cancelados`, como a Stand-by): mostra os pedidos removidos do PCP e os cancelados no Tiny que passaram pelo PCP (card vivo); "Devolver ao PCP" é gesto do PCP. A história inteira dos cancelados continua em Pedidos → Cancelados, com um atalho na aba.
-2. **A ordem é "quando saiu do PCP"**, o mais recente primeiro (removido: a remoção; cancelado: o último cancelamento vindo do Tiny) — quem acabou de remover acha o pedido no topo.
-3. **A aba não mostra o total** ("(N)"), ao contrário das outras do PCP: contar a história inteira custava ~175 ms no ensaio ×100 (Lei §6.4); a lista anda ao rolar, 20 por vez, por cursor.
-4. **O filtro raro pelo nome** acha o nome como ele está gravado (sem diferença de maiúscula, com acento) — o mesmo jeito da busca de Pedidos → Cancelados; o nome comum é conferido sem acento (a régua dos quadros).
-
-**Como ficou (técnico):** `plt_fn_pedidos_cancelados(text, integer, timestamptz, bigint)` (a de 3 argumentos sai), cada metade pelo seu índice num laço que para na página; `AbaCanceladosRemovidos` (pedaço próprio). Migration `20261111020000_plt_pcp_aviso_remover.sql`.
-
-## D-300 · ⏳ PROVISÓRIA — Remover do PCP: só a parte do PCP muda (11/11/2026, SESSAO-48 — a regra é da demanda; os detalhes são escolhas da sessão) — ↪️ D-299
-
-1. **Não mexe nas peças reservadas do estoque** para o pedido (a demanda não fala; "só a parte do PCP muda"). Se o Tiny cancelar depois, o caminho de sempre as solta; devolvido, continuam reservadas.
-2. **O pedido cancelado no Tiny também pode ser removido** (nada muda no Tiny; na aba aparece uma vez só). Devolvê-lo tira a marca de removido, mas o Tiny o mantém fora do quadro — a tela diz isso, e o botão "Devolver ao PCP" só aparece quando o pedido volta de verdade.
-3. **"Devolver ao PCP" não reabre o aviso:** o pedido volta a "Aguardando liberação" com as vagas abertas e o PCP libera pela janela de sempre.
-4. **O texto obrigatório** ("O que houve?" e "Outro motivo") tem 3 letras ou mais, como o "Outro" do stand-by.
-5. **(supervisor) Removido vale antes de "em produção":** na lista de Pedidos o pedido removido aparece como "Removido do PCP" mesmo com peça dele em produção ou pronta (só "em rota", entregue, devolvido, arquivado e cancelado vêm antes); a peça cancelada nunca conta como liberada. Na busca geral: "Removido do PCP em dd/mm", e o atalho leva à aba "Cancelados e removidos".
-
-## D-301 · ⏳ PROVISÓRIA — "Para onde vai este móvel?": quem aparece para "Passar para outro pedido" (11/11/2026, SESSAO-48 — escolhas da sessão onde a demanda não dizia) — ↪️ D-290, D-201
-
-1. **"O mais antigo primeiro" é o pedido que espera há mais tempo no PCP** (a ordem da fila do PCP), não a data da venda.
-2. **Até 10 pedidos por móvel**; a procura olha no máximo os 200 primeiros da fila que têm o móvel (Lei §6).
-3. **Peça sem código (SKU) não tem candidato** — a mesma régua da sugestão de peça em produção do PCP (D-201).
-4. **"Todas de uma vez → Passar para outro pedido"** distribui as peças pelos pedidos (o mais antigo primeiro, dividindo as vagas) e fica desligada, dizendo o porquê, quando alguma peça ficaria sem pedido.
-5. **A janela abre no Estoque** (o caminho do sino, `?destino=`), em qualquer aba; a leitura aceita também o card de uma peça (leva ao pedido dela).
-
-## D-302 · ⏳ PROVISÓRIA — O destino do móvel de pedido cancelado: cada escolha e as proteções (11/11/2026, SESSAO-48 — a regra é da demanda e da D-290; os detalhes são escolhas da sessão)
-
-1. **A peça danificada também espera a decisão**, mas não passa para outro pedido (a regra de sempre recusa) — a janela diz o porquê.
-2. **A peça com ajuste aberto (D-130) não ganha a pendência:** o ajuste já tem o destino escolhido pelo PCP.
-3. **"Cancelar a fabricação"** leva a peça para a coluna que cancela do setor dela (motivo "cancelada"), senão para a da LIMPEZA E EMBALAGEM; não se pede o estado da peça.
-4. **O aviso é um por pedido**, para a logística (o admin entra pela régua do público): "Pedido N cancelado com móveis em produção".
-5. **Blindagem:** se a marca de "esperando decisão" falhar, o cancelamento vale do mesmo jeito (a peça cai na regra de antes: ESTOQUE ao ficar pronta) e o erro vira aviso de automação para os administradores.
-6. **"Descancelado" no Tiny:** a pendência sai sozinha (fato automático); o aviso que já estava no sino fica — aberto, a janela diz "Nada esperando decisão". Cancelado de novo, a peça espera de novo.
-7. **Todo fato de decisão leva o pedido cancelado** (a origem); "outro pedido" leva também o pedido de destino e por onde veio (PCP ou logística).
-
-**Como ficou (técnico):** migration `20261111030000_plt_cancelado_pergunta_destino.sql` — `fn_desvincular_por_cancelamento` recriada por extração (md5 da vigente no diário da frente 3), `plt_fn_destino_pendentes`, `plt_fn_destino_decidir`, gatilhos `plt_pedidos_destino_descancelado` e `plt_eventos_zz_destino_vinculada`; `ModalDestinoPedidoCancelado` (pedaço próprio) aberto pelo `?destino=` do Estoque.
-
-## D-303 · ⏳ PROVISÓRIA — A versão é o código e documentação não publica (11/11/2026, SESSAO-48 — a regra é da demanda; a fórmula é escolha da sessão) — ⏳ a mudança na Vercel só entra com o OK do dono
-
-1. **A versão** = um resumo (sha256, 12 caracteres) dos nomes de todos os arquivos montados + o conteúdo do index.html; vai no `versao.json` e numa marca do index.html (a página sabe a própria versão por ali). Montar o mesmo código duas vezes dá a mesma versão; o commit não entra mais no pedaço de entrada (ele renomeava 89 dos 215 arquivos a cada commit — a causa do "pedaço sumido" depois de cada publicação).
-2. **A Vercel pula a montagem** só quando há publicação anterior no ramo e, desde ela, só mudou `_docs/`, `Claude outputs/` ou `*.md`; qualquer dúvida monta. `supabase/` segue montando (o dono decide se entra na lista).
-
-↪️ **11/11 (na subida):** o comando mora em `scripts/vercel-pular-documentacao.sh` — o campo `ignoreCommand` do `vercel.json` aceita no máximo 256 caracteres; o comando inteiro (363) derrubou a 1ª publicação na validação (E-268). ✅ No ar desde 11/11 ~05:18 (com o OK do dono).
-
-## D-304 · ⏳ PROVISÓRIA — O momento seguro de recarregar (11/11/2026, SESSAO-48 — o 1 minuto é da demanda; o resto são escolhas da sessão)
-
-1. **Tablet e TV:** sem janela aberta (o PIN é digitado numa janela) e 1 minuto sem toque nem tecla; com janela aberta, olha de novo a cada minuto. Até lá, o aviso discreto diz "Ela se atualiza sozinha depois de 1 minuto sem uso."
-2. **Onde a versão é conferida, sem relógio:** escritório — trocar de tela e voltar à aba (como antes); tablet — também o toque; TV — o aviso do setor, a reconexão e a virada do dia. No máximo uma conferida a cada 2 minutos (o `versao.json` é arquivo da CDN; não toca o banco).
-3. **O pedaço sumido:** "Atualizando a plataforma…" e uma recarga por versão; a mesma versão falhando de novo, sem internet ou sem armazenamento → só o aviso com o botão "Atualizar". Vale em toda tela.
-4. **O botão do aviso de versão:** 44 px no escritório (era 36 px), 64 px no tablet e na TV.
-5. **A troca de setor no tablet** recarrega uma vez só: a janela do PIN fica "conferindo" até a página recarregar e o setor de destino vai direto para o aparelho.
-6. **A página que não foi embora** (algo segurou a recarga — raríssimo): passados 15 s (60 s na troca de setor), ela volta a reagir à sessão e a poder recarregar, em vez de ficar surda.
-7. **A proteção contra versões misturadas da Vercel (Skew Protection)** existe só nos planos pagos (Pro/Enterprise) e, para um site Vite puro, pede trabalho a mais no código — nada ligado; pergunta ao dono.
-
-## D-305 · ⏳ PROVISÓRIA — A trilha diz por que a página abriu (11/11/2026, SESSAO-48 — a regra é da demanda; os detalhes são escolhas da sessão)
-
-1. **Os porquês da plataforma:** versão nova (sozinha), versão nova (tocou em "Atualizar"), pedaço sumido e troca de setor — guardados na aba antes de recarregar, valem 60 s.
-2. **Abertura é a página:** só a 1ª abertura registrada de cada página leva a marca; trocar de conta na mesma página (entrar de novo, a troca vinda de outra aba) grava a navegação comum.
-3. **O banco só aceita o que conhece** (listas fechadas; a versão em hexadecimal).
-4. **Na Auditoria:** "Abriu a plataforma — <porquê>", na ordem plataforma > aba descartada pelo navegador > o que o navegador fez (atualizou, abriu pelo endereço, voltou); a versão fica fora da tela.
-
-**Como ficou (técnico):** `plt_fn_abertura(text, boolean, jsonb)` (a de 2 argumentos sai — A-12), migration `20261111050000_plt_abertura_motivo.sql`; `src/lib/recarga.ts`, `src/lib/versaoNova.ts`, `vite.config.ts`, `vercel.json`.
-
-## D-306 · ✅ DECIDIDA pelo dono (abrir como aplicativo) + ⏳ PROVISÓRIA (os detalhes) — A plataforma abre como aplicativo: um ícone, uma janela só (12/11/2026, ajuste da SESSAO-48; ✅ no ar desde 12/11 ~01:45) — ↪️ D-304, D-305
-
-**Pedido do dono (12/11, na conversa):** depois de ver o que os registros de 10/11 mostraram (o tablet do FITAMENTO com abas da plataforma acumuladas — o atalho da tela inicial abria uma aba nova a cada toque), *"Sim, faz"* à pergunta "Faço a plataforma abrir como aplicativo nos tablets?".
-
-1. **O cartão do aplicativo** (`public/manifest.webmanifest`): nome "Sistema Domoby", nome curto "Domoby" (o que aparece embaixo do ícone), janela própria (`standalone`), endereço inicial "/" — cada conta cai no seu lugar pela regra de sempre (o tablet na tela do setor, o entregador nas entregas, a TV no Modo TV, o escritório no painel; sem acesso salvo, a tela de entrada, onde o tablet entra pelo PIN do setor). Barra no grafite do ícone (#5A585C), tela de abertura no fundo claro do tema padrão (#f7f7f8).
-2. **Os ícones** são o do site (o "d" branco com a bolinha amarela no grafite), em 192 e 512 — também na versão de quadrado cheio que o Android usa no ícone adaptável — e o de 180 do iPhone.
-3. **Sem service worker** (a peça que guarda arquivos no aparelho): o Chrome instala pelo menu sem ela desde a versão 108 no celular; com ela viria a janela automática de "instalar", mas é justamente o que costuma prender versão velha na tela (o problema da D-303). Instala-se pelo menu do Chrome ("Instalar app").
-4. **No aparelho, uma vez:** instalar pelo menu, apagar o atalho antigo da tela inicial e fechar as abas da plataforma no Chrome. No aplicativo não há o "puxar a tela para atualizar" do navegador; a versão nova continua chegando sozinha (D-304).
-5. ✅ **DECIDIDA pelo dono (12/11):** *"Coloque um botão para o tablet de recarregar a tela, isso deve sanar a parte de abaixar a tela para recarregar"* — o botão **"Atualizar"** (ícone de setas em volta) no cabeçalho da tela do tablet, ao lado de "Trocar setor": recarrega na hora, uma vez só, mostra "Atualizando…" enquanto vai; a Auditoria registra "Abriu a plataforma — atualizou a página" (é a pessoa que atualiza, não a plataforma — sem porquê novo no banco). No celular os botões do cabeçalho descem de linha.
-
-## D-307 · ✅ DECIDIDA pelo dono (12/11/2026, 01:25 e 01:30) — "Cancelar pedido" e "Ocultar do PCP" no lugar do "Remover do PCP" (SESSAO-50, bloco B) — ↩️ D-299, D-300 · ↪️ D-75, D-290
-
-*"Dentro de PCP a partir de agora tem um botão também de cancelar/ocultar pedido. Se clicar em cancelar, ele cancela no Tiny… O ocultar apenas remove ele por completo da lista do PCP, perguntando se ele deseja ocultar também os cards já liberados… podendo recuperar ele dentro de uma lista de 'Pedidos ocultos', que se apaga depois que o card ficar lá por 1 mês, e o único jeito de recuperar é pelo incluir pedido no PCP"* · sobre as peças ocultadas, ao recuperar: *"voltam todas para PCP, não para a coluna onde estavam."*
-
-1. **Onde:** em todo pedido do PCP — o card do quadro, o card da aba Stand-by, a janela do card do pedido e a janela "O que aconteceu?" (que passa a ter "Produzir de novo", "Cancelar pedido" e "Ocultar do PCP"); e a linha da janela "Liberar unidades" (*"Este pedido não vai ser produzido?"*). Quem usa: PCP, logística e admin (a permissão de sempre). O "Remover do PCP" com três motivos deixou de existir (a porta antiga responde com o caminho novo).
-2. **Cancelar pedido** (modal próprio, botão destrutivo "Cancelar no Tiny e aqui"): pede `cancelado` ao Tiny pela fila de saída (motivo novo `cancelar`; a última vontade do pedido vale), o pedido **sai do PCP na hora** com o fato `pedido_cancelado_plataforma` (com quem), as peças em produção esperam a logística ("Para onde vai este móvel?"), as prontas vão ao ESTOQUE sem dono e as reservas do estoque soltam. Um toque = uma chamada com chave (repetir não faz nada).
-3. **Ocultar do PCP** (modal próprio): o pedido sai de todas as portas do PCP e fica em **"Pedidos ocultos"**; com peças já liberadas, a pergunta "Ocultar também essas peças?" — **"Ocultar só o pedido"** (as peças seguem na produção, do pedido) ou **"Ocultar o pedido e as peças"** (cada peça ganha `card_oculto`, perde o pedido e é guardada com registro — sai do quadro e de todas as contas; nada é apagado). O Tiny não muda.
-4. **Recuperar** (na aba ou pelo "Incluir pedido no PCP"): o pedido volta a "Aguardando liberação" com **as vagas abertas** — nenhuma peça volta para a coluna; a liberação é a de sempre. A janela diz com quantos produtos ele volta.
-5. **Depois do prazo**, o pedido só sai da lista (nada é apagado, nenhum relógio): o único caminho é **"Incluir pedido no PCP"**, que passa a achar o oculto de qualquer idade ("Oculto em dd/mm").
-
-**Como ficou (técnico):** `plt_fn_pcp_cancelar`, `plt_fn_pcp_ocultar`, `plt_fn_pcp_saida_previa` (a prévia dos dois modais numa requisição), `plt_fn_pcp_devolver` (Recuperar), `plt_fn_pcp_cancelados`, `plt_fn_pcp_ocultos`, `plt_fn_pcp_incluir_lista`; `plt_cards.cancelado_plataforma_em/_evento_id`; `removido_pcp_motivo = 'oculto'`. Telas: `ModalSaidaPedido`, `AbaCancelados`, `AbaPedidosOcultos`, `ModalNovoPedido` ("Incluir pedido no PCP"), `JanelaDoCard`. Migrations `20261112010000_plt_sessao50_base.sql` e `20261112020000_plt_pcp_cancelar_ocultar_excluido.sql`.
-
-## D-308 · ⏳ PROVISÓRIA — Os detalhes do "Cancelar pedido" (12/11/2026, SESSAO-50 — o "Tentar de novo" é provisória da demanda; o resto são escolhas da sessão) — ↪️ D-307
-
-1. **O Tiny recusou ou não respondeu:** o pedido **continua fora do PCP**, na aba "Cancelados", com *"O Tiny ainda não confirmou o cancelamento"* (o porquê no título) e **"Tentar de novo"** (põe o pedido de novo na fila de saída e registra quem pediu). Confirmado: o selo "Confirmado no Tiny"; a marca da plataforma fica como trilha.
-2. **Ida ao Tiny desligada** ("Entregue vai ao Tiny" em Configurações → Caminhões): o botão fica apagado, com a explicação — sem a ida, o cancelamento não chegaria lá.
-3. **Pedido já entregue:** o banco recusa ("não dá para cancelar pela plataforma"). Já cancelado no Tiny: nada a fazer (o modal diz que ele já está em "Cancelados").
-4. **A automação do n8n** que leva a situação ao Tiny só deixava passar as situações de entrega: `cancelado` foi somado na lista dela na subida (sem isso a fila reenviaria para sempre).
-
-## D-309 · ⏳ PROVISÓRIA — Os detalhes do "Ocultar do PCP" (12/11/2026, SESSAO-50 — os dois primeiros são provisórias da demanda; o resto são escolhas da sessão) — ↪️ D-307
-
-1. **Peça na rota (programada) ou entregue não é ocultada** — o modal avisa quantas ficam e onde.
-2. **"Ocultar o pedido e as peças" solta as reservas do estoque** do pedido; "Ocultar só o pedido" não mexe nelas.
-3. **A contagem do modal** (quantas peças liberadas e onde) é lida ao abrir, numa requisição.
-4. **O oculto que o Tiny mantém fora do PCP** (faturado, cancelado…): a linha da aba avisa que, recuperado, ele sai dos ocultos mas só volta ao quadro quando o Tiny voltar a situação.
-
-## D-310 · ⏳ PROVISÓRIA — Os 30 dias dos "Pedidos ocultos" moram na linha do PCP e o admin muda na própria aba (12/11/2026, SESSAO-50 — a demanda pedia "Configurações → Controle do quadro", página que não existe) — ↪️ D-307
-
-1. **Padrão 30 dias, de 1 a 365**, guardado na configuração do setor PCP (nenhum número escrito no código); o admin muda pelo "Mudar" ao lado de "Ficam aqui por 30 dias" na aba (os outros só leem).
-2. **Filtro na leitura** (`removido_pcp_em ≥ agora − N dias`, com índice) — sem relógio, sem apagar nada; quando o dono quiser uma página de configurações do quadro, a chave muda de lugar sem mudar a regra.
-
-## D-311 · ✅ DECIDIDA (a regra é da demanda) + ⏳ PROVISÓRIA (os detalhes) — O pedido excluído no Tiny sai do PCP de vez e segue o caminho do cancelado (12/11/2026, SESSAO-50, bloco B) — ↩️ D-140 (os cards não são mais arquivados) · ↪️ D-75, D-148
-
-1. **Uma regra só:** a regra de "fora do PCP" passou a considerar a lista de excluídos no Tiny (e o cancelado pela plataforma) — quadro, porta antiga, quadrinho do dia, aviso e totais iguais entre si. O 13622 sai sozinho; o 13270 (que não está na lista) fica para o PCP decidir pelos botões novos.
-2. **Excluído = cancelado:** o fato `pedido_excluido_tiny` no card do pedido (log + sino da **logística**: *"O pedido 13622 não existe mais no Tiny (foi excluído). Ele saiu do PCP."*); a peça em produção espera a logística, a pronta vai ao ESTOQUE sem dono; o pedido aparece em "Cancelados" com "Excluído no Tiny". ↩️ D-140: os cards **não são mais arquivados** (o pedido continua fora da lista de Pedidos, da busca e do Comercial).
-3. **Reencontrado:** o pedido que o Tiny volta a achar sai da lista com o fato `pedido_reencontrado_tiny`.
-4. **Só a conta da LOJA marca:** o "não localizado" da conta da fábrica é de pedido da outra empresa e não marca nada (antes marcava). Sem relógio novo: a conferência da madrugada de sempre aplica o veredito.
-
-## D-312 · ✅ DECIDIDA (a regra é da demanda) + ⏳ PROVISÓRIA (o laço) — O PCP não libera direto numa coluna que cancela (12/11/2026, SESSAO-50, frente 5) — ↪️ D-290
-
-1. **"Liberar unidades" não oferece CANCELADO nem NÃO ENCONTRADO** como destino, e o banco recusa se alguém tentar por outro caminho. No lugar, a linha *"Este pedido não vai ser produzido?"* com os dois botões. Arrastar uma peça **já liberada** para o CANCELADO continua valendo.
-2. **O laço (provisória da demanda):** 3 ou mais peças do pedido canceladas em 24 h → o selo "Peças canceladas várias vezes" e, na janela "O que aconteceu?", *"As peças deste pedido estão sendo canceladas várias vezes. Se ele não vai ser produzido, cancele ou oculte o pedido."*
-
-## D-313 · ⏳ PROVISÓRIA — "Incluir pedido no PCP": só o pedido que o PCP mostraria, página a página ao rolar (12/11/2026, SESSAO-50 — escolhas da sessão; o oculto de qualquer idade é da D-307) — ↪️ D-22, D-75
-
-1. **O botão ganhou o nome "Incluir pedido no PCP"** (era "Novo pedido"): no alto, os ocultos de qualquer idade que batem com a busca (até 5; incluir = Recuperar); embaixo, os pedidos sem card. O excluído no Tiny não aparece.
-2. **Só o pedido vivo no Tiny** (nem faturado, enviado, entregue ou cancelado): o card de um pedido assim nasceria fora do quadro (a regra única) — invisível. E a busca fica do tamanho da operação, não da história.
-3. **Página a página ao rolar, sem total** (Lei §6): a lista antiga contava e calculava todos os pedidos antes de mostrar 8 — 131 s no ensaio com 560 mil pedidos; a nova, 16–20 ms (a busca, 39–48 ms).
-
-## D-314 · ⏳ PROVISÓRIA — As abas "Cancelados" e "Pedidos ocultos" (12/11/2026, SESSAO-50 — as abas são da demanda; o que cada linha mostra são escolhas da sessão) — ↩️ D-299 · ↪️ D-307
-
-1. **"Cancelados"**: os cancelados no Tiny, os cancelados pela plataforma e os excluídos no Tiny, do que saiu mais recente para trás, cada um com o seu rótulo ("Cancelado no Tiny", "Cancelado pela plataforma" + o estado no Tiny, "Excluído no Tiny"), quem cancelou e quando, as peças em produção, prontas, no estoque e esperando a logística, "Abrir o card" e, quando o Tiny falhou, "Tentar de novo". Sem total; 20 por vez ao rolar.
-2. **"Pedidos ocultos"**: quem ocultou e quando, em quantos dias sai da lista, quantas peças saíram junto, com quantos produtos volta; "Abrir o card" e "Recuperar". O nome do estado na lista de Pedidos e na busca virou **"Oculto do PCP"**.
-
-## D-315 · ✅ DECIDIDA (a regra é da demanda) + ⏳ PROVISÓRIA (onde mora e a limpeza) — A observação do item do Tiny na capa do card (12/11/2026, SESSAO-50, bloco A) — ↪️ D-63, D-75
-
-1. **Onde mora:** numa tabela da plataforma por item (`plt_itens_observacao (pedido_id, seq)`), escrita por gatilho quando o pedido do Tiny é gravado — a demanda pedia uma coluna nova em `pedido_itens`, mas a estrutura das tabelas da integração não muda (regra 10: o aplicador confere a impressão digital delas).
-2. **O texto (provisória):** sem espaço nas pontas, espaços e quebras de linha viram um espaço, entidades de HTML decodificadas, até 2.000 caracteres; vazio = nada. O gatilho só age quando os itens do pedido mudam; se falhar, vira aviso de automação (uma vez por hora) e o pedido do Tiny é gravado igual.
-3. **Mudar só a observação no Tiny não reabre o PCP** e o card muda ao vivo (o aviso que os quadros e a janela já usam; nenhum fato novo).
-
-## D-316 · ⏳ PROVISÓRIA — Qual peça mostra qual observação (12/11/2026, SESSAO-50, bloco A — escolhas da sessão) — ↪️ D-315, SESSAO-44
-
-1. **Cada unidade mostra a do seu item** pelo casamento da SESSAO-44 (mesmo produto; primeiro a mesma posição e unidade, depois a ordem). Dois itens do mesmo produto com observações diferentes: cada peça a sua; se o Tiny reordenar, a observação pode "trocar" de estante, mas nunca some nem duplica.
-2. **Não mostram:** a peça que sobrou do pedido, a peça sem pedido, a peça do estoque só reservada e o card do pedido.
-
-## D-317 · ⏳ PROVISÓRIA — Como a observação aparece (12/11/2026, SESSAO-50, bloco A — escolhas da sessão dentro do layout da demanda) — ↪️ D-315
-
-1. **Na capa:** faixa âmbar bem suave com filete à esquerda, ícone de nota, 12 px (14 px no tablet), no máximo 2 linhas com reticências, o texto inteiro ao passar o mouse; o leitor de tela lê "Observação do item: …". Card sem observação fica idêntico ao de antes.
-2. **Na janela do card:** a seção "Observação do item (Tiny)", logo acima de Datas, só quando há. **Na janela "Liberar unidades":** a mesma faixa embaixo de cada unidade.
-3. **A Expedição ficou sem a faixa:** ela não desenha card de unidade (mostra o pedido reagrupado), e a janela "Pedido N — unidades" devolve uma tabela que não pode ganhar coluna sem quebrar a reaplicação das atualizações antigas. Fica para quando o dono pedir.
-
-## D-318 · ⏳ PROVISÓRIA — O preenchimento das observações antigas (12/11/2026, SESSAO-50, bloco A) — ↪️ D-315
-
-1. **Ensaio primeiro** (conta, preenche e desfaz — o 13871 antes e depois), **aplicar** depois; rodar de novo não faz nada.
-2. **Além de inserir o que falta**, troca texto velho, tira o que o Tiny não tem mais e avisa os quadros e o PCP uma vez.
-
-## D-319 · ✅ DECIDIDA pelo dono (12/11/2026, 01:25 e 01:30) — Editar o endereço de entrega do pedido, com o original do Tiny guardado e a pergunta "salvar também no Tiny?" (SESSAO-50, bloco C) — ↪️ D-193, D-194
-
-*"Editar endereço de entrega mesmo e corrigindo no pino no mapa."* · *"Quando ele editar, deve gerar uma pergunta, mas o endereço original que veio do Tiny ainda continua no banco como log para recuperar caso necessário."* · *"A pergunta é se ele deseja salvar também no Tiny."*
-
-1. **"Editar endereço"** (Rotas — Programar, Já programadas, o mapa —, Entregas do dia e a ficha do pedido): rua, número, complemento, bairro, cidade, UF, CEP e o pino. Ao salvar, a janela mostra **de/para** e pergunta se salva também no Tiny ("Salvar só na plataforma" / "Salvar na plataforma e no Tiny").
-2. **O original do Tiny fica guardado** no fato `endereco_entrega_alterado` (o endereço inteiro, de onde veio — entrega ou cadastro —, o anterior, o novo, o ponto e a escolha); **"Voltar ao endereço original"** restaura (fato `endereco_entrega_restaurado`). Mexer só no pino continua sendo o "Salvar o ponto" de sempre, sem pergunta.
-3. **O endereço novo vale em todo lugar** (Rotas, mapa, Entregas do dia e o link do Google Maps/Waze do entregador, ficha, candidatos e filtros de cidade e bairro): a regra única de "onde entregar" (`vw_endereco_entrega`) prefere o da plataforma. Onde ele aparece, o selo **"Endereço alterado na plataforma"** e, ao lado, o que está no Tiny.
-
-**Como ficou (técnico):** `plt_fn_pedido_endereco` (a janela numa leitura), `plt_fn_pedido_endereco_salvar`, `plt_fn_pedido_endereco_restaurar`; a projeção em `plt_pedido_enderecos` (uma linha por pedido alterado); `vw_endereco_tiny` (a regra antiga, sem mudar uma letra) e `vw_endereco_entrega` (só o corpo). Telas: `JanelaEnderecoPedido`, `SeloEnderecoAlterado`. Migration `20261112060000_plt_editar_endereco.sql`.
-
-## D-320 · ⏳ PROVISÓRIA — "Salvar na plataforma e no Tiny" fica desligado por enquanto, com o porquê (12/11/2026, SESSAO-50 — a demanda pede o teste num pedido de teste com o dono acordado) — ↪️ D-319
-
-1. **O botão aparece, desligado, com o porquê em uma linha:** *"O Tiny só deixa alterar o endereço de pedido Em aberto ou Aprovado."* ou *"Salvar no Tiny ainda não está ligado — por enquanto o endereço muda só na plataforma."* O banco recusa a escolha "Tiny" com o mesmo texto.
-2. **O caminho que falta** (registrado no diário do bloco C): o fluxo do n8n teria de ler o pedido inteiro e devolvê-lo idêntico menos o endereço (a API nova do Tiny não aceita endereço; a antiga substitui o pedido inteiro e só vale para Em aberto/Aprovado); a fila de saída guarda UMA vontade por pedido (um endereço pendente apagaria um "Entregue" pendente — antes de ligar, uma linha por motivo); e o teste num pedido de teste, com o dono. **A volta já está pronta e testada:** o Tiny devolvendo o endereço pedido grava a confirmação (sem aviso).
-
-## D-321 · ⏳ PROVISÓRIA — O Tiny mudando o endereço por fora vence e avisa (12/11/2026, SESSAO-50 — a regra é provisória da demanda; os detalhes são escolhas da sessão) — ↪️ D-319
-
-1. **Mudou de verdade no Tiny** (o endereço de entrega do pedido **ou o cadastro do cliente** — a maioria dos pedidos usa o do cadastro): fato `endereco_entrega_tiny_substituido`, a marca da plataforma sai e o sino toca para a logística.
-2. **Chegou igual ao que a plataforma pediu:** fato `endereco_entrega_tiny_confirmado`, sem aviso. Comparar é comparar o resumo (sem acento, sem maiúscula, sem espaço; o CEP só com os números) — "RUA DAS FLORES" / "59075000" é confirmação de "Rua das Flores" / "59075-000".
-
-## D-322 · ⏳ PROVISÓRIA — Os detalhes do endereço do pedido (12/11/2026, SESSAO-50 — escolhas da sessão onde a demanda não dizia) — ↪️ D-319
-
-1. **Pedido entregue:** só o admin edita (os outros não veem os botões). **Pedido sem card na plataforma:** o endereço só muda pelo Tiny (a janela diz o porquê).
-2. **Escrever de novo o endereço do Tiny** na janela conta como "Voltar ao endereço original". **Depois que o Tiny confirmar** um endereço novo, "Voltar" é recusado ("edite o endereço — o original está no histórico").
-3. **A projeção mora numa tabela própria e pequena** (`plt_pedido_enderecos`, uma linha só para os pedidos alterados — banco enxuto), não em 14 colunas quase sempre vazias no card do pedido. O registro de atividade é o do próprio fato (sem linha duplicada na Auditoria).
-
-## D-323 · ⏳ PROVISÓRIA — Editar a parada avulsa (12/11/2026, SESSAO-50, bloco C — "parada feita não edita" é provisória da demanda; o resto são escolhas da sessão) — ↪️ SESSAO-41
-
-1. **"Editar"** em Programar (a parada do rascunho se edita na tela, sem banco, até "Programar"), em Já programadas, no balão do mapa e nas Entregas do dia: o mesmo formulário de criar, preenchido (título, endereço, pino, observação); "Salvar as mudanças" só acende quando algo mudou.
-2. **Só a parada pendente se edita** (feita ou não feita, não). O registro guarda o antes e o depois só do que mudou; o toque repetido não grava nada. A rota aberta muda na hora (o aviso de sempre de Rotas). Nada se apaga.
-3. **No mapa,** o balão com botão tem no máximo 240 px e o mapa anda até ele sair de baixo dos controles (no celular o balão padrão passava da borda); o gesto recolhe a tela cheia antes de abrir a janela.
-
-## D-324 · ⏳ PROVISÓRIA — Em "Já programadas" o selo do endereço alterado fica na janela, não no cartão (12/11/2026, SESSAO-50 — escolha da sessão) — ↪️ D-319
-
-O cartão mostra o endereço novo e o "Editar endereço"; o selo e o original aparecem na janela, na ficha e nos cartões da aba Programar. A porta de "Já programadas" devolve uma tabela que uma atualização antiga recria com as colunas de antes (a bateria a reaplica) — ganhar uma coluna quebraria essa reaplicação. Se o dono quiser o selo no cartão, a porta é recriada com a coluna nova e a bateria ajustada.
-
-## D-325 · ✅ DECIDIDA pelo dono (16/11/2026, 22:41) + a forma escolhida pela sessão — Na entrega parcial, o que ainda está na fábrica CONTINUA em produção; "Limpar da produção" é a exceção (SESSAO-51, bloco A) — ↩️ revisa a D-195 para o que ainda está na fábrica · ↪️ D-156, D-113, D-213
-
-*"Quando um pedido for lançado para entrega parcial, os produtos que ainda estão em produção continuam em produção, a menos que o responsável queira remover os mesmos da linha… podendo revogar essa decisão."*
-
-1. **A janela em dois grupos:** "Saíram para a entrega" (as peças prontas, marcadas — desmarcada = voltou para a decisão da logística, a D-195 inalterada para elas) e "Ainda na fábrica" (as peças em setor de produção, com setor e etapa, desmarcadas, + "N produtos ainda no PCP, sem liberar"). Marcar uma da fábrica = "foi entregue mesmo" (a confirmação da D-156). Sem nada na fábrica, a janela é a de antes.
-2. **"E o que ainda está na fábrica?"** — **"Deixar em produção"** (vem marcada) ou **"Limpar da produção"**.
-3. **A forma (escolha da sessão — a demanda pedia a mais limpa):** com "Deixar em produção", o fato da entrega parcial **não vira a entrega vigente do card** do pedido — o pedido continua vivo em TODA regra (PCP, Expedição, programação, "A entregar") sem mexer em porta nenhuma. A entrega parcial fica em colunas próprias do card (quando, quantas, a decisão). A outra forma possível (reabrir a entrega pelo caminho da D-213) traria de volta as peças entregues — descartada.
-4. **"Limpar da produção":** cada peça na fábrica ganha o fato da saída (setor, etapa, posição, pedido, item, k/n), o tempo aberto fecha antes, ela é arquivada com registro e sai de quadro e de toda conta; **as vagas saem do PCP** pela marca de remoção que a regra única do PCP já lê, com o motivo próprio "entrega parcial" (não aparece em "Pedidos ocultos" nem no "Incluir pedido no PCP"); o pedido fecha como antes; sino do PCP.
-5. **O resto entregue depois:** o "Entregue" normal fecha tudo e vai ao Tiny (D-113/D-276). **O Tiny não muda na parcial.** O "Entregue" no Tiny segue fechando tudo (D-113 inalterada) — o pedido sai da lista "Entregas parciais" e a trilha mostra a entrega do Tiny.
-
-## D-326 · ⏳ PROVISÓRIA — Os detalhes da peça que sai e volta pela entrega parcial (16–17/11/2026, SESSAO-51 — as provisórias 2, 4 e 5 da demanda + escolhas da sessão) — ↪️ D-325
-
-1. **A peça tirada não perde o pedido** (o fato guarda o vínculo) — a volta devolve a mesma peça ao mesmo pedido, item e k/n.
-2. **A volta:** a mesma peça, desarquivada com a história, **no mesmo setor e na mesma etapa**, sem ninguém trabalhando (quem for trabalhar aperta "Iniciar"); a fila recomeça a contar na volta (o tempo fora não conta).
-3. **A posição na fila:** o quadro ordena por prioridade e pela chegada na etapa — não há posição guardada à mão. A peça que volta chega agora → **fica no fim da etapa**. A posição de antes fica no fato (trilha).
-4. **Etapa arquivada no meio do caminho** → a primeira etapa ativa do mesmo setor; **setor que não existe mais** (ou sem etapa ativa) → a peça fica guardada e a vaga dela volta ao PCP. A janela avisa os dois casos antes do toque.
-5. **Fechar o tempo aberto move a peça para a fila** (a regra antiga): o fato guarda a etapa ANTES de fechar — é por ela que a peça volta.
-
-## D-327 · ✅ DECIDIDA (a regra é do dono) + ⏳ PROVISÓRIA (o lugar, o prazo e o que fica) — Revogar a decisão da entrega parcial, quantas vezes for preciso (16–17/11/2026, SESSAO-51, frente 3) — ↪️ D-325
-
-1. **Onde:** a aba **"Entregas parciais"** no PCP (provisória: o lugar), ao lado de "Cancelados" e "Pedidos ocultos", e a **ficha do pedido**. A lista mostra só o pedido com a decisão que ainda dá para revogar, do mais recente para trás, por cursor, com a busca pelo número ou pelo cliente; **sem prazo** (provisória).
-2. **Um botão só, o contrário da decisão que vale:** "Revogar e remover da linha de produção" (o "Limpar" de agora — cada peça guarda a etapa de AGORA) ou "Revogar e voltar tudo para a produção" (a volta da D-326; as vagas reabrem em "Aguardando liberação"; o pedido que a parcial fechou reabre e a parada antiga sai da programação).
-3. **"Revogar e remover" não tira peça já pronta** (Pedidos em aguardo, Expedição) **nem a da rota** (provisória) — a janela diz quantas ficam e onde, e o pedido segue para ser entregue com elas. Sem nada vivo depois, o pedido fecha pela própria entrega parcial.
-4. **Quem:** logística, PCP e admin. Cada revogar = um fato no card do pedido (antes, depois, quem, a chave do toque); o toque repetido faz um efeito só; a trilha mostra todas as idas e voltas.
-5. **Sai da lista (e o banco recusa, com o porquê) quando:** o resto foi entregue, o pedido foi cancelado ou excluído no Tiny, o Tiny o marcou como entregue, ele foi ocultado do PCP ou não sobrou nada na fábrica nem no PCP.
-
-## D-328 · ⏳ PROVISÓRIA — Onde o pedido mostra "Entregue em parte (N de M)" e a parada da rota (16–17/11/2026, SESSAO-51 — escolhas da sessão) — ↪️ D-325
-
-1. **Mostram:** a ficha do pedido (com "K ainda em produção", a decisão e o botão), o card do pedido no PCP, a lista de Pedidos ("Entregue em parte … · o resto segue na fábrica") e a busca geral. **Não mostram (dívida):** a Programação, a Expedição e as Entregas do dia — as portas delas devolvem uma tabela fixa que atualizações antigas recriam (a mesma razão da D-324); quem abre o pedido nelas vê a ficha.
-2. **Com "Deixar em produção" a parada sai da rota do dia** (como no "Não entregue") e o pedido volta para "Programar" — o resto é programado quando ficar pronto. Com "Limpar", a parada fica (o pedido fechou, como antes).
-3. **O toque repetido do entregador** (a rede que volta) é conferido antes da permissão: a parada saiu da rota e ele deixou de ser da equipe dela.
-
-## D-329 · ⏳ PROVISÓRIA — Só a logística, o PCP e o admin escolhem "Limpar da produção" (16/11/2026, SESSAO-51 — a provisória 1 da demanda) — ↪️ D-325
-
-O entregador vê a informação e só a opção "Deixar em produção" (na rua ele não decide tirar peça da linha); o banco recusa o "Limpar" dele com a explicação; a logística revoga depois, se quiser.
-
-## D-330 · ✅ DECIDIDA pelo dono (16/11/2026, 22:41) + ⏳ PROVISÓRIA (quem e onde) — "Mover para o PCP": a peça em produção volta ao PCP como vaga do pedido ou vira reposição de estoque (SESSAO-51, bloco B) — ↪️ D-130, D-201, D-307
-
-*"Se um card já está em produção e um admin quiser mover o mesmo para PCP novamente, ele deve conseguir, porém selecionando se o produto agora passa a virar reabastecimento de estoque, ou simplesmente volta para PCP por N motivos."*
-
-1. **Quem:** **admin e super admin** (provisória: o PCP não ganha o botão). **Onde:** na janela do card, ao lado de "Mover" — o card do quadro não tem menu "⋯" (escolha da sessão; a demanda supunha um). Não aparece no tablet.
-   - **↩️ Ajustado pelo dono em 17/11/2026 (~04:30, depois de ver no ar):** *"não precisa de dois botões, coloque o PCP dentro do botão que já existia"* → **um botão só: "PCP" é a primeira opção da janela do "Mover"** (antes dos setores de produção), só para o administrador; escolher abre a janela do PCP. Quem só pode devolver ao PCP (sem poder mover de setor) toca em "Mover" e cai direto nela. ✅ O lugar agora é decisão do dono.
-2. **Em que peça:** viva, em setor de produção. Nunca em fim de linha (Pedidos em aguardo, ESTOQUE, ROTAS, decisão pós devolução), peça cancelada, card avulso, card de ajuste (provisória) e — escolha da sessão — a peça de pedido cancelado que espera a logística decidir o destino. O banco recusa nos mesmos casos, com a explicação.
-3. **"Voltar para o PCP"** (motivo da lista e/ou observação — pelo menos um): o tempo aberto fecha; o fato guarda setor, etapa, posição, motivo, escolha e quem trabalhava; a peça é arquivada com registro e perde o pedido — **a vaga reabre** em "Aguardando liberação" (a conta da 48, sem o aviso de cancelamento), com o selo "1 voltou da produção: motivo — estava em SETOR · ETAPA". Sino do PCP e o aviso ao vivo de sempre.
-4. **"Virar reposição de estoque"** (motivo e observação opcionais): a peça perde o pedido, **a vaga do pedido reabre** com o selo "1 virou reposição de estoque", e nasce **1 reposição** do mesmo móvel no Reabastecimento com a origem ("Veio da produção — era do pedido N, estava em …").
-
-## D-331 · ⏳ PROVISÓRIA — A lista "Volta ao PCP" com 5 sementes (16/11/2026, SESSAO-51 — a provisória 8 da demanda) — ↪️ D-330
-
-"Liberada por engano", "Prioridade mudou", "Falta material", "Mudança no pedido" e "Outro" — em Utilitários, como as outras listas de motivo.
-
-## D-332 · ⏳ PROVISÓRIA — A reposição que veio da produção (16–17/11/2026, SESSAO-51 — as provisórias 9 e 11 da demanda + escolhas da sessão) — ↪️ D-54, D-85, D-86, D-186
-
-1. **Um card de reposição à parte** (a regra do banco segura UMA reposição aberta por produto só para a maquinaria; a lançada por gesto nasce ao lado — D-186), de 1 unidade, com a peça de origem guardada.
-2. **Não sai sozinha depois de 2 dias úteis** (D-85) — é uma peça física de verdade; **não entra na conta da reposição automática** enquanto não for liberada (D-86) e o "estoque coberto" não a tira.
-3. **Peça sem pedido** (já de reposição): só "Voltar para o PCP" — a vaga dela reabre na reposição de origem; se a de origem não existe mais, nasce uma reposição nova com a peça. **Pedido fora do PCP** (oculto, cancelado, entregue, levado adiante pelo Tiny): só "Virar reposição", com a explicação. **Móvel fora do catálogo** (personalizado): só "Voltar" — ele não é móvel do estoque.
-
-## D-333 · ⏳ PROVISÓRIA — "Usar a mesma peça" ao liberar de novo (16–17/11/2026, SESSAO-51 — a provisória 10 da demanda + escolhas da sessão) — ↪️ D-130, D-201
-
-1. Na janela "Liberar unidades" (do pedido ou da reposição), a vaga cuja peça voltou mostra **"Usar a mesma peça (estava em SETOR · ETAPA)" marcada**, com a coluna onde ela parou já escolhida (quando o setor e a etapa ainda existem); o PCP pode trocar. Liberar = a mesma peça desarquivada, com a história e o k/n, na coluna escolhida. Desmarcada = nasce uma peça nova e a antiga continua guardada (e segue oferecida enquanto houver vaga do mesmo móvel).
-2. Na volta como reposição, a peça liberada fica **sem dono** e pode ir para um pedido novo pela D-201.
-3. A vaga que reabriu pelo revogar da entrega parcial (D-327) não passa por aqui — o revogar já devolve a peça direto à etapa dela.
-4. **O selo do PCP** ("N voltou da produção" / "N virou reposição") fica enquanto a peça espera; some quando ela é reaproveitada (ou quando o pedido sai de "Aguardando liberação").
-
-## D-334 · ⏳ PROVISÓRIA — Os pedidos entregues em parte antes desta sessão (17/11/2026, SESSAO-51 — a demanda) — ↪️ D-195
-
-Não ganham decisão nem acerto automático: as peças deles já foram para a decisão pós devolução pela regra antiga. A contagem e onde estão as peças vão no handoff (lidas no banco vivo com o OK do dono). Achado da leitura do código: a regra antiga deixava no PCP, em "Aguardando liberação", a vaga ainda sem liberar de um pedido entregue em parte — o acerto, se o dono quiser, é um passo à parte.
-
+> [!info] ↪️ 18/11/2026 (SESSAO-49) — este arquivo virou o ÍNDICE
+> Cada decisão mora agora na sua própria nota, em `Plataforma/Decisoes/` (`D-NNN - o que a decisão faz`), com o texto original intacto. **Não leia este índice inteiro:** leia o mapa da área (`Mapas/`) e abra só as decisões que ele aponta. Decisão nova = **nota nova** naquela pasta (copie o frontmatter de uma vizinha) — a lista abaixo é gerada por `node scripts/cofre/verificar.mjs --gerar`, ninguém a mantém à mão.
+
+<!-- gerado:inicio -->
+## As decisões, por área
+
+**296 decisões** · 148 vigentes · 103 provisórias ⏳ (valem até o dono dizer o contrário) · 45 revisadas por outra. **Próxima livre: D-340.** A área é a principal da decisão; o mapa de cada área (`Mapas/`) lista também as que a tocam de lado.
+
+### Kanban e Produção (34) — [[MOC - Kanban e Producao]]
+
+- [[D-001 - Unidade do card hibrido|D-1]] · Unidade do card: híbrido
+- [[D-012 - Setores do dia 1 os do ClickUp estrutura em 2 niveis|D-12]] · Setores do dia 1 = os do ClickUp; estrutura em 2 níveis configurável
+- [[D-014 - Etapas internas cadastro livre cada uma com timer proprio|D-14]] · Etapas internas: cadastro livre, cada uma com timer próprio
+- [[D-028 - Card do operador dados do produto espaco de imagens som|D-28]] · Card do operador: dados do produto, espaço de imagens, som discreto
+- [[D-060 - Rotas das etapas etapa com nome de setor leva ao setor|D-60]] · Rotas das etapas: etapa com nome de setor leva ao setor; CONCLUÍDO leva ao próximo — SECC e CNC…
+- [[D-102 - Trazer de volta um card arquivado bloco da automacao e botao|D-102]] · "Trazer de volta" um card arquivado — bloco da automação e botão do admin
+- [[D-126 - A marcacao do estado da peca perfeito atencao danificado vira|D-126]] · A marcação do estado da peça (perfeito/atenção/danificado) vira CONFIGURAÇÃO — por setor, por…
+- [[D-127 - A LIMPEZA E EMBALAGEM conclui pela etapa EXPEDICAO o botao|D-127]] · A LIMPEZA E EMBALAGEM conclui pela etapa EXPEDIÇÃO — o botão "Concluir produção" sai
+- [[D-130 - O ajuste de peca um card avulso de ajuste que leva a peca|D-130]] · O ajuste de peça: um card avulso de "ajuste" que leva a peça de volta à produção com DESTINO…
+- [[D-135 - Ajustes de tela do dono|D-135]] · Ajustes de tela do dono
+- [[D-136 - As 6 decisoes provisorias da SESSAO-31 confirmadas pelo dono|D-136]] · As 6 decisões provisórias da SESSAO-31 confirmadas pelo dono
+- [[D-150 - O prazo e a PRIORIDADE do card de producao|D-150]] · O prazo e a PRIORIDADE do card de produção ⏳
+- [[D-151 - Quem muda a prioridade|D-151]] · Quem muda a prioridade ⏳
+- [[D-152 - Os RESPONSAVEIS do card por setor|D-152]] · Os RESPONSÁVEIS do card, por setor ⏳
+- [[D-153 - A etiqueta que fazia o papel de prioridade|D-153]] · A etiqueta que fazia o papel de prioridade ⏳
+- [[D-154 - O organizador da fila entrega prioridade alfabetica|D-154]] · O organizador da fila: entrega, prioridade, alfabética ⏳
+- [[D-155 - O card do setor sem o cliente e o card do PCP refeito|D-155]] · O card do setor sem o cliente e o card do PCP refeito ⏳
+- [[D-171 - Onde o pedido em stand-by aparece|D-171]] · Onde o pedido em stand-by aparece ⏳
+- [[D-173 - O botao MOVER do card a lideranca manda qualquer card|D-173]] · O botão MOVER do card: a liderança manda qualquer card de produção para a FILA de qualquer…
+- [[D-187 - O FILTRO DOS QUADROS o numero do pedido ou o nome do movel|D-187]] · O FILTRO DOS QUADROS: o número do pedido ou o nome do móvel, em todo quadro de setor, no tablet…
+- [[D-190 - O quadro com rolagem so dentro da coluna como no trello|D-190]] · O QUADRO COM ROLAGEM SÓ DENTRO DA COLUNA, como no Trello
+- [[D-290 - Mover a peca para CANCELADO ou NAO ENCONTRADO cancela|D-290]] · Mover a peça para CANCELADO ou NÃO ENCONTRADO cancela a fabricação: sai da produção na hora,…
+- [[D-291 - Excluir a peca cancelada e arquivar com fato nada e apagado|D-291]] · "Excluir" a peça cancelada é arquivar com fato; nada é apagado ⏳
+- [[D-292 - Os dias da coluna moram na propria etapa Configuracoes|D-292]] · Os dias da coluna moram na própria etapa: Configurações → Setores e etapas, ao lado de "Cancela… ⏳
+- [[D-293 - A limpeza roda dentro da rotina da madrugada que ja existe|D-293]] · A limpeza roda dentro da rotina da madrugada que já existe (a conferência com o Tiny, 03:00 de… ⏳
+- [[D-294 - So o admin recupera a peca que ja saiu da coluna ela volta|D-294]] · Só o admin recupera a peça que já saiu da coluna; ela volta para a fila do setor dela (a LIMPEZA… ⏳
+- [[D-295 - Arrastar de volta a peca volta a ser do pedido so quando|D-295]] · Arrastar de volta: a peça volta a ser do pedido só quando a vaga dele ainda está aberta; senão… ⏳
+- [[D-298 - O acerto das pecas que ja estavam paradas|D-298]] · O acerto das peças que já estavam paradas ⏳
+- [[D-302 - O destino do movel de pedido cancelado cada escolha e|D-302]] · O destino do móvel de pedido cancelado: cada escolha e as proteções ⏳
+- [[D-312 - O PCP nao libera direto numa coluna que cancela|D-312]] · O PCP não libera direto numa coluna que cancela
+- [[D-316 - Qual peca mostra qual observacao|D-316]] · Qual peça mostra qual observação ⏳
+- [[D-317 - Como a observacao aparece|D-317]] · Como a observação aparece ⏳
+- [[D-318 - O preenchimento das observacoes antigas|D-318]] · O preenchimento das observações antigas ⏳
+- [[D-326 - Os detalhes da peca que sai e volta pela entrega parcial|D-326]] · Os detalhes da peça que sai e volta pela entrega parcial ⏳
+
+### PCP (29) — [[MOC - PCP]]
+
+- [[D-063 - Frete nao vira peca de producao o resto nasce no PCP e o PCP|D-63]] · Frete não vira peça de produção; o resto nasce no PCP e o PCP escolhe o lugar; pedido sem nada a…
+- [[D-085 - Reposicao parada 2 dias uteis da FABRICA seg sex no PCP sai|D-85]] · Reposição parada 2 dias úteis da FÁBRICA (seg–sex) no PCP sai sozinha — o Sistema assina;…
+- [[D-088 - O PCP em tres abas Reabastecimento Pedidos aguardando|D-88]] · O PCP em três abas: Reabastecimento · Pedidos aguardando liberação · Todos os pedidos;…
+- [[D-090 - Reposicao automatica e escolha da operacao nao pendencia|D-90]] · Reposição automática é escolha da operação, não pendência do dono
+- [[D-096 - O pedido vivo que so a conferencia achou entra no PCP|D-96]] · O pedido vivo que só a conferência achou entra no PCP
+- [[D-117 - PCP do super admin seletor de situacao do pedido e arquivar|D-117]] · PCP do super admin: seletor de situação do pedido e arquivar em massa — sem mexer no Tiny
+- [[D-120 - O pedido entregue sai da ROTAS e mora no PCP com tudo dele|D-120]] · O pedido entregue sai da ROTAS e mora no PCP, com tudo dele num clique
+- [[D-132 - O PCP segue o Tiny pedido Faturado Pronto para envio|D-132]] · O PCP segue o Tiny: pedido Faturado, Pronto para envio ou Enviado sai do PCP
+- [[D-168 - O PCP ganha horario de expediente|D-168]] · O PCP ganha horário de expediente ⏳
+- [[D-169 - O stand-by no PCP|D-169]] · O STAND-BY no PCP ⏳
+- [[D-201 - O PEDIDO NOVO USA PELO PCP A PECA SEM DONO QUE JA ESTA|D-201]] · O PEDIDO NOVO USA, PELO PCP, A PEÇA SEM DONO QUE JÁ ESTÁ EM PRODUÇÃO — da reposição de estoque…
+- [[D-212 - Itens que o Tiny muda depois da liberacao|D-212]] · Itens que o Tiny muda depois da liberação ⏳
+- [[D-215 - A peca ligada ao produto nao a posicao|D-215]] · A peça ligada ao produto, não à posição ⏳
+- [[D-269 - O cancelamento no Tiny FECHA o stand-by do pedido na hora|D-269]] · O cancelamento no Tiny FECHA o stand-by do pedido, na hora do cancelamento; o painel de Motivos…
+- [[D-296 - A reposicao so perde a peca|D-296]] · A reposição só perde a peça ⏳
+- [[D-297 - Detalhes do cancelamento|D-297]] · Detalhes do cancelamento ⏳
+- [[D-299 - A aba Cancelados e removidos volta para dentro do PCP|D-299]] · A aba "Cancelados e removidos" volta para dentro do PCP ⏳
+- [[D-300 - Remover do PCP so a parte do PCP muda|D-300]] · Remover do PCP: só a parte do PCP muda ⏳
+- [[D-301 - Para onde vai este movel quem aparece para Passar para outro|D-301]] · "Para onde vai este móvel?": quem aparece para "Passar para outro pedido" ⏳
+- [[D-307 - Cancelar pedido e Ocultar do PCP no lugar do Remover do PCP|D-307]] · "Cancelar pedido" e "Ocultar do PCP" no lugar do "Remover do PCP"
+- [[D-308 - Os detalhes do Cancelar pedido|D-308]] · Os detalhes do "Cancelar pedido" ⏳
+- [[D-309 - Os detalhes do Ocultar do PCP|D-309]] · Os detalhes do "Ocultar do PCP" ⏳
+- [[D-310 - Os 30 dias dos Pedidos ocultos moram na linha do PCP e|D-310]] · Os 30 dias dos "Pedidos ocultos" moram na linha do PCP e o admin muda na própria aba ⏳
+- [[D-313 - Incluir pedido no PCP so o pedido que o PCP mostraria pagina|D-313]] · "Incluir pedido no PCP": só o pedido que o PCP mostraria, página a página ao rolar ⏳
+- [[D-314 - As abas Cancelados e Pedidos ocultos|D-314]] · As abas "Cancelados" e "Pedidos ocultos" ⏳
+- [[D-330 - Mover para o PCP a peca em producao volta ao PCP como vaga|D-330]] · "Mover para o PCP": a peça em produção volta ao PCP como vaga do pedido ou vira reposição de…
+- [[D-331 - A lista Volta ao PCP com 5 sementes|D-331]] · A lista "Volta ao PCP" com 5 sementes ⏳
+- [[D-332 - A reposicao que veio da producao|D-332]] · A reposição que veio da produção ⏳
+- [[D-333 - Usar a mesma peca ao liberar de novo|D-333]] · "Usar a mesma peça" ao liberar de novo ⏳
+
+### Estoque (19) — [[MOC - Estoque]]
+
+- [[D-007 - Estoque modulo da mesma plataforma fase 2|D-7]] · Estoque: módulo da mesma plataforma, fase 2
+- [[D-053 - Estoque na frente a 25 troca de ordem com a 24 e absorve|D-53]] · Estoque na frente: a 25 troca de ordem com a 24 e absorve o estoque-base
+- [[D-056 - O ID da peca e o SKU reservada ganha a segunda etiqueta a|D-56]] · O ID da peça é o SKU; reservada ganha a segunda etiqueta, a do pedido — fecha a Q-63
+- [[D-062 - A sugestao do estoque na liberacao o que e peca igual e quem|D-62]] · A sugestão do estoque na liberação: o que é "peça igual" e quem aceita
+- [[D-070 - O estoque dos acabados e a CONTAGEM da logistica entrada|D-70]] · O estoque dos acabados é a CONTAGEM da logística (entrada, baixa e contagem manual) — o Tiny sai…
+- [[D-073 - Foto de cada produto no estoque so a logistica e o admin|D-73]] · Foto de cada produto no estoque — só a logística e o admin cadastram
+- [[D-074 - Estoque enxuto i no lugar do texto abas em quadrados no canto|D-74]] · Estoque enxuto: "i" no lugar do texto, abas em quadrados no canto superior direito, cartão com a…
+- [[D-076 - O Tiny sobe a plataforma vale o saldo SOMADO das duas|D-76]] · O Tiny sobe a plataforma: vale o saldo SOMADO das duas empresas; Tiny acima → a plataforma sobe…
+- [[D-077 - A plataforma manda no Tiny entrada baixa e contagem daqui|D-77]] · A plataforma manda no Tiny: entrada, baixa e contagem daqui deixam o Tiny com o número da…
+- [[D-078 - A venda reserva a peca na hora o pedido segue no PCP|D-78]] · A venda reserva a peça na hora; o pedido segue no PCP, que decide; nada da venda vai ao Tiny
+- [[D-079 - Ponto de partida ligar copia uma vez o saldo do Tiny tudo|D-79]] · Ponto de partida: ligar copia uma vez o saldo do Tiny; tudo nasce desligado e só o admin liga
+- [[D-081 - As fotos dos produtos vem do Tiny e aparecem inteiras sem|D-81]] · As fotos dos produtos vêm do Tiny e aparecem inteiras, sem corte
+- [[D-083 - O Top X manda no estoque e o tamanho da pagina e so ele tem|D-83]] · O Top X manda no estoque: é o tamanho da página e só ele tem mínimo; a capacidade do galpão sai…
+- [[D-084 - Sugestao por dias uteis de VENDA loja seg sab e minimo|D-84]] · Sugestão por dias úteis de VENDA (loja seg–sáb) e mínimo AUTOMÁTICO que trava ao editar; corte…
+- [[D-118 - Reservados em venda ate a ENTREGA|D-118]] · Reservados em venda até a ENTREGA
+- [[D-119 - Os numeros do estoque ficam PRONTOS no banco o ranking|D-119]] · Os números do estoque ficam PRONTOS no banco; o ranking das vendas anda de madrugada
+- [[D-138 - SESSAO-32 o OK dos indices e os insumos separados dos moveis|D-138]] · SESSAO-32: o OK dos índices e os insumos separados dos móveis no estoque
+- [[D-186 - Lancar qualquer movel para producao a qualquer momento|D-186]] · LANÇAR QUALQUER MÓVEL PARA PRODUÇÃO, A QUALQUER MOMENTO — o mesmo ícone da fábrica em todo…
+- [[D-220 - O PCP e o Estoque falam das mesmas pecas com as mesmas|D-220]] · O PCP e o Estoque falam das mesmas peças com as mesmas palavras ⏳
+
+### Expedição (7) — [[MOC - Expedicao]]
+
+- [[D-133 - A Expedicao mostra so pedido vivo a previsao mais proxima|D-133]] · A Expedição mostra só pedido vivo, a previsão mais próxima primeiro
+- [[D-157 - A Expedicao absorve Pedidos em aguardo os filtros|D-157]] · A Expedição absorve "Pedidos em aguardo": os filtros em quadradinhos e o fim da tela do aguardo ⏳
+- [[D-219 - A Expedicao LIBERA a peca pronta para outro pedido|D-219]] · A Expedição LIBERA a peça pronta para outro pedido ⏳
+- [[D-272 - O pedido em stand-by tambem entra na regra do adiantado|D-272]] · O pedido em stand-by também entra na regra do adiantado com falta ⏳
+- [[D-273 - Quadradinho Saiu do PCP pelo Tiny nos filtros da Expedicao|D-273]] · Quadradinho "Saiu do PCP pelo Tiny" nos filtros da Expedição ⏳
+- [[D-274 - Com a ida ao Tiny desligada os botoes de voltar ao PCP ficam|D-274]] · Com a ida ao Tiny desligada, os botões de voltar ao PCP ficam apagados, com a explicação ⏳
+- [[D-275 - Detalhes do pedido adiantado no Tiny|D-275]] · Detalhes do pedido adiantado no Tiny ⏳
+
+### Logística e ROTAS (43) — [[MOC - Logistica e ROTAS]]
+
+- [[D-093 - O endereco do cliente que o Tiny manda e o endereco|D-93]] · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS
+- [[D-108 - A rota da Programacao e calculada PELAS RUAS parte da fabrica|D-108]] · A rota da Programação é calculada PELAS RUAS, parte da fábrica e VOLTA para ela; distância e…
+- [[D-112 - Busca de enderecos recusa do servico nao e nao existe|D-112]] · Busca de endereços: recusa do serviço não é "não existe"; um segundo buscador gratuito quando o…
+- [[D-113 - Entregue e um fato so dos dois lados e entregue no Tiny fecha|D-113]] · "Entregue" é um fato só, dos dois lados — e entregue no Tiny fecha TUDO do pedido aqui
+- [[D-116 - Motivos de nao entregue e de desfazer a entrega|D-116]] · Motivos de "não entregue" e de "desfazer a entrega" em Configurações → Utilitários
+- [[D-121 - Entregas do dia e uma aba de ROTAS Entregas nao um filho|D-121]] · "Entregas do dia" é uma aba de ROTAS → Entregas, não um filho do menu
+- [[D-128 - Varias rotas por dia no mesmo caminhao cada rota com o seu|D-128]] · Várias rotas por dia no mesmo caminhão — cada rota com o seu dia, a sua ordem e a sua equipe
+- [[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]] · Devolução: o entregador não marca mais "Pedido devolvido"; a LOGÍSTICA marca, as peças ficam "Em…
+- [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]] · A rota aceita QUALQUER pedido vivo; o "Lançar para ROTAS" deixa de ser passo ⏳
+- [[D-158 - A equipe da rota so entregador|D-158]] · A equipe da rota: só entregador ⏳
+- [[D-159 - O mapa da rota So a ida e So a volta o Programar sem espaco|D-159]] · O mapa da rota: "Só a ida" e "Só a volta"; o "Programar" sem espaço vazio ⏳
+- [[D-170 - Lancar direto para as entregas e Devolver|D-170]] · "Lançar direto para as entregas" e "Devolver" ⏳
+- [[D-174 - A rota no GOOGLE MAPS e no WAZE o link oficial sem custo|D-174]] · A rota no GOOGLE MAPS e no WAZE: o link oficial, sem custo, na ordem da plataforma; o entregador…
+- [[D-175 - O CALENDARIO da programacao um modo de ver dentro de Rotas|D-175]] · O CALENDÁRIO da programação: um modo de ver dentro de Rotas → Programação, no formato do…
+- [[D-193 - O ENDERECO DE ENTREGA DO PEDIDO vale na logistica inteiro sem|D-193]] · O ENDEREÇO DE ENTREGA DO PEDIDO vale na logística, inteiro; sem ele, o do cadastro
+- [[D-196 - A PARADA AVULSA NA ROTA titulo endereco com pino observacao|D-196]] · A PARADA AVULSA NA ROTA: título, endereço com pino, observação, Feita/Não feita; a ordem…
+- [[D-199 - FILTROS NA PROGRAMACAO DE CAMINHAO a lista para programar|D-199]] · FILTROS NA PROGRAMAÇÃO DE CAMINHÃO — a lista para programar com busca, situação, previsão,…
+- [[D-213 - Reabrir a entrega|D-213]] · Reabrir a entrega ⏳
+- [[D-214 - A volta atras no Tiny|D-214]] · A volta atrás no Tiny ⏳
+- [[D-216 - O acerto do 13787|D-216]] · O acerto do 13787 ⏳
+- [[D-217 - O Google Maps e o Waze vao pelo ENDERECO do pedido o ponto|D-217]] · O Google Maps e o Waze vão pelo ENDEREÇO do pedido; o ponto só manda quando uma pessoa o… ⏳
+- [[D-218 - A busca de endereco confere o BAIRRO e o CEP o que ela nao|D-218]] · A busca de endereço confere o BAIRRO e o CEP; o que ela não acha (ou acha duvidoso) a logística… ⏳
+- [[D-221 - A rota vai SEMPRE pelo endereco do cliente o ponto e so|D-221]] · A rota vai SEMPRE pelo endereço do cliente; o ponto é só do mapa da rota (e se acerta à mão);…
+- [[D-267 - Pedido cancelado ou excluido no Tiny sai de ROTAS Entregas|D-267]] · Pedido cancelado (ou excluído) no Tiny sai de ROTAS → Entregas → "A entregar", mesmo lançado ou…
+- [[D-270 - Fora do calendario conta so o que nao aparece na grade|D-270]] · "Fora do calendário" conta só o que não aparece na grade
+- [[D-276 - Marcar como entregue no dia a entrega pode ser registrada|D-276]] · "Marcar como entregue no dia…": a entrega pode ser registrada no dia em que aconteceu de fato,…
+- [[D-277 - O dia da entrega nunca fica antes do dia em que o pedido|D-277]] · O dia da entrega nunca fica antes do dia em que o pedido chegou à plataforma ⏳
+- [[D-278 - A hora guardada para um dia passado e o fim do expediente|D-278]] · A hora guardada para um dia passado é o fim do expediente da fábrica naquele dia ⏳
+- [[D-279 - No calendario das rotas o entregue aparece no dia REAL com|D-279]] · No calendário das rotas o entregue aparece no dia REAL, com a nota do dia programado quando… ⏳
+- [[D-280 - Desfazer do dia e o toque repetido contam pelo dia em que|D-280]] · "Desfazer do dia" (e o toque repetido) contam pelo dia em que a entrega foi REGISTRADA, não pelo… ⏳
+- [[D-281 - A correcao do dia da entrega motivo opcional registro novo|D-281]] · A correção do dia da entrega: motivo opcional, registro novo feito na hora ⏳
+- [[D-282 - Varios comprovantes de uma vez|D-282]] · Vários comprovantes de uma vez
+- [[D-283 - Detalhes da entrega no dia real|D-283]] · Detalhes da entrega no dia real ⏳
+- [[D-319 - Editar o endereco de entrega do pedido com o original do Tiny|D-319]] · Editar o endereço de entrega do pedido, com o original do Tiny guardado e a pergunta "salvar…
+- [[D-321 - O Tiny mudando o endereco por fora vence e avisa|D-321]] · O Tiny mudando o endereço por fora vence e avisa ⏳
+- [[D-322 - Os detalhes do endereco do pedido|D-322]] · Os detalhes do endereço do pedido ⏳
+- [[D-323 - Editar a parada avulsa|D-323]] · Editar a parada avulsa ⏳
+- [[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]] · Em "Já programadas" o selo do endereço alterado fica na janela, não no cartão ⏳
+- [[D-325 - Na entrega parcial o que ainda esta na fabrica CONTINUA|D-325]] · Na entrega parcial, o que ainda está na fábrica CONTINUA em produção; "Limpar da produção" é a…
+- [[D-327 - Revogar a decisao da entrega parcial quantas vezes for preciso|D-327]] · Revogar a decisão da entrega parcial, quantas vezes for preciso
+- [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]] · Onde o pedido mostra "Entregue em parte (N de M)" e a parada da rota ⏳
+- [[D-329 - So a logistica o PCP e o admin escolhem Limpar da producao|D-329]] · Só a logística, o PCP e o admin escolhem "Limpar da produção" ⏳
+- [[D-334 - Os pedidos entregues em parte antes desta sessao|D-334]] · Os pedidos entregues em parte antes desta sessão ⏳
+
+### Tiny e n8n (18) — [[MOC - Tiny e n8n]]
+
+- [[D-031 - Entrada de pedidos a plataforma le o proprio banco sem tocar|D-31]] · Entrada de pedidos: a plataforma lê o próprio banco, sem tocar o n8n
+- [[D-050 - Integracao Tiny banco edicao no Tiny edita aqui apagar|D-50]] · Integração Tiny → banco: edição no Tiny edita aqui, apagar no Tiny NÃO apaga aqui (só…
+- [[D-080 - Um fluxo so no n8n para o Tiny da fabrica catalogo estoque|D-80]] · Um fluxo só no n8n para o Tiny da fábrica (catálogo + estoque); a carga avulsa do saldo morre
+- [[D-082 - A foto do Tiny chega sozinha a plataforma a da camera fica|D-82]] · A foto do Tiny chega sozinha à plataforma — a da câmera fica, a apagada no Tiny também
+- [[D-097 - O nome do cliente e gravado sem o codigo no lugar do apostrofo|D-97]] · O nome do cliente é gravado sem o código no lugar do apóstrofo
+- [[D-098 - O cliente e achado pelo cadastro do Tiny o fluxo de vendas|D-98]] · O cliente é achado pelo cadastro do Tiny; o fluxo de vendas passa esse número — item C da…
+- [[D-122 - As contas a receber voltam do Tiny todo dia na conferencia|D-122]] · As contas a receber voltam do Tiny todo dia, na conferência da madrugada
+- [[D-123 - O Entregue vai ao Tiny mora dentro da automacao do Tiny|D-123]] · O "Entregue vai ao Tiny" mora dentro da automação do Tiny que já existia
+- [[D-142 - Integracao completa com o Tiny as 6 perguntas do plano|D-142]] · Integração completa com o Tiny: as 6 perguntas do plano respondidas
+- [[D-143 - Tiny completo o plano aprovado inteiro o que o Tiny nao avisa|D-143]] · Tiny completo: o plano aprovado inteiro; o que o Tiny não avisa, de hora em hora só das 8h às…
+- [[D-144 - Os dados proprios da conta da FABRICA no Tiny ficam num|D-144]] · Os dados próprios da conta da FÁBRICA no Tiny ficam num módulo à parte — fora do Comercial e da…
+- [[D-145 - A consulta de hora em hora pergunta os produtos alterados|D-145]] · A consulta de hora em hora pergunta os produtos alterados SÓ à fábrica
+- [[D-148 - O que o Tiny nao avisa fica em dia pela conferencia|D-148]] · O que o Tiny não avisa fica em dia pela conferência da madrugada; o que foi apagado no Tiny é…
+- [[D-194 - A data de entrega mudada ou removida so na plataforma o tiny|D-194]] · A DATA DE ENTREGA MUDADA OU REMOVIDA SÓ NA PLATAFORMA; o Tiny mudando a data, vale o Tiny
+- [[D-271 - O pedido que o Tiny levou adiante e ainda tem produto|D-271]] · O pedido que o Tiny levou adiante e ainda tem produto por liberar aparece na Expedição com o…
+- [[D-311 - O pedido excluido no Tiny sai do PCP de vez e segue o caminho|D-311]] · O pedido excluído no Tiny sai do PCP de vez e segue o caminho do cancelado
+- [[D-315 - A observacao do item do Tiny na capa do card|D-315]] · A observação do item do Tiny na capa do card
+- [[D-320 - Salvar na plataforma e no Tiny fica desligado por enquanto|D-320]] · "Salvar na plataforma e no Tiny" fica desligado por enquanto, com o porquê ⏳
+
+### Tablet e TV (5) — [[MOC - Tablet e TV]]
+
+- [[D-006 - Dispositivos tablet PC fixo por setor E celular pessoal|D-6]] · Dispositivos: tablet/PC fixo por setor E celular pessoal
+- [[D-146 - Tablet 2 0 as 13 respostas provisorias da SESSAO-36|D-146]] · Tablet 2.0: as 13 respostas provisórias da SESSAO-36 + as escolhas extras do Claude ⏳
+- [[D-147 - A arrumacao para entrar em producao limpa geral PINs curtos|D-147]] · A arrumação para entrar em produção: limpa geral, PINs curtos, dois níveis novos, pausa por…
+- [[D-230 - A permissao Modo TV|D-230]] · A permissão Modo TV ⏳
+- [[D-231 - O modo TV|D-231]] · O Modo TV ⏳
+
+### Tempos e Painéis (35) — [[MOC - Tempos e Paineis]]
+
+- [[D-002 - Timer dois contadores por etapa dash compara e soma|D-2]] · Timer: dois contadores por etapa, dash compara e soma
+- [[D-029 - Controle de tempo pelo admin horario de funcionamento pausas|D-29]] · Controle de tempo pelo admin: horário de funcionamento, pausas manuais e correção retroativa
+- [[D-042 - Dashboards guiados por imagem docs inspiracao dashboards e|D-42]] · Dashboards guiados por imagem: docs/inspiracao/dashboards/ é a régua
+- [[D-094 - Bonificacao descartada|D-94]] · Bonificação descartada
+- [[D-164 - Motivos de pausa ESPECIAIS Faltou peca Maquina quebrou|D-164]] · Motivos de pausa ESPECIAIS: "Faltou peça", "Máquina quebrou" e "Pausa solicitada por um líder" —…
+- [[D-165 - O que nao contar o tempo quer dizer com precisao|D-165]] · O que "não contar o tempo" quer dizer, com precisão ⏳
+- [[D-166 - O tempo do CARD nao muda com a pausa especial|D-166]] · O tempo do CARD não muda com a pausa especial ⏳
+- [[D-167 - O TEMPO UTIL do card so o expediente do setor o PCP nao tem|D-167]] · O TEMPO ÚTIL do card: só o expediente do setor; o PCP não tem fila ⏳
+- [[D-172 - A regua do tempo util vem na abertura do app Lei 2 8|D-172]] · A régua do tempo útil vem na abertura do app — Lei §2/§8 ⏳
+- [[D-176 - O PAINEL DE MOTIVOS os maiores problemas da fabrica e|D-176]] · O PAINEL DE MOTIVOS: os maiores problemas da fábrica e das rotas, do maior para o menor
+- [[D-197 - Sem card so 5 minutos contam como trabalho a tela segue|D-197]] · SEM CARD, SÓ 5 MINUTOS CONTAM COMO TRABALHO — a tela segue mostrando "trabalhando" até 15
+- [[D-198 - O CARD ESQUECIDO na MONTAGEM 2 h rodando sem parar perguntam|D-198]] · O CARD ESQUECIDO: na MONTAGEM, 2 h rodando sem parar perguntam "ainda tem alguém neste card?" —…
+- [[D-203 - O TEMPO CERTO o calendario da fabrica a pausa sozinha no fim|D-203]] · O TEMPO CERTO: o calendário da fábrica, a pausa sozinha no fim do expediente, as regras de tempo…
+- [[D-204 - O que e o fim do expediente de um trecho|D-204]] · O que é o "fim do expediente" de um trecho ⏳
+- [[D-205 - O trabalho simultaneo da mesma pessoa e dividido a forma|D-205]] · O trabalho simultâneo da mesma pessoa é dividido (a forma geral da resposta 12) ⏳
+- [[D-206 - Retrabalho quais passagens saem da media|D-206]] · Retrabalho: quais passagens saem da média ⏳
+- [[D-207 - Gesto de administrador|D-207]] · Gesto de administrador ⏳
+- [[D-208 - A data oficial tira so das MEDIAS o tempo da pessoa conta|D-208]] · A data oficial tira só das MÉDIAS; o tempo da pessoa conta ⏳
+- [[D-209 - Os dias da conta|D-209]] · Os dias da conta ⏳
+- [[D-210 - O modelo sugerido pelo nome|D-210]] · O modelo sugerido pelo nome ⏳
+- [[D-211 - Pequenas escolhas da tela e da regra|D-211]] · Pequenas escolhas da tela e da regra ⏳
+- [[D-225 - Sem ranking nas abas internas ficam os Melhores tempos e|D-225]] · Sem ranking nas abas internas; ficam os "Melhores tempos" e o "Melhor da semana" ⏳
+- [[D-226 - O que entra nas contas da tela Tempos de producao|D-226]] · O que entra nas contas da tela Tempos de produção ⏳
+- [[D-227 - Quem ve o que na tela de tempos|D-227]] · Quem vê o quê na tela de tempos ⏳
+- [[D-228 - A conferencia do historico do Trello e a lista Motivos|D-228]] · A conferência do histórico do Trello e a lista "Motivos de conferência" ⏳
+- [[D-229 - A carga do historico do Trello|D-229]] · A carga do histórico do Trello ⏳
+- [[D-232 - Tempo por setor mora dentro de Tempos de producao|D-232]] · "Tempo por setor" mora dentro de Tempos de produção ⏳
+- [[D-233 - Periodos longos com 100 vezes o movimento de hoje passam|D-233]] · Períodos longos com 100 vezes o movimento de hoje passam do tempo-limite ⏳
+- [[D-268 - A Visao do dia conta o que o QUADRO mostra a fila e a coluna|D-268]] · A Visão do dia conta o que o QUADRO mostra: a fila é a coluna da fila (com o card avulso), em…
+- [[D-284 - Configurar painel em Tempos de producao uma configuracao|D-284]] · "Configurar painel" em Tempos de produção: uma configuração só, do admin, que vale para a tela e…
+- [[D-285 - So o admin ve o botao Configurar painel e so ele salva|D-285]] · Só o admin vê o botão "Configurar painel" e só ele salva ⏳
+- [[D-286 - Tres tipos de grafico empilhadas por montador barras e linhas|D-286]] · Três tipos de gráfico: empilhadas por montador, barras e linhas ⏳
+- [[D-287 - Dupla com um desligado aparece como a letra ou o nome de quem|D-287]] · Dupla com um desligado aparece como a letra (ou o nome) de quem está ligado + "Outros" ⏳
+- [[D-288 - A linha do tempo padrao virou uma marca na linha do dia|D-288]] · A "linha do tempo padrão" virou uma marca na linha do dia da aba Dia ⏳
+- [[D-289 - Detalhes da configuracao do painel|D-289]] · Detalhes da configuração do painel ⏳
+
+### Comercial (2) — [[MOC - Comercial]]
+
+- [[D-046 - Uniao das Plataformas o Painel de Recompra vira o modulo|D-46]] · União das Plataformas: o Painel de Recompra vira o módulo Comercial
+- [[D-139 - SESSAO-32 o Comercial abre no mes atual e o periodo inteiro|D-139]] · SESSAO-32: o Comercial abre no mês atual e o período inteiro vem pronto do banco
+
+### Acesso e Usuários (11) — [[MOC - Acesso e Usuarios]]
+
+- [[D-021 - Identidade e acesso uma tabela matricula senha padrao|D-21]] · Identidade e acesso: uma tabela, matrícula, senha padrão com troca obrigatória
+- [[D-041 - Identidade Meu Perfil com 8 temas Domoby login com logo|D-41]] · Identidade: Meu Perfil com 8 temas Domoby; login com logo metálica
+- [[D-043 - Meu Perfil nome de login editavel pelo proprio e-mail tambem|D-43]] · Meu Perfil: nome de login editável pelo próprio, e-mail também, foto própria, log de tudo
+- [[D-049 - Saida de usuario excluir de fato so sem historia arquivar|D-49]] · Saída de usuário: excluir de fato só sem história; arquivar realoca as pendências ao líder
+- [[D-052 - Cadastro de ADMIN nao exige setor|D-52]] · Cadastro de ADMIN não exige setor
+- [[D-068 - Dados sensiveis do cadastro fora da API|D-68]] · Dados sensíveis do cadastro fora da API
+- [[D-091 - Tres tipos de usuario da fabrica do comercial e dos dois|D-91]] · Três tipos de usuário — da fábrica, do comercial e dos dois — com permissões bem definidas; o…
+- [[D-163 - Entrar sem digitar o e-mail o aparelho lembra o nome|D-163]] · Entrar sem digitar o e-mail: o aparelho lembra o nome de usuário, e o PIN aceita usuário
+- [[D-191 - ESQUECI MINHA SENHA LIBERADO POR UM ADMINISTRADOR aviso|D-191]] · "ESQUECI MINHA SENHA" LIBERADO POR UM ADMINISTRADOR: aviso urgente na tela, 2 h, uma troca, só…
+- [[D-192 - A REVISAO DE SEGURANCA a segunda camada de permissoes a trava|D-192]] · A REVISÃO DE SEGURANÇA: a segunda camada de permissões, a trava geral do PIN de setor e os…
+- [[D-200 - O PEDIDO DE TROCA DE SENHA PARA E-MAIL SEM CADASTRO AVISA|D-200]] · O PEDIDO DE TROCA DE SENHA PARA E-MAIL SEM CADASTRO AVISA OS ADMINISTRADORES; a tela de quem…
+
+### Auditoria e Logs (3) — [[MOC - Auditoria e Logs]]
+
+- [[D-040 - Auditoria total toda atividade de usuario gera log persistido|D-40]] · Auditoria total: toda atividade de usuário gera log persistido
+- [[D-095 - Auditoria no Painel admin o rastro de tudo quem quando onde|D-95]] · Auditoria no Painel admin: o rastro de tudo — quem, quando, onde, o quê e porquê
+- [[D-305 - A trilha diz por que a pagina abriu|D-305]] · A trilha diz por que a página abriu ⏳
+
+### Publicação e Infra (9) — [[MOC - Publicacao e Infra]]
+
+- [[D-008 - Banco o mesmo Supabase da fabrica|D-8]] · Banco: o mesmo Supabase da fábrica
+- [[D-015 - Stack escolhida pelo Claude Code e imutavel depois|D-15]] · Stack escolhida pelo Claude Code, e imutável depois
+- [[D-019 - Banco o projeto da org Tech e o de producao e por ora e onde|D-19]] · Banco: o projeto da org Tech é o de produção, e por ora é onde se trabalha
+- [[D-020 - Sem PR e sem protecao de branch enquanto o dono for o unico|D-20]] · Sem PR e sem proteção de branch enquanto o dono for o único
+- [[D-047 - Regra permanente nenhuma tabela nova se uma existente pode|D-47]] · Regra permanente: nenhuma tabela nova se uma existente pode ser reutilizada
+- [[D-303 - A versao e o codigo e documentacao nao publica a mudanca|D-303]] · A versão é o código e documentação não publica — ⏳ a mudança na Vercel só entra com o OK do dono ⏳
+- [[D-304 - O momento seguro de recarregar|D-304]] · O momento seguro de recarregar ⏳
+- [[D-306 - A plataforma abre como aplicativo um icone uma janela|D-306]] · A plataforma abre como aplicativo: um ícone, uma janela só
+- [[D-335 - Os roteiros do cofre nao publicam o site|D-335]] · Os roteiros do cofre não publicam o site ⏳
+
+### Meu Painel, Chat e Automações (20) — [[MOC - Meu Painel Chat e Automacoes]]
+
+- [[D-034 - Delegacao 3 modos por setor sorteio entre logados tarefa|D-34]] · Delegação: 3 modos por setor, sorteio entre logados, tarefa avulsa sem timer obrigatório
+- [[D-051 - Meu Painel 2 0 tres filas subtarefas tarefa privada e|D-51]] · Meu Painel 2.0: três filas, subtarefas, tarefa privada e o painel pessoal
+- [[D-066 - Aniversarios o Sistema publica os parabens nos Avisos gerais|D-66]] · Aniversários: o Sistema publica os parabéns nos Avisos gerais
+- [[D-092 - Automacoes so admin cria por ora o modulo e o laboratorio|D-92]] · Automações: só admin cria, por ora; o módulo é o laboratório
+- [[D-099 - A automacao pode mover o card sozinha e serve para tudo quem|D-99]] · A automação pode mover o card sozinha — e serve "para tudo"; quem monta e liga é só o super…
+- [[D-103 - As regras do motor na hora no banco nunca derruba o gesto|D-103]] · As regras do motor: na hora, no banco, nunca derruba o gesto; cadeia até 5; obedece às regras de…
+- [[D-104 - Teste ao vivo com os cards de teste|D-104]] · Teste ao vivo com os cards de teste
+- [[D-105 - O editor de uma automacao e uma AREA DE TRABALHO menu|D-105]] · O editor de uma automação é uma ÁREA DE TRABALHO: menu recolhido, canvas na tela toda, barra…
+- [[D-106 - O Se senao a condicao com DUAS saidas cada uma com|D-106]] · O "Se… senão": a condição com DUAS saídas, cada uma com os próprios passos
+- [[D-107 - Excluir automacao some de vez o que ela fez FICA na Auditoria|D-107]] · Excluir automação: some de vez; o que ela fez FICA na Auditoria, marcado "automação excluída"
+- [[D-131 - Mensagens podem ser editadas e apagadas no card e no chat|D-131]] · Mensagens podem ser editadas e apagadas — no card e no chat; a história fica
+- [[D-162 - As notificacoes fecham com qualquer toque fora do painel|D-162]] · As notificações fecham com qualquer toque fora do painel
+- [[D-202 - OS AVISOS QUE CADA UM RECEBE ESCOLHIDOS EM CONFIGURACOES|D-202]] · OS AVISOS QUE CADA UM RECEBE, ESCOLHIDOS EM CONFIGURAÇÕES → AVISOS; os erros de automação ganham…
+- [[D-260 - Tech Sugestao de melhoria o quadro que toda a equipe acompanha|D-260]] · Tech → "Sugestão de melhoria": o quadro que toda a equipe acompanha
+- [[D-261 - So o dono super admin move os cards do quadro de sugestoes|D-261]] · Só o dono (super admin) move os cards do quadro de sugestões
+- [[D-262 - Recusar exige o motivo que vai no aviso para quem sugeriu|D-262]] · Recusar exige o motivo, que vai no aviso para quem sugeriu
+- [[D-263 - Finalizada avisa quem sugeriu ele testa e APROVA ou DEVOLVE|D-263]] · Finalizada avisa quem sugeriu; ele testa e APROVA ou DEVOLVE com uma sugestão nova, com o…
+- [[D-264 - A pendencia de teste e uma tarefa do Sistema da pessoa aviso|D-264]] · A pendência de teste é uma tarefa do Sistema da pessoa; aviso e pendência levam à ficha pelo… ⏳
+- [[D-265 - A bolinha das sugestoes acompanha todo usuario em toda tela|D-265]] · A bolinha das sugestões acompanha todo usuário, em toda tela, menos o modo tablet ⏳
+- [[D-266 - Ordem e numeros do quadro de sugestoes|D-266]] · Ordem e números do quadro de sugestões ⏳
+
+### Interface e Navegação (5) — [[MOC - Interface e Navegacao]]
+
+- [[D-027 - Padroes de interface menu lateral modelo de sistema no cofre|D-27]] · Padrões de interface: menu lateral, modelo de sistema no cofre, microinterações, sem códigos…
+- [[D-036 - Lei de navegacao hierarquia pai filho pai nunca navega rota|D-36]] · Lei de navegação: hierarquia pai→filho, pai nunca navega, rota sempre /pai/filho
+- [[D-100 - O Painel admin vira Configuracoes nasce o Painel super admin|D-100]] · O "Painel admin" vira Configurações; nasce o Painel super admin (só o dono): Automações e…
+- [[D-161 - O grupo Pedidos do menu mora logo abaixo de Rotas|D-161]] · O grupo "Pedidos" do menu mora logo abaixo de "Rotas"
+- [[D-188 - A BUSCA GERAL a lupa ao lado do sino acha os cards de TODOS|D-188]] · A BUSCA GERAL: a lupa ao lado do sino acha os cards de TODOS os setores e diz onde cada um está
+
+### Processo de Trabalho (11) — [[MOC - Processo de Trabalho]]
+
+- [[D-010 - Metodo de trabalho sessoes Claude Code ordenadas CLAUDE md|D-10]] · Método de trabalho: sessões Claude Code ordenadas + CLAUDE.md com limites
+- [[D-016 - Bloco 1 de construcao Sessoes 01 05|D-16]] · Bloco 1 de construção = Sessões 01→05
+- [[D-017 - Formato dos prompts do Claude Code minimo so o caminho|D-17]] · Formato dos prompts do Claude Code: mínimo, só o caminho
+- [[D-026 - Bloco noturno autonomo sessoes 07 12 sem perguntas durante|D-26]] · Bloco noturno autônomo: sessões 07→12 sem perguntas durante a execução
+- [[D-030 - Publicacao adiada nenhum deploy no bloco noturno|D-30]] · Publicação adiada: nenhum deploy no bloco noturno
+- [[D-035 - Plataforma funcional primeiro externo em standby Bloco 3|D-35]] · Plataforma funcional primeiro: externo em standby; Bloco 3 = Sessões 13→16 com checkpoint
+- [[D-141 - As respostas do dono sobre o que ficou da SESSAO-32 e|D-141]] · As respostas do dono sobre o que ficou da SESSAO-32 e as pendências antigas
+- [[D-336 - A leitura por camadas obrigatoria ate 40 KB o mapa da area|D-336]] · A leitura por camadas: obrigatória até 40 KB, o mapa da área e o resto só por ligação ⏳
+- [[D-337 - Uma nota por decisao com nome em portugues a citacao vira|D-337]] · Uma nota por decisão, com nome em português; a citação vira ligação com apelido; número pulado… ⏳
+- [[D-338 - Os tetos de tamanho do cofre o que e erro o que e aviso|D-338]] · Os tetos de tamanho do cofre: o que é erro, o que é aviso e o que não se cobra ⏳
+- [[D-339 - O que saiu da frente o Arquivo a Ordem curta e a copia|D-339]] · O que saiu da frente: o Arquivo, a Ordem curta e a cópia repetida ⏳
+
+### Revisadas por outra decisão (45) — ficam para a história; vale a que revisou
+
+- [[D-003 - Destino do card manual hoje automacao via API amanha|D-3]] · Destino do card: manual hoje, automação via API amanhã → [[D-059 - Quadros de producao so por arrasto o unico botao e Concluir|D-59]], [[D-099 - A automacao pode mover o card sozinha e serve para tudo quem|D-99]]
+- [[D-004 - Produtividade e bonificacao|D-4]] · Produtividade e bonificação → [[D-094 - Bonificacao descartada|D-94]]
+- [[D-005 - Escopo producao primeiro logistica depois|D-5]] · Escopo: produção primeiro, logística depois → [[D-033 - ROTAS dentro da plataforma ClickUp nao recebe mais nada|D-33]]
+- [[D-009 - Qualidade em 3 estados em TODA transicao com dupla atestacao|D-9]] · Qualidade em 3 estados em TODA transição, com dupla atestação → [[D-126 - A marcacao do estado da peca perfeito atencao danificado vira|D-126]]
+- [[D-011 - API antecipada entrada de pedidos via n8n logo apos o kanban|D-11]] · API antecipada: entrada de pedidos via n8n logo após o kanban → [[D-023 - Replanejamento da jornada a partir da 5 posicao|D-23]]
+- [[D-013 - Entrada unica e saidas terminais do fluxo|D-13]] · Entrada única e saídas terminais do fluxo → [[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]]
+- [[D-018 - Fins de linha ESTOQUE e ROTAS nascem juntos|D-18]] · Fins de linha: ESTOQUE e ROTAS nascem juntos → [[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]]
+- [[D-022 - Kanban liberacao parcial destino livre PCP com visao completa|D-22]] · Kanban: liberação parcial, destino livre, PCP com visão completa → [[D-054 - O fluxo do estoque so peca pronta perfeita e sem pedido|D-54]], [[D-125 - O card avulso quem cria como termina vinculo etiquetas quem|D-125]]
+- [[D-023 - Replanejamento da jornada a partir da 5 posicao|D-23]] · Replanejamento da jornada a partir da 5ª posição → [[D-030 - Publicacao adiada nenhum deploy no bloco noturno|D-30]]
+- [[D-024 - Execucao varios cards por pessoa com limite configuravel|D-24]] · Execução: vários cards por pessoa com limite configurável, iniciar… → [[D-048 - Execucao um por vez com pausa por lider tempo de PCP e|D-48]], [[D-059 - Quadros de producao so por arrasto o unico botao e Concluir|D-59]]
+- [[D-025 - Qualidade nas transicoes detalhes de execucao|D-25]] · Qualidade nas transições: detalhes de execução → [[D-126 - A marcacao do estado da peca perfeito atencao danificado vira|D-126]]
+- [[D-032 - Dashboards foco pesado em tempo so lider e admin|D-32]] · Dashboards: foco pesado em tempo; só líder e admin → [[D-051 - Meu Painel 2 0 tres filas subtarefas tarefa privada e|D-51]]
+- [[D-033 - ROTAS dentro da plataforma ClickUp nao recebe mais nada|D-33]] · ROTAS dentro da plataforma; ClickUp não recebe mais nada → [[D-113 - Entregue e um fato so dos dois lados e entregue no Tiny fecha|D-113]]
+- [[D-037 - Tela inicial Meu Painel com cockpit de metas configuraveis|D-37]] · Tela inicial = Meu Painel, com cockpit de metas configuráveis → [[D-051 - Meu Painel 2 0 tres filas subtarefas tarefa privada e|D-51]]
+- [[D-038 - Logistica Estoque com ID digitavel sala de Pedidos em aguardo|D-38]] · Logística: Estoque com ID digitável, sala de Pedidos em aguardo,… → [[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]], [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]]
+- [[D-039 - ROTAS programacao de caminhao com mapa e sugestao caminhoes|D-39]] · ROTAS: programação de caminhão com mapa e sugestão; caminhões… → [[D-108 - A rota da Programacao e calculada PELAS RUAS parte da fabrica|D-108]], [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]]
+- [[D-045 - Logistica e ROTAS unidade pronta lancamento ID de producao|D-45]] · Logística e ROTAS: unidade pronta, lançamento, ID de produção,… → [[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]], [[D-113 - Entregue e um fato so dos dois lados e entregue no Tiny fecha|D-113]], [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]]
+- [[D-048 - Execucao um por vez com pausa por lider tempo de PCP e|D-48]] · Execução um por vez com pausa por líder; tempo de PCP e de aguardo são… → [[D-059 - Quadros de producao so por arrasto o unico botao e Concluir|D-59]]
+- [[D-054 - O fluxo do estoque so peca pronta perfeita e sem pedido|D-54]] · O fluxo do estoque: só peça pronta, perfeita e sem pedido; abaixo do… → [[D-070 - O estoque dos acabados e a CONTAGEM da logistica entrada|D-70]], [[D-126 - A marcacao do estado da peca perfeito atencao danificado vira|D-126]], [[D-186 - Lancar qualquer movel para producao a qualquer momento|D-186]]
+- [[D-055 - O numero do estoque o do Tiny menos o que a loja ja vendeu|D-55]] · O número do estoque: o do Tiny menos o que a loja já vendeu e ainda… → [[D-070 - O estoque dos acabados e a CONTAGEM da logistica entrada|D-70]]
+- [[D-057 - Estoque em duas telas sugestao de minimo pelo top 20|D-57]] · Estoque em duas telas + sugestão de mínimo pelo top 20 → [[D-072 - Minimo e capacidade do galpao na plataforma a sugestao|D-72]]
+- [[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]] · O lugar da peça pronta: com pedido → Pedidos em aguardo; o ESTOQUE… → [[D-126 - A marcacao do estado da peca perfeito atencao danificado vira|D-126]], [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]]
+- [[D-059 - Quadros de producao so por arrasto o unico botao e Concluir|D-59]] · Quadros de produção só por arrasto; o único botão é "Concluir… → [[D-125 - O card avulso quem cria como termina vinculo etiquetas quem|D-125]], [[D-127 - A LIMPEZA E EMBALAGEM conclui pela etapa EXPEDICAO o botao|D-127]], [[D-173 - O botao MOVER do card a lideranca manda qualquer card|D-173]]
+- [[D-061 - Cancelamento em tres estagios a aba Cancelados guarda|D-61]] · Cancelamento em três estágios; a aba Cancelados guarda para sempre;… → [[D-088 - O PCP em tres abas Reabastecimento Pedidos aguardando|D-88]], [[D-290 - Mover a peca para CANCELADO ou NAO ENCONTRADO cancela|D-290]]
+- [[D-065 - Chat interno canais particulares e Avisos gerais quem cria|D-65]] · Chat interno: canais, particulares e Avisos gerais — quem cria, quem… → [[D-131 - Mensagens podem ser editadas e apagadas no card e no chat|D-131]]
+- [[D-067 - Chat por websocket leitura so por pagina 10 mensagens 5|D-67]] · Chat por websocket; leitura só por página — 10 mensagens, 5 conversas → [[D-131 - Mensagens podem ser editadas e apagadas no card e no chat|D-131]]
+- [[D-071 - Top 20 a tela do estoque abre pelos 20 mais vendidos|D-71]] · Top 20+: a tela do estoque abre pelos 20 mais vendidos; só aparece o… → [[D-083 - O Top X manda no estoque e o tamanho da pagina e so ele tem|D-83]]
+- [[D-072 - Minimo e capacidade do galpao na plataforma a sugestao|D-72]] · Mínimo e capacidade do galpão na plataforma; a sugestão de mínimo CABE… → [[D-083 - O Top X manda no estoque e o tamanho da pagina e so ele tem|D-83]], [[D-084 - Sugestao por dias uteis de VENDA loja seg sab e minimo|D-84]]
+- [[D-075 - O quadrinho do PCP na Visao do dia conta o que o quadro|D-75]] · O quadrinho do PCP na Visão do dia conta o que o quadro do PCP mostra… → [[D-132 - O PCP segue o Tiny pedido Faturado Pronto para envio|D-132]]
+- [[D-086 - Reservados o cartao mostra TUDO que esta em producao|D-86]] · Reservados: o cartão mostra TUDO que está em produção; a NECESSIDADE… → [[D-118 - Reservados em venda ate a ENTREGA|D-118]]
+- [[D-087 - Liga desliga da reposicao automatica no Painel admin agendar|D-87]] · Liga/desliga da reposição automática no Painel admin =… → [[D-186 - Lancar qualquer movel para producao a qualquer momento|D-186]]
+- [[D-089 - A lapidacao ao vivo do Estoque|D-89]] · A lapidação ao vivo do Estoque → [[D-186 - Lancar qualquer movel para producao a qualquer momento|D-186]]
+- [[D-101 - Utilitarios etiquetas varias por card so a automacao poe|D-101]] · Utilitários: etiquetas (várias por card, só a automação põe e tira) e… → [[D-125 - O card avulso quem cria como termina vinculo etiquetas quem|D-125]], [[D-150 - O prazo e a PRIORIDADE do card de producao|D-150]]
+- [[D-109 - A ordem das paradas a sugestao e a do mais perto mas qualquer|D-109]] · A ordem das paradas: a sugestão é a do mais perto, mas qualquer um da… → [[D-111 - A Programacao em duas abas Programar e Ja programadas itens|D-111]]
+- [[D-110 - O mapa da Programacao mostra tambem a rota JA PROGRAMADA|D-110]] · O mapa da Programação mostra também a rota JÁ PROGRAMADA de cada… → [[D-111 - A Programacao em duas abas Programar e Ja programadas itens|D-111]]
+- [[D-111 - A Programacao em duas abas Programar e Ja programadas itens|D-111]] · A Programação em duas abas — "Programar" e "Já programadas"; itens… → [[D-128 - Varias rotas por dia no mesmo caminhao cada rota com o seu|D-128]], [[D-159 - O mapa da rota So a ida e So a volta o Programar sem espaco|D-159]]
+- [[D-114 - Cancelado ou devolvido com o movel pronto vai SOZINHO para|D-114]] · Cancelado ou devolvido com o móvel pronto vai SOZINHO para o estoque —… → [[D-124 - O marcador Devolvido do Tiny NAO e cancelamento a fabrica|D-124]], [[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]]
+- [[D-115 - O entregador usuario so de ROTAS a tela das entregas do dia|D-115]] · O entregador: usuário só de ROTAS, a tela das entregas do dia, a… → [[D-128 - Varias rotas por dia no mesmo caminhao cada rota com o seu|D-128]], [[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]]
+- [[D-124 - O marcador Devolvido do Tiny NAO e cancelamento a fabrica|D-124]] · O marcador "Devolvido" do Tiny NÃO é cancelamento — a fábrica ainda… → [[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]]
+- [[D-125 - O card avulso quem cria como termina vinculo etiquetas quem|D-125]] · O card avulso: quem cria, como termina, vínculo, etiquetas, quem vê,… → [[D-150 - O prazo e a PRIORIDADE do card de producao|D-150]], [[D-152 - Os RESPONSAVEIS do card por setor|D-152]]
+- [[D-134 - A area PEDIDOS Todos os pedidos sai do PCP e Cancelados sai|D-134]] · A área PEDIDOS: "Todos os pedidos" sai do PCP e "Cancelados" sai da… → [[D-299 - A aba Cancelados e removidos volta para dentro do PCP|D-299]]
+- [[D-137 - SESSAO-32 as respostas do dono tempo logado medicao nos|D-137]] · SESSAO-32: as respostas do dono — tempo logado, medição nos aparelhos… → [[D-189 - O TABLET NAO CAI cada aparelho com a sua sessao quem sai|D-189]]
+- [[D-140 - SESSAO-32 pedido excluido no Tiny nao existe em nenhum modulo|D-140]] · SESSAO-32: pedido excluído no Tiny não existe em nenhum módulo — uma… → [[D-311 - O pedido excluido no Tiny sai do PCP de vez e segue o caminho|D-311]]
+- [[D-189 - O TABLET NAO CAI cada aparelho com a sua sessao quem sai|D-189]] · O TABLET NÃO CAI: cada aparelho com a sua sessão; quem sai do setor… → [[D-197 - Sem card so 5 minutos contam como trabalho a tela segue|D-197]]
+- [[D-195 - A ENTREGA PARCIAL o entregador ou a logistica marca o que foi|D-195]] · A ENTREGA PARCIAL: o entregador (ou a logística) marca o que foi… → [[D-325 - Na entrega parcial o que ainda esta na fabrica CONTINUA|D-325]]
+
+### Números sem decisão
+
+D-44 · D-64 · D-69 · D-149 · D-160 · D-177…D-185 · D-222…D-224 · D-234…D-259 — reservados por sessões em paralelo e nunca usados; não existe texto para eles. D-44: reservada pela frente do histórico do Tiny e nunca escrita (as respostas do dono viraram a D-45). D-64: ficou sem uso.
+<!-- gerado:fim -->
+
+## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Requisitos]] · [[PLT - Perguntas em Aberto]] · [[000 - ORDEM DAS SESSOES]] · [[PROMPT - Bloco 1 (Sessoes 01 a 05)]]

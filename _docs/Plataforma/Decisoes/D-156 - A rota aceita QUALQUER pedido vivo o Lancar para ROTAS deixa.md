@@ -1,0 +1,29 @@
+---
+id: D-156
+aliases: [D-156]
+titulo: "A rota aceita QUALQUER pedido vivo; o \"Lançar para ROTAS\" deixa de ser passo"
+tipo: decisao
+data: 2026-10-21
+status: provisoria
+revisa: ["[[D-038 - Logistica Estoque com ID digitavel sala de Pedidos em aguardo|D-38]]", "[[D-039 - ROTAS programacao de caminhao com mapa e sugestao caminhoes|D-39]]", "[[D-045 - Logistica e ROTAS unidade pronta lancamento ID de producao|D-45]]", "[[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]]"]
+revisada_por: []
+complementa: []
+area: [logistica-rotas]
+tags: [decisao, area/logistica-rotas, provisoria]
+---
+# D-156 · ⏳ PROVISÓRIA (escolha do Claude — confirmar com o dono) — A rota aceita QUALQUER pedido vivo; o "Lançar para ROTAS" deixa de ser passo (21/10/2026, SESSAO-38 · frente da Logística) — ↩️ revisa a D-38, a D-39, a D-45 e a D-58 (o lançamento)
+
+**Pedido do dono (bateria da SESSAO-38):** a qualquer momento ele cadastra numa rota qualquer pedido — pronto, em produção ou ainda no PCP; assim que o pedido chega à plataforma ele pode ser programado; programado, aparece SÓ em "Já programadas". As rotas não dependem mais de "Pedidos em aguardo": respondem direto a todos os pedidos, prontos ou não. Cada cartão de "Sem programação" diz se o pedido está pronto ou ainda em produção/PCP.
+
+1. **Pedido vivo = uma regra só** para a Expedição e as rotas: card do pedido não arquivado, sem entrega registrada na plataforma, não encerrado no Tiny (entregue, não entregue, cancelado), o que o Tiny já levou adiante (faturado, pronto para envio, enviado) só fica com peça dele na fábrica ([[D-132 - O PCP segue o Tiny pedido Faturado Pronto para envio|D-132]]/D-133), nunca o excluído no Tiny ([[D-140 - SESSAO-32 pedido excluido no Tiny nao existe em nenhum modulo|D-140]]). **Candidato da rota** = o vivo que não está em decisão pós devolução ([[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]]). *(Para quem codar: `plt_privado.vw_pedidos_vivos` e `plt_privado.vw_pedidos_para_rota` — o "stand-by" de outra frente entra como UMA condição nesta última.)*
+2. **Estado de cada pedido:** **pronto** (todas as peças a entregar no fim de linha — Pedidos em aguardo ou ROTAS), **em produção** (alguma peça liberada; o cartão diz "1 de 3 prontas") ou **ainda no PCP** (nada liberado). Só frete = pronto desde que nasceu ([[D-063 - Frete nao vira peca de producao o resto nasce no PCP e o PCP|D-63]]).
+3. **O que substitui o "Lançar para ROTAS" (escolha do Claude):** nada precisa ser lançado. A peça pronta fica no lugar de sempre ("Pedidos em aguardo" — continua sendo o nome do lugar onde a peça pronta espera; a TELA saiu — [[D-157 - A Expedicao absorve Pedidos em aguardo os filtros|D-157]]) até a entrega; programar é direto na Programação. O botão antigo continua funcionando no banco só para o site antigo, até a publicação.
+4. **"Entregue" pede o pedido pronto** (escolha conservadora do Claude): o entregador e a logística só marcam "Entregue" com todas as peças a entregar prontas; antes disso o cartão avisa e o botão fica apagado (o banco confere de novo). Pedido em decisão pós devolução não se entrega. A entrega pelo Tiny continua fechando tudo onde a peça estiver ([[D-113 - Entregue e um fato so dos dois lados e entregue no Tiny fecha|D-113]], sem mudança).
+5. **ROTAS → Entregas → "A entregar"** = o programado (pronto ou não — o cartão diz), o pronto que ainda espera rota e o lançado do jeito antigo. O em produção sem rota fica só na Expedição.
+6. **O card do pedido programado fica como registro da entrega** (como o lançado ficava): o entregador vê em "Entregues hoje" e desfaz no mesmo dia; a Programação mostra nos entregues. "Não entregue" e "Pedido devolvido" (antes da entrega) valem para o programado, lançado ou não — as peças prontas saem do aguardo ou da ROTAS.
+7. ↩️ **[[D-039 - ROTAS programacao de caminhao com mapa e sugestao caminhoes|D-39]]** ("ROTAS lista apenas pedidos prontos lançados pelos Pedidos em aguardo"), **[[D-045 - Logistica e ROTAS unidade pronta lancamento ID de producao|D-45]]** ("lançar para ROTAS move de verdade; só o lançado aparece nas ROTAS"), **[[D-058 - O lugar da peca pronta com pedido Pedidos em aguardo|D-58]]** ("de lá o pedido completo é lançado para as ROTAS") e **[[D-038 - Logistica Estoque com ID digitavel sala de Pedidos em aguardo|D-38]]** (o "completo → lançar para ROTAS"): o lançamento deixa de ser exigência; a entrega continua por pedido completo ([[D-033 - ROTAS dentro da plataforma ClickUp nao recebe mais nada|D-33]]).
+
+**Descartadas:** lançar sozinho quando a última peça chega ao aguardo (mexeria na maquinaria do arrasto do quadro, de outra frente).
+
+**↩️ revisada em 21/10/2026 (revisão do supervisor, mesma sessão) — o item 4:** o "Entregue" de um pedido que ainda aparece em produção **não se trava mais**. No campo, a plataforma pode estar atrasada (alguém esqueceu de arrastar a peça) e um botão apagado na porta do cliente é pior — vale o precedente do próprio dono na D-113 ("entregue fecha tudo do pedido onde a peça estiver"). Em todo lugar que registra entrega (a tela do entregador e ROTAS → Entregas) aparece a confirmação explícita: *"Este pedido ainda aparece em produção na fábrica (X de Y peças prontas). Confirmar a entrega encerra tudo dele."* Sem a confirmação o banco recusa (o site antigo continua como era); confirmada, fecha tudo como o caminho do Tiny — o tempo aberto fecha antes, as peças saem de toda conta e a trilha da entrega diz com quantas peças prontas ela saiu. O card do pedido que ainda esperava liberação no PCP sai com a entrega (não fica no quadro do PCP); a entrega continua em "Entregas do dia" para desfazer no mesmo dia (o desfazer devolve as peças e o card). Pedido em decisão pós devolução continua sem entrega.
+- **Área Pedidos (mesma revisão):** o pedido PROGRAMADO aparece **"Em rota"**, com o dia, o caminhão e a rota — não "pronto".
