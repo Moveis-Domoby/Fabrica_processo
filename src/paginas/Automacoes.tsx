@@ -23,6 +23,7 @@ import { usuariosAtivos } from '@/metas/api'
 import { useCampos, useEtiquetas } from '@/utilitarios/consultas'
 import {
   POR_PAGINA_AUTOMACOES,
+  abrirCadastrosAutomacao,
   arquivarAutomacao,
   buscarAutomacao,
   excluirAutomacao,
@@ -333,7 +334,16 @@ function EditorCarregado({ chave }: { chave: string }) {
     queryFn: () => buscarAutomacao(id!, clienteQuery),
     enabled: id !== null && Number.isFinite(id),
   })
-  if (id === null) return <Editor key="nova" automacao={null} />
+  // A automação nova não tem o que ler, mas os blocos usam as etapas e as pessoas:
+  // aberta direto pelo endereço, os dois vêm numa chamada (vinda da lista, já estão
+  // guardados e nada é pedido). O editor abre na hora; os cadastros ligam quando chegam.
+  const cadastros = useQuery({
+    queryKey: ['automacoes', 'cadastros-da-nova'],
+    queryFn: () => abrirCadastrosAutomacao(clienteQuery),
+    enabled: id === null,
+    staleTime: 0,
+  })
+  if (id === null) return <Editor key="nova" automacao={null} cadastrosProntos={cadastros.isFetched && !cadastros.isFetching} />
   if (consulta.isError)
     return (
       <div className="flex flex-col gap-3 p-4">
@@ -352,12 +362,13 @@ function EditorCarregado({ chave }: { chave: string }) {
 
 type Gaveta = 'bloco' | null
 
-function Editor({ automacao }: { automacao: Automacao | null }) {
+function Editor({ automacao, cadastrosProntos = true }: { automacao: Automacao | null; cadastrosProntos?: boolean }) {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const [, setParametros] = useSearchParams()
-  // o editor só nasce depois de a automação chegar (os cadastros vieram junto)
-  const { dados, nomes } = useDadosAutomacao(true)
+  // a automação aberta: o editor só nasce depois de ela chegar (os cadastros vieram
+  // junto); a nova: os cadastros ligam quando a chamada dela responde
+  const { dados, nomes } = useDadosAutomacao(cadastrosProntos)
   const [nome, setNome] = useState(automacao?.nome ?? '')
   const [estado, setEstado] = useState<EstadoDesenho>(() => (automacao ? montarDesenho(automacao) : desenhoNovo()))
   const [selecionado, setSelecionado] = useState<string | null>(automacao ? null : ID_QUANDO)

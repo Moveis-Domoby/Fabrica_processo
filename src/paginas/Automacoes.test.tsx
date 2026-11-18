@@ -33,6 +33,7 @@ vi.mock('@/utilitarios/api', () => ({
 vi.mock('@/automacoes/api', () => ({
   POR_PAGINA_AUTOMACOES: 30,
   POR_PAGINA_EXECUCOES: 15,
+  abrirCadastrosAutomacao: vi.fn(async () => true),
   enderecoChamada: (id: number) => `https://exemplo/functions/v1/api/automacoes/${id}/disparar`,
   listarAutomacoes: vi.fn(async () => ({
     total: 1,

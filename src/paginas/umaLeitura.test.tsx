@@ -381,6 +381,22 @@ describe('SESSAO-55 · cada tela abre com uma requisição (a porta de abertura 
     })
   })
 
+  it('Automações: a automação NOVA aberta direto pelo endereço pede só os cadastros, numa leitura', async () => {
+    abrir(<Automacoes />, undefined, '/super-admin/automacoes?a=nova')
+    await soUmaPorta('plt_fn_automacoes_abertura')
+    expect(servidor.rpc[0].args).toEqual({ p_so_cadastros: true, p_cadastros: true })
+  })
+
+  it('Automações: a automação NOVA vinda da lista (cadastros já guardados) não pede nada', async () => {
+    const clienteQuery = appAberto()
+    clienteQuery.setQueryData(['etapas-ativas'], [])
+    clienteQuery.setQueryData(['usuarios-ativos'], [{ id: 'u-1', nome: 'Ana Operadora' }])
+    abrir(<Automacoes />, clienteQuery, '/super-admin/automacoes?a=nova')
+    await assentar()
+    expect(servidor.rpc).toEqual([])
+    expect(servidor.tabelas).toEqual([])
+  })
+
   it('Controle de tempo → "Desligar o tempo" (no clique): os nomes, os horários e as pausas numa leitura', async () => {
     abrir(<DesligarTempo />)
     await soUmaPorta('plt_fn_tempo_desligar_abertura')

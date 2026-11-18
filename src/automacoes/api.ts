@@ -109,6 +109,22 @@ async function abrirAutomacoes(
   return r
 }
 
+/**
+ * A automação NOVA aberta direto pelo endereço (F5 ou link em `?a=nova`): não há
+ * automação a ler, mas os blocos precisam das etapas e das pessoas — vêm numa
+ * chamada só (antes: 2 leituras). Com os dois já guardados (quem veio da lista),
+ * não pede nada.
+ */
+export async function abrirCadastrosAutomacao(clienteQuery: QueryClient): Promise<true> {
+  const falta =
+    faltaNoCache(clienteQuery, CHAVE_ETAPAS_ATIVAS, VALIDADE_CADASTROS_MS) ||
+    faltaNoCache(clienteQuery, CHAVE_USUARIOS_ATIVOS, VALIDADE_CADASTROS_MS)
+  if (falta) {
+    await abrirAutomacoes(clienteQuery, { p_so_cadastros: true }, 'Não deu para carregar os cadastros')
+  }
+  return true
+}
+
 export async function listarAutomacoes(
   pagina: number,
   arquivadas: boolean,

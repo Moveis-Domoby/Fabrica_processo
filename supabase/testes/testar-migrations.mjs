@@ -27069,6 +27069,16 @@ for (const arquivo55 of ['20261118130000_plt_meu_trabalho_numa_leitura.sql', '20
   const au1 = (await logado(ADM, `select public.plt_fn_automacoes_abertura(p_id => ${AUT}) as r`)).r
   conferir(au1.automacao.nome === 'Automação 55' && !('lista' in au1) && au1.etapas.some((e) => e.nome === 'A MONTAR 55') && au1.pessoas.some((p) => p.nome === 'Operador 55')
     && !au1.pessoas.some((p) => p.nome === 'Tablet 55'), 'Automação aberta: ela, as etapas e as pessoas (sem a conta do tablet) — sem a lista')
+  // a automação NOVA aberta direto pelo endereço: só os cadastros, numa chamada
+  const auN = (await logado(ADM, `select public.plt_fn_automacoes_abertura(p_so_cadastros => true) as r`)).r
+  conferir(!('lista' in auN) && !('automacao' in auN) && auN.etapas.some((e) => e.nome === 'A MONTAR 55') && auN.pessoas.some((p) => p.nome === 'Operador 55'),
+    'Automação nova: só os cadastros (etapas e pessoas) — sem a lista e sem automação nenhuma', JSON.stringify(Object.keys(auN)))
+  await igual(ADM, `public.plt_fn_automacoes_abertura(p_so_cadastros => true)`,
+    `jsonb_build_object('etapas', public.plt_fn_automacoes_abertura() -> 'etapas', 'pessoas', public.plt_fn_automacoes_abertura() -> 'pessoas')`,
+    'Automação nova: os cadastros = os mesmos que vêm com a lista')
+  const auNo = (await logado(OPE, `select public.plt_fn_automacoes_abertura(p_so_cadastros => true, p_id => ${AUT}) as r`)).r
+  conferir(!('lista' in auNo) && !('automacao' in auNo) && !JSON.stringify(auNo).includes('Automação 55'),
+    'Automação nova (operador, mesmo pedindo um id): nenhum dado de automação sai — só as etapas e os nomes que ele já lê', JSON.stringify(Object.keys(auNo)))
   await recusa(AD2, `select public.plt_fn_automacoes_abertura()`, 'Automações: o admin que não é o dono é recusado (a recusa é a da porta de sempre)', /super admin/i)
   await recusa(OPE, `select public.plt_fn_automacoes_abertura(p_id => ${AUT})`, 'Automações: o operador é recusado ao abrir uma automação', /super admin/i)
 

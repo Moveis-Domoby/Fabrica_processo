@@ -125,14 +125,16 @@ comment on function public.plt_fn_caminhoes_abertura(boolean, boolean) is
   'SESSAO-55 (Lei §2 — dívida 18): Configurações → Caminhões numa leitura — os caminhões (com ou sem os arquivados) e, a pedido, a situação do "Entregue vai ao Tiny" (plt_fn_tiny_entrega_situacao, com o gate dela). Security invoker.';
 
 -- ----------------------------------------------------------------------------
--- 4 · Painel super admin → Automações (a lista ou a automação aberta)
+-- 4 · Painel super admin → Automações (a lista, a automação aberta ou — na
+--     automação NOVA, que não tem o que ler — só os cadastros dos blocos)
 -- ----------------------------------------------------------------------------
 create or replace function public.plt_fn_automacoes_abertura(
   p_id           bigint  default null,   -- com id: a automação aberta no editor; sem: a lista
   p_limite       integer default 30,
   p_deslocamento integer default 0,
   p_arquivadas   boolean default false,
-  p_cadastros    boolean default true    -- a tela ainda não tem as etapas e as pessoas guardadas
+  p_cadastros    boolean default true,   -- a tela ainda não tem as etapas e as pessoas guardadas
+  p_so_cadastros boolean default false   -- a automação NOVA aberta direto pelo endereço: só os cadastros
 )
 returns jsonb
 language plpgsql
@@ -143,15 +145,21 @@ as $$
 declare
   v_ret jsonb;
 begin
+  -- A automação nova (ainda não existe; nada dela a ler): só os cadastros que os
+  -- blocos usam, numa chamada. São as etapas ativas e o nome das pessoas ativas —
+  -- o que qualquer pessoa logada já lê direto (a RLS de sempre decide); nenhum
+  -- dado de automação sai por aqui, então não há a recusa do super admin.
+  if coalesce(p_so_cadastros, false) then
+    v_ret := '{}'::jsonb;
   -- as duas portas recusam quem não é o super admin (D-100) — a recusa é delas
-  if p_id is not null then
+  elsif p_id is not null then
     v_ret := jsonb_build_object('automacao', public.plt_fn_automacao(p_id));
   else
     v_ret := jsonb_build_object('lista', coalesce((
       select jsonb_agg(to_jsonb(a) - 'ordinality' order by a.ordinality)
         from public.plt_fn_automacoes(p_limite, p_deslocamento, p_arquivadas) with ordinality as a), '[]'::jsonb));
   end if;
-  if coalesce(p_cadastros, true) then
+  if coalesce(p_cadastros, true) or coalesce(p_so_cadastros, false) then
     v_ret := v_ret || jsonb_build_object(
       'etapas', coalesce((
         select jsonb_agg(jsonb_build_object(
@@ -173,8 +181,8 @@ begin
 end;
 $$;
 
-comment on function public.plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean) is
-  'SESSAO-55 (Lei §2 — dívida 18): Automações numa leitura — a página da lista (plt_fn_automacoes) ou a automação aberta (plt_fn_automacao), com a recusa delas para quem não é o super admin; a pedido, os cadastros que os blocos usam: as etapas ativas e as pessoas ativas (id e nome).';
+comment on function public.plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean, boolean) is
+  'SESSAO-55 (Lei §2 — dívida 18): Automações numa leitura — a página da lista (plt_fn_automacoes) ou a automação aberta (plt_fn_automacao), com a recusa delas para quem não é o super admin; a pedido, os cadastros que os blocos usam: as etapas ativas e as pessoas ativas (id e nome). Com p_so_cadastros (a automação nova aberta direto pelo endereço), só os cadastros — sem dado de automação nenhum.';
 
 -- ----------------------------------------------------------------------------
 -- 5 · Controle de tempo → o bloco "Desligar o tempo" (aberto no clique)
@@ -212,12 +220,12 @@ comment on function public.plt_fn_tempo_desligar_abertura() is
 revoke all on function public.plt_fn_equipe_abertura() from public, anon;
 revoke all on function public.plt_fn_api_abertura() from public, anon;
 revoke all on function public.plt_fn_caminhoes_abertura(boolean, boolean) from public, anon;
-revoke all on function public.plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean) from public, anon;
+revoke all on function public.plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean, boolean) from public, anon;
 revoke all on function public.plt_fn_tempo_desligar_abertura() from public, anon;
 grant execute on function public.plt_fn_equipe_abertura() to authenticated;
 grant execute on function public.plt_fn_api_abertura() to authenticated;
 grant execute on function public.plt_fn_caminhoes_abertura(boolean, boolean) to authenticated;
-grant execute on function public.plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean) to authenticated;
+grant execute on function public.plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean, boolean) to authenticated;
 grant execute on function public.plt_fn_tempo_desligar_abertura() to authenticated;
 
 -- fim do item 3 da SESSAO-55
