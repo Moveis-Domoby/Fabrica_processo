@@ -10,6 +10,15 @@ import type { ConversaResumo } from '@/chat/tipos'
 import type { Aviso } from '@/notificacoes/api'
 import type { Tarefa } from '@/afazeres/api'
 import type { MetaPainel } from '@/metas/api'
+import {
+  acertarMetas,
+  CHAVE_METAS_PAGINA_1,
+  chaveFilaPrioridade,
+  chaveMeuTrabalho,
+  limparFila,
+  montarMeuTrabalho,
+} from '@/afazeres/meuTrabalho'
+import type { MeuTrabalho } from '@/afazeres/meuTrabalho'
 import type { Card, ExecucaoAberta, Setor } from '@/kanban/tipos'
 import type { ReguaTempo } from '@/kanban/tempoUtil'
 import { ehCorEtiqueta } from '@/utilitarios/tipos'
@@ -127,9 +136,27 @@ export function semearCache(clienteQuery: QueryClient, abertura: Abertura, prime
       pageParams: [null],
     })
   }
-  if (abertura.tarefas) clienteQuery.setQueryData(['afazeres', 'tarefas', eu], abertura.tarefas)
-  if (abertura.execucoes)
-    clienteQuery.setQueryData(['meu-painel', 'execucoes', eu], abertura.execucoes)
+  // SESSAO-55: o trabalho da pessoa é UMA chave (tarefas, bolinha e — quando a
+  // 1ª tela é o Meu Painel — os cards delegados e as tarefas do Sistema); o
+  // retrato diz para qual tela foi lido.
+  const painel = abertura.meu_painel
+  if (abertura.tarefas && abertura.execucoes) {
+    const guardado = clienteQuery.getQueryData<MeuTrabalho>(chaveMeuTrabalho(eu))
+    clienteQuery.setQueryData(
+      chaveMeuTrabalho(eu),
+      !painel && guardado && guardado.tela !== 'bolha'
+        ? // a releitura do perfil (sem rota) com uma tela pessoal aberta: só o
+          // que veio muda — os cards e o resto do retrato da tela ficam
+          { ...guardado, tarefas: abertura.tarefas, execucoes: abertura.execucoes }
+        : montarMeuTrabalho({
+            tela: painel ? 'painel' : 'bolha',
+            tarefas: abertura.tarefas,
+            execucoes: abertura.execucoes,
+            cards: painel?.cards,
+            tarefas_sistema: painel?.tarefas_sistema,
+          }),
+    )
+  }
   // o mesmo acerto de cor de buscarEtiquetas (cor desconhecida vira cinza)
   if (abertura.etiquetas) {
     clienteQuery.setQueryData(
@@ -139,24 +166,10 @@ export function semearCache(clienteQuery: QueryClient, abertura: Abertura, prime
   }
   if (abertura.campos) clienteQuery.setQueryData(['campos'], abertura.campos)
   if (abertura.regua_tempo) clienteQuery.setQueryData(['regua-tempo'], abertura.regua_tempo)
-  const painel = abertura.meu_painel
   if (painel) {
-    clienteQuery.setQueryData(['meu-painel', 'delegados', eu], painel.cards)
-    if (painel.setores_chave) {
-      clienteQuery.setQueryData(
-        ['meu-painel', 'tarefas-sistema', painel.setores_chave],
-        painel.tarefas_sistema,
-      )
-    }
-    const fila = Array.isArray(painel.fila_prioridade)
-      ? painel.fila_prioridade.filter((c): c is string => typeof c === 'string')
-      : []
-    clienteQuery.setQueryData(['fila-prioridade', eu], fila)
+    clienteQuery.setQueryData(chaveFilaPrioridade(eu), limparFila(painel.fila_prioridade))
     // numeric chega como número no JSON; o mesmo acerto de buscarMetasPainel
-    clienteQuery.setQueryData(
-      ['metas', 'painel', 1],
-      painel.metas.map((m) => ({ ...m, alvo: Number(m.alvo), progresso: Number(m.progresso) })),
-    )
+    clienteQuery.setQueryData(CHAVE_METAS_PAGINA_1, acertarMetas(painel.metas))
   }
   // Nada escapa entre a leitura e o canal pessoal (com folga de 5 s).
   if (primeira) pedirReprise(topicoDaPessoa(eu), abertura.agora_ms - 5_000)

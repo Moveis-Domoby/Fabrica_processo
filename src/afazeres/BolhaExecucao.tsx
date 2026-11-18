@@ -8,17 +8,21 @@ import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
 import { formatarDuracao, formatarDuracaoMs, useAgora } from '@/kanban/tempo'
 import { rotaDoSetor } from '@/navegacao/rotas'
-import { minhasExecucoesAbertas } from '@/metas/api'
 import { useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
 import {
   cardsPorIds,
   concluirTarefa,
-  minhasTarefas,
   msTempoTarefa,
   pausarTarefa,
   tarefaRodando,
 } from './api'
 import { ModalTarefa } from './ModalTarefa'
+import { useMeuTrabalho } from './meuTrabalho'
+import type { Tarefa } from './api'
+import type { ExecucaoAberta } from '@/kanban/tipos'
+
+const NENHUMA_TAREFA: Tarefa[] = []
+const NENHUMA_EXECUCAO: ExecucaoAberta[] = []
 
 /**
  * A bolinha flutuante do "em execução agora" (pedido do dono, 23/09): ela
@@ -35,23 +39,14 @@ export function BolhaExecucao() {
   const [aberta, setAberta] = useState(false)
   const [tarefaAbertaId, setTarefaAbertaId] = useState<number | null>(null)
 
-  // Mesmos fetchers das telas (E-22: uma chave, um fetcher) — a bolha não
-  // inventa consulta nova, só reaproveita o que o painel já usa. SESSAO-32:
-  // as duas chegam na abertura do app e ficam ao vivo pelo canal da pessoa
-  // (o relógio de 30 s saiu).
+  // A mesma leitura das telas (E-22: uma chave, um formato) — a bolha não
+  // inventa consulta nova. SESSAO-32: chega na abertura do app e fica ao vivo
+  // pelo canal da pessoa. SESSAO-55: tarefas e execuções vêm da MESMA resposta
+  // (o trabalho da pessoa numa leitura) — o aviso relê uma vez, não duas.
   useMeuTrabalhoAoVivo(perfil?.id)
-  const { data: tarefas = [] } = useQuery({
-    queryKey: ['afazeres', 'tarefas', perfil?.id],
-    queryFn: () => minhasTarefas(perfil!.id),
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
-  const { data: execucoes = [] } = useQuery({
-    queryKey: ['meu-painel', 'execucoes', perfil?.id],
-    queryFn: minhasExecucoesAbertas,
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
+  const { data: trabalho } = useMeuTrabalho()
+  const tarefas = trabalho?.tarefas ?? NENHUMA_TAREFA
+  const execucoes = trabalho?.execucoes ?? NENHUMA_EXECUCAO
   const rodando = useMemo(() => tarefas.filter(tarefaRodando), [tarefas])
   const idsCards = useMemo(() => execucoes.map((e) => e.card_id), [execucoes])
   const { data: cards = [] } = useQuery({
@@ -63,10 +58,7 @@ export function BolhaExecucao() {
   const setorPorId = useMemo(() => new Map(setores.map((s) => [s.id, s])), [setores])
 
   async function invalidar() {
-    await Promise.all([
-      clienteQuery.invalidateQueries({ queryKey: ['afazeres'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['meu-painel'] }),
-    ])
+    await clienteQuery.invalidateQueries({ queryKey: ['afazeres'] })
   }
   function aoErro(titulo: string) {
     return (excecao: unknown) =>

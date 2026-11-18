@@ -1,11 +1,12 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as EventoPonteiro } from 'react'
 import { Link } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
 import { FlaskConical, Lightbulb, SquareKanban, X } from 'lucide-react'
 import { Botao } from '@/componentes/ui'
 import { useSessao } from '@/autenticacao/sessao-contexto'
-import { minhasTarefas } from '@/afazeres/api'
+import { useMeuTrabalho } from '@/afazeres/meuTrabalho'
+import type { MeuTrabalho } from '@/afazeres/meuTrabalho'
+import type { Tarefa } from '@/afazeres/api'
 import { useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
 import { LIMIAR_ARRASTO, limitarPosicao } from '@/chat/posicao'
 import type { PosicaoBalao } from '@/chat/posicao'
@@ -57,6 +58,9 @@ function tela() {
  * das tarefas da pessoa, que já chegam na abertura e ficam ao vivo pelo canal
  * dela (a pendência é a tarefa do Sistema "Testar a sugestão #N" — D-264).
  */
+const NENHUMA_TAREFA: Tarefa[] = []
+const soTarefas = (trabalho: MeuTrabalho) => trabalho.tarefas
+
 export function BolhaSugestao() {
   const { perfil } = useSessao()
   const eu = perfil?.id ?? ''
@@ -73,12 +77,8 @@ export function BolhaSugestao() {
   const painel = useRef<HTMLDivElement>(null)
 
   useMeuTrabalhoAoVivo(perfil?.id)
-  const { data: tarefas = [] } = useQuery({
-    queryKey: ['afazeres', 'tarefas', perfil?.id],
-    queryFn: () => minhasTarefas(perfil!.id),
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
+  // SESSAO-55: as tarefas vêm do trabalho da pessoa (a mesma leitura da bolinha).
+  const { data: tarefas = NENHUMA_TAREFA } = useMeuTrabalho(soTarefas)
   const paraTestar = useMemo(
     () =>
       tarefas

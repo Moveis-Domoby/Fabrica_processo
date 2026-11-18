@@ -27,14 +27,13 @@ import {
   concluirTarefa,
   ehTarefaPessoal,
   iniciarTarefa,
-  meusCards,
-  minhasTarefas,
   msTempoTarefa,
   pausarTarefa,
   salvarFilaPrioridade,
   tarefaRodando,
-  tarefasDoSistema,
 } from '@/afazeres/api'
+import { chaveFilaPrioridade, useMeuTrabalho } from '@/afazeres/meuTrabalho'
+import type { Card } from '@/kanban/tipos'
 import { buscarMetasPainel, encerrarMeta } from '@/metas/api'
 import type { MetaPainel } from '@/metas/api'
 import type { Tarefa } from '@/afazeres/api'
@@ -46,6 +45,8 @@ import { sugestaoDaTarefa } from '@/tech/regras'
 import { useAbrirSugestao } from '@/tech/abrirSugestao'
 
 const METAS_POR_PAGINA = 20
+const NENHUM_CARD: Card[] = []
+const NENHUMA_TAREFA: Tarefa[] = []
 
 interface ItemFila {
   /** "t:{id}" para tarefa · "c:{id}" para card delegado — a chave guardada. */
@@ -75,36 +76,24 @@ export function MeuPainel() {
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
   const setorPorId = useMemo(() => new Map(setores.map((s) => [s.id, s])), [setores])
-  const meusSetorIds = useMemo(() => vinculos.map((v) => v.setor_id), [vinculos])
 
   // ----- as três filas -----
-  // SESSAO-32 (Lei §2/§4): as filas chegam na abertura do app (mesmas chaves)
-  // e ficam ao vivo pelo canal da pessoa — sem os relógios de 15 s e sem
-  // escutar a tabela de cards inteira. As tarefas usam a chave da bolinha
-  // (E-22: o mesmo dado, uma chave — antes eram duas leituras iguais).
+  // SESSAO-32 (Lei §2/§4): as filas chegam na abertura do app e ficam ao vivo
+  // pelo canal da pessoa — sem os relógios de 15 s e sem escutar a tabela de
+  // cards inteira. SESSAO-55 (Lei §2 — a dívida 20): as tarefas, os cards
+  // delegados, as tarefas do Sistema e a bolinha são UMA leitura só (o trabalho
+  // da pessoa) — o aviso relê uma vez, não quatro; chegando à tela sem nada
+  // guardado, a fila de prioridade e a 1ª página das metas vêm na mesma leitura.
   useMeuTrabalhoAoVivo(perfil?.id)
-  const { data: cardsDelegados = [] } = useQuery({
-    queryKey: ['meu-painel', 'delegados', perfil?.id],
-    queryFn: () => meusCards(perfil!.id),
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
-  const { data: tarefas = [] } = useQuery({
-    queryKey: ['afazeres', 'tarefas', perfil?.id],
-    queryFn: () => minhasTarefas(perfil!.id),
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
-  const { data: tarefasSistema = [] } = useQuery({
-    queryKey: ['meu-painel', 'tarefas-sistema', meusSetorIds.join(',')],
-    queryFn: () => tarefasDoSistema(meusSetorIds),
-    enabled: meusSetorIds.length > 0,
-    staleTime: Infinity,
-  })
+  const { data: trabalho, pronto } = useMeuTrabalho(undefined, 'painel')
+  const tarefas = trabalho?.tarefas ?? NENHUMA_TAREFA
+  const cardsDelegados = pronto ? (trabalho?.cards ?? NENHUM_CARD) : NENHUM_CARD
+  const tarefasSistema = pronto ? (trabalho?.tarefasSistema ?? NENHUMA_TAREFA) : NENHUMA_TAREFA
   const { data: ordemSalva = [] } = useQuery({
-    queryKey: ['fila-prioridade', perfil?.id],
+    queryKey: chaveFilaPrioridade(perfil?.id),
     queryFn: () => buscarFilaPrioridade(perfil!.id),
-    enabled: perfil !== null,
+    // só depois do trabalho: a fila veio junto (a consulta acha o dado guardado)
+    enabled: perfil !== null && pronto,
     staleTime: Infinity,
   })
 
@@ -191,7 +180,6 @@ export function MeuPainel() {
       })
   }
   async function invalidarFilas() {
-    await clienteQuery.invalidateQueries({ queryKey: ['meu-painel'] })
     await clienteQuery.invalidateQueries({ queryKey: ['afazeres'] })
   }
   const iniciarMutacao = useMutation({
@@ -237,7 +225,8 @@ export function MeuPainel() {
         limite: METAS_POR_PAGINA,
         deslocamento: (paginaMetas - 1) * METAS_POR_PAGINA,
       }),
-    enabled: perfil !== null,
+    // a 1ª página vem junto com o trabalho da pessoa (SESSAO-55); as seguintes, no clique
+    enabled: perfil !== null && (pronto || paginaMetas > 1),
     staleTime: Infinity,
   })
   // O andamento das metas muda com os fatos da produção: o aviso do painel

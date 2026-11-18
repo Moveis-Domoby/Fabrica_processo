@@ -57,47 +57,6 @@ export function ehTarefaPessoal(t: Tarefa): boolean {
   return t.origem === 'pessoa' && t.criada_por_id !== null && t.criada_por_id === t.responsavel_id
 }
 
-export async function meusCards(usuarioId: string): Promise<Card[]> {
-  const { data, error } = await supabase
-    .from('plt_cards')
-    .select(COLUNAS_CARD)
-    .eq('responsavel_id', usuarioId)
-    .is('concluido_em', null)
-    .is('arquivado_em', null)
-    .order('desde', { ascending: true })
-  if (error) throw new Error(`Não deu para carregar seus cards: ${error.message}`)
-  return (data ?? []) as unknown as Card[]
-}
-
-export async function minhasTarefas(usuarioId: string): Promise<Tarefa[]> {
-  const { data, error } = await supabase
-    .from('plt_tarefas')
-    .select(COLUNAS_TAREFA)
-    .eq('responsavel_id', usuarioId)
-    .neq('situacao', 'concluida')
-    .is('tarefa_mae_id', null) // subtarefa aparece dentro da mãe, nunca solta
-    .order('criada_em', { ascending: true })
-  if (error) throw new Error(`Não deu para carregar suas tarefas: ${error.message}`)
-  return (data ?? []) as unknown as Tarefa[]
-}
-
-/**
- * As tarefas do "Sistema" dos meus setores (SESSAO-23): pendências de parecer
- * de qualidade viradas tarefa — sem responsável, do setor recebedor inteiro.
- */
-export async function tarefasDoSistema(setorIds: number[]): Promise<Tarefa[]> {
-  if (setorIds.length === 0) return []
-  const { data, error } = await supabase
-    .from('plt_tarefas')
-    .select(COLUNAS_TAREFA)
-    .eq('origem', 'sistema')
-    .in('setor_id', setorIds)
-    .neq('situacao', 'concluida')
-    .order('criada_em', { ascending: true })
-  if (error) throw new Error(`Não deu para carregar as tarefas do sistema: ${error.message}`)
-  return (data ?? []) as unknown as Tarefa[]
-}
-
 /** Subtarefas (todas, inclusive concluídas — o contador "2/5" precisa delas). */
 export async function subtarefasDe(maeIds: number[]): Promise<Tarefa[]> {
   if (maeIds.length === 0) return []

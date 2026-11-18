@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { COLUNAS_CARD } from '@/kanban/tipos'
-import type { Card, ExecucaoAberta } from '@/kanban/tipos'
+import type { Card } from '@/kanban/tipos'
 
 /**
  * Camada de dados do Meu Painel e do cockpit de metas (SESSAO-14 / D-37).
@@ -148,14 +148,3 @@ export async function usuariosAtivos(): Promise<{ id: string; nome: string }[]> 
   return (data ?? []) as { id: string; nome: string }[]
 }
 
-/**
- * As execuções abertas de quem está logado (a bolinha) — "o que estou fazendo
- * agora". SESSAO-32: pela porta que lê a posição projetada no card — o mesmo
- * conjunto da visão plt_vw_execucoes, sem recalcular o histórico inteiro (ia a
- * 1,9 s no teste de carga). A pessoa vem do token; a chave do cache leva o id.
- */
-export async function minhasExecucoesAbertas(): Promise<ExecucaoAberta[]> {
-  const { data, error } = await supabase.rpc('plt_fn_minhas_execucoes')
-  if (error) throw new Error(`Não deu para carregar suas execuções: ${error.message}`)
-  return (data ?? []) as ExecucaoAberta[]
-}

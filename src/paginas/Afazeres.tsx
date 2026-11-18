@@ -13,12 +13,12 @@ import { usePedidosDosCards } from '@/kanban/componentes/usePedidosDosCards'
 import {
   criarTarefa,
   ehTarefaPessoal,
-  meusCards,
-  minhasTarefas,
   msTempoTarefa,
-  subtarefasDe,
   tarefaRodando,
 } from '@/afazeres/api'
+import type { Tarefa } from '@/afazeres/api'
+import { useMeuTrabalho } from '@/afazeres/meuTrabalho'
+import type { Card, PedidoResumo } from '@/kanban/tipos'
 import { ModalTarefa } from '@/afazeres/ModalTarefa'
 import { rotuloOrigemCard } from '@/kanban/rotulos'
 import { useMeuTrabalhoAoVivo } from '@/lib/aoVivo'
@@ -31,6 +31,9 @@ import { useAbrirSugestao } from '@/tech/abrirSugestao'
  * editar, concluir, subtarefas e privacidade (pedido do dono, 23/09 — nada de
  * expansão na tela). A visão da liderança virou a filha "Afazeres do time".
  */
+const NENHUM_CARD: Card[] = []
+const NENHUMA_TAREFA: Tarefa[] = []
+
 export function Afazeres() {
   const { perfil, vinculos } = useSessao()
   const notificar = useNotificacao()
@@ -44,39 +47,43 @@ export function Afazeres() {
 
   // SESSAO-32 (Lei §4): ao vivo pelo canal da pessoa — os relógios de 15 s saíram.
   useMeuTrabalhoAoVivo(perfil?.id)
-  const { data: cards = [] } = useQuery({
-    queryKey: ['afazeres', 'cards', perfil?.id],
-    queryFn: () => meusCards(perfil!.id),
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
-  const { data: tarefas = [] } = useQuery({
-    queryKey: ['afazeres', 'tarefas', perfil?.id],
-    queryFn: () => minhasTarefas(perfil!.id),
-    enabled: perfil !== null,
-    staleTime: Infinity,
-  })
-  const { data: pedidosPorId = new Map() } = usePedidosDosCards(cards)
+  // SESSAO-55 (Lei §2): a tela inteira numa leitura — os cards delegados, as
+  // tarefas, o "2/5" de cada tarefa (pronto do banco) e o número do pedido de
+  // cada card. Antes eram 4 leituras, a dos pedidos em cascata.
+  const { data: trabalho, pronto } = useMeuTrabalho(undefined, 'afazeres')
+  const cards = pronto ? (trabalho?.cards ?? NENHUM_CARD) : NENHUM_CARD
+  const tarefas = trabalho?.tarefas ?? NENHUMA_TAREFA
+  // A porta traz o número de até 100 pedidos; passou disso (raro), o resto vem
+  // pela leitura de sempre.
+  const pedidosDaPorta = useMemo(
+    () => new Map((pronto ? (trabalho?.pedidos ?? []) : []).map((p) => [p.pedido_id, p])),
+    [trabalho, pronto],
+  )
+  const cardsSemPedido = useMemo(
+    () =>
+      pronto
+        ? cards.filter((c) => c.pedido_id !== null && !pedidosDaPorta.has(c.pedido_id))
+        : NENHUM_CARD,
+    [cards, pedidosDaPorta, pronto],
+  )
+  const { data: pedidosAMais } = usePedidosDosCards(cardsSemPedido)
+  const pedidosPorId = useMemo(() => {
+    const mapa = new Map<number, Pick<PedidoResumo, 'numero'>>(pedidosDaPorta)
+    for (const [id, p] of pedidosAMais ?? []) mapa.set(id, p)
+    return mapa
+  }, [pedidosDaPorta, pedidosAMais])
 
   // Só o contador "2/5" dos cards — o checklist inteiro vive no preview.
-  const idsTarefas = useMemo(() => tarefas.map((t) => t.id), [tarefas])
-  const { data: filhas = [] } = useQuery({
-    queryKey: ['afazeres', 'subtarefas', idsTarefas.join(',')],
-    queryFn: () => subtarefasDe(idsTarefas),
-    enabled: idsTarefas.length > 0,
-    staleTime: Infinity,
-  })
-  const contadorPorMae = useMemo(() => {
-    const mapa = new Map<number, { total: number; feitas: number }>()
-    for (const s of filhas) {
-      if (s.tarefa_mae_id === null) continue
-      const atual = mapa.get(s.tarefa_mae_id) ?? { total: 0, feitas: 0 }
-      atual.total += 1
-      if (s.situacao === 'concluida') atual.feitas += 1
-      mapa.set(s.tarefa_mae_id, atual)
-    }
-    return mapa
-  }, [filhas])
+  const contadorPorMae = useMemo(
+    () =>
+      new Map(
+        (pronto ? (trabalho?.subtarefas ?? []) : []).map((s) => [
+          s.mae_id,
+          { total: Number(s.total), feitas: Number(s.feitas) },
+        ]),
+      ),
+    [trabalho, pronto],
+  )
 
   // O preview: a tarefa aberta no modal (a fonte fresca vem da lista).
   const [tarefaAbertaId, setTarefaAbertaId] = useState<number | null>(null)
@@ -151,7 +158,7 @@ export function Afazeres() {
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => {
           const setor = setores.find((s) => s.id === card.setor_atual_id)
-          const pedido = pedidosPorId.get(card.pedido_id)
+          const pedido = card.pedido_id === null ? undefined : pedidosPorId.get(card.pedido_id)
           return (
             <li
               key={`card-${card.id}`}

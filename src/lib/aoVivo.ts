@@ -166,8 +166,9 @@ export function useAoVivo(
 /**
  * O trabalho DA PESSOA ao vivo (SESSAO-32 · migration 78): o banco avisa no
  * canal dela ('meu_trabalho') quando muda um card, uma execução ou uma tarefa
- * que é dela — a bolinha, o Meu Painel e Meus afazeres releem só as consultas
- * da pessoa. Sem relógio; ao voltar a conexão, uma releitura de recuperação.
+ * que é dela — a bolinha, o Meu Painel e Meus afazeres releem só o trabalho da
+ * pessoa (uma leitura — SESSAO-55). Sem relógio; ao voltar a conexão, uma
+ * releitura de recuperação.
  */
 export function useMeuTrabalhoAoVivo(usuarioId: string | null | undefined) {
   const clienteQuery = useQueryClient()
@@ -184,8 +185,9 @@ export function useMeuTrabalhoAoVivo(usuarioId: string | null | undefined) {
       if (espera) clearTimeout(espera)
       espera = setTimeout(() => {
         espera = null
+        // SESSAO-55: o trabalho da pessoa mora numa chave só, sob ['afazeres']
+        // (as tarefas, a bolinha e os cards delegados) — uma releitura.
         void clienteQuery.invalidateQueries({ queryKey: ['afazeres'], predicate: podeReler })
-        void clienteQuery.invalidateQueries({ queryKey: ['meu-painel'], predicate: podeReler })
       }, ESPERA_MS)
     }
     const parar = ouvirCanal(
