@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-53 — \"Entregue em parte\" também na Programação, na Expedição e nas Entregas do dia"
 tipo: demanda
-status: 🔨 em execução (18/11/2026 — mesa da fila; nada no banco de produção, nada na main)
+status: ⏳ pronta para subir (18/11/2026 — feita na mesa da fila; nada no banco de produção, nada na main)
 data: 2026-11-18
 atualizado: 2026-11-18
 origem: a dívida registrada na decisão provisória D-328, item 1, da SESSAO-51 (pedido gravado pelo Escritório em `_escritorio/handoffs/sessao-53-entregue-em-parte-nas-telas-prompt-claude-code.md`)
@@ -42,10 +42,10 @@ Os da logística/rotas e da entrega parcial já cobertos pelas SESSÕES 41 e 51 
 
 ## Critérios de aceite
 
-- [ ] As três telas mostram "Entregue em parte (N de M)" num pedido de teste entregue em parte, iguais às outras.
-- [ ] Cada tela continua abrindo com 1 requisição; plano ×100 das portas tocadas no handoff.
-- [ ] A bateria do banco continua reaplicando tudo sem quebrar.
-- [ ] Celular (375) e tablet (768) sem rolagem lateral.
+- [x] As três telas mostram "Entregue em parte (N de M)" num pedido de teste entregue em parte, iguais às outras.
+- [x] Cada tela continua abrindo com 1 requisição; plano ×100 das portas tocadas no handoff.
+- [x] A bateria do banco continua reaplicando tudo sem quebrar.
+- [x] Celular (375) e tablet (768) sem rolagem lateral.
 
 ## Notas para o Claude Code
 
@@ -71,4 +71,8 @@ Os da logística/rotas e da entrega parcial já cobertos pelas SESSÕES 41 e 51 
 
 ## Resultado (preencher ao entregar)
 
-*Ver o handoff da sessão.*
+- **Feito no ramo `sessao-53-entregue-em-parte-nas-telas`** (nada no banco de produção, nada na main): a regra única do selo no banco (uma visão), a informação na porta que cada tela já usava (Programar, Já programadas, Expedição, Entregas do dia), um selo só nas telas, 23 provas no banco, 9 testes de tela, o ensaio ×100 e 12 fotos. Handoff: [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas]] · diário: [[SESSAO-53]].
+- **A forma:** as três portas em jsonb ganharam uma chave; "Já programadas" (tabela) ganhou uma coluna jsonb, com a migration antiga ajustada para a bateria reaplicar tudo.
+- **Além do pedido:** a frase longa da lista "Entregues hoje" fazia a tela do celular rolar de lado — agora quebra a linha.
+- **De fora (provisório):** o Calendário da Programação e "ROTAS → Entregas".
+- **Falta:** o dono subir (handoff, "Para ligar com o dono") e confirmar as 5 provisórias.

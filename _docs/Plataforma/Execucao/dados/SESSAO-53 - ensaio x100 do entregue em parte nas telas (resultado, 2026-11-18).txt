@@ -1,0 +1,142 @@
+== montando o banco em disco (×100: pedidos 562.700 · vivos na LIMPEZA 6.300 · arquivados 45.500) ==
+  151 migrations aplicadas (a última: 20261116030000_plt_mover_card_para_pcp.sql) (34 s)
+  pedidos 562.700 (138 s)
+  cards 95.169 · eventos 60.667 · programações 15.467 · paradas avulsas 600 · hoje 2026-11-18 (210 s)
+  as 4 portas de ANTES copiadas para antes53 (210 s)
+
+  a migration da 53 aplicada em 0.51 s; de novo (reaplicável) em 0.16 s
+  pedidos entregues em parte: 600 (300 com rota, 300 sem programação) (217 s)
+
+== ANTES × DEPOIS, alternados na mesma conexão (8 de cada; a 6ª e a mediana da 2ª em diante) ==
+  Programar — sem filtro (200, o que a aba abre)           6ª: antes  11025.4 · depois  12064.1 ms | mediana 2ª+: antes  11760.1 · depois  12363.3 ms · +5% · 200 itens · 8 com o selo · 8 com "ainda em produção"
+      antes  (ms): 10764 · 10417 · 12636 · 12436 · 11760 · 11025 · 12023 · 11731
+      depois (ms): 9754 · 12363 · 13163 · 12977 · 12648 · 12064 · 12006 · 11516
+  Já programadas — por entregar (50, a 1ª página)          6ª: antes    580.5 · depois    699.8 ms | mediana 2ª+: antes    338.9 · depois    469.7 ms · +39% · 50 linhas · 50 com o selo
+      antes  (ms): 348 · 263 · 308 · 339 · 328 · 580 · 436 · 461
+      depois (ms): 360 · 418 · 522 · 412 · 454 · 700 · 470 · 477
+  Já programadas — o dia e o caminhão (200, o mapa)        6ª: antes     31.0 · depois     69.8 ms | mediana 2ª+: antes     35.7 · depois     66.5 ms · +86% · 20 linhas · 20 com o selo
+      antes  (ms): 34 · 73 · 29 · 47 · 53 · 31 · 36 · 34
+      depois (ms): 77 · 64 · 62 · 64 · 72 · 70 · 67 · 72
+  Já programadas — entregues (50)                          6ª: antes  14631.5 · depois  15326.5 ms | mediana 2ª+: antes  11919.1 · depois  13479.7 ms · +13% · 50 linhas · 0 com o selo
+      antes  (ms): 11604 · 9055 · 8061 · 11086 · 11919 · 14632 · 15077 · 15670
+      depois (ms): 10394 · 8254 · 10480 · 10367 · 13480 · 15327 · 15715 · 14705
+  Expedição — todos (20, o que a tela abre)                6ª: antes  10928.6 · depois  10582.4 ms | mediana 2ª+: antes   9823.0 · depois   9275.2 ms · -6% · 20 itens · 0 com o selo · 0 com "ainda em produção"
+      antes  (ms): 10809 · 9652 · 9693 · 9821 · 9960 · 10929 · 9823 · 9863
+      depois (ms): 10264 · 9132 · 8878 · 9275 · 8734 · 10582 · 10105 · 10555
+  Expedição — com rota programada (20)                     6ª: antes   6093.6 · depois   6420.8 ms | mediana 2ª+: antes   8361.6 · depois   8359.2 ms · -0% · 20 itens · 20 com o selo · 20 com "ainda em produção"
+      antes  (ms): 10106 · 10887 · 9020 · 8362 · 6300 · 6094 · 7625 · 8958
+      depois (ms): 9765 · 9158 · 8359 · 8199 · 6498 · 6421 · 8371 · 8942
+  Entregas do dia — HOJE (caminhão 1, rota 1)              6ª: antes    146.9 · depois    232.4 ms | mediana 2ª+: antes    129.7 · depois    153.9 ms · +19% · 61 itens · 10 com o selo · 10 com "ainda em produção"
+      antes  (ms): 282 · 116 · 128 · 130 · 118 · 147 · 131 · 143
+      depois (ms): 197 · 157 · 154 · 154 · 144 · 232 · 137 · 152
+
+== a regra do selo (só o pedido entregue em parte paga) ==
+  a regra para 1 pedido                                    6ª 17.30 ms · mediana 2ª+ 15.76 ms · cada: 15.1 · 13.6 · 11.5 · 12.3 · 16.8 · 17.3 · 17.1 · 15.8
+  a regra para os 600 entregues em parte de uma vez       1101.8 ms no total
+  --- plano: a regra do selo para 1 pedido (a visão, pela chave)
+      Index Scan using plt_cards_pkey on plt_cards c (actual rows=1.00 loops=1)
+        Index Cond: (id = 65901)
+        Filter: ((parcial_evento_id IS NOT NULL) AND ((entrega_evento_id IS NULL) OR (entrega_evento_id = parcial_evento_id)) AND (tipo = 'pedido'::text))
+        Index Searches: 1
+        Buffers: shared hit=23
+        SubPlan 5
+          ->  Result (actual rows=1.00 loops=1)
+                Buffers: shared hit=18
+                InitPlan 1
+                  ->  Aggregate (actual rows=1.00 loops=1)
+                        Buffers: shared hit=7
+                        ->  Nested Loop (actual rows=3.00 loops=1)
+                              Join Filter: (s.id = u.setor_atual_id)
+                              Rows Removed by Join Filter: 12
+                              Buffers: shared hit=7
+                              ->  Index Scan using plt_cards_unidade_vaga_uq on plt_cards u (actual rows=3.00 loops=1)
+                                    Index Cond: (pedido_id = c.pedido_id)
+                                    Filter: ((arquivado_em IS NULL) AND (cancelada_em IS NULL) AND (destino_pendente_em IS NULL))
+                                    Index Searches: 1
+                                    Buffers: shared hit=4
+                              ->  Seq Scan on plt_setores s (actual rows=5.00 loops=3)
+                                    Filter: (papel_no_fluxo = ANY ('{entrada,producao}'::text[]))
+                                    Buffers: shared hit=3
+                InitPlan 2
+                  ->  Aggregate (actual rows=1.00 loops=1)
+                        Buffers: shared hit=2
+                        ->  Function Scan on fn_vagas_pedido w (actual rows=0.00 loops=1)
+                              Filter: ((card_id IS NULL) AND (reserva_card_id IS NULL))
+                              Buffers: shared hit=2
+                InitPlan 3
+                  ->  Aggregate (actual rows=1.00 loops=1)
+                        Buffers: shared hit=7
+                        ->  Nested Loop (actual rows=3.00 loops=1)
+                              Join Filter: (s_1.id = u_1.setor_atual_id)
+                              Rows Removed by Join Filter: 12
+                              Buffers: shared hit=7
+                              ->  Index Scan using plt_cards_unidade_vaga_uq on plt_cards u_1 (actual rows=3.00 loops=1)
+                                    Index Cond: (pedido_id = c.pedido_id)
+                                    Filter: ((arquivado_em IS NULL) AND (cancelada_em IS NULL) AND (destino_pendente_em IS NULL))
+                                    Index Searches: 1
+                                    Buffers: shared hit=4
+                              ->  Seq Scan on plt_setores s_1 (actual rows=5.00 loops=3)
+                                    Filter: (papel_no_fluxo = ANY ('{entrada,producao}'::text[]))
+                                    Buffers: shared hit=3
+                InitPlan 4
+                  ->  Aggregate (actual rows=1.00 loops=1)
+                        Buffers: shared hit=2
+                        ->  Function Scan on fn_vagas_pedido w_1 (actual rows=0.00 loops=1)
+                              Filter: ((card_id IS NULL) AND (reserva_card_id IS NULL))
+                              Buffers: shared hit=2
+      Planning:
+        Buffers: shared hit=86
+      Planning Time: 11.368 ms
+      Execution Time: 3.395 ms
+  --- plano: Já programadas — por entregar (50) — DEPOIS
+      Function Scan on plt_fn_programadas (actual rows=50.00 loops=1)
+        Buffers: shared hit=64111
+      Planning Time: 0.132 ms
+      Execution Time: 545.149 ms
+  --- plano: Já programadas — por entregar (50) — ANTES
+      Function Scan on plt_fn_programadas (actual rows=50.00 loops=1)
+        Buffers: shared hit=63037
+      Planning Time: 0.097 ms
+      Execution Time: 402.542 ms
+
+fim (911 s)
+
+== NOTAS (18/11) ==
+1. A máquina estava carregada (outras mesas da fila rodando baterias ao mesmo tempo): os tempos absolutos saíram 5 a 7 vezes acima dos ensaios anteriores no mesmo volume (ex.: 'Já programadas — por entregar' deu ~60 ms no ensaio da SESSAO-50 e ~340 ms aqui, NA VERSÃO DE ANTES). Vale a comparação ANTES x DEPOIS (alternada) e a contagem de blocos, que não depende da carga.
+2. A semeadura é o teto: os 300 pedidos entregues em parte com rota são os PRIMEIROS da lista — as páginas medidas vêm com 20 a 50 linhas com o selo (hoje há 1 pedido assim em produção).
+3. Depois deste ensaio a regra foi simplificada para contar uma vez só (o plano acima mostra a conta duplicada: InitPlan 1-4). Plano da regra na versão final, em escala 1:
+  --- plano: a regra do selo para 1 pedido (a visão, pela chave)
+      Index Scan using plt_cards_pkey on plt_cards c (actual rows=1.00 loops=1)
+        Index Cond: (id = 660)
+        Filter: ((parcial_evento_id IS NOT NULL) AND ((entrega_evento_id IS NULL) OR (entrega_evento_id = parcial_evento_id)) AND (tipo = 'pedido'::text))
+        Index Searches: 1
+        Buffers: shared hit=10
+        SubPlan 1
+          ->  Aggregate (actual rows=1.00 loops=1)
+                Buffers: shared hit=6
+                ->  Nested Loop (actual rows=3.00 loops=1)
+                      Join Filter: (s.id = u.setor_atual_id)
+                      Rows Removed by Join Filter: 12
+                      Buffers: shared hit=6
+                      ->  Bitmap Heap Scan on plt_cards u (actual rows=3.00 loops=1)
+                            Recheck Cond: ((pedido_id = c.pedido_id) AND (tipo = 'unidade'::text))
+                            Filter: ((arquivado_em IS NULL) AND (cancelada_em IS NULL) AND (destino_pendente_em IS NULL))
+                            Heap Blocks: exact=1
+                            Buffers: shared hit=3
+                            ->  Bitmap Index Scan on plt_cards_unidade_vaga_uq (actual rows=3.00 loops=1)
+                                  Index Cond: (pedido_id = c.pedido_id)
+                                  Index Searches: 1
+                                  Buffers: shared hit=2
+                      ->  Seq Scan on plt_setores s (actual rows=5.00 loops=3)
+                            Filter: (papel_no_fluxo = ANY ('{entrada,producao}'::text[]))
+                            Buffers: shared hit=3
+        SubPlan 2
+          ->  Aggregate (actual rows=1.00 loops=1)
+                Buffers: shared hit=1
+                ->  Function Scan on fn_vagas_pedido w (actual rows=0.00 loops=1)
+                      Filter: ((card_id IS NULL) AND (reserva_card_id IS NULL))
+                      Buffers: shared hit=1
+      Planning:
+        Buffers: shared hit=60
+      Planning Time: 3.980 ms
+      Execution Time: 0.827 ms
