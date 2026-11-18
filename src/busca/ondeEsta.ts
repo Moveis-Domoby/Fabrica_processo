@@ -42,7 +42,11 @@ export function ondeEsta(item: ItemDaBusca): LugarDoCard {
     const quando = dia(item.arquivado_em)
     switch (item.arquivado_motivo) {
       case 'entregue':
-        return { texto: `Entregue em ${quando}`, tom: 'perfeito' }
+        // SESSAO-52: o dia REAL da entrega (o mesmo da ficha) — o arquivamento é só o dia do registro
+        return {
+          texto: `Entregue em ${item.entregue_em ? dia(item.entregue_em) : quando}`,
+          tom: 'perfeito',
+        }
       case 'concluido':
         return { texto: `Concluído em ${quando}`, tom: 'perfeito' }
       case 'contagem':

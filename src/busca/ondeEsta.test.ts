@@ -70,6 +70,28 @@ describe('onde o card está (busca geral — SESSAO-40)', () => {
     )
   })
 
+  // SESSAO-52: uma data de entrega só — a busca diz o dia REAL (o da ficha), não o do arquivamento
+  it('"Entregue em" é o dia real da entrega, não o dia em que a peça foi arquivada', () => {
+    // marcada em 09/11 como "entregue no dia 06/11": a peça foi arquivada em 09/11
+    const item = {
+      ...base,
+      arquivado_em: '2026-11-09T13:32:00Z',
+      arquivado_motivo: 'entregue',
+      entregue_em: '2026-11-06T20:15:00Z',
+    }
+    expect(ondeEsta(item)).toEqual({ texto: 'Entregue em 06/11', tom: 'perfeito' })
+    // o dia é o da fábrica: 02:30 UTC de 07/11 ainda é 06/11 em Natal
+    expect(ondeEsta({ ...item, entregue_em: '2026-11-07T02:30:00Z' }).texto).toBe(
+      'Entregue em 06/11',
+    )
+    // o banco de antes (sem a chave): o dia do arquivamento, como era
+    expect(ondeEsta({ ...item, entregue_em: undefined }).texto).toBe('Entregue em 09/11')
+    // só a entrega usa o dia real: o que saiu por outro motivo segue no dia em que saiu
+    expect(ondeEsta({ ...item, arquivado_motivo: 'contagem' }).texto).toBe(
+      'Saiu do ESTOQUE em 09/11',
+    )
+  })
+
   it('o card do pedido mora no PCP: aguardando, tudo liberado, stand-by', () => {
     const pedido = {
       ...base,

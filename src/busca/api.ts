@@ -27,6 +27,13 @@ export interface ItemDaBusca {
   arquivado_em: string | null
   /** o porquê do arquivamento: entregue · concluido · contagem · venda · baixa_manual · … */
   arquivado_motivo: string | null
+  /**
+   * SESSAO-52: QUANDO a entrega com que o card saiu aconteceu de fato — o dia
+   * real (a data única do card do pedido, já com a correção do administrador),
+   * não o dia em que a peça foi arquivada. Ausente = não saiu por entrega (ou o
+   * banco de antes).
+   */
+  entregue_em?: string | null
   liberado_completo_em: string | null
   standby: boolean
   /** quem está fazendo agora */
