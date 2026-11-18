@@ -351,11 +351,16 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select coalesce(jsonb_agg(to_jsonb(l) || jsonb_build_object('entrega_registrada_em', ev.registrado_em)
-                            order by l.numero desc), '[]'::jsonb)
-    from public.plt_fn_pedidos_lista(p_busca, p_antes_numero, p_limite, p_cancelados) l
-    left join public.plt_cards pc on pc.id = l.card_id
-    left join public.plt_eventos ev on ev.id = coalesce(pc.entrega_evento_id, pc.parcial_evento_id);
+  -- a hora do registro por subconsulta (chave primária a chave primária): o plano não
+  -- depende de quantas linhas o banco acha que a lista devolve
+  select coalesce(jsonb_agg(
+           to_jsonb(l) || jsonb_build_object('entrega_registrada_em',
+             (select ev.registrado_em
+                from public.plt_cards pc
+                join public.plt_eventos ev on ev.id = coalesce(pc.entrega_evento_id, pc.parcial_evento_id)
+               where pc.id = l.card_id))
+           order by l.numero desc), '[]'::jsonb)
+    from public.plt_fn_pedidos_lista(p_busca, p_antes_numero, p_limite, p_cancelados) l;
 $$;
 
 comment on function public.plt_fn_pedidos_pagina(text, integer, integer, boolean) is
