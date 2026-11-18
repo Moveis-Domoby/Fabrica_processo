@@ -33,6 +33,12 @@ export interface PedidoDaLista {
   entregue_fonte: 'tiny' | 'plataforma' | string | null
   /** A data de entrega que o Tiny guarda (dd/mm/aaaa), quando a plataforma não registrou. */
   entregue_tiny: string | null
+  /**
+   * SESSAO-52: quando a entrega mostrada foi REGISTRADA (`entregue_em` é quando
+   * ela aconteceu de fato). Com o dia escolhido ou corrigido, a hora de
+   * `entregue_em` é a do fim do expediente — a linha mostra só o dia.
+   */
+  entrega_registrada_em?: string | null
   cancelado_em: string | null
   tem_mais: boolean
   /** Só na primeira página (até 10.001). */
@@ -49,7 +55,8 @@ export async function listarPedidos(parametros: {
   limite?: number
   cancelados?: boolean
 }): Promise<PedidoDaLista[]> {
-  const { data, error } = await supabase.rpc('plt_fn_pedidos_lista', {
+  // SESSAO-52: a mesma lista, com a hora em que cada entrega foi registrada (uma requisição)
+  const { data, error } = await supabase.rpc('plt_fn_pedidos_pagina', {
     p_busca: parametros.busca?.trim() || null,
     p_antes_numero: parametros.antesNumero ?? null,
     p_limite: parametros.limite ?? PEDIDOS_POR_PAGINA,

@@ -175,6 +175,60 @@ describe('Pedidos → Todos os pedidos', () => {
   })
 })
 
+// SESSAO-52: a data única na lista — o dia real sempre; a hora só quando é a de verdade
+describe('Pedidos → a linha do pedido entregue (SESSAO-52)', () => {
+  const entregue = {
+    pedido_id: 78,
+    numero: 13700,
+    cliente_nome: 'Cliente Entregue',
+    data_pedido: '2026-11-01',
+    data_prevista: '2026-11-10',
+    situacao: 'Entregue',
+    total_pedido: 100,
+    vendedor: null,
+    marcadores: [],
+    total_unidades: 1,
+    unidades_liberadas: 1,
+    unidades_prontas: 1,
+    card_id: 901,
+    situacao_plataforma: 'entregue' as const,
+    entregue_por: 'Fulano',
+    entregue_fonte: 'plataforma',
+    entregue_tiny: null,
+    cancelado_em: null,
+    tem_mais: false,
+    contagem_total: 2,
+  }
+
+  it('dia escolhido: só o dia real (sem a hora do fim do expediente) e a hora do registro; entrega do próprio dia: dia e hora', async () => {
+    vi.mocked(api.listarPedidos).mockResolvedValueOnce([
+      // marcada em 09/11 às 10:32 como "entregue no dia 06/11" (o banco guarda 17:15 de 06/11)
+      {
+        ...entregue,
+        entregue_em: '2026-11-06T20:15:00Z',
+        entrega_registrada_em: '2026-11-09T13:32:00Z',
+      },
+      // entregue e registrada no mesmo instante
+      {
+        ...entregue,
+        pedido_id: 79,
+        numero: 13699,
+        card_id: 902,
+        entregue_por: 'Beltrano',
+        entregue_em: '2026-11-08T18:32:00Z',
+        entrega_registrada_em: '2026-11-08T18:32:00Z',
+      },
+    ])
+    desenhar()
+    const escolhido = await screen.findByText(/Entregue no dia 06\/11\/2026 por Fulano/)
+    expect(escolhido.textContent).toMatch(/registrado em \d{2}\/\d{2} às \d{2}:\d{2}/)
+    // a única hora da linha é a do registro: a do fim do expediente não aparece
+    expect(escolhido.textContent?.match(/\d{2}:\d{2}/g)).toHaveLength(1)
+    const doDia = screen.getByText(/por Beltrano/)
+    expect(doDia.textContent).toMatch(/^Entregue \d{2}\/\d{2}\/2026 às \d{2}:\d{2} por Beltrano$/)
+  })
+})
+
 describe('o nome dos campos do Tiny', () => {
   it('fica legível sem inventar tradução', () => {
     expect(rotuloDoCampo('nome_vendedor')).toBe('Nome vendedor')
