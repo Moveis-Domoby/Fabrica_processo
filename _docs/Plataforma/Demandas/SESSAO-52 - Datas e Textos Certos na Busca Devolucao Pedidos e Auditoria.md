@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-52 — Datas e textos certos na busca, na devolução, na lista de pedidos e na Auditoria"
 tipo: demanda
-status: 🔨 em execução (18/11/2026 — mesa da fila, sem o dono na conversa; nada no banco de produção, nada na main)
+status: ⏳ pronta no ramo, esperando o dono (18/11/2026 — mesa da fila; nada no banco de produção, nada na main)
 data: 2026-11-18
 atualizado: 2026-11-18
 origem: achados fora do escopo registrados no handoff da SESSAO-47 (item 6 das pendências). Pedido gravado pela fila do Escritório em `_escritorio/handoffs/sessao-52-datas-e-textos-certos-prompt-claude-code.md`.
@@ -48,9 +48,9 @@ RF da rastreabilidade (a busca geral), da área Pedidos, da devolução e da Aud
 
 ## Critérios de aceite
 
-- [ ] Os 4 pontos corrigidos, cada um com teste (de tela ou do banco) que prova a regra da data única.
-- [ ] Nenhuma tela nova fazendo leitura a mais (lei de desempenho).
-- [ ] Celular (375) e tablet (768) sem rolagem lateral nas telas tocadas.
+- [x] Os 4 pontos corrigidos, cada um com teste (de tela ou do banco) que prova a regra da data única. *(bateria: 20 conferências; telas: 15 testes)*
+- [x] Nenhuma tela nova fazendo leitura a mais (lei de desempenho). *(a lista de pedidos trocou de porta, não ganhou chamada)*
+- [x] Celular (375) e tablet (768) sem rolagem lateral nas telas tocadas. *(medido nas 4 telas, com dados de exemplo)*
 
 ## Notas para o Claude Code
 
@@ -69,6 +69,8 @@ Lido antes de codar (18/11, madrugada): o CLAUDE.md da mesa; o pedido (duas veze
 
 - [Pedidos - Datas e textos certos na busca, na devolução, na lista de pedidos e na Auditoria](https://app.clickup.com/t/17tya50wqt4) — a mesa da fila **não mexe no ClickUp** (regra do modo fila): quem move e conclui é o dono.
 
-## Resultado (preencher ao entregar)
+## Resultado (18/11/2026, madrugada)
 
-*Ver o handoff da sessão.*
+- **Feito, no ramo `sessao-52-datas-e-textos-certos`** (nada no banco de produção, nada na main, ClickUp não tocado): os 4 pontos, com as provas do banco (20 ✔; bateria inteira 1.893 ✔ + 1 ✘ conhecido, o painel de vendas), os testes das telas, o ensaio ×100 e 12 fotos. Handoff: [[handoff_2026_11_18_sessao52_datas_e_textos_certos]] · diário: `Execucao/SESSAO-52.md`.
+- **O que mudou de rota:** a lista de pedidos não ganhou coluna na porta antiga (tabela fixa que cinco migrations recriam) — ganhou a porta `plt_fn_pedidos_pagina`, que devolve a mesma lista com a hora do registro. Migration `20261118100000` (só leitura), **a aplicar antes de publicar o site**.
+- **Pende do dono:** aplicar a migration e publicar; confirmar as decisões provisórias; os achados fora do escopo (a ficha com a correção para o mesmo dia do registro; o card do pedido entregue na busca; os outros antes/depois da Auditoria).

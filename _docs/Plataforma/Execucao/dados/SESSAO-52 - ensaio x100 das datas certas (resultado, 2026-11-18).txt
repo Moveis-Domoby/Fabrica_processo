@@ -1,0 +1,160 @@
+== montando o banco em disco (×100: pedidos 562.700) ==
+  151 migrations aplicadas (a última: 20261116030000_plt_mover_card_para_pcp.sql) (13 s)
+  pedidos 562.700 (69 s)
+  cards 91.569 · eventos 61.425 · pedidos entregues 15.167 (dia escolhido ou corrigido: 3.033; corrigidos: 758) · peças que saíram com entrega 45.500 (103 s)
+  o pedido entregue (e corrigido) medido: 153714 (card 87860)
+  as 2 portas de ANTES copiadas para o esquema antes52; a migration 20261118100000_plt_datas_e_textos_certos.sql aplicada (103 s)
+
+== a busca geral (plt_fn_busca_cards) ==
+  busca · o número inteiro de um pedido entregue             antes     28.0 ms · depois     35.2 ms · +26% · 4 itens · com o dia real 3
+      antes  (ms): 56 · 36 · 28 · 28 · 29 · 26 · 19 · 16 · 31
+      depois (ms): 45 · 43 · 40 · 33 · 22 · 40 · 22 · 22 · 35
+  busca · número que começa com "12" (20)                    antes     23.5 ms · depois     24.1 ms · +2% · 20 itens · com o dia real 15
+      antes  (ms): 32 · 24 · 16 · 33 · 23 · 22 · 24 · 23 · 23
+      depois (ms): 31 · 19 · 40 · 24 · 25 · 23 · 24 · 23 · 17
+  busca · número que começa com "12" (50 — o teto)           antes     20.3 ms · depois     16.5 ms · -19% · 50 itens · com o dia real 37
+      antes  (ms): 21 · 21 · 26 · 24 · 14 · 14 · 13 · 13 · 20
+      depois (ms): 29 · 16 · 27 · 18 · 14 · 15 · 14 · 15 · 25
+  busca · pelo nome "Estante Basic" (20)                     antes     37.4 ms · depois     37.7 ms · +1% · 20 itens · com o dia real 0
+      antes  (ms): 50 · 37 · 41 · 42 · 26 · 33 · 42 · 35 · 30
+      depois (ms): 33 · 42 · 38 · 32 · 33 · 31 · 42 · 30 · 38
+  busca · pelo nome "Torre Quente" (50)                      antes     33.6 ms · depois     32.3 ms · -4% · 50 itens · com o dia real 0
+      antes  (ms): 33 · 41 · 35 · 34 · 36 · 25 · 23 · 26 · 26
+      depois (ms): 28 · 42 · 37 · 32 · 37 · 26 · 27 · 21 · 23
+  busca · número que começa com "153" (50)                   antes     27.6 ms · depois     23.7 ms · -14% · 50 itens · com o dia real 37
+      antes  (ms): 15 · 18 · 28 · 28 · 28 · 29 · 24 · 20 · 24
+      depois (ms): 20 · 23 · 23 · 24 · 31 · 28 · 19 · 19 · 27
+
+== o detalhe da devolução (plt_fn_devolucao_detalhe) ==
+  devolução · o detalhe de um pedido entregue e corrigido    antes     13.9 ms · depois     15.0 ms · +8% · 1 fatos no histórico
+      antes  (ms): 33 · 15 · 16 · 14 · 15 · 14 · 2 · 2 · 3
+      depois (ms): 18 · 15 · 17 · 15 · 16 · 13 · 2 · 2 · 3
+
+== a lista de Pedidos: a de sempre (plt_fn_pedidos_lista) × a página nova (plt_fn_pedidos_pagina) ==
+  Pedidos · a abertura (20)                                  antes    183.6 ms · depois    185.9 ms · +1% · 20 linhas · com a hora do registro 0
+      antes  (ms): 186 · 217 · 173 · 194 · 184 · 141 · 181 · 194 · 165
+      depois (ms): 183 · 186 · 168 · 209 · 174 · 181 · 215 · 130 · 197
+  Pedidos · "Ver mais" (20, depois do meio)                  antes      8.1 ms · depois      9.3 ms · +14% · 20 linhas · com a hora do registro 0
+      antes  (ms): 8 · 8 · 8 · 9 · 9 · 8 · 8 · 8 · 8
+      depois (ms): 10 · 9 · 9 · 9 · 10 · 11 · 9 · 9 · 9
+  Pedidos · o teto (100)                                     antes    204.3 ms · depois    220.7 ms · +8% · 100 linhas · com a hora do registro 0
+      antes  (ms): 143 · 149 · 204 · 204 · 209 · 214 · 199 · 175 · 261
+      depois (ms): 151 · 221 · 227 · 180 · 244 · 148 · 181 · 209 · 303
+  Pedidos · busca "12"                                       antes  11420.4 ms · depois  10706.3 ms · -6% · 20 linhas · com a hora do registro 0
+      antes  (ms): 9289 · 9580 · 9502 · 9886 · 9802 · 14494 · 14200 · 11420 · 11815
+      depois (ms): 8942 · 9913 · 10098 · 9688 · 10706 · 14407 · 13285 · 10554 · 10750
+  Pedidos · busca "Cliente 77"                               antes  12906.3 ms · depois  12876.1 ms · -0% · 20 linhas · com a hora do registro 0
+      antes  (ms): 13250 · 12560 · 10203 · 9025 · 14251 · 13189 · 9623 · 13300 · 12906
+      depois (ms): 13331 · 12885 · 8797 · 11099 · 14074 · 12071 · 13101 · 12876 · 12703
+  Pedidos · cancelados (20)                                  antes    109.0 ms · depois    110.6 ms · +1% · 20 linhas · com a hora do registro 0
+      antes  (ms): 190 · 113 · 108 · 116 · 103 · 109 · 115 · 102 · 95
+      depois (ms): 120 · 119 · 114 · 116 · 104 · 101 · 106 · 111 · 88
+
+== os planos (o que a migration acrescenta, fora da função — A-147) ==
+  --- plano: a junção nova da busca: o dia real de 50 peças entregues
+      Nested Loop Left Join (actual rows=50.00 loops=1)
+        Join Filter: (((CASE WHEN ((ev.dados ->> 'entrega_evento_id'::text) ~ '^[0-9]{1,18}$'::text) THEN ((ev.dados ->> 'entrega_evento_id'::text))::bigint ELSE NULL::bigint END) IS NOT NULL) AND (((ev.dados ->> 'motivo'::text)) = 'entregue'::text))
+        Buffers: shared hit=31757 read=228 dirtied=41 written=222
+        ->  Nested Loop Left Join (actual rows=50.00 loops=1)
+              Buffers: shared hit=31524 read=228 dirtied=41 written=222
+              ->  Limit (actual rows=50.00 loops=1)
+                    Buffers: shared hit=31374 read=228 dirtied=41 written=222
+                    ->  Index Scan Backward using plt_cards_pkey on plt_cards u (actual rows=50.00 loops=1)
+                          Filter: ((arquivado_em IS NOT NULL) AND (tipo = 'unidade'::text))
+                          Rows Removed by Filter: 25669
+                          Index Searches: 1
+                          Buffers: shared hit=31374 read=228 dirtied=41 written=222
+              ->  Limit (actual rows=1.00 loops=50)
+                    Buffers: shared hit=150
+                    ->  Sort (actual rows=1.00 loops=50)
+                          Sort Key: ev.id DESC
+                          Sort Method: quicksort  Memory: 17kB
+                          Buffers: shared hit=150
+                          ->  Index Scan using plt_eventos_card_idx on plt_eventos ev (actual rows=1.00 loops=50)
+                                Index Cond: (card_id = u.id)
+                                Filter: (tipo = 'card_arquivado'::text)
+                                Index Searches: 50
+                                Buffers: shared hit=150
+        ->  Result (actual rows=1.00 loops=50)
+              Buffers: shared hit=233
+              SubPlan 1
+                ->  Limit (actual rows=1.00 loops=50)
+                      Buffers: shared hit=233
+                      ->  Index Scan using plt_cards_pedido_unico on plt_cards pc (actual rows=1.00 loops=50)
+                            Index Cond: (pedido_id = u.pedido_id)
+                            Filter: (entrega_evento_id = (CASE WHEN ((ev.dados ->> 'entrega_evento_id'::text) ~ '^[0-9]{1,18}$'::text) THEN ((ev.dados ->> 'entrega_evento_id'::text))::bigint ELSE NULL::bigint END))
+                            Index Searches: 50
+                            Buffers: shared hit=192
+              SubPlan 3
+                ->  Index Scan using plt_eventos_pkey on plt_eventos en (never executed)
+                      Index Cond: (id = (CASE WHEN ((ev.dados ->> 'entrega_evento_id'::text) ~ '^[0-9]{1,18}$'::text) THEN ((ev.dados ->> 'entrega_evento_id'::text))::bigint ELSE NULL::bigint END))
+                      Filter: (tipo = 'pedido_entregue'::text)
+                      Index Searches: 0
+                      SubPlan 2
+                        ->  Limit (never executed)
+                              ->  Sort (never executed)
+                                    Sort Key: k.id DESC
+                                    ->  Index Scan using plt_eventos_referencia_idx on plt_eventos k (never executed)
+                                          Index Cond: (evento_referencia_id = en.id)
+                                          Filter: (tipo = 'entrega_dia_corrigido'::text)
+                                          Index Searches: 0
+      Planning:
+        Buffers: shared hit=66
+      Planning Time: 10.212 ms
+      Execution Time: 108.859 ms
+  --- plano: a página nova da lista: a hora do registro de 100 linhas
+      Function Scan on plt_fn_pedidos_lista l (actual rows=100.00 loops=1)
+        Buffers: shared hit=2380
+        SubPlan 1
+          ->  Nested Loop (actual rows=0.00 loops=100)
+                Buffers: shared hit=270
+                ->  Index Scan using plt_cards_pkey on plt_cards pc (actual rows=0.90 loops=100)
+                      Index Cond: (id = l.card_id)
+                      Index Searches: 90
+                      Buffers: shared hit=270
+                ->  Index Scan using plt_eventos_pkey on plt_eventos ev (actual rows=0.00 loops=90)
+                      Index Cond: (id = COALESCE(pc.entrega_evento_id, pc.parcial_evento_id))
+                      Index Searches: 0
+      Planning:
+        Buffers: shared hit=32
+      Planning Time: 1.240 ms
+      Execution Time: 176.481 ms
+  --- plano: o detalhe da devolução: a última correção de uma entrega
+      Limit (actual rows=1.00 loops=1)
+        Buffers: shared hit=6
+        InitPlan 1
+          ->  Index Scan using plt_cards_pkey on plt_cards (actual rows=1.00 loops=1)
+                Index Cond: (id = 87860)
+                Index Searches: 1
+                Buffers: shared hit=3
+        ->  Sort (actual rows=1.00 loops=1)
+              Sort Key: k.id DESC
+              Sort Method: quicksort  Memory: 17kB
+              Buffers: shared hit=6
+              ->  Index Scan using plt_eventos_referencia_idx on plt_eventos k (actual rows=1.00 loops=1)
+                    Index Cond: (evento_referencia_id = (InitPlan 1).col1)
+                    Filter: (tipo = 'entrega_dia_corrigido'::text)
+                    Index Searches: 1
+                    Buffers: shared hit=6
+      Planning:
+        Buffers: shared hit=32
+      Planning Time: 2.233 ms
+      Execution Time: 1.265 ms
+
+== resumo (mediana da 2ª chamada em diante) ==
+  busca · o número inteiro de um pedido entregue                 28.0 →     35.2 ms (+26%)
+  busca · número que começa com "12" (20)                        23.5 →     24.1 ms (+2%)
+  busca · número que começa com "12" (50 — o teto)               20.3 →     16.5 ms (-19%)
+  busca · pelo nome "Estante Basic" (20)                         37.4 →     37.7 ms (+1%)
+  busca · pelo nome "Torre Quente" (50)                          33.6 →     32.3 ms (-4%)
+  busca · número que começa com "153" (50)                       27.6 →     23.7 ms (-14%)
+  devolução · o detalhe de um pedido entregue e corrigido        13.9 →     15.0 ms (+8%)
+  Pedidos · a abertura (20)                                     183.6 →    185.9 ms (+1%)
+  Pedidos · "Ver mais" (20, depois do meio)                       8.1 →      9.3 ms (+14%)
+  Pedidos · o teto (100)                                        204.3 →    220.7 ms (+8%)
+  Pedidos · busca "12"                                        11420.4 →  10706.3 ms (-6%)
+  Pedidos · busca "Cliente 77"                                12906.3 →  12876.1 ms (-0%)
+  Pedidos · cancelados (20)                                     109.0 →    110.6 ms (+1%)
+
+  fim (534 s)
+exit=0
