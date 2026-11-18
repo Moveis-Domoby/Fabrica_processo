@@ -26717,6 +26717,381 @@ try {
 }
 } // fim do bloco SESSAO-52
 
+// ============================================================================
+// SESSAO-55 — telas que abrem com UMA leitura (dívidas 18 e 20 da Lei §14)
+// As 9 portas novas só JUNTAM as leituras de sempre: cada pedaço da resposta é
+// comparado, no banco, com a leitura antiga — como o navegador chama (papel
+// authenticated, E-103), pessoa por pessoa. Faixa do bloco: usuários …0551 a
+// …0556, CPF 551000000NN, setor m55, pedido 955NN (tiny 79551NN), placa TST55*.
+// ============================================================================
+titulo('SESSAO-55 · as migrations da 55 de novo (idempotentes)')
+for (const arquivo55 of ['20261118130000_plt_meu_trabalho_numa_leitura.sql', '20261118130100_plt_dashboards_numa_leitura.sql',
+                         '20261118130200_plt_configuracoes_numa_leitura.sql']) {
+  await bd.exec(await readFile(path.join(MIGRATIONS, arquivo55), 'utf8'))
+}
+{
+  const um = async (sql) => (await bd.query(sql)).rows[0]
+  const como = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+  const j = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'::jsonb`
+  // como o navegador chama: o papel authenticated (as permissões de verdade — E-103);
+  // ponto de volta antes do gesto (E-161/E-287): o erro de verdade não fica escondido
+  const logado = async (auth, sql) => {
+    await bd.exec('savepoint l55')
+    try {
+      await como(auth)
+      await bd.exec('set role authenticated')
+      const r = (await bd.query(sql)).rows[0]
+      await bd.exec('reset role')
+      await bd.exec('release savepoint l55')
+      return r
+    } catch (e) {
+      await bd.exec('rollback to savepoint l55')
+      await bd.exec('reset role')
+      throw e
+    } finally {
+      await como('')
+    }
+  }
+  const recusa = async (auth, sql, descricao, padrao) => {
+    await bd.exec('savepoint f55')
+    try {
+      await como(auth)
+      await bd.exec('set role authenticated')
+      await bd.exec(sql)
+      conferir(false, descricao, 'passou, e não devia')
+    } catch (e) {
+      conferir(padrao.test(e.message), descricao, e.message)
+    } finally {
+      await bd.exec('rollback to savepoint f55')
+      await bd.exec('reset role')
+      await como('')
+    }
+  }
+  // a porta nova = a leitura antiga (as duas como a mesma pessoa, na mesma chamada)
+  const igual = async (auth, novo, antigo, descricao) => {
+    try {
+      const r = await logado(auth, `select (${novo}) as n, (${antigo}) as a, (${novo}) is not distinct from (${antigo}) as ok`)
+      conferir(r.ok === true, descricao, `novo ${JSON.stringify(r.n)?.slice(0, 300)} × antigo ${JSON.stringify(r.a)?.slice(0, 300)}`)
+      return r.n
+    } catch (e) {
+      conferir(false, descricao, e.message)
+      return null
+    }
+  }
+
+  await bd.exec('begin')
+  try {
+  const ADM = '00000000-0000-0000-0000-000000000551' // o dono (super admin)
+  const AD2 = '00000000-0000-0000-0000-000000000552' // admin comum
+  const LID = '00000000-0000-0000-0000-000000000553' // líder do setor
+  const OPE = '00000000-0000-0000-0000-000000000554' // operador do setor
+  const FORA = '00000000-0000-0000-0000-000000000555' // operador sem setor
+  const TAB = '00000000-0000-0000-0000-000000000556' // a conta do tablet do setor
+
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos, super_admin) values
+      ('Dono 55', 'dono55@teste.com', '55100000001', 'dono.55', 'admin', '${ADM}', array['fabrica'], true),
+      ('Admin 55', 'adm55@teste.com', '55100000002', 'adm.55', 'admin', '${AD2}', array['fabrica'], false),
+      ('Lider 55', 'lid55@teste.com', '55100000003', 'lid.55', 'lider', '${LID}', array['fabrica'], false),
+      ('Operador 55', 'ope55@teste.com', '55100000004', 'ope.55', 'operador', '${OPE}', array['fabrica'], false),
+      ('Fora 55', 'fora55@teste.com', '55100000005', 'fora.55', 'operador', '${FORA}', array['fabrica'], false);
+    insert into public.plt_usuarios (nome, email, usuario, papel, conta_tablet, senha_padrao, auth_user_id)
+      values ('Tablet 55', 'tablet55@teste.com', 'tablet.55', 'operador', true, false, '${TAB}');
+    insert into public.plt_setores (codigo, nome, papel_no_fluxo, ordem) values ('m55', 'MONTAGEM 55', 'producao', 997)
+      on conflict do nothing;
+    insert into public.plt_usuario_setores (usuario_id, setor_id, lider_do_setor)
+      select u.id, s.id, u.usuario = 'lid.55' from public.plt_usuarios u, public.plt_setores s
+       where u.usuario in ('lid.55', 'ope.55') and s.codigo = 'm55';
+    update public.plt_setores set qualidade_envio_tipos = '{}', qualidade_recebimento_tipos = '{}' where codigo = 'm55';
+    insert into public.plt_etapas (setor_id, nome, ordem, eh_fila) values
+      ((select id from public.plt_setores where codigo = 'm55'), 'A MONTAR 55', 1, true),
+      ((select id from public.plt_setores where codigo = 'm55'), 'MONTANDO 55', 2, false);`)
+  const idDe = async (usuario) => (await um(`select id from public.plt_usuarios where usuario = '${usuario}'`)).id
+  const ID = { adm: await idDe('dono.55'), ad2: await idDe('adm.55'), lid: await idDe('lid.55'), ope: await idDe('ope.55'), fora: await idDe('fora.55') }
+  const M55 = Number((await um(`select id from public.plt_setores where codigo = 'm55'`)).id)
+  const A_MONTAR = Number((await um(`select id from public.plt_etapas where nome = 'A MONTAR 55'`)).id)
+
+  // ---- o cenário: 1 pedido com 2 peças delegadas ao operador (1 em execução), tarefas, subtarefas, metas ----
+  const pedido = (numero) => ({
+    id: String(7955100 + (numero % 100)), numero: String(numero), data_pedido: '16/11/2026', data_prevista: '30/11/2026',
+    situacao: 'Preparando envio', total_produtos: '300.00', total_pedido: '300.00', valor_frete: '0.00',
+    forma_pagamento: 'pix', meio_pagamento: '', forma_envio: 'Transportadora', parcelas: [], marcadores: [],
+    obs: '', obs_interna: '', nome_vendedor: 'Vendedora 55', codigo_rastreamento: '', url_rastreamento: '',
+    cliente: { codigo: '', nome: `Cliente Teste 55 ${numero}`, nome_fantasia: '', tipo_pessoa: 'F', cpf_cnpj: '', ie: '', rg: '',
+               endereco: 'Rua Teste 55', numero: '55', complemento: '', bairro: 'Centro', cep: '59000-555', cidade: 'Natal',
+               uf: 'RN', fone: '84999995555', email: '' },
+    itens: [{ item: { id_produto: '', codigo: 'SX55', descricao: 'Cômoda Teste 55', unidade: 'UN', quantidade: '2.00', valor_unitario: '100.00' } }],
+  })
+  const PED = (await um(`select public.fn_upsert_pedido(p => ${j(pedido(95501))}, p_tipo => 'inclusao_pedido', p_tiny_id => 7955101, p_origem => 'webhook')::int as id`)).id
+  await bd.exec('set constraints all immediate; set constraints all deferred')
+  const PAI = Number((await um(`select id from public.plt_cards where pedido_id = ${PED} and tipo = 'pedido'`)).id)
+  const peca = async (k) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${PED}, ${PAI}, 1, 'SX55', 'Cômoda Teste 55', ${k}, 2);
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, etapa_destino_id, origem)
+        values ((select max(id) from public.plt_cards where tipo = 'unidade'), 'card_criado', ${M55}, ${A_MONTAR}, 'api');`)
+    return Number((await um(`select max(id) as id from public.plt_cards where tipo = 'unidade'`)).id)
+  }
+  const C1 = await peca(1)
+  const C2 = await peca(2)
+  await bd.exec(`
+    update public.plt_cards set responsavel_id = '${ID.ope}', delegado_em = now() where id in (${C1}, ${C2});
+    -- (sem hora: o iniciar vem DEPOIS da chegada da peça, no mesmo instante da transação)
+    insert into public.plt_eventos (card_id, tipo, origem, usuario_id)
+      values (${C1}, 'execucao_iniciada', 'interface', '${ID.ope}');
+    -- as tarefas do operador: 1 pessoal privada (com 3 subtarefas, 1 feita), 1 delegada pelo líder (com o tempo contando)
+    insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, privada) values ('Pessoal 55', '${ID.ope}', '${ID.ope}', true);
+    insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, setor_id, iniciada_em, situacao)
+      values ('Delegada 55', '${ID.ope}', '${ID.lid}', ${M55}, now() - interval '30 minutes', 'em_andamento');
+    insert into public.plt_tarefas (titulo, responsavel_id, criada_por_id, setor_id, iniciada_em, concluida_em, situacao)
+      values ('Concluída 55', '${ID.ope}', '${ID.lid}', ${M55}, now() - interval '3 hours', now() - interval '2 hours', 'concluida');
+    insert into public.plt_tarefas (titulo, criada_por_id, tarefa_mae_id)
+      select 'Sub 55 ' || g, '${ID.ope}', (select id from public.plt_tarefas where titulo = 'Pessoal 55') from generate_series(1, 3) g;
+    update public.plt_tarefas set situacao = 'concluida', concluida_em = now() where titulo = 'Sub 55 1';
+    update public.plt_usuarios set fila_prioridade = '["t:1","c:2"]'::jsonb where id = '${ID.ope}';
+    insert into public.plt_metas (titulo, indicador, periodo, alvo, setor_id, criada_por_id)
+      values ('Meta 55', 'unidades', 'semanal', 10, ${M55}, '${ID.adm}');
+    insert into public.plt_visualizacoes (usuario_id, nome, configuracao) values
+      ('${ID.lid}', 'Mês do setor 55', '{"tela":"pessoas","periodoDias":30,"setorId":${M55},"tempo":"util"}'::jsonb),
+      ('${ID.lid}', 'Antiga 55', '{"widgets":["qualidade"]}'::jsonb),
+      ('${ID.adm}', 'Do dono 55', '{"tela":"qualidade","periodoDias":90,"setorId":null,"tempo":"bruto"}'::jsonb);
+    insert into public.plt_chaves_api (nome, hash, prefixo, escopo) values ('Chave 55', 'hash-secreto-55', 'pltk_55aa', 'leitura');
+    insert into public.plt_webhooks (nome, url, eventos, segredo) values ('Webhook 55', 'https://exemplo.invalid/55', '{card_criado}', 'segredo-secreto-55');
+    insert into public.plt_webhook_entregas (webhook_id, evento_id, payload, tentativas)
+      values ((select id from public.plt_webhooks where nome = 'Webhook 55'), (select min(id) from public.plt_eventos), '{}'::jsonb, 1);
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 55', 'TST5501');
+    insert into public.plt_caminhoes (nome, placa, arquivado_em) values ('Baú velho 55', 'TST5502', now());
+    insert into public.plt_horarios_funcionamento (escopo, usuario_id, dia_semana, hora_inicio, hora_fim)
+      values ('usuario', '${ID.ope}', 1, '08:00', '12:00');
+    insert into public.plt_pausas_tempo (escopo, setor_id, inicio, fim, retroativa, motivo, criado_por)
+      values ('setor', ${M55}, now() - interval '2 days', now() - interval '1 day', true, 'feriado 55', '${ID.adm}');
+    insert into public.plt_automacoes (nome, gatilho) values ('Automação 55', 'pedido_novo');`)
+  const MAE = Number((await um(`select id from public.plt_tarefas where titulo = 'Pessoal 55'`)).id)
+  const AUT = Number((await um(`select id from public.plt_automacoes where nome = 'Automação 55'`)).id)
+  const V_LID = Number((await um(`select id from public.plt_visualizacoes where nome = 'Mês do setor 55'`)).id)
+  const V_ANT = Number((await um(`select id from public.plt_visualizacoes where nome = 'Antiga 55'`)).id)
+
+  // as leituras ANTIGAS, em SQL (o que o navegador pedia ao banco, uma a uma)
+  const COLS_TAREFA = `tt.id, tt.titulo, tt.descricao, tt.card_id, tt.setor_id, tt.responsavel_id, tt.criada_por_id, tt.delegacao,
+    tt.situacao, tt.prazo, tt.iniciada_em, tt.concluida_em, tt.criada_em, tt.tarefa_mae_id, tt.origem, tt.evento_referencia_id,
+    tt.privada, tt.tempo_acumulado`
+  const COLS_CARD = `cc.id, cc.tipo, cc.pedido_id, cc.card_pai_id, cc.item_seq, cc.item_codigo, cc.item_descricao, cc.indice_unidade,
+    cc.total_unidades, cc.setor_atual_id, cc.etapa_atual_id, cc.desde, cc.executor_atual_id, cc.responsavel_id, cc.delegado_em,
+    cc.qualidade_atual, cc.concluido_em, cc.pausado_em, cc.liberado_completo_em, cc.produto_tiny_id, cc.etiquetas, cc.parecer_pendente_id`
+  const eu = `(select u.id from public.plt_usuarios u where u.auth_user_id = auth.uid())`
+  const antigas = {
+    tarefas: `coalesce((select jsonb_agg(to_jsonb(t) order by t.criada_em, t.id) from (select ${COLS_TAREFA} from public.plt_tarefas tt
+                where tt.responsavel_id = ${eu} and tt.situacao <> 'concluida' and tt.tarefa_mae_id is null) t), '[]'::jsonb)`,
+    execucoes: `coalesce((select jsonb_agg(to_jsonb(x) order by x.iniciou_em, x.evento_inicio_id) from public.plt_fn_minhas_execucoes() x), '[]'::jsonb)`,
+    cards: `coalesce((select jsonb_agg(to_jsonb(c) order by c.desde nulls last, c.id) from (select ${COLS_CARD} from public.plt_cards cc
+                where cc.responsavel_id = ${eu} and cc.concluido_em is null and cc.arquivado_em is null) c), '[]'::jsonb)`,
+    sistema: `coalesce((select jsonb_agg(to_jsonb(t) order by t.criada_em, t.id) from (select ${COLS_TAREFA} from public.plt_tarefas tt
+                where tt.origem = 'sistema' and tt.situacao <> 'concluida'
+                  and tt.setor_id in (select us.setor_id from public.plt_usuario_setores us where us.usuario_id = ${eu})) t), '[]'::jsonb)`,
+    fila: `(select u.fila_prioridade from public.plt_usuarios u where u.id = ${eu})`,
+    metas: (limite) => `coalesce((select jsonb_agg(to_jsonb(m) - 'ordinality' order by m.ordinality)
+                from public.plt_fn_metas_painel(false, ${limite}, 0) with ordinality as m), '[]'::jsonb)`,
+    visualizacoes: `coalesce((select jsonb_agg(jsonb_build_object('id', v.id, 'nome', v.nome, 'configuracao', v.configuracao, 'padrao', v.padrao)
+                order by v.nome, v.id) from public.plt_visualizacoes v where v.usuario_id = ${eu}), '[]'::jsonb)`,
+  }
+  const lista = (funcao) => `coalesce((select jsonb_agg(to_jsonb(x) - 'ordinality' order by x.ordinality) from ${funcao} with ordinality as x), '[]'::jsonb)`
+
+  titulo('SESSAO-55 · item 1 · o trabalho da pessoa numa leitura = as leituras de antes')
+  for (const [quem, auth] of [['operador', OPE], ['líder', LID], ['dono', ADM], ['sem setor', FORA]]) {
+    await igual(auth, `public.plt_fn_meu_trabalho('bolha') -> 'tarefas'`, antigas.tarefas, `bolinha (${quem}): as tarefas = a leitura das tarefas`)
+    await igual(auth, `public.plt_fn_meu_trabalho('bolha') -> 'execucoes'`, antigas.execucoes, `bolinha (${quem}): as execuções abertas = a porta da bolinha`)
+    await igual(auth, `public.plt_fn_meu_trabalho('painel', true) -> 'cards'`, antigas.cards, `Meu Painel (${quem}): os cards delegados = a leitura dos cards`)
+    await igual(auth, `public.plt_fn_meu_trabalho('painel', true) -> 'tarefas_sistema'`, antigas.sistema, `Meu Painel (${quem}): as tarefas do Sistema dos setores dela`)
+    await igual(auth, `public.plt_fn_meu_trabalho('painel', true) -> 'fila_prioridade'`, antigas.fila, `Meu Painel (${quem}): a fila de prioridade`)
+    await igual(auth, `public.plt_fn_meu_trabalho('painel', true) -> 'metas'`, antigas.metas(20), `Meu Painel (${quem}): a 1ª página das metas = a porta das metas`)
+    await igual(auth, `public.plt_fn_meu_trabalho('afazeres') -> 'cards'`, antigas.cards, `Meus afazeres (${quem}): os cards delegados`)
+  }
+  const tOpe = (await logado(OPE, `select public.plt_fn_meu_trabalho('bolha') as r`)).r
+  conferir(tOpe.tela === 'bolha' && tOpe.tarefas.length === 2 && tOpe.execucoes.length === 1 && Number(tOpe.execucoes[0].card_id) === C1
+    && !('cards' in tOpe) && !('tarefas_sistema' in tOpe) && !('metas' in tOpe) && !('subtarefas' in tOpe),
+    'a bolinha traz SÓ o que ela mostra: 2 tarefas abertas e 1 execução — nada de cards, metas ou subtarefas',
+    JSON.stringify({ chaves: Object.keys(tOpe), tarefas: tOpe.tarefas.map((t) => t.titulo), execucoes: tOpe.execucoes, C1 }))
+  const pOpe = (await logado(OPE, `select public.plt_fn_meu_trabalho('painel') as r`)).r
+  conferir(pOpe.tela === 'painel' && pOpe.cards.length === 2 && Array.isArray(pOpe.tarefas_sistema) && !('metas' in pOpe) && !('fila_prioridade' in pOpe)
+    && !('subtarefas' in pOpe) && !('pedidos' in pOpe),
+    'o aviso no Meu Painel (sem "abrir"): os 2 cards e as tarefas do Sistema — a fila e as metas NÃO são relidas', JSON.stringify(pOpe).slice(0, 400))
+  const pAbre = (await logado(OPE, `select public.plt_fn_meu_trabalho('painel', true) as r`)).r
+  conferir(JSON.stringify(pAbre.fila_prioridade) === '["t:1","c:2"]' && pAbre.metas.some((m) => m.titulo === 'Meta 55'),
+    'o Meu Painel abrindo: a fila guardada e a meta do setor vêm juntas', JSON.stringify([pAbre.fila_prioridade, pAbre.metas?.length]))
+  const aOpe = (await logado(OPE, `select public.plt_fn_meu_trabalho('afazeres') as r`)).r
+  conferir(aOpe.tela === 'afazeres' && aOpe.subtarefas.length === 1 && Number(aOpe.subtarefas[0].mae_id) === MAE
+    && Number(aOpe.subtarefas[0].total) === 3 && Number(aOpe.subtarefas[0].feitas) === 1,
+    'Meus afazeres: o "1/3" da tarefa vem pronto do banco (3 subtarefas, 1 feita)', JSON.stringify(aOpe.subtarefas))
+  conferir(aOpe.pedidos.length === 1 && Number(aOpe.pedidos[0].pedido_id) === PED && Number(aOpe.pedidos[0].numero) === 95501
+    && !('tarefas_sistema' in aOpe) && !('metas' in aOpe),
+    'Meus afazeres: o número do pedido dos cards vem junto (1 pedido para as 2 peças), sem tarefas do Sistema nem metas', JSON.stringify(aOpe.pedidos))
+  const tLid = (await logado(LID, `select public.plt_fn_meu_trabalho('afazeres') as r`)).r
+  conferir(!JSON.stringify(tLid).includes('Pessoal 55') && tLid.cards.length === 0,
+    'a tarefa pessoal privada e os cards do operador não aparecem no trabalho do líder (D-51)', JSON.stringify(tLid).slice(0, 300))
+  const tNinguem = (await logado('', `select public.plt_fn_meu_trabalho('painel', true) as r`)).r
+  conferir(tNinguem.tarefas.length === 0 && tNinguem.execucoes.length === 0 && !('cards' in tNinguem), 'sem sessão: nada', JSON.stringify(tNinguem))
+  const tOutra = (await logado(OPE, `select public.plt_fn_meu_trabalho('qualquer coisa') as r`)).r
+  conferir(tOutra.tela === 'bolha' && !('cards' in tOutra), 'tela desconhecida = a bolinha (o menor retrato)')
+
+  titulo('SESSAO-55 · item 2 · Pessoas, Qualidade e Meu desempenho = as portas de sempre')
+  // now() é o mesmo na transação: o período da porta se confere ao microssegundo
+  const de = (dias) => `now() - make_interval(secs => ${dias} * 86400)`
+  for (const [quem, auth] of [['dono', ADM], ['líder', LID], ['operador', OPE]]) {
+    await igual(auth, `public.plt_fn_dash_pessoas_abertura() -> 'pessoas'`,
+      lista(`public.plt_fn_dash_tempos_pessoa(${de(7)}, now(), null)`), `Pessoas (${quem}): o ranking de 7 dias = a porta do ranking`)
+    await igual(auth, `public.plt_fn_dash_pessoas_abertura() -> 'execucoes'`,
+      lista(`public.plt_fn_dash_execucoes(${de(7)}, now(), null, null, 20, 0)`), `Pessoas (${quem}): a 1ª página das execuções = a porta das execuções`)
+    await igual(auth, `public.plt_fn_dash_pessoas_abertura(p_dias => 30, p_setor_id => ${M55}, p_setor_dito => true) -> 'pessoas'`,
+      lista(`public.plt_fn_dash_tempos_pessoa(${de(30)}, now(), ${M55})`), `Pessoas (${quem}): 30 dias no setor = a porta do ranking`)
+    await igual(auth, `public.plt_fn_dash_pessoas_abertura(p_metas => true, p_metas_limite => 10) -> 'metas'`, antigas.metas(10),
+      `Pessoas (${quem}): a 1ª página das metas (10) = a porta das metas`)
+    await igual(auth, `public.plt_fn_dash_pessoas_abertura(p_visualizacoes => true) -> 'visualizacoes'`, antigas.visualizacoes,
+      `Pessoas (${quem}): as visualizações salvas = só as dela`)
+    await igual(auth, `public.plt_fn_dash_qualidade_abertura() -> 'qualidade'`,
+      lista(`public.plt_fn_dash_qualidade(${de(7)}, now())`), `Qualidade (${quem}): o período = a porta da qualidade`)
+    await igual(auth, `public.plt_fn_dash_qualidade_abertura() -> 'qualidade_anterior'`,
+      lista(`public.plt_fn_dash_qualidade(${de(14)}, ${de(7)})`), `Qualidade (${quem}): o período anterior, do mesmo tamanho`)
+    await igual(auth, `public.plt_fn_dash_qualidade_abertura(p_dias => 30) -> 'qualidade_anterior'`,
+      lista(`public.plt_fn_dash_qualidade(${de(60)}, ${de(30)})`), `Qualidade (${quem}): 30 dias — o anterior são os 30 de antes`)
+    await igual(auth, `public.plt_fn_dash_qualidade_abertura() -> 'danificados_abertos'`,
+      lista(`public.plt_fn_dash_danificados_abertos()`), `Qualidade (${quem}): os danificados em aberto`)
+    await igual(auth, `public.plt_fn_meu_desempenho_abertura(7, 10) -> 'kpis'`,
+      `(select to_jsonb(k) from public.plt_fn_meu_desempenho(${de(7)}, now()) k limit 1)`, `Meu desempenho (${quem}): os números = a porta dos números`)
+    await igual(auth, `public.plt_fn_meu_desempenho_abertura(7, 10) -> 'por_dia'`,
+      lista(`public.plt_fn_meu_tempo_dias(${de(7)}, now())`), `Meu desempenho (${quem}): o tempo por dia`)
+    await igual(auth, `public.plt_fn_meu_desempenho_abertura(7, 10) -> 'por_tarefa'`,
+      lista(`public.plt_fn_meu_tempo_tarefas(${de(7)}, now(), 10, 0)`), `Meu desempenho (${quem}): a 1ª página do tempo por tarefa`)
+  }
+  const md = (await logado(OPE, `select public.plt_fn_meu_desempenho_abertura(7, 10) as r`)).r
+  conferir(md.kpis !== null && Number(md.kpis.tarefas_concluidas) === 1 && md.por_tarefa.length >= 2 && md.por_dia.length >= 1,
+    'Meu desempenho (operador): tem número de verdade — 1 tarefa concluída, o tempo por dia e por tarefa', JSON.stringify(md).slice(0, 400))
+  // o período: endereço > visualização salva > padrão — a mesma precedência da tela
+  const per = (auth, args) => logado(auth, `select r ->> 'dias' as dias, r -> 'setor_id' as setor, (r ->> 'ate')::timestamptz = now() as ate_ok,
+      (r ->> 'de')::timestamptz = now() - make_interval(secs => (r ->> 'dias')::numeric * 86400) as de_ok,
+      r ? 'visualizacoes' as tem_v, r ? 'metas' as tem_m from (select public.plt_fn_dash_pessoas_abertura(${args}) as r) x`)
+  const p0 = await per(LID, '')
+  conferir(Number(p0.dias) === 7 && p0.setor === null && p0.ate_ok && p0.de_ok && !p0.tem_v && !p0.tem_m,
+    'Pessoas sem nada no endereço: 7 dias, todos os setores, e só o que foi pedido (sem visualizações nem metas)', JSON.stringify(p0))
+  const p1 = await per(LID, `p_v => ${V_LID}`)
+  conferir(Number(p1.dias) === 30 && Number(p1.setor) === M55 && p1.de_ok, 'com a visualização salva: o período (30) e o setor são os dela', JSON.stringify(p1))
+  const p2 = await per(LID, `p_v => ${V_LID}, p_dias => 90`)
+  conferir(Number(p2.dias) === 90 && Number(p2.setor) === M55, 'o endereço ganha da visualização: 90 dias, o setor segue o dela', JSON.stringify(p2))
+  const p3 = await per(LID, `p_v => ${V_LID}, p_setor_dito => true, p_setor_id => null`)
+  conferir(Number(p3.dias) === 30 && p3.setor === null, '"todos os setores" dito no endereço ganha do setor da visualização', JSON.stringify(p3))
+  const p4 = await per(LID, `p_v => ${V_ANT}`)
+  conferir(Number(p4.dias) === 7 && p4.setor === null, 'a visualização antiga (sem período): o padrão de 7 dias', JSON.stringify(p4))
+  const p5 = await per(OPE, `p_v => ${V_LID}`)
+  conferir(Number(p5.dias) === 7 && p5.setor === null, 'a visualização de OUTRA pessoa não vale: o padrão', JSON.stringify(p5))
+  const p6 = await per(LID, `p_dias => -3`)
+  conferir(Number(p6.dias) === 7, 'período inválido no endereço: o padrão', JSON.stringify(p6))
+  const q1 = await logado(ADM, `select r ->> 'dias' as dias, r ? 'visualizacoes' as tem_v from (select public.plt_fn_dash_qualidade_abertura(p_v => (select id from public.plt_visualizacoes where nome = 'Do dono 55')) as r) x`)
+  conferir(Number(q1.dias) === 90 && !q1.tem_v, 'Qualidade com a visualização salva do dono: 90 dias', JSON.stringify(q1))
+  const vLid = (await logado(LID, `select public.plt_fn_dash_qualidade_abertura(p_visualizacoes => true) -> 'visualizacoes' as r`)).r
+  conferir(vLid.length === 2 && vLid.every((v) => v.nome !== 'Do dono 55'), 'as visualizações que vêm são só as de quem pede (2 do líder)', JSON.stringify(vLid.map((v) => v.nome)))
+
+  titulo('SESSAO-55 · item 3 · Equipe, API e integrações, Caminhões, Automações e Desligar o tempo')
+  const COLS_PERFIL = `u.id, u.nome, u.usuario, u.email, u.telefone, u.matricula, u.papel, u.senha_padrao, u.ativo, u.arquivado_em, u.tema,
+    u.foto_caminho, u.modulos, u.super_admin, u.conta_tablet, u.pode_auxiliar`
+  for (const [quem, auth] of [['dono', ADM], ['líder', LID], ['operador', OPE]]) {
+    await igual(auth, `public.plt_fn_equipe_abertura() -> 'pessoas'`,
+      `coalesce((select jsonb_agg(to_jsonb(p) order by p.nome, p.id) from (select ${COLS_PERFIL} from public.plt_usuarios u where u.conta_tablet = false) p), '[]'::jsonb)`,
+      `Equipe (${quem}): as pessoas = a leitura direta (as mesmas colunas, a mesma permissão)`)
+    await igual(auth, `public.plt_fn_equipe_abertura() -> 'vinculos'`,
+      `coalesce((select jsonb_agg(jsonb_build_object('usuario_id', us.usuario_id, 'setor_id', us.setor_id, 'lider_do_setor', us.lider_do_setor,
+                 'setor', jsonb_build_object('nome', s.nome)) order by us.usuario_id, us.setor_id)
+          from public.plt_usuario_setores us join public.plt_setores s on s.id = us.setor_id), '[]'::jsonb)`,
+      `Equipe (${quem}): os vínculos de setor com o nome do setor`)
+    await igual(auth, `public.plt_fn_api_abertura() -> 'chaves'`,
+      `coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'nome', c.nome, 'prefixo', c.prefixo, 'escopo', c.escopo, 'criada_em', c.criada_em,
+                 'revogada_em', c.revogada_em, 'ultimo_uso_em', c.ultimo_uso_em) order by c.criada_em desc, c.id desc) from public.plt_chaves_api c), '[]'::jsonb)`,
+      `API (${quem}): as chaves = a leitura direta`)
+    await igual(auth, `public.plt_fn_api_abertura() -> 'webhooks'`,
+      `coalesce((select jsonb_agg(jsonb_build_object('id', w.id, 'nome', w.nome, 'url', w.url, 'eventos', w.eventos, 'ativo', w.ativo,
+                 'criado_em', w.criado_em) order by w.criado_em desc, w.id desc) from public.plt_webhooks w), '[]'::jsonb)`,
+      `API (${quem}): os webhooks = a leitura direta`)
+    await igual(auth, `public.plt_fn_api_abertura() -> 'entregas'`,
+      `coalesce((select jsonb_agg(to_jsonb(e) order by e.criada_em desc, e.id desc) from (select we.id, we.webhook_id, we.situacao, we.tentativas,
+                 we.ultimo_erro, we.criada_em from public.plt_webhook_entregas we order by we.criada_em desc, we.id desc limit 20) e), '[]'::jsonb)`,
+      `API (${quem}): as 20 últimas entregas = a leitura direta`)
+    await igual(auth, `public.plt_fn_caminhoes_abertura(false, true) -> 'caminhoes'`,
+      `coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'nome', c.nome, 'placa', c.placa, 'capacidade', c.capacidade, 'foto_caminho', c.foto_caminho,
+                 'arquivado_em', c.arquivado_em, 'criado_em', c.criado_em) order by c.nome, c.id) from public.plt_caminhoes c where c.arquivado_em is null), '[]'::jsonb)`,
+      `Caminhões (${quem}): a lista sem os arquivados = a leitura direta`)
+    // (quem não é admin recebe o cartão vazio: o nulo do JSON = o nulo da porta)
+    await igual(auth, `nullif(public.plt_fn_caminhoes_abertura(false, true) -> 'tiny_entrega', 'null'::jsonb)`, `public.plt_fn_tiny_entrega_situacao()`,
+      `Caminhões (${quem}): a situação do "Entregue vai ao Tiny" = a porta dela`)
+    await igual(auth, `public.plt_fn_tempo_desligar_abertura() -> 'usuarios'`,
+      `coalesce((select jsonb_agg(jsonb_build_object('id', u.id, 'nome', u.nome) order by u.nome, u.id) from public.plt_usuarios u where u.conta_tablet = false), '[]'::jsonb)`,
+      `Desligar o tempo (${quem}): os nomes = a leitura direta`)
+    await igual(auth, `public.plt_fn_tempo_desligar_abertura() -> 'horarios'`,
+      `coalesce((select jsonb_agg(jsonb_build_object('id', h.id, 'escopo', h.escopo, 'setor_id', h.setor_id, 'usuario_id', h.usuario_id, 'dia_semana', h.dia_semana,
+                 'hora_inicio', h.hora_inicio, 'hora_fim', h.hora_fim) order by h.escopo, h.dia_semana, h.hora_inicio, h.id) from public.plt_horarios_funcionamento h), '[]'::jsonb)`,
+      `Desligar o tempo (${quem}): os horários = a leitura direta`)
+    await igual(auth, `public.plt_fn_tempo_desligar_abertura() -> 'pausas'`,
+      `coalesce((select jsonb_agg(to_jsonb(p) order by p.inicio desc, p.id desc) from (select pt.id, pt.escopo, pt.setor_id, pt.usuario_id, pt.inicio, pt.fim,
+                 pt.retroativa, pt.motivo, pt.criado_por, pt.criado_em from public.plt_pausas_tempo pt order by pt.inicio desc, pt.id desc limit 50) p), '[]'::jsonb)`,
+      `Desligar o tempo (${quem}): as 50 últimas pausas = a leitura direta`)
+  }
+  const eq = (await logado(ADM, `select public.plt_fn_equipe_abertura() as r`)).r
+  conferir(eq.pessoas.some((p) => p.usuario === 'ope.55') && !eq.pessoas.some((p) => p.usuario === 'tablet.55')
+    && eq.vinculos.some((v) => v.usuario_id === ID.lid && v.lider_do_setor === true && v.setor.nome === 'MONTAGEM 55'),
+    'Equipe: as pessoas sem a conta do tablet; o líder com o vínculo de líder e o nome do setor')
+  const textoEq = JSON.stringify(eq)
+  conferir(!/55100000004|cpf|pin_hash|convite_token|nascimento|auth_user_id/.test(textoEq), 'Equipe: nenhum dado pessoal fora da lista de sempre (CPF, PIN, convite, nascimento)')
+  const api = (await logado(ADM, `select public.plt_fn_api_abertura() as r`)).r
+  conferir(api.chaves.some((c) => c.nome === 'Chave 55' && c.prefixo === 'pltk_55aa') && api.webhooks.some((w) => w.nome === 'Webhook 55')
+    && api.entregas.length >= 1 && api.entregas.length <= 20, 'API (admin): a chave, o webhook e as entregas vêm juntos')
+  conferir(!/hash-secreto-55|segredo-secreto-55|"hash"|"segredo"/.test(JSON.stringify(api)), 'API: o hash da chave e o segredo do webhook NUNCA saem')
+  const apiOpe = (await logado(OPE, `select public.plt_fn_api_abertura() as r`)).r
+  conferir(apiOpe.chaves.length === 0 && apiOpe.webhooks.length === 0 && apiOpe.entregas.length === 0, 'API (operador): nada — a permissão de sempre (só admin)', JSON.stringify(apiOpe).slice(0, 200))
+  const cam = (await logado(ADM, `select public.plt_fn_caminhoes_abertura(true, false) as r`)).r
+  conferir(cam.caminhoes.some((c) => c.placa === 'TST5502' && c.arquivado_em !== null) && cam.caminhoes.some((c) => c.placa === 'TST5501') && !('tiny_entrega' in cam),
+    'Caminhões com os arquivados e sem pedir a situação do Tiny: os dois caminhões, sem o cartão')
+  const camA = (await logado(ADM, `select public.plt_fn_caminhoes_abertura() as r`)).r
+  const camO = (await logado(OPE, `select public.plt_fn_caminhoes_abertura() as r`)).r
+  conferir(!camA.caminhoes.some((c) => c.placa === 'TST5502') && camA.tiny_entrega !== null && 'esperando' in camA.tiny_entrega
+    && 'tiny_entrega' in camO && camO.tiny_entrega === null && camO.caminhoes.some((c) => c.placa === 'TST5501'),
+    'Caminhões (padrão): sem os arquivados; o admin recebe a situação do Tiny, o operador recebe a lista e o cartão vazio')
+  await igual(ADM, `public.plt_fn_automacoes_abertura() -> 'lista'`, lista(`public.plt_fn_automacoes(30, 0, false)`), 'Automações (dono): a lista = a porta da lista')
+  await igual(ADM, `public.plt_fn_automacoes_abertura(p_id => ${AUT}) -> 'automacao'`, `public.plt_fn_automacao(${AUT})`, 'Automações (dono): a automação aberta = a porta dela')
+  await igual(ADM, `public.plt_fn_automacoes_abertura() -> 'etapas'`,
+    `coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'setor_id', e.setor_id, 'nome', e.nome, 'ordem', e.ordem, 'eh_fila', e.eh_fila,
+               'eh_danificado', e.eh_danificado, 'ativa', e.ativa, 'setor_destino_id', e.setor_destino_id, 'conclui_producao', e.conclui_producao,
+               'pede_motivo', e.pede_motivo, 'cancela_fabricacao', e.cancela_fabricacao, 'cancela_motivo', e.cancela_motivo, 'cancela_dias', e.cancela_dias)
+               order by e.setor_id, e.ordem, e.id) from public.plt_etapas e where e.ativa), '[]'::jsonb)`, 'Automações: as etapas ativas = a leitura direta')
+  await igual(ADM, `public.plt_fn_automacoes_abertura() -> 'pessoas'`,
+    `coalesce((select jsonb_agg(jsonb_build_object('id', u.id, 'nome', u.nome) order by u.nome, u.id) from public.plt_usuarios u where u.ativo and u.conta_tablet = false), '[]'::jsonb)`,
+    'Automações: as pessoas ativas = a leitura direta')
+  const au = (await logado(ADM, `select public.plt_fn_automacoes_abertura(p_cadastros => false) as r`)).r
+  conferir(au.lista.some((a) => a.nome === 'Automação 55') && !('etapas' in au) && !('pessoas' in au) && !('automacao' in au),
+    'Automações com os cadastros já guardados: só a lista')
+  const au1 = (await logado(ADM, `select public.plt_fn_automacoes_abertura(p_id => ${AUT}) as r`)).r
+  conferir(au1.automacao.nome === 'Automação 55' && !('lista' in au1) && au1.etapas.some((e) => e.nome === 'A MONTAR 55') && au1.pessoas.some((p) => p.nome === 'Operador 55')
+    && !au1.pessoas.some((p) => p.nome === 'Tablet 55'), 'Automação aberta: ela, as etapas e as pessoas (sem a conta do tablet) — sem a lista')
+  await recusa(AD2, `select public.plt_fn_automacoes_abertura()`, 'Automações: o admin que não é o dono é recusado (a recusa é a da porta de sempre)', /super admin/i)
+  await recusa(OPE, `select public.plt_fn_automacoes_abertura(p_id => ${AUT})`, 'Automações: o operador é recusado ao abrir uma automação', /super admin/i)
+
+  titulo('SESSAO-55 · as 9 portas: só quem está logado chama; nenhuma escreve')
+  const portas = await bd.query(`
+    select p.proname, p.provolatile, p.prosecdef,
+           has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as logado
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname in ('plt_fn_meu_trabalho', 'plt_fn_dash_pessoas_abertura', 'plt_fn_dash_qualidade_abertura',
+           'plt_fn_meu_desempenho_abertura', 'plt_fn_equipe_abertura', 'plt_fn_api_abertura', 'plt_fn_caminhoes_abertura',
+           'plt_fn_automacoes_abertura', 'plt_fn_tempo_desligar_abertura')`)
+  conferir(portas.rows.length === 9, 'as 9 portas existem, uma de cada (sem sobrecarga)', String(portas.rows.length))
+  conferir(portas.rows.every((p) => !p.anon && p.logado), 'visitante não chama nenhuma; quem está logado chama todas', JSON.stringify(portas.rows.filter((p) => p.anon || !p.logado)))
+  conferir(portas.rows.every((p) => p.provolatile === 's' && !p.prosecdef), 'todas só leem (STABLE) e rodam com a permissão de quem chama (invoker)',
+    JSON.stringify(portas.rows.filter((p) => p.provolatile !== 's' || p.prosecdef)))
+  } finally {
+    await bd.exec('rollback')
+    await bd.exec('reset role')
+    await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
+  }
+} // fim do bloco SESSAO-55
+
+
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
   `  tabelas plt_*: ${await contar(
