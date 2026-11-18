@@ -11,7 +11,7 @@ tags: [handoff, sessao, plataforma, dashboards, d-32]
 **Branch:** `sessao-10-dashboards` (mesclada na `main` — bloco noturno D-26)
 **Banco:** projeto `axnzldwgwsmepukdiljx` — **migration 18 aplicada em 28/08** (integração intacta)
 **Demanda:** [[SESSAO-10 - Dashboards e Visualizacoes Salvas]] · **Memória de execução:** `docs/execucao/SESSAO-10.md`
-**Decisões que regem:** D-02 (fila vs execução + soma) · [[PLT - Decisoes de Produto#D-32|D-32]] (foco pesado em TEMPO; só líder/admin) · D-29 (tempo útil) · D-04 (alavancagem, sem ranking).
+**Decisões que regem:** D-02 (fila vs execução + soma) · [[D-032 - Dashboards foco pesado em tempo so lider e admin|D-32]] (foco pesado em TEMPO; só líder/admin) · D-29 (tempo útil) · D-04 (alavancagem, sem ranking).
 
 ## 1. O que foi feito
 

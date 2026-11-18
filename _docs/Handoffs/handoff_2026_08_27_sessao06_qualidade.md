@@ -14,7 +14,7 @@ tags: [handoff, sessao, plataforma, qualidade, d-09]
 
 ## 1. Objetivo da sessão
 
-A dupla atestação da D-09 (revisada: sem foto, sem disputa/pausa) virou regra de banco e gesto de tela. As respostas do dono no início viraram a **[[PLT - Decisoes de Produto#D-25|D-25]]**: notificação para os **líderes dos dois setores + admins** · etapa **DANIFICADO garantida pelo sistema** em cada setor · **saída do PCP sem marcação** · ROTAS aceita registro unilateral e **chegada em ESTOQUE avisa os admins** (logística fica no planejamento) · **API só chega em PCP/ROTAS** (sem qualidade) · movimentação de etapa **dentro** do setor sem qualidade.
+A dupla atestação da D-09 (revisada: sem foto, sem disputa/pausa) virou regra de banco e gesto de tela. As respostas do dono no início viraram a **[[D-025 - Qualidade nas transicoes detalhes de execucao|D-25]]**: notificação para os **líderes dos dois setores + admins** · etapa **DANIFICADO garantida pelo sistema** em cada setor · **saída do PCP sem marcação** · ROTAS aceita registro unilateral e **chegada em ESTOQUE avisa os admins** (logística fica no planejamento) · **API só chega em PCP/ROTAS** (sem qualidade) · movimentação de etapa **dentro** do setor sem qualidade.
 
 ## 2. O que foi feito
 

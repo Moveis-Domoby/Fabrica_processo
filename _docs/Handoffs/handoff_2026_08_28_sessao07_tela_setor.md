@@ -11,7 +11,7 @@ tags: [handoff, sessao, plataforma, tablet, d-27, d-28, d-29]
 **Branch:** `sessao-07-tela-setor` (mesclada na `main` — autorização do bloco noturno D-26)
 **Banco:** projeto `axnzldwgwsmepukdiljx` — **migration 16 aplicada em 28/08** (integração intacta, contagens idênticas)
 **Demanda:** [[SESSAO-07 - Tela do Setor Tablet]] · **Memória de execução:** `docs/execucao/SESSAO-07.md`
-**Decisões que nasceram no aval do bloco:** [[PLT - Decisoes de Produto#D-28|D-28]] (card do operador) · [[PLT - Decisoes de Produto#D-29|D-29]] (controle de tempo) — além da D-27 executada aqui.
+**Decisões que nasceram no aval do bloco:** [[D-028 - Card do operador dados do produto espaco de imagens som|D-28]] (card do operador) · [[D-029 - Controle de tempo pelo admin horario de funcionamento pausas|D-29]] (controle de tempo) — além da D-27 executada aqui.
 
 ## 1. O que foi feito
 

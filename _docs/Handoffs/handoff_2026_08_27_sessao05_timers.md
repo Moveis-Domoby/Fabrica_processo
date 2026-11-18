@@ -14,7 +14,7 @@ tags: [handoff, sessao, plataforma, timers, execucao]
 
 ## 1. Objetivo da sessão
 
-A razão de existir da plataforma: o tempo passa a ser medido sozinho, como subproduto dos cliques. As respostas do dono no início viraram a **[[PLT - Decisoes de Produto#D-24|D-24]]**: vários cards por pessoa com **limite configurável por setor** (padrão sem limite), **iniciar obrigatório** antes de finalizar, **mover encerra a execução automaticamente**, **admin pode tudo**, e **transferência entre pessoas** finaliza para um e inicia para o outro.
+A razão de existir da plataforma: o tempo passa a ser medido sozinho, como subproduto dos cliques. As respostas do dono no início viraram a **[[D-024 - Execucao varios cards por pessoa com limite configuravel|D-24]]**: vários cards por pessoa com **limite configurável por setor** (padrão sem limite), **iniciar obrigatório** antes de finalizar, **mover encerra a execução automaticamente**, **admin pode tudo**, e **transferência entre pessoas** finaliza para um e inicia para o outro.
 
 ## 2. O que foi feito
 

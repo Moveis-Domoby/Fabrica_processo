@@ -9,7 +9,7 @@ tags: [plataforma, plano, autonomo, bloco-noturno]
 # 🌙 PLT — Plano Noturno · Sessões 07 → 12
 
 > [!danger] O que é este documento
-> O plano de execução **autônoma e encadeada** das sessões **07, 08, 09, 10, 11 e 12** (ordem da [[PLT - Decisoes de Produto#D-23|D-23]]), decidido em [[PLT - Decisoes de Produto#D-26|D-26]]. O dono responde as dúvidas UMA vez no início e vai dormir; a partir do OK dele, **nenhuma pergunta até o fim do bloco**. Toda sessão do bloco lê esta nota logo depois das regras.
+> O plano de execução **autônoma e encadeada** das sessões **07, 08, 09, 10, 11 e 12** (ordem da [[D-023 - Replanejamento da jornada a partir da 5 posicao|D-23]]), decidido em [[D-026 - Bloco noturno autonomo sessoes 07 12 sem perguntas durante|D-26]]. O dono responde as dúvidas UMA vez no início e vai dormir; a partir do OK dele, **nenhuma pergunta até o fim do bloco**. Toda sessão do bloco lê esta nota logo depois das regras.
 
 ## 1. Protocolo do bloco (D-26 — resumo operacional)
 

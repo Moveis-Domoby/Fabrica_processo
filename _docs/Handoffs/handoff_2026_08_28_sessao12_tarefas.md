@@ -11,7 +11,7 @@ tags: [handoff, sessao, plataforma, tarefas, delegacao, d-34]
 **Branch:** `sessao-12-tarefas` (mesclada na `main` — bloco noturno D-26)
 **Banco:** migrations **20 e 21** aplicadas em 28/08 (integração intacta)
 **Demanda:** [[SESSAO-12 - Tarefas e Delegacao]] · **Memória:** `docs/execucao/SESSAO-12.md`
-**Decisão que rege:** [[PLT - Decisoes de Produto#D-34|D-34]] — 3 modos por setor; sorteio SÓ entre logados; tarefa avulsa sem timer obrigatório; **delegação organiza, não trava**.
+**Decisão que rege:** [[D-034 - Delegacao 3 modos por setor sorteio entre logados tarefa|D-34]] — 3 modos por setor; sorteio SÓ entre logados; tarefa avulsa sem timer obrigatório; **delegação organiza, não trava**.
 
 ## 1. O que foi feito
 

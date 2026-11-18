@@ -11,7 +11,7 @@ tags: [handoff, sessao, plataforma, entrada, tiny, d-31]
 **Branch:** `sessao-09-entrada-pedidos` (mesclada na `main` — bloco noturno D-26)
 **Banco:** projeto `axnzldwgwsmepukdiljx` — **migration 17 aplicada em 28/08** (integração intacta)
 **Demanda:** [[SESSAO-09 - Entrada de Pedidos via n8n]] · **Memória de execução:** `docs/execucao/SESSAO-09.md`
-**Decisão que rege:** [[PLT - Decisoes de Produto#D-31|D-31]] — *"ele já lança no banco, então leia o banco e crie o card quando chegar lá, instantaneamente"*.
+**Decisão que rege:** [[D-031 - Entrada de pedidos a plataforma le o proprio banco sem tocar|D-31]] — *"ele já lança no banco, então leia o banco e crie o card quando chegar lá, instantaneamente"*.
 
 ## 1. O que foi feito
 

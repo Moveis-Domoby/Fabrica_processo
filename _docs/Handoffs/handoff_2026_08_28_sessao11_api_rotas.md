@@ -10,7 +10,7 @@ tags: [handoff, sessao, plataforma, api, rotas, webhooks, d-33]
 
 **Branch:** `sessao-11-api-rotas` (mesclada na `main` — bloco noturno D-26)
 **Banco:** migration 19 aplicada em 28/08 · **Edge Function `api` v1 no ar** (deploy autorizado pelo bloco)
-**Demanda:** [[SESSAO-11 - API Aberta e Integracao n8n]] (revisada pela [[PLT - Decisoes de Produto#D-33|D-33]]) · **Memória:** `docs/execucao/SESSAO-11.md`
+**Demanda:** [[SESSAO-11 - API Aberta e Integracao n8n]] (revisada pela [[D-033 - ROTAS dentro da plataforma ClickUp nao recebe mais nada|D-33]]) · **Memória:** `docs/execucao/SESSAO-11.md`
 
 ## 1. O que foi feito
 

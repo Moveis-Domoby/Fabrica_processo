@@ -26,9 +26,9 @@ tags: [plataforma, visao, producao, tempo, produtividade, react]
 
 > **Controle de tempo.** A fábrica não tem noção alguma de produtividade por setor, de tempo em cada etapa, de quem produz mais ou menos.
 
-**Como a medição será usada (D-04 revisada em 19/08):** por enquanto, como **alavancagem operacional** — melhorar cada setor por si só, com a contribuição dos colaboradores. Bonificação/meritocracia ainda será debatida e decidida no futuro; a arquitetura preserva o histórico completo (eventos append-only) para que essa porta continue aberta.
+**Como a medição será usada ([[D-004 - Produtividade e bonificacao|D-04]] revisada em 19/08):** por enquanto, como **alavancagem operacional** — melhorar cada setor por si só, com a contribuição dos colaboradores. Bonificação/meritocracia ainda será debatida e decidida no futuro; a arquitetura preserva o histórico completo (eventos append-only) para que essa porta continue aberta.
 
-**A quem pertence cada tempo (D-02 detalhada em 24/08):** o tempo de **fila é do setor/etapa** — na fila o card não está direcionado a ninguém, e fila longa = gargalo = sinal de contratação. O tempo de **execução é da pessoa** que iniciou/finalizou. O objetivo do fluxo: **tempo de produção por item, por setor e por pessoa**.
+**A quem pertence cada tempo ([[D-002 - Timer dois contadores por etapa dash compara e soma|D-02]] detalhada em 24/08):** o tempo de **fila é do setor/etapa** — na fila o card não está direcionado a ninguém, e fila longa = gargalo = sinal de contratação. O tempo de **execução é da pessoa** que iniciou/finalizou. O objetivo do fluxo: **tempo de produção por item, por setor e por pessoa**.
 
 ## Qualidade em toda transição (D-09 — pedido da equipe)
 
@@ -43,33 +43,33 @@ O estado físico da peça **impacta completamente o andamento entre setores** �
 
 A nota [[FAB - Processo Alvo - Um Clique Um Evento]] dizia que "o roteiro é do produto, ninguém decide para onde vai". **O entendimento de 19/08 revisa isso:** a decisão de destino É humana e É valiosa (PCP e setores decidem por fatores que nenhum sistema enxerga hoje — máquina quebrada, faltas, estoque). O que permanece da visão original:
 
-- **Um clique = um evento** continua valendo para o REGISTRO: mover o card é o gesto único, e todo o resto (fechar timer, abrir fila do próximo setor, contabilizar, notificar) é consequência automática. A atestação de qualidade (D-09) entra nesse mesmo gesto.
-- A automação do DESTINO fica para o futuro, quando os padrões estiverem melhor definidos — e será possível via **API aberta** (D-03), sem mudar o núcleo.
+- **Um clique = um evento** continua valendo para o REGISTRO: mover o card é o gesto único, e todo o resto (fechar timer, abrir fila do próximo setor, contabilizar, notificar) é consequência automática. A atestação de qualidade ([[D-009 - Qualidade em 3 estados em TODA transicao com dupla atestacao|D-09]]) entra nesse mesmo gesto.
+- A automação do DESTINO fica para o futuro, quando os padrões estiverem melhor definidos — e será possível via **API aberta** ([[D-003 - Destino do card manual hoje automacao via API amanha|D-03]]), sem mudar o núcleo.
 - Automatizamos as **consequências**, não as **decisões**.
 
 ## O que a plataforma é
 
 Uma **réplica funcional do ClickUp**, sob medida, com:
 
-- Kanban por setor com **timer automático por card por etapa** (fila + execução, ver D-02)
-- **Qualidade em 3 estados com dupla atestação** em toda transição (D-09)
-- **Produtividade por usuário**: quem move/executa é contabilizado (alavancagem operacional — D-04)
+- Kanban por setor com **timer automático por card por etapa** (fila + execução, ver [[D-002 - Timer dois contadores por etapa dash compara e soma|D-02]])
+- **Qualidade em 3 estados com dupla atestação** em toda transição ([[D-009 - Qualidade em 3 estados em TODA transicao com dupla atestacao|D-09]])
+- **Produtividade por usuário**: quem move/executa é contabilizado (alavancagem operacional — [[D-004 - Produtividade e bonificacao|D-04]])
 - **Perfis e permissões configuráveis**: operador vê o simples, líder vê o completo do setor, admin vê tudo
 - **Dashboards** de produtividade e qualidade (setor, usuário, item, tempo parado) com **visualizações personalizadas salvas**
 - **Controle de tarefas** com delegação aleatória ou direta
 - **API aberta** para o n8n orquestrar integrações (Tiny → plataforma, plataforma → ClickUp ROTAS…)
 - **Painel admin completo**
-- Fase 2: **módulo de estoque** nativo (D-07)
+- Fase 2: **módulo de estoque** nativo ([[D-007 - Estoque modulo da mesma plataforma fase 2|D-07]])
 
 ## Stack, papéis e método de trabalho
 
 | Item | Definição |
 |---|---|
 | Front | **React**, com **design system próprio documentado** desde o dia 1 (cada implementação nova segue o padrão — inclui regras de paginação, densidade, componentes) |
-| Banco | **Mesmo Supabase da fábrica** (D-08) — a plataforma nasce sobre o banco que já recebe pedidos do Tiny via n8n (P15) |
+| Banco | **Mesmo Supabase da fábrica** ([[D-008 - Banco o mesmo Supabase da fabrica\|D-08]]) — a plataforma nasce sobre o banco que já recebe pedidos do Tiny via n8n (P15) |
 | Integrações | **n8n como intermediador** universal, consumindo a API aberta da plataforma |
 | Quem ideia/arquiteta | Cowork (estas notas são a memória) |
-| Quem coda | **Exclusivamente o Claude Code** — em **sessões separadas por ordem de implementação** (D-10), cada uma com demanda própria em `Demandas/`, acompanhada pelo dono |
+| Quem coda | **Exclusivamente o Claude Code** — em **sessões separadas por ordem de implementação** ([[D-010 - Metodo de trabalho sessoes Claude Code ordenadas CLAUDE md\|D-10]]), cada uma com demanda própria em `Demandas/`, acompanhada pelo dono |
 | Conduta do Claude Code | [[CLAUDE - Regras do Claude Code (repo)]] — copiar como `CLAUDE.md` para a raiz do repositório na Sessão 01 |
 
 ## Escopo do lançamento (D-05)

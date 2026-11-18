@@ -9,7 +9,7 @@ tags: [plataforma, demanda, sessao, admin]
 
 # 🎯 SESSAO-18 — Painel Admin Completo
 
-> ↪️ **Renumerada em 28/08/2026 (D-35):** era a SESSAO-14; ficou em standby atrás do bloco 3 (a reforma, Sessões 13→16).
+> ↪️ **Renumerada em 28/08/2026 ([[D-035 - Plataforma funcional primeiro externo em standby Bloco 3|D-35]]):** era a SESSAO-14; ficou em standby atrás do bloco 3 (a reforma, Sessões 13→16).
 
 ## O que é
 
@@ -21,7 +21,7 @@ RF-60 · fecha RF-21/24 (gestão) · consolida Q-50 (chaves) e RF-06 (automaçõ
 
 ## Decisões que regem
 
-D-10 · todas as anteriores (este painel administra o que elas criaram).
+[[D-010 - Metodo de trabalho sessoes Claude Code ordenadas CLAUDE md|D-10]] · todas as anteriores (este painel administra o que elas criaram).
 
 ## Comportamento esperado
 
@@ -37,7 +37,7 @@ D-10 · todas as anteriores (este painel administra o que elas criaram).
 
 ## Fora do escopo
 
-Features novas de produção · módulo de estoque (fase 2 — D-07).
+Features novas de produção · módulo de estoque (fase 2 — [[D-007 - Estoque modulo da mesma plataforma fase 2|D-07]]).
 
 ## Critérios de aceite
 

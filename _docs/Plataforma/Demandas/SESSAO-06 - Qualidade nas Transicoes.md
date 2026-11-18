@@ -37,7 +37,7 @@ D-09 (o fluxo completo) · D-02 (a pausa não pode sujar os timers) · RNF-05.
 
 ## Perguntar ao dono no início da sessão
 
-- ✅ **Respondidas em 27/08/2026 → viraram a [[PLT - Decisoes de Produto#D-25|D-25]]:** notificação para os líderes dos DOIS setores + admins · etapa DANIFICADO garantida pelo sistema em cada setor · saída do PCP sem marcação · ROTAS aceita registro unilateral, chegada em ESTOQUE notifica admins (logística fica no planejamento) · API só chega em PCP/ROTAS (sem qualidade) · movimentação interna de etapa sem qualidade.
+- ✅ **Respondidas em 27/08/2026 → viraram a [[D-025 - Qualidade nas transicoes detalhes de execucao|D-25]]:** notificação para os líderes dos DOIS setores + admins · etapa DANIFICADO garantida pelo sistema em cada setor · saída do PCP sem marcação · ROTAS aceita registro unilateral, chegada em ESTOQUE notifica admins (logística fica no planejamento) · API só chega em PCP/ROTAS (sem qualidade) · movimentação interna de etapa sem qualidade.
 
 ## Fora do escopo
 

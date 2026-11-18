@@ -8,7 +8,7 @@ tags: [handoff, ajuste, senha, notificacao, pcp, reposicao, estoque]
 
 # 📋 Handoff — Ajuste de 28/10/2026 · senha e peça em produção no PCP
 
-> Pedido do dono na madrugada de 28/10 (dois ajustes rápidos). Diário: [[AJUSTE-2026-10-28]]. Decisões: [[PLT - Decisoes de Produto#D-200]] e [[PLT - Decisoes de Produto#D-201]]. O Claude levou 4 perguntas; o dono respondeu: corrigir a senha "dos dois lados"; a peça de reposição **e** a de pedido cancelado; a reposição "só perde a peça"; "ler e subir no fim".
+> Pedido do dono na madrugada de 28/10 (dois ajustes rápidos). Diário: [[AJUSTE-2026-10-28]]. Decisões: [[D-200 - O PEDIDO DE TROCA DE SENHA PARA E-MAIL SEM CADASTRO AVISA|D-200]] e [[D-201 - O PEDIDO NOVO USA PELO PCP A PECA SEM DONO QUE JA ESTA|D-201]]. O Claude levou 4 perguntas; o dono respondeu: corrigir a senha "dos dois lados"; a peça de reposição **e** a de pedido cancelado; a reposição "só perde a peça"; "ler e subir no fim".
 
 ## 1. Objetivo
 
