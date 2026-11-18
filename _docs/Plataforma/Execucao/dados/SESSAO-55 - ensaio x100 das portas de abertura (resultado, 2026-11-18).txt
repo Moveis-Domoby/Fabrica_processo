@@ -1,0 +1,386 @@
+banco montado (todas as migrations) em 47007 ms
+cards e fatos de entrada 109695 ms
+volume {"pass":300000,"mont":50000,"trechos":55000,"trello":88500,"equipe":300000,"montagens":388500,"pessoas":436147,"duplas":5000,"no_painel":10} semeado em 302011 ms
+volume da SESSAO-55 {"pessoas":300,"cards":300000,"delegados":30000,"tarefas":87600,"subtarefas":30000,"eventos":300300,"visualizacoes":3000,"metas":300,"entregas":100000,"caminhoes":300,"horarios":4260,"pausas":5000,"automacoes":302,"etapas":600} semeado em 20181 ms
+
+=== ANTES (a soma das leituras da tela) × DEPOIS (a porta nova) — 8 chamadas, sem a 1ª ===
+tela | leituras antes | antes: mediana (máx.) | depois: mediana (máx.) [1ª fria] | teto | dentro?
+Aviso do trabalho · fora das telas pessoais (a bolinha) | 2 | 9.5 ms (12.2 ms) | 9.9 ms (10.8 ms) [17.9 ms] | 50 ms | sim
+Aviso do trabalho · no Meu Painel | 4 | 20.3 ms (25.1 ms) | 14.0 ms (19.5 ms) [23.2 ms] | 50 ms | sim
+Meu Painel abrindo (com a fila e as metas) | 6 | 95.7 ms (103.3 ms) | 85.2 ms (95.9 ms) [83.7 ms] | 150 ms | sim
+Meus afazeres | 5 | 34.7 ms (43.2 ms) | 18.5 ms (20.5 ms) [20.3 ms] | 50 ms | sim
+Dashboards → Pessoas (7 dias, o dono, com metas e visualizações) | 4 | 317.2 ms (379.5 ms) | 303.5 ms (317.9 ms) [307.3 ms] | 150 ms | NÃO
+Dashboards → Pessoas (30 dias, o dono, só a tela) | 2 | 6.3 ms (8.0 ms) | 4.9 ms (5.2 ms) [5.1 ms] | 150 ms | sim
+Dashboards → Pessoas (7 dias, o líder) | 2 | 5.0 ms (6.1 ms) | 3.7 ms (6.1 ms) [3.5 ms] | 150 ms | sim
+Dashboards → Qualidade (7 dias, o dono) | 4 | 10.1 ms (18.8 ms) | 6.3 ms (6.5 ms) [7.6 ms] | 150 ms | sim
+Dashboards → Qualidade (30 dias, o dono) | 3 | 8.0 ms (9.0 ms) | 3.3 ms (5.1 ms) [5.1 ms] | 150 ms | sim
+Dashboards → Meu desempenho (7 dias, o operador) | 3 | 307.2 ms (362.4 ms) | 289.3 ms (322.1 ms) [301.7 ms] | 150 ms | NÃO
+Dashboards → Meu desempenho (90 dias, o operador) | 3 | 1308.7 ms (1369.3 ms) | 1336.8 ms (1407.7 ms) [1364.1 ms] | 150 ms | NÃO
+Configurações → Equipe (o dono) | 2 | 25.6 ms (30.0 ms) | 21.3 ms (23.8 ms) [21.3 ms] | 50 ms | sim
+Configurações → API e integrações (o dono) | 3 | 79.1 ms (94.1 ms) | 72.0 ms (85.2 ms) [77.3 ms] | 50 ms | NÃO
+Configurações → Caminhões (o dono) | 2 | 6.8 ms (8.0 ms) | 5.7 ms (8.9 ms) [8.3 ms] | 50 ms | sim
+Automações · a lista (o dono) | 3 | 33.8 ms (44.0 ms) | 26.8 ms (31.8 ms) [31.2 ms] | 50 ms | sim
+Controle de tempo · Desligar o tempo (o dono) | 3 | 98.9 ms (109.4 ms) | 95.2 ms (103.7 ms) [99.2 ms] | 50 ms | NÃO
+
+FORA DO TETO:
+  Dashboards → Pessoas (7 dias, o dono, com metas e visualizações): máx. 317.9 ms (teto 150 ms)
+  Dashboards → Meu desempenho (7 dias, o operador): máx. 322.1 ms (teto 150 ms)
+  Dashboards → Meu desempenho (90 dias, o operador): máx. 1407.7 ms (teto 150 ms)
+  Configurações → API e integrações (o dono): máx. 85.2 ms (teto 50 ms)
+  Controle de tempo · Desligar o tempo (o dono): máx. 103.7 ms (teto 50 ms)
+
+=== as telas fora do teto, leitura por leitura (a mediana de cada leitura de antes) ===
+Dashboards → Pessoas (7 dias, o dono, com metas e visualizações)
+      2.7 ms (máx. 5.3 ms) · select id, nome, configuracao, padrao from public.plt_visualizacoes where usuario_id = (select u.id from public.plt_usuarios u where u.auth_user_id = 
+      2.9 ms (máx. 3.7 ms) · select * from public.plt_fn_dash_tempos_pessoa(now() - interval '7 days', now(), null)
+    292.3 ms (máx. 309.0 ms) · select * from public.plt_fn_metas_painel(false, 10, 0)
+      2.5 ms (máx. 3.2 ms) · select * from public.plt_fn_dash_execucoes(now() - interval '7 days', now(), null, null, 20, 0)
+Dashboards → Meu desempenho (7 dias, o operador)
+     25.6 ms (máx. 27.7 ms) · select * from public.plt_fn_meu_desempenho(now() - interval '7 days', now())
+    152.0 ms (máx. 167.5 ms) · select * from public.plt_fn_meu_tempo_dias(now() - interval '7 days', now())
+    153.9 ms (máx. 168.8 ms) · select * from public.plt_fn_meu_tempo_tarefas(now() - interval '7 days', now(), 10, 0)
+Dashboards → Meu desempenho (90 dias, o operador)
+     27.9 ms (máx. 28.8 ms) · select * from public.plt_fn_meu_desempenho(now() - interval '90 days', now())
+    716.8 ms (máx. 784.7 ms) · select * from public.plt_fn_meu_tempo_dias(now() - interval '90 days', now())
+    671.0 ms (máx. 726.5 ms) · select * from public.plt_fn_meu_tempo_tarefas(now() - interval '90 days', now(), 10, 0)
+Configurações → API e integrações (o dono)
+      8.8 ms (máx. 9.6 ms) · select id, nome, prefixo, escopo, criada_em, revogada_em, ultimo_uso_em from public.plt_chaves_api order by criada_em desc
+      4.8 ms (máx. 4.9 ms) · select id, nome, url, eventos, ativo, criado_em from public.plt_webhooks order by criado_em desc
+     78.6 ms (máx. 86.8 ms) · select id, webhook_id, situacao, tentativas, ultimo_erro, criada_em from public.plt_webhook_entregas order by criada_em desc limit 20
+Controle de tempo · Desligar o tempo (o dono)
+      4.3 ms (máx. 5.3 ms) · select id, nome from public.plt_usuarios where conta_tablet = false
+     94.7 ms (máx. 107.4 ms) · select id, escopo, setor_id, usuario_id, dia_semana, hora_inicio, hora_fim from public.plt_horarios_funcionamento order by escopo, dia_semana, hora_in
+      4.2 ms (máx. 4.6 ms) · select id, escopo, setor_id, usuario_id, inicio, fim, retroativa, motivo, criado_por, criado_em from public.plt_pausas_tempo order by inicio desc limi
+
+=== o tamanho de cada resposta ===
+Aviso do trabalho · fora das telas pessoais (a bolinha): 47.3 KB
+Aviso do trabalho · no Meu Painel: 88.1 KB
+Meu Painel abrindo (com a fila e as metas): 88.6 KB
+Meus afazeres: 52.3 KB
+Dashboards → Pessoas (7 dias, o dono, com metas e visualizações): 8.5 KB
+Dashboards → Pessoas (30 dias, o dono, só a tela): 2.3 KB
+Dashboards → Pessoas (7 dias, o líder): 0.1 KB
+Dashboards → Qualidade (7 dias, o dono): 8.1 KB
+Dashboards → Qualidade (30 dias, o dono): 6.7 KB
+Dashboards → Meu desempenho (7 dias, o operador): 3.2 KB
+Dashboards → Meu desempenho (90 dias, o operador): 11.0 KB
+Configurações → Equipe (o dono): 180.2 KB
+Configurações → API e integrações (o dono): 69.0 KB
+Configurações → Caminhões (o dono): 32.8 KB
+Automações · a lista (o dono): 187.1 KB
+Controle de tempo · Desligar o tempo (o dono): 759.4 KB
+
+--- plano · a porta do trabalho, inteira (Meu Painel abrindo) ---
+  Result (actual rows=1.00 loops=1)
+    Buffers: shared hit=6343
+  Planning Time: 0.072 ms
+  Execution Time: 64.561 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · as tarefas abertas da pessoa ---
+  Sort (actual rows=100.00 loops=1)
+    Sort Key: tt.criada_em
+    Sort Method: quicksort  Memory: 30kB
+    Buffers: shared hit=208
+    InitPlan 2
+      ->  Index Scan using plt_usuarios_auth_user_id_key on plt_usuarios u (actual rows=1.00 loops=1)
+            Index Cond: (auth_user_id = (InitPlan 1).col1)
+            Index Searches: 1
+            Buffers: shared hit=3
+            InitPlan 1
+              ->  Result (actual rows=1.00 loops=1)
+    InitPlan 3
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 4
+      ->  Result (never executed)
+    InitPlan 5
+      ->  Result (never executed)
+    InitPlan 6
+      ->  ProjectSet (never executed)
+            ->  Result (never executed)
+    ->  Bitmap Heap Scan on plt_tarefas tt (actual rows=100.00 loops=1)
+          Recheck Cond: ((responsavel_id = (InitPlan 2).col1) AND (situacao <> 'concluida'::text))
+          Filter: ((tarefa_mae_id IS NULL) AND ((responsavel_id = (InitPlan 3).col1) OR (criada_por_id = (InitPlan 4).col1) OR ((NOT privada) AND ((InitPlan 5).col1 OR (setor_id = ANY ((InitPlan 6).col1))))))
+          Rows Removed by Filter: 100
+          Heap Blocks: exact=200
+          Buffers: shared hit=208
+          ->  Bitmap Index Scan on plt_tarefas_responsavel_idx (actual rows=200.00 loops=1)
+                Index Cond: (responsavel_id = (InitPlan 2).col1)
+                Index Searches: 1
+                Buffers: shared hit=5
+  Planning:
+    Buffers: shared hit=1
+  Planning Time: 1.136 ms
+  Execution Time: 1.355 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · os cards delegados à pessoa ---
+  Sort (actual rows=1.00 loops=1)
+    Sort Key: cc.desde
+    Sort Method: quicksort  Memory: 17kB
+    Buffers: shared hit=25
+    InitPlan 2
+      ->  Index Scan using plt_usuarios_auth_user_id_key on plt_usuarios u (actual rows=1.00 loops=1)
+            Index Cond: (auth_user_id = (InitPlan 1).col1)
+            Index Searches: 1
+            Buffers: shared hit=3
+            InitPlan 1
+              ->  Result (actual rows=1.00 loops=1)
+    InitPlan 3
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 4
+      ->  ProjectSet (actual rows=2.00 loops=1)
+            Buffers: shared hit=6
+            ->  Result (actual rows=1.00 loops=1)
+    InitPlan 5
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 6
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    ->  Bitmap Heap Scan on plt_cards cc (actual rows=1.00 loops=1)
+          Recheck Cond: ((responsavel_id = (InitPlan 2).col1) AND (concluido_em IS NULL) AND (arquivado_em IS NULL))
+          Filter: ((InitPlan 3).col1 OR (setor_atual_id = ANY ((InitPlan 4).col1)) OR (executor_atual_id = (InitPlan 5).col1) OR (participantes @> ARRAY[(InitPlan 6).col1]))
+          Rows Removed by Filter: 99
+          Heap Blocks: exact=5
+          Buffers: shared hit=25
+          ->  Bitmap Index Scan on plt_cards_responsavel_idx (actual rows=101.00 loops=1)
+                Index Cond: (responsavel_id = (InitPlan 2).col1)
+                Index Searches: 1
+                Buffers: shared hit=5
+  Planning:
+    Buffers: shared hit=34
+  Planning Time: 1.274 ms
+  Execution Time: 1.089 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · as tarefas do Sistema dos setores da pessoa ---
+  Sort (actual rows=100.00 loops=1)
+    Sort Key: tt.criada_em
+    Sort Method: quicksort  Memory: 27kB
+    Buffers: shared hit=603
+    InitPlan 2
+      ->  Index Scan using plt_usuarios_auth_user_id_key on plt_usuarios u (actual rows=1.00 loops=1)
+            Index Cond: (auth_user_id = (InitPlan 1).col1)
+            Index Searches: 1
+            Buffers: shared hit=3
+            InitPlan 1
+              ->  Result (actual rows=1.00 loops=1)
+    InitPlan 3
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 4
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 5
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 6
+      ->  ProjectSet (actual rows=2.00 loops=1)
+            Buffers: shared hit=6
+            ->  Result (actual rows=1.00 loops=1)
+    ->  Merge Join (actual rows=100.00 loops=1)
+          Merge Cond: (tt.setor_id = us.setor_id)
+          Buffers: shared hit=603
+          ->  Index Scan using plt_tarefas_sistema_setor_idx on plt_tarefas tt (actual rows=100.00 loops=1)
+                Filter: ((responsavel_id = (InitPlan 3).col1) OR (criada_por_id = (InitPlan 4).col1) OR ((NOT privada) AND ((InitPlan 5).col1 OR (setor_id = ANY ((InitPlan 6).col1)))))
+                Rows Removed by Filter: 500
+                Index Searches: 1
+                Buffers: shared hit=597
+          ->  Sort (actual rows=2.00 loops=1)
+                Sort Key: us.setor_id
+                Sort Method: quicksort  Memory: 17kB
+                Buffers: shared hit=6
+                ->  Bitmap Heap Scan on plt_usuario_setores us (actual rows=2.00 loops=1)
+                      Recheck Cond: (usuario_id = (InitPlan 2).col1)
+                      Heap Blocks: exact=1
+                      Buffers: shared hit=6
+                      ->  Bitmap Index Scan on plt_usuario_setores_pkey (actual rows=2.00 loops=1)
+                            Index Cond: (usuario_id = (InitPlan 2).col1)
+                            Index Searches: 1
+                            Buffers: shared hit=5
+  Planning:
+    Buffers: shared hit=1
+  Planning Time: 1.431 ms
+  Execution Time: 2.273 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · o contador de subtarefas (o "2/5") ---
+  GroupAggregate (actual rows=100.00 loops=1)
+    Group Key: st.tarefa_mae_id
+    Buffers: shared hit=575
+    InitPlan 7
+      ->  Bitmap Heap Scan on plt_tarefas t (actual rows=100.00 loops=1)
+            Recheck Cond: ((responsavel_id = (InitPlan 2).col1) AND (situacao <> 'concluida'::text))
+            Filter: ((tarefa_mae_id IS NULL) AND ((responsavel_id = (InitPlan 3).col1) OR (criada_por_id = (InitPlan 4).col1) OR ((NOT privada) AND ((InitPlan 5).col1 OR (setor_id = ANY ((InitPlan 6).col1))))))
+            Rows Removed by Filter: 100
+            Heap Blocks: exact=200
+            Buffers: shared hit=208
+            InitPlan 2
+              ->  Index Scan using plt_usuarios_auth_user_id_key on plt_usuarios u (actual rows=1.00 loops=1)
+                    Index Cond: (auth_user_id = (InitPlan 1).col1)
+                    Index Searches: 1
+                    Buffers: shared hit=3
+                    InitPlan 1
+                      ->  Result (actual rows=1.00 loops=1)
+            InitPlan 3
+              ->  Result (actual rows=1.00 loops=1)
+                    Buffers: shared hit=3
+            InitPlan 4
+              ->  Result (never executed)
+            InitPlan 5
+              ->  Result (never executed)
+            InitPlan 6
+              ->  ProjectSet (never executed)
+                    ->  Result (never executed)
+            ->  Bitmap Index Scan on plt_tarefas_responsavel_idx (actual rows=200.00 loops=1)
+                  Index Cond: (responsavel_id = (InitPlan 2).col1)
+                  Index Searches: 1
+                  Buffers: shared hit=5
+    InitPlan 8
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 9
+      ->  Result (never executed)
+    InitPlan 10
+      ->  Result (never executed)
+    InitPlan 11
+      ->  ProjectSet (never executed)
+            ->  Result (never executed)
+    ->  Index Scan using plt_tarefas_mae_idx on plt_tarefas st (actual rows=200.00 loops=1)
+          Index Cond: (tarefa_mae_id = ANY ((InitPlan 7).col1))
+          Filter: ((responsavel_id = (InitPlan 8).col1) OR (criada_por_id = (InitPlan 9).col1) OR ((NOT privada) AND ((InitPlan 10).col1 OR (setor_id = ANY ((InitPlan 11).col1)))))
+          Index Searches: 82
+          Buffers: shared hit=575
+  Planning:
+    Buffers: shared hit=1
+  Planning Time: 1.403 ms
+  Execution Time: 2.818 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · as visualizações salvas de quem chama ---
+  Sort (actual rows=10.00 loops=1)
+    Sort Key: plt_visualizacoes.nome
+    Sort Method: quicksort  Memory: 18kB
+    Buffers: shared hit=18
+    InitPlan 2
+      ->  Index Scan using plt_usuarios_auth_user_id_key on plt_usuarios u (actual rows=1.00 loops=1)
+            Index Cond: (auth_user_id = (InitPlan 1).col1)
+            Index Searches: 1
+            Buffers: shared hit=3
+            InitPlan 1
+              ->  Result (actual rows=1.00 loops=1)
+    InitPlan 3
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    InitPlan 4
+      ->  Result (never executed)
+    InitPlan 5
+      ->  ProjectSet (never executed)
+            ->  Result (never executed)
+    ->  Bitmap Heap Scan on plt_visualizacoes (actual rows=10.00 loops=1)
+          Recheck Cond: (usuario_id = (InitPlan 2).col1)
+          Filter: ((InitPlan 3).col1 OR (usuario_id = (InitPlan 4).col1) OR (escopo = 'global'::text) OR ((escopo = 'setor'::text) AND (setor_id = ANY ((InitPlan 5).col1))))
+          Heap Blocks: exact=10
+          Buffers: shared hit=18
+          ->  Bitmap Index Scan on plt_visualizacoes_usuario_idx (actual rows=10.00 loops=1)
+                Index Cond: (usuario_id = (InitPlan 2).col1)
+                Index Searches: 1
+                Buffers: shared hit=5
+  Planning:
+    Buffers: shared hit=2
+  Planning Time: 0.824 ms
+  Execution Time: 0.530 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · Equipe · as pessoas ---
+  Seq Scan on plt_usuarios u (actual rows=300.00 loops=1)
+    Filter: (NOT conta_tablet)
+    Buffers: shared hit=8
+  Planning:
+    Buffers: shared hit=1
+  Planning Time: 0.399 ms
+  Execution Time: 0.274 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · Equipe · os vínculos ---
+  Hash Left Join (actual rows=600.00 loops=1)
+    Hash Cond: (us.setor_id = s.id)
+    Buffers: shared hit=6
+    ->  Seq Scan on plt_usuario_setores us (actual rows=600.00 loops=1)
+          Buffers: shared hit=5
+    ->  Hash (actual rows=17.00 loops=1)
+          Buckets: 1024  Batches: 1  Memory Usage: 5kB
+          Buffers: shared hit=1
+          ->  Seq Scan on plt_setores s (actual rows=17.00 loops=1)
+                Buffers: shared hit=1
+  Planning:
+    Buffers: shared hit=2
+  Planning Time: 0.405 ms
+  Execution Time: 0.500 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · API · as 20 últimas entregas ---
+  Limit (actual rows=20.00 loops=1)
+    Buffers: shared hit=1238
+    InitPlan 1
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+    ->  Sort (actual rows=20.00 loops=1)
+          Sort Key: we.criada_em DESC, we.id DESC
+          Sort Method: top-N heapsort  Memory: 18kB
+          Buffers: shared hit=1238
+          ->  Seq Scan on plt_webhook_entregas we (actual rows=100000.00 loops=1)
+                Filter: (InitPlan 1).col1
+                Buffers: shared hit=1238
+  Planning Time: 0.152 ms
+  Execution Time: 65.149 ms
+  !! varredura sequencial em tabela que cresce: ->  Seq Scan on plt_webhook_entregas we (actual rows=100000.00 loops=1)
+
+--- plano · Caminhões · a lista ---
+  Seq Scan on plt_caminhoes c (actual rows=200.00 loops=1)
+    Filter: (((InitPlan 1).col1 IS NOT NULL) AND (arquivado_em IS NULL))
+    Rows Removed by Filter: 100
+    Buffers: shared hit=7
+    InitPlan 1
+      ->  Result (actual rows=1.00 loops=1)
+            Buffers: shared hit=3
+  Planning Time: 0.151 ms
+  Execution Time: 0.296 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · Automações · as etapas ativas ---
+  Seq Scan on plt_etapas e (actual rows=600.00 loops=1)
+    Filter: ativa
+    Buffers: shared hit=8
+  Planning:
+    Buffers: shared hit=2
+  Planning Time: 0.190 ms
+  Execution Time: 0.312 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · Desligar o tempo · as 50 últimas pausas ---
+  Limit (actual rows=50.00 loops=1)
+    Buffers: shared hit=72
+    ->  Sort (actual rows=50.00 loops=1)
+          Sort Key: inicio DESC, id DESC
+          Sort Method: top-N heapsort  Memory: 18kB
+          Buffers: shared hit=72
+          ->  Seq Scan on plt_pausas_tempo pt (actual rows=5000.00 loops=1)
+                Buffers: shared hit=72
+  Planning:
+    Buffers: shared hit=1
+  Planning Time: 0.182 ms
+  Execution Time: 3.171 ms
+  sem varredura sequencial em tabela que cresce
+
+--- plano · Desligar o tempo · os horários ---
+  Seq Scan on plt_horarios_funcionamento h (actual rows=4260.00 loops=1)
+    Buffers: shared hit=49
+  Planning Time: 0.098 ms
+  Execution Time: 1.195 ms
+  sem varredura sequencial em tabela que cresce
+
+ensaio inteiro em 427335 ms
