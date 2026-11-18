@@ -8,66 +8,45 @@ tags: [handoff, sessao]
 
 # 📋 Handoff — AAAA-MM-DD
 
-> Copie este arquivo para `Handoffs/handoff_AAAA_MM_DD.md`, preencha e linke em [[000 - MAPA DO PROJETO]].
-> Apague as instruções em itálico ao preencher.
+> Copie este arquivo para `Handoffs/handoff_AAAA_MM_DD_sessaoNN_assunto.md`, preencha e acrescente a linha da sessão em [[MOC - Sessoes e Handoffs]] (e o status em [[000 - ORDEM DAS SESSOES]]).
+> **Teto: 15 KB.** O handoff é o resumo para o dono revisar: o detalhe técnico (arquivos, comandos, erros, medições) fica no diário `Plataforma/Execucao/SESSAO-NN.md`, e o handoff aponta para ele. Apague as instruções em itálico ao preencher.
 
-## 1. Objetivo da sessão
+## 1. O que o dono pediu
 
-*O que o dono do produto pediu, nas palavras dele. Se surgiu no meio da conversa uma mudança de rumo, registre isso também — o "por que mudamos de ideia" é o que mais se perde.*
+*Nas palavras dele. Se o rumo mudou no meio da conversa, registre o porquê.*
 
 ## 2. O que foi feito
 
-*Lista corrida do que mudou de fato. Seja específico: nome de arquivo, nome de função, nome de coluna. "Ajustei o gráfico" não ajuda ninguém daqui a três meses.*
+*Em português de gente, por frente: o que a pessoa passa a ver e a poder fazer. O que é técnico vai em uma linha, com a ligação do diário.*
 
-### Front
+## 3. Como testar, passo a passo
 
-### Banco
+*O caminho na tela, clique a clique; o que deve aparecer. Tela nova ou mudada acompanha print (`Handoffs/imagens/`).*
 
-### Edge Functions
+## 4. Critérios de aceite
 
-## 3. Decisões tomadas
+*Um por um, da demanda: ✅ feito e como foi conferido · ⏳ depende de quê.*
 
-*Toda escolha que teve mais de uma opção razoável. Registre a alternativa descartada e o motivo — é o que impede alguém refazer a discussão do zero.*
+## 5. Decisões
 
-| Decisão | Alternativa descartada | Por quê |
-|---|---|---|
-| | | |
+*As que o dono tomou e as **provisórias** que a sessão escolheu sozinha (cada uma é uma nota em `Plataforma/Decisoes/` — ponha a ligação e, em uma linha, o que ela faz e como desfazer).*
 
-## 4. Bugs
+## 6. O que está no ar e o que não está
 
-### Resolvidos
-*IDs do [[DT - Indice de Problemas Conhecidos]] que foram corrigidos. Lembre de marcar `✅ resolvido em AAAA-MM-DD` lá também — sem apagar o item.*
+*Banco, funções, site: o que foi aplicado/publicado (com o OK do dono, quando) e o que está só na branch. Se algo mudou um número que a pessoa vê na tela, diga qual, para onde e por quê.*
 
-### Descobertos
-*Problemas novos encontrados no caminho. Já adicione ao índice com o próximo ID da família e referencie aqui.*
+## 7. Desempenho
 
-## 5. Arquivos alterados
+*O checklist das [[000 - REGRAS DE OURO]] nas telas e portas tocadas: requisições, tempo das portas com volume ×100, pacote antes/depois. Dívida nova → registrada na última parte das dívidas da lei.*
 
-```
-```
+## 8. O cofre
 
-## 6. Impacto nos números visíveis
+*O resumo que o verificador imprime (`node scripts/cofre/verificar.mjs`): zero erro, a camada 1 dentro do teto. Notas tocadas: as decisões novas, a nota do tema das lições, a nota do domínio do banco, o mapa da área.*
 
-> [!warning] Preencher SEMPRE que a correção mudar algum valor do dashboard
-> Que métrica mudou, em que direção, e por quê. Sem isso a correção parece um bug novo para quem abre a tela amanhã.
+## 9. Ficou pendente
 
-## 7. Notas do cofre atualizadas
+*O que não deu tempo, o que foi deixado de propósito e o que espera decisão do dono. Problema conhecido novo entra no índice dele: [[N8N - Pendencias e Riscos]] (automações) ou [[PLT - Comercial - Debito Tecnico]] (comercial).*
 
-*Quais notas foram tocadas nesta sessão. Se nenhuma foi, justifique — provavelmente alguma deveria ter sido.*
-
-- [[]]
-
-## 8. Ficou pendente
-
-*O que não deu tempo, o que foi deixado de propósito, e o que precisa de decisão do dono do produto antes de seguir.*
-
-### Aguardando decisão de negócio
+### Aguardando decisão do dono
 
 ### Próximo passo sugerido
-
-## 9. Como validar
-
-*Como alguém confere que o que foi feito funciona. Query SQL, passo na tela, comando de terminal.*
-
-```sql
-```
