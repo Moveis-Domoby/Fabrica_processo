@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Navigate } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, CircleX } from 'lucide-react'
 import { Tabela } from '@/componentes/ui'
 import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
@@ -8,8 +8,8 @@ import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { buscarSetores } from '@/kanban/api'
 import { formatarDuracaoMs } from '@/kanban/tempo'
-import { dashDanificadosAbertos, dashQualidade } from '@/dashboards/api'
-import type { PeriodoDash } from '@/dashboards/api'
+import { abrirQualidade } from '@/dashboards/api'
+import type { DanificadoAberto, QualidadeSetor } from '@/dashboards/api'
 import { msDeIntervalo } from '@/dashboards/intervalo'
 import { usePainelDash } from '@/dashboards/painel'
 import { Heroi } from '@/dashboards/componentes/Heroi'
@@ -26,32 +26,31 @@ const pct = (parte: number, todo: number) =>
  * da qualidade), o herói "% saíram perfeitas" e os danificados em aberto.
  * Estado nunca só por cor (M-12): ícone + rótulo sempre juntos.
  */
+const NENHUMA_QUALIDADE: QualidadeSetor[] = []
+const NENHUM_DANIFICADO: DanificadoAberto[] = []
+
 export function Qualidade() {
   const { perfil, ehLider, carregando } = useSessao()
-  const { config, periodo, visualizacoes, selecionada, mudar, aplicarVisualizacao } =
-    usePainelDash('qualidade')
+  const clienteQuery = useQueryClient()
+  const { config, pedido, visualizacoes, selecionada, mudar, aplicarVisualizacao } =
+    usePainelDash('qualidade', { comPorta: true })
 
   const souAdmin = perfil?.papel === 'admin'
+  const podeVer = perfil !== null && (souAdmin || ehLider)
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
-  const { data: qualidade = [] } = useQuery({
-    queryKey: ['dash', 'qualidade', periodo],
-    queryFn: () => dashQualidade(periodo),
+  // SESSAO-55 (Lei §2): a tela numa requisição — o período, o período
+  // imediatamente anterior do mesmo tamanho (o "vs" do herói), os danificados em
+  // aberto e, se ainda não estão guardadas, as visualizações salvas. Antes eram
+  // 4 leituras. O filtro de setor recorta aqui, sem pedir de novo.
+  const abertura = useQuery({
+    queryKey: ['dash', 'qualidade', perfil?.id, pedido.dias, pedido.v],
+    queryFn: () => abrirQualidade(clienteQuery, perfil!.id, pedido),
+    enabled: podeVer,
   })
-  // O período imediatamente anterior, do mesmo tamanho — para o "vs" do herói.
-  const periodoAnterior: PeriodoDash = useMemo(() => {
-    const ate = new Date(periodo.de)
-    const de = new Date(ate.getTime() - config.periodoDias * 86_400_000)
-    return { de: de.toISOString(), ate: ate.toISOString() }
-  }, [periodo, config.periodoDias])
-  const { data: qualidadeAnterior = [] } = useQuery({
-    queryKey: ['dash', 'qualidade', periodoAnterior],
-    queryFn: () => dashQualidade(periodoAnterior),
-  })
-  const { data: danificadosAbertos = [] } = useQuery({
-    queryKey: ['dash', 'danificados-abertos'],
-    queryFn: dashDanificadosAbertos,
-  })
+  const qualidade = abertura.data?.qualidade ?? NENHUMA_QUALIDADE
+  const qualidadeAnterior = abertura.data?.qualidadeAnterior ?? NENHUMA_QUALIDADE
+  const danificadosAbertos = abertura.data?.danificadosAbertos ?? NENHUM_DANIFICADO
 
   const linhas = useMemo(() => {
     const filtradas =

@@ -1,13 +1,20 @@
 import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import {
   PAINEL_PADRAO,
+  chaveVisualizacoes,
   listarVisualizacoes,
   normalizarConfiguracao,
 } from '@/dashboards/api'
-import type { ConfiguracaoPainel, PeriodoDash, TelaDash, VisualizacaoSalva } from '@/dashboards/api'
+import type {
+  ConfiguracaoPainel,
+  PedidoDoPainel,
+  PeriodoDash,
+  TelaDash,
+  VisualizacaoSalva,
+} from '@/dashboards/api'
 
 /**
  * O estado do painel de cada tela de dashboard (SESSAO-16).
@@ -18,20 +25,40 @@ import type { ConfiguracaoPainel, PeriodoDash, TelaDash, VisualizacaoSalva } fro
  * na URL > visualização selecionada > painel padrão. Mexer num filtro NÃO
  * desmarca a visualização — o gesto "Atualizar a selecionada" grava por cima.
  */
-export function usePainelDash(tela: TelaDash) {
+export function usePainelDash(tela: TelaDash, opcoes?: { comPorta?: boolean }) {
   const { perfil } = useSessao()
+  const clienteQuery = useQueryClient()
   const navigate = useNavigate()
   const [parametros, definirParametros] = useSearchParams()
 
   // SESSAO-32 (Lei §3): as visualizações salvas são da própria pessoa e só
   // mudam pelo gesto dela (salvar/excluir invalida) — lidas uma vez por
   // abertura, não a cada painel que abre.
+  // SESSAO-55 (Lei §2): na tela que tem porta de abertura (`comPorta`), as
+  // visualizações vêm junto com os dados da tela — esta consulta só liga depois
+  // de a porta guardá-las (acha o dado e não pede de novo; relê no salvar/excluir).
+  const chave = chaveVisualizacoes(perfil?.id)
+  const jaGuardadas = clienteQuery.getQueryData(chave) !== undefined
   const { data: visualizacoes = [] } = useQuery({
-    queryKey: ['visualizacoes', perfil?.id],
+    queryKey: chave,
     queryFn: () => listarVisualizacoes(perfil!.id),
-    enabled: perfil !== null,
+    enabled: perfil !== null && (!opcoes?.comPorta || jaGuardadas),
     staleTime: Infinity,
   })
+
+  // O que o endereço diz, cru — é o que a porta de abertura recebe (o banco
+  // resolve com a mesma precedência do `config` abaixo).
+  const pedido: PedidoDoPainel = useMemo(() => {
+    const dias = parametros.get('dias')
+    const setor = parametros.get('setor')
+    const v = parametros.get('v') ?? ''
+    return {
+      dias: dias !== null && Number(dias) > 0 ? Number(dias) : null,
+      setorDito: setor !== null,
+      setorId: setor === null || setor === 'todos' ? null : Number(setor) || null,
+      v: /^[1-9][0-9]*$/.test(v) ? Number(v) : null,
+    }
+  }, [parametros])
 
   const idSelecionada = parametros.get('v') ?? ''
   const selecionada: VisualizacaoSalva | null =
@@ -89,5 +116,5 @@ export function usePainelDash(tela: TelaDash) {
     navigate(`/dashboards/${cfg.tela}?v=${id}`)
   }
 
-  return { perfil, config, periodo, visualizacoes, selecionada, mudar, aplicarVisualizacao }
+  return { perfil, config, periodo, pedido, visualizacoes, selecionada, mudar, aplicarVisualizacao }
 }

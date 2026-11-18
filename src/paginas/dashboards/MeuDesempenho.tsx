@@ -15,8 +15,8 @@ import { CabecalhoDaTela } from '@/componentes/CabecalhoDaTela'
 import { cn } from '@/lib/cn'
 import { useSessao } from '@/autenticacao/sessao-contexto'
 import { formatarDuracaoMs } from '@/kanban/tempo'
-import { meuDesempenho, meuTempoDias, meuTempoTarefas } from '@/dashboards/api'
-import type { PeriodoDash } from '@/dashboards/api'
+import { abrirMeuDesempenho, meuTempoTarefas } from '@/dashboards/api'
+import type { MeuTempoDia, MeuTempoTarefa } from '@/dashboards/api'
 import { duracaoLegivel, msDeIntervalo } from '@/dashboards/intervalo'
 import { Heroi } from '@/dashboards/componentes/Heroi'
 import { TooltipGrafico } from '@/dashboards/componentes/TooltipGrafico'
@@ -24,6 +24,8 @@ import { FiltroPill } from '@/dashboards/componentes/Filtros'
 import { OPCOES_PERIODO } from '@/dashboards/opcoes'
 
 const TAREFAS_POR_PAGINA = 10
+const NENHUM_DIA: MeuTempoDia[] = []
+const NENHUMA_TAREFA: MeuTempoTarefa[] = []
 
 /**
  * Meu desempenho (SESSAO-23) — o painel PRIVADO de cada um: o tempo em
@@ -38,33 +40,30 @@ export function MeuDesempenho() {
   const [dias, setDias] = useState(7)
   const [paginaTarefas, setPaginaTarefas] = useState(1)
 
-  const periodo: PeriodoDash = useMemo(() => {
-    const ate = new Date()
-    const de = new Date(ate.getTime() - dias * 86_400_000)
-    return { de: de.toISOString(), ate: ate.toISOString() }
-  }, [dias])
-
-  const { data: kpis = null } = useQuery({
-    queryKey: ['meu-desempenho', 'kpis', perfil?.id, periodo],
-    queryFn: () => meuDesempenho(periodo),
+  // SESSAO-55 (Lei §2): a tela numa requisição — os números, o tempo por dia e
+  // a 1ª página do tempo por tarefa (antes eram 3 leituras). O banco diz o
+  // período que usou; as páginas seguintes (no clique) usam o mesmo.
+  const abertura = useQuery({
+    queryKey: ['meu-desempenho', 'abertura', perfil?.id, dias],
+    queryFn: () => abrirMeuDesempenho(dias, TAREFAS_POR_PAGINA),
     enabled: perfil !== null,
   })
-  const { data: porDia = [] } = useQuery({
-    queryKey: ['meu-desempenho', 'dias', perfil?.id, periodo],
-    queryFn: () => meuTempoDias(periodo),
-    enabled: perfil !== null,
-  })
-  const { data: porTarefa = [] } = useQuery({
+  const kpis = abertura.data?.kpis ?? null
+  const porDia = abertura.data?.porDia ?? NENHUM_DIA
+  const periodo = abertura.data?.periodo
+  const { data: outraPagina } = useQuery({
     queryKey: ['meu-desempenho', 'tarefas', perfil?.id, periodo, paginaTarefas],
     queryFn: () =>
       meuTempoTarefas({
-        periodo,
+        periodo: periodo!,
         limite: TAREFAS_POR_PAGINA,
         deslocamento: (paginaTarefas - 1) * TAREFAS_POR_PAGINA,
       }),
-    enabled: perfil !== null,
+    enabled: perfil !== null && periodo !== undefined && paginaTarefas > 1,
   })
-  const totalTarefas = porTarefa[0]?.contagem_total ?? 0
+  const porTarefa = (paginaTarefas === 1 ? abertura.data?.porTarefa : outraPagina) ?? NENHUMA_TAREFA
+  // o total vem da 1ª página (a paginação não some enquanto a página seguinte chega)
+  const totalTarefas = abertura.data?.porTarefa[0]?.contagem_total ?? 0
 
   const barras = useMemo(
     () =>

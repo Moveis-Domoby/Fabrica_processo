@@ -11,7 +11,8 @@ import { buscarMetasPainel, encerrarMeta } from '@/metas/api'
 import type { MetaPainel } from '@/metas/api'
 import { CartaoMeta } from '@/metas/CartaoMeta'
 import { ModalMeta } from '@/metas/ModalMeta'
-import { dashExecucoes, dashTemposPessoa } from '@/dashboards/api'
+import { abrirPessoas, chaveMetasPessoas, dashExecucoes } from '@/dashboards/api'
+import type { ExecucaoDetalhada, TempoPessoa } from '@/dashboards/api'
 import { duracaoLegivel, msDeIntervalo } from '@/dashboards/intervalo'
 import { usePainelDash } from '@/dashboards/painel'
 import { Visualizacoes } from '@/dashboards/componentes/Visualizacoes'
@@ -19,6 +20,8 @@ import { FiltroPill, FiltroSetor } from '@/dashboards/componentes/Filtros'
 import { OPCOES_PERIODO } from '@/dashboards/opcoes'
 
 const METAS_POR_PAGINA = 10
+const NENHUMA_PESSOA: TempoPessoa[] = []
+const NENHUMA_EXECUCAO: ExecucaoDetalhada[] = []
 
 function quando(iso: string | null): string {
   return iso
@@ -43,16 +46,24 @@ export function Pessoas() {
   const notificar = useNotificacao()
   const clienteQuery = useQueryClient()
   const agora = useAgora()
-  const { config, periodo, visualizacoes, selecionada, mudar, aplicarVisualizacao } =
-    usePainelDash('pessoas')
+  const { config, pedido, visualizacoes, selecionada, mudar, aplicarVisualizacao } =
+    usePainelDash('pessoas', { comPorta: true })
 
   const souAdmin = perfil?.papel === 'admin'
+  const podeVer = perfil !== null && (souAdmin || ehLider)
 
   const { data: setores = [] } = useQuery({ queryKey: ['setores'], queryFn: () => buscarSetores() })
-  const { data: pessoas = [] } = useQuery({
-    queryKey: ['dash', 'pessoas', periodo, config.setorId],
-    queryFn: () => dashTemposPessoa(periodo, config.setorId),
+  // SESSAO-55 (Lei §2): a tela numa requisição — o ranking, a 1ª página das
+  // execuções e, se ainda não estão guardadas, as visualizações salvas e a 1ª
+  // página das metas. Antes eram 4 leituras (em cascata com uma visualização
+  // salva no endereço).
+  const abertura = useQuery({
+    queryKey: ['dash', 'pessoas', perfil?.id, pedido],
+    queryFn: () => abrirPessoas(clienteQuery, perfil!.id, pedido, METAS_POR_PAGINA),
+    enabled: podeVer,
   })
+  const pessoas = abertura.data?.pessoas ?? NENHUMA_PESSOA
+  const periodo = abertura.data?.periodo
 
   const ranking = useMemo(
     () =>
@@ -73,12 +84,16 @@ export function Pessoas() {
   // ----- cockpit de metas (reusa a S14) -----
   const [paginaMetas, setPaginaMetas] = useState(1)
   const { data: metas = [] } = useQuery({
-    queryKey: ['metas', 'painel', paginaMetas],
+    queryKey: chaveMetasPessoas(paginaMetas),
     queryFn: () =>
       buscarMetasPainel({
         limite: METAS_POR_PAGINA,
         deslocamento: (paginaMetas - 1) * METAS_POR_PAGINA,
       }),
+    // a 1ª página vem na abertura da tela (que a renova quando envelhece); as
+    // seguintes, no clique; criar/editar/encerrar meta invalida e relê
+    enabled: podeVer && (abertura.data !== undefined || paginaMetas > 1),
+    staleTime: Infinity,
   })
   const totalMetas = metas[0]?.contagem_total ?? 0
   const [modalAberta, setModalAberta] = useState(false)
@@ -99,16 +114,20 @@ export function Pessoas() {
 
   // ----- a lista detalhada (D-32) -----
   const [paginaExecucoes, setPaginaExecucoes] = useState(0)
-  const { data: execucoes = [] } = useQuery({
-    queryKey: ['dash', 'execucoes', periodo, config.setorId, paginaExecucoes],
+  // a 1ª página veio na abertura; as seguintes, no clique, com o MESMO período
+  const { data: outraPagina } = useQuery({
+    queryKey: ['dash', 'execucoes', periodo, abertura.data?.setorId, paginaExecucoes],
     queryFn: () =>
       dashExecucoes({
-        periodo,
-        setorId: config.setorId,
+        periodo: periodo!,
+        setorId: abertura.data?.setorId ?? null,
         limite: 20,
         deslocamento: paginaExecucoes * 20,
       }),
+    enabled: podeVer && periodo !== undefined && paginaExecucoes > 0,
   })
+  const execucoes =
+    (paginaExecucoes === 0 ? abertura.data?.execucoes : outraPagina) ?? NENHUMA_EXECUCAO
 
   if (carregando) return null
   if (!perfil) return null

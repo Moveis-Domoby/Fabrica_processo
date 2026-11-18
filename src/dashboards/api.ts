@@ -1,4 +1,7 @@
+import type { QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { faltaNoCache } from '@/lib/semear'
+import type { MetaPainel } from '@/metas/api'
 
 /**
  * Camada de dados dos dashboards (SESSAO-10 / D-32).
@@ -92,18 +95,6 @@ export interface TempoPessoa {
   tempo_util: string
 }
 
-export async function dashTemposPessoa(
-  periodo: PeriodoDash,
-  setorId?: number | null,
-): Promise<TempoPessoa[]> {
-  const { data, error } = await supabase.rpc('plt_fn_dash_tempos_pessoa', {
-    p_de: periodo.de,
-    p_ate: periodo.ate,
-    p_setor_id: setorId ?? null,
-  })
-  return garantir(data as TempoPessoa[] | null, error, 'Não deu para carregar os tempos por pessoa')
-}
-
 export interface TempoItem {
   item_codigo: string | null
   item_descricao: string | null
@@ -130,14 +121,6 @@ export interface QualidadeSetor {
   divergencias_contra: number
   pareceres_dados: number
   divergencias_apontadas: number
-}
-
-export async function dashQualidade(periodo: PeriodoDash): Promise<QualidadeSetor[]> {
-  const { data, error } = await supabase.rpc('plt_fn_dash_qualidade', {
-    p_de: periodo.de,
-    p_ate: periodo.ate,
-  })
-  return garantir(data as QualidadeSetor[] | null, error, 'Não deu para carregar a qualidade')
 }
 
 export interface ResumoEstoque {
@@ -293,15 +276,6 @@ export interface DanificadoAberto {
   mais_antigo: string | null
 }
 
-export async function dashDanificadosAbertos(): Promise<DanificadoAberto[]> {
-  const { data, error } = await supabase.rpc('plt_fn_dash_danificados_abertos')
-  return garantir(
-    data as DanificadoAberto[] | null,
-    error,
-    'Não deu para carregar os danificados em aberto',
-  )
-}
-
 export interface SemanaTendencia {
   semana_inicio: string
   unidades: number
@@ -326,14 +300,6 @@ export interface MeuTempoDia {
   tarefas: number
   tempo_pessoal: string
   tempo_delegado: string
-}
-
-export async function meuTempoDias(periodo: PeriodoDash): Promise<MeuTempoDia[]> {
-  const { data, error } = await supabase.rpc('plt_fn_meu_tempo_dias', {
-    p_de: periodo.de,
-    p_ate: periodo.ate,
-  })
-  return garantir(data as MeuTempoDia[] | null, error, 'Não deu para carregar o seu tempo por dia')
 }
 
 export interface MeuTempoTarefa {
@@ -374,15 +340,6 @@ export interface MeuDesempenho {
   tarefas_concluidas: number
   tempo_afazeres: string
   pareceres_dados: number
-}
-
-export async function meuDesempenho(periodo: PeriodoDash): Promise<MeuDesempenho | null> {
-  const { data, error } = await supabase.rpc('plt_fn_meu_desempenho', {
-    p_de: periodo.de,
-    p_ate: periodo.ate,
-  })
-  if (error) throw new Error(`Não deu para carregar o seu desempenho: ${error.message}`)
-  return ((data ?? []) as MeuDesempenho[])[0] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -614,6 +571,146 @@ export async function listarVisualizacoes(usuarioId: string): Promise<Visualizac
     error,
     'Não deu para carregar as visualizações',
   )
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-55 (Lei §2 — a dívida 18): Pessoas, Qualidade e Meu desempenho numa
+// requisição cada. A porta de abertura chama, no banco, as mesmas portas de
+// sempre (os números são os delas) e resolve o período com a mesma precedência
+// da tela (endereço > visualização salva > padrão) — a tela manda só o que o
+// endereço diz e recebe de volta o período usado. Os pedaços que têm vida
+// própria no cache (as visualizações, as metas) são semeados com a chave de
+// sempre.
+// ---------------------------------------------------------------------------
+
+/** O que o endereço da tela diz (o resto o banco resolve). */
+export interface PedidoDoPainel {
+  /** `?dias=` (nulo = não disse). */
+  dias: number | null
+  /** O endereço disse o setor (inclusive "todos"). */
+  setorDito: boolean
+  setorId: number | null
+  /** `?v=` — a visualização salva escolhida. */
+  v: number | null
+}
+
+export const chaveVisualizacoes = (usuarioId: string | undefined) =>
+  ['visualizacoes', usuarioId] as const
+
+/** As metas da tela Pessoas (10 por página — o Meu Painel mostra 20 e tem a chave dele). */
+export const chaveMetasPessoas = (pagina: number) => ['metas', 'painel-pessoas', pagina] as const
+
+const acertarMetas = (metas: MetaPainel[]): MetaPainel[] =>
+  metas.map((m) => ({ ...m, alvo: Number(m.alvo), progresso: Number(m.progresso) }))
+
+export interface AberturaPessoas {
+  /** O período que o banco usou — as páginas seguintes das execuções usam o mesmo. */
+  periodo: PeriodoDash
+  setorId: number | null
+  pessoas: TempoPessoa[]
+  /** A 1ª página das execuções. */
+  execucoes: ExecucaoDetalhada[]
+}
+
+export async function abrirPessoas(
+  clienteQuery: QueryClient,
+  usuarioId: string,
+  pedido: PedidoDoPainel,
+  metasPorPagina: number,
+): Promise<AberturaPessoas> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_pessoas_abertura', {
+    p_dias: pedido.dias,
+    p_setor_id: pedido.setorId,
+    p_setor_dito: pedido.setorDito,
+    p_v: pedido.v,
+    p_visualizacoes: faltaNoCache(clienteQuery, chaveVisualizacoes(usuarioId), Infinity),
+    p_metas: faltaNoCache(clienteQuery, chaveMetasPessoas(1)),
+    p_metas_limite: metasPorPagina,
+  })
+  const r = garantir(
+    data as {
+      de: string
+      ate: string
+      setor_id: number | null
+      pessoas: TempoPessoa[]
+      execucoes: ExecucaoDetalhada[]
+      metas?: MetaPainel[]
+      visualizacoes?: VisualizacaoSalva[]
+    } | null,
+    error,
+    'Não deu para carregar as pessoas',
+  )
+  if (r.visualizacoes) clienteQuery.setQueryData(chaveVisualizacoes(usuarioId), r.visualizacoes)
+  if (r.metas) clienteQuery.setQueryData(chaveMetasPessoas(1), acertarMetas(r.metas))
+  return {
+    periodo: { de: r.de, ate: r.ate },
+    setorId: r.setor_id,
+    pessoas: r.pessoas,
+    execucoes: r.execucoes,
+  }
+}
+
+export interface AberturaQualidade {
+  qualidade: QualidadeSetor[]
+  /** O período imediatamente anterior, do mesmo tamanho — o "vs" do herói. */
+  qualidadeAnterior: QualidadeSetor[]
+  danificadosAbertos: DanificadoAberto[]
+}
+
+export async function abrirQualidade(
+  clienteQuery: QueryClient,
+  usuarioId: string,
+  pedido: Pick<PedidoDoPainel, 'dias' | 'v'>,
+): Promise<AberturaQualidade> {
+  const { data, error } = await supabase.rpc('plt_fn_dash_qualidade_abertura', {
+    p_dias: pedido.dias,
+    p_v: pedido.v,
+    p_visualizacoes: faltaNoCache(clienteQuery, chaveVisualizacoes(usuarioId), Infinity),
+  })
+  const r = garantir(
+    data as {
+      qualidade: QualidadeSetor[]
+      qualidade_anterior: QualidadeSetor[]
+      danificados_abertos: DanificadoAberto[]
+      visualizacoes?: VisualizacaoSalva[]
+    } | null,
+    error,
+    'Não deu para carregar a qualidade',
+  )
+  if (r.visualizacoes) clienteQuery.setQueryData(chaveVisualizacoes(usuarioId), r.visualizacoes)
+  return {
+    qualidade: r.qualidade,
+    qualidadeAnterior: r.qualidade_anterior,
+    danificadosAbertos: r.danificados_abertos,
+  }
+}
+
+export interface AberturaMeuDesempenho {
+  /** O período que o banco usou — as páginas seguintes do tempo por tarefa usam o mesmo. */
+  periodo: PeriodoDash
+  kpis: MeuDesempenho | null
+  porDia: MeuTempoDia[]
+  /** A 1ª página do tempo por tarefa. */
+  porTarefa: MeuTempoTarefa[]
+}
+
+export async function abrirMeuDesempenho(dias: number, porPagina: number): Promise<AberturaMeuDesempenho> {
+  const { data, error } = await supabase.rpc('plt_fn_meu_desempenho_abertura', {
+    p_dias: dias,
+    p_limite: porPagina,
+  })
+  const r = garantir(
+    data as {
+      de: string
+      ate: string
+      kpis: MeuDesempenho | null
+      por_dia: MeuTempoDia[]
+      por_tarefa: MeuTempoTarefa[]
+    } | null,
+    error,
+    'Não deu para carregar o seu desempenho',
+  )
+  return { periodo: { de: r.de, ate: r.ate }, kpis: r.kpis, porDia: r.por_dia, porTarefa: r.por_tarefa }
 }
 
 export async function salvarVisualizacao(parametros: {
