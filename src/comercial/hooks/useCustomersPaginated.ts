@@ -9,7 +9,12 @@ import type { GroupedCustomer } from '../types';
 // a queryKey serializada garante que cada resposta só preenche a sua própria
 // entrada de cache, e o AbortSignal cancela no servidor a requisição obsoleta.
 // A assinatura pública ({ data, totalCount, loading }) não mudou.
-export function useCustomersPaginated(page: number, pageSize: number, filters: any) {
+//
+// SESSAO-54 (DT-G16): a ordem ("mais antiga primeiro") vai DENTRO dos filtros
+// — a porta tem a mesma assinatura de sempre e o banco ordena o resultado
+// inteiro antes de paginar. Banco ainda sem a atualização ignora a chave e
+// devolve a ordem de sempre (a tabela segue invertendo a página, como antes).
+export function useCustomersPaginated(page: number, pageSize: number, filters: any, sortOrder: 'asc' | 'desc' = 'desc') {
   const rpcFilters = {
     searchQuery: filters.searchQuery || '',
     dateFilter: filters.dateFilter || 'all',
@@ -25,7 +30,8 @@ export function useCustomersPaginated(page: number, pageSize: number, filters: a
     recompraMaxDays: filters.recompraMaxDays || '',
     spendAmount: filters.spendAmount || '',
     spendType: filters.spendType || 'total',
-    spendMode: filters.spendMode || 'above'
+    spendMode: filters.spendMode || 'above',
+    sortOrder,
   };
 
   const { data: result, isFetching } = useQuery({

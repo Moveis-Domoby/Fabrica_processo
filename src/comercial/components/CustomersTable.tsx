@@ -8,6 +8,7 @@ import type { DisparosMap, DisparoEntry } from '../hooks/useDisparosData';
 import { normalizePhone, formatCurrency, formatPhone } from '../lib/utils';
 
 import { useCustomersPaginated } from '../hooks/useCustomersPaginated';
+import { useNotificacao } from '@/componentes/ui';
 
 interface CustomersTableProps {
   filters: any;
@@ -130,10 +131,12 @@ function DisparosBadge({ entries }: { entries: DisparoEntry[] }) {
 export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionarALista, disparosMap = {} }: CustomersTableProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [lifetimeCustomer, setLifetimeCustomer] = useState<GroupedCustomer | null>(null);
+  // SESSAO-54 (DT-D24): o aviso da casa no lugar do alerta do navegador
+  const notificar = useNotificacao();
   
   const [page, setPage] = useState(1);
   const pageSize = 50;
-  const { data, totalCount, loading } = useCustomersPaginated(page, pageSize, filters);
+  const { data, totalCount, loading } = useCustomersPaginated(page, pageSize, filters, sortOrder);
 
   // [DT-F2, corrigido] Antes, mudar os filtros não resetava a página: se o
   // usuário estivesse na página 3 e aplicasse um novo filtro, a tabela
@@ -154,6 +157,10 @@ export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionar
   // ordenação por "Compra no Período" é aplicada de verdade sobre os dados
   // já carregados (a RPC entrega desc por padrão; aqui só invertemos quando
   // sortOrder === 'asc').
+  // SESSAO-54 (DT-G16): a ordem agora vai para o banco, que ordena o resultado
+  // INTEIRO antes de paginar — esta ordenação da página fica como rede: com o
+  // banco já atualizado ela não muda nada (a página já chega na ordem pedida);
+  // com o banco de antes, a tela se comporta como sempre se comportou.
   const sortedData = [...data].sort((a, b) => {
     const diff = new Date(a.ultima_compra).getTime() - new Date(b.ultima_compra).getTime();
     return sortOrder === 'asc' ? diff : -diff;
@@ -186,7 +193,7 @@ export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionar
     if (!onCriarLista) return;
     const selectedCustomers = sortedData.filter(c => selectedIds.has(getCustomerId(c)));
     if (selectedCustomers.length === 0) {
-      alert('Selecione pelo menos um cliente para criar a lista.');
+      notificar({ titulo: 'Selecione pelo menos um cliente para criar a lista.', tom: 'atencao' });
       return;
     }
     onCriarLista(selectedCustomers);
@@ -198,7 +205,7 @@ export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionar
     if (!onAdicionarALista) return;
     const selectedCustomers = sortedData.filter(c => selectedIds.has(getCustomerId(c)));
     if (selectedCustomers.length === 0) {
-      alert('Selecione pelo menos um cliente para adicionar à lista.');
+      notificar({ titulo: 'Selecione pelo menos um cliente para adicionar à lista.', tom: 'atencao' });
       return;
     }
     onAdicionarALista(selectedCustomers);
@@ -208,6 +215,8 @@ export function CustomersTable({ filters, onViewItems, onCriarLista, onAdicionar
 
   const toggleSort = () => {
     setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    // a ordem muda o resultado inteiro: a pessoa volta ao começo dele
+    setPage(1);
   };
 
   const SortIcon = () => {
