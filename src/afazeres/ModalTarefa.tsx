@@ -192,7 +192,6 @@ export function ModalTarefa({
   async function invalidar() {
     await Promise.all([
       clienteQuery.invalidateQueries({ queryKey: ['afazeres'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['meu-painel'] }),
       clienteQuery.invalidateQueries({ queryKey: ['tarefa-modal'] }),
     ])
   }

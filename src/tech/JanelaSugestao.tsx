@@ -66,7 +66,6 @@ export function JanelaSugestao({ sugestaoId, aoFechar }: { sugestaoId: number; a
     await Promise.all([
       clienteQuery.invalidateQueries({ queryKey: ['tech'] }),
       clienteQuery.invalidateQueries({ queryKey: ['afazeres'] }),
-      clienteQuery.invalidateQueries({ queryKey: ['meu-painel'] }),
     ])
   }
   const aoErro = (titulo: string) => (excecao: unknown) =>
