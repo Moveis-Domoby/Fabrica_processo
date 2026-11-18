@@ -147,7 +147,7 @@ A união **reformou o modelo de acesso**: RLS no padrão da casa condicionada ao
 | **DT-D20** | 🟠 | Intervalo < 60s é ilusório (granularidade real do cron é 1 min) |
 | **DT-D21** | 🟠 | Ordenação da fila não-determinística (`criado_em` empatado, sem desempate) |
 | **DT-D22** | 🟠 | `useDisparosData` sem paginação — badges truncadas silenciosamente em ~1000 linhas |
-| **DT-D24** | ⚪ | `alert()`/`confirm()` nativos apesar do `react-hot-toast` — ↪️ 18/11: **segue aberto** — 16 arquivos do Comercial ainda usam `alert()`/`confirm()`. |
+| **DT-D24** | ⚪ | `alert()`/`confirm()` nativos apesar do `react-hot-toast` — ↪️ 18/11: **segue aberto** — 16 chamadas, em 2 arquivos do Comercial (a tabela de clientes e o detalhe da lista de disparo), ainda usam `alert()`/`confirm()`. |
 | **DT-D25** | ⚪ | `handleRegistrarEnvio` chama `fetchData()` com spinner |
 | **DT-D26** | ⚪ | 9 scorecards em `grid-cols-8` — ROI cai sozinho na 2ª linha |
 | **DT-D30** | 🟠 | Erros invisíveis — `erros[]` com HTTP 200, resposta descartada pelo `pg_cron` |
