@@ -16334,7 +16334,10 @@ try {
                      '20261116020000_plt_entrega_parcial_mantem_producao.sql',
                      // ↪️ SESSAO-51 · bloco B: a liberação com "Usar a mesma peça", o quadro do PCP com o
                      // selo da peça que voltou e a reposição que veio da produção
-                     '20261116030000_plt_mover_card_para_pcp.sql']) {
+                     '20261116030000_plt_mover_card_para_pcp.sql',
+                     // ↪️ SESSAO-52 (E-81): as de cima recriam a busca geral e o detalhe da devolução na
+                     // versão de antes — a das datas certas vem depois e as devolve (o dia real da entrega)
+                     '20261118100000_plt_datas_e_textos_certos.sql']) {
     await bd.exec(aceitaDestino48(await readFile(path.join(MIGRATIONS, m42), 'utf8')))   // ↪️ SESSAO-48 · frente 3
   }
   const conv = await um38(`
@@ -26461,6 +26464,258 @@ try {
 
 
 
+
+// ============================================================================
+// SESSAO-52 (migration 20261118100000): DATAS E TEXTOS CERTOS — a busca geral, o
+// detalhe da devolução e a lista de pedidos pela MESMA data de entrega (a
+// projeção do card do pedido — D-276 item 4).
+// faixa própria de dados de teste: pedidos 99561–99569, SKU SX52, produto do
+// Tiny 1952201, nomes com "Teste 52"
+// ============================================================================
+{ // SESSAO-52 (escopo próprio — E-70)
+titulo('SESSAO-52 · a migration de novo (os blocos de cima recriam a busca e a devolução de antes — E-81)')
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261118100000_plt_datas_e_textos_certos.sql'), 'utf8'))
+
+const um52 = async (sql) => (await bd.query(sql)).rows[0]
+const como52 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+// como a API chama: o papel authenticated + quem está logado (E-103); o ponto de
+// volta mostra o erro de verdade (E-161)
+const logado52 = async (auth, sql) => {
+  await como52(auth)
+  await bd.exec('savepoint l52')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l52')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l52')
+    await bd.exec('reset role')
+    throw new Error(`logado52: ${erro.message}`)
+  } finally {
+    await como52('')
+  }
+}
+const ms52 = (v) => (v instanceof Date ? v : new Date(v)).getTime()
+const LOG52 = E40.logistica
+const ADM52 = E40.admin
+const OP52 = E40.operador
+
+const priv52 = await um52(`
+  select has_function_privilege('anon', 'public.plt_fn_pedidos_pagina(text, integer, integer, boolean)', 'execute') as anon,
+         has_function_privilege('authenticated', 'public.plt_fn_pedidos_pagina(text, integer, integer, boolean)', 'execute') as logado,
+         has_function_privilege('anon', 'public.plt_fn_busca_cards(text, bigint, integer)', 'execute') as busca_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_busca_cards(text, bigint, integer)', 'execute') as busca_logado,
+         has_function_privilege('anon', 'public.plt_fn_devolucao_detalhe(bigint)', 'execute') as dev_anon,
+         has_function_privilege('authenticated', 'public.plt_fn_devolucao_detalhe(bigint)', 'execute') as dev_logado,
+         (select p.provolatile = 's' and p.prosecdef from pg_proc p
+           where p.oid = 'public.plt_fn_pedidos_pagina(text, integer, integer, boolean)'::regprocedure) as so_le`)
+conferir(!priv52.anon && priv52.logado && !priv52.busca_anon && priv52.busca_logado && !priv52.dev_anon && priv52.dev_logado && priv52.so_le,
+  'a porta nova da lista só para quem está logado (e só lê); a busca e a devolução seguem com as permissões de antes', JSON.stringify(priv52))
+
+await como52('')
+await bd.exec('begin')
+try {
+  const D = await um52(`select h::text as hoje, (h - 1)::text as ontem, (h - 2)::text as anteontem, now() as agora
+                          from (select (now() at time zone 'America/Fortaleza')::date as h) x`)
+  const DIA52 = (expr) => `(${expr} at time zone 'America/Fortaleza')::date::text`
+  await bd.exec(`
+    insert into public.produtos (tiny_id, codigo, descricao, classe, situacao, unidade)
+      values (1952201, 'SX52', 'Aparador Teste 52', 'F', 'A', 'un') on conflict (tiny_id) do nothing;`)
+  const aguardo52 = (await um52(`select id::int as id from public.plt_setores where codigo = 'aguardo'`)).id
+  // um pedido que chegou à plataforma há 6 dias, com o card no PCP
+  const pedido52 = async (numero, quantidade = 1) => {
+    await bd.exec(`
+      insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista) values
+        (${numero}, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', ${numero}00, '${D.hoje}');
+      insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade) values
+        ((select id from public.pedidos where numero = ${numero}), 1, 'SX52', 'Aparador Teste 52', ${quantidade});`)
+    const r = await um52(`select c.id::int as card, p.id::int as pedido from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                           where c.tipo = 'pedido' and p.numero = ${numero}`)
+    await bd.exec(`update public.plt_cards set criado_em = now() - interval '6 days' where id = ${r.card}`)
+    return r
+  }
+  // a peça do pedido, pronta na Expedição
+  const peca52 = async (p, k, n) => {
+    await bd.exec(`
+      insert into public.plt_cards (tipo, pedido_id, card_pai_id, item_seq, item_codigo, item_descricao, indice_unidade, total_unidades)
+        values ('unidade', ${p.pedido}, ${p.card}, 1, 'SX52', 'Aparador Teste 52', ${k}, ${n});
+      insert into public.plt_eventos (card_id, tipo, setor_destino_id, origem)
+        values ((select max(id) from public.plt_cards), 'card_criado', ${aguardo52}, 'api');`)
+    return (await um52(`select max(id)::int as id from public.plt_cards where pedido_id = ${p.pedido} and tipo = 'unidade'`)).id
+  }
+  // o que a busca diz de um card (com os dias já no fuso da fábrica, pela régua do banco)
+  const busca52 = async (auth, texto) => {
+    const b = (await logado52(auth, `select public.plt_fn_busca_cards('${texto}', null, 50) as b`))[0].b
+    return b.itens
+  }
+  const cardDoPedido52 = (card) => um52(`
+    select c.entrega_evento_id::int as entrega, c.entrega_em, ${DIA52('c.entrega_em')} as dia,
+           c.arquivado_em is not null as arquivado, c.parcial_evento_id::int as parcial
+      from public.plt_cards c where c.id = ${card}`)
+  const diaDe52 = async (instante) =>
+    instante ? (await um52(`select ${DIA52(`'${new Date(instante).toISOString()}'::timestamptz`)} as d`)).d : null
+
+  const P1 = await pedido52(99561) // marcado HOJE como "entregue ontem"; depois o admin corrige para anteontem
+  const P2 = await pedido52(99562) // entregue hoje, do jeito de sempre
+  const P3 = await pedido52(99563) // por entregar
+  const P4 = await pedido52(99564, 2) // entrega em parte
+  const u1 = await peca52(P1, 1, 1)
+  const u2 = await peca52(P2, 1, 1)
+  const u3 = await peca52(P3, 1, 1)
+  const u4a = await peca52(P4, 1, 2)
+  const u4b = await peca52(P4, 2, 2)
+  conferir([P1, P2, P3, P4].every((p) => p.card > 0) && [u1, u2, u3, u4a, u4b].every((u) => u > 0),
+    'o cenário nasceu: quatro pedidos 9956x com card e as peças prontas na Expedição')
+
+  titulo('SESSAO-52 · ponto 1 · a busca geral diz "Entregue em" pelo dia REAL da entrega (não pelo dia em que a peça foi arquivada)')
+
+  await logado52(LOG52, `select public.plt_fn_registrar_entrega(${P1.card}, null, false, '${D.ontem}')`)
+  await logado52(LOG52, `select public.plt_fn_registrar_entrega(${P2.card}, null, false)`)
+  const c1 = await cardDoPedido52(P1.card)
+  const c2 = await cardDoPedido52(P2.card)
+  const b1 = await busca52(LOG52, '99561')
+  const peca1 = b1.find((i) => i.id === u1)
+  const pedido1 = b1.find((i) => i.id === P1.card)
+  conferir(c1.dia === D.ontem && peca1?.arquivado_motivo === 'entregue'
+      && (await diaDe52(peca1.arquivado_em)) === D.hoje
+      && ms52(peca1.entregue_em) === ms52(c1.entrega_em) && (await diaDe52(peca1.entregue_em)) === D.ontem,
+    'a peça marcada hoje como "entregue ontem": foi arquivada HOJE, e a busca leva o dia real — ONTEM, a mesma data do card do pedido',
+    JSON.stringify({ c1, peca1 }))
+  conferir(!c1.arquivado || (pedido1?.arquivado_motivo === 'entregue' && ms52(pedido1.entregue_em) === ms52(c1.entrega_em)),
+    'o card do pedido que saiu com a entrega leva a mesma data', JSON.stringify(pedido1))
+  const b2 = await busca52(LOG52, '99562')
+  const peca2 = b2.find((i) => i.id === u2)
+  conferir(c2.dia === D.hoje && ms52(peca2?.entregue_em) === ms52(c2.entrega_em) && ms52(peca2.entregue_em) === ms52(D.agora),
+    'a entrega do jeito de sempre (hoje): a busca leva o instante da própria entrega', JSON.stringify(peca2))
+  const b3 = await busca52(LOG52, '99563')
+  conferir(b3.length === 2 && b3.every((i) => !('entregue_em' in i)),
+    'card vivo (por entregar): a chave nem nasce — a resposta de antes, igual (E-237)', JSON.stringify(b3))
+
+  // o administrador corrige o dia: a busca passa a dizer o dia corrigido
+  await logado52(ADM52, `select public.plt_fn_entrega_corrigir_dia(${P1.card}, '${D.anteontem}', 'cliente confirmou o dia 52')`)
+  const c1b = await cardDoPedido52(P1.card)
+  const peca1b = (await busca52(LOG52, '99561')).find((i) => i.id === u1)
+  const peloNome = (await busca52(LOG52, 'Aparador Teste 52')).find((i) => i.id === u1)
+  conferir(c1b.dia === D.anteontem && c1b.entrega === c1.entrega
+      && ms52(peca1b?.entregue_em) === ms52(c1b.entrega_em) && (await diaDe52(peca1b.entregue_em)) === D.anteontem
+      && ms52(peloNome?.entregue_em) === ms52(c1b.entrega_em),
+    'depois da correção do administrador, a busca (pelo número e pelo nome) diz o dia CORRIGIDO — anteontem', JSON.stringify({ c1b, peca1b }))
+
+  // a entrega em parte: a peça que saiu diz o dia do fato dela
+  const parcial52 = (await logado52(LOG52, `select public.plt_fn_entrega_parcial(${P4.card}, array[${u4a}]::bigint[], null, 'voltou um aparador 52') as r`))[0].r
+  const fato4 = await um52(`select e.ocorrido_em, e.registrado_em from public.plt_eventos e where e.id = ${Number(parcial52.entrega_evento_id)}`)
+  const peca4 = (await busca52(LOG52, '99564')).find((i) => i.id === u4a)
+  const peca4b = (await busca52(LOG52, '99564')).find((i) => i.id === u4b)
+  conferir(peca4?.arquivado_motivo === 'entregue' && ms52(peca4.entregue_em) === ms52(fato4.ocorrido_em)
+      && peca4b !== undefined && !('entregue_em' in peca4b),
+    'entrega em parte: a peça que saiu leva o dia do fato da entrega dela; a que voltou não leva data de entrega', JSON.stringify({ peca4, peca4b }))
+
+  // quem não vê a Expedição só acha o que já podia ver — a chave nova não abre nada
+  const bOp = await busca52(OP52, '99561')
+  conferir(bOp.every((i) => i.id !== u1 || 'entregue_em' in i) && bOp.length <= b1.length,
+    'a busca segue mostrando a cada um só o que ele já podia ver', JSON.stringify(bOp.map((i) => i.id)))
+
+  titulo('SESSAO-52 · ponto 2 · o detalhe da devolução mostra a entrega no dia VIGENTE (o corrigido), com a hora do registro')
+
+  const det1 = (await logado52(LOG52, `select public.plt_fn_devolucao_detalhe(${P1.card}) as d`))[0].d
+  const ent1 = det1.historico.filter((h) => h.tipo === 'pedido_entregue')
+  const fato1 = await um52(`select e.ocorrido_em, e.registrado_em, ${DIA52('e.ocorrido_em')} as dia from public.plt_eventos e where e.id = ${c1.entrega}`)
+  conferir(ent1.length === 1 && ms52(ent1[0].quando) === ms52(c1b.entrega_em) && (await diaDe52(ent1[0].quando)) === D.anteontem
+      && fato1.dia === D.ontem && ms52(ent1[0].registrado_em) === ms52(fato1.registrado_em) && ms52(ent1[0].registrado_em) === ms52(D.agora),
+    'a entrega corrigida aparece no dia corrigido (anteontem) — o fato original segue intacto no dia antigo (ontem) — e leva quando foi registrada',
+    JSON.stringify({ ent1, fato1 }))
+  const det2 = (await logado52(LOG52, `select public.plt_fn_devolucao_detalhe(${P2.card}) as d`))[0].d
+  const ent2 = det2.historico.find((h) => h.tipo === 'pedido_entregue')
+  conferir(ms52(ent2?.quando) === ms52(c2.entrega_em) && ms52(ent2.registrado_em) === ms52(ent2.quando)
+      && det2.historico.filter((h) => h.tipo !== 'pedido_entregue').every((h) => !('registrado_em' in h)),
+    'a entrega sem correção fica como era (o instante dela = o do registro); os outros fatos do histórico não ganham chave', JSON.stringify(det2.historico))
+  // devolvido depois de entregue: o mini relatório segue dizendo o dia vigente
+  const motivoDev52 = (await um52(`select id::int as id from public.plt_motivos where tipo = 'devolucao' and ativo order by id limit 1`)).id
+  let devolvido52 = null
+  await bd.exec('savepoint dev52')
+  try {
+    await como52(LOG52)
+    devolvido52 = (await um52(`select public.plt_fn_pedido_devolver(${P1.card}, ${motivoDev52}, 'cliente devolveu 52') as r`)).r
+    await bd.exec('release savepoint dev52')
+  } catch (erro) {
+    await bd.exec('rollback to savepoint dev52')
+    devolvido52 = { erro: erro.message }
+  } finally {
+    await como52('')
+  }
+  const det1b = (await logado52(LOG52, `select public.plt_fn_devolucao_detalhe(${P1.card}) as d`))[0].d
+  const ent1b = det1b.historico.find((h) => h.tipo === 'pedido_entregue')
+  conferir(!devolvido52?.erro && det1b.devolucao?.entregue === true && det1b.em_decisao === true
+      && (await diaDe52(ent1b?.quando)) === D.anteontem,
+    'o pedido entregue e depois devolvido: a telinha "Decidir situação" diz "já tinha sido entregue" e mostra a entrega no dia corrigido',
+    JSON.stringify({ devolvido52, d: det1b.devolucao, ent1b }))
+  await bd.exec('savepoint op52')
+  let recusaOp = ''
+  try {
+    await como52(OP52)
+    await bd.exec('set role authenticated')
+    await bd.exec(`select public.plt_fn_devolucao_detalhe(${P1.card})`)
+  } catch (erro) {
+    recusaOp = erro.message
+  } finally {
+    await bd.exec('rollback to savepoint op52')
+    await bd.exec('reset role')
+    await como52('')
+  }
+  conferir(/logística ou de admin/.test(recusaOp), 'o detalhe da devolução segue só da logística e do admin', recusaOp)
+
+  titulo('SESSAO-52 · ponto 3 · a lista de pedidos sabe quando a entrega foi REGISTRADA (a mesma lista, uma chamada)')
+
+  const pag = (await logado52(LOG52, `select public.plt_fn_pedidos_pagina('9956', null, 50, false) as p`))[0].p
+  const linha52 = (n) => pag.find((l) => l.numero === n)
+  conferir(pag.length === 4 && pag.map((l) => l.numero).join() === '99564,99563,99562,99561',
+    'a página traz os quatro pedidos, do mais novo para o mais antigo', JSON.stringify(pag.map((l) => l.numero)))
+  conferir(ms52(linha52(99561).entregue_em) === ms52(c1b.entrega_em) && (await diaDe52(linha52(99561).entregue_em)) === D.anteontem
+      && ms52(linha52(99561).entrega_registrada_em) === ms52(D.agora)
+      && ms52(linha52(99561).entregue_em) !== ms52(linha52(99561).entrega_registrada_em),
+    'dia escolhido e corrigido: a linha leva o dia real (anteontem) E a hora em que a entrega foi registrada (agora) — a tela mostra só o dia',
+    JSON.stringify(linha52(99561)))
+  conferir(ms52(linha52(99562).entregue_em) === ms52(linha52(99562).entrega_registrada_em) && ms52(linha52(99562).entregue_em) === ms52(D.agora),
+    'entrega do jeito de sempre: os dois instantes são o mesmo — a tela mostra o dia e a hora', JSON.stringify(linha52(99562)))
+  conferir(linha52(99563).entregue_em === null && linha52(99563).entrega_registrada_em === null && 'entrega_registrada_em' in linha52(99563),
+    'pedido por entregar: sem data de entrega e sem hora de registro', JSON.stringify(linha52(99563)))
+  conferir(linha52(99564).entregue_fonte === 'parcial' && ms52(linha52(99564).entregue_em) === ms52(fato4.ocorrido_em)
+      && ms52(linha52(99564).entrega_registrada_em) === ms52(fato4.registrado_em),
+    'entrega em parte: a hora do registro é a do fato da entrega em parte', JSON.stringify(linha52(99564)))
+  // a MESMA lista: linha a linha, chave a chave (um now() só — A-35)
+  const igual = await logado52(LOG52, `
+    select (select coalesce(jsonb_agg(e - 'entrega_registrada_em' order by (e ->> 'numero')::int desc), '[]'::jsonb)
+              from jsonb_array_elements(public.plt_fn_pedidos_pagina('9956', null, 50, false)) e)
+           = (select coalesce(jsonb_agg(to_jsonb(l) order by l.numero desc), '[]'::jsonb)
+                from public.plt_fn_pedidos_lista('9956', null, 50, false) l) as busca,
+           (select coalesce(jsonb_agg(e - 'entrega_registrada_em' order by (e ->> 'numero')::int desc), '[]'::jsonb)
+              from jsonb_array_elements(public.plt_fn_pedidos_pagina(null, null, 20, false)) e)
+           = (select coalesce(jsonb_agg(to_jsonb(l) order by l.numero desc), '[]'::jsonb)
+                from public.plt_fn_pedidos_lista(null, null, 20, false) l) as abertura,
+           (select coalesce(jsonb_agg(e - 'entrega_registrada_em' order by (e ->> 'numero')::int desc), '[]'::jsonb)
+              from jsonb_array_elements(public.plt_fn_pedidos_pagina(null, 99563, 2, false)) e)
+           = (select coalesce(jsonb_agg(to_jsonb(l) order by l.numero desc), '[]'::jsonb)
+                from public.plt_fn_pedidos_lista(null, 99563, 2, false) l) as ver_mais,
+           (select coalesce(jsonb_agg(e - 'entrega_registrada_em' order by (e ->> 'numero')::int desc), '[]'::jsonb)
+              from jsonb_array_elements(public.plt_fn_pedidos_pagina(null, null, 20, true)) e)
+           = (select coalesce(jsonb_agg(to_jsonb(l) order by l.numero desc), '[]'::jsonb)
+                from public.plt_fn_pedidos_lista(null, null, 20, true) l) as cancelados,
+           jsonb_array_length(public.plt_fn_pedidos_pagina(null, 99563, 2, false)) as n_ver_mais,
+           (public.plt_fn_pedidos_pagina(null, null, 20, false) -> 0 ->> 'contagem_total') is not null as com_total`)
+  conferir(igual[0].busca && igual[0].abertura && igual[0].ver_mais && igual[0].cancelados && igual[0].n_ver_mais === 2 && igual[0].com_total,
+    'é a MESMA lista, linha a linha e chave a chave: na busca, na abertura (com o total), no "Ver mais" (o cursor) e nos cancelados',
+    JSON.stringify(igual[0]))
+  const pagOp = (await logado52(OP52, `select public.plt_fn_pedidos_pagina('9956', null, 50, false) as p`))[0].p
+  const pagNinguem = (await um52(`select public.plt_fn_pedidos_pagina('9956', null, 50, false) as p`)).p
+  conferir(Array.isArray(pagOp) && pagOp.length === 0 && Array.isArray(pagNinguem) && pagNinguem.length === 0,
+    'quem não vê a área Pedidos (e quem não entrou) recebe a lista vazia — a guarda é a da lista de sempre', JSON.stringify({ pagOp, pagNinguem }))
+} finally {
+  await bd.exec('rollback')
+  await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
+}
+} // fim do bloco SESSAO-52
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
 console.log(
