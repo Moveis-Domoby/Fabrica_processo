@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-49 — Dieta da documentação: o cofre no padrão de mapas do Obsidian, regras de leitura rápida e cada demanda lendo só o que precisa"
 tipo: demanda
-status: 📐 pronta para code (rodar DEPOIS da SESSAO-48 entrar na main)
+status: 🔨 em execução (18/11 — replanejada com as medições de hoje; ver a seção ↪️ 18/11)
 data: 2026-11-11
 origem: pergunta do dono de 11/11 (03:20) — "o Claude Code está demorando muito para executar" — e o pedido de 03:25. Medições feitas no Cowork sobre a main de 11/11 (só leitura).
 revisa: a ordem de leitura do CLAUDE.md da raiz e a regra 6/10 ("ler tudo antes de codar"). Não revisa decisão de produto nenhuma.
@@ -12,6 +12,55 @@ tags: [cofre, documentacao, obsidian, processo, desempenho-da-sessao]
 
 > **Rodar só depois que a SESSAO-48 estiver na main.** Ela escreve nas mesmas notas (decisões, memória, esquema). Comece a partir da main atualizada.
 > **Sessão só de documentação e de um script.** Nada de código da plataforma, banco ou publicação. Se a frente 5 da 48 (documentação não publica o site) ainda não estiver no ar, **cada subida para a main publica o site**: junte os commits e suba poucas vezes, fora do expediente.
+
+## ↪️ 18/11 — Replanejamento (o que mudou desde 11/11; o texto de 11/11 segue abaixo, intacto)
+
+> **Pedido do dono (18/11, 03:51):** *"Vamos rodar a dieta da documentação agora mesmo; planejar melhor a partir das atualizações recentes e executar."* Roda em modo fila (o dono dormindo): o que faltar vira decisão provisória; nada sai do computador (sem envio, sem banco, sem publicação).
+> **Onde este replanejamento diverge do texto de 11/11, vale este.**
+
+### O que entrou no cofre depois de 11/11
+- **SESSAO-48, 50 e 51 estão na main** (a trava "rodar só depois da 48" caiu). Com elas vieram as decisões até a **D-334**, as lições até **E-291 / A-243** e o **pulo da documentação na Vercel** (D-303): subir só `_docs/` não publica mais o site.
+- **A revisão de 18/11** (já na main): os 335 critérios de aceite marcados nas demandas entregues, os status corrigidos, o retrato novo no topo de [[000 - PROXIMOS PASSOS]] e as notas ↪️ 18/11 na Ordem das Sessões, nas Perguntas em Aberto, no n8n, no Comercial e nos handoffs. **Consequência para a dieta:** essas notas ↪️ 18/11 são texto vivo e vão junto, sem reescrever, para onde a nota for; o que a revisão marcou como "deixou de ser pendência" não entra nos mapas como pendência.
+
+### As medições de hoje (18/11, pelo script, sobre a main `4d91dd3`)
+
+| O quê | 11/11 (demanda) | **18/11 (medido)** |
+|---|---|---|
+| Leitura obrigatória (os documentos que o CLAUDE.md manda ler, com o Modelo de Sistema) | 1,1 MB | **1.315,7 KB (~1,3 MB)** |
+| Decisões de Produto | 372 KB · 248 decisões | **423,0 KB · 291 decisões com título** (a maior é a D-334) |
+| Memória de Aprendizado | 224 KB · 180 E · 157 A · 16 M | **262,5 KB · 222 E · 188 A · 16 M · 9 F · 4 X = 439 entradas** |
+| Esquema do Banco | 237 KB | **258,0 KB** |
+| Modelo de Sistema | 92 KB | **109,8 KB** |
+| Lei de Desempenho | 73 KB | **87,6 KB** |
+| Mapa do Projeto | 62 KB | **66,0 KB** |
+| Ordem das Sessões | — | **37,6 KB** |
+| Notas no cofre | 244 · 12 MB | **258 notas · 447 arquivos · 16,2 MB** (só as notas: 4,5 MB) |
+| Ligações quebradas | 33 (todas de imagem) | **2** (o template de handoff aponta para uma nota que não existe; um diário aponta para uma memória de fora do cofre). As de imagem já não aparecem. |
+| Notas soltas | 10 | **11** (4 vivas: o `CLAUDE.md` do cofre, a nota da baixa automática de recebimentos, a cópia do handoff de pesquisa em `Planejamento/` e o leia-me das inspirações; 7 de história: diários e um handoff) |
+
+(KB = 1.024 bytes, como o verificador mede; o sistema de arquivos mostra 433 / 269 / 264 / 112 KB em milhares de bytes — são os mesmos arquivos.)
+
+### Correções ao texto de 11/11
+1. **A contagem de decisões é a de hoje: 291 notas, não 248.** Os números pulados (44, 64, 69, 149, 160, 177–185, 222–224, 234–259) **não têm texto de decisão em lugar nenhum**: a D-44 foi reservada pela frente do histórico do Tiny e nunca escrita (as respostas do dono viraram a D-45), a D-64 "ficou sem uso" (dito no próprio arquivo), e as faixas foram reservas de sessões em paralelo. "As duas que faltam" da nota de 11/11 são a D-44 e a D-64: **não ganham nota** (não há o que mover — inventar o texto seria criar decisão); o índice as lista como "número sem decisão" e o verificador aceita a citação.
+2. **As contagens da memória são as de hoje** (222 erros, 188 acertos, 16 modelos, 9 fórmulas, 4 possibilidades). Uma entrada (a do CRLF) ocupa três linhas; o script trata a continuação como parte dela.
+3. **`aliases` não faz `[[D-61]]` abrir a nota.** No Obsidian o apelido só aparece na busca e no completar; a ligação aponta para o **nome do arquivo**. Para a ligação abrir de verdade e o grafo mostrar o nome em português: a nota chama `D-061 - <o que a decisão faz>` (como a demanda pede) e toda citação vira `[[D-061 - …|D-61]]` — o leitor vê "D-61", o Obsidian abre a nota. O `aliases` fica no frontmatter para a busca. (Provisória.)
+4. **O índice de decisões não cabe em 15 KB.** Com 291 decisões, uma linha por decisão dá ~40 KB. Os três **índices gerados** (decisões, memória, esquema) ganham teto próprio (≤ 60 KB) e **não são leitura obrigatória**: servem à busca. O que a sessão lê é o **mapa da área** (≤ 15 KB), que já traz as decisões vigentes daquela área. (Provisória.)
+5. **Nota que não cabe no teto sem reescrever fica como está e vira aviso do verificador** (decisão maior que 8 KB, por exemplo): a regra "não reescrever" vence o orçamento.
+6. **O exemplo da leitura ≤ 150 KB** passa a ser medido com uma demanda de hoje (a SESSAO-51) além da 48.
+7. **A trava "juntar os commits e subir poucas vezes"** deixou de valer para o cofre (D-303); vale o ponto novo abaixo.
+
+### Ponto novo · o pulo da Vercel
+Hoje `scripts/vercel-pular-documentacao.sh` só pula quando mudou `_docs/`, `Claude outputs/` ou `.md`. Os roteiros do verificador moram em `scripts/cofre/` (`.mjs`): **cada mudança neles montaria o site de novo**, sem necessidade — o site não usa nada dessa pasta. **Saída (provisória):** acrescentar `scripts/cofre` à lista do pulo. Efeito colateral único e inofensivo: a subida que levar essa mudança monta o site uma vez (o próprio roteiro do pulo é código); daí em diante, mexer no verificador não publica nada.
+
+### Outra frente ao mesmo tempo · SESSAO-34 (rotinas do banco por evento)
+Roda em outra mesa da mesma fila. **Combinado:** ela **não mexe** nas notas grandes — Decisões, Memória, Esquema, Lei de Desempenho, Mapa, Ordem das Sessões e Próximos Passos. **As decisões e lições dela entram depois da dieta**, já no formato novo (uma nota por decisão; lição na nota do tema). Esta sessão, por sua vez, **não toca** na demanda nem nas notas da 34. Numeração: esta sessão usa a partir de D-335, E-292 e A-244; a 34 numera depois, a partir do que o verificador mostrar.
+
+### Ordem e escopo de execução (18/11)
+- Ordem: **1 → 2 → 5 → 3 → 4 → 6**, um commit por frente (a da demanda, para o caso de o tempo apertar).
+- **Arquivos que podem mudar:** `_docs/`, `CLAUDE.md`, `scripts/cofre/` e o roteiro do pulo da Vercel. Nada de código da plataforma, banco, n8n ou publicação.
+- **ClickUp:** a fila proíbe mexer; as 3 tarefas ficam para o dono criar (os nomes estão na seção "Tarefas no ClickUp").
+- **O print do grafo do Obsidian** não sai desta sessão (não há Obsidian na fila): o handoff ensina o dono a conferir; a prova da sessão é o verificador (ligações, contagens, orçamentos).
+- **A proposta da bateria do banco** (frente 6) continua só proposta: precisa do OK do dono.
 
 ## O pedido do dono (texto fiel, 11/11)
 
