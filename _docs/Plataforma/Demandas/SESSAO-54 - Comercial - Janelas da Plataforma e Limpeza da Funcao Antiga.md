@@ -79,4 +79,10 @@ Nenhum requisito novo — é pagamento de dívida do módulo Comercial: **DT-D24
 
 ## Resultado (18/11/2026, madrugada)
 
-Ver o diário [[SESSAO-54]] e o handoff [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza]].
+- **Feito, no ramo `sessao-54-comercial-janelas-e-limpeza`** (nada na main, nada no banco, nada publicado): os três itens, inclusive o opcional. Diário: [[SESSAO-54]] · Handoff: [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza]].
+- **Item 1:** zero alerta/pergunta nativos no Comercial — 4 janelas de confirmação (`ModalConfirmacao`, com o modal e o botão da casa) e 12 avisos da casa; o efeito de cada escolha é o de antes (10 testes novos).
+- **Item 2:** nada chama a função (código, migrations, banco de teste); não havia gancho morto no repositório; a remoção está em `20261118120000_plt_comercial_remove_funcao_antiga.sql`, **sem aplicar** (exclusão — só com o OK do dono).
+- **Item 3 (coube):** a ordem vai dentro dos filtros da mesma porta (`20261118120100_plt_comercial_clientes_ordem_no_banco.sql`, sem aplicar) — a assinatura não muda e quem já chama recebe linha a linha o que recebia.
+- **O que mudou de rota:** achado nas fotos — no celular o "Disparar" ficava cortado na linha de botões da lista de membros (DT-D39), corrigido. As decisões provisórias (P54-1…7) e o que vai para as notas grandes depois da dieta estão no handoff.
+- **Provas:** lint 0 · tipos 0 · 729 testes de tela ✔ · bateria do banco 1.886 ✔ + 1 ✘ que já existia · 27 medições em 375/768/1440 sem rolagem lateral · 21 fotos.
+- **Falta (com o dono):** conferir no banco vivo, aplicar as duas atualizações, publicar, confirmar as provisórias e concluir a tarefa no ClickUp.
