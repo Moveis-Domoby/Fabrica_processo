@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-55 — Telas que ainda abrem com mais de uma leitura (Meu Painel, painéis e configurações)"
 tipo: demanda
-status: 🔨 em execução (18/11/2026 — mesa da fila, sem o dono na conversa; nada no banco de produção, nada na main)
+status: ⏳ entregue no ramo `sessao-55-telas-numa-leitura` (18/11/2026 — mesa da fila, sem o dono na conversa); esperando o OK do dono para subir — nada no banco de produção, nada na main
 data: 2026-11-18
 atualizado: 2026-11-18
 origem: as dívidas 18 e 20 da [[PLT - Lei de Desempenho e Escala]] (§14). Pedido gravado pelo Escritório em `_escritorio/handoffs/sessao-55-telas-numa-leitura-prompt-claude-code.md`.
@@ -63,4 +63,8 @@ Para quem usa, **nada muda na tela**: os mesmos números, os mesmos botões — 
 
 ## Resultado (preencher ao entregar)
 
-*Ver o handoff da sessão em `_docs/Handoffs/`.*
+- **Feito, no ramo `sessao-55-telas-numa-leitura`** (nada no banco de produção, nada na main): os 3 itens. 9 portas de abertura novas em 3 arquivos de atualização (nenhuma função existente recriada) e as telas lendo por elas — o aviso do trabalho da pessoa, Meus afazeres, Pessoas, Qualidade, Meu desempenho, Equipe, API e integrações, Caminhões, Automações e o "Desligar o tempo" abrem com 1 requisição. "Tempo por setor" é só redirecionamento e as 7 abas do Controle de tempo já abriam com 1 leitura cada (dívida já paga).
+- **Provas:** bateria do banco 2.003 ✔ (130 novas; o único ✘ é o conhecido do Comercial), 733 testes de tela verdes (14 novos contando as chamadas), ensaio ×100.
+- **O que não coube no teto com o volume ×100** (5 de 16 medições, todas por uma leitura antiga que a porta só junta) e o que ficou de fora virou dívida registrada no diário e no handoff.
+- **Não validado no navegador** (as portas não existem no banco vivo e a tela logada pede o dono).
+- Diário: [[SESSAO-55]] · Handoff: [[handoff_2026_11_18_sessao55_telas_numa_leitura]].
