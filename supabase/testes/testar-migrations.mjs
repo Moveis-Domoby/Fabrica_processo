@@ -13551,7 +13551,13 @@ const PERIODOS86 = [
   [`'2032-03-10'`, `'2032-07-20'`], ['null', `'2032-06-30 23:59:59-03'`], [`'2033-06-15 12:00-03'`, 'null'],
 ]
 const DASH86 = [
-  ['fn_dashboard_revenue_chart', 'month_str, revenue::text as revenue, orders'],
+  // Mês em que NENHUM pedido tem valor (na bateria, os pedidos de teste do mês
+  // corrente que outros blocos gravam sem valor): a porta antiga devolve a
+  // receita vazia (soma de nada) e a conta pronta guarda 0. Na tela é o mesmo —
+  // o gráfico lê Number(receita) e o vazio vira 0 —, então se compara vazio = 0.
+  // Em produção não há venda sem valor (conferido em 19/11: 21 meses, conta
+  // pronta = soma real em todos).
+  ['fn_dashboard_revenue_chart', 'month_str, coalesce(revenue, 0)::text as revenue, orders'],
   ['fn_dashboard_top_items_overall', 'item_name, quantidade'],
   ['fn_dashboard_items', 'month_str, item_name, quantidade'],
   ['fn_dashboard_purchase_frequency', 'pedidos_count, faturamento_total::text as fat, clientes_count'],
