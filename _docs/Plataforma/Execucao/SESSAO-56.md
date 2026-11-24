@@ -142,3 +142,78 @@ Só o roteiro e a consulta de conferência, no handoff ("Para ligar com o dono",
 - L4 · chave de serviço externo na URL: nenhuma mensagem de erro pode levar a URL (nem `e.message`) — registrar só o nome do buscador e o código.
 - L5 · estado pequeno de serviço cabe numa linha reservada de tabela que já existe (banco enxuto) — e pode viajar na resposta da própria chamada, sem leitura nova.
 - L6 · script grande com aspas simples não vai por heredoc no shell desta máquina (EOF inesperado): gravar o arquivo e rodar.
+
+---
+
+# Ajustes (23/11/2026, ~23:00 — fila do Escritório, mesma mesa e mesmo ramo)
+
+Pedido: `_escritorio/handoffs/sessao-56b-ajustes-ordem-e-sino-prompt-claude-code.md` — as respostas do dono (23/11, 22:55) às perguntas do reporte da 56 e os 2 ajustes pequenos da revisão. Continua em cima dos 7 commits; nada recriado, nada trocado de ramo. `git status` limpo na partida.
+
+## Task list (espelha o pedido)
+
+1. **Quem entra numa rota que já existe vai para o lugar mais perto** (resposta 1 do dono): reprogramar, programar um pedido sozinho, parada avulsa nova (provisória); os outros não trocam entre si; sem ponto = fim e fica; rota vazia = 1ª; rota sem ordem salva = primeiro a ordem que a tela mostrava; a montagem com vários pedidos continua como era (provisória). No banco, dentro da porta (uma chamada). Migration só em arquivo (`20261124110000_`). Testes no banco.
+2. **Aviso no sino com a busca fora há 1 hora** (resposta 3: "sim"): admin e logística, uma vez por queda, sem relógio (nasce da chamada da busca), "já avisado" na linha reservada; zera quando volta; texto do pedido; o toque abre Rotas. Migration só em arquivo. Testes 59/61 min, 2ª chamada, voltar e cair de novo.
+3. **Os 2 ajustes da revisão:** a referência do comentário em `fluxo.ts`; `alternar` estável na aba Programar.
+4. **Registrar o que o dono resolveu** (B3 feita pelo Cowork; perguntas 1, 3 e 4 respondidas; a 2 segue aberta) — só aqui e no handoff.
+5. Ciclo: commits por item, tsc/lint/vitest/build/bateria, plano ×100 da porta tocada, handoff atualizado, reporte da fila.
+
+## O que o dono resolveu (registro — 23/11, ~22:55–22:58)
+
+- **B3 feita pelo Cowork no banco vivo em 23/11 ~22:58, com o OK do dono:** só havia uma rota a travar — a do caminhão 3 (Hyundai HR), rota 1, de **24/11**, 5 pedidos. Ordem gravada (a que a tela mostrava): **13840 → 13960 → 13959 → 13962 → 13976** (os 3 últimos ainda sem ponto, por isso no fim, pela numeração). Log `rota_ordem_salva` com a origem escrita e o aviso `rotas` disparado. A rota de 23/11 (4 de 5 entregues) não foi tocada.
+- **Pergunta 4 (B3):** respondida — "travar já no banco; a logística edita na tela".
+- **Pergunta 1 (quem entra numa rota):** respondida — "deve entrar no local mais próximo na sequência lógica; caso queiram alterar, é só mudar ele também" → item 1.
+- **Pergunta 3 (aviso no sino):** "sim" → item 2.
+- **Pergunta 2 (a faixa "busca fora" para todos):** **segue aberta** — o dono vai responder. Não mexida.
+
+## Entendimento e decisões técnicas
+
+- **Item 1 no banco, numa porta só:** nova `plt_privado.fn_rota_inserir(dia, caminhão, rota, t, id)` — lê a rota (pedidos vivos com o ponto do cache do mapa pela mesma chave de `plt_fn_programadas`; paradas não removidas com o ponto delas), monta a ordem que a tela mostrava sem o novo (a salva por `(ordem, id da tela)`; na rota sem ordem salva, a continuação do mais perto a partir da última com ponto e os sem ponto no fim, na ordem de chegada da tela — pedidos pelo número, paradas pelo id: a mesma conta de `ordemDaRota`) e põe o novo pela regra de `inserirNaRota` (a volta fábrica → … → fábrica que menos cresce; empate = a ida mais curta). A parada já feita/não feita conta na ordem, mas não no caminho (`ativaNaRota`). Grava 1, 2, 3… só onde muda. `plt_privado.fn_distancia_km` = a mesma conta de `distanciaKm` (haversine, 6371).
+- **Onde liga:** `plt_fn_programar_entrega` (quem não estava em rota nenhuma, ou veio de outra) e `plt_fn_parada_avulsa_salvar` (parada nova SEM a ordem da tela). **A montagem não:** `plt_fn_programar_rota` e `plt_fn_programar_rota_paradas` ligam a marca `plt.rota_montagem` (o padrão de marca da casa) enquanto chamam as portas de um item só — o bloco novo fica como a 56 deixou. Mesmas assinaturas (nada de drop).
+- **Telas:** a aba Programar com **um pedido só** passa a chamar a porta de um pedido (o banco escolhe o lugar); "Já programadas" e "Entregas do dia" põem a parada nova **sem** a ordem da tela (o banco escolhe) — em "Já programadas" isso tirou uma leitura da rota inteira no clique (uma chamada só, como a Lei pede). Textos: "Ela entrou no lugar mais perto do caminho — para mudar, arraste e salve a ordem." e o resumo da janela de programar com um pedido só.
+- **Item 2:** porta de serviço `plt_fn_busca_fora_avisar()` (execute só `service_role`) — trava a linha do estado, confere fora ≥ 1 h e não avisado, grava o aviso pelo `fn_avisar_publico(…, 'logistica', …)` e marca `avisado = true` na mesma linha. **Tipo novo** `busca_endereco_fora` no catálogo dos avisos (nenhum tipo de Rotas existia; o grupo "Expedição e estoque", público logística — dá para desligar em Configurações → Avisos). A função `geocodificar` (`fluxo.ts`): o estado ganhou `avisado`; `proximoEstado` zera quando a busca volta; `deveAvisarFora(estado, agora)` decide a chamada; `index.ts` chama a porta e segue em frente se ela falhar (o aviso tenta na próxima chamada).
+- **Item 3:** comentário de `fluxo.ts` aponta `src/rotas/buscaGeoapify.test.ts`; `alternar` lê os marcados e a ordem da tela por ref (atualizada num efeito — o padrão de `Layout.tsx`) e muda o rascunho pela forma funcional: `useCallback(…, [])`.
+
+## Provisórias novas (para o dono confirmar)
+
+- **P9 ·** a montagem com vários pedidos numa rota que já existe continua como a 56 deixou: o que estava fica na ordem dele e o bloco novo entra no fim, na ordem da montagem (o pedido diz que é provisória).
+- **P10 ·** a parada avulsa nova sem a ordem da tela segue a mesma regra do pedido (lugar mais perto; sem ponto, no fim) — vale para a logística em "Já programadas" e para o entregador em "Entregas do dia" (depois ele arrasta, como já fazia).
+- **P11 ·** na montagem, **um pedido só** conta como "programar um pedido sozinho" (vai para o lugar mais perto); dois ou mais, como montagem.
+- **P12 ·** dois pontos no MESMO lugar (dois pedidos do mesmo endereço): o empate deixa o novo ANTES do que já estava lá (a mesma regra da tela) — os dois ficam juntos.
+- **P13 ·** o aviso de busca fora: tipo novo "Busca de endereço fora do ar" no grupo Expedição e estoque, público logística (admin + logística); título "Busca de endereço fora do ar"; o texto do pedido; o toque abre Rotas → Programação.
+- **P14 ·** a busca que **volta** não vira aviso no sino (a faixa some sozinha) — o pedido deixa como provisória "só se o sino já tiver tipo que sirva", e não tinha.
+- **P15 ·** a chamada que só leu do cache (não consultou buscador) também avisa, se encontrar o estado "fora" há ≥ 1 h e não avisado.
+
+## Lições (para a Memória de Aprendizado, quando a dieta entrar)
+
+- **L7 ·** regra nova do dono que revisa uma antiga = as conferências antigas que provavam a regra velha mudam JUNTO, no mesmo commit, com o porquê ao lado (6 conferências das sessões 28 e 31 — "mudar de rota zera a ordem"). Diferente da L2: lá era eu "aproveitando"; aqui é a resposta do dono.
+- **L8 ·** a bateria reaplica migrations antigas no meio (a da parada avulsa da 50, a da 56): toda porta recriada por uma migration nova precisa ser reaplicada no bloco que a testa, senão o teste prova a versão velha (a 1ª rodada passou "verde" justamente por isso).
+
+## Diário dos ajustes (o que aconteceu, na ordem)
+
+- **1ª rodada da bateria (com a migration do item 1 só nas rodadas iniciais):** 8 vermelhos = os 2 de sempre + **as 6 conferências antigas** da regra velha (sessões 28 e 31: "programados sem ordem → a porta devolve nula", "trocar o caminhão zera", "sem rota dita entra na última… sem ordem", "mudar para a Rota 2 zera a ordem" e as duas listas que dependiam disso). Ajustadas à regra nova com o porquê ao lado (L7). O bloco da 56 passou "verde" porque a bateria reaplica a migration da 56 no meio e ela recriava o reprogramar SEM a inserção (L8) → a migration nova passou a ser reaplicada logo depois da da 56 e no começo do bloco novo; as conferências da 56 que diziam "no destino entra sem ordem" foram trocadas para "rota vazia = 1ª"; a parada do entregador do cenário da 56 vai sem ponto (para continuar "no fim").
+- **2ª rodada:** 1 vermelho meu — no cenário, o ponto que chega para o pedido sem ponto ficava perto da fábrica, e o L empatava entre dois lugares. O banco estava certo (a regra de empate da tela); a conferência foi refeita para provar o que importa (ninguém pula, ninguém troca de lugar).
+- **3ª rodada:** **1929 verdes**; só os 2 vermelhos da linha de base (Dashboard do Comercial; previsão vencida do calendário — depende do dia).
+- **Heredoc com aspas** (L6) pegou de novo no meio: os scripts de edição passaram a ser gravados em arquivo e rodados.
+
+## Verificação final dos ajustes
+
+- `tsc -b` limpo · `npm run lint` limpo · `npm run build` ok.
+- `npm test`: **775** (770 + 5 novos). Na rodada completa, 2 vermelhos por tempo (`Estrutura.test.tsx` — o da linha de base — e `JanelaSaidaPcp.test.tsx`); os dois passam sozinhos (carga da máquina, como na 56).
+- `npm run test:banco`: **1929 verdes**, os 2 vermelhos da linha de base. Blocos novos: **"SESSAO-56 (ajustes) · 1"** (20 conferências, faixa **pedidos 956201–956212, caminhão TST5657**) e **"· 2"** (9 conferências, a linha reservada do estado da busca dentro de transação desfeita no fim).
+- **Plano ×100 (banco de teste):** a leitura nova (os itens da rota com o ponto do pedido, pelo cache do mapa) com 20 mil paradas noutros dias: **19 ms** (orçamento da porta: 50 ms) — pelos índices da rota das paradas, das programações e pela chave do cache; o gesto inteiro de reprogramar com a inserção: **37 ms** no banco de teste (rota de 10 paradas). A porta do aviso lê 1 linha pela chave única do cache.
+- **Validação no navegador: NÃO feita** (a mesma razão da 56: o `.env.local` da mesa aponta para o banco de produção e pede login; as portas novas não estão aplicadas). Os textos novos estão no "como testar" do handoff.
+
+## Checklist de desempenho (Lei) — o que os ajustes tocaram
+
+- Um gesto = uma chamada: reprogramar/programar sozinho/pôr parada escolhem o lugar DENTRO da porta; "Já programadas" deixou de ler a rota inteira antes de pôr parada (uma requisição a menos no clique).
+- Sem relógio: o aviso no sino nasce da chamada da busca; o "já avisado" é gravado uma vez por queda.
+- Leitura por índice, medida com volume; nenhuma tabela, coluna ou índice novo; nada de polling.
+- Escrita idempotente: a porta do aviso trava a linha e confere de novo (duas chamadas ao mesmo tempo não avisam duas vezes); a inserção só toca a linha que muda.
+- **Não medido:** o plano no banco VIVO e LCP/INP (sem navegador).
+
+## Commits dos ajustes
+
+- `SESSAO-56 ajustes (revisão)` — alternar estável e a referência do comentário (item 3).
+- `SESSAO-56 ajustes (item 1)` — quem entra vai para o lugar mais perto (migration 20261124110000 + telas + bateria).
+- `SESSAO-56 ajustes (item 2)` — o aviso no sino (migration 20261124120000 + função da busca + testes).
+- `SESSAO-56 ajustes cofre` — este diário e o handoff.

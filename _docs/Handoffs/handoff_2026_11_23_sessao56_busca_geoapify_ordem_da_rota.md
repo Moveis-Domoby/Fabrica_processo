@@ -9,7 +9,9 @@ tags: [handoff, sessao-56, rotas, mapa, geocodificacao, ordem-da-rota]
 
 Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Diário: [[SESSAO-56]]
 
-> ⏳ **NADA ESTÁ NO AR.** Tudo está só no ramo `sessao-56-busca-geoapify-ordem-da-rota` desta mesa (7 commits em cima da main `78e8829`): nenhuma atualização de banco aplicada, a função `geocodificar` não foi publicada, o site não foi publicado, nada foi enviado para fora deste PC. A ligação é com o dono, na ordem da seção 4.
+> ↪️ **AJUSTES DE 23/11 (~23:00 — as respostas do dono):** quem entra numa rota que já existe vai para o lugar mais perto (seção 2b), o aviso no sino com a busca fora há 1 hora (seção 2b), os 2 ajustes da revisão, e o registro do que o dono resolveu (a trava das rotas antigas já FEITA pelo Cowork — seção 4, passo 6). Duas atualizações de banco novas, só em arquivo, que entram logo depois da primeira (seção 4).
+>
+> ⏳ **NADA ESTÁ NO AR.** Tudo está só no ramo `sessao-56-busca-geoapify-ordem-da-rota` desta mesa (os 7 commits da 56 + os dos ajustes, em cima da main `78e8829`): nenhuma atualização de banco aplicada, a função `geocodificar` não foi publicada, o site não foi publicado, nada foi enviado para fora deste PC. A ligação é com o dono, na ordem da seção 4.
 >
 > ⚠️ **O link deste handoff no [[000 - MAPA DO PROJETO]] não foi feito** (o pedido da fila manda não editar as notas grandes enquanto a dieta da documentação não entra) — está na seção 7.
 
@@ -28,7 +30,7 @@ Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Di�
 - **Sem insistência e sem relógio:** a tela para de pedir quando a busca não responde; tenta de novo quando a pessoa reabre a aba ou toca no botão.
 - **Ninguém fica 4 dias sem saber:** com a busca fora, o topo de Rotas mostra a faixa *"A busca de endereço está fora desde 19/11 às 13:56. Os pontos novos precisam ser marcados à mão."* — some sozinha quando a busca volta. O "desde quando" fica guardado numa linha reservada do próprio cache do mapa (nenhuma tabela nova, nenhuma atualização de banco para este bloco) e chega na resposta da própria busca (abrir Rotas não faz leitura a mais).
 - **"Powered by Geoapify"** no rodapé dos três mapas (ao lado do OpenStreetMap) e embaixo do "Achar no mapa" das janelas.
-- **O aviso no sino (opcional) não entrou** — pediria uma porta nova no banco só para isso.
+- ~~**O aviso no sino (opcional) não entrou**~~ ↪️ **entrou nos ajustes** (o dono disse "sim" — seção 2b).
 
 ### Bloco B — a ordem da rota não se mexe sozinha
 
@@ -50,6 +52,32 @@ Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Di�
 
 `supabase/functions/geocodificar/`: `busca.ts` (consultas e leitura da Geoapify), `fluxo.ts` (novo — a ordem dos buscadores e dos degraus, testável) e `index.ts` (rede, cache, o estado "busca fora"). Lê `PLT_GEOAPIFY_CHAVE`. A resposta ganhou `busca.fora_desde`; o resto é igual (o site de hoje segue funcionando com a função nova).
 
+## 2b. Os ajustes (23/11, ~23:00 — respostas do dono)
+
+### Quem entra numa rota que já existe vai para o lugar mais perto
+*"Para esse caso, ele deve entrar no local mais próximo na sequência lógica; caso queiram alterar, é só mudar ele também."*
+- **Reprogramar** um pedido para outra rota (outro dia, caminhão ou rota), **programar um pedido sozinho** numa rota que já existe e pôr uma **parada avulsa nova** numa rota que já existe: o item ganha **lugar guardado** onde o caminho (fábrica → paradas → fábrica, em linha reta) aumenta menos — a mesma regra da montagem.
+- **Os que já estavam não trocam de ordem entre si**: só abrem espaço, e as posições viram 1, 2, 3….
+- **Sem ponto no mapa:** entra no **fim**, com lugar guardado, e não pula quando o ponto chegar. **Rota vazia:** é a 1ª parada. **Rota antiga sem ordem salva:** primeiro fica gravada a ordem que a tela mostrava, depois o novo entra.
+- Quem quiser outro lugar arrasta e salva a ordem, como sempre.
+- **A montagem com vários pedidos** jogada numa rota que já existe continua como estava: o que já estava fica na ordem dele e o bloco novo entra no fim, na ordem da montagem (provisória).
+- Tudo dentro da própria porta de programar/reprogramar/pôr parada — **uma chamada só**. Em "Já programadas", pôr parada deixou de ler a rota inteira antes (uma requisição a menos no clique).
+
+### Aviso no sino quando a busca de endereço passa 1 hora fora
+- **Quem recebe:** admin e logística. **Quando:** uma vez por queda, quando a busca está recusando há 1 hora ou mais. **Sem relógio novo:** o aviso nasce na própria chamada da busca que encontra o estado "fora" há ≥ 1 h e ainda não avisado; o "já avisado" fica na mesma linha reservada do cache do mapa. Quando a busca volta, o "já avisado" zera — a próxima queda avisa de novo.
+- **Texto:** título "Busca de endereço fora do ar"; *"A busca de endereço está fora desde 19/11 às 13:56. Os pontos novos no mapa precisam ser marcados à mão em Editar endereço."* O toque abre **Rotas → Programação**.
+- Dá para desligar por pessoa em **Configurações → Avisos** (grupo Expedição e estoque).
+- A busca que **volta** não vira aviso (a faixa de Rotas some sozinha) — provisória.
+
+### Os 2 ajustes da revisão
+- O comentário da função da busca aponta o arquivo de testes certo.
+- Na montagem, marcar/desmarcar um pedido não faz mais todos os cartões da lista se redesenharem (o gesto ficou estável).
+
+### Banco dos ajustes (só em arquivo — NÃO aplicado)
+- `supabase/migrations/20261124110000_plt_entra_no_lugar_mais_perto.sql` — novas `plt_privado.fn_distancia_km` e `plt_privado.fn_rota_inserir` (fora da API); recriadas por inteiro, **mesmas assinaturas**: `plt_fn_programar_entrega` (da 20261124100000), `plt_fn_programar_rota` (da 20261014140000), `plt_fn_programar_rota_paradas` (da 20261027060000) e `plt_fn_parada_avulsa_salvar` (da 20261112060000). Nenhuma tabela, coluna ou índice novo.
+- `supabase/migrations/20261124120000_plt_aviso_busca_fora.sql` — `plt_privado.fn_avisos_catalogo` recriada da vigente (20261116010000) + o tipo `busca_endereco_fora`; nova porta de serviço `public.plt_fn_busca_fora_avisar()` (só `service_role`).
+- A função `geocodificar` (`fluxo.ts` e `index.ts`) chama a porta nova — **publicar depois da atualização do banco**.
+
 ## 3. Como testar (depois de ligar — passo a passo)
 
 **No computador e também no celular (375) e no tablet (768) — nada pode rolar para o lado.**
@@ -65,7 +93,12 @@ Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Di�
 9. **"Voltar à sugestão" + "Salvar ordem"** → a ordem sugerida fica gravada e não muda mais sozinha.
 10. **A rota mudou noutra tela:** com a mesma rota aberta em duas abas, tire um pedido numa e tente tirar outro na outra sem atualizar → "a rota mudou noutra tela" (o comum é a tela se atualizar sozinha antes).
 
-**O que já está provado por teste automático:** a regra da Geoapify e a ordem dos buscadores (26 testes), o aviso/“Tentar de novo”/faixa (11), a ordem que não muda (16), e no banco 28 conferências (tirar, reprogramar, parada, entregador, recusas, desempenho).
+11. **(ajustes) Reprogramar para uma rota de 4 paradas.** Em Já programadas, pegue uma rota com 4 paradas em sequência (anote: 1, 2, 3, 4) e "Reprogramar" para ela um pedido cujo endereço fica perto da 2ª/3ª. Ele deve aparecer **no meio** (ex.: 3º), e os 4 de antes **na mesma sequência entre si** (só renumerados). O mesmo com um pedido sem ponto no mapa → ele vai para o **fim**. Para mudar o lugar: arraste e "Salvar ordem".
+12. **(ajustes) Programar um pedido sozinho** numa rota que já tem paradas (aba Programar, marque só 1 pedido, escolha o caminhão e a rota que já existe) → ele entra no lugar mais perto, não no fim. Com 2 ou mais marcados, o bloco entra no fim (como antes).
+13. **(ajustes) Parada avulsa nova** em Já programadas (e no celular do entregador): ela entra no lugar mais perto do caminho; sem ponto, no fim.
+14. **(ajustes) O aviso no sino.** Só aparece com a busca fora de verdade há 1 hora — não vale derrubar a busca; está provado pelos testes (59 min não avisa; 61 avisa uma vez; a 2ª chamada não repete; voltou e caiu de novo, avisa outra vez). Para conferir sem derrubar nada: Configurações → Avisos mostra "Busca de endereço fora do ar" no grupo Expedição e estoque.
+
+**O que já está provado por teste automático:** a regra da Geoapify e a ordem dos buscadores (26 testes), o aviso/“Tentar de novo”/faixa (11), a ordem que não muda (16), e no banco 28 conferências (tirar, reprogramar, parada, entregador, recusas, desempenho). **Ajustes:** +5 testes de tela (o aviso no sino: 59/61 min, a 2ª chamada, voltar e cair; o toque abre Rotas) e, no banco, os blocos "SESSAO-56 (ajustes) · 1" e "· 2" (29 conferências) — reprogramado no meio, sem ponto no fim e sem pular, rota vazia, rota sem ordem salva, ordem salva fora da linha preservada, parada nova, montagem como era, a marca da montagem desligada depois, permissões e o plano com volume; o aviso uma vez por queda, o texto, o público e as permissões. As 6 conferências antigas que provavam "quem muda de rota vai sem lugar" foram ajustadas à regra nova (e as da 56 que diziam "no destino entra sem ordem").
 **O que NÃO foi visto no navegador:** nenhuma tela (a mesa só tem acesso ao banco de produção, que pede login) — os passos acima são a primeira vez em tela de verdade, inclusive 375 e 768.
 
 ## 4. Para ligar com o dono (nesta ordem, cada passo com o OK dele)
@@ -82,7 +115,36 @@ select p.oid::regprocedure as funcao, md5(p.prosrc) as corpo
 ```
 - **Depois:** as mesmas 3 com as assinaturas novas — `(bigint, jsonb)`, `(bigint, jsonb)`, `(bigint, date, bigint, integer, jsonb)` — e a nova `plt_privado.fn_rota_ordem_que_fica(date, bigint, integer, jsonb)`; no site de hoje, "Tirar" um pedido de teste de uma rota continua funcionando.
 
-**2. Publicar a função `geocodificar`** (os três arquivos: `index.ts`, `busca.ts`, `fluxo.ts`). **Antes do site.** O segredo `PLT_GEOAPIFY_CHAVE` já está lá (o dono pôs em 23/11) — não mexer nele.
+**1b. (ajustes) A atualização do banco de "quem entra vai para o lugar mais perto"** (`20261124110000_plt_entra_no_lugar_mais_perto.sql`), **logo depois da 1**, também com `--so`.
+- **Antes:** conferir que as 4 funções vivas são as que ela toma por base (`plt_fn_programar_entrega` já na versão do passo 1; `plt_fn_programar_rota`, `plt_fn_programar_rota_paradas` e `plt_fn_parada_avulsa_salvar` iguais às das migrations 20261014140000, 20261027060000 e 20261112060000 — nenhuma outra frente as recriou depois):
+```sql
+select p.oid::regprocedure as funcao, md5(p.prosrc) as corpo, length(p.prosrc) as tamanho
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and p.proname in ('plt_fn_programar_entrega', 'plt_fn_programar_rota', 'plt_fn_programar_rota_paradas', 'plt_fn_parada_avulsa_salvar')
+ order by 1;
+-- esperado: 4 linhas, uma de cada (a de programar_entrega já com o jsonb no fim)
+```
+- **Depois:** as mesmas 4 assinaturas (nenhuma a mais) e as novas `plt_privado.fn_rota_inserir` e `plt_privado.fn_distancia_km`:
+```sql
+select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where (n.nspname = 'public' and p.proname in ('plt_fn_programar_entrega', 'plt_fn_programar_rota', 'plt_fn_programar_rota_paradas', 'plt_fn_parada_avulsa_salvar'))
+    or (n.nspname = 'plt_privado' and p.proname in ('fn_rota_inserir', 'fn_distancia_km'))
+ order by 1;
+-- esperado: 6 linhas
+```
+  e, num pedido de teste, "Reprogramar" para uma rota que já tem paradas → ele aparece com número guardado (não no fim por falta de ordem).
+
+**1c. (ajustes) A atualização do banco do aviso no sino** (`20261124120000_plt_aviso_busca_fora.sql`), também com `--so`.
+- **Antes:** conferir que o catálogo dos avisos vivo é o da 20261116010000 (nenhuma frente o recriou depois — as filas 52 a 55 ainda não estão na main; se alguma entrar antes, juntar os tipos dela com este):
+```sql
+select count(*) as tipos, bool_or(tipo = 'entrega_parcial_revogada') as tem_a_51, bool_or(tipo = 'busca_endereco_fora') as ja_tem
+  from plt_privado.fn_avisos_catalogo();
+-- esperado ANTES: tem_a_51 = true, ja_tem = false
+```
+- **Depois:** a mesma consulta com `ja_tem = true` e um tipo a mais; e `select has_function_privilege('authenticated', 'public.plt_fn_busca_fora_avisar()', 'execute')` = **false** (só a função da busca chama).
+
+**2. Publicar a função `geocodificar`** (os três arquivos: `index.ts`, `busca.ts`, `fluxo.ts`). **Antes do site e depois do 1c** (ela chama a porta do aviso; sem a porta, só registra que não conseguiu avisar e segue). O segredo `PLT_GEOAPIFY_CHAVE` já está lá (o dono pôs em 23/11) — não mexer nele.
 
 **3. Teste real de um endereço.** Abrir Rotas → Programar (o site de hoje já serve): os "procurando no mapa…" devem começar a ganhar ponto. Conferir no banco que entrou ponto pela Geoapify:
 ```sql
@@ -112,22 +174,11 @@ select count(*) filter (where g.chave is null)                 as nunca_procurad
 ```
 Conferir à vista: a rota do Hyundai HR de 23/11 (7 paradas) e as de 24/11 em diante — nenhum "procurando no mapa…" parado.
 
-**6. B3 — congelar a ordem das rotas já programadas que ainda não têm ordem salva.** **Só depois de os pontos chegarem** (passo 5), porque sem ponto a sugestão está incompleta. Quais são:
-```sql
-select pr.data_entrega, cam.nome as caminhao, pr.rota,
-       count(*) as pedidos, count(pr.ordem) as com_ordem_salva,
-       string_agg(p.numero::text, ', ' order by pr.ordem nulls last, p.numero) as pedidos_na_ordem_do_banco
-  from public.plt_programacoes pr
-  join public.plt_cards pc on pc.id = pr.card_id and pc.entrega_evento_id is null and pc.arquivado_em is null
-  join public.pedidos p on p.id = pc.pedido_id
-  join public.plt_caminhoes cam on cam.id = pr.caminhao_id
- where pr.data_entrega >= current_date
- group by 1, 2, 3
-having count(pr.ordem) < count(*)
- order by 1, 2, 3;
-```
-**O caminho recomendado (sem escrever nada à mão no banco):** com o site novo no ar, a logística abre cada rota dessa lista em Já programadas — a rota sem ordem salva mostra o botão **"Salvar ordem"**; ela confere a sequência na tela (arruma se quiser) e salva. O **antes** é a lista da consulta acima + o print da rota; o **depois** é a mesma consulta voltando vazia e a rota na mesma sequência do print. Assim quem congela é a própria logística, vendo o que está congelando — e o dono vê as duas listas.
-Rotas passadas e entregues: não mexer.
+**6. ✅ B3 — FEITA pelo Cowork no banco vivo em 23/11 ~22:58, com o OK do dono** (o dono respondeu: "travar já no banco; a logística edita na tela").
+- Só havia **uma** rota a travar: a do **caminhão 3 (Hyundai HR), rota 1, de 24/11**, 5 pedidos.
+- Ordem gravada (a que a tela mostrava): **13840 → 13960 → 13959 → 13962 → 13976** — os 3 últimos ainda estavam sem ponto, por isso no fim, pela numeração.
+- Ficou o registro `rota_ordem_salva` com a origem escrita, e o aviso de Rotas foi disparado.
+- A rota de 23/11 (4 de 5 entregues) não foi tocada.
 
 ## 5. Decisões provisórias (o dono confirma ou muda)
 
@@ -138,14 +189,25 @@ Rotas passadas e entregues: não mexer.
 5. **A pausa de 0,25 s** entre consultas à Geoapify; até 2 consultas por endereço (a certeira e, se não bastar, a com o bairro), mais as de bairro/cidade quando a rua não existe.
 6. **O "não achei"** fica registrado como procurado pela Geoapify.
 7. **Tirar com a lista incompleta na tela** (a rota não coube inteira na página): o que a tela não mostrava fica depois, na ordem que tinha — em vez de recusar o gesto.
-8. **O aviso no sino não entrou** (pediria mexer no banco); fica a faixa.
+8. ~~O aviso no sino não entrou~~ ↪️ entrou nos ajustes (o dono disse "sim").
+
+**Provisórias novas dos ajustes:**
+
+9. **A montagem com vários pedidos** numa rota que já existe continua como estava: o bloco novo entra no fim, na ordem da montagem.
+10. **A parada avulsa nova** segue a mesma regra do pedido (lugar mais perto; sem ponto, no fim) — na logística e no celular do entregador (que depois arrasta, como já fazia).
+11. **Na montagem, um pedido só** conta como "programar sozinho" (lugar mais perto); dois ou mais, como montagem (no fim).
+12. **Dois pedidos no MESMO ponto do mapa** (mesmo endereço): o novo entra junto, logo antes do que já estava lá (a mesma regra de empate da tela).
+13. **O aviso de busca fora:** tipo "Busca de endereço fora do ar", no grupo Expedição e estoque, para admin e logística; o toque abre Rotas → Programação.
+14. **A busca que volta não vira aviso no sino** (a faixa some sozinha).
+15. **A chamada que só leu do cache também avisa**, se encontrar a busca fora há 1 hora ou mais e ainda não avisada.
 
 ## 6. Ficou pendente
 
 - **Ver as telas no navegador** (computador, 375 e 768) — não foi possível nesta mesa.
-- **Pedido reprogramado entra na rota de destino sem lugar guardado** (aparece no fim, como sempre foi — a demanda diz que está certo). Se DOIS forem reprogramados para a mesma rota antes de alguém salvar, eles se ordenam entre si pela sugestão; a rota mostra "Salvar ordem" nesse caso. Dar lugar guardado a quem entra mudaria uma regra antiga (testada) — decisão do dono.
-- **Entregue / não entregue numa rota antiga sem ordem salva** ainda recalcula o que sobra — some com a B3 (todas as rotas com ordem salva).
-- **A parada avulsa posta numa rota antiga sem ordem** entra como 1ª (já era assim) — também some com a B3.
+- ~~Pedido reprogramado entra na rota de destino sem lugar guardado~~ ↪️ **resolvido nos ajustes** (o dono respondeu: lugar mais perto).
+- **A pergunta da faixa "busca fora" para todos** (hoje só aparece para quem tem endereço novo a procurar) **segue aberta** — o dono vai responder.
+- **Entregue / não entregue numa rota antiga sem ordem salva** ainda recalcula o que sobra — a B3 já travou a única rota que restava (24/11), então só volta a acontecer com rota nascida pelo site de antes, até o site novo subir.
+- ~~A parada avulsa posta numa rota antiga sem ordem entra como 1ª~~ ↪️ resolvido nos ajustes (a ordem da tela é gravada antes e ela entra no lugar mais perto).
 - **"Tentar de novo ao voltar à aba do navegador"** não entrou (a casa não tem esse gatilho geral); vale o reabrir a aba de Rotas e o botão.
 - **O plano das portas no banco vivo** (só foi medido no banco de teste, com volume).
 - **ClickUp:** não mexido (regra da fila) — as duas tarefas seguem com o dono.
@@ -155,7 +217,8 @@ Rotas passadas e entregues: não mexer.
 
 - **[[PLT - Decisoes de Produto]]** (números a dar): buscador principal = Geoapify, Photon de reserva, Nominatim fora (↩️ revisa a D-112 e a parte do buscador da SESSAO-45); a tela avisa e oferece marcar/tentar de novo quando a busca não responde; a faixa de "busca fora"; a sugestão só propõe e a ordem mostrada é a que vale (↩️ revisa a D-109 e a D-111); tirar não reordena; pedido que ganha ponto não muda de lugar; + as 8 provisórias da seção 5.
 - **[[PLT - Memoria de Aprendizado]]:** as lições L1–L6 do diário (dependência externa precisa de falha visível; a bateria é quem diz o que é contrato; assinatura nova × bateria que reaplica migration antiga; chave na URL nunca vai para mensagem de erro; estado pequeno numa linha reservada; script com aspas não vai por heredoc nesta máquina).
-- **[[SUPA - Esquema do Banco]]** (e `supabase-fabrica-schema.sql`, depois de aplicar): `plt_geocache` — fonte nova `geoapify`, e a linha reservada `estado:busca-de-endereco` (`fonte = 'estado'`, o dado em `rota`); as assinaturas novas das três portas e a `plt_privado.fn_rota_ordem_que_fica`.
+- **[[SUPA - Esquema do Banco]]** (e `supabase-fabrica-schema.sql`, depois de aplicar): `plt_geocache` — fonte nova `geoapify`, e a linha reservada `estado:busca-de-endereco` (`fonte = 'estado'`, o dado em `rota`: `{fora_desde, avisado}`); as assinaturas novas das três portas e a `plt_privado.fn_rota_ordem_que_fica`. **Ajustes:** `plt_privado.fn_rota_inserir` e `fn_distancia_km`; a marca `plt.rota_montagem` (a montagem não usa o lugar mais perto); `plt_fn_programar_entrega`/`plt_fn_parada_avulsa_salvar` com a inserção; o catálogo dos avisos + `busca_endereco_fora` (Expedição e estoque, logística); a porta de serviço `plt_fn_busca_fora_avisar()`.
+- **Ajustes — para as Decisões:** quem entra numa rota que já existe vai para o lugar mais perto (↩️ revisa a D-109, "noutro dia/caminhão vai para o fim"); o aviso no sino com a busca fora há 1 hora; + as provisórias 9–15 da seção 5. **Para a Memória:** as lições L7 e L8 do diário.
 - **[[PLT - Lei de Desempenho e Escala]]:** nenhuma dívida nova; registrar que a busca de endereço ganhou disjuntor e que o estado dela viaja na própria resposta.
 - **[[PLT - Modelo de Sistema]]:** o aviso âmbar do cartão com dois botões e a faixa de serviço fora (padrões reutilizáveis).
 - **[[000 - MAPA DO PROJETO]]:** o link deste handoff. **[[000 - ORDEM DAS SESSOES]]:** a linha da 56 já foi posta pelo Cowork na pasta principal — só o status.
@@ -176,5 +239,12 @@ src/rotas/ModalParadaAvulsa.tsx · ModalPontoNoMapa.tsx · JanelaEnderecoPedido.
 src/rotas/rotaRuas.ts · paradasAvulsas.ts · AbaProgramar.tsx · AbaJaProgramadas.tsx
 src/rotas/ParadaAvulsaDoDia.tsx · src/paginas/EntregasDoDia.tsx
 src/rotas/buscaGeoapify.test.ts · estadoDaBusca.test.tsx · ordemQueNaoMuda.test.ts (novos)
+— ajustes —
+supabase/migrations/20261124110000_plt_entra_no_lugar_mais_perto.sql   (novo — NÃO aplicado)
+supabase/migrations/20261124120000_plt_aviso_busca_fora.sql           (novo — NÃO aplicado)
+supabase/functions/geocodificar/fluxo.ts · index.ts                   (o aviso no sino — NÃO publicada)
+supabase/testes/testar-migrations.mjs   (blocos "SESSAO-56 (ajustes)"; 6 conferências antigas ajustadas; reaplicação)
+src/rotas/AbaProgramar.tsx · AbaJaProgramadas.tsx · ModalProgramar.tsx · src/paginas/EntregasDoDia.tsx
+src/notificacoes/api.ts · src/rotas/buscaGeoapify.test.ts
 _docs/Plataforma/Demandas/SESSAO-56 - … .md · _docs/Plataforma/Execucao/SESSAO-56.md · este handoff
 ```
