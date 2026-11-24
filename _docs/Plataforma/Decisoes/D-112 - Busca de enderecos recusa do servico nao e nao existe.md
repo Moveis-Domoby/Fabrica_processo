@@ -6,7 +6,7 @@ tipo: decisao
 data: 2026-10-03
 status: vigente
 revisa: []
-revisada_por: []
+revisada_por: ["[[D-368 - A busca de endereco pela Geoapify Photon de reserva Nominatim|D-368]]"]
 complementa: ["[[D-039 - ROTAS programacao de caminhao com mapa e sugestao caminhoes|D-39]]"]
 area: [logistica-rotas]
 tags: [decisao, area/logistica-rotas]
@@ -22,3 +22,5 @@ tags: [decisao, area/logistica-rotas]
 - A resposta do serviço fica no **registro da função** (sem o endereço — dado pessoal).
 
 **Descartadas:** buscar o endereço no navegador de quem usa (o ritmo e a identificação que o serviço exige não se garantem lá); serviço pago com chave.
+
+> ↪️ **23/11/2026 (SESSAO-56):** o buscador mudou — Geoapify, Photon de reserva, Nominatim fora: [[D-368 - A busca de endereco pela Geoapify Photon de reserva Nominatim|D-368]]. A parte "recusa não é não existe" segue valendo.

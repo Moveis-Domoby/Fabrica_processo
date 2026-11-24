@@ -24,3 +24,5 @@ tags: [decisao, area/tempos-paineis, area/interface, provisoria]
 9. **A configuração é uma só para a fábrica inteira;** só o liga/desliga dos montadores é por setor (a equipe do painel é por setor).
 10. **Na Auditoria**, a linha "Mudou a configuração do painel de tempos" traz o que mudou em frases; o "antes/depois" aparece também com os nomes internos das opções (é como a Auditoria mostra qualquer antes/depois hoje).
 11. **TVs já ligadas não se atualizam sozinhas:** depois de publicar, cada TV precisa ser recarregada uma vez para obedecer à configuração (até lá segue funcionando com o programa de antes).
+
+> ↪️ **18/11/2026 (SESSAO-52):** o item 10 (a Auditoria mostra a configuração crua) foi revisto — a Auditoria traduz na hora de mostrar: [[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]] (⏳).
