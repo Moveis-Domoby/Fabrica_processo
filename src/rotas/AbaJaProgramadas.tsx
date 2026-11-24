@@ -64,6 +64,7 @@ import {
   marcadoresDaRota,
   misturarNaOrdem,
   numerosNoMapaDaLista,
+  ordemQueFica,
   paraNavegar,
   paradaSalva,
   podeEditarParada,
@@ -361,10 +362,16 @@ export function AbaJaProgramadas({
     [escolhido],
   )
   const ajustada = !mesmaOrdem(idsOrdenados, ordemDaSugestao)
-  const temOrdemSalva = escolhido
-    ? itensDo(escolhido).some((p) => typeof p.ordem === 'number')
+  // SESSAO-56 (B1): a rota que ainda tem item SEM ordem salva (as programadas
+  // antes desta sessão) também oferece o "Salvar ordem" — gravada, ela para de
+  // se rearrumar sozinha.
+  const ordemIncompleta = escolhido
+    ? itensDo(escolhido).some((p) => typeof p.ordem !== 'number')
     : false
-  const pendenteSalvar = !entregues && !mesmaOrdem(idsOrdenados, ordemGravada)
+  const pendenteSalvar =
+    !entregues &&
+    idsOrdenados.length > 0 &&
+    (ordemIncompleta || !mesmaOrdem(idsOrdenados, ordemGravada))
 
   // A rota do escolhido (com espera — muda ao arrastar) e as dos outros caminhões do mesmo dia.
   // SESSAO-41 (D-196): a parada avulsa já marcada (feita / não feita) sai do caminho.
@@ -486,14 +493,10 @@ export function AbaJaProgramadas({
   )
   function voltarSugestao() {
     if (!escolhido) return
-    setRascunhos((atual) => {
-      const novo = { ...atual }
-      // Com ordem salva, a sugestão vira rascunho e "Salvar ordem" grava a volta
-      // ao automático; sem ordem salva, basta largar o ajuste.
-      if (temOrdemSalva) novo[escolhido.chave] = ordemDaSugestao
-      else delete novo[escolhido.chave]
-      return novo
-    })
+    // ↪️ SESSAO-56 (B1): a sugestão vira o rascunho — a pessoa vê e o "Salvar
+    // ordem" grava a sugestão DAQUELE momento, congelada (não há mais "volta ao
+    // automático").
+    setRascunhos((atual) => ({ ...atual, [escolhido.chave]: ordemDaSugestao }))
   }
 
   const salvarOrdem = useMutation({
@@ -524,10 +527,7 @@ export function AbaJaProgramadas({
     },
     onSuccess: async (_d, v) => {
       notificar({
-        titulo:
-          !v.itens && v.cardIds.length === 0
-            ? 'A rota voltou à ordem sugerida'
-            : 'Ordem das paradas salva',
+        titulo: 'Ordem das paradas salva',
         tom: 'perfeito',
       })
       // Larga o rascunho só depois de a lista voltar com a ordem nova — a tela não pisca.
@@ -548,9 +548,17 @@ export function AbaJaProgramadas({
     },
   })
 
+  // SESSAO-56 (B2 — pedido do dono): tirar, reprogramar ou remover a parada
+  // tira SÓ aquele item — os outros ficam na ordem que a tela mostrava, que vai
+  // junto no mesmo gesto (uma chamada) para o banco guardar.
+  const ordemSem = (cardId: number): ItemDaOrdem[] | null => {
+    const g = grupos.find((x) => itensDo(x).some((i) => i.card_id === cardId))
+    return g ? ordemQueFica(g.pedidos, g.avulsas, cardId) : null
+  }
+
   const reprogramar = useMutation({
     mutationFn: (v: { cardId: number; data: string; caminhaoId: number; rota: number }) =>
-      programarEntrega(v),
+      programarEntrega({ ...v, ordemDaOrigem: ordemSem(v.cardId) }),
     onSuccess: async () => {
       notificar({ titulo: 'Entrega reprogramada', tom: 'perfeito' })
       setReprogramando(null)
@@ -564,7 +572,7 @@ export function AbaJaProgramadas({
       }),
   })
   const tirar = useMutation({
-    mutationFn: (p: PedidoProgramado) => desprogramarEntrega(p.card_id),
+    mutationFn: (p: PedidoProgramado) => desprogramarEntrega(p.card_id, ordemSem(p.card_id)),
     onSuccess: async (_d, p) => {
       notificar({ titulo: `Pedido ${p.numero} voltou para "sem programação"`, tom: 'perfeito' })
       await invalidar()
@@ -615,7 +623,7 @@ export function AbaJaProgramadas({
       }),
   })
   const tirarParada = useMutation({
-    mutationFn: (p: ParadaAvulsa) => removerParadaAvulsa(p.id),
+    mutationFn: (p: ParadaAvulsa) => removerParadaAvulsa(p.id, ordemSem(-p.id)),
     onSuccess: async (_d, p) => {
       notificar({ titulo: `A parada "${p.titulo}" saiu da rota`, tom: 'perfeito' })
       await invalidar()
@@ -645,10 +653,11 @@ export function AbaJaProgramadas({
                   cardIds: [],
                   itens: ordenadas.map(refDoItem),
                 })
-              : // igual à sugestão = volta ao automático (nada fica preso)
+              : // ↪️ SESSAO-56 (B1): a ordem da TELA, mesmo igual à sugestão — o que
+                // se salva não muda mais sozinho
                 salvarOrdem.mutate({
                   grupo: escolhido,
-                  cardIds: ajustada ? idsOrdenados : [],
+                  cardIds: idsOrdenados,
                   itens: null,
                 }),
         }

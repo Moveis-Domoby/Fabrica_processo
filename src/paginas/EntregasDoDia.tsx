@@ -369,6 +369,10 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                 posicao={item.posicao}
                 souLogistica={data?.sou_logistica ?? false}
                 aoMudarMomento={() => setMomento({ destaque: item.parada.id, vez: Date.now() })}
+                // SESSAO-56 (B2): tirar a parada não muda o lugar de mais ninguém
+                ordemSemEla={ordemDoDiaParaOBanco(itens).filter(
+                  (r) => !(r.t === 'a' && r.id === item.parada.id),
+                )}
               />
             )
           const entrega = item.entrega

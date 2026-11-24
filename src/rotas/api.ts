@@ -409,7 +409,7 @@ export interface PedidoProgramacao extends Prontidao {
   programacao_data: string | null
   caminhao_id: number | null
   caminhao_nome: string | null
-  /** D-109: a posição salva à mão na rota do caminhão; null = vale a sugestão. */
+  /** D-109: a posição salva na rota do caminhão; null = rota antiga, ainda sem ordem salva (SESSAO-56). */
   ordem: number | null
   contagem_total: number
 }
@@ -503,12 +503,18 @@ export async function programarEntrega(parametros: {
   data: string
   caminhaoId: number
   rota?: number | null
+  /**
+   * SESSAO-56 (B2): reprogramando, a ordem que a tela mostrava para os que
+   * FICAM na rota de origem — gravada no mesmo gesto (ela não se rearruma).
+   */
+  ordemDaOrigem?: { t: 'p' | 'a'; id: number }[] | null
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_programar_entrega', {
     p_card_id: parametros.cardId,
     p_data: parametros.data,
     p_caminhao_id: parametros.caminhaoId,
     p_rota: parametros.rota ?? null,
+    p_ordem_origem: parametros.ordemDaOrigem ?? null,
   })
   if (error) throw new Error(`Não deu para programar: ${error.message}`)
 }
@@ -604,8 +610,19 @@ export async function listarProgramadas(parametros: {
   return (data ?? []) as PedidoProgramado[]
 }
 
-export async function desprogramarEntrega(cardId: number): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_desprogramar_entrega', { p_card_id: cardId })
+/**
+ * Tira o pedido da programação. SESSAO-56 (B2 — pedido do dono): `ordemQueFica`
+ * = a ordem que a tela mostrava para os OUTROS itens da rota; o banco a grava
+ * no mesmo gesto (uma chamada) — só o pedido sai, ninguém muda de lugar.
+ */
+export async function desprogramarEntrega(
+  cardId: number,
+  ordemQueFica?: { t: 'p' | 'a'; id: number }[] | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_desprogramar_entrega', {
+    p_card_id: cardId,
+    p_ordem_fica: ordemQueFica ?? null,
+  })
   if (error) throw new Error(`Não deu para tirar da programação: ${error.message}`)
 }
 
@@ -664,7 +681,8 @@ export async function geocodificar(
 
 /**
  * "Salvar ordem" (D-109): a ordem das paradas de UMA rota de um caminhão num
- * dia (D-128). Lista vazia = volta à sugestão automática. O banco recusa se a
+ * dia (D-128). ↪️ SESSAO-56: a tela manda SEMPRE a ordem que mostra (o banco
+ * ainda aceita a lista vazia = sem ordem, do site de antes). O banco recusa se a
  * rota mudou noutra tela, se alguém já foi entregue ou se quem salva não é da
  * logística.
  */
@@ -1305,9 +1323,18 @@ export async function concluirParadaAvulsa(
   if (error) throw new Error(error.message)
 }
 
-/** Tira a parada da rota (nada se apaga — fica registrada como removida). */
-export async function removerParadaAvulsa(id: number): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_parada_avulsa_remover', { p_id: id })
+/**
+ * Tira a parada da rota (nada se apaga — fica registrada como removida).
+ * SESSAO-56 (B2): com a ordem que a tela mostrava para os que ficam.
+ */
+export async function removerParadaAvulsa(
+  id: number,
+  ordemQueFica?: ItemDaOrdem[] | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_parada_avulsa_remover', {
+    p_id: id,
+    p_ordem_fica: ordemQueFica ?? null,
+  })
   if (error) throw new Error(error.message)
 }
 

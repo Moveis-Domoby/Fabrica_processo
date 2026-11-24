@@ -101,12 +101,47 @@ export function ordemSugerida<T extends ComPonto>(paradas: T[], origem: Ponto = 
 }
 
 /**
+ * SESSAO-56 (B1 — pedido do dono, 23/11: "a rota não deve renovar a ordem dos
+ * pinos"): incluir UM item numa ordem que já está na tela SEM mexer na ordem
+ * relativa dos outros — ele entra no lugar onde o caminho (fábrica → paradas →
+ * fábrica, em linha reta) aumenta menos. Empate (com uma parada só, antes ou
+ * depois dá a mesma volta): fica a ida mais curta — o mais perto da fábrica
+ * primeiro. Quem não tem ponto no mapa entra no FIM e fica lá (quando o ponto
+ * chegar, não muda de lugar sozinho). Quem quiser a sugestão inteira de novo
+ * usa "Voltar à sugestão".
+ */
+export function inserirNaRota<T extends ComPonto>(ordem: T[], novo: T, origem: Ponto = FABRICA): T[] {
+  if (!temPonto(novo)) return [...ordem, novo]
+  let melhor = { indice: ordem.length, volta: Number.POSITIVE_INFINITY, ida: Number.POSITIVE_INFINITY }
+  for (let i = 0; i <= ordem.length; i++) {
+    const antes: Ponto = ordem.slice(0, i).reverse().find(temPonto) ?? origem
+    const depois = ordem.slice(i).find(temPonto)
+    const ate = distanciaKm(antes, novo)
+    const volta = ate + distanciaKm(novo, depois ?? origem) - distanciaKm(antes, depois ?? origem)
+    // sem ninguém depois, a ida só cresce do último até o novo (a volta à fábrica não conta)
+    const ida = depois ? volta : ate
+    const empate = Math.abs(volta - melhor.volta) < 1e-9
+    if ((!empate && volta < melhor.volta) || (empate && ida < melhor.ida - 1e-9)) {
+      melhor = { indice: i, volta, ida }
+    }
+  }
+  return [...ordem.slice(0, melhor.indice), novo, ...ordem.slice(melhor.indice)]
+}
+
+/**
  * A ordem que vale na tela, nesta precedência:
  *  1. o RASCUNHO da pessoa (reordenou e ainda não salvou);
  *  2. a ordem SALVA (paradas com `ordem`, crescente);
  *  3. a sugestão.
  * Quem não está no rascunho/na ordem salva (pedido novo) entra no fim, pela
  * sugestão a partir da última parada posicionada.
+ *
+ * ↪️ SESSAO-56 (↩️ revisa a D-109/D-111): a sugestão só PROPÕE — a ordem que
+ * apareceu na tela é a que vale. A montagem (aba Programar) trabalha sempre
+ * com o rascunho (a lista guardada), o Programar e o "Salvar ordem" gravam
+ * sempre a ordem da tela, e tirar um item manda junto a ordem que fica: o 3º
+ * caso (a sugestão recalculada na hora) só sobra para a rota antiga que ainda
+ * não teve a ordem salva.
  */
 export function ordemDaRota<T extends ComPonto & { ordem?: number | null }>(
   paradas: T[],

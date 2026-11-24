@@ -156,6 +156,24 @@ export function ordemComONovoNoFim(
   return [...jaNaRota, ...novos]
 }
 
+/**
+ * SESSAO-56 (B2 — pedido do dono, 23/11: "tirando apenas o pino removido"): a
+ * ordem que FICA na rota quando um item sai — a que a tela mostrava (a salva
+ * ou, na rota antiga ainda sem ordem, a sugestão daquele instante), menos o
+ * item. Vai ao banco no mesmo gesto de tirar: a rota sem ordem salva ganha a
+ * ordem ali e para de se rearrumar. O rascunho que a pessoa arrastou e ainda
+ * não salvou NÃO entra (ele segue pendente no "Salvar ordem").
+ */
+export function ordemQueFica<P extends ComPonto & { ordem?: number | null }>(
+  pedidos: P[],
+  avulsas: ItemAvulsa[],
+  saiCardId: number,
+): ItemDaOrdem[] {
+  return ordemDaRota<P | ItemAvulsa>([...pedidos, ...avulsas])
+    .filter((x) => x.card_id !== saiCardId)
+    .map(refDoItem)
+}
+
 const chaveDaRef = (r: ItemDaOrdem) => `${r.t}${r.id}`
 
 /**
