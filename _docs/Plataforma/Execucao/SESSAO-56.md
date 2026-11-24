@@ -61,3 +61,84 @@ Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · ram
 - **Sem migration:** `plt_geocache.fonte` é texto livre (sem check) — a fonte nova não pede mudança de esquema. As versões da busca (`VERSAO_BUSCA`/`VERSAO_DEGRAUS`) não subiram.
 - **P1 (provisória):** o "não achei" gravado leva `fonte = 'geoapify'` (antes `photon`) — a coluna diz quem procurou.
 - Testes: `src/rotas/buscaGeoapify.test.ts` (26) — adaptador, consultas, a rua de mesmo nome noutro bairro recusada, a ordem dos buscadores, o Nominatim nunca chamado, a chave fora das mensagens. Os 27 de `buscaEndereco.test.ts` seguem verdes.
+
+### Frente 2 · a tela não fica mais "procurando" para sempre
+
+- `src/rotas/estadoDaBusca.ts` (novo): o que a tela sabe da busca nesta visita — `semResposta`, `foraDesde`, `tentando`, `voltou` — num estado só para as duas abas, os cartões e a faixa (fora do React Query: não é dado para guardar, é o resultado da última tentativa).
+- `api.ts`: `geocodificar` devolve `{ resultados, foraDesde }` e cada resultado traz `tentar_depois`; `acharPontoDoEndereco` separa "não achei" (`null`) de "não respondeu" (erro `BuscaSemResposta`) — antes os dois voltavam `null` e as janelas diziam "não achei" com a busca fora.
+- `useGeocodificarFaltantes`: "tentar depois" (ou a chamada inteira falhando) liga o aviso e **desliga os lotes seguintes** (disjuntor — antes a tela seguia pedindo de 5 em 5 a um serviço fora; e marcava a chave como "já pedida", sem nunca mais tentar). Tenta de novo ao **reabrir a aba** (as abas de Rotas remontam ao trocar) e no botão. **A aba Programar passou a usar o mesmo gancho** (tinha uma cópia do código).
+- `CartaoPedido`: sem ponto + busca sem resposta → aviso âmbar com **"Marcar no mapa"** (a janela de sempre) e **"Tentar de novo"** (pede só aquela chave; voltou → o aviso some de todos os cartões, a lista relê e os outros endereços voltam a ser procurados sozinhos).
+- Janelas de busca digitada (parada avulsa, ponto no mapa, editar endereço): o texto do "falhou" virou o da demanda.
+- **"Voltar à aba do navegador":** a casa não tem esse gatilho geral (cada tela que precisa cuida do seu) → não criei um; fica o reabrir a aba de Rotas e o botão (a demanda diz "se já houver").
+- Testes: `src/rotas/estadoDaBusca.test.tsx` (11).
+
+### Frente 3 · ninguém fica 4 dias sem saber
+
+- **Sem tabela nova e sem migration:** a função guarda desde quando a busca está fora numa **linha reservada do próprio cache do mapa** (`plt_geocache`, chave `estado:busca-de-endereco`, o dado no campo livre `rota`, `fonte = 'estado'`). Lida na MESMA consulta que já lê o cache dos endereços pedidos; **gravada só nas viradas** (caiu / voltou) — `proximoEstado` em `fluxo.ts`, testado.
+- **A faixa chega na resposta da própria busca** (`busca.fora_desde`) → abrir Rotas não faz leitura nenhuma a mais. `FaixaBuscaFora` no topo da Programação: "A busca de endereço está fora desde 19/11 às 13:56. Os pontos novos precisam ser marcados à mão." Some quando uma consulta volta a responder.
+- **P2 (provisória):** a faixa aparece para quem tem ponto novo a procurar (é a consulta dele que traz o estado); quem abre Rotas com tudo já marcado não a vê. "Fora desde" começa a contar da 1ª recusa DEPOIS de publicar (a queda de 19/11 não foi gravada em lugar nenhum).
+- **O aviso no sino (opcional) NÃO entrou:** o sino é gravado por portas do banco, e a função da busca fala com o banco pela chave de serviço — faltaria uma porta nova só para isto (mudança de esquema fora do que o pedido autoriza). Fica como possibilidade.
+
+### Frente 4 · atribuição
+
+- `atribuicaoMapa.tsx` (novo): um texto só para os três mapas (Programação, pino da parada/do pedido, mini-mapa das Entregas do dia) — "© OpenStreetMap | Powered by Geoapify" — e a linha "Busca de endereço: Powered by Geoapify" sob o "Achar no mapa" das três janelas.
+
+### Bloco B · B1 — a ordem mostrada vira a ordem da rota
+
+- `rotaRuas.ts`: `inserirNaRota(ordem, novo)` — o novo entra onde a volta (fábrica → paradas → fábrica, em linha reta) aumenta menos; empate (com uma parada só, antes ou depois dá a mesma volta) → a ida mais curta (o mais perto da fábrica primeiro); sem ponto → no fim.
+- `AbaProgramar`: o rascunho é SEMPRE uma lista (acabou o `null` = "sugestão recalculada"). Tirar = filtra; incluir (pedido ou parada avulsa) = `inserirNaRota`; "Voltar à sugestão" = a sugestão vira a lista; **Programar manda sempre a ordem** (acabou o `ordem = null` "porque ninguém mexeu").
+- `AbaJaProgramadas`: "Salvar ordem" manda sempre a ordem da tela (acabou o "lista vazia = volta ao automático" e o aviso "a rota voltou à ordem sugerida"); "Voltar à sugestão" vira rascunho para a pessoa ver e salvar; **a rota que ainda tem item sem ordem salva oferece o "Salvar ordem"** (é o caminho manual da B3).
+- **P3 (provisória):** o texto da montagem quando a ordem difere da sugestão — "Ordem da montagem (diferente da sugestão) — ela não muda sozinha" (era "Ordem ajustada à mão", que deixaria de ser verdade: a inserção mais barata nem sempre coincide com "o mais perto primeiro").
+- O banco continua aceitando a lista vazia no "Salvar ordem" (o site de antes ainda manda, até o site novo subir) — só a tela nova deixou de mandar.
+
+### Bloco B · B2 — tirar da rota não mexe no resto
+
+- **Migration `20261124100000_plt_ordem_da_rota_nao_muda.sql` (só em arquivo — NÃO aplicada):**
+  - `plt_privado.fn_rota_ordem_que_fica(dia, caminhão, rota, itens)` — nova, fora da API: confere que tudo o que a tela mandou ainda está na rota (senão "a rota mudou noutra tela"), completa com o que a rota tem e a tela não mostrou (a página que ainda não veio — depois, na ordem que tinha) e grava pela `fn_rota_aplicar_ordem` de sempre (o entregador continua sem poder trocar a ordem dos pedidos);
+  - `plt_fn_desprogramar_entrega(card, p_ordem_fica)`, `plt_fn_parada_avulsa_remover(id, p_ordem_fica)`, `plt_fn_programar_entrega(card, dia, caminhão, rota, p_ordem_origem)` — recriadas POR INTEIRO da última versão nas migrations (20261008150000, 20261027050000, 20261022020000), com o parâmetro opcional no fim. **A assinatura antiga sai (drop)**; sem a lista, respondem como antes → o site de antes segue funcionando entre a migration e o site novo.
+  - **Não mudam:** `plt_fn_ordenar_rota`, `plt_fn_rota_ordenar`, `fn_rota_aplicar_ordem`, `plt_fn_programar_rota`, nenhuma tabela, coluna ou índice.
+- **Um gesto = uma chamada:** a ordem que fica vai junto no tirar (`ordemQueFica` em `paradasAvulsas.ts` — a ordem que a tela mostrava SEM o rascunho não salvo, que segue pendente no "Salvar ordem").
+- **L2 (erro meu, corrigido na hora):** na 1ª versão o pedido que ENTRAVA numa rota ganhava "o fim guardado" (rota vazia = ordem 1; com ordem = a seguinte). Quebrou 6 conferências antigas da bateria (as da regra "mudar de rota zera a ordem") e ia além da demanda, que diz que isso "está certo para a rota nova". **Voltei atrás:** o destino segue como era; só a ORIGEM ganha a ordem que fica. O que sobra disso está nas pendências (dois pedidos reprogramados para a mesma rota se ordenam entre si pela sugestão até alguém salvar — e a tela agora oferece o "Salvar ordem" nesse caso).
+- **L3 (armadilha da bateria):** a bateria reaplica a `20261027050000` no meio (linha ~16228), o que recria a porta ANTIGA de tirar a parada ao lado da nova ("function … is not unique"). A migration da 56 passou a ser reaplicada logo depois dela, lá.
+- **Bateria:** bloco "SESSAO-56 · B" no fim, **faixa pedidos 956101–956108, caminhão TST5656, entregador …5631 (CPF 56700000001)** — 28 conferências verdes: tirar com a ordem que fica; a rota antiga sem ordem ganha a ordem no gesto; o site de antes (sem a lista) como era; lista que não bate → recusa e nada sai; página parcial; reprogramar (origem intacta, mesma rota = nada); parada avulsa (logística e entregador — que não consegue trocar a ordem dos pedidos de carona); toque repetido; rota que esvazia; assinaturas antigas fora, permissões; **plano da leitura com 20 mil paradas: 0,8 ms pelo índice da rota** (orçamento da porta: 50 ms); as programações têm o índice (dia, caminhão, rota).
+- Testes de tela: `src/rotas/ordemQueNaoMuda.test.ts` (16) — os critérios de aceite do bloco B na lógica pura (5 pedidos, tirar o 3º; o longe em 1º continua 1º; incluir não muda a ordem relativa; sem ponto fica no fim e não pula quando o ponto chega; "Voltar à sugestão"; a ordem que fica com e sem ordem salva, com parada avulsa).
+
+### B3 · não executada (como o pedido manda)
+
+Só o roteiro e a consulta de conferência, no handoff ("Para ligar com o dono", passo 6).
+
+## Verificação final
+
+- `tsc -b` limpo · `npm run lint` limpo · `npm run build` ok.
+- `npm test`: 770 testes; **53 novos** (26 + 11 + 16). Numa rodada completa falha 1 teste por tempo (o da linha de base — `Estrutura.test.tsx` — ou `JanelaSaidaPcp.test.tsx`; os dois passam sozinhos: é carga da máquina, não é desta sessão).
+- `npm run test:banco`: 1900 verdes; os **2 vermelhos são os da linha de base** (Dashboard do Comercial; previsão vencida do calendário).
+- **Validação no navegador: NÃO feita.** A mesa tem `.env.local`, mas ele aponta para o banco de produção e a tela pede login (sem o dono não há quem entre); os estados novos (aviso, faixa) dependem da função ainda não publicada. Ficou só o que os testes de tela (jsdom) provam; **375/768 não foi medido** — está no "como testar" do handoff.
+
+## Checklist de desempenho (Lei) — o que esta sessão tocou
+
+- 1 requisição por tela: abrir Rotas não ganhou leitura nenhuma (o estado da busca vem na resposta da própria busca; a faixa não consulta nada).
+- Sem relógio e sem polling: a busca que falha para de insistir; tenta de novo só em gesto (reabrir a aba, botão).
+- Chamada externa com tempo limite (6 s), disjuntor dentro da chamada e na tela; nova tentativa é do usuário (sem espera crescente automática — não há repetição automática).
+- Um gesto = uma chamada no tirar/reprogramar/remover parada (a ordem vai junto).
+- Porta tocada com leitura por índice (plano medido com volume); nenhuma tabela/índice novo.
+- **Não medido:** o plano no banco VIVO (sem acesso) e LCP/INP da tela (sem navegador).
+
+## Provisórias (para o dono confirmar — em português de gente no handoff)
+
+- P1 · o "não achei" gravado diz que quem procurou foi a Geoapify.
+- P2 · a faixa de "busca fora" só na tela de Rotas, para quem tem ponto novo a procurar; conta a partir da 1ª recusa depois de publicar.
+- P3 · o texto da montagem quando a ordem difere da sugestão.
+- P4 · os textos dos avisos (os da demanda, ao pé da letra) e a pausa de 250 ms entre consultas.
+- P5 · incluir na montagem = inserção mais barata (da demanda); empate = o mais perto da fábrica primeiro.
+- P6 · a numeração sem buracos só na tela (o banco pode guardar 1, 3, 4).
+- P7 · tirar com a página incompleta: o que a tela não mostrava fica depois, na ordem que tinha (em vez de recusar).
+- P8 · a 2ª consulta à Geoapify (texto com o bairro) quando a estruturada não basta — até 2 consultas por endereço, mais os degraus.
+
+## Lições (para a Memória de Aprendizado, quando a dieta entrar)
+
+- L1 · serviço gratuito sem chave chamado do servidor pode ser cortado sem aviso; toda dependência externa precisa de uma falha VISÍVEL na tela, não silenciosa (a da demanda).
+- L2 · "aproveitar" para melhorar o destino da reprogramação quebrou 6 conferências antigas — a bateria é quem diz o que é contrato; o que a demanda chama de "certo" não se mexe.
+- L3 · assinatura nova (drop + create) × bateria que reaplica migration antiga no meio: reaplicar a nova logo depois.
+- L4 · chave de serviço externo na URL: nenhuma mensagem de erro pode levar a URL (nem `e.message`) — registrar só o nome do buscador e o código.
+- L5 · estado pequeno de serviço cabe numa linha reservada de tabela que já existe (banco enxuto) — e pode viajar na resposta da própria chamada, sem leitura nova.
+- L6 · script grande com aspas simples não vai por heredoc no shell desta máquina (EOF inesperado): gravar o arquivo e rodar.

@@ -251,4 +251,8 @@ A dieta da documentação (SESSAO-49) **não está na main** → rota de leitura
 
 ## Resultado (preencher ao entregar)
 
-*O que foi feito, o que mudou de rota, link do handoff da sessão.*
+**Executada em 23/11/2026 (fila do Escritório) — só no ramo `sessao-56-busca-geoapify-ordem-da-rota`; NADA aplicado nem publicado.** Handoff: [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota]] · Diário: [[SESSAO-56]].
+
+- **Bloco A:** frentes 1 a 4 feitas (Geoapify com o Photon de reserva e o Nominatim fora; o aviso com "Marcar no mapa" e "Tentar de novo"; a faixa de "busca fora" sem tabela nova; "Powered by Geoapify"). O aviso no sino (opcional) não entrou. Sem migration.
+- **Bloco B:** B1 e B2 feitas (a ordem da montagem é sempre guardada; Programar e "Salvar ordem" gravam a ordem da tela; tirar, reprogramar e remover parada mandam junto a ordem que fica). Migration `20261124100000` só em arquivo. **B3 não executada** — roteiro no handoff.
+- **Falta:** ligar com o dono (banco → função → teste real → site → conferência → B3), ver as telas no navegador (375/768) e confirmar as provisórias.
