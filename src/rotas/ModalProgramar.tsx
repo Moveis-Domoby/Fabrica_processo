@@ -30,7 +30,8 @@ export function ModalProgramar({
   /**
    * A rota que vem marcada quando o caminhão já tem rotas no dia: "nova" (a
    * rota montada em "Programar" é uma viagem nova) ou "ultima" (o pedido
-   * reprogramado entra no fim da última) — decisão provisória do Claude.
+   * reprogramado entra na última — ↪️ SESSAO-56 (ajustes): no lugar mais perto
+   * do caminho, não mais no fim) — decisão provisória do Claude.
    */
   padraoRota: 'nova' | 'ultima'
   /** Onde o pedido já está (reprogramar): no mesmo dia e caminhão, a rota fica. */

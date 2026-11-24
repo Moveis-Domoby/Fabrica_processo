@@ -12,6 +12,7 @@ import {
   listarParadasAvulsas,
   listarProgramadas,
   ordenarRotaComParadas,
+  programarEntrega,
   programarRota,
   programarRotaComParadas,
 } from './api'
@@ -375,6 +376,20 @@ export function AbaProgramar({
       const novas = v.montagem.flatMap((p) =>
         ehAvulsa(p) && !paradaSalva(p.avulsa) ? [p.avulsa] : [],
       )
+      // ↪️ SESSAO-56 (ajustes — resposta do dono, 23/11): UM pedido sozinho
+      // entra pela porta de um pedido só — o banco o põe no lugar mais perto do
+      // caminho da rota escolhida (rota vazia = 1ª parada; sem ponto = no fim),
+      // sem mexer na ordem dos outros. Uma chamada só. A montagem com vários
+      // pedidos continua abaixo: o bloco novo entra no fim, na ordem da tela.
+      if (cardIds.length === 1 && novas.length === 0 && v.montagem.length === 1) {
+        await programarEntrega({
+          cardId: cardIds[0],
+          data: v.data,
+          caminhaoId: v.caminhaoId,
+          rota: v.rota,
+        })
+        return { ordemSalva: true }
+      }
       // D-109: a rota escolhida do caminhão naquele dia (D-128) — quem já está
       // nela fica na ordem dela e os novos entram no FIM, na ordem da montagem.
       // ↪️ SESSAO-56 (B1): a ordem da tela é SEMPRE gravada — acabou a rota que
@@ -768,7 +783,7 @@ export function AbaProgramar({
       {confirmando && (
         <ModalProgramar
           titulo={`Programar ${listaSelecionados.length} pedido(s)`}
-          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'}${nAvulsas > 0 ? ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}` : ''} — numa rota nova do caminhão, ou no fim de uma rota que ele já tem no dia.`}
+          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'}${nAvulsas > 0 ? ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}` : ''} — numa rota nova do caminhão, ou ${listaSelecionados.length === 1 && nAvulsas === 0 ? 'numa rota que ele já tem no dia, no lugar mais perto do caminho' : 'no fim de uma rota que ele já tem no dia'}.`}
           diaInicial={hojeIso()}
           caminhaoInicial={caminhaoId}
           opcoesCaminhao={opcoesCaminhao}

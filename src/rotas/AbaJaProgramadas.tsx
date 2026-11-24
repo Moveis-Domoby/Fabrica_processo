@@ -585,31 +585,24 @@ export function AbaJaProgramadas({
       }),
   })
 
-  // SESSAO-41 (D-196): pôr a parada avulsa na rota escolhida — no FIM da rota
-  // como está no banco agora (arraste e salve para outro lugar).
+  // SESSAO-41 (D-196): pôr a parada avulsa na rota escolhida.
+  // ↪️ SESSAO-56 (ajustes — resposta do dono, 23/11): o banco a põe no lugar
+  // mais perto do caminho (sem pino, no fim), sem mexer na ordem dos outros —
+  // uma chamada só (antes a tela lia a rota inteira e mandava "no fim").
   const porParada = useMutation({
-    mutationFn: async (v: { grupo: Grupo; dados: DadosParadaAvulsa; chave: string }) => {
-      const base = {
+    mutationFn: (v: { grupo: Grupo; dados: DadosParadaAvulsa; chave: string }) =>
+      salvarParadaAvulsa({
         ...v.dados,
         data: v.grupo.dia,
         caminhaoId: v.grupo.caminhaoId,
         rota: v.grupo.rota,
         chave: v.chave,
-      }
-      const banco = await ordemDaRotaNoBanco(v.grupo.dia, v.grupo.caminhaoId, v.grupo.rota)
-      try {
-        return await salvarParadaAvulsa({ ...base, ordem: [...banco, { t: 'nova' }] })
-      } catch (erro) {
-        // a rota mudou entre a leitura e o toque: sem a ordem, o banco põe no fim do que está salvo
-        if (erro instanceof Error && /rota mudou/i.test(erro.message))
-          return salvarParadaAvulsa(base)
-        throw erro
-      }
-    },
+      }),
     onSuccess: async (r) => {
       notificar({
         titulo: r.repetido ? 'A parada já estava na rota' : 'Parada avulsa na rota',
-        descricao: 'Ela entrou no fim — arraste para o lugar certo e salve a ordem.',
+        descricao:
+          'Ela entrou no lugar mais perto do caminho — para mudar, arraste e salve a ordem.',
         tom: 'perfeito',
       })
       setJanelaParada(null)
@@ -1119,7 +1112,7 @@ export function AbaJaProgramadas({
               ? `Parada avulsa — ${nomeDoGrupo(janelaParada.grupo)} · ${dataLegivel(janelaParada.grupo.dia)}`
               : undefined
           }
-          descricao="Ela entra no fim desta rota — depois, arraste para o lugar certo e salve a ordem."
+          descricao="Ela entra no lugar mais perto do caminho desta rota (sem ponto no mapa, no fim) — depois, se quiser, arraste e salve a ordem."
           carregando={porParada.isPending}
           aoFechar={() => setJanelaParada(null)}
           aoSalvar={(dados) => {
