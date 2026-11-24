@@ -101,3 +101,35 @@ tags: [memoria, aprendizado, tema/migrations]
 ### A-242
 
 - [2026-11-17] **A-242** (Claude Code, SESSAO-51) · **Porta que "piorou" no ensaio ×100: A/B no MESMO banco antes de concluir.** O ANTES × DEPOIS do ensaio mede em bancos diferentes (entre as duas medidas entram os dados novos e um `analyze`) — o quadro do PCP deu 81 → 96 ms. Trocando só o corpo da função (a versão de antes × a nova, 3 rodadas alternadas, mesmo banco) deu 74–83 ms as duas e +0,3% de blocos lidos. Roteiro: extrair o `CREATE` da função das duas migrations, `bd.exec(corpo)`, medir, trocar, medir.
+
+### E-302
+
+- [2026-11-18] **E-302** (Claude Code, SESSAO-54) · **O bloco novo da bateria usou os ajudantes de outro bloco** (que moram num escopo próprio) e o erro só apareceu no fim de uma rodada de 7 minutos; na troca em massa, um nome novo colidiu com um contador que já existia (mais uma rodada perdida). *Correção:* bloco novo nasce com os seus ajudantes; antes de rodar, buscar cada nome novo no bloco — `node --check` não pega nenhum dos dois.
+
+### E-303
+
+- [2026-11-18] **E-303** (Claude Code, SESSAO-54) · **Remover uma função do banco quebra conferências antigas da bateria** (ela aplica tudo antes de conferir). *Correção:* procurar o nome na bateria inteira ANTES de escrever a migration e ajustar as conferências antigas no mesmo commit, dizendo o porquê.
+
+### A-259
+
+- [2026-11-18] **A-259** (Claude Code, SESSAO-55) · **Ensaio ×100 que se monta sozinho:** carrega o esquema + todas as migrations, reusa a semeadura do ensaio da SESSAO-47 e mede antes × depois; fora do teto, mede leitura por leitura (diz qual pesa).
+
+### E-311
+
+- [2026-11-18] **E-311** (Claude Code, SESSAO-55) · **Ensaio fora da bateria sem os grants que o Supabase dá por padrão ao `authenticated`.** *Correção:* repetir o bloco que concede o esquema `auth` e a leitura de `public` (menos a tabela de usuários).
+
+### E-314
+
+- [2026-11-23] **E-314** (Claude Code, SESSAO-56) · **"Aproveitar" para melhorar o destino da reprogramação quebrou 6 conferências antigas.** *Correção:* a bateria é quem diz o que é contrato; o que a demanda chama de "certo" não se mexe sem o dono.
+
+### E-315
+
+- [2026-11-23] **E-315** (Claude Code, SESSAO-56) · **Assinatura nova (drop + create) × bateria que reaplica migration antiga no meio:** a antiga recria a assinatura velha. *Correção:* reaplicar a nova logo depois, no bloco que a testa.
+
+### A-262
+
+- [2026-11-23] **A-262** (Claude Code, SESSAO-56) · **Regra nova do dono que revisa uma antiga:** as conferências antigas que provavam a regra velha mudam JUNTO, no mesmo commit, com o porquê ao lado. Diferente de "aproveitar": aqui é a resposta do dono.
+
+### E-317
+
+- [2026-11-23] **E-317** (Claude Code, SESSAO-56) · **A bateria reaplica migrations antigas no meio:** a 1ª rodada passou "verde" provando a versão velha da porta. *Correção:* toda porta recriada por uma migration nova é reaplicada no bloco que a testa.

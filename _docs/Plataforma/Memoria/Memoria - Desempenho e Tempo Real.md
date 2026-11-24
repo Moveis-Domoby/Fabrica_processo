@@ -65,3 +65,7 @@ tags: [memoria, aprendizado, tema/desempenho]
 ### A-208
 
 - [2026-11-09] **A-208** (Claude Code, SESSAO-47) · **Vitrine, parte 2 — tela cuja chave de cache tem datas que ela mesma calcula:** em vez de adivinhar a chave, o cache responde pelo COMEÇO dela (`queryCache.subscribe` no evento `added` → `setQueryData` na hora; com `staleTime` infinito a tela nem tenta buscar). Para os estados de formulário: `?digita=` (campo de data, pelo setter nativo + evento `input`), `?arquivos=N` (escolhe N arquivos no campo de arquivo por `DataTransfer`), `Texto#2` (o 2º botão que casar) e `?rola=<seletor>`. A janela num estado do meio (2 enviados, 1 falhou) se monta direto com o estado pronto.
+
+### A-250
+
+- [2026-11-18] **A-250** (Claude Code, SESSAO-53) · **Regra por linha em porta de lista = visão embutida, não função SQL com `from`** (a função replaneja a cada chamada). Medir em escala 1 antes do ×100 — o plano já mostra.

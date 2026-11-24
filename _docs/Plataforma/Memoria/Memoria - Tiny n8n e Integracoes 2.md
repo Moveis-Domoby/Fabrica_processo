@@ -79,3 +79,7 @@ tags: [memoria, aprendizado, tema/tiny-n8n]
 ### A-225
 
 - [2026-11-12] **A-225** (Claude Code, SESSAO-50 · bloco A, regra 10) · **Coluna nova em tabela da integração muda a impressão digital que o aplicador confere** (regra 10: a estrutura da integração não muda) → dado novo por item do pedido mora numa tabela da plataforma com a mesma chave (`plt_itens_observacao (pedido_id, seq)`, apagada junto com o pedido), escrita pelo mesmo caminho que grava os itens.
+
+### E-313
+
+- [2026-11-23] **E-313** (Claude Code, SESSAO-56) · **Serviço gratuito sem chave, chamado do servidor, foi cortado sem aviso** (o Nominatim) e a tela ficou dias "procurando no mapa…". *Correção:* toda dependência externa precisa de uma falha VISÍVEL na tela, não silenciosa — a busca ganhou buscador com chave, reserva, disjuntor, faixa e aviso no sino.

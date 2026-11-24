@@ -113,3 +113,31 @@ tags: [memoria, aprendizado, tema/banco-sql]
 ### A-216
 
 - [2026-11-11] **A-216** (Claude Code, SESSAO-48 · frente 2) · **Lista que cresce sem fim e junta duas fontes (removidos + cancelados):** cada metade anda pelo seu índice, na ordem, num laço que para quando enche a página; o cursor é (quando, id); sem total quando a tela não precisa (Lei §6.4); o filtro raro vai pelos candidatos do próprio filtro (o nº pelas faixas do índice do número; o nome pelos trigramas). 2–19 ms com 560 mil pedidos.
+
+### E-295
+
+- [2026-11-18] **E-295** (Claude Code, SESSAO-52) · **Junção com função que devolve tabela dentro de função `language sql`:** o planejador estima 1.000 linhas e escolhe hash com varredura das tabelas juntadas. *Correção:* o dado por linha vem por subconsulta escalar na chave primária. Pego pelo ensaio em escala 1 — ler o plano mesmo quando o tempo é bom.
+
+### A-247
+
+- [2026-11-18] **A-247** (Claude Code, SESSAO-52) · **A porta fina por cima da tabela fixa:** porta que devolve tabela fixa recriada por migrations antigas sem `drop` não precisa ganhar coluna — uma porta fina por cima (`to_jsonb(linha) || chave nova`), com os mesmos parâmetros, entrega o dado novo sem tocar migration antiga, sem quebrar o site publicado e sem requisição a mais.
+
+### E-300
+
+- [2026-11-18] **E-300** (Claude Code, SESSAO-53) · **Expressão repetida num `case` sobre subconsulta faz o banco contar duas vezes** (o ensaio mostrou a conta dobrada no plano). *Correção:* `nullif` + `jsonb_strip_nulls` — a conta sai uma vez só.
+
+### A-252
+
+- [2026-11-18] **A-252** (Claude Code, SESSAO-54) · **Opção nova como chave do JSON de filtros:** porta que recebe os filtros em JSON ganha a opção nova como chave — a assinatura não muda, o site velho segue servido e a tela nova tolera o banco velho (a subida deixa de depender da ordem banco → site).
+
+### A-257
+
+- [2026-11-18] **A-257** (Claude Code, SESSAO-55) · **Provar "igual ao de antes" no banco:** `select (porta -> 'pedaço') is not distinct from (leitura antiga)` numa chamada só, como `authenticated`, pessoa por pessoa; `now()` é o mesmo na transação — o período se confere ao microssegundo.
+
+### E-309
+
+- [2026-11-18] **E-309** (Claude Code, SESSAO-55) · **`jsonb -> 'chave'` de valor nulo é o nulo do JSON, não NULL** — a comparação errava. *Correção:* `nullif(…, 'null'::jsonb)` na comparação.
+
+### A-261
+
+- [2026-11-23] **A-261** (Claude Code, SESSAO-56) · **Estado pequeno de serviço numa linha reservada de tabela que já existe** (banco enxuto) — e ele viaja na resposta da própria chamada, sem leitura nova.

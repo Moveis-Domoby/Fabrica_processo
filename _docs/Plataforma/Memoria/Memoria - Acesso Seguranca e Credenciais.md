@@ -73,3 +73,7 @@ tags: [memoria, aprendizado, tema/acesso]
 ### A-222
 
 - [2026-11-12] **A-222** (Claude Code, ajuste da SESSAO-48 — a plataforma como aplicativo) · **Ícone de aplicativo sem programa de imagem:** uma página HTML no rascunho que desenha o mesmo SVG do favicon (a fonte Poppins 700 copiada do `node_modules/@fontsource/poppins/files/` para o lado da página) e o Edge sem janela fotografando com `--default-background-color=00000000` (fundo transparente), `--force-device-scale-factor=1` e `--window-size=N,N`. Abaixo de ~500 px o Edge desenha a página mais larga e corta a foto no canto de cima à esquerda ([[Memoria - Front Telas e React 1#E-265|E-265]]) — com o SVG preso em (0,0) e do tamanho N, o corte sai exato (192 e 180 conferidos com `file`). Ícone adaptável do Android ("maskable"): quadrado cheio, desenho a 80% (a bolinha do canto passava da zona segura de 40% do raio). Conferir no site montado (`npm run preview`) carregando cada ícone (`naturalWidth`) e o cartão (`application/manifest+json`).
+
+### A-260
+
+- [2026-11-23] **A-260** (Claude Code, SESSAO-56) · **Chave de serviço externo na URL:** nenhuma mensagem de erro pode levar a URL (nem `e.message`) — registrar só o nome do buscador e o código da resposta.

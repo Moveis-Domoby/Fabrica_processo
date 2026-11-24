@@ -97,3 +97,59 @@ tags: [memoria, aprendizado, tema/testes]
 ### A-241
 
 - [2026-11-17] **A-241** (Claude Code, SESSAO-51) · **Vitrine com janela sobre janela:** o ajudante que toca nos botões para a foto procura na janela de CIMA — a ÚLTIMA `[role="dialog"]` (a primeira é a do card, embaixo) — e também em `label` (o rádio nativo da casa não tem texto; o rótulo tem). Sem isso a cena "escolher e marcar o motivo" fica parada na 1ª tela.
+
+### A-248
+
+- [2026-11-18] **A-248** (Claude Code, SESSAO-52) · **Foto de tela sem o navegador do app:** o Edge sem janela dirigido pelo protocolo de depuração (o `WebSocket` e o `fetch` do próprio Node, sem dependência nova) emula 375/768/1440, mede `scrollWidth` e fotografa — resolve o corte abaixo de ~500 px.
+
+### A-249
+
+- [2026-11-18] **A-249** (Claude Code, SESSAO-52) · **Vitrine com a rede bloqueada no primeiro módulo importado:** `fetch` trocado por respostas de exemplo por nome de porta e `WebSocket` por um mudo deixam montar a tela de verdade com o `.env.local` da mesa sem nenhuma chamada sair para produção; a lista do que a tela pediu fica em `window.__pedidas` (conta as requisições de graça).
+
+### E-297
+
+- [2026-11-18] **E-297** (Claude Code, SESSAO-52) · **A suíte de testes de tela oscila com a máquina dividida** entre várias mesas (tempo esgotado em testes diferentes a cada rodada). *Correção:* separar "meu" de "da máquina" rodando sozinhos os arquivos que falharam; a rodada que vale é com a máquina livre.
+
+### A-251
+
+- [2026-11-18] **A-251** (Claude Code, SESSAO-53) · **Foto de celular pelo Chrome sem janela:** emulação do aparelho pelo protocolo de depuração, não `--window-size` (que não reduz a largura útil abaixo do mínimo da janela).
+
+### E-301
+
+- [2026-11-18] **E-301** (Claude Code, SESSAO-53) · **Testes de tela com muitos trabalhos em paralelo numa máquina compartilhada** estouram o tempo. *Correção:* menos trabalhos em paralelo (ou a máquina livre) antes de chamar de defeito.
+
+### E-304
+
+- [2026-11-18] **E-304** (Claude Code, SESSAO-54) · **Vitrine em moldura aberta por `file://` no Edge sem janela não carrega a tela de dentro** (fotos em branco, medidas nulas); e decodificar duas vezes o parâmetro transformou `%23` em `#` (o resto virou âncora). *Correção:* a moldura servida pelo mesmo Vite; decodificar uma vez só.
+
+### A-253
+
+- [2026-11-18] **A-253** (Claude Code, SESSAO-54) · **Foto de aviso passageiro:** o tempo virtual do navegador tem de ser menor que os 5 s do aviso (com 9 s o aviso já tinha ido embora na foto, mesmo aparecendo nas medidas).
+
+### E-305
+
+- [2026-11-18] **E-305** (Claude Code, SESSAO-54) · **Rodar os testes de tela junto com a bateria do banco** deu falha falsa (uma espera estourou numa tela que nem era do Comercial); com a máquina livre, tudo verde. *Correção:* uma coisa de cada vez.
+
+### A-258
+
+- [2026-11-18] **A-258** (Claude Code, SESSAO-55) · **Teste de tela que conta chamadas:** dublê de `supabase` que grava `rpc` e faz `from` estourar; o guardado nasce como o app deixa (setores, etiquetas, campos) — `src/paginas/umaLeitura.test.tsx`.
+
+### E-307
+
+- [2026-11-18] **E-307** (Claude Code, SESSAO-55) · **Argumento novo na FRENTE de uma função que o teste troca por dublê** muda o que o dublê recebe. *Correção:* argumento novo vai no fim.
+
+### E-310
+
+- [2026-11-18] **E-310** (Claude Code, SESSAO-55) · **Comparação que passa vazia dos dois lados:** um fato de "iniciar" com hora anterior à chegada da peça não abre execução, e o "igual" passava sem dado. *Correção:* conferir que o cenário tem dado (um ✔ de "tem número de verdade" ao lado do "igual").
+
+### E-312
+
+- [2026-11-18] **E-312** (Claude Code, SESSAO-55) · **Vitest completo com a máquina carregada:** estouros de 5 s em telas alheias. *Correção:* repetir o arquivo sozinho antes de culpar a mudança.
+
+### E-318
+
+- [2026-11-24] **E-318** (Claude Code, SESSAO-56) · **Rota de teste só com paradas avulsas não existe pela tela** (programar exige pedido). *Correção:* validação de ordem "sem mexer em pedido real" se faz na montagem; o que só existe em rota gravada fica com a prova da bateria do banco — dizer isso no pedido da fila antes de mandar "crie uma rota de teste".
+
+### E-319
+
+- [2026-11-24] **E-319** (Claude Code, SESSAO-56) · **`npm test` com servidor + navegador abertos estoura o tempo de 5 s** em telas pesadas (cada rodada falha em arquivos diferentes). *Correção:* rodar a bateria com a máquina livre e conferir as falhas isoladas + `git diff` antes de chamar de defeito.

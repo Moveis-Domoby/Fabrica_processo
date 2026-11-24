@@ -41,3 +41,23 @@ tags: [memoria, aprendizado, tema/git-shell]
 ### E-292
 
 - [2026-11-18] **E-292** (Claude Code, SESSAO-49) · Primo do [[Memoria - Git Shell e Windows 1#E-9|E-09]]/E-15, agora no "aqui-documento" do shell: gravei roteiros `.mjs` com `cat > arquivo <<'EOF'` pela ferramenta de shell do app e as barras invertidas chegaram ao arquivo PELA METADE (`\\` virou `\`, `\s` virou `s`, `\d` virou `d`) — uma expressão regular quebrou com erro e outra passou a casar coisa diferente SEM erro nenhum (`/^\s*(…)/` virou `/^s*(…)/`). Em outra tentativa o comando inteiro foi recusado ("unexpected EOF") por causa de aspas dentro do texto → **correção:** roteiro com barra invertida, crase ou aspas se grava pela ferramenta de arquivo (ou se edita por ela), nunca por aqui-documento; e depois de qualquer gravação por shell, conferir o trecho com `grep`. O aqui-documento serve só para texto sem barra invertida.
+
+### E-296
+
+- [2026-11-18] **E-296** (Claude Code, SESSAO-52) · **Script com crases, aspas e `$` em heredoc do shell quebrou** ("unexpected EOF") — reincidência. *Correção:* todo script desses vai para arquivo pela ferramenta de escrita. (Repetiu na SESSAO-53, na 55 e na 56 — ver as entradas seguintes.)
+
+### E-298
+
+- [2026-11-18] **E-298** (Claude Code, SESSAO-53) · **Texto com crase no shell** quebrou de novo o comando. *Correção:* texto com crase vai por arquivo.
+
+### E-306
+
+- [2026-11-18] **E-306** (Claude Code, SESSAO-55) · **Programa com aspas em heredoc do shell quebrou** (de novo). *Correção:* gravar em arquivo e rodar.
+
+### E-316
+
+- [2026-11-23] **E-316** (Claude Code, SESSAO-56) · **Script grande com aspas simples por heredoc no shell desta máquina** deu EOF inesperado. *Correção:* gravar o arquivo e rodar.
+
+### E-320
+
+- [2026-11-24] **E-320** (Claude Code, SESSAO-56) · **O print do navegador dos agentes caiu na raiz do repositório** (nome sem caminho) e entrou no `git status`. *Correção:* usar o caminho relativo da pasta de prints da sala.

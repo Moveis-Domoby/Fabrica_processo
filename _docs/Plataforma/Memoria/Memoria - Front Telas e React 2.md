@@ -47,3 +47,23 @@ tags: [memoria, aprendizado, tema/front-react]
 ### A-240
 
 - [2026-11-17] **A-240** (Claude Code, SESSAO-51) · **Botão da casa com texto longo: `h-auto!`, não `h-auto`.** O `Botao` fixa a altura (`h-toque-md`) e a junção de classes (`twMerge`) não reconhece as alturas da casa — mantém as duas, e a da casa vence: o texto que quebra em duas linhas no celular vaza do botão. Com `className="h-auto! min-h-toque-md py-2 whitespace-normal"` o botão cresce junto (conferido no estilo calculado: 44 → 66 px). Só onde o texto é longo de verdade.
+
+### E-299
+
+- [2026-11-18] **E-299** (Claude Code, SESSAO-53) · **`shrink-0` em frase longa dentro de linha que quebra = rolagem lateral no celular.** *Correção:* tirar o `shrink-0` da frase e medir `scrollWidth` na tela inteira, não só no pedaço novo.
+
+### A-254
+
+- [2026-11-18] **A-254** (Claude Code, SESSAO-54) · **O título do `<Modal>` em teste:** o modal da casa repete o título numa descrição escondida para leitor de tela — procurar o título por papel (`getByRole('heading')`), não por texto.
+
+### A-255
+
+- [2026-11-18] **A-255** (Claude Code, SESSAO-55) · **Porta de abertura que semeia:** a porta traz os pedaços com vida própria no guardado só quando faltam, guarda com a chave e o formato de sempre e a consulta do pedaço liga só depois da porta, **com validade infinita** — quem decide renovar é a porta. Molde: `src/lib/semear.ts`.
+
+### A-256
+
+- [2026-11-18] **A-256** (Claude Code, SESSAO-55) · **Um retrato por tela na mesma chave:** o retrato diz para qual tela foi lido; a tela que acha o retrato de outra pede o dela (1 leitura).
+
+### E-308
+
+- [2026-11-18] **E-308** (Claude Code, SESSAO-55) · **Consulta semeada com validade curta relê sozinha quando a tela volta** (a porta responde do guardado; a dependente está vencida). *Correção:* validade infinita no pedaço semeado.
