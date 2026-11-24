@@ -4,6 +4,9 @@ import { MapPinOff, MapPinPlus, Save, Search } from 'lucide-react'
 import { Botao, Campo, Modal } from '@/componentes/ui'
 import { acharPontoDoEndereco } from './api'
 import { AtribuicaoBusca } from './atribuicaoMapa'
+import { AvisoRuaNaoAchada, PerguntaNoRodape } from './AvisosDoPino'
+import { cepNoTexto, mesmoPontoDoMapa, useConferirPino } from './conferirPino'
+import type { PontoSuspeito } from './conferirPino'
 import type { DadosParadaAvulsa } from './api'
 import { FABRICA } from './rotaRuas'
 
@@ -15,7 +18,7 @@ const ENDERECO_MIN = 3
 const ENDERECO_MAX = 300
 const OBSERVACAO_MAX = 300
 
-type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou'
+type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou' | 'aproximado'
 
 /**
  * SESSAO-41 (D-196, pedido do dono): a janela da PARADA AVULSA — título curto,
@@ -63,15 +66,28 @@ export function ModalParadaAvulsa({
     pontoInicial ? (inicial?.endereco ?? '').trim() : null,
   )
   const [busca, setBusca] = useState<Busca>('nada')
+  // SESSAO-57 (frente 1): "Achar no mapa" só achou o bairro/a cidade — o pino está lá, não no lugar
+  const [lugarDaBusca, setLugarDaBusca] = useState<PontoSuspeito | null>(null)
+  const [liberado, setLiberado] = useState(false)
+  // frente 2: o pino longe do CEP escrito no endereço (e o não arrastado) pergunta antes de salvar
+  const conferir = useConferirPino({
+    cep: cepNoTexto(endereco),
+    suspeito: lugarDaBusca && !liberado ? lugarDaBusca : null,
+  })
 
   const achar = useMutation({
     mutationFn: (texto: string) => acharPontoDoEndereco(texto),
     onSuccess: (resultado, texto) => {
+      conferir.voltar()
       setEnderecoDoPonto(texto.trim())
+      setLiberado(false)
       if (resultado) {
-        setPonto(resultado)
-        setBusca('achou')
+        const achado = { latitude: resultado.latitude, longitude: resultado.longitude }
+        setPonto(achado)
+        setLugarDaBusca(resultado.aproximado ? { ...achado, ...resultado.aproximado } : null)
+        setBusca(resultado.aproximado ? 'aproximado' : 'achou')
       } else {
+        setLugarDaBusca(null)
         setPonto(null)
         setBusca('nao_achou')
       }
@@ -89,7 +105,10 @@ export function ModalParadaAvulsa({
     (observacao.trim() || null) !== (inicial.observacao ?? null) ||
     (ponto?.latitude ?? null) !== inicial.latitude ||
     (ponto?.longitude ?? null) !== inicial.longitude
-  const pode = tituloOk && enderecoOk && algoMudou && !carregando
+  // SESSAO-57 (frente 1): o pino no bairro/na cidade da busca só salva depois de arrastar (ou de "salvar assim mesmo")
+  const travadoPelaBusca =
+    lugarDaBusca !== null && !liberado && mesmoPontoDoMapa(ponto, lugarDaBusca)
+  const pode = tituloOk && enderecoOk && algoMudou && !carregando && !travadoPelaBusca
   const enderecoMudou =
     ponto !== null && enderecoDoPonto !== null && endereco.trim() !== enderecoDoPonto
   // editando, o mapa já abre (o pino arrastável); criando, só depois de "Achar no mapa"
@@ -102,13 +121,19 @@ export function ModalParadaAvulsa({
 
   function salvar() {
     if (!pode) return
-    aoSalvar({
+    const dados = {
       titulo: tituloParada.trim(),
       endereco: endereco.trim(),
       latitude: ponto?.latitude ?? null,
       longitude: ponto?.longitude ?? null,
       observacao: observacao.trim() || null,
-    })
+    }
+    // SESSAO-57 (frente 2): com pino NOVO, a conferência antes (o pino que já estava salvo não muda nada)
+    const pinoMudou =
+      ponto !== null &&
+      (!inicial || ponto.latitude !== inicial.latitude || ponto.longitude !== inicial.longitude)
+    if (pinoMudou && ponto) conferir.pedirParaSalvar(ponto, () => aoSalvar(dados))
+    else aoSalvar(dados)
   }
 
   return (
@@ -123,20 +148,29 @@ export function ModalParadaAvulsa({
           : 'Buscar material, levar uma peça, passar num endereço — a parada entra na rota junto com os pedidos.')
       }
       rodape={
-        <>
-          <Botao tamanho="lg" variante="secundaria" onClick={aoFechar} disabled={carregando}>
-            Cancelar
-          </Botao>
-          <Botao
-            tamanho="lg"
-            icone={editando ? <Save /> : <MapPinPlus />}
-            onClick={salvar}
-            disabled={!pode}
+        conferir.pergunta ? (
+          <PerguntaNoRodape
+            pergunta={conferir.pergunta}
             carregando={carregando}
-          >
-            {editando ? 'Salvar as mudanças' : 'Salvar a parada'}
-          </Botao>
-        </>
+            aoConfirmar={conferir.confirmar}
+            aoVoltar={conferir.voltar}
+          />
+        ) : (
+          <>
+            <Botao tamanho="lg" variante="secundaria" onClick={aoFechar} disabled={carregando}>
+              Cancelar
+            </Botao>
+            <Botao
+              tamanho="lg"
+              icone={editando ? <Save /> : <MapPinPlus />}
+              onClick={salvar}
+              disabled={!pode}
+              carregando={carregando || conferir.conferindo}
+            >
+              {editando ? 'Salvar as mudanças' : 'Salvar a parada'}
+            </Botao>
+          </>
+        )
       }
     >
       {/* sem botão de enviar dentro: o Enter num campo não salva pela metade */}
@@ -174,6 +208,13 @@ export function ModalParadaAvulsa({
           </div>
           <AtribuicaoBusca />
 
+          {busca === 'aproximado' && lugarDaBusca && ponto && (
+            <AvisoRuaNaoAchada
+              lugar={lugarDaBusca}
+              liberado={liberado || !mesmoPontoDoMapa(ponto, lugarDaBusca)}
+              aoLiberar={() => setLiberado(true)}
+            />
+          )}
           {busca === 'nao_achou' && (
             <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
               Não achei esse endereço no mapa. Toque no mapa ou arraste o pino até o lugar — ou
@@ -221,6 +262,7 @@ export function ModalParadaAvulsa({
                     onClick={() => {
                       setPonto(null)
                       setEnderecoDoPonto(null)
+                      setLugarDaBusca(null)
                     }}
                   >
                     Tirar o pino
