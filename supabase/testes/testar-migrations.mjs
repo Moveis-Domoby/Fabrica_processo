@@ -16228,6 +16228,10 @@ try {
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027050000_plt_paradas_avulsas.sql'), 'utf8'))
   // ↪️ SESSAO-41 (D-196): a ordem da rota sem os pedidos arquivados — depois da das paradas
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027060000_plt_paradas_ordem_sem_arquivados.sql'), 'utf8'))
+  // ↪️ SESSAO-56 (bloco B): a 20261027050000 reaplicada acima recria a porta ANTIGA de tirar a parada
+  // (1 parâmetro); a migration da 56 a troca pela nova (com a ordem que fica) — reaplicada para não
+  // sobrarem as duas assinaturas (A-12/E-120: assinatura nova = drop + create).
+  await bd.exec(await readFile(path.join(MIGRATIONS, '20261124100000_plt_ordem_da_rota_nao_muda.sql'), 'utf8'))
   // ↪️ SESSAO-41 · ajuste (D-197/D-198): a carência de 5 min na conta, o card
   // esquecido e o quadro com `esquecidos` — recria o que a do tablet recriou
   await bd.exec(await readFile(path.join(MIGRATIONS, '20261027070000_plt_carencia_5min_card_esquecido.sql'), 'utf8'))
@@ -25629,6 +25633,246 @@ await bd.exec(await readFile(path.join(MIGRATIONS, '20261116030000_plt_mover_car
     await bd.exec("select set_config('request.jwt.claim.sub', '', false)")
   }
 } // fim do bloco SESSAO-51 · bloco B
+
+// ============================================================================
+// SESSAO-56 · bloco B (migration 20261124100000 — pedido do dono, 23/11): A
+// ORDEM DA ROTA NÃO SE MEXE SOZINHA — tirar um pedido, reprogramar ou remover
+// uma parada tira SÓ aquele item; os outros ficam na ordem que a tela mostrava
+// (ela vai junto no gesto); o pedido que entra numa rota vai para o fim
+// guardado; o site de antes (sem a ordem) segue funcionando.
+// Faixa só deste bloco: pedidos 956101–956108 · caminhão TST5656 · entregador
+// …5631 (CPF 56700000001).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-56 · B · a rota nasce com a ordem guardada; tirar um pedido não mexe nos outros')
+
+const um56 = async (sql) => (await bd.query(sql)).rows[0]
+const como56 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado56 = async (auth, sql) => {
+  await como56(auth)
+  await bd.exec('savepoint l56')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l56')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l56')
+    await bd.exec('reset role')
+    throw new Error(`logado56: ${erro.message}`)
+  }
+}
+const recusa56 = async (auth, sql, descricao, padrao) => {
+  await como56(auth)
+  await bd.exec('savepoint s56')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s56')
+    await bd.exec('reset role')
+  }
+}
+const ENT56 = '00000000-0000-0000-0000-000000005631'
+await como56('')
+await bd.exec('begin')
+try {
+  const NUMEROS = [956101, 956102, 956103, 956104, 956105, 956106, 956107, 956108]
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
+      values ('Entregador 56', 'ent56@teste.com', '56700000001', 'ent.56', 'operador', '${ENT56}', array['entregas']);
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 56', 'TST5656');
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista)
+      select n, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', n * 100, current_date
+        from unnest(array[${NUMEROS.join(', ')}]) as n;
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      select p.id, 1, 'S56B', 'Mesa Teste 56', 1 from public.pedidos p where p.numero in (${NUMEROS.join(', ')});
+  `)
+  const CAM = (await um56(`select id::int as id from public.plt_caminhoes where placa = 'TST5656'`)).id
+  const HOJE = (await um56(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+  const AMANHA = (await um56(`select (((now() at time zone 'America/Fortaleza')::date) + 1)::text as d`)).d
+  const card = async (n) => (await um56(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                          where c.tipo = 'pedido' and p.numero = ${n}`)).id
+  const K = []
+  for (const n of NUMEROS) K.push(await card(n))
+  const [K1, K2, K3, K4, K5, K6, K7, K8] = K
+  const LOG = E40.logistica
+  // a rota (dia, rota) como o banco guarda: "p<card>:<ordem>" na ordem
+  const rota = async (dia, r = 1) => (await bd.query(`
+      select k || ':' || coalesce(o::text, '-') as k from (
+        select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr
+         where pr.data_entrega = '${dia}' and pr.caminhao_id = ${CAM} and pr.rota = ${r}
+        union all
+        select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa
+         where pa.data_entrega = '${dia}' and pa.caminhao_id = ${CAM} and pa.rota = ${r} and pa.removida_em is null
+      ) x order by o nulls last, k`)).rows.map((x) => x.k)
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  const refs = (...ks) => `'${JSON.stringify(ks.map((k) => ({ t: k[0], id: Number(k.slice(1)) })))}'::jsonb`
+
+  // o site de ANTES programa sem mandar a ordem: continua como era (a rota fica sem ordem)
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K2}, ${K3}]::bigint[], null::bigint[], 1)`)
+  conferir((await rota(HOJE)).length === 3 && (await rota(HOJE)).every((k) => k.endsWith(':-')),
+    'programar sem mandar a ordem (o site de antes) segue como era: a rota fica sem ordem — o banco não inventa uma',
+    JSON.stringify(await rota(HOJE)))
+  // o site NOVO manda sempre a ordem da tela
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K4}]::bigint[], array[${K3}, ${K1}, ${K2}, ${K4}]::bigint[], 1)`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K1}:2`, `p${K2}:3`, `p${K4}:4`]),
+    'programar mandando a ordem da tela: o que já estava fica na ordem pedida e o novo no fim', JSON.stringify(await rota(HOJE)))
+
+  // tirar o 2º com a ordem que fica: só ele sai, os outros renumeram na MESMA sequência
+  const logsAntes = (await um56(`select count(*)::int as n from public.plt_logs_atividade where acao = 'programacao_removida'`)).n
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K3}`, `p${K2}`, `p${K4}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K2}:2`, `p${K4}:3`]),
+    'tirar um pedido com a ordem que fica: os outros seguem na mesma sequência (3º vira 2º, 4º vira 3º)', JSON.stringify(await rota(HOJE)))
+  conferir((await um56(`select count(*)::int as n from public.plt_logs_atividade where acao = 'programacao_removida'`)).n === logsAntes + 1,
+    'o tirar continua deixando a sua linha na trilha')
+
+  titulo('SESSAO-56 · B · a rota ANTIGA sem ordem salva ganha a ordem no próprio gesto de tirar')
+
+  await bd.exec(`update public.plt_programacoes set ordem = null where data_entrega = '${HOJE}' and caminhao_id = ${CAM} and rota = 1`)
+  conferir((await rota(HOJE)).every((k) => k.endsWith(':-')), 'cenário: a rota de antes desta sessão, sem ordem nenhuma')
+  // a tela mostrava K4, K3, K2 (a sugestão daquele instante); tira o K3
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K3}, ${refs(`p${K4}`, `p${K2}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K2}:2`]),
+    'a ordem que a tela mostrava (menos o que saiu) fica gravada — a rota não recalcula depois', JSON.stringify(await rota(HOJE)))
+
+  // o site de antes (sem a lista): tira e não mexe em mais nada
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K3}]::bigint[], array[${K4}, ${K2}, ${K1}, ${K3}]::bigint[], 1)`)
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K2})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K1}:3`, `p${K3}:4`]),
+    'sem a lista (o site de antes): o pedido sai e os outros ficam como estavam (com o buraco — a tela numera 1, 2, 3)', JSON.stringify(await rota(HOJE)))
+
+  // a lista não bate com a rota: recusa — e nada sai
+  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K4}`, `p${K3}`, `p${K8}`)})`,
+    'a lista traz um pedido que não está mais na rota: "a rota mudou noutra tela"', /rota mudou noutra tela/)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K1}:3`, `p${K3}:4`]), 'e o pedido NÃO saiu (tudo ou nada)', JSON.stringify(await rota(HOJE)))
+  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K4}`, `p${K3}`, `p${K1}`)})`,
+    'a lista com o próprio pedido que está saindo: recusada', /rota mudou noutra tela/)
+  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, '{"t":"p"}'::jsonb)`,
+    'a ordem num formato torto: recusada com o porquê', /formato/)
+  await recusa56(LOG, `select public.plt_fn_rota_ordenar('${HOJE}', ${CAM}, 1, ${refs(`p${K4}`, `p${K3}`)})`,
+    'e o "Salvar ordem" continua recusando a lista que não bate com a rota', /rota mudou/)
+
+  // a página não trouxe a rota inteira: o que faltou na lista fica depois, na ordem dele
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K4}, ${refs(`p${K3}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K1}:2`]),
+    'a tela não mostrava a rota inteira: o que ela mandou vem primeiro e o resto fica depois, na ordem que tinha', JSON.stringify(await rota(HOJE)))
+
+  titulo('SESSAO-56 · B · reprogramar: a rota de origem não se mexe; na de destino o pedido entra no fim')
+
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K2}, ${K4}]::bigint[], array[${K3}, ${K1}, ${K2}, ${K4}]::bigint[], 1)`)
+  // K1 vai para amanhã (rota vazia): origem K3, K2, K4; destino nasce com a ordem 1
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K1}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K3}`, `p${K2}`, `p${K4}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K2}:2`, `p${K4}:3`]) && igual(await rota(AMANHA), [`p${K1}:-`]),
+    'reprogramar para outro dia: na origem os outros ficam na mesma sequência; no destino o pedido entra sem ordem (no fim), como sempre',
+    JSON.stringify([await rota(HOJE), await rota(AMANHA)]))
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K2}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K3}`, `p${K4}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K4}:2`]) && (await rota(AMANHA)).length === 2,
+    'o seguinte também sai sem mexer em quem ficou na origem', JSON.stringify([await rota(HOJE), await rota(AMANHA)]))
+  await logado56(LOG, `select public.plt_fn_ordenar_rota('${AMANHA}', ${CAM}, array[${K1}, ${K2}]::bigint[], 1)`)
+  // reprogramar para a MESMA rota (nada mudou): a lista é ignorada e a ordem fica
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K2}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K8}`)})`)
+  conferir(igual(await rota(AMANHA), [`p${K1}:1`, `p${K2}:2`]), 'reprogramar para a mesma rota não muda nada (nem a ordem dele, nem a dos outros)', JSON.stringify(await rota(AMANHA)))
+  // a lista de origem que não bate: recusa e o pedido não muda de rota
+  await recusa56(LOG, `select public.plt_fn_programar_entrega(${K3}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K4}`, `p${K8}`)})`,
+    'reprogramar com a lista de origem que não bate: recusado', /rota mudou noutra tela/)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K4}:2`]), 'e o pedido continua na rota de origem', JSON.stringify(await rota(HOJE)))
+  // sem a lista (o site de antes): a origem fica como estava
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K3}, '${AMANHA}', ${CAM}, 2)`)
+  conferir(igual(await rota(HOJE), [`p${K4}:2`]) && igual(await rota(AMANHA, 2), [`p${K3}:-`]),
+    'reprogramar sem a lista (o site de antes): a origem não é tocada (nem renumerada)', JSON.stringify([await rota(HOJE), await rota(AMANHA, 2)]))
+
+  titulo('SESSAO-56 · B · a parada avulsa: tirar só ela; o entregador tira a dele sem mexer na ordem da logística')
+
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K6}, ${K7}]::bigint[], array[${K4}, ${K6}, ${K7}]::bigint[], 1)`)
+  const ENTID = (await um56(`select id from public.plt_usuarios where usuario = 'ent.56'`)).id
+  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id) values ('${HOJE}', ${CAM}, 1, '${ENTID}')`)
+  const por = async (auth, ordem) => (await logado56(auth, `select public.plt_fn_parada_avulsa_salvar(null, '${HOJE}', ${CAM}, 1,
+      'Buscar ferragem 56', 'Rua de Teste, 56, Natal', -5.8, -35.2, null, ${ordem}) as r`))[0].r.id
+  const a1 = await por(LOG, `'[{"t":"p","id":${K4}},{"t":"nova"},{"t":"p","id":${K6}},{"t":"p","id":${K7}}]'::jsonb`)
+  const a2 = await por(ENT56, 'null')
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `a${a1}:2`, `p${K6}:3`, `p${K7}:4`, `a${a2}:5`]), 'cenário: dois pedidos, a parada da logística no meio e a do entregador no fim', JSON.stringify(await rota(HOJE)))
+  await recusa56(ENT56, `select public.plt_fn_parada_avulsa_remover(${a2}, ${refs(`p${K6}`, `p${K4}`, `a${a1}`, `p${K7}`)})`,
+    'o entregador tirando a parada dele NÃO consegue trocar a ordem dos pedidos de carona', /só muda o lugar da parada/)
+  await logado56(ENT56, `select public.plt_fn_parada_avulsa_remover(${a2}, ${refs(`p${K4}`, `a${a1}`, `p${K6}`, `p${K7}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `a${a1}:2`, `p${K6}:3`, `p${K7}:4`]),
+    'o entregador tira a parada dele: só ela sai, o resto fica onde estava', JSON.stringify(await rota(HOJE)))
+  await logado56(LOG, `select public.plt_fn_parada_avulsa_remover(${a1}, ${refs(`p${K4}`, `p${K6}`, `p${K7}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K6}:2`, `p${K7}:3`]),
+    'a logística tira a parada do meio: os pedidos fecham a fila na mesma sequência', JSON.stringify(await rota(HOJE)))
+  await logado56(LOG, `select public.plt_fn_parada_avulsa_remover(${a1}, ${refs(`p${K8}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K6}:2`, `p${K7}:3`]), 'o toque repetido no "tirar a parada" não faz nada (nem confere a lista)')
+  // o último item sai: a lista vazia é aceita
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K6}, ${refs(`p${K4}`, `p${K7}`)})`)
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K7}, ${refs(`p${K4}`)})`)
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K4}, '[]'::jsonb)`)
+  conferir((await rota(HOJE)).length === 0, 'tirar até o último: a rota fica vazia, sem erro')
+
+  const priv = await um56(`
+    select to_regprocedure('public.plt_fn_desprogramar_entrega(bigint)') is null
+           and to_regprocedure('public.plt_fn_parada_avulsa_remover(bigint)') is null
+           and to_regprocedure('public.plt_fn_programar_entrega(bigint, date, bigint, integer)') is null as velhas_sairam,
+           has_function_privilege('authenticated', 'public.plt_fn_desprogramar_entrega(bigint, jsonb)', 'execute')
+           and has_function_privilege('authenticated', 'public.plt_fn_parada_avulsa_remover(bigint, jsonb)', 'execute')
+           and has_function_privilege('authenticated', 'public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)', 'execute') as logado_chama,
+           has_function_privilege('anon', 'public.plt_fn_desprogramar_entrega(bigint, jsonb)', 'execute')
+           or has_function_privilege('anon', 'public.plt_fn_parada_avulsa_remover(bigint, jsonb)', 'execute')
+           or has_function_privilege('anon', 'public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)', 'execute') as anonimo_chama,
+           has_function_privilege('authenticated', 'plt_privado.fn_rota_ordem_que_fica(date, bigint, integer, jsonb)', 'execute') as maquina`)
+  conferir(priv.velhas_sairam && priv.logado_chama && !priv.anonimo_chama && !priv.maquina,
+    'as assinaturas antigas saíram (uma porta só de cada); as novas para quem está logado; a maquinaria fora da API', JSON.stringify(priv))
+  await recusa56(ENT56, `select public.plt_fn_desprogramar_entrega(${K5}, '[]'::jsonb)`,
+    'o entregador continua sem poder tirar pedido da programação', /logística/)
+
+  titulo('SESSAO-56 · B · o plano da leitura nova com volume (Lei de desempenho)')
+
+  // a leitura que a porta nova faz: os itens de UMA rota (dia + caminhão + rota).
+  // Volume: 20 mil paradas em 2 mil dias (×100 do que uma fábrica junta em anos)
+  // e as programações do banco de teste — as duas pernas têm de ir pelo índice da rota.
+  await bd.exec(`
+    insert into public.plt_paradas_avulsas (data_entrega, caminhao_id, rota, ordem, titulo, endereco, criada_por)
+      select current_date - (g % 2000), ${CAM}, 1 + (g % 3), g % 10, 'Parada de volume', 'Rua de Volume, 1',
+             (select id from public.plt_usuarios where usuario = 'ent.56')
+        from generate_series(1, 20000) g;
+    analyze public.plt_paradas_avulsas;
+    analyze public.plt_programacoes;
+  `)
+  const LEITURA = `
+    select 'p' || pr.card_id as k, pr.ordem as o
+      from public.plt_programacoes pr
+      join public.plt_cards pc on pc.id = pr.card_id
+     where pr.data_entrega = '${HOJE}' and pr.caminhao_id = ${CAM} and pr.rota = 1
+       and pc.entrega_evento_id is null and pc.arquivado_em is null
+    union all
+    select 'a' || pa.id, pa.ordem
+      from public.plt_paradas_avulsas pa
+     where pa.data_entrega = '${HOJE}' and pa.caminhao_id = ${CAM} and pa.rota = 1
+       and pa.removida_em is null`
+  const plano = (await bd.query(`explain (analyze, format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0]
+  const texto56 = JSON.stringify(plano)
+  await bd.exec('set local enable_seqscan = off')
+  const forcado = JSON.stringify((await bd.query(`explain (format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0])
+  await bd.exec('set local enable_seqscan = on')
+  const indices56 = (t) => [...new Set([...t.matchAll(/"Index Name":"([a-z_0-9]+)"/g)].map((m) => m[1]))]
+  // as programações do banco de teste são poucas (o planejador varre, e está certo): para
+  // elas a prova é o índice da rota EXISTIR com as três colunas na frente e o plano saber usá-lo
+  const idxProg = (await bd.query(`select indexdef from pg_indexes
+      where schemaname = 'public' and tablename = 'plt_programacoes'`)).rows.map((x) => x.indexdef)
+  const temIndiceDaRota = idxProg.some((d) => /\(data_entrega, caminhao_id, rota/.test(d))
+  conferir(indices56(texto56).includes('plt_paradas_avulsas_rota_idx') && temIndiceDaRota
+      && indices56(forcado).some((n) => n.startsWith('plt_programacoes_')) && plano['Execution Time'] < 50,
+    `a leitura da rota vai pelo índice da rota (20 mil paradas → ${plano['Execution Time']} ms; o orçamento da porta é 50 ms) e as programações têm o índice (dia, caminhão, rota)`,
+    JSON.stringify({ plano: indices56(texto56), forcado: indices56(forcado), idxProg }))
+} finally {
+  await bd.exec('rollback')
+  await como56('')
+}
+} // fim do bloco SESSAO-56 · B
+
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
