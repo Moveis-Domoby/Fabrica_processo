@@ -78,3 +78,11 @@ camada 1 (este arquivo + Regras de Ouro) → demanda 2x + "Leitura da sessão" �
 | O que ainda não foi decidido | `Plataforma/PLT - Perguntas em Aberto.md` |
 | O detalhe e o histórico de cada regra daqui | `Plataforma/CLAUDE - Regras do Claude Code (repo).md` |
 | O verificador do cofre | `scripts/cofre/verificar.mjs` (`--gerar`, `--leitura <demanda>`, `--ligar`) |
+
+<!-- escritorio -->
+## Fila de agentes (Escritório)
+Este projeto tem equipe no Escritório (fila de agentes Claude rodando neste PC). Quando o dono disser **"manda pra fila"**:
+1. Grave o pedido completo em `C:\Users\wccau\Domoby\Domoby - fabrica\_escritorio\handoffs\<base>-prompt-claude-code.md`: objetivo, escopo, o que NÃO fazer, critérios de aceite e a demanda/sessão do cofre que ele executa (se houver).
+2. Grave o job em `C:\Users\wccau\Domoby\Domoby - fabrica\_escritorio\fila\<base>.job` com as linhas `handoff=<base>`, `frente=<nome-da-branch>` (ex.: `sessao-52-descricao`) e `rodadas=3`.
+3. Quando o dono pedir **"revisa <base>"**, leia `<base>-reporte.md`, os `<base>-review-rN.md` e `C:\Users\wccau\Domoby\Domoby - fabrica\_escritorio\fila\feitos\<base>.status` e resuma em português de gente.
+O agente da fila não conversa com o dono: dúvida de negócio vira `bloqueado` no reporte. Ninguém da fila dá push, mexe na main, aplica migration ou publica. Detalhes em `_escritorio/README.md`.
