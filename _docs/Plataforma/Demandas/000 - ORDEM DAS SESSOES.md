@@ -56,7 +56,7 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 31º 🆕 | [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] | ✅ entregue · [[handoff_2026_10_14_sessao31_kanban_completo\|handoff]] |
 | 32º 🆕 | [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] | ✅ entregue · [[handoff_2026_10_16_sessao32_desempenho_escala\|handoff]] |
 | 33º 🆕 | [[SESSAO-33 - Tiny Completo - Todos os Dados Atualizados por Evento]] | 📦 entregue em arquivo · [[handoff_2026_10_17_sessao33_tiny_completo\|handoff 1]] · [[handoff_2026_10_22_sessao33_o_que_o_tiny_nao_avisa\|handoff 2]] |
-| 34º 🆕 | *(a mapear com o dono)* Rotinas do banco por evento, sem relógio | 📝 a mapear |
+| 34º 🆕 | Rotinas do banco por evento, sem relógio | 📦 pronta no ramo, esperando a noite com o dono (fica de fora da subida de 24/11) |
 | 35º 🆕 | *(a mapear com o dono)* Baixa dos insumos por etapa | 📝 a mapear |
 | 36º 🆕⏫ | [[SESSAO-36 - Tablet 2.0 - Login por Setor Auxiliares e Tempos por Pessoa]] | ✅ ENTREGUE E NO AR · [[handoff_2026_10_18_sessao36_tablet_2_0\|handoff]] |
 | 37º ⚡ | *(sem arquivo — ditada ao vivo pelo dono, 19/10)* | ✅ ENTREGUE E NO AR na mesma madrugada |
@@ -71,9 +71,14 @@ tags: [plataforma, demandas, sessoes, roadmap]
 | 46º 🆕 | [[SESSAO-46 - Tech - Sugestao de Melhoria]] | ✅ entregue · [[handoff_2026_11_05_sessao46_tech_sugestoes\|handoff]] |
 | 47º 🆕 | [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] | ✅ entregue e no ar · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos\|handoff]] |
 | 48º ⏫ | [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] | ✅ entregue e no ar · [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas\|handoff 1]] · [[handoff_2026_11_11_sessao48_cancelar_fabricacao_recargas\|handoff 2]] |
-| 49º ⏫ | [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] | 📦 entregue na branch (18/11) — espera a revisão do dono · [[handoff_2026_11_18_sessao49_dieta_da_documentacao\|handoff]] |
+| 49º ⏫ | [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] | 📦 entregue na branch (18/11) — junto na subida de 24/11, espera o dono subir · [[handoff_2026_11_18_sessao49_dieta_da_documentacao\|handoff]] |
 | 50º ⏫ | [[SESSAO-50 - Observacao do Item Cancelar e Ocultar no PCP e Editar Endereco da Parada]] | ✅ entregue e no ar · [[handoff_2026_11_12_sessao50_observacao_cancelar_ocultar_endereco\|handoff]] |
 | 51º ⏫ | [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP]] | ✅ no ar · [[handoff_2026_11_17_sessao51_entrega_parcial_mover_pcp\|handoff]] |
+| 52º ⏫ | [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] | 📦 entregue no ramo — junto na [[handoff_2026_11_24_subida_juntar_entregas\|subida de 24/11]]; espera o dono ligar o banco e subir · [[handoff_2026_11_18_sessao52_datas_e_textos_certos\|handoff]] |
+| 53º ⏫ | [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] | 📦 entregue no ramo — junto na [[handoff_2026_11_24_subida_juntar_entregas\|subida de 24/11]]; espera o dono ligar o banco e subir · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas\|handoff]] |
+| 54º ⏫ | [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] | 📦 entregue no ramo — junto na [[handoff_2026_11_24_subida_juntar_entregas\|subida de 24/11]]; espera o dono ligar o banco e subir (a remoção da função antiga fica para outro dia) · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza\|handoff]] |
+| 55º ⏫ | [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] | 📦 entregue no ramo — junto na [[handoff_2026_11_24_subida_juntar_entregas\|subida de 24/11]]; espera o dono ligar o banco e subir · [[handoff_2026_11_18_sessao55_telas_numa_leitura\|handoff]] |
+| 56º ⏫ | [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] | ✅ banco e função no ar (24/11); código na main desde 24/11 · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota\|handoff]] |
 
 **Depois:** BOM/insumos (chapas MDF) e custo por móvel · migração dos cards vivos (Q-25) · app/fluxo do motorista (↪️ a tela do entregador entra na SESSAO-30) · central de notificações com preferências (o resto da antiga 17). ↪️ **18/11:** a **central de notificações com preferências já existe** (Configurações → Avisos, [[D-202 - OS AVISOS QUE CADA UM RECEBE ESCOLHIDOS EM CONFIGURACOES|D-202]]) e a **tela do entregador** está no ar desde a SESSAO-30; seguem futuros: BOM/insumos e custo por móvel, e a Q-25 (superada na prática pela limpa de 19/10 — falta o dono fechar).
 

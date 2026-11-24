@@ -23,14 +23,14 @@ RF da rastreabilidade (a busca geral), da área Pedidos, da devolução e da Aud
 
 ## Decisões que regem esta demanda
 
-- **D-276** — a data da entrega é uma só (a projeção no card do pedido) e vale em toda a plataforma; o dia é sempre o do fuso da fábrica.
-- **D-278** — a entrega marcada num dia passado aparece como "no dia dd/mm/aaaa", sem hora (a hora guardada é a do fim do expediente).
-- **D-281** — a correção do dia é um registro novo; a entrega original não é editada.
-- **D-134** — a linha da lista de Pedidos diz o dia e a hora em que o pedido foi dado como entregue, e por quem.
-- **D-188** — a busca geral diz onde cada card está ("Entregue em dd/mm").
-- **D-129** — a telinha "Decidir situação" da devolução traz o histórico da entrega.
-- **D-27 / D-95** — nada de código interno em texto de interface; a Auditoria fala em frase de gente.
-- **D-283 item 5** e **D-289 item 10** (provisórias da SESSAO-47) registravam os defeitos 3 e 4 como limitação conhecida — esta demanda as revisa.
+- **[[D-276 - Marcar como entregue no dia a entrega pode ser registrada|D-276]]** — a data da entrega é uma só (a projeção no card do pedido) e vale em toda a plataforma; o dia é sempre o do fuso da fábrica.
+- **[[D-278 - A hora guardada para um dia passado e o fim do expediente|D-278]]** — a entrega marcada num dia passado aparece como "no dia dd/mm/aaaa", sem hora (a hora guardada é a do fim do expediente).
+- **[[D-281 - A correcao do dia da entrega motivo opcional registro novo|D-281]]** — a correção do dia é um registro novo; a entrega original não é editada.
+- **[[D-134 - A area PEDIDOS Todos os pedidos sai do PCP e Cancelados sai|D-134]]** — a linha da lista de Pedidos diz o dia e a hora em que o pedido foi dado como entregue, e por quem.
+- **[[D-188 - A BUSCA GERAL a lupa ao lado do sino acha os cards de TODOS|D-188]]** — a busca geral diz onde cada card está ("Entregue em dd/mm").
+- **[[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]]** — a telinha "Decidir situação" da devolução traz o histórico da entrega.
+- **[[D-027 - Padroes de interface menu lateral modelo de sistema no cofre|D-27]] / [[D-095 - Auditoria no Painel admin o rastro de tudo quem quando onde|D-95]]** — nada de código interno em texto de interface; a Auditoria fala em frase de gente.
+- **[[D-283 - Detalhes da entrega no dia real|D-283]] item 5** e **[[D-289 - Detalhes da configuracao do painel|D-289]] item 10** (provisórias da SESSAO-47) registravam os defeitos 3 e 4 como limitação conhecida — esta demanda as revisa.
 
 ## Comportamento esperado
 
@@ -63,7 +63,7 @@ RF da rastreabilidade (a busca geral), da área Pedidos, da devolução e da Aud
 
 ## Leitura da sessão
 
-Lido antes de codar (18/11, madrugada): o CLAUDE.md da mesa; o pedido (duas vezes); o handoff da SESSAO-47 (de onde os achados vêm) e a demanda/diário da SESSAO-51 (a última entregue); a Memória de Aprendizado e a Lei de Desempenho (inteiras, por leitura delegada com devolução das lições e do checklist que tocam este trabalho); as Decisões de Produto (inteiras, idem — D-27, D-95, D-107, D-129, D-134, D-188, D-276…D-289, D-324, D-328) e as Perguntas em Aberto (nenhuma toca o assunto); o template da demanda; e, no código, a última versão de cada função tocada (`plt_fn_busca_cards` em `20261111010000`, `plt_fn_devolucao_detalhe` em `20261027040000`, `plt_fn_pedidos_lista` em `20261116020000`, a entrega no dia real em `20261109030000`, a configuração do painel em `20261109040000`). O Esquema do Banco foi consultado pelos `create`/`alter` das migrations (as colunas usadas: `plt_cards.entrega_em`, `entrega_evento_id`, `parcial_em`, `parcial_evento_id`; `plt_eventos.ocorrido_em`, `registrado_em`, `evento_referencia_id`, `dados`).
+Lido antes de codar (18/11, madrugada): o CLAUDE.md da mesa; o pedido (duas vezes); o handoff da SESSAO-47 (de onde os achados vêm) e a demanda/diário da SESSAO-51 (a última entregue); a Memória de Aprendizado e a Lei de Desempenho (inteiras, por leitura delegada com devolução das lições e do checklist que tocam este trabalho); as Decisões de Produto (inteiras, idem — [[D-027 - Padroes de interface menu lateral modelo de sistema no cofre|D-27]], [[D-095 - Auditoria no Painel admin o rastro de tudo quem quando onde|D-95]], [[D-107 - Excluir automacao some de vez o que ela fez FICA na Auditoria|D-107]], [[D-129 - Devolucao o entregador nao marca mais Pedido devolvido|D-129]], [[D-134 - A area PEDIDOS Todos os pedidos sai do PCP e Cancelados sai|D-134]], [[D-188 - A BUSCA GERAL a lupa ao lado do sino acha os cards de TODOS|D-188]], [[D-276 - Marcar como entregue no dia a entrega pode ser registrada|D-276]]…[[D-289 - Detalhes da configuracao do painel|D-289]], [[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]], [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]]) e as Perguntas em Aberto (nenhuma toca o assunto); o template da demanda; e, no código, a última versão de cada função tocada (`plt_fn_busca_cards` em `20261111010000`, `plt_fn_devolucao_detalhe` em `20261027040000`, `plt_fn_pedidos_lista` em `20261116020000`, a entrega no dia real em `20261109030000`, a configuração do painel em `20261109040000`). O Esquema do Banco foi consultado pelos `create`/`alter` das migrations (as colunas usadas: `plt_cards.entrega_em`, `entrega_evento_id`, `parcial_em`, `parcial_evento_id`; `plt_eventos.ocorrido_em`, `registrado_em`, `evento_referencia_id`, `dados`).
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
 

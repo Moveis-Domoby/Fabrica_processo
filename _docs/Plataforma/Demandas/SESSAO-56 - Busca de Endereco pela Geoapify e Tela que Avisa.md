@@ -21,7 +21,7 @@ tags: [plataforma, demanda, rotas, mapa, geocodificacao, ordem-da-rota]
 
 ## O diagnóstico (lido no banco e no registro da função em 23/11, só leitura)
 
-- A Edge Function `geocodificar` consulta o **Nominatim** e o **Photon** (komoot). O Nominatim responde **HTTP 403** ao servidor desde 03/10 (D-112), e tudo vinha passando pelo Photon.
+- A Edge Function `geocodificar` consulta o **Nominatim** e o **Photon** (komoot). O Nominatim responde **HTTP 403** ao servidor desde 03/10 ([[D-112 - Busca de enderecos recusa do servico nao e nao existe|D-112]]), e tudo vinha passando pelo Photon.
 - **O Photon passou a responder HTTP 403 em 19/11 ~16:56 UTC** e segue recusando: o registro mostra recusas em 21/11 e em 23/11 às 08:32, 08:50, 09:07, 09:33, 09:46 e 10:30–10:32. O serviço CEP (awesomeapi) também já respondeu 429 em 19/11.
 - `plt_geocache`: o último ponto gravado por busca é de **19/11 11:15** (`aprox_cidade`). Antes dele, `photon` às 10:32. **Nada depois.** As linhas `osrm` são rotas, não endereços.
 - **Comportamento atual que esconde a falha:**
@@ -188,7 +188,7 @@ Descartados: **Google** (proíbe mostrar o resultado num mapa que não seja Goog
   - `plt_fn_parada_avulsa_remover`.
   - Recrie a partir da **versão viva**, conferindo o corpo.
 - **Decisões a registrar:**
-  - ↩️ revisa a D-109 e a D-111: a sugestão só propõe e a ordem mostrada é a que vale;
+  - ↩️ revisa a [[D-109 - A ordem das paradas a sugestao e a do mais perto mas qualquer|D-109]] e a [[D-111 - A Programacao em duas abas Programar e Ja programadas itens|D-111]]: a sugestão só propõe e a ordem mostrada é a que vale;
   - tirar não reordena;
   - pedido que ganha ponto não muda de lugar.
 - **Provisórias:** a inclusão pela inserção mais barata; a numeração sem buracos só na tela.
@@ -233,7 +233,7 @@ Descartados: **Google** (proíbe mostrar o resultado num mapa que não seja Goog
 
   **A função antes do site.** O site novo entende o `tentar_depois`, e a função nova continua compatível com o site antigo.
 - **Decisões a registrar:**
-  - buscador principal = Geoapify, Photon de reserva, Nominatim fora (↩️ revisa a D-112 e a parte do buscador da SESSAO-45);
+  - buscador principal = Geoapify, Photon de reserva, Nominatim fora (↩️ revisa a [[D-112 - Busca de enderecos recusa do servico nao e nao existe|D-112]] e a parte do buscador da SESSAO-45);
   - a tela avisa e oferece marcar/tentar de novo quando a busca não responde;
   - faixa de "busca fora".
 - **Provisórias a registrar:** os textos dos avisos; a pausa de ~250 ms; a faixa só na tela de Rotas; o aviso no sino (se entrar).
@@ -242,7 +242,7 @@ Descartados: **Google** (proíbe mostrar o resultado num mapa que não seja Goog
 
 ## Leitura da sessão
 
-A dieta da documentação (SESSAO-49) **não está na main** → rota de leitura do `CLAUDE.md` de hoje: regras, memória de aprendizado, decisões (D-01…D-17 e as citadas: D-39, D-45, D-108…D-112, D-128, D-174, D-193, D-196), lei de desempenho, modelo de sistema, o esquema pelas próprias migrations (a versão vigente de cada função) e o handoff da SESSAO-51. Pelo pedido da fila, as notas grandes (Decisões, Memória, Esquema, Lei, Mapa, Ordem das Sessões, Próximos Passos) **não são editadas** nesta sessão: o que é delas fica no diário [[SESSAO-56]] e na seção "Para entrar nas notas depois da dieta" do handoff.
+A dieta da documentação (SESSAO-49) **não está na main** → rota de leitura do `CLAUDE.md` de hoje: regras, memória de aprendizado, decisões ([[D-001 - Unidade do card hibrido|D-01]]…[[D-017 - Formato dos prompts do Claude Code minimo so o caminho|D-17]] e as citadas: [[D-039 - ROTAS programacao de caminhao com mapa e sugestao caminhoes|D-39]], [[D-045 - Logistica e ROTAS unidade pronta lancamento ID de producao|D-45]], [[D-108 - A rota da Programacao e calculada PELAS RUAS parte da fabrica|D-108]]…[[D-112 - Busca de enderecos recusa do servico nao e nao existe|D-112]], [[D-128 - Varias rotas por dia no mesmo caminhao cada rota com o seu|D-128]], [[D-174 - A rota no GOOGLE MAPS e no WAZE o link oficial sem custo|D-174]], [[D-193 - O ENDERECO DE ENTREGA DO PEDIDO vale na logistica inteiro sem|D-193]], [[D-196 - A PARADA AVULSA NA ROTA titulo endereco com pino observacao|D-196]]), lei de desempenho, modelo de sistema, o esquema pelas próprias migrations (a versão vigente de cada função) e o handoff da SESSAO-51. Pelo pedido da fila, as notas grandes (Decisões, Memória, Esquema, Lei, Mapa, Ordem das Sessões, Próximos Passos) **não são editadas** nesta sessão: o que é delas fica no diário [[SESSAO-56]] e na seção "Para entrar nas notas depois da dieta" do handoff.
 
 ## Tarefas no ClickUp
 

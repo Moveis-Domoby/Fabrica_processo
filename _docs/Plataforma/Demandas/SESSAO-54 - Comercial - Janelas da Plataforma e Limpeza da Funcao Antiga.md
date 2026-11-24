@@ -22,9 +22,9 @@ Nenhum requisito novo — é pagamento de dívida do módulo Comercial: **DT-D24
 
 ## Decisões que regem esta demanda
 
-- **D-27** (modelo de sistema: componente da casa, nada de código interno em texto de tela) e a seção `<Modal>` / `useNotificacao()` do [[PLT - Modelo de Sistema]].
-- **D-06** (mobile-first: botão de toque) e **D-36** (lei de layout).
-- **D-46** (a trava do disparo fica no código; nenhum caminho novo de envio).
+- **[[D-027 - Padroes de interface menu lateral modelo de sistema no cofre|D-27]]** (modelo de sistema: componente da casa, nada de código interno em texto de tela) e a seção `<Modal>` / `useNotificacao()` do [[PLT - Modelo de Sistema]].
+- **[[D-006 - Dispositivos tablet PC fixo por setor E celular pessoal|D-06]]** (mobile-first: botão de toque) e **[[D-036 - Lei de navegacao hierarquia pai filho pai nunca navega rota|D-36]]** (lei de layout).
+- **[[D-046 - Uniao das Plataformas o Painel de Recompra vira o modulo|D-46]]** (a trava do disparo fica no código; nenhum caminho novo de envio).
 - Regras 2 e 3 do `CLAUDE.md`: exclusão no banco **só com o OK do dono** — a migration fica em arquivo.
 - Lei de Desempenho e Escala (regra 18): porta tocada com plano medido; a tela nova tolera o banco de antes.
 
@@ -69,7 +69,7 @@ Nenhum requisito novo — é pagamento de dívida do módulo Comercial: **DT-D24
 - [[PLT - Modelo de Sistema]] — os componentes `<Modal>`, `<Botao>` e `useNotificacao()`;
 - [[PLT - Lei de Desempenho e Escala]] — §6 (paginação), §7.2/§7.4/§7.6 (índices, portas, migrações) e §12 (checklist);
 - [[SUPA - Comercial - Dominio de Dados]] e as migrations do Comercial (`20260915120000`, `20260915180000`, `20261016110000`) — a última versão de cada função sai delas;
-- as lições de vitrine da memória de aprendizado (A-117, A-200, A-227) para conferir tela logada sem login.
+- as lições de vitrine da memória de aprendizado ([[Memoria - Front Telas e React 2#A-117|A-117]], [[Memoria - Testes e Validacao ao Vivo#A-200|A-200]], [[Memoria - Front Telas e React 2#A-227|A-227]]) para conferir tela logada sem login.
 
 ## Tarefas no ClickUp (lista PRODUÇÃO do DPTO TI)
 

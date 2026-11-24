@@ -18,6 +18,8 @@ tags: [mapa, moc, area/tempos-paineis]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]]
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]]
 - **43** · [[SESSAO-43 - Tela Tempos de Producao Modo TV e Historico do Trello]] · [[handoff_2026_11_05_sessao43_tempos_producao_modo_tv|handoff]]
 - **42** · [[SESSAO-42 - Tempo Certo - Calendario Regras e Calculo Unico]] · [[handoff_2026_10_31_sessao42_tempo_certo|handoff]]
@@ -43,7 +45,7 @@ tags: [mapa, moc, area/tempos-paineis]
 - [[D-268 - A Visao do dia conta o que o QUADRO mostra a fila e a coluna|D-268]] · A Visão do dia conta o que o QUADRO mostra: a fila é a coluna da fila (com o card…
 - [[D-284 - Configurar painel em Tempos de producao uma configuracao|D-284]] · "Configurar painel" em Tempos de produção: uma configuração só, do admin, que vale para…
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (25)
+## Provisórias ⏳ — valem até o dono dizer o contrário (30)
 
 - [[D-165 - O que nao contar o tempo quer dizer com precisao|D-165]] · O que "não contar o tempo" quer dizer, com precisão
 - [[D-166 - O tempo do CARD nao muda com a pausa especial|D-166]] · O tempo do CARD não muda com a pausa especial
@@ -70,6 +72,11 @@ tags: [mapa, moc, area/tempos-paineis]
 - [[D-287 - Dupla com um desligado aparece como a letra ou o nome de quem|D-287]] · Dupla com um desligado aparece como a letra (ou o nome) de quem está ligado + "Outros"
 - [[D-288 - A linha do tempo padrao virou uma marca na linha do dia|D-288]] · A "linha do tempo padrão" virou uma marca na linha do dia da aba Dia
 - [[D-289 - Detalhes da configuracao do painel|D-289]] · Detalhes da configuração do painel
+- [[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]] · A Auditoria traduz a configuração do painel de tempos na hora de mostrar
+- [[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]] · A porta de abertura junta as leituras de sempre e não as reescreve
+- [[D-359 - O periodo dos paineis e resolvido no banco|D-359]] · O período dos painéis é resolvido no banco
+- [[D-360 - O guardado dos paineis vale 30 segundos pelo endereco|D-360]] · O guardado dos painéis vale 30 segundos pelo endereço
+- [[D-364 - As metas de Pessoas ganham guardado proprio|D-364]] · As metas de Pessoas ganham guardado próprio
 
 ## Revisadas por outra (4) — só para a história
 

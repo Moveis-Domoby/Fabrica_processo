@@ -17,7 +17,7 @@ tags: [plataforma, decisoes, produto]
 <!-- gerado:inicio -->
 ## As decisões, por área
 
-**296 decisões** · 148 vigentes · 103 provisórias ⏳ (valem até o dono dizer o contrário) · 45 revisadas por outra. **Próxima livre: D-340.** A área é a principal da decisão; o mapa de cada área (`Mapas/`) lista também as que a tocam de lado.
+**346 decisões** · 156 vigentes · 145 provisórias ⏳ (valem até o dono dizer o contrário) · 45 revisadas por outra. **Próxima livre: D-390.** A área é a principal da decisão; o mapa de cada área (`Mapas/`) lista também as que a tocam de lado.
 
 ### Kanban e Produção (34) — [[MOC - Kanban e Producao]]
 
@@ -110,7 +110,7 @@ tags: [plataforma, decisoes, produto]
 - [[D-186 - Lancar qualquer movel para producao a qualquer momento|D-186]] · LANÇAR QUALQUER MÓVEL PARA PRODUÇÃO, A QUALQUER MOMENTO — o mesmo ícone da fábrica em todo…
 - [[D-220 - O PCP e o Estoque falam das mesmas pecas com as mesmas|D-220]] · O PCP e o Estoque falam das mesmas peças com as mesmas palavras ⏳
 
-### Expedição (7) — [[MOC - Expedicao]]
+### Expedição (8) — [[MOC - Expedicao]]
 
 - [[D-133 - A Expedicao mostra so pedido vivo a previsao mais proxima|D-133]] · A Expedição mostra só pedido vivo, a previsão mais próxima primeiro
 - [[D-157 - A Expedicao absorve Pedidos em aguardo os filtros|D-157]] · A Expedição absorve "Pedidos em aguardo": os filtros em quadradinhos e o fim da tela do aguardo ⏳
@@ -119,8 +119,9 @@ tags: [plataforma, decisoes, produto]
 - [[D-273 - Quadradinho Saiu do PCP pelo Tiny nos filtros da Expedicao|D-273]] · Quadradinho "Saiu do PCP pelo Tiny" nos filtros da Expedição ⏳
 - [[D-274 - Com a ida ao Tiny desligada os botoes de voltar ao PCP ficam|D-274]] · Com a ida ao Tiny desligada, os botões de voltar ao PCP ficam apagados, com a explicação ⏳
 - [[D-275 - Detalhes do pedido adiantado no Tiny|D-275]] · Detalhes do pedido adiantado no Tiny ⏳
+- [[D-343 - Na devolucao a entrega com dia escolhido ou corrigido aparece|D-343]] · Na devolução a entrega com dia escolhido ou corrigido aparece só com o dia ⏳
 
-### Logística e ROTAS (43) — [[MOC - Logistica e ROTAS]]
+### Logística e ROTAS (70) — [[MOC - Logistica e ROTAS]]
 
 - [[D-093 - O endereco do cliente que o Tiny manda e o endereco|D-93]] · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS
 - [[D-108 - A rota da Programacao e calculada PELAS RUAS parte da fabrica|D-108]] · A rota da Programação é calculada PELAS RUAS, parte da fábrica e VOLTA para ela; distância e…
@@ -165,8 +166,35 @@ tags: [plataforma, decisoes, produto]
 - [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]] · Onde o pedido mostra "Entregue em parte (N de M)" e a parada da rota ⏳
 - [[D-329 - So a logistica o PCP e o admin escolhem Limpar da producao|D-329]] · Só a logística, o PCP e o admin escolhem "Limpar da produção" ⏳
 - [[D-334 - Os pedidos entregues em parte antes desta sessao|D-334]] · Os pedidos entregues em parte antes desta sessão ⏳
+- [[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]] · A lista de pedidos ganha uma porta nova no banco com a hora do registro ⏳
+- [[D-341 - A hora da entrega so aparece quando e a hora de verdade|D-341]] · A hora da entrega só aparece quando é a hora de verdade ⏳
+- [[D-342 - O texto da linha da entrega na lista de pedidos dia escolhido|D-342]] · O texto da linha da entrega na lista de pedidos dia escolhido e registrado em ⏳
+- [[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]] · Depois que o resto é entregue o selo Entregue em parte some das telas da logística ⏳
+- [[D-347 - K ainda em producao so com deixar em producao e o pedido|D-347]] · K ainda em produção só com deixar em produção e o pedido aberto ⏳
+- [[D-348 - O Calendario da Programacao fica sem o selo Entregue em parte|D-348]] · O Calendário da Programação fica sem o selo Entregue em parte ⏳
+- [[D-349 - Em Entregues hoje o aviso em parte vira o selo com os numeros|D-349]] · Em Entregues hoje o aviso em parte vira o selo com os números ⏳
+- [[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]] · ROTAS → Entregas fica como estava sem o selo novo ⏳
+- [[D-368 - A busca de endereco pela Geoapify Photon de reserva Nominatim|D-368]] · A busca de endereço pela Geoapify Photon de reserva Nominatim fora
+- [[D-369 - Quando a busca de endereco nao responde a tela avisa e oferece|D-369]] · Quando a busca de endereço não responde a tela avisa e oferece marcar ou tentar de novo
+- [[D-370 - A faixa busca de endereco fora mostra desde quando|D-370]] · A faixa busca de endereço fora mostra desde quando
+- [[D-371 - A ordem mostrada e a ordem da rota a sugestao so propoe|D-371]] · A ordem mostrada é a ordem da rota — a sugestão só propõe
+- [[D-372 - Tirar reprogramar ou remover uma parada nao reordena o resto|D-372]] · Tirar reprogramar ou remover uma parada não reordena o resto da rota
+- [[D-373 - O pedido que ganha ponto no mapa nao muda de lugar na rota|D-373]] · O pedido que ganha ponto no mapa não muda de lugar na rota
+- [[D-374 - Quem entra numa rota que ja existe vai para o lugar mais perto|D-374]] · Quem entra numa rota que já existe vai para o lugar mais perto
+- [[D-375 - Aviso no sino quando a busca de endereco passa 1 hora fora|D-375]] · Aviso no sino quando a busca de endereço passa 1 hora fora
+- [[D-376 - Incluir um pedido na montagem poe ele onde o caminho aumenta|D-376]] · Incluir um pedido na montagem põe ele onde o caminho aumenta menos ⏳
+- [[D-377 - A numeracao sem buracos da rota e so na tela|D-377]] · A numeração sem buracos da rota é só na tela ⏳
+- [[D-378 - A faixa da busca fora so em Rotas e para quem tem endereco|D-378]] · A faixa da busca fora só em Rotas e para quem tem endereço novo a procurar ⏳
+- [[D-379 - Os textos dos avisos da busca e da montagem|D-379]] · Os textos dos avisos da busca e da montagem ⏳
+- [[D-380 - A pausa entre consultas a Geoapify e as consultas por endereco|D-380]] · A pausa entre consultas à Geoapify e as consultas por endereço ⏳
+- [[D-381 - O nao achei fica registrado como procurado pela Geoapify|D-381]] · O não achei fica registrado como procurado pela Geoapify ⏳
+- [[D-382 - Tirar com a lista incompleta na tela deixa o resto depois na|D-382]] · Tirar com a lista incompleta na tela deixa o resto depois na ordem que tinha ⏳
+- [[D-383 - A montagem com varios pedidos numa rota que ja existe entra no|D-383]] · A montagem com vários pedidos numa rota que já existe entra no fim ⏳
+- [[D-384 - A parada avulsa nova segue a regra do lugar mais perto|D-384]] · A parada avulsa nova segue a regra do lugar mais perto ⏳
+- [[D-385 - Na montagem um pedido so conta como programar sozinho|D-385]] · Na montagem um pedido só conta como programar sozinho ⏳
+- [[D-386 - Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes|D-386]] · Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes ⏳
 
-### Tiny e n8n (18) — [[MOC - Tiny e n8n]]
+### Tiny e n8n (19) — [[MOC - Tiny e n8n]]
 
 - [[D-031 - Entrada de pedidos a plataforma le o proprio banco sem tocar|D-31]] · Entrada de pedidos: a plataforma lê o próprio banco, sem tocar o n8n
 - [[D-050 - Integracao Tiny banco edicao no Tiny edita aqui apagar|D-50]] · Integração Tiny → banco: edição no Tiny edita aqui, apagar no Tiny NÃO apaga aqui (só…
@@ -186,6 +214,7 @@ tags: [plataforma, decisoes, produto]
 - [[D-311 - O pedido excluido no Tiny sai do PCP de vez e segue o caminho|D-311]] · O pedido excluído no Tiny sai do PCP de vez e segue o caminho do cancelado
 - [[D-315 - A observacao do item do Tiny na capa do card|D-315]] · A observação do item do Tiny na capa do card
 - [[D-320 - Salvar na plataforma e no Tiny fica desligado por enquanto|D-320]] · "Salvar na plataforma e no Tiny" fica desligado por enquanto, com o porquê ⏳
+- [[D-365 - API e integracoes rele as tres listas numa chamada so|D-365]] · API e integrações relê as três listas numa chamada só ⏳
 
 ### Tablet e TV (5) — [[MOC - Tablet e TV]]
 
@@ -195,7 +224,7 @@ tags: [plataforma, decisoes, produto]
 - [[D-230 - A permissao Modo TV|D-230]] · A permissão Modo TV ⏳
 - [[D-231 - O modo TV|D-231]] · O Modo TV ⏳
 
-### Tempos e Painéis (35) — [[MOC - Tempos e Paineis]]
+### Tempos e Painéis (39) — [[MOC - Tempos e Paineis]]
 
 - [[D-002 - Timer dois contadores por etapa dash compara e soma|D-2]] · Timer: dois contadores por etapa, dash compara e soma
 - [[D-029 - Controle de tempo pelo admin horario de funcionamento pausas|D-29]] · Controle de tempo pelo admin: horário de funcionamento, pausas manuais e correção retroativa
@@ -232,11 +261,22 @@ tags: [plataforma, decisoes, produto]
 - [[D-287 - Dupla com um desligado aparece como a letra ou o nome de quem|D-287]] · Dupla com um desligado aparece como a letra (ou o nome) de quem está ligado + "Outros" ⏳
 - [[D-288 - A linha do tempo padrao virou uma marca na linha do dia|D-288]] · A "linha do tempo padrão" virou uma marca na linha do dia da aba Dia ⏳
 - [[D-289 - Detalhes da configuracao do painel|D-289]] · Detalhes da configuração do painel ⏳
+- [[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]] · A porta de abertura junta as leituras de sempre e não as reescreve ⏳
+- [[D-359 - O periodo dos paineis e resolvido no banco|D-359]] · O período dos painéis é resolvido no banco ⏳
+- [[D-360 - O guardado dos paineis vale 30 segundos pelo endereco|D-360]] · O guardado dos painéis vale 30 segundos pelo endereço ⏳
+- [[D-364 - As metas de Pessoas ganham guardado proprio|D-364]] · As metas de Pessoas ganham guardado próprio ⏳
 
-### Comercial (2) — [[MOC - Comercial]]
+### Comercial (9) — [[MOC - Comercial]]
 
 - [[D-046 - Uniao das Plataformas o Painel de Recompra vira o modulo|D-46]] · União das Plataformas: o Painel de Recompra vira o módulo Comercial
 - [[D-139 - SESSAO-32 o Comercial abre no mes atual e o periodo inteiro|D-139]] · SESSAO-32: o Comercial abre no mês atual e o período inteiro vem pronto do banco
+- [[D-351 - A janela de confirmacao do Comercial pergunta no titulo e|D-351]] · A janela de confirmação do Comercial pergunta no título e avisa no corpo ⏳
+- [[D-352 - Os avisos do Comercial sao os da casa e somem em 5 segundos|D-352]] · Os avisos do Comercial são os da casa e somem em 5 segundos ⏳
+- [[D-353 - O texto de remover membros diz o que acontece com quem sai da|D-353]] · O texto de remover membros diz o que acontece com quem sai da lista ⏳
+- [[D-354 - Os erros de parar o disparo e encerrar ganham titulo proprio|D-354]] · Os erros de parar o disparo e encerrar ganham título próprio ⏳
+- [[D-355 - Durante o gesto a janela fica aberta com o botao girando|D-355]] · Durante o gesto a janela fica aberta com o botão girando ⏳
+- [[D-356 - Trocar a ordem da tabela de clientes volta a pagina 1|D-356]] · Trocar a ordem da tabela de clientes volta à página 1 ⏳
+- [[D-357 - A ordem da tabela de clientes viaja dentro dos filtros|D-357]] · A ordem da tabela de clientes viaja dentro dos filtros ⏳
 
 ### Acesso e Usuários (11) — [[MOC - Acesso e Usuarios]]
 
@@ -252,13 +292,14 @@ tags: [plataforma, decisoes, produto]
 - [[D-192 - A REVISAO DE SEGURANCA a segunda camada de permissoes a trava|D-192]] · A REVISÃO DE SEGURANÇA: a segunda camada de permissões, a trava geral do PIN de setor e os…
 - [[D-200 - O PEDIDO DE TROCA DE SENHA PARA E-MAIL SEM CADASTRO AVISA|D-200]] · O PEDIDO DE TROCA DE SENHA PARA E-MAIL SEM CADASTRO AVISA OS ADMINISTRADORES; a tela de quem…
 
-### Auditoria e Logs (3) — [[MOC - Auditoria e Logs]]
+### Auditoria e Logs (4) — [[MOC - Auditoria e Logs]]
 
 - [[D-040 - Auditoria total toda atividade de usuario gera log persistido|D-40]] · Auditoria total: toda atividade de usuário gera log persistido
 - [[D-095 - Auditoria no Painel admin o rastro de tudo quem quando onde|D-95]] · Auditoria no Painel admin: o rastro de tudo — quem, quando, onde, o quê e porquê
 - [[D-305 - A trilha diz por que a pagina abriu|D-305]] · A trilha diz por que a página abriu ⏳
+- [[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]] · A Auditoria traduz a configuração do painel de tempos na hora de mostrar ⏳
 
-### Publicação e Infra (9) — [[MOC - Publicacao e Infra]]
+### Publicação e Infra (11) — [[MOC - Publicacao e Infra]]
 
 - [[D-008 - Banco o mesmo Supabase da fabrica|D-8]] · Banco: o mesmo Supabase da fábrica
 - [[D-015 - Stack escolhida pelo Claude Code e imutavel depois|D-15]] · Stack escolhida pelo Claude Code, e imutável depois
@@ -269,8 +310,10 @@ tags: [plataforma, decisoes, produto]
 - [[D-304 - O momento seguro de recarregar|D-304]] · O momento seguro de recarregar ⏳
 - [[D-306 - A plataforma abre como aplicativo um icone uma janela|D-306]] · A plataforma abre como aplicativo: um ícone, uma janela só
 - [[D-335 - Os roteiros do cofre nao publicam o site|D-335]] · Os roteiros do cofre não publicam o site ⏳
+- [[D-366 - Telas numa leitura sobem banco antes do site no mesmo gesto|D-366]] · Telas numa leitura sobem banco antes do site no mesmo gesto ⏳
+- [[D-367 - Ficam de fora de proposito indice novo paginacao dos cadastros|D-367]] · Ficam de fora de propósito índice novo paginação dos cadastros e a porta do login ⏳
 
-### Meu Painel, Chat e Automações (20) — [[MOC - Meu Painel Chat e Automacoes]]
+### Meu Painel, Chat e Automações (26) — [[MOC - Meu Painel Chat e Automacoes]]
 
 - [[D-034 - Delegacao 3 modos por setor sorteio entre logados tarefa|D-34]] · Delegação: 3 modos por setor, sorteio entre logados, tarefa avulsa sem timer obrigatório
 - [[D-051 - Meu Painel 2 0 tres filas subtarefas tarefa privada e|D-51]] · Meu Painel 2.0: três filas, subtarefas, tarefa privada e o painel pessoal
@@ -292,14 +335,21 @@ tags: [plataforma, decisoes, produto]
 - [[D-264 - A pendencia de teste e uma tarefa do Sistema da pessoa aviso|D-264]] · A pendência de teste é uma tarefa do Sistema da pessoa; aviso e pendência levam à ficha pelo… ⏳
 - [[D-265 - A bolinha das sugestoes acompanha todo usuario em toda tela|D-265]] · A bolinha das sugestões acompanha todo usuário, em toda tela, menos o modo tablet ⏳
 - [[D-266 - Ordem e numeros do quadro de sugestoes|D-266]] · Ordem e números do quadro de sugestões ⏳
+- [[D-361 - O trabalho da pessoa e uma leitura so e traz so o que a tela|D-361]] · O trabalho da pessoa é uma leitura só e traz só o que a tela aberta mostra ⏳
+- [[D-362 - O contador de subtarefas vem contado do banco|D-362]] · O contador de subtarefas vem contado do banco ⏳
+- [[D-363 - O numero do pedido dos cards vem na mesma porta dos afazeres|D-363]] · O número do pedido dos cards vem na mesma porta dos afazeres ⏳
+- [[D-387 - O aviso Busca de endereco fora do ar para admin e logistica|D-387]] · O aviso Busca de endereço fora do ar para admin e logística ⏳
+- [[D-388 - A busca que volta nao vira aviso no sino|D-388]] · A busca que volta não vira aviso no sino ⏳
+- [[D-389 - A chamada que so leu do guardado tambem avisa a busca fora|D-389]] · A chamada que só leu do guardado também avisa a busca fora ⏳
 
-### Interface e Navegação (5) — [[MOC - Interface e Navegacao]]
+### Interface e Navegação (6) — [[MOC - Interface e Navegacao]]
 
 - [[D-027 - Padroes de interface menu lateral modelo de sistema no cofre|D-27]] · Padrões de interface: menu lateral, modelo de sistema no cofre, microinterações, sem códigos…
 - [[D-036 - Lei de navegacao hierarquia pai filho pai nunca navega rota|D-36]] · Lei de navegação: hierarquia pai→filho, pai nunca navega, rota sempre /pai/filho
 - [[D-100 - O Painel admin vira Configuracoes nasce o Painel super admin|D-100]] · O "Painel admin" vira Configurações; nasce o Painel super admin (só o dono): Automações e…
 - [[D-161 - O grupo Pedidos do menu mora logo abaixo de Rotas|D-161]] · O grupo "Pedidos" do menu mora logo abaixo de "Rotas"
 - [[D-188 - A BUSCA GERAL a lupa ao lado do sino acha os cards de TODOS|D-188]] · A BUSCA GERAL: a lupa ao lado do sino acha os cards de TODOS os setores e diz onde cada um está
+- [[D-344 - A busca geral diz Entregue em pelo dia real da entrega|D-344]] · A busca geral diz Entregue em pelo dia real da entrega ⏳
 
 ### Processo de Trabalho (11) — [[MOC - Processo de Trabalho]]
 

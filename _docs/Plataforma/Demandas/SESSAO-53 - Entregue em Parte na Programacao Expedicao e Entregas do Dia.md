@@ -23,9 +23,9 @@ Os da logística/rotas e da entrega parcial já cobertos pelas SESSÕES 41 e 51 
 
 ## Decisões que regem esta demanda
 
-- **D-328, item 1** — onde o pedido mostra "Entregue em parte (N de M)": as três telas ficaram como dívida. Esta demanda paga.
-- **D-325 / D-327** — o pedido entregue em parte com "deixar em produção" segue vivo (volta a ser programado quando o resto fica pronto); a decisão pode ser revogada.
-- **D-324** — o selo do endereço alterado em "Já programadas" fica na janela, não no cartão: **não mexer** (depende de uma escolha do dono).
+- **[[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]], item 1** — onde o pedido mostra "Entregue em parte (N de M)": as três telas ficaram como dívida. Esta demanda paga.
+- **[[D-325 - Na entrega parcial o que ainda esta na fabrica CONTINUA|D-325]] / [[D-327 - Revogar a decisao da entrega parcial quantas vezes for preciso|D-327]]** — o pedido entregue em parte com "deixar em produção" segue vivo (volta a ser programado quando o resto fica pronto); a decisão pode ser revogada.
+- **[[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]]** — o selo do endereço alterado em "Já programadas" fica na janela, não no cartão: **não mexer** (depende de uma escolha do dono).
 - Lei de requisição e de desempenho (regras 17 e 18): cada tela continua com 1 requisição.
 
 ## Comportamento esperado
@@ -35,7 +35,7 @@ Os da logística/rotas e da entrega parcial já cobertos pelas SESSÕES 41 e 51 
 
 ## Fora do escopo
 
-- O selo do endereço alterado em "Já programadas" (D-324).
+- O selo do endereço alterado em "Já programadas" ([[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]]).
 - A busca geral, a lista de pedidos, a devolução, a Auditoria, o Comercial, os dashboards e as configurações (são de outras mesas desta leva).
 - As notas grandes do cofre (Decisões de Produto, Memória de Aprendizado, Esquema do Banco, Lei de Desempenho, Mapa do Projeto, Ordem das Sessões e Próximos Passos): o que for para elas fica no diário [[SESSAO-53]] e na seção "Para entrar nas notas depois da dieta" do handoff.
 - Push, merge, aplicar migration, publicar, n8n, credencial.
@@ -59,9 +59,9 @@ Os da logística/rotas e da entrega parcial já cobertos pelas SESSÕES 41 e 51 
 
 - `CLAUDE.md` da raiz (regras de conduta) e o do cofre;
 - esta demanda (duas vezes);
-- D-324, D-325, D-326, D-327 e D-328 em [[PLT - Decisoes de Produto]];
+- [[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]], [[D-325 - Na entrega parcial o que ainda esta na fabrica CONTINUA|D-325]], [[D-326 - Os detalhes da peca que sai e volta pela entrega parcial|D-326]], [[D-327 - Revogar a decisao da entrega parcial quantas vezes for preciso|D-327]] e [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]] em [[PLT - Decisoes de Produto]];
 - o handoff e o diário da SESSAO-51 ([[handoff_2026_11_17_sessao51_entrega_parcial_mover_pcp]], [[SESSAO-51]]);
-- as lições sobre mudar o retorno de uma porta (E-17, E-170, E-178, A-197) e a chave que só nasce quando há (E-237) em [[PLT - Memoria de Aprendizado]];
+- as lições sobre mudar o retorno de uma porta ([[Memoria - Banco e SQL 1#E-17|E-17]], [[Memoria - Migrations Aplicador e Ensaio 1#E-170|E-170]], [[Memoria - Migrations Aplicador e Ensaio 1#E-178|E-178]], [[Memoria - Banco e SQL 2#A-197|A-197]]) e a chave que só nasce quando há ([[Memoria - Banco e SQL 1#E-237|E-237]]) em [[PLT - Memoria de Aprendizado]];
 - a [[PLT - Lei de Desempenho e Escala]] (uma requisição por tela; a conta só para a página);
 - o banco pelas próprias migrations: a versão vigente das portas da Programação, da Expedição e das Entregas do dia e a base da entrega parcial (`20261116010000`, `20261116020000`).
 

@@ -16,6 +16,7 @@ tags: [mapa, moc, area/painel-chat-automacoes]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]]
 - **46** · [[SESSAO-46 - Tech - Sugestao de Melhoria]] · [[handoff_2026_11_05_sessao46_tech_sugestoes|handoff]]
 - **31** · [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] · [[handoff_2026_10_14_sessao31_kanban_completo|handoff]]
 - **27** · [[SESSAO-27 - Automacoes em Canvas]] · [[handoff_2026_10_02_sessao27_automacoes_canvas|handoff]]
@@ -26,7 +27,7 @@ tags: [mapa, moc, area/painel-chat-automacoes]
 - **12** · [[SESSAO-12 - Tarefas e Delegacao]] · [[handoff_2026_08_28_sessao12_tarefas|handoff]]
 
 <!-- gerado:inicio -->
-## Decisões vigentes (18)
+## Decisões vigentes (19)
 
 - [[D-034 - Delegacao 3 modos por setor sorteio entre logados tarefa|D-34]] · Delegação: 3 modos por setor, sorteio entre logados, tarefa avulsa sem timer obrigatório
 - [[D-051 - Meu Painel 2 0 tres filas subtarefas tarefa privada e|D-51]] · Meu Painel 2.0: três filas, subtarefas, tarefa privada e o painel pessoal
@@ -46,12 +47,19 @@ tags: [mapa, moc, area/painel-chat-automacoes]
 - [[D-261 - So o dono super admin move os cards do quadro de sugestoes|D-261]] · Só o dono (super admin) move os cards do quadro de sugestões
 - [[D-262 - Recusar exige o motivo que vai no aviso para quem sugeriu|D-262]] · Recusar exige o motivo, que vai no aviso para quem sugeriu
 - [[D-263 - Finalizada avisa quem sugeriu ele testa e APROVA ou DEVOLVE|D-263]] · Finalizada avisa quem sugeriu; ele testa e APROVA ou DEVOLVE com uma sugestão nova, com…
+- [[D-375 - Aviso no sino quando a busca de endereco passa 1 hora fora|D-375]] · Aviso no sino quando a busca de endereço passa 1 hora fora
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (3)
+## Provisórias ⏳ — valem até o dono dizer o contrário (9)
 
 - [[D-264 - A pendencia de teste e uma tarefa do Sistema da pessoa aviso|D-264]] · A pendência de teste é uma tarefa do Sistema da pessoa; aviso e pendência levam à ficha…
 - [[D-265 - A bolinha das sugestoes acompanha todo usuario em toda tela|D-265]] · A bolinha das sugestões acompanha todo usuário, em toda tela, menos o modo tablet
 - [[D-266 - Ordem e numeros do quadro de sugestoes|D-266]] · Ordem e números do quadro de sugestões
+- [[D-361 - O trabalho da pessoa e uma leitura so e traz so o que a tela|D-361]] · O trabalho da pessoa é uma leitura só e traz só o que a tela aberta mostra
+- [[D-362 - O contador de subtarefas vem contado do banco|D-362]] · O contador de subtarefas vem contado do banco
+- [[D-363 - O numero do pedido dos cards vem na mesma porta dos afazeres|D-363]] · O número do pedido dos cards vem na mesma porta dos afazeres
+- [[D-387 - O aviso Busca de endereco fora do ar para admin e logistica|D-387]] · O aviso Busca de endereço fora do ar para admin e logística
+- [[D-388 - A busca que volta nao vira aviso no sino|D-388]] · A busca que volta não vira aviso no sino
+- [[D-389 - A chamada que so leu do guardado tambem avisa a busca fora|D-389]] · A chamada que só leu do guardado também avisa a busca fora
 
 ## Revisadas por outra (4) — só para a história
 

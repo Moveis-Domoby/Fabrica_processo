@@ -18,6 +18,8 @@ tags: [mapa, moc, area/interface]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]]
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
 - **40** · [[SESSAO-40 - Lancar Qualquer Produto Filtro por Pedido e Busca Geral]] · [[handoff_2026_10_23_sessao40_lancar_filtro_busca|handoff]]
 - **13** · [[SESSAO-13 - Navegacao Perfil e Identidade]] · [[handoff_2026_08_28_sessao13_navegacao|handoff]]
 - **07** · [[SESSAO-07 - Tela do Setor Tablet]] · [[handoff_2026_08_28_sessao07_tela_setor|handoff]]
@@ -36,9 +38,14 @@ tags: [mapa, moc, area/interface]
 - [[D-284 - Configurar painel em Tempos de producao uma configuracao|D-284]] · "Configurar painel" em Tempos de produção: uma configuração só, do admin, que vale para…
 - [[D-306 - A plataforma abre como aplicativo um icone uma janela|D-306]] · A plataforma abre como aplicativo: um ícone, uma janela só
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (1)
+## Provisórias ⏳ — valem até o dono dizer o contrário (6)
 
 - [[D-289 - Detalhes da configuracao do painel|D-289]] · Detalhes da configuração do painel
+- [[D-344 - A busca geral diz Entregue em pelo dia real da entrega|D-344]] · A busca geral diz Entregue em pelo dia real da entrega
+- [[D-351 - A janela de confirmacao do Comercial pergunta no titulo e|D-351]] · A janela de confirmação do Comercial pergunta no título e avisa no corpo
+- [[D-352 - Os avisos do Comercial sao os da casa e somem em 5 segundos|D-352]] · Os avisos do Comercial são os da casa e somem em 5 segundos
+- [[D-355 - Durante o gesto a janela fica aberta com o botao girando|D-355]] · Durante o gesto a janela fica aberta com o botão girando
+- [[D-365 - API e integracoes rele as tres listas numa chamada so|D-365]] · API e integrações relê as três listas numa chamada só
 
 ## Revisadas por outra (1) — só para a história
 

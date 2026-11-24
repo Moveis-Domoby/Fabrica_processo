@@ -18,6 +18,7 @@ tags: [mapa, moc, area/comercial]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **54** · [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|handoff]]
 - **32** · [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] · [[handoff_2026_10_16_sessao32_desempenho_escala|handoff]]
 - **21** · [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] · [[handoff_2026_09_22_sessao21_cutover|handoff]]
 - **20** · [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] · [[handoff_2026_09_16_sessao20_modulo_comercial|handoff]]
@@ -28,6 +29,16 @@ tags: [mapa, moc, area/comercial]
 
 - [[D-046 - Uniao das Plataformas o Painel de Recompra vira o modulo|D-46]] · União das Plataformas: o Painel de Recompra vira o módulo Comercial
 - [[D-139 - SESSAO-32 o Comercial abre no mes atual e o periodo inteiro|D-139]] · SESSAO-32: o Comercial abre no mês atual e o período inteiro vem pronto do banco
+
+## Provisórias ⏳ — valem até o dono dizer o contrário (7)
+
+- [[D-351 - A janela de confirmacao do Comercial pergunta no titulo e|D-351]] · A janela de confirmação do Comercial pergunta no título e avisa no corpo
+- [[D-352 - Os avisos do Comercial sao os da casa e somem em 5 segundos|D-352]] · Os avisos do Comercial são os da casa e somem em 5 segundos
+- [[D-353 - O texto de remover membros diz o que acontece com quem sai da|D-353]] · O texto de remover membros diz o que acontece com quem sai da lista
+- [[D-354 - Os erros de parar o disparo e encerrar ganham titulo proprio|D-354]] · Os erros de parar o disparo e encerrar ganham título próprio
+- [[D-355 - Durante o gesto a janela fica aberta com o botao girando|D-355]] · Durante o gesto a janela fica aberta com o botão girando
+- [[D-356 - Trocar a ordem da tabela de clientes volta a pagina 1|D-356]] · Trocar a ordem da tabela de clientes volta à página 1
+- [[D-357 - A ordem da tabela de clientes viaja dentro dos filtros|D-357]] · A ordem da tabela de clientes viaja dentro dos filtros
 
 ## Onde mais ler (só o que a demanda tocar)
 

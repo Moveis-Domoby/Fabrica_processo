@@ -36,12 +36,15 @@ tags: [mapa, moc, area/publicacao-infra]
 - [[D-138 - SESSAO-32 o OK dos indices e os insumos separados dos moveis|D-138]] · SESSAO-32: o OK dos índices e os insumos separados dos móveis no estoque
 - [[D-306 - A plataforma abre como aplicativo um icone uma janela|D-306]] · A plataforma abre como aplicativo: um ícone, uma janela só
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (4)
+## Provisórias ⏳ — valem até o dono dizer o contrário (7)
 
 - [[D-303 - A versao e o codigo e documentacao nao publica a mudanca|D-303]] · A versão é o código e documentação não publica — ⏳ a mudança na Vercel só entra com o OK…
 - [[D-304 - O momento seguro de recarregar|D-304]] · O momento seguro de recarregar
 - [[D-305 - A trilha diz por que a pagina abriu|D-305]] · A trilha diz por que a página abriu
 - [[D-335 - Os roteiros do cofre nao publicam o site|D-335]] · Os roteiros do cofre não publicam o site
+- [[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]] · A porta de abertura junta as leituras de sempre e não as reescreve
+- [[D-366 - Telas numa leitura sobem banco antes do site no mesmo gesto|D-366]] · Telas numa leitura sobem banco antes do site no mesmo gesto
+- [[D-367 - Ficam de fora de proposito indice novo paginacao dos cadastros|D-367]] · Ficam de fora de propósito índice novo paginação dos cadastros e a porta do login
 
 ## Revisadas por outra (1) — só para a história
 

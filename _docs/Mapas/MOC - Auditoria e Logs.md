@@ -16,6 +16,7 @@ tags: [mapa, moc, area/auditoria-logs]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
 - **48** · [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] · [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas|handoff 1]] · [[handoff_2026_11_11_sessao48_cancelar_fabricacao_recargas|handoff 2]]
 - **29** · [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] · [[handoff_2026_10_01_sessao29_reconciliacao_tiny|handoff]]
 - **27** · [[SESSAO-27 - Automacoes em Canvas]] · [[handoff_2026_10_02_sessao27_automacoes_canvas|handoff]]
@@ -28,10 +29,11 @@ tags: [mapa, moc, area/auditoria-logs]
 - [[D-095 - Auditoria no Painel admin o rastro de tudo quem quando onde|D-95]] · Auditoria no Painel admin: o rastro de tudo — quem, quando, onde, o quê e porquê
 - [[D-107 - Excluir automacao some de vez o que ela fez FICA na Auditoria|D-107]] · Excluir automação: some de vez; o que ela fez FICA na Auditoria, marcado "automação…
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (2)
+## Provisórias ⏳ — valem até o dono dizer o contrário (3)
 
 - [[D-305 - A trilha diz por que a pagina abriu|D-305]] · A trilha diz por que a página abriu
 - [[D-329 - So a logistica o PCP e o admin escolhem Limpar da producao|D-329]] · Só a logística, o PCP e o admin escolhem "Limpar da produção"
+- [[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]] · A Auditoria traduz a configuração do painel de tempos na hora de mostrar
 
 ## Onde mais ler (só o que a demanda tocar)
 

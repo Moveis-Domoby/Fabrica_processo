@@ -16,6 +16,8 @@ tags: [mapa, moc, area/expedicao]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]]
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
 - **48** · [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] · [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas|handoff 1]] · [[handoff_2026_11_11_sessao48_cancelar_fabricacao_recargas|handoff 2]]
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]]
 - **45** · [[SESSAO-45 - Rotas no Mapa Certo Liberar Peca na Expedicao e PCP Honesto]] · [[handoff_2026_11_04_sessao45_rotas_expedicao_pcp|handoff]]
@@ -30,7 +32,7 @@ tags: [mapa, moc, area/expedicao]
 - [[D-133 - A Expedicao mostra so pedido vivo a previsao mais proxima|D-133]] · A Expedição mostra só pedido vivo, a previsão mais próxima primeiro
 - [[D-271 - O pedido que o Tiny levou adiante e ainda tem produto|D-271]] · O pedido que o Tiny levou adiante e ainda tem produto por liberar aparece na Expedição…
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (6)
+## Provisórias ⏳ — valem até o dono dizer o contrário (8)
 
 - [[D-157 - A Expedicao absorve Pedidos em aguardo os filtros|D-157]] · A Expedição absorve "Pedidos em aguardo": os filtros em quadradinhos e o fim da tela do…
 - [[D-219 - A Expedicao LIBERA a peca pronta para outro pedido|D-219]] · A Expedição LIBERA a peça pronta para outro pedido
@@ -38,6 +40,8 @@ tags: [mapa, moc, area/expedicao]
 - [[D-273 - Quadradinho Saiu do PCP pelo Tiny nos filtros da Expedicao|D-273]] · Quadradinho "Saiu do PCP pelo Tiny" nos filtros da Expedição
 - [[D-274 - Com a ida ao Tiny desligada os botoes de voltar ao PCP ficam|D-274]] · Com a ida ao Tiny desligada, os botões de voltar ao PCP ficam apagados, com a explicação
 - [[D-275 - Detalhes do pedido adiantado no Tiny|D-275]] · Detalhes do pedido adiantado no Tiny
+- [[D-343 - Na devolucao a entrega com dia escolhido ou corrigido aparece|D-343]] · Na devolução a entrega com dia escolhido ou corrigido aparece só com o dia
+- [[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]] · Depois que o resto é entregue o selo Entregue em parte some das telas da logística
 
 ## Revisadas por outra (4) — só para a história
 

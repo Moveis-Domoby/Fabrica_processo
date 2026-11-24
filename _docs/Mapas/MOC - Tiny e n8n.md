@@ -56,7 +56,7 @@ tags: [mapa, moc, area/tiny-n8n]
 - [[D-311 - O pedido excluido no Tiny sai do PCP de vez e segue o caminho|D-311]] · O pedido excluído no Tiny sai do PCP de vez e segue o caminho do cancelado
 - [[D-315 - A observacao do item do Tiny na capa do card|D-315]] · A observação do item do Tiny na capa do card
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (8)
+## Provisórias ⏳ — valem até o dono dizer o contrário (10)
 
 - [[D-212 - Itens que o Tiny muda depois da liberacao|D-212]] · Itens que o Tiny muda depois da liberação
 - [[D-214 - A volta atras no Tiny|D-214]] · A volta atrás no Tiny
@@ -66,6 +66,8 @@ tags: [mapa, moc, area/tiny-n8n]
 - [[D-273 - Quadradinho Saiu do PCP pelo Tiny nos filtros da Expedicao|D-273]] · Quadradinho "Saiu do PCP pelo Tiny" nos filtros da Expedição
 - [[D-274 - Com a ida ao Tiny desligada os botoes de voltar ao PCP ficam|D-274]] · Com a ida ao Tiny desligada, os botões de voltar ao PCP ficam apagados, com a explicação
 - [[D-320 - Salvar na plataforma e no Tiny fica desligado por enquanto|D-320]] · "Salvar na plataforma e no Tiny" fica desligado por enquanto, com o porquê
+- [[D-365 - API e integracoes rele as tres listas numa chamada so|D-365]] · API e integrações relê as três listas numa chamada só
+- [[D-380 - A pausa entre consultas a Geoapify e as consultas por endereco|D-380]] · A pausa entre consultas à Geoapify e as consultas por endereço
 
 ## Revisadas por outra (3) — só para a história
 
