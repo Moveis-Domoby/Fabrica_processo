@@ -9,6 +9,7 @@ import {
 import {
   CalendarDays,
   MapPin,
+  MapPinOff,
   MapPinPlus,
   NotebookPen,
   Pencil,
@@ -46,6 +47,8 @@ import { ListaArrastavel } from './ListaArrastavel'
 import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { MapaProgramacao } from './MapaProgramacao'
 import { pedidosParaVer } from './pedidosParaVer'
+import { hojeNaFabrica } from './diaDaEntrega'
+import { pinosAConferir, textoPinosAConferir } from './pinoAConferir'
 import type { RotaNoMapa } from './MapaProgramacao'
 import { ModalParadaAvulsa } from './ModalParadaAvulsa'
 import { ModalPontoNoMapa } from './ModalPontoNoMapa'
@@ -320,7 +323,12 @@ export function AbaJaProgramadas({
     enabled: ativa && !entregues && janela !== null,
   })
   const paradas = consultaParadas.data ?? SEM_PARADAS
-  const grupos = useMemo(() => {
+  // SESSAO-57 (frente 3): os pedidos de hoje em diante com o pino a conferir — conta na
+  // tela, com o que a página já trouxe (nenhuma leitura a mais); o toque mostra só as rotas deles
+  const [soPinoAConferir, setSoPinoAConferir] = useState(false)
+  const pinos = useMemo(() => pinosAConferir(linhas, hojeNaFabrica()), [linhas])
+  const filtrarPinos = soPinoAConferir && pinos.aConferir.size > 0
+  const gruposTodos = useMemo(() => {
     if (paradas.length === 0) return gruposDosPedidos
     const porChave = new Map<string, ItemAvulsa[]>()
     for (const p of paradas) {
@@ -332,6 +340,15 @@ export function AbaJaProgramadas({
       return avulsas ? { ...g, avulsas } : g
     })
   }, [gruposDosPedidos, paradas])
+
+  // a rota inteira (o mapa e a ordem não se quebram), só as que têm pino a conferir
+  const grupos = useMemo(
+    () =>
+      filtrarPinos
+        ? gruposTodos.filter((g) => g.pedidos.some((p) => pinos.aConferir.has(p.card_id)))
+        : gruposTodos,
+    [filtrarPinos, gruposTodos, pinos],
+  )
 
   const dias = useMemo(() => {
     const porDia = new Map<string, Grupo[]>()
@@ -716,7 +733,12 @@ export function AbaJaProgramadas({
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <CartaoPedido
               pedido={p}
-              aoMarcarNoMapa={entregues || !p.geo_chave ? undefined : () => setPontoDe(p)}
+              pinoNoCentro={pinos.noCentro.has(p.card_id)}
+              aoMarcarNoMapa={
+                entregues || !p.geo_chave
+                  ? undefined
+                  : () => setPontoDe({ ...p, pino_no_centro: pinos.noCentro.has(p.card_id) })
+              }
               aoEditarEndereco={
                 entregues
                   ? undefined
@@ -848,6 +870,26 @@ export function AbaJaProgramadas({
               </Botao>
             )}
           </div>
+
+          {/* SESSAO-57 (frente 3): junto do aviso de "ajustar o pino" dos cartões */}
+          {!entregues && pinos.aConferir.size > 0 && (
+            <button
+              type="button"
+              aria-pressed={filtrarPinos}
+              onClick={() => setSoPinoAConferir((v) => !v)}
+              className={cn(
+                'flex min-h-toque-md items-center gap-2 self-start rounded-dm border px-3 py-2 text-left text-sm font-medium text-atencao-texto',
+                filtrarPinos
+                  ? 'border-atencao-texto bg-atencao-fundo'
+                  : 'border-atencao-borda bg-atencao-fundo hover:brightness-95',
+              )}
+            >
+              <MapPinOff aria-hidden className="size-4 shrink-0" />
+              {filtrarPinos
+                ? `Mostrando só as rotas com ${textoPinosAConferir(pinos.aConferir.size)} — toque para ver todas`
+                : textoPinosAConferir(pinos.aConferir.size)}
+            </button>
+          )}
 
           {consulta.isPending && <p className="text-sm text-texto-fraco">Carregando…</p>}
           {consultaParadas.isError && (

@@ -7,6 +7,9 @@ import { SeloEnderecoAlterado } from './SeloEnderecoAlterado'
 import { SeloEstado } from './SeloEstado'
 import { AVISO_BUSCA_SEM_RESPOSTA, tentarDeNovo, useEstadoDaBusca } from './estadoDaBusca'
 
+/** SESSAO-57: o aviso do pino marcado à mão no centro da cidade (o texto da tela). */
+const AVISO_PINO_NO_CENTRO = 'O pino foi salvo no centro da cidade, não na casa — confira o ponto'
+
 export interface DadosCartaoPedido {
   numero: number
   cliente_nome: string
@@ -46,9 +49,15 @@ export const CartaoPedido = memo(function CartaoPedido({
   selo,
   aoMarcarNoMapa,
   aoEditarEndereco,
+  pinoNoCentro = false,
 }: {
   pedido: DadosCartaoPedido
   selo?: ReactNode
+  /**
+   * SESSAO-57 (frente 3 — o 13840): o ponto foi marcado à mão no MESMO ponto
+   * aproximado da cidade (ninguém arrastou) — o cartão avisa para conferir.
+   */
+  pinoNoCentro?: boolean
   /**
    * SESSAO-45 (pedido do dono): abre a janela de marcar/acertar o ponto do
    * endereço no mapa — só a logística (quem vê a Programação) recebe.
@@ -163,10 +172,31 @@ export const CartaoPedido = memo(function CartaoPedido({
           )}
         </span>
       )}
+      {pedido.geo_resolvido === true && !aproximado && pinoNoCentro && (
+        <span
+          role="status"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-dm border border-atencao-borda bg-atencao-fundo px-2 py-1 text-xs font-medium text-atencao-texto"
+        >
+          <span className="inline-flex items-start gap-1">
+            <MapPinOff aria-hidden className="mt-px size-3.5 shrink-0" />
+            {AVISO_PINO_NO_CENTRO}
+          </span>
+          {marcar && (
+            <button
+              type="button"
+              onClick={marcar}
+              className="inline-flex min-h-toque-md items-center gap-1 rounded-dm border border-atencao-borda bg-superficie px-2.5 font-semibold text-atencao-texto hover:brightness-95"
+            >
+              <MapPin aria-hidden className="size-3.5" />
+              Ajustar o pino
+            </button>
+          )}
+        </span>
+      )}
       {/* SESSAO-50 (bloco C): "Editar endereço" mora ao lado do "Acertar o ponto no mapa" */}
-      {((pedido.geo_resolvido === true && !aproximado && marcar) || editar) && (
+      {((pedido.geo_resolvido === true && !aproximado && !pinoNoCentro && marcar) || editar) && (
         <span className="flex flex-wrap items-center gap-x-4">
-          {pedido.geo_resolvido === true && !aproximado && marcar && (
+          {pedido.geo_resolvido === true && !aproximado && !pinoNoCentro && marcar && (
             <button
               type="button"
               onClick={marcar}
