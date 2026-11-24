@@ -64,7 +64,7 @@ beforeEach(() => {
   vi.mocked(api.marcarPontoNoMapa).mockClear()
 })
 
-describe('parada avulsa · a busca digitada que só acha o bairro', () => {
+describe('parada avulsa · a busca digitada que só acha o bairro', { timeout: 20_000 }, () => {
   async function procurar() {
     vi.mocked(api.acharPontoDoEndereco).mockResolvedValue(LUGAR_13961)
     const aoSalvar = vi.fn()
@@ -139,7 +139,7 @@ describe('parada avulsa · a busca digitada que só acha o bairro', () => {
   })
 })
 
-describe('"Ajustar o pino" · o pino não arrastado (o 13840)', () => {
+describe('"Ajustar o pino" · o pino não arrastado (o 13840)', { timeout: 20_000 }, () => {
   const CENTRO_NATAL = { latitude: -5.805398, longitude: -35.2080905 }
   const pedido = (extra: Partial<PedidoParaMarcar> = {}): PedidoParaMarcar => ({
     numero: 13840,

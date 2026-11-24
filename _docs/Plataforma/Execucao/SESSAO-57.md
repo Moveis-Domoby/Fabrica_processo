@@ -65,3 +65,7 @@ Site local (porta 5187) contra o banco de produção, usuário de teste. A funç
 - L2 — Cache de busca gravado com regra errada contamina as consultas seguintes; quando a regra muda, o cache daquela classe de chave precisa ser ignorado ou versionado.
 - L3 — Conta feita "na tela" depende do que a tela tem: reconhecer "o centro da cidade" pelos aproximados da própria lista falha quando não sobra nenhum aproximado nela.
 - L4 — Para ver na tela uma função ainda não publicada, simular a resposta dela dentro do navegador de teste (interceptar a chamada) — sem tocar no banco.
+
+## Bateria final
+
+- Build limpo. Bateria completa: 803 de 804 — a única falha foi por tempo esgotado numa janela do quadro que esta sessão não tocou (a do card no PCP); rodada isolada junto com os testes de tela novos, passa (13 de 13). Instabilidade da máquina carregada, a mesma da 56.
