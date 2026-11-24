@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { MapPinOff, MapPinPlus, Save, Search } from 'lucide-react'
 import { Botao, Campo, Modal } from '@/componentes/ui'
 import { acharPontoDoEndereco } from './api'
+import { AtribuicaoBusca } from './atribuicaoMapa'
 import type { DadosParadaAvulsa } from './api'
 import { FABRICA } from './rotaRuas'
 
@@ -171,6 +172,7 @@ export function ModalParadaAvulsa({
               Achar no mapa
             </Botao>
           </div>
+          <AtribuicaoBusca />
 
           {busca === 'nao_achou' && (
             <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
